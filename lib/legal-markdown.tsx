@@ -31,7 +31,7 @@ function extractTitle(markdown: string): { title: string; body: string } {
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   const token =
-    /(\*\*[^*]+?\*\*|https?:\/\/[^\s<]+|\b[\w.+-]+@gobd-doku-erstellen\.de\b)/g;
+    /(\*\*[^*]+?\*\*|\*[^*]+?\*|https?:\/\/[^\s<]+|\b[\w.+-]+@gobd-doku-erstellen\.de\b)/g;
   let last = 0;
   let part = 0;
   let match: RegExpExecArray | null;
@@ -53,6 +53,8 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
           <strong key={key}>{inner}</strong>
         ),
       );
+    } else if (raw.startsWith("*") && raw.endsWith("*")) {
+      nodes.push(<em key={key}>{raw.slice(1, -1)}</em>);
     } else if (raw.includes("@")) {
       nodes.push(
         <a key={key} href={`mailto:${raw}`}>
@@ -91,6 +93,10 @@ function isTableBlock(block: string): boolean {
 
 function isListBlock(block: string): boolean {
   return block.split("\n").every((line) => /^-\s+/.test(line));
+}
+
+function isOrderedListBlock(block: string): boolean {
+  return block.split("\n").every((line) => /^\d+\.\s+/.test(line));
 }
 
 function renderTable(block: string, key: string): ReactNode {
@@ -133,15 +139,19 @@ function renderTable(block: string, key: string): ReactNode {
   );
 }
 
-function renderList(lines: string[], key: string): ReactNode {
+function renderList(lines: string[], key: string, ordered = false): ReactNode {
+  const Tag = ordered ? "ol" : "ul";
   return (
-    <ul key={key} className="prose-list">
+    <Tag key={key} className="prose-list">
       {lines.map((line, i) => (
         <li key={`${key}-${i}`}>
-          {renderInline(line.replace(/^-\s+/, ""), `${key}-${i}`)}
+          {renderInline(
+            line.replace(ordered ? /^\d+\.\s+/ : /^-\s+/, ""),
+            `${key}-${i}`,
+          )}
         </li>
       ))}
-    </ul>
+    </Tag>
   );
 }
 
@@ -186,11 +196,20 @@ function renderBlocks(body: string): ReactNode[] {
     const key = `b-${index}`;
     const trimmed = block.trim();
     if (!trimmed) return [];
+    if (trimmed.startsWith("### ")) {
+      return [<h3 key={key}>{trimmed.slice(4).trim()}</h3>];
+    }
     if (trimmed.startsWith("## ")) {
       return [<h2 key={key}>{trimmed.slice(3).trim()}</h2>];
     }
+    if (/^[-*]{3,}$/.test(trimmed)) {
+      return [<hr key={key} />];
+    }
     if (isTableBlock(trimmed)) {
       return [renderTable(trimmed, key)];
+    }
+    if (isOrderedListBlock(trimmed)) {
+      return [renderList(trimmed.split("\n"), key, true)];
     }
     if (isListBlock(trimmed)) {
       return [renderList(trimmed.split("\n"), key)];
