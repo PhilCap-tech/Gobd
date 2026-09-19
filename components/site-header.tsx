@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 type SiteHeaderProps = {
@@ -16,7 +17,13 @@ export function SiteHeader({
   return (
     <header className="site-header">
       <Link className="logo" href="/">
-        GoBD <em>Verfahrensdoku</em>
+        <Image
+          src="/brand/logo-lockup.png"
+          alt="GoBD Verfahrensdoku"
+          width={106}
+          height={40}
+          preload
+        />
       </Link>
       <nav className="nav">
         {backHref ? (

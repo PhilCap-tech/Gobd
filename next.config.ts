@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/blog": ["./content/blog/**/*"],
     "/blog/[slug]": ["./content/blog/**/*"],
+    "/api/intake": ["./content/delivery-templates/**/*", "./public/brand/**/*"],
+    "/api/delivery": ["./content/delivery-templates/**/*", "./public/brand/**/*"],
+    "/api/docs/[id]/download": [
+      "./content/delivery-templates/**/*",
+      "./public/brand/**/*",
+    ],
   },
   async headers() {
     return [

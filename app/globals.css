@@ -62,16 +62,16 @@ nav,
 }
 
 .logo {
-  font-family: "Segoe UI", system-ui, sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
   text-decoration: none;
 }
 
-.logo em {
-  font-style: normal;
-  color: var(--accent);
+.logo img {
+  height: 40px;
+  width: auto;
+  display: block;
 }
 
 .nav {

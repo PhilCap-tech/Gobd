@@ -132,7 +132,9 @@ Branche-Schlüssel: `handwerk` | `handel` | `praxis` | `gastronomie` | `dienstle
 
 ## PDF, Blob, E-Mail, Magic Link
 
-Nach dem Intake entsteht **PDF v1** (pdfkit) lokal aus `content/delivery-templates/bundle.json` (GoBD Delivery Templates v1): Cover → Kapitel 01–06 → Disclaimer-Fußzeile. Platzhalter `{{identity.*}}` / `{{answers.*}}` mit `| join ", "` und `| or "nicht angegeben"`. Offene Punkte aus `openPointsRules`. Keine erfundenen GoBD-Rechtstexte über das Bundle hinaus.
+Nach dem Intake entsteht die **Verfahrensdokumentation PDF** (pdfkit, Delivery Templates v2.0.0) lokal aus `content/delivery-templates/` (Markdown-Kapitel + `bundle.json`): Titelseite mit Logo-Lockup → Kapitel 1–9 mit ~145 nummerierten Absätzen `[1][2]…` → offizieller Disclaimer auf dem Deckblatt, Kurzzeile in der Fußzeile, Seitenzahlen. Platzhalter `{{identity.*}}` / `{{answers.*}}` / `{{version}}` / `{{generatedAt}}` / `{{disclaimer}}` mit `| join ", "` und `| or "nicht angegeben"` (Rollen teils `| or "offen"`). Offene Punkte aus `open-points-rules.json` als `{{openPointsTable}}` in Kapitel 9. Standardrahmen nur aus den Templates; keine erfundenen Zertifikate, Pfade oder Personennamen.
+
+Lokal erzeugen: `npx tsx scripts/render-sample-delivery-pdf.ts` (Intake: `content/delivery-templates/sample-intake.json`). Bundle neu bauen: `node content/delivery-templates/build-bundle.mjs`.
 
 Readiness-PDF (4–6 Seiten): `content/readiness/{branche}.md` mit `{{Branche}}` / `{{Firma}}` / `{{Datum}}`. Blob-Pfad `gobd/readiness-{lead_id}/v1.pdf`. Download: `/api/readiness/{lead_id}/download?token=…` (oder Session-Cookie zur Lead-E-Mail). Keine Verfahrensdokumentation, kein Konto-Eintrag.
 
@@ -185,7 +187,7 @@ Ablauf:
 
 Zugriff: Magic-Link-Cookie `gobd_session` (E-Mail) **oder** `session_id` der ursprünglichen Stripe-/Stub-Checkout-Session. Fremde E-Mails sehen das Intake nicht.
 
-PDF-Text kommt weiter nur aus `content/delivery-templates/`. Keine zusätzlichen GoBD-Rechtstexte.
+PDF-Text kommt weiter nur aus `content/delivery-templates/`. Standardrahmen (S) und Intake-Platzhalter (I); keine Zusicherung der Prüfungsfestigkeit.
 
 ## Was ist Stub
 

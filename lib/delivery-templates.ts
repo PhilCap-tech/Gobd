@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import bundle from "@/content/delivery-templates/bundle.json";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
@@ -24,6 +26,8 @@ export type RenderedDocument = {
   chapters: RenderedChapter[];
   openPoints: DeliveryOpenPoint[];
   generatedAt: string;
+  generatedAtDisplay: string;
+  versionLabel: string;
 };
 
 type TemplateContext = {
@@ -31,12 +35,22 @@ type TemplateContext = {
   answers: IntakeAnswers;
   disclaimer: string;
   generatedAt: string;
+  generatedAtDisplay: string;
   documentId: string;
   bundleVersion: string;
+  version: string;
   openPointsTable: string;
+  roles: Record<string, string>;
 };
 
 type Filter = { name: "join"; sep: string } | { name: "or"; fallback: string };
+
+type BundleChapter = {
+  id: string;
+  title?: string;
+  file?: string;
+  markdown: string;
+};
 
 const EMPTY_VALUES = new Set(
   (bundle.openPointsRules.emptyValues ?? [])
@@ -55,8 +69,28 @@ function isEmptyValue(value: unknown): boolean {
   return EMPTY_VALUES.has(text);
 }
 
-function lookup(root: TemplateContext, path: string): unknown {
-  const parts = path.split(".").filter(Boolean);
+function firstFilled(...values: string[]): string {
+  for (const value of values) {
+    if (!isEmptyValue(value)) return value.trim();
+  }
+  return "nicht angegeben";
+}
+
+export function roleAssignments(answers: IntakeAnswers): Record<string, string> {
+  return {
+    posteingang: firstFilled(answers.buchhaltung, answers.gf),
+    identifikation: firstFilled(answers.buchhaltung, answers.gf),
+    pruefungEingang: firstFilled(answers.buchhaltung, answers.steuerberater),
+    digitalisierung: firstFilled(answers.it, answers.buchhaltung),
+    ablage: firstFilled(answers.buchhaltung, answers.it),
+    aufbereitung: firstFilled(answers.buchhaltung, answers.steuerberater),
+    vernichtungFreigabe: firstFilled(answers.gf),
+    itBackup: firstFilled(answers.it),
+  };
+}
+
+function lookup(root: TemplateContext, pathExpr: string): unknown {
+  const parts = pathExpr.split(".").filter(Boolean);
   let current: unknown = root;
   for (const part of parts) {
     if (current == null || typeof current !== "object") return undefined;
@@ -88,20 +122,20 @@ function splitFilters(expr: string): string[] {
 }
 
 function parsePlaceholder(expr: string): { path: string; filters: Filter[] } {
-  const [path = "", ...rest] = splitFilters(expr.trim());
+  const [pathExpr = "", ...rest] = splitFilters(expr.trim());
   const filters: Filter[] = [];
   for (const token of rest) {
     const joinMatch = token.match(/^join\s+["'](.*)["']$/);
     if (joinMatch) {
-      filters.push({ name: "join", sep: joinMatch[1] });
+      filters.push({ name: "join", sep: joinMatch[1] ?? ", " });
       continue;
     }
     const orMatch = token.match(/^or\s+["'](.*)["']$/);
     if (orMatch) {
-      filters.push({ name: "or", fallback: orMatch[1] });
+      filters.push({ name: "or", fallback: orMatch[1] ?? "" });
     }
   }
-  return { path, filters };
+  return { path: pathExpr, filters };
 }
 
 function applyFilters(value: unknown, filters: Filter[]): string {
@@ -132,13 +166,15 @@ function applyFilters(value: unknown, filters: Filter[]): string {
 
 export function renderTemplate(template: string, context: TemplateContext): string {
   return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, expr: string) => {
-    const { path, filters } = parsePlaceholder(expr);
-    if (path === "openPointsTable") return context.openPointsTable;
-    if (path === "generatedAt") return context.generatedAt;
-    if (path === "disclaimer") return context.disclaimer;
-    if (path === "documentId") return context.documentId;
-    if (path === "bundleVersion") return context.bundleVersion;
-    return applyFilters(lookup(context, path), filters);
+    const { path: pathExpr, filters } = parsePlaceholder(expr);
+    if (pathExpr === "openPointsTable") return context.openPointsTable;
+    if (pathExpr === "generatedAt") return context.generatedAt;
+    if (pathExpr === "generatedAtDisplay") return context.generatedAtDisplay;
+    if (pathExpr === "disclaimer") return context.disclaimer;
+    if (pathExpr === "documentId") return context.documentId;
+    if (pathExpr === "bundleVersion") return context.bundleVersion;
+    if (pathExpr === "version") return context.version;
+    return applyFilters(lookup(context, pathExpr), filters);
   });
 }
 
@@ -152,8 +188,21 @@ export function evaluateOpenPoints(input: {
   } as unknown as TemplateContext;
   const points: DeliveryOpenPoint[] = [];
   for (const rule of bundle.openPointsRules.rules) {
-    if (rule.when && rule.when !== "empty") continue;
-    const value = lookup(root, rule.field);
+    const when = "when" in rule ? String(rule.when) : "empty";
+    if (when === "always") {
+      points.push({
+        id: rule.id,
+        title: rule.text,
+        severity: rule.severity as OpenPointSeverity,
+        status: "open",
+        chapter: "chapter" in rule ? String(rule.chapter) : undefined,
+        field: "field" in rule ? String(rule.field) : undefined,
+      });
+      continue;
+    }
+    if (when !== "empty") continue;
+    if (!("field" in rule) || !rule.field) continue;
+    const value = lookup(root, String(rule.field));
     if (!isEmptyValue(value)) continue;
     points.push({
       id: rule.id,
@@ -161,7 +210,7 @@ export function evaluateOpenPoints(input: {
       severity: rule.severity as OpenPointSeverity,
       status: "open",
       chapter: "chapter" in rule ? String(rule.chapter) : undefined,
-      field: rule.field,
+      field: String(rule.field),
     });
   }
   return points;
@@ -199,33 +248,94 @@ export function formatBerlinIso(date = new Date()): string {
   return formatted.replace(" ", "T");
 }
 
+export function formatBerlinDateTime(date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+  return `${formatted} Uhr`;
+}
+
+export function formatBerlinDate(date = new Date()): string {
+  return new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export function formatVersionLabel(version?: number): string {
+  const n = version && version > 0 ? version : 1;
+  return `${n}.0`;
+}
+
+function templatesDir(): string {
+  return path.join(process.cwd(), "content", "delivery-templates");
+}
+
+function readTemplateFile(relPath: string | undefined, fallback: string): string {
+  if (!relPath) return fallback;
+  try {
+    return readFileSync(path.join(templatesDir(), relPath), "utf8");
+  } catch {
+    return fallback;
+  }
+}
+
+function chapterMarkdown(chapter: BundleChapter): string {
+  return readTemplateFile(chapter.file, chapter.markdown);
+}
+
 export function renderDeliveryDocument(input: {
   identity: CheckoutIdentity;
   answers: IntakeAnswers;
   documentId: string;
+  version?: number;
 }): RenderedDocument {
-  const generatedAt = formatBerlinIso();
+  const generatedAt = formatBerlinDateTime();
+  const generatedAtDisplay = formatBerlinDate();
+  const versionLabel = formatVersionLabel(input.version);
   const openPoints = evaluateOpenPoints(input);
   const base: TemplateContext = {
     identity: input.identity,
     answers: input.answers,
     disclaimer: bundle.disclaimer,
     generatedAt,
+    generatedAtDisplay,
     documentId: input.documentId,
     bundleVersion: bundle.version,
+    version: versionLabel,
     openPointsTable: openPointsTable(openPoints),
+    roles: roleAssignments(input.answers),
   };
+
+  const coverSource = readTemplateFile(
+    "coverFile" in bundle ? String(bundle.coverFile) : "chapters/00-cover.md",
+    bundle.coverMarkdown,
+  );
 
   return {
     disclaimer: bundle.disclaimer,
-    cover: renderTemplate(bundle.coverMarkdown, base).trim(),
-    chapters: bundle.chapters.map((chapter) => ({
-      id: chapter.id,
-      title: headingTitle(chapter.markdown, chapter.id),
-      body: renderTemplate(chapter.markdown, base).trim(),
-    })),
+    cover: renderTemplate(coverSource, base).trim(),
+    chapters: (bundle.chapters as BundleChapter[]).map((chapter) => {
+      const source = chapterMarkdown(chapter);
+      const body = renderTemplate(source, base).trim();
+      return {
+        id: chapter.id,
+        title: headingTitle(body, chapter.title || chapter.id),
+        body,
+      };
+    }),
     openPoints,
     generatedAt,
+    generatedAtDisplay,
+    versionLabel,
   };
 }
 
