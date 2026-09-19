@@ -7,7 +7,8 @@ export function SiteFooter() {
       <br />
       Kontakt:{" "}
       <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
-      <nav className="footer-links" aria-label="Rechtliches">
+      <nav className="footer-links" aria-label="Weitere Seiten">
+        <a href="/blog">Blog</a>
         {LEGAL_LINKS.map((link) => (
           <a key={link.href} href={link.href}>
             {link.label}

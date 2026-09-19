@@ -9,6 +9,10 @@ const noStoreHeaders = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfkit"],
+  outputFileTracingIncludes: {
+    "/blog": ["./content/blog/**/*"],
+    "/blog/[slug]": ["./content/blog/**/*"],
+  },
   async headers() {
     return [
       { source: "/portal", headers: noStoreHeaders },
