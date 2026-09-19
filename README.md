@@ -79,7 +79,7 @@ lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach 
 
 ## PDF, Blob, E-Mail, Magic Link
 
-Nach dem Intake entsteht **PDF v1** (pdfkit): Cover mit Firma/E-Mail, Disclaimer, Kapitelgerüst mit Intake-Fakten, Offene-Punkte-Liste, Platzhalterzeilen. **Keine erfundenen GoBD-Rechtstexte.**
+Nach dem Intake entsteht **PDF v1** (pdfkit) aus `content/delivery-templates/bundle.json`: Cover, Kapitel 01–06 (allgemein, systeme, belegwesen, aufbewahrung, verantwortlichkeiten, offene-punkte), Disclaimer-Footer. Platzhalter aus Intake/Identity, keine erfundenen GoBD-Rechtstexte.
 
 ### Vercel Blob
 

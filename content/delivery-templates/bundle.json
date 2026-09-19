@@ -1,0 +1,75 @@
+{
+  "version": "1",
+  "disclaimer": "Keine Steuerberatung / kein Steuerberatungsersatz. Dieses Dokument ist ein Entwurf aus den Intake-Angaben zur Abstimmung mit deinem Steuerberater — keine individuelle Steuer- oder Rechtsberatung.",
+  "coverMarkdown": "# Verfahrensdokumentation\n\n**Entwurf · Version {{bundleVersion}}**\n\nUnternehmen: {{identity.company}}\nE-Mail: {{identity.email}}\nDokument-ID: {{documentId}}\nErstellt: {{generatedAt}}\n\n{{disclaimer}}\n",
+  "chapters": [
+    {
+      "id": "allgemein",
+      "title": "Allgemeines / Unternehmen",
+      "bodyMarkdown": "Angaben aus dem Intake:\n\n- Branche: {{answers.branchen}}\n- Rechtsform: {{answers.rechtsform}}\n- Mitarbeitende: {{answers.mitarbeitende}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+    },
+    {
+      "id": "systeme",
+      "title": "Systeme / Software",
+      "bodyMarkdown": "Angaben aus dem Intake:\n\n- FiBu: {{answers.fibu}}\n- Weitere Systeme: {{answers.weitereSysteme}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+    },
+    {
+      "id": "belegwesen",
+      "title": "Belegwesen",
+      "bodyMarkdown": "Angaben aus dem Intake:\n\n- Eingangsbelege: {{answers.eingangsbelege}}\n- Ausgangsrechnungen: {{answers.ausgangsrechnungen}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+    },
+    {
+      "id": "aufbewahrung",
+      "title": "Aufbewahrung / IT / Zugriff",
+      "bodyMarkdown": "Angaben aus dem Intake:\n\n- Archiv: {{answers.archiv}}\n- Hosting: {{answers.hosting}}\n- Backup: {{answers.backup}}\n- Zugriff: {{answers.zugriff}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+    },
+    {
+      "id": "verantwortlichkeiten",
+      "title": "Verantwortlichkeiten",
+      "bodyMarkdown": "Angaben aus dem Intake:\n\n- Geschäftsführung / Inhaber: {{answers.gf}}\n- Buchhaltung: {{answers.buchhaltung}}\n- IT / Systeme: {{answers.it}}\n- Steuerberater: {{answers.steuerberater}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+    },
+    {
+      "id": "offene-punkte",
+      "title": "Offene Punkte",
+      "bodyMarkdown": "{{openPointsTable}}\n"
+    }
+  ],
+  "openPointsRules": [
+    {
+      "id": "steuerberater-abstimmung",
+      "title": "Entwurf mit Steuerberater abstimmen",
+      "severity": "high",
+      "always": true
+    },
+    {
+      "id": "missing-archiv",
+      "field": "archiv",
+      "title": "Angabe ergänzen: Archiv",
+      "severity": "medium"
+    },
+    {
+      "id": "missing-zugriff",
+      "field": "zugriff",
+      "title": "Angabe ergänzen: Zugriff",
+      "severity": "medium"
+    },
+    {
+      "id": "missing-it",
+      "field": "it",
+      "title": "Angabe ergänzen: IT / Systeme",
+      "severity": "low"
+    },
+    {
+      "id": "missing-steuerberater",
+      "field": "steuerberater",
+      "title": "Angabe ergänzen: Steuerberater",
+      "severity": "low"
+    },
+    {
+      "id": "missing-backup",
+      "field": "backup",
+      "title": "Angabe ergänzen: Backup",
+      "severity": "medium"
+    }
+  ]
+}
