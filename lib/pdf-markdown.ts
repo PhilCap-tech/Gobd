@@ -36,7 +36,7 @@ function writeInline(
   width: number,
   options?: { x?: number; y?: number; size?: number },
 ) {
-  const plain = unwrapLinks(text);
+  const plain = unwrapLinks(text).replace(/`([^`]+)`/g, "$1");
   const size = options?.size ?? 10;
   if (options?.x != null) doc.x = options.x;
   if (options?.y != null) doc.y = options.y;
@@ -77,23 +77,46 @@ function columnWidths(rows: string[][], width: number): number[] {
   return weights.map((weight) => (width * weight) / total);
 }
 
+function cellPlain(cell: string): string {
+  return unwrapLinks(cell)
+    .replaceAll("**", "")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+}
+
+function cellIsBold(cell: string): boolean {
+  return /\*\*[^*]+\*\*/.test(cell);
+}
+
 function writeTable(doc: PDFKit.PDFDocument, rows: string[][], width: number) {
   if (rows.length === 0) return;
+  let start = 0;
+  while (start < rows.length && rows[start]?.every((cell) => cellPlain(cell).length === 0)) {
+    start += 1;
+  }
+  const visible = rows.slice(start);
+  if (visible.length === 0) return;
+  const headerIsReal = start === 0;
   const left = doc.page.margins.left;
-  const cols = columnWidths(rows, width);
+  const cols = columnWidths(
+    visible.map((row) => row.map(cellPlain)),
+    width,
+  );
   const pad = 5;
 
-  rows.forEach((cells, rowIndex) => {
-    const isHeader = rowIndex === 0;
-    doc.font(isHeader ? "Helvetica-Bold" : "Helvetica").fontSize(8.5);
+  visible.forEach((cells, rowIndex) => {
+    const useHeaderFill = headerIsReal && rowIndex === 0;
+    doc.font(useHeaderFill ? "Helvetica-Bold" : "Helvetica").fontSize(8.5);
     let rowHeight = 16;
     cells.forEach((cell, index) => {
-      const h = doc.heightOfString(cell || " ", { width: Math.max((cols[index] ?? width) - pad * 2, 20) });
+      const h = doc.heightOfString(cellPlain(cell) || " ", {
+        width: Math.max((cols[index] ?? width) - pad * 2, 20),
+      });
       rowHeight = Math.max(rowHeight, h + pad * 2);
     });
     ensureSpace(doc, rowHeight + 2);
     const y = doc.y;
-    if (isHeader) {
+    if (useHeaderFill) {
       doc.save().rect(left, y, width, rowHeight).fill(BRAND_HEADER_BG).restore();
     }
     doc.save().strokeColor(BRAND_RULE).lineWidth(0.45);
@@ -108,11 +131,14 @@ function writeTable(doc: PDFKit.PDFDocument, rows: string[][], width: number) {
     x = left;
     cells.forEach((cell, index) => {
       const colWidth = cols[index] ?? width;
+      const bold = useHeaderFill || cellIsBold(cell);
       doc
-        .font(isHeader ? "Helvetica-Bold" : "Helvetica")
+        .font(bold ? "Helvetica-Bold" : "Helvetica")
         .fontSize(8.5)
         .fillColor(BRAND_INK)
-        .text(cell || "", x + pad, y + pad, { width: Math.max(colWidth - pad * 2, 16) });
+        .text(cellPlain(cell), x + pad, y + pad, {
+          width: Math.max(colWidth - pad * 2, 16),
+        });
       x += colWidth;
     });
     doc.x = left;
