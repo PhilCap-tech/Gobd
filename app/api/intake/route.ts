@@ -10,7 +10,11 @@ import {
 } from "@/lib/documents";
 import { getAppUrl } from "@/lib/env";
 import { sendDeliveryMail } from "@/lib/ops";
-import { appendRecord, listDocumentFamily } from "@/lib/store";
+import {
+  appendRecord,
+  findLatestDocumentByStripeSessionId,
+  listDocumentFamily,
+} from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import {
   identityFromSheetRow,
@@ -93,6 +97,28 @@ async function resolveIdentity(body: {
       identity,
       version: nextVersionNumber(family),
       parentDocumentId: documentFamilyId(source),
+      status: identity.stub
+        ? "intake_resubmitted_stub"
+        : "intake_resubmitted",
+    };
+  }
+
+  const existing = body.sessionId
+    ? await findLatestDocumentByStripeSessionId(body.sessionId)
+    : null;
+  if (
+    existing &&
+    canAccessDocument(existing, {
+      sessionEmail,
+      sessionId: body.sessionId,
+    })
+  ) {
+    const family = await listDocumentFamily(existing.documentId);
+    const identity = identityFromSheetRow(existing);
+    return {
+      identity,
+      version: nextVersionNumber(family),
+      parentDocumentId: documentFamilyId(existing),
       status: identity.stub
         ? "intake_resubmitted_stub"
         : "intake_resubmitted",

@@ -9,7 +9,12 @@ import {
   nextVersionNumber,
 } from "@/lib/documents";
 import { isStripeConfigured } from "@/lib/env";
-import { listDocumentFamily } from "@/lib/store";
+import { firstQueryValue } from "@/lib/query";
+import {
+  findDocumentById,
+  findLatestDocumentByStripeSessionId,
+  listDocumentFamily,
+} from "@/lib/store";
 import {
   resolveCheckoutSession,
   type CheckoutResolveError,
@@ -94,15 +99,6 @@ function EditGate({ loggedIn }: { loggedIn: boolean }) {
   );
 }
 
-function firstQueryValue(
-  value: string | string[] | undefined,
-): string | undefined {
-  if (Array.isArray(value)) {
-    return value.find((item) => item && item.trim()) || undefined;
-  }
-  return value;
-}
-
 export default async function IntakePage({
   searchParams,
 }: {
@@ -120,30 +116,48 @@ export default async function IntakePage({
   const documentId = firstQueryValue(params.document_id);
   const sessionEmail = await getSessionEmail();
 
-  if (documentId) {
-    const family = await listDocumentFamily(documentId);
+  let sourceRow = documentId ? await findDocumentById(documentId) : null;
+  if (!sourceRow && sessionId) {
+    sourceRow = await findLatestDocumentByStripeSessionId(sessionId);
+  }
+
+  if (sourceRow) {
+    const resolvedRow = sourceRow;
+    const family = await listDocumentFamily(resolvedRow.documentId);
     const source =
-      family.find((row) => row.documentId === documentId) ?? family.at(-1);
+      family.find((row) => row.documentId === resolvedRow.documentId) ??
+      family.at(-1) ??
+      resolvedRow;
     const latest = groupDocumentFamilies(family)[0]?.latest ?? source;
-    const allowed =
-      source &&
-      canAccessDocument(source, { sessionEmail, sessionId });
+    const allowed = canAccessDocument(source, { sessionEmail, sessionId });
 
     return (
       <>
         <SiteHeader backHref="/" backLabel="← Zur Landing" />
         <main className="wrap page">
-          {!allowed || !source || !latest ? (
+          {!allowed || !latest ? (
             <EditGate loggedIn={Boolean(sessionEmail)} />
           ) : (
             <IntakeForm
               key={latest.documentId}
               session={identityFromSheetRow(source)}
               initialAnswers={answersFromSheetRow(latest)}
-              sourceDocumentId={source.documentId}
+              sourceDocumentId={latest.documentId}
               nextVersion={nextVersionNumber(family)}
             />
           )}
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
+
+  if (documentId) {
+    return (
+      <>
+        <SiteHeader backHref="/" backLabel="← Zur Landing" />
+        <main className="wrap page">
+          <EditGate loggedIn={Boolean(sessionEmail)} />
         </main>
         <SiteFooter />
       </>

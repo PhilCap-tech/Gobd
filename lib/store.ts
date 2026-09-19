@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { google } from "googleapis";
 import { getSheetsTab, isSheetsConfigured } from "@/lib/env";
-import { rowsInFamily } from "@/lib/documents";
+import { parseDocumentVersion, rowsInFamily } from "@/lib/documents";
 import {
   SHEET_COLUMNS,
   coerceSheetRow,
@@ -261,4 +261,25 @@ export async function listDocumentFamily(documentId: string): Promise<SheetRow[]
   if (!documentId) return [];
   const { rows } = await loadRows();
   return rowsInFamily(rows, documentId);
+}
+
+/** Latest PDF row for a Stripe (or stub) checkout session. */
+export async function findLatestDocumentByStripeSessionId(
+  sessionId: string,
+): Promise<SheetRow | null> {
+  if (!sessionId.trim()) return null;
+  const { rows } = await loadRows();
+  const matches = rows.filter(
+    (row) =>
+      Boolean(row.documentId) &&
+      row.stripeSessionId &&
+      row.stripeSessionId === sessionId,
+  );
+  if (matches.length === 0) return null;
+  const sorted = [...matches].sort((a, b) => {
+    const versionDiff = parseDocumentVersion(b) - parseDocumentVersion(a);
+    if (versionDiff !== 0) return versionDiff;
+    return b.timestamp.localeCompare(a.timestamp);
+  });
+  return sorted[0] ?? null;
 }
