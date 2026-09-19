@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
-import { storePdf } from "@/lib/blob";
+import { persistChapterContent, storePdf } from "@/lib/blob";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
 import {
   canAccessDocument,
@@ -119,6 +119,18 @@ async function handleDocumentEdit(request: Request) {
   } catch (error) {
     console.error("[document] PDF-Erzeugung fehlgeschlagen", error);
     return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
+  }
+
+  try {
+    chapterContent = await persistChapterContent({
+      familyId: parentDocumentId,
+      documentId,
+      version,
+      json: chapterContent,
+    });
+  } catch (error) {
+    console.error("[document] Kapiteltext-Ablage fehlgeschlagen", error);
+    return jsonError(errorDetail(error), 400);
   }
 
   let stored;
