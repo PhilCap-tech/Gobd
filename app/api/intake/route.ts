@@ -44,9 +44,15 @@ export async function POST(request: Request) {
 
   const identity = await resolveCheckoutSession(body.sessionId);
   if ("error" in identity) {
+    const message =
+      identity.error === "missing"
+        ? "Checkout-Session fehlt."
+        : identity.error === "not_paid"
+          ? "Zahlung noch nicht bestätigt."
+          : "Session konnte nicht geprüft werden. Bitte erneut versuchen.";
     return NextResponse.json(
-      { error: "Keine gültige Zahlungssession." },
-      { status: 401 },
+      { error: message, reason: identity.error },
+      { status: identity.error === "lookup_failed" ? 503 : 401 },
     );
   }
 

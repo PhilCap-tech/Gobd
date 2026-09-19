@@ -9,7 +9,13 @@ export async function GET(request: Request) {
   const result = await resolveCheckoutSession(sessionId);
 
   if ("error" in result) {
-    return NextResponse.json(result, { status: 400 });
+    const status =
+      result.error === "lookup_failed"
+        ? 503
+        : result.error === "not_paid"
+          ? 403
+          : 400;
+    return NextResponse.json(result, { status });
   }
 
   return NextResponse.json(result);

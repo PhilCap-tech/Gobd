@@ -4,6 +4,8 @@ import type { CheckoutIdentity } from "@/lib/types";
 
 let stripeClient: Stripe | null = null;
 
+export type CheckoutResolveError = "missing" | "not_paid" | "lookup_failed";
+
 export function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
@@ -15,10 +17,57 @@ export function getStripe(): Stripe {
   return stripeClient;
 }
 
+export function isCheckoutSessionFulfilled(
+  session: Pick<Stripe.Checkout.Session, "status" | "payment_status">,
+): boolean {
+  if (session.status === "complete") {
+    return true;
+  }
+  return (
+    session.payment_status === "paid" ||
+    session.payment_status === "no_payment_required"
+  );
+}
+
+function isRetryableStripeError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const e = error as { type?: string; statusCode?: number };
+  if (
+    e.type === "StripeConnectionError" ||
+    e.type === "StripeAPIError" ||
+    e.type === "StripeRateLimitError"
+  ) {
+    return true;
+  }
+  if (e.statusCode === 429) {
+    return true;
+  }
+  return typeof e.statusCode === "number" && e.statusCode >= 500;
+}
+
+async function retrieveCheckoutSession(sessionId: string) {
+  const stripe = getStripe();
+  try {
+    return await stripe.checkout.sessions.retrieve(sessionId);
+  } catch (error) {
+    if (!isRetryableStripeError(error)) {
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    return stripe.checkout.sessions.retrieve(sessionId);
+  }
+}
+
 export async function createCheckoutSession(input: {
   email: string;
   company: string;
 }): Promise<{ url: string; stub: boolean }> {
+  const appUrl = getAppUrl();
+  const successUrl = `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${appUrl}/`;
+
   if (!isStripeConfigured()) {
     const sessionId = `mock_${Date.now()}`;
     const params = new URLSearchParams({
@@ -29,11 +78,10 @@ export async function createCheckoutSession(input: {
     console.warn(
       "[stripe] Keys fehlen — Stub-Checkout. Setze STRIPE_SECRET_KEY, STRIPE_PRICE_SETUP_ID, STRIPE_PRICE_MONTHLY_ID.",
     );
-    return { url: `${getAppUrl()}/intake?${params}`, stub: true };
+    return { url: `${appUrl}/intake?${params}`, stub: true };
   }
 
   const stripe = getStripe();
-  const appUrl = getAppUrl();
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
@@ -45,8 +93,8 @@ export async function createCheckoutSession(input: {
       { price: process.env.STRIPE_PRICE_SETUP_ID, quantity: 1 },
       { price: process.env.STRIPE_PRICE_MONTHLY_ID, quantity: 1 },
     ],
-    success_url: `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/`,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
     metadata: {
       company: input.company,
       product: "gobd-verfahrensdoku",
@@ -66,9 +114,13 @@ export async function createCheckoutSession(input: {
   return { url: session.url, stub: false };
 }
 
+/**
+ * Resolves a Checkout session from the success redirect (`session_id` query).
+ * Does not depend on webhooks — redirect must work without STRIPE_WEBHOOK_SECRET.
+ */
 export async function resolveCheckoutSession(
   sessionId: string | undefined,
-): Promise<CheckoutIdentity | { error: "missing" | "not_paid" | "lookup_failed" }> {
+): Promise<CheckoutIdentity | { error: CheckoutResolveError }> {
   if (!sessionId) {
     return { error: "missing" };
   }
@@ -88,8 +140,8 @@ export async function resolveCheckoutSession(
   }
 
   try {
-    const session = await getStripe().checkout.sessions.retrieve(sessionId);
-    if (session.status !== "complete") {
+    const session = await retrieveCheckoutSession(sessionId);
+    if (!isCheckoutSessionFulfilled(session)) {
       return { error: "not_paid" };
     }
 
