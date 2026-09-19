@@ -78,6 +78,11 @@ export function getSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_TAB || "intakes";
 }
 
+/** Separate tab for free Readiness leads — do not mix with paid intake rows. */
+export function getReadinessSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_READINESS_TAB || "readiness_leads";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }

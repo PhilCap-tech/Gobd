@@ -3,9 +3,17 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { google } from "googleapis";
 import { parseDocumentVersion, rowsInFamily } from "@/lib/documents";
-import { getSheetsTab, isSheetsConfigured } from "@/lib/env";
+import { getReadinessSheetsTab, getSheetsTab, isSheetsConfigured } from "@/lib/env";
 import { normalizeQueryId, queryIdsEqual } from "@/lib/query";
 import { listStripeCustomerIdByEmail } from "@/lib/stripe";
+import {
+  coerceReadinessLead,
+  emptyReadinessLead,
+  parseReadinessLead,
+  readinessSheetValues,
+  READINESS_SHEET_COLUMNS,
+  type ReadinessLead,
+} from "@/lib/readiness";
 import {
   SHEET_COLUMNS,
   coerceSheetRow,
@@ -19,6 +27,7 @@ import {
 } from "@/lib/types";
 
 const FILE_NAME = "intakes.json";
+const READINESS_FILE_NAME = "readiness-leads.json";
 
 const SHEETS_GET_OPTS = {
   headers: {
@@ -70,6 +79,14 @@ function tmpFallbackPath(): string {
   return path.join(tmpdir(), "gobd-data", FILE_NAME);
 }
 
+function readinessFilePath(dir: string): string {
+  return path.join(dir, READINESS_FILE_NAME);
+}
+
+function tmpReadinessFallbackPath(): string {
+  return path.join(tmpdir(), "gobd-data", READINESS_FILE_NAME);
+}
+
 function sheetsAuth() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(
@@ -92,6 +109,20 @@ function spreadsheetId(): string {
     throw new Error("GOOGLE_SHEETS_SPREADSHEET_ID fehlt");
   }
   return id;
+}
+
+async function ensureSpreadsheetTab(tab: string): Promise<void> {
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const id = spreadsheetId();
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
+  const exists = meta.data.sheets?.some((sheet) => sheet.properties?.title === tab);
+  if (exists) return;
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: id,
+    requestBody: {
+      requests: [{ addSheet: { properties: { title: tab } } }],
+    },
+  });
 }
 
 async function ensureSheetHeader(): Promise<string[]> {
@@ -472,4 +503,214 @@ export async function findSuccessDocument(input: {
     if (backend !== "sheets") break;
   }
   return null;
+}
+
+export type ReadinessStoreResult = {
+  backend: "sheets" | "file";
+  lead: ReadinessLead;
+  filePath?: string;
+};
+
+async function ensureReadinessSheetHeader(): Promise<string[]> {
+  const tab = getReadinessSheetsTab();
+  await ensureSpreadsheetTab(tab);
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const id = spreadsheetId();
+  const existing = await sheets.spreadsheets.values.get(
+    {
+      spreadsheetId: id,
+      range: `${tab}!A1:AZ1`,
+    },
+    SHEETS_GET_OPTS,
+  );
+  const header = (existing.data.values?.[0] ?? []).map((cell) => String(cell));
+
+  if (header.length === 0) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: `${tab}!A1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [READINESS_SHEET_COLUMNS as unknown as string[]] },
+    });
+    return [...READINESS_SHEET_COLUMNS];
+  }
+
+  const missing = READINESS_SHEET_COLUMNS.filter((col) => !header.includes(col));
+  if (missing.length === 0) {
+    return header;
+  }
+
+  const next = [...header, ...missing];
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${tab}!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values: [next] },
+  });
+  return next;
+}
+
+async function appendReadinessSheetRow(lead: ReadinessLead): Promise<void> {
+  const header = await ensureReadinessSheetHeader();
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: spreadsheetId(),
+    range: `${getReadinessSheetsTab()}!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values: [readinessSheetValues(lead, header)] },
+  });
+}
+
+async function readReadinessSheetRows(): Promise<ReadinessLead[]> {
+  const header = await ensureReadinessSheetHeader();
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const result = await sheets.spreadsheets.values.get(
+    {
+      spreadsheetId: spreadsheetId(),
+      range: `${getReadinessSheetsTab()}!A2:AZ`,
+    },
+    SHEETS_GET_OPTS,
+  );
+  const values = result.data.values ?? [];
+  return values
+    .filter((row) => row.some((cell) => String(cell || "").trim()))
+    .map((row) =>
+      parseReadinessLead(
+        header,
+        row.map((cell) => String(cell ?? "")),
+      ),
+    );
+}
+
+async function readReadinessFileRows(file: string): Promise<ReadinessLead[]> {
+  try {
+    const raw = await readFile(file, "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => coerceReadinessLead(item))
+      .filter((row): row is ReadinessLead => Boolean(row));
+  } catch {
+    return [];
+  }
+}
+
+async function writeReadinessFileRows(
+  dir: string,
+  file: string,
+  rows: ReadinessLead[],
+): Promise<void> {
+  await mkdir(dir, { recursive: true });
+  await writeFile(file, JSON.stringify(rows, null, 2), "utf8");
+}
+
+async function appendReadinessFileRow(lead: ReadinessLead): Promise<string> {
+  const primaryDir = getFileFallbackDir();
+  const primaryFile = readinessFilePath(primaryDir);
+
+  try {
+    const rows = await readReadinessFileRows(primaryFile);
+    rows.push(lead);
+    await writeReadinessFileRows(primaryDir, primaryFile, rows);
+    return primaryFile;
+  } catch (error) {
+    const tmpFile = tmpReadinessFallbackPath();
+    if (isFsUnavailable(error) && primaryFile !== tmpFile) {
+      console.warn(
+        "[store] Readiness-Datei-Fallback nicht beschreibbar — weiche auf tmpdir aus",
+        error,
+      );
+      const tmpDir = path.dirname(tmpFile);
+      const rows = await readReadinessFileRows(tmpFile);
+      rows.push(lead);
+      await writeReadinessFileRows(tmpDir, tmpFile, rows);
+      return tmpFile;
+    }
+    throw error;
+  }
+}
+
+function mergeReadinessLeads(
+  primary: ReadinessLead[],
+  extra: ReadinessLead[],
+): ReadinessLead[] {
+  if (extra.length === 0) return primary;
+  if (primary.length === 0) return extra;
+  const seen = new Set(primary.map((row) => row.leadId || `${row.email}:${row.timestamp}`));
+  const merged = [...primary];
+  for (const row of extra) {
+    const key = row.leadId || `${row.email}:${row.timestamp}`;
+    if (!seen.has(key)) {
+      merged.push(row);
+      seen.add(key);
+    }
+  }
+  return merged;
+}
+
+async function readAllReadinessFileRows(): Promise<ReadinessLead[]> {
+  const primary = await readReadinessFileRows(readinessFilePath(getFileFallbackDir()));
+  const tmpFile = tmpReadinessFallbackPath();
+  if (tmpFile === readinessFilePath(getFileFallbackDir())) {
+    return primary;
+  }
+  return mergeReadinessLeads(primary, await readReadinessFileRows(tmpFile));
+}
+
+export function getReadinessFileFallbackPath(): string {
+  return readinessFilePath(getFileFallbackDir());
+}
+
+export async function appendReadinessLead(
+  lead: ReadinessLead,
+): Promise<ReadinessStoreResult> {
+  const complete = { ...emptyReadinessLead(), ...lead };
+  if (isSheetsConfigured()) {
+    try {
+      await appendReadinessSheetRow(complete);
+      return { backend: "sheets", lead: complete };
+    } catch (error) {
+      console.error(
+        "[store] Readiness Google Sheets append fehlgeschlagen — falle auf Datei zurück",
+        error,
+      );
+    }
+  } else {
+    console.warn(
+      "[store] Google Sheets nicht konfiguriert — schreibe Readiness nach",
+      getReadinessFileFallbackPath(),
+    );
+  }
+
+  const filePath = await appendReadinessFileRow(complete);
+  return { backend: "file", lead: complete, filePath };
+}
+
+async function loadReadinessLeads(): Promise<{
+  backend: "sheets" | "file";
+  rows: ReadinessLead[];
+}> {
+  if (isSheetsConfigured()) {
+    try {
+      const sheetRows = await readReadinessSheetRows();
+      const fileRows = await readAllReadinessFileRows();
+      return { backend: "sheets", rows: mergeReadinessLeads(sheetRows, fileRows) };
+    } catch (error) {
+      console.error(
+        "[store] Readiness Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
+        error,
+      );
+    }
+  }
+  return { backend: "file", rows: await readAllReadinessFileRows() };
+}
+
+export async function findReadinessLeadById(
+  leadId: string,
+): Promise<ReadinessLead | null> {
+  const id = normalizeQueryId(leadId);
+  if (!id) return null;
+  const { rows } = await loadReadinessLeads();
+  const matches = rows.filter((row) => queryIdsEqual(row.leadId, id));
+  return matches.at(-1) ?? null;
 }

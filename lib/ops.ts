@@ -10,7 +10,7 @@ import { sendEmail, type MailResult } from "@/lib/mail";
 export type OpsResult = {
   stub: boolean;
   sent: boolean;
-  action: "onboarding" | "failed_payment" | "failed_job" | "delivery";
+  action: "onboarding" | "failed_payment" | "failed_job" | "delivery" | "readiness";
 };
 
 export async function triggerOnboardingMail(input: {
@@ -97,6 +97,61 @@ export async function sendDeliveryMail(input: {
     html,
   });
   return { ...result, action: "delivery" };
+}
+
+export async function sendReadinessMail(input: {
+  email: string;
+  name?: string;
+  brancheLabel: string;
+  downloadUrl: string;
+  successUrl?: string;
+  magicLinkUrl?: string;
+}): Promise<OpsResult & MailResult> {
+  if (!input.email.trim()) {
+    console.info("[ops] readiness mail übersprungen — keine E-Mail");
+    return { stub: true, sent: false, action: "readiness" };
+  }
+
+  const greeting = input.name?.trim() ? `Hallo ${input.name.trim()},` : "Hallo,";
+  const lines = [
+    greeting,
+    "",
+    `hier sind deine GoBD-Grundlagen für ${input.brancheLabel} (Readiness-Arbeitshilfe, keine Verfahrensdokumentation).`,
+    "",
+    `Download: ${input.downloadUrl}`,
+  ];
+  if (input.successUrl) {
+    lines.push(`Übersicht: ${input.successUrl}`);
+  }
+  if (input.magicLinkUrl) {
+    lines.push(
+      `Späterer Zugang (Magic Link, 20 Minuten gültig): ${input.magicLinkUrl}`,
+    );
+  }
+  lines.push(
+    "",
+    "Kein Steuerberatungsersatz. Keine Zusicherung von GoBD-Konformität.",
+    "",
+    "GoBD Verfahrensdoku",
+  );
+  const text = lines.join("\n");
+  const html = `
+    <p>${escapeHtml(greeting)}</p>
+    <p>hier sind deine GoBD-Grundlagen für ${escapeHtml(input.brancheLabel)} (Readiness-Arbeitshilfe, keine Verfahrensdokumentation).</p>
+    <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a></p>
+    ${input.successUrl ? `<p><a href="${escapeAttr(input.successUrl)}">Zur Übersicht</a></p>` : ""}
+    ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
+    <p>Kein Steuerberatungsersatz. Keine Zusicherung von GoBD-Konformität.</p>
+    <p>GoBD Verfahrensdoku</p>
+  `;
+
+  const result = await sendEmail({
+    to: input.email,
+    subject: `Deine GoBD-Grundlagen für ${input.brancheLabel}`,
+    text,
+    html,
+  });
+  return { ...result, action: "readiness" };
 }
 
 export async function sendMagicLinkMail(input: {
