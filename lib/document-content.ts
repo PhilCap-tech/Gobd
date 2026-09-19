@@ -9,18 +9,18 @@ import {
 
 /**
  * Soft cap for one saved draft (cover + chapters JSON).
- * v2 templates already serialize to ~52k; 45k rejected a full save.
+ * v2 templates serialize to ~50k; 45k rejected a full save.
  * Google Sheets cells are still 50k — overflow goes to blob/file via
  * `persistChapterContent` and a short `{__gobdContent}` pointer in the cell.
  */
-export const CHAPTER_CONTENT_MAX_CHARS = 200_000;
+export const CHAPTER_CONTENT_MAX_CHARS = 250_000;
 /** Stay under Google Sheets' 50_000-character cell limit. */
 export const SHEETS_CELL_SAFE_CHARS = 49_000;
 export const CHAPTER_CONTENT_REF_KEY = "__gobdContent";
 const MAX_CHAPTERS = 20;
 const MAX_ID_LEN = 80;
 const MAX_TITLE_LEN = 200;
-const MAX_BODY_LEN = 80_000;
+const MAX_BODY_LEN = 100_000;
 const MAX_COVER_LEN = 20_000;
 
 export type DocumentChapter = DeliveryDocumentContent["chapters"][number];
