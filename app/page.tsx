@@ -26,7 +26,7 @@ export default function HomePage() {
             </a>
           </div>
           <p className="hint">
-            Ca. 5–8 Minuten · Keine Kreditkarte · Keine Steuerberatung
+            Ca. 2–3 Minuten · Keine Kreditkarte · Keine Steuerberatung
           </p>
           <p className="disclaimer" role="note">
             Keine Steuerberatung. Das Ergebnis ist ein Entwurf zur Abstimmung

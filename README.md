@@ -16,14 +16,15 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 
 ## Demo-Pfad
 
-1. Landing → **Readiness-Check starten (kostenlos)** (`/readiness`) oder sekundär Checkout
-2. Checkout: Firma + E-Mail + Disclaimer
-3. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
-4. Intake: Branche → Software → Belegwege → IT → Verantwortliche
-5. Speichern: Google Sheets oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
-6. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben überarbeiten**, **Neue PDF-Version erzeugen**, **Versionshistorie**. Fehlt `document_id`, reicht `session_id` — die App lädt die neueste Zeile zu dieser Stripe-Session.
-7. Konto: `/login` (Magic Link) → `/account` (**Angaben überarbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`
-8. Re-Edit: Intake vorbefüllt → Absenden erzeugt **Version N+1**, alte Versionen bleiben downloadbar
+1. Landing → **Readiness-Check starten (kostenlos)** (`/readiness`) — 3 kurze Schritte, kein Stripe
+2. PDF „GoBD-Grundlagen für [Branche]“ auf `/readiness/success` herunterladen; Lead in Tab `readiness_leads` (oder `.data/readiness-leads.json`)
+3. Optional weicher CTA zum Checkout. Checkout: Firma + E-Mail + Disclaimer
+4. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
+5. Intake: Branche → Software → Belegwege → IT → Verantwortliche
+6. Speichern: Google Sheets (`intakes`) oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
+7. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben überarbeiten**, **Neue PDF-Version erzeugen**, **Versionshistorie**. Fehlt `document_id`, reicht `session_id` — die App lädt die neueste Zeile zu dieser Stripe-Session.
+8. Konto: `/login` (Magic Link) → `/account` (**Angaben überarbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`
+9. Re-Edit: Intake vorbefüllt → Absenden erzeugt **Version N+1**, alte Versionen bleiben downloadbar
 
 ## Stripe (Testmodus)
 
@@ -107,8 +108,9 @@ Env:
 - `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` (Newlines als `\n`)
 - `GOOGLE_SHEETS_SPREADSHEET_ID`
 - `GOOGLE_SHEETS_TAB` (Default: `intakes`)
+- `GOOGLE_SHEETS_READINESS_TAB` (Default: `readiness_leads`) — **eigene Tabelle**, nicht mit Paid-Intakes mischen
 
-Spalten (Header wird geschrieben, wenn A1 leer ist; fehlende Spalten werden **angehängt**, bestehende nicht umsortiert):
+Spalten `intakes` (Header wird geschrieben, wenn A1 leer ist; fehlende Spalten werden **angehängt**, bestehende nicht umsortiert):
 
 `timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version | parent_document_id`
 
@@ -116,9 +118,23 @@ Ohne Sheets-Credentials — oder wenn Sheets-Append fehlschlägt — schreibt di
 lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach `os.tmpdir()/gobd-data/intakes.json`
 (typisch `/tmp`, das einzige beschreibbare Verzeichnis auf Serverless). Der Fallback ist nicht persistent über Invocations.
 
+### Readiness-Leads (`readiness_leads`)
+
+Kostenloser Check unter `/readiness` schreibt **nicht** in `intakes` (kein Stripe, keine VD-Versionen). Fehlt das Tab, wird es angelegt.
+
+Spalten:
+
+`timestamp | lead_id | access_token | name | email | company | branche | branche_freitext | rechtsform | mitarbeitende | belegweg | software | verantwortliche | status | pdf_url | mail_status`
+
+Datei-Fallback: `.data/readiness-leads.json` bzw. `/tmp/gobd-data/readiness-leads.json`. `mail_status`: `sent` | `stub` | `failed`.
+
+Branche-Schlüssel: `handwerk` | `handel` | `praxis` | `gastronomie` | `dienstleistung` | `allgemein`. Unbekannt → `allgemein`. Module: `content/readiness/*.md`.
+
 ## PDF, Blob, E-Mail, Magic Link
 
 Nach dem Intake entsteht **PDF v1** (pdfkit) lokal aus `content/delivery-templates/bundle.json` (GoBD Delivery Templates v1): Cover → Kapitel 01–06 → Disclaimer-Fußzeile. Platzhalter `{{identity.*}}` / `{{answers.*}}` mit `| join ", "` und `| or "nicht angegeben"`. Offene Punkte aus `openPointsRules`. Keine erfundenen GoBD-Rechtstexte über das Bundle hinaus.
+
+Readiness-PDF (4–6 Seiten): `content/readiness/{branche}.md` mit `{{Branche}}` / `{{Firma}}` / `{{Datum}}`. Blob-Pfad `gobd/readiness-{lead_id}/v1.pdf`. Download: `/api/readiness/{lead_id}/download?token=…` (oder Session-Cookie zur Lead-E-Mail). Keine Verfahrensdokumentation, kein Konto-Eintrag.
 
 ### Vercel Blob
 
@@ -136,7 +152,7 @@ Ohne Token: lokale Datei (`.data/pdfs` bzw. `/tmp/gobd-data/pdfs`). Download reg
 - `RESEND_API_KEY`
 - `EMAIL_FROM` (z. B. `GoBD Verfahrensdoku <noreply@deine-domain.de>`)
 
-Die Delivery-Mail enthält Download-Link und Magic Link. Fehlen die Env-Werte: **kein Versand**, Log-Stub (wie Ops), Download bleibt auf `/success`.
+Die Delivery-Mail enthält Download-Link und Magic Link. Die Readiness-Mail enthält den Grundlagen-PDF-Link (kein VD-Claim). Fehlen die Env-Werte: **kein Versand**, Log-Stub (wie Ops), Download bleibt auf `/success` bzw. `/readiness/success`.
 
 ### Magic Link
 
@@ -176,8 +192,9 @@ PDF-Text kommt weiter nur aus `content/delivery-templates/`. Keine zusätzlichen
 - **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding nach Zahlung, Failed Payment, Failed Job. Nur Logs, kein Versand.
 - **Checkout ohne Stripe-Keys:** Mock-Session, weiter zum Intake.
 - **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
-- **PDF ohne Blob:** lokale Datei, auf Vercel nicht persistent; Download kann aus der Intake-Zeile regenerieren.
-- **Mail ohne Resend:** Log-Stub, Download auf Success bleibt.
+- **Readiness ohne Sheets:** `.data/readiness-leads.json` bzw. `/tmp`.
+- **PDF ohne Blob:** lokale Datei, auf Vercel nicht persistent; Download kann aus der Intake- bzw. Readiness-Zeile regenerieren.
+- **Mail ohne Resend:** Log-Stub, Download auf Success / Readiness-Success bleibt.
 - **Stripe Customer Portal:** ohne `STRIPE_SECRET_KEY` oder ohne `stripe_customer_id` zur Session-E-Mail — deaktivierter Button plus Hinweis auf `/account` (nicht unsichtbar). `/portal` und `/billing` leiten entsprechend weiter.
 
 Intake-Nachbearbeitung (Re-Edit / neue PDF-Version) ist implementiert. Fertige Kapiteltexte über Counsel bleiben später.
@@ -190,4 +207,4 @@ Next.js App Router, bereit für Vercel. Dieselben Env-Vars setzen. Webhook-URL: 
 
 Für persistente PDFs, Mail und Abo-Portal: `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, `EMAIL_FROM`, `MAGIC_LINK_SECRET`, `STRIPE_WEBHOOK_SECRET` setzen.
 
-Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout, Intake, Success, Login und Konto sind `noindex`.
+Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout, Intake, Success, Readiness, Login und Konto sind `noindex`.

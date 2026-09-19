@@ -4,6 +4,7 @@ import path from "node:path";
 import { put } from "@vercel/blob";
 import { generatePdf } from "@/lib/delivery";
 import { isBlobConfigured } from "@/lib/env";
+import { generateReadinessPdf, type ReadinessLead } from "@/lib/readiness";
 import { getFileFallbackDir } from "@/lib/store";
 import {
   answersFromSheetRow,
@@ -82,10 +83,10 @@ export async function storePdf(input: {
   return writeLocalPdf(fileBase, input.buffer);
 }
 
-export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
-  if (row.pdfUrl.startsWith("http://") || row.pdfUrl.startsWith("https://")) {
+async function loadPdfFromStoredUrl(pdfUrl: string): Promise<Buffer | null> {
+  if (pdfUrl.startsWith("http://") || pdfUrl.startsWith("https://")) {
     try {
-      const response = await fetch(row.pdfUrl);
+      const response = await fetch(pdfUrl);
       if (response.ok) {
         return Buffer.from(await response.arrayBuffer());
       }
@@ -95,13 +96,20 @@ export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
     }
   }
 
-  if (row.pdfUrl && !row.pdfUrl.startsWith("http")) {
+  if (pdfUrl && !pdfUrl.startsWith("http")) {
     try {
-      return await readFile(row.pdfUrl);
+      return await readFile(pdfUrl);
     } catch (error) {
       console.warn("[blob] lokale PDF-Datei fehlt — regeneriere", error);
     }
   }
+
+  return null;
+}
+
+export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
+  const stored = await loadPdfFromStoredUrl(row.pdfUrl);
+  if (stored) return stored;
 
   const generated = await generatePdf({
     answers: answersFromSheetRow(row),
@@ -109,6 +117,13 @@ export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
     documentId: row.documentId || "regenerated",
     version: Number.parseInt(row.version || "1", 10) || 1,
   });
+  return generated.buffer;
+}
+
+export async function loadReadinessPdf(lead: ReadinessLead): Promise<Buffer> {
+  const stored = await loadPdfFromStoredUrl(lead.pdfUrl);
+  if (stored) return stored;
+  const generated = await generateReadinessPdf(lead);
   return generated.buffer;
 }
 
