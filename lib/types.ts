@@ -51,6 +51,7 @@ export type SheetRow = {
   parentDocumentId: string;
   pdfUrl: string;
   version: string;
+  chapterContent: string;
 };
 
 export const SHEET_COLUMNS = [
@@ -80,6 +81,7 @@ export const SHEET_COLUMNS = [
   "pdf_url",
   "version",
   "parent_document_id",
+  "chapter_content",
 ] as const;
 
 export type SheetColumn = (typeof SHEET_COLUMNS)[number];
@@ -111,6 +113,7 @@ export const SHEET_COLUMN_FIELDS = {
   pdf_url: "pdfUrl",
   version: "version",
   parent_document_id: "parentDocumentId",
+  chapter_content: "chapterContent",
 } as const satisfies Record<SheetColumn, keyof SheetRow>;
 
 export function emptyAnswers(): IntakeAnswers {
@@ -161,6 +164,7 @@ export function emptySheetRow(): SheetRow {
     parentDocumentId: "",
     pdfUrl: "",
     version: "",
+    chapterContent: "",
   };
 }
 
@@ -173,6 +177,7 @@ export function toSheetRow(input: {
   parentDocumentId?: string;
   pdfUrl?: string;
   version?: string;
+  chapterContent?: string;
 }): SheetRow {
   const a = { ...emptyAnswers(), ...input.answers };
   const join = (values: string[]) => values.join(", ");
@@ -203,6 +208,7 @@ export function toSheetRow(input: {
     parentDocumentId: input.parentDocumentId ?? "",
     pdfUrl: input.pdfUrl ?? "",
     version: input.version ?? "",
+    chapterContent: input.chapterContent ?? "",
   };
 }
 

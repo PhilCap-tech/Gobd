@@ -87,6 +87,8 @@ export function verifySessionToken(
 }
 
 const ALLOWED_NEXT_PATHS = new Set(["/portal", "/billing", "/account"]);
+const ACCOUNT_DOCUMENT_EDIT =
+  /^\/account\/dokument\/[A-Za-z0-9_-]{8,80}$/;
 
 /**
  * Only same-origin relative paths we actually redirect to after login.
@@ -100,8 +102,9 @@ export function safeNextPath(
     const parsed = new URL(value, "http://safe.invalid");
     if (parsed.origin !== "http://safe.invalid") return null;
     if (parsed.username || parsed.password) return null;
-    if (!ALLOWED_NEXT_PATHS.has(parsed.pathname)) return null;
-    return parsed.pathname;
+    if (ALLOWED_NEXT_PATHS.has(parsed.pathname)) return parsed.pathname;
+    if (ACCOUNT_DOCUMENT_EDIT.test(parsed.pathname)) return parsed.pathname;
+    return null;
   } catch {
     return null;
   }

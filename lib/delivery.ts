@@ -61,6 +61,16 @@ export type DeliveryPdfMeta = {
   backend: "blob" | "file";
 };
 
+/** Customer-owned chapter text (rendered draft or later edits). */
+export type DeliveryDocumentContent = {
+  cover?: string;
+  chapters: Array<{
+    id: string;
+    title: string;
+    body: string;
+  }>;
+};
+
 export type DeliveryPlan = {
   status: "ready" | "failed";
   chapters: DeliveryChapter[];
@@ -230,6 +240,7 @@ function writeTitlePage(
   doc: PDFKit.PDFDocument,
   rendered: RenderedDocument,
   identity: CheckoutIdentity,
+  cover?: string,
 ) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
@@ -245,7 +256,7 @@ function writeTitlePage(
 
   doc.y = 130;
   doc.x = left;
-  writeMarkdownish(doc, rendered.cover, width);
+  writeMarkdownish(doc, cover?.trim() ? cover : rendered.cover, width);
   if (identity.stub) {
     doc
       .font("Helvetica")
@@ -285,15 +296,23 @@ function writePdf(
     answers: IntakeAnswers;
     documentId: string;
     version?: number;
+    content?: DeliveryDocumentContent | null;
   },
 ) {
   const rendered = renderDeliveryDocument(input);
   const width = contentWidth(doc);
+  const cover = input.content?.cover?.trim()
+    ? input.content.cover
+    : rendered.cover;
+  const chapters =
+    input.content?.chapters && input.content.chapters.length > 0
+      ? input.content.chapters
+      : rendered.chapters;
 
-  writeTitlePage(doc, rendered, input.identity);
+  writeTitlePage(doc, rendered, input.identity, cover);
   doc.addPage();
 
-  for (const chapter of rendered.chapters) {
+  for (const chapter of chapters) {
     writeMarkdownish(doc, chapter.body, width);
     doc.moveDown(0.55);
   }
@@ -310,6 +329,7 @@ export async function generatePdf(input: {
   identity: CheckoutIdentity;
   documentId?: string;
   version?: number;
+  content?: DeliveryDocumentContent | null;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const documentId = input.documentId || randomUUID();
   const version = input.version && input.version > 0 ? input.version : 1;
@@ -340,7 +360,10 @@ export async function generatePdf(input: {
     documentId,
     version,
     bytes: buffer.length,
-    chapters: plan.chapters.map((c) => c.id),
+    chapters: (input.content?.chapters?.length
+      ? input.content.chapters
+      : plan.chapters
+    ).map((c) => c.id),
   });
 
   return { buffer, plan, documentId };

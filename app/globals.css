@@ -137,6 +137,16 @@ nav,
   margin: 0 auto;
 }
 
+.wrap.wide {
+  width: min(840px, calc(100% - 40px));
+}
+
+.chapter-text {
+  min-height: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.5;
+}
+
 .hero {
   padding: 56px 0 36px;
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   documentDownloadPath,
+  documentEditPath,
   formatDocumentTime,
   intakeEditPath,
   parseDocumentVersion,
@@ -21,6 +22,7 @@ export function DocumentRevisionActions({
   downloadLabel?: string;
 }) {
   const editHref = intakeEditPath(row, sessionId);
+  const documentHref = documentEditPath(row);
 
   return (
     <>
@@ -33,6 +35,9 @@ export function DocumentRevisionActions({
         <Link className="btn" href={editHref}>
           Angaben überarbeiten
         </Link>
+        <Link className="btn ghost" href={documentHref}>
+          Dokument bearbeiten
+        </Link>
         <Link className="btn ghost" href={editHref}>
           Neue PDF-Version erzeugen
         </Link>
@@ -43,9 +48,9 @@ export function DocumentRevisionActions({
         )}
       </div>
       <p className="hint revision-hint">
-        „Angaben überarbeiten“ öffnet das Intake mit deinen gespeicherten
-        Antworten. Absenden erzeugt die nächste PDF-Version (Version 2, 3,
-        …) — bisherige Downloads bleiben.
+        „Angaben überarbeiten“ ändert die Intake-Antworten. „Dokument
+        bearbeiten“ ändert den Kapiteltext des Entwurfs. Beides erzeugt die
+        nächste PDF-Version — bisherige Downloads bleiben.
       </p>
     </>
   );

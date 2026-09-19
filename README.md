@@ -23,8 +23,9 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 5. Intake: Branche → Software → Belegwege → IT → Verantwortliche
 6. Speichern: Google Sheets (`intakes`) oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
 7. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben überarbeiten**, **Neue PDF-Version erzeugen**, **Versionshistorie**. Fehlt `document_id`, reicht `session_id` — die App lädt die neueste Zeile zu dieser Stripe-Session.
-8. Konto: `/login` (Magic Link) → `/account` (**Angaben überarbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`
+8. Konto: `/login` (Magic Link) → `/account` (**Angaben überarbeiten** + **Dokument bearbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`
 9. Re-Edit: Intake vorbefüllt → Absenden erzeugt **Version N+1**, alte Versionen bleiben downloadbar
+10. Kapiteltext: `/account` → **Dokument bearbeiten** → `/account/dokument/{document_id}` (nur eingeloggt). Speichern schreibt Version N+1 inkl. `chapter_content` und neues PDF.
 
 ## Stripe (Testmodus)
 
@@ -112,7 +113,7 @@ Env:
 
 Spalten `intakes` (Header wird geschrieben, wenn A1 leer ist; fehlende Spalten werden **angehängt**, bestehende nicht umsortiert):
 
-`timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version | parent_document_id`
+`timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version | parent_document_id | chapter_content`
 
 Ohne Sheets-Credentials — oder wenn Sheets-Append fehlschlägt — schreibt die App einen Datei-Fallback:
 lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach `os.tmpdir()/gobd-data/intakes.json`
@@ -160,7 +161,7 @@ Die Delivery-Mail enthält Download-Link, Magic Link und FAQ (`https://www.gobd-
 
 1. Langes Zufallsgeheimnis setzen: `MAGIC_LINK_SECRET`
 2. `/login` fordert einen Link an → E-Mail → `/auth/verify?token=` setzt httpOnly-Cookie `gobd_session` (30 Tage)
-3. `/account` listet Dokumente zu dieser E-Mail (Sheets/Datei), **Angaben überarbeiten** und die **Versionshistorie**
+3. `/account` listet Dokumente zu dieser E-Mail (Sheets/Datei), **Angaben überarbeiten**, **Dokument bearbeiten** und die **Versionshistorie**
 
 Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
 
@@ -182,6 +183,19 @@ Ablauf:
 2. Intake lädt die **aktuellste** Fassung der Familie und füllt das Formular aus der Sheet-/Datei-Zeile
 3. Absenden hängt eine **neue Zeile** an (`version` = n+1, `parent_document_id` = Familienwurzel, neue `document_id` + PDF). Die alte Zeile bleibt. So entsteht Version 2, 3, …
 4. `/account` und `/success` zeigen die **Versionshistorie**; bei nur einer Fassung den Hinweis „Nach dem Überarbeiten erscheint hier Version 2.“ Jede Version hat einen eigenen Download (`/api/docs/{document_id}/download`)
+5. **Dokument bearbeiten** (nur Magic-Link-Session, gleiche E-Mail): `/account/dokument/{document_id}` zeigt Deckblatt + Kapitel als Textfelder (aus `renderDeliveryDocument` oder gespeichertem `chapter_content`). **Speichern und PDF erzeugen** / **PDF neu erzeugen** hängt ebenfalls Version n+1 an (`status=document_edited`, `chapter_content` = JSON). Keine öffentlichen, unauthentifizierten Edits.
+
+`chapter_content` ist Kunden-Text aus dem generierten Entwurf. Keine zusätzlichen GoBD-Rechtstexte. Fehlt die Spalte, wird sie an den Header **angehängt**. Intake-Re-Edit erzeugt weiter aus den Antworten (ohne `chapter_content`); ein späteres Dokument-Bearbeiten lädt dann wieder das gerenderte Template.
+
+### Kapiteltext testen (ohne Stripe)
+
+1. `npm run dev`. Landing → Dokumentation starten → Checkout mit Firma + E-Mail + Disclaimer (Stub, wenn keine Stripe-Keys).
+2. Intake ausfüllen und absenden → `/success` mit PDF. Session-Cookie wird gesetzt.
+3. `/account`: pro Familie **Dokument bearbeiten** (neben **Angaben überarbeiten**).
+4. Ohne Cookie: `/account/dokument/{id}` leitet nach `/login?next=/account/dokument/{id}`. Magic Link (Demo-Banner, wenn keine Mail) zurück zum Editor.
+5. Kapiteltext ändern, **Speichern und PDF erzeugen**. Banner „Version n ist gespeichert“ + Download. Zurück auf `/account`: neue Version in der **Versionshistorie**, alter Download bleibt.
+6. Fremde E-Mail: Editor zeigt „Dieses Dokument gehört nicht zu deinem Konto.“ `POST /api/document` ohne Cookie → 401.
+7. Erwartete Datei-Zeile (`.data/intakes.json`): neue `document_id`, `parent_document_id` = Familienwurzel, `version` = n+1, `status` = `document_edited_stub`, `chapter_content` = JSON mit `cover` + `chapters`.
 
 `/success?session_id=…` ohne `document_id` sucht die neueste Intake-Zeile zu dieser Stripe-Session und zeigt Download + Überarbeiten. `/intake?document_id=&session_id=…` (leere `document_id`) fällt ebenfalls auf die Session-Zeile zurück und startet den Re-Edit statt eines leeren Formulars.
 
@@ -199,7 +213,7 @@ PDF-Text kommt weiter nur aus `content/delivery-templates/`. Standardrahmen (S) 
 - **Mail ohne Resend:** Log-Stub, Download auf Success / Readiness-Success bleibt.
 - **Stripe Customer Portal:** ohne `STRIPE_SECRET_KEY` oder ohne `stripe_customer_id` zur Session-E-Mail — deaktivierter Button plus Hinweis auf `/account` (nicht unsichtbar). `/portal` und `/billing` leiten entsprechend weiter.
 
-Intake-Nachbearbeitung (Re-Edit / neue PDF-Version) ist implementiert. Fertige Kapiteltexte über Counsel bleiben später.
+Intake-Nachbearbeitung (Re-Edit / neue PDF-Version) und Kapiteltext-Nachbearbeitung (Konto → Dokument bearbeiten) sind implementiert. Der Editor nimmt den gerenderten Entwurf; Outline-/Template-Änderungen (PDF v2) erscheinen automatisch, solange noch kein `chapter_content` gespeichert ist.
 
 ## Vercel
 
