@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ProductDisclaimer } from "@/components/product-disclaimer";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ReadinessForm } from "./readiness-form";
@@ -28,9 +27,6 @@ export default function ReadinessPage() {
           {" · "}
           <Link href="/checkout">Direkt die Dokumentation starten — 149 € + 49 €/Mo</Link>
         </p>
-        <div style={{ marginTop: 28 }}>
-          <ProductDisclaimer />
-        </div>
       </main>
       <SiteFooter />
     </>

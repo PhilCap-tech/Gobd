@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ProductDisclaimer } from "@/components/product-disclaimer";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { isStripeConfigured } from "@/lib/env";
@@ -22,7 +21,6 @@ export default function CheckoutPage() {
           149&nbsp;€ Setup plus 49&nbsp;€/Monat. Danach kurzes Intake.
         </p>
         <CheckoutForm stripeReady={isStripeConfigured()} />
-        <ProductDisclaimer />
       </main>
       <SiteFooter />
     </>
