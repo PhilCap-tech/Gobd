@@ -27,6 +27,7 @@ export function LoginForm({ next }: { next?: string | null }) {
       const data = (await response.json()) as {
         error?: string;
         ok?: boolean;
+        sent?: boolean;
         stub?: boolean;
         verifyUrl?: string;
       };
@@ -35,7 +36,7 @@ export function LoginForm({ next }: { next?: string | null }) {
         return;
       }
       setSent(true);
-      if (data.stub && data.verifyUrl) {
+      if (data.verifyUrl) {
         setStubUrl(data.verifyUrl);
       }
     } catch {
@@ -69,7 +70,7 @@ export function LoginForm({ next }: { next?: string | null }) {
       )}
       {stubUrl && (
         <p className="banner">
-          E-Mail-Versand ist nicht konfiguriert (Demo).{" "}
+          E-Mail wurde nicht zugestellt.{" "}
           <a href={stubUrl}>Hier anmelden</a>
         </p>
       )}

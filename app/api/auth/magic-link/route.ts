@@ -22,10 +22,12 @@ export async function POST(request: Request) {
   const mail = await sendMagicLinkMail({ email, magicLinkUrl: verifyUrl });
   const mailReady = isMailConfigured();
 
+  // Never log MAGIC_LINK_SECRET. verifyUrl is the signed login link testers
+  // need when Resend is configured but delivery fails (sent: false).
   return NextResponse.json({
     ok: true,
     sent: mail.sent,
     stub: mail.stub || !mailReady,
-    verifyUrl: mailReady ? undefined : verifyUrl,
+    verifyUrl: mail.sent ? undefined : verifyUrl,
   });
 }
