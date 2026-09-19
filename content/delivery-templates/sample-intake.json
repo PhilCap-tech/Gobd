@@ -1,0 +1,26 @@
+{
+  "identity": {
+    "email": "beispiel@firma.de",
+    "company": "Muster Handwerk GmbH",
+    "stripeSessionId": "cs_test_example",
+    "stripeCustomerId": "cus_example",
+    "stub": false
+  },
+  "answers": {
+    "branchen": ["Handwerk"],
+    "rechtsform": "GmbH",
+    "mitarbeitende": "1-5",
+    "fibu": ["lexoffice"],
+    "weitereSysteme": "Excel für Angebote",
+    "eingangsbelege": ["Scan", "E-Mail"],
+    "ausgangsrechnungen": ["lexoffice"],
+    "archiv": "Cloud beim FiBu-Anbieter",
+    "hosting": "SaaS",
+    "backup": ["Anbieter-Backup"],
+    "zugriff": "GF + Steuerberater",
+    "gf": "Max Mustermann",
+    "buchhaltung": "Max Mustermann",
+    "it": "Dienstleister extern",
+    "steuerberater": "Steuerkanzlei Beispiel"
+  }
+}

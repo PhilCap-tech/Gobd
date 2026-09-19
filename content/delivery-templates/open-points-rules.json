@@ -1,0 +1,149 @@
+{
+  "version": "1.0.0",
+  "emptyValues": [
+    "",
+    null,
+    "nicht angegeben",
+    "k.A.",
+    "ka",
+    "n/a",
+    "none"
+  ],
+  "arrayEmptyMeansOpen": true,
+  "rules": [
+    {
+      "id": "op-branchen",
+      "field": "answers.branchen",
+      "severity": "medium",
+      "when": "empty",
+      "text": "Branche(n) fehlen — bitte nachtragen."
+    },
+    {
+      "id": "op-rechtsform",
+      "field": "answers.rechtsform",
+      "chapter": "01-unternehmen",
+      "severity": "medium",
+      "when": "empty",
+      "text": "Rechtsform fehlt — bitte nachtragen."
+    },
+    {
+      "id": "op-mitarbeitende",
+      "field": "answers.mitarbeitende",
+      "chapter": "01-unternehmen",
+      "severity": "low",
+      "when": "empty",
+      "text": "Angabe zu Mitarbeitenden fehlt."
+    },
+    {
+      "id": "op-fibu",
+      "field": "answers.fibu",
+      "chapter": "02-systeme",
+      "severity": "high",
+      "when": "empty",
+      "text": "FiBu-/Buchhaltungssoftware nicht angegeben — zentral für die Verfahrensdokumentation."
+    },
+    {
+      "id": "op-weitere-systeme",
+      "field": "answers.weitereSysteme",
+      "chapter": "02-systeme",
+      "severity": "low",
+      "when": "empty",
+      "text": "Weitere Systeme nicht angegeben (optional, aber empfohlen bei Neben-Tools)."
+    },
+    {
+      "id": "op-eingangsbelege",
+      "field": "answers.eingangsbelege",
+      "chapter": "03-belegwesen",
+      "severity": "high",
+      "when": "empty",
+      "text": "Weg der Eingangsbelege fehlt."
+    },
+    {
+      "id": "op-ausgangsrechnungen",
+      "field": "answers.ausgangsrechnungen",
+      "chapter": "03-belegwesen",
+      "severity": "high",
+      "when": "empty",
+      "text": "Weg der Ausgangsrechnungen fehlt."
+    },
+    {
+      "id": "op-archiv",
+      "field": "answers.archiv",
+      "chapter": "03-belegwesen",
+      "severity": "high",
+      "when": "empty",
+      "text": "Archivierung der Belege nicht angegeben."
+    },
+    {
+      "id": "op-hosting",
+      "field": "answers.hosting",
+      "chapter": "04-aufbewahrung",
+      "severity": "medium",
+      "when": "empty",
+      "text": "Hosting-Angabe fehlt."
+    },
+    {
+      "id": "op-backup",
+      "field": "answers.backup",
+      "chapter": "04-aufbewahrung",
+      "severity": "high",
+      "when": "empty",
+      "text": "Backup-Verfahren nicht angegeben."
+    },
+    {
+      "id": "op-zugriff",
+      "field": "answers.zugriff",
+      "chapter": "04-aufbewahrung",
+      "severity": "high",
+      "when": "empty",
+      "text": "Zugriff / Berechtigungen nicht angegeben."
+    },
+    {
+      "id": "op-gf",
+      "field": "answers.gf",
+      "chapter": "05-verantwortlichkeiten",
+      "severity": "medium",
+      "when": "empty",
+      "text": "Geschäftsführung / Gesamtverantwortung nicht benannt."
+    },
+    {
+      "id": "op-buchhaltung",
+      "field": "answers.buchhaltung",
+      "chapter": "05-verantwortlichkeiten",
+      "severity": "medium",
+      "when": "empty",
+      "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt."
+    },
+    {
+      "id": "op-it",
+      "field": "answers.it",
+      "chapter": "05-verantwortlichkeiten",
+      "severity": "low",
+      "when": "empty",
+      "text": "IT-/Systemverantwortung nicht benannt."
+    },
+    {
+      "id": "op-steuerberater",
+      "field": "answers.steuerberater",
+      "chapter": "05-verantwortlichkeiten",
+      "severity": "low",
+      "when": "empty",
+      "text": "Steuerberatung nicht angegeben (falls vorhanden, nachtragen)."
+    },
+    {
+      "id": "op-company",
+      "field": "identity.company",
+      "chapter": "01-unternehmen",
+      "severity": "high",
+      "when": "empty",
+      "text": "Firmenname fehlt in der Identität — PDF-Titel und Kapitel 1 unvollständig."
+    }
+  ],
+  "outputItemShape": {
+    "id": "string",
+    "text": "string",
+    "severity": "low|medium|high",
+    "chapter": "chapter-id",
+    "field": "dotted.path"
+  }
+}

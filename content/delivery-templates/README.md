@@ -1,25 +1,47 @@
-# Delivery-Templates v1
+# GoBD Delivery — Content-Templates v1 (Slice A+B)
 
-Single source: `bundle.json`. The PDF builder fills placeholders locally from Intake + Checkout identity. There is no live Delivery HTTP API in v1.
+Im Repo unter `content/delivery-templates/`. Der Builder rendert lokal aus Intake → PDF-Bytes → Blob. Keine Live-API. Single source: **bundle.json**.
 
-## Placeholders
 
-| Token | Source |
+
+Für **GoBD Builder**: lokal aus Intake rendern → PDF-Bytes → Blob. Keine Live-API.
+
+## Eingabe
+
+JSON `IntakeAnswers` + `identity` wie im Builder-Contract (siehe `sample-intake.json`).
+
+## Ausgabe (vom Renderer erzeugen)
+
+1. Cover (`cover.md`)
+2. Kapitel 1–5 aus `chapters/*.md` (Platzhalter ersetzen)
+3. Offene Punkte aus `open-points-rules.json` → Tabelle in Kapitel 6
+4. Disclaimer aus `disclaimer.txt` (Cover + Fußzeile)
+
+## Platzhalter
+
+- `{{identity.*}}` / `{{answers.*}}`
+- Arrays: `{{field | join ", "}}`
+- Leer: `{{field | or "nicht angegeben"}}`
+- `{{openPointsTable}}` — Markdown-Tabelle aus den Rules
+- `{{generatedAt}}` — ISO-Datum Europe/Berlin
+- `{{disclaimer}}` — Inhalt von `disclaimer.txt`
+
+**Regel:** Keine erfundenen GoBD-Rechtstexte. Nur Intake-Hints + Struktur + Offene Punkte.
+
+## Empfohlene PDF-Reihenfolge
+
+cover → 01 → 02 → 03 → 04 → 05 → 06 → disclaimer (Fuß)
+
+## Mapping UI-Schritte → Felder
+
+| UI-Schritt | Felder |
 | --- | --- |
-| `{{identity.email}}` `{{identity.company}}` `{{identity.stripeSessionId}}` `{{identity.stripeCustomerId}}` | CheckoutIdentity |
-| `{{answers.branchen}}` … camelCase IntakeAnswers | Intake; arrays joined with `", "` |
-| empty string / empty array | `nicht angegeben` |
-| `{{openPointsTable}}` | evaluated `openPointsRules` |
-| `{{generatedAt}}` | render time (`de-DE`) |
-| `{{disclaimer}}` | `bundle.disclaimer` |
-| `{{documentId}}` `{{bundleVersion}}` | document meta |
+| 1 Branche/Rechtsform/MA | branchen, rechtsform, mitarbeitende |
+| 2 FiBu/weitereSysteme | fibu, weitereSysteme |
+| 3 Eingang/Ausgang/Archiv | eingangsbelege, ausgangsrechnungen, archiv |
+| 4 Hosting/Backup/Zugriff | hosting, backup, zugriff |
+| 5 GF/Buchhaltung/IT/StB | gf, buchhaltung, it, steuerberater |
 
-## Open-point rules
+## Später (nicht v1)
 
-If `always` is true, the item is always listed. Otherwise `field` is read from `answers`; empty string or empty array includes the item. Severity: `low` \| `medium` \| `high`.
-
-## PDF order
-
-Cover → chapters in bundle order (01–06) → disclaimer footer.
-
-No GoBD legal prose beyond this file.
+Fertige Kapiteltexte (markdown/HTML) von Delivery; optional HTTP POST.

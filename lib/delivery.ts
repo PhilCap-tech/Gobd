@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import PDFDocument from "pdfkit";
 import {
+  deliveryBundle,
   renderDeliveryDocument,
   type DeliveryOpenPoint,
 } from "@/lib/delivery-templates";
@@ -11,8 +12,7 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
  * Keine erfundenen GoBD-Rechtstexte über das Template hinaus.
  */
 
-export const DELIVERY_DISCLAIMER =
-  "Keine Steuerberatung / kein Steuerberatungsersatz. Dieses Dokument ist ein Entwurf aus den Intake-Angaben zur Abstimmung mit deinem Steuerberater — keine individuelle Steuer- oder Rechtsberatung.";
+export const DELIVERY_DISCLAIMER = deliveryBundle.disclaimer;
 
 export type DeliveryChapter = {
   id: string;
@@ -46,26 +46,29 @@ export type DeliveryPlan = {
 function hintFromAnswers(id: string, answers: IntakeAnswers): string {
   const join = (values: string[]) => values.join(", ");
   switch (id) {
-    case "allgemein":
-      return join(answers.branchen) || "Branche fehlt";
-    case "systeme":
+    case "01-unternehmen":
+      return join(answers.branchen) || answers.rechtsform || "Branche fehlt";
+    case "02-systeme":
       return join(answers.fibu) || "FiBu fehlt";
-    case "belegwesen":
+    case "03-belegwesen":
       return join(answers.eingangsbelege) || "Eingang fehlt";
-    case "aufbewahrung":
+    case "04-aufbewahrung":
       return answers.hosting || answers.archiv || "Aufbewahrung fehlt";
-    case "verantwortlichkeiten":
+    case "05-verantwortlichkeiten":
       return answers.gf || "GF fehlt";
-    case "offene-punkte":
+    case "06-offene-punkte":
       return "Offene Punkte";
     default:
       return "";
   }
 }
 
-export function planDelivery(answers: IntakeAnswers): DeliveryPlan {
+export function planDelivery(
+  answers: IntakeAnswers,
+  identity?: CheckoutIdentity,
+): DeliveryPlan {
   const rendered = renderDeliveryDocument({
-    identity: {
+    identity: identity ?? {
       email: "",
       company: "",
       stripeSessionId: "",
@@ -106,34 +109,81 @@ export async function enqueueDelivery(input: {
   return plan;
 }
 
+function isTableSeparator(line: string): boolean {
+  return /^\|\s*:?-{3,}/.test(line.replaceAll(" ", ""));
+}
+
+function writeInline(doc: PDFKit.PDFDocument, text: string, width: number) {
+  if (!text.includes("**")) {
+    doc.font("Helvetica").fontSize(10).fillColor("#14201b").text(text, { width });
+    return;
+  }
+  const parts = text.split("**");
+  parts.forEach((part, index) => {
+    doc.font(index % 2 === 1 ? "Helvetica-Bold" : "Helvetica").fontSize(10);
+    doc.text(part, { width, continued: index < parts.length - 1 });
+  });
+  doc.text("");
+}
+
+function writeTable(doc: PDFKit.PDFDocument, rows: string[][], width: number) {
+  doc.font("Helvetica").fontSize(9).fillColor("#14201b");
+  for (const [index, cells] of rows.entries()) {
+    const line = cells.join("  ·  ");
+    doc.font(index === 0 ? "Helvetica-Bold" : "Helvetica").text(line, { width });
+  }
+  doc.moveDown(0.3);
+}
+
 function writeMarkdownish(doc: PDFKit.PDFDocument, text: string, width: number) {
   const lines = text.replaceAll("\r\n", "\n").split("\n");
-  for (const raw of lines) {
+  let index = 0;
+  while (index < lines.length) {
+    const raw = lines[index] ?? "";
     const line = raw.trimEnd();
     if (!line.trim()) {
-      doc.moveDown(0.35);
+      doc.moveDown(0.3);
+      index += 1;
+      continue;
+    }
+    if (line.trim().startsWith("|")) {
+      const tableLines: string[] = [];
+      while (index < lines.length && (lines[index] ?? "").trim().startsWith("|")) {
+        const tableLine = (lines[index] ?? "").trim();
+        if (!isTableSeparator(tableLine)) tableLines.push(tableLine);
+        index += 1;
+      }
+      const rows = tableLines.map((row) =>
+        row
+          .replace(/^\|/, "")
+          .replace(/\|$/, "")
+          .split("|")
+          .map((cell) => cell.trim()),
+      );
+      writeTable(doc, rows, width);
       continue;
     }
     if (line.startsWith("# ")) {
-      doc.font("Helvetica-Bold").fontSize(18).fillColor("#14201b");
+      doc.font("Helvetica-Bold").fontSize(16).fillColor("#14201b");
       doc.text(line.slice(2), { width });
       doc.moveDown(0.25);
+      index += 1;
       continue;
     }
     if (line.startsWith("## ")) {
       doc.font("Helvetica-Bold").fontSize(13).fillColor("#14201b");
       doc.text(line.slice(3), { width });
       doc.moveDown(0.2);
+      index += 1;
       continue;
     }
-    const bullet = line.startsWith("- ") ? line.slice(2) : line;
-    const bold = bullet.startsWith("**") && bullet.endsWith("**") && bullet.length > 4;
-    const content = bold ? bullet.slice(2, -2) : bullet;
-    doc
-      .font(bold ? "Helvetica-Bold" : "Helvetica")
-      .fontSize(bold ? 11 : 10)
-      .fillColor(bold ? "#14201b" : "#14201b");
-    doc.text(line.startsWith("- ") ? `• ${content}` : content, { width });
+    if (line.startsWith("- ")) {
+      writeInline(doc, `• ${line.slice(2)}`, width);
+      index += 1;
+      continue;
+    }
+    writeInline(doc, line, width);
+    index += 1;
   }
 }
 
@@ -149,17 +199,14 @@ function writePdf(
   const width = 480;
 
   writeMarkdownish(doc, rendered.cover, width);
-  doc.moveDown(0.6);
+  doc.moveDown(0.5);
 
-  rendered.chapters.forEach((chapter, index) => {
-    doc.font("Helvetica-Bold").fontSize(13).fillColor("#14201b");
-    doc.text(`${String(index + 1).padStart(2, "0")}. ${chapter.title}`, { width });
-    doc.moveDown(0.25);
+  for (const chapter of rendered.chapters) {
     writeMarkdownish(doc, chapter.body, width);
-    doc.moveDown(0.6);
-  });
+    doc.moveDown(0.45);
+  }
 
-  doc.fontSize(8).fillColor("#5a6560");
+  doc.font("Helvetica").fontSize(8).fillColor("#5a6560");
   doc.text(rendered.disclaimer, { width });
 }
 
@@ -169,14 +216,14 @@ export async function generatePdf(input: {
   documentId?: string;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const documentId = input.documentId || randomUUID();
-  const plan = planDelivery(input.answers);
+  const plan = planDelivery(input.answers, input.identity);
 
   const buffer = await new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
       margin: 56,
       info: {
-        Title: "Verfahrensdokumentation (Entwurf)",
+        Title: "Verfahrensdokumentation (GoBD) — Arbeitsfassung",
         Author: "GoBD Verfahrensdoku",
       },
     });

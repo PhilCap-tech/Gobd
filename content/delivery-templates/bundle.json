@@ -1,75 +1,186 @@
 {
-  "version": "1",
-  "disclaimer": "Keine Steuerberatung / kein Steuerberatungsersatz. Dieses Dokument ist ein Entwurf aus den Intake-Angaben zur Abstimmung mit deinem Steuerberater — keine individuelle Steuer- oder Rechtsberatung.",
-  "coverMarkdown": "# Verfahrensdokumentation\n\n**Entwurf · Version {{bundleVersion}}**\n\nUnternehmen: {{identity.company}}\nE-Mail: {{identity.email}}\nDokument-ID: {{documentId}}\nErstellt: {{generatedAt}}\n\n{{disclaimer}}\n",
+  "version": "1.0.0",
+  "disclaimer": "Hinweis: Diese Verfahrensdokumentation wurde automatisch aus den Angaben des Kunden-Intakes erstellt. Sie ist eine Arbeitshilfe zur Beschreibung der dokumentierten Prozesse und ersetzt keine steuerliche oder rechtliche Beratung. Für die inhaltliche Richtigkeit und Vollständigkeit der Angaben ist der Auftraggeber verantwortlich. Bei prüfungsrelevanten Fragen ist ein Steuerberater oder Rechtsanwalt hinzuzuziehen.",
+  "coverMarkdown": "# Verfahrensdokumentation (GoBD) — Arbeitsfassung\n\n**Unternehmen:** {{identity.company}}\n**Erstellt für:** {{identity.email}}\n**Referenz:** {{identity.stripeSessionId}}\n**Stand:** {{generatedAt}}\n\n{{disclaimer}}\n",
   "chapters": [
     {
-      "id": "allgemein",
-      "title": "Allgemeines / Unternehmen",
-      "bodyMarkdown": "Angaben aus dem Intake:\n\n- Branche: {{answers.branchen}}\n- Rechtsform: {{answers.rechtsform}}\n- Mitarbeitende: {{answers.mitarbeitende}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+      "id": "01-unternehmen",
+      "file": "chapters/01-unternehmen.md",
+      "markdown": "# 1. Allgemeines und Unternehmen\n\nDieses Dokument beschreibt die im Betrieb eingerichteten Prozesse zur Verarbeitung und Aufbewahrung von steuerrelevanten Unterlagen, soweit sie im Kunden-Intake angegeben wurden.\n\n**Unternehmen:** {{identity.company}}\n**Branche(n):** {{answers.branchen | join \", \" | or \"nicht angegeben\"}}\n**Rechtsform:** {{answers.rechtsform | or \"nicht angegeben\"}}\n**Mitarbeitende:** {{answers.mitarbeitende | or \"nicht angegeben\"}}\n\nDie nachfolgenden Abschnitte geben den Stand laut Intake wieder. Fehlende oder unklare Angaben sind in Kapitel 6 als offene Punkte geführt.\n"
     },
     {
-      "id": "systeme",
-      "title": "Systeme / Software",
-      "bodyMarkdown": "Angaben aus dem Intake:\n\n- FiBu: {{answers.fibu}}\n- Weitere Systeme: {{answers.weitereSysteme}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+      "id": "02-systeme",
+      "file": "chapters/02-systeme.md",
+      "markdown": "# 2. Soft- und Systemumgebung\n\n**Finanzbuchhaltung / FiBu:** {{answers.fibu | join \", \" | or \"nicht angegeben\"}}\n**Weitere Systeme:** {{answers.weitereSysteme | or \"nicht angegeben\"}}\n**Hosting der Systeme:** {{answers.hosting | or \"nicht angegeben\"}}\n\nEs werden nur die im Intake genannten Systeme und der angegebene Hosting-Rahmen dokumentiert. Technische Detailbeschreibungen über die Angabe hinaus sind nicht Gegenstand dieser Fassung.\n"
     },
     {
-      "id": "belegwesen",
-      "title": "Belegwesen",
-      "bodyMarkdown": "Angaben aus dem Intake:\n\n- Eingangsbelege: {{answers.eingangsbelege}}\n- Ausgangsrechnungen: {{answers.ausgangsrechnungen}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+      "id": "03-belegwesen",
+      "file": "chapters/03-belegwesen.md",
+      "markdown": "# 3. Belegwesen\n\n**Eingangsbelege (Erfassung / Weg):** {{answers.eingangsbelege | join \", \" | or \"nicht angegeben\"}}\n**Ausgangsrechnungen (Erstellung / Weg):** {{answers.ausgangsrechnungen | join \", \" | or \"nicht angegeben\"}}\n**Archivierung der Belege:** {{answers.archiv | or \"nicht angegeben\"}}\n\nDer dokumentierte Belegweg entspricht den im Intake ausgewählten bzw. eingetragenen Angaben. Abweichende Praxis im Tagesgeschäft ist hier nicht erfasst und ggf. unter den offenen Punkten nachzutragen.\n"
     },
     {
-      "id": "aufbewahrung",
-      "title": "Aufbewahrung / IT / Zugriff",
-      "bodyMarkdown": "Angaben aus dem Intake:\n\n- Archiv: {{answers.archiv}}\n- Hosting: {{answers.hosting}}\n- Backup: {{answers.backup}}\n- Zugriff: {{answers.zugriff}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+      "id": "04-aufbewahrung",
+      "file": "chapters/04-aufbewahrung.md",
+      "markdown": "# 4. Aufbewahrung, Hosting und Zugriff\n\n**Archiv:** {{answers.archiv | or \"nicht angegeben\"}}\n**Hosting:** {{answers.hosting | or \"nicht angegeben\"}}\n**Backup:** {{answers.backup | join \", \" | or \"nicht angegeben\"}}\n**Zugriff / Berechtigungen:** {{answers.zugriff | or \"nicht angegeben\"}}\n\nDie Angaben zur Aufbewahrung und zum Zugriff stammen ausschließlich aus dem Intake. Fristen, technische Maßnahmen oder Prüfschritte, die nicht genannt wurden, sind nicht Bestandteil dieses Kapitels.\n"
     },
     {
-      "id": "verantwortlichkeiten",
-      "title": "Verantwortlichkeiten",
-      "bodyMarkdown": "Angaben aus dem Intake:\n\n- Geschäftsführung / Inhaber: {{answers.gf}}\n- Buchhaltung: {{answers.buchhaltung}}\n- IT / Systeme: {{answers.it}}\n- Steuerberater: {{answers.steuerberater}}\n\nPlatzhalter: Fließtext folgt nach Abstimmung mit dem Steuerberater.\n"
+      "id": "05-verantwortlichkeiten",
+      "file": "chapters/05-verantwortlichkeiten.md",
+      "markdown": "# 5. Verantwortlichkeiten\n\n| Rolle | Angabe laut Intake |\n| --- | --- |\n| Geschäftsführung | {{answers.gf | or \"nicht angegeben\"}} |\n| Buchhaltung | {{answers.buchhaltung | or \"nicht angegeben\"}} |\n| IT / Systemverantwortung | {{answers.it | or \"nicht angegeben\"}} |\n| Steuerberatung | {{answers.steuerberater | or \"nicht angegeben\"}} |\n\nRollen und Zuständigkeiten sind so dokumentiert, wie sie im Intake genannt wurden. Personelle Wechsel oder externe Dienstleister ohne Angabe sind nachzutragen (siehe Kapitel 6).\n"
     },
     {
-      "id": "offene-punkte",
-      "title": "Offene Punkte",
-      "bodyMarkdown": "{{openPointsTable}}\n"
+      "id": "06-offene-punkte",
+      "file": "chapters/06-offene-punkte.md",
+      "markdown": "# 6. Offene Punkte\n\nDie folgende Liste wird automatisch aus fehlenden oder unklaren Intake-Angaben erzeugt (siehe `open-points-rules.json`). Sie ist kein abgeschlossener Maßnahmenplan, sondern die Prüfliste für die nächste Überarbeitung dieser Dokumentation.\n\n{{openPointsTable}}\n\nWenn keine offenen Punkte vorliegen, lautet der Kapiteltext: „Zum Zeitpunkt der Erstellung waren alle abgefragten Intake-Felder befüllt; es wurden keine automatischen offenen Punkte erzeugt.“\n"
     }
   ],
-  "openPointsRules": [
-    {
-      "id": "steuerberater-abstimmung",
-      "title": "Entwurf mit Steuerberater abstimmen",
-      "severity": "high",
-      "always": true
-    },
-    {
-      "id": "missing-archiv",
-      "field": "archiv",
-      "title": "Angabe ergänzen: Archiv",
-      "severity": "medium"
-    },
-    {
-      "id": "missing-zugriff",
-      "field": "zugriff",
-      "title": "Angabe ergänzen: Zugriff",
-      "severity": "medium"
-    },
-    {
-      "id": "missing-it",
-      "field": "it",
-      "title": "Angabe ergänzen: IT / Systeme",
-      "severity": "low"
-    },
-    {
-      "id": "missing-steuerberater",
-      "field": "steuerberater",
-      "title": "Angabe ergänzen: Steuerberater",
-      "severity": "low"
-    },
-    {
-      "id": "missing-backup",
-      "field": "backup",
-      "title": "Angabe ergänzen: Backup",
-      "severity": "medium"
+  "openPointsRules": {
+    "version": "1.0.0",
+    "emptyValues": [
+      "",
+      null,
+      "nicht angegeben",
+      "k.A.",
+      "ka",
+      "n/a",
+      "none"
+    ],
+    "arrayEmptyMeansOpen": true,
+    "rules": [
+      {
+        "id": "op-branchen",
+        "field": "answers.branchen",
+        "severity": "medium",
+        "when": "empty",
+        "text": "Branche(n) fehlen — bitte nachtragen."
+      },
+      {
+        "id": "op-rechtsform",
+        "field": "answers.rechtsform",
+        "chapter": "01-unternehmen",
+        "severity": "medium",
+        "when": "empty",
+        "text": "Rechtsform fehlt — bitte nachtragen."
+      },
+      {
+        "id": "op-mitarbeitende",
+        "field": "answers.mitarbeitende",
+        "chapter": "01-unternehmen",
+        "severity": "low",
+        "when": "empty",
+        "text": "Angabe zu Mitarbeitenden fehlt."
+      },
+      {
+        "id": "op-fibu",
+        "field": "answers.fibu",
+        "chapter": "02-systeme",
+        "severity": "high",
+        "when": "empty",
+        "text": "FiBu-/Buchhaltungssoftware nicht angegeben — zentral für die Verfahrensdokumentation."
+      },
+      {
+        "id": "op-weitere-systeme",
+        "field": "answers.weitereSysteme",
+        "chapter": "02-systeme",
+        "severity": "low",
+        "when": "empty",
+        "text": "Weitere Systeme nicht angegeben (optional, aber empfohlen bei Neben-Tools)."
+      },
+      {
+        "id": "op-eingangsbelege",
+        "field": "answers.eingangsbelege",
+        "chapter": "03-belegwesen",
+        "severity": "high",
+        "when": "empty",
+        "text": "Weg der Eingangsbelege fehlt."
+      },
+      {
+        "id": "op-ausgangsrechnungen",
+        "field": "answers.ausgangsrechnungen",
+        "chapter": "03-belegwesen",
+        "severity": "high",
+        "when": "empty",
+        "text": "Weg der Ausgangsrechnungen fehlt."
+      },
+      {
+        "id": "op-archiv",
+        "field": "answers.archiv",
+        "chapter": "03-belegwesen",
+        "severity": "high",
+        "when": "empty",
+        "text": "Archivierung der Belege nicht angegeben."
+      },
+      {
+        "id": "op-hosting",
+        "field": "answers.hosting",
+        "chapter": "04-aufbewahrung",
+        "severity": "medium",
+        "when": "empty",
+        "text": "Hosting-Angabe fehlt."
+      },
+      {
+        "id": "op-backup",
+        "field": "answers.backup",
+        "chapter": "04-aufbewahrung",
+        "severity": "high",
+        "when": "empty",
+        "text": "Backup-Verfahren nicht angegeben."
+      },
+      {
+        "id": "op-zugriff",
+        "field": "answers.zugriff",
+        "chapter": "04-aufbewahrung",
+        "severity": "high",
+        "when": "empty",
+        "text": "Zugriff / Berechtigungen nicht angegeben."
+      },
+      {
+        "id": "op-gf",
+        "field": "answers.gf",
+        "chapter": "05-verantwortlichkeiten",
+        "severity": "medium",
+        "when": "empty",
+        "text": "Geschäftsführung / Gesamtverantwortung nicht benannt."
+      },
+      {
+        "id": "op-buchhaltung",
+        "field": "answers.buchhaltung",
+        "chapter": "05-verantwortlichkeiten",
+        "severity": "medium",
+        "when": "empty",
+        "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt."
+      },
+      {
+        "id": "op-it",
+        "field": "answers.it",
+        "chapter": "05-verantwortlichkeiten",
+        "severity": "low",
+        "when": "empty",
+        "text": "IT-/Systemverantwortung nicht benannt."
+      },
+      {
+        "id": "op-steuerberater",
+        "field": "answers.steuerberater",
+        "chapter": "05-verantwortlichkeiten",
+        "severity": "low",
+        "when": "empty",
+        "text": "Steuerberatung nicht angegeben (falls vorhanden, nachtragen)."
+      },
+      {
+        "id": "op-company",
+        "field": "identity.company",
+        "chapter": "01-unternehmen",
+        "severity": "high",
+        "when": "empty",
+        "text": "Firmenname fehlt in der Identität — PDF-Titel und Kapitel 1 unvollständig."
+      }
+    ],
+    "outputItemShape": {
+      "id": "string",
+      "text": "string",
+      "severity": "low|medium|high",
+      "chapter": "chapter-id",
+      "field": "dotted.path"
     }
-  ]
+  }
 }

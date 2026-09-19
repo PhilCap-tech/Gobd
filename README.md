@@ -79,7 +79,7 @@ lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach 
 
 ## PDF, Blob, E-Mail, Magic Link
 
-Nach dem Intake entsteht **PDF v1** (pdfkit) aus `content/delivery-templates/bundle.json`: Cover, Kapitel 01–06 (allgemein, systeme, belegwesen, aufbewahrung, verantwortlichkeiten, offene-punkte), Disclaimer-Footer. Platzhalter aus Intake/Identity, keine erfundenen GoBD-Rechtstexte.
+Nach dem Intake entsteht **PDF v1** (pdfkit) lokal aus `content/delivery-templates/bundle.json` (GoBD Delivery Templates v1): Cover → Kapitel 01–06 → Disclaimer-Fußzeile. Platzhalter `{{identity.*}}` / `{{answers.*}}` mit `| join ", "` und `| or "nicht angegeben"`. Offene Punkte aus `openPointsRules`. Keine erfundenen GoBD-Rechtstexte über das Bundle hinaus.
 
 ### Vercel Blob
 
