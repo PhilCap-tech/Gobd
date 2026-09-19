@@ -1,61 +1,56 @@
 {
-  "version": "1.0.0",
-  "slice": "A+B",
+  "version": "2.0.0",
+  "slice": "outline-v2",
   "language": "de",
   "disclaimerId": "disclaimer",
   "chapters": [
     {
-      "id": "01-unternehmen",
-      "title": "1. Allgemeines und Unternehmen",
+      "id": "cover",
+      "title": "0. Titelseite / Metadaten",
+      "order": 0,
+      "templateFile": "cover.md",
+      "fields": [
+        "identity.company",
+        "identity.email",
+        "identity.stripeSessionId",
+        "version",
+        "generatedAt"
+      ]
+    },
+    {
+      "id": "01-vorbemerkungen",
+      "title": "1. Vorbemerkungen",
       "order": 1,
-      "templateFile": "chapters/01-unternehmen.md",
+      "templateFile": "chapters/01-vorbemerkungen.md",
+      "fields": ["answers.gf", "version", "generatedAt"]
+    },
+    {
+      "id": "02-zielsetzung",
+      "title": "2. Zielsetzung und Überblick",
+      "order": 2,
+      "templateFile": "chapters/02-zielsetzung.md",
       "fields": [
         "identity.company",
         "answers.branchen",
         "answers.rechtsform",
-        "answers.mitarbeitende"
+        "answers.mitarbeitende",
+        "answers.eingangsbelege",
+        "answers.ausgangsrechnungen",
+        "answers.steuerberater"
       ]
     },
     {
-      "id": "02-systeme",
-      "title": "2. Soft- und Systemumgebung",
-      "order": 2,
-      "templateFile": "chapters/02-systeme.md",
+      "id": "03-organisation",
+      "title": "3. Organisation und Sicherheit",
+      "order": 3,
+      "templateFile": "chapters/03-organisation.md",
       "fields": [
         "answers.fibu",
         "answers.weitereSysteme",
-        "answers.hosting"
-      ]
-    },
-    {
-      "id": "03-belegwesen",
-      "title": "3. Belegwesen",
-      "order": 3,
-      "templateFile": "chapters/03-belegwesen.md",
-      "fields": [
-        "answers.eingangsbelege",
-        "answers.ausgangsrechnungen",
-        "answers.archiv"
-      ]
-    },
-    {
-      "id": "04-aufbewahrung",
-      "title": "4. Aufbewahrung, Hosting und Zugriff",
-      "order": 4,
-      "templateFile": "chapters/04-aufbewahrung.md",
-      "fields": [
-        "answers.archiv",
         "answers.hosting",
+        "answers.archiv",
         "answers.backup",
-        "answers.zugriff"
-      ]
-    },
-    {
-      "id": "05-verantwortlichkeiten",
-      "title": "5. Verantwortlichkeiten",
-      "order": 5,
-      "templateFile": "chapters/05-verantwortlichkeiten.md",
-      "fields": [
+        "answers.zugriff",
         "answers.gf",
         "answers.buchhaltung",
         "answers.it",
@@ -63,10 +58,65 @@
       ]
     },
     {
-      "id": "06-offene-punkte",
-      "title": "6. Offene Punkte",
+      "id": "04-verfahren-papier",
+      "title": "4. Verfahren — Belege originär Papier",
+      "order": 4,
+      "templateFile": "chapters/04-verfahren-papier.md",
+      "shortFile": "chapters/04-verfahren-papier-kurz.md",
+      "fields": [
+        "answers.eingangsbelege",
+        "answers.ausgangsrechnungen",
+        "answers.archiv",
+        "answers.backup",
+        "answers.zugriff",
+        "answers.fibu",
+        "answers.steuerberater",
+        "answers.hosting",
+        "answers.gf"
+      ]
+    },
+    {
+      "id": "05-verfahren-digital",
+      "title": "5. Verfahren — Belege originär digital",
+      "order": 5,
+      "templateFile": "chapters/05-verfahren-digital.md",
+      "fields": [
+        "answers.eingangsbelege",
+        "answers.ausgangsrechnungen",
+        "answers.fibu",
+        "answers.archiv",
+        "answers.hosting",
+        "answers.backup",
+        "answers.zugriff",
+        "answers.gf"
+      ]
+    },
+    {
+      "id": "06-mitgeltende-unterlagen",
+      "title": "6. Mitgeltende Unterlagen",
       "order": 6,
-      "templateFile": "chapters/06-offene-punkte.md",
+      "templateFile": "chapters/06-mitgeltende-unterlagen.md",
+      "fields": ["answers.steuerberater", "answers.fibu"]
+    },
+    {
+      "id": "07-aenderungshistorie",
+      "title": "7. Änderungshistorie",
+      "order": 7,
+      "templateFile": "chapters/07-aenderungshistorie.md",
+      "fields": ["generatedAt", "answers.gf"]
+    },
+    {
+      "id": "08-glossar",
+      "title": "8. Glossar",
+      "order": 8,
+      "templateFile": "chapters/08-glossar.md",
+      "fields": []
+    },
+    {
+      "id": "09-offene-punkte",
+      "title": "9. Offene Punkte",
+      "order": 9,
+      "templateFile": "chapters/09-offene-punkte.md",
       "generatedFrom": "open-points-rules.json"
     }
   ]

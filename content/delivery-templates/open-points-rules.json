@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "emptyValues": [
     "",
     null,
@@ -12,8 +12,17 @@
   "arrayEmptyMeansOpen": true,
   "rules": [
     {
+      "id": "op-company",
+      "field": "identity.company",
+      "chapter": "02-zielsetzung",
+      "severity": "high",
+      "when": "empty",
+      "text": "Firmenname fehlt in der Identität — Titelseite und Kapitel 2.2 unvollständig."
+    },
+    {
       "id": "op-branchen",
       "field": "answers.branchen",
+      "chapter": "02-zielsetzung",
       "severity": "medium",
       "when": "empty",
       "text": "Branche(n) fehlen — bitte nachtragen."
@@ -21,7 +30,7 @@
     {
       "id": "op-rechtsform",
       "field": "answers.rechtsform",
-      "chapter": "01-unternehmen",
+      "chapter": "02-zielsetzung",
       "severity": "medium",
       "when": "empty",
       "text": "Rechtsform fehlt — bitte nachtragen."
@@ -29,7 +38,7 @@
     {
       "id": "op-mitarbeitende",
       "field": "answers.mitarbeitende",
-      "chapter": "01-unternehmen",
+      "chapter": "02-zielsetzung",
       "severity": "low",
       "when": "empty",
       "text": "Angabe zu Mitarbeitenden fehlt."
@@ -37,7 +46,7 @@
     {
       "id": "op-fibu",
       "field": "answers.fibu",
-      "chapter": "02-systeme",
+      "chapter": "03-organisation",
       "severity": "high",
       "when": "empty",
       "text": "FiBu-/Buchhaltungssoftware nicht angegeben — zentral für die Verfahrensdokumentation."
@@ -45,7 +54,7 @@
     {
       "id": "op-weitere-systeme",
       "field": "answers.weitereSysteme",
-      "chapter": "02-systeme",
+      "chapter": "03-organisation",
       "severity": "low",
       "when": "empty",
       "text": "Weitere Systeme nicht angegeben (optional, aber empfohlen bei Neben-Tools)."
@@ -53,7 +62,7 @@
     {
       "id": "op-eingangsbelege",
       "field": "answers.eingangsbelege",
-      "chapter": "03-belegwesen",
+      "chapter": "02-zielsetzung",
       "severity": "high",
       "when": "empty",
       "text": "Weg der Eingangsbelege fehlt."
@@ -61,7 +70,7 @@
     {
       "id": "op-ausgangsrechnungen",
       "field": "answers.ausgangsrechnungen",
-      "chapter": "03-belegwesen",
+      "chapter": "02-zielsetzung",
       "severity": "high",
       "when": "empty",
       "text": "Weg der Ausgangsrechnungen fehlt."
@@ -69,7 +78,7 @@
     {
       "id": "op-archiv",
       "field": "answers.archiv",
-      "chapter": "03-belegwesen",
+      "chapter": "03-organisation",
       "severity": "high",
       "when": "empty",
       "text": "Archivierung der Belege nicht angegeben."
@@ -77,7 +86,7 @@
     {
       "id": "op-hosting",
       "field": "answers.hosting",
-      "chapter": "04-aufbewahrung",
+      "chapter": "03-organisation",
       "severity": "medium",
       "when": "empty",
       "text": "Hosting-Angabe fehlt."
@@ -85,7 +94,7 @@
     {
       "id": "op-backup",
       "field": "answers.backup",
-      "chapter": "04-aufbewahrung",
+      "chapter": "03-organisation",
       "severity": "high",
       "when": "empty",
       "text": "Backup-Verfahren nicht angegeben."
@@ -93,7 +102,7 @@
     {
       "id": "op-zugriff",
       "field": "answers.zugriff",
-      "chapter": "04-aufbewahrung",
+      "chapter": "03-organisation",
       "severity": "high",
       "when": "empty",
       "text": "Zugriff / Berechtigungen nicht angegeben."
@@ -101,7 +110,7 @@
     {
       "id": "op-gf",
       "field": "answers.gf",
-      "chapter": "05-verantwortlichkeiten",
+      "chapter": "01-vorbemerkungen",
       "severity": "medium",
       "when": "empty",
       "text": "Geschäftsführung / Gesamtverantwortung nicht benannt."
@@ -109,7 +118,7 @@
     {
       "id": "op-buchhaltung",
       "field": "answers.buchhaltung",
-      "chapter": "05-verantwortlichkeiten",
+      "chapter": "03-organisation",
       "severity": "medium",
       "when": "empty",
       "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt."
@@ -117,7 +126,7 @@
     {
       "id": "op-it",
       "field": "answers.it",
-      "chapter": "05-verantwortlichkeiten",
+      "chapter": "03-organisation",
       "severity": "low",
       "when": "empty",
       "text": "IT-/Systemverantwortung nicht benannt."
@@ -125,18 +134,38 @@
     {
       "id": "op-steuerberater",
       "field": "answers.steuerberater",
-      "chapter": "05-verantwortlichkeiten",
+      "chapter": "03-organisation",
       "severity": "low",
       "when": "empty",
       "text": "Steuerberatung nicht angegeben (falls vorhanden, nachtragen)."
     },
     {
-      "id": "op-company",
-      "field": "identity.company",
-      "chapter": "01-unternehmen",
-      "severity": "high",
-      "when": "empty",
-      "text": "Firmenname fehlt in der Identität — PDF-Titel und Kapitel 1 unvollständig."
+      "id": "op-zertifikate",
+      "when": "always",
+      "chapter": "03-organisation",
+      "severity": "low",
+      "text": "Softwarebescheinigungen / Zertifikate der eingesetzten Systeme sind im Intake nicht erfasst."
+    },
+    {
+      "id": "op-speicherpfad",
+      "when": "always",
+      "chapter": "03-organisation",
+      "severity": "low",
+      "text": "Konkreter Archiv-Datenpfad / Speicherort ist im Intake nicht erfasst."
+    },
+    {
+      "id": "op-mitgeltende",
+      "when": "always",
+      "chapter": "06-mitgeltende-unterlagen",
+      "severity": "low",
+      "text": "Weitere mitgeltende Unterlagen (außer dieser VD) wurden nicht geliefert."
+    },
+    {
+      "id": "op-turnus",
+      "when": "always",
+      "chapter": "04-verfahren-papier",
+      "severity": "low",
+      "text": "Turnus der Belegsicherung ist im Intake nicht erfasst — Default-Formulierung verwendet."
     }
   ],
   "outputItemShape": {

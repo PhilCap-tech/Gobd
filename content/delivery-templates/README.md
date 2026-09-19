@@ -1,36 +1,40 @@
-# GoBD Delivery — Content-Templates v1 (Slice A+B)
+# GoBD Delivery — Content-Templates (Outline v2)
 
-Im Repo unter `content/delivery-templates/`. Der Builder rendert lokal aus Intake → PDF-Bytes → Blob. Keine Live-API. Single source: **bundle.json**.
+Im Repo unter `content/delivery-templates/`. Der Builder rendert lokal aus Intake → PDF-Bytes → Blob. Keine Live-API.
 
+**Kapitelquelle:** die Markdown-Dateien in `cover.md` und `chapters/*.md`. Delivery kann später vollere Kapiteltexte in dieselben Dateien legen; der Renderer liest die Dateien und fällt auf `bundle.json` zurück.
 
-
-Für **GoBD Builder**: lokal aus Intake rendern → PDF-Bytes → Blob. Keine Live-API.
+`bundle.json` ist die kompilierte Quelle (Disclaimer, Kapitelreihenfolge, eingebettetes Markdown, Open-Points-Rules). Nach Änderungen an den `.md`-Dateien `node content/delivery-templates/build-bundle.mjs` ausführen.
 
 ## Eingabe
 
-JSON `IntakeAnswers` + `identity` wie im Builder-Contract (siehe `sample-intake.json`).
+JSON `IntakeAnswers` + `identity` wie im Builder-Contract (siehe `sample-intake.json`). Zusätzlich `{{version}}` (Start `1.0`) und `{{generatedAtDisplay}}`.
 
-## Ausgabe (vom Renderer erzeugen)
+## Ausgabe
 
-1. Cover (`cover.md`)
-2. Kapitel 1–5 aus `chapters/*.md` (Platzhalter ersetzen)
-3. Offene Punkte aus `open-points-rules.json` → Tabelle in Kapitel 6
-4. Disclaimer aus `disclaimer.txt` (Cover + Fußzeile)
+1. Titelseite / Kapitel 0 (`cover.md`) mit Logo-Header
+2. Kapitel 1–9 aus `chapters/*.md` (Platzhalter ersetzen)
+3. Nummerierte Absätze `[1]`, `[2]`, …
+4. Offene Punkte aus `open-points-rules.json` → Tabelle in Kapitel 9
+5. Kurzer Disclaimer (kein Steuerberatungsersatz) in Kopf/Fuß, nicht der Landing-Langtext
 
 ## Platzhalter
 
-- `{{identity.*}}` / `{{answers.*}}`
+- `{{identity.*}}` / `{{answers.*}}` / `{{roles.*}}`
 - Arrays: `{{field | join ", "}}`
 - Leer: `{{field | or "nicht angegeben"}}`
 - `{{openPointsTable}}` — Markdown-Tabelle aus den Rules
-- `{{generatedAt}}` — ISO-Datum Europe/Berlin
+- `{{generatedAt}}` / `{{generatedAtDisplay}}`
+- `{{version}}` — z. B. `1.0`
 - `{{disclaimer}}` — Inhalt von `disclaimer.txt`
 
-**Regel:** Keine erfundenen GoBD-Rechtstexte. Nur Intake-Hints + Struktur + Offene Punkte.
+**Regel:** Standardtexte (S) beschreiben den allgemeinen Rahmen. Keine erfundenen Zertifikate, Serverpfade oder Personennamen. Keine Zusicherung der Prüfungsfestigkeit. Kein „rechtssicher“.
 
-## Empfohlene PDF-Reihenfolge
+## PDF-Reihenfolge
 
-cover → 01 → 02 → 03 → 04 → 05 → 06 → disclaimer (Fuß)
+Titelseite (0) → 1 Vorbemerkungen → 2 Zielsetzung → 3 Organisation → 4 Papier → 5 Digital → 6 Mitgeltende → 7 Historie → 8 Glossar → 9 Offene Punkte
+
+Kapitel 4 wird gekürzt (`04-verfahren-papier-kurz.md`), wenn der Intake keinen Papierweg erkennen lässt.
 
 ## Mapping UI-Schritte → Felder
 
@@ -41,7 +45,3 @@ cover → 01 → 02 → 03 → 04 → 05 → 06 → disclaimer (Fuß)
 | 3 Eingang/Ausgang/Archiv | eingangsbelege, ausgangsrechnungen, archiv |
 | 4 Hosting/Backup/Zugriff | hosting, backup, zugriff |
 | 5 GF/Buchhaltung/IT/StB | gf, buchhaltung, it, steuerberater |
-
-## Später (nicht v1)
-
-Fertige Kapiteltexte (markdown/HTML) von Delivery; optional HTTP POST.

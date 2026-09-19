@@ -132,7 +132,7 @@ Branche-Schlüssel: `handwerk` | `handel` | `praxis` | `gastronomie` | `dienstle
 
 ## PDF, Blob, E-Mail, Magic Link
 
-Nach dem Intake entsteht **PDF v1** (pdfkit) lokal aus `content/delivery-templates/bundle.json` (GoBD Delivery Templates v1): Cover → Kapitel 01–06 → Disclaimer-Fußzeile. Platzhalter `{{identity.*}}` / `{{answers.*}}` mit `| join ", "` und `| or "nicht angegeben"`. Offene Punkte aus `openPointsRules`. Keine erfundenen GoBD-Rechtstexte über das Bundle hinaus.
+Nach dem Intake entsteht die **Verfahrensdokumentation PDF** (pdfkit, Outline v2) lokal aus `content/delivery-templates/` (Markdown-Kapitel + `bundle.json`): Titelseite mit Logo → Kapitel 1–9 mit nummerierten Absätzen `[1][2]…` → Kurzer Disclaimer (kein Steuerberatungsersatz) in Kopf/Fuß, Seitenzahlen. Platzhalter `{{identity.*}}` / `{{answers.*}}` / `{{roles.*}}` / `{{version}}` mit `| join ", "` und `| or "nicht angegeben"`. Offene Punkte aus `open-points-rules.json` in Kapitel 9. Standardrahmen nur aus den Templates; keine erfundenen Zertifikate, Pfade oder Personennamen.
 
 Readiness-PDF (4–6 Seiten): `content/readiness/{branche}.md` mit `{{Branche}}` / `{{Firma}}` / `{{Datum}}`. Blob-Pfad `gobd/readiness-{lead_id}/v1.pdf`. Download: `/api/readiness/{lead_id}/download?token=…` (oder Session-Cookie zur Lead-E-Mail). Keine Verfahrensdokumentation, kein Konto-Eintrag.
 
@@ -185,7 +185,7 @@ Ablauf:
 
 Zugriff: Magic-Link-Cookie `gobd_session` (E-Mail) **oder** `session_id` der ursprünglichen Stripe-/Stub-Checkout-Session. Fremde E-Mails sehen das Intake nicht.
 
-PDF-Text kommt weiter nur aus `content/delivery-templates/`. Keine zusätzlichen GoBD-Rechtstexte.
+PDF-Text kommt weiter nur aus `content/delivery-templates/`. Standardrahmen (S) und Intake-Platzhalter (I); keine Zusicherung der Prüfungsfestigkeit.
 
 ## Was ist Stub
 
