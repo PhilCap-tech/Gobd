@@ -30,8 +30,16 @@ Checkout Session im `subscription`-Modus mit zwei Line Items:
 - einmalig 149 € — `STRIPE_PRICE_SETUP_ID`
 - monatlich 49 € — `STRIPE_PRICE_MONTHLY_ID`
 
-`success_url` → `/intake?session_id={CHECKOUT_SESSION_ID}`  
-`cancel_url` → Landing `/`
+`success_url` → `{NEXT_PUBLIC_APP_URL}/intake?session_id={CHECKOUT_SESSION_ID}`  
+`cancel_url` → `{NEXT_PUBLIC_APP_URL}/`
+
+Kanonische Produktions-URL (kein Apex, kein trailing slash):
+
+`https://www.gobd-doku-erstellen.de`
+
+`getAppUrl()` normalisiert `gobd-doku-erstellen.de` → `www`. Der Apex-Host 308t auf www; Stripe muss direkt die www-`success_url` bekommen, sonst kann `session_id` in der Redirect-Kette verloren gehen.
+
+Der Success-Redirect hängt **nicht** am Webhook. Intake prüft die Session per Stripe Retrieve (`status === complete` **oder** `payment_status === paid`).
 
 In Stripe (Testmodus) anlegen:
 
@@ -77,6 +85,8 @@ Kein Auth, kein Admin-UI.
 
 ## Vercel
 
-Next.js App Router, bereit für Vercel. Dieselben Env-Vars setzen. Webhook-URL: `https://<domain>/api/stripe/webhook`.
+Next.js App Router, bereit für Vercel. Dieselben Env-Vars setzen. Webhook-URL: `https://www.gobd-doku-erstellen.de/api/stripe/webhook`.
+
+**Pflicht nach Deploy:** `NEXT_PUBLIC_APP_URL=https://www.gobd-doku-erstellen.de` (www, kein trailing slash) setzen und **neu deployen** — der Wert wird zur Build-Zeit eingebettet. Apex (`https://gobd-doku-erstellen.de`) nicht verwenden.
 
 Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout und Intake sind `noindex`.
