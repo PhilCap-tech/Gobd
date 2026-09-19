@@ -166,7 +166,7 @@ function renderMixedBlock(block: string, key: string): ReactNode[] {
 }
 
 function renderBlocks(body: string): ReactNode[] {
-  return body.split(/\n{2,}/).flatMap((block, index) => {
+  return body.split(/\n{2,}/).flatMap((block, index): ReactNode[] => {
     const key = `b-${index}`;
     const trimmed = block.trim();
     if (!trimmed) return [];
