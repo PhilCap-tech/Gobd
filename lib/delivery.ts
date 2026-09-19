@@ -8,13 +8,12 @@ import {
 } from "@/lib/delivery-templates";
 import {
   BRAND_DOC_TITLE,
-  BRAND_GREEN,
   BRAND_INK,
   BRAND_MUTED,
   BRAND_NAME,
+  BRAND_NAVY,
   BRAND_RULE,
-  drawBrandMark,
-  drawBrandWordmark,
+  drawBrandLockup,
 } from "@/lib/pdf-brand";
 import { writeMarkdownish } from "@/lib/pdf-markdown";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
@@ -158,21 +157,22 @@ function drawHeader(doc: PDFKit.PDFDocument, company: string) {
   withOpenMargins(doc, () => {
     const left = doc.page.margins.left;
     const width = contentWidth(doc);
-    const top = 28;
-    drawBrandWordmark(doc, left, top, 22);
+    const top = 24;
+    const lockupHeight = 26;
+    drawBrandLockup(doc, left, top, lockupHeight);
     doc
       .font("Helvetica")
       .fontSize(8)
       .fillColor(BRAND_MUTED)
-      .text(company || BRAND_DOC_TITLE, left, top + 4, {
+      .text(company || BRAND_DOC_TITLE, left, top + 6, {
         width,
         align: "right",
         lineBreak: false,
       });
-    const ruleY = top + 28;
+    const ruleY = top + lockupHeight + 6;
     doc
       .save()
-      .strokeColor(BRAND_GREEN)
+      .strokeColor(BRAND_NAVY)
       .lineWidth(1.1)
       .moveTo(left, ruleY)
       .lineTo(left + width, ruleY)
@@ -238,17 +238,15 @@ function writeTitlePage(
 ) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
-  drawBrandMark(doc, left, 48, 40);
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(16)
-    .fillColor(BRAND_INK)
-    .text(BRAND_NAME, left + 54, 54, { width: width - 54 });
+  const lockupHeight = 52;
+  drawBrandLockup(doc, left, 44, lockupHeight);
   doc
     .font("Helvetica")
     .fontSize(10)
-    .fillColor(BRAND_GREEN)
-    .text("Arbeitsfassung aus Kunden-Intake", left + 54, 76, { width: width - 54 });
+    .fillColor(BRAND_NAVY)
+    .text("Arbeitsfassung aus Kunden-Intake", left, 44 + lockupHeight + 10, {
+      width,
+    });
 
   doc.y = 130;
   doc.x = left;

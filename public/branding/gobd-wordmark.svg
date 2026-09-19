@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 48" role="img" aria-label="GoBD Verfahrensdoku">
-  <rect width="48" height="48" rx="9" fill="#1f6b4a"/>
-  <path d="M13.5 12.75h15l6 6V35.25h-21V12.75Z" stroke="#fff" stroke-width="2.4" fill="none"/>
-  <path d="M28.5 12.75V19.5h6" stroke="#fff" stroke-width="2.4" fill="none"/>
-  <path d="M18 25.5h12M18 30.75h9" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
-  <text x="62" y="22" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#14201b">GoBD</text>
-  <text x="62" y="38" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#1f6b4a">Verfahrensdoku</text>
-</svg>
