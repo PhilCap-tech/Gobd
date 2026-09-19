@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { put } from "@vercel/blob";
 import { generatePdf } from "@/lib/delivery";
+import { parseDocumentContent } from "@/lib/document-content";
 import { isBlobConfigured } from "@/lib/env";
 import { generateReadinessPdf, type ReadinessLead } from "@/lib/readiness";
 import { getFileFallbackDir } from "@/lib/store";
@@ -116,6 +117,7 @@ export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
     identity: identityFromSheetRow(row),
     documentId: row.documentId || "regenerated",
     version: Number.parseInt(row.version || "1", 10) || 1,
+    content: parseDocumentContent(row.chapterContent),
   });
   return generated.buffer;
 }

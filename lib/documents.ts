@@ -101,6 +101,12 @@ export function intakeEditPath(
   return `/intake?${params}`;
 }
 
+export function documentEditPath(
+  row: Pick<SheetRow, "documentId">,
+): string {
+  return `/account/dokument/${encodeURIComponent(row.documentId)}`;
+}
+
 export function formatDocumentTime(timestamp: string): string {
   if (!timestamp) return "—";
   const date = new Date(timestamp);
