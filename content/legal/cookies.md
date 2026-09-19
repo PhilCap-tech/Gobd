@@ -20,6 +20,7 @@ Wir setzen technisch notwendige Mittel ein, soweit erforderlich für:
 - Bereitstellung und Stabilität der Website
 - Sicherheitsfunktionen (z. B. Schutz vor Missbrauch)
 - Durchführung des Bezahlvorgangs über **Stripe Checkout** (Stripe kann eigene Cookies/Technologien setzen)
+- Magic-Link-Anmeldung und Zugriff auf gespeicherte Dokumente (`gobd_session`)
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am technischen Betrieb) bzw. § 25 Abs. 2 TTDSG (soweit Speicherung/Zugriff unbedingt erforderlich), sowie Art. 6 Abs. 1 lit. b DSGVO im Kontext der Zahlungsabwicklung.
 
@@ -36,7 +37,7 @@ Das Hosting kann technisch bedingte Verbindungsdaten und ggf. notwendige Speiche
 
 | Name / Technologie | Anbieter | Zweck | Speicherdauer | Notwendigkeit |
 |---|---|---|---|---|
-| TODO | Vercel / eigene Domain | Session / Sicherheit | TODO | notwendig |
+| gobd_session | eigene Domain | Magic-Link-Anmeldung / Dokumentenzugang | 30 Tage | notwendig |
 | TODO | Stripe | Checkout / Betrugsprävention | TODO | notwendig |
 | — | — | Analytics/Marketing | — | **nicht aktiv** |
 

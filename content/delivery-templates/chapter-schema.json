@@ -1,0 +1,73 @@
+{
+  "version": "1.0.0",
+  "slice": "A+B",
+  "language": "de",
+  "disclaimerId": "disclaimer",
+  "chapters": [
+    {
+      "id": "01-unternehmen",
+      "title": "1. Allgemeines und Unternehmen",
+      "order": 1,
+      "templateFile": "chapters/01-unternehmen.md",
+      "fields": [
+        "identity.company",
+        "answers.branchen",
+        "answers.rechtsform",
+        "answers.mitarbeitende"
+      ]
+    },
+    {
+      "id": "02-systeme",
+      "title": "2. Soft- und Systemumgebung",
+      "order": 2,
+      "templateFile": "chapters/02-systeme.md",
+      "fields": [
+        "answers.fibu",
+        "answers.weitereSysteme",
+        "answers.hosting"
+      ]
+    },
+    {
+      "id": "03-belegwesen",
+      "title": "3. Belegwesen",
+      "order": 3,
+      "templateFile": "chapters/03-belegwesen.md",
+      "fields": [
+        "answers.eingangsbelege",
+        "answers.ausgangsrechnungen",
+        "answers.archiv"
+      ]
+    },
+    {
+      "id": "04-aufbewahrung",
+      "title": "4. Aufbewahrung, Hosting und Zugriff",
+      "order": 4,
+      "templateFile": "chapters/04-aufbewahrung.md",
+      "fields": [
+        "answers.archiv",
+        "answers.hosting",
+        "answers.backup",
+        "answers.zugriff"
+      ]
+    },
+    {
+      "id": "05-verantwortlichkeiten",
+      "title": "5. Verantwortlichkeiten",
+      "order": 5,
+      "templateFile": "chapters/05-verantwortlichkeiten.md",
+      "fields": [
+        "answers.gf",
+        "answers.buchhaltung",
+        "answers.it",
+        "answers.steuerberater"
+      ]
+    },
+    {
+      "id": "06-offene-punkte",
+      "title": "6. Offene Punkte",
+      "order": 6,
+      "templateFile": "chapters/06-offene-punkte.md",
+      "generatedFrom": "open-points-rules.json"
+    }
+  ]
+}

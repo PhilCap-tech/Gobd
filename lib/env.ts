@@ -60,3 +60,35 @@ export function isSheetsConfigured(): boolean {
 export function getSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_TAB || "intakes";
 }
+
+export function isBlobConfigured(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+export function isMailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+}
+
+export function isMagicLinkConfigured(): boolean {
+  return Boolean(process.env.MAGIC_LINK_SECRET);
+}
+
+/**
+ * Signing secret for magic links and session cookies.
+ * Without MAGIC_LINK_SECRET a documented dev fallback is used so the local
+ * demo path still works — do not rely on that in production.
+ */
+export function getMagicLinkSecret(): string {
+  const secret = process.env.MAGIC_LINK_SECRET?.trim();
+  if (secret) return secret;
+  if (process.env.VERCEL_ENV === "production") {
+    console.error(
+      "[auth] MAGIC_LINK_SECRET fehlt in Produktion — unsicherer Fallback",
+    );
+  } else {
+    console.warn(
+      "[auth] MAGIC_LINK_SECRET fehlt — nutze Dev-Fallback. Setze MAGIC_LINK_SECRET.",
+    );
+  }
+  return "gobd-dev-magic-link-secret";
+}
