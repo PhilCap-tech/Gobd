@@ -152,7 +152,7 @@ Ohne Token: lokale Datei (`.data/pdfs` bzw. `/tmp/gobd-data/pdfs`). Download reg
 - `RESEND_API_KEY`
 - `EMAIL_FROM` (z. B. `GoBD Verfahrensdoku <noreply@deine-domain.de>`)
 
-Die Delivery-Mail enthält Download-Link und Magic Link. Die Readiness-Mail enthält den Grundlagen-PDF-Link (kein VD-Claim). Fehlen die Env-Werte: **kein Versand**, Log-Stub (wie Ops), Download bleibt auf `/success` bzw. `/readiness/success`.
+Die Delivery-Mail enthält Download-Link, Magic Link und FAQ (`https://www.gobd-doku-erstellen.de/faq`). Die Onboarding-Mail nach `checkout.session.completed` ebenso FAQ plus Login. Die Readiness-Mail enthält den Grundlagen-PDF-Link (kein VD-Claim). Fehlen die Env-Werte: **kein Versand**, Log-Stub, Download bleibt auf `/success` bzw. `/readiness/success`.
 
 ### Magic Link
 
@@ -189,7 +189,7 @@ PDF-Text kommt weiter nur aus `content/delivery-templates/`. Keine zusätzlichen
 
 ## Was ist Stub
 
-- **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding nach Zahlung, Failed Payment, Failed Job. Nur Logs, kein Versand.
+- **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding nach Zahlung per Resend, wenn Mail-Env gesetzt; sonst Log-Stub. Failed Payment / Failed Job: weiter nur Logs.
 - **Checkout ohne Stripe-Keys:** Mock-Session, weiter zum Intake.
 - **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
 - **Readiness ohne Sheets:** `.data/readiness-leads.json` bzw. `/tmp`.
