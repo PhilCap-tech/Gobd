@@ -2,19 +2,34 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { google } from "googleapis";
-import { getSheetsTab, isSheetsConfigured } from "@/lib/env";
 import { parseDocumentVersion, rowsInFamily } from "@/lib/documents";
+import { getSheetsTab, isSheetsConfigured } from "@/lib/env";
+import { normalizeQueryId, queryIdsEqual } from "@/lib/query";
 import {
   SHEET_COLUMNS,
   coerceSheetRow,
   emailsEqual,
   emptySheetRow,
-  parseSheetRow,
+  sheetFieldForHeader,
+  sheetRowFromValues,
   sheetRowValues,
   type SheetRow,
 } from "@/lib/types";
 
 const FILE_NAME = "intakes.json";
+
+const SHEETS_GET_OPTS = {
+  headers: {
+    "Cache-Control": "no-cache, no-store",
+    Pragma: "no-cache",
+  },
+} as const;
+
+const SESSION_LOOKUP_BACKOFF_MS = [300, 500, 800, 800];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export type StoreResult = {
   backend: "sheets" | "file";
@@ -81,10 +96,13 @@ async function ensureSheetHeader(): Promise<string[]> {
   const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
   const id = spreadsheetId();
   const tab = getSheetsTab();
-  const existing = await sheets.spreadsheets.values.get({
-    spreadsheetId: id,
-    range: `${tab}!A1:AZ1`,
-  });
+  const existing = await sheets.spreadsheets.values.get(
+    {
+      spreadsheetId: id,
+      range: `${tab}!A1:AZ1`,
+    },
+    SHEETS_GET_OPTS,
+  );
   const header = (existing.data.values?.[0] ?? []).map((cell) => String(cell));
 
   if (header.length === 0) {
@@ -97,7 +115,11 @@ async function ensureSheetHeader(): Promise<string[]> {
     return [...SHEET_COLUMNS];
   }
 
-  const missing = SHEET_COLUMNS.filter((col) => !header.includes(col));
+  const missing = SHEET_COLUMNS.filter((col) => {
+    const field = sheetFieldForHeader(col);
+    if (!field) return true;
+    return !header.some((cell) => sheetFieldForHeader(cell) === field);
+  });
   if (missing.length === 0) {
     return header;
   }
@@ -126,14 +148,22 @@ async function appendSheetRow(row: SheetRow): Promise<void> {
 async function readSheetRows(): Promise<SheetRow[]> {
   const header = await ensureSheetHeader();
   const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-  const result = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(),
-    range: `${getSheetsTab()}!A2:AZ`,
-  });
+  const result = await sheets.spreadsheets.values.get(
+    {
+      spreadsheetId: spreadsheetId(),
+      range: `${getSheetsTab()}!A2:AZ`,
+    },
+    SHEETS_GET_OPTS,
+  );
   const values = result.data.values ?? [];
   return values
     .filter((row) => row.some((cell) => String(cell || "").trim()))
-    .map((row) => parseSheetRow(header, row.map((cell) => String(cell ?? ""))));
+    .map((row) =>
+      sheetRowFromValues(
+        header,
+        row.map((cell) => String(cell ?? "")),
+      ),
+    );
 }
 
 async function readRows(file: string): Promise<SheetRow[]> {
@@ -180,29 +210,32 @@ async function appendFileRow(row: SheetRow): Promise<string> {
   }
 }
 
-async function readAllFileRows(): Promise<SheetRow[]> {
-  const primary = await readRows(getFileFallbackPath());
-  const tmpFile = tmpFallbackPath();
-  if (tmpFile === getFileFallbackPath()) {
-    return primary;
-  }
-  const tmpRows = await readRows(tmpFile);
-  if (tmpRows.length === 0) return primary;
-  if (primary.length === 0) return tmpRows;
-  const seen = new Set(
-    primary.map(
-      (row) => row.documentId || `${row.stripeSessionId}:${row.timestamp}`,
-    ),
-  );
+function rowIdentity(row: SheetRow): string {
+  return row.documentId || `${row.stripeSessionId}:${row.timestamp}`;
+}
+
+function mergeRows(primary: SheetRow[], extra: SheetRow[]): SheetRow[] {
+  if (extra.length === 0) return primary;
+  if (primary.length === 0) return extra;
+  const seen = new Set(primary.map(rowIdentity));
   const merged = [...primary];
-  for (const row of tmpRows) {
-    const key = row.documentId || `${row.stripeSessionId}:${row.timestamp}`;
+  for (const row of extra) {
+    const key = rowIdentity(row);
     if (!seen.has(key)) {
       merged.push(row);
       seen.add(key);
     }
   }
   return merged;
+}
+
+async function readAllFileRows(): Promise<SheetRow[]> {
+  const primary = await readRows(getFileFallbackPath());
+  const tmpFile = tmpFallbackPath();
+  if (tmpFile === getFileFallbackPath()) {
+    return primary;
+  }
+  return mergeRows(primary, await readRows(tmpFile));
 }
 
 export async function appendRecord(row: SheetRow): Promise<StoreResult> {
@@ -231,7 +264,9 @@ export async function appendRecord(row: SheetRow): Promise<StoreResult> {
 async function loadRows(): Promise<{ backend: "sheets" | "file"; rows: SheetRow[] }> {
   if (isSheetsConfigured()) {
     try {
-      return { backend: "sheets", rows: await readSheetRows() };
+      const sheetRows = await readSheetRows();
+      const fileRows = await readAllFileRows();
+      return { backend: "sheets", rows: mergeRows(sheetRows, fileRows) };
     } catch (error) {
       console.error(
         "[store] Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
@@ -243,9 +278,10 @@ async function loadRows(): Promise<{ backend: "sheets" | "file"; rows: SheetRow[
 }
 
 export async function findDocumentById(documentId: string): Promise<SheetRow | null> {
-  if (!documentId) return null;
+  const id = normalizeQueryId(documentId);
+  if (!id) return null;
   const { rows } = await loadRows();
-  const matches = rows.filter((row) => row.documentId === documentId);
+  const matches = rows.filter((row) => queryIdsEqual(row.documentId, id));
   return matches.at(-1) ?? null;
 }
 
@@ -263,17 +299,15 @@ export async function listDocumentFamily(documentId: string): Promise<SheetRow[]
   return rowsInFamily(rows, documentId);
 }
 
-/** Latest PDF row for a Stripe (or stub) checkout session. */
-export async function findLatestDocumentByStripeSessionId(
+function latestRowForSession(
+  rows: SheetRow[],
   sessionId: string,
-): Promise<SheetRow | null> {
-  if (!sessionId.trim()) return null;
-  const { rows } = await loadRows();
+): SheetRow | null {
   const matches = rows.filter(
     (row) =>
       Boolean(row.documentId) &&
       row.stripeSessionId &&
-      row.stripeSessionId === sessionId,
+      queryIdsEqual(row.stripeSessionId, sessionId),
   );
   if (matches.length === 0) return null;
   const sorted = [...matches].sort((a, b) => {
@@ -282,4 +316,64 @@ export async function findLatestDocumentByStripeSessionId(
     return b.timestamp.localeCompare(a.timestamp);
   });
   return sorted[0] ?? null;
+}
+
+/**
+ * Latest PDF row for a Stripe (or stub) checkout session.
+ * Pass `attempts` > 1 to retry load+lookup across Sheets read-after-write lag.
+ */
+export async function findLatestDocumentByStripeSessionId(
+  sessionId: string,
+  options?: { attempts?: number; backoffMs?: readonly number[] },
+): Promise<SheetRow | null> {
+  const normalized = normalizeQueryId(sessionId);
+  if (!normalized) return null;
+  const attempts = Math.max(1, options?.attempts ?? 1);
+  const backoff = options?.backoffMs ?? SESSION_LOOKUP_BACKOFF_MS;
+
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) {
+      const wait = backoff[Math.min(i - 1, backoff.length - 1)] ?? 500;
+      await sleep(wait);
+    }
+    const { backend, rows } = await loadRows();
+    const match = latestRowForSession(rows, normalized);
+    if (match) return match;
+    if (backend !== "sheets") break;
+  }
+  return null;
+}
+
+const SUCCESS_LOOKUP_ATTEMPTS = 5;
+
+/** Prefer document_id, then session_id, with retries for Sheets lag. */
+export async function findSuccessDocument(input: {
+  documentId?: string;
+  sessionId?: string;
+}): Promise<SheetRow | null> {
+  const documentId = normalizeQueryId(input.documentId);
+  const sessionId = normalizeQueryId(input.sessionId);
+  if (!documentId && !sessionId) return null;
+
+  const attempts = sessionId ? SUCCESS_LOOKUP_ATTEMPTS : 1;
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) {
+      const wait =
+        SESSION_LOOKUP_BACKOFF_MS[
+          Math.min(i - 1, SESSION_LOOKUP_BACKOFF_MS.length - 1)
+        ] ?? 500;
+      await sleep(wait);
+    }
+    const { backend, rows } = await loadRows();
+    if (documentId) {
+      const byId = rows.filter((row) => queryIdsEqual(row.documentId, documentId)).at(-1);
+      if (byId) return byId;
+    }
+    if (sessionId) {
+      const bySession = latestRowForSession(rows, sessionId);
+      if (bySession) return bySession;
+    }
+    if (backend !== "sheets") break;
+  }
+  return null;
 }

@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   DocumentRevisionActions,
   VersionHistory,
 } from "@/components/document-revision";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import {
+  SuccessNotFound,
+  SuccessPending,
+} from "@/components/success-status";
 import { getSessionEmail } from "@/lib/auth";
 import { DELIVERY_DISCLAIMER } from "@/lib/delivery";
 import {
@@ -15,11 +18,7 @@ import {
 } from "@/lib/documents";
 import { isMailConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
-import {
-  findDocumentById,
-  findLatestDocumentByStripeSessionId,
-  listDocumentFamily,
-} from "@/lib/store";
+import { findSuccessDocument, listDocumentFamily } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +39,7 @@ export default async function SuccessPage({
   const sessionId = firstQueryValue(params.session_id);
   const documentId = firstQueryValue(params.document_id);
   const sessionEmail = await getSessionEmail();
-  const byId = documentId ? await findDocumentById(documentId) : null;
-  const row =
-    byId ??
-    (sessionId ? await findLatestDocumentByStripeSessionId(sessionId) : null);
+  const row = await findSuccessDocument({ documentId, sessionId });
   const allowed = Boolean(
     row && canAccessDocument(row, { sessionEmail, sessionId }),
   );
@@ -53,26 +49,25 @@ export default async function SuccessPage({
   const mailReady = isMailConfigured();
   const version = row ? parseDocumentVersion(row) : 1;
 
+  const pendingQuery = new URLSearchParams();
+  if (sessionId) pendingQuery.set("session_id", sessionId);
+  if (documentId) pendingQuery.set("document_id", documentId);
+  const pendingHref = pendingQuery.toString()
+    ? `/success?${pendingQuery.toString()}`
+    : "/success";
+
   return (
     <>
       <SiteHeader backHref="/" backLabel="← Zur Landing" />
       <main className="wrap page">
-        {!allowed || !row ? (
-          <div className="card">
-            <h1>Dokument nicht gefunden</h1>
-            <p className="prose">
-              Der Entwurf ist nicht verfügbar. Wenn du gerade bezahlt hast,
-              öffne den Link aus der E-Mail oder melde dich an.
-            </p>
-            <div className="actions" style={{ marginTop: 16 }}>
-              <Link className="btn" href="/login">
-                Anmelden
-              </Link>
-              <Link className="btn ghost" href="/checkout">
-                Dokumentation starten
-              </Link>
-            </div>
-          </div>
+        {!row ? (
+          sessionId ? (
+            <SuccessPending href={pendingHref} sessionId={sessionId} />
+          ) : (
+            <SuccessNotFound />
+          )
+        ) : !allowed ? (
+          <SuccessNotFound />
         ) : (
           <section>
             <p className="kicker">Version {version}</p>
