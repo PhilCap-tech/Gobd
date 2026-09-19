@@ -1,49 +1,81 @@
 {
   "version": "2.0.0",
-  "slice": "outline-v2",
+  "slice": "A+B",
   "language": "de",
   "disclaimerId": "disclaimer",
+  "defaultVersion": "1.0",
+  "outline": [
+    "cover",
+    "vorbemerkungen",
+    "zielsetzung",
+    "organisation-sicherheit",
+    "verfahren-papier",
+    "verfahren-digital",
+    "mitgeltende-unterlagen",
+    "aenderungshistorie",
+    "glossar",
+    "offene-punkte"
+  ],
   "chapters": [
     {
-      "id": "cover",
-      "title": "0. Titelseite / Metadaten",
+      "id": "00-cover",
+      "title": "Deckblatt",
       "order": 0,
-      "templateFile": "cover.md",
+      "templateFile": "chapters/00-cover.md",
+      "role": "cover",
       "fields": [
         "identity.company",
         "identity.email",
         "identity.stripeSessionId",
-        "version",
-        "generatedAt"
+        "identity.stripeCustomerId",
+        "identity.stub"
       ]
     },
     {
       "id": "01-vorbemerkungen",
-      "title": "1. Vorbemerkungen",
+      "title": "1. Vorbemerkungen zur Verfahrensdokumentation",
       "order": 1,
       "templateFile": "chapters/01-vorbemerkungen.md",
-      "fields": ["answers.gf", "version", "generatedAt"]
+      "fields": [
+        "answers.gf"
+      ]
     },
     {
       "id": "02-zielsetzung",
       "title": "2. Zielsetzung und Überblick",
       "order": 2,
       "templateFile": "chapters/02-zielsetzung.md",
+      "subsections": [
+        "2.1 Zielsetzung und Anwendungsbereich",
+        "2.2 Unternehmen und organisatorisches Umfeld",
+        "2.3 Rechtliche Grundlagen",
+        "2.4 Relevante Unterlagen mit Belegfunktion",
+        "2.5 Einweisung in die Belegablage",
+        "2.6 Abgrenzung der Bearbeitungsbereiche"
+      ],
       "fields": [
         "identity.company",
+        "identity.email",
         "answers.branchen",
         "answers.rechtsform",
         "answers.mitarbeitende",
         "answers.eingangsbelege",
         "answers.ausgangsrechnungen",
+        "answers.archiv",
         "answers.steuerberater"
       ]
     },
     {
-      "id": "03-organisation",
+      "id": "03-organisation-sicherheit",
       "title": "3. Organisation und Sicherheit",
       "order": 3,
-      "templateFile": "chapters/03-organisation.md",
+      "templateFile": "chapters/03-organisation-sicherheit.md",
+      "subsections": [
+        "3.1 Eingesetzte Hard- und Software",
+        "3.2 Zuständigkeiten",
+        "3.3 Organisation und Internes Kontrollsystem (IKS)",
+        "3.4 Datenschutz"
+      ],
       "fields": [
         "answers.fibu",
         "answers.weitereSysteme",
@@ -59,36 +91,64 @@
     },
     {
       "id": "04-verfahren-papier",
-      "title": "4. Verfahren — Belege originär Papier",
+      "title": "4. Verfahren und Maßnahmen — Belege in Papierform",
       "order": 4,
       "templateFile": "chapters/04-verfahren-papier.md",
-      "shortFile": "chapters/04-verfahren-papier-kurz.md",
+      "subsections": [
+        "4.1 Posteingang und Vorsortierung",
+        "4.2 Identifikation der Belege mit Prüfung auf Echtheit",
+        "4.3 Erstellung von Ausgangs- und Eigenbelegen (Papier)",
+        "4.4 Digitalisierung (soweit vorgesehen)",
+        "4.5 Ablage der Belege in der vorgesehenen Ordnung",
+        "4.6 Turnus der Belegsicherung durch geordnete Ablage",
+        "4.7 Maßnahmen zur Sicherung der Belege",
+        "4.8 Aufbereitung der Belege für die weitere Bearbeitung",
+        "4.9 Weitergabe an / Rücknahme von Dritten",
+        "4.10 Archivierung nach der Erfassung",
+        "4.11 Vernichtung der Papierbelege"
+      ],
       "fields": [
         "answers.eingangsbelege",
         "answers.ausgangsrechnungen",
         "answers.archiv",
+        "answers.fibu",
         "answers.backup",
         "answers.zugriff",
-        "answers.fibu",
-        "answers.steuerberater",
-        "answers.hosting",
-        "answers.gf"
+        "answers.gf",
+        "answers.buchhaltung",
+        "answers.steuerberater"
       ]
     },
     {
       "id": "05-verfahren-digital",
-      "title": "5. Verfahren — Belege originär digital",
+      "title": "5. Verfahren und Maßnahmen — Belege in digitaler Form",
       "order": 5,
       "templateFile": "chapters/05-verfahren-digital.md",
+      "subsections": [
+        "5.1 Posteingang und Vorsortierung",
+        "5.2 Identifikation der Belege mit Prüfung auf Echtheit",
+        "5.3 Erstellung von Ausgangs- und Eigenbelegen (digital)",
+        "5.4 Ablage der Belege in der vorgesehenen Ordnung",
+        "5.5 Turnus der Belegsicherung durch geordnete Ablage",
+        "5.6 Maßnahmen zur Sicherung der Belege",
+        "5.7 Aufbereitung der Belege für die weitere Bearbeitung",
+        "5.8 Weitergabe an / Rücknahme von Dritten",
+        "5.9 Archivierung nach der Erfassung",
+        "5.10 Vernichtung / Löschung der digitalen Belege"
+      ],
       "fields": [
         "answers.eingangsbelege",
         "answers.ausgangsrechnungen",
-        "answers.fibu",
         "answers.archiv",
+        "answers.fibu",
+        "answers.weitereSysteme",
         "answers.hosting",
         "answers.backup",
         "answers.zugriff",
-        "answers.gf"
+        "answers.gf",
+        "answers.buchhaltung",
+        "answers.it",
+        "answers.steuerberater"
       ]
     },
     {
@@ -96,14 +156,20 @@
       "title": "6. Mitgeltende Unterlagen",
       "order": 6,
       "templateFile": "chapters/06-mitgeltende-unterlagen.md",
-      "fields": ["answers.steuerberater", "answers.fibu"]
+      "fields": [
+        "answers.steuerberater",
+        "answers.weitereSysteme",
+        "answers.backup"
+      ]
     },
     {
       "id": "07-aenderungshistorie",
       "title": "7. Änderungshistorie",
       "order": 7,
       "templateFile": "chapters/07-aenderungshistorie.md",
-      "fields": ["generatedAt", "answers.gf"]
+      "fields": [
+        "identity.company"
+      ]
     },
     {
       "id": "08-glossar",
@@ -117,7 +183,10 @@
       "title": "9. Offene Punkte",
       "order": 9,
       "templateFile": "chapters/09-offene-punkte.md",
-      "generatedFrom": "open-points-rules.json"
+      "generatedFrom": "open-points-rules.json",
+      "fields": [
+        "answers.gf"
+      ]
     }
   ]
 }

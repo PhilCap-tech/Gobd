@@ -2,7 +2,13 @@
  * Shared markdown-ish writer for pdfkit (delivery PDFs + readiness modules).
  */
 
-import { BRAND_GREEN, BRAND_HEADER_BG, BRAND_INK, BRAND_RULE } from "@/lib/pdf-brand";
+import {
+  BRAND_GREEN,
+  BRAND_HEADER_BG,
+  BRAND_INK,
+  BRAND_MUTED,
+  BRAND_RULE,
+} from "@/lib/pdf-brand";
 
 function isTableSeparator(line: string): boolean {
   return /^\|\s*:?-{3,}/.test(line.replaceAll(" ", ""));
@@ -229,6 +235,18 @@ export function writeMarkdownish(
     }
     if (line.startsWith("- ")) {
       writeInline(doc, `• ${line.slice(2)}`, width);
+      index += 1;
+      continue;
+    }
+    const italicHint = line.trim().match(/^\*(.+)\*$/);
+    if (italicHint && !line.trim().startsWith("**")) {
+      ensureSpace(doc, 18);
+      doc
+        .font("Helvetica-Oblique")
+        .fontSize(9.5)
+        .fillColor(BRAND_MUTED)
+        .text(unwrapLinks(italicHint[1] ?? ""), { width });
+      doc.fillColor(BRAND_INK);
       index += 1;
       continue;
     }

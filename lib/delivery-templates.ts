@@ -49,17 +49,13 @@ type BundleChapter = {
   id: string;
   title?: string;
   file?: string;
-  shortFile?: string;
   markdown: string;
-  markdownShort?: string;
 };
 
 const EMPTY_VALUES = new Set(
   (bundle.openPointsRules.emptyValues ?? [])
     .map((value) => (value == null ? "" : String(value).trim().toLowerCase())),
 );
-
-const PAPER_PATH = /papier|scan|ordner|brief|post|analog|ausdruck|fax/i;
 
 function isEmptyValue(value: unknown): boolean {
   if (value == null) return true;
@@ -71,12 +67,6 @@ function isEmptyValue(value: unknown): boolean {
   }
   const text = String(value).trim().toLowerCase();
   return EMPTY_VALUES.has(text);
-}
-
-export function hasPaperBelege(answers: IntakeAnswers): boolean {
-  return [...answers.eingangsbelege, ...answers.ausgangsrechnungen].some((value) =>
-    PAPER_PATH.test(value),
-  );
 }
 
 function firstFilled(...values: string[]): string {
@@ -223,17 +213,6 @@ export function evaluateOpenPoints(input: {
       field: String(rule.field),
     });
   }
-  if (!hasPaperBelege(input.answers)) {
-    points.push({
-      id: "op-papierweg",
-      title:
-        "Kein Papierweg im Intake erkennbar — Kapitel 4 ist gekürzt. Bei regelmäßigem Papieraufkommen Prozess nachtragen.",
-      severity: "low",
-      status: "open",
-      chapter: "04-verfahren-papier",
-      field: "answers.eingangsbelege",
-    });
-  }
   return points;
 }
 
@@ -269,6 +248,19 @@ export function formatBerlinIso(date = new Date()): string {
   return formatted.replace(" ", "T");
 }
 
+export function formatBerlinDateTime(date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+  return `${formatted} Uhr`;
+}
+
 export function formatBerlinDate(date = new Date()): string {
   return new Intl.DateTimeFormat("de-DE", {
     timeZone: "Europe/Berlin",
@@ -296,11 +288,7 @@ function readTemplateFile(relPath: string | undefined, fallback: string): string
   }
 }
 
-function chapterMarkdown(chapter: BundleChapter, answers: IntakeAnswers): string {
-  const useShort = chapter.id === "04-verfahren-papier" && !hasPaperBelege(answers);
-  if (useShort) {
-    return readTemplateFile(chapter.shortFile, chapter.markdownShort || chapter.markdown);
-  }
+function chapterMarkdown(chapter: BundleChapter): string {
   return readTemplateFile(chapter.file, chapter.markdown);
 }
 
@@ -310,7 +298,7 @@ export function renderDeliveryDocument(input: {
   documentId: string;
   version?: number;
 }): RenderedDocument {
-  const generatedAt = formatBerlinIso();
+  const generatedAt = formatBerlinDateTime();
   const generatedAtDisplay = formatBerlinDate();
   const versionLabel = formatVersionLabel(input.version);
   const openPoints = evaluateOpenPoints(input);
@@ -328,7 +316,7 @@ export function renderDeliveryDocument(input: {
   };
 
   const coverSource = readTemplateFile(
-    "coverFile" in bundle ? String(bundle.coverFile) : "cover.md",
+    "coverFile" in bundle ? String(bundle.coverFile) : "chapters/00-cover.md",
     bundle.coverMarkdown,
   );
 
@@ -336,7 +324,7 @@ export function renderDeliveryDocument(input: {
     disclaimer: bundle.disclaimer,
     cover: renderTemplate(coverSource, base).trim(),
     chapters: (bundle.chapters as BundleChapter[]).map((chapter) => {
-      const source = chapterMarkdown(chapter, input.answers);
+      const source = chapterMarkdown(chapter);
       const body = renderTemplate(source, base).trim();
       return {
         id: chapter.id,

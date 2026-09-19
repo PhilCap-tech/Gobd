@@ -19,9 +19,12 @@ import { writeMarkdownish } from "@/lib/pdf-markdown";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 /**
- * GoBD Delivery Outline v2 — local PDF from Intake + content/delivery-templates.
+ * GoBD Delivery Templates v2.0.0 — local PDF from Intake + content/delivery-templates.
  * Standardrahmen aus den Templates; keine erfundenen Einzelfall-Rechtstexte.
  */
+
+const FOOTER_CHROME =
+  "Kein Steuerberatungsersatz. Arbeitsfassung aus Kunden-Intake — vollständiger Hinweis auf dem Deckblatt.";
 
 export const DELIVERY_DISCLAIMER = deliveryBundle.disclaimer;
 
@@ -73,6 +76,7 @@ function hintFromAnswers(id: string, answers: IntakeAnswers): string {
     case "02-zielsetzung":
       return join(answers.branchen) || answers.rechtsform || "Branche fehlt";
     case "03-organisation":
+    case "03-organisation-sicherheit":
       return join(answers.fibu) || "FiBu fehlt";
     case "04-verfahren-papier":
       return join(answers.eingangsbelege) || "Eingang fehlt";
@@ -139,13 +143,6 @@ export async function enqueueDelivery(input: {
   return plan;
 }
 
-function disclaimerLines(text: string): string[] {
-  return text
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
 function withOpenMargins(doc: PDFKit.PDFDocument, write: () => void) {
   const saved = { ...doc.page.margins };
   doc.page.margins = { top: 0, bottom: 0, left: saved.left, right: saved.right };
@@ -188,7 +185,6 @@ function drawFooter(
     pages: number;
     documentId: string;
     versionLabel: string;
-    disclaimer: string;
   },
 ) {
   withOpenMargins(doc, () => {
@@ -203,12 +199,11 @@ function drawFooter(
       .lineTo(left + width, ruleY)
       .stroke()
       .restore();
-    const short = disclaimerLines(input.disclaimer)[0] ?? "Kein Steuerberatungsersatz.";
     doc
       .font("Helvetica")
       .fontSize(7.5)
       .fillColor(BRAND_MUTED)
-      .text(short, left, ruleY + 6, { width: width - 92, lineBreak: false });
+      .text(FOOTER_CHROME, left, ruleY + 6, { width: width - 92, lineBreak: false });
     doc
       .font("Helvetica")
       .fontSize(8)
@@ -279,7 +274,6 @@ function decoratePages(
       pages: range.count,
       documentId: input.documentId,
       versionLabel: input.rendered.versionLabel,
-      disclaimer: input.rendered.disclaimer,
     });
   }
 }

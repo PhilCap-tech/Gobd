@@ -132,7 +132,9 @@ Branche-Schlüssel: `handwerk` | `handel` | `praxis` | `gastronomie` | `dienstle
 
 ## PDF, Blob, E-Mail, Magic Link
 
-Nach dem Intake entsteht die **Verfahrensdokumentation PDF** (pdfkit, Outline v2) lokal aus `content/delivery-templates/` (Markdown-Kapitel + `bundle.json`): Titelseite mit Logo → Kapitel 1–9 mit nummerierten Absätzen `[1][2]…` → Kurzer Disclaimer (kein Steuerberatungsersatz) in Kopf/Fuß, Seitenzahlen. Platzhalter `{{identity.*}}` / `{{answers.*}}` / `{{roles.*}}` / `{{version}}` mit `| join ", "` und `| or "nicht angegeben"`. Offene Punkte aus `open-points-rules.json` in Kapitel 9. Standardrahmen nur aus den Templates; keine erfundenen Zertifikate, Pfade oder Personennamen.
+Nach dem Intake entsteht die **Verfahrensdokumentation PDF** (pdfkit, Delivery Templates v2.0.0) lokal aus `content/delivery-templates/` (Markdown-Kapitel + `bundle.json`): Titelseite mit Logo-Lockup → Kapitel 1–9 mit ~145 nummerierten Absätzen `[1][2]…` → offizieller Disclaimer auf dem Deckblatt, Kurzzeile in der Fußzeile, Seitenzahlen. Platzhalter `{{identity.*}}` / `{{answers.*}}` / `{{version}}` / `{{generatedAt}}` / `{{disclaimer}}` mit `| join ", "` und `| or "nicht angegeben"` (Rollen teils `| or "offen"`). Offene Punkte aus `open-points-rules.json` als `{{openPointsTable}}` in Kapitel 9. Standardrahmen nur aus den Templates; keine erfundenen Zertifikate, Pfade oder Personennamen.
+
+Lokal erzeugen: `npx tsx scripts/render-sample-delivery-pdf.ts` (Intake: `content/delivery-templates/sample-intake.json`). Bundle neu bauen: `node content/delivery-templates/build-bundle.mjs`.
 
 Readiness-PDF (4–6 Seiten): `content/readiness/{branche}.md` mit `{{Branche}}` / `{{Firma}}` / `{{Datum}}`. Blob-Pfad `gobd/readiness-{lead_id}/v1.pdf`. Download: `/api/readiness/{lead_id}/download?token=…` (oder Session-Cookie zur Lead-E-Mail). Keine Verfahrensdokumentation, kein Konto-Eintrag.
 

@@ -1,16 +1,20 @@
 # 8. Glossar
 
-Die folgenden Kurzdefinitionen dienen dem einheitlichen Verständnis dieser Arbeitsfassung. Sie ersetzen keine gesetzliche Legaldefinition und keine Beratung.
+[1] Die nachfolgenden Begriffserläuterungen dienen dem einheitlichen Verständnis dieser Verfahrensdokumentation. Sie ersetzen keine gesetzlichen Definitionen.
 
-| Begriff | Erläuterung |
+| Begriff | Definition / Erläuterung |
 | --- | --- |
-| Archiv | Geordneter Aufbewahrungsort für Belege und Unterlagen während der Aufbewahrungsfrist, analog oder digital. |
-| Aufbewahrung | Systematische, vollständige und geschützte Speicherung aufbewahrungspflichtiger Unterlagen. |
-| Aufbewahrungsfrist | Gesetzlicher Zeitraum, in dem Unterlagen nicht vernichtet oder gelöscht werden dürfen (regelmäßig 10 oder 6 Jahre). |
-| Beleg | Unterlage, die einen Geschäftsvorfall nachvollziehbar dokumentiert und Grundlage der Buchung oder Aufzeichnung ist. |
-| Belegfunktion | Eigenschaft einer Unterlage, einen Geschäftsvorfall nachweisbar zu machen (Inhalt, Herkunft, Zuordnung). |
+| Archiv(system) | Langfristige und möglichst unveränderliche Speicherung aufbewahrungspflichtiger Daten und Unterlagen zur Erfüllung gesetzlicher Aufbewahrungspflichten. |
+| Aufbewahrung | Vorhaltung aufbewahrungspflichtiger Unterlagen entsprechend den gesetzlichen Vorschriften. |
+| Aufbewahrungsfrist | Zeitraum, in dem Unterlagen aufgrund gesetzlicher Vorgaben aufbewahrt werden müssen. |
+| Beleg | Nachweis einer Buchung bzw. eines Geschäftsvorfalls (Belegfunktion). Jede Buchung muss belegmäßig nachgewiesen sein. |
+| Belegfunktion | Grundlage für die Beweiskraft der Buchführung; sichert die Nachvollziehbarkeit. |
+| Buchführungspflichtiger | Wen die handels- oder steuerrechtliche Buchführungs- und Aufzeichnungspflicht trifft; die Verantwortung ist nicht an Dritte delegierbar. |
 | GoB | Grundsätze ordnungsmäßiger Buchführung. |
-| GoBD | Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büchern, Aufzeichnungen und Unterlagen in elektronischer Form sowie zum Datenzugriff. |
-| IKS | Internes Kontrollsystem: organisatorische und technische Maßnahmen zur Steuerung und Überwachung der Ordnungsmäßigkeit. |
-| Nachvollziehbarkeit / Prüfbarkeit | Ein sachverständiger Dritter muss sich in angemessener Zeit einen Überblick verschaffen und auf Daten sowie Dokumentation zugreifen können. |
-| Verfahrensdokumentation | Beschreibung von Inhalt, Aufbau und Ablauf der relevanten Verfahren, hier beschränkt auf die Belegablage. |
+| GoBD | Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büchern, Aufzeichnungen und Unterlagen in elektronischer Form sowie zum Datenzugriff (BMF-Schreiben). |
+| Indexierung | Eineindeutige Verknüpfung zwischen einem digitalen Dokument und einem Kriterium zum Wiederauffinden. |
+| Internes Kontrollsystem (IKS) | Organisatorische Regelungen und technische Maßnahmen zur Steuerung und Überwachung der Ordnungsmäßigkeit, insbesondere zur Vermeidung, Aufdeckung und Beseitigung von Fehlern. |
+| Nachvollziehbarkeit / Prüfbarkeit | Ein sachverständiger Dritter muss sich in angemessener Zeit einen Überblick über Prozesse, Geschäftsvorfälle und die Lage des Unternehmens verschaffen können. |
+| Verfahrensdokumentation | Summe der Dokumentationen, die Inhalt, Aufbau und Ablauf der relevanten Verfahren und Prozesse nachvollziehbar machen. |
+
+[2] Weitere fachliche Begriffe werden im Fließtext bei erstmaliger Verwendung erläutert oder den mitgeltenden Unterlagen entnommen.

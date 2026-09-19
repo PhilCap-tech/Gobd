@@ -18,7 +18,7 @@ async function main() {
   const { buffer, plan, documentId } = await generatePdf({
     answers,
     identity: sample.identity,
-    documentId: "sample-outline-v2",
+    documentId: "sample-delivery-v2",
     version: 1,
   });
 

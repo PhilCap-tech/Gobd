@@ -7,17 +7,26 @@
     "k.A.",
     "ka",
     "n/a",
-    "none"
+    "none",
+    "offen"
   ],
   "arrayEmptyMeansOpen": true,
   "rules": [
     {
       "id": "op-company",
       "field": "identity.company",
-      "chapter": "02-zielsetzung",
+      "chapter": "00-cover",
       "severity": "high",
       "when": "empty",
-      "text": "Firmenname fehlt in der Identität — Titelseite und Kapitel 2.2 unvollständig."
+      "text": "Firmenname fehlt in der Identität — Deckblatt und Unternehmenskapitel unvollständig."
+    },
+    {
+      "id": "op-email",
+      "field": "identity.email",
+      "chapter": "00-cover",
+      "severity": "low",
+      "when": "empty",
+      "text": "Kontakt-E-Mail fehlt in der Identität."
     },
     {
       "id": "op-branchen",
@@ -25,7 +34,7 @@
       "chapter": "02-zielsetzung",
       "severity": "medium",
       "when": "empty",
-      "text": "Branche(n) fehlen — bitte nachtragen."
+      "text": "Branche(n) fehlen — Abschnitt Unternehmen und organisatorisches Umfeld unvollständig."
     },
     {
       "id": "op-rechtsform",
@@ -41,131 +50,119 @@
       "chapter": "02-zielsetzung",
       "severity": "low",
       "when": "empty",
-      "text": "Angabe zu Mitarbeitenden fehlt."
+      "text": "Angabe zu Mitarbeitenden fehlt (Größenordnung / IKS-Kontext)."
     },
     {
       "id": "op-fibu",
       "field": "answers.fibu",
-      "chapter": "03-organisation",
+      "chapter": "03-organisation-sicherheit",
       "severity": "high",
       "when": "empty",
-      "text": "FiBu-/Buchhaltungssoftware nicht angegeben — zentral für die Verfahrensdokumentation."
+      "text": "FiBu-/Buchhaltungssoftware nicht angegeben — zentral für Hard-/Software und Belegverknüpfung."
     },
     {
       "id": "op-weitere-systeme",
       "field": "answers.weitereSysteme",
-      "chapter": "03-organisation",
+      "chapter": "03-organisation-sicherheit",
       "severity": "low",
       "when": "empty",
-      "text": "Weitere Systeme nicht angegeben (optional, aber empfohlen bei Neben-Tools)."
+      "text": "Weitere Systeme / Vorsysteme nicht angegeben (empfohlen, wenn Neben-Tools Belege erzeugen)."
     },
     {
       "id": "op-eingangsbelege",
       "field": "answers.eingangsbelege",
-      "chapter": "02-zielsetzung",
+      "chapter": "04-verfahren-papier",
       "severity": "high",
       "when": "empty",
-      "text": "Weg der Eingangsbelege fehlt."
+      "text": "Weg der Eingangsbelege fehlt — Papier- und Digitalverfahren nicht parametrisierbar."
     },
     {
       "id": "op-ausgangsrechnungen",
       "field": "answers.ausgangsrechnungen",
-      "chapter": "02-zielsetzung",
+      "chapter": "05-verfahren-digital",
       "severity": "high",
       "when": "empty",
-      "text": "Weg der Ausgangsrechnungen fehlt."
+      "text": "Weg der Ausgangsrechnungen fehlt — Erstellung Ausgangs-/Eigenbelege unvollständig."
     },
     {
       "id": "op-archiv",
       "field": "answers.archiv",
-      "chapter": "03-organisation",
+      "chapter": "03-organisation-sicherheit",
       "severity": "high",
       "when": "empty",
-      "text": "Archivierung der Belege nicht angegeben."
+      "text": "Archivierung der Belege nicht angegeben — Ablage und Langzeitarchiv unklar."
     },
     {
       "id": "op-hosting",
       "field": "answers.hosting",
-      "chapter": "03-organisation",
+      "chapter": "03-organisation-sicherheit",
       "severity": "medium",
       "when": "empty",
-      "text": "Hosting-Angabe fehlt."
+      "text": "Hosting-Angabe fehlt — Aufbewahrungsort (Inland/EU/Drittland) und § 146 AO-Kontext unklar."
     },
     {
       "id": "op-backup",
       "field": "answers.backup",
-      "chapter": "03-organisation",
+      "chapter": "03-organisation-sicherheit",
       "severity": "high",
       "when": "empty",
-      "text": "Backup-Verfahren nicht angegeben."
+      "text": "Backup-Verfahren nicht angegeben — Sicherung gegen Verlust/Untergang unvollständig."
     },
     {
       "id": "op-zugriff",
       "field": "answers.zugriff",
-      "chapter": "03-organisation",
+      "chapter": "03-organisation-sicherheit",
       "severity": "high",
       "when": "empty",
-      "text": "Zugriff / Berechtigungen nicht angegeben."
+      "text": "Zugriff / Berechtigungen nicht angegeben — IKS und Datenschutz unvollständig."
     },
     {
       "id": "op-gf",
       "field": "answers.gf",
-      "chapter": "01-vorbemerkungen",
-      "severity": "medium",
+      "chapter": "03-organisation-sicherheit",
+      "severity": "high",
       "when": "empty",
-      "text": "Geschäftsführung / Gesamtverantwortung nicht benannt."
+      "text": "Geschäftsführung / Gesamtverantwortung nicht benannt — Freigabe und IKS-Kontrollen offen."
     },
     {
       "id": "op-buchhaltung",
       "field": "answers.buchhaltung",
-      "chapter": "03-organisation",
-      "severity": "medium",
+      "chapter": "03-organisation-sicherheit",
+      "severity": "high",
       "when": "empty",
-      "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt."
+      "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt — Prozessrollen unvollständig."
     },
     {
       "id": "op-it",
       "field": "answers.it",
-      "chapter": "03-organisation",
-      "severity": "low",
+      "chapter": "03-organisation-sicherheit",
+      "severity": "medium",
       "when": "empty",
-      "text": "IT-/Systemverantwortung nicht benannt."
+      "text": "IT-/Systemverantwortung nicht benannt — Backup, Zugriff und digitale Löschung unsicher."
     },
     {
       "id": "op-steuerberater",
       "field": "answers.steuerberater",
-      "chapter": "03-organisation",
+      "chapter": "03-organisation-sicherheit",
       "severity": "low",
       "when": "empty",
-      "text": "Steuerberatung nicht angegeben (falls vorhanden, nachtragen)."
+      "text": "Steuerberatung nicht angegeben (falls vorhanden bzw. an der Belegverarbeitung beteiligt, nachtragen)."
     },
     {
-      "id": "op-zertifikate",
-      "when": "always",
-      "chapter": "03-organisation",
+      "id": "op-stripe-session",
+      "field": "identity.stripeSessionId",
+      "chapter": "00-cover",
       "severity": "low",
-      "text": "Softwarebescheinigungen / Zertifikate der eingesetzten Systeme sind im Intake nicht erfasst."
+      "when": "empty",
+      "text": "Stripe-Session-Referenz fehlt — Nachvollziehbarkeit der Bestellung/Generierung eingeschränkt."
     },
     {
-      "id": "op-speicherpfad",
-      "when": "always",
-      "chapter": "03-organisation",
+      "id": "op-stripe-customer",
+      "field": "identity.stripeCustomerId",
+      "chapter": "00-cover",
       "severity": "low",
-      "text": "Konkreter Archiv-Datenpfad / Speicherort ist im Intake nicht erfasst."
-    },
-    {
-      "id": "op-mitgeltende",
-      "when": "always",
-      "chapter": "06-mitgeltende-unterlagen",
-      "severity": "low",
-      "text": "Weitere mitgeltende Unterlagen (außer dieser VD) wurden nicht geliefert."
-    },
-    {
-      "id": "op-turnus",
-      "when": "always",
-      "chapter": "04-verfahren-papier",
-      "severity": "low",
-      "text": "Turnus der Belegsicherung ist im Intake nicht erfasst — Default-Formulierung verwendet."
+      "when": "empty",
+      "text": "Stripe-Kundenreferenz fehlt — optionale Nachvollziehbarkeit der Bestellung."
     }
   ],
   "outputItemShape": {
