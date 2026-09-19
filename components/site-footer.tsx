@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LEGAL_LINKS, LEGAL_OPERATOR } from "@/lib/legal";
 
 export function SiteFooter() {
@@ -8,7 +9,7 @@ export function SiteFooter() {
       Kontakt:{" "}
       <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
       <nav className="footer-links" aria-label="Weitere Seiten">
-        <a href="/blog">Blog</a>
+        <Link href="/blog">Blog</Link>
         {LEGAL_LINKS.map((link) => (
           <a key={link.href} href={link.href}>
             {link.label}
