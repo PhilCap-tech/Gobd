@@ -21,8 +21,9 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 3. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
 4. Intake: Branche → Software → Belegwege → IT → Verantwortliche
 5. Speichern: Google Sheets oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
-6. Success (`/success?session_id=…&document_id=…`): PDF-Download, Disclaimer, Link zu **Meine Dokumente**
-7. Konto: `/login` (Magic Link) → `/account` (Liste + Download). Alias: `/meine-dokumente`
+6. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben bearbeiten**, Disclaimer, Link zu **Meine Dokumente**
+7. Konto: `/login` (Magic Link) → `/account` (Dokument + Versionshistorie + Download + Bearbeiten). Alias: `/meine-dokumente`
+8. Re-Edit: Intake vorbefüllt → neue PDF-Version (v2, v3, …), alte Versionen bleiben downloadbar
 
 ## Stripe (Testmodus)
 
@@ -71,7 +72,7 @@ Env:
 
 Spalten (Header wird geschrieben, wenn A1 leer ist; fehlende Spalten werden **angehängt**, bestehende nicht umsortiert):
 
-`timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version`
+`timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version | parent_document_id`
 
 Ohne Sheets-Credentials — oder wenn Sheets-Append fehlschlägt — schreibt die App einen Datei-Fallback:
 lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach `os.tmpdir()/gobd-data/intakes.json`
@@ -85,7 +86,7 @@ Nach dem Intake entsteht **PDF v1** (pdfkit) lokal aus `content/delivery-templat
 
 1. Im Vercel-Projekt Storage → Blob anlegen
 2. `BLOB_READ_WRITE_TOKEN` in `.env.local` / Vercel Env setzen
-3. PDFs landen unter `gobd/{document_id}/v1.pdf`
+3. PDFs landen unter `gobd/{family_id}/v{n}.pdf` (v1: `family_id` = `document_id`)
 
 Ohne Token: lokale Datei (`.data/pdfs` bzw. `/tmp/gobd-data/pdfs`). Download regeneriert das PDF aus den gespeicherten Intake-Zeilen, falls die Datei fehlt.
 
@@ -103,13 +104,32 @@ Die Delivery-Mail enthält Download-Link und Magic Link. Fehlen die Env-Werte: *
 
 1. Langes Zufallsgeheimnis setzen: `MAGIC_LINK_SECRET`
 2. `/login` fordert einen Link an → E-Mail → `/auth/verify?token=` setzt httpOnly-Cookie `gobd_session` (30 Tage)
-3. `/account` listet Dokumente zu dieser E-Mail (Sheets/Datei) und bietet den neuesten Download
+3. `/account` listet Dokumente zu dieser E-Mail (Sheets/Datei), die Versionshistorie und Downloads
 
 Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
 
-Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Stripe Customer Portal ist in diesem Slice ein TODO-Hinweis, keine Integration.
+Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. Stripe Customer Portal ist ein TODO-Hinweis, keine Integration (Slice D).
 
 Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben).
+
+## Re-Edit und Versionierung
+
+Keine zweite Tabelle. Jede PDF-Fassung ist eine **neue Zeile** in `intakes` (Sheets oder `.data/intakes.json`).
+
+- **v1:** `document_id` neu, `parent_document_id` = `document_id`, `version` = `1`, `pdf_url` = Blob-URL oder lokaler Pfad.
+- **v2+:** gleiche `email` / `stripe_session_id` / Firma, neue `document_id`, `parent_document_id` = Familienwurzel (v1-`document_id`), `version` = n+1, neues PDF. Alte Zeilen bleiben unverändert.
+- Slice-A+B-Zeilen ohne `parent_document_id`: die App behandelt `document_id` als Wurzel. Fehlende Spalte wird an den Header **angehängt**.
+
+Ablauf:
+
+1. Success oder Meine Dokumente → **Angaben bearbeiten** → `/intake?document_id=…` (optional `session_id`)
+2. Intake lädt die **aktuellste** Fassung der Familie und füllt das Formular
+3. Absenden erzeugt die nächste Version, lädt nach Blob (sonst `.data/pdfs/{family}-v{n}.pdf` bzw. `/tmp`)
+4. `/account` gruppiert nach `parent_document_id` und listet jede Version mit eigenem Download (`/api/docs/{document_id}/download`)
+
+Zugriff: Magic-Link-Cookie `gobd_session` (E-Mail) **oder** `session_id` der ursprünglichen Stripe-/Stub-Checkout-Session. Fremde E-Mails sehen das Intake nicht.
+
+PDF-Text kommt weiter nur aus `content/delivery-templates/`. Keine zusätzlichen GoBD-Rechtstexte.
 
 ## Was ist Stub
 
@@ -118,9 +138,9 @@ Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben).
 - **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
 - **PDF ohne Blob:** lokale Datei, auf Vercel nicht persistent; Download kann aus der Intake-Zeile regenerieren.
 - **Mail ohne Resend:** Log-Stub, Download auf Success bleibt.
-- **Stripe Customer Portal:** nur Hinweis auf `/account`.
+- **Stripe Customer Portal:** nur Hinweis auf `/account` (Slice D).
 
-PDF-Kapiteltexte über Counsel und Intake-Nachbearbeitung sind Slice C.
+Intake-Nachbearbeitung (Re-Edit / neue PDF-Version) ist implementiert. Fertige Kapiteltexte über Counsel bleiben später.
 
 ## Vercel
 

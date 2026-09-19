@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import { loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
+import { canAccessDocument } from "@/lib/documents";
 import { findDocumentById } from "@/lib/store";
-import { emailsEqual } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -20,9 +20,7 @@ export async function GET(
     return NextResponse.json({ error: "Dokument nicht gefunden." }, { status: 404 });
   }
 
-  const allowed =
-    (sessionEmail && emailsEqual(sessionEmail, row.email)) ||
-    (sessionId && sessionId === row.stripeSessionId);
+  const allowed = canAccessDocument(row, { sessionEmail, sessionId });
 
   if (!allowed) {
     return NextResponse.json({ error: "Kein Zugriff." }, { status: 401 });

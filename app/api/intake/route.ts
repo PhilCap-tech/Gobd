@@ -1,13 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { applySessionCookie, magicLinkUrl } from "@/lib/auth";
+import { applySessionCookie, getSessionEmail, magicLinkUrl } from "@/lib/auth";
 import { storePdf } from "@/lib/blob";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
+import {
+  canAccessDocument,
+  documentFamilyId,
+  nextVersionNumber,
+} from "@/lib/documents";
 import { getAppUrl } from "@/lib/env";
 import { sendDeliveryMail } from "@/lib/ops";
-import { appendRecord } from "@/lib/store";
+import { appendRecord, listDocumentFamily } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
-import { toSheetRow, type IntakeAnswers } from "@/lib/types";
+import {
+  identityFromSheetRow,
+  toSheetRow,
+  type CheckoutIdentity,
+  type IntakeAnswers,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -43,17 +53,50 @@ function isAnswers(value: unknown): value is IntakeAnswers {
   );
 }
 
-async function handleIntake(request: Request) {
-  let body: {
-    sessionId?: string;
-    answers?: unknown;
-    email?: string;
-    company?: string;
-  };
-  try {
-    body = await request.json();
-  } catch {
-    return jsonError("Ungültige Anfrage", 400);
+async function resolveIdentity(body: {
+  sessionId?: string;
+  answers?: unknown;
+  email?: string;
+  company?: string;
+  documentId?: string;
+}): Promise<
+  | {
+      identity: CheckoutIdentity;
+      version: number;
+      parentDocumentId: string;
+      status: string;
+    }
+  | { response: NextResponse }
+> {
+  const sourceDocumentId = body.documentId?.trim() ?? "";
+  const sessionEmail = await getSessionEmail();
+
+  if (sourceDocumentId) {
+    const family = await listDocumentFamily(sourceDocumentId);
+    const source =
+      family.find((row) => row.documentId === sourceDocumentId) ??
+      family.at(-1);
+    if (!source) {
+      return { response: jsonError("Dokument nicht gefunden.", 404) };
+    }
+    if (
+      !canAccessDocument(source, {
+        sessionEmail,
+        sessionId: body.sessionId,
+      })
+    ) {
+      return { response: jsonError("Kein Zugriff.", 401) };
+    }
+
+    const identity = identityFromSheetRow(source);
+    return {
+      identity,
+      version: nextVersionNumber(family),
+      parentDocumentId: documentFamilyId(source),
+      status: identity.stub
+        ? "intake_resubmitted_stub"
+        : "intake_resubmitted",
+    };
   }
 
   const identity = await resolveCheckoutSession(body.sessionId);
@@ -64,10 +107,12 @@ async function handleIntake(request: Request) {
         : identity.error === "not_paid"
           ? "Zahlung noch nicht bestätigt."
           : "Session konnte nicht geprüft werden. Bitte erneut versuchen.";
-    return NextResponse.json(
-      { error: message, reason: identity.error },
-      { status: identity.error === "lookup_failed" ? 503 : 401 },
-    );
+    return {
+      response: NextResponse.json(
+        { error: message, reason: identity.error },
+        { status: identity.error === "lookup_failed" ? 503 : 401 },
+      ),
+    };
   }
 
   if (identity.stub) {
@@ -75,24 +120,68 @@ async function handleIntake(request: Request) {
     identity.company = body.company?.trim() || identity.company;
   }
 
+  return {
+    identity,
+    version: 1,
+    parentDocumentId: "",
+    status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
+  };
+}
+
+async function handleIntake(request: Request) {
+  let body: {
+    sessionId?: string;
+    answers?: unknown;
+    email?: string;
+    company?: string;
+    documentId?: string;
+  };
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Ungültige Anfrage", 400);
+  }
+
+  const resolved = await resolveIdentity(body);
+  if ("response" in resolved) {
+    return resolved.response;
+  }
+
+  const { identity, version, status } = resolved;
+  let { parentDocumentId } = resolved;
+
   if (!isAnswers(body.answers)) {
     return jsonError("Intake unvollständig.", 400);
   }
 
   const answers = body.answers;
   const documentId = randomUUID();
+  if (!parentDocumentId) {
+    parentDocumentId = documentId;
+  }
+
   let delivery: DeliveryPlan;
   let pdfUrl = "";
 
   try {
-    const generated = await generatePdf({ answers, identity, documentId });
-    const storedPdf = await storePdf(documentId, generated.buffer);
+    const generated = await generatePdf({
+      answers,
+      identity,
+      documentId,
+      version,
+    });
+    const storedPdf = await storePdf({
+      familyId: parentDocumentId,
+      documentId,
+      version,
+      buffer: generated.buffer,
+    });
     pdfUrl = storedPdf.url || storedPdf.pathname;
     delivery = {
       ...generated.plan,
       status: "ready",
       pdf: {
-        version: 1,
+        version,
         documentId,
         url: storedPdf.url,
         pathname: storedPdf.pathname,
@@ -110,11 +199,12 @@ async function handleIntake(request: Request) {
       toSheetRow({
         identity,
         answers,
-        status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
+        status,
         deliveryStatus: delivery.status,
         documentId,
+        parentDocumentId,
         pdfUrl,
-        version: "1",
+        version: String(version),
       }),
     );
   } catch (error) {
@@ -134,6 +224,7 @@ async function handleIntake(request: Request) {
       downloadUrl,
       magicLinkUrl: magicUrl,
       successUrl,
+      version,
     });
   } catch (error) {
     console.error("[intake] delivery mail fehlgeschlagen", error);
@@ -145,6 +236,7 @@ async function handleIntake(request: Request) {
     delivery,
     documentId,
     pdfUrl: downloadUrl,
+    version,
   });
   if (identity.email) {
     applySessionCookie(response, identity.email);

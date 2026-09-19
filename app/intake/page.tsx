@@ -2,11 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { getSessionEmail } from "@/lib/auth";
+import {
+  canAccessDocument,
+  groupDocumentFamilies,
+  nextVersionNumber,
+} from "@/lib/documents";
 import { isStripeConfigured } from "@/lib/env";
+import { listDocumentFamily } from "@/lib/store";
 import {
   resolveCheckoutSession,
   type CheckoutResolveError,
 } from "@/lib/stripe";
+import {
+  answersFromSheetRow,
+  identityFromSheetRow,
+} from "@/lib/types";
 import { IntakeForm } from "./intake-form";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +76,24 @@ function IntakeGate({
   );
 }
 
+function EditGate({ loggedIn }: { loggedIn: boolean }) {
+  return (
+    <div className="card">
+      <h1>Angaben nicht verfügbar</h1>
+      <p className="prose">
+        {loggedIn
+          ? "Dieses Dokument gehört nicht zu deinem Konto."
+          : "Bitte mit der Checkout-E-Mail anmelden oder den Link von der Success-Seite mit gültiger Session nutzen."}
+      </p>
+      <div className="actions" style={{ marginTop: 16 }}>
+        <Link className="btn" href={loggedIn ? "/account" : "/login"}>
+          {loggedIn ? "Meine Dokumente" : "Anmelden"}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function firstQueryValue(
   value: string | string[] | undefined,
 ): string | undefined {
@@ -81,12 +110,46 @@ export default async function IntakePage({
     session_id?: string | string[];
     email?: string | string[];
     company?: string | string[];
+    document_id?: string | string[];
   }>;
 }) {
   const params = await searchParams;
   const sessionId = firstQueryValue(params.session_id);
   const email = firstQueryValue(params.email);
   const company = firstQueryValue(params.company);
+  const documentId = firstQueryValue(params.document_id);
+  const sessionEmail = await getSessionEmail();
+
+  if (documentId) {
+    const family = await listDocumentFamily(documentId);
+    const source =
+      family.find((row) => row.documentId === documentId) ?? family.at(-1);
+    const latest = groupDocumentFamilies(family)[0]?.latest ?? source;
+    const allowed =
+      source &&
+      canAccessDocument(source, { sessionEmail, sessionId });
+
+    return (
+      <>
+        <SiteHeader backHref="/" backLabel="← Zur Landing" />
+        <main className="wrap page">
+          {!allowed || !source || !latest ? (
+            <EditGate loggedIn={Boolean(sessionEmail)} />
+          ) : (
+            <IntakeForm
+              key={latest.documentId}
+              session={identityFromSheetRow(source)}
+              initialAnswers={answersFromSheetRow(latest)}
+              sourceDocumentId={source.documentId}
+              nextVersion={nextVersionNumber(family)}
+            />
+          )}
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
+
   const session = sessionId
     ? await resolveCheckoutSession(sessionId)
     : isStripeConfigured()

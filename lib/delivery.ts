@@ -29,7 +29,7 @@ export type DeliveryOpenItem = {
 };
 
 export type DeliveryPdfMeta = {
-  version: 1;
+  version: number;
   documentId: string;
   url: string;
   pathname: string;
@@ -214,8 +214,10 @@ export async function generatePdf(input: {
   answers: IntakeAnswers;
   identity: CheckoutIdentity;
   documentId?: string;
+  version?: number;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const documentId = input.documentId || randomUUID();
+  const version = input.version && input.version > 0 ? input.version : 1;
   const plan = planDelivery(input.answers, input.identity);
 
   const buffer = await new Promise<Buffer>((resolve, reject) => {
@@ -235,8 +237,9 @@ export async function generatePdf(input: {
     doc.end();
   });
 
-  console.info("[delivery] pdf v1", {
+  console.info("[delivery] pdf", {
     documentId,
+    version,
     bytes: buffer.length,
     chapters: plan.chapters.map((c) => c.id),
   });
