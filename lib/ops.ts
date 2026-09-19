@@ -30,6 +30,7 @@ export async function handleFailedPayment(input: {
   email?: string;
   sessionId?: string;
   invoiceId?: string;
+  customerId?: string;
   reason?: string;
 }): Promise<OpsResult> {
   console.warn("[ops] failed payment stub", input);

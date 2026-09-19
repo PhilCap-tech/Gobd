@@ -1,29 +1,58 @@
 import { NextResponse } from "next/server";
-import { isStripeConfigured } from "@/lib/env";
+import {
+  getStripeWebhookSecret,
+  isProductionRuntime,
+  isStripeSecretConfigured,
+} from "@/lib/env";
 import {
   handleFailedJob,
   handleFailedPayment,
   triggerOnboardingMail,
 } from "@/lib/ops";
-import { appendRecord } from "@/lib/store";
-import { getStripe } from "@/lib/stripe";
+import { appendRecord, findRowByStripeSessionId } from "@/lib/store";
+import {
+  getStripe,
+  retrieveCustomerEmail,
+  stripeCustomerIdFrom,
+} from "@/lib/stripe";
 import { toSheetRow } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
-  if (!isStripeConfigured()) {
-    return NextResponse.json(
-      { error: "Stripe nicht konfiguriert", stub: true },
-      { status: 503 },
+function missingSecretResponse() {
+  const production = isProductionRuntime();
+  if (production) {
+    console.error(
+      "[webhook] STRIPE_WEBHOOK_SECRET fehlt in Produktion. Endpoint: https://www.gobd-doku-erstellen.de/api/stripe/webhook",
+    );
+  } else {
+    console.warn(
+      "[webhook] STRIPE_WEBHOOK_SECRET fehlt. Lokal: stripe listen --forward-to localhost:3000/api/stripe/webhook",
     );
   }
 
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  return NextResponse.json(
+    {
+      error: "STRIPE_WEBHOOK_SECRET fehlt",
+      production,
+      hint: production
+        ? "Setze STRIPE_WEBHOOK_SECRET in Vercel aus Stripe Dashboard → Webhooks (Signing secret). URL: https://www.gobd-doku-erstellen.de/api/stripe/webhook"
+        : "Lokal: stripe listen --forward-to localhost:3000/api/stripe/webhook und den ausgegebenen whsec_…-Wert als STRIPE_WEBHOOK_SECRET setzen.",
+    },
+    { status: 503 },
+  );
+}
+
+export async function POST(request: Request) {
+  const secret = getStripeWebhookSecret();
   if (!secret) {
-    console.warn("[webhook] STRIPE_WEBHOOK_SECRET fehlt");
+    return missingSecretResponse();
+  }
+
+  if (!isStripeSecretConfigured()) {
+    console.error("[webhook] STRIPE_SECRET_KEY fehlt");
     return NextResponse.json(
-      { error: "STRIPE_WEBHOOK_SECRET fehlt" },
+      { error: "STRIPE_SECRET_KEY fehlt" },
       { status: 503 },
     );
   }
@@ -46,13 +75,22 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
-        const email =
+        let email =
           session.customer_details?.email || session.customer_email || "";
         const company = session.metadata?.company || "";
-        const customerId =
-          typeof session.customer === "string"
-            ? session.customer
-            : session.customer?.id || "";
+        const customerId = stripeCustomerIdFrom(session.customer);
+        if (!email && customerId) {
+          email = await retrieveCustomerEmail(customerId);
+        }
+
+        const existing = await findRowByStripeSessionId(session.id);
+        if (existing) {
+          console.info(
+            "[webhook] checkout.session.completed bereits verarbeitet",
+            session.id,
+          );
+          break;
+        }
 
         await appendRecord(
           toSheetRow({
@@ -77,9 +115,15 @@ export async function POST(request: Request) {
       }
       case "invoice.payment_failed": {
         const invoice = event.data.object;
+        const customerId = stripeCustomerIdFrom(invoice.customer);
+        let email = invoice.customer_email || "";
+        if (!email && customerId) {
+          email = await retrieveCustomerEmail(customerId);
+        }
         await handleFailedPayment({
-          email: invoice.customer_email || undefined,
+          email: email || undefined,
           invoiceId: invoice.id,
+          customerId: customerId || undefined,
           reason: invoice.last_finalization_error?.message,
         });
         break;
