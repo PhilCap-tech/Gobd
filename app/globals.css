@@ -124,6 +124,14 @@ nav,
   cursor: not-allowed;
 }
 
+.btn.ghost:disabled,
+.btn.ghost:disabled:hover {
+  background: var(--surface);
+  color: var(--muted);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+
 .wrap {
   width: min(720px, calc(100% - 40px));
   margin: 0 auto;

@@ -77,9 +77,23 @@ Events:
 
 In Stripe (Testmodus): Settings → Billing → Customer portal aktivieren (Zahlungsmittel, Rechnungen, Abo kündigen — je nach Portal-Config).
 
-Auf **Meine Dokumente** (`/account`, Alias `/meine-dokumente`): Button **Abo verwalten**. `POST /api/stripe/portal` liest die Session-E-Mail aus dem Cookie, sucht die neueste Zeile mit `stripe_customer_id` und erzeugt eine Billing-Portal-Session. `return_url` = `{NEXT_PUBLIC_APP_URL}/meine-dokumente?portal=returned`.
+Auf **Meine Dokumente** (`/account`, Alias `/meine-dokumente`): Block **Abo** ist nach Login immer sichtbar.
 
-Ohne Customer-ID, ohne `STRIPE_SECRET_KEY` oder bei Stripe-Fehler: Redirect zurück auf Meine Dokumente mit Hinweis (kein harter 500).
+- Mit `stripe_customer_id` und `STRIPE_SECRET_KEY`: Button **Abo verwalten** → `POST /api/stripe/portal`
+- Sonst: deaktivierter Ghost-Button plus Hinweis (kein Kunde / Stripe nicht konfiguriert)
+
+`POST /api/stripe/portal` liest die Session-E-Mail, sucht `stripe_customer_id` (bevorzugt Paid-/Intake-Zeilen; Fallback `customers.list` nach E-Mail, kurz gecacht) und erzeugt eine Billing-Portal-Session. Fehler und Rückkehr landen auf `/account?portal=…` (nicht `/meine-dokumente`, damit der Status-Banner nicht in der Alias-Weiterleitung verloren geht). `return_url` = `{NEXT_PUBLIC_APP_URL}/account?portal=returned`.
+
+Komfort-Routen **`/portal`** und **`/billing`**: eingeloggt mit Kunde → direkt ins Stripe-Portal, sonst Redirect auf `/account` (mit `?portal=missing|unavailable|error`). Nicht eingeloggt → `/login`. Kein 404.
+
+`stripe_customer_id` wird geschrieben, wenn vorhanden:
+
+- Webhook `checkout.session.completed` (auch nach, wenn die Intake-Zeile die ID noch nicht hatte)
+- Intake (Checkout-Session-Retrieve, sonst Store/Stripe-Lookup)
+
+Ohne Webhook-Secret speichert der Intake die ID trotzdem über Session-Retrieve. Fehlt sie in den Zeilen, listet das Konto/Portal Stripe-Kunden zur E-Mail (kein Ersatz für Keys; `STRIPE_WEBHOOK_SECRET` bleibt Ops-Aufgabe).
+
+Ohne Customer-ID, ohne `STRIPE_SECRET_KEY` oder bei Stripe-Fehler: Redirect zurück auf `/account` mit Hinweis (kein harter 500). Der Abo-Block bleibt sichtbar.
 
 **Blocker ohne Keys:** Echte Zahlung und das echte Portal sind nicht testbar, solange `STRIPE_SECRET_KEY` und die beiden Price-IDs fehlen. Die Integration ist vollständig verdrahtet; der Checkout fällt dann auf eine Mock-Session zurück. Das Portal braucht zusätzlich eine echte `cus_…` (nach Test-Checkout in der Sheet-/Datei-Zeile).
 
@@ -132,7 +146,7 @@ Die Delivery-Mail enthält Download-Link und Magic Link. Fehlen die Env-Werte: *
 
 Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
 
-Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. **Abo verwalten** auf `/account` bzw. `/meine-dokumente` öffnet das Stripe Customer Portal (`stripe_customer_id` der neuesten Zeile zu dieser E-Mail).
+Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. **Abo** auf `/account` ist nach Login immer sichtbar; **Abo verwalten** öffnet das Stripe Customer Portal, sobald eine `cus_…` zur E-Mail vorliegt (Sheet/Datei oder Stripe-Lookup). Alias-Routen: `/meine-dokumente`, `/portal`, `/billing`.
 
 Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben).
 
@@ -164,7 +178,7 @@ PDF-Text kommt weiter nur aus `content/delivery-templates/`. Keine zusätzlichen
 - **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
 - **PDF ohne Blob:** lokale Datei, auf Vercel nicht persistent; Download kann aus der Intake-Zeile regenerieren.
 - **Mail ohne Resend:** Log-Stub, Download auf Success bleibt.
-- **Stripe Customer Portal:** ohne `STRIPE_SECRET_KEY` oder ohne `stripe_customer_id` zur Session-E-Mail — Hinweis statt Portal.
+- **Stripe Customer Portal:** ohne `STRIPE_SECRET_KEY` oder ohne `stripe_customer_id` zur Session-E-Mail — deaktivierter Button plus Hinweis auf `/account` (nicht unsichtbar). `/portal` und `/billing` leiten entsprechend weiter.
 
 Intake-Nachbearbeitung (Re-Edit / neue PDF-Version) ist implementiert. Fertige Kapiteltexte über Counsel bleiben später.
 

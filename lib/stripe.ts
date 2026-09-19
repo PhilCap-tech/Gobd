@@ -1,6 +1,13 @@
 import Stripe from "stripe";
-import { getAppUrl, isStripeConfigured } from "@/lib/env";
+import { getAppUrl, isStripeConfigured, isStripeSecretConfigured } from "@/lib/env";
 import type { CheckoutIdentity } from "@/lib/types";
+
+const CUSTOMER_LIST_TTL_MS = 60_000;
+const customerListCache = new Map<
+  string,
+  { id: string | null; at: number }
+>();
+const customerListInflight = new Map<string, Promise<string | null>>();
 
 export type PortalStatus = "returned" | "missing" | "unavailable" | "error";
 
@@ -147,10 +154,15 @@ export async function resolveCheckoutSession(
       return { error: "not_paid" };
     }
 
-    const customerId = stripeCustomerIdFrom(session.customer);
+    const email =
+      session.customer_details?.email || session.customer_email || "";
+    let customerId = stripeCustomerIdFrom(session.customer);
+    if (!customerId && email) {
+      customerId = (await listStripeCustomerIdByEmail(email)) || "";
+    }
 
     return {
-      email: session.customer_details?.email || session.customer_email || "",
+      email,
       company: session.metadata?.company || "",
       stripeSessionId: session.id,
       stripeCustomerId: customerId,
@@ -168,6 +180,50 @@ export function stripeCustomerIdFrom(
   if (!customer) return "";
   if (typeof customer === "string") return customer;
   return customer.id || "";
+}
+
+/**
+ * Lookup a Stripe customer id by e-mail. Cached briefly to avoid
+ * customers.list on every account refresh (rate-limit).
+ */
+export async function listStripeCustomerIdByEmail(
+  email: string,
+): Promise<string | null> {
+  const key = email.trim().toLowerCase();
+  if (!key || !isStripeSecretConfigured()) return null;
+
+  const cached = customerListCache.get(key);
+  if (cached && Date.now() - cached.at < CUSTOMER_LIST_TTL_MS) {
+    return cached.id;
+  }
+
+  const inflight = customerListInflight.get(key);
+  if (inflight) return inflight;
+
+  const pending = (async () => {
+    try {
+      const result = await getStripe().customers.list({
+        email: key,
+        limit: 10,
+      });
+      const live = result.data.filter(
+        (customer) => !("deleted" in customer && customer.deleted),
+      );
+      live.sort((a, b) => (b.created ?? 0) - (a.created ?? 0));
+      const id = live[0]?.id || null;
+      customerListCache.set(key, { id, at: Date.now() });
+      return id;
+    } catch (error) {
+      console.error("[stripe] customers.list fehlgeschlagen", error);
+      customerListCache.set(key, { id: null, at: Date.now() });
+      return null;
+    } finally {
+      customerListInflight.delete(key);
+    }
+  })();
+
+  customerListInflight.set(key, pending);
+  return pending;
 }
 
 export async function retrieveCustomerEmail(customerId: string): Promise<string> {
@@ -193,7 +249,7 @@ export async function createBillingPortalSession(
   const session = await getStripe().billingPortal.sessions.create({
     customer: id,
     locale: "de",
-    return_url: `${getAppUrl()}/meine-dokumente?portal=returned`,
+    return_url: `${getAppUrl()}/account?portal=returned`,
   });
 
   if (!session.url) {

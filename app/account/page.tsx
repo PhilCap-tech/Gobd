@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AccountAboCard } from "@/components/account-abo";
 import {
   DocumentRevisionActions,
   VersionHistory,
@@ -69,15 +70,10 @@ export default async function AccountPage({
           </p>
         )}
 
-        {canOpenPortal && (
-          <div className="actions" style={{ marginBottom: 16 }}>
-            <form action="/api/stripe/portal" method="post">
-              <button className="btn ghost" type="submit">
-                Abo verwalten
-              </button>
-            </form>
-          </div>
-        )}
+        <AccountAboCard
+          canOpenPortal={canOpenPortal}
+          stripeReady={stripeReady}
+        />
 
         {families.length === 0 ? (
           <div className="card">
@@ -121,12 +117,7 @@ export default async function AccountPage({
         <p className="hint" style={{ marginTop: 20 }}>
           {stripeBound
             ? "Identität über die Checkout-E-Mail / Stripe-Session gebunden."
-            : "Identität über die E-Mail aus dem Intake."}{" "}
-          {canOpenPortal
-            ? "Abo, Zahlungsmittel und Rechnungen verwaltest du im Stripe Customer Portal."
-            : stripeReady
-              ? "Abo verwalten ist verfügbar, sobald ein Stripe-Kunde zu dieser E-Mail vorliegt."
-              : "Abo-Verwaltung braucht STRIPE_SECRET_KEY (Demo-Pfad ohne Stripe)."}
+            : "Identität über die E-Mail aus dem Intake."}
         </p>
 
         <form action="/api/auth/logout" method="post" style={{ marginTop: 16 }}>
