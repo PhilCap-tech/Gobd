@@ -1,17 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  DocumentRevisionActions,
+  VersionHistory,
+} from "@/components/document-revision";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import { DELIVERY_DISCLAIMER } from "@/lib/delivery";
 import {
   canAccessDocument,
-  documentDownloadPath,
-  intakeEditPath,
+  groupDocumentFamilies,
   parseDocumentVersion,
 } from "@/lib/documents";
 import { isMailConfigured } from "@/lib/env";
-import { findDocumentById } from "@/lib/store";
+import { firstQueryValue } from "@/lib/query";
+import {
+  findDocumentById,
+  findLatestDocumentByStripeSessionId,
+  listDocumentFamily,
+} from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +27,6 @@ export const metadata: Metadata = {
   title: "Dokument bereit",
   robots: { index: false, follow: false },
 };
-
-function firstQueryValue(
-  value: string | string[] | undefined,
-): string | undefined {
-  if (Array.isArray(value)) {
-    return value.find((item) => item && item.trim()) || undefined;
-  }
-  return value;
-}
 
 export default async function SuccessPage({
   searchParams,
@@ -41,13 +40,16 @@ export default async function SuccessPage({
   const sessionId = firstQueryValue(params.session_id);
   const documentId = firstQueryValue(params.document_id);
   const sessionEmail = await getSessionEmail();
-  const row = documentId ? await findDocumentById(documentId) : null;
+  const byId = documentId ? await findDocumentById(documentId) : null;
+  const row =
+    byId ??
+    (sessionId ? await findLatestDocumentByStripeSessionId(sessionId) : null);
   const allowed = Boolean(
     row && canAccessDocument(row, { sessionEmail, sessionId }),
   );
-  const downloadHref =
-    allowed && row ? documentDownloadPath(row, sessionId) : null;
-  const editHref = allowed && row ? intakeEditPath(row, sessionId) : null;
+  const family = allowed && row
+    ? groupDocumentFamilies(await listDocumentFamily(row.documentId))[0]
+    : undefined;
   const mailReady = isMailConfigured();
   const version = row ? parseDocumentVersion(row) : 1;
 
@@ -98,21 +100,15 @@ export default async function SuccessPage({
                   sind.
                 </p>
               )}
-              <div className="actions" style={{ marginTop: 16 }}>
-                {downloadHref && (
-                  <a className="btn" href={downloadHref}>
-                    PDF herunterladen
-                  </a>
-                )}
-                {editHref && (
-                  <Link className="btn ghost" href={editHref}>
-                    Angaben bearbeiten
-                  </Link>
-                )}
-                <Link className="btn ghost" href="/account">
-                  Meine Dokumente
-                </Link>
-              </div>
+              <DocumentRevisionActions
+                row={row}
+                sessionId={sessionId}
+                showAccountLink
+              />
+              <VersionHistory
+                versions={family?.versions ?? [row]}
+                sessionId={sessionId}
+              />
               <p className="disclaimer" role="note">
                 {DELIVERY_DISCLAIMER}
               </p>

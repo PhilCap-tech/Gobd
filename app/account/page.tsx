@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  DocumentRevisionActions,
+  VersionHistory,
+} from "@/components/document-revision";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import {
-  documentDownloadPath,
   formatDocumentTime,
   groupDocumentFamilies,
-  intakeEditPath,
   parseDocumentVersion,
 } from "@/lib/documents";
 import { listDocumentsByEmail } from "@/lib/store";
@@ -53,10 +55,12 @@ export default async function AccountPage() {
         ) : (
           <>
             {latest && (
-              <div className="actions" style={{ marginBottom: 16 }}>
-                <a className="btn" href={documentDownloadPath(latest)}>
-                  Neueste Version herunterladen
-                </a>
+              <div className="card" style={{ marginBottom: 16 }}>
+                <p className="doc-meta">Aktuellste Fassung</p>
+                <DocumentRevisionActions
+                  row={latest}
+                  downloadLabel="Neueste Version herunterladen"
+                />
               </div>
             )}
             <div className="doc-list">
@@ -68,32 +72,8 @@ export default async function AccountPage() {
                     {formatDocumentTime(family.latest.timestamp)} ·{" "}
                     {family.latest.deliveryStatus || "ready"}
                   </p>
-                  <div className="actions" style={{ marginTop: 12 }}>
-                    <a
-                      className="btn"
-                      href={documentDownloadPath(family.latest)}
-                    >
-                      PDF herunterladen
-                    </a>
-                    <Link
-                      className="btn ghost"
-                      href={intakeEditPath(family.latest)}
-                    >
-                      Angaben bearbeiten
-                    </Link>
-                  </div>
-                  <h3 className="version-heading">Versionen</h3>
-                  <ul className="version-list">
-                    {family.versions.map((row) => (
-                      <li key={row.documentId}>
-                        <span>
-                          Version {parseDocumentVersion(row)} ·{" "}
-                          {formatDocumentTime(row.timestamp)}
-                        </span>
-                        <a href={documentDownloadPath(row)}>Download</a>
-                      </li>
-                    ))}
-                  </ul>
+                  <DocumentRevisionActions row={family.latest} />
+                  <VersionHistory versions={family.versions} />
                 </article>
               ))}
             </div>

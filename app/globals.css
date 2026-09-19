@@ -108,9 +108,15 @@ nav,
 }
 
 .btn.ghost {
-  background: transparent;
+  background: var(--surface);
   color: var(--text);
-  border-color: var(--line);
+  border-color: #5a6560;
+}
+
+.btn.ghost:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .btn:disabled {
@@ -545,18 +551,35 @@ textarea:focus {
   margin: 0;
 }
 
+.version-history {
+  margin-top: 16px;
+}
+
 .version-heading {
   font-family: "Segoe UI", system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 650;
-  margin: 18px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
   letter-spacing: 0;
+  color: var(--text);
+}
+
+.version-hint,
+.revision-hint {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 8px 0 0;
 }
 
 .version-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   padding: 0;
+  border: 1px solid #8aa396;
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
 }
 
 .version-list li {
@@ -565,16 +588,27 @@ textarea:focus {
   justify-content: space-between;
   gap: 8px 12px;
   align-items: center;
-  padding: 10px 0;
-  border-top: 1px dashed var(--line);
+  padding: 10px 12px;
+  border-top: 1px solid #c5d4cc;
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.version-list li:first-child {
+  border-top: none;
 }
 
 .version-list a {
   color: var(--accent);
-  font-weight: 650;
-  text-decoration: none;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.version-list a:hover {
+  color: #185a3e;
 }
 
 code {

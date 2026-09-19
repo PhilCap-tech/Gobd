@@ -21,9 +21,9 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 3. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
 4. Intake: Branche → Software → Belegwege → IT → Verantwortliche
 5. Speichern: Google Sheets oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
-6. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben bearbeiten**, Disclaimer, Link zu **Meine Dokumente**
-7. Konto: `/login` (Magic Link) → `/account` (Dokument + Versionshistorie + Download + Bearbeiten). Alias: `/meine-dokumente`
-8. Re-Edit: Intake vorbefüllt → neue PDF-Version (v2, v3, …), alte Versionen bleiben downloadbar
+6. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben überarbeiten**, **Neue PDF-Version erzeugen**, **Versionshistorie**. Fehlt `document_id`, reicht `session_id` — die App lädt die neueste Zeile zu dieser Stripe-Session.
+7. Konto: `/login` (Magic Link) → `/account` (**Angaben überarbeiten** + **Versionshistorie** + Download). Alias: `/meine-dokumente` → `/account`
+8. Re-Edit: Intake vorbefüllt → Absenden erzeugt **Version N+1**, alte Versionen bleiben downloadbar
 
 ## Stripe (Testmodus)
 
@@ -104,7 +104,7 @@ Die Delivery-Mail enthält Download-Link und Magic Link. Fehlen die Env-Werte: *
 
 1. Langes Zufallsgeheimnis setzen: `MAGIC_LINK_SECRET`
 2. `/login` fordert einen Link an → E-Mail → `/auth/verify?token=` setzt httpOnly-Cookie `gobd_session` (30 Tage)
-3. `/account` listet Dokumente zu dieser E-Mail (Sheets/Datei), die Versionshistorie und Downloads
+3. `/account` listet Dokumente zu dieser E-Mail (Sheets/Datei), **Angaben überarbeiten** und die **Versionshistorie**
 
 Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
 
@@ -122,10 +122,12 @@ Keine zweite Tabelle. Jede PDF-Fassung ist eine **neue Zeile** in `intakes` (She
 
 Ablauf:
 
-1. Success oder Meine Dokumente → **Angaben bearbeiten** → `/intake?document_id=…` (optional `session_id`)
-2. Intake lädt die **aktuellste** Fassung der Familie und füllt das Formular
-3. Absenden erzeugt die nächste Version, lädt nach Blob (sonst `.data/pdfs/{family}-v{n}.pdf` bzw. `/tmp`)
-4. `/account` gruppiert nach `parent_document_id` und listet jede Version mit eigenem Download (`/api/docs/{document_id}/download`)
+1. Success oder Meine Dokumente → **Angaben überarbeiten** (oder **Neue PDF-Version erzeugen**) → `/intake?document_id=…&session_id=…`
+2. Intake lädt die **aktuellste** Fassung der Familie und füllt das Formular aus der Sheet-/Datei-Zeile
+3. Absenden hängt eine **neue Zeile** an (`version` = n+1, `parent_document_id` = Familienwurzel, neue `document_id` + PDF). Die alte Zeile bleibt. So entsteht Version 2, 3, …
+4. `/account` und `/success` zeigen die **Versionshistorie**; bei nur einer Fassung den Hinweis „Nach dem Überarbeiten erscheint hier Version 2.“ Jede Version hat einen eigenen Download (`/api/docs/{document_id}/download`)
+
+`/success?session_id=…` ohne `document_id` sucht die neueste Intake-Zeile zu dieser Stripe-Session und zeigt Download + Überarbeiten. `/intake?document_id=&session_id=…` (leere `document_id`) fällt ebenfalls auf die Session-Zeile zurück und startet den Re-Edit statt eines leeren Formulars.
 
 Zugriff: Magic-Link-Cookie `gobd_session` (E-Mail) **oder** `session_id` der ursprünglichen Stripe-/Stub-Checkout-Session. Fremde E-Mails sehen das Intake nicht.
 
