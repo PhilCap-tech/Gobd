@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ProductDisclaimer } from "@/components/product-disclaimer";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
@@ -27,10 +26,6 @@ export default function HomePage() {
           </div>
           <p className="hint">
             Ca. 2–3 Minuten · Keine Kreditkarte · Keine Steuerberatung
-          </p>
-          <p className="disclaimer" role="note">
-            Keine Steuerberatung. Das Ergebnis ist ein Entwurf zur Abstimmung
-            mit deinem Steuerberater.
           </p>
           <div className="tags" aria-label="Themen">
             <span>Verfahrensdokumentation erstellen</span>
@@ -165,10 +160,6 @@ export default function HomePage() {
             Steuerberater
           </p>
           <p className="trust-line">14 Tage Geld-zurück-Garantie</p>
-          <p className="disclaimer" role="note">
-            Keine Steuerberatung. Das Ergebnis ist ein Entwurf zur Abstimmung
-            mit deinem Steuerberater.
-          </p>
         </section>
 
         <section className="block" id="faq">
@@ -221,10 +212,6 @@ export default function HomePage() {
           <p className="hint">
             Kurzes Intake · PDF + Offene Punkte · Keine Steuerberatung
           </p>
-        </section>
-
-        <section className="block" id="disclaimer">
-          <ProductDisclaimer />
         </section>
       </main>
       <SiteFooter />

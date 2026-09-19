@@ -17,6 +17,12 @@ export function CheckoutForm({ stripeReady }: CheckoutFormProps) {
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
+    if (!accepted) {
+      setError(
+        "Bitte bestätigen: keine Steuerberatung und keine Rechtsberatung.",
+      );
+      return;
+    }
     setPending(true);
     try {
       const response = await fetch("/api/checkout", {
@@ -83,12 +89,15 @@ export function CheckoutForm({ stripeReady }: CheckoutFormProps) {
         <label className="check">
           <input
             type="checkbox"
+            name="acceptedDisclaimer"
             checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)}
+            required
           />
           <span>
-            Ich verstehe: Das ist ein Entwurf zur Abstimmung mit meinem
-            Steuerberater — kein Steuerberatungsersatz.
+            Ich bestätige: keine Steuerberatung und keine Rechtsberatung. Die
+            Dokumentation ist ein Entwurf zur Abstimmung mit meinem
+            Steuerberater.
           </span>
         </label>
         {error && <p className="error">{error}</p>}
@@ -121,7 +130,7 @@ export function CheckoutForm({ stripeReady }: CheckoutFormProps) {
           <span>{TODAY_EUR}&nbsp;€</span>
         </div>
         <p className="hint">Danach {MONTHLY_EUR}&nbsp;€/Monat.</p>
-        <p className="disclaimer">
+        <p className="disclaimer" role="note">
           Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein Entwurf
           zur Abstimmung mit deinem Steuerberater — keine individuelle Steuer-
           oder Rechtsberatung.

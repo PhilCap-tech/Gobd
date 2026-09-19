@@ -23,7 +23,10 @@ export async function POST(request: Request) {
 
   if (!body.acceptedDisclaimer) {
     return NextResponse.json(
-      { error: "Bitte den Hinweis zur Steuerberatung bestätigen." },
+      {
+        error:
+          "Bitte bestätigen: keine Steuerberatung und keine Rechtsberatung.",
+      },
       { status: 400 },
     );
   }

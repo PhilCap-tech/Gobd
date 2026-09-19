@@ -425,8 +425,7 @@ h3 {
   text-underline-offset: 2px;
 }
 
-.legal .prose a,
-.product-disclaimer a {
+.legal .prose a {
   color: var(--accent);
 }
 
@@ -453,16 +452,6 @@ h3 {
 .legal th {
   background: var(--surface);
   font-weight: 650;
-}
-
-.product-disclaimer {
-  font-size: 13px;
-}
-
-.product-disclaimer h2 {
-  font-size: 16px;
-  margin: 0 0 10px;
-  color: var(--warn-text);
 }
 
 .page {

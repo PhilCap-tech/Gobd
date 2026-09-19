@@ -4,7 +4,8 @@ import { LEGAL_LINKS, LEGAL_OPERATOR } from "@/lib/legal";
 export function SiteFooter() {
   return (
     <footer className="site-footer">
-      GoBD Verfahrensdoku · kein Steuerberatungsersatz
+      GoBD Verfahrensdoku ·{" "}
+      <Link href="/faq">kein Steuerberatungsersatz</Link>
       <br />
       Kontakt:{" "}
       <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
