@@ -7,6 +7,16 @@ import { toSheetRow, type IntakeAnswers } from "@/lib/types";
 
 export const runtime = "nodejs";
 
+function errorDetail(error: unknown): string {
+  return error instanceof Error && error.message
+    ? error.message
+    : "Unbekannter Fehler";
+}
+
+function jsonError(error: string, status: number, detail?: string) {
+  return NextResponse.json(detail ? { error, detail } : { error }, { status });
+}
+
 function isAnswers(value: unknown): value is IntakeAnswers {
   if (!value || typeof value !== "object") return false;
   const v = value as IntakeAnswers;
@@ -29,7 +39,7 @@ function isAnswers(value: unknown): value is IntakeAnswers {
   );
 }
 
-export async function POST(request: Request) {
+async function handleIntake(request: Request) {
   let body: {
     sessionId?: string;
     answers?: unknown;
@@ -39,7 +49,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+    return jsonError("Ungültige Anfrage", 400);
   }
 
   const identity = await resolveCheckoutSession(body.sessionId);
@@ -62,7 +72,7 @@ export async function POST(request: Request) {
   }
 
   if (!isAnswers(body.answers)) {
-    return NextResponse.json({ error: "Intake unvollständig." }, { status: 400 });
+    return jsonError("Intake unvollständig.", 400);
   }
 
   const answers = body.answers;
@@ -71,24 +81,43 @@ export async function POST(request: Request) {
     answers,
   });
 
-  const stored = await appendRecord(
-    toSheetRow({
-      identity,
-      answers,
-      status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
-      deliveryStatus: delivery.status,
-    }),
-  );
+  let stored;
+  try {
+    stored = await appendRecord(
+      toSheetRow({
+        identity,
+        answers,
+        status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
+        deliveryStatus: delivery.status,
+      }),
+    );
+  } catch (error) {
+    console.error("[intake] appendRecord fehlgeschlagen", error);
+    return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
+  }
 
-  await triggerOnboardingMail({
-    email: identity.email,
-    company: identity.company,
-    sessionId: identity.stripeSessionId,
-  });
+  try {
+    await triggerOnboardingMail({
+      email: identity.email,
+      company: identity.company,
+      sessionId: identity.stripeSessionId,
+    });
+  } catch (error) {
+    console.error("[intake] onboarding stub fehlgeschlagen", error);
+  }
 
   return NextResponse.json({
     ok: true,
     store: stored.backend,
     delivery,
   });
+}
+
+export async function POST(request: Request) {
+  try {
+    return await handleIntake(request);
+  } catch (error) {
+    console.error("[intake] POST fehlgeschlagen", error);
+    return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
+  }
 }

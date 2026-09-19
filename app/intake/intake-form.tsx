@@ -124,12 +124,24 @@ export function IntakeForm({ session }: IntakeFormProps) {
           answers,
         }),
       });
-      const data = (await response.json()) as {
+      let data: {
         error?: string;
         store?: string;
         delivery?: DeliveryPlan;
-      };
-      if (!response.ok || !data.delivery || !data.store) {
+      } = {};
+      try {
+        const text = await response.text();
+        if (text.trim()) {
+          data = JSON.parse(text) as typeof data;
+        }
+      } catch {
+        data = {};
+      }
+      if (!response.ok) {
+        setError(data.error || "Speichern fehlgeschlagen.");
+        return;
+      }
+      if (!data.delivery || !data.store) {
         setError(data.error || "Speichern fehlgeschlagen.");
         return;
       }
@@ -416,8 +428,14 @@ export function IntakeForm({ session }: IntakeFormProps) {
           <div className="card center">
             <h1>Intake gespeichert</h1>
             <p className="prose">
-              Ablage: {done.store === "sheets" ? "Google Sheets" : ".data/intakes.json"}.
+              Ablage:{" "}
+              {done.store === "sheets"
+                ? "Google Sheets"
+                : "Datei-Fallback (lokal .data, auf Vercel /tmp)"}.
               Delivery ist ein Stub — kein PDF, keine GoBD-Rechtstexte.
+            </p>
+            <p className="prose" style={{ textAlign: "left", marginTop: 16 }}>
+              <strong>Kapitelgerüst</strong>
             </p>
             <ul className="prose-list" style={{ textAlign: "left", display: "inline-block" }}>
               {done.delivery.chapters.map((chapter) => (
@@ -426,6 +444,18 @@ export function IntakeForm({ session }: IntakeFormProps) {
                 </li>
               ))}
             </ul>
+            {done.delivery.openItems.length > 0 && (
+              <>
+                <p className="prose" style={{ textAlign: "left", marginTop: 16 }}>
+                  <strong>Offene Punkte</strong>
+                </p>
+                <ul className="prose-list" style={{ textAlign: "left", display: "inline-block" }}>
+                  {done.delivery.openItems.map((item) => (
+                    <li key={item.id}>{item.title}</li>
+                  ))}
+                </ul>
+              </>
+            )}
             <div className="actions" style={{ justifyContent: "center", marginTop: 16 }}>
               <Link className="btn" href="/">
                 Zurück zur Landing

@@ -20,7 +20,7 @@ Ohne Stripe- und Sheets-Keys läuft der Demo-Pfad trotzdem (Stub-Checkout, Datei
 2. Checkout: Firma + E-Mail + Disclaimer
 3. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
 4. Intake: Branche → Software → Belegwege → IT → Verantwortliche
-5. Speichern: Google Sheets oder `.data/intakes.json`
+5. Speichern: Google Sheets oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
 6. Delivery-Stub zeigt nur Kapitelgerüst, kein PDF
 
 ## Stripe (Testmodus)
@@ -72,14 +72,16 @@ Spalten (Header wird geschrieben, wenn A1 leer ist):
 
 `timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status`
 
-Ohne Sheets-Credentials: Append nach `.data/intakes.json` (nicht committen, auf Vercel nicht persistent).
+Ohne Sheets-Credentials — oder wenn Sheets-Append fehlschlägt — schreibt die App einen Datei-Fallback:
+lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach `os.tmpdir()/gobd-data/intakes.json`
+(typisch `/tmp`, das einzige beschreibbare Verzeichnis auf Serverless). Der Fallback ist nicht persistent über Invocations.
 
 ## Was ist Stub
 
 - **Delivery** (`lib/delivery.ts`, `POST /api/delivery`): Kapitelgerüst + offene Punkte. Keine GoBD-Rechtstexte, kein PDF. TODO im Code.
 - **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding-Mail, Failed Payment, Failed Job. Nur Logs, kein Versand. TODO im Code.
 - **Checkout ohne Stripe-Keys:** Mock-Session, weiter zum Intake.
-- **Intake ohne Sheets:** Datei-Fallback.
+- **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
 
 Kein Auth, kein Admin-UI.
 

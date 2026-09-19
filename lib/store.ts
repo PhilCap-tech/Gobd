@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { google } from "googleapis";
 import { getSheetsTab, isSheetsConfigured } from "@/lib/env";
@@ -8,13 +9,44 @@ import {
   type SheetRow,
 } from "@/lib/types";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const DATA_FILE = path.join(DATA_DIR, "intakes.json");
+const FILE_NAME = "intakes.json";
 
 export type StoreResult = {
   backend: "sheets" | "file";
   row: SheetRow;
+  filePath?: string;
 };
+
+function isVercelRuntime(): boolean {
+  return process.env.VERCEL === "1" || process.env.VERCEL === "true";
+}
+
+function isFsUnavailable(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return false;
+  }
+  const code = (error as { code?: string }).code;
+  return code === "EROFS" || code === "EACCES" || code === "EPERM";
+}
+
+/**
+ * Locally: `process.cwd()/.data`. On Vercel the app filesystem is read-only
+ * except `/tmp`, so we write under `os.tmpdir()` when `VERCEL=1`.
+ */
+export function getFileFallbackDir(): string {
+  if (isVercelRuntime()) {
+    return path.join(tmpdir(), "gobd-data");
+  }
+  return path.join(process.cwd(), ".data");
+}
+
+export function getFileFallbackPath(): string {
+  return path.join(getFileFallbackDir(), FILE_NAME);
+}
+
+function tmpFallbackPath(): string {
+  return path.join(tmpdir(), "gobd-data", FILE_NAME);
+}
 
 function sheetsAuth() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -65,29 +97,65 @@ async function appendSheetRow(row: SheetRow): Promise<void> {
   });
 }
 
-async function appendFileRow(row: SheetRow): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
-  let rows: SheetRow[] = [];
+async function readRows(file: string): Promise<SheetRow[]> {
   try {
-    const raw = await readFile(DATA_FILE, "utf8");
-    rows = JSON.parse(raw) as SheetRow[];
-    if (!Array.isArray(rows)) rows = [];
+    const raw = await readFile(file, "utf8");
+    const rows = JSON.parse(raw) as SheetRow[];
+    return Array.isArray(rows) ? rows : [];
   } catch {
-    rows = [];
+    return [];
   }
-  rows.push(row);
-  await writeFile(DATA_FILE, JSON.stringify(rows, null, 2), "utf8");
+}
+
+async function writeRows(dir: string, file: string, rows: SheetRow[]): Promise<void> {
+  await mkdir(dir, { recursive: true });
+  await writeFile(file, JSON.stringify(rows, null, 2), "utf8");
+}
+
+async function appendFileRow(row: SheetRow): Promise<string> {
+  const primaryDir = getFileFallbackDir();
+  const primaryFile = path.join(primaryDir, FILE_NAME);
+
+  try {
+    const rows = await readRows(primaryFile);
+    rows.push(row);
+    await writeRows(primaryDir, primaryFile, rows);
+    return primaryFile;
+  } catch (error) {
+    const tmpFile = tmpFallbackPath();
+    if (isFsUnavailable(error) && primaryFile !== tmpFile) {
+      console.warn(
+        "[store] Datei-Fallback nicht beschreibbar — weiche auf tmpdir aus",
+        error,
+      );
+      const tmpDir = path.dirname(tmpFile);
+      const rows = await readRows(tmpFile);
+      rows.push(row);
+      await writeRows(tmpDir, tmpFile, rows);
+      return tmpFile;
+    }
+    throw error;
+  }
 }
 
 export async function appendRecord(row: SheetRow): Promise<StoreResult> {
   if (isSheetsConfigured()) {
-    await appendSheetRow(row);
-    return { backend: "sheets", row };
+    try {
+      await appendSheetRow(row);
+      return { backend: "sheets", row };
+    } catch (error) {
+      console.error(
+        "[store] Google Sheets append fehlgeschlagen — falle auf Datei zurück",
+        error,
+      );
+    }
+  } else {
+    console.warn(
+      "[store] Google Sheets nicht konfiguriert — schreibe nach",
+      getFileFallbackPath(),
+    );
   }
 
-  console.warn(
-    "[store] Google Sheets nicht konfiguriert — schreibe nach .data/intakes.json",
-  );
-  await appendFileRow(row);
-  return { backend: "file", row };
+  const filePath = await appendFileRow(row);
+  return { backend: "file", row, filePath };
 }
