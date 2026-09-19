@@ -37,6 +37,7 @@ export function writeMarkdownish(
   doc: PDFKit.PDFDocument,
   text: string,
   width: number,
+  spacing = 1,
 ) {
   const lines = text.replaceAll("\r\n", "\n").split("\n");
   let index = 0;
@@ -44,7 +45,7 @@ export function writeMarkdownish(
     const raw = lines[index] ?? "";
     const line = raw.trimEnd();
     if (!line.trim()) {
-      doc.moveDown(0.3);
+      doc.moveDown(0.3 * spacing);
       index += 1;
       continue;
     }
@@ -68,21 +69,21 @@ export function writeMarkdownish(
     if (line.startsWith("# ")) {
       doc.font("Helvetica-Bold").fontSize(16).fillColor("#14201b");
       doc.text(unwrapLinks(line.slice(2)), { width });
-      doc.moveDown(0.25);
+      doc.moveDown(0.25 * spacing);
       index += 1;
       continue;
     }
     if (line.startsWith("### ")) {
       doc.font("Helvetica-Bold").fontSize(11).fillColor("#14201b");
       doc.text(unwrapLinks(line.slice(4)), { width });
-      doc.moveDown(0.15);
+      doc.moveDown(0.18 * spacing);
       index += 1;
       continue;
     }
     if (line.startsWith("## ")) {
       doc.font("Helvetica-Bold").fontSize(13).fillColor("#14201b");
       doc.text(unwrapLinks(line.slice(3)), { width });
-      doc.moveDown(0.2);
+      doc.moveDown(0.22 * spacing);
       index += 1;
       continue;
     }

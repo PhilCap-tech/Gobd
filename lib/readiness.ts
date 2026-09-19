@@ -207,7 +207,8 @@ export async function generateReadinessPdf(lead: Pick<
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
-    writeMarkdownish(doc, markdown, 480);
+    doc.lineGap(2.2);
+    writeMarkdownish(doc, markdown, 480, 1.35);
     doc.end();
   });
 
