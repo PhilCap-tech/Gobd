@@ -86,9 +86,40 @@ export function verifySessionToken(
   return payload.email;
 }
 
-export function magicLinkUrl(email: string): string {
+const ALLOWED_NEXT_PATHS = new Set(["/portal", "/billing", "/account"]);
+
+/**
+ * Only same-origin relative paths we actually redirect to after login.
+ * Rejects protocol-relative, absolute, and unknown paths (open-redirect).
+ */
+export function safeNextPath(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value, "http://safe.invalid");
+    if (parsed.origin !== "http://safe.invalid") return null;
+    if (parsed.username || parsed.password) return null;
+    if (!ALLOWED_NEXT_PATHS.has(parsed.pathname)) return null;
+    return parsed.pathname;
+  } catch {
+    return null;
+  }
+}
+
+export function loginPath(next?: string | null): string {
+  const safe = safeNextPath(next);
+  return safe
+    ? `/login?next=${encodeURIComponent(safe)}`
+    : "/login";
+}
+
+export function magicLinkUrl(email: string, next?: string | null): string {
   const token = createMagicToken(email);
-  return `${getAppUrl()}/auth/verify?token=${encodeURIComponent(token)}`;
+  const params = new URLSearchParams({ token });
+  const safe = safeNextPath(next);
+  if (safe) params.set("next", safe);
+  return `${getAppUrl()}/auth/verify?${params.toString()}`;
 }
 
 export function applySessionCookie(response: NextResponse, email: string): void {

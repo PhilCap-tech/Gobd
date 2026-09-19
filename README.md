@@ -84,7 +84,7 @@ Auf **Meine Dokumente** (`/account`, Alias `/meine-dokumente`): Block **Abo** is
 
 `POST /api/stripe/portal` liest die Session-E-Mail, sucht `stripe_customer_id` (bevorzugt Paid-/Intake-Zeilen; Fallback `customers.list` nach E-Mail, kurz gecacht) und erzeugt eine Billing-Portal-Session. Fehler und Rückkehr landen auf `/account?portal=…` (nicht `/meine-dokumente`, damit der Status-Banner nicht in der Alias-Weiterleitung verloren geht). `return_url` = `{NEXT_PUBLIC_APP_URL}/account?portal=returned`.
 
-Komfort-Routen **`/portal`** und **`/billing`**: eingeloggt mit Kunde → direkt ins Stripe-Portal, sonst Redirect auf `/account` (mit `?portal=missing|unavailable|error`). Nicht eingeloggt → `/login`. Kein 404.
+Komfort-Routen **`/portal`** und **`/billing`**: eingeloggt mit Kunde → direkt ins Stripe-Portal, sonst Redirect auf `/account` (mit `?portal=missing|unavailable|error`). Nicht eingeloggt → `/login?next=/portal` (bzw. `/billing`); der Magic Link führt zurück auf diese Route. `GET` und `POST /api/stripe/portal` machen dieselbe Weiterleitung (`POST` bleibt für **Abo verwalten**). Kein 404.
 
 `stripe_customer_id` wird geschrieben, wenn vorhanden:
 

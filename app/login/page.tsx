@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { getSessionEmail } from "@/lib/auth";
+import { getSessionEmail, safeNextPath } from "@/lib/auth";
+import { firstQueryValue } from "@/lib/query";
 import { LoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
@@ -15,14 +16,15 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{ error?: string | string[]; next?: string | string[] }>;
 }) {
+  const params = await searchParams;
+  const next = safeNextPath(firstQueryValue(params.next));
   const email = await getSessionEmail();
   if (email) {
-    redirect("/account");
+    redirect(next ?? "/account");
   }
 
-  const params = await searchParams;
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
 
   return (
@@ -38,7 +40,7 @@ export default async function LoginPage({
             Der Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.
           </p>
         )}
-        <LoginForm />
+        <LoginForm next={next} />
       </main>
       <SiteFooter />
     </>
