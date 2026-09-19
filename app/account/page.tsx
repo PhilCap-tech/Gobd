@@ -4,6 +4,13 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
+import {
+  documentDownloadPath,
+  formatDocumentTime,
+  groupDocumentFamilies,
+  intakeEditPath,
+  parseDocumentVersion,
+} from "@/lib/documents";
 import { listDocumentsByEmail } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +27,8 @@ export default async function AccountPage() {
   }
 
   const docs = await listDocumentsByEmail(email);
-  const latest = docs[0];
+  const families = groupDocumentFamilies(docs);
+  const latest = families[0]?.latest;
   const stripeBound = docs.some((row) => row.stripeCustomerId || row.stripeSessionId);
 
   return (
@@ -31,7 +39,7 @@ export default async function AccountPage() {
         <h1>Meine Dokumente</h1>
         <p className="lead">{email}</p>
 
-        {docs.length === 0 ? (
+        {families.length === 0 ? (
           <div className="card">
             <p className="prose">
               Zu dieser E-Mail liegt noch kein Entwurf vor.
@@ -46,33 +54,46 @@ export default async function AccountPage() {
           <>
             {latest && (
               <div className="actions" style={{ marginBottom: 16 }}>
-                <a
-                  className="btn"
-                  href={`/api/docs/${latest.documentId}/download`}
-                >
+                <a className="btn" href={documentDownloadPath(latest)}>
                   Neueste Version herunterladen
                 </a>
               </div>
             )}
             <div className="doc-list">
-              {docs.map((row) => (
-                <article className="card" key={`${row.documentId}-${row.timestamp}`}>
-                  <h2>{row.company || "Verfahrensdokumentation"}</h2>
+              {families.map((family) => (
+                <article className="card" key={family.familyId}>
+                  <h2>{family.latest.company || "Verfahrensdokumentation"}</h2>
                   <p className="doc-meta">
-                    Version {row.version || "1"} ·{" "}
-                    {row.timestamp
-                      ? new Date(row.timestamp).toLocaleString("de-DE")
-                      : "—"}{" "}
-                    · {row.deliveryStatus || "ready"}
+                    Aktuell Version {parseDocumentVersion(family.latest)} ·{" "}
+                    {formatDocumentTime(family.latest.timestamp)} ·{" "}
+                    {family.latest.deliveryStatus || "ready"}
                   </p>
                   <div className="actions" style={{ marginTop: 12 }}>
                     <a
                       className="btn"
-                      href={`/api/docs/${row.documentId}/download`}
+                      href={documentDownloadPath(family.latest)}
                     >
                       PDF herunterladen
                     </a>
+                    <Link
+                      className="btn ghost"
+                      href={intakeEditPath(family.latest)}
+                    >
+                      Angaben bearbeiten
+                    </Link>
                   </div>
+                  <h3 className="version-heading">Versionen</h3>
+                  <ul className="version-list">
+                    {family.versions.map((row) => (
+                      <li key={row.documentId}>
+                        <span>
+                          Version {parseDocumentVersion(row)} ·{" "}
+                          {formatDocumentTime(row.timestamp)}
+                        </span>
+                        <a href={documentDownloadPath(row)}>Download</a>
+                      </li>
+                    ))}
+                  </ul>
                 </article>
               ))}
             </div>

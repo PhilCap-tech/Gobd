@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { google } from "googleapis";
 import { getSheetsTab, isSheetsConfigured } from "@/lib/env";
+import { rowsInFamily } from "@/lib/documents";
 import {
   SHEET_COLUMNS,
   coerceSheetRow,
@@ -254,4 +255,10 @@ export async function listDocumentsByEmail(email: string): Promise<SheetRow[]> {
   return rows
     .filter((row) => row.documentId && emailsEqual(row.email, email))
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
+export async function listDocumentFamily(documentId: string): Promise<SheetRow[]> {
+  if (!documentId) return [];
+  const { rows } = await loadRows();
+  return rowsInFamily(rows, documentId);
 }

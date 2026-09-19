@@ -25,11 +25,11 @@ function isFsUnavailable(error: unknown): boolean {
   return code === "EROFS" || code === "EACCES" || code === "EPERM";
 }
 
-async function writeLocalPdf(documentId: string, buffer: Buffer): Promise<StoredPdf> {
+async function writeLocalPdf(fileBase: string, buffer: Buffer): Promise<StoredPdf> {
   const tryWrite = async (dir: string): Promise<StoredPdf> => {
     const pdfDir = path.join(dir, "pdfs");
     await mkdir(pdfDir, { recursive: true });
-    const pathname = path.join(pdfDir, `${documentId}.pdf`);
+    const pathname = path.join(pdfDir, `${fileBase}.pdf`);
     await writeFile(pathname, buffer);
     return { backend: "file", url: "", pathname };
   };
@@ -46,13 +46,20 @@ async function writeLocalPdf(documentId: string, buffer: Buffer): Promise<Stored
   }
 }
 
-export async function storePdf(
-  documentId: string,
-  buffer: Buffer,
-): Promise<StoredPdf> {
+export async function storePdf(input: {
+  familyId: string;
+  documentId: string;
+  version: number;
+  buffer: Buffer;
+}): Promise<StoredPdf> {
+  const familyId = input.familyId || input.documentId;
+  const version = input.version > 0 ? input.version : 1;
+  const blobPath = `gobd/${familyId}/v${version}.pdf`;
+  const fileBase = `${familyId}-v${version}`;
+
   if (isBlobConfigured()) {
     try {
-      const blob = await put(`gobd/${documentId}/v1.pdf`, buffer, {
+      const blob = await put(blobPath, input.buffer, {
         access: "public",
         contentType: "application/pdf",
         addRandomSuffix: false,
@@ -72,7 +79,7 @@ export async function storePdf(
     );
   }
 
-  return writeLocalPdf(documentId, buffer);
+  return writeLocalPdf(fileBase, input.buffer);
 }
 
 export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
@@ -100,6 +107,7 @@ export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
     answers: answersFromSheetRow(row),
     identity: identityFromSheetRow(row),
     documentId: row.documentId || "regenerated",
+    version: Number.parseInt(row.version || "1", 10) || 1,
   });
   return generated.buffer;
 }

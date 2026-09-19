@@ -30,6 +30,9 @@ const BACKUP = [
 
 type IntakeFormProps = {
   session: CheckoutIdentity;
+  initialAnswers?: IntakeAnswers;
+  sourceDocumentId?: string;
+  nextVersion?: number;
 };
 
 function Chips({
@@ -70,12 +73,20 @@ function Chips({
   );
 }
 
-export function IntakeForm({ session }: IntakeFormProps) {
+export function IntakeForm({
+  session,
+  initialAnswers,
+  sourceDocumentId,
+  nextVersion,
+}: IntakeFormProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<IntakeAnswers>(emptyAnswers);
+  const [answers, setAnswers] = useState<IntakeAnswers>(
+    initialAnswers ?? emptyAnswers,
+  );
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const isEdit = Boolean(sourceDocumentId);
 
   function patch(partial: Partial<IntakeAnswers>) {
     setAnswers((current) => ({ ...current, ...partial }));
@@ -118,6 +129,7 @@ export function IntakeForm({ session }: IntakeFormProps) {
           email: session.email,
           company: session.company,
           answers,
+          documentId: sourceDocumentId,
         }),
       });
       let data: {
@@ -187,10 +199,19 @@ export function IntakeForm({ session }: IntakeFormProps) {
         </div>
       )}
 
-      {session.stub && step < 6 && (
+      {session.stub && step < 6 && !isEdit && (
         <p className="banner">
           Stub-Session (kein Stripe). Angaben werden lokal oder in Sheets
           gespeichert, sobald du absendest.
+        </p>
+      )}
+
+      {isEdit && step < 6 && (
+        <p className="banner">
+          Du bearbeitest die Angaben
+          {session.company ? ` für ${session.company}` : ""}. Beim Absenden
+          entsteht Version {nextVersion ?? "n+1"} — bisherige PDFs bleiben
+          downloadbar.
         </p>
       )}
 
@@ -452,7 +473,13 @@ export function IntakeForm({ session }: IntakeFormProps) {
           )}
           {step === 5 && (
             <button type="button" className="btn" onClick={submit} disabled={pending}>
-              {pending ? "Speichern…" : "Intake absenden"}
+              {pending
+                ? isEdit
+                  ? "Erzeuge Version…"
+                  : "Speichern…"
+                : isEdit
+                  ? "Neue Version erzeugen"
+                  : "Intake absenden"}
             </button>
           )}
         </div>

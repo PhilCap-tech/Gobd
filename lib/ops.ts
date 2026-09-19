@@ -51,16 +51,18 @@ export async function sendDeliveryMail(input: {
   downloadUrl: string;
   magicLinkUrl?: string;
   successUrl?: string;
+  version?: number;
 }): Promise<OpsResult & MailResult> {
   if (!input.email.trim()) {
     console.info("[ops] delivery mail übersprungen — keine E-Mail");
     return { stub: true, sent: false, action: "delivery" };
   }
 
+  const version = input.version && input.version > 0 ? input.version : 1;
   const lines = [
     `Hallo${input.company ? ` ${input.company}` : ""},`,
     "",
-    "dein Entwurf der Verfahrensdokumentation (Version 1) ist fertig.",
+    `dein Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.`,
     "",
     `Download: ${input.downloadUrl}`,
   ];
@@ -79,7 +81,7 @@ export async function sendDeliveryMail(input: {
   const text = lines.join("\n");
   const html = `
     <p>Hallo${input.company ? ` ${escapeHtml(input.company)}` : ""},</p>
-    <p>dein Entwurf der Verfahrensdokumentation (Version 1) ist fertig.</p>
+    <p>dein Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.</p>
     <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a></p>
     ${input.successUrl ? `<p><a href="${escapeAttr(input.successUrl)}">Zur Übersicht</a></p>` : ""}
     ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}

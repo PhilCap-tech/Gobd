@@ -4,9 +4,14 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import { DELIVERY_DISCLAIMER } from "@/lib/delivery";
+import {
+  canAccessDocument,
+  documentDownloadPath,
+  intakeEditPath,
+  parseDocumentVersion,
+} from "@/lib/documents";
 import { isMailConfigured } from "@/lib/env";
 import { findDocumentById } from "@/lib/store";
-import { emailsEqual } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,17 +43,13 @@ export default async function SuccessPage({
   const sessionEmail = await getSessionEmail();
   const row = documentId ? await findDocumentById(documentId) : null;
   const allowed = Boolean(
-    row &&
-      ((sessionId && row.stripeSessionId === sessionId) ||
-        (sessionEmail && emailsEqual(sessionEmail, row.email))),
+    row && canAccessDocument(row, { sessionEmail, sessionId }),
   );
   const downloadHref =
-    allowed && row
-      ? `/api/docs/${row.documentId}/download${
-          sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ""
-        }`
-      : null;
+    allowed && row ? documentDownloadPath(row, sessionId) : null;
+  const editHref = allowed && row ? intakeEditPath(row, sessionId) : null;
   const mailReady = isMailConfigured();
+  const version = row ? parseDocumentVersion(row) : 1;
 
   return (
     <>
@@ -72,7 +73,7 @@ export default async function SuccessPage({
           </div>
         ) : (
           <section>
-            <p className="kicker">Version 1</p>
+            <p className="kicker">Version {version}</p>
             <h1>Dein Entwurf ist fertig</h1>
             <p className="lead">
               {row.company || "Dein Unternehmen"} — Verfahrensdokumentation als
@@ -102,6 +103,11 @@ export default async function SuccessPage({
                   <a className="btn" href={downloadHref}>
                     PDF herunterladen
                   </a>
+                )}
+                {editHref && (
+                  <Link className="btn ghost" href={editHref}>
+                    Angaben bearbeiten
+                  </Link>
                 )}
                 <Link className="btn ghost" href="/account">
                   Meine Dokumente
