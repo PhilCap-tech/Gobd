@@ -55,6 +55,7 @@ nav,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 16px 28px;
   border-bottom: 1px solid var(--line);
@@ -169,6 +170,10 @@ h2 {
   gap: 10px;
 }
 
+.actions + .hint {
+  margin-top: 12px;
+}
+
 .tags {
   display: flex;
   flex-wrap: wrap;
@@ -211,6 +216,13 @@ h2 {
   font-weight: 650;
 }
 
+.price-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 .price-card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -221,6 +233,44 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.price-card.stacked {
+  display: block;
+}
+
+.price-card.stacked .prose {
+  margin: 8px 0 0;
+}
+
+.framing {
+  margin: 0 0 18px;
+}
+
+.trust-line {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--accent);
+  margin: 8px 0 0;
+}
+
+h3 {
+  font-size: 16px;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.faq-item {
+  margin-top: 18px;
+}
+
+.faq-item:first-of-type {
+  margin-top: 8px;
+}
+
+.back-links {
+  margin-top: 18px;
 }
 
 .price {
@@ -427,7 +477,8 @@ textarea:focus {
 }
 
 @media (max-width: 800px) {
-  .grid-2 {
+  .grid-2,
+  .price-grid {
     grid-template-columns: 1fr;
   }
 
