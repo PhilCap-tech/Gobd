@@ -45,7 +45,6 @@ export default async function AccountPage({
 
   const docs = await listDocumentsByEmail(email);
   const families = groupDocumentFamilies(docs);
-  const latest = families[0]?.latest;
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   const stripeBound =
     Boolean(customerId) ||
@@ -87,31 +86,20 @@ export default async function AccountPage({
             </div>
           </div>
         ) : (
-          <>
-            {latest && (
-              <div className="card" style={{ marginBottom: 16 }}>
-                <p className="doc-meta">Aktuellste Fassung</p>
-                <DocumentRevisionActions
-                  row={latest}
-                  downloadLabel="Neueste Version herunterladen"
-                />
-              </div>
-            )}
-            <div className="doc-list">
-              {families.map((family) => (
-                <article className="card" key={family.familyId}>
-                  <h2>{family.latest.company || "Verfahrensdokumentation"}</h2>
-                  <p className="doc-meta">
-                    Aktuell Version {parseDocumentVersion(family.latest)} ·{" "}
-                    {formatDocumentTime(family.latest.timestamp)} ·{" "}
-                    {family.latest.deliveryStatus || "ready"}
-                  </p>
-                  <DocumentRevisionActions row={family.latest} />
-                  <VersionHistory versions={family.versions} />
-                </article>
-              ))}
-            </div>
-          </>
+          <div className="doc-list">
+            {families.map((family) => (
+              <article className="card" key={family.familyId}>
+                <h2>{family.latest.company || "Verfahrensdokumentation"}</h2>
+                <p className="doc-meta">
+                  Aktuell Version {parseDocumentVersion(family.latest)} ·{" "}
+                  {formatDocumentTime(family.latest.timestamp)} ·{" "}
+                  {family.latest.deliveryStatus || "ready"}
+                </p>
+                <DocumentRevisionActions row={family.latest} />
+                <VersionHistory versions={family.versions} />
+              </article>
+            ))}
+          </div>
         )}
 
         <p className="hint" style={{ marginTop: 20 }}>

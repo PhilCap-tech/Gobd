@@ -7,13 +7,21 @@ import {
   type SheetRow,
 } from "@/lib/types";
 
-/** Stay under Google Sheets' 50k cell limit. */
-export const CHAPTER_CONTENT_MAX_CHARS = 45_000;
+/**
+ * Soft cap for one saved draft (cover + chapters JSON).
+ * v2 templates already serialize to ~52k; 45k rejected a full save.
+ * Google Sheets cells are still 50k — overflow goes to blob/file via
+ * `persistChapterContent` and a short `{__gobdContent}` pointer in the cell.
+ */
+export const CHAPTER_CONTENT_MAX_CHARS = 200_000;
+/** Stay under Google Sheets' 50_000-character cell limit. */
+export const SHEETS_CELL_SAFE_CHARS = 49_000;
+export const CHAPTER_CONTENT_REF_KEY = "__gobdContent";
 const MAX_CHAPTERS = 20;
 const MAX_ID_LEN = 80;
 const MAX_TITLE_LEN = 200;
-const MAX_BODY_LEN = 20_000;
-const MAX_COVER_LEN = 8_000;
+const MAX_BODY_LEN = 80_000;
+const MAX_COVER_LEN = 20_000;
 
 export type DocumentChapter = DeliveryDocumentContent["chapters"][number];
 
@@ -22,6 +30,35 @@ export type EditableDocument = {
   chapters: DocumentChapter[];
   disclaimer: string;
 };
+
+export type ChapterContentRef = {
+  [CHAPTER_CONTENT_REF_KEY]: string;
+};
+
+export function encodeChapterContentRef(locator: string): string {
+  return JSON.stringify({ [CHAPTER_CONTENT_REF_KEY]: locator });
+}
+
+export function chapterContentLocator(
+  raw: string | undefined | null,
+): string | null {
+  const text = raw?.trim() ?? "";
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof (parsed as ChapterContentRef)[CHAPTER_CONTENT_REF_KEY] === "string"
+    ) {
+      const locator = (parsed as ChapterContentRef)[CHAPTER_CONTENT_REF_KEY].trim();
+      return locator || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 function asTrimmedString(value: unknown, max: number): string {
   if (typeof value !== "string") return "";

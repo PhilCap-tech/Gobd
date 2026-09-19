@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
+import { resolveChapterContent } from "@/lib/blob";
 import { editableDocumentFromRow } from "@/lib/document-content";
 import {
   canAccessDocument,
@@ -66,7 +67,12 @@ export default async function DocumentEditPage({
   const family = await listDocumentFamily(sourceRow.documentId);
   const latest = groupDocumentFamilies(family)[0]?.latest ?? sourceRow;
   const allowed = canAccessDocument(latest, { sessionEmail });
-  const draft = allowed ? editableDocumentFromRow(latest) : null;
+  const draft = allowed
+    ? editableDocumentFromRow({
+        ...latest,
+        chapterContent: await resolveChapterContent(latest.chapterContent),
+      })
+    : null;
 
   return (
     <>
