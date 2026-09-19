@@ -16,7 +16,7 @@ Ohne Stripe- und Sheets-Keys läuft der Demo-Pfad trotzdem (Stub-Checkout, Datei
 
 ## Demo-Pfad
 
-1. Landing → **Dokumentation starten**
+1. Landing → **Readiness-Check starten (kostenlos)** (`/readiness`) oder sekundär Checkout
 2. Checkout: Firma + E-Mail + Disclaimer
 3. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
 4. Intake: Branche → Software → Belegwege → IT → Verantwortliche

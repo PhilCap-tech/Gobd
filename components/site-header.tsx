@@ -8,8 +8,8 @@ type SiteHeaderProps = {
 };
 
 export function SiteHeader({
-  ctaHref = "/checkout",
-  ctaLabel = "Dokumentation starten",
+  ctaHref = "/readiness",
+  ctaLabel = "Readiness-Check starten (kostenlos)",
   backHref,
   backLabel,
 }: SiteHeaderProps) {
@@ -29,8 +29,8 @@ export function SiteHeader({
             <a className="hide-sm" href="#outcome">
               Ergebnis
             </a>
-            <a className="hide-sm" href="#preis">
-              Preis
+            <a className="hide-sm" href="#preise">
+              Preise
             </a>
             <Link className="btn" href={ctaHref}>
               {ctaLabel}
