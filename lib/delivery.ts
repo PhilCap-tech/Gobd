@@ -77,15 +77,40 @@ export function planDelivery(answers: IntakeAnswers): DeliveryPlan {
   };
 }
 
+function emptyStubPlan(): DeliveryPlan {
+  return {
+    status: "queued_stub",
+    chapters: [],
+    openItems: [
+      {
+        id: "steuerberater-abstimmung",
+        title: "Entwurf mit Steuerberater abstimmen",
+        status: "open",
+      },
+      {
+        id: "pdf-render",
+        title: "PDF erzeugen (Delivery-Job)",
+        status: "open",
+      },
+    ],
+    pdf: null,
+  };
+}
+
 export async function enqueueDelivery(input: {
   sessionId: string;
   answers: IntakeAnswers;
 }): Promise<DeliveryPlan> {
-  const plan = planDelivery(input.answers);
-  // TODO: Job-Queue / Worker: Kapitel füllen, PDF schreiben, Offene Punkte persistieren.
-  console.info("[delivery] queued stub", {
-    sessionId: input.sessionId,
-    chapters: plan.chapters.map((c) => c.id),
-  });
-  return plan;
+  try {
+    const plan = planDelivery(input.answers);
+    // TODO: Job-Queue / Worker: Kapitel füllen, PDF schreiben, Offene Punkte persistieren.
+    console.info("[delivery] queued stub", {
+      sessionId: input.sessionId,
+      chapters: plan.chapters.map((c) => c.id),
+    });
+    return plan;
+  } catch (error) {
+    console.error("[delivery] stub failed", error);
+    return emptyStubPlan();
+  }
 }

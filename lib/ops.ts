@@ -16,11 +16,15 @@ export async function triggerOnboardingMail(input: {
   company?: string;
   sessionId?: string;
 }): Promise<OpsResult> {
-  console.info("[ops] onboarding mail stub", {
-    email: input.email,
-    company: input.company,
-    sessionId: input.sessionId,
-  });
+  try {
+    console.info("[ops] onboarding mail stub", {
+      email: input.email,
+      company: input.company,
+      sessionId: input.sessionId,
+    });
+  } catch (error) {
+    console.error("[ops] onboarding mail stub failed", error);
+  }
   return { stub: true, sent: false, action: "onboarding" };
 }
 
@@ -30,8 +34,12 @@ export async function handleFailedPayment(input: {
   invoiceId?: string;
   reason?: string;
 }): Promise<OpsResult> {
-  // TODO: Ops benachrichtigen, ggf. Kundenmail zu fehlgeschlagener Zahlung.
-  console.warn("[ops] failed payment stub", input);
+  try {
+    // TODO: Ops benachrichtigen, ggf. Kundenmail zu fehlgeschlagener Zahlung.
+    console.warn("[ops] failed payment stub", input);
+  } catch (error) {
+    console.error("[ops] failed payment stub failed", error);
+  }
   return { stub: true, sent: false, action: "failed_payment" };
 }
 
@@ -40,7 +48,11 @@ export async function handleFailedJob(input: {
   job?: string;
   reason?: string;
 }): Promise<OpsResult> {
-  // TODO: Alert an Ops, Job erneut einreihen.
-  console.warn("[ops] failed job stub", input);
+  try {
+    // TODO: Alert an Ops, Job erneut einreihen.
+    console.warn("[ops] failed job stub", input);
+  } catch (error) {
+    console.error("[ops] failed job stub failed", error);
+  }
   return { stub: true, sent: false, action: "failed_job" };
 }
