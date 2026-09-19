@@ -37,6 +37,7 @@ export function SiteHeader({
             </Link>
           </>
         )}
+        <Link href="/account">Konto</Link>
       </nav>
     </header>
   );

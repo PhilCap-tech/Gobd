@@ -47,6 +47,9 @@ export type SheetRow = {
   steuerberater: string;
   status: string;
   deliveryStatus: string;
+  documentId: string;
+  pdfUrl: string;
+  version: string;
 };
 
 export const SHEET_COLUMNS = [
@@ -72,7 +75,40 @@ export const SHEET_COLUMNS = [
   "steuerberater",
   "status",
   "delivery_status",
+  "document_id",
+  "pdf_url",
+  "version",
 ] as const;
+
+export type SheetColumn = (typeof SHEET_COLUMNS)[number];
+
+export const SHEET_COLUMN_FIELDS = {
+  timestamp: "timestamp",
+  stripe_session_id: "stripeSessionId",
+  stripe_customer_id: "stripeCustomerId",
+  email: "email",
+  company: "company",
+  branchen: "branchen",
+  rechtsform: "rechtsform",
+  mitarbeitende: "mitarbeitende",
+  fibu: "fibu",
+  weitere_systeme: "weitereSysteme",
+  eingangsbelege: "eingangsbelege",
+  ausgangsrechnungen: "ausgangsrechnungen",
+  archiv: "archiv",
+  hosting: "hosting",
+  backup: "backup",
+  zugriff: "zugriff",
+  gf: "gf",
+  buchhaltung: "buchhaltung",
+  it: "it",
+  steuerberater: "steuerberater",
+  status: "status",
+  delivery_status: "deliveryStatus",
+  document_id: "documentId",
+  pdf_url: "pdfUrl",
+  version: "version",
+} as const satisfies Record<SheetColumn, keyof SheetRow>;
 
 export function emptyAnswers(): IntakeAnswers {
   return {
@@ -94,11 +130,44 @@ export function emptyAnswers(): IntakeAnswers {
   };
 }
 
+export function emptySheetRow(): SheetRow {
+  return {
+    timestamp: "",
+    stripeSessionId: "",
+    stripeCustomerId: "",
+    email: "",
+    company: "",
+    branchen: "",
+    rechtsform: "",
+    mitarbeitende: "",
+    fibu: "",
+    weitereSysteme: "",
+    eingangsbelege: "",
+    ausgangsrechnungen: "",
+    archiv: "",
+    hosting: "",
+    backup: "",
+    zugriff: "",
+    gf: "",
+    buchhaltung: "",
+    it: "",
+    steuerberater: "",
+    status: "",
+    deliveryStatus: "",
+    documentId: "",
+    pdfUrl: "",
+    version: "",
+  };
+}
+
 export function toSheetRow(input: {
   identity: CheckoutIdentity;
   answers?: Partial<IntakeAnswers>;
   status: string;
   deliveryStatus: string;
+  documentId?: string;
+  pdfUrl?: string;
+  version?: string;
 }): SheetRow {
   const a = { ...emptyAnswers(), ...input.answers };
   const join = (values: string[]) => values.join(", ");
@@ -125,32 +194,75 @@ export function toSheetRow(input: {
     steuerberater: a.steuerberater,
     status: input.status,
     deliveryStatus: input.deliveryStatus,
+    documentId: input.documentId ?? "",
+    pdfUrl: input.pdfUrl ?? "",
+    version: input.version ?? "",
   };
 }
 
-export function sheetRowValues(row: SheetRow): string[] {
-  return [
-    row.timestamp,
-    row.stripeSessionId,
-    row.stripeCustomerId,
-    row.email,
-    row.company,
-    row.branchen,
-    row.rechtsform,
-    row.mitarbeitende,
-    row.fibu,
-    row.weitereSysteme,
-    row.eingangsbelege,
-    row.ausgangsrechnungen,
-    row.archiv,
-    row.hosting,
-    row.backup,
-    row.zugriff,
-    row.gf,
-    row.buchhaltung,
-    row.it,
-    row.steuerberater,
-    row.status,
-    row.deliveryStatus,
-  ];
+export function sheetRowValues(
+  row: SheetRow,
+  header: readonly string[] = SHEET_COLUMNS,
+): string[] {
+  return header.map((col) => {
+    const field = SHEET_COLUMN_FIELDS[col as SheetColumn];
+    return field ? row[field] : "";
+  });
+}
+
+export function parseSheetRow(header: string[], values: string[]): SheetRow {
+  const row = emptySheetRow();
+  header.forEach((col, index) => {
+    const field = SHEET_COLUMN_FIELDS[col as SheetColumn];
+    if (field) {
+      row[field] = values[index] ?? "";
+    }
+  });
+  return row;
+}
+
+export function coerceSheetRow(value: unknown): SheetRow | null {
+  if (!value || typeof value !== "object") return null;
+  return { ...emptySheetRow(), ...(value as Partial<SheetRow>) };
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+export function answersFromSheetRow(row: SheetRow): IntakeAnswers {
+  return {
+    branchen: splitList(row.branchen),
+    rechtsform: row.rechtsform,
+    mitarbeitende: row.mitarbeitende,
+    fibu: splitList(row.fibu),
+    weitereSysteme: row.weitereSysteme,
+    eingangsbelege: splitList(row.eingangsbelege),
+    ausgangsrechnungen: splitList(row.ausgangsrechnungen),
+    archiv: row.archiv,
+    hosting: row.hosting,
+    backup: splitList(row.backup),
+    zugriff: row.zugriff,
+    gf: row.gf,
+    buchhaltung: row.buchhaltung,
+    it: row.it,
+    steuerberater: row.steuerberater,
+  };
+}
+
+export function identityFromSheetRow(row: SheetRow): CheckoutIdentity {
+  return {
+    email: row.email,
+    company: row.company,
+    stripeSessionId: row.stripeSessionId,
+    stripeCustomerId: row.stripeCustomerId,
+    stub: row.status.includes("stub"),
+  };
+}
+
+export function emailsEqual(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
 }

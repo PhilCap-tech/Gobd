@@ -1,6 +1,6 @@
 # GoBD Verfahrensdoku
 
-Landing, Stripe Checkout (149 € Setup + 49 €/Monat), 5-Schritt-Intake, Ablage in Google Sheets. Delivery und Ops sind Stubs.
+Landing, Stripe Checkout (149 € Setup + 49 €/Monat), 5-Schritt-Intake, PDF-Entwurf (Kapitelgerüst + offene Punkte), Magic-Link-Konto.
 
 ## Lokal starten
 
@@ -12,7 +12,7 @@ npm run dev
 
 Öffnen: http://localhost:3000
 
-Ohne Stripe- und Sheets-Keys läuft der Demo-Pfad trotzdem (Stub-Checkout, Datei-Fallback).
+Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-Checkout, Datei-Fallback, lokales PDF, Log-Stub statt E-Mail).
 
 ## Demo-Pfad
 
@@ -21,7 +21,8 @@ Ohne Stripe- und Sheets-Keys läuft der Demo-Pfad trotzdem (Stub-Checkout, Datei
 3. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
 4. Intake: Branche → Software → Belegwege → IT → Verantwortliche
 5. Speichern: Google Sheets oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
-6. Delivery-Stub zeigt nur Kapitelgerüst, kein PDF
+6. Success (`/success?session_id=…&document_id=…`): PDF-Download, Disclaimer, Link zu **Meine Dokumente**
+7. Konto: `/login` (Magic Link) → `/account` (Liste + Download). Alias: `/meine-dokumente`
 
 ## Stripe (Testmodus)
 
@@ -68,22 +69,58 @@ Env:
 - `GOOGLE_SHEETS_SPREADSHEET_ID`
 - `GOOGLE_SHEETS_TAB` (Default: `intakes`)
 
-Spalten (Header wird geschrieben, wenn A1 leer ist):
+Spalten (Header wird geschrieben, wenn A1 leer ist; fehlende Spalten werden **angehängt**, bestehende nicht umsortiert):
 
-`timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status`
+`timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version`
 
 Ohne Sheets-Credentials — oder wenn Sheets-Append fehlschlägt — schreibt die App einen Datei-Fallback:
 lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach `os.tmpdir()/gobd-data/intakes.json`
 (typisch `/tmp`, das einzige beschreibbare Verzeichnis auf Serverless). Der Fallback ist nicht persistent über Invocations.
 
+## PDF, Blob, E-Mail, Magic Link
+
+Nach dem Intake entsteht **PDF v1** (pdfkit): Cover mit Firma/E-Mail, Disclaimer, Kapitelgerüst mit Intake-Fakten, Offene-Punkte-Liste, Platzhalterzeilen. **Keine erfundenen GoBD-Rechtstexte.**
+
+### Vercel Blob
+
+1. Im Vercel-Projekt Storage → Blob anlegen
+2. `BLOB_READ_WRITE_TOKEN` in `.env.local` / Vercel Env setzen
+3. PDFs landen unter `gobd/{document_id}/v1.pdf`
+
+Ohne Token: lokale Datei (`.data/pdfs` bzw. `/tmp/gobd-data/pdfs`). Download regeneriert das PDF aus den gespeicherten Intake-Zeilen, falls die Datei fehlt.
+
+### Resend (E-Mail)
+
+1. API-Key bei [Resend](https://resend.com) anlegen
+2. Absender verifizieren, dann setzen:
+
+- `RESEND_API_KEY`
+- `EMAIL_FROM` (z. B. `GoBD Verfahrensdoku <noreply@deine-domain.de>`)
+
+Die Delivery-Mail enthält Download-Link und Magic Link. Fehlen die Env-Werte: **kein Versand**, Log-Stub (wie Ops), Download bleibt auf `/success`.
+
+### Magic Link
+
+1. Langes Zufallsgeheimnis setzen: `MAGIC_LINK_SECRET`
+2. `/login` fordert einen Link an → E-Mail → `/auth/verify?token=` setzt httpOnly-Cookie `gobd_session` (30 Tage)
+3. `/account` listet Dokumente zu dieser E-Mail (Sheets/Datei) und bietet den neuesten Download
+
+Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
+
+Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Stripe Customer Portal ist in diesem Slice ein TODO-Hinweis, keine Integration.
+
+Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben).
+
 ## Was ist Stub
 
-- **Delivery** (`lib/delivery.ts`, `POST /api/delivery`): Kapitelgerüst + offene Punkte. Keine GoBD-Rechtstexte, kein PDF. TODO im Code.
-- **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding-Mail, Failed Payment, Failed Job. Nur Logs, kein Versand. TODO im Code.
+- **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding nach Zahlung, Failed Payment, Failed Job. Nur Logs, kein Versand.
 - **Checkout ohne Stripe-Keys:** Mock-Session, weiter zum Intake.
 - **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
+- **PDF ohne Blob:** lokale Datei, auf Vercel nicht persistent; Download kann aus der Intake-Zeile regenerieren.
+- **Mail ohne Resend:** Log-Stub, Download auf Success bleibt.
+- **Stripe Customer Portal:** nur Hinweis auf `/account`.
 
-Kein Auth, kein Admin-UI.
+PDF-Kapiteltexte über Counsel und Intake-Nachbearbeitung sind Slice C.
 
 ## Vercel
 
@@ -91,4 +128,6 @@ Next.js App Router, bereit für Vercel. Dieselben Env-Vars setzen. Webhook-URL: 
 
 **Pflicht nach Deploy:** `NEXT_PUBLIC_APP_URL=https://www.gobd-doku-erstellen.de` (www, kein trailing slash) setzen und **neu deployen** — der Wert wird zur Build-Zeit eingebettet. Apex (`https://gobd-doku-erstellen.de`) nicht verwenden.
 
-Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout und Intake sind `noindex`.
+Für persistente PDFs und Mail: `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, `EMAIL_FROM`, `MAGIC_LINK_SECRET` setzen.
+
+Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout, Intake, Success, Login und Konto sind `noindex`.

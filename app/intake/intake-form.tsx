@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
-import type { DeliveryPlan } from "@/lib/delivery";
 
 const BRANCHEN = [
   "Handwerk",
@@ -72,14 +71,11 @@ function Chips({
 }
 
 export function IntakeForm({ session }: IntakeFormProps) {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<IntakeAnswers>(emptyAnswers);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const [done, setDone] = useState<{
-    store: string;
-    delivery: DeliveryPlan;
-  } | null>(null);
 
   function patch(partial: Partial<IntakeAnswers>) {
     setAnswers((current) => ({ ...current, ...partial }));
@@ -127,7 +123,7 @@ export function IntakeForm({ session }: IntakeFormProps) {
       let data: {
         error?: string;
         store?: string;
-        delivery?: DeliveryPlan;
+        documentId?: string;
       } = {};
       try {
         const text = await response.text();
@@ -141,12 +137,15 @@ export function IntakeForm({ session }: IntakeFormProps) {
         setError(data.error || "Speichern fehlgeschlagen.");
         return;
       }
-      if (!data.delivery || !data.store) {
+      if (!data.store || !data.documentId) {
         setError(data.error || "Speichern fehlgeschlagen.");
         return;
       }
-      setDone({ store: data.store, delivery: data.delivery });
-      setStep(6);
+      const params = new URLSearchParams({
+        session_id: session.stripeSessionId,
+        document_id: data.documentId,
+      });
+      router.push(`/success?${params}`);
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");
     } finally {
@@ -419,48 +418,6 @@ export function IntakeForm({ session }: IntakeFormProps) {
               Entwurf zur Abstimmung mit deinem Steuerberater — keine
               individuelle Steuer- oder Rechtsberatung.
             </p>
-          </div>
-        </section>
-      )}
-
-      {step === 6 && done && (
-        <section>
-          <div className="card center">
-            <h1>Intake gespeichert</h1>
-            <p className="prose">
-              Ablage:{" "}
-              {done.store === "sheets"
-                ? "Google Sheets"
-                : "Datei-Fallback (lokal .data, auf Vercel /tmp)"}.
-              Delivery ist ein Stub — kein PDF, keine GoBD-Rechtstexte.
-            </p>
-            <p className="prose" style={{ textAlign: "left", marginTop: 16 }}>
-              <strong>Kapitelgerüst</strong>
-            </p>
-            <ul className="prose-list" style={{ textAlign: "left", display: "inline-block" }}>
-              {done.delivery.chapters.map((chapter) => (
-                <li key={chapter.id}>
-                  {chapter.title} ({chapter.source})
-                </li>
-              ))}
-            </ul>
-            {done.delivery.openItems.length > 0 && (
-              <>
-                <p className="prose" style={{ textAlign: "left", marginTop: 16 }}>
-                  <strong>Offene Punkte</strong>
-                </p>
-                <ul className="prose-list" style={{ textAlign: "left", display: "inline-block" }}>
-                  {done.delivery.openItems.map((item) => (
-                    <li key={item.id}>{item.title}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <div className="actions" style={{ justifyContent: "center", marginTop: 16 }}>
-              <Link className="btn" href="/">
-                Zurück zur Landing
-              </Link>
-            </div>
           </div>
         </section>
       )}

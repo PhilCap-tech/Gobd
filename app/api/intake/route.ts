@@ -1,6 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { enqueueDelivery } from "@/lib/delivery";
-import { triggerOnboardingMail } from "@/lib/ops";
+import { applySessionCookie, magicLinkUrl } from "@/lib/auth";
+import { storePdf } from "@/lib/blob";
+import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
+import { getAppUrl } from "@/lib/env";
+import { sendDeliveryMail } from "@/lib/ops";
 import { appendRecord } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import { toSheetRow, type IntakeAnswers } from "@/lib/types";
@@ -76,10 +80,29 @@ async function handleIntake(request: Request) {
   }
 
   const answers = body.answers;
-  const delivery = await enqueueDelivery({
-    sessionId: identity.stripeSessionId,
-    answers,
-  });
+  const documentId = randomUUID();
+  let delivery: DeliveryPlan;
+  let pdfUrl = "";
+
+  try {
+    const generated = await generatePdf({ answers, identity, documentId });
+    const storedPdf = await storePdf(documentId, generated.buffer);
+    pdfUrl = storedPdf.url || storedPdf.pathname;
+    delivery = {
+      ...generated.plan,
+      status: "ready",
+      pdf: {
+        version: 1,
+        documentId,
+        url: storedPdf.url,
+        pathname: storedPdf.pathname,
+        backend: storedPdf.backend,
+      },
+    };
+  } catch (error) {
+    console.error("[intake] PDF-Erzeugung fehlgeschlagen", error);
+    return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
+  }
 
   let stored;
   try {
@@ -89,6 +112,9 @@ async function handleIntake(request: Request) {
         answers,
         status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
         deliveryStatus: delivery.status,
+        documentId,
+        pdfUrl,
+        version: "1",
       }),
     );
   } catch (error) {
@@ -96,21 +122,34 @@ async function handleIntake(request: Request) {
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }
 
+  const appUrl = getAppUrl();
+  const downloadUrl = `${appUrl}/api/docs/${documentId}/download?session_id=${encodeURIComponent(identity.stripeSessionId)}`;
+  const successUrl = `${appUrl}/success?session_id=${encodeURIComponent(identity.stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`;
+  const magicUrl = identity.email ? magicLinkUrl(identity.email) : undefined;
+
   try {
-    await triggerOnboardingMail({
+    await sendDeliveryMail({
       email: identity.email,
       company: identity.company,
-      sessionId: identity.stripeSessionId,
+      downloadUrl,
+      magicLinkUrl: magicUrl,
+      successUrl,
     });
   } catch (error) {
-    console.error("[intake] onboarding stub fehlgeschlagen", error);
+    console.error("[intake] delivery mail fehlgeschlagen", error);
   }
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     ok: true,
     store: stored.backend,
     delivery,
+    documentId,
+    pdfUrl: downloadUrl,
   });
+  if (identity.email) {
+    applySessionCookie(response, identity.email);
+  }
+  return response;
 }
 
 export async function POST(request: Request) {
