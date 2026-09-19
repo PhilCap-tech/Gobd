@@ -306,6 +306,27 @@ h3 {
   font-family: "Segoe UI", system-ui, sans-serif;
 }
 
+.site-footer a {
+  color: var(--muted);
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+
+.legal h2 {
+  font-size: 18px;
+  margin: 28px 0 10px;
+}
+
+.legal .prose a {
+  color: var(--accent);
+}
+
 .page {
   padding: 36px 0 72px;
 }
