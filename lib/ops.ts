@@ -99,6 +99,67 @@ export async function sendDeliveryMail(input: {
   return { ...result, action: "delivery" };
 }
 
+export async function sendReadinessMail(input: {
+  email: string;
+  name?: string;
+  company?: string;
+  title: string;
+  downloadUrl: string;
+  successUrl?: string;
+  checkoutUrl?: string;
+}): Promise<OpsResult & MailResult> {
+  if (!input.email.trim()) {
+    console.info("[ops] readiness mail übersprungen — keine E-Mail");
+    return { stub: true, sent: false, action: "delivery" };
+  }
+
+  const greeting = input.name?.trim() || input.company?.trim() || "";
+  const lines = [
+    `Hallo${greeting ? ` ${greeting}` : ""},`,
+    "",
+    `hier ist deine kostenlose Kurzrichtlinie: ${input.title}.`,
+    "",
+    `Download: ${input.downloadUrl}`,
+  ];
+  if (input.successUrl) {
+    lines.push(`Übersicht: ${input.successUrl}`);
+  }
+  if (input.checkoutUrl) {
+    lines.push(
+      "",
+      `Wenn du eine geführte Verfahrensdokumentation möchtest: ${input.checkoutUrl} (149 € Setup + 49 €/Monat).`,
+    );
+  }
+  lines.push(
+    "",
+    "Keine Steuerberatung und kein Steuerberatungsersatz. Keine Zusicherung der GoBD-Konformität. Das PDF ist eine Arbeitshilfe zur Vorbereitung — keine fertige Verfahrensdokumentation.",
+    "",
+    "GoBD Verfahrensdoku",
+  );
+  const text = lines.join("\n");
+  const html = `
+    <p>Hallo${greeting ? ` ${escapeHtml(greeting)}` : ""},</p>
+    <p>hier ist deine kostenlose Kurzrichtlinie: <strong>${escapeHtml(input.title)}</strong>.</p>
+    <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a></p>
+    ${input.successUrl ? `<p><a href="${escapeAttr(input.successUrl)}">Zur Übersicht</a></p>` : ""}
+    ${
+      input.checkoutUrl
+        ? `<p>Wenn du eine geführte Verfahrensdokumentation möchtest: <a href="${escapeAttr(input.checkoutUrl)}">Dokumentation starten</a> (149 € Setup + 49 €/Monat).</p>`
+        : ""
+    }
+    <p>Keine Steuerberatung und kein Steuerberatungsersatz. Keine Zusicherung der GoBD-Konformität. Das PDF ist eine Arbeitshilfe zur Vorbereitung — keine fertige Verfahrensdokumentation.</p>
+    <p>GoBD Verfahrensdoku</p>
+  `;
+
+  const result = await sendEmail({
+    to: input.email,
+    subject: input.title,
+    text,
+    html,
+  });
+  return { ...result, action: "delivery" };
+}
+
 export async function sendMagicLinkMail(input: {
   email: string;
   magicLinkUrl: string;

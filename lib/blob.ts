@@ -51,11 +51,14 @@ export async function storePdf(input: {
   documentId: string;
   version: number;
   buffer: Buffer;
+  blobPath?: string;
 }): Promise<StoredPdf> {
   const familyId = input.familyId || input.documentId;
   const version = input.version > 0 ? input.version : 1;
-  const blobPath = `gobd/${familyId}/v${version}.pdf`;
-  const fileBase = `${familyId}-v${version}`;
+  const blobPath = input.blobPath ?? `gobd/${familyId}/v${version}.pdf`;
+  const fileBase = input.blobPath
+    ? input.blobPath.replace(/\.pdf$/i, "").replaceAll("/", "-")
+    : `${familyId}-v${version}`;
 
   if (isBlobConfigured()) {
     try {
@@ -82,10 +85,12 @@ export async function storePdf(input: {
   return writeLocalPdf(fileBase, input.buffer);
 }
 
-export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
-  if (row.pdfUrl.startsWith("http://") || row.pdfUrl.startsWith("https://")) {
+export async function loadPdfFromStoredUrl(
+  url: string,
+): Promise<Buffer | null> {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
     try {
-      const response = await fetch(row.pdfUrl);
+      const response = await fetch(url);
       if (response.ok) {
         return Buffer.from(await response.arrayBuffer());
       }
@@ -93,15 +98,22 @@ export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
     } catch (error) {
       console.warn("[blob] pdf_url fetch fehlgeschlagen", error);
     }
+    return null;
   }
 
-  if (row.pdfUrl && !row.pdfUrl.startsWith("http")) {
+  if (url) {
     try {
-      return await readFile(row.pdfUrl);
+      return await readFile(url);
     } catch (error) {
-      console.warn("[blob] lokale PDF-Datei fehlt — regeneriere", error);
+      console.warn("[blob] lokale PDF-Datei fehlt", error);
     }
   }
+  return null;
+}
+
+export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
+  const stored = await loadPdfFromStoredUrl(row.pdfUrl);
+  if (stored) return stored;
 
   const generated = await generatePdf({
     answers: answersFromSheetRow(row),
