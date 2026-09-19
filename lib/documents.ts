@@ -1,3 +1,4 @@
+import { queryIdsEqual } from "@/lib/query";
 import { emailsEqual, type SheetRow } from "@/lib/types";
 
 export type DocumentAccess = {
@@ -36,8 +37,8 @@ export function canAccessDocument(
   if (email && emailsEqual(email, row.email)) {
     return true;
   }
-  const sessionId = access.sessionId?.trim() ?? "";
-  if (sessionId && row.stripeSessionId && sessionId === row.stripeSessionId) {
+  const sessionId = access.sessionId ?? "";
+  if (sessionId && row.stripeSessionId && queryIdsEqual(sessionId, row.stripeSessionId)) {
     return true;
   }
   return false;

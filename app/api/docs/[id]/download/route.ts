@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import { loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
 import { canAccessDocument } from "@/lib/documents";
+import { normalizeQueryId } from "@/lib/query";
 import { findDocumentById } from "@/lib/store";
 
 export const runtime = "nodejs";
@@ -12,7 +13,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const url = new URL(request.url);
-  const sessionId = url.searchParams.get("session_id") ?? "";
+  const sessionId = normalizeQueryId(url.searchParams.get("session_id"));
   const sessionEmail = await getSessionEmail();
   const row = await findDocumentById(id);
 

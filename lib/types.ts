@@ -206,12 +206,39 @@ export function toSheetRow(input: {
   };
 }
 
+function normalizeHeaderKey(col: string): string {
+  return col.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+const SHEET_HEADER_FIELDS: Record<string, keyof SheetRow> = (() => {
+  const map: Record<string, keyof SheetRow> = {};
+  for (const [column, field] of Object.entries(SHEET_COLUMN_FIELDS) as Array<
+    [SheetColumn, keyof SheetRow]
+  >) {
+    map[column] = field;
+    map[normalizeHeaderKey(column)] = field;
+    map[field] = field;
+    map[field.toLowerCase()] = field;
+  }
+  return map;
+})();
+
+/** Maps a Sheets header cell (`stripe_session_id`, camelCase, spaced) to a row field. */
+export function sheetFieldForHeader(header: string): keyof SheetRow | undefined {
+  const trimmed = header.trim();
+  if (!trimmed) return undefined;
+  return (
+    SHEET_HEADER_FIELDS[trimmed] ??
+    SHEET_HEADER_FIELDS[normalizeHeaderKey(trimmed)]
+  );
+}
+
 export function sheetRowValues(
   row: SheetRow,
   header: readonly string[] = SHEET_COLUMNS,
 ): string[] {
   return header.map((col) => {
-    const field = SHEET_COLUMN_FIELDS[col as SheetColumn];
+    const field = sheetFieldForHeader(col) ?? SHEET_COLUMN_FIELDS[col as SheetColumn];
     return field ? row[field] : "";
   });
 }
@@ -219,12 +246,20 @@ export function sheetRowValues(
 export function parseSheetRow(header: string[], values: string[]): SheetRow {
   const row = emptySheetRow();
   header.forEach((col, index) => {
-    const field = SHEET_COLUMN_FIELDS[col as SheetColumn];
+    const field = sheetFieldForHeader(col);
     if (field) {
-      row[field] = values[index] ?? "";
+      row[field] = String(values[index] ?? "").trim();
     }
   });
   return row;
+}
+
+/** Alias used by Sheets reads — same mapping as `parseSheetRow`. */
+export function sheetRowFromValues(
+  header: string[],
+  values: string[],
+): SheetRow {
+  return parseSheetRow(header, values);
 }
 
 export function coerceSheetRow(value: unknown): SheetRow | null {
