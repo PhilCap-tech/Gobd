@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ProductDisclaimer } from "@/components/product-disclaimer";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
@@ -220,6 +221,10 @@ export default function HomePage() {
           <p className="hint">
             Kurzes Intake · PDF + Offene Punkte · Keine Steuerberatung
           </p>
+        </section>
+
+        <section className="block" id="disclaimer">
+          <ProductDisclaimer />
         </section>
       </main>
       <SiteFooter />

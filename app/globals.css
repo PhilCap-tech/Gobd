@@ -323,8 +323,44 @@ h3 {
   margin: 28px 0 10px;
 }
 
-.legal .prose a {
+.legal .prose a,
+.product-disclaimer a {
   color: var(--accent);
+}
+
+.legal-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0 18px;
+}
+
+.legal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.legal th,
+.legal td {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.legal th {
+  background: var(--surface);
+  font-weight: 650;
+}
+
+.product-disclaimer {
+  font-size: 13px;
+}
+
+.product-disclaimer h2 {
+  font-size: 16px;
+  margin: 0 0 10px;
+  color: var(--warn-text);
 }
 
 .page {
