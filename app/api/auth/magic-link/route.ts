@@ -6,7 +6,7 @@ import { sendMagicLinkMail } from "@/lib/ops";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let body: { email?: string };
+  let body: { email?: string; next?: string };
   try {
     body = await request.json();
   } catch {
@@ -18,14 +18,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bitte eine gültige E-Mail angeben." }, { status: 400 });
   }
 
-  const verifyUrl = magicLinkUrl(email);
+  const verifyUrl = magicLinkUrl(email, body.next);
   const mail = await sendMagicLinkMail({ email, magicLinkUrl: verifyUrl });
   const mailReady = isMailConfigured();
 
+  // Never log MAGIC_LINK_SECRET. verifyUrl is the signed login link testers
+  // need when Resend is configured but delivery fails (sent: false).
   return NextResponse.json({
     ok: true,
     sent: mail.sent,
     stub: mail.stub || !mailReady,
-    verifyUrl: mailReady ? undefined : verifyUrl,
+    verifyUrl: mail.sent ? undefined : verifyUrl,
   });
 }

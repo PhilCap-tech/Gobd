@@ -1,5 +1,6 @@
+import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
-import { getSessionEmail } from "@/lib/auth";
+import { getSessionEmail, loginPath } from "@/lib/auth";
 import { getAppUrl, isStripeSecretConfigured } from "@/lib/env";
 import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
 import {
@@ -11,8 +12,9 @@ export function accountPortalPath(status?: PortalStatus): string {
   return status ? `/account?portal=${encodeURIComponent(status)}` : "/account";
 }
 
-export function absoluteAccountPortalUrl(status: PortalStatus): string {
-  return `${getAppUrl()}${accountPortalPath(status)}`;
+function resolveLocation(location: string): string {
+  if (/^https?:\/\//i.test(location)) return location;
+  return `${getAppUrl()}${location}`;
 }
 
 /**
@@ -20,25 +22,46 @@ export function absoluteAccountPortalUrl(status: PortalStatus): string {
  * Opens Stripe Customer Portal when session + customer id exist;
  * otherwise lands on `/account` with a status query (Abo block always visible).
  */
-export async function redirectToStripePortalOrAccount(): Promise<never> {
+export async function resolvePortalRedirect(
+  loginNext: string = "/portal",
+): Promise<{ location: string }> {
   const email = await getSessionEmail();
   if (!email) {
-    redirect("/login");
+    return { location: loginPath(loginNext) };
   }
   if (!isStripeSecretConfigured()) {
-    redirect(accountPortalPath("unavailable"));
+    return { location: accountPortalPath("unavailable") };
   }
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   if (!customerId) {
-    redirect(accountPortalPath("missing"));
+    return { location: accountPortalPath("missing") };
   }
 
-  let url: string;
   try {
-    ({ url } = await createBillingPortalSession(customerId));
+    const { url } = await createBillingPortalSession(customerId);
+    return { location: url };
   } catch (error) {
     console.error("[portal] Billing-Portal-Session fehlgeschlagen", error);
-    redirect(accountPortalPath("error"));
+    return { location: accountPortalPath("error") };
   }
-  redirect(url);
+}
+
+export async function redirectToStripePortalOrAccount(
+  loginNext: string = "/portal",
+): Promise<void> {
+  const { location } = await resolvePortalRedirect(loginNext);
+  redirect(location);
+}
+
+export async function portalRedirectResponse(
+  _request: Request,
+  loginNext: string = "/portal",
+): Promise<NextResponse> {
+  const { location } = await resolvePortalRedirect(loginNext);
+  const response = NextResponse.redirect(resolveLocation(location), 303);
+  response.headers.set(
+    "Cache-Control",
+    "private, no-store, max-age=0, must-revalidate",
+  );
+  return response;
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string | null }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -19,11 +19,15 @@ export function LoginForm() {
       const response = await fetch("/api/auth/magic-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({
+          email: email.trim(),
+          next: next || undefined,
+        }),
       });
       const data = (await response.json()) as {
         error?: string;
         ok?: boolean;
+        sent?: boolean;
         stub?: boolean;
         verifyUrl?: string;
       };
@@ -32,7 +36,7 @@ export function LoginForm() {
         return;
       }
       setSent(true);
-      if (data.stub && data.verifyUrl) {
+      if (data.verifyUrl) {
         setStubUrl(data.verifyUrl);
       }
     } catch {
@@ -66,7 +70,7 @@ export function LoginForm() {
       )}
       {stubUrl && (
         <p className="banner">
-          E-Mail-Versand ist nicht konfiguriert (Demo).{" "}
+          E-Mail wurde nicht zugestellt.{" "}
           <a href={stubUrl}>Hier anmelden</a>
         </p>
       )}
