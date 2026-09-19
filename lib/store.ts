@@ -299,6 +299,34 @@ export async function listDocumentFamily(documentId: string): Promise<SheetRow[]
   return rowsInFamily(rows, documentId);
 }
 
+export async function findRowByStripeSessionId(
+  sessionId: string,
+): Promise<SheetRow | null> {
+  const normalized = normalizeQueryId(sessionId);
+  if (!normalized) return null;
+  const { rows } = await loadRows();
+  return (
+    rows
+      .filter((row) => queryIdsEqual(row.stripeSessionId, normalized))
+      .at(-1) ?? null
+  );
+}
+
+/** Latest non-empty Stripe customer id for this e-mail (webhook or intake row). */
+export async function findLatestStripeCustomerIdByEmail(
+  email: string,
+): Promise<string | null> {
+  if (!email.trim()) return null;
+  const { rows } = await loadRows();
+  const matches = rows
+    .filter(
+      (row) => emailsEqual(row.email, email) && row.stripeCustomerId.trim(),
+    )
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const id = matches[0]?.stripeCustomerId.trim();
+  return id || null;
+}
+
 function latestRowForSession(
   rows: SheetRow[],
   sessionId: string,

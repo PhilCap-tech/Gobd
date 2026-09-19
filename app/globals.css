@@ -528,6 +528,18 @@ textarea:focus {
   color: var(--muted);
 }
 
+.banner.ok {
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: #b7dcc8;
+}
+
+.banner.warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: var(--warn-line);
+}
+
 .error {
   color: #8a1f1f;
   font-size: 13px;

@@ -49,6 +49,23 @@ export function isStripeConfigured(): boolean {
   );
 }
 
+export function isStripeSecretConfigured(): boolean {
+  return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+}
+
+/** Signing secret from `stripe listen` or Dashboard → Webhooks. Never invent one. */
+export function getStripeWebhookSecret(): string | null {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  return secret || null;
+}
+
+export function isProductionRuntime(): boolean {
+  if (process.env.VERCEL_ENV) {
+    return process.env.VERCEL_ENV === "production";
+  }
+  return process.env.NODE_ENV === "production";
+}
+
 export function isSheetsConfigured(): boolean {
   return Boolean(
     process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL &&

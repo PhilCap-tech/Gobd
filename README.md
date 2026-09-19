@@ -22,7 +22,7 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 4. Intake: Branche → Software → Belegwege → IT → Verantwortliche
 5. Speichern: Google Sheets oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
 6. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben überarbeiten**, **Neue PDF-Version erzeugen**, **Versionshistorie**. Fehlt `document_id`, reicht `session_id` — die App lädt die neueste Zeile zu dieser Stripe-Session.
-7. Konto: `/login` (Magic Link) → `/account` (**Angaben überarbeiten** + **Versionshistorie** + Download). Alias: `/meine-dokumente` → `/account`
+7. Konto: `/login` (Magic Link) → `/account` (**Angaben überarbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`
 8. Re-Edit: Intake vorbefüllt → Absenden erzeugt **Version N+1**, alte Versionen bleiben downloadbar
 
 ## Stripe (Testmodus)
@@ -49,15 +49,39 @@ In Stripe (Testmodus) anlegen:
 2. Produkt + Price recurring 49 EUR / Monat
 3. Keys und Price-IDs nach `.env.local`
 
-Webhook lokal:
+### Webhook (`STRIPE_WEBHOOK_SECRET`)
+
+Ohne Signing-Secret nimmt `/api/stripe/webhook` keine Events an (HTTP 503, klare Fehlermeldung; in Produktion `production: true` im JSON). **Kein Platzhalter-Secret im Code** — den Wert nur aus Stripe übernehmen.
+
+**Lokal (Stripe CLI):**
 
 ```bash
 stripe listen --forward-to localhost:3000/api/stripe/webhook
 ```
 
-`STRIPE_WEBHOOK_SECRET` aus `stripe listen` setzen. Events: `checkout.session.completed` (Order-Zeile + Onboarding-Stub), `invoice.payment_failed` (Failed-Payment-Stub).
+Die CLI gibt ein Secret aus (`whsec_…`). Das als `STRIPE_WEBHOOK_SECRET` in `.env.local` setzen (nach Änderung `next dev` neu starten).
 
-**Blocker ohne Keys:** Echte Zahlung ist nicht testbar, solange `STRIPE_SECRET_KEY` und die beiden Price-IDs fehlen. Die Integration ist vollständig verdrahtet; der Checkout fällt dann auf eine Mock-Session zurück.
+**Produktion (Stripe Dashboard):**
+
+1. Developers → Webhooks → Add endpoint
+2. URL: `https://www.gobd-doku-erstellen.de/api/stripe/webhook`
+3. Events: `checkout.session.completed`, `invoice.payment_failed`
+4. Signing secret (`whsec_…`) als `STRIPE_WEBHOOK_SECRET` in Vercel setzen und neu deployen
+
+Events:
+
+- `checkout.session.completed` — Order-Zeile (`status=paid`, inkl. `stripe_customer_id`) + Onboarding-Stub; idempotent pro `stripe_session_id`
+- `invoice.payment_failed` — Failed-Payment-Stub (E-Mail aus Invoice oder Customer-Retrieve)
+
+### Customer Portal
+
+In Stripe (Testmodus): Settings → Billing → Customer portal aktivieren (Zahlungsmittel, Rechnungen, Abo kündigen — je nach Portal-Config).
+
+Auf **Meine Dokumente** (`/account`, Alias `/meine-dokumente`): Button **Abo verwalten**. `POST /api/stripe/portal` liest die Session-E-Mail aus dem Cookie, sucht die neueste Zeile mit `stripe_customer_id` und erzeugt eine Billing-Portal-Session. `return_url` = `{NEXT_PUBLIC_APP_URL}/meine-dokumente?portal=returned`.
+
+Ohne Customer-ID, ohne `STRIPE_SECRET_KEY` oder bei Stripe-Fehler: Redirect zurück auf Meine Dokumente mit Hinweis (kein harter 500).
+
+**Blocker ohne Keys:** Echte Zahlung und das echte Portal sind nicht testbar, solange `STRIPE_SECRET_KEY` und die beiden Price-IDs fehlen. Die Integration ist vollständig verdrahtet; der Checkout fällt dann auf eine Mock-Session zurück. Das Portal braucht zusätzlich eine echte `cus_…` (nach Test-Checkout in der Sheet-/Datei-Zeile).
 
 ## Google Sheets
 
@@ -108,7 +132,7 @@ Die Delivery-Mail enthält Download-Link und Magic Link. Fehlen die Env-Werte: *
 
 Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
 
-Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. Stripe Customer Portal ist ein TODO-Hinweis, keine Integration (Slice D).
+Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. **Abo verwalten** auf `/account` bzw. `/meine-dokumente` öffnet das Stripe Customer Portal (`stripe_customer_id` der neuesten Zeile zu dieser E-Mail).
 
 Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben).
 
@@ -140,7 +164,7 @@ PDF-Text kommt weiter nur aus `content/delivery-templates/`. Keine zusätzlichen
 - **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
 - **PDF ohne Blob:** lokale Datei, auf Vercel nicht persistent; Download kann aus der Intake-Zeile regenerieren.
 - **Mail ohne Resend:** Log-Stub, Download auf Success bleibt.
-- **Stripe Customer Portal:** nur Hinweis auf `/account` (Slice D).
+- **Stripe Customer Portal:** ohne `STRIPE_SECRET_KEY` oder ohne `stripe_customer_id` zur Session-E-Mail — Hinweis statt Portal.
 
 Intake-Nachbearbeitung (Re-Edit / neue PDF-Version) ist implementiert. Fertige Kapiteltexte über Counsel bleiben später.
 
@@ -150,6 +174,6 @@ Next.js App Router, bereit für Vercel. Dieselben Env-Vars setzen. Webhook-URL: 
 
 **Pflicht nach Deploy:** `NEXT_PUBLIC_APP_URL=https://www.gobd-doku-erstellen.de` (www, kein trailing slash) setzen und **neu deployen** — der Wert wird zur Build-Zeit eingebettet. Apex (`https://gobd-doku-erstellen.de`) nicht verwenden.
 
-Für persistente PDFs und Mail: `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, `EMAIL_FROM`, `MAGIC_LINK_SECRET` setzen.
+Für persistente PDFs, Mail und Abo-Portal: `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, `EMAIL_FROM`, `MAGIC_LINK_SECRET`, `STRIPE_WEBHOOK_SECRET` setzen.
 
 Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout, Intake, Success, Login und Konto sind `noindex`.
