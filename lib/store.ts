@@ -5,6 +5,7 @@ import { google } from "googleapis";
 import { parseDocumentVersion, rowsInFamily } from "@/lib/documents";
 import { getSheetsTab, isSheetsConfigured } from "@/lib/env";
 import { normalizeQueryId, queryIdsEqual } from "@/lib/query";
+import { listStripeCustomerIdByEmail } from "@/lib/stripe";
 import {
   SHEET_COLUMNS,
   coerceSheetRow,
@@ -13,6 +14,7 @@ import {
   sheetFieldForHeader,
   sheetRowFromValues,
   sheetRowValues,
+  toSheetRow,
   type SheetRow,
 } from "@/lib/types";
 
@@ -312,19 +314,85 @@ export async function findRowByStripeSessionId(
   );
 }
 
-/** Latest non-empty Stripe customer id for this e-mail (webhook or intake row). */
+function stripeCustomerIdFromRow(row: SheetRow): string {
+  return row.stripeCustomerId.trim();
+}
+
+/** Paid webhook rows and completed (non-stub) intake rows. */
+function isPaidLikeStatus(status: string): boolean {
+  const s = status.trim().toLowerCase();
+  return (
+    s === "paid" ||
+    s.startsWith("paid") ||
+    s === "intake_submitted" ||
+    s === "intake_resubmitted"
+  );
+}
+
+function latestCustomerIdFromRows(
+  rows: SheetRow[],
+  email: string,
+): string | null {
+  const forEmail = rows.filter((row) => emailsEqual(row.email, email));
+  const byTime = (a: SheetRow, b: SheetRow) =>
+    b.timestamp.localeCompare(a.timestamp);
+
+  const paidWithId = forEmail
+    .filter((row) => isPaidLikeStatus(row.status) && stripeCustomerIdFromRow(row))
+    .sort(byTime);
+  if (paidWithId[0]) return stripeCustomerIdFromRow(paidWithId[0]);
+
+  const anyWithId = forEmail
+    .filter((row) => stripeCustomerIdFromRow(row))
+    .sort(byTime);
+  return anyWithId[0] ? stripeCustomerIdFromRow(anyWithId[0]) : null;
+}
+
+async function persistLinkedStripeCustomerId(
+  email: string,
+  customerId: string,
+): Promise<void> {
+  try {
+    await appendRecord(
+      toSheetRow({
+        identity: {
+          email,
+          company: "",
+          stripeSessionId: "",
+          stripeCustomerId: customerId,
+          stub: false,
+        },
+        status: "stripe_customer_linked",
+        deliveryStatus: "",
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[store] stripe_customer_id aus Stripe-Lookup konnte nicht gespeichert werden",
+      error,
+    );
+  }
+}
+
+/**
+ * Latest non-empty Stripe customer id for this e-mail.
+ * Prefers paid/intake rows, then any row with `stripe_customer_id`.
+ * If still empty and STRIPE_SECRET_KEY is set, lists Stripe customers by e-mail
+ * (short cache) and persists the id so checkout/webhook gaps do not hide the portal.
+ */
 export async function findLatestStripeCustomerIdByEmail(
   email: string,
 ): Promise<string | null> {
   if (!email.trim()) return null;
   const { rows } = await loadRows();
-  const matches = rows
-    .filter(
-      (row) => emailsEqual(row.email, email) && row.stripeCustomerId.trim(),
-    )
-    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  const id = matches[0]?.stripeCustomerId.trim();
-  return id || null;
+  const fromRows = latestCustomerIdFromRows(rows, email);
+  if (fromRows) return fromRows;
+
+  const fromStripe = await listStripeCustomerIdByEmail(email);
+  if (fromStripe) {
+    await persistLinkedStripeCustomerId(email, fromStripe);
+  }
+  return fromStripe;
 }
 
 function latestRowForSession(

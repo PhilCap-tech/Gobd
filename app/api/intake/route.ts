@@ -13,6 +13,7 @@ import { sendDeliveryMail } from "@/lib/ops";
 import {
   appendRecord,
   findLatestDocumentByStripeSessionId,
+  findLatestStripeCustomerIdByEmail,
   listDocumentFamily,
 } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
@@ -154,6 +155,27 @@ async function resolveIdentity(body: {
   };
 }
 
+async function withStripeCustomerId(
+  identity: CheckoutIdentity,
+): Promise<CheckoutIdentity> {
+  if (identity.stub || identity.stripeCustomerId.trim()) {
+    return identity;
+  }
+  if (identity.stripeSessionId) {
+    const fresh = await resolveCheckoutSession(identity.stripeSessionId);
+    if (!("error" in fresh) && fresh.stripeCustomerId.trim()) {
+      return { ...identity, stripeCustomerId: fresh.stripeCustomerId };
+    }
+  }
+  if (identity.email) {
+    const fromStore = await findLatestStripeCustomerIdByEmail(identity.email);
+    if (fromStore) {
+      return { ...identity, stripeCustomerId: fromStore };
+    }
+  }
+  return identity;
+}
+
 async function handleIntake(request: Request) {
   let body: {
     sessionId?: string;
@@ -173,8 +195,9 @@ async function handleIntake(request: Request) {
     return resolved.response;
   }
 
-  const { identity, version, status } = resolved;
-  let { parentDocumentId } = resolved;
+  const { version, status } = resolved;
+  let { identity, parentDocumentId } = resolved;
+  identity = await withStripeCustomerId(identity);
 
   if (!isAnswers(body.answers)) {
     return jsonError("Intake unvollständig.", 400);

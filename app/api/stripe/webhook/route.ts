@@ -12,6 +12,7 @@ import {
 import { appendRecord, findRowByStripeSessionId } from "@/lib/store";
 import {
   getStripe,
+  listStripeCustomerIdByEmail,
   retrieveCustomerEmail,
   stripeCustomerIdFrom,
 } from "@/lib/stripe";
@@ -78,9 +79,12 @@ export async function POST(request: Request) {
         let email =
           session.customer_details?.email || session.customer_email || "";
         const company = session.metadata?.company || "";
-        const customerId = stripeCustomerIdFrom(session.customer);
+        let customerId = stripeCustomerIdFrom(session.customer);
         if (!email && customerId) {
           email = await retrieveCustomerEmail(customerId);
+        }
+        if (!customerId && email) {
+          customerId = (await listStripeCustomerIdByEmail(email)) || "";
         }
 
         const existing = await findRowByStripeSessionId(session.id);
@@ -89,6 +93,21 @@ export async function POST(request: Request) {
             "[webhook] checkout.session.completed bereits verarbeitet",
             session.id,
           );
+          if (!existing.stripeCustomerId.trim() && customerId) {
+            await appendRecord(
+              toSheetRow({
+                identity: {
+                  email: email || existing.email,
+                  company: company || existing.company,
+                  stripeSessionId: session.id,
+                  stripeCustomerId: customerId,
+                  stub: false,
+                },
+                status: "paid",
+                deliveryStatus: existing.deliveryStatus || "",
+              }),
+            );
+          }
           break;
         }
 

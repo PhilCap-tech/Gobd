@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
-import { getAppUrl, isStripeSecretConfigured } from "@/lib/env";
+import { isStripeSecretConfigured } from "@/lib/env";
+import { absoluteAccountPortalUrl } from "@/lib/portal";
 import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
-import { createBillingPortalSession } from "@/lib/stripe";
+import { createBillingPortalSession, type PortalStatus } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
-function documentsRedirect(portal: string) {
-  return NextResponse.redirect(
-    `${getAppUrl()}/meine-dokumente?portal=${encodeURIComponent(portal)}`,
-    303,
-  );
+function accountRedirect(portal: PortalStatus) {
+  return NextResponse.redirect(absoluteAccountPortalUrl(portal), 303);
 }
 
 export async function POST(request: Request) {
@@ -20,12 +18,12 @@ export async function POST(request: Request) {
   }
 
   if (!isStripeSecretConfigured()) {
-    return documentsRedirect("unavailable");
+    return accountRedirect("unavailable");
   }
 
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   if (!customerId) {
-    return documentsRedirect("missing");
+    return accountRedirect("missing");
   }
 
   try {
@@ -33,6 +31,6 @@ export async function POST(request: Request) {
     return NextResponse.redirect(session.url, 303);
   } catch (error) {
     console.error("[portal] Billing-Portal-Session fehlgeschlagen", error);
-    return documentsRedirect("error");
+    return accountRedirect("error");
   }
 }
