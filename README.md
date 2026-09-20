@@ -77,7 +77,7 @@ Events:
 
 ### Customer Portal
 
-In Stripe (Testmodus): Settings → Billing → Customer portal aktivieren (Zahlungsmittel, Rechnungen, Abo kündigen — je nach Portal-Config).
+In Stripe (Test- **und** Live-Modus): Settings → Billing → Customer portal aktivieren (Zahlungsmittel, Rechnungen, Abo kündigen — je nach Portal-Config). Ohne Live-Portal-Config schlägt `billingPortal.sessions.create` fehl (`?portal=config`).
 
 Auf **Meine Firmen** (`/account`, Alias `/meine-dokumente`): Block **Abo** ist nach Login immer sichtbar. **Abo verwalten** führt auf `/account/billing` (nicht direkt ins Stripe-Portal). Ein Abo gilt für bis zu 5 Firmen (`MAX_ENTITIES_PER_ACCOUNT`).
 
@@ -85,19 +85,20 @@ Auf **Meine Firmen** (`/account`, Alias `/meine-dokumente`): Block **Abo** ist n
 
 - Abo-Status über die Stripe Subscription API: `active` / `past_due` / `none` (kein eigenes Abo-Modell)
 - **Rechnungen:** `stripe.invoices.list({ customer })` — Nummer, Datum, Betrag, Status, Links `hosted_invoice_url` / `invoice_pdf`. Kein eigenes Rechnungssystem.
-- Button **Zahlungsmethode / Abo im Stripe-Portal öffnen** → `POST /api/stripe/portal` (nur wenn Secret + `cus_…` vorliegen)
-- Leere Zustände, wenn `STRIPE_SECRET_KEY` fehlt oder keine Customer-ID zur E-Mail existiert
+- Button **Zahlungsmethode / Abo im Stripe-Portal öffnen** → `POST /api/stripe/portal` (nur wenn Secret + gültige Live-`cus_…` vorliegen)
+- Leere Zustände unterscheiden: kein Stripe-Kunde / Lookup fehlgeschlagen / wirklich keine Rechnungen
 
-`POST /api/stripe/portal` liest die Session-E-Mail, sucht `stripe_customer_id` (bevorzugt Paid-/Intake-Zeilen; Fallback `customers.list` nach E-Mail, kurz gecacht) und erzeugt eine Billing-Portal-Session. Fehler und Rückkehr landen auf `/account/billing?portal=…` (nicht `/meine-dokumente`). `return_url` = `{NEXT_PUBLIC_APP_URL}/account/billing?portal=returned`.
+`POST /api/stripe/portal` liest die Session-E-Mail und löst `stripe_customer_id` so auf: Sheet-IDs (Paid-/Intake zuerst) werden per `customers.retrieve` gegen den aktuellen `STRIPE_SECRET_KEY` geprüft. Fehlt die ID, ist sie gelöscht oder aus der anderen Stripe-Mode (typisch: Test-`cus_…` nach Live-Key-Wechsel), folgt `customers.list` nach E-Mail. Eine gefundene Live-ID wird persistiert; die alte ID wird nicht weiterverwendet. Fehler und Rückkehr landen auf `/account/billing?portal=…` (`missing` / `config` / `error` / `unavailable` / `returned`). `return_url` = `{NEXT_PUBLIC_APP_URL}/account/billing?portal=returned`.
 
-Komfort-Routen **`/portal`** und **`/billing`**: eingeloggt mit Kunde → direkt ins Stripe-Portal, sonst Redirect auf `/account/billing` (mit `?portal=missing|unavailable|error`). Nicht eingeloggt → `/login?next=/portal` (bzw. `/billing`); der Magic Link führt zurück auf diese Route. `GET` und `POST /api/stripe/portal` machen dieselbe Weiterleitung. Kein 404.
+Komfort-Routen **`/portal`** und **`/billing`**: eingeloggt mit gültigem Kunden → direkt ins Stripe-Portal, sonst Redirect auf `/account/billing` (mit `?portal=missing|unavailable|config|error`). Nicht eingeloggt → `/login?next=/portal` (bzw. `/billing`); der Magic Link führt zurück auf diese Route. `GET` und `POST /api/stripe/portal` machen dieselbe Weiterleitung. Kein 404.
 
 `stripe_customer_id` wird geschrieben, wenn vorhanden:
 
 - Webhook `checkout.session.completed` (auch nach, wenn die Intake-Zeile die ID noch nicht hatte)
 - Intake (Checkout-Session-Retrieve, sonst Store/Stripe-Lookup)
+- Billing-/Portal-Lookup, wenn eine Sheet-ID in der aktuellen Stripe-Mode ungültig ist und `customers.list` eine Live-ID findet (`status=stripe_customer_linked`)
 
-Ohne Webhook-Secret speichert der Intake die ID trotzdem über Session-Retrieve. Fehlt sie in den Zeilen, listet das Konto/Portal Stripe-Kunden zur E-Mail (kein Ersatz für Keys; `STRIPE_WEBHOOK_SECRET` bleibt Ops-Aufgabe).
+Ohne Webhook-Secret speichert der Intake die ID trotzdem über Session-Retrieve. Ungültige Sheet-IDs (andere Mode, gelöscht) werden nicht weiterverwendet. `STRIPE_WEBHOOK_SECRET` bleibt Ops-Aufgabe.
 
 Ohne Customer-ID, ohne `STRIPE_SECRET_KEY` oder bei Stripe-Fehler: Redirect zurück auf `/account/billing` mit Hinweis (kein harter 500). Der Abo-Block auf `/account` und die Billing-Seite bleiben sichtbar.
 

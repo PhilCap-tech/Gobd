@@ -72,12 +72,30 @@ export function AccountBillingStatus({
   );
 }
 
-export function AccountInvoiceList({ invoices }: { invoices: BillingInvoice[] }) {
+export function AccountInvoiceList({
+  invoices,
+  stripeReady = true,
+  hasCustomer = true,
+  lookupFailed = false,
+}: {
+  invoices: BillingInvoice[];
+  stripeReady?: boolean;
+  hasCustomer?: boolean;
+  lookupFailed?: boolean;
+}) {
+  const emptyCopy = !stripeReady
+    ? "Stripe ist nicht konfiguriert. Rechnungen sind im Demo-Pfad nicht verfügbar."
+    : lookupFailed
+      ? "Rechnungen konnten gerade nicht geladen werden. Bitte später erneut versuchen."
+      : !hasCustomer
+        ? "Kein Stripe-Kunde zu dieser E-Mail. Rechnungen erscheinen nach einem Checkout."
+        : "Noch keine Rechnungen vorhanden.";
+
   return (
     <section className="card" aria-labelledby="billing-invoices-heading">
       <h2 id="billing-invoices-heading">Rechnungen</h2>
       {invoices.length === 0 ? (
-        <p className="prose">Noch keine Rechnungen vorhanden.</p>
+        <p className="prose">{emptyCopy}</p>
       ) : (
         <div className="invoice-table-wrap">
           <table className="invoice-table">

@@ -3,13 +3,33 @@ import { getAppUrl, isStripeConfigured, isStripeSecretConfigured } from "@/lib/e
 import type { CheckoutIdentity } from "@/lib/types";
 
 const CUSTOMER_LIST_TTL_MS = 60_000;
+const CUSTOMER_LIST_EMPTY_TTL_MS = 5_000;
+const CUSTOMER_VERIFY_TTL_MS = 60_000;
+
+export type PortalStatus =
+  | "returned"
+  | "missing"
+  | "unavailable"
+  | "error"
+  | "config";
+
+export type PortalErrorKind = "missing_customer" | "portal_config" | "api";
+export type StripeCustomerVerifyResult = "valid" | "invalid" | "error";
+
+type CustomerListLookup = {
+  id: string | null;
+  lookupFailed: boolean;
+};
+
 const customerListCache = new Map<
   string,
-  { id: string | null; at: number }
+  { result: CustomerListLookup; at: number; ttl: number }
 >();
-const customerListInflight = new Map<string, Promise<string | null>>();
-
-export type PortalStatus = "returned" | "missing" | "unavailable" | "error";
+const customerListInflight = new Map<string, Promise<CustomerListLookup>>();
+const customerVerifyCache = new Map<
+  string,
+  { result: StripeCustomerVerifyResult; at: number }
+>();
 
 let stripeClient: Stripe | null = null;
 
@@ -38,11 +58,25 @@ export function isCheckoutSessionFulfilled(
   );
 }
 
+function stripeErrorFields(error: unknown): {
+  type?: string;
+  code?: string;
+  message?: string;
+  param?: string;
+  statusCode?: number;
+} {
+  if (!error || typeof error !== "object") return {};
+  return error as {
+    type?: string;
+    code?: string;
+    message?: string;
+    param?: string;
+    statusCode?: number;
+  };
+}
+
 function isRetryableStripeError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-  const e = error as { type?: string; statusCode?: number };
+  const e = stripeErrorFields(error);
   if (
     e.type === "StripeConnectionError" ||
     e.type === "StripeAPIError" ||
@@ -54,6 +88,53 @@ function isRetryableStripeError(error: unknown): boolean {
     return true;
   }
   return typeof e.statusCode === "number" && e.statusCode >= 500;
+}
+
+export function isStripeResourceMissingError(error: unknown): boolean {
+  const e = stripeErrorFields(error);
+  if (e.code === "resource_missing") return true;
+  const message = (e.message || "").toLowerCase();
+  return message.includes("no such customer") || message.includes("no such");
+}
+
+export function isStripeCustomerMissingError(error: unknown): boolean {
+  if (
+    error instanceof Error &&
+    /stripe_customer_id fehlt/i.test(error.message)
+  ) {
+    return true;
+  }
+  if (!isStripeResourceMissingError(error)) return false;
+  const e = stripeErrorFields(error);
+  const param = (e.param || "").toLowerCase();
+  const message = (e.message || "").toLowerCase();
+  if (param === "customer" || param === "customer_id") return true;
+  return message.includes("no such customer") || message.includes("customer");
+}
+
+export function isStripePortalConfigurationError(error: unknown): boolean {
+  const e = stripeErrorFields(error);
+  const param = (e.param || "").toLowerCase();
+  const message = (e.message || "").toLowerCase();
+  if (
+    param === "configuration" ||
+    param === "configuration_id" ||
+    param === "billing_portal_configuration"
+  ) {
+    return true;
+  }
+  return (
+    (message.includes("portal") && message.includes("config")) ||
+    (message.includes("configure") && message.includes("portal")) ||
+    message.includes("default configuration") ||
+    message.includes("portal configuration")
+  );
+}
+
+export function classifyBillingPortalError(error: unknown): PortalErrorKind {
+  if (isStripePortalConfigurationError(error)) return "portal_config";
+  if (isStripeCustomerMissingError(error)) return "missing_customer";
+  return "api";
 }
 
 async function retrieveCheckoutSession(sessionId: string) {
@@ -191,24 +272,26 @@ export function stripeCustomerIdFrom(
 }
 
 /**
- * Lookup a Stripe customer id by e-mail. Cached briefly to avoid
- * customers.list on every account refresh (rate-limit).
+ * Lookup a Stripe customer id by e-mail. Successful hits are cached briefly
+ * to avoid customers.list on every account refresh (rate-limit). Empty /
+ * failed lookups use a short TTL so a later Live customer can recover.
  */
-export async function listStripeCustomerIdByEmail(
+export async function lookupStripeCustomerIdByEmail(
   email: string,
-): Promise<string | null> {
+): Promise<CustomerListLookup> {
   const key = email.trim().toLowerCase();
-  if (!key || !isStripeSecretConfigured()) return null;
+  if (!key) return { id: null, lookupFailed: false };
+  if (!isStripeSecretConfigured()) return { id: null, lookupFailed: false };
 
   const cached = customerListCache.get(key);
-  if (cached && Date.now() - cached.at < CUSTOMER_LIST_TTL_MS) {
-    return cached.id;
+  if (cached && Date.now() - cached.at < cached.ttl) {
+    return cached.result;
   }
 
   const inflight = customerListInflight.get(key);
   if (inflight) return inflight;
 
-  const pending = (async () => {
+  const pending = (async (): Promise<CustomerListLookup> => {
     try {
       const result = await getStripe().customers.list({
         email: key,
@@ -219,12 +302,16 @@ export async function listStripeCustomerIdByEmail(
       );
       live.sort((a, b) => (b.created ?? 0) - (a.created ?? 0));
       const id = live[0]?.id || null;
-      customerListCache.set(key, { id, at: Date.now() });
-      return id;
+      const lookup: CustomerListLookup = { id, lookupFailed: false };
+      customerListCache.set(key, {
+        result: lookup,
+        at: Date.now(),
+        ttl: id ? CUSTOMER_LIST_TTL_MS : CUSTOMER_LIST_EMPTY_TTL_MS,
+      });
+      return lookup;
     } catch (error) {
       console.error("[stripe] customers.list fehlgeschlagen", error);
-      customerListCache.set(key, { id: null, at: Date.now() });
-      return null;
+      return { id: null, lookupFailed: true };
     } finally {
       customerListInflight.delete(key);
     }
@@ -232,6 +319,55 @@ export async function listStripeCustomerIdByEmail(
 
   customerListInflight.set(key, pending);
   return pending;
+}
+
+export async function listStripeCustomerIdByEmail(
+  email: string,
+): Promise<string | null> {
+  const lookup = await lookupStripeCustomerIdByEmail(email);
+  return lookup.id;
+}
+
+/**
+ * Confirm a stored `cus_…` exists in the mode of the current STRIPE_SECRET_KEY.
+ * Test-mode ids fail with resource_missing against Live keys (and vice versa).
+ */
+export async function verifyStripeCustomerId(
+  customerId: string,
+): Promise<StripeCustomerVerifyResult> {
+  const id = customerId.trim();
+  if (!id) return "invalid";
+  if (!isStripeSecretConfigured()) return "error";
+
+  const cached = customerVerifyCache.get(id);
+  if (
+    cached &&
+    cached.result !== "error" &&
+    Date.now() - cached.at < CUSTOMER_VERIFY_TTL_MS
+  ) {
+    return cached.result;
+  }
+
+  try {
+    const customer = await getStripe().customers.retrieve(id);
+    if ("deleted" in customer && customer.deleted) {
+      console.warn("[stripe] Customer gelöscht — ID ungültig");
+      customerVerifyCache.set(id, { result: "invalid", at: Date.now() });
+      return "invalid";
+    }
+    customerVerifyCache.set(id, { result: "valid", at: Date.now() });
+    return "valid";
+  } catch (error) {
+    if (isStripeCustomerMissingError(error)) {
+      console.warn(
+        "[stripe] Customer fehlt oder andere Stripe-Mode — ID ungültig",
+      );
+      customerVerifyCache.set(id, { result: "invalid", at: Date.now() });
+      return "invalid";
+    }
+    console.error("[stripe] Customer-Verify fehlgeschlagen", error);
+    return "error";
+  }
 }
 
 export async function retrieveCustomerEmail(customerId: string): Promise<string> {
@@ -284,6 +420,8 @@ export type CustomerBilling = {
   subscriptionStatus: BillingSubscriptionStatus;
   invoices: BillingInvoice[];
   lookupFailed: boolean;
+  customerMissing: boolean;
+  resolvedCustomerId: string;
 };
 
 const RECENT_INVOICE_LIMIT = 12;
@@ -386,61 +524,112 @@ export function subscriptionStatusCopy(status: BillingSubscriptionStatus): {
   }
 }
 
-/**
- * Subscription status + recent Stripe invoices for the account billing hub.
- * No custom invoice store — Stripe Invoice API only.
- */
-export async function loadCustomerBilling(
-  customerId: string,
-): Promise<CustomerBilling> {
-  const empty: CustomerBilling = {
+function emptyCustomerBilling(
+  extras: Partial<CustomerBilling> = {},
+): CustomerBilling {
+  return {
     subscriptionStatus: "none",
     invoices: [],
     lookupFailed: false,
+    customerMissing: false,
+    resolvedCustomerId: "",
+    ...extras,
   };
+}
+
+/**
+ * Subscription status + recent Stripe invoices for the account billing hub.
+ * No custom invoice store — Stripe Invoice API only.
+ * Invalid / wrong-mode customer ids are not treated as "no invoices".
+ */
+export async function loadCustomerBilling(
+  customerId: string,
+  options?: { email?: string },
+): Promise<CustomerBilling> {
   const id = customerId.trim();
   if (!id || !isStripeSecretConfigured()) {
-    return empty;
+    return emptyCustomerBilling({ customerMissing: !id });
   }
 
-  try {
-    const stripe = getStripe();
-    const [subsResult, invoicesResult] = await Promise.allSettled([
-      stripe.subscriptions.list({ customer: id, limit: 20 }),
-      stripe.invoices.list({ customer: id, limit: RECENT_INVOICE_LIMIT }),
-    ]);
+  const loadForId = async (customer: string): Promise<CustomerBilling> => {
+    try {
+      const stripe = getStripe();
+      const [subsResult, invoicesResult] = await Promise.allSettled([
+        stripe.subscriptions.list({ customer, limit: 20 }),
+        stripe.invoices.list({ customer, limit: RECENT_INVOICE_LIMIT }),
+      ]);
 
-    if (subsResult.status === "rejected") {
-      console.error(
-        "[stripe] subscriptions.list fehlgeschlagen",
-        subsResult.reason,
-      );
-    }
-    if (invoicesResult.status === "rejected") {
-      console.error(
-        "[stripe] invoices.list fehlgeschlagen",
-        invoicesResult.reason,
-      );
-    }
+      const customerMissing =
+        (subsResult.status === "rejected" &&
+          isStripeCustomerMissingError(subsResult.reason)) ||
+        (invoicesResult.status === "rejected" &&
+          isStripeCustomerMissingError(invoicesResult.reason));
 
-    return {
-      subscriptionStatus:
-        subsResult.status === "fulfilled"
-          ? billingSubscriptionStatusFrom(subsResult.value.data)
-          : "none",
-      invoices:
-        invoicesResult.status === "fulfilled"
-          ? invoicesResult.value.data
-              .filter((invoice) => invoice.id && invoice.status !== "draft")
-              .map(billingInvoiceFrom)
-          : [],
-      lookupFailed:
-        subsResult.status === "rejected" || invoicesResult.status === "rejected",
-    };
-  } catch (error) {
-    console.error("[stripe] Billing-Lookup fehlgeschlagen", error);
-    return { ...empty, lookupFailed: true };
+      if (subsResult.status === "rejected") {
+        console.error(
+          customerMissing
+            ? "[stripe] subscriptions.list: Customer fehlt oder andere Mode"
+            : "[stripe] subscriptions.list fehlgeschlagen",
+          subsResult.reason,
+        );
+      }
+      if (invoicesResult.status === "rejected") {
+        console.error(
+          customerMissing
+            ? "[stripe] invoices.list: Customer fehlt oder andere Mode"
+            : "[stripe] invoices.list fehlgeschlagen",
+          invoicesResult.reason,
+        );
+      }
+
+      if (customerMissing) {
+        return emptyCustomerBilling({ customerMissing: true });
+      }
+
+      return {
+        subscriptionStatus:
+          subsResult.status === "fulfilled"
+            ? billingSubscriptionStatusFrom(subsResult.value.data)
+            : "none",
+        invoices:
+          invoicesResult.status === "fulfilled"
+            ? invoicesResult.value.data
+                .filter((invoice) => invoice.id && invoice.status !== "draft")
+                .map(billingInvoiceFrom)
+            : [],
+        lookupFailed:
+          subsResult.status === "rejected" ||
+          invoicesResult.status === "rejected",
+        customerMissing: false,
+        resolvedCustomerId: customer,
+      };
+    } catch (error) {
+      if (isStripeCustomerMissingError(error)) {
+        console.error(
+          "[stripe] Billing-Lookup: Customer fehlt oder andere Mode",
+          error,
+        );
+        return emptyCustomerBilling({ customerMissing: true });
+      }
+      console.error("[stripe] Billing-Lookup fehlgeschlagen", error);
+      return emptyCustomerBilling({ lookupFailed: true });
+    }
+  };
+
+  const first = await loadForId(id);
+  if (!first.customerMissing) return first;
+
+  const email = options?.email?.trim() ?? "";
+  if (!email) return first;
+
+  const recovered = await lookupStripeCustomerIdByEmail(email);
+  if (recovered.lookupFailed) {
+    return emptyCustomerBilling({ lookupFailed: true });
   }
+  if (!recovered.id || recovered.id === id) {
+    return first;
+  }
+  return loadForId(recovered.id);
 }
 
 export function portalStatusFromQuery(
@@ -450,7 +639,8 @@ export function portalStatusFromQuery(
     value === "returned" ||
     value === "missing" ||
     value === "unavailable" ||
-    value === "error"
+    value === "error" ||
+    value === "config"
   ) {
     return value;
   }
@@ -480,6 +670,11 @@ export function portalStatusCopy(status: PortalStatus): {
     case "error":
       return {
         text: "Abo-Verwaltung konnte nicht geöffnet werden. Bitte später erneut versuchen.",
+        tone: "warn",
+      };
+    case "config":
+      return {
+        text: "Das Stripe-Kundenportal ist noch nicht eingerichtet. Bitte später erneut versuchen.",
         tone: "warn",
       };
   }

@@ -9,7 +9,10 @@ import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
-import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
+import {
+  persistLinkedStripeCustomerId,
+  resolveStripeCustomerForEmail,
+} from "@/lib/store";
 import {
   loadCustomerBilling,
   portalStatusCopy,
@@ -38,16 +41,27 @@ export default async function AccountBillingPage({
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
   const stripeReady = isStripeSecretConfigured();
-  const customerId = await findLatestStripeCustomerIdByEmail(email);
-  const hasCustomer = Boolean(customerId);
+  const resolved = await resolveStripeCustomerForEmail(email);
   const billing =
-    stripeReady && customerId
-      ? await loadCustomerBilling(customerId)
+    stripeReady && resolved.customerId
+      ? await loadCustomerBilling(resolved.customerId, { email })
       : {
           subscriptionStatus: "none" as const,
           invoices: [],
-          lookupFailed: false,
+          lookupFailed: resolved.lookupFailed,
+          customerMissing: !resolved.customerId,
+          resolvedCustomerId: "",
         };
+  if (
+    billing.resolvedCustomerId &&
+    billing.resolvedCustomerId !== resolved.customerId
+  ) {
+    await persistLinkedStripeCustomerId(email, billing.resolvedCustomerId);
+  }
+  const hasCustomer =
+    Boolean(billing.resolvedCustomerId || resolved.customerId) &&
+    !billing.customerMissing;
+  const lookupFailed = resolved.lookupFailed || billing.lookupFailed;
 
   return (
     <>
@@ -71,9 +85,14 @@ export default async function AccountBillingPage({
             status={billing.subscriptionStatus}
             stripeReady={stripeReady}
             hasCustomer={hasCustomer}
-            lookupFailed={billing.lookupFailed}
+            lookupFailed={lookupFailed}
           />
-          <AccountInvoiceList invoices={billing.invoices} />
+          <AccountInvoiceList
+            invoices={billing.invoices}
+            stripeReady={stripeReady}
+            hasCustomer={hasCustomer}
+            lookupFailed={lookupFailed}
+          />
         </div>
       </main>
       <SiteFooter />
