@@ -1,5 +1,5 @@
 /**
- * Consent-gated ads tracking (Google tag + Meta Pixel).
+ * Consent-gated marketing tracking (Google tag + Meta Pixel).
  * Stripe stays TEST — never fire Purchase or InitiateCheckout
  * (neither Meta nor Google checkout conversions).
  */
@@ -50,7 +50,7 @@ export function getMetaPixelId(): string {
   return process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || "";
 }
 
-/** Google Ads account ID, e.g. AW-XXXXXXXXX. Unset → skip Google entirely. */
+/** Google Ads account ID, e.g. AW-XXXXXXXXX. Unset → skip Ads config. */
 export function getGoogleAdsId(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_ID?.trim() || "";
 }
@@ -58,6 +58,11 @@ export function getGoogleAdsId(): string {
 /** Conversion label for ReadinessSubmit only. Unset → traffic/config, no conversion. */
 export function getGoogleAdsReadinessLabel(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL?.trim() || "";
+}
+
+/** GA4 measurement ID, e.g. G-XXXXXXXX. Unset → skip GA4 config. */
+export function getGaMeasurementId(): string {
+  return process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 }
 
 export function readConsent(): ConsentChoice | null {
@@ -166,8 +171,7 @@ export function enableMarketingScripts(): void {
   if (!hasMarketingConsent()) return;
   const pixelId = getMetaPixelId();
   if (pixelId) enableMetaPixel(pixelId);
-  const googleId = getGoogleAdsId();
-  if (googleId) enableGoogleAds(googleId);
+  enableGoogleTag();
 }
 
 /** PageView on all consented routes; custom ReadinessStart only on `/readiness`. */
@@ -206,7 +210,8 @@ function trackReadinessStart(): void {
 /**
  * After a successful readiness POST — before navigating to success.
  * Meta: CompleteRegistration + ReadinessSubmit.
- * Google: conversion only if NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL is set.
+ * Google Ads: conversion only if NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL is set.
+ * GA4: custom `readiness_submit` when NEXT_PUBLIC_GA_MEASUREMENT_ID is set.
  * Does not fire Purchase / InitiateCheckout (Meta or Google).
  */
 export function trackReadinessSubmit(): void {
@@ -218,15 +223,19 @@ export function trackReadinessSubmit(): void {
     window.fbq?.("track", "CompleteRegistration", params);
     window.fbq?.("trackCustom", "ReadinessSubmit", params);
   }
+  enableGoogleTag();
   const googleId = getGoogleAdsId();
   if (googleId) {
-    enableGoogleAds(googleId);
     const label = getGoogleAdsReadinessLabel();
     if (label) {
       window.gtag?.("event", "conversion", {
         send_to: `${googleId}/${label}`,
       });
     }
+  }
+  const gaId = getGaMeasurementId();
+  if (gaId) {
+    window.gtag?.("event", "readiness_submit", { send_to: gaId });
   }
 }
 
@@ -239,11 +248,16 @@ function enableMetaPixel(pixelId: string): void {
   pixelInitialized = true;
 }
 
-function enableGoogleAds(adsId: string): void {
-  if (typeof window === "undefined" || !adsId) return;
+/** Shared gtag/dataLayer: load once, config AW- and/or G- when present. */
+function enableGoogleTag(): void {
+  if (typeof window === "undefined") return;
+  const adsId = getGoogleAdsId();
+  const gaId = getGaMeasurementId();
+  if (!adsId && !gaId) return;
+  const loadId = adsId || gaId;
   loadScript(
     "google-ads-gtag",
-    `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(adsId)}`,
+    `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(loadId)}`,
   );
   if (googleInitialized) return;
   window.dataLayer = window.dataLayer || [];
@@ -253,14 +267,14 @@ function enableGoogleAds(adsId: string): void {
     };
   }
   window.gtag("js", new Date());
-  window.gtag("config", adsId);
+  if (adsId) window.gtag("config", adsId);
+  if (gaId) window.gtag("config", gaId);
   googleInitialized = true;
 }
 
 function trackGooglePageView(pathname: string): void {
-  const adsId = getGoogleAdsId();
-  if (!adsId) return;
-  enableGoogleAds(adsId);
+  if (!getGoogleAdsId() && !getGaMeasurementId()) return;
+  enableGoogleTag();
   if (lastGooglePagePath === pathname) return;
   const first = lastGooglePagePath === "";
   lastGooglePagePath = pathname;

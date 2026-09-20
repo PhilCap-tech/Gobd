@@ -35,7 +35,7 @@ Beim Start des Checkouts kann Stripe Cookies und ähnliche Technologien setzen. 
 
 Wenn du **Marketing erlauben** wählst:
 
-- **Google-Tag** (`googletagmanager.com/gtag/js`) wird geladen, sofern eine Google-Ads-ID konfiguriert ist. Eine Conversion wird nur bei erfolgreichem Readiness-Submit ausgelöst und nur, wenn zusätzlich ein Conversion-Label gesetzt ist. Ohne Label bleibt es bei der Reichweitenmessung (Traffic).
+- **Google-Tag** (`googletagmanager.com/gtag/js`) wird geladen, sofern eine Google-Ads-ID und/oder eine GA4-Measurement-ID konfiguriert ist. Ads-Conversion nur bei erfolgreichem Readiness-Submit und gesetztem Conversion-Label. Ohne Label bleibt Ads bei der Reichweitenmessung (Traffic). GA4 erfasst Seitenaufrufe (inkl. Client-Navigation); kein Purchase.
 - **Meta Pixel** (`connect.facebook.net`) erfasst Seitenaufrufe (PageView) sowie Readiness-Events (ReadinessStart, CompleteRegistration / ReadinessSubmit), sofern eine Pixel-ID konfiguriert ist.
 
 Ohne Einwilligung oder ohne die jeweilige ID wird das entsprechende Skript nicht geladen. Es gibt keine Purchase- oder Checkout-Conversions.
@@ -54,7 +54,7 @@ Das Hosting kann technisch bedingte Verbindungsdaten und ggf. notwendige Speiche
 | gobd_consent | eigene Domain | Speicherung der Cookie-/Tracking-Auswahl | 180 Tage | notwendig |
 | TODO | Stripe | Checkout / Betrugsprävention | TODO | notwendig |
 | Meta Pixel (_fbp / _fbc) | Meta Platforms | Reichweiten- und Event-Messung (nur Readiness, kein Purchase) | laut Anbieter / bis Widerruf | optional, nur mit Einwilligung |
-| Google-Tag (gtag) | Google | Reichweitenmessung; Conversion nur bei ReadinessSubmit (wenn Label gesetzt), kein Purchase | laut Anbieter / bis Widerruf | optional, nur mit Einwilligung |
+| Google-Tag (gtag) | Google | Reichweitenmessung (Ads und/oder GA4); Conversion nur bei ReadinessSubmit (wenn Ads-Label gesetzt), kein Purchase | laut Anbieter / bis Widerruf | optional, nur mit Einwilligung |
 
 ## Verwaltung / Ablehnung
 
