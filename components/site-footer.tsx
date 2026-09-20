@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CookieSettingsButton } from "@/components/consent-banner";
 import { LEGAL_LINKS, LEGAL_OPERATOR } from "@/lib/legal";
 
 export function SiteFooter() {
@@ -17,6 +18,7 @@ export function SiteFooter() {
             {link.label}
           </a>
         ))}
+        <CookieSettingsButton />
       </nav>
     </footer>
   );

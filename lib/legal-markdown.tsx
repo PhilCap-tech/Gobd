@@ -13,7 +13,7 @@ const INTERNAL_LINKS: Record<string, string> = {
 export function cleanLegalMarkdown(source: string): string {
   return source
     .replace(/^(?:>.*\n)+/m, "")
-    .replace(/^---\s*\n/, "")
+    .replace(/^\s*---\s*\n/, "")
     .replace(OTHER_EMAILS, LEGAL_OPERATOR.email)
     .replace(
       /\*\*Stand:\*\* TODO: Datum der Veröffentlichung/g,

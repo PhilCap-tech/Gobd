@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { ConsentBanner } from "@/components/consent-banner";
+import { MarketingPixel } from "@/components/marketing-pixel";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +18,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="de">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ConsentBanner />
+        <Suspense fallback={null}>
+          <MarketingPixel />
+        </Suspense>
+      </body>
     </html>
   );
 }
