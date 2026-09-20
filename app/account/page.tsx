@@ -10,8 +10,10 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import {
+  firmaEditPath,
   formatDocumentTime,
   groupFamiliesByEntity,
+  newDocumentPath,
   parseDocumentVersion,
 } from "@/lib/documents";
 import {
@@ -128,16 +130,28 @@ export default async function AccountPage({
                       </p>
                     )}
 
+                    {entity && (
+                      <div className="actions" style={{ marginTop: 12 }}>
+                        <Link
+                          className="btn ghost"
+                          href={firmaEditPath(entity.entityId)}
+                        >
+                          Stammdaten bearbeiten
+                        </Link>
+                        <Link
+                          className="btn"
+                          href={newDocumentPath(entity.entityId)}
+                        >
+                          Neues Dokument
+                        </Link>
+                      </div>
+                    )}
+
                     {group.families.length === 0 ? (
                       <div className="entity-docs">
                         <p className="prose">
                           Für diese Firma liegt noch kein Entwurf vor.
                         </p>
-                        <div className="actions">
-                          <Link className="btn" href="/checkout">
-                            Dokumentation starten
-                          </Link>
-                        </div>
                       </div>
                     ) : (
                       <div className="entity-docs">

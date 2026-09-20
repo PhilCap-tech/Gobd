@@ -12,9 +12,15 @@ import {
   normalizeDocumentContent,
   serializeDocumentContent,
 } from "@/lib/document-content";
+import { applyEntityToIdentity } from "@/lib/entities";
 import { getAppUrl } from "@/lib/env";
 import { sendDeliveryMail } from "@/lib/ops";
-import { appendRecord, listDocumentFamily, resolveEntityIdForEmail } from "@/lib/store";
+import {
+  appendRecord,
+  getOwnedEntity,
+  listDocumentFamily,
+  resolveEntityIdForEmail,
+} from "@/lib/store";
 import {
   answersFromSheetRow,
   identityFromSheetRow,
@@ -80,13 +86,20 @@ async function handleDocumentEdit(request: Request) {
     return jsonError("Kein Zugriff.", 401);
   }
 
-  const identity = identityFromSheetRow(source);
+  const sourceIdentity = identityFromSheetRow(source);
   const answers = answersFromSheetRow(source);
   const version = nextVersionNumber(family);
   const parentDocumentId = documentFamilyId(source);
   const documentId = randomUUID();
+  const entityId = await resolveEntityIdForEmail(
+    sourceIdentity.email,
+    source.entityId,
+  );
+  const entity = entityId
+    ? await getOwnedEntity(entityId, sourceIdentity.email)
+    : null;
+  const identity = applyEntityToIdentity(sourceIdentity, entity);
   const status = identity.stub ? "document_edited_stub" : "document_edited";
-  const entityId = await resolveEntityIdForEmail(identity.email, source.entityId);
 
   let delivery: DeliveryPlan;
   let pdfUrl = "";

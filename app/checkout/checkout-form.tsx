@@ -1,22 +1,48 @@
 "use client";
 
 import { useState } from "react";
+import { FirmaSelect } from "@/components/firma-select";
+import type { EntityChoice } from "@/lib/entities";
 import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
 
 type CheckoutFormProps = {
   stripeReady: boolean;
+  entities?: EntityChoice[];
+  initialEntityId?: string;
+  initialCompany?: string;
+  initialEmail?: string;
 };
 
-export function CheckoutForm({ stripeReady }: CheckoutFormProps) {
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
+export function CheckoutForm({
+  stripeReady,
+  entities = [],
+  initialEntityId = "",
+  initialCompany = "",
+  initialEmail = "",
+}: CheckoutFormProps) {
+  const [entityId, setEntityId] = useState(initialEntityId);
+  const [company, setCompany] = useState(initialCompany);
+  const [email, setEmail] = useState(initialEmail);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const requireFirm = entities.length > 1;
+
+  function onEntityChange(nextId: string) {
+    setEntityId(nextId);
+    const selected = entities.find((entity) => entity.entityId === nextId);
+    if (selected) {
+      setCompany(selected.name);
+    }
+  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
+    if (requireFirm && !entityId.trim()) {
+      setError("Bitte eine Firma wählen.");
+      return;
+    }
     if (!accepted) {
       setError(
         "Bitte bestätigen: keine Steuerberatung und keine Rechtsberatung.",
@@ -32,6 +58,7 @@ export function CheckoutForm({ stripeReady }: CheckoutFormProps) {
           company: company.trim(),
           email: email.trim(),
           acceptedDisclaimer: accepted,
+          entityId: entityId.trim() || undefined,
         }),
       });
       const data = (await response.json()) as {
@@ -60,6 +87,14 @@ export function CheckoutForm({ stripeReady }: CheckoutFormProps) {
             (Stub). Für den Testmodus: STRIPE_SECRET_KEY und Price-IDs in
             .env.local.
           </p>
+        )}
+        {entities.length > 1 && (
+          <FirmaSelect
+            entities={entities}
+            value={entityId}
+            onChange={onEntityChange}
+            required={requireFirm}
+          />
         )}
         <div className="field">
           <label htmlFor="company">Firma / Name</label>

@@ -9,7 +9,7 @@ import {
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
 import { listEntitiesByEmail } from "@/lib/store";
-import { FirmaForm } from "./firma-form";
+import { FirmaForm } from "../firma-form";
 
 export const dynamic = "force-dynamic";
 

@@ -2,16 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
+import { MAX_ENTITIES_PER_ACCOUNT, type EntityInput } from "@/lib/entities";
 
-export function FirmaForm() {
+type FirmaFormProps = {
+  mode?: "create" | "edit";
+  entityId?: string;
+  initial?: EntityInput;
+};
+
+export function FirmaForm({
+  mode = "create",
+  entityId,
+  initial,
+}: FirmaFormProps) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [street, setStreet] = useState("");
-  const [zip, setZip] = useState("");
-  const [city, setCity] = useState("");
-  const [stnr, setStnr] = useState("");
-  const [ustId, setUstId] = useState("");
+  const isEdit = mode === "edit";
+  const [name, setName] = useState(initial?.name ?? "");
+  const [street, setStreet] = useState(initial?.street ?? "");
+  const [zip, setZip] = useState(initial?.zip ?? "");
+  const [city, setCity] = useState(initial?.city ?? "");
+  const [stnr, setStnr] = useState(initial?.stnr ?? "");
+  const [ustId, setUstId] = useState(initial?.ustId ?? "");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -21,9 +32,10 @@ export function FirmaForm() {
     setPending(true);
     try {
       const response = await fetch("/api/entities", {
-        method: "POST",
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          entityId,
           name: name.trim(),
           street: street.trim(),
           zip: zip.trim(),
@@ -38,7 +50,12 @@ export function FirmaForm() {
         ok?: boolean;
       };
       if (!response.ok || !data.ok) {
-        setError(data.error || "Firma konnte nicht angelegt werden.");
+        setError(
+          data.error ||
+            (isEdit
+              ? "Firma konnte nicht gespeichert werden."
+              : "Firma konnte nicht angelegt werden."),
+        );
         return;
       }
       router.push("/account");
@@ -115,12 +132,18 @@ export function FirmaForm() {
       </div>
       {error && <p className="error">{error}</p>}
       <button className="btn" type="submit" disabled={pending}>
-        {pending ? "Bitte warten…" : "Firma anlegen"}
+        {pending
+          ? "Bitte warten…"
+          : isEdit
+            ? "Stammdaten speichern"
+            : "Firma anlegen"}
       </button>
-      <p className="hint" style={{ marginTop: 12 }}>
-        Du kannst bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen in einem Konto
-        anlegen.
-      </p>
+      {!isEdit && (
+        <p className="hint" style={{ marginTop: 12 }}>
+          Du kannst bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen in einem Konto
+          anlegen.
+        </p>
+      )}
     </form>
   );
 }

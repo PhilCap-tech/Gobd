@@ -22,6 +22,7 @@ export type CheckoutIdentity = {
   stripeSessionId: string;
   stripeCustomerId: string;
   stub: boolean;
+  entityId?: string;
 };
 
 export type SheetRow = {
@@ -318,6 +319,7 @@ export function identityFromSheetRow(row: SheetRow): CheckoutIdentity {
     stripeSessionId: row.stripeSessionId,
     stripeCustomerId: row.stripeCustomerId,
     stub: row.status.includes("stub"),
+    entityId: row.entityId || undefined,
   };
 }
 

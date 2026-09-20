@@ -710,6 +710,10 @@ textarea:focus {
   margin-bottom: 4px;
 }
 
+.entity-card > .actions {
+  margin-bottom: 4px;
+}
+
 .entity-docs {
   display: grid;
   gap: 16px;

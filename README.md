@@ -23,7 +23,7 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 5. Intake: Branche → Software → Belegwege → IT → Verantwortliche
 6. Speichern: Google Sheets (`intakes`) oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
 7. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben überarbeiten**, **Neue PDF-Version erzeugen**, **Versionshistorie**. Fehlt `document_id`, reicht `session_id` — die App lädt die neueste Zeile zu dieser Stripe-Session.
-8. Konto: `/login` (Magic Link) → `/account` (Firmen-Karten, darunter **Angaben überarbeiten** + **Dokument bearbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`. Neue Firma: `/account/firma/neu` (max. 5).
+8. Konto: `/login` (Magic Link) → `/account` (Firmen-Karten, **Stammdaten bearbeiten**, **Neues Dokument**, darunter **Angaben überarbeiten** + **Dokument bearbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`. Neue Firma: `/account/firma/neu` (max. 5). Bearbeiten: `/account/firma/{entity_id}` (nur eigene Firma).
 9. Re-Edit: Intake vorbefüllt → Absenden erzeugt **Version N+1**, alte Versionen bleiben downloadbar
 10. Kapiteltext: `/account` → **Dokument bearbeiten** → `/account/dokument/{document_id}` (nur eingeloggt). Speichern schreibt Version N+1 inkl. `chapter_content` und neues PDF.
 
@@ -116,7 +116,7 @@ Spalten `intakes` (Header wird geschrieben, wenn A1 leer ist; fehlende Spalten w
 
 `timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version | parent_document_id | chapter_content | entity_id`
 
-`entity_id` ist optional. Fehlt sie, gilt das Dokument als ungebunden, bis die Konto-Migration eine Standard-Firma anlegt und nachträgt.
+`entity_id` ist optional. Fehlt sie, gilt das Dokument als ungebunden, bis die Konto-Migration eine Standard-Firma anlegt und nachträgt. Neue Dokumente übernehmen `entity_id` aus der Query (`?entity_id=`), der Checkout-Session oder der einzigen Firma des Kontos. Bei mehreren Firmen muss Intake/Checkout eine Firma wählen. Bearbeiten und PDF-Neuversion behalten die `entity_id` der Vorversion.
 
 Ohne Sheets-Credentials — oder wenn Sheets-Append fehlschlägt — schreibt die App einen Datei-Fallback:
 lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach `os.tmpdir()/gobd-data/intakes.json`
@@ -142,7 +142,9 @@ Spalten:
 
 Datei-Fallback: `.data/entities.json` bzw. `/tmp/gobd-data/entities.json`.
 
-Beim ersten Konto-Aufruf: hat die Session-E-Mail Dokumente ohne `entity_id` und noch keine Firma, legt die App eine Standard-Firma an (letzter `company`-Wert oder „Meine Firma“) und schreibt `entity_id` in die bestehenden Zeilen (Sheets-Zelle bzw. Datei, kein neues PDF).
+Beim ersten Konto-Aufruf: hat die Session-E-Mail Dokumente ohne `entity_id` und noch keine Firma, legt die App eine Standard-Firma an (letzter `company`-Wert oder „Meine Firma“) und schreibt `entity_id` in die bestehenden Zeilen (Sheets-Zelle bzw. Datei, kein neues PDF). Stammdaten (Name, Straße, PLZ, Ort, Steuernummer, USt-IdNr.) werden in-place aktualisiert (`PATCH /api/entities`). Soft-Cap gilt nur beim Anlegen.
+
+PDF/Intake: ist `identity.company` leer, setzt die Erzeugung den Firmennamen aus den Stammdaten. Bestehende Template-Platzhalter (`{{identity.company}}` usw.) bleiben; kein zusätzlicher Rechtstext.
 
 Branche-Schlüssel: `handwerk` | `handel` | `praxis` | `gastronomie` | `dienstleistung` | `allgemein`. Unbekannt → `allgemein`. Module: `content/readiness/*.md`.
 
@@ -176,7 +178,7 @@ Die Delivery-Mail enthält Download-Link, Magic Link und FAQ (`https://www.gobd-
 
 1. Langes Zufallsgeheimnis setzen: `MAGIC_LINK_SECRET`
 2. `/login` fordert einen Link an → E-Mail → `/auth/verify?token=` setzt httpOnly-Cookie `gobd_session` (30 Tage)
-3. `/account` listet Firmen zu dieser E-Mail (Sheets-Tab `entities` oder `.data/entities.json`) und darunter die Dokumente, **Angaben überarbeiten**, **Dokument bearbeiten** und die **Versionshistorie**
+3. `/account` listet Firmen zu dieser E-Mail (Sheets-Tab `entities` oder `.data/entities.json`) und darunter die Dokumente, **Stammdaten bearbeiten**, **Neues Dokument**, **Angaben überarbeiten**, **Dokument bearbeiten** und die **Versionshistorie**
 
 Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
 

@@ -10,6 +10,7 @@ import {
   entitiesForEmail,
   ENTITY_SHEET_COLUMNS,
   entityFieldForHeader,
+  entityOwnedByEmail,
   entitySheetValues,
   EntityLimitError,
   latestEntities,
@@ -972,6 +973,15 @@ export async function getEntity(entityId: string): Promise<Entity | null> {
   return latestEntities(rows.filter((row) => row.entityId === id))[0] ?? null;
 }
 
+export async function getOwnedEntity(
+  entityId: string,
+  email: string,
+): Promise<Entity | null> {
+  const entity = await getEntity(entityId);
+  if (!entity || !entityOwnedByEmail(entity, email)) return null;
+  return entity;
+}
+
 export async function createEntity(
   email: string,
   input: EntityInput,
@@ -1009,9 +1019,13 @@ export async function createEntity(
 export async function updateEntity(
   entityId: string,
   input: Partial<EntityInput>,
+  email?: string,
 ): Promise<Entity | null> {
   const current = await getEntity(entityId);
   if (!current) return null;
+  if (email !== undefined && !entityOwnedByEmail(current, email)) {
+    return null;
+  }
   const next: Entity = {
     ...current,
     name: input.name !== undefined ? input.name.trim() : current.name,
@@ -1161,9 +1175,11 @@ export async function resolveEntityIdForEmail(
   email: string,
   sourceEntityId?: string,
 ): Promise<string> {
-  const fromSource = sourceEntityId?.trim() ?? "";
-  if (fromSource) return fromSource;
+  const requested = sourceEntityId?.trim() ?? "";
   const entities = await listEntitiesByEmail(email);
+  if (requested && entities.some((row) => row.entityId === requested)) {
+    return requested;
+  }
   if (entities.length === 1) return entities[0]?.entityId ?? "";
   return "";
 }

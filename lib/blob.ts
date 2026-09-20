@@ -9,9 +9,10 @@ import {
   parseDocumentContent,
   SHEETS_CELL_SAFE_CHARS,
 } from "@/lib/document-content";
+import { applyEntityToIdentity } from "@/lib/entities";
 import { isBlobConfigured, isSheetsConfigured } from "@/lib/env";
 import { generateReadinessPdf, type ReadinessLead } from "@/lib/readiness";
-import { getFileFallbackDir } from "@/lib/store";
+import { getFileFallbackDir, getOwnedEntity } from "@/lib/store";
 import {
   answersFromSheetRow,
   identityFromSheetRow,
@@ -222,9 +223,13 @@ export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
   const stored = await loadPdfFromStoredUrl(row.pdfUrl);
   if (stored) return stored;
 
+  const sourceIdentity = identityFromSheetRow(row);
+  const entity = row.entityId
+    ? await getOwnedEntity(row.entityId, sourceIdentity.email)
+    : null;
   const generated = await generatePdf({
     answers: answersFromSheetRow(row),
-    identity: identityFromSheetRow(row),
+    identity: applyEntityToIdentity(sourceIdentity, entity),
     documentId: row.documentId || "regenerated",
     version: Number.parseInt(row.version || "1", 10) || 1,
     content: parseDocumentContent(await resolveChapterContent(row.chapterContent)),
