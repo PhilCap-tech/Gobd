@@ -257,7 +257,7 @@ export async function createBillingPortalSession(
   const session = await getStripe().billingPortal.sessions.create({
     customer: id,
     locale: "de",
-    return_url: `${getAppUrl()}/account?portal=returned`,
+    return_url: `${getAppUrl()}${accountBillingPath("returned")}`,
   });
 
   if (!session.url) {
@@ -265,6 +265,182 @@ export async function createBillingPortalSession(
   }
 
   return { url: session.url };
+}
+
+export type BillingSubscriptionStatus = "active" | "past_due" | "none";
+
+export type BillingInvoice = {
+  id: string;
+  number: string;
+  created: number;
+  total: number;
+  currency: string;
+  status: string;
+  hostedInvoiceUrl: string;
+  invoicePdf: string;
+};
+
+export type CustomerBilling = {
+  subscriptionStatus: BillingSubscriptionStatus;
+  invoices: BillingInvoice[];
+  lookupFailed: boolean;
+};
+
+const RECENT_INVOICE_LIMIT = 12;
+
+export function accountBillingPath(status?: PortalStatus): string {
+  return status
+    ? `/account/billing?portal=${encodeURIComponent(status)}`
+    : "/account/billing";
+}
+
+function httpsUrl(value: string | null | undefined): string {
+  const trimmed = (value ?? "").trim();
+  return /^https:\/\//i.test(trimmed) ? trimmed : "";
+}
+
+export function billingSubscriptionStatusFrom(
+  subscriptions: Array<Pick<Stripe.Subscription, "status">>,
+): BillingSubscriptionStatus {
+  const statuses = subscriptions.map((item) => item.status);
+  if (statuses.some((status) => status === "past_due" || status === "unpaid")) {
+    return "past_due";
+  }
+  if (statuses.some((status) => status === "active" || status === "trialing")) {
+    return "active";
+  }
+  return "none";
+}
+
+export function billingInvoiceFrom(invoice: Stripe.Invoice): BillingInvoice {
+  const id = invoice.id ?? "";
+  return {
+    id,
+    number: (invoice.number || id).trim(),
+    created: invoice.created ?? 0,
+    total: invoice.total ?? 0,
+    currency: (invoice.currency || "eur").toUpperCase(),
+    status: invoice.status || "open",
+    hostedInvoiceUrl: httpsUrl(invoice.hosted_invoice_url),
+    invoicePdf: httpsUrl(invoice.invoice_pdf),
+  };
+}
+
+export function formatStripeMoney(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("de-DE", {
+      style: "currency",
+      currency: currency || "EUR",
+    }).format(amount / 100);
+  } catch {
+    return `${(amount / 100).toFixed(2)} ${currency || "EUR"}`;
+  }
+}
+
+export function formatStripeDate(created: number): string {
+  if (!created) return "—";
+  return new Date(created * 1000).toLocaleDateString("de-DE");
+}
+
+export function invoiceStatusCopy(status: string): string {
+  switch (status) {
+    case "paid":
+      return "Bezahlt";
+    case "open":
+      return "Offen";
+    case "draft":
+      return "Entwurf";
+    case "void":
+      return "Storniert";
+    case "uncollectible":
+      return "Uneinbringlich";
+    default:
+      return status || "—";
+  }
+}
+
+export function subscriptionStatusCopy(status: BillingSubscriptionStatus): {
+  label: string;
+  text: string;
+  tone: "ok" | "warn" | "muted";
+} {
+  switch (status) {
+    case "active":
+      return {
+        label: "Aktiv",
+        text: "Dein Abo ist aktiv.",
+        tone: "ok",
+      };
+    case "past_due":
+      return {
+        label: "Zahlungsrückstand",
+        text: "Dein Abo hat einen Zahlungsrückstand. Bitte Zahlungsmittel im Stripe-Portal prüfen.",
+        tone: "warn",
+      };
+    case "none":
+      return {
+        label: "Kein Abo",
+        text: "Kein aktives Abo zu diesem Konto.",
+        tone: "muted",
+      };
+  }
+}
+
+/**
+ * Subscription status + recent Stripe invoices for the account billing hub.
+ * No custom invoice store — Stripe Invoice API only.
+ */
+export async function loadCustomerBilling(
+  customerId: string,
+): Promise<CustomerBilling> {
+  const empty: CustomerBilling = {
+    subscriptionStatus: "none",
+    invoices: [],
+    lookupFailed: false,
+  };
+  const id = customerId.trim();
+  if (!id || !isStripeSecretConfigured()) {
+    return empty;
+  }
+
+  try {
+    const stripe = getStripe();
+    const [subsResult, invoicesResult] = await Promise.allSettled([
+      stripe.subscriptions.list({ customer: id, limit: 20 }),
+      stripe.invoices.list({ customer: id, limit: RECENT_INVOICE_LIMIT }),
+    ]);
+
+    if (subsResult.status === "rejected") {
+      console.error(
+        "[stripe] subscriptions.list fehlgeschlagen",
+        subsResult.reason,
+      );
+    }
+    if (invoicesResult.status === "rejected") {
+      console.error(
+        "[stripe] invoices.list fehlgeschlagen",
+        invoicesResult.reason,
+      );
+    }
+
+    return {
+      subscriptionStatus:
+        subsResult.status === "fulfilled"
+          ? billingSubscriptionStatusFrom(subsResult.value.data)
+          : "none",
+      invoices:
+        invoicesResult.status === "fulfilled"
+          ? invoicesResult.value.data
+              .filter((invoice) => invoice.id && invoice.status !== "draft")
+              .map(billingInvoiceFrom)
+          : [],
+      lookupFailed:
+        subsResult.status === "rejected" || invoicesResult.status === "rejected",
+    };
+  } catch (error) {
+    console.error("[stripe] Billing-Lookup fehlgeschlagen", error);
+    return { ...empty, lookupFailed: true };
+  }
 }
 
 export function portalStatusFromQuery(

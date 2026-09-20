@@ -21,7 +21,6 @@ import {
   formatEntityAddress,
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
-import { isStripeSecretConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import {
   ensureAccountEntities,
@@ -56,8 +55,6 @@ export default async function AccountPage({
   const stripeBound =
     Boolean(customerId) ||
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId);
-  const stripeReady = isStripeSecretConfigured();
-  const canOpenPortal = Boolean(stripeReady && customerId);
   const atCap = entityCapReached(entities.length);
 
   return (
@@ -77,10 +74,7 @@ export default async function AccountPage({
           </p>
         )}
 
-        <AccountAboCard
-          canOpenPortal={canOpenPortal}
-          stripeReady={stripeReady}
-        />
+        <AccountAboCard />
 
         {entities.length === 0 && docs.length === 0 ? (
           <div className="card">

@@ -4,12 +4,13 @@ import { getSessionEmail, loginPath } from "@/lib/auth";
 import { getAppUrl, isStripeSecretConfigured } from "@/lib/env";
 import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
 import {
+  accountBillingPath,
   createBillingPortalSession,
   type PortalStatus,
 } from "@/lib/stripe";
 
 export function accountPortalPath(status?: PortalStatus): string {
-  return status ? `/account?portal=${encodeURIComponent(status)}` : "/account";
+  return accountBillingPath(status);
 }
 
 function resolveLocation(location: string): string {
@@ -20,7 +21,7 @@ function resolveLocation(location: string): string {
 /**
  * Human/tester shortcut for `/portal` and `/billing`.
  * Opens Stripe Customer Portal when session + customer id exist;
- * otherwise lands on `/account` with a status query (Abo block always visible).
+ * otherwise lands on `/account/billing` with a status query.
  */
 export async function resolvePortalRedirect(
   loginNext: string = "/portal",

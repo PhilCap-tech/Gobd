@@ -23,7 +23,7 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 5. Intake: Branche → Software → Belegwege → IT → Verantwortliche
 6. Speichern: Google Sheets (`intakes`) oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
 7. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben überarbeiten**, **Neue PDF-Version erzeugen**, **Versionshistorie**. Fehlt `document_id`, reicht `session_id` — die App lädt die neueste Zeile zu dieser Stripe-Session.
-8. Konto: `/login` (Magic Link) → `/account` (Firmen-Karten, **Stammdaten bearbeiten**, **Neues Dokument**, darunter **Angaben überarbeiten** + **Dokument bearbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`. Neue Firma: `/account/firma/neu` (max. 5). Bearbeiten: `/account/firma/{entity_id}` (nur eigene Firma).
+8. Konto: `/login` (Magic Link) → `/account` (Firmen-Karten, **Stammdaten bearbeiten**, **Neues Dokument**, darunter **Angaben überarbeiten** + **Dokument bearbeiten** + **Versionshistorie** + Download + **Abo verwalten** → `/account/billing`). Alias: `/meine-dokumente` → `/account`. Neue Firma: `/account/firma/neu` (max. 5). Bearbeiten: `/account/firma/{entity_id}` (nur eigene Firma).
 9. Re-Edit: Intake vorbefüllt → Absenden erzeugt **Version N+1**, alte Versionen bleiben downloadbar
 10. Kapiteltext: `/account` → **Dokument bearbeiten** → `/account/dokument/{document_id}` (nur eingeloggt). Speichern schreibt Version N+1 inkl. `chapter_content` und neues PDF.
 
@@ -79,14 +79,18 @@ Events:
 
 In Stripe (Testmodus): Settings → Billing → Customer portal aktivieren (Zahlungsmittel, Rechnungen, Abo kündigen — je nach Portal-Config).
 
-Auf **Meine Firmen** (`/account`, Alias `/meine-dokumente`): Block **Abo** ist nach Login immer sichtbar.
+Auf **Meine Firmen** (`/account`, Alias `/meine-dokumente`): Block **Abo** ist nach Login immer sichtbar. **Abo verwalten** führt auf `/account/billing` (nicht direkt ins Stripe-Portal). Ein Abo gilt für bis zu 5 Firmen (`MAX_ENTITIES_PER_ACCOUNT`).
 
-- Mit `stripe_customer_id` und `STRIPE_SECRET_KEY`: Button **Abo verwalten** → `POST /api/stripe/portal`
-- Sonst: deaktivierter Ghost-Button plus Hinweis (kein Kunde / Stripe nicht konfiguriert)
+`/account/billing` (Magic Link Pflicht):
 
-`POST /api/stripe/portal` liest die Session-E-Mail, sucht `stripe_customer_id` (bevorzugt Paid-/Intake-Zeilen; Fallback `customers.list` nach E-Mail, kurz gecacht) und erzeugt eine Billing-Portal-Session. Fehler und Rückkehr landen auf `/account?portal=…` (nicht `/meine-dokumente`, damit der Status-Banner nicht in der Alias-Weiterleitung verloren geht). `return_url` = `{NEXT_PUBLIC_APP_URL}/account?portal=returned`.
+- Abo-Status über die Stripe Subscription API: `active` / `past_due` / `none` (kein eigenes Abo-Modell)
+- **Rechnungen:** `stripe.invoices.list({ customer })` — Nummer, Datum, Betrag, Status, Links `hosted_invoice_url` / `invoice_pdf`. Kein eigenes Rechnungssystem.
+- Button **Zahlungsmethode / Abo im Stripe-Portal öffnen** → `POST /api/stripe/portal` (nur wenn Secret + `cus_…` vorliegen)
+- Leere Zustände, wenn `STRIPE_SECRET_KEY` fehlt oder keine Customer-ID zur E-Mail existiert
 
-Komfort-Routen **`/portal`** und **`/billing`**: eingeloggt mit Kunde → direkt ins Stripe-Portal, sonst Redirect auf `/account` (mit `?portal=missing|unavailable|error`). Nicht eingeloggt → `/login?next=/portal` (bzw. `/billing`); der Magic Link führt zurück auf diese Route. `GET` und `POST /api/stripe/portal` machen dieselbe Weiterleitung (`POST` bleibt für **Abo verwalten**). Kein 404.
+`POST /api/stripe/portal` liest die Session-E-Mail, sucht `stripe_customer_id` (bevorzugt Paid-/Intake-Zeilen; Fallback `customers.list` nach E-Mail, kurz gecacht) und erzeugt eine Billing-Portal-Session. Fehler und Rückkehr landen auf `/account/billing?portal=…` (nicht `/meine-dokumente`). `return_url` = `{NEXT_PUBLIC_APP_URL}/account/billing?portal=returned`.
+
+Komfort-Routen **`/portal`** und **`/billing`**: eingeloggt mit Kunde → direkt ins Stripe-Portal, sonst Redirect auf `/account/billing` (mit `?portal=missing|unavailable|error`). Nicht eingeloggt → `/login?next=/portal` (bzw. `/billing`); der Magic Link führt zurück auf diese Route. `GET` und `POST /api/stripe/portal` machen dieselbe Weiterleitung. Kein 404.
 
 `stripe_customer_id` wird geschrieben, wenn vorhanden:
 
@@ -95,7 +99,7 @@ Komfort-Routen **`/portal`** und **`/billing`**: eingeloggt mit Kunde → direkt
 
 Ohne Webhook-Secret speichert der Intake die ID trotzdem über Session-Retrieve. Fehlt sie in den Zeilen, listet das Konto/Portal Stripe-Kunden zur E-Mail (kein Ersatz für Keys; `STRIPE_WEBHOOK_SECRET` bleibt Ops-Aufgabe).
 
-Ohne Customer-ID, ohne `STRIPE_SECRET_KEY` oder bei Stripe-Fehler: Redirect zurück auf `/account` mit Hinweis (kein harter 500). Der Abo-Block bleibt sichtbar.
+Ohne Customer-ID, ohne `STRIPE_SECRET_KEY` oder bei Stripe-Fehler: Redirect zurück auf `/account/billing` mit Hinweis (kein harter 500). Der Abo-Block auf `/account` und die Billing-Seite bleiben sichtbar.
 
 **Blocker ohne Keys:** Echte Zahlung und das echte Portal sind nicht testbar, solange `STRIPE_SECRET_KEY` und die beiden Price-IDs fehlen. Die Integration ist vollständig verdrahtet; der Checkout fällt dann auf eine Mock-Session zurück. Das Portal braucht zusätzlich eine echte `cus_…` (nach Test-Checkout in der Sheet-/Datei-Zeile).
 
@@ -182,7 +186,7 @@ Die Delivery-Mail enthält Download-Link, Magic Link und FAQ (`https://www.gobd-
 
 Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
 
-Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. **Abo** auf `/account` ist nach Login immer sichtbar; **Abo verwalten** öffnet das Stripe Customer Portal, sobald eine `cus_…` zur E-Mail vorliegt (Sheet/Datei oder Stripe-Lookup). Alias-Routen: `/meine-dokumente`, `/portal`, `/billing`.
+Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. **Abo** auf `/account` ist nach Login immer sichtbar; **Abo verwalten** führt auf `/account/billing` (Status, Stripe-Rechnungen, Portal-Button). Alias-Routen: `/meine-dokumente`, `/portal`, `/billing`.
 
 Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben); Ads: `NEXT_PUBLIC_META_PIXEL_ID`, `NEXT_PUBLIC_GOOGLE_ADS_ID`, `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL`, `NEXT_PUBLIC_GA_MEASUREMENT_ID` (optional, siehe Ads tracking).
 
@@ -229,7 +233,7 @@ PDF-Text kommt weiter nur aus `content/delivery-templates/`. Standardrahmen (S) 
 - **Readiness ohne Sheets:** `.data/readiness-leads.json` bzw. `/tmp`.
 - **PDF ohne Blob:** lokale Datei, auf Vercel nicht persistent; Download kann aus der Intake- bzw. Readiness-Zeile regenerieren.
 - **Mail ohne Resend:** Log-Stub, Download auf Success / Readiness-Success bleibt.
-- **Stripe Customer Portal:** ohne `STRIPE_SECRET_KEY` oder ohne `stripe_customer_id` zur Session-E-Mail — deaktivierter Button plus Hinweis auf `/account` (nicht unsichtbar). `/portal` und `/billing` leiten entsprechend weiter.
+- **Stripe Customer Portal:** ohne `STRIPE_SECRET_KEY` oder ohne `stripe_customer_id` zur Session-E-Mail — `/account/billing` zeigt leere Zustände; Portal-Button deaktiviert (nicht unsichtbar). `/portal` und `/billing` leiten auf die Billing-Seite weiter.
 
 Intake-Nachbearbeitung (Re-Edit / neue PDF-Version) und Kapiteltext-Nachbearbeitung (Konto → Dokument bearbeiten) sind implementiert. Der Editor nimmt den gerenderten Entwurf; Outline-/Template-Änderungen (PDF v2) erscheinen automatisch, solange noch kein `chapter_content` gespeichert ist.
 
