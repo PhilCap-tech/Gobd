@@ -7,11 +7,13 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 ## 1. Was wird geliefert — und was nicht?
 
 ### Geliefert wird
+
 - Eine strukturierte GoBD-Verfahrensdokumentation als PDF, erzeugt aus deinem Online-Intake (Branche/Rechtsform, Systeme, Belegwege, IT/Hosting, Verantwortliche).
 - Typischer Inhalt: Cover, Kapitel zu Unternehmen, Systemen, Belegwesen, Aufbewahrung, Verantwortlichkeiten sowie eine Liste offener Punkte.
 - Ein fester Produkt-Disclaimer in der Dokumentation (kein Steuer-/Rechtsberatungsersatz; Verantwortung für inhaltliche Richtigkeit liegt bei dir).
 
 ### Nicht geliefert wird
+
 - Keine Steuerberatung, keine Rechtsberatung, keine verbindliche Auskunft gegenüber dem Finanzamt.
 - Keine Garantie, dass die Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird.
 - Keine individuelle Prüfung oder Freigabe durch Steuerberater/WP/RA.
