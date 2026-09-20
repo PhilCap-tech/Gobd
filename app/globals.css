@@ -151,15 +151,25 @@ nav,
   padding: 56px 0 36px;
 }
 
-.kicker {
+.kicker,
+.hook {
   display: inline-block;
   font-family: "Segoe UI", system-ui, sans-serif;
-  font-size: 12px;
   font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--accent);
   margin: 0 0 12px;
+}
+
+.kicker {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hook {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
 }
 
 h1 {
@@ -196,6 +206,30 @@ h2 {
 
 .actions + .hint {
   margin-top: 12px;
+}
+
+.cta-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: flex-start;
+}
+
+.cta-paid,
+.cta-soft {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cta-paid .trust-line,
+.cta-soft .hint {
+  margin: 0;
+}
+
+.sticky-cta {
+  display: none;
 }
 
 .tags {
@@ -240,6 +274,10 @@ h2 {
   font-weight: 650;
 }
 
+.prose-list + .prose {
+  margin-top: 12px;
+}
+
 .price-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -265,6 +303,10 @@ h2 {
 
 .price-card.stacked .prose {
   margin: 8px 0 0;
+}
+
+.price-card.stacked .prose-list {
+  margin-top: 8px;
 }
 
 .framing {
@@ -735,6 +777,40 @@ code {
 
   .site-header {
     padding: 14px 16px;
+  }
+
+  .sticky-cta {
+    display: block;
+    position: fixed;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding: 12px 16px 16px;
+    box-shadow: 0 -8px 24px rgba(20, 32, 27, 0.1);
+  }
+
+  .sticky-cta .btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .sticky-cta .trust-line {
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  body {
+    padding-bottom: 120px;
+  }
+
+  body.consent-open .sticky-cta {
+    display: none;
   }
 }
 

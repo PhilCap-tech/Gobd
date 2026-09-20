@@ -3,30 +3,58 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
 
+const CTA_PRIMARY = "Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo";
+const CTA_PRIMARY_HREF = "/checkout";
+const CTA_SECONDARY_HREF = "/readiness";
+
+function PaidCta({
+  trust,
+  secondaryLabel,
+  secondaryHint,
+}: {
+  trust: string;
+  secondaryLabel: string;
+  secondaryHint?: string;
+}) {
+  return (
+    <div className="cta-pair">
+      <div className="cta-paid">
+        <Link className="btn" href={CTA_PRIMARY_HREF}>
+          {CTA_PRIMARY}
+        </Link>
+        <p className="trust-line">{trust}</p>
+      </div>
+      <div className="cta-soft">
+        <Link className="btn ghost" href={CTA_SECONDARY_HREF}>
+          {secondaryLabel}
+        </Link>
+        {secondaryHint ? <p className="hint">{secondaryHint}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <>
-      <SiteHeader />
+      <SiteHeader ctaHref={CTA_PRIMARY_HREF} ctaLabel={CTA_PRIMARY} />
       <main className="wrap">
         <section className="hero">
-          <p className="kicker">Für KMU &amp; Handwerk</p>
+          <p className="hook">
+            Als Erstes fragt der Prüfer nach der Verfahrensdokumentation.
+          </p>
           <h1>GoBD-Verfahrensdokumentation erstellen</h1>
           <p className="lead">
-            Online und geführt — statt leerer Word-Vorlage oder teurer
-            Beratungstage. Kurzes Intake, dann PDF plus Liste offener Punkte.
-            Zur Abstimmung mit deinem Steuerberater.
+            Wenn du dann nur Fragmente oder eine leere Vorlage hast, wird’s
+            eng. Hier erstellst du sie geführt — in unter einer Stunde — als
+            PDF plus Liste offener Punkte. Zur Abstimmung mit deinem
+            Steuerberater.
           </p>
-          <div className="actions">
-            <Link className="btn" href="/readiness">
-              Readiness-Check starten (kostenlos)
-            </Link>
-            <a className="btn ghost" href="#so-funktionierts">
-              So funktioniert’s
-            </a>
-          </div>
-          <p className="hint">
-            Ca. 2–3 Minuten · Keine Kreditkarte · Keine Steuerberatung
-          </p>
+          <PaidCta
+            trust="14 Tage Geld-zurück-Garantie · Keine Steuerberatung · Entwurf für deinen Steuerberater"
+            secondaryLabel="Erst Readiness-Check (kostenlos)"
+            secondaryHint="Ca. 2–3 Minuten · Keine Kreditkarte"
+          />
           <div className="tags" aria-label="Themen">
             <span>Verfahrensdokumentation erstellen</span>
             <span>digitale Verfahrensdokumentation</span>
@@ -36,64 +64,31 @@ export default function HomePage() {
         </section>
 
         <section className="block" id="problem">
-          <h2>Problem: Betriebsprüfung &amp; GoBD</h2>
-          <p className="prose">
-            Die GoBD verlangen eine nachvollziehbare Verfahrensdokumentation zu
-            Belegen, Systemen und Verantwortlichkeiten. Viele Betriebe haben nur
-            Fragmente — oder gar nichts Greifbares für die Prüfung.
-          </p>
+          <h2>Der Prüfer wartet nicht auf deine Word-Vorlage</h2>
           <ul className="prose-list">
             <li>Unklare Belegwege und Systeme</li>
-            <li>Keine einheitliche Beschreibung für den Prüfer</li>
-            <li>Klassische Vorlagen bleiben oft unausgefüllt liegen</li>
+            <li>Nichts Einheitliches zum Vorzeigen</li>
+            <li>Vorlagen, die seit Monaten leer liegen</li>
           </ul>
+          <p className="prose framing">
+            Du brauchst keine mehrtägige Beratung, um überhaupt etwas Greifbares
+            zu haben — du brauchst eine geführte, prüfbare Struktur. Jetzt.
+          </p>
         </section>
 
         <section className="block" id="outcome">
-          <h2>Ergebnis: digitale Verfahrensdokumentation</h2>
-          <p className="prose">
-            Du beantwortest kurze Fragen zu Branche, Software, Belegwegen, IT
-            und Verantwortlichen. Du erhältst eine strukturierte
-            GoBD-Verfahrensdokumentation als PDF sowie eine Offene-Punkte-Liste
-            — als Entwurf zur Abstimmung mit deinem Steuerberater.
-          </p>
+          <h2>Sofort eine Lösung — geführt statt Blanko</h2>
           <ul className="prose-list">
             <li>
-              <strong>Verfahrensdokumentation erstellen</strong> — geführt statt
-              Blanko-Dokument
+              In unter einer Stunde: strukturierte Verfahrensdokumentation als
+              PDF
             </li>
             <li>
-              <strong>Digitale Verfahrensdokumentation</strong> — PDF zum Ablegen
+              Offene-Punkte-Liste: du siehst Lücken, bevor der Prüfer fragt
             </li>
             <li>
-              <strong>Vorlage / Muster</strong> — Nutzen der Struktur, kein
-              Fake-Download
-            </li>
-            <li>
-              <strong>Für KMU &amp; Handwerk</strong> — 1–20 MA, DATEV / sevdesk
-              / lexoffice &amp; Co.
-            </li>
-          </ul>
-        </section>
-
-        <section className="block" id="nutzen">
-          <h2>Was du bekommst</h2>
-          <ul className="prose-list">
-            <li>
-              In unter einer Stunde von „nichts Greifbares“ zu einer
-              strukturierten Verfahrensdokumentation als PDF
-            </li>
-            <li>
-              Prüfbare Struktur zu Belegen, Systemen und Verantwortlichkeiten —
-              statt Fragmente in Ordnern
-            </li>
-            <li>
-              Offene-Punkte-Liste: du siehst, was noch fehlt, bevor der Prüfer
-              fragt
-            </li>
-            <li>
-              Geführt für KMU, Handwerk und Freiberufler (DATEV, sevdesk,
-              lexoffice &amp; Co.)
+              Für KMU, Handwerk, Freiberufler (DATEV, sevdesk, lexoffice &amp;
+              Co.)
             </li>
             <li>
               Entwurf zur Abstimmung mit dem Steuerberater — kein Ersatz für
@@ -106,23 +101,23 @@ export default function HomePage() {
           <h2>So funktioniert’s</h2>
           <ol className="prose-list">
             <li>
-              <strong>Readiness-Check</strong> — Kurze Fragen zu Branche,
+              <strong>Fragen beantworten</strong> — Kurzes Intake zu Branche,
               Software, Belegwegen, IT und Verantwortlichen.
             </li>
             <li>
-              <strong>Dokumentation erzeugen</strong> — Du erhältst eine
-              strukturierte GoBD-Verfahrensdokumentation als PDF plus eine
+              <strong>Dokumentation erzeugen</strong> — PDF plus
               Offene-Punkte-Liste.
             </li>
             <li>
               <strong>Mit dem Steuerberater abstimmen</strong> — Entwurf prüfen,
-              Lücken schließen, ablegen.
+              Lücken schließen, ablegen. Danach im Login pflegen und neu
+              exportieren.
             </li>
           </ol>
         </section>
 
         <section className="block" id="preise">
-          <h2>Was es kostet</h2>
+          <h2>Was du bezahlst — und warum das Abo dazugehört</h2>
           <div className="price-grid">
             <div className="price-card stacked">
               <p className="step-label">Setup</p>
@@ -139,27 +134,32 @@ export default function HomePage() {
                 {MONTHLY_EUR}&nbsp;€ <small>/ Monat</small>
               </div>
               <p className="prose">
-                Updates bei System- oder Prozessänderungen und erneute Exporte.
+                Damit du dich nie wieder selbst darum kümmern musst:
               </p>
+              <ul className="prose-list">
+                <li>Automatische Versionierung deiner Verfahrensdokumentation</li>
+                <li>Sichere Speicherung und Zugang zu bisherigen Fassungen</li>
+                <li>
+                  Updates, wenn sich Systeme, Prozesse oder Anforderungen ändern
+                </li>
+                <li>
+                  Bereit für künftige Vorgaben — ohne von vorn anzufangen
+                </li>
+                <li>
+                  Erneute Exporte, wenn Prüfer oder Steuerberater eine aktuelle
+                  Fassung brauchen
+                </li>
+              </ul>
             </div>
           </div>
           <p className="prose framing">
-            Weniger als ein Beratungstag — und du hast ein Dokument, das du
-            aktualisieren kannst.
+            Ein einmaliges PDF veraltet. Betriebsprüfung und GoBD sind kein
+            Einmal-Event — Pflege ist der eigentliche Schutz.
           </p>
-          <div className="actions">
-            <Link className="btn" href="/readiness">
-              Readiness-Check starten (kostenlos)
-            </Link>
-            <Link className="btn ghost" href="/checkout">
-              Direkt starten — 149 € + 49 €/Mo
-            </Link>
-          </div>
-          <p className="hint">
-            Keine Steuerberatung · Entwurf zur Abstimmung mit deinem
-            Steuerberater
-          </p>
-          <p className="trust-line">14 Tage Geld-zurück-Garantie</p>
+          <PaidCta
+            trust="14 Tage Geld-zurück-Garantie"
+            secondaryLabel="Erst kostenlosen Readiness-Check machen"
+          />
         </section>
 
         <section className="block" id="faq">
@@ -178,6 +178,15 @@ export default function HomePage() {
               Die GoBD erwarten eine nachvollziehbare Verfahrensdokumentation.
               Bei einer Betriebsprüfung wird oft genau danach gefragt. Wer nur
               Vorlagen oder gar nichts hat, steht schlechter da.
+            </p>
+          </div>
+          <div className="faq-item">
+            <h3>Reicht nicht ein einmaliges PDF?</h3>
+            <p className="prose">
+              Für den Moment vielleicht — bis sich Software, Belegwege oder
+              Verantwortliche ändern. Genau dann fehlt die aktuelle Fassung. Das
+              Abo hält Versionen, Speicherung und Updates am Laufen, damit du
+              dich nicht erneut selbst darum kümmern musst.
             </p>
           </div>
           <div className="faq-item">
@@ -200,20 +209,19 @@ export default function HomePage() {
         </section>
 
         <section className="block" id="abschluss">
-          <h2>Bereit für eine prüfbare Verfahrensdokumentation?</h2>
-          <div className="actions">
-            <Link className="btn" href="/readiness">
-              Readiness-Check starten (kostenlos)
-            </Link>
-            <a className="btn ghost" href="#preise">
-              Preise ansehen
-            </a>
-          </div>
-          <p className="hint">
-            Kurzes Intake · PDF + Offene Punkte · Keine Steuerberatung
-          </p>
+          <h2>Wenn der Prüfer fragt — hast du etwas vorzuzeigen?</h2>
+          <PaidCta
+            trust="14 Tage Geld-zurück · Keine Steuerberatung"
+            secondaryLabel="Readiness-Check (kostenlos)"
+          />
         </section>
       </main>
+      <div className="sticky-cta">
+        <Link className="btn" href={CTA_PRIMARY_HREF}>
+          {CTA_PRIMARY}
+        </Link>
+        <p className="trust-line">14 Tage Geld-zurück-Garantie</p>
+      </div>
       <SiteFooter />
     </>
   );
