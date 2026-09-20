@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { getAppUrl, isStripeSecretConfigured } from "@/lib/env";
-import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
+import { resolveStripeCustomerForEmail } from "@/lib/store";
 import {
   accountBillingPath,
+  classifyBillingPortalError,
   createBillingPortalSession,
   type PortalStatus,
 } from "@/lib/stripe";
@@ -33,15 +34,34 @@ export async function resolvePortalRedirect(
   if (!isStripeSecretConfigured()) {
     return { location: accountPortalPath("unavailable") };
   }
-  const customerId = await findLatestStripeCustomerIdByEmail(email);
-  if (!customerId) {
+  const resolved = await resolveStripeCustomerForEmail(email);
+  if (!resolved.customerId) {
+    if (resolved.lookupFailed) {
+      console.error("[portal] Customer-Lookup fehlgeschlagen");
+      return { location: accountPortalPath("error") };
+    }
     return { location: accountPortalPath("missing") };
   }
 
   try {
-    const { url } = await createBillingPortalSession(customerId);
+    const { url } = await createBillingPortalSession(resolved.customerId);
     return { location: url };
   } catch (error) {
+    const kind = classifyBillingPortalError(error);
+    if (kind === "missing_customer") {
+      console.error(
+        "[portal] Billing-Portal: Customer fehlt oder andere Stripe-Mode",
+        error,
+      );
+      return { location: accountPortalPath("missing") };
+    }
+    if (kind === "portal_config") {
+      console.error(
+        "[portal] Billing-Portal: Konfiguration fehlt (Dashboard)",
+        error,
+      );
+      return { location: accountPortalPath("config") };
+    }
     console.error("[portal] Billing-Portal-Session fehlgeschlagen", error);
     return { location: accountPortalPath("error") };
   }

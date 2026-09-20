@@ -25,9 +25,13 @@ import {
   getReadinessSheetsTab,
   getSheetsTab,
   isSheetsConfigured,
+  isStripeSecretConfigured,
 } from "@/lib/env";
 import { normalizeQueryId, queryIdsEqual } from "@/lib/query";
-import { listStripeCustomerIdByEmail } from "@/lib/stripe";
+import {
+  lookupStripeCustomerIdByEmail,
+  verifyStripeCustomerId,
+} from "@/lib/stripe";
 import {
   coerceReadinessLead,
   emptyReadinessLead,
@@ -383,26 +387,36 @@ function isPaidLikeStatus(status: string): boolean {
   );
 }
 
-function latestCustomerIdFromRows(
+function candidateCustomerIdsFromRows(
   rows: SheetRow[],
   email: string,
-): string | null {
+): string[] {
   const forEmail = rows.filter((row) => emailsEqual(row.email, email));
   const byTime = (a: SheetRow, b: SheetRow) =>
     b.timestamp.localeCompare(a.timestamp);
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  const push = (id: string) => {
+    const trimmed = id.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    ids.push(trimmed);
+  };
 
-  const paidWithId = forEmail
+  for (const row of forEmail
     .filter((row) => isPaidLikeStatus(row.status) && stripeCustomerIdFromRow(row))
-    .sort(byTime);
-  if (paidWithId[0]) return stripeCustomerIdFromRow(paidWithId[0]);
-
-  const anyWithId = forEmail
+    .sort(byTime)) {
+    push(stripeCustomerIdFromRow(row));
+  }
+  for (const row of forEmail
     .filter((row) => stripeCustomerIdFromRow(row))
-    .sort(byTime);
-  return anyWithId[0] ? stripeCustomerIdFromRow(anyWithId[0]) : null;
+    .sort(byTime)) {
+    push(stripeCustomerIdFromRow(row));
+  }
+  return ids;
 }
 
-async function persistLinkedStripeCustomerId(
+export async function persistLinkedStripeCustomerId(
   email: string,
   customerId: string,
 ): Promise<void> {
@@ -428,25 +442,58 @@ async function persistLinkedStripeCustomerId(
   }
 }
 
+export type ResolvedStripeCustomer = {
+  customerId: string | null;
+  lookupFailed: boolean;
+};
+
 /**
- * Latest non-empty Stripe customer id for this e-mail.
- * Prefers paid/intake rows, then any row with `stripe_customer_id`.
- * If still empty and STRIPE_SECRET_KEY is set, lists Stripe customers by e-mail
- * (short cache) and persists the id so checkout/webhook gaps do not hide the portal.
+ * Resolve a Stripe customer that exists under the current STRIPE_SECRET_KEY.
+ * Sheet/cache ids are verified (`customers.retrieve`). Missing, deleted, or
+ * wrong-mode ids are skipped — then `customers.list` by e-mail. A recovered
+ * Live id is persisted so later lookups do not keep serving the stale id.
+ */
+export async function resolveStripeCustomerForEmail(
+  email: string,
+): Promise<ResolvedStripeCustomer> {
+  if (!email.trim()) return { customerId: null, lookupFailed: false };
+
+  const { rows } = await loadRows();
+  const candidates = candidateCustomerIdsFromRows(rows, email);
+
+  if (!isStripeSecretConfigured()) {
+    return { customerId: candidates[0] ?? null, lookupFailed: false };
+  }
+
+  for (const id of candidates) {
+    const verified = await verifyStripeCustomerId(id);
+    if (verified === "valid") {
+      return { customerId: id, lookupFailed: false };
+    }
+  }
+
+  const listed = await lookupStripeCustomerIdByEmail(email);
+  if (listed.lookupFailed) {
+    return { customerId: null, lookupFailed: true };
+  }
+  if (listed.id) {
+    if (!candidates.includes(listed.id)) {
+      await persistLinkedStripeCustomerId(email, listed.id);
+    }
+    return { customerId: listed.id, lookupFailed: false };
+  }
+  return { customerId: null, lookupFailed: false };
+}
+
+/**
+ * Latest Stripe customer id for this e-mail that is valid in the current
+ * Stripe mode. Prefers paid/intake rows, then any stored id, then Stripe list.
  */
 export async function findLatestStripeCustomerIdByEmail(
   email: string,
 ): Promise<string | null> {
-  if (!email.trim()) return null;
-  const { rows } = await loadRows();
-  const fromRows = latestCustomerIdFromRows(rows, email);
-  if (fromRows) return fromRows;
-
-  const fromStripe = await listStripeCustomerIdByEmail(email);
-  if (fromStripe) {
-    await persistLinkedStripeCustomerId(email, fromStripe);
-  }
-  return fromStripe;
+  const resolved = await resolveStripeCustomerForEmail(email);
+  return resolved.customerId;
 }
 
 function latestRowForSession(
