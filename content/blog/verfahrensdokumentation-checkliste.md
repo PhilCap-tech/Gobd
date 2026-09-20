@@ -9,7 +9,7 @@ secondaryKeywords:
   - "GoBD Checkliste Verfahrensdokumentation"
   - "Checkliste GoBD Verfahrensdokumentation"
 ctaSoft: "/readiness"
-ctaPrimary: "/"
+ctaPrimary: "/checkout"
 status: "ready-for-publish"
 date: "2026-09-19"
 ---
@@ -22,7 +22,7 @@ Du willst wissen, ob deine Verfahrensdokumentation die wichtigen Punkte abdeckt 
 
 > **Keine Steuerberatung.** Dieser Text und alle Ergebnisse unter gobd-doku-erstellen.de sind allgemeine Arbeitshilfen. Sie ersetzen keine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
-Mehr Kontext zum Aufbau und zur Erstellung findest du im Pillar: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
+Mehr Kontext zum Aufbau und zur Erstellung findest du im Pillar: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen). Kurze Antworten zu Ablauf und Grenzen stehen in den [FAQ](/faq).
 
 ## Wofür ist diese GoBD Checkliste Verfahrensdokumentation?
 
@@ -144,7 +144,7 @@ Bevor die Geschäftsleitung freigibt und du den Entwurf zur Abstimmung gibst:
 
 ## Primär-CTA: Verfahrensdokumentation erstellen
 
-Wenn du die Checkliste nicht in ein leeres Dokument tippen willst: [Verfahrensdokumentation erstellen](/) — geführtes Intake, dann strukturiertes PDF plus Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup.
+Wenn du die Checkliste nicht in ein leeres Dokument tippen willst: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, dann strukturiertes PDF plus Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup.
 
 Die Checkliste hier bleibt nützlich: zum Gegenlesen, zum Abstimmen mit dem Berater und zum Nachhalten offener Punkte.
 
