@@ -8,13 +8,16 @@ import {
   documentFamilyId,
   nextVersionNumber,
 } from "@/lib/documents";
+import { applyEntityToIdentity } from "@/lib/entities";
 import { getAppUrl } from "@/lib/env";
 import { sendDeliveryMail } from "@/lib/ops";
 import {
   appendRecord,
   findLatestDocumentByStripeSessionId,
   findLatestStripeCustomerIdByEmail,
+  getOwnedEntity,
   listDocumentFamily,
+  listEntitiesByEmail,
   resolveEntityIdForEmail,
 } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
@@ -65,6 +68,7 @@ async function resolveIdentity(body: {
   email?: string;
   company?: string;
   documentId?: string;
+  entityId?: string;
 }): Promise<
   | {
       identity: CheckoutIdentity;
@@ -156,7 +160,7 @@ async function resolveIdentity(body: {
     version: 1,
     parentDocumentId: "",
     status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
-    entityId: "",
+    entityId: body.entityId?.trim() || identity.entityId || "",
   };
 }
 
@@ -188,6 +192,7 @@ async function handleIntake(request: Request) {
     email?: string;
     company?: string;
     documentId?: string;
+    entityId?: string;
   };
   try {
     body = await request.json();
@@ -203,7 +208,16 @@ async function handleIntake(request: Request) {
   const { version, status } = resolved;
   let { identity, parentDocumentId } = resolved;
   identity = await withStripeCustomerId(identity);
-  const entityId = await resolveEntityIdForEmail(identity.email, resolved.entityId);
+  const requestedEntityId = body.entityId?.trim() || resolved.entityId;
+  const entityId = await resolveEntityIdForEmail(identity.email, requestedEntityId);
+  if (!parentDocumentId && !entityId) {
+    const firms = await listEntitiesByEmail(identity.email);
+    if (firms.length > 1) {
+      return jsonError("Bitte eine Firma wählen.", 400);
+    }
+  }
+  const entity = entityId ? await getOwnedEntity(entityId, identity.email) : null;
+  identity = applyEntityToIdentity(identity, entity);
 
   if (!isAnswers(body.answers)) {
     return jsonError("Intake unvollständig.", 400);

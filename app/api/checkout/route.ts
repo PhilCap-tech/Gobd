@@ -4,7 +4,12 @@ import { createCheckoutSession } from "@/lib/stripe";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let body: { email?: string; company?: string; acceptedDisclaimer?: boolean };
+  let body: {
+    email?: string;
+    company?: string;
+    acceptedDisclaimer?: boolean;
+    entityId?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -13,6 +18,7 @@ export async function POST(request: Request) {
 
   const email = body.email?.trim() ?? "";
   const company = body.company?.trim() ?? "";
+  const entityId = body.entityId?.trim() ?? "";
 
   if (!company || !email) {
     return NextResponse.json(
@@ -32,7 +38,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const session = await createCheckoutSession({ email, company });
+    const session = await createCheckoutSession({
+      email,
+      company,
+      entityId: entityId || undefined,
+    });
     return NextResponse.json(session);
   } catch (error) {
     console.error("[checkout]", error);

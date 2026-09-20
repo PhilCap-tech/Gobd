@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FirmaSelect } from "@/components/firma-select";
+import type { EntityChoice } from "@/lib/entities";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 
@@ -33,6 +35,8 @@ type IntakeFormProps = {
   initialAnswers?: IntakeAnswers;
   sourceDocumentId?: string;
   nextVersion?: number;
+  entities?: EntityChoice[];
+  initialEntityId?: string;
 };
 
 function Chips({
@@ -78,15 +82,19 @@ export function IntakeForm({
   initialAnswers,
   sourceDocumentId,
   nextVersion,
+  entities = [],
+  initialEntityId = "",
 }: IntakeFormProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [entityId, setEntityId] = useState(initialEntityId);
   const [answers, setAnswers] = useState<IntakeAnswers>(
     initialAnswers ?? emptyAnswers,
   );
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const isEdit = Boolean(sourceDocumentId);
+  const showFirmSelect = !isEdit && entities.length > 1;
 
   function patch(partial: Partial<IntakeAnswers>) {
     setAnswers((current) => ({ ...current, ...partial }));
@@ -94,6 +102,10 @@ export function IntakeForm({
 
   function validate(current: number): boolean {
     setError("");
+    if (current === 0 && showFirmSelect && !entityId.trim()) {
+      setError("Bitte eine Firma wählen.");
+      return false;
+    }
     if (current === 0 && (!answers.branchen.length || !answers.rechtsform || !answers.mitarbeitende)) {
       setError("Branche, Rechtsform und Mitarbeitende auswählen.");
       return false;
@@ -118,6 +130,10 @@ export function IntakeForm({
   }
 
   async function submit() {
+    if (showFirmSelect && !entityId.trim()) {
+      setError("Bitte eine Firma wählen.");
+      return;
+    }
     setError("");
     setPending(true);
     try {
@@ -130,6 +146,7 @@ export function IntakeForm({
           company: session.company,
           answers,
           documentId: sourceDocumentId,
+          entityId: entityId.trim() || undefined,
         }),
       });
       let data: {
@@ -226,6 +243,14 @@ export function IntakeForm({
           <p className="step-label">Schritt 1 von 5</p>
           <h1>Branche &amp; Unternehmensform</h1>
           <div className="card">
+            {showFirmSelect && (
+              <FirmaSelect
+                entities={entities}
+                value={entityId}
+                onChange={setEntityId}
+                required
+              />
+            )}
             <div className="field">
               <label>Branche (mehrere möglich)</label>
               <Chips

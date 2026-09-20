@@ -72,9 +72,13 @@ async function retrieveCheckoutSession(sessionId: string) {
 export async function createCheckoutSession(input: {
   email: string;
   company: string;
+  entityId?: string;
 }): Promise<{ url: string; stub: boolean }> {
   const appUrl = getAppUrl();
-  const successUrl = `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
+  const entityId = input.entityId?.trim() ?? "";
+  const successUrl = entityId
+    ? `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}&entity_id=${encodeURIComponent(entityId)}`
+    : `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${appUrl}/`;
 
   if (!isStripeConfigured()) {
@@ -84,6 +88,7 @@ export async function createCheckoutSession(input: {
       email: input.email,
       company: input.company,
     });
+    if (entityId) params.set("entity_id", entityId);
     console.warn(
       "[stripe] Keys fehlen — Stub-Checkout. Setze STRIPE_SECRET_KEY, STRIPE_PRICE_SETUP_ID, STRIPE_PRICE_MONTHLY_ID.",
     );
@@ -107,11 +112,13 @@ export async function createCheckoutSession(input: {
     metadata: {
       company: input.company,
       product: "gobd-verfahrensdoku",
+      ...(entityId ? { entity_id: entityId } : {}),
     },
     subscription_data: {
       metadata: {
         company: input.company,
         product: "gobd-verfahrensdoku",
+        ...(entityId ? { entity_id: entityId } : {}),
       },
     },
   });
@@ -167,6 +174,7 @@ export async function resolveCheckoutSession(
       stripeSessionId: session.id,
       stripeCustomerId: customerId,
       stub: false,
+      entityId: session.metadata?.entity_id?.trim() || "",
     };
   } catch (error) {
     console.error("[stripe] Session-Lookup fehlgeschlagen", error);

@@ -1,4 +1,4 @@
-import { emailsEqual } from "@/lib/types";
+import { emailsEqual, type CheckoutIdentity } from "@/lib/types";
 
 export const MAX_ENTITIES_PER_ACCOUNT = 5;
 export const DEFAULT_ENTITY_NAME = "Meine Firma";
@@ -207,4 +207,44 @@ export function formatEntityAddress(entity: Pick<Entity, "street" | "zip" | "cit
 
 export function entityCapReached(count: number): boolean {
   return count >= MAX_ENTITIES_PER_ACCOUNT;
+}
+
+export function entityOwnedByEmail(
+  entity: Pick<Entity, "userEmail">,
+  email: string,
+): boolean {
+  return Boolean(email.trim()) && emailsEqual(entity.userEmail, email);
+}
+
+export function entityById(
+  entities: Entity[],
+  entityId: string,
+): Entity | undefined {
+  const id = entityId.trim();
+  if (!id) return undefined;
+  return entities.find((entity) => entity.entityId === id);
+}
+
+/** Fill empty checkout/intake company from Firma Stammdaten. No extra legal text. */
+export function applyEntityToIdentity(
+  identity: CheckoutIdentity,
+  entity: Pick<Entity, "name"> | null | undefined,
+): CheckoutIdentity {
+  if (!entity) return identity;
+  return {
+    ...identity,
+    company: identity.company.trim() || entity.name.trim(),
+  };
+}
+
+export type EntityChoice = {
+  entityId: string;
+  name: string;
+};
+
+export function entityChoices(entities: Entity[]): EntityChoice[] {
+  return entities.map((entity) => ({
+    entityId: entity.entityId,
+    name: entity.name,
+  }));
 }

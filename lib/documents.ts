@@ -145,6 +145,16 @@ export function documentEditPath(
   return `/account/dokument/${encodeURIComponent(row.documentId)}`;
 }
 
+export function firmaEditPath(entityId: string): string {
+  return `/account/firma/${encodeURIComponent(entityId)}`;
+}
+
+export function newDocumentPath(entityId?: string): string {
+  const id = entityId?.trim() ?? "";
+  if (!id) return "/checkout";
+  return `/checkout?entity_id=${encodeURIComponent(id)}`;
+}
+
 export function formatDocumentTime(timestamp: string): string {
   if (!timestamp) return "—";
   const date = new Date(timestamp);

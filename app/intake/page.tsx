@@ -8,12 +8,15 @@ import {
   groupDocumentFamilies,
   nextVersionNumber,
 } from "@/lib/documents";
+import { entityById, entityChoices } from "@/lib/entities";
 import { isStripeConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import {
   findDocumentById,
   findLatestDocumentByStripeSessionId,
+  getOwnedEntity,
   listDocumentFamily,
+  listEntitiesByEmail,
 } from "@/lib/store";
 import {
   resolveCheckoutSession,
@@ -107,6 +110,7 @@ export default async function IntakePage({
     email?: string | string[];
     company?: string | string[];
     document_id?: string | string[];
+    entity_id?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -114,6 +118,7 @@ export default async function IntakePage({
   const email = firstQueryValue(params.email);
   const company = firstQueryValue(params.company);
   const documentId = firstQueryValue(params.document_id);
+  const requestedEntityId = firstQueryValue(params.entity_id) ?? "";
   const sessionEmail = await getSessionEmail();
 
   let sourceRow = documentId ? await findDocumentById(documentId) : null;
@@ -144,6 +149,7 @@ export default async function IntakePage({
               initialAnswers={answersFromSheetRow(latest)}
               sourceDocumentId={latest.documentId}
               nextVersion={nextVersionNumber(family)}
+              initialEntityId={latest.entityId}
             />
           )}
         </main>
@@ -181,6 +187,24 @@ export default async function IntakePage({
     session.company = company || session.company;
   }
 
+  const accountEmail =
+    sessionEmail || (!("error" in session) ? session.email : "");
+  const entities = accountEmail
+    ? await listEntitiesByEmail(accountEmail)
+    : [];
+  const owned = accountEmail && requestedEntityId
+    ? await getOwnedEntity(requestedEntityId, accountEmail)
+    : entityById(entities, requestedEntityId);
+  const initialEntityId =
+    owned?.entityId ||
+    (!("error" in session) ? session.entityId?.trim() ?? "" : "") ||
+    (entities.length === 1 ? entities[0]?.entityId ?? "" : "");
+  if (!("error" in session) && !session.company.trim()) {
+    const firmName =
+      owned?.name || entityById(entities, initialEntityId)?.name || "";
+    if (firmName) session.company = firmName;
+  }
+
   return (
     <>
       <SiteHeader backHref="/" backLabel="← Zur Landing" />
@@ -188,7 +212,11 @@ export default async function IntakePage({
         {"error" in session ? (
           <IntakeGate error={session.error} sessionId={sessionId} />
         ) : (
-          <IntakeForm session={session} />
+          <IntakeForm
+            session={session}
+            entities={entityChoices(entities)}
+            initialEntityId={initialEntityId}
+          />
         )}
       </main>
       <SiteFooter />
