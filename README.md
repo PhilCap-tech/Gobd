@@ -167,7 +167,7 @@ Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur
 
 Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. **Abo** auf `/account` ist nach Login immer sichtbar; **Abo verwalten** öffnet das Stripe Customer Portal, sobald eine `cus_…` zur E-Mail vorliegt (Sheet/Datei oder Stripe-Lookup). Alias-Routen: `/meine-dokumente`, `/portal`, `/billing`.
 
-Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben); Ads: `NEXT_PUBLIC_META_PIXEL_ID`, `NEXT_PUBLIC_GOOGLE_ADS_ID`, `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL` (optional, siehe Ads tracking).
+Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben); Ads: `NEXT_PUBLIC_META_PIXEL_ID`, `NEXT_PUBLIC_GOOGLE_ADS_ID`, `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL`, `NEXT_PUBLIC_GA_MEASUREMENT_ID` (optional, siehe Ads tracking).
 
 ## Re-Edit und Versionierung
 
@@ -235,8 +235,9 @@ Messung **vor** Paid-Spend: Traffic + Readiness-Submit. Stripe bleibt **TEST** �
 
 | Variable | Pflicht | Wirkung |
 |---|---|---|
-| `NEXT_PUBLIC_GOOGLE_ADS_ID` | nein | Google Ads-Konto, z. B. `AW-XXXXXXXXX`. Leer = kein gtag |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID` | nein | Google Ads-Konto, z. B. `AW-XXXXXXXXX`. Leer = kein Ads-config |
 | `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL` | nein | Conversion-Label. Nur zusammen mit der ID: Conversion **nur** nach erfolgreichem Readiness-Submit. ID ohne Label = Traffic/Config (Monat 1), keine Conversion |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | nein | GA4 Measurement-ID, z. B. `G-XXXXXXXX`. Leer = kein GA4. Teilt `dataLayer`/`gtag` mit Ads |
 | `NEXT_PUBLIC_META_PIXEL_ID` | nein | Meta Pixel-ID. Leer = kein Pixel |
 
 Lokal in `.env.local`, Produktion in Vercel → Environment Variables (Production + Preview nach Bedarf).
@@ -248,6 +249,7 @@ Deutsches Banner (Du-Form): **Nur essenziell** vs **Marketing erlauben**. Google
 ### Google (Search first)
 
 Nach Consent + `NEXT_PUBLIC_GOOGLE_ADS_ID`: `gtag('config', AW-…)` (Traffic).  
+Nach Consent + `NEXT_PUBLIC_GA_MEASUREMENT_ID`: `gtag('config', G-…)` (GA4). Beide IDs nutzen dasselbe `gtag`/`dataLayer`; Client-Navigation sendet `page_path`.  
 Nach erfolgreichem Readiness-Submit **und** gesetztem Label: `gtag('event', 'conversion', { send_to: 'AW-…/label' })`.  
 Kein Purchase, kein Checkout-Conversion-Event.
 
@@ -273,9 +275,9 @@ Erwartete Kampagnen-URL:
 
 ### Checkliste nach Deploy
 
-1. Env setzen (`NEXT_PUBLIC_GOOGLE_ADS_ID`, optional Label, optional Pixel-ID) und neu deployen
+1. Env setzen (`NEXT_PUBLIC_GOOGLE_ADS_ID`, optional Label, optional `NEXT_PUBLIC_GA_MEASUREMENT_ID`, optional Pixel-ID) und neu deployen
 2. Seite öffnen → Banner **Marketing erlauben**
-3. Network: `gtag/js?id=AW-…` (wenn ID gesetzt), `fbevents.js` (wenn Pixel-ID gesetzt)
+3. Network: `gtag/js?id=AW-…` oder `G-…` (wenn die jeweilige ID gesetzt), `fbevents.js` (wenn Pixel-ID gesetzt)
 4. `/readiness` → Meta: `PageView` + `ReadinessStart`; Google: config/page_view
 5. Formular absenden → Meta: `CompleteRegistration` + `ReadinessSubmit`; Google conversion **nur** wenn Label gesetzt
 6. Incognito: **Nur essenziell** → kein `gtag/js`, kein `fbevents.js`

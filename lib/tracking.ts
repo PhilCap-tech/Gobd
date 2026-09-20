@@ -50,9 +50,14 @@ export function getMetaPixelId(): string {
   return process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || "";
 }
 
-/** Google Ads account ID, e.g. AW-XXXXXXXXX. Unset → skip Google entirely. */
+/** Google Ads account ID, e.g. AW-XXXXXXXXX. Unset → skip Ads config/conversions. */
 export function getGoogleAdsId(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_ID?.trim() || "";
+}
+
+/** GA4 measurement ID, e.g. G-XXXXXXXX. Unset → skip GA4. */
+export function getGaMeasurementId(): string {
+  return process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 }
 
 /** Conversion label for ReadinessSubmit only. Unset → traffic/config, no conversion. */
@@ -166,8 +171,7 @@ export function enableMarketingScripts(): void {
   if (!hasMarketingConsent()) return;
   const pixelId = getMetaPixelId();
   if (pixelId) enableMetaPixel(pixelId);
-  const googleId = getGoogleAdsId();
-  if (googleId) enableGoogleAds(googleId);
+  enableGoogleTag();
 }
 
 /** PageView on all consented routes; custom ReadinessStart only on `/readiness`. */
@@ -220,7 +224,7 @@ export function trackReadinessSubmit(): void {
   }
   const googleId = getGoogleAdsId();
   if (googleId) {
-    enableGoogleAds(googleId);
+    enableGoogleTag();
     const label = getGoogleAdsReadinessLabel();
     if (label) {
       window.gtag?.("event", "conversion", {
@@ -239,11 +243,15 @@ function enableMetaPixel(pixelId: string): void {
   pixelInitialized = true;
 }
 
-function enableGoogleAds(adsId: string): void {
-  if (typeof window === "undefined" || !adsId) return;
+function enableGoogleTag(): void {
+  if (typeof window === "undefined") return;
+  const adsId = getGoogleAdsId();
+  const gaId = getGaMeasurementId();
+  const loadId = adsId || gaId;
+  if (!loadId) return;
   loadScript(
-    "google-ads-gtag",
-    `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(adsId)}`,
+    "google-gtag",
+    `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(loadId)}`,
   );
   if (googleInitialized) return;
   window.dataLayer = window.dataLayer || [];
@@ -253,14 +261,14 @@ function enableGoogleAds(adsId: string): void {
     };
   }
   window.gtag("js", new Date());
-  window.gtag("config", adsId);
+  if (adsId) window.gtag("config", adsId);
+  if (gaId) window.gtag("config", gaId);
   googleInitialized = true;
 }
 
 function trackGooglePageView(pathname: string): void {
-  const adsId = getGoogleAdsId();
-  if (!adsId) return;
-  enableGoogleAds(adsId);
+  if (!getGoogleAdsId() && !getGaMeasurementId()) return;
+  enableGoogleTag();
   if (lastGooglePagePath === pathname) return;
   const first = lastGooglePagePath === "";
   lastGooglePagePath = pathname;
