@@ -20,19 +20,22 @@ export function AccountBillingStatus({
   lookupFailed: boolean;
 }) {
   const copy = subscriptionStatusCopy(status);
+  const lookupHint =
+    "Rechnungen und Abo-Status konnten gerade nicht geladen werden. Bitte später erneut versuchen.";
   const emptyHint = !stripeReady
     ? "Stripe ist nicht konfiguriert (STRIPE_SECRET_KEY fehlt). Abo-Status und Rechnungen sind im Demo-Pfad nicht verfügbar."
-    : !hasCustomer
-      ? "Kein Stripe-Kunde zu dieser E-Mail. Nach einem Checkout mit Stripe speichern Webhook und Intake die Customer-ID — dann siehst du Status und Rechnungen hier."
-      : "";
+    : lookupFailed
+      ? lookupHint
+      : !hasCustomer
+        ? "Kein Stripe-Kunde zu dieser E-Mail. Nach einem Checkout mit Stripe speichern Webhook und Intake die Customer-ID — dann siehst du Status und Rechnungen hier."
+        : "";
 
   return (
     <section className="card" aria-labelledby="billing-status-heading">
       <h2 id="billing-status-heading">Abo-Status</h2>
       {lookupFailed ? (
         <p className="banner warn" role="status">
-          Rechnungen und Abo-Status konnten gerade nicht geladen werden. Bitte
-          später erneut versuchen.
+          {lookupHint}
         </p>
       ) : emptyHint ? (
         <p className="banner warn" role="status">
