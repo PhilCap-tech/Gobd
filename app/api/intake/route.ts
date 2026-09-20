@@ -15,6 +15,7 @@ import {
   findLatestDocumentByStripeSessionId,
   findLatestStripeCustomerIdByEmail,
   listDocumentFamily,
+  resolveEntityIdForEmail,
 } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import {
@@ -70,6 +71,7 @@ async function resolveIdentity(body: {
       version: number;
       parentDocumentId: string;
       status: string;
+      entityId: string;
     }
   | { response: NextResponse }
 > {
@@ -101,6 +103,7 @@ async function resolveIdentity(body: {
       status: identity.stub
         ? "intake_resubmitted_stub"
         : "intake_resubmitted",
+      entityId: source.entityId,
     };
   }
 
@@ -123,6 +126,7 @@ async function resolveIdentity(body: {
       status: identity.stub
         ? "intake_resubmitted_stub"
         : "intake_resubmitted",
+      entityId: existing.entityId,
     };
   }
 
@@ -152,6 +156,7 @@ async function resolveIdentity(body: {
     version: 1,
     parentDocumentId: "",
     status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
+    entityId: "",
   };
 }
 
@@ -198,6 +203,7 @@ async function handleIntake(request: Request) {
   const { version, status } = resolved;
   let { identity, parentDocumentId } = resolved;
   identity = await withStripeCustomerId(identity);
+  const entityId = await resolveEntityIdForEmail(identity.email, resolved.entityId);
 
   if (!isAnswers(body.answers)) {
     return jsonError("Intake unvollständig.", 400);
@@ -254,6 +260,7 @@ async function handleIntake(request: Request) {
         parentDocumentId,
         pdfUrl,
         version: String(version),
+        entityId,
       }),
     );
   } catch (error) {

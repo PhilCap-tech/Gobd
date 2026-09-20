@@ -92,7 +92,7 @@ function EditGate({ loggedIn }: { loggedIn: boolean }) {
       </p>
       <div className="actions" style={{ marginTop: 16 }}>
         <Link className="btn" href={loggedIn ? "/account" : "/login"}>
-          {loggedIn ? "Meine Dokumente" : "Anmelden"}
+          {loggedIn ? "Zum Konto" : "Anmelden"}
         </Link>
       </div>
     </div>

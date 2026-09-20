@@ -11,21 +11,26 @@ import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import {
   formatDocumentTime,
-  groupDocumentFamilies,
+  groupFamiliesByEntity,
   parseDocumentVersion,
 } from "@/lib/documents";
+import {
+  entityCapReached,
+  formatEntityAddress,
+  MAX_ENTITIES_PER_ACCOUNT,
+} from "@/lib/entities";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import {
+  ensureAccountEntities,
   findLatestStripeCustomerIdByEmail,
-  listDocumentsByEmail,
 } from "@/lib/store";
 import { portalStatusCopy, portalStatusFromQuery } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Meine Dokumente",
+  title: "Meine Firmen",
   robots: { index: false, follow: false },
 };
 
@@ -43,21 +48,22 @@ export default async function AccountPage({
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
-  const docs = await listDocumentsByEmail(email);
-  const families = groupDocumentFamilies(docs);
+  const { entities, documents: docs } = await ensureAccountEntities(email);
+  const groups = groupFamiliesByEntity(entities, docs);
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   const stripeBound =
     Boolean(customerId) ||
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId);
   const stripeReady = isStripeSecretConfigured();
   const canOpenPortal = Boolean(stripeReady && customerId);
+  const atCap = entityCapReached(entities.length);
 
   return (
     <>
       <SiteHeader backHref="/" backLabel="← Zur Landing" />
       <main className="wrap page">
         <p className="kicker">Konto</p>
-        <h1>Meine Dokumente</h1>
+        <h1>Meine Firmen</h1>
         <p className="lead">{email}</p>
 
         {portalCopy && (
@@ -74,38 +80,101 @@ export default async function AccountPage({
           stripeReady={stripeReady}
         />
 
-        {families.length === 0 ? (
+        {entities.length === 0 && docs.length === 0 ? (
           <div className="card">
             <p className="prose">
-              Zu dieser E-Mail liegt noch kein Entwurf vor.
+              Zu dieser E-Mail liegt noch keine Firma vor.
             </p>
             <div className="actions" style={{ marginTop: 16 }}>
-              <Link className="btn" href="/checkout">
-                Dokumentation starten
+              <Link className="btn" href="/account/firma/neu">
+                Firma anlegen
               </Link>
             </div>
           </div>
         ) : (
-          <div className="doc-list">
-            {families.map((family) => (
-              <article className="card" key={family.familyId}>
-                <h2>{family.latest.company || "Verfahrensdokumentation"}</h2>
-                <p className="doc-meta">
-                  Aktuell Version {parseDocumentVersion(family.latest)} ·{" "}
-                  {formatDocumentTime(family.latest.timestamp)} ·{" "}
-                  {family.latest.deliveryStatus || "ready"}
+          <>
+            <div className="entity-toolbar">
+              {atCap ? (
+                <p className="hint" style={{ margin: 0 }}>
+                  Du hast das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
+                  erreicht.
                 </p>
-                <DocumentRevisionActions row={family.latest} />
-                <VersionHistory versions={family.versions} />
-              </article>
-            ))}
-          </div>
+              ) : (
+                <Link className="btn ghost" href="/account/firma/neu">
+                  Firma anlegen
+                </Link>
+              )}
+            </div>
+
+            <div className="entity-list">
+              {groups.map((group) => {
+                const entity = group.entity;
+                const title = entity?.name || "Ohne Firma";
+                const address = entity ? formatEntityAddress(entity) : "";
+                return (
+                  <article
+                    className="card entity-card"
+                    key={entity?.entityId ?? "unbound"}
+                  >
+                    <h2>{title}</h2>
+                    {address ? (
+                      <p className="doc-meta">{address}</p>
+                    ) : entity ? (
+                      <p className="doc-meta">Keine Adresse hinterlegt.</p>
+                    ) : (
+                      <p className="doc-meta">
+                        Dokumente ohne Firmenzuordnung — bis zur Zuordnung
+                        ungebunden.
+                      </p>
+                    )}
+
+                    {group.families.length === 0 ? (
+                      <div className="entity-docs">
+                        <p className="prose">
+                          Für diese Firma liegt noch kein Entwurf vor.
+                        </p>
+                        <div className="actions">
+                          <Link className="btn" href="/checkout">
+                            Dokumentation starten
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="entity-docs">
+                        {group.families.map((family) => (
+                          <section
+                            className="entity-doc"
+                            key={family.familyId}
+                          >
+                            <h3>
+                              {family.latest.company || "Verfahrensdokumentation"}
+                            </h3>
+                            <p className="doc-meta">
+                              Aktuell Version {parseDocumentVersion(family.latest)}{" "}
+                              · {formatDocumentTime(family.latest.timestamp)} ·{" "}
+                              {family.latest.deliveryStatus || "ready"}
+                            </p>
+                            <DocumentRevisionActions row={family.latest} />
+                            <VersionHistory
+                              headingId={`versionshistorie-${family.familyId}`}
+                              versions={family.versions}
+                            />
+                          </section>
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </>
         )}
 
         <p className="hint" style={{ marginTop: 20 }}>
           {stripeBound
             ? "Identität über die Checkout-E-Mail / Stripe-Session gebunden."
-            : "Identität über die E-Mail aus dem Intake."}
+            : "Identität über die E-Mail aus dem Intake."}{" "}
+          Bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen pro Konto.
         </p>
 
         <form action="/api/auth/logout" method="post" style={{ marginTop: 16 }}>

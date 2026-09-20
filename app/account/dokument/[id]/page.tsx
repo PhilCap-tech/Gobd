@@ -12,7 +12,7 @@ import {
   groupDocumentFamilies,
   nextVersionNumber,
 } from "@/lib/documents";
-import { findDocumentById, listDocumentFamily } from "@/lib/store";
+import { ensureAccountEntities, findDocumentById, listDocumentFamily } from "@/lib/store";
 import { DocumentEditor } from "./document-editor";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ function EditGate({ loggedIn }: { loggedIn: boolean }) {
       </p>
       <div className="actions" style={{ marginTop: 16 }}>
         <Link className="btn" href={loggedIn ? "/account" : "/login"}>
-          {loggedIn ? "Meine Dokumente" : "Anmelden"}
+          {loggedIn ? "Zum Konto" : "Anmelden"}
         </Link>
       </div>
     </div>
@@ -51,11 +51,12 @@ export default async function DocumentEditPage({
     redirect(loginPath(`/account/dokument/${id}`));
   }
 
+  await ensureAccountEntities(sessionEmail);
   const sourceRow = await findDocumentById(id);
   if (!sourceRow) {
     return (
       <>
-        <SiteHeader backHref="/account" backLabel="← Meine Dokumente" />
+        <SiteHeader backHref="/account" backLabel="← Zum Konto" />
         <main className="wrap wide page">
           <EditGate loggedIn />
         </main>
@@ -76,7 +77,7 @@ export default async function DocumentEditPage({
 
   return (
     <>
-      <SiteHeader backHref="/account" backLabel="← Meine Dokumente" />
+      <SiteHeader backHref="/account" backLabel="← Zum Konto" />
       <main className="wrap wide page">
         {!allowed || !draft ? (
           <EditGate loggedIn />

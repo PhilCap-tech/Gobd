@@ -688,9 +688,47 @@ textarea:focus {
   text-align: center;
 }
 
-.doc-list {
+.doc-list,
+.entity-list {
   display: grid;
   gap: 12px;
+}
+
+.entity-list {
+  gap: 20px;
+}
+
+.entity-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.entity-card h2 {
+  margin-bottom: 4px;
+}
+
+.entity-docs {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.entity-doc {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.entity-doc:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.entity-doc h3 {
+  font-size: 18px;
+  margin: 0 0 8px;
 }
 
 .doc-meta {

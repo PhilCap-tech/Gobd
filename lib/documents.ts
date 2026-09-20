@@ -1,3 +1,4 @@
+import type { Entity } from "@/lib/entities";
 import { queryIdsEqual } from "@/lib/query";
 import { emailsEqual, type SheetRow } from "@/lib/types";
 
@@ -10,6 +11,11 @@ export type DocumentFamily = {
   familyId: string;
   latest: SheetRow;
   versions: SheetRow[];
+};
+
+export type EntityDocumentGroup = {
+  entity: Entity | null;
+  families: DocumentFamily[];
 };
 
 /** Root id for a version family. Empty parent (Slice A+B rows) means the row is the root. */
@@ -80,6 +86,38 @@ export function groupDocumentFamilies(rows: SheetRow[]): DocumentFamily[] {
 
   families.sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp));
   return families;
+}
+
+export function groupFamiliesByEntity(
+  entities: Entity[],
+  docs: SheetRow[],
+): EntityDocumentGroup[] {
+  const families = groupDocumentFamilies(docs);
+  const knownIds = new Set(entities.map((entity) => entity.entityId));
+  const byEntity = new Map<string, DocumentFamily[]>();
+  const unbound: DocumentFamily[] = [];
+
+  for (const family of families) {
+    const entityId = family.latest.entityId.trim();
+    if (!entityId || !knownIds.has(entityId)) {
+      unbound.push(family);
+      continue;
+    }
+    const list = byEntity.get(entityId) ?? [];
+    list.push(family);
+    byEntity.set(entityId, list);
+  }
+
+  const groups: EntityDocumentGroup[] = entities.map((entity) => ({
+    entity,
+    families: byEntity.get(entity.entityId) ?? [],
+  }));
+
+  if (unbound.length > 0) {
+    groups.push({ entity: null, families: unbound });
+  }
+
+  return groups;
 }
 
 export function documentDownloadPath(

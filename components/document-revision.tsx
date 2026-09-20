@@ -43,7 +43,7 @@ export function DocumentRevisionActions({
         </Link>
         {showAccountLink && (
           <Link className="btn ghost" href="/account">
-            Meine Dokumente
+            Zum Konto
           </Link>
         )}
       </div>
@@ -59,13 +59,15 @@ export function DocumentRevisionActions({
 export function VersionHistory({
   versions,
   sessionId,
+  headingId = "versionshistorie",
 }: {
   versions: SheetRow[];
   sessionId?: string;
+  headingId?: string;
 }) {
   return (
-    <section className="version-history" aria-labelledby="versionshistorie">
-      <h3 className="version-heading" id="versionshistorie">
+    <section className="version-history" aria-labelledby={headingId}>
+      <h3 className="version-heading" id={headingId}>
         Versionshistorie
       </h3>
       {versions.length <= 1 && (

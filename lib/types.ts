@@ -52,6 +52,7 @@ export type SheetRow = {
   pdfUrl: string;
   version: string;
   chapterContent: string;
+  entityId: string;
 };
 
 export const SHEET_COLUMNS = [
@@ -82,6 +83,7 @@ export const SHEET_COLUMNS = [
   "version",
   "parent_document_id",
   "chapter_content",
+  "entity_id",
 ] as const;
 
 export type SheetColumn = (typeof SHEET_COLUMNS)[number];
@@ -114,6 +116,7 @@ export const SHEET_COLUMN_FIELDS = {
   version: "version",
   parent_document_id: "parentDocumentId",
   chapter_content: "chapterContent",
+  entity_id: "entityId",
 } as const satisfies Record<SheetColumn, keyof SheetRow>;
 
 export function emptyAnswers(): IntakeAnswers {
@@ -165,6 +168,7 @@ export function emptySheetRow(): SheetRow {
     pdfUrl: "",
     version: "",
     chapterContent: "",
+    entityId: "",
   };
 }
 
@@ -178,6 +182,7 @@ export function toSheetRow(input: {
   pdfUrl?: string;
   version?: string;
   chapterContent?: string;
+  entityId?: string;
 }): SheetRow {
   const a = { ...emptyAnswers(), ...input.answers };
   const join = (values: string[]) => values.join(", ");
@@ -209,6 +214,7 @@ export function toSheetRow(input: {
     pdfUrl: input.pdfUrl ?? "",
     version: input.version ?? "",
     chapterContent: input.chapterContent ?? "",
+    entityId: input.entityId ?? "",
   };
 }
 
@@ -270,7 +276,12 @@ export function sheetRowFromValues(
 
 export function coerceSheetRow(value: unknown): SheetRow | null {
   if (!value || typeof value !== "object") return null;
-  return { ...emptySheetRow(), ...(value as Partial<SheetRow>) };
+  const raw = value as Record<string, unknown>;
+  const row = { ...emptySheetRow(), ...(value as Partial<SheetRow>) };
+  if (!row.entityId && typeof raw.entity_id === "string") {
+    row.entityId = raw.entity_id;
+  }
+  return row;
 }
 
 function splitList(value: string): string[] {

@@ -23,7 +23,7 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 5. Intake: Branche → Software → Belegwege → IT → Verantwortliche
 6. Speichern: Google Sheets (`intakes`) oder Datei-Fallback (lokal `.data/intakes.json`, auf Vercel `/tmp/gobd-data/intakes.json`)
 7. Success (`/success?session_id=…&document_id=…`): PDF-Download, **Angaben überarbeiten**, **Neue PDF-Version erzeugen**, **Versionshistorie**. Fehlt `document_id`, reicht `session_id` — die App lädt die neueste Zeile zu dieser Stripe-Session.
-8. Konto: `/login` (Magic Link) → `/account` (**Angaben überarbeiten** + **Dokument bearbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`
+8. Konto: `/login` (Magic Link) → `/account` (Firmen-Karten, darunter **Angaben überarbeiten** + **Dokument bearbeiten** + **Versionshistorie** + Download + **Abo verwalten**). Alias: `/meine-dokumente` → `/account`. Neue Firma: `/account/firma/neu` (max. 5).
 9. Re-Edit: Intake vorbefüllt → Absenden erzeugt **Version N+1**, alte Versionen bleiben downloadbar
 10. Kapiteltext: `/account` → **Dokument bearbeiten** → `/account/dokument/{document_id}` (nur eingeloggt). Speichern schreibt Version N+1 inkl. `chapter_content` und neues PDF.
 
@@ -79,7 +79,7 @@ Events:
 
 In Stripe (Testmodus): Settings → Billing → Customer portal aktivieren (Zahlungsmittel, Rechnungen, Abo kündigen — je nach Portal-Config).
 
-Auf **Meine Dokumente** (`/account`, Alias `/meine-dokumente`): Block **Abo** ist nach Login immer sichtbar.
+Auf **Meine Firmen** (`/account`, Alias `/meine-dokumente`): Block **Abo** ist nach Login immer sichtbar.
 
 - Mit `stripe_customer_id` und `STRIPE_SECRET_KEY`: Button **Abo verwalten** → `POST /api/stripe/portal`
 - Sonst: deaktivierter Ghost-Button plus Hinweis (kein Kunde / Stripe nicht konfiguriert)
@@ -110,10 +110,13 @@ Env:
 - `GOOGLE_SHEETS_SPREADSHEET_ID`
 - `GOOGLE_SHEETS_TAB` (Default: `intakes`)
 - `GOOGLE_SHEETS_READINESS_TAB` (Default: `readiness_leads`) — **eigene Tabelle**, nicht mit Paid-Intakes mischen
+- `GOOGLE_SHEETS_ENTITIES_TAB` (Default: `entities`) — Firmen im Account-Hub, nicht mit Intakes mischen
 
 Spalten `intakes` (Header wird geschrieben, wenn A1 leer ist; fehlende Spalten werden **angehängt**, bestehende nicht umsortiert):
 
-`timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version | parent_document_id | chapter_content`
+`timestamp | stripe_session_id | stripe_customer_id | email | company | branchen | rechtsform | mitarbeitende | fibu | weitere_systeme | eingangsbelege | ausgangsrechnungen | archiv | hosting | backup | zugriff | gf | buchhaltung | it | steuerberater | status | delivery_status | document_id | pdf_url | version | parent_document_id | chapter_content | entity_id`
+
+`entity_id` ist optional. Fehlt sie, gilt das Dokument als ungebunden, bis die Konto-Migration eine Standard-Firma anlegt und nachträgt.
 
 Ohne Sheets-Credentials — oder wenn Sheets-Append fehlschlägt — schreibt die App einen Datei-Fallback:
 lokal nach `.data/intakes.json` (nicht committen), auf Vercel (`VERCEL=1`) nach `os.tmpdir()/gobd-data/intakes.json`
@@ -128,6 +131,18 @@ Spalten:
 `timestamp | lead_id | access_token | name | email | company | branche | branche_freitext | rechtsform | mitarbeitende | belegweg | software | verantwortliche | status | pdf_url | mail_status`
 
 Datei-Fallback: `.data/readiness-leads.json` bzw. `/tmp/gobd-data/readiness-leads.json`. `mail_status`: `sent` | `stub` | `failed`.
+
+### Firmen (`entities`)
+
+Account-Hub unter `/account` gruppiert Dokumente nach Firma. Fehlt das Tab, wird es angelegt. Soft-Cap: **5 Firmen pro Konto** (`MAX_ENTITIES_PER_ACCOUNT`).
+
+Spalten:
+
+`entity_id | user_email | name | street | zip | city | stnr | ust_id | created_at | updated_at`
+
+Datei-Fallback: `.data/entities.json` bzw. `/tmp/gobd-data/entities.json`.
+
+Beim ersten Konto-Aufruf: hat die Session-E-Mail Dokumente ohne `entity_id` und noch keine Firma, legt die App eine Standard-Firma an (letzter `company`-Wert oder „Meine Firma“) und schreibt `entity_id` in die bestehenden Zeilen (Sheets-Zelle bzw. Datei, kein neues PDF).
 
 Branche-Schlüssel: `handwerk` | `handel` | `praxis` | `gastronomie` | `dienstleistung` | `allgemein`. Unbekannt → `allgemein`. Module: `content/readiness/*.md`.
 
@@ -161,7 +176,7 @@ Die Delivery-Mail enthält Download-Link, Magic Link und FAQ (`https://www.gobd-
 
 1. Langes Zufallsgeheimnis setzen: `MAGIC_LINK_SECRET`
 2. `/login` fordert einen Link an → E-Mail → `/auth/verify?token=` setzt httpOnly-Cookie `gobd_session` (30 Tage)
-3. `/account` listet Dokumente zu dieser E-Mail (Sheets/Datei), **Angaben überarbeiten**, **Dokument bearbeiten** und die **Versionshistorie**
+3. `/account` listet Firmen zu dieser E-Mail (Sheets-Tab `entities` oder `.data/entities.json`) und darunter die Dokumente, **Angaben überarbeiten**, **Dokument bearbeiten** und die **Versionshistorie**
 
 Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur Demo; in Produktion setzen). Ohne Mail zeigt `/login` den Demo-Link im Banner.
 
@@ -208,6 +223,7 @@ PDF-Text kommt weiter nur aus `content/delivery-templates/`. Standardrahmen (S) 
 - **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding nach Zahlung per Resend, wenn Mail-Env gesetzt; sonst Log-Stub. Failed Payment / Failed Job: weiter nur Logs.
 - **Checkout ohne Stripe-Keys:** Mock-Session, weiter zum Intake.
 - **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
+- **Firmen ohne Sheets:** `.data/entities.json` bzw. `/tmp`.
 - **Readiness ohne Sheets:** `.data/readiness-leads.json` bzw. `/tmp`.
 - **PDF ohne Blob:** lokale Datei, auf Vercel nicht persistent; Download kann aus der Intake- bzw. Readiness-Zeile regenerieren.
 - **Mail ohne Resend:** Log-Stub, Download auf Success / Readiness-Success bleibt.

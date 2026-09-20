@@ -14,7 +14,7 @@ import {
 } from "@/lib/document-content";
 import { getAppUrl } from "@/lib/env";
 import { sendDeliveryMail } from "@/lib/ops";
-import { appendRecord, listDocumentFamily } from "@/lib/store";
+import { appendRecord, listDocumentFamily, resolveEntityIdForEmail } from "@/lib/store";
 import {
   answersFromSheetRow,
   identityFromSheetRow,
@@ -86,6 +86,7 @@ async function handleDocumentEdit(request: Request) {
   const parentDocumentId = documentFamilyId(source);
   const documentId = randomUUID();
   const status = identity.stub ? "document_edited_stub" : "document_edited";
+  const entityId = await resolveEntityIdForEmail(identity.email, source.entityId);
 
   let delivery: DeliveryPlan;
   let pdfUrl = "";
@@ -146,6 +147,7 @@ async function handleDocumentEdit(request: Request) {
         pdfUrl,
         version: String(version),
         chapterContent,
+        entityId,
       }),
     );
   } catch (error) {
