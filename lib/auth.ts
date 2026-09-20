@@ -90,6 +90,7 @@ const ALLOWED_NEXT_PATHS = new Set([
   "/portal",
   "/billing",
   "/account",
+  "/account/billing",
   "/account/firma/neu",
 ]);
 const ACCOUNT_DOCUMENT_EDIT =

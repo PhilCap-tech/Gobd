@@ -922,3 +922,72 @@ body.consent-open {
 .footer-text-btn:hover {
   color: var(--text);
 }
+
+.billing-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.billing-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+
+.billing-status-label {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.billing-status.ok .billing-status-label {
+  background: var(--accent-soft);
+  border-color: #b7dcc8;
+  color: var(--accent);
+}
+
+.billing-status.warn .billing-status-label {
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+  color: var(--warn-text);
+}
+
+.invoice-table-wrap {
+  overflow-x: auto;
+  margin: 4px 0 0;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.invoice-table th,
+.invoice-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 12px 8px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.invoice-table th {
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 12px;
+}
+
+.invoice-table a {
+  color: var(--accent);
+}
+
+.invoice-downloads {
+  white-space: nowrap;
+}
