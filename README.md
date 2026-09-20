@@ -16,7 +16,7 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 
 ## Demo-Pfad
 
-1. Landing → **Readiness-Check starten (kostenlos)** (`/readiness`) — 3 kurze Schritte, kein Stripe
+1. Landing → **Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo** (`/checkout`) — Primary; optional **Readiness-Check (kostenlos)** (`/readiness`) — 3 kurze Schritte, kein Stripe
 2. PDF „GoBD-Grundlagen für [Branche]“ auf `/readiness/success` herunterladen; Lead in Tab `readiness_leads` (oder `.data/readiness-leads.json`)
 3. Optional weicher CTA zum Checkout. Checkout: Firma + E-Mail + Disclaimer
 4. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
