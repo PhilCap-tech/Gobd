@@ -45,8 +45,9 @@ export function ConsentBanner() {
           <h2 id="consent-title">Cookies</h2>
           <p id="consent-text">
             Essenzielle Cookies brauchen wir für den Betrieb (z. B. Login und
-            Stripe-Checkout). Optionaler Meta Pixel für Marketing-Messung läuft
-            nur, wenn du zustimmst. Ohne Zustimmung laden wir den Pixel nicht.
+            Stripe-Checkout). Optionales Marketing (Google-Tag, Meta Pixel)
+            läuft nur, wenn du zustimmst. Ohne Zustimmung laden wir diese Tags
+            nicht.
             {" "}
             <Link href="/cookies">Cookie-Hinweis</Link>
           </p>

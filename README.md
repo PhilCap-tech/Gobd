@@ -167,7 +167,7 @@ Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur
 
 Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. **Abo** auf `/account` ist nach Login immer sichtbar; **Abo verwalten** öffnet das Stripe Customer Portal, sobald eine `cus_…` zur E-Mail vorliegt (Sheet/Datei oder Stripe-Lookup). Alias-Routen: `/meine-dokumente`, `/portal`, `/billing`.
 
-Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben), `NEXT_PUBLIC_META_PIXEL_ID` (optional, siehe Ads tracking).
+Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben); Ads: `NEXT_PUBLIC_META_PIXEL_ID`, `NEXT_PUBLIC_GOOGLE_ADS_ID`, `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL` (optional, siehe Ads tracking).
 
 ## Re-Edit und Versionierung
 
@@ -225,26 +225,33 @@ Für persistente PDFs, Mail und Abo-Portal: `BLOB_READ_WRITE_TOKEN`, `RESEND_API
 
 Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout, Intake, Success, Readiness, Login und Konto sind `noindex`.
 
-## Ads tracking (Meta Pixel, consent-gated)
+## Ads tracking (Google Search first, then Meta Pixel; consent-gated)
 
-Messung **vor** Paid-Spend: Readiness-Start und Readiness-Submit. Stripe bleibt **TEST** — **keine** `Purchase`- oder `InitiateCheckout`-Events.
+Messung **vor** Paid-Spend: Traffic + Readiness-Submit. Stripe bleibt **TEST** — **keine** `Purchase`- oder Checkout-Conversion-Events (weder Google noch Meta).
 
 ### Vercel / Env
 
-`NEXT_PUBLIC_*` wird zur **Build-Zeit** eingebettet. Nach dem Setzen **neu deployen**.
+`NEXT_PUBLIC_*` wird zur **Build-Zeit** eingebettet. Nach dem Setzen **neu deployen**. Fehlt eine Variable, wird der jeweilige Tag übersprungen (keine Fehler).
 
 | Variable | Pflicht | Wirkung |
 |---|---|---|
-| `NEXT_PUBLIC_META_PIXEL_ID` | nein | Meta Pixel-ID. Leer = kein Pixel, keine Fehler |
-| `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID` | nein | Optionaler Stub nur bei ReadinessSubmit (`AW-XXXX` oder `AW-XXXX/label`) |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID` | nein | Google Ads-Konto, z. B. `AW-XXXXXXXXX`. Leer = kein gtag |
+| `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL` | nein | Conversion-Label. Nur zusammen mit der ID: Conversion **nur** nach erfolgreichem Readiness-Submit. ID ohne Label = Traffic/Config (Monat 1), keine Conversion |
+| `NEXT_PUBLIC_META_PIXEL_ID` | nein | Meta Pixel-ID. Leer = kein Pixel |
 
 Lokal in `.env.local`, Produktion in Vercel → Environment Variables (Production + Preview nach Bedarf).
 
 ### Consent
 
-Deutsches Banner (Du-Form): **Nur essenziell** vs **Marketing erlauben**. Der Pixel lädt erst nach Marketing-Zustimmung. Auswahl in `localStorage` und Cookie `gobd_consent` (180 Tage). Ablehnen → kein `fbq`, kein gtag. Änderung später: Footer **Cookie-Einstellungen**.
+Deutsches Banner (Du-Form): **Nur essenziell** vs **Marketing erlauben**. Google-Tag und Meta Pixel laden erst nach Marketing-Zustimmung. Auswahl in `localStorage` und Cookie `gobd_consent` (180 Tage). Ablehnen → kein `gtag`, kein `fbq`. Änderung später: Footer **Cookie-Einstellungen**.
 
-### Events (nur mit Marketing-Consent **und** Pixel-ID)
+### Google (Search first)
+
+Nach Consent + `NEXT_PUBLIC_GOOGLE_ADS_ID`: `gtag('config', AW-…)` (Traffic).  
+Nach erfolgreichem Readiness-Submit **und** gesetztem Label: `gtag('event', 'conversion', { send_to: 'AW-…/label' })`.  
+Kein Purchase, kein Checkout-Conversion-Event.
+
+### Meta events (nur mit Marketing-Consent **und** Pixel-ID)
 
 | Event | Typ | Wann |
 |---|---|---|
@@ -254,24 +261,21 @@ Deutsches Banner (Du-Form): **Nur essenziell** vs **Marketing erlauben**. Der Pi
 | `ReadinessSubmit` | Custom | derselbe Zeitpunkt wie CompleteRegistration |
 | `Purchase` / `InitiateCheckout` | — | **nie** (Test-Checkout, kein Purchase-Value) |
 
-Prüfen: Cookie akzeptieren → `/readiness` → Events Manager (Test Events) bzw. Meta Pixel Helper. Submit-Events nach erfolgreichem Formular, nicht auf der Success-Seite allein.
+Prüfen: Cookie akzeptieren → `/readiness` → Google Tag Assistant / Meta Events Manager (Test Events). Submit-Conversion bzw. Meta-Submit-Events nach erfolgreichem Formular, nicht auf der Success-Seite allein.
 
 ### UTM (first-touch, kein Backend)
 
 Erwartete Kampagnen-URL:
 
-`https://www.gobd-doku-erstellen.de/readiness?utm_source=meta&utm_medium=paid&utm_campaign=readiness_pilot`
+`https://www.gobd-doku-erstellen.de/readiness?utm_source=google&utm_medium=paid&utm_campaign=readiness_pilot`
 
-`utm_source=google` analog. First-touch landet in `sessionStorage` (`gobd_utm_first`) und wird als optionale Event-Params mitgeschickt. Kein Server-Write für MVP.
-
-### Google Ads
-
-Nur Stub: wenn `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID` gesetzt ist, geht bei ReadinessSubmit ein `gtag('event', 'conversion')` raus (ebenfalls consent-gated). Conversion-Label, Enhanced Conversions und Google-Consent-Mode sind Follow-up.
+`utm_source=meta` analog. First-touch landet in `sessionStorage` (`gobd_utm_first`) und wird als optionale Meta-Event-Params mitgeschickt. Kein Server-Write für MVP.
 
 ### Checkliste nach Deploy
 
-1. `NEXT_PUBLIC_META_PIXEL_ID` in Vercel setzen und neu deployen
+1. Env setzen (`NEXT_PUBLIC_GOOGLE_ADS_ID`, optional Label, optional Pixel-ID) und neu deployen
 2. Seite öffnen → Banner **Marketing erlauben**
-3. `/readiness` → `PageView` + `ReadinessStart` in Events Manager
-4. Formular absenden → `CompleteRegistration` + `ReadinessSubmit`
-5. Anderes Gerät / Incognito: **Nur essenziell** → Network-Tab ohne `fbevents.js` / `fbq`
+3. Network: `gtag/js?id=AW-…` (wenn ID gesetzt), `fbevents.js` (wenn Pixel-ID gesetzt)
+4. `/readiness` → Meta: `PageView` + `ReadinessStart`; Google: config/page_view
+5. Formular absenden → Meta: `CompleteRegistration` + `ReadinessSubmit`; Google conversion **nur** wenn Label gesetzt
+6. Incognito: **Nur essenziell** → kein `gtag/js`, kein `fbevents.js`

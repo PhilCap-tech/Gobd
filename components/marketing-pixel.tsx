@@ -9,7 +9,7 @@ import {
 } from "@/lib/tracking";
 
 /**
- * Loads fbq only after marketing consent. Missing Pixel ID → no script, no errors.
+ * Loads fbq / gtag only after marketing consent. Missing IDs → no scripts, no errors.
  * PageView on every consented route; ReadinessStart on `/readiness` mount.
  */
 export function MarketingPixel() {

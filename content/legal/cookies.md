@@ -9,7 +9,7 @@
 
 Diese Website verwendet **technisch notwendige** Cookies bzw. vergleichbare Technologien, die für den Betrieb der Seite, Sicherheit und den **Stripe-Checkout** erforderlich sind.
 
-Ein optionaler **Meta Pixel** (Meta Platforms) wird **nur geladen, wenn du im Cookie-Banner der Marketing-Kategorie zustimmst.** Lehnst du ab oder fehlt die Einwilligung, wird der Pixel nicht gesetzt. Stripe Checkout bleibt im Testmodus; über den Pixel werden **keine Purchase-Events** ausgelöst.
+Ein optionaler **Google-Tag** und **Meta Pixel** werden **nur geladen, wenn du im Cookie-Banner der Marketing-Kategorie zustimmst.** Lehnst du ab oder fehlt die Einwilligung, werden diese Tags nicht gesetzt. Stripe Checkout bleibt im Testmodus; es werden **keine Purchase-/Checkout-Conversion-Events** ausgelöst.
 
 ## Was sind Cookies?
 
@@ -31,13 +31,16 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am technisch
 Beim Start des Checkouts kann Stripe Cookies und ähnliche Technologien setzen. Details: https://stripe.com/privacy sowie Stripe-Cookie-Dokumentation.  
 **TODO:** prüfen, welche konkreten Stripe-Cookies im Live-Checkout gesetzt werden, und Tabelle unten aktualisieren.
 
-## Optionaler Meta Pixel
+## Optionaler Google-Tag und Meta Pixel
 
-Wenn du **Marketing erlauben** wählst, laden wir den Meta Pixel (`connect.facebook.net`). Er erfasst Seitenaufrufe (PageView) sowie Readiness-Events (ReadinessStart, CompleteRegistration / ReadinessSubmit). Ohne Einwilligung oder ohne konfigurierte Pixel-ID wird das Skript nicht geladen.
+Wenn du **Marketing erlauben** wählst:
 
-Falls zusätzlich eine Google-Ads-Conversion-ID konfiguriert ist, kann bei ReadinessSubmit ein Conversion-Tag geladen werden — ebenfalls nur mit Marketing-Einwilligung.
+- **Google-Tag** (`googletagmanager.com/gtag/js`) wird geladen, sofern eine Google-Ads-ID konfiguriert ist. Eine Conversion wird nur bei erfolgreichem Readiness-Submit ausgelöst und nur, wenn zusätzlich ein Conversion-Label gesetzt ist. Ohne Label bleibt es bei der Reichweitenmessung (Traffic).
+- **Meta Pixel** (`connect.facebook.net`) erfasst Seitenaufrufe (PageView) sowie Readiness-Events (ReadinessStart, CompleteRegistration / ReadinessSubmit), sofern eine Pixel-ID konfiguriert ist.
 
-**TODO:** Counsel-Review zu Meta Pixel / ggf. Google Ads (Drittlandtransfer, AVV) vor Go-Live.
+Ohne Einwilligung oder ohne die jeweilige ID wird das entsprechende Skript nicht geladen. Es gibt keine Purchase- oder Checkout-Conversions.
+
+**TODO:** Counsel-Review zu Google Tag / Meta Pixel (Drittlandtransfer, AVV) vor Go-Live.
 
 ## Hosting (Vercel)
 
@@ -51,10 +54,11 @@ Das Hosting kann technisch bedingte Verbindungsdaten und ggf. notwendige Speiche
 | gobd_consent | eigene Domain | Speicherung der Cookie-/Tracking-Auswahl | 180 Tage | notwendig |
 | TODO | Stripe | Checkout / Betrugsprävention | TODO | notwendig |
 | Meta Pixel (_fbp / _fbc) | Meta Platforms | Reichweiten- und Event-Messung (nur Readiness, kein Purchase) | laut Anbieter / bis Widerruf | optional, nur mit Einwilligung |
+| Google-Tag (gtag) | Google | Reichweitenmessung; Conversion nur bei ReadinessSubmit (wenn Label gesetzt), kein Purchase | laut Anbieter / bis Widerruf | optional, nur mit Einwilligung |
 
 ## Verwaltung / Ablehnung
 
-Technisch notwendige Cookies können in der Regel nicht über ein Banner abgewählt werden, ohne die Funktion der Website bzw. des Checkouts zu beeinträchtigen. Marketing (Meta Pixel) kannst du über **Nur essenziell** ablehnen oder später unter **Cookie-Einstellungen** im Footer ändern. Die Auswahl speichern wir lokal (`gobd_consent`). Du kannst Cookies generell in deinem Browser löschen oder blockieren; dann funktionieren Teile der Website ggf. nicht.
+Technisch notwendige Cookies können in der Regel nicht über ein Banner abgewählt werden, ohne die Funktion der Website bzw. des Checkouts zu beeinträchtigen. Marketing (Google-Tag, Meta Pixel) kannst du über **Nur essenziell** ablehnen oder später unter **Cookie-Einstellungen** im Footer ändern. Die Auswahl speichern wir lokal (`gobd_consent`). Du kannst Cookies generell in deinem Browser löschen oder blockieren; dann funktionieren Teile der Website ggf. nicht.
 
 ## Weitere Informationen
 

@@ -1,6 +1,7 @@
 /**
- * Consent-gated ads tracking (Meta Pixel + optional Google Ads stub).
- * Stripe stays TEST — never fire Purchase or InitiateCheckout.
+ * Consent-gated ads tracking (Google tag + Meta Pixel).
+ * Stripe stays TEST — never fire Purchase or InitiateCheckout
+ * (neither Meta nor Google checkout conversions).
  */
 
 export type ConsentChoice = {
@@ -40,15 +41,23 @@ const UTM_KEYS = [
 ] as const;
 
 let pixelInitialized = false;
+let googleInitialized = false;
 let lastPageViewPath = "";
 let lastReadinessStartPath = "";
+let lastGooglePagePath = "";
 
 export function getMetaPixelId(): string {
   return process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || "";
 }
 
-export function getGoogleAdsConversionId(): string {
-  return process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID?.trim() || "";
+/** Google Ads account ID, e.g. AW-XXXXXXXXX. Unset → skip Google entirely. */
+export function getGoogleAdsId(): string {
+  return process.env.NEXT_PUBLIC_GOOGLE_ADS_ID?.trim() || "";
+}
+
+/** Conversion label for ReadinessSubmit only. Unset → traffic/config, no conversion. */
+export function getGoogleAdsReadinessLabel(): string {
+  return process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL?.trim() || "";
 }
 
 export function readConsent(): ConsentChoice | null {
@@ -86,6 +95,7 @@ export function saveConsent(marketing: boolean): ConsentChoice {
   if (!marketing) {
     lastPageViewPath = "";
     lastReadinessStartPath = "";
+    lastGooglePagePath = "";
   }
   window.dispatchEvent(new Event(CONSENT_EVENT));
   emitBanner();
@@ -156,7 +166,7 @@ export function enableMarketingScripts(): void {
   if (!hasMarketingConsent()) return;
   const pixelId = getMetaPixelId();
   if (pixelId) enableMetaPixel(pixelId);
-  const googleId = getGoogleAdsConversionId();
+  const googleId = getGoogleAdsId();
   if (googleId) enableGoogleAds(googleId);
 }
 
@@ -168,6 +178,7 @@ export function trackRoute(pathname: string): void {
   if (!hasMarketingConsent()) return;
   enableMarketingScripts();
   trackPageView(pathname);
+  trackGooglePageView(pathname);
   if (pathname === "/readiness") {
     trackReadinessStart();
   }
@@ -194,8 +205,9 @@ function trackReadinessStart(): void {
 
 /**
  * After a successful readiness POST — before navigating to success.
- * Fires standard CompleteRegistration and custom ReadinessSubmit.
- * Does not fire Purchase / InitiateCheckout.
+ * Meta: CompleteRegistration + ReadinessSubmit.
+ * Google: conversion only if NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL is set.
+ * Does not fire Purchase / InitiateCheckout (Meta or Google).
  */
 export function trackReadinessSubmit(): void {
   if (!hasMarketingConsent()) return;
@@ -206,10 +218,15 @@ export function trackReadinessSubmit(): void {
     window.fbq?.("track", "CompleteRegistration", params);
     window.fbq?.("trackCustom", "ReadinessSubmit", params);
   }
-  const googleId = getGoogleAdsConversionId();
+  const googleId = getGoogleAdsId();
   if (googleId) {
     enableGoogleAds(googleId);
-    window.gtag?.("event", "conversion", { send_to: googleId });
+    const label = getGoogleAdsReadinessLabel();
+    if (label) {
+      window.gtag?.("event", "conversion", {
+        send_to: `${googleId}/${label}`,
+      });
+    }
   }
 }
 
@@ -222,21 +239,33 @@ function enableMetaPixel(pixelId: string): void {
   pixelInitialized = true;
 }
 
-function enableGoogleAds(conversionId: string): void {
-  if (typeof window === "undefined" || !conversionId) return;
-  const configId = conversionId.split("/")[0] || conversionId;
+function enableGoogleAds(adsId: string): void {
+  if (typeof window === "undefined" || !adsId) return;
+  loadScript(
+    "google-ads-gtag",
+    `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(adsId)}`,
+  );
+  if (googleInitialized) return;
+  window.dataLayer = window.dataLayer || [];
   if (!window.gtag) {
-    window.dataLayer = window.dataLayer || [];
     window.gtag = function gtag(...args: unknown[]) {
       window.dataLayer?.push(args);
     };
-    window.gtag("js", new Date());
-    window.gtag("config", configId);
   }
-  loadScript(
-    "google-ads-gtag",
-    `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(configId)}`,
-  );
+  window.gtag("js", new Date());
+  window.gtag("config", adsId);
+  googleInitialized = true;
+}
+
+function trackGooglePageView(pathname: string): void {
+  const adsId = getGoogleAdsId();
+  if (!adsId) return;
+  enableGoogleAds(adsId);
+  if (lastGooglePagePath === pathname) return;
+  const first = lastGooglePagePath === "";
+  lastGooglePagePath = pathname;
+  if (first) return;
+  window.gtag?.("event", "page_view", { page_path: pathname });
 }
 
 function ensureFbq(): void {
