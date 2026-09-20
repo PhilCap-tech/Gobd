@@ -7,8 +7,9 @@
 
 ## Kurzfassung
 
-Diese Website verwendet **möglichst nur technisch notwendige** Cookies bzw. vergleichbare Technologien, die für den Betrieb der Seite, Sicherheit und den **Stripe-Checkout** erforderlich sind.  
-**Optionales Marketing- oder Analytics-Tracking ist derzeit nicht vorgesehen.** Bei Einführung wird dieser Hinweis angepasst und — soweit erforderlich — eine Einwilligung eingeholt.
+Diese Website verwendet **technisch notwendige** Cookies bzw. vergleichbare Technologien, die für den Betrieb der Seite, Sicherheit und den **Stripe-Checkout** erforderlich sind.
+
+Ein optionaler **Meta Pixel** (Meta Platforms) wird **nur geladen, wenn du im Cookie-Banner der Marketing-Kategorie zustimmst.** Lehnst du ab oder fehlt die Einwilligung, wird der Pixel nicht gesetzt. Stripe Checkout bleibt im Testmodus; über den Pixel werden **keine Purchase-Events** ausgelöst.
 
 ## Was sind Cookies?
 
@@ -21,6 +22,7 @@ Wir setzen technisch notwendige Mittel ein, soweit erforderlich für:
 - Sicherheitsfunktionen (z. B. Schutz vor Missbrauch)
 - Durchführung des Bezahlvorgangs über **Stripe Checkout** (Stripe kann eigene Cookies/Technologien setzen)
 - Magic-Link-Anmeldung und Zugriff auf gespeicherte Dokumente (`gobd_session`)
+- Speicherung deiner Cookie-Auswahl (`gobd_consent`, Cookie und/oder Local Storage)
 
 Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am technischen Betrieb) bzw. § 25 Abs. 2 TTDSG (soweit Speicherung/Zugriff unbedingt erforderlich), sowie Art. 6 Abs. 1 lit. b DSGVO im Kontext der Zahlungsabwicklung.
 
@@ -28,6 +30,14 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am technisch
 
 Beim Start des Checkouts kann Stripe Cookies und ähnliche Technologien setzen. Details: https://stripe.com/privacy sowie Stripe-Cookie-Dokumentation.  
 **TODO:** prüfen, welche konkreten Stripe-Cookies im Live-Checkout gesetzt werden, und Tabelle unten aktualisieren.
+
+## Optionaler Meta Pixel
+
+Wenn du **Marketing erlauben** wählst, laden wir den Meta Pixel (`connect.facebook.net`). Er erfasst Seitenaufrufe (PageView) sowie Readiness-Events (ReadinessStart, CompleteRegistration / ReadinessSubmit). Ohne Einwilligung oder ohne konfigurierte Pixel-ID wird das Skript nicht geladen.
+
+Falls zusätzlich eine Google-Ads-Conversion-ID konfiguriert ist, kann bei ReadinessSubmit ein Conversion-Tag geladen werden — ebenfalls nur mit Marketing-Einwilligung.
+
+**TODO:** Counsel-Review zu Meta Pixel / ggf. Google Ads (Drittlandtransfer, AVV) vor Go-Live.
 
 ## Hosting (Vercel)
 
@@ -38,12 +48,13 @@ Das Hosting kann technisch bedingte Verbindungsdaten und ggf. notwendige Speiche
 | Name / Technologie | Anbieter | Zweck | Speicherdauer | Notwendigkeit |
 |---|---|---|---|---|
 | gobd_session | eigene Domain | Magic-Link-Anmeldung / Dokumentenzugang | 30 Tage | notwendig |
+| gobd_consent | eigene Domain | Speicherung der Cookie-/Tracking-Auswahl | 180 Tage | notwendig |
 | TODO | Stripe | Checkout / Betrugsprävention | TODO | notwendig |
-| — | — | Analytics/Marketing | — | **nicht aktiv** |
+| Meta Pixel (_fbp / _fbc) | Meta Platforms | Reichweiten- und Event-Messung (nur Readiness, kein Purchase) | laut Anbieter / bis Widerruf | optional, nur mit Einwilligung |
 
 ## Verwaltung / Ablehnung
 
-Technisch notwendige Cookies können in der Regel nicht über ein Banner abgewählt werden, ohne die Funktion der Website bzw. des Checkouts zu beeinträchtigen. Du kannst Cookies generell in deinem Browser löschen oder blockieren; dann funktionieren Teile der Website ggf. nicht.
+Technisch notwendige Cookies können in der Regel nicht über ein Banner abgewählt werden, ohne die Funktion der Website bzw. des Checkouts zu beeinträchtigen. Marketing (Meta Pixel) kannst du über **Nur essenziell** ablehnen oder später unter **Cookie-Einstellungen** im Footer ändern. Die Auswahl speichern wir lokal (`gobd_consent`). Du kannst Cookies generell in deinem Browser löschen oder blockieren; dann funktionieren Teile der Website ggf. nicht.
 
 ## Weitere Informationen
 

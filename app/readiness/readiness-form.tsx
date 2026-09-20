@@ -7,6 +7,7 @@ import {
   READINESS_BRANCHEN,
   type ReadinessBrancheId,
 } from "@/lib/readiness-options";
+import { trackReadinessSubmit } from "@/lib/tracking";
 
 const RECHTSFORMEN = [
   "Einzelunternehmen",
@@ -146,6 +147,7 @@ export function ReadinessForm() {
         setError(data.error || "Speichern fehlgeschlagen.");
         return;
       }
+      trackReadinessSubmit();
       router.push(data.successUrl);
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");

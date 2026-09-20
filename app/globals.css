@@ -737,3 +737,70 @@ code {
     padding: 14px 16px;
   }
 }
+
+body.consent-open {
+  padding-bottom: 200px;
+}
+
+.consent-banner {
+  position: fixed;
+  z-index: 80;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 16px 20px 20px;
+  box-shadow: 0 -8px 28px rgba(20, 32, 27, 0.1);
+}
+
+.consent-banner-inner {
+  width: min(840px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.consent-banner h2 {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  letter-spacing: 0;
+}
+
+.consent-banner p {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 52rem;
+  line-height: 1.5;
+}
+
+.consent-banner a {
+  color: var(--accent);
+}
+
+.consent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.footer-text-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.footer-text-btn:hover {
+  color: var(--text);
+}

@@ -35,7 +35,7 @@ Soweit in den folgenden Abschnitten nicht anders angegeben, stützen wir uns ins
 - Art. 6 Abs. 1 lit. b DSGVO (Vertrag / vorvertragliche Maßnahmen)
 - Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung)
 - Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse, z. B. IT-Sicherheit, Missbrauchsprävention)
-- Art. 6 Abs. 1 lit. a DSGVO (Einwilligung), soweit wir optionale Cookies/Tracking einsetzen — **derzeit vorgesehen: möglichst nur technisch notwendige Mittel; siehe Cookie-Hinweis**
+- Art. 6 Abs. 1 lit. a DSGVO (Einwilligung), soweit wir optionale Cookies/Tracking einsetzen — **Meta Pixel nur mit Einwilligung; siehe Cookie-Hinweis**
 
 ## 4. Hosting (Vercel)
 
@@ -83,7 +83,7 @@ Wenn du uns per E-Mail kontaktierst, verarbeiten wir die von dir mitgeteilten Da
 ## 9. Cookies und vergleichbare Technologien
 
 Siehe gesonderten **Cookie-/Tracking-Hinweis**.  
-Aktueller Planungsstand: möglichst nur **technisch notwendige** Cookies bzw. vergleichbare Technologien (Website-Funktion, Sicherheit, Stripe-Checkout). Optionales Analytics/Marketing-Tracking ist derzeit **nicht** vorgesehen bzw. muss vor Aktivierung hier ergänzt und — soweit erforderlich — mit Einwilligung versehen werden.
+Technisch notwendige Cookies bzw. vergleichbare Technologien dienen Website-Funktion, Sicherheit und Stripe-Checkout. Ein optionaler Meta Pixel läuft **nur mit Einwilligung** (siehe Cookie-Hinweis).
 
 ## 10. Weitergabe von Daten
 
