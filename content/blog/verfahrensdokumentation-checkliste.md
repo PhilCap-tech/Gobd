@@ -22,7 +22,7 @@ Du willst wissen, ob deine Verfahrensdokumentation die wichtigen Punkte abdeckt 
 
 > **Keine Steuerberatung.** Dieser Text und alle Ergebnisse unter gobd-doku-erstellen.de sind allgemeine Arbeitshilfen. Sie ersetzen keine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
-Mehr Kontext zum Aufbau und zur Erstellung findest du im Pillar: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen). Kurze Antworten zu Ablauf und Grenzen stehen in den [FAQ](/faq).
+Mehr Kontext zum Aufbau und zur Erstellung findest du im Pillar: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
 
 ## Wofür ist diese GoBD Checkliste Verfahrensdokumentation?
 
@@ -180,4 +180,4 @@ Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt dich 
 
 Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich oder ausreichend ist, hängt von deiner konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
-Du bleibst für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Es gibt keine Zusicherung von Konformität oder Vollständigkeit.
+Du bleibst für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Es gibt keine Zusicherung von Konformität oder Vollständigkeit. Siehe auch die [FAQ](/faq).
