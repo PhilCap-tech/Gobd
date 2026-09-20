@@ -86,7 +86,12 @@ export function verifySessionToken(
   return payload.email;
 }
 
-const ALLOWED_NEXT_PATHS = new Set(["/portal", "/billing", "/account"]);
+const ALLOWED_NEXT_PATHS = new Set([
+  "/portal",
+  "/billing",
+  "/account",
+  "/account/firma/neu",
+]);
 const ACCOUNT_DOCUMENT_EDIT =
   /^\/account\/dokument\/[A-Za-z0-9_-]{8,80}$/;
 

@@ -83,6 +83,11 @@ export function getReadinessSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_READINESS_TAB || "readiness_leads";
 }
 
+/** Separate tab for Account-Hub Firmen — do not mix with intakes. */
+export function getEntitiesSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_ENTITIES_TAB || "entities";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
