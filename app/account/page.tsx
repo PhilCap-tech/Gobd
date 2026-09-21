@@ -74,7 +74,7 @@ export default async function AccountPage({
           </p>
         )}
 
-        <AccountAboCard />
+        <AccountAboCard stripeBound={stripeBound} />
 
         {entities.length === 0 && docs.length === 0 ? (
           <div className="card">
