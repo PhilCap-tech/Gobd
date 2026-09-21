@@ -269,6 +269,8 @@ h2 {
   margin: 8px 0;
 }
 
+.lead strong,
+.prose strong,
 .prose-list strong {
   color: var(--text);
   font-weight: 650;
@@ -311,6 +313,26 @@ h2 {
 
 .framing {
   margin: 0 0 18px;
+}
+
+.value-note {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.value-note h2 {
+  margin-bottom: 10px;
+}
+
+.value-note .prose {
+  margin-bottom: 10px;
+}
+
+.value-note .hint {
+  margin: 0;
+  font-size: 13px;
 }
 
 .trust-line {
