@@ -40,6 +40,50 @@ function isQuoteBlock(block: string): boolean {
   return block.split("\n").every((line) => line.trim().startsWith(">"));
 }
 
+function isTableBlock(block: string): boolean {
+  return block.split("\n").every((line) => line.trim().startsWith("|"));
+}
+
+function renderTable(block: string, key: string): ReactNode {
+  const rows = block
+    .split("\n")
+    .map((line) =>
+      line
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((cell) => cell.trim()),
+    )
+    .filter((cells) => !cells.every((cell) => /^:?-+:?$/.test(cell)));
+  if (rows.length === 0) return null;
+  const [header, ...body] = rows;
+  return (
+    <div key={key} className="blog-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            {header.map((cell, i) => (
+              <th key={`${key}-h-${i}`}>{renderInline(cell, `${key}-h-${i}`)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, r) => (
+            <tr key={`${key}-r-${r}`}>
+              {row.map((cell, c) => (
+                <td key={`${key}-r-${r}-c-${c}`}>
+                  {renderInline(cell, `${key}-r-${r}-c-${c}`)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function isUnorderedListBlock(block: string): boolean {
   return block.split("\n").every((line) => /^-\s+/.test(line));
 }
@@ -181,6 +225,10 @@ function renderBlocks(body: string): ReactNode[] {
     }
     if (isQuoteBlock(trimmed)) {
       return [renderQuote(trimmed, key)];
+    }
+    if (isTableBlock(trimmed)) {
+      const table = renderTable(trimmed, key);
+      return table ? [table] : [];
     }
     if (isChecklistBlock(trimmed)) {
       return [renderChecklist(trimmed.split("\n"), key)];
