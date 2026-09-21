@@ -9,8 +9,8 @@ export const runtime = "nodejs";
 
 /**
  * Ops-Route für bestehende Trigger (Onboarding / Failed Payment / Failed Job).
- * Onboarding versendet nur, wenn Resend-Env gesetzt ist; sonst Log-Stub.
- * Failed Payment / Failed Job bleiben Stubs.
+ * Onboarding und Failed Payment versenden nur, wenn Resend-Env gesetzt ist;
+ * sonst Log-Stub. Failed Job bleibt Stub.
  * TODO: absichern oder entfernen, sobald echte Provider hängen.
  */
 export async function POST(request: Request) {

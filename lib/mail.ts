@@ -1,6 +1,11 @@
 import { Resend } from "resend";
 import { isMailConfigured } from "@/lib/env";
 
+export {
+  wrapTransactionalHtml,
+  wrapTransactionalText,
+} from "@/lib/mail-layout";
+
 export type MailResult = {
   stub: boolean;
   sent: boolean;
