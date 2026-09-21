@@ -3,7 +3,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import { entityById, entityChoices } from "@/lib/entities";
-import { isStripeConfigured } from "@/lib/env";
+import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
 import { CheckoutForm } from "./checkout-form";
@@ -44,6 +44,7 @@ export default async function CheckoutPage({
         </p>
         <CheckoutForm
           stripeReady={isStripeConfigured()}
+          stripeTestMode={isStripeTestMode()}
           entities={entityChoices(entities)}
           initialEntityId={initialEntityId}
           initialCompany={owned?.name ?? ""}

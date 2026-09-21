@@ -53,6 +53,20 @@ export function isStripeSecretConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
 }
 
+/**
+ * True only when a Stripe key prefix is known to be Test (`sk_test_` / `pk_test_`).
+ * Live and unknown prefixes default to false so checkout copy never claims Testmodus
+ * on production. Call from the server only — never return the raw key to the client.
+ */
+export function isStripeTestMode(): boolean {
+  const secret = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
+  const publishable =
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ||
+    process.env.STRIPE_PUBLISHABLE_KEY?.trim() ||
+    "";
+  return secret.startsWith("sk_test_") || publishable.startsWith("pk_test_");
+}
+
 /** Signing secret from `stripe listen` or Dashboard → Webhooks. Never invent one. */
 export function getStripeWebhookSecret(): string | null {
   const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
