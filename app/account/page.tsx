@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AccountAboCard } from "@/components/account-abo";
+import {
+  AccountAboCard,
+  AccountPaidActions,
+  AccountUpgradeCard,
+} from "@/components/account-abo";
 import {
   DocumentRevisionActions,
   VersionHistory,
@@ -81,11 +85,22 @@ export default async function AccountPage({
             <p className="prose">
               Zu dieser E-Mail liegt noch keine Firma vor.
             </p>
-            <div className="actions" style={{ marginTop: 16 }}>
-              <Link className="btn" href="/account/firma/neu">
-                Firma anlegen
-              </Link>
-            </div>
+            {stripeBound ? (
+              <div className="actions" style={{ marginTop: 16 }}>
+                <Link className="btn" href="/account/firma/neu">
+                  Firma anlegen
+                </Link>
+              </div>
+            ) : (
+              <>
+                <AccountPaidActions />
+                <div className="actions" style={{ marginTop: 12 }}>
+                  <Link className="btn ghost" href="/account/firma/neu">
+                    Firma anlegen
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -175,6 +190,12 @@ export default async function AccountPage({
                 );
               })}
             </div>
+            {!stripeBound && (
+              <AccountUpgradeCard
+                compact
+                headingId="upgrade-heading-docs"
+              />
+            )}
           </>
         )}
 
