@@ -11,16 +11,17 @@ import {
 
 /** Production home — logo and footer links always point here, not preview hosts. */
 export const MAIL_SITE_URL = CANONICAL_PRODUCTION_APP_URL;
+/** Trailing slash matches Growth/Ops home URL. */
+export const MAIL_HOME_URL = `${MAIL_SITE_URL}/`;
 export const MAIL_LOGO_URL = `${MAIL_SITE_URL}/brand/logo-lockup.png`;
 export const MAIL_FAQ_URL = `${MAIL_SITE_URL}/faq`;
 export const MAIL_IMPRESSUM_URL = `${MAIL_SITE_URL}/impressum`;
 export const MAIL_DATENSCHUTZ_URL = `${MAIL_SITE_URL}/datenschutz`;
 export const MAIL_CHECKOUT_URL = `${MAIL_SITE_URL}/checkout`;
-export const MAIL_BILLING_URL = `${MAIL_SITE_URL}/account/billing`;
+export const MAIL_ACCOUNT_URL = `${MAIL_SITE_URL}/account`;
+export const MAIL_LOGIN_URL = `${MAIL_SITE_URL}/login`;
 export const MAIL_SUPPORT_EMAIL = LEGAL_OPERATOR.email;
-
-const ADDRESS_LINE = `${LEGAL_OPERATOR.name} · ${LEGAL_OPERATOR.street} · ${LEGAL_OPERATOR.zipCity}`;
-const NO_ADVICE_LINE = "Keine Steuer- oder Rechtsberatung.";
+export const MAIL_ADDRESS_LINE = `${LEGAL_OPERATOR.name} · ${LEGAL_OPERATOR.street} · ${LEGAL_OPERATOR.zipCity}`;
 
 const FONT_SANS =
   "'Segoe UI', Tahoma, Arial, Helvetica, sans-serif";
@@ -39,13 +40,11 @@ export function escapeAttr(value: string): string {
 
 function footerTextLines(): string[] {
   return [
-    `${BRAND_NAME} · ${LEGAL_OPERATOR.name}`,
     `Impressum: ${MAIL_IMPRESSUM_URL}`,
     `FAQ: ${MAIL_FAQ_URL}`,
     `Datenschutz: ${MAIL_DATENSCHUTZ_URL}`,
     `Kontakt: ${MAIL_SUPPORT_EMAIL}`,
-    ADDRESS_LINE,
-    NO_ADVICE_LINE,
+    MAIL_ADDRESS_LINE,
   ];
 }
 
@@ -70,13 +69,12 @@ function withMailLinkColor(html: string): string {
  * `bodyHtml` is a fragment (`<p>…</p>`), not a full document.
  */
 export function wrapTransactionalHtml(bodyHtml: string): string {
-  const home = escapeAttr(MAIL_SITE_URL);
+  const home = escapeAttr(MAIL_HOME_URL);
   const logo = escapeAttr(MAIL_LOGO_URL);
   const supportMailto = escapeAttr(`mailto:${MAIL_SUPPORT_EMAIL}`);
   const brand = escapeHtml(BRAND_NAME);
   const operator = escapeHtml(LEGAL_OPERATOR.name);
-  const address = escapeHtml(ADDRESS_LINE);
-  const noAdvice = escapeHtml(NO_ADVICE_LINE);
+  const address = escapeHtml(MAIL_ADDRESS_LINE);
 
   return `<!DOCTYPE html>
 <html lang="de">
@@ -124,8 +122,7 @@ export function wrapTransactionalHtml(bodyHtml: string): string {
             <p style="margin:0 0 10px;">
               <a href="${supportMailto}" style="color:${BRAND_GREEN};text-decoration:underline;">${escapeHtml(MAIL_SUPPORT_EMAIL)}</a>
             </p>
-            <p style="margin:0 0 10px;">${address}</p>
-            <p style="margin:0;">${noAdvice}</p>
+            <p style="margin:0;">${address}</p>
           </td>
         </tr>
       </table>
