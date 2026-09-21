@@ -7,6 +7,7 @@ import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
 
 type CheckoutFormProps = {
   stripeReady: boolean;
+  stripeTestMode?: boolean;
   entities?: EntityChoice[];
   initialEntityId?: string;
   initialCompany?: string;
@@ -15,6 +16,7 @@ type CheckoutFormProps = {
 
 export function CheckoutForm({
   stripeReady,
+  stripeTestMode = false,
   entities = [],
   initialEntityId = "",
   initialCompany = "",
@@ -145,7 +147,9 @@ export function CheckoutForm({
         </button>
         <p className="hint">
           {stripeReady
-            ? "Weiter zu Stripe Checkout (Testmodus, wenn Test-Keys gesetzt sind)."
+            ? stripeTestMode
+              ? "Weiter zu Stripe Checkout (Testmodus)."
+              : "Weiter zu Stripe Checkout."
             : "Kein Stripe — nach dem Absenden direkt zum Intake."}
         </p>
       </form>
