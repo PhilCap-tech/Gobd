@@ -477,6 +477,31 @@ h3 {
   text-underline-offset: 2px;
 }
 
+.blog-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0 18px;
+}
+
+.blog table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.blog th,
+.blog td {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.blog th {
+  background: var(--surface);
+  font-weight: 650;
+}
+
 .legal .prose a {
   color: var(--accent);
 }
