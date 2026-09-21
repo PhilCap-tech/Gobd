@@ -40,10 +40,10 @@ export function escapeAttr(value: string): string {
 function footerTextLines(): string[] {
   return [
     `${BRAND_NAME} · ${LEGAL_OPERATOR.name}`,
-    `FAQ: ${MAIL_FAQ_URL}`,
-    `Support: ${MAIL_SUPPORT_EMAIL}`,
     `Impressum: ${MAIL_IMPRESSUM_URL}`,
+    `FAQ: ${MAIL_FAQ_URL}`,
     `Datenschutz: ${MAIL_DATENSCHUTZ_URL}`,
+    `Kontakt: ${MAIL_SUPPORT_EMAIL}`,
     ADDRESS_LINE,
     NO_ADVICE_LINE,
   ];
@@ -113,13 +113,13 @@ export function wrapTransactionalHtml(bodyHtml: string): string {
         <tr>
           <td style="padding:20px 28px;background-color:${BRAND_HEADER_BG};border-top:1px solid ${BRAND_RULE};font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${BRAND_MUTED};">
             <p style="margin:0 0 10px;">
-              ${footerLink(MAIL_FAQ_URL, "FAQ")}
-              &nbsp;·&nbsp;
-              ${footerLink(`mailto:${MAIL_SUPPORT_EMAIL}`, "Support")}
-              &nbsp;·&nbsp;
               ${footerLink(MAIL_IMPRESSUM_URL, "Impressum")}
               &nbsp;·&nbsp;
+              ${footerLink(MAIL_FAQ_URL, "FAQ")}
+              &nbsp;·&nbsp;
               ${footerLink(MAIL_DATENSCHUTZ_URL, "Datenschutz")}
+              &nbsp;·&nbsp;
+              ${footerLink(`mailto:${MAIL_SUPPORT_EMAIL}`, "Kontakt")}
             </p>
             <p style="margin:0 0 10px;">
               <a href="${supportMailto}" style="color:${BRAND_GREEN};text-decoration:underline;">${escapeHtml(MAIL_SUPPORT_EMAIL)}</a>
