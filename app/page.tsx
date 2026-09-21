@@ -46,12 +46,13 @@ export default function HomePage() {
           <h1>GoBD-Verfahrensdokumentation erstellen</h1>
           <p className="lead">
             Wenn du dann nur Fragmente oder eine leere Vorlage hast, wird’s
-            eng. Hier erstellst du sie geführt — in unter einer Stunde — als
-            PDF plus Liste offener Punkte. Zur Abstimmung mit deinem
-            Steuerberater.
+            eng. Hier erstellst du die Verfahrensdokumentation{" "}
+            <strong>online selbst</strong> — geführt, in unter einer Stunde —
+            als PDF plus Offene-Punkte-Liste. Kein Warteschleifen-Termin. Zur
+            Abstimmung mit deinem Steuerberater.
           </p>
           <PaidCta
-            trust="14 Tage Geld-zurück-Garantie · Keine Steuerberatung · Entwurf für deinen Steuerberater"
+            trust="Sofort starten online · 14 Tage Geld-zurück · Keine Steuerberatung · Entwurf für deinen Steuerberater"
             secondaryLabel="Erst Readiness-Check (kostenlos)"
             secondaryHint="Ca. 2–3 Minuten · Keine Kreditkarte"
           />
@@ -71,17 +72,25 @@ export default function HomePage() {
             <li>Vorlagen, die seit Monaten leer liegen</li>
           </ul>
           <p className="prose framing">
-            Du brauchst keine mehrtägige Beratung, um überhaupt etwas Greifbares
-            zu haben — du brauchst eine geführte, prüfbare Struktur. Jetzt.
+            Du brauchst keinen Beratungs-Termin und keine mehrmonatige
+            Self-Service-Begleitung, um überhaupt etwas Greifbares zu haben —
+            du brauchst eine geführte Struktur, die du{" "}
+            <strong>jetzt online</strong> erzeugst.
           </p>
         </section>
 
         <section className="block" id="outcome">
-          <h2>Sofort eine Lösung — geführt statt Blanko</h2>
+          <h2>
+            Sofort digital — online selbst erstellen, statt auf Beratung warten
+          </h2>
           <ul className="prose-list">
             <li>
               In unter einer Stunde: strukturierte Verfahrensdokumentation als
-              PDF
+              PDF (nicht erst nach Kickoff-Call)
+            </li>
+            <li>
+              {SETUP_EUR} € Setup = Einrichtung + erstes PDF +
+              Offene-Punkte-Liste — nicht nur ein Check ohne Dokument
             </li>
             <li>
               Offene-Punkte-Liste: du siehst Lücken, bevor der Prüfer fragt
@@ -114,6 +123,26 @@ export default function HomePage() {
               exportieren.
             </li>
           </ol>
+        </section>
+
+        <section className="block" id="setup-anker">
+          <div className="value-note">
+            <h2>
+              {SETUP_EUR} € Setup — und du hast mehr als einen Check
+            </h2>
+            <p className="prose">
+              Andere bieten für ähnliche Beträge oft nur eine Auswertung oder
+              einen Termin. Bei uns zahlst du {SETUP_EUR} € Setup für die
+              geführte <strong>Verfahrensdokumentations-Struktur</strong>: PDF
+              plus Liste offener Punkte. Danach hält das Abo ({MONTHLY_EUR}{" "}
+              €/Mo) Versionen und Exporte aktuell — weil ein einmaliges PDF
+              veraltet.
+            </p>
+            <p className="hint">
+              Keine Steuer- oder Rechtsberatung. Entwurf zur Abstimmung mit
+              deinem Steuerberater.
+            </p>
+          </div>
         </section>
 
         <section className="block" id="preise">
@@ -154,7 +183,8 @@ export default function HomePage() {
           </div>
           <p className="prose framing">
             Ein einmaliges PDF veraltet. Betriebsprüfung und GoBD sind kein
-            Einmal-Event — Pflege ist der eigentliche Schutz.
+            Einmal-Event — Pflege ist der eigentliche Schutz. Und du startest
+            online in unter einer Stunde, nicht erst nach Terminfindung.
           </p>
           <PaidCta
             trust="14 Tage Geld-zurück-Garantie"
@@ -187,6 +217,24 @@ export default function HomePage() {
               Verantwortliche ändern. Genau dann fehlt die aktuelle Fassung. Das
               Abo hält Versionen, Speicherung und Updates am Laufen, damit du
               dich nicht erneut selbst darum kümmern musst.
+            </p>
+          </div>
+          <div className="faq-item">
+            <h3>Ist das eine Beratung oder ein Online-Produkt?</h3>
+            <p className="prose">
+              Ein Online-Produkt. Du beantwortest kurze Fragen und erhältst PDF
+              plus Offene-Punkte-Liste — ohne Warteschleife auf einen
+              Beratungstermin. Für die fachliche Freigabe bleibst du bei deinem
+              Steuerberater. Wir leisten keine Steuerberatung.
+            </p>
+          </div>
+          <div className="faq-item">
+            <h3>Warum Setup {SETUP_EUR} € und dann Abo?</h3>
+            <p className="prose">
+              Das Setup liefert die erste geführte Struktur (PDF + Offene
+              Punkte). Das Abo hält Fassungen, Speicherung und erneute Exporte
+              am Laufen, wenn sich Software oder Prozesse ändern. So bleibst du
+              nicht auf einem veralteten Einmal-PDF sitzen.
             </p>
           </div>
           <div className="faq-item">
