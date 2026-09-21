@@ -4,6 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import { isMailConfigured } from "@/lib/env";
+import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
 import { firstQueryValue } from "@/lib/query";
 import { canAccessReadinessLead, readinessDownloadPath } from "@/lib/readiness";
 import { readinessBrancheLabel } from "@/lib/readiness-options";
@@ -95,8 +96,8 @@ export default async function ReadinessSuccessPage({
                     PDF herunterladen
                   </a>
                 )}
-                <Link className="btn ghost" href="/checkout">
-                  Verfahrensdokumentation führen lassen — 149 € + 49 €/Mo
+                <Link className="btn" href="/checkout">
+                  {`Verfahrensdokumentation führen lassen — ${SETUP_EUR} € + ${MONTHLY_EUR} €/Mo`}
                 </Link>
               </div>
               <p className="hint" style={{ marginTop: 14 }}>
