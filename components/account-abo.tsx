@@ -20,8 +20,7 @@ export function AccountAboCard({ stripeBound }: { stripeBound: boolean }) {
         </p>
         <div className="actions" style={{ marginTop: 12 }}>
           <Link className="btn" href="/checkout">
-            Volle Verfahrensdokumentation erstellen — {SETUP_EUR} € +{" "}
-            {MONTHLY_EUR} €/Mo
+            {`Volle Verfahrensdokumentation erstellen — ${SETUP_EUR} € + ${MONTHLY_EUR} €/Mo`}
           </Link>
         </div>
       </section>

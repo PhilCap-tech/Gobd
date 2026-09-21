@@ -97,8 +97,7 @@ export default async function ReadinessSuccessPage({
                   </a>
                 )}
                 <Link className="btn" href="/checkout">
-                  Verfahrensdokumentation führen lassen — {SETUP_EUR} € +{" "}
-                  {MONTHLY_EUR} €/Mo
+                  {`Verfahrensdokumentation führen lassen — ${SETUP_EUR} € + ${MONTHLY_EUR} €/Mo`}
                 </Link>
               </div>
               <p className="hint" style={{ marginTop: 14 }}>
