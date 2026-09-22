@@ -1,10 +1,9 @@
 /**
  * GoBD Ops.
  *
- * Onboarding, Delivery, Readiness, Magic-Link und Failed Payment gehen über
- * Resend, wenn Mail-Env gesetzt ist. HTML läuft durch wrapTransactionalHtml.
- * Ohne Env: bisheriger Log-Stub, kein Versand.
- * Failed Job bleibt Stub (Logs).
+ * Onboarding, Delivery, Readiness, Magic-Link, Failed Payment und Failed Job
+ * gehen über Resend, wenn Mail-Env gesetzt ist. HTML läuft durch
+ * wrapTransactionalHtml. Ohne Env: bisheriger Log-Stub, kein Versand.
  */
 
 import { isMailConfigured } from "@/lib/env";
@@ -177,6 +176,30 @@ export function buildFailedPaymentMail(): TransactionalMailContent {
   };
 }
 
+export function buildFailedJobMail(): TransactionalMailContent {
+  const text = wrapTransactionalText(
+    [
+      "Hallo,",
+      "",
+      "bei der Erstellung deiner Verfahrensdokumentation ist ein technischer Fehler aufgetreten. Wir prüfen das und melden uns.",
+      "",
+      `Zwischenzeitlich: ${MAIL_FAQ_URL}`,
+      `Support: ${MAIL_SUPPORT_EMAIL}`,
+    ].join("\n"),
+  );
+  const html = wrapTransactionalHtml(`
+    <p>Hallo,</p>
+    <p>bei der Erstellung deiner Verfahrensdokumentation ist ein technischer Fehler aufgetreten. Wir prüfen das und melden uns.</p>
+    <p>Zwischenzeitlich: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
+    <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+  `);
+  return {
+    subject: "Technisches Problem bei der Erstellung — wir kümmern uns",
+    text,
+    html,
+  };
+}
+
 export function buildDeliveryMail(input: {
   company?: string;
   downloadUrl: string;
@@ -299,12 +322,38 @@ export async function handleFailedPayment(input: {
 }
 
 export async function handleFailedJob(input: {
+  email?: string;
   sessionId?: string;
   job?: string;
   reason?: string;
-}): Promise<OpsResult> {
-  console.warn("[ops] failed job stub", input);
-  return { stub: true, sent: false, action: "failed_job" };
+}): Promise<OpsResult & MailResult> {
+  const email = input.email?.trim() ?? "";
+  if (!isMailConfigured()) {
+    console.warn("[ops] failed job stub", input);
+    return { stub: true, sent: false, action: "failed_job" };
+  }
+
+  if (!email) {
+    console.warn("[ops] failed job übersprungen — keine E-Mail", input);
+    return { stub: true, sent: false, action: "failed_job" };
+  }
+
+  const mail = buildFailedJobMail();
+  const result = await sendEmail({
+    to: email,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+  });
+  console.warn("[ops] failed job mail", {
+    email,
+    sessionId: input.sessionId,
+    job: input.job,
+    reason: input.reason,
+    sent: result.sent,
+    stub: result.stub,
+  });
+  return { ...result, action: "failed_job" };
 }
 
 export async function sendDeliveryMail(input: {

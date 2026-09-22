@@ -9,8 +9,7 @@ export const runtime = "nodejs";
 
 /**
  * Ops-Route für bestehende Trigger (Onboarding / Failed Payment / Failed Job).
- * Onboarding und Failed Payment versenden nur, wenn Resend-Env gesetzt ist;
- * sonst Log-Stub. Failed Job bleibt Stub.
+ * Versand nur, wenn Resend-Env gesetzt ist; sonst Log-Stub.
  * TODO: absichern oder entfernen, sobald echte Provider hängen.
  */
 export async function POST(request: Request) {
@@ -48,6 +47,7 @@ export async function POST(request: Request) {
       case "failed_job":
         return NextResponse.json(
           await handleFailedJob({
+            email: body.email,
             sessionId: body.sessionId,
             reason: body.reason,
           }),
