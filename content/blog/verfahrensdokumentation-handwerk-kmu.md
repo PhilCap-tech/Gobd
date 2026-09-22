@@ -29,7 +29,7 @@ Grundlagen: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokume
 
 Typische Gedanken: „Wir sind zu klein.“ „Das macht doch der Steuerberater.“ „Wir haben nur DATEV / sevdesk / lexoffice.“
 
-In der Praxis gilt: Die Verfahrensdokumentation beschreibt **euren** Betrieb — nicht die Größe. Kleine Teams brauchen oft *weniger Text*, aber *mehr Klarheit*: Wer scannt? Wer legt ab? Wer schickt an den Berater? Wo liegen die Dateien?
+In der Praxis gilt: Die Verfahrensdokumentation beschreibt **euren** Betrieb — nicht die Größe. Kleine Teams brauchen oft **weniger Text**, aber **mehr Klarheit**: Wer scannt? Wer legt ab? Wer schickt an den Berater? Wo liegen die Dateien?
 
 Bei einer [Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung) hilft eine kurze, ehrliche Doku mehr als ein langes Muster ohne Bezug zu euch.
 
