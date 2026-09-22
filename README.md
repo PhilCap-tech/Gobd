@@ -227,7 +227,7 @@ PDF-Text kommt weiter nur aus `content/delivery-templates/`. Standardrahmen (S) 
 
 ## Was ist Stub
 
-- **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding nach Zahlung und Failed Payment per Resend, wenn Mail-Env gesetzt; sonst Log-Stub. Failed Job: weiter nur Logs.
+- **Ops** (`lib/ops.ts`, `POST /api/ops`): Onboarding, Failed Payment und Failed Job per Resend, wenn Mail-Env gesetzt; sonst Log-Stub. Ohne Empfänger-Adresse bleibt Failed Job ein Log ohne Versand.
 - **Checkout ohne Stripe-Keys:** Mock-Session, weiter zum Intake.
 - **Intake ohne Sheets / Sheets-Fehler:** Datei-Fallback (lokal `.data`, auf Vercel `/tmp`).
 - **Firmen ohne Sheets:** `.data/entities.json` bzw. `/tmp`.

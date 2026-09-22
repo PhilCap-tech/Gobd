@@ -6,12 +6,18 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   buildDeliveryMail,
+  buildFailedJobMail,
   buildFailedPaymentMail,
   buildMagicLinkMail,
   buildOnboardingMail,
   buildReadinessMail,
 } from "@/lib/ops";
-import { MAIL_CHECKOUT_URL, MAIL_HOME_URL } from "@/lib/mail-layout";
+import {
+  MAIL_CHECKOUT_URL,
+  MAIL_FAQ_URL,
+  MAIL_HOME_URL,
+  MAIL_SUPPORT_EMAIL,
+} from "@/lib/mail-layout";
 
 const outDir = path.resolve(process.argv[2] || "/tmp/gobd-mail-preview");
 mkdirSync(outDir, { recursive: true });
@@ -28,6 +34,7 @@ const readiness = buildReadinessMail({
 });
 const onboarding = buildOnboardingMail({ company: "Muster GmbH" });
 const failedPayment = buildFailedPaymentMail();
+const failedJob = buildFailedJobMail();
 const delivery = buildDeliveryMail({
   company: "Muster GmbH",
   downloadUrl: "https://www.gobd-doku-erstellen.de/api/docs/preview/download",
@@ -41,6 +48,7 @@ const files: Record<string, string> = {
   "readiness.html": readiness.html,
   "onboarding.html": onboarding.html,
   "failed-payment.html": failedPayment.html,
+  "failed-job.html": failedJob.html,
   "delivery.html": delivery.html,
 };
 
@@ -90,6 +98,38 @@ assert(
 assert(
   !failedPayment.html.includes("/account/billing"),
   "Failed Payment must use /account, not /account/billing",
+);
+assert(
+  failedJob.subject === "Technisches Problem bei der Erstellung — wir kümmern uns",
+  "Failed Job subject must match Ops copy",
+);
+assert(
+  failedJob.html.includes(MAIL_FAQ_URL),
+  "Failed Job must link to FAQ",
+);
+assert(
+  failedJob.html.includes(`mailto:${MAIL_SUPPORT_EMAIL}`),
+  "Failed Job must link to support",
+);
+assert(
+  failedJob.html.includes(MAIL_SUPPORT_EMAIL),
+  "Failed Job must include support email",
+);
+assert(
+  failedJob.text.includes(MAIL_FAQ_URL),
+  "Failed Job plain text must include FAQ",
+);
+assert(
+  failedJob.text.includes(MAIL_SUPPORT_EMAIL),
+  "Failed Job plain text must include support email",
+);
+assert(
+  !/unsubscribe/i.test(failedJob.text),
+  "Failed Job plain text must not include unsubscribe",
+);
+assert(
+  !/Philip|Wiederholte Failures/i.test(`${failedJob.html}\n${failedJob.text}`),
+  "Failed Job must not include internal Ops notes",
 );
 assert(
   readiness.text.includes("Keine Steuerberatung"),
