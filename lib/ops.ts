@@ -1,13 +1,22 @@
 /**
  * GoBD Ops.
  *
- * Onboarding, Delivery, Readiness, Magic-Link, Failed Payment und Failed Job
- * gehen über Resend, wenn Mail-Env gesetzt ist. HTML läuft durch
- * wrapTransactionalHtml. Ohne Env: bisheriger Log-Stub, kein Versand.
+ * Onboarding, Delivery, Referral nach Delivery, Readiness, Magic-Link,
+ * Failed Payment und Failed Job gehen über Resend, wenn Mail-Env gesetzt ist.
+ * HTML läuft durch wrapTransactionalHtml. Ohne Env: bisheriger Log-Stub, kein Versand.
+ * Referral hängt nur am Delivery-Erfolg (eigene Funktion), nicht an Onboarding,
+ * Failed Job, Failed Payment oder Magic-Link.
  */
 
 import { isMailConfigured } from "@/lib/env";
 import { sendEmail, type MailResult } from "@/lib/mail";
+import {
+  cancelReferralDelivery,
+  completeReferralDelivery,
+  referralDeliveryKey,
+  referralIdempotencyKey,
+  reserveReferralDelivery,
+} from "@/lib/referral-sent";
 import {
   escapeAttr,
   escapeHtml,
@@ -23,7 +32,15 @@ import {
 export type OpsResult = {
   stub: boolean;
   sent: boolean;
-  action: "onboarding" | "failed_payment" | "failed_job" | "delivery" | "readiness";
+  /** Kein Versand: keine Adresse, keine Delivery-Id, oder diese Delivery hatte schon eine Referral. */
+  skipped?: boolean;
+  action:
+    | "onboarding"
+    | "failed_payment"
+    | "failed_job"
+    | "delivery"
+    | "readiness"
+    | "referral_after_delivery";
 };
 
 export type TransactionalMailContent = {
@@ -35,6 +52,14 @@ export type TransactionalMailContent = {
 const CHECKOUT_CTA = "Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo";
 const READINESS_MICRO =
   "14 Tage Geld-zurück · Keine Steuerberatung · Entwurf für deinen Steuerberater";
+
+/** Exact product URL from the Post-Delivery Referral spec (Track C). */
+export const REFERRAL_AFTER_DELIVERY_URL =
+  "https://www.gobd-doku-erstellen.de/?utm_source=referral&utm_medium=email&utm_campaign=post_delivery";
+export const REFERRAL_AFTER_DELIVERY_SUBJECT =
+  "Dein Entwurf ist fertig — gern an Steuerberater oder Kollegen weitergeben";
+export const REFERRAL_MICRO =
+  "149 € + 49 €/Mo · 14 Tage Geld-zurück · Keine Steuerberatung";
 
 export function buildMagicLinkMail(input: {
   magicLinkUrl: string;
@@ -247,6 +272,49 @@ export function buildDeliveryMail(input: {
   };
 }
 
+export function buildReferralAfterDeliveryMail(input: {
+  company?: string;
+}): TransactionalMailContent {
+  const company = input.company?.trim() ?? "";
+  const greeting = company ? `Hallo ${company},` : "Hallo,";
+  const text = wrapTransactionalText(
+    [
+      greeting,
+      "",
+      "dein Entwurf der Verfahrensdokumentation ist bereit.",
+      "",
+      "Wenn dein Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, kannst du diesen Link weitergeben:",
+      "",
+      REFERRAL_AFTER_DELIVERY_URL,
+      "",
+      "Kurz: Online-Intake → Entwurf als PDF. Setup 149 €, danach 49 €/Monat. 14 Tage Geld-zurück. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.",
+      "",
+      `Dein Konto: ${MAIL_LOGIN_URL}`,
+      `Fragen: ${MAIL_FAQ_URL}`,
+      `Support: ${MAIL_SUPPORT_EMAIL}`,
+      "",
+      "GoBD Ops · IKAT GmbH",
+    ].join("\n"),
+  );
+  const html = wrapTransactionalHtml(`
+    <p>${escapeHtml(greeting)}</p>
+    <p>dein Entwurf der Verfahrensdokumentation ist bereit.</p>
+    <p>Wenn dein Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, kannst du diesen Link weitergeben:</p>
+    <p><a href="${escapeAttr(REFERRAL_AFTER_DELIVERY_URL)}">Link weitergeben</a></p>
+    <p>Kurz: Online-Intake → Entwurf als PDF. Setup 149 €, danach 49 €/Monat. 14 Tage Geld-zurück. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.</p>
+    <p>${escapeHtml(REFERRAL_MICRO)}</p>
+    <p>Dein Konto: <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></p>
+    <p>Fragen: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
+    <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+    <p>GoBD Ops · IKAT GmbH</p>
+  `);
+  return {
+    subject: REFERRAL_AFTER_DELIVERY_SUBJECT,
+    text,
+    html,
+  };
+}
+
 export async function triggerOnboardingMail(input: {
   email: string;
   company?: string;
@@ -377,6 +445,90 @@ export async function sendDeliveryMail(input: {
     html: mail.html,
   });
   return { ...result, action: "delivery" };
+}
+
+/**
+ * Post-Delivery Referral. Eigene Funktion, nicht Teil von sendDeliveryMail.
+ * Nur aufrufen, nachdem eine Delivery wirklich erfolgreich war (PDF liegt).
+ * Höchstens einmal pro documentId (sonst pro sessionId).
+ */
+export async function sendReferralAfterDeliveryMail(input: {
+  email: string;
+  company?: string;
+  documentId?: string;
+  sessionId?: string;
+}): Promise<OpsResult & MailResult> {
+  const email = input.email.trim();
+  const documentId = input.documentId?.trim() ?? "";
+  const sessionId = input.sessionId?.trim() ?? "";
+
+  if (!email) {
+    console.info("[ops] referral mail übersprungen — keine E-Mail", {
+      documentId,
+      sessionId,
+    });
+    return {
+      stub: true,
+      sent: false,
+      skipped: true,
+      action: "referral_after_delivery",
+    };
+  }
+
+  const eventKey = referralDeliveryKey({ documentId, sessionId });
+  if (!eventKey) {
+    console.info("[ops] referral mail übersprungen — keine Delivery-Id", {
+      email,
+    });
+    return {
+      stub: true,
+      sent: false,
+      skipped: true,
+      action: "referral_after_delivery",
+    };
+  }
+
+  const reservation = await reserveReferralDelivery(eventKey);
+  if (reservation === "duplicate") {
+    console.info("[ops] referral mail bereits gesendet", {
+      email,
+      documentId,
+      sessionId,
+    });
+    return {
+      stub: false,
+      sent: false,
+      skipped: true,
+      action: "referral_after_delivery",
+    };
+  }
+
+  try {
+    const mail = buildReferralAfterDeliveryMail({ company: input.company });
+    const result = await sendEmail({
+      to: email,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+      idempotencyKey: referralIdempotencyKey(eventKey),
+    });
+    if (result.sent || result.stub) {
+      await completeReferralDelivery(eventKey);
+    } else {
+      cancelReferralDelivery(eventKey);
+    }
+    console.info("[ops] referral mail", {
+      email,
+      documentId,
+      sessionId,
+      sent: result.sent,
+      stub: result.stub,
+    });
+    return { ...result, skipped: false, action: "referral_after_delivery" };
+  } catch (error) {
+    cancelReferralDelivery(eventKey);
+    throw error;
+  }
 }
 
 export async function sendReadinessMail(input: {
