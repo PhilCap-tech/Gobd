@@ -228,6 +228,10 @@ h2 {
   margin: 0;
 }
 
+.cta-paid .trust-line {
+  max-width: 36ch;
+}
+
 .cta-soft .hint {
   max-width: 28ch;
   font-family: "Segoe UI", system-ui, sans-serif;
