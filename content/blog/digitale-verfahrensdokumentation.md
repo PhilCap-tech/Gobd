@@ -139,6 +139,7 @@ Nein. Wir versprechen keine Konformität und keine Rechtssicherheit. Das PDF ist
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste)
 - [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage)
 - [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren)
+- [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software)
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung)
 
 ## Disclaimer
