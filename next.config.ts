@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       "./content/delivery-templates/**/*",
       "./public/brand/**/*",
     ],
+    "/resources/10-offene-punkte/download": ["./public/brand/**/*"],
   },
   async headers() {
     return [

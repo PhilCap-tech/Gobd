@@ -89,6 +89,8 @@ Ziel ist nicht Perfektion um jeden Preis, sondern ein **aktueller, ehrlicher Sta
 
 Unsicher, ob die Basics schon beisammen sind? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
+Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).
+
 ## Was die Verfahrensdokumentation nicht leistet
 
 Klarstellung, damit Erwartungen realistisch bleiben:

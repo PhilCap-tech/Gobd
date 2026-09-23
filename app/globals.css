@@ -1067,3 +1067,35 @@ body.consent-open {
 .invoice-downloads {
   white-space: nowrap;
 }
+
+.lead-magnet-sub {
+  margin: -4px 0 16px;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 17px;
+}
+
+.lead-magnet-cta {
+  margin: 18px 0 16px;
+  background: var(--accent-soft);
+  border-color: #c5ddd0;
+}
+
+.lead-magnet-cta h2 {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.lead-magnet-cta p {
+  margin: 0;
+}
+
+.lead-magnet-cta a {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.lead-magnet-disclaimer {
+  font-size: 13px;
+  line-height: 1.45;
+}
