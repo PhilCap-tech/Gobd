@@ -51,10 +51,14 @@ export default function HomePage() {
             als PDF plus Offene-Punkte-Liste. Kein Warteschleifen-Termin. Zur
             Abstimmung mit deinem Steuerberater.
           </p>
+          <p className="outcome-line">
+            PDF + Offene-Punkte in unter einer Stunde · Entwurf für deinen
+            Steuerberater
+          </p>
           <PaidCta
             trust="Sofort starten online · 14 Tage Geld-zurück · Keine Steuerberatung · Entwurf für deinen Steuerberater"
-            secondaryLabel="Erst Readiness-Check (kostenlos)"
-            secondaryHint="Ca. 2–3 Minuten · Keine Kreditkarte"
+            secondaryLabel="Kostenloser Leitfaden"
+            secondaryHint="Kurzer Check + Branchen-Grundlagen-PDF — noch keine fertige Verfahrensdokumentation."
           />
           <div className="tags" aria-label="Themen">
             <span>Verfahrensdokumentation erstellen</span>
@@ -149,38 +153,34 @@ export default function HomePage() {
           <h2>Was du bezahlst — und warum das Abo dazugehört</h2>
           <div className="price-grid">
             <div className="price-card stacked">
-              <p className="step-label">Setup</p>
+              <p className="price-lead">
+                {SETUP_EUR}&nbsp;€ Setup — fertiges PDF + Offene-Punkte
+              </p>
               <div className="price">
                 {SETUP_EUR}&nbsp;€ <small>einmalig</small>
               </div>
               <p className="prose">
-                Einrichtung, erstes PDF und Offene-Punkte-Liste.
+                Einrichtung und erstes PDF plus Offene-Punkte-Liste — kein
+                reiner Check und keine Software-Lizenz.
               </p>
             </div>
             <div className="price-card stacked">
-              <p className="step-label">Abo</p>
+              <p className="price-lead">
+                {MONTHLY_EUR}&nbsp;€/Mo — Versionen und Pflege
+              </p>
               <div className="price">
                 {MONTHLY_EUR}&nbsp;€ <small>/ Monat</small>
               </div>
               <p className="prose">
-                Damit du dich nie wieder selbst darum kümmern musst:
+                Hält Fassungen, Speicherung und erneute Exporte aktuell, wenn
+                sich Software oder Prozesse ändern.
               </p>
-              <ul className="prose-list">
-                <li>Automatische Versionierung deiner Verfahrensdokumentation</li>
-                <li>Sichere Speicherung und Zugang zu bisherigen Fassungen</li>
-                <li>
-                  Updates, wenn sich Systeme, Prozesse oder Anforderungen ändern
-                </li>
-                <li>
-                  Bereit für künftige Vorgaben — ohne von vorn anzufangen
-                </li>
-                <li>
-                  Erneute Exporte, wenn Prüfer oder Steuerberater eine aktuelle
-                  Fassung brauchen
-                </li>
-              </ul>
             </div>
           </div>
+          <p className="prose framing">
+            Statt Lizenz-Modell, reinem Check oder teurem Setup mit langer
+            Bindung: einmal Setup für das Dokument, Abo nur für die Pflege.
+          </p>
           <p className="prose framing">
             Ein einmaliges PDF veraltet. Betriebsprüfung und GoBD sind kein
             Einmal-Event — Pflege ist der eigentliche Schutz. Und du startest

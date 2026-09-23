@@ -228,6 +228,31 @@ h2 {
   margin: 0;
 }
 
+.cta-soft .hint {
+  max-width: 28ch;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.outcome-line {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  margin: -6px 0 20px;
+}
+
+.price-lead {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  margin: 0 0 10px;
+}
+
 .sticky-cta {
   display: none;
 }
