@@ -177,7 +177,7 @@ Ohne Token: lokale Datei (`.data/pdfs` bzw. `/tmp/gobd-data/pdfs`). Download reg
 - `RESEND_API_KEY`
 - `EMAIL_FROM` (z. B. `GoBD Verfahrensdoku <noreply@deine-domain.de>`)
 
-Alle Resend-HTML-Mails (Magic-Link, Onboarding, Delivery, Readiness, Failed Payment) nutzen `wrapTransactionalHtml` in `lib/mail-layout.ts`: Logo-Header, FAQ / Support / Impressum / Datenschutz / IKAT-Adresse, keine Steuer- oder Rechtsberatung. Die Delivery-Mail enthält Download-Link, Magic Link und FAQ (`https://www.gobd-doku-erstellen.de/faq`). Die Onboarding-Mail nach `checkout.session.completed` ebenso FAQ plus Login. Die Readiness-Mail enthält den Grundlagen-PDF-Link (kein VD-Claim) plus Checkout-Hinweis. Fehlen die Env-Werte: **kein Versand**, Log-Stub, Download bleibt auf `/success` bzw. `/readiness/success`.
+Alle Resend-HTML-Mails (Magic-Link, Onboarding, Delivery, Referral nach Delivery, Readiness, Failed Payment, Failed Job) nutzen `wrapTransactionalHtml` in `lib/mail-layout.ts`: Logo-Header, FAQ / Support / Impressum / Datenschutz / IKAT-Adresse, keine Steuer- oder Rechtsberatung. Die Delivery-Mail enthält Download-Link, Magic Link und FAQ (`https://www.gobd-doku-erstellen.de/faq`). Direkt danach, eigene Funktion, geht die Referral-Mail nur bei erfolgreicher Delivery (Intake oder neue PDF-Version) — höchstens einmal pro Dokument, sonst pro Session; Produktlink mit UTM, ohne PDF-Anhang und ohne Abmeldelink. Die Onboarding-Mail nach `checkout.session.completed` ebenso FAQ plus Login. Die Readiness-Mail enthält den Grundlagen-PDF-Link (kein VD-Claim) plus Checkout-Hinweis. Fehlen die Env-Werte: **kein Versand**, Log-Stub, Download bleibt auf `/success` bzw. `/readiness/success`.
 
 ### Magic Link
 

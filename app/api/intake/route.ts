@@ -10,7 +10,7 @@ import {
 } from "@/lib/documents";
 import { applyEntityToIdentity } from "@/lib/entities";
 import { getAppUrl } from "@/lib/env";
-import { sendDeliveryMail } from "@/lib/ops";
+import { sendDeliveryMail, sendReferralAfterDeliveryMail } from "@/lib/ops";
 import {
   appendRecord,
   findLatestDocumentByStripeSessionId,
@@ -298,6 +298,17 @@ async function handleIntake(request: Request) {
     });
   } catch (error) {
     console.error("[intake] delivery mail fehlgeschlagen", error);
+  }
+
+  try {
+    await sendReferralAfterDeliveryMail({
+      email: identity.email,
+      company: identity.company,
+      documentId,
+      sessionId: identity.stripeSessionId,
+    });
+  } catch (error) {
+    console.error("[intake] referral mail fehlgeschlagen", error);
   }
 
   const response = NextResponse.json({
