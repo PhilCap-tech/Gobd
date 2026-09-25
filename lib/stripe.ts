@@ -184,6 +184,8 @@ export async function createCheckoutSession(input: {
     customer_email: input.email,
     billing_address_collection: "required",
     tax_id_collection: { enabled: true },
+    allow_promotion_codes: true,
+    payment_method_collection: "if_required",
     line_items: [
       { price: process.env.STRIPE_PRICE_SETUP_ID, quantity: 1 },
       { price: process.env.STRIPE_PRICE_MONTHLY_ID, quantity: 1 },
