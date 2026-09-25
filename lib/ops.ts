@@ -10,6 +10,7 @@
 
 import { isMailConfigured } from "@/lib/env";
 import { sendEmail, type MailResult } from "@/lib/mail";
+import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
 import {
   cancelReferralDelivery,
   completeReferralDelivery,
@@ -32,7 +33,7 @@ import {
 export type OpsResult = {
   stub: boolean;
   sent: boolean;
-  /** Kein Versand: keine Adresse, keine Delivery-Id, oder diese Delivery hatte schon eine Referral. */
+  /** Kein Versand: keine Adresse, keine Delivery-Id, Referral schon gesendet, oder Pilot-Exemption. */
   skipped?: boolean;
   action:
     | "onboarding"
@@ -360,6 +361,16 @@ export async function handleFailedPayment(input: {
   reason?: string;
 }): Promise<OpsResult & MailResult> {
   const email = input.email?.trim() ?? "";
+  if (isPilotPaymentFailedExempt(email)) {
+    console.info(`[ops] payment-failed skipped: pilot exemption ${email}`);
+    return {
+      stub: false,
+      sent: false,
+      skipped: true,
+      action: "failed_payment",
+    };
+  }
+
   if (!isMailConfigured()) {
     console.warn("[ops] failed payment stub", input);
     return { stub: true, sent: false, action: "failed_payment" };
