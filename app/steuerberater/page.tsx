@@ -18,10 +18,24 @@ const PILOT_HREF =
   "/checkout?utm_source=partner&utm_medium=landing&utm_campaign=steuerberater";
 
 const PROMO_CODE = "KANZLEI-PILOT";
-/** Stripe coupon: 100 % repeating, 2 months. Ops 2026-09-28. */
+/**
+ * Ops 2026-09-28, Stripe: promo_1UKcN56UvAzri3dMrW7Wn7Y2, coupon J7BECQxI,
+ * percent_off 100, duration repeating, duration_in_months 2, max_redemptions 50.
+ * After promo: list Abo 49 €/Mo if not cancelled; list Setup 149 €.
+ */
 const PROMO_MONTHS = 2;
-/** Stripe coupon max_redemptions. Ops 2026-09-28. */
 const PROMO_MAX_REDEMPTIONS = 50;
+
+function PilotKlartextSentence() {
+  return (
+    <>
+      Mit Code <strong className="promo-code">{PROMO_CODE}</strong>:{" "}
+      {PROMO_MONTHS}&nbsp;Monate 0&nbsp;€ (100&nbsp;% Rabatt); danach{" "}
+      {MONTHLY_EUR}&nbsp;€/Monat, wenn Sie nicht kündigen — kein
+      Überraschungs-Abo hinter ‚gratis‘.
+    </>
+  );
+}
 
 const PAGE_TITLE =
   "Für Steuerberater: Fragen und Muster ansehen, bevor Sie empfehlen | GoBD Verfahrensdoku";
@@ -341,11 +355,10 @@ export default function SteuerberaterPage() {
             <li>
               <strong>Kosten im ersten Jahr ohne Code:</strong> {SETUP_EUR} €
               Setup plus {MONTHLY_EUR} € pro Monat (
-              <Link href="/#preise">Produktseite</Link>). Mit{" "}
-              <strong className="promo-code">{PROMO_CODE}</strong>: 100&nbsp;%
-              auf Setup und Abo für {PROMO_MONTHS}&nbsp;Monate, danach{" "}
-              {MONTHLY_EUR}&nbsp;€/Monat, sofern nicht gekündigt. Einlösen im
-              Checkout des Pilots unten. Keine Kanzlei-Pakete auf dieser Seite.
+              <Link href="/#preise">Produktseite</Link>).{" "}
+              <PilotKlartextSentence /> Das Listen-Setup von {SETUP_EUR}&nbsp;€
+              ist einmalig und wird nach der Promo nicht monatlich
+              nachberechnet. Keine Kanzlei-Pakete auf dieser Seite.
             </li>
           </ul>
         </section>
@@ -370,15 +383,7 @@ export default function SteuerberaterPage() {
           </ol>
           <div className="value-note">
             <p className="prose">
-              Mit <strong className="promo-code">{PROMO_CODE}</strong> gilt{" "}
-              <strong>
-                100&nbsp;% Rabatt auf Setup und Abo für {PROMO_MONTHS}&nbsp;Monate
-              </strong>
-              , wenn Sie den Code im Checkout einlösen. In diesen{" "}
-              {PROMO_MONTHS}&nbsp;Monaten zahlen Sie 0&nbsp;€. Danach{" "}
-              <strong>{MONTHLY_EUR}&nbsp;€/Monat</strong>, sofern Sie nicht
-              kündigen. Das Setup ist in der Promo ebenfalls zu 0&nbsp;€ und
-              wird danach nicht monatlich nachberechnet.
+              <PilotKlartextSentence />
             </p>
           </div>
           <h3>100&nbsp;% für {PROMO_MONTHS}&nbsp;Monate</h3>
@@ -405,7 +410,7 @@ export default function SteuerberaterPage() {
             </li>
             <li>
               Nach den {PROMO_MONTHS}&nbsp;Monaten läuft das Abo mit{" "}
-              {MONTHLY_EUR}&nbsp;€/Monat weiter, sofern Sie nicht kündigen.
+              {MONTHLY_EUR}&nbsp;€/Monat weiter, wenn Sie nicht kündigen.
               Dafür brauchen Sie eine Zahlungsmethode, sonst kann die Rechnung
               nicht eingezogen werden. Hinterlegen im Kundenportal („Abo
               verwalten“).
@@ -422,7 +427,7 @@ export default function SteuerberaterPage() {
               Nach {PROMO_MONTHS}&nbsp;Monaten endet der Nachlass. Keine
               automatische kostenlose Verlängerung. Der Checkout beendet das
               Abo nicht von selbst: es läuft mit {MONTHLY_EUR}&nbsp;€/Monat
-              weiter, sofern Sie nicht kündigen.
+              weiter, wenn Sie nicht kündigen.
             </li>
             <li>
               Listenpreis ohne Code: {SETUP_EUR}&nbsp;€ Setup einmalig plus{" "}
@@ -448,6 +453,9 @@ export default function SteuerberaterPage() {
             <li>Kein dauerhaft kostenloses Produkt.</li>
             <li>Keine Konformitäts- oder Prüfungszusage.</li>
           </ul>
+          <p className="prose">
+            <PilotKlartextSentence />
+          </p>
           <div className="actions">
             <Link className="btn" href={PILOT_HREF}>
               Partner-Pilot starten
@@ -509,12 +517,10 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Bin ich nach dem Pilot im Abo fest?</h3>
             <p className="prose">
-              Mit {PROMO_CODE} sind Setup und Abo {PROMO_MONTHS}&nbsp;Monate zu
-              0&nbsp;€ (100&nbsp;% Rabatt). Danach {MONTHLY_EUR}&nbsp;€/Monat,
-              sofern Sie nicht kündigen. Das Setup wird danach nicht monatlich
-              nachberechnet. Keine automatische Gratis-Verlängerung und keine
-              automatische Kündigung. Einlösen im Checkout, Erläuterung im Block{" "}
-              <a href="#pilot">Pilot</a>.
+              <PilotKlartextSentence /> Listen-Setup {SETUP_EUR}&nbsp;€ einmalig
+              — in der Promo ebenfalls 0&nbsp;€, danach nicht monatlich
+              nachberechnet. Höchstens {PROMO_MAX_REDEMPTIONS}&nbsp;Einlösungen.
+              Keine automatische Kündigung.
             </p>
           </div>
           <div className="faq-item">
@@ -562,11 +568,8 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Was kostet das erste Jahr?</h3>
             <p className="prose">
-              Ohne Code {SETUP_EUR}&nbsp;€ Setup einmalig plus {MONTHLY_EUR}
-              &nbsp;€ pro Monat. Mit {PROMO_CODE} im Checkout des{" "}
-              <a href="#pilot">Pilots</a>: 100&nbsp;% auf Setup und Abo für{" "}
-              {PROMO_MONTHS}&nbsp;Monate, danach {MONTHLY_EUR}&nbsp;€/Monat,
-              sofern nicht gekündigt.
+              Ohne Code: {SETUP_EUR}&nbsp;€ Setup einmalig plus {MONTHLY_EUR}
+              &nbsp;€/Monat. <PilotKlartextSentence />
             </p>
           </div>
         </section>
@@ -575,6 +578,9 @@ export default function SteuerberaterPage() {
           <h2>
             Selbst testen — Fragen und Muster prüfen — dann entscheiden
           </h2>
+          <p className="prose">
+            <PilotKlartextSentence />
+          </p>
           <div className="actions">
             <Link className="btn" href={PILOT_HREF}>
               Partner-Pilot starten
