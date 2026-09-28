@@ -87,6 +87,8 @@ Geschäftsleitung setzt in Kraft. Version, Datum, Ablageort. Später: [aktualisi
 
 Bevor du Stunden in die falsche Richtung investierst: kostenloser [Readiness-Check](/readiness) zu Branche, Software, Belegwegen und IT — ohne Kreditkarte.
 
+Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).
+
 ## Was du beim DIY vermeiden solltest
 
 - unveränderte Branchenmuster als „eure“ Doku ausgeben  

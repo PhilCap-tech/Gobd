@@ -69,6 +69,8 @@ Eine Checkliste zum Abgleich findest du hier: [Verfahrensdokumentation Checklist
 
 Unsicher, ob eine Vorlage bei euch überhaupt der Engpass ist — oder eher fehlende Klarheit über Systeme und Verantwortliche? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und IT. Ohne Kreditkarte.
 
+Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).
+
 ## Geführtes PDF statt Blanko-Vorlage
 
 Unter gobd-doku-erstellen.de geht der Weg so:
