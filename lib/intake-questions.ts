@@ -1,4 +1,5 @@
 import { intakeFrageStepError } from "@/lib/frage-intake";
+import { CATALOG_STEPS, catalogStepError, hasCatalogAnswers } from "@/lib/intake-catalog";
 import type { IntakeAnswers } from "@/lib/types";
 
 /**
@@ -97,16 +98,10 @@ export const INTAKE_BACKUP = [
   "Unklar",
 ] as const;
 
-export const INTAKE_STEPS = [
-  { stepLabel: "Schritt 1 von 8", title: "Unternehmen und Geltungsbereich" },
-  { stepLabel: "Schritt 2 von 8", title: "Systeme und Original" },
-  { stepLabel: "Schritt 3 von 8", title: "Eingang und Formate" },
-  { stepLabel: "Schritt 4 von 8", title: "Papier und Scannen" },
-  { stepLabel: "Schritt 5 von 8", title: "Strukturierte E-Rechnung" },
-  { stepLabel: "Schritt 6 von 8", title: "Prüfung, Ausgang und Buchung" },
-  { stepLabel: "Schritt 7 von 8", title: "Ablage, Rechte und Sicherung" },
-  { stepLabel: "Schritt 8 von 8", title: "Kontrollen und Pflege" },
-] as const;
+export const INTAKE_STEPS = CATALOG_STEPS.map((step, index, all) => ({
+  stepLabel: `Schritt ${index + 1} von ${all.length}`,
+  title: step.title,
+}));
 
 /** Landing preview: the real step questions, not a second questionnaire. */
 export const INTAKE_PREVIEW_ROWS = [
@@ -143,5 +138,8 @@ export const INTAKE_REVIEW = {
 
 /** Same gates as the paid intake. Step 0 firm-select stays in the account form. */
 export function intakeStepError(step: number, answers: IntakeAnswers): string {
+  if (hasCatalogAnswers(answers) || Object.keys(answers.katalog ?? {}).length > 0) {
+    return catalogStepError(step, answers);
+  }
   return intakeFrageStepError(step, answers);
 }

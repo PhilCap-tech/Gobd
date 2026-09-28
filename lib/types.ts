@@ -70,6 +70,20 @@ export type IntakeAnswers = {
   fassungsrahmen?: string;
   bestaetigungName?: string;
   bestaetigungDatum?: string;
+  /**
+   * Delivery catalog MVP (INTAKE-CATALOG-MVP-v1). Primary intake.
+   * Absent on older short-intake rows; those stay on the legacy bridge.
+   */
+  katalog?: Record<
+    string,
+    {
+      status?: "bestaetigt" | "geplant" | "unbekannt" | "nicht_zutreffend";
+      reason?: string;
+      responsible?: string;
+      date?: string;
+      values?: Record<string, unknown>;
+    }
+  >;
   fragen?: Partial<
     Record<
       string,
@@ -264,6 +278,7 @@ export function emptyAnswers(): IntakeAnswers {
     fassungsrahmen: "",
     bestaetigungName: "",
     bestaetigungDatum: "",
+    katalog: {},
     fragen: {},
   };
 }
@@ -309,6 +324,7 @@ const CATALOG_KEYS = [
   "fassungsrahmen",
   "bestaetigungName",
   "bestaetigungDatum",
+  "katalog",
 ] as const satisfies readonly (keyof IntakeAnswers)[];
 
 function catalogFrom(answers: IntakeAnswers): Partial<IntakeAnswers> {

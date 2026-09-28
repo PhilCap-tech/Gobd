@@ -1,3 +1,10 @@
+import {
+  catalogOpenPoints,
+  catalogSummary,
+  catalogSuppressesRule,
+  hasCatalogAnswers,
+  projectCatalogAnswers,
+} from "@/lib/intake-catalog";
 import type { IntakeAnswers, KontrolleEintrag, VorsystemArt } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 
@@ -569,6 +576,7 @@ function copyLived<T>(take: boolean, value: T, empty: T): T {
  * `unbekannt` and `nicht zutreffend` do not become present-tense facts.
  */
 export function documentAnswers(answers: IntakeAnswers): IntakeAnswers {
+  if (hasCatalogAnswers(answers)) return projectCatalogAnswers(answers);
   if (!hasFrageStatuses(answers)) return answers;
   const base = emptyAnswers();
   const next: IntakeAnswers = {
@@ -695,6 +703,7 @@ export function documentAnswers(answers: IntakeAnswers): IntakeAnswers {
 }
 
 export function suppressRuleForFragen(ruleId: string, answers: IntakeAnswers): boolean {
+  if (hasCatalogAnswers(answers)) return catalogSuppressesRule(ruleId, answers);
   if (!hasFrageStatuses(answers)) return false;
   for (const id of MVP_FRAGE_IDS) {
     const entry = answers.fragen?.[id];
@@ -705,6 +714,7 @@ export function suppressRuleForFragen(ruleId: string, answers: IntakeAnswers): b
 }
 
 export function openPointsFromFragen(answers: IntakeAnswers): FrageOpenPoint[] {
+  if (hasCatalogAnswers(answers)) return catalogOpenPoints(answers);
   if (!hasFrageStatuses(answers)) return [];
   const points: FrageOpenPoint[] = [];
   for (const id of MVP_FRAGE_IDS) {
@@ -743,6 +753,9 @@ export function openPointsFromFragen(answers: IntakeAnswers): FrageOpenPoint[] {
 }
 
 export function intakeSummary(answers: IntakeAnswers): Array<[string, string]> {
+  if (hasCatalogAnswers(answers) || Object.keys(answers.katalog ?? {}).length > 0) {
+    return catalogSummary(answers);
+  }
   const systems = (answers.systeme ?? [])
     .map((row) => [row.name, row.funktion].filter(Boolean).join(" — "))
     .filter(Boolean);

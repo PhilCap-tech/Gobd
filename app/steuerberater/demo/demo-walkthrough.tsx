@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
-import { intakeSummary, seedDemoFragen } from "@/lib/frage-intake";
+import { intakeSummary } from "@/lib/frage-intake";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import {
   evaluateOpenPoints,
@@ -19,7 +19,7 @@ import type { IntakeAnswers } from "@/lib/types";
 
 export function DemoWalkthrough() {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<IntakeAnswers>(() => seedDemoFragen(PARTNER_MUSTER_ANSWERS));
+  const [answers, setAnswers] = useState<IntakeAnswers>(() => structuredClone(PARTNER_MUSTER_ANSWERS));
   const [error, setError] = useState("");
 
   const openPoints = useMemo(
@@ -170,7 +170,7 @@ export function DemoWalkthrough() {
             type="button"
             className="btn ghost"
             onClick={() => {
-              setAnswers(seedDemoFragen(PARTNER_MUSTER_ANSWERS));
+              setAnswers(structuredClone(PARTNER_MUSTER_ANSWERS));
               setError("");
               setStep(0);
             }}

@@ -93,16 +93,20 @@ export default function PartnerMusterPage() {
             </Link>
           </div>
           <p className="hint">
-            Festgelegte Beispieldaten: Beispiel GmbH, B2B-Dienstleistungen,
-            DATEV, Eingang E-Mail und PDF, Ausgang über Rechnungssoftware,
-            Archiv „DATEV Unternehmen online“, Anna Beispiel, Ben Muster.
-            Kein Papierweg. Die Erzeugung ist keine Freigabe durch die
-            Geschäftsführung.
+            Im Katalog dieses Beispiels sind bestätigt: DATEV, Hosting, Eingang
+            per E-Mail/PDF, der Zugriffstext und die Sicherungsart. Namen,
+            Archivordnung, Kanzlei-Umfang, Kontrollen und die betriebliche
+            Bestätigung bleiben offen. Kein Papierweg. Die Erzeugung ist keine
+            Freigabe durch die Geschäftsführung.
           </p>
         </section>
 
         <section className="block" id="daten">
-          <h2>Was in diesem Muster steht</h2>
+          <h2>Beispieldaten</h2>
+          <p className="hint">
+            Die Liste ist der Beispielbestand. Im PDF wird daraus nur Präsens,
+            wenn die Katalogfrage bestätigt ist.
+          </p>
           <div className="card">
             <dl className="summary">
               {facts.map(([label, value]) => (

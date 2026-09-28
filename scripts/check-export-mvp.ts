@@ -32,6 +32,11 @@ function expect(cond: boolean, message: string) {
   if (!cond) failures.push(message);
 }
 
+/** Short-intake checks keep the legacy bridge; the public muster uses the catalog. */
+function withoutCatalog(answers: IntakeAnswers): IntakeAnswers {
+  return { ...answers, katalog: undefined };
+}
+
 const musterDoc = renderDeliveryDocument({
   identity: PARTNER_MUSTER_IDENTITY,
   answers: PARTNER_MUSTER_ANSWERS,
@@ -75,14 +80,15 @@ for (const present of [
   "Papierweg laut Intake nicht genannt",
   "E-Mail- und PDF-Eingang",
   "Sichtungsturnus",
-  "Anna Beispiel",
-  "Ben Muster",
+  "DATEV",
+  "ausstehend",
   "Gliederung Muster v2",
   "Anhang A Prozessmatrix",
   "Zieltermin",
   "nicht festgelegt",
   "VD-BELEG-(zu vergeben)",
-  "Hosting | SaaS / Anbieter-Cloud | Anna Beispiel",
+  "SaaS / Anbieter-Cloud",
+  "keine konkrete Kontrollroutine bestätigt",
 ]) {
   expect(muster.includes(present), `muster missing ${present}`);
 }
@@ -98,11 +104,14 @@ const partnerIdBody = [partnerIdDoc.cover, ...partnerIdDoc.chapters.map((chapter
 expect(!partnerIdBody.includes(PARTNER_MUSTER_DOCUMENT_ID), "partner document id stays off the PDF");
 expect(musterIds.includes("op-f05-kanzlei-umfang"), "missing f05");
 expect(musterIds.includes("op-c02-sichtung"), "missing c02");
+expect(musterIds.includes("op-i04"), "cover confirmation stays open");
+expect(musterIds.includes("op-h01"), "empty controls stay open");
+expect(!musterDoc.chapters.some((chapter) => chapter.id === "06-papier-digitalisierung"), "catalog muster omits paper");
 expect(!musterIds.includes("op-d-ersetzend-ohne-papier"), "fixture must not get scan contradiction");
 expect(!musterIds.some((id) => id.includes("stripe")), "stripe op");
 
 const scanOnly: IntakeAnswers = {
-  ...PARTNER_MUSTER_ANSWERS,
+  ...withoutCatalog(PARTNER_MUSTER_ANSWERS),
   weitereSysteme: "ersetzendes Scannen im Funktionspostfach",
 };
 expect(ids(scanOnly).includes("op-d-ersetzend-ohne-papier"), "ersetzend without paper");
@@ -116,7 +125,7 @@ expect(!ids(withPaper).includes("op-d-ersetzend-ohne-papier"), "paper path suppr
 expect(bodyFor(withPaper).includes("Papierpost"), "paper token opens paper section");
 
 const confirmed: IntakeAnswers = {
-  ...PARTNER_MUSTER_ANSWERS,
+  ...withoutCatalog(PARTNER_MUSTER_ANSWERS),
   steuerberater: "Kanzlei Meier",
 };
 const confirmedBody = bodyFor(confirmed);
@@ -130,7 +139,7 @@ expect(
 expect(!ids(confirmed).includes("op-f05-kanzlei-umfang"), "confirmed has no f05 op");
 
 const emptyKanzlei: IntakeAnswers = {
-  ...PARTNER_MUSTER_ANSWERS,
+  ...withoutCatalog(PARTNER_MUSTER_ANSWERS),
   steuerberater: "geplant",
 };
 expect(ids(emptyKanzlei).includes("op-steuerberater"), "geplant is empty");
@@ -138,7 +147,7 @@ expect(!ids(emptyKanzlei).includes("op-f05-kanzlei-umfang"), "geplant is not unc
 expect(!bodyFor(emptyKanzlei).includes("verbucht"), "geplant does not book");
 
 const withStatus = {
-  ...PARTNER_MUSTER_ANSWERS,
+  ...withoutCatalog(PARTNER_MUSTER_ANSWERS),
   fibu: ["DATEV"],
   gf: "Anna Beispiel",
   buchhaltung: "Ben Muster",
@@ -171,7 +180,7 @@ expect(statusIds.includes("op-h04"), "unknown restore test is an open point");
 expect(!statusIds.includes("op-kontrollprotokoll"), "confirmed control clears the generic control point");
 
 const structured = {
-  ...PARTNER_MUSTER_ANSWERS,
+  ...withoutCatalog(PARTNER_MUSTER_ANSWERS),
   gf: "Anna Beispiel",
   buchhaltung: "",
   fibu: [] as string[],

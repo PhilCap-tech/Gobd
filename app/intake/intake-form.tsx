@@ -10,6 +10,7 @@ import {
 } from "@/components/version-change-fields";
 import type { EntityChoice } from "@/lib/entities";
 import { intakeSummary } from "@/lib/frage-intake";
+import { withCatalogDraft } from "@/lib/intake-catalog";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
@@ -35,8 +36,8 @@ export function IntakeForm({
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [entityId, setEntityId] = useState(initialEntityId);
-  const [answers, setAnswers] = useState<IntakeAnswers>(
-    initialAnswers ?? emptyAnswers,
+  const [answers, setAnswers] = useState<IntakeAnswers>(() =>
+    withCatalogDraft(initialAnswers ?? emptyAnswers(), session.company),
   );
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);

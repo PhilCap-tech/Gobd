@@ -1,3 +1,4 @@
+import { beispielGmbHKatalog } from "@/lib/intake-catalog";
 import { toVersionPdfMeta } from "@/lib/versioning";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
@@ -50,6 +51,11 @@ export const PARTNER_MUSTER_ANSWERS: IntakeAnswers = {
   it: "nicht angegeben",
   steuerberater: "externe Kanzlei (Leistungsumfang zu bestätigen)",
 };
+
+PARTNER_MUSTER_ANSWERS.katalog = beispielGmbHKatalog(
+  PARTNER_MUSTER_ANSWERS,
+  PARTNER_MUSTER_IDENTITY.company,
+);
 
 export const PARTNER_MUSTER_VERSION_META = toVersionPdfMeta({
   validFrom: "",

@@ -16,7 +16,17 @@ Papierablage laut bestätigter Angabe: {{answers.papierlager}}.
 
 ## 6.2 Digitalisierung
 
+{{#if answers.scanZweck}}
+{{#unless answers.scanZweck contains "nein"}}
 Papierbelege werden für die Bearbeitung gescannt. Der Scan wird auf Lesbarkeit, Vollständigkeit, richtige Ausrichtung und Seitenzahl geprüft und anschließend in {{answers.archiv | or "die digitale Ablage (zu bestätigen)"}} abgelegt. Der Dateiname oder die Beleg-ID ermöglicht die Zuordnung zum Papieroriginal.
+{{/unless}}
+{{#if answers.scanZweck contains "nein"}}
+Ein Scan ist nicht eingerichtet. Das Papier bleibt der Beleg.
+{{/if}}
+{{/if}}
+{{#unless answers.scanZweck}}
+Ob Papierbelege gescannt werden, ist nicht bestätigt.
+{{/unless}}
 
 ## 6.3 Keine ersetzende Vernichtung (Standardhinweis)
 
