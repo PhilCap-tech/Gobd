@@ -1,30 +1,169 @@
 {
-  "version": "3.0.0",
+  "version": "4.0.0",
+  "slice": "philip-muster-v2-detailliert",
   "language": "de",
-  "outline": "v4",
-  "outlineSource": "OUTLINE-v4.md",
-  "predecessor": "philip-muster-vorschlag-2026-09-28",
-  "adapter": "interim-chapter-markdown",
-  "adapterNote": "Chapter prose is Delivery v4 markdown (00-cover-freigabe.md through B-begriffe.md). Official chapter-schema.json and bundle.json 4.0.0 have not landed. This schema only retargets filenames. Do not treat the pack as final.",
-  "awaitingBundle": "gobd-delivery-templates/bundle.json 4.0.0",
+  "defaultVersion": "1.0",
+  "disclaimerId": "disclaimer",
+  "qualityRules": "QUALITY-RULES-v4.md",
+  "outline": "OUTLINE-v4.md",
+  "forbiddenInCustomerPdf": [
+    "identity.stub",
+    "identity.stripeSessionId",
+    "identity.stripeCustomerId"
+  ],
+  "conditionalSyntax": {
+    "if": "{{#if path}}…{{/if}}",
+    "unless": "{{#unless path}}…{{/unless}}",
+    "contains": "{{#if path contains \"Token\"}}…{{/if}}",
+    "filters": [
+      "join",
+      "or"
+    ]
+  },
+  "openPointShape": {
+    "id": "string",
+    "priority": "hoch|mittel|niedrig",
+    "text": "string",
+    "responsibility": "string",
+    "dueDate": "string|null",
+    "chapter": "string",
+    "customerFacing": "boolean"
+  },
   "chapters": [
-    {"id": "00-cover", "title": "Deckblatt", "order": 0, "templateFile": "chapters/00-cover-freigabe.md", "role": "cover", "includeIf": true},
-    {"id": "dl-dokumentenlenkung", "title": "Dokumentenlenkung", "order": 0.5, "templateFile": "chapters/00b-dokumentenlenkung.md", "includeIf": true},
-    {"id": "01-zweck", "title": "1 Zweck, Geltungsbereich und Verantwortung", "order": 1, "templateFile": "chapters/01-zweck-geltung.md", "includeIf": true},
-    {"id": "02-rollen", "title": "2 Unternehmen, Rollen und Aufgaben", "order": 2, "templateFile": "chapters/02-unternehmen-rollen.md", "includeIf": true},
-    {"id": "03-systeme", "title": "3 Systemlandschaft und Datenfluss", "order": 3, "templateFile": "chapters/03-systeme-datenfluss.md", "includeIf": true},
-    {"id": "04-belegarten", "title": "4 Belegarten und Eingangskanäle", "order": 4, "templateFile": "chapters/04-belegarten-kanaele.md", "includeIf": true},
-    {"id": "05-eingang", "title": "5 Eingangsrechnungen und E-Rechnungen", "order": 5, "templateFile": "chapters/05-eingang-erechnung.md", "includeIf": true},
-    {"id": "06-papier", "title": "6 Papierbelege und Digitalisierung", "order": 6, "templateFile": "chapters/06-papier-digitalisierung.md", "includeIf": {"anyTokenIn": [{"path": "answers.eingangsbelege", "tokens": ["Papier", "Scan", "Papierbeleg"]}]}},
-    {"id": "07-ausgang", "title": "7 Ausgangsrechnungen und Korrekturen", "order": 7, "templateFile": "chapters/07-ausgangsrechnungen.md", "includeIf": true},
-    {"id": "08-freigabe", "title": "8 Prüfung, Freigabe und Buchungsübergabe", "order": 8, "templateFile": "chapters/08-freigabe-buchung-status.md", "includeIf": true},
-    {"id": "09-aufbewahrung", "title": "9 Ablage, Aufbewahrung und Datenzugriff", "order": 9, "templateFile": "chapters/09-ablage-aufbewahrung.md", "includeIf": true},
-    {"id": "10-berechtigungen", "title": "10 Berechtigungen, Sicherung und Notfall", "order": 10, "templateFile": "chapters/10-berechtigungen-sicherung.md", "includeIf": true},
-    {"id": "11-kontrollen", "title": "11 Internes Kontrollsystem", "order": 11, "templateFile": "chapters/11-iks.md", "includeIf": true},
-    {"id": "12-versionen", "title": "12 Versionspflege und Änderungen", "order": 12, "templateFile": "chapters/12-versionspflege.md", "includeIf": true},
-    {"id": "13-anlagen", "title": "13 Mitgeltende Unterlagen", "order": 13, "templateFile": "chapters/13-mitgeltende-unterlagen.md", "includeIf": true},
-    {"id": "14-offene-punkte", "title": "14 Offene Punkte und Maßnahmen", "order": 14, "templateFile": "chapters/14-offene-punkte.md", "includeIf": true},
-    {"id": "15-anhang-a", "title": "Anhang A Prozessmatrix", "order": 15, "templateFile": "chapters/A-prozessmatrix.md", "includeIf": true},
-    {"id": "16-anhang-b", "title": "Anhang B Begriffe und Quellenstand", "order": 16, "templateFile": "chapters/B-begriffe.md", "includeIf": true}
+    {
+      "id": "00-cover-freigabe",
+      "title": "Deckblatt, Dokumentmerkmale und Freigabevermerk",
+      "order": 0,
+      "templateFile": "chapters/00-cover-freigabe.md",
+      "role": "cover"
+    },
+    {
+      "id": "00b-dokumentenlenkung",
+      "title": "Dokumentenlenkung",
+      "order": 1,
+      "templateFile": "chapters/00b-dokumentenlenkung.md"
+    },
+    {
+      "id": "01-zweck-geltung",
+      "title": "1 Zweck, Geltungsbereich und Verantwortung",
+      "order": 2,
+      "templateFile": "chapters/01-zweck-geltung.md"
+    },
+    {
+      "id": "02-unternehmen-rollen",
+      "title": "2 Unternehmen, Rollen und Aufgaben",
+      "order": 3,
+      "templateFile": "chapters/02-unternehmen-rollen.md"
+    },
+    {
+      "id": "03-systeme-datenfluss",
+      "title": "3 Systemlandschaft und Datenfluss",
+      "order": 4,
+      "templateFile": "chapters/03-systeme-datenfluss.md"
+    },
+    {
+      "id": "04-belegarten-kanaele",
+      "title": "4 Belegarten und Eingangskanäle",
+      "order": 5,
+      "templateFile": "chapters/04-belegarten-kanaele.md"
+    },
+    {
+      "id": "05-eingang-erechnung",
+      "title": "5 Eingangsrechnungen und E-Rechnungen",
+      "order": 6,
+      "templateFile": "chapters/05-eingang-erechnung.md",
+      "conditionals": {
+        "erechnungBranch": {
+          "containsAny": [
+            "answers.eingangsbelege",
+            [
+              "E-Rechnung",
+              "XRechnung",
+              "ZUGFeRD",
+              "XML"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "06-papier-digitalisierung",
+      "title": "6 Papierbelege und Digitalisierung",
+      "order": 7,
+      "templateFile": "chapters/06-papier-digitalisierung.md",
+      "includeIf": {
+        "containsAny": [
+          "answers.eingangsbelege",
+          [
+            "Papier",
+            "Post",
+            "Scan"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "07-ausgangsrechnungen",
+      "title": "7 Ausgangsrechnungen und Korrekturen",
+      "order": 8,
+      "templateFile": "chapters/07-ausgangsrechnungen.md",
+      "includeIf": {
+        "pathNonEmpty": "answers.ausgangsrechnungen"
+      }
+    },
+    {
+      "id": "08-freigabe-buchung-status",
+      "title": "8 Prüfung, Freigabe und Buchungsübergabe",
+      "order": 9,
+      "templateFile": "chapters/08-freigabe-buchung-status.md"
+    },
+    {
+      "id": "09-ablage-aufbewahrung",
+      "title": "9 Ablage, Aufbewahrung und Datenzugriff",
+      "order": 10,
+      "templateFile": "chapters/09-ablage-aufbewahrung.md"
+    },
+    {
+      "id": "10-berechtigungen-sicherung",
+      "title": "10 Berechtigungen, Sicherung und Notfall",
+      "order": 11,
+      "templateFile": "chapters/10-berechtigungen-sicherung.md"
+    },
+    {
+      "id": "11-iks",
+      "title": "11 Internes Kontrollsystem",
+      "order": 12,
+      "templateFile": "chapters/11-iks.md"
+    },
+    {
+      "id": "12-versionspflege",
+      "title": "12 Versionspflege und Änderungen",
+      "order": 13,
+      "templateFile": "chapters/12-versionspflege.md"
+    },
+    {
+      "id": "13-mitgeltende-unterlagen",
+      "title": "13 Mitgeltende Unterlagen",
+      "order": 14,
+      "templateFile": "chapters/13-mitgeltende-unterlagen.md"
+    },
+    {
+      "id": "14-offene-punkte",
+      "title": "14 Offene Punkte und Maßnahmen",
+      "order": 15,
+      "templateFile": "chapters/14-offene-punkte.md"
+    },
+    {
+      "id": "A-prozessmatrix",
+      "title": "Anhang A Prozessmatrix",
+      "order": 16,
+      "templateFile": "chapters/A-prozessmatrix.md"
+    },
+    {
+      "id": "B-begriffe",
+      "title": "Anhang B Begriffserläuterungen",
+      "order": 17,
+      "templateFile": "chapters/B-begriffe.md"
+    }
   ]
 }

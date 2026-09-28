@@ -5,8 +5,6 @@
 **Qualität:** Präsens nur bei bestätigtem Intake; sonst Hinweis/OP; Kapitel/Zweige conditional omit  
 **Vorgänger:** v3 (philip-muster kurz) — **nicht** mehr Qualitätsziel
 
-Aktives Renderer-Ziel. Die Kapiteldateien von Delivery v4 (`00-cover-freigabe.md` … `B-begriffe.md`) sind als Zwischenadapter eingebunden. `chapter-schema.json` und `bundle.json` **4.0.0** fehlen noch (`gobd-delivery-templates/`). Fassung bleibt **3.0.0**. Kein Produktions-Qualitätsclaim und keine Review-Freigabe, bis Schema und Bundle 4.0.0 liegen.
-
 ## Kundendoc-Struktur
 
 | # | Kapitel | Typ | Hinweise |

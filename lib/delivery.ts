@@ -86,39 +86,39 @@ export type DeliveryPlan = {
 function hintFromAnswers(id: string, answers: IntakeAnswers): string {
   const join = (values: string[]) => values.join(", ");
   switch (id) {
-    case "dl-dokumentenlenkung":
+    case "00b-dokumentenlenkung":
       return "Dokumentenlenkung";
-    case "01-zweck":
+    case "01-zweck-geltung":
       return answers.gf || "Zweck";
-    case "02-rollen":
+    case "02-unternehmen-rollen":
       return answers.gf || join(answers.branchen) || "Rollen";
-    case "03-systeme":
+    case "03-systeme-datenfluss":
       return join(answers.fibu) || "Systeme";
-    case "04-belegarten":
+    case "04-belegarten-kanaele":
       return join(answers.eingangsbelege) || "Belegarten";
-    case "05-eingang":
+    case "05-eingang-erechnung":
       return join(answers.eingangsbelege) || "Eingang fehlt";
-    case "06-papier":
+    case "06-papier-digitalisierung":
       return "Papier nur wenn genannt";
-    case "07-ausgang":
+    case "07-ausgangsrechnungen":
       return join(answers.ausgangsrechnungen) || "Ausgang fehlt";
-    case "08-freigabe":
+    case "08-freigabe-buchung-status":
       return answers.gf || "Freigabe";
-    case "09-aufbewahrung":
+    case "09-ablage-aufbewahrung":
       return answers.archiv || "Aufbewahrung";
-    case "10-berechtigungen":
+    case "10-berechtigungen-sicherung":
       return answers.zugriff || "Zugriff";
-    case "11-kontrollen":
+    case "11-iks":
       return "Kontrollen nicht bestätigt";
-    case "12-versionen":
+    case "12-versionspflege":
       return "Bestätigung ausstehend";
-    case "13-anlagen":
+    case "13-mitgeltende-unterlagen":
       return "Anlagen offen";
     case "14-offene-punkte":
       return "Offene Punkte";
-    case "15-anhang-a":
+    case "A-prozessmatrix":
       return "Prozessmatrix";
-    case "16-anhang-b":
+    case "B-begriffe":
       return "Begriffe";
     default:
       return "";

@@ -71,8 +71,22 @@ type BundleChapter = {
     | {
         anyPathNonEmpty?: string[];
         anyTokenIn?: { path: string; tokens: string[] }[];
+        /** Delivery 4.0.0: [path, tokens]. „Post“ is a whole word. */
+        containsAny?: [string, string[]];
+        /** Delivery 4.0.0: omit the chapter when this path is empty. */
+        pathNonEmpty?: string;
       };
 };
+
+/** „Post“ must not match „Postfach“. Other tokens stay substring matches. */
+function intakeTokenMatches(value: unknown, token: string): boolean {
+  if (token.trim().toLowerCase() === "post") {
+    const items = Array.isArray(value) ? value.map((item) => String(item)) : [String(value ?? "")];
+    const re = /(^|[^\p{L}\p{N}])Post([^\p{L}\p{N}]|$)/iu;
+    return items.some((item) => re.test(item));
+  }
+  return intakeValueContainsToken(value, token);
+}
 
 function firstFilled(...values: string[]): string {
   for (const value of values) {
@@ -400,6 +414,14 @@ function chapterApplies(
   if (includeIf === false) return false;
   if (includeIf === true || includeIf == null) return true;
   const root = context as TemplateContext;
+  if (typeof includeIf.pathNonEmpty === "string") {
+    return !isEmptyIntakeValue(lookup(root, includeIf.pathNonEmpty));
+  }
+  const containsAny = includeIf.containsAny;
+  if (Array.isArray(containsAny) && typeof containsAny[0] === "string" && Array.isArray(containsAny[1])) {
+    const pathExpr = containsAny[0];
+    return containsAny[1].some((token) => intakeTokenMatches(lookup(root, pathExpr), token));
+  }
   const paths = includeIf.anyPathNonEmpty ?? [];
   const tokenGroups = includeIf.anyTokenIn ?? [];
   if (paths.length === 0 && tokenGroups.length === 0) return true;
@@ -409,9 +431,7 @@ function chapterApplies(
   const tokenOk =
     tokenGroups.length === 0 ||
     tokenGroups.some((group) =>
-      group.tokens.some((token) =>
-        intakeValueContainsToken(lookup(root, group.path), token),
-      ),
+      group.tokens.some((token) => intakeTokenMatches(lookup(root, group.path), token)),
     );
   return pathOk && tokenOk;
 }

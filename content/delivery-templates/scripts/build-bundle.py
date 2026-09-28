@@ -18,7 +18,7 @@ cover_file = None
 for ch in sorted(SCHEMA["chapters"], key=lambda c: c["order"]):
     path = ROOT / ch["templateFile"]
     md = path.read_text(encoding="utf-8")
-    if ch.get("role") == "cover" or ch["id"] == "00-cover":
+    if ch.get("role") == "cover" or ch["id"] in ("00-cover", "00-cover-freigabe"):
         cover_md = md
         cover_file = ch["templateFile"]
         continue

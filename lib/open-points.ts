@@ -5,24 +5,24 @@ export type OpenPointSeverity = "low" | "medium" | "high";
 
 /** Customer-facing labels. The PDF and partner excerpt do not print template ids. */
 export const OPEN_POINT_CHAPTER_LABELS: Record<string, string> = {
-  "00-cover": "Deckblatt",
-  "dl-dokumentenlenkung": "Dokumentenlenkung",
-  "01-zweck": "Zweck und Geltungsbereich",
-  "02-rollen": "Rollen",
-  "03-systeme": "Systemlandschaft",
-  "04-belegarten": "Belegarten",
-  "05-eingang": "Eingang und E-Rechnung",
-  "06-papier": "Papier und Digitalisierung",
-  "07-ausgang": "Ausgang und Korrekturen",
-  "08-freigabe": "Prüfung und Freigabe",
-  "09-aufbewahrung": "Ablage und Aufbewahrung",
-  "10-berechtigungen": "Berechtigungen und Sicherung",
-  "11-kontrollen": "Internes Kontrollsystem",
-  "12-versionen": "Versionspflege",
-  "13-anlagen": "Mitgeltende Unterlagen",
+  "00-cover-freigabe": "Deckblatt",
+  "00b-dokumentenlenkung": "Dokumentenlenkung",
+  "01-zweck-geltung": "Zweck und Geltungsbereich",
+  "02-unternehmen-rollen": "Rollen",
+  "03-systeme-datenfluss": "Systemlandschaft",
+  "04-belegarten-kanaele": "Belegarten",
+  "05-eingang-erechnung": "Eingang und E-Rechnung",
+  "06-papier-digitalisierung": "Papier und Digitalisierung",
+  "07-ausgangsrechnungen": "Ausgang und Korrekturen",
+  "08-freigabe-buchung-status": "Prüfung und Freigabe",
+  "09-ablage-aufbewahrung": "Ablage und Aufbewahrung",
+  "10-berechtigungen-sicherung": "Berechtigungen und Sicherung",
+  "11-iks": "Internes Kontrollsystem",
+  "12-versionspflege": "Versionspflege",
+  "13-mitgeltende-unterlagen": "Mitgeltende Unterlagen",
   "14-offene-punkte": "Offene Punkte",
-  "15-anhang-a": "Anhang A Prozessmatrix",
-  "16-anhang-b": "Anhang B Begriffe",
+  "A-prozessmatrix": "Anhang A Prozessmatrix",
+  "B-begriffe": "Anhang B Begriffe",
 };
 
 /** PDF column. The intake does not collect a due date, so none is invented. */
@@ -210,7 +210,11 @@ export function evaluateOpenPoints(input: {
           : "includes" in rule && Array.isArray(rule.includes)
             ? rule.includes.filter((item): item is string => typeof item === "string")
             : [];
-      matches = tokens.some((token) => intakeValueContainsToken(value, token));
+      matches = tokens.some((token) =>
+        token.trim().toLowerCase() === "post"
+          ? intakeValueHasWord(value, token)
+          : intakeValueContainsToken(value, token),
+      );
     } else if (when === "unconfirmedScope") {
       matches = Boolean(field) && intakeValueHasUnconfirmedScope(value);
     } else if (when === "ersetzendOhnePapier") {
@@ -225,10 +229,8 @@ export function evaluateOpenPoints(input: {
     }
     if (!matches) continue;
     const text = rule.text;
-    const dueDate =
-      "dueDate" in rule && typeof rule.dueDate === "string" && rule.dueDate.trim()
-        ? rule.dueDate.trim()
-        : undefined;
+    const rawDue = "dueDate" in rule ? (rule.dueDate as unknown) : undefined;
+    const dueDate = typeof rawDue === "string" && rawDue.trim() ? rawDue.trim() : undefined;
     const priority =
       "priority" in rule &&
       (rule.priority === "hoch" || rule.priority === "mittel" || rule.priority === "niedrig")

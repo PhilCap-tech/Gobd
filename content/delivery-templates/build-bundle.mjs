@@ -10,13 +10,21 @@ const openPointsRules = JSON.parse(read("open-points-rules.json"));
 const disclaimer = read("disclaimer.txt").trim();
 const version = read("VERSION").trim();
 const coverChapter = schema.chapters.find(
-  (chapter) => chapter.role === "cover" || chapter.id === "00-cover",
+  (chapter) =>
+    chapter.role === "cover" ||
+    chapter.id === "00-cover" ||
+    chapter.id === "00-cover-freigabe",
 );
 const coverFile = coverChapter?.templateFile ?? "chapters/00-cover-freigabe.md";
 const coverMarkdown = read(coverFile);
 
 const chapters = schema.chapters
-  .filter((chapter) => chapter.role !== "cover" && chapter.id !== "00-cover")
+  .filter(
+    (chapter) =>
+      chapter.role !== "cover" &&
+      chapter.id !== "00-cover" &&
+      chapter.id !== "00-cover-freigabe",
+  )
   .map((chapter) => ({
     id: chapter.id,
     title: chapter.title,
@@ -34,6 +42,7 @@ const bundle = {
   coverMarkdown,
   chapters,
   openPointsRules,
+  defaultDocumentVersion: schema.defaultVersion ?? "1.0",
 };
 
 writeFileSync(join(root, "bundle.json"), `${JSON.stringify(bundle, null, 2)}\n`);

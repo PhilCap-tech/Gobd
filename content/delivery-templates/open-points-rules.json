@@ -1,5 +1,5 @@
 {
-  "version": "3.0.0",
+  "version": "4.0.0",
   "emptyValues": [
     "",
     null,
@@ -19,162 +19,284 @@
     {
       "id": "op-company",
       "field": "identity.company",
-      "chapter": "00-cover",
+      "chapter": "00-cover-freigabe",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Firmenname fehlt — Titel und Merkmalübersicht unvollständig."
+      "text": "Firmenname fehlt — Titel und Merkmalübersicht unvollständig.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-branchen",
       "field": "answers.branchen",
-      "chapter": "02-rollen",
+      "chapter": "00-cover-freigabe",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Branche(n) fehlen — Betriebsbeschreibung in der Merkmalübersicht unvollständig."
+      "text": "Branche(n) fehlen — Betriebsbeschreibung in der Merkmalübersicht unvollständig.",
+      "priority": "mittel",
+      "dueDate": null
     },
     {
       "id": "op-rechtsform",
       "field": "answers.rechtsform",
-      "chapter": "02-rollen",
+      "chapter": "00-cover-freigabe",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Rechtsform fehlt — bitte nachtragen."
+      "text": "Rechtsform fehlt — bitte nachtragen.",
+      "priority": "mittel",
+      "dueDate": null
     },
     {
       "id": "op-mitarbeitende",
       "field": "answers.mitarbeitende",
-      "chapter": "02-rollen",
+      "chapter": "00-cover-freigabe",
       "severity": "low",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Angabe zu Mitarbeitenden fehlt."
+      "text": "Angabe zu Mitarbeitenden fehlt.",
+      "priority": "niedrig",
+      "dueDate": null
     },
     {
       "id": "op-fibu",
       "field": "answers.fibu",
-      "chapter": "03-systeme",
+      "chapter": "03-systeme-datenfluss",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.buchhaltung",
-      "text": "FiBu-/Buchhaltungssoftware nicht angegeben — Systeme und Buchungsübergabe unklar."
+      "text": "FiBu-/Buchhaltungssoftware nicht angegeben — Systeme und Buchungsübergabe unklar.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-weitere-systeme",
       "field": "answers.weitereSysteme",
-      "chapter": "03-systeme",
+      "chapter": "03-systeme-datenfluss",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.buchhaltung",
-      "text": "Prüfen, ob weitere belegrelevante Vorsysteme oder Portale verwendet werden; erst danach Geltungsbereich bestätigen."
+      "text": "Prüfen, ob weitere belegrelevante Vorsysteme oder Portale verwendet werden; erst danach Geltungsbereich bestätigen.",
+      "priority": "mittel",
+      "dueDate": null
     },
     {
       "id": "op-eingangsbelege",
       "field": "answers.eingangsbelege",
-      "chapter": "05-eingang",
+      "chapter": "05-eingang-erechnung",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.buchhaltung",
-      "text": "Weg der Eingangsbelege fehlt — Eingang und Prüfung nicht parametrisierbar."
+      "text": "Weg der Eingangsbelege fehlt — Eingang und Prüfung nicht parametrisierbar.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-ausgangsrechnungen",
       "field": "answers.ausgangsrechnungen",
-      "chapter": "07-ausgang",
+      "chapter": "08-freigabe-buchung-status",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Weg der Ausgangsrechnungen fehlt — Erstellung und Nummerierung unvollständig."
+      "text": "Weg der Ausgangsrechnungen fehlt — Erstellung und Nummerierung unvollständig.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-archiv",
       "field": "answers.archiv",
-      "chapter": "09-aufbewahrung",
+      "chapter": "09-ablage-aufbewahrung",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.buchhaltung",
-      "text": "Archivierung der Belege nicht angegeben — Ablage und Langzeitarchiv unklar."
+      "text": "Archivierung der Belege nicht angegeben — Ablage und Langzeitarchiv unklar.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-hosting",
       "field": "answers.hosting",
-      "chapter": "10-berechtigungen",
+      "chapter": "09-ablage-aufbewahrung",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.it",
-      "text": "Hosting-Angabe fehlt — Aufbewahrungsort (Inland/EU/Drittland) ist zu bestätigen."
+      "text": "Hosting-Angabe fehlt — Aufbewahrungsort (Inland/EU/Drittland) ist zu bestätigen.",
+      "priority": "mittel",
+      "dueDate": null
     },
     {
       "id": "op-backup",
       "field": "answers.backup",
-      "chapter": "10-berechtigungen",
+      "chapter": "09-ablage-aufbewahrung",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.it",
-      "text": "Backup-Verfahren nicht angegeben — Sicherung gegen Verlust ist zu beschreiben."
+      "text": "Backup-Verfahren nicht angegeben — Sicherung gegen Verlust ist zu beschreiben.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-backup-test",
       "field": "answers.backup",
-      "chapter": "10-berechtigungen",
+      "chapter": "09-ablage-aufbewahrung",
       "severity": "high",
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Anbieterunterlagen zu Backup und Rücksicherung beiziehen und tatsächlichen Wiederherstellungstest dokumentieren."
+      "text": "Anbieterunterlagen zu Backup und Rücksicherung beiziehen und tatsächlichen Wiederherstellungstest dokumentieren.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-zugriff",
       "field": "answers.zugriff",
-      "chapter": "10-berechtigungen",
+      "chapter": "09-ablage-aufbewahrung",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Zugriff / Berechtigungskreis nicht angegeben."
+      "text": "Zugriff / Berechtigungskreis nicht angegeben.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-berechtigungsliste",
       "field": "answers.zugriff",
-      "chapter": "10-berechtigungen",
+      "chapter": "09-ablage-aufbewahrung",
       "severity": "medium",
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Berechtigungsliste als mitgeltende Unterlage ablegen."
+      "text": "Berechtigungsliste und Mandatsumfang der Kanzlei (soweit beteiligt) als mitgeltende Unterlagen ablegen.",
+      "priority": "mittel",
+      "dueDate": null
+    },
+    {
+      "id": "op-gf",
+      "field": "answers.gf",
+      "chapter": "00-cover-freigabe",
+      "severity": "high",
+      "when": "empty",
+      "customerFacing": true,
+      "responsibilityField": null,
+      "text": "Geschäftsführung / Gesamtverantwortung nicht benannt — Freigabe und Bestätigung offen.",
+      "priority": "hoch",
+      "dueDate": null
+    },
+    {
+      "id": "op-buchhaltung",
+      "field": "answers.buchhaltung",
+      "chapter": "00-cover-freigabe",
+      "severity": "high",
+      "when": "empty",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt.",
+      "priority": "hoch",
+      "dueDate": null
+    },
+    {
+      "id": "op-it",
+      "field": "answers.it",
+      "chapter": "00-cover-freigabe",
+      "severity": "medium",
+      "when": "empty",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "text": "IT-/Systemverantwortung nicht benannt — Backup und Rechteverwaltung unsicher.",
+      "priority": "mittel",
+      "dueDate": null
+    },
+    {
+      "id": "op-steuerberater",
+      "field": "answers.steuerberater",
+      "chapter": "00-cover-freigabe",
+      "severity": "low",
+      "when": "empty",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "text": "Steuerberatung nicht angegeben (nachtragen, falls an der Belegverarbeitung beteiligt).",
+      "priority": "niedrig",
+      "dueDate": null
+    },
+    {
+      "id": "op-erechnung-validierung",
+      "field": null,
+      "chapter": "05-eingang-erechnung",
+      "severity": "high",
+      "when": "always",
+      "customerFacing": true,
+      "responsibilityField": "answers.it",
+      "text": "Technische Prüfung strukturierter E-Rechnungen ist nicht bestätigt. Eine PDF- oder E-Mail-Rechnung ist damit nicht als strukturierte E-Rechnung beschrieben.",
+      "priority": "hoch",
+      "dueDate": null
+    },
+    {
+      "id": "op-kontrollprotokoll",
+      "field": null,
+      "chapter": "11-iks",
+      "severity": "medium",
+      "when": "always",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "text": "Kontrollroutine (z. B. Stichprobe) und Kontrollprotokoll betrieblich festlegen und dokumentieren — im Intake nicht bestätigt.",
+      "priority": "mittel",
+      "dueDate": null
+    },
+    {
+      "id": "op-papier-klarheit",
+      "field": "answers.eingangsbelege",
+      "chapter": "05-eingang-erechnung",
+      "severity": "low",
+      "when": "arrayContainsAny",
+      "tokens": [
+        "Papier",
+        "Post",
+        "Scan",
+        "Papierbeleg"
+      ],
+      "customerFacing": true,
+      "responsibilityField": "answers.buchhaltung",
+      "text": "Umgang mit Papieroriginalen klären (zusätzliche Verwahrung vs. dokumentiertes ersetzendes Scannen) und in einer Folgefassung bestätigen.",
+      "priority": "niedrig",
+      "dueDate": null
     },
     {
       "id": "op-f05-kanzlei-umfang",
       "field": "answers.steuerberater",
-      "chapter": "08-freigabe",
+      "chapter": "08-freigabe-buchung-status",
       "severity": "medium",
       "when": "unconfirmedScope",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung oder ein Mandatszugang wird nicht als gelebter Prozess angenommen."
+      "text": "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung oder ein Mandatszugang wird nicht als gelebter Prozess angenommen.",
+      "priority": "mittel",
+      "dueDate": null
     },
     {
       "id": "op-c02-sichtung",
       "field": null,
-      "chapter": "05-eingang",
+      "chapter": "05-eingang-erechnung",
       "severity": "medium",
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.buchhaltung",
-      "text": "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist im Intake nicht bestätigt."
+      "text": "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist im Intake nicht bestätigt.",
+      "priority": "mittel",
+      "dueDate": null
     },
     {
       "id": "op-d-ersetzend-ohne-papier",
@@ -186,135 +308,83 @@
         "answers.eingangsbelege",
         "answers.ausgangsrechnungen"
       ],
-      "chapter": "06-papier",
+      "chapter": "06-papier-digitalisierung",
       "severity": "high",
       "when": "ersetzendOhnePapier",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Hinweis vor der Verwendung: ersetzendes Scannen ist genannt, ein Papierweg aber nicht. Das ist zu klären, bevor ein Scanverfahren beschrieben wird. Keine Freigabe."
-    },
-    {
-      "id": "op-gf",
-      "field": "answers.gf",
-      "chapter": "02-rollen",
-      "severity": "high",
-      "when": "empty",
-      "customerFacing": true,
-      "responsibilityField": null,
-      "text": "Geschäftsführung / Gesamtverantwortung nicht benannt — Freigabe und Bestätigung offen."
-    },
-    {
-      "id": "op-buchhaltung",
-      "field": "answers.buchhaltung",
-      "chapter": "02-rollen",
-      "severity": "high",
-      "when": "empty",
-      "customerFacing": true,
-      "responsibilityField": "answers.gf",
-      "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt."
-    },
-    {
-      "id": "op-it",
-      "field": "answers.it",
-      "chapter": "02-rollen",
-      "severity": "medium",
-      "when": "empty",
-      "customerFacing": true,
-      "responsibilityField": "answers.gf",
-      "text": "IT-/Systemverantwortung nicht benannt — Backup und Rechteverwaltung unsicher."
-    },
-    {
-      "id": "op-steuerberater",
-      "field": "answers.steuerberater",
-      "chapter": "02-rollen",
-      "severity": "low",
-      "when": "empty",
-      "customerFacing": true,
-      "responsibilityField": "answers.gf",
-      "text": "Steuerberatung nicht angegeben (nachtragen, falls an der Belegverarbeitung beteiligt)."
-    },
-    {
-      "id": "op-erechnung-validierung",
-      "field": null,
-      "chapter": "05-eingang",
-      "severity": "high",
-      "when": "always",
-      "customerFacing": true,
-      "responsibilityField": "answers.it",
-      "text": "Technische Prüfung strukturierter E-Rechnungen ist nicht bestätigt. Eine PDF- oder E-Mail-Rechnung ist damit nicht als strukturierte E-Rechnung beschrieben."
-    },
-    {
-      "id": "op-kontrollprotokoll",
-      "field": null,
-      "chapter": "11-kontrollen",
-      "severity": "medium",
-      "when": "always",
-      "customerFacing": true,
-      "responsibilityField": "answers.gf",
-      "text": "Kontrollroutine (z. B. Stichprobe) und Kontrollprotokoll betrieblich festlegen und dokumentieren — im Intake nicht bestätigt."
-    },
-    {
-      "id": "op-papier-klarheit",
-      "field": "answers.eingangsbelege",
-      "chapter": "06-papier",
-      "severity": "low",
-      "when": "arrayContainsAny",
-      "tokens": [
-        "Papier",
-        "Post",
-        "Scan",
-        "Papierbeleg"
-      ],
-      "customerFacing": true,
-      "responsibilityField": "answers.buchhaltung",
-      "text": "Umgang mit Papieroriginalen klären (zusätzliche Verwahrung vs. dokumentiertes ersetzendes Scannen) und in einer Folgefassung bestätigen."
+      "text": "Hinweis vor der Verwendung: ersetzendes Scannen ist genannt, ein Papierweg aber nicht. Das ist zu klären, bevor ein Scanverfahren beschrieben wird. Keine Freigabe.",
+      "priority": "hoch",
+      "dueDate": null
     },
     {
       "id": "op-loeschfrist",
       "field": null,
-      "chapter": "09-aufbewahrung",
+      "chapter": "09-ablage-aufbewahrung",
       "severity": "medium",
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Fristüberwachung und Freigabe vor Löschung sind nicht als gelebte Praxis bestätigt."
+      "text": "Fristüberwachung und Freigabe vor Löschung sind nicht als gelebte Praxis bestätigt.",
+      "priority": "mittel",
+      "dueDate": null
     },
     {
       "id": "op-notfall",
       "field": null,
-      "chapter": "10-berechtigungen",
+      "chapter": "10-berechtigungen-sicherung",
       "severity": "medium",
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Notfallweg bei Ausfall von Postfach oder Archiv ist im Intake nicht beschrieben."
+      "text": "Notfallweg bei Ausfall von Postfach oder Archiv ist im Intake nicht beschrieben.",
+      "priority": "mittel",
+      "dueDate": null
     },
     {
       "id": "op-email-internal",
       "field": "identity.email",
-      "chapter": "00-cover",
+      "chapter": "00-cover-freigabe",
       "severity": "low",
       "when": "empty",
       "customerFacing": false,
-      "text": "Kontakt-E-Mail fehlt in der Identität (nur intern / Delivery)."
+      "text": "Kontakt-E-Mail fehlt in der Identität (nur intern / Delivery).",
+      "priority": "niedrig",
+      "dueDate": null
     },
     {
       "id": "op-stripe-session-internal",
       "field": "identity.stripeSessionId",
-      "chapter": "00-cover",
+      "chapter": "00-cover-freigabe",
       "severity": "low",
       "when": "empty",
       "customerFacing": false,
-      "text": "Stripe-Session-Referenz fehlt (nur intern / Delivery)."
+      "text": "Stripe-Session-Referenz fehlt (nur intern / Delivery).",
+      "priority": "niedrig",
+      "dueDate": null
     },
     {
       "id": "op-stripe-customer-internal",
       "field": "identity.stripeCustomerId",
-      "chapter": "00-cover",
+      "chapter": "00-cover-freigabe",
       "severity": "low",
       "when": "empty",
       "customerFacing": false,
-      "text": "Stripe-Kundenreferenz fehlt (nur intern / Delivery)."
+      "text": "Stripe-Kundenreferenz fehlt (nur intern / Delivery).",
+      "priority": "niedrig",
+      "dueDate": null
+    },
+    {
+      "id": "op-iks-kontrollen",
+      "field": null,
+      "chapter": "11-iks",
+      "severity": "medium",
+      "priority": "mittel",
+      "when": "always",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "dueDate": null,
+      "text": "Konkrete Kontrollen (Turnus, Verantwortliche, Nachweis) bestätigen — IKS-Tabelle nur mit bestätigten Kontrollen füllen."
     }
   ],
   "outputItemShape": {
@@ -322,12 +392,15 @@
     "priority": "hoch|mittel|niedrig",
     "text": "string",
     "responsibility": "string",
-    "dueDate": "optional string; omit when the intake sets no date"
+    "dueDate": "string|null",
+    "chapter": "chapter-id",
+    "field": "dotted.path",
+    "customerFacing": true
   },
   "whenSemantics": {
     "empty": "Field missing, null, empty string/array, or value in emptyValues",
     "always": "Always emit (claim-safety OP); still respect customerFacing",
-    "arrayContainsAny": "Emit when field array/string contains any of tokens (case-insensitive substring; Papier does not match Scan)",
+    "arrayContainsAny": "Emit when field array/string contains any of tokens (case-insensitive, alias-aware)",
     "unconfirmedScope": "Non-empty field contains zu bestätigen, unbekannt, geplant, or nicht zutreffend. Exact empty labels stay on when=empty.",
     "ersetzendOhnePapier": "Named fields mention ersetzend and none mention a paper path (Papier/Papierbeleg, or the word Post). Not a general contradiction engine and not a Freigabe."
   }

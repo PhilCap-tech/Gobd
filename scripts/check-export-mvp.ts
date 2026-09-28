@@ -40,11 +40,11 @@ const musterDoc = renderDeliveryDocument({
 });
 const muster = [musterDoc.cover, ...musterDoc.chapters.map((chapter) => chapter.body)].join("\n");
 expect(
-  !musterDoc.chapters.some((chapter) => chapter.id === "06-papier"),
+  !musterDoc.chapters.some((chapter) => chapter.id === "06-papier-digitalisierung"),
   "digital fixture omits paper chapter",
 );
 expect(
-  musterDoc.chapters.some((chapter) => chapter.id === "dl-dokumentenlenkung"),
+  musterDoc.chapters.some((chapter) => chapter.id === "00b-dokumentenlenkung"),
   "document control chapter",
 );
 const musterIds = ids(PARTNER_MUSTER_ANSWERS);

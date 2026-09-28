@@ -1,142 +1,127 @@
 {
-  "version": "3.0.0",
+  "version": "4.0.0",
   "disclaimer": "Hinweis: Diese Verfahrensdokumentation wurde aus bestätigten Angaben des Kunden-Intakes erzeugt. Sätze im Präsens beschreiben nur bestätigte Abläufe. Fehlende oder unklare Angaben erscheinen als Hinweis oder offener Punkt. Das Dokument ist eine Arbeitshilfe und ersetzt keine steuerliche oder rechtliche Beratung. Es bestätigt nicht die GoBD-Konformität. Die automatische Generierung ersetzt nicht die betriebliche Bestätigung durch die Geschäftsleitung. Bei prüfungsrelevanten Fragen ist ein Steuerberater oder Rechtsanwalt hinzuzuziehen.",
   "coverFile": "chapters/00-cover-freigabe.md",
   "coverMarkdown": "# Verfahrensdokumentation zur Belegablage\n\n**{{identity.company | or \"zu bestätigen\"}}**  \nFassung {{version}}  |  erzeugt am {{generatedAt}}\n{{#if validFrom}}Gültig ab {{validFrom}}\n{{/if}}{{#if changeSummary}}Änderung: {{changeSummary}}\n{{/if}}\n\nDieses Dokument beschreibt den Belegweg auf Grundlage der im Intake bestätigten Angaben. Präsens-Aussagen gelten nur, soweit die jeweilige Angabe bestätigt ist. Fehlende oder unklare Sachverhalte erscheinen als Hinweis oder offener Punkt. Das Dokument ist keine steuerliche oder rechtliche Beratung und **keine** Bestätigung der GoBD-Konformität. Die automatische Generierung ersetzt **nicht** die betriebliche Bestätigung durch die Geschäftsleitung.\n\n## Dokumentmerkmale\n\n| Dokumentmerkmal | Angabe |\n| --- | --- |\n| Unternehmen | {{identity.company | or \"zu bestätigen\"}}{{#if answers.branchen}}, {{answers.branchen | join \", \"}}{{/if}}{{#if answers.rechtsform}}, {{answers.rechtsform}}{{/if}}{{#if answers.mitarbeitende}}, Mitarbeitende: {{answers.mitarbeitende}}{{/if}} |\n| Geschäftsführung | {{answers.gf | or \"zu bestätigen\"}} |\n| Buchhaltung | {{answers.buchhaltung | or \"zu bestätigen\"}} |\n| Externe Kanzlei | {{answers.steuerberater | or \"zu bestätigen (soweit beteiligt)\"}} |\n| Geltungsbereich | Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung im beschriebenen Umfang |\n| Ausgeschlossen | Kasse, Warenwirtschaft, Lohnabrechnung und branchenspezifische Fachverfahren, soweit im Intake nicht ausdrücklich einbezogen |\n| Status | Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend |\n\n## Freigabevermerk\n\nBei einem realen Betrieb bestätigt die Geschäftsleitung an dieser Stelle, dass die beschriebenen Abläufe der tatsächlichen Praxis entsprechen. Automatische Erzeugung und fachliche Hinweise ersetzen diese betriebliche Prüfung nicht.\n\n| Rolle | Name | Datum | Status |\n| --- | --- | --- | --- |\n| Geschäftsleitung | {{answers.gf | or \"________________\"}} | ________________ | ausstehend |\n| Dokumentationsverantwortung | {{answers.buchhaltung | or \"________________\"}} | ________________ | ausstehend |\n\n{{disclaimer}}\n",
   "chapters": [
     {
-      "id": "dl-dokumentenlenkung",
+      "id": "00b-dokumentenlenkung",
       "title": "Dokumentenlenkung",
       "file": "chapters/00b-dokumentenlenkung.md",
-      "includeIf": true,
       "markdown": "# Dokumentenlenkung\n\n| Feld | Inhalt |\n| --- | --- |\n| Dokument-ID | {{documentId | or \"VD-BELEG-(zu vergeben)\"}} |\n| Version | {{version}} |\n| Gültig ab | *(von der Geschäftsleitung festzulegen)* |\n| Nächste planmäßige Prüfung | *(zu planen, z. B. ein Jahr nach Gültig-ab)* |\n| Speicherort | {{answers.archiv | or \"zu bestätigen\"}} / Organisationsablage Verfahrensdokumentation |\n| Vorversion | Keine; Erstfassung — sofern eine Vorfassung existiert, ist sie hier zu benennen |\n| Änderungsanlass | Erstmalige Beschreibung aus Kunden-Intake bzw. angegebener Anlass |\n\n## Inhaltsübersicht\n\n1 Zweck, Geltungsbereich und Verantwortung  \n2 Unternehmen, Rollen und Aufgaben  \n3 Systemlandschaft und Datenfluss  \n4 Belegarten und Eingangskanäle  \n5 Eingangsrechnungen und E-Rechnungen  \n6 Papierbelege und Digitalisierung *(nur wenn Papierweg bestätigt)*  \n7 Ausgangsrechnungen und Korrekturen  \n8 Prüfung, Freigabe und Buchungsübergabe  \n9 Ablage, Aufbewahrung und Datenzugriff  \n10 Berechtigungen, Sicherung und Notfall  \n11 Internes Kontrollsystem  \n12 Versionspflege und Änderungen  \n13 Mitgeltende Unterlagen  \n14 Offene Punkte und Maßnahmen  \nAnhang A Prozessmatrix · Anhang B Begriffserläuterungen\n"
     },
     {
-      "id": "01-zweck",
+      "id": "01-zweck-geltung",
       "title": "1 Zweck, Geltungsbereich und Verantwortung",
       "file": "chapters/01-zweck-geltung.md",
-      "includeIf": true,
       "markdown": "# 1 Zweck, Geltungsbereich und Verantwortung\n\n## 1.1 Zweck\n\nDie Dokumentation macht den Weg steuerlich und handelsrechtlich relevanter Belege nachvollziehbar: vom Eingang oder der Erstellung über Prüfung, Freigabe und Übergabe zur Buchung bis zur geordneten Aufbewahrung und späteren Löschung. Ein sachverständiger Dritter soll die beschriebenen Abläufe, Systeme, Verantwortlichkeiten und Kontrollen innerhalb angemessener Zeit verstehen können.\n\n## 1.2 Geltungsbereich\n\nErfasst werden die Prozesse von {{identity.company | or \"dem Unternehmen (zu bestätigen)\"}} im vom Intake beschriebenen Umfang. Dazu gehören die bestätigten Eingangswege, Ausgangsrechnungen und die Übergabe zur Buchung sowie die Aufbewahrung.\n\nNicht erfasst sind Bargeldkassen, Warenwirtschaft, Lohnabrechnung und andere Fachverfahren, soweit sie im Intake nicht ausdrücklich einbezogen sind. Sollte künftig eines dieser Verfahren eingeführt werden, ist der Geltungsbereich vor produktiver Nutzung zu erweitern.\n\n## 1.3 Verantwortung\n\nDie Gesamtverantwortung liegt bei der Geschäftsführung{{#if answers.gf}} ({{answers.gf}}){{/if}}. {{#if answers.steuerberater}}Die externe Kanzlei ({{answers.steuerberater}}) unterstützt im vereinbarten Leistungsumfang.{{/if}}{{#unless answers.steuerberater}}Sofern eine externe Kanzlei beteiligt ist, ist deren Leistungsumfang zu bestätigen.{{/unless}} Die Verantwortung des Unternehmens für Vollständigkeit, tatsächliche Durchführung, Aufbewahrung und Aktualisierung bleibt bestehen.\n\n## 1.4 Fachliche Grundlage\n\nDie Dokumentation orientiert sich an den Grundsätzen der Nachvollziehbarkeit und Nachprüfbarkeit, Vollständigkeit, Richtigkeit, zeitgerechten Erfassung, Ordnung und Unveränderbarkeit. Sie enthält allgemeine fachliche Hinweise und betriebsbezogene Ist-Aussagen. Allgemeine Hinweise sind nicht als Bestätigung der konkreten Umsetzung zu lesen.\n"
     },
     {
-      "id": "02-rollen",
+      "id": "02-unternehmen-rollen",
       "title": "2 Unternehmen, Rollen und Aufgaben",
       "file": "chapters/02-unternehmen-rollen.md",
-      "includeIf": true,
       "markdown": "# 2 Unternehmen, Rollen und Aufgaben\n\n## 2.1 Organisatorischer Rahmen\n\n{{identity.company | or \"Das Unternehmen\"}}{{#if answers.branchen}} erbringt Leistungen im Bereich {{answers.branchen | join \", \"}}{{/if}}{{#if answers.rechtsform}} ({{answers.rechtsform}}){{/if}}.{{#if answers.mitarbeitende}} Mitarbeitende laut Intake: {{answers.mitarbeitende}}.{{/if}}{{#unless answers.mitarbeitende}} Die organisatorische Größe ist zu bestätigen.{{/unless}} Die Belegbearbeitung wird von den benannten Rollen ausgeführt; die Funktionstrennung wird durch Freigaben und Kontrollen der Geschäftsführung ergänzt, soweit bestätigt.\n\n## 2.2 Rollenmatrix\n\n| Prozessschritt | Ausführung | Kontrolle oder Entscheidung |\n| --- | --- | --- |\n| E-Mail-Postfach / Eingang sichten | {{answers.buchhaltung | or \"zu benennen\"}} | Vertretung: {{answers.gf | or \"zu benennen\"}} |\n{{#if answers.eingangsbelege contains \"Papier\"}}| Papierpost entgegennehmen | {{answers.buchhaltung | or \"zu benennen\"}} | {{answers.gf | or \"zu benennen\"}} bei Unklarheiten |{{/if}}\n| Sachliche Rechnungsprüfung | {{answers.gf | or \"zu benennen\"}} | keine Selbstfreigabe eigener Auslagen |\n| Belege bereitstellen | {{answers.buchhaltung | or \"zu benennen\"}} | Vollständigkeitsabgleich (Turnus zu bestätigen) |\n| Buchung | {{answers.steuerberater | or \"interne Buchung / Kanzlei (zu bestätigen)\"}} | gemäß Mandats- bzw. Aufgabenvereinbarung |\n| Rechte vergeben oder entziehen | {{answers.gf | or \"zu benennen\"}} | Dokumentation in Berechtigungsliste |\n| Löschung freigeben | {{answers.gf | or \"zu benennen\"}} | vorherige Fristenprüfung |\n| Dokument aktualisieren | {{answers.buchhaltung | or \"zu benennen\"}} | Bestätigung durch {{answers.gf | or \"die Geschäftsführung\"}} |\n\n## 2.3 Vertretung\n\nBei Abwesenheit der buchhaltungsverantwortlichen Person übernimmt {{answers.gf | or \"die Geschäftsführung (zu benennen)\"}} die Sichtung und Weiterleitung, soweit so vorgesehen. Änderungen an Rollen werden spätestens am Tag ihres Wirksamwerdens dokumentiert. Ausgeschiedene Personen verlieren ihre Zugriffsrechte unverzüglich.\n"
     },
     {
-      "id": "03-systeme",
+      "id": "03-systeme-datenfluss",
       "title": "3 Systemlandschaft und Datenfluss",
       "file": "chapters/03-systeme-datenfluss.md",
-      "includeIf": true,
       "markdown": "# 3 Systemlandschaft und Datenfluss\n\n## 3.1 Verwendete Systeme\n\n| System | Funktion | Verantwortung | Aufbewahrungsbezug |\n| --- | --- | --- | --- |\n{{#if answers.weitereSysteme}}| Eingangskanal / Vorsysteme (laut Intake) | {{answers.weitereSysteme}} | {{answers.buchhaltung | or \"zu benennen\"}} | Belegrelevante Zusatzangaben werden mitgesichert, soweit vorhanden |\n{{/if}}{{#if answers.ausgangsrechnungen}}| {{answers.ausgangsrechnungen | join \", \"}} | Erstellung und Versand von Ausgangsrechnungen | {{answers.gf | or \"zu benennen\"}} | Exportierte Originalfassung und Korrekturen |\n{{/if}}{{#if answers.archiv}}| {{answers.archiv}} | Belegablage, Beleg-ID und Übergabe | {{answers.buchhaltung | or \"zu benennen\"}} | Zentraler Ablageort der beschriebenen Belege |\n{{/if}}{{#if answers.fibu}}| {{answers.fibu | join \", \"}} | Buchung / Finanzbuchhaltung | {{answers.steuerberater | or \"Buchung intern bzw. Kanzlei (zu bestätigen)\"}} | Verknüpfung von Buchung und Beleg-ID |\n{{/if}}{{#if answers.hosting}}| Hosting | {{answers.hosting}} | {{answers.it | or answers.gf | or \"zu benennen\"}} | Technische Betriebsplattform der genannten Systeme |\n{{/if}}\n\n{{#unless answers.fibu}}*FiBu-/Buchhaltungssystem ist im Intake nicht angegeben — siehe offene Punkte.*{{/unless}}\n{{#unless answers.archiv}}*Ablage-/Archivsystem ist im Intake nicht angegeben — siehe offene Punkte.*{{/unless}}\n\n## 3.2 Datenfluss\n\nEingehende Dateien werden aus dem bestätigten Eingangskanal unverändert in {{answers.archiv | or \"das Archiv (zu bestätigen)\"}} übernommen. {{answers.buchhaltung | or \"Die Buchhaltung (Person ist zu benennen)\"}} ordnet Belegart und Zeitraum zu. Nach sachlicher Freigabe stellt sie den Beleg zur Buchung bereit. Die Buchung erfolgt über {{answers.fibu | join \", \" | or \"das FiBu-System (zu bestätigen)\"}}{{#if answers.steuerberater}} durch {{answers.steuerberater}} im vereinbarten Umfang{{/if}}. Die Beleg-ID verbindet Buchung und Beleg, soweit das System dies unterstützt. Rückfragen werden im vereinbarten Kommunikationskanal geklärt; relevante Ergänzungen werden am Vorgang dokumentiert.\n\n## 3.3 Vorsysteme\n\n{{#if answers.weitereSysteme}}Laut Intake genannte weitere Systeme / Kanäle: {{answers.weitereSysteme}}. Ob darüber hinaus Portale, Apps, Tabellen oder Plattformen belegrelevant sind, ist periodisch zu prüfen.{{/if}}\n{{#unless answers.weitereSysteme}}Weitere Vorsysteme sind im Intake nicht bestätigt. Vertragsunterlagen oder Zahlungsnachweise werden als mitgeltende Unterlagen aufgenommen, wenn der Beleg allein den Geschäftsvorfall nicht ausreichend erklärt. Die jährliche Systemprüfung fragt ausdrücklich nach neuen Portalen, Apps, Tabellen oder Plattformen — siehe offene Punkte.{{/unless}}\n"
     },
     {
-      "id": "04-belegarten",
+      "id": "04-belegarten-kanaele",
       "title": "4 Belegarten und Eingangskanäle",
       "file": "chapters/04-belegarten-kanaele.md",
-      "includeIf": true,
       "markdown": "# 4 Belegarten und Eingangskanäle\n\nNur bestätigte Kanäle erscheinen als Zeilen. Fehlende oder unklare Wege werden als offene Punkte geführt, nicht als gelebte Praxis.\n\n## 4.1 Belegübersicht\n\n| Belegart | Eingang oder Entstehung | Original | Ablage |\n| --- | --- | --- | --- |\n{{#if answers.eingangsbelege contains \"E-Mail\"}}| PDF-Eingangsrechnung (E-Mail) | Funktionspostfach / E-Mail | empfangene PDF-Datei | {{answers.archiv | or \"zu bestätigen\"}} |\n{{/if}}{{#if answers.eingangsbelege contains \"PDF\"}}{{#unless answers.eingangsbelege contains \"E-Mail\"}}| PDF-Eingangsrechnung | digitaler Eingang | empfangene PDF-Datei | {{answers.archiv | or \"zu bestätigen\"}} |\n{{/unless}}{{/if}}{{#if answers.eingangsbelege contains \"E-Rechnung\"}}| XRechnung oder ZUGFeRD / strukturierte E-Rechnung | digitaler Eingang | strukturierter Teil in empfangener Form | {{answers.archiv | or \"zu bestätigen\"}} |\n{{/if}}{{#if answers.eingangsbelege contains \"ZUGFeRD\"}}{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}| ZUGFeRD | digitaler Eingang | strukturierter Teil in empfangener Form | {{answers.archiv | or \"zu bestätigen\"}} |\n{{/unless}}{{/if}}{{#if answers.eingangsbelege contains \"XRechnung\"}}{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}| XRechnung | digitaler Eingang | XML in empfangener Form | {{answers.archiv | or \"zu bestätigen\"}} |\n{{/unless}}{{/if}}{{#if answers.eingangsbelege contains \"Papier\"}}| Papierbeleg | Post oder persönliche Übergabe | Papieroriginal; Scan als Bearbeitungskopie | Jahresordner und {{answers.archiv | or \"digitale Ablage (zu bestätigen)\"}} |\n{{/if}}{{#if answers.eingangsbelege contains \"Scan\"}}{{#unless answers.eingangsbelege contains \"Papier\"}}| Papierbeleg mit Scan | Scan zur Bearbeitung | Scan; Umgang mit Papieroriginal zu bestätigen | {{answers.archiv | or \"zu bestätigen\"}} |\n{{/unless}}{{/if}}{{#if answers.eingangsbelege contains \"Portal\"}}| Portal / Download | genanntes Portal | empfangene Datei | {{answers.archiv | or \"zu bestätigen\"}} |\n{{/if}}{{#if answers.ausgangsrechnungen}}| Ausgangsrechnung | {{answers.ausgangsrechnungen | join \", \"}} | exportierte, versandte Fassung | {{answers.archiv | or \"zu bestätigen\"}} |\n{{/if}}\n\n{{#unless answers.eingangsbelege}}*Eingangswege sind im Intake nicht angegeben — siehe offene Punkte.*{{/unless}}\n{{#unless answers.eingangsbelege contains \"Papier\"}}{{#unless answers.eingangsbelege contains \"Scan\"}}*Papierweg laut Intake nicht genannt — Kapitel 6 entfällt.*{{/unless}}{{/unless}}\n\n## 4.2 Vollständigkeit\n\n{{answers.buchhaltung | or \"Die Buchhaltung (Person ist zu benennen)\"}} prüft an Arbeitstagen den bestätigten Eingangskanal und in geeignetem Turnus, ob regelmäßig genutzte Portale oder Zahlungswege vollständig berücksichtigt wurden. Nicht zuordenbare Dateien werden nicht gelöscht, sondern bis zur Klärung in einem gesonderten Status gehalten.\n\n## 4.3 Belegrelevante Zusatzinformationen\n\nEnthält eine E-Mail Angaben, die für Verständnis, Prüfung oder Freigabe des Geschäftsvorfalls erforderlich sind, wird auch diese Nachricht oder ein nachvollziehbarer Export aufbewahrt. Reine Transportnachrichten ohne Belegfunktion werden nicht pauschal als Buchungsbeleg behandelt.\n"
     },
     {
-      "id": "05-eingang",
+      "id": "05-eingang-erechnung",
       "title": "5 Eingangsrechnungen und E-Rechnungen",
       "file": "chapters/05-eingang-erechnung.md",
-      "includeIf": true,
       "markdown": "# 5 Eingangsrechnungen und E-Rechnungen\n\n## 5.1 Eingang und erste Prüfung\n\n{{answers.buchhaltung | or \"Die Buchhaltung (Person ist zu benennen)\"}} prüft Absender, Dateiformat, Lesbarkeit und offensichtliche Vollständigkeit. Verdächtige Anhänge werden nicht geöffnet oder weiterverarbeitet. Dubletten, falsche Empfänger oder fehlende Seiten werden vor Freigabe geklärt. Die empfangene Originaldatei bleibt unverändert.\n\n{{#if answers.eingangsbelege contains \"E-Mail\"}}\n### E-Mail- und PDF-Eingang\n\nEingangsrechnungen per E-Mail werden anhand Absender, Leistung, Betrag und vorhandener Bestellung bzw. Vertragsunterlage geprüft. Die Originaldatei wird unverändert nach {{answers.archiv | or \"dem Archiv (zu bestätigen)\"}} übernommen. Belegrelevante Transportnachrichten werden mitaufbewahrt, soweit vorhanden.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"PDF\"}}\n{{#unless answers.eingangsbelege contains \"E-Mail\"}}\n### PDF-Eingang\n\nPDF-Eingangsbelege werden auf Vollständigkeit und Nachvollziehbarkeit geprüft und unverändert abgelegt.\n{{/unless}}\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"E-Rechnung\"}}\n## 5.2 Strukturierte E-Rechnungen\n\nBei strukturierten elektronischen Rechnungen ist die empfangene maschinenlesbare Datei (z. B. XML bzw. der strukturierte Anteil bei ZUGFeRD) das aufbewahrungspflichtige Original in dem Format, in dem sie empfangen wurde. Eine PDF- oder Bildschirmansicht dient nur der Lesbarkeit und ersetzt die strukturierte Originaldatei nicht. Abweichungen zwischen Ansicht und strukturiertem Inhalt werden vor einer Freigabe geklärt. Die konkrete technische Validierung und deren Nachweisführung sind nur dann als gelebter Prozess zu beschreiben, wenn sie im Intake bestätigt sind — andernfalls als offener Punkt.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"ZUGFeRD\"}}\n{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}\n## 5.2 Strukturierte E-Rechnungen (ZUGFeRD)\n\nDie empfangene Originaldatei bleibt erhalten; die Ansicht ersetzt nicht den strukturierten Teil. Technische Validierung und Protokollierung: siehe offene Punkte, sofern nicht gesondert bestätigt.\n{{/unless}}\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"XRechnung\"}}\n{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}\n## 5.2 Strukturierte E-Rechnungen (XRechnung)\n\nDie empfangene XML-Datei wird im ursprünglichen Format aufbewahrt. Technische Validierung und Protokollierung: siehe offene Punkte, sofern nicht gesondert bestätigt.\n{{/unless}}\n{{/if}}\n\n{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}\n{{#unless answers.eingangsbelege contains \"ZUGFeRD\"}}\n{{#unless answers.eingangsbelege contains \"XRechnung\"}}\n## 5.2 Strukturierte E-Rechnungen\n\nOb strukturierte E-Rechnungen empfangen und wie sie technisch geprüft werden, ist aus dem Intake nicht bestätigt und bleibt zu beschreiben. Eine reine PDF per E-Mail ist nicht mit einer strukturierten E-Rechnung gleichzusetzen.\n{{/unless}}\n{{/unless}}\n{{/unless}}\n\n## 5.3 Sachliche Prüfung und Freigabe\n\n{{answers.gf | or \"Die Geschäftsführung (Person ist zu benennen)\"}} prüft Leistungsbezug, Liefer- oder Leistungszeitraum, Betrag, Zahlungskonditionen und Bezug zu Bestellung oder Vertrag. Eigene Auslagen werden nicht selbst freigegeben. Abweichungen werden dokumentiert und vor Weitergabe zur Buchung geklärt.\n\n## 5.4 Ausnahmen\n\n| Fall | Behandlung |\n| --- | --- |\n| Dublettenverdacht | Beleg sperren, vorhandene Beleg-ID suchen, Ergebnis dokumentieren |\n| Unlesbare oder defekte Datei | neue Datei beim Absender anfordern; defekte Eingangsdatei bis zur Klärung erhalten |\n| XML und Sichtdarstellung weichen ab | keine Freigabe; strukturierte Daten prüfen und Absender kontaktieren |\n| Unbekannter Absender | Leistungsbezug und Authentizität klären |\n| Gutschrift oder Korrektur | Bezug zur Ursprungsrechnung herstellen und beide Fassungen erhalten |\n\n{{#unless answers.eingangsbelege}}\n*Eingangswege fehlen im Intake — Prüfung und Vorsortierung sind zu beschreiben (offener Punkt).*\n{{/unless}}\n"
     },
     {
-      "id": "06-papier",
+      "id": "06-papier-digitalisierung",
       "title": "6 Papierbelege und Digitalisierung",
       "file": "chapters/06-papier-digitalisierung.md",
       "includeIf": {
-        "anyTokenIn": [
-          {
-            "path": "answers.eingangsbelege",
-            "tokens": [
-              "Papier",
-              "Scan",
-              "Papierbeleg"
-            ]
-          }
+        "containsAny": [
+          "answers.eingangsbelege",
+          [
+            "Papier",
+            "Post",
+            "Scan"
+          ]
         ]
       },
       "markdown": "# 6 Papierbelege und Digitalisierung\n\n## 6.1 Posteingang\n\n{{answers.buchhaltung | or \"Die Buchhaltung (Person ist zu benennen)\"}} versieht eingehende Papierbelege mit dem Eingangsdatum, prüft die Vollständigkeit und legt sie bis zur Bearbeitung in einer gekennzeichneten Eingangsmappe ab. Schutzwürdige Post wird ungeöffnet an die benannte Person weitergegeben.\n\n## 6.2 Digitalisierung\n\nPapierbelege werden für die Bearbeitung gescannt. Der Scan wird auf Lesbarkeit, Vollständigkeit, richtige Ausrichtung und Seitenzahl geprüft und anschließend in {{answers.archiv | or \"die digitale Ablage (zu bestätigen)\"}} abgelegt. Der Dateiname oder die Beleg-ID ermöglicht die Zuordnung zum Papieroriginal.\n\n## 6.3 Keine ersetzende Vernichtung (Standardhinweis)\n\nSolange kein dokumentiertes ersetzendes Scanverfahren bestätigt ist, bleibt das Papieroriginal erhalten. Es werden keine Aussagen getroffen, dass Originale nach dem Scan vernichtet werden dürfen. Eine spätere Umstellung erfordert einen eigenen, detaillierten Prozess, geeignete Kontrollen und eine neue Fassung.\n\n## 6.4 Papierablage\n\nPapieroriginale werden nach Jahr, Monat und Belegart geordnet verwahrt. Zugriff haben die berechtigten Personen laut {{answers.zugriff | or \"Zugriffskreis (zu bestätigen)\"}}. Entnahmen erfolgen nur für betriebliche Zwecke; anschließend wird der Beleg unverzüglich zurückgelegt. Ort und Ordnung der Papierablage sind zu bestätigen, soweit nicht im Intake spezifiziert — siehe offene Punkte.\n"
     },
     {
-      "id": "07-ausgang",
+      "id": "07-ausgangsrechnungen",
       "title": "7 Ausgangsrechnungen und Korrekturen",
       "file": "chapters/07-ausgangsrechnungen.md",
-      "includeIf": true,
+      "includeIf": {
+        "pathNonEmpty": "answers.ausgangsrechnungen"
+      },
       "markdown": "# 7 Ausgangsrechnungen und Korrekturen\n\n{{#if answers.ausgangsrechnungen}}\n## 7.1 Erstellung\n\n{{answers.gf | or \"Die Geschäftsführung (Person ist zu benennen)\"}} erstellt Ausgangsrechnungen in {{answers.ausgangsrechnungen | join \", \"}}. Das System vergibt fortlaufende Rechnungsnummern, soweit so vorgesehen. Vor Versand werden Empfänger, Leistungsbeschreibung, Leistungsdatum, Betrag und Zahlungsbedingungen geprüft. Die versandte Fassung wird exportiert und geordnet in {{answers.archiv | or \"der Ablage (zu bestätigen)\"}} abgelegt.\n\n## 7.2 Versand und Nachweis\n\nDer Versand erfolgt per E-Mail oder als strukturierte E-Rechnung, sofern dies für den Vorgang vorgesehen ist. Der Übermittlungsweg wird am Vorgang dokumentiert. Rückläufer oder technische Fehler werden geklärt; ein bloßer Versandversuch gilt nicht als erfolgreicher Zugang.\n\n## 7.3 Berichtigung und Storno\n\nBereits versandte Rechnungen werden nicht überschrieben. Eine Korrektur oder ein Storno erhält eine eigene nachvollziehbare Fassung und wird mit der ursprünglichen Rechnung verknüpft. Der Anlass wird kurz dokumentiert. Nummernlücken werden nicht durch Löschen verdeckt, sondern erklärt.\n\n## 7.4 Eigenbelege\n\nFehlt ausnahmsweise ein Fremdbeleg, entscheidet {{answers.gf | or \"die Geschäftsführung\"}} über die Erstellung eines Eigenbelegs. Der Eigenbeleg beschreibt Geschäftsvorfall, Betrag, Datum, Beteiligte und Grund für das Fehlen des Fremdbelegs; verfügbare Nachweise werden beigefügt. Diese Ausnahme wird nicht zum Regelprozess.\n{{/if}}\n{{#unless answers.ausgangsrechnungen}}\n*Weg der Ausgangsrechnungen ist im Intake nicht angegeben — Erstellung, Nummerierung und Korrekturverfahren sind zu beschreiben (offener Punkt).*\n{{/unless}}\n"
     },
     {
-      "id": "08-freigabe",
+      "id": "08-freigabe-buchung-status",
       "title": "8 Prüfung, Freigabe und Buchungsübergabe",
       "file": "chapters/08-freigabe-buchung-status.md",
-      "includeIf": true,
       "markdown": "# 8 Prüfung, Freigabe und Buchungsübergabe\n\n## 8.1 Statusfolge\n\n| Status | Bedeutung | Nächster zulässiger Schritt |\n| --- | --- | --- |\n| Eingegangen | Datei oder Papier liegt vor | formale und sachliche Prüfung |\n| In Klärung | Angabe fehlt oder Widerspruch besteht | Klärung dokumentieren |\n| Freigegeben | Leistungsbezug und Betrag bestätigt | Bereitstellung zur Buchung |\n| Zur Buchung bereitgestellt | Beleg ist der Buchung zugänglich | Buchung oder Rückfrage |\n| Gebucht | Buchung und Beleg-ID sind verbunden | Aufbewahrung und Kontrolle |\n\n## 8.2 Übergabe an die Buchung / Kanzlei\n\n{{answers.buchhaltung | or \"Die Buchhaltung (Person ist zu benennen)\"}} stellt freigegebene Belege in geeignetem Turnus bereit (mindestens monatlich, soweit nicht anders bestätigt). {{#if answers.steuerberater}}{{answers.steuerberater}} übernimmt Tätigkeiten ausschließlich im vereinbarten Mandatsumfang. Eine allgemeine fachliche Freigabe der Verfahrensdokumentation durch die Kanzlei ist damit nicht verbunden.{{/if}}{{#unless answers.steuerberater}}Sofern eine externe Kanzlei beteiligt ist, ist der Mandatsumfang zu bestätigen.{{/unless}}\n\n## 8.3 Vollständigkeitsabgleich\n\nZum Periodenabschluss vergleicht {{answers.buchhaltung | or \"die Buchhaltung\"}} die Liste freigegebener Belege mit der Übergabeübersicht. Offene oder zurückgewiesene Vorgänge bleiben sichtbar. {{answers.gf | or \"Die Geschäftsführung\"}} erhält eine Übersicht nicht abgeschlossener Fälle.\n\n## 8.4 Verbindung von Beleg und Buchung\n\nDie Verbindung erfolgt über die Beleg-ID in {{answers.archiv | or \"der Belegablage (zu bestätigen)\"}} und die Zuordnung in {{answers.fibu | join \", \" | or \"der FiBu (zu bestätigen)\"}}. Ergänzende Unterlagen werden so abgelegt, dass der Bezug zum Geschäftsvorfall erkennbar bleibt.\n"
     },
     {
-      "id": "09-aufbewahrung",
+      "id": "09-ablage-aufbewahrung",
       "title": "9 Ablage, Aufbewahrung und Datenzugriff",
       "file": "chapters/09-ablage-aufbewahrung.md",
-      "includeIf": true,
       "markdown": "# 9 Ablage, Aufbewahrung und Datenzugriff\n\n## 9.1 Ordnung und Wiederauffindbarkeit\n\nDie Ablage nutzt Zeitraum, Belegart, Geschäftspartner und Beleg-ID in {{answers.archiv | or \"dem Archiv (zu bestätigen)\"}}. {{answers.buchhaltung | or \"Die Buchhaltung\"}} führt in geeignetem Turnus eine Suchprobe durch. Ein sachverständiger Dritter soll einen ausgewählten Vorgang einschließlich Original, Freigabe und Buchung innerhalb angemessener Zeit nachvollziehen können.\n\n## 9.2 Aufbewahrungsfristen\n\nDie Aufbewahrungsdauer richtet sich nach der jeweiligen Unterlagenart und den geltenden Vorschriften; sie wird nicht aus einer pauschalen Frist für alle Belege abgeleitet. **Buchungsbelege** unterliegen nach aktueller Regelung (§ 147 AO, § 257 HGB) grundsätzlich einer Frist von **acht Jahren**. Andere Dokumentationsarten können abweichende Fristen erfordern (insbesondere sechs oder zehn Jahre). Fristbeginn, Sonderfälle und eine etwaige längere Aufbewahrung werden vor einer Löschung oder Vernichtung geprüft. Das System darf daher keine einheitliche Pauschalfrist auf alle Dateien anwenden.\n\nOb und wie Fristen im Betrieb konkret überwacht und vor Löschung geprüft werden, ist aus dem Intake zu bestätigen — siehe offene Punkte, sofern nicht belegt.\n\n## 9.3 E-Rechnung\n\nBei E-Rechnungen wird zumindest der strukturierte Teil in seiner ursprünglichen Form und unversehrt aufbewahrt. Eine Visualisierung oder PDF-Kopie ersetzt den strukturierten Originaldatensatz nicht.\n\n## 9.4 Datenzugriff und Export\n\n{{answers.gf | or \"Die Geschäftsführung\"}} stellt sicher, dass relevante Daten und Dokumentationen bei einer Prüfung in der erforderlichen Form bereitgestellt werden können. Ein Probeexport ist jährlich durchzuführen und zu dokumentieren. Solange kein dokumentierter Probeexport vorliegt, bleibt dies ein offener Punkt.\n\n## 9.5 Löschung\n\nEine Löschung erfolgt nur nach dokumentierter Prüfung von Unterlagenart, Fristende, möglichen Ablaufhemmungen und weiteren Aufbewahrungsgründen. {{answers.gf | or \"Die Geschäftsführung\"}} erteilt die Freigabe. Das Ergebnis wird im Löschprotokoll festgehalten.\n"
     },
     {
-      "id": "10-berechtigungen",
+      "id": "10-berechtigungen-sicherung",
       "title": "10 Berechtigungen, Sicherung und Notfall",
       "file": "chapters/10-berechtigungen-sicherung.md",
-      "includeIf": true,
       "markdown": "# 10 Berechtigungen, Sicherung und Notfall\n\n## 10.1 Berechtigungen\n\nBetriebliche Zugriffsrechte haben {{answers.zugriff | or \"die berechtigten Personen (Zugriffskreis ist zu bestätigen)\"}}.\n\n| Rolle | Lesen | Bearbeiten | Freigeben | Rechte verwalten |\n| --- | --- | --- | --- | --- |\n| {{answers.gf | or \"Geschäftsführung (zu benennen)\"}} | ja | ja | ja | ja |\n| {{answers.buchhaltung | or \"Buchhaltung (zu benennen)\"}} | ja | ja | nein* | nein |\n| {{answers.steuerberater | or \"Externe Kanzlei (soweit beteiligt)\"}} | im Mandatsumfang | Buchung und Rückfrage | nein | nein |\n| Andere Beschäftigte | nur bei ausdrücklicher Aufgabe | nein | nein | nein |\n\n\\* Sofern die Buchhaltung sachlich freigibt, ist dies im Intake zu bestätigen und hier anzupassen.\n\n## 10.2 Änderungen und Austritt\n\nNeue oder geänderte Rechte werden von {{answers.gf | or \"der Geschäftsführung\"}} beauftragt und in der Berechtigungsliste vermerkt. Bei Austritt oder Aufgabenwechsel werden nicht mehr erforderliche Rechte am Wirksamkeitstag entzogen. Die Berechtigungsliste ist als mitgeltende Unterlage abzulegen — siehe offene Punkte, soweit noch nicht vorhanden.\n\n## 10.3 Sicherung\n\n{{#if answers.backup}}\nDie technische Sicherung erfolgt laut Intake über: {{answers.backup | join \", \"}}. Anbieterangaben und der konkrete Rücksicherungsnachweis sind als Anlagen beizuziehen. Ob und wie eine Rücksicherung geprüft wird, ist gesondert zu belegen (offener Punkt, sofern kein dokumentierter Wiederherstellungstest vorliegt). Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.\n{{/if}}\n{{#unless answers.backup}}\nEin Backup-Verfahren ist im Intake nicht angegeben — Sicherung und Wiederherstellungstest sind als offene Punkte zu klären. Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.\n{{/unless}}\n\n## 10.4 Notfallbetrieb\n\nBei Ausfall des Eingangskanals informiert {{answers.buchhaltung | or \"die Buchhaltung\"}} {{answers.gf | or \"die Geschäftsführung\"}} und dokumentiert Beginn und Ende. Belege werden vorübergehend in einem zugriffsgeschützten Notfallordner gesammelt und nach Wiederherstellung kontrolliert in den Regelprozess überführt. Bei Ausfall des Archivsystems werden keine Originale gelöscht oder überschrieben. Das konkrete Notfallverfahren ist zu bestätigen, soweit nicht im Intake spezifiziert.\n"
     },
     {
-      "id": "11-kontrollen",
+      "id": "11-iks",
       "title": "11 Internes Kontrollsystem",
       "file": "chapters/11-iks.md",
-      "includeIf": true,
       "markdown": "# 11 Internes Kontrollsystem\n\n## 11.1 Bestätigte Kontrollen\n\nIn die folgende Tabelle werden **nur** im Intake bestätigte Kontrollen aufgenommen. Solange keine konkrete Kontrollroutine bestätigt ist, erscheinen die Zeilen als offene Punkte — es wird **keine** monatliche Stichprobe erfunden.\n\n| Kontrolle | Turnus | Verantwortlich | Nachweis |\n| --- | --- | --- | --- |\n| *(nur bestätigte Kontrollen aus Intake — sonst siehe Kap. 14)* | | | |\n\n{{#unless answers.kontrollen}}\n*Im Intake ist keine konkrete Kontrollroutine bestätigt. Typische Kandidaten (Postfachsichtung, Vollständigkeitsabgleich, Stichprobe, Berechtigungsprüfung, Such-/Lesbarkeitsprobe, Systemprüfung) sind betrieblich festzulegen und zu dokumentieren — siehe offene Punkte.*\n{{/unless}}\n{{#if answers.kontrollen}}\n{{answers.kontrollen}}\n{{/if}}\n\n## 11.2 Stichprobeninhalt (Hinweis)\n\nSofern eine Stichprobe bestätigt wird, umfasst sie Originalbeleg, Lesbarkeit, Beleg-ID, sachliche Freigabe, Buchungszuordnung und gegebenenfalls ergänzende Unterlagen. Abweichungen erhalten Verantwortlichen und Termin. Die Korrektur wird nachverfolgt. Ohne bestätigte Stichprobe gilt dieser Absatz nur als fachlicher Hinweis.\n\n## 11.3 Abweichungen\n\nEine Abweichung führt nicht zur nachträglichen Umschreibung der Dokumentation. Zunächst wird geklärt, ob die Praxis korrigiert oder das dokumentierte Verfahren angepasst werden muss. Wesentliche Änderungen erzeugen eine neue Fassung mit neuem Gültigkeitsdatum.\n"
     },
     {
-      "id": "12-versionen",
+      "id": "12-versionspflege",
       "title": "12 Versionspflege und Änderungen",
       "file": "chapters/12-versionspflege.md",
-      "includeIf": true,
       "markdown": "# 12 Versionspflege und Änderungen\n\n## 12.1 Änderungsanlässe\n\n- neues oder ersetztes System\n- neuer Belegkanal oder neues Dateiformat\n- geänderte Zuständigkeit oder Vertretung\n- Umstellung des Scan- oder Archivverfahrens\n- Änderung von Aufbewahrungs- oder Löschregeln\n- festgestellte Abweichung mit Auswirkung auf den Sollprozess\n- rechtliche Änderung mit Bedeutung für die beschriebenen Verfahren\n\n## 12.2 Vorgehen\n\n{{answers.buchhaltung | or \"Die Dokumentationsverantwortung (zu benennen)\"}} erfasst Anlass, betroffene Kapitel und geplantes Wirksamkeitsdatum. {{answers.gf | or \"Die Geschäftsführung\"}} prüft die neue Fassung gegen die tatsächliche Praxis. Die abgelöste Fassung erhält ein Gültig-bis-Datum und bleibt zusammen mit der Änderungshistorie erhalten.\n\n## 12.3 Änderungshistorie\n\n| Version | Gültig ab | Gültig bis | Änderung | Bestätigt durch |\n| --- | --- | --- | --- | --- |\n| {{version}} | {{validFrom | or \"*(von GF festzulegen)*\"}} | offen | {{changeSummary | or \"Erstfassung aus Kunden-Intake\"}} | ausstehend |\n\n## 12.4 Keine Rückdatierung\n\nEine neu dokumentierte Praxis gilt ab dem bestätigten Zeitpunkt. Das Dokument behauptet nicht rückwirkend, dass ein neu eingeführter Ablauf bereits zuvor umgesetzt wurde.\n"
     },
     {
-      "id": "13-anlagen",
+      "id": "13-mitgeltende-unterlagen",
       "title": "13 Mitgeltende Unterlagen",
       "file": "chapters/13-mitgeltende-unterlagen.md",
-      "includeIf": true,
       "markdown": "# 13 Mitgeltende Unterlagen\n\n| Anlage | Zweck | Status |\n| --- | --- | --- |\n| Systemliste mit Versionen und Betreibern | technische Einordnung | {{#if answers.fibu}}teilweise aus Intake{{/if}}{{#unless answers.fibu}}offen{{/unless}} — Details zu bestätigen |\n| Berechtigungsliste | Zugriffsrollen und Änderungen | zu erstellen / abzulegen |\n| Mandatsvereinbarung Kanzlei | Abgrenzung externer Tätigkeiten | {{#if answers.steuerberater}}soweit vorhanden prüfen{{/if}}{{#unless answers.steuerberater}}nicht einschlägig oder zu bestätigen{{/unless}} |\n| Kontrollprotokoll | Nachweis der Stichproben / Kontrollen | offen — siehe Kap. 11 / OP |\n| Löschprotokoll | Prüfung und Freigabe von Löschungen | Musterformular / Anlage erforderlich |\n| Anbieterunterlagen zu Sicherung und Export | Wiederherstellung und Datenzugriff | offen — siehe OP |\n| Notfallprotokoll | Ausfälle und Nachbearbeitung | Musterformular / Anlage erforderlich |\n| Schulungsnachweis | Kenntnis der Beteiligten | zu erstellen, soweit vorgesehen |\n\nMitgeltende Unterlagen tragen eigenen Stand und Speicherort. Ein bloßer Verweis auf eine Anlage reicht nicht, wenn die Anlage für das Verständnis oder den Nachweis eines Prozessschritts erforderlich ist und tatsächlich fehlt.\n"
     },
     {
       "id": "14-offene-punkte",
       "title": "14 Offene Punkte und Maßnahmen",
       "file": "chapters/14-offene-punkte.md",
-      "includeIf": true,
       "markdown": "# 14 Offene Punkte und Maßnahmen\n\nOffene Punkte entstehen aus unbekannten, widersprüchlichen oder noch nicht belegten Angaben. Sie werden fachlich beschrieben und beziehen sich auf den Betrieb. Interne Bestell-, Zahlungs- oder Testdaten des Produkts erscheinen hier nicht.\n\n| ID | Priorität | Offener Punkt | Verantwortung | Zieltermin |\n| --- | --- | --- | --- | --- |\n| *(wird aus Rules befüllt)* | | | | |\n\n{{openPointsTable}}\n\n## Bewertung\n\nDie offenen Punkte begrenzen die Aussagekraft der Fassung in den betroffenen Bereichen. Nach Erledigung werden Ergebnis, Nachweis und gegebenenfalls geänderte Prozessbeschreibung in einer neuen Version dokumentiert.\n\nPrioritäten: **hoch** = blockiert belastbare Aussage oder prüfungsrelevanten Nachweis; **mittel** = ergänzende Anlagen/Nachweise; **niedrig** = Formulare/Organisation ohne unmittelbaren Prozessbruch.\n"
     },
     {
-      "id": "15-anhang-a",
+      "id": "A-prozessmatrix",
       "title": "Anhang A Prozessmatrix",
       "file": "chapters/A-prozessmatrix.md",
-      "includeIf": true,
       "markdown": "# Anhang A — Prozessmatrix\n\nNur Schritte, die aus dem bestätigten Intake ableitbar sind; unbestätigte Kontrollen bleiben Hinweis/OP.\n\n| Nr. | Auslöser | Tätigkeit | Ergebnis | Verantwortlich |\n| --- | --- | --- | --- | --- |\n| P01 | Beleg geht ein | Original sichern und Eingang prüfen | Beleg im Status Eingegangen | {{answers.buchhaltung | or \"zu benennen\"}} |\n| P02 | Prüfung möglich | Leistungsbezug und Betrag prüfen | Freigabe oder Klärung | {{answers.gf | or \"zu benennen\"}} |\n| P03 | Freigabe erteilt | Beleg zuordnen und bereitstellen | Beleg für Buchung verfügbar | {{answers.buchhaltung | or \"zu benennen\"}} |\n| P04 | Beleg bereitgestellt | Buchen oder Rückfrage stellen | Buchung mit Beleg-ID | {{answers.steuerberater | or \"Buchung intern bzw. Kanzlei (zu bestätigen)\"}} |\n| P05 | Periodenende | Vollständigkeit abgleichen | Übergabeprotokoll | {{answers.buchhaltung | or \"zu benennen\"}} |\n| P06 | Kontrolltermin | Stichprobe / bestätigte Kontrolle durchführen | Kontrollprotokoll | {{answers.gf | or \"zu benennen\"}} *(nur wenn Kontrolle bestätigt — sonst OP)* |\n| P07 | Änderung erkannt | Auswirkung prüfen und neue Fassung erstellen | Versionierte Dokumentation | {{answers.buchhaltung | or \"zu benennen\"}} / {{answers.gf | or \"GF\"}} |\n| P08 | Frist abgelaufen | Löschvoraussetzungen prüfen | Freigabe oder weitere Aufbewahrung | {{answers.gf | or \"zu benennen\"}} |\n"
     },
     {
-      "id": "16-anhang-b",
-      "title": "Anhang B Begriffe und Quellenstand",
+      "id": "B-begriffe",
+      "title": "Anhang B Begriffserläuterungen",
       "file": "chapters/B-begriffe.md",
-      "includeIf": true,
       "markdown": "# Anhang B — Begriffserläuterungen\n\n| Begriff | Verwendung in diesem Dokument |\n| --- | --- |\n| Beleg-ID | eindeutige Verbindung zwischen abgelegtem Beleg und Buchung |\n| E-Rechnung | Rechnung in einem strukturierten elektronischen Format, das elektronische Verarbeitung ermöglicht; nicht gleichzusetzen mit einer einfachen PDF per E-Mail |\n| Originaldatei | empfangene oder erzeugte Datei in ihrer maßgeblichen ursprünglichen Form |\n| Offener Punkt | noch zu klärende oder zu belegende Angabe mit Zuständigkeit und Priorität |\n| Ist-Aussage | ausdrücklich bestätigte Beschreibung der tatsächlich ausgeführten Praxis |\n| Mitgeltende Unterlage | separates Dokument, das eine Aussage oder einen Prozessschritt ergänzt |\n\n## Quellenstand (fachliche Einordnung)\n\n- GoBD im AO-Handbuch, insbesondere Randziffern zur Verfahrensdokumentation\n- § 147 AO und § 257 HGB in der am Erstellungsdatum verfügbaren Fassung\n- BMF FAQ zur obligatorischen E-Rechnung (Fachtextstand der Generator-Bibliothek)\n\nAllgemeine Einordnung; keine Rechts- oder Steuerberatung.\n"
     }
   ],
   "openPointsRules": {
-    "version": "3.0.0",
+    "version": "4.0.0",
     "emptyValues": [
       "",
       null,
@@ -156,162 +141,284 @@
       {
         "id": "op-company",
         "field": "identity.company",
-        "chapter": "00-cover",
+        "chapter": "00-cover-freigabe",
         "severity": "high",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Firmenname fehlt — Titel und Merkmalübersicht unvollständig."
+        "text": "Firmenname fehlt — Titel und Merkmalübersicht unvollständig.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-branchen",
         "field": "answers.branchen",
-        "chapter": "02-rollen",
+        "chapter": "00-cover-freigabe",
         "severity": "medium",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Branche(n) fehlen — Betriebsbeschreibung in der Merkmalübersicht unvollständig."
+        "text": "Branche(n) fehlen — Betriebsbeschreibung in der Merkmalübersicht unvollständig.",
+        "priority": "mittel",
+        "dueDate": null
       },
       {
         "id": "op-rechtsform",
         "field": "answers.rechtsform",
-        "chapter": "02-rollen",
+        "chapter": "00-cover-freigabe",
         "severity": "medium",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Rechtsform fehlt — bitte nachtragen."
+        "text": "Rechtsform fehlt — bitte nachtragen.",
+        "priority": "mittel",
+        "dueDate": null
       },
       {
         "id": "op-mitarbeitende",
         "field": "answers.mitarbeitende",
-        "chapter": "02-rollen",
+        "chapter": "00-cover-freigabe",
         "severity": "low",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Angabe zu Mitarbeitenden fehlt."
+        "text": "Angabe zu Mitarbeitenden fehlt.",
+        "priority": "niedrig",
+        "dueDate": null
       },
       {
         "id": "op-fibu",
         "field": "answers.fibu",
-        "chapter": "03-systeme",
+        "chapter": "03-systeme-datenfluss",
         "severity": "high",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.buchhaltung",
-        "text": "FiBu-/Buchhaltungssoftware nicht angegeben — Systeme und Buchungsübergabe unklar."
+        "text": "FiBu-/Buchhaltungssoftware nicht angegeben — Systeme und Buchungsübergabe unklar.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-weitere-systeme",
         "field": "answers.weitereSysteme",
-        "chapter": "03-systeme",
+        "chapter": "03-systeme-datenfluss",
         "severity": "medium",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.buchhaltung",
-        "text": "Prüfen, ob weitere belegrelevante Vorsysteme oder Portale verwendet werden; erst danach Geltungsbereich bestätigen."
+        "text": "Prüfen, ob weitere belegrelevante Vorsysteme oder Portale verwendet werden; erst danach Geltungsbereich bestätigen.",
+        "priority": "mittel",
+        "dueDate": null
       },
       {
         "id": "op-eingangsbelege",
         "field": "answers.eingangsbelege",
-        "chapter": "05-eingang",
+        "chapter": "05-eingang-erechnung",
         "severity": "high",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.buchhaltung",
-        "text": "Weg der Eingangsbelege fehlt — Eingang und Prüfung nicht parametrisierbar."
+        "text": "Weg der Eingangsbelege fehlt — Eingang und Prüfung nicht parametrisierbar.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-ausgangsrechnungen",
         "field": "answers.ausgangsrechnungen",
-        "chapter": "07-ausgang",
+        "chapter": "08-freigabe-buchung-status",
         "severity": "high",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Weg der Ausgangsrechnungen fehlt — Erstellung und Nummerierung unvollständig."
+        "text": "Weg der Ausgangsrechnungen fehlt — Erstellung und Nummerierung unvollständig.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-archiv",
         "field": "answers.archiv",
-        "chapter": "09-aufbewahrung",
+        "chapter": "09-ablage-aufbewahrung",
         "severity": "high",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.buchhaltung",
-        "text": "Archivierung der Belege nicht angegeben — Ablage und Langzeitarchiv unklar."
+        "text": "Archivierung der Belege nicht angegeben — Ablage und Langzeitarchiv unklar.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-hosting",
         "field": "answers.hosting",
-        "chapter": "10-berechtigungen",
+        "chapter": "09-ablage-aufbewahrung",
         "severity": "medium",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.it",
-        "text": "Hosting-Angabe fehlt — Aufbewahrungsort (Inland/EU/Drittland) ist zu bestätigen."
+        "text": "Hosting-Angabe fehlt — Aufbewahrungsort (Inland/EU/Drittland) ist zu bestätigen.",
+        "priority": "mittel",
+        "dueDate": null
       },
       {
         "id": "op-backup",
         "field": "answers.backup",
-        "chapter": "10-berechtigungen",
+        "chapter": "09-ablage-aufbewahrung",
         "severity": "high",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.it",
-        "text": "Backup-Verfahren nicht angegeben — Sicherung gegen Verlust ist zu beschreiben."
+        "text": "Backup-Verfahren nicht angegeben — Sicherung gegen Verlust ist zu beschreiben.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-backup-test",
         "field": "answers.backup",
-        "chapter": "10-berechtigungen",
+        "chapter": "09-ablage-aufbewahrung",
         "severity": "high",
         "when": "always",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Anbieterunterlagen zu Backup und Rücksicherung beiziehen und tatsächlichen Wiederherstellungstest dokumentieren."
+        "text": "Anbieterunterlagen zu Backup und Rücksicherung beiziehen und tatsächlichen Wiederherstellungstest dokumentieren.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-zugriff",
         "field": "answers.zugriff",
-        "chapter": "10-berechtigungen",
+        "chapter": "09-ablage-aufbewahrung",
         "severity": "high",
         "when": "empty",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Zugriff / Berechtigungskreis nicht angegeben."
+        "text": "Zugriff / Berechtigungskreis nicht angegeben.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-berechtigungsliste",
         "field": "answers.zugriff",
-        "chapter": "10-berechtigungen",
+        "chapter": "09-ablage-aufbewahrung",
         "severity": "medium",
         "when": "always",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Berechtigungsliste als mitgeltende Unterlage ablegen."
+        "text": "Berechtigungsliste und Mandatsumfang der Kanzlei (soweit beteiligt) als mitgeltende Unterlagen ablegen.",
+        "priority": "mittel",
+        "dueDate": null
+      },
+      {
+        "id": "op-gf",
+        "field": "answers.gf",
+        "chapter": "00-cover-freigabe",
+        "severity": "high",
+        "when": "empty",
+        "customerFacing": true,
+        "responsibilityField": null,
+        "text": "Geschäftsführung / Gesamtverantwortung nicht benannt — Freigabe und Bestätigung offen.",
+        "priority": "hoch",
+        "dueDate": null
+      },
+      {
+        "id": "op-buchhaltung",
+        "field": "answers.buchhaltung",
+        "chapter": "00-cover-freigabe",
+        "severity": "high",
+        "when": "empty",
+        "customerFacing": true,
+        "responsibilityField": "answers.gf",
+        "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt.",
+        "priority": "hoch",
+        "dueDate": null
+      },
+      {
+        "id": "op-it",
+        "field": "answers.it",
+        "chapter": "00-cover-freigabe",
+        "severity": "medium",
+        "when": "empty",
+        "customerFacing": true,
+        "responsibilityField": "answers.gf",
+        "text": "IT-/Systemverantwortung nicht benannt — Backup und Rechteverwaltung unsicher.",
+        "priority": "mittel",
+        "dueDate": null
+      },
+      {
+        "id": "op-steuerberater",
+        "field": "answers.steuerberater",
+        "chapter": "00-cover-freigabe",
+        "severity": "low",
+        "when": "empty",
+        "customerFacing": true,
+        "responsibilityField": "answers.gf",
+        "text": "Steuerberatung nicht angegeben (nachtragen, falls an der Belegverarbeitung beteiligt).",
+        "priority": "niedrig",
+        "dueDate": null
+      },
+      {
+        "id": "op-erechnung-validierung",
+        "field": null,
+        "chapter": "05-eingang-erechnung",
+        "severity": "high",
+        "when": "always",
+        "customerFacing": true,
+        "responsibilityField": "answers.it",
+        "text": "Technische Prüfung strukturierter E-Rechnungen ist nicht bestätigt. Eine PDF- oder E-Mail-Rechnung ist damit nicht als strukturierte E-Rechnung beschrieben.",
+        "priority": "hoch",
+        "dueDate": null
+      },
+      {
+        "id": "op-kontrollprotokoll",
+        "field": null,
+        "chapter": "11-iks",
+        "severity": "medium",
+        "when": "always",
+        "customerFacing": true,
+        "responsibilityField": "answers.gf",
+        "text": "Kontrollroutine (z. B. Stichprobe) und Kontrollprotokoll betrieblich festlegen und dokumentieren — im Intake nicht bestätigt.",
+        "priority": "mittel",
+        "dueDate": null
+      },
+      {
+        "id": "op-papier-klarheit",
+        "field": "answers.eingangsbelege",
+        "chapter": "05-eingang-erechnung",
+        "severity": "low",
+        "when": "arrayContainsAny",
+        "tokens": [
+          "Papier",
+          "Post",
+          "Scan",
+          "Papierbeleg"
+        ],
+        "customerFacing": true,
+        "responsibilityField": "answers.buchhaltung",
+        "text": "Umgang mit Papieroriginalen klären (zusätzliche Verwahrung vs. dokumentiertes ersetzendes Scannen) und in einer Folgefassung bestätigen.",
+        "priority": "niedrig",
+        "dueDate": null
       },
       {
         "id": "op-f05-kanzlei-umfang",
         "field": "answers.steuerberater",
-        "chapter": "08-freigabe",
+        "chapter": "08-freigabe-buchung-status",
         "severity": "medium",
         "when": "unconfirmedScope",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung oder ein Mandatszugang wird nicht als gelebter Prozess angenommen."
+        "text": "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung oder ein Mandatszugang wird nicht als gelebter Prozess angenommen.",
+        "priority": "mittel",
+        "dueDate": null
       },
       {
         "id": "op-c02-sichtung",
         "field": null,
-        "chapter": "05-eingang",
+        "chapter": "05-eingang-erechnung",
         "severity": "medium",
         "when": "always",
         "customerFacing": true,
         "responsibilityField": "answers.buchhaltung",
-        "text": "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist im Intake nicht bestätigt."
+        "text": "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist im Intake nicht bestätigt.",
+        "priority": "mittel",
+        "dueDate": null
       },
       {
         "id": "op-d-ersetzend-ohne-papier",
@@ -323,135 +430,83 @@
           "answers.eingangsbelege",
           "answers.ausgangsrechnungen"
         ],
-        "chapter": "06-papier",
+        "chapter": "06-papier-digitalisierung",
         "severity": "high",
         "when": "ersetzendOhnePapier",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Hinweis vor der Verwendung: ersetzendes Scannen ist genannt, ein Papierweg aber nicht. Das ist zu klären, bevor ein Scanverfahren beschrieben wird. Keine Freigabe."
-      },
-      {
-        "id": "op-gf",
-        "field": "answers.gf",
-        "chapter": "02-rollen",
-        "severity": "high",
-        "when": "empty",
-        "customerFacing": true,
-        "responsibilityField": null,
-        "text": "Geschäftsführung / Gesamtverantwortung nicht benannt — Freigabe und Bestätigung offen."
-      },
-      {
-        "id": "op-buchhaltung",
-        "field": "answers.buchhaltung",
-        "chapter": "02-rollen",
-        "severity": "high",
-        "when": "empty",
-        "customerFacing": true,
-        "responsibilityField": "answers.gf",
-        "text": "Buchhaltungsverantwortliche Person / Stelle nicht benannt."
-      },
-      {
-        "id": "op-it",
-        "field": "answers.it",
-        "chapter": "02-rollen",
-        "severity": "medium",
-        "when": "empty",
-        "customerFacing": true,
-        "responsibilityField": "answers.gf",
-        "text": "IT-/Systemverantwortung nicht benannt — Backup und Rechteverwaltung unsicher."
-      },
-      {
-        "id": "op-steuerberater",
-        "field": "answers.steuerberater",
-        "chapter": "02-rollen",
-        "severity": "low",
-        "when": "empty",
-        "customerFacing": true,
-        "responsibilityField": "answers.gf",
-        "text": "Steuerberatung nicht angegeben (nachtragen, falls an der Belegverarbeitung beteiligt)."
-      },
-      {
-        "id": "op-erechnung-validierung",
-        "field": null,
-        "chapter": "05-eingang",
-        "severity": "high",
-        "when": "always",
-        "customerFacing": true,
-        "responsibilityField": "answers.it",
-        "text": "Technische Prüfung strukturierter E-Rechnungen ist nicht bestätigt. Eine PDF- oder E-Mail-Rechnung ist damit nicht als strukturierte E-Rechnung beschrieben."
-      },
-      {
-        "id": "op-kontrollprotokoll",
-        "field": null,
-        "chapter": "11-kontrollen",
-        "severity": "medium",
-        "when": "always",
-        "customerFacing": true,
-        "responsibilityField": "answers.gf",
-        "text": "Kontrollroutine (z. B. Stichprobe) und Kontrollprotokoll betrieblich festlegen und dokumentieren — im Intake nicht bestätigt."
-      },
-      {
-        "id": "op-papier-klarheit",
-        "field": "answers.eingangsbelege",
-        "chapter": "06-papier",
-        "severity": "low",
-        "when": "arrayContainsAny",
-        "tokens": [
-          "Papier",
-          "Post",
-          "Scan",
-          "Papierbeleg"
-        ],
-        "customerFacing": true,
-        "responsibilityField": "answers.buchhaltung",
-        "text": "Umgang mit Papieroriginalen klären (zusätzliche Verwahrung vs. dokumentiertes ersetzendes Scannen) und in einer Folgefassung bestätigen."
+        "text": "Hinweis vor der Verwendung: ersetzendes Scannen ist genannt, ein Papierweg aber nicht. Das ist zu klären, bevor ein Scanverfahren beschrieben wird. Keine Freigabe.",
+        "priority": "hoch",
+        "dueDate": null
       },
       {
         "id": "op-loeschfrist",
         "field": null,
-        "chapter": "09-aufbewahrung",
+        "chapter": "09-ablage-aufbewahrung",
         "severity": "medium",
         "when": "always",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Fristüberwachung und Freigabe vor Löschung sind nicht als gelebte Praxis bestätigt."
+        "text": "Fristüberwachung und Freigabe vor Löschung sind nicht als gelebte Praxis bestätigt.",
+        "priority": "mittel",
+        "dueDate": null
       },
       {
         "id": "op-notfall",
         "field": null,
-        "chapter": "10-berechtigungen",
+        "chapter": "10-berechtigungen-sicherung",
         "severity": "medium",
         "when": "always",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Notfallweg bei Ausfall von Postfach oder Archiv ist im Intake nicht beschrieben."
+        "text": "Notfallweg bei Ausfall von Postfach oder Archiv ist im Intake nicht beschrieben.",
+        "priority": "mittel",
+        "dueDate": null
       },
       {
         "id": "op-email-internal",
         "field": "identity.email",
-        "chapter": "00-cover",
+        "chapter": "00-cover-freigabe",
         "severity": "low",
         "when": "empty",
         "customerFacing": false,
-        "text": "Kontakt-E-Mail fehlt in der Identität (nur intern / Delivery)."
+        "text": "Kontakt-E-Mail fehlt in der Identität (nur intern / Delivery).",
+        "priority": "niedrig",
+        "dueDate": null
       },
       {
         "id": "op-stripe-session-internal",
         "field": "identity.stripeSessionId",
-        "chapter": "00-cover",
+        "chapter": "00-cover-freigabe",
         "severity": "low",
         "when": "empty",
         "customerFacing": false,
-        "text": "Stripe-Session-Referenz fehlt (nur intern / Delivery)."
+        "text": "Stripe-Session-Referenz fehlt (nur intern / Delivery).",
+        "priority": "niedrig",
+        "dueDate": null
       },
       {
         "id": "op-stripe-customer-internal",
         "field": "identity.stripeCustomerId",
-        "chapter": "00-cover",
+        "chapter": "00-cover-freigabe",
         "severity": "low",
         "when": "empty",
         "customerFacing": false,
-        "text": "Stripe-Kundenreferenz fehlt (nur intern / Delivery)."
+        "text": "Stripe-Kundenreferenz fehlt (nur intern / Delivery).",
+        "priority": "niedrig",
+        "dueDate": null
+      },
+      {
+        "id": "op-iks-kontrollen",
+        "field": null,
+        "chapter": "11-iks",
+        "severity": "medium",
+        "priority": "mittel",
+        "when": "always",
+        "customerFacing": true,
+        "responsibilityField": "answers.gf",
+        "dueDate": null,
+        "text": "Konkrete Kontrollen (Turnus, Verantwortliche, Nachweis) bestätigen — IKS-Tabelle nur mit bestätigten Kontrollen füllen."
       }
     ],
     "outputItemShape": {
@@ -459,14 +514,18 @@
       "priority": "hoch|mittel|niedrig",
       "text": "string",
       "responsibility": "string",
-      "dueDate": "optional string; omit when the intake sets no date"
+      "dueDate": "string|null",
+      "chapter": "chapter-id",
+      "field": "dotted.path",
+      "customerFacing": true
     },
     "whenSemantics": {
       "empty": "Field missing, null, empty string/array, or value in emptyValues",
       "always": "Always emit (claim-safety OP); still respect customerFacing",
-      "arrayContainsAny": "Emit when field array/string contains any of tokens (case-insensitive substring; Papier does not match Scan)",
+      "arrayContainsAny": "Emit when field array/string contains any of tokens (case-insensitive, alias-aware)",
       "unconfirmedScope": "Non-empty field contains zu bestätigen, unbekannt, geplant, or nicht zutreffend. Exact empty labels stay on when=empty.",
       "ersetzendOhnePapier": "Named fields mention ersetzend and none mention a paper path (Papier/Papierbeleg, or the word Post). Not a general contradiction engine and not a Freigabe."
     }
-  }
+  },
+  "defaultDocumentVersion": "1.0"
 }
