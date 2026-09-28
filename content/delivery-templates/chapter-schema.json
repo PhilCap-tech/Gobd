@@ -1,192 +1,169 @@
 {
-  "version": "2.0.0",
-  "slice": "A+B",
+  "version": "4.0.0",
+  "slice": "philip-muster-v2-detailliert",
   "language": "de",
-  "disclaimerId": "disclaimer",
   "defaultVersion": "1.0",
-  "outline": [
-    "cover",
-    "vorbemerkungen",
-    "zielsetzung",
-    "organisation-sicherheit",
-    "verfahren-papier",
-    "verfahren-digital",
-    "mitgeltende-unterlagen",
-    "aenderungshistorie",
-    "glossar",
-    "offene-punkte"
+  "disclaimerId": "disclaimer",
+  "qualityRules": "QUALITY-RULES-v4.md",
+  "outline": "OUTLINE-v4.md",
+  "forbiddenInCustomerPdf": [
+    "identity.stub",
+    "identity.stripeSessionId",
+    "identity.stripeCustomerId"
   ],
+  "conditionalSyntax": {
+    "if": "{{#if path}}…{{/if}}",
+    "unless": "{{#unless path}}…{{/unless}}",
+    "contains": "{{#if path contains \"Token\"}}…{{/if}}",
+    "filters": [
+      "join",
+      "or"
+    ]
+  },
+  "openPointShape": {
+    "id": "string",
+    "priority": "hoch|mittel|niedrig",
+    "text": "string",
+    "responsibility": "string",
+    "dueDate": "string|null",
+    "chapter": "string",
+    "customerFacing": "boolean"
+  },
   "chapters": [
     {
-      "id": "00-cover",
-      "title": "Deckblatt",
+      "id": "00-cover-freigabe",
+      "title": "Deckblatt, Dokumentmerkmale und Freigabevermerk",
       "order": 0,
-      "templateFile": "chapters/00-cover.md",
-      "role": "cover",
-      "fields": [
-        "identity.company",
-        "identity.email",
-        "identity.stripeSessionId",
-        "identity.stripeCustomerId",
-        "identity.stub"
-      ]
+      "templateFile": "chapters/00-cover-freigabe.md",
+      "role": "cover"
     },
     {
-      "id": "01-vorbemerkungen",
-      "title": "1. Vorbemerkungen zur Verfahrensdokumentation",
+      "id": "00b-dokumentenlenkung",
+      "title": "Dokumentenlenkung",
       "order": 1,
-      "templateFile": "chapters/01-vorbemerkungen.md",
-      "fields": [
-        "answers.gf"
-      ]
+      "templateFile": "chapters/00b-dokumentenlenkung.md"
     },
     {
-      "id": "02-zielsetzung",
-      "title": "2. Zielsetzung und Überblick",
+      "id": "01-zweck-geltung",
+      "title": "1 Zweck, Geltungsbereich und Verantwortung",
       "order": 2,
-      "templateFile": "chapters/02-zielsetzung.md",
-      "subsections": [
-        "2.1 Zielsetzung und Anwendungsbereich",
-        "2.2 Unternehmen und organisatorisches Umfeld",
-        "2.3 Rechtliche Grundlagen",
-        "2.4 Relevante Unterlagen mit Belegfunktion",
-        "2.5 Einweisung in die Belegablage",
-        "2.6 Abgrenzung der Bearbeitungsbereiche"
-      ],
-      "fields": [
-        "identity.company",
-        "identity.email",
-        "answers.branchen",
-        "answers.rechtsform",
-        "answers.mitarbeitende",
-        "answers.eingangsbelege",
-        "answers.ausgangsrechnungen",
-        "answers.archiv",
-        "answers.steuerberater"
-      ]
+      "templateFile": "chapters/01-zweck-geltung.md"
     },
     {
-      "id": "03-organisation-sicherheit",
-      "title": "3. Organisation und Sicherheit",
+      "id": "02-unternehmen-rollen",
+      "title": "2 Unternehmen, Rollen und Aufgaben",
       "order": 3,
-      "templateFile": "chapters/03-organisation-sicherheit.md",
-      "subsections": [
-        "3.1 Eingesetzte Hard- und Software",
-        "3.2 Zuständigkeiten",
-        "3.3 Organisation und Internes Kontrollsystem (IKS)",
-        "3.4 Datenschutz"
-      ],
-      "fields": [
-        "answers.fibu",
-        "answers.weitereSysteme",
-        "answers.hosting",
-        "answers.archiv",
-        "answers.backup",
-        "answers.zugriff",
-        "answers.gf",
-        "answers.buchhaltung",
-        "answers.it",
-        "answers.steuerberater"
-      ]
+      "templateFile": "chapters/02-unternehmen-rollen.md"
     },
     {
-      "id": "04-verfahren-papier",
-      "title": "4. Verfahren und Maßnahmen — Belege in Papierform",
+      "id": "03-systeme-datenfluss",
+      "title": "3 Systemlandschaft und Datenfluss",
       "order": 4,
-      "templateFile": "chapters/04-verfahren-papier.md",
-      "subsections": [
-        "4.1 Posteingang und Vorsortierung",
-        "4.2 Identifikation der Belege mit Prüfung auf Echtheit",
-        "4.3 Erstellung von Ausgangs- und Eigenbelegen (Papier)",
-        "4.4 Digitalisierung (soweit vorgesehen)",
-        "4.5 Ablage der Belege in der vorgesehenen Ordnung",
-        "4.6 Turnus der Belegsicherung durch geordnete Ablage",
-        "4.7 Maßnahmen zur Sicherung der Belege",
-        "4.8 Aufbereitung der Belege für die weitere Bearbeitung",
-        "4.9 Weitergabe an / Rücknahme von Dritten",
-        "4.10 Archivierung nach der Erfassung",
-        "4.11 Vernichtung der Papierbelege"
-      ],
-      "fields": [
-        "answers.eingangsbelege",
-        "answers.ausgangsrechnungen",
-        "answers.archiv",
-        "answers.fibu",
-        "answers.backup",
-        "answers.zugriff",
-        "answers.gf",
-        "answers.buchhaltung",
-        "answers.steuerberater"
-      ]
+      "templateFile": "chapters/03-systeme-datenfluss.md"
     },
     {
-      "id": "05-verfahren-digital",
-      "title": "5. Verfahren und Maßnahmen — Belege in digitaler Form",
+      "id": "04-belegarten-kanaele",
+      "title": "4 Belegarten und Eingangskanäle",
       "order": 5,
-      "templateFile": "chapters/05-verfahren-digital.md",
-      "subsections": [
-        "5.1 Posteingang und Vorsortierung",
-        "5.2 Identifikation der Belege mit Prüfung auf Echtheit",
-        "5.3 Erstellung von Ausgangs- und Eigenbelegen (digital)",
-        "5.4 Ablage der Belege in der vorgesehenen Ordnung",
-        "5.5 Turnus der Belegsicherung durch geordnete Ablage",
-        "5.6 Maßnahmen zur Sicherung der Belege",
-        "5.7 Aufbereitung der Belege für die weitere Bearbeitung",
-        "5.8 Weitergabe an / Rücknahme von Dritten",
-        "5.9 Archivierung nach der Erfassung",
-        "5.10 Vernichtung / Löschung der digitalen Belege"
-      ],
-      "fields": [
-        "answers.eingangsbelege",
-        "answers.ausgangsrechnungen",
-        "answers.archiv",
-        "answers.fibu",
-        "answers.weitereSysteme",
-        "answers.hosting",
-        "answers.backup",
-        "answers.zugriff",
-        "answers.gf",
-        "answers.buchhaltung",
-        "answers.it",
-        "answers.steuerberater"
-      ]
+      "templateFile": "chapters/04-belegarten-kanaele.md"
     },
     {
-      "id": "06-mitgeltende-unterlagen",
-      "title": "6. Mitgeltende Unterlagen",
+      "id": "05-eingang-erechnung",
+      "title": "5 Eingangsrechnungen und E-Rechnungen",
       "order": 6,
-      "templateFile": "chapters/06-mitgeltende-unterlagen.md",
-      "fields": [
-        "answers.steuerberater",
-        "answers.weitereSysteme",
-        "answers.backup"
-      ]
+      "templateFile": "chapters/05-eingang-erechnung.md",
+      "conditionals": {
+        "erechnungBranch": {
+          "containsAny": [
+            "answers.eingangsbelege",
+            [
+              "E-Rechnung",
+              "XRechnung",
+              "ZUGFeRD",
+              "XML"
+            ]
+          ]
+        }
+      }
     },
     {
-      "id": "07-aenderungshistorie",
-      "title": "7. Änderungshistorie",
+      "id": "06-papier-digitalisierung",
+      "title": "6 Papierbelege und Digitalisierung",
       "order": 7,
-      "templateFile": "chapters/07-aenderungshistorie.md",
-      "fields": [
-        "identity.company"
-      ]
+      "templateFile": "chapters/06-papier-digitalisierung.md",
+      "includeIf": {
+        "containsAny": [
+          "answers.eingangsbelege",
+          [
+            "Papier",
+            "Post",
+            "Scan"
+          ]
+        ]
+      }
     },
     {
-      "id": "08-glossar",
-      "title": "8. Glossar",
+      "id": "07-ausgangsrechnungen",
+      "title": "7 Ausgangsrechnungen und Korrekturen",
       "order": 8,
-      "templateFile": "chapters/08-glossar.md",
-      "fields": []
+      "templateFile": "chapters/07-ausgangsrechnungen.md",
+      "includeIf": {
+        "pathNonEmpty": "answers.ausgangsrechnungen"
+      }
     },
     {
-      "id": "09-offene-punkte",
-      "title": "9. Offene Punkte",
+      "id": "08-freigabe-buchung-status",
+      "title": "8 Prüfung, Freigabe und Buchungsübergabe",
       "order": 9,
-      "templateFile": "chapters/09-offene-punkte.md",
-      "generatedFrom": "open-points-rules.json",
-      "fields": [
-        "answers.gf"
-      ]
+      "templateFile": "chapters/08-freigabe-buchung-status.md"
+    },
+    {
+      "id": "09-ablage-aufbewahrung",
+      "title": "9 Ablage, Aufbewahrung und Datenzugriff",
+      "order": 10,
+      "templateFile": "chapters/09-ablage-aufbewahrung.md"
+    },
+    {
+      "id": "10-berechtigungen-sicherung",
+      "title": "10 Berechtigungen, Sicherung und Notfall",
+      "order": 11,
+      "templateFile": "chapters/10-berechtigungen-sicherung.md"
+    },
+    {
+      "id": "11-iks",
+      "title": "11 Internes Kontrollsystem",
+      "order": 12,
+      "templateFile": "chapters/11-iks.md"
+    },
+    {
+      "id": "12-versionspflege",
+      "title": "12 Versionspflege und Änderungen",
+      "order": 13,
+      "templateFile": "chapters/12-versionspflege.md"
+    },
+    {
+      "id": "13-mitgeltende-unterlagen",
+      "title": "13 Mitgeltende Unterlagen",
+      "order": 14,
+      "templateFile": "chapters/13-mitgeltende-unterlagen.md"
+    },
+    {
+      "id": "14-offene-punkte",
+      "title": "14 Offene Punkte und Maßnahmen",
+      "order": 15,
+      "templateFile": "chapters/14-offene-punkte.md"
+    },
+    {
+      "id": "A-prozessmatrix",
+      "title": "Anhang A Prozessmatrix",
+      "order": 16,
+      "templateFile": "chapters/A-prozessmatrix.md"
+    },
+    {
+      "id": "B-begriffe",
+      "title": "Anhang B Begriffserläuterungen",
+      "order": 17,
+      "templateFile": "chapters/B-begriffe.md"
     }
   ]
 }

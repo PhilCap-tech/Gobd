@@ -72,8 +72,9 @@ export default async function ReadinessSuccessPage({
             <div className="card">
               <p className="prose">
                 Inhalt aus dem Modul {brancheLabel}: Grundlagen, Checkliste,
-                nächste Schritte. Zur Orientierung und Abstimmung mit deinem
-                Steuerberater.
+                nächste Schritte. Zur Orientierung. Eine Abstimmung mit dem
+                Steuerberater ist optional und nur im Rahmen eines gesonderten
+                Auftrags.
               </p>
               {mailReady ? (
                 <p className="hint">
@@ -84,10 +85,8 @@ export default async function ReadinessSuccessPage({
                 </p>
               ) : (
                 <p className="banner">
-                  E-Mail-Versand ist nicht konfiguriert (Demo, Log-Stub). Der
-                  Download bleibt hier auf der Seite. Magic-Link-Mail folgt,
-                  sobald <code>RESEND_API_KEY</code> und <code>EMAIL_FROM</code>{" "}
-                  gesetzt sind.
+                  E-Mail-Versand ist in diesem Testpfad nicht eingerichtet. Der
+                  Download bleibt hier auf der Seite.
                 </p>
               )}
               <div className="actions" style={{ marginTop: 16 }}>
@@ -108,7 +107,9 @@ export default async function ReadinessSuccessPage({
                 Kein Steuerberatungsersatz. Dieses PDF ist eine allgemeine
                 Arbeitshilfe der IKAT GmbH / gobd-doku-erstellen.de. Es enthält
                 keine Zusicherung von GoBD-Konformität oder Prüfungssicherheit
-                und ersetzt keine Abstimmung mit deinem Steuerberater.
+                und keine individuelle Steuer- oder Rechtsberatung. Eine
+                Abstimmung mit dem Steuerberater ist optional und nur im
+                Rahmen eines gesonderten Auftrags.
               </p>
             </div>
           </section>

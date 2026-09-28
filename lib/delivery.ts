@@ -20,8 +20,8 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import type { VersionPdfMeta } from "@/lib/versioning";
 
 /**
- * GoBD Delivery Templates v2.0.0 — local PDF from Intake + content/delivery-templates.
- * Standardrahmen aus den Templates; keine erfundenen Einzelfall-Rechtstexte.
+ * GoBD Delivery Templates v3.0.0 — local PDF from Intake + content/delivery-templates.
+ * Präsens only for confirmed intake answers. No technical ids in the customer PDF.
  */
 
 const FOOTER_CHROME =
@@ -49,6 +49,10 @@ export type DeliveryChapter = {
 
 export type DeliveryOpenItem = {
   id: string;
+  priority: DeliveryOpenPoint["priority"];
+  text: string;
+  responsibility?: string;
+  dueDate?: string;
   title: string;
   status: "open";
   severity?: DeliveryOpenPoint["severity"];
@@ -82,25 +86,40 @@ export type DeliveryPlan = {
 function hintFromAnswers(id: string, answers: IntakeAnswers): string {
   const join = (values: string[]) => values.join(", ");
   switch (id) {
-    case "01-vorbemerkungen":
-      return answers.gf || "GF fehlt";
-    case "02-zielsetzung":
-      return join(answers.branchen) || answers.rechtsform || "Branche fehlt";
-    case "03-organisation":
-    case "03-organisation-sicherheit":
-      return join(answers.fibu) || "FiBu fehlt";
-    case "04-verfahren-papier":
+    case "00b-dokumentenlenkung":
+      return "Dokumentenlenkung";
+    case "01-zweck-geltung":
+      return answers.gf || "Zweck";
+    case "02-unternehmen-rollen":
+      return answers.gf || join(answers.branchen) || "Rollen";
+    case "03-systeme-datenfluss":
+      return join(answers.fibu) || "Systeme";
+    case "04-belegarten-kanaele":
+      return join(answers.eingangsbelege) || "Belegarten";
+    case "05-eingang-erechnung":
       return join(answers.eingangsbelege) || "Eingang fehlt";
-    case "05-verfahren-digital":
+    case "06-papier-digitalisierung":
+      return "Papier nur wenn genannt";
+    case "07-ausgangsrechnungen":
       return join(answers.ausgangsrechnungen) || "Ausgang fehlt";
-    case "06-mitgeltende-unterlagen":
-      return answers.steuerberater || "Mitgeltende Unterlagen";
-    case "07-aenderungshistorie":
-      return "Erstfassung";
-    case "08-glossar":
-      return "Begriffe";
-    case "09-offene-punkte":
+    case "08-freigabe-buchung-status":
+      return answers.gf || "Freigabe";
+    case "09-ablage-aufbewahrung":
+      return answers.archiv || "Aufbewahrung";
+    case "10-berechtigungen-sicherung":
+      return answers.zugriff || "Zugriff";
+    case "11-iks":
+      return "Kontrollen nicht bestätigt";
+    case "12-versionspflege":
+      return "Bestätigung ausstehend";
+    case "13-mitgeltende-unterlagen":
+      return "Anlagen offen";
+    case "14-offene-punkte":
       return "Offene Punkte";
+    case "A-prozessmatrix":
+      return "Prozessmatrix";
+    case "B-begriffe":
+      return "Begriffe";
     default:
       return "";
   }
@@ -134,8 +153,12 @@ export function planDelivery(
     })),
     openItems: rendered.openPoints.map((item) => ({
       id: item.id,
+      priority: item.priority,
+      text: item.text,
+      responsibility: item.responsibility,
+      ...(item.dueDate ? { dueDate: item.dueDate } : {}),
       title: item.title,
-      status: "open",
+      status: "open" as const,
       severity: item.severity,
     })),
     pdf: null,
@@ -194,7 +217,6 @@ function drawFooter(
   input: {
     page: number;
     pages: number;
-    documentId: string;
     versionLabel: string;
     validFrom?: string;
   },
@@ -230,7 +252,7 @@ function drawFooter(
       .fontSize(7)
       .fillColor(BRAND_MUTED)
       .text(
-        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""} · ${input.documentId.slice(0, 8)}`,
+        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}`,
         left,
         ruleY + 18,
         { width, lineBreak: false },
@@ -241,7 +263,6 @@ function drawFooter(
 function writeTitlePage(
   doc: PDFKit.PDFDocument,
   rendered: RenderedDocument,
-  identity: CheckoutIdentity,
   cover?: string,
   metaSentence?: string,
 ) {
@@ -268,13 +289,6 @@ function writeTitlePage(
       .fillColor(BRAND_INK)
       .text(metaSentence, { width });
   }
-  if (identity.stub) {
-    doc
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor(BRAND_MUTED)
-      .text("Erzeugt in einer Stub-Session (ohne Stripe-Livezahlung).", { width });
-  }
 }
 
 function decoratePages(
@@ -282,7 +296,6 @@ function decoratePages(
   input: {
     identity: CheckoutIdentity;
     rendered: RenderedDocument;
-    documentId: string;
   },
 ) {
   const range = doc.bufferedPageRange();
@@ -294,7 +307,6 @@ function decoratePages(
     drawFooter(doc, {
       page: i + 1,
       pages: range.count,
-      documentId: input.documentId,
       versionLabel: input.rendered.versionLabel,
       validFrom: input.rendered.validFromDisplay,
     });
@@ -326,7 +338,6 @@ function writePdf(
   writeTitlePage(
     doc,
     rendered,
-    input.identity,
     cover,
     customCover ? rendered.versionMetaSentence : "",
   );
@@ -340,7 +351,6 @@ function writePdf(
   decoratePages(doc, {
     identity: input.identity,
     rendered,
-    documentId: input.documentId,
   });
 }
 

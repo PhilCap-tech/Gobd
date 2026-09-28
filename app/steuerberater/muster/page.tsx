@@ -4,7 +4,12 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
 import { LEGAL_OPERATOR } from "@/lib/legal";
-import { evaluateOpenPoints, OPEN_POINT_EMPTY_LABELS } from "@/lib/open-points";
+import {
+  evaluateOpenPoints,
+  OPEN_POINT_EMPTY_LABELS,
+  openPointChapterLabel,
+  openPointDueLabel,
+} from "@/lib/open-points";
 import {
   PARTNER_DEMO_PATH,
   PARTNER_MUSTER_ANSWERS,
@@ -15,9 +20,9 @@ import {
 } from "@/lib/partner-muster";
 
 const PAGE_TITLE =
-  "Muster: Verfahrensdokumentation Beispiel GmbH (anonymisiert) | GoBD Verfahrensdoku";
+  "Muster: Verfahrensdokumentation Beispiel GmbH (fiktiv) | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "Anonymisierte Beispiel-GmbH: DATEV, Eingang per E-Mail/PDF, Ausgang aus der Buchhaltungssoftware. PDF und Offene Punkte aus dem Lieferpfad. Keine Steuerberatung.";
+  "Fiktive GmbH, DATEV, E-Mail und PDF. Gliederung am detaillierten Muster. Präsens nur für bestätigte Angaben. Keine Freigabe durch die Geschäftsführung. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -45,18 +50,23 @@ const openPoints = evaluateOpenPoints({
 });
 
 const facts: Array<[string, string]> = [
-  ["Unternehmen", `${PARTNER_MUSTER_IDENTITY.company} (anonymisiert)`],
+  ["Unternehmen", `${PARTNER_MUSTER_IDENTITY.company} (fiktiv)`],
   ["Branche", PARTNER_MUSTER_ANSWERS.branchen.join(", ")],
   ["Rechtsform", PARTNER_MUSTER_ANSWERS.rechtsform],
   ["Mitarbeitende", PARTNER_MUSTER_ANSWERS.mitarbeitende],
+  ["Geschäftsführung", PARTNER_MUSTER_ANSWERS.gf],
+  ["Buchhaltung", PARTNER_MUSTER_ANSWERS.buchhaltung],
+  ["Steuerberatung", PARTNER_MUSTER_ANSWERS.steuerberater],
   ["FiBu", PARTNER_MUSTER_ANSWERS.fibu.join(", ")],
   ["Eingangsbelege", PARTNER_MUSTER_ANSWERS.eingangsbelege.join(", ")],
   ["Ausgangsrechnungen", PARTNER_MUSTER_ANSWERS.ausgangsrechnungen.join(", ")],
   ["Archiv", PARTNER_MUSTER_ANSWERS.archiv],
   ["Hosting", PARTNER_MUSTER_ANSWERS.hosting],
   ["Backup", PARTNER_MUSTER_ANSWERS.backup.join(", ")],
-  ["Weitere Systeme", "leer — wird offener Punkt"],
-  ["IT", "leer — wird offener Punkt"],
+  ["Zugriff", PARTNER_MUSTER_ANSWERS.zugriff],
+  ["Weitere Systeme", PARTNER_MUSTER_ANSWERS.weitereSysteme],
+  ["IT", "nicht angegeben — offener Punkt"],
+  ["Gültig ab", PARTNER_MUSTER_VERSION_META.validFrom || "von der Geschäftsführung festzulegen"],
   ["Änderung im PDF", PARTNER_MUSTER_VERSION_META.changeSummary],
 ];
 
@@ -66,12 +76,13 @@ export default function PartnerMusterPage() {
       <SiteHeader backHref="/steuerberater" backLabel="Für Steuerberater" />
       <main className="wrap partner-copy">
         <section className="hero">
-          <p className="kicker">Muster · Beispiel · anonymisiert</p>
+          <p className="kicker">Muster · Beispiel · fiktiv</p>
           <h1>Musterergebnis: Beispiel GmbH</h1>
           <p className="lead">
-            Kein Mandant, keine echten Personen. Das PDF und die Liste entstehen
-            aus festen Beispieldaten über denselben Generator wie eine Lieferung
-            nach den Angaben.
+            Kein Mandant, keine echten Personen. Dieselbe Gliederung wie das
+            detaillierte Beispiel, erzeugt aus festen Beispieldaten. Präsens
+            nur für bestätigte Angaben. Die Erzeugung ist keine Freigabe durch
+            die Geschäftsführung.
           </p>
           <div className="actions">
             <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
@@ -82,15 +93,20 @@ export default function PartnerMusterPage() {
             </Link>
           </div>
           <p className="hint">
-            Beispieldaten, die der Fragebogen abbilden kann: kleine GmbH,
-            Dienstleistung, DATEV, digitaler Belegeingang über die Option
-            „E-Mail / PDF“, Ausgangsrechnungen über „aus Buchhaltungssoftware“,
-            Archiv als Freitext „DATEV Unternehmen online“.
+            Im Katalog dieses Beispiels sind bestätigt: DATEV, Hosting, Eingang
+            per E-Mail/PDF, der Zugriffstext und die Sicherungsart. Namen,
+            Archivordnung, Kanzlei-Umfang, Kontrollen und die betriebliche
+            Bestätigung bleiben offen. Kein Papierweg. Die Erzeugung ist keine
+            Freigabe durch die Geschäftsführung.
           </p>
         </section>
 
         <section className="block" id="daten">
-          <h2>Was in diesem Muster steht</h2>
+          <h2>Beispieldaten</h2>
+          <p className="hint">
+            Die Liste ist der Beispielbestand. Im PDF wird daraus nur Präsens,
+            wenn die Katalogfrage bestätigt ist.
+          </p>
           <div className="card">
             <dl className="summary">
               {facts.map(([label, value]) => (
@@ -113,9 +129,9 @@ export default function PartnerMusterPage() {
             ))}
           </ol>
           <p className="hint">
-            Die Kapiteltexte sind die feste Vorlage. Eingesetzt werden die
-            Beispieldaten. Beide Verfahrenskapitel (Papier und Digital) werden
-            erzeugt, auch wenn der Eingang nur „E-Mail / PDF“ ist.
+            Präsens im PDF nur für die festgelegten Angaben. Alles andere ist
+            Hinweis oder offener Punkt. Ein Papierabschnitt entsteht nur, wenn
+            ein Papier- oder Scanweg genannt ist. In diesem Muster entfällt er.
           </p>
         </section>
 
@@ -126,32 +142,42 @@ export default function PartnerMusterPage() {
             {OPEN_POINT_EMPTY_LABELS.length
               ? `: ${OPEN_POINT_EMPTY_LABELS.join(", ")}.`
               : "."}{" "}
-            Die Backup-Option „Unklar“ steht nicht in dieser Liste. Widersprüche
-            zwischen ausgefüllten Angaben prüft der Regelsatz nicht.
+            Die Backup-Option „Unklar“ steht nicht in dieser Liste. Zusätzlich
+            bleiben Schritte offen, die der Fragebogen nicht abfragt
+            (Sichtungsturnus, Rücksicherung, Kontrollroutine,
+            Berechtigungsliste). Ein Kanzleiname mit unbestätigtem
+            Leistungsumfang wird nicht als Verbuchung beschrieben. Ein
+            konkreter Hinweis: ist ersetzendes Scannen genannt, ohne dass ein
+            Papierweg bestätigt ist, erscheint das als offener Punkt. Das ist
+            keine automatische Freigabe und kein allgemeiner
+            Widerspruchs-Check.
           </p>
           <div className="legal legal-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Schwere</th>
+                  <th scope="col">Priorität</th>
                   <th scope="col">Offener Punkt</th>
                   <th scope="col">Kapitel</th>
+                  <th scope="col">Zieltermin</th>
                 </tr>
               </thead>
               <tbody>
                 {openPoints.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.severity}</td>
-                    <td>{item.title}</td>
-                    <td>{item.chapter || "—"}</td>
+                    <td>{item.priority}</td>
+                    <td>{item.text}</td>
+                    <td>{openPointChapterLabel(item.chapter)}</td>
+                    <td>{item.dueDate ?? openPointDueLabel()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className="hint">
-            Dieselbe Tabelle steht im PDF (Kapitel Offene Punkte). Schweregrade
-            bleiben high, medium, low — so schreibt sie der Generator.
+            Dieselbe Tabelle steht im PDF. Priorität ist hoch, mittel oder
+            niedrig. Ein Zieltermin wird nicht erfunden und steht auf „nicht
+            festgelegt“.
           </p>
         </section>
 
@@ -172,7 +198,8 @@ export default function PartnerMusterPage() {
           <p className="disclaimer">
             Muster der IKAT GmbH, gobd-doku-erstellen.de. Keine Steuer-, Rechts-
             oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität. Die
-            Beispiel GmbH ist erfunden.
+            Beispiel GmbH ist erfunden. Die Erzeugung ist keine Freigabe durch
+            die Geschäftsführung.
           </p>
         </section>
       </main>

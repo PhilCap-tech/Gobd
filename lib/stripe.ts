@@ -154,13 +154,16 @@ export async function createCheckoutSession(input: {
   email: string;
   company: string;
   entityId?: string;
+  audience?: "kunde" | "steuerberater";
 }): Promise<{ url: string; stub: boolean }> {
   const appUrl = getAppUrl();
   const entityId = input.entityId?.trim() ?? "";
+  const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   const successUrl = entityId
     ? `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}&entity_id=${encodeURIComponent(entityId)}`
     : `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${appUrl}/`;
+  const cancelUrl =
+    audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/`;
 
   if (!isStripeConfigured()) {
     const sessionId = `mock_${Date.now()}`;
@@ -173,7 +176,9 @@ export async function createCheckoutSession(input: {
     console.warn(
       "[stripe] Keys fehlen — Stub-Checkout. Setze STRIPE_SECRET_KEY, STRIPE_PRICE_SETUP_ID, STRIPE_PRICE_MONTHLY_ID.",
     );
-    return { url: `${appUrl}/intake?${params}`, stub: true };
+    // Stay on the host that rendered checkout. The fallback app URL is
+    // localhost:3000 and can be a different process than this server.
+    return { url: `/intake?${params}`, stub: true };
   }
 
   const stripe = getStripe();
@@ -195,12 +200,14 @@ export async function createCheckoutSession(input: {
     metadata: {
       company: input.company,
       product: "gobd-verfahrensdoku",
+      audience,
       ...(entityId ? { entity_id: entityId } : {}),
     },
     subscription_data: {
       metadata: {
         company: input.company,
         product: "gobd-verfahrensdoku",
+        audience,
         ...(entityId ? { entity_id: entityId } : {}),
       },
     },
@@ -661,12 +668,12 @@ export function portalStatusCopy(status: PortalStatus): {
       };
     case "missing":
       return {
-        text: "Kein Stripe-Kunde zu dieser E-Mail. Das Portal ist nach einem Checkout mit Stripe verfügbar.",
+        text: "Zu dieser E-Mail liegt noch kein Checkout vor. Die Abo-Verwaltung ist danach verfügbar.",
         tone: "warn",
       };
     case "unavailable":
       return {
-        text: "Stripe ist nicht konfiguriert — Abo-Verwaltung im Demo-Pfad nicht verfügbar.",
+        text: "Zahlung ist in diesem Testpfad nicht angebunden. Abo-Verwaltung ist hier nicht verfügbar.",
         tone: "warn",
       };
     case "error":

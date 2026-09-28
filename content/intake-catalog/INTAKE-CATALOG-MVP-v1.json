@@ -1,0 +1,382 @@
+{
+  "version": "1.0.0",
+  "slice": "katalog-mvp-before-fertig",
+  "answerStatuses": ["bestaetigt", "geplant", "unbekannt", "nicht_zutreffend"],
+  "generatorRule": "Praesens-Ist nur bei status=bestaetigt; geplant=kein Ist; unbekannt→OP; nicht_zutreffend→Grund speichern + Zweig omit",
+  "forbiddenInCustomerPdf": ["stub", "stripeSessionId", "stripeCustomerId"],
+  "legacyIntakeBridge": {
+    "note": "Altes Kurz-Intake weiter mappen als Fallback; neue Felder haben Vorrang wenn gesetzt",
+    "map": {
+      "identity.company": "A01.company",
+      "answers.branchen": "A01.branchen",
+      "answers.rechtsform": "A01.rechtsform",
+      "answers.mitarbeitende": "A01.mitarbeitende",
+      "answers.gf": "A01.gf",
+      "answers.fibu": "B01.systeme.namesWhereType=fibu",
+      "answers.weitereSysteme": "B01.weitereFreitext",
+      "answers.eingangsbelege": "C01.kanaele",
+      "answers.ausgangsrechnungen": "E05.systeme",
+      "answers.archiv": "G01.ablage",
+      "answers.hosting": "B01.hosting",
+      "answers.backup": "G06.backupArten",
+      "answers.zugriff": "G02.zugriffKurz",
+      "answers.buchhaltung": "F01.buchhaltung",
+      "answers.it": "B01.it",
+      "answers.steuerberater": "F05.kanzleiName"
+    }
+  },
+  "steps": [
+    {
+      "id": "step-A",
+      "title": "Unternehmen und Geltungsbereich",
+      "questions": [
+        {
+          "id": "A01",
+          "prompt": "Rechtsträger, Standort, Tätigkeitsbereiche und verantwortliche Geschäftsleitung?",
+          "fields": [
+            {"key": "company", "type": "text", "label": "Unternehmen", "required": true},
+            {"key": "standort", "type": "text", "label": "Standort", "required": true},
+            {"key": "branchen", "type": "multi", "label": "Tätigkeitsbereiche", "required": true},
+            {"key": "rechtsform", "type": "text", "label": "Rechtsform", "required": true},
+            {"key": "mitarbeitende", "type": "text", "label": "Mitarbeitende", "required": false},
+            {"key": "gf", "type": "text", "label": "Geschäftsleitung (Name)", "required": true}
+          ],
+          "statusRequired": true,
+          "output": ["00-cover-freigabe", "01-zweck-geltung", "02-unternehmen-rollen"]
+        },
+        {
+          "id": "A02",
+          "prompt": "Welche Belegarten und Gesellschaften umfasst diese Fassung ausdrücklich — und was ist ausgeschlossen?",
+          "fields": [
+            {"key": "belegartenScope", "type": "multi", "label": "Im Scope", "options": ["Eingangsrechnungen", "Ausgangsrechnungen", "sonstige Buchungsbelege", "Verträge/Leistungsnachweise", "Zahlungsnachweise"]},
+            {"key": "ausgeschlossen", "type": "multi", "label": "Ausgeschlossen", "options": ["Kasse", "Warenwirtschaft", "Lohn", "Shop", "Lager", "Sonstiges"]},
+            {"key": "ausgeschlossenSonstiges", "type": "text", "label": "Sonstiges ausgeschlossen", "required": false}
+          ],
+          "statusRequired": true,
+          "output": ["01-zweck-geltung", "04-belegarten-kanaele"]
+        },
+        {
+          "id": "A03",
+          "prompt": "Gibt es Kasse, Shop, Lager, Lohn, Plattformen oder weitere Vorsysteme?",
+          "fields": [
+            {"key": "kasse", "type": "enum", "options": ["ja", "nein", "unbekannt"]},
+            {"key": "shop", "type": "enum", "options": ["ja", "nein", "unbekannt"]},
+            {"key": "lager", "type": "enum", "options": ["ja", "nein", "unbekannt"]},
+            {"key": "lohn", "type": "enum", "options": ["ja", "nein", "unbekannt"]},
+            {"key": "plattformen", "type": "enum", "options": ["ja", "nein", "unbekannt"]},
+            {"key": "hinweis", "type": "text", "label": "Kurzhinweis", "required": false}
+          ],
+          "statusRequired": true,
+          "output": ["01-zweck-geltung", "03-systeme-datenfluss"]
+        },
+        {
+          "id": "A04",
+          "prompt": "Seit wann wird der beschriebene Ablauf tatsächlich so ausgeführt?",
+          "fields": [
+            {"key": "gueltigAb", "type": "date", "required": true},
+            {"key": "keineRueckdatierungBestaetigt", "type": "boolean", "label": "Keine Rückdatierung bestätigt", "required": true}
+          ],
+          "statusRequired": true,
+          "output": ["00b-dokumentenlenkung", "12-versionspflege"]
+        }
+      ]
+    },
+    {
+      "id": "step-B",
+      "title": "Systeme und Datenfluss",
+      "questions": [
+        {
+          "id": "B01",
+          "prompt": "Welche Systeme erzeugen, empfangen, verändern, buchen oder archivieren Belege?",
+          "fields": [
+            {"key": "systeme", "type": "repeat", "item": {"name": "text", "funktion": "text", "typ": {"type": "enum", "options": ["fibu", "postfach", "portal", "archiv", "rechnungssoftware", "sonstiges"]}}, "min": 1},
+            {"key": "weitereFreitext", "type": "text", "required": false},
+            {"key": "hosting", "type": "text", "required": false},
+            {"key": "it", "type": "text", "label": "IT-Verantwortung", "required": false}
+          ],
+          "statusRequired": true,
+          "output": ["03-systeme-datenfluss"]
+        },
+        {
+          "id": "B04",
+          "prompt": "Welche Dateien und Metadaten werden als Original aufbewahrt?",
+          "fields": [
+            {"key": "originalJeWeg", "type": "repeat", "item": {"belegweg": "text", "originalBeschreibung": "text"}}
+          ],
+          "statusRequired": true,
+          "output": ["04-belegarten-kanaele", "09-ablage-aufbewahrung"]
+        },
+        {
+          "id": "B05",
+          "prompt": "Welche Systeme liegen bei Dritten und welche Anbieterunterlagen sind vorhanden?",
+          "fields": [
+            {"key": "externeSysteme", "type": "repeat", "item": {"name": "text", "unterlagenVorhanden": {"type": "enum", "options": ["ja", "nein", "unbekannt"]}}}
+          ],
+          "statusRequired": true,
+          "output": ["03-systeme-datenfluss", "13-mitgeltende-unterlagen", "14-offene-punkte"]
+        }
+      ]
+    },
+    {
+      "id": "step-C",
+      "title": "Eingang und Erfassung",
+      "questions": [
+        {
+          "id": "C01",
+          "prompt": "Welche Eingangswege gibt es tatsächlich?",
+          "fields": [
+            {"key": "kanaele", "type": "multi", "options": ["Post/Papier", "E-Mail-PDF", "E-Rechnung (XRechnung/ZUGFeRD/XML)", "Portal", "Schnittstelle", "App"], "required": true}
+          ],
+          "statusRequired": true,
+          "note": "E-Mail-PDF und E-Rechnung getrennt; E-Mail löst keinen Scantext aus",
+          "output": ["04-belegarten-kanaele", "05-eingang-erechnung", "06-papier-digitalisierung"]
+        },
+        {
+          "id": "C02",
+          "prompt": "Welches Postfach oder Portal wird von wem in welchem Turnus gesichtet?",
+          "fields": [
+            {"key": "postfachOderPortal", "type": "text"},
+            {"key": "wer", "type": "text"},
+            {"key": "turnus", "type": "text"}
+          ],
+          "when": {"C01.kanaeleContainsAny": ["E-Mail-PDF", "E-Rechnung (XRechnung/ZUGFeRD/XML)", "Portal", "Schnittstelle", "App"]},
+          "statusRequired": true,
+          "output": ["05-eingang-erechnung"]
+        },
+        {
+          "id": "C03",
+          "prompt": "Wer nimmt Papier entgegen, versieht es mit Eingangsdatum und wohin gelangt es?",
+          "fields": [
+            {"key": "schritte", "type": "textarea"}
+          ],
+          "when": {"C01.kanaeleContainsAny": ["Post/Papier"]},
+          "statusRequired": true,
+          "output": ["06-papier-digitalisierung"]
+        }
+      ]
+    },
+    {
+      "id": "step-D",
+      "title": "Papier und Scannen",
+      "when": {"C01.kanaeleContainsAny": ["Post/Papier"]},
+      "questions": [
+        {
+          "id": "D01",
+          "prompt": "Werden Papierbelege gescannt, und zu welchem Zweck?",
+          "fields": [
+            {"key": "scanZweck", "type": "enum", "options": ["nein", "Bearbeitungskopie", "ersetzend"]}
+          ],
+          "statusRequired": true,
+          "output": ["06-papier-digitalisierung"]
+        }
+      ]
+    },
+    {
+      "id": "step-E",
+      "title": "Rechnungen und E-Rechnungen",
+      "questions": [
+        {
+          "id": "E01",
+          "prompt": "Welche Formate werden empfangen?",
+          "fields": [
+            {"key": "formate", "type": "multi", "options": ["PDF", "XRechnung", "ZUGFeRD", "Papier", "EDI"]}
+          ],
+          "statusRequired": true,
+          "output": ["05-eingang-erechnung"]
+        },
+        {
+          "id": "E02",
+          "prompt": "Wie wird der strukturierte Teil empfangen, geprüft und im Original gespeichert? Gibt es eine technische Validierung?",
+          "fields": [
+            {"key": "ablauf", "type": "textarea"},
+            {"key": "validierung", "type": "enum", "options": ["ja_bestaetigt", "nein", "unbekannt"]}
+          ],
+          "when": {"E01.formateContainsAny": ["XRechnung", "ZUGFeRD"] , "orC01": ["E-Rechnung (XRechnung/ZUGFeRD/XML)"]},
+          "statusRequired": true,
+          "output": ["05-eingang-erechnung", "14-offene-punkte"]
+        },
+        {
+          "id": "E03",
+          "prompt": "Wer prüft Leistungsbezug, Rechnungsangaben und Unstimmigkeiten vor Freigabe?",
+          "fields": [
+            {"key": "pruefer", "type": "text"},
+            {"key": "kriterien", "type": "textarea", "required": false}
+          ],
+          "statusRequired": true,
+          "output": ["05-eingang-erechnung", "08-freigabe-buchung-status"]
+        },
+        {
+          "id": "E05",
+          "prompt": "Wer erstellt Ausgangsrechnungen, in welchem System und wie werden Nummern vergeben?",
+          "fields": [
+            {"key": "systeme", "type": "multi_or_text"},
+            {"key": "wer", "type": "text"},
+            {"key": "nummernvergabe", "type": "text"}
+          ],
+          "statusRequired": true,
+          "output": ["07-ausgangsrechnungen"]
+        }
+      ]
+    },
+    {
+      "id": "step-F",
+      "title": "Freigabe und Buchung",
+      "questions": [
+        {
+          "id": "F01",
+          "prompt": "Wer prüft sachlich, wer gibt frei und wer bucht?",
+          "fields": [
+            {"key": "sachlich", "type": "text"},
+            {"key": "freigabe", "type": "text"},
+            {"key": "buchung", "type": "text"},
+            {"key": "buchhaltung", "type": "text", "required": false}
+          ],
+          "statusRequired": true,
+          "output": ["02-unternehmen-rollen", "08-freigabe-buchung-status"]
+        },
+        {
+          "id": "F02",
+          "prompt": "Welche Beleg-ID verbindet Original, Freigabe und Buchungssatz?",
+          "fields": [
+            {"key": "belegIdBeschreibung", "type": "text"}
+          ],
+          "statusRequired": true,
+          "output": ["08-freigabe-buchung-status"]
+        },
+        {
+          "id": "F05",
+          "prompt": "Welche Tätigkeiten übernimmt die Kanzlei laut Vereinbarung tatsächlich?",
+          "fields": [
+            {"key": "kanzleiName", "type": "text"},
+            {"key": "leistungsumfang", "type": "textarea"},
+            {"key": "nachweisVorhanden", "type": "enum", "options": ["ja", "nein", "unbekannt"]}
+          ],
+          "statusRequired": true,
+          "note": "Keine unterstellte Berater-/Freigaberolle ohne Bestätigung",
+          "output": ["08-freigabe-buchung-status", "13-mitgeltende-unterlagen"]
+        }
+      ]
+    },
+    {
+      "id": "step-G",
+      "title": "Archiv und Aufbewahrung",
+      "questions": [
+        {
+          "id": "G01",
+          "prompt": "Wo wird das Original je Belegart abgelegt und mit welchen Suchmerkmalen gefunden?",
+          "fields": [
+            {"key": "ablage", "type": "text"},
+            {"key": "ordnung", "type": "text"}
+          ],
+          "statusRequired": true,
+          "output": ["09-ablage-aufbewahrung"]
+        },
+        {
+          "id": "G02",
+          "prompt": "Wer darf einsehen, ändern, exportieren oder löschen und wie werden Rechte gepflegt?",
+          "fields": [
+            {"key": "zugriffKurz", "type": "textarea"},
+            {"key": "berechtigungslisteVorhanden", "type": "enum", "options": ["ja", "nein", "unbekannt"]}
+          ],
+          "statusRequired": true,
+          "output": ["10-berechtigungen-sicherung"]
+        },
+        {
+          "id": "G05",
+          "prompt": "Wer klassifiziert Unterlagen für Fristen, prüft Ablaufhemmungen und autorisiert Löschung?",
+          "fields": [
+            {"key": "rolleFristen", "type": "text"},
+            {"key": "verfahren", "type": "textarea", "required": false}
+          ],
+          "statusRequired": true,
+          "note": "Fachtext Buchungsbelege i.d.R. 8 Jahre kommt aus Canonical-Bibliothek",
+          "output": ["09-ablage-aufbewahrung"]
+        },
+        {
+          "id": "G06",
+          "prompt": "Welche Sicherung und Rücksicherung sind tatsächlich dokumentiert und getestet?",
+          "fields": [
+            {"key": "backupArten", "type": "multi_or_text"},
+            {"key": "wiederherstellungGetestet", "type": "enum", "options": ["ja", "nein", "unbekannt"]},
+            {"key": "letztesTestdatum", "type": "date", "required": false}
+          ],
+          "statusRequired": true,
+          "output": ["10-berechtigungen-sicherung", "14-offene-punkte"]
+        }
+      ]
+    },
+    {
+      "id": "step-H",
+      "title": "Kontrollen",
+      "questions": [
+        {
+          "id": "H01",
+          "prompt": "Welche Kontrollen werden tatsächlich durchgeführt, von wem und in welchem Turnus?",
+          "fields": [
+            {"key": "kontrollen", "type": "repeat", "item": {"name": "text", "turnus": "text", "wer": "text", "nachweis": "text"}, "min": 0}
+          ],
+          "statusRequired": true,
+          "note": "IKS-Tabelle nur mit bestätigten Einträgen; leer → OP",
+          "output": ["11-iks"]
+        },
+        {
+          "id": "H04",
+          "prompt": "Wann wurde Wiederherstellung oder Export zuletzt praktisch geprüft?",
+          "fields": [
+            {"key": "datum", "type": "date", "required": false},
+            {"key": "ergebnis", "type": "textarea", "required": false},
+            {"key": "status", "type": "enum", "options": ["bestaetigt", "unbekannt", "nie"]}
+          ],
+          "statusRequired": true,
+          "output": ["10-berechtigungen-sicherung", "14-offene-punkte"]
+        }
+      ]
+    },
+    {
+      "id": "step-I",
+      "title": "Pflege und Abschluss",
+      "questions": [
+        {
+          "id": "I01",
+          "prompt": "Wer pflegt die Dokumentation und bei welchen Änderungen wird eine neue Fassung angelegt?",
+          "fields": [
+            {"key": "pfleger", "type": "text"},
+            {"key": "ausloeser", "type": "textarea"}
+          ],
+          "statusRequired": true,
+          "output": ["12-versionspflege"]
+        },
+        {
+          "id": "I02",
+          "prompt": "Welche Anlagen belegen Systemstand, Rechte, Verträge und Kontrollen?",
+          "fields": [
+            {"key": "anlagen", "type": "repeat", "item": {"name": "text", "status": {"type": "enum", "options": ["vorhanden", "offen", "nicht_zutreffend"]}}}
+          ],
+          "statusRequired": true,
+          "output": ["13-mitgeltende-unterlagen"]
+        },
+        {
+          "id": "I04",
+          "prompt": "Wer hat jeden beschriebenen Ist-Ablauf geprüft und wann? (betriebliche Bestätigung)",
+          "fields": [
+            {"key": "name", "type": "text"},
+            {"key": "datum", "type": "date"}
+          ],
+          "statusRequired": true,
+          "note": "Generierung ≠ betriebliche Bestätigung; Freigabevermerk nie auto",
+          "output": ["00-cover-freigabe", "12-versionspflege"]
+        },
+        {
+          "id": "I05",
+          "prompt": "Welcher Zeitraum gilt für diese Version und wo bleiben frühere Fassungen?",
+          "fields": [
+            {"key": "gueltigAb", "type": "date"},
+            {"key": "speicherortHistorie", "type": "text"}
+          ],
+          "statusRequired": true,
+          "output": ["00b-dokumentenlenkung", "12-versionspflege"]
+        }
+      ]
+    }
+  ]
+}

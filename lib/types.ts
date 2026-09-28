@@ -1,3 +1,18 @@
+export type TriState = "ja" | "nein" | "unbekannt";
+
+export type VorsystemArt = "Kasse" | "Shop" | "Lager" | "Lohn" | "Plattform";
+
+export type SystemEintrag = { name: string; funktion: string };
+
+export type OriginalEintrag = { weg: string; original: string };
+
+export type KontrolleEintrag = {
+  was: string;
+  turnus: string;
+  wer: string;
+  nachweis: string;
+};
+
 export type IntakeAnswers = {
   branchen: string[];
   rechtsform: string;
@@ -14,6 +29,72 @@ export type IntakeAnswers = {
   buchhaltung: string;
   it: string;
   steuerberater: string;
+  /** MVP Fragenkatalog. Absent on rows from the older five-step intake. */
+  standort?: string;
+  geltung?: string;
+  geltungBelegarten?: string;
+  geltungAusschluss?: string;
+  vorsysteme?: string;
+  vorsystemAntwort?: Partial<Record<VorsystemArt, TriState>>;
+  seitWann?: string;
+  systeme?: SystemEintrag[];
+  formate?: string[];
+  originalErhalt?: string;
+  originalJeWeg?: OriginalEintrag[];
+  anbieterUnterlagen?: string;
+  sichtung?: string;
+  postfach?: string;
+  sichtungWer?: string;
+  sichtungTurnus?: string;
+  papierannahme?: string;
+  scanZweck?: string;
+  scanAufbewahrung?: string;
+  papierlager?: string;
+  erechnungVerfahren?: string;
+  validierung?: TriState | "";
+  sachlichePruefung?: string;
+  pruefkriterien?: string;
+  pruefrolle?: string;
+  belegId?: string;
+  rollePruefen?: string;
+  rolleFreigeben?: string;
+  rolleBuchen?: string;
+  rollen?: string;
+  loeschfreigabe?: string;
+  wiederherstellungstest?: string;
+  backupGetestet?: TriState | "";
+  kontrollen?: string;
+  kontrollenListe?: KontrolleEintrag[];
+  dokumentenpflege?: string;
+  anlagenliste?: string;
+  fassungsrahmen?: string;
+  bestaetigungName?: string;
+  bestaetigungDatum?: string;
+  /**
+   * Delivery catalog MVP (INTAKE-CATALOG-MVP-v1). Primary intake.
+   * Absent on older short-intake rows; those stay on the legacy bridge.
+   */
+  katalog?: Record<
+    string,
+    {
+      status?: "bestaetigt" | "geplant" | "unbekannt" | "nicht_zutreffend";
+      reason?: string;
+      responsible?: string;
+      date?: string;
+      values?: Record<string, unknown>;
+    }
+  >;
+  fragen?: Partial<
+    Record<
+      string,
+      {
+        status: "bestätigt" | "geplant" | "unbekannt" | "nicht zutreffend";
+        text?: string;
+        verantwortung?: string;
+        datum?: string;
+      }
+    >
+  >;
 };
 
 export type CheckoutIdentity = {
@@ -62,6 +143,8 @@ export type SheetRow = {
   changeSummary: string;
   /** Who recorded the version (session email or free text). */
   changedBy: string;
+  /** JSON map of MVP question statuses. Empty on older rows. */
+  fragen: string;
 };
 
 export const SHEET_COLUMNS = [
@@ -97,6 +180,7 @@ export const SHEET_COLUMNS = [
   "valid_to",
   "change_summary",
   "changed_by",
+  "fragen",
 ] as const;
 
 export type SheetColumn = (typeof SHEET_COLUMNS)[number];
@@ -134,6 +218,7 @@ export const SHEET_COLUMN_FIELDS = {
   valid_to: "validTo",
   change_summary: "changeSummary",
   changed_by: "changedBy",
+  fragen: "fragen",
 } as const satisfies Record<SheetColumn, keyof SheetRow>;
 
 export function emptyAnswers(): IntakeAnswers {
@@ -153,7 +238,133 @@ export function emptyAnswers(): IntakeAnswers {
     buchhaltung: "",
     it: "",
     steuerberater: "",
+    standort: "",
+    geltung: "",
+    geltungBelegarten: "",
+    geltungAusschluss: "",
+    vorsysteme: "",
+    vorsystemAntwort: {},
+    seitWann: "",
+    systeme: [],
+    formate: [],
+    originalErhalt: "",
+    originalJeWeg: [],
+    anbieterUnterlagen: "",
+    sichtung: "",
+    postfach: "",
+    sichtungWer: "",
+    sichtungTurnus: "",
+    papierannahme: "",
+    scanZweck: "",
+    scanAufbewahrung: "",
+    papierlager: "",
+    erechnungVerfahren: "",
+    validierung: "",
+    sachlichePruefung: "",
+    pruefkriterien: "",
+    pruefrolle: "",
+    belegId: "",
+    rollePruefen: "",
+    rolleFreigeben: "",
+    rolleBuchen: "",
+    rollen: "",
+    loeschfreigabe: "",
+    wiederherstellungstest: "",
+    backupGetestet: "",
+    kontrollen: "",
+    kontrollenListe: [],
+    dokumentenpflege: "",
+    anlagenliste: "",
+    fassungsrahmen: "",
+    bestaetigungName: "",
+    bestaetigungDatum: "",
+    katalog: {},
+    fragen: {},
   };
+}
+
+const CATALOG_KEYS = [
+  "standort",
+  "geltung",
+  "geltungBelegarten",
+  "geltungAusschluss",
+  "vorsysteme",
+  "vorsystemAntwort",
+  "seitWann",
+  "systeme",
+  "formate",
+  "originalErhalt",
+  "originalJeWeg",
+  "anbieterUnterlagen",
+  "sichtung",
+  "postfach",
+  "sichtungWer",
+  "sichtungTurnus",
+  "papierannahme",
+  "scanZweck",
+  "scanAufbewahrung",
+  "papierlager",
+  "erechnungVerfahren",
+  "validierung",
+  "sachlichePruefung",
+  "pruefkriterien",
+  "pruefrolle",
+  "belegId",
+  "rollePruefen",
+  "rolleFreigeben",
+  "rolleBuchen",
+  "rollen",
+  "loeschfreigabe",
+  "wiederherstellungstest",
+  "backupGetestet",
+  "kontrollen",
+  "kontrollenListe",
+  "dokumentenpflege",
+  "anlagenliste",
+  "fassungsrahmen",
+  "bestaetigungName",
+  "bestaetigungDatum",
+  "katalog",
+] as const satisfies readonly (keyof IntakeAnswers)[];
+
+function catalogFrom(answers: IntakeAnswers): Partial<IntakeAnswers> {
+  const snapshot: Partial<IntakeAnswers> = {};
+  for (const key of CATALOG_KEYS) {
+    const value = answers[key];
+    if (value == null) continue;
+    if (typeof value === "string" && !value.trim()) continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    if (typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0) {
+      continue;
+    }
+    (snapshot as Record<string, unknown>)[key] = value;
+  }
+  return snapshot;
+}
+
+function splitStoredFragen(raw: string): {
+  fragen: IntakeAnswers["fragen"];
+  katalog: Partial<IntakeAnswers>;
+} {
+  if (!raw.trim()) return { fragen: {}, katalog: {} };
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return { fragen: {}, katalog: {} };
+    const katalog =
+      parsed.katalog && typeof parsed.katalog === "object"
+        ? (parsed.katalog as Partial<IntakeAnswers>)
+        : {};
+    const fragen: NonNullable<IntakeAnswers["fragen"]> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (key === "katalog") continue;
+      if (value && typeof value === "object" && "status" in value) {
+        fragen[key] = value as NonNullable<IntakeAnswers["fragen"]>[string];
+      }
+    }
+    return { fragen, katalog };
+  } catch {
+    return { fragen: {}, katalog: {} };
+  }
 }
 
 export function emptySheetRow(): SheetRow {
@@ -190,6 +401,7 @@ export function emptySheetRow(): SheetRow {
     validTo: "",
     changeSummary: "",
     changedBy: "",
+    fragen: "",
   };
 }
 
@@ -244,6 +456,7 @@ export function toSheetRow(input: {
     validTo: input.validTo ?? "",
     changeSummary: input.changeSummary ?? "",
     changedBy: input.changedBy ?? "",
+    fragen: JSON.stringify({ ...(a.fragen ?? {}), katalog: catalogFrom(a) }),
   };
 }
 
@@ -313,6 +526,7 @@ export function coerceSheetRow(value: unknown): SheetRow | null {
     ["validTo", "valid_to"],
     ["changeSummary", "change_summary"],
     ["changedBy", "changed_by"],
+    ["fragen", "fragen"],
   ];
   for (const [field, column] of aliases) {
     if (!row[field] && typeof raw[column] === "string") {
@@ -330,7 +544,9 @@ function splitList(value: string): string[] {
 }
 
 export function answersFromSheetRow(row: SheetRow): IntakeAnswers {
+  const stored = splitStoredFragen(row.fragen);
   return {
+    ...emptyAnswers(),
     branchen: splitList(row.branchen),
     rechtsform: row.rechtsform,
     mitarbeitende: row.mitarbeitende,
@@ -346,6 +562,8 @@ export function answersFromSheetRow(row: SheetRow): IntakeAnswers {
     buchhaltung: row.buchhaltung,
     it: row.it,
     steuerberater: row.steuerberater,
+    ...stored.katalog,
+    fragen: stored.fragen,
   };
 }
 

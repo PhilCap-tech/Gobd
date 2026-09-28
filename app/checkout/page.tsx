@@ -6,6 +6,7 @@ import { entityById, entityChoices } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
+import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
 import { CheckoutForm } from "./checkout-form";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +19,14 @@ export const metadata: Metadata = {
 export default async function CheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ entity_id?: string | string[] }>;
+  searchParams: Promise<{
+    entity_id?: string | string[];
+    utm_campaign?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const requestedEntityId = firstQueryValue(params.entity_id) ?? "";
+  const partner = firstQueryValue(params.utm_campaign) === "steuerberater";
   const email = await getSessionEmail();
   const entities = email ? await listEntitiesByEmail(email) : [];
   const owned = email
@@ -36,11 +41,23 @@ export default async function CheckoutPage({
 
   return (
     <>
-      <SiteHeader backHref="/" backLabel="← Zurück zur Landing" />
+      <SiteHeader
+        backHref={partner ? "/steuerberater" : "/"}
+        backLabel={
+          partner ? "← Zurück für Steuerberater" : "← Zurück zur Landing"
+        }
+      />
       <main className="wrap page">
-        <h1>Dokumentation starten</h1>
+        <h1>{partner ? "Partner-Pilot starten" : "Dokumentation starten"}</h1>
         <p className="lead">
-          149&nbsp;€ Setup plus 49&nbsp;€/Monat. Danach kurzes Intake.
+          {partner ? (
+            <>
+              Listenpreis: {SETUP_EUR}&nbsp;€ Setup plus {MONTHLY_EUR}&nbsp;€/Monat.
+              Den Aktionscode lösen Sie im Checkout ein. Danach der Fragenkatalog.
+            </>
+          ) : (
+            <>149&nbsp;€ Setup plus 49&nbsp;€/Monat. Danach kurzes Intake.</>
+          )}
         </p>
         <CheckoutForm
           stripeReady={isStripeConfigured()}
@@ -49,6 +66,7 @@ export default async function CheckoutPage({
           initialEntityId={initialEntityId}
           initialCompany={owned?.name ?? ""}
           initialEmail={email ?? ""}
+          audience={partner ? "steuerberater" : "kunde"}
         />
       </main>
       <SiteFooter />

@@ -1,0 +1,81 @@
+Fragenkatalog für eine Verfahrensdokumentation zur Belegablage
+Produktgrundgerüst mit Abzweigungen, Nachweisen und Regeln für offene Punkte  |  Fassung 1.0
+Der Katalog erhebt Tatsachen über tatsächlich ausgeführte Prozesse. Jede Antwort erhält Status, Verantwortlichen und Gültigkeitsdatum. Der Generator formuliert einen betrieblichen Ist-Satz nur aus einer bestätigten Antwort; bei unbekannten Angaben erzeugt er eine offene Frage. Ein beantwortetes Feld beweist nicht, dass die Praxis dem Text entspricht.
+Antwortschema und Generatorregeln
+Antwortstatus je Frage: bestätigt, geplant, unbekannt oder nicht zutreffend. Bei „geplant“ keine Beschreibung als bestehender Ablauf.
+Für jede Prozessaussage speichern: Frage-ID, Antwort, Freitext, Verantwortlicher, Bestätigungsdatum, optional Nachweis und Änderungsdatum.
+Bei „nicht zutreffend“ den Grund erheben und unpassende Kapitel ausblenden. Bei „unbekannt“ einen verständlichen offenen Punkt mit Zuständigkeit ausgeben.
+Widersprüche vor Export als Prüfhinweis markieren, etwa „kein Papierbeleg“ bei gleichzeitigem „ersetzenden Scannen“. Keine automatische fachliche Freigabe.
+Rechtsnormen und Fristen sind eine versionierte Fachtextbibliothek mit Prüfdatum, keine frei generierten Tatsachen über den Betrieb.
+A Unternehmen und Geltungsbereich
+A01  Rechtsträger, Standort, Tätigkeitsbereiche und verantwortliche Geschäftsleitung?Antwort: Text / Auswahl  |  Wenn: immer  |  Ausgabe: Deckblatt und Geltungsbereich
+A02  Welche Belegarten und Gesellschaften umfasst diese Fassung ausdrücklich?Antwort: Mehrfachauswahl  |  Wenn: immer  |  Ausgabe: Abgrenzung
+A03  Gibt es Kasse, Shop, Lager, Lohn, Plattformen oder weitere Vorsysteme?Antwort: Ja / Nein / unbekannt je Typ  |  Wenn: immer  |  Ausgabe: Zweige und ergänzende Dokumentationen
+A04  Seit wann wird der beschriebene Ablauf tatsächlich so ausgeführt?Antwort: Datum und Bestätigung  |  Wenn: immer  |  Ausgabe: Gültig-ab; kein Rückdatieren
+B Systeme und Datenfluss
+B01  Welche Systeme erzeugen, empfangen, verändern, buchen oder archivieren Belege?Antwort: Wiederholbare Systemliste  |  Wenn: immer  |  Ausgabe: Systemübersicht
+B02  Welche Version, Betreiberrolle, Speicherort und Schnittstelle hat jedes System?Antwort: Details je System  |  Wenn: B01 je System  |  Ausgabe: Systemanlage; offen falls unbekannt
+B03  Wie gelangen Belege zwischen den Systemen und wer kontrolliert die Übertragung?Antwort: Schrittfolge  |  Wenn: mindestens zwei Systeme  |  Ausgabe: Datenfluss
+B04  Welche Dateien und Metadaten werden als Original aufbewahrt?Antwort: Dateityp / Ort  |  Wenn: B01 je Belegweg  |  Ausgabe: Originalerhalt
+B05  Welche Systeme oder Portale liegen bei Dritten und welche Unterlagen des Anbieters sind vorhanden?Antwort: Liste / Nachweis  |  Wenn: externe Systeme  |  Ausgabe: Anlagen, Vertrag, Exportfähigkeit
+C Eingang und Erfassung
+C01  Welche Eingangswege gibt es tatsächlich: Post, E-Mail, Portal, Schnittstelle, App?Antwort: Mehrfachauswahl  |  Wenn: immer  |  Ausgabe: je Weg eigener Prozess
+C02  Welches Postfach oder Portal wird von wem in welchem Turnus gesichtet?Antwort: Text / Turnus  |  Wenn: digitaler Eingang  |  Ausgabe: Eingangskontrolle
+C03  Wer nimmt Papier entgegen, versieht es mit Eingangsdatum und wohin gelangt es?Antwort: Schrittfolge  |  Wenn: Papier gewählt  |  Ausgabe: Papierprozess
+C04  Wie werden doppelte, unlesbare oder verdächtige Belege erkannt und behandelt?Antwort: Schrittfolge  |  Wenn: immer  |  Ausgabe: Ausnahmeprozess
+C05  Wie wird die Vollständigkeit von Portal- oder Schnittstellenabrufen kontrolliert?Antwort: Kontrolle / Protokoll  |  Wenn: Portal oder Schnittstelle  |  Ausgabe: Vollständigkeit
+D Papier und Scannen
+D01  Werden Papierbelege gescannt, und zu welchem Zweck?Antwort: Nein / Bearbeitungskopie / ersetzend  |  Wenn: Papier gewählt  |  Ausgabe: Scan-Zweig
+D02  Welche Geräte, Formate, Qualitätskontrollen und Fehlerkorrekturen gelten?Antwort: Prozessdetails  |  Wenn: Scannen gewählt  |  Ausgabe: Scanbeschreibung
+D03  Werden Originale vernichtet oder zusätzlich aufbewahrt? Wer entscheidet wann?Antwort: Auswahl / Freigabe  |  Wenn: Scannen gewählt  |  Ausgabe: Aufbewahrung oder Vernichtung
+D04  Wo liegen Papieroriginale, wie sind sie geordnet und wer hat Zugriff?Antwort: Ort / Ordnung / Rolle  |  Wenn: Papier gewählt  |  Ausgabe: Papierablage
+D05  Welche Belegarten bleiben trotz Scan zwingend im Original und wie wird das erkannt?Antwort: Liste / Entscheidung  |  Wenn: ersetzend gewählt  |  Ausgabe: Ausnahme und offener Punkt
+E Rechnungen und E Rechnungen
+E01  Welche Formate werden empfangen: PDF, XRechnung, ZUGFeRD, Papier, EDI?Antwort: Mehrfachauswahl  |  Wenn: immer  |  Ausgabe: Formatweg
+E02  Wie wird der strukturierte Teil empfangen, angezeigt, geprüft und im Original gespeichert?Antwort: Schrittfolge / System  |  Wenn: E-Rechnung gewählt  |  Ausgabe: strukturierte Datei
+E03  Wer prüft Leistungsbezug, Rechnungsangaben und Unstimmigkeiten vor Freigabe?Antwort: Rollen / Kriterien  |  Wenn: immer  |  Ausgabe: sachliche Prüfung
+E04  Wie werden Korrektur, Storno, Dublette und Abweichung zwischen Bild und XML behandelt?Antwort: Schrittfolge  |  Wenn: E-Rechnung oder digital  |  Ausgabe: Ausnahmeprozess
+E05  Wer erstellt Ausgangsrechnungen, in welchem System und wie werden Nummern vergeben?Antwort: System / Rollen  |  Wenn: Ausgangsrechnungen  |  Ausgabe: Erstellung
+E06  Wie wird die versandte Originalfassung samt Übermittlungsweg und Korrektur aufbewahrt?Antwort: Schrittfolge  |  Wenn: Ausgangsrechnungen  |  Ausgabe: Versand und Version
+F Freigabe und Buchung
+F01  Wer prüft sachlich, wer gibt frei und wer bucht?Antwort: Rollen je Stufe  |  Wenn: immer  |  Ausgabe: Rollenzuordnung
+F02  Welche Beleg-ID verbindet Original, Freigabe und Buchungssatz?Antwort: Feld / System  |  Wenn: immer  |  Ausgabe: Nachvollziehbarkeit
+F03  Was geschieht mit Belegen ohne Freigabe oder mit fehlender Kontierung?Antwort: Ausnahmeprozess  |  Wenn: immer  |  Ausgabe: Sperre und Eskalation
+F04  In welchem Turnus werden Belege übergeben und wie wird Vollständigkeit abgeglichen?Antwort: Turnus / Kontrolle  |  Wenn: immer  |  Ausgabe: Buchungsübergabe
+F05  Welche Tätigkeiten übernimmt die Kanzlei laut Vereinbarung tatsächlich?Antwort: Leistungsumfang / Nachweis  |  Wenn: externe Kanzlei  |  Ausgabe: keine unterstellte Beraterrolle
+G Archiv und Aufbewahrung
+G01  Wo wird das Original je Belegart abgelegt und mit welchen Suchmerkmalen gefunden?Antwort: Ort / Ordnung  |  Wenn: je Belegart  |  Ausgabe: Archivprozess
+G02  Wer darf einsehen, ändern, exportieren oder löschen und wie werden Rechte gepflegt?Antwort: Rollenmatrix  |  Wenn: immer  |  Ausgabe: Zugriff
+G03  Wie bleiben frühere Zustände bei Änderung erhalten und wie wird Löschung protokolliert?Antwort: Systemfunktion / Nachweis  |  Wenn: digitales Archiv  |  Ausgabe: Unveränderbarkeit
+G04  Welche Exportformate und Verfahren stehen bei Systemwechsel oder Prüfung zur Verfügung?Antwort: System / Probeexport  |  Wenn: immer  |  Ausgabe: Datenzugriff
+G05  Wer klassifiziert Unterlagen für Fristen, prüft Ablaufhemmungen und autorisiert Löschung?Antwort: Rolle / Verfahren  |  Wenn: immer  |  Ausgabe: Fristenprozess
+G06  Welche Sicherung und Rücksicherung sind tatsächlich dokumentiert und getestet?Antwort: Turnus / Nachweis  |  Wenn: immer  |  Ausgabe: Sicherheit; offen ohne Beleg
+H Kontrollen und Störungen
+H01  Welche Kontrollen werden tatsächlich durchgeführt, von wem und in welchem Turnus?Antwort: Wiederholbare Kontrolle  |  Wenn: immer  |  Ausgabe: IKS nur nach Bestätigung
+H02  Wo werden Ergebnisse, Abweichungen und Korrekturen protokolliert?Antwort: Ort / Nachweis  |  Wenn: H01 bestätigt  |  Ausgabe: Kontrollnachweis
+H03  Was geschieht bei Ausfall von Postfach, System, Schnittstelle oder Archiv?Antwort: Notfallweg  |  Wenn: immer  |  Ausgabe: Störfallprozess
+H04  Wann wurde Wiederherstellung oder Export zuletzt praktisch geprüft?Antwort: Datum / Ergebnis  |  Wenn: immer  |  Ausgabe: Nachweis oder offener Punkt
+I Pflege und Abschluss
+I01  Wer pflegt die Dokumentation und bei welchen Änderungen wird eine neue Fassung angelegt?Antwort: Rolle / Auslöser  |  Wenn: immer  |  Ausgabe: Versionierung
+I02  Welche Anlagen belegen Systemstand, Rechte, Verträge und Kontrollen?Antwort: Anlagenliste  |  Wenn: immer  |  Ausgabe: mitgeltende Unterlagen
+I03  Welche Antworten sind unbekannt, nur geplant oder widersprüchlich?Antwort: automatisch + manuell  |  Wenn: immer  |  Ausgabe: offene Punkte
+I04  Wer hat jeden beschriebenen Ist-Ablauf geprüft und wann?Antwort: Name / Datum  |  Wenn: vor Veröffentlichung  |  Ausgabe: betriebliche Bestätigung
+I05  Welcher Zeitraum gilt für diese Version und wo bleiben frühere Fassungen?Antwort: Datum / Speicherort  |  Wenn: immer  |  Ausgabe: Historie
+Prüfregeln vor PDF Export
+Papierprozess nur bei bestätigtem Papiereingang; Scanprozess nur bei bestätigtem Scan; ersetzendes Scannen nur mit eigenem detaillierten Zweig.
+E-Mail mit PDF und strukturierte E-Rechnung getrennt erfassen; E-Mail-Eingang löst keinen Scantext aus.
+Kanzleirollen und Kontrollen nur aus konkret bestätigten Zuständigkeiten erzeugen. Keine automatische Zuschreibung von Prüfung oder Freigabe.
+Jeder Satz im Präsens über den Betrieb verweist intern auf mindestens eine bestätigte Frage-ID. Fehlt sie, wird daraus eine offene Frage oder ein neutraler allgemeiner Hinweis.
+Technische Bestell-, Zahlungs- und Testreferenzen sind nie fachliche offene Punkte und erscheinen nicht im Kundendokument.
+Fachtext vor Veröffentlichung gegen aktuelle Rechtslage prüfen; dokumentierte Freigabe der Fachtextversion und Datum im Produkt hinterlegen.
+Beispiel einer Ausgabe aus Antwort und offener Frage
+Eingabe
+Zulässige Ausgabe
+C01 E-Mail bestätigt, D01 kein Papier
+„Eingangsrechnungen gehen über das Funktionspostfach ein.“ Das Papierkapitel entfällt.
+H01 Kontrolle unbekannt
+„Offen: Welche Kontrollen werden tatsächlich durchgeführt, von wem und in welchem Turnus?“
+F05 Kanzleileistung nicht belegt
+Keine Aussage, die der Kanzlei Buchung, Prüfung oder Freigabe zuweist.
+Fachliche Grundlage
+Der Katalog orientiert sich an der Nachvollziehbarkeit des tatsächlichen Verfahrens gemäß GoBD, insbesondere Randziffern 151 bis 155. Er ist ein Produktentwurf und muss mit Fachleuten anhand realer, anonymisierter Fälle getestet werden. Quelle: https://ao.bundesfinanzministerium.de/ao/2026/Anhaenge/BMF-Schreiben-und-gleichlautende-Laendererlasse/Anhang-33/inhalt.html

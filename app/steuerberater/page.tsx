@@ -4,7 +4,11 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
 import { LEGAL_OPERATOR } from "@/lib/legal";
-import { evaluateOpenPoints } from "@/lib/open-points";
+import {
+  evaluateOpenPoints,
+  openPointChapterLabel,
+  openPointDueLabel,
+} from "@/lib/open-points";
 import {
   PARTNER_DEMO_PATH,
   PARTNER_MUSTER_ANSWERS,
@@ -13,67 +17,15 @@ import {
   PARTNER_MUSTER_PDF_PATH,
 } from "@/lib/partner-muster";
 import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
+import {
+  PROMO_CODE,
+  PROMO_MAX_REDEMPTIONS,
+  PROMO_MONTHS,
+  PilotKlartextSentence,
+} from "@/components/pilot-klartext";
 
 const PILOT_HREF =
   "/checkout?utm_source=partner&utm_medium=landing&utm_campaign=steuerberater";
-
-const PROMO_CODE = "KANZLEI-PILOT";
-
-/** Content-Auszug (Wireframe v4.1). Nicht 1:1 die Fragen des produktiven Ablaufs. */
-const FRAGEN_AUSZUG: Array<{ question: string; why: string }> = [
-  {
-    question: "Welche Rechtsform / Branche hat der Betrieb?",
-    why: "Rahmen für Belegwege und Systeme",
-  },
-  {
-    question:
-      "Welche Software nutzt ihr für Belege/Buchhaltung? (z. B. DATEV, sevdesk, lexoffice — Beispiele)",
-    why: "Systeme gehören in die Beschreibung",
-  },
-  {
-    question: "Wie kommen Eingangsbelege rein — Papier, E-Mail, Portal, App?",
-    why: "Herkunft der Belege",
-  },
-  {
-    question: "Wer erfasst, wer prüft, wer ist für die Doku verantwortlich?",
-    why: "Rollen nachvollziehbar",
-  },
-  {
-    question: "Wird ersetzend gescannt — oder bleiben Originale?",
-    why: "Im Auszug genannt — im produktiven Ablauf keine eigene Frage",
-  },
-  {
-    question:
-      "Was hat sich seit der letzten Fassung geändert (Software, Prozesse)?",
-    why: "Pflege / Versionierung",
-  },
-];
-
-const MUSTER_GLIEDERUNG = [
-  "Zweck & Geltungsbereich",
-  "Organisation & Rollen",
-  "Belegarten & Herkunft",
-  "Belegweg Ende-zu-Ende",
-  "Systeme & Datenzugriff",
-  "Scan / digitales Archiv (falls zutreffend)",
-  "Änderung & Versionierung",
-];
-
-/** Beispielzeilen aus dem Content-Auszug — nicht die Generator-Ausgabe. */
-const MUSTER_OFFENE_PUNKTE_AUSZUG: Array<{ point: string; note: string }> = [
-  {
-    point: "Scanprozess: Qualitätskontrolle noch nicht beschrieben",
-    note: "Nur relevant bei ersetzendem Scannen",
-  },
-  {
-    point: "Vertretung für Doku-Verantwortliche offen",
-    note: "Rolle klären",
-  },
-  {
-    point: "Softwarewechsel 2025 nur mündlich bekannt — in Fassung nachziehen",
-    note: "In nächster Fassung nachziehen",
-  },
-];
 
 const PAGE_TITLE =
   "Für Steuerberater: Fragen und Muster ansehen, bevor Sie empfehlen | GoBD Verfahrensdoku";
@@ -146,8 +98,8 @@ export default function SteuerberaterPage() {
           </p>
           <HeroProofButtons />
           <p className="trust-line">
-            Keine Steuerberatung · Sie füllen nicht für Mandanten aus · Fragen
-            und Muster sind Auszug und Beispiel
+            Keine Steuerberatung · Sie füllen nicht für Mandanten aus · Muster
+            aus dem Generator
           </p>
         </section>
 
@@ -166,37 +118,18 @@ export default function SteuerberaterPage() {
         </section>
 
         <section className="block" id="fragen-demo">
-          <h2>So sehen die Fragen aus (Auszug)</h2>
+          <h2>Fragen im produktiven Ablauf</h2>
           <p className="prose">
-            Kurzer Einblick — damit Sie den Aufwand einschätzen können, bevor
-            Sie den Partner-Pilot starten.
+            Eine zweite Beispiel-Tabelle gibt es hier nicht. Den Fragebogen
+            sehen Sie im Live-Test: dieselben Fragen und dieselbe Prüfung vor
+            „Weiter“ wie im produktiven Ablauf. Der Test ist linear und
+            verzweigt nicht. Ersetzendes Scannen und „was hat sich geändert“
+            sind dort keine eigenen Fragen.
           </p>
-          <div className="legal legal-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">#</th>
-                  <th scope="col">Beispiel-Frage</th>
-                  <th scope="col">Warum sie da steht</th>
-                </tr>
-              </thead>
-              <tbody>
-                {FRAGEN_AUSZUG.map((row, index) => (
-                  <tr key={row.question}>
-                    <td>{index + 1}</td>
-                    <td>{row.question}</td>
-                    <td>{row.why}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="hint">
-            Im Pilot spielen Sie solche Parameter selbst durch. Beim Mandanten
-            beantwortet der Mandant — nicht die Kanzlei stellvertretend. Der
-            Auszug ist ein Einblick, keine zweite Frageliste. Der Live-Test ist
-            linear und verzweigt nicht. Ersetzendes Scannen und „was hat sich
-            geändert“ sind dort keine eigenen Fragen.
+          <p className="prose">
+            Im Pilot spielen Sie die Parameter selbst durch. Beim Mandanten
+            antwortet der Mandant — nicht die Kanzlei stellvertretend. Die Demo
+            speichert keine Eingaben.
           </p>
           <div className="actions">
             <Link className="btn" href={PARTNER_DEMO_PATH}>
@@ -206,82 +139,52 @@ export default function SteuerberaterPage() {
         </section>
 
         <section className="block" id="muster">
-          <h2>So sieht ein Muster-Ergebnis aus (Auszug)</h2>
+          <h2>Muster aus dem Generator</h2>
           <p className="prose">
-            Kein Blanko-Roman — strukturierter Entwurf plus sichtbare Offene
-            Punkte.
+            Das ist der Beleg auf dieser Seite: die Kapitel und die offenen
+            Punkte, die der Generator aus festen Beispieldaten erzeugt. Dieselbe
+            Quelle wie das Muster-PDF. Keine zweite Gliederung und keine
+            Beispielzeilen daneben.
           </p>
           <p className="hint">
-            Beispiel-Verfahrensdokumentation · Musterbetrieb (anonymisiert) ·
-            Stand: Beispiel · Version 1.0
+            Beispiel GmbH (fiktiv) · DATEV · Eingang E-Mail und PDF · Ausgang
+            Rechnungssoftware · kein Papierweg · Gliederung am detaillierten
+            Muster ausgerichtet · kein echtes Mandantendokument · keine
+            Konformitätszusage · keine Freigabe durch die Geschäftsführung.
           </p>
-          <p className="prose">
-            Dies ist ein <strong>Beispiel</strong>, kein Dokument eines echten
-            Mandanten. Keine Konformitätszusage.
-          </p>
-          <h3>Gliederung (Beispiel)</h3>
-          <ol className="prose-list">
-            {MUSTER_GLIEDERUNG.map((title) => (
-              <li key={title}>{title}</li>
-            ))}
-          </ol>
-          <h3>Offene Punkte (Beispiel)</h3>
-          <p className="hint">
-            Beispiel-Auszug zum Format. Diese drei Zeilen erzeugt der Generator
-            nicht. Sie stehen nicht in der Generator-Tabelle und nicht im PDF
-            darunter.
-          </p>
-          <div className="legal legal-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Nr.</th>
-                  <th scope="col">Offener Punkt</th>
-                  <th scope="col">Hinweis</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MUSTER_OFFENE_PUNKTE_AUSZUG.map((row, index) => (
-                  <tr key={row.point}>
-                    <td>{index + 1}</td>
-                    <td>{row.point}</td>
-                    <td>{row.note}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="hint">
-            Das Muster zeigt Format und Transparenz — nicht „fertig für jeden
-            Betrieb“ und keine Konformitätszusage.
-          </p>
-          <h3>PDF aus dem Generator (Beispiel GmbH)</h3>
-          <p className="prose">
-            Die Datei und die Tabelle darunter kommen aus dem Lieferpfad mit
-            festen Beispieldaten: kleine GmbH, DATEV, Eingang „E-Mail / PDF“,
-            Ausgang „aus Buchhaltungssoftware“. Kapitel und Punkte decken sich
-            nicht mit der Gliederung und den drei Beispielzeilen oben.
-          </p>
+          <h3>Kapitel</h3>
           <ol className="prose-list">
             {musterPlan.chapters.map((chapter) => (
               <li key={chapter.id}>{chapter.title}</li>
             ))}
           </ol>
+          <h3>Offene Punkte</h3>
+          <p className="prose">
+            Diese Liste erzeugt der Regelsatz aus leeren oder unbestätigten
+            Angaben und aus Schritten, die der Fragebogen nicht abfragt.
+            Dieselbe Tabelle
+            steht im PDF (Kapitel Offene Punkte), mit Priorität hoch, mittel
+            oder niedrig und Zieltermin „nicht festgelegt“. Das
+            Muster zeigt Transparenz bei Lücken, nicht „fertig für jeden
+            Betrieb“.
+          </p>
           <div className="legal legal-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Schwere</th>
+                  <th scope="col">Priorität</th>
                   <th scope="col">Offener Punkt aus dem Generator</th>
                   <th scope="col">Kapitel</th>
+                  <th scope="col">Zieltermin</th>
                 </tr>
               </thead>
               <tbody>
                 {musterOpenPoints.map((point) => (
                   <tr key={point.id}>
-                    <td>{point.severity}</td>
-                    <td>{point.title}</td>
-                    <td>{point.chapter || "—"}</td>
+                    <td>{point.priority}</td>
+                    <td>{point.text}</td>
+                    <td>{openPointChapterLabel(point.chapter)}</td>
+                    <td>{point.dueDate ?? openPointDueLabel()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -364,7 +267,10 @@ export default function SteuerberaterPage() {
                     Mehrere Systeme, viele Standorte, viele interne
                     Zuständigkeiten
                   </td>
-                  <td>Oft geeignet — nur leere Angaben werden Punkte</td>
+                  <td>
+                    Oft geeignet — leere Angaben und nicht abgefragte Schritte
+                    werden Punkte
+                  </td>
                 </tr>
                 <tr>
                   <td>Sehr individuelle Konzernprozesse, Sonderfälle</td>
@@ -374,9 +280,14 @@ export default function SteuerberaterPage() {
             </table>
           </div>
           <p className="prose">
-            Das Tool ersetzt keine individuelle Beratung. Offene Punkte markieren
-            leere Angaben. Widersprüche prüft es nicht, und eine Bestätigung
-            durch den Mandanten ist nicht eingebaut.
+            Das Tool ist keine Steuerberatung. Offene Punkte markieren leere
+            oder unbestätigte Angaben und Schritte, die der Fragebogen nicht
+            erfasst. Ein Hinweis erscheint, wenn ersetzendes Scannen genannt
+            ist und ein Papierweg fehlt. Das ist kein allgemeiner
+            Widerspruchs-Check und keine Freigabe. Eine Bestätigung durch den
+            Mandanten ist nicht eingebaut. Für die meisten Betriebe reicht die
+            Fassung aus den Angaben. Anpassungen bei besonderen Verfahren sind
+            möglich.
           </p>
         </section>
 
@@ -385,9 +296,11 @@ export default function SteuerberaterPage() {
           <p className="prose">
             Ein Einmal-PDF veraltet, wenn Software oder Prozesse wechseln.
             Setup: erste Fassung. Abo: Fassungen halten und erneut exportieren.
-            Im Muster-PDF steht eine Fassung mit Gültig-ab und Änderungstext.
-            Weitere Fassungen legt der Mandant nach dem Kauf an — nicht in
-            dieser Vorschau.
+            Das Muster-PDF folgt der Gliederung des detaillierten Beispiels.
+            Präsens steht nur bei bestätigten Angaben. Die Erzeugung ist keine
+            Freigabe durch die Geschäftsführung. Gültig-ab setzt der Mandant
+            nach dem Kauf. Weitere Fassungen legt er dort an — nicht in dieser
+            Vorschau.
           </p>
         </section>
 
@@ -395,14 +308,16 @@ export default function SteuerberaterPage() {
           <h2>Daten und Konditionen</h2>
           <ul className="prose-list">
             <li>
-              <strong>Hosting.</strong> Website bei Vercel. PDFs in Vercel Blob,
-              wenn der Token gesetzt ist, sonst als Datei. Ausgefüllte Angaben
-              in Google Sheets, wenn das Sheet konfiguriert ist, sonst in einer
-              Datei. Transaktionsmails über Resend, wenn der API-Key gesetzt
-              ist. Zahlung über Stripe. Die{" "}
-              <Link href="/datenschutz">Datenschutzerklärung</Link> benennt
-              Vercel und Stripe; Sheets, Blob und Resend stehen dort noch nicht
-              namentlich.
+              <strong>Datenfluss.</strong> Die Website läuft bei Vercel. Die
+              Zahlung läuft über Stripe. Angaben aus dem Intake und die erzeugte
+              Verfahrensdokumentation speichern wir zur Abwicklung der
+              Bestellung; der Mandant erreicht das PDF in seinem Konto.
+              Transaktionsmails zur Bestellung (Zugang, Lieferung) gehen an die
+              E-Mail der Bestellung. Die{" "}
+              <Link href="/datenschutz">Datenschutzerklärung</Link> benennt als
+              Empfänger heute Vercel und Stripe. Weitere Dienstleister sind
+              dort nicht genannt. Eine ausführlichere Beschreibung der
+              Verarbeitung ist Zukunft und auf dieser Seite nicht verfügbar.
             </li>
             <li>
               <strong>Zugriff.</strong> Der Mandant erreicht das Dokument über
@@ -431,18 +346,23 @@ export default function SteuerberaterPage() {
               geführt.
             </li>
             <li>
-              <strong>AVV.</strong> Ein Auftragsverarbeitungsvertrag liegt hier
-              nicht zum Download. Die Datenschutzerklärung markiert den AVV mit
-              Vercel als noch zu prüfen. Auf Anfrage:{" "}
+              <strong>AVV.</strong> Ein ausführlicher
+              Auftragsverarbeitungsvertrag liegt nicht zum Download und ist
+              heute nicht veröffentlicht. Die Datenschutzerklärung markiert den
+              AVV mit Vercel als noch zu prüfen. Eine vollständigere AVV- und
+              Prozessbeschreibung ist Zukunft und auf dieser Seite nicht
+              verfügbar. Anfragen:{" "}
               <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
               .
             </li>
             <li>
               <strong>Kosten im ersten Jahr ohne Code:</strong> {SETUP_EUR} €
               Setup plus {MONTHLY_EUR} € pro Monat (
-              <Link href="/#preise">Produktseite</Link>). Der Code{" "}
-              <strong className="promo-code">{PROMO_CODE}</strong> gilt nur im
-              Checkout des Pilots unten. Keine Kanzlei-Pakete auf dieser Seite.
+              <Link href="/#preise">Produktseite</Link>).{" "}
+              <PilotKlartextSentence /> Ohne Code bleibt das Setup{" "}
+              {SETUP_EUR}&nbsp;€ einmalig. Mit dem Code ist die Setup-Zeile
+              0&nbsp;€ und wird danach nicht nachberechnet. Keine Kanzlei-Pakete
+              auf dieser Seite.
             </li>
           </ul>
         </section>
@@ -467,24 +387,19 @@ export default function SteuerberaterPage() {
           </ol>
           <div className="value-note">
             <p className="prose">
-              Mit <strong className="promo-code">{PROMO_CODE}</strong> sind
-              Setup und Abo während der Promo zu 0&nbsp;€ (100&nbsp;% auf Setup
-              und Abo, über mehrere Monate). Wie viele Monate und wie viele
-              Einlösungen, zeigt der Checkout. Danach gilt der Listenpreis, wenn
-              Sie weiter nutzen: {MONTHLY_EUR}&nbsp;€/Monat. Keine automatische
-              Gratis-Verlängerung.
+              <PilotKlartextSentence />
             </p>
           </div>
-          <h3>Gratis während der Promo</h3>
+          <h3>100&nbsp;% für {PROMO_MONTHS}&nbsp;Monate</h3>
           <ul className="prose-list">
             <li>
-              Setup und Abo zum vollen Nachlass (100&nbsp;%), solange der Code
-              beim Checkout gültig eingelöst wird.
+              Setup und Abo zum vollen Nachlass (100&nbsp;%) für{" "}
+              {PROMO_MONTHS}&nbsp;Abrechnungsmonate ab Einlösung — nicht nur für
+              eine einzelne Rechnung.
             </li>
             <li>
-              Die Promo gilt über mehrere Abrechnungsmonate, nicht nur für eine
-              einzelne Rechnung. Die genaue Zahl der Monate und die Obergrenze
-              der Einlösungen stehen nicht im Programm — Details im Checkout.
+              Den Code lösen Sie im Checkout ein. Höchstens{" "}
+              {PROMO_MAX_REDEMPTIONS}&nbsp;Einlösungen insgesamt.
             </li>
           </ul>
           <h3>Zahlungsmethode</h3>
@@ -498,27 +413,33 @@ export default function SteuerberaterPage() {
               erfasst Stripe in diesem Schritt keine Karte.
             </li>
             <li>
-              Nach der Promo läuft das Abo zum Listenpreis weiter. Dafür
-              brauchen Sie eine Zahlungsmethode, sonst kann die Rechnung nicht
-              eingezogen werden. Hinterlegen im Kundenportal („Abo verwalten“).
+              Nach den {PROMO_MONTHS}&nbsp;Monaten läuft das Abo mit{" "}
+              {MONTHLY_EUR}&nbsp;€/Monat weiter, wenn Sie nicht kündigen.
+              Dafür brauchen Sie eine Zahlungsmethode, sonst kann die Rechnung
+              nicht eingezogen werden. Hinterlegen im Kundenportal („Abo
+              verwalten“).
             </li>
             <li>
               Konto und Fragen laufen danach wie im normalen Ablauf.
             </li>
           </ul>
-          <h3>Danach: Listenpreis, keine Gratis-Verlängerung</h3>
+          <h3>
+            Danach: {MONTHLY_EUR}&nbsp;€/Monat, keine Gratis-Verlängerung
+          </h3>
           <ul className="prose-list">
             <li>
-              Keine automatische kostenlose Verlängerung über die Promo hinaus.
-              Der Checkout beendet das Abo nach der Promo nicht von selbst.
+              Nach {PROMO_MONTHS}&nbsp;Monaten endet der Nachlass. Keine
+              automatische kostenlose Verlängerung. Der Checkout beendet das
+              Abo nicht von selbst: es läuft mit {MONTHLY_EUR}&nbsp;€/Monat
+              weiter, wenn Sie nicht kündigen.
             </li>
             <li>
               Listenpreis ohne Code: {SETUP_EUR}&nbsp;€ Setup einmalig plus{" "}
               {MONTHLY_EUR}&nbsp;€/Monat (
               <Link href="/#preise">Produktseite</Link>
-              ). Das Setup ist eine einmalige Position der ersten Rechnung, kein
-              monatlicher Posten. Wer weiter nutzt und nicht kündigt, zahlt
-              danach {MONTHLY_EUR}&nbsp;€/Monat.
+              ). Mit dem Code ist die Setup-Zeile 0&nbsp;€, nicht {SETUP_EUR}
+              &nbsp;€. Danach ist nur das Abo fällig: {MONTHLY_EUR}&nbsp;€/Monat.
+              Das Setup wird nicht monatlich nachberechnet.
             </li>
             <li>
               Kündigung und Zahlungsdaten: Stripe-Kundenportal im Konto.{" "}
@@ -536,6 +457,9 @@ export default function SteuerberaterPage() {
             <li>Kein dauerhaft kostenloses Produkt.</li>
             <li>Keine Konformitäts- oder Prüfungszusage.</li>
           </ul>
+          <p className="prose">
+            <PilotKlartextSentence />
+          </p>
           <div className="actions">
             <Link className="btn" href={PILOT_HREF}>
               Partner-Pilot starten
@@ -573,8 +497,13 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Was, wenn nach der Weiterempfehlung etwas fehlt?</h3>
             <p className="prose">
-              Keine Konformitätszusage. Offene Punkte zeigen Lücken. Die
-              fachliche Einschätzung bleibt bei Ihnen und beim Mandanten.
+              Keine Konformitätszusage. Offene Punkte zeigen leere oder
+              unbestätigte Angaben und nicht abgefragte Schritte. Die
+              gelieferte Fassung reicht in der Regel; bei besonderen Verfahren
+              ergänzt der Mandant die Dokumentation selbst. Eine zusätzliche
+              Abstimmung durch die Kanzlei ist freiwillig und nur im Rahmen
+              eines gesonderten Auftrags. Die Weiterempfehlung begründet keinen
+              solchen Auftrag.
             </p>
           </div>
           <div className="faq-item">
@@ -593,11 +522,11 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Bin ich nach dem Pilot im Abo fest?</h3>
             <p className="prose">
-              Während der Promo sind Setup und Abo zu 0&nbsp;€. Wie viele Monate
-              das gilt, zeigt der Checkout. Danach {MONTHLY_EUR}&nbsp;€/Monat,
-              wenn Sie weiter nutzen und nicht kündigen. Keine automatische
-              Gratis-Verlängerung, und keine automatische Kündigung. Details im
-              Block <a href="#pilot">Pilot</a>.
+              <PilotKlartextSentence /> Ohne Code ist das Setup {SETUP_EUR}
+              &nbsp;€ einmalig. Mit dem Code ist die Setup-Zeile 0&nbsp;€ und
+              wird danach nicht nachberechnet. Höchstens{" "}
+              {PROMO_MAX_REDEMPTIONS}&nbsp;Einlösungen. Keine automatische
+              Kündigung.
             </p>
           </div>
           <div className="faq-item">
@@ -623,7 +552,8 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Was wird aus unbekannten Angaben?</h3>
             <p className="prose">
-              Leere Angaben werden Offene Punkte. Das Muster zeigt das an der
+              Leere Angaben und nicht abgefragte Schritte werden Offene Punkte.
+              Das Muster zeigt das an der
               Beispiel GmbH. Widersprüche zwischen ausgefüllten Feldern prüft
               das Tool nicht.
             </p>
@@ -645,10 +575,8 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Was kostet das erste Jahr?</h3>
             <p className="prose">
-              Ohne Code {SETUP_EUR}&nbsp;€ Setup einmalig plus {MONTHLY_EUR}
-              &nbsp;€ pro Monat. Der Code {PROMO_CODE} gilt nur im Checkout des{" "}
-              <a href="#pilot">Pilots</a>. Details dort, nicht auf dieser
-              Preisliste.
+              Ohne Code: {SETUP_EUR}&nbsp;€ Setup einmalig plus {MONTHLY_EUR}
+              &nbsp;€/Monat. <PilotKlartextSentence />
             </p>
           </div>
         </section>
@@ -657,6 +585,9 @@ export default function SteuerberaterPage() {
           <h2>
             Selbst testen — Fragen und Muster prüfen — dann entscheiden
           </h2>
+          <p className="prose">
+            <PilotKlartextSentence />
+          </p>
           <div className="actions">
             <Link className="btn" href={PILOT_HREF}>
               Partner-Pilot starten
@@ -673,8 +604,8 @@ export default function SteuerberaterPage() {
           </p>
           <p className="disclaimer">
             Keine Steuer- oder Rechtsberatung. Partner-Pilot zur eigenen
-            Bewertung durch die Kanzlei. Weiterempfehlung ersetzt keine
-            fachliche Beratung. Die Verfahrensdokumentation bleibt in der
+            Bewertung durch die Kanzlei. Die Weiterempfehlung begründet keinen
+            Auftrag zur Prüfung. Die Verfahrensdokumentation bleibt in der
             Verantwortung des Mandanten.
           </p>
         </section>

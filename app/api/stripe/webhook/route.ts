@@ -129,6 +129,8 @@ export async function POST(request: Request) {
           email,
           company,
           sessionId: session.id,
+          audience:
+            session.metadata?.audience === "steuerberater" ? "steuerberater" : "kunde",
         });
         break;
       }

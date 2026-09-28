@@ -1,0 +1,69 @@
+{
+  "identity": {
+    "email": "demo@beispiel.invalid",
+    "company": "Beispiel GmbH",
+    "stripeSessionId": "cs_test_DO_NOT_PUT_IN_PDF",
+    "stripeCustomerId": "cus_DO_NOT_PUT_IN_PDF",
+    "stub": false
+  },
+  "answers": {
+    "branchen": [
+      "B2B-Dienstleistungen"
+    ],
+    "rechtsform": "GmbH",
+    "mitarbeitende": "1-5",
+    "fibu": [
+      "DATEV"
+    ],
+    "weitereSysteme": "Funktionspostfach für Eingangsrechnungen; Rechnungssoftware für Ausgang",
+    "eingangsbelege": [
+      "E-Mail",
+      "PDF"
+    ],
+    "ausgangsrechnungen": [
+      "Rechnungssoftware"
+    ],
+    "archiv": "DATEV Unternehmen online",
+    "hosting": "SaaS / Anbieter-Cloud",
+    "backup": [
+      "Anbieter-Backup"
+    ],
+    "zugriff": "Geschäftsführung und Buchhaltung; Kanzlei im Mandatsumfang",
+    "gf": "Anna Beispiel",
+    "buchhaltung": "Ben Muster",
+    "it": "nicht angegeben",
+    "steuerberater": "externe Kanzlei (Leistungsumfang zu bestätigen)"
+  },
+  "_meta": {
+    "purpose": "Partner-Trust anonymisierte Fixture — digital only, kein Papierweg",
+    "expectedChapters": [
+      "00b-dokumentenlenkung",
+      "01-zweck-geltung",
+      "02-unternehmen-rollen",
+      "03-systeme-datenfluss",
+      "04-belegarten-kanaele",
+      "05-eingang-erechnung",
+      "07-ausgangsrechnungen",
+      "08-freigabe-buchung-status",
+      "09-ablage-aufbewahrung",
+      "10-berechtigungen-sicherung",
+      "11-iks",
+      "12-versionspflege",
+      "13-mitgeltende-unterlagen",
+      "14-offene-punkte",
+      "A-prozessmatrix",
+      "B-begriffe"
+    ],
+    "mustOmit": [
+      "Vollkapitel Papier/Scan",
+      "stripe*",
+      "stub",
+      "rules.json"
+    ],
+    "note": "stripe*/stub nur intern — nie im Kundendoc. Kapitel 6 nur bei Papier, dem Wort Post oder Scan.",
+    "omittedUnlessPaper": [
+      "06-papier-digitalisierung"
+    ],
+    "zielbild": "philip-muster-v2-detailliert-2026-09-28"
+  }
+}

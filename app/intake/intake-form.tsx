@@ -3,24 +3,15 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FirmaSelect } from "@/components/firma-select";
+import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
 import {
   VersionChangeFields,
   type VersionChangeDraft,
 } from "@/components/version-change-fields";
 import type { EntityChoice } from "@/lib/entities";
-import {
-  INTAKE_AUSGANG,
-  INTAKE_BACKUP,
-  INTAKE_BRANCHEN,
-  INTAKE_EINGANG,
-  INTAKE_FIBU,
-  INTAKE_HOSTING,
-  INTAKE_MITARBEITENDE,
-  INTAKE_RECHTSFORMEN,
-  INTAKE_REVIEW,
-  INTAKE_STEPS,
-  intakeStepError,
-} from "@/lib/intake-questions";
+import { intakeSummary } from "@/lib/frage-intake";
+import { withCatalogDraft } from "@/lib/intake-catalog";
+import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 import { berlinTodayIso, versionChangeDraftError } from "@/lib/versioning";
@@ -34,44 +25,6 @@ type IntakeFormProps = {
   initialEntityId?: string;
 };
 
-function Chips({
-  options,
-  value,
-  onChange,
-  multi,
-}: {
-  options: string[];
-  value: string[];
-  onChange: (next: string[]) => void;
-  multi?: boolean;
-}) {
-  return (
-    <div className="chips">
-      {options.map((option) => {
-        const on = value.includes(option);
-        return (
-          <button
-            key={option}
-            type="button"
-            className={on ? "chip on" : "chip"}
-            onClick={() => {
-              if (multi) {
-                onChange(
-                  on ? value.filter((item) => item !== option) : [...value, option],
-                );
-              } else {
-                onChange([option]);
-              }
-            }}
-          >
-            {option}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 export function IntakeForm({
   session,
   initialAnswers,
@@ -83,8 +36,8 @@ export function IntakeForm({
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [entityId, setEntityId] = useState(initialEntityId);
-  const [answers, setAnswers] = useState<IntakeAnswers>(
-    initialAnswers ?? emptyAnswers,
+  const [answers, setAnswers] = useState<IntakeAnswers>(() =>
+    withCatalogDraft(initialAnswers ?? emptyAnswers(), session.company),
   );
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -96,10 +49,6 @@ export function IntakeForm({
   });
   const isEdit = Boolean(sourceDocumentId);
   const showFirmSelect = !isEdit && entities.length > 1;
-
-  function patch(partial: Partial<IntakeAnswers>) {
-    setAnswers((current) => ({ ...current, ...partial }));
-  }
 
   function validate(current: number): boolean {
     setError("");
@@ -179,32 +128,13 @@ export function IntakeForm({
     }
   }
 
-  const summary = useMemo(
-    () => [
-      ["Branche", answers.branchen.join(", ") || "—"],
-      ["Rechtsform", answers.rechtsform || "—"],
-      ["Mitarbeitende", answers.mitarbeitende || "—"],
-      ["FiBu", answers.fibu.join(", ") || "—"],
-      ["Weitere Systeme", answers.weitereSysteme || "—"],
-      ["Eingangsbelege", answers.eingangsbelege.join(", ") || "—"],
-      ["Ausgangsrechnungen", answers.ausgangsrechnungen.join(", ") || "—"],
-      ["Archiv", answers.archiv || "—"],
-      ["Hosting", answers.hosting || "—"],
-      ["Backup", answers.backup.join(", ") || "—"],
-      ["Zugriff", answers.zugriff || "—"],
-      ["GF / Inhaber", answers.gf || "—"],
-      ["Buchhaltung", answers.buchhaltung || "—"],
-      ["IT", answers.it || "—"],
-      ["Steuerberater", answers.steuerberater || "—"],
-    ],
-    [answers],
-  );
+  const summary = useMemo(() => intakeSummary(answers), [answers]);
 
   return (
     <>
-      {step < 6 && (
+      {step < INTAKE_STEPS.length + 1 && (
         <div className="progress" aria-hidden="true">
-          {[0, 1, 2, 3, 4, 5].map((index) => (
+          {Array.from({ length: INTAKE_STEPS.length + 1 }, (_, index) => (
             <i
               key={index}
               className={index < step ? "done" : index === step ? "on" : ""}
@@ -213,14 +143,14 @@ export function IntakeForm({
         </div>
       )}
 
-      {session.stub && step < 6 && !isEdit && (
+      {session.stub && step <= INTAKE_STEPS.length && !isEdit && (
         <p className="banner">
-          Stub-Session (kein Stripe). Angaben werden lokal oder in Sheets
-          gespeichert, sobald du absendest.
+          Test ohne Zahlung. Die Angaben werden gespeichert, sobald du
+          absendest.
         </p>
       )}
 
-      {isEdit && step < 6 && (
+      {isEdit && step <= INTAKE_STEPS.length && (
         <p className="banner">
           Du bearbeitest die Angaben
           {session.company ? ` für ${session.company}` : ""}. Beim Absenden
@@ -235,208 +165,23 @@ export function IntakeForm({
         </p>
       )}
 
-      {step === 0 && (
-        <section>
-          <p className="step-label">{INTAKE_STEPS[0].stepLabel}</p>
-          <h1>{INTAKE_STEPS[0].title}</h1>
-          <div className="card">
-            {showFirmSelect && (
+      {step < INTAKE_STEPS.length && (
+        <>
+          {step === 0 && showFirmSelect && (
+            <div className="card" style={{ marginBottom: 16 }}>
               <FirmaSelect
                 entities={entities}
                 value={entityId}
                 onChange={setEntityId}
                 required
               />
-            )}
-            <div className="field">
-              <label>Branche (mehrere möglich)</label>
-              <Chips
-                options={[...INTAKE_BRANCHEN]}
-                value={answers.branchen}
-                onChange={(branchen) => patch({ branchen })}
-                multi
-              />
             </div>
-            <div className="field">
-              <label htmlFor="rechtsform">Rechtsform</label>
-              <select
-                id="rechtsform"
-                value={answers.rechtsform}
-                onChange={(e) => patch({ rechtsform: e.target.value })}
-              >
-                <option value="">Bitte wählen</option>
-                {INTAKE_RECHTSFORMEN.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="ma">Mitarbeitende (ca.)</label>
-              <select
-                id="ma"
-                value={answers.mitarbeitende}
-                onChange={(e) => patch({ mitarbeitende: e.target.value })}
-              >
-                <option value="">Bitte wählen</option>
-                {INTAKE_MITARBEITENDE.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </section>
+          )}
+          <IntakeQuestionnaire step={step} answers={answers} onChange={setAnswers} />
+        </>
       )}
 
-      {step === 1 && (
-        <section>
-          <p className="step-label">{INTAKE_STEPS[1].stepLabel}</p>
-          <h1>{INTAKE_STEPS[1].title}</h1>
-          <div className="card">
-            <div className="field">
-              <label>Buchhaltung / FiBu</label>
-              <Chips
-                options={[...INTAKE_FIBU]}
-                value={answers.fibu}
-                onChange={(fibu) => patch({ fibu })}
-                multi
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="andere-sw">
-                Weitere Systeme (ERP, Kassensystem, Zeiterfassung …)
-              </label>
-              <textarea
-                id="andere-sw"
-                placeholder="z. B. Shopify, Lightspeed, Clockodo …"
-                value={answers.weitereSysteme}
-                onChange={(e) => patch({ weitereSysteme: e.target.value })}
-              />
-            </div>
-          </div>
-        </section>
-      )}
-
-      {step === 2 && (
-        <section>
-          <p className="step-label">{INTAKE_STEPS[2].stepLabel}</p>
-          <h1>{INTAKE_STEPS[2].title}</h1>
-          <div className="card">
-            <div className="field">
-              <label>Wie kommen Eingangsbelege rein?</label>
-              <Chips
-                options={[...INTAKE_EINGANG]}
-                value={answers.eingangsbelege}
-                onChange={(eingangsbelege) => patch({ eingangsbelege })}
-                multi
-              />
-            </div>
-            <div className="field">
-              <label>Ausgangsrechnungen</label>
-              <Chips
-                options={[...INTAKE_AUSGANG]}
-                value={answers.ausgangsrechnungen}
-                onChange={(ausgangsrechnungen) => patch({ ausgangsrechnungen })}
-                multi
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="archiv">Wo werden Belege archiviert?</label>
-              <input
-                id="archiv"
-                placeholder="z. B. DATEV Unternehmen online, Drive, lokaler Server …"
-                value={answers.archiv}
-                onChange={(e) => patch({ archiv: e.target.value })}
-              />
-            </div>
-          </div>
-        </section>
-      )}
-
-      {step === 3 && (
-        <section>
-          <p className="step-label">{INTAKE_STEPS[3].stepLabel}</p>
-          <h1>{INTAKE_STEPS[3].title}</h1>
-          <div className="card">
-            <div className="field">
-              <label htmlFor="hosting">Wo liegen die Daten?</label>
-              <select
-                id="hosting"
-                value={answers.hosting}
-                onChange={(e) => patch({ hosting: e.target.value })}
-              >
-                <option value="">Bitte wählen</option>
-                {INTAKE_HOSTING.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Backup</label>
-              <Chips
-                options={[...INTAKE_BACKUP]}
-                value={answers.backup}
-                onChange={(backup) => patch({ backup })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="zugriff">Wer hat Zugriff auf Buchhaltungsdaten?</label>
-              <textarea
-                id="zugriff"
-                placeholder="z. B. Inhaber, Buchhaltung intern, Steuerberater, externe IT …"
-                value={answers.zugriff}
-                onChange={(e) => patch({ zugriff: e.target.value })}
-              />
-            </div>
-          </div>
-        </section>
-      )}
-
-      {step === 4 && (
-        <section>
-          <p className="step-label">{INTAKE_STEPS[4].stepLabel}</p>
-          <h1>{INTAKE_STEPS[4].title}</h1>
-          <div className="card">
-            <div className="field">
-              <label htmlFor="gf">Geschäftsführung / Inhaber</label>
-              <input
-                id="gf"
-                placeholder="Name"
-                value={answers.gf}
-                onChange={(e) => patch({ gf: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="buchhaltung">Buchhaltung / Belegverantwortung</label>
-              <input
-                id="buchhaltung"
-                placeholder="Name oder „externer Steuerberater“"
-                value={answers.buchhaltung}
-                onChange={(e) => patch({ buchhaltung: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="it-person">IT / Systeme</label>
-              <input
-                id="it-person"
-                placeholder="Name oder Dienstleister"
-                value={answers.it}
-                onChange={(e) => patch({ it: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="steuerberater">Steuerberater (Kanzlei)</label>
-              <input
-                id="steuerberater"
-                placeholder="optional"
-                value={answers.steuerberater}
-                onChange={(e) => patch({ steuerberater: e.target.value })}
-              />
-            </div>
-          </div>
-        </section>
-      )}
-
-      {step === 5 && (
+      {step === INTAKE_STEPS.length && (
         <section>
           <p className="step-label">{INTAKE_REVIEW.stepLabel}</p>
           <h1>{INTAKE_REVIEW.title}</h1>
@@ -457,8 +202,10 @@ export function IntakeForm({
             />
             <p className="disclaimer">
               Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein
-              Entwurf zur Abstimmung mit deinem Steuerberater — keine
-              individuelle Steuer- oder Rechtsberatung.
+              Entwurf aus deinen Angaben — keine Freigabe und keine
+              individuelle Steuer- oder Rechtsberatung. Eine Abstimmung mit
+              dem Steuerberater ist optional und nur im Rahmen eines
+              gesonderten Auftrags.
             </p>
           </div>
         </section>
@@ -466,7 +213,7 @@ export function IntakeForm({
 
       {error && <p className="error">{error}</p>}
 
-      {step < 6 && (
+      {step < INTAKE_STEPS.length + 1 && (
         <div className="actions" style={{ marginTop: 18 }}>
           {step > 0 && (
             <button
@@ -480,7 +227,7 @@ export function IntakeForm({
               Zurück
             </button>
           )}
-          {step < 5 && (
+          {step < INTAKE_STEPS.length && (
             <button
               type="button"
               className="btn"
@@ -489,10 +236,10 @@ export function IntakeForm({
                 setStep((s) => s + 1);
               }}
             >
-              {step === 4 ? "Zur Übersicht" : "Weiter"}
+              {step === INTAKE_STEPS.length - 1 ? "Zur Übersicht" : "Weiter"}
             </button>
           )}
-          {step === 5 && (
+          {step === INTAKE_STEPS.length && (
             <button type="button" className="btn" onClick={submit} disabled={pending}>
               {pending
                 ? isEdit

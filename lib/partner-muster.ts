@@ -1,23 +1,21 @@
+import { beispielGmbHKatalog } from "@/lib/intake-catalog";
 import { toVersionPdfMeta } from "@/lib/versioning";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 /**
- * Anonymized small-GmbH fixture for /steuerberater/muster.
+ * Partner-Trust fixture (`content/delivery-templates/sample-intake-partner-trust.json`).
  *
- * Scenario the intake can actually express:
- * - GmbH, Dienstleistung, 2–5 Mitarbeitende
- * - FiBu: DATEV
- * - digitaler Belegeingang: Option „E-Mail / PDF“
- * - Ausgangsrechnungen: Option „aus Buchhaltungssoftware“
- * - Archiv freitext: DATEV Unternehmen online
- *
- * Left empty on purpose so the open-points rules fire:
- * - weitereSysteme, it
- * - Stripe session/customer (no checkout on this sample)
+ * Digital only: E-Mail and PDF, no paper path. Stripe ids are present on the
+ * identity so a render can prove they stay out of the customer PDF.
+ * `it` is the empty label „nicht angegeben“ and becomes an open point.
  *
  * PDF is not a static file. GET /steuerberater/muster/pdf calls generatePdf
- * with this fixture — the delivery pipeline. To regenerate locally:
+ * with this fixture. To regenerate locally:
  *   npx tsx scripts/render-partner-muster-pdf.ts
+ *
+ * Zielbild is philip-muster-v2-detailliert-2026-09-28. Templates are Delivery
+ * bundle 4.0.0. Präsens only where this intake confirms the fact. Generation
+ * is not a GF Freigabevermerk.
  */
 
 export const PARTNER_MUSTER_PATH = "/steuerberater/muster";
@@ -28,34 +26,40 @@ export const PARTNER_MUSTER_FILENAME =
   "Muster-Verfahrensdokumentation-Beispiel-GmbH.pdf";
 
 export const PARTNER_MUSTER_IDENTITY: CheckoutIdentity = {
-  email: "muster@example.invalid",
+  email: "demo@beispiel.invalid",
   company: "Beispiel GmbH",
-  stripeSessionId: "",
-  stripeCustomerId: "",
-  stub: true,
+  stripeSessionId: "cs_test_DO_NOT_PUT_IN_PDF",
+  stripeCustomerId: "cus_DO_NOT_PUT_IN_PDF",
+  stub: false,
 };
 
 export const PARTNER_MUSTER_ANSWERS: IntakeAnswers = {
-  branchen: ["Dienstleistung"],
+  branchen: ["B2B-Dienstleistungen"],
   rechtsform: "GmbH",
-  mitarbeitende: "2–5",
+  mitarbeitende: "1-5",
   fibu: ["DATEV"],
-  weitereSysteme: "",
-  eingangsbelege: ["E-Mail / PDF"],
-  ausgangsrechnungen: ["aus Buchhaltungssoftware"],
+  weitereSysteme:
+    "Funktionspostfach für Eingangsrechnungen; Rechnungssoftware für Ausgang",
+  eingangsbelege: ["E-Mail", "PDF"],
+  ausgangsrechnungen: ["Rechnungssoftware"],
   archiv: "DATEV Unternehmen online",
-  hosting: "Cloud (Anbieter DE/EU)",
-  backup: ["Automatisch (Anbieter)"],
-  zugriff: "Geschäftsführung und Buchhaltung",
-  gf: "A. Beispiel",
-  buchhaltung: "B. Beispiel",
-  it: "",
-  steuerberater: "Kanzlei Beispiel",
+  hosting: "SaaS / Anbieter-Cloud",
+  backup: ["Anbieter-Backup"],
+  zugriff: "Geschäftsführung und Buchhaltung; Kanzlei im Mandatsumfang",
+  gf: "Anna Beispiel",
+  buchhaltung: "Ben Muster",
+  it: "nicht angegeben",
+  steuerberater: "externe Kanzlei (Leistungsumfang zu bestätigen)",
 };
 
+PARTNER_MUSTER_ANSWERS.katalog = beispielGmbHKatalog(
+  PARTNER_MUSTER_ANSWERS,
+  PARTNER_MUSTER_IDENTITY.company,
+);
+
 export const PARTNER_MUSTER_VERSION_META = toVersionPdfMeta({
-  validFrom: "2026-03-01",
+  validFrom: "",
   validTo: "",
-  changeSummary: "Musterfassung, anonymisiert",
-  changedBy: "Muster",
+  changeSummary: "Arbeitsfassung entlang der Gliederung Muster v2",
+  changedBy: "",
 });
