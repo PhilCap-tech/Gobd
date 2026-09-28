@@ -29,6 +29,15 @@ const nextConfig: NextConfig = {
       { source: "/api/stripe/portal", headers: noStoreHeaders },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/partner",
+        destination: "/steuerberater",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     // Not a redirect to /account (that would skip Stripe). Only used if the
     // App Router page is missing from the production build, before the 404.

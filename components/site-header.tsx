@@ -1,11 +1,24 @@
 import Image from "next/image";
 import Link from "next/link";
 
+type HeaderLink = {
+  href: string;
+  label: string;
+};
+
+const DEFAULT_LINKS: HeaderLink[] = [
+  { href: "#problem", label: "Problem" },
+  { href: "#outcome", label: "Ergebnis" },
+  { href: "#preise", label: "Preise" },
+  { href: "/readiness", label: "Readiness" },
+];
+
 type SiteHeaderProps = {
   ctaHref?: string;
   ctaLabel?: string;
   backHref?: string;
   backLabel?: string;
+  links?: HeaderLink[];
 };
 
 export function SiteHeader({
@@ -13,6 +26,7 @@ export function SiteHeader({
   ctaLabel = "Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo",
   backHref,
   backLabel,
+  links = DEFAULT_LINKS,
 }: SiteHeaderProps) {
   return (
     <header className="site-header">
@@ -30,18 +44,17 @@ export function SiteHeader({
           <Link href={backHref}>{backLabel || "Zurück"}</Link>
         ) : (
           <>
-            <a className="hide-sm" href="#problem">
-              Problem
-            </a>
-            <a className="hide-sm" href="#outcome">
-              Ergebnis
-            </a>
-            <a className="hide-sm" href="#preise">
-              Preise
-            </a>
-            <Link className="hide-sm" href="/readiness">
-              Readiness
-            </Link>
+            {links.map((item) =>
+              item.href.startsWith("/") ? (
+                <Link key={item.href} className="hide-sm" href={item.href}>
+                  {item.label}
+                </Link>
+              ) : (
+                <a key={item.href} className="hide-sm" href={item.href}>
+                  {item.label}
+                </a>
+              ),
+            )}
             <Link className="btn hide-sm" href={ctaHref}>
               {ctaLabel}
             </Link>
