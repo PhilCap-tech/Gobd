@@ -40,7 +40,7 @@ const FRAGEN_AUSZUG: Array<{ question: string; why: string }> = [
   },
   {
     question: "Wird ersetzend gescannt — oder bleiben Originale?",
-    why: "Scan nur wenn relevant",
+    why: "Im Auszug genannt — im produktiven Ablauf keine eigene Frage",
   },
   {
     question:
@@ -146,7 +146,8 @@ export default function SteuerberaterPage() {
           </p>
           <HeroProofButtons />
           <p className="trust-line">
-            Keine Steuerberatung · Sie füllen nicht für Mandanten aus
+            Keine Steuerberatung · Sie füllen nicht für Mandanten aus · Fragen
+            und Muster sind Auszug und Beispiel
           </p>
         </section>
 
@@ -193,9 +194,9 @@ export default function SteuerberaterPage() {
           <p className="hint">
             Im Pilot spielen Sie solche Parameter selbst durch. Beim Mandanten
             beantwortet der Mandant — nicht die Kanzlei stellvertretend. Der
-            Auszug ist ein Einblick. Der Live-Test nutzt die Fragen aus dem
-            produktiven Ablauf; nicht jede Zeile oben ist dort eine eigene
-            Frage.
+            Auszug ist ein Einblick, keine zweite Frageliste. Der Live-Test ist
+            linear und verzweigt nicht. Ersetzendes Scannen und „was hat sich
+            geändert“ sind dort keine eigenen Fragen.
           </p>
           <div className="actions">
             <Link className="btn" href={PARTNER_DEMO_PATH}>
@@ -227,7 +228,8 @@ export default function SteuerberaterPage() {
           <h3>Offene Punkte (Beispiel)</h3>
           <p className="hint">
             Beispiel-Auszug zum Format. Diese drei Zeilen erzeugt der Generator
-            nicht.
+            nicht. Sie stehen nicht in der Generator-Tabelle und nicht im PDF
+            darunter.
           </p>
           <div className="legal legal-table-wrap">
             <table>
@@ -362,7 +364,7 @@ export default function SteuerberaterPage() {
                     Mehrere Systeme, viele Standorte, viele interne
                     Zuständigkeiten
                   </td>
-                  <td>Oft geeignet — Offene Punkte werden sichtbar</td>
+                  <td>Oft geeignet — nur leere Angaben werden Punkte</td>
                 </tr>
                 <tr>
                   <td>Sehr individuelle Konzernprozesse, Sonderfälle</td>
@@ -372,8 +374,9 @@ export default function SteuerberaterPage() {
             </table>
           </div>
           <p className="prose">
-            Das Tool ersetzt keine individuelle Beratung. Offene Punkte zeigen,
-            was noch geklärt werden muss.
+            Das Tool ersetzt keine individuelle Beratung. Offene Punkte markieren
+            leere Angaben. Widersprüche prüft es nicht, und eine Bestätigung
+            durch den Mandanten ist nicht eingebaut.
           </p>
         </section>
 
