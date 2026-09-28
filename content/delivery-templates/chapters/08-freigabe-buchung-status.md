@@ -12,6 +12,9 @@
 
 ## 8.2 Übergabe an die Buchung / Kanzlei
 
+{{#if answers.rollen}}
+Bestätigte Rollentrennung: {{answers.rollen}}
+{{/if}}
 {{answers.buchhaltung | or "Die Buchhaltung (Person ist zu benennen)"}} stellt freigegebene Belege in geeignetem Turnus bereit (mindestens monatlich, soweit nicht anders bestätigt). {{#if answers.steuerberater}}{{answers.steuerberater}} übernimmt Tätigkeiten ausschließlich im vereinbarten Mandatsumfang. Eine allgemeine fachliche Freigabe der Verfahrensdokumentation durch die Kanzlei ist damit nicht verbunden.{{/if}}{{#unless answers.steuerberater}}Sofern eine externe Kanzlei beteiligt ist, ist der Mandatsumfang zu bestätigen.{{/unless}}
 
 ## 8.3 Vollständigkeitsabgleich

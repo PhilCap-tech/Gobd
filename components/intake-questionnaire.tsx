@@ -2,7 +2,9 @@
 
 import {
   FRAGE_STATUSES,
+  VORSYSTEM_ARTEN,
   frageApplies,
+  setFrageMeta,
   setFrageReason,
   setFrageStatus,
   type FrageId,
@@ -20,9 +22,12 @@ import {
   INTAKE_RECHTSFORMEN,
   INTAKE_SCAN_ZWECK,
   INTAKE_STEPS,
-  INTAKE_VORSYSTEME,
 } from "@/lib/intake-questions";
-import type { IntakeAnswers } from "@/lib/types";
+import type { IntakeAnswers, TriState } from "@/lib/types";
+
+const META_IDS = new Set<FrageId>(["A04", "C02", "E03", "F01", "F05", "G05", "H01"]);
+
+const TRI: TriState[] = ["ja", "nein", "unbekannt"];
 
 const STATUS_LABEL: Record<FrageStatus, string> = {
   bestätigt: "Bestätigt",
@@ -103,6 +108,50 @@ function StatusPicker({
       {status === "geplant" && (
         <p className="hint">Geplant ist kein Ist-Prozess und erscheint nicht als gelebter Ablauf.</p>
       )}
+      {META_IDS.has(id) && (
+        <div className="field">
+          <label htmlFor={`${id}-wer`}>Verantwortung (wenn bekannt)</label>
+          <input
+            id={`${id}-wer`}
+            value={answers.fragen?.[id]?.verantwortung ?? ""}
+            onChange={(event) =>
+              onChange(setFrageMeta(answers, id, { verantwortung: event.target.value }))
+            }
+          />
+          <label htmlFor={`${id}-bis`}>Datum (wenn bekannt)</label>
+          <input
+            id={`${id}-bis`}
+            type="date"
+            value={answers.fragen?.[id]?.datum ?? ""}
+            onChange={(event) => onChange(setFrageMeta(answers, id, { datum: event.target.value }))}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TriChips({
+  value,
+  onChange,
+  label,
+}: {
+  value: TriState | "" | undefined;
+  onChange: (next: TriState) => void;
+  label: string;
+}) {
+  return (
+    <div className="chips" role="group" aria-label={label}>
+      {TRI.map((item) => (
+        <button
+          key={item}
+          type="button"
+          className={value === item ? "chip on" : "chip"}
+          onClick={() => onChange(item)}
+        >
+          {item === "ja" ? "Ja" : item === "nein" ? "Nein" : "Unbekannt"}
+        </button>
+      ))}
     </div>
   );
 }
@@ -187,36 +236,50 @@ export function IntakeQuestionnaire({
             </div>
             <StatusPicker id="A01" answers={answers} onChange={onChange} />
 
-            <p className="hint">A02 — Welche Belegarten und Gesellschaften umfasst diese Fassung?</p>
+            <p className="hint">A02 — Welche Belegarten umfasst diese Fassung, und was ist ausgeschlossen?</p>
             <div className="field">
-              <label htmlFor="geltung">Geltungsbereich</label>
+              <label htmlFor="belegarten">Belegarten</label>
               <textarea
-                id="geltung"
-                placeholder="z. B. nur diese GmbH, Eingangs- und Ausgangsrechnungen"
-                value={answers.geltung ?? ""}
-                onChange={(event) => patch({ geltung: event.target.value })}
+                id="belegarten"
+                placeholder="z. B. Eingangsrechnungen, Ausgangsrechnungen"
+                value={answers.geltungBelegarten ?? ""}
+                onChange={(event) => patch({ geltungBelegarten: event.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="ausschluss">Ausschlüsse</label>
+              <textarea
+                id="ausschluss"
+                placeholder="z. B. Kasse, Lohn — oder keine"
+                value={answers.geltungAusschluss ?? ""}
+                onChange={(event) => patch({ geltungAusschluss: event.target.value })}
               />
             </div>
             <StatusPicker id="A02" answers={answers} onChange={onChange} />
 
-            <p className="hint">A03 — Kasse, Shop, Lager, Lohn oder weitere Vorsysteme?</p>
-            <div className="field">
-              <label>Vorsysteme</label>
-              <Chips
-                options={INTAKE_VORSYSTEME}
-                value={(answers.vorsysteme ?? "").split(", ").filter(Boolean)}
-                onChange={(items) => patch({ vorsysteme: items.join(", ") })}
-                multi
-              />
-            </div>
+            <p className="hint">A03 — Vorsysteme: je Art Ja, Nein oder unbekannt.</p>
+            {VORSYSTEM_ARTEN.map((art) => (
+              <div className="field" key={art}>
+                <label>{art}</label>
+                <TriChips
+                  label={art}
+                  value={answers.vorsystemAntwort?.[art]}
+                  onChange={(value) =>
+                    patch({
+                      vorsystemAntwort: { ...answers.vorsystemAntwort, [art]: value },
+                    })
+                  }
+                />
+              </div>
+            ))}
             <StatusPicker id="A03" answers={answers} onChange={onChange} />
 
-            <p className="hint">A04 — Seit wann läuft der beschriebene Ablauf tatsächlich so? Kein Rückdatieren.</p>
+            <p className="hint">A04 — Wirksamkeitsdatum des beschriebenen Ablaufs. Kein Rückdatieren der Fassung.</p>
             <div className="field">
-              <label htmlFor="seit-wann">Seit wann</label>
+              <label htmlFor="seit-wann">Wirksamkeitsdatum</label>
               <input
                 id="seit-wann"
-                placeholder="z. B. 01.03.2024 oder unbekannt"
+                type="date"
                 value={answers.seitWann ?? ""}
                 onChange={(event) => patch({ seitWann: event.target.value })}
               />
@@ -227,9 +290,9 @@ export function IntakeQuestionnaire({
 
         {step === 1 && (
           <>
-            <p className="hint">B01 — Welche Systeme erzeugen, empfangen, buchen oder archivieren Belege?</p>
+            <p className="hint">B01 — Systeme, wiederholbar. FiBu ist nur eine Zeile, nicht die ganze Liste.</p>
             <div className="field">
-              <label>Buchhaltung / FiBu</label>
+              <label>Bekannte FiBu, falls zutreffend</label>
               <Chips
                 options={INTAKE_FIBU}
                 value={answers.fibu}
@@ -237,26 +300,62 @@ export function IntakeQuestionnaire({
                 multi
               />
             </div>
-            <div className="field">
-              <label htmlFor="weitere">Weitere Systeme</label>
-              <textarea
-                id="weitere"
-                value={answers.weitereSysteme}
-                onChange={(event) => patch({ weitereSysteme: event.target.value })}
-              />
-            </div>
+            {(answers.systeme?.length ? answers.systeme : [{ name: "", funktion: "" }]).map((row, index) => (
+              <div className="field" key={`system-${index}`}>
+                <label htmlFor={`system-name-${index}`}>System {index + 1}</label>
+                <input
+                  id={`system-name-${index}`}
+                  placeholder="Name"
+                  value={row.name}
+                  onChange={(event) => {
+                    const systeme = [...(answers.systeme?.length ? answers.systeme : [{ name: "", funktion: "" }])];
+                    systeme[index] = { ...systeme[index], name: event.target.value };
+                    patch({ systeme });
+                  }}
+                />
+                <input
+                  aria-label={`Funktion System ${index + 1}`}
+                  placeholder="Funktion, z. B. erzeugt Belege"
+                  value={row.funktion}
+                  onChange={(event) => {
+                    const systeme = [...(answers.systeme?.length ? answers.systeme : [{ name: "", funktion: "" }])];
+                    systeme[index] = { ...systeme[index], funktion: event.target.value };
+                    patch({ systeme });
+                  }}
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() =>
+                patch({
+                  systeme: [...(answers.systeme ?? []), { name: "", funktion: "" }],
+                })
+              }
+            >
+              Weiteres System
+            </button>
             <StatusPicker id="B01" answers={answers} onChange={onChange} />
 
-            <p className="hint">B04 — Welche Dateien und Metadaten bleiben das Original?</p>
-            <div className="field">
-              <label htmlFor="original">Original</label>
-              <textarea
-                id="original"
-                placeholder="z. B. empfangene PDF-Datei, nicht die Vorschau"
-                value={answers.originalErhalt ?? ""}
-                onChange={(event) => patch({ originalErhalt: event.target.value })}
-              />
-            </div>
+            <p className="hint">B04 — Welches Original bleibt je Eingangsweg erhalten?</p>
+            {(answers.eingangsbelege.length ? answers.eingangsbelege : ["Weg"]).map((weg) => {
+              const current = (answers.originalJeWeg ?? []).find((row) => row.weg === weg);
+              return (
+                <div className="field" key={weg}>
+                  <label htmlFor={`original-${weg}`}>{weg}</label>
+                  <input
+                    id={`original-${weg}`}
+                    placeholder="Was ist hier das Original?"
+                    value={current?.original ?? ""}
+                    onChange={(event) => {
+                      const others = (answers.originalJeWeg ?? []).filter((row) => row.weg !== weg);
+                      patch({ originalJeWeg: [...others, { weg, original: event.target.value }] });
+                    }}
+                  />
+                </div>
+              );
+            })}
             <StatusPicker id="B04" answers={answers} onChange={onChange} />
 
             <div className="field">
@@ -306,13 +405,30 @@ export function IntakeQuestionnaire({
             <StatusPicker id="C01" answers={answers} onChange={onChange} />
             {show("C02", answers) && (
               <>
-                <p className="hint">C02 — Welches Postfach oder Portal wird von wem in welchem Turnus gesichtet?</p>
+                <p className="hint">C02 — Postfach oder Portal, wer sichtet, welcher Turnus?</p>
                 <div className="field">
-                  <label htmlFor="sichtung">Sichtung</label>
-                  <textarea
-                    id="sichtung"
-                    value={answers.sichtung ?? ""}
-                    onChange={(event) => patch({ sichtung: event.target.value })}
+                  <label htmlFor="postfach">Postfach / Portal</label>
+                  <input
+                    id="postfach"
+                    value={answers.postfach ?? ""}
+                    onChange={(event) => patch({ postfach: event.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="sichtung-wer">Wer</label>
+                  <input
+                    id="sichtung-wer"
+                    value={answers.sichtungWer ?? ""}
+                    onChange={(event) => patch({ sichtungWer: event.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="sichtung-turnus">Turnus</label>
+                  <input
+                    id="sichtung-turnus"
+                    placeholder="z. B. arbeitstäglich"
+                    value={answers.sichtungTurnus ?? ""}
+                    onChange={(event) => patch({ sichtungTurnus: event.target.value })}
                   />
                 </div>
                 <StatusPicker id="C02" answers={answers} onChange={onChange} />
@@ -375,12 +491,11 @@ export function IntakeQuestionnaire({
           <>
             {show("E02", answers) ? (
               <>
-                <p className="hint">
-                  E02 — Wie wird der strukturierte Teil empfangen, geprüft und im Original gespeichert?
-                </p>
-                <textarea
-                  value={answers.erechnungVerfahren ?? ""}
-                  onChange={(event) => patch({ erechnungVerfahren: event.target.value })}
+                <p className="hint">E02 — Technische Validierung: ja, nein oder unbekannt. PDF ist keine E-Rechnung.</p>
+                <TriChips
+                  label="Validierung"
+                  value={answers.validierung}
+                  onChange={(validierung) => patch({ validierung })}
                 />
                 <StatusPicker id="E02" answers={answers} onChange={onChange} />
               </>
@@ -402,20 +517,49 @@ export function IntakeQuestionnaire({
               multi
             />
             <StatusPicker id="E05" answers={answers} onChange={onChange} />
-            <p className="hint">E03 — Wer prüft den Leistungsbezug vor der Freigabe?</p>
-            <input
-              value={answers.sachlichePruefung ?? ""}
-              placeholder="Name oder Rolle"
-              onChange={(event) => patch({ sachlichePruefung: event.target.value })}
-            />
-            <StatusPicker id="E03" answers={answers} onChange={onChange} />
-            <p className="hint">F01 — Wer gibt frei und wer übergibt zur Buchung?</p>
+            <p className="hint">E03 — Prüfkriterien und Rolle, getrennt.</p>
             <div className="field">
-              <label htmlFor="buchhaltung">Buchhaltung / Belegverantwortung</label>
+              <label htmlFor="kriterien">Kriterien</label>
+              <textarea
+                id="kriterien"
+                value={answers.pruefkriterien ?? ""}
+                onChange={(event) => patch({ pruefkriterien: event.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="pruefrolle">Rolle</label>
               <input
-                id="buchhaltung"
-                value={answers.buchhaltung}
-                onChange={(event) => patch({ buchhaltung: event.target.value })}
+                id="pruefrolle"
+                value={answers.pruefrolle ?? ""}
+                onChange={(event) => patch({ pruefrolle: event.target.value })}
+              />
+            </div>
+            <StatusPicker id="E03" answers={answers} onChange={onChange} />
+            <p className="hint">F01 — Prüfen, freigeben und buchen sind drei Rollen.</p>
+            <div className="field">
+              <label htmlFor="rolle-pruefen">Prüfen</label>
+              <input
+                id="rolle-pruefen"
+                value={answers.rollePruefen ?? ""}
+                onChange={(event) => patch({ rollePruefen: event.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="rolle-frei">Freigeben</label>
+              <input
+                id="rolle-frei"
+                value={answers.rolleFreigeben ?? ""}
+                onChange={(event) => patch({ rolleFreigeben: event.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="rolle-buchen">Buchen</label>
+              <input
+                id="rolle-buchen"
+                value={answers.rolleBuchen ?? ""}
+                onChange={(event) =>
+                  patch({ rolleBuchen: event.target.value, buchhaltung: event.target.value })
+                }
               />
             </div>
             <StatusPicker id="F01" answers={answers} onChange={onChange} />
@@ -457,13 +601,21 @@ export function IntakeQuestionnaire({
               onChange={(event) => patch({ loeschfreigabe: event.target.value })}
             />
             <StatusPicker id="G05" answers={answers} onChange={onChange} />
-            <p className="hint">G06 — Welche Sicherung ist tatsächlich eingerichtet?</p>
+            <p className="hint">G06 — Welche Sicherung ist eingerichtet, und wurde sie getestet?</p>
             <Chips
               options={INTAKE_BACKUP}
               value={answers.backup}
               onChange={(backup) => patch({ backup })}
               multi
             />
+            <div className="field">
+              <label>Wiederherstellung getestet</label>
+              <TriChips
+                label="Backup getestet"
+                value={answers.backupGetestet}
+                onChange={(backupGetestet) => patch({ backupGetestet })}
+              />
+            </div>
             <StatusPicker id="G06" answers={answers} onChange={onChange} />
             <p className="hint">H04 — Wann wurde Wiederherstellung oder Export zuletzt geprüft?</p>
             <input
@@ -477,11 +629,87 @@ export function IntakeQuestionnaire({
 
         {step === 7 && (
           <>
-            <p className="hint">H01 — Welche Kontrollen laufen tatsächlich, von wem, wie oft? Ohne Bestätigung kein Ist-Satz.</p>
-            <textarea
-              value={answers.kontrollen ?? ""}
-              onChange={(event) => patch({ kontrollen: event.target.value })}
-            />
+            <p className="hint">
+              H01 — Kontrollen, wiederholbar: was, Turnus, wer, Nachweis. Ohne Zeile bleibt das IKS leer und ein offener Punkt.
+            </p>
+            {(answers.kontrollenListe?.length
+              ? answers.kontrollenListe
+              : [{ was: "", turnus: "", wer: "", nachweis: "" }]
+            ).map((row, index) => (
+              <div className="field" key={`kontrolle-${index}`}>
+                <label htmlFor={`k-was-${index}`}>Kontrolle {index + 1}</label>
+                <input
+                  id={`k-was-${index}`}
+                  placeholder="Was"
+                  value={row.was}
+                  onChange={(event) => {
+                    const kontrollenListe = [
+                      ...(answers.kontrollenListe?.length
+                        ? answers.kontrollenListe
+                        : [{ was: "", turnus: "", wer: "", nachweis: "" }]),
+                    ];
+                    kontrollenListe[index] = { ...kontrollenListe[index], was: event.target.value };
+                    patch({ kontrollenListe });
+                  }}
+                />
+                <input
+                  aria-label={`Turnus Kontrolle ${index + 1}`}
+                  placeholder="Turnus"
+                  value={row.turnus}
+                  onChange={(event) => {
+                    const kontrollenListe = [
+                      ...(answers.kontrollenListe?.length
+                        ? answers.kontrollenListe
+                        : [{ was: "", turnus: "", wer: "", nachweis: "" }]),
+                    ];
+                    kontrollenListe[index] = { ...kontrollenListe[index], turnus: event.target.value };
+                    patch({ kontrollenListe });
+                  }}
+                />
+                <input
+                  aria-label={`Wer Kontrolle ${index + 1}`}
+                  placeholder="Wer"
+                  value={row.wer}
+                  onChange={(event) => {
+                    const kontrollenListe = [
+                      ...(answers.kontrollenListe?.length
+                        ? answers.kontrollenListe
+                        : [{ was: "", turnus: "", wer: "", nachweis: "" }]),
+                    ];
+                    kontrollenListe[index] = { ...kontrollenListe[index], wer: event.target.value };
+                    patch({ kontrollenListe });
+                  }}
+                />
+                <input
+                  aria-label={`Nachweis Kontrolle ${index + 1}`}
+                  placeholder="Nachweis"
+                  value={row.nachweis}
+                  onChange={(event) => {
+                    const kontrollenListe = [
+                      ...(answers.kontrollenListe?.length
+                        ? answers.kontrollenListe
+                        : [{ was: "", turnus: "", wer: "", nachweis: "" }]),
+                    ];
+                    kontrollenListe[index] = { ...kontrollenListe[index], nachweis: event.target.value };
+                    patch({ kontrollenListe });
+                  }}
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() =>
+                patch({
+                  kontrollenListe: [
+                    ...(answers.kontrollenListe ?? []),
+                    { was: "", turnus: "", wer: "", nachweis: "" },
+                  ],
+                })
+              }
+            >
+              Weitere Kontrolle
+            </button>
             <StatusPicker id="H01" answers={answers} onChange={onChange} />
             <p className="hint">I01 — Wer pflegt die Dokumentation?</p>
             <textarea
@@ -501,9 +729,27 @@ export function IntakeQuestionnaire({
               onChange={(event) => patch({ fassungsrahmen: event.target.value })}
             />
             <StatusPicker id="I05" answers={answers} onChange={onChange} />
-            <p className="prose">
-              I04 — Die Erzeugung ist keine betriebliche Bestätigung. Name und Datum der Geschäftsführung bleiben ein Platzhalter auf dem Deckblatt.
+            <p className="hint">
+              I04 — Betriebliche Bestätigung: Name und Datum. Die Generierung setzt den Freigabestatus nicht auf bestätigt.
             </p>
+            <div className="field">
+              <label htmlFor="i04-name">Name</label>
+              <input
+                id="i04-name"
+                value={answers.bestaetigungName ?? ""}
+                onChange={(event) => patch({ bestaetigungName: event.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="i04-datum">Datum</label>
+              <input
+                id="i04-datum"
+                type="date"
+                value={answers.bestaetigungDatum ?? ""}
+                onChange={(event) => patch({ bestaetigungDatum: event.target.value })}
+              />
+            </div>
+            <StatusPicker id="I04" answers={answers} onChange={onChange} />
           </>
         )}
       </div>

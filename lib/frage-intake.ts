@@ -1,4 +1,4 @@
-import type { IntakeAnswers } from "@/lib/types";
+import type { IntakeAnswers, KontrolleEintrag, VorsystemArt } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 
 /** Status captured per MVP question. Only `bestätigt` may become a lived sentence. */
@@ -40,6 +40,7 @@ export const MVP_FRAGE_IDS = [
   "H04",
   "I01",
   "I02",
+  "I04",
   "I05",
 ] as const;
 
@@ -49,6 +50,8 @@ export type FrageEntry = {
   status: FrageStatus;
   /** Reason when status is „nicht zutreffend“, otherwise unused. */
   text?: string;
+  verantwortung?: string;
+  datum?: string;
 };
 
 export type FragenState = Partial<Record<FrageId, FrageEntry>>;
@@ -259,6 +262,13 @@ const FRAGE_OPEN: Record<FrageId, FrageOpenPoint> = {
     chapter: "13-mitgeltende-unterlagen",
     suppress: [],
   },
+  I04: {
+    id: "op-i04",
+    priority: "hoch",
+    text: "Die betriebliche Bestätigung (Name und Datum) liegt nicht vor. Die Generierung setzt sie nicht.",
+    chapter: "00-cover-freigabe",
+    suppress: [],
+  },
   I05: {
     id: "op-i05",
     priority: "niedrig",
@@ -276,7 +286,7 @@ const STEP_FRAGEN: FrageId[][] = [
   ["E02"],
   ["E03", "E05", "F01", "F02", "F05"],
   ["G01", "G02", "G05", "G06", "H04"],
-  ["H01", "I01", "I02", "I05"],
+  ["H01", "I01", "I02", "I04", "I05"],
 ];
 
 export const INTAKE_QUESTION_STEPS = STEP_FRAGEN.length;
@@ -317,7 +327,8 @@ export function digitalSelected(answers: IntakeAnswers): boolean {
     hasToken(values, "E-Mail") ||
     hasToken(values, "Email") ||
     hasToken(values, "PDF") ||
-    hasToken(values, "Portal")
+    hasToken(values, "Portal") ||
+    hasToken(values, "E-Rechnung")
   );
 }
 
@@ -376,6 +387,26 @@ export function setFrageStatus(
   };
 }
 
+export function setFrageMeta(
+  answers: IntakeAnswers,
+  id: FrageId,
+  meta: { verantwortung?: string; datum?: string },
+): IntakeAnswers {
+  const current = answers.fragen?.[id];
+  return {
+    ...answers,
+    fragen: {
+      ...answers.fragen,
+      [id]: {
+        status: current?.status ?? "unbekannt",
+        text: current?.text ?? "",
+        verantwortung: meta.verantwortung ?? current?.verantwortung ?? "",
+        datum: meta.datum ?? current?.datum ?? "",
+      },
+    },
+  };
+}
+
 export function setFrageReason(
   answers: IntakeAnswers,
   id: FrageId,
@@ -413,21 +444,30 @@ function requirementMet(id: FrageId, answers: IntakeAnswers): boolean {
         filled(answers.gf)
       );
     case "A02":
-      return filled(answers.geltung);
+      return (
+        (filled(answers.geltungBelegarten) && filled(answers.geltungAusschluss)) ||
+        filled(answers.geltung)
+      );
     case "A03":
-      return filled(answers.vorsysteme);
+      return VORSYSTEM_ARTEN.every((art) => Boolean(answers.vorsystemAntwort?.[art])) || filled(answers.vorsysteme);
     case "A04":
       return filled(answers.seitWann);
     case "B01":
-      return answers.fibu.length > 0;
+      return answers.fibu.length > 0 || (answers.systeme ?? []).some((row) => filled(row.name));
     case "B04":
-      return filled(answers.originalErhalt);
+      return (
+        (answers.originalJeWeg ?? []).some((row) => filled(row.weg) && filled(row.original)) ||
+        filled(answers.originalErhalt)
+      );
     case "B05":
       return filled(answers.anbieterUnterlagen) || filled(answers.hosting);
     case "C01":
       return answers.eingangsbelege.length > 0;
     case "C02":
-      return filled(answers.sichtung);
+      return (
+        (filled(answers.postfach) && filled(answers.sichtungWer) && filled(answers.sichtungTurnus)) ||
+        filled(answers.sichtung)
+      );
     case "C03":
       return filled(answers.papierannahme);
     case "D01":
@@ -439,13 +479,27 @@ function requirementMet(id: FrageId, answers: IntakeAnswers): boolean {
     case "E01":
       return list(answers.formate).length > 0;
     case "E02":
-      return filled(answers.erechnungVerfahren);
+      return (
+        answers.validierung === "ja" ||
+        answers.validierung === "nein" ||
+        answers.validierung === "unbekannt" ||
+        filled(answers.erechnungVerfahren)
+      );
     case "E03":
-      return filled(answers.sachlichePruefung) || filled(answers.gf);
+      return (
+        (filled(answers.pruefkriterien) && filled(answers.pruefrolle)) ||
+        filled(answers.sachlichePruefung)
+      );
     case "E05":
       return answers.ausgangsrechnungen.length > 0;
-    case "F01":
+    case "F01": {
+      const split =
+        filled(answers.rollePruefen) || filled(answers.rolleFreigeben) || filled(answers.rolleBuchen);
+      if (split) {
+        return filled(answers.rollePruefen) && filled(answers.rolleFreigeben) && filled(answers.rolleBuchen);
+      }
       return filled(answers.gf) && filled(answers.buchhaltung);
+    }
     case "F02":
       return filled(answers.belegId);
     case "F05":
@@ -457,9 +511,16 @@ function requirementMet(id: FrageId, answers: IntakeAnswers): boolean {
     case "G05":
       return filled(answers.loeschfreigabe);
     case "G06":
-      return answers.backup.length > 0;
+      return (
+        answers.backup.length > 0 &&
+        (answers.backupGetestet === "ja" ||
+          answers.backupGetestet === "nein" ||
+          answers.backupGetestet === "unbekannt")
+      );
     case "H01":
-      return filled(answers.kontrollen);
+      return completeKontrollen(answers).length > 0 || filled(answers.kontrollen);
+    case "I04":
+      return filled(answers.bestaetigungName) && filled(answers.bestaetigungDatum);
     case "H04":
       return filled(answers.wiederherstellungstest);
     case "I01":
@@ -488,6 +549,14 @@ export function intakeFrageStepError(step: number, answers: IntakeAnswers): stri
     }
   }
   return "";
+}
+
+export const VORSYSTEM_ARTEN: VorsystemArt[] = ["Kasse", "Shop", "Lager", "Lohn", "Plattform"];
+
+function completeKontrollen(answers: IntakeAnswers): KontrolleEintrag[] {
+  return (answers.kontrollenListe ?? []).filter(
+    (row) => filled(row.was) && filled(row.turnus) && filled(row.wer) && filled(row.nachweis),
+  );
 }
 
 function copyLived<T>(take: boolean, value: T, empty: T): T {
@@ -544,14 +613,74 @@ export function documentAnswers(answers: IntakeAnswers): IntakeAnswers {
     anlagenliste: copyLived(lived(answers, "I02"), answers.anlagenliste ?? "", ""),
     fassungsrahmen: copyLived(lived(answers, "I05"), answers.fassungsrahmen ?? "", ""),
     it: copyLived(lived(answers, "B05") || lived(answers, "F01"), answers.it, ""),
+    bestaetigungName: "",
+    bestaetigungDatum: "",
   };
+  if (lived(answers, "A02")) {
+    const parts = [
+      filled(answers.geltungBelegarten) ? `Belegarten: ${answers.geltungBelegarten}` : "",
+      filled(answers.geltungAusschluss) ? `Ausschlüsse: ${answers.geltungAusschluss}` : "",
+    ].filter(Boolean);
+    if (parts.length) next.geltung = parts.join(". ");
+  }
+  if (lived(answers, "A03") && answers.vorsystemAntwort && Object.keys(answers.vorsystemAntwort).length) {
+    const ja = VORSYSTEM_ARTEN.filter((art) => answers.vorsystemAntwort?.[art] === "ja");
+    const entschieden = VORSYSTEM_ARTEN.every((art) => {
+      const value = answers.vorsystemAntwort?.[art];
+      return value === "ja" || value === "nein";
+    });
+    next.vorsysteme = ja.length ? ja.join(", ") : entschieden ? "Keine weiteren" : "";
+  }
+  if (lived(answers, "B01")) {
+    const names = (answers.systeme ?? []).map((row) => row.name.trim()).filter(Boolean);
+    if (names.length) {
+      next.weitereSysteme = [answers.weitereSysteme, ...names].filter(Boolean).join("; ");
+    }
+  }
+  if (lived(answers, "B04")) {
+    const rows = (answers.originalJeWeg ?? []).filter((row) => filled(row.weg) && filled(row.original));
+    if (rows.length) {
+      next.originalErhalt = rows.map((row) => `${row.weg}: ${row.original}`).join("; ");
+    }
+  }
+  if (lived(answers, "C02")) {
+    const parts = [answers.postfach, answers.sichtungWer, answers.sichtungTurnus]
+      .map((part) => (part ?? "").trim())
+      .filter(Boolean);
+    if (parts.length === 3) next.sichtung = parts.join(", ");
+  }
   if (lived(answers, "E01")) {
-    const extra = list(answers.formate).filter((item) =>
-      ["PDF", "Papier", "E-Rechnung", "ZUGFeRD", "XRechnung"].some((token) =>
-        item.toLowerCase().includes(token.toLowerCase()),
-      ),
+    const extra = list(answers.formate).filter(
+      (item) => hasToken([item], "Papier") || hasToken([item], "Scan") || hasWord([item], "Post"),
     );
     next.eingangsbelege = [...new Set([...next.eingangsbelege, ...extra])];
+  }
+  if (lived(answers, "E02")) {
+    if (answers.validierung === "ja") next.erechnungVerfahren = "Technische Validierung: ja.";
+    else if (answers.validierung === "nein") next.erechnungVerfahren = "Technische Validierung: nein.";
+    else if (answers.validierung === "unbekannt") next.erechnungVerfahren = "";
+  }
+  if (lived(answers, "E03") && filled(answers.pruefkriterien) && filled(answers.pruefrolle)) {
+    next.sachlichePruefung = `${answers.pruefkriterien} (${answers.pruefrolle})`;
+  }
+  if (lived(answers, "F01") && filled(answers.rollePruefen) && filled(answers.rolleFreigeben) && filled(answers.rolleBuchen)) {
+    next.rollen = `Prüfen: ${answers.rollePruefen}. Freigeben: ${answers.rolleFreigeben}. Buchen: ${answers.rolleBuchen}.`;
+    if (!filled(next.buchhaltung)) next.buchhaltung = answers.rolleBuchen ?? "";
+  }
+  if (lived(answers, "H04") && answers.backupGetestet && answers.backupGetestet !== "ja") {
+    next.wiederherstellungstest = "";
+  }
+  if (lived(answers, "H01")) {
+    const rows = completeKontrollen(answers);
+    if (rows.length) {
+      next.kontrollen = rows
+        .map((row) => `| ${row.was} | ${row.turnus} | ${row.wer} | ${row.nachweis} |`)
+        .join("\n");
+    }
+  }
+  if (lived(answers, "I04")) {
+    next.bestaetigungName = answers.bestaetigungName ?? "";
+    next.bestaetigungDatum = answers.bestaetigungDatum ?? "";
   }
   if (lived(answers, "D01") && (answers.scanZweck ?? "").toLowerCase().includes("ersetzend")) {
     const paper =
@@ -582,8 +711,87 @@ export function openPointsFromFragen(answers: IntakeAnswers): FrageOpenPoint[] {
     if (!frageApplies(id, answers)) continue;
     const status = statusOf(answers, id);
     if (status === "unbekannt" || status === "geplant") points.push(FRAGE_OPEN[id]);
+    if (id === "H01" && status === "nicht zutreffend") points.push(FRAGE_OPEN.H01);
+    if (id === "E02" && status === "bestätigt" && answers.validierung === "unbekannt") {
+      points.push(FRAGE_OPEN.E02);
+    }
+    if (
+      id === "A03" &&
+      status === "bestätigt" &&
+      VORSYSTEM_ARTEN.some((art) => answers.vorsystemAntwort?.[art] === "unbekannt")
+    ) {
+      points.push(FRAGE_OPEN.A03);
+    }
+    if (
+      id === "G06" &&
+      status === "bestätigt" &&
+      answers.backupGetestet &&
+      answers.backupGetestet !== "ja" &&
+      statusOf(answers, "H04") !== "unbekannt" &&
+      statusOf(answers, "H04") !== "geplant"
+    ) {
+      points.push({
+        id: "op-g06-test",
+        priority: "hoch",
+        text: "Ein Wiederherstellungstest ist nicht bestätigt.",
+        chapter: "10-berechtigungen-sicherung",
+        suppress: ["op-backup-test"],
+      });
+    }
   }
   return points;
+}
+
+export function intakeSummary(answers: IntakeAnswers): Array<[string, string]> {
+  const systems = (answers.systeme ?? [])
+    .map((row) => [row.name, row.funktion].filter(Boolean).join(" — "))
+    .filter(Boolean);
+  const vorsystem = VORSYSTEM_ARTEN.map((art) =>
+    answers.vorsystemAntwort?.[art] ? `${art}: ${answers.vorsystemAntwort[art]}` : "",
+  ).filter(Boolean);
+  const original = (answers.originalJeWeg ?? [])
+    .filter((row) => filled(row.original))
+    .map((row) => `${row.weg}: ${row.original}`);
+  const kontrollen = completeKontrollen(answers).map(
+    (row) => `${row.was} (${row.turnus}, ${row.wer}, ${row.nachweis})`,
+  );
+  const sichtung = [answers.postfach, answers.sichtungWer, answers.sichtungTurnus]
+    .map((part) => (part ?? "").trim())
+    .filter(Boolean);
+  return [
+    ["Branche", answers.branchen.join(", ") || "—"],
+    ["Rechtsform", answers.rechtsform || "—"],
+    ["Mitarbeitende", answers.mitarbeitende || "—"],
+    ["Belegarten", answers.geltungBelegarten || answers.geltung || "—"],
+    ["Ausschlüsse", answers.geltungAusschluss || "—"],
+    ["Vorsysteme", vorsystem.join(", ") || answers.vorsysteme || "—"],
+    ["Wirksamkeitsdatum", answers.seitWann || "—"],
+    ["Systeme", [...answers.fibu, ...systems].filter(Boolean).join(", ") || answers.weitereSysteme || "—"],
+    ["Original je Weg", original.join("; ") || answers.originalErhalt || "—"],
+    ["Eingangsbelege", answers.eingangsbelege.join(", ") || "—"],
+    ["Formate", (answers.formate ?? []).join(", ") || "—"],
+    ["Postfach / Turnus", sichtung.join(", ") || answers.sichtung || "—"],
+    ["Validierung", answers.validierung || "—"],
+    ["Prüfkriterien", answers.pruefkriterien || answers.sachlichePruefung || "—"],
+    ["Ausgangsrechnungen", answers.ausgangsrechnungen.join(", ") || "—"],
+    [
+      "Prüfen / Freigeben / Buchen",
+      [answers.rollePruefen, answers.rolleFreigeben, answers.rolleBuchen].filter(Boolean).join(" / ") ||
+        "—",
+    ],
+    ["GF / Inhaber", answers.gf || "—"],
+    ["Buchhaltung", answers.buchhaltung || "—"],
+    ["Steuerberater", answers.steuerberater || "—"],
+    ["Archiv", answers.archiv || "—"],
+    ["Hosting", answers.hosting || "—"],
+    ["Backup", answers.backup.join(", ") || "—"],
+    ["Backup getestet", answers.backupGetestet || "—"],
+    ["Kontrollen", kontrollen.join("; ") || answers.kontrollen || "—"],
+    [
+      "Betriebliche Bestätigung",
+      [answers.bestaetigungName, answers.bestaetigungDatum].filter(Boolean).join(", ") || "—",
+    ],
+  ];
 }
 
 /** Demo starts from the partner fixture and marks filled groups as bestätigt. */
@@ -615,6 +823,7 @@ export function seedDemoFragen(answers: IntakeAnswers): IntakeAnswers {
   set("H04", "unbekannt");
   set("I01", "unbekannt");
   set("I02", "unbekannt");
+  set("I04", "unbekannt");
   set("I05", "unbekannt");
   return { ...answers, fragen, formate: answers.formate ?? [] };
 }

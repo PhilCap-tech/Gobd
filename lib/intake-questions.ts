@@ -44,7 +44,7 @@ export const INTAKE_FIBU = [
 export const INTAKE_EINGANG = [
   "E-Mail",
   "PDF",
-  "E-Mail / PDF",
+  "E-Rechnung",
   "Portal Lieferant",
   "Schnittstelle",
   "Scan / App",

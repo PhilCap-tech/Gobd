@@ -1,3 +1,18 @@
+export type TriState = "ja" | "nein" | "unbekannt";
+
+export type VorsystemArt = "Kasse" | "Shop" | "Lager" | "Lohn" | "Plattform";
+
+export type SystemEintrag = { name: string; funktion: string };
+
+export type OriginalEintrag = { weg: string; original: string };
+
+export type KontrolleEintrag = {
+  was: string;
+  turnus: string;
+  wer: string;
+  nachweis: string;
+};
+
 export type IntakeAnswers = {
   branchen: string[];
   rechtsform: string;
@@ -17,27 +32,54 @@ export type IntakeAnswers = {
   /** MVP Fragenkatalog. Absent on rows from the older five-step intake. */
   standort?: string;
   geltung?: string;
+  geltungBelegarten?: string;
+  geltungAusschluss?: string;
   vorsysteme?: string;
+  vorsystemAntwort?: Partial<Record<VorsystemArt, TriState>>;
   seitWann?: string;
+  systeme?: SystemEintrag[];
   formate?: string[];
   originalErhalt?: string;
+  originalJeWeg?: OriginalEintrag[];
   anbieterUnterlagen?: string;
   sichtung?: string;
+  postfach?: string;
+  sichtungWer?: string;
+  sichtungTurnus?: string;
   papierannahme?: string;
   scanZweck?: string;
   scanAufbewahrung?: string;
   papierlager?: string;
   erechnungVerfahren?: string;
+  validierung?: TriState | "";
   sachlichePruefung?: string;
+  pruefkriterien?: string;
+  pruefrolle?: string;
   belegId?: string;
+  rollePruefen?: string;
+  rolleFreigeben?: string;
+  rolleBuchen?: string;
+  rollen?: string;
   loeschfreigabe?: string;
   wiederherstellungstest?: string;
+  backupGetestet?: TriState | "";
   kontrollen?: string;
+  kontrollenListe?: KontrolleEintrag[];
   dokumentenpflege?: string;
   anlagenliste?: string;
   fassungsrahmen?: string;
+  bestaetigungName?: string;
+  bestaetigungDatum?: string;
   fragen?: Partial<
-    Record<string, { status: "bestätigt" | "geplant" | "unbekannt" | "nicht zutreffend"; text?: string }>
+    Record<
+      string,
+      {
+        status: "bestätigt" | "geplant" | "unbekannt" | "nicht zutreffend";
+        text?: string;
+        verantwortung?: string;
+        datum?: string;
+      }
+    >
   >;
 };
 
@@ -184,27 +226,129 @@ export function emptyAnswers(): IntakeAnswers {
     steuerberater: "",
     standort: "",
     geltung: "",
+    geltungBelegarten: "",
+    geltungAusschluss: "",
     vorsysteme: "",
+    vorsystemAntwort: {},
     seitWann: "",
+    systeme: [],
     formate: [],
     originalErhalt: "",
+    originalJeWeg: [],
     anbieterUnterlagen: "",
     sichtung: "",
+    postfach: "",
+    sichtungWer: "",
+    sichtungTurnus: "",
     papierannahme: "",
     scanZweck: "",
     scanAufbewahrung: "",
     papierlager: "",
     erechnungVerfahren: "",
+    validierung: "",
     sachlichePruefung: "",
+    pruefkriterien: "",
+    pruefrolle: "",
     belegId: "",
+    rollePruefen: "",
+    rolleFreigeben: "",
+    rolleBuchen: "",
+    rollen: "",
     loeschfreigabe: "",
     wiederherstellungstest: "",
+    backupGetestet: "",
     kontrollen: "",
+    kontrollenListe: [],
     dokumentenpflege: "",
     anlagenliste: "",
     fassungsrahmen: "",
+    bestaetigungName: "",
+    bestaetigungDatum: "",
     fragen: {},
   };
+}
+
+const CATALOG_KEYS = [
+  "standort",
+  "geltung",
+  "geltungBelegarten",
+  "geltungAusschluss",
+  "vorsysteme",
+  "vorsystemAntwort",
+  "seitWann",
+  "systeme",
+  "formate",
+  "originalErhalt",
+  "originalJeWeg",
+  "anbieterUnterlagen",
+  "sichtung",
+  "postfach",
+  "sichtungWer",
+  "sichtungTurnus",
+  "papierannahme",
+  "scanZweck",
+  "scanAufbewahrung",
+  "papierlager",
+  "erechnungVerfahren",
+  "validierung",
+  "sachlichePruefung",
+  "pruefkriterien",
+  "pruefrolle",
+  "belegId",
+  "rollePruefen",
+  "rolleFreigeben",
+  "rolleBuchen",
+  "rollen",
+  "loeschfreigabe",
+  "wiederherstellungstest",
+  "backupGetestet",
+  "kontrollen",
+  "kontrollenListe",
+  "dokumentenpflege",
+  "anlagenliste",
+  "fassungsrahmen",
+  "bestaetigungName",
+  "bestaetigungDatum",
+] as const satisfies readonly (keyof IntakeAnswers)[];
+
+function catalogFrom(answers: IntakeAnswers): Partial<IntakeAnswers> {
+  const snapshot: Partial<IntakeAnswers> = {};
+  for (const key of CATALOG_KEYS) {
+    const value = answers[key];
+    if (value == null) continue;
+    if (typeof value === "string" && !value.trim()) continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    if (typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0) {
+      continue;
+    }
+    (snapshot as Record<string, unknown>)[key] = value;
+  }
+  return snapshot;
+}
+
+function splitStoredFragen(raw: string): {
+  fragen: IntakeAnswers["fragen"];
+  katalog: Partial<IntakeAnswers>;
+} {
+  if (!raw.trim()) return { fragen: {}, katalog: {} };
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return { fragen: {}, katalog: {} };
+    const katalog =
+      parsed.katalog && typeof parsed.katalog === "object"
+        ? (parsed.katalog as Partial<IntakeAnswers>)
+        : {};
+    const fragen: NonNullable<IntakeAnswers["fragen"]> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (key === "katalog") continue;
+      if (value && typeof value === "object" && "status" in value) {
+        fragen[key] = value as NonNullable<IntakeAnswers["fragen"]>[string];
+      }
+    }
+    return { fragen, katalog };
+  } catch {
+    return { fragen: {}, katalog: {} };
+  }
 }
 
 export function emptySheetRow(): SheetRow {
@@ -296,7 +440,7 @@ export function toSheetRow(input: {
     validTo: input.validTo ?? "",
     changeSummary: input.changeSummary ?? "",
     changedBy: input.changedBy ?? "",
-    fragen: JSON.stringify(a.fragen ?? {}),
+    fragen: JSON.stringify({ ...(a.fragen ?? {}), katalog: catalogFrom(a) }),
   };
 }
 
@@ -383,17 +527,8 @@ function splitList(value: string): string[] {
     .filter(Boolean);
 }
 
-function parseFragen(raw: string): IntakeAnswers["fragen"] {
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw) as IntakeAnswers["fragen"];
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 export function answersFromSheetRow(row: SheetRow): IntakeAnswers {
+  const stored = splitStoredFragen(row.fragen);
   return {
     ...emptyAnswers(),
     branchen: splitList(row.branchen),
@@ -411,7 +546,8 @@ export function answersFromSheetRow(row: SheetRow): IntakeAnswers {
     buchhaltung: row.buchhaltung,
     it: row.it,
     steuerberater: row.steuerberater,
-    fragen: parseFragen(row.fragen),
+    ...stored.katalog,
+    fragen: stored.fragen,
   };
 }
 

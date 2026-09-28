@@ -1,4 +1,5 @@
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
+import { intakeFrageStepError } from "@/lib/frage-intake";
 import { evaluateOpenPoints } from "@/lib/open-points";
 import {
   PARTNER_MUSTER_ANSWERS,
@@ -6,7 +7,7 @@ import {
   PARTNER_MUSTER_IDENTITY,
   PARTNER_MUSTER_VERSION_META,
 } from "@/lib/partner-muster";
-import type { IntakeAnswers } from "@/lib/types";
+import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
 function bodyFor(answers: IntakeAnswers): string {
   const doc = renderDeliveryDocument({
@@ -168,6 +169,83 @@ expect(statusBody.includes("Monatsabschluss durch Anna Beispiel"), "confirmed co
 expect(statusIds.includes("op-b01"), "geplant system is an open point");
 expect(statusIds.includes("op-h04"), "unknown restore test is an open point");
 expect(!statusIds.includes("op-kontrollprotokoll"), "confirmed control clears the generic control point");
+
+const structured = {
+  ...PARTNER_MUSTER_ANSWERS,
+  gf: "Anna Beispiel",
+  buchhaltung: "",
+  fibu: [] as string[],
+  eingangsbelege: ["E-Mail", "E-Rechnung"],
+  formate: ["PDF", "XRechnung"],
+  geltungBelegarten: "Eingangsrechnungen",
+  geltungAusschluss: "Lohn",
+  vorsystemAntwort: { Kasse: "ja" as const, Shop: "nein" as const, Lager: "nein" as const, Lohn: "unbekannt" as const, Plattform: "nein" as const },
+  seitWann: "2024-03-01",
+  systeme: [{ name: "Warenwirtschaft Nord", funktion: "erzeugt Belege" }],
+  originalJeWeg: [
+    { weg: "E-Mail", original: "empfangene PDF" },
+    { weg: "E-Rechnung", original: "XML" },
+  ],
+  postfach: "rechnung@beispiel.de",
+  sichtungWer: "Ben Muster",
+  sichtungTurnus: "arbeitstäglich",
+  validierung: "unbekannt" as const,
+  pruefkriterien: "Leistungsbezug und Betrag",
+  pruefrolle: "Anna Beispiel",
+  rollePruefen: "Ben Muster",
+  rolleFreigeben: "Anna Beispiel",
+  rolleBuchen: "Kanzlei Meier",
+  backupGetestet: "nein" as const,
+  kontrollenListe: [] as { was: string; turnus: string; wer: string; nachweis: string }[],
+  bestaetigungName: "Anna Beispiel",
+  bestaetigungDatum: "2026-09-01",
+  fragen: {
+    A01: { status: "bestätigt" as const },
+    A02: { status: "bestätigt" as const },
+    A03: { status: "bestätigt" as const },
+    A04: { status: "bestätigt" as const },
+    B01: { status: "bestätigt" as const },
+    B04: { status: "bestätigt" as const },
+    C01: { status: "bestätigt" as const },
+    C02: { status: "bestätigt" as const },
+    E01: { status: "bestätigt" as const },
+    E02: { status: "bestätigt" as const },
+    E03: { status: "bestätigt" as const },
+    E05: { status: "bestätigt" as const },
+    F01: { status: "bestätigt" as const },
+    F05: { status: "geplant" as const },
+    G01: { status: "bestätigt" as const },
+    G06: { status: "bestätigt" as const },
+    H01: { status: "unbekannt" as const },
+    H04: { status: "bestätigt" as const },
+    I04: { status: "bestätigt" as const },
+  },
+};
+const structuredBody = bodyFor(structured);
+const structuredIds = ids(structured);
+expect(structuredBody.includes("Belegarten: Eingangsrechnungen"), "A02 scope is lived");
+expect(structuredBody.includes("Ausschlüsse: Lohn"), "A02 exclusion is lived");
+expect(structuredBody.includes("Einbezogene Vorsysteme: Kasse"), "A03 yes is lived");
+expect(!structuredBody.includes("Einbezogene Vorsysteme: Kasse, Lohn"), "A03 unknown is not lived");
+expect(structuredIds.includes("op-a03"), "A03 unknown stays an open point");
+expect(structuredBody.includes("2024-03-01"), "A04 date is lived");
+expect(structuredBody.includes("Warenwirtschaft Nord"), "B01 repeatable system is lived");
+expect(structuredBody.includes("E-Mail: empfangene PDF"), "B04 original per path");
+expect(structuredBody.includes("rechnung@beispiel.de, Ben Muster, arbeitstäglich"), "C02 mailbox");
+expect(!structuredBody.includes("Technische Validierung: ja"), "unknown validation is not lived");
+expect(structuredIds.includes("op-e02"), "unknown validation stays an open point");
+expect(structuredBody.includes("Prüfen: Ben Muster. Freigeben: Anna Beispiel. Buchen: Kanzlei Meier."), "F01 roles");
+expect(!structuredBody.includes("Kanzlei Meier übernimmt"), "planned kanzlei scope is not lived");
+expect(structuredBody.includes("keine konkrete Kontrollroutine bestätigt"), "empty controls leave IKS empty");
+expect(structuredIds.includes("op-h01"), "empty controls stay an open point");
+expect(structuredIds.includes("op-g06-test"), "untested backup is an open point");
+expect(structuredBody.includes("| ausstehend |") || structuredBody.includes("| ausstehend"), "I04 does not confirm the cover");
+expect(structuredBody.includes("Anna Beispiel") && structuredBody.includes("2026-09-01"), "I04 name and date are shown");
+expect(!structuredBody.includes("Gültig ab 2024-03-01"), "A04 does not backdate the version");
+expect(
+  intakeFrageStepError(0, emptyAnswers()).includes("Status"),
+  "fresh intake requires a status before continuing",
+);
 
 if (failures.length) {
   console.error(failures.join("\n"));

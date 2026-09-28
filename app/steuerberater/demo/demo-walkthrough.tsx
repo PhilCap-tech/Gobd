@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
-import { seedDemoFragen } from "@/lib/frage-intake";
+import { intakeSummary, seedDemoFragen } from "@/lib/frage-intake";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import {
   evaluateOpenPoints,
@@ -31,26 +31,7 @@ export function DemoWalkthrough() {
     [answers],
   );
 
-  const summary = useMemo(
-    () => [
-      ["Branche", answers.branchen.join(", ") || "—"],
-      ["Rechtsform", answers.rechtsform || "—"],
-      ["Mitarbeitende", answers.mitarbeitende || "—"],
-      ["FiBu", answers.fibu.join(", ") || "—"],
-      ["Weitere Systeme", answers.weitereSysteme || "—"],
-      ["Eingangsbelege", answers.eingangsbelege.join(", ") || "—"],
-      ["Ausgangsrechnungen", answers.ausgangsrechnungen.join(", ") || "—"],
-      ["Archiv", answers.archiv || "—"],
-      ["Hosting", answers.hosting || "—"],
-      ["Backup", answers.backup.join(", ") || "—"],
-      ["Zugriff", answers.zugriff || "—"],
-      ["GF / Inhaber", answers.gf || "—"],
-      ["Buchhaltung", answers.buchhaltung || "—"],
-      ["IT", answers.it || "—"],
-      ["Steuerberater", answers.steuerberater || "—"],
-    ],
-    [answers],
-  );
+  const summary = useMemo(() => intakeSummary(answers), [answers]);
 
   return (
     <>

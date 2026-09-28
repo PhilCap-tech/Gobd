@@ -7,6 +7,13 @@ Die Dokumentation macht den Weg steuerlich und handelsrechtlich relevanter Beleg
 ## 1.2 Geltungsbereich
 
 Erfasst werden die Prozesse von {{identity.company | or "dem Unternehmen (zu bestätigen)"}} im vom Intake beschriebenen Umfang. Dazu gehören die bestätigten Eingangswege, Ausgangsrechnungen und die Übergabe zur Buchung sowie die Aufbewahrung.
+{{#if answers.geltung}}
+
+Bestätigter Umfang: {{answers.geltung}}.
+{{/if}}
+{{#if answers.vorsysteme}}
+Einbezogene Vorsysteme: {{answers.vorsysteme}}.
+{{/if}}
 
 Nicht erfasst sind Bargeldkassen, Warenwirtschaft, Lohnabrechnung und andere Fachverfahren, soweit sie im Intake nicht ausdrücklich einbezogen sind. Sollte künftig eines dieser Verfahren eingeführt werden, ist der Geltungsbereich vor produktiver Nutzung zu erweitern.
 

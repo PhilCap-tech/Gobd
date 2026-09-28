@@ -26,7 +26,7 @@ Bei einem realen Betrieb bestätigt die Geschäftsleitung an dieser Stelle, dass
 
 | Rolle | Name | Datum | Status |
 | --- | --- | --- | --- |
-| Geschäftsleitung | {{answers.gf | or "________________"}} | ________________ | ausstehend |
+| Geschäftsleitung | {{#if answers.bestaetigungName}}{{answers.bestaetigungName}}{{/if}}{{#unless answers.bestaetigungName}}{{answers.gf | or "________________"}}{{/unless}} | {{answers.bestaetigungDatum | or "________________"}} | ausstehend |
 | Dokumentationsverantwortung | {{answers.buchhaltung | or "________________"}} | ________________ | ausstehend |
 
 {{disclaimer}}

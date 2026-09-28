@@ -9,6 +9,7 @@ import {
   type VersionChangeDraft,
 } from "@/components/version-change-fields";
 import type { EntityChoice } from "@/lib/entities";
+import { intakeSummary } from "@/lib/frage-intake";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
@@ -126,29 +127,7 @@ export function IntakeForm({
     }
   }
 
-  const summary = useMemo(
-    () => [
-      ["Branche", answers.branchen.join(", ") || "—"],
-      ["Rechtsform", answers.rechtsform || "—"],
-      ["Mitarbeitende", answers.mitarbeitende || "—"],
-      ["FiBu", answers.fibu.join(", ") || "—"],
-      ["Weitere Systeme", answers.weitereSysteme || "—"],
-      ["Eingangsbelege", answers.eingangsbelege.join(", ") || "—"],
-      ["Ausgangsrechnungen", answers.ausgangsrechnungen.join(", ") || "—"],
-      ["Archiv", answers.archiv || "—"],
-      ["Hosting", answers.hosting || "—"],
-      ["Backup", answers.backup.join(", ") || "—"],
-      ["Zugriff", answers.zugriff || "—"],
-      ["GF / Inhaber", answers.gf || "—"],
-      ["Buchhaltung", answers.buchhaltung || "—"],
-      ["IT", answers.it || "—"],
-      ["Steuerberater", answers.steuerberater || "—"],
-      ["Formate", (answers.formate ?? []).join(", ") || "—"],
-      ["Sichtung", answers.sichtung || "—"],
-      ["Kontrollen", answers.kontrollen || "—"],
-    ],
-    [answers],
-  );
+  const summary = useMemo(() => intakeSummary(answers), [answers]);
 
   return (
     <>
