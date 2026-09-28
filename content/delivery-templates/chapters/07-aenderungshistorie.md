@@ -1,15 +1,11 @@
-# 7. Änderungshistorie
+# 7. Version
 
-[1] Bei einer Änderung der Verfahrensdokumentation wird die abgelöste Version unter ihrer eindeutigen Versionsnummer mit Angabe des Gültigkeitszeitraums bis zum Ablauf der Aufbewahrungsfrist archiviert.
+| Gültig ab | Version | Änderung | Stand |
+| --- | --- | --- | --- |
+| {{historyDate}} | {{version}} | {{changeSummary | or "Erzeugung aus dem Fragebogen"}} | {{changedBy | or "Erzeugung, keine Freigabe"}} |
 
-[2] Die nachfolgende Tabelle gibt die Änderungshistorie wieder. Der Builder bzw. die freigebende Stelle trägt bei jeder freigegebenen Änderung eine neue Zeile ein.
+Unternehmen: **{{identity.company | or "nicht angegeben"}}**. Stand der Erzeugung: **{{generatedAt}}**.
 
-[3] Aktuelle Fassung: Version **{{version}}**, Stand **{{generatedAt}}**, Unternehmen **{{identity.company | or "nicht angegeben"}}**.
+Eine neue Version entsteht, wenn sich Systeme, Belegwege oder Zuständigkeiten ändern. Die bisherige Fassung bleibt mit ihrem Gültigkeitszeitraum erhalten. Beschrieben wird erst ab dem bestätigten Wirksamkeitsdatum.
 
-| Datum | Version | Kapitel | Inhalt der Änderung | Geändert durch |
-| --- | --- | --- | --- | --- |
-| {{historyDate}} | {{version}} | Gesamt | {{changeSummary | or "Erstfassung / Generierung aus Kunden-Intake"}} | {{changedBy | or "System / Auftraggeber"}} |
-| | | | | |
-| | | | | |
-
-[4] Redaktionelle Korrekturen ohne inhaltliche Verfahrensänderung können in der Historie zusammengefasst werden; inhaltliche Änderungen an Prozessschritten, Systemen oder Zuständigkeiten sind stets einzeln auszuweisen und von der Geschäftsleitung freizugeben.
+**Hinweis:** Die Erzeugung ist keine Freigabe durch die Geschäftsführung. Bei einem realen Betrieb sind Name und Datum der prüfenden Geschäftsleitung sowie festgestellte Abweichungen zu erfassen. Eine automatische Generierung gilt nicht als betriebliche Bestätigung.

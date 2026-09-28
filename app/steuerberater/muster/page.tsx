@@ -4,7 +4,11 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
 import { LEGAL_OPERATOR } from "@/lib/legal";
-import { evaluateOpenPoints, OPEN_POINT_EMPTY_LABELS } from "@/lib/open-points";
+import {
+  evaluateOpenPoints,
+  OPEN_POINT_EMPTY_LABELS,
+  openPointChapterLabel,
+} from "@/lib/open-points";
 import {
   PARTNER_DEMO_PATH,
   PARTNER_MUSTER_ANSWERS,
@@ -45,18 +49,23 @@ const openPoints = evaluateOpenPoints({
 });
 
 const facts: Array<[string, string]> = [
-  ["Unternehmen", `${PARTNER_MUSTER_IDENTITY.company} (anonymisiert)`],
+  ["Unternehmen", `${PARTNER_MUSTER_IDENTITY.company} (fiktiv)`],
   ["Branche", PARTNER_MUSTER_ANSWERS.branchen.join(", ")],
   ["Rechtsform", PARTNER_MUSTER_ANSWERS.rechtsform],
   ["Mitarbeitende", PARTNER_MUSTER_ANSWERS.mitarbeitende],
+  ["Geschäftsführung", PARTNER_MUSTER_ANSWERS.gf],
+  ["Buchhaltung", PARTNER_MUSTER_ANSWERS.buchhaltung],
+  ["Steuerberatung", PARTNER_MUSTER_ANSWERS.steuerberater],
   ["FiBu", PARTNER_MUSTER_ANSWERS.fibu.join(", ")],
   ["Eingangsbelege", PARTNER_MUSTER_ANSWERS.eingangsbelege.join(", ")],
   ["Ausgangsrechnungen", PARTNER_MUSTER_ANSWERS.ausgangsrechnungen.join(", ")],
   ["Archiv", PARTNER_MUSTER_ANSWERS.archiv],
   ["Hosting", PARTNER_MUSTER_ANSWERS.hosting],
   ["Backup", PARTNER_MUSTER_ANSWERS.backup.join(", ")],
-  ["Weitere Systeme", "leer — wird offener Punkt"],
-  ["IT", "leer — wird offener Punkt"],
+  ["Zugriff", PARTNER_MUSTER_ANSWERS.zugriff],
+  ["Weitere Systeme", "leer — offener Punkt"],
+  ["IT", "leer — offener Punkt"],
+  ["Gültig ab", PARTNER_MUSTER_VERSION_META.validFrom],
   ["Änderung im PDF", PARTNER_MUSTER_VERSION_META.changeSummary],
 ];
 
@@ -82,10 +91,12 @@ export default function PartnerMusterPage() {
             </Link>
           </div>
           <p className="hint">
-            Beispieldaten, die der Fragebogen abbilden kann: kleine GmbH,
-            Dienstleistung, DATEV, digitaler Belegeingang über die Option
-            „E-Mail / PDF“, Ausgangsrechnungen über „aus Buchhaltungssoftware“,
-            Archiv als Freitext „DATEV Unternehmen online“.
+            Festgelegte Beispieldaten, die der Fragebogen abbilden kann: GmbH,
+            Dienstleistung, Größenordnung 2–5, DATEV, Eingang nur „E-Mail /
+            PDF“, Ausgang „aus Buchhaltungssoftware“, Archiv „DATEV Unternehmen
+            online“, Anna Beispiel, Ben Muster, Kanzlei Beispiel. Gültig ab{" "}
+            {PARTNER_MUSTER_VERSION_META.validFrom}. Die Erzeugung ist keine
+            Freigabe.
           </p>
         </section>
 
@@ -113,9 +124,9 @@ export default function PartnerMusterPage() {
             ))}
           </ol>
           <p className="hint">
-            Die Kapiteltexte sind die feste Vorlage. Eingesetzt werden die
-            Beispieldaten. Beide Verfahrenskapitel (Papier und Digital) werden
-            erzeugt, auch wenn der Eingang nur „E-Mail / PDF“ ist.
+            Präsens im PDF nur für die festgelegten Angaben. Alles andere ist
+            Hinweis oder offener Punkt. Ein Papierkapitel entsteht nur bei
+            „Papierordner“ oder „Scan / App“. In diesem Muster entfällt es.
           </p>
         </section>
 
@@ -126,8 +137,11 @@ export default function PartnerMusterPage() {
             {OPEN_POINT_EMPTY_LABELS.length
               ? `: ${OPEN_POINT_EMPTY_LABELS.join(", ")}.`
               : "."}{" "}
-            Die Backup-Option „Unklar“ steht nicht in dieser Liste. Widersprüche
-            zwischen ausgefüllten Angaben prüft der Regelsatz nicht.
+            Die Backup-Option „Unklar“ steht nicht in dieser Liste. Zusätzlich
+            bleiben Schritte offen, die der Fragebogen nicht abfragt
+            (strukturierte E-Rechnung, Rücksicherung, Kontrollroutine,
+            Berechtigungsliste und Mandatsumfang). Widersprüche zwischen
+            ausgefüllten Angaben prüft der Regelsatz nicht.
           </p>
           <div className="legal legal-table-wrap">
             <table>
@@ -143,7 +157,7 @@ export default function PartnerMusterPage() {
                   <tr key={item.id}>
                     <td>{item.severity}</td>
                     <td>{item.title}</td>
-                    <td>{item.chapter || "—"}</td>
+                    <td>{openPointChapterLabel(item.chapter)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -21,7 +21,7 @@ import type { VersionPdfMeta } from "@/lib/versioning";
 
 /**
  * GoBD Delivery Templates v2.0.0 — local PDF from Intake + content/delivery-templates.
- * Standardrahmen aus den Templates; keine erfundenen Einzelfall-Rechtstexte.
+ * Präsens only for confirmed intake answers. No technical ids in the customer PDF.
  */
 
 const FOOTER_CHROME =
@@ -98,7 +98,7 @@ function hintFromAnswers(id: string, answers: IntakeAnswers): string {
     case "07-aenderungshistorie":
       return "Erstfassung";
     case "08-glossar":
-      return "Begriffe";
+      return "Quellen";
     case "09-offene-punkte":
       return "Offene Punkte";
     default:
@@ -194,7 +194,6 @@ function drawFooter(
   input: {
     page: number;
     pages: number;
-    documentId: string;
     versionLabel: string;
     validFrom?: string;
   },
@@ -230,7 +229,7 @@ function drawFooter(
       .fontSize(7)
       .fillColor(BRAND_MUTED)
       .text(
-        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""} · ${input.documentId.slice(0, 8)}`,
+        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}`,
         left,
         ruleY + 18,
         { width, lineBreak: false },
@@ -274,7 +273,6 @@ function decoratePages(
   input: {
     identity: CheckoutIdentity;
     rendered: RenderedDocument;
-    documentId: string;
   },
 ) {
   const range = doc.bufferedPageRange();
@@ -286,7 +284,6 @@ function decoratePages(
     drawFooter(doc, {
       page: i + 1,
       pages: range.count,
-      documentId: input.documentId,
       versionLabel: input.rendered.versionLabel,
       validFrom: input.rendered.validFromDisplay,
     });
@@ -331,7 +328,6 @@ function writePdf(
   decoratePages(doc, {
     identity: input.identity,
     rendered,
-    documentId: input.documentId,
   });
 }
 

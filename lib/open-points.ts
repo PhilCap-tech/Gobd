@@ -3,6 +3,25 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export type OpenPointSeverity = "low" | "medium" | "high";
 
+/** Customer-facing labels. The PDF and partner excerpt do not print template ids. */
+export const OPEN_POINT_CHAPTER_LABELS: Record<string, string> = {
+  "00-cover": "Deckblatt",
+  "01-vorbemerkungen": "1. Zweck und Grenzen",
+  "02-zielsetzung": "2. Systeme und Belegarten",
+  "03-organisation-sicherheit": "3. Verantwortung, Zugriff und Aufbewahrung",
+  "04-verfahren-papier": "4. Papierweg",
+  "05-verfahren-digital": "5. Eingang, Ausgang und Ablage",
+  "06-mitgeltende-unterlagen": "6. Mitgeltende Unterlagen",
+  "07-aenderungshistorie": "7. Version",
+  "08-glossar": "8. Quellen",
+  "09-offene-punkte": "9. Offene Punkte",
+};
+
+export function openPointChapterLabel(id?: string): string {
+  if (!id) return "—";
+  return OPEN_POINT_CHAPTER_LABELS[id] ?? id;
+}
+
 export type DeliveryOpenPoint = {
   id: string;
   title: string;
@@ -44,9 +63,33 @@ function lookup(root: object, pathExpr: string): unknown {
   return current;
 }
 
+/** Intake options that make the paper chapter applicable. Steps inside it stay unconfirmed. */
+export const PAPER_PATH_OPTIONS = ["Papierordner", "Scan / App"] as const;
+
+export function intakeIncludesPaperPath(values: readonly string[]): boolean {
+  return values.some((item) =>
+    (PAPER_PATH_OPTIONS as readonly string[]).includes(item.trim()),
+  );
+}
+
+function asTextList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (value == null) return [];
+  const text = String(value).trim();
+  return text ? [text] : [];
+}
+
+function ruleMatchesIncludes(value: unknown, needles: readonly string[]): boolean {
+  if (needles.length === 0) return false;
+  const haystack = asTextList(value);
+  return needles.some((needle) => haystack.includes(needle));
+}
+
 /**
  * Same rules as the PDF open-points table (`open-points-rules` via `bundle.json`).
- * Only `when: "empty"` and `when: "always"`. No contradiction checks.
+ * `when: "empty"`, `when: "includes"`, and `when: "always"`. No contradiction checks.
  */
 export function evaluateOpenPoints(input: {
   answers: IntakeAnswers;
@@ -70,10 +113,18 @@ export function evaluateOpenPoints(input: {
       });
       continue;
     }
-    if (when !== "empty") continue;
+    if (when !== "empty" && when !== "includes") continue;
     if (!("field" in rule) || !rule.field) continue;
     const value = lookup(root, String(rule.field));
-    if (!isEmptyIntakeValue(value)) continue;
+    if (when === "includes") {
+      const needles =
+        "includes" in rule && Array.isArray(rule.includes)
+          ? rule.includes.filter((item): item is string => typeof item === "string")
+          : [];
+      if (!ruleMatchesIncludes(value, needles)) continue;
+    } else if (!isEmptyIntakeValue(value)) {
+      continue;
+    }
     points.push({
       id: rule.id,
       title: rule.text,

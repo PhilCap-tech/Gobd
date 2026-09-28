@@ -3,7 +3,9 @@ import path from "node:path";
 import bundle from "@/content/delivery-templates/bundle.json";
 import {
   evaluateOpenPoints,
+  intakeIncludesPaperPath,
   isEmptyIntakeValue,
+  openPointChapterLabel,
   type DeliveryOpenPoint,
 } from "@/lib/open-points";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
@@ -66,6 +68,10 @@ function firstFilled(...values: string[]): string {
   return "nicht angegeben";
 }
 
+/**
+ * Legacy role fallbacks. Do not print these in customer templates: a fallback
+ * names a person for a step the questionnaire did not confirm.
+ */
 export function roleAssignments(answers: IntakeAnswers): Record<string, string> {
   return {
     posteingang: firstFilled(answers.buchhaltung, answers.gf),
@@ -170,12 +176,12 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 
 function openPointsTable(points: DeliveryOpenPoint[]): string {
   if (points.length === 0) {
-    return "Zum Zeitpunkt der Erstellung waren alle abgefragten Intake-Felder befüllt; es wurden keine automatischen offenen Punkte erzeugt.";
+    return "Es wurden keine automatischen offenen Punkte erzeugt. Das ist keine Freigabe durch die Geschäftsführung und kein Nachweis, dass der Prozess vollständig beschrieben ist.";
   }
   const rows = points
     .map(
       (point) =>
-        `| ${point.severity} | ${point.title.replaceAll("|", "\\|")} | ${point.chapter || "—"} |`,
+        `| ${point.severity} | ${point.title.replaceAll("|", "\\|")} | ${openPointChapterLabel(point.chapter)} |`,
     )
     .join("\n");
   return `| Schwere | Offener Punkt | Kapitel |\n| --- | --- | --- |\n${rows}`;
@@ -244,6 +250,13 @@ function chapterMarkdown(chapter: BundleChapter): string {
   return readTemplateFile(chapter.file, chapter.markdown);
 }
 
+function chapterApplies(id: string, answers: IntakeAnswers): boolean {
+  if (id === "04-verfahren-papier") {
+    return intakeIncludesPaperPath(answers.eingangsbelege);
+  }
+  return true;
+}
+
 export function renderDeliveryDocument(input: {
   identity: CheckoutIdentity;
   answers: IntakeAnswers;
@@ -291,7 +304,9 @@ export function renderDeliveryDocument(input: {
   return {
     disclaimer: bundle.disclaimer,
     cover: renderTemplate(coverSource, base).trim(),
-    chapters: (bundle.chapters as BundleChapter[]).map((chapter) => {
+    chapters: (bundle.chapters as BundleChapter[])
+      .filter((chapter) => chapterApplies(chapter.id, input.answers))
+      .map((chapter) => {
       const source = chapterMarkdown(chapter);
       const body = renderTemplate(source, base).trim();
       return {

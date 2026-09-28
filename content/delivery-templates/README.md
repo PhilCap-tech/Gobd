@@ -2,17 +2,17 @@
 
 Für **GoBD Builder**: lokal aus Intake rendern → PDF-Bytes → Blob. Keine Live-API.
 
-Diese Version hebt die Kapitelstruktur und Texttiefe auf das Niveau einer prüfbaren Verfahrensdokumentation zur Belegablage (Referenzstruktur), bleibt aber **strikt intake-parametrisiert**. Es wird keine einzelfallbezogene Steuerberatung formuliert.
+Diese Version bleibt **strikt intake-parametrisiert**. Präsens im PDF nur für bestätigte Fragebogenangaben. Nicht abgefragtes wird Hinweis oder offener Punkt („zu beschreiben/zu bestätigen“). Keine einzelfallbezogene Steuerberatung. Ein Papierkapitel nur bei „Papierordner“ oder „Scan / App“.
 
 ## Was sich für den Builder ändert (v1 → v2)
 
 | Thema | v1 | v2 |
 | --- | --- | --- |
 | Kapitelanzahl | 6 (flach) | 10 (Cover + 9 Inhalt), Outline wie Referenz |
-| Texttiefe | Kurzabsätze | Nummerierte Absätze `[1][2]…` mit Prozessbeschreibung |
-| Rechtlicher Rahmen | bewusst weggelassen | Allgemeine Rechtslage laut Gesetzestext (HGB/AO/UStG-Fristen), klar als keine Beratung gekennzeichnet |
-| Papier / Digital | ein Beleg-Kapitel | getrennte Verfahrenketten (Kap. 4 / 5) |
-| Zuständigkeiten | eine Tabelle | Rollen → Prozessschritte, fehlende Werte als „offen“ + Offene Punkte |
+| Texttiefe | Kurzabsätze | Festgelegte Angaben, Hinweise, offene Punkte — kein erfundener Ablauf |
+| Rechtlicher Rahmen | bewusst weggelassen | Hinweis nach Unterlagenart (Buchungsbelege grundsätzlich 8 Jahre; andere 10 oder 6), keine Pauschale, keine fallbezogene Beratung |
+| Papier / Digital | ein Beleg-Kapitel | Papierkapitel nur bei Papierordner oder Scan/App; sonst entfällt es |
+| Zuständigkeiten | eine Tabelle | Benannte Stellen aus dem Fragebogen; keine erfundenen Prozessrollen |
 | `VERSION` | — | Datei `VERSION` = `2.0.0` |
 | Dokumentversion im PDF | — | Placeholder `{{version}}` (Default `1.0`, vom Builder setzbar) |
 | Cover | `cover.md` root | `chapters/00-cover.md` (auch in `bundle.json` → `coverMarkdown`) |
@@ -32,16 +32,16 @@ JSON `identity` + `answers` wie im Builder-Contract (siehe `sample-intake.json`)
 ## Ausgabe-Reihenfolge (PDF)
 
 1. Cover (`00-cover`) — Titel, Unternehmen, Version, Stand, Disclaimer
-2. Vorbemerkungen
-3. Zielsetzung und Überblick (Unterabschnitte 2.1–2.6)
-4. Organisation und Sicherheit (3.1–3.4)
-5. Verfahren Papier (Prozesskette)
-6. Verfahren Digital (Prozesskette)
-7. Mitgeltende Unterlagen
-8. Änderungshistorie (Tabellenvorlage)
-9. Glossar
+2. Zweck und Grenzen
+3. Systeme und Belegarten
+4. Verantwortung, Zugriff und Aufbewahrung
+5. Papierweg — nur wenn der Eingang Papierordner oder Scan/App enthält
+6. Eingang, Ausgang und Ablage
+7. Mitgeltende Unterlagen (als Hinweis, nicht als vorhanden)
+8. Version
+9. Quellen (Hinweis)
 10. Offene Punkte (`{{openPointsTable}}`)
-11. Disclaimer erneut in Fußzeile (aus `disclaimer.txt`)
+11. Kurzzeile in der Fußzeile, ohne Dokument-ID und ohne technische Referenzen
 
 Schema: `chapter-schema.json`. Einzelimport: `bundle.json`.
 
@@ -49,13 +49,13 @@ Schema: `chapter-schema.json`. Einzelimport: `bundle.json`.
 
 - `{{identity.*}}` / `{{answers.*}}`
 - Arrays: `{{field | join ", "}}`
-- Leer: `{{field | or "nicht angegeben"}}` (in Rollenzuordnungen teils `| or "offen"`)
-- `{{openPointsTable}}` — Markdown-Tabelle aus `open-points-rules.json`
+- Leer: `{{field | or "nicht angegeben"}}`
+- `{{openPointsTable}}` — Markdown-Tabelle aus dem Regelsatz (leer, includes, always). Keine Widerspruchsprüfung. Der Dateiname steht nicht im Kunden-PDF.
 - `{{generatedAt}}` — Datum/Zeit Europe/Berlin
 - `{{version}}` — Dokumentversion (Default `1.0`)
 - `{{disclaimer}}` — Inhalt von `disclaimer.txt`
 
-**Regeln:** Keine erfundenen Unternehmensfakten. Keine SDC-/personenbezogenen Referenzinhalte. Keine Steuerberatung; Disclaimer ist verbindlich. Gesetzliche Fristen nur als allgemeine Gesetzeswiedergabe.
+**Regeln:** Keine erfundenen Unternehmensfakten. Keine Präsens-Sätze ohne passende Fragebogenangabe. Hinweise als Hinweise kennzeichnen. Nicht zutreffende Kapitel weglassen. Keine technischen Artefakte im Kunden-PDF (keine Session-, Kunden- oder Stub-Referenzen, keine Regelsatz-Dateipfade, keine Dokument-ID in der Fußzeile). Keine Behauptung „widersprüchliche Angaben“, solange keine Widerspruchsprüfung existiert. „Freigabe durch die Geschäftsführung“ nur als ausstehend, nicht als bereits erfolgt. Aufbewahrung nach Unterlagenart: Buchungsbelege grundsätzlich acht Jahre, nicht pauschal zehn für alles. Keine Steuerberatung; Disclaimer ist verbindlich.
 
 ## Mapping UI-Schritte → Felder
 

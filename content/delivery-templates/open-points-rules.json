@@ -66,15 +66,15 @@
       "chapter": "03-organisation-sicherheit",
       "severity": "low",
       "when": "empty",
-      "text": "Weitere Systeme / Vorsysteme nicht angegeben (empfohlen, wenn Neben-Tools Belege erzeugen)."
+      "text": "Weitere belegrelevante Systeme oder Portale sind nicht angegeben. Zu beschreiben und zu bestätigen, bevor der Geltungsbereich als vollständig gilt."
     },
     {
       "id": "op-eingangsbelege",
       "field": "answers.eingangsbelege",
-      "chapter": "04-verfahren-papier",
+      "chapter": "05-verfahren-digital",
       "severity": "high",
       "when": "empty",
-      "text": "Weg der Eingangsbelege fehlt — Papier- und Digitalverfahren nicht parametrisierbar."
+      "text": "Weg der Eingangsbelege fehlt. Zu beschreiben und zu bestätigen."
     },
     {
       "id": "op-ausgangsrechnungen",
@@ -82,7 +82,7 @@
       "chapter": "05-verfahren-digital",
       "severity": "high",
       "when": "empty",
-      "text": "Weg der Ausgangsrechnungen fehlt — Erstellung Ausgangs-/Eigenbelege unvollständig."
+      "text": "Weg der Ausgangsrechnungen fehlt. Zu beschreiben und zu bestätigen."
     },
     {
       "id": "op-archiv",
@@ -114,7 +114,7 @@
       "chapter": "03-organisation-sicherheit",
       "severity": "high",
       "when": "empty",
-      "text": "Zugriff / Berechtigungen nicht angegeben — IKS und Datenschutz unvollständig."
+      "text": "Zugriff ist nicht angegeben. Wer auf Belege zugreifen darf, ist zu beschreiben und zu bestätigen."
     },
     {
       "id": "op-gf",
@@ -138,7 +138,7 @@
       "chapter": "03-organisation-sicherheit",
       "severity": "medium",
       "when": "empty",
-      "text": "IT-/Systemverantwortung nicht benannt — Backup, Zugriff und digitale Löschung unsicher."
+      "text": "IT- oder Systemverantwortung ist nicht benannt. Betrieb und Lesbarkeit digitaler Bestände sind insoweit zu beschreiben und zu bestätigen."
     },
     {
       "id": "op-steuerberater",
@@ -147,6 +147,43 @@
       "severity": "low",
       "when": "empty",
       "text": "Steuerberatung nicht angegeben (falls vorhanden bzw. an der Belegverarbeitung beteiligt, nachtragen)."
+    },
+    {
+      "id": "op-papier-schritte",
+      "field": "answers.eingangsbelege",
+      "chapter": "04-verfahren-papier",
+      "severity": "high",
+      "when": "includes",
+      "includes": ["Papierordner", "Scan / App"],
+      "text": "Papierordner oder Scan/App ist genannt. Wer öffnet, ob und wie gescannt wird, ob das Papieroriginal bleibt und ob vernichtet wird, ist nicht erfasst. Zu beschreiben und zu bestätigen. Es wird kein ersetzendes Scannen behauptet."
+    },
+    {
+      "id": "op-erechnung-struktur",
+      "chapter": "05-verfahren-digital",
+      "severity": "high",
+      "when": "always",
+      "text": "Strukturierte E-Rechnung und PDF-Ansicht sind nicht getrennt erfasst. Zu beschreiben und zu bestätigen: ob eine XML-Datei oder ein strukturierter Teil eingeht, dass dieses Original unverändert erhalten bleibt, und wie eine Abweichung zwischen Ansicht und strukturiertem Inhalt geklärt wird."
+    },
+    {
+      "id": "op-ruecksicherung",
+      "chapter": "03-organisation-sicherheit",
+      "severity": "high",
+      "when": "always",
+      "text": "Ob und wie eine Rücksicherung geprüft wird, ist nicht erfasst. Zu beschreiben und zu bestätigen. Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung."
+    },
+    {
+      "id": "op-kontrollroutine",
+      "chapter": "03-organisation-sicherheit",
+      "severity": "medium",
+      "when": "always",
+      "text": "Eine konkrete Kontrollroutine (Turnus, Stichprobe, Protokoll) ist nicht erfasst. Zu beschreiben und zu bestätigen, bevor sie als gelebte Praxis in der Fassung steht."
+    },
+    {
+      "id": "op-berechtigung-mandat",
+      "chapter": "03-organisation-sicherheit",
+      "severity": "medium",
+      "when": "always",
+      "text": "Eine Berechtigungsliste und der konkrete Mandatsumfang der Kanzlei sind nicht erfasst. Zu beschreiben und zu bestätigen."
     }
   ],
   "outputItemShape": {

@@ -15,7 +15,7 @@ import {
   INTAKE_STEPS,
   intakeStepError,
 } from "@/lib/intake-questions";
-import { evaluateOpenPoints } from "@/lib/open-points";
+import { evaluateOpenPoints, openPointChapterLabel } from "@/lib/open-points";
 import {
   PARTNER_MUSTER_ANSWERS,
   PARTNER_MUSTER_IDENTITY,
@@ -372,7 +372,7 @@ export function DemoWalkthrough() {
                       <tr key={point.id}>
                         <td>{point.severity}</td>
                         <td>{point.title}</td>
-                        <td>{point.chapter || "—"}</td>
+                        <td>{openPointChapterLabel(point.chapter)}</td>
                       </tr>
                     ))}
                   </tbody>

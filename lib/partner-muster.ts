@@ -2,23 +2,31 @@ import { toVersionPdfMeta } from "@/lib/versioning";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 /**
- * Anonymized small-GmbH fixture for /steuerberater/muster.
+ * Fictional Beispiel GmbH for /steuerberater/muster.
  *
- * Scenario the intake can actually express:
- * - GmbH, Dienstleistung, 2–5 Mitarbeitende
+ * Präsens in the PDF may only repeat these fixed questionnaire answers:
+ * - GmbH, Dienstleistung, Größenordnung „2–5“ (no separate headcount field)
  * - FiBu: DATEV
- * - digitaler Belegeingang: Option „E-Mail / PDF“
- * - Ausgangsrechnungen: Option „aus Buchhaltungssoftware“
- * - Archiv freitext: DATEV Unternehmen online
+ * - Eingang: „E-Mail / PDF“ only — paper chapter is omitted
+ * - Ausgang: „aus Buchhaltungssoftware“
+ * - Archiv: DATEV Unternehmen online
+ * - Hosting: Cloud (Anbieter DE/EU)
+ * - Sicherung: Automatisch (Anbieter) — not a restore test
+ * - Zugriff: Geschäftsführung und Buchhaltung — not a permission list
+ * - GF Anna Beispiel, Buchhaltung Ben Muster, Steuerberatung Kanzlei Beispiel
+ * - gültig ab 01.10.2026, Änderung „Erste fiktive Musterfassung“
  *
- * Left empty on purpose so the open-points rules fire:
- * - weitereSysteme, it
+ * Left empty on purpose: weitereSysteme, it.
+ * Not collected, so always open points (not Präsens): structured e-invoice
+ * XML vs PDF view, restore test, control routine, permission list / mandate.
+ * No mailbox, no product name beyond the chosen option, no DATEV Rechnungswesen
+ * at the Kanzlei, no monthly sample — the questionnaire has no such fields.
  *
- * Stripe session/customer stay empty here. They are not open-point rules
- * and are not printed on the customer PDF.
+ * Stripe session/customer stay empty. They are not open-point rules and are
+ * not printed on the customer PDF. stub stays true internally and is not printed.
  *
  * PDF is not a static file. GET /steuerberater/muster/pdf calls generatePdf
- * with this fixture — the delivery pipeline. To regenerate locally:
+ * with this fixture. To regenerate locally:
  *   npx tsx scripts/render-partner-muster-pdf.ts
  */
 
@@ -49,15 +57,15 @@ export const PARTNER_MUSTER_ANSWERS: IntakeAnswers = {
   hosting: "Cloud (Anbieter DE/EU)",
   backup: ["Automatisch (Anbieter)"],
   zugriff: "Geschäftsführung und Buchhaltung",
-  gf: "A. Beispiel",
-  buchhaltung: "B. Beispiel",
+  gf: "Anna Beispiel",
+  buchhaltung: "Ben Muster",
   it: "",
   steuerberater: "Kanzlei Beispiel",
 };
 
 export const PARTNER_MUSTER_VERSION_META = toVersionPdfMeta({
-  validFrom: "2026-03-01",
+  validFrom: "2026-10-01",
   validTo: "",
-  changeSummary: "Musterfassung, anonymisiert",
-  changedBy: "Muster",
+  changeSummary: "Erste fiktive Musterfassung",
+  changedBy: "Beispielannahmen, keine Freigabe",
 });

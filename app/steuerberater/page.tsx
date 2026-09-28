@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
 import { LEGAL_OPERATOR } from "@/lib/legal";
-import { evaluateOpenPoints } from "@/lib/open-points";
+import { evaluateOpenPoints, openPointChapterLabel } from "@/lib/open-points";
 import {
   PARTNER_DEMO_PATH,
   PARTNER_MUSTER_ANSWERS,
@@ -171,8 +171,9 @@ export default function SteuerberaterPage() {
           </ol>
           <h3>Offene Punkte</h3>
           <p className="prose">
-            Diese Liste erzeugt der Regelsatz aus den leeren Beispielfeldern.
-            Dieselbe Tabelle steht im PDF (Kapitel Offene Punkte). Schweregrade
+            Diese Liste erzeugt der Regelsatz aus leeren Beispielfeldern und
+            aus Schritten, die der Fragebogen nicht abfragt. Dieselbe Tabelle
+            steht im PDF (Kapitel Offene Punkte). Schweregrade
             bleiben high, medium und low — so schreibt sie der Generator. Das
             Muster zeigt Transparenz bei Lücken, nicht „fertig für jeden
             Betrieb“.
@@ -191,7 +192,7 @@ export default function SteuerberaterPage() {
                   <tr key={point.id}>
                     <td>{point.severity}</td>
                     <td>{point.title}</td>
-                    <td>{point.chapter || "—"}</td>
+                    <td>{openPointChapterLabel(point.chapter)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -274,7 +275,10 @@ export default function SteuerberaterPage() {
                     Mehrere Systeme, viele Standorte, viele interne
                     Zuständigkeiten
                   </td>
-                  <td>Oft geeignet — nur leere Angaben werden Punkte</td>
+                  <td>
+                    Oft geeignet — leere Angaben und nicht abgefragte Schritte
+                    werden Punkte
+                  </td>
                 </tr>
                 <tr>
                   <td>Sehr individuelle Konzernprozesse, Sonderfälle</td>
@@ -285,7 +289,8 @@ export default function SteuerberaterPage() {
           </div>
           <p className="prose">
             Das Tool ist keine Steuerberatung. Offene Punkte markieren leere
-            Angaben. Widersprüche prüft es nicht, und eine Bestätigung durch den
+            Angaben und Schritte, die der Fragebogen nicht erfasst.
+            Widersprüche prüft es nicht, und eine Bestätigung durch den
             Mandanten ist nicht eingebaut. Für die meisten Betriebe reicht die
             Fassung aus den Angaben. Anpassungen bei besonderen Verfahren sind
             möglich.
@@ -496,7 +501,8 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Was, wenn nach der Weiterempfehlung etwas fehlt?</h3>
             <p className="prose">
-              Keine Konformitätszusage. Offene Punkte zeigen leere Angaben. Die
+              Keine Konformitätszusage. Offene Punkte zeigen leere Angaben und
+              nicht abgefragte Schritte. Die
               gelieferte Fassung reicht in der Regel; bei besonderen Verfahren
               ergänzt der Mandant die Dokumentation selbst. Eine zusätzliche
               Abstimmung durch die Kanzlei ist freiwillig und nur im Rahmen
@@ -550,7 +556,8 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Was wird aus unbekannten Angaben?</h3>
             <p className="prose">
-              Leere Angaben werden Offene Punkte. Das Muster zeigt das an der
+              Leere Angaben und nicht abgefragte Schritte werden Offene Punkte.
+              Das Muster zeigt das an der
               Beispiel GmbH. Widersprüche zwischen ausgefüllten Feldern prüft
               das Tool nicht.
             </p>

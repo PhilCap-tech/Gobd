@@ -1,11 +1,11 @@
-# 1. Vorbemerkungen zur Verfahrensdokumentation
+# 1. Zweck und Grenzen
 
-[1] Sämtliche Ausführungen und Änderungen dieser Verfahrensdokumentation unterliegen der Genehmigungspflicht der Geschäftsleitung (**{{answers.gf | or "nicht angegeben"}}**). Freigabe und Verbindlichkeit für den laufenden Betrieb werden erst mit ausdrücklicher Zustimmung der Geschäftsleitung hergestellt.
+Diese Fassung beschreibt die Belegablage von **{{identity.company | or "nicht angegeben"}}** nur insoweit, wie der Fragebogen dazu Angaben enthält: Eingangs- und Ausgangswege, genannte Systeme, Archiv, Ort, Sicherung und benannte Stellen.
 
-[2] Die vorliegende Fassung trägt die Versionsbezeichnung **{{version}}** und den Stand **{{generatedAt}}**. Sie gilt bis zu einer aktualisierten, freigegebenen Nachfolgeversion. Frühere Fassungen sind unter ihrer Versionsnummer mit Angabe des Gültigkeitszeitraums bis zum Ablauf der gesetzlichen Aufbewahrungsfristen zu archivieren.
+Andere aufzeichnungsrelevante Systeme, die Lohnabrechnung und eine vollständige Systemdokumentation sind nicht Gegenstand, solange sie nicht angegeben sind.
 
-[3] Diese Verfahrensdokumentation ersetzt bis dahin geltende Verfahrensdokumentationen zur Belegablage, soweit sie denselben Gegenstand betreffen. Abweichende Einzelregelungen in Anlagen oder Arbeitsanweisungen gelten nur, soweit sie ausdrücklich auf diese Fassung Bezug nehmen und nicht im Widerspruch zu den hier beschriebenen Mindestverfahren stehen.
+Die Geschäftsführung (**{{answers.gf | or "nicht angegeben"}}**) soll den Text gegen die gelebte Praxis prüfen, die offenen Punkte klären und die Fassung freigeben. Das ist noch nicht erfolgt. Bis dahin ist es eine Arbeitsfassung. Die Erzeugung ist keine betriebliche Bestätigung.
 
-[4] Die Dokumentation wurde aus den Angaben des Kunden-Intakes generiert. Fehlende, unklare oder widersprüchliche Angaben sind im Kapitel „Offene Punkte“ ausgewiesen und vor der endgültigen Freigabe zu klären. Solange ein offener Punkt besteht, ist der betroffene Prozessschritt als vorläufig zu betrachten.
+Ein Kapitel zum Papierweg wird nur erzeugt, wenn unter den Eingangswegen „Papierordner“ oder „Scan / App“ steht. Sonst entfällt es. Es wird dann kein Papierprozess beschrieben.
 
-[5] Die Verantwortung für die handels- und steuerrechtlichen Buchführungs- und Aufzeichnungspflichten liegt beim Buchführungs- bzw. Aufzeichnungspflichtigen und ist nicht an Dritte (z. B. Steuerberatung, IT-Dienstleister oder Softwareanbieter) delegierbar. Externe Stellen unterstützen lediglich bei der technischen oder fachlichen Durchführung.
+**Hinweis:** Allgemeine Orientierung in diesem Dokument ist als Hinweis gekennzeichnet. Sie ist kein Beleg dafür, dass der Betrieb so arbeitet.
