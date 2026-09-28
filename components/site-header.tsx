@@ -55,9 +55,15 @@ export function SiteHeader({
                 </a>
               ),
             )}
-            <Link className="btn hide-sm" href={ctaHref}>
-              {ctaLabel}
-            </Link>
+            {ctaHref.startsWith("#") ? (
+              <a className="btn hide-sm" href={ctaHref}>
+                {ctaLabel}
+              </a>
+            ) : (
+              <Link className="btn hide-sm" href={ctaHref}>
+                {ctaLabel}
+              </Link>
+            )}
           </>
         )}
         <Link href="/account">Konto</Link>

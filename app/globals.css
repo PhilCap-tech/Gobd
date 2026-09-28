@@ -1007,6 +1007,10 @@ code {
     line-height: 1.35;
   }
 
+  .sticky-cta .btn + .btn {
+    margin-top: 8px;
+  }
+
   .sticky-cta .trust-line {
     text-align: center;
     margin-top: 8px;
@@ -1014,6 +1018,10 @@ code {
 
   body {
     padding-bottom: 120px;
+  }
+
+  body:has(.sticky-cta.tall) {
+    padding-bottom: 220px;
   }
 
   body.consent-open .sticky-cta {
