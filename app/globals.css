@@ -364,6 +364,16 @@ h2 {
   font-size: 13px;
 }
 
+.prose-list + .value-note {
+  margin-top: 16px;
+}
+
+.partner-copy .prose a,
+.partner-copy .hint a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
 .trust-line {
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 14px;
@@ -591,6 +601,15 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 20px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.stack .prose:last-child {
+  margin-bottom: 0;
 }
 
 .grid-2 {
