@@ -13,21 +13,24 @@ VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 
 chapters_out = []
 cover_md = None
+cover_file = None
 
 for ch in sorted(SCHEMA["chapters"], key=lambda c: c["order"]):
     path = ROOT / ch["templateFile"]
     md = path.read_text(encoding="utf-8")
     if ch.get("role") == "cover" or ch["id"] == "00-cover":
         cover_md = md
+        cover_file = ch["templateFile"]
         continue
-    chapters_out.append(
-        {
-            "id": ch["id"],
-            "file": ch["templateFile"],
-            "title": ch["title"],
-            "markdown": md,
-        }
-    )
+    entry = {
+        "id": ch["id"],
+        "file": ch["templateFile"],
+        "title": ch["title"],
+        "markdown": md,
+    }
+    if "includeIf" in ch:
+        entry["includeIf"] = ch["includeIf"]
+    chapters_out.append(entry)
 
 if cover_md is None:
     raise SystemExit("cover chapter missing")
@@ -35,6 +38,7 @@ if cover_md is None:
 bundle = {
     "version": VERSION,
     "disclaimer": DISCLAIMER,
+    "coverFile": cover_file,
     "coverMarkdown": cover_md,
     "chapters": chapters_out,
     "openPointsRules": OP_RULES,

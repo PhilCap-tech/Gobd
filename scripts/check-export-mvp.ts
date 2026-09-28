@@ -2,6 +2,7 @@ import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { evaluateOpenPoints } from "@/lib/open-points";
 import {
   PARTNER_MUSTER_ANSWERS,
+  PARTNER_MUSTER_DOCUMENT_ID,
   PARTNER_MUSTER_IDENTITY,
   PARTNER_MUSTER_VERSION_META,
 } from "@/lib/partner-muster";
@@ -67,8 +68,9 @@ for (const absent of [
 }
 for (const present of [
   "acht Jahren",
-  "Leistungsumfang ist nicht bestätigt",
-  "nicht als Ist-Prozess",
+  "Leistungsumfang zu bestätigen",
+  "Mandatsumfang zu bestätigen",
+  "soweit die jeweilige Angabe bestätigt ist",
   "Papierweg laut Intake nicht genannt",
   "E-Mail- und PDF-Eingang",
   "Sichtungsturnus",
@@ -78,10 +80,21 @@ for (const present of [
   "Anhang A Prozessmatrix",
   "Zieltermin",
   "nicht festgelegt",
-  "acht Jahren",
+  "VD-BELEG-(zu vergeben)",
+  "Hosting | SaaS / Anbieter-Cloud | Anna Beispiel",
 ]) {
   expect(muster.includes(present), `muster missing ${present}`);
 }
+expect(!muster.includes("im vereinbarten Umfang"), "unconfirmed scope is not lived booking");
+const partnerIdDoc = renderDeliveryDocument({
+  identity: PARTNER_MUSTER_IDENTITY,
+  answers: PARTNER_MUSTER_ANSWERS,
+  documentId: PARTNER_MUSTER_DOCUMENT_ID,
+  version: 1,
+  versionMeta: PARTNER_MUSTER_VERSION_META,
+});
+const partnerIdBody = [partnerIdDoc.cover, ...partnerIdDoc.chapters.map((chapter) => chapter.body)].join("\n");
+expect(!partnerIdBody.includes(PARTNER_MUSTER_DOCUMENT_ID), "partner document id stays off the PDF");
 expect(musterIds.includes("op-f05-kanzlei-umfang"), "missing f05");
 expect(musterIds.includes("op-c02-sichtung"), "missing c02");
 expect(!musterIds.includes("op-d-ersetzend-ohne-papier"), "fixture must not get scan contradiction");
@@ -106,9 +119,11 @@ const confirmed: IntakeAnswers = {
   steuerberater: "Kanzlei Meier",
 };
 const confirmedBody = bodyFor(confirmed);
-expect(confirmedBody.includes("Kanzlei Meier verbucht im vereinbarten Umfang."), "confirmed books");
+expect(confirmedBody.includes("durch Kanzlei Meier im vereinbarten Umfang"), "confirmed books");
 expect(
-  confirmedBody.includes("erhält Zugang ausschließlich im vereinbarten Mandatsumfang."),
+  confirmedBody.includes(
+    "Kanzlei Meier übernimmt Tätigkeiten ausschließlich im vereinbarten Mandatsumfang.",
+  ),
   "confirmed access",
 );
 expect(!ids(confirmed).includes("op-f05-kanzlei-umfang"), "confirmed has no f05 op");

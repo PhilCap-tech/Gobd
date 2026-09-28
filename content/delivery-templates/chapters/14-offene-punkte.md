@@ -1,7 +1,15 @@
 # 14 Offene Punkte und Maßnahmen
 
-Offene Punkte sind unbelegte oder unbestätigte Angaben. Sie beschreiben den Betrieb. Interne Bestell-, Zahlungs- oder Testdaten erscheinen hier nicht. Ein Zieltermin ist im Intake nicht festgelegt.
+Offene Punkte entstehen aus unbekannten, widersprüchlichen oder noch nicht belegten Angaben. Sie werden fachlich beschrieben und beziehen sich auf den Betrieb. Interne Bestell-, Zahlungs- oder Testdaten des Produkts erscheinen hier nicht.
+
+| ID | Priorität | Offener Punkt | Verantwortung | Zieltermin |
+| --- | --- | --- | --- | --- |
+| *(wird aus Rules befüllt)* | | | | |
 
 {{openPointsTable}}
 
-Ein offener Punkt ist kein Beweis dafür, dass der übrige Prozess ordnungsgemäß umgesetzt wird. Nach Erledigung gehören Ergebnis und gegebenenfalls eine geänderte Beschreibung in eine neue Fassung. Die Erzeugung dieser Fassung ist keine Freigabe.
+## Bewertung
+
+Die offenen Punkte begrenzen die Aussagekraft der Fassung in den betroffenen Bereichen. Nach Erledigung werden Ergebnis, Nachweis und gegebenenfalls geänderte Prozessbeschreibung in einer neuen Version dokumentiert.
+
+Prioritäten: **hoch** = blockiert belastbare Aussage oder prüfungsrelevanten Nachweis; **mittel** = ergänzende Anlagen/Nachweise; **niedrig** = Formulare/Organisation ohne unmittelbaren Prozessbruch.

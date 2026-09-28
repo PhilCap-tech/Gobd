@@ -9,7 +9,11 @@ const schema = JSON.parse(read("chapter-schema.json"));
 const openPointsRules = JSON.parse(read("open-points-rules.json"));
 const disclaimer = read("disclaimer.txt").trim();
 const version = read("VERSION").trim();
-const coverMarkdown = read("chapters/00-cover.md");
+const coverChapter = schema.chapters.find(
+  (chapter) => chapter.role === "cover" || chapter.id === "00-cover",
+);
+const coverFile = coverChapter?.templateFile ?? "chapters/00-cover-freigabe.md";
+const coverMarkdown = read(coverFile);
 
 const chapters = schema.chapters
   .filter((chapter) => chapter.role !== "cover" && chapter.id !== "00-cover")
@@ -26,7 +30,7 @@ const chapters = schema.chapters
 const bundle = {
   version,
   disclaimer,
-  coverFile: "chapters/00-cover.md",
+  coverFile,
   coverMarkdown,
   chapters,
   openPointsRules,

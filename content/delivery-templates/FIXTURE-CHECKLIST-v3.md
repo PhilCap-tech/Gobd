@@ -1,6 +1,6 @@
 # Fixture-Checkliste v3 — Partner-Trust Muster-PDF
 
-**Zielbild:** Outline v4 und `reference/philip-muster-v2-detailliert-2026-09-28.extracted.txt`. `philip-muster-vorschlag-2026-09-28` ist nur Vorgänger. Kapitel 6 entfällt ohne Papier. Präsens nur aus bestätigtem Intake. Die Generierung ist kein Freigabevermerk. Kapiteltext 4.0.0 folgt, sobald Delivery `gobd-delivery-templates/` liefert.
+**Zielbild:** Outline v4 und `reference/philip-muster-v2-detailliert-2026-09-28.extracted.txt`. `philip-muster-vorschlag-2026-09-28` ist nur Vorgänger. Kapitel 6 entfällt ohne Papier. Präsens nur aus bestätigtem Intake. Die Generierung ist kein Freigabevermerk. Kapitelmarkdown von Delivery v4 ist eingebunden; Schema und Bundle bleiben 3.0.0, bis Delivery `chapter-schema.json` und `bundle.json` 4.0.0 liefert. Bis dahin kein finaler Qualitätsclaim.
 
 **Fixture:** `sample-intake-partner-trust.json`  
 **Profil:** kleine GmbH · DATEV · E-Mail/PDF-Eingang · digital · **kein Papier**  

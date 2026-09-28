@@ -56,7 +56,10 @@ type TemplateContext = {
   kanzleiUnbestaetigt: string;
 };
 
-type Filter = { name: "join"; sep: string } | { name: "or"; fallback: string };
+type Filter =
+  | { name: "join"; sep: string }
+  | { name: "or"; fallback: string }
+  | { name: "orPath"; path: string };
 
 type BundleChapter = {
   id: string;
@@ -139,9 +142,55 @@ function parsePlaceholder(expr: string): { path: string; filters: Filter[] } {
     const orMatch = token.match(/^or\s+["'](.*)["']$/);
     if (orMatch) {
       filters.push({ name: "or", fallback: orMatch[1] ?? "" });
+      continue;
+    }
+    const orPath = token.match(/^or\s+([A-Za-z_][\w.]*)$/);
+    if (orPath) {
+      filters.push({ name: "orPath", path: orPath[1] ?? "" });
     }
   }
   return { path: pathExpr, filters };
+}
+
+function resolveFilters(filters: Filter[], context: TemplateContext): Filter[] {
+  const resolved: Filter[] = [];
+  for (const filter of filters) {
+    if (filter.name !== "orPath") {
+      resolved.push(filter);
+      continue;
+    }
+    const value = lookup(context, filter.path);
+    if (isEmptyIntakeValue(value)) continue;
+    const fallback = Array.isArray(value)
+      ? value.map((item) => String(item).trim()).filter(Boolean).join(", ")
+      : String(value).trim();
+    if (fallback) resolved.push({ name: "or", fallback });
+  }
+  return resolved;
+}
+
+/** Internal and fixture ids must not print on the customer document. */
+function customerDocumentId(documentId: string): string {
+  const id = documentId.trim();
+  if (!id) return "";
+  const lower = id.toLowerCase();
+  if (
+    lower === "check" ||
+    lower === "plan" ||
+    lower === "edit" ||
+    lower === "regenerated" ||
+    lower.startsWith("partner-") ||
+    lower.startsWith("sample-") ||
+    lower.includes("stub") ||
+    lower.includes("stripe") ||
+    lower.startsWith("cs_") ||
+    lower.startsWith("cus_") ||
+    lower.includes("cs_test") ||
+    lower.includes("cus_")
+  ) {
+    return "";
+  }
+  return id;
 }
 
 function applyFilters(value: unknown, filters: Filter[]): string {
@@ -175,7 +224,15 @@ function conditionHolds(expr: string, context: TemplateContext): boolean {
   if (contains) {
     return intakeValueContainsToken(lookup(context, contains[1].trim()), contains[2]);
   }
-  return !isEmptyIntakeValue(lookup(context, expr.trim()));
+  const pathExpr = expr.trim();
+  const value = lookup(context, pathExpr);
+  if (
+    pathExpr === "answers.steuerberater" &&
+    intakeValueHasUnconfirmedScope(value)
+  ) {
+    return false;
+  }
+  return !isEmptyIntakeValue(value);
 }
 
 function findBlockEnd(
@@ -234,14 +291,17 @@ function renderBlocks(template: string, context: TemplateContext): string {
 function renderValues(template: string, context: TemplateContext): string {
   return template.replace(/\{\{\s*([^}#/][^}]*?)\s*\}\}/g, (_, expr: string) => {
     const { path: pathExpr, filters } = parsePlaceholder(expr);
+    const resolved = resolveFilters(filters, context);
     if (pathExpr === "openPointsTable") return context.openPointsTable;
     if (pathExpr === "generatedAt") return context.generatedAt;
     if (pathExpr === "generatedAtDisplay") return context.generatedAtDisplay;
     if (pathExpr === "disclaimer") return context.disclaimer;
-    if (pathExpr === "documentId") return context.documentId;
+    if (pathExpr === "documentId") {
+      return applyFilters(customerDocumentId(context.documentId), resolved);
+    }
     if (pathExpr === "bundleVersion") return context.bundleVersion;
     if (pathExpr === "version") return context.version;
-    return applyFilters(lookup(context, pathExpr), filters);
+    return applyFilters(lookup(context, pathExpr), resolved);
   });
 }
 
@@ -401,7 +461,7 @@ export function renderDeliveryDocument(input: {
   };
 
   const coverSource = readTemplateFile(
-    "coverFile" in bundle ? String(bundle.coverFile) : "chapters/00-cover.md",
+    "coverFile" in bundle ? String(bundle.coverFile) : "chapters/00-cover-freigabe.md",
     bundle.coverMarkdown,
   );
 

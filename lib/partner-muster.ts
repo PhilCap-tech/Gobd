@@ -12,8 +12,10 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
  * with this fixture. To regenerate locally:
  *   npx tsx scripts/render-partner-muster-pdf.ts
  *
- * Zielbild is philip-muster-v2-detailliert-2026-09-28. Präsens only where
- * this intake confirms the fact. Generation is not a GF Freigabevermerk.
+ * Zielbild is philip-muster-v2-detailliert-2026-09-28. Chapter markdown is the
+ * Delivery v4 pack, wired as an interim adapter until schema and bundle
+ * 4.0.0 land. Präsens only where this intake confirms the fact. Generation
+ * is not a GF Freigabevermerk and is not a final quality sign-off.
  */
 
 export const PARTNER_MUSTER_PATH = "/steuerberater/muster";
