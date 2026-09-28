@@ -171,8 +171,9 @@ export default function SteuerberaterPage() {
           </ol>
           <h3>Offene Punkte</h3>
           <p className="prose">
-            Diese Liste erzeugt der Regelsatz aus leeren Beispielfeldern und
-            aus Schritten, die der Fragebogen nicht abfragt. Dieselbe Tabelle
+            Diese Liste erzeugt der Regelsatz aus leeren oder unbestätigten
+            Angaben und aus Schritten, die der Fragebogen nicht abfragt.
+            Dieselbe Tabelle
             steht im PDF (Kapitel Offene Punkte). Schweregrade
             bleiben high, medium und low — so schreibt sie der Generator. Das
             Muster zeigt Transparenz bei Lücken, nicht „fertig für jeden
@@ -501,8 +502,8 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Was, wenn nach der Weiterempfehlung etwas fehlt?</h3>
             <p className="prose">
-              Keine Konformitätszusage. Offene Punkte zeigen leere Angaben und
-              nicht abgefragte Schritte. Die
+              Keine Konformitätszusage. Offene Punkte zeigen leere oder
+              unbestätigte Angaben und nicht abgefragte Schritte. Die
               gelieferte Fassung reicht in der Regel; bei besonderen Verfahren
               ergänzt der Mandant die Dokumentation selbst. Eine zusätzliche
               Abstimmung durch die Kanzlei ist freiwillig und nur im Rahmen

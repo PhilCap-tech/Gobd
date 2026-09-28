@@ -457,8 +457,10 @@ export function IntakeForm({
             />
             <p className="disclaimer">
               Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein
-              Entwurf zur Abstimmung mit deinem Steuerberater — keine
-              individuelle Steuer- oder Rechtsberatung.
+              Entwurf aus deinen Angaben — keine Freigabe und keine
+              individuelle Steuer- oder Rechtsberatung. Eine Abstimmung mit
+              dem Steuerberater ist optional und nur im Rahmen eines
+              gesonderten Auftrags.
             </p>
           </div>
         </section>

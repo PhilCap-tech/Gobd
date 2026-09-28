@@ -84,6 +84,48 @@ function normalizeIntakeToken(value: string): string {
   return value.trim().toLowerCase().replace(/-/g, "");
 }
 
+/** Substrings that keep a filled field from driving a lived Kanzlei process (F05). */
+const UNCONFIRMED_SCOPE_MARKERS = [
+  "zu bestätigen",
+  "unbekannt",
+  "geplant",
+  "nicht zutreffend",
+];
+
+/**
+ * True when the value is filled but still marked unconfirmed.
+ * Exact empty labels stay on `when: empty` and return false here.
+ */
+export function intakeValueHasUnconfirmedScope(value: unknown): boolean {
+  if (isEmptyIntakeValue(value)) return false;
+  const items = Array.isArray(value) ? value.map((item) => String(item)) : [String(value ?? "")];
+  return items.some((item) =>
+    UNCONFIRMED_SCOPE_MARKERS.some((marker) => intakeValueContainsToken(item, marker)),
+  );
+}
+
+/** Whole word, so „Post“ does not match „Postfach“. */
+function intakeValueHasWord(value: unknown, token: string): boolean {
+  const needle = token.trim();
+  if (!needle) return false;
+  const items = Array.isArray(value) ? value.map((item) => String(item)) : [String(value ?? "")];
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}([^\\p{L}\\p{N}]|$)`, "iu");
+  return items.some((item) => re.test(item));
+}
+
+function hasPaperPath(value: unknown): boolean {
+  return (
+    intakeValueContainsToken(value, "Papier") ||
+    intakeValueContainsToken(value, "Papierbeleg") ||
+    intakeValueHasWord(value, "Post")
+  );
+}
+
+function hasErsetzendesScannen(value: unknown): boolean {
+  return intakeValueContainsToken(value, "ersetzend");
+}
+
 function ruleIsCustomerFacing(rule: {
   customerFacing?: boolean;
   field?: string | null;
@@ -105,9 +147,11 @@ function responsibilityLabel(
 
 /**
  * Customer open points from `open-points-rules` via `bundle.json`.
- * `when`: `empty`, `always`, `arrayContainsAny` (and legacy `includes`).
+ * `when`: `empty`, `always`, `arrayContainsAny` (legacy `includes`),
+ * `unconfirmedScope`, `ersetzendOhnePapier`.
  * Rules with `customerFacing: false` and Stripe/stub fields are omitted.
- * No contradiction checks.
+ * `ersetzendOhnePapier` is one hint before use, not a general contradiction engine
+ * and not a Freigabe.
  */
 export function evaluateOpenPoints(input: {
   answers: IntakeAnswers;
@@ -136,6 +180,17 @@ export function evaluateOpenPoints(input: {
             ? rule.includes.filter((item): item is string => typeof item === "string")
             : [];
       matches = tokens.some((token) => intakeValueContainsToken(value, token));
+    } else if (when === "unconfirmedScope") {
+      matches = Boolean(field) && intakeValueHasUnconfirmedScope(value);
+    } else if (when === "ersetzendOhnePapier") {
+      const fields =
+        "fields" in rule && Array.isArray(rule.fields)
+          ? rule.fields.filter((item): item is string => typeof item === "string")
+          : [];
+      const values = fields.map((pathExpr) => lookup(root, pathExpr));
+      const mentionsScanReplace = values.some((item) => hasErsetzendesScannen(item));
+      const mentionsPaper = values.some((item) => hasPaperPath(item));
+      matches = mentionsScanReplace && !mentionsPaper;
     }
     if (!matches) continue;
     points.push({

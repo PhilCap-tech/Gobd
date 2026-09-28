@@ -1,23 +1,30 @@
 # 3 Eingang und Prüfung
 
-{{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}Die Buchhaltung (Person ist zu benennen){{/unless}} sichtet eingehende Belege zeitnah an Arbeitstagen. Unklare oder doppelte Belege werden markiert und vor einer Buchungsfreigabe mit {{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}der Geschäftsführung{{/unless}} geklärt. Originaldateien werden nicht überschrieben.
+<!-- frage:F01 -->
+{{#if answers.buchhaltung}}{{answers.buchhaltung}} ist für die Sichtung eingehender Belege genannt.{{/if}}{{#unless answers.buchhaltung}}Die für die Sichtung zuständige Person ist zu benennen.{{/unless}}
+<!-- frage:C02 -->
+Der Turnus dieser Sichtung ist im Intake nicht bestätigt und bleibt offener Punkt. Unklare oder doppelte Belege sind vor einer Buchungsfreigabe mit {{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}der Geschäftsführung{{/unless}} zu klären.
 
 {{#if answers.eingangsbelege contains "E-Mail"}}
 ## E-Mail- und PDF-Eingang
 
-Eingangsrechnungen per E-Mail werden anhand Absender, Leistung, Betrag und vorhandener Bestellung bzw. Vertragsunterlage geprüft. Die Originaldatei wird unverändert nach {{answers.archiv | or "dem Archiv (zu bestätigen)"}} übernommen. Belegrelevante Transportnachrichten werden mitaufbewahrt, soweit vorhanden.
+<!-- frage:C01 -->
+Eingangsrechnungen per E-Mail gehen nach {{answers.archiv | or "dem Archiv (zu bestätigen)"}}. Belegrelevante Transportnachrichten werden mitaufbewahrt, soweit vorhanden. Welche Prüfungsschritte je Beleg gelten, ist im Intake nicht im Einzelnen bestätigt.
 {{/if}}
 
 {{#if answers.eingangsbelege contains "PDF"}}
 {{#unless answers.eingangsbelege contains "E-Mail"}}
 ## PDF-Eingang
 
-PDF-Eingangsbelege werden auf Vollständigkeit und Nachvollziehbarkeit geprüft und unverändert abgelegt.
+<!-- frage:C01 -->
+PDF-Eingangsbelege gehen in die Ablage. Welche Prüfungsschritte je Beleg gelten, ist im Intake nicht im Einzelnen bestätigt.
 {{/unless}}
 {{/if}}
 
 {{#if answers.eingangsbelege contains "E-Rechnung"}}
 ## Strukturierte E-Rechnung
+
+<!-- frage:E02 -->
 
 Für strukturierte E-Rechnungen wird die technische Lesbarkeit geprüft. Die maschinenlesbare Datei (XML bzw. ZUGFeRD-/XRechnung-Original) bleibt erhalten; eine PDF-Ansicht ist nur Lesehilfe. Abweichungen zwischen Ansicht und strukturiertem Inhalt werden vor Freigabe geklärt. Die konkrete technische Validierung und deren Protokollierung sind als offener Punkt ausgewiesen, sofern nicht gesondert bestätigt.
 {{/if}}
@@ -41,7 +48,8 @@ Die empfangene XML-Datei wird im ursprünglichen Format aufbewahrt. Technische V
 {{#if answers.eingangsbelege contains "Papier"}}
 ## Papierpost
 
-Papierpost wird am Eingangstag an {{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}die Buchhaltung{{/unless}} weitergeleitet, mit Eingangsdatum versehen und zur Bearbeitung gescannt, soweit so vorgesehen. Das Papieroriginal wird zusätzlich geordnet verwahrt, sofern kein dokumentiertes ersetzendes Scanverfahren bestätigt ist. Die digitale Kopie trägt eine eindeutige Zuordnung zum Papieroriginal.
+<!-- frage:C03 -->
+Papierpost ist als Eingangsweg genannt und geht an {{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}die Buchhaltung{{/unless}}. Ob am Eingang gescannt wird und ob das Papieroriginal zusätzlich verwahrt oder nach einem dokumentierten Verfahren ersetzt wird, ist zu bestätigen.
 {{/if}}
 
 {{#if answers.eingangsbelege contains "Scan"}}

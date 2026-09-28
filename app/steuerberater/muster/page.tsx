@@ -137,9 +137,13 @@ export default function PartnerMusterPage() {
               : "."}{" "}
             Die Backup-Option „Unklar“ steht nicht in dieser Liste. Zusätzlich
             bleiben Schritte offen, die der Fragebogen nicht abfragt
-            (strukturierte E-Rechnung, Rücksicherung, Kontrollroutine,
-            Berechtigungsliste und Mandatsumfang). Widersprüche zwischen
-            ausgefüllten Angaben prüft der Regelsatz nicht.
+            (Sichtungsturnus, Rücksicherung, Kontrollroutine,
+            Berechtigungsliste). Ein Kanzleiname mit unbestätigtem
+            Leistungsumfang wird nicht als Verbuchung beschrieben. Ein
+            konkreter Hinweis: ist ersetzendes Scannen genannt, ohne dass ein
+            Papierweg bestätigt ist, erscheint das als offener Punkt. Das ist
+            keine automatische Freigabe und kein allgemeiner
+            Widerspruchs-Check.
           </p>
           <div className="legal legal-table-wrap">
             <table>

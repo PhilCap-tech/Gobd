@@ -1,115 +1,184 @@
 {
   "version": "3.0.0",
-  "slice": "quality-v3",
   "language": "de",
-  "defaultVersion": "1.0",
   "disclaimerId": "disclaimer",
+  "defaultVersion": "1.0",
+  "qualityRules": "QUALITY-RULES-v3.md",
+  "outline": [
+    "cover",
+    "merkmal-tabelle",
+    "zweck-grenzen",
+    "systeme-belegarten",
+    "eingang-pruefung",
+    "freigabe-buchung",
+    "aufbewahrung",
+    "kontrollen-aenderungen",
+    "anlagen-offene-punkte",
+    "version-bestaetigung",
+    "quellen"
+  ],
+  "forbiddenInCustomerPdf": [
+    "identity.stub",
+    "identity.stripeSessionId",
+    "identity.stripeCustomerId"
+  ],
+  "conditionalSyntax": {
+    "if": "{{#if path}}…{{/if}}",
+    "unless": "{{#unless path}}…{{/unless}}",
+    "contains": "{{#if path contains \"Token\"}}…{{/if}}",
+    "filters": ["join", "or"]
+  },
   "chapters": [
     {
       "id": "00-cover",
       "title": "Deckblatt",
       "order": 0,
       "templateFile": "chapters/00-cover.md",
-      "role": "cover"
+      "role": "cover",
+      "includeIf": true,
+      "fields": ["identity.company"]
     },
     {
       "id": "01-merkmal-tabelle",
-      "title": "1 Merkmalübersicht",
+      "title": "Merkmalübersicht",
       "order": 1,
-      "templateFile": "chapters/01-merkmal-tabelle.md"
+      "templateFile": "chapters/01-merkmal-tabelle.md",
+      "includeIf": true,
+      "fields": [
+        "identity.company",
+        "answers.branchen",
+        "answers.rechtsform",
+        "answers.mitarbeitende",
+        "answers.gf",
+        "answers.buchhaltung",
+        "answers.it",
+        "answers.steuerberater",
+        "answers.fibu",
+        "answers.weitereSysteme",
+        "answers.archiv",
+        "answers.hosting"
+      ]
     },
     {
       "id": "02-zweck-grenzen",
-      "title": "2 Zweck und Grenzen",
+      "title": "1 Zweck und Grenzen",
       "order": 2,
-      "templateFile": "chapters/02-zweck-grenzen.md"
+      "templateFile": "chapters/02-zweck-grenzen.md",
+      "includeIf": true,
+      "fields": ["answers.gf"]
     },
     {
       "id": "03-systeme-belegarten",
-      "title": "3 Systeme und Belegarten",
+      "title": "2 Systeme und Belegarten",
       "order": 3,
-      "templateFile": "chapters/03-systeme-belegarten.md"
+      "templateFile": "chapters/03-systeme-belegarten.md",
+      "includeIf": true,
+      "rowConditionals": [
+        {"tokenGroup": "email-pdf", "tokens": ["E-Mail", "Email", "PDF"]},
+        {"tokenGroup": "erechnung", "tokens": ["E-Rechnung", "ZUGFeRD", "XRechnung", "XML"]},
+        {"tokenGroup": "papier", "tokens": ["Papier", "Post", "Scan", "Papierbeleg"]},
+        {"tokenGroup": "portal", "tokens": ["Portal", "Download"]}
+      ],
+      "fields": [
+        "answers.eingangsbelege",
+        "answers.ausgangsrechnungen",
+        "answers.archiv",
+        "answers.buchhaltung"
+      ]
     },
     {
       "id": "04-eingang-pruefung",
-      "title": "4 Eingang und Prüfung",
+      "title": "3 Eingang und Prüfung",
       "order": 4,
       "templateFile": "chapters/04-eingang-pruefung.md",
-      "includeIf": {
-        "anyPathNonEmpty": [
-          "answers.eingangsbelege"
-        ]
-      },
-      "conditionals": {
-        "paperBranch": {
-          "containsAny": [
-            "answers.eingangsbelege",
-            [
-              "Papier",
-              "Post",
-              "Scan"
-            ]
-          ]
+      "includeIf": true,
+      "sections": [
+        {
+          "id": "email-pdf",
+          "includeIf": {"field": "answers.eingangsbelege", "containsAny": ["E-Mail", "Email", "PDF"]}
         },
-        "emailPdfBranch": {
-          "containsAny": [
-            "answers.eingangsbelege",
-            [
-              "E-Mail",
-              "Email",
-              "PDF",
-              "Mail"
-            ]
-          ]
+        {
+          "id": "erechnung",
+          "includeIf": {"field": "answers.eingangsbelege", "containsAny": ["E-Rechnung", "ZUGFeRD", "XRechnung", "XML"]}
         },
-        "erechnungBranch": {
-          "containsAny": [
-            "answers.eingangsbelege",
-            [
-              "E-Rechnung",
-              "XRechnung",
-              "ZUGFeRD",
-              "XML"
-            ]
-          ]
+        {
+          "id": "papier",
+          "includeIf": {"field": "answers.eingangsbelege", "containsAny": ["Papier", "Post", "Scan", "Papierbeleg"]}
         }
-      }
+      ],
+      "fields": [
+        "answers.eingangsbelege",
+        "answers.archiv",
+        "answers.gf",
+        "answers.buchhaltung"
+      ]
     },
     {
       "id": "05-freigabe-buchung",
-      "title": "5 Freigabe, Buchung und Nachvollziehbarkeit",
+      "title": "4 Freigabe, Buchung und Nachvollziehbarkeit",
       "order": 5,
-      "templateFile": "chapters/05-freigabe-buchung.md"
+      "templateFile": "chapters/05-freigabe-buchung.md",
+      "includeIf": true,
+      "fields": [
+        "answers.gf",
+        "answers.buchhaltung",
+        "answers.fibu",
+        "answers.steuerberater",
+        "answers.ausgangsrechnungen"
+      ]
     },
     {
       "id": "06-aufbewahrung",
-      "title": "6 Aufbewahrung, Zugriff und Sicherung",
+      "title": "5 Aufbewahrung, Zugriff und Sicherung",
       "order": 6,
-      "templateFile": "chapters/06-aufbewahrung.md"
+      "templateFile": "chapters/06-aufbewahrung.md",
+      "includeIf": true,
+      "sections": [
+        {
+          "id": "backup",
+          "includeIf": {"field": "answers.backup", "nonEmpty": true}
+        }
+      ],
+      "fields": [
+        "answers.archiv",
+        "answers.zugriff",
+        "answers.backup",
+        "answers.steuerberater",
+        "answers.gf"
+      ]
     },
     {
       "id": "07-kontrollen-aenderungen",
-      "title": "7 Kontrollen und Änderungen",
+      "title": "6 Kontrollen und Änderungen",
       "order": 7,
-      "templateFile": "chapters/07-kontrollen-aenderungen.md"
+      "templateFile": "chapters/07-kontrollen-aenderungen.md",
+      "includeIf": true,
+      "fields": ["answers.gf"]
     },
     {
       "id": "08-anlagen-offene-punkte",
-      "title": "8 Anlagen und offene Punkte",
+      "title": "7 Anlagen und offene Punkte",
       "order": 8,
-      "templateFile": "chapters/08-anlagen-offene-punkte.md"
+      "templateFile": "chapters/08-anlagen-offene-punkte.md",
+      "includeIf": true,
+      "generatedFrom": "open-points-rules.json",
+      "fields": ["answers.gf"]
     },
     {
       "id": "09-version-bestaetigung",
-      "title": "9 Version und betriebliche Bestätigung",
+      "title": "8 Version und betriebliche Bestätigung",
       "order": 9,
-      "templateFile": "chapters/09-version-bestaetigung.md"
+      "templateFile": "chapters/09-version-bestaetigung.md",
+      "includeIf": true,
+      "fields": ["answers.gf"]
     },
     {
       "id": "10-quellen",
-      "title": "10 Quellen",
+      "title": "Quellen zur fachlichen Einordnung",
       "order": 10,
-      "templateFile": "chapters/10-quellen.md"
+      "templateFile": "chapters/10-quellen.md",
+      "includeIf": true,
+      "fields": []
     }
   ]
 }

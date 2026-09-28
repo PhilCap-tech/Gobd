@@ -9,7 +9,10 @@
     "ka",
     "n/a",
     "none",
-    "offen"
+    "offen",
+    "geplant",
+    "unbekannt",
+    "nicht zutreffend"
   ],
   "arrayEmptyMeansOpen": true,
   "rules": [
@@ -151,7 +154,44 @@
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Berechtigungsliste und Mandatsumfang der Kanzlei (soweit beteiligt) als mitgeltende Unterlagen ablegen."
+      "text": "Berechtigungsliste als mitgeltende Unterlage ablegen."
+    },
+    {
+      "id": "op-f05-kanzlei-umfang",
+      "field": "answers.steuerberater",
+      "chapter": "05-freigabe-buchung",
+      "severity": "medium",
+      "when": "unconfirmedScope",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "text": "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung oder ein Mandatszugang wird nicht als gelebter Prozess angenommen."
+    },
+    {
+      "id": "op-c02-sichtung",
+      "field": null,
+      "chapter": "04-eingang-pruefung",
+      "severity": "medium",
+      "when": "always",
+      "customerFacing": true,
+      "responsibilityField": "answers.buchhaltung",
+      "text": "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist im Intake nicht bestätigt."
+    },
+    {
+      "id": "op-d-ersetzend-ohne-papier",
+      "field": null,
+      "fields": [
+        "answers.weitereSysteme",
+        "answers.archiv",
+        "answers.zugriff",
+        "answers.eingangsbelege",
+        "answers.ausgangsrechnungen"
+      ],
+      "chapter": "04-eingang-pruefung",
+      "severity": "high",
+      "when": "ersetzendOhnePapier",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "text": "Hinweis vor der Verwendung: ersetzendes Scannen ist genannt, ein Papierweg aber nicht. Das ist zu klären, bevor ein Scanverfahren beschrieben wird. Keine Freigabe."
     },
     {
       "id": "op-gf",
@@ -265,6 +305,8 @@
   "whenSemantics": {
     "empty": "Field missing, null, empty string/array, or value in emptyValues",
     "always": "Always emit (claim-safety OP); still respect customerFacing",
-    "arrayContainsAny": "Emit when field array/string contains any of tokens (case-insensitive, alias-aware)"
+    "arrayContainsAny": "Emit when field array/string contains any of tokens (case-insensitive substring; Papier does not match Scan)",
+    "unconfirmedScope": "Non-empty field contains zu bestätigen, unbekannt, geplant, or nicht zutreffend. Exact empty labels stay on when=empty.",
+    "ersetzendOhnePapier": "Named fields mention ersetzend and none mention a paper path (Papier/Papierbeleg, or the word Post). Not a general contradiction engine and not a Freigabe."
   }
 }

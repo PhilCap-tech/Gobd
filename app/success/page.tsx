@@ -74,13 +74,15 @@ export default async function SuccessPage({
             <h1>Dein Entwurf ist fertig</h1>
             <p className="lead">
               {row.company || "Dein Unternehmen"} — Verfahrensdokumentation als
-              PDF plus offene Punkte. Zur Abstimmung mit deinem Steuerberater.
+              PDF plus offene Punkte. Entwurf aus deinen Angaben — keine
+              Freigabe.
             </p>
             <div className="card">
               <p className="prose">
                 Kapitelgerüst aus deinen Intake-Angaben. Keine erfundenen
-                GoBD-Rechtstexte — Platzhalter kennzeichnen, was mit dem
-                Steuerberater zu füllen ist.
+                GoBD-Rechtstexte. Offene Punkte kennzeichnen, was noch zu
+                bestätigen ist. Eine Abstimmung mit dem Steuerberater ist
+                optional und nur im Rahmen eines gesonderten Auftrags.
               </p>
               {mailReady ? (
                 <p className="hint">

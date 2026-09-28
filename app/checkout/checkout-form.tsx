@@ -132,8 +132,7 @@ export function CheckoutForm({
           />
           <span>
             Ich bestätige: keine Steuerberatung und keine Rechtsberatung. Die
-            Dokumentation ist ein Entwurf zur Abstimmung mit meinem
-            Steuerberater.
+            Dokumentation ist ein Entwurf aus meinen Angaben, keine Freigabe.
           </span>
         </label>
         {error && <p className="error">{error}</p>}
@@ -170,8 +169,9 @@ export function CheckoutForm({
         <p className="hint">Danach {MONTHLY_EUR}&nbsp;€/Monat.</p>
         <p className="disclaimer" role="note">
           Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein Entwurf
-          zur Abstimmung mit deinem Steuerberater — keine individuelle Steuer-
-          oder Rechtsberatung.
+          aus deinen Angaben — keine Freigabe und keine individuelle Steuer-
+          oder Rechtsberatung. Eine Abstimmung mit dem Steuerberater ist
+          optional und nur im Rahmen eines gesonderten Auftrags.
         </p>
       </aside>
     </div>

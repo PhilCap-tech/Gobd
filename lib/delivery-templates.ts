@@ -4,6 +4,7 @@ import bundle from "@/content/delivery-templates/bundle.json";
 import {
   evaluateOpenPoints,
   intakeValueContainsToken,
+  intakeValueHasUnconfirmedScope,
   isEmptyIntakeValue,
   type DeliveryOpenPoint,
 } from "@/lib/open-points";
@@ -49,6 +50,10 @@ type TemplateContext = {
   changedBy: string;
   /** Gültig-ab when set, otherwise the generation timestamp (legacy history cell). */
   historyDate: string;
+  /** "ja" only when F05 is a filled name without an unconfirmed-scope marker. */
+  kanzleiBucht: string;
+  /** "ja" when the Kanzlei field is filled but the scope is not confirmed. */
+  kanzleiUnbestaetigt: string;
 };
 
 type Filter = { name: "join"; sep: string } | { name: "or"; fallback: string };
@@ -58,9 +63,11 @@ type BundleChapter = {
   title?: string;
   file?: string;
   markdown: string;
-  includeIf?: {
-    anyPathNonEmpty?: string[];
-  };
+  includeIf?:
+    | boolean
+    | {
+        anyPathNonEmpty?: string[];
+      };
 };
 
 function firstFilled(...values: string[]): string {
@@ -237,8 +244,13 @@ function renderValues(template: string, context: TemplateContext): string {
   });
 }
 
+/** Frage-IDs stay in the markdown as comments and never reach the customer PDF. */
+function stripInternalMarkers(text: string): string {
+  return text.replace(/<!--[\s\S]*?-->/g, "");
+}
+
 export function renderTemplate(template: string, context: TemplateContext): string {
-  return renderValues(renderBlocks(template, context), context);
+  return stripInternalMarkers(renderValues(renderBlocks(template, context), context));
 }
 
 function openPointsTable(points: DeliveryOpenPoint[]): string {
@@ -322,7 +334,9 @@ function chapterApplies(
   chapter: BundleChapter,
   context: { identity: CheckoutIdentity; answers: IntakeAnswers },
 ): boolean {
-  const paths = chapter.includeIf?.anyPathNonEmpty;
+  const includeIf = chapter.includeIf;
+  if (typeof includeIf === "boolean") return includeIf;
+  const paths = includeIf?.anyPathNonEmpty;
   if (!paths || paths.length === 0) return true;
   return paths.some((pathExpr) => !isEmptyIntakeValue(lookup(context as TemplateContext, pathExpr)));
 }
@@ -348,6 +362,9 @@ export function renderDeliveryDocument(input: {
   const validTo = input.versionMeta?.validTo?.trim() ?? "";
   const changeSummary = input.versionMeta?.changeSummary?.trim() ?? "";
   const changedBy = input.versionMeta?.changedBy?.trim() ?? "";
+  const kanzleiUnbestaetigt = intakeValueHasUnconfirmedScope(input.answers.steuerberater);
+  const kanzleiBucht =
+    !isEmptyIntakeValue(input.answers.steuerberater) && !kanzleiUnbestaetigt;
   const base: TemplateContext = {
     identity: input.identity,
     answers: input.answers,
@@ -364,6 +381,8 @@ export function renderDeliveryDocument(input: {
     changeSummary,
     changedBy,
     historyDate: validFrom || generatedAt,
+    kanzleiBucht: kanzleiBucht ? "ja" : "",
+    kanzleiUnbestaetigt: kanzleiUnbestaetigt ? "ja" : "",
   };
 
   const coverSource = readTemplateFile(

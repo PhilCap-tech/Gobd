@@ -1,0 +1,74 @@
+Verfahrensdokumentation zur Belegablage
+Fiktives, vollständig ausgearbeitetes Muster für die Beispiel GmbH  |  Fassung 1.0  |  28. September 2026
+Dieses Muster zeigt, wie ein aus einem Fragebogen erzeugtes Dokument konkrete, bestätigte Abläufe beschreibt. Alle Unternehmensangaben sind erfunden und nur für diese Demonstration festgelegt. Es ist kein Nachweis für einen realen Betrieb und keine Bestätigung seiner GoBD-Konformität.
+Merkmal
+Für dieses Muster festgelegter Sachverhalt
+Betrieb
+Beispiel GmbH, B2B-Dienstleistungen, vier Beschäftigte, ein Standort in Deutschland; keine Kasse, kein Shop, keine Lagerwirtschaft.
+Geltungsbereich
+Eingangs- und Ausgangsbelege, deren Übergabe an die Buchhaltung und Aufbewahrung; keine Lohnabrechnung oder vollständige Systemdokumentation.
+Verantwortung
+Geschäftsführerin Anna Beispiel; Buchhaltung Ben Muster; externe Kanzlei Beispiel nur für vereinbarte Buchung und Abschlussarbeiten.
+Systeme
+Funktionspostfach rechnung@beispiel.invalid; Rechnungssoftware R (fiktives Beispielsystem); DATEV Unternehmen online für Belege; DATEV Rechnungswesen bei der Kanzlei.
+Stand
+Ablauf von der fiktiven Geschäftsführung als Beispiel bestätigt am 28.09.2026; gültig ab 01.10.2026. Kein rückwirkender Nachweis.
+1 Zweck und Grenzen
+Diese Fassung beschreibt den tatsächlichen Weg der im Geltungsbereich genannten Belege von Eingang oder Erstellung über Prüfung und Buchungsübergabe bis zur Aufbewahrung. Sie gilt für den oben festgelegten Standort. Andere aufzeichnungsrelevante Systeme und Prozesse benötigen eigene Angaben und gegebenenfalls ergänzende Dokumentationen.
+Die Geschäftsführung prüft die Beschreibung gegen die gelebte Praxis, klärt die am Ende genannten offenen Punkte und dokumentiert Änderungen. Der Einsatz von Software oder einer Steuerkanzlei ersetzt diese betriebliche Bestätigung nicht.
+2 Systeme und Belegarten
+Belegart und Weg
+Original und Ablage
+Eingangsrechnung als PDF per E-Mail
+Originaldatei aus dem Funktionspostfach wird unverändert nach DATEV Unternehmen online hochgeladen; E-Mail mit belegrelevanten Zusatzangaben wird ebenfalls aufbewahrt.
+Strukturierte E-Rechnung
+Die empfangene XML-Datei wird im ursprünglichen Format abgelegt; bei ZUGFeRD bleibt die empfangene Originaldatei erhalten. Eine Ansicht ist nur Lesehilfe.
+Papierbeleg per Post
+Ben Muster prüft und scannt für die Bearbeitung. Das Papieroriginal wird zusätzlich im Jahresordner verwahrt; es findet kein ersetzendes Scannen statt.
+Ausgangsrechnung
+Anna Beispiel erstellt sie in Rechnungssoftware R; exportiertes Original und gegebenenfalls strukturierte Datei gehen in die Belegablage. Änderungen erfolgen über dokumentierte Korrektur oder Storno.
+3 Eingang und Prüfung
+Ben Muster sichtet das Funktionspostfach an Arbeitstagen. Eingangsrechnungen werden anhand Absender, Leistung, Betrag und vorhandener Bestellung bzw. Vertragsunterlage geprüft. Unklare oder doppelte Belege werden markiert und vor einer Buchungsfreigabe mit Anna Beispiel geklärt. Die Originaldatei wird nicht überschrieben.
+Papierpost wird am Eingangstag an Ben Muster weitergeleitet. Er versieht sie mit Eingangsdatum, scannt sie zur Bearbeitung und legt das Original nach Jahr und Monat in einem zugriffsgeschützten Schrank ab. Die digitale Kopie trägt eine eindeutige Zuordnung zum Papieroriginal. Dieses Muster unterstellt keine Vernichtung nach dem Scannen.
+Für strukturierte E-Rechnungen wird die technische Lesbarkeit geprüft. Die maschinenlesbare Datei bleibt erhalten; Abweichungen zwischen Ansicht und strukturiertem Inhalt werden vor Freigabe geklärt. Die konkrete technische Validierung und deren Protokollierung sind als offener Punkt ausgewiesen.
+4 Freigabe, Buchung und Nachvollziehbarkeit
+Anna Beispiel gibt sachlich geprüfte Eingangsrechnungen frei. Ben Muster ordnet sie dem Buchungsmonat zu und stellt sie in DATEV Unternehmen online der Kanzlei bereit. Die Kanzlei verbucht im vereinbarten Umfang in DATEV Rechnungswesen. Eine Beleg-ID verbindet hochgeladenen Beleg und Buchung. Bei Rückfragen bleibt der Vorgang als ungeklärt gekennzeichnet; eine Freigabe wird nicht fingiert.
+Ausgangsrechnungen werden in Rechnungssoftware R fortlaufend nummeriert. Anna Beispiel prüft Empfänger, Leistung und Betrag vor Versand. Berichtigungen erzeugen eine neue, nachvollziehbar verknüpfte Datei; der ursprüngliche Stand bleibt aufbewahrt. Die tatsächliche Übergabe der strukturierten E-Rechnung an Kunden ist je nach Kundenfall im Einzelfall zu erfassen.
+5 Aufbewahrung, Zugriff und Sicherung
+Digitale Originale und relevante Zusatzunterlagen werden in DATEV Unternehmen online geordnet nach Belegart und Zeitraum abgelegt. Ben Muster und Anna Beispiel haben betriebliche Zugriffsrechte. Die Kanzlei erhält Zugang ausschließlich im vereinbarten Mandatsumfang. Rechteänderungen veranlasst Anna Beispiel und hält sie in einer separaten Berechtigungsliste fest.
+Die Aufbewahrungsdauer richtet sich nach der jeweiligen Unterlagenart und den geltenden Vorschriften; sie wird nicht aus einer pauschalen Frist für alle Belege abgeleitet. Buchungsbelege unterliegen nach aktueller Regelung grundsätzlich acht Jahren, andere Dokumentationsarten können zehn oder sechs Jahre erfordern. Fristbeginn, Sonderfälle und gegebenenfalls verlängerte Aufbewahrung werden vor Löschung geprüft. Bei E-Rechnungen bleibt zumindest der strukturierte Teil in ursprünglicher Form unversehrt erhalten.
+Der Anbieter des Archivsystems betreibt die technische Sicherung laut Beispielannahme. Ob und wie Rücksicherung geprüft wird, ist bislang nicht belegt; dies ist ein offener Punkt. Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.
+6 Kontrollen und Änderungen
+Anna Beispiel gleicht monatlich eine Stichprobe von fünf Belegen mit der Buchungsübersicht ab und notiert Datum, Stichprobe, Ergebnis und Korrektur in einem Kontrollprotokoll. Diese konkrete Kontrollroutine ist für das fiktive Muster ausdrücklich als Tatsache festgelegt; bei einem realen Mandanten dürfte sie erst nach Bestätigung so im Dokument stehen.
+Systemwechsel, neue Belegkanäle, geänderte Zuständigkeiten oder wesentliche Änderungen des Ablaufs lösen eine neue Version aus. Die bisherige Fassung bleibt mit ihrem Gültigkeitszeitraum erhalten. Änderungen werden erst ab dem tatsächlich bestätigten Wirksamkeitsdatum beschrieben; keine rückwirkende Behauptung gelebter Prozesse.
+7 Anlagen und offene Punkte
+Kennung
+Zu klären
+Verantwortung
+OP 01
+Verfahren und Nachweis der technischen Prüfung strukturierter E-Rechnungen konkretisieren.
+Anna Beispiel / IT
+OP 02
+Anbieterunterlagen zu Backup und Rücksicherung beiziehen und tatsächlichen Wiederherstellungstest dokumentieren.
+Anna Beispiel
+OP 03
+Berechtigungsliste und Mandatsumfang der Kanzlei als mitgeltende Unterlagen ablegen.
+Anna Beispiel
+OP 04
+Prüfen, ob weitere belegrelevante Vorsysteme oder Portale verwendet werden; erst danach Geltungsbereich bestätigen.
+Ben Muster
+Ein offener Punkt ist kein Beweis dafür, dass der übrige Prozess ordnungsgemäß umgesetzt wird. Vor Nutzung für einen realen Betrieb sind alle Aussagen, Anlagen und tatsächlichen Handlungen zu prüfen.
+8 Version und betriebliche Bestätigung
+Version
+Gültig ab
+Änderung
+Status
+1.0
+01.10.2026
+Erste fiktive Musterfassung
+Beispielannahmen für Demo
+Bei einem echten Unternehmen: Name und Datum der prüfenden Geschäftsleitung sowie festgestellte Abweichungen erfassen. Eine automatische Generierung gilt nicht als betriebliche Bestätigung.
+Quellen zur fachlichen Einordnung
+BMF, GoBD, Fassung im AO-Handbuch 2026, insbesondere Randziffern 151 bis 155: https://ao.bundesfinanzministerium.de/ao/2026/Anhaenge/BMF-Schreiben-und-gleichlautende-Laendererlasse/Anhang-33/inhalt.html
+§ 147 AO und § 257 HGB: https://www.gesetze-im-internet.de/ao_1977/__147.html und https://www.gesetze-im-internet.de/hgb/__257.html
+BMF, FAQ zur E-Rechnung, insbesondere Begriffe und Aufbewahrung: https://www.bundesfinanzministerium.de/Content/DE/FAQ/e-rechnung.html

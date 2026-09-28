@@ -6,67 +6,72 @@
   "chapters": [
     {
       "id": "01-merkmal-tabelle",
-      "title": "1 Merkmalübersicht",
+      "title": "Merkmalübersicht",
       "file": "chapters/01-merkmal-tabelle.md",
+      "includeIf": true,
       "markdown": "# Merkmalübersicht\n\n| Merkmal | Sachverhalt |\n| --- | --- |\n| **Betrieb** | {{identity.company | or \"zu bestätigen\"}}{{#if answers.branchen}}; {{answers.branchen | join \", \"}}{{/if}}{{#if answers.rechtsform}}; {{answers.rechtsform}}{{/if}}{{#if answers.mitarbeitende}}; Mitarbeitende: {{answers.mitarbeitende}}{{/if}} |\n| **Geltungsbereich** | Eingangs- und Ausgangsbelege, Übergabe an die Buchhaltung und Aufbewahrung im beschriebenen Umfang. Andere aufzeichnungsrelevante Systeme und Prozesse sind gesondert zu beschreiben. |\n| **Verantwortung** | Geschäftsführung: {{answers.gf | or \"zu bestätigen\"}}; Buchhaltung: {{answers.buchhaltung | or \"zu bestätigen\"}}{{#if answers.steuerberater}}; Steuerberatung: {{answers.steuerberater}}{{/if}}{{#if answers.it}}; IT: {{answers.it}}{{/if}} |\n| **Systeme** | FiBu: {{answers.fibu | join \", \" | or \"zu bestätigen\"}}{{#if answers.weitereSysteme}}; weitere Systeme: {{answers.weitereSysteme}}{{/if}}{{#if answers.archiv}}; Archiv: {{answers.archiv}}{{/if}}{{#if answers.hosting}}; Hosting: {{answers.hosting}}{{/if}} |\n| **Stand** | Erzeugt am {{generatedAt}} aus dem Kunden-Intake. Gültigkeit und gelebte Praxis sind von der Geschäftsleitung zu prüfen und zu bestätigen (siehe Abschnitt Version und betriebliche Bestätigung). Kein rückwirkender Nachweis. |\n"
     },
     {
       "id": "02-zweck-grenzen",
-      "title": "2 Zweck und Grenzen",
+      "title": "1 Zweck und Grenzen",
       "file": "chapters/02-zweck-grenzen.md",
+      "includeIf": true,
       "markdown": "# 1 Zweck und Grenzen\n\nDiese Fassung beschreibt den Weg der im Geltungsbereich genannten Belege von Eingang oder Erstellung über Prüfung und Buchungsübergabe bis zur Aufbewahrung, soweit die Angaben im Intake bestätigt sind. Sie gilt für den vom Unternehmen festzulegenden betrieblichen Anwendungsbereich. Andere aufzeichnungsrelevante Systeme und Prozesse benötigen eigene Angaben und gegebenenfalls ergänzende Dokumentationen.\n\n{{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}Die Geschäftsführung{{/unless}} prüft die Beschreibung gegen die gelebte Praxis, klärt die am Ende genannten offenen Punkte und dokumentiert Änderungen. Der Einsatz von Software oder einer Steuerkanzlei ersetzt diese betriebliche Bestätigung nicht.\n\nDieses Dokument ersetzt keine individuelle steuerliche oder rechtliche Beratung und trifft keine Aussage zur GoBD-Konformität.\n"
     },
     {
       "id": "03-systeme-belegarten",
-      "title": "3 Systeme und Belegarten",
+      "title": "2 Systeme und Belegarten",
       "file": "chapters/03-systeme-belegarten.md",
-      "markdown": "# 2 Systeme und Belegarten\n\nNur für im Intake genannte Wege. Fehlende oder unklare Kanäle erscheinen als offene Punkte, nicht als erfundene Praxis.\n\n| Belegart und Weg | Original und Ablage |\n| --- | --- |\n{{#if answers.eingangsbelege contains \"E-Mail\"}}| Eingangsrechnung als PDF per E-Mail | Originaldatei aus dem Eingangskanal wird unverändert in {{answers.archiv | or \"das angegebene Archiv (zu bestätigen)\"}} übernommen; belegrelevante E-Mail-Zusatzangaben werden mitaufbewahrt, soweit vorhanden. |{{/if}}\n{{#if answers.eingangsbelege contains \"PDF\"}}| Eingangsrechnung als PDF | Original-PDF wird unverändert abgelegt und der Buchhaltung bereitgestellt; überschreiben der Originaldatei unterbleibt. |{{/if}}\n{{#if answers.eingangsbelege contains \"E-Rechnung\"}}| Strukturierte E-Rechnung | Die empfangene strukturierte Datei (z. B. XML / XRechnung / ZUGFeRD-Original) wird im ursprünglichen Format abgelegt. Eine PDF-Ansicht ist nur Lesehilfe. |{{/if}}\n{{#if answers.eingangsbelege contains \"ZUGFeRD\"}}| Strukturierte E-Rechnung (ZUGFeRD) | Die empfangene Originaldatei bleibt erhalten; die Ansicht ersetzt nicht den strukturierten Teil. |{{/if}}\n{{#if answers.eingangsbelege contains \"XRechnung\"}}| Strukturierte E-Rechnung (XRechnung) | Die empfangene XML-Datei wird im ursprünglichen Format aufbewahrt. |{{/if}}\n{{#if answers.eingangsbelege contains \"Papier\"}}| Papierbeleg per Post | {{answers.buchhaltung | or \"Die Buchhaltung\"}} prüft und scannt zur Bearbeitung, soweit so vorgesehen. Das weitere Verfahren für das Papieroriginal (Aufbewahrung / kein ersetzendes Scannen bzw. dokumentiertes Ersetzen) ist zu bestätigen. |{{/if}}\n{{#if answers.eingangsbelege contains \"Scan\"}}| Papierbeleg mit Scan | Scan zur Bearbeitung; Umgang mit dem Papieroriginal (zusätzliche Verwahrung oder dokumentiertes Ersetzen) ist zu bestätigen. |{{/if}}\n{{#if answers.eingangsbelege contains \"Portal\"}}| Eingang über Portal / Download | Belegdatei aus dem genannten Portalweg wird unverändert übernommen und abgelegt. |{{/if}}\n{{#if answers.ausgangsrechnungen}}| Ausgangsrechnung | Erstellung über {{answers.ausgangsrechnungen | join \", \"}}; exportiertes Original und gegebenenfalls strukturierte Datei gehen in die Belegablage. Änderungen erfolgen über dokumentierte Korrektur oder Storno. |{{/if}}\n\n{{#unless answers.eingangsbelege}}*Eingangswege sind im Intake nicht angegeben — siehe offene Punkte.*{{/unless}}\n\n{{#unless answers.eingangsbelege contains \"Papier\"}}{{#unless answers.eingangsbelege contains \"Scan\"}}*Papierweg laut Intake nicht genannt — kein Papier-Vollverfahren in diesem Dokument.*{{/unless}}{{/unless}}\n"
+      "includeIf": true,
+      "markdown": "# 2 Systeme und Belegarten\n\n<!-- frage:B01 -->\nNur für im Intake genannte Wege. Fehlende oder unklare Kanäle erscheinen als offene Punkte, nicht als erfundene Praxis.\n\n| Belegart und Weg | Original und Ablage |\n| --- | --- |\n{{#if answers.eingangsbelege contains \"E-Mail\"}}| Eingangsrechnung als PDF per E-Mail | Originaldatei aus dem Eingangskanal geht in {{answers.archiv | or \"das angegebene Archiv (zu bestätigen)\"}}; belegrelevante E-Mail-Zusatzangaben werden mitaufbewahrt, soweit vorhanden. Ein Verfahren gegen Überschreiben ist nicht gesondert bestätigt. |{{/if}}\n{{#if answers.eingangsbelege contains \"PDF\"}}| Eingangsrechnung als PDF | Original-PDF geht in die Ablage und wird der Buchhaltung bereitgestellt. Ein Verfahren gegen Überschreiben ist nicht gesondert bestätigt. |{{/if}}\n{{#if answers.eingangsbelege contains \"E-Rechnung\"}}| Strukturierte E-Rechnung | Die empfangene strukturierte Datei (z. B. XML / XRechnung / ZUGFeRD-Original) wird im ursprünglichen Format abgelegt. Eine PDF-Ansicht ist nur Lesehilfe. |{{/if}}\n{{#if answers.eingangsbelege contains \"ZUGFeRD\"}}| Strukturierte E-Rechnung (ZUGFeRD) | Die empfangene Originaldatei bleibt erhalten; die Ansicht ersetzt nicht den strukturierten Teil. |{{/if}}\n{{#if answers.eingangsbelege contains \"XRechnung\"}}| Strukturierte E-Rechnung (XRechnung) | Die empfangene XML-Datei wird im ursprünglichen Format aufbewahrt. |{{/if}}\n{{#if answers.eingangsbelege contains \"Papier\"}}| Papierbeleg per Post | {{answers.buchhaltung | or \"Die Buchhaltung\"}} ist für Papierpost genannt. Ob gescannt wird und wie das Papieroriginal verwahrt oder ersetzt wird, ist zu bestätigen. |{{/if}}\n{{#if answers.eingangsbelege contains \"Scan\"}}| Papierbeleg mit Scan | Scan zur Bearbeitung; Umgang mit dem Papieroriginal (zusätzliche Verwahrung oder dokumentiertes Ersetzen) ist zu bestätigen. |{{/if}}\n{{#if answers.eingangsbelege contains \"Portal\"}}| Eingang über Portal / Download | Belegdatei aus dem genannten Portalweg wird unverändert übernommen und abgelegt. |{{/if}}\n{{#if answers.ausgangsrechnungen}}| Ausgangsrechnung | Erstellung über {{answers.ausgangsrechnungen | join \", \"}}; exportiertes Original geht in die Belegablage. Korrektur und Storno sind im Intake nicht beschrieben. |{{/if}}\n\n{{#unless answers.eingangsbelege}}*Eingangswege sind im Intake nicht angegeben — siehe offene Punkte.*{{/unless}}\n\n{{#unless answers.eingangsbelege contains \"Papier\"}}{{#unless answers.eingangsbelege contains \"Scan\"}}*Papierweg laut Intake nicht genannt — kein Papier-Vollverfahren in diesem Dokument.*{{/unless}}{{/unless}}\n"
     },
     {
       "id": "04-eingang-pruefung",
-      "title": "4 Eingang und Prüfung",
+      "title": "3 Eingang und Prüfung",
       "file": "chapters/04-eingang-pruefung.md",
-      "includeIf": {
-        "anyPathNonEmpty": [
-          "answers.eingangsbelege"
-        ]
-      },
-      "markdown": "# 3 Eingang und Prüfung\n\n{{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}Die Buchhaltung (Person ist zu benennen){{/unless}} sichtet eingehende Belege zeitnah an Arbeitstagen. Unklare oder doppelte Belege werden markiert und vor einer Buchungsfreigabe mit {{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}der Geschäftsführung{{/unless}} geklärt. Originaldateien werden nicht überschrieben.\n\n{{#if answers.eingangsbelege contains \"E-Mail\"}}\n## E-Mail- und PDF-Eingang\n\nEingangsrechnungen per E-Mail werden anhand Absender, Leistung, Betrag und vorhandener Bestellung bzw. Vertragsunterlage geprüft. Die Originaldatei wird unverändert nach {{answers.archiv | or \"dem Archiv (zu bestätigen)\"}} übernommen. Belegrelevante Transportnachrichten werden mitaufbewahrt, soweit vorhanden.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"PDF\"}}\n{{#unless answers.eingangsbelege contains \"E-Mail\"}}\n## PDF-Eingang\n\nPDF-Eingangsbelege werden auf Vollständigkeit und Nachvollziehbarkeit geprüft und unverändert abgelegt.\n{{/unless}}\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"E-Rechnung\"}}\n## Strukturierte E-Rechnung\n\nFür strukturierte E-Rechnungen wird die technische Lesbarkeit geprüft. Die maschinenlesbare Datei (XML bzw. ZUGFeRD-/XRechnung-Original) bleibt erhalten; eine PDF-Ansicht ist nur Lesehilfe. Abweichungen zwischen Ansicht und strukturiertem Inhalt werden vor Freigabe geklärt. Die konkrete technische Validierung und deren Protokollierung sind als offener Punkt ausgewiesen, sofern nicht gesondert bestätigt.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"ZUGFeRD\"}}\n{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}\n## Strukturierte E-Rechnung (ZUGFeRD)\n\nDie empfangene Originaldatei bleibt erhalten; die Ansicht ersetzt nicht den strukturierten Teil. Technische Validierung und Protokollierung: siehe offene Punkte.\n{{/unless}}\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"XRechnung\"}}\n{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}\n## Strukturierte E-Rechnung (XRechnung)\n\nDie empfangene XML-Datei wird im ursprünglichen Format aufbewahrt. Technische Validierung und Protokollierung: siehe offene Punkte.\n{{/unless}}\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"Papier\"}}\n## Papierpost\n\nPapierpost wird am Eingangstag an {{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}die Buchhaltung{{/unless}} weitergeleitet, mit Eingangsdatum versehen und zur Bearbeitung gescannt, soweit so vorgesehen. Das Papieroriginal wird zusätzlich geordnet verwahrt, sofern kein dokumentiertes ersetzendes Scanverfahren bestätigt ist. Die digitale Kopie trägt eine eindeutige Zuordnung zum Papieroriginal.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"Scan\"}}\n{{#unless answers.eingangsbelege contains \"Papier\"}}\n## Scan von Papierbelegen\n\nPapierbelege werden gescannt und digital weiterbearbeitet. Ob das Papieroriginal zusätzlich verwahrt oder nach einem dokumentierten Verfahren ersetzt wird, ist zu bestätigen.\n{{/unless}}\n{{/if}}\n\n{{#unless answers.eingangsbelege}}\n*Eingangswege fehlen im Intake — Prüfung und Vorsortierung sind zu beschreiben (offener Punkt).*\n{{/unless}}\n"
+      "includeIf": true,
+      "markdown": "# 3 Eingang und Prüfung\n\n<!-- frage:F01 -->\n{{#if answers.buchhaltung}}{{answers.buchhaltung}} ist für die Sichtung eingehender Belege genannt.{{/if}}{{#unless answers.buchhaltung}}Die für die Sichtung zuständige Person ist zu benennen.{{/unless}}\n<!-- frage:C02 -->\nDer Turnus dieser Sichtung ist im Intake nicht bestätigt und bleibt offener Punkt. Unklare oder doppelte Belege sind vor einer Buchungsfreigabe mit {{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}der Geschäftsführung{{/unless}} zu klären.\n\n{{#if answers.eingangsbelege contains \"E-Mail\"}}\n## E-Mail- und PDF-Eingang\n\n<!-- frage:C01 -->\nEingangsrechnungen per E-Mail gehen nach {{answers.archiv | or \"dem Archiv (zu bestätigen)\"}}. Belegrelevante Transportnachrichten werden mitaufbewahrt, soweit vorhanden. Welche Prüfungsschritte je Beleg gelten, ist im Intake nicht im Einzelnen bestätigt.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"PDF\"}}\n{{#unless answers.eingangsbelege contains \"E-Mail\"}}\n## PDF-Eingang\n\n<!-- frage:C01 -->\nPDF-Eingangsbelege gehen in die Ablage. Welche Prüfungsschritte je Beleg gelten, ist im Intake nicht im Einzelnen bestätigt.\n{{/unless}}\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"E-Rechnung\"}}\n## Strukturierte E-Rechnung\n\n<!-- frage:E02 -->\n\nFür strukturierte E-Rechnungen wird die technische Lesbarkeit geprüft. Die maschinenlesbare Datei (XML bzw. ZUGFeRD-/XRechnung-Original) bleibt erhalten; eine PDF-Ansicht ist nur Lesehilfe. Abweichungen zwischen Ansicht und strukturiertem Inhalt werden vor Freigabe geklärt. Die konkrete technische Validierung und deren Protokollierung sind als offener Punkt ausgewiesen, sofern nicht gesondert bestätigt.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"ZUGFeRD\"}}\n{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}\n## Strukturierte E-Rechnung (ZUGFeRD)\n\nDie empfangene Originaldatei bleibt erhalten; die Ansicht ersetzt nicht den strukturierten Teil. Technische Validierung und Protokollierung: siehe offene Punkte.\n{{/unless}}\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"XRechnung\"}}\n{{#unless answers.eingangsbelege contains \"E-Rechnung\"}}\n## Strukturierte E-Rechnung (XRechnung)\n\nDie empfangene XML-Datei wird im ursprünglichen Format aufbewahrt. Technische Validierung und Protokollierung: siehe offene Punkte.\n{{/unless}}\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"Papier\"}}\n## Papierpost\n\n<!-- frage:C03 -->\nPapierpost ist als Eingangsweg genannt und geht an {{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}die Buchhaltung{{/unless}}. Ob am Eingang gescannt wird und ob das Papieroriginal zusätzlich verwahrt oder nach einem dokumentierten Verfahren ersetzt wird, ist zu bestätigen.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"Scan\"}}\n{{#unless answers.eingangsbelege contains \"Papier\"}}\n## Scan von Papierbelegen\n\nPapierbelege werden gescannt und digital weiterbearbeitet. Ob das Papieroriginal zusätzlich verwahrt oder nach einem dokumentierten Verfahren ersetzt wird, ist zu bestätigen.\n{{/unless}}\n{{/if}}\n\n{{#unless answers.eingangsbelege}}\n*Eingangswege fehlen im Intake — Prüfung und Vorsortierung sind zu beschreiben (offener Punkt).*\n{{/unless}}\n"
     },
     {
       "id": "05-freigabe-buchung",
-      "title": "5 Freigabe, Buchung und Nachvollziehbarkeit",
+      "title": "4 Freigabe, Buchung und Nachvollziehbarkeit",
       "file": "chapters/05-freigabe-buchung.md",
-      "markdown": "# 4 Freigabe, Buchung und Nachvollziehbarkeit\n\n{{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}Die Geschäftsführung (Person ist zu benennen){{/unless}} gibt sachlich geprüfte Eingangsrechnungen frei. {{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}Die Buchhaltung{{/unless}} ordnet sie dem Buchungsmonat zu und stellt sie in {{answers.fibu | join \", \" | or \"der FiBu (zu bestätigen)\"}} bereit. {{#if answers.steuerberater}}{{answers.steuerberater}} verbucht im vereinbarten Umfang.{{/if}}{{#unless answers.steuerberater}}Die Verbuchung erfolgt intern bzw. über die vereinbarte externe Stelle (soweit vorhanden, ist sie zu benennen).{{/unless}} Eine Belegreferenz verbindet hochgeladenen Beleg und Buchung, soweit das System dies unterstützt. Bei Rückfragen bleibt der Vorgang als ungeklärt gekennzeichnet; eine Freigabe wird nicht fingiert.\n\n{{#if answers.ausgangsrechnungen}}\nAusgangsrechnungen werden in {{answers.ausgangsrechnungen | join \", \"}} fortlaufend nummeriert. {{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}Die Geschäftsführung{{/unless}} prüft Empfänger, Leistung und Betrag vor Versand. Berichtigungen erzeugen eine neue, nachvollziehbar verknüpfte Datei; der ursprüngliche Stand bleibt aufbewahrt. Die Übergabe einer strukturierten E-Rechnung an Kunden ist je Kundenfall zu erfassen, soweit einschlägig.\n{{/if}}\n{{#unless answers.ausgangsrechnungen}}\n*Weg der Ausgangsrechnungen ist im Intake nicht angegeben — siehe offene Punkte.*\n{{/unless}}\n"
+      "includeIf": true,
+      "markdown": "# 4 Freigabe, Buchung und Nachvollziehbarkeit\n\n<!-- frage:F01 -->\n{{#if answers.gf}}{{answers.gf}} ist für die Freigabe genannt.{{/if}}{{#unless answers.gf}}Die Geschäftsführung (Person ist zu benennen) ist für die Freigabe zu benennen.{{/unless}} {{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}Die Buchhaltung{{/unless}} stellt die Belege in {{answers.fibu | join \", \" | or \"der FiBu (zu bestätigen)\"}} bereit. {{#if kanzleiBucht}}<!-- frage:F05 -->{{answers.steuerberater}} verbucht im vereinbarten Umfang.{{/if}}{{#if kanzleiUnbestaetigt}}Zur Kanzlei liegt diese Angabe vor: {{answers.steuerberater}}. Der Leistungsumfang ist nicht bestätigt; eine Verbuchung durch die Kanzlei wird nicht als Ist-Prozess beschrieben.{{/if}}{{#unless answers.steuerberater}}Die Verbuchung erfolgt intern bzw. über die vereinbarte externe Stelle (soweit vorhanden, ist sie zu benennen).{{/unless}} <!-- frage:F02 -->Eine Belegreferenz verbindet hochgeladenen Beleg und Buchung, soweit das System dies unterstützt. Bei Rückfragen bleibt der Vorgang als ungeklärt gekennzeichnet; eine Freigabe wird nicht fingiert.\n\n{{#if answers.ausgangsrechnungen}}\n<!-- frage:E05 -->\nAusgangsrechnungen werden über {{answers.ausgangsrechnungen | join \", \"}} erstellt. <!-- frage:E03 -->{{#if answers.gf}}{{answers.gf}} ist für die sachliche Prüfung vor Versand genannt.{{/if}}{{#unless answers.gf}}Die Person für die sachliche Prüfung vor Versand ist zu benennen.{{/unless}} Die Übergabe einer strukturierten E-Rechnung an Kunden ist je Kundenfall zu erfassen, soweit einschlägig.\n{{/if}}\n{{#unless answers.ausgangsrechnungen}}\n*Weg der Ausgangsrechnungen ist im Intake nicht angegeben — siehe offene Punkte.*\n{{/unless}}\n"
     },
     {
       "id": "06-aufbewahrung",
-      "title": "6 Aufbewahrung, Zugriff und Sicherung",
+      "title": "5 Aufbewahrung, Zugriff und Sicherung",
       "file": "chapters/06-aufbewahrung.md",
-      "markdown": "# 5 Aufbewahrung, Zugriff und Sicherung\n\nDigitale Originale und relevante Zusatzunterlagen werden in {{answers.archiv | or \"dem Archiv (zu bestätigen)\"}} geordnet nach Belegart und Zeitraum abgelegt. Betriebliche Zugriffsrechte haben {{answers.zugriff | or \"die berechtigten Personen (Zugriffskreis ist zu bestätigen)\"}}. {{#if answers.steuerberater}}{{answers.steuerberater}} erhält Zugang ausschließlich im vereinbarten Mandatsumfang.{{/if}} Rechteänderungen veranlasst {{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}die Geschäftsführung{{/unless}} und hält sie in einer separaten Berechtigungsliste fest (Anlage / offener Punkt, soweit noch nicht abgelegt).\n\nDie Aufbewahrungsdauer richtet sich nach der jeweiligen Unterlagenart und den geltenden Vorschriften; sie wird nicht aus einer pauschalen Frist für alle Belege abgeleitet. **Buchungsbelege** unterliegen nach aktueller Regelung grundsätzlich **acht Jahren** (§ 147 AO / § 257 HGB). Andere Dokumentationsarten können zehn oder sechs Jahre erfordern. Fristbeginn, Sonderfälle und gegebenenfalls verlängerte Aufbewahrung werden vor Löschung geprüft. Bei E-Rechnungen bleibt zumindest der strukturierte Teil in ursprünglicher Form unversehrt erhalten.\n\n{{#if answers.backup}}\nDie technische Sicherung erfolgt laut Intake über: {{answers.backup | join \", \"}}. Ob und wie eine Rücksicherung geprüft wird, ist gesondert zu belegen (offener Punkt, sofern kein dokumentierter Wiederherstellungstest vorliegt). Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.\n{{/if}}\n{{#unless answers.backup}}\nEin Backup-Verfahren ist im Intake nicht angegeben — Sicherung und Wiederherstellungstest sind als offene Punkte zu klären. Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.\n{{/unless}}\n"
+      "includeIf": true,
+      "markdown": "# 5 Aufbewahrung, Zugriff und Sicherung\n\n<!-- frage:G01 -->\nDigitale Originale und relevante Zusatzunterlagen werden in {{answers.archiv | or \"dem Archiv (zu bestätigen)\"}} abgelegt. <!-- frage:G02 -->Betriebliche Zugriffsrechte laut Intake: {{answers.zugriff | or \"die berechtigten Personen (Zugriffskreis ist zu bestätigen)\"}}. {{#if kanzleiBucht}}<!-- frage:F05 -->{{answers.steuerberater}} erhält Zugang ausschließlich im vereinbarten Mandatsumfang.{{/if}}{{#if kanzleiUnbestaetigt}}Ein Kanzleizugang wird nicht als gelebter Prozess beschrieben, solange der Leistungsumfang unbestätigt ist.{{/if}} Rechteänderungen veranlasst {{#if answers.gf}}{{answers.gf}}{{/if}}{{#unless answers.gf}}die Geschäftsführung{{/unless}}. Eine separate Berechtigungsliste ist noch abzulegen (offener Punkt).\n\n<!-- frage:G05 -->\nDie Aufbewahrungsdauer richtet sich nach der jeweiligen Unterlagenart und den geltenden Vorschriften; sie wird nicht aus einer pauschalen Frist für alle Belege abgeleitet. **Buchungsbelege** unterliegen nach aktueller Regelung grundsätzlich **acht Jahren** (§ 147 AO / § 257 HGB). Andere Dokumentationsarten können zehn oder sechs Jahre erfordern. Fristbeginn, Sonderfälle und gegebenenfalls verlängerte Aufbewahrung werden vor Löschung geprüft. Bei E-Rechnungen bleibt zumindest der strukturierte Teil in ursprünglicher Form unversehrt erhalten.\n\n{{#if answers.backup}}\nDie technische Sicherung erfolgt laut Intake über: {{answers.backup | join \", \"}}. Ob und wie eine Rücksicherung geprüft wird, ist gesondert zu belegen (offener Punkt, sofern kein dokumentierter Wiederherstellungstest vorliegt). Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.\n{{/if}}\n{{#unless answers.backup}}\nEin Backup-Verfahren ist im Intake nicht angegeben — Sicherung und Wiederherstellungstest sind als offene Punkte zu klären. Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.\n{{/unless}}\n"
     },
     {
       "id": "07-kontrollen-aenderungen",
-      "title": "7 Kontrollen und Änderungen",
+      "title": "6 Kontrollen und Änderungen",
       "file": "chapters/07-kontrollen-aenderungen.md",
-      "markdown": "# 6 Kontrollen und Änderungen\n\nEine regelmäßige Beleg-Stichprobe und ein Kontrollprotokoll sind betrieblich festzulegen und nachzuweisen. Solange im Intake keine bestätigte Kontrollroutine vorliegt, wird hier **keine** gelebte monatliche Stichprobe behauptet — siehe offene Punkte.\n\nSystemwechsel, neue Belegkanäle, geänderte Zuständigkeiten oder wesentliche Änderungen des Ablaufs lösen eine neue Version aus. Die bisherige Fassung bleibt mit ihrem Gültigkeitszeitraum erhalten. Änderungen werden erst ab dem tatsächlich bestätigten Wirksamkeitsdatum beschrieben; keine rückwirkende Behauptung gelebter Prozesse.\n\n{{#if answers.gf}}Verantwortlich für Freigabe neuer Versionen: {{answers.gf}}.{{/if}}\n"
+      "includeIf": true,
+      "markdown": "# 6 Kontrollen und Änderungen\n\n<!-- frage:H01 -->\nEine regelmäßige Beleg-Stichprobe und ein Kontrollprotokoll sind betrieblich festzulegen und nachzuweisen. Solange im Intake keine bestätigte Kontrollroutine vorliegt, wird hier **keine** gelebte monatliche Stichprobe behauptet — siehe offene Punkte.\n\nSystemwechsel, neue Belegkanäle, geänderte Zuständigkeiten oder wesentliche Änderungen des Ablaufs lösen eine neue Version aus. Die bisherige Fassung bleibt mit ihrem Gültigkeitszeitraum erhalten. Änderungen werden erst ab dem tatsächlich bestätigten Wirksamkeitsdatum beschrieben; keine rückwirkende Behauptung gelebter Prozesse.\n\n{{#if answers.gf}}Verantwortlich für Freigabe neuer Versionen: {{answers.gf}}.{{/if}}\n"
     },
     {
       "id": "08-anlagen-offene-punkte",
-      "title": "8 Anlagen und offene Punkte",
+      "title": "7 Anlagen und offene Punkte",
       "file": "chapters/08-anlagen-offene-punkte.md",
+      "includeIf": true,
       "markdown": "# 7 Anlagen und offene Punkte\n\nMitgeltende Unterlagen (soweit vorhanden abzulegen): Berechtigungsliste, Mandatsvereinbarung Steuerberatung, Anbieterunterlagen zu Archiv/Backup, ggf. Kontrollprotokoll.\n\n{{openPointsTable}}\n\nEin offener Punkt ist kein Beweis dafür, dass der übrige Prozess ordnungsgemäß umgesetzt wird. Vor Nutzung für den realen Betrieb sind alle Aussagen, Anlagen und tatsächlichen Handlungen zu prüfen.\n"
     },
     {
       "id": "09-version-bestaetigung",
-      "title": "9 Version und betriebliche Bestätigung",
+      "title": "8 Version und betriebliche Bestätigung",
       "file": "chapters/09-version-bestaetigung.md",
+      "includeIf": true,
       "markdown": "# 8 Version und betriebliche Bestätigung\n\n| Version | Gültig ab | Änderung | Status |\n| --- | --- | --- | --- |\n| {{version}} | {{validFrom | or \"von der Geschäftsführung festzulegen\"}} | {{changeSummary | or \"Erste Fassung aus Kunden-Intake\"}} | Entwurf — betriebliche Bestätigung ausstehend |\n\n**Betriebliche Bestätigung (Platzhalter)**\n\n| | |\n| --- | --- |\n| Name der prüfenden Geschäftsleitung | {{answers.gf | or \"________________\"}} |\n| Datum der Prüfung | ________________ |\n| Festgestellte Abweichungen / Auflagen | ________________ |\n| Unterschrift / Bestätigung | ________________ |\n\nEine automatische Generierung gilt **nicht** als betriebliche Bestätigung.\n"
     },
     {
       "id": "10-quellen",
-      "title": "10 Quellen",
+      "title": "Quellen zur fachlichen Einordnung",
       "file": "chapters/10-quellen.md",
+      "includeIf": true,
       "markdown": "# Quellen zur fachlichen Einordnung\n\n- BMF, GoBD (Fassung im AO-Handbuch), insbesondere Randziffern zur Verfahrensdokumentation: https://ao.bundesfinanzministerium.de/\n- § 147 AO: https://www.gesetze-im-internet.de/ao_1977/__147.html\n- § 257 HGB: https://www.gesetze-im-internet.de/hgb/__257.html\n- BMF, FAQ zur E-Rechnung (Begriffe und Aufbewahrung): https://www.bundesfinanzministerium.de/Content/DE/FAQ/e-rechnung.html\n\nAllgemeine Einordnung; keine Rechts- oder Steuerberatung.\n"
     }
   ],
@@ -81,7 +86,10 @@
       "ka",
       "n/a",
       "none",
-      "offen"
+      "offen",
+      "geplant",
+      "unbekannt",
+      "nicht zutreffend"
     ],
     "arrayEmptyMeansOpen": true,
     "rules": [
@@ -223,7 +231,44 @@
         "when": "always",
         "customerFacing": true,
         "responsibilityField": "answers.gf",
-        "text": "Berechtigungsliste und Mandatsumfang der Kanzlei (soweit beteiligt) als mitgeltende Unterlagen ablegen."
+        "text": "Berechtigungsliste als mitgeltende Unterlage ablegen."
+      },
+      {
+        "id": "op-f05-kanzlei-umfang",
+        "field": "answers.steuerberater",
+        "chapter": "05-freigabe-buchung",
+        "severity": "medium",
+        "when": "unconfirmedScope",
+        "customerFacing": true,
+        "responsibilityField": "answers.gf",
+        "text": "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung oder ein Mandatszugang wird nicht als gelebter Prozess angenommen."
+      },
+      {
+        "id": "op-c02-sichtung",
+        "field": null,
+        "chapter": "04-eingang-pruefung",
+        "severity": "medium",
+        "when": "always",
+        "customerFacing": true,
+        "responsibilityField": "answers.buchhaltung",
+        "text": "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist im Intake nicht bestätigt."
+      },
+      {
+        "id": "op-d-ersetzend-ohne-papier",
+        "field": null,
+        "fields": [
+          "answers.weitereSysteme",
+          "answers.archiv",
+          "answers.zugriff",
+          "answers.eingangsbelege",
+          "answers.ausgangsrechnungen"
+        ],
+        "chapter": "04-eingang-pruefung",
+        "severity": "high",
+        "when": "ersetzendOhnePapier",
+        "customerFacing": true,
+        "responsibilityField": "answers.gf",
+        "text": "Hinweis vor der Verwendung: ersetzendes Scannen ist genannt, ein Papierweg aber nicht. Das ist zu klären, bevor ein Scanverfahren beschrieben wird. Keine Freigabe."
       },
       {
         "id": "op-gf",
@@ -348,7 +393,9 @@
     "whenSemantics": {
       "empty": "Field missing, null, empty string/array, or value in emptyValues",
       "always": "Always emit (claim-safety OP); still respect customerFacing",
-      "arrayContainsAny": "Emit when field array/string contains any of tokens (case-insensitive, alias-aware)"
+      "arrayContainsAny": "Emit when field array/string contains any of tokens (case-insensitive substring; Papier does not match Scan)",
+      "unconfirmedScope": "Non-empty field contains zu bestätigen, unbekannt, geplant, or nicht zutreffend. Exact empty labels stay on when=empty.",
+      "ersetzendOhnePapier": "Named fields mention ersetzend and none mention a paper path (Papier/Papierbeleg, or the word Post). Not a general contradiction engine and not a Freigabe."
     }
   }
 }
