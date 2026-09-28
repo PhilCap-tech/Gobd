@@ -374,6 +374,11 @@ h2 {
   text-underline-offset: 2px;
 }
 
+.partner-copy .hint strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
 .trust-line {
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 14px;

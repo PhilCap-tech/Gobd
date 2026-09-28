@@ -8,11 +8,12 @@ const PILOT_HREF =
   "/checkout?utm_source=partner&utm_medium=landing&utm_campaign=steuerberater";
 
 const PROMO_CODE = "KANZLEI-PILOT";
+const PRIMARY_CTA = "Pilot selbst testen";
 
 const PAGE_TITLE =
-  "Verfahrensdokumentation für Mandanten — Partner-Pilot für Steuerberater";
+  "GoBD-Verfahrensdokumentation testen — Partner-Pilot für Steuerberater";
 const PAGE_DESCRIPTION =
-  "Prüfbare GoBD-Verfahrensdokumentation mit Versionierung. Kostenloser Pilot für Kanzleien — ohne Softwareschulung, ohne Fake-Siegel.";
+  "Als Steuerberater selbst testen: Entwurf mit Versionierung und Offenen Punkten bewerten — dann an Mandanten weiterempfehlen.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -34,11 +35,10 @@ function PilotCta({ showSecondary = false }: { showSecondary?: boolean }) {
     <div className="cta-pair">
       <div className="cta-paid">
         <Link className="btn" href={PILOT_HREF}>
-          Kostenlosen Pilot starten
+          {PRIMARY_CTA}
         </Link>
         <p className="trust-line">
-          Keine Verpflichtung · Keine Steuerberatung · Pilot für mehrere
-          Rechtsformen
+          Keine Verpflichtung · Keine Steuerberatung · Mehrere Rechtsformen
         </p>
         <p className="hint">
           Promo-Code im Checkout:{" "}
@@ -50,7 +50,7 @@ function PilotCta({ showSecondary = false }: { showSecondary?: boolean }) {
       {showSecondary ? (
         <div className="cta-soft">
           <a className="btn ghost" href="#pilot">
-            So funktioniert der Pilot
+            So läuft der Test
           </a>
         </div>
       ) : null}
@@ -63,7 +63,7 @@ export default function SteuerberaterPage() {
     <>
       <SiteHeader
         ctaHref={PILOT_HREF}
-        ctaLabel="Kostenlosen Pilot starten"
+        ctaLabel={PRIMARY_CTA}
         links={[
           { href: "#fuer-wen", label: "Für wen" },
           { href: "#pilot", label: "Pilot" },
@@ -74,170 +74,108 @@ export default function SteuerberaterPage() {
         <section className="hero">
           <p className="kicker">Für Steuerberater &amp; Kanzleien</p>
           <h1>
-            Wenn der Prüfer nach der Verfahrensdokumentation fragt — helfen Sie
-            dem Mandanten mit einem prüfbaren Entwurf
+            Testen Sie die Verfahrensdokumentation selbst — bevor Sie sie
+            weiterempfehlen
           </h1>
           <p className="lead">
-            Keine leere Vorlage. PDF-Entwurf plus Offene-Punkte zur Abstimmung
-            mit der Kanzlei — mit Versionierung und Historie.
+            Mit Ihren Parametern und verschiedenen Rechtsformen einen Entwurf
+            erzeugen, prüfen und entscheiden, ob Sie ihn Mandanten empfehlen.
           </p>
           <PilotCta showSecondary />
         </section>
 
         <section className="block" id="fuer-wen">
-          <h2>Gebaut für die Kanzlei — nicht für Panik-Marketing</h2>
+          <h2>Für die Kanzlei, die erst prüft — dann empfiehlt</h2>
           <div className="stack">
             <article className="card">
-              <h3>Steuerberater / Kanzlei</h3>
+              <h3>Selbst testen</h3>
               <p className="prose">
-                Mandant braucht eine Verfahrensdokumentation, Sie wollen einen
-                nachvollziehbaren Entwurf statt einer leeren Word-Datei.
+                Sie legen Parameter und Rechtsform fest und sehen, was der
+                Entwurf liefert.
               </p>
             </article>
             <article className="card">
-              <h3>Mandanten-Empfehlung</h3>
+              <h3>Ergebnis bewerten</h3>
               <p className="prose">
-                Sie empfehlen den Pilot weiter; der Mandant füllt den Intake,
-                Sie sehen den Entwurf zur Abstimmung.
+                Prüfbarkeit, Versionierung, Offene Punkte — Sie entscheiden
+                fachlich.
               </p>
             </article>
             <article className="card">
-              <h3>Mehrere Rechtsformen testen</h3>
+              <h3>Weiterempfehlen</h3>
               <p className="prose">
-                Freiberufler, GmbH, Handwerk: ein Pilot-Flow, klar abgegrenzt.
+                Überzeugt der Pilot, leiten Sie Mandanten weiter
+                (Empfehlungslink).
               </p>
             </article>
           </div>
-        </section>
-
-        <section className="block" id="leistung">
-          <h2>Was unser Produkt für Ihre Mandanten leistet</h2>
-          <div className="legal legal-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Ja</th>
-                  <th scope="col">Nein</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    Geführtes Intake (Branche, Software, Belegwege, IT,
-                    Verantwortliche)
-                  </td>
-                  <td>Steuer-, Rechts- oder Prüfungsberatung</td>
-                </tr>
-                <tr>
-                  <td>Individuelles PDF + Offene-Punkte-Liste</td>
-                  <td>Blanko-„Muster fertig“ ohne Betriebsbezug</td>
-                </tr>
-                <tr>
-                  <td>Versionen &amp; erneute Exporte über das Abo (Pflege)</td>
-                  <td>„GoBD-konform per Klick“ / Prüfungsgarantie</td>
-                </tr>
-                <tr>
-                  <td>Entwurf zur Abstimmung mit Ihnen</td>
-                  <td>Ersatz für Ihre Freigabe oder Haftung</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p className="prose">
-            Der Mandant liefert Struktur und Transparenz über Lücken. Die
-            fachliche Bewertung bleibt bei Ihnen.
+          <p className="hint">
+            Sie füllen <strong>nicht</strong> die Verfahrensdokumentation für
+            Ihre Mandanten aus.
           </p>
         </section>
 
         <section className="block" id="trust">
-          <h2>Worauf es in der Prüfung ankommt</h2>
+          <h2>Was Sie im Pilot prüfen können</h2>
           <div className="stack">
             <article className="card">
               <h3>Prüfbarkeit</h3>
               <p className="prose">
-                Strukturierte Verfahrensdokumentation als Entwurf, den Sie mit
-                dem Mandanten abstimmen können.
+                Strukturierter Entwurf statt leerer Vorlage.
               </p>
             </article>
             <article className="card">
               <h3>Versionierung &amp; Historie</h3>
-              <p className="prose">
-                Änderungen nachvollziehbar; kein „welche Datei war die letzte?“
-              </p>
+              <p className="prose">Änderungen nachvollziehbar.</p>
             </article>
             <article className="card">
               <h3>Offene Punkte</h3>
               <p className="prose">
-                Lücken sichtbar, damit Kanzlei und Mandant gezielt nachziehen.
+                Lücken sichtbar, bevor jemand empfiehlt.
               </p>
             </article>
             <article className="card">
-              <h3>Empfehlungsweg</h3>
+              <h3>Weiterempfehlung</h3>
               <p className="prose">
-                Klarer Pilot für Ihre Mandanten — ohne dass Sie Software
-                schulen müssen.
+                Klarer Weg vom eigenen Test zum Mandanten-Link.
               </p>
             </article>
           </div>
         </section>
 
-        <section className="block" id="versionierung">
-          <h2>Warum Versionierung — und warum kein Einmal-PDF reicht</h2>
-          <p className="prose">
-            Ein einmal erzeugtes PDF veraltet, sobald Software, Belegwege oder
-            Verantwortliche wechseln. Betriebsprüfung und GoBD sind kein
-            Einmal-Event.
-          </p>
-          <p className="prose">So denken wir Pflege:</p>
-          <ol className="prose-list">
-            <li>
-              <strong>Erste Fassung</strong> — Setup: geführte Struktur, PDF +
-              Offene Punkte.
-            </li>
-            <li>
-              <strong>Fassungen halten</strong> — Abo: Speicherung, Versionen,
-              erneute Exporte.
-            </li>
-            <li>
-              <strong>Änderung sichtbar</strong> — der Mandant aktualisiert das
-              Intake; Sie sehen, was sich geändert hat, und erhalten die neue
-              Fassung zur erneuten Abstimmung.
-            </li>
-          </ol>
-          <p className="prose">
-            Für die Kanzlei heißt das: weniger „final_final3.pdf“ im
-            E-Mail-Verlauf, klarere Ausgangslage für die fachliche Prüfung —
-            ohne dass wir Ihre Beratung ersetzen.
-          </p>
-        </section>
-
         <section className="block" id="pilot">
-          <h2>Kostenloser Pilot — in wenigen Schritten</h2>
+          <h2>Pilot-Test in drei Schritten</h2>
           <ol className="prose-list">
-            <li>Sie starten den Partner-Pilot (Promo-Flow).</li>
-            <li>Sie wählen einen Test-Mandanten / eine Rechtsform.</li>
-            <li>Intake ausfüllen → Entwurf + Offene-Punkte.</li>
-            <li>Sie prüfen, kommentieren, entscheiden über Empfehlung.</li>
+            <li>
+              <strong>Selbst testen</strong> — Partner-Pilot starten, Parameter
+              und Rechtsform wählen (z. B. Freiberufler, GmbH, Handwerk).
+            </li>
+            <li>
+              <strong>Ergebnis bewerten</strong> — Entwurf + Offene Punkte +
+              Versionierung ansehen und fachlich einordnen.
+            </li>
+            <li>
+              <strong>Weiterleiten / empfehlen</strong> — Wenn es passt:
+              Empfehlungslink an Mandanten — der Mandant arbeitet selbst
+              weiter.
+            </li>
           </ol>
           <div className="value-note">
             <p className="prose">
-              Der Pilot ist unser Partner-Einstieg. Reguläre Preise (Setup +
-              Monatsgebühr) gelten erst nach dem Pilot — nicht der Einstieg auf
-              dieser Seite.
-            </p>
-            <p className="hint">
-              Die Beträge stehen auf der{" "}
-              <Link href="/#preise">Produktseite</Link>.
+              Der Pilot ist Ihr Test- und Empfehlungseinstieg. Reguläre Preise
+              gelten erst beim Kauf durch den Mandanten bzw. nach dem Pilot —
+              nicht als Hero auf dieser Seite.
             </p>
           </div>
         </section>
 
         <section className="block" id="empfehlung">
           <div className="value-note">
-            <h2>Empfehlen, wenn der Pilot überzeugt</h2>
+            <h2>Empfehlen, wenn Ihr Test überzeugt</h2>
             <p className="prose">
-              Nach dem Pilot erhalten Sie einen Empfehlungslink für Mandanten.
-              Cash-Affiliate kommt später — zuerst Qualität und Vertrauen.
+              Nach dem eigenen Pilot erhalten Sie einen Empfehlungslink für
+              Mandanten. Cash-Affiliate kommt später — zuerst Qualität und
+              Vertrauen.
             </p>
           </div>
         </section>
@@ -247,70 +185,50 @@ export default function SteuerberaterPage() {
           <ul className="prose-list">
             <li>Keine Steuerberatung und keine Rechtsberatung.</li>
             <li>Kein Ersatz für Ihre fachliche Prüfung.</li>
-            <li>Keine leere „GoBD-Vorlage zum Abhaken“.</li>
+            <li>Kein „Sie füllen für den Mandanten aus“.</li>
+            <li>Keine leere GoBD-Vorlage zum Abhaken.</li>
             <li>
-              Keine Behauptung „rechtssicher“ oder „automatisch GoBD-konform“.
+              Keine Claims „rechtssicher“ / „automatisch GoBD-konform“.
             </li>
+            <li>Kein Fake-DATEV/KPMG.</li>
           </ul>
         </section>
 
         <section className="block" id="faq">
           <h2>Häufige Fragen</h2>
           <div className="faq-item">
+            <h3>Muss ich für Mandanten ausfüllen?</h3>
+            <p className="prose">
+              Nein. Sie testen selbst, bewerten das Ergebnis und empfehlen bei
+              Bedarf weiter. Der Mandant nutzt den Link selbst.
+            </p>
+          </div>
+          <div className="faq-item">
             <h3>Kostet der Pilot etwas?</h3>
             <p className="prose">
-              Nein — Partner-Pilot ist kostenlos. Danach gelten die
-              Produktpreise nur bei Kauf.
+              Partner-Pilot ist kostenlos über die Partner-Promo{" "}
+              <strong className="promo-code">{PROMO_CODE}</strong> (100 % für
+              Setup + Abo, 2 Monate). Produktpreise gelten erst beim Kauf.
             </p>
           </div>
           <div className="faq-item">
-            <h3>Muss ich Software lernen?</h3>
+            <h3>Welche Rechtsformen?</h3>
             <p className="prose">
-              Nein. Sie steuern Abstimmung und Empfehlung; der Mandant liefert
-              die Betriebsdaten im Intake.
+              Im Pilot gezielt mehrere testen (z. B. Freiberufler, GmbH,
+              Handwerk).
             </p>
           </div>
           <div className="faq-item">
-            <h3>Für welche Mandanten?</h3>
+            <h3>Ist das DATEV / zertifiziert?</h3>
             <p className="prose">
-              Pilot gezielt mit mehreren Rechtsformen testen (z. B.
-              Freiberufler, GmbH, Handwerk).
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Ist das DATEV / offiziell zertifiziert?</h3>
-            <p className="prose">
-              Nein. Eigenes Produkt der IKAT GmbH; optionales eigenes
-              Partner-Siegel — keine Fremd-Zertifizierung.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Ersetzt das meine Beratung?</h3>
-            <p className="prose">
-              Nein. Es liefert einen strukturierten Entwurf und macht Lücken
-              sichtbar. Freigabe und Beratung bleiben bei Ihnen.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Haften Sie für GoBD-Konformität?</h3>
-            <p className="prose">
-              Nein. Keine Steuer- oder Rechtsberatung, keine Konformitäts- oder
-              Prüfungsgarantie.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Müssen Mandanten das Abo nehmen?</h3>
-            <p className="prose">
-              Die erste Fassung entsteht mit dem Setup. Pflege und weitere
-              Versionen hängen am Abo — sinnvoll, wenn sich Systeme ändern.
-              Die regulären Preise stehen auf der{" "}
-              <Link href="/#preise">Produktseite</Link>.
+              Nein. IKAT GmbH; optionales eigenes Partner-Siegel — keine
+              Fremd-Zertifizierung.
             </p>
           </div>
         </section>
 
         <section className="block" id="abschluss">
-          <h2>Pilot starten — prüfen Sie den Entwurf selbst</h2>
+          <h2>Selbst testen — dann entscheiden, ob Sie weiterempfehlen</h2>
           <PilotCta />
           <p className="hint back-links">
             <Link href="/faq">FAQ</Link>
@@ -320,19 +238,15 @@ export default function SteuerberaterPage() {
             <Link href="/impressum">Impressum</Link>
           </p>
           <p className="disclaimer">
-            Dies ist keine Steuer- oder Rechtsberatung. Die
-            Verfahrensdokumentation ist ein Arbeitsentwurf zur Abstimmung mit
-            Ihrer Kanzlei. Allgemeine Produkt- und Partnerinformation von
-            gobd-doku-erstellen.de (IKAT GmbH): keine Steuer-, Rechts- oder
-            Prüfungsberatung und keine Zusicherung von GoBD-Konformität oder
-            Prüfungsergebnis. Fachliche Bewertung und Freigabe liegen beim
-            Mandanten bzw. bei der steuerberatenden Freigabe.
+            Dies ist keine Steuer- oder Rechtsberatung. Der Pilot dient der
+            eigenen Bewertung durch die Kanzlei; eine Weiterempfehlung ersetzt
+            keine fachliche Prüfung.
           </p>
         </section>
       </main>
       <div className="sticky-cta">
         <Link className="btn" href={PILOT_HREF}>
-          Kostenlosen Pilot starten
+          {PRIMARY_CTA}
         </Link>
         <p className="trust-line">
           Promo-Code im Checkout:{" "}
