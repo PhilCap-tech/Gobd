@@ -1,5 +1,7 @@
+import minCatalog from "@/content/intake-catalog/INTAKE-CATALOG-MVP-MIN.json";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { intakeFrageStepError } from "@/lib/frage-intake";
+import { CATALOG_STEPS, visibleCatalogQuestions } from "@/lib/intake-catalog";
 import { evaluateOpenPoints } from "@/lib/open-points";
 import {
   PARTNER_MUSTER_ANSWERS,
@@ -255,6 +257,50 @@ expect(
   intakeFrageStepError(0, emptyAnswers()).includes("Status"),
   "fresh intake requires a status before continuing",
 );
+
+const minIds = minCatalog.questions.map((question) => question.id);
+const liveQuestions = CATALOG_STEPS.flatMap((step) => step.questions);
+expect(minIds.length === 19, "acceptance floor is 19 questions");
+expect(liveQuestions.length === 28, "productive catalog stays the 28-question v1");
+for (const question of minCatalog.questions) {
+  const live = liveQuestions.find((item) => item.id === question.id);
+  expect(Boolean(live), `${question.id} is in the productive catalog`);
+  if (!live) continue;
+  const minShape = question.fields.map((field) => `${field.key}:${field.type}`).join(",");
+  const liveShape = live.fields.map((field) => `${field.key}:${field.type}`).join(",");
+  expect(minShape === liveShape, `${question.id} fields match the minimum`);
+  expect(question.prompt === live.prompt, `${question.id} prompt matches the minimum`);
+}
+function asked(answers: IntakeAnswers): Set<string> {
+  const ids = new Set<string>();
+  for (let step = 0; step < CATALOG_STEPS.length; step += 1) {
+    for (const question of visibleCatalogQuestions(step, answers)) ids.add(question.id);
+  }
+  return ids;
+}
+const openIntake = asked(emptyAnswers());
+for (const id of ["A01", "A02", "A03", "A04", "B01", "B04", "C01", "E01", "E03", "F01", "F02", "F05", "G05", "G06", "H01", "I04"]) {
+  expect(openIntake.has(id), `${id} is asked before any branch`);
+}
+expect(!openIntake.has("D01"), "D01 is not asked without paper");
+expect(!openIntake.has("C02"), "C02 waits for a digital channel");
+expect(!openIntake.has("E02"), "E02 waits for a structured e-invoice");
+const paperIntake = asked({
+  ...emptyAnswers(),
+  katalog: { C01: { values: { kanaele: ["Post/Papier"] } } },
+});
+expect(paperIntake.has("D01"), "D01 is asked when Post/Papier is chosen");
+const mailIntake = asked({
+  ...emptyAnswers(),
+  katalog: { C01: { values: { kanaele: ["E-Mail-PDF"] } } },
+});
+expect(mailIntake.has("C02"), "C02 is asked for E-Mail-PDF");
+expect(!mailIntake.has("D01"), "E-Mail-PDF does not open the scan question");
+const invoiceIntake = asked({
+  ...emptyAnswers(),
+  katalog: { E01: { values: { formate: ["XRechnung"] } } },
+});
+expect(invoiceIntake.has("E02"), "E02 is asked for XRechnung");
 
 if (failures.length) {
   console.error(failures.join("\n"));
