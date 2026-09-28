@@ -15,10 +15,8 @@ import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import {
   firmaEditPath,
-  formatDocumentTime,
   groupFamiliesByEntity,
   newDocumentPath,
-  parseDocumentVersion,
 } from "@/lib/documents";
 import {
   entityCapReached,
@@ -31,6 +29,12 @@ import {
   findLatestStripeCustomerIdByEmail,
 } from "@/lib/store";
 import { portalStatusCopy, portalStatusFromQuery } from "@/lib/stripe";
+import {
+  currentVersionBadge,
+  formatValidityRange,
+  selectCurrentVersion,
+  versionLabelFromRow,
+} from "@/lib/versioning";
 
 export const dynamic = "force-dynamic";
 
@@ -164,26 +168,33 @@ export default async function AccountPage({
                       </div>
                     ) : (
                       <div className="entity-docs">
-                        {group.families.map((family) => (
-                          <section
-                            className="entity-doc"
-                            key={family.familyId}
-                          >
-                            <h3>
-                              {family.latest.company || "Verfahrensdokumentation"}
-                            </h3>
-                            <p className="doc-meta">
-                              Aktuell Version {parseDocumentVersion(family.latest)}{" "}
-                              · {formatDocumentTime(family.latest.timestamp)} ·{" "}
-                              {family.latest.deliveryStatus || "ready"}
-                            </p>
-                            <DocumentRevisionActions row={family.latest} />
-                            <VersionHistory
-                              headingId={`versionshistorie-${family.familyId}`}
-                              versions={family.versions}
-                            />
-                          </section>
-                        ))}
+                        {group.families.map((family) => {
+                          const pick = selectCurrentVersion(family.versions);
+                          const current = pick?.row ?? family.latest;
+                          const summary = current.changeSummary.trim() || "—";
+                          const who = current.changedBy.trim() || "—";
+                          return (
+                            <section
+                              className="entity-doc"
+                              key={family.familyId}
+                            >
+                              <h3>
+                                {family.latest.company || "Verfahrensdokumentation"}
+                              </h3>
+                              <p className="doc-meta">
+                                {currentVersionBadge(Boolean(pick?.fallback))}
+                                : Version {versionLabelFromRow(current)} · Gültig{" "}
+                                {formatValidityRange(current, family.versions)} ·{" "}
+                                {summary} · {who}
+                              </p>
+                              <DocumentRevisionActions row={family.latest} />
+                              <VersionHistory
+                                headingId={`versionshistorie-${family.familyId}`}
+                                versions={family.versions}
+                              />
+                            </section>
+                          );
+                        })}
                       </div>
                     )}
                   </article>

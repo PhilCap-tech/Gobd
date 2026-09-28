@@ -2,11 +2,18 @@ import Link from "next/link";
 import {
   documentDownloadPath,
   documentEditPath,
-  formatDocumentTime,
   intakeEditPath,
-  parseDocumentVersion,
 } from "@/lib/documents";
 import type { SheetRow } from "@/lib/types";
+import {
+  CURRENT_VERSION_RULE,
+  berlinTodayIso,
+  currentVersionBadge,
+  formatValidityRange,
+  selectCurrentVersion,
+  versionLabelFromRow,
+  versionNumber,
+} from "@/lib/versioning";
 
 export function DocumentRevisionActions({
   row,
@@ -65,11 +72,19 @@ export function VersionHistory({
   sessionId?: string;
   headingId?: string;
 }) {
+  const current = selectCurrentVersion(versions, berlinTodayIso());
+  const ordered = [...versions].sort((a, b) => {
+    const diff = versionNumber(b) - versionNumber(a);
+    if (diff !== 0) return diff;
+    return b.timestamp.localeCompare(a.timestamp);
+  });
+
   return (
     <section className="version-history" aria-labelledby={headingId}>
       <h3 className="version-heading" id={headingId}>
         Versionshistorie
       </h3>
+      <p className="version-hint">{CURRENT_VERSION_RULE}</p>
       {versions.length <= 1 && (
         <p className="version-hint">
           Nach dem Überarbeiten erscheint hier Version 2.
@@ -77,15 +92,30 @@ export function VersionHistory({
       )}
       {versions.length > 0 && (
         <ul className="version-list">
-          {versions.map((row) => (
-            <li key={row.documentId}>
-              <span>
-                Version {parseDocumentVersion(row)} ·{" "}
-                {formatDocumentTime(row.timestamp)}
-              </span>
-              <a href={documentDownloadPath(row, sessionId)}>Download</a>
-            </li>
-          ))}
+          {ordered.map((row) => {
+            const isCurrent = current?.row.documentId === row.documentId;
+            const summary = row.changeSummary.trim() || "—";
+            const who = row.changedBy.trim() || "—";
+            return (
+              <li key={row.documentId}>
+                <div className="version-copy">
+                  <span className="version-line">
+                    Version {versionLabelFromRow(row)}
+                    {isCurrent && (
+                      <span className="version-badge">
+                        {currentVersionBadge(current.fallback)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="version-detail">
+                    Gültig {formatValidityRange(row, versions)} · {summary} ·{" "}
+                    {who}
+                  </span>
+                </div>
+                <a href={documentDownloadPath(row, sessionId)}>Download</a>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

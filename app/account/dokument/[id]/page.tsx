@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { resolveChapterContent } from "@/lib/blob";
 import { editableDocumentFromRow } from "@/lib/document-content";
+import { VersionHistory } from "@/components/document-revision";
 import {
   canAccessDocument,
   documentDownloadPath,
@@ -66,7 +67,9 @@ export default async function DocumentEditPage({
   }
 
   const family = await listDocumentFamily(sourceRow.documentId);
-  const latest = groupDocumentFamilies(family)[0]?.latest ?? sourceRow;
+  const grouped = groupDocumentFamilies(family)[0];
+  const latest = grouped?.latest ?? sourceRow;
+  const versions = grouped?.versions ?? family;
   const allowed = canAccessDocument(latest, { sessionEmail });
   const draft = allowed
     ? editableDocumentFromRow({
@@ -93,11 +96,16 @@ export default async function DocumentEditPage({
               key={latest.documentId}
               sourceDocumentId={latest.documentId}
               company={latest.company}
-              nextVersion={nextVersionNumber(family)}
+              nextVersion={nextVersionNumber(versions)}
               initialCover={draft.cover}
               initialChapters={draft.chapters}
               disclaimer={draft.disclaimer}
               currentDownloadPath={documentDownloadPath(latest)}
+              defaultChangedBy={sessionEmail}
+            />
+            <VersionHistory
+              headingId="versionshistorie-dokument"
+              versions={versions}
             />
           </>
         )}

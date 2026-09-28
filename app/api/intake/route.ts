@@ -27,6 +27,7 @@ import {
   type CheckoutIdentity,
   type IntakeAnswers,
 } from "@/lib/types";
+import { normalizeVersionChange, toVersionPdfMeta } from "@/lib/versioning";
 
 export const runtime = "nodejs";
 
@@ -193,6 +194,10 @@ async function handleIntake(request: Request) {
     company?: string;
     documentId?: string;
     entityId?: string;
+    validFrom?: unknown;
+    validTo?: unknown;
+    changeSummary?: unknown;
+    changedBy?: unknown;
   };
   try {
     body = await request.json();
@@ -224,6 +229,14 @@ async function handleIntake(request: Request) {
   }
 
   const answers = body.answers;
+  const change = normalizeVersionChange(body, {
+    version,
+    defaultChangedBy: identity.email,
+  });
+  if ("error" in change) {
+    return jsonError(change.error, 400);
+  }
+  const versionMeta = toVersionPdfMeta(change);
   const documentId = randomUUID();
   if (!parentDocumentId) {
     parentDocumentId = documentId;
@@ -238,6 +251,7 @@ async function handleIntake(request: Request) {
       identity,
       documentId,
       version,
+      versionMeta,
     });
     const storedPdf = await storePdf({
       familyId: parentDocumentId,
@@ -275,6 +289,10 @@ async function handleIntake(request: Request) {
         pdfUrl,
         version: String(version),
         entityId,
+        validFrom: change.validFrom,
+        validTo: change.validTo,
+        changeSummary: change.changeSummary,
+        changedBy: change.changedBy,
       }),
     );
   } catch (error) {
