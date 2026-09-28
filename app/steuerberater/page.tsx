@@ -11,9 +11,9 @@ const PROMO_CODE = "KANZLEI-PILOT";
 const PRIMARY_CTA = "Pilot selbst testen";
 
 const PAGE_TITLE =
-  "GoBD-Verfahrensdokumentation für Mandanten — Partner-Pilot für Steuerberater";
+  "Für Steuerberater: Verfahrensdokumentation testen, Prozess & Versionierung | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "Pflicht für Mandanten, oft liegen geblieben. Tool zum schnellen, nachvollziehbaren Erstellen mit Versionierung — selbst testen, dann weiterempfehlen.";
+  "Partner-Pilot: Produkt mit Parametern testen, Prozess und Versionierung prüfen, bei Überzeugung an Mandanten weiterleiten. Pflicht-Entlastung. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -69,7 +69,7 @@ export default function SteuerberaterPage() {
         ctaHref={PILOT_HREF}
         ctaLabel={PRIMARY_CTA}
         links={[
-          { href: "#prozess", label: "Prozess" },
+          { href: "#saeulen", label: "Säulen" },
           { href: "#pilot", label: "Pilot" },
           { href: "#faq", label: "FAQ" },
         ]}
@@ -112,40 +112,122 @@ export default function SteuerberaterPage() {
             und pflegen können — damit der Hinweis aus der Kanzlei nicht in
             einer leeren Word-Datei endet.
           </p>
+          <p className="prose">
+            Ihre Rolle: Tester und Empfehler — nicht Ausfüller fürs
+            Unternehmen.
+          </p>
           <p className="hint">
             Sie füllen die Dokumentation <strong>nicht</strong> für Ihre
             Mandanten aus.
           </p>
         </section>
 
-        <section className="block" id="prozess">
-          <h2>Was manuell ist — und was rauskommt</h2>
-          <ol className="prose-list">
-            <li>
-              <strong>Manuell / Intake</strong> — Betriebsdaten, Software,
-              Belegwege, Verantwortliche: der Mandant (oder Sie im eigenen
-              Test) gibt die Parameter ein.
-            </li>
-            <li>
-              <strong>Ergebnis</strong> — Strukturierter Entwurf der
-              Verfahrensdokumentation als PDF plus Liste Offener Punkte.
-            </li>
-            <li>
-              <strong>Versionierung</strong> — Änderungen nachvollziehbar;
-              keine „welche Datei war die letzte?“-Diskussion.
-            </li>
-          </ol>
+        <section className="block" id="saeulen">
+          <h2>Worauf es ankommt</h2>
+          <div className="stack">
+            <article className="card">
+              <h3>Pflicht-Entlastung</h3>
+              <p className="prose">
+                Mandanten brauchen eine nachvollziehbare
+                Verfahrensdokumentation. Sie entlasten Kanzlei und Mandant,
+                wenn Struktur und Aktualisierung nicht als manuelle
+                Dauerbaustelle bei Ihnen liegen — ohne dass Sie für den
+                Mandanten ausfüllen.
+              </p>
+            </article>
+            <article className="card">
+              <h3>Prozess</h3>
+              <p className="prose">
+                Kurzer, geführter Ablauf: Intake → strukturiertes PDF →
+                Offene-Punkte-Liste. Sie prüfen den Ablauf im Pilot; der
+                Mandant nutzt ihn mit echten Daten nach Ihrer Weiterleitung.
+              </p>
+            </article>
+            <article className="card">
+              <h3>Versionierung</h3>
+              <p className="prose">
+                Fassungen, Historie, erneute Exporte. Weil Software und
+                Belegwege sich ändern — und ein einzelnes PDF das nicht
+                abbildet.
+              </p>
+            </article>
+          </div>
         </section>
 
-        <section className="block" id="pruefung">
-          <h2>Wenn die Prüfung kommt</h2>
+        <section className="block" id="leistung">
+          <h2>Was das Produkt leistet — und was nicht</h2>
+          <div className="legal legal-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Ja</th>
+                  <th scope="col">Nein</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    Pflicht-Entlastung über klaren Prozess + Versionierung
+                  </td>
+                  <td>
+                    Prüfungs-Fear / „sonst kommt der Prüfer“-Verkauf; Sie
+                    füllen für den Mandanten aus
+                  </td>
+                </tr>
+                <tr>
+                  <td>Sie testen mit Parametern, dann ggf. weiterleiten</td>
+                  <td>Sie füllen für den Mandanten aus</td>
+                </tr>
+                <tr>
+                  <td>PDF + Offene Punkte als strukturierter Entwurf</td>
+                  <td>Steuer-/Rechts-/Prüfungsberatung durch uns</td>
+                </tr>
+                <tr>
+                  <td>Versionen &amp; erneute Exporte (Pflege/Abo)</td>
+                  <td>„GoBD-konform per Klick“ / Prüfungsgarantie</td>
+                </tr>
+                <tr>
+                  <td>Klare Grenzen für Empfehlung</td>
+                  <td>Ersatz für Ihre Freigabe oder Haftung</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <p className="prose">
-            Die Dokumentation ist sekundenschnell abrufbar — mit Historie und
-            klarem Stand. So ist die Pflicht nicht „irgendwo in der Ablage“,
-            sondern greifbar erledigt.
+            Entlastung durch Prozess und Pflege — nicht durch Angst vor der
+            Prüfung.
+          </p>
+        </section>
+
+        <section className="block" id="versionierung">
+          <h2>Versionierung: der eigentliche Entlastungshebel</h2>
+          <p className="prose">
+            Ein einmal erzeugtes PDF ist schnell veraltet, sobald Systeme oder
+            Zuständigkeiten wechseln. Die Pflicht bleibt — der Stand nicht.
+          </p>
+          <p className="prose">Prozess der Pflege:</p>
+          <ol className="prose-list">
+            <li>
+              <strong>Erste Fassung</strong> — Setup: geführte Struktur, PDF +
+              Offene Punkte.
+            </li>
+            <li>
+              <strong>Fassungen halten</strong> — Abo: Speicherung, Versionen,
+              erneute Exporte.
+            </li>
+            <li>
+              <strong>Änderung nachziehen</strong> — Mandant aktualisiert; neue
+              Fassung zur Abstimmung mit Ihnen.
+            </li>
+          </ol>
+          <p className="prose">
+            Für die Kanzlei: weniger Dateichaos, klarere Ausgangslage für Ihre
+            fachliche Arbeit — ohne Beratungsersatz und ohne Fear-Story.
           </p>
           <p className="hint">
-            Fachliche Prüfung bleibt bei Kanzlei und Mandant.
+            Reguläre Preise (Setup + Monat) stehen auf der{" "}
+            <Link href="/#preise">Produktseite</Link>. Der Pilot zum Testen
+            bleibt der Einstieg hier.
           </p>
         </section>
 
@@ -166,15 +248,20 @@ export default function SteuerberaterPage() {
               weiter.
             </li>
           </ol>
+          <p className="hint">
+            Nicht: die Verfahrensdokumentation stellvertretend für den
+            Mandanten ausfüllen.
+          </p>
           <PilotCta />
         </section>
 
         <section className="block" id="empfehlung">
           <div className="value-note">
-            <h2>Empfehlen, wenn Ihr Test überzeugt</h2>
+            <h2>Weiterleiten, wenn Prozess und Versionierung überzeugen</h2>
             <p className="prose">
-              Nach dem eigenen Pilot: Empfehlungslink für Mandanten.
-              Cash-Affiliate später — zuerst Qualität.
+              Nach Ihrem OK: Empfehlungsweg für Mandanten. Affiliate/Cash kann
+              später kommen — zuerst Qualität. Sie bleiben Berater und
+              Qualitätsfilter, nicht Ausfüllhilfe.
             </p>
           </div>
         </section>
@@ -183,51 +270,55 @@ export default function SteuerberaterPage() {
           <h2>Was wir nicht sind</h2>
           <ul className="prose-list">
             <li>Keine Steuer- oder Rechtsberatung.</li>
-            <li>Kein Ersatz für Ihre fachliche Prüfung.</li>
-            <li>Kein Ausfüllen der VD durch die Kanzlei für den Mandanten.</li>
-            <li>Keine leere Vorlage zum Abhaken.</li>
-            <li>Keine Claims „rechtssicher“ / „GoBD-konform“.</li>
-            <li>Kein Fake-DATEV/KPMG.</li>
+            <li>Kein Ersatz für Ihre fachliche Freigabe.</li>
+            <li>Kein Modell „Kanzlei füllt für den Mandanten aus“.</li>
+            <li>Kein Fear-Marketing über Betriebsprüfung.</li>
+            <li>Keine leere Vorlage „fertig abhaken“.</li>
+            <li>
+              Keine Claims „rechtssicher“ / „automatisch GoBD-konform“.
+            </li>
+            <li>Keine Fake-Siegel fremder Marken.</li>
           </ul>
         </section>
 
         <section className="block" id="faq">
           <h2>Häufige Fragen</h2>
           <div className="faq-item">
-            <h3>Ist die Verfahrensdokumentation Pflicht?</h3>
+            <h3>Warum „Pflicht-Entlastung“?</h3>
             <p className="prose">
-              Für buchführungspflichtige Unternehmen ist sie Teil der
-              GoBD-Anforderungen. Sie weisen Mandanten darauf hin — wir helfen
-              bei der praktischen Erstellung und Pflege. (Keine
-              Rechtsberatung.)
+              Weil die Verfahrensdokumentation eine wiederkehrende Anforderung
+              an Mandanten ist. Entlastung heißt: klarer Prozess und
+              Versionierung statt Dauer-Flickwerk — nicht Angstverkauf.
             </p>
           </div>
           <div className="faq-item">
             <h3>Muss ich für Mandanten ausfüllen?</h3>
             <p className="prose">
-              Nein. Sie testen selbst, bewerten, empfehlen weiter. Der Mandant
-              nutzt den Link selbst.
+              Nein. Testen, bewerten, bei OK weiterleiten. Betriebsdaten:
+              Mandant.
             </p>
           </div>
           <div className="faq-item">
-            <h3>Was ist manuell, was kommt raus?</h3>
+            <h3>Ersetzt das meine Beratung?</h3>
+            <p className="prose">Nein.</p>
+          </div>
+          <div className="faq-item">
+            <h3>Ist das DATEV / behördlich zertifiziert?</h3>
             <p className="prose">
-              Manuell: Intake/Parameter. Raus: Entwurf + Offene Punkte,
-              versioniert.
+              Nein. Eigenes Produkt; optionales eigenes Siegel nur als unseres.
             </p>
+          </div>
+          <div className="faq-item">
+            <h3>Haften Sie für GoBD-Konformität?</h3>
+            <p className="prose">Nein.</p>
           </div>
           <div className="faq-item">
             <h3>Kostet der Pilot etwas?</h3>
             <p className="prose">
               Partner-Promo <strong className="promo-code">{PROMO_CODE}</strong>{" "}
               (100 % für Setup + Abo, 2 Monate; Details im Checkout). Reguläre
-              Preise erst beim Kauf.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>DATEV / Zertifizierung?</h3>
-            <p className="prose">
-              Nein. IKAT GmbH; optionales eigenes Partner-Siegel.
+              Preise erst beim Kauf — siehe{" "}
+              <Link href="/#preise">Produktseite</Link>.
             </p>
           </div>
         </section>
@@ -243,10 +334,11 @@ export default function SteuerberaterPage() {
             <Link href="/impressum">Impressum</Link>
           </p>
           <p className="disclaimer">
-            Dies ist keine Steuer- oder Rechtsberatung. Der Pilot dient der
-            eigenen Bewertung durch die Kanzlei. Eine Weiterempfehlung ersetzt
-            keine fachliche Prüfung. Die Verfahrensdokumentation bleibt
-            Verantwortung des Mandanten.
+            Allgemeine Partnerinformation von gobd-doku-erstellen.de (IKAT
+            GmbH). Keine Steuer-, Rechts- oder Prüfungsberatung. Keine
+            Zusicherung von GoBD-Konformität. Partner-Rolle: testen und ggf.
+            empfehlen — nicht ausfüllen für Mandanten. Kein Fear-Claim.
+            Fachliche Freigabe beim Mandanten bzw. bei beraterischer Leistung.
           </p>
         </section>
       </main>
