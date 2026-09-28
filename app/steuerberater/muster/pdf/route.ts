@@ -10,6 +10,7 @@ import {
 
 export const runtime = "nodejs";
 
+// Folge: gemeinsame Liefervorlagen; ein Umbenennen hier würde alle Kunden-PDFs ändern.
 export async function GET() {
   const { buffer } = await generatePdf({
     answers: PARTNER_MUSTER_ANSWERS,
