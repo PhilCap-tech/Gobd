@@ -49,15 +49,17 @@ export default function HomePage() {
             Wenn nur Fragmente oder eine leere Vorlage liegen, fehlt der
             greifbare Stand. Hier erstellst du die Verfahrensdokumentation{" "}
             <strong>online selbst</strong> — geführt, in unter einer Stunde —
-            als PDF plus Offene-Punkte-Liste. Kein Warteschleifen-Termin. Zur
-            Abstimmung mit deinem Steuerberater.
+            als PDF plus Offene-Punkte-Liste. Kein Warteschleifen-Termin. Für
+            die meisten Betriebe reicht diese Fassung. Eine Abstimmung mit dem
+            Steuerberater ist optional und nur im Rahmen eines gesonderten
+            Auftrags.
           </p>
           <p className="outcome-line">
-            PDF + Offene-Punkte in unter einer Stunde · Entwurf für deinen
-            Steuerberater
+            PDF + Offene-Punkte in unter einer Stunde · in der Regel direkt
+            nutzbar
           </p>
           <PaidCta
-            trust="Sofort starten online · 14 Tage Geld-zurück · Keine Steuerberatung · Entwurf für deinen Steuerberater"
+            trust="Sofort starten online · 14 Tage Geld-zurück · Keine Steuerberatung"
             secondaryLabel="Kostenloser Leitfaden"
             secondaryHint="Kurzer Check + Branchen-Grundlagen-PDF — noch keine fertige Verfahrensdokumentation."
           />
@@ -110,8 +112,8 @@ export default function HomePage() {
               Co.)
             </li>
             <li>
-              Entwurf zur Abstimmung mit dem Steuerberater — kein Ersatz für
-              Beratung
+              Für die meisten Betriebe die nutzbare Fassung. Anpassungen bei
+              besonderen Verfahren sind möglich. Keine Steuerberatung.
             </li>
           </ul>
         </section>
@@ -128,9 +130,11 @@ export default function HomePage() {
               Offene-Punkte-Liste.
             </li>
             <li>
-              <strong>Mit dem Steuerberater abstimmen</strong> — Entwurf prüfen,
-              Lücken schließen, ablegen. Danach im Login pflegen und neu
-              exportieren.
+              <strong>Ablegen und bei Bedarf anpassen</strong> — Die Fassung aus
+              deinen Angaben reicht in der Regel. Bei besonderen Verfahren
+              ergänzt du selbst. Eine Abstimmung mit dem Steuerberater ist
+              freiwillig und nur im Rahmen eines gesonderten Auftrags. Danach
+              im Login pflegen und neu exportieren.
             </li>
           </ol>
         </section>
@@ -149,8 +153,9 @@ export default function HomePage() {
               veraltet.
             </p>
             <p className="hint">
-              Keine Steuer- oder Rechtsberatung. Entwurf zur Abstimmung mit
-              deinem Steuerberater.
+              Keine Steuer- oder Rechtsberatung. Die Fassung aus deinen Angaben
+              reicht in der Regel. Eine Abstimmung mit dem Steuerberater ist
+              optional und nur im Rahmen eines gesonderten Auftrags.
             </p>
           </div>
         </section>
@@ -203,9 +208,12 @@ export default function HomePage() {
           <div className="faq-item">
             <h3>Muss das der Steuerberater machen?</h3>
             <p className="prose">
-              Nicht zwingend. Viele Betriebe liefern dem Berater bisher nur
-              Fragmente. Hier bekommst du einen strukturierten Entwurf — der
-              Berater prüft und ergänzt, statt bei Null anzufangen.
+              Nein. Du erstellst die Verfahrensdokumentation selbst aus deinen
+              Angaben. Für die meisten Betriebe reicht diese Fassung. Eine
+              Abstimmung mit dem Steuerberater ist freiwillig und nur im Rahmen
+              eines gesonderten Auftrags — sie gehört nicht automatisch zur
+              Lieferung. Bei besonderen Verfahren kannst du die Fassung
+              anpassen.
             </p>
           </div>
           <div className="faq-item">
@@ -214,7 +222,7 @@ export default function HomePage() {
               Die GoBD erwarten eine nachvollziehbare Verfahrensdokumentation.
               Viele Betriebe schieben sie auf, weil Vorlagen leer bleiben oder
               der Aufwand unklar ist. Ein geführter Entwurf schafft einen
-              greifbaren Stand zur Abstimmung mit dem Steuerberater.
+              greifbaren Stand, den du in der Regel selbst ablegen kannst.
             </p>
           </div>
           <div className="faq-item">
@@ -231,8 +239,10 @@ export default function HomePage() {
             <p className="prose">
               Ein Online-Produkt. Du beantwortest kurze Fragen und erhältst PDF
               plus Offene-Punkte-Liste — ohne Warteschleife auf einen
-              Beratungstermin. Die fachliche Prüfung bleibt bei deinem
-              Steuerberater. Wir leisten keine Steuerberatung.
+              Beratungstermin. Wir leisten keine Steuerberatung. Die Lieferung
+              reicht in der Regel. Eine fachliche Abstimmung mit deinem
+              Steuerberater ist optional und nur, wenn du sie gesondert
+              beauftragst.
             </p>
           </div>
           <div className="faq-item">
@@ -248,9 +258,10 @@ export default function HomePage() {
             <h3>Haftet ihr — ist das rechtssicher / GoBD-konform?</h3>
             <p className="prose">
               Nein. Wir leisten keine Steuer- oder Rechtsberatung. Das PDF ist
-              ein geführter Entwurf zur Abstimmung mit deinem Steuerberater. Die
-              Verantwortung für die Dokumentation liegt bei dir bzw. bei der
-              Abstimmung mit deinem Steuerberater.
+              die Fassung aus deinen Angaben und reicht in der Regel. Die
+              Verantwortung für die Dokumentation liegt bei dir. Eine Abstimmung
+              mit dem Steuerberater ist optional und nur im Rahmen eines
+              gesonderten Auftrags.
             </p>
           </div>
           <div className="faq-item">

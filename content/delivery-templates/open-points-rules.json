@@ -147,22 +147,6 @@
       "severity": "low",
       "when": "empty",
       "text": "Steuerberatung nicht angegeben (falls vorhanden bzw. an der Belegverarbeitung beteiligt, nachtragen)."
-    },
-    {
-      "id": "op-stripe-session",
-      "field": "identity.stripeSessionId",
-      "chapter": "00-cover",
-      "severity": "low",
-      "when": "empty",
-      "text": "Stripe-Session-Referenz fehlt — Nachvollziehbarkeit der Bestellung/Generierung eingeschränkt."
-    },
-    {
-      "id": "op-stripe-customer",
-      "field": "identity.stripeCustomerId",
-      "chapter": "00-cover",
-      "severity": "low",
-      "when": "empty",
-      "text": "Stripe-Kundenreferenz fehlt — optionale Nachvollziehbarkeit der Bestellung."
     }
   ],
   "outputItemShape": {

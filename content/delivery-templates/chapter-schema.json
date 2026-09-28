@@ -25,10 +25,7 @@
       "role": "cover",
       "fields": [
         "identity.company",
-        "identity.email",
-        "identity.stripeSessionId",
-        "identity.stripeCustomerId",
-        "identity.stub"
+        "identity.email"
       ]
     },
     {

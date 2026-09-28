@@ -26,6 +26,7 @@ JSON `identity` + `answers` wie im Builder-Contract (siehe `sample-intake.json`)
 ### Intake-Felder (camelCase)
 
 - `identity`: `email`, `company`, `stripeSessionId`, `stripeCustomerId`, `stub`
+- Stripe-Session, Stripe-Kunde und Stub bleiben in der Identität für Checkout, Webhook und Konto. Sie stehen nicht auf dem Deckblatt und sind keine fachlichen offenen Punkte.
 - `answers`: `branchen[]`, `rechtsform`, `mitarbeitende`, `fibu[]`, `weitereSysteme`, `eingangsbelege[]`, `ausgangsrechnungen[]`, `archiv`, `hosting`, `backup[]`, `zugriff`, `gf`, `buchhaltung`, `it`, `steuerberater`
 
 ## Ausgabe-Reihenfolge (PDF)

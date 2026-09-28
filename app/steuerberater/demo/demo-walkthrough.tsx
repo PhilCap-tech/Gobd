@@ -104,9 +104,9 @@ export function DemoWalkthrough() {
     <>
       <p className="banner">
         Beispiel-Fragen — so etwa läuft der Prozess. Angaben hier sind ein
-        Test, kein Mandantenmandat. Nichts wird gespeichert: kein Konto, kein
-        Checkout, kein Schreibzugriff auf Google Sheets. Die Fragen und die
-        Prüfung vor „Weiter“ sind die aus dem produktiven Ablauf.
+        Test, kein Mandantenmandat. Die Demo speichert keine Eingaben: kein
+        Konto, kein Checkout. Die Fragen und die Prüfung vor „Weiter“ sind die
+        aus dem produktiven Ablauf.
       </p>
 
       {step < 6 && (

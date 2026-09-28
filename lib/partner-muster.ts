@@ -13,7 +13,9 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
  *
  * Left empty on purpose so the open-points rules fire:
  * - weitereSysteme, it
- * - Stripe session/customer (no checkout on this sample)
+ *
+ * Stripe session/customer stay empty here. They are not open-point rules
+ * and are not printed on the customer PDF.
  *
  * PDF is not a static file. GET /steuerberater/muster/pdf calls generatePdf
  * with this fixture — the delivery pipeline. To regenerate locally:
