@@ -20,7 +20,7 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import type { VersionPdfMeta } from "@/lib/versioning";
 
 /**
- * GoBD Delivery Templates v2.0.0 — local PDF from Intake + content/delivery-templates.
+ * GoBD Delivery Templates v3.0.0 — local PDF from Intake + content/delivery-templates.
  * Präsens only for confirmed intake answers. No technical ids in the customer PDF.
  */
 
@@ -82,25 +82,26 @@ export type DeliveryPlan = {
 function hintFromAnswers(id: string, answers: IntakeAnswers): string {
   const join = (values: string[]) => values.join(", ");
   switch (id) {
-    case "01-vorbemerkungen":
-      return answers.gf || "GF fehlt";
-    case "02-zielsetzung":
-      return join(answers.branchen) || answers.rechtsform || "Branche fehlt";
-    case "03-organisation":
-    case "03-organisation-sicherheit":
-      return join(answers.fibu) || "FiBu fehlt";
-    case "04-verfahren-papier":
+    case "01-merkmal-tabelle":
+      return answers.gf || join(answers.branchen) || "Merkmal";
+    case "02-zweck-grenzen":
+      return answers.gf || "Zweck";
+    case "03-systeme-belegarten":
+      return join(answers.fibu) || "Systeme";
+    case "04-eingang-pruefung":
       return join(answers.eingangsbelege) || "Eingang fehlt";
-    case "05-verfahren-digital":
-      return join(answers.ausgangsrechnungen) || "Ausgang fehlt";
-    case "06-mitgeltende-unterlagen":
-      return answers.steuerberater || "Mitgeltende Unterlagen";
-    case "07-aenderungshistorie":
-      return "Erstfassung";
-    case "08-glossar":
-      return "Quellen";
-    case "09-offene-punkte":
+    case "05-freigabe-buchung":
+      return join(answers.ausgangsrechnungen) || "Freigabe";
+    case "06-aufbewahrung":
+      return answers.archiv || "Aufbewahrung";
+    case "07-kontrollen-aenderungen":
+      return "Kontrollen";
+    case "08-anlagen-offene-punkte":
       return "Offene Punkte";
+    case "09-version-bestaetigung":
+      return "Bestätigung ausstehend";
+    case "10-quellen":
+      return "Quellen";
     default:
       return "";
   }

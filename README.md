@@ -155,7 +155,7 @@ Branche-Schlüssel: `handwerk` | `handel` | `praxis` | `gastronomie` | `dienstle
 
 ## PDF, Blob, E-Mail, Magic Link
 
-Nach dem Intake entsteht die **Verfahrensdokumentation PDF** (pdfkit, Delivery Templates v2.0.0) lokal aus `content/delivery-templates/` (Markdown-Kapitel + `bundle.json`): Titelseite mit Logo-Lockup und den festgelegten Angaben → Kapitel, die nur bestätigte Fragebogenwerte im Präsens wiedergeben; alles andere als Hinweis oder offener Punkt. Das Papierkapitel entfällt ohne „Papierordner“ oder „Scan / App“. Disclaimer auf dem Deckblatt, Kurzzeile in der Fußzeile ohne Dokument-ID, Seitenzahlen. Platzhalter `{{identity.*}}` / `{{answers.*}}` / `{{version}}` / `{{generatedAt}}` / `{{disclaimer}}` mit `| join ", "` und `| or "nicht angegeben"`. Offene Punkte (leer, includes, always; keine Widerspruchsprüfung) als `{{openPointsTable}}`. Keine erfundenen Zertifikate, Pfade oder Personennamen.
+Nach dem Intake entsteht die **Verfahrensdokumentation PDF** (pdfkit, Delivery Templates v3.0.0) lokal aus `content/delivery-templates/` (Markdown-Kapitel + `bundle.json`): Deckblatt ohne Zahlungsreferenzen, dann die v3-Kapitel. Präsens nur für bestätigte Angaben (`{{#if}}` / `contains`); sonst Hinweis oder offener Punkt. Papierabschnitte entfallen ohne Papier-/Scan-Token. Offene Punkte mit `customerFacing: false` (Stripe, Stub, interne E-Mail) erscheinen nicht. Fußzeile ohne Dokument-ID. Regeln: `content/delivery-templates/QUALITY-RULES-v3.md`.
 
 Lokal erzeugen: `npx tsx scripts/render-sample-delivery-pdf.ts` (Intake: `content/delivery-templates/sample-intake.json`). Bundle neu bauen: `node content/delivery-templates/build-bundle.mjs`.
 

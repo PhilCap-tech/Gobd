@@ -1,0 +1,32 @@
+{
+  "identity": {
+    "email": "demo@beispiel.invalid",
+    "company": "Beispiel GmbH",
+    "stripeSessionId": "cs_test_DO_NOT_PUT_IN_PDF",
+    "stripeCustomerId": "cus_DO_NOT_PUT_IN_PDF",
+    "stub": false
+  },
+  "answers": {
+    "branchen": ["B2B-Dienstleistungen"],
+    "rechtsform": "GmbH",
+    "mitarbeitende": "1-5",
+    "fibu": ["DATEV"],
+    "weitereSysteme": "Funktionspostfach für Eingangsrechnungen; Rechnungssoftware für Ausgang",
+    "eingangsbelege": ["E-Mail", "PDF"],
+    "ausgangsrechnungen": ["Rechnungssoftware"],
+    "archiv": "DATEV Unternehmen online",
+    "hosting": "SaaS / Anbieter-Cloud",
+    "backup": ["Anbieter-Backup"],
+    "zugriff": "Geschäftsführung und Buchhaltung; Kanzlei im Mandatsumfang",
+    "gf": "Anna Beispiel",
+    "buchhaltung": "Ben Muster",
+    "it": "nicht angegeben",
+    "steuerberater": "externe Kanzlei (Leistungsumfang zu bestätigen)"
+  },
+  "_meta": {
+    "purpose": "Partner-Trust anonymisierte Fixture — digital only, kein Papierweg",
+    "expectedChapters": ["00-cover","01-merkmal-tabelle","02-zweck-grenzen","03-systeme-belegarten","04-eingang-pruefung","05-freigabe-buchung","06-aufbewahrung","07-kontrollen-aenderungen","08-anlagen-offene-punkte","09-version-bestaetigung","10-quellen"],
+    "mustOmit": ["Vollkapitel Papier/Scan", "stripe*", "stub", "rules.json"],
+    "note": "stripe*/stub nur intern — nie im Kundendoc"
+  }
+}

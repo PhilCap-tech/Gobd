@@ -159,8 +159,8 @@ export default function SteuerberaterPage() {
             Beispielzeilen daneben.
           </p>
           <p className="hint">
-            Beispiel GmbH (anonymisiert) · DATEV · Eingang „E-Mail / PDF“ ·
-            Ausgang „aus Buchhaltungssoftware“ · Version 1.0 · kein echtes
+            Beispiel GmbH (fiktiv) · DATEV · Eingang E-Mail und PDF · Ausgang
+            Rechnungssoftware · kein Papierweg · Version 1.0 · kein echtes
             Mandantendokument · keine Konformitätszusage
           </p>
           <h3>Kapitel</h3>

@@ -1,168 +1,115 @@
 {
-  "version": "2.0.0",
-  "slice": "A+B",
+  "version": "3.0.0",
+  "slice": "quality-v3",
   "language": "de",
-  "disclaimerId": "disclaimer",
   "defaultVersion": "1.0",
-  "outline": [
-    "cover",
-    "vorbemerkungen",
-    "zielsetzung",
-    "organisation-sicherheit",
-    "verfahren-papier",
-    "verfahren-digital",
-    "mitgeltende-unterlagen",
-    "aenderungshistorie",
-    "glossar",
-    "offene-punkte"
-  ],
+  "disclaimerId": "disclaimer",
   "chapters": [
     {
       "id": "00-cover",
       "title": "Deckblatt",
       "order": 0,
       "templateFile": "chapters/00-cover.md",
-      "role": "cover",
-      "fields": [
-        "identity.company",
-        "identity.email"
-      ]
+      "role": "cover"
     },
     {
-      "id": "01-vorbemerkungen",
-      "title": "1. Zweck und Grenzen",
+      "id": "01-merkmal-tabelle",
+      "title": "1 Merkmalübersicht",
       "order": 1,
-      "templateFile": "chapters/01-vorbemerkungen.md",
-      "fields": [
-        "answers.gf"
-      ]
+      "templateFile": "chapters/01-merkmal-tabelle.md"
     },
     {
-      "id": "02-zielsetzung",
-      "title": "2. Systeme und Belegarten",
+      "id": "02-zweck-grenzen",
+      "title": "2 Zweck und Grenzen",
       "order": 2,
-      "templateFile": "chapters/02-zielsetzung.md",
-      "subsections": [
-        "Festgelegte Angaben",
-        "Was die Nennung nicht schon beschreibt"
-      ],
-      "fields": [
-        "identity.company",
-        "identity.email",
-        "answers.branchen",
-        "answers.rechtsform",
-        "answers.mitarbeitende",
-        "answers.eingangsbelege",
-        "answers.ausgangsrechnungen",
-        "answers.archiv",
-        "answers.steuerberater"
-      ]
+      "templateFile": "chapters/02-zweck-grenzen.md"
     },
     {
-      "id": "03-organisation-sicherheit",
-      "title": "3. Verantwortung, Zugriff und Aufbewahrung",
+      "id": "03-systeme-belegarten",
+      "title": "3 Systeme und Belegarten",
       "order": 3,
-      "templateFile": "chapters/03-organisation-sicherheit.md",
-      "subsections": [
-        "Benannte Stellen",
-        "Ort, Sicherung, Zugriff",
-        "Aufbewahrung",
-        "Kontrollen"
-      ],
-      "fields": [
-        "answers.fibu",
-        "answers.weitereSysteme",
-        "answers.hosting",
-        "answers.archiv",
-        "answers.backup",
-        "answers.zugriff",
-        "answers.gf",
-        "answers.buchhaltung",
-        "answers.it",
-        "answers.steuerberater"
-      ]
+      "templateFile": "chapters/03-systeme-belegarten.md"
     },
     {
-      "id": "04-verfahren-papier",
-      "title": "4. Papierweg",
+      "id": "04-eingang-pruefung",
+      "title": "4 Eingang und Prüfung",
       "order": 4,
-      "templateFile": "chapters/04-verfahren-papier.md",
-      "omitUnlessIntakeIncludes": ["Papierordner", "Scan / App"],
-      "subsections": [
-        "Nur bei Papierordner oder Scan/App; Schritte sonst zu bestätigen"
-      ],
-      "fields": [
-        "answers.eingangsbelege",
-        "answers.ausgangsrechnungen",
-        "answers.archiv",
-        "answers.fibu",
-        "answers.backup",
-        "answers.zugriff",
-        "answers.gf",
-        "answers.buchhaltung",
-        "answers.steuerberater"
-      ]
+      "templateFile": "chapters/04-eingang-pruefung.md",
+      "includeIf": {
+        "anyPathNonEmpty": [
+          "answers.eingangsbelege"
+        ]
+      },
+      "conditionals": {
+        "paperBranch": {
+          "containsAny": [
+            "answers.eingangsbelege",
+            [
+              "Papier",
+              "Post",
+              "Scan"
+            ]
+          ]
+        },
+        "emailPdfBranch": {
+          "containsAny": [
+            "answers.eingangsbelege",
+            [
+              "E-Mail",
+              "Email",
+              "PDF",
+              "Mail"
+            ]
+          ]
+        },
+        "erechnungBranch": {
+          "containsAny": [
+            "answers.eingangsbelege",
+            [
+              "E-Rechnung",
+              "XRechnung",
+              "ZUGFeRD",
+              "XML"
+            ]
+          ]
+        }
+      }
     },
     {
-      "id": "05-verfahren-digital",
-      "title": "5. Eingang, Ausgang und Ablage",
+      "id": "05-freigabe-buchung",
+      "title": "5 Freigabe, Buchung und Nachvollziehbarkeit",
       "order": 5,
-      "templateFile": "chapters/05-verfahren-digital.md",
-      "subsections": [
-        "Festgelegte Wege",
-        "Noch zu beschreiben"
-      ],
-      "fields": [
-        "answers.eingangsbelege",
-        "answers.ausgangsrechnungen",
-        "answers.archiv",
-        "answers.fibu",
-        "answers.weitereSysteme",
-        "answers.hosting",
-        "answers.backup",
-        "answers.zugriff",
-        "answers.gf",
-        "answers.buchhaltung",
-        "answers.it",
-        "answers.steuerberater"
-      ]
+      "templateFile": "chapters/05-freigabe-buchung.md"
     },
     {
-      "id": "06-mitgeltende-unterlagen",
-      "title": "6. Mitgeltende Unterlagen",
+      "id": "06-aufbewahrung",
+      "title": "6 Aufbewahrung, Zugriff und Sicherung",
       "order": 6,
-      "templateFile": "chapters/06-mitgeltende-unterlagen.md",
-      "fields": [
-        "answers.steuerberater",
-        "answers.weitereSysteme",
-        "answers.backup"
-      ]
+      "templateFile": "chapters/06-aufbewahrung.md"
     },
     {
-      "id": "07-aenderungshistorie",
-      "title": "7. Version",
+      "id": "07-kontrollen-aenderungen",
+      "title": "7 Kontrollen und Änderungen",
       "order": 7,
-      "templateFile": "chapters/07-aenderungshistorie.md",
-      "fields": [
-        "identity.company"
-      ]
+      "templateFile": "chapters/07-kontrollen-aenderungen.md"
     },
     {
-      "id": "08-glossar",
-      "title": "8. Quellen",
+      "id": "08-anlagen-offene-punkte",
+      "title": "8 Anlagen und offene Punkte",
       "order": 8,
-      "templateFile": "chapters/08-glossar.md",
-      "fields": []
+      "templateFile": "chapters/08-anlagen-offene-punkte.md"
     },
     {
-      "id": "09-offene-punkte",
-      "title": "9. Offene Punkte",
+      "id": "09-version-bestaetigung",
+      "title": "9 Version und betriebliche Bestätigung",
       "order": 9,
-      "templateFile": "chapters/09-offene-punkte.md",
-      "generatedFrom": "Regelsatz Offene Punkte (leer, includes, always; keine Widerspruchsprüfung)",
-      "fields": [
-        "answers.gf"
-      ]
+      "templateFile": "chapters/09-version-bestaetigung.md"
+    },
+    {
+      "id": "10-quellen",
+      "title": "10 Quellen",
+      "order": 10,
+      "templateFile": "chapters/10-quellen.md"
     }
   ]
 }

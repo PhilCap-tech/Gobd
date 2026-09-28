@@ -6,15 +6,16 @@ export type OpenPointSeverity = "low" | "medium" | "high";
 /** Customer-facing labels. The PDF and partner excerpt do not print template ids. */
 export const OPEN_POINT_CHAPTER_LABELS: Record<string, string> = {
   "00-cover": "Deckblatt",
-  "01-vorbemerkungen": "1. Zweck und Grenzen",
-  "02-zielsetzung": "2. Systeme und Belegarten",
-  "03-organisation-sicherheit": "3. Verantwortung, Zugriff und Aufbewahrung",
-  "04-verfahren-papier": "4. Papierweg",
-  "05-verfahren-digital": "5. Eingang, Ausgang und Ablage",
-  "06-mitgeltende-unterlagen": "6. Mitgeltende Unterlagen",
-  "07-aenderungshistorie": "7. Version",
-  "08-glossar": "8. Quellen",
-  "09-offene-punkte": "9. Offene Punkte",
+  "01-merkmal-tabelle": "Merkmalübersicht",
+  "02-zweck-grenzen": "Zweck und Grenzen",
+  "03-systeme-belegarten": "Systeme und Belegarten",
+  "04-eingang-pruefung": "Eingang und Prüfung",
+  "05-freigabe-buchung": "Freigabe und Buchung",
+  "06-aufbewahrung": "Aufbewahrung",
+  "07-kontrollen-aenderungen": "Kontrollen und Änderungen",
+  "08-anlagen-offene-punkte": "Anlagen und offene Punkte",
+  "09-version-bestaetigung": "Version und Bestätigung",
+  "10-quellen": "Quellen",
 };
 
 export function openPointChapterLabel(id?: string): string {
@@ -29,6 +30,8 @@ export type DeliveryOpenPoint = {
   status: "open";
   chapter?: string;
   field?: string;
+  /** Resolved from the rule, for the customer table. Empty when the rule names nobody. */
+  responsibility?: string;
 };
 
 /** Labels the rules treat as empty. Selected UI values such as „Unklar“ are not in this list. */
@@ -63,33 +66,48 @@ function lookup(root: object, pathExpr: string): unknown {
   return current;
 }
 
-/** Intake options that make the paper chapter applicable. Steps inside it stay unconfirmed. */
-export const PAPER_PATH_OPTIONS = ["Papierordner", "Scan / App"] as const;
+const INTERNAL_OPEN_POINT_FIELDS = new Set([
+  "identity.stripeSessionId",
+  "identity.stripeCustomerId",
+  "identity.stub",
+]);
 
-export function intakeIncludesPaperPath(values: readonly string[]): boolean {
-  return values.some((item) =>
-    (PAPER_PATH_OPTIONS as readonly string[]).includes(item.trim()),
-  );
+/** Case-insensitive token match. Hyphens are ignored so „E-Mail“ matches „Email“. */
+export function intakeValueContainsToken(value: unknown, token: string): boolean {
+  const needle = normalizeIntakeToken(token);
+  if (!needle) return false;
+  const items = Array.isArray(value) ? value.map((item) => String(item)) : [String(value ?? "")];
+  return items.some((item) => normalizeIntakeToken(item).includes(needle));
 }
 
-function asTextList(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-  if (value == null) return [];
-  const text = String(value).trim();
-  return text ? [text] : [];
+function normalizeIntakeToken(value: string): string {
+  return value.trim().toLowerCase().replace(/-/g, "");
 }
 
-function ruleMatchesIncludes(value: unknown, needles: readonly string[]): boolean {
-  if (needles.length === 0) return false;
-  const haystack = asTextList(value);
-  return needles.some((needle) => haystack.includes(needle));
+function ruleIsCustomerFacing(rule: {
+  customerFacing?: boolean;
+  field?: string | null;
+}): boolean {
+  if (rule.customerFacing === false) return false;
+  if (rule.field && INTERNAL_OPEN_POINT_FIELDS.has(rule.field)) return false;
+  return true;
+}
+
+function responsibilityLabel(
+  root: object,
+  field: string | null | undefined,
+): string | undefined {
+  if (!field) return undefined;
+  const value = lookup(root, field);
+  if (isEmptyIntakeValue(value)) return "zu benennen";
+  return String(value).trim();
 }
 
 /**
- * Same rules as the PDF open-points table (`open-points-rules` via `bundle.json`).
- * `when: "empty"`, `when: "includes"`, and `when: "always"`. No contradiction checks.
+ * Customer open points from `open-points-rules` via `bundle.json`.
+ * `when`: `empty`, `always`, `arrayContainsAny` (and legacy `includes`).
+ * Rules with `customerFacing: false` and Stripe/stub fields are omitted.
+ * No contradiction checks.
  */
 export function evaluateOpenPoints(input: {
   answers: IntakeAnswers;
@@ -101,37 +119,38 @@ export function evaluateOpenPoints(input: {
   };
   const points: DeliveryOpenPoint[] = [];
   for (const rule of bundle.openPointsRules.rules) {
+    if (!ruleIsCustomerFacing(rule)) continue;
     const when = "when" in rule ? String(rule.when) : "empty";
+    const field = "field" in rule && rule.field ? String(rule.field) : undefined;
+    const value = field ? lookup(root, field) : undefined;
+    let matches = false;
     if (when === "always") {
-      points.push({
-        id: rule.id,
-        title: rule.text,
-        severity: rule.severity as OpenPointSeverity,
-        status: "open",
-        chapter: "chapter" in rule ? String(rule.chapter) : undefined,
-        field: "field" in rule ? String(rule.field) : undefined,
-      });
-      continue;
+      matches = true;
+    } else if (when === "empty") {
+      matches = Boolean(field) && isEmptyIntakeValue(value);
+    } else if (when === "arrayContainsAny" || when === "includes") {
+      const tokens =
+        "tokens" in rule && Array.isArray(rule.tokens)
+          ? rule.tokens.filter((item): item is string => typeof item === "string")
+          : "includes" in rule && Array.isArray(rule.includes)
+            ? rule.includes.filter((item): item is string => typeof item === "string")
+            : [];
+      matches = tokens.some((token) => intakeValueContainsToken(value, token));
     }
-    if (when !== "empty" && when !== "includes") continue;
-    if (!("field" in rule) || !rule.field) continue;
-    const value = lookup(root, String(rule.field));
-    if (when === "includes") {
-      const needles =
-        "includes" in rule && Array.isArray(rule.includes)
-          ? rule.includes.filter((item): item is string => typeof item === "string")
-          : [];
-      if (!ruleMatchesIncludes(value, needles)) continue;
-    } else if (!isEmptyIntakeValue(value)) {
-      continue;
-    }
+    if (!matches) continue;
     points.push({
       id: rule.id,
       title: rule.text,
       severity: rule.severity as OpenPointSeverity,
       status: "open",
       chapter: "chapter" in rule ? String(rule.chapter) : undefined,
-      field: String(rule.field),
+      field,
+      responsibility: responsibilityLabel(
+        root,
+        "responsibilityField" in rule && rule.responsibilityField
+          ? String(rule.responsibilityField)
+          : undefined,
+      ),
     });
   }
   return points;

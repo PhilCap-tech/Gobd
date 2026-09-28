@@ -63,9 +63,9 @@ const facts: Array<[string, string]> = [
   ["Hosting", PARTNER_MUSTER_ANSWERS.hosting],
   ["Backup", PARTNER_MUSTER_ANSWERS.backup.join(", ")],
   ["Zugriff", PARTNER_MUSTER_ANSWERS.zugriff],
-  ["Weitere Systeme", "leer — offener Punkt"],
-  ["IT", "leer — offener Punkt"],
-  ["Gültig ab", PARTNER_MUSTER_VERSION_META.validFrom],
+  ["Weitere Systeme", PARTNER_MUSTER_ANSWERS.weitereSysteme],
+  ["IT", "nicht angegeben — offener Punkt"],
+  ["Gültig ab", PARTNER_MUSTER_VERSION_META.validFrom || "von der Geschäftsführung festzulegen"],
   ["Änderung im PDF", PARTNER_MUSTER_VERSION_META.changeSummary],
 ];
 
@@ -91,12 +91,10 @@ export default function PartnerMusterPage() {
             </Link>
           </div>
           <p className="hint">
-            Festgelegte Beispieldaten, die der Fragebogen abbilden kann: GmbH,
-            Dienstleistung, Größenordnung 2–5, DATEV, Eingang nur „E-Mail /
-            PDF“, Ausgang „aus Buchhaltungssoftware“, Archiv „DATEV Unternehmen
-            online“, Anna Beispiel, Ben Muster, Kanzlei Beispiel. Gültig ab{" "}
-            {PARTNER_MUSTER_VERSION_META.validFrom}. Die Erzeugung ist keine
-            Freigabe.
+            Festgelegte Beispieldaten: Beispiel GmbH, B2B-Dienstleistungen,
+            DATEV, Eingang E-Mail und PDF, Ausgang über Rechnungssoftware,
+            Archiv „DATEV Unternehmen online“, Anna Beispiel, Ben Muster.
+            Kein Papierweg. Die Erzeugung ist keine Freigabe.
           </p>
         </section>
 
@@ -125,8 +123,8 @@ export default function PartnerMusterPage() {
           </ol>
           <p className="hint">
             Präsens im PDF nur für die festgelegten Angaben. Alles andere ist
-            Hinweis oder offener Punkt. Ein Papierkapitel entsteht nur bei
-            „Papierordner“ oder „Scan / App“. In diesem Muster entfällt es.
+            Hinweis oder offener Punkt. Ein Papierabschnitt entsteht nur, wenn
+            ein Papier- oder Scanweg genannt ist. In diesem Muster entfällt er.
           </p>
         </section>
 

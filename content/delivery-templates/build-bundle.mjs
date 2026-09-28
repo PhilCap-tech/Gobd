@@ -17,6 +17,7 @@ const chapters = schema.chapters
     id: chapter.id,
     title: chapter.title,
     file: chapter.templateFile,
+    ...(chapter.includeIf ? { includeIf: chapter.includeIf } : {}),
     markdown: read(chapter.templateFile),
   }));
 

@@ -3,9 +3,8 @@ import path from "node:path";
 import bundle from "@/content/delivery-templates/bundle.json";
 import {
   evaluateOpenPoints,
-  intakeIncludesPaperPath,
+  intakeValueContainsToken,
   isEmptyIntakeValue,
-  openPointChapterLabel,
   type DeliveryOpenPoint,
 } from "@/lib/open-points";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
@@ -59,6 +58,9 @@ type BundleChapter = {
   title?: string;
   file?: string;
   markdown: string;
+  includeIf?: {
+    anyPathNonEmpty?: string[];
+  };
 };
 
 function firstFilled(...values: string[]): string {
@@ -160,8 +162,69 @@ function applyFilters(value: unknown, filters: Filter[]): string {
   return current == null ? "" : String(current);
 }
 
-export function renderTemplate(template: string, context: TemplateContext): string {
-  return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, expr: string) => {
+function conditionHolds(expr: string, context: TemplateContext): boolean {
+  const contains = expr.match(/^(.+?)\s+contains\s+["']([^"']+)["']$/);
+  if (contains) {
+    return intakeValueContainsToken(lookup(context, contains[1].trim()), contains[2]);
+  }
+  return !isEmptyIntakeValue(lookup(context, expr.trim()));
+}
+
+function findBlockEnd(
+  input: string,
+  from: number,
+): { bodyEnd: number; tagEnd: number } {
+  let depth = 1;
+  let index = from;
+  while (index < input.length) {
+    const nextOpen = input.indexOf("{{#", index);
+    const nextClose = input.indexOf("{{/", index);
+    if (nextClose === -1) break;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth += 1;
+      const closeBrace = input.indexOf("}}", nextOpen);
+      index = closeBrace === -1 ? input.length : closeBrace + 2;
+      continue;
+    }
+    depth -= 1;
+    const closeBrace = input.indexOf("}}", nextClose);
+    const tagEnd = closeBrace === -1 ? input.length : closeBrace + 2;
+    if (depth === 0) return { bodyEnd: nextClose, tagEnd };
+    index = tagEnd;
+  }
+  return { bodyEnd: input.length, tagEnd: input.length };
+}
+
+function renderBlocks(template: string, context: TemplateContext): string {
+  let output = "";
+  let index = 0;
+  while (index < template.length) {
+    const open = template.indexOf("{{#", index);
+    if (open === -1) {
+      output += template.slice(index);
+      break;
+    }
+    output += template.slice(index, open);
+    const tagEnd = template.indexOf("}}", open);
+    if (tagEnd === -1) {
+      output += template.slice(open);
+      break;
+    }
+    const tag = template.slice(open + 3, tagEnd).trim();
+    const unless = tag.startsWith("unless");
+    const expr = tag.replace(/^(if|unless)\s+/, "");
+    const block = findBlockEnd(template, tagEnd + 2);
+    const include = unless
+      ? !conditionHolds(expr, context)
+      : conditionHolds(expr, context);
+    if (include) output += renderBlocks(template.slice(tagEnd + 2, block.bodyEnd), context);
+    index = block.tagEnd;
+  }
+  return output;
+}
+
+function renderValues(template: string, context: TemplateContext): string {
+  return template.replace(/\{\{\s*([^}#/][^}]*?)\s*\}\}/g, (_, expr: string) => {
     const { path: pathExpr, filters } = parsePlaceholder(expr);
     if (pathExpr === "openPointsTable") return context.openPointsTable;
     if (pathExpr === "generatedAt") return context.generatedAt;
@@ -174,17 +237,22 @@ export function renderTemplate(template: string, context: TemplateContext): stri
   });
 }
 
+export function renderTemplate(template: string, context: TemplateContext): string {
+  return renderValues(renderBlocks(template, context), context);
+}
+
 function openPointsTable(points: DeliveryOpenPoint[]): string {
   if (points.length === 0) {
-    return "Es wurden keine automatischen offenen Punkte erzeugt. Das ist keine Freigabe durch die Geschäftsführung und kein Nachweis, dass der Prozess vollständig beschrieben ist.";
+    return "Keine offenen Punkte. Das ist keine Freigabe durch die Geschäftsführung und kein Nachweis, dass der Prozess vollständig beschrieben ist.";
   }
   const rows = points
-    .map(
-      (point) =>
-        `| ${point.severity} | ${point.title.replaceAll("|", "\\|")} | ${openPointChapterLabel(point.chapter)} |`,
-    )
+    .map((point) => {
+      const title = point.title.replaceAll("|", "\\|");
+      const who = (point.responsibility || "—").replaceAll("|", "\\|");
+      return `| ${point.id} | ${title} | ${who} |`;
+    })
     .join("\n");
-  return `| Schwere | Offener Punkt | Kapitel |\n| --- | --- | --- |\n${rows}`;
+  return `| Kennung | Zu klären | Verantwortung |\n| --- | --- | --- |\n${rows}`;
 }
 
 function headingTitle(markdown: string, fallback: string): string {
@@ -250,11 +318,13 @@ function chapterMarkdown(chapter: BundleChapter): string {
   return readTemplateFile(chapter.file, chapter.markdown);
 }
 
-function chapterApplies(id: string, answers: IntakeAnswers): boolean {
-  if (id === "04-verfahren-papier") {
-    return intakeIncludesPaperPath(answers.eingangsbelege);
-  }
-  return true;
+function chapterApplies(
+  chapter: BundleChapter,
+  context: { identity: CheckoutIdentity; answers: IntakeAnswers },
+): boolean {
+  const paths = chapter.includeIf?.anyPathNonEmpty;
+  if (!paths || paths.length === 0) return true;
+  return paths.some((pathExpr) => !isEmptyIntakeValue(lookup(context as TemplateContext, pathExpr)));
 }
 
 export function renderDeliveryDocument(input: {
@@ -305,7 +375,12 @@ export function renderDeliveryDocument(input: {
     disclaimer: bundle.disclaimer,
     cover: renderTemplate(coverSource, base).trim(),
     chapters: (bundle.chapters as BundleChapter[])
-      .filter((chapter) => chapterApplies(chapter.id, input.answers))
+      .filter((chapter) =>
+        chapterApplies(chapter, {
+          identity: input.identity,
+          answers: input.answers,
+        }),
+      )
       .map((chapter) => {
       const source = chapterMarkdown(chapter);
       const body = renderTemplate(source, base).trim();
