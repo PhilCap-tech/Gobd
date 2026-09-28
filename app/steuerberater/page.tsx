@@ -3,7 +3,6 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
-import { INTAKE_PREVIEW_ROWS } from "@/lib/intake-questions";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { evaluateOpenPoints } from "@/lib/open-points";
 import {
@@ -19,6 +18,62 @@ const PILOT_HREF =
   "/checkout?utm_source=partner&utm_medium=landing&utm_campaign=steuerberater";
 
 const PROMO_CODE = "KANZLEI-PILOT";
+
+/** Content-Auszug (Wireframe v4.1). Nicht 1:1 die Fragen des produktiven Ablaufs. */
+const FRAGEN_AUSZUG: Array<{ question: string; why: string }> = [
+  {
+    question: "Welche Rechtsform / Branche hat der Betrieb?",
+    why: "Rahmen für Belegwege und Systeme",
+  },
+  {
+    question:
+      "Welche Software nutzt ihr für Belege/Buchhaltung? (z. B. DATEV, sevdesk, lexoffice — Beispiele)",
+    why: "Systeme gehören in die Beschreibung",
+  },
+  {
+    question: "Wie kommen Eingangsbelege rein — Papier, E-Mail, Portal, App?",
+    why: "Herkunft der Belege",
+  },
+  {
+    question: "Wer erfasst, wer prüft, wer ist für die Doku verantwortlich?",
+    why: "Rollen nachvollziehbar",
+  },
+  {
+    question: "Wird ersetzend gescannt — oder bleiben Originale?",
+    why: "Scan nur wenn relevant",
+  },
+  {
+    question:
+      "Was hat sich seit der letzten Fassung geändert (Software, Prozesse)?",
+    why: "Pflege / Versionierung",
+  },
+];
+
+const MUSTER_GLIEDERUNG = [
+  "Zweck & Geltungsbereich",
+  "Organisation & Rollen",
+  "Belegarten & Herkunft",
+  "Belegweg Ende-zu-Ende",
+  "Systeme & Datenzugriff",
+  "Scan / digitales Archiv (falls zutreffend)",
+  "Änderung & Versionierung",
+];
+
+/** Beispielzeilen aus dem Content-Auszug — nicht die Generator-Ausgabe. */
+const MUSTER_OFFENE_PUNKTE_AUSZUG: Array<{ point: string; note: string }> = [
+  {
+    point: "Scanprozess: Qualitätskontrolle noch nicht beschrieben",
+    note: "Nur relevant bei ersetzendem Scannen",
+  },
+  {
+    point: "Vertretung für Doku-Verantwortliche offen",
+    note: "Rolle klären",
+  },
+  {
+    point: "Softwarewechsel 2025 nur mündlich bekannt — in Fassung nachziehen",
+    note: "In nächster Fassung nachziehen",
+  },
+];
 
 const PAGE_TITLE =
   "Für Steuerberater: Fragen und Muster ansehen, bevor Sie empfehlen | GoBD Verfahrensdoku";
@@ -53,11 +108,11 @@ const musterOpenPoints = evaluateOpenPoints({
 function HeroProofButtons() {
   return (
     <div className="actions">
-      <a className="btn" href="#muster">
-        Muster-Dokumentation ansehen
-      </a>
       <a className="btn" href="#fragen-demo">
         Fragenprozess testen
+      </a>
+      <a className="btn" href="#muster">
+        Muster-Dokumentation ansehen
       </a>
     </div>
   );
@@ -67,8 +122,8 @@ export default function SteuerberaterPage() {
   return (
     <>
       <SiteHeader
-        ctaHref="#muster"
-        ctaLabel="Muster-Dokumentation ansehen"
+        ctaHref="#fragen-demo"
+        ctaLabel="Fragenprozess testen"
         links={[
           { href: "#fragen-demo", label: "Fragen" },
           { href: "#muster", label: "Muster" },
@@ -95,38 +150,37 @@ export default function SteuerberaterPage() {
           </p>
         </section>
 
-        <section className="block" id="mandant">
-          <h2>Was Ihre Mandanten machen</h2>
+        <section className="block" id="rolle">
+          <h2>Ihre Rolle im Partner-Pilot</h2>
           <p className="prose">
-            Mandanten beantworten geführte Fragen zu Software, Belegen, Abläufen
-            und Verantwortlichen. Kein leeres Word-Dokument zum „irgendwie
-            Ausfüllen“.
+            Sie testen mit Parametern, bewerten Fragen und Muster-Ergebnis —
+            und leiten bei Überzeugung an Mandanten weiter.
           </p>
           <p className="prose">
-            Sie als Berater müssen das <strong>nicht</strong> für sie erledigen
-            — Sie können Fragen und Muster vorher selbst ansehen und den Weg
-            durchspielen.
+            <strong>
+              Sie füllen die Dokumentation nicht für das Unternehmen aus.
+            </strong>{" "}
+            Der Mandant liefert die Betriebsdaten.
           </p>
         </section>
 
         <section className="block" id="fragen-demo">
-          <h2>So sehen die Fragen aus</h2>
+          <h2>So sehen die Fragen aus (Auszug)</h2>
           <p className="prose">
             Kurzer Einblick — damit Sie den Aufwand einschätzen können, bevor
-            Sie den Partner-Pilot starten. Die Zeilen sind die Fragen aus dem
-            produktiven Ablauf, mit Beispieldaten durchklickbar.
+            Sie den Partner-Pilot starten.
           </p>
           <div className="legal legal-table-wrap">
             <table>
               <thead>
                 <tr>
                   <th scope="col">#</th>
-                  <th scope="col">Frage</th>
-                  <th scope="col">Wozu</th>
+                  <th scope="col">Beispiel-Frage</th>
+                  <th scope="col">Warum sie da steht</th>
                 </tr>
               </thead>
               <tbody>
-                {INTAKE_PREVIEW_ROWS.map((row, index) => (
+                {FRAGEN_AUSZUG.map((row, index) => (
                   <tr key={row.question}>
                     <td>{index + 1}</td>
                     <td>{row.question}</td>
@@ -138,7 +192,10 @@ export default function SteuerberaterPage() {
           </div>
           <p className="hint">
             Im Pilot spielen Sie solche Parameter selbst durch. Beim Mandanten
-            beantwortet der Mandant — nicht die Kanzlei stellvertretend.
+            beantwortet der Mandant — nicht die Kanzlei stellvertretend. Der
+            Auszug ist ein Einblick. Der Live-Test nutzt die Fragen aus dem
+            produktiven Ablauf; nicht jede Zeile oben ist dort eine eigene
+            Frage.
           </p>
           <div className="actions">
             <Link className="btn" href={PARTNER_DEMO_PATH}>
@@ -148,36 +205,72 @@ export default function SteuerberaterPage() {
         </section>
 
         <section className="block" id="muster">
-          <h2>So sieht ein Muster-Ergebnis aus</h2>
+          <h2>So sieht ein Muster-Ergebnis aus (Auszug)</h2>
           <p className="prose">
             Kein Blanko-Roman — strukturierter Entwurf plus sichtbare Offene
-            Punkte. Dies ist ein <strong>Beispiel</strong> (Beispiel GmbH,
-            anonymisiert), kein Dokument eines echten Mandanten. Keine
-            Konformitätszusage.
+            Punkte.
+          </p>
+          <p className="hint">
+            Beispiel-Verfahrensdokumentation · Musterbetrieb (anonymisiert) ·
+            Stand: Beispiel · Version 1.0
           </p>
           <p className="prose">
-            Am Ende liegen ein PDF-Entwurf, die Liste der Offenen Punkte und —
-            nach einem Kauf — Versionen, wenn sich etwas ändert.
+            Dies ist ein <strong>Beispiel</strong>, kein Dokument eines echten
+            Mandanten. Keine Konformitätszusage.
           </p>
-          <h3>Gliederung in diesem Muster</h3>
+          <h3>Gliederung (Beispiel)</h3>
           <ol className="prose-list">
-            {musterPlan.chapters.map((chapter) => (
-              <li key={chapter.id}>{chapter.title}</li>
+            {MUSTER_GLIEDERUNG.map((title) => (
+              <li key={title}>{title}</li>
             ))}
           </ol>
-          <h3>Offene Punkte in diesem Muster</h3>
+          <h3>Offene Punkte (Beispiel)</h3>
           <p className="hint">
-            Ausgabe des Generators für die Beispieldaten, dieselbe Tabelle wie
-            im PDF. Leere Angaben werden Punkte. Die Beispiel GmbH lässt weitere
-            Systeme und die IT-Rolle leer; eine Bestellung gibt es in diesem
-            Muster nicht.
+            Beispiel-Auszug zum Format. Diese drei Zeilen erzeugt der Generator
+            nicht.
           </p>
           <div className="legal legal-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Schwere</th>
+                  <th scope="col">Nr.</th>
                   <th scope="col">Offener Punkt</th>
+                  <th scope="col">Hinweis</th>
+                </tr>
+              </thead>
+              <tbody>
+                {MUSTER_OFFENE_PUNKTE_AUSZUG.map((row, index) => (
+                  <tr key={row.point}>
+                    <td>{index + 1}</td>
+                    <td>{row.point}</td>
+                    <td>{row.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="hint">
+            Das Muster zeigt Format und Transparenz — nicht „fertig für jeden
+            Betrieb“ und keine Konformitätszusage.
+          </p>
+          <h3>PDF aus dem Generator (Beispiel GmbH)</h3>
+          <p className="prose">
+            Die Datei und die Tabelle darunter kommen aus dem Lieferpfad mit
+            festen Beispieldaten: kleine GmbH, DATEV, Eingang „E-Mail / PDF“,
+            Ausgang „aus Buchhaltungssoftware“. Kapitel und Punkte decken sich
+            nicht mit der Gliederung und den drei Beispielzeilen oben.
+          </p>
+          <ol className="prose-list">
+            {musterPlan.chapters.map((chapter) => (
+              <li key={chapter.id}>{chapter.title}</li>
+            ))}
+          </ol>
+          <div className="legal legal-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Schwere</th>
+                  <th scope="col">Offener Punkt aus dem Generator</th>
                   <th scope="col">Kapitel</th>
                 </tr>
               </thead>
@@ -192,18 +285,31 @@ export default function SteuerberaterPage() {
               </tbody>
             </table>
           </div>
-          <p className="hint">
-            Das Muster zeigt Format und Transparenz — nicht „fertig für jeden
-            Betrieb“.
-          </p>
           <div className="actions">
             <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
-              Muster-Dokumentation ansehen
+              Muster-PDF herunterladen
             </a>
             <Link className="btn ghost" href={PARTNER_MUSTER_PATH}>
               Musterseite mit den Beispieldaten
             </Link>
           </div>
+        </section>
+
+        <section className="block" id="prozess">
+          <h2>Von den Fragen zum gepflegten Stand</h2>
+          <ol className="prose-list">
+            <li>
+              <strong>Fragen / Parameter</strong> — Sie im Test, später der
+              Mandant.
+            </li>
+            <li>
+              <strong>Ergebnis</strong> — PDF-Entwurf + Offene-Punkte-Liste.
+            </li>
+            <li>
+              <strong>Versionierung</strong> — neue Fassung bei Änderungen;
+              Historie statt Dateichaos.
+            </li>
+          </ol>
         </section>
 
         <section className="block" id="eignung">
@@ -271,57 +377,15 @@ export default function SteuerberaterPage() {
           </p>
         </section>
 
-        <section className="block" id="qualitaet">
-          <h2>Wie Qualität entsteht</h2>
-          <ul className="prose-list">
-            <li>Geführte Fragen statt leerer Vorlage</li>
-            <li>Offene Punkte machen Lücken sichtbar — leere Angaben werden Punkte</li>
-            <li>Versionen halten den Stand nachvollziehbar</li>
-            <li>
-              Sie können Muster und Fragen prüfen, <strong>bevor</strong> Sie
-              empfehlen
-            </li>
-          </ul>
-          <p className="prose">Von den Fragen zum gepflegten Stand:</p>
-          <ol className="prose-list">
-            <li>
-              <strong>Fragen</strong> — Sie im Test, später der Mandant.
-            </li>
-            <li>
-              <strong>Ergebnis</strong> — PDF-Entwurf und Offene-Punkte-Liste.
-            </li>
-            <li>
-              <strong>Versionierung</strong> — neue Fassung bei Änderungen;
-              Historie statt Dateichaos.
-            </li>
-          </ol>
+        <section className="block" id="versionierung">
+          <h2>Versionierung</h2>
           <p className="prose">
             Ein Einmal-PDF veraltet, wenn Software oder Prozesse wechseln.
             Setup: erste Fassung. Abo: Fassungen halten und erneut exportieren.
-            Pflege ist Teil des Produkts.
+            Im Muster-PDF steht eine Fassung mit Gültig-ab und Änderungstext.
+            Weitere Fassungen legt der Mandant nach dem Kauf an — nicht in
+            dieser Vorschau.
           </p>
-        </section>
-
-        <section className="block" id="rolle">
-          <h2>Ihre Rolle: Empfehlung und Weiterleiten</h2>
-          <ul className="prose-list">
-            <li>
-              Sie testen mit Parametern, bewerten Fragen und Muster — und leiten
-              bei Überzeugung an Mandanten weiter.
-            </li>
-            <li>
-              Eine Empfehlung ist keine Prüfungspflicht und keine Übernahme der
-              Dokumentation.
-            </li>
-            <li>
-              Fachliche Bewertung und Verantwortung bleiben bei Mandant und
-              Kanzlei, wie bisher.
-            </li>
-            <li>
-              Sie füllen die Verfahrensdokumentation <strong>nicht</strong> für
-              den Mandanten aus. Der Mandant liefert die Betriebsdaten.
-            </li>
-          </ul>
         </section>
 
         <section className="block" id="daten">
@@ -575,6 +639,15 @@ export default function SteuerberaterPage() {
               Grund steht in den AGB.
             </p>
           </div>
+          <div className="faq-item">
+            <h3>Was kostet das erste Jahr?</h3>
+            <p className="prose">
+              Ohne Code {SETUP_EUR}&nbsp;€ Setup einmalig plus {MONTHLY_EUR}
+              &nbsp;€ pro Monat. Der Code {PROMO_CODE} gilt nur im Checkout des{" "}
+              <a href="#pilot">Pilots</a>. Details dort, nicht auf dieser
+              Preisliste.
+            </p>
+          </div>
         </section>
 
         <section className="block" id="abschluss">
@@ -604,11 +677,11 @@ export default function SteuerberaterPage() {
         </section>
       </main>
       <div className="sticky-cta tall">
-        <a className="btn" href="#muster">
-          Muster-Dokumentation ansehen
-        </a>
         <a className="btn" href="#fragen-demo">
           Fragenprozess testen
+        </a>
+        <a className="btn" href="#muster">
+          Muster-Dokumentation ansehen
         </a>
       </div>
       <SiteFooter />
