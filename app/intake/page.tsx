@@ -41,15 +41,15 @@ const GATE_COPY: Record<
 > = {
   missing: {
     title: "Zuerst Dokumentation starten",
-    body: "Das Intake folgt nach dem Checkout. Ohne gültige Stripe-Session (bezahlt) geht es hier nicht weiter.",
+    body: "Das Intake folgt nach dem Checkout. Ohne abgeschlossene Zahlung geht es hier nicht weiter.",
   },
   not_paid: {
     title: "Zahlung noch nicht bestätigt",
-    body: "Die Stripe-Session ist vorhanden, aber noch nicht als bezahlt oder abgeschlossen markiert. Wenn du gerade bezahlt hast, warte kurz und prüfe erneut — das hängt nicht vom Webhook ab.",
+    body: "Die Zahlung ist noch nicht als abgeschlossen markiert. Wenn du gerade bezahlt hast, warte kurz und prüfe erneut.",
   },
   lookup_failed: {
     title: "Session konnte nicht geladen werden",
-    body: "Die Checkout-Session konnte gerade nicht bei Stripe geprüft werden. Das ist oft vorübergehend. Bitte erneut versuchen.",
+    body: "Die Zahlung konnte gerade nicht geprüft werden. Das ist oft vorübergehend. Bitte erneut versuchen.",
   },
 };
 

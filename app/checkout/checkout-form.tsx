@@ -85,9 +85,8 @@ export function CheckoutForm({
         <h2>Rechnungsdaten</h2>
         {!stripeReady && (
           <p className="banner">
-            Stripe-Keys fehlen. Lokal geht’s ohne Zahlung weiter zum Intake
-            (Stub). Für den Testmodus: STRIPE_SECRET_KEY und Price-IDs in
-            .env.local.
+            Zahlung ist hier nicht angebunden. Es geht ohne Zahlung weiter zum
+            Intake.
           </p>
         )}
         {entities.length > 1 && (
@@ -143,14 +142,14 @@ export function CheckoutForm({
             ? "Bitte warten…"
             : stripeReady
               ? "Dokumentation starten"
-              : "Weiter zum Intake (Stub)"}
+              : "Weiter zum Intake"}
         </button>
         <p className="hint">
           {stripeReady
             ? stripeTestMode
               ? "Weiter zu Stripe Checkout (Testmodus)."
               : "Weiter zu Stripe Checkout."
-            : "Kein Stripe — nach dem Absenden direkt zum Intake."}
+            : "Keine Zahlung angebunden — nach dem Absenden direkt zum Intake."}
         </p>
       </form>
 

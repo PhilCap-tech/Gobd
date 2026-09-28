@@ -215,8 +215,8 @@ export function IntakeForm({
 
       {session.stub && step < 6 && !isEdit && (
         <p className="banner">
-          Stub-Session (kein Stripe). Angaben werden lokal oder in Sheets
-          gespeichert, sobald du absendest.
+          Test ohne Zahlung. Die Angaben werden gespeichert, sobald du
+          absendest.
         </p>
       )}
 

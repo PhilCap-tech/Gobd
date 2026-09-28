@@ -661,12 +661,12 @@ export function portalStatusCopy(status: PortalStatus): {
       };
     case "missing":
       return {
-        text: "Kein Stripe-Kunde zu dieser E-Mail. Das Portal ist nach einem Checkout mit Stripe verfügbar.",
+        text: "Zu dieser E-Mail liegt noch kein Checkout vor. Die Abo-Verwaltung ist danach verfügbar.",
         tone: "warn",
       };
     case "unavailable":
       return {
-        text: "Stripe ist nicht konfiguriert — Abo-Verwaltung im Demo-Pfad nicht verfügbar.",
+        text: "Zahlung ist in diesem Testpfad nicht angebunden. Abo-Verwaltung ist hier nicht verfügbar.",
         tone: "warn",
       };
     case "error":

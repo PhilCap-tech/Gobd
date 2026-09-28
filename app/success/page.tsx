@@ -89,10 +89,8 @@ export default async function SuccessPage({
                 </p>
               ) : (
                 <p className="banner">
-                  E-Mail-Versand ist nicht konfiguriert (Demo). Der Download
-                  bleibt hier auf der Seite. Magic-Link-Mail folgt, sobald{" "}
-                  <code>RESEND_API_KEY</code> und <code>EMAIL_FROM</code> gesetzt
-                  sind.
+                  E-Mail-Versand ist in diesem Testpfad nicht eingerichtet. Der
+                  Download bleibt hier auf der Seite.
                 </p>
               )}
               <DocumentRevisionActions

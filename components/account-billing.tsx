@@ -23,11 +23,11 @@ export function AccountBillingStatus({
   const lookupHint =
     "Rechnungen und Abo-Status konnten gerade nicht geladen werden. Bitte später erneut versuchen.";
   const emptyHint = !stripeReady
-    ? "Stripe ist nicht konfiguriert (STRIPE_SECRET_KEY fehlt). Abo-Status und Rechnungen sind im Demo-Pfad nicht verfügbar."
+    ? "Zahlung ist in diesem Testpfad nicht angebunden. Abo-Status und Rechnungen sind hier nicht verfügbar."
     : lookupFailed
       ? lookupHint
       : !hasCustomer
-        ? "Kein Stripe-Kunde zu dieser E-Mail. Nach einem Checkout mit Stripe speichern Webhook und Intake die Customer-ID — dann siehst du Status und Rechnungen hier."
+        ? "Zu dieser E-Mail liegt noch kein Checkout vor. Status und Rechnungen erscheinen danach."
         : "";
 
   return (
@@ -87,11 +87,11 @@ export function AccountInvoiceList({
   lookupFailed?: boolean;
 }) {
   const emptyCopy = !stripeReady
-    ? "Stripe ist nicht konfiguriert. Rechnungen sind im Demo-Pfad nicht verfügbar."
+    ? "Zahlung ist in diesem Testpfad nicht angebunden. Rechnungen sind hier nicht verfügbar."
     : lookupFailed
       ? "Rechnungen konnten gerade nicht geladen werden. Bitte später erneut versuchen."
       : !hasCustomer
-        ? "Kein Stripe-Kunde zu dieser E-Mail. Rechnungen erscheinen nach einem Checkout."
+        ? "Zu dieser E-Mail liegt noch kein Checkout vor. Rechnungen erscheinen danach."
         : "Noch keine Rechnungen vorhanden.";
 
   return (

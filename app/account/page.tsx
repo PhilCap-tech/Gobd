@@ -212,7 +212,7 @@ export default async function AccountPage({
 
         <p className="hint" style={{ marginTop: 20 }}>
           {stripeBound
-            ? "Identität über die Checkout-E-Mail / Stripe-Session gebunden."
+            ? "Identität über die E-Mail aus dem Checkout."
             : "Identität über die E-Mail aus dem Intake."}{" "}
           Bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen pro Konto.
         </p>
