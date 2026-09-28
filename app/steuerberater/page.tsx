@@ -21,7 +21,9 @@ const PROMO_CODE = "KANZLEI-PILOT";
 /**
  * Ops 2026-09-28, Stripe: promo_1UKcN56UvAzri3dMrW7Wn7Y2, coupon J7BECQxI,
  * percent_off 100, duration repeating, duration_in_months 2, max_redemptions 50.
- * After promo: list Abo 49 €/Mo if not cancelled; list Setup 149 €.
+ * First invoice with the promo zeros both lines (Setup and Abo).
+ * After promo: list Abo 49 €/Mo if not cancelled. List Setup without the code
+ * is 149 € once and is not charged again monthly.
  */
 const PROMO_MONTHS = 2;
 const PROMO_MAX_REDEMPTIONS = 50;
@@ -29,8 +31,8 @@ const PROMO_MAX_REDEMPTIONS = 50;
 function PilotKlartextSentence() {
   return (
     <>
-      Mit Code <strong className="promo-code">{PROMO_CODE}</strong>:{" "}
-      {PROMO_MONTHS}&nbsp;Monate 0&nbsp;€ (100&nbsp;% Rabatt); danach{" "}
+      Mit Code <strong className="promo-code">{PROMO_CODE}</strong>: Setup und
+      Abo {PROMO_MONTHS}&nbsp;Monate 0&nbsp;€ (100&nbsp;%); danach{" "}
       {MONTHLY_EUR}&nbsp;€/Monat, wenn Sie nicht kündigen — kein
       Überraschungs-Abo hinter ‚gratis‘.
     </>
@@ -356,9 +358,10 @@ export default function SteuerberaterPage() {
               <strong>Kosten im ersten Jahr ohne Code:</strong> {SETUP_EUR} €
               Setup plus {MONTHLY_EUR} € pro Monat (
               <Link href="/#preise">Produktseite</Link>).{" "}
-              <PilotKlartextSentence /> Das Listen-Setup von {SETUP_EUR}&nbsp;€
-              ist einmalig und wird nach der Promo nicht monatlich
-              nachberechnet. Keine Kanzlei-Pakete auf dieser Seite.
+              <PilotKlartextSentence /> Ohne Code bleibt das Setup{" "}
+              {SETUP_EUR}&nbsp;€ einmalig. Mit dem Code ist die Setup-Zeile
+              0&nbsp;€ und wird danach nicht nachberechnet. Keine Kanzlei-Pakete
+              auf dieser Seite.
             </li>
           </ul>
         </section>
@@ -433,9 +436,9 @@ export default function SteuerberaterPage() {
               Listenpreis ohne Code: {SETUP_EUR}&nbsp;€ Setup einmalig plus{" "}
               {MONTHLY_EUR}&nbsp;€/Monat (
               <Link href="/#preise">Produktseite</Link>
-              ). Wer den Code nutzt, zahlt das Setup in der Promo nicht. Danach
-              ist nur das Abo fällig: {MONTHLY_EUR}&nbsp;€/Monat. Das Setup wird
-              nicht monatlich nachberechnet.
+              ). Mit dem Code ist die Setup-Zeile 0&nbsp;€, nicht {SETUP_EUR}
+              &nbsp;€. Danach ist nur das Abo fällig: {MONTHLY_EUR}&nbsp;€/Monat.
+              Das Setup wird nicht monatlich nachberechnet.
             </li>
             <li>
               Kündigung und Zahlungsdaten: Stripe-Kundenportal im Konto.{" "}
@@ -517,10 +520,11 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Bin ich nach dem Pilot im Abo fest?</h3>
             <p className="prose">
-              <PilotKlartextSentence /> Listen-Setup {SETUP_EUR}&nbsp;€ einmalig
-              — in der Promo ebenfalls 0&nbsp;€, danach nicht monatlich
-              nachberechnet. Höchstens {PROMO_MAX_REDEMPTIONS}&nbsp;Einlösungen.
-              Keine automatische Kündigung.
+              <PilotKlartextSentence /> Ohne Code ist das Setup {SETUP_EUR}
+              &nbsp;€ einmalig. Mit dem Code ist die Setup-Zeile 0&nbsp;€ und
+              wird danach nicht nachberechnet. Höchstens{" "}
+              {PROMO_MAX_REDEMPTIONS}&nbsp;Einlösungen. Keine automatische
+              Kündigung.
             </p>
           </div>
           <div className="faq-item">
