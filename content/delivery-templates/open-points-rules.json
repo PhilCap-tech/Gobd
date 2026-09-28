@@ -29,7 +29,7 @@
     {
       "id": "op-branchen",
       "field": "answers.branchen",
-      "chapter": "01-merkmal-tabelle",
+      "chapter": "02-rollen",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
@@ -39,7 +39,7 @@
     {
       "id": "op-rechtsform",
       "field": "answers.rechtsform",
-      "chapter": "01-merkmal-tabelle",
+      "chapter": "02-rollen",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
@@ -49,7 +49,7 @@
     {
       "id": "op-mitarbeitende",
       "field": "answers.mitarbeitende",
-      "chapter": "01-merkmal-tabelle",
+      "chapter": "02-rollen",
       "severity": "low",
       "when": "empty",
       "customerFacing": true,
@@ -59,7 +59,7 @@
     {
       "id": "op-fibu",
       "field": "answers.fibu",
-      "chapter": "03-systeme-belegarten",
+      "chapter": "03-systeme",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
@@ -69,7 +69,7 @@
     {
       "id": "op-weitere-systeme",
       "field": "answers.weitereSysteme",
-      "chapter": "03-systeme-belegarten",
+      "chapter": "03-systeme",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
@@ -79,7 +79,7 @@
     {
       "id": "op-eingangsbelege",
       "field": "answers.eingangsbelege",
-      "chapter": "04-eingang-pruefung",
+      "chapter": "05-eingang",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
@@ -89,7 +89,7 @@
     {
       "id": "op-ausgangsrechnungen",
       "field": "answers.ausgangsrechnungen",
-      "chapter": "05-freigabe-buchung",
+      "chapter": "07-ausgang",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
@@ -99,7 +99,7 @@
     {
       "id": "op-archiv",
       "field": "answers.archiv",
-      "chapter": "06-aufbewahrung",
+      "chapter": "09-aufbewahrung",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
@@ -109,7 +109,7 @@
     {
       "id": "op-hosting",
       "field": "answers.hosting",
-      "chapter": "06-aufbewahrung",
+      "chapter": "10-berechtigungen",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
@@ -119,7 +119,7 @@
     {
       "id": "op-backup",
       "field": "answers.backup",
-      "chapter": "06-aufbewahrung",
+      "chapter": "10-berechtigungen",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
@@ -129,7 +129,7 @@
     {
       "id": "op-backup-test",
       "field": "answers.backup",
-      "chapter": "06-aufbewahrung",
+      "chapter": "10-berechtigungen",
       "severity": "high",
       "when": "always",
       "customerFacing": true,
@@ -139,7 +139,7 @@
     {
       "id": "op-zugriff",
       "field": "answers.zugriff",
-      "chapter": "06-aufbewahrung",
+      "chapter": "10-berechtigungen",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
@@ -149,7 +149,7 @@
     {
       "id": "op-berechtigungsliste",
       "field": "answers.zugriff",
-      "chapter": "06-aufbewahrung",
+      "chapter": "10-berechtigungen",
       "severity": "medium",
       "when": "always",
       "customerFacing": true,
@@ -159,7 +159,7 @@
     {
       "id": "op-f05-kanzlei-umfang",
       "field": "answers.steuerberater",
-      "chapter": "05-freigabe-buchung",
+      "chapter": "08-freigabe",
       "severity": "medium",
       "when": "unconfirmedScope",
       "customerFacing": true,
@@ -169,7 +169,7 @@
     {
       "id": "op-c02-sichtung",
       "field": null,
-      "chapter": "04-eingang-pruefung",
+      "chapter": "05-eingang",
       "severity": "medium",
       "when": "always",
       "customerFacing": true,
@@ -186,7 +186,7 @@
         "answers.eingangsbelege",
         "answers.ausgangsrechnungen"
       ],
-      "chapter": "04-eingang-pruefung",
+      "chapter": "06-papier",
       "severity": "high",
       "when": "ersetzendOhnePapier",
       "customerFacing": true,
@@ -196,7 +196,7 @@
     {
       "id": "op-gf",
       "field": "answers.gf",
-      "chapter": "01-merkmal-tabelle",
+      "chapter": "02-rollen",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
@@ -206,7 +206,7 @@
     {
       "id": "op-buchhaltung",
       "field": "answers.buchhaltung",
-      "chapter": "01-merkmal-tabelle",
+      "chapter": "02-rollen",
       "severity": "high",
       "when": "empty",
       "customerFacing": true,
@@ -216,7 +216,7 @@
     {
       "id": "op-it",
       "field": "answers.it",
-      "chapter": "01-merkmal-tabelle",
+      "chapter": "02-rollen",
       "severity": "medium",
       "when": "empty",
       "customerFacing": true,
@@ -226,7 +226,7 @@
     {
       "id": "op-steuerberater",
       "field": "answers.steuerberater",
-      "chapter": "01-merkmal-tabelle",
+      "chapter": "02-rollen",
       "severity": "low",
       "when": "empty",
       "customerFacing": true,
@@ -235,19 +235,18 @@
     },
     {
       "id": "op-erechnung-validierung",
-      "field": "answers.eingangsbelege",
-      "chapter": "04-eingang-pruefung",
+      "field": null,
+      "chapter": "05-eingang",
       "severity": "high",
-      "when": "arrayContainsAny",
-      "tokens": ["E-Rechnung", "eRechnung", "ZUGFeRD", "XRechnung", "XML"],
+      "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.it",
-      "text": "Verfahren und Nachweis der technischen Prüfung strukturierter E-Rechnungen konkretisieren und protokollieren."
+      "text": "Technische Prüfung strukturierter E-Rechnungen ist nicht bestätigt. Eine PDF- oder E-Mail-Rechnung ist damit nicht als strukturierte E-Rechnung beschrieben."
     },
     {
       "id": "op-kontrollprotokoll",
       "field": null,
-      "chapter": "07-kontrollen-aenderungen",
+      "chapter": "11-kontrollen",
       "severity": "medium",
       "when": "always",
       "customerFacing": true,
@@ -257,13 +256,38 @@
     {
       "id": "op-papier-klarheit",
       "field": "answers.eingangsbelege",
-      "chapter": "04-eingang-pruefung",
+      "chapter": "06-papier",
       "severity": "low",
       "when": "arrayContainsAny",
-      "tokens": ["Papier", "Post", "Scan", "Papierbeleg"],
+      "tokens": [
+        "Papier",
+        "Post",
+        "Scan",
+        "Papierbeleg"
+      ],
       "customerFacing": true,
       "responsibilityField": "answers.buchhaltung",
       "text": "Umgang mit Papieroriginalen klären (zusätzliche Verwahrung vs. dokumentiertes ersetzendes Scannen) und in einer Folgefassung bestätigen."
+    },
+    {
+      "id": "op-loeschfrist",
+      "field": null,
+      "chapter": "09-aufbewahrung",
+      "severity": "medium",
+      "when": "always",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "text": "Fristüberwachung und Freigabe vor Löschung sind nicht als gelebte Praxis bestätigt."
+    },
+    {
+      "id": "op-notfall",
+      "field": null,
+      "chapter": "10-berechtigungen",
+      "severity": "medium",
+      "when": "always",
+      "customerFacing": true,
+      "responsibilityField": "answers.gf",
+      "text": "Notfallweg bei Ausfall von Postfach oder Archiv ist im Intake nicht beschrieben."
     },
     {
       "id": "op-email-internal",

@@ -253,6 +253,13 @@ export function renderTemplate(template: string, context: TemplateContext): stri
   return stripInternalMarkers(renderValues(renderBlocks(template, context), context));
 }
 
+function openPointPriority(severity: string): string {
+  if (severity === "high") return "hoch";
+  if (severity === "medium") return "mittel";
+  if (severity === "low") return "niedrig";
+  return severity;
+}
+
 function openPointsTable(points: DeliveryOpenPoint[]): string {
   if (points.length === 0) {
     return "Keine offenen Punkte. Das ist keine Freigabe durch die Geschäftsführung und kein Nachweis, dass der Prozess vollständig beschrieben ist.";
@@ -261,10 +268,10 @@ function openPointsTable(points: DeliveryOpenPoint[]): string {
     .map((point) => {
       const title = point.title.replaceAll("|", "\\|");
       const who = (point.responsibility || "—").replaceAll("|", "\\|");
-      return `| ${point.id} | ${title} | ${who} |`;
+      return `| ${point.id} | ${openPointPriority(point.severity)} | ${title} | ${who} | nicht festgelegt |`;
     })
     .join("\n");
-  return `| Kennung | Zu klären | Verantwortung |\n| --- | --- | --- |\n${rows}`;
+  return `| Kennung | Priorität | Zu klären | Verantwortung | Zieltermin |\n| --- | --- | --- | --- | --- |\n${rows}`;
 }
 
 function headingTitle(markdown: string, fallback: string): string {

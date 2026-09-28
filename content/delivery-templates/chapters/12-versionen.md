@@ -1,4 +1,6 @@
-# 8 Version und betriebliche Bestätigung
+# 12 Versionspflege und Änderungen
+
+Neue oder ersetzte Systeme, neue Belegkanäle, geänderte Zuständigkeiten und wesentliche Ablaufänderungen sind Anlässe für eine neue Fassung. Die bisherige Fassung bleibt mit ihrem Gültigkeitszeitraum erhalten. Eine neu dokumentierte Praxis gilt ab dem bestätigten Zeitpunkt, nicht rückwirkend.
 
 | Version | Gültig ab | Änderung | Status |
 | --- | --- | --- | --- |
@@ -13,4 +15,5 @@
 | Festgestellte Abweichungen / Auflagen | ________________ |
 | Unterschrift / Bestätigung | ________________ |
 
-Eine automatische Generierung gilt **nicht** als betriebliche Bestätigung.
+<!-- frage:I04 -->
+Eine automatische Generierung gilt **nicht** als betriebliche Bestätigung. {{#if answers.gf}}Verantwortlich für die Freigabe neuer Versionen: {{answers.gf}}.{{/if}}

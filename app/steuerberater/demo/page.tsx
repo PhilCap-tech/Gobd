@@ -36,7 +36,7 @@ export default function PartnerDemoPage() {
         <p className="hint back-links">
           <Link href="/steuerberater">Zur Partnerseite</Link>
           {" · "}
-          <Link href="/steuerberater/muster">Entwurf-PDF (nicht fachlich freigegeben)</Link>
+          <Link href="/steuerberater/muster">Muster-PDF</Link>
         </p>
       </main>
       <SiteFooter />

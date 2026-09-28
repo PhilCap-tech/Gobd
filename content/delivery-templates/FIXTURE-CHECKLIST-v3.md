@@ -1,6 +1,6 @@
 # Fixture-Checkliste v3 — Partner-Trust Muster-PDF
 
-**Zwischenstand:** `reference/philip-muster-vorschlag-2026-09-28.extracted.txt` ist nicht die Qualitätsfreigabe. Philip schreibt ein ausführlicheres Muster. Das Fixture-PDF ist ein Engineering-Entwurf (DRAFT / not Philip-final), keine fachliche Endfassung.
+**Zielbild:** `reference/philip-muster-v2-detailliert-2026-09-28.extracted.txt` (14 Kapitel plus Anhänge). `philip-muster-vorschlag-2026-09-28` ist nur Vorgänger. Präsens nur aus bestätigtem Intake. Die Generierung ist kein Freigabevermerk der Geschäftsführung.
 
 **Fixture:** `sample-intake-partner-trust.json`  
 **Profil:** kleine GmbH · DATEV · E-Mail/PDF-Eingang · digital · **kein Papier**  

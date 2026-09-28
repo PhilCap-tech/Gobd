@@ -4,7 +4,12 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
 import { LEGAL_OPERATOR } from "@/lib/legal";
-import { evaluateOpenPoints, openPointChapterLabel } from "@/lib/open-points";
+import {
+  evaluateOpenPoints,
+  openPointChapterLabel,
+  openPointDueLabel,
+  openPointPriorityLabel,
+} from "@/lib/open-points";
 import {
   PARTNER_DEMO_PATH,
   PARTNER_MUSTER_ANSWERS,
@@ -160,9 +165,9 @@ export default function SteuerberaterPage() {
           </p>
           <p className="hint">
             Beispiel GmbH (fiktiv) · DATEV · Eingang E-Mail und PDF · Ausgang
-            Rechnungssoftware · kein Papierweg · Version 1.0 · kein echtes
-            Mandantendokument · keine Konformitätszusage. DRAFT / not
-            Philip-final: Engineering-Smoke, kein fachliches Endmuster.
+            Rechnungssoftware · kein Papierweg · Gliederung am detaillierten
+            Muster ausgerichtet · kein echtes Mandantendokument · keine
+            Konformitätszusage · keine Freigabe durch die Geschäftsführung.
           </p>
           <h3>Kapitel</h3>
           <ol className="prose-list">
@@ -175,8 +180,8 @@ export default function SteuerberaterPage() {
             Diese Liste erzeugt der Regelsatz aus leeren oder unbestätigten
             Angaben und aus Schritten, die der Fragebogen nicht abfragt.
             Dieselbe Tabelle
-            steht im PDF (Kapitel Offene Punkte). Schweregrade
-            bleiben high, medium und low — so schreibt sie der Generator. Das
+            steht im PDF (Kapitel Offene Punkte), mit Priorität hoch, mittel
+            oder niedrig und Zieltermin „nicht festgelegt“. Das
             Muster zeigt Transparenz bei Lücken, nicht „fertig für jeden
             Betrieb“.
           </p>
@@ -184,17 +189,19 @@ export default function SteuerberaterPage() {
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Schwere</th>
+                  <th scope="col">Priorität</th>
                   <th scope="col">Offener Punkt aus dem Generator</th>
                   <th scope="col">Kapitel</th>
+                  <th scope="col">Zieltermin</th>
                 </tr>
               </thead>
               <tbody>
                 {musterOpenPoints.map((point) => (
                   <tr key={point.id}>
-                    <td>{point.severity}</td>
+                    <td>{openPointPriorityLabel(point.severity)}</td>
                     <td>{point.title}</td>
                     <td>{openPointChapterLabel(point.chapter)}</td>
+                    <td>{openPointDueLabel()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -202,7 +209,7 @@ export default function SteuerberaterPage() {
           </div>
           <div className="actions">
             <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
-              Entwurf-PDF herunterladen
+              Muster-PDF herunterladen
             </a>
             <Link className="btn ghost" href={PARTNER_MUSTER_PATH}>
               Musterseite mit den Beispieldaten
@@ -306,9 +313,11 @@ export default function SteuerberaterPage() {
           <p className="prose">
             Ein Einmal-PDF veraltet, wenn Software oder Prozesse wechseln.
             Setup: erste Fassung. Abo: Fassungen halten und erneut exportieren.
-            Das Muster-PDF ist ein Entwurf (DRAFT / not Philip-final), keine
-            fachliche Endfassung. Gültig-ab setzt der Mandant nach dem Kauf.
-            Weitere Fassungen legt er dort an — nicht in dieser Vorschau.
+            Das Muster-PDF folgt der Gliederung des detaillierten Beispiels.
+            Präsens steht nur bei bestätigten Angaben. Die Erzeugung ist keine
+            Freigabe durch die Geschäftsführung. Gültig-ab setzt der Mandant
+            nach dem Kauf. Weitere Fassungen legt er dort an — nicht in dieser
+            Vorschau.
           </p>
         </section>
 

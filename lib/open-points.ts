@@ -6,17 +6,35 @@ export type OpenPointSeverity = "low" | "medium" | "high";
 /** Customer-facing labels. The PDF and partner excerpt do not print template ids. */
 export const OPEN_POINT_CHAPTER_LABELS: Record<string, string> = {
   "00-cover": "Deckblatt",
-  "01-merkmal-tabelle": "Merkmalübersicht",
-  "02-zweck-grenzen": "Zweck und Grenzen",
-  "03-systeme-belegarten": "Systeme und Belegarten",
-  "04-eingang-pruefung": "Eingang und Prüfung",
-  "05-freigabe-buchung": "Freigabe und Buchung",
-  "06-aufbewahrung": "Aufbewahrung",
-  "07-kontrollen-aenderungen": "Kontrollen und Änderungen",
-  "08-anlagen-offene-punkte": "Anlagen und offene Punkte",
-  "09-version-bestaetigung": "Version und Bestätigung",
-  "10-quellen": "Quellen",
+  "01-zweck": "Zweck und Geltungsbereich",
+  "02-rollen": "Rollen",
+  "03-systeme": "Systemlandschaft",
+  "04-belegarten": "Belegarten",
+  "05-eingang": "Eingang und E-Rechnung",
+  "06-papier": "Papier und Digitalisierung",
+  "07-ausgang": "Ausgang und Korrekturen",
+  "08-freigabe": "Prüfung und Freigabe",
+  "09-aufbewahrung": "Ablage und Aufbewahrung",
+  "10-berechtigungen": "Berechtigungen und Sicherung",
+  "11-kontrollen": "Internes Kontrollsystem",
+  "12-versionen": "Versionspflege",
+  "13-anlagen": "Mitgeltende Unterlagen",
+  "14-offene-punkte": "Offene Punkte",
+  "15-anhang-a": "Anhang A Prozessmatrix",
+  "16-anhang-b": "Anhang B Begriffe",
 };
+
+/** PDF column. The intake does not collect a due date, so none is invented. */
+export function openPointPriorityLabel(severity: string): string {
+  if (severity === "high") return "hoch";
+  if (severity === "medium") return "mittel";
+  if (severity === "low") return "niedrig";
+  return severity;
+}
+
+export function openPointDueLabel(): string {
+  return "nicht festgelegt";
+}
 
 export function openPointChapterLabel(id?: string): string {
   if (!id) return "—";

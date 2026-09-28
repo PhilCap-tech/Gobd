@@ -1,8 +1,4 @@
 import { randomUUID } from "node:crypto";
-import {
-  PARTNER_MUSTER_DOCUMENT_ID,
-  PARTNER_MUSTER_DRAFT_LABEL,
-} from "@/lib/partner-muster";
 import PDFDocument from "pdfkit";
 import {
   deliveryBundle,
@@ -86,26 +82,38 @@ export type DeliveryPlan = {
 function hintFromAnswers(id: string, answers: IntakeAnswers): string {
   const join = (values: string[]) => values.join(", ");
   switch (id) {
-    case "01-merkmal-tabelle":
-      return answers.gf || join(answers.branchen) || "Merkmal";
-    case "02-zweck-grenzen":
+    case "01-zweck":
       return answers.gf || "Zweck";
-    case "03-systeme-belegarten":
+    case "02-rollen":
+      return answers.gf || join(answers.branchen) || "Rollen";
+    case "03-systeme":
       return join(answers.fibu) || "Systeme";
-    case "04-eingang-pruefung":
+    case "04-belegarten":
+      return join(answers.eingangsbelege) || "Belegarten";
+    case "05-eingang":
       return join(answers.eingangsbelege) || "Eingang fehlt";
-    case "05-freigabe-buchung":
-      return join(answers.ausgangsrechnungen) || "Freigabe";
-    case "06-aufbewahrung":
+    case "06-papier":
+      return "Papier nur wenn genannt";
+    case "07-ausgang":
+      return join(answers.ausgangsrechnungen) || "Ausgang fehlt";
+    case "08-freigabe":
+      return answers.gf || "Freigabe";
+    case "09-aufbewahrung":
       return answers.archiv || "Aufbewahrung";
-    case "07-kontrollen-aenderungen":
-      return "Kontrollen";
-    case "08-anlagen-offene-punkte":
-      return "Offene Punkte";
-    case "09-version-bestaetigung":
+    case "10-berechtigungen":
+      return answers.zugriff || "Zugriff";
+    case "11-kontrollen":
+      return "Kontrollen nicht bestätigt";
+    case "12-versionen":
       return "Bestätigung ausstehend";
-    case "10-quellen":
-      return "Quellen";
+    case "13-anlagen":
+      return "Anlagen offen";
+    case "14-offene-punkte":
+      return "Offene Punkte";
+    case "15-anhang-a":
+      return "Prozessmatrix";
+    case "16-anhang-b":
+      return "Begriffe";
     default:
       return "";
   }
@@ -201,7 +209,6 @@ function drawFooter(
     pages: number;
     versionLabel: string;
     validFrom?: string;
-    draftLabel?: string;
   },
 ) {
   withOpenMargins(doc, () => {
@@ -235,7 +242,7 @@ function drawFooter(
       .fontSize(7)
       .fillColor(BRAND_MUTED)
       .text(
-        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}${input.draftLabel ? " · DRAFT / not Philip-final" : ""}`,
+        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}`,
         left,
         ruleY + 18,
         { width, lineBreak: false },
@@ -248,30 +255,20 @@ function writeTitlePage(
   rendered: RenderedDocument,
   cover?: string,
   metaSentence?: string,
-  draftLabel?: string,
 ) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
   const lockupHeight = 52;
   drawBrandLockup(doc, left, 44, lockupHeight);
-  let cursor = 44 + lockupHeight + 10;
-  if (draftLabel) {
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(11)
-      .fillColor(BRAND_NAVY)
-      .text(draftLabel, left, cursor, { width });
-    cursor = doc.y + 8;
-  }
   doc
     .font("Helvetica")
     .fontSize(10)
     .fillColor(BRAND_NAVY)
-    .text("Arbeitsfassung aus Kunden-Intake", left, cursor, {
+    .text("Arbeitsfassung aus Kunden-Intake", left, 44 + lockupHeight + 10, {
       width,
     });
 
-  doc.y = Math.max(draftLabel ? doc.y + 16 : 130, 130);
+  doc.y = 130;
   doc.x = left;
   writeMarkdownish(doc, cover?.trim() ? cover : rendered.cover, width);
   if (metaSentence) {
@@ -289,7 +286,6 @@ function decoratePages(
   input: {
     identity: CheckoutIdentity;
     rendered: RenderedDocument;
-    draftLabel?: string;
   },
 ) {
   const range = doc.bufferedPageRange();
@@ -303,7 +299,6 @@ function decoratePages(
       pages: range.count,
       versionLabel: input.rendered.versionLabel,
       validFrom: input.rendered.validFromDisplay,
-      draftLabel: input.draftLabel,
     });
   }
 }
@@ -330,16 +325,11 @@ function writePdf(
       : rendered.chapters;
 
   const customCover = Boolean(input.content?.cover?.trim());
-  const draftLabel =
-    input.documentId === PARTNER_MUSTER_DOCUMENT_ID
-      ? PARTNER_MUSTER_DRAFT_LABEL
-      : undefined;
   writeTitlePage(
     doc,
     rendered,
     cover,
     customCover ? rendered.versionMetaSentence : "",
-    draftLabel,
   );
   doc.addPage();
 
@@ -351,7 +341,6 @@ function writePdf(
   decoratePages(doc, {
     identity: input.identity,
     rendered,
-    draftLabel,
   });
 }
 
@@ -374,9 +363,7 @@ export async function generatePdf(input: {
       bufferPages: true,
       autoFirstPage: true,
       info: {
-        Title: `${
-          documentId === PARTNER_MUSTER_DOCUMENT_ID ? "DRAFT — " : ""
-        }${BRAND_DOC_TITLE} — ${input.identity.company || "Arbeitsfassung"}`,
+        Title: `${BRAND_DOC_TITLE} — ${input.identity.company || "Arbeitsfassung"}`,
         Author: BRAND_NAME,
         Subject: "Arbeitsfassung Belegablage — kein Steuerberatungsersatz",
       },

@@ -8,6 +8,8 @@ import {
   evaluateOpenPoints,
   OPEN_POINT_EMPTY_LABELS,
   openPointChapterLabel,
+  openPointDueLabel,
+  openPointPriorityLabel,
 } from "@/lib/open-points";
 import {
   PARTNER_DEMO_PATH,
@@ -19,9 +21,9 @@ import {
 } from "@/lib/partner-muster";
 
 const PAGE_TITLE =
-  "Entwurf: Verfahrensdokumentation Beispiel GmbH (nicht fachlich freigegeben) | GoBD Verfahrensdoku";
+  "Muster: Verfahrensdokumentation Beispiel GmbH (fiktiv) | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "DRAFT / not Philip-final. Engineering-Smoke einer fiktiven GmbH: DATEV, E-Mail/PDF. Kein fachliches Endmuster. Keine Steuerberatung.";
+  "Fiktive GmbH, DATEV, E-Mail und PDF. Gliederung am detaillierten Muster. Präsens nur für bestätigte Angaben. Keine Freigabe durch die Geschäftsführung. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -75,17 +77,17 @@ export default function PartnerMusterPage() {
       <SiteHeader backHref="/steuerberater" backLabel="Für Steuerberater" />
       <main className="wrap partner-copy">
         <section className="hero">
-          <p className="kicker">Entwurf · Beispiel · nicht fachlich freigegeben</p>
-          <h1>Entwurf: Beispiel GmbH</h1>
+          <p className="kicker">Muster · Beispiel · fiktiv</p>
+          <h1>Musterergebnis: Beispiel GmbH</h1>
           <p className="lead">
-            Kein Mandant, keine echten Personen. DRAFT / not Philip-final:
-            Engineering-Smoke aus festen Beispieldaten, derselbe Generator wie
-            eine Lieferung. Kein fachliches Endmuster und keine Freigabe
-            dieser Fassung.
+            Kein Mandant, keine echten Personen. Dieselbe Gliederung wie das
+            detaillierte Beispiel, erzeugt aus festen Beispieldaten. Präsens
+            nur für bestätigte Angaben. Die Erzeugung ist keine Freigabe durch
+            die Geschäftsführung.
           </p>
           <div className="actions">
             <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
-              Entwurf-PDF herunterladen
+              Muster-PDF herunterladen
             </a>
             <Link className="btn ghost" href={PARTNER_DEMO_PATH}>
               Fragenprozess testen
@@ -95,8 +97,8 @@ export default function PartnerMusterPage() {
             Festgelegte Beispieldaten: Beispiel GmbH, B2B-Dienstleistungen,
             DATEV, Eingang E-Mail und PDF, Ausgang über Rechnungssoftware,
             Archiv „DATEV Unternehmen online“, Anna Beispiel, Ben Muster.
-            Kein Papierweg. Die Erzeugung ist keine Freigabe und nicht die
-            fachliche Endfassung.
+            Kein Papierweg. Die Erzeugung ist keine Freigabe durch die
+            Geschäftsführung.
           </p>
         </section>
 
@@ -151,25 +153,28 @@ export default function PartnerMusterPage() {
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Schwere</th>
+                  <th scope="col">Priorität</th>
                   <th scope="col">Offener Punkt</th>
                   <th scope="col">Kapitel</th>
+                  <th scope="col">Zieltermin</th>
                 </tr>
               </thead>
               <tbody>
                 {openPoints.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.severity}</td>
+                    <td>{openPointPriorityLabel(item.severity)}</td>
                     <td>{item.title}</td>
                     <td>{openPointChapterLabel(item.chapter)}</td>
+                    <td>{openPointDueLabel()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className="hint">
-            Dieselbe Tabelle steht im PDF (Kapitel Offene Punkte). Schweregrade
-            bleiben high, medium, low — so schreibt sie der Generator.
+            Dieselbe Tabelle steht im PDF. Priorität ist hoch, mittel oder
+            niedrig. Ein Zieltermin wird nicht erfunden und steht auf „nicht
+            festgelegt“.
           </p>
         </section>
 
@@ -188,9 +193,10 @@ export default function PartnerMusterPage() {
             <Link href={PARTNER_DEMO_PATH}>Fragenprozess testen</Link>
           </p>
           <p className="disclaimer">
-            Entwurf der IKAT GmbH, gobd-doku-erstellen.de. DRAFT / not
-            Philip-final. Keine Steuer-, Rechts- oder Prüfungsberatung. Keine
-            Zusicherung von GoBD-Konformität. Die Beispiel GmbH ist erfunden.
+            Muster der IKAT GmbH, gobd-doku-erstellen.de. Keine Steuer-, Rechts-
+            oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität. Die
+            Beispiel GmbH ist erfunden. Die Erzeugung ist keine Freigabe durch
+            die Geschäftsführung.
           </p>
         </section>
       </main>

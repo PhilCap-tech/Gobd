@@ -1,0 +1,598 @@
+Verfahrensdokumentation zur Belegablage
+Vollständiges fiktives Muster für die Beispiel GmbH
+Fassung 1.0  |  gültig ab 1. Oktober 2026  |  erstellt am 28. September 2026
+Dieses Dokument beschreibt einen vollständig festgelegten Beispielsachverhalt. Unternehmen, Personen, Systeme und Nachweise sind teilweise erfunden. Es zeigt Aufbau, Detaillierungsgrad und Logik einer möglichen Verfahrensdokumentation. Für einen realen Betrieb muss jede Ist-Aussage aus dessen eigenen bestätigten Angaben stammen.
+Dokumentmerkmal
+Angabe
+Unternehmen
+Beispiel GmbH, B2B-Dienstleistungen, vier Beschäftigte, ein Standort in Köln
+Geschäftsführung
+Anna Beispiel
+Buchhaltung
+Ben Muster
+Externe Kanzlei
+Kanzlei Beispiel; vereinbarte Buchung und Jahresabschlussarbeiten
+Geltungsbereich
+Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung
+Ausgeschlossen
+Kasse, Warenwirtschaft, Lohnabrechnung und branchenspezifische Fachverfahren
+Status
+Fiktive, durch die Beispiel-Geschäftsführung bestätigte Musterfassung
+Freigabevermerk
+Bei einem realen Betrieb bestätigt die Geschäftsleitung an dieser Stelle, dass die beschriebenen Abläufe der tatsächlichen Praxis entsprechen. Automatische Erzeugung und fachliche Hinweise ersetzen diese betriebliche Prüfung nicht.
+Rolle
+Name
+Datum
+Status
+Geschäftsleitung
+Anna Beispiel
+28.09.2026
+Für Muster bestätigt
+Dokumentationsverantwortung
+Ben Muster
+28.09.2026
+Für Muster bestätigt
+Dokumentenlenkung und Inhaltsübersicht
+Dokumentenlenkung
+Feld
+Inhalt
+Dokument-ID
+VD-BELEG-001
+Version
+1.0
+Gültig ab
+01.10.2026
+Nächste planmäßige Prüfung
+30.09.2027
+Speicherort
+Unternehmenslaufwerk / Organisation / Verfahrensdokumentation
+Vorversion
+Keine; Erstfassung
+Änderungsanlass
+Erstmalige vollständige Beschreibung des Beispielprozesses
+Inhalt
+1 Zweck, Geltungsbereich und Verantwortung
+2 Unternehmen, Rollen und Aufgaben
+3 Systemlandschaft und Datenfluss
+4 Belegarten und Eingangskanäle
+5 Eingangsrechnungen und E-Rechnungen
+6 Papierbelege und Digitalisierung
+7 Ausgangsrechnungen und Korrekturen
+8 Prüfung, Freigabe und Buchungsübergabe
+9 Ablage, Aufbewahrung und Datenzugriff
+10 Berechtigungen, Sicherung und Notfall
+11 Internes Kontrollsystem
+12 Versionspflege und Änderungen
+13 Mitgeltende Unterlagen
+14 Offene Punkte und Maßnahmen
+Anhang A Prozessmatrix und Anhang B Begriffserläuterungen
+1 Zweck, Geltungsbereich und Verantwortung
+1.1 Zweck
+Die Dokumentation macht den Weg steuerlich und handelsrechtlich relevanter Belege nachvollziehbar: vom Eingang oder der Erstellung über Prüfung, Freigabe und Übergabe zur Buchung bis zur geordneten Aufbewahrung und späteren Löschung. Ein sachverständiger Dritter soll die beschriebenen Abläufe, Systeme, Verantwortlichkeiten und Kontrollen innerhalb angemessener Zeit verstehen können.
+1.2 Geltungsbereich
+Erfasst werden die Prozesse der Beispiel GmbH am Standort Köln. Dazu gehören Eingangsrechnungen per E-Mail, strukturierte E-Rechnungen, einzelne Papierbelege, Ausgangsrechnungen aus Rechnungssoftware R sowie ergänzende Vertrags- und Zahlungsunterlagen, soweit sie für das Verständnis einer Buchung erforderlich sind.
+Nicht erfasst sind Bargeldkassen, Warenwirtschaft, Lohnabrechnung und andere Fachverfahren. Sollte künftig eines dieser Verfahren eingeführt werden, wird der Geltungsbereich vor produktiver Nutzung erweitert.
+1.3 Verantwortung
+Die Gesamtverantwortung liegt bei der Geschäftsführung. Die externe Kanzlei unterstützt im vereinbarten Leistungsumfang. Die Verantwortung des Unternehmens für Vollständigkeit, tatsächliche Durchführung, Aufbewahrung und Aktualisierung bleibt bestehen.
+1.4 Fachliche Grundlage
+Die Dokumentation orientiert sich an den Grundsätzen der Nachvollziehbarkeit und Nachprüfbarkeit, Vollständigkeit, Richtigkeit, zeitgerechten Erfassung, Ordnung und Unveränderbarkeit. Sie enthält allgemeine fachliche Hinweise und betriebsbezogene Ist-Aussagen. Allgemeine Hinweise sind nicht als Bestätigung der konkreten Umsetzung zu lesen.
+2 Unternehmen, Rollen und Aufgaben
+2.1 Organisatorischer Rahmen
+Die Beispiel GmbH erbringt B2B-Dienstleistungen. Vier Beschäftigte arbeiten an einem Standort. Es bestehen keine Niederlassungen und keine eigenständigen Fachabteilungen. Die Belegbearbeitung wird deshalb von wenigen benannten Personen ausgeführt; die Funktionstrennung wird durch Freigaben und Stichproben der Geschäftsführung ergänzt.
+2.2 Rollenmatrix
+Prozessschritt
+Ausführung
+Kontrolle oder Entscheidung
+E-Mail-Postfach sichten
+Ben Muster
+Vertretung Anna Beispiel
+Papierpost entgegennehmen
+Ben Muster
+Anna Beispiel bei Unklarheiten
+Sachliche Rechnungsprüfung
+Anna Beispiel
+keine Selbstfreigabe eigener Auslagen
+Belege bereitstellen
+Ben Muster
+monatlicher Vollständigkeitsabgleich
+Buchung
+Kanzlei Beispiel
+gemäß Mandatsvereinbarung
+Rechte vergeben oder entziehen
+Anna Beispiel
+Dokumentation in Berechtigungsliste
+Löschung freigeben
+Anna Beispiel
+vorherige Fristenprüfung
+Dokument aktualisieren
+Ben Muster
+Bestätigung durch Anna Beispiel
+2.3 Vertretung
+Bei Abwesenheit von Ben Muster übernimmt Anna Beispiel die Sichtung und Weiterleitung. Änderungen an Rollen werden spätestens am Tag ihres Wirksamwerdens dokumentiert. Ausgeschiedene Personen verlieren ihre Zugriffsrechte unverzüglich.
+3 Systemlandschaft und Datenfluss
+3.1 Verwendete Systeme
+System
+Funktion
+Verantwortung
+Aufbewahrungsbezug
+Funktionspostfach rechnung@beispiel.invalid
+Empfang von PDF und strukturierten Rechnungsdateien
+Ben Muster
+E-Mails mit belegrelevanten Zusatzangaben werden mitgesichert
+Rechnungssoftware R
+Erstellung und Versand von Ausgangsrechnungen
+Anna Beispiel
+Exportierte Originalfassung und Korrekturen
+DATEV Unternehmen online
+Belegablage, Beleg-ID und Übergabe
+Ben Muster
+Zentraler Ablageort der beschriebenen Belege
+DATEV Rechnungswesen
+Buchung durch die Kanzlei
+Kanzlei Beispiel
+Verknüpfung von Buchung und Beleg-ID
+Unternehmenslaufwerk
+Dokumentation, Kontrollprotokolle und Anlagen
+Ben Muster
+Versionierte Organisationsunterlagen
+3.2 Datenfluss
+Eingehende Dateien werden aus dem Funktionspostfach unverändert in DATEV Unternehmen online übernommen. Ben Muster ordnet Belegart und Zeitraum zu. Nach sachlicher Freigabe stellt er den Beleg der Kanzlei bereit. Die Kanzlei verbucht und nutzt die Beleg-ID zur Verbindung von Buchung und Beleg. Rückfragen werden im vereinbarten Kommunikationskanal geklärt und relevante Ergänzungen am Vorgang dokumentiert.
+3.3 Vorsysteme
+Für dieses Muster sind keine weiteren Vorsysteme bestätigt. Vertragsunterlagen oder Zahlungsnachweise werden als mitgeltende Unterlagen aufgenommen, wenn der Beleg allein den Geschäftsvorfall nicht ausreichend erklärt. Die jährliche Systemprüfung fragt ausdrücklich nach neuen Portalen, Apps, Tabellen oder Plattformen.
+4 Belegarten und Eingangskanäle
+4.1 Belegübersicht
+Belegart
+Eingang oder Entstehung
+Original
+Ablage
+PDF-Eingangsrechnung
+Funktionspostfach
+empfangene PDF-Datei
+DATEV Unternehmen online
+XRechnung oder ZUGFeRD
+Funktionspostfach
+strukturierter Teil in empfangener Form
+DATEV Unternehmen online
+Papierbeleg
+Post oder persönliche Übergabe
+Papieroriginal; Scan als Bearbeitungskopie
+Jahresordner und DATEV Unternehmen online
+Ausgangsrechnung
+Rechnungssoftware R
+exportierte, versandte Fassung
+DATEV Unternehmen online
+Vertrag oder Leistungsnachweis
+E-Mail oder Unternehmenslaufwerk
+empfangene bzw. freigegebene Datei
+mit dem Beleg verknüpft oder geordnet abgelegt
+Bank- oder Zahlungsnachweis
+Bankzugang oder Zahlungsdienstleister
+Originalauszug oder exportierte Abrechnung
+Belegablage bzw. vereinbarte Übergabe
+4.2 Vollständigkeit
+Ben Muster prüft an Arbeitstagen das Funktionspostfach und einmal monatlich, ob regelmäßig genutzte Portale oder Zahlungswege vollständig berücksichtigt wurden. Nicht zuordenbare Dateien werden nicht gelöscht, sondern bis zur Klärung in einem gesonderten Status gehalten.
+4.3 Belegrelevante Zusatzinformationen
+Enthält eine E-Mail Angaben, die für Verständnis, Prüfung oder Freigabe des Geschäftsvorfalls erforderlich sind, wird auch diese Nachricht oder ein nachvollziehbarer Export aufbewahrt. Reine Transportnachrichten ohne Belegfunktion werden nicht pauschal als Buchungsbeleg behandelt.
+5 Eingangsrechnungen und E-Rechnungen
+5.1 Eingang und erste Prüfung
+Ben Muster prüft Absender, Dateiformat, Lesbarkeit und offensichtliche Vollständigkeit. Verdächtige Anhänge werden nicht geöffnet oder weiterverarbeitet. Dubletten, falsche Empfänger oder fehlende Seiten werden vor Freigabe geklärt. Die empfangene Originaldatei bleibt unverändert.
+5.2 Strukturierte E-Rechnungen
+Seit 2025 wird zwischen strukturierter E-Rechnung und einer sonstigen elektronischen Rechnung wie einer einfachen PDF unterschieden. Bei XRechnung oder ZUGFeRD wird der strukturierte Teil in seiner ursprünglichen Form aufbewahrt. Eine erzeugte Ansicht dient der Lesbarkeit; bei Abweichungen ist der strukturierte Inhalt maßgeblich. Für dieses Muster wird der Eingang technisch angenommen, die konkrete Validierungssoftware bleibt als offener Punkt benannt.
+5.3 Sachliche Prüfung und Freigabe
+Anna Beispiel prüft Leistungsbezug, Liefer- oder Leistungszeitraum, Betrag, Zahlungskonditionen und Bezug zu Bestellung oder Vertrag. Eigene Auslagen gibt sie nicht selbst frei. Abweichungen werden dokumentiert und vor Weitergabe an die Kanzlei geklärt.
+5.4 Ausnahmen
+Fall
+Behandlung
+Dublettenverdacht
+Beleg sperren, vorhandene Beleg-ID suchen, Ergebnis dokumentieren
+Unlesbare oder defekte Datei
+neue Datei beim Absender anfordern; defekte Eingangsdatei bis zur Klärung erhalten
+XML und Sichtdarstellung weichen ab
+keine Freigabe; strukturierte Daten prüfen und Absender kontaktieren
+Unbekannter Absender
+Leistungsbezug und Authentizität klären
+Gutschrift oder Korrektur
+Bezug zur Ursprungsrechnung herstellen und beide Fassungen erhalten
+6 Papierbelege und Digitalisierung
+6.1 Posteingang
+Ben Muster versieht eingehende Papierbelege mit dem Eingangsdatum, prüft die Vollständigkeit und legt sie bis zur Bearbeitung in einer gekennzeichneten Eingangsmappen ab. Schutzwürdige Post wird ungeöffnet an die benannte Person weitergegeben.
+6.2 Digitalisierung
+Papierbelege werden für die Bearbeitung gescannt. Der Scan wird auf Lesbarkeit, Vollständigkeit, richtige Ausrichtung und Seitenzahl geprüft und anschließend in DATEV Unternehmen online abgelegt. Der Dateiname oder die Beleg-ID ermöglicht die Zuordnung zum Papieroriginal.
+6.3 Keine ersetzende Vernichtung
+In dieser Musterfassung findet kein ersetzendes Scannen statt. Das Papieroriginal bleibt im Jahresordner erhalten. Deshalb werden keine Aussagen darüber getroffen, dass Originale nach dem Scan vernichtet werden dürfen. Eine spätere Umstellung würde einen eigenen, detaillierten Prozess, geeignete Kontrollen und eine neue Fassung erfordern.
+6.4 Papierablage
+Papieroriginale werden nach Jahr, Monat und Belegart geordnet in einem abschließbaren Schrank am Standort Köln aufbewahrt. Zugriff haben Anna Beispiel und Ben Muster. Entnahmen werden nur für betriebliche Zwecke vorgenommen; anschließend wird der Beleg unverzüglich zurückgelegt.
+7 Ausgangsrechnungen und Korrekturen
+7.1 Erstellung
+Anna Beispiel erstellt Ausgangsrechnungen in Rechnungssoftware R. Das System vergibt fortlaufende Rechnungsnummern. Vor Versand prüft sie Empfänger, Leistungsbeschreibung, Leistungsdatum, Betrag und Zahlungsbedingungen. Die versandte Fassung wird exportiert und geordnet abgelegt.
+7.2 Versand und Nachweis
+Der Versand erfolgt per E-Mail oder als strukturierte E-Rechnung, sofern dies für den Vorgang vorgesehen ist. Der Übermittlungsweg wird am Vorgang dokumentiert. Rückläufer oder technische Fehler werden geklärt; ein bloßer Versandversuch gilt nicht als erfolgreicher Zugang.
+7.3 Berichtigung und Storno
+Bereits versandte Rechnungen werden nicht überschrieben. Eine Korrektur oder ein Storno erhält eine eigene nachvollziehbare Fassung und wird mit der ursprünglichen Rechnung verknüpft. Der Anlass wird kurz dokumentiert. Nummernlücken werden nicht durch Löschen verdeckt, sondern erklärt.
+7.4 Eigenbelege
+Fehlt ausnahmsweise ein Fremdbeleg, entscheidet Anna Beispiel über die Erstellung eines Eigenbelegs. Der Eigenbeleg beschreibt Geschäftsvorfall, Betrag, Datum, Beteiligte und Grund für das Fehlen des Fremdbelegs; verfügbare Nachweise werden beigefügt. Diese Ausnahme wird nicht zum Regelprozess.
+8 Prüfung, Freigabe und Buchungsübergabe
+8.1 Statusfolge
+Status
+Bedeutung
+Nächster zulässiger Schritt
+Eingegangen
+Datei oder Papier liegt vor
+formale und sachliche Prüfung
+In Klärung
+Angabe fehlt oder Widerspruch besteht
+Klärung dokumentieren
+Freigegeben
+Leistungsbezug und Betrag bestätigt
+Bereitstellung zur Buchung
+Zur Buchung bereitgestellt
+Beleg ist der Kanzlei zugänglich
+Buchung oder Rückfrage
+Gebucht
+Buchung und Beleg-ID sind verbunden
+Aufbewahrung und Kontrolle
+8.2 Übergabe an die Kanzlei
+Ben Muster stellt freigegebene Belege mindestens monatlich bereit. Die Kanzlei übernimmt Tätigkeiten ausschließlich im vereinbarten Mandatsumfang. Eine allgemeine fachliche Freigabe der Verfahrensdokumentation durch die Kanzlei ist damit nicht verbunden.
+8.3 Vollständigkeitsabgleich
+Zum Monatsabschluss vergleicht Ben Muster die Liste freigegebener Belege mit der Übergabeübersicht. Offene oder zurückgewiesene Vorgänge bleiben sichtbar. Anna Beispiel erhält eine Liste nicht abgeschlossener Fälle.
+8.4 Verbindung von Beleg und Buchung
+Die Verbindung erfolgt über die Beleg-ID in DATEV Unternehmen online und die Zuordnung in DATEV Rechnungswesen. Ergänzende Unterlagen werden so abgelegt, dass der Bezug zum Geschäftsvorfall erkennbar bleibt.
+9 Ablage, Aufbewahrung und Datenzugriff
+9.1 Ordnung und Wiederauffindbarkeit
+Die Ablage nutzt Zeitraum, Belegart, Geschäftspartner und Beleg-ID. Ben Muster führt vierteljährlich eine Suchprobe durch. Ein sachverständiger Dritter soll einen ausgewählten Vorgang einschließlich Original, Freigabe und Buchung innerhalb angemessener Zeit nachvollziehen können.
+9.2 Aufbewahrungsfristen
+Fristen werden nach Unterlagenart beurteilt. Buchungsbelege sind nach aktueller Grundregel acht Jahre aufzubewahren; Handelsbücher, Inventare, Jahresabschlüsse und bestimmte Organisationsunterlagen unterliegen grundsätzlich zehn Jahren; bestimmte Geschäftsbriefe sechs Jahren. Sonderfälle, Ablaufhemmungen und abweichende Vorschriften werden vor Löschung geprüft. Das System darf daher keine einheitliche Pauschalfrist auf alle Dateien anwenden.
+9.3 E-Rechnung
+Bei E-Rechnungen wird zumindest der strukturierte Teil in seiner ursprünglichen Form und unversehrt aufbewahrt. Eine Visualisierung oder PDF-Kopie ersetzt den strukturierten Originaldatensatz nicht.
+9.4 Datenzugriff und Export
+Anna Beispiel stellt sicher, dass relevante Daten und Dokumentationen bei einer Prüfung in der erforderlichen Form bereitgestellt werden können. Ein Probeexport wird jährlich durchgeführt und dokumentiert. Der erste dokumentierte Probeexport ist für dieses Muster noch offen.
+9.5 Löschung
+Eine Löschung erfolgt nur nach dokumentierter Prüfung von Unterlagenart, Fristende, möglichen Ablaufhemmungen und weiteren Aufbewahrungsgründen. Anna Beispiel erteilt die Freigabe. Das Ergebnis wird im Löschprotokoll festgehalten.
+10 Berechtigungen, Sicherung und Notfall
+10.1 Berechtigungen
+Rolle
+Lesen
+Bearbeiten
+Freigeben
+Rechte verwalten
+Anna Beispiel
+ja
+ja
+ja
+ja
+Ben Muster
+ja
+ja
+nein
+nein
+Kanzlei Beispiel
+im Mandatsumfang
+Buchung und Rückfrage
+nein
+nein
+Andere Beschäftigte
+nur bei ausdrücklicher Aufgabe
+nein
+nein
+nein
+10.2 Änderungen und Austritt
+Neue oder geänderte Rechte werden von Anna Beispiel beauftragt und in der Berechtigungsliste vermerkt. Bei Austritt oder Aufgabenwechsel werden nicht mehr erforderliche Rechte am Wirksamkeitstag entzogen.
+10.3 Sicherung
+Für DATEV Unternehmen online wird im Muster von der technischen Sicherung des Anbieters ausgegangen. Anbieterangaben und der konkrete Rücksicherungsnachweis sind als Anlagen zu beschaffen. Das Unternehmenslaufwerk wird täglich gesichert; Ben Muster kontrolliert monatlich das Sicherungsprotokoll.
+10.4 Notfallbetrieb
+Bei Ausfall des Funktionspostfachs informiert Ben Muster Anna Beispiel und dokumentiert Beginn und Ende. Belege werden vorübergehend in einem zugriffsgeschützten Notfallordner gesammelt und nach Wiederherstellung kontrolliert in den Regelprozess überführt. Bei Ausfall des Archivsystems werden keine Originale gelöscht oder überschrieben.
+11 Internes Kontrollsystem
+11.1 Bestätigte Kontrollen im Muster
+Kontrolle
+Turnus
+Verantwortlich
+Nachweis
+Postfach und offene Eingänge
+arbeitstäglich
+Ben Muster
+Status im Vorgang
+Vollständigkeit der Monatsübergabe
+monatlich
+Ben Muster
+Übergabeprotokoll
+Stichprobe von fünf Belegen
+monatlich
+Anna Beispiel
+Kontrollprotokoll
+Berechtigungsprüfung
+vierteljährlich
+Anna Beispiel
+Berechtigungsliste
+Such- und Lesbarkeitsprobe
+vierteljährlich
+Ben Muster
+Prüfprotokoll
+System- und Prozessänderungen
+jährlich und anlassbezogen
+Anna Beispiel / Ben Muster
+Änderungsliste
+11.2 Stichprobeninhalt
+Die Stichprobe umfasst Originalbeleg, Lesbarkeit, Beleg-ID, sachliche Freigabe, Buchungszuordnung und gegebenenfalls ergänzende Unterlagen. Abweichungen erhalten Verantwortlichen und Termin. Die Korrektur wird nachverfolgt.
+11.3 Abweichungen
+Eine Abweichung führt nicht zur nachträglichen Umschreibung der Dokumentation. Zunächst wird geklärt, ob die Praxis korrigiert oder das dokumentierte Verfahren angepasst werden muss. Wesentliche Änderungen erzeugen eine neue Fassung mit neuem Gültigkeitsdatum.
+12 Versionspflege und Änderungen
+12.1 Änderungsanlässe
+neues oder ersetztes System
+neuer Belegkanal oder neues Dateiformat
+geänderte Zuständigkeit oder Vertretung
+Umstellung des Scan- oder Archivverfahrens
+Änderung von Aufbewahrungs- oder Löschregeln
+festgestellte Abweichung mit Auswirkung auf den Sollprozess
+rechtliche Änderung mit Bedeutung für die beschriebenen Verfahren
+12.2 Vorgehen
+Ben Muster erfasst Anlass, betroffene Kapitel und geplantes Wirksamkeitsdatum. Anna Beispiel prüft die neue Fassung gegen die tatsächliche Praxis. Die abgelöste Fassung erhält ein Gültig-bis-Datum und bleibt zusammen mit der Änderungshistorie erhalten.
+12.3 Änderungshistorie
+Version
+Gültig ab
+Gültig bis
+Änderung
+Bestätigt durch
+1.0
+01.10.2026
+offen
+Erstfassung des fiktiven Musterprozesses
+Anna Beispiel
+12.4 Keine Rückdatierung
+Eine neu dokumentierte Praxis gilt ab dem bestätigten Zeitpunkt. Das Dokument behauptet nicht rückwirkend, dass ein neu eingeführter Ablauf bereits zuvor umgesetzt wurde.
+13 Mitgeltende Unterlagen
+Anlage
+Zweck
+Status im Muster
+Systemliste mit Versionen und Betreibern
+technische Einordnung
+vorhanden als Musterangaben
+Berechtigungsliste
+Zugriffsrollen und Änderungen
+zu erstellen
+Mandatsvereinbarung Kanzlei
+Abgrenzung externer Tätigkeiten
+als vorhanden angenommen
+Kontrollprotokoll
+Nachweis der Stichproben
+Musterformular erforderlich
+Löschprotokoll
+Prüfung und Freigabe von Löschungen
+Musterformular erforderlich
+Anbieterunterlagen zu Sicherung und Export
+Wiederherstellung und Datenzugriff
+offen
+Notfallprotokoll
+Ausfälle und Nachbearbeitung
+Musterformular erforderlich
+Schulungsnachweis
+Kenntnis der Beteiligten
+zu erstellen
+Mitgeltende Unterlagen tragen eigenen Stand und Speicherort. Ein bloßer Verweis auf eine Anlage reicht nicht, wenn die Anlage für das Verständnis oder den Nachweis eines Prozessschritts erforderlich ist und tatsächlich fehlt.
+14 Offene Punkte und Maßnahmen
+Offene Punkte entstehen aus unbekannten, widersprüchlichen oder noch nicht belegten Angaben. Sie werden fachlich beschrieben und beziehen sich auf den Betrieb. Interne Bestell-, Zahlungs- oder Testdaten des Produkts erscheinen hier nicht.
+ID
+Priorität
+Offener Punkt
+Verantwortung
+Zieltermin
+OP 01
+hoch
+Technisches Verfahren zur Validierung strukturierter E-Rechnungen auswählen, testen und dokumentieren.
+Anna Beispiel / IT
+31.10.2026
+OP 02
+mittel
+Anbieterunterlagen zu Sicherung, Wiederherstellung und Exportfähigkeit beiziehen.
+Ben Muster
+30.11.2026
+OP 03
+mittel
+Ersten Probeexport und Wiederauffindbarkeitstest durchführen und protokollieren.
+Ben Muster
+30.11.2026
+OP 04
+mittel
+Berechtigungsliste mit aktuellem Mandatszugang der Kanzlei erstellen.
+Anna Beispiel
+15.10.2026
+OP 05
+niedrig
+Formulare für Kontrolle, Notfall und Löschung als Anlagen hinterlegen.
+Ben Muster
+31.12.2026
+Bewertung
+Die offenen Punkte begrenzen die Aussagekraft der Fassung in den betroffenen Bereichen. Nach Erledigung werden Ergebnis, Nachweis und gegebenenfalls geänderte Prozessbeschreibung in einer neuen Version dokumentiert.
+Anhang A Prozessmatrix
+Nr.
+Auslöser
+Tätigkeit
+Ergebnis
+Verantwortlich
+P01
+Beleg geht ein
+Original sichern und Eingang prüfen
+Beleg im Status Eingegangen
+Ben Muster
+P02
+Prüfung möglich
+Leistungsbezug und Betrag prüfen
+Freigabe oder Klärung
+Anna Beispiel
+P03
+Freigabe erteilt
+Beleg zuordnen und bereitstellen
+Beleg für Kanzlei verfügbar
+Ben Muster
+P04
+Beleg bereitgestellt
+Buchen oder Rückfrage stellen
+Buchung mit Beleg-ID
+Kanzlei Beispiel
+P05
+Monatsende
+Vollständigkeit abgleichen
+Übergabeprotokoll
+Ben Muster
+P06
+Kontrolltermin
+Stichprobe durchführen
+Kontrollprotokoll
+Anna Beispiel
+P07
+Änderung erkannt
+Auswirkung prüfen und neue Fassung erstellen
+Versionierte Dokumentation
+Ben Muster / Anna Beispiel
+P08
+Frist abgelaufen
+Löschvoraussetzungen prüfen
+Freigabe oder weitere Aufbewahrung
+Anna Beispiel
+Anhang B Begriffe
+Begriff
+Verwendung in diesem Dokument
+Beleg-ID
+eindeutige Verbindung zwischen abgelegtem Beleg und Buchung
+E-Rechnung
+Rechnung in einem strukturierten elektronischen Format, das elektronische Verarbeitung ermöglicht
+Originaldatei
+empfangene oder erzeugte Datei in ihrer maßgeblichen ursprünglichen Form
+Offener Punkt
+noch zu klärende oder zu belegende Angabe mit Zuständigkeit
+Ist-Aussage
+ausdrücklich bestätigte Beschreibung der tatsächlich ausgeführten Praxis
+Mitgeltende Unterlage
+separates Dokument, das eine Aussage oder einen Prozessschritt ergänzt
+Quellenstand
+GoBD im AO-Handbuch 2026, insbesondere Randziffern 151 bis 155
+§ 147 AO und § 257 HGB in der am 28.09.2026 verfügbaren Fassung
+BMF FAQ zur obligatorischen E-Rechnung, abgerufen für den Fachtextstand September 2026
+Dieses Muster ist eine Produkt- und Diskussionsgrundlage. Vor Verwendung als Vorlage für echte Kunden sollten Fragenkatalog, Fachtexte und Generatorregeln von einer fachkundigen Steuerberatung anhand mehrerer realer, anonymisierter Prozesse geprüft werden.
+
+=== TABLE 0 ===
+Dokumentmerkmal | Angabe
+Unternehmen | Beispiel GmbH, B2B-Dienstleistungen, vier Beschäftigte, ein Standort in Köln
+Geschäftsführung | Anna Beispiel
+Buchhaltung | Ben Muster
+Externe Kanzlei | Kanzlei Beispiel; vereinbarte Buchung und Jahresabschlussarbeiten
+Geltungsbereich | Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung
+Ausgeschlossen | Kasse, Warenwirtschaft, Lohnabrechnung und branchenspezifische Fachverfahren
+Status | Fiktive, durch die Beispiel-Geschäftsführung bestätigte Musterfassung
+
+=== TABLE 1 ===
+Rolle | Name | Datum | Status
+Geschäftsleitung | Anna Beispiel | 28.09.2026 | Für Muster bestätigt
+Dokumentationsverantwortung | Ben Muster | 28.09.2026 | Für Muster bestätigt
+
+=== TABLE 2 ===
+Feld | Inhalt
+Dokument-ID | VD-BELEG-001
+Version | 1.0
+Gültig ab | 01.10.2026
+Nächste planmäßige Prüfung | 30.09.2027
+Speicherort | Unternehmenslaufwerk / Organisation / Verfahrensdokumentation
+Vorversion | Keine; Erstfassung
+Änderungsanlass | Erstmalige vollständige Beschreibung des Beispielprozesses
+
+=== TABLE 3 ===
+Prozessschritt | Ausführung | Kontrolle oder Entscheidung
+E-Mail-Postfach sichten | Ben Muster | Vertretung Anna Beispiel
+Papierpost entgegennehmen | Ben Muster | Anna Beispiel bei Unklarheiten
+Sachliche Rechnungsprüfung | Anna Beispiel | keine Selbstfreigabe eigener Auslagen
+Belege bereitstellen | Ben Muster | monatlicher Vollständigkeitsabgleich
+Buchung | Kanzlei Beispiel | gemäß Mandatsvereinbarung
+Rechte vergeben oder entziehen | Anna Beispiel | Dokumentation in Berechtigungsliste
+Löschung freigeben | Anna Beispiel | vorherige Fristenprüfung
+Dokument aktualisieren | Ben Muster | Bestätigung durch Anna Beispiel
+
+=== TABLE 4 ===
+System | Funktion | Verantwortung | Aufbewahrungsbezug
+Funktionspostfach rechnung@beispiel.invalid | Empfang von PDF und strukturierten Rechnungsdateien | Ben Muster | E-Mails mit belegrelevanten Zusatzangaben werden mitgesichert
+Rechnungssoftware R | Erstellung und Versand von Ausgangsrechnungen | Anna Beispiel | Exportierte Originalfassung und Korrekturen
+DATEV Unternehmen online | Belegablage, Beleg-ID und Übergabe | Ben Muster | Zentraler Ablageort der beschriebenen Belege
+DATEV Rechnungswesen | Buchung durch die Kanzlei | Kanzlei Beispiel | Verknüpfung von Buchung und Beleg-ID
+Unternehmenslaufwerk | Dokumentation, Kontrollprotokolle und Anlagen | Ben Muster | Versionierte Organisationsunterlagen
+
+=== TABLE 5 ===
+Belegart | Eingang oder Entstehung | Original | Ablage
+PDF-Eingangsrechnung | Funktionspostfach | empfangene PDF-Datei | DATEV Unternehmen online
+XRechnung oder ZUGFeRD | Funktionspostfach | strukturierter Teil in empfangener Form | DATEV Unternehmen online
+Papierbeleg | Post oder persönliche Übergabe | Papieroriginal; Scan als Bearbeitungskopie | Jahresordner und DATEV Unternehmen online
+Ausgangsrechnung | Rechnungssoftware R | exportierte, versandte Fassung | DATEV Unternehmen online
+Vertrag oder Leistungsnachweis | E-Mail oder Unternehmenslaufwerk | empfangene bzw. freigegebene Datei | mit dem Beleg verknüpft oder geordnet abgelegt
+Bank- oder Zahlungsnachweis | Bankzugang oder Zahlungsdienstleister | Originalauszug oder exportierte Abrechnung | Belegablage bzw. vereinbarte Übergabe
+
+=== TABLE 6 ===
+Fall | Behandlung
+Dublettenverdacht | Beleg sperren, vorhandene Beleg-ID suchen, Ergebnis dokumentieren
+Unlesbare oder defekte Datei | neue Datei beim Absender anfordern; defekte Eingangsdatei bis zur Klärung erhalten
+XML und Sichtdarstellung weichen ab | keine Freigabe; strukturierte Daten prüfen und Absender kontaktieren
+Unbekannter Absender | Leistungsbezug und Authentizität klären
+Gutschrift oder Korrektur | Bezug zur Ursprungsrechnung herstellen und beide Fassungen erhalten
+
+=== TABLE 7 ===
+Status | Bedeutung | Nächster zulässiger Schritt
+Eingegangen | Datei oder Papier liegt vor | formale und sachliche Prüfung
+In Klärung | Angabe fehlt oder Widerspruch besteht | Klärung dokumentieren
+Freigegeben | Leistungsbezug und Betrag bestätigt | Bereitstellung zur Buchung
+Zur Buchung bereitgestellt | Beleg ist der Kanzlei zugänglich | Buchung oder Rückfrage
+Gebucht | Buchung und Beleg-ID sind verbunden | Aufbewahrung und Kontrolle
+
+=== TABLE 8 ===
+Rolle | Lesen | Bearbeiten | Freigeben | Rechte verwalten
+Anna Beispiel | ja
+Ben Muster | ja | nein
+Kanzlei Beispiel | im Mandatsumfang | Buchung und Rückfrage | nein
+Andere Beschäftigte | nur bei ausdrücklicher Aufgabe | nein
+
+=== TABLE 9 ===
+Kontrolle | Turnus | Verantwortlich | Nachweis
+Postfach und offene Eingänge | arbeitstäglich | Ben Muster | Status im Vorgang
+Vollständigkeit der Monatsübergabe | monatlich | Ben Muster | Übergabeprotokoll
+Stichprobe von fünf Belegen | monatlich | Anna Beispiel | Kontrollprotokoll
+Berechtigungsprüfung | vierteljährlich | Anna Beispiel | Berechtigungsliste
+Such- und Lesbarkeitsprobe | vierteljährlich | Ben Muster | Prüfprotokoll
+System- und Prozessänderungen | jährlich und anlassbezogen | Anna Beispiel / Ben Muster | Änderungsliste
+
+=== TABLE 10 ===
+Version | Gültig ab | Gültig bis | Änderung | Bestätigt durch
+1.0 | 01.10.2026 | offen | Erstfassung des fiktiven Musterprozesses | Anna Beispiel
+
+=== TABLE 11 ===
+Anlage | Zweck | Status im Muster
+Systemliste mit Versionen und Betreibern | technische Einordnung | vorhanden als Musterangaben
+Berechtigungsliste | Zugriffsrollen und Änderungen | zu erstellen
+Mandatsvereinbarung Kanzlei | Abgrenzung externer Tätigkeiten | als vorhanden angenommen
+Kontrollprotokoll | Nachweis der Stichproben | Musterformular erforderlich
+Löschprotokoll | Prüfung und Freigabe von Löschungen | Musterformular erforderlich
+Anbieterunterlagen zu Sicherung und Export | Wiederherstellung und Datenzugriff | offen
+Notfallprotokoll | Ausfälle und Nachbearbeitung | Musterformular erforderlich
+Schulungsnachweis | Kenntnis der Beteiligten | zu erstellen
+
+=== TABLE 12 ===
+ID | Priorität | Offener Punkt | Verantwortung | Zieltermin
+OP 01 | hoch | Technisches Verfahren zur Validierung strukturierter E-Rechnungen auswählen, testen und dokumentieren. | Anna Beispiel / IT | 31.10.2026
+OP 02 | mittel | Anbieterunterlagen zu Sicherung, Wiederherstellung und Exportfähigkeit beiziehen. | Ben Muster | 30.11.2026
+OP 03 | mittel | Ersten Probeexport und Wiederauffindbarkeitstest durchführen und protokollieren. | Ben Muster | 30.11.2026
+OP 04 | mittel | Berechtigungsliste mit aktuellem Mandatszugang der Kanzlei erstellen. | Anna Beispiel | 15.10.2026
+OP 05 | niedrig | Formulare für Kontrolle, Notfall und Löschung als Anlagen hinterlegen. | Ben Muster | 31.12.2026
+
+=== TABLE 13 ===
+Nr. | Auslöser | Tätigkeit | Ergebnis | Verantwortlich
+P01 | Beleg geht ein | Original sichern und Eingang prüfen | Beleg im Status Eingegangen | Ben Muster
+P02 | Prüfung möglich | Leistungsbezug und Betrag prüfen | Freigabe oder Klärung | Anna Beispiel
+P03 | Freigabe erteilt | Beleg zuordnen und bereitstellen | Beleg für Kanzlei verfügbar | Ben Muster
+P04 | Beleg bereitgestellt | Buchen oder Rückfrage stellen | Buchung mit Beleg-ID | Kanzlei Beispiel
+P05 | Monatsende | Vollständigkeit abgleichen | Übergabeprotokoll | Ben Muster
+P06 | Kontrolltermin | Stichprobe durchführen | Kontrollprotokoll | Anna Beispiel
+P07 | Änderung erkannt | Auswirkung prüfen und neue Fassung erstellen | Versionierte Dokumentation | Ben Muster / Anna Beispiel
+P08 | Frist abgelaufen | Löschvoraussetzungen prüfen | Freigabe oder weitere Aufbewahrung | Anna Beispiel
+
+=== TABLE 14 ===
+Begriff | Verwendung in diesem Dokument
+Beleg-ID | eindeutige Verbindung zwischen abgelegtem Beleg und Buchung
+E-Rechnung | Rechnung in einem strukturierten elektronischen Format, das elektronische Verarbeitung ermöglicht
+Originaldatei | empfangene oder erzeugte Datei in ihrer maßgeblichen ursprünglichen Form
+Offener Punkt | noch zu klärende oder zu belegende Angabe mit Zuständigkeit
+Ist-Aussage | ausdrücklich bestätigte Beschreibung der tatsächlich ausgeführten Praxis
+Mitgeltende Unterlage | separates Dokument, das eine Aussage oder einen Prozessschritt ergänzt

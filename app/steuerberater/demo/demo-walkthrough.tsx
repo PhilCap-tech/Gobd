@@ -15,7 +15,12 @@ import {
   INTAKE_STEPS,
   intakeStepError,
 } from "@/lib/intake-questions";
-import { evaluateOpenPoints, openPointChapterLabel } from "@/lib/open-points";
+import {
+  evaluateOpenPoints,
+  openPointChapterLabel,
+  openPointDueLabel,
+  openPointPriorityLabel,
+} from "@/lib/open-points";
 import {
   PARTNER_MUSTER_ANSWERS,
   PARTNER_MUSTER_IDENTITY,
@@ -349,30 +354,33 @@ export function DemoWalkthrough() {
           <div className="card" style={{ marginTop: 16 }}>
             <h2>Offene Punkte zu diesen Angaben</h2>
             <p className="hint">
-              {openPoints.length} Punkt{openPoints.length === 1 ? "" : "e"} aus
-              leeren Feldern. Schwere wie im PDF: high, medium, low.
+              {openPoints.length} Punkt{openPoints.length === 1 ? "" : "e"}.
+              Priorität wie im PDF: hoch, mittel, niedrig. Zieltermin nicht
+              festgelegt.
             </p>
             {openPoints.length === 0 ? (
               <p className="prose">
-                Alle abgefragten Felder sind befüllt. Der Regelsatz erzeugt dann
-                keine automatischen offenen Punkte.
+                Alle abgefragten Felder sind befüllt. Schritte, die der Fragebogen
+                nicht abfragt, bleiben trotzdem offen.
               </p>
             ) : (
               <div className="legal legal-table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th scope="col">Schwere</th>
+                      <th scope="col">Priorität</th>
                       <th scope="col">Offener Punkt</th>
                       <th scope="col">Kapitel</th>
+                      <th scope="col">Zieltermin</th>
                     </tr>
                   </thead>
                   <tbody>
                     {openPoints.map((point) => (
                       <tr key={point.id}>
-                        <td>{point.severity}</td>
+                        <td>{openPointPriorityLabel(point.severity)}</td>
                         <td>{point.title}</td>
                         <td>{openPointChapterLabel(point.chapter)}</td>
+                        <td>{openPointDueLabel()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -385,10 +393,11 @@ export function DemoWalkthrough() {
             </p>
             <p className="hint">
               Diese Liste folgt Ihren Klicks. Das feste Muster-PDF der{" "}
-              <Link href={PARTNER_MUSTER_PATH}>Beispiel GmbH</Link> ist ein
-              Entwurf (DRAFT / not Philip-final), nicht die fachliche
-              Endfassung. Gültig-ab und ein Kurztext zur Änderung gibt es beim
-              Speichern einer Fassung nach dem Kauf, nicht in dieser Demo.
+              <Link href={PARTNER_MUSTER_PATH}>Beispiel GmbH</Link> nutzt
+              dieselbe Gliederung. Präsens nur für bestätigte Angaben. Die
+              Erzeugung ist keine Freigabe durch die Geschäftsführung.
+              Gültig-ab gibt es beim Speichern einer Fassung nach dem Kauf,
+              nicht in dieser Demo.
             </p>
             <div className="actions" style={{ marginTop: 12 }}>
               <Link className="btn" href={PARTNER_MUSTER_PATH}>

@@ -43,6 +43,10 @@ for (const absent of [
   "Papierpost",
   "Scan von Papier",
   "Alle Belege werden zehn",
+  "DRAFT / not Philip-final",
+  "rechnung@",
+  "Köln",
+  "fünf Belegen",
 ]) {
   expect(!muster.includes(absent), `muster contains ${absent}`);
 }
@@ -55,7 +59,11 @@ for (const present of [
   "Sichtungsturnus",
   "Anna Beispiel",
   "Ben Muster",
-  "nicht die fachliche Endfassung",
+  "Gliederung Muster v2",
+  "Anhang A Prozessmatrix",
+  "Zieltermin",
+  "nicht festgelegt",
+  "acht Jahren",
 ]) {
   expect(muster.includes(present), `muster missing ${present}`);
 }
