@@ -176,7 +176,9 @@ export async function createCheckoutSession(input: {
     console.warn(
       "[stripe] Keys fehlen — Stub-Checkout. Setze STRIPE_SECRET_KEY, STRIPE_PRICE_SETUP_ID, STRIPE_PRICE_MONTHLY_ID.",
     );
-    return { url: `${appUrl}/intake?${params}`, stub: true };
+    // Stay on the host that rendered checkout. The fallback app URL is
+    // localhost:3000 and can be a different process than this server.
+    return { url: `/intake?${params}`, stub: true };
   }
 
   const stripe = getStripe();
