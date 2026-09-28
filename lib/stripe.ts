@@ -154,13 +154,16 @@ export async function createCheckoutSession(input: {
   email: string;
   company: string;
   entityId?: string;
+  audience?: "kunde" | "steuerberater";
 }): Promise<{ url: string; stub: boolean }> {
   const appUrl = getAppUrl();
   const entityId = input.entityId?.trim() ?? "";
+  const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   const successUrl = entityId
     ? `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}&entity_id=${encodeURIComponent(entityId)}`
     : `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${appUrl}/`;
+  const cancelUrl =
+    audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/`;
 
   if (!isStripeConfigured()) {
     const sessionId = `mock_${Date.now()}`;
@@ -195,12 +198,14 @@ export async function createCheckoutSession(input: {
     metadata: {
       company: input.company,
       product: "gobd-verfahrensdoku",
+      audience,
       ...(entityId ? { entity_id: entityId } : {}),
     },
     subscription_data: {
       metadata: {
         company: input.company,
         product: "gobd-verfahrensdoku",
+        audience,
         ...(entityId ? { entity_id: entityId } : {}),
       },
     },

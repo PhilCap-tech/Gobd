@@ -45,6 +45,13 @@ const readiness = buildReadinessMail({
   magicLinkUrl: "https://www.gobd-doku-erstellen.de/auth/verify?token=readiness-preview",
 });
 const onboarding = buildOnboardingMail({ company: "Muster GmbH" });
+const partnerOnboarding = buildOnboardingMail({
+  company: "Beispiel Kanzlei",
+  audience: "steuerberater",
+});
+const partnerOnboardingNoCompany = buildOnboardingMail({
+  audience: "steuerberater",
+});
 const failedPayment = buildFailedPaymentMail();
 const failedJob = buildFailedJobMail();
 const delivery = buildDeliveryMail({
@@ -61,6 +68,7 @@ const files: Record<string, string> = {
   "magic-link.html": magic.html,
   "readiness.html": readiness.html,
   "onboarding.html": onboarding.html,
+  "onboarding-steuerberater.html": partnerOnboarding.html,
   "failed-payment.html": failedPayment.html,
   "failed-job.html": failedJob.html,
   "delivery.html": delivery.html,
@@ -93,6 +101,64 @@ for (const [name, html] of Object.entries(files)) {
 }
 
 assert(!hasPageReadinessHref(onboarding.html), "Onboarding must not link to /readiness");
+assert(
+  onboarding.subject ===
+    "Willkommen — nächste Schritte zu deiner Verfahrensdokumentation",
+  "Customer onboarding subject stays du",
+);
+assert(
+  onboarding.html.includes("danke für deine Bestellung"),
+  "Customer onboarding stays du",
+);
+assert(
+  !onboarding.html.includes("KANZLEI-PILOT"),
+  "Customer onboarding must not mention the partner code",
+);
+function hasCustomerDu(value: string): boolean {
+  return /\b(du|dein|deine|deinen|deiner|deinem|dich)\b/i.test(value);
+}
+const partnerMail = `${partnerOnboarding.subject}\n${partnerOnboarding.html}\n${partnerOnboarding.text}`;
+assert(
+  partnerOnboarding.subject ===
+    "Willkommen — nächste Schritte zu Ihrer Verfahrensdokumentation",
+  "Steuerberater onboarding subject uses Sie",
+);
+assert(
+  partnerOnboarding.html.includes("Guten Tag Beispiel Kanzlei,"),
+  "Steuerberater greeting includes the firm",
+);
+assert(
+  partnerOnboarding.html.includes("vielen Dank für Ihre Bestellung im Partner-Pilot"),
+  "Steuerberater onboarding thanks in Sie",
+);
+assert(
+  partnerOnboarding.html.includes("KANZLEI-PILOT"),
+  "Steuerberater onboarding names the pilot code",
+);
+assert(partnerOnboarding.html.includes("0 €"), "Steuerberater onboarding states 0 €");
+assert(
+  partnerOnboarding.html.includes("49 €/Monat"),
+  "Steuerberater onboarding states 49 €/Monat",
+);
+assert(
+  partnerOnboarding.html.includes(
+    "Sie füllen sie nicht für einen Mandanten aus.",
+  ),
+  "Steuerberater onboarding keeps the Mandant boundary",
+);
+assert(!hasCustomerDu(partnerMail), "Steuerberater onboarding must not use du");
+assert(
+  !/weitergeben|Kollege|Soft-Invite|andere Kanzlei/i.test(partnerMail),
+  "Steuerberater onboarding must not invite other firms",
+);
+assert(
+  partnerOnboardingNoCompany.text.includes("Guten Tag,"),
+  "Empty Steuerberater company renders Guten Tag,",
+);
+assert(
+  !partnerOnboardingNoCompany.text.includes("Guten Tag ,"),
+  "Empty Steuerberater company must not leave a gap",
+);
 assert(!hasPageReadinessHref(delivery.html), "Delivery must not link to /readiness");
 assert(
   readiness.html.includes(MAIL_CHECKOUT_URL),

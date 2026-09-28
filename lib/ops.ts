@@ -129,9 +129,13 @@ export function buildReadinessMail(input: {
   };
 }
 
+export type OnboardingAudience = "kunde" | "steuerberater";
+
 export function buildOnboardingMail(input: {
   company?: string;
+  audience?: OnboardingAudience;
 }): TransactionalMailContent {
+  if (input.audience === "steuerberater") return buildSteuerberaterOnboardingMail(input);
   const company = input.company?.trim();
   const greeting = company ? `Hallo ${company},` : "Hallo,";
   const text = wrapTransactionalText(
@@ -171,6 +175,57 @@ export function buildOnboardingMail(input: {
   `);
   return {
     subject: "Willkommen — nächste Schritte zu deiner Verfahrensdokumentation",
+    text,
+    html,
+  };
+}
+
+/** Partner-Pilot. Sie-Form. Kein Soft-Invite an weitere Kanzleien. */
+function buildSteuerberaterOnboardingMail(input: {
+  company?: string;
+}): TransactionalMailContent {
+  const company = input.company?.trim();
+  const greeting = company ? `Guten Tag ${company},` : "Guten Tag,";
+  const text = wrapTransactionalText(
+    [
+      greeting,
+      "",
+      "vielen Dank für Ihre Bestellung im Partner-Pilot.",
+      "",
+      "Nächste Schritte:",
+      "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen)",
+      "2. Das PDF herunterladen, sobald die Generierung fertig ist",
+      `3. Konto: Anmeldung unter ${MAIL_LOGIN_URL}`,
+      "",
+      "Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach 49 €/Monat, wenn Sie nicht kündigen.",
+      "",
+      "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
+      MAIL_FAQ_URL,
+      "",
+      `Support: ${MAIL_SUPPORT_EMAIL}`,
+      "",
+      "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus den Angaben. Sie füllen sie nicht für einen Mandanten aus.",
+      "",
+      "GoBD Ops · IKAT GmbH",
+    ].join("\n"),
+  );
+  const html = wrapTransactionalHtml(`
+    <p>${escapeHtml(greeting)}</p>
+    <p>vielen Dank für Ihre Bestellung im Partner-Pilot.</p>
+    <p>Nächste Schritte:</p>
+    <ol>
+      <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen)</li>
+      <li>Das PDF herunterladen, sobald die Generierung fertig ist</li>
+      <li>Konto: Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
+    </ol>
+    <p>Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach 49 €/Monat, wenn Sie nicht kündigen.</p>
+    <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
+    <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+    <p>Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus den Angaben. Sie füllen sie nicht für einen Mandanten aus.</p>
+    <p>GoBD Ops · IKAT GmbH</p>
+  `);
+  return {
+    subject: "Willkommen — nächste Schritte zu Ihrer Verfahrensdokumentation",
     text,
     html,
   };
@@ -320,12 +375,15 @@ export async function triggerOnboardingMail(input: {
   email: string;
   company?: string;
   sessionId?: string;
+  audience?: OnboardingAudience;
 }): Promise<OpsResult & MailResult> {
+  const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   if (!isMailConfigured()) {
     console.info("[ops] onboarding mail stub", {
       email: input.email,
       company: input.company,
       sessionId: input.sessionId,
+      audience,
     });
     return { stub: true, sent: false, action: "onboarding" };
   }
@@ -337,7 +395,10 @@ export async function triggerOnboardingMail(input: {
     return { stub: true, sent: false, action: "onboarding" };
   }
 
-  const mail = buildOnboardingMail({ company: input.company });
+  const mail = buildOnboardingMail({
+    company: input.company,
+    audience,
+  });
   const result = await sendEmail({
     to: input.email,
     subject: mail.subject,
@@ -347,6 +408,7 @@ export async function triggerOnboardingMail(input: {
   console.info("[ops] onboarding mail", {
     email: input.email,
     sessionId: input.sessionId,
+    audience,
     sent: result.sent,
     stub: result.stub,
   });

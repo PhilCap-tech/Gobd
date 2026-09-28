@@ -9,6 +9,7 @@ export async function POST(request: Request) {
     company?: string;
     acceptedDisclaimer?: boolean;
     entityId?: string;
+    audience?: "kunde" | "steuerberater";
   };
   try {
     body = await request.json();
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       email,
       company,
       entityId: entityId || undefined,
+      audience: body.audience === "steuerberater" ? "steuerberater" : "kunde",
     });
     return NextResponse.json(session);
   } catch (error) {

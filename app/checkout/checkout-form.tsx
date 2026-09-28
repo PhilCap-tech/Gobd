@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { FirmaSelect } from "@/components/firma-select";
+import { PilotKlartextSentence } from "@/components/pilot-klartext";
 import type { EntityChoice } from "@/lib/entities";
 import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
+
+type CheckoutAudience = "kunde" | "steuerberater";
 
 type CheckoutFormProps = {
   stripeReady: boolean;
@@ -12,6 +15,7 @@ type CheckoutFormProps = {
   initialEntityId?: string;
   initialCompany?: string;
   initialEmail?: string;
+  audience?: CheckoutAudience;
 };
 
 export function CheckoutForm({
@@ -21,7 +25,9 @@ export function CheckoutForm({
   initialEntityId = "",
   initialCompany = "",
   initialEmail = "",
+  audience = "kunde",
 }: CheckoutFormProps) {
+  const partner = audience === "steuerberater";
   const [entityId, setEntityId] = useState(initialEntityId);
   const [company, setCompany] = useState(initialCompany);
   const [email, setEmail] = useState(initialEmail);
@@ -61,6 +67,7 @@ export function CheckoutForm({
           email: email.trim(),
           acceptedDisclaimer: accepted,
           entityId: entityId.trim() || undefined,
+          audience,
         }),
       });
       const data = (await response.json()) as {
@@ -116,7 +123,7 @@ export function CheckoutForm({
             name="email"
             type="email"
             autoComplete="email"
-            placeholder="du@firma.de"
+            placeholder={partner ? "name@kanzlei.de" : "du@firma.de"}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -131,17 +138,27 @@ export function CheckoutForm({
             required
           />
           <span>
-            Ich bestätige: keine Steuerberatung und keine Rechtsberatung. Die
-            Dokumentation ist ein Entwurf aus meinen Angaben, keine Freigabe.
+            {partner
+              ? "Ich bestätige: keine Steuerberatung und keine Rechtsberatung. Die Dokumentation ist ein Entwurf aus den Angaben, keine Freigabe. Sie füllen sie nicht für einen Mandanten aus."
+              : "Ich bestätige: keine Steuerberatung und keine Rechtsberatung. Die Dokumentation ist ein Entwurf aus meinen Angaben, keine Freigabe."}
           </span>
         </label>
+        {partner && (
+          <p className="prose">
+            <PilotKlartextSentence />
+          </p>
+        )}
         {error && <p className="error">{error}</p>}
         <button className="btn" type="submit" disabled={pending}>
           {pending
             ? "Bitte warten…"
-            : stripeReady
-              ? "Dokumentation starten"
-              : "Weiter zum Intake"}
+            : partner
+              ? stripeReady
+                ? "Partner-Pilot starten"
+                : "Weiter zum Fragenkatalog"
+              : stripeReady
+                ? "Dokumentation starten"
+                : "Weiter zum Intake"}
         </button>
         <p className="hint">
           {stripeReady
@@ -154,6 +171,13 @@ export function CheckoutForm({
 
       <aside className="card">
         <h2>Bestellübersicht</h2>
+        {partner && (
+          <p className="hint">
+            Der Betrag „Heute fällig“ ist der Listenpreis. Den Code lösen Sie
+            erst im Stripe-Checkout ein. Ohne Code bleibt das Setup {SETUP_EUR}
+            &nbsp;€ einmalig.
+          </p>
+        )}
         <div className="line">
           <span>Setup GoBD Verfahrensdoku</span>
           <strong>{SETUP_EUR}&nbsp;€</strong>
@@ -166,12 +190,20 @@ export function CheckoutForm({
           <span>Heute fällig</span>
           <span>{TODAY_EUR}&nbsp;€</span>
         </div>
-        <p className="hint">Danach {MONTHLY_EUR}&nbsp;€/Monat.</p>
+        <p className="hint">
+          {partner ? (
+            <>
+              Mit Code: Setup und die ersten zwei Monate 0&nbsp;€. Danach{" "}
+              {MONTHLY_EUR}&nbsp;€/Monat, wenn Sie nicht kündigen.
+            </>
+          ) : (
+            <>Danach {MONTHLY_EUR}&nbsp;€/Monat.</>
+          )}
+        </p>
         <p className="disclaimer" role="note">
-          Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein Entwurf
-          aus deinen Angaben — keine Freigabe und keine individuelle Steuer-
-          oder Rechtsberatung. Eine Abstimmung mit dem Steuerberater ist
-          optional und nur im Rahmen eines gesonderten Auftrags.
+          {partner
+            ? "Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein Entwurf aus Ihren Angaben — keine Freigabe und keine individuelle Steuer- oder Rechtsberatung."
+            : "Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein Entwurf aus deinen Angaben — keine Freigabe und keine individuelle Steuer- oder Rechtsberatung. Eine Abstimmung mit dem Steuerberater ist optional und nur im Rahmen eines gesonderten Auftrags."}
         </p>
       </aside>
     </div>

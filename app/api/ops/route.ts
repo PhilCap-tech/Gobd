@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     company?: string;
     sessionId?: string;
     reason?: string;
+    audience?: "kunde" | "steuerberater";
   };
   try {
     body = await request.json();
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
             email: body.email || "",
             company: body.company,
             sessionId: body.sessionId,
+            audience: body.audience === "steuerberater" ? "steuerberater" : "kunde",
           }),
         );
       case "failed_payment":
