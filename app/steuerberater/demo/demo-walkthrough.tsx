@@ -103,10 +103,10 @@ export function DemoWalkthrough() {
   return (
     <>
       <p className="banner">
-        Demo mit Beispieldaten der anonymisierten Beispiel GmbH. Nichts wird
-        gespeichert: kein Konto, kein Checkout, kein Schreibzugriff auf Google
-        Sheets. Die Fragen und die Prüfung vor „Weiter“ sind die aus dem
-        produktiven Intake.
+        Beispiel-Fragen — so etwa läuft der Prozess. Angaben hier sind ein
+        Test, kein Mandantenmandat. Nichts wird gespeichert: kein Konto, kein
+        Checkout, kein Schreibzugriff auf Google Sheets. Die Fragen und die
+        Prüfung vor „Weiter“ sind die aus dem produktiven Ablauf.
       </p>
 
       {step < 6 && (
@@ -230,11 +230,10 @@ export function DemoWalkthrough() {
               />
             </div>
             <p className="hint">
-              Belegeingang ist die Auswahl oben. Prüfung, Original und
-              Korrekturen sind keine Intake-Fragen und ändern die folgenden
-              Schritte nicht. Im Dokument setzt der Generator die gewählten
-              Wege in die festen Kapitel „Verfahren Papier“ und „Verfahren
-              Digital“ — beide Kapitel entstehen immer.
+              Belegeingang ist die Auswahl oben. Die nächsten Fragen bleiben
+              gleich. Im Dokument setzt der Generator die gewählten Wege in die
+              festen Kapitel „Verfahren Papier“ und „Verfahren Digital“ — beide
+              Kapitel entstehen immer.
             </p>
           </div>
         </section>
@@ -355,8 +354,8 @@ export function DemoWalkthrough() {
             </p>
             {openPoints.length === 0 ? (
               <p className="prose">
-                Zum Zeitpunkt der Erstellung waren alle abgefragten Intake-Felder
-                befüllt; es wurden keine automatischen offenen Punkte erzeugt.
+                Alle abgefragten Felder sind befüllt. Der Regelsatz erzeugt dann
+                keine automatischen offenen Punkte.
               </p>
             ) : (
               <div className="legal legal-table-wrap">
@@ -380,12 +379,21 @@ export function DemoWalkthrough() {
                 </table>
               </div>
             )}
-            <p className="hint">
-              Das feste Muster-PDF bleibt die{" "}
-              <Link href={PARTNER_MUSTER_PATH}>Beispiel GmbH</Link>. Diese Liste
-              folgt Ihren Klicks. Gültig-ab und Kurz-Changelog gibt es beim
-              Speichern einer Fassung nach dem Kauf, nicht in dieser Demo.
+            <p className="prose">
+              So entstehen Entwurf und Offene Punkte. Als Nächstes die
+              Muster-Dokumentation ansehen.
             </p>
+            <p className="hint">
+              Diese Liste folgt Ihren Klicks. Das feste Muster-PDF bleibt die{" "}
+              <Link href={PARTNER_MUSTER_PATH}>Beispiel GmbH</Link>. Gültig-ab
+              und ein Kurztext zur Änderung gibt es beim Speichern einer Fassung
+              nach dem Kauf, nicht in dieser Demo.
+            </p>
+            <div className="actions" style={{ marginTop: 12 }}>
+              <Link className="btn" href={PARTNER_MUSTER_PATH}>
+                Muster-Dokumentation ansehen
+              </Link>
+            </div>
           </div>
         </section>
       )}

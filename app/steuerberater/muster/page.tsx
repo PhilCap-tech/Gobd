@@ -71,7 +71,7 @@ export default function PartnerMusterPage() {
           <p className="lead">
             Kein Mandant, keine echten Personen. Das PDF und die Liste entstehen
             aus festen Beispieldaten über denselben Generator wie eine Lieferung
-            nach dem Intake.
+            nach den Angaben.
           </p>
           <div className="actions">
             <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
@@ -82,7 +82,7 @@ export default function PartnerMusterPage() {
             </Link>
           </div>
           <p className="hint">
-            Beispieldaten, die der Intake abbilden kann: kleine GmbH,
+            Beispieldaten, die der Fragebogen abbilden kann: kleine GmbH,
             Dienstleistung, DATEV, digitaler Belegeingang über die Option
             „E-Mail / PDF“, Ausgangsrechnungen über „aus Buchhaltungssoftware“,
             Archiv als Freitext „DATEV Unternehmen online“.
@@ -161,8 +161,8 @@ export default function PartnerMusterPage() {
             Nach dem Kauf kann der Mandant die Angaben erneut ausfüllen oder den
             Kapiteltext bearbeiten. Speichern erzeugt eine neue Fassung mit
             Gültig-ab, Kurz-Changelog und „Geändert durch“. Bisherige PDFs
-            bleiben downloadbar. Eine eigene Bestätigungs- oder Freigabestufe
-            gibt es nicht. Diese Musterseite speichert nichts.
+            bleiben downloadbar. Eine eigene Bestätigungsstufe gibt es nicht.
+            Diese Musterseite speichert nichts.
           </p>
           <p className="hint back-links">
             <Link href="/steuerberater">Zur Partnerseite</Link>

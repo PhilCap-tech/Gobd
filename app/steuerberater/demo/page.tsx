@@ -9,7 +9,7 @@ import { DemoWalkthrough } from "./demo-walkthrough";
 const PAGE_TITLE =
   "Fragenprozess testen (Demo, Beispieldaten) | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "Die produktiven Intake-Fragen mit Beispieldaten einer anonymisierten GmbH. Nichts wird gespeichert. Keine Steuerberatung.";
+  "Beispiel-Fragen aus dem produktiven Ablauf, mit Beispieldaten einer anonymisierten GmbH. Nichts wird gespeichert. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),

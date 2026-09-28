@@ -100,6 +100,34 @@ export const INTAKE_STEPS = [
   },
 ] as const;
 
+/** Landing preview: the real step questions, not a second questionnaire. */
+export const INTAKE_PREVIEW_ROWS = [
+  {
+    question: "Branche (mehrere möglich), Rechtsform, Mitarbeitende (ca.)",
+    why: "Rahmen für Betrieb und Größe",
+  },
+  {
+    question:
+      "Buchhaltung / FiBu; weitere Systeme (ERP, Kassensystem, Zeiterfassung …)",
+    why: "Welche Systeme in der Beschreibung stehen",
+  },
+  {
+    question:
+      "Wie kommen Eingangsbelege rein? Ausgangsrechnungen? Wo werden Belege archiviert?",
+    why: "Herkunft und Ablage der Belege",
+  },
+  {
+    question:
+      "Wo liegen die Daten? Backup? Wer hat Zugriff auf Buchhaltungsdaten?",
+    why: "Ort, Sicherung, Zugriff",
+  },
+  {
+    question:
+      "Geschäftsführung / Inhaber, Buchhaltung / Belegverantwortung, IT / Systeme, Steuerberater (Kanzlei)",
+    why: "Wer im Fragebogen benannt wird",
+  },
+] as const;
+
 export const INTAKE_REVIEW = {
   stepLabel: "Prüfen & absenden",
   title: "Stimmt das so?",

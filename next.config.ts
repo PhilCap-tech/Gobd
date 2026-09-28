@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       "./content/delivery-templates/**/*",
       "./public/brand/**/*",
     ],
+    "/steuerberater": ["./content/delivery-templates/**/*"],
     "/steuerberater/muster": [
       "./content/delivery-templates/**/*",
       "./public/brand/**/*",
