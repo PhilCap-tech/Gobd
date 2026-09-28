@@ -26,6 +26,7 @@ import {
   identityFromSheetRow,
   toSheetRow,
 } from "@/lib/types";
+import { normalizeVersionChange, toVersionPdfMeta } from "@/lib/versioning";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,10 @@ async function handleDocumentEdit(request: Request) {
     documentId?: string;
     cover?: unknown;
     chapters?: unknown;
+    validFrom?: unknown;
+    validTo?: unknown;
+    changeSummary?: unknown;
+    changedBy?: unknown;
   };
   try {
     body = await request.json();
@@ -89,6 +94,14 @@ async function handleDocumentEdit(request: Request) {
   const sourceIdentity = identityFromSheetRow(source);
   const answers = answersFromSheetRow(source);
   const version = nextVersionNumber(family);
+  const change = normalizeVersionChange(body, {
+    version,
+    defaultChangedBy: sessionEmail,
+  });
+  if ("error" in change) {
+    return jsonError(change.error, 400);
+  }
+  const versionMeta = toVersionPdfMeta(change);
   const parentDocumentId = documentFamilyId(source);
   const documentId = randomUUID();
   const entityId = await resolveEntityIdForEmail(
@@ -111,6 +124,7 @@ async function handleDocumentEdit(request: Request) {
       documentId,
       version,
       content,
+      versionMeta,
     });
     const storedPdf = await storePdf({
       familyId: parentDocumentId,
@@ -161,6 +175,10 @@ async function handleDocumentEdit(request: Request) {
         version: String(version),
         chapterContent,
         entityId,
+        validFrom: change.validFrom,
+        validTo: change.validTo,
+        changeSummary: change.changeSummary,
+        changedBy: change.changedBy,
       }),
     );
   } catch (error) {

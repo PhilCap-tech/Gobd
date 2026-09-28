@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import bundle from "@/content/delivery-templates/bundle.json";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
+import { versionMetaSentence as buildVersionMetaSentence } from "@/lib/versioning";
 
 export type OpenPointSeverity = "low" | "medium" | "high";
 
@@ -28,6 +29,9 @@ export type RenderedDocument = {
   generatedAt: string;
   generatedAtDisplay: string;
   versionLabel: string;
+  /** Display date `dd.mm.yyyy`, empty when this render has no Gültig-ab. */
+  validFromDisplay: string;
+  versionMetaSentence: string;
 };
 
 type TemplateContext = {
@@ -41,6 +45,12 @@ type TemplateContext = {
   version: string;
   openPointsTable: string;
   roles: Record<string, string>;
+  validFrom: string;
+  validTo: string;
+  changeSummary: string;
+  changedBy: string;
+  /** Gültig-ab when set, otherwise the generation timestamp (legacy history cell). */
+  historyDate: string;
 };
 
 type Filter = { name: "join"; sep: string } | { name: "or"; fallback: string };
@@ -297,11 +307,22 @@ export function renderDeliveryDocument(input: {
   answers: IntakeAnswers;
   documentId: string;
   version?: number;
+  /** Display strings (`dd.mm.yyyy`). Omitted on renders without version metadata. */
+  versionMeta?: {
+    validFrom?: string;
+    validTo?: string;
+    changeSummary?: string;
+    changedBy?: string;
+  };
 }): RenderedDocument {
   const generatedAt = formatBerlinDateTime();
   const generatedAtDisplay = formatBerlinDate();
   const versionLabel = formatVersionLabel(input.version);
   const openPoints = evaluateOpenPoints(input);
+  const validFrom = input.versionMeta?.validFrom?.trim() ?? "";
+  const validTo = input.versionMeta?.validTo?.trim() ?? "";
+  const changeSummary = input.versionMeta?.changeSummary?.trim() ?? "";
+  const changedBy = input.versionMeta?.changedBy?.trim() ?? "";
   const base: TemplateContext = {
     identity: input.identity,
     answers: input.answers,
@@ -313,6 +334,11 @@ export function renderDeliveryDocument(input: {
     version: versionLabel,
     openPointsTable: openPointsTable(openPoints),
     roles: roleAssignments(input.answers),
+    validFrom,
+    validTo,
+    changeSummary,
+    changedBy,
+    historyDate: validFrom || generatedAt,
   };
 
   const coverSource = readTemplateFile(
@@ -336,6 +362,13 @@ export function renderDeliveryDocument(input: {
     generatedAt,
     generatedAtDisplay,
     versionLabel,
+    validFromDisplay: validFrom,
+    versionMetaSentence: buildVersionMetaSentence({
+      validFrom,
+      validTo,
+      changeSummary,
+      changedBy,
+    }),
   };
 }
 

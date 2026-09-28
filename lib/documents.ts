@@ -74,6 +74,9 @@ export function groupDocumentFamilies(rows: SheetRow[]): DocumentFamily[] {
 
   const families: DocumentFamily[] = [];
   for (const [familyId, members] of map) {
+    // Highest version number, then newest timestamp. This is the revision to
+    // edit — not “Aktuell”. Validity (Gültig von–bis) is selectCurrentVersion
+    // in lib/versioning.ts.
     const versions = [...members].sort((a, b) => {
       const versionDiff = parseDocumentVersion(b) - parseDocumentVersion(a);
       if (versionDiff !== 0) return versionDiff;

@@ -849,12 +849,26 @@ textarea:focus {
   overflow: hidden;
 }
 
+.version-change {
+  border: 1px solid #8aa396;
+  border-radius: 8px;
+  margin: 0 0 16px;
+  padding: 4px 14px 8px;
+}
+
+.version-change legend {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 6px;
+}
+
 .version-list li {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 12px;
-  align-items: center;
+  align-items: flex-start;
   padding: 10px 12px;
   border-top: 1px solid #c5d4cc;
   font-family: "Segoe UI", system-ui, sans-serif;
@@ -876,6 +890,34 @@ textarea:focus {
 
 .version-list a:hover {
   color: #185a3e;
+}
+
+.version-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.version-line {
+  font-weight: 700;
+}
+
+.version-detail {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.version-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: 1px;
 }
 
 code {

@@ -17,6 +17,7 @@ import {
 } from "@/lib/pdf-brand";
 import { writeMarkdownish } from "@/lib/pdf-markdown";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
+import type { VersionPdfMeta } from "@/lib/versioning";
 
 /**
  * GoBD Delivery Templates v2.0.0 — local PDF from Intake + content/delivery-templates.
@@ -195,6 +196,7 @@ function drawFooter(
     pages: number;
     documentId: string;
     versionLabel: string;
+    validFrom?: string;
   },
 ) {
   withOpenMargins(doc, () => {
@@ -228,7 +230,7 @@ function drawFooter(
       .fontSize(7)
       .fillColor(BRAND_MUTED)
       .text(
-        `${BRAND_NAME} · ${input.versionLabel} · ${input.documentId.slice(0, 8)}`,
+        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""} · ${input.documentId.slice(0, 8)}`,
         left,
         ruleY + 18,
         { width, lineBreak: false },
@@ -241,6 +243,7 @@ function writeTitlePage(
   rendered: RenderedDocument,
   identity: CheckoutIdentity,
   cover?: string,
+  metaSentence?: string,
 ) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
@@ -257,6 +260,14 @@ function writeTitlePage(
   doc.y = 130;
   doc.x = left;
   writeMarkdownish(doc, cover?.trim() ? cover : rendered.cover, width);
+  if (metaSentence) {
+    doc
+      .moveDown(0.6)
+      .font("Helvetica")
+      .fontSize(10)
+      .fillColor(BRAND_INK)
+      .text(metaSentence, { width });
+  }
   if (identity.stub) {
     doc
       .font("Helvetica")
@@ -285,6 +296,7 @@ function decoratePages(
       pages: range.count,
       documentId: input.documentId,
       versionLabel: input.rendered.versionLabel,
+      validFrom: input.rendered.validFromDisplay,
     });
   }
 }
@@ -297,6 +309,7 @@ function writePdf(
     documentId: string;
     version?: number;
     content?: DeliveryDocumentContent | null;
+    versionMeta?: VersionPdfMeta;
   },
 ) {
   const rendered = renderDeliveryDocument(input);
@@ -309,7 +322,14 @@ function writePdf(
       ? input.content.chapters
       : rendered.chapters;
 
-  writeTitlePage(doc, rendered, input.identity, cover);
+  const customCover = Boolean(input.content?.cover?.trim());
+  writeTitlePage(
+    doc,
+    rendered,
+    input.identity,
+    cover,
+    customCover ? rendered.versionMetaSentence : "",
+  );
   doc.addPage();
 
   for (const chapter of chapters) {
@@ -330,6 +350,7 @@ export async function generatePdf(input: {
   documentId?: string;
   version?: number;
   content?: DeliveryDocumentContent | null;
+  versionMeta?: VersionPdfMeta;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const documentId = input.documentId || randomUUID();
   const version = input.version && input.version > 0 ? input.version : 1;

@@ -3,9 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FirmaSelect } from "@/components/firma-select";
+import {
+  VersionChangeFields,
+  type VersionChangeDraft,
+} from "@/components/version-change-fields";
 import type { EntityChoice } from "@/lib/entities";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
+import { berlinTodayIso, versionChangeDraftError } from "@/lib/versioning";
 
 const BRANCHEN = [
   "Handwerk",
@@ -93,6 +98,12 @@ export function IntakeForm({
   );
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [change, setChange] = useState<VersionChangeDraft>({
+    validFrom: berlinTodayIso(),
+    validTo: "",
+    changeSummary: "",
+    changedBy: session.email,
+  });
   const isEdit = Boolean(sourceDocumentId);
   const showFirmSelect = !isEdit && entities.length > 1;
 
@@ -134,6 +145,13 @@ export function IntakeForm({
       setError("Bitte eine Firma wählen.");
       return;
     }
+    const changeError = versionChangeDraftError(change, {
+      requireSummary: isEdit,
+    });
+    if (changeError) {
+      setError(changeError);
+      return;
+    }
     setError("");
     setPending(true);
     try {
@@ -147,6 +165,10 @@ export function IntakeForm({
           answers,
           documentId: sourceDocumentId,
           entityId: entityId.trim() || undefined,
+          validFrom: change.validFrom,
+          validTo: change.validTo,
+          changeSummary: change.changeSummary,
+          changedBy: change.changedBy,
         }),
       });
       let data: {
@@ -459,6 +481,12 @@ export function IntakeForm({
                 </div>
               ))}
             </dl>
+            <VersionChangeFields
+              value={change}
+              onChange={setChange}
+              summaryRequired={isEdit}
+              idPrefix="intake-version"
+            />
             <p className="disclaimer">
               Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein
               Entwurf zur Abstimmung mit deinem Steuerberater — keine

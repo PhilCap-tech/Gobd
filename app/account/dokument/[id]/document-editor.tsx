@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import {
+  VersionChangeFields,
+  type VersionChangeDraft,
+} from "@/components/version-change-fields";
 import type { DocumentChapter } from "@/lib/document-content";
+import { berlinTodayIso, versionChangeDraftError } from "@/lib/versioning";
 
 type DocumentEditorProps = {
   sourceDocumentId: string;
@@ -11,6 +17,7 @@ type DocumentEditorProps = {
   initialChapters: DocumentChapter[];
   disclaimer: string;
   currentDownloadPath: string;
+  defaultChangedBy: string;
 };
 
 export function DocumentEditor({
@@ -21,7 +28,9 @@ export function DocumentEditor({
   initialChapters,
   disclaimer,
   currentDownloadPath,
+  defaultChangedBy,
 }: DocumentEditorProps) {
+  const router = useRouter();
   const [cover, setCover] = useState(initialCover);
   const [chapters, setChapters] = useState(initialChapters);
   const [documentId, setDocumentId] = useState(sourceDocumentId);
@@ -29,6 +38,12 @@ export function DocumentEditor({
   const [downloadPath, setDownloadPath] = useState(currentDownloadPath);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [change, setChange] = useState<VersionChangeDraft>({
+    validFrom: berlinTodayIso(),
+    validTo: "",
+    changeSummary: "",
+    changedBy: defaultChangedBy,
+  });
   const [savedVersion, setSavedVersion] = useState<number | null>(null);
 
   function patchChapter(id: string, body: string) {
@@ -41,6 +56,11 @@ export function DocumentEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const changeError = versionChangeDraftError(change, { requireSummary: true });
+    if (changeError) {
+      setError(changeError);
+      return;
+    }
     setError("");
     setPending(true);
     try {
@@ -51,6 +71,10 @@ export function DocumentEditor({
           documentId,
           cover,
           chapters,
+          validFrom: change.validFrom,
+          validTo: change.validTo,
+          changeSummary: change.changeSummary,
+          changedBy: change.changedBy,
         }),
       });
       let data: {
@@ -75,6 +99,13 @@ export function DocumentEditor({
       setDownloadPath(data.pdfUrl || `/api/docs/${data.documentId}/download`);
       setSavedVersion(data.version);
       setVersionHint(data.version + 1);
+      setChange((current) => ({
+        ...current,
+        validFrom: berlinTodayIso(),
+        validTo: "",
+        changeSummary: "",
+      }));
+      router.refresh();
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");
     } finally {
@@ -132,6 +163,13 @@ export function DocumentEditor({
       <p className="disclaimer" role="note">
         {disclaimer}
       </p>
+
+      <VersionChangeFields
+        value={change}
+        onChange={setChange}
+        summaryRequired
+        idPrefix="document-version"
+      />
 
       {error && <p className="error">{error}</p>}
 

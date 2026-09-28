@@ -54,6 +54,14 @@ export type SheetRow = {
   version: string;
   chapterContent: string;
   entityId: string;
+  /** ISO date `YYYY-MM-DD`. Empty on rows created before versioning metadata. */
+  validFrom: string;
+  /** ISO date `YYYY-MM-DD`. Empty means “until the next Gültig-ab” (derived in the UI). */
+  validTo: string;
+  /** Why this version exists (Kurz-Changelog). */
+  changeSummary: string;
+  /** Who recorded the version (session email or free text). */
+  changedBy: string;
 };
 
 export const SHEET_COLUMNS = [
@@ -85,6 +93,10 @@ export const SHEET_COLUMNS = [
   "parent_document_id",
   "chapter_content",
   "entity_id",
+  "valid_from",
+  "valid_to",
+  "change_summary",
+  "changed_by",
 ] as const;
 
 export type SheetColumn = (typeof SHEET_COLUMNS)[number];
@@ -118,6 +130,10 @@ export const SHEET_COLUMN_FIELDS = {
   parent_document_id: "parentDocumentId",
   chapter_content: "chapterContent",
   entity_id: "entityId",
+  valid_from: "validFrom",
+  valid_to: "validTo",
+  change_summary: "changeSummary",
+  changed_by: "changedBy",
 } as const satisfies Record<SheetColumn, keyof SheetRow>;
 
 export function emptyAnswers(): IntakeAnswers {
@@ -170,6 +186,10 @@ export function emptySheetRow(): SheetRow {
     version: "",
     chapterContent: "",
     entityId: "",
+    validFrom: "",
+    validTo: "",
+    changeSummary: "",
+    changedBy: "",
   };
 }
 
@@ -184,6 +204,10 @@ export function toSheetRow(input: {
   version?: string;
   chapterContent?: string;
   entityId?: string;
+  validFrom?: string;
+  validTo?: string;
+  changeSummary?: string;
+  changedBy?: string;
 }): SheetRow {
   const a = { ...emptyAnswers(), ...input.answers };
   const join = (values: string[]) => values.join(", ");
@@ -216,6 +240,10 @@ export function toSheetRow(input: {
     version: input.version ?? "",
     chapterContent: input.chapterContent ?? "",
     entityId: input.entityId ?? "",
+    validFrom: input.validFrom ?? "",
+    validTo: input.validTo ?? "",
+    changeSummary: input.changeSummary ?? "",
+    changedBy: input.changedBy ?? "",
   };
 }
 
@@ -279,8 +307,17 @@ export function coerceSheetRow(value: unknown): SheetRow | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
   const row = { ...emptySheetRow(), ...(value as Partial<SheetRow>) };
-  if (!row.entityId && typeof raw.entity_id === "string") {
-    row.entityId = raw.entity_id;
+  const aliases: Array<[keyof SheetRow, string]> = [
+    ["entityId", "entity_id"],
+    ["validFrom", "valid_from"],
+    ["validTo", "valid_to"],
+    ["changeSummary", "change_summary"],
+    ["changedBy", "changed_by"],
+  ];
+  for (const [field, column] of aliases) {
+    if (!row[field] && typeof raw[column] === "string") {
+      row[field] = raw[column];
+    }
   }
   return row;
 }

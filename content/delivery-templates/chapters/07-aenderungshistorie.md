@@ -8,7 +8,7 @@
 
 | Datum | Version | Kapitel | Inhalt der Änderung | Geändert durch |
 | --- | --- | --- | --- | --- |
-| {{generatedAt}} | {{version}} | Gesamt | Erstfassung / Generierung aus Kunden-Intake | System / Auftraggeber |
+| {{historyDate}} | {{version}} | Gesamt | {{changeSummary | or "Erstfassung / Generierung aus Kunden-Intake"}} | {{changedBy | or "System / Auftraggeber"}} |
 | | | | | |
 | | | | | |
 
