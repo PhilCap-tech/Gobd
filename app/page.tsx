@@ -41,12 +41,13 @@ export default function HomePage() {
       <main className="wrap">
         <section className="hero">
           <p className="hook">
-            Als Erstes fragt der Prüfer nach der Verfahrensdokumentation.
+            Buchhaltungsprozesse dokumentieren — oft Pflicht, oft liegen
+            geblieben.
           </p>
           <h1>GoBD-Verfahrensdokumentation erstellen</h1>
           <p className="lead">
-            Wenn du dann nur Fragmente oder eine leere Vorlage hast, wird’s
-            eng. Hier erstellst du die Verfahrensdokumentation{" "}
+            Wenn nur Fragmente oder eine leere Vorlage liegen, fehlt der
+            greifbare Stand. Hier erstellst du die Verfahrensdokumentation{" "}
             <strong>online selbst</strong> — geführt, in unter einer Stunde —
             als PDF plus Offene-Punkte-Liste. Kein Warteschleifen-Termin. Zur
             Abstimmung mit deinem Steuerberater.
@@ -66,13 +67,17 @@ export default function HomePage() {
             <span>Vorlage / Muster als Benefit</span>
             <span>für KMU &amp; Handwerk</span>
           </div>
+          <p className="advisor-note">
+            Steuerberater oder Kanzlei? →{" "}
+            <Link href="/steuerberater">Seite für Berater ansehen</Link>
+          </p>
         </section>
 
         <section className="block" id="problem">
-          <h2>Der Prüfer wartet nicht auf deine Word-Vorlage</h2>
+          <h2>Eine leere Vorlage reicht selten als Dokumentation</h2>
           <ul className="prose-list">
             <li>Unklare Belegwege und Systeme</li>
-            <li>Nichts Einheitliches zum Vorzeigen</li>
+            <li>Nichts Einheitliches zum Ablegen und Weitergeben</li>
             <li>Vorlagen, die seit Monaten leer liegen</li>
           </ul>
           <p className="prose framing">
@@ -97,7 +102,8 @@ export default function HomePage() {
               Offene-Punkte-Liste — nicht nur ein Check ohne Dokument
             </li>
             <li>
-              Offene-Punkte-Liste: du siehst Lücken, bevor der Prüfer fragt
+              Offene-Punkte-Liste: du siehst Lücken, bevor du den Entwurf
+              ablegst oder weitergibst
             </li>
             <li>
               Für KMU, Handwerk, Freiberufler (DATEV, sevdesk, lexoffice &amp;
@@ -206,8 +212,9 @@ export default function HomePage() {
             <h3>Brauch ich eine Verfahrensdokumentation überhaupt?</h3>
             <p className="prose">
               Die GoBD erwarten eine nachvollziehbare Verfahrensdokumentation.
-              Bei einer Betriebsprüfung wird oft genau danach gefragt. Wer nur
-              Vorlagen oder gar nichts hat, steht schlechter da.
+              Viele Betriebe schieben sie auf, weil Vorlagen leer bleiben oder
+              der Aufwand unklar ist. Ein geführter Entwurf schafft einen
+              greifbaren Stand zur Abstimmung mit dem Steuerberater.
             </p>
           </div>
           <div className="faq-item">
@@ -224,7 +231,7 @@ export default function HomePage() {
             <p className="prose">
               Ein Online-Produkt. Du beantwortest kurze Fragen und erhältst PDF
               plus Offene-Punkte-Liste — ohne Warteschleife auf einen
-              Beratungstermin. Für die fachliche Freigabe bleibst du bei deinem
+              Beratungstermin. Die fachliche Prüfung bleibt bei deinem
               Steuerberater. Wir leisten keine Steuerberatung.
             </p>
           </div>
@@ -242,8 +249,8 @@ export default function HomePage() {
             <p className="prose">
               Nein. Wir leisten keine Steuer- oder Rechtsberatung. Das PDF ist
               ein geführter Entwurf zur Abstimmung mit deinem Steuerberater. Die
-              Verantwortung für GoBD-Konformität liegt bei dir bzw. bei der
-              beratenen Freigabe.
+              Verantwortung für die Dokumentation liegt bei dir bzw. bei der
+              Abstimmung mit deinem Steuerberater.
             </p>
           </div>
           <div className="faq-item">
