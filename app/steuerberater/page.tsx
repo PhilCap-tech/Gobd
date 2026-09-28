@@ -3,17 +3,19 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { LEGAL_OPERATOR } from "@/lib/legal";
+import { PARTNER_DEMO_PATH, PARTNER_MUSTER_PATH } from "@/lib/partner-muster";
+import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
 
 const PILOT_HREF =
   "/checkout?utm_source=partner&utm_medium=landing&utm_campaign=steuerberater";
 
 const PROMO_CODE = "KANZLEI-PILOT";
-const PRIMARY_CTA = "Pilot selbst testen";
+const PILOT_LABEL = "Pilot starten";
 
 const PAGE_TITLE =
   "Für Steuerberater: Verfahrensdokumentation testen, Prozess & Versionierung | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "Partner-Pilot: Produkt mit Parametern testen, Prozess und Versionierung prüfen, bei Überzeugung an Mandanten weiterleiten. Pflicht-Entlastung. Keine Steuerberatung.";
+  "Muster-PDF und Fragenprozess vor dem Partner-Pilot. Pflicht-Entlastung, Prozess, Versionierung. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -30,34 +32,25 @@ export const metadata: Metadata = {
   },
 };
 
-function PromoHint() {
-  return (
-    <>
-      <p className="trust-line">
-        Partner-Promo <strong className="promo-code">{PROMO_CODE}</strong>
-        {" · "}Keine Steuerberatung · Sie füllen nicht für Mandanten aus
-      </p>
-      <p className="hint">100 % für Setup + Abo, 2 Monate (Partner-Pilot).</p>
-    </>
-  );
-}
-
-function PilotCta({ showSecondary = false }: { showSecondary?: boolean }) {
+function ProofCtas() {
   return (
     <div className="cta-pair">
       <div className="cta-paid">
-        <Link className="btn" href={PILOT_HREF}>
-          {PRIMARY_CTA}
+        <Link className="btn" href={PARTNER_MUSTER_PATH}>
+          Muster ansehen
         </Link>
-        <PromoHint />
       </div>
-      {showSecondary ? (
-        <div className="cta-soft">
-          <a className="btn ghost" href="#pilot">
-            So funktioniert’s
-          </a>
-        </div>
-      ) : null}
+      <div className="cta-soft">
+        <Link className="btn ghost" href={PARTNER_DEMO_PATH}>
+          Fragenprozess testen
+        </Link>
+      </div>
+      <p className="hint" style={{ flexBasis: "100%" }}>
+        <Link href={PILOT_HREF}>{PILOT_LABEL}</Link>
+        {" · "}Code <strong className="promo-code">{PROMO_CODE}</strong> im
+        Checkout — was der Code zusichert, steht unter{" "}
+        <a href="#promo">Promo</a>
+      </p>
     </div>
   );
 }
@@ -66,11 +59,12 @@ export default function SteuerberaterPage() {
   return (
     <>
       <SiteHeader
-        ctaHref={PILOT_HREF}
-        ctaLabel={PRIMARY_CTA}
+        ctaHref={PARTNER_MUSTER_PATH}
+        ctaLabel="Muster ansehen"
         links={[
           { href: "#saeulen", label: "Säulen" },
-          { href: "#pilot", label: "Pilot" },
+          { href: PARTNER_DEMO_PATH, label: "Fragen" },
+          { href: "#daten", label: "Daten" },
           { href: "#faq", label: "FAQ" },
         ]}
       />
@@ -87,7 +81,7 @@ export default function SteuerberaterPage() {
             unkompliziert und nachhaltig nachkommen — mit Versionierung statt
             Dateichaos.
           </p>
-          <PilotCta showSecondary />
+          <ProofCtas />
         </section>
 
         <section className="block" id="problem">
@@ -226,8 +220,8 @@ export default function SteuerberaterPage() {
           </p>
           <p className="hint">
             Reguläre Preise (Setup + Monat) stehen auf der{" "}
-            <Link href="/#preise">Produktseite</Link>. Der Pilot zum Testen
-            bleibt der Einstieg hier.
+            <Link href="/#preise">Produktseite</Link>. Einstieg hier: Muster
+            und Fragenprozess, danach optional der Pilot.
           </p>
         </section>
 
@@ -235,24 +229,28 @@ export default function SteuerberaterPage() {
           <h2>So arbeiten Sie mit dem Partner-Pilot</h2>
           <ol className="prose-list">
             <li>
-              <strong>Selbst testen</strong> — Parameter und Rechtsformen
-              durchspielen (z. B. Freiberufler, GmbH, Handwerk).
+              <strong>Muster ansehen</strong> — anonymisierte Beispiel GmbH:
+              PDF und Offene Punkte, ohne Login.
             </li>
             <li>
-              <strong>Ergebnis bewerten</strong> — Entwurf, Offene Punkte,
-              Versionierung fachlich einordnen.
+              <strong>Fragenprozess testen</strong> — die produktiven
+              Intake-Fragen mit Beispieldaten durchklicken. Die Demo speichert
+              nichts.
             </li>
             <li>
-              <strong>Weiterempfehlen</strong> — Überzeugt der Test:
-              Empfehlungslink an Mandanten — der Mandant arbeitet selbst
-              weiter.
+              <strong>Pilot starten</strong> — erst danach, mit dem Code im
+              Checkout, wenn Sie das Ergebnis selbst durchspielen wollen.
+            </li>
+            <li>
+              <strong>Weiterempfehlen</strong> — überzeugt der Test:
+              Empfehlungsweg an Mandanten — der Mandant arbeitet selbst weiter.
             </li>
           </ol>
           <p className="hint">
             Nicht: die Verfahrensdokumentation stellvertretend für den
             Mandanten ausfüllen.
           </p>
-          <PilotCta />
+          <ProofCtas />
         </section>
 
         <section className="block" id="empfehlung">
@@ -279,6 +277,137 @@ export default function SteuerberaterPage() {
             </li>
             <li>Keine Fake-Siegel fremder Marken.</li>
           </ul>
+        </section>
+
+        <section className="block" id="qualitaet">
+          <h2>Was der Generator heute ausgibt</h2>
+          <ul className="prose-list">
+            <li>
+              Leere Angaben werden zu Offenen Punkten. Leer ist, was der
+              Regelsatz als leer wertet (unter anderem „nicht angegeben“ und
+              „offen“). Die Backup-Auswahl „Unklar“ zählt nicht als leer.
+            </li>
+            <li>
+              Die Kapitel sind die feste Vorlage. Die Intake-Werte werden
+              eingesetzt. Ein eigener Ablauf wird daraus nicht gebaut — und
+              fehlende Prozessschritte werden nicht zusätzlich als offene
+              Punkte markiert.
+            </li>
+            <li>
+              Nach dem Kauf erzeugt erneutes Ausfüllen oder Bearbeiten des
+              Kapiteltexts eine neue Fassung: Gültig-ab, Kurz-Changelog,
+              „Geändert durch“. Ältere PDFs bleiben downloadbar.
+            </li>
+          </ul>
+          <p className="hint">
+            Sichtbar am{" "}
+            <Link href={PARTNER_MUSTER_PATH}>Muster</Link> und im{" "}
+            <Link href={PARTNER_DEMO_PATH}>Fragenprozess</Link>.
+          </p>
+        </section>
+
+        <section className="block" id="daten">
+          <h2>Daten: Hosting, Zugriff, Kündigung, Export</h2>
+          <p className="prose">
+            Kurzfassung aus Datenschutzerklärung, AGB und dem laufenden Betrieb.
+            Maßgeblich bleiben{" "}
+            <Link href="/datenschutz">Datenschutz</Link> und{" "}
+            <Link href="/agb">AGB</Link>.
+          </p>
+          <div className="stack">
+            <article className="card">
+              <h3>Hosting</h3>
+              <p className="prose">
+                Die Website wird bei Vercel gehostet (Datenschutzerklärung,
+                Abschnitt Hosting). PDFs liegen in Vercel Blob, wenn der
+                Blob-Token gesetzt ist, sonst als Datei-Fallback. Intake-Zeilen
+                liegen in Google Sheets, wenn das Sheet konfiguriert ist, sonst
+                in einer Datei. Transaktionsmails laufen über Resend, wenn der
+                API-Key gesetzt ist. Zahlung läuft über Stripe Checkout. Die
+                veröffentlichte Datenschutzerklärung benennt Vercel und Stripe;
+                Sheets, Blob und Resend stehen dort noch nicht namentlich.
+              </p>
+            </article>
+            <article className="card">
+              <h3>Zugriff</h3>
+              <p className="prose">
+                Das Dokument erreicht der Mandant über das Konto (Magic-Link an
+                die E-Mail der Bestellung) oder mit der Checkout-Session. Ein
+                Rollenmodell für Kanzleimitarbeiter ist nicht eingebaut.
+              </p>
+            </article>
+            <article className="card">
+              <h3>Kündigung</h3>
+              <p className="prose">
+                Das Abo verwaltet der Kunde im Stripe-Kundenportal („Abo
+                verwalten“ im Konto). Zurück aus diesem Portal weist die
+                Oberfläche auf Änderungen an Zahlungsmittel und Kündigung hin.
+                AGB Abschnitt 11 nennt die außerordentliche Kündigung aus
+                wichtigem Grund. Eine konkrete Kündigungsfrist für das
+                Monatsabo steht in den AGB nicht.
+              </p>
+            </article>
+            <article className="card">
+              <h3>Export</h3>
+              <p className="prose">
+                Die Verfahrensdokumentation gibt es als PDF-Download im Konto.
+                Eine Selbstbedienung für die Auskunft über alle
+                personenbezogenen Daten gibt es nicht. Die Rechte aus der
+                Datenschutzerklärung laufen per E-Mail an{" "}
+                <a href={`mailto:${LEGAL_OPERATOR.email}`}>
+                  {LEGAL_OPERATOR.email}
+                </a>
+                .
+              </p>
+            </article>
+            <article className="card">
+              <h3>Änderungsprotokoll</h3>
+              <p className="prose">
+                Jede neue Fassung speichert Gültig-ab, optionales Gültig-bis,
+                einen Kurz-Changelog und „Geändert durch“. Diese Zeile steht in
+                Kapitel 7 der Vorlage. Ein Feld-für-Feld-Vergleich wird nicht
+                geführt.
+              </p>
+            </article>
+            <article className="card">
+              <h3>AVV</h3>
+              <p className="prose">
+                Ein Auftragsverarbeitungsvertrag liegt hier nicht zum Download.
+                Die Datenschutzerklärung markiert den AVV mit Vercel als noch
+                zu prüfen. Auf Anfrage:{" "}
+                <a href={`mailto:${LEGAL_OPERATOR.email}`}>
+                  {LEGAL_OPERATOR.email}
+                </a>
+                .
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section className="block" id="promo">
+          <h2>Partner-Code {PROMO_CODE}</h2>
+          <p className="prose">
+            Im Checkout können Sie einen Aktionscode eingeben. Der Bezahlvorgang
+            verlangt ein Zahlungsmittel nur, wenn ein Betrag fällig wird
+            (Einstellung: Zahlungsmittel nur falls erforderlich). Setzt ein
+            Rabatt den fälligen Betrag auf 0&nbsp;€, ist für diesen Vorgang kein
+            Zahlungsmittel nötig.
+          </p>
+          <p className="prose">
+            Was <strong className="promo-code">{PROMO_CODE}</strong> genau
+            rabattiert — Prozent, Setup, Monatsabo, Dauer — steht nicht im
+            Programm. Eine automatische Kündigung nach einer Pilotphase ist im
+            Checkout nicht gesetzt. Ob das Abo nach einem befristeten Rabatt zu
+            den regulären Preisen ({SETUP_EUR}&nbsp;€ Setup + {MONTHLY_EUR}
+            &nbsp;€/Monat) weiterläuft, entscheidet die Coupon-Einstellung bei
+            Stripe. Maßgeblich ist der Betrag, den der Checkout nach Eingabe
+            des Codes anzeigt. Ohne Code gelten die Preise auf der{" "}
+            <Link href="/#preise">Produktseite</Link>.
+          </p>
+          <p className="hint">
+            Checkout-Link des Pilots behält die Kampagne{" "}
+            <span className="promo-code">partner / landing / steuerberater</span>.
+          </p>
         </section>
 
         <section className="block" id="faq">
@@ -315,17 +444,18 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Kostet der Pilot etwas?</h3>
             <p className="prose">
-              Partner-Promo <strong className="promo-code">{PROMO_CODE}</strong>{" "}
-              (100 % für Setup + Abo, 2 Monate; Details im Checkout). Reguläre
-              Preise erst beim Kauf — siehe{" "}
+              Das hängt vom Code <strong className="promo-code">{PROMO_CODE}</strong>{" "}
+              im Checkout ab. Ein Zahlungsmittel wird nur verlangt, wenn ein
+              Betrag fällig ist. Prozent und Dauer des Codes sind hier nicht
+              hinterlegt — siehe <a href="#promo">Promo</a>. Reguläre Preise:{" "}
               <Link href="/#preise">Produktseite</Link>.
             </p>
           </div>
         </section>
 
         <section className="block" id="abschluss">
-          <h2>Selbst testen — dann entscheiden, ob Sie weiterempfehlen</h2>
-          <PilotCta />
+          <h2>Muster und Fragen zuerst — dann entscheiden Sie über den Pilot</h2>
+          <ProofCtas />
           <p className="hint back-links">
             <Link href="/faq">FAQ</Link>
             {" · "}
@@ -342,13 +472,17 @@ export default function SteuerberaterPage() {
           </p>
         </section>
       </main>
-      <div className="sticky-cta">
-        <Link className="btn" href={PILOT_HREF}>
-          {PRIMARY_CTA}
+      <div className="sticky-cta tall">
+        <Link className="btn" href={PARTNER_MUSTER_PATH}>
+          Muster ansehen
+        </Link>
+        <Link className="btn ghost" href={PARTNER_DEMO_PATH}>
+          Fragenprozess testen
         </Link>
         <p className="trust-line">
-          Partner-Promo <strong className="promo-code">{PROMO_CODE}</strong>
-          {" · "}100 % für Setup + Abo, 2 Monate
+          <Link href={PILOT_HREF}>{PILOT_LABEL}</Link>
+          {" · "}
+          <strong className="promo-code">{PROMO_CODE}</strong>
         </p>
       </div>
       <SiteFooter />

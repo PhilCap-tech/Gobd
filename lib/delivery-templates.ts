@@ -1,19 +1,16 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import bundle from "@/content/delivery-templates/bundle.json";
+import {
+  evaluateOpenPoints,
+  isEmptyIntakeValue,
+  type DeliveryOpenPoint,
+} from "@/lib/open-points";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { versionMetaSentence as buildVersionMetaSentence } from "@/lib/versioning";
 
-export type OpenPointSeverity = "low" | "medium" | "high";
-
-export type DeliveryOpenPoint = {
-  id: string;
-  title: string;
-  severity: OpenPointSeverity;
-  status: "open";
-  chapter?: string;
-  field?: string;
-};
+export type { DeliveryOpenPoint, OpenPointSeverity } from "@/lib/open-points";
+export { evaluateOpenPoints, isEmptyIntakeValue } from "@/lib/open-points";
 
 export type RenderedChapter = {
   id: string;
@@ -62,26 +59,9 @@ type BundleChapter = {
   markdown: string;
 };
 
-const EMPTY_VALUES = new Set(
-  (bundle.openPointsRules.emptyValues ?? [])
-    .map((value) => (value == null ? "" : String(value).trim().toLowerCase())),
-);
-
-function isEmptyValue(value: unknown): boolean {
-  if (value == null) return true;
-  if (Array.isArray(value)) {
-    if (bundle.openPointsRules.arrayEmptyMeansOpen) {
-      return value.map((item) => String(item).trim()).filter(Boolean).length === 0;
-    }
-    return value.length === 0;
-  }
-  const text = String(value).trim().toLowerCase();
-  return EMPTY_VALUES.has(text);
-}
-
 function firstFilled(...values: string[]): string {
   for (const value of values) {
-    if (!isEmptyValue(value)) return value.trim();
+    if (!isEmptyIntakeValue(value)) return value.trim();
   }
   return "nicht angegeben";
 }
@@ -151,7 +131,7 @@ function parsePlaceholder(expr: string): { path: string; filters: Filter[] } {
 function applyFilters(value: unknown, filters: Filter[]): string {
   let current: unknown = value;
   if (filters.length === 0) {
-    if (isEmptyValue(current)) return "nicht angegeben";
+    if (isEmptyIntakeValue(current)) return "nicht angegeben";
     if (Array.isArray(current)) {
       return current.map((item) => String(item).trim()).filter(Boolean).join(", ");
     }
@@ -165,7 +145,7 @@ function applyFilters(value: unknown, filters: Filter[]): string {
           ? ""
           : String(current);
     } else if (filter.name === "or") {
-      current = isEmptyValue(current) ? filter.fallback : current;
+      current = isEmptyIntakeValue(current) ? filter.fallback : current;
     }
   }
   if (Array.isArray(current)) {
@@ -186,44 +166,6 @@ export function renderTemplate(template: string, context: TemplateContext): stri
     if (pathExpr === "version") return context.version;
     return applyFilters(lookup(context, pathExpr), filters);
   });
-}
-
-export function evaluateOpenPoints(input: {
-  answers: IntakeAnswers;
-  identity: CheckoutIdentity;
-}): DeliveryOpenPoint[] {
-  const root = {
-    identity: input.identity,
-    answers: input.answers,
-  } as unknown as TemplateContext;
-  const points: DeliveryOpenPoint[] = [];
-  for (const rule of bundle.openPointsRules.rules) {
-    const when = "when" in rule ? String(rule.when) : "empty";
-    if (when === "always") {
-      points.push({
-        id: rule.id,
-        title: rule.text,
-        severity: rule.severity as OpenPointSeverity,
-        status: "open",
-        chapter: "chapter" in rule ? String(rule.chapter) : undefined,
-        field: "field" in rule ? String(rule.field) : undefined,
-      });
-      continue;
-    }
-    if (when !== "empty") continue;
-    if (!("field" in rule) || !rule.field) continue;
-    const value = lookup(root, String(rule.field));
-    if (!isEmptyValue(value)) continue;
-    points.push({
-      id: rule.id,
-      title: rule.text,
-      severity: rule.severity as OpenPointSeverity,
-      status: "open",
-      chapter: "chapter" in rule ? String(rule.chapter) : undefined,
-      field: String(rule.field),
-    });
-  }
-  return points;
 }
 
 function openPointsTable(points: DeliveryOpenPoint[]): string {

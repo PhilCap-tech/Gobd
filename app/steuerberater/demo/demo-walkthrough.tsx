@@ -1,13 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FirmaSelect } from "@/components/firma-select";
-import {
-  VersionChangeFields,
-  type VersionChangeDraft,
-} from "@/components/version-change-fields";
-import type { EntityChoice } from "@/lib/entities";
+import Link from "next/link";
 import {
   INTAKE_AUSGANG,
   INTAKE_BACKUP,
@@ -21,18 +15,13 @@ import {
   INTAKE_STEPS,
   intakeStepError,
 } from "@/lib/intake-questions";
-import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
-import { emptyAnswers } from "@/lib/types";
-import { berlinTodayIso, versionChangeDraftError } from "@/lib/versioning";
-
-type IntakeFormProps = {
-  session: CheckoutIdentity;
-  initialAnswers?: IntakeAnswers;
-  sourceDocumentId?: string;
-  nextVersion?: number;
-  entities?: EntityChoice[];
-  initialEntityId?: string;
-};
+import { evaluateOpenPoints } from "@/lib/open-points";
+import {
+  PARTNER_MUSTER_ANSWERS,
+  PARTNER_MUSTER_IDENTITY,
+  PARTNER_MUSTER_PATH,
+} from "@/lib/partner-muster";
+import type { IntakeAnswers } from "@/lib/types";
 
 function Chips({
   options,
@@ -40,7 +29,7 @@ function Chips({
   onChange,
   multi,
 }: {
-  options: string[];
+  options: readonly string[];
   value: string[];
   onChange: (next: string[]) => void;
   multi?: boolean;
@@ -72,112 +61,23 @@ function Chips({
   );
 }
 
-export function IntakeForm({
-  session,
-  initialAnswers,
-  sourceDocumentId,
-  nextVersion,
-  entities = [],
-  initialEntityId = "",
-}: IntakeFormProps) {
-  const router = useRouter();
+export function DemoWalkthrough() {
   const [step, setStep] = useState(0);
-  const [entityId, setEntityId] = useState(initialEntityId);
-  const [answers, setAnswers] = useState<IntakeAnswers>(
-    initialAnswers ?? emptyAnswers,
-  );
+  const [answers, setAnswers] = useState<IntakeAnswers>(PARTNER_MUSTER_ANSWERS);
   const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
-  const [change, setChange] = useState<VersionChangeDraft>({
-    validFrom: berlinTodayIso(),
-    validTo: "",
-    changeSummary: "",
-    changedBy: session.email,
-  });
-  const isEdit = Boolean(sourceDocumentId);
-  const showFirmSelect = !isEdit && entities.length > 1;
 
   function patch(partial: Partial<IntakeAnswers>) {
     setAnswers((current) => ({ ...current, ...partial }));
   }
 
-  function validate(current: number): boolean {
-    setError("");
-    if (current === 0 && showFirmSelect && !entityId.trim()) {
-      setError("Bitte eine Firma wählen.");
-      return false;
-    }
-    const message = intakeStepError(current, answers);
-    if (message) {
-      setError(message);
-      return false;
-    }
-    return true;
-  }
-
-  async function submit() {
-    if (showFirmSelect && !entityId.trim()) {
-      setError("Bitte eine Firma wählen.");
-      return;
-    }
-    const changeError = versionChangeDraftError(change, {
-      requireSummary: isEdit,
-    });
-    if (changeError) {
-      setError(changeError);
-      return;
-    }
-    setError("");
-    setPending(true);
-    try {
-      const response = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: session.stripeSessionId,
-          email: session.email,
-          company: session.company,
-          answers,
-          documentId: sourceDocumentId,
-          entityId: entityId.trim() || undefined,
-          validFrom: change.validFrom,
-          validTo: change.validTo,
-          changeSummary: change.changeSummary,
-          changedBy: change.changedBy,
-        }),
-      });
-      let data: {
-        error?: string;
-        store?: string;
-        documentId?: string;
-      } = {};
-      try {
-        const text = await response.text();
-        if (text.trim()) {
-          data = JSON.parse(text) as typeof data;
-        }
-      } catch {
-        data = {};
-      }
-      if (!response.ok) {
-        setError(data.error || "Speichern fehlgeschlagen.");
-        return;
-      }
-      if (!data.store || !data.documentId) {
-        setError(data.error || "Speichern fehlgeschlagen.");
-        return;
-      }
-      const params = new URLSearchParams({
-        session_id: session.stripeSessionId,
-        document_id: data.documentId,
-      });
-      router.push(`/success?${params}`);
-    } catch {
-      setError("Netzwerkfehler. Bitte erneut versuchen.");
-    } finally {
-      setPending(false);
-    }
-  }
+  const openPoints = useMemo(
+    () =>
+      evaluateOpenPoints({
+        answers,
+        identity: PARTNER_MUSTER_IDENTITY,
+      }),
+    [answers],
+  );
 
   const summary = useMemo(
     () => [
@@ -202,6 +102,13 @@ export function IntakeForm({
 
   return (
     <>
+      <p className="banner">
+        Demo mit Beispieldaten der anonymisierten Beispiel GmbH. Nichts wird
+        gespeichert: kein Konto, kein Checkout, kein Schreibzugriff auf Google
+        Sheets. Die Fragen und die Prüfung vor „Weiter“ sind die aus dem
+        produktiven Intake.
+      </p>
+
       {step < 6 && (
         <div className="progress" aria-hidden="true">
           {[0, 1, 2, 3, 4, 5].map((index) => (
@@ -213,56 +120,26 @@ export function IntakeForm({
         </div>
       )}
 
-      {session.stub && step < 6 && !isEdit && (
-        <p className="banner">
-          Stub-Session (kein Stripe). Angaben werden lokal oder in Sheets
-          gespeichert, sobald du absendest.
-        </p>
-      )}
-
-      {isEdit && step < 6 && (
-        <p className="banner">
-          Du bearbeitest die Angaben
-          {session.company ? ` für ${session.company}` : ""}. Beim Absenden
-          entsteht Version {nextVersion ?? "n+1"} — bisherige PDFs bleiben
-          downloadbar.
-        </p>
-      )}
-
-      {session.email && step === 0 && (
-        <p className="hint">
-          Session: {session.company || "—"} · {session.email}
-        </p>
-      )}
-
       {step === 0 && (
         <section>
           <p className="step-label">{INTAKE_STEPS[0].stepLabel}</p>
           <h1>{INTAKE_STEPS[0].title}</h1>
           <div className="card">
-            {showFirmSelect && (
-              <FirmaSelect
-                entities={entities}
-                value={entityId}
-                onChange={setEntityId}
-                required
-              />
-            )}
             <div className="field">
               <label>Branche (mehrere möglich)</label>
               <Chips
-                options={[...INTAKE_BRANCHEN]}
+                options={INTAKE_BRANCHEN}
                 value={answers.branchen}
                 onChange={(branchen) => patch({ branchen })}
                 multi
               />
             </div>
             <div className="field">
-              <label htmlFor="rechtsform">Rechtsform</label>
+              <label htmlFor="demo-rechtsform">Rechtsform</label>
               <select
-                id="rechtsform"
+                id="demo-rechtsform"
                 value={answers.rechtsform}
-                onChange={(e) => patch({ rechtsform: e.target.value })}
+                onChange={(event) => patch({ rechtsform: event.target.value })}
               >
                 <option value="">Bitte wählen</option>
                 {INTAKE_RECHTSFORMEN.map((option) => (
@@ -271,11 +148,11 @@ export function IntakeForm({
               </select>
             </div>
             <div className="field">
-              <label htmlFor="ma">Mitarbeitende (ca.)</label>
+              <label htmlFor="demo-ma">Mitarbeitende (ca.)</label>
               <select
-                id="ma"
+                id="demo-ma"
                 value={answers.mitarbeitende}
-                onChange={(e) => patch({ mitarbeitende: e.target.value })}
+                onChange={(event) => patch({ mitarbeitende: event.target.value })}
               >
                 <option value="">Bitte wählen</option>
                 {INTAKE_MITARBEITENDE.map((option) => (
@@ -295,23 +172,27 @@ export function IntakeForm({
             <div className="field">
               <label>Buchhaltung / FiBu</label>
               <Chips
-                options={[...INTAKE_FIBU]}
+                options={INTAKE_FIBU}
                 value={answers.fibu}
                 onChange={(fibu) => patch({ fibu })}
                 multi
               />
             </div>
             <div className="field">
-              <label htmlFor="andere-sw">
+              <label htmlFor="demo-systeme">
                 Weitere Systeme (ERP, Kassensystem, Zeiterfassung …)
               </label>
               <textarea
-                id="andere-sw"
+                id="demo-systeme"
                 placeholder="z. B. Shopify, Lightspeed, Clockodo …"
                 value={answers.weitereSysteme}
-                onChange={(e) => patch({ weitereSysteme: e.target.value })}
+                onChange={(event) => patch({ weitereSysteme: event.target.value })}
               />
             </div>
+            <p className="hint">
+              Systeme sind diese beiden Felder. Es gibt keinen weiteren
+              Fragenzweig dazu.
+            </p>
           </div>
         </section>
       )}
@@ -324,7 +205,7 @@ export function IntakeForm({
             <div className="field">
               <label>Wie kommen Eingangsbelege rein?</label>
               <Chips
-                options={[...INTAKE_EINGANG]}
+                options={INTAKE_EINGANG}
                 value={answers.eingangsbelege}
                 onChange={(eingangsbelege) => patch({ eingangsbelege })}
                 multi
@@ -333,21 +214,28 @@ export function IntakeForm({
             <div className="field">
               <label>Ausgangsrechnungen</label>
               <Chips
-                options={[...INTAKE_AUSGANG]}
+                options={INTAKE_AUSGANG}
                 value={answers.ausgangsrechnungen}
                 onChange={(ausgangsrechnungen) => patch({ ausgangsrechnungen })}
                 multi
               />
             </div>
             <div className="field">
-              <label htmlFor="archiv">Wo werden Belege archiviert?</label>
+              <label htmlFor="demo-archiv">Wo werden Belege archiviert?</label>
               <input
-                id="archiv"
+                id="demo-archiv"
                 placeholder="z. B. DATEV Unternehmen online, Drive, lokaler Server …"
                 value={answers.archiv}
-                onChange={(e) => patch({ archiv: e.target.value })}
+                onChange={(event) => patch({ archiv: event.target.value })}
               />
             </div>
+            <p className="hint">
+              Belegeingang ist die Auswahl oben. Prüfung, Original und
+              Korrekturen sind keine Intake-Fragen und ändern die folgenden
+              Schritte nicht. Im Dokument setzt der Generator die gewählten
+              Wege in die festen Kapitel „Verfahren Papier“ und „Verfahren
+              Digital“ — beide Kapitel entstehen immer.
+            </p>
           </div>
         </section>
       )}
@@ -358,11 +246,11 @@ export function IntakeForm({
           <h1>{INTAKE_STEPS[3].title}</h1>
           <div className="card">
             <div className="field">
-              <label htmlFor="hosting">Wo liegen die Daten?</label>
+              <label htmlFor="demo-hosting">Wo liegen die Daten?</label>
               <select
-                id="hosting"
+                id="demo-hosting"
                 value={answers.hosting}
-                onChange={(e) => patch({ hosting: e.target.value })}
+                onChange={(event) => patch({ hosting: event.target.value })}
               >
                 <option value="">Bitte wählen</option>
                 {INTAKE_HOSTING.map((option) => (
@@ -373,18 +261,20 @@ export function IntakeForm({
             <div className="field">
               <label>Backup</label>
               <Chips
-                options={[...INTAKE_BACKUP]}
+                options={INTAKE_BACKUP}
                 value={answers.backup}
                 onChange={(backup) => patch({ backup })}
               />
             </div>
             <div className="field">
-              <label htmlFor="zugriff">Wer hat Zugriff auf Buchhaltungsdaten?</label>
+              <label htmlFor="demo-zugriff">
+                Wer hat Zugriff auf Buchhaltungsdaten?
+              </label>
               <textarea
-                id="zugriff"
+                id="demo-zugriff"
                 placeholder="z. B. Inhaber, Buchhaltung intern, Steuerberater, externe IT …"
                 value={answers.zugriff}
-                onChange={(e) => patch({ zugriff: e.target.value })}
+                onChange={(event) => patch({ zugriff: event.target.value })}
               />
             </div>
           </div>
@@ -397,39 +287,41 @@ export function IntakeForm({
           <h1>{INTAKE_STEPS[4].title}</h1>
           <div className="card">
             <div className="field">
-              <label htmlFor="gf">Geschäftsführung / Inhaber</label>
+              <label htmlFor="demo-gf">Geschäftsführung / Inhaber</label>
               <input
-                id="gf"
+                id="demo-gf"
                 placeholder="Name"
                 value={answers.gf}
-                onChange={(e) => patch({ gf: e.target.value })}
+                onChange={(event) => patch({ gf: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="buchhaltung">Buchhaltung / Belegverantwortung</label>
+              <label htmlFor="demo-buchhaltung">
+                Buchhaltung / Belegverantwortung
+              </label>
               <input
-                id="buchhaltung"
+                id="demo-buchhaltung"
                 placeholder="Name oder „externer Steuerberater“"
                 value={answers.buchhaltung}
-                onChange={(e) => patch({ buchhaltung: e.target.value })}
+                onChange={(event) => patch({ buchhaltung: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="it-person">IT / Systeme</label>
+              <label htmlFor="demo-it">IT / Systeme</label>
               <input
-                id="it-person"
+                id="demo-it"
                 placeholder="Name oder Dienstleister"
                 value={answers.it}
-                onChange={(e) => patch({ it: e.target.value })}
+                onChange={(event) => patch({ it: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="steuerberater">Steuerberater (Kanzlei)</label>
+              <label htmlFor="demo-stb">Steuerberater (Kanzlei)</label>
               <input
-                id="steuerberater"
+                id="demo-stb"
                 placeholder="optional"
                 value={answers.steuerberater}
-                onChange={(e) => patch({ steuerberater: e.target.value })}
+                onChange={(event) => patch({ steuerberater: event.target.value })}
               />
             </div>
           </div>
@@ -439,7 +331,12 @@ export function IntakeForm({
       {step === 5 && (
         <section>
           <p className="step-label">{INTAKE_REVIEW.stepLabel}</p>
-          <h1>{INTAKE_REVIEW.title}</h1>
+          <h1>Angaben und offene Punkte</h1>
+          <p className="prose">
+            Im Produkt hieße dieser Schritt „{INTAKE_REVIEW.title}“ und würde
+            speichern. Hier endet die Demo. Die Liste nutzt denselben
+            Regelsatz wie die Offene-Punkte-Tabelle im PDF.
+          </p>
           <div className="card">
             <dl className="summary">
               {summary.map(([label, value]) => (
@@ -449,16 +346,45 @@ export function IntakeForm({
                 </div>
               ))}
             </dl>
-            <VersionChangeFields
-              value={change}
-              onChange={setChange}
-              summaryRequired={isEdit}
-              idPrefix="intake-version"
-            />
-            <p className="disclaimer">
-              Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein
-              Entwurf zur Abstimmung mit deinem Steuerberater — keine
-              individuelle Steuer- oder Rechtsberatung.
+          </div>
+          <div className="card" style={{ marginTop: 16 }}>
+            <h2>Offene Punkte zu diesen Angaben</h2>
+            <p className="hint">
+              {openPoints.length} Punkt{openPoints.length === 1 ? "" : "e"} aus
+              leeren Feldern. Schwere wie im PDF: high, medium, low.
+            </p>
+            {openPoints.length === 0 ? (
+              <p className="prose">
+                Zum Zeitpunkt der Erstellung waren alle abgefragten Intake-Felder
+                befüllt; es wurden keine automatischen offenen Punkte erzeugt.
+              </p>
+            ) : (
+              <div className="legal legal-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Schwere</th>
+                      <th scope="col">Offener Punkt</th>
+                      <th scope="col">Kapitel</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {openPoints.map((point) => (
+                      <tr key={point.id}>
+                        <td>{point.severity}</td>
+                        <td>{point.title}</td>
+                        <td>{point.chapter || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="hint">
+              Das feste Muster-PDF bleibt die{" "}
+              <Link href={PARTNER_MUSTER_PATH}>Beispiel GmbH</Link>. Diese Liste
+              folgt Ihren Klicks. Gültig-ab und Kurz-Changelog gibt es beim
+              Speichern einer Fassung nach dem Kauf, nicht in dieser Demo.
             </p>
           </div>
         </section>
@@ -466,45 +392,50 @@ export function IntakeForm({
 
       {error && <p className="error">{error}</p>}
 
-      {step < 6 && (
-        <div className="actions" style={{ marginTop: 18 }}>
-          {step > 0 && (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                setError("");
-                setStep((s) => Math.max(0, s - 1));
-              }}
-            >
-              Zurück
-            </button>
-          )}
-          {step < 5 && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                if (!validate(step)) return;
-                setStep((s) => s + 1);
-              }}
-            >
-              {step === 4 ? "Zur Übersicht" : "Weiter"}
-            </button>
-          )}
-          {step === 5 && (
-            <button type="button" className="btn" onClick={submit} disabled={pending}>
-              {pending
-                ? isEdit
-                  ? "Erzeuge Version…"
-                  : "Speichern…"
-                : isEdit
-                  ? "Neue Version erzeugen"
-                  : "Intake absenden"}
-            </button>
-          )}
-        </div>
-      )}
+      <div className="actions" style={{ marginTop: 18 }}>
+        {step > 0 && (
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              setError("");
+              setStep((current) => Math.max(0, current - 1));
+            }}
+          >
+            Zurück
+          </button>
+        )}
+        {step < 5 && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              const message = intakeStepError(step, answers);
+              if (message) {
+                setError(message);
+                return;
+              }
+              setError("");
+              setStep((current) => current + 1);
+            }}
+          >
+            {step === 4 ? "Zur Übersicht" : "Weiter"}
+          </button>
+        )}
+        {step === 5 && (
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              setAnswers(PARTNER_MUSTER_ANSWERS);
+              setError("");
+              setStep(0);
+            }}
+          >
+            Beispieldaten erneut
+          </button>
+        )}
+      </div>
     </>
   );
 }
