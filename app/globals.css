@@ -379,6 +379,10 @@ h2 {
   font-weight: 700;
 }
 
+.partner-copy .cta-paid .trust-line {
+  max-width: none;
+}
+
 .trust-line {
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 14px;

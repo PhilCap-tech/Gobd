@@ -11,9 +11,9 @@ const PROMO_CODE = "KANZLEI-PILOT";
 const PRIMARY_CTA = "Pilot selbst testen";
 
 const PAGE_TITLE =
-  "Für Steuerberater: Produkt testen, dann an Mandanten weiterleiten | GoBD Verfahrensdoku";
+  "GoBD-Verfahrensdokumentation für Mandanten — Partner-Pilot für Steuerberater";
 const PAGE_DESCRIPTION =
-  "Partner-Pilot: mit Parametern testen, Ergebnis prüfen, bei Überzeugung an Mandanten weiterleiten. Kein Ausfüllen fürs Unternehmen. Keine Steuerberatung.";
+  "Pflicht für Mandanten, oft liegen geblieben. Tool zum schnellen, nachvollziehbaren Erstellen mit Versionierung — selbst testen, dann weiterempfehlen.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -30,6 +30,18 @@ export const metadata: Metadata = {
   },
 };
 
+function PromoHint() {
+  return (
+    <>
+      <p className="trust-line">
+        Partner-Promo <strong className="promo-code">{PROMO_CODE}</strong>
+        {" · "}Keine Steuerberatung · Sie füllen nicht für Mandanten aus
+      </p>
+      <p className="hint">100 % für Setup + Abo, 2 Monate (Partner-Pilot).</p>
+    </>
+  );
+}
+
 function PilotCta({ showSecondary = false }: { showSecondary?: boolean }) {
   return (
     <div className="cta-pair">
@@ -37,21 +49,12 @@ function PilotCta({ showSecondary = false }: { showSecondary?: boolean }) {
         <Link className="btn" href={PILOT_HREF}>
           {PRIMARY_CTA}
         </Link>
-        <p className="trust-line">
-          Tester + Empfehler · Kein Ausfüllen für Mandanten · Keine
-          Steuerberatung · Keine Konformitätsversprechen
-        </p>
-        <p className="hint">
-          Promo-Code im Checkout:{" "}
-          <strong className="promo-code">{PROMO_CODE}</strong>
-          <br />
-          100 % für Setup + Abo, 2 Monate (Partner-Pilot).
-        </p>
+        <PromoHint />
       </div>
       {showSecondary ? (
         <div className="cta-soft">
           <a className="btn ghost" href="#pilot">
-            So läuft der Test
+            So funktioniert’s
           </a>
         </div>
       ) : null}
@@ -66,198 +69,112 @@ export default function SteuerberaterPage() {
         ctaHref={PILOT_HREF}
         ctaLabel={PRIMARY_CTA}
         links={[
-          { href: "#rolle", label: "Rolle" },
+          { href: "#prozess", label: "Prozess" },
           { href: "#pilot", label: "Pilot" },
           { href: "#faq", label: "FAQ" },
         ]}
       />
       <main className="wrap partner-copy">
         <section className="hero">
-          <p className="kicker">
-            Für Steuerberaterinnen &amp; Steuerberater · Partner-Pilot
-          </p>
+          <p className="kicker">Für Steuerberater &amp; Kanzleien</p>
           <h1>
-            Testen Sie die Verfahrensdokumentation selbst — bevor Sie sie
-            weiterempfehlen
+            Die Verfahrensdokumentation ist Pflicht — Ihre Mandanten schieben
+            sie auf, weil sie zu aufwendig wirkt
           </h1>
           <p className="lead">
-            Sie sind nicht der Ausfüller fürs Unternehmen. Im Partner-Pilot
-            prüfen Sie mit eigenen Test-Parametern, ob PDF und
-            Offene-Punkte-Liste für Ihre Qualitätsansprüche taugen. Überzeugt
-            das Ergebnis, leiten Sie den Weg an Mandanten weiter — die
-            Betriebsdaten kommen vom Mandanten. Wir ersetzen keine
-            Steuerberatung.
+            Sie weisen darauf hin. Wir liefern das Tool, mit dem Mandanten der
+            gesetzlichen GoBD-Verfahrensdokumentations-Pflicht schnell,
+            unkompliziert und nachhaltig nachkommen — mit Versionierung statt
+            Dateichaos.
           </p>
           <PilotCta showSecondary />
         </section>
 
-        <section className="block" id="rolle">
-          <h2>So ist Ihre Rolle gedacht</h2>
+        <section className="block" id="problem">
+          <h2>Warum die Pflicht oft liegen bleibt</h2>
+          <p className="prose">
+            <strong>Problem:</strong> GoBD-Verfahrensdokumentation betrifft
+            Ihre Mandanten. Sie sprechen es an — Umsetzung scheitert am
+            Aufwand: leere Vorlagen, unklare Struktur, keine Historie.
+          </p>
+          <p className="prose">
+            <strong>Lösung:</strong> Ein geführter Prozess: Mandant liefert die
+            Betriebsdaten, heraus kommt ein strukturierter Entwurf plus Offene
+            Punkte — versioniert und bei Bedarf aktualisierbar.
+          </p>
+        </section>
+
+        <section className="block" id="positionierung">
+          <h2>Das Tool für die Pflicht — nicht die Steuerberatung</h2>
+          <p className="prose">
+            Wir sind kein DATEV-Ersatz und keine Kanzlei-Software. Wir sind das
+            Werkzeug, mit dem Mandanten ihre Verfahrensdokumentation anlegen
+            und pflegen können — damit der Hinweis aus der Kanzlei nicht in
+            einer leeren Word-Datei endet.
+          </p>
+          <p className="hint">
+            Sie füllen die Dokumentation <strong>nicht</strong> für Ihre
+            Mandanten aus.
+          </p>
+        </section>
+
+        <section className="block" id="prozess">
+          <h2>Was manuell ist — und was rauskommt</h2>
           <ol className="prose-list">
             <li>
-              <strong>Testen mit Parametern</strong> — Rechtsform, Branche,
-              typische Software/Belegwege als Szenario. Sie sehen, was das
-              Produkt aus einem Intake macht.
+              <strong>Manuell / Intake</strong> — Betriebsdaten, Software,
+              Belegwege, Verantwortliche: der Mandant (oder Sie im eigenen
+              Test) gibt die Parameter ein.
             </li>
             <li>
-              <strong>Ergebnis prüfen</strong> — PDF-Struktur und
-              Offene-Punkte-Liste: nachvollziehbar? Lücken sichtbar? Für Sie
-              als Berater brauchbar?
+              <strong>Ergebnis</strong> — Strukturierter Entwurf der
+              Verfahrensdokumentation als PDF plus Liste Offener Punkte.
             </li>
             <li>
-              <strong>Weiterleiten an Mandanten</strong> — nur wenn es passt:
-              Empfehlungslink / Pilot-Weg. Der Mandant liefert die echten
-              Betriebsdaten.
+              <strong>Versionierung</strong> — Änderungen nachvollziehbar;
+              keine „welche Datei war die letzte?“-Diskussion.
             </li>
           </ol>
-          <p className="prose">
-            Nicht Ihre Aufgabe im Produkt: die Verfahrensdokumentation
-            stellvertretend für den Mandanten ausfüllen oder „fertig beraten“
-            liefern.
-          </p>
         </section>
 
-        <section className="block" id="fuer-wen">
-          <h2>Tester und Empfehler — nicht Ausfüller</h2>
-          <div className="stack">
-            <article className="card">
-              <h3>Sie testen</h3>
-              <p className="prose">
-                Parameter wählen, Durchlauf machen, Entwurf sehen — ohne ein
-                Mandantenmandat im Intake so zu simulieren, als wäre es Ihre
-                Dateneingabe für deren Betrieb.
-              </p>
-            </article>
-            <article className="card">
-              <h3>Ergebnis ok?</h3>
-              <p className="prose">
-                Sie bewerten Qualität und Brauchbarkeit. Kein
-                „GoBD-konform“-Stempel von uns — Ihre fachliche Einschätzung
-                zählt für die Empfehlung.
-              </p>
-            </article>
-            <article className="card">
-              <h3>An Mandanten weiterleiten</h3>
-              <p className="prose">
-                Empfehlungsweg erst nach Ihrem OK. Der Mandant füllt sein
-                Intake; Sie bleiben Berater, nicht Datenerfasser.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section className="block" id="leistung">
-          <h2>Was das Produkt leistet — und was nicht</h2>
-          <div className="legal legal-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Ja</th>
-                  <th scope="col">Nein</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Sie testen mit Parametern / Szenarien</td>
-                  <td>Sie füllen die Doku für den Mandanten aus</td>
-                </tr>
-                <tr>
-                  <td>
-                    Strukturiertes PDF + Offene-Punkte zum Qualitätscheck
-                  </td>
-                  <td>Steuer-, Rechts- oder Prüfungsberatung durch uns</td>
-                </tr>
-                <tr>
-                  <td>Weiterleiten an Mandanten nach Ihrem OK</td>
-                  <td>Blanko-Muster „fertig“ ohne Betriebsbezug</td>
-                </tr>
-                <tr>
-                  <td>
-                    Versionierung &amp; erneute Exporte (Pflege über Abo)
-                  </td>
-                  <td>„GoBD-konform per Klick“ / Prüfungsgarantie</td>
-                </tr>
-                <tr>
-                  <td>Klare Produktgrenzen für Empfehlung</td>
-                  <td>Ersatz für Ihre Freigabe oder Haftung</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <section className="block" id="pruefung">
+          <h2>Wenn die Prüfung kommt</h2>
           <p className="prose">
-            Sie entscheiden, ob das Ergebnis empfehlenswert ist. Ausfüllen und
-            Freigabe der betrieblichen Realität bleiben beim Mandanten bzw. bei
-            Ihrer Beratung — nicht im Sinne von „Kanzlei tippt den
-            Mandantenbetrieb ein“.
+            Die Dokumentation ist sekundenschnell abrufbar — mit Historie und
+            klarem Stand. So ist die Pflicht nicht „irgendwo in der Ablage“,
+            sondern greifbar erledigt.
           </p>
-        </section>
-
-        <section className="block" id="versionierung">
-          <h2>Warum Versionierung — und warum kein Einmal-PDF reicht</h2>
-          <p className="prose">
-            Ein einmal erzeugtes PDF veraltet, wenn Software, Belegwege oder
-            Verantwortliche wechseln.
-          </p>
-          <p className="prose">
-            <strong>Für Ihren Test relevant:</strong> Sie sehen, dass Fassungen
-            und Historie zum Produkt gehören — nicht nur ein einmaliger Export.
-          </p>
-          <p className="prose">Für Mandanten nach Weiterleitung:</p>
-          <ol className="prose-list">
-            <li>
-              <strong>Erste Fassung</strong> (Setup): Struktur, PDF + Offene
-              Punkte.
-            </li>
-            <li>
-              <strong>Pflege</strong> (Abo): Speicherung, Versionen, erneute
-              Exporte.
-            </li>
-            <li>
-              <strong>Änderung:</strong> Der Mandant aktualisiert; neue Fassung
-              zur erneuten Abstimmung mit Ihnen.
-            </li>
-          </ol>
-          <p className="prose">
-            Weniger „final_final3.pdf“ im Postfach — ohne dass wir Ihre
-            Beratung ersetzen.
+          <p className="hint">
+            Fachliche Prüfung bleibt bei Kanzlei und Mandant.
           </p>
         </section>
 
         <section className="block" id="pilot">
-          <h2>Pilot-Test in drei Schritten</h2>
+          <h2>So arbeiten Sie mit dem Partner-Pilot</h2>
           <ol className="prose-list">
             <li>
-              <strong>Selbst testen</strong> — Partner-Pilot starten, Parameter
-              und Rechtsform wählen (z. B. Freiberufler, GmbH, Handwerk). Das
-              ist Ihr Testszenario, nicht die echten Bücher eines Mandanten.
+              <strong>Selbst testen</strong> — Parameter und Rechtsformen
+              durchspielen (z. B. Freiberufler, GmbH, Handwerk).
             </li>
             <li>
-              <strong>Ergebnis bewerten</strong> — Entwurf + Offene Punkte +
-              Versionierung ansehen und fachlich einordnen.
+              <strong>Ergebnis bewerten</strong> — Entwurf, Offene Punkte,
+              Versionierung fachlich einordnen.
             </li>
             <li>
-              <strong>Weiterleiten / empfehlen</strong> — Wenn es passt:
-              Empfehlungslink an Mandanten. Der Mandant arbeitet selbst weiter
-              und trägt die Betriebsdaten im eigenen Intake ein.
+              <strong>Weiterempfehlen</strong> — Überzeugt der Test:
+              Empfehlungslink an Mandanten — der Mandant arbeitet selbst
+              weiter.
             </li>
           </ol>
-          <div className="value-note">
-            <p className="prose">
-              Der Pilot ist Ihr Test- und Empfehlungseinstieg. Reguläre Preise
-              gelten beim Kauf durch den Mandanten — Details auf der{" "}
-              <Link href="/#preise">Produktseite</Link>. Nicht als Hero auf
-              dieser Seite.
-            </p>
-          </div>
+          <PilotCta />
         </section>
 
         <section className="block" id="empfehlung">
           <div className="value-note">
-            <h2>Weiterleiten, wenn der Pilot überzeugt</h2>
+            <h2>Empfehlen, wenn Ihr Test überzeugt</h2>
             <p className="prose">
-              Nach Ihrem OK erhalten Sie den Weg, Mandanten einzuladen.
-              Cash-Affiliate kann später kommen — zuerst Qualität und
-              Vertrauen. Keine Empfehlungspflicht.
+              Nach dem eigenen Pilot: Empfehlungslink für Mandanten.
+              Cash-Affiliate später — zuerst Qualität.
             </p>
           </div>
         </section>
@@ -265,63 +182,52 @@ export default function SteuerberaterPage() {
         <section className="block" id="grenzen">
           <h2>Was wir nicht sind</h2>
           <ul className="prose-list">
-            <li>Keine Steuerberatung und keine Rechtsberatung.</li>
+            <li>Keine Steuer- oder Rechtsberatung.</li>
             <li>Kein Ersatz für Ihre fachliche Prüfung.</li>
-            <li>Kein Modell „Kanzlei füllt für den Mandanten aus“.</li>
-            <li>Keine leere „GoBD-Vorlage zum Abhaken“.</li>
-            <li>
-              Keine Claims „rechtssicher“ / „automatisch GoBD-konform“.
-            </li>
-            <li>
-              Keine Fake-Siegel fremder Marken; eigenes Badge nur klar als
-              unseres.
-            </li>
+            <li>Kein Ausfüllen der VD durch die Kanzlei für den Mandanten.</li>
+            <li>Keine leere Vorlage zum Abhaken.</li>
+            <li>Keine Claims „rechtssicher“ / „GoBD-konform“.</li>
+            <li>Kein Fake-DATEV/KPMG.</li>
           </ul>
         </section>
 
         <section className="block" id="faq">
           <h2>Häufige Fragen</h2>
           <div className="faq-item">
+            <h3>Ist die Verfahrensdokumentation Pflicht?</h3>
+            <p className="prose">
+              Für buchführungspflichtige Unternehmen ist sie Teil der
+              GoBD-Anforderungen. Sie weisen Mandanten darauf hin — wir helfen
+              bei der praktischen Erstellung und Pflege. (Keine
+              Rechtsberatung.)
+            </p>
+          </div>
+          <div className="faq-item">
             <h3>Muss ich für Mandanten ausfüllen?</h3>
             <p className="prose">
-              Nein. Sie testen mit Parametern und empfehlen bei Bedarf weiter.
-              Die betrieblichen Angaben macht der Mandant.
+              Nein. Sie testen selbst, bewerten, empfehlen weiter. Der Mandant
+              nutzt den Link selbst.
             </p>
           </div>
           <div className="faq-item">
-            <h3>Muss ich Software lernen / Intake schulen?</h3>
+            <h3>Was ist manuell, was kommt raus?</h3>
             <p className="prose">
-              Nein. Kurz testen, Ergebnis bewerten, bei Überzeugung
-              weiterleiten.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Ersetzt das meine Beratung?</h3>
-            <p className="prose">
-              Nein. Strukturierter Entwurf + sichtbare Lücken. Freigabe und
-              Beratung bleiben bei Ihnen.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Ist das DATEV / offiziell zertifiziert?</h3>
-            <p className="prose">
-              Nein. Eigenes Produkt der IKAT GmbH; optionales eigenes Siegel —
-              keine Fremd-Zertifizierung.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Haften Sie für GoBD-Konformität?</h3>
-            <p className="prose">
-              Nein. Keine Konformitäts- oder Prüfungsgarantie.
+              Manuell: Intake/Parameter. Raus: Entwurf + Offene Punkte,
+              versioniert.
             </p>
           </div>
           <div className="faq-item">
             <h3>Kostet der Pilot etwas?</h3>
             <p className="prose">
-              Partner-Pilot ist kostenlos über die Partner-Promo{" "}
-              <strong className="promo-code">{PROMO_CODE}</strong> (100 % für
-              Setup + Abo, 2 Monate). Produktpreise gelten erst beim Kauf —
-              Details auf der <Link href="/#preise">Produktseite</Link>.
+              Partner-Promo <strong className="promo-code">{PROMO_CODE}</strong>{" "}
+              (100 % für Setup + Abo, 2 Monate; Details im Checkout). Reguläre
+              Preise erst beim Kauf.
+            </p>
+          </div>
+          <div className="faq-item">
+            <h3>DATEV / Zertifizierung?</h3>
+            <p className="prose">
+              Nein. IKAT GmbH; optionales eigenes Partner-Siegel.
             </p>
           </div>
         </section>
@@ -337,11 +243,10 @@ export default function SteuerberaterPage() {
             <Link href="/impressum">Impressum</Link>
           </p>
           <p className="disclaimer">
-            Allgemeine Partnerinformation von gobd-doku-erstellen.de (IKAT
-            GmbH). Keine Steuer-, Rechts- oder Prüfungsberatung. Keine
-            Zusicherung von GoBD-Konformität. Steuerberater im Pilot = Tester
-            und ggf. Empfehler; nicht Ausfüller für Mandantenunternehmen.
-            Fachliche Freigabe beim Mandanten bzw. bei beraterischer Leistung.
+            Dies ist keine Steuer- oder Rechtsberatung. Der Pilot dient der
+            eigenen Bewertung durch die Kanzlei. Eine Weiterempfehlung ersetzt
+            keine fachliche Prüfung. Die Verfahrensdokumentation bleibt
+            Verantwortung des Mandanten.
           </p>
         </section>
       </main>
@@ -350,8 +255,8 @@ export default function SteuerberaterPage() {
           {PRIMARY_CTA}
         </Link>
         <p className="trust-line">
-          Promo-Code im Checkout:{" "}
-          <strong className="promo-code">{PROMO_CODE}</strong>
+          Partner-Promo <strong className="promo-code">{PROMO_CODE}</strong>
+          {" · "}100 % für Setup + Abo, 2 Monate
         </p>
       </div>
       <SiteFooter />
