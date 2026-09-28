@@ -96,6 +96,8 @@ Vertretung kurz erwähnen: Was passiert bei Urlaub oder Krankheit? Ein Satz reic
 
 Unsicher, ob euer Scope schon greifbar ist? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
+Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).
+
 ## Scannen und Baustelle — Handwerks-Alltag
 
 Viele Handwerksbetriebe fotografieren oder scannen Belege unterwegs. Dann zählen u. a.:

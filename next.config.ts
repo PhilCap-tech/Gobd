@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       "./public/brand/**/*",
     ],
     "/resources/10-offene-punkte/download": ["./public/brand/**/*"],
+    "/resources/inhalt-verfahrensdokumentation/download": ["./public/brand/**/*"],
   },
   async headers() {
     return [

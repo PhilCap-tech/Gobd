@@ -78,6 +78,20 @@ export const LEAD_MAGNET_CTA_AFTER =
 export const LEAD_MAGNET_DISCLAIMER =
   "Allgemeine Arbeitshilfe von gobd-doku-erstellen.de. Keine Steuer-, Rechts- oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität oder Prüfungsergebnis. Abstimmung und Freigabe bleiben bei dir bzw. deinem Berater.";
 
+export type LeadMagnetCopy = {
+  headline: string;
+  subhead: string;
+  intro: string;
+  points: readonly { title: string; body: string }[];
+  ctaTitle: string;
+  ctaBefore: string;
+  ctaLinkLabel: string;
+  ctaAfter: string;
+  disclaimer: string;
+  /** Absolute readiness URL embedded in the PDF link. */
+  readinessAbsoluteUrl: string;
+};
+
 export function leadMagnetReadinessHref(): string {
   return `/readiness?${LEAD_MAGNET_UTM}`;
 }
@@ -85,6 +99,14 @@ export function leadMagnetReadinessHref(): string {
 /** Saved PDFs open later, so the link uses the canonical production origin. */
 export function leadMagnetReadinessAbsoluteUrl(): string {
   return `${CANONICAL_PRODUCTION_APP_URL}${leadMagnetReadinessHref()}`;
+}
+
+export function leadMagnetReadinessHrefFor(utm: string): string {
+  return `/readiness?${utm}`;
+}
+
+export function leadMagnetReadinessAbsoluteUrlFor(utm: string): string {
+  return `${CANONICAL_PRODUCTION_APP_URL}${leadMagnetReadinessHrefFor(utm)}`;
 }
 
 type TextRun = { text: string; bold: boolean };
@@ -193,6 +215,7 @@ function writePoint(
 
 function writeCtaBox(
   doc: PDFKit.PDFDocument,
+  copy: LeadMagnetCopy,
   left: number,
   y: number,
   width: number,
@@ -201,10 +224,10 @@ function writeCtaBox(
   const padY = 9;
   const innerWidth = width - padX * 2;
   doc.font("Helvetica-Bold").fontSize(11);
-  const titleHeight = doc.heightOfString(LEAD_MAGNET_CTA_TITLE, { width: innerWidth });
+  const titleHeight = doc.heightOfString(copy.ctaTitle, { width: innerWidth });
   doc.font("Helvetica").fontSize(9.4);
   const bodyHeight = doc.heightOfString(
-    `${LEAD_MAGNET_CTA_BEFORE}${LEAD_MAGNET_CTA_LINK_LABEL}${LEAD_MAGNET_CTA_AFTER}`,
+    `${copy.ctaBefore}${copy.ctaLinkLabel}${copy.ctaAfter}`,
     { width: innerWidth, lineGap: 1 },
   );
   const boxHeight = padY + titleHeight + 3 + bodyHeight + padY;
@@ -222,21 +245,21 @@ function writeCtaBox(
     .restore();
 
   doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_NAVY);
-  doc.text(LEAD_MAGNET_CTA_TITLE, left + padX, y + padY, { width: innerWidth });
+  doc.text(copy.ctaTitle, left + padX, y + padY, { width: innerWidth });
   const bodyY = y + padY + titleHeight + 3;
   doc.font("Helvetica").fontSize(9.4).fillColor(BRAND_INK);
-  doc.text(LEAD_MAGNET_CTA_BEFORE, left + padX, bodyY, {
+  doc.text(copy.ctaBefore, left + padX, bodyY, {
     width: innerWidth,
     continued: true,
     lineGap: 1,
   });
-  doc.fillColor(BRAND_GREEN).text(LEAD_MAGNET_CTA_LINK_LABEL, {
+  doc.fillColor(BRAND_GREEN).text(copy.ctaLinkLabel, {
     continued: true,
     underline: true,
-    link: leadMagnetReadinessAbsoluteUrl(),
+    link: copy.readinessAbsoluteUrl,
   });
   // Continued text inherits link/underline; clear both so only the label is linked.
-  doc.fillColor(BRAND_INK).text(LEAD_MAGNET_CTA_AFTER, {
+  doc.fillColor(BRAND_INK).text(copy.ctaAfter, {
     lineGap: 1,
     link: null,
     underline: false,
@@ -244,14 +267,30 @@ function writeCtaBox(
   return y + boxHeight;
 }
 
-export function generateLeadMagnetPdf(): Promise<Buffer> {
+function offenePunkteCopy(): LeadMagnetCopy {
+  return {
+    headline: LEAD_MAGNET_HEADLINE,
+    subhead: LEAD_MAGNET_SUBHEAD,
+    intro: LEAD_MAGNET_INTRO,
+    points: LEAD_MAGNET_POINTS,
+    ctaTitle: LEAD_MAGNET_CTA_TITLE,
+    ctaBefore: LEAD_MAGNET_CTA_BEFORE,
+    ctaLinkLabel: LEAD_MAGNET_CTA_LINK_LABEL,
+    ctaAfter: LEAD_MAGNET_CTA_AFTER,
+    disclaimer: LEAD_MAGNET_DISCLAIMER,
+    readinessAbsoluteUrl: leadMagnetReadinessAbsoluteUrl(),
+  };
+}
+
+/** One-page A4 lead magnet. Rejects unless the result is exactly one page. */
+export function generateLeadMagnetPdfFrom(copy: LeadMagnetCopy): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
       margins: { top: 28, bottom: 16, left: 40, right: 40 },
       bufferPages: true,
       info: {
-        Title: LEAD_MAGNET_HEADLINE,
+        Title: copy.headline,
         Author: BRAND_NAME,
         Subject: "Arbeitshilfe — keine Steuerberatung",
       },
@@ -288,24 +327,24 @@ export function generateLeadMagnetPdf(): Promise<Buffer> {
 
     let y = headerRule + 14;
     doc.font("Helvetica-Bold").fontSize(18).fillColor(BRAND_NAVY);
-    doc.text(LEAD_MAGNET_HEADLINE, left, y, { width, lineBreak: true });
+    doc.text(copy.headline, left, y, { width, lineBreak: true });
     y = doc.y + 3;
     doc.font("Helvetica-Oblique").fontSize(10).fillColor(BRAND_MUTED);
-    doc.text(LEAD_MAGNET_SUBHEAD, left, y, { width });
+    doc.text(copy.subhead, left, y, { width });
     y = doc.y + 8;
     doc.font("Helvetica").fontSize(9.6).fillColor(BRAND_INK);
-    doc.text(LEAD_MAGNET_INTRO, left, y, { width, lineGap: 1.4 });
+    doc.text(copy.intro, left, y, { width, lineGap: 1.4 });
     y = doc.y + 10;
 
-    for (const point of LEAD_MAGNET_POINTS) {
+    for (const point of copy.points) {
       y = writePoint(doc, point, left, y, width);
     }
 
     y += 6;
-    y = writeCtaBox(doc, left, y, width);
+    y = writeCtaBox(doc, copy, left, y, width);
 
     doc.font("Helvetica").fontSize(7.4).fillColor(BRAND_MUTED);
-    const disclaimerHeight = doc.heightOfString(LEAD_MAGNET_DISCLAIMER, {
+    const disclaimerHeight = doc.heightOfString(copy.disclaimer, {
       width,
       lineGap: 0.8,
     });
@@ -327,7 +366,7 @@ export function generateLeadMagnetPdf(): Promise<Buffer> {
       .stroke()
       .restore();
     doc.font("Helvetica").fontSize(7.4).fillColor(BRAND_MUTED);
-    doc.text(LEAD_MAGNET_DISCLAIMER, left, disclaimerY, { width, lineGap: 0.8 });
+    doc.text(copy.disclaimer, left, disclaimerY, { width, lineGap: 0.8 });
     doc.page.margins.bottom = savedBottom;
 
     const pages = doc.bufferedPageRange().count;
@@ -337,4 +376,9 @@ export function generateLeadMagnetPdf(): Promise<Buffer> {
     }
     doc.end();
   });
+}
+
+/** Magnet #1. Same one-page guard as `generateLeadMagnetPdfFrom`. */
+export function generateLeadMagnetPdf(): Promise<Buffer> {
+  return generateLeadMagnetPdfFrom(offenePunkteCopy());
 }

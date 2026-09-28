@@ -105,6 +105,8 @@ Der Berater muss das nicht zwingend von Null schreiben. Viele Betriebe liefern b
 
 Unsicher, ob du die Basics schon beisammen hast? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
+Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).
+
 ## Digitale Verfahrensdokumentation statt Blanko-Vorlage
 
 Viele suchen nach einer „Vorlage Verfahrensdokumentation“ und landen bei einer leeren Datei. Das Produkt unter gobd-doku-erstellen.de geht einen anderen Weg:

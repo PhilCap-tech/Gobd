@@ -80,6 +80,8 @@ Hier geht es um den Alltag: Wie kommen Belege rein, wer prüft, wer legt ab, wie
 
 Unsicher, ob du die Basics schon beisammen hast? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
+Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).
+
 ## Checkliste 3: Technische Systemdokumentation
 
 Hier beschreibst du die Systeme so, dass ein Prüfer versteht, wo Daten liegen und wie sie erreichbar sind — ohne Betriebsgeheimnisse auszubreiten.
