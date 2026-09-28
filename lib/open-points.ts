@@ -6,6 +6,7 @@ export type OpenPointSeverity = "low" | "medium" | "high";
 /** Customer-facing labels. The PDF and partner excerpt do not print template ids. */
 export const OPEN_POINT_CHAPTER_LABELS: Record<string, string> = {
   "00-cover": "Deckblatt",
+  "dl-dokumentenlenkung": "Dokumentenlenkung",
   "01-zweck": "Zweck und Geltungsbereich",
   "02-rollen": "Rollen",
   "03-systeme": "Systemlandschaft",
@@ -41,16 +42,28 @@ export function openPointChapterLabel(id?: string): string {
   return OPEN_POINT_CHAPTER_LABELS[id] ?? id;
 }
 
+export type OpenPointPriority = "hoch" | "mittel" | "niedrig";
+
+/** Outline v4 customer shape, plus the older fields the UI already reads. */
 export type DeliveryOpenPoint = {
   id: string;
+  priority: OpenPointPriority;
+  text: string;
+  responsibility?: string;
+  /** Set only when a rule carries a date. Never invented. */
+  dueDate?: string;
   title: string;
   severity: OpenPointSeverity;
   status: "open";
   chapter?: string;
   field?: string;
-  /** Resolved from the rule, for the customer table. Empty when the rule names nobody. */
-  responsibility?: string;
 };
+
+function priorityFromSeverity(severity: string): OpenPointPriority {
+  if (severity === "high") return "hoch";
+  if (severity === "low") return "niedrig";
+  return "mittel";
+}
 
 /** Labels the rules treat as empty. Selected UI values such as „Unklar“ are not in this list. */
 export const OPEN_POINT_EMPTY_LABELS = (bundle.openPointsRules.emptyValues ?? [])
@@ -211,19 +224,32 @@ export function evaluateOpenPoints(input: {
       matches = mentionsScanReplace && !mentionsPaper;
     }
     if (!matches) continue;
+    const text = rule.text;
+    const dueDate =
+      "dueDate" in rule && typeof rule.dueDate === "string" && rule.dueDate.trim()
+        ? rule.dueDate.trim()
+        : undefined;
+    const priority =
+      "priority" in rule &&
+      (rule.priority === "hoch" || rule.priority === "mittel" || rule.priority === "niedrig")
+        ? rule.priority
+        : priorityFromSeverity(String(rule.severity));
     points.push({
       id: rule.id,
-      title: rule.text,
-      severity: rule.severity as OpenPointSeverity,
-      status: "open",
-      chapter: "chapter" in rule ? String(rule.chapter) : undefined,
-      field,
+      priority,
+      text,
       responsibility: responsibilityLabel(
         root,
         "responsibilityField" in rule && rule.responsibilityField
           ? String(rule.responsibilityField)
           : undefined,
       ),
+      ...(dueDate ? { dueDate } : {}),
+      title: text,
+      severity: rule.severity as OpenPointSeverity,
+      status: "open",
+      chapter: "chapter" in rule ? String(rule.chapter) : undefined,
+      field,
     });
   }
   return points;

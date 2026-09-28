@@ -319,12 +319,10 @@
   ],
   "outputItemShape": {
     "id": "string",
+    "priority": "hoch|mittel|niedrig",
     "text": "string",
-    "severity": "low|medium|high",
-    "chapter": "chapter-id",
-    "field": "dotted.path|null",
-    "customerFacing": "boolean",
-    "responsibility": "string (resolved from responsibilityField or fallback)"
+    "responsibility": "string",
+    "dueDate": "optional string; omit when the intake sets no date"
   },
   "whenSemantics": {
     "empty": "Field missing, null, empty string/array, or value in emptyValues",

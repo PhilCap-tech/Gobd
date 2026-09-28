@@ -9,7 +9,6 @@ import {
   OPEN_POINT_EMPTY_LABELS,
   openPointChapterLabel,
   openPointDueLabel,
-  openPointPriorityLabel,
 } from "@/lib/open-points";
 import {
   PARTNER_DEMO_PATH,
@@ -162,10 +161,10 @@ export default function PartnerMusterPage() {
               <tbody>
                 {openPoints.map((item) => (
                   <tr key={item.id}>
-                    <td>{openPointPriorityLabel(item.severity)}</td>
-                    <td>{item.title}</td>
+                    <td>{item.priority}</td>
+                    <td>{item.text}</td>
                     <td>{openPointChapterLabel(item.chapter)}</td>
-                    <td>{openPointDueLabel()}</td>
+                    <td>{item.dueDate ?? openPointDueLabel()}</td>
                   </tr>
                 ))}
               </tbody>

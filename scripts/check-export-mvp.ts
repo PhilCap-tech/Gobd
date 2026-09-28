@@ -30,7 +30,22 @@ function expect(cond: boolean, message: string) {
   if (!cond) failures.push(message);
 }
 
-const muster = bodyFor(PARTNER_MUSTER_ANSWERS);
+const musterDoc = renderDeliveryDocument({
+  identity: PARTNER_MUSTER_IDENTITY,
+  answers: PARTNER_MUSTER_ANSWERS,
+  documentId: "check",
+  version: 1,
+  versionMeta: PARTNER_MUSTER_VERSION_META,
+});
+const muster = [musterDoc.cover, ...musterDoc.chapters.map((chapter) => chapter.body)].join("\n");
+expect(
+  !musterDoc.chapters.some((chapter) => chapter.id === "06-papier"),
+  "digital fixture omits paper chapter",
+);
+expect(
+  musterDoc.chapters.some((chapter) => chapter.id === "dl-dokumentenlenkung"),
+  "document control chapter",
+);
 const musterIds = ids(PARTNER_MUSTER_ANSWERS);
 for (const absent of [
   "zeitnah an Arbeitstagen",

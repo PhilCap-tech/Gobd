@@ -8,7 +8,6 @@ import {
   evaluateOpenPoints,
   openPointChapterLabel,
   openPointDueLabel,
-  openPointPriorityLabel,
 } from "@/lib/open-points";
 import {
   PARTNER_DEMO_PATH,
@@ -198,10 +197,10 @@ export default function SteuerberaterPage() {
               <tbody>
                 {musterOpenPoints.map((point) => (
                   <tr key={point.id}>
-                    <td>{openPointPriorityLabel(point.severity)}</td>
-                    <td>{point.title}</td>
+                    <td>{point.priority}</td>
+                    <td>{point.text}</td>
                     <td>{openPointChapterLabel(point.chapter)}</td>
-                    <td>{openPointDueLabel()}</td>
+                    <td>{point.dueDate ?? openPointDueLabel()}</td>
                   </tr>
                 ))}
               </tbody>

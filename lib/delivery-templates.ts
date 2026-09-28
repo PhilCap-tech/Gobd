@@ -67,6 +67,7 @@ type BundleChapter = {
     | boolean
     | {
         anyPathNonEmpty?: string[];
+        anyTokenIn?: { path: string; tokens: string[] }[];
       };
 };
 
@@ -253,13 +254,6 @@ export function renderTemplate(template: string, context: TemplateContext): stri
   return stripInternalMarkers(renderValues(renderBlocks(template, context), context));
 }
 
-function openPointPriority(severity: string): string {
-  if (severity === "high") return "hoch";
-  if (severity === "medium") return "mittel";
-  if (severity === "low") return "niedrig";
-  return severity;
-}
-
 function openPointsTable(points: DeliveryOpenPoint[]): string {
   if (points.length === 0) {
     return "Keine offenen Punkte. Das ist keine Freigabe durch die Geschäftsführung und kein Nachweis, dass der Prozess vollständig beschrieben ist.";
@@ -268,7 +262,8 @@ function openPointsTable(points: DeliveryOpenPoint[]): string {
     .map((point) => {
       const title = point.title.replaceAll("|", "\\|");
       const who = (point.responsibility || "—").replaceAll("|", "\\|");
-      return `| ${point.id} | ${openPointPriority(point.severity)} | ${title} | ${who} | nicht festgelegt |`;
+      const due = (point.dueDate || "nicht festgelegt").replaceAll("|", "\\|");
+      return `| ${point.id} | ${point.priority} | ${title} | ${who} | ${due} |`;
     })
     .join("\n");
   return `| Kennung | Priorität | Zu klären | Verantwortung | Zieltermin |\n| --- | --- | --- | --- | --- |\n${rows}`;
@@ -342,10 +337,23 @@ function chapterApplies(
   context: { identity: CheckoutIdentity; answers: IntakeAnswers },
 ): boolean {
   const includeIf = chapter.includeIf;
-  if (typeof includeIf === "boolean") return includeIf;
-  const paths = includeIf?.anyPathNonEmpty;
-  if (!paths || paths.length === 0) return true;
-  return paths.some((pathExpr) => !isEmptyIntakeValue(lookup(context as TemplateContext, pathExpr)));
+  if (includeIf === false) return false;
+  if (includeIf === true || includeIf == null) return true;
+  const root = context as TemplateContext;
+  const paths = includeIf.anyPathNonEmpty ?? [];
+  const tokenGroups = includeIf.anyTokenIn ?? [];
+  if (paths.length === 0 && tokenGroups.length === 0) return true;
+  const pathOk =
+    paths.length === 0 ||
+    paths.some((pathExpr) => !isEmptyIntakeValue(lookup(root, pathExpr)));
+  const tokenOk =
+    tokenGroups.length === 0 ||
+    tokenGroups.some((group) =>
+      group.tokens.some((token) =>
+        intakeValueContainsToken(lookup(root, group.path), token),
+      ),
+    );
+  return pathOk && tokenOk;
 }
 
 export function renderDeliveryDocument(input: {

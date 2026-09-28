@@ -25,7 +25,8 @@
   },
   "_meta": {
     "purpose": "Partner-Trust anonymisierte Fixture — digital only, kein Papierweg",
-    "expectedChapters": ["01-zweck","02-rollen","03-systeme","04-belegarten","05-eingang","06-papier","07-ausgang","08-freigabe","09-aufbewahrung","10-berechtigungen","11-kontrollen","12-versionen","13-anlagen","14-offene-punkte","15-anhang-a","16-anhang-b"],
+    "expectedChapters": ["dl-dokumentenlenkung","01-zweck","02-rollen","03-systeme","04-belegarten","05-eingang","07-ausgang","08-freigabe","09-aufbewahrung","10-berechtigungen","11-kontrollen","12-versionen","13-anlagen","14-offene-punkte","15-anhang-a","16-anhang-b"],
+    "omittedUnlessPaper": ["06-papier"],
     "zielbild": "philip-muster-v2-detailliert-2026-09-28",
     "mustOmit": ["Vollkapitel Papier/Scan", "stripe*", "stub", "rules.json"],
     "note": "stripe*/stub nur intern — nie im Kundendoc"

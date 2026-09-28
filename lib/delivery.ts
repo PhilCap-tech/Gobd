@@ -49,6 +49,10 @@ export type DeliveryChapter = {
 
 export type DeliveryOpenItem = {
   id: string;
+  priority: DeliveryOpenPoint["priority"];
+  text: string;
+  responsibility?: string;
+  dueDate?: string;
   title: string;
   status: "open";
   severity?: DeliveryOpenPoint["severity"];
@@ -82,6 +86,8 @@ export type DeliveryPlan = {
 function hintFromAnswers(id: string, answers: IntakeAnswers): string {
   const join = (values: string[]) => values.join(", ");
   switch (id) {
+    case "dl-dokumentenlenkung":
+      return "Dokumentenlenkung";
     case "01-zweck":
       return answers.gf || "Zweck";
     case "02-rollen":
@@ -147,8 +153,12 @@ export function planDelivery(
     })),
     openItems: rendered.openPoints.map((item) => ({
       id: item.id,
+      priority: item.priority,
+      text: item.text,
+      responsibility: item.responsibility,
+      ...(item.dueDate ? { dueDate: item.dueDate } : {}),
       title: item.title,
-      status: "open",
+      status: "open" as const,
       severity: item.severity,
     })),
     pdf: null,

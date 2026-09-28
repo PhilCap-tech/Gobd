@@ -2,8 +2,15 @@
   "version": "3.0.0",
   "disclaimer": "Hinweis: Diese Verfahrensdokumentation wurde aus bestätigten Angaben des Kunden-Intakes erzeugt. Sätze im Präsens beschreiben nur bestätigte Abläufe. Fehlende oder unklare Angaben erscheinen als Hinweis oder offener Punkt. Das Dokument ist eine Arbeitshilfe und ersetzt keine steuerliche oder rechtliche Beratung. Es bestätigt nicht die GoBD-Konformität. Die automatische Generierung ersetzt nicht die betriebliche Bestätigung durch die Geschäftsleitung. Bei prüfungsrelevanten Fragen ist ein Steuerberater oder Rechtsanwalt hinzuzuziehen.",
   "coverFile": "chapters/00-cover.md",
-  "coverMarkdown": "# Verfahrensdokumentation zur Belegablage\n\n**{{identity.company | or \"zu bestätigen\"}}**  |  Fassung {{version}}{{#if validFrom}} · gültig ab {{validFrom}}{{/if}}  |  {{generatedAt}}\n{{#if changeSummary}}\n\nÄnderung: {{changeSummary}}\n{{/if}}\n\nDieses Dokument beschreibt den Belegweg auf Grundlage der im Intake bestätigten Angaben. Es ist keine steuerliche oder rechtliche Beratung, kein Ersatz für die Prüfung durch Steuerberatung oder Rechtsanwalt und **keine** Bestätigung der GoBD-Konformität. Die automatische Generierung ersetzt **nicht** die betriebliche Bestätigung durch die Geschäftsleitung.\n\n| Dokumentenlenkung | Inhalt |\n| --- | --- |\n| Fassung | {{version}} |\n| Gültig ab | {{validFrom | or \"von der Geschäftsführung festzulegen\"}} |\n| Änderung | {{changeSummary | or \"Erste Fassung aus Kunden-Intake\"}} |\n| Nächste Prüfung | nicht festgelegt |\n| Freigabevermerk | offen — die Geschäftsleitung bestätigt an dieser Stelle die tatsächliche Praxis |\n",
+  "coverMarkdown": "# Verfahrensdokumentation zur Belegablage\n\n**{{identity.company | or \"zu bestätigen\"}}**  |  Fassung {{version}}{{#if validFrom}} · gültig ab {{validFrom}}{{/if}}  |  {{generatedAt}}\n{{#if changeSummary}}\n\nÄnderung: {{changeSummary}}\n{{/if}}\n\nDieses Dokument beschreibt den Belegweg auf Grundlage der im Intake bestätigten Angaben. Es ist keine steuerliche oder rechtliche Beratung, kein Ersatz für die Prüfung durch Steuerberatung oder Rechtsanwalt und **keine** Bestätigung der GoBD-Konformität. Die automatische Generierung ersetzt **nicht** die betriebliche Bestätigung durch die Geschäftsleitung.\n\n**Freigabevermerk (Platzhalter)**\n\n| | |\n| --- | --- |\n| Name | ________________ |\n| Datum | ________________ |\n| Status | offen — die Generierung ist keine Bestätigung |\n",
   "chapters": [
+    {
+      "id": "dl-dokumentenlenkung",
+      "title": "Dokumentenlenkung",
+      "file": "chapters/dl-dokumentenlenkung.md",
+      "includeIf": true,
+      "markdown": "# Dokumentenlenkung\n\n| Feld | Inhalt |\n| --- | --- |\n| Dokument-ID | betrieblich zu vergeben |\n| Version | {{version}} |\n| Gültig ab | {{validFrom | or \"von der Geschäftsführung festzulegen\"}} |\n| Nächste Prüfung | nicht festgelegt |\n| Speicherort | nicht bestätigt |\n| Vorversion | keine Angabe im Intake |\n| Anlass | {{changeSummary | or \"Erste Fassung aus Kunden-Intake\"}} |\n"
+    },
     {
       "id": "01-zweck",
       "title": "1 Zweck, Geltungsbereich und Verantwortung",
@@ -43,7 +50,18 @@
       "id": "06-papier",
       "title": "6 Papierbelege und Digitalisierung",
       "file": "chapters/06-papier.md",
-      "includeIf": true,
+      "includeIf": {
+        "anyTokenIn": [
+          {
+            "path": "answers.eingangsbelege",
+            "tokens": [
+              "Papier",
+              "Scan",
+              "Papierbeleg"
+            ]
+          }
+        ]
+      },
       "markdown": "# 6 Papierbelege und Digitalisierung\n\n{{#if answers.eingangsbelege contains \"Papier\"}}\n<!-- frage:C03 -->\nPapierpost ist als Eingangsweg genannt und geht an {{#if answers.buchhaltung}}{{answers.buchhaltung}}{{/if}}{{#unless answers.buchhaltung}}die Buchhaltung{{/unless}}. Ob am Eingang gescannt wird, ob das Papieroriginal zusätzlich verwahrt wird und ob eine ersetzende Vernichtung stattfindet, ist zu bestätigen. Ein detailliertes Scan- und Lagerverfahren wird hier nicht behauptet.\n{{/if}}\n\n{{#if answers.eingangsbelege contains \"Scan\"}}\n{{#unless answers.eingangsbelege contains \"Papier\"}}\n## Scan von Papierbelegen\n\nPapierbelege werden als Scanweg genannt. Ob das Papieroriginal zusätzlich verwahrt oder nach einem dokumentierten Verfahren ersetzt wird, ist zu bestätigen.\n{{/unless}}\n{{/if}}\n\n{{#unless answers.eingangsbelege contains \"Papier\"}}\n{{#unless answers.eingangsbelege contains \"Scan\"}}\nPapierweg laut Intake nicht genannt — kein Papier-Vollverfahren in diesem Dokument. Posteingang, Scan, ersetzende Vernichtung und Papierlager entfallen.\n{{/unless}}\n{{/unless}}\n"
     },
     {
@@ -438,12 +456,10 @@
     ],
     "outputItemShape": {
       "id": "string",
+      "priority": "hoch|mittel|niedrig",
       "text": "string",
-      "severity": "low|medium|high",
-      "chapter": "chapter-id",
-      "field": "dotted.path|null",
-      "customerFacing": "boolean",
-      "responsibility": "string (resolved from responsibilityField or fallback)"
+      "responsibility": "string",
+      "dueDate": "optional string; omit when the intake sets no date"
     },
     "whenSemantics": {
       "empty": "Field missing, null, empty string/array, or value in emptyValues",
