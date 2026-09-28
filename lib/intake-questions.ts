@@ -1,9 +1,10 @@
+import { intakeFrageStepError } from "@/lib/frage-intake";
 import type { IntakeAnswers } from "@/lib/types";
 
 /**
- * Production intake copy and options (app/intake/intake-form.tsx).
- * The partner demo must render these strings — not a second questionnaire.
- * There is no branch: later steps do not change when an earlier answer changes.
+ * Production intake copy and options.
+ * The partner demo renders the same steps. Paper, scan and E-Rechnung
+ * questions appear only when the earlier answer opens that branch.
  */
 
 export const INTAKE_BRANCHEN = [
@@ -41,10 +42,37 @@ export const INTAKE_FIBU = [
 ] as const;
 
 export const INTAKE_EINGANG = [
+  "E-Mail",
+  "PDF",
   "E-Mail / PDF",
+  "Portal Lieferant",
+  "Schnittstelle",
   "Scan / App",
   "Papierordner",
-  "Portal Lieferant",
+] as const;
+
+export const INTAKE_FORMATE = [
+  "PDF",
+  "XRechnung",
+  "ZUGFeRD",
+  "Papier",
+  "EDI",
+  "E-Rechnung",
+] as const;
+
+export const INTAKE_VORSYSTEME = [
+  "Keine weiteren",
+  "Kasse",
+  "Shop",
+  "Lager",
+  "Lohn",
+  "Plattform",
+] as const;
+
+export const INTAKE_SCAN_ZWECK = [
+  "nein, kein Scan",
+  "Bearbeitungskopie",
+  "ersetzendes Scannen",
 ] as const;
 
 export const INTAKE_AUSGANG = [
@@ -69,35 +97,15 @@ export const INTAKE_BACKUP = [
   "Unklar",
 ] as const;
 
-export const INTAKE_ERRORS = {
-  step0: "Branche, Rechtsform und Mitarbeitende auswählen.",
-  step1: "Mindestens eine FiBu-Option wählen.",
-  step2: "Eingangs- und Ausgangswege wählen.",
-  step3: "Hosting-Angabe fehlt.",
-  step4: "GF und Buchhaltungsverantwortung ausfüllen.",
-} as const;
-
 export const INTAKE_STEPS = [
-  {
-    stepLabel: "Schritt 1 von 5",
-    title: "Branche & Unternehmensform",
-  },
-  {
-    stepLabel: "Schritt 2 von 5",
-    title: "Buchhaltungs- & Branchensoftware",
-  },
-  {
-    stepLabel: "Schritt 3 von 5",
-    title: "Belegwege",
-  },
-  {
-    stepLabel: "Schritt 4 von 5",
-    title: "IT & Zugriff",
-  },
-  {
-    stepLabel: "Schritt 5 von 5",
-    title: "Verantwortliche",
-  },
+  { stepLabel: "Schritt 1 von 8", title: "Unternehmen und Geltungsbereich" },
+  { stepLabel: "Schritt 2 von 8", title: "Systeme und Original" },
+  { stepLabel: "Schritt 3 von 8", title: "Eingang und Formate" },
+  { stepLabel: "Schritt 4 von 8", title: "Papier und Scannen" },
+  { stepLabel: "Schritt 5 von 8", title: "Strukturierte E-Rechnung" },
+  { stepLabel: "Schritt 6 von 8", title: "Prüfung, Ausgang und Buchung" },
+  { stepLabel: "Schritt 7 von 8", title: "Ablage, Rechte und Sicherung" },
+  { stepLabel: "Schritt 8 von 8", title: "Kontrollen und Pflege" },
 ] as const;
 
 /** Landing preview: the real step questions, not a second questionnaire. */
@@ -135,20 +143,5 @@ export const INTAKE_REVIEW = {
 
 /** Same gates as the paid intake. Step 0 firm-select stays in the account form. */
 export function intakeStepError(step: number, answers: IntakeAnswers): string {
-  if (
-    step === 0 &&
-    (!answers.branchen.length || !answers.rechtsform || !answers.mitarbeitende)
-  ) {
-    return INTAKE_ERRORS.step0;
-  }
-  if (step === 1 && !answers.fibu.length) return INTAKE_ERRORS.step1;
-  if (
-    step === 2 &&
-    (!answers.eingangsbelege.length || !answers.ausgangsrechnungen.length)
-  ) {
-    return INTAKE_ERRORS.step2;
-  }
-  if (step === 3 && !answers.hosting) return INTAKE_ERRORS.step3;
-  if (step === 4 && (!answers.gf || !answers.buchhaltung)) return INTAKE_ERRORS.step4;
-  return "";
+  return intakeFrageStepError(step, answers);
 }

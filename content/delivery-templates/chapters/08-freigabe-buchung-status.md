@@ -20,4 +20,4 @@ Zum Periodenabschluss vergleicht {{answers.buchhaltung | or "die Buchhaltung"}} 
 
 ## 8.4 Verbindung von Beleg und Buchung
 
-Die Verbindung erfolgt über die Beleg-ID in {{answers.archiv | or "der Belegablage (zu bestätigen)"}} und die Zuordnung in {{answers.fibu | join ", " | or "der FiBu (zu bestätigen)"}}. Ergänzende Unterlagen werden so abgelegt, dass der Bezug zum Geschäftsvorfall erkennbar bleibt.
+Die Verbindung erfolgt über die Beleg-ID in {{answers.archiv | or "der Belegablage (zu bestätigen)"}} und die Zuordnung in {{answers.fibu | join ", " | or "der FiBu (zu bestätigen)"}}.{{#if answers.belegId}} Beleg-ID laut bestätigter Angabe: {{answers.belegId}}.{{/if}} Ergänzende Unterlagen werden so abgelegt, dass der Bezug zum Geschäftsvorfall erkennbar bleibt.

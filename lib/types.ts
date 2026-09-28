@@ -14,6 +14,31 @@ export type IntakeAnswers = {
   buchhaltung: string;
   it: string;
   steuerberater: string;
+  /** MVP Fragenkatalog. Absent on rows from the older five-step intake. */
+  standort?: string;
+  geltung?: string;
+  vorsysteme?: string;
+  seitWann?: string;
+  formate?: string[];
+  originalErhalt?: string;
+  anbieterUnterlagen?: string;
+  sichtung?: string;
+  papierannahme?: string;
+  scanZweck?: string;
+  scanAufbewahrung?: string;
+  papierlager?: string;
+  erechnungVerfahren?: string;
+  sachlichePruefung?: string;
+  belegId?: string;
+  loeschfreigabe?: string;
+  wiederherstellungstest?: string;
+  kontrollen?: string;
+  dokumentenpflege?: string;
+  anlagenliste?: string;
+  fassungsrahmen?: string;
+  fragen?: Partial<
+    Record<string, { status: "bestätigt" | "geplant" | "unbekannt" | "nicht zutreffend"; text?: string }>
+  >;
 };
 
 export type CheckoutIdentity = {
@@ -62,6 +87,8 @@ export type SheetRow = {
   changeSummary: string;
   /** Who recorded the version (session email or free text). */
   changedBy: string;
+  /** JSON map of MVP question statuses. Empty on older rows. */
+  fragen: string;
 };
 
 export const SHEET_COLUMNS = [
@@ -97,6 +124,7 @@ export const SHEET_COLUMNS = [
   "valid_to",
   "change_summary",
   "changed_by",
+  "fragen",
 ] as const;
 
 export type SheetColumn = (typeof SHEET_COLUMNS)[number];
@@ -134,6 +162,7 @@ export const SHEET_COLUMN_FIELDS = {
   valid_to: "validTo",
   change_summary: "changeSummary",
   changed_by: "changedBy",
+  fragen: "fragen",
 } as const satisfies Record<SheetColumn, keyof SheetRow>;
 
 export function emptyAnswers(): IntakeAnswers {
@@ -153,6 +182,28 @@ export function emptyAnswers(): IntakeAnswers {
     buchhaltung: "",
     it: "",
     steuerberater: "",
+    standort: "",
+    geltung: "",
+    vorsysteme: "",
+    seitWann: "",
+    formate: [],
+    originalErhalt: "",
+    anbieterUnterlagen: "",
+    sichtung: "",
+    papierannahme: "",
+    scanZweck: "",
+    scanAufbewahrung: "",
+    papierlager: "",
+    erechnungVerfahren: "",
+    sachlichePruefung: "",
+    belegId: "",
+    loeschfreigabe: "",
+    wiederherstellungstest: "",
+    kontrollen: "",
+    dokumentenpflege: "",
+    anlagenliste: "",
+    fassungsrahmen: "",
+    fragen: {},
   };
 }
 
@@ -190,6 +241,7 @@ export function emptySheetRow(): SheetRow {
     validTo: "",
     changeSummary: "",
     changedBy: "",
+    fragen: "",
   };
 }
 
@@ -244,6 +296,7 @@ export function toSheetRow(input: {
     validTo: input.validTo ?? "",
     changeSummary: input.changeSummary ?? "",
     changedBy: input.changedBy ?? "",
+    fragen: JSON.stringify(a.fragen ?? {}),
   };
 }
 
@@ -313,6 +366,7 @@ export function coerceSheetRow(value: unknown): SheetRow | null {
     ["validTo", "valid_to"],
     ["changeSummary", "change_summary"],
     ["changedBy", "changed_by"],
+    ["fragen", "fragen"],
   ];
   for (const [field, column] of aliases) {
     if (!row[field] && typeof raw[column] === "string") {
@@ -329,8 +383,19 @@ function splitList(value: string): string[] {
     .filter(Boolean);
 }
 
+function parseFragen(raw: string): IntakeAnswers["fragen"] {
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw) as IntakeAnswers["fragen"];
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export function answersFromSheetRow(row: SheetRow): IntakeAnswers {
   return {
+    ...emptyAnswers(),
     branchen: splitList(row.branchen),
     rechtsform: row.rechtsform,
     mitarbeitende: row.mitarbeitende,
@@ -346,6 +411,7 @@ export function answersFromSheetRow(row: SheetRow): IntakeAnswers {
     buchhaltung: row.buchhaltung,
     it: row.it,
     steuerberater: row.steuerberater,
+    fragen: parseFragen(row.fragen),
   };
 }
 

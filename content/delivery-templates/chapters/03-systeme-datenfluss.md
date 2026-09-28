@@ -16,7 +16,7 @@
 
 ## 3.2 Datenfluss
 
-Eingehende Dateien werden aus dem bestätigten Eingangskanal unverändert in {{answers.archiv | or "das Archiv (zu bestätigen)"}} übernommen. {{answers.buchhaltung | or "Die Buchhaltung (Person ist zu benennen)"}} ordnet Belegart und Zeitraum zu. Nach sachlicher Freigabe stellt sie den Beleg zur Buchung bereit. Die Buchung erfolgt über {{answers.fibu | join ", " | or "das FiBu-System (zu bestätigen)"}}{{#if answers.steuerberater}} durch {{answers.steuerberater}} im vereinbarten Umfang{{/if}}. Die Beleg-ID verbindet Buchung und Beleg, soweit das System dies unterstützt. Rückfragen werden im vereinbarten Kommunikationskanal geklärt; relevante Ergänzungen werden am Vorgang dokumentiert.
+Eingehende Dateien werden aus dem bestätigten Eingangskanal unverändert in {{answers.archiv | or "das Archiv (zu bestätigen)"}} übernommen. {{answers.buchhaltung | or "Die Buchhaltung (Person ist zu benennen)"}} ordnet Belegart und Zeitraum zu. Nach sachlicher Freigabe stellt sie den Beleg zur Buchung bereit. Die Buchung erfolgt über {{answers.fibu | join ", " | or "das FiBu-System (zu bestätigen)"}}{{#if answers.steuerberater}} durch {{answers.steuerberater}} im vereinbarten Umfang{{/if}}. Die Beleg-ID verbindet Buchung und Beleg, soweit das System dies unterstützt.{{#if answers.originalErhalt}} Als Original aufbewahrt laut bestätigter Angabe: {{answers.originalErhalt}}.{{/if}} Rückfragen werden im vereinbarten Kommunikationskanal geklärt; relevante Ergänzungen werden am Vorgang dokumentiert.
 
 ## 3.3 Vorsysteme
 

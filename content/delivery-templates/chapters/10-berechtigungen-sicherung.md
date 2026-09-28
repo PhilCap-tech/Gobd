@@ -21,6 +21,9 @@ Neue oder geänderte Rechte werden von {{answers.gf | or "der Geschäftsführung
 
 {{#if answers.backup}}
 Die technische Sicherung erfolgt laut Intake über: {{answers.backup | join ", "}}. Anbieterangaben und der konkrete Rücksicherungsnachweis sind als Anlagen beizuziehen. Ob und wie eine Rücksicherung geprüft wird, ist gesondert zu belegen (offener Punkt, sofern kein dokumentierter Wiederherstellungstest vorliegt). Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.
+{{#if answers.wiederherstellungstest}}
+Letzter dokumentierter Test laut bestätigter Angabe: {{answers.wiederherstellungstest}}.
+{{/if}}
 {{/if}}
 {{#unless answers.backup}}
 Ein Backup-Verfahren ist im Intake nicht angegeben — Sicherung und Wiederherstellungstest sind als offene Punkte zu klären. Eine Sicherungskopie ersetzt keine geordnete Aufbewahrung.

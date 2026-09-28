@@ -8,6 +8,7 @@ import {
   isEmptyIntakeValue,
   type DeliveryOpenPoint,
 } from "@/lib/open-points";
+import { documentAnswers } from "@/lib/frage-intake";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { versionMetaSentence as buildVersionMetaSentence } from "@/lib/versioning";
 
@@ -452,17 +453,18 @@ export function renderDeliveryDocument(input: {
   const generatedAt = formatBerlinDateTime();
   const generatedAtDisplay = formatBerlinDate();
   const versionLabel = formatVersionLabel(input.version);
+  const livedAnswers = documentAnswers(input.answers);
   const openPoints = evaluateOpenPoints(input);
   const validFrom = input.versionMeta?.validFrom?.trim() ?? "";
   const validTo = input.versionMeta?.validTo?.trim() ?? "";
   const changeSummary = input.versionMeta?.changeSummary?.trim() ?? "";
   const changedBy = input.versionMeta?.changedBy?.trim() ?? "";
-  const kanzleiUnbestaetigt = intakeValueHasUnconfirmedScope(input.answers.steuerberater);
+  const kanzleiUnbestaetigt = intakeValueHasUnconfirmedScope(livedAnswers.steuerberater);
   const kanzleiBucht =
-    !isEmptyIntakeValue(input.answers.steuerberater) && !kanzleiUnbestaetigt;
+    !isEmptyIntakeValue(livedAnswers.steuerberater) && !kanzleiUnbestaetigt;
   const base: TemplateContext = {
     identity: input.identity,
-    answers: input.answers,
+    answers: livedAnswers,
     disclaimer: bundle.disclaimer,
     generatedAt,
     generatedAtDisplay,
@@ -470,7 +472,7 @@ export function renderDeliveryDocument(input: {
     bundleVersion: bundle.version,
     version: versionLabel,
     openPointsTable: openPointsTable(openPoints),
-    roles: roleAssignments(input.answers),
+    roles: roleAssignments(livedAnswers),
     validFrom,
     validTo,
     changeSummary,
@@ -492,7 +494,7 @@ export function renderDeliveryDocument(input: {
       .filter((chapter) =>
         chapterApplies(chapter, {
           identity: input.identity,
-          answers: input.answers,
+          answers: livedAnswers,
         }),
       )
       .map((chapter) => {

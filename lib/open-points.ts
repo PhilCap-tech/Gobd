@@ -1,4 +1,9 @@
 import bundle from "@/content/delivery-templates/bundle.json";
+import {
+  documentAnswers,
+  openPointsFromFragen,
+  suppressRuleForFragen,
+} from "@/lib/frage-intake";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export type OpenPointSeverity = "low" | "medium" | "high";
@@ -188,13 +193,15 @@ export function evaluateOpenPoints(input: {
   answers: IntakeAnswers;
   identity: CheckoutIdentity;
 }): DeliveryOpenPoint[] {
+  const lived = documentAnswers(input.answers);
   const root = {
     identity: input.identity,
-    answers: input.answers,
+    answers: lived,
   };
   const points: DeliveryOpenPoint[] = [];
   for (const rule of bundle.openPointsRules.rules) {
     if (!ruleIsCustomerFacing(rule)) continue;
+    if (suppressRuleForFragen(rule.id, input.answers)) continue;
     const when = "when" in rule ? String(rule.when) : "empty";
     const field = "field" in rule && rule.field ? String(rule.field) : undefined;
     const value = field ? lookup(root, field) : undefined;
@@ -252,6 +259,21 @@ export function evaluateOpenPoints(input: {
       status: "open",
       chapter: "chapter" in rule ? String(rule.chapter) : undefined,
       field,
+    });
+  }
+  for (const extra of openPointsFromFragen(input.answers)) {
+    if (points.some((point) => point.id === extra.id)) continue;
+    const severity =
+      extra.priority === "hoch" ? "high" : extra.priority === "niedrig" ? "low" : "medium";
+    points.push({
+      id: extra.id,
+      priority: extra.priority,
+      text: extra.text,
+      responsibility: "zu benennen",
+      title: extra.text,
+      severity,
+      status: "open",
+      chapter: extra.chapter,
     });
   }
   return points;

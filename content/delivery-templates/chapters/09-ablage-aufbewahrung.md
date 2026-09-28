@@ -18,6 +18,10 @@ Bei E-Rechnungen wird zumindest der strukturierte Teil in seiner ursprünglichen
 
 {{answers.gf | or "Die Geschäftsführung"}} stellt sicher, dass relevante Daten und Dokumentationen bei einer Prüfung in der erforderlichen Form bereitgestellt werden können. Ein Probeexport ist jährlich durchzuführen und zu dokumentieren. Solange kein dokumentierter Probeexport vorliegt, bleibt dies ein offener Punkt.
 
+{{#if answers.loeschfreigabe}}
+Fristzuordnung und Löschfreigabe laut bestätigter Angabe: {{answers.loeschfreigabe}}.
+{{/if}}
+
 ## 9.5 Löschung
 
 Eine Löschung erfolgt nur nach dokumentierter Prüfung von Unterlagenart, Fristende, möglichen Ablaufhemmungen und weiteren Aufbewahrungsgründen. {{answers.gf | or "Die Geschäftsführung"}} erteilt die Freigabe. Das Ergebnis wird im Löschprotokoll festgehalten.

@@ -1,5 +1,15 @@
 # 6 Papierbelege und Digitalisierung
 
+{{#if answers.papierannahme}}
+Papierannahme laut bestätigter Angabe: {{answers.papierannahme}}.
+{{/if}}
+{{#if answers.scanZweck}}
+Scan-Zweck laut bestätigter Angabe: {{answers.scanZweck}}.
+{{/if}}
+{{#if answers.papierlager}}
+Papierablage laut bestätigter Angabe: {{answers.papierlager}}.
+{{/if}}
+
 ## 6.1 Posteingang
 
 {{answers.buchhaltung | or "Die Buchhaltung (Person ist zu benennen)"}} versieht eingehende Papierbelege mit dem Eingangsdatum, prüft die Vollständigkeit und legt sie bis zur Bearbeitung in einer gekennzeichneten Eingangsmappe ab. Schutzwürdige Post wird ungeöffnet an die benannte Person weitergegeben.

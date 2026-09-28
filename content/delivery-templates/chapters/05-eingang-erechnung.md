@@ -3,6 +3,14 @@
 ## 5.1 Eingang und erste Prüfung
 
 {{answers.buchhaltung | or "Die Buchhaltung (Person ist zu benennen)"}} prüft Absender, Dateiformat, Lesbarkeit und offensichtliche Vollständigkeit. Verdächtige Anhänge werden nicht geöffnet oder weiterverarbeitet. Dubletten, falsche Empfänger oder fehlende Seiten werden vor Freigabe geklärt. Die empfangene Originaldatei bleibt unverändert.
+{{#if answers.sichtung}}
+
+Sichtung laut bestätigter Angabe: {{answers.sichtung}}.
+{{/if}}
+{{#if answers.erechnungVerfahren}}
+
+Umgang mit dem strukturierten Teil laut bestätigter Angabe: {{answers.erechnungVerfahren}}.
+{{/if}}
 
 {{#if answers.eingangsbelege contains "E-Mail"}}
 ### E-Mail- und PDF-Eingang

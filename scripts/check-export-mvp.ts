@@ -136,6 +136,39 @@ expect(ids(emptyKanzlei).includes("op-steuerberater"), "geplant is empty");
 expect(!ids(emptyKanzlei).includes("op-f05-kanzlei-umfang"), "geplant is not unconfirmedScope");
 expect(!bodyFor(emptyKanzlei).includes("verbucht"), "geplant does not book");
 
+const withStatus = {
+  ...PARTNER_MUSTER_ANSWERS,
+  fibu: ["DATEV"],
+  gf: "Anna Beispiel",
+  buchhaltung: "Ben Muster",
+  steuerberater: "Kanzlei Meier",
+  kontrollen: "Monatsabschluss durch Anna Beispiel",
+  fragen: {
+    A01: { status: "bestätigt" as const },
+    B01: { status: "geplant" as const },
+    C01: { status: "bestätigt" as const },
+    E05: { status: "bestätigt" as const },
+    F01: { status: "bestätigt" as const },
+    F05: { status: "geplant" as const },
+    G01: { status: "bestätigt" as const },
+    G02: { status: "bestätigt" as const },
+    G06: { status: "bestätigt" as const },
+    H01: { status: "bestätigt" as const },
+    H04: { status: "unbekannt" as const },
+  },
+};
+const statusBody = bodyFor(withStatus);
+const statusIds = ids(withStatus);
+expect(
+  statusBody.includes("FiBu-/Buchhaltungssystem ist im Intake nicht angegeben"),
+  "geplant system is not lived",
+);
+expect(!statusBody.includes("Kanzlei Meier"), "geplant kanzlei is not lived");
+expect(statusBody.includes("Monatsabschluss durch Anna Beispiel"), "confirmed control is lived");
+expect(statusIds.includes("op-b01"), "geplant system is an open point");
+expect(statusIds.includes("op-h04"), "unknown restore test is an open point");
+expect(!statusIds.includes("op-kontrollprotokoll"), "confirmed control clears the generic control point");
+
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);
