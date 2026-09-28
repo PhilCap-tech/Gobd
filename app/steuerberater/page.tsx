@@ -7,6 +7,8 @@ import { LEGAL_OPERATOR } from "@/lib/legal";
 const PILOT_HREF =
   "/checkout?utm_source=partner&utm_medium=landing&utm_campaign=steuerberater";
 
+const PROMO_CODE = "KANZLEI-PILOT";
+
 const PAGE_TITLE =
   "Verfahrensdokumentation für Mandanten — Partner-Pilot für Steuerberater";
 const PAGE_DESCRIPTION =
@@ -38,7 +40,12 @@ function PilotCta({ showSecondary = false }: { showSecondary?: boolean }) {
           Keine Verpflichtung · Keine Steuerberatung · Pilot für mehrere
           Rechtsformen
         </p>
-        <p className="hint">Promo-Code im Checkout eingeben</p>
+        <p className="hint">
+          Promo-Code im Checkout:{" "}
+          <strong className="promo-code">{PROMO_CODE}</strong>
+          <br />
+          100 % für Setup + Abo, 2 Monate (Partner-Pilot).
+        </p>
       </div>
       {showSecondary ? (
         <div className="cta-soft">
@@ -327,7 +334,10 @@ export default function SteuerberaterPage() {
         <Link className="btn" href={PILOT_HREF}>
           Kostenlosen Pilot starten
         </Link>
-        <p className="trust-line">Promo-Code im Checkout eingeben</p>
+        <p className="trust-line">
+          Promo-Code im Checkout:{" "}
+          <strong className="promo-code">{PROMO_CODE}</strong>
+        </p>
       </div>
       <SiteFooter />
     </>
