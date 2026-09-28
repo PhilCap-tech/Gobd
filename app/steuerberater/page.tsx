@@ -161,7 +161,8 @@ export default function SteuerberaterPage() {
           <p className="hint">
             Beispiel GmbH (fiktiv) · DATEV · Eingang E-Mail und PDF · Ausgang
             Rechnungssoftware · kein Papierweg · Version 1.0 · kein echtes
-            Mandantendokument · keine Konformitätszusage
+            Mandantendokument · keine Konformitätszusage. DRAFT / not
+            Philip-final: Engineering-Smoke, kein fachliches Endmuster.
           </p>
           <h3>Kapitel</h3>
           <ol className="prose-list">
@@ -201,7 +202,7 @@ export default function SteuerberaterPage() {
           </div>
           <div className="actions">
             <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
-              Muster-PDF herunterladen
+              Entwurf-PDF herunterladen
             </a>
             <Link className="btn ghost" href={PARTNER_MUSTER_PATH}>
               Musterseite mit den Beispieldaten
@@ -290,8 +291,10 @@ export default function SteuerberaterPage() {
           </div>
           <p className="prose">
             Das Tool ist keine Steuerberatung. Offene Punkte markieren leere
-            Angaben und Schritte, die der Fragebogen nicht erfasst.
-            Widersprüche prüft es nicht, und eine Bestätigung durch den
+            oder unbestätigte Angaben und Schritte, die der Fragebogen nicht
+            erfasst. Ein Hinweis erscheint, wenn ersetzendes Scannen genannt
+            ist und ein Papierweg fehlt. Das ist kein allgemeiner
+            Widerspruchs-Check und keine Freigabe. Eine Bestätigung durch den
             Mandanten ist nicht eingebaut. Für die meisten Betriebe reicht die
             Fassung aus den Angaben. Anpassungen bei besonderen Verfahren sind
             möglich.
@@ -303,9 +306,9 @@ export default function SteuerberaterPage() {
           <p className="prose">
             Ein Einmal-PDF veraltet, wenn Software oder Prozesse wechseln.
             Setup: erste Fassung. Abo: Fassungen halten und erneut exportieren.
-            Im Muster-PDF steht eine Fassung mit Gültig-ab und Änderungstext.
-            Weitere Fassungen legt der Mandant nach dem Kauf an — nicht in
-            dieser Vorschau.
+            Das Muster-PDF ist ein Entwurf (DRAFT / not Philip-final), keine
+            fachliche Endfassung. Gültig-ab setzt der Mandant nach dem Kauf.
+            Weitere Fassungen legt er dort an — nicht in dieser Vorschau.
           </p>
         </section>
 

@@ -19,9 +19,9 @@ import {
 } from "@/lib/partner-muster";
 
 const PAGE_TITLE =
-  "Muster: Verfahrensdokumentation Beispiel GmbH (anonymisiert) | GoBD Verfahrensdoku";
+  "Entwurf: Verfahrensdokumentation Beispiel GmbH (nicht fachlich freigegeben) | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "Anonymisierte Beispiel-GmbH: DATEV, Eingang per E-Mail/PDF, Ausgang aus der Buchhaltungssoftware. PDF und Offene Punkte aus dem Lieferpfad. Keine Steuerberatung.";
+  "DRAFT / not Philip-final. Engineering-Smoke einer fiktiven GmbH: DATEV, E-Mail/PDF. Kein fachliches Endmuster. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -75,16 +75,17 @@ export default function PartnerMusterPage() {
       <SiteHeader backHref="/steuerberater" backLabel="Für Steuerberater" />
       <main className="wrap partner-copy">
         <section className="hero">
-          <p className="kicker">Muster · Beispiel · anonymisiert</p>
-          <h1>Musterergebnis: Beispiel GmbH</h1>
+          <p className="kicker">Entwurf · Beispiel · nicht fachlich freigegeben</p>
+          <h1>Entwurf: Beispiel GmbH</h1>
           <p className="lead">
-            Kein Mandant, keine echten Personen. Das PDF und die Liste entstehen
-            aus festen Beispieldaten über denselben Generator wie eine Lieferung
-            nach den Angaben.
+            Kein Mandant, keine echten Personen. DRAFT / not Philip-final:
+            Engineering-Smoke aus festen Beispieldaten, derselbe Generator wie
+            eine Lieferung. Kein fachliches Endmuster und keine Freigabe
+            dieser Fassung.
           </p>
           <div className="actions">
             <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
-              Muster-PDF herunterladen
+              Entwurf-PDF herunterladen
             </a>
             <Link className="btn ghost" href={PARTNER_DEMO_PATH}>
               Fragenprozess testen
@@ -94,7 +95,8 @@ export default function PartnerMusterPage() {
             Festgelegte Beispieldaten: Beispiel GmbH, B2B-Dienstleistungen,
             DATEV, Eingang E-Mail und PDF, Ausgang über Rechnungssoftware,
             Archiv „DATEV Unternehmen online“, Anna Beispiel, Ben Muster.
-            Kein Papierweg. Die Erzeugung ist keine Freigabe.
+            Kein Papierweg. Die Erzeugung ist keine Freigabe und nicht die
+            fachliche Endfassung.
           </p>
         </section>
 
@@ -186,9 +188,9 @@ export default function PartnerMusterPage() {
             <Link href={PARTNER_DEMO_PATH}>Fragenprozess testen</Link>
           </p>
           <p className="disclaimer">
-            Muster der IKAT GmbH, gobd-doku-erstellen.de. Keine Steuer-, Rechts-
-            oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität. Die
-            Beispiel GmbH ist erfunden.
+            Entwurf der IKAT GmbH, gobd-doku-erstellen.de. DRAFT / not
+            Philip-final. Keine Steuer-, Rechts- oder Prüfungsberatung. Keine
+            Zusicherung von GoBD-Konformität. Die Beispiel GmbH ist erfunden.
           </p>
         </section>
       </main>

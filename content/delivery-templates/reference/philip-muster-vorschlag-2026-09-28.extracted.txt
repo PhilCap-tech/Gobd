@@ -1,3 +1,5 @@
+INTERIM ONLY. Not the quality sign-off target. Philip is writing a more detailed Muster-DOCX. Do not treat this extract, or a generator PDF, as Philip-final.
+
 Verfahrensdokumentation zur Belegablage
 Fiktives, vollständig ausgearbeitetes Muster für die Beispiel GmbH  |  Fassung 1.0  |  28. September 2026
 Dieses Muster zeigt, wie ein aus einem Fragebogen erzeugtes Dokument konkrete, bestätigte Abläufe beschreibt. Alle Unternehmensangaben sind erfunden und nur für diese Demonstration festgelegt. Es ist kein Nachweis für einen realen Betrieb und keine Bestätigung seiner GoBD-Konformität.

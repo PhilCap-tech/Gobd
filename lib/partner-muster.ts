@@ -11,6 +11,9 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
  * PDF is not a static file. GET /steuerberater/muster/pdf calls generatePdf
  * with this fixture. To regenerate locally:
  *   npx tsx scripts/render-partner-muster-pdf.ts
+ *
+ * Engineering smoke only. Not a quality sign-off against
+ * philip-muster-vorschlag-2026-09-28, and not Philip-final.
  */
 
 export const PARTNER_MUSTER_PATH = "/steuerberater/muster";
@@ -18,7 +21,10 @@ export const PARTNER_MUSTER_PDF_PATH = "/steuerberater/muster/pdf";
 export const PARTNER_DEMO_PATH = "/steuerberater/demo";
 export const PARTNER_MUSTER_DOCUMENT_ID = "partner-muster-gmbh";
 export const PARTNER_MUSTER_FILENAME =
-  "Muster-Verfahrensdokumentation-Beispiel-GmbH.pdf";
+  "Muster-Verfahrensdokumentation-Beispiel-GmbH-DRAFT.pdf";
+/** Visible on the smoke PDF only. Not a customer delivery status. */
+export const PARTNER_MUSTER_DRAFT_LABEL =
+  "DRAFT / not Philip-final. Engineering-Smoke aus festen Beispieldaten. Kein fachliches Endmuster und keine Freigabe dieser Fassung.";
 
 export const PARTNER_MUSTER_IDENTITY: CheckoutIdentity = {
   email: "demo@beispiel.invalid",
@@ -50,6 +56,6 @@ export const PARTNER_MUSTER_ANSWERS: IntakeAnswers = {
 export const PARTNER_MUSTER_VERSION_META = toVersionPdfMeta({
   validFrom: "",
   validTo: "",
-  changeSummary: "Erste fiktive Musterfassung",
+  changeSummary: "Entwurf — nicht die fachliche Endfassung",
   changedBy: "",
 });

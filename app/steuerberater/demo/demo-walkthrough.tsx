@@ -384,10 +384,11 @@ export function DemoWalkthrough() {
               Muster-Dokumentation ansehen.
             </p>
             <p className="hint">
-              Diese Liste folgt Ihren Klicks. Das feste Muster-PDF bleibt die{" "}
-              <Link href={PARTNER_MUSTER_PATH}>Beispiel GmbH</Link>. Gültig-ab
-              und ein Kurztext zur Änderung gibt es beim Speichern einer Fassung
-              nach dem Kauf, nicht in dieser Demo.
+              Diese Liste folgt Ihren Klicks. Das feste Muster-PDF der{" "}
+              <Link href={PARTNER_MUSTER_PATH}>Beispiel GmbH</Link> ist ein
+              Entwurf (DRAFT / not Philip-final), nicht die fachliche
+              Endfassung. Gültig-ab und ein Kurztext zur Änderung gibt es beim
+              Speichern einer Fassung nach dem Kauf, nicht in dieser Demo.
             </p>
             <div className="actions" style={{ marginTop: 12 }}>
               <Link className="btn" href={PARTNER_MUSTER_PATH}>

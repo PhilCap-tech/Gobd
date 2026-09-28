@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import {
+  PARTNER_MUSTER_DOCUMENT_ID,
+  PARTNER_MUSTER_DRAFT_LABEL,
+} from "@/lib/partner-muster";
 import PDFDocument from "pdfkit";
 import {
   deliveryBundle,
@@ -197,6 +201,7 @@ function drawFooter(
     pages: number;
     versionLabel: string;
     validFrom?: string;
+    draftLabel?: string;
   },
 ) {
   withOpenMargins(doc, () => {
@@ -230,7 +235,7 @@ function drawFooter(
       .fontSize(7)
       .fillColor(BRAND_MUTED)
       .text(
-        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}`,
+        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}${input.draftLabel ? " · DRAFT / not Philip-final" : ""}`,
         left,
         ruleY + 18,
         { width, lineBreak: false },
@@ -243,20 +248,30 @@ function writeTitlePage(
   rendered: RenderedDocument,
   cover?: string,
   metaSentence?: string,
+  draftLabel?: string,
 ) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
   const lockupHeight = 52;
   drawBrandLockup(doc, left, 44, lockupHeight);
+  let cursor = 44 + lockupHeight + 10;
+  if (draftLabel) {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .fillColor(BRAND_NAVY)
+      .text(draftLabel, left, cursor, { width });
+    cursor = doc.y + 8;
+  }
   doc
     .font("Helvetica")
     .fontSize(10)
     .fillColor(BRAND_NAVY)
-    .text("Arbeitsfassung aus Kunden-Intake", left, 44 + lockupHeight + 10, {
+    .text("Arbeitsfassung aus Kunden-Intake", left, cursor, {
       width,
     });
 
-  doc.y = 130;
+  doc.y = Math.max(draftLabel ? doc.y + 16 : 130, 130);
   doc.x = left;
   writeMarkdownish(doc, cover?.trim() ? cover : rendered.cover, width);
   if (metaSentence) {
@@ -274,6 +289,7 @@ function decoratePages(
   input: {
     identity: CheckoutIdentity;
     rendered: RenderedDocument;
+    draftLabel?: string;
   },
 ) {
   const range = doc.bufferedPageRange();
@@ -287,6 +303,7 @@ function decoratePages(
       pages: range.count,
       versionLabel: input.rendered.versionLabel,
       validFrom: input.rendered.validFromDisplay,
+      draftLabel: input.draftLabel,
     });
   }
 }
@@ -313,11 +330,16 @@ function writePdf(
       : rendered.chapters;
 
   const customCover = Boolean(input.content?.cover?.trim());
+  const draftLabel =
+    input.documentId === PARTNER_MUSTER_DOCUMENT_ID
+      ? PARTNER_MUSTER_DRAFT_LABEL
+      : undefined;
   writeTitlePage(
     doc,
     rendered,
     cover,
     customCover ? rendered.versionMetaSentence : "",
+    draftLabel,
   );
   doc.addPage();
 
@@ -329,6 +351,7 @@ function writePdf(
   decoratePages(doc, {
     identity: input.identity,
     rendered,
+    draftLabel,
   });
 }
 
@@ -351,7 +374,9 @@ export async function generatePdf(input: {
       bufferPages: true,
       autoFirstPage: true,
       info: {
-        Title: `${BRAND_DOC_TITLE} — ${input.identity.company || "Arbeitsfassung"}`,
+        Title: `${
+          documentId === PARTNER_MUSTER_DOCUMENT_ID ? "DRAFT — " : ""
+        }${BRAND_DOC_TITLE} — ${input.identity.company || "Arbeitsfassung"}`,
         Author: BRAND_NAME,
         Subject: "Arbeitsfassung Belegablage — kein Steuerberatungsersatz",
       },

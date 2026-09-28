@@ -55,6 +55,7 @@ for (const present of [
   "Sichtungsturnus",
   "Anna Beispiel",
   "Ben Muster",
+  "nicht die fachliche Endfassung",
 ]) {
   expect(muster.includes(present), `muster missing ${present}`);
 }
