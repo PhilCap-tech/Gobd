@@ -241,7 +241,6 @@ function drawFooter(
 function writeTitlePage(
   doc: PDFKit.PDFDocument,
   rendered: RenderedDocument,
-  identity: CheckoutIdentity,
   cover?: string,
   metaSentence?: string,
 ) {
@@ -267,13 +266,6 @@ function writeTitlePage(
       .fontSize(10)
       .fillColor(BRAND_INK)
       .text(metaSentence, { width });
-  }
-  if (identity.stub) {
-    doc
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor(BRAND_MUTED)
-      .text("Erzeugt in einer Stub-Session (ohne Stripe-Livezahlung).", { width });
   }
 }
 
@@ -326,7 +318,6 @@ function writePdf(
   writeTitlePage(
     doc,
     rendered,
-    input.identity,
     cover,
     customCover ? rendered.versionMetaSentence : "",
   );
