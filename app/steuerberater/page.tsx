@@ -398,21 +398,77 @@ export default function SteuerberaterPage() {
               Mandant arbeitet selbst weiter.
             </li>
           </ol>
-          <p className="prose">
-            Mit dem Code <strong className="promo-code">{PROMO_CODE}</strong>{" "}
-            gelten die Partner-Konditionen im Checkout — maßgeblich ist, was
-            dort nach Eingabe des Codes steht. Der Bezahlvorgang verlangt ein
-            Zahlungsmittel nur, wenn ein Betrag fällig wird. Setzt ein Rabatt
-            den fälligen Betrag auf 0 €, ist für diesen Vorgang kein
-            Zahlungsmittel nötig.
-          </p>
-          <p className="prose">
-            Was der Code genau rabattiert — Prozent, Setup, Monatsabo, Dauer —
-            steht nicht im Programm. Eine automatische Kündigung nach einer
-            Pilotphase ist nicht gesetzt. Ob das Abo danach zu {SETUP_EUR} €
-            Setup und {MONTHLY_EUR} €/Monat weiterläuft, entscheidet die
-            Einstellung bei Stripe.
-          </p>
+          <div className="value-note">
+            <p className="prose">
+              Mit <strong className="promo-code">{PROMO_CODE}</strong> sind
+              Setup und Abo während der Promo zu 0&nbsp;€ (100&nbsp;% auf Setup
+              und Abo, über mehrere Monate). Wie viele Monate und wie viele
+              Einlösungen, zeigt der Checkout. Danach gilt der Listenpreis, wenn
+              Sie weiter nutzen: {MONTHLY_EUR}&nbsp;€/Monat. Keine automatische
+              Gratis-Verlängerung.
+            </p>
+          </div>
+          <h3>Gratis während der Promo</h3>
+          <ul className="prose-list">
+            <li>
+              Setup und Abo zum vollen Nachlass (100&nbsp;%), solange der Code
+              beim Checkout gültig eingelöst wird.
+            </li>
+            <li>
+              Die Promo gilt über mehrere Abrechnungsmonate, nicht nur für eine
+              einzelne Rechnung. Die genaue Zahl der Monate und die Obergrenze
+              der Einlösungen stehen nicht im Programm — Details im Checkout.
+            </li>
+          </ul>
+          <h3>Zahlungsmethode</h3>
+          <ul className="prose-list">
+            <li>
+              Der Checkout lässt Aktionscodes zu. Eine Zahlungsmethode wird nur
+              verlangt, wenn ein Betrag fällig ist — nicht in jedem Fall.
+            </li>
+            <li>
+              Liegt der fällige Betrag durch den 100-%-Nachlass bei 0&nbsp;€,
+              erfasst Stripe in diesem Schritt keine Karte.
+            </li>
+            <li>
+              Nach der Promo läuft das Abo zum Listenpreis weiter. Dafür
+              brauchen Sie eine Zahlungsmethode, sonst kann die Rechnung nicht
+              eingezogen werden. Hinterlegen im Kundenportal („Abo verwalten“).
+            </li>
+            <li>
+              Konto und Fragen laufen danach wie im normalen Ablauf.
+            </li>
+          </ul>
+          <h3>Danach: Listenpreis, keine Gratis-Verlängerung</h3>
+          <ul className="prose-list">
+            <li>
+              Keine automatische kostenlose Verlängerung über die Promo hinaus.
+              Der Checkout beendet das Abo nach der Promo nicht von selbst.
+            </li>
+            <li>
+              Listenpreis ohne Code: {SETUP_EUR}&nbsp;€ Setup einmalig plus{" "}
+              {MONTHLY_EUR}&nbsp;€/Monat (
+              <Link href="/#preise">Produktseite</Link>
+              ). Das Setup ist eine einmalige Position der ersten Rechnung, kein
+              monatlicher Posten. Wer weiter nutzt und nicht kündigt, zahlt
+              danach {MONTHLY_EUR}&nbsp;€/Monat.
+            </li>
+            <li>
+              Kündigung und Zahlungsdaten: Stripe-Kundenportal im Konto.{" "}
+              <Link href="/faq">FAQ</Link>.
+            </li>
+            <li>
+              14 Tage Geld-zurück stehen in der FAQ für zahlungspflichtige
+              Käufe. Liegt der gezahlte Betrag bei 0&nbsp;€, gibt es keinen
+              Betrag zu erstatten.
+            </li>
+          </ul>
+          <h3>Was der Pilot nicht ist</h3>
+          <ul className="prose-list">
+            <li>Keine Steuer- oder Rechtsberatung.</li>
+            <li>Kein dauerhaft kostenloses Produkt.</li>
+            <li>Keine Konformitäts- oder Prüfungszusage.</li>
+          </ul>
           <div className="actions">
             <Link className="btn" href={PILOT_HREF}>
               Partner-Pilot starten
@@ -470,10 +526,11 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Bin ich nach dem Pilot im Abo fest?</h3>
             <p className="prose">
-              Der Code dient zum Testen im Checkout. Was er rabattiert und wie
-              lange, zeigt der Checkout. Eine automatische Kündigung nach dem
-              Pilot ist nicht hinterlegt. Reguläre Preise: {SETUP_EUR} € Setup
-              plus {MONTHLY_EUR} €/Monat.
+              Während der Promo sind Setup und Abo zu 0&nbsp;€. Wie viele Monate
+              das gilt, zeigt der Checkout. Danach {MONTHLY_EUR}&nbsp;€/Monat,
+              wenn Sie weiter nutzen und nicht kündigen. Keine automatische
+              Gratis-Verlängerung, und keine automatische Kündigung. Details im
+              Block <a href="#pilot">Pilot</a>.
             </p>
           </div>
           <div className="faq-item">
