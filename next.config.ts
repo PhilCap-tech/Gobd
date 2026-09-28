@@ -19,6 +19,15 @@ const nextConfig: NextConfig = {
       "./content/delivery-templates/**/*",
       "./public/brand/**/*",
     ],
+    "/steuerberater": ["./content/delivery-templates/**/*"],
+    "/steuerberater/muster": [
+      "./content/delivery-templates/**/*",
+      "./public/brand/**/*",
+    ],
+    "/steuerberater/muster/pdf": [
+      "./content/delivery-templates/**/*",
+      "./public/brand/**/*",
+    ],
     "/resources/10-offene-punkte/download": ["./public/brand/**/*"],
     "/resources/inhalt-verfahrensdokumentation/download": ["./public/brand/**/*"],
   },
