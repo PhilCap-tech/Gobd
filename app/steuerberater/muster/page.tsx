@@ -182,13 +182,13 @@ export default function PartnerMusterPage() {
         </section>
 
         <section className="block" id="fassung">
-          <h2>Was nach einem echten Kauf anders ist</h2>
+          <h2>Was im Produkt anders ist</h2>
           <p className="prose">
-            Nach dem Kauf kann der Mandant die Angaben erneut ausfüllen oder den
+            Im Produkt kann der Mandant die Angaben erneut ausfüllen oder den
             Kapiteltext bearbeiten. Speichern erzeugt eine neue Fassung mit
             Gültig-ab, Kurz-Changelog und „Geändert durch“. Bisherige PDFs
             bleiben downloadbar. Eine eigene Bestätigungsstufe gibt es nicht.
-            Diese Musterseite speichert nichts.
+            Diese Musterseite ist ein Beispiel und speichert keine Eingaben.
           </p>
           <p className="hint back-links">
             <Link href="/steuerberater">Zur Partnerseite</Link>

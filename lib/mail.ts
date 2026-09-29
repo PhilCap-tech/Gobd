@@ -19,6 +19,8 @@ export async function sendEmail(input: {
   html: string;
   /** Resend `Idempotency-Key`. Gleicher Key liefert denselben Versand, keinen zweiten. */
   idempotencyKey?: string;
+  /** Antwortadresse, z. B. die E-Mail aus einem Formular. */
+  replyTo?: string;
 }): Promise<MailResult> {
   if (!isMailConfigured()) {
     console.info("[mail] stub — RESEND_API_KEY oder EMAIL_FROM fehlt", {
@@ -38,6 +40,7 @@ export async function sendEmail(input: {
         subject: input.subject,
         text: input.text,
         html: input.html,
+        ...(input.replyTo ? { replyTo: input.replyTo } : {}),
       },
       input.idempotencyKey
         ? { idempotencyKey: input.idempotencyKey }

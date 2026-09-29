@@ -41,7 +41,8 @@ export type OpsResult = {
     | "failed_job"
     | "delivery"
     | "readiness"
-    | "referral_after_delivery";
+    | "referral_after_delivery"
+    | "partner_inquiry";
 };
 
 export type TransactionalMailContent = {
@@ -602,6 +603,68 @@ export async function sendReferralAfterDeliveryMail(input: {
     cancelReferralDelivery(eventKey);
     throw error;
   }
+}
+
+export type PartnerInquiryMailInput = {
+  name: string;
+  kanzlei: string;
+  email: string;
+  mandantenZahl: string;
+  message: string;
+};
+
+/** Inbound from /steuerberater. Sie-Form in the mail body is not required: this goes to Ops. No Soft-Invite. */
+export function buildPartnerInquiryMail(
+  input: PartnerInquiryMailInput,
+): TransactionalMailContent {
+  const kanzlei = input.kanzlei.replace(/[\r\n]+/g, " ").trim();
+  const lines = [
+    "Neue Anfrage von der Partnerseite /steuerberater (VD für mehrere Mandanten).",
+    "",
+    `Name: ${input.name}`,
+    `Kanzlei: ${input.kanzlei}`,
+    `E-Mail: ${input.email}`,
+    `Grobe Mandanten-Zahl: ${input.mandantenZahl}`,
+    "",
+    "Nachricht:",
+    input.message,
+  ];
+  const html = wrapTransactionalHtml(`
+    <p>Neue Anfrage von der Partnerseite /steuerberater (VD für mehrere Mandanten).</p>
+    <p>
+      <strong>Name:</strong> ${escapeHtml(input.name)}<br />
+      <strong>Kanzlei:</strong> ${escapeHtml(input.kanzlei)}<br />
+      <strong>E-Mail:</strong> <a href="mailto:${escapeAttr(input.email)}">${escapeHtml(input.email)}</a><br />
+      <strong>Grobe Mandanten-Zahl:</strong> ${escapeHtml(input.mandantenZahl)}
+    </p>
+    <p><strong>Nachricht:</strong><br />${escapeHtml(input.message).replaceAll("\n", "<br />")}</p>
+  `);
+  return {
+    subject: `Anfrage: VD für mehrere Mandanten — ${kanzlei}`,
+    text: wrapTransactionalText(lines.join("\n")),
+    html,
+  };
+}
+
+export async function sendPartnerInquiryMail(
+  input: PartnerInquiryMailInput,
+): Promise<OpsResult & MailResult> {
+  const mail = buildPartnerInquiryMail(input);
+  const result = await sendEmail({
+    to: MAIL_SUPPORT_EMAIL,
+    replyTo: input.email,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+  });
+  console.info("[ops] partner inquiry mail", {
+    to: MAIL_SUPPORT_EMAIL,
+    replyTo: input.email,
+    kanzlei: input.kanzlei,
+    sent: result.sent,
+    stub: result.stub,
+  });
+  return { ...result, action: "partner_inquiry" };
 }
 
 export async function sendReadinessMail(input: {
