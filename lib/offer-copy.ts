@@ -14,8 +14,12 @@ export const CTA_CREATE_WITH_PRICE = `${CTA_CREATE} — ${PRICE_CTA_SUFFIX}`;
 export const CTA_MUSTER = "Muster-Dokument ansehen";
 export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
 
-/** Existing FAQ section „Rückgabe / Widerruf / Geld-zurück“. */
+/** FAQ section „14 Tage Geld-zurück“ (Variante B). */
 export const GELD_ZURUECK_HREF = "/faq#geld-zurueck";
+
+/** Preferred landing micro next to the price. Details stay in the FAQ. */
+export const GELD_ZURUECK_MICRO =
+  "14 Tage Geld-zurück (volle 198 € nur vor erstem PDF) — Bedingungen";
 
 export const DISCLAIMER_ONCE =
   "Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei dir bzw. bei deinem Steuerberater.";
