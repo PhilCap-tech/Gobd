@@ -14,7 +14,7 @@ export const CTA_CREATE_WITH_PRICE = `${CTA_CREATE} — ${PRICE_CTA_SUFFIX}`;
 export const CTA_MUSTER = "Muster-Dokument ansehen";
 export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
 
-/** Existing FAQ section „Rückgabe / Widerruf / Geld-zurück“. */
+/** FAQ section „14 Tage Geld-zurück“ (Variante B: full refund only before first PDF). */
 export const GELD_ZURUECK_HREF = "/faq#geld-zurueck";
 
 export const DISCLAIMER_ONCE =

@@ -55,12 +55,42 @@ Ergänzend gelten AGB und Datenschutzerklärung.
 
 Schreib uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Rechnung oder technischen Problemen (Checkout, Download, Login) ebenfalls an dieselbe Adresse — wir kümmern uns darum.
 
-## 6. Rückgabe / Widerruf / Geld-zurück
+## 6. 14 Tage Geld-zurück
 
-- Primär richten wir uns an Unternehmer (B2B): kein gesetzliches Widerrufsrecht wie bei Verbrauchern.
-- Technische Lieferfehler (defekter Download, fehlende Datei): bitte unverzüglich melden — wir bemühen uns um Nachlieferung.
-- Inhaltliche Unzufriedenheit wegen unvollständiger eigener Angaben ist kein Mangel der Leistung.
-- **14 Tage Geld-zurück-Garantie** analog zur Website — Erstattung nach Prüfung über unseren Support/Ops-Prozess.
+Du kannst innerhalb von **14 Tagen** nach dem Kauf eine Erstattung verlangen. Ob die vollen **198 €** zurückgezahlt werden, hängt davon ab, ob du das erste PDF schon erzeugt oder heruntergeladen hast.
+
+### So gehst du vor
+
+Schreib an **info@gobd-doku-erstellen.de** mit Betreff „Geld-zurück“ und deiner Bestell- oder Rechnungsmail. Wir bestätigen den Eingang und erstatten über denselben Zahlungsweg.
+
+### Frist
+
+14 Kalendertage ab dem Tag der erfolgreichen Zahlung (Checkout).
+
+### Was erstattet wird
+
+- **Vor dem ersten PDF:** Solange du die Verfahrensdokumentation noch nicht erzeugt und das PDF noch nicht heruntergeladen hast, erstatten wir den heute gezahlten Betrag laut Checkout — aktuell **198 €** (149 € Einrichtung + erster Monat).
+- **Nach dem ersten PDF:** Sobald du das PDF zum ersten Mal erzeugt oder heruntergeladen hast, erstatten wir die **Einrichtung (149 €)** nicht. Die volle Summe von **198 €** wird dann nicht erstattet.
+- **Abo:** Mit der Erstattung oder einer Kündigung endet das Abo. Weitere Monatsbeiträge (49 €) werden nicht mehr abgebucht.
+
+### Voraussetzungen
+
+- Kauf über gobd-doku-erstellen.de (Stripe Checkout)
+- Antrag per E-Mail innerhalb der 14 Tage
+- Anschrift / Rechnungsdaten wie bei der Bestellung, damit wir die Zahlung zuordnen können
+- Für die volle Erstattung von 198 €: das erste PDF ist noch nicht erzeugt und noch nicht heruntergeladen
+
+### Was nicht gilt
+
+- Nach dem ersten Erzeugen oder Herunterladen des PDF gibt es keine Erstattung der Einrichtung und keine Erstattung der vollen 198 € — auch nicht innerhalb der 14 Tage.
+- Inhaltliche Unzufriedenheit allein wegen unvollständiger eigener Intake-Angaben ist kein Mangel der Leistung.
+- Technische Lieferfehler (kein Download, defekte Datei) melde bitte sofort an info@gobd-doku-erstellen.de — wir liefern nach oder erstatten.
+
+### Hinweis B2B
+
+Wir richten uns primär an Unternehmer. Die 14-Tage-Geld-zurück-Zusage ist unsere **vertragliche Garantie** auf der Website — unabhängig davon, ob ein gesetzliches Widerrufsrecht greift. Der Erstattungsumfang richtet sich nach dem Stand deines ersten PDF, wie oben beschrieben.
+
+Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 
 ---
 

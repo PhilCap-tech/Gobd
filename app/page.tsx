@@ -26,6 +26,21 @@ import {
 
 const EXAMPLE_QUESTION_IDS = ["B01", "C01", "F01", "G02"];
 
+const MUSTER_STRUCTURE = [
+  "Dokumentenlenkung",
+  "Zweck, Geltungsbereich und Verantwortung",
+  "Unternehmen, Rollen und Aufgaben",
+  "Systemlandschaft und Datenfluss",
+  "Belegarten und Eingangskanäle",
+];
+
+const EXAMPLE_OPEN_POINTS = [
+  "Offener Punkt: Wer verwaltet die Zugriffsrechte im Archiv? Bitte Verantwortliche benennen.",
+  "Offener Punkt: Die Berechtigungsliste und der Mandatsumfang der Steuerkanzlei sind noch nicht als mitgeltende Unterlagen abgelegt.",
+  "Offener Punkt: IT- und Systemverantwortung (Backup, Rechteverwaltung) sind nicht benannt.",
+  "Offener Punkt: Die technische Prüfung strukturierter E-Rechnungen ist noch nicht bestätigt — bitte Praxis kurz beschreiben.",
+];
+
 function exampleQuestions(): string[] {
   const byId = new Map(
     CATALOG_STEPS.flatMap((step) =>
@@ -88,7 +103,6 @@ export default function HomePage() {
     sample.chapters.find((chapter) => chapter.id === "01-zweck-geltung") ??
     sample.chapters[0];
   const questions = exampleQuestions();
-  const openPointPreview = sample.openPoints.slice(0, 3);
 
   return (
     <>
@@ -112,15 +126,17 @@ export default function HomePage() {
             Schritt online erstellen.
           </p>
           <div className="cta-stack">
-            <div className="cta-paid">
-              <Link className="btn" href="/checkout">
-                {CTA_CREATE}
+            <div className="hero-cta-row">
+              <div className="cta-paid">
+                <Link className="btn" href="/checkout">
+                  {CTA_CREATE}
+                </Link>
+                <PriceLine />
+              </div>
+              <Link className="btn ghost" href="#muster">
+                {CTA_MUSTER}
               </Link>
-              <PriceLine />
             </div>
-            <Link className="btn ghost" href="#muster">
-              {CTA_MUSTER}
-            </Link>
             <Link className="text-cta" href="/readiness">
               {CTA_CHECK}
             </Link>
@@ -144,13 +160,10 @@ export default function HomePage() {
                 Abschnitte, Versionierungshinweis.
               </p>
               <ol className="prose-list">
-                {sample.chapters.slice(0, 5).map((chapter) => (
-                  <li key={chapter.id}>{chapter.title}</li>
+                {MUSTER_STRUCTURE.map((title) => (
+                  <li key={title}>{title}</li>
                 ))}
               </ol>
-              {sample.versionMetaSentence ? (
-                <p className="hint">{sample.versionMetaSentence}</p>
-              ) : null}
               <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
                 Muster-PDF öffnen
               </a>
@@ -175,16 +188,14 @@ export default function HomePage() {
             <article className="proof-card">
               <h3>Beispiel offene Punkte</h3>
               <p className="prose">
-                Liste, wie Lücken nach dem Durchlauf aussehen — was du noch
+                So können Hinweise nach dem Durchlauf aussehen — was du noch
                 prüfen oder ergänzen solltest.
               </p>
-              <ul className="prose-list">
-                {openPointPreview.map((point) => (
-                  <li key={point.id}>
-                    <strong>{point.priority}:</strong> {point.text}
-                  </li>
+              <ol className="prose-list">
+                {EXAMPLE_OPEN_POINTS.map((point) => (
+                  <li key={point}>{point}</li>
                 ))}
-              </ul>
+              </ol>
               <Link className="btn ghost" href={`${PARTNER_MUSTER_PATH}#offene-punkte`}>
                 Beispiel öffnen
               </Link>
