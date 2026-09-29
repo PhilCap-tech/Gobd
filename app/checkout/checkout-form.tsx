@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FirmaSelect } from "@/components/firma-select";
 import { PilotKlartextSentence } from "@/components/pilot-klartext";
 import type { EntityChoice } from "@/lib/entities";
+import { RESULT_PROMISE } from "@/lib/offer-copy";
 import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
 
 type CheckoutAudience = "kunde" | "steuerberater";
@@ -157,7 +158,7 @@ export function CheckoutForm({
                 ? "Partner-Pilot starten"
                 : "Weiter zum Fragenkatalog"
               : stripeReady
-                ? "Dokumentation starten"
+                ? "Jetzt bestellen"
                 : "Weiter zum Intake"}
         </button>
         <p className="hint">
@@ -178,33 +179,48 @@ export function CheckoutForm({
             &nbsp;€ einmalig.
           </p>
         )}
-        <div className="line">
-          <span>Setup GoBD Verfahrensdoku</span>
-          <strong>{SETUP_EUR}&nbsp;€</strong>
-        </div>
-        <div className="line">
-          <span>Monatliche Betreuung</span>
-          <strong>{MONTHLY_EUR}&nbsp;€ / Mo</strong>
-        </div>
-        <div className="total">
-          <span>Heute fällig</span>
-          <span>{TODAY_EUR}&nbsp;€</span>
-        </div>
-        <p className="hint">
-          {partner ? (
-            <>
+        {partner ? (
+          <>
+            <div className="line">
+              <span>Setup GoBD Verfahrensdoku</span>
+              <strong>{SETUP_EUR}&nbsp;€</strong>
+            </div>
+            <div className="line">
+              <span>Monatliche Betreuung</span>
+              <strong>{MONTHLY_EUR}&nbsp;€ / Mo</strong>
+            </div>
+            <div className="total">
+              <span>Heute fällig</span>
+              <span>{TODAY_EUR}&nbsp;€</span>
+            </div>
+            <p className="hint">
               Mit Code: Setup und die ersten zwei Monate 0&nbsp;€. Danach{" "}
               {MONTHLY_EUR}&nbsp;€/Monat, wenn Sie nicht kündigen.
-            </>
-          ) : (
-            <>Danach {MONTHLY_EUR}&nbsp;€/Monat.</>
-          )}
-        </p>
-        <p className="disclaimer" role="note">
-          {partner
-            ? "Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein Entwurf aus Ihren Angaben — keine Freigabe und keine individuelle Steuer- oder Rechtsberatung."
-            : "Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein Entwurf aus deinen Angaben — keine Freigabe und keine individuelle Steuer- oder Rechtsberatung. Eine Abstimmung mit dem Steuerberater ist optional und nur im Rahmen eines gesonderten Auftrags."}
-        </p>
+            </p>
+            <p className="disclaimer" role="note">
+              Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein
+              Entwurf aus Ihren Angaben — keine Freigabe und keine individuelle
+              Steuer- oder Rechtsberatung.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="line">
+              <span>Einrichtung</span>
+              <strong>{SETUP_EUR}&nbsp;€</strong>
+            </div>
+            <div className="line">
+              <span>Erster Monat</span>
+              <strong>{MONTHLY_EUR}&nbsp;€</strong>
+            </div>
+            <div className="total">
+              <span>Heute gesamt</span>
+              <span>{TODAY_EUR}&nbsp;€</span>
+            </div>
+            <p className="hint">Danach {MONTHLY_EUR}&nbsp;€/Monat.</p>
+            <p className="prose">{RESULT_PROMISE}</p>
+          </>
+        )}
       </aside>
     </div>
   );

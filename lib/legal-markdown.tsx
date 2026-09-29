@@ -191,16 +191,32 @@ function renderMixedBlock(block: string, key: string): ReactNode[] {
   return nodes;
 }
 
+/** Anchor for the live FAQ refund section. No separate policy page. */
+function headingId(text: string): string | undefined {
+  if (/geld-zurück/i.test(text)) return "geld-zurueck";
+  return undefined;
+}
+
 function renderBlocks(body: string): ReactNode[] {
   return body.split(/\n{2,}/).flatMap((block, index): ReactNode[] => {
     const key = `b-${index}`;
     const trimmed = block.trim();
     if (!trimmed) return [];
     if (trimmed.startsWith("### ")) {
-      return [<h3 key={key}>{trimmed.slice(4).trim()}</h3>];
+      const text = trimmed.slice(4).trim();
+      return [
+        <h3 key={key} id={headingId(text)}>
+          {text}
+        </h3>,
+      ];
     }
     if (trimmed.startsWith("## ")) {
-      return [<h2 key={key}>{trimmed.slice(3).trim()}</h2>];
+      const text = trimmed.slice(3).trim();
+      return [
+        <h2 key={key} id={headingId(text)}>
+          {text}
+        </h2>,
+      ];
     }
     if (/^[-*]{3,}$/.test(trimmed)) {
       return [<hr key={key} />];

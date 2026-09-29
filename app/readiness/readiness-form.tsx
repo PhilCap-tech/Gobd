@@ -305,9 +305,10 @@ export function ReadinessForm() {
               />
             </div>
             <p className="disclaimer" role="note">
-              Kein Steuerberatungsersatz. Das PDF ist eine branchenbezogene
-              Arbeitshilfe — keine fertige Verfahrensdokumentation und keine
-              Zusicherung von GoBD-Konformität.
+              Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt
+              bei dir bzw. bei deinem Steuerberater. Das PDF ist eine kurze
+              Einschätzung zu Themenfeldern, keine Verfahrensdokumentation aus
+              deinen Abläufen.
             </p>
           </div>
         </section>

@@ -6,6 +6,7 @@ import { entityById, entityChoices } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
+import { PRICE_MICRO } from "@/lib/offer-copy";
 import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
 import { CheckoutForm } from "./checkout-form";
 
@@ -56,7 +57,7 @@ export default async function CheckoutPage({
               Den Aktionscode lösen Sie im Checkout ein. Danach der Fragenkatalog.
             </>
           ) : (
-            <>149&nbsp;€ Setup plus 49&nbsp;€/Monat. Danach kurzes Intake.</>
+            <>{PRICE_MICRO}.</>
           )}
         </p>
         <CheckoutForm

@@ -1,292 +1,372 @@
 import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
+import { CATALOG_STEPS } from "@/lib/intake-catalog";
+import { renderDeliveryDocument } from "@/lib/delivery-templates";
+import {
+  CTA_CHECK,
+  CTA_CREATE,
+  CTA_CREATE_WITH_PRICE,
+  CTA_MUSTER,
+  DISCLAIMER_ONCE,
+  GELD_ZURUECK_HREF,
+  PRICE_MICRO,
+  RESULT_PROMISE,
+} from "@/lib/offer-copy";
+import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
+import {
+  PARTNER_DEMO_PATH,
+  PARTNER_MUSTER_ANSWERS,
+  PARTNER_MUSTER_DOCUMENT_ID,
+  PARTNER_MUSTER_IDENTITY,
+  PARTNER_MUSTER_PATH,
+  PARTNER_MUSTER_PDF_PATH,
+  PARTNER_MUSTER_VERSION_META,
+} from "@/lib/partner-muster";
 
-const CTA_PRIMARY = "Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo";
-const CTA_PRIMARY_HREF = "/checkout";
-const CTA_SECONDARY_HREF = "/readiness";
+const EXAMPLE_QUESTION_IDS = ["B01", "C01", "F01", "G02"];
 
-function PaidCta({
-  trust,
-  secondaryLabel,
-  secondaryHint,
+function exampleQuestions(): string[] {
+  const byId = new Map(
+    CATALOG_STEPS.flatMap((step) =>
+      step.questions.map((question) => [question.id, question.prompt] as const),
+    ),
+  );
+  return EXAMPLE_QUESTION_IDS.flatMap((id) => {
+    const prompt = byId.get(id);
+    return prompt ? [prompt] : [];
+  });
+}
+
+function plainExcerpt(markdown: string, maxChars = 520): string {
+  const plain = markdown
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/^#+\s+.*(?:\n+|$)/, "")
+    .replace(/^#+\s+/gm, "")
+    .replace(/[*_`]/g, "")
+    .replace(/\[(.*?)\]\([^)]*\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (plain.length <= maxChars) return plain;
+  const cut = plain.slice(0, maxChars);
+  const lastSentence = cut.lastIndexOf(". ");
+  const end = lastSentence > 240 ? lastSentence + 1 : cut.length;
+  return `${cut.slice(0, end).trimEnd()} …`;
+}
+
+function PriceLine({
+  guarantee = "short",
 }: {
-  trust: string;
-  secondaryLabel: string;
-  secondaryHint?: string;
+  guarantee?: "short" | "bedingungen" | "none";
 }) {
   return (
-    <div className="cta-pair">
-      <div className="cta-paid">
-        <Link className="btn" href={CTA_PRIMARY_HREF}>
-          {CTA_PRIMARY}
-        </Link>
-        <p className="trust-line">{trust}</p>
-      </div>
-      <div className="cta-soft">
-        <Link className="btn ghost" href={CTA_SECONDARY_HREF}>
-          {secondaryLabel}
-        </Link>
-        {secondaryHint ? <p className="hint">{secondaryHint}</p> : null}
-      </div>
-    </div>
+    <p className="trust-line">
+      {PRICE_MICRO}
+      {guarantee === "none" ? null : (
+        <>
+          {" · "}
+          <Link href={GELD_ZURUECK_HREF}>
+            {guarantee === "bedingungen"
+              ? "14 Tage Geld-zurück — Bedingungen"
+              : "14 Tage Geld-zurück"}
+          </Link>
+        </>
+      )}
+    </p>
   );
 }
 
 export default function HomePage() {
+  const sample = renderDeliveryDocument({
+    identity: PARTNER_MUSTER_IDENTITY,
+    answers: PARTNER_MUSTER_ANSWERS,
+    documentId: PARTNER_MUSTER_DOCUMENT_ID,
+    version: 1,
+    versionMeta: PARTNER_MUSTER_VERSION_META,
+  });
+  const excerptChapter =
+    sample.chapters.find((chapter) => chapter.id === "01-zweck-geltung") ??
+    sample.chapters[0];
+  const questions = exampleQuestions();
+  const openPointPreview = sample.openPoints.slice(0, 3);
+
   return (
     <>
-      <SiteHeader ctaHref={CTA_PRIMARY_HREF} ctaLabel={CTA_PRIMARY} />
-      <main className="wrap">
+      <SiteHeader
+        ctaHref="/checkout"
+        ctaLabel={CTA_CREATE}
+        ctaNote={PRICE_MICRO}
+        links={[
+          { href: "#muster", label: "Muster" },
+          { href: "#ablauf", label: "Ablauf" },
+          { href: "#preise", label: "Preise" },
+          { href: "/readiness", label: "3-Minuten-Check" },
+        ]}
+      />
+      <main className="home-wrap">
         <section className="hero">
-          <p className="hook">
-            Buchhaltungsprozesse dokumentieren — oft Pflicht, oft liegen
-            geblieben.
-          </p>
-          <h1>GoBD-Verfahrensdokumentation erstellen</h1>
+          <p className="hook">Buchhaltungsabläufe nachvollziehbar dokumentieren</p>
+          <h1>GoBD-Verfahrensdokumentation online erstellen</h1>
           <p className="lead">
-            Wenn nur Fragmente oder eine leere Vorlage liegen, fehlt der
-            greifbare Stand. Hier erstellst du die Verfahrensdokumentation{" "}
-            <strong>online selbst</strong> — geführt, in unter einer Stunde —
-            als PDF plus Offene-Punkte-Liste. Kein Warteschleifen-Termin. Für
-            die meisten Betriebe reicht diese Fassung. Eine Abstimmung mit dem
-            Steuerberater ist optional und nur im Rahmen eines gesonderten
-            Auftrags.
+            Geführte Fragen zu deinen Abläufen. {RESULT_PROMISE} Schritt für
+            Schritt online erstellen.
           </p>
-          <p className="outcome-line">
-            PDF + Offene-Punkte in unter einer Stunde · in der Regel direkt
-            nutzbar
-          </p>
-          <PaidCta
-            trust="Sofort starten online · 14 Tage Geld-zurück · Keine Steuerberatung"
-            secondaryLabel="Kostenloser Leitfaden"
-            secondaryHint="Kurzer Check + Branchen-Grundlagen-PDF — noch keine fertige Verfahrensdokumentation."
-          />
-          <div className="tags" aria-label="Themen">
-            <span>Verfahrensdokumentation erstellen</span>
-            <span>digitale Verfahrensdokumentation</span>
-            <span>Vorlage / Muster als Benefit</span>
-            <span>für KMU &amp; Handwerk</span>
+          <div className="cta-stack">
+            <div className="cta-paid">
+              <Link className="btn" href="/checkout">
+                {CTA_CREATE}
+              </Link>
+              <PriceLine />
+            </div>
+            <Link className="btn ghost" href="#muster">
+              {CTA_MUSTER}
+            </Link>
+            <Link className="text-cta" href="/readiness">
+              {CTA_CHECK}
+            </Link>
           </div>
           <p className="advisor-note">
             Steuerberater oder Kanzlei? →{" "}
-            <Link href="/steuerberater">Seite für Berater ansehen</Link>
+            <Link href="/steuerberater">Seite für Berater</Link>
+          </p>
+          <p className="disclaimer" role="note">
+            {DISCLAIMER_ONCE}
           </p>
         </section>
 
-        <section className="block" id="problem">
-          <h2>Eine leere Vorlage reicht selten als Dokumentation</h2>
-          <ul className="prose-list">
-            <li>Unklare Belegwege und Systeme</li>
-            <li>Nichts Einheitliches zum Ablegen und Weitergeben</li>
-            <li>Vorlagen, die seit Monaten leer liegen</li>
-          </ul>
+        <section className="block" id="muster">
+          <h2>So sieht das Ergebnis aus</h2>
+          <div className="proof-grid">
+            <article className="proof-card">
+              <h3>Muster-Dokumentation</h3>
+              <p className="prose">
+                Ausschnitt einer Verfahrensdokumentation als PDF — Struktur,
+                Abschnitte, Versionierungshinweis.
+              </p>
+              <ol className="prose-list">
+                {sample.chapters.slice(0, 5).map((chapter) => (
+                  <li key={chapter.id}>{chapter.title}</li>
+                ))}
+              </ol>
+              {sample.versionMetaSentence ? (
+                <p className="hint">{sample.versionMetaSentence}</p>
+              ) : null}
+              <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
+                Muster-PDF öffnen
+              </a>
+            </article>
+
+            <article className="proof-card" id="fragen">
+              <h3>Beispielfragen</h3>
+              <p className="prose">
+                Typische geführte Fragen zu Belegwegen, Systemen und
+                Verantwortlichen. Die Demo speichert keine Eingaben.
+              </p>
+              <ul className="prose-list">
+                {questions.map((prompt) => (
+                  <li key={prompt}>{prompt}</li>
+                ))}
+              </ul>
+              <Link className="btn ghost" href={PARTNER_DEMO_PATH}>
+                Beispielfragen ansehen
+              </Link>
+            </article>
+
+            <article className="proof-card">
+              <h3>Beispiel offene Punkte</h3>
+              <p className="prose">
+                Liste, wie Lücken nach dem Durchlauf aussehen — was du noch
+                prüfen oder ergänzen solltest.
+              </p>
+              <ul className="prose-list">
+                {openPointPreview.map((point) => (
+                  <li key={point.id}>
+                    <strong>{point.priority}:</strong> {point.text}
+                  </li>
+                ))}
+              </ul>
+              <Link className="btn ghost" href={`${PARTNER_MUSTER_PATH}#offene-punkte`}>
+                Beispiel öffnen
+              </Link>
+            </article>
+          </div>
           <p className="prose framing">
-            Du brauchst keinen Beratungs-Termin und keine mehrmonatige
-            Self-Service-Begleitung, um überhaupt etwas Greifbares zu haben —
-            du brauchst eine geführte Struktur, die du{" "}
-            <strong>jetzt online</strong> erzeugst.
+            Unsicher? Schau zuerst Muster und Offene Punkte. Überzeugt? Starte
+            direkt mit der Dokumentation.
           </p>
+        </section>
+
+        <section className="block" id="ablauf">
+          <h2>So läuft’s ab</h2>
+          <ol className="prose-list">
+            <li>Du beantwortest geführte Fragen zu deinen Buchhaltungsabläufen.</li>
+            <li>
+              Du erhältst PDF + Liste offener Punkte — individuell aus deinen
+              Angaben.
+            </li>
+            <li>
+              Du prüfst und ergänzt vor der Verwendung; Abstimmung mit dem
+              Steuerberater bleibt bei dir.
+            </li>
+            <li>
+              Mit dem Abo bleiben Versionen und spätere Anpassungen verfügbar.
+            </li>
+          </ol>
+          {excerptChapter ? (
+            <figure className="doc-excerpt">
+              <figcaption>
+                Beispiel-Ausschnitt — dein Dokument entsteht aus deinen Angaben.
+              </figcaption>
+              <blockquote>
+                <p className="prose">
+                  <strong>{excerptChapter.title}</strong>
+                </p>
+                <p className="prose">{plainExcerpt(excerptChapter.body)}</p>
+              </blockquote>
+              <p className="hint">
+                Beispiel GmbH (fiktiv), dieselbe Quelle wie das{" "}
+                <a href={PARTNER_MUSTER_PDF_PATH}>Muster-PDF</a>.
+              </p>
+            </figure>
+          ) : null}
         </section>
 
         <section className="block" id="outcome">
-          <h2>
-            Sofort digital — online selbst erstellen, statt auf Beratung warten
-          </h2>
+          <h2>Was du mitnimmst</h2>
           <ul className="prose-list">
+            <li>Individuelle Verfahrensdokumentation als PDF (aus deinen Angaben)</li>
+            <li>Liste offener Punkte zum Prüfen und Ergänzen</li>
+            <li>Geführter Frageprozess statt leerer Vorlage</li>
             <li>
-              In unter einer Stunde: strukturierte Verfahrensdokumentation als
-              PDF (nicht erst nach Kickoff-Call)
-            </li>
-            <li>
-              {SETUP_EUR} € Setup = Einrichtung + erstes PDF +
-              Offene-Punkte-Liste — nicht nur ein Check ohne Dokument
-            </li>
-            <li>
-              Offene-Punkte-Liste: du siehst Lücken, bevor du den Entwurf
-              ablegst oder weitergibst
-            </li>
-            <li>
-              Für KMU, Handwerk, Freiberufler (DATEV, sevdesk, lexoffice &amp;
-              Co.)
-            </li>
-            <li>
-              Für die meisten Betriebe die nutzbare Fassung. Anpassungen bei
-              besonderen Verfahren sind möglich. Keine Steuerberatung.
+              Versionierung und Speicherung über das Abo ({MONTHLY_EUR} €/Monat
+              nach dem ersten Monat)
             </li>
           </ul>
         </section>
 
-        <section className="block" id="so-funktionierts">
-          <h2>So funktioniert’s</h2>
-          <ol className="prose-list">
-            <li>
-              <strong>Fragen beantworten</strong> — Kurzes Intake zu Branche,
-              Software, Belegwegen, IT und Verantwortlichen.
-            </li>
-            <li>
-              <strong>Dokumentation erzeugen</strong> — PDF plus
-              Offene-Punkte-Liste.
-            </li>
-            <li>
-              <strong>Ablegen und bei Bedarf anpassen</strong> — Die Fassung aus
-              deinen Angaben reicht in der Regel. Bei besonderen Verfahren
-              ergänzt du selbst. Eine Abstimmung mit dem Steuerberater ist
-              freiwillig und nur im Rahmen eines gesonderten Auftrags. Danach
-              im Login pflegen und neu exportieren.
-            </li>
-          </ol>
-        </section>
-
-        <section className="block" id="setup-anker">
-          <div className="value-note">
-            <h2>
-              {SETUP_EUR} € Setup — und du hast mehr als einen Check
-            </h2>
-            <p className="prose">
-              Andere bieten für ähnliche Beträge oft nur eine Auswertung oder
-              einen Termin. Bei uns zahlst du {SETUP_EUR} € Setup für die
-              geführte <strong>Verfahrensdokumentations-Struktur</strong>: PDF
-              plus Liste offener Punkte. Danach hält das Abo ({MONTHLY_EUR}{" "}
-              €/Mo) Versionen und Exporte aktuell — weil ein einmaliges PDF
-              veraltet.
-            </p>
-            <p className="hint">
-              Keine Steuer- oder Rechtsberatung. Die Fassung aus deinen Angaben
-              reicht in der Regel. Eine Abstimmung mit dem Steuerberater ist
-              optional und nur im Rahmen eines gesonderten Auftrags.
-            </p>
-          </div>
-        </section>
-
         <section className="block" id="preise">
-          <h2>Was du bezahlst — und warum das Abo dazugehört</h2>
-          <div className="price-grid">
-            <div className="price-card stacked">
-              <p className="price-lead">
-                {SETUP_EUR}&nbsp;€ Setup — fertiges PDF + Offene-Punkte
-              </p>
-              <div className="price">
-                {SETUP_EUR}&nbsp;€ <small>einmalig</small>
-              </div>
-              <p className="prose">
-                Einrichtung und erstes PDF plus Offene-Punkte-Liste — kein
-                reiner Check und keine Software-Lizenz.
-              </p>
-            </div>
-            <div className="price-card stacked">
-              <p className="price-lead">
-                {MONTHLY_EUR}&nbsp;€/Mo — Versionen und Pflege
-              </p>
-              <div className="price">
-                {MONTHLY_EUR}&nbsp;€ <small>/ Monat</small>
-              </div>
-              <p className="prose">
-                Hält Fassungen, Speicherung und erneute Exporte aktuell, wenn
-                sich Software oder Prozesse ändern.
-              </p>
-            </div>
+          <h2>Was du heute zahlst</h2>
+          <div className="price-split">
+            <table className="price-table">
+              <tbody>
+                <tr>
+                  <th scope="row">Einrichtung</th>
+                  <td>{SETUP_EUR}&nbsp;€</td>
+                </tr>
+                <tr>
+                  <th scope="row">Erster Monat</th>
+                  <td>{MONTHLY_EUR}&nbsp;€</td>
+                </tr>
+                <tr>
+                  <th scope="row">Heute gesamt</th>
+                  <td>{TODAY_EUR}&nbsp;€</td>
+                </tr>
+                <tr>
+                  <th scope="row">Danach</th>
+                  <td>{MONTHLY_EUR}&nbsp;€/Monat</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="prose">{RESULT_PROMISE}</p>
           </div>
-          <p className="prose framing">
-            Statt Lizenz-Modell, reinem Check oder teurem Setup mit langer
-            Bindung: einmal Setup für das Dokument, Abo nur für die Pflege.
+          <h3>Mit dem Abo</h3>
+          <ul className="prose-list">
+            <li>Versionierung deiner Dokumentation</li>
+            <li>Zugang zu bisherigen Fassungen</li>
+            <li>Anpassungen, wenn sich Systeme oder Abläufe ändern</li>
+            <li>Erneute Exporte bei Bedarf</li>
+          </ul>
+          <div className="cta-stack">
+            <div className="cta-paid">
+              <Link className="btn" href="/checkout">
+                {CTA_CREATE_WITH_PRICE}
+              </Link>
+              <p className="trust-line">
+                <Link href={GELD_ZURUECK_HREF}>
+                  14 Tage Geld-zurück — Bedingungen
+                </Link>
+              </p>
+            </div>
+            <Link className="btn ghost" href="#muster">
+              {CTA_MUSTER}
+            </Link>
+          </div>
+        </section>
+
+        <section className="block" id="check">
+          <h2>Noch unsicher, ob du starten willst?</h2>
+          <p className="prose">
+            Mach den kostenlosen 3-Minuten-Check. Du siehst, welche Themen
+            deine Dokumentation typischerweise abdecken sollte — und wo bei dir
+            noch Klärungsbedarf liegen kann. Kein Kaufzwang.
           </p>
-          <p className="prose framing">
-            Ein einmaliges PDF veraltet. Betriebsprüfung und GoBD sind kein
-            Einmal-Event — Pflege ist der eigentliche Schutz. Und du startest
-            online in unter einer Stunde, nicht erst nach Terminfindung.
+          <p className="prose">
+            Was rauskommt: kurze Einschätzung zu relevanten Themenfeldern und
+            ein Hinweis auf nächste Schritte (Muster ansehen oder Dokumentation
+            erstellen).
           </p>
-          <PaidCta
-            trust="14 Tage Geld-zurück-Garantie"
-            secondaryLabel="Erst kostenlosen Readiness-Check machen"
-          />
+          <Link className="btn ghost" href="/readiness">
+            {CTA_CHECK}
+          </Link>
         </section>
 
         <section className="block" id="faq">
           <h2>Häufige Fragen</h2>
           <div className="faq-item">
-            <h3>Muss das der Steuerberater machen?</h3>
-            <p className="prose">
-              Nein. Du erstellst die Verfahrensdokumentation selbst aus deinen
-              Angaben. Für die meisten Betriebe reicht diese Fassung. Eine
-              Abstimmung mit dem Steuerberater ist freiwillig und nur im Rahmen
-              eines gesonderten Auftrags — sie gehört nicht automatisch zur
-              Lieferung. Bei besonderen Verfahren kannst du die Fassung
-              anpassen.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Brauch ich eine Verfahrensdokumentation überhaupt?</h3>
+            <h3>Brauch ich eine Verfahrensdokumentation?</h3>
             <p className="prose">
               Die GoBD erwarten eine nachvollziehbare Verfahrensdokumentation.
-              Viele Betriebe schieben sie auf, weil Vorlagen leer bleiben oder
-              der Aufwand unklar ist. Ein geführter Entwurf schafft einen
-              greifbaren Stand, den du in der Regel selbst ablegen kannst.
+              Viele Betriebe schieben sie auf, weil Vorlagen leer bleiben. Ein
+              geführter Entwurf schafft einen greifbaren Stand.
             </p>
           </div>
           <div className="faq-item">
-            <h3>Reicht nicht ein einmaliges PDF?</h3>
+            <h3>Ist das fertig / reicht das für die Prüfung?</h3>
+            <p className="prose">
+              Nein — du erhältst PDF und offene Punkte aus deinen Angaben. Du
+              prüfst und ergänzt vor der Verwendung. Die fachliche Prüfung
+              bleibt bei dir bzw. deinem Steuerberater.
+            </p>
+          </div>
+          <div className="faq-item">
+            <h3>Reicht ein einmaliges PDF?</h3>
             <p className="prose">
               Für den Moment vielleicht — bis sich Software, Belegwege oder
-              Verantwortliche ändern. Genau dann fehlt die aktuelle Fassung. Das
-              Abo hält Versionen, Speicherung und Updates am Laufen, damit du
-              dich nicht erneut selbst darum kümmern musst.
+              Verantwortliche ändern. Das Abo hält Versionen und Updates
+              verfügbar.
             </p>
           </div>
           <div className="faq-item">
-            <h3>Ist das eine Beratung oder ein Online-Produkt?</h3>
-            <p className="prose">
-              Ein Online-Produkt. Du beantwortest kurze Fragen und erhältst PDF
-              plus Offene-Punkte-Liste — ohne Warteschleife auf einen
-              Beratungstermin. Wir leisten keine Steuerberatung. Die Lieferung
-              reicht in der Regel. Eine fachliche Abstimmung mit deinem
-              Steuerberater ist optional und nur, wenn du sie gesondert
-              beauftragst.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Warum Setup {SETUP_EUR} € und dann Abo?</h3>
-            <p className="prose">
-              Das Setup liefert die erste geführte Struktur (PDF + Offene
-              Punkte). Das Abo hält Fassungen, Speicherung und erneute Exporte
-              am Laufen, wenn sich Software oder Prozesse ändern. So bleibst du
-              nicht auf einem veralteten Einmal-PDF sitzen.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Haftet ihr — ist das rechtssicher / GoBD-konform?</h3>
-            <p className="prose">
-              Nein. Wir leisten keine Steuer- oder Rechtsberatung. Das PDF ist
-              die Fassung aus deinen Angaben und reicht in der Regel. Die
-              Verantwortung für die Dokumentation liegt bei dir. Eine Abstimmung
-              mit dem Steuerberater ist optional und nur im Rahmen eines
-              gesonderten Auftrags.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Ist das nur eine Vorlage zum Download?</h3>
-            <p className="prose">
-              Nein. Du beantwortest kurze Fragen zu deinem Betrieb und erhältst
-              ein individuelles PDF plus eine Offene-Punkte-Liste — keine
-              Blanko-Datei.
-            </p>
+            <h3>Ist das Steuerberatung?</h3>
+            <p className="prose">Nein. Wir leisten keine Steuerberatung.</p>
           </div>
         </section>
 
         <section className="block" id="abschluss">
-          <h2>Wenn der Prüfer fragt — hast du etwas vorzuzeigen?</h2>
-          <PaidCta
-            trust="14 Tage Geld-zurück · Keine Steuerberatung"
-            secondaryLabel="Readiness-Check (kostenlos)"
-          />
+          <h2>Bereit, deine Abläufe nachvollziehbar zu dokumentieren?</h2>
+          <div className="cta-stack">
+            <Link className="btn" href="/checkout">
+              {CTA_CREATE_WITH_PRICE}
+            </Link>
+            <Link className="btn ghost" href="#muster">
+              {CTA_MUSTER}
+            </Link>
+            <Link className="text-cta" href="/readiness">
+              {CTA_CHECK}
+            </Link>
+            <p className="trust-line">
+              <Link href={GELD_ZURUECK_HREF}>14 Tage Geld-zurück</Link>
+              {" · "}
+              Keine Steuerberatung
+            </p>
+          </div>
         </section>
       </main>
-      <div className="sticky-cta">
-        <Link className="btn" href={CTA_PRIMARY_HREF}>
-          {CTA_PRIMARY}
+      <div className="sticky-cta tall">
+        <Link className="btn" href="/checkout">
+          {CTA_CREATE}
         </Link>
-        <p className="trust-line">14 Tage Geld-zurück-Garantie</p>
+        <PriceLine />
       </div>
       <SiteFooter />
     </>
