@@ -32,6 +32,7 @@ export function SiteHeader({
   links = DEFAULT_LINKS,
 }: SiteHeaderProps) {
   return (
+    <>
     <header className="site-header">
       <Link className="logo" href="/">
         <Image
@@ -71,7 +72,8 @@ export function SiteHeader({
         )}
         <Link href="/account">Konto</Link>
       </nav>
-      {ctaNote ? <p className="header-price">{ctaNote}</p> : null}
     </header>
+    {ctaNote ? <p className="header-price">{ctaNote}</p> : null}
+    </>
   );
 }

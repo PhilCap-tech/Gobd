@@ -62,13 +62,15 @@ nav,
 }
 
 .header-price {
-  flex: 1 0 100%;
   margin: 0;
+  padding: 0 28px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
   text-align: right;
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 13px;
   font-weight: 650;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--accent);
 }
 
