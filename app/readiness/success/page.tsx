@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import { isMailConfigured } from "@/lib/env";
-import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
+import { CTA_CREATE_WITH_PRICE, DISCLAIMER_ONCE } from "@/lib/offer-copy";
 import { firstQueryValue } from "@/lib/query";
 import { canAccessReadinessLead, readinessDownloadPath } from "@/lib/readiness";
 import { readinessBrancheLabel } from "@/lib/readiness-options";
@@ -13,7 +13,7 @@ import { findReadinessLeadById } from "@/lib/store";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Readiness-PDF bereit",
+  title: "3-Minuten-Check",
   robots: { index: false, follow: false },
 };
 
@@ -49,11 +49,11 @@ export default async function ReadinessSuccessPage({
             <h1>PDF nicht gefunden</h1>
             <p className="prose">
               Der Download-Link ist ungültig oder abgelaufen. Starte den
-              Readiness-Check erneut oder öffne den Link aus der E-Mail.
+              3-Minuten-Check erneut oder öffne den Link aus der E-Mail.
             </p>
             <div className="actions" style={{ marginTop: 16 }}>
               <Link className="btn" href="/readiness">
-                Readiness-Check starten
+                3-Minuten-Check starten
               </Link>
               <Link className="btn ghost" href="/login">
                 Anmelden
@@ -65,16 +65,14 @@ export default async function ReadinessSuccessPage({
             <p className="kicker">GoBD-Grundlagen · {brancheLabel}</p>
             <h1>Dein PDF ist bereit{lead.name ? `, ${lead.name}` : ""}</h1>
             <p className="lead">
-              Branchenbezogene Arbeitshilfe für{" "}
-              {lead.company || "dein Unternehmen"} — keine fertige
-              Verfahrensdokumentation.
+              Kurze Einschätzung zu relevanten Themenfeldern für{" "}
+              {lead.company || "dein Unternehmen"}. Nächste Schritte: Muster
+              ansehen oder Dokumentation erstellen.
             </p>
             <div className="card">
               <p className="prose">
-                Inhalt aus dem Modul {brancheLabel}: Grundlagen, Checkliste,
-                nächste Schritte. Zur Orientierung. Eine Abstimmung mit dem
-                Steuerberater ist optional und nur im Rahmen eines gesonderten
-                Auftrags.
+                Inhalt aus dem Modul {brancheLabel}: Themenfelder und nächste
+                Schritte. Zur Orientierung.
               </p>
               {mailReady ? (
                 <p className="hint">
@@ -96,20 +94,17 @@ export default async function ReadinessSuccessPage({
                   </a>
                 )}
                 <Link className="btn" href="/checkout">
-                  {`Verfahrensdokumentation führen lassen — ${SETUP_EUR} € + ${MONTHLY_EUR} €/Mo`}
+                  {CTA_CREATE_WITH_PRICE}
                 </Link>
               </div>
               <p className="hint" style={{ marginTop: 14 }}>
-                Nächster Schritt nach dem Checkout: kurzes Intake, dann PDF-Entwurf
-                plus offene Punkte. Keine Kreditkarte im Readiness-Check.
+                Nächster Schritt: Dokumentation erstellen, dann PDF und Liste
+                offener Punkte aus deinen Angaben. Im 3-Minuten-Check selbst
+                wird nichts berechnet.
               </p>
               <p className="disclaimer" role="note">
-                Kein Steuerberatungsersatz. Dieses PDF ist eine allgemeine
-                Arbeitshilfe der IKAT GmbH / gobd-doku-erstellen.de. Es enthält
-                keine Zusicherung von GoBD-Konformität oder Prüfungssicherheit
-                und keine individuelle Steuer- oder Rechtsberatung. Eine
-                Abstimmung mit dem Steuerberater ist optional und nur im
-                Rahmen eines gesonderten Auftrags.
+                {DISCLAIMER_ONCE} Dieses PDF ist eine kurze Einschätzung, keine
+                Verfahrensdokumentation aus deinen Abläufen.
               </p>
             </div>
           </section>

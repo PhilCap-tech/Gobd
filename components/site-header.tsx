@@ -7,15 +7,17 @@ type HeaderLink = {
 };
 
 const DEFAULT_LINKS: HeaderLink[] = [
-  { href: "#problem", label: "Problem" },
-  { href: "#outcome", label: "Ergebnis" },
+  { href: "#muster", label: "Muster" },
+  { href: "#ablauf", label: "Ablauf" },
   { href: "#preise", label: "Preise" },
-  { href: "/readiness", label: "Readiness" },
+  { href: "/readiness", label: "3-Minuten-Check" },
 ];
 
 type SiteHeaderProps = {
   ctaHref?: string;
   ctaLabel?: string;
+  /** Full price line for the header primary. Renders on its own row so it is not clipped. */
+  ctaNote?: string;
   backHref?: string;
   backLabel?: string;
   links?: HeaderLink[];
@@ -23,7 +25,8 @@ type SiteHeaderProps = {
 
 export function SiteHeader({
   ctaHref = "/checkout",
-  ctaLabel = "Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo",
+  ctaLabel = "Dokumentation erstellen",
+  ctaNote,
   backHref,
   backLabel,
   links = DEFAULT_LINKS,
@@ -68,6 +71,7 @@ export function SiteHeader({
         )}
         <Link href="/account">Konto</Link>
       </nav>
+      {ctaNote ? <p className="header-price">{ctaNote}</p> : null}
     </header>
   );
 }
