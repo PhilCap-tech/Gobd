@@ -49,7 +49,7 @@
           "prompt": "Welche Belegarten und Gesellschaften umfasst diese Fassung ausdrücklich — und was ist ausgeschlossen?",
           "fields": [
             {"key": "belegartenScope", "type": "multi", "label": "Im Scope", "options": ["Eingangsrechnungen", "Ausgangsrechnungen", "sonstige Buchungsbelege", "Verträge/Leistungsnachweise", "Zahlungsnachweise"]},
-            {"key": "ausgeschlossen", "type": "multi", "label": "Ausgeschlossen", "options": ["Kasse", "Warenwirtschaft", "Lohn", "Shop", "Lager", "Sonstiges"]},
+            {"key": "ausgeschlossen", "type": "multi", "label": "Ausgeschlossen", "options": ["Kasse", "Warenwirtschaft", "Lohn", "Shop", "Lager", "Sonstiges"], "required": false},
             {"key": "ausgeschlossenSonstiges", "type": "text", "label": "Sonstiges ausgeschlossen", "required": false}
           ],
           "statusRequired": true,

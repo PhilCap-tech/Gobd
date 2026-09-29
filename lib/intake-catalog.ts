@@ -1,4 +1,14 @@
 import catalogFile from "@/content/intake-catalog/INTAKE-CATALOG-MVP-v1.json";
+import {
+  activityGaps,
+  describedActivityLines,
+  fieldLabel,
+  optionLabel,
+  projectedBranchen,
+  projectedRechtsform,
+  RECHTSFORM_FREITEXT,
+  TAETIGKEIT_FREITEXT,
+} from "@/lib/intake-present";
 import type { IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 
@@ -227,7 +237,7 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   I04: {
     priority: "hoch",
-    text: "Die betriebliche Bestätigung (Name und Datum) liegt nicht vor. Die Generierung setzt sie nicht.",
+    text: "Die betriebliche Bestätigung (Name und Datum) liegt nicht vor. Sie wird nicht automatisch eingetragen.",
     chapter: "00-cover-freigabe",
   },
   I05: {
@@ -316,6 +326,27 @@ export function visibleCatalogQuestions(stepIndex: number, answers: IntakeAnswer
   return step.questions.filter((question) => catalogQuestionApplies(question, answers));
 }
 
+export function nextApplicableStep(from: number, answers: IntakeAnswers): number {
+  for (let index = from + 1; index < CATALOG_STEPS.length; index += 1) {
+    if (catalogStepApplies(CATALOG_STEPS[index], answers)) return index;
+  }
+  return CATALOG_STEPS.length;
+}
+
+export function previousApplicableStep(from: number, answers: IntakeAnswers): number {
+  for (let index = from - 1; index >= 0; index -= 1) {
+    if (catalogStepApplies(CATALOG_STEPS[index], answers)) return index;
+  }
+  return 0;
+}
+
+/** True when forward navigation jumped over the paper/scan step because it does not apply. */
+export function paperStepSkipped(from: number, to: number, answers: IntakeAnswers): boolean {
+  const paper = CATALOG_STEPS.findIndex((step) => step.id === "step-D");
+  if (paper < 0 || !(from < paper && to > paper)) return false;
+  return !catalogStepApplies(CATALOG_STEPS[paper], answers);
+}
+
 function filled(value: unknown): boolean {
   if (typeof value === "boolean") return value;
   if (Array.isArray(value)) return value.length > 0 && value.some((item) => filled(item));
@@ -323,6 +354,31 @@ function filled(value: unknown): boolean {
     return Object.values(value as Record<string, unknown>).some((item) => filled(item));
   }
   return Boolean(asText(value));
+}
+
+function extraStepError(id: string, entry: CatalogQuestionState): string {
+  const values = entry.values ?? {};
+  if (id === "A01" && (entry.status === "bestaetigt" || entry.status === "geplant")) {
+    if (asText(values.rechtsform) === RECHTSFORM_FREITEXT && !asText(values.rechtsformFreitext)) {
+      return "Bitte die Rechtsform kurz benennen.";
+    }
+    if (asList(values.branchen).includes(TAETIGKEIT_FREITEXT) && !asText(values.branchenFreitext)) {
+      return "Bitte die sonstige Tätigkeit kurz benennen.";
+    }
+  }
+  if (id === "A02" && entry.status && entry.status !== "nicht_zutreffend") {
+    const excluded = asList(values.ausgeschlossen);
+    const shopOut = excluded.includes("Shop");
+    const anyOut = excluded.length > 0 || Boolean(asText(values.ausgeschlossenSonstiges));
+    const where = asText(values.ausgeschlossenWo);
+    if (shopOut && !where) {
+      return "Bitte angeben, wo der Shop dokumentiert ist. Ausgeschlossen heißt nicht, dass der Vorgang undokumentiert bleibt.";
+    }
+    if (anyOut && !where && (entry.status === "bestaetigt" || entry.status === "geplant")) {
+      return "Bitte angeben, wo die ausgenommenen Vorgänge dokumentiert sind.";
+    }
+  }
+  return "";
 }
 
 function fieldIsRequired(field: CatalogField): boolean {
@@ -358,17 +414,19 @@ export function catalogStepError(stepIndex: number, answers: IntakeAnswers): str
   const state = catalogState(answers);
   for (const question of visibleCatalogQuestions(stepIndex, answers)) {
     const entry = state[question.id];
-    if (!entry?.status) return `Bitte den Status für ${question.id} wählen.`;
+    if (!entry?.status) return `Bitte den Stand wählen: ${question.prompt}`;
     if (entry.status === "nicht_zutreffend" && !asText(entry.reason)) {
-      return `Bitte bei ${question.id} kurz den Grund für „nicht zutreffend“ nennen.`;
+      return `Bitte kurz den Grund nennen, warum das entfällt: ${question.prompt}`;
     }
     if (entry.status === "bestaetigt" || entry.status === "geplant") {
       for (const field of question.fields) {
         if (!fieldReady(field, entry.values?.[field.key])) {
-          return `Bitte die Angabe zu ${question.id} ausfüllen. Geplant ist kein Ist-Prozess.`;
+          return `Bitte die Angabe ausfüllen: ${question.prompt}`;
         }
       }
     }
+    const extra = extraStepError(question.id, entry);
+    if (extra) return extra;
   }
   return "";
 }
@@ -444,8 +502,8 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
   const next = emptyAnswers();
   if (live(state, "A01")) {
     const values = valuesOf(state, "A01");
-    next.branchen = asList(values.branchen);
-    next.rechtsform = asText(values.rechtsform);
+    next.branchen = projectedBranchen(values);
+    next.rechtsform = projectedRechtsform(values);
     next.mitarbeitende = asText(values.mitarbeitende);
     next.gf = asText(values.gf);
     next.standort = asText(values.standort);
@@ -454,11 +512,16 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     const values = valuesOf(state, "A02");
     const scope = asList(values.belegartenScope);
     const excluded = [...asList(values.ausgeschlossen), asText(values.ausgeschlossenSonstiges)].filter(Boolean);
+    const where = asText(values.ausgeschlossenWo);
     next.geltungBelegarten = scope.join(", ");
-    next.geltungAusschluss = excluded.join(", ");
+    next.geltungAusschluss = excluded.length
+      ? `${excluded.join(", ")}${where ? ` (dokumentiert in: ${where})` : ""}`
+      : "";
     next.geltung = [
       scope.length ? `Belegarten: ${scope.join(", ")}` : "",
-      excluded.length ? `Ausschlüsse: ${excluded.join(", ")}` : "",
+      excluded.length
+        ? `Ausschlüsse: ${excluded.join(", ")}${where ? ` (dokumentiert in: ${where})` : ""}`
+        : "",
     ]
       .filter(Boolean)
       .join(". ");
@@ -477,6 +540,13 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     next.vorsysteme = ja.length ? ja.join(", ") : allNein ? "Keine weiteren" : "";
     const hint = asText(values.hinweis);
     if (hint && next.vorsysteme) next.vorsysteme = `${next.vorsysteme}. ${hint}`;
+  }
+  if (live(state, "A01")) {
+    const lines = describedActivityLines(valuesOf(state, "A01"));
+    if (lines.length) {
+      const base = next.vorsysteme === "Keine weiteren" ? "" : next.vorsysteme;
+      next.vorsysteme = [base, ...lines].filter(Boolean).join(". ");
+    }
   }
   if (live(state, "A04") && valuesOf(state, "A04").keineRueckdatierungBestaetigt === true) {
     next.seitWann = asText(valuesOf(state, "A04").gueltigAb);
@@ -709,6 +779,21 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
       if (question.id === "F05" && status === "bestaetigt" && asText(valuesOf(state, "F05").nachweisVorhanden) !== "ja") {
         points.push(pointFor("F05"));
       }
+      if (
+        question.id === "A01" &&
+        status &&
+        status !== "nicht_zutreffend"
+      ) {
+        for (const gap of activityGaps(valuesOf(state, "A01"))) {
+          points.push({
+            id: gap.id,
+            priority: "hoch",
+            text: gap.text,
+            chapter: "03-systeme-datenfluss",
+            suppress: [],
+          });
+        }
+      }
       if (question.id === "G02" && status === "bestaetigt" && asText(valuesOf(state, "G02").berechtigungslisteVorhanden) !== "ja") {
         points.push({
           id: "op-berechtigungsliste",
@@ -843,6 +928,28 @@ export function beispielGmbHKatalog(answers: IntakeAnswers, company: string): Ca
   };
 }
 
+function displayFieldValue(fieldKey: string, value: unknown): string {
+  if (Array.isArray(value)) {
+    if (value.every((item) => item && typeof item === "object")) {
+      return value
+        .map((item) =>
+          Object.values(item as Record<string, unknown>)
+            .map((part) => optionLabel(fieldKey, asText(part)))
+            .filter(Boolean)
+            .join(" "),
+        )
+        .filter(Boolean)
+        .join("; ");
+    }
+    return value
+      .map((item) => optionLabel(fieldKey, asText(item)))
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (typeof value === "boolean") return value ? "ja" : "";
+  return optionLabel(fieldKey, asText(value));
+}
+
 export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> {
   const state = catalogState(answers);
   const rows: Array<[string, string]> = [];
@@ -852,25 +959,25 @@ export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> 
       const entry = state[question.id];
       const status = entry?.status ? STATUS_LABEL[entry.status] : "offen";
       const bits = question.fields.map((field) => {
-        const value = entry?.values?.[field.key];
-        if (Array.isArray(value)) {
-          if (value.every((item) => item && typeof item === "object")) {
-            return value
-              .map((item) =>
-                Object.values(item as Record<string, unknown>)
-                  .map((part) => asText(part))
-                  .filter(Boolean)
-                  .join(" "),
-              )
-              .filter(Boolean)
-              .join("; ");
-          }
-          return value.map((item) => asText(item)).filter(Boolean).join(", ");
+        const shown = displayFieldValue(field.key, entry?.values?.[field.key]);
+        if (!shown) return "";
+        if (field.type === "enum" || field.key === "kasse" || field.key === "shop") {
+          return `${fieldLabel(question.id, field.key, field.label)}: ${shown}`;
         }
-        if (typeof value === "boolean") return value ? "ja" : "";
-        return asText(value);
+        return shown;
       });
-      rows.push([`${question.id} ${status}`, bits.filter(Boolean).join(" · ") || "—"]);
+      if (question.id === "A01") {
+        const detail = asText(entry?.values?.rechtsformFreitext);
+        const extraActivity = asText(entry?.values?.branchenFreitext);
+        if (detail) bits.push(detail);
+        if (extraActivity) bits.push(extraActivity);
+        bits.push(...describedActivityLines(entry?.values ?? {}));
+      }
+      if (question.id === "A02") {
+        const where = asText(entry?.values?.ausgeschlossenWo);
+        if (where) bits.push(`dokumentiert in: ${where}`);
+      }
+      rows.push([question.prompt, [status, ...bits.filter(Boolean)].join(" · ")]);
     }
   }
   return rows;

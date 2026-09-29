@@ -10,7 +10,12 @@ import {
 } from "@/components/version-change-fields";
 import type { EntityChoice } from "@/lib/entities";
 import { intakeSummary } from "@/lib/frage-intake";
-import { withCatalogDraft } from "@/lib/intake-catalog";
+import {
+  nextApplicableStep,
+  paperStepSkipped,
+  previousApplicableStep,
+  withCatalogDraft,
+} from "@/lib/intake-catalog";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
@@ -40,6 +45,7 @@ export function IntakeForm({
     withCatalogDraft(initialAnswers ?? emptyAnswers(), session.company),
   );
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
   const [change, setChange] = useState<VersionChangeDraft>({
     validFrom: berlinTodayIso(),
@@ -159,6 +165,8 @@ export function IntakeForm({
         </p>
       )}
 
+      {notice ? <p className="banner ok">{notice}</p> : null}
+
       {session.email && step === 0 && (
         <p className="hint">
           Session: {session.company || "—"} · {session.email}
@@ -221,7 +229,8 @@ export function IntakeForm({
               className="btn ghost"
               onClick={() => {
                 setError("");
-                setStep((s) => Math.max(0, s - 1));
+                setNotice("");
+                setStep((s) => previousApplicableStep(s, answers));
               }}
             >
               Zurück
@@ -233,7 +242,13 @@ export function IntakeForm({
               className="btn"
               onClick={() => {
                 if (!validate(step)) return;
-                setStep((s) => s + 1);
+                const target = nextApplicableStep(step, answers);
+                setNotice(
+                  paperStepSkipped(step, target, answers)
+                    ? "Kein Papierweg — Scan-Fragen übersprungen."
+                    : "",
+                );
+                setStep(target);
               }}
             >
               {step === INTAKE_STEPS.length - 1 ? "Zur Übersicht" : "Weiter"}

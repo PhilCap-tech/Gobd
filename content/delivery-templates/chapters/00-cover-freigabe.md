@@ -17,7 +17,7 @@ Dieses Dokument beschreibt den Belegweg auf Grundlage der im Intake bestätigten
 | Buchhaltung | {{answers.buchhaltung | or "zu bestätigen"}} |
 | Externe Kanzlei | {{answers.steuerberater | or "zu bestätigen (soweit beteiligt)"}} |
 | Geltungsbereich | Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung im beschriebenen Umfang |
-| Ausgeschlossen | Kasse, Warenwirtschaft, Lohnabrechnung und branchenspezifische Fachverfahren, soweit im Intake nicht ausdrücklich einbezogen |
+| Ausgeschlossen | {{answers.geltungAusschluss | or "nichts ausdrücklich ausgenommen; nicht beschriebene Abläufe gelten nicht als vorhanden"}} |
 | Status | Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend |
 
 ## Freigabevermerk

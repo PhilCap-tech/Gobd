@@ -15,7 +15,11 @@ Bestätigter Umfang: {{answers.geltung}}.
 Einbezogene Vorsysteme: {{answers.vorsysteme}}.
 {{/if}}
 
-Nicht erfasst sind Bargeldkassen, Warenwirtschaft, Lohnabrechnung und andere Fachverfahren, soweit sie im Intake nicht ausdrücklich einbezogen sind. Sollte künftig eines dieser Verfahren eingeführt werden, ist der Geltungsbereich vor produktiver Nutzung zu erweitern.
+{{#if answers.geltungAusschluss}}
+Gesondert dokumentiert und hier nicht beschrieben: {{answers.geltungAusschluss}}.
+{{/if}}
+
+Beschrieben werden nur Abläufe, die im Intake ausdrücklich genannt sind. Eine Tätigkeit allein (zum Beispiel Gastronomie oder Onlinehandel) begründet keinen Prozess und kein System.
 
 ## 1.3 Verantwortung
 

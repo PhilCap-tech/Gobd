@@ -108,6 +108,7 @@
           "key": "ausgeschlossen",
           "type": "multi",
           "label": "Ausgeschlossen",
+          "required": false,
           "options": [
             "Kasse",
             "Warenwirtschaft",
