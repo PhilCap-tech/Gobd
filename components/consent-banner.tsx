@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   getBannerOpen,
   openConsentBanner,
@@ -18,6 +19,8 @@ function useClientReady() {
 }
 
 export function ConsentBanner() {
+  const pathname = usePathname() || "";
+  const partner = pathname.startsWith("/steuerberater");
   const ready = useClientReady();
   const open = useSyncExternalStore(
     subscribeBanner,
@@ -44,10 +47,21 @@ export function ConsentBanner() {
         <div>
           <h2 id="consent-title">Cookies</h2>
           <p id="consent-text">
-            Essenzielle Cookies brauchen wir für den Betrieb (z. B. Login und
-            Stripe-Checkout). Optionales Marketing (Google-Tag, Meta Pixel)
-            läuft nur, wenn du zustimmst. Ohne Zustimmung laden wir diese Tags
-            nicht.
+            {partner ? (
+              <>
+                Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel
+                die Anmeldung). Optionales Marketing (Google-Tag, Meta Pixel)
+                läuft nur, wenn Sie zustimmen. Ohne Zustimmung laden wir diese
+                Tags nicht.
+              </>
+            ) : (
+              <>
+                Essenzielle Cookies brauchen wir für den Betrieb (z. B. Login und
+                Stripe-Checkout). Optionales Marketing (Google-Tag, Meta Pixel)
+                läuft nur, wenn du zustimmst. Ohne Zustimmung laden wir diese Tags
+                nicht.
+              </>
+            )}
             {" "}
             <Link href="/cookies">Cookie-Hinweis</Link>
           </p>

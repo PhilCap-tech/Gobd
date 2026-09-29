@@ -16,21 +16,12 @@ import {
   PARTNER_MUSTER_PATH,
   PARTNER_MUSTER_PDF_PATH,
 } from "@/lib/partner-muster";
-import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
-import {
-  PROMO_CODE,
-  PROMO_MAX_REDEMPTIONS,
-  PROMO_MONTHS,
-  PilotKlartextSentence,
-} from "@/components/pilot-klartext";
-
-const PILOT_HREF =
-  "/checkout?utm_source=partner&utm_medium=landing&utm_campaign=steuerberater";
+import { PartnerInquiryForm } from "./partner-inquiry-form";
 
 const PAGE_TITLE =
   "Für Steuerberater: Fragen und Muster ansehen, bevor Sie empfehlen | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "Mandanten erfassen ihre Abläufe geführt. Entwurf, Offene Punkte und Versionen. Fragen und ein Musterergebnis ansehen, bevor Sie etwas empfehlen. Keine Steuerberatung.";
+  "Mandanten erfassen ihre Abläufe geführt. Entwurf, Offene Punkte und Versionen. Fragen und ein Musterergebnis ansehen. Für Kanzleien ohne Zahlung auf dieser Seite. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -66,6 +57,9 @@ function HeroProofButtons() {
       <a className="btn" href="#muster">
         Muster-Dokumentation ansehen
       </a>
+      <a className="btn ghost" href="#anfrage">
+        VD für mehrere Mandanten
+      </a>
     </div>
   );
 }
@@ -74,13 +68,13 @@ export default function SteuerberaterPage() {
   return (
     <>
       <SiteHeader
-        ctaHref="#fragen-demo"
-        ctaLabel="Fragenprozess testen"
+        ctaHref="#anfrage"
+        ctaLabel="Anfrage senden"
         links={[
           { href: "#fragen-demo", label: "Fragen" },
           { href: "#muster", label: "Muster" },
-          { href: "#daten", label: "Daten" },
-          { href: "#faq", label: "FAQ" },
+          { href: "#prozess", label: "Ablauf" },
+          { href: "#anfrage", label: "Anfrage" },
         ]}
       />
       <main className="wrap partner-copy">
@@ -94,26 +88,32 @@ export default function SteuerberaterPage() {
           <p className="lead">
             Mit gobd-doku-erstellen.de erfassen Mandanten ihre Abläufe geführt.
             Herauskommen Entwurf, Offene Punkte und Versionen. Sehen Sie Fragen
-            und ein Musterergebnis an, bevor Sie etwas empfehlen.
+            und ein Musterergebnis an, bevor Sie etwas empfehlen. Für die
+            Kanzlei ist diese Seite ohne Zahlung: es gibt hier keinen
+            Bestellweg.
           </p>
           <HeroProofButtons />
           <p className="trust-line">
             Keine Steuerberatung · Sie füllen nicht für Mandanten aus · Muster
-            aus dem Generator
+            und Demo sind Beispiele und speichern keine Eingaben
           </p>
         </section>
 
         <section className="block" id="rolle">
-          <h2>Ihre Rolle im Partner-Pilot</h2>
+          <h2>Ihre Rolle</h2>
           <p className="prose">
-            Sie testen mit Parametern, bewerten Fragen und Muster-Ergebnis —
-            und leiten bei Überzeugung an Mandanten weiter.
+            Sie prüfen Fragen und Muster — und leiten bei Überzeugung an
+            Mandanten weiter.
           </p>
           <p className="prose">
             <strong>
               Sie füllen die Dokumentation nicht für das Unternehmen aus.
             </strong>{" "}
             Der Mandant liefert die Betriebsdaten.
+          </p>
+          <p className="prose">
+            Diese Seite nimmt keine Zahlung entgegen und führt nicht in eine
+            Bestellung.
           </p>
         </section>
 
@@ -127,9 +127,9 @@ export default function SteuerberaterPage() {
             sind dort keine eigenen Fragen.
           </p>
           <p className="prose">
-            Im Pilot spielen Sie die Parameter selbst durch. Beim Mandanten
+            In der Demo spielen Sie die Parameter selbst durch. Beim Mandanten
             antwortet der Mandant — nicht die Kanzlei stellvertretend. Die Demo
-            speichert keine Eingaben.
+            ist ein Beispiel und speichert keine Eingaben.
           </p>
           <div className="actions">
             <Link className="btn" href={PARTNER_DEMO_PATH}>
@@ -139,12 +139,12 @@ export default function SteuerberaterPage() {
         </section>
 
         <section className="block" id="muster">
-          <h2>Muster aus dem Generator</h2>
+          <h2>Herleitung der Verfahrensdokumentation</h2>
           <p className="prose">
-            Das ist der Beleg auf dieser Seite: die Kapitel und die offenen
-            Punkte, die der Generator aus festen Beispieldaten erzeugt. Dieselbe
-            Quelle wie das Muster-PDF. Keine zweite Gliederung und keine
-            Beispielzeilen daneben.
+            Das Muster zeigt, wie der Generator aus festen Beispieldaten die
+            Kapitel und die offenen Punkte ableitet. Dieselbe Quelle wie das
+            Muster-PDF. Keine zweite Gliederung und keine Beispielzeilen
+            daneben. Das Muster ist ein Beispiel und speichert keine Eingaben.
           </p>
           <p className="hint">
             Beispiel GmbH (fiktiv) · DATEV · Eingang E-Mail und PDF · Ausgang
@@ -162,11 +162,10 @@ export default function SteuerberaterPage() {
           <p className="prose">
             Diese Liste erzeugt der Regelsatz aus leeren oder unbestätigten
             Angaben und aus Schritten, die der Fragebogen nicht abfragt.
-            Dieselbe Tabelle
-            steht im PDF (Kapitel Offene Punkte), mit Priorität hoch, mittel
-            oder niedrig und Zieltermin „nicht festgelegt“. Das
-            Muster zeigt Transparenz bei Lücken, nicht „fertig für jeden
-            Betrieb“.
+            Dieselbe Tabelle steht im PDF (Kapitel Offene Punkte), mit
+            Priorität hoch, mittel oder niedrig und Zieltermin „nicht
+            festgelegt“. Das Muster zeigt Transparenz bei Lücken, nicht „fertig
+            für jeden Betrieb“.
           </p>
           <div className="legal legal-table-wrap">
             <table>
@@ -204,11 +203,12 @@ export default function SteuerberaterPage() {
           <h2>Von den Fragen zum gepflegten Stand</h2>
           <ol className="prose-list">
             <li>
-              <strong>Fragen / Parameter</strong> — Sie im Test, später der
+              <strong>Fragen / Parameter</strong> — Sie in der Demo, später der
               Mandant.
             </li>
             <li>
-              <strong>Ergebnis</strong> — PDF-Entwurf + Offene-Punkte-Liste.
+              <strong>Ergebnis</strong> — PDF-Entwurf und Offene-Punkte-Liste,
+              abgeleitet aus den Angaben.
             </li>
             <li>
               <strong>Versionierung</strong> — neue Fassung bei Änderungen;
@@ -229,7 +229,7 @@ export default function SteuerberaterPage() {
               </thead>
               <tbody>
                 <tr>
-                  <td>Fragen-Demo und Muster zum eigenen Test</td>
+                  <td>Fragen-Demo und Muster zum eigenen Prüfen</td>
                   <td>Prüfungsangst als Verkauf</td>
                 </tr>
                 <tr>
@@ -294,56 +294,47 @@ export default function SteuerberaterPage() {
         <section className="block" id="versionierung">
           <h2>Versionierung</h2>
           <p className="prose">
-            Ein Einmal-PDF veraltet, wenn Software oder Prozesse wechseln.
-            Setup: erste Fassung. Abo: Fassungen halten und erneut exportieren.
-            Das Muster-PDF folgt der Gliederung des detaillierten Beispiels.
-            Präsens steht nur bei bestätigten Angaben. Die Erzeugung ist keine
-            Freigabe durch die Geschäftsführung. Gültig-ab setzt der Mandant
-            nach dem Kauf. Weitere Fassungen legt er dort an — nicht in dieser
-            Vorschau.
+            Ein einzelnes PDF veraltet, wenn Software oder Prozesse wechseln.
+            Im Produkt legt der Mandant eine neue Fassung an: Gültig-ab,
+            optional Gültig-bis, ein Kurztext zur Änderung und wer sie
+            eingetragen hat. Bisherige Fassungen bleiben erhalten. Das
+            Muster-PDF ist ein Beispiel aus festen Daten, keine gespeicherte
+            Mandantenfassung. Präsens steht nur bei bestätigten Angaben. Die
+            Erzeugung ist keine Freigabe durch die Geschäftsführung. Gültig-ab
+            setzt der Mandant im Produkt, nicht in dieser Vorschau.
           </p>
         </section>
 
         <section className="block" id="daten">
-          <h2>Daten und Konditionen</h2>
+          <h2>Daten</h2>
           <ul className="prose-list">
             <li>
-              <strong>Datenfluss.</strong> Die Website läuft bei Vercel. Die
-              Zahlung läuft über Stripe. Angaben aus dem Intake und die erzeugte
-              Verfahrensdokumentation speichern wir zur Abwicklung der
-              Bestellung; der Mandant erreicht das PDF in seinem Konto.
-              Transaktionsmails zur Bestellung (Zugang, Lieferung) gehen an die
-              E-Mail der Bestellung. Die{" "}
-              <Link href="/datenschutz">Datenschutzerklärung</Link> benennt als
-              Empfänger heute Vercel und Stripe. Weitere Dienstleister sind
-              dort nicht genannt. Eine ausführlichere Beschreibung der
-              Verarbeitung ist Zukunft und auf dieser Seite nicht verfügbar.
+              <strong>Datenfluss.</strong> Die Website läuft bei Vercel. Muster
+              und Demo auf dieser Seite speichern keine Eingaben. Die Anfrage
+              „VD für mehrere Mandanten“ übermittelt nur die Formularfelder per
+              E-Mail an{" "}
+              <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
+              . Die <Link href="/datenschutz">Datenschutzerklärung</Link> benennt
+              die heutigen Empfänger. Weitere Dienstleister sind dort nicht
+              genannt. Eine ausführlichere Beschreibung der Verarbeitung ist
+              Zukunft und auf dieser Seite nicht verfügbar.
             </li>
             <li>
-              <strong>Zugriff.</strong> Der Mandant erreicht das Dokument über
-              sein Konto (Magic-Link an die E-Mail der Bestellung). Sie sehen
-              Mandantendaten nicht automatisch — nur wenn der Mandant sie teilt.
-              Ein Rollenmodell für Kanzleimitarbeiter ist nicht eingebaut.
+              <strong>Zugriff.</strong> Sie sehen Mandantendaten nicht
+              automatisch — nur wenn der Mandant sie teilt. Ein Rollenmodell für
+              Kanzleimitarbeiter ist nicht eingebaut.
             </li>
             <li>
-              <strong>Kündigung.</strong> Im Stripe-Kundenportal („Abo
-              verwalten“ im Konto). Die{" "}
-              <Link href="/agb">AGB</Link> nennen die außerordentliche Kündigung
-              aus wichtigem Grund. Eine konkrete Frist für das Monatsabo steht
-              dort nicht.
-            </li>
-            <li>
-              <strong>Export.</strong> PDF-Download im Konto. Keine
-              Selbstbedienung für die Auskunft über alle personenbezogenen
-              Daten — Rechte per E-Mail an{" "}
+              <strong>Auskunft.</strong> Keine Selbstbedienung für die Auskunft
+              über alle personenbezogenen Daten — Rechte per E-Mail an{" "}
               <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
               .
             </li>
             <li>
-              <strong>Änderungsprotokoll.</strong> Jede neue Fassung speichert
-              Gültig-ab, optionales Gültig-bis, einen Kurztext zur Änderung und
-              wer sie eingetragen hat. Ein Feld-für-Feld-Vergleich wird nicht
-              geführt.
+              <strong>Änderungsprotokoll.</strong> Jede neue Fassung im Produkt
+              speichert Gültig-ab, optionales Gültig-bis, einen Kurztext zur
+              Änderung und wer sie eingetragen hat. Ein Feld-für-Feld-Vergleich
+              wird nicht geführt. Diese Vorschau speichert keine Fassung.
             </li>
             <li>
               <strong>AVV.</strong> Ein ausführlicher
@@ -356,121 +347,20 @@ export default function SteuerberaterPage() {
               .
             </li>
             <li>
-              <strong>Kosten im ersten Jahr ohne Code:</strong> {SETUP_EUR} €
-              Setup plus {MONTHLY_EUR} € pro Monat (
-              <Link href="/#preise">Produktseite</Link>).{" "}
-              <PilotKlartextSentence /> Ohne Code bleibt das Setup{" "}
-              {SETUP_EUR}&nbsp;€ einmalig. Mit dem Code ist die Setup-Zeile
-              0&nbsp;€ und wird danach nicht nachberechnet. Keine Kanzlei-Pakete
-              auf dieser Seite.
+              <strong>Zahlung.</strong> Für Steuerberater entsteht auf dieser
+              Seite keine Zahlung. Es gibt keinen Bestellweg.
             </li>
           </ul>
         </section>
 
-        <section className="block" id="pilot">
-          <h2>Wenn Fragen und Muster überzeugen</h2>
-          <ol className="prose-list">
-            <li>
-              <strong>Partner-Pilot starten</strong>
-            </li>
-            <li>
-              <strong>Parameter durchspielen</strong> — Rechtsform und die
-              Fragen selbst.
-            </li>
-            <li>
-              <strong>Bewerten</strong> — Fragenablauf und Muster.
-            </li>
-            <li>
-              <strong>Weiterleiten</strong> — bei Überzeugung an Mandanten. Der
-              Mandant arbeitet selbst weiter.
-            </li>
-          </ol>
-          <div className="value-note">
-            <p className="prose">
-              <PilotKlartextSentence />
-            </p>
-          </div>
-          <h3>100&nbsp;% für {PROMO_MONTHS}&nbsp;Monate</h3>
-          <ul className="prose-list">
-            <li>
-              Setup und Abo zum vollen Nachlass (100&nbsp;%) für{" "}
-              {PROMO_MONTHS}&nbsp;Abrechnungsmonate ab Einlösung — nicht nur für
-              eine einzelne Rechnung.
-            </li>
-            <li>
-              Den Code lösen Sie im Checkout ein. Höchstens{" "}
-              {PROMO_MAX_REDEMPTIONS}&nbsp;Einlösungen insgesamt.
-            </li>
-          </ul>
-          <h3>Zahlungsmethode</h3>
-          <ul className="prose-list">
-            <li>
-              Der Checkout lässt Aktionscodes zu. Eine Zahlungsmethode wird nur
-              verlangt, wenn ein Betrag fällig ist — nicht in jedem Fall.
-            </li>
-            <li>
-              Liegt der fällige Betrag durch den 100-%-Nachlass bei 0&nbsp;€,
-              erfasst Stripe in diesem Schritt keine Karte.
-            </li>
-            <li>
-              Nach den {PROMO_MONTHS}&nbsp;Monaten läuft das Abo mit{" "}
-              {MONTHLY_EUR}&nbsp;€/Monat weiter, wenn Sie nicht kündigen.
-              Dafür brauchen Sie eine Zahlungsmethode, sonst kann die Rechnung
-              nicht eingezogen werden. Hinterlegen im Kundenportal („Abo
-              verwalten“).
-            </li>
-            <li>
-              Konto und Fragen laufen danach wie im normalen Ablauf.
-            </li>
-          </ul>
-          <h3>
-            Danach: {MONTHLY_EUR}&nbsp;€/Monat, keine Gratis-Verlängerung
-          </h3>
-          <ul className="prose-list">
-            <li>
-              Nach {PROMO_MONTHS}&nbsp;Monaten endet der Nachlass. Keine
-              automatische kostenlose Verlängerung. Der Checkout beendet das
-              Abo nicht von selbst: es läuft mit {MONTHLY_EUR}&nbsp;€/Monat
-              weiter, wenn Sie nicht kündigen.
-            </li>
-            <li>
-              Listenpreis ohne Code: {SETUP_EUR}&nbsp;€ Setup einmalig plus{" "}
-              {MONTHLY_EUR}&nbsp;€/Monat (
-              <Link href="/#preise">Produktseite</Link>
-              ). Mit dem Code ist die Setup-Zeile 0&nbsp;€, nicht {SETUP_EUR}
-              &nbsp;€. Danach ist nur das Abo fällig: {MONTHLY_EUR}&nbsp;€/Monat.
-              Das Setup wird nicht monatlich nachberechnet.
-            </li>
-            <li>
-              Kündigung und Zahlungsdaten: Stripe-Kundenportal im Konto.{" "}
-              <Link href="/faq">FAQ</Link>.
-            </li>
-            <li>
-              14 Tage Geld-zurück stehen in der FAQ für zahlungspflichtige
-              Käufe. Liegt der gezahlte Betrag bei 0&nbsp;€, gibt es keinen
-              Betrag zu erstatten.
-            </li>
-          </ul>
-          <h3>Was der Pilot nicht ist</h3>
-          <ul className="prose-list">
-            <li>Keine Steuer- oder Rechtsberatung.</li>
-            <li>Kein dauerhaft kostenloses Produkt.</li>
-            <li>Keine Konformitäts- oder Prüfungszusage.</li>
-          </ul>
+        <section className="block" id="anfrage">
+          <h2>VD für mehrere Mandanten</h2>
           <p className="prose">
-            <PilotKlartextSentence />
+            Wenn Sie die Verfahrensdokumentation für mehrere Mandanten ansprechen
+            möchten, schreiben Sie uns. Die Anfrage ist unverbindlich. Muster
+            und Demo bleiben Beispiele und speichern keine Eingaben.
           </p>
-          <div className="actions">
-            <Link className="btn" href={PILOT_HREF}>
-              Partner-Pilot starten
-            </Link>
-            <a className="btn ghost" href="#fragen-demo">
-              Nochmals Fragen
-            </a>
-            <a className="btn ghost" href="#muster">
-              Nochmals Muster
-            </a>
-          </div>
+          <PartnerInquiryForm />
         </section>
 
         <section className="block" id="grenzen">
@@ -490,7 +380,7 @@ export default function SteuerberaterPage() {
           <div className="faq-item">
             <h3>Kostet mich das Zeit mit jedem Mandanten?</h3>
             <p className="prose">
-              Der Pilot ist zum eigenen Durchspielen. Danach arbeitet der
+              Demo und Muster sind zum eigenen Prüfen. Danach arbeitet der
               Mandant selbst. Sie füllen nicht für ihn aus.
             </p>
           </div>
@@ -520,29 +410,27 @@ export default function SteuerberaterPage() {
             </p>
           </div>
           <div className="faq-item">
-            <h3>Bin ich nach dem Pilot im Abo fest?</h3>
+            <h3>Entsteht für die Kanzlei eine Zahlung?</h3>
             <p className="prose">
-              <PilotKlartextSentence /> Ohne Code ist das Setup {SETUP_EUR}
-              &nbsp;€ einmalig. Mit dem Code ist die Setup-Zeile 0&nbsp;€ und
-              wird danach nicht nachberechnet. Höchstens{" "}
-              {PROMO_MAX_REDEMPTIONS}&nbsp;Einlösungen. Keine automatische
-              Kündigung.
+              Nein. Diese Seite hat keinen Bestellweg. Muster und Demo sind
+              Beispiele und speichern keine Eingaben. Für mehrere Mandanten
+              nutzen Sie das Formular „VD für mehrere Mandanten“.
             </p>
           </div>
           <div className="faq-item">
             <h3>Welche Daten brauche ich für Muster und Fragen?</h3>
             <p className="prose">
               Keine Mandanten-Geheimnisse. Muster und Demo auf dieser Seite
-              speichern nichts. Im Pilot geben Sie ein, was Sie selbst
+              speichern nichts. In der Demo geben Sie ein, was Sie selbst
               durchspielen.
             </p>
           </div>
           <div className="faq-item">
             <h3>Für welche Mandanten?</h3>
             <p className="prose">
-              Typisch KMU, Handwerk, Freiberufler, kleine GmbH. Im Pilot können
-              Sie mehrere Szenarien ansehen. Sehr individuelle Konzernprozesse
-              stoßen an die Grenze oben.
+              Typisch KMU, Handwerk, Freiberufler, kleine GmbH. In der Demo
+              können Sie die Beispieldaten ansehen und verändern. Sehr
+              individuelle Konzernprozesse stoßen an die Grenze oben.
             </p>
           </div>
           <div className="faq-item">
@@ -553,66 +441,58 @@ export default function SteuerberaterPage() {
             <h3>Was wird aus unbekannten Angaben?</h3>
             <p className="prose">
               Leere Angaben und nicht abgefragte Schritte werden Offene Punkte.
-              Das Muster zeigt das an der
-              Beispiel GmbH. Widersprüche zwischen ausgefüllten Feldern prüft
-              das Tool nicht.
+              Das Muster zeigt das an der Beispiel GmbH. Widersprüche zwischen
+              ausgefüllten Feldern prüft das Tool nicht.
             </p>
           </div>
           <div className="faq-item">
-            <h3>Kann ich das Muster ohne Kauf sehen?</h3>
+            <h3>Kann ich Muster und Demo ohne Bestellung ansehen?</h3>
             <p className="prose">
-              Ja. Muster und Fragenprozess auf dieser Seite, ohne Checkout.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Wie kündigt man?</h3>
-            <p className="prose">
-              Über das Stripe-Kundenportal im Konto. Eine konkrete Frist steht
-              in den AGB nicht. Die außerordentliche Kündigung aus wichtigem
-              Grund steht in den AGB.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Was kostet das erste Jahr?</h3>
-            <p className="prose">
-              Ohne Code: {SETUP_EUR}&nbsp;€ Setup einmalig plus {MONTHLY_EUR}
-              &nbsp;€/Monat. <PilotKlartextSentence />
+              Ja. Beides sind Beispiele auf dieser Seite. Es wird nichts
+              gespeichert und nichts bestellt.
             </p>
           </div>
         </section>
 
         <section className="block" id="abschluss">
-          <h2>
-            Selbst testen — Fragen und Muster prüfen — dann entscheiden
-          </h2>
+          <h2>Fragen und Muster prüfen — bei mehreren Mandanten schreiben Sie uns</h2>
           <p className="prose">
-            <PilotKlartextSentence />
+            Muster und Demo speichern keine Eingaben. Die Anfrage über das
+            Formular ist unverbindlich.
           </p>
           <div className="actions">
-            <Link className="btn" href={PILOT_HREF}>
-              Partner-Pilot starten
-            </Link>
+            <a className="btn" href="#anfrage">
+              VD für mehrere Mandanten
+            </a>
+            <a className="btn ghost" href="#fragen-demo">
+              Fragenprozess testen
+            </a>
+            <a className="btn ghost" href="#muster">
+              Muster ansehen
+            </a>
           </div>
           <p className="hint back-links">
             <a href="#fragen-demo">Fragen</a>
             {" · "}
             <a href="#muster">Muster</a>
             {" · "}
+            <a href="#anfrage">Anfrage</a>
+            {" · "}
             <Link href="/datenschutz">Datenschutz</Link>
             {" · "}
             <Link href="/impressum">Impressum</Link>
           </p>
           <p className="disclaimer">
-            Keine Steuer- oder Rechtsberatung. Partner-Pilot zur eigenen
-            Bewertung durch die Kanzlei. Die Weiterempfehlung begründet keinen
-            Auftrag zur Prüfung. Die Verfahrensdokumentation bleibt in der
-            Verantwortung des Mandanten.
+            Keine Steuer- oder Rechtsberatung. Muster und Demo dienen der
+            eigenen Bewertung durch die Kanzlei. Die Weiterempfehlung begründet
+            keinen Auftrag zur Prüfung. Die Verfahrensdokumentation bleibt in
+            der Verantwortung des Mandanten.
           </p>
         </section>
       </main>
       <div className="sticky-cta tall">
-        <a className="btn" href="#fragen-demo">
-          Fragenprozess testen
+        <a className="btn" href="#anfrage">
+          Anfrage senden
         </a>
         <a className="btn" href="#muster">
           Muster-Dokumentation ansehen

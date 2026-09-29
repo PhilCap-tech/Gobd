@@ -38,8 +38,8 @@ export function DemoWalkthrough() {
       <p className="banner">
         Beispiel-Fragen — so etwa läuft der Prozess. Angaben hier sind ein
         Test, kein Mandantenmandat. Die Demo speichert keine Eingaben: kein
-        Konto, kein Checkout. Die Fragen und die Prüfung vor „Weiter“ sind die
-        aus dem produktiven Ablauf.
+        Konto, keine Bestellung. Die Fragen und die Prüfung vor „Weiter“ sind
+        die aus dem produktiven Ablauf.
       </p>
 
       {step <= INTAKE_STEPS.length && (
@@ -121,8 +121,8 @@ export function DemoWalkthrough() {
               <Link href={PARTNER_MUSTER_PATH}>Beispiel GmbH</Link> nutzt
               dieselbe Gliederung. Präsens nur für bestätigte Angaben. Die
               Erzeugung ist keine Freigabe durch die Geschäftsführung.
-              Gültig-ab gibt es beim Speichern einer Fassung nach dem Kauf,
-              nicht in dieser Demo.
+              Gültig-ab gibt es beim Speichern einer Fassung im Produkt, nicht
+              in dieser Demo. Die Demo speichert keine Eingaben.
             </p>
             <div className="actions" style={{ marginTop: 12 }}>
               <Link className="btn" href={PARTNER_MUSTER_PATH}>
