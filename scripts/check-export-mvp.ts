@@ -302,6 +302,79 @@ const invoiceIntake = asked({
 });
 expect(invoiceIntake.has("E02"), "E02 is asked for XRechnung");
 
+const gastroOnly: IntakeAnswers = {
+  ...emptyAnswers(),
+  katalog: {
+    A01: {
+      status: "bestaetigt",
+      values: {
+        company: "Bistro Beispiel",
+        standort: "Musterstadt",
+        branchen: ["Gastronomie"],
+        rechtsform: "GmbH",
+        gf: "Anna Beispiel",
+      },
+    },
+  },
+};
+const gastroBody = bodyFor(gastroOnly);
+expect(!gastroBody.includes("Einbezogene Vorsysteme"), "gastronomy alone does not list a lived upstream system");
+expect(!gastroBody.includes("Bargeldkasse"), "gastronomy alone does not invent an exclusion");
+expect(!/Kassensystem:\s+\S/.test(gastroBody), "gastronomy alone does not name a till");
+expect(ids(gastroOnly).includes("op-taetigkeit-gastronomie"), "undescribed gastronomy is an open point");
+expect(
+  evaluateOpenPoints({ answers: gastroOnly, identity: PARTNER_MUSTER_IDENTITY }).some((point) =>
+    point.text.includes("welches Kassensystem"),
+  ),
+  "gastronomy gap names the missing till",
+);
+
+const shopFilled: IntakeAnswers = {
+  ...emptyAnswers(),
+  katalog: {
+    A01: {
+      status: "bestaetigt",
+      values: {
+        company: "Shop Beispiel",
+        standort: "Musterstadt",
+        branchen: ["Onlinehandel"],
+        rechtsform: "GmbH",
+        gf: "Anna Beispiel",
+        onlineShop: "Shopware",
+        onlineZahlung: "PayPal",
+        onlinePlattformen: "keine",
+        onlineRetouren: "im Shop",
+        onlineWawi: "keine eigene",
+      },
+    },
+  },
+};
+const shopBody = bodyFor(shopFilled);
+expect(shopBody.includes("Shopsystem: Shopware"), "described shop is lived");
+expect(!shopBody.includes("Kassensystem"), "online trade does not invent a till");
+expect(!ids(shopFilled).includes("op-taetigkeit-onlinehandel"), "filled shop follow-ups clear the gap");
+
+const shopEmpty: IntakeAnswers = {
+  ...emptyAnswers(),
+  katalog: {
+    A01: {
+      status: "bestaetigt",
+      values: {
+        company: "Shop Beispiel",
+        standort: "Musterstadt",
+        branchen: ["Onlinehandel"],
+        rechtsform: "GmbH",
+        gf: "Anna Beispiel",
+      },
+    },
+  },
+};
+expect(
+  ids(shopEmpty).includes("op-taetigkeit-onlinehandel"),
+  "empty online trade asks which shop system",
+);
+expect(!bodyFor(shopEmpty).includes("Shopsystem:"), "undescribed shop is not lived");
+
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);
