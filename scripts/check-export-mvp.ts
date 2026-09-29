@@ -1,7 +1,9 @@
 import minCatalog from "@/content/intake-catalog/INTAKE-CATALOG-MVP-MIN.json";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { intakeFrageStepError } from "@/lib/frage-intake";
-import { CATALOG_STEPS, visibleCatalogQuestions } from "@/lib/intake-catalog";
+import { demoBeispielAnswers } from "@/lib/demo-beispiel";
+import { CATALOG_STEPS, catalogStepError, statusLabel, visibleCatalogQuestions } from "@/lib/intake-catalog";
+import { openPointBeforeUse } from "@/lib/intake-present";
 import { evaluateOpenPoints } from "@/lib/open-points";
 import {
   PARTNER_MUSTER_ANSWERS,
@@ -374,6 +376,58 @@ expect(
   "empty online trade asks which shop system",
 );
 expect(!bodyFor(shopEmpty).includes("Shopsystem:"), "undescribed shop is not lived");
+
+expect(statusLabel("bestaetigt") === "So läuft es heute", "status is today's practice");
+expect(statusLabel("geplant") === "Soll künftig so laufen", "status is the future practice");
+expect(statusLabel("unbekannt") === "Muss ich klären", "status is still to clarify");
+expect(statusLabel("nicht_zutreffend") === "Entfällt", "not applicable follows the fact");
+
+const beispiel = demoBeispielAnswers();
+for (let step = 0; step < CATALOG_STEPS.length; step += 1) {
+  const message = catalogStepError(step, beispiel);
+  expect(message === "", `beispiel step ${step}: ${message}`);
+}
+const beispielPoints = evaluateOpenPoints({
+  answers: beispiel,
+  identity: PARTNER_MUSTER_IDENTITY,
+});
+expect(
+  beispielPoints.some((point) => openPointBeforeUse(point.priority, point.id)),
+  "beispiel keeps points to clarify before use",
+);
+expect(
+  beispielPoints.some((point) => !openPointBeforeUse(point.priority, point.id)),
+  "beispiel keeps points to add later",
+);
+const noKanzlei = demoBeispielAnswers();
+noKanzlei.katalog = {
+  ...noKanzlei.katalog,
+  F05: {
+    status: "nicht_zutreffend",
+    reason: "Keine Kanzlei beteiligt.",
+    values: { kanzleiBeteiligt: "nein" },
+  },
+};
+expect(!ids(noKanzlei).includes("op-f05-kanzlei-umfang"), "no kanzlei omits the kanzlei point");
+const testedRestore = demoBeispielAnswers();
+testedRestore.katalog = {
+  ...testedRestore.katalog,
+  H04: {
+    status: "bestaetigt",
+    values: { status: "bestaetigt", datum: "2026-01-15", ergebnis: "Export lesbar" },
+  },
+};
+const restoreStep = CATALOG_STEPS.findIndex((step) => step.id === "step-H");
+expect(catalogStepError(restoreStep, testedRestore) === "", "tested restore with a result passes");
+const restoreWithoutResult = demoBeispielAnswers();
+restoreWithoutResult.katalog = {
+  ...restoreWithoutResult.katalog,
+  H04: { status: "bestaetigt", values: { status: "bestaetigt" } },
+};
+expect(
+  catalogStepError(restoreStep, restoreWithoutResult) !== "",
+  "tested restore asks for date or result",
+);
 
 if (failures.length) {
   console.error(failures.join("\n"));

@@ -1,21 +1,19 @@
 "use client";
 
 import {
-  CATALOG_STATUSES,
+  applyDerivedStatus,
   CATALOG_STEPS,
   catalogQuestionApplies,
   catalogStepApplies,
-  setCatalogMeta,
-  setCatalogReason,
-  setCatalogStatus,
   setCatalogValue,
-  statusLabel,
   visibleCatalogQuestions,
   type CatalogField,
 } from "@/lib/intake-catalog";
+import { P1_QUESTION_IDS, P1QuestionFields, ProcessStatus } from "@/components/intake-p1-fields";
 import {
   activityFollowupsFor,
   columnLabel,
+  customerPrompt,
   FIELD_PLACEHOLDERS,
   fieldLabel,
   MITARBEITENDE_OPTIONS,
@@ -306,9 +304,10 @@ export function IntakeQuestionnaire({
             const activities = asList(values.branchen);
             const excluded = asList(values.ausgeschlossen);
             const shopExcluded = excluded.includes("Shop");
+            const prompt = customerPrompt(question.id, question.prompt);
             return (
               <div key={question.id}>
-                <p className="prose">{question.prompt}</p>
+                <p className="prose">{prompt}</p>
                 {question.id === "A04" ? (
                   <p className="hint">
                     Das Datum ist der Beginn des beschriebenen Ablaufs im Betrieb. Es ist nicht das
@@ -316,25 +315,54 @@ export function IntakeQuestionnaire({
                     Dokumentation behauptet nicht, sie habe schon gegolten, bevor sie erstellt wurde.
                   </p>
                 ) : null}
-                {question.fields.map((field) => {
-                  const label = fieldLabel(question.id, field.key, field.label);
-                  return (
-                    <div className="field" key={field.key}>
-                      {field.type !== "boolean" ? (
-                        <label htmlFor={`${question.id}-${field.key}`}>{label}</label>
-                      ) : null}
-                      <FieldInput
-                        id={`${question.id}-${field.key}`}
-                        field={field}
-                        label={label}
-                        value={values[field.key]}
-                        onChange={(value) =>
-                          onChange(setCatalogValue(answers, question.id, field.key, value))
-                        }
-                      />
-                    </div>
-                  );
-                })}
+                {question.id === "F02" ? (
+                  <p className="hint">Zum Beispiel VD-BELEG-2026-0142, eine Nummer aus der Ablage.</p>
+                ) : null}
+                {question.id === "G05" ? (
+                  <p className="hint">
+                    Die Frist hängt von der Unterlagenart ab. Hier geht es um den Ablauf: wer zuordnet,
+                    wer prüft und wer eine Löschung freigibt. Es wird keine einheitliche Frist für alle
+                    Belege vorgegeben.
+                  </p>
+                ) : null}
+                {question.id === "I04" ? (
+                  <p className="hint">
+                    Jemand im Betrieb prüft den Entwurf, nachdem er erstellt wurde. Erst danach kann eine
+                    Freigabe folgen. Name und Datum halten fest, wer geprüft hat.
+                  </p>
+                ) : null}
+                {question.id === "I05" ? (
+                  <p className="hint">
+                    „Gültig ab“ ist der Tag, ab dem diese Fassung gilt. Das ist nicht der Tag, an dem der
+                    Ablauf im Betrieb begonnen hat, und nicht das Datum der Erstellung. Frühere Fassungen
+                    bleiben an dem genannten Ort liegen. Sie werden nicht überschrieben.
+                  </p>
+                ) : null}
+                {P1_QUESTION_IDS.has(question.id) ? (
+                  <P1QuestionFields questionId={question.id} answers={answers} onChange={onChange} />
+                ) : (
+                  question.fields.map((field) => {
+                    const label = fieldLabel(question.id, field.key, field.label);
+                    return (
+                      <div className="field" key={field.key}>
+                        {field.type !== "boolean" ? (
+                          <label htmlFor={`${question.id}-${field.key}`}>{label}</label>
+                        ) : null}
+                        <FieldInput
+                          id={`${question.id}-${field.key}`}
+                          field={field}
+                          label={label}
+                          value={values[field.key]}
+                          onChange={(value) => {
+                            let next = setCatalogValue(answers, question.id, field.key, value);
+                            if (question.id === "A03") next = applyDerivedStatus(next, question.id);
+                            onChange(next);
+                          }}
+                        />
+                      </div>
+                    );
+                  })
+                )}
                 {question.id === "A01" && activities.includes(TAETIGKEIT_FREITEXT) ? (
                   <div className="field">
                     <label htmlFor="a01-taetigkeit-frei">Welche sonstige Tätigkeit?</label>
@@ -405,53 +433,12 @@ export function IntakeQuestionnaire({
                     />
                   </div>
                 ) : null}
-                <div className="field">
-                  <label>Stand dieser Angabe</label>
-                  <div className="chips" role="group" aria-label={`Stand: ${question.prompt}`}>
-                    {CATALOG_STATUSES.map((status) => (
-                      <button
-                        key={status}
-                        type="button"
-                        className={entry?.status === status ? "chip on" : "chip"}
-                        onClick={() => onChange(setCatalogStatus(answers, question.id, status))}
-                      >
-                        {statusLabel(status)}
-                      </button>
-                    ))}
-                  </div>
-                  {entry?.status === "nicht_zutreffend" ? (
-                    <input
-                      aria-label="Grund, warum das entfällt"
-                      placeholder="Kurz der Grund, warum das entfällt"
-                      value={entry.reason ?? ""}
-                      onChange={(event) =>
-                        onChange(setCatalogReason(answers, question.id, event.target.value))
-                      }
-                    />
-                  ) : null}
-                  {entry?.status === "geplant" ? (
-                    <p className="hint">
-                      Geplant ist kein Ist-Prozess und erscheint nicht als gelebter Ablauf.
-                    </p>
-                  ) : null}
-                  <label htmlFor={`${question.id}-wer`}>Verantwortung (optional)</label>
-                  <input
-                    id={`${question.id}-wer`}
-                    value={entry?.responsible ?? ""}
-                    onChange={(event) =>
-                      onChange(setCatalogMeta(answers, question.id, { responsible: event.target.value }))
-                    }
-                  />
-                  <label htmlFor={`${question.id}-bis`}>Datum (optional)</label>
-                  <input
-                    id={`${question.id}-bis`}
-                    type="date"
-                    value={entry?.date ?? ""}
-                    onChange={(event) =>
-                      onChange(setCatalogMeta(answers, question.id, { date: event.target.value }))
-                    }
-                  />
-                </div>
+                <ProcessStatus
+                  questionId={question.id}
+                  prompt={prompt}
+                  answers={answers}
+                  onChange={onChange}
+                />
               </div>
             );
           })

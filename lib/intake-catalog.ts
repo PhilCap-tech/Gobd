@@ -1,9 +1,14 @@
 import catalogFile from "@/content/intake-catalog/INTAKE-CATALOG-MVP-v1.json";
 import {
   activityGaps,
+  customerPrompt,
+  derivedCatalogStatus,
+  derivedReason,
   describedActivityLines,
   fieldLabel,
   optionLabel,
+  p1FieldError,
+  presentationBits,
   projectedBranchen,
   projectedRechtsform,
   RECHTSFORM_FREITEXT,
@@ -20,6 +25,9 @@ export const CATALOG_STATUSES = [
   "unbekannt",
   "nicht_zutreffend",
 ] as const;
+
+/** Chips in the form. „Nicht zutreffend“ is derived from the factual answer. */
+export const PROCESS_STATUSES = ["bestaetigt", "geplant", "unbekannt"] as const;
 
 export type CatalogStatus = (typeof CATALOG_STATUSES)[number];
 
@@ -80,10 +88,10 @@ const PAPER_CHANNEL = "Post/Papier";
 const EINVOICE_CHANNEL = "E-Rechnung (XRechnung/ZUGFeRD/XML)";
 
 const STATUS_LABEL: Record<CatalogStatus, string> = {
-  bestaetigt: "Bestätigt",
-  geplant: "Geplant",
-  unbekannt: "Unbekannt",
-  nicht_zutreffend: "Nicht zutreffend",
+  bestaetigt: "So läuft es heute",
+  geplant: "Soll künftig so laufen",
+  unbekannt: "Muss ich klären",
+  nicht_zutreffend: "Entfällt",
 };
 
 const SUPPRESS: Record<string, string[]> = {
@@ -289,6 +297,30 @@ function asRows(value: unknown): Record<string, unknown>[] {
   return value.filter((item) => item && typeof item === "object") as Record<string, unknown>[];
 }
 
+function systemCardDetail(row: Record<string, unknown>): string {
+  const belege = asList(row.belegeRein);
+  return [
+    asText(row.nutzer) && `Nutzer: ${asText(row.nutzer)}`,
+    belege.length ? `Belege: ${belege.join(", ")}` : "",
+    asText(row.uebergabe) && `Übergabe: ${asText(row.uebergabe)}`,
+    asText(row.originalOrt) && `Original: ${asText(row.originalOrt)}`,
+    asText(row.hostingArt) && `Hosting: ${asText(row.hostingArt)}`,
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
+
+function providerDocLine(row: Record<string, unknown>): string {
+  const stand = row.unterlagenStand as Record<string, string> | undefined;
+  const named = stand
+    ? Object.entries(stand)
+        .filter(([, value]) => asText(value))
+        .map(([name, value]) => `${name}: ${optionLabel("status", value)}`)
+    : [];
+  if (named.length) return `${asText(row.name)}: ${named.join(", ")}`;
+  return `${asText(row.name)}: ${optionLabel("unterlagenVorhanden", asText(row.unterlagenVorhanden))}`;
+}
+
 function kanaeleOf(state: CatalogState): string[] {
   return asList(valuesOf(state, "C01").kanaele);
 }
@@ -356,8 +388,11 @@ function filled(value: unknown): boolean {
   return Boolean(asText(value));
 }
 
-function extraStepError(id: string, entry: CatalogQuestionState): string {
+function extraStepError(id: string, entry: CatalogQuestionState, answers: IntakeAnswers): string {
   const values = entry.values ?? {};
+  const channels = asList(valuesOf(catalogState(answers), "C01").kanaele);
+  const p1 = p1FieldError(id, entry.status, values, channels);
+  if (p1) return p1;
   if (id === "A01" && (entry.status === "bestaetigt" || entry.status === "geplant")) {
     if (asText(values.rechtsform) === RECHTSFORM_FREITEXT && !asText(values.rechtsformFreitext)) {
       return "Bitte die Rechtsform kurz benennen.";
@@ -414,9 +449,19 @@ export function catalogStepError(stepIndex: number, answers: IntakeAnswers): str
   const state = catalogState(answers);
   for (const question of visibleCatalogQuestions(stepIndex, answers)) {
     const entry = state[question.id];
-    if (!entry?.status) return `Bitte den Stand wählen: ${question.prompt}`;
+    if (!entry?.status) {
+      if (question.id === "A03") {
+        return "Bitte für Kasse, Shop, Lager, Lohn und Plattformen jeweils angeben, ob es das gibt.";
+      }
+      if (question.id === "H04") {
+        return "Bitte angeben, ob eine Wiederherstellung oder ein Export geprüft wurde.";
+      }
+      if (question.id === "B05") return "Bitte angeben, ob Systeme bei einem Anbieter liegen.";
+      if (question.id === "F05") return "Bitte angeben, ob eine Kanzlei beteiligt ist.";
+      return "Bitte angeben, ob das heute so läuft, künftig so laufen soll oder noch zu klären ist.";
+    }
     if (entry.status === "nicht_zutreffend" && !asText(entry.reason)) {
-      return `Bitte kurz den Grund nennen, warum das entfällt: ${question.prompt}`;
+      return "Bitte kurz sagen, warum das entfällt.";
     }
     if (entry.status === "bestaetigt" || entry.status === "geplant") {
       for (const field of question.fields) {
@@ -425,7 +470,7 @@ export function catalogStepError(stepIndex: number, answers: IntakeAnswers): str
         }
       }
     }
-    const extra = extraStepError(question.id, entry);
+    const extra = extraStepError(question.id, entry, answers);
     if (extra) return extra;
   }
   return "";
@@ -480,6 +525,38 @@ export function setCatalogValue(
   return touch(answers, id, {
     values: { ...(current.values ?? {}), [key]: value },
   });
+}
+
+export function setCatalogValues(
+  answers: IntakeAnswers,
+  id: string,
+  values: Record<string, unknown>,
+): IntakeAnswers {
+  const current = catalogState(answers)[id] ?? {};
+  return touch(answers, id, {
+    values: { ...(current.values ?? {}), ...values },
+  });
+}
+
+export function clearCatalogStatus(answers: IntakeAnswers, id: string): IntakeAnswers {
+  const current = catalogState(answers)[id] ?? {};
+  const nextEntry: CatalogQuestionState = { values: current.values ?? {} };
+  if (current.responsible) nextEntry.responsible = current.responsible;
+  if (current.date) nextEntry.date = current.date;
+  return {
+    ...answers,
+    katalog: { ...catalogState(answers), [id]: nextEntry },
+  };
+}
+
+/** Writes a status that follows from the factual answer. Leaves chosen process statuses untouched. */
+export function applyDerivedStatus(answers: IntakeAnswers, id: string): IntakeAnswers {
+  const values = catalogState(answers)[id]?.values ?? {};
+  const derived = derivedCatalogStatus(id, values);
+  if (!derived) return answers;
+  let next = setCatalogStatus(answers, id, derived);
+  next = setCatalogReason(next, id, derived === "nicht_zutreffend" ? derivedReason(id) : "");
+  return next;
 }
 
 function live(state: CatalogState, id: string): boolean {
@@ -567,7 +644,7 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     next.it = asText(values.it);
     next.systeme = systems.map((row) => ({
       name: asText(row.name),
-      funktion: asText(row.funktion),
+      funktion: [asText(row.funktion), systemCardDetail(row)].filter(Boolean).join(" — "),
     }));
   }
   if (live(state, "B04")) {
@@ -585,7 +662,7 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
   if (live(state, "B05")) {
     next.anbieterUnterlagen = asRows(valuesOf(state, "B05").externeSysteme)
       .filter((row) => asText(row.name))
-      .map((row) => `${asText(row.name)}: ${asText(row.unterlagenVorhanden)}`)
+      .map((row) => providerDocLine(row))
       .join("; ");
   }
   if (live(state, "C01")) {
@@ -602,9 +679,18 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     next.papierannahme = asText(valuesOf(state, "C03").schritte);
   }
   if (live(state, "D01")) {
-    const zweck = asText(valuesOf(state, "D01").scanZweck);
+    const values = valuesOf(state, "D01");
+    const zweck = asText(values.scanZweck);
     next.scanZweck =
       zweck === "nein" ? "nein, kein Scan" : zweck === "ersetzend" ? "ersetzendes Scannen" : zweck;
+    const eingang = asText(values.eingang);
+    if (eingang) next.papierannahme = [next.papierannahme, eingang].filter(Boolean).join(". ");
+    const original = asText(values.originalVerbleib);
+    if (original) next.papierlager = original;
+    const scanDetail = [asText(values.scanZeitpunkt), asText(values.vollstaendigkeit), asText(values.verantwortlich)]
+      .filter(Boolean)
+      .join(". ");
+    if (scanDetail) next.scanAufbewahrung = scanDetail;
   }
   if (live(state, "E01")) {
     next.formate = formateOf(state);
@@ -632,8 +718,15 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     next.ausgangsrechnungen = asList(values.systeme);
     const who = asText(values.wer);
     const numbers = asText(values.nummernvergabe);
-    if (who || numbers) {
-      next.fassungsrahmen = [next.fassungsrahmen, who, numbers].filter(Boolean).join(". ");
+    const outgoing = [
+      who,
+      numbers,
+      asText(values.freigabe) && `Freigabe: ${asText(values.freigabe)}`,
+      asText(values.versand) && `Versand: ${asText(values.versand)}`,
+      asText(values.storno) && `Korrektur: ${asText(values.storno)}`,
+    ].filter(Boolean);
+    if (outgoing.length) {
+      next.fassungsrahmen = [next.fassungsrahmen, ...outgoing].filter(Boolean).join(". ");
     }
   }
   if (live(state, "F01")) {
@@ -657,10 +750,23 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
   }
   if (live(state, "G01")) {
     const values = valuesOf(state, "G01");
-    next.archiv = [asText(values.ablage), asText(values.ordnung)].filter(Boolean).join(" — ");
+    const rows = asRows(values.ablageJeArt).filter((row) => asText(row.art) || asText(row.ort));
+    next.archiv = rows.length
+      ? rows
+          .map((row) =>
+            [asText(row.art), asText(row.ort), asText(row.suche) && `Suche: ${asText(row.suche)}`]
+              .filter(Boolean)
+              .join(", "),
+          )
+          .join("; ")
+      : [asText(values.ablage), asText(values.ordnung)].filter(Boolean).join(" — ");
   }
   if (live(state, "G02")) {
-    next.zugriff = asText(valuesOf(state, "G02").zugriffKurz);
+    const values = valuesOf(state, "G02");
+    const rows = asRows(values.zugriffRollen).filter((row) => asList(row.rechte).length);
+    next.zugriff = rows.length
+      ? rows.map((row) => `${asText(row.rolle)}: ${asList(row.rechte).join(", ")}`).join(". ")
+      : asText(values.zugriffKurz);
   }
   if (live(state, "G05")) {
     const values = valuesOf(state, "G05");
@@ -699,7 +805,7 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
   if (live(state, "I02")) {
     next.anlagenliste = asRows(valuesOf(state, "I02").anlagen)
       .filter((row) => asText(row.name))
-      .map((row) => `${asText(row.name)} (${asText(row.status)})`)
+      .map((row) => `${asText(row.name)} (${optionLabel("status", asText(row.status))})`)
       .join("; ");
   }
   if (live(state, "I04")) {
@@ -790,6 +896,18 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
             priority: "hoch",
             text: gap.text,
             chapter: "03-systeme-datenfluss",
+            suppress: [],
+          });
+        }
+      }
+      if (question.id === "I02" && status === "bestaetigt") {
+        const missing = asRows(valuesOf(state, "I02").anlagen).some((row) => asText(row.status) === "offen");
+        if (missing) {
+          points.push({
+            id: "op-i02-anlage",
+            priority: "mittel",
+            text: "Mindestens eine mitgeltende Unterlage muss noch ergänzt werden.",
+            chapter: "13-mitgeltende-unterlagen",
             suppress: [],
           });
         }
@@ -977,7 +1095,10 @@ export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> 
         const where = asText(entry?.values?.ausgeschlossenWo);
         if (where) bits.push(`dokumentiert in: ${where}`);
       }
-      rows.push([question.prompt, [status, ...bits.filter(Boolean)].join(" · ")]);
+      rows.push([
+        customerPrompt(question.id, question.prompt),
+        [status, ...bits.filter(Boolean), ...presentationBits(question.id, entry?.values)].filter(Boolean).join(" · "),
+      ]);
     }
   }
   return rows;
