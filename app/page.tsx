@@ -10,6 +10,7 @@ import {
   CTA_MUSTER,
   DISCLAIMER_ONCE,
   GELD_ZURUECK_HREF,
+  GELD_ZURUECK_MICRO,
   PRICE_MICRO,
   RESULT_PROMISE,
 } from "@/lib/offer-copy";
@@ -80,11 +81,7 @@ function PriceLine({
       {guarantee === "none" ? null : (
         <>
           {" · "}
-          <Link href={GELD_ZURUECK_HREF}>
-            {guarantee === "bedingungen"
-              ? "14 Tage Geld-zurück — Bedingungen"
-              : "14 Tage Geld-zurück"}
-          </Link>
+          <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
         </>
       )}
     </p>
@@ -293,9 +290,7 @@ export default function HomePage() {
                 {CTA_CREATE_WITH_PRICE}
               </Link>
               <p className="trust-line">
-                <Link href={GELD_ZURUECK_HREF}>
-                  14 Tage Geld-zurück — Bedingungen
-                </Link>
+                <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
               </p>
             </div>
             <Link className="btn ghost" href="#muster">
@@ -366,7 +361,7 @@ export default function HomePage() {
               {CTA_CHECK}
             </Link>
             <p className="trust-line">
-              <Link href={GELD_ZURUECK_HREF}>14 Tage Geld-zurück</Link>
+              <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
               {" · "}
               Keine Steuerberatung
             </p>
