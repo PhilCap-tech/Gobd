@@ -1,5 +1,5 @@
 /**
- * Consent-gated ads tracking (Google tag + Meta Pixel).
+ * Consent-gated marketing tracking (Google tag + Meta Pixel).
  * Stripe stays TEST — never fire Purchase or InitiateCheckout
  * (neither Meta nor Google checkout conversions).
  */
@@ -50,19 +50,19 @@ export function getMetaPixelId(): string {
   return process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || "";
 }
 
-/** Google Ads account ID, e.g. AW-XXXXXXXXX. Unset → skip Ads config/conversions. */
+/** Google Ads account ID, e.g. AW-XXXXXXXXX. Unset → skip Ads config. */
 export function getGoogleAdsId(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_ID?.trim() || "";
-}
-
-/** GA4 measurement ID, e.g. G-XXXXXXXX. Unset → skip GA4. */
-export function getGaMeasurementId(): string {
-  return process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 }
 
 /** Conversion label for ReadinessSubmit only. Unset → traffic/config, no conversion. */
 export function getGoogleAdsReadinessLabel(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL?.trim() || "";
+}
+
+/** GA4 measurement ID, e.g. G-XXXXXXXX. Unset → skip GA4 config. */
+export function getGaMeasurementId(): string {
+  return process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 }
 
 export function readConsent(): ConsentChoice | null {
@@ -210,7 +210,8 @@ function trackReadinessStart(): void {
 /**
  * After a successful readiness POST — before navigating to success.
  * Meta: CompleteRegistration + ReadinessSubmit.
- * Google: conversion only if NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL is set.
+ * Google Ads: conversion only if NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL is set.
+ * GA4: custom `readiness_submit` when NEXT_PUBLIC_GA_MEASUREMENT_ID is set.
  * Does not fire Purchase / InitiateCheckout (Meta or Google).
  */
 export function trackReadinessSubmit(): void {
@@ -222,15 +223,19 @@ export function trackReadinessSubmit(): void {
     window.fbq?.("track", "CompleteRegistration", params);
     window.fbq?.("trackCustom", "ReadinessSubmit", params);
   }
+  enableGoogleTag();
   const googleId = getGoogleAdsId();
   if (googleId) {
-    enableGoogleTag();
     const label = getGoogleAdsReadinessLabel();
     if (label) {
       window.gtag?.("event", "conversion", {
         send_to: `${googleId}/${label}`,
       });
     }
+  }
+  const gaId = getGaMeasurementId();
+  if (gaId) {
+    window.gtag?.("event", "readiness_submit", { send_to: gaId });
   }
 }
 
@@ -243,12 +248,13 @@ function enableMetaPixel(pixelId: string): void {
   pixelInitialized = true;
 }
 
+/** Shared gtag/dataLayer: load once, config AW- and/or G- when present. */
 function enableGoogleTag(): void {
   if (typeof window === "undefined") return;
   const adsId = getGoogleAdsId();
   const gaId = getGaMeasurementId();
+  if (!adsId && !gaId) return;
   const loadId = adsId || gaId;
-  if (!loadId) return;
   loadScript(
     "google-gtag",
     `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(loadId)}`,
