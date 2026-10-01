@@ -275,7 +275,7 @@ Nach Consent + `NEXT_PUBLIC_GOOGLE_ADS_ID`: `gtag('config', AW-…)` (Traffic).
 Nach Consent + `NEXT_PUBLIC_GA_MEASUREMENT_ID`: `gtag('config', G-…)` (GA4). Beide IDs können gleichzeitig gesetzt sein — ein gemeinsames `gtag`/`dataLayer`.  
 Client-Navigation: `gtag('event', 'page_view', { page_path })` (erster View kommt vom `config`).  
 Nach erfolgreichem Readiness-Submit **und** gesetztem Ads-Label: `gtag('event', 'conversion', { send_to: 'AW-…/label' })`.  
-GA4 optional: `gtag('event', 'readiness_submit', { send_to: G-… })`.
+GA4 optional: `gtag('event', 'readiness_submit', { send_to: G-… })`.  
 Kein Purchase, kein Checkout-Conversion-Event.
 
 ### Meta events (nur mit Marketing-Consent **und** Pixel-ID)
