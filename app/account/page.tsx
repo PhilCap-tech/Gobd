@@ -12,6 +12,11 @@ import {
 } from "@/components/document-revision";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import {
+  customerChangedBy,
+  customerChangeSummary,
+  customerHubTitle,
+} from "@/lib/account-display";
 import { getSessionEmail } from "@/lib/auth";
 import {
   firmaEditPath,
@@ -124,7 +129,9 @@ export default async function AccountPage({
             <div className="entity-list">
               {groups.map((group) => {
                 const entity = group.entity;
-                const title = entity?.name || "Ohne Firma";
+                const title = entity
+                  ? customerHubTitle(entity.name, "Firma")
+                  : "Ohne Firma";
                 const address = entity ? formatEntityAddress(entity) : "";
                 return (
                   <article
@@ -171,15 +178,21 @@ export default async function AccountPage({
                         {group.families.map((family) => {
                           const pick = selectCurrentVersion(family.versions);
                           const current = pick?.row ?? family.latest;
-                          const summary = current.changeSummary.trim() || "—";
-                          const who = current.changedBy.trim() || "—";
+                          const summary = customerChangeSummary(
+                            current.changeSummary,
+                          );
+                          const who = customerChangedBy(current.changedBy);
                           return (
                             <section
                               className="entity-doc"
                               key={family.familyId}
                             >
                               <h3>
-                                {family.latest.company || "Verfahrensdokumentation"}
+                                {customerHubTitle(
+                                  family.latest.company ||
+                                    "Verfahrensdokumentation",
+                                  "Verfahrensdokumentation",
+                                )}
                               </h3>
                               <p className="doc-meta">
                                 {currentVersionBadge(Boolean(pick?.fallback))}

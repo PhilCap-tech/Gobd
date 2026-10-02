@@ -668,7 +668,7 @@ export function portalStatusCopy(status: PortalStatus): {
       };
     case "missing":
       return {
-        text: "Zu dieser E-Mail liegt noch kein Checkout vor. Die Abo-Verwaltung ist danach verfügbar.",
+        text: "Noch kein bezahltes Abo. Die Abo-Verwaltung ist verfügbar, sobald ein Abo besteht.",
         tone: "warn",
       };
     case "unavailable":

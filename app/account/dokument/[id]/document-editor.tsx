@@ -7,7 +7,12 @@ import {
   type VersionChangeDraft,
 } from "@/components/version-change-fields";
 import type { DocumentChapter } from "@/lib/document-content";
-import { berlinTodayIso, versionChangeDraftError } from "@/lib/versioning";
+import { customerHubTitle } from "@/lib/account-display";
+import {
+  berlinTodayIso,
+  versionChangeDraftError,
+  versionLabelFromRow,
+} from "@/lib/versioning";
 
 type DocumentEditorProps = {
   sourceDocumentId: string;
@@ -45,6 +50,8 @@ export function DocumentEditor({
     changedBy: defaultChangedBy,
   });
   const [savedVersion, setSavedVersion] = useState<number | null>(null);
+  const nextLabel = versionLabelFromRow({ version: String(versionHint) });
+  const companyLabel = customerHubTitle(company, "");
 
   function patchChapter(id: string, body: string) {
     setChapters((current) =>
@@ -117,14 +124,15 @@ export function DocumentEditor({
     <form onSubmit={submit}>
       <p className="banner">
         Du bearbeitest den Entwurf
-        {company ? ` für ${company}` : ""}. Speichern erzeugt Version{" "}
-        {versionHint} — bisherige PDFs bleiben downloadbar. Der Text stammt aus
+        {companyLabel ? ` für ${companyLabel}` : ""}. Speichern erzeugt Version{" "}
+        {nextLabel} — bisherige PDFs bleiben downloadbar. Der Text stammt aus
         deinem generierten Entwurf, nicht aus zusätzlichen Rechtstexten.
       </p>
 
       {savedVersion && (
         <p className="banner ok" role="status">
-          Version {savedVersion} ist gespeichert.{" "}
+          Version {versionLabelFromRow({ version: String(savedVersion) })} ist
+          gespeichert.{" "}
           <a href={downloadPath}>PDF herunterladen</a>
         </p>
       )}
@@ -190,7 +198,7 @@ export function DocumentEditor({
       </div>
       <p className="hint revision-hint">
         „Speichern und PDF erzeugen“ schreibt eine neue Zeile (Version{" "}
-        {versionHint}) und legt das PDF ab. „PDF neu erzeugen“ macht dasselbe
+        {nextLabel}) und legt das PDF ab. „PDF neu erzeugen“ macht dasselbe
         nach weiteren Änderungen.
       </p>
     </form>

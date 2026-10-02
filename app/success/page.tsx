@@ -19,6 +19,7 @@ import {
 import { isMailConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { findSuccessDocument, listDocumentFamily } from "@/lib/store";
+import { versionLabelFromRow } from "@/lib/versioning";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,9 @@ export default async function SuccessPage({
           <SuccessNotFound />
         ) : (
           <section>
-            <p className="kicker">Version {version}</p>
+            <p className="kicker">
+              Version {versionLabelFromRow({ version: String(version) })}
+            </p>
             <h1>Dein Entwurf ist fertig</h1>
             <p className="lead">
               {row.company || "Dein Unternehmen"} — Verfahrensdokumentation als
