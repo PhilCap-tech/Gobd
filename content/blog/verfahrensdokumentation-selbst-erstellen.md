@@ -100,7 +100,7 @@ Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation
 
 ## Primär-CTA: geführt statt leerer Seite
 
-Wenn Selbst-Erstellen an der leeren Datei scheitert: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup. Danach mit dem Berater abstimmen und freigeben — Beratung wird dadurch nicht ersetzt.
+Wenn Selbst-Erstellen an der leeren Datei scheitert: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach mit dem Berater abstimmen und freigeben — Beratung wird dadurch nicht ersetzt.
 
 ## FAQ
 

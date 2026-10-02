@@ -105,7 +105,7 @@ Bei wesentlichen Änderungen neu versionieren; intervallmäßig prüfen, ob der 
 
 ## Primär-CTA: geführtes PDF als Start
 
-Unter gobd-doku-erstellen.de erhältst du nach dem Intake eine **strukturierte Verfahrensdokumentation als PDF** plus Offene-Punkte-Liste: [Verfahrensdokumentation erstellen](/checkout). Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup. Danach digital ablegen, versionieren und mit dem Berater freigeben.
+Unter gobd-doku-erstellen.de erhältst du nach dem Intake eine **strukturierte Verfahrensdokumentation als PDF** plus Offene-Punkte-Liste: [Verfahrensdokumentation erstellen](/checkout). Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach digital ablegen, versionieren und mit dem Berater freigeben.
 
 ## FAQ
 

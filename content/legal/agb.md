@@ -1,16 +1,16 @@
-> **Entwurf / Template — keine Rechtsberatung.**  
-> Vor Live-Schaltung Counsel-Review empfohlen.  
-> Produkt: GoBD-Verfahrensdokumentation SaaS · Domain: gobd-doku-erstellen.de · Zahlung: Stripe Checkout · Hosting: Vercel · Betreiber: IKAT GmbH (B2B)
+> **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> Fehlende Technik-/Prozessangaben als `[klären: …]` — nichts erfunden.  
+> Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
-# Allgemeine Geschäftsbedingungen (AGB) / Nutzungsbedingungen
+# Allgemeine Geschäftsbedingungen (AGB)
 
-für den Online-Dienst **gobd-doku-erstellen.de**  
-(digitale Erstellung / Lieferung einer GoBD-Verfahrensdokumentation — B2B-SaaS)
+für den Online-Dienst **GoBD Verfahrensdoku** unter https://www.gobd-doku-erstellen.de  
+(digitale Erstellung / Pflege einer Verfahrensdokumentation für den **Belegfluss** — B2B)
 
-## 1. Geltungsbereich und Vertragspartner
+## § 1 Geltungsbereich und Vertragspartner
 
-(1) Diese AGB gelten für alle Verträge über die Nutzung des Dienstes und den Erwerb digitaler Inhalte/Leistungen über https://gobd-doku-erstellen.de zwischen
+(1) Diese AGB gelten für alle Verträge über die Nutzung des Dienstes und den Erwerb digitaler Leistungen über https://www.gobd-doku-erstellen.de zwischen
 
 **IKAT GmbH**  
 Gartzenweg 1a  
@@ -18,107 +18,122 @@ Gartzenweg 1a
 Deutschland  
 („Anbieter“, „wir“)
 
-und dem Kunden („Kunde“, „du“).
-
 Registergericht: Amtsgericht Düsseldorf · HRB 81430 · Geschäftsführer: Philip Cappelletti  
 USt-IdNr.: DE 313 803 988  
 Kontakt: info@gobd-doku-erstellen.de · Telefon: +49 231 580 456 06
 
-(2) Der Dienst richtet sich vorrangig an **Unternehmer** im Sinne von § 14 BGB (B2B). Soweit ausnahmsweise Verbraucher i. S. d. § 13 BGB Vertragspartner werden, gelten zwingende Verbraucherschutzvorschriften unberührt; Abweichungen zulasten von Verbrauchern finden keine Anwendung.
+und dem Kunden („Kunde“, „du“).
 
-(3) Abweichende Bedingungen des Kunden werden nicht Vertragsbestandteil, es sei denn, wir stimmen ausdrücklich schriftlich (Textform genügt) zu.
+(2) Unser Angebot richtet sich **ausschließlich an Unternehmer** im Sinne von § 14 BGB, die den Vertrag in Ausübung ihrer gewerblichen oder selbstständigen beruflichen Tätigkeit abschließen. **Verbraucher** im Sinne von § 13 BGB sind vom Vertragsschluss **ausgeschlossen**. Mit der Bestellung bestätigt der Kunde, dass er als Unternehmer handelt.
 
-## 2. Leistungsgegenstand — keine Steuer-/Rechtsberatung
+(3) Abweichende Bedingungen des Kunden werden nicht Vertragsbestandteil, es sei denn, wir stimmen ausdrücklich in Textform zu.
 
-(1) Gegenstand ist die Bereitstellung eines Online-Werkzeugs bzw. die digitale Erstellung und Lieferung einer **Verfahrensdokumentation** als Arbeitshilfe im Kontext der GoBD (je nach gebuchtem Angebot).
+## § 2 Leistungsgegenstand — keine Steuer-/Rechtsberatung
 
-(2) **Keine Steuerberatung, keine Rechtsberatung.** Der Anbieter erbringt **keine** Steuerberatungsleistungen i. S. d. StBerG und **keine** Rechtsdienstleistungen i. S. d. RDG. Es kommt **kein Steuerberatungs- oder Anwaltsvertrag** zustande. Die ausgegebenen Texte sind allgemeine Vorlagen/Arbeitshilfen und ersetzen keine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
+(1) Gegenstand ist die digitale Erstellung und Bereitstellung eines **Entwurfs einer Verfahrensdokumentation für den Belegfluss** (Eingangs- und Ausgangsrechnungen, Ablage, Übergabe an die Buchhaltung, Berechtigungen) sowie — bei aktivem Abonnement — Zugang zu Versionen und späteren Anpassungen, je nach gebuchtem Angebot.
 
-(3) Der Kunde bleibt allein verantwortlich für die inhaltliche Richtigkeit, Vollständigkeit, Aktualität und Eignung der Dokumentation für seinen konkreten Fall sowie für die Verwendung gegenüber Behörden oder Dritten.
+(2) Kassensysteme, Warenwirtschaft, Zeiterfassung, Lohn und weitere Vorsysteme sind **nicht** Teil der Leistung; dafür brauchst du eigene Dokumentationen.
 
-## 3. Vertragsschluss
+(3) **Keine Steuerberatung, keine Rechtsberatung.** Der Anbieter erbringt keine Steuerberatungsleistungen i. S. d. StBerG und keine Rechtsdienstleistungen i. S. d. RDG. Es kommt kein Steuerberatungs- oder Anwaltsvertrag zustande. Die ausgegebenen Texte sind Arbeitshilfen/Entwürfe und ersetzen keine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
-(1) Die Darstellung auf der Website ist unverbindlich (kein verbindliches Angebot).
+(4) Der Kunde bleibt allein verantwortlich für die inhaltliche Richtigkeit, Vollständigkeit, Aktualität und Eignung der Dokumentation sowie für die Verwendung gegenüber Behörden oder Dritten.
 
-(2) Mit Abschluss des Bestellvorgangs über **Stripe Checkout** gibt der Kunde ein verbindliches Angebot ab. Der Vertrag kommt zustande mit erfolgreicher Zahlungsbestätigung / Annahme durch den Anbieter (z. B. Bestellbestätigung per E-Mail oder Freischaltung der Lieferung).
+## § 3 Vertragsschluss
 
-(3) Der Vertragstext wird vom Anbieter gespeichert; die maßgeblichen Vertragsbedingungen sind diese AGB sowie die bei Bestellung angezeigten Leistungsbeschreibungen.
+(1) Die Darstellung auf der Website ist unverbindlich.
 
-## 4. Preise und Zahlung
+(2) Mit Abschluss des Bestellvorgangs über Stripe Checkout gibt der Kunde ein verbindliches Angebot ab. Der Vertrag kommt zustande mit erfolgreicher Zahlungsbestätigung bzw. Annahme durch den Anbieter (z. B. Bestätigung per E-Mail oder Freischaltung).
 
-(1) Es gelten die zum Zeitpunkt der Bestellung angegebenen Preise. Sofern nicht anders ausgewiesen, verstehen sich Preise als **TODO: brutto inkl. USt / netto zzgl. USt** — bitte Counsel/Steuerlage festlegen und hier korrekt ausweisen.
+(3) Maßgeblich sind diese AGB sowie die bei Bestellung angezeigten Leistungsbeschreibungen.
 
-(2) Orientierende Produktstruktur (kann je nach Website-Angebot abweichen): einmalige bzw. paketbezogene Preise in der Größenordnung **149 €** sowie Zusatz-/Update-Optionen in der Größenordnung **49 €** — maßgeblich sind stets die im Checkout angezeigten Beträge.
+## § 4 Preise und Zahlung
 
-(3) Die Zahlung erfolgt über **Stripe Checkout**. Verfügbare Zahlungsmittel ergeben sich aus dem Checkout.
+(1) Alle Preise verstehen sich in Euro **zuzüglich der gesetzlichen Umsatzsteuer**, sofern nicht ausdrücklich etwas anderes angegeben ist.
 
-(4) Rechnungen werden — soweit geschuldet — in Textform (z. B. E-Mail/PDF) übermittelt. **TODO: Rechnungsstellungsprozess / Steuersatz bestätigen.**
+(2) Der Vertrag besteht aus einer einmaligen **Einrichtungsleistung in Höhe von 149 €** und einem monatlich abzurechnenden **Nutzungsentgelt in Höhe von 49 € pro Monat**. Der erste Monat ist im Einstiegspreis von **198 €** (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet.
 
-## 5. Digitale Lieferung / Leistungszeit
+(3) Die Zahlung erfolgt über den Zahlungsdienstleister Stripe mit den im Checkout angebotenen Zahlungsarten. Rechnungen werden in elektronischer Form [klären: per E-Mail / im Kundenkonto] bereitgestellt. Das Entgelt ist mit Vertragsschluss bzw. zu Beginn des jeweiligen Abrechnungsmonats fällig [klären: Fälligkeit bestätigen].
 
-(1) Nach erfolgreicher Zahlung erfolgt die digitale Lieferung bzw. Freischaltung der Leistung (z. B. Download, Zugangslink oder Generierungsergebnis) **TODO: konkrete Lieferart und typische Frist** (Ziel: zeitnah nach Zahlungseingang).
+(4) Bei Zahlungsausfall können wir den Zugang zum Konto nach vorheriger Mahnung mit einer Frist von [klären: X Tagen] sperren. Die Pflicht zur Zahlung bleibt davon unberührt. [klären: Folgen bei Zahlungsausfall — juristisch prüfen.]
 
-(2) Der Kunde stellt sicher, dass die angegebene E-Mail-Adresse korrekt und empfangsbereit ist.
+(5) Wir können das monatliche Nutzungsentgelt mit einer Ankündigungsfrist von [klären: X Wochen/Monaten] in Textform anpassen. Der Kunde kann in diesem Fall außerordentlich zum Zeitpunkt des Wirksamwerdens der Preisänderung kündigen. [klären: Preisänderungsklausel — juristisch prüfen.]
 
-## 6. Nutzungsrechte
+## § 5 Leistung und Bereitstellung
+
+(1) Nach Zahlung und Abschluss des Fragebogens erzeugen wir aus den Angaben des Kunden einen Entwurf der Verfahrensdokumentation als PDF samt Liste offener Punkte und stellen ihn im Kundenkonto zum Download bereit. Die Bereitstellung erfolgt in der Regel innerhalb weniger Minuten [klären: Frist belegbar bestätigen].
+
+(2) Die Leistung umfasst den Belegfluss gemäß § 2 Abs. 1 und 2.
+
+(3) Das Dokument ist ein auf den Angaben des Kunden beruhender Entwurf. Die Richtigkeit und Vollständigkeit der Angaben liegt beim Kunden.
+
+## § 6 Nutzungsrechte
 
 (1) Der Kunde erhält ein einfaches, nicht übertragbares Recht, die gelieferte Dokumentation für eigene betriebliche Zwecke zu nutzen und intern anzupassen.
 
-(2) Eine Weitergabe der vom Anbieter bereitgestellten Systemtexte/Templates als eigenständiges Produkt an Dritte (Verkauf, Vermietung, öffentliches Teilen der Roh-Templates) ist ohne vorherige Zustimmung unzulässig — die **fertige, kundenspezifische** Dokumentation darf der Kunde selbstverständlich für eigene Compliance-Zwecke verwenden und an Berater/Prüfer weitergeben.
+(2) Eine Weitergabe der vom Anbieter bereitgestellten Systemtexte/Templates als eigenständiges Produkt an Dritte ist ohne vorherige Zustimmung unzulässig. Die fertige, kundenspezifische Dokumentation darf der Kunde für eigene Compliance-Zwecke verwenden und an Berater/Prüfer weitergeben.
 
-## 7. Mitwirkungspflichten des Kunden
+## § 7 Mitwirkungspflichten des Kunden
 
-Der Kunde stellt wahrheitsgemäße und vollständige Angaben zu Prozessen, Systemen und Verantwortlichkeiten bereit, soweit dies für die Erstellung erforderlich ist. Fehlerhafte oder unvollständige Angaben können die Brauchbarkeit der Dokumentation beeinträchtigen; hieraus folgt keine Minderung oder Haftung zulasten des Anbieters, soweit der Mangel auf kundenseitige Angaben zurückgeht.
+(1) Der Kunde stellt sicher, dass die Angaben im Fragebogen zutreffend und vollständig sind.
 
-## 8. Widerrufsrecht / Ausschluss bei digitalen Inhalten
+(2) Der Kunde ist selbst dafür verantwortlich, die erzeugte Dokumentation vor Verwendung auf Richtigkeit zu prüfen und die offenen Punkte zu klären.
 
-(1) **Unternehmer** haben kein gesetzliches Widerrufsrecht nach den §§ 312g, 355 BGB.
+(3) Der Kunde bestätigt, dass er Unternehmer ist und die Leistung ausschließlich für seine gewerbliche oder selbstständige berufliche Tätigkeit nutzt. Macht der Kunde unzutreffende Angaben zu seiner Unternehmereigenschaft, ist er uns zum Ersatz des daraus entstehenden Schadens verpflichtet [klären: juristisch prüfen].
 
-(2) Soweit ausnahmsweise ein **Verbraucher** Vertragspartner ist und digitale Inhalte geliefert werden, die nicht auf einem körperlichen Datenträger bereitgestellt werden, erlischt das Widerrufsrecht vorzeitig, wenn:
-- der Anbieter mit der Ausführung des Vertrags begonnen hat, nachdem der Verbraucher ausdrücklich zugestimmt hat, dass der Anbieter mit der Ausführung vor Ablauf der Widerrufsfrist beginnt, und
-- der Verbraucher seine Kenntnis davon bestätigt hat, dass er durch seine Zustimmung mit Beginn der Ausführung sein Widerrufsrecht verliert  
-(vgl. § 356 Abs. 5 BGB).
+## § 8 Kein Widerrufsrecht (B2B)
 
-(3) **TODO:** Checkout-Flow so gestalten, dass die gesetzlich erforderlichen Zustimmungen/Hinweise für Verbraucher (falls zugelassen) korrekt eingeholt und protokolliert werden — oder Verbraucherbestellungen ausschließen.
+Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vom Vertragsschluss ausgeschlossen sind, besteht kein gesetzliches Widerrufsrecht nach den §§ 312g, 355 BGB.
 
-## 9. Gewährleistung
+## § 9 Zufriedenheitsgarantie
 
-(1) Es gelten die gesetzlichen Gewährleistungsrechte, soweit nachfolgend nicht abweichend und soweit zulässigerweise abdingbar (insbesondere im B2B-Verkehr).
+(1) Wir gewähren dem Kunden eine **14-Tage-Zufriedenheitsgarantie** ab Vertragsschluss. Innerhalb dieser Frist kann der Kunde die Erstattung verlangen, indem er sich in Textform an **info@gobd-doku-erstellen.de** wendet oder die Funktion im Kundenkonto nutzt [klären: Konto-Weg, falls/wenn vorhanden].
 
-(2) Der Anbieter schuldet keine bestimmte Anerkennung der Dokumentation durch Finanzverwaltung oder Dritte. GoBD-Anforderungen sind einzelfallabhängig.
+(2) Hat der Kunde noch kein PDF der Dokumentation erzeugt oder heruntergeladen, erstatten wir die **gesamte bis dahin gezahlte Vergütung** (Einrichtung und Nutzungsentgelt). Das Abonnement endet mit der Erstattung.
+
+(3) Hat der Kunde bereits ein PDF erzeugt oder heruntergeladen, erstatten wir das **bereits gezahlte monatliche Nutzungsentgelt** (49 € zzgl. USt). Die **Einrichtungsvergütung (149 € zzgl. USt) ist in diesem Fall nicht erstattungsfähig**, da die Einrichtungsleistung dann erbracht ist. Das Abonnement endet mit der Erstattung.
+
+(4) Gesetzliche Rechte des Kunden, insbesondere Gewährleistungsrechte, bleiben unberührt. [klären: Vereinbarkeit Garantie / B2B — juristisch prüfen.]
+
+## § 10 Gewährleistung
+
+(1) Es gelten die gesetzlichen Gewährleistungsrechte, soweit nachfolgend nicht abweichend und soweit zulässigerweise abdingbar (B2B).
+
+(2) Der Anbieter schuldet keine bestimmte Anerkennung der Dokumentation durch Finanzverwaltung oder Dritte.
 
 (3) Offensichtliche technische Lieferfehler (z. B. defekter Download) sind unverzüglich zu melden; wir bemühen uns um unverzügliche Nachlieferung.
 
-## 10. Haftung
+## § 11 Haftung
 
 (1) Der Anbieter haftet unbeschränkt bei Vorsatz und grober Fahrlässigkeit sowie bei Verletzung von Leben, Körper oder Gesundheit und nach zwingenden Produkthaftungsvorschriften.
 
-(2) Bei leichter Fahrlässigkeit haftet der Anbieter nur bei Verletzung wesentlicher Vertragspflichten (Kardinalpflichten), und zwar begrenzt auf den vorhersehbaren, vertragstypischen Schaden. Wesentliche Vertragspflichten sind solche, deren Erfüllung die ordnungsgemäße Durchführung des Vertrags überhaupt erst ermöglicht und auf deren Einhaltung der Kunde regelmäßig vertrauen darf.
+(2) Bei leichter Fahrlässigkeit haftet der Anbieter nur bei Verletzung wesentlicher Vertragspflichten (Kardinalpflichten), begrenzt auf den vorhersehbaren, vertragstypischen Schaden.
 
 (3) Die Haftung für mittelbare Schäden und entgangenen Gewinn ist — außer in den Fällen von Abs. 1 — ausgeschlossen, soweit gesetzlich zulässig.
 
 (4) Soweit die Haftung beschränkt ist, gilt dies auch für Erfüllungsgehilfen.
 
-(5) Keine Haftung für Entscheidungen des Kunden, die allein auf Basis der erzeugten Dokumentation getroffen werden, und keine Haftung für steuerliche oder rechtliche Folgen einer Verwendung ohne fachliche Prüfung durch den Kunden bzw. dessen Berater.
+(5) Keine Haftung für Entscheidungen des Kunden allein auf Basis der erzeugten Dokumentation und keine Haftung für steuerliche oder rechtliche Folgen einer Verwendung ohne fachliche Prüfung.
 
-## 11. Laufzeit, Updates, Kündigung
+## § 12 Laufzeit, Verlängerung und Kündigung
 
-(1) Soweit ein einmaliger Kauf digitaler Inhalte vorliegt, endet die Hauptleistung mit Lieferung; Nachweise/Zugänge können befristet bereitgestellt werden (**TODO: Zugangs-/Downloadfrist**).
+(1) Das Abonnement beginnt mit Vertragsschluss und läuft auf unbestimmte Zeit. Es wird monatlich fortgesetzt, solange es nicht gekündigt wird.
 
-(2) Optionale Update-/Folgeleistungen (z. B. **49 €**-Option) richten sich nach der jeweiligen Produktbeschreibung.
+(2) Der Kunde kann das Abonnement jederzeit mit Wirkung zum Ende des laufenden Abrechnungsmonats kündigen. Die Kündigung ist im Kundenkonto unter „Konto → Abo → Kündigen“ möglich oder in Textform an **info@gobd-doku-erstellen.de**.
 
-(3) Das Recht zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt.
+(3) Das Recht beider Parteien zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt.
 
-## 12. Datenschutz
+(4) Während der Vertragslaufzeit stehen dem Kunden Zugang zu früheren Fassungen und spätere Anpassungen der Dokumentation zur Verfügung. Nach Vertragsende kann der Kunde bereits erzeugte PDFs noch [klären: Anzahl Tage] herunterladen. Danach löschen wir die gespeicherten Daten und Dokumente, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung.
 
-Es gelten die gesonderte Datenschutzerklärung und der Cookie-Hinweis auf der Website.
+## § 13 Datenschutz
 
-## 13. Schlussbestimmungen
+Es gelten die gesonderte Datenschutzerklärung und die Cookie-Hinweise auf der Website.
 
-(1) Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts. Gegenüber Verbrauchern gilt diese Rechtswahl nur, soweit zwingender Verbraucherschutz am Wohnsitz unberührt bleibt.
+## § 14 Schlussbestimmungen
 
-(2) Ist der Kunde Kaufmann, juristische Person des öffentlichen Rechts oder öffentlich-rechtliches Sondervermögen, ist Gerichtsstand **Monheim am Rhein** (Sitz der IKAT GmbH) bzw. — soweit abweichend gewünscht — **TODO: abweichenden Gerichtsstand nur nach Counsel festlegen**.
+(1) Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts.
+
+(2) Ist der Kunde Kaufmann, juristische Person des öffentlichen Rechts oder öffentlich-rechtliches Sondervermögen, ist ausschließlicher Gerichtsstand **Monheim am Rhein** (Sitz der IKAT GmbH). [klären: Gerichtsstand — juristisch bestätigen.]
 
 (3) Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
 
-**Stand:** TODO: Datum der Veröffentlichung
+**Stand:** 02.10.2026

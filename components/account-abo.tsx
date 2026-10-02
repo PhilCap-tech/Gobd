@@ -68,7 +68,8 @@ export function AccountUpgradeCard({
       )}
       <AccountPaidActions />
       <p className="trust-line">
-        14 Tage Geld-zurück · Keine Steuerberatung · Entwurf für deinen
+        14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein
+        PDF erzeugt wurde · Keine Steuerberatung · Entwurf für deinen
         Steuerberater
       </p>
     </section>

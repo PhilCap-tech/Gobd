@@ -121,7 +121,7 @@ Blanko-Muster allein: oft zu dünn. Orientierung: [Verfahrensdokumentation Vorla
 
 ## Primär-CTA: Entwurf für euren Betrieb
 
-Wenn du nicht bei einer leeren Datei starten willst: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup. Den Entwurf mit dem Berater abstimmen und freigeben.
+Wenn du nicht bei einer leeren Datei starten willst: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Den Entwurf mit dem Berater abstimmen und freigeben.
 
 ## FAQ
 

@@ -146,7 +146,7 @@ Bevor die Geschäftsleitung freigibt und du den Entwurf zur Abstimmung gibst:
 
 ## Primär-CTA: Verfahrensdokumentation erstellen
 
-Wenn du die Checkliste nicht in ein leeres Dokument tippen willst: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, dann strukturiertes PDF plus Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup.
+Wenn du die Checkliste nicht in ein leeres Dokument tippen willst: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, dann strukturiertes PDF plus Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 Die Checkliste hier bleibt nützlich: zum Gegenlesen, zum Abstimmen mit dem Berater und zum Nachhalten offener Punkte.
 

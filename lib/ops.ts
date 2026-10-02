@@ -53,7 +53,7 @@ export type TransactionalMailContent = {
 
 const CHECKOUT_CTA = "Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo";
 const READINESS_MICRO =
-  "14 Tage Geld-zurück · Keine Steuerberatung · Entwurf für deinen Steuerberater";
+  "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung · Entwurf für deinen Steuerberater";
 
 /** Exact product URL from the Post-Delivery Referral spec (Track C). */
 export const REFERRAL_AFTER_DELIVERY_URL =
@@ -61,7 +61,7 @@ export const REFERRAL_AFTER_DELIVERY_URL =
 export const REFERRAL_AFTER_DELIVERY_SUBJECT =
   "Dein Entwurf ist fertig — gern an Steuerberater oder Kollegen weitergeben";
 export const REFERRAL_MICRO =
-  "149 € + 49 €/Mo · 14 Tage Geld-zurück · Keine Steuerberatung";
+  "149 € + 49 €/Monat, jeweils zzgl. USt · 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung";
 
 export function buildMagicLinkMail(input: {
   magicLinkUrl: string;
@@ -344,7 +344,7 @@ export function buildReferralAfterDeliveryMail(input: {
       "",
       REFERRAL_AFTER_DELIVERY_URL,
       "",
-      "Kurz: Online-Intake → Entwurf als PDF. Setup 149 €, danach 49 €/Monat. 14 Tage Geld-zurück. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.",
+      "Kurz: Online-Intake → Entwurf als PDF. Einrichtung 149 € zzgl. USt, danach 49 € zzgl. USt pro Monat. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.",
       "",
       `Dein Konto: ${MAIL_LOGIN_URL}`,
       `Fragen: ${MAIL_FAQ_URL}`,
@@ -358,7 +358,7 @@ export function buildReferralAfterDeliveryMail(input: {
     <p>dein Entwurf der Verfahrensdokumentation ist bereit.</p>
     <p>Wenn dein Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, kannst du diesen Link weitergeben:</p>
     <p><a href="${escapeAttr(REFERRAL_AFTER_DELIVERY_URL)}">Link weitergeben</a></p>
-    <p>Kurz: Online-Intake → Entwurf als PDF. Setup 149 €, danach 49 €/Monat. 14 Tage Geld-zurück. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.</p>
+    <p>Kurz: Online-Intake → Entwurf als PDF. Einrichtung 149 € zzgl. USt, danach 49 € zzgl. USt pro Monat. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.</p>
     <p>${escapeHtml(REFERRAL_MICRO)}</p>
     <p>Dein Konto: <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></p>
     <p>Fragen: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>

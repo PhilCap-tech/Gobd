@@ -133,7 +133,7 @@ Zum Abgleich aller Doku-Teile: [Verfahrensdokumentation Checkliste](/blog/verfah
 
 ## Primär-CTA: Verfahrensdokumentation online erstellen
 
-Wenn du den Scan-Block nicht leer formulieren willst: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF plus Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup.
+Wenn du den Scan-Block nicht leer formulieren willst: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF plus Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

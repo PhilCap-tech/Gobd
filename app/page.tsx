@@ -253,8 +253,8 @@ export default function HomePage() {
             <li>Liste offener Punkte zum Prüfen und Ergänzen</li>
             <li>Geführter Frageprozess statt leerer Vorlage</li>
             <li>
-              Versionierung und Speicherung über das Abo ({MONTHLY_EUR} €/Monat
-              nach dem ersten Monat)
+              Versionierung und Speicherung über das Abo ({MONTHLY_EUR} € zzgl.
+              USt pro Monat nach dem ersten Monat)
             </li>
           </ul>
         </section>
@@ -266,22 +266,26 @@ export default function HomePage() {
               <tbody>
                 <tr>
                   <th scope="row">Einrichtung</th>
-                  <td>{SETUP_EUR}&nbsp;€</td>
+                  <td>{SETUP_EUR}&nbsp;€ zzgl. USt</td>
                 </tr>
                 <tr>
                   <th scope="row">Erster Monat</th>
-                  <td>{MONTHLY_EUR}&nbsp;€</td>
+                  <td>{MONTHLY_EUR}&nbsp;€ zzgl. USt</td>
                 </tr>
                 <tr>
-                  <th scope="row">Heute gesamt</th>
-                  <td>{TODAY_EUR}&nbsp;€</td>
+                  <th scope="row">Heute fällig</th>
+                  <td>{TODAY_EUR}&nbsp;€ zzgl. USt</td>
                 </tr>
                 <tr>
                   <th scope="row">Danach</th>
-                  <td>{MONTHLY_EUR}&nbsp;€/Monat</td>
+                  <td>{MONTHLY_EUR}&nbsp;€ zzgl. USt pro Monat</td>
                 </tr>
               </tbody>
             </table>
+            <p className="hint">
+              Alle Preise zzgl. USt. Monatlich kündbar zum Ende des laufenden
+              Abrechnungsmonats.
+            </p>
             <p className="prose">{RESULT_PROMISE}</p>
           </div>
           <p className="price-frame">{PRICE_FRAME_LINE}</p>

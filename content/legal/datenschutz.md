@@ -1,123 +1,149 @@
-> **Entwurf / Template — keine Rechtsberatung.**  
-> Vor Live-Schaltung Counsel-Review empfohlen.  
-> Produkt: GoBD-Verfahrensdokumentation SaaS · Domain: gobd-doku-erstellen.de · Zahlung: Stripe Checkout · Hosting: Vercel · Betreiber: IKAT GmbH (B2B)
+> **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> Fehlende Technik-/Prozessangaben als `[klären: …]` — nichts erfunden.  
+> Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
 # Datenschutzerklärung
 
 ## 1. Verantwortlicher
 
-Verantwortlich für die Datenverarbeitung auf dieser Website:
+Verantwortlich für die Verarbeitung personenbezogener Daten auf dieser Website ist die
 
 **IKAT GmbH**  
 Gartzenweg 1a  
 40789 Monheim am Rhein  
-Deutschland  
-
+Handelsregister: HRB 81430, Amtsgericht Düsseldorf  
+Geschäftsführer: Philip Cappelletti  
 Telefon: +49 231 580 456 06  
 E-Mail: info@gobd-doku-erstellen.de
 
-**TODO (optional):** Datenschutzbeauftragter — nur ergänzen, falls gesetzlich erforderlich.
+## 2. Datenschutzbeauftragter
 
-## 2. Überblick der Verarbeitungen
+Wir haben keinen Datenschutzbeauftragten benannt, weil wir gesetzlich nicht dazu verpflichtet sind. Bei Fragen zum Datenschutz erreichst du uns unter info@gobd-doku-erstellen.de.
 
-Wir verarbeiten personenbezogene Daten, soweit dies für den Betrieb der Website, die Vertragsanbahnung und -durchführung (Kauf und digitale Lieferung einer GoBD-Verfahrensdokumentation) sowie zur Erfüllung gesetzlicher Pflichten erforderlich ist.
+## 3. Überblick und Rechtsgrundlagen
 
-Wesentliche Verarbeitungszwecke:
-- Bereitstellung und Absicherung der Website (Hosting, Logs)
-- Abwicklung von Bestellungen über Stripe Checkout
-- Kommunikation im Zusammenhang mit dem Vertrag (z. B. Liefer-/Support-Hinweise)
-- Erfüllung steuer- und handelsrechtlicher Aufbewahrungspflichten
+Wir verarbeiten personenbezogene Daten, soweit dies für den Betrieb der Website, Marketing nach Einwilligung, die Vertragsanbahnung und -durchführung (Einrichtung und monatliches Pflege-Abo einer Verfahrensdokumentation für den Belegfluss) sowie zur Erfüllung gesetzlicher Pflichten erforderlich ist.
 
-## 3. Rechtsgrundlagen
-
-Soweit in den folgenden Abschnitten nicht anders angegeben, stützen wir uns insbesondere auf:
+Soweit nicht anders angegeben, stützen wir uns insbesondere auf:
 - Art. 6 Abs. 1 lit. b DSGVO (Vertrag / vorvertragliche Maßnahmen)
 - Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung)
-- Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse, z. B. IT-Sicherheit, Missbrauchsprävention)
-- Art. 6 Abs. 1 lit. a DSGVO (Einwilligung), soweit wir optionale Cookies/Tracking einsetzen — **Google-Tag und Meta Pixel nur mit Einwilligung; siehe Cookie-Hinweis**
+- Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse, z. B. IT-Sicherheit)
+- Art. 6 Abs. 1 lit. a DSGVO und § 25 Abs. 1 TDDDG (Einwilligung), soweit optionale Marketing-Dienste eingesetzt werden
+- § 25 Abs. 2 Nr. 2 TDDDG für unbedingt erforderliche Speicherung/Zugriffe
 
-## 4. Hosting (Vercel)
+## 4. Auftragsverarbeiter
 
-Unsere Website wird bei **Vercel Inc.** (bzw. verbundenen Unternehmen) gehostet. Dabei können Server-Logfiles und technische Verbindungsdaten anfallen (z. B. IP-Adresse, Zeitstempel, angeforderte Ressource, User-Agent).
+Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten.
 
-- **Zweck:** Bereitstellung, Stabilität und Sicherheit der Website
-- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an sicherem Betrieb)
-- **Empfänger / Auftragsverarbeitung:** Vercel als Auftragsverarbeiter — **TODO: Auftragsverarbeitungsvertrag (AVV) / DPA prüfen und hinterlegen**
-- **Drittlandtransfer:** Verarbeitung kann in den USA oder anderen Drittländern erfolgen — **TODO: Transfermechanismus prüfen (z. B. Standardvertragsklauseln / aktuelle Vercel-Angaben)**
-- Weitere Informationen: https://vercel.com/legal/privacy-policy
+## 5. Hosting über Vercel
 
-## 5. Server-Logs und Sicherheit
+Diese Website wird bei Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA, gehostet. Beim Aufruf der Seite verarbeitet Vercel technisch notwendige Verbindungsdaten (z. B. IP-Adresse, Zeitpunkt, aufgerufene Seite). Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (sicherer und effizienter Betrieb). Mit Vercel besteht ein Auftragsverarbeitungsvertrag nach Art. 28 DSGVO.
 
-Beim Aufruf der Website können technisch notwendige Verbindungsdaten in Logfiles gespeichert werden. Die Speicherung dient der Fehleranalyse und Abwehr von Angriffen.
+Die Verarbeitung erfolgt in [klären: Region der Funktionen/Datenhaltung, z. B. EU-Region]. Soweit Daten in die USA übermittelt werden, stützt sich die Übermittlung auf [klären: EU-US Data Privacy Framework, sofern Vercel zertifiziert / sonst Standardvertragsklauseln Art. 46 Abs. 2 lit. c DSGVO].
 
-- **Speicherdauer:** **TODO: konkrete Frist** (z. B. wenige Tage bis wenige Wochen, soweit nicht länger zur Beweissicherung erforderlich)
-- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. f DSGVO
+Weitere Informationen: https://vercel.com/legal/privacy-policy
 
-## 6. Bestellung und Zahlung (Stripe Checkout)
+## 6. Server-Logfiles
 
-Für die Bezahlung nutzen wir **Stripe Checkout** (Stripe Payments Europe Ltd. / Stripe, Inc. und verbundene Unternehmen). Beim Checkout werden die für die Zahlung erforderlichen Daten (z. B. Name, E-Mail, Zahlungsdaten, Rechnungsadresse, Transaktionsdaten) direkt an Stripe übermittelt bzw. von Stripe verarbeitet.
+Beim Aufruf unserer Website verarbeitet der Hosting-Anbieter technisch erforderliche Daten (IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Referrer-URL, Browser und Betriebssystem). Zweck ist der sichere und stabile Betrieb; Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO. Die Logdaten werden nach [klären: Speicherdauer der Logs, z. B. X Tage] gelöscht, sofern sie nicht zur Aufklärung eines Sicherheitsvorfalls länger benötigt werden.
 
-- **Zweck:** Zahlungsabwicklung, Betrugsprävention, Buchhaltung
-- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO; ggf. Art. 6 Abs. 1 lit. f DSGVO (Missbrauchsprävention); Art. 6 Abs. 1 lit. c DSGVO für steuerliche Pflichten
-- **Hinweis:** Wir speichern keine vollständigen Kartendaten auf unseren Systemen; die Zahlungsdatenverarbeitung erfolgt über Stripe.
-- **Empfänger:** Stripe — Datenschutzhinweise: https://stripe.com/privacy
-- **Drittlandtransfer:** möglich (u. a. USA) — **TODO: aktuelle Stripe-Transfergrundlagen / SCC prüfen**
-- **TODO:** Stripe-Rollenmodell (Verantwortlicher / Auftragsverarbeiter) nach Counsel-Einschätzung final einordnen
+## 7. Datenbank und Dateispeicher
 
-## 7. Vertragsdaten und digitale Lieferung
+Die von dir eingegebenen Daten und die erzeugten Dokumente speichern wir bei [klären: Datenbank-/Speicheranbieter] in [klären: Region/Land]. Mit dem Anbieter besteht ein Auftragsverarbeitungsvertrag nach Art. 28 DSGVO. [klären: Drittlandübermittlung ja/nein — falls ja, Garantie benennen.]
 
-Zur Erfüllung des Vertrags verarbeiten wir die von dir angegebenen bzw. über Stripe übermittelten Daten (insbesondere Identitäts- und Kontaktdaten, Bestell- und Zahlungsstatus, Lieferinhalt / Dokumentzugang).
+## 8. Kundenkonto und Anmeldung per Magic-Link
 
-- **Zweck:** Vertragserfüllung, Kundenkommunikation, Nachweis
-- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO
-- **Speicherdauer:** für die Dauer der Vertragsbeziehung und danach gemäß gesetzlichen Aufbewahrungsfristen (insbesondere handels-/steuerrechtlich, typischerweise bis zu 10 Jahre) — **TODO: konkretes Löschkonzept dokumentieren**
+Für den Zugang zu deinem Konto sendest du uns deine E-Mail-Adresse. Wir senden dir daraufhin einen einmaligen Anmeldelink per E-Mail (Magic-Link). Ein Passwort ist nicht erforderlich. Nach der Anmeldung setzen wir ein technisch notwendiges Sitzungs-Cookie (`gobd_session`, Gültigkeit 30 Tage), damit du angemeldet bleibst.
 
-## 8. Kontaktaufnahme
+Zweck ist die Bereitstellung deines Kontos und der gebuchten Leistung. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO; für das Sitzungs-Cookie zusätzlich § 25 Abs. 2 Nr. 2 TDDDG.
 
-Wenn du uns per E-Mail kontaktierst, verarbeiten wir die von dir mitgeteilten Daten zur Bearbeitung der Anfrage.
+Wir speichern deine E-Mail-Adresse, [klären: Firmen-/Namensangabe und weitere Kontodaten], Zeitpunkte der Anmeldung bis zur Löschung des Kontos, danach nur im Rahmen gesetzlicher Aufbewahrungspflichten.
 
-- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO (bei Vertragsbezug) bzw. Art. 6 Abs. 1 lit. f DSGVO (allgemeine Anfragen)
-- **Speicherdauer:** bis zur Erledigung bzw. länger bei gesetzlicher Aufbewahrungspflicht / Rechtsverteidigung
+## 9. E-Mail-Versand
 
-## 9. Cookies und vergleichbare Technologien
+Für den Versand von Anmeldelinks, Bestellbestätigungen und Systemnachrichten setzen wir [klären: E-Mail-Dienstleister, Anschrift] als Auftragsverarbeiter ein. Dabei werden deine E-Mail-Adresse und der Nachrichteninhalt verarbeitet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Mit dem Dienstleister besteht ein Auftragsverarbeitungsvertrag nach Art. 28 DSGVO. [klären: Serverstandort / Drittlandübermittlung.]
 
-Siehe gesonderten **Cookie-/Tracking-Hinweis**.  
-Technisch notwendige Cookies bzw. vergleichbare Technologien dienen Website-Funktion, Sicherheit und Stripe-Checkout. Optionales Marketing (Google-Tag, Meta Pixel) läuft **nur mit Einwilligung** (siehe Cookie-Hinweis).
+## 10. Zahlungsabwicklung über Stripe
 
-## 10. Weitergabe von Daten
+Für Zahlungen nutzen wir Stripe Checkout. Anbieter für Kunden im Europäischen Wirtschaftsraum ist Stripe Payments Europe, Ltd., 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, Irland [klären: Anschrift gegen aktuelle Stripe-Angaben prüfen]; Stripe kann Daten an die Stripe, Inc. (USA) übermitteln.
 
-Eine Weitergabe erfolgt nur, soweit erforderlich (Hosting, Zahlungsdienstleister, gesetzliche Verpflichtung) oder mit Einwilligung. Eine Weitergabe zu Werbezwecken an Dritte findet nicht statt, soweit nicht ausdrücklich anders geregelt.
+Bei der Bestellung leiten wir dich auf die Stripe-Seite weiter. Dort gibst du deine Zahlungsdaten ein; diese erhalten wir nicht. Wir erhalten von Stripe Informationen zur Zahlung (z. B. Zahlungsstatus, Rechnungsname/-adresse, E-Mail-Adresse, [klären: ggf. USt-IdNr.], die letzten Ziffern des Zahlungsmittels).
 
-## 11. Speicherdauer
+Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO und Art. 6 Abs. 1 lit. c DSGVO. Stripe verarbeitet Daten teilweise auch als eigener Verantwortlicher (z. B. Betrugsprävention); siehe https://stripe.com/de/privacy. Für Übermittlungen in die USA gelten [klären: EU-US DPF sofern zertifiziert / sonst SCC].
 
-Soweit in den Abschnitten nicht anders angegeben, löschen wir personenbezogene Daten, sobald der Zweck entfällt und keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
+## 11. Google Ads Conversion-Messung und Google Analytics 4
 
-## 12. Deine Rechte
+Wenn du im Cookie-Banner „Marketing erlauben“ bzw. Google erlaubst, laden wir das Google-Tag der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Zwecke sind die Messung der Wirksamkeit unserer Anzeigen und die statistische Auswertung der Nutzung unserer Website. Dabei werden Cookies bzw. ähnliche Technologien gesetzt und Daten (u. a. IP-Adresse, Geräte- und Browserinformationen, aufgerufene Seiten, Klicks auf Anzeigen, Bestellabschlüsse) an Google übermittelt; sie können an Konzerngesellschaften von Google in den USA übermittelt werden.
 
-Du hast — soweit die gesetzlichen Voraussetzungen vorliegen — insbesondere folgende Rechte:
-- Auskunft (Art. 15 DSGVO)
-- Berichtigung (Art. 16 DSGVO)
-- Löschung (Art. 17 DSGVO)
-- Einschränkung der Verarbeitung (Art. 18 DSGVO)
-- Datenübertragbarkeit (Art. 20 DSGVO)
-- Widerspruch gegen Verarbeitungen auf Basis berechtigter Interessen (Art. 21 DSGVO)
-- Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO)
+[klären: Ob Ads-ID AW-586367190 und GA4-ID G-RJ4KLBP1SF in der öffentlichen Erklärung genannt werden sollen.]
 
-Zur Ausübung deiner Rechte genügt eine Nachricht an: **info@gobd-doku-erstellen.de**
+Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Für die Übermittlung in die USA stützen wir uns auf [klären: DPF / SCC]. Die Speicherdauer der Google-Daten in GA4 beträgt [klären: eingestellte Aufbewahrungsdauer im GA4-Konto].
 
-Du hast zudem das Recht, dich bei einer Aufsichtsbehörde zu beschweren, z. B. der für dich zuständigen Landesdatenschutzbehörde.
+Du kannst deine Einwilligung jederzeit über „Cookie-Einstellungen“ im Seitenfuß widerrufen. Weitere Informationen: https://policies.google.com/privacy
 
-## 13. Pflicht zur Bereitstellung
+## 12. Meta Pixel
+
+Wenn du im Cookie-Banner Marketing bzw. Meta erlaubst, laden wir das Meta Pixel der Meta Platforms Ireland Limited, Merrion Road, Dublin 4, Irland. Zweck ist die Messung der Wirksamkeit unserer Werbeanzeigen auf Facebook und Instagram sowie [klären: Bildung von Zielgruppen — nur nennen, wenn genutzt]. Dabei werden Cookies (z. B. `_fbp`) gesetzt und Daten an Meta übermittelt; sie können an Meta Platforms, Inc. in den USA weitergegeben werden.
+
+[klären: Gemeinsame Verantwortlichkeit Art. 26 DSGVO / Controller Addendum — nur wenn zutreffend.]
+
+Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Widerruf über „Cookie-Einstellungen“. Weitere Informationen: https://www.facebook.com/privacy/policy
+
+## 13. Cookie-Einstellungen (Consent-Management)
+
+Deine Auswahl im Cookie-Banner speichern wir in einem Cookie (`gobd_consent`) und im lokalen Speicher deines Browsers für 180 Tage, damit wir deine Entscheidung respektieren. Rechtsgrundlage ist § 25 Abs. 2 Nr. 2 TDDDG in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nachweis der Einwilligung). Marketing-Dienste werden erst nach Einwilligung geladen.
+
+Außerdem speichern wir Kampagnenparameter aus der Aufrufadresse (UTM) in der Sitzung deines Browsers (`gobd_utm_first`, sessionStorage), um zu erkennen, über welche Kampagne du zu uns gekommen bist; diese Information verlässt deinen Browser nicht, solange du nicht einwilligst. [klären: Rechtsgrundlage / Einordnung essenziell vs. Statistik — juristisch prüfen.]
+
+Details und die Cookie-Übersicht findest du unter /cookies.
+
+## 14. Readiness-Check (3-Minuten-Check)
+
+Im kostenlosen Check beantwortest du Fragen zu deinem Betrieb (z. B. Branche und Angaben zu Ablage und Buchhaltung).
+
+[klären: Variante ohne Speicherung — Angaben nur im Browser / Variante mit Speicherung — Anbieter, Dauer, ob E-Mail, Rechtsgrundlage.]
+
+## 15. Angaben im Fragebogen und erzeugte Dokumente
+
+Für die Erstellung deiner Verfahrensdokumentation verarbeiten wir die Angaben, die du im Fragebogen machst (z. B. Unternehmensdaten, Prozessbeschreibungen, verwendete Software, Namen und Funktionen von Geschäftsführung und Buchhaltung) sowie die daraus erzeugten Dokumente und Versionen. Wir speichern sie in deinem Konto bei [klären: Datenbank-/Speicheranbieter], damit du sie abrufen und fortschreiben kannst. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
+
+Nach Vertragsende kannst du Dokumente noch [klären: Download-Frist in Tagen] herunterladen; danach löschen wir sie, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
+
+Nennst du im Fragebogen personenbezogene Daten Dritter (z. B. Mitarbeitende), stellst du sicher, dass du dazu berechtigt bist. [klären: Rolle — eigener Verantwortlicher oder Auftragsverarbeiter Art. 28; ggf. AVV-Link.]
+
+## 16. Partneranfragen (Steuerberater-Bereich)
+
+Wenn du uns über das Formular im Steuerberater-Bereich kontaktierst, verarbeiten wir die Angaben aus dem Formular ([klären: Felder, z. B. Name, Kanzlei, E-Mail, Nachricht]) zur Bearbeitung deiner Anfrage. Das Formular wird [klären: Zustellweg — E-Mail über Mailer / Speicherung in …]. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO bzw. Art. 6 Abs. 1 lit. f DSGVO. Wir löschen die Anfrage nach [klären: Löschfrist], sofern kein Vertrag zustande kommt.
+
+## 17. Kontaktaufnahme
+
+Wenn du uns per E-Mail an info@gobd-doku-erstellen.de kontaktierst, verarbeiten wir die von dir mitgeteilten Daten zur Bearbeitung der Anfrage (Art. 6 Abs. 1 lit. b bzw. lit. f DSGVO).
+
+## 18. Weitergabe von Daten
+
+Eine Weitergabe erfolgt nur, soweit erforderlich (Hosting, Zahlungsdienstleister, gesetzliche Verpflichtung) oder mit Einwilligung. Eine Weitergabe zu Werbezwecken an Dritte findet nicht statt, soweit nicht ausdrücklich in den Marketing-Abschnitten beschrieben.
+
+## 19. Speicherdauer
+
+Soweit in den Abschnitten nicht anders angegeben, löschen wir personenbezogene Daten, sobald der Zweck entfällt und keine gesetzlichen Aufbewahrungspflichten entgegenstehen. [klären: konkretes Löschkonzept für Konten, Fragebögen, Dokumente, Logs — inkl. § 147 AO.]
+
+## 20. Deine Rechte
+
+Du hast — soweit die gesetzlichen Voraussetzungen vorliegen — insbesondere: Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit, Widerspruch gegen Verarbeitungen auf Basis berechtigter Interessen sowie Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft.
+
+Zur Ausübung deiner Rechte genügt eine Nachricht an **info@gobd-doku-erstellen.de**. Du hast zudem das Recht, dich bei einer Aufsichtsbehörde zu beschweren.
+
+## 21. Pflicht zur Bereitstellung
 
 Für einen Vertragsabschluss sind die zur Zahlung und Lieferung erforderlichen Daten notwendig. Ohne diese Daten kann der Vertrag nicht durchgeführt werden.
 
-## 14. Automatisierte Entscheidungsfindung
+## 22. Automatisierte Entscheidungsfindung
 
-Es findet keine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von Art. 22 DSGVO statt, die rechtliche Wirkung entfaltet oder dich erheblich beeinträchtigt — **TODO: bestätigen, falls Stripe-Risk-Tools genutzt werden und ggf. ergänzen**.
+Es findet keine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von Art. 22 DSGVO statt, die rechtliche Wirkung entfaltet oder dich erheblich beeinträchtigt. [klären: falls Stripe-Risk-Tools relevant — ergänzen.]
 
-## 15. Änderungen
+## 23. Änderungen
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 
-**Stand:** TODO: Datum der Veröffentlichung
+**Stand:** 02.10.2026

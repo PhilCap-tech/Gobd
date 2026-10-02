@@ -6,8 +6,10 @@ const OTHER_EMAILS =
 
 const INTERNAL_LINKS: Record<string, string> = {
   "Cookie-/Tracking-Hinweis": "/cookies",
+  "Cookie-Hinweise": "/cookies",
   Datenschutzerklärung: "/datenschutz",
   "AGB / Nutzungsbedingungen": "/agb",
+  AGB: "/agb",
 };
 
 export function cleanLegalMarkdown(source: string): string {
@@ -15,10 +17,6 @@ export function cleanLegalMarkdown(source: string): string {
     .replace(/^(?:>.*\n)+/m, "")
     .replace(/^\s*---\s*\n/, "")
     .replace(OTHER_EMAILS, LEGAL_OPERATOR.email)
-    .replace(
-      /\*\*Stand:\*\* TODO: Datum der Veröffentlichung/g,
-      "**Stand:** 19. September 2026",
-    )
     .trim();
 }
 
@@ -193,7 +191,7 @@ function renderMixedBlock(block: string, key: string): ReactNode[] {
 
 /** Anchor for the live FAQ refund section. No separate policy page. */
 function headingId(text: string): string | undefined {
-  if (/geld-zurück/i.test(text)) return "geld-zurueck";
+  if (/geld-zurück|zufriedenheitsgarantie/i.test(text)) return "geld-zurueck";
   return undefined;
 }
 
