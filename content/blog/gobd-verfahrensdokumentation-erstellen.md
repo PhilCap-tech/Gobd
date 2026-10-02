@@ -139,7 +139,7 @@ Das ist kein Ersatz für Steuerberatung und kein Versprechen, dass jedes Finanza
 
 ## Primär-CTA: Verfahrensdokumentation online erstellen
 
-Wenn du den Entwurf nicht leer starten willst: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup.
+Wenn du den Entwurf nicht leer starten willst: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

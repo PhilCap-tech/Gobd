@@ -104,7 +104,7 @@ Die Dokumentation ist ein Hilfsmittel zur Nachvollziehbarkeit — und ein guter 
 
 ## Primär-CTA: Entwurf statt leerer Ordner
 
-Wenn du vor der Prüfung (oder einfach „endlich“) etwas Greifbares ablegen willst: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup.
+Wenn du vor der Prüfung (oder einfach „endlich“) etwas Greifbares ablegen willst: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

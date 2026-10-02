@@ -8,6 +8,7 @@ export async function POST(request: Request) {
     email?: string;
     company?: string;
     acceptedDisclaimer?: boolean;
+    entrepreneur?: boolean;
     entityId?: string;
     audience?: "kunde" | "steuerberater";
   };
@@ -24,6 +25,19 @@ export async function POST(request: Request) {
   if (!company || !email) {
     return NextResponse.json(
       { error: "Bitte Firma und E-Mail angeben." },
+      { status: 400 },
+    );
+  }
+
+  const partner = body.audience === "steuerberater";
+
+  if (body.entrepreneur !== true) {
+    return NextResponse.json(
+      {
+        error: partner
+          ? "Bitte bestätigen Sie, dass Sie als Unternehmer bestellen."
+          : "Bitte bestätige, dass du als Unternehmer bestellst.",
+      },
       { status: 400 },
     );
   }

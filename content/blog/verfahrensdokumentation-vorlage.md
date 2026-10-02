@@ -120,7 +120,7 @@ Der Berater muss nicht bei Null starten. Ein strukturierter Entwurf spart Schlei
 
 ## Primär-CTA: Verfahrensdokumentation online erstellen
 
-Wenn du nicht mit einer leeren Datei starten willst: [GoBD-Verfahrensdokumentation erstellen](/checkout) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup.
+Wenn du nicht mit einer leeren Datei starten willst: [GoBD-Verfahrensdokumentation erstellen](/checkout) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

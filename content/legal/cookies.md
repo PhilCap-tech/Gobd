@@ -1,69 +1,60 @@
-> **Entwurf / Template — keine Rechtsberatung.**  
-> Vor Live-Schaltung Counsel-Review empfohlen.  
-> Produkt: GoBD-Verfahrensdokumentation SaaS · Domain: gobd-doku-erstellen.de · Zahlung: Stripe Checkout · Hosting: Vercel · Betreiber: IKAT GmbH (B2B)
+> **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
-# Cookie- / Tracking-Hinweis
+# Cookie- / Tracking-Hinweise
 
 ## Kurzfassung
 
-Diese Website verwendet **technisch notwendige** Cookies bzw. vergleichbare Technologien, die für den Betrieb der Seite, Sicherheit und den **Stripe-Checkout** erforderlich sind.
-
-Ein optionaler **Google-Tag** und **Meta Pixel** werden **nur geladen, wenn du im Cookie-Banner der Marketing-Kategorie zustimmst.** Lehnst du ab oder fehlt die Einwilligung, werden diese Tags nicht gesetzt. Stripe Checkout bleibt im Testmodus; es werden **keine Purchase-/Checkout-Conversion-Events** ausgelöst.
+Wir nutzen **notwendige** Cookies und ähnliche Technologien, damit die Website, Sicherheit, Anmeldung und Stripe Checkout funktionieren. **Marketing-Dienste** (Google Ads / GA4, Meta Pixel) laden wir erst nach deiner Einwilligung im Cookie-Banner.
 
 ## Was sind Cookies?
 
-Cookies sind kleine Textdateien, die auf deinem Endgerät gespeichert werden. Vergleichbare Technologien (z. B. Local Storage, Session Storage, Pixel) können ähnliche Funktionen erfüllen.
+Cookies sind kleine Textdateien auf deinem Endgerät. Vergleichbare Technologien (Local Storage, Session Storage) können ähnliche Funktionen erfüllen.
 
-## Technisch notwendige Cookies / Speicherung
+## Essenzielle Cookies / Speicherung
 
-Wir setzen technisch notwendige Mittel ein, soweit erforderlich für:
-- Bereitstellung und Stabilität der Website
-- Sicherheitsfunktionen (z. B. Schutz vor Missbrauch)
-- Durchführung des Bezahlvorgangs über **Stripe Checkout** (Stripe kann eigene Cookies/Technologien setzen)
-- Magic-Link-Anmeldung und Zugriff auf gespeicherte Dokumente (`gobd_session`)
-- Speicherung deiner Cookie-Auswahl (`gobd_consent`, Cookie und/oder Local Storage)
+Rechtsgrundlage: Art. 6 Abs. 1 lit. f bzw. lit. b DSGVO und § 25 Abs. 2 Nr. 2 TDDDG, soweit Speicherung/Zugriff unbedingt erforderlich ist.
 
-Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am technischen Betrieb) bzw. § 25 Abs. 2 TTDSG (soweit Speicherung/Zugriff unbedingt erforderlich), sowie Art. 6 Abs. 1 lit. b DSGVO im Kontext der Zahlungsabwicklung.
+## Marketing (nur nach Einwilligung)
 
-## Stripe
+Marketing-Dienste von Google und Meta laden wir erst, nachdem du im Cookie-Banner Marketing erlaubst. Dabei können Daten an Google bzw. Meta und in Drittländer (insbesondere die USA) übermittelt werden. Einzelheiten findest du in unserer Datenschutzerklärung. Deine Einwilligung kannst du jederzeit über „Cookie-Einstellungen“ im Seitenfuß widerrufen.
 
-Beim Start des Checkouts kann Stripe Cookies und ähnliche Technologien setzen. Details: https://stripe.com/privacy sowie Stripe-Cookie-Dokumentation.  
-**TODO:** prüfen, welche konkreten Stripe-Cookies im Live-Checkout gesetzt werden, und Tabelle unten aktualisieren.
+Nach deiner Einwilligung messen wir mit dem Google-Tag, ob eine Anzeige zu einer Bestellung geführt hat (Google Ads Conversion-Messung), und werten die Nutzung der Website statistisch aus (Google Analytics 4). Ohne Einwilligung findet keine Übertragung an Google statt.
 
-## Optionaler Google-Tag und Meta Pixel
+## Stripe Checkout
 
-Wenn du **Marketing erlauben** wählst:
-
-- **Google-Tag** (`googletagmanager.com/gtag/js`) wird geladen, sofern eine Google-Ads-ID und/oder eine GA4-Measurement-ID konfiguriert ist. Ads-Conversion nur bei erfolgreichem Readiness-Submit und gesetztem Conversion-Label. Ohne Label bleibt Ads bei der Reichweitenmessung (Traffic). GA4 erfasst Seitenaufrufe (inkl. Client-Navigation); kein Purchase.
-- **Meta Pixel** (`connect.facebook.net`) erfasst Seitenaufrufe (PageView) sowie Readiness-Events (ReadinessStart, CompleteRegistration / ReadinessSubmit), sofern eine Pixel-ID konfiguriert ist.
-
-Ohne Einwilligung oder ohne die jeweilige ID wird das entsprechende Skript nicht geladen. Es gibt keine Purchase- oder Checkout-Conversions.
-
-**TODO:** Counsel-Review zu Google Tag / Meta Pixel (Drittlandtransfer, AVV) vor Go-Live.
+Für die Zahlung leiten wir dich zu Stripe Checkout weiter. Dort kann Stripe eigene Cookies bzw. ähnliche Technologien einsetzen, die für Zahlungsabwicklung und Betrugsprävention erforderlich sind (siehe Datenschutzerklärung, Abschnitt „Zahlungsabwicklung über Stripe“).
 
 ## Hosting (Vercel)
 
-Das Hosting kann technisch bedingte Verbindungsdaten und ggf. notwendige Speichervorgänge umfassen. Siehe Datenschutzerklärung (Hosting/Logs).
+Das Hosting kann technisch bedingte Verbindungsdaten umfassen. Siehe Datenschutzerklärung.
 
-## Übersicht (Platzhalter — vor Go-Live befüllen)
+## Kampagnenparameter (UTM)
 
-| Name / Technologie | Anbieter | Zweck | Speicherdauer | Notwendigkeit |
+Kampagnenparameter in der Adresse (UTM) speichern wir beim ersten Seitenaufruf in der Sitzung deines Browsers (`gobd_utm_first`, Session Storage). Die Speicherung bleibt in deinem Browser und endet mit dem Schließen des Tabs.
+
+## Übersicht der eingesetzten Cookies und ähnlichen Technologien
+
+| Name / Technologie | Anbieter | Zweck | Kategorie | Laufzeit |
 |---|---|---|---|---|
-| gobd_session | eigene Domain | Magic-Link-Anmeldung / Dokumentenzugang | 30 Tage | notwendig |
-| gobd_consent | eigene Domain | Speicherung der Cookie-/Tracking-Auswahl | 180 Tage | notwendig |
-| TODO | Stripe | Checkout / Betrugsprävention | TODO | notwendig |
-| Meta Pixel (_fbp / _fbc) | Meta Platforms | Reichweiten- und Event-Messung (nur Readiness, kein Purchase) | laut Anbieter / bis Widerruf | optional, nur mit Einwilligung |
-| Google-Tag (gtag) | Google | Reichweitenmessung (Ads und/oder GA4); Conversion nur bei ReadinessSubmit (wenn Ads-Label gesetzt), kein Purchase | laut Anbieter / bis Widerruf | optional, nur mit Einwilligung |
+| `gobd_consent` (Cookie und Local Storage) | IKAT GmbH | Speichert deine Cookie-Auswahl | Essenziell | 180 Tage |
+| `gobd_session` | IKAT GmbH | Hält dich nach dem Magic-Link-Login angemeldet | Essenziell | 30 Tage |
+| `gobd_utm_first` (Session Storage) | IKAT GmbH | Merkt sich Kampagnenparameter der ersten Seite (UTM); bleibt im Browser, bis du Marketing erlaubst | Sitzung, nur lokal | Ende der Browsersitzung |
+| Stripe-Cookies bzw. -Speicher (z. B. `__stripe_mid`, `__stripe_sid`) | Stripe Payments Europe, Ltd. | Zahlungsabwicklung, Betrugsprävention; gesetzt auf der Domain von Stripe, nicht auf unserer Website | Essenziell für die Zahlung | typischerweise etwa 1 Jahr (`__stripe_mid`) bzw. 30 Minuten (`__stripe_sid`); genaue Laufzeit im Browser beim Checkout sichtbar |
+| `_ga` | Google Ireland Ltd. | GA4: Unterscheidung von Besuchern | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
+| `_ga_RJ4KLBP1SF` | Google Ireland Ltd. | GA4: Sitzungsstatus zur Mess-ID G-RJ4KLBP1SF | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
+| `_gcl_au` | Google Ireland Ltd. | Google Ads: Conversion-Zuordnung (Ads-ID AW-586367190) | Marketing (nur nach Einwilligung) | typischerweise 90 Tage; genaue Laufzeit im Browser nach Einwilligung sichtbar |
+| `_fbp` | Meta Platforms Ireland Ltd. | Meta Pixel: Browser-Kennung für Werbemessung, nur wenn eine Pixel-ID konfiguriert ist | Marketing (nur nach Einwilligung) | typischerweise 90 Tage; genaue Laufzeit im Browser nach Einwilligung sichtbar |
 
 ## Verwaltung / Ablehnung
 
-Technisch notwendige Cookies können in der Regel nicht über ein Banner abgewählt werden, ohne die Funktion der Website bzw. des Checkouts zu beeinträchtigen. Marketing (Google-Tag, Meta Pixel) kannst du über **Nur essenziell** ablehnen oder später unter **Cookie-Einstellungen** im Footer ändern. Die Auswahl speichern wir lokal (`gobd_consent`). Du kannst Cookies generell in deinem Browser löschen oder blockieren; dann funktionieren Teile der Website ggf. nicht.
+Technisch notwendige Cookies können in der Regel nicht abgewählt werden, ohne Funktion oder Checkout zu beeinträchtigen. Marketing kannst du jederzeit über „Cookie-Einstellungen“ widerrufen. Die Ablehnung wird gespeichert; Marketing-Skripte werden danach nicht mehr geladen. Bereits gesetzte Marketing-Cookies (`_ga`, `_gcl_au`, `_fbp` und ähnliche) entfernt der Widerruf nicht automatisch. Du kannst sie in den Einstellungen deines Browsers löschen.
 
 ## Weitere Informationen
 
-Ausführliche Informationen zur Datenverarbeitung: siehe **Datenschutzerklärung**.  
-Verantwortlicher: **IKAT GmbH**, Gartzenweg 1a, 40789 Monheim am Rhein  
+Ausführliche Informationen: **Datenschutzerklärung**.  
+Verantwortlicher: IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein  
 Kontakt: **info@gobd-doku-erstellen.de**
 
-**Stand:** TODO: Datum der Veröffentlichung
+**Stand:** 02.10.2026

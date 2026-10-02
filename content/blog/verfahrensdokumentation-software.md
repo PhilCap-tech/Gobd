@@ -114,7 +114,7 @@ Vermeide Angebote, die „rechtssicher“ oder „GoBD-konform garantiert“ ver
 
 ## Primär-CTA: geführt starten
 
-Wenn du einen strukturierten Entwurf willst, ohne bei Null zu tippen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF, Offene-Punkte-Liste. Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Geld-zurück-Garantie beim Setup.
+Wenn du einen strukturierten Entwurf willst, ohne bei Null zu tippen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF, Offene-Punkte-Liste. Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

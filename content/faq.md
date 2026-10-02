@@ -19,6 +19,7 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 - Keine individuelle Prüfung oder Freigabe durch Steuerberater/WP/RA.
 - Kein Ausfüllen ohne deine Intake-Angaben — die Qualität hängt von deinen Angaben ab.
 - Keine laufende Buchhaltungs-/Prozessberatung und kein Hosting deiner Belege.
+- Keine Verfahrensdokumentation für Kassensysteme, Warenwirtschaft, Zeiterfassung, Lohn oder weitere Vorsysteme. Die Leistung umfasst den Belegfluss (Eingangs- und Ausgangsrechnungen, Ablage, Übergabe an die Buchhaltung, Berechtigungen).
 
 ## 2. Ablauf & Dauer
 
@@ -33,14 +34,14 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 
 ## 3. Preise & Updates nach Lieferung
 
-- **Preismodell:** 149 € Setup (einmalig) + 49 € / Monat (Abo). Maßgeblich ist, was im Checkout zum Bestellzeitpunkt angezeigt wird.
+- **Preismodell:** einmalige Einrichtung 149 € zzgl. USt und 49 € zzgl. USt pro Monat. Der erste Monat ist im Einstiegspreis von 198 € zzgl. USt (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet. Maßgeblich sind die im Checkout angezeigten Beträge.
 - Das monatliche Abo deckt laufenden Zugang sowie Update-/Pflegeleistungen gemäß aktueller Produktbeschreibung ab (u. a. Versionierung und Speicherung).
 - Ein Update ist sinnvoll, wenn sich Systeme, Belegwege, Hosting oder Verantwortliche ändern.
-- Ohne aktives Abo bleibt die gelieferte Version der Stand zum Erstellungszeitpunkt (sofern nicht anders im Checkout vereinbart).
+- Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung. Bereits erzeugte PDFs kannst du nach Vertragsende noch 30 Tage herunterladen. Zugang zu früheren Fassungen und spätere Anpassungen gibt es nur mit aktivem Abonnement.
 
 ## 4. Ist das Steuerberatung / rechtssicher?
 
-Der Dienst unter **gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande.
+Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung eines Entwurfs einer Verfahrensdokumentation für den Belegfluss. Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
 Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich oder ausreichend ist, hängt von deiner Situation ab. Eine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
@@ -55,36 +56,36 @@ Ergänzend gelten AGB und Datenschutzerklärung.
 
 Schreib uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Rechnung oder technischen Problemen (Checkout, Download, Login) ebenfalls an dieselbe Adresse — wir kümmern uns darum.
 
-## 6. 14 Tage Geld-zurück
+## 6. 14 Tage Zufriedenheitsgarantie
 
-Innerhalb von **14 Tagen** nach dem Kauf kannst du eine Erstattung beantragen. Was zurückkommt, hängt davon ab, ob bereits ein PDF erzeugt oder heruntergeladen wurde.
+Innerhalb von **14 Tagen** nach Bestellung erstatten wir die volle Zahlung (198 € zzgl. USt), solange du noch kein PDF erzeugt oder heruntergeladen hast. Hast du bereits ein PDF erzeugt oder heruntergeladen, erstatten wir den bereits gezahlten Monatsbeitrag von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht mehr erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
 
-**So gehst du vor**
+**So beantragst du die Erstattung**
 
-Schreib an **info@gobd-doku-erstellen.de** mit Betreff „Geld-zurück“ und deiner Bestell- oder Rechnungsmail. Wir bestätigen den Eingang und erstatten über denselben Zahlungsweg.
+Schreib an **info@gobd-doku-erstellen.de** mit Betreff „Zufriedenheitsgarantie“ und deiner Bestell- oder Rechnungsmail. Ein Button im Kundenkonto ist dafür nicht eingerichtet. Wir bestätigen den Eingang und erstatten über denselben Zahlungsweg.
 
 **Frist**
 
-14 Kalendertage ab dem Tag der erfolgreichen Zahlung (Checkout).
+14 Kalendertage ab Vertragsschluss (erfolgreiche Zahlung im Checkout).
 
-**Was erstattet wird (Variante B)**
+**Was wird im Rahmen der Garantie erstattet?**
 
-- **Vor dem ersten PDF** (noch keine Generierung und kein Download der Verfahrensdokumentation): Erstattung von **198 €** (149 € Einrichtung + erster Monat). Es werden keine weiteren 49 € abgebucht.
-- **Nach dem ersten PDF** (Generierung oder Download): **keine** Erstattung der **149 € Einrichtung**. Das Abo endet; es werden **keine weiteren 49 €** abgebucht.
+- **Vor dem ersten PDF** (noch keine Erzeugung und kein Download der Verfahrensdokumentation): die gesamte bis dahin gezahlte Vergütung, Einrichtung und Nutzungsentgelt.
+- **Nach dem ersten PDF** (Erzeugung oder Download): nur das bereits gezahlte monatliche Nutzungsentgelt (49 € zzgl. USt). Die Einrichtung (149 € zzgl. USt) ist nicht erstattungsfähig.
 
 **Voraussetzungen**
 
-- Kauf über gobd-doku-erstellen.de (Stripe Checkout)
+- Bestellung über gobd-doku-erstellen.de (Stripe Checkout)
 - Antrag per E-Mail innerhalb der 14 Tage
 - Anschrift / Rechnungsdaten wie bei der Bestellung, damit wir die Zahlung zuordnen können
 
 **Was nicht gilt**
 
-Inhaltliche Unzufriedenheit allein wegen unvollständiger eigener Intake-Angaben ist kein Mangel der Leistung. Technische Lieferfehler (kein Download, defekte Datei) melde bitte sofort — wir liefern nach oder erstatten nach denselben Regeln.
+Inhaltliche Unzufriedenheit allein wegen unvollständiger eigener Angaben im Fragebogen ist kein Mangel der Leistung. Technische Lieferfehler (kein Download, defekte Datei) melde bitte sofort — wir liefern nach oder erstatten nach denselben Regeln.
 
 **Hinweis B2B**
 
-Wir richten uns primär an Unternehmer. Die 14-Tage-Geld-zurück-Zusage ist unsere **vertragliche Garantie** auf der Website — unabhängig davon, ob ein gesetzliches Widerrufsrecht greift.
+Unser Angebot richtet sich ausschließlich an Unternehmer (§ 14 BGB). Verbraucher sind vom Vertragsschluss ausgeschlossen. Die 14-Tage-Zufriedenheitsgarantie ist eine vertragliche Zusage in den AGB, kein gesetzliches Widerrufsrecht.
 
 Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 

@@ -33,6 +33,7 @@ export function CheckoutForm({
   const [company, setCompany] = useState(initialCompany);
   const [email, setEmail] = useState(initialEmail);
   const [accepted, setAccepted] = useState(false);
+  const [entrepreneur, setEntrepreneur] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const requireFirm = entities.length > 1;
@@ -52,6 +53,14 @@ export function CheckoutForm({
       setError("Bitte eine Firma wählen.");
       return;
     }
+    if (!entrepreneur) {
+      setError(
+        partner
+          ? "Bitte bestätigen Sie, dass Sie als Unternehmer bestellen."
+          : "Bitte bestätige, dass du als Unternehmer bestellst.",
+      );
+      return;
+    }
     if (!accepted) {
       setError(
         "Bitte bestätigen: keine Steuerberatung und keine Rechtsberatung.",
@@ -67,6 +76,7 @@ export function CheckoutForm({
           company: company.trim(),
           email: email.trim(),
           acceptedDisclaimer: accepted,
+          entrepreneur,
           entityId: entityId.trim() || undefined,
           audience,
         }),
@@ -133,6 +143,19 @@ export function CheckoutForm({
         <label className="check">
           <input
             type="checkbox"
+            name="entrepreneur"
+            checked={entrepreneur}
+            onChange={(e) => setEntrepreneur(e.target.checked)}
+            required
+          />
+          <span>
+            Ich bestelle als Unternehmer (§ 14 BGB) für meine gewerbliche oder
+            selbstständige berufliche Tätigkeit.
+          </span>
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
             name="acceptedDisclaimer"
             checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)}
@@ -149,7 +172,11 @@ export function CheckoutForm({
             <PilotKlartextSentence />
           </p>
         )}
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
         <button className="btn" type="submit" disabled={pending}>
           {pending
             ? "Bitte warten…"
@@ -183,19 +210,19 @@ export function CheckoutForm({
           <>
             <div className="line">
               <span>Setup GoBD Verfahrensdoku</span>
-              <strong>{SETUP_EUR}&nbsp;€</strong>
+              <strong>{SETUP_EUR}&nbsp;€ zzgl. USt</strong>
             </div>
             <div className="line">
               <span>Monatliche Betreuung</span>
-              <strong>{MONTHLY_EUR}&nbsp;€ / Mo</strong>
+              <strong>{MONTHLY_EUR}&nbsp;€ zzgl. USt / Monat</strong>
             </div>
             <div className="total">
               <span>Heute fällig</span>
-              <span>{TODAY_EUR}&nbsp;€</span>
+              <span>{TODAY_EUR}&nbsp;€ zzgl. USt</span>
             </div>
             <p className="hint">
               Mit Code: Setup und die ersten zwei Monate 0&nbsp;€. Danach{" "}
-              {MONTHLY_EUR}&nbsp;€/Monat, wenn Sie nicht kündigen.
+              {MONTHLY_EUR}&nbsp;€ zzgl. USt pro Monat, wenn Sie nicht kündigen.
             </p>
             <p className="disclaimer" role="note">
               Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein
@@ -207,17 +234,20 @@ export function CheckoutForm({
           <>
             <div className="line">
               <span>Einrichtung</span>
-              <strong>{SETUP_EUR}&nbsp;€</strong>
+              <strong>{SETUP_EUR}&nbsp;€ zzgl. USt</strong>
             </div>
             <div className="line">
               <span>Erster Monat</span>
-              <strong>{MONTHLY_EUR}&nbsp;€</strong>
+              <strong>{MONTHLY_EUR}&nbsp;€ zzgl. USt</strong>
             </div>
             <div className="total">
-              <span>Heute gesamt</span>
-              <span>{TODAY_EUR}&nbsp;€</span>
+              <span>Heute fällig</span>
+              <span>{TODAY_EUR}&nbsp;€ zzgl. USt</span>
             </div>
-            <p className="hint">Danach {MONTHLY_EUR}&nbsp;€/Monat.</p>
+            <p className="hint">
+              Danach {MONTHLY_EUR}&nbsp;€ zzgl. USt pro Monat, jederzeit zum
+              Monatsende kündbar.
+            </p>
             <p className="prose">{RESULT_PROMISE}</p>
           </>
         )}
