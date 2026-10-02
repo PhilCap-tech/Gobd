@@ -102,6 +102,11 @@ export function getEntitiesSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_ENTITIES_TAB || "entities";
 }
 
+/** Display name for the account hub. Session identity stays the e-mail. */
+export function getProfilesSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_PROFILES_TAB || "profiles";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }

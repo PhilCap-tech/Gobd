@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  AccountAboCard,
-  AccountPaidActions,
-  AccountUpgradeCard,
-} from "@/components/account-abo";
+import { AccountAboCard, AccountUpgradeCard } from "@/components/account-abo";
+import { AccountFreeCard } from "@/components/account-free";
+import { AccountProfileForm } from "@/components/account-profile-form";
 import {
   DocumentRevisionActions,
   VersionHistory,
@@ -32,6 +30,7 @@ import { firstQueryValue } from "@/lib/query";
 import {
   ensureAccountEntities,
   findLatestStripeCustomerIdByEmail,
+  getAccountProfile,
 } from "@/lib/store";
 import { portalStatusCopy, portalStatusFromQuery } from "@/lib/stripe";
 import {
@@ -62,7 +61,10 @@ export default async function AccountPage({
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
-  const { entities, documents: docs } = await ensureAccountEntities(email);
+  const [{ entities, documents: docs }, profile] = await Promise.all([
+    ensureAccountEntities(email),
+    getAccountProfile(email),
+  ]);
   const groups = groupFamiliesByEntity(entities, docs);
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   const stripeBound =
@@ -73,10 +75,20 @@ export default async function AccountPage({
   return (
     <>
       <SiteHeader backHref="/" backLabel="← Zur Landing" />
-      <main className="wrap page">
+      <main className="wrap account-wrap page">
         <p className="kicker">Konto</p>
         <h1>Meine Firmen</h1>
-        <p className="lead">{email}</p>
+        <p className="lead">
+          {profile?.name ? (
+            <>
+              {profile.name}
+              <br />
+              <span className="doc-meta">{email}</span>
+            </>
+          ) : (
+            email
+          )}
+        </p>
 
         {portalCopy && (
           <p
@@ -87,33 +99,38 @@ export default async function AccountPage({
           </p>
         )}
 
-        <AccountAboCard stripeBound={stripeBound} />
+        <div className="account-split">
+          <AccountAboCard stripeBound={stripeBound} />
+          <div className="account-side">
+            <AccountFreeCard />
+            <AccountProfileForm
+              email={email}
+              initialName={profile?.name ?? ""}
+              atCap={atCap}
+              firmHref={
+                entities[0] ? firmaEditPath(entities[0].entityId) : null
+              }
+            />
+          </div>
+        </div>
 
         {entities.length === 0 && docs.length === 0 ? (
-          <div className="card">
+          <div className="card" id="firmen">
             <p className="prose">
               Zu dieser E-Mail liegt noch keine Firma vor.
             </p>
-            {stripeBound ? (
-              <div className="actions" style={{ marginTop: 16 }}>
-                <Link className="btn" href="/account/firma/neu">
-                  Firma anlegen
-                </Link>
-              </div>
-            ) : (
-              <>
-                <AccountPaidActions />
-                <div className="actions" style={{ marginTop: 12 }}>
-                  <Link className="btn ghost" href="/account/firma/neu">
-                    Firma anlegen
-                  </Link>
-                </div>
-              </>
-            )}
+            <div className="actions" style={{ marginTop: 16 }}>
+              <Link
+                className={stripeBound ? "btn" : "btn ghost"}
+                href="/account/firma/neu"
+              >
+                Firma anlegen
+              </Link>
+            </div>
           </div>
         ) : (
           <>
-            <div className="entity-toolbar">
+            <div className="entity-toolbar" id="firmen">
               {atCap ? (
                 <p className="hint" style={{ margin: 0 }}>
                   Du hast das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
@@ -227,7 +244,8 @@ export default async function AccountPage({
           {stripeBound
             ? "Identität über die E-Mail aus dem Checkout."
             : "Identität über die E-Mail aus dem Intake."}{" "}
-          Bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen pro Konto.
+          Der Name im Profil ändert die Anmeldung nicht. Bis zu{" "}
+          {MAX_ENTITIES_PER_ACCOUNT} Firmen pro Konto.
         </p>
 
         <form action="/api/auth/logout" method="post" style={{ marginTop: 16 }}>
