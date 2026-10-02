@@ -22,11 +22,21 @@ import {
 } from "@/lib/entities";
 import {
   getEntitiesSheetsTab,
+  getProfilesSheetsTab,
   getReadinessSheetsTab,
   getSheetsTab,
   isSheetsConfigured,
   isStripeSecretConfigured,
 } from "@/lib/env";
+import {
+  coerceAccountProfile,
+  normalizeProfileName,
+  parseAccountProfile,
+  profileFieldForHeader,
+  profileSheetValues,
+  PROFILE_SHEET_COLUMNS,
+  type AccountProfile,
+} from "@/lib/profile";
 import { normalizeQueryId, queryIdsEqual } from "@/lib/query";
 import {
   lookupStripeCustomerIdByEmail,
@@ -55,6 +65,7 @@ import {
 const FILE_NAME = "intakes.json";
 const READINESS_FILE_NAME = "readiness-leads.json";
 const ENTITIES_FILE_NAME = "entities.json";
+const PROFILES_FILE_NAME = "profiles.json";
 
 const SHEETS_GET_OPTS = {
   headers: {
@@ -1288,4 +1299,281 @@ export async function ensureAccountEntities(
   }
 
   return { entities, documents, createdDefault, backfilled };
+}
+
+export type ProfileStoreResult = {
+  backend: "sheets" | "file";
+  profile: AccountProfile;
+  filePath?: string;
+};
+
+function profilesFilePath(dir: string): string {
+  return path.join(dir, PROFILES_FILE_NAME);
+}
+
+function tmpProfilesFallbackPath(): string {
+  return path.join(tmpdir(), "gobd-data", PROFILES_FILE_NAME);
+}
+
+export function getProfilesFileFallbackPath(): string {
+  return profilesFilePath(getFileFallbackDir());
+}
+
+function mergeProfiles(
+  primary: AccountProfile[],
+  extra: AccountProfile[],
+): AccountProfile[] {
+  const map = new Map<string, AccountProfile>();
+  for (const row of [...primary, ...extra]) {
+    const key = row.email.trim().toLowerCase();
+    if (!key) continue;
+    const prev = map.get(key);
+    if (!prev || row.updatedAt.localeCompare(prev.updatedAt) >= 0) {
+      map.set(key, { ...row, email: key });
+    }
+  }
+  return [...map.values()];
+}
+
+async function ensureProfilesSheetHeader(): Promise<string[]> {
+  const tab = getProfilesSheetsTab();
+  await ensureSpreadsheetTab(tab);
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const id = spreadsheetId();
+  const existing = await sheets.spreadsheets.values.get(
+    {
+      spreadsheetId: id,
+      range: `${tab}!A1:AZ1`,
+    },
+    SHEETS_GET_OPTS,
+  );
+  const header = (existing.data.values?.[0] ?? []).map((cell) => String(cell));
+
+  if (header.length === 0) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: `${tab}!A1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [PROFILE_SHEET_COLUMNS as unknown as string[]] },
+    });
+    return [...PROFILE_SHEET_COLUMNS];
+  }
+
+  const missing = PROFILE_SHEET_COLUMNS.filter((col) => {
+    const field = profileFieldForHeader(col);
+    if (!field) return true;
+    return !header.some((cell) => profileFieldForHeader(cell) === field);
+  });
+  if (missing.length === 0) return header;
+
+  const next = [...header, ...missing];
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${tab}!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values: [next] },
+  });
+  return next;
+}
+
+async function appendProfileSheetRow(profile: AccountProfile): Promise<void> {
+  const header = await ensureProfilesSheetHeader();
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: spreadsheetId(),
+    range: `${getProfilesSheetsTab()}!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values: [profileSheetValues(profile, header)] },
+  });
+}
+
+async function readProfileSheetRows(): Promise<AccountProfile[]> {
+  const header = await ensureProfilesSheetHeader();
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const result = await sheets.spreadsheets.values.get(
+    {
+      spreadsheetId: spreadsheetId(),
+      range: `${getProfilesSheetsTab()}!A2:AZ`,
+    },
+    SHEETS_GET_OPTS,
+  );
+  const values = result.data.values ?? [];
+  return values
+    .filter((row) => row.some((cell) => String(cell || "").trim()))
+    .map((row) =>
+      parseAccountProfile(
+        header,
+        row.map((cell) => String(cell ?? "")),
+      ),
+    )
+    .filter((row) => row.email);
+}
+
+async function readProfileFileRows(file: string): Promise<AccountProfile[]> {
+  try {
+    const raw = await readFile(file, "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => coerceAccountProfile(item))
+      .filter((row): row is AccountProfile => Boolean(row));
+  } catch {
+    return [];
+  }
+}
+
+async function writeProfileFileRows(
+  dir: string,
+  file: string,
+  rows: AccountProfile[],
+): Promise<void> {
+  await mkdir(dir, { recursive: true });
+  await writeFile(file, JSON.stringify(rows, null, 2), "utf8");
+}
+
+async function readAllProfileFileRows(): Promise<AccountProfile[]> {
+  const primary = await readProfileFileRows(profilesFilePath(getFileFallbackDir()));
+  const tmpFile = tmpProfilesFallbackPath();
+  if (tmpFile === profilesFilePath(getFileFallbackDir())) return primary;
+  return mergeProfiles(primary, await readProfileFileRows(tmpFile));
+}
+
+function upsertProfileRow(
+  rows: AccountProfile[],
+  profile: AccountProfile,
+): AccountProfile[] {
+  let replaced = false;
+  const next = rows.map((row) => {
+    if (!emailsEqual(row.email, profile.email)) return row;
+    replaced = true;
+    return profile;
+  });
+  if (!replaced) next.push(profile);
+  return next;
+}
+
+async function writeProfileFile(profile: AccountProfile): Promise<string> {
+  const primaryDir = getFileFallbackDir();
+  const primaryFile = profilesFilePath(primaryDir);
+  try {
+    const rows = await readProfileFileRows(primaryFile);
+    await writeProfileFileRows(primaryDir, primaryFile, upsertProfileRow(rows, profile));
+    return primaryFile;
+  } catch (error) {
+    const tmpFile = tmpProfilesFallbackPath();
+    if (isFsUnavailable(error) && primaryFile !== tmpFile) {
+      console.warn(
+        "[store] Profil-Datei nicht beschreibbar — weiche auf tmpdir aus",
+        error,
+      );
+      const tmpDir = path.dirname(tmpFile);
+      const rows = await readProfileFileRows(tmpFile);
+      await writeProfileFileRows(tmpDir, tmpFile, upsertProfileRow(rows, profile));
+      return tmpFile;
+    }
+    throw error;
+  }
+}
+
+async function updateProfileSheetRow(profile: AccountProfile): Promise<boolean> {
+  const header = await ensureProfilesSheetHeader();
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const id = spreadsheetId();
+  const tab = getProfilesSheetsTab();
+  const result = await sheets.spreadsheets.values.get(
+    {
+      spreadsheetId: id,
+      range: `${tab}!A2:AZ`,
+    },
+    SHEETS_GET_OPTS,
+  );
+  const values = result.data.values ?? [];
+  const updates: Array<{ range: string; values: string[][] }> = [];
+  for (let i = 0; i < values.length; i++) {
+    const row = parseAccountProfile(
+      header,
+      (values[i] ?? []).map((cell) => String(cell ?? "")),
+    );
+    if (!row.email || !emailsEqual(row.email, profile.email)) continue;
+    updates.push({
+      range: `${tab}!A${i + 2}`,
+      values: [profileSheetValues(profile, header)],
+    });
+  }
+  if (updates.length === 0) return false;
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: id,
+    requestBody: { valueInputOption: "RAW", data: updates },
+  });
+  return true;
+}
+
+async function loadProfiles(): Promise<{
+  backend: "sheets" | "file";
+  rows: AccountProfile[];
+}> {
+  if (isSheetsConfigured()) {
+    try {
+      const sheetRows = await readProfileSheetRows();
+      const fileRows = await readAllProfileFileRows();
+      return { backend: "sheets", rows: mergeProfiles(sheetRows, fileRows) };
+    } catch (error) {
+      console.error(
+        "[store] Profil Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
+        error,
+      );
+    }
+  }
+  return { backend: "file", rows: await readAllProfileFileRows() };
+}
+
+export async function getAccountProfile(
+  email: string,
+): Promise<AccountProfile | null> {
+  if (!email.trim()) return null;
+  const { rows } = await loadProfiles();
+  return rows.find((row) => emailsEqual(row.email, email)) ?? null;
+}
+
+/**
+ * Saves the hub display name for this e-mail. Does not change the session cookie.
+ */
+export async function upsertAccountProfile(
+  email: string,
+  name: string,
+): Promise<ProfileStoreResult> {
+  const profile: AccountProfile = {
+    email: email.trim().toLowerCase(),
+    name: normalizeProfileName(name),
+    updatedAt: new Date().toISOString(),
+  };
+  if (!profile.email) {
+    throw new Error("E-Mail fehlt.");
+  }
+
+  if (isSheetsConfigured()) {
+    try {
+      const updated = await updateProfileSheetRow(profile);
+      if (!updated) await appendProfileSheetRow(profile);
+      try {
+        await writeProfileFile(profile);
+      } catch (error) {
+        console.warn("[store] Profil-Datei nach Sheets-Update nicht geschrieben", error);
+      }
+      return { backend: "sheets", profile };
+    } catch (error) {
+      console.error(
+        "[store] Profil-Update in Sheets fehlgeschlagen — falle auf Datei zurück",
+        error,
+      );
+    }
+  } else {
+    console.warn(
+      "[store] Google Sheets nicht konfiguriert — schreibe Profil nach",
+      getProfilesFileFallbackPath(),
+    );
+  }
+
+  const filePath = await writeProfileFile(profile);
+  return { backend: "file", profile, filePath };
 }

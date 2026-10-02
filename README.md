@@ -116,6 +116,7 @@ Env:
 - `GOOGLE_SHEETS_TAB` (Default: `intakes`)
 - `GOOGLE_SHEETS_READINESS_TAB` (Default: `readiness_leads`) — **eigene Tabelle**, nicht mit Paid-Intakes mischen
 - `GOOGLE_SHEETS_ENTITIES_TAB` (Default: `entities`) — Firmen im Account-Hub, nicht mit Intakes mischen
+- `GOOGLE_SHEETS_PROFILES_TAB` (Default: `profiles`) — Anzeigename im Konto, nicht die Login-E-Mail
 
 Spalten `intakes` (Header wird geschrieben, wenn A1 leer ist; fehlende Spalten werden **angehängt**, bestehende nicht umsortiert):
 
@@ -148,6 +149,14 @@ Spalten:
 Datei-Fallback: `.data/entities.json` bzw. `/tmp/gobd-data/entities.json`.
 
 Beim ersten Konto-Aufruf: hat die Session-E-Mail Dokumente ohne `entity_id` und noch keine Firma, legt die App eine Standard-Firma an (letzter `company`-Wert oder „Meine Firma“) und schreibt `entity_id` in die bestehenden Zeilen (Sheets-Zelle bzw. Datei, kein neues PDF). Stammdaten (Name, Straße, PLZ, Ort, Steuernummer, USt-IdNr.) werden in-place aktualisiert (`PATCH /api/entities`). Soft-Cap gilt nur beim Anlegen.
+
+### Profil (`profiles`)
+
+Anzeigename auf `/account` (Kontaktname). Die Session bleibt die E-Mail; der Name steht nicht im Cookie. Fehlt das Tab, wird es angelegt.
+
+Spalten: `email | name | updated_at`
+
+Datei-Fallback: `.data/profiles.json` bzw. `/tmp/gobd-data/profiles.json`. Leerer Name löscht die Anzeige. `PATCH /api/profile` schreibt nur für die Session-E-Mail.
 
 PDF/Intake: ist `identity.company` leer, setzt die Erzeugung den Firmennamen aus den Stammdaten. Bestehende Template-Platzhalter (`{{identity.company}}` usw.) bleiben; kein zusätzlicher Rechtstext.
 

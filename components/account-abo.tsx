@@ -26,11 +26,7 @@ export function AccountUpgradeCard({
   headingId?: string;
 }) {
   return (
-    <section
-      className="card"
-      style={{ marginBottom: 16 }}
-      aria-labelledby={headingId}
-    >
+    <section className="card account-panel" aria-labelledby={headingId}>
       <h2 id={headingId}>
         {compact
           ? "Volle Verfahrensdokumentation"
@@ -66,12 +62,22 @@ export function AccountUpgradeCard({
           </div>
         </>
       )}
-      <AccountPaidActions />
-      <p className="trust-line">
-        14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein
-        PDF erzeugt wurde · Keine Steuerberatung · Entwurf für deinen
-        Steuerberater
-      </p>
+      {compact ? (
+        <p className="hint">
+          <Link href="/checkout">Checkout öffnen</Link>
+          {" · "}
+          {SETUP_EUR} € Einrichtung + {MONTHLY_EUR} €/Mo
+        </p>
+      ) : (
+        <>
+          <AccountPaidActions />
+          <p className="trust-line">
+            14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein
+            PDF erzeugt wurde · Keine Steuerberatung · Entwurf für deinen
+            Steuerberater
+          </p>
+        </>
+      )}
     </section>
   );
 }
@@ -82,7 +88,7 @@ export function AccountAboCard({ stripeBound }: { stripeBound: boolean }) {
   }
 
   return (
-    <section className="card" style={{ marginBottom: 16 }} aria-labelledby="abo-heading">
+    <section className="card account-panel" aria-labelledby="abo-heading">
       <h2 id="abo-heading">Abo</h2>
       <p className="prose">
         Ein Abo gilt für bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen. Status,
