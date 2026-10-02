@@ -7,6 +7,17 @@ export const RESULT_PROMISE =
 /** Exact price line next to the first paid CTA and the sticky bar. */
 export const PRICE_MICRO = `Heute ${TODAY_EUR} € (${SETUP_EUR} € Einrichtung + erster Monat), danach ${MONTHLY_EUR} €/Monat`;
 
+/** Homepage only: one line under the price table. Amounts follow pricing.ts. */
+export const PRICE_FRAME_LINE = `${TODAY_EUR} € = individuelles PDF + Offene-Punkte (kein reines Tool-Abo und kein reiner Check) · ${MONTHLY_EUR} €/Mo = Versionen & Pflege.`;
+
+/** Homepage hero, directly under the H1. No social-proof counts. */
+export const HERO_OUTCOME_LINE =
+  "PDF + Offene-Punkte aus deinen Angaben · Entwurf für dich und deinen Steuerberater.";
+
+/** Equal-weight secondary pair in the homepage hero (above the fold). */
+export const CTA_CHECK_HERO = "Kostenlosen 3-Minuten-Check";
+export const CTA_MUSTER_HERO = "Muster ansehen";
+
 export const PRICE_CTA_SUFFIX = `Heute ${TODAY_EUR} €, danach ${MONTHLY_EUR} €/Monat`;
 
 export const CTA_CREATE = "Dokumentation erstellen";

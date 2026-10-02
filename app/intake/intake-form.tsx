@@ -17,9 +17,14 @@ import {
   withCatalogDraft,
 } from "@/lib/intake-catalog";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
+import { customerHubTitle } from "@/lib/account-display";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
-import { berlinTodayIso, versionChangeDraftError } from "@/lib/versioning";
+import {
+  berlinTodayIso,
+  versionChangeDraftError,
+  versionLabelFromRow,
+} from "@/lib/versioning";
 
 type IntakeFormProps = {
   session: CheckoutIdentity;
@@ -38,6 +43,10 @@ export function IntakeForm({
   entities = [],
   initialEntityId = "",
 }: IntakeFormProps) {
+  const companyLabel = customerHubTitle(session.company, "");
+  const nextVersionLabel = nextVersion
+    ? versionLabelFromRow({ version: String(nextVersion) })
+    : "n+1";
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [entityId, setEntityId] = useState(initialEntityId);
@@ -159,9 +168,8 @@ export function IntakeForm({
       {isEdit && step <= INTAKE_STEPS.length && (
         <p className="banner">
           Du bearbeitest die Angaben
-          {session.company ? ` für ${session.company}` : ""}. Beim Absenden
-          entsteht Version {nextVersion ?? "n+1"} — bisherige PDFs bleiben
-          downloadbar.
+          {companyLabel ? ` für ${companyLabel}` : ""}. Beim Absenden entsteht
+          Version {nextVersionLabel} — bisherige PDFs bleiben downloadbar.
         </p>
       )}
 
@@ -169,7 +177,7 @@ export function IntakeForm({
 
       {session.email && step === 0 && (
         <p className="hint">
-          Session: {session.company || "—"} · {session.email}
+          Session: {companyLabel || "—"} · {session.email}
         </p>
       )}
 

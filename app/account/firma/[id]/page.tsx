@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { customerHubTitle } from "@/lib/account-display";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { getOwnedEntity } from "@/lib/store";
 import { FirmaForm } from "../firma-form";
@@ -51,7 +52,9 @@ export default async function EditFirmaPage({
         ) : (
           <>
             <h1>Firma bearbeiten</h1>
-            <p className="lead">{entity.name}</p>
+            <p className="lead">
+              {customerHubTitle(entity.name, "Firma")}
+            </p>
             <FirmaForm
               mode="edit"
               entityId={entity.entityId}

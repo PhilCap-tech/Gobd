@@ -5,12 +5,16 @@ import { CATALOG_STEPS } from "@/lib/intake-catalog";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import {
   CTA_CHECK,
+  CTA_CHECK_HERO,
   CTA_CREATE,
   CTA_CREATE_WITH_PRICE,
   CTA_MUSTER,
+  CTA_MUSTER_HERO,
   DISCLAIMER_ONCE,
   GELD_ZURUECK_HREF,
   GELD_ZURUECK_MICRO,
+  HERO_OUTCOME_LINE,
+  PRICE_FRAME_LINE,
   PRICE_MICRO,
   RESULT_PROMISE,
 } from "@/lib/offer-copy";
@@ -118,6 +122,7 @@ export default function HomePage() {
         <section className="hero">
           <p className="hook">Buchhaltungsabläufe nachvollziehbar dokumentieren</p>
           <h1>GoBD-Verfahrensdokumentation online erstellen</h1>
+          <p className="outcome-line">{HERO_OUTCOME_LINE}</p>
           <p className="lead">
             Geführte Fragen zu deinen Abläufen. {RESULT_PROMISE} Schritt für
             Schritt online erstellen.
@@ -130,13 +135,15 @@ export default function HomePage() {
                 </Link>
                 <PriceLine />
               </div>
+            </div>
+            <div className="hero-secondary">
+              <Link className="btn ghost" href="/readiness">
+                {CTA_CHECK_HERO}
+              </Link>
               <Link className="btn ghost" href="#muster">
-                {CTA_MUSTER}
+                {CTA_MUSTER_HERO}
               </Link>
             </div>
-            <Link className="text-cta" href="/readiness">
-              {CTA_CHECK}
-            </Link>
           </div>
           <p className="advisor-note">
             Steuerberater oder Kanzlei? →{" "}
@@ -277,6 +284,7 @@ export default function HomePage() {
             </table>
             <p className="prose">{RESULT_PROMISE}</p>
           </div>
+          <p className="price-frame">{PRICE_FRAME_LINE}</p>
           <h3>Mit dem Abo</h3>
           <ul className="prose-list">
             <li>Versionierung deiner Dokumentation</li>

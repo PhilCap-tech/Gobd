@@ -27,7 +27,7 @@ export function AccountBillingStatus({
     : lookupFailed
       ? lookupHint
       : !hasCustomer
-        ? "Zu dieser E-Mail liegt noch kein Checkout vor. Status und Rechnungen erscheinen danach."
+        ? "Noch kein bezahltes Abo. Status und Rechnungen erscheinen hier, sobald ein Abo besteht."
         : "";
 
   return (
@@ -91,7 +91,7 @@ export function AccountInvoiceList({
     : lookupFailed
       ? "Rechnungen konnten gerade nicht geladen werden. Bitte später erneut versuchen."
       : !hasCustomer
-        ? "Zu dieser E-Mail liegt noch kein Checkout vor. Rechnungen erscheinen danach."
+        ? "Noch kein bezahltes Abo. Rechnungen erscheinen hier nach der ersten Zahlung."
         : "Noch keine Rechnungen vorhanden.";
 
   return (

@@ -1,5 +1,9 @@
 import Link from "next/link";
 import {
+  customerChangedBy,
+  customerChangeSummary,
+} from "@/lib/account-display";
+import {
   documentDownloadPath,
   documentEditPath,
   intakeEditPath,
@@ -87,15 +91,15 @@ export function VersionHistory({
       <p className="version-hint">{CURRENT_VERSION_RULE}</p>
       {versions.length <= 1 && (
         <p className="version-hint">
-          Nach dem Überarbeiten erscheint hier Version 2.
+          Nach dem Überarbeiten erscheint hier Version 2.0.
         </p>
       )}
       {versions.length > 0 && (
         <ul className="version-list">
           {ordered.map((row) => {
             const isCurrent = current?.row.documentId === row.documentId;
-            const summary = row.changeSummary.trim() || "—";
-            const who = row.changedBy.trim() || "—";
+            const summary = customerChangeSummary(row.changeSummary);
+            const who = customerChangedBy(row.changedBy);
             return (
               <li key={row.documentId}>
                 <div className="version-copy">
