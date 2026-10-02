@@ -1,5 +1,4 @@
 > **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
-> Fehlende Technik-/Prozessangaben als `[klären: …]` — nichts erfunden.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -23,10 +22,6 @@ Telefon: +49 231 580 456 06
 E-Mail: info@gobd-doku-erstellen.de  
 Website: https://www.gobd-doku-erstellen.de
 
-## Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV
-
-[klären: Nur nennen, falls der Blog als journalistisch-redaktionell eingestuft wird — Name und Anschrift; sonst Abschnitt weglassen.]
-
 ## Hinweis zum Adressatenkreis
 
 Unser Angebot richtet sich **ausschließlich an Unternehmer** (§ 14 BGB). Verträge mit Verbrauchern (§ 13 BGB) schließen wir nicht.
@@ -34,8 +29,6 @@ Unser Angebot richtet sich **ausschließlich an Unternehmer** (§ 14 BGB). Vertr
 ## Verbraucherstreitbeilegung
 
 Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.
-
-[klären: Ob und wie § 36 VSBG bei reinem B2B-Angebot auszuweisen ist — juristisch prüfen.]
 
 ## Haftung für Inhalte
 

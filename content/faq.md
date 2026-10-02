@@ -37,7 +37,7 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 - **Preismodell:** einmalige Einrichtung 149 € zzgl. USt und 49 € zzgl. USt pro Monat. Der erste Monat ist im Einstiegspreis von 198 € zzgl. USt (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet. Maßgeblich sind die im Checkout angezeigten Beträge.
 - Das monatliche Abo deckt laufenden Zugang sowie Update-/Pflegeleistungen gemäß aktueller Produktbeschreibung ab (u. a. Versionierung und Speicherung).
 - Ein Update ist sinnvoll, wenn sich Systeme, Belegwege, Hosting oder Verantwortliche ändern.
-- Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung. Bereits erzeugte PDFs kannst du nach Vertragsende noch [klären: Anzahl Tage] herunterladen. Zugang zu früheren Fassungen und spätere Anpassungen gibt es nur mit aktivem Abonnement.
+- Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung. Bereits erzeugte PDFs kannst du nach Vertragsende noch 30 Tage herunterladen. Zugang zu früheren Fassungen und spätere Anpassungen gibt es nur mit aktivem Abonnement.
 
 ## 4. Ist das Steuerberatung / rechtssicher?
 
@@ -62,7 +62,7 @@ Innerhalb von **14 Tagen** nach Bestellung erstatten wir die volle Zahlung (198 
 
 **So beantragst du die Erstattung**
 
-Schreib an **info@gobd-doku-erstellen.de** mit Betreff „Zufriedenheitsgarantie“ und deiner Bestell- oder Rechnungsmail. [klären: Konto-Weg, falls vorhanden.] Wir bestätigen den Eingang und erstatten über denselben Zahlungsweg.
+Schreib an **info@gobd-doku-erstellen.de** mit Betreff „Zufriedenheitsgarantie“ und deiner Bestell- oder Rechnungsmail. Ein Button im Kundenkonto ist dafür nicht eingerichtet. Wir bestätigen den Eingang und erstatten über denselben Zahlungsweg.
 
 **Frist**
 

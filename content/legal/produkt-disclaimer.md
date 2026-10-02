@@ -1,5 +1,4 @@
 > **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
-> Fehlende Technik-/Prozessangaben als `[klären: …]` — nichts erfunden.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---

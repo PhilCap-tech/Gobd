@@ -5,7 +5,7 @@
 import { globSync, readFileSync } from "node:fs";
 
 const forbidden =
-  /\b(TODO|Counsel|Variante B|Platzhalter|Go-Live|Soft-CTA|Primär-CTA|Pillar)\b/i; // allow-forbidden
+  /\b(TODO|Counsel|Variante B|Platzhalter|Go-Live|Soft-CTA|Primär-CTA|Pillar)\b|\[klären/i; // allow-forbidden
 
 const patterns = [
   "content/legal/**/*.{md,mdx}",

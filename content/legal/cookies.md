@@ -1,5 +1,4 @@
 > **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
-> Fehlende Technik-/Prozessangaben als `[klären: …]` — nichts erfunden.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -41,18 +40,16 @@ Kampagnenparameter in der Adresse (UTM) speichern wir beim ersten Seitenaufruf i
 |---|---|---|---|---|
 | `gobd_consent` (Cookie und Local Storage) | IKAT GmbH | Speichert deine Cookie-Auswahl | Essenziell | 180 Tage |
 | `gobd_session` | IKAT GmbH | Hält dich nach dem Magic-Link-Login angemeldet | Essenziell | 30 Tage |
-| `gobd_utm_first` (Session Storage) | IKAT GmbH | Merkt sich Kampagnenparameter der ersten Seite (UTM) | [klären: Essenziell / Statistik] | Ende der Browsersitzung |
-| Stripe-Cookies bzw. -Speicher (z. B. `__stripe_mid`, `__stripe_sid`) [klären: Namen im Browser prüfen] | Stripe Payments Europe, Ltd. | Zahlungsabwicklung, Betrugsprävention | Essenziell [klären: Domain] | [klären: Laufzeit, typisch 1 Jahr / 30 Min.] |
-| `_ga` | Google Ireland Ltd. | GA4: Unterscheidung von Besuchern | Marketing (nur nach Einwilligung) | [klären: typisch 2 Jahre] |
-| `_ga_<Container-ID>` | Google Ireland Ltd. | GA4: Sitzungsstatus | Marketing (nur nach Einwilligung) | [klären: typisch 2 Jahre] |
-| `_gcl_au` | Google Ireland Ltd. | Google Ads: Conversion-Zuordnung | Marketing (nur nach Einwilligung) | [klären: typisch 90 Tage] |
-| `_fbp` | Meta Platforms Ireland Ltd. | Meta Pixel: Browser-Kennung für Werbemessung | Marketing (nur nach Einwilligung) | [klären: typisch 90 Tage] |
-
-Hinweis: Laufzeiten der Drittanbieter-Cookies bitte vor Veröffentlichung im Browser (DevTools) nach Einwilligung verifizieren und die Tabelle aktualisieren.
+| `gobd_utm_first` (Session Storage) | IKAT GmbH | Merkt sich Kampagnenparameter der ersten Seite (UTM); bleibt im Browser, bis du Marketing erlaubst | Sitzung, nur lokal | Ende der Browsersitzung |
+| Stripe-Cookies bzw. -Speicher (z. B. `__stripe_mid`, `__stripe_sid`) | Stripe Payments Europe, Ltd. | Zahlungsabwicklung, Betrugsprävention; gesetzt auf der Domain von Stripe, nicht auf unserer Website | Essenziell für die Zahlung | typischerweise etwa 1 Jahr (`__stripe_mid`) bzw. 30 Minuten (`__stripe_sid`); genaue Laufzeit im Browser beim Checkout sichtbar |
+| `_ga` | Google Ireland Ltd. | GA4: Unterscheidung von Besuchern | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
+| `_ga_RJ4KLBP1SF` | Google Ireland Ltd. | GA4: Sitzungsstatus zur Mess-ID G-RJ4KLBP1SF | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
+| `_gcl_au` | Google Ireland Ltd. | Google Ads: Conversion-Zuordnung (Ads-ID AW-586367190) | Marketing (nur nach Einwilligung) | typischerweise 90 Tage; genaue Laufzeit im Browser nach Einwilligung sichtbar |
+| `_fbp` | Meta Platforms Ireland Ltd. | Meta Pixel: Browser-Kennung für Werbemessung, nur wenn eine Pixel-ID konfiguriert ist | Marketing (nur nach Einwilligung) | typischerweise 90 Tage; genaue Laufzeit im Browser nach Einwilligung sichtbar |
 
 ## Verwaltung / Ablehnung
 
-Technisch notwendige Cookies können in der Regel nicht abgewählt werden, ohne Funktion oder Checkout zu beeinträchtigen. Marketing kannst du jederzeit über „Cookie-Einstellungen“ widerrufen; beim Wechsel auf „Nur essenziell“ sollen Marketing-Cookies gelöscht und die Seite neu geladen werden [klären: technisch umgesetzt?].
+Technisch notwendige Cookies können in der Regel nicht abgewählt werden, ohne Funktion oder Checkout zu beeinträchtigen. Marketing kannst du jederzeit über „Cookie-Einstellungen“ widerrufen. Die Ablehnung wird gespeichert; Marketing-Skripte werden danach nicht mehr geladen. Bereits gesetzte Marketing-Cookies (`_ga`, `_gcl_au`, `_fbp` und ähnliche) entfernt der Widerruf nicht automatisch. Du kannst sie in den Einstellungen deines Browsers löschen.
 
 ## Weitere Informationen
 

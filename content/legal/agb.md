@@ -1,5 +1,4 @@
 > **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
-> Fehlende Technik-/Prozessangaben als `[klären: …]` — nichts erfunden.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -52,15 +51,15 @@ und dem Kunden („Kunde“, „du“).
 
 (2) Der Vertrag besteht aus einer einmaligen **Einrichtungsleistung in Höhe von 149 €** und einem monatlich abzurechnenden **Nutzungsentgelt in Höhe von 49 € pro Monat**. Der erste Monat ist im Einstiegspreis von **198 €** (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet.
 
-(3) Die Zahlung erfolgt über den Zahlungsdienstleister Stripe mit den im Checkout angebotenen Zahlungsarten. Rechnungen werden in elektronischer Form [klären: per E-Mail / im Kundenkonto] bereitgestellt. Das Entgelt ist mit Vertragsschluss bzw. zu Beginn des jeweiligen Abrechnungsmonats fällig [klären: Fälligkeit bestätigen].
+(3) Die Zahlung erfolgt über den Zahlungsdienstleister Stripe mit den im Checkout angebotenen Zahlungsarten. Rechnungen werden elektronisch im Kundenkonto unter „Abo & Rechnungen“ bereitgestellt (Stripe-Rechnung mit Link und PDF). Das Entgelt ist mit Vertragsschluss bzw. zu Beginn des jeweiligen Abrechnungsmonats fällig.
 
-(4) Bei Zahlungsausfall können wir den Zugang zum Konto nach vorheriger Mahnung mit einer Frist von [klären: X Tagen] sperren. Die Pflicht zur Zahlung bleibt davon unberührt. [klären: Folgen bei Zahlungsausfall — juristisch prüfen.]
+(4) Bei Zahlungsausfall können wir den Zugang zum Konto nach vorheriger Mahnung mit einer Frist von 14 Tagen sperren. Die Pflicht zur Zahlung bleibt davon unberührt.
 
-(5) Wir können das monatliche Nutzungsentgelt mit einer Ankündigungsfrist von [klären: X Wochen/Monaten] in Textform anpassen. Der Kunde kann in diesem Fall außerordentlich zum Zeitpunkt des Wirksamwerdens der Preisänderung kündigen. [klären: Preisänderungsklausel — juristisch prüfen.]
+(5) Wir können das monatliche Nutzungsentgelt mit einer Ankündigungsfrist von 4 Wochen in Textform anpassen. Der Kunde kann in diesem Fall außerordentlich zum Zeitpunkt des Wirksamwerdens der Preisänderung kündigen.
 
 ## § 5 Leistung und Bereitstellung
 
-(1) Nach Zahlung und Abschluss des Fragebogens erzeugen wir aus den Angaben des Kunden einen Entwurf der Verfahrensdokumentation als PDF samt Liste offener Punkte und stellen ihn im Kundenkonto zum Download bereit. Die Bereitstellung erfolgt in der Regel innerhalb weniger Minuten [klären: Frist belegbar bestätigen].
+(1) Nach Zahlung und Abschluss des Fragebogens erzeugen wir aus den Angaben des Kunden einen Entwurf der Verfahrensdokumentation als PDF samt Liste offener Punkte und stellen ihn im Kundenkonto zum Download bereit. Die Bereitstellung erfolgt in der Regel innerhalb weniger Minuten nach Abschluss des Fragebogens.
 
 (2) Die Leistung umfasst den Belegfluss gemäß § 2 Abs. 1 und 2.
 
@@ -78,7 +77,7 @@ und dem Kunden („Kunde“, „du“).
 
 (2) Der Kunde ist selbst dafür verantwortlich, die erzeugte Dokumentation vor Verwendung auf Richtigkeit zu prüfen und die offenen Punkte zu klären.
 
-(3) Der Kunde bestätigt, dass er Unternehmer ist und die Leistung ausschließlich für seine gewerbliche oder selbstständige berufliche Tätigkeit nutzt. Macht der Kunde unzutreffende Angaben zu seiner Unternehmereigenschaft, ist er uns zum Ersatz des daraus entstehenden Schadens verpflichtet [klären: juristisch prüfen].
+(3) Der Kunde bestätigt, dass er Unternehmer ist und die Leistung ausschließlich für seine gewerbliche oder selbstständige berufliche Tätigkeit nutzt. Macht der Kunde unzutreffende Angaben zu seiner Unternehmereigenschaft, ist er uns zum Ersatz des daraus entstehenden Schadens verpflichtet.
 
 ## § 8 Kein Widerrufsrecht (B2B)
 
@@ -86,13 +85,13 @@ Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vo
 
 ## § 9 Zufriedenheitsgarantie
 
-(1) Wir gewähren dem Kunden eine **14-Tage-Zufriedenheitsgarantie** ab Vertragsschluss. Innerhalb dieser Frist kann der Kunde die Erstattung verlangen, indem er sich in Textform an **info@gobd-doku-erstellen.de** wendet oder die Funktion im Kundenkonto nutzt [klären: Konto-Weg, falls/wenn vorhanden].
+(1) Wir gewähren dem Kunden eine **14-Tage-Zufriedenheitsgarantie** ab Vertragsschluss. Innerhalb dieser Frist kann der Kunde die Erstattung verlangen, indem er sich in Textform an **info@gobd-doku-erstellen.de** wendet. Ein eigener Button im Kundenkonto ist dafür nicht eingerichtet.
 
 (2) Hat der Kunde noch kein PDF der Dokumentation erzeugt oder heruntergeladen, erstatten wir die **gesamte bis dahin gezahlte Vergütung** (Einrichtung und Nutzungsentgelt). Das Abonnement endet mit der Erstattung.
 
 (3) Hat der Kunde bereits ein PDF erzeugt oder heruntergeladen, erstatten wir das **bereits gezahlte monatliche Nutzungsentgelt** (49 € zzgl. USt). Die **Einrichtungsvergütung (149 € zzgl. USt) ist in diesem Fall nicht erstattungsfähig**, da die Einrichtungsleistung dann erbracht ist. Das Abonnement endet mit der Erstattung.
 
-(4) Gesetzliche Rechte des Kunden, insbesondere Gewährleistungsrechte, bleiben unberührt. [klären: Vereinbarkeit Garantie / B2B — juristisch prüfen.]
+(4) Gesetzliche Rechte des Kunden, insbesondere Gewährleistungsrechte, bleiben unberührt.
 
 ## § 10 Gewährleistung
 
@@ -122,7 +121,7 @@ Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vo
 
 (3) Das Recht beider Parteien zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt.
 
-(4) Während der Vertragslaufzeit stehen dem Kunden Zugang zu früheren Fassungen und spätere Anpassungen der Dokumentation zur Verfügung. Nach Vertragsende kann der Kunde bereits erzeugte PDFs noch [klären: Anzahl Tage] herunterladen. Danach löschen wir die gespeicherten Daten und Dokumente, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung.
+(4) Während der Vertragslaufzeit stehen dem Kunden Zugang zu früheren Fassungen und spätere Anpassungen der Dokumentation zur Verfügung. Nach Vertragsende kann der Kunde bereits erzeugte PDFs noch 30 Tage herunterladen. Danach löschen wir die gespeicherten Daten und Dokumente, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung.
 
 ## § 13 Datenschutz
 
@@ -132,7 +131,7 @@ Es gelten die gesonderte Datenschutzerklärung und die Cookie-Hinweise auf der W
 
 (1) Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts.
 
-(2) Ist der Kunde Kaufmann, juristische Person des öffentlichen Rechts oder öffentlich-rechtliches Sondervermögen, ist ausschließlicher Gerichtsstand **Monheim am Rhein** (Sitz der IKAT GmbH). [klären: Gerichtsstand — juristisch bestätigen.]
+(2) Ist der Kunde Kaufmann, juristische Person des öffentlichen Rechts oder öffentlich-rechtliches Sondervermögen, ist ausschließlicher Gerichtsstand **Monheim am Rhein** (Sitz der IKAT GmbH).
 
 (3) Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
 
