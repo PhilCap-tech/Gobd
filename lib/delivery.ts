@@ -18,7 +18,7 @@ import {
 } from "@/lib/pdf-brand";
 import { writeMarkdownish } from "@/lib/pdf-markdown";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
-import type { VersionPdfMeta } from "@/lib/versioning";
+import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
 
 /**
  * GoBD Delivery Templates v3.0.0 — local PDF from Intake + content/delivery-templates.
@@ -323,6 +323,7 @@ function writePdf(
     version?: number;
     content?: DeliveryDocumentContent | null;
     versionMeta?: VersionPdfMeta;
+    versionHistory?: VersionHistoryEntry[];
   },
 ) {
   const rendered = renderDeliveryDocument(input);
@@ -362,6 +363,8 @@ export async function generatePdf(input: {
   version?: number;
   content?: DeliveryDocumentContent | null;
   versionMeta?: VersionPdfMeta;
+  /** Earlier versions for the Änderungshistorie, oldest first. */
+  versionHistory?: VersionHistoryEntry[];
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const documentId = input.documentId || randomUUID();
   const version = input.version && input.version > 0 ? input.version : 1;
@@ -399,4 +402,64 @@ export async function generatePdf(input: {
   });
 
   return { buffer, plan, documentId };
+}
+
+/**
+ * Simple branded PDF from markdown (Muster-Fragebogen). Same page frame as the
+ * delivery PDF, own footer line.
+ */
+export async function generateMarkdownPdf(input: {
+  markdown: string;
+  company: string;
+  title: string;
+  footer: string;
+}): Promise<Buffer> {
+  return new Promise<Buffer>((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: PAGE_MARGIN,
+      bufferPages: true,
+      autoFirstPage: true,
+      info: { Title: input.title, Author: BRAND_NAME, Subject: input.footer },
+    });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+    doc.lineGap(1.6);
+    writeMarkdownish(doc, input.markdown, contentWidth(doc));
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i += 1) {
+      doc.switchToPage(range.start + i);
+      drawHeader(doc, input.company);
+      withOpenMargins(doc, () => {
+        const left = doc.page.margins.left;
+        const width = contentWidth(doc);
+        const ruleY = doc.page.height - 52;
+        doc
+          .save()
+          .strokeColor(BRAND_RULE)
+          .lineWidth(0.7)
+          .moveTo(left, ruleY)
+          .lineTo(left + width, ruleY)
+          .stroke()
+          .restore();
+        doc
+          .font("Helvetica")
+          .fontSize(7.5)
+          .fillColor(BRAND_MUTED)
+          .text(input.footer, left, ruleY + 6, { width: width - 92, lineBreak: false });
+        doc
+          .font("Helvetica")
+          .fontSize(8)
+          .fillColor(BRAND_INK)
+          .text(`Seite ${i + 1} von ${range.count}`, left, ruleY + 6, {
+            width,
+            align: "right",
+            lineBreak: false,
+          });
+      });
+    }
+    doc.end();
+  });
 }

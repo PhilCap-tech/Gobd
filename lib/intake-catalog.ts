@@ -107,21 +107,38 @@ function onlyBelegfluss(when: CatalogWhen | undefined): CatalogWhen {
   return { ...(when ?? {}), bereichIn: [BELEGFLUSS] };
 }
 
-/** One step with the questions of every non-Belegfluss area; each question is gated by its area. */
-const BEREICH_STEP: CatalogStep = {
-  id: BEREICH_STEP_ID,
-  title: "Abläufe im Bereich",
-  when: { bereichNotIn: [BELEGFLUSS] },
-  questions: BEREICHE.flatMap((bereich) =>
-    bereich.questions.map((question) => ({
-      id: question.id,
-      prompt: question.prompt,
-      hint: question.hint,
-      fields: question.fields.map((field) => ({ ...field })),
-      when: { bereichIn: [bereich.id] },
-    })),
-  ),
-};
+export const BEREICH_RAHMEN_STEP_ID = "step-BR2";
+
+function areaStep(id: string, title: string, rahmen: boolean): CatalogStep {
+  return {
+    id,
+    title,
+    when: { bereichNotIn: [BELEGFLUSS] },
+    questions: BEREICHE.flatMap((bereich) =>
+      bereich.questions
+        .filter((question) => Boolean(question.rahmen) === rahmen)
+        .map((question) => ({
+          id: question.id,
+          prompt: question.prompt,
+          hint: question.hint,
+          fields: question.fields.map((field) => ({ ...field })),
+          when: { bereichIn: [bereich.id] },
+        })),
+    ),
+  };
+}
+
+/**
+ * Two steps with the questions of every non-Belegfluss area; each question is
+ * gated by its area. Step 1: area-specific process. Step 2: frame questions
+ * (Abgrenzung, Systeme, IKS, Z1–Z3, Änderungen, Ausfall, Archiv).
+ */
+const BEREICH_STEP: CatalogStep = areaStep(BEREICH_STEP_ID, "Abläufe im Bereich", false);
+const BEREICH_RAHMEN_STEP: CatalogStep = areaStep(
+  BEREICH_RAHMEN_STEP_ID,
+  "Kontrollen, Zugriff und Archiv im Bereich",
+  true,
+);
 
 function buildSteps(steps: CatalogStep[]): CatalogStep[] {
   const out: CatalogStep[] = [];
@@ -137,7 +154,7 @@ function buildSteps(steps: CatalogStep[]): CatalogStep[] {
           ),
         };
     out.push(gated);
-    if (step.id === "step-B") out.push(BEREICH_STEP);
+    if (step.id === "step-B") out.push(BEREICH_STEP, BEREICH_RAHMEN_STEP);
   }
   return out;
 }
@@ -455,6 +472,9 @@ export function catalogStepTitle(stepIndex: number, answers: IntakeAnswers): str
   const step = CATALOG_STEPS[stepIndex];
   if (!step) return "";
   if (step.id === BEREICH_STEP_ID) return `${bereichById(bereichIdOf(answers)).titel}: Abläufe`;
+  if (step.id === BEREICH_RAHMEN_STEP_ID) {
+    return `${bereichById(bereichIdOf(answers)).label}: Kontrollen, Zugriff und Archiv`;
+  }
   return step.title;
 }
 
@@ -1165,6 +1185,29 @@ function displayFieldValue(fieldKey: string, value: unknown): string {
   return optionLabel(fieldKey, asText(value));
 }
 
+function summaryBits(question: CatalogQuestion, entry: CatalogState[string] | undefined): string[] {
+  const bits = question.fields.map((field) => {
+    const shown = displayFieldValue(field.key, entry?.values?.[field.key]);
+    if (!shown) return "";
+    if (field.type === "enum" || field.key === "kasse" || field.key === "shop") {
+      return `${fieldLabel(question.id, field.key, field.label)}: ${shown}`;
+    }
+    return shown;
+  });
+  if (question.id === "A01") {
+    const detail = asText(entry?.values?.rechtsformFreitext);
+    const extraActivity = asText(entry?.values?.branchenFreitext);
+    if (detail) bits.push(detail);
+    if (extraActivity) bits.push(extraActivity);
+    bits.push(...describedActivityLines(entry?.values ?? {}));
+  }
+  if (question.id === "A02") {
+    const where = asText(entry?.values?.ausgeschlossenWo);
+    if (where) bits.push(`dokumentiert in: ${where}`);
+  }
+  return [...bits.filter(Boolean), ...presentationBits(question.id, entry?.values)].filter(Boolean);
+}
+
 export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> {
   const state = catalogState(answers);
   const rows: Array<[string, string]> = [];
@@ -1173,32 +1216,68 @@ export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> 
       if (!catalogQuestionApplies(question, answers) && !state[question.id]?.status) continue;
       const entry = state[question.id];
       const status = entry?.status ? STATUS_LABEL[entry.status] : "offen";
-      const bits = question.fields.map((field) => {
-        const shown = displayFieldValue(field.key, entry?.values?.[field.key]);
-        if (!shown) return "";
-        if (field.type === "enum" || field.key === "kasse" || field.key === "shop") {
-          return `${fieldLabel(question.id, field.key, field.label)}: ${shown}`;
-        }
-        return shown;
-      });
-      if (question.id === "A01") {
-        const detail = asText(entry?.values?.rechtsformFreitext);
-        const extraActivity = asText(entry?.values?.branchenFreitext);
-        if (detail) bits.push(detail);
-        if (extraActivity) bits.push(extraActivity);
-        bits.push(...describedActivityLines(entry?.values ?? {}));
-      }
-      if (question.id === "A02") {
-        const where = asText(entry?.values?.ausgeschlossenWo);
-        if (where) bits.push(`dokumentiert in: ${where}`);
-      }
       rows.push([
         customerPrompt(question.id, question.prompt),
-        [status, ...bits.filter(Boolean), ...presentationBits(question.id, entry?.values)].filter(Boolean).join(" · "),
+        [status, ...summaryBits(question, entry)].join(" · "),
       ]);
     }
   }
   return rows;
+}
+
+export type FragebogenQuestion = {
+  id: string;
+  prompt: string;
+  hint: string;
+  status: string;
+  /** Answer lines; area questions carry their field labels. */
+  lines: string[];
+  reason: string;
+};
+
+export type FragebogenStep = { title: string; questions: FragebogenQuestion[] };
+
+/**
+ * Filled questionnaire grouped by step, as asked for this area. Used for the
+ * Muster-Fragebogen page and PDF.
+ */
+export function catalogFragebogen(answers: IntakeAnswers): FragebogenStep[] {
+  const state = catalogState(answers);
+  const steps: FragebogenStep[] = [];
+  CATALOG_STEPS.forEach((step, index) => {
+    const questions = visibleCatalogQuestions(index, answers);
+    if (!questions.length) return;
+    steps.push({
+      title: catalogStepTitle(index, answers),
+      questions: questions.map((question) => {
+        const entry = state[question.id];
+        const area = bereichQuestion(question.id);
+        const lines = area
+          ? area.question.fields
+              .map((field) => {
+                const value = entry?.values?.[field.key];
+                const text = Array.isArray(value)
+                  ? value.map((item) => String(item)).filter(Boolean).join(", ")
+                  : typeof value === "string"
+                    ? value.trim()
+                    : "";
+                const shown = field.type === "enum" && text === "unbekannt" ? "noch zu klären" : text;
+                return shown ? `${field.label}: ${shown}` : "";
+              })
+              .filter(Boolean)
+          : summaryBits(question, entry);
+        return {
+          id: question.id,
+          prompt: customerPrompt(question.id, question.prompt),
+          hint: question.hint ?? "",
+          status: entry?.status ? STATUS_LABEL[entry.status] : "offen",
+          lines,
+          reason: entry?.status === "nicht_zutreffend" ? asText(entry.reason) : "",
+        };
+      }),
+    });
+  });
+  return steps;
 }
 
 /**

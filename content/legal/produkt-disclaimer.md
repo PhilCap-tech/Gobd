@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 05.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -6,7 +6,7 @@
 
 ## Keine Steuer- oder Rechtsberatung
 
-Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung eines **Entwurfs einer Verfahrensdokumentation für den Belegfluss**. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar.
+Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung eines **Entwurfs einer Verfahrensdokumentation für die von dir gewählten Bereiche** (z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn) je Firma; alle Bereiche sind im Preis enthalten. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar.
 
 Es kommt **kein Steuerberatungsvertrag** und **kein Anwaltsvertrag** zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
@@ -20,4 +20,4 @@ Ergänzend gelten unsere **AGB** und die **Datenschutzerklärung**.
 
 **Anbieter:** IKAT GmbH · Gartzenweg 1a · 40789 Monheim am Rhein · info@gobd-doku-erstellen.de
 
-**Stand:** 02.10.2026
+**Stand:** 05.10.2026

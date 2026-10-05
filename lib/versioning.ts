@@ -44,6 +44,15 @@ export type VersionPdfMeta = {
   changedBy: string;
 };
 
+/** One earlier version for the Änderungshistorie in the PDF (display strings). */
+export type VersionHistoryEntry = {
+  version: string;
+  validFrom: string;
+  validTo: string;
+  changeSummary: string;
+  changedBy: string;
+};
+
 export type CurrentVersionPick<T extends VersionIntervalRow> = {
   row: T;
   /** No interval includes today; the latest-by-date fallback was used. */
@@ -305,4 +314,32 @@ export function versionMetaSentence(meta: VersionPdfMeta | undefined): string {
   if (meta.changedBy) parts.push(`Geändert durch ${meta.changedBy}`);
   if (parts.length === 0) return "";
   return `${parts.join(". ")}.`;
+}
+
+/**
+ * Earlier versions of a family as Änderungshistorie rows, oldest first.
+ * `nextValidFromIso` is the Gültig-ab of the version being created; it closes
+ * an open interval of the previous version.
+ */
+export function versionHistoryEntries(
+  family: Array<VersionIntervalRow & { changeSummary?: string; changedBy?: string }>,
+  next: { version: number; validFrom: string },
+): VersionHistoryEntry[] {
+  const pending: VersionIntervalRow = {
+    documentId: "__next__",
+    version: String(next.version),
+    validFrom: isIsoDate(next.validFrom) ? next.validFrom : "",
+    validTo: "",
+  };
+  const all = [...family, pending];
+  return [...family]
+    .filter((row) => versionNumber(row) < next.version)
+    .sort((a, b) => versionNumber(a) - versionNumber(b))
+    .map((row) => ({
+      version: versionLabelFromRow(row),
+      validFrom: formatIsoDateDe(row.validFrom),
+      validTo: formatIsoDateDe(effectiveValidTo(row, all)),
+      changeSummary: row.changeSummary?.trim() ?? "",
+      changedBy: row.changedBy?.trim() ?? "",
+    }));
 }

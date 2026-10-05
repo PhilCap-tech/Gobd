@@ -4,6 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
 import { BEREICHE } from "@/lib/bereiche";
+import { musterFragebogenPath, musterPath, musterPdfPath, MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { ALL_AREAS_LINE } from "@/lib/offer-copy";
 import {
@@ -228,16 +229,25 @@ export default function SteuerberaterPage() {
             (Unternehmen, Systeme, Ablage, Berechtigungen, Kontrollen) wird
             einmal erfasst und für weitere Bereiche übernommen. {ALL_AREAS_LINE}
           </p>
-          <ul className="bereich-grid">
+          <ul className="bereich-grid muster-grid">
             {BEREICHE.map((bereich) => (
               <li key={bereich.id}>
                 <strong>{bereich.label}</strong>
                 <span>{bereich.kurz}</span>
+                <span className="muster-links">
+                  <Link href={musterPath(bereich.id)}>Muster ansehen</Link>
+                  {" · "}
+                  <a href={musterPdfPath(bereich.id)}>PDF</a>
+                  {" · "}
+                  <a href={musterFragebogenPath(bereich.id)}>Fragebogen</a>
+                </span>
               </li>
             ))}
           </ul>
           <p className="hint">
-            Muster und Fragen-Demo zeigen den Bereich Belegfluss.
+            Für jeden Bereich gibt es ein Muster-PDF und einen ausgefüllten
+            Muster-Fragebogen mit fiktivem Beispielunternehmen:{" "}
+            <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
           </p>
         </section>
 

@@ -15,6 +15,7 @@ export const INDEXABLE_STATIC_PATHS = [
   "/faq",
   "/resources/10-offene-punkte",
   "/resources/inhalt-verfahrensdokumentation",
+  "/muster",
   "/impressum",
   "/datenschutz",
   "/agb",

@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 import { CATALOG_STEPS } from "@/lib/intake-catalog";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { BEREICHE } from "@/lib/bereiche";
+import { musterFragebogenPath, musterPath, musterPdfPath, MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 import {
   ALL_AREAS_DETAIL,
   ALL_AREAS_LINE,
@@ -232,14 +233,25 @@ export default function HomePage() {
             Unternehmen, Systeme, Ablage, Berechtigungen und Kontrollen gibst
             du einmal an; sie werden für jeden weiteren Bereich übernommen.
           </p>
-          <ul className="bereich-grid">
+          <ul className="bereich-grid muster-grid">
             {BEREICHE.map((bereich) => (
               <li key={bereich.id}>
                 <strong>{bereich.label}</strong>
                 <span>{bereich.kurz}</span>
+                <span className="muster-links">
+                  <Link href={musterPath(bereich.id)}>Muster ansehen</Link>
+                  {" · "}
+                  <a href={musterPdfPath(bereich.id)}>PDF</a>
+                  {" · "}
+                  <a href={musterFragebogenPath(bereich.id)}>Fragebogen</a>
+                </span>
               </li>
             ))}
           </ul>
+          <p className="hint">
+            Muster-PDF und ausgefüllter Muster-Fragebogen für jeden Bereich:{" "}
+            <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
+          </p>
           <p className="price-frame">
             <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
           </p>

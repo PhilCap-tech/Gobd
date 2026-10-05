@@ -1,11 +1,11 @@
-> **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 05.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
 # Allgemeine Geschäftsbedingungen (AGB)
 
 für den Online-Dienst **GoBD Verfahrensdoku** unter https://www.gobd-doku-erstellen.de  
-(digitale Erstellung / Pflege einer Verfahrensdokumentation für den **Belegfluss** — B2B)
+(digitale Erstellung / Pflege einer Verfahrensdokumentation für die vom Kunden gewählten **Bereiche**, z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn — B2B)
 
 ## § 1 Geltungsbereich und Vertragspartner
 
@@ -29,9 +29,9 @@ und dem Kunden („Kunde“, „du“).
 
 ## § 2 Leistungsgegenstand — keine Steuer-/Rechtsberatung
 
-(1) Gegenstand ist die digitale Erstellung und Bereitstellung eines **Entwurfs einer Verfahrensdokumentation für den Belegfluss** (Eingangs- und Ausgangsrechnungen, Ablage, Übergabe an die Buchhaltung, Berechtigungen) sowie — bei aktivem Abonnement — Zugang zu Versionen und späteren Anpassungen, je nach gebuchtem Angebot.
+(1) Gegenstand ist die digitale Erstellung und Bereitstellung eines **Entwurfs einer Verfahrensdokumentation für die vom Kunden gewählten Bereiche** (z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn) je Firma sowie — bei aktivem Abonnement — Zugang zu Versionen und späteren Anpassungen, je nach gebuchtem Angebot.
 
-(2) Kassensysteme, Warenwirtschaft, Zeiterfassung, Lohn und weitere Vorsysteme sind **nicht** Teil der Leistung; dafür brauchst du eigene Dokumentationen.
+(2) Je gewähltem Bereich entsteht eine eigene Verfahrensdokumentation. **Alle angebotenen Bereiche sind im Preis enthalten**; für weitere Bereiche derselben Firma fällt kein zusätzliches Entgelt an. Welche Bereiche dokumentiert werden, wählt der Kunde im Fragebogen.
 
 (3) **Keine Steuerberatung, keine Rechtsberatung.** Der Anbieter erbringt keine Steuerberatungsleistungen i. S. d. StBerG und keine Rechtsdienstleistungen i. S. d. RDG. Es kommt kein Steuerberatungs- oder Anwaltsvertrag zustande. Die ausgegebenen Texte sind Arbeitshilfen/Entwürfe und ersetzen keine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
@@ -61,7 +61,7 @@ und dem Kunden („Kunde“, „du“).
 
 (1) Nach Zahlung und Abschluss des Fragebogens erzeugen wir aus den Angaben des Kunden einen Entwurf der Verfahrensdokumentation als PDF samt Liste offener Punkte und stellen ihn im Kundenkonto zum Download bereit. Die Bereitstellung erfolgt in der Regel innerhalb weniger Minuten nach Abschluss des Fragebogens.
 
-(2) Die Leistung umfasst den Belegfluss gemäß § 2 Abs. 1 und 2.
+(2) Die Leistung umfasst die vom Kunden gewählten Bereiche gemäß § 2 Abs. 1 und 2.
 
 (3) Das Dokument ist ein auf den Angaben des Kunden beruhender Entwurf. Die Richtigkeit und Vollständigkeit der Angaben liegt beim Kunden.
 
@@ -135,4 +135,4 @@ Es gelten die gesonderte Datenschutzerklärung und die Cookie-Hinweise auf der W
 
 (3) Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
 
-**Stand:** 02.10.2026
+**Stand:** 05.10.2026
