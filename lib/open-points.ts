@@ -5,6 +5,8 @@ import {
   suppressRuleForFragen,
 } from "@/lib/frage-intake";
 import { BEREICHE, bereichChapterId, isBelegfluss } from "@/lib/bereiche";
+import { BUNDLE_KAPITEL_ZU_MODUL } from "@/lib/module/katalog";
+import { effectiveModulStatus, isGesamt } from "@/lib/module/status";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export type OpenPointSeverity = "low" | "medium" | "high";
@@ -45,6 +47,10 @@ export function openPointDueLabel(): string {
 
 export function openPointChapterLabel(id?: string): string {
   if (!id) return "—";
+  if (id.startsWith("modul-")) {
+    const nr = id.replace("modul-m", "").replace(/^0+/, "") || id;
+    return `Modul ${nr}`;
+  }
   const bereich = BEREICHE.find((item) => bereichChapterId(item.id) === id);
   if (bereich) return `Bereich ${bereich.label}`;
   return OPEN_POINT_CHAPTER_LABELS[id] ?? id;
@@ -63,6 +69,12 @@ const BELEGFLUSS_ONLY_CHAPTERS = new Set([
 const BELEGFLUSS_ONLY_RULES = new Set(["op-buchhaltung", "op-steuerberater", "op-notfall"]);
 
 function ruleAppliesToArea(rule: { id: string; chapter?: unknown }, answers: IntakeAnswers): boolean {
+  if (isGesamt(answers)) {
+    const chapter = String(rule.chapter ?? "");
+    const modulId = BUNDLE_KAPITEL_ZU_MODUL[chapter];
+    if (modulId) return effectiveModulStatus(answers, modulId).status === "tool";
+    return true;
+  }
   if (isBelegfluss(answers)) return true;
   if (BELEGFLUSS_ONLY_RULES.has(rule.id)) return false;
   return !BELEGFLUSS_ONLY_CHAPTERS.has(String(rule.chapter ?? ""));

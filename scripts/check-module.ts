@@ -79,3 +79,22 @@ for (const step of moduleSteps) {
 }
 
 console.log("check-module: all green");
+
+import { renderGesamtChapters } from "../lib/gesamt-document";
+import { setVorlage } from "../lib/module/status";
+
+{
+  let a = ensureGesamt(emptyAnswers());
+  a = setVorlage(a, "dienstleister");
+  for (const key of ["bargeld", "lager", "personal", "zeiterfassung", "online", "retouren", "papier", "erechnung", "anlagen", "kanzlei", "branche", "zahlungsdienstleister"] as const) {
+    if (!a.module!.check[key]) a = setCheckAntwort(a, key, "nein");
+  }
+  const chapters = renderGesamtChapters(a, "Keine offenen Punkte.");
+  ok(chapters.some((c) => c.id === "vollstaendigkeit"), "Vollständigkeitsübersicht");
+  ok(chapters.some((c) => c.id === "teil-1"), "Teil I");
+  ok(chapters.some((c) => c.id === "modul-m01"), "Modul 1 chapter");
+  ok(chapters.every((c) => c.id !== "modul-m08" || effectiveModulStatus(a, "m08").status !== "nicht_vorhanden"), "no silent kasse when absent");
+  ok(!chapters.some((c) => c.id === "modul-m08"), "kasse chapter omitted when nicht vorhanden");
+  ok(chapters.some((c) => c.id === "anhang-a"), "Anhang A");
+  console.log("check-module gesamt chapters: green");
+}
