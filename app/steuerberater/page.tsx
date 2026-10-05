@@ -3,8 +3,8 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
-import { BEREICHE } from "@/lib/bereiche";
-import { musterFragebogenPath, musterPath, musterPdfPath, MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
+import { MODULE, TEIL_TITEL } from "@/lib/module/katalog";
+import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { ALL_AREAS_LINE } from "@/lib/offer-copy";
 import {
@@ -221,32 +221,33 @@ export default function SteuerberaterPage() {
         </section>
 
         <section className="block" id="bereiche">
-          <h2>Bereiche: eine Verfahrensdokumentation je System</h2>
+          <h2>24 Module: komplette Verfahrensdokumentation</h2>
           <p className="prose">
-            Neben dem Belegfluss legt Ihr Mandant für weitere Bereiche eine
-            eigene Verfahrensdokumentation an, jeweils mit eigenen Fragen,
-            eigenem Kapitel im PDF und eigenen Versionen. Der allgemeine Teil
-            (Unternehmen, Systeme, Ablage, Berechtigungen, Kontrollen) wird
-            einmal erfasst und für weitere Bereiche übernommen. {ALL_AREAS_LINE}
+            Ihr Mandant erhält ein Gesamtdokument mit bis zu 24 Modulen in der
+            klassischen Vier-Teile-Struktur. Ein Betriebs-Check ermittelt die
+            vorhandenen Abläufe; Systeme und Verantwortliche werden einmal
+            erfasst und vorbefüllt. Vorhandene Bereiche werden nicht
+            stillschweigend ausgelassen. {ALL_AREAS_LINE}
           </p>
-          <ul className="bereich-grid muster-grid">
-            {BEREICHE.map((bereich) => (
-              <li key={bereich.id}>
-                <strong>{bereich.label}</strong>
-                <span>{bereich.kurz}</span>
-                <span className="muster-links">
-                  <Link href={musterPath(bereich.id)}>Muster ansehen</Link>
-                  {" · "}
-                  <a href={musterPdfPath(bereich.id)}>PDF</a>
-                  {" · "}
-                  <a href={musterFragebogenPath(bereich.id)}>Fragebogen</a>
-                </span>
-              </li>
+          <div className="bereich-grid muster-grid">
+            {([1, 2, 3, 4] as const).map((teil) => (
+              <div key={teil}>
+                <h3>{TEIL_TITEL[teil]}</h3>
+                <ul>
+                  {MODULE.filter((modul) => modul.teil === teil).map((modul) => (
+                    <li key={modul.id}>
+                      <strong>
+                        {modul.nr}. {modul.titel}
+                      </strong>
+                      <span>{modul.kurz}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
           <p className="hint">
-            Für jeden Bereich gibt es ein Muster-PDF und einen ausgefüllten
-            Muster-Fragebogen mit fiktivem Beispielunternehmen:{" "}
+            Muster-Gesamtdokumente und bisherige Bereichs-Muster:{" "}
             <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
           </p>
         </section>
