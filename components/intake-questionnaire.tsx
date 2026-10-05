@@ -5,6 +5,8 @@ import {
   CATALOG_STEPS,
   catalogQuestionApplies,
   catalogStepApplies,
+  catalogStepPosition,
+  catalogStepTitle,
   setCatalogValue,
   visibleCatalogQuestions,
   type CatalogField,
@@ -289,11 +291,14 @@ export function IntakeQuestionnaire({
   const catalogStep = CATALOG_STEPS[step];
   if (!meta || !catalogStep) return null;
   const questions = visibleCatalogQuestions(step, answers);
+  const position = catalogStepPosition(step, answers);
 
   return (
     <section>
-      <p className="step-label">{meta.stepLabel}</p>
-      <h1>{meta.title}</h1>
+      <p className="step-label">
+        Schritt {position.index + 1} von {position.total}
+      </p>
+      <h1>{catalogStepTitle(step, answers)}</h1>
       <div className="card">
         {!catalogStepApplies(catalogStep, answers) || questions.length === 0 ? (
           <p className="prose">Dieser Schritt entfällt. Er gilt nur, wenn ein passender Weg gewählt ist.</p>
@@ -308,6 +313,7 @@ export function IntakeQuestionnaire({
             return (
               <div key={question.id}>
                 <p className="prose">{prompt}</p>
+                {question.hint ? <p className="hint">{question.hint}</p> : null}
                 {question.id === "A04" ? (
                   <p className="hint">
                     Das Datum ist der Beginn des beschriebenen Ablaufs im Betrieb. Es ist nicht das

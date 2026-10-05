@@ -261,7 +261,7 @@ expect(
 );
 
 const minIds = minCatalog.questions.map((question) => question.id);
-const liveQuestions = CATALOG_STEPS.flatMap((step) => step.questions);
+const liveQuestions = CATALOG_STEPS.filter((step) => step.id !== "step-BR").flatMap((step) => step.questions);
 expect(minIds.length === 19, "acceptance floor is 19 questions");
 expect(liveQuestions.length === 28, "productive catalog stays the 28-question v1");
 for (const question of minCatalog.questions) {

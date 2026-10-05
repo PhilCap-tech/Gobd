@@ -65,7 +65,10 @@
       "id": "04-belegarten-kanaele",
       "title": "4 Belegarten und Eingangskanäle",
       "order": 5,
-      "templateFile": "chapters/04-belegarten-kanaele.md"
+      "templateFile": "chapters/04-belegarten-kanaele.md",
+      "includeIf": {
+        "pathNonEmpty": "bereich.belegfluss"
+      }
     },
     {
       "id": "05-eingang-erechnung",
@@ -84,6 +87,9 @@
             ]
           ]
         }
+      },
+      "includeIf": {
+        "pathNonEmpty": "bereich.belegfluss"
       }
     },
     {
@@ -115,7 +121,10 @@
       "id": "08-freigabe-buchung-status",
       "title": "8 Prüfung, Freigabe und Buchungsübergabe",
       "order": 9,
-      "templateFile": "chapters/08-freigabe-buchung-status.md"
+      "templateFile": "chapters/08-freigabe-buchung-status.md",
+      "includeIf": {
+        "pathNonEmpty": "bereich.belegfluss"
+      }
     },
     {
       "id": "09-ablage-aufbewahrung",
@@ -157,7 +166,10 @@
       "id": "A-prozessmatrix",
       "title": "Anhang A Prozessmatrix",
       "order": 16,
-      "templateFile": "chapters/A-prozessmatrix.md"
+      "templateFile": "chapters/A-prozessmatrix.md",
+      "includeIf": {
+        "pathNonEmpty": "bereich.belegfluss"
+      }
     },
     {
       "id": "B-begriffe",

@@ -4,6 +4,7 @@ import {
   openPointsFromFragen,
   suppressRuleForFragen,
 } from "@/lib/frage-intake";
+import { BEREICHE, bereichChapterId, isBelegfluss } from "@/lib/bereiche";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export type OpenPointSeverity = "low" | "medium" | "high";
@@ -44,7 +45,26 @@ export function openPointDueLabel(): string {
 
 export function openPointChapterLabel(id?: string): string {
   if (!id) return "—";
+  const bereich = BEREICHE.find((item) => bereichChapterId(item.id) === id);
+  if (bereich) return `Bereich ${bereich.label}`;
   return OPEN_POINT_CHAPTER_LABELS[id] ?? id;
+}
+
+/** Rules about Eingang, Scan, E-Rechnung and Buchungsübergabe only apply to Belegfluss documents. */
+const BELEGFLUSS_ONLY_CHAPTERS = new Set([
+  "04-belegarten-kanaele",
+  "05-eingang-erechnung",
+  "06-papier-digitalisierung",
+  "07-ausgangsrechnungen",
+  "08-freigabe-buchung-status",
+  "A-prozessmatrix",
+]);
+const BELEGFLUSS_ONLY_RULES = new Set(["op-buchhaltung", "op-steuerberater"]);
+
+function ruleAppliesToArea(rule: { id: string; chapter?: unknown }, answers: IntakeAnswers): boolean {
+  if (isBelegfluss(answers)) return true;
+  if (BELEGFLUSS_ONLY_RULES.has(rule.id)) return false;
+  return !BELEGFLUSS_ONLY_CHAPTERS.has(String(rule.chapter ?? ""));
 }
 
 export type OpenPointPriority = "hoch" | "mittel" | "niedrig";
@@ -201,6 +221,7 @@ export function evaluateOpenPoints(input: {
   const points: DeliveryOpenPoint[] = [];
   for (const rule of bundle.openPointsRules.rules) {
     if (!ruleIsCustomerFacing(rule)) continue;
+    if (!ruleAppliesToArea(rule, input.answers)) continue;
     if (suppressRuleForFragen(rule.id, input.answers)) continue;
     const when = "when" in rule ? String(rule.when) : "empty";
     const field = "field" in rule && rule.field ? String(rule.field) : undefined;

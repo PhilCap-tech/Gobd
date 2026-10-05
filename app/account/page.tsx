@@ -16,6 +16,8 @@ import {
   customerHubTitle,
 } from "@/lib/account-display";
 import { getSessionEmail } from "@/lib/auth";
+import { BEREICHE, BELEGFLUSS, bereichIdOf, bereichLabel } from "@/lib/bereiche";
+import { answersFromSheetRow } from "@/lib/types";
 import {
   firmaEditPath,
   groupFamiliesByEntity,
@@ -175,14 +177,72 @@ export default async function AccountPage({
                         >
                           Stammdaten bearbeiten
                         </Link>
-                        <Link
-                          className="btn"
-                          href={newDocumentPath(entity.entityId)}
-                        >
-                          Neues Dokument
-                        </Link>
+                        {group.families.length === 0 && (
+                          <Link
+                            className="btn"
+                            href={newDocumentPath(entity.entityId)}
+                          >
+                            Neues Dokument
+                          </Link>
+                        )}
                       </div>
                     )}
+
+                    {group.families.length > 0 &&
+                      (() => {
+                        const present = new Set(
+                          group.families.map((family) =>
+                            bereichIdOf(answersFromSheetRow(family.latest)),
+                          ),
+                        );
+                        const firstMissing =
+                          BEREICHE.find((item) => !present.has(item.id))?.id ??
+                          BELEGFLUSS;
+                        return (
+                          <form
+                            className="bereich-add"
+                            method="get"
+                            action="/intake"
+                            style={{ marginTop: 12 }}
+                          >
+                            <input
+                              type="hidden"
+                              name="basis"
+                              value={group.families[0]?.latest.documentId ?? ""}
+                            />
+                            <label
+                              htmlFor={`bereich-${entity?.entityId ?? "unbound"}`}
+                            >
+                              Weiteren Bereich dokumentieren
+                            </label>
+                            <div className="actions">
+                              <select
+                                id={`bereich-${entity?.entityId ?? "unbound"}`}
+                                name="bereich"
+                                defaultValue={firstMissing}
+                              >
+                                {BEREICHE.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.label}
+                                    {present.has(item.id)
+                                      ? " (bereits vorhanden)"
+                                      : ""}
+                                  </option>
+                                ))}
+                              </select>
+                              <button className="btn" type="submit">
+                                Bereich anlegen
+                              </button>
+                            </div>
+                            <p className="hint">
+                              Alle Bereiche inklusive – ein Preis für die
+                              komplette GoBD-Verfahrensdokumentation. Weitere
+                              Bereiche dieser Firma legst du ohne neue
+                              Bestellung an.
+                            </p>
+                          </form>
+                        );
+                      })()}
 
                     {group.families.length === 0 ? (
                       <div className="entity-docs">
@@ -205,12 +265,19 @@ export default async function AccountPage({
                               key={family.familyId}
                             >
                               <h3>
-                                {customerHubTitle(
-                                  family.latest.company ||
-                                    "Verfahrensdokumentation",
-                                  "Verfahrensdokumentation",
+                                Verfahrensdokumentation{" "}
+                                {bereichLabel(
+                                  bereichIdOf(answersFromSheetRow(family.latest)),
                                 )}
                               </h3>
+                              {!entity && family.latest.company ? (
+                                <p className="doc-meta">
+                                  {customerHubTitle(
+                                    family.latest.company,
+                                    "Verfahrensdokumentation",
+                                  )}
+                                </p>
+                              ) : null}
                               <p className="doc-meta">
                                 {currentVersionBadge(Boolean(pick?.fallback))}
                                 : Version {versionLabelFromRow(current)} · Gültig{" "}

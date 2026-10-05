@@ -3,7 +3,9 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
+import { BEREICHE } from "@/lib/bereiche";
 import { LEGAL_OPERATOR } from "@/lib/legal";
+import { ALL_AREAS_LINE } from "@/lib/offer-copy";
 import {
   evaluateOpenPoints,
   openPointChapterLabel,
@@ -215,6 +217,28 @@ export default function SteuerberaterPage() {
               Historie statt Dateichaos.
             </li>
           </ol>
+        </section>
+
+        <section className="block" id="bereiche">
+          <h2>Bereiche: eine Verfahrensdokumentation je System</h2>
+          <p className="prose">
+            Neben dem Belegfluss legt Ihr Mandant für weitere Bereiche eine
+            eigene Verfahrensdokumentation an, jeweils mit eigenen Fragen,
+            eigenem Kapitel im PDF und eigenen Versionen. Der allgemeine Teil
+            (Unternehmen, Systeme, Ablage, Berechtigungen, Kontrollen) wird
+            einmal erfasst und für weitere Bereiche übernommen. {ALL_AREAS_LINE}
+          </p>
+          <ul className="bereich-grid">
+            {BEREICHE.map((bereich) => (
+              <li key={bereich.id}>
+                <strong>{bereich.label}</strong>
+                <span>{bereich.kurz}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">
+            Muster und Fragen-Demo zeigen den Bereich Belegfluss.
+          </p>
         </section>
 
         <section className="block" id="eignung">

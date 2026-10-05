@@ -1,3 +1,4 @@
+import { bereichDocTitle, bereichIdOf, bereichLabel, isBelegfluss } from "@/lib/bereiche";
 import { randomUUID } from "node:crypto";
 import PDFDocument from "pdfkit";
 import {
@@ -373,9 +374,9 @@ export async function generatePdf(input: {
       bufferPages: true,
       autoFirstPage: true,
       info: {
-        Title: `${BRAND_DOC_TITLE} — ${input.identity.company || "Arbeitsfassung"}`,
+        Title: `${isBelegfluss(input.answers) ? BRAND_DOC_TITLE : bereichDocTitle(bereichIdOf(input.answers))} — ${input.identity.company || "Arbeitsfassung"}`,
         Author: BRAND_NAME,
-        Subject: "Arbeitsfassung Belegablage — kein Steuerberatungsersatz",
+        Subject: `Arbeitsfassung ${isBelegfluss(input.answers) ? "Belegablage" : bereichLabel(bereichIdOf(input.answers))} — kein Steuerberatungsersatz`,
       },
     });
     const chunks: Buffer[] = [];

@@ -9,6 +9,12 @@ import {
   type DeliveryOpenPoint,
 } from "@/lib/open-points";
 import { documentAnswers } from "@/lib/frage-intake";
+import {
+  bereichChapter,
+  bereichVerantwortung,
+  renumberHeadings,
+} from "@/lib/bereich-chapter";
+import { BELEGFLUSS, bereichById, bereichDocTitle, bereichIdOf } from "@/lib/bereiche";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { versionMetaSentence as buildVersionMetaSentence } from "@/lib/versioning";
 
@@ -55,7 +61,38 @@ type TemplateContext = {
   kanzleiBucht: string;
   /** "ja" when the Kanzlei field is filled but the scope is not confirmed. */
   kanzleiUnbestaetigt: string;
+  /** Area of this document. `belegfluss` is "ja" only for Belegfluss documents. */
+  bereich: BereichContext;
 };
+
+type BereichContext = {
+  id: string;
+  label: string;
+  titel: string;
+  docTitle: string;
+  kurz: string;
+  belegfluss: string;
+  andere: string;
+  verantwortlich: string;
+  vertretung: string;
+};
+
+function bereichContext(answers: IntakeAnswers): BereichContext {
+  const id = bereichIdOf(answers);
+  const bereich = bereichById(id);
+  const lead = bereichVerantwortung(answers);
+  return {
+    id,
+    label: bereich.label,
+    titel: bereich.titel,
+    docTitle: bereichDocTitle(id),
+    kurz: bereich.kurz,
+    belegfluss: id === BELEGFLUSS ? "ja" : "",
+    andere: id === BELEGFLUSS ? "" : "ja",
+    verantwortlich: lead.verantwortlich,
+    vertretung: lead.vertretung,
+  };
+}
 
 type Filter =
   | { name: "join"; sep: string }
@@ -409,7 +446,7 @@ function chapterMarkdown(chapter: BundleChapter): string {
 
 function chapterApplies(
   chapter: BundleChapter,
-  context: { identity: CheckoutIdentity; answers: IntakeAnswers },
+  context: { identity: CheckoutIdentity; answers: IntakeAnswers; bereich: BereichContext },
 ): boolean {
   const includeIf = chapter.includeIf;
   if (includeIf === false) return false;
@@ -480,6 +517,7 @@ export function renderDeliveryDocument(input: {
     historyDate: validFrom || generatedAt,
     kanzleiBucht: kanzleiBucht ? "ja" : "",
     kanzleiUnbestaetigt: kanzleiUnbestaetigt ? "ja" : "",
+    bereich: bereichContext(input.answers),
   };
 
   const coverSource = readTemplateFile(
@@ -490,22 +528,26 @@ export function renderDeliveryDocument(input: {
   return {
     disclaimer: bundle.disclaimer,
     cover: renderTemplate(coverSource, base).trim(),
-    chapters: (bundle.chapters as BundleChapter[])
-      .filter((chapter) =>
-        chapterApplies(chapter, {
-          identity: input.identity,
-          answers: livedAnswers,
+    chapters: withBereichChapter(
+      (bundle.chapters as BundleChapter[])
+        .filter((chapter) =>
+          chapterApplies(chapter, {
+            identity: input.identity,
+            answers: livedAnswers,
+            bereich: base.bereich,
+          }),
+        )
+        .map((chapter) => {
+          const source = chapterMarkdown(chapter);
+          const body = renderTemplate(source, base).trim();
+          return {
+            id: chapter.id,
+            title: headingTitle(body, chapter.title || chapter.id),
+            body,
+          };
         }),
-      )
-      .map((chapter) => {
-      const source = chapterMarkdown(chapter);
-      const body = renderTemplate(source, base).trim();
-      return {
-        id: chapter.id,
-        title: headingTitle(body, chapter.title || chapter.id),
-        body,
-      };
-    }),
+      input.answers,
+    ),
     openPoints,
     generatedAt,
     generatedAtDisplay,
@@ -518,6 +560,30 @@ export function renderDeliveryDocument(input: {
       changedBy,
     }),
   };
+}
+
+/** Chapters that follow the area chapter in an area document, renumbered 5–10. */
+const SHARED_AFTER_AREA = [9, 10, 11, 12, 13, 14];
+const AREA_CHAPTER_NUMBER = 4;
+
+/**
+ * Belegfluss: chapters unchanged. Other areas: insert the area chapter after
+ * the system chapter (3) and renumber the shared chapters that follow.
+ */
+function withBereichChapter(chapters: RenderedChapter[], answers: IntakeAnswers): RenderedChapter[] {
+  const area = bereichChapter(answers, AREA_CHAPTER_NUMBER);
+  if (!area) return chapters;
+  const map = new Map<number, number>(
+    SHARED_AFTER_AREA.map((number, index) => [number, AREA_CHAPTER_NUMBER + 1 + index]),
+  );
+  const out: RenderedChapter[] = [];
+  for (const chapter of chapters) {
+    const body = renumberHeadings(chapter.body, map);
+    out.push({ ...chapter, body, title: headingTitle(body, chapter.title) });
+    if (chapter.id === "03-systeme-datenfluss") out.push(area);
+  }
+  if (!out.some((chapter) => chapter.id === area.id)) out.splice(Math.min(3, out.length), 0, area);
+  return out;
 }
 
 export const deliveryBundle = bundle;

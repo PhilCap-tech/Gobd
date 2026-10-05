@@ -1,4 +1,4 @@
-# Verfahrensdokumentation zur Belegablage
+# {{bereich.docTitle}}
 
 **{{identity.company | or "zu bestätigen"}}**  
 Fassung {{version}}  |  erzeugt am {{generatedAt}}
@@ -6,7 +6,7 @@ Fassung {{version}}  |  erzeugt am {{generatedAt}}
 {{/if}}{{#if changeSummary}}Änderung: {{changeSummary}}
 {{/if}}
 
-Dieses Dokument beschreibt den Belegweg auf Grundlage der im Intake bestätigten Angaben. Präsens-Aussagen gelten nur, soweit die jeweilige Angabe bestätigt ist. Fehlende oder unklare Sachverhalte erscheinen als Hinweis oder offener Punkt. Das Dokument ist keine steuerliche oder rechtliche Beratung und **keine** Bestätigung der GoBD-Konformität. Die automatische Generierung ersetzt **nicht** die betriebliche Bestätigung durch die Geschäftsleitung.
+Dieses Dokument beschreibt {{#if bereich.belegfluss}}den Belegweg{{/if}}{{#if bereich.andere}}die Abläufe im Bereich {{bereich.label}}{{/if}} auf Grundlage der im Intake bestätigten Angaben. Präsens-Aussagen gelten nur, soweit die jeweilige Angabe bestätigt ist. Fehlende oder unklare Sachverhalte erscheinen als Hinweis oder offener Punkt. Das Dokument ist keine steuerliche oder rechtliche Beratung und **keine** Bestätigung der GoBD-Konformität. Die automatische Generierung ersetzt **nicht** die betriebliche Bestätigung durch die Geschäftsleitung.
 
 ## Dokumentmerkmale
 
@@ -14,10 +14,13 @@ Dieses Dokument beschreibt den Belegweg auf Grundlage der im Intake bestätigten
 | --- | --- |
 | Unternehmen | {{identity.company | or "zu bestätigen"}}{{#if answers.branchen}}, {{answers.branchen | join ", "}}{{/if}}{{#if answers.rechtsform}}, {{answers.rechtsform}}{{/if}}{{#if answers.mitarbeitende}}, Mitarbeitende: {{answers.mitarbeitende}}{{/if}} |
 | Geschäftsführung | {{answers.gf | or "zu bestätigen"}} |
-| Buchhaltung | {{answers.buchhaltung | or "zu bestätigen"}} |
+{{#if bereich.belegfluss}}| Buchhaltung | {{answers.buchhaltung | or "zu bestätigen"}} |
 | Externe Kanzlei | {{answers.steuerberater | or "zu bestätigen (soweit beteiligt)"}} |
 | Geltungsbereich | Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung im beschriebenen Umfang |
-| Ausgeschlossen | {{answers.geltungAusschluss | or "nichts ausdrücklich ausgenommen; nicht beschriebene Abläufe gelten nicht als vorhanden"}} |
+{{/if}}{{#if bereich.andere}}| Bereich | {{bereich.label}} |
+| Bereichsverantwortung | {{bereich.verantwortlich | or "zu bestätigen"}} |
+| Geltungsbereich | {{bereich.kurz}} Allgemeiner Teil (Unternehmen, Systeme, Aufbewahrung, Berechtigungen, Kontrollen) im beschriebenen Umfang |
+{{/if}}| Ausgeschlossen | {{answers.geltungAusschluss | or "nichts ausdrücklich ausgenommen; nicht beschriebene Abläufe gelten nicht als vorhanden"}} |
 | Status | Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend |
 
 ## Freigabevermerk
@@ -27,6 +30,6 @@ Bei einem realen Betrieb bestätigt die Geschäftsleitung an dieser Stelle, dass
 | Rolle | Name | Datum | Status |
 | --- | --- | --- | --- |
 | Geschäftsleitung | {{#if answers.bestaetigungName}}{{answers.bestaetigungName}}{{/if}}{{#unless answers.bestaetigungName}}{{answers.gf | or "________________"}}{{/unless}} | {{answers.bestaetigungDatum | or "________________"}} | ausstehend |
-| Dokumentationsverantwortung | {{answers.buchhaltung | or "________________"}} | ________________ | ausstehend |
+| Dokumentationsverantwortung | {{#if bereich.belegfluss}}{{answers.buchhaltung | or "________________"}}{{/if}}{{#if bereich.andere}}{{bereich.verantwortlich | or "________________"}}{{/if}} | ________________ | ausstehend |
 
 {{disclaimer}}

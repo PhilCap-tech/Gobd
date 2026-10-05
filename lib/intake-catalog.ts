@@ -14,6 +14,15 @@ import {
   RECHTSFORM_FREITEXT,
   TAETIGKEIT_FREITEXT,
 } from "@/lib/intake-present";
+import {
+  BELEGFLUSS,
+  BEREICHE,
+  bereichById,
+  bereichChapterId,
+  bereichIdOf,
+  bereichQuestion,
+  ALLGEMEINER_TEIL_IDS,
+} from "@/lib/bereiche";
 import type { IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 
@@ -45,6 +54,10 @@ export type CatalogWhen = {
   "C01.kanaeleContainsAny"?: string[];
   "E01.formateContainsAny"?: string[];
   orC01?: string[];
+  /** Only for these areas (Bereiche). Absent means every area. */
+  bereichIn?: string[];
+  /** Not for these areas. */
+  bereichNotIn?: string[];
 };
 
 export type CatalogQuestion = {
@@ -54,6 +67,8 @@ export type CatalogQuestion = {
   statusRequired?: boolean;
   when?: CatalogWhen;
   note?: string;
+  /** Customer-facing hint under the prompt (area questions). `note` stays internal. */
+  hint?: string;
   output?: string[];
 };
 
@@ -82,7 +97,52 @@ type CatalogFile = {
 
 const catalog = catalogFile as CatalogFile;
 
-export const CATALOG_STEPS: CatalogStep[] = catalog.steps;
+/** Steps and questions that only describe the Belegfluss. Other areas skip them. */
+const BELEGFLUSS_ONLY_STEPS = new Set(["step-C", "step-D", "step-E", "step-F"]);
+const BELEGFLUSS_ONLY_QUESTIONS = new Set(["A02"]);
+
+export const BEREICH_STEP_ID = "step-BR";
+
+function onlyBelegfluss(when: CatalogWhen | undefined): CatalogWhen {
+  return { ...(when ?? {}), bereichIn: [BELEGFLUSS] };
+}
+
+/** One step with the questions of every non-Belegfluss area; each question is gated by its area. */
+const BEREICH_STEP: CatalogStep = {
+  id: BEREICH_STEP_ID,
+  title: "Abläufe im Bereich",
+  when: { bereichNotIn: [BELEGFLUSS] },
+  questions: BEREICHE.flatMap((bereich) =>
+    bereich.questions.map((question) => ({
+      id: question.id,
+      prompt: question.prompt,
+      hint: question.hint,
+      fields: question.fields.map((field) => ({ ...field })),
+      when: { bereichIn: [bereich.id] },
+    })),
+  ),
+};
+
+function buildSteps(steps: CatalogStep[]): CatalogStep[] {
+  const out: CatalogStep[] = [];
+  for (const step of steps) {
+    const gated: CatalogStep = BELEGFLUSS_ONLY_STEPS.has(step.id)
+      ? { ...step, when: onlyBelegfluss(step.when) }
+      : {
+          ...step,
+          questions: step.questions.map((question) =>
+            BELEGFLUSS_ONLY_QUESTIONS.has(question.id)
+              ? { ...question, when: onlyBelegfluss(question.when) }
+              : question,
+          ),
+        };
+    out.push(gated);
+    if (step.id === "step-B") out.push(BEREICH_STEP);
+  }
+  return out;
+}
+
+export const CATALOG_STEPS: CatalogStep[] = buildSteps(catalog.steps);
 
 const PAPER_CHANNEL = "Post/Papier";
 const EINVOICE_CHANNEL = "E-Rechnung (XRechnung/ZUGFeRD/XML)";
@@ -329,8 +389,16 @@ function formateOf(state: CatalogState): string[] {
   return asList(valuesOf(state, "E01").formate);
 }
 
-function whenMatches(when: CatalogWhen | undefined, state: CatalogState): boolean {
+function bereichMatches(when: CatalogWhen | undefined, bereich: string): boolean {
   if (!when) return true;
+  if (when.bereichIn && !when.bereichIn.includes(bereich)) return false;
+  if (when.bereichNotIn && when.bereichNotIn.includes(bereich)) return false;
+  return true;
+}
+
+function whenMatches(when: CatalogWhen | undefined, state: CatalogState, bereich: string): boolean {
+  if (!when) return true;
+  if (!bereichMatches(when, bereich)) return false;
   const channels = kanaeleOf(state);
   const formats = formateOf(state);
   const channelTokens = when["C01.kanaeleContainsAny"];
@@ -344,11 +412,11 @@ function whenMatches(when: CatalogWhen | undefined, state: CatalogState): boolea
 }
 
 export function catalogQuestionApplies(question: CatalogQuestion, answers: IntakeAnswers): boolean {
-  return whenMatches(question.when, catalogState(answers));
+  return whenMatches(question.when, catalogState(answers), bereichIdOf(answers));
 }
 
 export function catalogStepApplies(step: CatalogStep, answers: IntakeAnswers): boolean {
-  if (!whenMatches(step.when, catalogState(answers))) return false;
+  if (!whenMatches(step.when, catalogState(answers), bereichIdOf(answers))) return false;
   return step.questions.some((question) => catalogQuestionApplies(question, answers));
 }
 
@@ -370,6 +438,24 @@ export function previousApplicableStep(from: number, answers: IntakeAnswers): nu
     if (catalogStepApplies(CATALOG_STEPS[index], answers)) return index;
   }
   return 0;
+}
+
+/** „Schritt k von n“ counted over the steps of the chosen area (branch steps like Papier stay counted). */
+export function catalogStepPosition(stepIndex: number, answers: IntakeAnswers): { index: number; total: number } {
+  const bereich = bereichIdOf(answers);
+  const inArea = CATALOG_STEPS.map((step, index) => ({ step, index })).filter(({ step }) =>
+    bereichMatches(step.when, bereich),
+  );
+  const position = inArea.findIndex(({ index }) => index === stepIndex);
+  return { index: position < 0 ? stepIndex : position, total: inArea.length };
+}
+
+/** Area-aware step title. The area step carries the area label. */
+export function catalogStepTitle(stepIndex: number, answers: IntakeAnswers): string {
+  const step = CATALOG_STEPS[stepIndex];
+  if (!step) return "";
+  if (step.id === BEREICH_STEP_ID) return `${bereichById(bereichIdOf(answers)).titel}: Abläufe`;
+  return step.title;
 }
 
 /** True when forward navigation jumped over the paper/scan step because it does not apply. */
@@ -577,6 +663,7 @@ function completeControls(rows: Record<string, unknown>[]): Record<string, unkno
 export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
   const state = catalogState(answers);
   const next = emptyAnswers();
+  if (answers.bereich) next.bereich = answers.bereich;
   if (live(state, "A01")) {
     const values = valuesOf(state, "A01");
     next.branchen = projectedBranchen(values);
@@ -820,8 +907,18 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
   return next;
 }
 
+function bereichOpenText(id: string): { priority: "hoch" | "mittel" | "niedrig"; text: string; chapter: string } | undefined {
+  const hit = bereichQuestion(id);
+  if (!hit) return undefined;
+  return {
+    priority: hit.question.priority ?? "mittel",
+    text: hit.question.open,
+    chapter: bereichChapterId(hit.bereich.id),
+  };
+}
+
 function pointFor(id: string): CatalogOpenPoint {
-  const meta = OPEN_TEXT[id] ?? {
+  const meta = OPEN_TEXT[id] ?? bereichOpenText(id) ?? {
     priority: "mittel" as const,
     text: `${id} ist nicht bestätigt.`,
     chapter: "14-offene-punkte",
@@ -1102,4 +1199,19 @@ export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> 
     }
   }
   return rows;
+}
+
+/**
+ * Start answers for a new area document of a company that already has one:
+ * the general part (company, systems, archive, rights, controls, upkeep) is
+ * carried over from the latest version; area questions start empty.
+ */
+export function answersForNewBereich(base: IntakeAnswers, bereich: string, company = ""): IntakeAnswers {
+  const drafted = withCatalogDraft(base, company);
+  const state = catalogState(drafted);
+  const katalog: CatalogState = {};
+  for (const id of ALLGEMEINER_TEIL_IDS) {
+    if (state[id]) katalog[id] = state[id];
+  }
+  return { ...emptyAnswers(), bereich, katalog };
 }
