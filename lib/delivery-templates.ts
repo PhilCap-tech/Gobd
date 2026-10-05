@@ -16,6 +16,8 @@ import {
   renumberHeadings,
 } from "@/lib/bereich-chapter";
 import { BELEGFLUSS, bereichById, bereichDocTitle, bereichIdOf } from "@/lib/bereiche";
+import { renderGesamtChapters, gesamtDocTitle } from "@/lib/gesamt-document";
+import { isGesamt } from "@/lib/module/status";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import {
   versionMetaSentence as buildVersionMetaSentence,
@@ -515,6 +517,8 @@ export function renderDeliveryDocument(input: {
   answers: IntakeAnswers;
   documentId: string;
   version?: number;
+  /** Gesamtdokument: optional single-module export. */
+  onlyModul?: string;
   /** Display strings (`dd.mm.yyyy`). Omitted on renders without version metadata. */
   versionMeta?: {
     validFrom?: string;
@@ -564,6 +568,38 @@ export function renderDeliveryDocument(input: {
     "coverFile" in bundle ? String(bundle.coverFile) : "chapters/00-cover-freigabe.md",
     bundle.coverMarkdown,
   );
+
+  if (isGesamt(input.answers)) {
+    // Gesamtdokument: cover still from Belegfluss template with belegfluss context;
+    // chapters are the 24-module four-part structure.
+    base.bereich = {
+      ...base.bereich,
+      belegfluss: "ja",
+      andere: "",
+      label: "Gesamtdokument",
+      titel: "Gesamtdokument",
+      docTitle: gesamtDocTitle(),
+      kurz: "Alle steuerrelevanten Module in vier Teilen.",
+    };
+    return {
+      disclaimer: bundle.disclaimer,
+      cover: renderTemplate(coverSource, base).trim(),
+      chapters: renderGesamtChapters(input.answers, openPointsTable(openPoints), {
+        onlyModul: (input as { onlyModul?: string }).onlyModul,
+      }),
+      openPoints,
+      generatedAt,
+      generatedAtDisplay,
+      versionLabel,
+      validFromDisplay: validFrom,
+      versionMetaSentence: buildVersionMetaSentence({
+        validFrom,
+        validTo,
+        changeSummary,
+        changedBy,
+      }),
+    };
+  }
 
   return {
     disclaimer: bundle.disclaimer,

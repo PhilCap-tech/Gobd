@@ -1,4 +1,6 @@
 import { bereichDocTitle, bereichIdOf, bereichLabel, isBelegfluss } from "@/lib/bereiche";
+import { gesamtDocTitle } from "@/lib/gesamt-document";
+import { isGesamt } from "@/lib/module/status";
 import { randomUUID } from "node:crypto";
 import PDFDocument from "pdfkit";
 import {
@@ -324,6 +326,7 @@ function writePdf(
     content?: DeliveryDocumentContent | null;
     versionMeta?: VersionPdfMeta;
     versionHistory?: VersionHistoryEntry[];
+    onlyModul?: string;
   },
 ) {
   const rendered = renderDeliveryDocument(input);
@@ -365,6 +368,8 @@ export async function generatePdf(input: {
   versionMeta?: VersionPdfMeta;
   /** Earlier versions for the Änderungshistorie, oldest first. */
   versionHistory?: VersionHistoryEntry[];
+  /** Gesamtdokument: optional single-module PDF. */
+  onlyModul?: string;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const documentId = input.documentId || randomUUID();
   const version = input.version && input.version > 0 ? input.version : 1;
@@ -377,9 +382,9 @@ export async function generatePdf(input: {
       bufferPages: true,
       autoFirstPage: true,
       info: {
-        Title: `${isBelegfluss(input.answers) ? BRAND_DOC_TITLE : bereichDocTitle(bereichIdOf(input.answers))} — ${input.identity.company || "Arbeitsfassung"}`,
+        Title: `${isGesamt(input.answers) ? gesamtDocTitle() : isBelegfluss(input.answers) ? BRAND_DOC_TITLE : bereichDocTitle(bereichIdOf(input.answers))} — ${input.identity.company || "Arbeitsfassung"}`,
         Author: BRAND_NAME,
-        Subject: `Arbeitsfassung ${isBelegfluss(input.answers) ? "Belegablage" : bereichLabel(bereichIdOf(input.answers))} — kein Steuerberatungsersatz`,
+        Subject: `Arbeitsfassung ${isGesamt(input.answers) ? "Gesamtdokument" : isBelegfluss(input.answers) ? "Belegablage" : bereichLabel(bereichIdOf(input.answers))} — kein Steuerberatungsersatz`,
       },
     });
     const chunks: Buffer[] = [];

@@ -129,7 +129,9 @@ export default async function IntakePage({
   const requestedBereich = firstQueryValue(params.bereich) ?? "";
   const bereich = isBereichId(requestedBereich) ? requestedBereich : "";
   const basisId = firstQueryValue(params.basis) ?? "";
-  const gesamtMode = (firstQueryValue(params.modus) ?? "").toLowerCase() === "gesamt";
+  const modus = (firstQueryValue(params.modus) ?? "").toLowerCase();
+  // Default for new intakes: Gesamtdokument. Opt out with ?modus=bereich.
+  const gesamtMode = modus !== "bereich" && (modus === "gesamt" || !bereich);
   const sessionEmail = await getSessionEmail();
 
   // Weiterer Bereich für eine Firma mit bestehender Dokumentation: kein neuer Checkout.
