@@ -34,3 +34,10 @@ export const GELD_ZURUECK_MICRO =
 
 export const DISCLAIMER_ONCE =
   "Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei dir bzw. bei deinem Steuerberater.";
+
+/** Owner-Entscheidung 05.10.2026: ein Preis je Firma, alle Bereiche inklusive. */
+export const ALL_AREAS_LINE =
+  "Alle Bereiche inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.";
+
+export const ALL_AREAS_DETAIL =
+  "Der Preis gilt je Firma. Darin enthalten sind beliebig viele Verfahrensdokumentationen dieser Firma, je eine pro Bereich: Belegfluss, Kasse, Warenwirtschaft, Einkauf, Verkauf, Retouren, Zeiterfassung, Lohn, E-Commerce, Bank, Anlagen und weitere Vorsysteme.";

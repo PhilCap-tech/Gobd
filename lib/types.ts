@@ -29,6 +29,11 @@ export type IntakeAnswers = {
   buchhaltung: string;
   it: string;
   steuerberater: string;
+  /**
+   * Bereich (business area) of this Verfahrensdokumentation, see lib/bereiche.ts.
+   * Absent on older rows; those are Belegfluss documents.
+   */
+  bereich?: string;
   /** MVP Fragenkatalog. Absent on rows from the older five-step intake. */
   standort?: string;
   geltung?: string;
@@ -284,6 +289,7 @@ export function emptyAnswers(): IntakeAnswers {
 }
 
 const CATALOG_KEYS = [
+  "bereich",
   "standort",
   "geltung",
   "geltungBelegarten",

@@ -4,7 +4,10 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { CATALOG_STEPS } from "@/lib/intake-catalog";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
+import { BEREICHE } from "@/lib/bereiche";
 import {
+  ALL_AREAS_DETAIL,
+  ALL_AREAS_LINE,
   CTA_CHECK,
   CTA_CHECK_HERO,
   CTA_CREATE,
@@ -119,6 +122,7 @@ export default function HomePage() {
         ctaNote={PRICE_MICRO}
         links={[
           { href: "#muster", label: "Muster" },
+          { href: "#bereiche", label: "Bereiche" },
           { href: "#ablauf", label: "Ablauf" },
           { href: "#preise", label: "Preise" },
           { href: "/readiness", label: "3-Minuten-Check" },
@@ -217,10 +221,37 @@ export default function HomePage() {
           </p>
         </section>
 
+        <section className="block" id="bereiche">
+          <h2>Welche Bereiche du dokumentierst</h2>
+          <p className="prose">
+            Eine Verfahrensdokumentation betrifft nicht nur den Belegfluss.
+            Für jedes System, in dem steuerlich relevante Daten entstehen, soll
+            nachvollziehbar sein, wie es genutzt wird. Du legst deshalb je
+            Bereich eine eigene Verfahrensdokumentation an, zum Beispiel eine
+            für den Belegfluss, eine für die Kasse und eine für die Retouren.
+            Unternehmen, Systeme, Ablage, Berechtigungen und Kontrollen gibst
+            du einmal an; sie werden für jeden weiteren Bereich übernommen.
+          </p>
+          <ul className="bereich-grid">
+            {BEREICHE.map((bereich) => (
+              <li key={bereich.id}>
+                <strong>{bereich.label}</strong>
+                <span>{bereich.kurz}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="price-frame">
+            <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
+          </p>
+        </section>
+
         <section className="block" id="ablauf">
           <h2>So läuft’s ab</h2>
           <ol className="prose-list">
-            <li>Du beantwortest geführte Fragen zu deinen Buchhaltungsabläufen.</li>
+            <li>
+              Du wählst einen Bereich (zum Beispiel Belegfluss oder Kasse) und
+              beantwortest geführte Fragen zu deinen Abläufen.
+            </li>
             <li>
               Du erhältst PDF + Liste offener Punkte — individuell aus deinen
               Angaben.
@@ -230,6 +261,7 @@ export default function HomePage() {
               Steuerberater bleibt bei dir.
             </li>
             <li>
+              Weitere Bereiche legst du im Konto an, ohne neue Bestellung.
               Mit dem Abo bleiben Versionen und spätere Anpassungen verfügbar.
             </li>
           </ol>
@@ -256,6 +288,10 @@ export default function HomePage() {
           <h2>Was du mitnimmst</h2>
           <ul className="prose-list">
             <li>Individuelle Verfahrensdokumentation als PDF (aus deinen Angaben)</li>
+            <li>
+              Je Bereich eine eigene Verfahrensdokumentation mit eigenen
+              Versionen, alle Bereiche im Preis enthalten
+            </li>
             <li>Liste offener Punkte zum Prüfen und Ergänzen</li>
             <li>Geführter Frageprozess statt leerer Vorlage</li>
             <li>
@@ -288,6 +324,9 @@ export default function HomePage() {
                 </tr>
               </tbody>
             </table>
+            <p className="prose">
+              <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
+            </p>
             <p className="hint">
               Alle Preise zzgl. USt. Monatlich kündbar zum Ende des laufenden
               Abrechnungsmonats.
@@ -297,6 +336,7 @@ export default function HomePage() {
           <p className="price-frame">{PRICE_FRAME_LINE}</p>
           <h3>Mit dem Abo</h3>
           <ul className="prose-list">
+            <li>Weitere Bereiche derselben Firma ohne Aufpreis</li>
             <li>Versionierung deiner Dokumentation</li>
             <li>Zugang zu bisherigen Fassungen</li>
             <li>Anpassungen, wenn sich Systeme oder Abläufe ändern</li>
@@ -358,6 +398,15 @@ export default function HomePage() {
               Für den Moment vielleicht — bis sich Software, Belegwege oder
               Verantwortliche ändern. Das Abo hält Versionen und Updates
               verfügbar.
+            </p>
+          </div>
+          <div className="faq-item">
+            <h3>Deckt das auch Kasse, Warenwirtschaft oder Lohn ab?</h3>
+            <p className="prose">
+              Ja. Neben dem Belegfluss kannst du Kasse, Warenwirtschaft,
+              Einkauf, Verkauf, Retouren, Zeiterfassung, Lohn, E-Commerce,
+              Bank, Anlagen und weitere Vorsysteme jeweils als eigene
+              Verfahrensdokumentation anlegen. {ALL_AREAS_LINE}
             </p>
           </div>
           <div className="faq-item">

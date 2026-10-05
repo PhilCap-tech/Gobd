@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
 import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/lib/intake-catalog";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import { customerHubTitle } from "@/lib/account-display";
+import { bereichIdOf, bereichLabel } from "@/lib/bereiche";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 import {
@@ -33,6 +35,10 @@ type IntakeFormProps = {
   nextVersion?: number;
   entities?: EntityChoice[];
   initialEntityId?: string;
+  /** New area document for a company that already has one (no new checkout). */
+  areaBaseDocumentId?: string;
+  /** Areas the company already documents. */
+  existingBereiche?: string[];
 };
 
 export function IntakeForm({
@@ -42,6 +48,8 @@ export function IntakeForm({
   nextVersion,
   entities = [],
   initialEntityId = "",
+  areaBaseDocumentId,
+  existingBereiche = [],
 }: IntakeFormProps) {
   const companyLabel = customerHubTitle(session.company, "");
   const nextVersionLabel = nextVersion
@@ -63,7 +71,8 @@ export function IntakeForm({
     changedBy: session.email,
   });
   const isEdit = Boolean(sourceDocumentId);
-  const showFirmSelect = !isEdit && entities.length > 1;
+  const isNewArea = Boolean(areaBaseDocumentId);
+  const showFirmSelect = !isEdit && !isNewArea && entities.length > 1;
 
   function validate(current: number): boolean {
     setError("");
@@ -103,6 +112,7 @@ export function IntakeForm({
           company: session.company,
           answers,
           documentId: sourceDocumentId,
+          areaFromDocumentId: areaBaseDocumentId,
           entityId: entityId.trim() || undefined,
           validFrom: change.validFrom,
           validTo: change.validTo,
@@ -173,6 +183,15 @@ export function IntakeForm({
         </p>
       )}
 
+      {isNewArea && step <= INTAKE_STEPS.length && (
+        <p className="banner">
+          Neuer Bereich {bereichLabel(bereichIdOf(answers))}
+          {companyLabel ? ` für ${companyLabel}` : ""}. Der allgemeine Teil (Unternehmen,
+          Systeme, Ablage, Berechtigungen, Kontrollen) ist aus der letzten Fassung vorbelegt.
+          Bitte prüfen. Alle Bereiche sind im Preis enthalten, es entsteht keine neue Bestellung.
+        </p>
+      )}
+
       {notice ? <p className="banner ok">{notice}</p> : null}
 
       {session.email && step === 0 && (
@@ -190,6 +209,16 @@ export function IntakeForm({
                 value={entityId}
                 onChange={setEntityId}
                 required
+              />
+            </div>
+          )}
+          {step === 0 && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <BereichSelect
+                value={bereichIdOf(answers)}
+                locked={isEdit}
+                existing={existingBereiche}
+                onChange={(bereich) => setAnswers((current) => ({ ...current, bereich }))}
               />
             </div>
           )}

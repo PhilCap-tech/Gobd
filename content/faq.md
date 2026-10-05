@@ -9,7 +9,8 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 ### Geliefert wird
 
 - Eine strukturierte GoBD-Verfahrensdokumentation als PDF, erzeugt aus deinem Online-Intake (Branche/Rechtsform, Systeme, Belegwege, IT/Hosting, Verantwortliche).
-- Typischer Inhalt: Cover, Kapitel zu Unternehmen, Systemen, Belegwesen, Aufbewahrung, Verantwortlichkeiten sowie eine Liste offener Punkte.
+- Typischer Inhalt: Cover, Kapitel zu Unternehmen, Systemen, Abläufen im jeweiligen Bereich, Aufbewahrung, Verantwortlichkeiten sowie eine Liste offener Punkte.
+- Je Bereich eine eigene Verfahrensdokumentation: Belegfluss (Eingangs- und Ausgangsrechnungen), Kasse, Warenwirtschaft und Inventur, Einkauf, Verkauf, Retouren und Gutschriften, Zeiterfassung, Lohn, E-Commerce und Zahlungsdienstleister, Bank, Anlagen sowie weitere Vorsysteme. Angaben zu Unternehmen, Systemen, Ablage, Berechtigungen und Kontrollen werden für weitere Bereiche übernommen.
 - Ein fester Produkt-Disclaimer in der Dokumentation (kein Steuer-/Rechtsberatungsersatz; Verantwortung für inhaltliche Richtigkeit liegt bei dir).
 
 ### Nicht geliefert wird
@@ -19,12 +20,11 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 - Keine individuelle Prüfung oder Freigabe durch Steuerberater/WP/RA.
 - Kein Ausfüllen ohne deine Intake-Angaben — die Qualität hängt von deinen Angaben ab.
 - Keine laufende Buchhaltungs-/Prozessberatung und kein Hosting deiner Belege.
-- Keine Verfahrensdokumentation für Kassensysteme, Warenwirtschaft, Zeiterfassung, Lohn oder weitere Vorsysteme. Die Leistung umfasst den Belegfluss (Eingangs- und Ausgangsrechnungen, Ablage, Übergabe an die Buchhaltung, Berechtigungen).
 
 ## 2. Ablauf & Dauer
 
 1. Bestellung über die Website (Stripe Checkout).
-2. Online-Intake (kurze Fragen zu Betrieb, Software, Belegen, IT, Verantwortlichen).
+2. Online-Intake: Bereich wählen, dann Fragen zu Betrieb, Software, Abläufen im Bereich, IT und Verantwortlichen. Weitere Bereiche legst du später im Konto an.
 3. Automatische Erstellung der Dokumentation aus dem Intake.
 4. Digitale Lieferung (Download / Zugangslink / Ergebnis per E-Mail).
 
@@ -34,14 +34,15 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 
 ## 3. Preise & Updates nach Lieferung
 
+- **Alle Bereiche inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.** Der Preis gilt je Firma und umfasst beliebig viele Bereichs-Dokumentationen dieser Firma.
 - **Preismodell:** einmalige Einrichtung 149 € zzgl. USt und 49 € zzgl. USt pro Monat. Der erste Monat ist im Einstiegspreis von 198 € zzgl. USt (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet. Maßgeblich sind die im Checkout angezeigten Beträge.
 - Das monatliche Abo deckt laufenden Zugang sowie Update-/Pflegeleistungen gemäß aktueller Produktbeschreibung ab (u. a. Versionierung und Speicherung).
-- Ein Update ist sinnvoll, wenn sich Systeme, Belegwege, Hosting oder Verantwortliche ändern.
+- Ein Update ist sinnvoll, wenn sich Systeme, Abläufe, Hosting oder Verantwortliche ändern. Jeder Bereich hat eigene Versionen mit „Gültig ab“.
 - Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung. Bereits erzeugte PDFs kannst du nach Vertragsende noch 30 Tage herunterladen. Zugang zu früheren Fassungen und spätere Anpassungen gibt es nur mit aktivem Abonnement.
 
 ## 4. Ist das Steuerberatung / rechtssicher?
 
-Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung eines Entwurfs einer Verfahrensdokumentation für den Belegfluss. Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
+Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung von Entwürfen einer Verfahrensdokumentation für die von dir gewählten Bereiche (zum Beispiel Belegfluss, Kasse oder Warenwirtschaft). Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
 Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich oder ausreichend ist, hängt von deiner Situation ab. Eine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 

@@ -6,7 +6,7 @@ import { entityById, entityChoices } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
-import { PRICE_MICRO } from "@/lib/offer-copy";
+import { ALL_AREAS_LINE, PRICE_MICRO } from "@/lib/offer-copy";
 import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
 import { CheckoutForm } from "./checkout-form";
 
@@ -57,7 +57,9 @@ export default async function CheckoutPage({
               Den Aktionscode lösen Sie im Checkout ein. Danach der Fragenkatalog.
             </>
           ) : (
-            <>{PRICE_MICRO}.</>
+            <>
+              {PRICE_MICRO}. {ALL_AREAS_LINE}
+            </>
           )}
         </p>
         <CheckoutForm

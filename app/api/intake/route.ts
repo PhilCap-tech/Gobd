@@ -70,6 +70,7 @@ async function resolveIdentity(body: {
   company?: string;
   documentId?: string;
   entityId?: string;
+  areaFromDocumentId?: string;
 }): Promise<
   | {
       identity: CheckoutIdentity;
@@ -81,7 +82,36 @@ async function resolveIdentity(body: {
   | { response: NextResponse }
 > {
   const sourceDocumentId = body.documentId?.trim() ?? "";
+  const areaFromDocumentId = body.areaFromDocumentId?.trim() ?? "";
   const sessionEmail = await getSessionEmail();
+
+  // Weiterer Bereich derselben Firma: neue Dokumentfamilie, gleiche Bestellung.
+  // Alle Bereiche sind im Preis je Firma enthalten, daher kein neuer Checkout.
+  if (areaFromDocumentId && !sourceDocumentId) {
+    const family = await listDocumentFamily(areaFromDocumentId);
+    const source =
+      family.find((row) => row.documentId === areaFromDocumentId) ??
+      family.at(-1);
+    if (!source) {
+      return { response: jsonError("Dokument nicht gefunden.", 404) };
+    }
+    if (
+      !canAccessDocument(source, {
+        sessionEmail,
+        sessionId: body.sessionId,
+      })
+    ) {
+      return { response: jsonError("Kein Zugriff.", 401) };
+    }
+    const identity = identityFromSheetRow(source);
+    return {
+      identity,
+      version: 1,
+      parentDocumentId: "",
+      status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
+      entityId: source.entityId,
+    };
+  }
 
   if (sourceDocumentId) {
     const family = await listDocumentFamily(sourceDocumentId);
@@ -194,6 +224,7 @@ async function handleIntake(request: Request) {
     company?: string;
     documentId?: string;
     entityId?: string;
+    areaFromDocumentId?: string;
     validFrom?: unknown;
     validTo?: unknown;
     changeSummary?: unknown;

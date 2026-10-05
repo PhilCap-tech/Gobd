@@ -10,12 +10,15 @@ import {
 } from "@/lib/documents";
 import { entityById, entityChoices } from "@/lib/entities";
 import { isStripeConfigured } from "@/lib/env";
+import { answersForNewBereich } from "@/lib/intake-catalog";
+import { BELEGFLUSS, bereichIdOf, isBereichId } from "@/lib/bereiche";
 import { firstQueryValue } from "@/lib/query";
 import {
   findDocumentById,
   findLatestDocumentByStripeSessionId,
   getOwnedEntity,
   listDocumentFamily,
+  listDocumentsByEmail,
   listEntitiesByEmail,
 } from "@/lib/store";
 import {
@@ -24,6 +27,7 @@ import {
 } from "@/lib/stripe";
 import {
   answersFromSheetRow,
+  emptyAnswers,
   identityFromSheetRow,
 } from "@/lib/types";
 import { IntakeForm } from "./intake-form";
@@ -111,6 +115,8 @@ export default async function IntakePage({
     company?: string | string[];
     document_id?: string | string[];
     entity_id?: string | string[];
+    bereich?: string | string[];
+    basis?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -119,7 +125,54 @@ export default async function IntakePage({
   const company = firstQueryValue(params.company);
   const documentId = firstQueryValue(params.document_id);
   const requestedEntityId = firstQueryValue(params.entity_id) ?? "";
+  const requestedBereich = firstQueryValue(params.bereich) ?? "";
+  const bereich = isBereichId(requestedBereich) ? requestedBereich : "";
+  const basisId = firstQueryValue(params.basis) ?? "";
   const sessionEmail = await getSessionEmail();
+
+  // Weiterer Bereich für eine Firma mit bestehender Dokumentation: kein neuer Checkout.
+  if (basisId) {
+    const basisRow = await findDocumentById(basisId);
+    const allowed =
+      basisRow && canAccessDocument(basisRow, { sessionEmail, sessionId });
+    let existingBereiche: string[] = [];
+    let base = basisRow;
+    if (basisRow && allowed) {
+      const family = await listDocumentFamily(basisRow.documentId);
+      base = groupDocumentFamilies(family)[0]?.latest ?? basisRow;
+      const owned = sessionEmail ? await listDocumentsByEmail(sessionEmail) : family;
+      const sameFirm = owned.filter(
+        (row) => (row.entityId || "") === (basisRow.entityId || ""),
+      );
+      existingBereiche = [
+        ...new Set(groupDocumentFamilies(sameFirm).map((item) => bereichIdOf(answersFromSheetRow(item.latest)))),
+      ];
+    }
+    return (
+      <>
+        <SiteHeader backHref="/account" backLabel="← Zum Konto" />
+        <main className="wrap page">
+          {!basisRow || !allowed || !base ? (
+            <EditGate loggedIn={Boolean(sessionEmail)} />
+          ) : (
+            <IntakeForm
+              key={`${base.documentId}-${bereich}`}
+              session={identityFromSheetRow(basisRow)}
+              initialAnswers={answersForNewBereich(
+                answersFromSheetRow(base),
+                bereich || BELEGFLUSS,
+                basisRow.company,
+              )}
+              initialEntityId={basisRow.entityId}
+              areaBaseDocumentId={basisRow.documentId}
+              existingBereiche={existingBereiche}
+            />
+          )}
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
 
   let sourceRow = documentId ? await findDocumentById(documentId) : null;
   if (!sourceRow && sessionId) {
@@ -216,6 +269,7 @@ export default async function IntakePage({
             session={session}
             entities={entityChoices(entities)}
             initialEntityId={initialEntityId}
+            initialAnswers={bereich ? { ...emptyAnswers(), bereich } : undefined}
           />
         )}
       </main>
