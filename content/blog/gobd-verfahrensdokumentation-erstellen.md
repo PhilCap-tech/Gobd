@@ -33,7 +33,7 @@ Du musst keine Doktorarbeit schreiben. Du musst aber ehrlich und aktuell dokumen
 
 ## Wann brauchst du eine Verfahrensdokumentation?
 
-Praktisch immer, wenn du DV-gestützt buchst oder Belege digital ablegst — also in den meisten KMU, Handwerksbetrieben und bei Freiberuflern mit DATEV, sevdesk, lexoffice & Co.
+Praktisch immer, wenn du DV-gestützt buchst oder Belege digital ablegst — also in den meisten KMU, Handwerksbetrieben und bei Freiberuflern mit DATEV, sevdesk, lexoffice & Co. Ob und für wen das eine Pflicht ist, steht gesondert unter [Verfahrensdokumentation GoBD Pflicht](/blog/verfahrensdokumentation-pflicht).
 
 Besonders relevant, wenn:
 
