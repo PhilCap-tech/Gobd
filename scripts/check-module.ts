@@ -152,7 +152,8 @@ import { nextApplicableStep } from "../lib/intake-catalog";
 
 
 {
-  const MIN_WORDS = 8500;
+  ok(MUSTER_VORLAGEN.length === 5, "five Gesamt-Muster vorlagen");
+  const MIN_WORDS = 9000;
   const MIN_CHAPTERS = 20;
   for (const vorlage of MUSTER_VORLAGEN) {
     const muster = getGesamtMuster(vorlage);
@@ -187,7 +188,8 @@ async function checkMusterPdfDepth() {
       version: muster.version,
     });
     // buffer to text via crude latin extraction is weak; use byte length as proxy + word estimate from chapters already done
-    ok(pdf.buffer.length > 350_000, `${vorlage} PDF bytes > 350k (got ${pdf.buffer.length})`);
+    const minBytes = 400_000;
+    ok(pdf.buffer.length > minBytes, `${vorlage} PDF bytes > ${minBytes} (got ${pdf.buffer.length})`);
   }
   console.log("check-module muster pdf depth: green");
 }

@@ -247,7 +247,7 @@ export default function SteuerberaterPage() {
             ))}
           </div>
           <p className="hint">
-            Muster-Gesamtdokumente und bisherige Bereichs-Muster:{" "}
+            Muster-Gesamtdokumente (fünf Branchenvorlagen) und bisherige Bereichs-Muster:{" "}
             <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
           </p>
         </section>

@@ -18,7 +18,7 @@ import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 
 const PAGE_TITLE = "Muster: Gesamtdokument und Module (fiktiv) | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "Muster-Gesamtdokumente für Dienstleister, Handel mit Kasse/Lager und E-Commerce sowie Fragebögen je Modul. Fiktive Beispiele, keine Steuerberatung. 24 Module, alle inklusive.";
+  "Muster-Gesamtdokumente für Dienstleister, Handel, E-Commerce, Gastronomie und Handwerk/Bau sowie Fragebögen je Modul. Fiktive Beispiele, keine Steuerberatung. 24 Module, alle inklusive.";
 
 export const metadata: Metadata = {
   title: { absolute: PAGE_TITLE },
@@ -42,7 +42,7 @@ export default function MusterIndexPage() {
           <p className="kicker">Muster · fiktiv</p>
           <h1>Muster-Gesamtdokumente und Module</h1>
           <p className="lead">
-            Drei vollständige Muster nach Branchenvorlage sowie die bisherigen
+            Fünf vollständige Muster nach Branchenvorlage sowie die bisherigen
             Bereichs-Muster (leiten auf das passende Gesamtmuster weiter).
           </p>
           <p className="price-frame">
