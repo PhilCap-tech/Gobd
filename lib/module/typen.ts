@@ -46,6 +46,12 @@ export type ModulEintrag = {
   ref?: string;
   /** Link oder Ablageort der bestehenden Dokumentation. */
   link?: string;
+  /** Hochgeladene bestehende Dokumentation (Vercel Blob oder lokaler Fallback). */
+  uploadUrl?: string;
+  uploadName?: string;
+  uploadAt?: string;
+  uploadSize?: number;
+  uploadType?: string;
 };
 
 export type Stammdaten = {

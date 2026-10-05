@@ -18,6 +18,7 @@ import {
   withCatalogDraft,
 } from "@/lib/intake-catalog";
 import { ensureGesamt, isGesamt } from "@/lib/module/status";
+import { normalizeDraftKey } from "@/lib/intake-draft-shared";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import { customerHubTitle } from "@/lib/account-display";
 import { bereichIdOf, bereichLabel } from "@/lib/bereiche";
@@ -83,50 +84,158 @@ export function IntakeForm({
     changeSummary: "",
     changedBy: session.email,
   });
-  // Entwurf nur in diesem Browser speichern (Speichern & später fortsetzen).
-  const draftKey = `gobd-intake-draft:${sourceDocumentId || areaBaseDocumentId || session.stripeSessionId || "neu"}:${gesamtMode ? "gesamt" : "bereich"}`;
-  const [draftOffer, setDraftOffer] = useState<{ answers: IntakeAnswers; step: number; savedAt: string } | null>(null);
+  // Entwurf: localStorage (Fallback) + Server (gerätübergreifend).
+  const draftKey = normalizeDraftKey({
+    sessionId: session.stripeSessionId,
+    documentId: sourceDocumentId,
+    areaFromDocumentId: areaBaseDocumentId,
+    email: session.email,
+    entityId: initialEntityId || entityId,
+    modus: gesamtMode ? "gesamt" : "bereich",
+  });
+  const localDraftKey = `gobd-intake-draft:${draftKey || session.stripeSessionId || "neu"}`;
+  const [draftOffer, setDraftOffer] = useState<{ answers: IntakeAnswers; step: number; savedAt: string; source: "server" | "local" } | null>(null);
   const draftChecked = useRef(false);
   const [draftReady, setDraftReady] = useState(false);
+  const [serverDraftAt, setServerDraftAt] = useState("");
   useEffect(() => {
     if (draftChecked.current) return;
     draftChecked.current = true;
-    const timer = window.setTimeout(() => {
+    let cancelled = false;
+    (async () => {
+      let local: { answers: IntakeAnswers; step: number; savedAt: string } | null = null;
       try {
-        const raw = window.localStorage.getItem(draftKey);
+        const raw = window.localStorage.getItem(localDraftKey);
         if (raw) {
           const parsed = JSON.parse(raw) as { answers?: IntakeAnswers; step?: number; savedAt?: string };
           if (parsed.answers && typeof parsed.answers === "object") {
-            setDraftOffer({ answers: parsed.answers, step: Number(parsed.step) || 0, savedAt: parsed.savedAt ?? "" });
+            local = { answers: parsed.answers, step: Number(parsed.step) || 0, savedAt: parsed.savedAt ?? "" };
           }
         }
       } catch {
-        // Kein Zugriff auf localStorage: ohne Entwurf weiter.
+        // kein localStorage
+      }
+      let server: { answers: IntakeAnswers; step: number; savedAt: string } | null = null;
+      if (draftKey) {
+        try {
+          const params = new URLSearchParams({ draftKey });
+          if (session.stripeSessionId) params.set("sessionId", session.stripeSessionId);
+          const response = await fetch(`/api/intake/draft?${params}`);
+          if (response.ok) {
+            const data = (await response.json()) as {
+              draft?: { answers: IntakeAnswers; step: number; updatedAt: string } | null;
+            };
+            if (data.draft?.answers) {
+              server = {
+                answers: data.draft.answers,
+                step: Number(data.draft.step) || 0,
+                savedAt: data.draft.updatedAt,
+              };
+              setServerDraftAt(data.draft.updatedAt);
+            }
+          }
+        } catch {
+          // offline: nur lokal
+        }
+      }
+      if (cancelled) return;
+      if (server && local) {
+        const serverWins = server.savedAt.localeCompare(local.savedAt) >= 0;
+        setDraftOffer({ ...(serverWins ? server : local), source: serverWins ? "server" : "local" });
+      } else if (server) {
+        setDraftOffer({ ...server, source: "server" });
+      } else if (local) {
+        setDraftOffer({ ...local, source: "local" });
       }
       setDraftReady(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [draftKey]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [draftKey, localDraftKey, session.stripeSessionId]);
   useEffect(() => {
     if (!draftReady || draftOffer) return;
+    const savedAt = new Date().toISOString();
     const timer = window.setTimeout(() => {
       try {
         window.localStorage.setItem(
-          draftKey,
-          JSON.stringify({ answers, step, savedAt: new Date().toISOString() }),
+          localDraftKey,
+          JSON.stringify({ answers, step, savedAt }),
         );
       } catch {
-        // Speicher voll oder gesperrt: Entwurf wird nicht gesichert.
+        // Speicher voll oder gesperrt
       }
-    }, 600);
+      if (!draftKey) return;
+      void fetch("/api/intake/draft", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftKey,
+          sessionId: session.stripeSessionId,
+          documentId: sourceDocumentId,
+          areaFromDocumentId: areaBaseDocumentId,
+          email: session.email,
+          entityId: entityId || initialEntityId,
+          modus: gesamtMode ? "gesamt" : "bereich",
+          step,
+          answers,
+          clientUpdatedAt: serverDraftAt || savedAt,
+        }),
+      })
+        .then(async (response) => {
+          if (response.status === 409) {
+            const data = (await response.json()) as {
+              draft?: { answers: IntakeAnswers; step: number; updatedAt: string };
+            };
+            if (data.draft?.answers) {
+              setDraftOffer({
+                answers: data.draft.answers,
+                step: Number(data.draft.step) || 0,
+                savedAt: data.draft.updatedAt,
+                source: "server",
+              });
+              setServerDraftAt(data.draft.updatedAt);
+            }
+            return;
+          }
+          if (response.ok) {
+            const data = (await response.json()) as { draft?: { updatedAt?: string } };
+            if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
+          }
+        })
+        .catch(() => {
+          // offline: localStorage reicht als Fallback
+        });
+    }, 900);
     return () => window.clearTimeout(timer);
-  }, [answers, step, draftKey, draftReady, draftOffer]);
+  }, [
+    answers,
+    step,
+    draftKey,
+    localDraftKey,
+    draftReady,
+    draftOffer,
+    session.stripeSessionId,
+    session.email,
+    sourceDocumentId,
+    areaBaseDocumentId,
+    entityId,
+    initialEntityId,
+    gesamtMode,
+    serverDraftAt,
+  ]);
   function clearDraft() {
     try {
-      window.localStorage.removeItem(draftKey);
+      window.localStorage.removeItem(localDraftKey);
     } catch {
       // ignorieren
     }
+    if (draftKey) {
+      const params = new URLSearchParams({ draftKey });
+      if (session.stripeSessionId) params.set("sessionId", session.stripeSessionId);
+      void fetch(`/api/intake/draft?${params}`, { method: "DELETE" }).catch(() => undefined);
+    }
+    setServerDraftAt("");
   }
   const isEdit = Boolean(sourceDocumentId);
   const isNewArea = Boolean(areaBaseDocumentId);
@@ -263,11 +372,11 @@ export function IntakeForm({
       {draftOffer ? (
         <div className="banner">
           <p style={{ margin: 0 }}>
-            In diesem Browser ist ein nicht abgesendeter Entwurf gespeichert
+            Ein nicht abgesendeter Entwurf ist gespeichert
             {draftOffer.savedAt
               ? ` (Stand ${new Date(draftOffer.savedAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin", dateStyle: "short", timeStyle: "short" })})`
               : ""}
-            .
+            {draftOffer.source === "server" ? " (Server)." : " (dieser Browser)."}
           </p>
           <div className="actions" style={{ marginTop: 8 }}>
             <button
@@ -331,7 +440,13 @@ export function IntakeForm({
               Betriebs. Alle Module sind im Preis enthalten.
             </p>
           )}
-          <IntakeQuestionnaire step={step} answers={answers} onChange={setAnswers} />
+          <IntakeQuestionnaire
+            step={step}
+            answers={answers}
+            onChange={setAnswers}
+            sessionId={session.stripeSessionId}
+            documentId={sourceDocumentId || areaBaseDocumentId || ""}
+          />
         </>
       )}
 

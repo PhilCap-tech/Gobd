@@ -129,9 +129,13 @@ export function BetriebsCheckStep({
 export function ModulUebersichtStep({
   answers,
   onChange,
+  sessionId = "",
+  documentId = "",
 }: {
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
+  sessionId?: string;
+  documentId?: string;
 }) {
   const rows = vollstaendigkeitsZeilen(answers);
   return (
@@ -189,27 +193,135 @@ export function ModulUebersichtStep({
                   </td>
                   <td>
                     {(current?.status ?? row.status) === "extern" ? (
-                      <input
-                        placeholder="Titel / Ablageort der Dokumentation"
-                        value={current?.ref ?? ""}
-                        onChange={(event) => {
-                          const nextStatus = {
-                            ...(answers.module?.status ?? {}),
-                            [row.modul]: {
-                              status: "extern" as const,
-                              ref: event.target.value,
-                              link: current?.link ?? "",
-                            },
-                          };
-                          onChange({
-                            ...answers,
-                            module: {
-                              ...(answers.module ?? { version: 1, check: {}, status: {} }),
-                              status: nextStatus,
-                            },
-                          });
-                        }}
-                      />
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <input
+                          placeholder="Titel / Ablageort der Dokumentation"
+                          value={current?.ref ?? ""}
+                          onChange={(event) => {
+                            const nextStatus = {
+                              ...(answers.module?.status ?? {}),
+                              [row.modul]: {
+                                status: "extern" as const,
+                                ref: event.target.value,
+                                link: current?.link ?? "",
+                                uploadUrl: current?.uploadUrl,
+                                uploadName: current?.uploadName,
+                                uploadAt: current?.uploadAt,
+                                uploadSize: current?.uploadSize,
+                                uploadType: current?.uploadType,
+                              },
+                            };
+                            onChange({
+                              ...answers,
+                              module: {
+                                ...(answers.module ?? { version: 1, check: {}, status: {} }),
+                                status: nextStatus,
+                              },
+                            });
+                          }}
+                        />
+                        <input
+                          placeholder="URL (optional)"
+                          value={current?.link ?? ""}
+                          onChange={(event) => {
+                            const nextStatus = {
+                              ...(answers.module?.status ?? {}),
+                              [row.modul]: {
+                                status: "extern" as const,
+                                ref: current?.ref ?? "",
+                                link: event.target.value,
+                                uploadUrl: current?.uploadUrl,
+                                uploadName: current?.uploadName,
+                                uploadAt: current?.uploadAt,
+                                uploadSize: current?.uploadSize,
+                                uploadType: current?.uploadType,
+                              },
+                            };
+                            onChange({
+                              ...answers,
+                              module: {
+                                ...(answers.module ?? { version: 1, check: {}, status: {} }),
+                                status: nextStatus,
+                              },
+                            });
+                          }}
+                        />
+                        <label className="hint" style={{ display: "grid", gap: 4 }}>
+                          Datei (PDF, DOCX, JPEG/PNG/WebP, max. 12 MB)
+                          <input
+                            type="file"
+                            accept=".pdf,.docx,image/jpeg,image/png,image/webp"
+                            onChange={async (event) => {
+                              const file = event.target.files?.[0];
+                              if (!file) return;
+                              const body = new FormData();
+                              body.set("file", file);
+                              body.set("modulId", row.modul);
+                              if (sessionId) body.set("sessionId", sessionId);
+                              if (documentId) body.set("documentId", documentId);
+                              try {
+                                const response = await fetch("/api/module-upload", {
+                                  method: "POST",
+                                  body,
+                                });
+                                const data = (await response.json()) as {
+                                  error?: string;
+                                  uploadUrl?: string;
+                                  uploadName?: string;
+                                  uploadAt?: string;
+                                  uploadSize?: number;
+                                  uploadType?: string;
+                                };
+                                if (!response.ok) {
+                                  window.alert(data.error || "Upload fehlgeschlagen.");
+                                  return;
+                                }
+                                const nextStatus = {
+                                  ...(answers.module?.status ?? {}),
+                                  [row.modul]: {
+                                    status: "extern" as const,
+                                    ref: current?.ref || data.uploadName || file.name,
+                                    link: current?.link ?? "",
+                                    uploadUrl: data.uploadUrl,
+                                    uploadName: data.uploadName,
+                                    uploadAt: data.uploadAt,
+                                    uploadSize: data.uploadSize,
+                                    uploadType: data.uploadType,
+                                  },
+                                };
+                                onChange({
+                                  ...answers,
+                                  module: {
+                                    ...(answers.module ?? { version: 1, check: {}, status: {} }),
+                                    status: nextStatus,
+                                  },
+                                });
+                              } catch {
+                                window.alert("Netzwerkfehler beim Upload.");
+                              } finally {
+                                event.target.value = "";
+                              }
+                            }}
+                          />
+                        </label>
+                        {current?.uploadName ? (
+                          <p className="hint" style={{ margin: 0 }}>
+                            Hochgeladen: {current.uploadName}
+                            {current.uploadAt
+                              ? ` · ${new Date(current.uploadAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}`
+                              : ""}
+                            {current.uploadUrl ? (
+                              <>
+                                {" "}
+                                ·{" "}
+                                <a href={current.uploadUrl} target="_blank" rel="noreferrer">
+                                  öffnen
+                                </a>
+                              </>
+                            ) : null}
+                          </p>
+                        ) : null}
+                      </div>
                     ) : null}
                     {(current?.status ?? row.status) === "nicht_vorhanden" ? (
                       <input

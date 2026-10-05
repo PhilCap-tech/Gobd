@@ -53,7 +53,7 @@ Dokumentationen, C Prozessmatrix, D Begriffe.
 | Status | Bedeutung | Wirkung im PDF |
 | --- | --- | --- |
 | im Tool beschrieben | Fragen des Moduls werden beantwortet | Kapitel mit Ist-Beschreibung (nur „bestätigt“ im Präsens) |
-| durch bestehende Dokumentation abgedeckt | Verweistext Pflicht, Link/Ablageort optional | Kurzkapitel mit Verweis + Eintrag in Anhang B; ohne Verweistext offener Punkt |
+| durch bestehende Dokumentation abgedeckt | Verweistext Pflicht, Link/Ablageort und/oder Datei-Upload (PDF/DOCX/Bild) | Kurzkapitel mit Verweis + Eintrag in Anhang B; ohne Verweistext offener Punkt |
 | noch nicht dokumentiert | Bereich existiert, Beschreibung fehlt | Kurzkapitel „noch nicht dokumentiert“ + offener Punkt (hoch) |
 | nicht vorhanden | Nur betriebsabhängige/Regel-Module, Begründung Pflicht | Zeile in der Vollständigkeitsübersicht mit Begründung |
 
@@ -74,8 +74,8 @@ Jedes der 24 Module steht in der Vollständigkeitsübersicht (PDF + Konto). Ein 
    Kunde selbst.
 3. **Modulübersicht** vor dem Ausfüllen: alle 24 Module mit vorgeschlagenem Status, änderbar.
 4. Schritte A, B und je aktivem Modul ein Schritt (Fortschritt je Modul in der Übersicht),
-   danach G, H, I und Prüfung. Zwischenstand wird lokal im Browser gespeichert
-   (Speichern & später fortsetzen auf demselben Gerät).
+   danach G, H, I und Prüfung. Zwischenstand wird serverseitig (Vercel Blob) und zusätzlich
+   lokal im Browser gespeichert; bei Konflikt gewinnt der neuere Server-Entwurf.
 5. Nachträglich: im Konto „Modul ergänzen“ öffnet das Intake als neue Fassung mit dem Modul.
 
 Vorschläge aus Vorlagen setzen nur Werte, nie den Status: Erst „So läuft es heute“ macht eine Angabe
@@ -129,6 +129,14 @@ Ads unverändert. AGB/Datenschutz/Disclaimer: Umfangsformulierung „vom Kunden 
 
 ## 11. Offen
 
-- Speichern & fortsetzen geräteübergreifend (Server-Entwurf) – derzeit lokal im Browser.
-- Hochladen bestehender Dokumentationen: derzeit Verweis + Link/Ablageort, kein Datei-Upload.
 - Fachliche Prüfung der neuen Fragen (Module 14, 21–23) durch Kanzlei-Partner.
+- Muster weiter an reale Branchenfälle anreichern (Gastro/Handwerk-Vorlagen als eigene Gesamt-Muster).
+- Virus-Scan hochgeladener Dateien: Plattform erlaubt nur Typ/Größenprüfung; kein Content-Scanning.
+
+## Umsetzung (Stand 05.10.2026)
+
+- PR1 #68 → `4e51004` Katalog, Betriebs-Check, Statuse
+- PR2 #69 → `adc6505` Gesamt-PDF vier Teile + Modul-Export
+- PR3 #70 → `c89d1d1` Muster, Copy „24 Module“, Account-Vollständigkeit
+- PR4 #71 → `f300196` Migration aus Bereichen, Katalogantworten statt Ids, Entwurf/Fortschritt, Legacy-Startschritt, FAQ
+- Follow-up Muster/Upload/Draft → siehe nächster Stand nach Merge

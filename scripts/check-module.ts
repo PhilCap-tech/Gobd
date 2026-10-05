@@ -23,6 +23,10 @@ import {
 } from "../lib/module/status";
 import { CATALOG_STEPS, BETRIEBS_CHECK_STEP_ID, MODUL_UEBERSICHT_STEP_ID, catalogStepApplies, catalogStepError } from "../lib/intake-catalog";
 import { emptyAnswers } from "../lib/types";
+import { getGesamtMuster, MUSTER_VORLAGEN } from "../lib/module-muster";
+import { renderGesamtChapters } from "../lib/gesamt-document";
+import { uploadAllowed } from "../lib/blob";
+import { draftIsNewer, normalizeDraftKey } from "../lib/intake-draft";
 import { BEREICHE } from "../lib/bereiche";
 
 function ok(cond: unknown, msg: string) {
@@ -79,7 +83,6 @@ for (const step of moduleSteps) {
 
 console.log("check-module: all green");
 
-import { renderGesamtChapters } from "../lib/gesamt-document";
 import { setVorlage } from "../lib/module/status";
 
 {
@@ -145,4 +148,60 @@ import { nextApplicableStep } from "../lib/intake-catalog";
   const gesamtStart = nextApplicableStep(-1, ensureGesamt(emptyAnswers()));
   ok(CATALOG_STEPS[gesamtStart]?.id === "step-BC", "Gesamt intake starts at Betriebs-Check");
   console.log("check-module first step: green");
+}
+
+
+{
+  const MIN_WORDS = 8500;
+  const MIN_CHAPTERS = 20;
+  for (const vorlage of MUSTER_VORLAGEN) {
+    const muster = getGesamtMuster(vorlage);
+    ok(muster, `Muster ${vorlage} exists`);
+    if (!muster) continue;
+    const tools = toolModules(muster.answers);
+    ok(tools.length >= 15, `${vorlage} has >=15 tool modules (got ${tools.length})`);
+    let unanswered = 0;
+    for (const modul of tools) {
+      for (const q of modulFragen(modul)) {
+        if (!muster.answers.katalog?.[q.id]?.status) unanswered += 1;
+      }
+    }
+    ok(unanswered === 0, `${vorlage} all tool-module questions answered (open ${unanswered})`);
+    const chapters = renderGesamtChapters(muster.answers, "Offene Punkte (Muster).");
+    const text = chapters.map((c) => `${c.title}\n${c.body}`).join("\n");
+    const words = text.split(/\s+/).filter(Boolean).length;
+    ok(chapters.length >= MIN_CHAPTERS, `${vorlage} chapters >= ${MIN_CHAPTERS} (got ${chapters.length})`);
+    ok(words >= MIN_WORDS, `${vorlage} chapter words >= ${MIN_WORDS} (got ${words})`);
+  }
+  console.log("check-module muster depth: green");
+}
+
+async function checkMusterPdfDepth() {
+  const { generatePdf } = await import("../lib/delivery");
+  for (const vorlage of MUSTER_VORLAGEN) {
+    const muster = getGesamtMuster(vorlage)!;
+    const pdf = await generatePdf({
+      answers: muster.answers,
+      identity: muster.identity,
+      documentId: muster.documentId,
+      version: muster.version,
+    });
+    // buffer to text via crude latin extraction is weak; use byte length as proxy + word estimate from chapters already done
+    ok(pdf.buffer.length > 350_000, `${vorlage} PDF bytes > 350k (got ${pdf.buffer.length})`);
+  }
+  console.log("check-module muster pdf depth: green");
+}
+checkMusterPdfDepth().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+
+{
+  ok(uploadAllowed("application/pdf", 100) === "", "pdf allowed");
+  ok(uploadAllowed("application/zip", 100) !== "", "zip rejected");
+  ok(uploadAllowed("application/pdf", 20 * 1024 * 1024) !== "", "too large rejected");
+  ok(normalizeDraftKey({ sessionId: "cs_test_1" }).startsWith("session:"), "draft key session");
+  ok(draftIsNewer("2026-10-05T12:00:00.000Z", "2026-10-05T11:00:00.000Z"), "server newer wins");
+  ok(!draftIsNewer("2026-10-05T11:00:00.000Z", "2026-10-05T12:00:00.000Z"), "client newer keeps");
+  console.log("check-module upload/draft helpers: green");
 }

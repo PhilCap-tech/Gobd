@@ -251,3 +251,83 @@ export function pdfDownloadName(row: SheetRow): string {
   const version = row.version || "1";
   return `Verfahrensdoku-${company}-v${version}.pdf`;
 }
+
+const UPLOAD_MAX_BYTES = 12 * 1024 * 1024;
+const UPLOAD_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+export function uploadAllowed(contentType: string, size: number): string {
+  if (size <= 0) return "Leere Datei.";
+  if (size > UPLOAD_MAX_BYTES) return "Datei zu groß (max. 12 MB).";
+  const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (!UPLOAD_TYPES.has(type)) {
+    return "Nur PDF, DOCX, JPEG, PNG oder WebP.";
+  }
+  return "";
+}
+
+function safeUploadName(name: string): string {
+  const base = name.replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-|-$/g, "").slice(0, 80);
+  return base || "dokument";
+}
+
+/**
+ * Kunden-Upload für „durch bestehende Dokumentation abgedeckt“.
+ * Vercel Blob wenn konfiguriert, sonst lokaler Datei-Fallback (Demo).
+ */
+export async function storeCustomerUpload(input: {
+  ownerKey: string;
+  modulId: string;
+  filename: string;
+  contentType: string;
+  buffer: Buffer;
+}): Promise<StoredPdf & { contentType: string; size: number; filename: string }> {
+  const err = uploadAllowed(input.contentType, input.buffer.length);
+  if (err) throw new Error(err);
+  const filename = safeUploadName(input.filename);
+  const owner = input.ownerKey.replace(/[^a-zA-Z0-9_-]+/g, "").slice(0, 64) || "anon";
+  const modul = input.modulId.replace(/[^a-z0-9]/g, "") || "modul";
+  const stamp = Date.now().toString(36);
+  const blobPath = `gobd/uploads/${owner}/${modul}/${stamp}-${filename}`;
+
+  if (isBlobConfigured()) {
+    try {
+      const blob = await put(blobPath, input.buffer, {
+        access: "public",
+        contentType: input.contentType,
+        addRandomSuffix: false,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      return {
+        backend: "blob",
+        url: blob.url,
+        pathname: blob.pathname,
+        contentType: input.contentType,
+        size: input.buffer.length,
+        filename,
+      };
+    } catch (error) {
+      console.error("[blob] Kunden-Upload fehlgeschlagen — Datei-Fallback", error);
+    }
+  }
+
+  const dir = path.join(getFileFallbackDir(), "uploads", owner, modul);
+  await mkdir(dir, { recursive: true });
+  const pathname = path.join(dir, `${stamp}-${filename}`);
+  await writeFile(pathname, input.buffer);
+  return {
+    backend: "file",
+    url: "",
+    pathname,
+    contentType: input.contentType,
+    size: input.buffer.length,
+    filename,
+  };
+}
+
+export { UPLOAD_MAX_BYTES };
