@@ -286,10 +286,14 @@ export function IntakeQuestionnaire({
   step,
   answers,
   onChange,
+  sessionId = "",
+  documentId = "",
 }: {
   step: number;
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
+  sessionId?: string;
+  documentId?: string;
 }) {
   const meta = INTAKE_STEPS[step];
   const catalogStep = CATALOG_STEPS[step];
@@ -298,7 +302,14 @@ export function IntakeQuestionnaire({
     return <BetriebsCheckStep answers={answers} onChange={onChange} />;
   }
   if (catalogStep.id === MODUL_UEBERSICHT_STEP_ID) {
-    return <ModulUebersichtStep answers={answers} onChange={onChange} />;
+    return (
+      <ModulUebersichtStep
+        answers={answers}
+        onChange={onChange}
+        sessionId={sessionId}
+        documentId={documentId}
+      />
+    );
   }
   const questions = visibleCatalogQuestions(step, answers);
   const position = catalogStepPosition(step, answers);

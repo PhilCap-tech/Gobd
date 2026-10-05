@@ -286,10 +286,15 @@ export default async function AccountPage({
                                 if (!isGesamt(ans)) return null;
                                 const rows = vollstaendigkeitsZeilen(ans);
                                 const offen = rows.filter((row) => row.status === "offen" || row.status === "extern").length;
+                                const uploads = rows.filter((row) => {
+                                  const eintrag = ans.module?.status?.[row.modul];
+                                  return eintrag?.status === "extern" && Boolean(eintrag.uploadName || eintrag.uploadUrl);
+                                });
                                 const tool = rows.filter((row) => row.status === "tool").length;
                                 return (
                                   <p className="doc-meta">
-                                    Vollständigkeit: {tool} Module im Tool · {offen} offen oder extern ·{" "}
+                                    Vollständigkeit: {tool} Module im Tool · {offen} offen oder extern
+                                    {uploads.length ? ` · ${uploads.length} Datei(en) verknüpft` : ""} ·{" "}
                                     <Link href={`/intake?document_id=${encodeURIComponent(family.latest.documentId)}`}>
                                       Module bearbeiten
                                     </Link>

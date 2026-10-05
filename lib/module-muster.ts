@@ -1,19 +1,16 @@
 /**
- * Muster-Gesamtdokumente je Branchenvorlage (fiktiv).
+ * Muster-Gesamtdokumente je Branchenvorlage (fiktiv, angereichert).
  */
 import { BEREICH_ZU_MODUL, MODULE } from "@/lib/module/katalog";
+import { buildDenseGesamtAnswers, MUSTER_FIRMEN } from "@/lib/module-muster-dense";
+import { BRANCHEN_VORLAGEN } from "@/lib/module/status";
 import {
-  BRANCHEN_VORLAGEN,
-  ensureGesamt,
-  setVorlage,
-} from "@/lib/module/status";
-import {
-  PARTNER_MUSTER_ANSWERS,
   PARTNER_MUSTER_DOCUMENT_ID,
   PARTNER_MUSTER_IDENTITY,
   PARTNER_MUSTER_VERSION_META,
 } from "@/lib/partner-muster";
-import type { IntakeAnswers } from "@/lib/types";
+import type { CheckoutIdentity } from "@/lib/types";
+import type { VersionHistoryEntry } from "@/lib/versioning";
 
 export const MUSTER_VORLAGEN = ["dienstleister", "handel", "ecommerce"] as const;
 export type MusterVorlageId = (typeof MUSTER_VORLAGEN)[number];
@@ -30,8 +27,8 @@ export const BEREICH_ZU_VORLAGE: Record<string, MusterVorlageId> = {
   einkauf: "handel",
   verkauf: "dienstleister",
   retouren: "ecommerce",
-  zeiterfassung: "dienstleister",
-  lohn: "dienstleister",
+  zeiterfassung: "handel",
+  lohn: "handel",
   ecommerce: "ecommerce",
   bank: "handel",
   anlagen: "dienstleister",
@@ -51,59 +48,47 @@ export function modulMusterFragebogenPath(modulId: string): string {
   return `/muster/modul/${modulId}/fragebogen`;
 }
 
-function baseAnswers(vorlage: MusterVorlageId): IntakeAnswers {
-  let answers = ensureGesamt({ ...PARTNER_MUSTER_ANSWERS });
-  answers = setVorlage(answers, vorlage);
-  // Prefill a few confirmed facts so the Muster PDF has present-tense content.
-  const katalog = { ...(answers.katalog ?? {}) };
-  const mark = (id: string, values: Record<string, unknown>) => {
-    katalog[id] = { status: "bestaetigt", values: { ...(katalog[id]?.values ?? {}), ...values } };
-  };
-  mark("A01", {
-    company: PARTNER_MUSTER_IDENTITY.company,
-    gf: PARTNER_MUSTER_ANSWERS.gf,
-    branchen: PARTNER_MUSTER_ANSWERS.branchen,
-    rechtsform: PARTNER_MUSTER_ANSWERS.rechtsform,
-    mitarbeitende: PARTNER_MUSTER_ANSWERS.mitarbeitende,
-    standort: "Berlin (fiktiv)",
-  });
-  mark("UO01", { gesellschaften: `${PARTNER_MUSTER_IDENTITY.company} (fiktiv)`, standorte: "Berlin" });
-  mark("UO02", { taetigkeiten: PARTNER_MUSTER_ANSWERS.branchen.join(", "), kunden: ["Geschäftskunden (B2B)"] });
-  mark("B01", {
-    systeme: [{ name: "DATEV", funktion: "Finanzbuchhaltung", typ: "fibu" }],
-    hosting: "Cloud (Anbieter DE/EU)",
-    it: PARTNER_MUSTER_ANSWERS.it,
-  });
-  if (vorlage === "handel") {
-    mark("KA01", { art: "Elektronische Registrierkasse / POS (fiktiv)" });
-    mark("WW01", { system: "Warenwirtschaft (fiktiv)" });
-  }
-  if (vorlage === "ecommerce") {
-    mark("EC01", { kanaele: ["Eigener Onlineshop", "Marktplatz"] });
-    mark("EC02", { system: "Shopify (fiktiv)" });
-  }
-  return { ...answers, katalog };
-}
-
 export function getGesamtMuster(vorlage: string) {
   if (!isMusterVorlage(vorlage)) return undefined;
   const meta = BRANCHEN_VORLAGEN.find((item) => item.id === vorlage)!;
-  const answers = baseAnswers(vorlage);
+  const firma = MUSTER_FIRMEN[vorlage];
+  const answers = buildDenseGesamtAnswers(vorlage);
+  const identity: CheckoutIdentity = {
+    ...PARTNER_MUSTER_IDENTITY,
+    company: firma.company,
+    email: `muster@${firma.domain}`,
+  };
   return {
     vorlage,
     label: meta.label,
     answers,
-    identity: PARTNER_MUSTER_IDENTITY,
+    identity,
     documentId: `${PARTNER_MUSTER_DOCUMENT_ID}-gesamt-${vorlage}`,
-    version: 1,
-    versionMeta: PARTNER_MUSTER_VERSION_META,
-    versionHistory: [] as [],
-    steckbrief: `Fiktives Gesamtdokument für die Vorlage „${meta.label}“. Betriebs-Check und Module sind beispielhaft vorbelegt.`,
+    version: 2,
+    versionMeta: {
+      ...PARTNER_MUSTER_VERSION_META,
+      validFrom: "01.07.2026",
+      changeSummary:
+        "Angereicherte Musterfassung: alle aktiven Module mit Ist-Beschreibung, Kontrollen und Aufbewahrung (§ 147 AO).",
+      changedBy: firma.gf,
+    },
+    versionHistory: [
+      {
+        version: "1.0",
+        validFrom: "01.01.2026",
+        validTo: "30.06.2026",
+        changeSummary: "Erstfassung Gesamtdokument (dünne Musterantwort)",
+        changedBy: firma.gf,
+      },
+    ] as VersionHistoryEntry[],
+    steckbrief: `${firma.company}: fiktives Gesamtdokument zur Vorlage „${meta.label}“ am Standort ${firma.standort}. Betriebs-Check und alle aktiven Module sind beispielhaft ausgefüllt; offene Punkte sind absichtlich enthalten.`,
     facts: [
-      ["Unternehmen", `${PARTNER_MUSTER_IDENTITY.company} (fiktiv)`],
+      ["Unternehmen", firma.company],
+      ["Standort", firma.standort],
       ["Vorlage", meta.label],
+      ["Branche", firma.branche],
       ["Module", String(MODULE.length)],
-      ["Fassung", "1.0 (Muster)"],
+      ["Fassung", "2.0 (Muster, angereichert)"],
     ] as Array<[string, string]>,
   };
 }
@@ -120,11 +105,18 @@ export function getModulMuster(modulId: string) {
   const modul = MODULE.find((item) => item.id === modulId);
   if (!modul) return undefined;
   const vorlage: MusterVorlageId =
-    modul.trigger === "bargeld" || modul.trigger === "lager"
+    modul.trigger === "bargeld" || modul.trigger === "lager" || modul.trigger === "personal"
       ? "handel"
       : modul.trigger === "online"
         ? "ecommerce"
         : "dienstleister";
   const gesamt = getGesamtMuster(vorlage)!;
-  return { modul, vorlage, answers: gesamt.answers, identity: gesamt.identity, steckbrief: gesamt.steckbrief, facts: gesamt.facts };
+  return {
+    modul,
+    vorlage,
+    answers: gesamt.answers,
+    identity: gesamt.identity,
+    steckbrief: gesamt.steckbrief,
+    facts: gesamt.facts,
+  };
 }

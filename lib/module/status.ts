@@ -194,11 +194,46 @@ export function setStammdaten(answers: IntakeAnswers, patch: Partial<Stammdaten>
   };
 }
 
+/** Schlanke Branchenvorlagen-Vorschläge für das Intake (ohne Muster-PDF-Volumen). */
+const VORLAGE_VALUES: Record<string, Record<string, Record<string, unknown>>> = {
+  dienstleister: {
+    UO02: { kunden: ["Geschäftskunden (B2B)"], taetigkeiten: "Beratung und Projektleistungen (B2B)" },
+    UO03: { organigramm: "ja" },
+    AR01: { nummernkreis: "Fortlaufend je Geschäftsjahr" },
+    ER01: { formate: ["PDF", "ZUGFeRD", "XRechnung"] },
+    BU07: { umfang: "FiBu, USt-Voranmeldung, Jahresabschluss" },
+    AF01: { zuordnung: "Buchungsbelege 10 Jahre, Handelsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
+  },
+  handel: {
+    UO02: { kunden: ["Privatkunden (B2C)", "Geschäftskunden (B2B)"], taetigkeiten: "Einzel-/Großhandel mit Kasse und Lager" },
+    KA01: { kassenart: "Elektronisches Kassensystem mit TSE" },
+    WW01: { system: "Warenwirtschaft (fiktiv)" },
+    AF01: { zuordnung: "Buchungsbelege 10 Jahre, Handelsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
+  },
+  ecommerce: {
+    UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Onlineshop und Marktplätze" },
+    EC01: { kanaele: ["Eigener Onlineshop", "Marktplatz"] },
+    EC02: { system: "Shopify (fiktiv)" },
+    ZD01: { anbieter: "Zahlungsdienstleister / Kreditkarte (fiktiv)" },
+    AF01: { zuordnung: "Buchungsbelege 10 Jahre, Handelsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
+  },
+  gastro: {
+    UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Gastronomie / Hotel" },
+    KA01: { kassenart: "Elektronisches Kassensystem mit TSE" },
+    BS01: { art: ["Gastronomie / Hotel"] },
+  },
+  handwerk: {
+    UO02: { kunden: ["Geschäftskunden (B2B)", "Privatkunden (B2C)"], taetigkeiten: "Handwerk / Bau mit Projekten" },
+    BS01: { art: ["Handwerk / Bau"] },
+    AN01: { system: "Anlagenverzeichnis (fiktiv)" },
+  },
+};
+
 export function setVorlage(answers: IntakeAnswers, vorlageId: string): IntakeAnswers {
   const vorlage = BRANCHEN_VORLAGEN.find((item) => item.id === vorlageId);
   if (!vorlage) return answers;
   const zustand = modulZustand(answers);
-  return {
+  let next: IntakeAnswers = {
     ...answers,
     module: {
       ...zustand,
@@ -206,6 +241,32 @@ export function setVorlage(answers: IntakeAnswers, vorlageId: string): IntakeAns
       check: { ...zustand.check, ...vorlage.check },
     },
   };
+  const vorschlaege = VORLAGE_VALUES[vorlage.id];
+  if (vorschlaege) next = applyVorlageVorschlaege(next, vorschlaege);
+  return next;
+}
+
+/** Branchenvorlagen-Vorschläge in leere Katalogfelder schreiben (ohne Status zu setzen). */
+export function applyVorlageVorschlaege(
+  answers: IntakeAnswers,
+  vorschlaege: Record<string, Record<string, unknown>>,
+): IntakeAnswers {
+  if (!Object.keys(vorschlaege).length) return answers;
+  const katalog = { ...(answers.katalog ?? {}) };
+  for (const [qid, values] of Object.entries(vorschlaege)) {
+    const current = katalog[qid] ?? {};
+    const merged = { ...(current.values ?? {}) };
+    for (const [key, value] of Object.entries(values)) {
+      const existing = merged[key];
+      const empty =
+        existing == null ||
+        existing === "" ||
+        (Array.isArray(existing) && existing.length === 0);
+      if (empty) merged[key] = value;
+    }
+    katalog[qid] = { ...current, values: merged };
+  }
+  return { ...answers, katalog };
 }
 
 export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): IntakeAnswers {
@@ -296,7 +357,15 @@ export function vollstaendigkeitsZeilen(answers: IntakeAnswers): Array<{
     const eintrag = effectiveModulStatus(answers, modul.id);
     const detail =
       eintrag.status === "extern"
-        ? [eintrag.ref, eintrag.link].filter(Boolean).join(" · ")
+        ? [
+            eintrag.ref,
+            eintrag.link,
+            eintrag.uploadName
+              ? `Datei: ${eintrag.uploadName}${eintrag.uploadAt ? ` (${eintrag.uploadAt.slice(0, 10)})` : ""}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")
         : eintrag.status === "nicht_vorhanden"
           ? eintrag.reason ?? ""
           : eintrag.status === "offen"

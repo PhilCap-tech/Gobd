@@ -49,7 +49,7 @@ Beim Aufruf unserer Website verarbeitet der Hosting-Anbieter technisch erforderl
 
 ## 7. Datenbank und Dateispeicher
 
-Kontodaten, Fragebogenangaben, Firmenstammdaten und die Zuordnung der Dokumente speichern wir in Google Sheets (Google Ireland Limited bzw. Google LLC). Die erzeugten PDFs und die zugehörigen Kapiteltexte speichern wir bei Vercel Blob (Vercel Inc.), sofern der Blob-Speicher konfiguriert ist. Ist er nicht konfiguriert, liegt nur ein nicht dauerhafter Datei-Fallback auf dem Server. Mit beiden Anbietern nutzen wir deren Auftragsverarbeitungsbedingungen nach Art. 28 DSGVO, soweit sie Daten in unserem Auftrag verarbeiten.
+Kontodaten, Fragebogenangaben, Firmenstammdaten und die Zuordnung der Dokumente speichern wir in Google Sheets (Google Ireland Limited bzw. Google LLC). Die erzeugten PDFs, zugehörigen Kapiteltexte, Intake-Entwürfe sowie optional hochgeladene bestehende Dokumentationen (Status „durch bestehende Dokumentation abgedeckt“) speichern wir bei Vercel Blob (Vercel Inc.), sofern der Blob-Speicher konfiguriert ist. Ist er nicht konfiguriert, liegt nur ein nicht dauerhafter Datei-Fallback auf dem Server. Mit beiden Anbietern nutzen wir deren Auftragsverarbeitungsbedingungen nach Art. 28 DSGVO, soweit sie Daten in unserem Auftrag verarbeiten.
 
 Eine feste Region dieser Speicherung ist im Code nicht hinterlegt. Google und Vercel können Daten in den USA verarbeiten. Soweit das geschieht, stützt sich die Übermittlung auf Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO oder auf einen Angemessenheitsbeschluss, sofern der jeweilige Anbieter danach zertifiziert ist.
 
@@ -101,7 +101,7 @@ Im kostenlosen Check gibst du Name, E-Mail-Adresse, Firma und Antworten zu deine
 
 ## 15. Angaben im Fragebogen und erzeugte Dokumente
 
-Für die Erstellung deiner Verfahrensdokumentation verarbeiten wir die Angaben, die du im Fragebogen machst (z. B. Unternehmensdaten, Prozessbeschreibungen, verwendete Software, Namen und Funktionen von Geschäftsführung und Buchhaltung) sowie die daraus erzeugten Dokumente und Versionen. Wir speichern die Angaben in Google Sheets und die PDF-Dateien bei Vercel Blob (siehe Abschnitt „Datenbank und Dateispeicher“), damit du sie abrufen und fortschreiben kannst. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
+Für die Erstellung deiner Verfahrensdokumentation verarbeiten wir die Angaben, die du im Fragebogen machst (z. B. Unternehmensdaten, Prozessbeschreibungen, verwendete Software, Namen und Funktionen von Geschäftsführung und Buchhaltung) sowie die daraus erzeugten Dokumente und Versionen. Wenn du für ein Modul eine bestehende Dokumentation hochlädst, speichern wir diese Datei (PDF, DOCX oder Bild) zusammen mit deinem Konto, damit sie in der Vollständigkeitsübersicht und im Gesamtdokument referenziert werden kann. Wir speichern die Angaben in Google Sheets und die PDF-Dateien bei Vercel Blob (siehe Abschnitt „Datenbank und Dateispeicher“), damit du sie abrufen und fortschreiben kannst. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
 
 Nach Vertragsende kannst du bereits erzeugte PDFs noch 30 Tage herunterladen; danach löschen wir sie, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
 
