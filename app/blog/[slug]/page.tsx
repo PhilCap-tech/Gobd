@@ -9,6 +9,7 @@ import {
   getPublishedPost,
   listPublishedPosts,
 } from "@/lib/blog";
+import { canonicalUrl } from "@/lib/seo";
 
 export async function generateStaticParams() {
   const posts = await listPublishedPosts();
@@ -28,6 +29,7 @@ export async function generateMetadata({
   return {
     title: { absolute: post.metaTitle },
     description: post.metaDescription,
+    alternates: { canonical: canonicalUrl(`/blog/${post.slug}`) },
   };
 }
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -19,6 +20,7 @@ import {
   RESULT_PROMISE,
 } from "@/lib/offer-copy";
 import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
+import { canonicalUrl } from "@/lib/seo";
 import {
   PARTNER_DEMO_PATH,
   PARTNER_MUSTER_ANSWERS,
@@ -28,6 +30,10 @@ import {
   PARTNER_MUSTER_PDF_PATH,
   PARTNER_MUSTER_VERSION_META,
 } from "@/lib/partner-muster";
+
+export const metadata: Metadata = {
+  alternates: { canonical: canonicalUrl("/") },
+};
 
 const EXAMPLE_QUESTION_IDS = ["B01", "C01", "F01", "G02"];
 

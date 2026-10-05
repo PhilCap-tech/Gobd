@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { canonicalUrl } from "@/lib/seo";
 import {
   INHALT_GLIEDERUNG_CTA_AFTER,
   INHALT_GLIEDERUNG_CTA_BEFORE,
@@ -20,6 +21,9 @@ export const metadata: Metadata = {
   title: "Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU",
   description:
     "Mini-Gliederung für KMU: sieben Bausteine, die typischerweise in eine Verfahrensdokumentation gehören. Keine Steuerberatung.",
+  alternates: {
+    canonical: canonicalUrl("/resources/inhalt-verfahrensdokumentation"),
+  },
 };
 
 export default function InhaltGliederungPage() {

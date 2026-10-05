@@ -1,0 +1,5 @@
+# Public contact of IKAT GmbH. No separate security mailbox is configured.
+Contact: mailto:info@gobd-doku-erstellen.de
+Expires: 2027-10-01T00:00:00.000Z
+Preferred-Languages: de, en
+Canonical: https://www.gobd-doku-erstellen.de/.well-known/security.txt
