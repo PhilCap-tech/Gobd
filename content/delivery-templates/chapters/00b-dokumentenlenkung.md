@@ -4,11 +4,11 @@
 | --- | --- |
 | Dokument-ID | {{#if bereich.belegfluss}}{{documentId | or "VD-BELEG-(zu vergeben)"}}{{/if}}{{#if bereich.andere}}{{documentId | or "VD-(zu vergeben)"}}{{/if}} |
 | Version | {{version}} |
-| Gültig ab | *(von der Geschäftsleitung festzulegen)* |
+| Gültig ab | {{validFrom | or "*(von der Geschäftsleitung festzulegen)*"}} |
 | Nächste planmäßige Prüfung | *(zu planen, z. B. ein Jahr nach Gültig-ab)* |
 | Speicherort | {{answers.archiv | or "zu bestätigen"}} / Organisationsablage Verfahrensdokumentation |
-| Vorversion | Keine; Erstfassung — sofern eine Vorfassung existiert, ist sie hier zu benennen |
-| Änderungsanlass | Erstmalige Beschreibung aus Kunden-Intake bzw. angegebener Anlass |
+| Vorversion | {{history.vorversion | or "Keine; Erstfassung — sofern eine Vorfassung existiert, ist sie hier zu benennen"}} |
+| Änderungsanlass | {{history.anlass | or "Erstmalige Beschreibung aus Kunden-Intake bzw. angegebener Anlass"}} |
 
 ## Inhaltsübersicht
 
@@ -36,4 +36,4 @@ Anhang A Prozessmatrix · Anhang B Begriffserläuterungen{{/if}}{{#if bereich.an
 8 Versionspflege und Änderungen  
 9 Mitgeltende Unterlagen  
 10 Offene Punkte und Maßnahmen  
-Anhang Begriffserläuterungen{{/if}}
+Anhang A Prozessmatrix {{bereich.label}} · Anhang B Begriffserläuterungen{{/if}}

@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 05.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -22,7 +22,7 @@ Wir haben keinen Datenschutzbeauftragten benannt, weil wir gesetzlich nicht dazu
 
 ## 3. Überblick und Rechtsgrundlagen
 
-Wir verarbeiten personenbezogene Daten, soweit dies für den Betrieb der Website, Marketing nach Einwilligung, die Vertragsanbahnung und -durchführung (Einrichtung und monatliches Pflege-Abo einer Verfahrensdokumentation für den Belegfluss) sowie zur Erfüllung gesetzlicher Pflichten erforderlich ist.
+Wir verarbeiten personenbezogene Daten, soweit dies für den Betrieb der Website, Marketing nach Einwilligung, die Vertragsanbahnung und -durchführung (Einrichtung und monatliches Pflege-Abo einer Verfahrensdokumentation für die von dir gewählten Bereiche, z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn, je Firma; alle Bereiche im Preis enthalten) sowie zur Erfüllung gesetzlicher Pflichten erforderlich ist.
 
 Soweit nicht anders angegeben, stützen wir uns insbesondere auf:
 - Art. 6 Abs. 1 lit. b DSGVO (Vertrag / vorvertragliche Maßnahmen)
@@ -141,4 +141,4 @@ Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von 
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 
-**Stand:** 02.10.2026
+**Stand:** 05.10.2026

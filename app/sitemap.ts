@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 import { listPublishedPosts } from "@/lib/blog";
+import { BEREICHE } from "@/lib/bereiche";
+import { musterPath } from "@/lib/bereich-muster";
 import { INDEXABLE_STATIC_PATHS, canonicalUrl } from "@/lib/seo";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -18,5 +20,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...(lastModified ? { lastModified } : {}),
     };
   });
-  return [...staticPages, ...blogPosts];
+  const musterPages: MetadataRoute.Sitemap = BEREICHE.map((bereich) => ({
+    url: canonicalUrl(musterPath(bereich.id)),
+  }));
+  return [...staticPages, ...musterPages, ...blogPosts];
 }

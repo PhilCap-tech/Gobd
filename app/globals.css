@@ -1534,3 +1534,14 @@ body.consent-open {
 .bereich-add select {
   min-width: 220px;
 }
+.muster-grid .muster-links {
+  font-size: 0.88em;
+  margin-top: 4px;
+}
+.muster-step {
+  margin: 10px 0;
+}
+.muster-step summary {
+  cursor: pointer;
+  font-weight: 600;
+}

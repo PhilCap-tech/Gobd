@@ -27,7 +27,11 @@ import {
   type CheckoutIdentity,
   type IntakeAnswers,
 } from "@/lib/types";
-import { normalizeVersionChange, toVersionPdfMeta } from "@/lib/versioning";
+import {
+  normalizeVersionChange,
+  toVersionPdfMeta,
+  versionHistoryEntries,
+} from "@/lib/versioning";
 
 export const runtime = "nodejs";
 
@@ -78,6 +82,8 @@ async function resolveIdentity(body: {
       parentDocumentId: string;
       status: string;
       entityId: string;
+      /** Earlier versions of this document family (for the Änderungshistorie). */
+      family?: Awaited<ReturnType<typeof listDocumentFamily>>;
     }
   | { response: NextResponse }
 > {
@@ -139,6 +145,7 @@ async function resolveIdentity(body: {
         ? "intake_resubmitted_stub"
         : "intake_resubmitted",
       entityId: source.entityId,
+      family,
     };
   }
 
@@ -162,6 +169,7 @@ async function resolveIdentity(body: {
         ? "intake_resubmitted_stub"
         : "intake_resubmitted",
       entityId: existing.entityId,
+      family,
     };
   }
 
@@ -268,6 +276,9 @@ async function handleIntake(request: Request) {
     return jsonError(change.error, 400);
   }
   const versionMeta = toVersionPdfMeta(change);
+  const versionHistory = resolved.family
+    ? versionHistoryEntries(resolved.family, { version, validFrom: change.validFrom })
+    : [];
   const documentId = randomUUID();
   if (!parentDocumentId) {
     parentDocumentId = documentId;
@@ -283,6 +294,7 @@ async function handleIntake(request: Request) {
       documentId,
       version,
       versionMeta,
+      versionHistory,
     });
     const storedPdf = await storePdf({
       familyId: parentDocumentId,

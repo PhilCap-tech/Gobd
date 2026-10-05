@@ -26,4 +26,4 @@ Weitere Rollen im Bereich ergeben sich aus Kapitel 4, soweit sie dort als bestä
 
 ## 2.3 Vertretung
 
-Bei Abwesenheit der {{#if bereich.belegfluss}}buchhaltungsverantwortlichen{{/if}}{{#if bereich.andere}}bereichsverantwortlichen{{/if}} Person übernimmt {{answers.gf | or "die Geschäftsführung (zu benennen)"}} die Sichtung und Weiterleitung, soweit so vorgesehen. Änderungen an Rollen werden spätestens am Tag ihres Wirksamwerdens dokumentiert. Ausgeschiedene Personen verlieren ihre Zugriffsrechte unverzüglich.
+Bei Abwesenheit der {{#if bereich.belegfluss}}buchhaltungsverantwortlichen Person übernimmt {{answers.gf | or "die Geschäftsführung (zu benennen)"}} die Sichtung und Weiterleitung, soweit so vorgesehen.{{/if}}{{#if bereich.andere}}bereichsverantwortlichen Person übernimmt {{bereich.vertretung | or answers.gf | or "die Geschäftsführung (zu benennen)"}} die Aufgaben im Bereich, soweit so vorgesehen.{{/if}} Änderungen an Rollen werden spätestens am Tag ihres Wirksamwerdens dokumentiert. Ausgeschiedene Personen verlieren ihre Zugriffsrechte unverzüglich.

@@ -59,7 +59,8 @@ const BELEGFLUSS_ONLY_CHAPTERS = new Set([
   "08-freigabe-buchung-status",
   "A-prozessmatrix",
 ]);
-const BELEGFLUSS_ONLY_RULES = new Set(["op-buchhaltung", "op-steuerberater"]);
+/** Area documents ask their own frame questions (e.g. xx95 Ausfall) instead. */
+const BELEGFLUSS_ONLY_RULES = new Set(["op-buchhaltung", "op-steuerberater", "op-notfall"]);
 
 function ruleAppliesToArea(rule: { id: string; chapter?: unknown }, answers: IntakeAnswers): boolean {
   if (isBelegfluss(answers)) return true;

@@ -67,6 +67,13 @@ const nextConfig: NextConfig = {
       "./content/delivery-templates/**/*",
       "./public/brand/**/*",
     ],
+    "/muster": ["./content/delivery-templates/**/*"],
+    "/muster/[bereich]": ["./content/delivery-templates/**/*"],
+    "/muster/[bereich]/pdf": [
+      "./content/delivery-templates/**/*",
+      "./public/brand/**/*",
+    ],
+    "/muster/[bereich]/fragebogen": ["./public/brand/**/*"],
     "/resources/10-offene-punkte/download": ["./public/brand/**/*"],
     "/resources/inhalt-verfahrensdokumentation/download": ["./public/brand/**/*"],
   },

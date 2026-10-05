@@ -11,12 +11,16 @@ import {
 import { documentAnswers } from "@/lib/frage-intake";
 import {
   bereichChapter,
+  bereichMatrixChapter,
   bereichVerantwortung,
   renumberHeadings,
 } from "@/lib/bereich-chapter";
 import { BELEGFLUSS, bereichById, bereichDocTitle, bereichIdOf } from "@/lib/bereiche";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
-import { versionMetaSentence as buildVersionMetaSentence } from "@/lib/versioning";
+import {
+  versionMetaSentence as buildVersionMetaSentence,
+  type VersionHistoryEntry,
+} from "@/lib/versioning";
 
 export type { DeliveryOpenPoint, OpenPointSeverity } from "@/lib/open-points";
 export { evaluateOpenPoints, isEmptyIntakeValue } from "@/lib/open-points";
@@ -63,6 +67,10 @@ type TemplateContext = {
   kanzleiUnbestaetigt: string;
   /** Area of this document. `belegfluss` is "ja" only for Belegfluss documents. */
   bereich: BereichContext;
+  /** Rows of earlier versions for the Änderungshistorie, each ending with a newline. Empty for v1. */
+  historyRows: string;
+  /** Empty unless earlier versions were passed in. */
+  history: { vorversion: string; anlass: string };
 };
 
 type BereichContext = {
@@ -345,6 +353,7 @@ function renderValues(template: string, context: TemplateContext): string {
     const { path: pathExpr, filters } = parsePlaceholder(expr);
     const resolved = resolveFilters(filters, context);
     if (pathExpr === "openPointsTable") return context.openPointsTable;
+    if (pathExpr === "historyRows") return context.historyRows;
     if (pathExpr === "generatedAt") return context.generatedAt;
     if (pathExpr === "generatedAtDisplay") return context.generatedAtDisplay;
     if (pathExpr === "disclaimer") return context.disclaimer;
@@ -379,6 +388,33 @@ function openPointsTable(points: DeliveryOpenPoint[]): string {
     })
     .join("\n");
   return `| Kennung | Priorität | Zu klären | Verantwortung | Zieltermin |\n| --- | --- | --- | --- | --- |\n${rows}`;
+}
+
+function historyCell(value: string, fallback: string): string {
+  const text = value.replace(/\s+/g, " ").trim().replaceAll("|", "/");
+  return text || fallback;
+}
+
+/** Earlier versions as Änderungshistorie rows (oldest first). Empty string for a first version. */
+function historyRows(entries: VersionHistoryEntry[]): string {
+  return entries
+    .map(
+      (entry) =>
+        `| ${historyCell(entry.version, "—")} | ${historyCell(entry.validFrom, "—")} | ${historyCell(entry.validTo, "—")} | ${historyCell(entry.changeSummary, "Fassung aus Kunden-Intake")} | ${historyCell(entry.changedBy, "—")} |\n`,
+    )
+    .join("");
+}
+
+function historyContext(entries: VersionHistoryEntry[], changeSummary: string): TemplateContext["history"] {
+  const previous = entries.at(-1);
+  if (!previous) return { vorversion: "", anlass: "" };
+  const range = [previous.validFrom && `gültig ab ${previous.validFrom}`, previous.validTo && `bis ${previous.validTo}`]
+    .filter(Boolean)
+    .join(" ");
+  return {
+    vorversion: `Version ${previous.version}${range ? ` (${range})` : ""}`,
+    anlass: changeSummary || "Neue Fassung aus Kunden-Intake",
+  };
 }
 
 function headingTitle(markdown: string, fallback: string): string {
@@ -486,6 +522,8 @@ export function renderDeliveryDocument(input: {
     changeSummary?: string;
     changedBy?: string;
   };
+  /** Earlier versions of the same document family, oldest first. */
+  versionHistory?: VersionHistoryEntry[];
 }): RenderedDocument {
   const generatedAt = formatBerlinDateTime();
   const generatedAtDisplay = formatBerlinDate();
@@ -518,6 +556,8 @@ export function renderDeliveryDocument(input: {
     kanzleiBucht: kanzleiBucht ? "ja" : "",
     kanzleiUnbestaetigt: kanzleiUnbestaetigt ? "ja" : "",
     bereich: bereichContext(input.answers),
+    historyRows: historyRows(input.versionHistory ?? []),
+    history: historyContext(input.versionHistory ?? [], changeSummary),
   };
 
   const coverSource = readTemplateFile(
@@ -573,6 +613,7 @@ const AREA_CHAPTER_NUMBER = 4;
 function withBereichChapter(chapters: RenderedChapter[], answers: IntakeAnswers): RenderedChapter[] {
   const area = bereichChapter(answers, AREA_CHAPTER_NUMBER);
   if (!area) return chapters;
+  const matrix = bereichMatrixChapter(answers);
   const map = new Map<number, number>(
     SHARED_AFTER_AREA.map((number, index) => [number, AREA_CHAPTER_NUMBER + 1 + index]),
   );
@@ -580,8 +621,10 @@ function withBereichChapter(chapters: RenderedChapter[], answers: IntakeAnswers)
   for (const chapter of chapters) {
     const body = renumberHeadings(chapter.body, map);
     out.push({ ...chapter, body, title: headingTitle(body, chapter.title) });
+    if (chapter.id === "B-begriffe" && matrix) out.splice(out.length - 1, 0, matrix);
     if (chapter.id === "03-systeme-datenfluss") out.push(area);
   }
+  if (matrix && !out.some((chapter) => chapter.id === matrix.id)) out.push(matrix);
   if (!out.some((chapter) => chapter.id === area.id)) out.splice(Math.min(3, out.length), 0, area);
   return out;
 }
