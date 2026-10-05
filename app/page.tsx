@@ -251,7 +251,7 @@ export default function HomePage() {
             ))}
           </div>
           <p className="hint">
-            Muster-Gesamtdokumente und Fragebögen:{" "}
+            Muster-Gesamtdokumente (Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau) und Fragebögen:{" "}
             <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
             Bisherige Bereichs-Muster leiten auf die passenden Module weiter.
           </p>

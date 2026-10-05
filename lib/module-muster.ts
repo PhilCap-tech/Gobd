@@ -12,7 +12,13 @@ import {
 import type { CheckoutIdentity } from "@/lib/types";
 import type { VersionHistoryEntry } from "@/lib/versioning";
 
-export const MUSTER_VORLAGEN = ["dienstleister", "handel", "ecommerce"] as const;
+export const MUSTER_VORLAGEN = [
+  "dienstleister",
+  "handel",
+  "ecommerce",
+  "gastro",
+  "handwerk",
+] as const;
 export type MusterVorlageId = (typeof MUSTER_VORLAGEN)[number];
 
 export function isMusterVorlage(id: string): id is MusterVorlageId {
@@ -22,17 +28,17 @@ export function isMusterVorlage(id: string): id is MusterVorlageId {
 /** Legacy Bereich → Gesamtmuster-Vorlage (Redirect-Ziel). */
 export const BEREICH_ZU_VORLAGE: Record<string, MusterVorlageId> = {
   belegfluss: "dienstleister",
-  kasse: "handel",
+  kasse: "gastro",
   warenwirtschaft: "handel",
   einkauf: "handel",
   verkauf: "dienstleister",
   retouren: "ecommerce",
-  zeiterfassung: "handel",
-  lohn: "handel",
+  zeiterfassung: "handwerk",
+  lohn: "handwerk",
   ecommerce: "ecommerce",
   bank: "handel",
-  anlagen: "dienstleister",
-  vorsystem: "dienstleister",
+  anlagen: "handwerk",
+  vorsystem: "handwerk",
 };
 
 export function gesamtMusterPath(vorlage: string): string {
@@ -64,12 +70,12 @@ export function getGesamtMuster(vorlage: string) {
     answers,
     identity,
     documentId: `${PARTNER_MUSTER_DOCUMENT_ID}-gesamt-${vorlage}`,
-    version: 2,
+    version: 3,
     versionMeta: {
       ...PARTNER_MUSTER_VERSION_META,
       validFrom: "01.07.2026",
       changeSummary:
-        "Angereicherte Musterfassung: alle aktiven Module mit Ist-Beschreibung, Kontrollen und Aufbewahrung (§ 147 AO).",
+        "Angereicherte Musterfassung (5 Vorlagen): aktive Module mit Ist-Beschreibung, Kontrollen und Aufbewahrung (§ 147 AO).",
       changedBy: firma.gf,
     },
     versionHistory: [
@@ -80,6 +86,13 @@ export function getGesamtMuster(vorlage: string) {
         changeSummary: "Erstfassung Gesamtdokument (dünne Musterantwort)",
         changedBy: firma.gf,
       },
+      {
+        version: "2.0",
+        validFrom: "01.07.2026",
+        validTo: "04.10.2026",
+        changeSummary: "Anreicherung Dienstleister/Handel/E-Commerce",
+        changedBy: firma.gf,
+      },
     ] as VersionHistoryEntry[],
     steckbrief: `${firma.company}: fiktives Gesamtdokument zur Vorlage „${meta.label}“ am Standort ${firma.standort}. Betriebs-Check und alle aktiven Module sind beispielhaft ausgefüllt; offene Punkte sind absichtlich enthalten.`,
     facts: [
@@ -88,7 +101,7 @@ export function getGesamtMuster(vorlage: string) {
       ["Vorlage", meta.label],
       ["Branche", firma.branche],
       ["Module", String(MODULE.length)],
-      ["Fassung", "2.0 (Muster, angereichert)"],
+      ["Fassung", "3.0 (Muster, angereichert)"],
     ] as Array<[string, string]>,
   };
 }
@@ -105,11 +118,15 @@ export function getModulMuster(modulId: string) {
   const modul = MODULE.find((item) => item.id === modulId);
   if (!modul) return undefined;
   const vorlage: MusterVorlageId =
-    modul.trigger === "bargeld" || modul.trigger === "lager" || modul.trigger === "personal"
-      ? "handel"
-      : modul.trigger === "online"
-        ? "ecommerce"
-        : "dienstleister";
+    modul.trigger === "bargeld"
+      ? "gastro"
+      : modul.trigger === "lager"
+        ? "handel"
+        : modul.trigger === "personal" || modul.trigger === "branche" || modul.trigger === "anlagen"
+          ? "handwerk"
+          : modul.trigger === "online"
+            ? "ecommerce"
+            : "dienstleister";
   const gesamt = getGesamtMuster(vorlage)!;
   return {
     modul,

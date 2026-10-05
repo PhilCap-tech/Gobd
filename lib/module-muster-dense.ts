@@ -32,7 +32,9 @@ export type DenseFirma = {
   domain: string;
 };
 
-export const MUSTER_FIRMEN: Record<"dienstleister" | "handel" | "ecommerce", DenseFirma> = {
+export type MusterDenseId = "dienstleister" | "handel" | "ecommerce" | "gastro" | "handwerk";
+
+export const MUSTER_FIRMEN: Record<MusterDenseId, DenseFirma> = {
   dienstleister: {
     company: "Nordlicht Beratung GmbH (Muster, fiktiv)",
     standort: "Hamburg",
@@ -69,19 +71,48 @@ export const MUSTER_FIRMEN: Record<"dienstleister" | "handel" | "ecommerce", Den
     kanzlei: "Kanzlei Elsterbogen GmbH (fiktiv)",
     domain: "paketpfad-muster.invalid",
   },
+  gastro: {
+    company: "Speicherblick Gastro GmbH (Muster, fiktiv)",
+    standort: "Bremen",
+    branche: "Restaurant mit Tagesgeschäft und Veranstaltungen",
+    rechtsform: "GmbH",
+    mitarbeitende: "11–25",
+    gf: "Paula Speicherblick",
+    buchhaltung: "Keno Bruns",
+    it: "Kassenhändler und Küchen-IT (fiktiv)",
+    kanzlei: "Kanzlei Weserbogen GmbH (fiktiv)",
+    domain: "speicherblick-muster.invalid",
+  },
+  handwerk: {
+    company: "Bauwerk Nord GmbH (Muster, fiktiv)",
+    standort: "Oldenburg",
+    branche: "Ausbau und Sanierung (Handwerk / Bau)",
+    rechtsform: "GmbH",
+    mitarbeitende: "11–25",
+    gf: "Henrik Bauwerk",
+    buchhaltung: "Silke Moor",
+    it: "Projekt- und Büro-IT (extern, fiktiv)",
+    kanzlei: "Kanzlei Dammstieg GmbH (fiktiv)",
+    domain: "bauwerk-nord-muster.invalid",
+  },
 };
 
 /** Bereichs-Muster, die in die jeweilige Branchenvorlage einfließen. */
-export const VORLAGE_BEREICHE: Record<"dienstleister" | "handel" | "ecommerce", string[]> = {
-  dienstleister: ["verkauf", "einkauf", "bank", "anlagen"],
-  handel: ["kasse", "warenwirtschaft", "einkauf", "verkauf", "bank", "retouren"],
+export const VORLAGE_BEREICHE: Record<MusterDenseId, string[]> = {
+  // Dienstleister: kein Bargeld/Lager/Shop — dafür Personal, Projekte, E-Rechnung, Kanzlei.
+  dienstleister: ["verkauf", "einkauf", "bank", "anlagen", "lohn", "zeiterfassung"],
+  handel: ["kasse", "warenwirtschaft", "einkauf", "verkauf", "bank", "retouren", "lohn"],
   ecommerce: ["ecommerce", "retouren", "warenwirtschaft", "bank", "verkauf"],
+  // Gastro: Kasse/TSE, Wareneinkauf/Lager, Personal, Zahlungsdienstleister.
+  gastro: ["kasse", "warenwirtschaft", "einkauf", "verkauf", "bank", "lohn", "zeiterfassung"],
+  // Handwerk/Bau: Projekte, Abschläge, Material, Anlagen, Personal — ohne Ladenkasse.
+  handwerk: ["verkauf", "einkauf", "bank", "anlagen", "lohn", "zeiterfassung"],
 };
 
 /** Betriebs-Check für Muster: klar ja/nein, damit das PDF keine „unbekannt“-Löcher hat. */
-export const MUSTER_CHECK: Record<"dienstleister" | "handel" | "ecommerce", Partial<Record<CheckKey, CheckAntwort>>> = {
+export const MUSTER_CHECK: Record<MusterDenseId, Partial<Record<CheckKey, CheckAntwort>>> = {
   dienstleister: {
-    bargeld: "nein", lager: "nein", personal: "nein", zeiterfassung: "nein", online: "nein",
+    bargeld: "nein", lager: "nein", personal: "ja", zeiterfassung: "ja", online: "nein",
     retouren: "nein", papier: "ja", erechnung: "ja", anlagen: "ja", kanzlei: "ja",
     branche: "nein", zahlungsdienstleister: "ja",
   },
@@ -94,6 +125,16 @@ export const MUSTER_CHECK: Record<"dienstleister" | "handel" | "ecommerce", Part
     bargeld: "nein", lager: "ja", personal: "nein", zeiterfassung: "nein", online: "ja",
     retouren: "ja", papier: "nein", erechnung: "ja", anlagen: "nein", kanzlei: "ja",
     branche: "nein", zahlungsdienstleister: "ja",
+  },
+  gastro: {
+    bargeld: "ja", lager: "ja", personal: "ja", zeiterfassung: "ja", online: "nein",
+    retouren: "nein", papier: "ja", erechnung: "ja", anlagen: "nein", kanzlei: "ja",
+    branche: "ja", zahlungsdienstleister: "ja",
+  },
+  handwerk: {
+    bargeld: "nein", lager: "ja", personal: "ja", zeiterfassung: "ja", online: "nein",
+    retouren: "nein", papier: "ja", erechnung: "ja", anlagen: "ja", kanzlei: "ja",
+    branche: "ja", zahlungsdienstleister: "ja",
   },
 };
 
@@ -113,9 +154,25 @@ function fillValues(values: Record<string, unknown>, f: DenseFirma, vorlage: str
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
     if (value === "__KUNDEN__") {
-      out[key] = vorlage === "dienstleister" ? ["Geschäftskunden (B2B)"] : vorlage === "ecommerce" ? ["Privatkunden (B2C)"] : ["Privatkunden (B2C)", "Geschäftskunden (B2B)"];
+      out[key] =
+        vorlage === "dienstleister" || vorlage === "handwerk"
+          ? vorlage === "handwerk"
+            ? ["Geschäftskunden (B2B)", "Privatkunden (B2C)"]
+            : ["Geschäftskunden (B2B)"]
+          : vorlage === "ecommerce"
+            ? ["Privatkunden (B2C)"]
+            : ["Privatkunden (B2C)", "Geschäftskunden (B2B)"];
     } else if (value === "__BRANCHE_ART__") {
-      out[key] = vorlage === "handel" ? ["Handel"] : vorlage === "ecommerce" ? ["E-Commerce"] : ["Dienstleistung"];
+      out[key] =
+        vorlage === "gastro"
+          ? ["Gastronomie / Hotel"]
+          : vorlage === "handwerk"
+            ? ["Handwerk / Bau"]
+            : vorlage === "handel"
+              ? ["Handel"]
+              : vorlage === "ecommerce"
+                ? ["E-Commerce"]
+                : ["Dienstleistung"];
     } else if (typeof value === "string") {
       out[key] = fill(value, f);
     } else if (Array.isArray(value)) {
@@ -430,7 +487,7 @@ function bereicheKatalog(vorlage: keyof typeof VORLAGE_BEREICHE): Record<string,
  * (nur Werte; Status setzt der Kunde).
  */
 export function vorlageVorschlaege(vorlageId: string): Record<string, Record<string, unknown>> {
-  const firma = MUSTER_FIRMEN[vorlageId as keyof typeof MUSTER_FIRMEN];
+  const firma = MUSTER_FIRMEN[vorlageId as MusterDenseId];
   if (!firma) return {};
   const dense = ownKatalog(firma, vorlageId);
   const out: Record<string, Record<string, unknown>> = {};
@@ -451,7 +508,188 @@ export function vorlageVorschlaege(vorlageId: string): Record<string, Record<str
   return out;
 }
 
-export function buildDenseGesamtAnswers(vorlage: "dienstleister" | "handel" | "ecommerce"): IntakeAnswers {
+
+/** Zusätzliche, längere Ist-Beschreibungen je Vorlage (Worttiefe). */
+function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, Entry> {
+  const baseDienst: Record<string, Entry> = {
+    LE01: b({
+      ablauf: `Beratungsaufträge entstehen aus Angebot oder Rahmenvertrag. ${f.gf} oder die Projektleitung erfasst den Auftrag in der Projektliste; Änderungen (Scope, Zeit, Honorar) werden schriftlich (E-Mail) und mit neuer Versionsnummer festgehalten. Abschlagsrechnungen folgen Meilensteinen laut Vertrag.`,
+      system: "Projektliste und Rechnungssoftware (fiktiv), Übergabe an DATEV Unternehmen online",
+    }),
+    LE02: b({
+      nachweis: "Leistungsnachweis je Monat bzw. Meilenstein (Stundenübersicht oder Deliverable-Liste), Freigabe durch die Kundenansprechperson per E-Mail. Ablage unter Projektnummer in DATEV und auf dem NAS.",
+      wer: `${f.buchhaltung} prüft Vollständigkeit vor Rechnung; fachlich ${f.gf}`,
+    }),
+    LE03: b({
+      abrechnung: "Nach Leistungsnachweis erstellt die Buchhaltung die Rechnung in der Rechnungssoftware; bei Projekten Abschläge und Schlussrechnung mit Bezug zur Ursprungsauftragsnummer.",
+      turnus: "laufend, spätestens 14 Tage nach Meilenstein bzw. Monatsende",
+    }),
+    AR03: b({
+      korrekturen: "Gutschriften und Stornos mit eigener Nummer und Verweis auf die Ursprungsrechnung. Berichtigungen nur über Gutschrift plus Neurechnung, nie durch Überschreiben.",
+      wer: `${f.buchhaltung} nach Freigabe ${f.gf}`,
+    }),
+    AR04: b({
+      abschlaege: "Abschlagsrechnungen bei Mehrphasen-Projekten; Schlussrechnung stellt den Gesamtbezug her und listet bisherige Abschläge. Nummernkreis fortlaufend je Geschäftsjahr.",
+      system: "Rechnungssoftware mit Projektbezug",
+    }),
+    BU06: b({
+      abschluss: `Jahresabschluss erstellt ${f.kanzlei}; Unterlagenübergabe nach Checkliste bis Ende Februar für das Vorjahr, inkl. OP-Listen, Anlagenbewegungen und offener Punkte.`,
+      uebergabe: "DATEV Unternehmen online und ergänzende PDF/CSV-Listen",
+    }),
+    PZ01: b({
+      umfang: "Bereitstellung von Belegen, Buchungsdaten, Auswertungen und dieser Verfahrensdokumentation für die Außenprüfung.",
+      rechtsgrundlage: "§ 147 Abs. 6 AO (Datenzugriff)",
+    }),
+    LO00: b({ verantwortlich: f.buchhaltung, vertretung: f.gf }),
+    ZE00: b({ verantwortlich: f.buchhaltung, vertretung: f.gf }),
+  };
+
+  if (vorlage === "dienstleister") {
+    return {
+      ...baseDienst,
+      UO01: b({
+        gesellschaften: `${f.company}, einzige Gesellschaft ohne Tochterunternehmen.`,
+        standorte: `Hauptsitz ${f.standort}. Homeoffice der Mitarbeitenden ohne eigene Betriebsstätte; keine Filialen.`,
+      }),
+      UO02: b({
+        taetigkeiten: `${f.branche}. Typische Vorfälle: Projektaufträge, Zeit- und Leistungsnachweise, Eingangsrechnungen (Software, Reise, Freelancer), Ausgangsrechnungen inkl. Abschläge/Schluss, SEPA-Zahlungen, Lohn für angestellte Beraterinnen und Berater. Keine Ladenkasse, kein Warenlager, kein Onlineshop.`,
+        kunden: ["Geschäftskunden (B2B)"],
+      }),
+      ER01: b({
+        empfang: "E-Rechnungen und PDF-Rechnungen am Funktionspostfach; XRechnung über den Eingangskanal der Rechnungssoftware. Freelancer-Rechnungen werden wie Lieferantenrechnungen geprüft.",
+        formate: ["PDF", "ZUGFeRD", "XRechnung"],
+      }),
+      ER03: b({
+        verarbeitung: "Nach technischer und fachlicher Prüfung Übergabe an DATEV Unternehmen online; die Kanzlei verbucht. Projektbezug wird in der Beleg-ID mitgeführt.",
+        schnittstelle: "Export/Upload DATEV, manuell und teilweise API",
+      }),
+      PB01: b({
+        annahme: "Papierpost (selten) wird zentral geöffnet, mit Eingangsstempel versehen und noch am selben Tag gescannt. Reisebelege der Mitarbeitenden werden digital eingereicht.",
+        wer: f.buchhaltung,
+      }),
+      BU01: b({
+        kontierung: "Interne Vorkontierung in DATEV Unternehmen online mit Projekt- und Kostenstellenbezug; endgültige Buchung durch die Kanzlei.",
+        plan: "DATEV-Kontenrahmen mit Projektlogik",
+      }),
+      BU05: b({
+        abstimmungen: "Monatlich: Bank, Debitoren, Kreditoren, USt. Quartalsweise Anlagen und Rückstellungen mit der Kanzlei. Projekt-OP gegen offene Abschläge.",
+        wer: `${f.buchhaltung} und ${f.kanzlei}`,
+      }),
+      AW01: b({
+        orte: "DATEV Unternehmen online (Belege und Buchungen); NAS (Projektunterlagen, Leistungsnachweise, Exporte); Zeiterfassungssystem (Originalzeiten).",
+        original: "Je Belegweg ist festgelegt, welche Datei als Original gilt (E-Rechnung strukturiert, Scan nach Qualitätskontrolle, Ausgangsrechnung in der Rechnungssoftware).",
+      }),
+      AU01: b({
+        aufgaben: `FiBu und Abschluss: ${f.kanzlei}. Lohnabrechnung: ${f.kanzlei}. IT/Cloud: Anbieter und ${f.it}. Fachliche Verantwortung und Belegqualität bleiben beim Unternehmen (${f.gf}).`,
+        grenzen: "Keine Entscheidung über steuerliche Wahlrechte ohne Rückfrage an die Kanzlei.",
+      }),
+      SY01: b({
+        landschaft: "Rechnungssoftware, DATEV Unternehmen online, Zeiterfassung (fiktiv), E-Mail, NAS. Kein Kassensystem, keine Warenwirtschaft.",
+        verantwortlich: f.it,
+      }),
+      KF01: b({
+        umfang: "Vollständigkeit Leistungsnachweis vor Rechnung, Nummernkreise Ausgang, Bank/OP, Schnittstelle DATEV, Rechte Zeiterfassung.",
+        wer: f.buchhaltung,
+      }),
+    };
+  }
+
+  if (vorlage === "gastro") {
+    return {
+      BS00: b({ verantwortlich: f.gf, vertretung: f.buchhaltung }),
+      BS01: b({
+        art: ["Gastronomie / Hotel"],
+        vorgaenge: "Tagesgeschäft an der Theke/Kasse mit TSE, Wareneinkauf Küche, Inventur Kühlung/Lager, Personalzeiten und Trinkgeld, Kartenzahlungen und Tagesabschluss, Übergabe Kassendaten und Wareneinsatz an die FiBu.",
+      }),
+      BS02: b({
+        systeme: "Elektronisches Kassensystem mit Cloud-TSE (fiktiv); ggf. Küchen-/Bestellmonitor; DATEV Unternehmen online; Zahlungsdienstleister für Karten.",
+      }),
+      BS03: b({
+        ablauf: "Artikel und Preise pflegt die Geschäftsführung; Bedienerkennungen vergibt die Schichtleitung. Wareneingang Küche gegen Lieferschein; Inventur stichprobenartig wöchentlich und vollständig monatlich.",
+      }),
+      BS04: b({
+        nachweise: "Z-Bons und Zählprotokolle, TSE-Signaturen, Wareneingangsscheine, Inventurlisten, Schichtpläne/Zeiten, Kartenzahlungsabrechnungen — jeweils mit Datum und Belegbezug.",
+      }),
+      BS05: b({ uebergabe: "Monatlicher DATEV-Export aus dem Kassensystem sowie Wareneinsatzlisten; Upload in DATEV Unternehmen online.", turnus: "monatlich bis zum 5." }),
+      BS06: b({ abstimmung: `Summen Z-Bons und Kartenzahlungen gegen Bank und FiBu-Erlöse durch ${f.buchhaltung}; Wareneinsatz gegen Einkaufsrechnungen.`, }),
+      BS07: b({ rechte: `Admin-Rechte Kasse nur ${f.gf} und ${f.it}; Schichtleitung mit begrenzten Storno-Rechten.` }),
+      BS08: b({ stoerung: "Bei Kassenausfall Notbetrieb mit nummeriertem Quittungsblock und Strichliste; Nacherfassung am selben oder nächsten Werktag. TSE-Ausfall wird der Geschäftsführung gemeldet." }),
+      BS92: b({
+        kontrollen: ["Kassensturz", "Abgleich Z-Bon/Bank", "Wareneinsatz"],
+        details: `Täglicher Kassensturz durch die Schichtleitung. Wöchentlicher Abgleich Z-Bon und Einzahlungen durch ${f.buchhaltung}. Monatliche Inventur Kühlung durch die Küchenleitung.`,
+      }),
+      KA01: b({
+        kassenart: "Elektronisches Kassensystem mit TSE",
+        system: "KassaPro Gastro (fiktiv) auf Stationen Theke und Service",
+        anzahl: "2 Stationen am Standort Bremen",
+      }),
+      ZD01: b({
+        anbieter: "Kartenterminal über Zahlungsdienstleister (fiktiv) und SEPA über die Hausbank",
+        zwecke: "Kartenzahlungen im Tagesgeschäft; Auszahlungsreport gegen Kassenabschluss",
+      }),
+    };
+  }
+
+  if (vorlage === "handwerk") {
+    return {
+      ...baseDienst,
+      BS00: b({ verantwortlich: f.gf, vertretung: f.buchhaltung }),
+      BS01: b({
+        art: ["Handwerk / Bau"],
+        vorgaenge: "Bauprojekte und Sanierungen mit Aufmaß, Materialeinkauf, Nachunternehmer, Bautagebuch/Stunden, Abschlags- und Schlussrechnungen, Gewährleistungseinbehalte, Übergabe an die FiBu.",
+      }),
+      BS02: b({
+        systeme: "Projekt- und Aufmaßsoftware (fiktiv); Rechnungssoftware mit Abschlags-/Schlusslogik; DATEV Unternehmen online; Zeiterfassung auf Baustellen.",
+      }),
+      BS03: b({
+        ablauf: "Projektstammdaten und Nachträge erfasst die Projektleitung; Materialbedarf aus Stückliste; Freigabe größerer Bestellungen durch die Geschäftsführung.",
+      }),
+      BS04: b({
+        nachweise: "Aufmaß, Bautagebuch bzw. Stundenzettel, Lieferscheine Material, Nachunternehmerrechnungen, Abnahmeprotokolle, Abschlags- und Schlussrechnungen mit Bezug zur Auftragsnummer.",
+      }),
+      BS05: b({ uebergabe: "Periodischer DATEV-Export der Ausgangsrechnungen und Eingangsbelege; Projektauswertung als PDF/CSV an die Kanzlei.", turnus: "monatlich" }),
+      BS06: b({ abstimmung: `Projektumsätze und Materialaufwand gegen FiBu durch ${f.buchhaltung}; offene Abschläge gegen OP-Liste.` }),
+      BS07: b({ rechte: `Projektanlage und Preise: ${f.gf}. Zeiterfassung: Mitarbeitende auf eigene Projekte. Buchhaltung: Belege und Exporte.` }),
+      BS08: b({ stoerung: "Bei Ausfall der Projektsoftware Erfassung auf Papieraufmaß und Stundenzetteln; Nacherfassung nach Wiederanlauf, Belege bleiben erhalten." }),
+      BS92: b({
+        kontrollen: ["Abschläge gegen Aufmaß", "Material gegen Lieferschein", "Stunden gegen Lohn"],
+        details: `Vor jeder Abschlagsrechnung prüft ${f.buchhaltung} Aufmaß und bisherige Abschläge. Materialdifferenzen klärt die Projektleitung. Stunden gegen Lohnlauf monatlich.`,
+      }),
+      AR04: b({
+        abschlaege: "Abschlagsrechnungen nach Baufortschritt bzw. Aufmaß; Schlussrechnung mit Auflistung aller Abschläge und Einbehalten. Nummernkreis fortlaufend, Verweis auf Auftrags-/Projektnummer.",
+        system: "Rechnungssoftware mit Projekten (fiktiv)",
+      }),
+      WW01: b({
+        system: "Einfache Materialliste je Projekt (fiktiv), kein Voll-WaWi-Filialbetrieb",
+        vorgaenge: "Materialeinkauf auf Projekt, Wareneingang gegen Lieferschein, Verbrauch auf Baustelle, Restmaterialrücknahme",
+      }),
+    };
+  }
+
+  return {};
+}
+
+
+/** Verlängert kurze Textantworten für Vorlagen ohne Kasse/WaWi (Worttiefe). */
+function deepenPass(katalog: Record<string, Entry>, f: DenseFirma): Record<string, Entry> {
+  const suffix = ` Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online; fachlich ${f.buchhaltung}, Freigabe ${f.gf}. Aufbewahrung der Buchungsbelege 10 Jahre (§ 147 Abs. 3 AO).`;
+  const out: Record<string, Entry> = { ...katalog };
+  for (const [id, entry] of Object.entries(katalog)) {
+    if (entry.status !== "bestaetigt" || !entry.values) continue;
+    const values: Record<string, unknown> = { ...entry.values };
+    let changed = false;
+    for (const [key, value] of Object.entries(values)) {
+      if (typeof value === "string" && value.length >= 50 && value.length < 450 && !value.includes("§ 147 Abs. 3 AO")) {
+        values[key] = `${value}${suffix}`;
+        changed = true;
+      }
+    }
+    if (changed) out[id] = { ...entry, values };
+  }
+  return out;
+}
+
+export function buildDenseGesamtAnswers(vorlage: MusterDenseId): IntakeAnswers {
   const firma = MUSTER_FIRMEN[vorlage];
   let answers = ensureGesamt({
     ...emptyAnswers(),
@@ -502,17 +740,40 @@ export function buildDenseGesamtAnswers(vorlage: "dienstleister" | "handel" | "e
         status: "nicht_vorhanden",
         reason: `Laut Betriebs-Check nicht vorhanden (${modul.kurz}).`,
       });
-    } else if (modul.id === "m11" && vorlage === "dienstleister") {
-      // Beispiel: Anlagen über bestehende Dokumentation abgedeckt
+    } else if (modul.id === "m11" && (vorlage === "dienstleister" || vorlage === "handwerk")) {
       answers = setModulEintrag(answers, modul.id, {
         status: "extern",
-        ref: "Interne Anlagenkartei und AfA-Liste der Kanzlei (Muster, fiktiv)",
+        ref: "Anlagenkartei und AfA-Liste der Kanzlei (Muster, fiktiv)",
         link: "Ablage: Ordner Anlagen auf dem NAS",
       });
+    } else if (modul.id === "m14" && (vorlage === "gastro" || vorlage === "handwerk")) {
+      answers = setModulEintrag(answers, modul.id, { status: "tool" });
     } else {
       answers = setModulEintrag(answers, modul.id, { status: "tool" });
     }
   }
+
+  // Branchenspezifische Vertiefung (Modul 14 und typische Prozessantworten).
+  answers = {
+    ...answers,
+    // Extras überschreiben bewusst die kürzeren Standardantworten.
+    katalog: (() => {
+      let katalog = { ...(answers.katalog ?? {}), ...vorlageExtras(firma, vorlage) };
+      if (vorlage === "dienstleister" || vorlage === "ecommerce") {
+        katalog = deepenPass(katalog, firma);
+      }
+      return katalog;
+    })(),
+    module: {
+      ...answers.module!,
+      branchenArt:
+        vorlage === "gastro"
+          ? ["Gastronomie / Hotel"]
+          : vorlage === "handwerk"
+            ? ["Handwerk / Bau"]
+            : answers.module!.branchenArt,
+    },
+  };
 
   // Sicherstellen, dass jede tool-Frage mindestens einen Status hat.
   for (const modul of MODULE) {

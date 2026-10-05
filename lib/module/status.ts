@@ -197,11 +197,12 @@ export function setStammdaten(answers: IntakeAnswers, patch: Partial<Stammdaten>
 /** Schlanke Branchenvorlagen-Vorschläge für das Intake (ohne Muster-PDF-Volumen). */
 const VORLAGE_VALUES: Record<string, Record<string, Record<string, unknown>>> = {
   dienstleister: {
-    UO02: { kunden: ["Geschäftskunden (B2B)"], taetigkeiten: "Beratung und Projektleistungen (B2B)" },
+    UO02: { kunden: ["Geschäftskunden (B2B)"], taetigkeiten: "B2B-Beratung und Projektleistungen, Abschläge/Schluss, keine Kasse/Lager" },
     UO03: { organigramm: "ja" },
     AR01: { nummernkreis: "Fortlaufend je Geschäftsjahr" },
+    AR04: { abschlaege: "Abschläge bei Projekten, Schlussrechnung mit Bezug" },
     ER01: { formate: ["PDF", "ZUGFeRD", "XRechnung"] },
-    BU07: { umfang: "FiBu, USt-Voranmeldung, Jahresabschluss" },
+    BU07: { umfang: "FiBu, USt-Voranmeldung, Jahresabschluss, Lohn" },
     AF01: { zuordnung: "Buchungsbelege 10 Jahre, Handelsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
   },
   handel: {
@@ -218,14 +219,18 @@ const VORLAGE_VALUES: Record<string, Record<string, Record<string, unknown>>> = 
     AF01: { zuordnung: "Buchungsbelege 10 Jahre, Handelsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
   },
   gastro: {
-    UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Gastronomie / Hotel" },
-    KA01: { kassenart: "Elektronisches Kassensystem mit TSE" },
-    BS01: { art: ["Gastronomie / Hotel"] },
+    UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Gastronomie / Hotel mit Tagesgeschäft und Veranstaltungen" },
+    KA01: { kassenart: "Elektronisches Kassensystem mit TSE", system: "Kassensystem mit Cloud-TSE (fiktiv)" },
+    BS01: { art: ["Gastronomie / Hotel"], vorgaenge: "Kasse/TSE, Wareneinkauf Küche, Personalzeiten, Kartenzahlung" },
+    ZD01: { anbieter: "Kartenterminal / Zahlungsdienstleister (fiktiv)" },
+    AF01: { zuordnung: "Buchungsbelege 10 Jahre, Handelsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
   },
   handwerk: {
-    UO02: { kunden: ["Geschäftskunden (B2B)", "Privatkunden (B2C)"], taetigkeiten: "Handwerk / Bau mit Projekten" },
-    BS01: { art: ["Handwerk / Bau"] },
+    UO02: { kunden: ["Geschäftskunden (B2B)", "Privatkunden (B2C)"], taetigkeiten: "Handwerk / Bau mit Projekten, Abschlägen und Material" },
+    BS01: { art: ["Handwerk / Bau"], vorgaenge: "Bauprojekte, Aufmaß, Abschläge/Schluss, Material, Nachunternehmer" },
+    AR04: { abschlaege: "Abschläge nach Fortschritt, Schlussrechnung mit Bezug" },
     AN01: { system: "Anlagenverzeichnis (fiktiv)" },
+    AF01: { zuordnung: "Buchungsbelege 10 Jahre, Handelsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
   },
 };
 
