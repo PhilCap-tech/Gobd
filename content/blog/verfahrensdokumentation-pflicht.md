@@ -79,7 +79,7 @@ Praktisch hilft eine ehrliche, aktuelle Beschreibung mehr als ein langer Text, d
 
 ## Welchen Umfang die Verfahrensdokumentation GoBD Pflicht hat
 
-Randziffer 152 beschreibt den Umfang sinngemäß so: Er hängt von der Komplexität und Diversifikation der Geschäftstätigkeit und der Organisationsstruktur sowie des eingesetzten DV-Systems ab. Ein Café mit einer Kasse und einem Programm braucht weniger Text als ein Betrieb mit mehreren Standorten, Warenwirtschaft und Scanstraße. Beide brauchen eine Beschreibung, die zu ihnen passt.
+Randziffer 151 beschreibt den Umfang sinngemäß so: Er hängt von der Komplexität und Diversifikation der Geschäftstätigkeit und der Organisationsstruktur sowie des eingesetzten DV-Systems ab. Ein Café mit einer Kasse und einem Programm braucht weniger Text als ein Betrieb mit mehreren Standorten, Warenwirtschaft und Scanstraße. Beide brauchen eine Beschreibung, die zu ihnen passt.
 
 Für kleine Teams heißt das konkret:
 
@@ -126,7 +126,7 @@ Nach Randziffer 155 liegt dann kein formeller Mangel mit sachlichem Gewicht vor,
 
 ### Reicht im kleinen Betrieb eine Seite?
 
-So lang wie nötig, so kurz wie möglich. Randziffer 152 koppelt den Umfang an Komplexität, Organisation und DV-System. Eine Seite kann reichen, wenn sie Ihren echten Ablauf trifft. Gar keine Dokumentation ist bei bestehenden Aufzeichnungspflichten und DV-Einsatz nicht die vorgesehene Lösung.
+So lang wie nötig, so kurz wie möglich. Randziffer 151 koppelt den Umfang an Komplexität, Organisation und DV-System. Eine Seite kann reichen, wenn sie Ihren echten Ablauf trifft. Gar keine Dokumentation ist bei bestehenden Aufzeichnungspflichten und DV-Einsatz nicht die vorgesehene Lösung.
 
 ### Macht ein PDF die Pflicht „erledigt“?
 
