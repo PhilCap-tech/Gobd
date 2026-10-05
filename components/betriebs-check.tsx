@@ -5,6 +5,7 @@ import {
   applyStammdatenPrefill,
   BRANCHEN_VORLAGEN,
   CHECK_FRAGEN,
+  modulFortschritt,
   setCheckAntwort,
   setStammdaten,
   setVorlage,
@@ -149,6 +150,7 @@ export function ModulUebersichtStep({
               <th>Modul</th>
               <th>Status</th>
               <th>Angabe</th>
+              <th>Stand</th>
             </tr>
           </thead>
           <tbody>
@@ -234,6 +236,14 @@ export function ModulUebersichtStep({
                     {(current?.status ?? row.status) === "tool" || (current?.status ?? row.status) === "offen"
                       ? row.label
                       : null}
+                  </td>
+                  <td>
+                    {(() => {
+                      if ((current?.status ?? row.status) !== "tool") return "—";
+                      const stand = modulFortschritt(answers, row.modul);
+                      if (!stand.gesamt) return "—";
+                      return `${stand.beantwortet}/${stand.gesamt}${stand.offen ? ` · ${stand.offen} zu klären` : ""}`;
+                    })()}
                   </td>
                 </tr>
               );

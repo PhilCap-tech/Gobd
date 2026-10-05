@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
@@ -44,6 +44,11 @@ type IntakeFormProps = {
   gesamtMode?: boolean;
 };
 
+function startAnswers(initial: IntakeAnswers | undefined, company: string, gesamtMode: boolean): IntakeAnswers {
+  const start = withCatalogDraft(initial ?? emptyAnswers(), company);
+  return gesamtMode || isGesamt(start) ? ensureGesamt(start) : start;
+}
+
 export function IntakeForm({
   session,
   initialAnswers,
@@ -60,13 +65,15 @@ export function IntakeForm({
     ? versionLabelFromRow({ version: String(nextVersion) })
     : "n+1";
   const router = useRouter();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() =>
+    nextApplicableStep(-1, startAnswers(initialAnswers, session.company, gesamtMode)),
+  );
   const [entityId, setEntityId] = useState(initialEntityId);
-  const [answers, setAnswers] = useState<IntakeAnswers>(() => {
-    let start = withCatalogDraft(initialAnswers ?? emptyAnswers(), session.company);
-    if (gesamtMode || isGesamt(start)) start = ensureGesamt(start);
-    return start;
-  });
+  const [answers, setAnswers] = useState<IntakeAnswers>(() =>
+    startAnswers(initialAnswers, session.company, gesamtMode),
+  );
+  // Erster Schritt des Modus: Gesamt beginnt mit dem Betriebs-Check, Bereichs-VDs mit Schritt A.
+  const firstStep = nextApplicableStep(-1, answers);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
@@ -76,13 +83,58 @@ export function IntakeForm({
     changeSummary: "",
     changedBy: session.email,
   });
+  // Entwurf nur in diesem Browser speichern (Speichern & später fortsetzen).
+  const draftKey = `gobd-intake-draft:${sourceDocumentId || areaBaseDocumentId || session.stripeSessionId || "neu"}:${gesamtMode ? "gesamt" : "bereich"}`;
+  const [draftOffer, setDraftOffer] = useState<{ answers: IntakeAnswers; step: number; savedAt: string } | null>(null);
+  const draftChecked = useRef(false);
+  const [draftReady, setDraftReady] = useState(false);
+  useEffect(() => {
+    if (draftChecked.current) return;
+    draftChecked.current = true;
+    const timer = window.setTimeout(() => {
+      try {
+        const raw = window.localStorage.getItem(draftKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { answers?: IntakeAnswers; step?: number; savedAt?: string };
+          if (parsed.answers && typeof parsed.answers === "object") {
+            setDraftOffer({ answers: parsed.answers, step: Number(parsed.step) || 0, savedAt: parsed.savedAt ?? "" });
+          }
+        }
+      } catch {
+        // Kein Zugriff auf localStorage: ohne Entwurf weiter.
+      }
+      setDraftReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftReady || draftOffer) return;
+    const timer = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(
+          draftKey,
+          JSON.stringify({ answers, step, savedAt: new Date().toISOString() }),
+        );
+      } catch {
+        // Speicher voll oder gesperrt: Entwurf wird nicht gesichert.
+      }
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [answers, step, draftKey, draftReady, draftOffer]);
+  function clearDraft() {
+    try {
+      window.localStorage.removeItem(draftKey);
+    } catch {
+      // ignorieren
+    }
+  }
   const isEdit = Boolean(sourceDocumentId);
   const isNewArea = Boolean(areaBaseDocumentId);
   const showFirmSelect = !isEdit && !isNewArea && entities.length > 1;
 
   function validate(current: number): boolean {
     setError("");
-    if (current === 0 && showFirmSelect && !entityId.trim()) {
+    if (current === firstStep && showFirmSelect && !entityId.trim()) {
       setError("Bitte eine Firma wählen.");
       return false;
     }
@@ -147,6 +199,7 @@ export function IntakeForm({
         setError(data.error || "Speichern fehlgeschlagen.");
         return;
       }
+      clearDraft();
       const params = new URLSearchParams({
         session_id: session.stripeSessionId,
         document_id: data.documentId,
@@ -189,7 +242,16 @@ export function IntakeForm({
         </p>
       )}
 
-      {isNewArea && step <= INTAKE_STEPS.length && (
+      {isNewArea && isGesamt(answers) && step <= INTAKE_STEPS.length && (
+        <p className="banner">
+          Neues Gesamtdokument{companyLabel ? ` für ${companyLabel}` : ""}. Angaben aus deinen
+          bisherigen Bereichs-Dokumentationen sind übernommen und den Modulen zugeordnet. Bitte
+          prüfen. Die bisherigen Bereichs-Dokumentationen bleiben im Konto lesbar. Es entsteht keine
+          neue Bestellung.
+        </p>
+      )}
+
+      {isNewArea && !isGesamt(answers) && step <= INTAKE_STEPS.length && (
         <p className="banner">
           Neuer Bereich {bereichLabel(bereichIdOf(answers))}
           {companyLabel ? ` für ${companyLabel}` : ""}. Der allgemeine Teil (Unternehmen,
@@ -198,9 +260,44 @@ export function IntakeForm({
         </p>
       )}
 
+      {draftOffer ? (
+        <div className="banner">
+          <p style={{ margin: 0 }}>
+            In diesem Browser ist ein nicht abgesendeter Entwurf gespeichert
+            {draftOffer.savedAt
+              ? ` (Stand ${new Date(draftOffer.savedAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin", dateStyle: "short", timeStyle: "short" })})`
+              : ""}
+            .
+          </p>
+          <div className="actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setAnswers(draftOffer.answers);
+                setStep(Math.max(nextApplicableStep(-1, draftOffer.answers), Math.min(draftOffer.step, INTAKE_STEPS.length)));
+                setDraftOffer(null);
+              }}
+            >
+              Entwurf fortsetzen
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                clearDraft();
+                setDraftOffer(null);
+              }}
+            >
+              Verwerfen
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {notice ? <p className="banner ok">{notice}</p> : null}
 
-      {session.email && step === 0 && (
+      {session.email && step === firstStep && (
         <p className="hint">
           Session: {companyLabel || "—"} · {session.email}
         </p>
@@ -208,7 +305,7 @@ export function IntakeForm({
 
       {step < INTAKE_STEPS.length && (
         <>
-          {step === 0 && showFirmSelect && (
+          {step === firstStep && showFirmSelect && (
             <div className="card" style={{ marginBottom: 16 }}>
               <FirmaSelect
                 entities={entities}
@@ -218,7 +315,7 @@ export function IntakeForm({
               />
             </div>
           )}
-          {step === 0 && !isGesamt(answers) && (
+          {step === firstStep && !isGesamt(answers) && (
             <div className="card" style={{ marginBottom: 16 }}>
               <BereichSelect
                 value={bereichIdOf(answers)}
@@ -228,7 +325,7 @@ export function IntakeForm({
               />
             </div>
           )}
-          {step === 0 && isGesamt(answers) && (
+          {step === firstStep && isGesamt(answers) && (
             <p className="banner">
               Gesamtdokument mit 24 Modulen. Zuerst der Betriebs-Check, danach die Module deines
               Betriebs. Alle Module sind im Preis enthalten.
@@ -272,14 +369,14 @@ export function IntakeForm({
 
       {step < INTAKE_STEPS.length + 1 && (
         <div className="actions" style={{ marginTop: 18 }}>
-          {step > 0 && (
+          {step > firstStep && (
             <button
               type="button"
               className="btn ghost"
               onClick={() => {
                 setError("");
                 setNotice("");
-                setStep((s) => previousApplicableStep(s, answers));
+                setStep((s) => Math.max(firstStep, previousApplicableStep(s, answers)));
               }}
             >
               Zurück

@@ -17,7 +17,6 @@ import {
   betriebsCheckVollstaendig,
   derivedModulStatus,
   effectiveModulStatus,
-  emptyModulZustand,
   ensureGesamt,
   setCheckAntwort,
   toolModules,
@@ -97,4 +96,53 @@ import { setVorlage } from "../lib/module/status";
   ok(!chapters.some((c) => c.id === "modul-m08"), "kasse chapter omitted when nicht vorhanden");
   ok(chapters.some((c) => c.id === "anhang-a"), "Anhang A");
   console.log("check-module gesamt chapters: green");
+}
+
+import { answersForGesamt } from "../lib/module/migration";
+import { modulFortschritt, setModulEintrag } from "../lib/module/status";
+
+{
+  // Alle Module aktiv im Tool: jedes Modul hat ein PDF-Kapitel, keine technischen Ids.
+  let a = ensureGesamt(emptyAnswers());
+  for (const key of ["bargeld", "lager", "personal", "zeiterfassung", "online", "retouren", "papier", "erechnung", "anlagen", "kanzlei", "branche", "zahlungsdienstleister"] as const) {
+    a = setCheckAntwort(a, key, "ja");
+  }
+  for (const modul of MODULE) a = setModulEintrag(a, modul.id, { status: "tool" });
+  const chapters = renderGesamtChapters(a, "Keine offenen Punkte.");
+  for (const modul of MODULE) {
+    ok(chapters.some((c) => c.id === `modul-${modul.id}`), `PDF chapter for ${modul.id}`);
+  }
+  const text = chapters.map((c) => c.body ?? JSON.stringify(c)).join("\n");
+  ok(!/\*\*[A-I]\d{2}:\*\*/.test(text), "no raw catalog ids like **A01:** in Gesamt PDF");
+  const vollst = chapters.find((c) => c.id === "vollstaendigkeit");
+  ok(vollst && MODULE.every((m) => JSON.stringify(vollst).includes(m.titel)), "Vollständigkeit lists all 24 modules");
+  // Kein stilles Auslassen: ein nicht vorhandenes Modul bleibt in der Übersicht sichtbar.
+  const b = setModulEintrag(a, "m08", { status: "nicht_vorhanden", reason: "Keine Bargeldeinnahmen" });
+  const vb = renderGesamtChapters(b, "").find((c) => c.id === "vollstaendigkeit");
+  ok(JSON.stringify(vb).includes("Keine Bargeldeinnahmen"), "nicht vorhanden with reason shown in Vollständigkeit");
+  const p = modulFortschritt(a, "m01");
+  ok(p.gesamt > 0 && p.beantwortet <= p.gesamt, "modulFortschritt m01");
+  console.log("check-module all-tool chapters: green");
+}
+
+{
+  // Migration: Bereichs-VDs → Gesamtdokument.
+  const kasse = { ...emptyAnswers(), bereich: "kasse", katalog: { A01: { status: "bestaetigt" as const, values: { rechtsform: "GmbH" } } } };
+  const beleg = { ...emptyAnswers(), bereich: "belegfluss", katalog: { A01: { status: "unbekannt" as const }, C01: { status: "bestaetigt" as const } } };
+  const g = answersForGesamt([kasse, beleg], "Test GmbH");
+  ok(Boolean(g.module), "migration yields Gesamt");
+  ok(g.module!.check.bargeld === "ja", "kasse → Betriebs-Check bargeld ja");
+  ok(!g.module!.check.lager, "lager not invented");
+  ok(g.katalog?.A01?.status === "bestaetigt", "first source wins");
+  ok(g.katalog?.C01?.status === "bestaetigt", "catalog merged from second source");
+  console.log("check-module migration: green");
+}
+
+import { nextApplicableStep } from "../lib/intake-catalog";
+{
+  const legacyStart = nextApplicableStep(-1, { ...emptyAnswers(), bereich: "kasse" });
+  ok(CATALOG_STEPS[legacyStart]?.id === "step-A", `legacy intake starts at step-A (got ${CATALOG_STEPS[legacyStart]?.id})`);
+  const gesamtStart = nextApplicableStep(-1, ensureGesamt(emptyAnswers()));
+  ok(CATALOG_STEPS[gesamtStart]?.id === "step-BC", "Gesamt intake starts at Betriebs-Check");
+  console.log("check-module first step: green");
 }

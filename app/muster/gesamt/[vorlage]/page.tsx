@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { MODULE, TEIL_TITEL } from "@/lib/module/katalog";
-import { effectiveModulStatus, vollstaendigkeitsZeilen } from "@/lib/module/status";
+import { STATUS_LABEL, effectiveModulStatus, vollstaendigkeitsZeilen } from "@/lib/module/status";
 import {
   gesamtMusterFragebogenPath,
   gesamtMusterPdfPath,
@@ -96,7 +96,7 @@ export default async function GesamtMusterPage({ params }: Params) {
               <ul>
                 {MODULE.filter((modul) => modul.teil === teil).map((modul) => (
                   <li key={modul.id}>
-                    {modul.nr}. {modul.titel} — {effectiveModulStatus(muster.answers, modul.id).status}
+                    {modul.nr}. {modul.titel} — {STATUS_LABEL[effectiveModulStatus(muster.answers, modul.id).status]}
                   </li>
                 ))}
               </ul>
