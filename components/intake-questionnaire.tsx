@@ -2,15 +2,19 @@
 
 import {
   applyDerivedStatus,
+  BETRIEBS_CHECK_STEP_ID,
   CATALOG_STEPS,
   catalogQuestionApplies,
   catalogStepApplies,
   catalogStepPosition,
   catalogStepTitle,
+  MODUL_UEBERSICHT_STEP_ID,
   setCatalogValue,
+  SPECIAL_STEP_IDS,
   visibleCatalogQuestions,
   type CatalogField,
 } from "@/lib/intake-catalog";
+import { BetriebsCheckStep, ModulUebersichtStep } from "@/components/betriebs-check";
 import { P1_QUESTION_IDS, P1QuestionFields, ProcessStatus } from "@/components/intake-p1-fields";
 import {
   activityFollowupsFor,
@@ -290,6 +294,12 @@ export function IntakeQuestionnaire({
   const meta = INTAKE_STEPS[step];
   const catalogStep = CATALOG_STEPS[step];
   if (!meta || !catalogStep) return null;
+  if (catalogStep.id === BETRIEBS_CHECK_STEP_ID) {
+    return <BetriebsCheckStep answers={answers} onChange={onChange} />;
+  }
+  if (catalogStep.id === MODUL_UEBERSICHT_STEP_ID) {
+    return <ModulUebersichtStep answers={answers} onChange={onChange} />;
+  }
   const questions = visibleCatalogQuestions(step, answers);
   const position = catalogStepPosition(step, answers);
 
@@ -300,7 +310,7 @@ export function IntakeQuestionnaire({
       </p>
       <h1>{catalogStepTitle(step, answers)}</h1>
       <div className="card">
-        {!catalogStepApplies(catalogStep, answers) || questions.length === 0 ? (
+        {!catalogStepApplies(catalogStep, answers) || (questions.length === 0 && !SPECIAL_STEP_IDS.has(catalogStep.id)) ? (
           <p className="prose">Dieser Schritt entfällt. Er gilt nur, wenn ein passender Weg gewählt ist.</p>
         ) : (
           questions.map((question) => {
@@ -455,9 +465,13 @@ export function IntakeQuestionnaire({
 }
 
 export function catalogQuestionVisible(id: string, answers: IntakeAnswers): boolean {
+  let found = false;
   for (const step of CATALOG_STEPS) {
-    const question = step.questions.find((item) => item.id === id);
-    if (question) return catalogQuestionApplies(question, answers);
+    for (const question of step.questions) {
+      if (question.id !== id) continue;
+      found = true;
+      if (catalogQuestionApplies(question, answers)) return true;
+    }
   }
-  return false;
+  return found ? false : false;
 }
