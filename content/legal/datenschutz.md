@@ -22,7 +22,7 @@ Wir haben keinen Datenschutzbeauftragten benannt, weil wir gesetzlich nicht dazu
 
 ## 3. Überblick und Rechtsgrundlagen
 
-Wir verarbeiten personenbezogene Daten, soweit dies für den Betrieb der Website, Marketing nach Einwilligung, die Vertragsanbahnung und -durchführung (Einrichtung und monatliches Pflege-Abo einer Verfahrensdokumentation für die von dir gewählten Bereiche, z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn, je Firma; alle Bereiche im Preis enthalten) sowie zur Erfüllung gesetzlicher Pflichten erforderlich ist.
+Wir verarbeiten personenbezogene Daten, soweit dies für den Betrieb der Website, Marketing nach Einwilligung, die Vertragsanbahnung und -durchführung (Einrichtung und monatliches Pflege-Abo einer Verfahrensdokumentation für die von dir gewählten Module/Bereiche, z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn, je Firma; 24 Module, alle inklusive) sowie zur Erfüllung gesetzlicher Pflichten erforderlich ist.
 
 Soweit nicht anders angegeben, stützen wir uns insbesondere auf:
 - Art. 6 Abs. 1 lit. b DSGVO (Vertrag / vorvertragliche Maßnahmen)

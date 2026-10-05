@@ -17,6 +17,8 @@ import {
 } from "@/lib/account-display";
 import { getSessionEmail } from "@/lib/auth";
 import { BEREICHE, BELEGFLUSS, bereichIdOf, bereichLabel } from "@/lib/bereiche";
+import { gesamtDocTitle } from "@/lib/gesamt-document";
+import { isGesamt, vollstaendigkeitsZeilen } from "@/lib/module/status";
 import { answersFromSheetRow } from "@/lib/types";
 import {
   firmaEditPath,
@@ -213,7 +215,7 @@ export default async function AccountPage({
                             <label
                               htmlFor={`bereich-${entity?.entityId ?? "unbound"}`}
                             >
-                              Weiteren Bereich dokumentieren
+                              Weiteren Legacy-Bereich dokumentieren
                             </label>
                             <div className="actions">
                               <select
@@ -235,10 +237,17 @@ export default async function AccountPage({
                               </button>
                             </div>
                             <p className="hint">
-                              Alle Bereiche inklusive – ein Preis für die
-                              komplette GoBD-Verfahrensdokumentation. Weitere
-                              Bereiche dieser Firma legst du ohne neue
-                              Bestellung an.
+                              24 Module, alle inklusive – ein Preis für die
+                              komplette GoBD-Verfahrensdokumentation. Legacy-Bereiche
+                              bleiben lesbar; neue Dokumente starten als Gesamtdokument.
+                            </p>
+                            <p className="actions" style={{ marginTop: 8 }}>
+                              <Link
+                                className="btn ghost"
+                                href={`/intake?basis=${encodeURIComponent(group.families[0]?.latest.documentId ?? "")}&modus=gesamt`}
+                              >
+                                Gesamtdokument anlegen
+                              </Link>
                             </p>
                           </form>
                         );
@@ -265,11 +274,28 @@ export default async function AccountPage({
                               key={family.familyId}
                             >
                               <h3>
-                                Verfahrensdokumentation{" "}
-                                {bereichLabel(
-                                  bereichIdOf(answersFromSheetRow(family.latest)),
-                                )}
+                                {(() => {
+                                  const ans = answersFromSheetRow(family.latest);
+                                  return isGesamt(ans)
+                                    ? gesamtDocTitle()
+                                    : `Verfahrensdokumentation ${bereichLabel(bereichIdOf(ans))}`;
+                                })()}
                               </h3>
+                              {(() => {
+                                const ans = answersFromSheetRow(family.latest);
+                                if (!isGesamt(ans)) return null;
+                                const rows = vollstaendigkeitsZeilen(ans);
+                                const offen = rows.filter((row) => row.status === "offen" || row.status === "extern").length;
+                                const tool = rows.filter((row) => row.status === "tool").length;
+                                return (
+                                  <p className="doc-meta">
+                                    Vollständigkeit: {tool} Module im Tool · {offen} offen oder extern ·{" "}
+                                    <Link href={`/intake?document_id=${encodeURIComponent(family.latest.documentId)}`}>
+                                      Module bearbeiten
+                                    </Link>
+                                  </p>
+                                );
+                              })()}
                               {!entity && family.latest.company ? (
                                 <p className="doc-meta">
                                   {customerHubTitle(

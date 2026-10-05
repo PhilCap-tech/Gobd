@@ -4,8 +4,8 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { CATALOG_STEPS } from "@/lib/intake-catalog";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
-import { BEREICHE } from "@/lib/bereiche";
-import { musterFragebogenPath, musterPath, musterPdfPath, MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
+import { MODULE, TEIL_TITEL } from "@/lib/module/katalog";
+import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 import {
   ALL_AREAS_DETAIL,
   ALL_AREAS_LINE,
@@ -123,7 +123,7 @@ export default function HomePage() {
         ctaNote={PRICE_MICRO}
         links={[
           { href: "#muster", label: "Muster" },
-          { href: "#bereiche", label: "Bereiche" },
+          { href: "#bereiche", label: "Module" },
           { href: "#ablauf", label: "Ablauf" },
           { href: "#preise", label: "Preise" },
           { href: "/readiness", label: "3-Minuten-Check" },
@@ -223,34 +223,37 @@ export default function HomePage() {
         </section>
 
         <section className="block" id="bereiche">
-          <h2>Welche Bereiche du dokumentierst</h2>
+          <h2>24 Module für die komplette Verfahrensdokumentation</h2>
           <p className="prose">
-            Eine Verfahrensdokumentation betrifft nicht nur den Belegfluss.
-            Für jedes System, in dem steuerlich relevante Daten entstehen, soll
-            nachvollziehbar sein, wie es genutzt wird. Du legst deshalb je
-            Bereich eine eigene Verfahrensdokumentation an, zum Beispiel eine
-            für den Belegfluss, eine für die Kasse und eine für die Retouren.
-            Unternehmen, Systeme, Ablage, Berechtigungen und Kontrollen gibst
-            du einmal an; sie werden für jeden weiteren Bereich übernommen.
+            Der Maßstab: alle steuerrelevanten Prozesse von der Entstehung eines
+            Geschäftsvorfalls bis zur Aufbewahrung und Prüfung. Ein Betriebs-Check
+            ermittelt zu Beginn, welche Module bei dir vorkommen. Systeme und
+            Verantwortliche gibst du einmal an; sie werden in alle Module
+            übernommen. Vorhandene Bereiche werden nicht stillschweigend
+            ausgelassen — sie sind im Tool beschrieben, durch bestehende
+            Dokumentation abgedeckt oder als offener Punkt ausgewiesen.
           </p>
-          <ul className="bereich-grid muster-grid">
-            {BEREICHE.map((bereich) => (
-              <li key={bereich.id}>
-                <strong>{bereich.label}</strong>
-                <span>{bereich.kurz}</span>
-                <span className="muster-links">
-                  <Link href={musterPath(bereich.id)}>Muster ansehen</Link>
-                  {" · "}
-                  <a href={musterPdfPath(bereich.id)}>PDF</a>
-                  {" · "}
-                  <a href={musterFragebogenPath(bereich.id)}>Fragebogen</a>
-                </span>
-              </li>
+          <div className="bereich-grid muster-grid">
+            {([1, 2, 3, 4] as const).map((teil) => (
+              <div key={teil}>
+                <h3>{TEIL_TITEL[teil]}</h3>
+                <ul>
+                  {MODULE.filter((modul) => modul.teil === teil).map((modul) => (
+                    <li key={modul.id}>
+                      <strong>
+                        {modul.nr}. {modul.titel}
+                      </strong>
+                      <span>{modul.kurz}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
           <p className="hint">
-            Muster-PDF und ausgefüllter Muster-Fragebogen für jeden Bereich:{" "}
+            Muster-Gesamtdokumente und Fragebögen:{" "}
             <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
+            Bisherige Bereichs-Muster leiten auf die passenden Module weiter.
           </p>
           <p className="price-frame">
             <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
@@ -261,8 +264,8 @@ export default function HomePage() {
           <h2>So läuft’s ab</h2>
           <ol className="prose-list">
             <li>
-              Du wählst einen Bereich (zum Beispiel Belegfluss oder Kasse) und
-              beantwortest geführte Fragen zu deinen Abläufen.
+              Du startest mit dem Betriebs-Check und beantwortest die Fragen zu
+              den für dich aktiven Modulen.
             </li>
             <li>
               Du erhältst PDF + Liste offener Punkte — individuell aus deinen
@@ -273,8 +276,8 @@ export default function HomePage() {
               Steuerberater bleibt bei dir.
             </li>
             <li>
-              Weitere Bereiche legst du im Konto an, ohne neue Bestellung.
-              Mit dem Abo bleiben Versionen und spätere Anpassungen verfügbar.
+              Weitere Module kannst du später im Konto ergänzen, ohne neue
+              Bestellung. Mit dem Abo bleiben Versionen und Anpassungen verfügbar.
             </li>
           </ol>
           {excerptChapter ? (
@@ -301,8 +304,8 @@ export default function HomePage() {
           <ul className="prose-list">
             <li>Individuelle Verfahrensdokumentation als PDF (aus deinen Angaben)</li>
             <li>
-              Je Bereich eine eigene Verfahrensdokumentation mit eigenen
-              Versionen, alle Bereiche im Preis enthalten
+              Ein Gesamtdokument mit allen aktiven Modulen, gemeinsamer
+              Versionierung — 24 Module, alle inklusive
             </li>
             <li>Liste offener Punkte zum Prüfen und Ergänzen</li>
             <li>Geführter Frageprozess statt leerer Vorlage</li>
@@ -348,7 +351,7 @@ export default function HomePage() {
           <p className="price-frame">{PRICE_FRAME_LINE}</p>
           <h3>Mit dem Abo</h3>
           <ul className="prose-list">
-            <li>Weitere Bereiche derselben Firma ohne Aufpreis</li>
+            <li>Weitere Module derselben Firma ohne Aufpreis</li>
             <li>Versionierung deiner Dokumentation</li>
             <li>Zugang zu bisherigen Fassungen</li>
             <li>Anpassungen, wenn sich Systeme oder Abläufe ändern</li>

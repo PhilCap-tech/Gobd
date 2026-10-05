@@ -42,7 +42,7 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 
 ## 4. Ist das Steuerberatung / rechtssicher?
 
-Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung von Entwürfen einer Verfahrensdokumentation für die von dir gewählten Bereiche (zum Beispiel Belegfluss, Kasse oder Warenwirtschaft). Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
+Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung von Entwürfen einer Verfahrensdokumentation für die von dir gewählten Module/Bereiche (zum Beispiel Belegfluss, Kasse oder Warenwirtschaft). Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
 Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich oder ausreichend ist, hängt von deiner Situation ab. Eine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
