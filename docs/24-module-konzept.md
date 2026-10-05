@@ -140,3 +140,4 @@ Ads unverändert. AGB/Datenschutz/Disclaimer: Umfangsformulierung „vom Kunden 
 - PR3 #70 → `c89d1d1` Muster, Copy „24 Module“, Account-Vollständigkeit
 - PR4 #71 → `f300196` Migration aus Bereichen, Katalogantworten statt Ids, Entwurf/Fortschritt, Legacy-Startschritt, FAQ
 - Follow-up Muster/Upload/Draft → siehe nächster Stand nach Merge
+- Follow-up: Muster anreichern, Extern-Upload, Server-Entwurf
