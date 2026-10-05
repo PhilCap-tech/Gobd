@@ -2,7 +2,7 @@
  * Statusableitung und Betriebs-Check für die 24 Module.
  */
 import type { IntakeAnswers } from "@/lib/types";
-import { MODULE, modulById } from "@/lib/module/katalog";
+import { MODULE, modulById, modulFragen } from "@/lib/module/katalog";
 import type {
   CheckAntwort,
   CheckKey,
@@ -311,4 +311,24 @@ export function vollstaendigkeitsZeilen(answers: IntakeAnswers): Array<{
       detail,
     };
   });
+}
+
+
+/** Bearbeitungsstand eines Moduls: beantwortete / alle Fragen (Modulfragen + Katalogfragen). */
+export function modulFortschritt(answers: IntakeAnswers, modulId: string): { beantwortet: number; gesamt: number; offen: number } {
+  const modul = modulById(modulId);
+  if (!modul) return { beantwortet: 0, gesamt: 0, offen: 0 };
+  const state = answers.katalog ?? {};
+  const ids = [...new Set([...modulFragen(modul).map((question) => question.id), ...modul.catalogIds])];
+  let beantwortet = 0;
+  let offen = 0;
+  for (const id of ids) {
+    const entry = state[id];
+    if (entry?.status === "unbekannt") offen += 1;
+    const hasValues = Object.values(entry?.values ?? {}).some((value) =>
+      Array.isArray(value) ? value.length > 0 : typeof value === "string" ? value.trim() !== "" : value != null,
+    );
+    if (entry?.status || hasValues) beantwortet += 1;
+  }
+  return { beantwortet, gesamt: ids.length, offen };
 }

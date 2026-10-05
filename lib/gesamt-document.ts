@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
+import { catalogAnswerLine } from "@/lib/intake-catalog";
 import {
   MODULE,
   TEIL_KURZ,
@@ -189,18 +190,13 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
   if (modul.catalogIds.length) {
     heading("Angaben aus dem Fragenkatalog");
     for (const id of modul.catalogIds) {
-      const entry = state[id];
-      const status = entry?.status;
-      const label =
-        status === "bestaetigt"
-          ? "bestätigt"
-          : status === "geplant"
-            ? "vorgesehen"
-            : status === "nicht_zutreffend"
-              ? "entfällt"
-              : "zu klären";
-      lines.push(`**${id}:** ${label}.`, "");
+      const line = catalogAnswerLine(id, answers);
+      if (!line) continue;
+      const details = line.details.length ? ` ${line.details.map((bit) => cell(bit)).join(" · ")}` : "";
+      const reason = line.reason ? ` Begründung: ${cell(line.reason)}` : "";
+      lines.push(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`);
     }
+    lines.push("");
   }
 
   const kontrollen = modulKontrollen(modul);

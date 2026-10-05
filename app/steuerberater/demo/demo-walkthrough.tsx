@@ -25,8 +25,9 @@ type StartMode = "example" | "blank";
 
 export function DemoWalkthrough() {
   const [mode, setMode] = useState<StartMode | null>(null);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => nextApplicableStep(-1, demoBlankAnswers()));
   const [answers, setAnswers] = useState<IntakeAnswers>(() => demoBlankAnswers());
+  const firstStep = nextApplicableStep(-1, answers);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -44,8 +45,9 @@ export function DemoWalkthrough() {
 
   function begin(nextMode: StartMode) {
     setMode(nextMode);
-    setAnswers(nextMode === "example" ? demoBeispielAnswers() : demoBlankAnswers());
-    setStep(0);
+    const start = nextMode === "example" ? demoBeispielAnswers() : demoBlankAnswers();
+    setAnswers(start);
+    setStep(nextApplicableStep(-1, start));
     setError("");
     setNotice("");
   }
@@ -170,14 +172,14 @@ export function DemoWalkthrough() {
       {error && <p className="error">{error}</p>}
 
       <div className="actions" style={{ marginTop: 18 }}>
-        {step > 0 && (
+        {step > firstStep && (
           <button
             type="button"
             className="btn ghost"
             onClick={() => {
               setError("");
               setNotice("");
-              setStep((current) => previousApplicableStep(current, answers));
+              setStep((current) => Math.max(firstStep, previousApplicableStep(current, answers)));
             }}
           >
             Zurück
@@ -212,7 +214,7 @@ export function DemoWalkthrough() {
           className="btn ghost"
           onClick={() => {
             setMode(null);
-            setStep(0);
+            setStep(firstStep);
             setError("");
             setNotice("");
           }}

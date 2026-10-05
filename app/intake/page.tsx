@@ -29,7 +29,9 @@ import {
   answersFromSheetRow,
   emptyAnswers,
   identityFromSheetRow,
+  type IntakeAnswers,
 } from "@/lib/types";
+import { answersForGesamt } from "@/lib/module/migration";
 import { IntakeForm } from "./intake-form";
 
 export const dynamic = "force-dynamic";
@@ -141,6 +143,7 @@ export default async function IntakePage({
       basisRow && canAccessDocument(basisRow, { sessionEmail, sessionId });
     let existingBereiche: string[] = [];
     let base = basisRow;
+    let gesamtStart: IntakeAnswers | null = null;
     if (basisRow && allowed) {
       const family = await listDocumentFamily(basisRow.documentId);
       base = groupDocumentFamilies(family)[0]?.latest ?? basisRow;
@@ -148,9 +151,17 @@ export default async function IntakePage({
       const sameFirm = owned.filter(
         (row) => (row.entityId || "") === (basisRow.entityId || ""),
       );
+      const latestOfFirm = groupDocumentFamilies(sameFirm).map((item) => item.latest);
       existingBereiche = [
-        ...new Set(groupDocumentFamilies(sameFirm).map((item) => bereichIdOf(answersFromSheetRow(item.latest)))),
+        ...new Set(latestOfFirm.map((item) => bereichIdOf(answersFromSheetRow(item)))),
       ];
+      if (modus === "gesamt") {
+        // Gesamtdokument aus allen bisherigen Bereichs-Dokumentationen der Firma.
+        const ordered = [base, ...latestOfFirm.filter((item) => item.documentId !== base?.documentId)]
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+          .map((item) => answersFromSheetRow(item));
+        gesamtStart = answersForGesamt(ordered, basisRow.company);
+      }
     }
     return (
       <>
@@ -160,13 +171,17 @@ export default async function IntakePage({
             <EditGate loggedIn={Boolean(sessionEmail)} />
           ) : (
             <IntakeForm
-              key={`${base.documentId}-${bereich}`}
+              key={`${base.documentId}-${gesamtStart ? "gesamt" : bereich}`}
               session={identityFromSheetRow(basisRow)}
-              initialAnswers={answersForNewBereich(
-                answersFromSheetRow(base),
-                bereich || BELEGFLUSS,
-                basisRow.company,
-              )}
+              initialAnswers={
+                gesamtStart ??
+                answersForNewBereich(
+                  answersFromSheetRow(base),
+                  bereich || BELEGFLUSS,
+                  basisRow.company,
+                )
+              }
+              gesamtMode={Boolean(gesamtStart)}
               initialEntityId={basisRow.entityId}
               areaBaseDocumentId={basisRow.documentId}
               existingBereiche={existingBereiche}

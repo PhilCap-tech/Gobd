@@ -9,8 +9,9 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 ### Geliefert wird
 
 - Eine strukturierte GoBD-Verfahrensdokumentation als PDF, erzeugt aus deinem Online-Intake (Branche/Rechtsform, Systeme, Belegwege, IT/Hosting, Verantwortliche).
-- Typischer Inhalt: Cover, Kapitel zu Unternehmen, Systemen, Abläufen im jeweiligen Bereich, Aufbewahrung, Verantwortlichkeiten sowie eine Liste offener Punkte.
-- Je Bereich eine eigene Verfahrensdokumentation: Belegfluss (Eingangs- und Ausgangsrechnungen), Kasse, Warenwirtschaft und Inventur, Einkauf, Verkauf, Retouren und Gutschriften, Zeiterfassung, Lohn, E-Commerce und Zahlungsdienstleister, Bank, Anlagen sowie weitere Vorsysteme. Angaben zu Unternehmen, Systemen, Ablage, Berechtigungen und Kontrollen werden für weitere Bereiche übernommen.
+- Aufbau in den vier klassischen Teilen: Allgemeine Beschreibung, Anwenderdokumentation, Technische Systemdokumentation und Betriebsdokumentation. Dazu eine Vollständigkeitsübersicht, Aufbewahrung, Verantwortlichkeiten und eine Liste offener Punkte.
+- Ein Gesamtdokument je Firma mit 24 Modulen: von Unternehmen und Organisation über Verkauf, Einkauf, Rechnungen, E-Rechnungen, Papierbelege, Zahlungsverkehr, Kasse, Buchführung, Lager, Anlagen, Personal, Onlineshop und branchenspezifische Abläufe bis zu Archivierung, Aufbewahrung und Löschung, Systemen, Zugriffsrechten, Datensicherung, Kontrollen, ausgelagerten Aufgaben, Prüfungszugriff, Änderungen und Pflege der Dokumentation.
+- Ein kurzer Betriebs-Check zu Beginn legt fest, welche Module bei dir vorkommen. Kein vorhandener Bereich wird stillschweigend ausgelassen: Jedes Modul ist im Tool beschrieben, durch eine bestehende Dokumentation abgedeckt, als „noch nicht dokumentiert“ ausgewiesen oder begründet als „nicht vorhanden“ markiert. Systeme, Verantwortliche und Steuerkanzlei gibst du einmal an, sie werden in alle Module übernommen.
 - Ein fester Produkt-Disclaimer in der Dokumentation (kein Steuer-/Rechtsberatungsersatz; Verantwortung für inhaltliche Richtigkeit liegt bei dir).
 
 ### Nicht geliefert wird
@@ -24,7 +25,7 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 ## 2. Ablauf & Dauer
 
 1. Bestellung über die Website (Stripe Checkout).
-2. Online-Intake: Bereich wählen, dann Fragen zu Betrieb, Software, Abläufen im Bereich, IT und Verantwortlichen. Weitere Bereiche legst du später im Konto an.
+2. Online-Intake: Betriebs-Check, Übersicht der Module, dann Fragen je Modul zu Abläufen, Software, IT und Verantwortlichen. Weitere Module kannst du später im Konto ergänzen.
 3. Automatische Erstellung der Dokumentation aus dem Intake.
 4. Digitale Lieferung (Download / Zugangslink / Ergebnis per E-Mail).
 
@@ -34,10 +35,10 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 
 ## 3. Preise & Updates nach Lieferung
 
-- **Alle Bereiche inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.** Der Preis gilt je Firma und umfasst beliebig viele Bereichs-Dokumentationen dieser Firma.
+- **24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.** Der Preis gilt je Firma und umfasst das Gesamtdokument mit allen Modulen dieser Firma. Bereits erstellte Bereichs-Dokumentationen bleiben im Konto lesbar.
 - **Preismodell:** einmalige Einrichtung 149 € zzgl. USt und 49 € zzgl. USt pro Monat. Der erste Monat ist im Einstiegspreis von 198 € zzgl. USt (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet. Maßgeblich sind die im Checkout angezeigten Beträge.
 - Das monatliche Abo deckt laufenden Zugang sowie Update-/Pflegeleistungen gemäß aktueller Produktbeschreibung ab (u. a. Versionierung und Speicherung).
-- Ein Update ist sinnvoll, wenn sich Systeme, Abläufe, Hosting oder Verantwortliche ändern. Jeder Bereich hat eigene Versionen mit „Gültig ab“.
+- Ein Update ist sinnvoll, wenn sich Systeme, Abläufe, Hosting oder Verantwortliche ändern. Das Gesamtdokument hat eine gemeinsame Versionierung mit „Gültig ab“ und Änderungshistorie; frühere Fassungen bleiben herunterladbar.
 - Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung. Bereits erzeugte PDFs kannst du nach Vertragsende noch 30 Tage herunterladen. Zugang zu früheren Fassungen und spätere Anpassungen gibt es nur mit aktivem Abonnement.
 
 ## 4. Ist das Steuerberatung / rechtssicher?

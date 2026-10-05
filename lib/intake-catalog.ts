@@ -1487,3 +1487,22 @@ export function answersForNewBereich(base: IntakeAnswers, bereich: string, compa
   }
   return { ...emptyAnswers(), bereich, katalog };
 }
+
+/**
+ * Customer-facing line for one catalog question (prompt, status, answer bits)
+ * without technical ids. Used by the Gesamtdokument module chapters.
+ */
+export function catalogAnswerLine(
+  id: string,
+  answers: IntakeAnswers,
+): { prompt: string; status: string; details: string[]; reason: string } | null {
+  const question = CATALOG_STEPS.flatMap((step) => step.questions).find((item) => item.id === id);
+  if (!question) return null;
+  const entry = catalogState(answers)[id];
+  return {
+    prompt: customerPrompt(question.id, question.prompt),
+    status: entry?.status ? STATUS_LABEL[entry.status] : "offen",
+    details: summaryBits(question, entry),
+    reason: entry?.status === "nicht_zutreffend" ? asText(entry.reason) : "",
+  };
+}
