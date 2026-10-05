@@ -17,6 +17,7 @@ import {
   previousApplicableStep,
   withCatalogDraft,
 } from "@/lib/intake-catalog";
+import { ensureGesamt, isGesamt } from "@/lib/module/status";
 import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
 import { customerHubTitle } from "@/lib/account-display";
 import { bereichIdOf, bereichLabel } from "@/lib/bereiche";
@@ -39,6 +40,8 @@ type IntakeFormProps = {
   areaBaseDocumentId?: string;
   /** Areas the company already documents. */
   existingBereiche?: string[];
+  /** Start as 24-Module Gesamtdokument. */
+  gesamtMode?: boolean;
 };
 
 export function IntakeForm({
@@ -50,6 +53,7 @@ export function IntakeForm({
   initialEntityId = "",
   areaBaseDocumentId,
   existingBereiche = [],
+  gesamtMode = false,
 }: IntakeFormProps) {
   const companyLabel = customerHubTitle(session.company, "");
   const nextVersionLabel = nextVersion
@@ -58,9 +62,11 @@ export function IntakeForm({
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [entityId, setEntityId] = useState(initialEntityId);
-  const [answers, setAnswers] = useState<IntakeAnswers>(() =>
-    withCatalogDraft(initialAnswers ?? emptyAnswers(), session.company),
-  );
+  const [answers, setAnswers] = useState<IntakeAnswers>(() => {
+    let start = withCatalogDraft(initialAnswers ?? emptyAnswers(), session.company);
+    if (gesamtMode || isGesamt(start)) start = ensureGesamt(start);
+    return start;
+  });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
@@ -212,7 +218,7 @@ export function IntakeForm({
               />
             </div>
           )}
-          {step === 0 && (
+          {step === 0 && !isGesamt(answers) && (
             <div className="card" style={{ marginBottom: 16 }}>
               <BereichSelect
                 value={bereichIdOf(answers)}
@@ -221,6 +227,12 @@ export function IntakeForm({
                 onChange={(bereich) => setAnswers((current) => ({ ...current, bereich }))}
               />
             </div>
+          )}
+          {step === 0 && isGesamt(answers) && (
+            <p className="banner">
+              Gesamtdokument mit 24 Modulen. Zuerst der Betriebs-Check, danach die Module deines
+              Betriebs. Alle Module sind im Preis enthalten.
+            </p>
           )}
           <IntakeQuestionnaire step={step} answers={answers} onChange={setAnswers} />
         </>

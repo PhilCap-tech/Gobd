@@ -17,7 +17,7 @@ export const CHAPTER_CONTENT_MAX_CHARS = 200_000;
 /** Stay under Google Sheets' 50_000-character cell limit. */
 export const SHEETS_CELL_SAFE_CHARS = 49_000;
 export const CHAPTER_CONTENT_REF_KEY = "__gobdContent";
-const MAX_CHAPTERS = 20;
+const MAX_CHAPTERS = 60;
 const MAX_ID_LEN = 80;
 const MAX_TITLE_LEN = 200;
 const MAX_BODY_LEN = 80_000;

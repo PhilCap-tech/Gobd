@@ -23,6 +23,20 @@ import {
   bereichQuestion,
   ALLGEMEINER_TEIL_IDS,
 } from "@/lib/bereiche";
+import {
+  MODULE,
+  gruppenFragen,
+  modulQuestion,
+} from "@/lib/module/katalog";
+import {
+  betriebsCheckVollstaendig,
+  effectiveModulStatus,
+  isGesamt,
+  modulStatusError,
+  modulZustand,
+  toolModules,
+} from "@/lib/module/status";
+import type { CheckKey } from "@/lib/module/typen";
 import type { IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 
@@ -58,6 +72,14 @@ export type CatalogWhen = {
   bereichIn?: string[];
   /** Not for these areas. */
   bereichNotIn?: string[];
+  /** Gesamt only: at least one listed module has status „tool“. */
+  modul?: string[];
+  /** Only for 24-Module Gesamtdokumente. */
+  gesamtOnly?: true;
+  /** Only for legacy Bereich documents (not Gesamt). */
+  legacyOnly?: true;
+  /** Betriebs-Check key must not be „nein“. */
+  teil?: CheckKey;
 };
 
 export type CatalogQuestion = {
@@ -108,6 +130,11 @@ function onlyBelegfluss(when: CatalogWhen | undefined): CatalogWhen {
 }
 
 export const BEREICH_RAHMEN_STEP_ID = "step-BR2";
+export const BETRIEBS_CHECK_STEP_ID = "step-BC";
+export const MODUL_UEBERSICHT_STEP_ID = "step-MO";
+
+/** Special UI steps (no catalog questions; React renders Betriebs-Check / Übersicht). */
+export const SPECIAL_STEP_IDS = new Set([BETRIEBS_CHECK_STEP_ID, MODUL_UEBERSICHT_STEP_ID]);
 
 function areaStep(id: string, title: string, rahmen: boolean): CatalogStep {
   return {
@@ -140,21 +167,97 @@ const BEREICH_RAHMEN_STEP: CatalogStep = areaStep(
   true,
 );
 
+function areaQuestionToCatalog(question: {
+  id: string;
+  prompt: string;
+  hint?: string;
+  fields: Array<{ key: string; type: string; label?: string; required?: boolean; options?: string[] }>;
+}): CatalogQuestion {
+  return {
+    id: question.id,
+    prompt: question.prompt,
+    hint: question.hint,
+    fields: question.fields.map((field) => ({ ...field })),
+  };
+}
+
+function moduleSteps(): CatalogStep[] {
+  return MODULE.map((modul) => ({
+    id: `step-M${String(modul.nr).padStart(2, "0")}`,
+    title: `Modul ${modul.nr}: ${modul.titel}`,
+    when: { gesamtOnly: true, modul: [modul.id] },
+    questions: [
+      ...modul.catalogIds.map((id) => {
+        const source = catalog.steps.flatMap((step) => step.questions).find((q) => q.id === id);
+        if (!source) {
+          return {
+            id,
+            prompt: id,
+            fields: [],
+            when: { gesamtOnly: true, modul: [modul.id] },
+          } satisfies CatalogQuestion;
+        }
+        return {
+          ...source,
+          when: { ...(source.when ?? {}), gesamtOnly: true as const, modul: [modul.id] },
+        };
+      }),
+      ...modul.gruppen.flatMap((gruppe) =>
+        gruppenFragen(gruppe).map((question) => ({
+          ...areaQuestionToCatalog(question),
+          when: {
+            gesamtOnly: true as const,
+            modul: [modul.id],
+            ...(gruppe.teil ? { teil: gruppe.teil } : {}),
+          },
+        })),
+      ),
+    ],
+  }));
+}
+
 function buildSteps(steps: CatalogStep[]): CatalogStep[] {
   const out: CatalogStep[] = [];
+  const betriebsCheck: CatalogStep = {
+    id: BETRIEBS_CHECK_STEP_ID,
+    title: "Betriebs-Check",
+    when: { gesamtOnly: true },
+    questions: [],
+  };
+  const modulUebersicht: CatalogStep = {
+    id: MODUL_UEBERSICHT_STEP_ID,
+    title: "Module und Status",
+    when: { gesamtOnly: true },
+    questions: [],
+  };
+  out.push(betriebsCheck, modulUebersicht);
   for (const step of steps) {
-    const gated: CatalogStep = BELEGFLUSS_ONLY_STEPS.has(step.id)
-      ? { ...step, when: onlyBelegfluss(step.when) }
-      : {
-          ...step,
-          questions: step.questions.map((question) =>
-            BELEGFLUSS_ONLY_QUESTIONS.has(question.id)
-              ? { ...question, when: onlyBelegfluss(question.when) }
-              : question,
-          ),
-        };
+    // Original A–I steps stay for legacy Bereich documents. In Gesamt mode the
+    // same questions are asked inside the matching modules (no silent drop).
+    const baseWhen: CatalogWhen = {
+      ...(BELEGFLUSS_ONLY_STEPS.has(step.id) ? onlyBelegfluss(step.when) : (step.when ?? {})),
+      legacyOnly: true,
+    };
+    const gated: CatalogStep = {
+      ...step,
+      when: baseWhen,
+      questions: step.questions.map((question) => {
+        let when = question.when;
+        if (BELEGFLUSS_ONLY_QUESTIONS.has(question.id)) when = onlyBelegfluss(when);
+        if (question.id === "A02" || question.id === "A03") {
+          when = { ...(when ?? {}), legacyOnly: true };
+        }
+        return when ? { ...question, when } : question;
+      }),
+    };
     out.push(gated);
-    if (step.id === "step-B") out.push(BEREICH_STEP, BEREICH_RAHMEN_STEP);
+    if (step.id === "step-B") {
+      out.push(
+        { ...BEREICH_STEP, when: { ...(BEREICH_STEP.when ?? {}), legacyOnly: true } },
+        { ...BEREICH_RAHMEN_STEP, when: { ...(BEREICH_RAHMEN_STEP.when ?? {}), legacyOnly: true } },
+        ...moduleSteps(),
+      );
+    }
   }
   return out;
 }
@@ -413,8 +516,36 @@ function bereichMatches(when: CatalogWhen | undefined, bereich: string): boolean
   return true;
 }
 
-function whenMatches(when: CatalogWhen | undefined, state: CatalogState, bereich: string): boolean {
+function modeMatches(when: CatalogWhen | undefined, answers: IntakeAnswers): boolean {
   if (!when) return true;
+  const gesamt = isGesamt(answers);
+  if (when.gesamtOnly && !gesamt) return false;
+  if (when.legacyOnly && gesamt) return false;
+  return true;
+}
+
+function modulMatches(when: CatalogWhen | undefined, answers: IntakeAnswers): boolean {
+  if (!when?.modul?.length) return true;
+  if (!isGesamt(answers)) return false;
+  return when.modul.some((id) => effectiveModulStatus(answers, id).status === "tool");
+}
+
+function teilMatches(when: CatalogWhen | undefined, answers: IntakeAnswers): boolean {
+  if (!when?.teil) return true;
+  if (!isGesamt(answers)) return true;
+  return modulZustand(answers).check[when.teil] !== "nein";
+}
+
+function whenMatches(
+  when: CatalogWhen | undefined,
+  state: CatalogState,
+  bereich: string,
+  answers?: IntakeAnswers,
+): boolean {
+  if (!when) return true;
+  if (answers && !modeMatches(when, answers)) return false;
+  if (answers && !modulMatches(when, answers)) return false;
+  if (answers && !teilMatches(when, answers)) return false;
   if (!bereichMatches(when, bereich)) return false;
   const channels = kanaeleOf(state);
   const formats = formateOf(state);
@@ -429,11 +560,16 @@ function whenMatches(when: CatalogWhen | undefined, state: CatalogState, bereich
 }
 
 export function catalogQuestionApplies(question: CatalogQuestion, answers: IntakeAnswers): boolean {
-  return whenMatches(question.when, catalogState(answers), bereichIdOf(answers));
+  // In Gesamt mode, Belegfluss-only gating is ignored for catalog questions that
+  // a module reuses (modules declare their own modul gate).
+  const bereich = isGesamt(answers) ? BELEGFLUSS : bereichIdOf(answers);
+  return whenMatches(question.when, catalogState(answers), bereich, answers);
 }
 
 export function catalogStepApplies(step: CatalogStep, answers: IntakeAnswers): boolean {
-  if (!whenMatches(step.when, catalogState(answers), bereichIdOf(answers))) return false;
+  const bereich = isGesamt(answers) ? BELEGFLUSS : bereichIdOf(answers);
+  if (!whenMatches(step.when, catalogState(answers), bereich, answers)) return false;
+  if (SPECIAL_STEP_IDS.has(step.id)) return true;
   return step.questions.some((question) => catalogQuestionApplies(question, answers));
 }
 
@@ -459,12 +595,17 @@ export function previousApplicableStep(from: number, answers: IntakeAnswers): nu
 
 /** „Schritt k von n“ counted over the steps of the chosen area (branch steps like Papier stay counted). */
 export function catalogStepPosition(stepIndex: number, answers: IntakeAnswers): { index: number; total: number } {
-  const bereich = bereichIdOf(answers);
-  const inArea = CATALOG_STEPS.map((step, index) => ({ step, index })).filter(({ step }) =>
-    bereichMatches(step.when, bereich),
+  const applicable = CATALOG_STEPS.map((step, index) => ({ step, index })).filter(({ step }) =>
+    catalogStepApplies(step, answers) || SPECIAL_STEP_IDS.has(step.id) && isGesamt(answers) && modeMatches(step.when, answers),
   );
-  const position = inArea.findIndex(({ index }) => index === stepIndex);
-  return { index: position < 0 ? stepIndex : position, total: inArea.length };
+  // Prefer counting steps that can appear for this mode (even if later gated by answers).
+  const bereich = isGesamt(answers) ? BELEGFLUSS : bereichIdOf(answers);
+  const inMode = CATALOG_STEPS.map((step, index) => ({ step, index })).filter(({ step }) =>
+    modeMatches(step.when, answers) && bereichMatches(step.when, bereich) && (!step.when?.modul || isGesamt(answers)),
+  );
+  const list = isGesamt(answers) ? inMode : inMode.filter(({ step }) => bereichMatches(step.when, bereich));
+  const position = list.findIndex(({ index }) => index === stepIndex);
+  return { index: position < 0 ? stepIndex : position, total: list.length || applicable.length };
 }
 
 /** Area-aware step title. The area step carries the area label. */
@@ -475,6 +616,8 @@ export function catalogStepTitle(stepIndex: number, answers: IntakeAnswers): str
   if (step.id === BEREICH_RAHMEN_STEP_ID) {
     return `${bereichById(bereichIdOf(answers)).label}: Kontrollen, Zugriff und Archiv`;
   }
+  if (step.id === BETRIEBS_CHECK_STEP_ID) return "Betriebs-Check: Welche Bereiche gibt es?";
+  if (step.id === MODUL_UEBERSICHT_STEP_ID) return "Module und Dokumentationsstatus";
   return step.title;
 }
 
@@ -552,6 +695,22 @@ export function catalogStepError(stepIndex: number, answers: IntakeAnswers): str
   const step = CATALOG_STEPS[stepIndex];
   if (!step) return "";
   if (!catalogStepApplies(step, answers)) return "";
+  if (step.id === BETRIEBS_CHECK_STEP_ID) {
+    if (!betriebsCheckVollstaendig(answers)) {
+      return "Bitte für jede Frage des Betriebs-Checks ja, nein oder weiß ich nicht angeben.";
+    }
+    return "";
+  }
+  if (step.id === MODUL_UEBERSICHT_STEP_ID) {
+    for (const modul of MODULE) {
+      const message = modulStatusError(answers, modul.id);
+      if (message) return message;
+    }
+    if (!toolModules(answers).length) {
+      return "Mindestens ein Modul muss im Tool beschrieben werden (Kernmodule sind immer aktiv).";
+    }
+    return "";
+  }
   const state = catalogState(answers);
   for (const question of visibleCatalogQuestions(stepIndex, answers)) {
     const entry = state[question.id];
@@ -684,6 +843,7 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
   const state = catalogState(answers);
   const next = emptyAnswers();
   if (answers.bereich) next.bereich = answers.bereich;
+  if (answers.module) next.module = answers.module;
   if (live(state, "A01")) {
     const values = valuesOf(state, "A01");
     next.branchen = projectedBranchen(values);
@@ -937,8 +1097,18 @@ function bereichOpenText(id: string): { priority: "hoch" | "mittel" | "niedrig";
   };
 }
 
+function modulOpenText(id: string): { priority: "hoch" | "mittel" | "niedrig"; text: string; chapter: string } | undefined {
+  const hit = modulQuestion(id);
+  if (!hit) return undefined;
+  return {
+    priority: hit.question.priority ?? "mittel",
+    text: hit.question.open,
+    chapter: `modul-${hit.modul.id}`,
+  };
+}
+
 function pointFor(id: string): CatalogOpenPoint {
-  const meta = OPEN_TEXT[id] ?? bereichOpenText(id) ?? {
+  const meta = OPEN_TEXT[id] ?? modulOpenText(id) ?? bereichOpenText(id) ?? {
     priority: "mittel" as const,
     text: `${id} ist nicht bestätigt.`,
     chapter: "14-offene-punkte",
@@ -1035,6 +1205,29 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
           priority: "mittel",
           text: "Eine Berechtigungsliste ist nicht bestätigt.",
           chapter: "10-berechtigungen-sicherung",
+          suppress: [],
+        });
+      }
+    }
+  }
+  if (isGesamt(answers)) {
+    for (const modul of MODULE) {
+      const eintrag = effectiveModulStatus(answers, modul.id);
+      if (eintrag.status === "offen") {
+        points.push({
+          id: `op-modul-${modul.id}`,
+          priority: "hoch",
+          text: `Modul ${modul.nr} „${modul.titel}“ ist noch nicht dokumentiert.`,
+          chapter: `modul-${modul.id}`,
+          suppress: [],
+        });
+      }
+      if (eintrag.status === "extern" && !eintrag.ref?.trim()) {
+        points.push({
+          id: `op-modul-ref-${modul.id}`,
+          priority: "hoch",
+          text: `Für Modul ${modul.nr} „${modul.titel}“ fehlt der Verweis auf die bestehende Dokumentation.`,
+          chapter: `modul-${modul.id}`,
           suppress: [],
         });
       }

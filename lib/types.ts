@@ -1,3 +1,5 @@
+import type { ModulZustand } from "@/lib/module/typen";
+
 export type TriState = "ja" | "nein" | "unbekannt";
 
 export type VorsystemArt = "Kasse" | "Shop" | "Lager" | "Lohn" | "Plattform";
@@ -34,6 +36,12 @@ export type IntakeAnswers = {
    * Absent on older rows; those are Belegfluss documents.
    */
   bereich?: string;
+  /**
+   * 24-Module Gesamtdokument. Presence means the document uses the module
+   * catalog (Betriebs-Check, statuses, four-part structure). Absent on
+   * legacy Bereich documents.
+   */
+  module?: ModulZustand;
   /** MVP Fragenkatalog. Absent on rows from the older five-step intake. */
   standort?: string;
   geltung?: string;
@@ -290,6 +298,7 @@ export function emptyAnswers(): IntakeAnswers {
 
 const CATALOG_KEYS = [
   "bereich",
+  "module",
   "standort",
   "geltung",
   "geltungBelegarten",

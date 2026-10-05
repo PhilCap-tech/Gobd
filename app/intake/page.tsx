@@ -117,6 +117,7 @@ export default async function IntakePage({
     entity_id?: string | string[];
     bereich?: string | string[];
     basis?: string | string[];
+    modus?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -128,6 +129,7 @@ export default async function IntakePage({
   const requestedBereich = firstQueryValue(params.bereich) ?? "";
   const bereich = isBereichId(requestedBereich) ? requestedBereich : "";
   const basisId = firstQueryValue(params.basis) ?? "";
+  const gesamtMode = (firstQueryValue(params.modus) ?? "").toLowerCase() === "gesamt";
   const sessionEmail = await getSessionEmail();
 
   // Weiterer Bereich für eine Firma mit bestehender Dokumentation: kein neuer Checkout.
@@ -270,6 +272,7 @@ export default async function IntakePage({
             entities={entityChoices(entities)}
             initialEntityId={initialEntityId}
             initialAnswers={bereich ? { ...emptyAnswers(), bereich } : undefined}
+            gesamtMode={gesamtMode}
           />
         )}
       </main>
