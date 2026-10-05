@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ConsentBanner } from "@/components/consent-banner";
 import { MarketingPixel } from "@/components/marketing-pixel";
+import { SITE_ORIGIN } from "@/lib/seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_ORIGIN),
   title: {
     default:
       "GoBD-Verfahrensdokumentation online erstellen | GoBD Verfahrensdoku",

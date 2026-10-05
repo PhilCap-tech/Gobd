@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { canonicalUrl } from "@/lib/seo";
 import {
   LEAD_MAGNET_CTA_AFTER,
   LEAD_MAGNET_CTA_BEFORE,
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
   title: "10 Offene Punkte vor der Prüfung",
   description:
     "Kurzer Abgleich für KMU und Handwerk: eine Seite mit zehn offenen Punkten zur Verfahrensdokumentation. Keine Steuerberatung.",
+  alternates: { canonical: canonicalUrl("/resources/10-offene-punkte") },
 };
 
 export default function LeadMagnetPage() {

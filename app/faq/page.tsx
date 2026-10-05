@@ -3,11 +3,13 @@ import path from "node:path";
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 import { LegalMarkdown } from "@/lib/legal-markdown";
+import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "FAQ",
   description:
     "Antworten zu Lieferumfang, Ablauf, Updates, Support und Disclaimer der GoBD-Verfahrensdokumentation. Keine Steuerberatung und keine Rechtsberatung.",
+  alternates: { canonical: canonicalUrl("/faq") },
 };
 
 async function faqMarkdown() {

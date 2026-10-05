@@ -3,11 +3,13 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { formatBlogDate, listPublishedPosts } from "@/lib/blog";
+import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Blog",
   description:
     "Ratgeber zur GoBD-Verfahrensdokumentation für KMU und Handwerk. Arbeitshilfen, keine Steuerberatung.",
+  alternates: { canonical: canonicalUrl("/blog") },
 };
 
 export default async function BlogIndexPage() {
