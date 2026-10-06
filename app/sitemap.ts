@@ -1,7 +1,5 @@
 import type { MetadataRoute } from "next";
 import { listPublishedPosts } from "@/lib/blog";
-import { BEREICHE } from "@/lib/bereiche";
-import { musterPath } from "@/lib/bereich-muster";
 import { MODULE } from "@/lib/module/katalog";
 import {
   gesamtMusterPath,
@@ -25,11 +23,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const gesamt: MetadataRoute.Sitemap = MUSTER_VORLAGEN.map((vorlage) => ({
     url: canonicalUrl(gesamtMusterPath(vorlage)),
   }));
-  const legacy: MetadataRoute.Sitemap = BEREICHE.map((bereich) => ({
-    url: canonicalUrl(musterPath(bereich.id)),
-  }));
   const moduleFragebogen: MetadataRoute.Sitemap = MODULE.map((modul) => ({
     url: canonicalUrl(modulMusterFragebogenPath(modul.id)),
   }));
-  return [...staticPages, ...gesamt, ...legacy, ...moduleFragebogen, ...blogPosts];
+  return [...staticPages, ...gesamt, ...moduleFragebogen, ...blogPosts];
 }
