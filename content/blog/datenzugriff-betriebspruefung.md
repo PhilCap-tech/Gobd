@@ -29,7 +29,7 @@ Der Übersichtsartikel behandelt Belegwege, Verantwortliche und Aktualität. Hie
 
 Rechtsgrundlage ist § 147 Abs. 6 AO. Die Vorschrift gilt, wenn die aufzubewahrenden Unterlagen mit einem Datenverarbeitungssystem erstellt worden sind, und sie gilt im Rahmen einer Außenprüfung. Die GoBD — BMF-Schreiben vom 28.11.2019, geändert am 11.03.2024 und am 14.07.2025 — führen das für die Praxis aus.
 
-Während der Aufbewahrungsfrist müssen die Unterlagen verfügbar sein, unverzüglich lesbar gemacht und maschinell ausgewertet werden können (§ 147 Abs. 2 AO). Nach § 147 Abs. 3 AO, in der Fassung nach dem Vierten Bürokratieentlastungsgesetz, gelten zehn Jahre für Bücher, Aufzeichnungen, Inventare und Jahresabschlüsse, acht Jahre für Buchungsbelege und sechs Jahre für empfangene Handels- oder Geschäftsbriefe sowie für Wiedergaben der abgesandten. Welche Datei in welche Gruppe fällt, stimmen Sie mit Ihrer Steuerberatung ab.
+Werden Unterlagen elektronisch auf Datenträgern aufbewahrt, müssen sie während der Aufbewahrungsfrist jederzeit verfügbar sein, unverzüglich lesbar gemacht und maschinell ausgewertet werden können (§ 147 Abs. 2 Nr. 2 AO). Nach § 147 Abs. 3 AO, in der Fassung nach dem Vierten Bürokratieentlastungsgesetz, gelten zehn Jahre für Bücher, Aufzeichnungen, Inventare und Jahresabschlüsse, acht Jahre für Buchungsbelege und sechs Jahre für empfangene Handels- oder Geschäftsbriefe sowie für Wiedergaben der abgesandten. Welche Datei in welche Gruppe fällt, stimmen Sie mit Ihrer Steuerberatung ab.
 
 ## Die drei Formen des Datenzugriffs
 

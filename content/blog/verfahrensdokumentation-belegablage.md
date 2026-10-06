@@ -1,8 +1,8 @@
 ---
 title: "Verfahrensdokumentation Muster zur Belegablage"
 slug: "verfahrensdokumentation-belegablage"
-metaTitle: "Verfahrensdokumentation Muster und Verfahrensdokumentation Vorlage"
-metaDescription: "Verfahrensdokumentation Muster und Verfahrensdokumentation Vorlage für die Belegablage: Belegfluss der Eingangsrechnungen als fiktives Beispiel. Keine Steuerberatung."
+metaTitle: "Verfahrensdokumentation Muster: Belegablage & Belegfluss"
+metaDescription: "Verfahrensdokumentation Muster und Verfahrensdokumentation Vorlage für die Belegablage: Belegfluss Eingangsrechnungen, fiktives Beispiel. Keine Steuerberatung."
 h1: "Verfahrensdokumentation Muster zur Belegablage"
 primaryKeyword: "Verfahrensdokumentation Muster"
 secondaryKeywords:
@@ -58,7 +58,7 @@ Hier nur die Verbindung zum Beleg: welches Konto, wer die Zahlung freigibt, wie 
 
 Der aufbewahrte Beleg ist die Datei oder das Papier, das Sie behalten: unverändert, benannt, wiederauffindbar. Ablageort, Benennung (Lieferant, Datum, Rechnungsnummer) und der Weg von der Buchung zur Datei.
 
-Nach § 147 Abs. 3 AO, in der Fassung nach dem Vierten Bürokratieentlastungsgesetz, gelten acht Jahre für Buchungsbelege, zehn Jahre für Bücher, Jahresabschlüsse und Inventare, sechs Jahre für Handels- und Geschäftsbriefe. Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO). Während der Frist müssen die Unterlagen verfügbar, unverzüglich lesbar und maschinell auswertbar sein (§ 147 Abs. 2 AO). Welche Unterlage in welche Gruppe fällt, klären Sie mit Ihrer Steuerberatung. Zum Archiv: [Modul 15 Archivierung und Wiederauffindbarkeit](/muster/modul/m15/fragebogen) (PDF).
+Nach § 147 Abs. 3 AO, in der Fassung nach dem Vierten Bürokratieentlastungsgesetz, gelten acht Jahre für Buchungsbelege, zehn Jahre für Bücher, Jahresabschlüsse und Inventare, sechs Jahre für Handels- und Geschäftsbriefe. Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO). Werden Unterlagen elektronisch auf Datenträgern aufbewahrt, müssen sie während der Aufbewahrungsfrist jederzeit verfügbar sein, unverzüglich lesbar gemacht und maschinell ausgewertet werden können (§ 147 Abs. 2 Nr. 2 AO). Welche Unterlage in welche Gruppe fällt, klären Sie mit Ihrer Steuerberatung. Zum Archiv: [Modul 15 Archivierung und Wiederauffindbarkeit](/muster/modul/m15/fragebogen) (PDF).
 
 ### Scannen, nur der Verweis
 
