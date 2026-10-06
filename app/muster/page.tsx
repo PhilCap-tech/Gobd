@@ -3,7 +3,6 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { BEREICHE } from "@/lib/bereiche";
-import { musterPath } from "@/lib/bereich-muster";
 import {
   gesamtMusterFragebogenPath,
   gesamtMusterPath,
@@ -80,7 +79,7 @@ export default function MusterIndexPage() {
             {BEREICHE.map((bereich) => (
               <li key={bereich.id}>
                 <strong>
-                  <Link href={musterPath(bereich.id)}>{bereich.label}</Link>
+                  <Link href={redirectForBereichMuster(bereich.id)}>{bereich.label}</Link>
                 </strong>
                 <span>
                   Leitet weiter nach {redirectForBereichMuster(bereich.id)}
