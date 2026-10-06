@@ -38,7 +38,7 @@ Eine brauchbare Vorlage ist kein fertiges Dokument, sondern ein **Gerüst**. Typ
 3. **Technische Systemdokumentation** — Software, Speicherorte, Zugriff, Export
 4. **Betriebsdokumentation** — Rollen, Backup, Änderungen, Versionierung der Doku selbst
 
-Mehr zum Gesamtaufbau: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
+Mehr zum Gesamtaufbau: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen). Einen Beispielabschnitt nur für Belegablage und Belegfluss der Eingangsrechnungen findest du unter [Verfahrensdokumentation Belegablage](/blog/verfahrensdokumentation-belegablage).
 
 ## AWV-, IHK- und Branchenmuster — nur Orientierung
 

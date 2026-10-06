@@ -57,7 +57,7 @@ Wie kommen Eingangs- und Ausgangsbelege rein? Wer prüft? Wo liegen Dateien? Wie
 
 ### 3. Systeme und Datenzugriff
 
-Welche Software (z. B. DATEV, sevdesk, lexoffice), welche Versionen/Schnittstellen, wo liegen Daten, wie ist Export bzw. Datenzugriff organisiert — soweit für euren Fall relevant.
+Welche Software (z. B. DATEV, sevdesk, lexoffice), welche Versionen/Schnittstellen, wo liegen Daten, wie ist Export bzw. Datenzugriff organisiert — soweit für euren Fall relevant. Wie ihr den Datenzugriff nach § 147 Abs. 6 AO beschreibt, steht in [Datenzugriff in der Betriebsprüfung](/blog/datenzugriff-betriebspruefung).
 
 ### 4. Verantwortlichkeiten und Freigabe
 
