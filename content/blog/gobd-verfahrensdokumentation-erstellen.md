@@ -137,6 +137,8 @@ Das ist kein Ersatz für Steuerberatung und kein Versprechen, dass jedes Finanza
 - **„Wir haben doch ein DMS“** — Software ersetzt keine Verfahrensdokumentation
 - **Konformitätsversprechen von Tools glauben** — die Verantwortung bleibt bei dir bzw. bei der beratenen Freigabe
 
+Ausführlicher, Fall für Fall: [Verfahrensdokumentation erstellen: häufige Fehler](/blog/verfahrensdokumentation-fehler).
+
 ## Primär-CTA: Verfahrensdokumentation online erstellen
 
 Wenn du den Entwurf nicht leer starten willst: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.

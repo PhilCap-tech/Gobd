@@ -112,6 +112,8 @@ Hier geht es um Organisation: Rechte, Sicherung, Änderungen und Pflege der Doku
 - [ ] Schulung / Sensibilisierung zu Belegablage und Scan-Qualität, falls relevant
 - [ ] Versionierung und Archivierung alter Fassungen der Verfahrensdokumentation geregelt
 
+Einen eigenen, abhakbaren Block nur zum internen Kontrollsystem — Rechte, Abstimmungen, Sicherung, Änderungen — findest du unter [Verfahrensdokumentation Checkliste: Internes Kontrollsystem (IKS)](/blog/internes-kontrollsystem-verfahrensdokumentation).
+
 ## Extra: Checkliste ersetzendes Scannen
 
 Nur relevant, wenn du Papierbelege scannst und Originale vernichten oder nicht mehr führend führen willst. Dann brauchst du in der Verfahrensdokumentation besonders klare Aussagen — diese Punkte solltest du bewusst prüfen:
