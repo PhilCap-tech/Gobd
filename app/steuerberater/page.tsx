@@ -3,7 +3,6 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
-import { MODULE, TEIL_TITEL } from "@/lib/module/katalog";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { ALL_AREAS_LINE } from "@/lib/offer-copy";
@@ -19,6 +18,7 @@ import {
   PARTNER_MUSTER_PATH,
   PARTNER_MUSTER_PDF_PATH,
 } from "@/lib/partner-muster";
+import { PartnerModuleTeile } from "./module-teile";
 import { PartnerInquiryForm } from "./partner-inquiry-form";
 
 const PAGE_TITLE =
@@ -229,23 +229,7 @@ export default function SteuerberaterPage() {
             erfasst und vorbefüllt. Vorhandene Bereiche werden nicht
             stillschweigend ausgelassen. {ALL_AREAS_LINE}
           </p>
-          <div className="bereich-grid muster-grid">
-            {([1, 2, 3, 4] as const).map((teil) => (
-              <div key={teil}>
-                <h3>{TEIL_TITEL[teil]}</h3>
-                <ul>
-                  {MODULE.filter((modul) => modul.teil === teil).map((modul) => (
-                    <li key={modul.id}>
-                      <strong>
-                        {modul.nr}. {modul.titel}
-                      </strong>
-                      <span>{modul.kurz}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <PartnerModuleTeile />
           <p className="hint">
             Muster-Gesamtdokumente (fünf Branchenvorlagen) und bisherige Bereichs-Muster:{" "}
             <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
