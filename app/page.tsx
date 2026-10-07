@@ -233,8 +233,8 @@ export default function HomePage() {
             ermittelt zu Beginn, welche Module bei dir vorkommen. Systeme und
             Verantwortliche gibst du einmal an; sie werden in alle Module
             übernommen. Vorhandene Bereiche werden nicht stillschweigend
-            ausgelassen — sie sind „Im Tool beschreiben“, durch bestehende
-            Dokumentation abgedeckt oder als offener Punkt ausgewiesen.
+            ausgelassen — sie tragen den Status „Im Tool beschreiben“, sind durch
+            bestehende Dokumentation abgedeckt oder als offener Punkt ausgewiesen.
           </p>
           <div className="bereich-grid muster-grid">
             {([1, 2, 3, 4] as const).map((teil) => (

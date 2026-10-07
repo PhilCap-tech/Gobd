@@ -244,7 +244,7 @@ function uebersichtChapter(answers: IntakeAnswers): RenderedChapter {
   const body = [
     "# Vollständigkeitsübersicht",
     "",
-    `Ein vorhandener steuerrelevanter Bereich darf nicht stillschweigend fehlen: er ist ${STATUS_LABEL.tool}, ${STATUS_LABEL.extern} oder als „${STATUS_LABEL.offen}“ ausgewiesen. „Nicht vorhanden“ gilt nur für betriebsabhängige Module mit Begründung.`,
+    `Ein vorhandener steuerrelevanter Bereich darf nicht stillschweigend fehlen: er hat den Status „${STATUS_LABEL.tool}“, ist ${STATUS_LABEL.extern} oder als „${STATUS_LABEL.offen}“ ausgewiesen. „Nicht vorhanden“ gilt nur für betriebsabhängige Module mit Begründung.`,
     "",
     "| Nr. | Modul | Status | Angabe |",
     "| --- | --- | --- | --- |",
