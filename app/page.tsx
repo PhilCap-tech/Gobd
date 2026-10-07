@@ -233,7 +233,7 @@ export default function HomePage() {
             ermittelt zu Beginn, welche Module bei dir vorkommen. Systeme und
             Verantwortliche gibst du einmal an; sie werden in alle Module
             übernommen. Vorhandene Bereiche werden nicht stillschweigend
-            ausgelassen — sie sind im Fragebogen ausgefüllt, durch bestehende
+            ausgelassen — sie sind „Im Tool beschreiben“, durch bestehende
             Dokumentation abgedeckt oder als offener Punkt ausgewiesen.
           </p>
           <div className="bereich-grid muster-grid">

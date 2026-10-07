@@ -105,7 +105,7 @@ function statusBlock(status: ModulStatus, detail: string): string[] {
     lines.push("Dieses Modul ist ein offener Punkt und muss noch beschrieben oder durch bestehende Dokumentation abgedeckt werden.");
   }
   if (status === "extern") {
-    lines.push("Der Inhalt dieses Moduls ergibt sich aus der genannten bestehenden Dokumentation. Im Fragebogen sind keine weiteren Prozessfragen beantwortet.");
+    lines.push("Der Inhalt dieses Moduls ergibt sich aus der genannten bestehenden Dokumentation. Im Tool sind keine weiteren Prozessfragen beantwortet.");
   }
   return lines;
 }

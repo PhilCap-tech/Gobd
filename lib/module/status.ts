@@ -115,9 +115,9 @@ export const SOFTWARE_PRESETS: SoftwarePreset[] = [
   },
 ];
 
-/** Zustand in Übersicht und PDF. Enum-Werte (tool, extern, offen, nicht_vorhanden) bleiben. */
+/** Anzeige in Übersicht und PDF. Enum-Werte (tool, extern, offen, nicht_vorhanden) bleiben. */
 export const STATUS_LABEL: Record<ModulStatus, string> = {
-  tool: "im Fragebogen ausgefüllt",
+  tool: "Im Tool beschreiben",
   extern: "durch bestehende Dokumentation abgedeckt",
   offen: "noch nicht dokumentiert",
   nicht_vorhanden: "nicht vorhanden",
@@ -125,7 +125,7 @@ export const STATUS_LABEL: Record<ModulStatus, string> = {
 
 /** Bezeichnung in der Status-Auswahl auf „Module und Dokumentationsstatus“. */
 export const STATUS_OPTION_LABEL: Record<ModulStatus, string> = {
-  tool: "Hier im Fragebogen ausfüllen",
+  tool: "Im Tool beschreiben",
   extern: "bestehende Dokumentation",
   offen: "noch nicht dokumentiert",
   nicht_vorhanden: "nicht vorhanden",

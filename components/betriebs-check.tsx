@@ -150,7 +150,7 @@ export function ModulUebersichtStep({
       <h1>Module und Dokumentationsstatus</h1>
       <p className="prose">
         So wird dein Gesamtdokument aufgebaut. Ein vorhandener Bereich darf nicht stillschweigend
-        fehlen: hier im Fragebogen ausfüllen, bestehende Dokumentation verlinken oder als noch nicht
+        fehlen: „Im Tool beschreiben“, bestehende Dokumentation verlinken oder als noch nicht
         dokumentiert führen. „Nicht vorhanden“ nur, wenn es den Ablauf bei dir nicht gibt — mit kurzer
         Begründung.
       </p>

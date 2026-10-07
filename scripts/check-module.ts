@@ -39,11 +39,12 @@ function ok(cond: unknown, msg: string) {
 }
 
 ok(MODUL_STATUSES.join(",") === "tool,extern,offen,nicht_vorhanden", "status enums stable");
-ok(STATUS_OPTION_LABEL.tool === "Hier im Fragebogen ausfüllen", "tool option label");
+ok(STATUS_OPTION_LABEL.tool === "Im Tool beschreiben", "tool option label");
 ok(STATUS_OPTION_LABEL.extern === "bestehende Dokumentation", "extern option label unchanged");
 ok(STATUS_OPTION_LABEL.offen === "noch nicht dokumentiert", "offen option label unchanged");
 ok(STATUS_OPTION_LABEL.nicht_vorhanden === "nicht vorhanden", "absent option label unchanged");
-ok(STATUS_LABEL.tool === "im Fragebogen ausgefüllt", "tool state label");
+ok(STATUS_LABEL.tool === "Im Tool beschreiben", "tool display label");
+ok(!/beschrieben/.test(`${STATUS_LABEL.tool} ${STATUS_OPTION_LABEL.tool}`), "tool label is infinitive");
 ok(
   !/rechtssicher|gobd-konform|\bfertig\b/i.test(Object.values(STATUS_HILFE).join(" ")),
   "status help has no legal claims",
@@ -135,8 +136,8 @@ import { modulFortschritt, setModulEintrag } from "../lib/module/status";
   }
   const text = chapters.map((c) => c.body ?? JSON.stringify(c)).join("\n");
   ok(!/\*\*[A-I]\d{2}:\*\*/.test(text), "no raw catalog ids like **A01:** in Gesamt PDF");
-  ok(!text.includes("im Tool beschrieben"), "pdf drops old tool status phrase");
-  ok(text.includes(STATUS_LABEL.tool), "pdf uses fragebogen status label");
+  ok(!text.includes("im Tool beschrieben") && !text.includes("Im Tool beschrieben"), "pdf does not use participle status label");
+  ok(text.includes("Im Tool beschreiben"), "pdf uses infinitive status label");
   const vollst = chapters.find((c) => c.id === "vollstaendigkeit");
   ok(vollst && MODULE.every((m) => JSON.stringify(vollst).includes(m.titel)), "Vollständigkeit lists all 24 modules");
   // Kein stilles Auslassen: ein nicht vorhandenes Modul bleibt in der Übersicht sichtbar.
