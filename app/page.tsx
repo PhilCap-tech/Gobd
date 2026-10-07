@@ -18,8 +18,10 @@ import {
   DISCLAIMER_ONCE,
   GELD_ZURUECK_HREF,
   GELD_ZURUECK_MICRO,
+  HERO_FACTS_LINE,
   HERO_OUTCOME_LINE,
   PRICE_FRAME_LINE,
+  PRICE_INCLUSION_LINE,
   PRICE_MICRO,
   RESULT_PROMISE,
 } from "@/lib/offer-copy";
@@ -156,6 +158,7 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
+          <p className="hero-facts">{HERO_FACTS_LINE}</p>
           <p className="advisor-note">
             Steuerberater oder Kanzlei? →{" "}
             <Link href="/steuerberater">Seite für Berater</Link>
@@ -253,7 +256,6 @@ export default function HomePage() {
           <p className="hint">
             Muster-Gesamtdokumente (Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau) und Fragebögen:{" "}
             <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
-            Bisherige Bereichs-Muster leiten auf die passenden Module weiter.
           </p>
           <p className="price-frame">
             <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
@@ -342,9 +344,9 @@ export default function HomePage() {
             <p className="prose">
               <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
             </p>
-            <p className="hint">
-              Alle Preise zzgl. USt. Monatlich kündbar zum Ende des laufenden
-              Abrechnungsmonats.
+            <p className="price-inclusion">
+              {PRICE_INCLUSION_LINE} zum Ende des laufenden Abrechnungsmonats.
+              Alle Preise zzgl. USt.
             </p>
             <p className="prose">{RESULT_PROMISE}</p>
           </div>
@@ -418,10 +420,7 @@ export default function HomePage() {
           <div className="faq-item">
             <h3>Deckt das auch Kasse, Warenwirtschaft oder Lohn ab?</h3>
             <p className="prose">
-              Ja. Neben dem Belegfluss kannst du Kasse, Warenwirtschaft,
-              Einkauf, Verkauf, Retouren, Zeiterfassung, Lohn, E-Commerce,
-              Bank, Anlagen und weitere Vorsysteme jeweils als eigene
-              Verfahrensdokumentation anlegen. {ALL_AREAS_LINE}
+              Ja, als Module in deiner Gesamtdokumentation — alle 24 Module inklusive.
             </p>
           </div>
           <div className="faq-item">
