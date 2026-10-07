@@ -102,7 +102,9 @@ function statusBlock(status: ModulStatus, detail: string): string[] {
   const lines = [`**Dokumentationsstatus:** ${STATUS_LABEL[status]}.`];
   if (detail) lines.push(detail);
   if (status === "offen") {
-    lines.push("Dieses Modul ist ein offener Punkt und muss noch beschrieben oder durch bestehende Dokumentation abgedeckt werden.");
+    lines.push(
+      `Dieses Modul hat den Status „${STATUS_LABEL.offen}“ und bleibt ein offener Punkt, bis es beschrieben, durch bestehende Dokumentation abgedeckt oder als „nicht vorhanden“ gesetzt wird.`,
+    );
   }
   if (status === "extern") {
     lines.push("Der Inhalt dieses Moduls ergibt sich aus der genannten bestehenden Dokumentation. Im Tool sind keine weiteren Prozessfragen beantwortet.");
@@ -244,7 +246,7 @@ function uebersichtChapter(answers: IntakeAnswers): RenderedChapter {
   const body = [
     "# Vollständigkeitsübersicht",
     "",
-    `Ein vorhandener steuerrelevanter Bereich darf nicht stillschweigend fehlen: er hat den Status „${STATUS_LABEL.tool}“, ist ${STATUS_LABEL.extern} oder als „${STATUS_LABEL.offen}“ ausgewiesen. „Nicht vorhanden“ gilt nur für betriebsabhängige Module mit Begründung.`,
+    `Ein vorhandener steuerrelevanter Bereich darf nicht stillschweigend fehlen: er hat den Status „${STATUS_LABEL.tool}“, ist ${STATUS_LABEL.extern} oder hat den Status „${STATUS_LABEL.offen}“. „Nicht vorhanden“ gilt nur für betriebsabhängige Module mit Begründung.`,
     "",
     "| Nr. | Modul | Status | Angabe |",
     "| --- | --- | --- | --- |",
@@ -272,7 +274,7 @@ function anhangOffenePunkte(answers: IntakeAnswers, openPointsTable: string): Re
   const body = [
     "# Anhang A — Offene Punkte und bestehende Dokumentationen",
     "",
-    "Module mit Status „noch nicht dokumentiert“ oder unvollständig verknüpfter bestehender Dokumentation:",
+    `Module mit Status „${STATUS_LABEL.offen}“ oder unvollständig verknüpfter bestehender Dokumentation:`,
     "",
     offen.length
       ? [
@@ -280,7 +282,7 @@ function anhangOffenePunkte(answers: IntakeAnswers, openPointsTable: string): Re
           "| --- | --- | --- | --- |",
           ...offen.map((row) => `| ${row.nr} | ${cell(row.titel)} | ${cell(row.label)} | ${cell(row.detail || "—")} |`),
         ].join("\n")
-      : "Keine Module mit offenem oder externem Status.",
+      : `Keine Module mit Status „${STATUS_LABEL.offen}“ und keine unvollständig verknüpfte bestehende Dokumentation.`,
     "",
     "## Offene Punkte aus dem Fragebogen",
     "",

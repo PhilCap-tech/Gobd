@@ -34,6 +34,7 @@ import {
   isGesamt,
   modulStatusError,
   modulZustand,
+  STATUS_LABEL as MODUL_STATUS_LABEL,
   toolModules,
 } from "@/lib/module/status";
 import type { CheckKey } from "@/lib/module/typen";
@@ -1217,7 +1218,7 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
         points.push({
           id: `op-modul-${modul.id}`,
           priority: "hoch",
-          text: `Modul ${modul.nr} „${modul.titel}“ ist noch nicht dokumentiert.`,
+          text: `Modul ${modul.nr} „${modul.titel}“ hat den Status „${MODUL_STATUS_LABEL.offen}“.`,
           chapter: `modul-${modul.id}`,
           suppress: [],
         });
