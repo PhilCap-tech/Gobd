@@ -54,7 +54,7 @@ Dokumentationen, C Prozessmatrix, D Begriffe.
 | --- | --- | --- |
 | Im Tool beschreiben (Wert `tool`) | Fragen des Moduls werden beantwortet | Kapitel mit Ist-Beschreibung (nur „bestätigt“ im Präsens) |
 | durch bestehende Dokumentation abgedeckt | Verweistext Pflicht, Link/Ablageort und/oder Datei-Upload (PDF/DOCX/Bild) | Kurzkapitel mit Verweis + Eintrag in Anhang B; ohne Verweistext offener Punkt |
-| noch nicht dokumentiert | Bereich existiert, Beschreibung fehlt | Kurzkapitel „noch nicht dokumentiert“ + offener Punkt (hoch) |
+| Später ausfüllen (Wert `offen`) | Bereich existiert, Beschreibung fehlt noch (zu wenig Infos) | Kurzkapitel mit Status „Später ausfüllen“ + offener Punkt (hoch) |
 | nicht vorhanden | Nur betriebsabhängige/Regel-Module, Begründung Pflicht | Zeile in der Vollständigkeitsübersicht mit Begründung |
 
 Jedes der 24 Module steht in der Vollständigkeitsübersicht (PDF + Konto). Ein Kernmodul kann nicht
@@ -67,8 +67,8 @@ Jedes der 24 Module steht in der Vollständigkeitsübersicht (PDF + Konto). Ein 
    elektronische Belege · Anlagevermögen · Steuerkanzlei/Buchhaltungsservice · branchenspezifische
    Abläufe (+ Art) · Zahlungsdienstleister/Kartenzahlung. Dazu optional **Branchenvorlage**
    (Dienstleister, Handel, Gastronomie, Handwerk/Bau, E-Commerce) und **Software-Vorlagen**
-   (DATEV, lexoffice, sevDesk, Shopify, Kassensystem). „Weiß ich nicht“ öffnet das Modul als
-   „noch nicht dokumentiert“ (offener Punkt).
+   (DATEV, lexoffice, sevDesk, Shopify, Kassensystem). „Weiß ich nicht“ setzt das Modul auf den
+   Status „Später ausfüllen“ (offener Punkt, im Konto als Aufgabe sichtbar).
 2. **Stammdaten einmal erfassen**: Geschäftsführung, Buchhaltung, IT, Kanzlei, Hauptsysteme. Sie
    werden als Vorschlag in alle Module übernommen (Verantwortung, Systeme, Kanzlei); Status setzt der
    Kunde selbst.

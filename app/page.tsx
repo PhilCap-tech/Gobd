@@ -234,7 +234,7 @@ export default function HomePage() {
             Verantwortliche gibst du einmal an; sie werden in alle Module
             übernommen. Vorhandene Bereiche werden nicht stillschweigend
             ausgelassen — sie tragen den Status „Im Tool beschreiben“, sind durch
-            bestehende Dokumentation abgedeckt oder als offener Punkt ausgewiesen.
+            bestehende Dokumentation abgedeckt oder haben den Status „Später ausfüllen“.
           </p>
           <div className="bereich-grid muster-grid">
             {([1, 2, 3, 4] as const).map((teil) => (

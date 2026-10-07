@@ -119,7 +119,7 @@ export const SOFTWARE_PRESETS: SoftwarePreset[] = [
 export const STATUS_LABEL: Record<ModulStatus, string> = {
   tool: "Im Tool beschreiben",
   extern: "durch bestehende Dokumentation abgedeckt",
-  offen: "noch nicht dokumentiert",
+  offen: "Später ausfüllen",
   nicht_vorhanden: "nicht vorhanden",
 };
 
@@ -127,7 +127,7 @@ export const STATUS_LABEL: Record<ModulStatus, string> = {
 export const STATUS_OPTION_LABEL: Record<ModulStatus, string> = {
   tool: "Im Tool beschreiben",
   extern: "bestehende Dokumentation",
-  offen: "noch nicht dokumentiert",
+  offen: "Später ausfüllen",
   nicht_vorhanden: "nicht vorhanden",
 };
 
@@ -135,7 +135,7 @@ export const STATUS_OPTION_LABEL: Record<ModulStatus, string> = {
 export const STATUS_HILFE: Record<ModulStatus, string> = {
   tool: "Du beantwortest die Fragen zu diesem Modul hier; die Angaben erscheinen im Gesamt-PDF.",
   extern: "Du hast die Beschreibung schon und verlinkst oder lädst sie hier hoch.",
-  offen: "Den Ablauf gibt es im Betrieb, eine Beschreibung fehlt noch; er bleibt als offene Lücke sichtbar und kann später ergänzt werden.",
+  offen: "Du hast noch nicht genug Infos (zum Beispiel, weil der Prozess unklar ist oder ein Mitarbeiter fehlt) und füllst das Modul später aus; es bleibt als offene Aufgabe sichtbar, bis du es beschreibst oder auf „nicht vorhanden“ setzt.",
   nicht_vorhanden: "Diesen Ablauf gibt es in deinem Betrieb nicht; du schließt ihn bewusst aus.",
 };
 
@@ -391,7 +391,7 @@ export function vollstaendigkeitsZeilen(answers: IntakeAnswers): Array<{
         : eintrag.status === "nicht_vorhanden"
           ? eintrag.reason ?? ""
           : eintrag.status === "offen"
-            ? "Offener Punkt: Modul noch nicht dokumentiert."
+            ? `Offener Punkt: Status „${STATUS_LABEL.offen}“.`
             : "";
     return {
       modul: modul.id,

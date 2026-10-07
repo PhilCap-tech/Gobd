@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   applySoftwarePreset,
   applyStammdatenPrefill,
@@ -137,22 +138,27 @@ export function ModulUebersichtStep({
   onChange,
   sessionId = "",
   documentId = "",
+  focusModulId = "",
 }: {
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
   sessionId?: string;
   documentId?: string;
+  /** Modulzeile, die aus dem Konto („Jetzt ausfüllen“) angesprungen wird. */
+  focusModulId?: string;
 }) {
   const rows = vollstaendigkeitsZeilen(answers);
+  useEffect(() => {
+    if (!focusModulId) return;
+    document.getElementById(`modul-${focusModulId}`)?.scrollIntoView({ block: "center" });
+  }, [focusModulId]);
   return (
     <section>
       <p className="step-label">Module</p>
       <h1>Module und Dokumentationsstatus</h1>
       <p className="prose">
         So wird dein Gesamtdokument aufgebaut. Ein vorhandener Bereich darf nicht stillschweigend
-        fehlen: „Im Tool beschreiben“, bestehende Dokumentation verlinken oder als noch nicht
-        dokumentiert führen. „Nicht vorhanden“ nur, wenn es den Ablauf bei dir nicht gibt — mit kurzer
-        Begründung.
+        fehlen: „{STATUS_OPTION_LABEL.tool}“, bestehende Dokumentation verlinken oder den Status „{STATUS_OPTION_LABEL.offen}“ setzen. „Nicht vorhanden“ nur, wenn es den Ablauf bei dir nicht gibt — mit kurzer Begründung.
       </p>
       <details className="status-hilfe" open>
         <summary>Was die Status bedeuten</summary>
@@ -179,7 +185,11 @@ export function ModulUebersichtStep({
             {rows.map((row) => {
               const current = answers.module?.status?.[row.modul];
               return (
-                <tr key={row.modul}>
+                <tr
+                  key={row.modul}
+                  id={`modul-${row.modul}`}
+                  className={focusModulId === row.modul ? "modul-focus" : undefined}
+                >
                   <td>
                     {row.nr}. {row.titel}
                   </td>

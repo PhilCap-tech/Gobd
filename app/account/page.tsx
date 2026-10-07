@@ -18,7 +18,8 @@ import {
 import { getSessionEmail } from "@/lib/auth";
 import { BEREICHE, BELEGFLUSS, bereichIdOf, bereichLabel } from "@/lib/bereiche";
 import { gesamtDocTitle } from "@/lib/gesamt-document";
-import { isGesamt, vollstaendigkeitsZeilen } from "@/lib/module/status";
+import { MODUL_UEBERSICHT_STEP_ID } from "@/lib/intake-catalog";
+import { isGesamt, STATUS_LABEL, STATUS_OPTION_LABEL, vollstaendigkeitsZeilen } from "@/lib/module/status";
 import { answersFromSheetRow } from "@/lib/types";
 import {
   firmaEditPath,
@@ -31,6 +32,15 @@ import {
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
 import { firstQueryValue } from "@/lib/query";
+
+function intakeModulHref(documentId: string, modulId?: string): string {
+  const params = new URLSearchParams({
+    document_id: documentId,
+    schritt: MODUL_UEBERSICHT_STEP_ID,
+  });
+  if (modulId) params.set("modul", modulId);
+  return `/intake?${params.toString()}`;
+}
 import {
   ensureAccountEntities,
   findLatestStripeCustomerIdByEmail,
@@ -285,20 +295,52 @@ export default async function AccountPage({
                                 const ans = answersFromSheetRow(family.latest);
                                 if (!isGesamt(ans)) return null;
                                 const rows = vollstaendigkeitsZeilen(ans);
-                                const offen = rows.filter((row) => row.status === "offen" || row.status === "extern").length;
+                                const offenRows = rows.filter((row) => row.status === "offen");
+                                const extern = rows.filter((row) => row.status === "extern").length;
                                 const uploads = rows.filter((row) => {
                                   const eintrag = ans.module?.status?.[row.modul];
                                   return eintrag?.status === "extern" && Boolean(eintrag.uploadName || eintrag.uploadUrl);
                                 });
                                 const tool = rows.filter((row) => row.status === "tool").length;
+                                const parts = [
+                                  `${tool} Module „${STATUS_LABEL.tool}“`,
+                                  `${offenRows.length} ${STATUS_LABEL.offen}`,
+                                  `${extern} ${STATUS_OPTION_LABEL.extern}`,
+                                ];
+                                if (uploads.length) parts.push(`${uploads.length} Datei(en) verknüpft`);
                                 return (
-                                  <p className="doc-meta">
-                                    Vollständigkeit: {tool} Module „Im Tool beschreiben“ · {offen} offen oder extern
-                                    {uploads.length ? ` · ${uploads.length} Datei(en) verknüpft` : ""} ·{" "}
-                                    <Link href={`/intake?document_id=${encodeURIComponent(family.latest.documentId)}`}>
-                                      Module bearbeiten
-                                    </Link>
-                                  </p>
+                                  <>
+                                    <p className="doc-meta">
+                                      Vollständigkeit: {parts.join(" · ")} ·{" "}
+                                      <Link href={intakeModulHref(family.latest.documentId)}>
+                                        Module bearbeiten
+                                      </Link>
+                                    </p>
+                                    {offenRows.length > 0 ? (
+                                      <div className="open-modules">
+                                        <h4>Offene Module</h4>
+                                        <p className="hint">
+                                          Noch auszufüllen. Im Intake setzt du den Status auf „{STATUS_OPTION_LABEL.tool}“, „{STATUS_OPTION_LABEL.extern}“ oder „{STATUS_OPTION_LABEL.nicht_vorhanden}“.
+                                        </p>
+                                        <ul className="open-module-list">
+                                          {offenRows.map((row) => (
+                                            <li key={row.modul}>
+                                              <span>
+                                                {row.nr}. {row.titel}
+                                              </span>
+                                              <Link href={intakeModulHref(family.latest.documentId, row.modul)}>
+                                                Jetzt ausfüllen
+                                              </Link>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    ) : (
+                                      <p className="hint" style={{ marginTop: 8 }}>
+                                        Keine offenen Module.
+                                      </p>
+                                    )}
+                                  </>
                                 );
                               })()}
                               {!entity && family.latest.company ? (

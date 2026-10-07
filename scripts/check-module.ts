@@ -25,7 +25,7 @@ import {
   toolModules,
 } from "../lib/module/status";
 import { MODUL_STATUSES } from "../lib/module/typen";
-import { CATALOG_STEPS, BETRIEBS_CHECK_STEP_ID, MODUL_UEBERSICHT_STEP_ID, catalogStepApplies, catalogStepError } from "../lib/intake-catalog";
+import { CATALOG_STEPS, BETRIEBS_CHECK_STEP_ID, MODUL_UEBERSICHT_STEP_ID, catalogOpenPoints, catalogStepApplies, catalogStepError } from "../lib/intake-catalog";
 import { emptyAnswers } from "../lib/types";
 import { getGesamtMuster, MUSTER_VORLAGEN } from "../lib/module-muster";
 import { renderGesamtChapters } from "../lib/gesamt-document";
@@ -41,7 +41,15 @@ function ok(cond: unknown, msg: string) {
 ok(MODUL_STATUSES.join(",") === "tool,extern,offen,nicht_vorhanden", "status enums stable");
 ok(STATUS_OPTION_LABEL.tool === "Im Tool beschreiben", "tool option label");
 ok(STATUS_OPTION_LABEL.extern === "bestehende Dokumentation", "extern option label unchanged");
-ok(STATUS_OPTION_LABEL.offen === "noch nicht dokumentiert", "offen option label unchanged");
+ok(STATUS_OPTION_LABEL.offen === "Später ausfüllen", "offen option label");
+ok(STATUS_LABEL.offen === "Später ausfüllen", "offen display label");
+ok(
+  !/noch nicht dokumentiert/i.test(
+    `${STATUS_LABEL.offen} ${STATUS_OPTION_LABEL.offen} ${STATUS_HILFE.offen}`,
+  ),
+  "offen status no longer uses noch nicht dokumentiert",
+);
+ok(STATUS_HILFE.offen.startsWith("Du "), "offen hilfe is du-form");
 ok(STATUS_OPTION_LABEL.nicht_vorhanden === "nicht vorhanden", "absent option label unchanged");
 ok(STATUS_LABEL.tool === "Im Tool beschreiben", "tool display label");
 ok(!/beschrieben/.test(`${STATUS_LABEL.tool} ${STATUS_OPTION_LABEL.tool}`), "tool label is infinitive");
@@ -147,6 +155,23 @@ import { modulFortschritt, setModulEintrag } from "../lib/module/status";
   const p = modulFortschritt(a, "m01");
   ok(p.gesamt > 0 && p.beantwortet <= p.gesamt, "modulFortschritt m01");
   console.log("check-module all-tool chapters: green");
+}
+
+{
+  let offen = ensureGesamt(emptyAnswers());
+  for (const key of ["bargeld", "lager", "personal", "zeiterfassung", "online", "retouren", "papier", "erechnung", "anlagen", "kanzlei", "branche", "zahlungsdienstleister"] as const) {
+    offen = setCheckAntwort(offen, key, "unbekannt");
+  }
+  offen = { ...offen, katalog: { A01: { status: "bestaetigt" } } };
+  const chapters = renderGesamtChapters(offen, "Keine offenen Punkte.");
+  const text = chapters.map((c) => c.body ?? "").join("\n");
+  ok(text.includes("Später ausfüllen"), "offen module uses Später ausfüllen in pdf");
+  ok(!text.includes("noch nicht dokumentiert"), "pdf has no old offen wording");
+  ok(!/ist Später ausfüllen/.test(text), "pdf does not say ist Später ausfüllen");
+  const point = catalogOpenPoints(offen).find((item) => item.id.startsWith("op-modul-"));
+  ok(Boolean(point?.text.includes("hat den Status „Später ausfüllen“")), "open point uses hat den Status");
+  ok(!point?.text.includes("noch nicht dokumentiert"), "open point dropped old wording");
+  console.log("check-module offen label: green");
 }
 
 {

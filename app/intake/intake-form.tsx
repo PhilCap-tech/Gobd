@@ -12,6 +12,8 @@ import {
 import type { EntityChoice } from "@/lib/entities";
 import { intakeSummary } from "@/lib/frage-intake";
 import {
+  CATALOG_STEPS,
+  catalogStepApplies,
   nextApplicableStep,
   paperStepSkipped,
   previousApplicableStep,
@@ -43,7 +45,22 @@ type IntakeFormProps = {
   existingBereiche?: string[];
   /** Start as 24-Module Gesamtdokument. */
   gesamtMode?: boolean;
+  /** Katalog-Schritt, z. B. step-MO aus dem Konto. */
+  initialStepId?: string;
+  /** Modulzeile in der Übersicht, z. B. m08. */
+  focusModulId?: string;
 };
+
+function resolveInitialStep(answers: IntakeAnswers, stepId?: string, modulId?: string): number {
+  const fallback = nextApplicableStep(-1, answers);
+  const moduleStep = modulId ? `step-M${modulId.slice(1)}` : "";
+  for (const id of [moduleStep, stepId ?? ""]) {
+    if (!id) continue;
+    const index = CATALOG_STEPS.findIndex((step) => step.id === id);
+    if (index >= 0 && catalogStepApplies(CATALOG_STEPS[index], answers)) return index;
+  }
+  return fallback;
+}
 
 function startAnswers(initial: IntakeAnswers | undefined, company: string, gesamtMode: boolean): IntakeAnswers {
   const start = withCatalogDraft(initial ?? emptyAnswers(), company);
@@ -60,6 +77,8 @@ export function IntakeForm({
   areaBaseDocumentId,
   existingBereiche = [],
   gesamtMode = false,
+  initialStepId = "",
+  focusModulId = "",
 }: IntakeFormProps) {
   const companyLabel = customerHubTitle(session.company, "");
   const nextVersionLabel = nextVersion
@@ -67,7 +86,11 @@ export function IntakeForm({
     : "n+1";
   const router = useRouter();
   const [step, setStep] = useState(() =>
-    nextApplicableStep(-1, startAnswers(initialAnswers, session.company, gesamtMode)),
+    resolveInitialStep(
+      startAnswers(initialAnswers, session.company, gesamtMode),
+      initialStepId,
+      focusModulId,
+    ),
   );
   const [entityId, setEntityId] = useState(initialEntityId);
   const [answers, setAnswers] = useState<IntakeAnswers>(() =>
@@ -446,6 +469,7 @@ export function IntakeForm({
             onChange={setAnswers}
             sessionId={session.stripeSessionId}
             documentId={sourceDocumentId || areaBaseDocumentId || ""}
+            focusModulId={focusModulId}
           />
         </>
       )}

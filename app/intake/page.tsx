@@ -120,10 +120,16 @@ export default async function IntakePage({
     bereich?: string | string[];
     basis?: string | string[];
     modus?: string | string[];
+    schritt?: string | string[];
+    modul?: string | string[];
   }>;
 }) {
   const params = await searchParams;
   const sessionId = firstQueryValue(params.session_id);
+  const requestedSchritt = firstQueryValue(params.schritt) ?? "";
+  const requestedModul = firstQueryValue(params.modul) ?? "";
+  const initialStepId = /^step-[A-Za-z0-9]+$/.test(requestedSchritt) ? requestedSchritt : "";
+  const focusModulId = /^m\d{2}$/.test(requestedModul) ? requestedModul : "";
   const email = firstQueryValue(params.email);
   const company = firstQueryValue(params.company);
   const documentId = firstQueryValue(params.document_id);
@@ -183,6 +189,8 @@ export default async function IntakePage({
               }
               gesamtMode={Boolean(gesamtStart)}
               initialEntityId={basisRow.entityId}
+              initialStepId={initialStepId}
+              focusModulId={focusModulId}
               areaBaseDocumentId={basisRow.documentId}
               existingBereiche={existingBereiche}
             />
@@ -222,6 +230,8 @@ export default async function IntakePage({
               sourceDocumentId={latest.documentId}
               nextVersion={nextVersionNumber(family)}
               initialEntityId={latest.entityId}
+              initialStepId={initialStepId}
+              focusModulId={focusModulId}
             />
           )}
         </main>
@@ -290,6 +300,8 @@ export default async function IntakePage({
             initialEntityId={initialEntityId}
             initialAnswers={bereich ? { ...emptyAnswers(), bereich } : undefined}
             gesamtMode={gesamtMode}
+            initialStepId={initialStepId}
+            focusModulId={focusModulId}
           />
         )}
       </main>

@@ -288,12 +288,14 @@ export function IntakeQuestionnaire({
   onChange,
   sessionId = "",
   documentId = "",
+  focusModulId = "",
 }: {
   step: number;
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
   sessionId?: string;
   documentId?: string;
+  focusModulId?: string;
 }) {
   const meta = INTAKE_STEPS[step];
   const catalogStep = CATALOG_STEPS[step];
@@ -308,6 +310,7 @@ export function IntakeQuestionnaire({
         onChange={onChange}
         sessionId={sessionId}
         documentId={documentId}
+        focusModulId={focusModulId}
       />
     );
   }
