@@ -14,6 +14,17 @@ export const PRICE_FRAME_LINE = `${TODAY_EUR} € zzgl. USt = individuelles PDF 
 export const HERO_OUTCOME_LINE =
   "PDF + Offene-Punkte aus deinen Angaben · Entwurf für dich und deinen Steuerberater.";
 
+/** Homepage hero, after the CTA row. Competitor-watch copy 07.10.2026. */
+export const HERO_FACTS_LINE =
+  "24 Module · 5 Branchen-Muster · Muster-PDF ohne Anmeldung";
+
+/**
+ * Price block inclusion line. The cancellation timing from the old
+ * „Monatlich kündbar …“ hint is appended at the call site so it is not repeated.
+ */
+export const PRICE_INCLUSION_LINE =
+  "Alle 24 Module inklusive · keine Zusatzmodule · keine Jahresvorauszahlung · monatlich kündbar";
+
 /** Equal-weight secondary pair in the homepage hero (above the fold). */
 export const CTA_CHECK_HERO = "Kostenlosen 3-Minuten-Check";
 export const CTA_MUSTER_HERO = "Muster ansehen";
