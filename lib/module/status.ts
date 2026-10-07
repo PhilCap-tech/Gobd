@@ -115,11 +115,28 @@ export const SOFTWARE_PRESETS: SoftwarePreset[] = [
   },
 ];
 
+/** Anzeige in Übersicht und PDF. Enum-Werte (tool, extern, offen, nicht_vorhanden) bleiben. */
 export const STATUS_LABEL: Record<ModulStatus, string> = {
-  tool: "im Tool beschrieben",
+  tool: "Im Tool beschreiben",
   extern: "durch bestehende Dokumentation abgedeckt",
   offen: "noch nicht dokumentiert",
   nicht_vorhanden: "nicht vorhanden",
+};
+
+/** Bezeichnung in der Status-Auswahl auf „Module und Dokumentationsstatus“. */
+export const STATUS_OPTION_LABEL: Record<ModulStatus, string> = {
+  tool: "Im Tool beschreiben",
+  extern: "bestehende Dokumentation",
+  offen: "noch nicht dokumentiert",
+  nicht_vorhanden: "nicht vorhanden",
+};
+
+/** Ein Satz je Option, du-Form, ohne Rechtsanspruch. */
+export const STATUS_HILFE: Record<ModulStatus, string> = {
+  tool: "Du beantwortest die Fragen zu diesem Modul hier; die Angaben erscheinen im Gesamt-PDF.",
+  extern: "Du hast die Beschreibung schon und verlinkst oder lädst sie hier hoch.",
+  offen: "Den Ablauf gibt es im Betrieb, eine Beschreibung fehlt noch; er bleibt als offene Lücke sichtbar und kann später ergänzt werden.",
+  nicht_vorhanden: "Diesen Ablauf gibt es in deinem Betrieb nicht; du schließt ihn bewusst aus.",
 };
 
 export function emptyModulZustand(): ModulZustand {

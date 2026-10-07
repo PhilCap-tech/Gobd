@@ -1039,6 +1039,39 @@ textarea:focus {
   margin: 8px 0 14px;
 }
 
+.status-hilfe {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.status-hilfe summary {
+  cursor: pointer;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.status-hilfe ul {
+  margin: 10px 0 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 6px;
+}
+
+.status-hilfe li {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.status-hilfe strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
 .intake-table {
   width: 100%;
   min-width: 40rem;

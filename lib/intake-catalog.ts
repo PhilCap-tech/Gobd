@@ -707,7 +707,7 @@ export function catalogStepError(stepIndex: number, answers: IntakeAnswers): str
       if (message) return message;
     }
     if (!toolModules(answers).length) {
-      return "Mindestens ein Modul muss im Tool beschrieben werden (Kernmodule sind immer aktiv).";
+      return "Mindestens ein Modul muss den Status „Im Tool beschreiben“ haben (Kernmodule sind immer aktiv).";
     }
     return "";
   }

@@ -19,8 +19,12 @@ import {
   effectiveModulStatus,
   ensureGesamt,
   setCheckAntwort,
+  STATUS_HILFE,
+  STATUS_LABEL,
+  STATUS_OPTION_LABEL,
   toolModules,
 } from "../lib/module/status";
+import { MODUL_STATUSES } from "../lib/module/typen";
 import { CATALOG_STEPS, BETRIEBS_CHECK_STEP_ID, MODUL_UEBERSICHT_STEP_ID, catalogStepApplies, catalogStepError } from "../lib/intake-catalog";
 import { emptyAnswers } from "../lib/types";
 import { getGesamtMuster, MUSTER_VORLAGEN } from "../lib/module-muster";
@@ -32,6 +36,21 @@ import { BEREICHE } from "../lib/bereiche";
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
   console.log("ok:", msg);
+}
+
+ok(MODUL_STATUSES.join(",") === "tool,extern,offen,nicht_vorhanden", "status enums stable");
+ok(STATUS_OPTION_LABEL.tool === "Im Tool beschreiben", "tool option label");
+ok(STATUS_OPTION_LABEL.extern === "bestehende Dokumentation", "extern option label unchanged");
+ok(STATUS_OPTION_LABEL.offen === "noch nicht dokumentiert", "offen option label unchanged");
+ok(STATUS_OPTION_LABEL.nicht_vorhanden === "nicht vorhanden", "absent option label unchanged");
+ok(STATUS_LABEL.tool === "Im Tool beschreiben", "tool display label");
+ok(!/beschrieben/.test(`${STATUS_LABEL.tool} ${STATUS_OPTION_LABEL.tool}`), "tool label is infinitive");
+ok(
+  !/rechtssicher|gobd-konform|\bfertig\b/i.test(Object.values(STATUS_HILFE).join(" ")),
+  "status help has no legal claims",
+);
+for (const status of MODUL_STATUSES) {
+  ok(STATUS_HILFE[status].includes(" ") && !STATUS_HILFE[status].includes("Tool"), `hilfe ${status}`);
 }
 
 ok(MODULE.length === 24, "24 modules");
@@ -117,6 +136,8 @@ import { modulFortschritt, setModulEintrag } from "../lib/module/status";
   }
   const text = chapters.map((c) => c.body ?? JSON.stringify(c)).join("\n");
   ok(!/\*\*[A-I]\d{2}:\*\*/.test(text), "no raw catalog ids like **A01:** in Gesamt PDF");
+  ok(!text.includes("im Tool beschrieben") && !text.includes("Im Tool beschrieben"), "pdf does not use participle status label");
+  ok(text.includes("Im Tool beschreiben"), "pdf uses infinitive status label");
   const vollst = chapters.find((c) => c.id === "vollstaendigkeit");
   ok(vollst && MODULE.every((m) => JSON.stringify(vollst).includes(m.titel)), "Vollständigkeit lists all 24 modules");
   // Kein stilles Auslassen: ein nicht vorhandenes Modul bleibt in der Übersicht sichtbar.

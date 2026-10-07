@@ -293,7 +293,7 @@ export default async function AccountPage({
                                 const tool = rows.filter((row) => row.status === "tool").length;
                                 return (
                                   <p className="doc-meta">
-                                    Vollständigkeit: {tool} Module im Tool · {offen} offen oder extern
+                                    Vollständigkeit: {tool} Module „Im Tool beschreiben“ · {offen} offen oder extern
                                     {uploads.length ? ` · ${uploads.length} Datei(en) verknüpft` : ""} ·{" "}
                                     <Link href={`/intake?document_id=${encodeURIComponent(family.latest.documentId)}`}>
                                       Module bearbeiten
