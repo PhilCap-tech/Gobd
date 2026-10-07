@@ -894,6 +894,25 @@ input[readonly] {
   align-items: start;
 }
 
+.angabe + .angabe {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+h2.angabe-prompt {
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.angabe > .hint {
+  margin: 0 0 12px;
+}
+
 .field {
   margin-bottom: 14px;
 }

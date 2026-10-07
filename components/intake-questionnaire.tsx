@@ -332,8 +332,10 @@ export function IntakeQuestionnaire({
             const shopExcluded = excluded.includes("Shop");
             const prompt = customerPrompt(question.id, question.prompt);
             return (
-              <div key={question.id}>
-                <p className="prose">{prompt}</p>
+              <div key={question.id} className="angabe">
+                <h2 className="angabe-prompt" id={`${question.id}-prompt`}>
+                  {prompt}
+                </h2>
                 {question.hint ? <p className="hint">{question.hint}</p> : null}
                 {question.id === "A04" ? (
                   <p className="hint">
@@ -365,6 +367,12 @@ export function IntakeQuestionnaire({
                     bleiben an dem genannten Ort liegen. Sie werden nicht überschrieben.
                   </p>
                 ) : null}
+                <ProcessStatus
+                  questionId={question.id}
+                  prompt={prompt}
+                  answers={answers}
+                  onChange={onChange}
+                />
                 {P1_QUESTION_IDS.has(question.id) ? (
                   <P1QuestionFields questionId={question.id} answers={answers} onChange={onChange} />
                 ) : (
@@ -460,12 +468,6 @@ export function IntakeQuestionnaire({
                     />
                   </div>
                 ) : null}
-                <ProcessStatus
-                  questionId={question.id}
-                  prompt={prompt}
-                  answers={answers}
-                  onChange={onChange}
-                />
               </div>
             );
           })

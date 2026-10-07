@@ -1176,7 +1176,6 @@ export function ProcessStatus({
     <div className="field">
       {showChoice ? (
         <>
-          <span className="hint">Wie steht diese Angabe?</span>
           <div className="chips" role="group" aria-label={`Stand: ${prompt}`}>
             {PROCESS_STATUSES.map((status) => (
               <button
