@@ -1565,3 +1565,157 @@ body.consent-open {
   cursor: pointer;
   font-weight: 600;
 }
+
+/* Partner page: 24 Module as full-width accordion (Teil I–IV). */
+.teil-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.teil-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.teil-panel[open] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.teil-panel summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.teil-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.teil-panel summary::marker {
+  content: "";
+}
+
+.teil-panel summary::after {
+  content: "";
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-top: -0.15rem;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(45deg);
+}
+
+.teil-panel[open] summary::after {
+  margin-top: 0.2rem;
+  transform: rotate(225deg);
+}
+
+.teil-panel summary:focus-visible {
+  outline: 2px solid #c6e6d6;
+  outline-offset: -2px;
+  border-radius: 10px;
+}
+
+.teil-panel summary h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.teil-count {
+  flex: none;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.teil-panel-body {
+  padding: 0 16px 8px;
+  border-top: 1px solid var(--line);
+}
+
+.teil-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 0 4px;
+}
+
+.teil-chip {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.teil-chip:hover,
+.teil-chip:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.teil-chip:focus-visible {
+  outline: 2px solid #c6e6d6;
+  outline-offset: 2px;
+}
+
+.teil-module-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.teil-module-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 16px;
+  scroll-margin-bottom: 96px;
+}
+
+.teil-module-list li:target {
+  background: var(--accent-soft);
+  border-radius: 8px;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.teil-module-list strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.teil-module-list span {
+  font-size: 0.92em;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teil-panel summary::after {
+    transition: none;
+  }
+}
