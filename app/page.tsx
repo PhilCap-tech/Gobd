@@ -420,7 +420,7 @@ export default function HomePage() {
           <div className="faq-item">
             <h3>Deckt das auch Kasse, Warenwirtschaft oder Lohn ab?</h3>
             <p className="prose">
-              Ja, als Module in deiner Gesamtdokumentation — alle 24 Module inklusive.
+              Ja, als Module in deiner Gesamtdokumentation, alle inklusive.
             </p>
           </div>
           <div className="faq-item">
