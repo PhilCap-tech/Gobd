@@ -10,9 +10,11 @@ import {
   setStammdaten,
   setVorlage,
   SOFTWARE_PRESETS,
+  STATUS_HILFE,
+  STATUS_OPTION_LABEL,
   vollstaendigkeitsZeilen,
 } from "@/lib/module/status";
-import type { CheckAntwort } from "@/lib/module/typen";
+import { MODUL_STATUSES, type CheckAntwort } from "@/lib/module/typen";
 import type { IntakeAnswers } from "@/lib/types";
 
 const ANTWORTEN: Array<{ value: CheckAntwort; label: string }> = [
@@ -148,10 +150,22 @@ export function ModulUebersichtStep({
       <h1>Module und Dokumentationsstatus</h1>
       <p className="prose">
         So wird dein Gesamtdokument aufgebaut. Ein vorhandener Bereich darf nicht stillschweigend
-        fehlen: im Tool beschreiben, bestehende Dokumentation verlinken oder als offenen Punkt
-        führen. „Nicht vorhanden“ nur bei betriebsabhängigen Modulen mit kurzer Begründung.
+        fehlen: hier im Fragebogen ausfüllen, bestehende Dokumentation verlinken oder als noch nicht
+        dokumentiert führen. „Nicht vorhanden“ nur, wenn es den Ablauf bei dir nicht gibt — mit kurzer
+        Begründung.
       </p>
+      <details className="status-hilfe" open>
+        <summary>Was die Status bedeuten</summary>
+        <ul>
+          {MODUL_STATUSES.map((status) => (
+            <li key={status}>
+              <strong>{STATUS_OPTION_LABEL[status]}:</strong> {STATUS_HILFE[status]}
+            </li>
+          ))}
+        </ul>
+      </details>
       <div className="card">
+        <div className="intake-table-wrap">
         <table className="summary-table">
           <thead>
             <tr>
@@ -189,10 +203,11 @@ export function ModulUebersichtStep({
                         });
                       }}
                     >
-                      <option value="tool">im Tool beschrieben</option>
-                      <option value="extern">bestehende Dokumentation</option>
-                      <option value="offen">noch nicht dokumentiert</option>
-                      <option value="nicht_vorhanden">nicht vorhanden</option>
+                      {MODUL_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {STATUS_OPTION_LABEL[status]}
+                        </option>
+                      ))}
                     </select>
                   </td>
                   <td>
@@ -350,7 +365,7 @@ export function ModulUebersichtStep({
                       />
                     ) : null}
                     {(current?.status ?? row.status) === "tool" || (current?.status ?? row.status) === "offen"
-                      ? row.label
+                      ? STATUS_OPTION_LABEL[current?.status ?? row.status]
                       : null}
                   </td>
                   <td>
@@ -366,6 +381,7 @@ export function ModulUebersichtStep({
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   );

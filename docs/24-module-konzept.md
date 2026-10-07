@@ -52,7 +52,7 @@ Dokumentationen, C Prozessmatrix, D Begriffe.
 
 | Status | Bedeutung | Wirkung im PDF |
 | --- | --- | --- |
-| im Tool beschrieben | Fragen des Moduls werden beantwortet | Kapitel mit Ist-Beschreibung (nur „bestätigt“ im Präsens) |
+| im Fragebogen ausgefüllt (Auswahl: „Hier im Fragebogen ausfüllen“; Wert `tool`) | Fragen des Moduls werden beantwortet | Kapitel mit Ist-Beschreibung (nur „bestätigt“ im Präsens) |
 | durch bestehende Dokumentation abgedeckt | Verweistext Pflicht, Link/Ablageort und/oder Datei-Upload (PDF/DOCX/Bild) | Kurzkapitel mit Verweis + Eintrag in Anhang B; ohne Verweistext offener Punkt |
 | noch nicht dokumentiert | Bereich existiert, Beschreibung fehlt | Kurzkapitel „noch nicht dokumentiert“ + offener Punkt (hoch) |
 | nicht vorhanden | Nur betriebsabhängige/Regel-Module, Begründung Pflicht | Zeile in der Vollständigkeitsübersicht mit Begründung |
@@ -98,7 +98,7 @@ zur Ist-Beschreibung.
 - Bisherige Bereichs-VDs (Belegfluss, Kasse, …) bleiben im Konto lesbar und downloadbar
   („bisherige Bereichsdokumente“), Bearbeiten erzeugt weiter Versionen im alten Format.
 - „Gesamtdokument anlegen“ übernimmt alle Antworten der Bereichs-VDs der Firma (Frage-IDs sind
-  disjunkt) und setzt die passenden Module auf „im Tool beschrieben“. Kein neuer Checkout.
+  disjunkt) und setzt die passenden Module auf „im Fragebogen ausgefüllt“ (`tool`). Kein neuer Checkout.
 - Neue Intakes starten im Gesamtdokument.
 
 ## 7. Muster

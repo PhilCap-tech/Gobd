@@ -105,7 +105,7 @@ function statusBlock(status: ModulStatus, detail: string): string[] {
     lines.push("Dieses Modul ist ein offener Punkt und muss noch beschrieben oder durch bestehende Dokumentation abgedeckt werden.");
   }
   if (status === "extern") {
-    lines.push("Der Inhalt dieses Moduls ergibt sich aus der genannten bestehenden Dokumentation. Im Tool sind keine weiteren Prozessfragen beantwortet.");
+    lines.push("Der Inhalt dieses Moduls ergibt sich aus der genannten bestehenden Dokumentation. Im Fragebogen sind keine weiteren Prozessfragen beantwortet.");
   }
   return lines;
 }
@@ -244,7 +244,7 @@ function uebersichtChapter(answers: IntakeAnswers): RenderedChapter {
   const body = [
     "# Vollständigkeitsübersicht",
     "",
-    "Ein vorhandener steuerrelevanter Bereich darf nicht stillschweigend fehlen: er ist im Tool beschrieben, durch eine bestehende Dokumentation abgedeckt oder als „noch nicht dokumentiert“ ausgewiesen. „Nicht vorhanden“ gilt nur für betriebsabhängige Module mit Begründung.",
+    `Ein vorhandener steuerrelevanter Bereich darf nicht stillschweigend fehlen: er ist ${STATUS_LABEL.tool}, ${STATUS_LABEL.extern} oder als „${STATUS_LABEL.offen}“ ausgewiesen. „Nicht vorhanden“ gilt nur für betriebsabhängige Module mit Begründung.`,
     "",
     "| Nr. | Modul | Status | Angabe |",
     "| --- | --- | --- | --- |",
@@ -293,7 +293,7 @@ function anhangProzessmatrix(answers: IntakeAnswers): RenderedChapter {
   const lines = [
     "# Anhang C — Prozessmatrix",
     "",
-    "Überblick der Prozessschritte aller Module mit Status „im Tool beschrieben“.",
+    `Überblick der Prozessschritte aller Module mit Status „${STATUS_LABEL.tool}“.`,
     "",
   ];
   for (const modul of activeModules(answers)) {
