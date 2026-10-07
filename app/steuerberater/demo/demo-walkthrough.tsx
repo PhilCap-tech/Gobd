@@ -6,11 +6,13 @@ import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
 import { DEMO_BEISPIEL_SEED_NOTE, demoBeispielAnswers, demoBlankAnswers } from "@/lib/demo-beispiel";
 import { intakeSummary } from "@/lib/frage-intake";
 import {
+  catalogStepIssues,
   nextApplicableStep,
   paperStepSkipped,
   previousApplicableStep,
+  type CatalogIssue,
 } from "@/lib/intake-catalog";
-import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
+import { INTAKE_REVIEW, INTAKE_STEPS } from "@/lib/intake-questions";
 import { openPointBeforeUse } from "@/lib/intake-present";
 import {
   evaluateOpenPoints,
@@ -29,7 +31,12 @@ export function DemoWalkthrough() {
   const [answers, setAnswers] = useState<IntakeAnswers>(() => demoBlankAnswers());
   const firstStep = nextApplicableStep(-1, answers);
   const [error, setError] = useState("");
+  const [showGaps, setShowGaps] = useState(false);
+  const [scrollTick, setScrollTick] = useState(0);
+  const [scrollIssue, setScrollIssue] = useState<CatalogIssue | null>(null);
   const [notice, setNotice] = useState("");
+  const stepIssues = showGaps ? catalogStepIssues(step, answers) : [];
+  const visibleError = stepIssues[0]?.message || error;
 
   const openPoints = useMemo(
     () =>
@@ -49,6 +56,7 @@ export function DemoWalkthrough() {
     setAnswers(start);
     setStep(nextApplicableStep(-1, start));
     setError("");
+    setShowGaps(false);
     setNotice("");
   }
 
@@ -96,7 +104,14 @@ export function DemoWalkthrough() {
       {notice ? <p className="banner ok">{notice}</p> : null}
 
       {step < INTAKE_STEPS.length && (
-        <IntakeQuestionnaire step={step} answers={answers} onChange={setAnswers} />
+        <IntakeQuestionnaire
+          step={step}
+          answers={answers}
+          onChange={setAnswers}
+          issues={stepIssues}
+          scrollTick={scrollTick}
+          scrollIssue={scrollIssue}
+        />
       )}
 
       {step === INTAKE_STEPS.length && (
@@ -169,7 +184,7 @@ export function DemoWalkthrough() {
         </section>
       )}
 
-      {error && <p className="error">{error}</p>}
+      {visibleError && <p className="error">{visibleError}</p>}
 
       <div className="actions" style={{ marginTop: 18 }}>
         {step > firstStep && (
@@ -178,6 +193,7 @@ export function DemoWalkthrough() {
             className="btn ghost"
             onClick={() => {
               setError("");
+              setShowGaps(false);
               setNotice("");
               setStep((current) => Math.max(firstStep, previousApplicableStep(current, answers)));
             }}
@@ -190,14 +206,19 @@ export function DemoWalkthrough() {
             type="button"
             className="btn"
             onClick={() => {
-              const message = intakeStepError(step, answers);
-              if (message) {
-                setError(message);
+              const found = catalogStepIssues(step, answers);
+              if (found.length) {
+                setError("");
+                setShowGaps(true);
+                setScrollIssue(found[0]);
+                setScrollTick((tick) => tick + 1);
                 return;
               }
+              setScrollIssue(null);
               const target = nextApplicableStep(step, answers);
               setNotice(paperStepSkipped(step, target, answers) ? PAPER_SKIP_NOTE : "");
               setError("");
+              setShowGaps(false);
               setStep(target);
             }}
           >

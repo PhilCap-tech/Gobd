@@ -25,7 +25,7 @@ import {
   toolModules,
 } from "../lib/module/status";
 import { MODUL_STATUSES } from "../lib/module/typen";
-import { CATALOG_STEPS, BETRIEBS_CHECK_STEP_ID, MODUL_UEBERSICHT_STEP_ID, catalogOpenPoints, catalogStepApplies, catalogStepError } from "../lib/intake-catalog";
+import { CATALOG_STEPS, BETRIEBS_CHECK_STEP_ID, MODUL_UEBERSICHT_STEP_ID, catalogOpenPoints, catalogStepApplies, catalogStepError, catalogStepIssues, prefillKnownFacts, setCatalogStatus, setCatalogValue } from "../lib/intake-catalog";
 import { emptyAnswers } from "../lib/types";
 import { getGesamtMuster, MUSTER_VORLAGEN } from "../lib/module-muster";
 import { renderGesamtChapters } from "../lib/gesamt-document";
@@ -249,6 +249,49 @@ checkMusterPdfDepth().catch((error) => {
   ok(uploadAllowed("application/zip", 100) !== "", "zip rejected");
   ok(uploadAllowed("application/pdf", 20 * 1024 * 1024) !== "", "too large rejected");
   ok(normalizeDraftKey({ sessionId: "cs_test_1" }).startsWith("session:"), "draft key session");
+  const moduleStep = CATALOG_STEPS.findIndex((step) => step.id === "step-M01");
+  const a04base = ensureGesamt(emptyAnswers());
+  a04base.katalog = {
+    ...a04base.katalog,
+    A04: { status: "bestaetigt", values: { keineRueckdatierungBestaetigt: true } },
+  };
+  const dateIssues = catalogStepIssues(moduleStep, a04base).filter((issue) => issue.questionId === "A04");
+  ok(dateIssues.some((issue) => issue.fieldKey === "gueltigAb" && issue.message.includes("Datum")), "A04 date names the date");
+  ok(dateIssues.every((issue) => issue.fieldKey !== "keineRueckdatierungBestaetigt"), "checked confirmation is not open");
+  const unchecked = ensureGesamt(emptyAnswers());
+  unchecked.katalog = { A04: { status: "bestaetigt", values: { gueltigAb: "2024-01-01" } } };
+  const checkIssues = catalogStepIssues(moduleStep, unchecked).filter((issue) => issue.questionId === "A04");
+  ok(checkIssues.some((issue) => issue.message.includes("Bestätigung")), "A04 checkbox is named");
+  const noStatus = ensureGesamt(emptyAnswers());
+  noStatus.katalog = { A04: { values: {} } };
+  ok(
+    catalogStepIssues(moduleStep, noStatus).some(
+      (issue) => issue.questionId === "A04" && issue.fieldKey === "status" && issue.message.includes("Stand"),
+    ),
+    "A04 status chip is named",
+  );
+  const kept = prefillKnownFacts(
+    setCatalogValue(ensureGesamt(emptyAnswers()), "A01", "company", "Eigene GmbH"),
+    { name: "Nordlicht GmbH", street: "Hafenweg 2", zip: "20457", city: "Hamburg", stnr: "12/345/67890" },
+  );
+  ok(kept.katalog?.A01?.values?.company === "Eigene GmbH", "prefill does not overwrite a typed company");
+  ok(String(kept.katalog?.A01?.values?.standort).includes("Hamburg"), "empty standort comes from firm address");
+  ok(String(kept.katalog?.UO01?.values?.gesellschaften).includes("Eigene GmbH"), "gesellschaften follow the typed company");
+  ok(String(kept.katalog?.UO01?.values?.gesellschaften).includes("12/345/67890"), "steuernummer is copied from firm data");
+  ok(!kept.katalog?.A04?.values?.gueltigAb, "prefill does not invent a process date");
+  ok(kept.katalog?.A04?.values?.keineRueckdatierungBestaetigt !== true, "prefill does not tick the confirmation");
+  const cleared = prefillKnownFacts(
+    setCatalogValue(
+      setCatalogStatus(ensureGesamt(emptyAnswers()), "A04", "bestaetigt"),
+      "A01",
+      "company",
+      "",
+    ),
+    { name: "Nordlicht GmbH" },
+    { protect: [["A01", "company"]] },
+  );
+  ok(!String(cleared.katalog?.A01?.values?.company ?? "").trim(), "clearing a field stays cleared");
+  ok(cleared.katalog?.A04?.status === "bestaetigt", "prefill keeps the chosen status");
   ok(draftIsNewer("2026-10-05T12:00:00.000Z", "2026-10-05T11:00:00.000Z"), "server newer wins");
   ok(!draftIsNewer("2026-10-05T11:00:00.000Z", "2026-10-05T12:00:00.000Z"), "client newer keeps");
   console.log("check-module upload/draft helpers: green");

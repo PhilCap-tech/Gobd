@@ -1161,11 +1161,13 @@ export function ProcessStatus({
   prompt,
   answers,
   onChange,
+  issue = "",
 }: {
   questionId: string;
   prompt: string;
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
+  issue?: string;
 }) {
   const entry = answers.katalog?.[questionId];
   const values = entry?.values ?? {};
@@ -1173,10 +1175,16 @@ export function ProcessStatus({
   const showMeta = entry?.status === "geplant" || entry?.status === "unbekannt";
   if (!showChoice && !showMeta) return null;
   return (
-    <div className="field">
+    <div className={issue ? "field field-invalid" : "field"} id={`angabe-${questionId}-status`}>
       {showChoice ? (
         <>
-          <div className="chips" role="group" aria-label={`Stand: ${prompt}`}>
+          <div
+            className="chips"
+            id={`${questionId}-status`}
+            tabIndex={-1}
+            role="group"
+            aria-label={`Stand: ${prompt}`}
+          >
             {PROCESS_STATUSES.map((status) => (
               <button
                 key={status}
@@ -1195,6 +1203,11 @@ export function ProcessStatus({
             </p>
           ) : null}
         </>
+      ) : null}
+      {issue ? (
+        <p className="field-error" role="alert">
+          {issue}
+        </p>
       ) : null}
       {showMeta ? (
         <>

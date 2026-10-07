@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, type ReactNode } from "react";
 import {
   applyDerivedStatus,
   BETRIEBS_CHECK_STEP_ID,
@@ -8,11 +9,15 @@ import {
   catalogStepApplies,
   catalogStepPosition,
   catalogStepTitle,
+  firmAddressLine,
   MODUL_UEBERSICHT_STEP_ID,
+  prefillKnownFacts,
   setCatalogValue,
   SPECIAL_STEP_IDS,
   visibleCatalogQuestions,
   type CatalogField,
+  type CatalogIssue,
+  type FirmFacts,
 } from "@/lib/intake-catalog";
 import { BetriebsCheckStep, ModulUebersichtStep } from "@/components/betriebs-check";
 import { P1_QUESTION_IDS, P1QuestionFields, ProcessStatus } from "@/components/intake-p1-fields";
@@ -42,6 +47,76 @@ function itemFields(field: CatalogField): Array<{ key: string; type: string; opt
 
 function asText(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function issueFor(issues: CatalogIssue[], questionId: string, fieldKey: string): CatalogIssue | undefined {
+  return issues.find((issue) => issue.questionId === questionId && issue.fieldKey === fieldKey);
+}
+
+function matchesPrefill(value: unknown, source: string | undefined): boolean {
+  const text = asText(value).trim();
+  const from = source?.trim() ?? "";
+  if (!text || !from) return false;
+  return text === from || text.startsWith(`${from}\n`) || text.startsWith(`${from},`);
+}
+
+function FieldShell({
+  id,
+  invalid,
+  message,
+  children,
+}: {
+  id?: string;
+  invalid?: boolean;
+  message?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={invalid ? "field field-invalid" : "field"} id={id} tabIndex={invalid ? -1 : undefined}>
+      {children}
+      {invalid && message ? (
+        <p className="field-error" role="alert">
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function PrefillHint({ show }: { show: boolean }) {
+  if (!show) return null;
+  return <p className="hint">Vorausgefüllt aus bereits erfassten Angaben. Bitte prüfen.</p>;
+}
+
+export function OpenOnPage({ issues }: { issues: CatalogIssue[] }) {
+  if (!issues.length) return null;
+  return (
+    <div className="banner warn open-on-page" id="offen-auf-dieser-seite">
+      <p>
+        <strong>Noch offen auf dieser Seite</strong>
+      </p>
+      <ul>
+        {issues.map((issue) => (
+          <li key={`${issue.anchor}-${issue.fieldKey}`}>
+            <a
+              href={`#${issue.anchor}`}
+              onClick={(event) => {
+                event.preventDefault();
+                const node =
+                  document.getElementById(issue.anchor) ??
+                  document.getElementById(`angabe-${issue.questionId}`);
+                node?.scrollIntoView({ behavior: "smooth", block: "center" });
+                const focus = document.getElementById(issue.focusId);
+                if (focus instanceof HTMLElement) focus.focus({ preventScroll: true });
+              }}
+            >
+              {issue.message}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function asList(value: unknown): string[] {
@@ -95,15 +170,17 @@ function Dropdown({
   options,
   value,
   onChange,
+  invalid = false,
 }: {
   id: string;
   options: readonly string[];
   value: string;
   onChange: (next: string) => void;
+  invalid?: boolean;
 }) {
   const known = value === "" || options.includes(value);
   return (
-    <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+    <select id={id} value={value} aria-invalid={invalid || undefined} onChange={(event) => onChange(event.target.value)}>
       <option value="">Bitte wählen</option>
       {!known ? <option value={value}>{value}</option> : null}
       {options.map((option) => (
@@ -121,19 +198,29 @@ function FieldInput({
   label,
   value,
   onChange,
+  invalid = false,
 }: {
   id: string;
   field: CatalogField;
   label: string;
   value: unknown;
   onChange: (next: unknown) => void;
+  invalid?: boolean;
 }) {
   if (field.key === "rechtsform") {
-    return <Dropdown id={id} options={RECHTSFORMEN} value={asText(value)} onChange={onChange} />;
+    return (
+      <Dropdown id={id} options={RECHTSFORMEN} value={asText(value)} onChange={onChange} invalid={invalid} />
+    );
   }
   if (field.key === "mitarbeitende") {
     return (
-      <Dropdown id={id} options={MITARBEITENDE_OPTIONS} value={asText(value)} onChange={onChange} />
+      <Dropdown
+        id={id}
+        options={MITARBEITENDE_OPTIONS}
+        value={asText(value)}
+        onChange={onChange}
+        invalid={invalid}
+      />
     );
   }
   if (field.key === "branchen") {
@@ -157,6 +244,7 @@ function FieldInput({
       <textarea
         id={id}
         placeholder={FIELD_PLACEHOLDERS[field.key]}
+        aria-invalid={invalid || undefined}
         value={asText(value)}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -167,6 +255,7 @@ function FieldInput({
       <input
         id={id}
         type="date"
+        aria-invalid={invalid || undefined}
         value={asText(value)}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -178,6 +267,7 @@ function FieldInput({
         <input
           id={id}
           type="checkbox"
+          aria-invalid={invalid || undefined}
           checked={value === true}
           onChange={(event) => onChange(event.target.checked)}
         />{" "}
@@ -211,6 +301,7 @@ function FieldInput({
       <textarea
         id={id}
         placeholder="Mehrere Angaben, eine pro Zeile oder durch Komma"
+        aria-invalid={invalid || undefined}
         value={Array.isArray(value) ? value.join(", ") : asText(value)}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -276,6 +367,7 @@ function FieldInput({
     <input
       id={id}
       placeholder={FIELD_PLACEHOLDERS[field.key]}
+      aria-invalid={invalid || undefined}
       value={asText(value)}
       onChange={(event) => onChange(event.target.value)}
     />
@@ -289,6 +381,10 @@ export function IntakeQuestionnaire({
   sessionId = "",
   documentId = "",
   focusModulId = "",
+  issues = [],
+  scrollTick = 0,
+  scrollIssue = null,
+  firm,
 }: {
   step: number;
   answers: IntakeAnswers;
@@ -296,26 +392,58 @@ export function IntakeQuestionnaire({
   sessionId?: string;
   documentId?: string;
   focusModulId?: string;
+  issues?: CatalogIssue[];
+  /** Increments when „Weiter“ failed, so the first open control is scrolled into view once. */
+  scrollTick?: number;
+  scrollIssue?: CatalogIssue | null;
+  firm?: FirmFacts;
 }) {
+  useEffect(() => {
+    if (!scrollTick || !scrollIssue) return;
+    const node =
+      document.getElementById(scrollIssue.anchor) ??
+      document.getElementById(`angabe-${scrollIssue.questionId}`);
+    node?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focus = document.getElementById(scrollIssue.focusId);
+    if (focus instanceof HTMLElement) focus.focus({ preventScroll: true });
+  }, [scrollTick, scrollIssue]);
   const meta = INTAKE_STEPS[step];
   const catalogStep = CATALOG_STEPS[step];
   if (!meta || !catalogStep) return null;
   if (catalogStep.id === BETRIEBS_CHECK_STEP_ID) {
-    return <BetriebsCheckStep answers={answers} onChange={onChange} />;
+    return (
+      <>
+        <OpenOnPage issues={issues} />
+        <BetriebsCheckStep answers={answers} onChange={onChange} issues={issues} />
+      </>
+    );
   }
   if (catalogStep.id === MODUL_UEBERSICHT_STEP_ID) {
     return (
-      <ModulUebersichtStep
-        answers={answers}
-        onChange={onChange}
-        sessionId={sessionId}
-        documentId={documentId}
-        focusModulId={focusModulId}
-      />
+      <>
+        <OpenOnPage issues={issues} />
+        <ModulUebersichtStep
+          answers={answers}
+          onChange={onChange}
+          sessionId={sessionId}
+          documentId={documentId}
+          focusModulId={focusModulId}
+          issues={issues}
+        />
+      </>
     );
   }
   const questions = visibleCatalogQuestions(step, answers);
   const position = catalogStepPosition(step, answers);
+
+  function commitValue(questionId: string, key: string, value: unknown) {
+    let next = setCatalogValue(answers, questionId, key, value);
+    if (questionId === "A03") next = applyDerivedStatus(next, questionId);
+    if (questionId === "A01") {
+      next = prefillKnownFacts(next, firm, { protect: [[questionId, key]] });
+    }
+    onChange(next);
+  }
 
   return (
     <section>
@@ -323,6 +451,7 @@ export function IntakeQuestionnaire({
         Schritt {position.index + 1} von {position.total}
       </p>
       <h1>{catalogStepTitle(step, answers)}</h1>
+      <OpenOnPage issues={issues} />
       <div className="card">
         {!catalogStepApplies(catalogStep, answers) || (questions.length === 0 && !SPECIAL_STEP_IDS.has(catalogStep.id)) ? (
           <p className="prose">Dieser Schritt entfällt. Er gilt nur, wenn ein passender Weg gewählt ist.</p>
@@ -334,8 +463,16 @@ export function IntakeQuestionnaire({
             const excluded = asList(values.ausgeschlossen);
             const shopExcluded = excluded.includes("Shop");
             const prompt = customerPrompt(question.id, question.prompt);
+            const blockIssue = issueFor(issues, question.id, "block");
+            const statusIssue = issueFor(issues, question.id, "status");
+            const gfName = (answers.module?.stammdaten?.gf || asText(answers.katalog?.A01?.values?.gf)).trim();
             return (
-              <div key={question.id} className="angabe">
+              <div
+                key={question.id}
+                className={blockIssue ? "angabe angabe-invalid" : "angabe"}
+                id={`angabe-${question.id}`}
+                tabIndex={blockIssue ? -1 : undefined}
+              >
                 <h2 className="angabe-prompt" id={`${question.id}-prompt`}>
                   {prompt}
                 </h2>
@@ -345,6 +482,9 @@ export function IntakeQuestionnaire({
                     Das Datum ist der Beginn des beschriebenen Ablaufs im Betrieb. Es ist nicht das
                     Datum, an dem diese Dokumentation erstellt wird. „Keine Rückdatierung“ heißt: die
                     Dokumentation behauptet nicht, sie habe schon gegolten, bevor sie erstellt wurde.
+                    Pflicht ist der Stand (So läuft es heute, Soll künftig so laufen oder Muss ich
+                    klären). Datum und die Bestätigung „Verstanden…“ sind zusätzlich Pflicht, wenn der
+                    Ablauf als heutige oder künftige Praxis gilt.
                   </p>
                 ) : null}
                 {question.id === "F02" ? (
@@ -370,19 +510,47 @@ export function IntakeQuestionnaire({
                     bleiben an dem genannten Ort liegen. Sie werden nicht überschrieben.
                   </p>
                 ) : null}
+                {blockIssue ? (
+                  <p className="field-error" role="alert">
+                    {blockIssue.message}
+                  </p>
+                ) : null}
                 <ProcessStatus
                   questionId={question.id}
                   prompt={prompt}
                   answers={answers}
                   onChange={onChange}
+                  issue={statusIssue?.message}
                 />
                 {P1_QUESTION_IDS.has(question.id) ? (
                   <P1QuestionFields questionId={question.id} answers={answers} onChange={onChange} />
                 ) : (
                   question.fields.map((field) => {
                     const label = fieldLabel(question.id, field.key, field.label);
+                    const gap = issueFor(issues, question.id, field.key);
+                    const source =
+                      question.id === "A01" && field.key === "company"
+                        ? firm?.name
+                        : question.id === "A01" && field.key === "standort"
+                          ? firmAddressLine(firm)
+                          : question.id === "A01" && field.key === "gf"
+                            ? answers.module?.stammdaten?.gf
+                            : question.id === "UO01" && field.key === "gesellschaften"
+                              ? firm?.name || asText(answers.katalog?.A01?.values?.company)
+                              : question.id === "UO01" && field.key === "standorte"
+                                ? asText(answers.katalog?.A01?.values?.standort) || firmAddressLine(firm)
+                                : undefined;
+                    const prefilled =
+                      question.id === "UO03" && field.key === "zustaendigkeiten"
+                        ? Boolean(gfName) && asText(values.zustaendigkeiten).includes(`Geschäftsleitung: ${gfName}`)
+                        : matchesPrefill(values[field.key], source);
                     return (
-                      <div className="field" key={field.key}>
+                      <FieldShell
+                        key={field.key}
+                        id={`angabe-${question.id}-${field.key}`}
+                        invalid={Boolean(gap)}
+                        message={gap?.message}
+                      >
                         {field.type !== "boolean" ? (
                           <label htmlFor={`${question.id}-${field.key}`}>{label}</label>
                         ) : null}
@@ -391,41 +559,45 @@ export function IntakeQuestionnaire({
                           field={field}
                           label={label}
                           value={values[field.key]}
-                          onChange={(value) => {
-                            let next = setCatalogValue(answers, question.id, field.key, value);
-                            if (question.id === "A03") next = applyDerivedStatus(next, question.id);
-                            onChange(next);
-                          }}
+                          invalid={Boolean(gap)}
+                          onChange={(value) => commitValue(question.id, field.key, value)}
                         />
-                      </div>
+                        <PrefillHint show={prefilled} />
+                      </FieldShell>
                     );
                   })
                 )}
                 {question.id === "A01" && activities.includes(TAETIGKEIT_FREITEXT) ? (
-                  <div className="field">
+                  <FieldShell
+                    id="angabe-A01-branchenFreitext"
+                    invalid={Boolean(issueFor(issues, "A01", "branchenFreitext"))}
+                    message={issueFor(issues, "A01", "branchenFreitext")?.message}
+                  >
                     <label htmlFor="a01-taetigkeit-frei">Welche sonstige Tätigkeit?</label>
                     <input
                       id="a01-taetigkeit-frei"
                       placeholder={FIELD_PLACEHOLDERS.branchenFreitext}
+                      aria-invalid={Boolean(issueFor(issues, "A01", "branchenFreitext")) || undefined}
                       value={asText(values.branchenFreitext)}
-                      onChange={(event) =>
-                        onChange(setCatalogValue(answers, "A01", "branchenFreitext", event.target.value))
-                      }
+                      onChange={(event) => commitValue("A01", "branchenFreitext", event.target.value)}
                     />
-                  </div>
+                  </FieldShell>
                 ) : null}
                 {question.id === "A01" && asText(values.rechtsform) === RECHTSFORM_FREITEXT ? (
-                  <div className="field">
+                  <FieldShell
+                    id="angabe-A01-rechtsformFreitext"
+                    invalid={Boolean(issueFor(issues, "A01", "rechtsformFreitext"))}
+                    message={issueFor(issues, "A01", "rechtsformFreitext")?.message}
+                  >
                     <label htmlFor="a01-rechtsform-frei">Welche Rechtsform genau?</label>
                     <input
                       id="a01-rechtsform-frei"
                       placeholder={FIELD_PLACEHOLDERS.rechtsformFreitext}
+                      aria-invalid={Boolean(issueFor(issues, "A01", "rechtsformFreitext")) || undefined}
                       value={asText(values.rechtsformFreitext)}
-                      onChange={(event) =>
-                        onChange(setCatalogValue(answers, "A01", "rechtsformFreitext", event.target.value))
-                      }
+                      onChange={(event) => commitValue("A01", "rechtsformFreitext", event.target.value)}
                     />
-                  </div>
+                  </FieldShell>
                 ) : null}
                 {question.id === "A01"
                   ? activityFollowupsFor(activities).map((group) => (
@@ -449,7 +621,11 @@ export function IntakeQuestionnaire({
                   : null}
                 {question.id === "A02" &&
                 (excluded.length > 0 || asText(values.ausgeschlossenSonstiges).trim()) ? (
-                  <div className="field">
+                  <FieldShell
+                    id="angabe-A02-ausgeschlossenWo"
+                    invalid={Boolean(issueFor(issues, "A02", "ausgeschlossenWo"))}
+                    message={issueFor(issues, "A02", "ausgeschlossenWo")?.message}
+                  >
                     <label htmlFor="a02-wo">
                       {shopExcluded
                         ? "Wo ist der Shop dokumentiert?"
@@ -464,12 +640,13 @@ export function IntakeQuestionnaire({
                     <input
                       id="a02-wo"
                       placeholder={FIELD_PLACEHOLDERS.ausgeschlossenWo}
+                      aria-invalid={Boolean(issueFor(issues, "A02", "ausgeschlossenWo")) || undefined}
                       value={asText(values.ausgeschlossenWo)}
                       onChange={(event) =>
                         onChange(setCatalogValue(answers, "A02", "ausgeschlossenWo", event.target.value))
                       }
                     />
-                  </div>
+                  </FieldShell>
                 ) : null}
               </div>
             );

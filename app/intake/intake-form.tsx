@@ -14,14 +14,18 @@ import { intakeSummary } from "@/lib/frage-intake";
 import {
   CATALOG_STEPS,
   catalogStepApplies,
+  catalogStepIssues,
   nextApplicableStep,
   paperStepSkipped,
+  prefillKnownFacts,
   previousApplicableStep,
   withCatalogDraft,
+  type CatalogIssue,
+  type FirmFacts,
 } from "@/lib/intake-catalog";
 import { ensureGesamt, isGesamt } from "@/lib/module/status";
 import { normalizeDraftKey } from "@/lib/intake-draft-shared";
-import { INTAKE_REVIEW, INTAKE_STEPS, intakeStepError } from "@/lib/intake-questions";
+import { INTAKE_REVIEW, INTAKE_STEPS } from "@/lib/intake-questions";
 import { customerHubTitle } from "@/lib/account-display";
 import { bereichIdOf, bereichLabel } from "@/lib/bereiche";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
@@ -49,7 +53,32 @@ type IntakeFormProps = {
   initialStepId?: string;
   /** Modulzeile in der Übersicht, z. B. m08. */
   focusModulId?: string;
+  /** Firmenstammdaten für leere Felder (Name, Anschrift, Steuernummer). */
+  firm?: FirmFacts;
 };
+
+function firmFactsFor(
+  entityId: string,
+  entities: EntityChoice[],
+  firm: FirmFacts | undefined,
+  company: string,
+): FirmFacts {
+  const selected = entities.find((item) => item.entityId === entityId);
+  if (selected) {
+    return {
+      name: selected.name,
+      street: selected.street,
+      zip: selected.zip,
+      city: selected.city,
+      stnr: selected.stnr,
+      ustId: selected.ustId,
+    };
+  }
+  if (firm && (firm.name || firm.street || firm.city || firm.stnr || firm.ustId)) {
+    return { ...firm, name: firm.name || company };
+  }
+  return { name: company };
+}
 
 function resolveInitialStep(answers: IntakeAnswers, stepId?: string, modulId?: string): number {
   const fallback = nextApplicableStep(-1, answers);
@@ -62,9 +91,15 @@ function resolveInitialStep(answers: IntakeAnswers, stepId?: string, modulId?: s
   return fallback;
 }
 
-function startAnswers(initial: IntakeAnswers | undefined, company: string, gesamtMode: boolean): IntakeAnswers {
-  const start = withCatalogDraft(initial ?? emptyAnswers(), company);
-  return gesamtMode || isGesamt(start) ? ensureGesamt(start) : start;
+function startAnswers(
+  initial: IntakeAnswers | undefined,
+  company: string,
+  gesamtMode: boolean,
+  firm: FirmFacts,
+): IntakeAnswers {
+  const start = withCatalogDraft(initial ?? emptyAnswers(), firm.name || company);
+  const base = gesamtMode || isGesamt(start) ? ensureGesamt(start) : start;
+  return prefillKnownFacts(base, firm);
 }
 
 export function IntakeForm({
@@ -79,7 +114,9 @@ export function IntakeForm({
   gesamtMode = false,
   initialStepId = "",
   focusModulId = "",
+  firm,
 }: IntakeFormProps) {
+  const facts = firmFactsFor(initialEntityId, entities, firm, session.company);
   const companyLabel = customerHubTitle(session.company, "");
   const nextVersionLabel = nextVersion
     ? versionLabelFromRow({ version: String(nextVersion) })
@@ -87,18 +124,22 @@ export function IntakeForm({
   const router = useRouter();
   const [step, setStep] = useState(() =>
     resolveInitialStep(
-      startAnswers(initialAnswers, session.company, gesamtMode),
+      startAnswers(initialAnswers, session.company, gesamtMode, facts),
       initialStepId,
       focusModulId,
     ),
   );
   const [entityId, setEntityId] = useState(initialEntityId);
   const [answers, setAnswers] = useState<IntakeAnswers>(() =>
-    startAnswers(initialAnswers, session.company, gesamtMode),
+    startAnswers(initialAnswers, session.company, gesamtMode, facts),
   );
+  const liveFacts = firmFactsFor(entityId, entities, firm, session.company);
   // Erster Schritt des Modus: Gesamt beginnt mit dem Betriebs-Check, Bereichs-VDs mit Schritt A.
   const firstStep = nextApplicableStep(-1, answers);
   const [error, setError] = useState("");
+  const [showGaps, setShowGaps] = useState(false);
+  const [scrollTick, setScrollTick] = useState(0);
+  const [scrollIssue, setScrollIssue] = useState<CatalogIssue | null>(null);
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
   const [change, setChange] = useState<VersionChangeDraft>({
@@ -264,17 +305,41 @@ export function IntakeForm({
   const isNewArea = Boolean(areaBaseDocumentId);
   const showFirmSelect = !isEdit && !isNewArea && entities.length > 1;
 
+  const firmMissing = showGaps && step === firstStep && showFirmSelect && !entityId.trim();
+  const stepIssues = showGaps && !firmMissing ? catalogStepIssues(step, answers) : [];
+  const visibleError = firmMissing
+    ? "Bitte eine Firma wählen."
+    : stepIssues[0]?.message || error;
+  useEffect(() => {
+    if (!scrollTick || !firmMissing) return;
+    const node = document.getElementById("firma-select");
+    node?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (node instanceof HTMLElement) node.focus({ preventScroll: true });
+  }, [scrollTick, firmMissing]);
+
+  function chooseEntity(nextId: string) {
+    setEntityId(nextId);
+    const nextFacts = firmFactsFor(nextId, entities, firm, session.company);
+    setAnswers((current) => prefillKnownFacts(current, nextFacts));
+  }
+
   function validate(current: number): boolean {
     setError("");
     if (current === firstStep && showFirmSelect && !entityId.trim()) {
-      setError("Bitte eine Firma wählen.");
+      setShowGaps(true);
+      setScrollIssue(null);
+      setScrollTick((tick) => tick + 1);
       return false;
     }
-    const message = intakeStepError(current, answers);
-    if (message) {
-      setError(message);
+    const found = catalogStepIssues(current, answers);
+    if (found.length) {
+      setShowGaps(true);
+      setScrollIssue(found[0]);
+      setScrollTick((tick) => tick + 1);
       return false;
     }
+    setShowGaps(false);
+    setScrollIssue(null);
     return true;
   }
 
@@ -406,7 +471,7 @@ export function IntakeForm({
               type="button"
               className="btn"
               onClick={() => {
-                setAnswers(draftOffer.answers);
+                setAnswers(prefillKnownFacts(draftOffer.answers, liveFacts));
                 setStep(Math.max(nextApplicableStep(-1, draftOffer.answers), Math.min(draftOffer.step, INTAKE_STEPS.length)));
                 setDraftOffer(null);
               }}
@@ -442,8 +507,9 @@ export function IntakeForm({
               <FirmaSelect
                 entities={entities}
                 value={entityId}
-                onChange={setEntityId}
+                onChange={chooseEntity}
                 required
+                invalid={firmMissing}
               />
             </div>
           )}
@@ -470,6 +536,10 @@ export function IntakeForm({
             sessionId={session.stripeSessionId}
             documentId={sourceDocumentId || areaBaseDocumentId || ""}
             focusModulId={focusModulId}
+            issues={stepIssues}
+            scrollTick={scrollTick}
+            scrollIssue={scrollIssue}
+            firm={liveFacts}
           />
         </>
       )}
@@ -504,7 +574,7 @@ export function IntakeForm({
         </section>
       )}
 
-      {error && <p className="error">{error}</p>}
+      {visibleError && <p className="error">{visibleError}</p>}
 
       {step < INTAKE_STEPS.length + 1 && (
         <div className="actions" style={{ marginTop: 18 }}>
@@ -514,6 +584,7 @@ export function IntakeForm({
               className="btn ghost"
               onClick={() => {
                 setError("");
+                setShowGaps(false);
                 setNotice("");
                 setStep((s) => Math.max(firstStep, previousApplicableStep(s, answers)));
               }}

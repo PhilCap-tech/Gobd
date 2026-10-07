@@ -12,6 +12,7 @@ import {
   projectedBranchen,
   projectedRechtsform,
   RECHTSFORM_FREITEXT,
+  statusChoiceVisible,
   TAETIGKEIT_FREITEXT,
 } from "@/lib/intake-present";
 import {
@@ -29,7 +30,8 @@ import {
   modulQuestion,
 } from "@/lib/module/katalog";
 import {
-  betriebsCheckVollstaendig,
+  applyStammdatenPrefill,
+  CHECK_FRAGEN,
   effectiveModulStatus,
   isGesamt,
   modulStatusError,
@@ -638,34 +640,6 @@ function filled(value: unknown): boolean {
   return Boolean(asText(value));
 }
 
-function extraStepError(id: string, entry: CatalogQuestionState, answers: IntakeAnswers): string {
-  const values = entry.values ?? {};
-  const channels = asList(valuesOf(catalogState(answers), "C01").kanaele);
-  const p1 = p1FieldError(id, entry.status, values, channels);
-  if (p1) return p1;
-  if (id === "A01" && (entry.status === "bestaetigt" || entry.status === "geplant")) {
-    if (asText(values.rechtsform) === RECHTSFORM_FREITEXT && !asText(values.rechtsformFreitext)) {
-      return "Bitte die Rechtsform kurz benennen.";
-    }
-    if (asList(values.branchen).includes(TAETIGKEIT_FREITEXT) && !asText(values.branchenFreitext)) {
-      return "Bitte die sonstige Tätigkeit kurz benennen.";
-    }
-  }
-  if (id === "A02" && entry.status && entry.status !== "nicht_zutreffend") {
-    const excluded = asList(values.ausgeschlossen);
-    const shopOut = excluded.includes("Shop");
-    const anyOut = excluded.length > 0 || Boolean(asText(values.ausgeschlossenSonstiges));
-    const where = asText(values.ausgeschlossenWo);
-    if (shopOut && !where) {
-      return "Bitte angeben, wo der Shop dokumentiert ist. Ausgeschlossen heißt nicht, dass der Vorgang undokumentiert bleibt.";
-    }
-    if (anyOut && !where && (entry.status === "bestaetigt" || entry.status === "geplant")) {
-      return "Bitte angeben, wo die ausgenommenen Vorgänge dokumentiert sind.";
-    }
-  }
-  return "";
-}
-
 function fieldIsRequired(field: CatalogField): boolean {
   if (field.required === false) return false;
   if (field.type === "repeat") return (field.min ?? 1) > 0;
@@ -692,54 +666,217 @@ function fieldReady(field: CatalogField, value: unknown): boolean {
   return filled(value);
 }
 
-export function catalogStepError(stepIndex: number, answers: IntakeAnswers): string {
-  const step = CATALOG_STEPS[stepIndex];
-  if (!step) return "";
-  if (!catalogStepApplies(step, answers)) return "";
-  if (step.id === BETRIEBS_CHECK_STEP_ID) {
-    if (!betriebsCheckVollstaendig(answers)) {
-      return "Bitte für jede Frage des Betriebs-Checks ja, nein oder weiß ich nicht angeben.";
-    }
-    return "";
+/** One missing control on the current intake step. Anchors match the form ids. */
+export type CatalogIssue = {
+  questionId: string;
+  fieldKey: string;
+  anchor: string;
+  focusId: string;
+  message: string;
+};
+
+function catalogIssue(
+  questionId: string,
+  fieldKey: string,
+  message: string,
+  focusId?: string,
+): CatalogIssue {
+  const anchor = fieldKey === "block" ? `angabe-${questionId}` : `angabe-${questionId}-${fieldKey}`;
+  return { questionId, fieldKey, anchor, focusId: focusId ?? anchor, message };
+}
+
+function choiceField(field: CatalogField): boolean {
+  if (field.key === "branchen") return true;
+  if (field.type === "enum" || field.type === "repeat") return true;
+  if ((field.type === "multi" || field.type === "multi_or_text") && field.options?.length) return true;
+  return false;
+}
+
+function missingFieldMessage(question: CatalogQuestion, field: CatalogField): string {
+  const label = fieldLabel(question.id, field.key, field.label);
+  if (question.id === "A04" && field.key === "gueltigAb") {
+    return "Bitte das Datum ausfüllen: Seit wann läuft der beschriebene Ablauf so?";
   }
-  if (step.id === MODUL_UEBERSICHT_STEP_ID) {
-    for (const modul of MODULE) {
-      const message = modulStatusError(answers, modul.id);
-      if (message) return message;
-    }
-    if (!toolModules(answers).length) {
-      return "Mindestens ein Modul muss den Status „Im Tool beschreiben“ haben (Kernmodule sind immer aktiv).";
-    }
-    return "";
+  if (question.id === "A04" && field.key === "keineRueckdatierungBestaetigt") {
+    return `Bitte die Bestätigung ankreuzen: ${label}`;
   }
-  const state = catalogState(answers);
-  for (const question of visibleCatalogQuestions(stepIndex, answers)) {
-    const entry = state[question.id];
-    if (!entry?.status) {
-      if (question.id === "A03") {
-        return "Bitte für Kasse, Shop, Lager, Lohn und Plattformen jeweils angeben, ob es das gibt.";
-      }
-      if (question.id === "H04") {
-        return "Bitte angeben, ob eine Wiederherstellung oder ein Export geprüft wurde.";
-      }
-      if (question.id === "B05") return "Bitte angeben, ob Systeme bei einem Anbieter liegen.";
-      if (question.id === "F05") return "Bitte angeben, ob eine Kanzlei beteiligt ist.";
-      return "Bitte angeben, ob das heute so läuft, künftig so laufen soll oder noch zu klären ist.";
+  if (field.type === "boolean") return `Bitte die Bestätigung ankreuzen: ${label}`;
+  if (field.type === "date") return `Bitte das Datum ausfüllen: ${label}`;
+  if (field.type === "enum" || field.type === "multi" || field.type === "multi_or_text") {
+    return `Bitte auswählen: ${label}`;
+  }
+  return `Bitte ausfüllen: ${label}`;
+}
+
+function fieldIssue(question: CatalogQuestion, field: CatalogField): CatalogIssue {
+  const anchor = `angabe-${question.id}-${field.key}`;
+  const focusId = choiceField(field) ? anchor : `${question.id}-${field.key}`;
+  return catalogIssue(question.id, field.key, missingFieldMessage(question, field), focusId);
+}
+
+function missingStatusMessage(question: CatalogQuestion): string {
+  if (question.id === "A03") {
+    return "Bitte für Kasse, Shop, Lager, Lohn und Plattformen jeweils angeben, ob es das gibt.";
+  }
+  if (question.id === "H04") {
+    return "Bitte angeben, ob eine Wiederherstellung oder ein Export geprüft wurde.";
+  }
+  if (question.id === "B05") return "Bitte angeben, ob Systeme bei einem Anbieter liegen.";
+  if (question.id === "F05") return "Bitte angeben, ob eine Kanzlei beteiligt ist.";
+  if (question.id === "A04") {
+    return "Bitte den Stand wählen: ob der Ablauf heute so läuft, künftig so laufen soll oder noch zu klären ist. Datum und die Bestätigung „Verstanden…“ sind erst Pflicht, wenn der Ablauf als heutige oder künftige Praxis gilt.";
+  }
+  return "Bitte angeben, ob das heute so läuft, künftig so laufen soll oder noch zu klären ist.";
+}
+
+function extraFieldIssues(id: string, entry: CatalogQuestionState): CatalogIssue[] {
+  const values = entry.values ?? {};
+  const issues: CatalogIssue[] = [];
+  if (id === "A01" && (entry.status === "bestaetigt" || entry.status === "geplant")) {
+    if (asText(values.rechtsform) === RECHTSFORM_FREITEXT && !asText(values.rechtsformFreitext)) {
+      issues.push(
+        catalogIssue(
+          "A01",
+          "rechtsformFreitext",
+          "Bitte die Rechtsform kurz benennen.",
+          "a01-rechtsform-frei",
+        ),
+      );
     }
-    if (entry.status === "nicht_zutreffend" && !asText(entry.reason)) {
-      return "Bitte kurz sagen, warum das entfällt.";
+    if (asList(values.branchen).includes(TAETIGKEIT_FREITEXT) && !asText(values.branchenFreitext)) {
+      issues.push(
+        catalogIssue(
+          "A01",
+          "branchenFreitext",
+          "Bitte die sonstige Tätigkeit kurz benennen.",
+          "a01-taetigkeit-frei",
+        ),
+      );
     }
-    if (entry.status === "bestaetigt" || entry.status === "geplant") {
+  }
+  if (id === "A02" && entry.status && entry.status !== "nicht_zutreffend") {
+    const excluded = asList(values.ausgeschlossen);
+    const shopOut = excluded.includes("Shop");
+    const anyOut = excluded.length > 0 || Boolean(asText(values.ausgeschlossenSonstiges));
+    const where = asText(values.ausgeschlossenWo);
+    if (shopOut && !where) {
+      issues.push(
+        catalogIssue(
+          "A02",
+          "ausgeschlossenWo",
+          "Bitte angeben, wo der Shop dokumentiert ist. Ausgeschlossen heißt nicht, dass der Vorgang undokumentiert bleibt.",
+          "a02-wo",
+        ),
+      );
+    } else if (anyOut && !where && (entry.status === "bestaetigt" || entry.status === "geplant")) {
+      issues.push(
+        catalogIssue(
+          "A02",
+          "ausgeschlossenWo",
+          "Bitte angeben, wo die ausgenommenen Vorgänge dokumentiert sind.",
+          "a02-wo",
+        ),
+      );
+    }
+  }
+  return issues;
+}
+
+function questionIssues(
+  question: CatalogQuestion,
+  entry: CatalogQuestionState | undefined,
+  answers: IntakeAnswers,
+): CatalogIssue[] {
+  const values = entry?.values ?? {};
+  if (!entry?.status) {
+    if (question.id === "A03") {
+      const missing = question.fields
+        .filter((field) => !fieldReady(field, values[field.key]))
+        .map((field) => fieldIssue(question, field));
+      if (missing.length) return missing;
+    }
+    const showChips = statusChoiceVisible(question.id, values);
+    return [
+      catalogIssue(
+        question.id,
+        "status",
+        missingStatusMessage(question),
+        showChips ? `${question.id}-status` : `angabe-${question.id}`,
+      ),
+    ];
+  }
+  if (entry.status === "nicht_zutreffend" && !asText(entry.reason)) {
+    return [catalogIssue(question.id, "block", "Bitte kurz sagen, warum das entfällt.")];
+  }
+  const issues: CatalogIssue[] = [];
+  if (entry.status === "bestaetigt" || entry.status === "geplant") {
+    const channels = asList(valuesOf(catalogState(answers), "C01").kanaele);
+    const p1 = p1FieldError(question.id, entry.status, values, channels);
+    if (p1) {
+      issues.push(catalogIssue(question.id, "block", p1));
+    } else {
       for (const field of question.fields) {
-        if (!fieldReady(field, entry.values?.[field.key])) {
-          return `Bitte die Angabe ausfüllen: ${question.prompt}`;
-        }
+        if (!fieldReady(field, values[field.key])) issues.push(fieldIssue(question, field));
       }
     }
-    const extra = extraStepError(question.id, entry, answers);
-    if (extra) return extra;
   }
-  return "";
+  issues.push(...extraFieldIssues(question.id, entry));
+  return issues;
+}
+
+function betriebsCheckIssues(answers: IntakeAnswers): CatalogIssue[] {
+  const check = modulZustand(answers).check;
+  return CHECK_FRAGEN.filter((frage) => {
+    const value = check[frage.key];
+    return value !== "ja" && value !== "nein" && value !== "unbekannt";
+  }).map((frage) => {
+    const anchor = `check-${frage.key}`;
+    return { ...catalogIssue("betriebs-check", frage.key, `Bitte für „${frage.label}“ ja, nein oder weiß ich nicht angeben.`, anchor), anchor };
+  });
+}
+
+function modulUebersichtIssues(answers: IntakeAnswers): CatalogIssue[] {
+  const issues: CatalogIssue[] = [];
+  for (const modul of MODULE) {
+    const message = modulStatusError(answers, modul.id);
+    if (!message) continue;
+    const anchor = `modul-${modul.id}`;
+    issues.push({
+      ...catalogIssue(modul.id, "status", message, `modul-${modul.id}-status`),
+      anchor,
+    });
+  }
+  if (!issues.length && !toolModules(answers).length) {
+    const anchor = "modul-uebersicht";
+    issues.push({
+      ...catalogIssue(
+        "module",
+        "block",
+        "Mindestens ein Modul muss den Status „Im Tool beschreiben“ haben (Kernmodule sind immer aktiv).",
+        anchor,
+      ),
+      anchor,
+    });
+  }
+  return issues;
+}
+
+/** Every open control on this step, in page order. Empty when the step can continue. */
+export function catalogStepIssues(stepIndex: number, answers: IntakeAnswers): CatalogIssue[] {
+  const step = CATALOG_STEPS[stepIndex];
+  if (!step || !catalogStepApplies(step, answers)) return [];
+  if (step.id === BETRIEBS_CHECK_STEP_ID) return betriebsCheckIssues(answers);
+  if (step.id === MODUL_UEBERSICHT_STEP_ID) return modulUebersichtIssues(answers);
+  const state = catalogState(answers);
+  const issues: CatalogIssue[] = [];
+  for (const question of visibleCatalogQuestions(stepIndex, answers)) {
+    issues.push(...questionIssues(question, state[question.id], answers));
+  }
+  return issues;
+}
+
+export function catalogStepError(stepIndex: number, answers: IntakeAnswers): string {
+  return catalogStepIssues(stepIndex, answers)[0]?.message ?? "";
 }
 
 function touch(
@@ -1313,6 +1450,192 @@ export function draftCatalogFromLegacy(answers: IntakeAnswers, company = ""): Ca
 export function withCatalogDraft(answers: IntakeAnswers, company = ""): IntakeAnswers {
   if (hasCatalogAnswers(answers) || Object.keys(catalogState(answers)).length > 0) return answers;
   return { ...answers, katalog: draftCatalogFromLegacy(answers, company) };
+}
+
+/** Firm master data already stored on the account. Only facts the user entered. */
+export type FirmFacts = {
+  name?: string;
+  street?: string;
+  zip?: string;
+  city?: string;
+  stnr?: string;
+  ustId?: string;
+};
+
+export function firmAddressLine(firm?: FirmFacts): string {
+  if (!firm) return "";
+  const street = firm.street?.trim() ?? "";
+  const place = [firm.zip?.trim(), firm.city?.trim()].filter(Boolean).join(" ");
+  return [street, place].filter(Boolean).join(", ");
+}
+
+const PREFILL_SKIP_KEYS = new Set([
+  "gueltigAb",
+  "datum",
+  "letztesTestdatum",
+  "keineRueckdatierungBestaetigt",
+  "bestaetigungDatum",
+  "bestaetigungName",
+]);
+
+function valueEmpty(value: unknown): boolean {
+  if (value == null) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (typeof value === "boolean" || typeof value === "number") return false;
+  if (Array.isArray(value)) return value.length === 0 || value.every((item) => valueEmpty(item));
+  if (typeof value === "object") {
+    const entries = Object.values(value as Record<string, unknown>);
+    return entries.length === 0 || entries.every((item) => valueEmpty(item));
+  }
+  return false;
+}
+
+function isProtected(protect: Array<[string, string]> | undefined, id: string, key: string): boolean {
+  return Boolean(protect?.some(([pid, pkey]) => pid === id && pkey === key));
+}
+
+function fillText(
+  katalog: CatalogState,
+  id: string,
+  key: string,
+  value: string | undefined,
+  protect?: Array<[string, string]>,
+): void {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed || PREFILL_SKIP_KEYS.has(key) || isProtected(protect, id, key)) return;
+  const entry = katalog[id] ?? {};
+  const values = { ...(entry.values ?? {}) };
+  if (!valueEmpty(values[key])) return;
+  values[key] = trimmed;
+  katalog[id] = { ...entry, values };
+}
+
+function fillRaw(
+  katalog: CatalogState,
+  id: string,
+  key: string,
+  value: unknown,
+  protect?: Array<[string, string]>,
+): void {
+  if (PREFILL_SKIP_KEYS.has(key) || valueEmpty(value) || isProtected(protect, id, key)) return;
+  const entry = katalog[id] ?? {};
+  const values = { ...(entry.values ?? {}) };
+  if (!valueEmpty(values[key])) return;
+  values[key] = value;
+  katalog[id] = { ...entry, values };
+}
+
+function ensureSystem(
+  katalog: CatalogState,
+  name: string,
+  funktion: string,
+  typ: string,
+): void {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const entry = katalog.B01 ?? {};
+  const values = { ...(entry.values ?? {}) };
+  const systems = asRows(values.systeme);
+  const named = systems.filter((row) => asText(row.name));
+  if (named.some((row) => asText(row.name) === trimmed)) return;
+  values.systeme = [...named, { name: trimmed, funktion, typ }];
+  katalog.B01 = { ...entry, values };
+}
+
+function roleLines(pairs: Array<[string, string]>): string {
+  return pairs
+    .map(([label, value]) => (value.trim() ? `${label}: ${value.trim()}` : ""))
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Copy facts the user already gave into empty catalog fields.
+ * Never sets a process status, a date, or the no-backdating confirmation.
+ * Never replaces a value the user already typed.
+ */
+export function prefillKnownFacts(
+  answers: IntakeAnswers,
+  firm?: FirmFacts,
+  options?: { protect?: Array<[string, string]> },
+): IntakeAnswers {
+  const protect = options?.protect;
+  const next = applyStammdatenPrefill(answers);
+  const katalog: CatalogState = { ...(next.katalog ?? {}) };
+  for (const [id, key] of protect ?? []) {
+    const entry = katalog[id] ?? {};
+    const values = { ...(entry.values ?? {}) };
+    const edited = answers.katalog?.[id]?.values?.[key];
+    if (valueEmpty(edited)) delete values[key];
+    else values[key] = edited;
+    katalog[id] = { ...entry, values };
+  }
+  const stamm = modulZustand(next).stammdaten ?? {};
+  const a01 = () => katalog.A01?.values ?? {};
+
+  fillText(katalog, "A01", "company", firm?.name, protect);
+  fillText(katalog, "A01", "standort", firmAddressLine(firm) || answers.standort, protect);
+  fillRaw(katalog, "A01", "branchen", answers.branchen, protect);
+  fillText(katalog, "A01", "rechtsform", answers.rechtsform, protect);
+  fillText(katalog, "A01", "mitarbeitende", answers.mitarbeitende, protect);
+  fillText(katalog, "A01", "gf", answers.gf || stamm.gf, protect);
+  fillText(katalog, "B01", "weitereFreitext", answers.weitereSysteme);
+  fillText(katalog, "B01", "hosting", answers.hosting);
+  fillText(katalog, "B01", "it", answers.it === "nicht angegeben" ? "" : answers.it);
+  for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
+  if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
+  fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege));
+  fillRaw(katalog, "E01", "formate", answers.formate);
+  fillRaw(katalog, "E05", "systeme", answers.ausgangsrechnungen);
+  fillText(katalog, "F01", "buchhaltung", answers.buchhaltung || stamm.buchhaltung);
+  fillText(katalog, "F05", "kanzleiName", answers.steuerberater || stamm.kanzlei);
+  fillText(katalog, "G01", "ablage", answers.archiv || stamm.archiv);
+  fillText(katalog, "G02", "zugriffKurz", answers.zugriff);
+  if (answers.backup.length) fillText(katalog, "G06", "backupArten", answers.backup.join(", "));
+
+  fillText(katalog, "KA01", "system", stamm.kasse);
+  fillText(katalog, "A01", "gastroKasse", stamm.kasse);
+  fillText(katalog, "EC02", "system", stamm.shop);
+  fillText(katalog, "A01", "onlineShop", stamm.shop);
+  fillText(katalog, "LO01", "system", stamm.lohn);
+  fillText(katalog, "WW01", "system", stamm.warenwirtschaft);
+  fillText(katalog, "A01", "onlineWawi", stamm.warenwirtschaft);
+  fillText(katalog, "BA01", "konten", stamm.bank);
+
+  const company = asText(a01().company);
+  const rechtsform = asText(a01().rechtsform);
+  const rechtsformFrei = asText(a01().rechtsformFreitext);
+  const formLine = rechtsform === RECHTSFORM_FREITEXT ? rechtsformFrei : rechtsform;
+  const gesellschaften = [
+    company,
+    formLine ? `Rechtsform: ${formLine}` : "",
+    firm?.stnr?.trim() ? `Steuernummer: ${firm.stnr.trim()}` : "",
+    firm?.ustId?.trim() ? `USt-IdNr.: ${firm.ustId.trim()}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  fillText(katalog, "UO01", "gesellschaften", gesellschaften);
+  fillText(katalog, "UO01", "standorte", asText(a01().standort));
+
+  const activities = asList(a01().branchen).filter((item) => item !== TAETIGKEIT_FREITEXT);
+  const activityFree = asText(a01().branchenFreitext);
+  if (activityFree) activities.push(activityFree);
+  fillText(katalog, "UO02", "taetigkeiten", activities.join(", "));
+
+  fillText(
+    katalog,
+    "UO03",
+    "zustaendigkeiten",
+    roleLines([
+      ["Geschäftsleitung", asText(a01().gf) || stamm.gf || ""],
+      ["Buchhaltung", asText(katalog.F01?.values?.buchhaltung) || stamm.buchhaltung || ""],
+      ["IT", asText(katalog.B01?.values?.it) || stamm.it || ""],
+      ["Steuerkanzlei", asText(katalog.F05?.values?.kanzleiName) || stamm.kanzlei || ""],
+    ]),
+  );
+
+  if (JSON.stringify(katalog) === JSON.stringify(next.katalog ?? {})) return next;
+  return { ...next, katalog };
 }
 
 export function statusLabel(status: CatalogStatus): string {

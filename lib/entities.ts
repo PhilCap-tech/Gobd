@@ -240,11 +240,21 @@ export function applyEntityToIdentity(
 export type EntityChoice = {
   entityId: string;
   name: string;
+  street?: string;
+  zip?: string;
+  city?: string;
+  stnr?: string;
+  ustId?: string;
 };
 
 export function entityChoices(entities: Entity[]): EntityChoice[] {
   return entities.map((entity) => ({
     entityId: entity.entityId,
     name: entity.name,
+    street: entity.street,
+    zip: entity.zip,
+    city: entity.city,
+    stnr: entity.stnr,
+    ustId: entity.ustId,
   }));
 }
