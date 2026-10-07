@@ -21,6 +21,16 @@ const ANTWORTEN: Array<{ value: CheckAntwort; label: string }> = [
   { value: "unbekannt", label: "Weiß ich nicht" },
 ];
 
+/** Shared Stammdaten block on the Betriebs-Check. Role fields want person names. */
+const STAMMDATEN_FELDER = [
+  { key: "gf", label: "Geschäftsführung", placeholder: "Name" },
+  { key: "buchhaltung", label: "Buchhaltung", placeholder: "Name" },
+  { key: "it", label: "IT", placeholder: "Name" },
+  { key: "kanzlei", label: "Steuerkanzlei", placeholder: "Name" },
+  { key: "fibu", label: "FiBu-System", placeholder: "Systemname" },
+  { key: "archiv", label: "Archiv / Ablage", placeholder: "Ablageort" },
+] as const;
+
 export function BetriebsCheckStep({
   answers,
   onChange,
@@ -96,25 +106,19 @@ export function BetriebsCheckStep({
         </div>
       </div>
       <div className="card">
-        <h2>Einmal erfassen, überall nutzen</h2>
-        <p className="hint">Diese Angaben werden in passende Felder der Module vorbelegt.</p>
-        {(
-          [
-            ["gf", "Geschäftsführung"],
-            ["buchhaltung", "Buchhaltung"],
-            ["it", "IT"],
-            ["kanzlei", "Steuerkanzlei"],
-            ["fibu", "FiBu-System"],
-            ["archiv", "Archiv / Ablage"],
-          ] as const
-        ).map(([key, label]) => (
-          <div className="field" key={key}>
-            <label htmlFor={`stamm-${key}`}>{label}</label>
+        <h2>Namen der Verantwortlichen — einmal erfassen, überall nutzen</h2>
+        <p className="hint">
+          Trage hier die Namen (und Systeme) ein. Wir belegen passende Felder in den Modulen vor.
+        </p>
+        {STAMMDATEN_FELDER.map((field) => (
+          <div className="field" key={field.key}>
+            <label htmlFor={`stamm-${field.key}`}>{field.label}</label>
             <input
-              id={`stamm-${key}`}
-              value={stammdaten[key] ?? ""}
+              id={`stamm-${field.key}`}
+              value={stammdaten[field.key] ?? ""}
+              placeholder={field.placeholder}
               onChange={(event) => {
-                let next = setStammdaten(answers, { [key]: event.target.value });
+                let next = setStammdaten(answers, { [field.key]: event.target.value });
                 next = applyStammdatenPrefill(next);
                 onChange(next);
               }}
