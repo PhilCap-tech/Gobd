@@ -1,16 +1,13 @@
 import { readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { del, get, list } from "@vercel/blob";
 import { google } from "googleapis";
+import { commitBlobWipe, planAccountBlobs } from "@/lib/admin-wipe-blobs";
 import {
   accountRecordFromCells,
   accountRecordFromUnknown,
   cellsMatchEmail,
-  classifyBlobPathname,
   collectAccountScope,
-  derivedDocumentPaths,
-  derivedDraftPaths,
   draftPayloadMatchesEmail,
   emptyFileWipe,
   emptyPathWipe,
@@ -32,7 +29,7 @@ import {
   type SheetWipe,
   type WipeAccountResult,
 } from "@/lib/admin-wipe";
-import { isBlobConfigured, isSheetsConfigured } from "@/lib/env";
+import { isSheetsConfigured } from "@/lib/env";
 import { forgetReferralKeys } from "@/lib/referral-sent";
 import { getFileFallbackDir } from "@/lib/store";
 import {
@@ -49,9 +46,6 @@ const SHEETS_GET_OPTS = {
     Pragma: "no-cache",
   },
 } as const;
-
-const BLOB_DELETE_CHUNK = 100;
-const DRAFT_CONTENT_BUDGET_MS = 8_000;
 
 type SheetTab = {
   title: string;
@@ -441,165 +435,6 @@ async function deleteReferral(scope: AccountScope): Promise<void> {
   }
 }
 
-async function listBlobPrefix(prefix: string): Promise<string[]> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  const pathnames: string[] = [];
-  let cursor: string | undefined;
-  for (let page = 0; page < 20; page += 1) {
-    const result = await list({ prefix, cursor, limit: 1000, token });
-    for (const blob of result.blobs) {
-      if (blob.pathname) pathnames.push(blob.pathname.replace(/^\/+/, ""));
-    }
-    if (!result.hasMore || !result.cursor) break;
-    cursor = result.cursor;
-  }
-  return pathnames;
-}
-
-async function readBlobText(pathname: string): Promise<string | null> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  for (const access of ["public", "private"] as const) {
-    try {
-      const result = await get(pathname, { access, token, useCache: false });
-      if (!result || result.statusCode !== 200 || !result.stream) continue;
-      return await new Response(result.stream).text();
-    } catch {
-      // The store may be private while older objects were written as public.
-    }
-  }
-  return null;
-}
-
-async function deleteBlobPaths(pathnames: string[]): Promise<number> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  const uniquePaths = unique(pathnames);
-  let deleted = 0;
-  for (let offset = 0; offset < uniquePaths.length; offset += BLOB_DELETE_CHUNK) {
-    const chunk = uniquePaths.slice(offset, offset + BLOB_DELETE_CHUNK);
-    try {
-      await del(chunk, { token });
-      deleted += chunk.length;
-    } catch {
-      for (const pathname of chunk) {
-        try {
-          await del(pathname, { token });
-          deleted += 1;
-        } catch (error) {
-          const name =
-            error && typeof error === "object" && "name" in error
-              ? String((error as { name?: string }).name)
-              : "";
-          if (name === "BlobNotFoundError") continue;
-          throw error;
-        }
-      }
-    }
-  }
-  return deleted;
-}
-
-async function mapPool<T>(
-  items: readonly T[],
-  limit: number,
-  fn: (item: T) => Promise<void>,
-): Promise<void> {
-  let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    for (;;) {
-      const index = next;
-      next += 1;
-      if (index >= items.length) return;
-      await fn(items[index] as T);
-    }
-  });
-  await Promise.all(workers);
-}
-
-type BlobPlan = WipeAccountResult["blob"];
-
-async function planBlobs(scope: AccountScope, records: AccountRecord[]): Promise<BlobPlan> {
-  const plan: BlobPlan = {
-    drafts: emptyPathWipe(),
-    documents: emptyPathWipe(),
-    uploads: emptyPathWipe(),
-    contentChecks: 0,
-    contentChecksSkipped: 0,
-  };
-  if (!isBlobConfigured()) {
-    plan.skipped = "BLOB_READ_WRITE_TOKEN fehlt — Blob übersprungen";
-    plan.drafts = emptyPathWipe(plan.skipped);
-    plan.documents = emptyPathWipe(plan.skipped);
-    plan.uploads = emptyPathWipe(plan.skipped);
-    return plan;
-  }
-
-  const draftPaths = new Set(derivedDraftPaths(scope));
-  const documentPaths = new Set(derivedDocumentPaths(records));
-  const uploadPaths = new Set<string>();
-
-  try {
-    const listedDrafts = await listBlobPrefix("gobd/drafts/");
-    const deadline = Date.now() + DRAFT_CONTENT_BUDGET_MS;
-    const unchecked: string[] = [];
-    for (const pathname of listedDrafts) {
-      const kind = classifyBlobPathname(pathname, scope);
-      if (kind === "draft") {
-        draftPaths.add(pathname);
-        continue;
-      }
-      if (!pathname.startsWith("gobd/drafts/") || pathname.slice("gobd/drafts/".length).includes("/")) {
-        continue;
-      }
-      unchecked.push(pathname);
-    }
-    await mapPool(unchecked, 4, async (pathname) => {
-      if (Date.now() > deadline) {
-        plan.contentChecksSkipped += 1;
-        return;
-      }
-      plan.contentChecks += 1;
-      const text = await readBlobText(pathname);
-      if (!text) return;
-      try {
-        if (draftPayloadMatchesEmail(JSON.parse(text) as unknown, scope.email)) {
-          draftPaths.add(pathname);
-        }
-      } catch {
-        // Not JSON — leave it.
-      }
-    });
-
-    await mapPool(scope.familyIds, 3, async (familyId) => {
-      for (const pathname of await listBlobPrefix(`gobd/${familyId}/`)) {
-        if (classifyBlobPathname(pathname, scope) === "document") {
-          documentPaths.add(pathname);
-        }
-      }
-    });
-    await mapPool(scope.uploadOwners, 3, async (owner) => {
-      for (const pathname of await listBlobPrefix(`gobd/uploads/${owner}/`)) {
-        if (classifyBlobPathname(pathname, scope) === "upload") {
-          uploadPaths.add(pathname);
-        }
-      }
-    });
-  } catch (error) {
-    plan.error = safeErrorMessage(error);
-  }
-
-  plan.drafts.pathnames = [...draftPaths].sort();
-  plan.drafts.matched = plan.drafts.pathnames.length;
-  plan.documents.pathnames = [...documentPaths].sort();
-  plan.documents.matched = plan.documents.pathnames.length;
-  plan.uploads.pathnames = [...uploadPaths].sort();
-  plan.uploads.matched = plan.uploads.pathnames.length;
-  if (plan.contentChecksSkipped > 0) {
-    plan.drafts.skipped =
-      "Weitere Entwürfe nicht inhaltlich geprüft (Zeitbudget). Abgeleitete draftKeys sind erfasst.";
-  }
-  return plan;
-}
-
 function isLiveCustomer(
   customer: Stripe.Customer | Stripe.DeletedCustomer,
 ): customer is Stripe.Customer {
@@ -812,7 +647,7 @@ export async function wipeAccount(input: {
   const scope = collectAccountScope(email, records);
   const local = await collectLocalArtifacts(scope, records);
   const referral = await collectReferral(scope);
-  const blob = await planBlobs(scope, records);
+  const blob = await planAccountBlobs(scope, records);
   const stripe = await planStripe(email, scope.stripeCustomerIds, dryRun);
 
   const files: WipeAccountResult["files"] = {
@@ -885,9 +720,9 @@ export async function wipeAccount(input: {
     }
     if (!blob.skipped) {
       try {
-        blob.drafts.deleted = await deleteBlobPaths(blob.drafts.pathnames);
-        blob.documents.deleted = await deleteBlobPaths(blob.documents.pathnames);
-        blob.uploads.deleted = await deleteBlobPaths(blob.uploads.pathnames);
+        await commitBlobWipe(blob.drafts);
+        await commitBlobWipe(blob.documents);
+        await commitBlobWipe(blob.uploads);
       } catch (error) {
         blob.error = blob.error ?? safeErrorMessage(error);
         console.error("[admin-wipe] blob", blob.error);

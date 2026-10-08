@@ -14,6 +14,12 @@ export const WIPE_EMAIL_ALLOWLIST = [
   "cappe@gmx.de",
 ] as const;
 
+/**
+ * Preview smoke only. Never allowlisted in production, and only when the
+ * preview smoke process sets `GOBD_BLOB_SMOKE=1`. Not a customer mailbox.
+ */
+export const WIPE_SMOKE_EMAIL = "draft-blob-smoke@example.com";
+
 export const ADMIN_WIPE_TOKEN_MIN_LENGTH = 32;
 
 const STRICT_EMAIL_HEADERS = new Set([
@@ -79,8 +85,20 @@ export type FileJsonWipe = WipeCount & {
   rows: unknown[];
 };
 
+export type BlobObjectWipe = {
+  pathname: string;
+  /** ISO time from `head()`. Set when the object was still in the store. */
+  uploadedAt?: string;
+  /** True only after `head()` throws `BlobNotFoundError`. */
+  deleted?: boolean;
+  /** Set when this path could not be inspected or was still present after `del()`. */
+  error?: string;
+};
+
 export type PathWipe = WipeCount & {
   pathnames: string[];
+  /** Blob groups only. Local file wipes leave this unset. */
+  blobs?: BlobObjectWipe[];
 };
 
 export type WipeAccountResult = {
@@ -166,7 +184,10 @@ export function adminTokensMatch(provided: string, expected: string): boolean {
 
 export function isWipeEmailAllowed(email: string): boolean {
   const normalized = email.trim().toLowerCase();
-  return WIPE_EMAIL_ALLOWLIST.some((item) => item === normalized);
+  if (WIPE_EMAIL_ALLOWLIST.some((item) => item === normalized)) return true;
+  if (normalized !== WIPE_SMOKE_EMAIL) return false;
+  if (process.env.VERCEL_ENV === "production") return false;
+  return process.env.GOBD_BLOB_SMOKE === "1";
 }
 
 export function parseWipeEmail(
