@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
-import { loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
+import { BlobStorageError, blobFailureClass, loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
 import { generatePdf } from "@/lib/delivery";
 import { canAccessDocument } from "@/lib/documents";
 import { isGesamt } from "@/lib/module/status";
@@ -66,10 +66,10 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("[docs] PDF-Download fehlgeschlagen", error);
+    console.error("[docs] PDF-Download fehlgeschlagen", blobFailureClass(error));
     return NextResponse.json(
       { error: "PDF konnte nicht geladen werden." },
-      { status: 500 },
+      { status: error instanceof BlobStorageError ? 503 : 500 },
     );
   }
 }

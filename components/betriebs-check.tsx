@@ -16,6 +16,7 @@ import {
   vollstaendigkeitsZeilen,
 } from "@/lib/module/status";
 import { MODUL_STATUSES, type CheckAntwort } from "@/lib/module/typen";
+import { customerUploadHref } from "@/lib/blob-ref";
 import type { IntakeAnswers } from "@/lib/types";
 
 const ANTWORTEN: Array<{ value: CheckAntwort; label: string }> = [
@@ -364,7 +365,11 @@ export function ModulUebersichtStep({
                               <>
                                 {" "}
                                 ·{" "}
-                                <a href={current.uploadUrl} target="_blank" rel="noreferrer">
+                                <a
+                                  href={customerUploadHref(current.uploadUrl, sessionId)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
                                   öffnen
                                 </a>
                               </>

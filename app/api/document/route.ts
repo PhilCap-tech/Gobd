@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
-import { persistChapterContent, storePdf } from "@/lib/blob";
+import { BlobStorageError, blobFailureClass, persistChapterContent, storePdf } from "@/lib/blob";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
 import {
   canAccessDocument,
@@ -145,7 +145,10 @@ async function handleDocumentEdit(request: Request) {
       },
     };
   } catch (error) {
-    console.error("[document] PDF-Erzeugung fehlgeschlagen", error);
+    console.error("[document] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
+    if (error instanceof BlobStorageError) {
+      return jsonError("PDF konnte nicht gespeichert werden.", 503);
+    }
     return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
   }
 
@@ -157,7 +160,10 @@ async function handleDocumentEdit(request: Request) {
       json: chapterContent,
     });
   } catch (error) {
-    console.error("[document] Kapiteltext-Ablage fehlgeschlagen", error);
+    console.error("[document] Kapiteltext-Ablage fehlgeschlagen", blobFailureClass(error));
+    if (error instanceof BlobStorageError) {
+      return jsonError("Kapiteltext konnte nicht gespeichert werden.", 503);
+    }
     return jsonError(errorDetail(error), 400);
   }
 
