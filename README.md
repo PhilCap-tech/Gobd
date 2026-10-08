@@ -225,7 +225,7 @@ Ablauf:
 3. `/account`: pro Familie **Dokument bearbeiten** (neben **Angaben überarbeiten**).
 4. Ohne Cookie: `/account/dokument/{id}` leitet nach `/login?next=/account/dokument/{id}`. Magic Link (Demo-Banner, wenn keine Mail) zurück zum Editor.
 5. Kapiteltext ändern, **Speichern und PDF erzeugen**. Banner „Version n ist gespeichert“ + Download. Zurück auf `/account`: neue Version in der **Versionshistorie**, alter Download bleibt.
-6. Fremde E-Mail: Editor zeigt „Dieses Dokument gehört nicht zu deinem Konto.“ `POST /api/document` ohne Cookie → 401.
+6. Fremde E-Mail: Editor zeigt „Dieses Dokument gehört nicht zu Ihrem Konto.“ `POST /api/document` ohne Cookie → 401.
 7. Erwartete Datei-Zeile (`.data/intakes.json`): neue `document_id`, `parent_document_id` = Familienwurzel, `version` = n+1, `status` = `document_edited_stub`, `chapter_content` = JSON mit `cover` + `chapters`.
 
 `/success?session_id=…` ohne `document_id` sucht die neueste Intake-Zeile zu dieser Stripe-Session und zeigt Download + Überarbeiten. `/intake?document_id=&session_id=…` (leere `document_id`) fällt ebenfalls auf die Session-Zeile zurück und startet den Re-Edit statt eines leeren Formulars.

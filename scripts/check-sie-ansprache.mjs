@@ -1,9 +1,11 @@
-// Fails the build when entry-path copy still addresses the customer with du.
-// Scope is the pages and shared modules converted in the Sie entry-path step.
-// Later PRs extend COVERED (blog, mails, account) — leave the matchers as they are.
+// Fails the build when covered customer copy still addresses the customer with du.
+// COVERED is the entry path plus transactional mails, account, and intake.
+// Blog and lead magnets stay in check-forbidden-words.mjs. Leave the matchers
+// as they are.
 //
 // Only user-visible copy is checked: markdown as written, and in TS/TSX the
 // string literals plus text nodes. Code identifiers such as `dir` are ignored.
+// Partner and Steuerberater templates in lib/ops.ts are Sie and pass as written.
 // A line marked with `allow-du` is skipped (same idea as allow-forbidden).
 import { globSync, readFileSync } from "node:fs";
 
@@ -22,15 +24,28 @@ const COVERED = [
   "components/site-footer.tsx",
   "content/readiness/**/*.md",
   "lib/readiness.ts",
+  "lib/ops.ts",
+  "app/account/**/*.{ts,tsx}",
+  "app/login/**/*.{ts,tsx}",
+  "app/intake/**/*.{ts,tsx}",
+  "app/success/**/*.{ts,tsx}",
+  "app/billing/**/*.{ts,tsx}",
+  "app/portal/**/*.{ts,tsx}",
+  "components/account-abo.tsx",
+  "components/account-billing.tsx",
+  "components/account-free.tsx",
+  "components/account-profile-form.tsx",
+  "components/success-status.tsx",
+  "components/betriebs-check.tsx",
+  "components/bereich-select.tsx",
+  "components/intake-questionnaire.tsx",
+  "components/intake-p1-fields.tsx",
+  "components/firma-select.tsx",
+  "components/document-revision.tsx",
+  "components/version-change-fields.tsx",
+  "lib/module/status.ts",
+  "lib/stripe.ts",
 ];
-
-// Later steps can append, for example:
-//   "content/blog/**/*.md"
-//   "lib/ops.ts"
-//   "app/account/**/*.{ts,tsx}"
-//   "app/login/**/*.{ts,tsx}"
-//   "app/intake/**/*.{ts,tsx}"
-//   "app/success/**/*.{ts,tsx}"
 
 const PRONOUNS =
   "du|dich|dir|dein|deine|deinen|deinem|deiner|deines|euch|euer|eure|euren|eurem|eurer|eures";

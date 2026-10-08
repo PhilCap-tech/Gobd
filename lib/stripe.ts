@@ -537,13 +537,13 @@ export function subscriptionStatusCopy(status: BillingSubscriptionStatus): {
     case "active":
       return {
         label: "Aktiv",
-        text: "Dein Abo ist aktiv.",
+        text: "Ihr Abo ist aktiv.",
         tone: "ok",
       };
     case "past_due":
       return {
         label: "Zahlungsrückstand",
-        text: "Dein Abo hat einen Zahlungsrückstand. Bitte Zahlungsmittel im Stripe-Portal prüfen.",
+        text: "Ihr Abo hat einen Zahlungsrückstand. Bitte Zahlungsmittel im Stripe-Portal prüfen.",
         tone: "warn",
       };
     case "none":

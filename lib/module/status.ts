@@ -131,12 +131,12 @@ export const STATUS_OPTION_LABEL: Record<ModulStatus, string> = {
   nicht_vorhanden: "nicht vorhanden",
 };
 
-/** Ein Satz je Option, du-Form, ohne Rechtsanspruch. */
+/** Ein Satz je Option, Sie-Form, ohne Rechtsanspruch. */
 export const STATUS_HILFE: Record<ModulStatus, string> = {
-  tool: "Du beantwortest die Fragen zu diesem Modul hier; die Angaben erscheinen im Gesamt-PDF.",
-  extern: "Du hast die Beschreibung schon und verlinkst oder lädst sie hier hoch.",
-  offen: "Du hast noch nicht genug Infos (zum Beispiel, weil der Prozess unklar ist oder ein Mitarbeiter fehlt) und füllst das Modul später aus; es bleibt als offene Aufgabe sichtbar, bis du es beschreibst oder auf „nicht vorhanden“ setzt.",
-  nicht_vorhanden: "Diesen Ablauf gibt es in deinem Betrieb nicht; du schließt ihn bewusst aus.",
+  tool: "Sie beantworten die Fragen zu diesem Modul hier; die Angaben erscheinen im Gesamt-PDF.",
+  extern: "Sie haben die Beschreibung schon und verlinken oder laden sie hier hoch.",
+  offen: "Sie haben noch nicht genug Infos (zum Beispiel, weil der Prozess unklar ist oder ein Mitarbeiter fehlt) und füllen das Modul später aus; es bleibt als offene Aufgabe sichtbar, bis Sie es beschreiben oder auf „nicht vorhanden“ setzen.",
+  nicht_vorhanden: "Diesen Ablauf gibt es in Ihrem Betrieb nicht; Sie schließen ihn bewusst aus.",
 };
 
 export function emptyModulZustand(): ModulZustand {

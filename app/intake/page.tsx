@@ -55,7 +55,7 @@ const GATE_COPY: Record<
   },
   not_paid: {
     title: "Zahlung noch nicht bestätigt",
-    body: "Die Zahlung ist noch nicht als abgeschlossen markiert. Wenn du gerade bezahlt hast, warte kurz und prüfe erneut.",
+    body: "Die Zahlung ist noch nicht als abgeschlossen markiert. Wenn Sie gerade bezahlt haben, warten Sie kurz und prüfen Sie erneut.",
   },
   lookup_failed: {
     title: "Session konnte nicht geladen werden",
@@ -112,7 +112,7 @@ function EditGate({ loggedIn }: { loggedIn: boolean }) {
       <h1>Angaben nicht verfügbar</h1>
       <p className="prose">
         {loggedIn
-          ? "Dieses Dokument gehört nicht zu deinem Konto."
+          ? "Dieses Dokument gehört nicht zu Ihrem Konto."
           : "Bitte mit der Checkout-E-Mail anmelden oder den Link von der Success-Seite mit gültiger Session nutzen."}
       </p>
       <div className="actions" style={{ marginTop: 16 }}>

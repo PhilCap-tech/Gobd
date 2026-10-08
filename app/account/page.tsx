@@ -147,7 +147,7 @@ export default async function AccountPage({
             <div className="entity-toolbar" id="firmen">
               {atCap ? (
                 <p className="hint" style={{ margin: 0 }}>
-                  Du hast das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
+                  Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
                   erreicht.
                 </p>
               ) : (
@@ -320,7 +320,7 @@ export default async function AccountPage({
                                       <div className="open-modules">
                                         <h4>Offene Module</h4>
                                         <p className="hint">
-                                          Noch auszufüllen. Im Intake setzt du den Status auf „{STATUS_OPTION_LABEL.tool}“, „{STATUS_OPTION_LABEL.extern}“ oder „{STATUS_OPTION_LABEL.nicht_vorhanden}“.
+                                          Noch auszufüllen. Im Intake setzen Sie den Status auf „{STATUS_OPTION_LABEL.tool}“, „{STATUS_OPTION_LABEL.extern}“ oder „{STATUS_OPTION_LABEL.nicht_vorhanden}“.
                                         </p>
                                         <ul className="open-module-list">
                                           {offenRows.map((row) => (

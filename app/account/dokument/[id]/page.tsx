@@ -32,7 +32,7 @@ function EditGate({ loggedIn }: { loggedIn: boolean }) {
       <h1>Dokument nicht verfügbar</h1>
       <p className="prose">
         {loggedIn
-          ? "Dieses Dokument gehört nicht zu deinem Konto."
+          ? "Dieses Dokument gehört nicht zu Ihrem Konto."
           : "Bitte mit der Checkout-E-Mail anmelden."}
       </p>
       <div className="actions" style={{ marginTop: 16 }}>
@@ -108,7 +108,7 @@ export default async function DocumentEditPage({
             <p className="kicker">Konto</p>
             <h1>Dokument bearbeiten</h1>
             <p className="lead">
-              Kapiteltext deines Entwurfs. Intake-Angaben bleiben unter
+              Kapiteltext Ihres Entwurfs. Intake-Angaben bleiben unter
               „Angaben überarbeiten“.
             </p>
             <DocumentEditor

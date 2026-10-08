@@ -508,14 +508,14 @@ export function IntakeForm({
 
       {session.stub && step <= INTAKE_STEPS.length && !isEdit && (
         <p className="banner">
-          Test ohne Zahlung. Die Angaben werden gespeichert, sobald du
-          absendest.
+          Test ohne Zahlung. Die Angaben werden gespeichert, sobald Sie
+          absenden.
         </p>
       )}
 
       {isEdit && step <= INTAKE_STEPS.length && (
         <p className="banner">
-          Du bearbeitest die Angaben
+          Sie bearbeiten die Angaben
           {companyLabel ? ` für ${companyLabel}` : ""}. Beim Absenden entsteht
           Version {nextVersionLabel} — bisherige PDFs bleiben downloadbar.
         </p>
@@ -523,7 +523,7 @@ export function IntakeForm({
 
       {isNewArea && isGesamt(answers) && step <= INTAKE_STEPS.length && (
         <p className="banner">
-          Neues Gesamtdokument{companyLabel ? ` für ${companyLabel}` : ""}. Angaben aus deinen
+          Neues Gesamtdokument{companyLabel ? ` für ${companyLabel}` : ""}. Angaben aus Ihren
           bisherigen Bereichs-Dokumentationen sind übernommen und den Modulen zugeordnet. Bitte
           prüfen. Die bisherigen Bereichs-Dokumentationen bleiben im Konto lesbar. Es entsteht keine
           neue Bestellung.
@@ -607,7 +607,7 @@ export function IntakeForm({
           )}
           {step === firstStep && isGesamt(answers) && (
             <p className="banner">
-              Gesamtdokument mit 24 Modulen. Zuerst der Betriebs-Check, danach die Module deines
+              Gesamtdokument mit 24 Modulen. Zuerst der Betriebs-Check, danach die Module Ihres
               Betriebs. Alle Module sind im Preis enthalten.
             </p>
           )}
@@ -647,7 +647,7 @@ export function IntakeForm({
             />
             <p className="disclaimer">
               Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein
-              Entwurf aus deinen Angaben — keine Freigabe und keine
+              Entwurf aus Ihren Angaben — keine Freigabe und keine
               individuelle Steuer- oder Rechtsberatung. Eine Abstimmung mit
               dem Steuerberater ist optional und nur im Rahmen eines
               gesonderten Auftrags.

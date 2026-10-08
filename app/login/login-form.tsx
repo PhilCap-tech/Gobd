@@ -51,7 +51,7 @@ export function LoginForm({ next }: { next?: string | null }) {
           name="email"
           type="email"
           autoComplete="email"
-          placeholder="du@firma.de"
+          placeholder="name@firma.de"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required

@@ -131,28 +131,28 @@ for (const [name, html] of Object.entries(files)) {
 assert(!hasPageReadinessHref(onboarding.html), "Onboarding must not link to /readiness");
 assert(
   onboarding.subject ===
-    "Willkommen — nächste Schritte zu deiner Verfahrensdokumentation",
-  "Customer onboarding subject stays du",
+    "Willkommen — nächste Schritte zu Ihrer Verfahrensdokumentation",
+  "Customer onboarding subject uses Sie",
 );
 assert(
-  onboarding.html.includes("danke für deine Bestellung"),
-  "Customer onboarding stays du",
+  onboarding.html.includes("vielen Dank für Ihre Bestellung"),
+  "Customer onboarding thanks in Sie",
 );
 assert(
   !onboarding.html.includes("KANZLEI-PILOT"),
   "Customer onboarding must not mention the partner code",
 );
 function greetingParagraph(html: string): string {
-  const match = html.match(/<p>(Hallo.*?)<\/p>/);
+  const match = html.match(/<p>(Guten Tag.*?)<\/p>/);
   return match?.[1] ?? "";
 }
 const onboardingHref = onboardingStartUrl.replaceAll("&", "&amp;");
 assert(
-  greetingParagraph(onboarding.html) === "Hallo Philip Cappelletti,",
+  greetingParagraph(onboarding.html) === "Guten Tag Philip Cappelletti,",
   "Customer onboarding greets the contact name",
 );
 assert(
-  onboarding.text.startsWith("Hallo Philip Cappelletti,"),
+  onboarding.text.startsWith("Guten Tag Philip Cappelletti,"),
   "Customer onboarding plaintext greets the contact name",
 );
 assert(
@@ -161,24 +161,24 @@ assert(
   "Customer onboarding greeting must not use the company name",
 );
 assert(
-  greetingParagraph(onboardingCompanyOnly.html) === "Hallo,",
-  "Company-only name falls back to Hallo,",
+  greetingParagraph(onboardingCompanyOnly.html) === "Guten Tag,",
+  "Company-only name falls back to Guten Tag,",
 );
 assert(
-  onboardingCompanyOnly.text.startsWith("Hallo,"),
-  "Company-only plaintext falls back to Hallo,",
+  onboardingCompanyOnly.text.startsWith("Guten Tag,"),
+  "Company-only plaintext falls back to Guten Tag,",
 );
 assert(
-  !onboardingCompanyOnly.text.includes("Hallo IKAT") &&
-    !onboardingCompanyOnly.html.includes("Hallo IKAT"),
+  !onboardingCompanyOnly.text.includes("Guten Tag IKAT") &&
+    !onboardingCompanyOnly.html.includes("Guten Tag IKAT"),
   "Company name must not appear in the greeting",
 );
 assert(
-  greetingParagraph(onboardingWhitespace.html) === "Hallo,",
-  "Whitespace contact name falls back to Hallo,",
+  greetingParagraph(onboardingWhitespace.html) === "Guten Tag,",
+  "Whitespace contact name falls back to Guten Tag,",
 );
 assert(
-  !onboardingWhitespace.text.includes("Hallo ,"),
+  !onboardingWhitespace.text.includes("Guten Tag ,"),
   "Whitespace contact name must not leave a gap",
 );
 assert(
@@ -228,7 +228,7 @@ assert(
 );
 assert(
   onboarding.html.includes(
-    "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus deinen Angaben.",
+    "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus Ihren Angaben.",
   ),
   "Customer onboarding keeps the disclaimer",
 );
@@ -295,7 +295,7 @@ assert(
   "intake contact is used when checkout is only the company",
 );
 assert(
-  customerOnboardingGreeting("   ", ["IKAT GmbH"]) === "Hallo,",
+  customerOnboardingGreeting("   ", ["IKAT GmbH"]) === "Guten Tag,",
   "greeting helper falls back on whitespace",
 );
 assert(
@@ -334,7 +334,9 @@ assert(
   "Stripe business name alone does not greet",
 );
 function hasCustomerDu(value: string): boolean {
-  return /\b(du|dein|deine|deinen|deiner|deinem|dich)\b/i.test(value);
+  return /\b(du|dich|dir|dein|deine|deinem|deinen|deiner|deines|euch|euer|eure|eurem|euren|eurer|eures)\b/i.test(
+    value,
+  );
 }
 const partnerMail = `${partnerOnboarding.subject}\n${partnerOnboarding.html}\n${partnerOnboarding.text}`;
 assert(
@@ -452,7 +454,7 @@ assert(
 );
 assert(
   referral.subject ===
-    "Dein Entwurf ist fertig — gern an Steuerberater oder Kollegen weitergeben",
+    "Ihr Entwurf ist fertig — gern an Steuerberater oder Kollegen weitergeben",
   "Referral subject must be exact",
 );
 const referralHref = REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;");
@@ -512,17 +514,24 @@ assert(
   "Referral must not repeat the delivery download CTA",
 );
 assert(
-  referral.html.includes("Hallo Muster GmbH,"),
+  referral.html.includes("Guten Tag Muster GmbH,"),
   "Referral greeting must include the company",
 );
 assert(
-  referralNoCompany.text.startsWith("Hallo,"),
-  "Empty company must render as Hallo,",
+  referralNoCompany.text.startsWith("Guten Tag,"),
+  "Empty company must render as Guten Tag,",
 );
 assert(
-  !referralNoCompany.text.includes("Hallo ,"),
+  !referralNoCompany.text.includes("Guten Tag ,"),
   "Empty company must not leave a gap in the greeting",
 );
+const customerMails = [magic, readiness, onboarding, failedPayment, failedJob, delivery, referral];
+for (const mail of customerMails) {
+  assert(
+    !hasCustomerDu(`${mail.subject}\n${mail.html}\n${mail.text}`),
+    `Customer mail must use Sie: ${mail.subject}`,
+  );
+}
 
 async function assertReferralIdempotency(): Promise<void> {
   const referralLedgerFile = path.join(outDir, "referral-ledger.json");
