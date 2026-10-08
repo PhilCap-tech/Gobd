@@ -35,7 +35,11 @@ export type BlobStoreIo = {
   get: (
     pathname: string,
     options: { access: "public" | "private"; token?: string; useCache?: boolean },
-  ) => Promise<{ statusCode?: number; stream?: ReadableStream<Uint8Array> | null } | null>;
+  ) => Promise<{
+    statusCode?: number;
+    stream?: ReadableStream<Uint8Array> | null;
+    blob?: { uploadedAt?: Date | string };
+  } | null>;
 };
 
 const defaultBlobIo: BlobStoreIo = {
@@ -141,7 +145,73 @@ type Inspected = {
   failures: BlobObjectWipe[];
 };
 
-/** `head()` is the existence check. `list()` only discovers candidates. */
+type ProbeHit = { found: true; uploadedAt?: string };
+type ProbeMiss = { found: false; error?: string };
+
+async function releaseStream(stream: ReadableStream<Uint8Array> | null | undefined): Promise<void> {
+  if (!stream) return;
+  try {
+    await stream.cancel();
+  } catch {
+    // The body may already be closed.
+  }
+}
+
+/**
+ * Consistent read for the private store. `get()` with `useCache: false`
+ * returns null on HTTP 404 and bypasses the CDN. `head()` has no such
+ * switch; a just-deleted object can stay visible there for up to a minute.
+ */
+async function readUncached(
+  pathname: string,
+  io: BlobStoreIo,
+  token: string,
+): Promise<ProbeHit | ProbeMiss> {
+  let errorName: string | undefined;
+  for (const access of ["private", "public"] as const) {
+    try {
+      const result = await io.get(pathname, { access, token, useCache: false });
+      if (result?.statusCode === 200 && result.stream) {
+        const uploadedAt = blobUploadedAtIso(result.blob?.uploadedAt);
+        await releaseStream(result.stream);
+        return uploadedAt ? { found: true, uploadedAt } : { found: true };
+      }
+    } catch (error) {
+      if (!isBlobNotFound(error)) errorName = blobErrorName(error);
+    }
+  }
+  return errorName ? { found: false, error: errorName } : { found: false };
+}
+
+async function probeBlob(
+  pathname: string,
+  io: BlobStoreIo,
+  token: string,
+): Promise<ProbeHit | ProbeMiss> {
+  let headUploadedAt: string | undefined;
+  let headFound = false;
+  let headMissing = false;
+  let headError: string | undefined;
+  try {
+    const meta = await io.head(pathname, { token });
+    headFound = true;
+    headUploadedAt = blobUploadedAtIso(meta.uploadedAt);
+  } catch (error) {
+    if (isBlobNotFound(error)) headMissing = true;
+    else headError = blobErrorName(error);
+  }
+
+  const body = await readUncached(pathname, io, token);
+  if (body.found || headFound) {
+    return { found: true, uploadedAt: headUploadedAt || (body.found ? body.uploadedAt : undefined) };
+  }
+  if (headMissing && !body.error) return { found: false };
+  const name = body.error || headError;
+  if (name) return { found: false, error: name };
+  return { found: false };
+}
+
+/** `head()` plus an uncached `get()`. `list()` only discovers candidates. */
 export async function inspectBlobs(
   pathnames: readonly string[],
   io: BlobStoreIo,
@@ -154,18 +224,15 @@ export async function inspectBlobs(
       failures.push({ pathname, error: "Ungültiger Blob-Pfad" });
       return;
     }
-    try {
-      const meta = await io.head(pathname, { token });
+    const probe = await probeBlob(pathname, io, token);
+    if (probe.found) {
       const entry: BlobObjectWipe = { pathname };
-      const uploadedAt = blobUploadedAtIso(meta.uploadedAt);
-      if (uploadedAt) entry.uploadedAt = uploadedAt;
+      if (probe.uploadedAt) entry.uploadedAt = probe.uploadedAt;
       present.push(entry);
-    } catch (error) {
-      if (isBlobNotFound(error)) return;
-      failures.push({
-        pathname,
-        error: `Prüfung fehlgeschlagen: ${blobErrorName(error)}`,
-      });
+      return;
+    }
+    if (probe.error) {
+      failures.push({ pathname, error: `Prüfung fehlgeschlagen: ${probe.error}` });
     }
   });
   present.sort((a, b) => a.pathname.localeCompare(b.pathname));
@@ -202,32 +269,37 @@ async function deleteOne(
       delError = `del() fehlgeschlagen: ${blobErrorName(error)}`;
     }
   }
-  try {
-    const meta = await io.head(pathname, { token });
+  let lastHit: ProbeHit | undefined;
+  let lastError: string | undefined;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const body = await readUncached(pathname, io, token);
+    if (!body.found && !body.error) {
+      return { pathname, deleted: true };
+    }
+    if (body.found) lastHit = body;
+    else lastError = body.error;
+    if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  if (lastHit) {
     const entry: BlobObjectWipe = {
       pathname,
       deleted: false,
       error: delError ? `${delError}; Blob nach del() noch vorhanden` : "Blob nach del() noch vorhanden",
     };
-    const uploadedAt = blobUploadedAtIso(meta.uploadedAt);
-    if (uploadedAt) entry.uploadedAt = uploadedAt;
+    if (lastHit.uploadedAt) entry.uploadedAt = lastHit.uploadedAt;
     return entry;
-  } catch (error) {
-    if (isBlobNotFound(error)) {
-      return { pathname, deleted: true };
-    }
-    return {
-      pathname,
-      deleted: false,
-      error: delError ?? `Prüfung fehlgeschlagen: ${blobErrorName(error)}`,
-    };
   }
+  return {
+    pathname,
+    deleted: false,
+    error: delError ?? `Prüfung fehlgeschlagen: ${lastError ?? "Unknown"}`,
+  };
 }
 
 /**
  * Deletes by pathname with the store token, then counts a path only when
- * `head()` throws `BlobNotFoundError`. `del()` resolving is not success:
- * the API does not throw when the pathname is already gone.
+ * `head()` and an uncached `get()` both miss it. `del()` resolving is not
+ * success: the API does not throw when the pathname is already gone.
  */
 export async function deleteVerifiedBlobs(
   pathnames: readonly string[],
@@ -292,9 +364,15 @@ export async function planAccountBlobs(
     return plan;
   }
 
+  const listErrors: string[] = [];
+  const draftCandidates = new Set<string>(derivedDraftPaths(scope));
+  let listedDrafts: string[] = [];
   try {
-    const draftCandidates = new Set<string>(derivedDraftPaths(scope));
-    const listedDrafts = await listBlobPrefix("gobd/drafts/", io, resolved);
+    listedDrafts = await listBlobPrefix("gobd/drafts/", io, resolved);
+  } catch (error) {
+    listErrors.push(safeErrorMessage(error));
+  }
+  try {
     const deadline = Date.now() + DRAFT_CONTENT_BUDGET_MS;
     const unchecked: string[] = [];
     for (const pathname of listedDrafts) {
@@ -328,25 +406,36 @@ export async function planAccountBlobs(
 
     const documentCandidates = new Set<string>(derivedDocumentPaths(records));
     await mapPool(scope.familyIds, 3, async (familyId) => {
-      for (const pathname of await listBlobPrefix(`gobd/${familyId}/`, io, resolved)) {
-        if (classifyBlobPathname(pathname, scope) === "document") {
-          documentCandidates.add(pathname);
+      try {
+        for (const pathname of await listBlobPrefix(`gobd/${familyId}/`, io, resolved)) {
+          if (classifyBlobPathname(pathname, scope) === "document") {
+            documentCandidates.add(pathname);
+          }
         }
+      } catch (error) {
+        listErrors.push(safeErrorMessage(error));
       }
     });
     plan.documents = wipeFromInspect(await inspectBlobs([...documentCandidates], io, resolved));
 
     const uploadCandidates = new Set<string>();
     await mapPool(scope.uploadOwners, 3, async (owner) => {
-      for (const pathname of await listBlobPrefix(`gobd/uploads/${owner}/`, io, resolved)) {
-        if (classifyBlobPathname(pathname, scope) === "upload") {
-          uploadCandidates.add(pathname);
+      try {
+        for (const pathname of await listBlobPrefix(`gobd/uploads/${owner}/`, io, resolved)) {
+          if (classifyBlobPathname(pathname, scope) === "upload") {
+            uploadCandidates.add(pathname);
+          }
         }
+      } catch (error) {
+        listErrors.push(safeErrorMessage(error));
       }
     });
     plan.uploads = wipeFromInspect(await inspectBlobs([...uploadCandidates], io, resolved));
   } catch (error) {
-    plan.error = safeErrorMessage(error);
+    listErrors.push(safeErrorMessage(error));
+  }
+  if (listErrors.length > 0) {
+    plan.error = listErrors[0];
   }
 
   if (plan.contentChecksSkipped > 0) {

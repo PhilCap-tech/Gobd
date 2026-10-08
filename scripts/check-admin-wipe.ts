@@ -415,7 +415,11 @@ function memoryBlob(initial: Record<string, StoredBlob>, ignoreDel = false) {
     async get(pathname) {
       const found = blobs.get(pathname);
       if (!found) throw new BlobNotFoundError();
-      return { statusCode: 200, stream: new Response(found.body).body };
+      return {
+        statusCode: 200,
+        stream: new Response(found.body).body,
+        blob: { uploadedAt: new Date(found.uploadedAt) },
+      };
     },
   };
   return {
@@ -539,6 +543,60 @@ async function checkBlobWipe() {
   ok(both.drafts.blobs?.every((blob) => blob.deleted === true && !blob.error), "each deleted path is verified");
   const after = await planAccountBlobs(emailOnly, [], gone.io, "blob-token");
   ok(after.drafts.matched === 0 && after.drafts.pathnames.length === 0, "dry-run after a verified delete is empty");
+
+  const headMiss = {
+    async list() {
+      return { blobs: [], hasMore: false };
+    },
+    async del() {},
+    async head(target: string) {
+      if (target !== gesamtPath) throw new BlobNotFoundError();
+      throw new BlobNotFoundError();
+    },
+    async get(target: string) {
+      if (target !== gesamtPath) throw new BlobNotFoundError();
+      return {
+        statusCode: 200,
+        stream: new Response("{}").body,
+        blob: { uploadedAt: new Date(uploadedAt) },
+      };
+    },
+  };
+  const viaGet = await planAccountBlobs(emailOnly, [], headMiss, "blob-token");
+  ok(viaGet.drafts.pathnames.includes(gesamtPath), "uncached get keeps a draft head() missed");
+  ok(!viaGet.drafts.pathnames.includes(bereichPath), "a sibling head() and get() both miss stays out");
+  ok(
+    viaGet.drafts.blobs?.find((blob) => blob.pathname === gesamtPath)?.uploadedAt === uploadedAt,
+    "uploadedAt falls back to uncached get()",
+  );
+
+  let removed = false;
+  const staleHead = {
+    async list() {
+      return { blobs: [{ pathname: gesamtPath }], hasMore: false };
+    },
+    async del() {
+      removed = true;
+    },
+    async head(target: string) {
+      if (target !== gesamtPath) throw new BlobNotFoundError();
+      return { pathname: gesamtPath, uploadedAt: new Date(uploadedAt) };
+    },
+    async get(target: string) {
+      if (target !== gesamtPath || removed) {
+        if (target !== gesamtPath) throw new BlobNotFoundError();
+        return null;
+      }
+      return {
+        statusCode: 200,
+        stream: new Response("{}").body,
+        blob: { uploadedAt: new Date(uploadedAt) },
+      };
+    },
+  };
+  const stalePlan = await planAccountBlobs(emailOnly, [], staleHead, "blob-token");
+  await commitBlobWipe(stalePlan.drafts, staleHead, "blob-token");
+  ok(stalePlan.drafts.deleted === 1, "uncached get 404 counts the delete when head() is still stale");
 
   await withEnv({ GOBD_BLOB_SMOKE: undefined, VERCEL_ENV: "preview" }, () => {
     ok(!isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "smoke mailbox is refused without the smoke flag");

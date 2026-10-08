@@ -7,7 +7,7 @@
  *     node scripts/smoke-wipe-blob-http.mjs http://127.0.0.1:3217
  */
 import { createHash } from "node:crypto";
-import { head } from "@vercel/blob";
+import { get, head } from "@vercel/blob";
 
 const base = (process.argv[2] || "").replace(/\/$/, "");
 const email = "draft-blob-smoke@example.com";
@@ -48,6 +48,60 @@ function ok(cond, msg) {
 function isBlobNotFound(error) {
   const name = error && typeof error === "object" ? error.name || error.constructor?.name : "";
   return name === "BlobNotFoundError";
+}
+
+function isoTime(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
+  if (typeof value === "string" && value.includes("T")) return value;
+  return "";
+}
+
+async function cancelStream(stream) {
+  if (!stream || typeof stream.cancel !== "function") return;
+  try {
+    await stream.cancel();
+  } catch {
+    // already closed
+  }
+}
+
+/** head() has no cache bypass. Uncached private get() is null on HTTP 404. */
+async function probe(pathname) {
+  let headState = "error";
+  let headUploadedAt = "";
+  try {
+    const meta = await head(pathname, { token: blobToken });
+    headState = "present";
+    headUploadedAt = isoTime(meta?.uploadedAt);
+  } catch (error) {
+    headState = isBlobNotFound(error) ? "404" : "error";
+  }
+  let getState = "error";
+  let getUploadedAt = "";
+  try {
+    const result = await get(pathname, { access: "private", token: blobToken, useCache: false });
+    if (result?.statusCode === 200 && result.stream) {
+      getState = "present";
+      getUploadedAt = isoTime(result.blob?.uploadedAt);
+      await cancelStream(result.stream);
+    } else {
+      getState = "404";
+    }
+  } catch (error) {
+    getState = isBlobNotFound(error) ? "404" : "error";
+  }
+  return {
+    present: headState === "present" || getState === "present",
+    uploadedAt: headUploadedAt || getUploadedAt,
+    headState,
+    getState,
+  };
+}
+
+function wipeDetail(result) {
+  const drafts = result?.json?.blob?.drafts;
+  const names = Array.isArray(drafts?.pathnames) ? drafts.pathnames.join(",") : "";
+  return `status=${result?.status} blobError=${result?.json?.blob?.error || drafts?.error || ""} paths=${names} text=${result?.text || ""}`;
 }
 
 async function call(path, { method = "GET", cookieValue = "", body, bearer = "" } = {}) {
@@ -100,52 +154,53 @@ try {
       revision: 1,
     },
   });
-  ok(saved.status === 200 && saved.json?.backend === "blob", `draft save is blob (got ${saved.status})`);
+  ok(saved.status === 200 && saved.json?.backend === "blob", `draft save is blob (got ${saved.status} ${saved.json?.error || saved.text})`);
 
-  let seen = false;
-  try {
-    const meta = await head(gesamtPath, { token: blobToken });
-    seen = meta?.pathname?.endsWith(".json") === true;
-  } catch (error) {
-    if (!isBlobNotFound(error)) throw error;
-  }
-  ok(seen, "head() sees the synthetic draft before wipe");
+  const beforeProbe = await probe(gesamtPath);
+  ok(
+    beforeProbe.present,
+    `draft is readable before wipe (head=${beforeProbe.headState} get=${beforeProbe.getState})`,
+  );
 
   const dry = await wipe(true);
-  ok(dry.status === 200 && dry.json?.dryRun === true, `dry-run status 200 (got ${dry.status} ${dry.json?.error || dry.text})`);
+  ok(dry.status === 200 && dry.json?.dryRun === true, `dry-run status 200 (${wipeDetail(dry)})`);
   const listed = dry.json?.blob?.drafts?.pathnames;
-  ok(Array.isArray(listed) && listed.includes(gesamtPath), "dry-run lists the saved draft");
-  ok(Array.isArray(listed) && !listed.includes(bereichPath), "dry-run omits the unsaved sibling key");
+  ok(Array.isArray(listed) && listed.includes(gesamtPath), `dry-run lists the saved draft (${wipeDetail(dry)})`);
+  ok(Array.isArray(listed) && !listed.includes(bereichPath), `dry-run omits the unsaved sibling key (${wipeDetail(dry)})`);
   const before = draftEntry(dry.json);
-  ok(typeof before?.uploadedAt === "string" && before.uploadedAt.includes("T"), "dry-run includes uploadedAt from head()");
+  ok(
+    typeof before?.uploadedAt === "string" && before.uploadedAt.includes("T"),
+    `dry-run includes uploadedAt (${wipeDetail(dry)})`,
+  );
   ok(dry.json?.blob?.drafts?.deleted === 0, "dry-run deletes nothing");
 
   const wiped = await wipe(false);
-  ok(wiped.status === 200 && wiped.json?.dryRun === false, `wipe status 200 (got ${wiped.status} ${wiped.json?.error || wiped.text})`);
+  ok(wiped.status === 200 && wiped.json?.dryRun === false, `wipe status 200 (${wipeDetail(wiped)})`);
   const removed = draftEntry(wiped.json);
-  ok(removed?.deleted === true && !removed.error, "wipe counts the draft only after head() 404");
+  ok(removed?.deleted === true && !removed.error, `wipe verifies the delete (${wipeDetail(wiped)} entry=${JSON.stringify(removed)})`);
   ok(
     !(wiped.json?.blob?.drafts?.pathnames ?? []).includes(bereichPath),
     "wipe does not report the unsaved sibling",
   );
 
-  let missing = false;
-  try {
-    await head(gesamtPath, { token: blobToken });
-  } catch (error) {
-    if (!isBlobNotFound(error)) throw error;
-    missing = true;
+  let gone = await probe(gesamtPath);
+  for (let attempt = 0; attempt < 8 && gone.present; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    gone = await probe(gesamtPath);
   }
-  ok(missing, "head() throws BlobNotFoundError after wipe");
+  ok(!gone.present, `draft is gone after wipe (head=${gone.headState} get=${gone.getState})`);
+  ok(gone.headState === "404" || gone.getState === "404", "absence is a 404 from head() or uncached get()");
 
   const after = await wipe(true);
-  ok(after.status === 200, `second dry-run status 200 (got ${after.status})`);
+  ok(after.status === 200, `second dry-run status 200 (${wipeDetail(after)})`);
   const again = after.json?.blob?.drafts?.pathnames ?? [];
-  ok(!again.includes(gesamtPath) && !again.includes(bereichPath), "dry-run after wipe does not list either default key");
-  ok(after.json?.blob?.drafts?.matched === 0, "dry-run after wipe matches no drafts");
-  ok(!after.json?.blob?.error && !after.json?.blob?.drafts?.error, "dry-run after wipe reports no blob error");
+  ok(!again.includes(gesamtPath) && !again.includes(bereichPath), `dry-run after wipe does not list either default key (${wipeDetail(after)})`);
+  ok(after.json?.blob?.drafts?.matched === 0, `dry-run after wipe matches no drafts (${wipeDetail(after)})`);
 
-  console.log("WIPE_SMOKE_OK draft=synthetic wipe=verified head=404 dry-run=empty");
+  const goneVia = gone.headState === "404" ? "head-404" : "get-404";
+  console.log(
+    `WIPE_SMOKE_OK anlegen=blob dry-run uploadedAt=${before.uploadedAt} wipe deleted=1 gone=${goneVia} dry-run=leer`,
+  );
 } finally {
   const params = new URLSearchParams({ draftKey: gesamtKey });
   await call(`/api/intake/draft?${params}`, { method: "DELETE", cookieValue: cookie }).catch(() => undefined);

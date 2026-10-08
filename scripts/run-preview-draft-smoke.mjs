@@ -166,7 +166,7 @@ try {
     const timer = setTimeout(() => {
       wipeSmoke.kill("SIGTERM");
       reject(new Error("wipe blob http smoke timed out"));
-    }, 120_000);
+    }, 240_000);
     wipeSmoke.on("exit", (status) => {
       clearTimeout(timer);
       resolve(status ?? 1);
