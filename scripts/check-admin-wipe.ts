@@ -40,7 +40,7 @@ function ok(cond: unknown, msg: string) {
 }
 
 const ALLOWED = "cappe@gmx.de";
-const OTHER = "kunde@example.com";
+const OTHER = "foreign.user@gmail.com";
 const TOKEN = `wipe-test-token-${"a".repeat(24)}`;
 
 function post(body: unknown, token?: string, method = "POST"): Request {
@@ -159,7 +159,7 @@ async function checkAuth() {
       },
     });
     ok(forbidden.status === 403 && !called, "403 for a foreign email and no wipe call");
-    const routeForbidden = await route.POST(post({ email: "Foreign.User@example.com" }, TOKEN));
+    const routeForbidden = await route.POST(post({ email: "Foreign.User@gmail.com" }, TOKEN));
     ok(routeForbidden.status === 403, "route 403 for a foreign email");
 
     const invalid = await handleAdminWipeRequest(post({ email: "not-an-email" }, TOKEN), {
@@ -215,9 +215,10 @@ async function checkAuth() {
 
 function checkMatching() {
   ok(
-    WIPE_EMAIL_ALLOWLIST.length === 2 &&
+    WIPE_EMAIL_ALLOWLIST.length === 3 &&
       isWipeEmailAllowed("Philip.Cappelletti@SDC-Ventures.com") &&
-      isWipeEmailAllowed("  cappe@gmx.de "),
+      isWipeEmailAllowed("  cappe@gmx.de ") &&
+      isWipeEmailAllowed("Delivered@Resend.Dev"),
     "allowlist is case-insensitive",
   );
   ok(!isWipeEmailAllowed(OTHER), "foreign email is not allowlisted");
@@ -599,20 +600,46 @@ async function checkBlobWipe() {
   ok(stalePlan.drafts.deleted === 1, "uncached get 404 counts the delete when head() is still stale");
 
   await withEnv({ GOBD_BLOB_SMOKE: undefined, VERCEL_ENV: "preview" }, () => {
-    ok(!isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "smoke mailbox is refused without the smoke flag");
+    ok(isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "example.com smoke mailbox stays allowed without the smoke flag");
   });
   await withEnv({ GOBD_BLOB_SMOKE: "1", VERCEL_ENV: "production" }, () => {
-    ok(!isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "smoke mailbox is refused in production");
+    ok(isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "example.com smoke mailbox stays allowed in production");
+    ok(!isWipeEmailAllowed(OTHER), "a real mailbox stays refused in production");
   });
   await withEnv({ GOBD_BLOB_SMOKE: "1", VERCEL_ENV: "preview" }, () => {
     ok(isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "smoke mailbox is allowed on a preview smoke");
-    ok(!isWipeEmailAllowed("other-smoke@example.com"), "other example.com mailboxes stay refused");
+    ok(isWipeEmailAllowed("other-smoke@example.com"), "other example.com mailboxes are allowed");
   });
+}
+
+function checkTestAddresses() {
+  const allowed = ["delivered@resend.dev", "a@example.com", "A@EXAMPLE.COM"];
+  for (const email of allowed) {
+    ok(isWipeEmailAllowed(email), `${email} is a wipe test address`);
+    const parsed = parseWipeEmail(email);
+    ok(parsed.ok && parsed.email === email.trim().toLowerCase(), `${email} parses as allowed`);
+  }
+  ok(isWipeEmailAllowed("  Delivered@Resend.DEV  "), "resend sink ignores case and surrounding space");
+
+  const refused = [
+    "x@foo.example.com",
+    "x@example.com.evil.de",
+    "x@xexample.com",
+    "delivered@resend.dev.evil",
+    "not-delivered@resend.dev",
+    "foreign.user@gmail.com",
+  ];
+  for (const email of refused) {
+    ok(!isWipeEmailAllowed(email), `${email} is not a wipe test address`);
+    const parsed = parseWipeEmail(email);
+    ok(!parsed.ok && parsed.reason === "forbidden", `${email} parses as forbidden`);
+  }
 }
 
 async function main() {
   await checkAuth();
   checkMatching();
+  checkTestAddresses();
   await checkBlobWipe();
   console.log("check-admin-wipe: green");
 }

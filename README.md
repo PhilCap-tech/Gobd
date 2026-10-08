@@ -263,6 +263,8 @@ Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout, Intake, Succes
 
 - `philip.cappelletti@sdc-ventures.com`
 - `cappe@gmx.de`
+- `delivered@resend.dev`
+- jede Adresse mit der Domain `example.com` (genau diese Domain, keine Subdomain)
 
 Andere Adressen antworten mit **403**. Es werden keine Mails versendet.
 

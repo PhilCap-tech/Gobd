@@ -6,17 +6,24 @@ import { emailsEqual } from "@/lib/types";
 import { wipeUploadOwner } from "@/lib/upload-path";
 
 /**
- * Only these addresses may be wiped. Comparison is case-insensitive.
- * Anything else is rejected before a store is touched.
+ * Fixed addresses that may be wiped. Comparison is case-insensitive.
+ * Any mailbox at the exact domain `example.com` is also allowed
+ * (no subdomains, no lookalike hosts). Anything else is rejected
+ * before a store is touched.
  */
 export const WIPE_EMAIL_ALLOWLIST = [
   "philip.cappelletti@sdc-ventures.com",
   "cappe@gmx.de",
+  "delivered@resend.dev",
 ] as const;
 
+/** Exact documentation host. Subdomains such as `foo.example.com` do not match. */
+const WIPE_TEST_DOMAIN = "example.com";
+
 /**
- * Preview smoke only. Never allowlisted in production, and only when the
- * preview smoke process sets `GOBD_BLOB_SMOKE=1`. Not a customer mailbox.
+ * Synthetic preview-smoke mailbox. Allowed because its domain is exactly
+ * `example.com`, under the same bearer token and dry-run default as every
+ * other wipe. `GOBD_BLOB_SMOKE` does not widen or narrow this list.
  */
 export const WIPE_SMOKE_EMAIL = "draft-blob-smoke@example.com";
 
@@ -182,12 +189,17 @@ export function adminTokensMatch(provided: string, expected: string): boolean {
   return timingSafeEqual(providedBuf, expectedBuf);
 }
 
+/** One `@`, non-empty local part, domain compared after trim and lowercasing. */
+function hasExactEmailDomain(normalized: string, domain: string): boolean {
+  const at = normalized.indexOf("@");
+  if (at <= 0 || at !== normalized.lastIndexOf("@")) return false;
+  return normalized.slice(at + 1) === domain;
+}
+
 export function isWipeEmailAllowed(email: string): boolean {
   const normalized = email.trim().toLowerCase();
   if (WIPE_EMAIL_ALLOWLIST.some((item) => item === normalized)) return true;
-  if (normalized !== WIPE_SMOKE_EMAIL) return false;
-  if (process.env.VERCEL_ENV === "production") return false;
-  return process.env.GOBD_BLOB_SMOKE === "1";
+  return hasExactEmailDomain(normalized, WIPE_TEST_DOMAIN);
 }
 
 export function parseWipeEmail(
