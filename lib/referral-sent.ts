@@ -117,3 +117,25 @@ export async function completeReferralDelivery(key: string): Promise<void> {
 export function cancelReferralDelivery(key: string): void {
   inflight.delete(key);
 }
+
+/**
+ * Drop ledger keys for deliveries that belonged to a wiped test account.
+ * Updates the in-memory set and the active ledger file. Does not send mail.
+ */
+export async function forgetReferralKeys(
+  predicate: (key: string) => boolean,
+): Promise<string[]> {
+  await hydrate();
+  const removed: string[] = [];
+  for (const key of [...sent]) {
+    if (!predicate(key)) continue;
+    sent.delete(key);
+    inflight.delete(key);
+    removed.push(key);
+  }
+  for (const key of [...inflight]) {
+    if (predicate(key)) inflight.delete(key);
+  }
+  if (removed.length > 0) await persist();
+  return removed;
+}
