@@ -166,11 +166,11 @@ export function IntakeForm({
   const [draftOffer, setDraftOffer] = useState<
     (IntakeDraftSnapshot & { source: "server" | "local" }) | null
   >(null);
-  const draftChecked = useRef(false);
   const [draftReady, setDraftReady] = useState(false);
   const [serverDraftAt, setServerDraftAt] = useState("");
   const revisionRef = useRef(0);
   const lastSnapshotRef = useRef("");
+  const baselineRef = useRef("");
   const answersRef = useRef(answers);
   const stepRef = useRef(step);
   const serverDraftAtRef = useRef("");
@@ -271,8 +271,6 @@ export function IntakeForm({
   }
 
   useEffect(() => {
-    if (draftChecked.current) return;
-    draftChecked.current = true;
     let cancelled = false;
     (async () => {
       let local: IntakeDraftSnapshot | null = null;
@@ -322,6 +320,12 @@ export function IntakeForm({
         }
       }
       if (cancelled) return;
+      // Edits in this session already landed in localStorage. Don't cover them
+      // with a draft response that was in flight since page load.
+      if (revisionRef.current > 0) {
+        setDraftReady(true);
+        return;
+      }
       const chosen = preferIntakeSnapshot(server, local);
       if (chosen) {
         revisionRef.current = Math.max(revisionRef.current, draftRevision(chosen));
@@ -336,6 +340,10 @@ export function IntakeForm({
   useEffect(() => {
     if (!draftReady || draftOffer) return;
     const snapshot = JSON.stringify({ answers, step });
+    // The untouched prefill is not a user draft. Saving it used to win the
+    // reload and looked like only the company field had been restored.
+    if (!baselineRef.current) baselineRef.current = snapshot;
+    if (snapshot === baselineRef.current && revisionRef.current === 0) return;
     let revision = revisionRef.current;
     if (snapshot !== lastSnapshotRef.current) {
       lastSnapshotRef.current = snapshot;
