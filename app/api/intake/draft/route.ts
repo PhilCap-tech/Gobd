@@ -123,6 +123,11 @@ export async function PUT(request: Request) {
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
   if (!isAnswers(body.answers)) return jsonError("answers fehlen.", 400);
 
+  // 401 before any blob read. A storage outage must not turn "no session" into 503.
+  if (!body.sessionId?.trim() && !(await getSessionEmail())) {
+    return jsonError("Kein Zugriff.", 401);
+  }
+
   let existing: IntakeDraft | null;
   try {
     existing = await loadIntakeDraft(draftKey);

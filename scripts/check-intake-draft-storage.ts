@@ -6,6 +6,7 @@
  *   npx tsx scripts/check-intake-draft-storage.ts https://preview.example
  */
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -242,106 +243,13 @@ async function checkLocalContract() {
   });
 }
 
-async function smokeHttp(baseUrl: string) {
-  const root = baseUrl.replace(/\/$/, "");
-  const draftKey = "email:draft-smoke@example.com:e2e-blob-check:gesamt";
-  const sessionId = "mock_draft_blob_smoke";
-  const marker = `blob-smoke-${Date.now()}`;
-  const answers = emptyAnswers();
-  answers.rechtsform = "GmbH";
-  answers.gf = "Ada Beispiel";
-  answers.katalog = {
-    A01: { status: "bestaetigt", values: { company: marker, rechtsform: "GmbH" } },
-    A04: { values: { gueltigAb: "2020-05-01", keineRueckdatierungBestaetigt: true } },
-  };
-
-  async function call(path: string, init?: RequestInit) {
-    const response = await fetch(`${root}${path}`, { ...init, redirect: "manual" });
-    const text = await response.text();
-    let json: Record<string, unknown> | null = null;
-    try {
-      json = JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      json = null;
-    }
-    return { response, text, json };
+function smokeHttp(baseUrl: string) {
+  const result = spawnSync(process.execPath, ["scripts/smoke-draft-blob-http.mjs", baseUrl], {
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    throw new Error(`http smoke exited ${result.status ?? "null"}`);
   }
-
-  let failure: unknown;
-  try {
-    const denied = await call("/api/intake/draft", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        draftKey,
-        email: "draft-smoke@example.com",
-        step: 4,
-        answers,
-        revision: 1,
-      }),
-    });
-    ok(denied.response.status === 401, `PUT without session is 401 (got ${denied.response.status})`);
-
-    const saved = await call("/api/intake/draft", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        draftKey,
-        sessionId,
-        email: "draft-smoke@example.com",
-        entityId: "e2e-blob-check",
-        modus: "gesamt",
-        step: 4,
-        answers,
-        revision: 2,
-      }),
-    });
-    ok(saved.response.status === 200, `save status 200 (got ${saved.response.status})`);
-    ok(saved.json?.backend === "blob", `save storage is blob (got ${String(saved.json?.backend)})`);
-
-    const params = new URLSearchParams({ draftKey, sessionId });
-    const loaded = await call(`/api/intake/draft?${params}`);
-    const loadedDraft = loaded.json?.draft as { answers?: IntakeAnswers; step?: number; revision?: number } | null;
-    ok(loaded.response.status === 200, `fresh client load status 200 (got ${loaded.response.status})`);
-    ok(loadedDraft?.answers?.katalog?.A01?.values?.company === marker, "fresh client restored the company");
-    ok(loadedDraft?.answers?.rechtsform === "GmbH", "fresh client restored Rechtsform");
-    ok(loadedDraft?.answers?.gf === "Ada Beispiel", "fresh client restored Geschäftsleitung");
-    ok(loadedDraft?.answers?.katalog?.A04?.values?.keineRueckdatierungBestaetigt === true, "fresh client restored the checkbox");
-    ok(loadedDraft?.step === 4 && loadedDraft.revision === 2, "fresh client restored step and revision");
-    ok(JSON.stringify(loadedDraft?.answers) === JSON.stringify(answers), "fresh client restored the full answer object");
-
-    const hidden = await call(`/api/intake/draft?draftKey=${encodeURIComponent(draftKey)}`);
-    ok(hidden.response.status === 401, `GET without session is 401 (got ${hidden.response.status})`);
-
-    const conflict = await call("/api/intake/draft", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        draftKey,
-        sessionId,
-        email: "draft-smoke@example.com",
-        step: 1,
-        answers: emptyAnswers(),
-        revision: 1,
-      }),
-    });
-    ok(conflict.response.status === 409, `stale save is 409 (got ${conflict.response.status})`);
-    const conflictDraft = conflict.json?.draft as { revision?: number; answers?: IntakeAnswers } | undefined;
-    ok(conflict.json?.conflict === true, "409 body keeps conflict");
-    ok(conflictDraft?.revision === 2, "409 returns the newer server draft");
-    ok(conflictDraft?.answers?.katalog?.A01?.values?.company === marker, "409 does not replace the stored company");
-
-    const deleted = await call(`/api/intake/draft?${params.toString()}`, { method: "DELETE" });
-    ok(deleted.response.status === 200, `DELETE own draft is 200 (got ${deleted.response.status})`);
-    const gone = await call(`/api/intake/draft?${params.toString()}`);
-    ok(gone.response.status === 200 && gone.json?.draft === null, "deleted draft stays gone for a fresh client");
-  } catch (error) {
-    failure = error;
-  } finally {
-    const params = new URLSearchParams({ draftKey, sessionId });
-    await fetch(`${root}/api/intake/draft?${params}`, { method: "DELETE", redirect: "manual" }).catch(() => undefined);
-  }
-  if (failure) throw failure;
 }
 
 async function main() {
