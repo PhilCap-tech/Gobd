@@ -4,8 +4,11 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
-import { resolveChapterContent } from "@/lib/blob";
-import { editableDocumentFromRow } from "@/lib/document-content";
+import { BlobStorageError, blobFailureClass, resolveChapterContent } from "@/lib/blob";
+import {
+  editableDocumentFromRow,
+  type EditableDocument,
+} from "@/lib/document-content";
 import { VersionHistory } from "@/components/document-revision";
 import {
   canAccessDocument,
@@ -71,18 +74,34 @@ export default async function DocumentEditPage({
   const latest = grouped?.latest ?? sourceRow;
   const versions = grouped?.versions ?? family;
   const allowed = canAccessDocument(latest, { sessionEmail });
-  const draft = allowed
-    ? editableDocumentFromRow({
+  let chapterError = false;
+  let draft: EditableDocument | null = null;
+  if (allowed) {
+    try {
+      draft = editableDocumentFromRow({
         ...latest,
         chapterContent: await resolveChapterContent(latest.chapterContent),
-      })
-    : null;
+      });
+    } catch (error) {
+      if (!(error instanceof BlobStorageError)) throw error;
+      console.error("[document] Kapiteltext nicht lesbar", blobFailureClass(error));
+      chapterError = true;
+    }
+  }
 
   return (
     <>
       <SiteHeader backHref="/account" backLabel="← Zum Konto" />
       <main className="wrap wide page">
-        {!allowed || !draft ? (
+        {chapterError ? (
+          <div className="card">
+            <h1>Dokumenttext nicht geladen</h1>
+            <p className="prose">
+              Der gespeicherte Kapiteltext ist gerade nicht lesbar. Bitte später
+              erneut öffnen. Nichts wurde überschrieben.
+            </p>
+          </div>
+        ) : !allowed || !draft ? (
           <EditGate loggedIn />
         ) : (
           <>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { applySessionCookie, magicLinkUrl } from "@/lib/auth";
-import { storePdf } from "@/lib/blob";
+import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import { getAppUrl } from "@/lib/env";
 import { sendReadinessMail } from "@/lib/ops";
 import {
@@ -58,7 +58,10 @@ async function handleReadiness(request: Request) {
     });
     pdfUrl = storedPdf.url || storedPdf.pathname;
   } catch (error) {
-    console.error("[readiness] PDF-Erzeugung fehlgeschlagen", error);
+    console.error("[readiness] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
+    if (error instanceof BlobStorageError) {
+      return jsonError("PDF konnte nicht gespeichert werden.", 503);
+    }
     return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
   }
 

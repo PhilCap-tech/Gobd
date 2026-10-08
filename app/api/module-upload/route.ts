@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
-import { storeCustomerUpload, uploadAllowed } from "@/lib/blob";
+import { BlobStorageError, storeCustomerUpload, uploadAllowed } from "@/lib/blob";
 import {
   accessDeniedStatus,
   authorizeUploadSession,
@@ -98,8 +98,13 @@ export async function POST(request: Request) {
       uploadSize: stored.size,
       uploadType: stored.contentType,
       backend: stored.backend,
+      pathname: stored.pathname,
     });
   } catch (error) {
+    if (error instanceof BlobStorageError) {
+      console.error("[upload] fehlgeschlagen", error.errorClass);
+      return jsonError("Upload fehlgeschlagen.", 503);
+    }
     const message = error instanceof Error ? error.message : "Upload fehlgeschlagen.";
     return jsonError(message, 400);
   }

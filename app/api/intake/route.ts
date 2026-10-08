@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { applySessionCookie, getSessionEmail, magicLinkUrl } from "@/lib/auth";
-import { storePdf } from "@/lib/blob";
+import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
 import {
   canAccessDocument,
@@ -320,7 +320,10 @@ async function handleIntake(request: Request) {
       },
     };
   } catch (error) {
-    console.error("[intake] PDF-Erzeugung fehlgeschlagen", error);
+    console.error("[intake] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
+    if (error instanceof BlobStorageError) {
+      return jsonError("PDF konnte nicht gespeichert werden.", 503);
+    }
     return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
   }
 

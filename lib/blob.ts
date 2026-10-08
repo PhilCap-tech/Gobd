@@ -1,19 +1,39 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { put } from "@vercel/blob";
+import {
+  del,
+  get,
+  put,
+  type GetBlobResult,
+  type GetCommandOptions,
+  type PutCommandOptions,
+} from "@vercel/blob";
 import { generatePdf } from "@/lib/delivery";
+import {
+  blobPathFromLocator,
+  customerUploadHref,
+  customerUploadOwner,
+  isCustomerUploadPath,
+} from "@/lib/blob-ref";
 import {
   chapterContentLocator,
   encodeChapterContentRef,
   parseDocumentContent,
   SHEETS_CELL_SAFE_CHARS,
 } from "@/lib/document-content";
+import { canAccessDocument } from "@/lib/documents";
 import { applyEntityToIdentity } from "@/lib/entities";
 import { isBlobConfigured, isSheetsConfigured } from "@/lib/env";
 import { uploadOwnerSegment } from "@/lib/upload-path";
 import { generateReadinessPdf, type ReadinessLead } from "@/lib/readiness";
-import { getFileFallbackDir, getOwnedEntity } from "@/lib/store";
+import {
+  findRowByStripeSessionId,
+  getFileFallbackDir,
+  getOwnedEntity,
+  listDocumentsByEmail,
+  listEntitiesByEmail,
+} from "@/lib/store";
 import {
   answersFromSheetRow,
   identityFromSheetRow,
@@ -22,9 +42,152 @@ import {
 
 export type StoredPdf = {
   backend: "blob" | "file";
+  /** App path or empty. Never a Blob host URL. */
   url: string;
   pathname: string;
 };
+
+/**
+ * `gobd-blob` ist privat. `access: "public"` lehnt der Store ab; ein stiller
+ * Datei-Fallback hat PDFs dann nur auf dem flüchtigen Function-Dateisystem
+ * gehalten. Lesen geht nur mit Token über `get`. Dieselben PDF- und
+ * Kapitelpfade werden bei einem erneuten Schreiben überschrieben.
+ * Uploads bekommen einen Zeitstempel und werden nicht überschrieben.
+ */
+const BLOB_ACCESS = "private" as const;
+
+export type BlobIo = {
+  put: (pathname: string, body: Buffer | string, options: PutCommandOptions) => Promise<{
+    url: string;
+    pathname: string;
+    contentType?: string;
+  }>;
+  get: (pathname: string, options: GetCommandOptions) => Promise<GetBlobResult | null>;
+  del: (pathname: string, options?: { token?: string }) => Promise<void>;
+};
+
+const defaultBlobIo: BlobIo = {
+  put: (pathname, body, options) => put(pathname, body, options),
+  get,
+  del,
+};
+
+export class BlobStorageError extends Error {
+  readonly backend = "blob" as const;
+  readonly operation: "read" | "write" | "delete";
+  readonly errorClass: string;
+
+  constructor(operation: "read" | "write" | "delete", error: unknown) {
+    super("blob storage failed");
+    this.name = "BlobStorageError";
+    this.operation = operation;
+    this.errorClass = blobFailureClass(error);
+  }
+}
+
+export function blobFailureClass(error: unknown): string {
+  if (error instanceof BlobStorageError) return error.errorClass;
+  if (typeof error === "object" && error !== null) {
+    const ctor = (error as { constructor?: { name?: unknown } }).constructor?.name;
+    if (typeof ctor === "string" && ctor && ctor !== "Object") return ctor;
+  }
+  return "Unknown";
+}
+
+function isMissingBlob(error: unknown): boolean {
+  return blobFailureClass(error) === "BlobNotFoundError";
+}
+
+function logBlobFailure(operation: "Lesen" | "Schreiben" | "Löschen", error: unknown): void {
+  console.error(`[blob] Blob-${operation} fehlgeschlagen`, blobFailureClass(error));
+}
+
+function blobToken(): string | undefined {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  return token && token.trim() ? token : undefined;
+}
+
+function privateBlobToken(): string | null {
+  if (!isBlobConfigured()) return null;
+  return blobToken() ?? null;
+}
+
+export type UploadAccessInput = {
+  sessionEmail?: string | null;
+  sessionId?: string | null;
+};
+
+export type UploadAccessDeps = {
+  documentsByEmail: (email: string) => Promise<SheetRow[]>;
+  entitiesByEmail: (email: string) => Promise<Array<{ entityId: string }>>;
+  rowBySession: (sessionId: string) => Promise<SheetRow | null>;
+};
+
+const defaultUploadDeps: UploadAccessDeps = {
+  documentsByEmail: listDocumentsByEmail,
+  entitiesByEmail: (email) => listEntitiesByEmail(email),
+  rowBySession: findRowByStripeSessionId,
+};
+
+/** Same owner key the upload path has always used. Case is preserved. */
+export function sanitizeUploadOwner(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, "").slice(0, 64);
+}
+
+function ownerMatches(pathOwner: string, candidate: string | null | undefined): boolean {
+  const clean = sanitizeUploadOwner(candidate ?? "");
+  return Boolean(pathOwner) && Boolean(clean) && clean.toLowerCase() === pathOwner.toLowerCase();
+}
+
+function recordReferences(record: unknown, pathname: string): boolean {
+  try {
+    return JSON.stringify(record).includes(pathname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Besitzer: Session-Mail, Checkout-Session (wie der Dokument-Download) oder
+ * ein Dokument/eine Firma dieser Mail, das den Upload referenziert.
+ */
+export async function canAccessCustomerUpload(
+  locator: string,
+  access: UploadAccessInput,
+  deps: UploadAccessDeps = defaultUploadDeps,
+): Promise<"anonymous" | "forbidden" | "ok"> {
+  const owner = customerUploadOwner(locator);
+  const sessionEmail = access.sessionEmail?.trim() ?? "";
+  const sessionId = access.sessionId?.trim() ?? "";
+  if (!sessionEmail && !sessionId) return "anonymous";
+  if (!owner) return "forbidden";
+  if (ownerMatches(owner, sessionEmail) || ownerMatches(owner, sessionId)) return "ok";
+
+  const blobPath = blobPathFromLocator(locator);
+  if (sessionEmail) {
+    const docs = await deps.documentsByEmail(sessionEmail);
+    for (const doc of docs) {
+      if (ownerMatches(owner, doc.entityId) || ownerMatches(owner, doc.documentId)) return "ok";
+      if (blobPath && recordReferences(doc, blobPath)) return "ok";
+    }
+    const entities = await deps.entitiesByEmail(sessionEmail);
+    if (entities.some((entity) => ownerMatches(owner, entity.entityId))) return "ok";
+  }
+  if (sessionId) {
+    const row = await deps.rowBySession(sessionId);
+    if (row && canAccessDocument(row, { sessionEmail, sessionId })) {
+      if (
+        ownerMatches(owner, row.email) ||
+        ownerMatches(owner, row.entityId) ||
+        ownerMatches(owner, row.documentId)
+      ) {
+        return "ok";
+      }
+      if (blobPath && recordReferences(row, blobPath)) return "ok";
+    }
+  }
+  return "forbidden";
+}
 
 function isFsUnavailable(error: unknown): boolean {
   if (!error || typeof error !== "object" || !("code" in error)) {
@@ -48,67 +211,121 @@ async function writeLocalPdf(fileBase: string, buffer: Buffer): Promise<StoredPd
   } catch (error) {
     const tmpDir = path.join(tmpdir(), "gobd-data");
     if (isFsUnavailable(error) && getFileFallbackDir() !== tmpDir) {
-      console.warn("[blob] lokales PDF nicht beschreibbar — weiche auf tmpdir aus", error);
+      console.warn("[blob] lokales PDF nicht beschreibbar — weiche auf tmpdir aus");
       return tryWrite(tmpDir);
     }
     throw error;
   }
 }
 
-export async function storePdf(input: {
-  familyId: string;
-  documentId: string;
-  version: number;
-  buffer: Buffer;
-}): Promise<StoredPdf> {
+function privateWriteOptions(
+  token: string,
+  contentType: string,
+  allowOverwrite: boolean,
+): PutCommandOptions {
+  return {
+    access: BLOB_ACCESS,
+    contentType,
+    addRandomSuffix: false,
+    allowOverwrite,
+    token,
+  };
+}
+
+function privateReadOptions(token: string): GetCommandOptions {
+  return {
+    access: BLOB_ACCESS,
+    useCache: false,
+    token,
+  };
+}
+
+class UnexpectedBlobRead extends Error {
+  constructor() {
+    super("unexpected blob read");
+    this.name = "UnexpectedBlobRead";
+  }
+}
+
+async function readPrivateBlob(
+  pathname: string,
+  token: string,
+  io: BlobIo,
+): Promise<{ buffer: Buffer; contentType: string } | null> {
+  let result: GetBlobResult | null;
+  try {
+    result = await io.get(pathname, privateReadOptions(token));
+  } catch (error) {
+    if (isMissingBlob(error)) return null;
+    logBlobFailure("Lesen", error);
+    throw new BlobStorageError("read", error);
+  }
+  if (!result) return null;
+  if (result.statusCode !== 200 || !result.stream) {
+    const error = new UnexpectedBlobRead();
+    logBlobFailure("Lesen", error);
+    throw new BlobStorageError("read", error);
+  }
+  const buffer = Buffer.from(await new Response(result.stream).arrayBuffer());
+  return { buffer, contentType: result.blob.contentType || "" };
+}
+
+export async function storePdf(
+  input: {
+    familyId: string;
+    documentId: string;
+    version: number;
+    buffer: Buffer;
+  },
+  io: BlobIo = defaultBlobIo,
+): Promise<StoredPdf> {
   const familyId = input.familyId || input.documentId;
   const version = input.version > 0 ? input.version : 1;
   const blobPath = `gobd/${familyId}/v${version}.pdf`;
   const fileBase = `${familyId}-v${version}`;
+  const token = privateBlobToken();
 
-  if (isBlobConfigured()) {
+  if (token) {
     try {
-      const blob = await put(blobPath, input.buffer, {
-        access: "public",
-        contentType: "application/pdf",
-        addRandomSuffix: false,
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
+      const blob = await io.put(
+        blobPath,
+        input.buffer,
+        privateWriteOptions(token, "application/pdf", true),
+      );
       return {
         backend: "blob",
-        url: blob.url,
-        pathname: blob.pathname,
+        url: "",
+        pathname: blob.pathname || blobPath,
       };
     } catch (error) {
-      console.error("[blob] Vercel Blob Upload fehlgeschlagen — Datei-Fallback", error);
+      if (error instanceof BlobStorageError) throw error;
+      logBlobFailure("Schreiben", error);
+      throw new BlobStorageError("write", error);
     }
-  } else {
-    console.warn(
-      "[blob] BLOB_READ_WRITE_TOKEN fehlt — speichere PDF lokal (Demo, nicht persistent auf Vercel)",
-    );
   }
 
+  console.warn(
+    "[blob] BLOB_READ_WRITE_TOKEN fehlt — speichere PDF lokal (Demo, nicht persistent auf Vercel)",
+  );
   return writeLocalPdf(fileBase, input.buffer);
 }
 
-async function loadPdfFromStoredUrl(pdfUrl: string): Promise<Buffer | null> {
-  if (pdfUrl.startsWith("http://") || pdfUrl.startsWith("https://")) {
-    try {
-      const response = await fetch(pdfUrl);
-      if (response.ok) {
-        return Buffer.from(await response.arrayBuffer());
-      }
-      console.warn("[blob] pdf_url nicht lesbar", response.status);
-    } catch (error) {
-      console.warn("[blob] pdf_url fetch fehlgeschlagen", error);
-    }
+async function loadPdfFromStoredUrl(
+  pdfUrl: string,
+  io: BlobIo,
+): Promise<Buffer | null> {
+  const token = privateBlobToken();
+  const blobPath = blobPathFromLocator(pdfUrl);
+  if (blobPath && token) {
+    const read = await readPrivateBlob(blobPath, token, io);
+    return read?.buffer ?? null;
   }
 
-  if (pdfUrl && !pdfUrl.startsWith("http")) {
+  if (pdfUrl && !pdfUrl.startsWith("http://") && !pdfUrl.startsWith("https://")) {
     try {
       return await readFile(pdfUrl);
-    } catch (error) {
-      console.warn("[blob] lokale PDF-Datei fehlt — regeneriere", error);
+    } catch {
+      return null;
     }
   }
 
@@ -119,10 +336,7 @@ function isVercelRuntime(): boolean {
   return process.env.VERCEL === "1" || process.env.VERCEL === "true";
 }
 
-async function writeLocalChapterJson(
-  documentId: string,
-  json: string,
-): Promise<string> {
+async function writeLocalChapterJson(documentId: string, json: string): Promise<string> {
   const tryWrite = async (dir: string): Promise<string> => {
     const chapterDir = path.join(dir, "chapters");
     await mkdir(chapterDir, { recursive: true });
@@ -136,10 +350,7 @@ async function writeLocalChapterJson(
   } catch (error) {
     const tmpDir = path.join(tmpdir(), "gobd-data");
     if (isFsUnavailable(error) && getFileFallbackDir() !== tmpDir) {
-      console.warn(
-        "[blob] lokaler Kapiteltext nicht beschreibbar — weiche auf tmpdir aus",
-        error,
-      );
+      console.warn("[blob] lokaler Kapiteltext nicht beschreibbar — weiche auf tmpdir aus");
       return tryWrite(tmpDir);
     }
     throw error;
@@ -150,13 +361,17 @@ async function writeLocalChapterJson(
  * Keep `chapter_content` inline when it fits a Sheets cell.
  * File-backend rows can hold the full JSON. Sheets rows over 50k go to
  * Blob/file with a short `{__gobdContent}` pointer in the cell.
+ * The pointer stores a pathname. Older cells may still hold a public Blob URL.
  */
-export async function persistChapterContent(input: {
-  familyId: string;
-  documentId: string;
-  version: number;
-  json: string;
-}): Promise<string> {
+export async function persistChapterContent(
+  input: {
+    familyId: string;
+    documentId: string;
+    version: number;
+    json: string;
+  },
+  io: BlobIo = defaultBlobIo,
+): Promise<string> {
   if (input.json.length <= SHEETS_CELL_SAFE_CHARS) {
     return input.json;
   }
@@ -167,21 +382,20 @@ export async function persistChapterContent(input: {
   const familyId = input.familyId || input.documentId;
   const version = input.version > 0 ? input.version : 1;
   const blobPath = `gobd/${familyId}/v${version}-chapters.json`;
+  const token = privateBlobToken();
 
-  if (isBlobConfigured()) {
+  if (token) {
     try {
-      const blob = await put(blobPath, input.json, {
-        access: "public",
-        contentType: "application/json; charset=utf-8",
-        addRandomSuffix: false,
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
-      return encodeChapterContentRef(blob.url);
-    } catch (error) {
-      console.error(
-        "[blob] Kapiteltext-Upload fehlgeschlagen — Datei-Fallback",
-        error,
+      const blob = await io.put(
+        blobPath,
+        input.json,
+        privateWriteOptions(token, "application/json; charset=utf-8", true),
       );
+      return encodeChapterContentRef(blob.pathname || blobPath);
+    } catch (error) {
+      if (error instanceof BlobStorageError) throw error;
+      logBlobFailure("Schreiben", error);
+      throw new BlobStorageError("write", error);
     }
   }
 
@@ -197,31 +411,31 @@ export async function persistChapterContent(input: {
 
 export async function resolveChapterContent(
   raw: string | undefined | null,
+  io: BlobIo = defaultBlobIo,
 ): Promise<string> {
   const locator = chapterContentLocator(raw);
   if (!locator) return raw?.trim() ?? "";
 
-  if (locator.startsWith("http://") || locator.startsWith("https://")) {
-    try {
-      const response = await fetch(locator);
-      if (response.ok) return await response.text();
-      console.warn("[blob] Kapiteltext-URL nicht lesbar", response.status);
-    } catch (error) {
-      console.warn("[blob] Kapiteltext-URL fetch fehlgeschlagen", error);
-    }
-    return "";
+  const token = privateBlobToken();
+  const blobPath = blobPathFromLocator(locator);
+  if (blobPath && token) {
+    const read = await readPrivateBlob(blobPath, token, io);
+    return read ? read.buffer.toString("utf8") : "";
   }
 
-  try {
-    return await readFile(locator, "utf8");
-  } catch (error) {
-    console.warn("[blob] lokale Kapiteltext-Datei fehlt", error);
-    return "";
+  if (!locator.startsWith("http://") && !locator.startsWith("https://")) {
+    try {
+      return await readFile(locator, "utf8");
+    } catch {
+      return "";
+    }
   }
+
+  return "";
 }
 
-export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
-  const stored = await loadPdfFromStoredUrl(row.pdfUrl);
+export async function loadDocumentPdf(row: SheetRow, io: BlobIo = defaultBlobIo): Promise<Buffer> {
+  const stored = await loadPdfFromStoredUrl(row.pdfUrl, io);
   if (stored) return stored;
 
   const sourceIdentity = identityFromSheetRow(row);
@@ -233,13 +447,16 @@ export async function loadDocumentPdf(row: SheetRow): Promise<Buffer> {
     identity: applyEntityToIdentity(sourceIdentity, entity),
     documentId: row.documentId || "regenerated",
     version: Number.parseInt(row.version || "1", 10) || 1,
-    content: parseDocumentContent(await resolveChapterContent(row.chapterContent)),
+    content: parseDocumentContent(await resolveChapterContent(row.chapterContent, io)),
   });
   return generated.buffer;
 }
 
-export async function loadReadinessPdf(lead: ReadinessLead): Promise<Buffer> {
-  const stored = await loadPdfFromStoredUrl(lead.pdfUrl);
+export async function loadReadinessPdf(
+  lead: ReadinessLead,
+  io: BlobIo = defaultBlobIo,
+): Promise<Buffer> {
+  const stored = await loadPdfFromStoredUrl(lead.pdfUrl, io);
   if (stored) return stored;
   const generated = await generateReadinessPdf(lead);
   return generated.buffer;
@@ -277,17 +494,62 @@ function safeUploadName(name: string): string {
   return base || "dokument";
 }
 
+function contentTypeFromName(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return "application/octet-stream";
+}
+
+function filenameFromPath(pathname: string): string {
+  const base = pathname.split(/[/\\]/).pop() || "dokument";
+  const cleaned = base.replace(/["\r\n\\]/g, "").slice(0, 120);
+  if (!cleaned || /[^\x20-\x7E]/.test(cleaned)) {
+    const ext = cleaned.match(/\.[A-Za-z0-9]{1,8}$/)?.[0] ?? "";
+    return `dokument${ext}`;
+  }
+  return cleaned;
+}
+
+function uploadRoots(): string[] {
+  return [
+    path.resolve(path.join(getFileFallbackDir(), "uploads")),
+    path.resolve(path.join(tmpdir(), "gobd-data", "uploads")),
+  ];
+}
+
+function resolveLocalUpload(locator: string): string | null {
+  const trimmed = locator.trim();
+  if (!trimmed || trimmed.includes("\0") || trimmed.includes("..")) return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return null;
+  if (blobPathFromLocator(trimmed)) return null;
+  const resolved = path.resolve(trimmed);
+  for (const root of uploadRoots()) {
+    if (resolved === root || resolved.startsWith(root + path.sep)) return resolved;
+  }
+  return null;
+}
+
 /**
  * Kunden-Upload für „durch bestehende Dokumentation abgedeckt“.
- * Vercel Blob wenn konfiguriert, sonst lokaler Datei-Fallback (Demo).
+ * Privater Blob wenn ein Token gesetzt ist, sonst lokale Datei (Demo).
+ * `url` ist immer die authentifizierte App-Route, nie ein Blob-Host.
  */
-export async function storeCustomerUpload(input: {
-  ownerKey: string;
-  modulId: string;
-  filename: string;
-  contentType: string;
-  buffer: Buffer;
-}): Promise<StoredPdf & { contentType: string; size: number; filename: string }> {
+export async function storeCustomerUpload(
+  input: {
+    ownerKey: string;
+    modulId: string;
+    filename: string;
+    contentType: string;
+    buffer: Buffer;
+  },
+  io: BlobIo = defaultBlobIo,
+): Promise<StoredPdf & { contentType: string; size: number; filename: string }> {
   const err = uploadAllowed(input.contentType, input.buffer.length);
   if (err) throw new Error(err);
   const filename = safeUploadName(input.filename);
@@ -295,25 +557,28 @@ export async function storeCustomerUpload(input: {
   const modul = input.modulId.replace(/[^a-z0-9]/g, "") || "modul";
   const stamp = Date.now().toString(36);
   const blobPath = `gobd/uploads/${owner}/${modul}/${stamp}-${filename}`;
+  const token = privateBlobToken();
 
-  if (isBlobConfigured()) {
+  if (token) {
     try {
-      const blob = await put(blobPath, input.buffer, {
-        access: "public",
-        contentType: input.contentType,
-        addRandomSuffix: false,
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
+      const blob = await io.put(
+        blobPath,
+        input.buffer,
+        privateWriteOptions(token, input.contentType, false),
+      );
+      const pathname = blob.pathname || blobPath;
       return {
         backend: "blob",
-        url: blob.url,
-        pathname: blob.pathname,
+        url: customerUploadHref(pathname),
+        pathname,
         contentType: input.contentType,
         size: input.buffer.length,
         filename,
       };
     } catch (error) {
-      console.error("[blob] Kunden-Upload fehlgeschlagen — Datei-Fallback", error);
+      if (error instanceof BlobStorageError) throw error;
+      logBlobFailure("Schreiben", error);
+      throw new BlobStorageError("write", error);
     }
   }
 
@@ -323,12 +588,63 @@ export async function storeCustomerUpload(input: {
   await writeFile(pathname, input.buffer);
   return {
     backend: "file",
-    url: "",
+    url: customerUploadHref(pathname),
     pathname,
     contentType: input.contentType,
     size: input.buffer.length,
     filename,
   };
+}
+
+export async function readCustomerUpload(
+  locator: string,
+  io: BlobIo = defaultBlobIo,
+): Promise<{ buffer: Buffer; contentType: string; filename: string } | null> {
+  const blobPath = blobPathFromLocator(locator);
+  const token = privateBlobToken();
+  if (blobPath && isCustomerUploadPath(blobPath)) {
+    if (!token) return null;
+    const read = await readPrivateBlob(blobPath, token, io);
+    if (!read) return null;
+    const contentType =
+      read.contentType && UPLOAD_TYPES.has(read.contentType.split(";")[0]?.trim().toLowerCase() ?? "")
+        ? read.contentType
+        : contentTypeFromName(blobPath);
+    return {
+      buffer: read.buffer,
+      contentType,
+      filename: filenameFromPath(blobPath),
+    };
+  }
+
+  const local = resolveLocalUpload(locator);
+  if (!local) return null;
+  try {
+    const buffer = await readFile(/*turbopackIgnore: true*/ local);
+    return {
+      buffer,
+      contentType: contentTypeFromName(local),
+      filename: filenameFromPath(local),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Deletes one private object. Missing objects are success. Refuses paths outside `gobd/`. */
+export async function deleteStoredBlob(pathname: string, io: BlobIo = defaultBlobIo): Promise<void> {
+  if (!pathname.startsWith("gobd/") || pathname.includes("..") || pathname.includes("\\")) {
+    throw new BlobStorageError("delete", new Error("invalid blob path"));
+  }
+  const token = privateBlobToken();
+  if (!token) return;
+  try {
+    await io.del(pathname, { token });
+  } catch (error) {
+    if (isMissingBlob(error)) return;
+    logBlobFailure("Löschen", error);
+    throw new BlobStorageError("delete", error);
+  }
 }
 
 export { UPLOAD_MAX_BYTES };
