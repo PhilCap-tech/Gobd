@@ -1,9 +1,15 @@
+/**
+ * Delivery-export checks for the Belegfluss muster and the 24-module Gesamtdokument.
+ * Usage: npx tsx scripts/check-export-mvp.ts
+ */
 import minCatalog from "@/content/intake-catalog/INTAKE-CATALOG-MVP-MIN.json";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { intakeFrageStepError } from "@/lib/frage-intake";
 import { demoBeispielAnswers } from "@/lib/demo-beispiel";
 import { CATALOG_STEPS, catalogStepError, statusLabel, visibleCatalogQuestions } from "@/lib/intake-catalog";
 import { openPointBeforeUse } from "@/lib/intake-present";
+import { MODULE } from "@/lib/module/katalog";
+import { ensureGesamt, setModulEintrag } from "@/lib/module/status";
 import { evaluateOpenPoints } from "@/lib/open-points";
 import {
   PARTNER_MUSTER_ANSWERS,
@@ -13,14 +19,18 @@ import {
 } from "@/lib/partner-muster";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
-function bodyFor(answers: IntakeAnswers): string {
-  const doc = renderDeliveryDocument({
+function renderExport(answers: IntakeAnswers) {
+  return renderDeliveryDocument({
     identity: PARTNER_MUSTER_IDENTITY,
     answers,
     documentId: "check",
     version: 1,
     versionMeta: PARTNER_MUSTER_VERSION_META,
   });
+}
+
+function bodyFor(answers: IntakeAnswers): string {
+  const doc = renderExport(answers);
   return [doc.cover, ...doc.chapters.map((chapter) => chapter.body)].join("\n");
 }
 
@@ -263,16 +273,77 @@ expect(
 const minIds = minCatalog.questions.map((question) => question.id);
 const liveQuestions = CATALOG_STEPS.filter((step) => !step.id.startsWith("step-BR")).flatMap((step) => step.questions);
 expect(minIds.length === 19, "acceptance floor is 19 questions");
-expect(liveQuestions.length === 28, "productive catalog stays the 28-question v1");
 for (const question of minCatalog.questions) {
   const live = liveQuestions.find((item) => item.id === question.id);
-  expect(Boolean(live), `${question.id} is in the productive catalog`);
+  expect(Boolean(live), `${question.id} remains in the catalog steps`);
   if (!live) continue;
   const minShape = question.fields.map((field) => `${field.key}:${field.type}`).join(",");
   const liveShape = live.fields.map((field) => `${field.key}:${field.type}`).join(",");
   expect(minShape === liveShape, `${question.id} fields match the minimum`);
   expect(question.prompt === live.prompt, `${question.id} prompt matches the minimum`);
 }
+
+// Productive path is the 24-module Gesamtdokument (Betriebs-Check → Module →
+// Gesamt-PDF). Module steps repeat catalog questions, so a fixed question
+// count is not the gate. Status copy, migration and muster depth stay in
+// scripts/check-module.ts; this block guards renderDeliveryDocument.
+const moduleSteps = CATALOG_STEPS.filter((step) => /^step-M\d{2}$/.test(step.id));
+expect(MODULE.length === 24, "productive catalog has 24 modules");
+expect(new Set(MODULE.map((modul) => modul.id)).size === 24, "module ids are unique");
+expect(moduleSteps.length === 24, "each module has its own catalog step");
+expect(
+  moduleSteps.every((step) => step.questions.length > 0),
+  "every module step asks questions",
+);
+expect(CATALOG_STEPS.some((step) => step.id === "step-BC"), "Betriebs-Check is a catalog step");
+
+const gesamtFresh = ensureGesamt(emptyAnswers());
+const gesamtDoc = renderExport(gesamtFresh);
+expect(gesamtDoc.cover.includes("Gesamtdokument"), "Gesamt export cover names the Gesamtdokument");
+const overview = gesamtDoc.chapters.find((chapter) => chapter.id === "vollstaendigkeit");
+expect(Boolean(overview), "Gesamt export includes the Vollständigkeitsübersicht");
+const overviewBody = overview?.body ?? "";
+expect(overviewBody.includes("# Vollständigkeitsübersicht"), "completeness overview is an export chapter");
+expect(
+  overviewBody.includes("Später ausfüllen"),
+  "unanswered Betriebs-Check keeps modules visible as Später ausfüllen",
+);
+for (const modul of MODULE) {
+  expect(
+    gesamtDoc.chapters.some((chapter) => chapter.id === `modul-${modul.id}`),
+    `Gesamt export covers ${modul.id}`,
+  );
+  expect(overviewBody.includes(modul.titel), `overview lists ${modul.titel}`);
+}
+expect(
+  !gesamtDoc.chapters.some((chapter) => chapter.id === "06-papier-digitalisierung"),
+  "Gesamt export omits the legacy paper chapter",
+);
+
+const withoutKasse = setModulEintrag(gesamtFresh, "m08", {
+  status: "nicht_vorhanden",
+  reason: "Keine Bargeldeinnahmen",
+});
+const withoutKasseDoc = renderExport(withoutKasse);
+expect(
+  !withoutKasseDoc.chapters.some((chapter) => chapter.id === "modul-m08"),
+  "nicht vorhanden module is omitted from the export body",
+);
+const withoutKasseOverview =
+  withoutKasseDoc.chapters.find((chapter) => chapter.id === "vollstaendigkeit")?.body ?? "";
+expect(
+  withoutKasseOverview.includes("Bargeld und Kassenführung") &&
+    withoutKasseOverview.includes("Keine Bargeldeinnahmen"),
+  "nicht vorhanden stays named in the Vollständigkeitsübersicht",
+);
+for (const modul of MODULE) {
+  if (modul.id === "m08") continue;
+  expect(
+    withoutKasseDoc.chapters.some((chapter) => chapter.id === `modul-${modul.id}`),
+    `export still covers ${modul.id} when another module is absent`,
+  );
+}
+
 function asked(answers: IntakeAnswers): Set<string> {
   const ids = new Set<string>();
   for (let step = 0; step < CATALOG_STEPS.length; step += 1) {
