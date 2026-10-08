@@ -4,6 +4,7 @@
  */
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { loginPath, magicLinkUrl, safeNextPath } from "@/lib/auth";
 import { isMailConfigured } from "@/lib/env";
 import {
   buildDeliveryMail,
@@ -13,6 +14,12 @@ import {
   buildOnboardingMail,
   buildReadinessMail,
   buildReferralAfterDeliveryMail,
+  checkoutContactFromCustomerDetails,
+  CUSTOMER_ONBOARDING_SIGNATURE,
+  customerOnboardingGreeting,
+  intakeContactNameFromAnswers,
+  PARTNER_ONBOARDING_SIGNATURE,
+  pickOnboardingContactName,
   REFERRAL_AFTER_DELIVERY_SUBJECT,
   REFERRAL_AFTER_DELIVERY_URL,
   REFERRAL_MICRO,
@@ -44,7 +51,23 @@ const readiness = buildReadinessMail({
     "https://www.gobd-doku-erstellen.de/api/readiness/preview/download?token=preview",
   magicLinkUrl: "https://www.gobd-doku-erstellen.de/auth/verify?token=readiness-preview",
 });
-const onboarding = buildOnboardingMail({ company: "Muster GmbH" });
+const onboardingStartUrl =
+  "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-onboarding&next=%2Fintake";
+const onboarding = buildOnboardingMail({
+  company: "Muster GmbH",
+  contactName: "Philip Cappelletti",
+  magicLinkUrl: onboardingStartUrl,
+});
+const onboardingCompanyOnly = buildOnboardingMail({
+  company: "IKAT GmbH",
+  contactName: "IKAT GmbH",
+  magicLinkUrl: onboardingStartUrl,
+});
+const onboardingWhitespace = buildOnboardingMail({
+  company: "Muster GmbH",
+  contactName: "   \n  ",
+  magicLinkUrl: onboardingStartUrl,
+});
 const partnerOnboarding = buildOnboardingMail({
   company: "Beispiel Kanzlei",
   audience: "steuerberater",
@@ -68,6 +91,7 @@ const files: Record<string, string> = {
   "magic-link.html": magic.html,
   "readiness.html": readiness.html,
   "onboarding.html": onboarding.html,
+  "onboarding-fallback.html": onboardingCompanyOnly.html,
   "onboarding-steuerberater.html": partnerOnboarding.html,
   "failed-payment.html": failedPayment.html,
   "failed-job.html": failedJob.html,
@@ -80,6 +104,10 @@ for (const [name, html] of Object.entries(files)) {
   writeFileSync(file, html, "utf8");
   console.log(file);
 }
+writeFileSync(path.join(outDir, "onboarding.txt"), onboarding.text, "utf8");
+writeFileSync(path.join(outDir, "onboarding-fallback.txt"), onboardingCompanyOnly.text, "utf8");
+console.log(path.join(outDir, "onboarding.txt"));
+console.log(path.join(outDir, "onboarding-fallback.txt"));
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -114,6 +142,197 @@ assert(
   !onboarding.html.includes("KANZLEI-PILOT"),
   "Customer onboarding must not mention the partner code",
 );
+function greetingParagraph(html: string): string {
+  const match = html.match(/<p>(Hallo.*?)<\/p>/);
+  return match?.[1] ?? "";
+}
+const onboardingHref = onboardingStartUrl.replaceAll("&", "&amp;");
+assert(
+  greetingParagraph(onboarding.html) === "Hallo Philip Cappelletti,",
+  "Customer onboarding greets the contact name",
+);
+assert(
+  onboarding.text.startsWith("Hallo Philip Cappelletti,"),
+  "Customer onboarding plaintext greets the contact name",
+);
+assert(
+  !greetingParagraph(onboarding.html).includes("Muster") &&
+    !greetingParagraph(onboarding.html).includes("GmbH"),
+  "Customer onboarding greeting must not use the company name",
+);
+assert(
+  greetingParagraph(onboardingCompanyOnly.html) === "Hallo,",
+  "Company-only name falls back to Hallo,",
+);
+assert(
+  onboardingCompanyOnly.text.startsWith("Hallo,"),
+  "Company-only plaintext falls back to Hallo,",
+);
+assert(
+  !onboardingCompanyOnly.text.includes("Hallo IKAT") &&
+    !onboardingCompanyOnly.html.includes("Hallo IKAT"),
+  "Company name must not appear in the greeting",
+);
+assert(
+  greetingParagraph(onboardingWhitespace.html) === "Hallo,",
+  "Whitespace contact name falls back to Hallo,",
+);
+assert(
+  !onboardingWhitespace.text.includes("Hallo ,"),
+  "Whitespace contact name must not leave a gap",
+);
+assert(
+  onboarding.html.includes(`href="${onboardingHref}"`),
+  "Customer onboarding button links the magic URL",
+);
+assert(
+  onboarding.html.includes("next=%2Fintake"),
+  "Customer onboarding button keeps next=/intake",
+);
+assert(
+  onboarding.html.includes("Jetzt starten: Betriebs-Check"),
+  "Customer onboarding has the Betriebs-Check button",
+);
+assert(
+  onboarding.html.includes(`background:#002050`),
+  "Customer onboarding button is a primary CTA",
+);
+assert(
+  onboarding.text.includes(onboardingStartUrl),
+  "Customer onboarding plaintext includes the same start URL",
+);
+assert(
+  onboardingCompanyOnly.text.includes(onboardingStartUrl),
+  "Fallback plaintext includes the same start URL",
+);
+assert(
+  onboarding.html.includes(CUSTOMER_ONBOARDING_SIGNATURE),
+  "Customer onboarding HTML signs the team",
+);
+assert(
+  onboarding.text.includes(CUSTOMER_ONBOARDING_SIGNATURE),
+  "Customer onboarding plaintext signs the team",
+);
+assert(
+  !onboarding.html.includes("GoBD Ops") && !onboarding.text.includes("GoBD Ops"),
+  "Customer onboarding must not sign GoBD Ops",
+);
+assert(
+  onboarding.html.includes("Betriebs-Check") &&
+    onboarding.html.includes("24 Module") &&
+    onboarding.html.includes("Später ausfüllen") &&
+    onboarding.html.includes("To-dos") &&
+    onboarding.html.includes("Gesamt-PDF") &&
+    onboarding.html.includes("Vollständigkeitsübersicht"),
+  "Customer onboarding describes the 24-module flow",
+);
+assert(
+  onboarding.html.includes(
+    "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus deinen Angaben.",
+  ),
+  "Customer onboarding keeps the disclaimer",
+);
+assert(
+  !onboarding.html.includes("Intake ausfüllen (falls noch offen)"),
+  "Customer onboarding no longer uses the unlinked intake step",
+);
+assert(safeNextPath("/intake") === "/intake", "/intake is an allowed next path");
+assert(safeNextPath("/intake/extra") === null, "intake subpaths stay blocked");
+assert(
+  safeNextPath("/intake?session_id=cs_live_abc") === "/intake",
+  "intake query is stripped and cannot redirect elsewhere",
+);
+assert(safeNextPath("https://evil.example/intake") === null, "absolute next is rejected");
+assert(safeNextPath("//evil.example/intake") === null, "protocol-relative next is rejected");
+assert(
+  loginPath("/intake") === "/login?next=%2Fintake",
+  "expired magic link falls back to login and keeps next=/intake",
+);
+assert(loginPath("https://evil.example") === "/login", "unsafe next is dropped on login");
+const issuedMagicLink = magicLinkUrl("philip@example.com", "/intake");
+assert(issuedMagicLink.includes("/auth/verify?"), "magic link uses /auth/verify");
+assert(issuedMagicLink.includes("token="), "magic link carries a token");
+assert(issuedMagicLink.includes("next=%2Fintake"), "magic link sets next=/intake");
+assert(
+  pickOnboardingContactName({
+    profileName: "Alex Profil",
+    checkoutNames: ["Stripe Name"],
+    intakeContactNames: ["Inhaber Intake"],
+    companyNames: ["IKAT GmbH"],
+  }) === "Alex Profil",
+  "profile name wins over checkout and intake",
+);
+assert(
+  pickOnboardingContactName({
+    profileName: "  ",
+    checkoutNames: ["Philip Cappelletti"],
+    companyNames: ["IKAT GmbH"],
+  }) === "Philip Cappelletti",
+  "checkout person name is used when the profile is empty",
+);
+assert(
+  pickOnboardingContactName({
+    checkoutNames: ["IKAT GmbH"],
+    companyNames: ["IKAT GmbH"],
+  }) === "",
+  "checkout name equal to the company is not a greeting",
+);
+assert(
+  pickOnboardingContactName({
+    profileName: "muster gmbh",
+    checkoutNames: ["  Muster GmbH  "],
+    intakeContactNames: ["Muster GmbH"],
+    companyNames: ["Muster GmbH"],
+  }) === "",
+  "company-shaped names in every source fall back",
+);
+assert(
+  pickOnboardingContactName({
+    checkoutNames: ["IKAT GmbH"],
+    intakeContactNames: ["Anna Berg"],
+    companyNames: ["IKAT GmbH"],
+  }) === "Anna Berg",
+  "intake contact is used when checkout is only the company",
+);
+assert(
+  customerOnboardingGreeting("   ", ["IKAT GmbH"]) === "Hallo,",
+  "greeting helper falls back on whitespace",
+);
+assert(
+  intakeContactNameFromAnswers({ gf: "  Clara Sonnenkorn  " }) === "Clara Sonnenkorn",
+  "intake gf is the contact name",
+);
+assert(
+  intakeContactNameFromAnswers({
+    gf: " ",
+    bestaetigungName: "",
+    katalog: { A01: { values: { gf: "Nora Klar" } } },
+  }) === "Nora Klar",
+  "catalog A01 gf is the contact when the column is empty",
+);
+const stripeBusiness = checkoutContactFromCustomerDetails({
+  name: "IKAT GmbH",
+  business_name: "IKAT GmbH",
+  individual_name: "Philip Cappelletti",
+});
+assert(
+  pickOnboardingContactName({
+    checkoutNames: stripeBusiness.checkoutNames,
+    companyNames: ["IKAT GmbH", ...stripeBusiness.extraCompanyNames],
+  }) === "Philip Cappelletti",
+  "Stripe individual name wins over the business name",
+);
+const stripeCompanyOnly = checkoutContactFromCustomerDetails({
+  name: "IKAT GmbH",
+  business_name: "IKAT GmbH",
+});
+assert(
+  pickOnboardingContactName({
+    checkoutNames: stripeCompanyOnly.checkoutNames,
+    companyNames: ["IKAT GmbH", ...stripeCompanyOnly.extraCompanyNames],
+  }) === "",
+  "Stripe business name alone does not greet",
+);
 function hasCustomerDu(value: string): boolean {
   return /\b(du|dein|deine|deinen|deiner|deinem|dich)\b/i.test(value);
 }
@@ -147,6 +366,17 @@ assert(
   "Steuerberater onboarding keeps the Mandant boundary",
 );
 assert(!hasCustomerDu(partnerMail), "Steuerberater onboarding must not use du");
+assert(
+  partnerOnboarding.html.includes(PARTNER_ONBOARDING_SIGNATURE) &&
+    partnerOnboarding.text.includes(PARTNER_ONBOARDING_SIGNATURE),
+  "Steuerberater signature uses the Sie-form team line",
+);
+assert(
+  !partnerOnboarding.html.includes("GoBD Ops") &&
+    !partnerOnboarding.text.includes("GoBD Ops") &&
+    !partnerMail.includes("Dein Team"),
+  "Steuerberater signature drops GoBD Ops and stays Sie",
+);
 assert(
   !/weitergeben|Kollege|Soft-Invite|andere Kanzlei/i.test(partnerMail),
   "Steuerberater onboarding must not invite other firms",

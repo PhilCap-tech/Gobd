@@ -8,6 +8,7 @@
  * Failed Job, Failed Payment oder Magic-Link.
  */
 
+import { CUSTOMER_ONBOARDING_NEXT_PATH, magicLinkUrl } from "@/lib/auth";
 import { isMailConfigured } from "@/lib/env";
 import { sendEmail, type MailResult } from "@/lib/mail";
 import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
@@ -26,9 +27,16 @@ import {
   MAIL_FAQ_URL,
   MAIL_LOGIN_URL,
   MAIL_SUPPORT_EMAIL,
+  transactionalPrimaryButton,
   wrapTransactionalHtml,
   wrapTransactionalText,
 } from "@/lib/mail-layout";
+import {
+  getAccountProfile,
+  listDocumentsByEmail,
+  listEntitiesByEmail,
+} from "@/lib/store";
+import { answersFromSheetRow } from "@/lib/types";
 
 export type OpsResult = {
   stub: boolean;
@@ -132,53 +140,183 @@ export function buildReadinessMail(input: {
 
 export type OnboardingAudience = "kunde" | "steuerberater";
 
-export function buildOnboardingMail(input: {
+export const CUSTOMER_ONBOARDING_SIGNATURE = "Dein Team von GoBD Verfahrensdoku";
+/** Sie-Form der Kundensignatur. Partner-Mail bleibt sonst unverändert. */
+export const PARTNER_ONBOARDING_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
+
+const CUSTOMER_ONBOARDING_SUBJECT =
+  "Willkommen — nächste Schritte zu deiner Verfahrensdokumentation";
+const CUSTOMER_ONBOARDING_DISCLAIMER =
+  "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus deinen Angaben.";
+const CUSTOMER_ONBOARDING_CTA = "Jetzt starten: Betriebs-Check";
+
+/** Trim, drop control chars, collapse whitespace. Empty stays empty. */
+export function normalizeOnboardingName(value: string | null | undefined): string {
+  return (value ?? "")
+    .replace(/[\u0000-\u001F\u007F\u2028\u2029]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function foldOnboardingName(value: string): string {
+  return normalizeOnboardingName(value).toLocaleLowerCase("de-DE");
+}
+
+export function onboardingNamesEqual(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const a = foldOnboardingName(left ?? "");
+  const b = foldOnboardingName(right ?? "");
+  return Boolean(a) && a === b;
+}
+
+function matchesKnownCompany(
+  name: string,
+  companyNames: Array<string | null | undefined> | undefined,
+): boolean {
+  return (companyNames ?? []).some((company) => onboardingNamesEqual(name, company));
+}
+
+/**
+ * Person to greet. First non-empty candidate that is not a known company name.
+ * Priority: account-hub profile, then Stripe checkout name (individual name
+ * before customer_details.name), then Geschäftsführung / Bestätigung from
+ * existing intake rows for this e-mail. Entity rows have no person field —
+ * their names only extend the company blocklist.
+ */
+export function pickOnboardingContactName(input: {
+  profileName?: string | null;
+  checkoutNames?: Array<string | null | undefined>;
+  intakeContactNames?: Array<string | null | undefined>;
+  companyNames?: Array<string | null | undefined>;
+}): string {
+  const candidates = [
+    input.profileName,
+    ...(input.checkoutNames ?? []),
+    ...(input.intakeContactNames ?? []),
+  ];
+  for (const candidate of candidates) {
+    const name = normalizeOnboardingName(candidate);
+    if (!name || matchesKnownCompany(name, input.companyNames)) continue;
+    return name;
+  }
+  return "";
+}
+
+/** „Hallo {Name},“ or exactly „Hallo,“ when no person name is usable. */
+export function customerOnboardingGreeting(
+  contactName?: string | null,
+  companyNames?: Array<string | null | undefined>,
+): string {
+  const name = pickOnboardingContactName({
+    profileName: contactName,
+    companyNames,
+  });
+  return name ? `Hallo ${name},` : "Hallo,";
+}
+
+type IntakeContactSource = {
+  gf?: string;
+  bestaetigungName?: string;
+  katalog?: Record<string, { values?: Record<string, unknown> } | undefined>;
+};
+
+/** Geschäftsführung, sonst Bestätigungsname, sonst Katalog A01. */
+export function intakeContactNameFromAnswers(answers: IntakeContactSource): string {
+  const direct = normalizeOnboardingName(answers.gf);
+  if (direct) return direct;
+  const confirmed = normalizeOnboardingName(answers.bestaetigungName);
+  if (confirmed) return confirmed;
+  const catalogGf = answers.katalog?.A01?.values?.gf;
+  return typeof catalogGf === "string" ? normalizeOnboardingName(catalogGf) : "";
+}
+
+export function checkoutContactFromCustomerDetails(
+  details:
+    | {
+        name?: string | null;
+        business_name?: string | null;
+        individual_name?: string | null;
+      }
+    | null
+    | undefined,
+): { checkoutNames: string[]; extraCompanyNames: string[] } {
+  if (!details) return { checkoutNames: [], extraCompanyNames: [] };
+  return {
+    checkoutNames: [details.individual_name ?? "", details.name ?? ""],
+    extraCompanyNames: [details.business_name ?? ""],
+  };
+}
+
+function customerOnboardingStartUrl(magicLinkUrlValue?: string): string {
+  const direct = magicLinkUrlValue?.trim() ?? "";
+  if (direct) return direct;
+  return `${MAIL_LOGIN_URL}?next=${encodeURIComponent(CUSTOMER_ONBOARDING_NEXT_PATH)}`;
+}
+
+function buildCustomerOnboardingMail(input: {
   company?: string;
-  audience?: OnboardingAudience;
+  contactName?: string;
+  magicLinkUrl?: string;
 }): TransactionalMailContent {
-  if (input.audience === "steuerberater") return buildSteuerberaterOnboardingMail(input);
-  const company = input.company?.trim();
-  const greeting = company ? `Hallo ${company},` : "Hallo,";
+  const greeting = customerOnboardingGreeting(input.contactName, [input.company]);
+  const startUrl = customerOnboardingStartUrl(input.magicLinkUrl);
   const text = wrapTransactionalText(
     [
       greeting,
       "",
-      "danke für deine Bestellung bei gobd-doku-erstellen.de.",
+      "danke für deine Bestellung bei gobd-doku-erstellen.de. So geht es weiter:",
       "",
-      "Nächste Schritte:",
-      "1. Intake ausfüllen (falls noch offen)",
-      "2. PDF herunterladen, sobald die Generierung fertig ist",
-      `3. Konto: Magic-Link / Anmeldung unter ${MAIL_LOGIN_URL}`,
+      "1. Betriebs-Check: ein paar Fragen zu deinem Betrieb. Daraus ergibt sich, welche der 24 Module für dich gelten.",
+      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Offene Module erscheinen als To-dos in deinem Konto, dort machst du jederzeit weiter.",
+      "3. Gesamt-PDF erstellen – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.",
+      "",
+      CUSTOMER_ONBOARDING_CTA,
+      startUrl,
+      "",
+      "Der Button meldet dich direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordere auf der Anmeldeseite einen neuen Link an – du landest danach wieder im Fragebogen.",
       "",
       "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
       MAIL_FAQ_URL,
       "",
       `Support: ${MAIL_SUPPORT_EMAIL}`,
       "",
-      "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus deinen Angaben.",
+      CUSTOMER_ONBOARDING_DISCLAIMER,
       "",
-      "GoBD Ops · IKAT GmbH",
+      CUSTOMER_ONBOARDING_SIGNATURE,
     ].join("\n"),
   );
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
-    <p>danke für deine Bestellung bei gobd-doku-erstellen.de.</p>
-    <p>Nächste Schritte:</p>
+    <p>danke für deine Bestellung bei gobd-doku-erstellen.de. So geht es weiter:</p>
     <ol>
-      <li>Intake ausfüllen (falls noch offen)</li>
-      <li>PDF herunterladen, sobald die Generierung fertig ist</li>
-      <li>Konto: Magic-Link / Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
+      <li><strong>Betriebs-Check:</strong> ein paar Fragen zu deinem Betrieb. Daraus ergibt sich, welche der 24 Module für dich gelten.</li>
+      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Offene Module erscheinen als To-dos in deinem Konto, dort machst du jederzeit weiter.</li>
+      <li><strong>Gesamt-PDF erstellen</strong> – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.</li>
     </ol>
+    <p>${transactionalPrimaryButton(startUrl, CUSTOMER_ONBOARDING_CTA)}</p>
+    <p>Der Button meldet dich direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordere auf der Anmeldeseite einen neuen Link an – du landest danach wieder im Fragebogen.</p>
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
-    <p>Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus deinen Angaben.</p>
-    <p>GoBD Ops · IKAT GmbH</p>
+    <p>${escapeHtml(CUSTOMER_ONBOARDING_DISCLAIMER)}</p>
+    <p>${escapeHtml(CUSTOMER_ONBOARDING_SIGNATURE)}</p>
   `);
   return {
-    subject: "Willkommen — nächste Schritte zu deiner Verfahrensdokumentation",
+    subject: CUSTOMER_ONBOARDING_SUBJECT,
     text,
     html,
   };
+}
+
+export function buildOnboardingMail(input: {
+  company?: string;
+  audience?: OnboardingAudience;
+  contactName?: string;
+  magicLinkUrl?: string;
+}): TransactionalMailContent {
+  if (input.audience === "steuerberater") return buildSteuerberaterOnboardingMail(input);
+  return buildCustomerOnboardingMail(input);
 }
 
 /** Partner-Pilot. Sie-Form. Kein Soft-Invite an weitere Kanzleien. */
@@ -207,7 +345,7 @@ function buildSteuerberaterOnboardingMail(input: {
       "",
       "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus den Angaben. Sie füllen sie nicht für einen Mandanten aus.",
       "",
-      "GoBD Ops · IKAT GmbH",
+      PARTNER_ONBOARDING_SIGNATURE,
     ].join("\n"),
   );
   const html = wrapTransactionalHtml(`
@@ -223,7 +361,7 @@ function buildSteuerberaterOnboardingMail(input: {
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
     <p>Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus den Angaben. Sie füllen sie nicht für einen Mandanten aus.</p>
-    <p>GoBD Ops · IKAT GmbH</p>
+    <p>${escapeHtml(PARTNER_ONBOARDING_SIGNATURE)}</p>
   `);
   return {
     subject: "Willkommen — nächste Schritte zu Ihrer Verfahrensdokumentation",
@@ -372,11 +510,37 @@ export function buildReferralAfterDeliveryMail(input: {
   };
 }
 
+async function lookupOnboardingContactSources(email: string): Promise<{
+  profileName: string;
+  intakeContactNames: string[];
+  companyNames: string[];
+}> {
+  const [profile, entities, documents] = await Promise.all([
+    getAccountProfile(email),
+    listEntitiesByEmail(email),
+    listDocumentsByEmail(email),
+  ]);
+  return {
+    profileName: profile?.name ?? "",
+    intakeContactNames: documents.map((doc) =>
+      intakeContactNameFromAnswers(answersFromSheetRow(doc)),
+    ),
+    companyNames: [
+      ...entities.map((entity) => entity.name),
+      ...documents.map((doc) => doc.company),
+    ],
+  };
+}
+
 export async function triggerOnboardingMail(input: {
   email: string;
   company?: string;
   sessionId?: string;
   audience?: OnboardingAudience;
+  /** Stripe `customer_details.individual_name`, then `customer_details.name`. */
+  checkoutNames?: string[];
+  /** Firm names that must not be used as a greeting (metadata, business_name). */
+  extraCompanyNames?: string[];
 }): Promise<OpsResult & MailResult> {
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   if (!isMailConfigured()) {
@@ -396,9 +560,34 @@ export async function triggerOnboardingMail(input: {
     return { stub: true, sent: false, action: "onboarding" };
   }
 
+  let contactName = "";
+  let startUrl: string | undefined;
+  if (audience === "kunde") {
+    const companyNames = [input.company ?? "", ...(input.extraCompanyNames ?? [])];
+    let profileName = "";
+    let intakeContactNames: string[] = [];
+    try {
+      const found = await lookupOnboardingContactSources(input.email);
+      profileName = found.profileName;
+      intakeContactNames = found.intakeContactNames;
+      companyNames.push(...found.companyNames);
+    } catch (error) {
+      console.warn("[ops] Ansprechperson nicht geladen — Fallback auf Checkout-Name", error);
+    }
+    contactName = pickOnboardingContactName({
+      profileName,
+      checkoutNames: input.checkoutNames,
+      intakeContactNames,
+      companyNames,
+    });
+    startUrl = magicLinkUrl(input.email, CUSTOMER_ONBOARDING_NEXT_PATH);
+  }
+
   const mail = buildOnboardingMail({
     company: input.company,
     audience,
+    contactName,
+    magicLinkUrl: startUrl,
   });
   const result = await sendEmail({
     to: input.email,

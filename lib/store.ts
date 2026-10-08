@@ -370,6 +370,26 @@ export async function listDocumentFamily(documentId: string): Promise<SheetRow[]
   return rowsInFamily(rows, documentId);
 }
 
+/**
+ * Newest paid checkout for this e-mail, including the webhook row that exists
+ * before a document id. Lets /intake resume the Betriebs-Check after login.
+ */
+export async function findLatestPaidCheckoutByEmail(
+  email: string,
+): Promise<SheetRow | null> {
+  if (!email.trim()) return null;
+  const { rows } = await loadRows();
+  const matches = rows
+    .filter(
+      (row) =>
+        emailsEqual(row.email, email) &&
+        Boolean(row.stripeSessionId.trim()) &&
+        isPaidLikeStatus(row.status),
+    )
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  return matches[0] ?? null;
+}
+
 export async function findRowByStripeSessionId(
   sessionId: string,
 ): Promise<SheetRow | null> {

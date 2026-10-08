@@ -6,6 +6,7 @@ import {
   BRAND_INK,
   BRAND_MUTED,
   BRAND_NAME,
+  BRAND_NAVY,
   BRAND_RULE,
 } from "@/lib/pdf-brand";
 
@@ -58,10 +59,25 @@ function footerLink(href: string, label: string): string {
 }
 
 function withMailLinkColor(html: string): string {
-  return html.replaceAll(
-    "<a href=",
-    `<a style="color:${BRAND_GREEN};text-decoration:underline;" href=`,
-  );
+  return html.replace(/<a\b([^>]*?)>/gi, (full, attrs: string) => {
+    if (/\bstyle\s*=/i.test(attrs)) return full;
+    return `<a style="color:${BRAND_GREEN};text-decoration:underline;"${attrs}>`;
+  });
+}
+
+/** Primary CTA. Own inline style so the body link color does not restyle it. */
+export function transactionalPrimaryButton(href: string, label: string): string {
+  const style = [
+    "display:inline-block",
+    "padding:12px 20px",
+    "border-radius:6px",
+    `background:${BRAND_NAVY}`,
+    "color:#ffffff",
+    "text-decoration:none",
+    "font-weight:600",
+    `font-family:${FONT_SANS}`,
+  ].join(";");
+  return `<a href="${escapeAttr(href)}" style="${style}">${escapeHtml(label)}</a>`;
 }
 
 /**

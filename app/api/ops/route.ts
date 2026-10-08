@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     email?: string;
     company?: string;
     sessionId?: string;
+    checkoutNames?: string[];
     reason?: string;
     audience?: "kunde" | "steuerberater";
   };
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
             email: body.email || "",
             company: body.company,
             sessionId: body.sessionId,
+            checkoutNames: body.checkoutNames,
             audience: body.audience === "steuerberater" ? "steuerberater" : "kunde",
           }),
         );

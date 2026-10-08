@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
@@ -17,6 +18,7 @@ import { firstQueryValue } from "@/lib/query";
 import {
   findDocumentById,
   findLatestDocumentByStripeSessionId,
+  findLatestPaidCheckoutByEmail,
   getOwnedEntity,
   listDocumentFamily,
   listDocumentsByEmail,
@@ -271,6 +273,17 @@ export default async function IntakePage({
         <SiteFooter />
       </>
     );
+  }
+
+  // Magic-Link aus der Onboarding-Mail trägt nur next=/intake (ohne session_id).
+  // Nach der Anmeldung die letzte bezahlte Checkout-Session weiterführen,
+  // sonst zeigt das Intake die Zahlungssperre.
+  if (!sessionId && sessionEmail && isStripeConfigured()) {
+    const paid = await findLatestPaidCheckoutByEmail(sessionEmail);
+    const paidSessionId = paid?.stripeSessionId.trim() ?? "";
+    if (paidSessionId) {
+      redirect(`/intake?session_id=${encodeURIComponent(paidSessionId)}`);
+    }
   }
 
   const session = sessionId
