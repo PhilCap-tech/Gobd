@@ -6,14 +6,25 @@ import path from "node:path";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { catalogAnswerLine } from "@/lib/intake-catalog";
 import {
+  collapseRepeatedTokens,
+  betriebFacts,
+  hiddenQuestion,
+  livedAufbewahrung,
+  livedBegriffe,
+  livedKontrollen,
+  livedProzess,
+  moduleHasLivedAnswers,
+  redactDenied,
+  rewriteChapterRefs,
+  staticModulText,
+  stripFalseFallbacks,
+  modulNrPresent,
+} from "@/lib/module/aussagen";
+import {
   MODULE,
   TEIL_KURZ,
   TEIL_TITEL,
-  modulAufbewahrung,
-  modulBegriffe,
   modulById,
-  modulKontrollen,
-  modulProzess,
   gruppenFragen,
 } from "@/lib/module/katalog";
 import type { ModulDef } from "@/lib/module/typen";
@@ -115,6 +126,8 @@ function statusBlock(status: ModulStatus, detail: string): string[] {
 function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedChapter {
   const eintrag = effectiveModulStatus(answers, modul.id);
   const state: State = answers.katalog ?? {};
+  const facts = betriebFacts(answers);
+  const wording = staticModulText(modul, facts);
   const lines: string[] = [];
   let sub = 1;
   const heading = (title: string) => {
@@ -124,11 +137,14 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
 
   lines.push(`# ${modul.nr} ${modul.titel}`, "");
   lines.push(
-    `Dieses Kapitel gehört zu **${TEIL_TITEL[modul.teil]}**. Gegenstand: ${modul.kurz}`,
+    `Dieses Kapitel gehört zu **${TEIL_TITEL[modul.teil]}**. Gegenstand: ${wording.kurz}`,
     "",
   );
-  if (modul.inhalt.length) {
-    lines.push("Im Einzelnen:", "", ...modul.inhalt.map((item) => `- ${item}`), "");
+  if (wording.inhalt.length) {
+    lines.push("Im Einzelnen:", "", ...wording.inhalt.map((item) => `- ${item}`), "");
+  }
+  if (modul.id === "m09" && facts.kanzleiDenied) {
+    lines.push(`Buchhaltung und Steuererklärungen liegen bei ${facts.rolle}.`, "");
   }
 
   heading("Dokumentationsstatus");
@@ -155,20 +171,24 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     lines.push(hinweis(modul.hinweis), "");
   }
 
-  // Embedded Belegfluss template sections (static text only).
-  const embedded = modul.vorlagen
-    .map((key) => TEMPLATES.get(key))
-    .filter((item): item is string => Boolean(item));
+  // Belegfluss-Vorlagen nur ohne eigene Angaben. Fallback-Sätze nur, wenn die Angabe fehlt.
+  const embedded = moduleHasLivedAnswers(modul, answers)
+    ? []
+    : modul.vorlagen
+        .map((key) => TEMPLATES.get(key))
+        .filter((item): item is string => Boolean(item))
+        .map((block) => stripFalseFallbacks(block, facts))
+        .filter(Boolean);
   if (embedded.length) {
-    heading("Allgemeine Beschreibung (Vorlage)");
+    heading("Ergänzende Beschreibung");
     for (const block of embedded) {
       const { text, nextSub } = renumberTemplate(block, modul.nr, sub);
       sub = nextSub;
-      lines.push(text, "");
+      if (text) lines.push(text, "");
     }
   }
 
-  const prozess = modulProzess(modul);
+  const prozess = livedProzess(modul, answers);
   if (prozess.length) {
     heading("Prozessübersicht");
     lines.push(
@@ -184,6 +204,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     if (gruppe.teil && check[gruppe.teil] === "nein") continue;
     heading(gruppe.titel);
     for (const question of gruppenFragen(gruppe)) {
+      if (hiddenQuestion(question.id, facts)) continue;
       lines.push(...bereichQuestionLines(question, state[question.id]), "");
     }
   }
@@ -192,16 +213,22 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
   if (modul.catalogIds.length) {
     heading("Angaben aus dem Fragenkatalog");
     for (const id of modul.catalogIds) {
+      if (hiddenQuestion(id, facts)) {
+        if (id === "F05") {
+          lines.push(`- **Externe Steuerberatung** — keine. Buchhaltung und Steuererklärungen: ${facts.rolle}.`);
+        }
+        continue;
+      }
       const line = catalogAnswerLine(id, answers);
       if (!line) continue;
       const details = line.details.length ? ` ${line.details.map((bit) => cell(bit)).join(" · ")}` : "";
       const reason = line.reason ? ` Begründung: ${cell(line.reason)}` : "";
-      lines.push(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`);
+      lines.push(collapseRepeatedTokens(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`));
     }
     lines.push("");
   }
 
-  const kontrollen = modulKontrollen(modul);
+  const kontrollen = livedKontrollen(modul, answers);
   if (kontrollen.length) {
     heading("Kontrollen");
     lines.push(
@@ -212,7 +239,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     );
   }
 
-  const fristen = modulAufbewahrung(modul);
+  const fristen = livedAufbewahrung(modul, answers);
   if (fristen.length) {
     heading("Aufbewahrung");
     lines.push(
@@ -223,7 +250,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     );
   }
 
-  const begriffe = modulBegriffe(modul);
+  const begriffe = livedBegriffe(modul, answers);
   if (begriffe.length) {
     heading("Begriffe");
     lines.push(
@@ -237,7 +264,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
   return {
     id: `modul-${modul.id}`,
     title: `${modul.nr} ${modul.titel}`,
-    body: lines.join("\n").trim(),
+    body: redactDenied(lines.join("\n"), facts),
   };
 }
 
@@ -300,7 +327,7 @@ function anhangProzessmatrix(answers: IntakeAnswers): RenderedChapter {
   ];
   for (const modul of activeModules(answers)) {
     if (effectiveModulStatus(answers, modul.id).status !== "tool") continue;
-    const prozess = modulProzess(modul);
+    const prozess = livedProzess(modul, answers);
     if (!prozess.length) continue;
     lines.push(`## Modul ${modul.nr} ${modul.titel}`, "");
     lines.push(
@@ -317,7 +344,7 @@ function anhangBegriffe(answers: IntakeAnswers): RenderedChapter {
   const seen = new Set<string>();
   const rows: Array<[string, string]> = [];
   for (const modul of activeModules(answers)) {
-    for (const [term, meaning] of modulBegriffe(modul)) {
+    for (const [term, meaning] of livedBegriffe(modul, answers)) {
       if (seen.has(term)) continue;
       seen.add(term);
       rows.push([term, meaning]);
@@ -380,7 +407,15 @@ export function renderGesamtChapters(
   });
   out.push(anhangProzessmatrix(answers));
   out.push(anhangBegriffe(answers));
-  return out;
+  const present = modulNrPresent(answers);
+  const facts = betriebFacts(answers);
+  return out.map((chapter) => ({
+    ...chapter,
+    body:
+      chapter.id === "vollstaendigkeit"
+        ? rewriteChapterRefs(chapter.body, present)
+        : redactDenied(rewriteChapterRefs(chapter.body, present), facts),
+  }));
 }
 
 export function gesamtDocTitle(): string {

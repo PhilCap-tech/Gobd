@@ -17,6 +17,7 @@ import {
 } from "@/lib/bereich-chapter";
 import { BELEGFLUSS, bereichById, bereichDocTitle, bereichIdOf } from "@/lib/bereiche";
 import { renderGesamtChapters, gesamtDocTitle } from "@/lib/gesamt-document";
+import { eigenbuchhaltungText, kanzleiAbgelehnt } from "@/lib/module/aussagen";
 import { isGesamt } from "@/lib/module/status";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import {
@@ -67,6 +68,10 @@ type TemplateContext = {
   kanzleiBucht: string;
   /** "ja" when the Kanzlei field is filled but the scope is not confirmed. */
   kanzleiUnbestaetigt: string;
+  /** "ja" when the Gesamtdokument ausdrücklich keine Kanzlei hat. */
+  keineKanzlei: string;
+  /** Rolle der Eigenbuchhaltung, dritte Person. */
+  eigenbuchhaltung: string;
   /** Area of this document. `belegfluss` is "ja" only for Belegfluss documents. */
   bereich: BereichContext;
   /** Rows of earlier versions for the Änderungshistorie, each ending with a newline. Empty for v1. */
@@ -559,6 +564,8 @@ export function renderDeliveryDocument(input: {
     historyDate: validFrom || generatedAt,
     kanzleiBucht: kanzleiBucht ? "ja" : "",
     kanzleiUnbestaetigt: kanzleiUnbestaetigt ? "ja" : "",
+    keineKanzlei: isGesamt(input.answers) && kanzleiAbgelehnt(input.answers) ? "ja" : "",
+    eigenbuchhaltung: eigenbuchhaltungText(input.answers),
     bereich: bereichContext(input.answers),
     historyRows: historyRows(input.versionHistory ?? []),
     history: historyContext(input.versionHistory ?? [], changeSummary),

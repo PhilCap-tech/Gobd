@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export",
+    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export && npm run check:pdf",
     "check:ansprache": "node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
     "check:export": "tsx scripts/check-export-mvp.ts",
+    "check:pdf": "tsx scripts/check-pdf-consistency.ts",
     "dev": "next dev",
     "build": "next build",
     "postbuild": "node scripts/run-preview-draft-smoke.mjs",
