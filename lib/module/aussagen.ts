@@ -456,11 +456,12 @@ export function staticModulText(modul: ModulDef, facts: BetriebFacts): { kurz: s
 
 /** Benachbarte Wortwiederholungen („lexoffice lexoffice“) zusammenziehen. */
 export function collapseRepeatedTokens(value: string): string {
+  const repeated = /(^|[^\p{L}\p{N}])([\p{L}\p{N}]+)(?:\s+\2)+/giu;
   let current = value;
-  let next = current.replace(/([\p{L}\p{N}]+)\s+\1/giu, "$1");
+  let next = current.replace(repeated, "$1$2");
   while (next !== current) {
     current = next;
-    next = current.replace(/([\p{L}\p{N}]+)\s+\1/giu, "$1");
+    next = current.replace(repeated, "$1$2");
   }
   return next;
 }

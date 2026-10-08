@@ -70,6 +70,8 @@ expect(
 expect(!pixel.claims.includes("Allgemeine Beschreibung (Vorlage)"), "Pixelwerk behält die Vorlagenüberschrift");
 expect(!pixel.claims.includes("lexoffice lexoffice"), "Pixelwerk wiederholt lexoffice");
 expect(pixel.claims.includes("lexoffice"), "Pixelwerk verliert die lexoffice-Angabe");
+expect(pixel.claims.includes("Wie wird dieser Eingang gesichtet"), "Pixelwerk zerstört den Fragetext");
+expect(pixel.claims.includes("strukturierte E-Rechnung"), "Pixelwerk zerstört die E-Rechnungsfrage");
 expect(pixel.claims.includes("wöchentlich"), "Pixelwerk nennt die wöchentliche Sichtung nicht");
 expect(pixel.claims.includes("NAS"), "Pixelwerk nennt das NAS-Backup nicht");
 expect(pixel.claims.includes("Eigenbuchhaltung"), "Pixelwerk nennt die Eigenbuchhaltung nicht");
