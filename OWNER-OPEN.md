@@ -1,26 +1,28 @@
 # Offen für den Owner
 
-Stand 02.10.2026. Die öffentlichen Seiten enthalten keine `[klären]`-Marker mehr.
+Stand 08.10.2026. Die öffentlichen Seiten enthalten keine `[klären]`-Marker mehr.
 Dieser Text ist intern und wird nicht ausgeliefert.
+Stripe bleibt im Testmodus. Die Live-Schaltung ist nicht Teil dieser Freigabe.
+
+## Vom Owner bestätigt (08.10.2026)
+
+Philip, 08.10.2026, 13:08: Die Rechtstexte aus PR #62 (live seit 02.10.) sind bestätigt.
+
+- **§ 36 VSBG:** Der Satz im Impressum bleibt: nicht bereit und nicht verpflichtet, an einer Verbraucherschlichtung teilzunehmen.
+- **Gerichtsstand:** Monheim am Rhein (Sitz der IKAT GmbH) bleibt.
+- **Fristen:** Download bereits erzeugter PDFs nach Vertragsende **30 Tage**, danach Löschung soweit keine Aufbewahrungspflicht entgegensteht. Zahlungsausfall: Mahnung, danach Sperre des Kontozugangs nach **14 Tagen**. Preisänderung des Monatsentgelts: Ankündigung **4 Wochen** in Textform, dann außerordentliche Kündigung zum Wirksamwerden. Der Code setzt Sperre und Löschung noch nicht automatisch um. Heute verschickt der Webhook nur eine Hinweis-Mail bei `invoice.payment_failed`. Eine automatische Sperre gibt es nicht.
+- **AGB-Umfang:** „24 Module, alle inklusive“ bleibt.
 
 ## Wirklich offen
 
+Nicht Teil der Freigabe vom 08.10.2026.
+
 - **MStV § 18 Abs. 2:** Der Abschnitt ist weggelassen. Nur wieder aufnehmen, wenn der Blog als journalistisch-redaktionell gilt. Dann Name und Anschrift nennen.
-- **§ 36 VSBG:** Im Impressum steht, dass wir nicht bereit und nicht verpflichtet sind, an einer Verbraucherschlichtung teilzunehmen. Ob das bei reinem B2B so bleiben soll, muss Counsel bestätigen.
-- **Gerichtsstand:** Die AGB nennen Monheim am Rhein (Sitz der IKAT GmbH). Counsel soll den ausschließlichen Gerichtsstand bestätigen.
 - **DPF-Zertifizierung:** Nicht geprüft für Vercel, Google, Meta, Stripe und Resend. Die Texte stützen USA-Übermittlungen auf Standardvertragsklauseln oder einen Angemessenheitsbeschluss, sofern der Anbieter zertifiziert ist. Sie behaupten die Zertifizierung nicht.
-
-## Im Text gesetzte Defaults (bitte überschreiben, wenn anders gewollt)
-
-Diese Fristen stehen in AGB, Datenschutz und FAQ. Der Code setzt sie noch nicht automatisch um.
-
-- Download bereits erzeugter PDFs nach Vertragsende: **30 Tage**, danach Löschung soweit keine Aufbewahrungspflicht entgegensteht.
-- Zahlungsausfall: Mahnung, danach Sperre des Kontozugangs nach **14 Tagen**. Heute verschickt der Webhook nur eine Hinweis-Mail bei `invoice.payment_failed`. Eine automatische Sperre gibt es nicht.
-- Preisänderung des Monatsentgelts: Ankündigung **4 Wochen** in Textform, dann außerordentliche Kündigung zum Wirksamwerden.
 
 ## Aus dem Code übernommen (nicht geraten)
 
-- Speicherung von Konto, Fragebogen, Firmen und Readiness: **Google Sheets** (`intakes`, `entities`, `readiness_leads`). PDFs und Kapiteltexte: **Vercel Blob**, sonst nur ein nicht dauerhafter Datei-Fallback.
+- Speicherung von Konto, Fragebogen, Firmen und Readiness: **Google Sheets** (`intakes`, `entities`, `readiness_leads`). Entwürfe, PDFs, Kapiteltexte und Uploads: **privater Vercel Blob**. Datei-Fallback nur ohne Token, lokal.
 - E-Mail: **Resend** an die konfigurierte Absenderadresse. Partnerformular (Name, Kanzlei, E-Mail, grobe Mandanten-Zahl, Nachricht) geht per Resend an info@gobd-doku-erstellen.de und liegt nicht in einer eigenen Tabelle.
 - Readiness wird gespeichert (nicht nur im Browser), inklusive Name, E-Mail und Firma.
 - Cookies aus dem Code: `gobd_consent` 180 Tage, `gobd_session` 30 Tage, `gobd_utm_first` nur bis zum Tab-Ende.
