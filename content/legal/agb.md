@@ -21,7 +21,7 @@ Registergericht: Amtsgericht Düsseldorf · HRB 81430 · Geschäftsführer: Phil
 USt-IdNr.: DE 313 803 988  
 Kontakt: info@gobd-doku-erstellen.de · Telefon: +49 231 580 456 06
 
-und dem Kunden („Kunde“, „du“).
+und dem Kunden („Kunde“, „Sie“).
 
 (2) Unser Angebot richtet sich **ausschließlich an Unternehmer** im Sinne von § 14 BGB, die den Vertrag in Ausübung ihrer gewerblichen oder selbstständigen beruflichen Tätigkeit abschließen. **Verbraucher** im Sinne von § 13 BGB sind vom Vertragsschluss **ausgeschlossen**. Mit der Bestellung bestätigt der Kunde, dass er als Unternehmer handelt.
 

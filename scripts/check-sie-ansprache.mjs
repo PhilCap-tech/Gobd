@@ -1,6 +1,6 @@
 // Fails the build when entry-path copy still addresses the customer with du.
 // Scope is the pages and shared modules converted in the Sie entry-path step.
-// Later PRs extend COVERED (blog, mails, account) — leave the matchers as they are.
+// Legal pages are in COVERED. Later PRs extend it (blog, mails, account) — leave the matchers as they are.
 //
 // Only user-visible copy is checked: markdown as written, and in TS/TSX the
 // string literals plus text nodes. Code identifiers such as `dir` are ignored.
@@ -22,6 +22,15 @@ const COVERED = [
   "components/site-footer.tsx",
   "content/readiness/**/*.md",
   "lib/readiness.ts",
+  "content/legal/**/*.md",
+  "app/datenschutz/**/*.{ts,tsx}",
+  "app/agb/**/*.{ts,tsx}",
+  "app/cookies/**/*.{ts,tsx}",
+  "app/impressum/**/*.{ts,tsx}",
+  "lib/legal.ts",
+  "lib/legal-content.ts",
+  "lib/legal-markdown.tsx",
+  "components/legal-page.tsx",
 ];
 
 // Later steps can append, for example:
