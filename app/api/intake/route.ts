@@ -22,7 +22,8 @@ import {
   listDocumentFamily,
   listEntitiesByEmail,
 } from "@/lib/store";
-import { resolveCheckoutSession } from "@/lib/stripe";
+import { normalizeIntakeAnswers } from "@/lib/intake-present";
+import { intakeCheckoutStatus, resolveCheckoutSession } from "@/lib/stripe";
 import {
   emailsEqual,
   identityFromSheetRow,
@@ -183,11 +184,13 @@ async function resolveIdentity(body: {
         ? "Checkout-Session fehlt."
         : identity.error === "not_paid"
           ? "Zahlung noch nicht bestätigt."
-          : "Session konnte nicht geprüft werden. Bitte erneut versuchen.";
+          : identity.error === "invalid"
+            ? "Checkout-Session ist ungültig."
+            : "Session konnte nicht geprüft werden. Bitte erneut versuchen.";
     return {
       response: NextResponse.json(
         { error: message, reason: identity.error },
-        { status: identity.error === "lookup_failed" ? 503 : 401 },
+        { status: intakeCheckoutStatus(identity.error) },
       ),
     };
   }
@@ -282,7 +285,7 @@ async function handleIntake(request: Request) {
     return jsonError("Intake unvollständig.", 400);
   }
 
-  const answers = body.answers;
+  const answers = normalizeIntakeAnswers(body.answers);
   const change = normalizeVersionChange(body, {
     version,
     defaultChangedBy: identity.email,

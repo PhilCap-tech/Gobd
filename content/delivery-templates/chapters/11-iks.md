@@ -6,9 +6,10 @@ In die folgende Tabelle werden **nur** im Intake bestätigte Kontrollen aufgenom
 
 | Kontrolle | Turnus | Verantwortlich | Nachweis |
 | --- | --- | --- | --- |
-| *(nur bestätigte Kontrollen aus Intake — sonst siehe Kap. 14)* | | | |
 
 {{#unless answers.kontrollen}}
+| *(nur bestätigte Kontrollen aus Intake — sonst siehe Kap. 14)* | | | |
+
 *Im Intake ist keine konkrete Kontrollroutine bestätigt. Typische Kandidaten (Postfachsichtung, Vollständigkeitsabgleich, Stichprobe, Berechtigungsprüfung, Such-/Lesbarkeitsprobe, Systemprüfung) sind betrieblich festzulegen und zu dokumentieren — siehe offene Punkte.*
 {{/unless}}
 {{#if answers.kontrollen}}

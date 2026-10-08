@@ -34,6 +34,12 @@ import {
   TAETIGKEIT_FREITEXT,
   TAETIGKEITEN,
 } from "@/lib/intake-present";
+import {
+  isControlQuestionId,
+  isKeineKontrolleValues,
+  KEINE_REGELMAESSIGE_KONTROLLE,
+  normalizeExclusiveSelection,
+} from "@/lib/keine-angaben";
 import { INTAKE_STEPS } from "@/lib/intake-questions";
 import type { IntakeAnswers } from "@/lib/types";
 
@@ -135,12 +141,14 @@ function ChoiceList({
   options,
   value,
   multi,
+  exclusive,
   onChange,
 }: {
   fieldKey: string;
   options: string[];
   value: string[];
   multi?: boolean;
+  exclusive?: string;
   onChange: (next: string[]) => void;
 }) {
   return (
@@ -153,8 +161,16 @@ function ChoiceList({
             type="button"
             className={on ? "chip on" : "chip"}
             onClick={() => {
-              if (multi) onChange(on ? value.filter((item) => item !== option) : [...value, option]);
-              else onChange([option]);
+              if (!multi) {
+                onChange([option]);
+                return;
+              }
+              if (exclusive && option === exclusive) {
+                onChange(on ? [] : [exclusive]);
+                return;
+              }
+              const withoutExclusive = exclusive ? value.filter((item) => item !== exclusive) : value;
+              onChange(on ? withoutExclusive.filter((item) => item !== option) : [...withoutExclusive, option]);
             }}
           >
             {optionLabel(fieldKey, option)}
@@ -286,12 +302,16 @@ function FieldInput({
     );
   }
   if ((field.type === "multi" || field.type === "multi_or_text") && field.options) {
+    const exclusive = field.options.includes(KEINE_REGELMAESSIGE_KONTROLLE)
+      ? KEINE_REGELMAESSIGE_KONTROLLE
+      : undefined;
     return (
       <ChoiceList
         fieldKey={field.key}
         options={field.options}
         value={asList(value)}
         multi
+        exclusive={exclusive}
         onChange={onChange}
       />
     );
@@ -437,7 +457,23 @@ export function IntakeQuestionnaire({
   const position = catalogStepPosition(step, answers);
 
   function commitValue(questionId: string, key: string, value: unknown) {
-    let next = setCatalogValue(answers, questionId, key, value);
+    let stored = value;
+    if (
+      key === "kontrollen" &&
+      Array.isArray(value) &&
+      value.every((item) => typeof item === "string")
+    ) {
+      stored = normalizeExclusiveSelection(value.map((item) => String(item)), KEINE_REGELMAESSIGE_KONTROLLE);
+    }
+    let next = setCatalogValue(answers, questionId, key, stored);
+    if (
+      key === "kontrollen" &&
+      Array.isArray(stored) &&
+      stored.length === 1 &&
+      stored[0] === KEINE_REGELMAESSIGE_KONTROLLE
+    ) {
+      next = setCatalogValue(next, questionId, "details", "");
+    }
     if (questionId === "A03") next = applyDerivedStatus(next, questionId);
     if (questionId === "A01") {
       next = prefillKnownFacts(next, firm, { protect: [[questionId, key]] });
@@ -522,10 +558,23 @@ export function IntakeQuestionnaire({
                   onChange={onChange}
                   issue={statusIssue?.message}
                 />
+                {isControlQuestionId(question.id) && /^KF0[1-5]$/.test(question.id) ? (
+                  <div className="chips">
+                    <button
+                      type="button"
+                      className={values.keineKontrolle === true ? "chip on" : "chip"}
+                      onClick={() => commitValue(question.id, "keineKontrolle", values.keineKontrolle !== true)}
+                    >
+                      {KEINE_REGELMAESSIGE_KONTROLLE}
+                    </button>
+                  </div>
+                ) : null}
                 {P1_QUESTION_IDS.has(question.id) ? (
                   <P1QuestionFields questionId={question.id} answers={answers} onChange={onChange} />
                 ) : (
                   question.fields.map((field) => {
+                    if (/^KF0[1-5]$/.test(question.id) && values.keineKontrolle === true) return null;
+                    if (field.key === "details" && isKeineKontrolleValues(values)) return null;
                     const label = fieldLabel(question.id, field.key, field.label);
                     const gap = issueFor(issues, question.id, field.key);
                     const source =
