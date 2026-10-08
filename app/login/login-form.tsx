@@ -7,14 +7,12 @@ export function LoginForm({ next }: { next?: string | null }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [stubUrl, setStubUrl] = useState("");
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
     setPending(true);
     setSent(false);
-    setStubUrl("");
     try {
       const response = await fetch("/api/auth/magic-link", {
         method: "POST",
@@ -27,18 +25,16 @@ export function LoginForm({ next }: { next?: string | null }) {
       const data = (await response.json()) as {
         error?: string;
         ok?: boolean;
-        sent?: boolean;
-        stub?: boolean;
-        verifyUrl?: string;
+        message?: string;
       };
       if (!response.ok || !data.ok) {
-        setError(data.error || "Link konnte nicht gesendet werden.");
+        setError(
+          data.error ||
+            "Der Anmeldelink konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.",
+        );
         return;
       }
       setSent(true);
-      if (data.verifyUrl) {
-        setStubUrl(data.verifyUrl);
-      }
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");
     } finally {
@@ -62,16 +58,9 @@ export function LoginForm({ next }: { next?: string | null }) {
         />
       </div>
       {error && <p className="error">{error}</p>}
-      {sent && !stubUrl && (
+      {sent && (
         <p className="banner">
-          Falls ein Konto zu dieser Adresse gehört, ist der Anmeldelink unterwegs.
-          Er ist 20 Minuten gültig.
-        </p>
-      )}
-      {stubUrl && (
-        <p className="banner">
-          E-Mail wurde nicht zugestellt.{" "}
-          <a href={stubUrl}>Hier anmelden</a>
+          Wenn ein Konto existiert, ist ein Link unterwegs. Er ist 20 Minuten gültig.
         </p>
       )}
       <button className="btn" type="submit" disabled={pending}>

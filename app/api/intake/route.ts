@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { applySessionCookie, getSessionEmail, magicLinkUrl } from "@/lib/auth";
+import { getSessionEmail, magicLinkUrl, withoutSessionCookie } from "@/lib/auth";
 import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
 import {
@@ -11,7 +11,9 @@ import {
 import { applyEntityToIdentity } from "@/lib/entities";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { getAppUrl } from "@/lib/env";
+import { deliverLoginLink } from "@/lib/login-mail";
 import { sendDeliveryMail, sendReferralAfterDeliveryMail } from "@/lib/ops";
+import { intakeEntityBinding } from "@/lib/session-issue";
 import {
   appendRecord,
   findLatestDocumentByStripeSessionId,
@@ -19,10 +21,10 @@ import {
   getOwnedEntity,
   listDocumentFamily,
   listEntitiesByEmail,
-  resolveEntityIdForEmail,
 } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import {
+  emailsEqual,
   identityFromSheetRow,
   toSheetRow,
   type CheckoutIdentity,
@@ -257,14 +259,22 @@ async function handleIntake(request: Request) {
   const { version, status } = resolved;
   let { identity, parentDocumentId } = resolved;
   identity = await withStripeCustomerId(identity);
-  const requestedEntityId = body.entityId?.trim() || resolved.entityId;
-  const entityId = await resolveEntityIdForEmail(identity.email, requestedEntityId);
-  if (!parentDocumentId && !entityId) {
-    const firms = await listEntitiesByEmail(identity.email);
-    if (firms.length > 1) {
-      return jsonError("Bitte eine Firma wählen.", 400);
-    }
+  const sessionEmail = await getSessionEmail();
+  const loggedInAsBuyer = Boolean(
+    sessionEmail && identity.email && emailsEqual(sessionEmail, identity.email),
+  );
+  const firms = loggedInAsBuyer ? await listEntitiesByEmail(identity.email) : [];
+  const binding = intakeEntityBinding({
+    loggedInAsBuyer,
+    requestedEntityId: body.entityId?.trim() || resolved.entityId,
+    resolvedEntityId: resolved.entityId,
+    revising: Boolean(parentDocumentId || body.areaFromDocumentId?.trim()),
+    ownedEntityIds: firms.map((row) => row.entityId),
+  });
+  if (binding.needsFirmChoice) {
+    return jsonError("Bitte eine Firma wählen.", 400);
   }
+  const entityId = binding.entityId;
   const entity = entityId ? await getOwnedEntity(entityId, identity.email) : null;
   identity = applyEntityToIdentity(identity, entity);
 
@@ -380,6 +390,10 @@ async function handleIntake(request: Request) {
     console.error("[intake] referral mail fehlgeschlagen", error);
   }
 
+  const loginMail = identity.email
+    ? await deliverLoginLink(identity.email, "/account")
+    : "failed";
+
   const response = NextResponse.json({
     ok: true,
     store: stored.backend,
@@ -387,11 +401,15 @@ async function handleIntake(request: Request) {
     documentId,
     pdfUrl: downloadUrl,
     version,
+    loginMail,
   });
-  if (identity.email) {
-    applySessionCookie(response, identity.email);
-  }
-  return response;
+  const grant =
+    identity.email &&
+    identity.stripeSessionId &&
+    (!identity.stub || devCheckoutStubAllowed())
+      ? { sessionId: identity.stripeSessionId, email: identity.email }
+      : undefined;
+  return withoutSessionCookie(response, grant);
 }
 
 export async function POST(request: Request) {
