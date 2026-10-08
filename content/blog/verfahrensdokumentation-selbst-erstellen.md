@@ -17,9 +17,9 @@ date: "2026-09-24"
 
 # Verfahrensdokumentation selbst erstellen
 
-Du willst die **Verfahrensdokumentation selbst erstellen** — ohne gleich ein Großprojekt oder eine teure Spezialberatung. Hier: realistischer DIY-Weg, wo der Steuerberater hingehört und was du nicht ersetzen solltest.
+Sie wollen die **Verfahrensdokumentation selbst erstellen** — ohne gleich ein Großprojekt oder eine teure Spezialberatung. Hier: realistischer DIY-Weg, wo der Steuerberater hingehört und was Sie nicht ersetzen sollten.
 
-**Kurz:** Selbst erstellen heißt: Ist-Zustand sammeln, strukturiert beschreiben, Lücken markieren, freigeben. Der Steuerberater prüft und spiegelt — er ersetzt nicht euer Wissen über den Alltag. Ein geführter Entwurf kann den Start erleichtern; Beratung bleibt Beratung.
+**Kurz:** Selbst erstellen heißt: Ist-Zustand sammeln, strukturiert beschreiben, Lücken markieren, freigeben. Der Steuerberater prüft und spiegelt — er ersetzt nicht Ihr Wissen über den Alltag. Ein geführter Entwurf kann den Start erleichtern; Beratung bleibt Beratung.
 
 > **Keine Steuerberatung.** Dieser Text und alle Ergebnisse unter gobd-doku-erstellen.de sind allgemeine Arbeitshilfen. Sie ersetzen keine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
@@ -27,11 +27,11 @@ Gesamtüberblick: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrens
 
 ## DIY vs. Steuerberater — klare Rollen
 
-| Du / Betrieb | Steuerberater (typisch) |
+| Sie / Betrieb | Steuerberater (typisch) |
 |--------------|-------------------------|
 | Kennt Belegwege, Scan, Ablage, Wer-macht-was | Kennt Buchführung, oft Prüfungsthemen |
 | Schreibt den Ist-Zustand | Spiegelt Entwurf, stellt Rückfragen |
-| Setzt Freigabe (Geschäftsleitung) | Berät; ersetzt nicht eure Prozesswahrheit |
+| Setzt Freigabe (Geschäftsleitung) | Berät; ersetzt nicht Ihre Prozesswahrheit |
 | Pflegt Versionen bei Änderungen | Wird bei größeren Umbauten einbezogen |
 
 **Entwurf abstimmen, Beratung nicht ersetzen** — das ist die Leitlinie. Wer „der Berater soll das irgendwie erledigen“ sagt, ohne Infos zu liefern, bekommt selten eine treffende Doku.
@@ -40,20 +40,20 @@ Gesamtüberblick: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrens
 
 - überschaubare Systeme (eine Buchhaltung, klare Ablage)  
 - wenige Personen, kurze Wege  
-- du kannst 1–2 Stunden für Ist-Zustand und Text blocken  
+- Sie können 1–2 Stunden für Ist-Zustand und Text blocken  
 - der Berater ist für einen Review erreichbar  
 
-## Wann du früher Hilfe holen solltest
+## Wann Sie früher Hilfe holen sollten
 
 - ersetzendes Scannen mit Vernichtung und vielen Ausnahmen  
 - viele Schnittstellen, Standorte, Kassen  
 - unklare IT (Hosting, Rechte, Backup)  
 - Betriebsprüfung steht unmittelbar bevor und es gibt noch gar nichts — siehe [Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung)  
-- du merkst, dass Annahmen und Realität auseinanderlaufen  
+- Sie merken, dass Annahmen und Realität auseinanderlaufen  
 
 Hilfe kann bedeuten: Berater, geführtes Tool oder beides — soft Vergleich unter [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software).
 
-## So erstellst du selbst — Schritt für Schritt
+## So erstellen Sie selbst — Schritt für Schritt
 
 ### 1. Ist-Zustand sammeln (30–90 Min.)
 
@@ -77,26 +77,26 @@ Unklarheiten (Vernichtungsfreigabe, Backup-Verantwortung, Vertretung) in eine Li
 
 ### 6. Entwurf an den Steuerberater
 
-Kurz erklären, was ihr beschrieben habt; um Rückfragen und Hinweise bitten. Änderungen einarbeiten.
+Kurz erklären, was Sie beschrieben haben; um Rückfragen und Hinweise bitten. Änderungen einarbeiten.
 
 ### 7. Freigabe und Ablage
 
 Geschäftsleitung setzt in Kraft. Version, Datum, Ablageort. Später: [aktualisieren](/blog/verfahrensdokumentation-aktualisieren).
 
-Bevor du Stunden in die falsche Richtung investierst: kostenloser [Readiness-Check](/readiness) zu Branche, Software, Belegwegen und IT — ohne Kreditkarte.
+Bevor Sie Stunden in die falsche Richtung investieren: kostenloser [Readiness-Check](/readiness) zu Branche, Software, Belegwegen und IT — ohne Kreditkarte.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).
 
-## Was du beim DIY vermeiden solltest
+## Was Sie beim DIY vermeiden sollten
 
-- unveränderte Branchenmuster als „eure“ Doku ausgeben  
+- unveränderte Branchenmuster als „Ihre“ Doku ausgeben  
 - Software nur als Markenname ohne Belegweg  
 - Rollen erfinden, die es nicht gibt  
-- Scan-Thema aussparen, obwohl ihr Originale vernichtet  
+- Scan-Thema aussparen, obwohl Sie Originale vernichten  
 - nach der ersten Version nie wieder anfassen  
 - Claims wie „jetzt sind wir GoBD-konform“ — das kann niemand seriös pauschal zusichern  
 
-## Primär-CTA: geführt statt leerer Seite
+## Geführt statt leerer Seite
 
 Wenn Selbst-Erstellen an der leeren Datei scheitert: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach mit dem Berater abstimmen und freigeben — Beratung wird dadurch nicht ersetzt.
 
@@ -104,7 +104,7 @@ Wenn Selbst-Erstellen an der leeren Datei scheitert: [Verfahrensdokumentation er
 
 ### Darf ich die Verfahrensdokumentation ohne Steuerberater erstellen?
 
-Du kannst den Entwurf selbst schreiben. Ob du ohne jede Abstimmung auskommst, ist eine Einzelfallfrage. Empfohlen: zumindest Review mit dem Berater, der eure Bücher kennt.
+Sie können den Entwurf selbst schreiben. Ob Sie ohne jede Abstimmung auskommen, ist eine Einzelfallfrage. Empfohlen: zumindest Review mit dem Berater, der Ihre Bücher kennt.
 
 ### Ersetzt ein DIY-PDF die Beratung?
 
@@ -137,8 +137,8 @@ Nein. Wir versprechen keine Konformität und keine Rechtssicherheit. Nachvollzie
 
 ## Disclaimer
 
-Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt dich bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
+Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt Sie bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
 
-Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich ist und ob du sie selbst erstellst, hängt von deiner konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
+Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für Ihr Unternehmen erforderlich ist und ob Sie sie selbst erstellen, hängt von Ihrer konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
-Du bleibst für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).
+Sie bleiben für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).

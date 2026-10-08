@@ -2,7 +2,7 @@
 title: "Verfahrensdokumentation aktualisieren"
 slug: "verfahrensdokumentation-aktualisieren"
 metaTitle: "Verfahrensdokumentation aktualisieren — Versionen & Anlässe"
-metaDescription: "Verfahrensdokumentation aktualisieren: wann neu versionieren, bei System- und Prozesswechseln, und wie du Änderungen nachhältst. Keine Steuerberatung."
+metaDescription: "Verfahrensdokumentation aktualisieren: wann neu versionieren, bei System- und Prozesswechseln, und wie Sie Änderungen nachhalten. Keine Steuerberatung."
 h1: "Verfahrensdokumentation aktualisieren"
 primaryKeyword: "Verfahrensdokumentation aktualisieren"
 secondaryKeywords:
@@ -17,9 +17,9 @@ date: "2026-09-22"
 
 # Verfahrensdokumentation aktualisieren
 
-Du hast eine Verfahrensdokumentation — aber Software, Team oder Belegweg haben sich geändert. Hier erfährst du, **wann du die Verfahrensdokumentation aktualisieren** solltest, wie Versionierung funktioniert und wie du den Pflegeprozess schlank hältst.
+Sie haben eine Verfahrensdokumentation — aber Software, Team oder Belegweg haben sich geändert. Hier erfahren Sie, **wann Sie die Verfahrensdokumentation aktualisieren** sollten, wie Versionierung funktioniert und wie Sie den Pflegeprozess schlank halten.
 
-**Kurz:** Aktualisiere bei wesentlichen Prozess- oder Systemänderungen und prüfe in sinnvollen Intervallen, ob der Text noch stimmt. Jede freigegebene Version braucht Datum, Versionskennzeichen und idealerweise einen kurzen Änderungsvermerk. Eine veraltete Doku hilft wenig — und eine „lebende“ Datei ohne Freigabe auch nicht.
+**Kurz:** Aktualisieren Sie bei wesentlichen Prozess- oder Systemänderungen und prüfen Sie in sinnvollen Intervallen, ob der Text noch stimmt. Jede freigegebene Version braucht Datum, Versionskennzeichen und idealerweise einen kurzen Änderungsvermerk. Eine veraltete Doku hilft wenig — und eine „lebende“ Datei ohne Freigabe auch nicht.
 
 > **Keine Steuerberatung.** Dieser Text und alle Ergebnisse unter gobd-doku-erstellen.de sind allgemeine Arbeitshilfen. Sie ersetzen keine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
@@ -27,11 +27,11 @@ Grundlagen zum Aufbau: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfa
 
 ## Warum Aktualität zählt
 
-Die Verfahrensdokumentation soll beschreiben, was **heute** bei euch läuft — nicht was vor zwei Softwarewechseln galt. Bei einer Betriebsprüfung oder bei Rückfragen des Beraters wird oft zuerst geprüft, ob Text und Praxis zusammenpassen. Siehe auch: [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung).
+Die Verfahrensdokumentation soll beschreiben, was **heute** bei Ihnen läuft — nicht was vor zwei Softwarewechseln galt. Bei einer Betriebsprüfung oder bei Rückfragen des Beraters wird oft zuerst geprüft, ob Text und Praxis zusammenpassen. Siehe auch: [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung).
 
 Aktualisieren heißt nicht, jedes Tippfehler-Korrektur als Großprojekt zu behandeln. Es heißt: wesentliche Abweichungen bewusst nachziehen und freigeben.
 
-## Wann solltest du aktualisieren?
+## Wann sollten Sie aktualisieren?
 
 ### Typische Anlässe (wesentlich)
 
@@ -47,7 +47,7 @@ Aktualisieren heißt nicht, jedes Tippfehler-Korrektur als Großprojekt zu behan
 
 ### Regelmäßige Prüfung (ohne Anlass)
 
-Plane z. B. jährlich oder halbjährlich einen kurzen Abgleich: Stimmt der Text noch? Oft reicht ein 30-Minuten-Termin mit Buchhaltung und ggf. IT. Ergebnis: „keine Änderung“ (mit Datum vermerken) oder neue Version.
+Planen Sie z. B. jährlich oder halbjährlich einen kurzen Abgleich: Stimmt der Text noch? Oft reicht ein 30-Minuten-Termin mit Buchhaltung und ggf. IT. Ergebnis: „keine Änderung“ (mit Datum vermerken) oder neue Version.
 
 ### Kleinigkeiten
 
@@ -68,7 +68,7 @@ Versionierung der Verfahrensdokumentation selbst gehört typischerweise in die B
 
 Tipp: Alte Versionen behalten (Revisionssicherheit der Doku selbst). Beim Lesen immer die **aktuelle freigegebene** Version verwenden.
 
-## So aktualisierst du — Schritt für Schritt
+## So aktualisieren Sie — Schritt für Schritt
 
 ### 1. Anlass und Scope festlegen
 
@@ -96,9 +96,9 @@ Geschäftsleitung setzt die neue Version in Kraft. Betroffene (Buchhaltung, Scan
 
 ### 7. Mit dem Steuerberater abstimmen
 
-Bei größeren Umbauten (Softwarewechsel, Start ersetzendes Scannen) den Berater einbinden, bevor ihr „live“ geht.
+Bei größeren Umbauten (Softwarewechsel, Start ersetzendes Scannen) den Berater einbinden, bevor Sie „live“ gehen.
 
-Unsicher, ob euer aktueller Stand die Basics noch abdeckt? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
+Unsicher, ob Ihr aktueller Stand die Basics noch abdeckt? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
 ## Prozess- und Systemänderungen — was in welchem Teil landet
 
@@ -108,9 +108,9 @@ Zur Orientierung (kein starres Schema):
 - **Technische Systemdokumentation** — Software, Versionen, Schnittstellen, Speicherorte, Export/Zugriff
 - **Betriebsdokumentation** — Berechtigungen, Backup, Änderungsmanagement, Schulung/Vertretung, Versionierung der Doku
 - **Allgemeine Beschreibung** — Geltungsbereich, Belegarten-Überblick, Verantwortliche für die Doku selbst
-- **Scannen** — eigener Abschnitt oder Anhang, wenn ihr ersetzt oder plant
+- **Scannen** — eigener Abschnitt oder Anhang, wenn Sie ersetzend scannen oder das planen
 
-## Primär-CTA: Entwurf neu aufsetzen oder nachziehen
+## Entwurf neu aufsetzen oder nachziehen
 
 Wenn die alte Doku kaum noch zur Realität passt oder nie richtig fertig wurde: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Den Entwurf danach versionieren und mit dem Berater freigeben.
 
@@ -118,7 +118,7 @@ Wenn die alte Doku kaum noch zur Realität passt oder nie richtig fertig wurde: 
 
 ### Wie oft muss ich die Verfahrensdokumentation aktualisieren?
 
-Immer bei wesentlichen Prozess- oder Systemänderungen — und in Intervallen prüfen, ob der Text noch stimmt. Es gibt hier keine universelle „alle X Monate“-Pflichtzahl, die für jeden Betrieb identisch gilt; das klärt ihr sinnvoll mit dem Steuerberater.
+Immer bei wesentlichen Prozess- oder Systemänderungen — und in Intervallen prüfen, ob der Text noch stimmt. Es gibt hier keine universelle „alle X Monate“-Pflichtzahl, die für jeden Betrieb identisch gilt; das klären Sie sinnvoll mit dem Steuerberater.
 
 ### Reicht es, die Datei zu überschreiben?
 
@@ -130,15 +130,15 @@ Inhaltlich oft Buchhaltung/Organisation; freigeben sollte die Geschäftsleitung 
 
 ### Was ist mit kleinen Software-Updates?
 
-Patch-Level ohne Prozess- oder Schnittstellenänderung: oft kein eigener Groß-Release nötig. Wechselt ihr Produkt, Anbieter oder den Belegweg spürbar — dann aktualisieren.
+Patch-Level ohne Prozess- oder Schnittstellenänderung: oft kein eigener Groß-Release nötig. Wechseln Sie Produkt, Anbieter oder den Belegweg spürbar — dann aktualisieren.
 
 ### Muss jede Änderung dem Finanzamt gemeldet werden?
 
-Das ist eine Einzelfallfrage an euren Steuerberater — nicht Gegenstand dieses Artikels. Intern solltet ihr Änderungen an der Verfahrensdokumentation jedenfalls nachhalten.
+Das ist eine Einzelfallfrage an Ihren Steuerberater — nicht Gegenstand dieses Artikels. Intern sollten Sie Änderungen an der Verfahrensdokumentation jedenfalls nachhalten.
 
 ### Macht eine Aktualisierung uns „GoBD-konform“?
 
-Nein. Aktualität verbessert die Nachvollziehbarkeit. Wir versprechen keine Konformität und keine Rechtssicherheit. Das PDF bzw. der Entwurf dient der Abstimmung; Verantwortung bleibt bei dir bzw. bei der beratenen Freigabe.
+Nein. Aktualität verbessert die Nachvollziehbarkeit. Wir versprechen keine Konformität und keine Rechtssicherheit. Das PDF bzw. der Entwurf dient der Abstimmung; Verantwortung bleibt bei Ihnen bzw. bei der beratenen Freigabe.
 
 ## Weiterlesen
 
@@ -150,8 +150,8 @@ Nein. Aktualität verbessert die Nachvollziehbarkeit. Wir versprechen keine Konf
 
 ## Disclaimer
 
-Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt dich bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
+Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt Sie bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
 
-Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich ist und wie oft sie aktualisiert werden muss, hängt von deiner konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
+Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für Ihr Unternehmen erforderlich ist und wie oft sie aktualisiert werden muss, hängt von Ihrer konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
-Du bleibst für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte oder aktualisierte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).
+Sie bleiben für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte oder aktualisierte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).

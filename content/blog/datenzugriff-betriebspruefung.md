@@ -109,7 +109,7 @@ Unsicher, ob Systeme, Datenorte und Verantwortliche schon greifbar sind? Machen 
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
 Wenn Sie den Abschnitt zum Datenzugriff nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
 

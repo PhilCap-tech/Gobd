@@ -3,7 +3,12 @@
 // render that copy. Generator templates keep the word Platzhalter for unfilled
 // PDF fields; those files are outside this check.
 // Blog scope: visible article copy only (rendered frontmatter plus body).
-// Internal labels there fail the build. Ordinary prose does not.
+// Internal labels and informal du/ihr address there fail the build.
+// Ordinary prose, formal "Sie/Ihnen/Ihr", comments, and hidden frontmatter keys
+// such as ctaSoft do not. PR #94 (entry path) is still open, so this check
+// stays here and reuses the blog walker instead of a second COVERED list.
+// Lead magnets live in TypeScript string literals. Those files are scanned
+// for the same du-forms, comments and code identifiers excluded.
 import { globSync, readFileSync } from "node:fs";
 
 const forbidden =
@@ -24,6 +29,12 @@ const patterns = [
 
 const blogPatterns = ["content/blog/**/*.{md,mdx}"];
 
+const resourceDuPatterns = [
+  "lib/lead-magnet.ts",
+  "lib/lead-magnet-inhalt.ts",
+  "app/resources/**/*.{ts,tsx}",
+];
+
 const visibleFrontmatter = new Set([
   "title",
   "h1",
@@ -35,8 +46,35 @@ const visibleFrontmatter = new Set([
 // Token markers use a word boundary so they do not fire inside ordinary words
 // (Soft-Vergleich, Platzhaltertext, klären). Platzhalter as a German noun inside
 // a sentence is editorial copy; only a label form is a draft marker.
-const blogToken =
-  /\b(?:Soft(?:[-\s]+)?CTA|Hard(?:[-\s]+)?CTA|TODO|FIXME|TBD|TBA|XXX|WIP|DRAFT|PLACEHOLDER|CHANGEME|NOCOMMIT)\b|\[\s*(?:klären|TODO|FIXME|TBD|TBA|XXX|WIP|DRAFT|Platzhalter|PLACEHOLDER)\s*\]|\{\{\s*(?:Platzhalter|PLACEHOLDER)\s*\}\}|\bLorem\s+ipsum\b/i;
+// CTA labels: hyphen, space, and the ae spelling. "CTA:" is the bare label.
+const ctaLabel =
+  "(?:Soft|Hard|Primär|Primaer|Sekundär|Sekundaer)(?:[-\\s–—]+)?CTA";
+const blogToken = new RegExp(
+  String.raw`\b(?:${ctaLabel}|TODO|FIXME|TBD|TBA|XXX|WIP|DRAFT|PLACEHOLDER|CHANGEME|NOCOMMIT)\b|\bCTA\s*:|\[\s*(?:klären|TODO|FIXME|TBD|TBA|XXX|WIP|DRAFT|Platzhalter|PLACEHOLDER)\s*\]|\{\{\s*(?:Platzhalter|PLACEHOLDER)\s*\}\}|\bLorem\s+ipsum\b`,
+  "i",
+);
+
+// Informal address. Formal "Sie/Ihnen/Ihr" is a different spelling and is
+// not matched. Lowercase "ihr" is flagged next to an unambiguous
+// 2nd-person-plural verb (könnt, solltet, müsst, habt, seid, wollt, dürft),
+// and after wo/wie/ob/wenn/dass/bevor/falls/sobald when the next word is
+// lowercase ("wo ihr steht"). Possessive "wo ihr Steuerberater" and
+// "Aus ihr müssen" stay clean.
+const DU_PRONOUN_RE =
+  /(?<![\p{L}\p{N}_])(?:[Dd]u|[Dd]ich|[Dd]ir|[Dd]ein(?:en|em|er|es|e|s)?|[Ee]uch|[Ee]u(?:ren|rem|rer|res|er|re))(?![\p{L}\p{N}_])/u;
+const DU_IMPERATIVE_RE =
+  /(?<![\p{L}\p{N}_])(?<!ich )(?<!Ich )(?:Mach|mach|Schau|schau|Starte|starte|Lies|lies|Prüfe|prüfe|Prüf|prüf|Dokumentiere|dokumentiere|Schreibe|schreibe|Nenne|nenne|Aktualisiere|aktualisiere|Nutze|nutze|Kopiere|kopiere|Halte|halte|Übernimm|übernimm|Orientiere|orientiere|Vermeide|vermeide|Beschreibe|beschreibe|Drucke|drucke|Notiere|notiere)(?![\p{L}\p{N}_])/u;
+const IHR_2PL_RE =
+  /(?<![\p{L}\p{N}_])(?:ihr(?![\p{L}\p{N}_])(?:\s+[^\s]+){0,8}?\s+(?:könnt|solltet|müsst|habt|seid|wollt|dürft)(?![\p{L}\p{N}_])|(?:könnt|solltet|müsst|habt|seid|wollt|dürft)(?![\p{L}\p{N}_])\s+ihr(?![\p{L}\p{N}_])|(?:wo|wie|ob|wenn|dass|bevor|falls|sobald)\s+ihr(?![\p{L}\p{N}_])\s+\p{Ll})/u
+
+function findBlogDu(visible) {
+  return (
+    visible.match(DU_PRONOUN_RE)?.[0] ||
+    visible.match(DU_IMPERATIVE_RE)?.[0] ||
+    visible.match(IHR_2PL_RE)?.[0] ||
+    null
+  );
+}
 
 function stripUrls(line) {
   return line
@@ -104,9 +142,8 @@ function visibleFromComments(line, state) {
   return out;
 }
 
-function blogMarkerHits(raw) {
+function forEachVisibleBlog(raw, visit) {
   const lines = raw.split("\n");
-  const hits = [];
   let inFrontmatter = lines[0]?.replace(/\r$/, "").trim() === "---";
   let fence = null;
   const comment = { inComment: false };
@@ -121,9 +158,7 @@ function blogMarkerHits(raw) {
       if (index === 0) continue;
       const kv = line.match(/^([A-Za-z][A-Za-z0-9_]*)\s*:\s*(.*)$/);
       if (!kv || !visibleFrontmatter.has(kv[1])) continue;
-      if (isBlogMarker(stripUrls(kv[2]))) {
-        hits.push({ line: index + 1, text: line.trim() });
-      }
+      visit(index + 1, line.trim(), stripUrls(kv[2]));
       continue;
     }
 
@@ -138,16 +173,80 @@ function blogMarkerHits(raw) {
         continue;
       }
       if (isCodeComment(line)) continue;
-      if (isBlogMarker(stripUrls(line))) {
-        hits.push({ line: index + 1, text: line.trim() });
-      }
+      visit(index + 1, line.trim(), stripUrls(line));
       continue;
     }
 
-    const visible = stripUrls(visibleFromComments(line, comment));
-    if (isBlogMarker(visible)) {
-      hits.push({ line: index + 1, text: line.trim() });
+    visit(index + 1, line.trim(), stripUrls(visibleFromComments(line, comment)));
+  }
+}
+
+function blogMarkerHits(raw) {
+  const hits = [];
+  forEachVisibleBlog(raw, (line, text, visible) => {
+    if (isBlogMarker(visible)) hits.push({ line, text });
+  });
+  return hits;
+}
+
+function blogDuHits(raw) {
+  const hits = [];
+  forEachVisibleBlog(raw, (line, text, visible) => {
+    const match = findBlogDu(visible);
+    if (match) hits.push({ line, text, match });
+  });
+  return hits;
+}
+
+function resourceDuHits(raw) {
+  const hits = [];
+  let i = 0;
+  let line = 1;
+  while (i < raw.length) {
+    if (raw[i] === "\n") {
+      line += 1;
+      i += 1;
+      continue;
     }
+    if (raw.startsWith("//", i)) {
+      while (i < raw.length && raw[i] !== "\n") i += 1;
+      continue;
+    }
+    if (raw.startsWith("/*", i)) {
+      i += 2;
+      while (i < raw.length && !raw.startsWith("*/", i)) {
+        if (raw[i] === "\n") line += 1;
+        i += 1;
+      }
+      i += 2;
+      continue;
+    }
+    const quote = raw[i];
+    if (quote === '"' || quote === "'" || quote === "`") {
+      const startLine = line;
+      i += 1;
+      let text = "";
+      while (i < raw.length) {
+        if (raw[i] === "\\") {
+          const next = raw[i + 1] ?? "";
+          text += next;
+          if (next === "\n") line += 1;
+          i += 2;
+          continue;
+        }
+        if (raw[i] === "\n") line += 1;
+        if (raw[i] === quote) break;
+        text += raw[i];
+        i += 1;
+      }
+      const match = findBlogDu(text);
+      if (match) {
+        hits.push({ line: startLine, text: text.trim().slice(0, 180), match });
+      }
+      i += 1;
+      continue;
+    }
+    i += 1;
   }
   return hits;
 }
@@ -172,9 +271,13 @@ function assertSelfTest() {
     ["lorem", "Lorem ipsum dolor sit amet\n", true],
     ["xxx", "Wert XXX einsetzen\n", true],
     ["pillar prose", "Details im Pillar nachlesen.\n", false],
-    // Published section heading, not a draft token. Flagging it would fail
-    // articles this check is meant to leave green.
-    ["primaer heading", "## Primär-CTA: Verfahrensdokumentation erstellen\n", false],
+    ["primaer heading", "## Primär-CTA: Verfahrensdokumentation erstellen\n", true],
+    ["primaer space", "## Primär CTA: Entwurf\n", true],
+    ["primaer ae", "## Primaer-CTA Entwurf\n", true],
+    ["sekundaer heading", "## Sekundär-CTA: Readiness\n", true],
+    ["sekundaer space", "### Sekundaer CTA\n", true],
+    ["cta colon", "CTA: jetzt lesen\n", true],
+    ["cta colon space", "CTA : Checkout\n", true],
     [
       "frontmatter hidden",
       '---\ntitle: "Artikel"\nctaSoft: "/readiness"\nstatus: "ready-for-publish"\n---\n\nAbsatz.\n',
@@ -187,6 +290,55 @@ function assertSelfTest() {
     ["fence heading", "```\n## Soft-CTA: Readiness-Check\n```\n", true],
     ["url only", "Siehe [Artikel](https://example.com/todo-liste).\n", false],
     ["link text", "Siehe [TODO](/intern).\n", true],
+    ["cta in url", "Siehe [Text](https://example.com/CTA:box).\n", false],
+    ["cta in comment", "<!-- Primär-CTA: intern -->\n\nAbsatz.\n", false],
+  ];
+
+  const duCases = [
+    ["du pronoun", "fragst du dich, ob dein Entwurf dir hilft.\n", true],
+    ["dein forms", "aus deinen Angaben für dich und deinen Berater.\n", true],
+    ["euch euer", "Unsicher, ob euer Scope greifbar ist und euch fehlt.\n", true],
+    ["ihr 2pl", "klären, wie ihr Prüfungsdaten bereitstellen könnt.\n", true],
+    ["wo ihr steht", "Unsicher, wo ihr steht?\n", true],
+    ["wo ihr noun", "wo ihr Steuerberater zustimmt.\n", false],
+    ["ihr inverted", "Intern solltet ihr Änderungen nachhalten.\n", true],
+    ["mach imperative", "Mach den kostenlosen Readiness-Check.\n", true],
+    ["schau", "Schau zuerst die Checkliste.\n", true],
+    ["starte", "Starte mit dem Ist-Zustand.\n", true],
+    ["lies", "Lies die Fassung gegen.\n", true],
+    ["pruefe", "Prüfe die Version.\n", true],
+    ["dirk", "Dirk leitet die Durchführung direkt.\n", false],
+    ["deinstallation", "Die Deinstallation ändert den Ablauf nicht.\n", false],
+    ["ihr formal", "Entwurf für Sie und Ihren Steuerberater.\n", false],
+    ["ihr possessive", "die Firma und ihr Steuerberater.\n", false],
+    ["aus ihr", "Aus ihr müssen Inhalt und Ablauf ersichtlich sein.\n", false],
+    ["machen sie", "Machen Sie den kostenlosen Readiness-Check.\n", false],
+    ["pruefung", "bei der Prüfung und beim Prüfer.\n", false],
+    ["ich starte", "ich starte nicht mit einer leeren Datei.\n", false],
+    ["du in url", "Siehe [Artikel](https://example.com/du-form).\n", false],
+    ["du in comment", "<!-- du intern -->\n\nAbsatz in der Sie-Form.\n", false],
+    [
+      "ctaSoft hidden",
+      '---\ntitle: "Artikel"\nctaSoft: "/readiness"\n---\n\nMachen Sie den Check.\n',
+      false,
+    ],
+    [
+      "meta du",
+      '---\nmetaDescription: "was du vorbereiten kannst"\n---\n\nAbsatz.\n',
+      true,
+    ],
+  ];
+
+  const resourceCases = [
+    ["resource ihr", 'export const t = "Unsicher, wo ihr steht?";\n', true],
+    ["resource sie", 'export const t = "Unsicher, wo Sie stehen?";\n', false],
+    ["resource dir code", 'const dir = "Pfad zur Datei";\n', false],
+    [
+      "resource comment",
+      '// eure interne Notiz\nexport const t = "Machen Sie den Check.";\n',
+      false,
+    ],
+    ["resource eure", 'body: "in eurer Sprache",\n', true],
   ];
 
   for (const [name, source, expectHit] of cases) {
@@ -198,12 +350,33 @@ function assertSelfTest() {
       process.exit(1);
     }
   }
+
+  for (const [name, source, expectHit] of duCases) {
+    const hit = blogDuHits(source).length > 0;
+    if (hit !== expectHit) {
+      console.error(
+        `check-forbidden-words: du self-test failed (${name}, expected ${expectHit ? "hit" : "clean"})`,
+      );
+      process.exit(1);
+    }
+  }
+
+  for (const [name, source, expectHit] of resourceCases) {
+    const hit = resourceDuHits(source).length > 0;
+    if (hit !== expectHit) {
+      console.error(
+        `check-forbidden-words: resource self-test failed (${name}, expected ${expectHit ? "hit" : "clean"})`,
+      );
+      process.exit(1);
+    }
+  }
 }
 
 assertSelfTest();
 
 const files = patterns.flatMap((pattern) => globSync(pattern));
 const blogFiles = blogPatterns.flatMap((pattern) => globSync(pattern));
+const resourceFiles = resourceDuPatterns.flatMap((pattern) => globSync(pattern));
 let failed = false;
 
 if (files.length === 0) {
@@ -213,6 +386,11 @@ if (files.length === 0) {
 
 if (blogFiles.length === 0) {
   console.error("check-forbidden-words: no blog files matched");
+  process.exit(1);
+}
+
+if (resourceFiles.length === 0) {
+  console.error("check-forbidden-words: no resource files matched");
   process.exit(1);
 }
 
@@ -228,8 +406,20 @@ for (const file of files) {
 }
 
 for (const file of blogFiles) {
-  for (const hit of blogMarkerHits(readFileSync(file, "utf8"))) {
+  const raw = readFileSync(file, "utf8");
+  for (const hit of blogMarkerHits(raw)) {
     console.error(`${file}:${hit.line}: ${hit.text}`);
+    failed = true;
+  }
+  for (const hit of blogDuHits(raw)) {
+    console.error(`${file}:${hit.line}: du-Anrede „${hit.match}“ in ${hit.text}`);
+    failed = true;
+  }
+}
+
+for (const file of resourceFiles) {
+  for (const hit of resourceDuHits(readFileSync(file, "utf8"))) {
+    console.error(`${file}:${hit.line}: du-Anrede „${hit.match}“ in ${hit.text}`);
     failed = true;
   }
 }
@@ -239,5 +429,5 @@ if (failed) {
 }
 
 console.log(
-  `check-forbidden-words: ok (${files.length + blogFiles.length} files)`,
+  `check-forbidden-words: ok (${files.length + blogFiles.length + resourceFiles.length} files)`,
 );

@@ -17,9 +17,9 @@ date: "2026-09-19"
 
 # Verfahrensdokumentation ersetzendes Scannen
 
-Du scannt Belege und willst Originale vernichten — dann gehört das **ersetzende Scannen** klar in deine Verfahrensdokumentation. Hier eine praxisnahe Übersicht, was du dazu beschreiben solltest: Scan-Prozess, Qualitätskontrolle, Vernichtungsfreigabe und Ausnahmen. Ohne Rechtsgarantien, ohne Hype.
+Sie scannen Belege und wollen Originale vernichten — dann gehört das **ersetzende Scannen** klar in Ihre Verfahrensdokumentation. Hier eine praxisnahe Übersicht, was Sie dazu beschreiben sollten: Scan-Prozess, Qualitätskontrolle, Vernichtungsfreigabe und Ausnahmen. Ohne Rechtsgarantien, ohne Hype.
 
-**Kurz:** Dokumentiere, wie ihr paperlose Originale durch digitale Abbilder ersetzt — wer scannt, wie geprüft wird, wann vernichtet wird und was ausgenommen ist. Das ersetzt keine Steuerberatung und kein Konformitätsversprechen.
+**Kurz:** Dokumentieren Sie, wie Sie papierne Originale durch digitale Abbilder ersetzen — wer scannt, wie geprüft wird, wann vernichtet wird und was ausgenommen ist. Das ersetzt keine Steuerberatung und kein Konformitätsversprechen.
 
 > **Keine Steuerberatung.** Dieser Text und alle Ergebnisse unter gobd-doku-erstellen.de sind allgemeine Arbeitshilfen. Sie ersetzen keine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
@@ -27,13 +27,13 @@ Du scannt Belege und willst Originale vernichten — dann gehört das **ersetzen
 
 Gemeint ist der Praxisfall: Papierbelege werden gescannt (oder fotografiert), digital abgelegt und das Papier später vernichtet — mit dem Anspruch, dass das digitale Abbild den Beleg für Aufbewahrung und Prüfung trägt.
 
-Ob und unter welchen Bedingungen das für euren Betrieb passt, entscheidet ihr mit dem Steuerberater. Dieser Artikel listet nur, was in der Verfahrensdokumentation typischerweise **beschrieben** werden sollte.
+Ob und unter welchen Bedingungen das für Ihren Betrieb passt, entscheiden Sie mit dem Steuerberater. Dieser Artikel listet nur, was in der Verfahrensdokumentation typischerweise **beschrieben** werden sollte.
 
 Zum Gesamtaufbau der Dokumentation: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
 
-## Was du zum Scan-Prozess dokumentieren solltest
+## Was Sie zum Scan-Prozess dokumentieren sollten
 
-Schreibe den Ist-Zustand, nicht den Wunschzustand.
+Schreiben Sie den Ist-Zustand, nicht den Wunschzustand.
 
 ### Eingang und Vorbereitung
 
@@ -70,7 +70,7 @@ Checkliste QC:
 - [ ] Wird die Prüfung protokolliert oder zumindest nachvollziehbar festgehalten?
 - [ ] Vertretung, wenn die QC-Person fehlt?
 
-Halte fest, was bei euch **wirklich** läuft — nicht was im Handbuch der Software steht.
+Halten Sie fest, was bei Ihnen **wirklich** läuft — nicht was im Handbuch der Software steht.
 
 ## Vernichtungsfreigabe
 
@@ -89,25 +89,25 @@ Ohne klare Freigabe-Logik entsteht oft der Eindruck: „wir scannen und wegwerfe
 
 ## Ausnahmen: was nicht (oder anders) behandelt wird
 
-Nicht jeder Beleg läuft gleich. Dokumentiere Ausnahmen explizit.
+Nicht jeder Beleg läuft gleich. Dokumentieren Sie Ausnahmen explizit.
 
 Beispiele, die oft relevant sind:
 
-- [ ] Originale, die ihr aus rechtlichen oder vertraglichen Gründen behaltet
-- [ ] Belege mit besonderen Aufbewahrungsanforderungen (soweit bei euch bekannt — mit Berater klären)
+- [ ] Originale, die Sie aus rechtlichen oder vertraglichen Gründen behalten
+- [ ] Belege mit besonderen Aufbewahrungsanforderungen (soweit bei Ihnen bekannt — mit Berater klären)
 - [ ] Kassenbelege / Thermopapier / sehr kleine Formate
 - [ ] Fremdwährung, mehrseitige Anlagen, Lieferscheine
 - [ ] Belege, die nur fotografiert (Handy) statt gescannt werden
 - [ ] Notfall-/Homeoffice-Scans außerhalb des Standardprozesses
 - [ ] Was passiert bei unleserlichen Originalen
 
-Wenn es Ausnahmen gibt, beschreibe den **Alternativweg** (z. B. Papier bleibt, Scan nur zur Arbeitskopie).
+Wenn es Ausnahmen gibt, beschreiben Sie den **Alternativweg** (z. B. Papier bleibt, Scan nur zur Arbeitskopie).
 
-Unklar, ob euer Scan-Setup schon dokumentationsreif ist? Der kostenlose [Readiness-Check](/readiness) fragt u. a. Belegwege, Software und Verantwortliche ab — ohne Kreditkarte.
+Unklar, ob Ihr Scan-Setup schon dokumentationsreif ist? Der kostenlose [Readiness-Check](/readiness) fragt u. a. Belegwege, Software und Verantwortliche ab — ohne Kreditkarte.
 
 ## Mini-Checkliste: Block „Ersetzendes Scannen“ fertig?
 
-Übernimm das als Abschnitt in eurer Verfahrensdokumentation (oder als Anlage):
+Übernehmen Sie das als Abschnitt in Ihrer Verfahrensdokumentation (oder als Anlage):
 
 1. Zweck und Geltungsbereich (welche Belege, welche Standorte)
 2. Rollen: Scannen, QC, Freigabe, Vernichtung, Vertretung
@@ -129,15 +129,15 @@ Zum Abgleich aller Doku-Teile: [Verfahrensdokumentation Checkliste](/blog/verfah
 - Prozess geändert (neues Gerät, neuer Dienstleister), Doku nicht aktualisiert
 - Offene Punkte verschwiegen statt markiert
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
-Wenn du den Scan-Block nicht leer formulieren willst: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF plus Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie den Scan-Block nicht leer formulieren wollen: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF plus Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 
 ### Muss ersetzendes Scannen in jeder Verfahrensdokumentation stehen?
 
-Nur wenn ihr so arbeitet (oder plant). Wenn alle Originale aufbewahrt werden und Scans nur Arbeitskopien sind, beschreibe das klar — und vermeide den Eindruck von Ersetzung.
+Nur wenn Sie so arbeiten (oder planen). Wenn alle Originale aufbewahrt werden und Scans nur Arbeitskopien sind, beschreiben Sie das klar — und vermeiden Sie den Eindruck von Ersetzung.
 
 ### Reicht „wir scannen mit dem Multifunktionsgerät“?
 
@@ -145,15 +145,15 @@ Nein. Mindestens Rollen, Ablauf, QC, Ablage und — falls zutreffend — Vernich
 
 ### Wer darf die Vernichtung freigeben?
 
-Das legt ihr betrieblich fest und dokumentiert es. Oft liegt die Freigabe bei einer klar benannten Rolle (nicht „irgendjemand aus dem Büro“). Details mit dem Steuerberater abstimmen.
+Das legen Sie betrieblich fest und dokumentieren es. Oft liegt die Freigabe bei einer klar benannten Rolle (nicht „irgendjemand aus dem Büro“). Details mit dem Steuerberater abstimmen.
 
 ### Sind Handy-Fotos erlaubt?
 
-Das ist eine fachliche/rechtliche Frage an euren Berater. In der Verfahrensdokumentation solltest du den tatsächlichen Weg (inkl. Handy) und die QC dafür beschreiben, falls ihr so arbeitet.
+Das ist eine fachliche/rechtliche Frage an Ihren Berater. In der Verfahrensdokumentation sollten Sie den tatsächlichen Weg (inkl. Handy) und die QC dafür beschreiben, falls Sie so arbeiten.
 
-### Macht euer PDF uns „scan-konform“?
+### Macht Ihr PDF uns „scan-konform“?
 
-Nein. Wir versprechen keine GoBD-Konformität und keine Rechtssicherheit. Das PDF ist ein geführter Entwurf zur Abstimmung. Verantwortung für Inhalt und Verwendung bleibt bei dir bzw. bei der beratenen Freigabe.
+Nein. Wir versprechen keine GoBD-Konformität und keine Rechtssicherheit. Das PDF ist ein geführter Entwurf zur Abstimmung. Verantwortung für Inhalt und Verwendung bleibt bei Ihnen bzw. bei der beratenen Freigabe.
 
 ## Weiterlesen
 
@@ -162,8 +162,8 @@ Nein. Wir versprechen keine GoBD-Konformität und keine Rechtssicherheit. Das PD
 
 ## Disclaimer
 
-Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt dich bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
+Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt Sie bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
 
-Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang ersetzendes Scannen und eine Verfahrensdokumentation für dein Unternehmen erforderlich oder ausreichend sind, hängt von deiner konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
+Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang ersetzendes Scannen und eine Verfahrensdokumentation für Ihr Unternehmen erforderlich oder ausreichend sind, hängt von Ihrer konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
-Du bleibst für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation — einschließlich der Beschreibung von Scan-, QC- und Vernichtungsprozessen — in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).
+Sie bleiben für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation — einschließlich der Beschreibung von Scan-, QC- und Vernichtungsprozessen — in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).

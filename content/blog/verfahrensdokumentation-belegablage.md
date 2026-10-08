@@ -90,7 +90,7 @@ Unsicher, ob Eingangswege, Freigabe und Ablage schon benennbar sind? Machen Sie 
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF). Ein fiktives Gesamtdokument zum Ansehen: [Muster Dienstleister als PDF](/muster/gesamt/dienstleister/pdf) (PDF).
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
 Wenn Sie den Belegfluss nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
 
