@@ -42,6 +42,6 @@ Unser Angebot enthält ggf. Links zu externen Websites Dritter, auf deren Inhalt
 
 ## Urheberrecht
 
-Die durch uns erstellten Inhalte und Werke auf dieser Website unterliegen dem deutschen Urheberrecht. Für Muster-PDFs und Checklisten, die wir ausdrücklich zum Download bereitstellen, räumen wir dir ein einfaches Nutzungsrecht für den internen betrieblichen Gebrauch ein. Eine Weitergabe an Dritte, eine Veröffentlichung oder der Verkauf bedürfen unserer vorherigen Zustimmung. Die Nutzung der entgeltlich erstellten Dokumentation richtet sich nach unseren AGB.
+Die durch uns erstellten Inhalte und Werke auf dieser Website unterliegen dem deutschen Urheberrecht. Für Muster-PDFs und Checklisten, die wir ausdrücklich zum Download bereitstellen, räumen wir Ihnen ein einfaches Nutzungsrecht für den internen betrieblichen Gebrauch ein. Eine Weitergabe an Dritte, eine Veröffentlichung oder der Verkauf bedürfen unserer vorherigen Zustimmung. Die Nutzung der entgeltlich erstellten Dokumentation richtet sich nach unseren AGB.
 
 **Stand:** 02.10.2026
