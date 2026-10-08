@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
@@ -24,7 +24,12 @@ import {
   type FirmFacts,
 } from "@/lib/intake-catalog";
 import { ensureGesamt, isGesamt } from "@/lib/module/status";
-import { normalizeDraftKey } from "@/lib/intake-draft-shared";
+import {
+  draftRevision,
+  normalizeDraftKey,
+  preferIntakeSnapshot,
+  type IntakeDraftSnapshot,
+} from "@/lib/intake-draft-shared";
 import { INTAKE_REVIEW, INTAKE_STEPS } from "@/lib/intake-questions";
 import { customerHubTitle } from "@/lib/account-display";
 import { bereichIdOf, bereichLabel } from "@/lib/bereiche";
@@ -158,28 +163,134 @@ export function IntakeForm({
     modus: gesamtMode ? "gesamt" : "bereich",
   });
   const localDraftKey = `gobd-intake-draft:${draftKey || session.stripeSessionId || "neu"}`;
-  const [draftOffer, setDraftOffer] = useState<{ answers: IntakeAnswers; step: number; savedAt: string; source: "server" | "local" } | null>(null);
-  const draftChecked = useRef(false);
+  const [draftOffer, setDraftOffer] = useState<
+    (IntakeDraftSnapshot & { source: "server" | "local" }) | null
+  >(null);
   const [draftReady, setDraftReady] = useState(false);
   const [serverDraftAt, setServerDraftAt] = useState("");
+  const revisionRef = useRef(0);
+  const lastSnapshotRef = useRef("");
+  const baselineRef = useRef("");
+  const answersRef = useRef(answers);
+  const stepRef = useRef(step);
+  const serverDraftAtRef = useRef("");
+  const draftReadyRef = useRef(false);
+  const draftOfferRef = useRef(draftOffer);
+  const draftMetaRef = useRef({
+    draftKey,
+    localDraftKey,
+    sessionId: session.stripeSessionId,
+    documentId: sourceDocumentId,
+    areaFromDocumentId: areaBaseDocumentId,
+    email: session.email,
+    entityId: entityId || initialEntityId,
+    modus: gesamtMode ? "gesamt" : "bereich",
+  });
+  useLayoutEffect(() => {
+    answersRef.current = answers;
+    stepRef.current = step;
+    serverDraftAtRef.current = serverDraftAt;
+    draftReadyRef.current = draftReady;
+    draftOfferRef.current = draftOffer;
+    draftMetaRef.current = {
+      draftKey,
+      localDraftKey,
+      sessionId: session.stripeSessionId,
+      documentId: sourceDocumentId,
+      areaFromDocumentId: areaBaseDocumentId,
+      email: session.email,
+      entityId: entityId || initialEntityId,
+      modus: gesamtMode ? "gesamt" : "bereich",
+    };
+  });
+
+  function writeLocalDraft(revision: number) {
+    const savedAt = new Date().toISOString();
+    const snapshot: IntakeDraftSnapshot = {
+      answers: answersRef.current,
+      step: stepRef.current,
+      savedAt,
+      revision,
+    };
+    try {
+      window.localStorage.setItem(draftMetaRef.current.localDraftKey, JSON.stringify(snapshot));
+    } catch {
+      // Speicher voll oder gesperrt
+    }
+    return snapshot;
+  }
+
+  function postServerDraft(revision: number, keepalive = false) {
+    const meta = draftMetaRef.current;
+    if (!meta.draftKey || revision <= 0) return;
+    const savedAt = new Date().toISOString();
+    void fetch("/api/intake/draft", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      keepalive,
+      body: JSON.stringify({
+        draftKey: meta.draftKey,
+        sessionId: meta.sessionId,
+        documentId: meta.documentId,
+        areaFromDocumentId: meta.areaFromDocumentId,
+        email: meta.email,
+        entityId: meta.entityId,
+        modus: meta.modus,
+        step: stepRef.current,
+        answers: answersRef.current,
+        revision,
+        clientUpdatedAt: serverDraftAtRef.current || savedAt,
+      }),
+    })
+      .then(async (response) => {
+        if (response.status === 409) {
+          const data = (await response.json()) as {
+            draft?: { answers: IntakeAnswers; step: number; updatedAt: string; revision?: number };
+          };
+          const serverRev = draftRevision(data.draft);
+          // Stale response of our own earlier save: the browser already has this or a newer edit.
+          if (!data.draft?.answers || serverRev <= revisionRef.current) return;
+          setDraftOffer({
+            answers: data.draft.answers,
+            step: Number(data.draft.step) || 0,
+            savedAt: data.draft.updatedAt,
+            revision: serverRev,
+            source: "server",
+          });
+          setServerDraftAt(data.draft.updatedAt);
+          return;
+        }
+        if (response.ok) {
+          const data = (await response.json()) as { draft?: { updatedAt?: string } };
+          if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
+        }
+      })
+      .catch(() => {
+        // offline: localStorage reicht als Fallback
+      });
+  }
+
   useEffect(() => {
-    if (draftChecked.current) return;
-    draftChecked.current = true;
     let cancelled = false;
     (async () => {
-      let local: { answers: IntakeAnswers; step: number; savedAt: string } | null = null;
+      let local: IntakeDraftSnapshot | null = null;
       try {
         const raw = window.localStorage.getItem(localDraftKey);
         if (raw) {
-          const parsed = JSON.parse(raw) as { answers?: IntakeAnswers; step?: number; savedAt?: string };
+          const parsed = JSON.parse(raw) as IntakeDraftSnapshot;
           if (parsed.answers && typeof parsed.answers === "object") {
-            local = { answers: parsed.answers, step: Number(parsed.step) || 0, savedAt: parsed.savedAt ?? "" };
+            local = {
+              answers: parsed.answers,
+              step: Number(parsed.step) || 0,
+              savedAt: parsed.savedAt ?? "",
+              revision: draftRevision(parsed),
+            };
           }
         }
       } catch {
         // kein localStorage
       }
-      let server: { answers: IntakeAnswers; step: number; savedAt: string } | null = null;
+      let server: IntakeDraftSnapshot | null = null;
       if (draftKey) {
         try {
           const params = new URLSearchParams({ draftKey });
@@ -187,13 +298,19 @@ export function IntakeForm({
           const response = await fetch(`/api/intake/draft?${params}`);
           if (response.ok) {
             const data = (await response.json()) as {
-              draft?: { answers: IntakeAnswers; step: number; updatedAt: string } | null;
+              draft?: {
+                answers: IntakeAnswers;
+                step: number;
+                updatedAt: string;
+                revision?: number;
+              } | null;
             };
             if (data.draft?.answers) {
               server = {
                 answers: data.draft.answers,
                 step: Number(data.draft.step) || 0,
                 savedAt: data.draft.updatedAt,
+                revision: draftRevision(data.draft),
               };
               setServerDraftAt(data.draft.updatedAt);
             }
@@ -203,13 +320,16 @@ export function IntakeForm({
         }
       }
       if (cancelled) return;
-      if (server && local) {
-        const serverWins = server.savedAt.localeCompare(local.savedAt) >= 0;
-        setDraftOffer({ ...(serverWins ? server : local), source: serverWins ? "server" : "local" });
-      } else if (server) {
-        setDraftOffer({ ...server, source: "server" });
-      } else if (local) {
-        setDraftOffer({ ...local, source: "local" });
+      // Edits in this session already landed in localStorage. Don't cover them
+      // with a draft response that was in flight since page load.
+      if (revisionRef.current > 0) {
+        setDraftReady(true);
+        return;
+      }
+      const chosen = preferIntakeSnapshot(server, local);
+      if (chosen) {
+        revisionRef.current = Math.max(revisionRef.current, draftRevision(chosen));
+        setDraftOffer({ ...chosen, source: chosen === server ? "server" : "local" });
       }
       setDraftReady(true);
     })();
@@ -219,75 +339,33 @@ export function IntakeForm({
   }, [draftKey, localDraftKey, session.stripeSessionId]);
   useEffect(() => {
     if (!draftReady || draftOffer) return;
-    const savedAt = new Date().toISOString();
-    const timer = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(
-          localDraftKey,
-          JSON.stringify({ answers, step, savedAt }),
-        );
-      } catch {
-        // Speicher voll oder gesperrt
-      }
-      if (!draftKey) return;
-      void fetch("/api/intake/draft", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          draftKey,
-          sessionId: session.stripeSessionId,
-          documentId: sourceDocumentId,
-          areaFromDocumentId: areaBaseDocumentId,
-          email: session.email,
-          entityId: entityId || initialEntityId,
-          modus: gesamtMode ? "gesamt" : "bereich",
-          step,
-          answers,
-          clientUpdatedAt: serverDraftAt || savedAt,
-        }),
-      })
-        .then(async (response) => {
-          if (response.status === 409) {
-            const data = (await response.json()) as {
-              draft?: { answers: IntakeAnswers; step: number; updatedAt: string };
-            };
-            if (data.draft?.answers) {
-              setDraftOffer({
-                answers: data.draft.answers,
-                step: Number(data.draft.step) || 0,
-                savedAt: data.draft.updatedAt,
-                source: "server",
-              });
-              setServerDraftAt(data.draft.updatedAt);
-            }
-            return;
-          }
-          if (response.ok) {
-            const data = (await response.json()) as { draft?: { updatedAt?: string } };
-            if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
-          }
-        })
-        .catch(() => {
-          // offline: localStorage reicht als Fallback
-        });
-    }, 900);
+    const snapshot = JSON.stringify({ answers, step });
+    // The untouched prefill is not a user draft. Saving it used to win the
+    // reload and looked like only the company field had been restored.
+    if (!baselineRef.current) baselineRef.current = snapshot;
+    if (snapshot === baselineRef.current && revisionRef.current === 0) return;
+    let revision = revisionRef.current;
+    if (snapshot !== lastSnapshotRef.current) {
+      lastSnapshotRef.current = snapshot;
+      revision += 1;
+      revisionRef.current = revision;
+      writeLocalDraft(revision);
+    }
+    if (!draftKey || revision <= 0) return;
+    const timer = window.setTimeout(() => postServerDraft(revisionRef.current), 400);
     return () => window.clearTimeout(timer);
-  }, [
-    answers,
-    step,
-    draftKey,
-    localDraftKey,
-    draftReady,
-    draftOffer,
-    session.stripeSessionId,
-    session.email,
-    sourceDocumentId,
-    areaBaseDocumentId,
-    entityId,
-    initialEntityId,
-    gesamtMode,
-    serverDraftAt,
-  ]);
+  }, [answers, step, draftKey, draftReady, draftOffer]);
+  useEffect(() => {
+    function flush() {
+      if (!draftReadyRef.current || draftOfferRef.current) return;
+      const revision = revisionRef.current;
+      if (revision <= 0) return;
+      writeLocalDraft(revision);
+      postServerDraft(revision, true);
+    }
+    window.addEventListener("pagehide", flush);
+    return () => window.removeEventListener("pagehide", flush);
+  }, []);
   function clearDraft() {
     try {
       window.localStorage.removeItem(localDraftKey);

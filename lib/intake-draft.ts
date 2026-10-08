@@ -17,7 +17,10 @@ export type { IntakeDraft } from "@/lib/intake-draft-shared";
 export {
   draftIsEmpty,
   draftIsNewer,
+  draftRevision,
+  incomingDraftWins,
   normalizeDraftKey,
+  preferIntakeSnapshot,
 } from "@/lib/intake-draft-shared";
 
 function draftPathname(draftKey: string): string {
