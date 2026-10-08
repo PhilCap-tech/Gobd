@@ -334,7 +334,40 @@ export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSc
   return out;
 }
 
-/** Nur ausgewählte Kontrollen mit Status „So läuft es heute“. */
+const KEINE_KONTROLLE = new Set(["", "keine", "keine regelmäßige kontrolle", "keine regelmaessige kontrolle"]);
+const KEINE_AUSNAHME = new Set(["", "keine", "keine ausnahme", "keine ausnahmen"]);
+
+function normAngabe(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function istKeineKontrolle(value: string): boolean {
+  return KEINE_KONTROLLE.has(normAngabe(value));
+}
+
+function istKeineAusnahme(value: string): boolean {
+  return KEINE_AUSNAHME.has(normAngabe(value));
+}
+
+function controlAnswerIds(modul: ModulDef): string[] {
+  const ids = new Set<string>();
+  for (const item of modulKontrollen(modul)) {
+    if (item.frage) ids.add(item.frage);
+  }
+  for (const id of [...modul.catalogIds, ...modulFragen(modul).map((question) => question.id)]) {
+    if (id === "H01" || /92$/.test(id) || /^KF0[1-5]$/.test(id)) ids.add(id);
+  }
+  return [...ids];
+}
+
+function controlTokens(values: Record<string, unknown> | undefined): string[] {
+  const names = selectedNames(values);
+  if (names.length) return names;
+  const free = text(values?.kontrollen);
+  return free ? [free] : [];
+}
+
+/** Nur ausgewählte Kontrollen mit Status „So läuft es heute“. „Keine…“ ist keine Katalogzeile. */
 export function livedKontrollen(modul: ModulDef, answers: IntakeAnswers): Array<BereichKontrolle & { frage: string }> {
   const facts = betriebFacts(answers);
   const out: Array<BereichKontrolle & { frage: string }> = [];
@@ -342,7 +375,7 @@ export function livedKontrollen(modul: ModulDef, answers: IntakeAnswers): Array<
     if (!item.frage) continue;
     const row = entry(answers, item.frage);
     if (row?.status !== "bestaetigt") continue;
-    const selected = new Set(selectedNames(row.values));
+    const selected = new Set(selectedNames(row.values).filter((name) => !istKeineKontrolle(name)));
     if (!selected.has(item.name)) continue;
     if (mentionsDenied(`${item.name} ${item.zweck}`, facts)) continue;
     out.push({ ...item, name: withTurnus(item.name, facts.sichtungTurnus) });
@@ -353,9 +386,9 @@ export function livedKontrollen(modul: ModulDef, answers: IntakeAnswers): Array<
       for (const row of raw) {
         if (!row || typeof row !== "object") continue;
         const name = text((row as { name?: unknown }).name);
+        if (!name || istKeineKontrolle(name)) continue;
         const turnus = text((row as { turnus?: unknown }).turnus);
         const nachweis = text((row as { nachweis?: unknown }).nachweis);
-        if (!name) continue;
         const label = turnus ? `${name} (${turnus})` : name;
         if (mentionsDenied(`${label} ${nachweis}`, facts)) continue;
         out.push({ name: label, zweck: nachweis || "bestätigt", frage: "H01" });
@@ -368,6 +401,97 @@ export function livedKontrollen(modul: ModulDef, answers: IntakeAnswers): Array<
     seen.add(item.name);
     return true;
   });
+}
+
+export type KontrollenAbschnitt = {
+  zeilen: Array<{ name: string; zweck: string }>;
+  /** Neutraler Satz, wenn die bestätigte Angabe leer oder „Keine…“ ist. */
+  satz: string;
+};
+
+/**
+ * Abschnitt Kontrollen im Gesamtdokument.
+ * Einziger Übergang von Kontroll-Angaben in diesen PDF-Abschnitt.
+ */
+export function kontrollenAbschnitt(modul: ModulDef, answers: IntakeAnswers): KontrollenAbschnitt {
+  const zeilen = livedKontrollen(modul, answers).map((item) => ({ name: item.name, zweck: item.zweck }));
+  if (zeilen.length) return { zeilen, satz: "" };
+  const confirmedIds = controlAnswerIds(modul).filter((id) => confirmed(answers, id));
+  if (!confirmedIds.length) return { zeilen: [], satz: "" };
+  const onlyNone = confirmedIds.every((id) => {
+    const tokens = controlTokens(entry(answers, id)?.values);
+    return tokens.length === 0 || tokens.every((token) => istKeineKontrolle(token));
+  });
+  return onlyNone
+    ? { zeilen: [], satz: "Eine regelmäßige Kontrolle ist nicht benannt." }
+    : { zeilen: [], satz: "" };
+}
+
+/**
+ * Abschnitt Ausnahmen im Gesamtdokument.
+ * Einziger Übergang von Ausnahme-Angaben in die Katalogzeile des PDFs.
+ * Leere und „Keine…“-Angaben werden ein neutraler Satz, nie ein Katalogbeispiel.
+ */
+export function ausnahmenInDetails(id: string, answers: IntakeAnswers, details: string[]): string[] {
+  const abschnitt = ausnahmenRoh(id, answers);
+  if (!abschnitt) return details;
+  const banned = new Set(abschnitt.rohwerte.map((item) => normAngabe(item)).filter(Boolean));
+  const cleaned = details
+    .map((bit) =>
+      bit
+        .split(", ")
+        .filter((part) => {
+          const token = normAngabe(part);
+          if (banned.has(token)) return false;
+          return ![...banned].some((item) => token === `ausnahmen: ${item}`);
+        })
+        .join(", "),
+    )
+    .filter(Boolean);
+  return [...cleaned, abschnitt.satz];
+}
+
+function ausnahmenRoh(id: string, answers: IntakeAnswers): { satz: string; rohwerte: string[] } | null {
+  const item = entry(answers, id);
+  if (!item || item.status !== "bestaetigt") return null;
+  const values = item.values ?? {};
+  if (id === "C02") {
+    const detail = values.kanaeleDetail;
+    if (!detail || typeof detail !== "object" || Array.isArray(detail)) return null;
+    const rohwerte: string[] = [];
+    const stated: string[] = [];
+    for (const row of Object.values(detail as Record<string, unknown>)) {
+      if (!row || typeof row !== "object") continue;
+      const raw = text((row as { ausnahmen?: unknown }).ausnahmen);
+      rohwerte.push(raw);
+      if (!istKeineAusnahme(raw)) stated.push(raw);
+    }
+    if (!rohwerte.length) return null;
+    return {
+      satz: stated.length ? `Ausnahmen: ${stated.join("; ")}.` : "Ausnahmen sind nicht benannt.",
+      rohwerte,
+    };
+  }
+  if (id === "C03") {
+    const eingang = values.eingang;
+    if (!eingang || typeof eingang !== "object" || Array.isArray(eingang)) {
+      if (!("ausnahmen" in values)) return null;
+    }
+    const raw =
+      eingang && typeof eingang === "object" && !Array.isArray(eingang)
+        ? text((eingang as { ausnahmen?: unknown }).ausnahmen)
+        : text(values.ausnahmen);
+    return {
+      satz: istKeineAusnahme(raw) ? "Ausnahmen sind nicht benannt." : `Ausnahmen: ${raw}.`,
+      rohwerte: [raw, raw ? `Ausnahmen: ${raw}` : ""],
+    };
+  }
+  if (!("ausnahmen" in values)) return null;
+  const raw = text(values.ausnahmen);
+  return {
+    satz: istKeineAusnahme(raw) ? "Ausnahmen sind nicht benannt." : raw,
+    rohwerte: [raw],
+  };
 }
 
 export function livedAufbewahrung(modul: ModulDef, answers: IntakeAnswers): BereichFrist[] {

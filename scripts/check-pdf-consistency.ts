@@ -75,6 +75,9 @@ expect(pixel.claims.includes("strukturierte E-Rechnung"), "Pixelwerk zerstört d
 expect(pixel.claims.includes("wöchentlich"), "Pixelwerk nennt die wöchentliche Sichtung nicht");
 expect(pixel.claims.includes("NAS"), "Pixelwerk nennt das NAS-Backup nicht");
 expect(pixel.claims.includes("Eigenbuchhaltung"), "Pixelwerk nennt die Eigenbuchhaltung nicht");
+expect(pixel.claims.includes("Eine regelmäßige Kontrolle ist nicht benannt."), "Keine-Kontrolle bleibt Katalogtext");
+expect(pixel.claims.includes("Ausnahmen sind nicht benannt."), "Keine-Ausnahme bleibt Rohtext");
+expect(!pixel.claims.includes("lexoffice Belegarchiv, keine"), "Ausnahme „keine“ bleibt als Katalogfragment stehen");
 expect(pixel.claims.includes("Satz 5 UStG"), "Gutschrift zitiert § 14 Abs. 2 Satz 5");
 expect(!pixel.claims.includes("Satz 2 UStG"), "Gutschrift zitiert noch Satz 2");
 expect(!pixel.cover.includes("zu bestätigen (soweit beteiligt)"), "Deckblatt erfindet eine Kanzlei");

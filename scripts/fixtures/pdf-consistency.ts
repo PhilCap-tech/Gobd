@@ -91,6 +91,7 @@ export function pixelwerkAnswers(): IntakeAnswers {
       BA01: q("bestaetigt", { konten: "Hausbank, Geschäftskonto", karten: "keine" }),
       BA05: q("bestaetigt", { wer: "Jana Probst", vierAugen: "nein" }),
       BA09: q("bestaetigt", { ablauf: "keine; Barauslagen per Foto" }),
+      BA92: q("bestaetigt", { kontrollen: ["Keine regelmäßige Kontrolle"] }),
       EK04: q("bestaetigt", { wer: "Jana Probst", vierAugen: "nein" }),
       H01: q("bestaetigt", {
         kontrollen: [

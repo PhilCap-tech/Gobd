@@ -11,7 +11,8 @@ import {
   hiddenQuestion,
   livedAufbewahrung,
   livedBegriffe,
-  livedKontrollen,
+  ausnahmenInDetails,
+  kontrollenAbschnitt,
   livedProzess,
   moduleHasLivedAnswers,
   redactDenied,
@@ -221,22 +222,26 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
       }
       const line = catalogAnswerLine(id, answers);
       if (!line) continue;
-      const details = line.details.length ? ` ${line.details.map((bit) => cell(bit)).join(" · ")}` : "";
+      const shown = ausnahmenInDetails(id, answers, line.details);
+      const details = shown.length ? ` ${shown.map((bit) => cell(bit)).join(" · ")}` : "";
       const reason = line.reason ? ` Begründung: ${cell(line.reason)}` : "";
       lines.push(collapseRepeatedTokens(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`));
     }
     lines.push("");
   }
 
-  const kontrollen = livedKontrollen(modul, answers);
-  if (kontrollen.length) {
+  const kontrollen = kontrollenAbschnitt(modul, answers);
+  if (kontrollen.zeilen.length || kontrollen.satz) {
     heading("Kontrollen");
-    lines.push(
-      "| Kontrolle | Zweck |",
-      "| --- | --- |",
-      ...kontrollen.map((item) => `| ${cell(item.name)} | ${cell(item.zweck)} |`),
-      "",
-    );
+    if (kontrollen.satz) lines.push(kontrollen.satz, "");
+    if (kontrollen.zeilen.length) {
+      lines.push(
+        "| Kontrolle | Zweck |",
+        "| --- | --- |",
+        ...kontrollen.zeilen.map((item) => `| ${cell(item.name)} | ${cell(item.zweck)} |`),
+        "",
+      );
+    }
   }
 
   const fristen = livedAufbewahrung(modul, answers);
