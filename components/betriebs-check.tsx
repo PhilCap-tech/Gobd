@@ -52,9 +52,9 @@ export function BetriebsCheckStep({
   return (
     <section>
       <p className="step-label">Betriebs-Check</p>
-      <h1>Welche Bereiche gibt es in deinem Betrieb?</h1>
+      <h1>Welche Bereiche gibt es in Ihrem Betrieb?</h1>
       <p className="prose">
-        Anhand dieser Angaben schaltet das Tool die passenden Module frei. Du kannst Module später im
+        Anhand dieser Angaben schaltet das Tool die passenden Module frei. Sie können Module später im
         Konto ergänzen. Kernmodule (Organisation, Buchführung, Archiv, Systeme, Rechte, Sicherung,
         Kontrollen, Auslagerung, Prüfung, Änderungen, Pflege) sind immer aktiv.
       </p>
@@ -105,7 +105,7 @@ export function BetriebsCheckStep({
       </div>
       <div className="card">
         <h2>Software-Vorlagen (optional)</h2>
-        <p className="hint">Trägt vorgeschlagene Systemnamen ein — Status setzt du selbst.</p>
+        <p className="hint">Trägt vorgeschlagene Systemnamen ein — den Status setzen Sie selbst.</p>
         <div className="chips">
           {SOFTWARE_PRESETS.map((preset) => (
             <button
@@ -122,7 +122,7 @@ export function BetriebsCheckStep({
       <div className="card">
         <h2>Namen der Verantwortlichen — einmal erfassen, überall nutzen</h2>
         <p className="hint">
-          Trage hier die Namen (und Systeme) ein. Wir belegen passende Felder in den Modulen vor.
+          Tragen Sie hier die Namen (und Systeme) ein. Wir belegen passende Felder in den Modulen vor.
         </p>
         {STAMMDATEN_FELDER.map((field) => (
           <div className="field" key={field.key}>
@@ -169,8 +169,8 @@ export function ModulUebersichtStep({
       <p className="step-label">Module</p>
       <h1>Module und Dokumentationsstatus</h1>
       <p className="prose">
-        So wird dein Gesamtdokument aufgebaut. Ein vorhandener Bereich darf nicht stillschweigend
-        fehlen: „{STATUS_OPTION_LABEL.tool}“, bestehende Dokumentation verlinken oder den Status „{STATUS_OPTION_LABEL.offen}“ setzen. „Nicht vorhanden“ nur, wenn es den Ablauf bei dir nicht gibt — mit kurzer Begründung.
+        So wird Ihr Gesamtdokument aufgebaut. Ein vorhandener Bereich darf nicht stillschweigend
+        fehlen: „{STATUS_OPTION_LABEL.tool}“, bestehende Dokumentation verlinken oder den Status „{STATUS_OPTION_LABEL.offen}“ setzen. „Nicht vorhanden“ nur, wenn es den Ablauf bei Ihnen nicht gibt — mit kurzer Begründung.
       </p>
       <details className="status-hilfe" open>
         <summary>Was die Status bedeuten</summary>

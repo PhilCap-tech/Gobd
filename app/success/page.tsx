@@ -74,15 +74,15 @@ export default async function SuccessPage({
             <p className="kicker">
               Version {versionLabelFromRow({ version: String(version) })}
             </p>
-            <h1>Dein Entwurf ist fertig</h1>
+            <h1>Ihr Entwurf ist fertig</h1>
             <p className="lead">
-              {row.company || "Dein Unternehmen"} — Verfahrensdokumentation als
-              PDF plus offene Punkte. Entwurf aus deinen Angaben — keine
+              {row.company || "Ihr Unternehmen"} — Verfahrensdokumentation als
+              PDF plus offene Punkte. Entwurf aus Ihren Angaben — keine
               Freigabe.
             </p>
             <div className="card">
               <p className="prose">
-                Kapitelgerüst aus deinen Intake-Angaben. Keine erfundenen
+                Kapitelgerüst aus Ihren Intake-Angaben. Keine erfundenen
                 GoBD-Rechtstexte. Offene Punkte kennzeichnen, was noch zu
                 bestätigen ist. Eine Abstimmung mit dem Steuerberater ist
                 optional und nur im Rahmen eines gesonderten Auftrags.

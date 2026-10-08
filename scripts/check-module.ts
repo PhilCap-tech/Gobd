@@ -50,7 +50,7 @@ ok(
   ),
   "offen status no longer uses noch nicht dokumentiert",
 );
-ok(STATUS_HILFE.offen.startsWith("Du "), "offen hilfe is du-form");
+ok(STATUS_HILFE.offen.startsWith("Sie "), "offen hilfe is Sie-form");
 ok(STATUS_OPTION_LABEL.nicht_vorhanden === "nicht vorhanden", "absent option label unchanged");
 ok(STATUS_LABEL.tool === "Im Tool beschreiben", "tool display label");
 ok(!/beschrieben/.test(`${STATUS_LABEL.tool} ${STATUS_OPTION_LABEL.tool}`), "tool label is infinitive");
