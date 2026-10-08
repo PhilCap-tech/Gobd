@@ -83,8 +83,6 @@ Kurz erklären, was ihr beschrieben habt; um Rückfragen und Hinweise bitten. Ä
 
 Geschäftsleitung setzt in Kraft. Version, Datum, Ablageort. Später: [aktualisieren](/blog/verfahrensdokumentation-aktualisieren).
 
-## Soft-CTA: Readiness-Check
-
 Bevor du Stunden in die falsche Richtung investierst: kostenloser [Readiness-Check](/readiness) zu Branche, Software, Belegwegen und IT — ohne Kreditkarte.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).

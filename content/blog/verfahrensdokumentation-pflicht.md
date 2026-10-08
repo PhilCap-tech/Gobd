@@ -100,8 +100,6 @@ Vor einer Betriebsprüfung zählt vor allem, ob der Text zur Realität passt und
 
 Wenn Sie Bargeld führen, gehört der Kassenteil in dieselbe Dokumentation. Was dort hinein soll, steht in [Verfahrensdokumentation für die Kasse](/blog/verfahrensdokumentation-kasse).
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob die Grundlagen schon beisammen sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).

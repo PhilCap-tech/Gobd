@@ -98,8 +98,6 @@ Vertiefung: [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorl
 
 DIY und Berater nebeneinander: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
 
-## Soft-CTA: Readiness-Check
-
 Noch unklar, welcher Weg zu euch passt? Der kostenlose [Readiness-Check](/readiness) klärt grob Branche, Software, Belegwege und IT — ohne Kreditkarte und ohne Produktzwang.
 
 ## Worauf du bei „Verfahrensdokumentation Software“ achten solltest

@@ -133,8 +133,6 @@ Ein Haken ohne Nachweis im Betrieb ist derselbe Fehler wie eine Kontrolle, die n
 
 Zum Sortieren der übrigen Kapitel: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF). Offene Punkte auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob Rollen, Systeme und Belegwege schon greifbar sind, bevor Sie Kontrollen beschreiben? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 ## Primär-CTA: Verfahrensdokumentation online erstellen

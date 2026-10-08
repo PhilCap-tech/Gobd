@@ -101,8 +101,6 @@ Die Geschäftsleitung sollte die Dokumentation in Kraft setzen. Bei System- oder
 
 Der Berater muss das nicht zwingend von Null schreiben. Viele Betriebe liefern bisher nur Fragmente. Ein strukturierter Entwurf spart Abstimmungsschleifen — ersetzt aber keine Beratung.
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob du die Basics schon beisammen hast? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).

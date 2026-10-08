@@ -103,8 +103,6 @@ Beispiele, die oft relevant sind:
 
 Wenn es Ausnahmen gibt, beschreibe den **Alternativweg** (z. B. Papier bleibt, Scan nur zur Arbeitskopie).
 
-## Soft-CTA: Readiness-Check
-
 Unklar, ob euer Scan-Setup schon dokumentationsreif ist? Der kostenlose [Readiness-Check](/readiness) fragt u. a. Belegwege, Software und Verantwortliche ab — ohne Kreditkarte.
 
 ## Mini-Checkliste: Block „Ersetzendes Scannen“ fertig?
