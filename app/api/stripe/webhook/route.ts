@@ -5,6 +5,7 @@ import {
   isStripeSecretConfigured,
 } from "@/lib/env";
 import {
+  checkoutContactFromCustomerDetails,
   handleFailedJob,
   handleFailedPayment,
   triggerOnboardingMail,
@@ -125,10 +126,13 @@ export async function POST(request: Request) {
           }),
         );
 
+        const stripeContact = checkoutContactFromCustomerDetails(session.customer_details);
         await triggerOnboardingMail({
           email,
           company,
           sessionId: session.id,
+          checkoutNames: stripeContact.checkoutNames,
+          extraCompanyNames: stripeContact.extraCompanyNames,
           audience:
             session.metadata?.audience === "steuerberater" ? "steuerberater" : "kunde",
         });

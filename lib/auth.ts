@@ -86,12 +86,19 @@ export function verifySessionToken(
   return payload.email;
 }
 
+/**
+ * Customer onboarding lands on the Betriebs-Check. Exact path only:
+ * `safeNextPath` drops query and hash, so this cannot become an open redirect.
+ */
+export const CUSTOMER_ONBOARDING_NEXT_PATH = "/intake";
+
 const ALLOWED_NEXT_PATHS = new Set([
   "/portal",
   "/billing",
   "/account",
   "/account/billing",
   "/account/firma/neu",
+  CUSTOMER_ONBOARDING_NEXT_PATH,
 ]);
 const ACCOUNT_DOCUMENT_EDIT =
   /^\/account\/dokument\/[A-Za-z0-9_-]{8,80}$/;
