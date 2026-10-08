@@ -12,9 +12,9 @@ import {
   modulKontrollen,
   modulProzess,
   modulQuestion,
-  type ModulDef,
 } from "@/lib/module/katalog";
 import { effectiveModulStatus } from "@/lib/module/status";
+import type { ModulDef } from "@/lib/module/typen";
 import type { IntakeAnswers } from "@/lib/types";
 
 type Entry = NonNullable<IntakeAnswers["katalog"]>[string];

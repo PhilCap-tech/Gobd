@@ -234,8 +234,10 @@ async function checkMusterPdfDepth() {
       documentId: muster.documentId,
       version: muster.version,
     });
-    // buffer to text via crude latin extraction is weak; use byte length as proxy + word estimate from chapters already done
-    const minBytes = 400_000;
+    // Byte length only guards against a collapsed render. Word and chapter
+    // counts above are the content gate. Unconfirmed catalog sentences are
+    // no longer printed, so complete Muster sit under the old 400_000 floor.
+    const minBytes = 350_000;
     ok(pdf.buffer.length > minBytes, `${vorlage} PDF bytes > ${minBytes} (got ${pdf.buffer.length})`);
   }
   console.log("check-module muster pdf depth: green");
