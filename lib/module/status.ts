@@ -291,23 +291,49 @@ export function applyVorlageVorschlaege(
   return { ...answers, katalog };
 }
 
+function presetValueEmpty(value: unknown): boolean {
+  if (value == null) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
 export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): IntakeAnswers {
   const preset = SOFTWARE_PRESETS.find((item) => item.id === presetId);
   if (!preset) return answers;
   const zustand = modulZustand(answers);
   const software = Array.from(new Set([...(zustand.software ?? []), preset.id]));
+  const stamm = { ...(zustand.stammdaten ?? {}) };
+  for (const [key, value] of Object.entries(preset.stammdaten ?? {})) {
+    const current = stamm[key as keyof Stammdaten];
+    if (!String(current ?? "").trim() && value) stamm[key as keyof Stammdaten] = value;
+  }
   let next: IntakeAnswers = {
     ...answers,
-    module: {
-      ...zustand,
-      software,
-      stammdaten: { ...(zustand.stammdaten ?? {}), ...(preset.stammdaten ?? {}) },
-    },
+    module: { ...zustand, software, stammdaten: stamm },
   };
   const katalog = { ...(next.katalog ?? {}) };
   for (const [qid, values] of Object.entries(preset.values)) {
     const current = katalog[qid] ?? {};
-    katalog[qid] = { ...current, values: { ...(current.values ?? {}), ...values } };
+    const merged = { ...(current.values ?? {}) };
+    for (const [key, value] of Object.entries(values)) {
+      if (key === "systeme" && Array.isArray(value)) {
+        const existing = Array.isArray(merged.systeme)
+          ? (merged.systeme as Record<string, unknown>[])
+          : [];
+        const named = existing.filter((row) => String(row.name ?? "").trim());
+        const names = new Set(named.map((row) => String(row.name ?? "").trim()));
+        const additions = (value as Record<string, unknown>[]).filter((row) => {
+          const name = String(row.name ?? "").trim();
+          return name && !names.has(name);
+        });
+        if (!named.length) merged.systeme = value;
+        else if (additions.length) merged.systeme = [...named, ...additions];
+        continue;
+      }
+      if (presetValueEmpty(merged[key])) merged[key] = value;
+    }
+    katalog[qid] = { ...current, values: merged };
   }
   next = { ...next, katalog };
   return next;

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { prefillKnownFacts, type CatalogIssue } from "@/lib/intake-catalog";
 import {
   applySoftwarePreset,
-  applyStammdatenPrefill,
   BRANCHEN_VORLAGEN,
   CHECK_FRAGEN,
   modulFortschritt,
@@ -37,9 +37,11 @@ const STAMMDATEN_FELDER = [
 export function BetriebsCheckStep({
   answers,
   onChange,
+  issues = [],
 }: {
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
+  issues?: CatalogIssue[];
 }) {
   const check = answers.module?.check ?? {};
   const stammdaten = answers.module?.stammdaten ?? {};
@@ -73,9 +75,16 @@ export function BetriebsCheckStep({
       </div>
       <div className="card">
         <h2>Betriebs-Check</h2>
-        {CHECK_FRAGEN.map((frage) => (
-          <div className="field" key={frage.key}>
+        {CHECK_FRAGEN.map((frage) => {
+          const gap = issues.find((issue) => issue.fieldKey === frage.key && issue.anchor === `check-${frage.key}`);
+          return (
+          <div className={gap ? "field field-invalid" : "field"} id={`check-${frage.key}`} key={frage.key} tabIndex={gap ? -1 : undefined}>
             <label>{frage.label}</label>
+            {gap ? (
+              <p className="field-error" role="alert">
+                {gap.message}
+              </p>
+            ) : null}
             <p className="hint">{frage.hilfe}</p>
             <div className="chips">
               {ANTWORTEN.map((option) => (
@@ -90,7 +99,8 @@ export function BetriebsCheckStep({
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       <div className="card">
         <h2>Software-Vorlagen (optional)</h2>
@@ -101,7 +111,7 @@ export function BetriebsCheckStep({
               key={preset.id}
               type="button"
               className={software.includes(preset.id) ? "chip on" : "chip"}
-              onClick={() => onChange(applySoftwarePreset(answers, preset.id))}
+              onClick={() => onChange(prefillKnownFacts(applySoftwarePreset(answers, preset.id)))}
             >
               {preset.label}
             </button>
@@ -121,8 +131,7 @@ export function BetriebsCheckStep({
               value={stammdaten[field.key] ?? ""}
               placeholder={field.placeholder}
               onChange={(event) => {
-                let next = setStammdaten(answers, { [field.key]: event.target.value });
-                next = applyStammdatenPrefill(next);
+                const next = prefillKnownFacts(setStammdaten(answers, { [field.key]: event.target.value }));
                 onChange(next);
               }}
             />
@@ -139,6 +148,7 @@ export function ModulUebersichtStep({
   sessionId = "",
   documentId = "",
   focusModulId = "",
+  issues = [],
 }: {
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
@@ -146,6 +156,7 @@ export function ModulUebersichtStep({
   documentId?: string;
   /** Modulzeile, die aus dem Konto („Jetzt ausfüllen“) angesprungen wird. */
   focusModulId?: string;
+  issues?: CatalogIssue[];
 }) {
   const rows = vollstaendigkeitsZeilen(answers);
   useEffect(() => {
@@ -153,7 +164,7 @@ export function ModulUebersichtStep({
     document.getElementById(`modul-${focusModulId}`)?.scrollIntoView({ block: "center" });
   }, [focusModulId]);
   return (
-    <section>
+    <section id="modul-uebersicht">
       <p className="step-label">Module</p>
       <h1>Module und Dokumentationsstatus</h1>
       <p className="prose">
@@ -184,17 +195,27 @@ export function ModulUebersichtStep({
           <tbody>
             {rows.map((row) => {
               const current = answers.module?.status?.[row.modul];
+              const gap = issues.find((issue) => issue.anchor === `modul-${row.modul}`);
               return (
                 <tr
                   key={row.modul}
                   id={`modul-${row.modul}`}
-                  className={focusModulId === row.modul ? "modul-focus" : undefined}
+                  className={[focusModulId === row.modul ? "modul-focus" : "", gap ? "row-invalid" : ""]
+                    .filter(Boolean)
+                    .join(" ") || undefined}
                 >
                   <td>
                     {row.nr}. {row.titel}
+                    {gap ? (
+                      <p className="field-error" role="alert">
+                        {gap.message}
+                      </p>
+                    ) : null}
                   </td>
                   <td>
                     <select
+                      id={`modul-${row.modul}-status`}
+                      aria-invalid={Boolean(gap) || undefined}
                       value={current?.status ?? row.status}
                       onChange={(event) => {
                         const status = event.target.value as typeof row.status;

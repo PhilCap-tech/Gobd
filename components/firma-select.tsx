@@ -7,24 +7,27 @@ export function FirmaSelect({
   value,
   onChange,
   required = false,
+  invalid = false,
   id = "firma-select",
 }: {
   entities: EntityChoice[];
   value: string;
   onChange: (entityId: string) => void;
   required?: boolean;
+  invalid?: boolean;
   id?: string;
 }) {
   if (entities.length === 0) return null;
 
   return (
-    <div className="field">
+    <div className={invalid ? "field field-invalid" : "field"} id={`${id}-feld`}>
       <label htmlFor={id}>Firma</label>
       <select
         id={id}
         name="entityId"
         value={value}
         required={required}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
       >
         {entities.length > 1 && <option value="">Bitte Firma wählen</option>}
@@ -34,6 +37,11 @@ export function FirmaSelect({
           </option>
         ))}
       </select>
+      {invalid ? (
+        <p className="field-error" role="alert">
+          Bitte eine Firma wählen.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -8,7 +8,8 @@ import {
   groupDocumentFamilies,
   nextVersionNumber,
 } from "@/lib/documents";
-import { entityById, entityChoices } from "@/lib/entities";
+import { entityById, entityChoices, type Entity } from "@/lib/entities";
+import type { FirmFacts } from "@/lib/intake-catalog";
 import { isStripeConfigured } from "@/lib/env";
 import { answersForNewBereich } from "@/lib/intake-catalog";
 import { BELEGFLUSS, bereichIdOf, isBereichId } from "@/lib/bereiche";
@@ -90,6 +91,18 @@ function IntakeGate({
   );
 }
 
+function firmFromEntity(entity: Entity | null | undefined, fallbackName: string): FirmFacts {
+  if (!entity) return { name: fallbackName };
+  return {
+    name: entity.name || fallbackName,
+    street: entity.street,
+    zip: entity.zip,
+    city: entity.city,
+    stnr: entity.stnr,
+    ustId: entity.ustId,
+  };
+}
+
 function EditGate({ loggedIn }: { loggedIn: boolean }) {
   return (
     <div className="card">
@@ -169,6 +182,10 @@ export default async function IntakePage({
         gesamtStart = answersForGesamt(ordered, basisRow.company);
       }
     }
+    const basisEntity =
+      basisRow?.entityId && sessionEmail
+        ? await getOwnedEntity(basisRow.entityId, sessionEmail)
+        : null;
     return (
       <>
         <SiteHeader backHref="/account" backLabel="← Zum Konto" />
@@ -193,6 +210,7 @@ export default async function IntakePage({
               focusModulId={focusModulId}
               areaBaseDocumentId={basisRow.documentId}
               existingBereiche={existingBereiche}
+              firm={firmFromEntity(basisEntity, basisRow.company)}
             />
           )}
         </main>
@@ -215,6 +233,8 @@ export default async function IntakePage({
       resolvedRow;
     const latest = groupDocumentFamilies(family)[0]?.latest ?? source;
     const allowed = canAccessDocument(source, { sessionEmail, sessionId });
+    const sourceEntity =
+      latest?.entityId && sessionEmail ? await getOwnedEntity(latest.entityId, sessionEmail) : null;
 
     return (
       <>
@@ -232,6 +252,7 @@ export default async function IntakePage({
               initialEntityId={latest.entityId}
               initialStepId={initialStepId}
               focusModulId={focusModulId}
+              firm={firmFromEntity(sourceEntity, latest.company)}
             />
           )}
         </main>
