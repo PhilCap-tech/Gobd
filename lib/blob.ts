@@ -11,6 +11,7 @@ import {
 } from "@/lib/document-content";
 import { applyEntityToIdentity } from "@/lib/entities";
 import { isBlobConfigured, isSheetsConfigured } from "@/lib/env";
+import { uploadOwnerSegment } from "@/lib/upload-path";
 import { generateReadinessPdf, type ReadinessLead } from "@/lib/readiness";
 import { getFileFallbackDir, getOwnedEntity } from "@/lib/store";
 import {
@@ -290,7 +291,7 @@ export async function storeCustomerUpload(input: {
   const err = uploadAllowed(input.contentType, input.buffer.length);
   if (err) throw new Error(err);
   const filename = safeUploadName(input.filename);
-  const owner = input.ownerKey.replace(/[^a-zA-Z0-9_-]+/g, "").slice(0, 64) || "anon";
+  const owner = uploadOwnerSegment(input.ownerKey);
   const modul = input.modulId.replace(/[^a-z0-9]/g, "") || "modul";
   const stamp = Date.now().toString(36);
   const blobPath = `gobd/uploads/${owner}/${modul}/${stamp}-${filename}`;

@@ -257,6 +257,37 @@ Für persistente PDFs, Mail und Abo-Portal: `BLOB_READ_WRITE_TOKEN`, `RESEND_API
 
 Landing ist indexierbar (`robots` erlaubt Indexierung). Checkout, Intake, Success, Readiness, Login und Konto sind `noindex`.
 
+## Testkonto leeren (Admin)
+
+`POST /api/admin/wipe-account` löscht nur die im Code fest hinterlegten Test-Adressen:
+
+- `philip.cappelletti@sdc-ventures.com`
+- `cappe@gmx.de`
+
+Andere Adressen antworten mit **403**. Es werden keine Mails versendet.
+
+Auth: `Authorization: Bearer <ADMIN_WIPE_TOKEN>`. Der Vergleich ist timing-safe. Fehlt `ADMIN_WIPE_TOKEN` oder ist der Wert kürzer als 32 Zeichen, antwortet der Endpunkt **404**. Falscher Token: **401**. Kein GET.
+
+`dryRun` ist standardmäßig `true` (nur zählen und sichern). Wirklich löschen nur mit `"dryRun": false`.
+
+Speicher, die geleert werden:
+
+- Google Sheets: `profiles`, `entities`, `intakes`, `readiness_leads` und jedes weitere Tab mit E-Mail-/Owner-Spalte. Die betroffenen Zeilen stehen vor dem Löschen in der JSON-Antwort (Backup, ohne Tokens).
+- Vercel Blob: Entwürfe `gobd/drafts/<hash>`, PDFs und Kapitel unter `gobd/<familyId>/`, Uploads unter `gobd/uploads/<owner>/`. Draft-Keys werden aus den Zeilen abgeleitet; zusätzlich werden Entwürfe per Prefix gelistet und am Inhalt geprüft.
+- Datei-Fallback (lokal `.data`, auf der Instanz `/tmp/gobd-data`), best effort: dieselben JSON-Dateien, PDFs, Kapitel, Entwürfe, Uploads, Referral-Ledger.
+- Stripe: Kunden mit dieser E-Mail, aktive Abos sofort kündigen, Kunde löschen. Nur bei Test-Key `sk_test_` oder `rk_test_`. Live-Key und fehlender Key: Stripe wird übersprungen und im JSON gemeldet.
+
+`ADMIN_WIPE_TOKEN` setzt der Owner in Vercel (Production). Nicht ins Repo.
+
+```bash
+curl -sS -X POST "https://www.gobd-doku-erstellen.de/api/admin/wipe-account" \
+  -H "Authorization: Bearer $ADMIN_WIPE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"cappe@gmx.de","dryRun":true}'
+```
+
+Prüfung ohne Speicher: `npx tsx scripts/check-admin-wipe.ts`
+
 ## Ads tracking (Google Search first, then Meta Pixel; consent-gated)
 
 Messung **vor** Paid-Spend: Traffic + Readiness-Submit. Stripe bleibt **TEST** — **keine** `Purchase`- oder Checkout-Conversion-Events (weder Google noch Meta).

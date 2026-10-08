@@ -37,6 +37,13 @@ const customerVerifyCache = new Map<
 
 let stripeClient: Stripe | null = null;
 
+/** Drop short-lived customer lookup caches after an admin wipe. */
+export function clearStripeLookupCache(): void {
+  customerListCache.clear();
+  customerListInflight.clear();
+  customerVerifyCache.clear();
+}
+
 export type CheckoutResolveError = "missing" | "not_paid" | "lookup_failed";
 
 export function getStripe(): Stripe {

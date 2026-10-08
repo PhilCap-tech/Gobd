@@ -2,7 +2,6 @@
  * Server-side Intake-Entwürfe (ergänzt localStorage).
  * Speicherung: privater Vercel Blob, oder lokale Datei nur ohne Token (Demo).
  */
-import { createHash } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -13,6 +12,7 @@ import {
   type GetCommandOptions,
   type PutCommandOptions,
 } from "@vercel/blob";
+import { intakeDraftBlobPath, intakeDraftHash } from "@/lib/draft-path";
 import { isBlobConfigured } from "@/lib/env";
 import {
   draftIsEmpty,
@@ -81,13 +81,11 @@ function blobToken(): string | undefined {
 }
 
 function draftPathname(draftKey: string): string {
-  const hash = createHash("sha256").update(draftKey).digest("hex").slice(0, 40);
-  return `gobd/drafts/${hash}.json`;
+  return intakeDraftBlobPath(draftKey);
 }
 
 function localDraftFile(draftKey: string): string {
-  const hash = createHash("sha256").update(draftKey).digest("hex").slice(0, 40);
-  return path.join(getFileFallbackDir(), "drafts", `${hash}.json`);
+  return path.join(getFileFallbackDir(), "drafts", `${intakeDraftHash(draftKey)}.json`);
 }
 
 function writeOptions(token: string): PutCommandOptions {
