@@ -3,7 +3,8 @@ import { getSessionEmail } from "@/lib/auth";
 import {
   clearIntakeDraft,
   draftIsEmpty,
-  draftIsNewer,
+  draftRevision,
+  incomingDraftWins,
   loadIntakeDraft,
   normalizeDraftKey,
   saveIntakeDraft,
@@ -88,6 +89,7 @@ export async function PUT(request: Request) {
     step?: number;
     answers?: unknown;
     clientUpdatedAt?: string;
+    revision?: number;
   };
   try {
     body = await request.json();
@@ -113,7 +115,12 @@ export async function PUT(request: Request) {
     if (!(await authorize({ sessionId: body.sessionId, draft: existing, email: body.email }))) {
       return jsonError("Kein Zugriff.", 401);
     }
-    if (draftIsNewer(existing.updatedAt, body.clientUpdatedAt ?? "")) {
+    if (
+      !incomingDraftWins(
+        { revision: body.revision, clientUpdatedAt: body.clientUpdatedAt },
+        existing,
+      )
+    ) {
       return NextResponse.json(
         { error: "Konflikt: Server-Entwurf ist neuer.", draft: existing, conflict: true },
         { status: 409 },
@@ -132,6 +139,7 @@ export async function PUT(request: Request) {
     entityId: body.entityId?.trim() || existing?.entityId || "",
     step: Number.isFinite(body.step) ? Number(body.step) : 0,
     answers: body.answers,
+    revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(existing)),
     updatedAt: new Date().toISOString(),
   };
 

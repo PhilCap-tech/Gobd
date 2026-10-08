@@ -981,6 +981,30 @@ textarea {
   background: #fff;
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  padding: 0;
+  border-radius: 2px;
+  accent-color: var(--accent);
+}
+
+.field label.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.45;
+}
+
+.field label.check input {
+  width: auto;
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
 textarea {
   min-height: 88px;
   resize: vertical;

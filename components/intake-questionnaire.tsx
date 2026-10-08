@@ -263,15 +263,15 @@ function FieldInput({
   }
   if (field.type === "boolean") {
     return (
-      <label>
+      <label className="check" htmlFor={id}>
         <input
           id={id}
           type="checkbox"
           aria-invalid={invalid || undefined}
           checked={value === true}
           onChange={(event) => onChange(event.target.checked)}
-        />{" "}
-        {label}
+        />
+        <span>{label}</span>
       </label>
     );
   }

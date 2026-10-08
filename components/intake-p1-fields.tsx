@@ -1185,16 +1185,26 @@ export function ProcessStatus({
             role="group"
             aria-label={`Stand: ${prompt}`}
           >
-            {PROCESS_STATUSES.map((status) => (
-              <button
-                key={status}
-                type="button"
-                className={entry?.status === status ? "chip on" : "chip"}
-                onClick={() => onChange(setCatalogStatus(answers, questionId, status as CatalogStatus))}
-              >
-                {statusLabel(status)}
-              </button>
-            ))}
+            {PROCESS_STATUSES.map((status) => {
+              const active = entry?.status === status;
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  className={active ? "chip on" : "chip"}
+                  aria-pressed={active}
+                  onClick={() =>
+                    onChange(
+                      active
+                        ? clearCatalogStatus(answers, questionId)
+                        : setCatalogStatus(answers, questionId, status as CatalogStatus),
+                    )
+                  }
+                >
+                  {statusLabel(status)}
+                </button>
+              );
+            })}
           </div>
           {entry?.status === "geplant" ? (
             <p className="hint">
