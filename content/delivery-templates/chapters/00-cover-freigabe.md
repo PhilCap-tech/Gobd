@@ -18,7 +18,9 @@ Dieses Dokument beschreibt {{#if bereich.belegfluss}}den Belegweg{{/if}}{{#if be
 {{#if keineKanzlei}}| Buchhaltung und Steuererklärungen | {{eigenbuchhaltung}} |
 {{/if}}{{#unless keineKanzlei}}| Externe Kanzlei | {{answers.steuerberater | or "zu bestätigen (soweit beteiligt)"}} |
 {{/unless}}
-| Geltungsbereich | Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung im beschriebenen Umfang |
+{{#if geltungText}}| Geltungsbereich | {{geltungText}} |
+{{/if}}{{#unless geltungText}}| Geltungsbereich | Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung im beschriebenen Umfang |
+{{/unless}}
 {{/if}}{{#if bereich.andere}}| Bereich | {{bereich.label}} |
 | Bereichsverantwortung | {{bereich.verantwortlich | or "zu bestätigen"}} |
 | Geltungsbereich | {{bereich.kurz}} Allgemeiner Teil (Unternehmen, Systeme, Aufbewahrung, Berechtigungen, Kontrollen) im beschriebenen Umfang |

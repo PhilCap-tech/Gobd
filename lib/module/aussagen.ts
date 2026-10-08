@@ -367,6 +367,54 @@ function controlTokens(values: Record<string, unknown> | undefined): string[] {
   return free ? [free] : [];
 }
 
+function neinOderUnbekannt(value: string): boolean {
+  return /^(nein|unbekannt)$/i.test(value.trim());
+}
+
+/** Ausgewählte Katalogzeile widerspricht einer bestätigten Sachangabe. */
+function widersprichtAngabe(name: string, answers: IntakeAnswers): boolean {
+  const er = entry(answers, "ER02");
+  if (
+    er?.status === "bestaetigt" &&
+    neinOderUnbekannt(text(er.values?.validierung)) &&
+    /Validierung strukturierter/i.test(name)
+  ) {
+    return true;
+  }
+  const pb = entry(answers, "PB05");
+  if (pb?.status === "bestaetigt" && /^nein$/i.test(text(pb.values?.vernichtung)) && /Vernichtung/i.test(name)) {
+    return true;
+  }
+  const ww = entry(answers, "WW05");
+  if (
+    ww?.status === "bestaetigt" &&
+    /nur zur inventur/i.test(text(ww.values?.fuehrung)) &&
+    /negativ|Bestandswert|Stichprobenzählung|Bestandskorrektur/i.test(name)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** „Shop“ streichen, wenn das Modul nicht vorhanden ist; die übrige Abstimmung bleibt. */
+function zweckOhneVerneintes(name: string, zweck: string, facts: BetriebFacts): string | null {
+  if (name !== "Abstimmung Vorsysteme mit Buchhaltung") {
+    return mentionsDenied(`${name} ${zweck}`, facts) ? null : zweck;
+  }
+  const teile = [facts.kasse ? "Kasse" : "", facts.shop ? "Shop" : "", facts.lohn ? "Lohn" : ""].filter(Boolean);
+  if (!teile.length) return null;
+  if (teile.length === 1) return `${teile[0]} ist vollständig übernommen.`;
+  if (teile.length === 2) return `${teile[0]} und ${teile[1]} sind vollständig übernommen.`;
+  return `${teile[0]}, ${teile[1]} und ${teile[2]} sind vollständig übernommen.`;
+}
+
+/** Ausgewählter Kontrollname darf als durchgeführte Kontrolle im PDF stehen. */
+export function kontrolleSichtbar(name: string, answers: IntakeAnswers): boolean {
+  if (!name.trim() || istKeineKontrolle(name)) return false;
+  if (widersprichtAngabe(name, answers)) return false;
+  return !mentionsDenied(name, betriebFacts(answers));
+}
+
 /** Nur ausgewählte Kontrollen mit Status „So läuft es heute“. „Keine…“ ist keine Katalogzeile. */
 export function livedKontrollen(modul: ModulDef, answers: IntakeAnswers): Array<BereichKontrolle & { frage: string }> {
   const facts = betriebFacts(answers);
@@ -377,8 +425,10 @@ export function livedKontrollen(modul: ModulDef, answers: IntakeAnswers): Array<
     if (row?.status !== "bestaetigt") continue;
     const selected = new Set(selectedNames(row.values).filter((name) => !istKeineKontrolle(name)));
     if (!selected.has(item.name)) continue;
-    if (mentionsDenied(`${item.name} ${item.zweck}`, facts)) continue;
-    out.push({ ...item, name: withTurnus(item.name, facts.sichtungTurnus) });
+    if (widersprichtAngabe(item.name, answers)) continue;
+    const zweck = zweckOhneVerneintes(item.name, item.zweck, facts);
+    if (!zweck) continue;
+    out.push({ ...item, zweck, name: withTurnus(item.name, facts.sichtungTurnus) });
   }
   if (modul.catalogIds.includes("H01") && confirmed(answers, "H01")) {
     const raw = entry(answers, "H01")?.values?.kontrollen;

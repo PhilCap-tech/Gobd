@@ -72,6 +72,8 @@ type TemplateContext = {
   keineKanzlei: string;
   /** Rolle der Eigenbuchhaltung, dritte Person. */
   eigenbuchhaltung: string;
+  /** Gesamtdokument: bestätigter Geltungsbereich aus UO06. Leer lässt den Belegfluss-Satz stehen. */
+  geltungText: string;
   /** Area of this document. `belegfluss` is "ja" only for Belegfluss documents. */
   bereich: BereichContext;
   /** Rows of earlier versions for the Änderungshistorie, each ending with a newline. Empty for v1. */
@@ -517,6 +519,16 @@ function chapterApplies(
   return pathOk && tokenOk;
 }
 
+function uo06Angaben(answers: IntakeAnswers): { ausschluss: string; geltung: string } {
+  const item = answers.katalog?.UO06;
+  if (item?.status !== "bestaetigt") return { ausschluss: "", geltung: "" };
+  const values = item.values ?? {};
+  return {
+    ausschluss: typeof values.ausgenommen === "string" ? values.ausgenommen.trim() : "",
+    geltung: typeof values.geltung === "string" ? values.geltung.trim() : "",
+  };
+}
+
 export function renderDeliveryDocument(input: {
   identity: CheckoutIdentity;
   answers: IntakeAnswers;
@@ -546,6 +558,10 @@ export function renderDeliveryDocument(input: {
   const kanzleiUnbestaetigt = intakeValueHasUnconfirmedScope(livedAnswers.steuerberater);
   const kanzleiBucht =
     !isEmptyIntakeValue(livedAnswers.steuerberater) && !kanzleiUnbestaetigt;
+  const uo = isGesamt(input.answers) ? uo06Angaben(input.answers) : { ausschluss: "", geltung: "" };
+  if (uo.ausschluss && !livedAnswers.geltungAusschluss?.trim()) {
+    livedAnswers.geltungAusschluss = uo.ausschluss;
+  }
   const base: TemplateContext = {
     identity: input.identity,
     answers: livedAnswers,
@@ -566,6 +582,7 @@ export function renderDeliveryDocument(input: {
     kanzleiUnbestaetigt: kanzleiUnbestaetigt ? "ja" : "",
     keineKanzlei: isGesamt(input.answers) && kanzleiAbgelehnt(input.answers) ? "ja" : "",
     eigenbuchhaltung: eigenbuchhaltungText(input.answers),
+    geltungText: uo.geltung,
     bereich: bereichContext(input.answers),
     historyRows: historyRows(input.versionHistory ?? []),
     history: historyContext(input.versionHistory ?? [], changeSummary),

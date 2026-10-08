@@ -13,6 +13,7 @@ import {
   livedBegriffe,
   ausnahmenInDetails,
   kontrollenAbschnitt,
+  kontrolleSichtbar,
   livedProzess,
   moduleHasLivedAnswers,
   redactDenied,
@@ -20,6 +21,7 @@ import {
   staticModulText,
   stripFalseFallbacks,
   modulNrPresent,
+  type BetriebFacts,
 } from "@/lib/module/aussagen";
 import {
   MODULE,
@@ -75,13 +77,8 @@ function templateSections(): Map<string, string> {
     } catch {
       continue;
     }
-    // Strip handlebars for Gesamt embedding — lived facts come from questions.
-    // Keep static paragraphs; drop {{...}} blocks crudely by removing lines with {{.
-    const cleaned = raw
-      .split("\n")
-      .filter((line) => !line.includes("{{") && !line.includes("}}"))
-      .join("\n");
-    const parts = cleaned.split(/(?=^#{1,3} )/m).filter(Boolean);
+    // Roh behalten. Platzhalter werden beim Einbetten gerendert, nicht zeilenweise verworfen.
+    const parts = raw.split(/(?=^#{1,3} )/m).filter(Boolean);
     for (const part of parts) {
       const match = part.match(/^#{1,3}\s+(\d+)(?:\.(\d+))?/);
       if (!match) continue;
@@ -97,6 +94,127 @@ function templateSections(): Map<string, string> {
 }
 
 const TEMPLATES = templateSections();
+
+function vorlageLookup(path: string, answers: IntakeAnswers): unknown {
+  const parts = path.split(".").filter(Boolean);
+  if (parts[0] !== "answers" || !parts[1]) return undefined;
+  return (answers as Record<string, unknown>)[parts[1]];
+}
+
+function vorlageFilled(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some((item) => String(item ?? "").trim());
+  return Boolean(value != null && String(value).trim());
+}
+
+function vorlageCondition(expr: string, answers: IntakeAnswers, facts: BetriebFacts): boolean {
+  const contains = expr.match(/^(.+?)\s+contains\s+["']([^"']+)["']$/);
+  if (contains) {
+    const value = vorlageLookup(contains[1].trim(), answers);
+    const blob = Array.isArray(value) ? value.map((item) => String(item)).join(" ") : String(value ?? "");
+    return blob.includes(contains[2]);
+  }
+  const path = expr.trim();
+  if (path === "answers.backup") return facts.backup;
+  if (path === "answers.kontrollen") return facts.kontrollen;
+  return vorlageFilled(vorlageLookup(path, answers));
+}
+
+function vorlageBlockEnd(input: string, from: number): { bodyEnd: number; tagEnd: number } {
+  let depth = 1;
+  let index = from;
+  while (index < input.length) {
+    const nextOpen = input.indexOf("{{#", index);
+    const nextClose = input.indexOf("{{/", index);
+    if (nextClose === -1) break;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth += 1;
+      const closeBrace = input.indexOf("}}", nextOpen);
+      index = closeBrace === -1 ? input.length : closeBrace + 2;
+      continue;
+    }
+    depth -= 1;
+    const closeBrace = input.indexOf("}}", nextClose);
+    const tagEnd = closeBrace === -1 ? input.length : closeBrace + 2;
+    if (depth === 0) return { bodyEnd: nextClose, tagEnd };
+    index = tagEnd;
+  }
+  return { bodyEnd: input.length, tagEnd: input.length };
+}
+
+function vorlageFilters(value: unknown, filters: string[]): string {
+  let current: unknown = value;
+  for (const filter of filters) {
+    const or = filter.match(/^or\s+["']([\s\S]*)["']$/);
+    if (or) {
+      if (!vorlageFilled(current)) current = or[1];
+      continue;
+    }
+    const join = filter.match(/^join\s+["']([\s\S]*)["']$/);
+    if (join) {
+      current = Array.isArray(current)
+        ? current.map((item) => String(item).trim()).filter(Boolean).join(join[1])
+        : (current ?? "");
+    }
+  }
+  if (Array.isArray(current)) return current.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  return current == null ? "" : String(current);
+}
+
+function renderVorlageValues(template: string, answers: IntakeAnswers): string {
+  return template.replace(/\{\{\s*([^}#/][^}]*?)\s*\}\}/g, (_, expr: string) => {
+    const pieces = expr.split("|").map((part) => part.trim());
+    const path = pieces[0] ?? "";
+    return vorlageFilters(vorlageLookup(path, answers), pieces.slice(1));
+  });
+}
+
+function renderVorlageBlocks(template: string, answers: IntakeAnswers, facts: BetriebFacts): string {
+  let output = "";
+  let index = 0;
+  while (index < template.length) {
+    const open = template.indexOf("{{#", index);
+    if (open === -1) {
+      output += template.slice(index);
+      break;
+    }
+    output += template.slice(index, open);
+    const tagEnd = template.indexOf("}}", open);
+    if (tagEnd === -1) {
+      output += template.slice(open);
+      break;
+    }
+    const tag = template.slice(open + 3, tagEnd).trim();
+    const unless = tag.startsWith("unless");
+    const expr = tag.replace(/^(if|unless)\s+/, "");
+    const block = vorlageBlockEnd(template, tagEnd + 2);
+    const include = unless
+      ? !vorlageCondition(expr, answers, facts)
+      : vorlageCondition(expr, answers, facts);
+    if (include) output += renderVorlageBlocks(template.slice(tagEnd + 2, block.bodyEnd), answers, facts);
+    index = block.tagEnd;
+  }
+  return output;
+}
+
+/**
+ * Belegfluss-Vorlage für ein Modul ohne eigene Angaben.
+ * Bedingungen werden ausgewertet, Platzhalter ersetzt.
+ * „Kap. 14“ der Belegfluss-Vorlage ist dort der offene-Punkte-Teil, im Gesamtdokument Anhang A.
+ */
+function prepareVorlage(raw: string, answers: IntakeAnswers, facts: BetriebFacts): string {
+  const referred = raw.replace(/Kap(?:itel)?\.?\s*14\b/gi, "Anhang A");
+  let rendered = renderVorlageValues(renderVorlageBlocks(referred, answers, facts), answers).trim();
+  rendered = rendered
+    .split("\n")
+    .filter((line) => {
+      if (facts.kontrollen && /nur bestätigte Kontrollen aus Intake/.test(line)) return false;
+      // Sicherung ist woanders beschrieben, das Vorlagenfeld answers.backup aber leer.
+      if (/erfolgt laut Intake über:\s*\.?\s*$/.test(line.trim())) return false;
+      return true;
+    })
+    .join("\n");
+  return stripFalseFallbacks(rendered, facts);
+}
 
 function renumberTemplate(body: string, modulNr: number, subStart: number): { text: string; nextSub: number } {
   let sub = subStart;
@@ -178,7 +296,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     : modul.vorlagen
         .map((key) => TEMPLATES.get(key))
         .filter((item): item is string => Boolean(item))
-        .map((block) => stripFalseFallbacks(block, facts))
+        .map((block) => prepareVorlage(block, answers, facts))
         .filter(Boolean);
   if (embedded.length) {
     heading("Ergänzende Beschreibung");
@@ -200,13 +318,39 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     );
   }
 
+  const kontrollen = kontrollenAbschnitt(modul, answers);
+
   for (const gruppe of modul.gruppen) {
     const check = answers.module?.check ?? {};
     if (gruppe.teil && check[gruppe.teil] === "nein") continue;
     heading(gruppe.titel);
     for (const question of gruppenFragen(gruppe)) {
       if (hiddenQuestion(question.id, facts)) continue;
-      lines.push(...bereichQuestionLines(question, state[question.id]), "");
+      const kontrollStatus = state[question.id]?.status;
+      if (
+        /92$/.test(question.id) &&
+        kontrollStatus !== "bestaetigt" &&
+        kontrollStatus !== "nicht_zutreffend" &&
+        kontrollen.zeilen.length
+      ) {
+        lines.push(
+          `**${question.title}:** Für diesen Teil sind noch keine Kontrollen bestätigt. Siehe offene Punkte.`,
+          "",
+        );
+        continue;
+      }
+      let shown = state[question.id];
+      const namen = shown?.values?.kontrollen;
+      if (/92$/.test(question.id) && shown?.status === "bestaetigt" && Array.isArray(namen)) {
+        shown = {
+          ...shown,
+          values: {
+            ...shown.values,
+            kontrollen: namen.filter((item) => typeof item === "string" && kontrolleSichtbar(item, answers)),
+          },
+        };
+      }
+      lines.push(...bereichQuestionLines(question, shown), "");
     }
   }
 
@@ -230,7 +374,6 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     lines.push("");
   }
 
-  const kontrollen = kontrollenAbschnitt(modul, answers);
   if (kontrollen.zeilen.length || kontrollen.satz) {
     heading("Kontrollen");
     if (kontrollen.satz) lines.push(kontrollen.satz, "");
