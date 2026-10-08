@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
+    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export",
     "check:ansprache": "node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
+    "check:export": "tsx scripts/check-export-mvp.ts",
     "dev": "next dev",
     "build": "next build",
     "postbuild": "node scripts/run-preview-draft-smoke.mjs",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "tsx": "4.23.15",
     "typescript": "^5"
   }
 }
