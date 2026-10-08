@@ -24,7 +24,7 @@ export const LEAD_MAGNET_HEADLINE = "10 Offene Punkte vor der Prüfung";
 export const LEAD_MAGNET_SUBHEAD =
   "Kurzer Abgleich für KMU & Handwerk — keine Steuerberatung";
 export const LEAD_MAGNET_INTRO =
-  "Die Verfahrensdokumentation soll einem sachverständigen Dritten eure Belegwege erklären. Vor einer Betriebsprüfung hilft oft kein „mehr Text“, sondern Klarheit über Lücken. Diese Liste macht typische offene Punkte sichtbar — zum Abhaken mit Team und Steuerberater.";
+  "Die Verfahrensdokumentation soll einem sachverständigen Dritten Ihre Belegwege erklären. Vor einer Betriebsprüfung hilft oft kein „mehr Text“, sondern Klarheit über Lücken. Diese Liste macht typische offene Punkte sichtbar — zum Abhaken mit Team und Steuerberater.";
 
 export const LEAD_MAGNET_POINTS = [
   {
@@ -41,7 +41,7 @@ export const LEAD_MAGNET_POINTS = [
   },
   {
     title: "Systeme & Zugriff?",
-    body: "Welche Software (z. B. DATEV, sevdesk, lexoffice — Beispiele), wo liegen Daten, wie Export/Zugriff organisiert ist — soweit für euch relevant.",
+    body: "Welche Software (z. B. DATEV, sevdesk, lexoffice — Beispiele), wo liegen Daten, wie Export/Zugriff organisiert ist — soweit für Sie relevant.",
   },
   {
     title: "Verantwortliche & Freigabe?",
@@ -69,14 +69,14 @@ export const LEAD_MAGNET_POINTS = [
   },
 ] as const;
 
-export const LEAD_MAGNET_CTA_TITLE = "Unsicher, wo ihr steht?";
+export const LEAD_MAGNET_CTA_TITLE = "Unsicher, wo Sie stehen?";
 export const LEAD_MAGNET_CTA_BEFORE = "Kostenloser ";
 export const LEAD_MAGNET_CTA_LINK_LABEL = "Readiness-Check";
 export const LEAD_MAGNET_CTA_AFTER =
   " — kurze Fragen zu Branche, Software, Belegwegen und IT. Ohne Kreditkarte. Keine Steuerberatung.";
 
 export const LEAD_MAGNET_DISCLAIMER =
-  "Allgemeine Arbeitshilfe von gobd-doku-erstellen.de. Keine Steuer-, Rechts- oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität oder Prüfungsergebnis. Abstimmung und Freigabe bleiben bei dir bzw. deinem Berater.";
+  "Allgemeine Arbeitshilfe von gobd-doku-erstellen.de. Keine Steuer-, Rechts- oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität oder Prüfungsergebnis. Abstimmung und Freigabe bleiben bei Ihnen bzw. Ihrem Berater.";
 
 export type LeadMagnetCopy = {
   headline: string;

@@ -7,6 +7,8 @@
 // Ordinary prose, formal "Sie/Ihnen/Ihr", comments, and hidden frontmatter keys
 // such as ctaSoft do not. PR #94 (entry path) is still open, so this check
 // stays here and reuses the blog walker instead of a second COVERED list.
+// Lead magnets live in TypeScript string literals. Those files are scanned
+// for the same du-forms, comments and code identifiers excluded.
 import { globSync, readFileSync } from "node:fs";
 
 const forbidden =
@@ -27,6 +29,12 @@ const patterns = [
 
 const blogPatterns = ["content/blog/**/*.{md,mdx}"];
 
+const resourceDuPatterns = [
+  "lib/lead-magnet.ts",
+  "lib/lead-magnet-inhalt.ts",
+  "app/resources/**/*.{ts,tsx}",
+];
+
 const visibleFrontmatter = new Set([
   "title",
   "h1",
@@ -46,16 +54,18 @@ const blogToken = new RegExp(
   "i",
 );
 
-// Informal blog address. Formal "Sie/Ihnen/Ihr" is a different spelling and
-// is not matched. Lowercase "ihr" is only flagged next to an unambiguous
+// Informal address. Formal "Sie/Ihnen/Ihr" is a different spelling and is
+// not matched. Lowercase "ihr" is flagged next to an unambiguous
 // 2nd-person-plural verb (könnt, solltet, müsst, habt, seid, wollt, dürft),
-// so possessive "ihr Steuerberater" and "Aus ihr müssen" stay clean.
+// and after wo/wie/ob/wenn/dass/bevor/falls/sobald when the next word is
+// lowercase ("wo ihr steht"). Possessive "wo ihr Steuerberater" and
+// "Aus ihr müssen" stay clean.
 const DU_PRONOUN_RE =
   /(?<![\p{L}\p{N}_])(?:[Dd]u|[Dd]ich|[Dd]ir|[Dd]ein(?:en|em|er|es|e|s)?|[Ee]uch|[Ee]u(?:ren|rem|rer|res|er|re))(?![\p{L}\p{N}_])/u;
 const DU_IMPERATIVE_RE =
   /(?<![\p{L}\p{N}_])(?<!ich )(?<!Ich )(?:Mach|mach|Schau|schau|Starte|starte|Lies|lies|Prüfe|prüfe|Prüf|prüf|Dokumentiere|dokumentiere|Schreibe|schreibe|Nenne|nenne|Aktualisiere|aktualisiere|Nutze|nutze|Kopiere|kopiere|Halte|halte|Übernimm|übernimm|Orientiere|orientiere|Vermeide|vermeide|Beschreibe|beschreibe|Drucke|drucke|Notiere|notiere)(?![\p{L}\p{N}_])/u;
 const IHR_2PL_RE =
-  /(?<![\p{L}\p{N}_])(?:ihr(?![\p{L}\p{N}_])(?:\s+[^\s]+){0,8}?\s+(?:könnt|solltet|müsst|habt|seid|wollt|dürft)(?![\p{L}\p{N}_])|(?:könnt|solltet|müsst|habt|seid|wollt|dürft)(?![\p{L}\p{N}_])\s+ihr(?![\p{L}\p{N}_]))/u;
+  /(?<![\p{L}\p{N}_])(?:ihr(?![\p{L}\p{N}_])(?:\s+[^\s]+){0,8}?\s+(?:könnt|solltet|müsst|habt|seid|wollt|dürft)(?![\p{L}\p{N}_])|(?:könnt|solltet|müsst|habt|seid|wollt|dürft)(?![\p{L}\p{N}_])\s+ihr(?![\p{L}\p{N}_])|(?:wo|wie|ob|wenn|dass|bevor|falls|sobald)\s+ihr(?![\p{L}\p{N}_])\s+\p{Ll})/u
 
 function findBlogDu(visible) {
   return (
@@ -188,6 +198,59 @@ function blogDuHits(raw) {
   return hits;
 }
 
+function resourceDuHits(raw) {
+  const hits = [];
+  let i = 0;
+  let line = 1;
+  while (i < raw.length) {
+    if (raw[i] === "\n") {
+      line += 1;
+      i += 1;
+      continue;
+    }
+    if (raw.startsWith("//", i)) {
+      while (i < raw.length && raw[i] !== "\n") i += 1;
+      continue;
+    }
+    if (raw.startsWith("/*", i)) {
+      i += 2;
+      while (i < raw.length && !raw.startsWith("*/", i)) {
+        if (raw[i] === "\n") line += 1;
+        i += 1;
+      }
+      i += 2;
+      continue;
+    }
+    const quote = raw[i];
+    if (quote === '"' || quote === "'" || quote === "`") {
+      const startLine = line;
+      i += 1;
+      let text = "";
+      while (i < raw.length) {
+        if (raw[i] === "\\") {
+          const next = raw[i + 1] ?? "";
+          text += next;
+          if (next === "\n") line += 1;
+          i += 2;
+          continue;
+        }
+        if (raw[i] === "\n") line += 1;
+        if (raw[i] === quote) break;
+        text += raw[i];
+        i += 1;
+      }
+      const match = findBlogDu(text);
+      if (match) {
+        hits.push({ line: startLine, text: text.trim().slice(0, 180), match });
+      }
+      i += 1;
+      continue;
+    }
+    i += 1;
+  }
+  return hits;
+}
+
 function assertSelfTest() {
   const cases = [
     ["soft heading", "## Soft-CTA: Readiness-Check\n\nAbsatz.\n", true],
@@ -236,6 +299,8 @@ function assertSelfTest() {
     ["dein forms", "aus deinen Angaben für dich und deinen Berater.\n", true],
     ["euch euer", "Unsicher, ob euer Scope greifbar ist und euch fehlt.\n", true],
     ["ihr 2pl", "klären, wie ihr Prüfungsdaten bereitstellen könnt.\n", true],
+    ["wo ihr steht", "Unsicher, wo ihr steht?\n", true],
+    ["wo ihr noun", "wo ihr Steuerberater zustimmt.\n", false],
     ["ihr inverted", "Intern solltet ihr Änderungen nachhalten.\n", true],
     ["mach imperative", "Mach den kostenlosen Readiness-Check.\n", true],
     ["schau", "Schau zuerst die Checkliste.\n", true],
@@ -264,6 +329,18 @@ function assertSelfTest() {
     ],
   ];
 
+  const resourceCases = [
+    ["resource ihr", 'export const t = "Unsicher, wo ihr steht?";\n', true],
+    ["resource sie", 'export const t = "Unsicher, wo Sie stehen?";\n', false],
+    ["resource dir code", 'const dir = "Pfad zur Datei";\n', false],
+    [
+      "resource comment",
+      '// eure interne Notiz\nexport const t = "Machen Sie den Check.";\n',
+      false,
+    ],
+    ["resource eure", 'body: "in eurer Sprache",\n', true],
+  ];
+
   for (const [name, source, expectHit] of cases) {
     const hit = blogMarkerHits(source).length > 0;
     if (hit !== expectHit) {
@@ -283,12 +360,23 @@ function assertSelfTest() {
       process.exit(1);
     }
   }
+
+  for (const [name, source, expectHit] of resourceCases) {
+    const hit = resourceDuHits(source).length > 0;
+    if (hit !== expectHit) {
+      console.error(
+        `check-forbidden-words: resource self-test failed (${name}, expected ${expectHit ? "hit" : "clean"})`,
+      );
+      process.exit(1);
+    }
+  }
 }
 
 assertSelfTest();
 
 const files = patterns.flatMap((pattern) => globSync(pattern));
 const blogFiles = blogPatterns.flatMap((pattern) => globSync(pattern));
+const resourceFiles = resourceDuPatterns.flatMap((pattern) => globSync(pattern));
 let failed = false;
 
 if (files.length === 0) {
@@ -298,6 +386,11 @@ if (files.length === 0) {
 
 if (blogFiles.length === 0) {
   console.error("check-forbidden-words: no blog files matched");
+  process.exit(1);
+}
+
+if (resourceFiles.length === 0) {
+  console.error("check-forbidden-words: no resource files matched");
   process.exit(1);
 }
 
@@ -324,10 +417,17 @@ for (const file of blogFiles) {
   }
 }
 
+for (const file of resourceFiles) {
+  for (const hit of resourceDuHits(readFileSync(file, "utf8"))) {
+    console.error(`${file}:${hit.line}: du-Anrede „${hit.match}“ in ${hit.text}`);
+    failed = true;
+  }
+}
+
 if (failed) {
   process.exit(1);
 }
 
 console.log(
-  `check-forbidden-words: ok (${files.length + blogFiles.length} files)`,
+  `check-forbidden-words: ok (${files.length + blogFiles.length + resourceFiles.length} files)`,
 );
