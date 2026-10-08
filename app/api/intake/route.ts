@@ -9,6 +9,7 @@ import {
   nextVersionNumber,
 } from "@/lib/documents";
 import { applyEntityToIdentity } from "@/lib/entities";
+import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { getAppUrl } from "@/lib/env";
 import { sendDeliveryMail, sendReferralAfterDeliveryMail } from "@/lib/ops";
 import {
@@ -107,7 +108,7 @@ async function resolveIdentity(body: {
         sessionId: body.sessionId,
       })
     ) {
-      return { response: jsonError("Kein Zugriff.", 401) };
+      return { response: jsonError("Kein Zugriff.", sessionEmail ? 403 : 401) };
     }
     const identity = identityFromSheetRow(source);
     return {
@@ -133,7 +134,7 @@ async function resolveIdentity(body: {
         sessionId: body.sessionId,
       })
     ) {
-      return { response: jsonError("Kein Zugriff.", 401) };
+      return { response: jsonError("Kein Zugriff.", sessionEmail ? 403 : 401) };
     }
 
     const identity = identityFromSheetRow(source);
@@ -187,6 +188,10 @@ async function resolveIdentity(body: {
         { status: identity.error === "lookup_failed" ? 503 : 401 },
       ),
     };
+  }
+
+  if (identity.stub && !devCheckoutStubAllowed()) {
+    return { response: jsonError("Checkout-Session fehlt.", 401) };
   }
 
   if (identity.stub) {

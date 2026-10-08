@@ -88,7 +88,7 @@ async function handleDocumentEdit(request: Request) {
     return jsonError("Dokument nicht gefunden.", 404);
   }
   if (!canAccessDocument(source, { sessionEmail })) {
-    return jsonError("Kein Zugriff.", 401);
+    return jsonError("Kein Zugriff.", 403);
   }
 
   const sourceIdentity = identityFromSheetRow(source);

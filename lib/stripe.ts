@@ -1,4 +1,8 @@
 import Stripe from "stripe";
+import {
+  devCheckoutStubAllowed,
+  isStubCheckoutSessionId,
+} from "@/lib/checkout-stub";
 import { getAppUrl, isStripeConfigured, isStripeSecretConfigured } from "@/lib/env";
 import type { CheckoutIdentity } from "@/lib/types";
 
@@ -166,6 +170,9 @@ export async function createCheckoutSession(input: {
     audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/`;
 
   if (!isStripeConfigured()) {
+    if (!devCheckoutStubAllowed()) {
+      throw new Error("STRIPE_SECRET_KEY fehlt");
+    }
     const sessionId = `mock_${Date.now()}`;
     const params = new URLSearchParams({
       session_id: sessionId,
@@ -231,7 +238,19 @@ export async function resolveCheckoutSession(
     return { error: "missing" };
   }
 
+  // `mock_` ist nie eine bezahlte Session, sobald Stripe konfiguriert ist
+  // oder der Prozess Produktion ist. Lokal ohne Keys bleibt der Stub.
+  if (
+    isStubCheckoutSessionId(sessionId) &&
+    (!devCheckoutStubAllowed() || isStripeConfigured())
+  ) {
+    return { error: "not_paid" };
+  }
+
   if (!isStripeConfigured()) {
+    if (!devCheckoutStubAllowed()) {
+      return { error: "missing" };
+    }
     return {
       email: "",
       company: "",
@@ -239,10 +258,6 @@ export async function resolveCheckoutSession(
       stripeCustomerId: "",
       stub: true,
     };
-  }
-
-  if (sessionId.startsWith("mock_")) {
-    return { error: "not_paid" };
   }
 
   try {

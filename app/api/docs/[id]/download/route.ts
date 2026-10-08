@@ -29,7 +29,10 @@ export async function GET(
   const allowed = canAccessDocument(row, { sessionEmail, sessionId });
 
   if (!allowed) {
-    return NextResponse.json({ error: "Kein Zugriff." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Kein Zugriff." },
+      { status: sessionEmail ? 403 : 401 },
+    );
   }
 
   try {

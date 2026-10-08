@@ -1,3 +1,7 @@
+import {
+  devCheckoutStubAllowed,
+  isStubCheckoutSessionId,
+} from "@/lib/checkout-stub";
 import type { Entity } from "@/lib/entities";
 import { queryIdsEqual } from "@/lib/query";
 import { emailsEqual, type SheetRow } from "@/lib/types";
@@ -43,11 +47,18 @@ export function canAccessDocument(
   if (email && emailsEqual(email, row.email)) {
     return true;
   }
-  const sessionId = access.sessionId ?? "";
-  if (sessionId && row.stripeSessionId && queryIdsEqual(sessionId, row.stripeSessionId)) {
-    return true;
+  const sessionId = (access.sessionId ?? "").trim();
+  if (!sessionId || !row.stripeSessionId) return false;
+  // Stub-IDs (`mock_…`) sind in Produktion kein Besitznachweis, auch wenn sie
+  // auf der Zeile stehen. Echte Checkout-Session-IDs bleiben ein Bearer.
+  if (
+    !devCheckoutStubAllowed() &&
+    (isStubCheckoutSessionId(sessionId) ||
+      isStubCheckoutSessionId(row.stripeSessionId))
+  ) {
+    return false;
   }
-  return false;
+  return queryIdsEqual(sessionId, row.stripeSessionId);
 }
 
 export function rowsInFamily(rows: SheetRow[], documentId: string): SheetRow[] {
