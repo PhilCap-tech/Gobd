@@ -41,6 +41,11 @@ export type BetriebFacts = {
   kontrollen: boolean;
   /** Person der Eigenbuchhaltung, dritte Person. */
   rolle: string;
+  /**
+   * Bestätigte Freitexte und Tabellenzeilen aus den Angaben.
+   * Auswahlen aus dem Kontrollkatalog gehören nicht dazu.
+   */
+  kundenTexte: readonly string[];
 };
 
 function text(value: unknown): string {
@@ -166,6 +171,7 @@ export function betriebFacts(answers: IntakeAnswers): BetriebFacts {
     backup: backupGenannt(answers),
     kontrollen: kontrollenGenannt(answers),
     rolle: eigenbuchhaltungText(answers),
+    kundenTexte: kundenFreitexte(answers),
   };
 }
 
@@ -179,6 +185,102 @@ function selectedNames(values: Record<string, unknown> | undefined): string[] {
       return "";
     })
     .filter(Boolean);
+}
+
+/**
+ * Freitext, der lang genug ist, um nicht zufällig in einer Katalogzeile zu stehen.
+ * Auswahlwerte (ja, nein, vorhanden) sind keine Freitexte.
+ */
+const MIN_KUNDENSPANN = 8;
+const AUSWAHLWERT = new Set([
+  "ja",
+  "nein",
+  "unbekannt",
+  "vorhanden",
+  "offen",
+  "nicht_zutreffend",
+  "bestaetigt",
+  "geplant",
+  "h",
+]);
+
+function normAnzeige(value: string): string {
+  return value.replaceAll("**", "").replaceAll("→", "->").replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "");
+}
+
+function dokumentFormen(value: string): string[] {
+  const shown = normAnzeige(value);
+  if (!shown || AUSWAHLWERT.has(shown.toLowerCase())) return [];
+  const out = new Set<string>();
+  const slashed = shown.replaceAll("|", "/");
+  for (const form of shown === slashed ? [shown] : [shown, slashed]) {
+    if (form.length >= MIN_KUNDENSPANN) out.add(form);
+    for (const piece of splitSentences(form)) {
+      const sentence = piece.trim().replace(/[.\s]+$/, "");
+      if (sentence.length >= MIN_KUNDENSPANN) out.add(sentence);
+    }
+  }
+  return [...out];
+}
+
+function collectKunde(value: unknown, found: Set<string>, key?: string) {
+  if (typeof value === "string") {
+    for (const form of dokumentFormen(value)) found.add(form);
+    return;
+  }
+  if (Array.isArray(value)) {
+    // Stringlisten unter „kontrollen“ sind die Auswahl aus dem Kontrollkatalog.
+    if (key === "kontrollen" && value.every((item) => typeof item === "string")) return;
+    for (const item of value) collectKunde(item, found);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [childKey, child] of Object.entries(value as Record<string, unknown>)) {
+    collectKunde(child, found, childKey);
+  }
+}
+
+function enumAnzeige(value: string): string {
+  if (value === "ja") return "ja";
+  if (value === "nein") return "nein";
+  if (value === "unbekannt") return "noch zu klären";
+  return value;
+}
+
+/** „Feldlabel: Wert“ einer bestätigten Frage. Das Label gehört zur Angabe und löscht sie nicht. */
+function feldSpannen(id: string, values: Record<string, unknown>, found: Set<string>) {
+  const question = modulQuestion(id)?.question ?? bereichQuestion(id)?.question;
+  if (!question) return;
+  for (const field of question.fields) {
+    const raw = values[field.key];
+    let shown = "";
+    if (typeof raw === "string") {
+      shown = field.type === "enum" ? enumAnzeige(raw.trim()) : normAnzeige(raw);
+    } else if (Array.isArray(raw) && raw.every((item) => typeof item === "string")) {
+      if (field.key === "kontrollen") continue;
+      shown = raw.map((item) => normAnzeige(item)).filter(Boolean).join(", ");
+    }
+    if (!shown || !field.label) continue;
+    const span = `${field.label}: ${shown}`;
+    if (span.length >= MIN_KUNDENSPANN) found.add(span);
+  }
+}
+
+/** Bestätigte Freitexte, Tabellenzellen und ihre Feldlabels. Herkunft ist das Feld, nicht der Wortlaut. */
+function kundenFreitexte(answers: IntakeAnswers): string[] {
+  const found = new Set<string>();
+  for (const [id, item] of Object.entries(answers.katalog ?? {})) {
+    if (item?.status !== "bestaetigt") continue;
+    collectKunde(item.values, found);
+    if (item.values) feldSpannen(id, item.values, found);
+    if (item.reason) collectKunde(item.reason, found);
+  }
+  return [...found].sort((a, b) => b.length - a.length);
+}
+
+/** Satz oder Zeile enthält bestätigten Kundentext und bleibt deshalb vollständig. */
+function enthaeltKundenText(value: string, facts: BetriebFacts): boolean {
+  return (facts.kundenTexte ?? []).some((item) => value.includes(item));
 }
 
 /** Thema ist verneint oder nicht vorhanden und darf nicht als Tatsache stehen. */
@@ -226,7 +328,9 @@ function cleanup(value: string): string {
 
 function keepSentence(sentence: string, facts: BetriebFacts): string | null {
   const trimmed = sentence.trim();
-  if (!trimmed || !mentionsDenied(trimmed, facts)) return trimmed || null;
+  if (!trimmed) return null;
+  // Label und Freitext einer bestätigten Angabe bleiben unverändert.
+  if (!mentionsDenied(trimmed, facts) || enthaeltKundenText(trimmed, facts)) return trimmed;
   const list = /Gegenstand:/.test(trimmed) || ((trimmed.match(/,/g) ?? []).length >= 2 && /^\s*[-•]/.test(trimmed));
   if (!list) return null;
   const scrubbed = cleanup(scrubTokens(trimmed, facts));
@@ -257,7 +361,7 @@ function splitSentences(line: string): string[] {
   return parts;
 }
 
-/** Entfernt Behauptungen zu verneinten Themen. Offene Punkte bleiben eigene Sätze. */
+/** Entfernt Katalog- und Vorlagenbehauptungen zu verneinten Themen. Kundentext bleibt vollständig. */
 export function redactDenied(markdown: string, facts: BetriebFacts): string {
   const lines = markdown.split("\n");
   const out: string[] = [];
@@ -267,7 +371,7 @@ export function redactDenied(markdown: string, facts: BetriebFacts): string {
       continue;
     }
     if (line.startsWith("|")) {
-      if (mentionsDenied(line, facts)) continue;
+      if (mentionsDenied(line, facts) && !enthaeltKundenText(line, facts)) continue;
       out.push(line);
       continue;
     }
@@ -311,7 +415,6 @@ function answerSentence(question: NonNullable<ReturnType<typeof questionOf>>, va
 
 /** Prozessschritte, deren Frage bestätigt ist. Teilgruppen beachten nur ihre ids. */
 export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSchritt[] {
-  const facts = betriebFacts(answers);
   const seen = new Set<string>();
   const out: BereichSchritt[] = [];
   for (const step of modulProzess(modul)) {
@@ -322,7 +425,6 @@ export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSc
     const beschreibung = question ? answerSentence(question, item.values ?? {}) : "";
     if (!beschreibung) continue;
     const schritt = question?.title || step.schritt;
-    if (mentionsDenied(`${schritt} ${beschreibung} ${step.nachweis}`, facts)) continue;
     const nachweis = step.nachweis
       .split(",")
       .map((part) => part.trim())
@@ -440,7 +542,6 @@ export function livedKontrollen(modul: ModulDef, answers: IntakeAnswers): Array<
         const turnus = text((row as { turnus?: unknown }).turnus);
         const nachweis = text((row as { nachweis?: unknown }).nachweis);
         const label = turnus ? `${name} (${turnus})` : name;
-        if (mentionsDenied(`${label} ${nachweis}`, facts)) continue;
         out.push({ name: label, zweck: nachweis || "bestätigt", frage: "H01" });
       }
     }
