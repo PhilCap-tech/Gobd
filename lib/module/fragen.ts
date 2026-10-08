@@ -5,6 +5,7 @@
  * allgemein und bestätigen keine betriebliche Umsetzung.
  */
 import type { BereichField, BereichKontrolle, BereichQuestion } from "@/lib/bereiche";
+import { KONTROLLEN_HINWEIS, mitKeineKontrolle } from "@/lib/keine-angaben";
 
 const text = (key: string, label: string, required = true): BereichField => ({ key, type: "text", label, required });
 const area = (key: string, label: string, required = true): BereichField => ({ key, type: "textarea", label, required });
@@ -41,9 +42,9 @@ export function kontrollFrage(prefix: string, modul: string, kontrollen: Bereich
     `${prefix}92`,
     "Kontrollen im Modul",
     `Welche Kontrollen finden für „${modul}“ heute tatsächlich statt?`,
-    [many("kontrollen", "Durchgeführte Kontrollen", kontrollen.map((item) => item.name)), area("details", "Turnus, wer, Nachweis je Kontrolle")],
+    [many("kontrollen", "Durchgeführte Kontrollen", mitKeineKontrolle(kontrollen.map((item) => item.name))), area("details", "Turnus, wer, Nachweis je Kontrolle")],
     `Die Kontrollen für „${modul}“ (Turnus, Person, Nachweis) sind nicht bestätigt.`,
-    { priority: "mittel", hint: "Nur Kontrollen auswählen, die heute wirklich laufen. Für jede Kontrolle Turnus, ausführende Person und Nachweis nennen." },
+    { priority: "mittel", hint: KONTROLLEN_HINWEIS },
   );
 }
 
@@ -438,21 +439,21 @@ export const SN = gruppe("SN", "Sicherung, Wiederherstellung und Notfälle", [
 export const KF = gruppe("KF", "Kontrollen und Fehlerbehandlung", [
   q("KF01", "Vollständigkeitskontrollen", "Wie wird geprüft, dass alle Geschäftsvorfälle erfasst sind (z. B. Nummernlücken, Abgleich Vorsystem mit Buchhaltung)?", [
     area("kontrollen", "Kontrollen"),
-  ], "Vollständigkeitskontrollen sind nicht bestätigt.", { priority: "hoch" }),
+  ], "Vollständigkeitskontrollen sind nicht bestätigt.", { priority: "hoch", hint: KONTROLLEN_HINWEIS }),
   q("KF02", "Richtigkeitskontrollen", "Wie wird die Richtigkeit geprüft (z. B. Vier-Augen-Prinzip, Plausibilitätsprüfungen, Stichproben)?", [
     area("kontrollen", "Kontrollen"),
-  ], "Richtigkeitskontrollen sind nicht bestätigt.", { priority: "hoch" }),
+  ], "Richtigkeitskontrollen sind nicht bestätigt.", { priority: "hoch", hint: KONTROLLEN_HINWEIS }),
   q("KF03", "Abweichungen und Fehler", "Wie werden festgestellte Abweichungen erfasst, geklärt, korrigiert und eskaliert?", [
     area("ablauf", "Ablauf"),
     text("wer", "Zuständig", false),
-  ], "Behandlung von Abweichungen und Fehlern ist nicht bestätigt.", { priority: "hoch" }),
+  ], "Behandlung von Abweichungen und Fehlern ist nicht bestätigt.", { priority: "hoch", hint: KONTROLLEN_HINWEIS }),
   q("KF04", "Kontrollnachweise", "Wie werden durchgeführte Kontrollen nachgewiesen und wie lange aufbewahrt?", [
     area("nachweis", "Nachweis (z. B. Abhakliste, Protokoll, Vermerk im System)"),
-  ], "Nachweis durchgeführter Kontrollen ist nicht bestätigt."),
+  ], "Nachweis durchgeführter Kontrollen ist nicht bestätigt.", { hint: KONTROLLEN_HINWEIS }),
   q("KF05", "Überwachung des Kontrollsystems", "Wer überwacht, dass die Kontrollen tatsächlich durchgeführt werden?", [
     text("wer", "Überwachung durch"),
     text("turnus", "Turnus", false),
-  ], "Überwachung des Kontrollsystems ist nicht bestätigt."),
+  ], "Überwachung des Kontrollsystems ist nicht bestätigt.", { hint: KONTROLLEN_HINWEIS }),
 ], []);
 
 // ---------------------------------------------------------------- Modul 21

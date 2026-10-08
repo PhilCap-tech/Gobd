@@ -15,6 +15,13 @@ import {
 } from "@/lib/module/katalog";
 import { effectiveModulStatus } from "@/lib/module/status";
 import type { ModulDef } from "@/lib/module/typen";
+import {
+  isControlQuestionId,
+  isKeineKontrolleValues,
+  KEINE_AUSNAHMEN_SATZ,
+  KEINE_KONTROLLE_SATZ,
+  realControlNames,
+} from "@/lib/keine-angaben";
 import type { IntakeAnswers } from "@/lib/types";
 
 type Entry = NonNullable<IntakeAnswers["katalog"]>[string];
@@ -126,9 +133,11 @@ function kontrollenGenannt(answers: IntakeAnswers): boolean {
   const state = answers.katalog ?? {};
   for (const [id, item] of Object.entries(state)) {
     if (item?.status !== "bestaetigt") continue;
-    if (!/92$/.test(id) && id !== "H01" && !/^KF0[1-5]$/.test(id)) continue;
-    if (selectedNames(item.values).length) return true;
-    if (text(item.values?.details) || text(item.values?.kontrollen)) return true;
+    if (!isControlQuestionId(id)) continue;
+    if (isKeineKontrolleValues(item.values)) continue;
+    if (realControlNames(item.values).length) return true;
+    if (text(item.values?.details)) return true;
+    if (typeof item.values?.kontrollen === "string" && text(item.values.kontrollen)) return true;
   }
   return false;
 }
@@ -176,15 +185,7 @@ export function betriebFacts(answers: IntakeAnswers): BetriebFacts {
 }
 
 function selectedNames(values: Record<string, unknown> | undefined): string[] {
-  const raw = values?.kontrollen;
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item) => {
-      if (typeof item === "string") return item.trim();
-      if (item && typeof item === "object" && "name" in item) return text((item as { name?: unknown }).name);
-      return "";
-    })
-    .filter(Boolean);
+  return realControlNames(values);
 }
 
 /**
@@ -403,6 +404,7 @@ function questionOf(id: string) {
 }
 
 function answerSentence(question: NonNullable<ReturnType<typeof questionOf>>, values: Record<string, unknown>): string {
+  if (isControlQuestionId(question.id) && isKeineKontrolleValues(values)) return "";
   return question.fields
     .map((field) => {
       const value = values[field.key];
@@ -463,6 +465,7 @@ function controlAnswerIds(modul: ModulDef): string[] {
 }
 
 function controlTokens(values: Record<string, unknown> | undefined): string[] {
+  if (isKeineKontrolleValues(values)) return ["keine"];
   const names = selectedNames(values);
   if (names.length) return names;
   const free = text(values?.kontrollen);
@@ -532,7 +535,7 @@ export function livedKontrollen(modul: ModulDef, answers: IntakeAnswers): Array<
     if (!zweck) continue;
     out.push({ ...item, zweck, name: withTurnus(item.name, facts.sichtungTurnus) });
   }
-  if (modul.catalogIds.includes("H01") && confirmed(answers, "H01")) {
+  if (modul.catalogIds.includes("H01") && confirmed(answers, "H01") && !isKeineKontrolleValues(entry(answers, "H01")?.values)) {
     const raw = entry(answers, "H01")?.values?.kontrollen;
     if (Array.isArray(raw)) {
       for (const row of raw) {
@@ -574,7 +577,7 @@ export function kontrollenAbschnitt(modul: ModulDef, answers: IntakeAnswers): Ko
     return tokens.length === 0 || tokens.every((token) => istKeineKontrolle(token));
   });
   return onlyNone
-    ? { zeilen: [], satz: "Eine regelmäßige Kontrolle ist nicht benannt." }
+    ? { zeilen: [], satz: KEINE_KONTROLLE_SATZ }
     : { zeilen: [], satz: "" };
 }
 
@@ -593,12 +596,13 @@ export function ausnahmenInDetails(id: string, answers: IntakeAnswers, details: 
         .split(", ")
         .filter((part) => {
           const token = normAngabe(part);
+          if (token === normAngabe(abschnitt.satz)) return false;
           if (banned.has(token)) return false;
           return ![...banned].some((item) => token === `ausnahmen: ${item}`);
         })
         .join(", "),
     )
-    .filter(Boolean);
+    .filter((bit) => bit && normAngabe(bit) !== normAngabe(abschnitt.satz));
   return [...cleaned, abschnitt.satz];
 }
 
@@ -614,12 +618,13 @@ function ausnahmenRoh(id: string, answers: IntakeAnswers): { satz: string; rohwe
     for (const row of Object.values(detail as Record<string, unknown>)) {
       if (!row || typeof row !== "object") continue;
       const raw = text((row as { ausnahmen?: unknown }).ausnahmen);
+      const keine = (row as { keineAusnahmen?: unknown }).keineAusnahmen === true || istKeineAusnahme(raw);
       rohwerte.push(raw);
-      if (!istKeineAusnahme(raw)) stated.push(raw);
+      if (!keine) stated.push(raw);
     }
     if (!rohwerte.length) return null;
     return {
-      satz: stated.length ? `Ausnahmen: ${stated.join("; ")}.` : "Ausnahmen sind nicht benannt.",
+      satz: stated.length ? `Ausnahmen: ${stated.join("; ")}.` : KEINE_AUSNAHMEN_SATZ,
       rohwerte,
     };
   }
@@ -628,19 +633,21 @@ function ausnahmenRoh(id: string, answers: IntakeAnswers): { satz: string; rohwe
     if (!eingang || typeof eingang !== "object" || Array.isArray(eingang)) {
       if (!("ausnahmen" in values)) return null;
     }
-    const raw =
+    const source =
       eingang && typeof eingang === "object" && !Array.isArray(eingang)
-        ? text((eingang as { ausnahmen?: unknown }).ausnahmen)
-        : text(values.ausnahmen);
+        ? (eingang as { ausnahmen?: unknown; keineAusnahmen?: unknown })
+        : values;
+    const raw = text(source.ausnahmen);
+    const keine = source.keineAusnahmen === true || istKeineAusnahme(raw);
     return {
-      satz: istKeineAusnahme(raw) ? "Ausnahmen sind nicht benannt." : `Ausnahmen: ${raw}.`,
+      satz: keine ? KEINE_AUSNAHMEN_SATZ : `Ausnahmen: ${raw}.`,
       rohwerte: [raw, raw ? `Ausnahmen: ${raw}` : ""],
     };
   }
   if (!("ausnahmen" in values)) return null;
   const raw = text(values.ausnahmen);
   return {
-    satz: istKeineAusnahme(raw) ? "Ausnahmen sind nicht benannt." : raw,
+    satz: istKeineAusnahme(raw) ? KEINE_AUSNAHMEN_SATZ : raw,
     rohwerte: [raw],
   };
 }

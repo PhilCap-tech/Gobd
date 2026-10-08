@@ -4,6 +4,7 @@
  */
 import { renderDeliveryDocument, type RenderedChapter } from "@/lib/delivery-templates";
 import gastroFixture from "@/scripts/fixtures/gastro-bella-vista.json";
+import { KEINE_AUSNAHMEN_SATZ, KEINE_KONTROLLE_SATZ, KEINE_REGELMAESSIGE_KONTROLLE } from "@/lib/keine-angaben";
 import { kanzleiKasseAnswers, oezguerAnswers, pixelwerkAnswers, shkAnswers } from "@/scripts/fixtures/pdf-consistency";
 import { ensureGesamt } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
@@ -106,8 +107,8 @@ expect(pixel.claims.includes("strukturierte E-Rechnung"), "Pixelwerk zerstört d
 expect(pixel.claims.includes("wöchentlich"), "Pixelwerk nennt die wöchentliche Sichtung nicht");
 expect(pixel.claims.includes("NAS"), "Pixelwerk nennt das NAS-Backup nicht");
 expect(pixel.claims.includes("Eigenbuchhaltung"), "Pixelwerk nennt die Eigenbuchhaltung nicht");
-expect(pixel.claims.includes("Eine regelmäßige Kontrolle ist nicht benannt."), "Keine-Kontrolle bleibt Katalogtext");
-expect(pixel.claims.includes("Ausnahmen sind nicht benannt."), "Keine-Ausnahme bleibt Rohtext");
+expect(pixel.claims.includes(KEINE_KONTROLLE_SATZ), "Keine-Kontrolle bleibt Katalogtext");
+expect(pixel.claims.includes(KEINE_AUSNAHMEN_SATZ), "Keine-Ausnahme bleibt Rohtext");
 expect(!pixel.claims.includes("lexoffice Belegarchiv, keine"), "Ausnahme „keine“ bleibt als Katalogfragment stehen");
 expect(pixel.claims.includes("Satz 5 UStG"), "Gutschrift zitiert § 14 Abs. 2 Satz 5");
 expect(!pixel.claims.includes("Satz 2 UStG"), "Gutschrift zitiert noch Satz 2");
@@ -282,6 +283,64 @@ expect(
   "SHK verliert den BA09-Freitext",
 );
 expect(!shk.claims.includes("Abgleich der Kreditkartenabrechnung"), "SHK nennt die Katalog-Kreditkartenkontrolle");
+
+const keineKontrolle = render(
+  ensureGesamt({
+    ...emptyAnswers(),
+    katalog: {
+      VK92: {
+        status: "bestaetigt",
+        values: { kontrollen: [KEINE_REGELMAESSIGE_KONTROLLE], details: "Lückenprüfung der Rechnungsnummern" },
+      },
+      LE92: {
+        status: "bestaetigt",
+        values: { kontrollen: [KEINE_REGELMAESSIGE_KONTROLLE], details: "Abgleich erbrachter Leistungen mit Rechnungen" },
+      },
+    },
+  }),
+  { company: "QA Beispiel GmbH", onlyModul: "m02" },
+);
+expect(keineKontrolle.claims.includes(KEINE_KONTROLLE_SATZ), "Keine-Kontrolle nennt den neutralen Satz nicht");
+expect(keineKontrolle.claims.includes("keine regelmäßige Kontrolle"), "Keine-Kontrolle steht nicht ausdrücklich im PDF");
+for (const phrase of [
+  "Lückenprüfung der Rechnungsnummern",
+  "Abgleich erbrachter Leistungen mit Rechnungen",
+  "Abgleich erbrachter Leistungen mit gestellten Rechnungen",
+  "Freigabe von Angeboten und Sonderpreisen",
+  "keine konkrete Kontrollroutine",
+  "Typische Kandidaten",
+  `| ${KEINE_REGELMAESSIGE_KONTROLLE} |`,
+]) {
+  expect(!keineKontrolle.claims.includes(phrase), `Keine-Kontrolle enthält Katalogtext „${phrase}“`);
+}
+
+const keineAusnahmen = render(
+  ensureGesamt({
+    ...emptyAnswers(),
+    katalog: {
+      C02: {
+        status: "bestaetigt",
+        values: {
+          kanaeleDetail: {
+            "E-Mail-PDF": {
+              ort: "postfach@example.com",
+              wer: "Inhaber",
+              turnus: "wöchentlich",
+              uebergabe: "Ablage",
+              ausnahmen: "Barbelege vom Wochenmarkt",
+              keineAusnahmen: true,
+            },
+          },
+        },
+      },
+    },
+  }),
+  { company: "QA Beispiel GmbH", onlyModul: "m03" },
+);
+expect(keineAusnahmen.claims.includes(KEINE_AUSNAHMEN_SATZ), "Keine-Ausnahme nennt den neutralen Satz nicht");
+expect(keineAusnahmen.claims.includes("Keine Ausnahmen"), "Keine Ausnahmen steht nicht ausdrücklich im PDF");
+expect(!keineAusnahmen.claims.includes("Barbelege vom Wochenmarkt"), "Keine-Ausnahme behält den Katalogtext");
+expect(!keineAusnahmen.claims.includes("Urlaubsvertretung"), "Keine-Ausnahme nutzt die Beispielausnahme");
 
 if (failures.length) {
   console.error(failures.join("\n"));

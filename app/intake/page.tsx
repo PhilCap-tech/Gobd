@@ -63,6 +63,10 @@ const GATE_COPY: Record<
     title: "Session konnte nicht geladen werden",
     body: "Die Zahlung konnte gerade nicht geprüft werden. Das ist oft vorübergehend. Bitte erneut versuchen.",
   },
+  invalid: {
+    title: "Checkout-Session ungültig",
+    body: "Die Zahlungssitzung ist unbekannt oder abgelaufen. Bitte starten Sie den Checkout erneut.",
+  },
 };
 
 function IntakeGate({

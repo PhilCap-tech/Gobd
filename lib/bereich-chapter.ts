@@ -8,6 +8,7 @@ import {
   type BereichField,
   type BereichQuestion,
 } from "@/lib/bereiche";
+import { isControlQuestionId, isKeineKontrolleValues, KEINE_KONTROLLE_SATZ } from "@/lib/keine-angaben";
 import type { IntakeAnswers } from "@/lib/types";
 
 type Entry = NonNullable<IntakeAnswers["katalog"]>[string];
@@ -47,6 +48,13 @@ export function bereichQuestionLines(
   options: { skip?: string[]; title?: string } = {},
 ): string[] {
   const status = entry?.status;
+  if (isControlQuestionId(question.id) && isKeineKontrolleValues(entry?.values)) {
+    const head = `**${question.title}:**`;
+    if (status === "bestaetigt") return [`${head} ${KEINE_KONTROLLE_SATZ}`];
+    if (status === "geplant") {
+      return [`${head} vorgesehen, aber noch nicht gelebte Praxis. Siehe offene Punkte.`];
+    }
+  }
   const head = `**${options.title ?? question.title}:**`;
   if (status === "bestaetigt") {
     const parts = question.fields
@@ -207,17 +215,25 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
   }
 
   const kontrollFrage = rahmen(bereich, "92");
+  const kontrollEntry = kontrollFrage ? state[kontrollFrage.id] : undefined;
+  const keineKontrolle = isKeineKontrolleValues(kontrollEntry?.values);
   heading("Kontrollen im Bereich");
   lines.push(
     hinweis(
-      `Das interne Kontrollsystem soll Vollständigkeit, Richtigkeit und Zeitgerechtheit der Aufzeichnungen sichern. Die Tabelle nennt typische Kontrollen dieses Bereichs. Als durchgeführt gilt eine Kontrolle nur, wenn sie im Intake als heutige Praxis bestätigt ist. Das übergreifende Kontrollsystem beschreibt Kapitel ${iks}.`,
+      keineKontrolle
+        ? `Das interne Kontrollsystem soll Vollständigkeit, Richtigkeit und Zeitgerechtheit der Aufzeichnungen sichern. Das übergreifende Kontrollsystem beschreibt Kapitel ${iks}.`
+        : `Das interne Kontrollsystem soll Vollständigkeit, Richtigkeit und Zeitgerechtheit der Aufzeichnungen sichern. Die Tabelle nennt typische Kontrollen dieses Bereichs. Als durchgeführt gilt eine Kontrolle nur, wenn sie im Intake als heutige Praxis bestätigt ist. Das übergreifende Kontrollsystem beschreibt Kapitel ${iks}.`,
     ),
     "",
   );
-  if (bereich.kontrollen.length) {
-    const entry = kontrollFrage ? state[kontrollFrage.id] : undefined;
+  if (bereich.kontrollen.length && !keineKontrolle) {
+    const entry = kontrollEntry;
     const raw = entry?.values?.kontrollen;
-    const chosen = new Set(Array.isArray(raw) ? raw.map((item) => String(item)) : []);
+    const chosen = new Set(
+      Array.isArray(raw)
+        ? raw.map((item) => (typeof item === "string" ? item : "")).filter(Boolean)
+        : [],
+    );
     const stand = (name: string) => {
       if (!chosen.has(name)) return "nicht bestätigt";
       if (entry?.status === "bestaetigt") return "durchgeführt";
@@ -231,7 +247,10 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
       "",
     );
   }
-  question(kontrollFrage, { skip: ["kontrollen"], title: "Turnus, Person und Nachweis" });
+  question(
+    kontrollFrage,
+    keineKontrolle ? undefined : { skip: ["kontrollen"], title: "Turnus, Person und Nachweis" },
+  );
 
   heading("Datenzugriff der Finanzverwaltung");
   lines.push(

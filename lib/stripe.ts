@@ -44,7 +44,7 @@ export function clearStripeLookupCache(): void {
   customerVerifyCache.clear();
 }
 
-export type CheckoutResolveError = "missing" | "not_paid" | "lookup_failed";
+export type CheckoutResolveError = "missing" | "not_paid" | "lookup_failed" | "invalid";
 
 export function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -99,6 +99,29 @@ function isRetryableStripeError(error: unknown): boolean {
     return true;
   }
   return typeof e.statusCode === "number" && e.statusCode >= 500;
+}
+
+function isInvalidCheckoutSessionError(error: unknown): boolean {
+  const e = stripeErrorFields(error);
+  if (e.code === "resource_missing") return true;
+  const message = (e.message || "").toLowerCase();
+  if (message.includes("no such")) return true;
+  const status = e.statusCode;
+  return (
+    (status === 400 || status === 404) &&
+    message.includes("invalid") &&
+    (message.includes("checkout.session") || message.includes("session"))
+  );
+}
+
+/** Ungültige Session-ID ist kein vorübergehender Ausfall. */
+export function checkoutLookupError(error: unknown): "invalid" | "lookup_failed" {
+  return isInvalidCheckoutSessionError(error) ? "invalid" : "lookup_failed";
+}
+
+/** Intake: nur ein echter Lookup-Ausfall bleibt 503, alles andere 401. */
+export function intakeCheckoutStatus(error: CheckoutResolveError): number {
+  return error === "lookup_failed" ? 503 : 401;
 }
 
 export function isStripeResourceMissingError(error: unknown): boolean {
@@ -240,6 +263,7 @@ export async function createCheckoutSession(input: {
  */
 export async function resolveCheckoutSession(
   sessionId: string | undefined,
+  retrieve: (id: string) => Promise<Stripe.Checkout.Session> = retrieveCheckoutSession,
 ): Promise<CheckoutIdentity | { error: CheckoutResolveError }> {
   if (!sessionId) {
     return { error: "missing" };
@@ -268,7 +292,7 @@ export async function resolveCheckoutSession(
   }
 
   try {
-    const session = await retrieveCheckoutSession(sessionId);
+    const session = await retrieve(sessionId);
     if (!isCheckoutSessionFulfilled(session)) {
       return { error: "not_paid" };
     }
@@ -289,6 +313,11 @@ export async function resolveCheckoutSession(
       entityId: session.metadata?.entity_id?.trim() || "",
     };
   } catch (error) {
+    const kind = checkoutLookupError(error);
+    if (kind === "invalid") {
+      console.warn("[stripe] Checkout-Session ungültig", error);
+      return { error: "invalid" };
+    }
     console.error("[stripe] Session-Lookup fehlgeschlagen", error);
     return { error: "lookup_failed" };
   }

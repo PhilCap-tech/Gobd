@@ -27,7 +27,7 @@ export function accessDeniedStatus(
 
 export type CheckoutLookup =
   | { email: string; stub: boolean }
-  | { error: "missing" | "not_paid" | "lookup_failed" };
+  | { error: "missing" | "not_paid" | "lookup_failed" | "invalid" };
 
 export type CheckoutResolver = (
   sessionId: string | undefined,

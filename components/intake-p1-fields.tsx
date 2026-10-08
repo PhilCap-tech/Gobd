@@ -36,6 +36,7 @@ import {
   ZUGRIFF_ROLLEN,
   type ChannelDetail,
 } from "@/lib/intake-present";
+import { KEINE_AUSNAHMEN, KEINE_REGELMAESSIGE_KONTROLLE, KONTROLLEN_HINWEIS } from "@/lib/keine-angaben";
 import type { IntakeAnswers } from "@/lib/types";
 
 function text(value: unknown): string {
@@ -186,12 +187,30 @@ function ChannelFields({
         />
       </div>
       <div className="field">
-        <TextField
-          label="Welche Ausnahmen gibt es?"
-          value={row.ausnahmen}
-          placeholder="Zum Beispiel keine, oder eine Urlaubsvertretung"
-          onChange={(ausnahmen) => onChange({ ...row, ausnahmen })}
-        />
+        <span className="hint">Welche Ausnahmen gibt es?</span>
+        <div className="chips">
+          <button
+            type="button"
+            className={row.keineAusnahmen ? "chip on" : "chip"}
+            onClick={() =>
+              onChange({
+                ...row,
+                keineAusnahmen: !row.keineAusnahmen,
+                ausnahmen: row.keineAusnahmen ? row.ausnahmen : "",
+              })
+            }
+          >
+            {KEINE_AUSNAHMEN}
+          </button>
+        </div>
+        {row.keineAusnahmen ? null : (
+          <TextField
+            label="Welche Ausnahmen gibt es?"
+            value={row.ausnahmen}
+            placeholder="Zum Beispiel eine Urlaubsvertretung"
+            onChange={(ausnahmen) => onChange({ ...row, ausnahmen, keineAusnahmen: false })}
+          />
+        )}
       </div>
     </div>
   );
@@ -951,11 +970,15 @@ export function P1QuestionFields({
 
   if (questionId === "H01") {
     const controls = rowsOf(values.kontrollen);
-    const selected = controls.map((row) => text(row.name)).filter(Boolean);
-    const options = [...TYPISCHE_KONTROLLEN] as string[];
+    const keine = values.keineKontrolle === true;
+    const selected = keine
+      ? [KEINE_REGELMAESSIGE_KONTROLLE]
+      : controls.map((row) => text(row.name)).filter(Boolean);
+    const options = [KEINE_REGELMAESSIGE_KONTROLLE, ...TYPISCHE_KONTROLLEN] as string[];
     for (const name of selected) if (!options.includes(name)) options.push(name);
     return (
       <div>
+        <p className="hint">{KONTROLLEN_HINWEIS}</p>
         <div className="field">
           <span className="hint">Welche Kontrollen gibt es?</span>
           <Chips
@@ -963,15 +986,23 @@ export function P1QuestionFields({
             value={selected}
             multi
             onChange={(next) => {
-              const kept = controls.filter((row) => next.includes(text(row.name)));
-              const added = next
+              const added = next.filter((name) => !selected.includes(name));
+              if (added.includes(KEINE_REGELMAESSIGE_KONTROLLE)) {
+                commit({ kontrollen: [], keineKontrolle: true });
+                return;
+              }
+              const names = next.filter((name) => name !== KEINE_REGELMAESSIGE_KONTROLLE);
+              const kept = controls.filter((row) => names.includes(text(row.name)));
+              const addedRows = names
                 .filter((name) => !selected.includes(name))
                 .map((name) => ({ name, turnusWahl: "", turnusFrei: "", wer: "", nachweis: "" }));
-              commit({ kontrollen: [...kept, ...added] });
+              commit({ kontrollen: [...kept, ...addedRows], keineKontrolle: false });
             }}
           />
         </div>
-        {controls.map((row, index) => {
+        {keine
+          ? null
+          : controls.map((row, index) => {
           const choice =
             text(row.turnusWahl) ||
             ((KONTROLL_TURNUS as readonly string[]).includes(text(row.turnus)) ? text(row.turnus) : "");

@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
+import { isKeineKontrolleValues } from "@/lib/keine-angaben";
 import { catalogAnswerLine } from "@/lib/intake-catalog";
 import {
   collapseRepeatedTokens,
@@ -341,7 +342,12 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
       }
       let shown = state[question.id];
       const namen = shown?.values?.kontrollen;
-      if (/92$/.test(question.id) && shown?.status === "bestaetigt" && Array.isArray(namen)) {
+      if (
+        /92$/.test(question.id) &&
+        shown?.status === "bestaetigt" &&
+        Array.isArray(namen) &&
+        !isKeineKontrolleValues(shown.values)
+      ) {
         shown = {
           ...shown,
           values: {

@@ -16,6 +16,7 @@
  *
  * Legal references are general hints. GoBD Randziffern only where certain.
  */
+import { KONTROLLEN_HINWEIS, mitKeineKontrolle } from "@/lib/keine-angaben";
 
 export type BereichField = {
   key: string;
@@ -155,9 +156,9 @@ function rahmenFragen(prefix: string, label: string, kontrollen: BereichKontroll
       id: `${prefix}92`,
       title: "Kontrollen im Bereich",
       prompt: `Welche Kontrollen finden im Bereich ${label} heute tatsächlich statt?`,
-      hint: "Nur Kontrollen auswählen, die heute wirklich laufen. Für jede Kontrolle Turnus, ausführende Person und Nachweis nennen.",
+      hint: KONTROLLEN_HINWEIS,
       fields: [
-        many("kontrollen", "Durchgeführte Kontrollen", kontrollen.map((item) => item.name)),
+        many("kontrollen", "Durchgeführte Kontrollen", mitKeineKontrolle(kontrollen.map((item) => item.name))),
         area("details", "Turnus, wer, Nachweis je Kontrolle"),
       ],
       open: `Die Kontrollen im Bereich ${label} (Turnus, Person, Nachweis) sind nicht bestätigt.`,

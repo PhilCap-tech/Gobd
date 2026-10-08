@@ -2,6 +2,12 @@
  * Customer-facing labels for the catalog intake.
  * Question ids and field keys stay in the catalog for rules; they are not labels.
  */
+import {
+  ausnahmenPhrase,
+  KEINE_REGELMAESSIGE_KONTROLLE,
+  normalizeExclusiveSelection,
+} from "@/lib/keine-angaben";
+import type { IntakeAnswers } from "@/lib/types";
 
 export const RECHTSFORMEN = [
   "Einzelunternehmen",
@@ -493,6 +499,8 @@ export type ChannelDetail = {
   turnusFrei: string;
   uebergabe: string;
   ausnahmen: string;
+  /** Erfüllt das Pflichtfeld, ohne eine Ausnahme zu erfinden. */
+  keineAusnahmen?: boolean;
 };
 
 export function emptyChannelDetail(): ChannelDetail {
@@ -607,12 +615,13 @@ export function composeCatalogValues(
     const row = next.eingang as ChannelDetail | undefined;
     if (row && typeof row === "object") {
       const turnus = resolvedTurnus(row);
+      const ausnahme = ausnahmenPhrase(row);
       next.schritte = [
         textOf(row.ort),
         textOf(row.wer),
         turnus,
         textOf(row.uebergabe) && `Übergabe: ${textOf(row.uebergabe)}`,
-        textOf(row.ausnahmen) && `Ausnahmen: ${textOf(row.ausnahmen)}`,
+        ausnahme,
       ]
         .filter(Boolean)
         .join(". ");
@@ -672,10 +681,17 @@ export function composeCatalogValues(
     }
   }
   if (id === "H01") {
-    next.kontrollen = rowList(next.kontrollen).map((row) => ({
-      ...row,
-      turnus: row.turnusWahl === "anders" ? textOf(row.turnusFrei) : textOf(row.turnusWahl) || textOf(row.turnus),
-    }));
+    if (next.keineKontrolle === true || controlRowsAreKeine(next.kontrollen)) {
+      next.kontrollen = [];
+      next.keineKontrolle = true;
+    } else {
+      next.kontrollen = rowList(next.kontrollen)
+        .filter((row) => textOf(row.name) !== KEINE_REGELMAESSIGE_KONTROLLE)
+        .map((row) => ({
+          ...row,
+          turnus: row.turnusWahl === "anders" ? textOf(row.turnusFrei) : textOf(row.turnusWahl) || textOf(row.turnus),
+        }));
+    }
   }
   if (id === "I01") {
     const selected = listOf(next.ausloeserAuswahl).filter((item) => item !== "Sonstiges");
@@ -686,7 +702,8 @@ export function composeCatalogValues(
 }
 
 function channelDetailReady(row: ChannelDetail | undefined): string {
-  if (!row || !textOf(row.ort) || !textOf(row.wer) || !textOf(row.turnus) || !textOf(row.uebergabe) || !textOf(row.ausnahmen)) {
+  const ausnahmenOk = row?.keineAusnahmen === true || Boolean(textOf(row?.ausnahmen));
+  if (!row || !textOf(row.ort) || !textOf(row.wer) || !textOf(row.turnus) || !textOf(row.uebergabe) || !ausnahmenOk) {
     return "Bitte Ort, Person, Turnus, Übergabe und Ausnahmen angeben.";
   }
   if (row.turnus === "anders" && !textOf(row.turnusFrei)) return "Bitte den anderen Turnus benennen.";
@@ -794,6 +811,7 @@ export function p1FieldError(
     return "Bitte angeben, ob der Anbieter sichert oder eine Rücksicherung geprüft wurde.";
   }
   if (id === "H01") {
+    if (values.keineKontrolle === true || controlRowsAreKeine(values.kontrollen)) return "";
     for (const row of rowList(values.kontrollen)) {
       if (!textOf(row.name)) continue;
       const turnus = textOf(row.turnusWahl) || textOf(row.turnus);
@@ -836,7 +854,7 @@ export function presentationBits(id: string, values: Record<string, unknown> | u
   if (id === "C02") {
     return Object.entries(channelMap(values.kanaeleDetail)).map(([channel, row]) => {
       const turnus = resolvedTurnus(row);
-      return [channel, textOf(row.ort), textOf(row.wer), turnus, textOf(row.uebergabe), textOf(row.ausnahmen)]
+      return [channel, textOf(row.ort), textOf(row.wer), turnus, textOf(row.uebergabe), ausnahmenPhrase(row)]
         .filter(Boolean)
         .join(", ");
     });
@@ -847,4 +865,118 @@ export function presentationBits(id: string, values: Record<string, unknown> | u
     );
   }
   return [];
+}
+
+function controlRowsAreKeine(raw: unknown): boolean {
+  const names = rowList(raw).map((row) => textOf(row.name)).filter(Boolean);
+  return names.length > 0 && names.every((name) => name === KEINE_REGELMAESSIGE_KONTROLLE);
+}
+
+function normalizeNamedControls(values: Record<string, unknown>): Record<string, unknown> {
+  const raw = values.kontrollen;
+  if (!Array.isArray(raw) || raw.some((item) => typeof item !== "string")) return values;
+  const names = raw.map((item) => String(item));
+  const normalized = normalizeExclusiveSelection(names, KEINE_REGELMAESSIGE_KONTROLLE);
+  const keine = normalized.length === 1 && normalized[0] === KEINE_REGELMAESSIGE_KONTROLLE;
+  const sameList = normalized.length === names.length && normalized.every((item, index) => item === names[index]);
+  if (keine) {
+    if (sameList && !textOf(values.details)) return values;
+    return { ...values, kontrollen: normalized, details: "" };
+  }
+  if (sameList) return values;
+  return { ...values, kontrollen: normalized };
+}
+
+function normalizeH01(values: Record<string, unknown>): Record<string, unknown> {
+  if (values.keineKontrolle === true || controlRowsAreKeine(values.kontrollen)) {
+    if (values.keineKontrolle === true && rowList(values.kontrollen).length === 0) return values;
+    return { ...values, kontrollen: [], keineKontrolle: true };
+  }
+  const rows = rowList(values.kontrollen);
+  const hasSentinel = rows.some((row) => textOf(row.name) === KEINE_REGELMAESSIGE_KONTROLLE);
+  if (!hasSentinel) return values;
+  const real = rows.filter((row) => textOf(row.name) && textOf(row.name) !== KEINE_REGELMAESSIGE_KONTROLLE);
+  return { ...values, kontrollen: real, keineKontrolle: false };
+}
+
+const KF_TEXT_KEYS = ["kontrollen", "ablauf", "wer", "nachweis", "turnus", "details"] as const;
+
+function normalizeKf(values: Record<string, unknown>): Record<string, unknown> {
+  if (values.keineKontrolle !== true) return values;
+  let next: Record<string, unknown> | null = null;
+  for (const key of KF_TEXT_KEYS) {
+    if (typeof values[key] === "string" && textOf(values[key])) {
+      if (!next) next = { ...values };
+      next[key] = "";
+    }
+  }
+  return next ?? values;
+}
+
+function normalizeChannelRow(row: ChannelDetail): ChannelDetail {
+  if (row.keineAusnahmen === true && textOf(row.ausnahmen)) return { ...row, ausnahmen: "" };
+  return row;
+}
+
+function normalizeC02(values: Record<string, unknown>): Record<string, unknown> {
+  const map = channelMap(values.kanaeleDetail);
+  let changed = false;
+  const nextMap: Record<string, ChannelDetail> = {};
+  for (const [channel, row] of Object.entries(map)) {
+    const next = normalizeChannelRow(row);
+    nextMap[channel] = next;
+    if (next !== row) changed = true;
+  }
+  if (!changed) return values;
+  return composeCatalogValues("C02", { ...values, kanaeleDetail: nextMap });
+}
+
+function normalizeC03(values: Record<string, unknown>): Record<string, unknown> {
+  const row = values.eingang;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return values;
+  const nextRow = normalizeChannelRow(row as ChannelDetail);
+  const source = nextRow === row ? values : { ...values, eingang: nextRow };
+  const composed = composeCatalogValues("C03", source);
+  if (nextRow === row && textOf(composed.schritte) === textOf(values.schritte)) return values;
+  return composed;
+}
+
+function normalizeEntryValues(id: string, values: Record<string, unknown>): Record<string, unknown> {
+  if (id === "H01") return normalizeH01(values);
+  if (/^KF0[1-5]$/.test(id)) return normalizeKf(values);
+  if (/92$/.test(id)) return normalizeNamedControls(values);
+  if (id === "C02") return normalizeC02(values);
+  if (id === "C03") return normalizeC03(values);
+  return values;
+}
+
+/** Exklusive Keine-Angaben bereinigen. Unveränderte Entwürfe bleiben dasselbe Objekt. */
+export function normalizeIntakeAnswers(answers: IntakeAnswers): IntakeAnswers {
+  const katalog = answers.katalog;
+  if (!katalog) return answers;
+  let changed = false;
+  const next: NonNullable<IntakeAnswers["katalog"]> = {};
+  for (const [id, entry] of Object.entries(katalog)) {
+    if (!entry?.values) {
+      next[id] = entry;
+      continue;
+    }
+    const normalized = normalizeEntryValues(id, entry.values);
+    if (normalized !== entry.values) {
+      changed = true;
+      next[id] = { ...entry, values: normalized };
+    } else {
+      next[id] = entry;
+    }
+  }
+  if (!changed) return answers;
+  return { ...answers, katalog: next };
+}
+
+/** Ausnahme-Sätze der digitalen Kanäle, jeder Wortlaut einmal. */
+export function channelExceptionPhrases(values: Record<string, unknown> | undefined): string[] {
+  if (!values) return [];
+  return [
+    ...new Set(Object.values(channelMap(values.kanaeleDetail)).map((row) => ausnahmenPhrase(row)).filter(Boolean)),
+  ];
 }

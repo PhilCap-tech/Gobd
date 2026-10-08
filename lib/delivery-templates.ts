@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import bundle from "@/content/delivery-templates/bundle.json";
+import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import {
   evaluateOpenPoints,
   intakeValueContainsToken,
@@ -546,11 +547,12 @@ export function renderDeliveryDocument(input: {
   /** Earlier versions of the same document family, oldest first. */
   versionHistory?: VersionHistoryEntry[];
 }): RenderedDocument {
+  const answers = normalizeIntakeAnswers(input.answers);
   const generatedAt = formatBerlinDateTime();
   const generatedAtDisplay = formatBerlinDate();
   const versionLabel = formatVersionLabel(input.version);
-  const livedAnswers = documentAnswers(input.answers);
-  const openPoints = evaluateOpenPoints(input);
+  const livedAnswers = documentAnswers(answers);
+  const openPoints = evaluateOpenPoints({ ...input, answers });
   const validFrom = input.versionMeta?.validFrom?.trim() ?? "";
   const validTo = input.versionMeta?.validTo?.trim() ?? "";
   const changeSummary = input.versionMeta?.changeSummary?.trim() ?? "";
@@ -558,7 +560,7 @@ export function renderDeliveryDocument(input: {
   const kanzleiUnbestaetigt = intakeValueHasUnconfirmedScope(livedAnswers.steuerberater);
   const kanzleiBucht =
     !isEmptyIntakeValue(livedAnswers.steuerberater) && !kanzleiUnbestaetigt;
-  const uo = isGesamt(input.answers) ? uo06Angaben(input.answers) : { ausschluss: "", geltung: "" };
+  const uo = isGesamt(answers) ? uo06Angaben(answers) : { ausschluss: "", geltung: "" };
   if (uo.ausschluss && !livedAnswers.geltungAusschluss?.trim()) {
     livedAnswers.geltungAusschluss = uo.ausschluss;
   }
@@ -580,10 +582,10 @@ export function renderDeliveryDocument(input: {
     historyDate: validFrom || generatedAt,
     kanzleiBucht: kanzleiBucht ? "ja" : "",
     kanzleiUnbestaetigt: kanzleiUnbestaetigt ? "ja" : "",
-    keineKanzlei: isGesamt(input.answers) && kanzleiAbgelehnt(input.answers) ? "ja" : "",
-    eigenbuchhaltung: eigenbuchhaltungText(input.answers),
+    keineKanzlei: isGesamt(answers) && kanzleiAbgelehnt(answers) ? "ja" : "",
+    eigenbuchhaltung: eigenbuchhaltungText(answers),
     geltungText: uo.geltung,
-    bereich: bereichContext(input.answers),
+    bereich: bereichContext(answers),
     historyRows: historyRows(input.versionHistory ?? []),
     history: historyContext(input.versionHistory ?? [], changeSummary),
   };
@@ -593,7 +595,7 @@ export function renderDeliveryDocument(input: {
     bundle.coverMarkdown,
   );
 
-  if (isGesamt(input.answers)) {
+  if (isGesamt(answers)) {
     // Gesamtdokument: cover still from Belegfluss template with belegfluss context;
     // chapters are the 24-module four-part structure.
     base.bereich = {
@@ -608,7 +610,7 @@ export function renderDeliveryDocument(input: {
     return {
       disclaimer: bundle.disclaimer,
       cover: renderTemplate(coverSource, base).trim(),
-      chapters: renderGesamtChapters(input.answers, openPointsTable(openPoints), {
+      chapters: renderGesamtChapters(answers, openPointsTable(openPoints), {
         onlyModul: (input as { onlyModul?: string }).onlyModul,
       }),
       openPoints,
@@ -646,7 +648,7 @@ export function renderDeliveryDocument(input: {
             body,
           };
         }),
-      input.answers,
+      answers,
     ),
     openPoints,
     generatedAt,

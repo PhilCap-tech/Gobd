@@ -17,6 +17,7 @@ import {
   saveIntakeDraft,
   type IntakeDraft,
 } from "@/lib/intake-draft";
+import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import type { IntakeAnswers } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -151,7 +152,7 @@ export async function PUT(request: Request) {
     documentId: body.documentId?.trim() || stored?.documentId || "",
     entityId: body.entityId?.trim() || stored?.entityId || "",
     step: Number.isFinite(body.step) ? Number(body.step) : 0,
-    answers: body.answers,
+    answers: normalizeIntakeAnswers(body.answers),
     revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(stored)),
     updatedAt: new Date().toISOString(),
     change: parseDraftVersionChange(body.change) ?? stored?.change,

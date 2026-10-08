@@ -14,7 +14,13 @@ import {
   RECHTSFORM_FREITEXT,
   statusChoiceVisible,
   TAETIGKEIT_FREITEXT,
+  channelExceptionPhrases,
 } from "@/lib/intake-present";
+import {
+  isControlQuestionId,
+  isKeineKontrolleValues,
+  KEINE_KONTROLLE_SATZ,
+} from "@/lib/keine-angaben";
 import {
   BELEGFLUSS,
   BEREICHE,
@@ -813,9 +819,10 @@ function questionIssues(
   if (entry.status === "bestaetigt" || entry.status === "geplant") {
     const channels = asList(valuesOf(catalogState(answers), "C01").kanaele);
     const p1 = p1FieldError(question.id, entry.status, values, channels);
+    const keineKontrolle = isControlQuestionId(question.id) && isKeineKontrolleValues(values);
     if (p1) {
       issues.push(catalogIssue(question.id, "block", p1));
-    } else {
+    } else if (!keineKontrolle) {
       for (const field of question.fields) {
         if (!fieldReady(field, values[field.key])) issues.push(fieldIssue(question, field));
       }
@@ -1080,6 +1087,8 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     next.sichtungWer = asText(values.wer);
     next.sichtungTurnus = asText(values.turnus);
     next.sichtung = [next.postfach, next.sichtungWer, next.sichtungTurnus].filter(Boolean).join(", ");
+    const ausnahmen = channelExceptionPhrases(values);
+    if (ausnahmen.length) next.sichtung = [next.sichtung, ...ausnahmen].filter(Boolean).join(". ");
   }
   if (live(state, "C03")) {
     next.papierannahme = asText(valuesOf(state, "C03").schritte);
@@ -1186,16 +1195,22 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     if (tested === "ja") next.wiederherstellungstest = asText(values.letztesTestdatum);
   }
   if (live(state, "H01")) {
-    const rows = completeControls(asRows(valuesOf(state, "H01").kontrollen));
-    next.kontrollen = rows
-      .map((row) => `| ${asText(row.name)} | ${asText(row.turnus)} | ${asText(row.wer)} | ${asText(row.nachweis)} |`)
-      .join("\n");
-    next.kontrollenListe = rows.map((row) => ({
-      was: asText(row.name),
-      turnus: asText(row.turnus),
-      wer: asText(row.wer),
-      nachweis: asText(row.nachweis),
-    }));
+    const values = valuesOf(state, "H01");
+    if (isKeineKontrolleValues(values)) {
+      next.kontrollen = KEINE_KONTROLLE_SATZ;
+      next.kontrollenListe = [];
+    } else {
+      const rows = completeControls(asRows(values.kontrollen));
+      next.kontrollen = rows
+        .map((row) => `| ${asText(row.name)} | ${asText(row.turnus)} | ${asText(row.wer)} | ${asText(row.nachweis)} |`)
+        .join("\n");
+      next.kontrollenListe = rows.map((row) => ({
+        was: asText(row.name),
+        turnus: asText(row.turnus),
+        wer: asText(row.wer),
+        nachweis: asText(row.nachweis),
+      }));
+    }
   }
   if (live(state, "H04") && asText(valuesOf(state, "H04").status) === "bestaetigt") {
     const values = valuesOf(state, "H04");
@@ -1275,9 +1290,26 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
       if (question.id === "H01" && status !== "bestaetigt") {
         if (!points.some((point) => point.id === "op-h01")) points.push(pointFor("H01"));
       }
-      if (question.id === "H01" && status === "bestaetigt") {
+      if (
+        question.id === "H01" &&
+        status === "bestaetigt" &&
+        !isKeineKontrolleValues(valuesOf(state, "H01"))
+      ) {
         const rows = completeControls(asRows(valuesOf(state, "H01").kontrollen));
         if (!rows.length) points.push(pointFor("H01"));
+      }
+      if (
+        status === "bestaetigt" &&
+        isControlQuestionId(question.id) &&
+        isKeineKontrolleValues(valuesOf(state, question.id))
+      ) {
+        const base = pointFor(question.id);
+        points.push({
+          ...base,
+          id: `${base.id}-keine`,
+          priority: "mittel",
+          text: KEINE_KONTROLLE_SATZ,
+        });
       }
       if (
         question.id === "A03" &&
@@ -1705,6 +1737,9 @@ function displayFieldValue(fieldKey: string, value: unknown): string {
 }
 
 function summaryBits(question: CatalogQuestion, entry: CatalogState[string] | undefined): string[] {
+  if (isControlQuestionId(question.id) && isKeineKontrolleValues(entry?.values)) {
+    return [KEINE_KONTROLLE_SATZ];
+  }
   const bits = question.fields.map((field) => {
     const shown = displayFieldValue(field.key, entry?.values?.[field.key]);
     if (!shown) return "";
@@ -1771,7 +1806,10 @@ export function catalogFragebogen(answers: IntakeAnswers): FragebogenStep[] {
       questions: questions.map((question) => {
         const entry = state[question.id];
         const area = bereichQuestion(question.id);
-        const lines = area
+        const lines =
+          isControlQuestionId(question.id) && isKeineKontrolleValues(entry?.values)
+            ? [KEINE_KONTROLLE_SATZ]
+            : area
           ? area.question.fields
               .map((field) => {
                 const value = entry?.values?.[field.key];
