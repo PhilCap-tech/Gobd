@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import {
+  authorizeDraftAccess,
+  draftAccessHttpStatus,
+  nextStripeSessionId,
+} from "@/lib/checkout-access";
+import {
   clearIntakeDraft,
   draftIsEmpty,
   draftRevision,
@@ -11,7 +16,6 @@ import {
   saveIntakeDraft,
   type IntakeDraft,
 } from "@/lib/intake-draft";
-import { resolveCheckoutSession } from "@/lib/stripe";
 import type { IntakeAnswers } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -29,34 +33,8 @@ function isAnswers(value: unknown): value is IntakeAnswers {
   return Boolean(value && typeof value === "object");
 }
 
-async function authorize(input: {
-  sessionId?: string;
-  email?: string;
-  draft?: IntakeDraft | null;
-}): Promise<boolean> {
-  const sessionEmail = (await getSessionEmail())?.toLowerCase() ?? "";
-  const sessionId = input.sessionId?.trim() ?? "";
-  const email = (input.email ?? input.draft?.email ?? "").trim().toLowerCase();
-
-  if (sessionEmail && email && sessionEmail === email) return true;
-  if (sessionEmail && input.draft?.email?.toLowerCase() === sessionEmail) return true;
-
-  if (sessionId) {
-    if (input.draft?.stripeSessionId && input.draft.stripeSessionId === sessionId) return true;
-    const resolved = await resolveCheckoutSession(sessionId);
-    if (!("error" in resolved)) {
-      if (!email || email === resolved.email.toLowerCase()) return true;
-      if (sessionEmail && sessionEmail === resolved.email.toLowerCase()) return true;
-    }
-    // Stub-Sessions ohne Stripe: Session-Id reicht als Besitznachweis.
-    if (sessionId.startsWith("mock_") || sessionId.startsWith("cs_test_")) return true;
-    if ("error" in resolved && resolved.error !== "not_paid") {
-      // missing lookup — still allow same session key for demo
-      return true;
-    }
-  }
-
-  return Boolean(sessionEmail);
+function deny(access: { ok: false; status: 401 | 403 }) {
+  return jsonError("Kein Zugriff.", draftAccessHttpStatus(access));
 }
 
 export async function GET(request: Request) {
@@ -84,9 +62,13 @@ export async function GET(request: Request) {
   if (!draft || draftIsEmpty(draft)) {
     return NextResponse.json({ draft: null });
   }
-  if (!(await authorize({ sessionId: url.searchParams.get("sessionId") ?? undefined, draft }))) {
-    return jsonError("Kein Zugriff.", 401);
-  }
+  const access = await authorizeDraftAccess({
+    sessionEmail: await getSessionEmail(),
+    sessionId: url.searchParams.get("sessionId") ?? undefined,
+    draftKey,
+    draft,
+  });
+  if (!access.ok) return deny(access);
   return NextResponse.json({ draft });
 }
 
@@ -124,7 +106,8 @@ export async function PUT(request: Request) {
   if (!isAnswers(body.answers)) return jsonError("answers fehlen.", 400);
 
   // 401 before any blob read. A storage outage must not turn "no session" into 503.
-  if (!body.sessionId?.trim() && !(await getSessionEmail())) {
+  const sessionEmail = await getSessionEmail();
+  if (!body.sessionId?.trim() && !sessionEmail) {
     return jsonError("Kein Zugriff.", 401);
   }
 
@@ -136,35 +119,38 @@ export async function PUT(request: Request) {
     if (failure) return failure;
     throw error;
   }
-  if (existing && !draftIsEmpty(existing)) {
-    if (!(await authorize({ sessionId: body.sessionId, draft: existing, email: body.email }))) {
-      return jsonError("Kein Zugriff.", 401);
-    }
-    if (
-      !incomingDraftWins(
-        { revision: body.revision, clientUpdatedAt: body.clientUpdatedAt },
-        existing,
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Konflikt: Server-Entwurf ist neuer.", draft: existing, conflict: true },
-        { status: 409 },
-      );
-    }
-  } else if (!(await authorize({ sessionId: body.sessionId, email: body.email }))) {
-    return jsonError("Kein Zugriff.", 401);
+  const stored = existing && !draftIsEmpty(existing) ? existing : null;
+  const access = await authorizeDraftAccess({
+    sessionEmail,
+    sessionId: body.sessionId,
+    email: body.email,
+    draftKey,
+    draft: stored,
+  });
+  if (!access.ok) return deny(access);
+
+  if (
+    stored &&
+    !incomingDraftWins(
+      { revision: body.revision, clientUpdatedAt: body.clientUpdatedAt },
+      stored,
+    )
+  ) {
+    return NextResponse.json(
+      { error: "Konflikt: Server-Entwurf ist neuer.", draft: stored, conflict: true },
+      { status: 409 },
+    );
   }
 
-  const sessionEmail = (await getSessionEmail()) ?? "";
   const draft: IntakeDraft = {
     draftKey,
-    email: (body.email || sessionEmail || existing?.email || "").trim().toLowerCase(),
-    stripeSessionId: body.sessionId?.trim() || existing?.stripeSessionId || "",
-    documentId: body.documentId?.trim() || existing?.documentId || "",
-    entityId: body.entityId?.trim() || existing?.entityId || "",
+    email: access.ownerEmail || stored?.email || "",
+    stripeSessionId: nextStripeSessionId(body.sessionId, stored?.stripeSessionId),
+    documentId: body.documentId?.trim() || stored?.documentId || "",
+    entityId: body.entityId?.trim() || stored?.entityId || "",
     step: Number.isFinite(body.step) ? Number(body.step) : 0,
     answers: body.answers,
-    revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(existing)),
+    revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(stored)),
     updatedAt: new Date().toISOString(),
   };
 
@@ -182,6 +168,7 @@ export async function DELETE(request: Request) {
   const url = new URL(request.url);
   const draftKey = url.searchParams.get("draftKey")?.trim() ?? "";
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
+
   let existing: IntakeDraft | null;
   try {
     existing = await loadIntakeDraft(draftKey);
@@ -190,8 +177,14 @@ export async function DELETE(request: Request) {
     if (failure) return failure;
     throw error;
   }
-  if (existing && !(await authorize({ sessionId: url.searchParams.get("sessionId") ?? undefined, draft: existing }))) {
-    return jsonError("Kein Zugriff.", 401);
+  if (existing && !draftIsEmpty(existing)) {
+    const access = await authorizeDraftAccess({
+      sessionEmail: await getSessionEmail(),
+      sessionId: url.searchParams.get("sessionId") ?? undefined,
+      draftKey,
+      draft: existing,
+    });
+    if (!access.ok) return deny(access);
   }
   try {
     await clearIntakeDraft(draftKey);

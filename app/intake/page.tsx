@@ -11,6 +11,7 @@ import {
 } from "@/lib/documents";
 import { entityById, entityChoices, type Entity } from "@/lib/entities";
 import type { FirmFacts } from "@/lib/intake-catalog";
+import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { isStripeConfigured } from "@/lib/env";
 import { answersForNewBereich } from "@/lib/intake-catalog";
 import { BELEGFLUSS, bereichIdOf, isBereichId } from "@/lib/bereiche";
@@ -288,7 +289,7 @@ export default async function IntakePage({
 
   const session = sessionId
     ? await resolveCheckoutSession(sessionId)
-    : isStripeConfigured()
+    : isStripeConfigured() || !devCheckoutStubAllowed()
       ? ({ error: "missing" } as const)
       : {
           email: email || "",

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import { storeCustomerUpload, uploadAllowed } from "@/lib/blob";
+import {
+  accessDeniedStatus,
+  authorizeUploadSession,
+} from "@/lib/checkout-access";
 import { canAccessDocument } from "@/lib/documents";
-import { resolveCheckoutSession } from "@/lib/stripe";
 import {
   findDocumentById,
   findLatestDocumentByStripeSessionId,
@@ -27,30 +30,34 @@ async function assertAccess(input: {
     const row = await findDocumentById(documentId);
     if (!row) return { ok: false, response: jsonError("Dokument nicht gefunden.", 404) };
     if (!canAccessDocument(row, { sessionEmail, sessionId })) {
-      return { ok: false, response: jsonError("Kein Zugriff.", 401) };
+      return {
+        ok: false,
+        response: jsonError("Kein Zugriff.", accessDeniedStatus(sessionEmail)),
+      };
     }
     return { ok: true, ownerKey: row.entityId || row.documentId || sessionEmail || sessionId };
   }
 
-  if (sessionId) {
-    const resolved = await resolveCheckoutSession(sessionId);
-    if ("error" in resolved) {
-      // Stub / offline: allow with session id as owner key when session email matches or stub
-      if (sessionEmail) return { ok: true, ownerKey: sessionEmail };
-      return { ok: true, ownerKey: sessionId };
-    }
-    if (sessionEmail && sessionEmail.toLowerCase() !== resolved.email.toLowerCase()) {
-      return { ok: false, response: jsonError("Kein Zugriff.", 401) };
-    }
-    const latest = await findLatestDocumentByStripeSessionId(sessionId);
+  const upload = await authorizeUploadSession({ sessionEmail, sessionId });
+  if (!upload.ok) {
+    const presented = Boolean(sessionId) || Boolean(sessionEmail);
     return {
-      ok: true,
-      ownerKey: latest?.entityId || resolved.email || sessionId,
+      ok: false,
+      response: jsonError(
+        presented ? "Kein Zugriff." : "Anmeldung oder Checkout-Session erforderlich.",
+        upload.status,
+      ),
     };
   }
 
-  if (sessionEmail) return { ok: true, ownerKey: sessionEmail };
-  return { ok: false, response: jsonError("Anmeldung oder Checkout-Session erforderlich.", 401) };
+  let ownerKey = upload.ownerKey;
+  if (sessionId) {
+    const latest = await findLatestDocumentByStripeSessionId(sessionId);
+    if (latest && canAccessDocument(latest, { sessionEmail, sessionId })) {
+      ownerKey = latest.entityId || latest.documentId || ownerKey;
+    }
+  }
+  return { ok: true, ownerKey };
 }
 
 export async function POST(request: Request) {
