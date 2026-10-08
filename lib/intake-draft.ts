@@ -27,8 +27,11 @@ export {
   draftRevision,
   incomingDraftWins,
   normalizeDraftKey,
+  parseDraftVersionChange,
   preferIntakeSnapshot,
+  resolveDraftAfterLoad,
 } from "@/lib/intake-draft-shared";
+export type { DraftVersionChange } from "@/lib/intake-draft-shared";
 
 /**
  * `gobd-blob` ist privat. `access: "public"` lehnt der Store ab; ein stiller

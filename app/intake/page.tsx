@@ -7,6 +7,7 @@ import { getCheckoutGrant, getSessionEmail } from "@/lib/auth";
 import {
   canAccessDocument,
   groupDocumentFamilies,
+  latestOwnedInFamily,
   nextVersionNumber,
 } from "@/lib/documents";
 import { entityById, entityChoices, type Entity } from "@/lib/entities";
@@ -31,6 +32,7 @@ import {
 } from "@/lib/stripe";
 import {
   answersFromSheetRow,
+  emailsEqual,
   emptyAnswers,
   identityFromSheetRow,
   type IntakeAnswers,
@@ -262,8 +264,11 @@ export default async function IntakePage({
       family.find((row) => row.documentId === resolvedRow.documentId) ??
       family.at(-1) ??
       resolvedRow;
-    const latest = groupDocumentFamilies(family)[0]?.latest ?? source;
     const allowed = canAccessDocument(source, { sessionEmail, sessionId });
+    // Family lookup is not filtered by mailbox. Only rows of the opened
+    // document's email may become the edit target.
+    const latest = latestOwnedInFamily(family, source.email) ?? source;
+    const ownedFamily = family.filter((row) => emailsEqual(row.email, source.email));
     const sourceEntity =
       latest?.entityId && sessionEmail ? await getOwnedEntity(latest.entityId, sessionEmail) : null;
 
@@ -279,7 +284,7 @@ export default async function IntakePage({
               session={identityFromSheetRow(source)}
               initialAnswers={answersFromSheetRow(latest)}
               sourceDocumentId={latest.documentId}
-              nextVersion={nextVersionNumber(family)}
+              nextVersion={nextVersionNumber(ownedFamily.length > 0 ? ownedFamily : [source])}
               initialEntityId={latest.entityId}
               initialStepId={initialStepId}
               focusModulId={focusModulId}

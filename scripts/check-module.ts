@@ -31,7 +31,7 @@ import { getGesamtMuster, MUSTER_VORLAGEN } from "../lib/module-muster";
 import { renderGesamtChapters } from "../lib/gesamt-document";
 import { uploadAllowed } from "../lib/blob";
 import { draftIsNewer, normalizeDraftKey } from "../lib/intake-draft";
-import { checkIntakeDraftRestore } from "./check-intake-draft";
+import { checkDocumentOwnership, checkDraftMerge, checkIntakeDraftRestore } from "./check-intake-draft";
 import { BEREICHE } from "../lib/bereiche";
 
 function ok(cond: unknown, msg: string) {
@@ -296,5 +296,7 @@ checkMusterPdfDepth().catch((error) => {
   ok(draftIsNewer("2026-10-05T12:00:00.000Z", "2026-10-05T11:00:00.000Z"), "server newer wins");
   ok(!draftIsNewer("2026-10-05T11:00:00.000Z", "2026-10-05T12:00:00.000Z"), "client newer keeps");
   checkIntakeDraftRestore();
+  checkDraftMerge();
+  checkDocumentOwnership();
   console.log("check-module upload/draft helpers: green");
 }

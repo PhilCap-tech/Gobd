@@ -102,6 +102,18 @@ export function groupDocumentFamilies(rows: SheetRow[]): DocumentFamily[] {
   return families;
 }
 
+/**
+ * Highest version, then newest timestamp, among rows whose email matches.
+ * A row from another mailbox in the same parent group is not an edit target.
+ */
+export function latestOwnedInFamily(rows: SheetRow[], email: string): SheetRow | null {
+  const owner = email.trim();
+  if (!owner) return null;
+  const owned = rows.filter((row) => row.documentId && emailsEqual(row.email, owner));
+  if (owned.length === 0) return null;
+  return groupDocumentFamilies(owned)[0]?.latest ?? null;
+}
+
 export function groupFamiliesByEntity(
   entities: Entity[],
   docs: SheetRow[],
