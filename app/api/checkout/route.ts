@@ -29,15 +29,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const partner = body.audience === "steuerberater";
-
   if (body.entrepreneur !== true) {
     return NextResponse.json(
-      {
-        error: partner
-          ? "Bitte bestätigen Sie, dass Sie als Unternehmer bestellen."
-          : "Bitte bestätige, dass du als Unternehmer bestellst.",
-      },
+      { error: "Bitte bestätigen Sie, dass Sie als Unternehmer bestellen." },
       { status: 400 },
     );
   }

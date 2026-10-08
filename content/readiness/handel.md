@@ -11,9 +11,9 @@ date: 2026-09-19
 
 **Richtlinie für {{Firma}} · {{Branche}} · Stand {{Datum}}**
 
-Diese Kurzrichtlinie richtet sich an Handelsbetriebe — stationär, online oder beides. Sie hilft dir zu klären, welche Belege und Systeme für die GoBD besonders zählen: Wareneingang, Kasse/POS, Retouren und Inventur. Es ist eine Arbeitshilfe für {{Firma}} in der {{Branche}}, keine fertige Verfahrensdokumentation und kein Ersatz für die Abstimmung mit deinem Steuerberater.
+Diese Kurzrichtlinie richtet sich an Handelsbetriebe — stationär, online oder beides. Sie hilft Ihnen zu klären, welche Belege und Systeme für die GoBD besonders zählen: Wareneingang, Kasse/POS, Retouren und Inventur. Es ist eine Arbeitshilfe für {{Firma}} in der {{Branche}}, keine fertige Verfahrensdokumentation und kein Ersatz für die Abstimmung mit Ihrem Steuerberater.
 
-Im Handel entstehen prüfungsrelevante Spuren an vielen Stellen gleichzeitig: Lieferantenschreibung, Wareneingangskontrolle, Verkauf an der Kasse oder im Shop, Retoure, Gutschrift, Inventurdifferenz. Wenn diese Ketten nicht zusammenpassen, wird es bei einer Prüfung unangenehm — auch wenn du „eigentlich alles digital“ machst.
+Im Handel entstehen prüfungsrelevante Spuren an vielen Stellen gleichzeitig: Lieferantenschreibung, Wareneingangskontrolle, Verkauf an der Kasse oder im Shop, Retoure, Gutschrift, Inventurdifferenz. Wenn diese Ketten nicht zusammenpassen, wird es bei einer Prüfung unangenehm — auch wenn Sie „eigentlich alles digital“ machen.
 
 ---
 
@@ -46,7 +46,7 @@ Besonders wichtig: **Wareneingang und Inventur**. Viele Händler haben Verkauf u
 
 ### Typische Systeme im Handel
 
-Je nach Betriebsmodell findest du oft:
+Je nach Betriebsmodell finden Sie oft:
 
 - **Kasse / POS:** stationäre Kassensysteme mit TSE, Cloud-Kassen, kombinierte Shop+Kasse-Lösungen
 - **Warenwirtschaft (WaWi):** Bestellung, Wareneingang, Bestand, Inventur
@@ -55,7 +55,7 @@ Je nach Betriebsmodell findest du oft:
 - **Zahlungsdienstleister:** EC/Kartengeräte, PayPal, Stripe, Klarna o. Ä. — Abrechnungen sind Belege bzw. Aufzeichnungen
 - **Marktplatz-Anbindungen:** Amazon, eBay & Co. mit eigenen Reports
 
-GoBD-Risiko Nr. 1 im Handel: **mehrere Systeme, keine klare führende Quelle**. Shop sagt Verkauf X, Kasse sagt Y, Buchhaltung bucht Z aus dem Kontoauszug. Du brauchst Klarheit, welches System für welche Aussage maßgeblich ist und wie Abstimmungen laufen.
+GoBD-Risiko Nr. 1 im Handel: **mehrere Systeme, keine klare führende Quelle**. Shop sagt Verkauf X, Kasse sagt Y, Buchhaltung bucht Z aus dem Kontoauszug. Sie brauchen Klarheit, welches System für welche Aussage maßgeblich ist und wie Abstimmungen laufen.
 
 ### Typische Risiken im Handel
 
@@ -68,22 +68,22 @@ GoBD-Risiko Nr. 1 im Handel: **mehrere Systeme, keine klare führende Quelle**. 
 7. **Mitarbeiterrechte an der Kasse:** Jeder kann stornieren; es gibt kein Vier-Augen-Prinzip und kein Auswertungsinteresse.
 8. **Belege nur im E-Mail-Postfach oder am Bondrucker:** Kein revisionssicheres Archiv, schwerer Datenzugriff bei Prüfung.
 
-### Kasse / POS — was du zumindest wissen solltest
+### Kasse / POS — was Sie zumindest wissen sollten
 
-Elektronische Kassensysteme unterliegen in Deutschland besonderen Anforderungen (u. a. technische Sicherheitseinrichtung/TSE, Aufbewahrung von Aufzeichnungen). Was genau für dein Gerät gilt, hängt vom System und vom Einsatz ab — das klärst du mit Steuerberater und Kassenhersteller.
+Elektronische Kassensysteme unterliegen in Deutschland besonderen Anforderungen (u. a. technische Sicherheitseinrichtung/TSE, Aufbewahrung von Aufzeichnungen). Was genau für Ihr Gerät gilt, hängt vom System und vom Einsatz ab — das klären Sie mit Steuerberater und Kassenhersteller.
 
 Für diese Kurzrichtlinie reicht die Praxis-Perspektive:
 
 - Tagesabschlüsse und relevante Kassenaufzeichnungen werden **aufbewahrt** und sind auffindbar.
 - Stornos und Retouren sind **erkennbar und begründbar**.
-- Die Kasse ist in deiner **Systemlandschaft** benannt (Hersteller, Standort, wer verantwortlich ist).
-- Du weißt, **welche Daten** bei einer Prüfung aus der Kasse kommen können.
+- Die Kasse ist in Ihrer **Systemlandschaft** benannt (Hersteller, Standort, wer verantwortlich ist).
+- Sie wissen, **welche Daten** bei einer Prüfung aus der Kasse kommen können.
 
-Das ist Vorbereitung — keine Aussage, dass dein System „GoBD-konform zertifiziert“ sei. Solche Labels und Garantien gibt diese Arbeitshilfe bewusst nicht.
+Das ist Vorbereitung — keine Aussage, dass Ihr System „GoBD-konform zertifiziert“ sei. Solche Labels und Garantien gibt diese Arbeitshilfe bewusst nicht.
 
 ### Inventur und Bestand
 
-Auch wenn du keine „große“ Inventur feierst: Bestände und Differenzen gehören zur Handelsrealität. Für Nachvollziehbarkeit hilft:
+Auch wenn Sie keine „große“ Inventur feiern: Bestände und Differenzen gehören zur Handelsrealität. Für Nachvollziehbarkeit hilft:
 
 - klare Inventurtermine und -zuständigkeiten
 - Listen bzw. Systemauszüge aufbewahren
@@ -94,7 +94,7 @@ Auch wenn du keine „große“ Inventur feierst: Bestände und Differenzen geh�
 
 ## Checkliste Handel
 
-Hake ab, was bei {{Firma}} bereits geregelt ist. Offene Punkte nimmst du in den Readiness-Check bzw. in die Vorbereitung der Verfahrensdokumentation mit.
+Haken Sie ab, was bei {{Firma}} bereits geregelt ist. Offene Punkte nehmen Sie in den Readiness-Check bzw. in die Vorbereitung der Verfahrensdokumentation mit.
 
 ### Wareneingang und Einkauf
 
@@ -149,19 +149,19 @@ Hake ab, was bei {{Firma}} bereits geregelt ist. Offene Punkte nimmst du in den 
 ## Nächste Schritte
 
 1. **Checkliste gegen den Ist-Zustand legen**  
-   Nimm dir jemanden aus Büro/Filiale/Shop und geh die Punkte durch. Besonders kritisch: Wareneingang, Kasse/Storno, Retoure, Inventur.
+   Nehmen Sie sich jemanden aus Büro/Filiale/Shop und gehen Sie die Punkte durch. Besonders kritisch: Wareneingang, Kasse/Storno, Retoure, Inventur.
 
 2. **Systemlandschaft skizzieren**  
    Ein einfaches Diagramm oder eine Liste: Shop, Kasse, WaWi, Zahlungsanbieter, Buchhaltung. Markiere, wo Belege entstehen und wo sie landen.
 
 3. **Einen „Problemfall“ durchspielen**  
-   Beispiel: Kunde retourniert online gekaufte Ware in der Filiale. Welche Belege entstehen? Wer bucht was? Wenn du das nicht in zwei Minuten erklären kannst, ist das ein klarer Handlungsbedarf.
+   Beispiel: Kunde retourniert online gekaufte Ware in der Filiale. Welche Belege entstehen? Wer bucht was? Wenn Sie das nicht in zwei Minuten erklären können, ist das ein klarer Handlungsbedarf.
 
 4. **Readiness-Check auf gobd-doku-erstellen.de**  
-   Der Readiness-Check hilft dir, Lücken branchenspezifisch zu sehen — als Orientierung vor der ausführlicheren Dokumentation.
+   Der Readiness-Check hilft Ihnen, Lücken branchenspezifisch zu sehen — als Orientierung vor der ausführlicheren Dokumentation.
 
 5. **Verfahrensdokumentation vorbereiten / erstellen**  
-   Wenn die Basics sitzen, kannst du auf gobd-doku-erstellen.de eine Verfahrensdokumentation strukturiert aufbauen. Diese Kurzrichtlinie ersetzt sie nicht; sie bereitet die Inhalte vor (Prozesse, Systeme, Verantwortlichkeiten).
+   Wenn die Basics sitzen, können Sie auf gobd-doku-erstellen.de eine Verfahrensdokumentation strukturiert aufbauen. Diese Kurzrichtlinie ersetzt sie nicht; sie bereitet die Inhalte vor (Prozesse, Systeme, Verantwortlichkeiten).
 
 6. **Steuerberater und ggf. Kassenhersteller einbeziehen**  
    Besonders zu TSE/Kasse, Aufbewahrung von Kassendaten, Inventurbewertung und Schnittstellen zur Buchhaltung. Die Details gehören in die fachliche Abstimmung — nicht in eine allgemeine Arbeitshilfe.
@@ -170,9 +170,9 @@ Hake ab, was bei {{Firma}} bereits geregelt ist. Offene Punkte nimmst du in den 
 
 ## Disclaimer
 
-Diese Kurzrichtlinie ist eine **allgemeine Arbeitshilfe** von IKAT GmbH / gobd-doku-erstellen.de. Sie ersetzt **keine Steuerberatung**, keine Rechtsberatung und keine Prüfung deiner konkreten Kassen-, Shop- oder Warenwirtschaftssysteme.
+Diese Kurzrichtlinie ist eine **allgemeine Arbeitshilfe** von IKAT GmbH / gobd-doku-erstellen.de. Sie ersetzt **keine Steuerberatung**, keine Rechtsberatung und keine Prüfung Ihrer konkreten Kassen-, Shop- oder Warenwirtschaftssysteme.
 
-Ob und wie einzelne Punkte für {{Firma}} gelten, hängt von Betriebsform, Verkaufskanälen, eingesetzter Technik und der Abstimmung mit dem zuständigen Steuerberater ab. Stimme steuerlich und prüfungsrelevante Fragen — insbesondere rund um Kasse, TSE und Aufbewahrung — mit deinem Steuerberater ab.
+Ob und wie einzelne Punkte für {{Firma}} gelten, hängt von Betriebsform, Verkaufskanälen, eingesetzter Technik und der Abstimmung mit dem zuständigen Steuerberater ab. Stimmen Sie steuerlich und prüfungsrelevante Fragen — insbesondere rund um Kasse, TSE und Aufbewahrung — mit Ihrem Steuerberater ab.
 
 Diese Inhalte erheben **keinen Anspruch**, „rechtssicher“ oder „GoBD-konform“ im Sinne einer Garantie oder Zertifizierung zu sein. Sie dienen der Orientierung und Vorbereitung. Sie sind **keine** fertige Verfahrensdokumentation und keine Freigabe für den Fall einer Betriebsprüfung.
 

@@ -18,8 +18,8 @@ export default function ReadinessPage() {
         <p className="kicker">Kostenlos · kein Kaufzwang</p>
         <h1>Kostenloser 3-Minuten-Check</h1>
         <p className="lead">
-          Du siehst, welche Themen deine Dokumentation typischerweise abdecken
-          sollte — und wo bei dir noch Klärungsbedarf liegen kann. Kein
+          Sie sehen, welche Themen Ihre Dokumentation typischerweise abdecken
+          sollte — und wo bei Ihnen noch Klärungsbedarf liegen kann. Kein
           Kaufzwang. Danach eine kurze Einschätzung zu relevanten Themenfeldern
           und ein Hinweis auf nächste Schritte: Muster ansehen oder
           Dokumentation erstellen.

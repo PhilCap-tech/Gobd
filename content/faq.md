@@ -2,30 +2,30 @@
 
 Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 
-**Kurz-Hinweis:** Die Antworten beschreiben unser Produkt und den Ablauf. Sie sind keine Steuerberatung und keine Rechtsberatung. Die erzeugte Verfahrensdokumentation ist eine Arbeitshilfe aus deinen Angaben und ersetzt keine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
+**Kurz-Hinweis:** Die Antworten beschreiben unser Produkt und den Ablauf. Sie sind keine Steuerberatung und keine Rechtsberatung. Die erzeugte Verfahrensdokumentation ist eine Arbeitshilfe aus Ihren Angaben und ersetzt keine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
 ## 1. Was wird geliefert — und was nicht?
 
 ### Geliefert wird
 
-- Eine strukturierte GoBD-Verfahrensdokumentation als PDF, erzeugt aus deinem Online-Intake (Branche/Rechtsform, Systeme, Belegwege, IT/Hosting, Verantwortliche).
+- Eine strukturierte GoBD-Verfahrensdokumentation als PDF, erzeugt aus Ihrem Online-Intake (Branche/Rechtsform, Systeme, Belegwege, IT/Hosting, Verantwortliche).
 - Aufbau in den vier klassischen Teilen: Allgemeine Beschreibung, Anwenderdokumentation, Technische Systemdokumentation und Betriebsdokumentation. Dazu eine Vollständigkeitsübersicht, Aufbewahrung, Verantwortlichkeiten und eine Liste offener Punkte.
 - Ein Gesamtdokument je Firma mit 24 Modulen (Muster je Branchenvorlage: Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau): von Unternehmen und Organisation über Verkauf, Einkauf, Rechnungen, E-Rechnungen, Papierbelege, Zahlungsverkehr, Kasse, Buchführung, Lager, Anlagen, Personal, Onlineshop und branchenspezifische Abläufe bis zu Archivierung, Aufbewahrung und Löschung, Systemen, Zugriffsrechten, Datensicherung, Kontrollen, ausgelagerten Aufgaben, Prüfungszugriff, Änderungen und Pflege der Dokumentation.
-- Ein kurzer Betriebs-Check zu Beginn legt fest, welche Module bei dir vorkommen. Kein vorhandener Bereich wird stillschweigend ausgelassen: Jedes Modul hat den Status „Im Tool beschreiben“, ist durch eine bestehende Dokumentation abgedeckt, hat den Status „Später ausfüllen“ oder ist begründet als „nicht vorhanden“ markiert. Systeme, Verantwortliche und Steuerkanzlei gibst du einmal an, sie werden in alle Module übernommen.
-- Ein fester Produkt-Disclaimer in der Dokumentation (kein Steuer-/Rechtsberatungsersatz; Verantwortung für inhaltliche Richtigkeit liegt bei dir).
+- Ein kurzer Betriebs-Check zu Beginn legt fest, welche Module bei Ihnen vorkommen. Kein vorhandener Bereich wird stillschweigend ausgelassen: Jedes Modul hat den Status „Im Tool beschreiben“, ist durch eine bestehende Dokumentation abgedeckt, hat den Status „Später ausfüllen“ oder ist begründet als „nicht vorhanden“ markiert. Systeme, Verantwortliche und Steuerkanzlei geben Sie einmal an, sie werden in alle Module übernommen.
+- Ein fester Produkt-Disclaimer in der Dokumentation (kein Steuer-/Rechtsberatungsersatz; Verantwortung für inhaltliche Richtigkeit liegt bei Ihnen).
 
 ### Nicht geliefert wird
 
 - Keine Steuerberatung, keine Rechtsberatung, keine verbindliche Auskunft gegenüber dem Finanzamt.
 - Keine Garantie, dass die Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird.
 - Keine individuelle Prüfung oder Freigabe durch Steuerberater/WP/RA.
-- Kein Ausfüllen ohne deine Intake-Angaben — die Qualität hängt von deinen Angaben ab.
-- Keine laufende Buchhaltungs-/Prozessberatung und kein Hosting deiner Belege.
+- Kein Ausfüllen ohne Ihre Intake-Angaben — die Qualität hängt von Ihren Angaben ab.
+- Keine laufende Buchhaltungs-/Prozessberatung und kein Hosting Ihrer Belege.
 
 ## 2. Ablauf & Dauer
 
 1. Bestellung über die Website (Stripe Checkout).
-2. Online-Intake: Betriebs-Check, Übersicht der Module, dann Fragen je Modul zu Abläufen, Software, IT und Verantwortlichen. Weitere Module kannst du später im Konto ergänzen.
+2. Online-Intake: Betriebs-Check, Übersicht der Module, dann Fragen je Modul zu Abläufen, Software, IT und Verantwortlichen. Weitere Module können Sie später im Konto ergänzen.
 3. Automatische Erstellung der Dokumentation aus dem Intake.
 4. Digitale Lieferung (Download / Zugangslink / Ergebnis per E-Mail).
 
@@ -39,15 +39,15 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 - **Preismodell:** einmalige Einrichtung 149 € zzgl. USt und 49 € zzgl. USt pro Monat. Der erste Monat ist im Einstiegspreis von 198 € zzgl. USt (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet. Maßgeblich sind die im Checkout angezeigten Beträge.
 - Das monatliche Abo deckt laufenden Zugang sowie Update-/Pflegeleistungen gemäß aktueller Produktbeschreibung ab (u. a. Versionierung und Speicherung).
 - Ein Update ist sinnvoll, wenn sich Systeme, Abläufe, Hosting oder Verantwortliche ändern. Das Gesamtdokument hat eine gemeinsame Versionierung mit „Gültig ab“ und Änderungshistorie; frühere Fassungen bleiben herunterladbar.
-- Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung. Bereits erzeugte PDFs kannst du nach Vertragsende noch 30 Tage herunterladen. Zugang zu früheren Fassungen und spätere Anpassungen gibt es nur mit aktivem Abonnement.
+- Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung. Bereits erzeugte PDFs können Sie nach Vertragsende noch 30 Tage herunterladen. Zugang zu früheren Fassungen und spätere Anpassungen gibt es nur mit aktivem Abonnement.
 
 ## 4. Ist das Steuerberatung / rechtssicher?
 
-Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung von Entwürfen einer Verfahrensdokumentation für die von dir gewählten Module/Bereiche (zum Beispiel Belegfluss, Kasse oder Warenwirtschaft). Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
+Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt Sie bei der Erstellung von Entwürfen einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche (zum Beispiel Belegfluss, Kasse oder Warenwirtschaft). Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
-Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich oder ausreichend ist, hängt von deiner Situation ab. Eine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
+Ob und in welchem Umfang eine Verfahrensdokumentation für Ihr Unternehmen erforderlich oder ausreichend ist, hängt von Ihrer Situation ab. Eine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
-Du bleibst für inhaltliche Richtigkeit, Vollständigkeit und Aktualität sowie für die Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr für Anerkennung in einem konkreten Prüfungsfall.
+Sie bleiben für inhaltliche Richtigkeit, Vollständigkeit und Aktualität sowie für die Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr für Anerkennung in einem konkreten Prüfungsfall.
 
 Ergänzend gelten AGB und Datenschutzerklärung.
 
@@ -56,15 +56,15 @@ Ergänzend gelten AGB und Datenschutzerklärung.
 - **E-Mail:** info@gobd-doku-erstellen.de
 - Telefon nur Impressum — Support primär per E-Mail
 
-Schreib uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Rechnung oder technischen Problemen (Checkout, Download, Login) ebenfalls an dieselbe Adresse — wir kümmern uns darum.
+Schreiben Sie uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Rechnung oder technischen Problemen (Checkout, Download, Login) ebenfalls an dieselbe Adresse — wir kümmern uns darum.
 
 ## 6. 14 Tage Zufriedenheitsgarantie
 
-Innerhalb von **14 Tagen** nach Bestellung erstatten wir die volle Zahlung (198 € zzgl. USt), solange du noch kein PDF erzeugt oder heruntergeladen hast. Hast du bereits ein PDF erzeugt oder heruntergeladen, erstatten wir den bereits gezahlten Monatsbeitrag von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht mehr erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
+Innerhalb von **14 Tagen** nach Bestellung erstatten wir die volle Zahlung (198 € zzgl. USt), solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir den bereits gezahlten Monatsbeitrag von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht mehr erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
 
-**So beantragst du die Erstattung**
+**So beantragen Sie die Erstattung**
 
-Schreib an **info@gobd-doku-erstellen.de** mit Betreff „Zufriedenheitsgarantie“ und deiner Bestell- oder Rechnungsmail. Ein Button im Kundenkonto ist dafür nicht eingerichtet. Wir bestätigen den Eingang und erstatten über denselben Zahlungsweg.
+Schreiben Sie an **info@gobd-doku-erstellen.de** mit Betreff „Zufriedenheitsgarantie“ und Ihrer Bestell- oder Rechnungsmail. Ein Button im Kundenkonto ist dafür nicht eingerichtet. Wir bestätigen den Eingang und erstatten über denselben Zahlungsweg.
 
 **Frist**
 
@@ -83,7 +83,7 @@ Schreib an **info@gobd-doku-erstellen.de** mit Betreff „Zufriedenheitsgarantie
 
 **Was nicht gilt**
 
-Inhaltliche Unzufriedenheit allein wegen unvollständiger eigener Angaben im Fragebogen ist kein Mangel der Leistung. Technische Lieferfehler (kein Download, defekte Datei) melde bitte sofort — wir liefern nach oder erstatten nach denselben Regeln.
+Inhaltliche Unzufriedenheit allein wegen unvollständiger eigener Angaben im Fragebogen ist kein Mangel der Leistung. Technische Lieferfehler (kein Download, defekte Datei) melden Sie bitte sofort — wir liefern nach oder erstatten nach denselben Regeln.
 
 **Hinweis B2B**
 

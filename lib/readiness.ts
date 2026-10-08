@@ -167,7 +167,7 @@ export async function loadReadinessModuleMarkdown(
 
 export function readinessFirmaLabel(company: string): string {
   const trimmed = company.trim();
-  return trimmed || "dein Unternehmen";
+  return trimmed || "Ihr Unternehmen";
 }
 
 export function renderReadinessMarkdown(lead: Pick<

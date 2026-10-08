@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs",
+    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
+    "check:ansprache": "node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
     "dev": "next dev",
     "build": "next build",
     "postbuild": "node scripts/run-preview-draft-smoke.mjs",

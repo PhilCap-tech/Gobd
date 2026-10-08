@@ -14,15 +14,15 @@ date: 2026-09-19
 
 **{{Firma}}** · {{Branche}} · Stand {{Datum}}
 
-Dieses Modul hilft dir, die wichtigsten GoBD-Themen in der Gastronomie zu sortieren: Kasse, Belege, Lieferscheine, Schichtübergabe und heikle Punkte wie Trinkgeld und Bewirtung. Es ist eine **Readiness-Arbeitshilfe** — keine fertige Verfahrensdokumentation und kein Ersatz für Steuerberatung.
+Dieses Modul hilft Ihnen, die wichtigsten GoBD-Themen in der Gastronomie zu sortieren: Kasse, Belege, Lieferscheine, Schichtübergabe und heikle Punkte wie Trinkgeld und Bewirtung. Es ist eine **Readiness-Arbeitshilfe** — keine fertige Verfahrensdokumentation und kein Ersatz für Steuerberatung.
 
-**Kurz:** In der Gastro entstehen Belege oft schnell, unter Zeitdruck und über mehrere Kanäle (Kasse, Lieferanten, Lieferschein, E-Mail). Die GoBD erwarten, dass ein sachverständiger Dritter eure Abläufe nachvollziehen kann. Du brauchst Klarheit über Systeme, Rollen und Belegwege — nicht ein Konzernhandbuch.
+**Kurz:** In der Gastro entstehen Belege oft schnell, unter Zeitdruck und über mehrere Kanäle (Kasse, Lieferanten, Lieferschein, E-Mail). Die GoBD erwarten, dass ein sachverständiger Dritter Ihre Abläufe nachvollziehen kann. Sie brauchen Klarheit über Systeme, Rollen und Belegwege — nicht ein Konzernhandbuch.
 
 ---
 
 ## 1. GoBD-Grundlagen für die Gastronomie
 
-### Was die GoBD von dir erwarten (praktisch)
+### Was die GoBD von Ihnen erwarten (praktisch)
 
 Die GoBD (Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büchern, Aufzeichnungen und Unterlagen in elektronischer Form sowie zum Datenzugriff) verlangen unter anderem:
 
@@ -35,7 +35,7 @@ Für Gastronomiebetriebe heißt das vor allem: Kasse, Wareneingang, Rechnungen u
 
 ### Typische Beleg- und Datenquellen in der Gastro
 
-| Quelle | Typische Inhalte | Was du klären solltest |
+| Quelle | Typische Inhalte | Was Sie klären sollten |
 |--------|------------------|------------------------|
 | Registrierkasse / POS | Tagesabschluss, Bon, Storno, Zahlungsarten | TSE/technische Sicherung, Benutzer, Storno-Regeln, Export |
 | Lieferanten | Rechnungen, Lieferscheine, Gutschriften | Abgleich Lieferschein ↔ Rechnung, Ablageort |
@@ -44,11 +44,11 @@ Für Gastronomiebetriebe heißt das vor allem: Kasse, Wareneingang, Rechnungen u
 | Trinkgeld | Auszahlung, ggf. Aufzeichnung | Klare, mit dem Steuerberater abgestimmte Praxis |
 | Schicht / Team | Schichtzettel, Übergabeprotokolle | Wer schließt die Kasse, wer prüft den Tagesabschluss |
 
-Software-Namen (z. B. bestimmte Kassensysteme oder Buchhaltungstools) dienen nur als **Beispiele**. Nenne in eurer Doku die Produkte und Versionen, die ihr wirklich nutzt.
+Software-Namen (z. B. bestimmte Kassensysteme oder Buchhaltungstools) dienen nur als **Beispiele**. Nennen Sie in Ihrer Doku die Produkte und Versionen, die Sie wirklich nutzen.
 
 ### Kasse: der zentrale Punkt
 
-In der Gastronomie ist die Kasse oft der kritischste Bereich. Für die Readiness solltest du mindestens festhalten:
+In der Gastronomie ist die Kasse oft der kritischste Bereich. Für die Readiness sollten Sie mindestens festhalten:
 
 1. **Welches Kassensystem** läuft (Hersteller, Produkt, grobe Version)?
 2. **Wer darf** öffnen, stornieren, rabattieren, Tagesabschluss machen?
@@ -57,7 +57,7 @@ In der Gastronomie ist die Kasse oft der kritischste Bereich. Für die Readiness
 5. **Wie** kommt der Abschluss zur Buchhaltung bzw. zum Steuerberater?
 6. **Was passiert** bei Technikausfall (Notbetrieb, manuelle Erfassung)?
 
-Wenn du scannst oder digital ablegst: Beschreibe kurz den Weg vom Papierbeleg zum Ablageort. Bei ersetzendem Scannen (Papier vernichten nach Scan) brauchst du zusätzliche Klarheit zu Qualität, Kontrolle und Ausnahmen — das gehört in eine echte Verfahrensdokumentation, nicht nur in diese Readiness-Liste.
+Wenn Sie scannen oder digital ablegen: Beschreiben Sie kurz den Weg vom Papierbeleg zum Ablageort. Bei ersetzendem Scannen (Papier vernichten nach Scan) brauchen Sie zusätzliche Klarheit zu Qualität, Kontrolle und Ausnahmen — das gehört in eine echte Verfahrensdokumentation, nicht nur in diese Readiness-Liste.
 
 ### Lieferscheine und Wareneingang
 
@@ -85,9 +85,9 @@ Ein kurzes Übergabeprotokoll (digital oder Papier) reicht oft. Wichtig ist, das
 
 **Trinkgeld** und **Bewirtung** sind steuerlich und organisatorisch heikel. Diese Readiness-Hilfe gibt **keine** steuerliche Einordnung und keine Empfehlung zu Aufzeichnungspflichten im Detail.
 
-Was du trotzdem für die Nachvollziehbarkeit klären solltest:
+Was Sie trotzdem für die Nachvollziehbarkeit klären sollten:
 
-- Habt ihr eine **schriftlich abgestimmte Praxis** mit dem Steuerberater zu Trinkgeld (Auszahlung, Aufzeichnung, Trennung vom Umsatz)?
+- Haben Sie eine **schriftlich abgestimmte Praxis** mit dem Steuerberater zu Trinkgeld (Auszahlung, Aufzeichnung, Trennung vom Umsatz)?
 - Werden Bewirtungsbelege mit den nötigen Angaben geführt, und wer prüft das?
 - Liegen private und betriebliche Vorgänge klar getrennt?
 
@@ -116,7 +116,7 @@ In kleinen Betrieben macht oft dieselbe Person mehrere Rollen. Das ist okay — 
 
 ## 2. Checkliste GoBD-Readiness Gastronomie
 
-Hake nur ab, was **bei euch wirklich** so läuft. Unklares als offenen Punkt notieren (Thema, wer klärt, bis wann).
+Haken Sie nur ab, was **bei Ihnen wirklich** so läuft. Unklares als offenen Punkt notieren (Thema, wer klärt, bis wann).
 
 ### Betrieb und Rahmen
 
@@ -177,11 +177,11 @@ Hake nur ab, was **bei euch wirklich** so läuft. Unklares als offenen Punkt not
 
 ## 3. Nächste Schritte
 
-1. **Geh die Checkliste einmal ehrlich durch** — lieber drei offene Punkte als zehn abgehakte Fantasie-Items.
-2. **Klär mit deinem Steuerberater** vor allem Kasse, Trinkgeld und Bewirtung — diese Readiness ersetzt das nicht.
-3. **Nutze die Readiness auf gobd-doku-erstellen.de**, um deinen Stand zu sortieren und Lücken sichtbar zu machen: [Readiness](https://gobd-doku-erstellen.de/readiness).
-4. Wenn du soweit bist, kannst du eine **geführte Verfahrensdokumentation** anstoßen — branchennah, mit euren echten Systemen und Prozessen, ohne leere Konformitätsversprechen. Start über die Landing/Checkout-Strecke auf gobd-doku-erstellen.de.
-5. Halte diese Notizen mit **{{Datum}}** aktuell, wenn sich Kasse, Ablage oder Zuständigkeiten ändern.
+1. **Gehen Sie die Checkliste einmal ehrlich durch** — lieber drei offene Punkte als zehn abgehakte Fantasie-Items.
+2. **Klären Sie mit Ihrem Steuerberater** vor allem Kasse, Trinkgeld und Bewirtung — diese Readiness ersetzt das nicht.
+3. **Nutzen Sie die Readiness auf gobd-doku-erstellen.de**, um Ihren Stand zu sortieren und Lücken sichtbar zu machen: [Readiness](https://gobd-doku-erstellen.de/readiness).
+4. Wenn Sie soweit sind, können Sie eine **geführte Verfahrensdokumentation** anstoßen — branchennah, mit Ihren echten Systemen und Prozessen, ohne leere Konformitätsversprechen. Start über die Landing/Checkout-Strecke auf gobd-doku-erstellen.de.
+5. Halten Sie diese Notizen mit **{{Datum}}** aktuell, wenn sich Kasse, Ablage oder Zuständigkeiten ändern.
 
 Soft-Hinweis: Die Module unter Readiness sind Arbeitshilfen für den Einstieg. Eine vollständige Verfahrensdokumentation entsteht erst, wenn Prozesse, Systeme und Verantwortlichkeiten sauber beschrieben und freigegeben sind.
 

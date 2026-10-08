@@ -53,7 +53,7 @@ Häufige Lücke: **Liquidation ist im PVS erstellt**, Zahlung kommt aufs Konto, 
 
 ### Patientenakte vs. Buchhaltungsbelege — sauber trennen
 
-Damit du keine falschen Erwartungen an diese Richtlinie hast:
+Damit Sie keine falschen Erwartungen an diese Richtlinie haben:
 
 | Thema | Patienten-/Behandlungsdoku | Buchhaltung / GoBD-Fokus hier |
 |-------|----------------------------|-------------------------------|
@@ -62,7 +62,7 @@ Damit du keine falschen Erwartungen an diese Richtlinie hast:
 | Zugriff | eng, rollenbasiert, sensibel | Büro, Steuerberater, ggf. eingeschränkt Administration |
 | Diese Richtlinie | nur Abgrenzung | Schwerpunkt |
 
-Wenn ein System beides kann (PVS mit Akte und Liquidation), dokumentierst du für GoBD-Zwecke vor allem den **betriebswirtschaftlichen Belegfluss** (Rechnung → Zahlung → Archiv) — nicht die medizinische Führung der Akte. Datenschutz und berufsrechtliche Aufbewahrung der Akte sind eigene Themenkreise; kläre sie mit den dafür zuständigen Beratern/Stellen, nicht über diese GoBD-Kurzrichtlinie.
+Wenn ein System beides kann (PVS mit Akte und Liquidation), dokumentieren Sie für GoBD-Zwecke vor allem den **betriebswirtschaftlichen Belegfluss** (Rechnung → Zahlung → Archiv) — nicht die medizinische Führung der Akte. Datenschutz und berufsrechtliche Aufbewahrung der Akte sind eigene Themenkreise; klären Sie sie mit den dafür zuständigen Beratern/Stellen, nicht über diese GoBD-Kurzrichtlinie.
 
 ### Typische Systeme in der Praxis
 
@@ -72,7 +72,7 @@ Wenn ein System beides kann (PVS mit Akte und Liquidation), dokumentierst du fü
 - **Labor-, Röntgen- oder Geräte-Software:** oft eigene Welten; für GoBD relevant, wenn daraus Rechnungen oder kostenpflichtige Leistungen an Patienten abgerechnet werden
 - **E-Mail / Patientenportal:** Rechnungsversand — Archivfrage: Wo liegt das „Original“ der Rechnung?
 
-GoBD-Praxis-Tipp: Schreib auf, **welche Systeme Einnahmen erzeugen** und **wo die Rechnung als Beleg liegt**. Wenn die Rechnung nur als PDF im Patientenportal hängt und nirgends revisionssicher archiviert ist, ist das ein klassischer Nachholpunkt — unabhängig von der medizinischen Akte.
+GoBD-Praxis-Tipp: Schreiben Sie auf, **welche Systeme Einnahmen erzeugen** und **wo die Rechnung als Beleg liegt**. Wenn die Rechnung nur als PDF im Patientenportal hängt und nirgends revisionssicher archiviert ist, ist das ein klassischer Nachholpunkt — unabhängig von der medizinischen Akte.
 
 ### Typische Risiken in Praxen
 
@@ -85,9 +85,9 @@ GoBD-Praxis-Tipp: Schreib auf, **welche Systeme Einnahmen erzeugen** und **wo di
 7. **Mitarbeiterzugänge:** Auszubildende/MFA haben Zugriff auf Liquidationsfunktionen ohne klare Rechte; ausgeschiedene Mitarbeitende noch aktive Logins.
 8. **Kein Bewusstsein für Datenzugriff:** Bei Prüfung können betrieblich relevante Daten aus PVS/Buchhaltung angefordert werden — medizinische Inhalte sind davon zu trennen und besonders zu schützen.
 
-### Was du für die GoBD-Vorbereitung brauchen
+### Was Sie für die GoBD-Vorbereitung brauchen
 
-Du brauchst keine medizinische Neuorganisation. Du brauchst Klarheit auf der Betriebsseite:
+Sie brauchen keine medizinische Neuorganisation. Sie brauchen Klarheit auf der Betriebsseite:
 
 - Welche **Einnahmearten** gibt es (Privat, Selbstzahler, Zuzahlung, …)?
 - Welches System stellt **Rechnungen/Liquidationen** aus?
@@ -100,7 +100,7 @@ Du brauchst keine medizinische Neuorganisation. Du brauchst Klarheit auf der Bet
 
 ## Checkliste Praxis (Belege & Systeme)
 
-Hake ab, was bei {{Firma}} bereits klar ist. Offenpunkte gehören in den Readiness-Check und die spätere Verfahrensdokumentation. Medizinische Dokumentationspflichten sind hier bewusst nicht als Checkliste abgebildet.
+Haken Sie ab, was bei {{Firma}} bereits klar ist. Offenpunkte gehören in den Readiness-Check und die spätere Verfahrensdokumentation. Medizinische Dokumentationspflichten sind hier bewusst nicht als Checkliste abgebildet.
 
 ### Trennung Akte / Buchhaltung
 
@@ -153,13 +153,13 @@ Hake ab, was bei {{Firma}} bereits klar ist. Offenpunkte gehören in den Readine
    Beispiel Privatpatient: Termin → Liquidation im PVS → Versand → Zahlung → Ablage → Buchung. Notiere, wo es hakt (z. B. „PDF nur im Portal“, „Storno ohne Info an Buchhaltung“).
 
 3. **Systeme und Zugriffe listen**  
-   PVS-Name, Buchhaltungswege, Terminal, wer darf liquidieren/stornieren. Das brauchst du später für die Verfahrensdokumentation.
+   PVS-Name, Buchhaltungswege, Terminal, wer darf liquidieren/stornieren. Das brauchen Sie später für die Verfahrensdokumentation.
 
 4. **Readiness-Check auf gobd-doku-erstellen.de**  
-   Nutze den Readiness-Check, um zu sehen, welche betrieblichen Themen noch offen sind — als Vorbereitung, nicht als Zertifikat.
+   Nutzen Sie den Readiness-Check, um zu sehen, welche betrieblichen Themen noch offen sind — als Vorbereitung, nicht als Zertifikat.
 
 5. **Verfahrensdokumentation vorbereiten / erstellen**  
-   Auf gobd-doku-erstellen.de kannst du eine Verfahrensdokumentation strukturiert aufbauen, sobald die Basics sitzen. Diese Kurzrichtlinie ist die Einstiegshilfe; die Verfahrensdokumentation beschreibt Prozesse und Systeme ausführlicher — weiterhin ohne Anspruch auf „GoBD-konform“-Garantie.
+   Auf gobd-doku-erstellen.de können Sie eine Verfahrensdokumentation strukturiert aufbauen, sobald die Basics sitzen. Diese Kurzrichtlinie ist die Einstiegshilfe; die Verfahrensdokumentation beschreibt Prozesse und Systeme ausführlicher — weiterhin ohne Anspruch auf „GoBD-konform“-Garantie.
 
 6. **Mit dem Steuerberater abstimmen**  
    Besonders: Umgang mit PVS-Exporten, Bareinnahmen, Aufbewahrung von Liquidationen, Trennung von sensiblen Daten in der Beraterübergabe. Abrechnungsfragen zu Kostenträgern und Ziffern gehören nicht in diese GoBD-Arbeitshilfe, sondern in die fachliche Beratung.
@@ -172,7 +172,7 @@ Diese Kurzrichtlinie ist eine **allgemeine Arbeitshilfe** von IKAT GmbH / gobd-d
 
 Sie behandelt **nicht** die Führung von Patientenakten und gibt **keine** Hinweise zu Diagnose, Therapie oder Abrechnungsziffern. Fokus sind betriebliche Belege, Systeme und organisatorische Vorbereitung im Sinne der GoBD-Orientierung.
 
-Ob und wie einzelne Punkte für {{Firma}} gelten, hängt von Praxisform, Fachrichtung, eingesetzter Software und der Abstimmung mit Steuerberater sowie ggf. weiteren Stellen ab. Stimme steuerlich und prüfungsrelevante Fragen mit deinem Steuerberater ab; medizinische und berufsrechtliche Dokumentationsfragen mit den dafür zuständigen Beratern/Kammern/Stellen.
+Ob und wie einzelne Punkte für {{Firma}} gelten, hängt von Praxisform, Fachrichtung, eingesetzter Software und der Abstimmung mit Steuerberater sowie ggf. weiteren Stellen ab. Stimmen Sie steuerlich und prüfungsrelevante Fragen mit Ihrem Steuerberater ab; medizinische und berufsrechtliche Dokumentationsfragen mit den dafür zuständigen Beratern/Kammern/Stellen.
 
 Diese Inhalte erheben **keinen Anspruch**, „rechtssicher“ oder „GoBD-konform“ im Sinne einer Garantie oder Zertifizierung zu sein. Sie dienen der Orientierung und Vorbereitung. Sie sind **keine** fertige Verfahrensdokumentation und keine Freigabe für den Fall einer Betriebsprüfung.
 

@@ -48,8 +48,8 @@ export default async function ReadinessSuccessPage({
           <div className="card">
             <h1>PDF nicht gefunden</h1>
             <p className="prose">
-              Der Download-Link ist ungültig oder abgelaufen. Starte den
-              3-Minuten-Check erneut oder öffne den Link aus der E-Mail.
+              Der Download-Link ist ungültig oder abgelaufen. Starten Sie den
+              3-Minuten-Check erneut oder öffnen Sie den Link aus der E-Mail.
             </p>
             <div className="actions" style={{ marginTop: 16 }}>
               <Link className="btn" href="/readiness">
@@ -63,10 +63,10 @@ export default async function ReadinessSuccessPage({
         ) : (
           <section>
             <p className="kicker">GoBD-Grundlagen · {brancheLabel}</p>
-            <h1>Dein PDF ist bereit{lead.name ? `, ${lead.name}` : ""}</h1>
+            <h1>Ihr PDF ist bereit{lead.name ? `, ${lead.name}` : ""}</h1>
             <p className="lead">
               Kurze Einschätzung zu relevanten Themenfeldern für{" "}
-              {lead.company || "dein Unternehmen"}. Nächste Schritte: Muster
+              {lead.company || "Ihr Unternehmen"}. Nächste Schritte: Muster
               ansehen oder Dokumentation erstellen.
             </p>
             <div className="card">
@@ -78,7 +78,7 @@ export default async function ReadinessSuccessPage({
                 <p className="hint">
                   Wir haben den Download-Link
                   {lead.email ? ` an ${lead.email}` : ""} geschickt. Optional
-                  kannst du dich später per Magic Link anmelden und den Link
+                  können Sie sich später per Magic Link anmelden und den Link
                   aus der Mail erneut nutzen.
                 </p>
               ) : (
@@ -99,12 +99,12 @@ export default async function ReadinessSuccessPage({
               </div>
               <p className="hint" style={{ marginTop: 14 }}>
                 Nächster Schritt: Dokumentation erstellen, dann PDF und Liste
-                offener Punkte aus deinen Angaben. Im 3-Minuten-Check selbst
+                offener Punkte aus Ihren Angaben. Im 3-Minuten-Check selbst
                 wird nichts berechnet.
               </p>
               <p className="disclaimer" role="note">
                 {DISCLAIMER_ONCE} Dieses PDF ist eine kurze Einschätzung, keine
-                Verfahrensdokumentation aus deinen Abläufen.
+                Verfahrensdokumentation aus Ihren Abläufen.
               </p>
             </div>
           </section>
