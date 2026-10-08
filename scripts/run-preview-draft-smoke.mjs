@@ -5,7 +5,7 @@
  * write production rows or send mail. External clients cannot pass Vercel
  * Authentication on the preview URL. Skipped outside Vercel preview builds.
  */
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import path from "node:path";
@@ -76,9 +76,14 @@ if (!process.env.MAGIC_LINK_SECRET?.trim()) {
 }
 
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
+const wipeToken = `wipe-smoke-${randomBytes(24).toString("hex")}`;
 const server = spawn(process.execPath, [nextBin, "start", "-H", "127.0.0.1", "-p", String(port)], {
   cwd: root,
-  env: smokeChildEnv({ PORT: String(port), HOSTNAME: "127.0.0.1" }),
+  env: smokeChildEnv({
+    PORT: String(port),
+    HOSTNAME: "127.0.0.1",
+    ADMIN_WIPE_TOKEN: wipeToken,
+  }),
   stdio: ["ignore", "pipe", "pipe"],
 });
 
@@ -87,6 +92,7 @@ function redact(text) {
   const secret = process.env.MAGIC_LINK_SECRET?.trim();
   let out = text.replace(/vercel_blob_rw_\S+/gi, "[redacted]");
   if (secret) out = out.split(secret).join("[redacted]");
+  if (wipeToken) out = out.split(wipeToken).join("[redacted]");
   return out;
 }
 server.stdout.on("data", (chunk) => {
@@ -147,6 +153,31 @@ try {
     });
   });
   if (code !== 0) process.exit(code);
+
+  const wipeCookie = sessionToken(SMOKE_EMAIL);
+  const wipeSmoke = spawn(process.execPath, [path.join(root, "scripts", "smoke-wipe-blob-http.mjs"), base], {
+    cwd: root,
+    stdio: "inherit",
+    env: smokeChildEnv({
+      DRAFT_SMOKE_COOKIE_A: wipeCookie,
+      WIPE_SMOKE_TOKEN: wipeToken,
+    }),
+  });
+  const wipeCode = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      wipeSmoke.kill("SIGTERM");
+      reject(new Error("wipe blob http smoke timed out"));
+    }, 240_000);
+    wipeSmoke.on("exit", (status) => {
+      clearTimeout(timer);
+      resolve(status ?? 1);
+    });
+    wipeSmoke.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+  });
+  if (wipeCode !== 0) process.exit(wipeCode);
 
   await delay(5);
   const pdfCookieA = sessionToken(PDF_SMOKE_EMAIL);
