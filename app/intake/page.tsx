@@ -3,13 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { getCheckoutGrant, getSessionEmail } from "@/lib/auth";
-import {
-  canAccessDocument,
-  groupDocumentFamilies,
-  latestOwnedInFamily,
-  nextVersionNumber,
-} from "@/lib/documents";
+import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
+import { groupDocumentFamilies, nextVersionNumber } from "@/lib/documents";
+import { authorizeDeliveredWrite, LOGIN_TO_CHANGE_COPY } from "@/lib/session-write";
 import { entityById, entityChoices, type Entity } from "@/lib/entities";
 import type { FirmFacts } from "@/lib/intake-catalog";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
@@ -119,11 +115,53 @@ function EditGate({ loggedIn }: { loggedIn: boolean }) {
       <p className="prose">
         {loggedIn
           ? "Dieses Dokument gehört nicht zu Ihrem Konto."
-          : "Bitte mit der Checkout-E-Mail anmelden oder den Link von der Success-Seite mit gültiger Session nutzen."}
+          : "Dieses Dokument wurde nicht gefunden."}
       </p>
       <div className="actions" style={{ marginTop: 16 }}>
-        <Link className="btn" href={loggedIn ? "/account" : "/login"}>
+        <Link className="btn" href={loggedIn ? "/account" : loginPath("/intake")}>
           {loggedIn ? "Zum Konto" : "Anmelden"}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function intakeReturnPath(params: {
+  session_id?: string | string[];
+  document_id?: string | string[];
+  entity_id?: string | string[];
+  bereich?: string | string[];
+  basis?: string | string[];
+  modus?: string | string[];
+  schritt?: string | string[];
+  modul?: string | string[];
+}): string {
+  const query = new URLSearchParams();
+  for (const key of [
+    "session_id",
+    "document_id",
+    "entity_id",
+    "bereich",
+    "basis",
+    "modus",
+    "schritt",
+    "modul",
+  ] as const) {
+    const value = firstQueryValue(params[key]);
+    if (value) query.set(key, value);
+  }
+  const text = query.toString();
+  return text ? `/intake?${text}` : "/intake";
+}
+
+function LoginToChange({ nextPath }: { nextPath: string }) {
+  return (
+    <div className="card">
+      <h1>Angaben ändern</h1>
+      <p className="prose">{LOGIN_TO_CHANGE_COPY}</p>
+      <div className="actions" style={{ marginTop: 16 }}>
+        <Link className="btn" href={loginPath(nextPath)}>
+          Anmelden
         </Link>
       </div>
     </div>
@@ -192,17 +230,21 @@ export default async function IntakePage({
   const gesamtMode = modus !== "bereich" && (modus === "gesamt" || !bereich);
   const sessionEmail = await getSessionEmail();
 
+  const returnPath = intakeReturnPath(params);
+
   // Weiterer Bereich für eine Firma mit bestehender Dokumentation: kein neuer Checkout.
   if (basisId) {
     const basisRow = await findDocumentById(basisId);
-    const allowed =
-      basisRow && canAccessDocument(basisRow, { sessionEmail, sessionId });
+    const family = basisRow ? await listDocumentFamily(basisRow.documentId) : [];
+    const write = basisRow
+      ? authorizeDeliveredWrite({ sessionEmail, rows: family.length > 0 ? family : [basisRow] })
+      : null;
+    const ownedBasis = write?.ok && write.kind === "owner" ? write : null;
     let existingBereiche: string[] = [];
-    let base = basisRow;
+    let base = ownedBasis?.row ?? null;
     let gesamtStart: IntakeAnswers | null = null;
-    if (basisRow && allowed) {
-      const family = await listDocumentFamily(basisRow.documentId);
-      base = groupDocumentFamilies(family)[0]?.latest ?? basisRow;
+    if (basisRow && ownedBasis) {
+      base = ownedBasis.row;
       const owned = sessionEmail ? await listDocumentsByEmail(sessionEmail) : family;
       const sameFirm = owned.filter(
         (row) => (row.entityId || "") === (basisRow.entityId || ""),
@@ -227,12 +269,17 @@ export default async function IntakePage({
       <>
         <SiteHeader backHref="/account" backLabel="← Zum Konto" />
         <main className="wrap page">
-          {!basisRow || !allowed || !base ? (
+          {!basisRow ? (
+            <EditGate loggedIn={Boolean(sessionEmail)} />
+          ) : write && !write.ok && write.status === 401 ? (
+            <LoginToChange nextPath={returnPath} />
+          ) : !ownedBasis || !base ? (
             <EditGate loggedIn={Boolean(sessionEmail)} />
           ) : (
             <IntakeForm
               key={`${base.documentId}-${gesamtStart ? "gesamt" : bereich}`}
-              session={identityFromSheetRow(basisRow)}
+              loginHref={loginPath(returnPath)}
+              session={identityFromSheetRow(ownedBasis.row)}
               initialAnswers={
                 gesamtStart ??
                 answersForNewBereich(
@@ -268,11 +315,13 @@ export default async function IntakePage({
       family.find((row) => row.documentId === resolvedRow.documentId) ??
       family.at(-1) ??
       resolvedRow;
-    const allowed = canAccessDocument(source, { sessionEmail, sessionId });
-    // Family lookup is not filtered by mailbox. Only rows of the opened
-    // document's email may become the edit target.
-    const latest = latestOwnedInFamily(family, source.email) ?? source;
-    const ownedFamily = family.filter((row) => emailsEqual(row.email, source.email));
+    const write = authorizeDeliveredWrite({
+      sessionEmail,
+      rows: family.length > 0 ? family : [source],
+    });
+    const owned = write.ok && write.kind === "owner" ? write : null;
+    const latest = owned?.row ?? null;
+    const ownedFamily = family.filter((row) => emailsEqual(row.email, owned?.ownerEmail ?? ""));
     const sourceEntity =
       latest?.entityId && sessionEmail ? await getOwnedEntity(latest.entityId, sessionEmail) : null;
 
@@ -280,12 +329,15 @@ export default async function IntakePage({
       <>
         <SiteHeader backHref="/" backLabel="← Zur Landing" />
         <main className="wrap page">
-          {!allowed || !latest ? (
+          {write.ok === false && write.status === 401 ? (
+            <LoginToChange nextPath={returnPath} />
+          ) : !latest ? (
             <EditGate loggedIn={Boolean(sessionEmail)} />
           ) : (
             <IntakeForm
               key={latest.documentId}
-              session={identityFromSheetRow(source)}
+              loginHref={loginPath(returnPath)}
+              session={identityFromSheetRow(latest)}
               initialAnswers={answersFromSheetRow(latest)}
               sourceDocumentId={latest.documentId}
               nextVersion={nextVersionNumber(ownedFamily.length > 0 ? ownedFamily : [source])}
@@ -370,6 +422,7 @@ export default async function IntakePage({
         ) : (
           <IntakeForm
             session={session}
+            loginHref={loginPath(returnPath)}
             entities={entityChoices(entities)}
             initialEntityId={initialEntityId}
             initialAnswers={bereich ? { ...emptyAnswers(), bereich } : undefined}

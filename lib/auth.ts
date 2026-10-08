@@ -176,10 +176,22 @@ export function mayIssueSessionCookie(input: {
 }
 
 /**
- * Customer onboarding lands on the Betriebs-Check. Exact path only:
- * `safeNextPath` drops query and hash, so this cannot become an open redirect.
+ * Customer onboarding lands on the Betriebs-Check. The path stays exact.
+ * `/intake` may keep a whitelist of ids (Dokument, Checkout-Session). Hash,
+ * other query keys and any other origin are dropped, so this is not an open redirect.
  */
 export const CUSTOMER_ONBOARDING_NEXT_PATH = "/intake";
+
+const INTAKE_NEXT_KEYS = new Set([
+  "session_id",
+  "document_id",
+  "entity_id",
+  "bereich",
+  "basis",
+  "modus",
+  "schritt",
+  "modul",
+]);
 
 const ALLOWED_NEXT_PATHS = new Set([
   "/portal",
@@ -206,6 +218,9 @@ export function safeNextPath(
     const parsed = new URL(value, "http://safe.invalid");
     if (parsed.origin !== "http://safe.invalid") return null;
     if (parsed.username || parsed.password) return null;
+    if (parsed.pathname === CUSTOMER_ONBOARDING_NEXT_PATH) {
+      return intakeNextPath(parsed.searchParams);
+    }
     if (ALLOWED_NEXT_PATHS.has(parsed.pathname)) return parsed.pathname;
     if (ACCOUNT_DOCUMENT_EDIT.test(parsed.pathname)) return parsed.pathname;
     if (ACCOUNT_FIRMA_EDIT.test(parsed.pathname)) return parsed.pathname;
@@ -213,6 +228,47 @@ export function safeNextPath(
   } catch {
     return null;
   }
+}
+
+function intakeNextPath(params: URLSearchParams): string {
+  const kept = new URLSearchParams();
+  for (const key of INTAKE_NEXT_KEYS) {
+    const value = params.get(key)?.trim() ?? "";
+    if (!value || value.length > 200) continue;
+    if (!/^[A-Za-z0-9_-]+$/.test(value)) continue;
+    kept.set(key, value);
+  }
+  const query = kept.toString();
+  return query ? `${CUSTOMER_ONBOARDING_NEXT_PATH}?${query}` : CUSTOMER_ONBOARDING_NEXT_PATH;
+}
+
+function cookieFromHeader(header: string | null, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq <= 0) continue;
+    if (part.slice(0, eq).trim() !== name) continue;
+    const raw = part.slice(eq + 1).trim();
+    if (!raw) return null;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return null;
+}
+
+/** Login-Mail aus dem Request-Cookie. Dieselbe Prüfung wie `getSessionEmail`. */
+export function sessionEmailFromRequest(request: Request): string | null {
+  return verifySessionToken(cookieFromHeader(request.headers.get("cookie"), SESSION_COOKIE));
+}
+
+/** Checkout-Nachweis aus dem Request. Kein Login. */
+export function checkoutGrantFromRequest(request: Request): CheckoutGrant | null {
+  return verifyCheckoutGrantToken(
+    cookieFromHeader(request.headers.get("cookie"), CHECKOUT_GRANT_COOKIE),
+  );
 }
 
 export function loginPath(next?: string | null): string {

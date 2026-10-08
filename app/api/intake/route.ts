@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getSessionEmail, magicLinkUrl, withoutSessionCookie } from "@/lib/auth";
+import {
+  checkoutGrantFromRequest,
+  magicLinkUrl,
+  sessionEmailFromRequest,
+  withoutSessionCookie,
+  type CheckoutGrant,
+} from "@/lib/auth";
 import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import {
   DURABLE_STORE_MESSAGE,
@@ -8,19 +14,24 @@ import {
   intakePersistenceFailure,
 } from "@/lib/intake-payload";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
-import {
-  canAccessDocument,
-  documentFamilyId,
-  nextVersionNumber,
-} from "@/lib/documents";
+import { documentFamilyId, nextVersionNumber } from "@/lib/documents";
 import { applyEntityToIdentity } from "@/lib/entities";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { getAppUrl } from "@/lib/env";
 import { deliverLoginLink } from "@/lib/login-mail";
+import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import { sendDeliveryMail, sendReferralAfterDeliveryMail } from "@/lib/ops";
 import { intakeEntityBinding } from "@/lib/session-issue";
 import {
+  authorizeDeliveredWrite,
+  checkoutOwnerEmail,
+  lookupDeliveredRows,
+  withSessionWriteLock,
+  type DeliveryLookup,
+} from "@/lib/session-write";
+import {
   appendRecord,
+  findDocumentById,
   findLatestDocumentByStripeSessionId,
   findLatestStripeCustomerIdByEmail,
   getOwnedEntity,
@@ -28,7 +39,6 @@ import {
   listEntitiesByEmail,
   prepareDurableIntakeRow,
 } from "@/lib/store";
-import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import { intakeCheckoutStatus, resolveCheckoutSession } from "@/lib/stripe";
 import {
   emailsEqual,
@@ -36,6 +46,7 @@ import {
   toSheetRow,
   type CheckoutIdentity,
   type IntakeAnswers,
+  type SheetRow,
 } from "@/lib/types";
 import {
   normalizeVersionChange,
@@ -77,7 +88,7 @@ function isAnswers(value: unknown): value is IntakeAnswers {
   );
 }
 
-async function resolveIdentity(body: {
+type IntakeBody = {
   sessionId?: string;
   answers?: unknown;
   email?: string;
@@ -85,105 +96,143 @@ async function resolveIdentity(body: {
   documentId?: string;
   entityId?: string;
   areaFromDocumentId?: string;
-}): Promise<
-  | {
-      identity: CheckoutIdentity;
-      version: number;
-      parentDocumentId: string;
-      status: string;
-      entityId: string;
-      /** Earlier versions of this document family (for the Änderungshistorie). */
-      family?: Awaited<ReturnType<typeof listDocumentFamily>>;
-    }
-  | { response: NextResponse }
-> {
+  validFrom?: unknown;
+  validTo?: unknown;
+  changeSummary?: unknown;
+  changedBy?: unknown;
+};
+
+type ResolvedIntake = {
+  identity: CheckoutIdentity;
+  version: number;
+  parentDocumentId: string;
+  status: string;
+  entityId: string;
+  /** Mail, die auf der Zeile stehen muss. Kommt nie aus body.email. */
+  ownerEmail: string;
+  family?: SheetRow[];
+};
+
+export type IntakeIo = {
+  findDocumentById: DeliveryLookup["findDocumentById"];
+  findLatestDocumentByStripeSessionId: DeliveryLookup["findLatestDocumentByStripeSessionId"];
+  listDocumentFamily: DeliveryLookup["listDocumentFamily"];
+  listEntitiesByEmail: typeof listEntitiesByEmail;
+  getOwnedEntity: typeof getOwnedEntity;
+  findLatestStripeCustomerIdByEmail: typeof findLatestStripeCustomerIdByEmail;
+  resolveCheckoutSession: typeof resolveCheckoutSession;
+  prepareDurableIntakeRow: typeof prepareDurableIntakeRow;
+  appendRecord: typeof appendRecord;
+  generatePdf: typeof generatePdf;
+  storePdf: typeof storePdf;
+  sendDeliveryMail: typeof sendDeliveryMail;
+  sendReferralAfterDeliveryMail: typeof sendReferralAfterDeliveryMail;
+  deliverLoginLink: typeof deliverLoginLink;
+};
+
+const defaultIntakeIo: IntakeIo = {
+  findDocumentById,
+  findLatestDocumentByStripeSessionId,
+  listDocumentFamily,
+  listEntitiesByEmail,
+  getOwnedEntity,
+  findLatestStripeCustomerIdByEmail,
+  resolveCheckoutSession,
+  prepareDurableIntakeRow,
+  appendRecord,
+  generatePdf,
+  storePdf,
+  sendDeliveryMail,
+  sendReferralAfterDeliveryMail,
+  deliverLoginLink,
+};
+
+function deliveryLookup(io: IntakeIo): DeliveryLookup {
+  return {
+    findDocumentById: io.findDocumentById,
+    listDocumentFamily: io.listDocumentFamily,
+    findLatestDocumentByStripeSessionId: io.findLatestDocumentByStripeSessionId,
+  };
+}
+
+function ownedWrite(
+  write: ReturnType<typeof authorizeDeliveredWrite>,
+): Extract<ReturnType<typeof authorizeDeliveredWrite>, { kind: "owner" }> | { response: NextResponse } {
+  if (!write.ok) return { response: jsonError(write.error, write.status) };
+  if (write.kind !== "owner") {
+    return { response: jsonError("Dokument nicht gefunden.", 404) };
+  }
+  return write;
+}
+
+function revisionFromOwner(
+  write: Extract<ReturnType<typeof authorizeDeliveredWrite>, { ok: true; kind: "owner" }>,
+  family: SheetRow[],
+  mode: "revision" | "area",
+): ResolvedIntake {
+  const identity = identityFromSheetRow(write.row);
+  identity.email = write.ownerEmail;
+  const revising = mode === "revision";
+  return {
+    identity,
+    version: revising ? nextVersionNumber(family) : 1,
+    parentDocumentId: revising ? documentFamilyId(write.row) : "",
+    status: identity.stub
+      ? revising
+        ? "intake_resubmitted_stub"
+        : "intake_submitted_stub"
+      : revising
+        ? "intake_resubmitted"
+        : "intake_submitted",
+    entityId: write.row.entityId,
+    ownerEmail: write.ownerEmail,
+    family: revising ? family : undefined,
+  };
+}
+
+async function resolveIdentity(
+  body: IntakeBody,
+  actor: { sessionEmail: string | null; grant: CheckoutGrant | null; sessionId: string },
+  io: IntakeIo,
+): Promise<ResolvedIntake | { response: NextResponse }> {
+  const sessionEmail = actor.sessionEmail;
   const sourceDocumentId = body.documentId?.trim() ?? "";
   const areaFromDocumentId = body.areaFromDocumentId?.trim() ?? "";
-  const sessionEmail = await getSessionEmail();
+  const sessionId = actor.sessionId;
+  const lookup = deliveryLookup(io);
 
   // Weiterer Bereich derselben Firma: neue Dokumentfamilie, gleiche Bestellung.
-  // Alle Bereiche sind im Preis je Firma enthalten, daher kein neuer Checkout.
+  // Nach der ersten Lieferung nur mit Login der Inhaber-Mail.
   if (areaFromDocumentId && !sourceDocumentId) {
-    const family = await listDocumentFamily(areaFromDocumentId);
-    const source =
-      family.find((row) => row.documentId === areaFromDocumentId) ??
-      family.at(-1);
-    if (!source) {
+    const family = await lookupDeliveredRows({ areaFromDocumentId }, lookup);
+    if (family.length === 0) {
       return { response: jsonError("Dokument nicht gefunden.", 404) };
     }
-    if (
-      !canAccessDocument(source, {
-        sessionEmail,
-        sessionId: body.sessionId,
-      })
-    ) {
-      return { response: jsonError("Kein Zugriff.", sessionEmail ? 403 : 401) };
-    }
-    const identity = identityFromSheetRow(source);
-    return {
-      identity,
-      version: 1,
-      parentDocumentId: "",
-      status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
-      entityId: source.entityId,
-    };
+    const write = ownedWrite(authorizeDeliveredWrite({ sessionEmail, rows: family }));
+    if ("response" in write) return write;
+    return revisionFromOwner(write, family, "area");
   }
 
   if (sourceDocumentId) {
-    const family = await listDocumentFamily(sourceDocumentId);
-    const source =
-      family.find((row) => row.documentId === sourceDocumentId) ??
-      family.at(-1);
-    if (!source) {
+    const family = await lookupDeliveredRows({ documentId: sourceDocumentId }, lookup);
+    if (family.length === 0) {
       return { response: jsonError("Dokument nicht gefunden.", 404) };
     }
-    if (
-      !canAccessDocument(source, {
-        sessionEmail,
-        sessionId: body.sessionId,
-      })
-    ) {
-      return { response: jsonError("Kein Zugriff.", sessionEmail ? 403 : 401) };
+    const write = ownedWrite(authorizeDeliveredWrite({ sessionEmail, rows: family }));
+    if ("response" in write) return write;
+    return revisionFromOwner(write, family, "revision");
+  }
+
+  if (sessionId) {
+    const family = await lookupDeliveredRows({ sessionId }, lookup);
+    if (family.length > 0) {
+      const write = ownedWrite(authorizeDeliveredWrite({ sessionEmail, rows: family }));
+      if ("response" in write) return write;
+      return revisionFromOwner(write, family, "revision");
     }
-
-    const identity = identityFromSheetRow(source);
-    return {
-      identity,
-      version: nextVersionNumber(family),
-      parentDocumentId: documentFamilyId(source),
-      status: identity.stub
-        ? "intake_resubmitted_stub"
-        : "intake_resubmitted",
-      entityId: source.entityId,
-      family,
-    };
   }
 
-  const existing = body.sessionId
-    ? await findLatestDocumentByStripeSessionId(body.sessionId)
-    : null;
-  if (
-    existing &&
-    canAccessDocument(existing, {
-      sessionEmail,
-      sessionId: body.sessionId,
-    })
-  ) {
-    const family = await listDocumentFamily(existing.documentId);
-    const identity = identityFromSheetRow(existing);
-    return {
-      identity,
-      version: nextVersionNumber(family),
-      parentDocumentId: documentFamilyId(existing),
-      status: identity.stub
-        ? "intake_resubmitted_stub"
-        : "intake_resubmitted",
-      entityId: existing.entityId,
-      family,
-    };
-  }
-
-  const identity = await resolveCheckoutSession(body.sessionId);
+  const identity = await io.resolveCheckoutSession(sessionId);
   if ("error" in identity) {
     const message =
       identity.error === "missing"
@@ -205,10 +254,13 @@ async function resolveIdentity(body: {
     return { response: jsonError("Checkout-Session fehlt.", 401) };
   }
 
-  if (identity.stub) {
-    identity.email = body.email?.trim() || identity.email;
-    identity.company = body.company?.trim() || identity.company;
-  }
+  const ownerEmail = checkoutOwnerEmail({
+    stripeEmail: identity.email,
+    stripeSessionId: identity.stripeSessionId,
+    grantSessionId: actor.grant?.sessionId,
+    grantEmail: actor.grant?.email,
+  });
+  identity.email = ownerEmail;
 
   return {
     identity,
@@ -216,23 +268,26 @@ async function resolveIdentity(body: {
     parentDocumentId: "",
     status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
     entityId: body.entityId?.trim() || identity.entityId || "",
+    ownerEmail,
   };
 }
 
+
 async function withStripeCustomerId(
   identity: CheckoutIdentity,
+  io: IntakeIo,
 ): Promise<CheckoutIdentity> {
   if (identity.stub || identity.stripeCustomerId.trim()) {
     return identity;
   }
   if (identity.stripeSessionId) {
-    const fresh = await resolveCheckoutSession(identity.stripeSessionId);
+    const fresh = await io.resolveCheckoutSession(identity.stripeSessionId);
     if (!("error" in fresh) && fresh.stripeCustomerId.trim()) {
       return { ...identity, stripeCustomerId: fresh.stripeCustomerId };
     }
   }
   if (identity.email) {
-    const fromStore = await findLatestStripeCustomerIdByEmail(identity.email);
+    const fromStore = await io.findLatestStripeCustomerIdByEmail(identity.email);
     if (fromStore) {
       return { ...identity, stripeCustomerId: fromStore };
     }
@@ -240,39 +295,27 @@ async function withStripeCustomerId(
   return identity;
 }
 
-async function handleIntake(request: Request) {
-  let body: {
-    sessionId?: string;
-    answers?: unknown;
-    email?: string;
-    company?: string;
-    documentId?: string;
-    entityId?: string;
-    areaFromDocumentId?: string;
-    validFrom?: unknown;
-    validTo?: unknown;
-    changeSummary?: unknown;
-    changedBy?: unknown;
-  };
-  try {
-    body = await request.json();
-  } catch {
-    return jsonError("Ungültige Anfrage", 400);
-  }
-
-  const resolved = await resolveIdentity(body);
+async function writeIntake(
+  request: Request,
+  body: IntakeBody,
+  io: IntakeIo,
+): Promise<NextResponse> {
+  const sessionEmail = sessionEmailFromRequest(request);
+  const grant = checkoutGrantFromRequest(request);
+  const sessionId = body.sessionId?.trim() || grant?.sessionId || "";
+  const resolved = await resolveIdentity(body, { sessionEmail, grant, sessionId }, io);
   if ("response" in resolved) {
     return resolved.response;
   }
 
   const { version, status } = resolved;
   let { identity, parentDocumentId } = resolved;
-  identity = await withStripeCustomerId(identity);
-  const sessionEmail = await getSessionEmail();
+  identity = await withStripeCustomerId(identity, io);
+  identity = { ...identity, email: resolved.ownerEmail };
   const loggedInAsBuyer = Boolean(
     sessionEmail && identity.email && emailsEqual(sessionEmail, identity.email),
   );
-  const firms = loggedInAsBuyer ? await listEntitiesByEmail(identity.email) : [];
+  const firms = loggedInAsBuyer ? await io.listEntitiesByEmail(identity.email) : [];
   const binding = intakeEntityBinding({
     loggedInAsBuyer,
     requestedEntityId: body.entityId?.trim() || resolved.entityId,
@@ -284,8 +327,9 @@ async function handleIntake(request: Request) {
     return jsonError("Bitte eine Firma wählen.", 400);
   }
   const entityId = binding.entityId;
-  const entity = entityId ? await getOwnedEntity(entityId, identity.email) : null;
+  const entity = entityId ? await io.getOwnedEntity(entityId, identity.email) : null;
   identity = applyEntityToIdentity(identity, entity);
+  identity = { ...identity, email: resolved.ownerEmail };
 
   if (!isAnswers(body.answers)) {
     return jsonError("Intake unvollständig.", 400);
@@ -321,7 +365,7 @@ async function handleIntake(request: Request) {
 
   let rowForStore;
   try {
-    rowForStore = await prepareDurableIntakeRow(
+    rowForStore = await io.prepareDurableIntakeRow(
       toSheetRow({
         identity,
         answers,
@@ -351,7 +395,7 @@ async function handleIntake(request: Request) {
   let pdfUrl = "";
 
   try {
-    const generated = await generatePdf({
+    const generated = await io.generatePdf({
       answers,
       identity,
       documentId,
@@ -359,7 +403,7 @@ async function handleIntake(request: Request) {
       versionMeta,
       versionHistory,
     });
-    const storedPdf = await storePdf({
+    const storedPdf = await io.storePdf({
       familyId: parentDocumentId,
       documentId,
       version,
@@ -387,7 +431,7 @@ async function handleIntake(request: Request) {
 
   let stored;
   try {
-    stored = await appendRecord({
+    stored = await io.appendRecord({
       ...rowForStore,
       pdfUrl,
       deliveryStatus: delivery.status,
@@ -408,7 +452,7 @@ async function handleIntake(request: Request) {
   const magicUrl = identity.email ? magicLinkUrl(identity.email) : undefined;
 
   try {
-    await sendDeliveryMail({
+    await io.sendDeliveryMail({
       email: identity.email,
       company: identity.company,
       downloadUrl,
@@ -421,7 +465,7 @@ async function handleIntake(request: Request) {
   }
 
   try {
-    await sendReferralAfterDeliveryMail({
+    await io.sendReferralAfterDeliveryMail({
       email: identity.email,
       company: identity.company,
       documentId,
@@ -432,7 +476,7 @@ async function handleIntake(request: Request) {
   }
 
   const loginMail = identity.email
-    ? await deliverLoginLink(identity.email, "/account")
+    ? await io.deliverLoginLink(identity.email, "/account")
     : "failed";
 
   const response = NextResponse.json({
@@ -444,18 +488,38 @@ async function handleIntake(request: Request) {
     version,
     loginMail,
   });
-  const grant =
+  const checkoutGrant =
     identity.email &&
     identity.stripeSessionId &&
     (!identity.stub || devCheckoutStubAllowed())
       ? { sessionId: identity.stripeSessionId, email: identity.email }
       : undefined;
-  return withoutSessionCookie(response, grant);
+  return withoutSessionCookie(response, checkoutGrant);
+}
+
+export async function submitIntake(
+  request: Request,
+  io: IntakeIo = defaultIntakeIo,
+): Promise<NextResponse> {
+  let body: IntakeBody;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Ungültige Anfrage", 400);
+  }
+  const grant = checkoutGrantFromRequest(request);
+  const sessionId = body.sessionId?.trim() || grant?.sessionId || "";
+  const lockKey =
+    sessionId ||
+    body.documentId?.trim() ||
+    body.areaFromDocumentId?.trim() ||
+    `anon:${sessionEmailFromRequest(request) ?? "none"}`;
+  return withSessionWriteLock(lockKey, () => writeIntake(request, body, io));
 }
 
 export async function POST(request: Request) {
   try {
-    return await handleIntake(request);
+    return await submitIntake(request);
   } catch (error) {
     console.error("[intake] POST fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
