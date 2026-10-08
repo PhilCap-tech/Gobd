@@ -5,6 +5,7 @@ import {
   draftIsEmpty,
   draftRevision,
   incomingDraftWins,
+  IntakeDraftStorageError,
   loadIntakeDraft,
   normalizeDraftKey,
   saveIntakeDraft,
@@ -17,6 +18,11 @@ export const runtime = "nodejs";
 
 function jsonError(error: string, status: number) {
   return NextResponse.json({ error }, { status });
+}
+
+function blobStorageResponse(error: unknown, message: string): NextResponse | null {
+  if (!(error instanceof IntakeDraftStorageError)) return null;
+  return NextResponse.json({ error: message, backend: "blob" }, { status: 503 });
 }
 
 function isAnswers(value: unknown): value is IntakeAnswers {
@@ -67,7 +73,14 @@ export async function GET(request: Request) {
     });
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
 
-  const draft = await loadIntakeDraft(draftKey);
+  let draft: IntakeDraft | null;
+  try {
+    draft = await loadIntakeDraft(draftKey);
+  } catch (error) {
+    const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
+    if (failure) return failure;
+    throw error;
+  }
   if (!draft || draftIsEmpty(draft)) {
     return NextResponse.json({ draft: null });
   }
@@ -110,7 +123,19 @@ export async function PUT(request: Request) {
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
   if (!isAnswers(body.answers)) return jsonError("answers fehlen.", 400);
 
-  const existing = await loadIntakeDraft(draftKey);
+  // 401 before any blob read. A storage outage must not turn "no session" into 503.
+  if (!body.sessionId?.trim() && !(await getSessionEmail())) {
+    return jsonError("Kein Zugriff.", 401);
+  }
+
+  let existing: IntakeDraft | null;
+  try {
+    existing = await loadIntakeDraft(draftKey);
+  } catch (error) {
+    const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
+    if (failure) return failure;
+    throw error;
+  }
   if (existing && !draftIsEmpty(existing)) {
     if (!(await authorize({ sessionId: body.sessionId, draft: existing, email: body.email }))) {
       return jsonError("Kein Zugriff.", 401);
@@ -143,18 +168,37 @@ export async function PUT(request: Request) {
     updatedAt: new Date().toISOString(),
   };
 
-  const { backend } = await saveIntakeDraft(draft);
-  return NextResponse.json({ ok: true, draft, backend });
+  try {
+    const { backend } = await saveIntakeDraft(draft);
+    return NextResponse.json({ ok: true, draft, backend });
+  } catch (error) {
+    const failure = blobStorageResponse(error, "Entwurf konnte nicht gespeichert werden.");
+    if (failure) return failure;
+    throw error;
+  }
 }
 
 export async function DELETE(request: Request) {
   const url = new URL(request.url);
   const draftKey = url.searchParams.get("draftKey")?.trim() ?? "";
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
-  const existing = await loadIntakeDraft(draftKey);
+  let existing: IntakeDraft | null;
+  try {
+    existing = await loadIntakeDraft(draftKey);
+  } catch (error) {
+    const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
+    if (failure) return failure;
+    throw error;
+  }
   if (existing && !(await authorize({ sessionId: url.searchParams.get("sessionId") ?? undefined, draft: existing }))) {
     return jsonError("Kein Zugriff.", 401);
   }
-  await clearIntakeDraft(draftKey);
+  try {
+    await clearIntakeDraft(draftKey);
+  } catch (error) {
+    const failure = blobStorageResponse(error, "Entwurf konnte nicht gelöscht werden.");
+    if (failure) return failure;
+    throw error;
+  }
   return NextResponse.json({ ok: true });
 }
