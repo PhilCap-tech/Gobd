@@ -4,7 +4,7 @@
  */
 import { renderDeliveryDocument, type RenderedChapter } from "@/lib/delivery-templates";
 import gastroFixture from "@/scripts/fixtures/gastro-bella-vista.json";
-import { kanzleiKasseAnswers, pixelwerkAnswers } from "@/scripts/fixtures/pdf-consistency";
+import { kanzleiKasseAnswers, oezguerAnswers, pixelwerkAnswers, shkAnswers } from "@/scripts/fixtures/pdf-consistency";
 import { ensureGesamt } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
@@ -56,8 +56,33 @@ const VERKAUF_AUSSERHALB = [
 ];
 
 const pixel = render(pixelwerkAnswers());
-for (const stem of ["Vier-Augen", "Kreditkarte", "Kasse", "Shop", "Lohn", "Kanzlei"]) {
+for (const stem of ["Kasse", "Shop", "Lohn"]) {
   expect(!pixel.claims.includes(stem), `Pixelwerk nennt ${stem}`);
+}
+for (const phrase of [
+  "Vier-Augen-Prüfung vor Versand",
+  "Vier-Augen-Prüfung bei Bankdatenänderungen",
+  "Vier-Augen-Freigabe von Zahlungen",
+  "Abgleich der Kreditkartenabrechnung",
+  "Externe Kanzlei (soweit beteiligt)",
+  "Übergabe an die Kanzlei",
+  "Tägliche Sichtung",
+]) {
+  expect(!pixel.claims.includes(phrase), `Pixelwerk nennt Katalogtext „${phrase}“`);
+}
+for (const phrase of [
+  "keine Kreditkarte; Barauslagen per Foto",
+  "Vier-Augen-Prinzip ab 1.000 €, Stichproben monatlich",
+  "Belege laufend digital, Auswertungen monatlich zurück per Kanzlei-Portal",
+  "Kanzleivertrag",
+  "Vertrag mit dem Anbieter",
+  "Leistungsbeschreibung",
+  "Berechtigungskonzept",
+  "Nachweis Aufbewahrung oder Export",
+  "Kontrollnachweise",
+  "Systemverzeichnis",
+]) {
+  expect(pixel.claims.includes(phrase), `Pixelwerk verliert Kundentext „${phrase}“`);
 }
 for (const phrase of VERKAUF_AUSSERHALB) {
   expect(!pixel.claims.includes(phrase), `Pixelwerk enthält Verkaufsschritt „${phrase}“`);
@@ -234,6 +259,29 @@ expect(
   leerKontrollen.claims.includes("keine konkrete Kontrollroutine bestätigt"),
   "Wirklich fehlende Kontrolle wird verschwiegen",
 );
+
+const oezguer = render(oezguerAnswers(), { company: "TEST Özgür & Söhne – Grüne Straße ß € GmbH" });
+const vk01 =
+  "S1: Ä Ö Ü ä ö ü ß € § ° ² µ „Anführung“ ‚einfach‘ – Gedankenstrich — Geviert … © ® ™ ½ S2: <script>alert('TEST')</script> fett _kursiv_ # Überschrift | Spalte A | Spalte B | [Link](https://example.com) ` Backtick S3: Kasse | Bank | Shop || doppelt";
+const kf01 =
+  "S3 Pipe: Kasse | Bank | Shop || doppelt · S2 MD: <script>alert('TEST')</script> fett _kursiv_ # Überschrift | Spalte A | Spalte B | [Link](https://example.com) ` Backtick";
+expect(oezguer.claims.includes(vk01), "Özgür verliert den VK01-Freitext");
+expect(oezguer.claims.includes(kf01), "Özgür verliert den KF01-Freitext");
+expect(oezguer.claims.includes("Wir haben keine Kasse, Bargeld kommt nicht vor."), "Özgür verliert die Kassen-Verneinung");
+for (const phrase of [
+  "Kasse, Shop und Lohn",
+  "Täglicher Kassensturz (Soll-Ist-Abgleich)",
+  "Prüfung der TSE-Funktion (Signatur auf dem Beleg)",
+]) {
+  expect(!oezguer.claims.includes(phrase), `Özgür nennt Katalogtext „${phrase}“`);
+}
+
+const shk = render(shkAnswers(), { company: "TEST Haustechnik Kessler SHK GmbH" });
+expect(
+  shk.claims.includes("Kreditkarten und Barauslagen:** Ablauf: Tankkarten DKV, monatliche Abrechnung"),
+  "SHK verliert den BA09-Freitext",
+);
+expect(!shk.claims.includes("Abgleich der Kreditkartenabrechnung"), "SHK nennt die Katalog-Kreditkartenkontrolle");
 
 if (failures.length) {
   console.error(failures.join("\n"));

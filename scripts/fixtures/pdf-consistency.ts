@@ -90,7 +90,7 @@ export function pixelwerkAnswers(): IntakeAnswers {
       }),
       BA01: q("bestaetigt", { konten: "Hausbank, Geschäftskonto", karten: "keine" }),
       BA05: q("bestaetigt", { wer: "Jana Probst", vierAugen: "nein" }),
-      BA09: q("bestaetigt", { ablauf: "keine; Barauslagen per Foto" }),
+      BA09: q("bestaetigt", { ablauf: "keine Kreditkarte; Barauslagen per Foto" }),
       BA92: q("bestaetigt", { kontrollen: ["Keine regelmäßige Kontrolle"] }),
       EK04: q("bestaetigt", { wer: "Jana Probst", vierAugen: "nein" }),
       H01: q("bestaetigt", {
@@ -98,7 +98,21 @@ export function pixelwerkAnswers(): IntakeAnswers {
           { name: "Lückenprüfung Rechnungsnummern", turnus: "monatlich", wer: "Jana Probst", nachweis: "Nummernliste" },
         ],
       }),
-      KF02: q("bestaetigt", { kontrollen: "Lückenprüfung Rechnungsnummern, Stichproben monatlich" }),
+      KF02: q("bestaetigt", { kontrollen: "Vier-Augen-Prinzip ab 1.000 €, Stichproben monatlich" }),
+      AU03: q("bestaetigt", {
+        ablauf: "Belege laufend digital, Auswertungen monatlich zurück per Kanzlei-Portal",
+      }),
+      I02: q("bestaetigt", {
+        anlagen: [
+          { name: "Vertrag mit dem Anbieter", status: "vorhanden" },
+          { name: "Leistungsbeschreibung", status: "vorhanden" },
+          { name: "Berechtigungskonzept", status: "offen" },
+          { name: "Nachweis Aufbewahrung oder Export", status: "vorhanden" },
+          { name: "Kontrollnachweise", status: "vorhanden" },
+          { name: "Systemverzeichnis", status: "vorhanden" },
+          { name: "Kanzleivertrag", status: "nicht_zutreffend" },
+        ],
+      }),
     },
   };
 }
@@ -149,6 +163,82 @@ export function kanzleiKasseAnswers(): IntakeAnswers {
         nachweis: "Übergabeprotokoll",
       }),
       KA01: q("bestaetigt", { kassenart: "Offene Ladenkasse (ohne Kassensystem)", anzahl: "1" }),
+    },
+  };
+}
+
+/** TEST Özgür: Dienstleister ohne Kasse und Shop, mit bestätigten Freitexten dazu. */
+export function oezguerAnswers(): IntakeAnswers {
+  const base = withCheck(ensureGesamt(emptyAnswers()), [
+    ["bargeld", "nein"],
+    ["lager", "nein"],
+    ["personal", "nein"],
+    ["zeiterfassung", "nein"],
+    ["online", "nein"],
+    ["retouren", "nein"],
+    ["papier", "ja"],
+    ["erechnung", "ja"],
+    ["anlagen", "nein"],
+    ["kanzlei", "ja"],
+    ["branche", "nein"],
+    ["zahlungsdienstleister", "nein"],
+  ]);
+  return {
+    ...base,
+    gf: "Özgür Şahin",
+    katalog: {
+      A01: q("bestaetigt", {
+        company: "TEST Özgür & Söhne – Grüne Straße ß € GmbH",
+        gf: "Özgür Şahin",
+        mitarbeitende: "2–5",
+        rechtsform: "GmbH",
+      }),
+      VK01: q("bestaetigt", {
+        ablauf:
+          "S1: Ä Ö Ü ä ö ü ß € § ° ² µ „Anführung“ ‚einfach‘ – Gedankenstrich — Geviert … © ® ™ ½\nS2: <script>alert('TEST')</script> **fett** _kursiv_ # Überschrift | Spalte A | Spalte B | [Link](https://example.com) ` Backtick\nS3: Kasse | Bank | Shop || doppelt",
+        system: "DATEV „Unternehmen online“",
+      }),
+      KF01: q("bestaetigt", {
+        kontrollen:
+          "S3 Pipe: Kasse | Bank | Shop || doppelt · S2 MD: <script>alert('TEST')</script> **fett** _kursiv_ # Überschrift | Spalte A | Spalte B | [Link](https://example.com) ` Backtick",
+      }),
+      LE03: q("bestaetigt", {
+        ablauf: "Wir haben keine Kasse, Bargeld kommt nicht vor.",
+        protokoll: "nein",
+      }),
+      BU92: q("bestaetigt", { kontrollen: ["Abstimmung Vorsysteme mit Buchhaltung"] }),
+    },
+  };
+}
+
+/** TEST SHK: Tankkarten im Freitext, das Feld heißt trotzdem Kreditkarten. */
+export function shkAnswers(): IntakeAnswers {
+  const base = withCheck(ensureGesamt(emptyAnswers()), [
+    ["bargeld", "nein"],
+    ["lager", "ja"],
+    ["personal", "ja"],
+    ["zeiterfassung", "ja"],
+    ["online", "nein"],
+    ["retouren", "nein"],
+    ["papier", "ja"],
+    ["erechnung", "ja"],
+    ["anlagen", "ja"],
+    ["kanzlei", "ja"],
+    ["branche", "ja"],
+    ["zahlungsdienstleister", "unbekannt"],
+  ]);
+  return {
+    ...base,
+    gf: "Stefan Kessler",
+    buchhaltung: "Petra Kessler",
+    katalog: {
+      A01: q("bestaetigt", {
+        company: "TEST Haustechnik Kessler SHK GmbH",
+        gf: "Stefan Kessler",
+        mitarbeitende: "6–10",
+        rechtsform: "GmbH",
+      }),
+      BA09: q("bestaetigt", { ablauf: "Tankkarten DKV, monatliche Abrechnung" }),
     },
   };
 }
