@@ -127,7 +127,7 @@ Den Abgleich über die vier Teile hinweg macht die [Verfahrensdokumentation Chec
 
 Unsicher, ob Systeme, Belegwege und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
 Wenn Sie den Entwurf nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
 

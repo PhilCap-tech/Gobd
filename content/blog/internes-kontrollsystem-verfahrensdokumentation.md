@@ -135,7 +135,7 @@ Zum Sortieren der übrigen Kapitel: [Inhalt einer Verfahrensdokumentation](/reso
 
 Unsicher, ob Rollen, Systeme und Belegwege schon greifbar sind, bevor Sie Kontrollen beschreiben? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
 Wenn Sie den IKS-Abschnitt nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
 

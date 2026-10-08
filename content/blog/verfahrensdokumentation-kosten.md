@@ -108,7 +108,7 @@ Offene Punkte gehören in eine Liste, nicht in einen geglätteten Satz. Zum Sort
 
 Unsicher, welche Themen bei Ihnen überhaupt anfallen, bevor Sie Aufwand schätzen? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
 Wenn Sie den Entwurf nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/). Heute 198 € zzgl. USt (149 € Einrichtung + erster Monat), danach 49 € zzgl. USt pro Monat. Alle 24 Module inklusive · keine Zusatzmodule · keine Jahresvorauszahlung · monatlich kündbar. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuerberatung.
 

@@ -136,7 +136,7 @@ Die Beratung muss nicht bei Null starten. Ein strukturierter Entwurf spart Schle
 | Abstimmung mit der Beratung | Braucht oft Nachfragen | Entwurf als Gesprächsgrundlage |
 | Zusage zur Anerkennung | Keine, und es sollte keine geben | Keine — bewusst |
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
 Wenn Sie nicht mit einer leeren Datei starten wollen: [GoBD-Verfahrensdokumentation erstellen](/checkout) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 

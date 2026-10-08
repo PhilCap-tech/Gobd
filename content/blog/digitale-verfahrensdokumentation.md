@@ -17,7 +17,7 @@ date: "2026-09-23"
 
 # Digitale Verfahrensdokumentation
 
-Du willst eine **digitale Verfahrensdokumentation** — als PDF, in der Cloud oder im DMS — und fragst dich, was „digital“ konkret bedeutet. Hier: Format, Ablage, Versionierung und was sich gegenüber einer Papierakte ändert (und was nicht).
+Sie wollen eine **digitale Verfahrensdokumentation** — als PDF, in der Cloud oder im DMS — und fragen sich, was „digital“ konkret bedeutet. Hier: Format, Ablage, Versionierung und was sich gegenüber einer Papierakte ändert (und was nicht).
 
 **Kurz:** Digital heißt vor allem: nachvollziehbar speichern, versionieren und wiederfinden. Ein PDF allein macht die Dokumentation nicht besser — der Inhalt und die Freigabe zählen. Digitale Ablage erleichtert Pflege und Zugriff; sie ersetzt keine inhaltliche Abstimmung mit dem Steuerberater.
 
@@ -29,11 +29,11 @@ Aufbau und Vorgehen: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahr
 
 Oft werden drei Dinge vermischt:
 
-1. **Inhalt** — Beschreibung eurer digitalen (und ggf. papiernen) Belegprozesse  
+1. **Inhalt** — Beschreibung Ihrer digitalen (und ggf. papiernen) Belegprozesse  
 2. **Format** — Datei (PDF, Office), statt oder zusätzlich zu Papier  
-3. **Gegenstand** — dass ihr DV-gestützt bucht und Belege elektronisch ablegt  
+3. **Gegenstand** — dass Sie DV-gestützt buchen und Belege elektronisch ablegen  
 
-Dieser Artikel fokussiert Format und Ablage der **Dokumentation selbst**. Die Beschreibung eurer Systeme gehört trotzdem hinein — siehe technische und Anwenderteile im Pillar.
+Dieser Artikel fokussiert Format und Ablage der **Dokumentation selbst**. Die Beschreibung Ihrer Systeme gehört trotzdem hinein — siehe technische und Anwenderteile im Pillar.
 
 ## Warum digital oft praktischer ist
 
@@ -64,18 +64,18 @@ Bewährt: Entwürfe bearbeiten, freigegebene Version als PDF (oder gleichwertige
 
 Eine [Checkliste](/blog/verfahrensdokumentation-checkliste) hilft vor der Freigabe.
 
-Unsicher, ob Systeme, Belegwege und Verantwortliche für eine digitale Doku schon klar genug sind? Mach den kostenlosen [Readiness-Check](/readiness) — ohne Kreditkarte.
+Unsicher, ob Systeme, Belegwege und Verantwortliche für eine digitale Doku schon klar genug sind? Machen Sie den kostenlosen [Readiness-Check](/readiness) — ohne Kreditkarte.
 
 ## Typische Fehler bei „wir haben das digital“
 
 - Datei heißt **Verfahrensdoku_final_final2.pdf** ohne Versionsnummer  
 - niemand weiß, welche Version gilt  
 - Cloud-Link nur in einer privaten Inbox  
-- Inhalt ist Blanko-Muster ohne eure Prozesse — siehe [Vorlage](/blog/verfahrensdokumentation-vorlage)  
-- Scan- und Vernichtungsregeln fehlen, obwohl ihr ersetzt scannt  
+- Inhalt ist Blanko-Muster ohne Ihre Prozesse — siehe [Vorlage](/blog/verfahrensdokumentation-vorlage)  
+- Scan- und Vernichtungsregeln fehlen, obwohl Sie ersetzend scannen  
 - nach Softwarewechsel nie nachgezogen  
 
-## So setzt du eine digitale Verfahrensdokumentation auf
+## So setzen Sie eine digitale Verfahrensdokumentation auf
 
 ### 1. Inhalt zuerst
 
@@ -101,9 +101,9 @@ Entwurf zur Abstimmung senden; Freigabe-Stand danach aktualisieren.
 
 Bei wesentlichen Änderungen neu versionieren; intervallmäßig prüfen, ob der Text noch stimmt.
 
-## Primär-CTA: geführtes PDF als Start
+## Geführtes PDF als Start
 
-Unter gobd-doku-erstellen.de erhältst du nach dem Intake eine **strukturierte Verfahrensdokumentation als PDF** plus Offene-Punkte-Liste: [Verfahrensdokumentation erstellen](/checkout). Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach digital ablegen, versionieren und mit dem Berater freigeben.
+Unter gobd-doku-erstellen.de erhalten Sie nach dem Intake eine **strukturierte Verfahrensdokumentation als PDF** plus Offene-Punkte-Liste: [Verfahrensdokumentation erstellen](/checkout). Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach digital ablegen, versionieren und mit dem Berater freigeben.
 
 ## FAQ
 
@@ -113,7 +113,7 @@ Nur wenn Ort, Version und Freigabe klar sind und Beteiligte bzw. der Berater bei
 
 ### Muss die Verfahrensdokumentation in der Cloud liegen?
 
-Nein. Lokal, Server oder Cloud können passen — entscheidend sind Nachvollziehbarkeit, Zugriff und Backup, soweit ihr das in der Doku beschreibt.
+Nein. Lokal, Server oder Cloud können passen — entscheidend sind Nachvollziehbarkeit, Zugriff und Backup, soweit Sie das in der Doku beschreiben.
 
 ### Ist eine digitale Doku „besser“ als Papier?
 
@@ -125,7 +125,7 @@ Nein. Digitale Dateien veralten genauso. Siehe [aktualisieren](/blog/verfahrensd
 
 ### Darf ich die Doku per E-Mail an den Prüfer schicken?
 
-Das ist eine Einzelfallfrage (Form, Umfang, Abstimmung mit dem Berater). Intern solltest du jedenfalls wissen, welche Version die aktuelle freigegebene ist.
+Das ist eine Einzelfallfrage (Form, Umfang, Abstimmung mit dem Berater). Intern sollten Sie jedenfalls wissen, welche Version die aktuelle freigegebene ist.
 
 ### Macht ein digitales PDF uns GoBD-konform?
 
@@ -142,8 +142,8 @@ Nein. Wir versprechen keine Konformität und keine Rechtssicherheit. Das PDF ist
 
 ## Disclaimer
 
-Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt dich bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
+Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt Sie bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
 
-Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich ist und wie du sie digital führst, hängt von deiner konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
+Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für Ihr Unternehmen erforderlich ist und wie Sie sie digital führen, hängt von Ihrer konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
-Du bleibst für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).
+Sie bleiben für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).

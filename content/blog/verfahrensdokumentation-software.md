@@ -17,9 +17,9 @@ date: "2026-09-23"
 
 # Verfahrensdokumentation Software
 
-Du suchst **Verfahrensdokumentation Software** — ein Tool, das dir beim Erstellen hilft. Hier ein **soft Vergleich**: geführtes Online-Tool, Blanko-Vorlage und Abstimmung mit dem Steuerberater. Ohne Konkurrenten-Bashing, ohne Konformitätsversprechen.
+Sie suchen **Verfahrensdokumentation Software** — ein Tool, das Ihnen beim Erstellen hilft. Hier ein **soft Vergleich**: geführtes Online-Tool, Blanko-Vorlage und Abstimmung mit dem Steuerberater. Ohne Konkurrenten-Bashing, ohne Konformitätsversprechen.
 
-**Kurz:** Es gibt keinen magischen Schalter „Software = fertig“. Hilfreich ist, was dich zu euren Prozessen führt und Lücken sichtbar macht. Blanko-Dateien fordern Disziplin; Berater liefern Fachblick; geführte Tools strukturieren den Entwurf. Die Freigabe bleibt bei dir bzw. bei der beratenen Abstimmung.
+**Kurz:** Es gibt keinen magischen Schalter „Software = fertig“. Hilfreich ist, was Sie zu Ihren Prozessen führt und Lücken sichtbar macht. Blanko-Dateien fordern Disziplin; Berater liefern Fachblick; geführte Tools strukturieren den Entwurf. Die Freigabe bleibt bei Ihnen bzw. bei der beratenen Abstimmung.
 
 > **Keine Steuerberatung.** Dieser Text und alle Ergebnisse unter gobd-doku-erstellen.de sind allgemeine Arbeitshilfen. Sie ersetzen keine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
@@ -37,17 +37,17 @@ Typische Wege:
 
 Viele Betriebe kombinieren Wege: Tool oder Vorlage für den Entwurf, Berater für die Abstimmung.
 
-## Soft-Vergleich: worauf du achten kannst
+## Soft-Vergleich: worauf Sie achten können
 
 | Kriterium | Geführtes Tool | Blanko-Vorlage | Berater-fokussiert |
 |-----------|----------------|----------------|--------------------|
 | Einstieg | oft schnell, Fragen führen | Struktur da, Inhalt selbst | Termin / Auftrag nötig |
-| Bezug zu euren Prozessen | hängt von euren Antworten ab | nur so gut wie ihr ausfüllt | oft stark, wenn gut briefed |
+| Bezug zu Ihren Prozessen | hängt von Ihren Antworten ab | nur so gut, wie Sie sie ausfüllen | oft stark, wenn gut briefed |
 | Offene Punkte sichtbar | bei guten Tools ja | leicht zu übersehen | Berater markiert oft Lücken |
 | Kostenmodell | typisch Setup / Abo | günstig bis kostenlos | Beratungshonorar |
-| Was es nicht ersetzt | Freigabe, Fachprüfung | Freigabe, Fachprüfung | eure Prozesskenntnis |
+| Was es nicht ersetzt | Freigabe, Fachprüfung | Freigabe, Fachprüfung | Ihre Prozesskenntnis |
 
-Kein Ranking „das eine ist immer besser“. Entscheidend: Passt der Weg zu Zeit, Klarheit und eurer Zusammenarbeit mit dem Berater?
+Kein Ranking „das eine ist immer besser“. Entscheidend: Passt der Weg zu Zeit, Klarheit und Ihrer Zusammenarbeit mit dem Berater?
 
 ## Geführtes Tool — Stärken und Grenzen
 
@@ -78,7 +78,7 @@ So arbeitet z. B. gobd-doku-erstellen.de: Intake → PDF + Offene Punkte → Abs
 
 - leicht Standardfloskeln ohne Betriebsbezug  
 - Lücken bei Scan, Backup, Rollen, Versionierung  
-- Pflege und Versionierung musst du selbst organisieren  
+- Pflege und Versionierung müssen Sie selbst organisieren  
 
 Vertiefung: [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage). Abgleich: [Checkliste](/blog/verfahrensdokumentation-checkliste).
 
@@ -86,39 +86,39 @@ Vertiefung: [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorl
 
 **Stärken**
 
-- kennt oft eure Buchführung und Prüfungsthemen  
+- kennt oft Ihre Buchführung und Prüfungsthemen  
 - kann Entwurf gegen Praxis und Erwartungen spiegeln  
 - sinnvoll bei komplexen Setups oder Unsicherheit  
 
 **Grenzen**
 
-- ohne eure Prozessinfos entsteht keine treffende Doku  
+- ohne Ihre Prozessinfos entsteht keine treffende Doku  
 - Kapazität und Preis variieren stark  
 - „Der Berater hat das irgendwo“ ersetzt keine freigegebene Version im Betrieb  
 
 DIY und Berater nebeneinander: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
 
-Noch unklar, welcher Weg zu euch passt? Der kostenlose [Readiness-Check](/readiness) klärt grob Branche, Software, Belegwege und IT — ohne Kreditkarte und ohne Produktzwang.
+Noch unklar, welcher Weg zu Ihnen passt? Der kostenlose [Readiness-Check](/readiness) klärt grob Branche, Software, Belegwege und IT — ohne Kreditkarte und ohne Produktzwang.
 
-## Worauf du bei „Verfahrensdokumentation Software“ achten solltest
+## Worauf Sie bei „Verfahrensdokumentation Software“ achten sollten
 
-- Werden eure **konkreten** Systeme und Rollen abgefragt — oder nur Platzhalter?  
+- Werden Ihre **konkreten** Systeme und Rollen abgefragt — oder nur Platzhalter?  
 - Gibt es eine **Offene-Punkte-Liste** statt stillschweigender Annahmen?  
 - Ist klar, dass das Ergebnis **keine Steuerberatung** und kein Konformitätssiegel ist?  
-- Kannst du den Entwurf mit dem Berater teilen und später [aktualisieren](/blog/verfahrensdokumentation-aktualisieren)?  
+- Können Sie den Entwurf mit dem Berater teilen und später [aktualisieren](/blog/verfahrensdokumentation-aktualisieren)?  
 - Sind Preise und Leistungsumfang nachvollziehbar (ohne Hype)?  
 
-Vermeide Angebote, die „rechtssicher“ oder „GoBD-konform garantiert“ versprechen — solche Claims sind unseriös und hier bewusst kein Maßstab.
+Vermeiden Sie Angebote, die „rechtssicher“ oder „GoBD-konform garantiert“ versprechen — solche Claims sind unseriös und hier bewusst kein Maßstab.
 
-## Primär-CTA: geführt starten
+## Geführt starten
 
-Wenn du einen strukturierten Entwurf willst, ohne bei Null zu tippen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF, Offene-Punkte-Liste. Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie einen strukturierten Entwurf wollen, ohne bei Null zu tippen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF, Offene-Punkte-Liste. Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 
 ### Welche Verfahrensdokumentation-Software ist die beste?
 
-Es gibt keine universell beste. Vergleiche Einstieg, Transparenz, Offene Punkte und wie gut der Entwurf zu eurer Abstimmung mit dem Berater passt — nicht Marketingclaims.
+Es gibt keine universell beste. Vergleichen Sie Einstieg, Transparenz, Offene Punkte und wie gut der Entwurf zu Ihrer Abstimmung mit dem Berater passt — nicht Marketingclaims.
 
 ### Reicht Buchhaltungssoftware als Verfahrensdokumentation?
 
@@ -138,7 +138,7 @@ Nein. Entwurf abstimmen, Beratung nicht ersetzen.
 
 ### Macht Software uns GoBD-konform?
 
-Nein. Wir und seriöse Anbieter versprechen das nicht. Verantwortung bleibt bei dir bzw. bei der beratenen Freigabe.
+Nein. Wir und seriöse Anbieter versprechen das nicht. Verantwortung bleibt bei Ihnen bzw. bei der beratenen Freigabe.
 
 ## Weiterlesen
 
@@ -150,8 +150,8 @@ Nein. Wir und seriöse Anbieter versprechen das nicht. Verantwortung bleibt bei 
 
 ## Disclaimer
 
-Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt dich bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
+Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt Sie bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
 
-Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich ist und welches Hilfsmittel du nutzt, hängt von deiner konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
+Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Ob und in welchem Umfang eine Verfahrensdokumentation für Ihr Unternehmen erforderlich ist und welches Hilfsmittel Sie nutzen, hängt von Ihrer konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
-Du bleibst für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).
+Sie bleiben für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich. Wir übernehmen keine Gewähr dafür, dass die erzeugte Dokumentation in einem konkreten Prüfungsfall als ausreichend anerkannt wird. Siehe auch die [FAQ](/faq).
