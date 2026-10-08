@@ -20,11 +20,12 @@ const COVERED = [
   "components/consent-banner.tsx",
   "components/site-header.tsx",
   "components/site-footer.tsx",
+  "content/readiness/**/*.md",
+  "lib/readiness.ts",
 ];
 
 // Later steps can append, for example:
 //   "content/blog/**/*.md"
-//   "content/readiness/**/*.md"
 //   "lib/ops.ts"
 //   "app/account/**/*.{ts,tsx}"
 //   "app/login/**/*.{ts,tsx}"
@@ -35,7 +36,7 @@ const PRONOUNS =
   "du|dich|dir|dein|deine|deinen|deinem|deiner|deines|euch|euer|eure|euren|eurem|eurer|eures";
 // Du-imperatives actually replaced on these surfaces. "bestätige" is separate
 // so the first-person "Ich bestätige" on the checkout checkbox stays allowed.
-const IMPERATIVES = "mach|schau|starte|öffne|schreib|melde";
+const IMPERATIVES = "mach|schau|starte|öffne|schreib|melde|hake|nutze|fülle|nenne|klär|erfasse|beschreibe|geh|nimm";
 
 const PRONOUN_RE = new RegExp(
   String.raw`(?<![\p{L}\p{N}_])(?:${PRONOUNS})(?![\p{L}\p{N}_])`,

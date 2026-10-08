@@ -16,7 +16,7 @@ date: 2026-09-19
 
 Dieses Modul richtet sich an Dienstleister, Agenturen, Beratungen und Freiberufler: Angebote, Zeiterfassung, Rechnungen, Reisekosten und digitale Ablage. Es ist eine **Readiness-Arbeitshilfe** — keine fertige Verfahrensdokumentation und kein Ersatz für Steuerberatung.
 
-**Kurz:** Bei Dienstleistungen entstehen Belege oft nicht an der Kasse, sondern über Angebot → Auftrag → Zeit/Leistung → Rechnung → Zahlung. Die GoBD erwarten Nachvollziehbarkeit dieser Kette und der eingesetzten Systeme. Du brauchst klare Wege und Verantwortliche — nicht maximalen Textumfang.
+**Kurz:** Bei Dienstleistungen entstehen Belege oft nicht an der Kasse, sondern über Angebot → Auftrag → Zeit/Leistung → Rechnung → Zahlung. Die GoBD erwarten Nachvollziehbarkeit dieser Kette und der eingesetzten Systeme. Sie brauchen klare Wege und Verantwortliche — nicht maximalen Textumfang.
 
 ---
 
@@ -31,7 +31,7 @@ Die GoBD (Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büche
 - **Nachvollziehbarkeit von Änderungen** (keine stillen Überschreibungen ohne Spur)
 - **Aufbewahrung** und Möglichkeit des Datenzugriffs für die vorgeschriebene Dauer
 
-Für Freiberufler und Dienstleistungs-KMU heißt das: Auch ohne Ladenkasse brauchst du eine Beschreibung, wie Angebote, Leistungen, Rechnungen und Belege bei euch laufen — inkl. Software und Ablageorte.
+Für Freiberufler und Dienstleistungs-KMU heißt das: Auch ohne Ladenkasse brauchen Sie eine Beschreibung, wie Angebote, Leistungen, Rechnungen und Belege bei Ihnen laufen — inkl. Software und Ablageorte.
 
 ### Typische Belegkette im Dienstleistungsalltag
 
@@ -57,19 +57,19 @@ Sinnvoller Mindeststandard:
 - Übergang Angebot → Auftrag dokumentierbar (Status, Datum, Ansprechpartner)
 - Bei Rahmenverträgen: wo liegt der Vertrag, wer pflegt Laufzeiten?
 
-Du musst keine Verkaufsstrategie in die GoBD-Doku schreiben. Es reicht der Beleg- und Systembezug.
+Sie müssen keine Verkaufsstrategie in die GoBD-Doku schreiben. Es reicht der Beleg- und Systembezug.
 
 ### Zeiten und Leistungsnachweise
 
 Viele Dienstleister rechnen nach Zeit, Tagessätzen oder Pauschalen mit Nachweis. Für die Readiness:
 
-1. **Welches Tool** nutzt ihr für Zeiten (Excel, Projekttool, Zeiterfassung, gar keines)?
-2. **Wer erfasst** (Mitarbeiter, Freelancer, du selbst)?
+1. **Welches Tool** nutzen Sie für Zeiten (Excel, Projekttool, Zeiterfassung, gar keines)?
+2. **Wer erfasst** (Mitarbeiter, Freelancer, Sie selbst)?
 3. **Wer prüft** vor der Rechnung?
 4. **Wo** liegen Freigaben / Leistungsnachweise, die dem Kunden oder der Buchhaltung dienen?
 5. **Was passiert** bei Korrekturen nachträglich?
 
-Wenn Zeiten nur „im Kopf“ oder in chaotischen Notizen leben, ist das ein klarer offener Punkt — bevor du eine Verfahrensdokumentation schreibst.
+Wenn Zeiten nur „im Kopf“ oder in chaotischen Notizen leben, ist das ein klarer offener Punkt — bevor Sie eine Verfahrensdokumentation schreiben.
 
 ### Rechnungen (Ausgang)
 
@@ -79,9 +79,9 @@ Ausgangsrechnungen sind bei Dienstleistungen oft der wichtigste Ausgangsbeleg:
 - Fortlaufende Nummerierung und Ablage der Rechnungskopien (PDF)
 - Versandweg (E-Mail, Portal) und wo die versendete Version liegt
 - Gutschriften und Stornos: wer darf, wie wird nachvollzogen?
-- Schnittstelle zur Buchhaltung / zum Steuerberater (Export, Upload, DATEV o. Ä. — nur als Beispiel nennen, was ihr nutzt)
+- Schnittstelle zur Buchhaltung / zum Steuerberater (Export, Upload, DATEV o. Ä. — nur als Beispiel nennen, was Sie nutzen)
 
-Pflichtangaben auf Rechnungen sind steuerlich relevant; kläre Unsicherheiten mit dem Steuerberater. Diese Readiness listet nur den organisatorischen Rahmen.
+Pflichtangaben auf Rechnungen sind steuerlich relevant; klären Sie Unsicherheiten mit dem Steuerberater. Diese Readiness listet nur den organisatorischen Rahmen.
 
 ### Eingangsbelege und Subunternehmer
 
@@ -96,9 +96,9 @@ Typisch: Software-Abos, Cloud-Tools, Subunternehmer-Rechnungen, Coworking, Weite
 
 Reisekosten (Fahrt, Hotel, Verpflegung, Bewirtung unterwegs) sind häufig und fehleranfällig. **Keine** steuerliche Einordnung hier.
 
-Für die Nachvollziehbarkeit solltest du klären:
+Für die Nachvollziehbarkeit sollten Sie klären:
 
-- Welche Belege sammelst du (Tickets, Hotelrechnung, Tankbeleg, …)?
+- Welche Belege sammeln Sie (Tickets, Hotelrechnung, Tankbeleg, …)?
 - Wer reicht ein, wer prüft, wer erstattet oder verbucht?
 - Welches Formular / Tool (Excel, Reisekostenmodul, App)?
 - Bewirtung auf Reisen: Trennung und Angaben — Abstimmung mit der Kanzlei
@@ -116,20 +116,20 @@ Nur Beispiele, keine Empfehlung:
 | Buchhaltung beim Steuerberater | Viele Freiberufler | Belegweg bis Übergabe, was die Kanzlei übernimmt |
 | Mischbetrieb | Agenturen | CRM/Projekttool + Buchhaltung + Bank |
 
-Nenne **eure** konkreten Produkte und ungefähren Versionen. „Buchhaltungsprogramm“ allein sagt wenig.
+Nennen Sie **Ihre** konkreten Produkte und ungefähren Versionen. „Buchhaltungsprogramm“ allein sagt wenig.
 
 ### Rollen bei Solo und kleinem Team
 
 | Rolle (Beispiel) | Solo | Kleines Team |
 |------------------|------|--------------|
-| Angebot / Auftrag | du | Sales / Projektleitung / du |
-| Zeiterfassung | du | Team + Freigabe |
-| Rechnung | du | Assistenz / du |
-| Belegeingang | du | Assistenz / Buchhaltung |
-| Reisekosten | du | Mitarbeitende + Prüfung |
-| Freigabe späterer VD | du / Geschäftsleitung | Geschäftsleitung |
+| Angebot / Auftrag | Sie | Sales / Projektleitung / Sie |
+| Zeiterfassung | Sie | Team + Freigabe |
+| Rechnung | Sie | Assistenz / Sie |
+| Belegeingang | Sie | Assistenz / Buchhaltung |
+| Reisekosten | Sie | Mitarbeitende + Prüfung |
+| Freigabe späterer VD | Sie / Geschäftsleitung | Geschäftsleitung |
 
-Vertretung: Auch als Solo solltest du kurz notieren, was bei Krankheit mit Fristen und Ablage passiert (Zugriff für Vertretung / Berater).
+Vertretung: Auch als Solo sollten Sie kurz notieren, was bei Krankheit mit Fristen und Ablage passiert (Zugriff für Vertretung / Berater).
 
 ### Was dieses Modul bewusst nicht ist
 
@@ -142,7 +142,7 @@ Vertretung: Auch als Solo solltest du kurz notieren, was bei Krankheit mit Frist
 
 ## 2. Checkliste GoBD-Readiness Dienstleistungen / Freiberufler
 
-Hake nur ab, was **bei euch wirklich** so läuft.
+Haken Sie nur ab, was **bei Ihnen wirklich** so läuft.
 
 ### Rahmen
 
@@ -202,17 +202,17 @@ Hake nur ab, was **bei euch wirklich** so läuft.
 
 - [ ] Offene-Punkte-Liste geführt
 - [ ] Klarheit: Readiness ist Vorbereitung, keine fertige VD
-- [ ] Freigabe durch dich / die Geschäftsleitung für spätere VD vorgesehen
+- [ ] Freigabe durch Sie / die Geschäftsleitung für spätere VD vorgesehen
 
 ---
 
 ## 3. Nächste Schritte
 
-1. **Geh die Checkliste ehrlich durch** — besonders Zeiten, Rechnungsablage und Reisekosten.
-2. **Klär offene steuerliche Punkte** (Reise, Bewirtung, gemischte Nutzung) mit deinem Steuerberater.
-3. **Nutze die Readiness auf gobd-doku-erstellen.de**, um deinen Stand zu strukturieren: [Readiness](https://gobd-doku-erstellen.de/readiness).
-4. Wenn die Lücken sichtbar sind, kannst du eine **geführte Verfahrensdokumentation** starten — mit euren echten Tools und Abläufen, ohne leere Versprechen. Einstieg über Landing/Checkout auf gobd-doku-erstellen.de.
-5. Aktualisiere diese Notizen, wenn sich Systeme, Nummernkreise oder Zuständigkeiten ändern (Stand {{Datum}}).
+1. **Gehen Sie die Checkliste ehrlich durch** — besonders Zeiten, Rechnungsablage und Reisekosten.
+2. **Klären Sie offene steuerliche Punkte** (Reise, Bewirtung, gemischte Nutzung) mit Ihrem Steuerberater.
+3. **Nutzen Sie die Readiness auf gobd-doku-erstellen.de**, um Ihren Stand zu strukturieren: [Readiness](https://gobd-doku-erstellen.de/readiness).
+4. Wenn die Lücken sichtbar sind, können Sie eine **geführte Verfahrensdokumentation** starten — mit Ihren echten Tools und Abläufen, ohne leere Versprechen. Einstieg über Landing/Checkout auf gobd-doku-erstellen.de.
+5. Aktualisieren Sie diese Notizen, wenn sich Systeme, Nummernkreise oder Zuständigkeiten ändern (Stand {{Datum}}).
 
 Soft-Hinweis: Readiness-Module helfen beim Sortieren. Die eigentliche Verfahrensdokumentation braucht freigegebene Prozesse, Systeme und Verantwortlichkeiten.
 

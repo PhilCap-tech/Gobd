@@ -14,9 +14,9 @@ date: 2026-09-19
 
 **{{Firma}}** · {{Branche}} · Stand {{Datum}}
 
-Dieses Modul ist der **Fallback**, wenn keine spezialisierte Branchenvorlage passt: für gemischte Tätigkeiten, unklare Zuordnung oder als Einstieg, bevor du ein spezifischeres Modul nutzt. Es ist eine **Readiness-Arbeitshilfe** — keine fertige Verfahrensdokumentation und kein Ersatz für Steuerberatung.
+Dieses Modul ist der **Fallback**, wenn keine spezialisierte Branchenvorlage passt: für gemischte Tätigkeiten, unklare Zuordnung oder als Einstieg, bevor Sie ein spezifischeres Modul nutzen. Es ist eine **Readiness-Arbeitshilfe** — keine fertige Verfahrensdokumentation und kein Ersatz für Steuerberatung.
 
-**Kurz:** Die GoBD verlangen nachvollziehbare Belegwege und Systeme. Unabhängig von der Branche brauchst du Klarheit über Belegarten, Eingangskanäle, Software, Rollen, Ablage und Übergabe an die Buchhaltung. Dieses Modul hilft dir, den Ist-Stand zu erfassen — ohne Hype und ohne Konformitätsversprechen.
+**Kurz:** Die GoBD verlangen nachvollziehbare Belegwege und Systeme. Unabhängig von der Branche brauchen Sie Klarheit über Belegarten, Eingangskanäle, Software, Rollen, Ablage und Übergabe an die Buchhaltung. Dieses Modul hilft Ihnen, den Ist-Stand zu erfassen — ohne Hype und ohne Konformitätsversprechen.
 
 ---
 
@@ -29,9 +29,9 @@ Die GoBD (Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büche
 - dass Belege und elektronische Aufzeichnungen **nachvollziehbar** entstehen und verarbeitet werden
 - dass Änderungen nicht spurlos verschwinden
 - dass relevante Unterlagen **aufbewahrt** und für den Datenzugriff verfügbar gehalten werden
-- dass ein sachverständiger Dritter eure Abläufe verstehen kann — typischerweise über eine **Verfahrensdokumentation**
+- dass ein sachverständiger Dritter Ihre Abläufe verstehen kann — typischerweise über eine **Verfahrensdokumentation**
 
-Die Readiness hier bereitet dich darauf vor. Sie ersetzt die Dokumentation nicht.
+Die Readiness hier bereitet Sie darauf vor. Sie ersetzt die Dokumentation nicht.
 
 ### Für wen dieses Fallback-Modul gedacht ist
 
@@ -40,13 +40,13 @@ Die Readiness hier bereitet dich darauf vor. Sie ersetzt die Dokumentation nicht
 - Teams, die erst inventarisieren wollen, bevor sie spezialisieren
 - als neutrale Vorlage, wenn Builder oder Produktlogik kein Branchenmodul zuordnen
 
-Wenn später ein passenderes Modul existiert (z. B. gastronomie, dienstleistung, handwerk, handel, praxis), kannst du dorthin wechseln und Branchenspezifika ergänzen.
+Wenn später ein passenderes Modul existiert (z. B. gastronomie, dienstleistung, handwerk, handel, praxis), können Sie dorthin wechseln und Branchenspezifika ergänzen.
 
 ### Die vier Bausteine, die fast überall vorkommen
 
 Unabhängig von der Branche lohnt ein Blick auf vier Blöcke — sie spiegeln grob den Aufbau einer späteren Verfahrensdokumentation:
 
-1. **Allgemeine Beschreibung:** Wer ihr seid, Geltungsbereich, Belegarten, Systeme, Verantwortliche, Version/Freigabe
+1. **Allgemeine Beschreibung:** Wer Sie sind, Geltungsbereich, Belegarten, Systeme, Verantwortliche, Version/Freigabe
 2. **Anwenderdokumentation:** Alltag vom Belegeingang bis zur Ablage/Buchung, Rollen, Vertretung
 3. **Technische Systemdokumentation:** eingesetzte IT, Schnittstellen, Speicherorte, Zugriffe
 4. **Betriebsdokumentation:** Betrieb, Sicherung, Störungen, organisatorische Regeln
@@ -55,7 +55,7 @@ Für die Readiness reicht oft eine ehrliche Inventarliste plus offene Punkte —
 
 ### Belegarten: inventarisieren statt raten
 
-Liste auf, was bei euch wirklich vorkommt. Beispiele (nur Anregung):
+Listen Sie auf, was bei Ihnen wirklich vorkommt. Beispiele (nur Anregung):
 
 | Kategorie | Beispiele |
 |-----------|-----------|
@@ -65,7 +65,7 @@ Liste auf, was bei euch wirklich vorkommt. Beispiele (nur Anregung):
 | Begleitend | Lieferscheine, Auftragsbestätigungen, Leistungsnachweise |
 | Sonstiges | Reise, Bewirtung, Scrap/Scan-Protokoll — falls vorhanden |
 
-Streiche, was nicht zutrifft. Ergänze Branchenspezifisches in eigenen Worten.
+Streichen Sie, was nicht zutrifft. Ergänzen Sie Branchenspezifisches in eigenen Worten.
 
 ### Eingangskanäle und Alltagsweg
 
@@ -76,11 +76,11 @@ Typischer Minimalpfad:
 3. Ablage oder Übergabe an Buchhaltung / Steuerberater
 4. Bei Bedarf Korrektur / Nachfrage / Storno — nachvollziehbar
 
-Schreib den Pfad so auf, wie er **tatsächlich** läuft — inklusive Shortcuts und Chaosstellen. Genau dort entstehen später die wichtigen Sätze der Verfahrensdokumentation.
+Schreiben Sie den Pfad so auf, wie er **tatsächlich** läuft — inklusive Shortcuts und Chaosstellen. Genau dort entstehen später die wichtigen Sätze der Verfahrensdokumentation.
 
 ### Systeme ohne Werbeliste
 
-Erfasse Produkte und ungefähre Versionen, die ihr nutzt. Häufige Kategorien:
+Erfassen Sie Produkte und ungefähre Versionen, die Sie nutzen. Häufige Kategorien:
 
 - Buchhaltung / FiBu (im Haus oder beim Berater)
 - Bank / Payment
@@ -89,11 +89,11 @@ Erfasse Produkte und ungefähre Versionen, die ihr nutzt. Häufige Kategorien:
 - Branchensoftware / ERP / CRM / Zeiterfassung
 - Scanner / Scan-App
 
-Namen wie DATEV, sevdesk, lexoffice o. Ä. sind nur **Beispiele**, falls sie bei euch vorkommen — keine Empfehlung.
+Namen wie DATEV, sevdesk, lexoffice o. Ä. sind nur **Beispiele**, falls sie bei Ihnen vorkommen — keine Empfehlung.
 
 ### Rollen und Vertretung
 
-| Aufgabe | Wer bei euch? | Vertretung |
+| Aufgabe | Wer bei Ihnen? | Vertretung |
 |---------|---------------|------------|
 | Belegeingang sichten | | |
 | Inhaltlich prüfen | | |
@@ -107,14 +107,14 @@ Kleine Teams: Mehrfachrollen sind normal. Phantom-Rollen („Qualitätsmanagemen
 
 ### Scannen und Papier
 
-Wenn ihr Papier digitalisiert:
+Wenn Sie Papier digitalisieren:
 
 - Wer scannt, mit welchem Gerät/App?
 - Wie wird Qualität geprüft?
 - Wo liegt die Datei, wie heißt sie?
 - Bleibt das Papier? Wenn vernichtet wird: das ist **ersetzendes Scannen** und braucht ein bewusstes, abgestimmtes Verfahren — nicht „wir schmeißen das weg, weil digital“.
 
-Wenn ihr nur ergänzend scannt und Papier behaltet: trotzdem Ablage und Zuordnung klarhalten.
+Wenn Sie nur ergänzend scannen und Papier behalten: halten Sie Ablage und Zuordnung trotzdem klar.
 
 ### Kasse — nur falls vorhanden
 
@@ -138,7 +138,7 @@ Readiness „durch“ heißt **nicht**:
 
 ## 2. Checkliste GoBD-Readiness (allgemein)
 
-Hake nur ab, was **bei euch wirklich** so ist.
+Haken Sie nur ab, was **bei Ihnen wirklich** so ist.
 
 ### Identität und Scope
 
@@ -199,12 +199,12 @@ Hake nur ab, was **bei euch wirklich** so ist.
 
 ## 3. Nächste Schritte
 
-1. **Fülle die Inventarliste ehrlich aus** — Systeme, Belege, Rollen, offene Punkte.
-2. **Prüfe, ob ein Branchenmodul besser passt** (gastronomie, dienstleistung, später handwerk, handel, praxis) und ergänze Spezifika dort.
-3. **Stimme Unklarheiten mit dem Steuerberater ab** (Aufbewahrung, Scan/Vernichtung, Kasse, Sonderfälle).
-4. **Nutze die Readiness auf gobd-doku-erstellen.de**, um den Stand zu strukturieren: [Readiness](https://gobd-doku-erstellen.de/readiness).
-5. Wenn die Basis steht, kannst du eine **geführte Verfahrensdokumentation** anstoßen — ohne Konformitätsversprechen, mit euren echten Abläufen. Einstieg über Landing/Checkout auf gobd-doku-erstellen.de.
-6. Halte Stand und Version aktuell, wenn sich Organisation oder IT ändern ({{Datum}}).
+1. **Füllen Sie die Inventarliste ehrlich aus** — Systeme, Belege, Rollen, offene Punkte.
+2. **Prüfen Sie, ob ein Branchenmodul besser passt** (gastronomie, dienstleistung, später handwerk, handel, praxis) und ergänzen Sie Spezifika dort.
+3. **Stimmen Sie Unklarheiten mit dem Steuerberater ab** (Aufbewahrung, Scan/Vernichtung, Kasse, Sonderfälle).
+4. **Nutzen Sie die Readiness auf gobd-doku-erstellen.de**, um den Stand zu strukturieren: [Readiness](https://gobd-doku-erstellen.de/readiness).
+5. Wenn die Basis steht, können Sie eine **geführte Verfahrensdokumentation** anstoßen — ohne Konformitätsversprechen, mit Ihren echten Abläufen. Einstieg über Landing/Checkout auf gobd-doku-erstellen.de.
+6. Halten Sie Stand und Version aktuell, wenn sich Organisation oder IT ändern ({{Datum}}).
 
 Soft-Hinweis: Branchenneutrale Readiness ist der sichere Start. Die Tiefe kommt später in der freigegebenen Verfahrensdokumentation — nicht durch längere Checklisten allein.
 
