@@ -49,6 +49,7 @@ function sessionToken(email) {
     JSON.stringify({
       typ: "session",
       email,
+      iat: Date.now(),
       exp: Date.now() + SESSION_TTL_MS,
     }),
     "utf8",

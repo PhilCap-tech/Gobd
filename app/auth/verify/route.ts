@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   applySessionCookie,
   loginPath,
+  mayIssueSessionCookie,
   safeNextPath,
   verifyMagicToken,
 } from "@/lib/auth";
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
   const next = safeNextPath(url.searchParams.get("next"));
   const email = verifyMagicToken(token);
 
-  if (!email) {
+  if (!email || !mayIssueSessionCookie({ channel: "magic", targetEmail: email })) {
     const login = new URL(loginPath(next), request.url);
     login.searchParams.set("error", "invalid");
     return NextResponse.redirect(login);

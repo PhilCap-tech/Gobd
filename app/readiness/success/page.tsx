@@ -3,6 +3,11 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
+import {
+  LOGIN_LINK_FAILED_NOTICE,
+  loginLinkSentNotice,
+  loginMailState,
+} from "@/lib/login-mail";
 import { isMailConfigured } from "@/lib/env";
 import { CTA_CREATE_WITH_PRICE, DISCLAIMER_ONCE } from "@/lib/offer-copy";
 import { firstQueryValue } from "@/lib/query";
@@ -39,6 +44,7 @@ export default async function ReadinessSuccessPage({
       : null;
   const mailReady = isMailConfigured();
   const brancheLabel = lead ? readinessBrancheLabel(lead.branche) : "";
+  const loginState = lead ? loginMailState(lead.mailStatus) : "unknown";
 
   return (
     <>
@@ -74,6 +80,11 @@ export default async function ReadinessSuccessPage({
                 Inhalt aus dem Modul {brancheLabel}: Themenfelder und nächste
                 Schritte. Zur Orientierung.
               </p>
+              {loginState === "failed" ? (
+                <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p>
+              ) : loginState === "sent" || (loginState === "unknown" && mailReady) ? (
+                <p className="banner">{loginLinkSentNotice(lead.email)}</p>
+              ) : null}
               {mailReady ? (
                 <p className="hint">
                   Wir haben den Download-Link

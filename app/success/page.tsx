@@ -9,7 +9,8 @@ import {
   SuccessNotFound,
   SuccessPending,
 } from "@/components/success-status";
-import { getSessionEmail } from "@/lib/auth";
+import { getSessionEmail, sessionIdForCheckoutProof } from "@/lib/auth";
+import { LOGIN_LINK_FAILED_NOTICE, loginLinkSentNotice } from "@/lib/login-mail";
 import { DELIVERY_DISCLAIMER } from "@/lib/delivery";
 import {
   canAccessDocument,
@@ -34,10 +35,12 @@ export default async function SuccessPage({
   searchParams: Promise<{
     session_id?: string | string[];
     document_id?: string | string[];
+    anmeldung?: string | string[];
   }>;
 }) {
   const params = await searchParams;
-  const sessionId = firstQueryValue(params.session_id);
+  const sessionId = await sessionIdForCheckoutProof(firstQueryValue(params.session_id));
+  const anmeldung = firstQueryValue(params.anmeldung) ?? "";
   const documentId = firstQueryValue(params.document_id);
   const sessionEmail = await getSessionEmail();
   const row = await findSuccessDocument({ documentId, sessionId });
@@ -87,6 +90,11 @@ export default async function SuccessPage({
                 bestätigen ist. Eine Abstimmung mit dem Steuerberater ist
                 optional und nur im Rahmen eines gesonderten Auftrags.
               </p>
+              {anmeldung === "fehler" ? (
+                <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p>
+              ) : anmeldung === "gesendet" || (mailReady && anmeldung !== "stub") ? (
+                <p className="banner">{loginLinkSentNotice(row.email)}</p>
+              ) : null}
               {mailReady ? (
                 <p className="hint">
                   Wir haben den Download-Link{row.email ? ` an ${row.email}` : ""}{" "}

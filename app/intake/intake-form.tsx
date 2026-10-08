@@ -457,6 +457,7 @@ export function IntakeForm({
         error?: string;
         store?: string;
         documentId?: string;
+        loginMail?: string;
       } = {};
       try {
         const text = await response.text();
@@ -479,6 +480,9 @@ export function IntakeForm({
         session_id: session.stripeSessionId,
         document_id: data.documentId,
       });
+      if (data.loginMail === "sent") params.set("anmeldung", "gesendet");
+      else if (data.loginMail === "failed") params.set("anmeldung", "fehler");
+      else if (data.loginMail === "stub") params.set("anmeldung", "stub");
       router.push(`/success?${params}`);
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");

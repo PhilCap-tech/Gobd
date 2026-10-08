@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { getSessionEmail } from "@/lib/auth";
+import { getCheckoutGrant, getSessionEmail } from "@/lib/auth";
 import {
   canAccessDocument,
   groupDocumentFamilies,
@@ -138,10 +138,38 @@ export default async function IntakePage({
     modus?: string | string[];
     schritt?: string | string[];
     modul?: string | string[];
+    grant?: string | string[];
   }>;
 }) {
   const params = await searchParams;
-  const sessionId = firstQueryValue(params.session_id);
+  const sessionIdQuery = firstQueryValue(params.session_id);
+  const grantFlag = firstQueryValue(params.grant) ?? "";
+  const checkoutGrant = await getCheckoutGrant();
+  if (
+    sessionIdQuery &&
+    checkoutGrant?.sessionId !== sessionIdQuery &&
+    grantFlag !== "skip" &&
+    grantFlag !== "set"
+  ) {
+    const q = new URLSearchParams();
+    for (const key of [
+      "session_id",
+      "email",
+      "company",
+      "document_id",
+      "entity_id",
+      "bereich",
+      "basis",
+      "modus",
+      "schritt",
+      "modul",
+    ] as const) {
+      const value = firstQueryValue(params[key]);
+      if (value) q.set(key, value);
+    }
+    redirect(`/api/checkout/grant?${q.toString()}`);
+  }
+  const sessionId = sessionIdQuery || checkoutGrant?.sessionId || "";
   const requestedSchritt = firstQueryValue(params.schritt) ?? "";
   const requestedModul = firstQueryValue(params.modul) ?? "";
   const initialStepId = /^step-[A-Za-z0-9]+$/.test(requestedSchritt) ? requestedSchritt : "";
@@ -304,18 +332,20 @@ export default async function IntakePage({
     session.company = company || session.company;
   }
 
-  const accountEmail =
-    sessionEmail || (!("error" in session) ? session.email : "");
+  // Firmenliste nur mit Login für diese Adresse. Der Checkout-Nachweis
+  // öffnet keine bestehenden Firmen.
+  const accountEmail = sessionEmail ?? "";
   const entities = accountEmail
     ? await listEntitiesByEmail(accountEmail)
     : [];
   const owned = accountEmail && requestedEntityId
     ? await getOwnedEntity(requestedEntityId, accountEmail)
     : entityById(entities, requestedEntityId);
-  const initialEntityId =
-    owned?.entityId ||
-    (!("error" in session) ? session.entityId?.trim() ?? "" : "") ||
-    (entities.length === 1 ? entities[0]?.entityId ?? "" : "");
+  const initialEntityId = sessionEmail
+    ? owned?.entityId ||
+      (!("error" in session) ? session.entityId?.trim() ?? "" : "") ||
+      (entities.length === 1 ? entities[0]?.entityId ?? "" : "")
+    : "";
   if (!("error" in session) && !session.company.trim()) {
     const firmName =
       owned?.name || entityById(entities, initialEntityId)?.name || "";

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { applySessionCookie, magicLinkUrl } from "@/lib/auth";
+import { magicLinkUrl, withoutSessionCookie } from "@/lib/auth";
 import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import { getAppUrl } from "@/lib/env";
+import { deliverLoginLink, readinessMailStatus } from "@/lib/login-mail";
 import { sendReadinessMail } from "@/lib/ops";
 import {
   createReadinessAccessToken,
@@ -73,7 +74,7 @@ async function handleReadiness(request: Request) {
   const magicUrl = magicLinkUrl(parsed.email);
   const brancheLabel = readinessBrancheLabel(parsed.answers.branche);
 
-  let mailStatus = "stub";
+  let pdfMailStatus = "stub";
   try {
     const mail = await sendReadinessMail({
       email: parsed.email,
@@ -83,11 +84,14 @@ async function handleReadiness(request: Request) {
       successUrl,
       magicLinkUrl: magicUrl,
     });
-    mailStatus = mail.sent ? "sent" : mail.stub ? "stub" : "failed";
+    pdfMailStatus = mail.sent ? "sent" : mail.stub ? "stub" : "failed";
   } catch (error) {
-    console.error("[readiness] mail fehlgeschlagen", error);
-    mailStatus = "failed";
+    console.error("[readiness] mail fehlgeschlagen", error instanceof Error ? error.name : "error");
+    pdfMailStatus = "failed";
   }
+
+  const loginMail = await deliverLoginLink(parsed.email, "/account");
+  const mailStatus = readinessMailStatus(pdfMailStatus, loginMail);
 
   const lead = toReadinessLead({
     name: parsed.name,
@@ -113,11 +117,11 @@ async function handleReadiness(request: Request) {
     store: stored.backend,
     leadId,
     mailStatus,
+    loginMail,
     successUrl: successPath,
     pdfUrl: downloadPath,
   });
-  applySessionCookie(response, parsed.email);
-  return response;
+  return withoutSessionCookie(response);
 }
 
 export async function POST(request: Request) {
