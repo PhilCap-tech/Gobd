@@ -137,7 +137,7 @@ export default function HomePage() {
           <h1>GoBD-Verfahrensdokumentation online erstellen</h1>
           <p className="outcome-line">{HERO_OUTCOME_LINE}</p>
           <p className="lead">
-            Geführte Fragen zu deinen Abläufen. {RESULT_PROMISE} Schritt für
+            Geführte Fragen zu Ihren Abläufen. {RESULT_PROMISE} Schritt für
             Schritt online erstellen.
           </p>
           <div className="cta-stack">
@@ -206,8 +206,8 @@ export default function HomePage() {
             <article className="proof-card">
               <h3>Beispiel offene Punkte</h3>
               <p className="prose">
-                So können Hinweise nach dem Durchlauf aussehen — was du noch
-                prüfen oder ergänzen solltest.
+                So können Hinweise nach dem Durchlauf aussehen — was Sie noch
+                prüfen oder ergänzen sollten.
               </p>
               <ol className="prose-list">
                 {EXAMPLE_OPEN_POINTS.map((point) => (
@@ -220,7 +220,7 @@ export default function HomePage() {
             </article>
           </div>
           <p className="prose framing">
-            Unsicher? Schau zuerst Muster und Offene Punkte. Überzeugt? Starte
+            Unsicher? Schauen Sie zuerst Muster und Offene Punkte. Überzeugt? Starten Sie
             direkt mit der Dokumentation.
           </p>
         </section>
@@ -230,8 +230,8 @@ export default function HomePage() {
           <p className="prose">
             Der Maßstab: alle steuerrelevanten Prozesse von der Entstehung eines
             Geschäftsvorfalls bis zur Aufbewahrung und Prüfung. Ein Betriebs-Check
-            ermittelt zu Beginn, welche Module bei dir vorkommen. Systeme und
-            Verantwortliche gibst du einmal an; sie werden in alle Module
+            ermittelt zu Beginn, welche Module bei Ihnen vorkommen. Systeme und
+            Verantwortliche geben Sie einmal an; sie werden in alle Module
             übernommen. Vorhandene Bereiche werden nicht stillschweigend
             ausgelassen — sie tragen den Status „Im Tool beschreiben“, sind durch
             bestehende Dokumentation abgedeckt oder haben den Status „Später ausfüllen“.
@@ -266,26 +266,26 @@ export default function HomePage() {
           <h2>So läuft’s ab</h2>
           <ol className="prose-list">
             <li>
-              Du startest mit dem Betriebs-Check und beantwortest die Fragen zu
-              den für dich aktiven Modulen.
+              Sie starten mit dem Betriebs-Check und beantworten die Fragen zu
+              den für Sie aktiven Modulen.
             </li>
             <li>
-              Du erhältst PDF + Liste offener Punkte — individuell aus deinen
+              Sie erhalten PDF + Liste offener Punkte — individuell aus Ihren
               Angaben.
             </li>
             <li>
-              Du prüfst und ergänzt vor der Verwendung; Abstimmung mit dem
-              Steuerberater bleibt bei dir.
+              Sie prüfen und ergänzen vor der Verwendung; Abstimmung mit dem
+              Steuerberater bleibt bei Ihnen.
             </li>
             <li>
-              Weitere Module kannst du später im Konto ergänzen, ohne neue
+              Weitere Module können Sie später im Konto ergänzen, ohne neue
               Bestellung. Mit dem Abo bleiben Versionen und Anpassungen verfügbar.
             </li>
           </ol>
           {excerptChapter ? (
             <figure className="doc-excerpt">
               <figcaption>
-                Beispiel-Ausschnitt — dein Dokument entsteht aus deinen Angaben.
+                Beispiel-Ausschnitt — Ihr Dokument entsteht aus Ihren Angaben.
               </figcaption>
               <blockquote>
                 <p className="prose">
@@ -302,9 +302,9 @@ export default function HomePage() {
         </section>
 
         <section className="block" id="outcome">
-          <h2>Was du mitnimmst</h2>
+          <h2>Was Sie mitnehmen</h2>
           <ul className="prose-list">
-            <li>Individuelle Verfahrensdokumentation als PDF (aus deinen Angaben)</li>
+            <li>Individuelle Verfahrensdokumentation als PDF (aus Ihren Angaben)</li>
             <li>
               Ein Gesamtdokument mit allen aktiven Modulen, gemeinsamer
               Versionierung — 24 Module, alle inklusive
@@ -319,7 +319,7 @@ export default function HomePage() {
         </section>
 
         <section className="block" id="preise">
-          <h2>Was du heute zahlst</h2>
+          <h2>Was Sie heute zahlen</h2>
           <div className="price-split">
             <table className="price-table">
               <tbody>
@@ -354,7 +354,7 @@ export default function HomePage() {
           <h3>Mit dem Abo</h3>
           <ul className="prose-list">
             <li>Weitere Module derselben Firma ohne Aufpreis</li>
-            <li>Versionierung deiner Dokumentation</li>
+            <li>Versionierung Ihrer Dokumentation</li>
             <li>Zugang zu bisherigen Fassungen</li>
             <li>Anpassungen, wenn sich Systeme oder Abläufe ändern</li>
             <li>Erneute Exporte bei Bedarf</li>
@@ -375,10 +375,10 @@ export default function HomePage() {
         </section>
 
         <section className="block" id="check">
-          <h2>Noch unsicher, ob du starten willst?</h2>
+          <h2>Noch unsicher, ob Sie starten wollen?</h2>
           <p className="prose">
-            Mach den kostenlosen 3-Minuten-Check. Du siehst, welche Themen
-            deine Dokumentation typischerweise abdecken sollte — und wo bei dir
+            Machen Sie den kostenlosen 3-Minuten-Check. Sie sehen, welche Themen
+            Ihre Dokumentation typischerweise abdecken sollte — und wo bei Ihnen
             noch Klärungsbedarf liegen kann. Kein Kaufzwang.
           </p>
           <p className="prose">
@@ -404,9 +404,9 @@ export default function HomePage() {
           <div className="faq-item">
             <h3>Ist das fertig / reicht das für die Prüfung?</h3>
             <p className="prose">
-              Nein — du erhältst PDF und offene Punkte aus deinen Angaben. Du
-              prüfst und ergänzt vor der Verwendung. Die fachliche Prüfung
-              bleibt bei dir bzw. deinem Steuerberater.
+              Nein — Sie erhalten PDF und offene Punkte aus Ihren Angaben. Sie
+              prüfen und ergänzen vor der Verwendung. Die fachliche Prüfung
+              bleibt bei Ihnen bzw. Ihrem Steuerberater.
             </p>
           </div>
           <div className="faq-item">
@@ -420,7 +420,7 @@ export default function HomePage() {
           <div className="faq-item">
             <h3>Deckt das auch Kasse, Warenwirtschaft oder Lohn ab?</h3>
             <p className="prose">
-              Ja, als Module in deiner Gesamtdokumentation, alle inklusive.
+              Ja, als Module in Ihrer Gesamtdokumentation, alle inklusive.
             </p>
           </div>
           <div className="faq-item">
@@ -430,7 +430,7 @@ export default function HomePage() {
         </section>
 
         <section className="block" id="abschluss">
-          <h2>Bereit, deine Abläufe nachvollziehbar zu dokumentieren?</h2>
+          <h2>Bereit, Ihre Abläufe nachvollziehbar zu dokumentieren?</h2>
           <div className="cta-stack">
             <Link className="btn" href="/checkout">
               {CTA_CREATE_WITH_PRICE}

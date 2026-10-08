@@ -2,7 +2,7 @@ import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
 
 /** Owner Spec 29.09 — same sentence on hero, pricing, and checkout summary. */
 export const RESULT_PROMISE =
-  "Du erhältst eine individuell aus deinen Angaben erstellte Verfahrensdokumentation als PDF und eine Liste offener Punkte. Du prüfst und ergänzt die Angaben vor der Verwendung.";
+  "Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentation als PDF und eine Liste offener Punkte. Sie prüfen und ergänzen die Angaben vor der Verwendung.";
 
 /** Exact price line next to the first paid CTA and the sticky bar. Net, like the AGB. */
 export const PRICE_MICRO = `Heute ${TODAY_EUR} € zzgl. USt (${SETUP_EUR} € Einrichtung + erster Monat), danach ${MONTHLY_EUR} € zzgl. USt pro Monat`;
@@ -12,7 +12,7 @@ export const PRICE_FRAME_LINE = `${TODAY_EUR} € zzgl. USt = individuelles PDF 
 
 /** Homepage hero, directly under the H1. No social-proof counts. */
 export const HERO_OUTCOME_LINE =
-  "PDF + Offene-Punkte aus deinen Angaben · Entwurf für dich und deinen Steuerberater.";
+  "PDF + Offene-Punkte aus Ihren Angaben · Entwurf für Sie und Ihren Steuerberater.";
 
 /** Homepage hero, after the CTA row. Competitor-watch copy 07.10.2026. */
 export const HERO_FACTS_LINE =
@@ -44,14 +44,14 @@ export const GELD_ZURUECK_MICRO =
   "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde";
 
 export const DISCLAIMER_ONCE =
-  "Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei dir bzw. bei deinem Steuerberater.";
+  "Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.";
 
 /** Owner-Entscheidung 05.10.2026 / 24-Module 05.10.2026: ein Preis je Firma, alle Module inklusive. */
 export const ALL_AREAS_LINE =
   "24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.";
 
 export const ALL_AREAS_DETAIL =
-  "Der Preis gilt je Firma. Darin enthalten ist das Gesamtdokument mit allen für den Betrieb relevanten Modulen (Unternehmen, Verkauf, Einkauf, Rechnungen, E-Rechnung, Papier, Zahlungsverkehr, Kasse, Buchführung, Warenwirtschaft, Anlagen, Personal, Onlineshop, Branche, Archiv, Fristen, Systeme, Rechte, Sicherung, Kontrollen, Auslagerung, Prüfungszugriff, Änderungen, Pflege). Module, die es bei dir nicht gibt, werden als „nicht vorhanden“ begründet; vorhandene Bereiche werden nicht stillschweigend ausgelassen.";
+  "Der Preis gilt je Firma. Darin enthalten ist das Gesamtdokument mit allen für den Betrieb relevanten Modulen (Unternehmen, Verkauf, Einkauf, Rechnungen, E-Rechnung, Papier, Zahlungsverkehr, Kasse, Buchführung, Warenwirtschaft, Anlagen, Personal, Onlineshop, Branche, Archiv, Fristen, Systeme, Rechte, Sicherung, Kontrollen, Auslagerung, Prüfungszugriff, Änderungen, Pflege). Module, die es bei Ihnen nicht gibt, werden als „nicht vorhanden“ begründet; vorhandene Bereiche werden nicht stillschweigend ausgelassen.";
 
 /** Alias for pages that still say Bereiche. */
 export const ALL_MODULES_LINE = ALL_AREAS_LINE;

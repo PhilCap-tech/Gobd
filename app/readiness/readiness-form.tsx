@@ -287,7 +287,7 @@ export function ReadinessForm() {
                 name="email"
                 type="email"
                 autoComplete="email"
-                placeholder="du@firma.de"
+                placeholder="name@firma.de"
                 value={form.email}
                 onChange={(e) => patch({ email: e.target.value })}
                 required
@@ -306,9 +306,9 @@ export function ReadinessForm() {
             </div>
             <p className="disclaimer" role="note">
               Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt
-              bei dir bzw. bei deinem Steuerberater. Das PDF ist eine kurze
+              bei Ihnen bzw. bei Ihrem Steuerberater. Das PDF ist eine kurze
               Einschätzung zu Themenfeldern, keine Verfahrensdokumentation aus
-              deinen Abläufen.
+              Ihren Abläufen.
             </p>
           </div>
         </section>

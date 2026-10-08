@@ -54,11 +54,7 @@ export function CheckoutForm({
       return;
     }
     if (!entrepreneur) {
-      setError(
-        partner
-          ? "Bitte bestätigen Sie, dass Sie als Unternehmer bestellen."
-          : "Bitte bestätige, dass du als Unternehmer bestellst.",
-      );
+      setError("Bitte bestätigen Sie, dass Sie als Unternehmer bestellen.");
       return;
     }
     if (!accepted) {
@@ -134,7 +130,7 @@ export function CheckoutForm({
             name="email"
             type="email"
             autoComplete="email"
-            placeholder={partner ? "name@kanzlei.de" : "du@firma.de"}
+            placeholder={partner ? "name@kanzlei.de" : "name@firma.de"}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
