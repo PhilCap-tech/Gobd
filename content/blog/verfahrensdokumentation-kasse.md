@@ -115,8 +115,6 @@ Neue Version, neue TSE, zusätzliche Kasse, Wechsel von der offenen Ladenkasse a
 
 Halten Sie fest, wie Sie verkaufen, wenn die elektronische Kasse ausfällt: wer entscheidet, wie die Vorgänge in der Zwischenzeit festgehalten werden, wie nach dem Neustart nacherfasst wird und wann die Beratung eingeschaltet wird. Bei der offenen Ladenkasse halten Sie ein fehlendes Protokoll als Abweichung fest, statt es still nachzutragen.
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob Kasse, Belegweg und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).

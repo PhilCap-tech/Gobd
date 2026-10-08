@@ -85,8 +85,6 @@ Ziel ist nicht Perfektion um jeden Preis, sondern ein **aktueller, ehrlicher Sta
 6. **Zugriff und Export** — klären, wie ihr Prüfungsdaten bereitstellen könnt (technisch und organisatorisch), ohne hier technische Anleitungen zu versprechen.
 7. **Berater einbinden** — frühzeitig, nicht erst am Prüfungstag.
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob die Basics schon beisammen sind? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).

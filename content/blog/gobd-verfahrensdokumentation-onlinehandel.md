@@ -152,8 +152,6 @@ Ebenfalls nur bei tatsächlichem Einsatz: eigenes Lager und Inventur, Gutscheine
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF). Eine Gliederung zum Zuordnen der Kapitel: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF).
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob Kanäle, Systeme und Zuständige schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 ## Primär-CTA: Verfahrensdokumentation online erstellen

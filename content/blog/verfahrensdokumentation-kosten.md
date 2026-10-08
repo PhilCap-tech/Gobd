@@ -106,8 +106,6 @@ Nehmen Sie Ihre eigene Liste mit, nicht die Gliederung eines fremden Musters. Ei
 
 Offene Punkte gehören in eine Liste, nicht in einen geglätteten Satz. Zum Sortieren: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF) und [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF).
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, welche Themen bei Ihnen überhaupt anfallen, bevor Sie Aufwand schätzen? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 ## Primär-CTA: Verfahrensdokumentation online erstellen

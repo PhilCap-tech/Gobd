@@ -105,8 +105,6 @@ Sinnvoll ist ein Stand, den Sie und Ihre Beratung kennen.
 - ein Probelauf des Exports, mit Datum
 - offene Punkte sichtbar, nicht durch Formulierungen ersetzt
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob Systeme, Datenorte und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).

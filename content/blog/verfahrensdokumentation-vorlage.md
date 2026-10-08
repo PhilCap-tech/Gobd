@@ -85,8 +85,6 @@ Wenn Sie nur eine leere Datei haben, fehlen oft genau die Punkte, die später au
 
 Eine Checkliste zum Abgleich finden Sie hier: [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste). Den Block nur zum internen Kontrollsystem finden Sie unter [Verfahrensdokumentation Checkliste: Internes Kontrollsystem (IKS)](/blog/internes-kontrollsystem-verfahrensdokumentation).
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob eine Vorlage bei Ihnen überhaupt der Engpass ist — oder eher fehlende Klarheit über Systeme und Verantwortliche? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und IT. Ohne Kreditkarte.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).

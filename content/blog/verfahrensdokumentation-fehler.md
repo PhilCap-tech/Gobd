@@ -125,8 +125,6 @@ Streichen Sie, was nicht zu Ihnen gehört. Lassen Sie stehen, was Sie belegen k�
 
 Den Abgleich über die vier Teile hinweg macht die [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste). Sie ersetzt diese Fehlerliste nicht, und diese Fehlerliste ersetzt nicht den Überblick im Artikel [GoBD-Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob Systeme, Belegwege und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 ## Primär-CTA: Verfahrensdokumentation online erstellen

@@ -76,8 +76,6 @@ Hier geht es um den Alltag: Wie kommen Belege rein, wer prüft, wer legt ab, wie
 - [ ] Kassendaten / Zahlungswege, falls vorhanden, kurz eingeordnet
 - [ ] Schulung oder Einweisung neuer Mitarbeitender erwähnt, soweit relevant
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob du die Basics schon beisammen hast? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).

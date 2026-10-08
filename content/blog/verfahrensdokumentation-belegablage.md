@@ -86,8 +86,6 @@ Der folgende Text ist ein **Beispiel**. Das Unternehmen ist erfunden. Felder in 
 
 Bevor der Text zu Ihnen gehört, reduzieren Sie die Eingangswege, ersetzen Sie [Person], [Software] und [Ordner] und streichen Sie jeden Satz, der einen Ablauf behauptet, den es nicht gibt. Eine Gliederung zum Gegenlesen: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF). Den übrigen Entwurf können Sie mit der [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) halten.
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob Eingangswege, Freigabe und Ablage schon benennbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF). Ein fiktives Gesamtdokument zum Ansehen: [Muster Dienstleister als PDF](/muster/gesamt/dienstleister/pdf) (PDF).

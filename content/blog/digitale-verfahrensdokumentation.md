@@ -64,8 +64,6 @@ Bewährt: Entwürfe bearbeiten, freigegebene Version als PDF (oder gleichwertige
 
 Eine [Checkliste](/blog/verfahrensdokumentation-checkliste) hilft vor der Freigabe.
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob Systeme, Belegwege und Verantwortliche für eine digitale Doku schon klar genug sind? Mach den kostenlosen [Readiness-Check](/readiness) — ohne Kreditkarte.
 
 ## Typische Fehler bei „wir haben das digital“

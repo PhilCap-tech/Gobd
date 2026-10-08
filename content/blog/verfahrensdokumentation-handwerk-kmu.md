@@ -92,8 +92,6 @@ Mit 2–15 Personen überlappen Rollen oft. Das ist okay — solange es dokument
 
 Vertretung kurz erwähnen: Was passiert bei Urlaub oder Krankheit? Ein Satz reicht oft.
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob euer Scope schon greifbar ist? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).

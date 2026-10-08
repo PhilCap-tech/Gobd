@@ -98,8 +98,6 @@ Geschäftsleitung setzt die neue Version in Kraft. Betroffene (Buchhaltung, Scan
 
 Bei größeren Umbauten (Softwarewechsel, Start ersetzendes Scannen) den Berater einbinden, bevor ihr „live“ geht.
 
-## Soft-CTA: Readiness-Check
-
 Unsicher, ob euer aktueller Stand die Basics noch abdeckt? Mach den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
 ## Prozess- und Systemänderungen — was in welchem Teil landet
