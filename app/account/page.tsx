@@ -24,6 +24,7 @@ import { answersFromSheetRow } from "@/lib/types";
 import {
   firmaEditPath,
   groupFamiliesByEntity,
+  latestOwnedInFamily,
   newDocumentPath,
 } from "@/lib/documents";
 import {
@@ -272,8 +273,9 @@ export default async function AccountPage({
                     ) : (
                       <div className="entity-docs">
                         {group.families.map((family) => {
+                          const editRow = latestOwnedInFamily(family.versions, email) ?? family.latest;
                           const pick = selectCurrentVersion(family.versions);
-                          const current = pick?.row ?? family.latest;
+                          const current = pick?.row ?? editRow;
                           const summary = customerChangeSummary(
                             current.changeSummary,
                           );
@@ -285,14 +287,14 @@ export default async function AccountPage({
                             >
                               <h3>
                                 {(() => {
-                                  const ans = answersFromSheetRow(family.latest);
+                                  const ans = answersFromSheetRow(editRow);
                                   return isGesamt(ans)
                                     ? gesamtDocTitle()
                                     : `Verfahrensdokumentation ${bereichLabel(bereichIdOf(ans))}`;
                                 })()}
                               </h3>
                               {(() => {
-                                const ans = answersFromSheetRow(family.latest);
+                                const ans = answersFromSheetRow(editRow);
                                 if (!isGesamt(ans)) return null;
                                 const rows = vollstaendigkeitsZeilen(ans);
                                 const offenRows = rows.filter((row) => row.status === "offen");
@@ -312,7 +314,7 @@ export default async function AccountPage({
                                   <>
                                     <p className="doc-meta">
                                       Vollständigkeit: {parts.join(" · ")} ·{" "}
-                                      <Link href={intakeModulHref(family.latest.documentId)}>
+                                      <Link href={intakeModulHref(editRow.documentId)}>
                                         Module bearbeiten
                                       </Link>
                                     </p>
@@ -328,7 +330,7 @@ export default async function AccountPage({
                                               <span>
                                                 {row.nr}. {row.titel}
                                               </span>
-                                              <Link href={intakeModulHref(family.latest.documentId, row.modul)}>
+                                              <Link href={intakeModulHref(editRow.documentId, row.modul)}>
                                                 Jetzt ausfüllen
                                               </Link>
                                             </li>
@@ -343,10 +345,10 @@ export default async function AccountPage({
                                   </>
                                 );
                               })()}
-                              {!entity && family.latest.company ? (
+                              {!entity && editRow.company ? (
                                 <p className="doc-meta">
                                   {customerHubTitle(
-                                    family.latest.company,
+                                    editRow.company,
                                     "Verfahrensdokumentation",
                                   )}
                                 </p>
@@ -357,7 +359,7 @@ export default async function AccountPage({
                                 {formatValidityRange(current, family.versions)} ·{" "}
                                 {summary} · {who}
                               </p>
-                              <DocumentRevisionActions row={family.latest} />
+                              <DocumentRevisionActions row={editRow} />
                               <VersionHistory
                                 headingId={`versionshistorie-${family.familyId}`}
                                 versions={family.versions}

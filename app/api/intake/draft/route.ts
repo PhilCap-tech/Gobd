@@ -13,6 +13,7 @@ import {
   IntakeDraftStorageError,
   loadIntakeDraft,
   normalizeDraftKey,
+  parseDraftVersionChange,
   saveIntakeDraft,
   type IntakeDraft,
 } from "@/lib/intake-draft";
@@ -85,6 +86,7 @@ export async function PUT(request: Request) {
     answers?: unknown;
     clientUpdatedAt?: string;
     revision?: number;
+    change?: unknown;
   };
   try {
     body = await request.json();
@@ -152,6 +154,7 @@ export async function PUT(request: Request) {
     answers: body.answers,
     revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(stored)),
     updatedAt: new Date().toISOString(),
+    change: parseDraftVersionChange(body.change) ?? stored?.change,
   };
 
   try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
@@ -27,7 +27,10 @@ import { ensureGesamt, isGesamt } from "@/lib/module/status";
 import {
   draftRevision,
   normalizeDraftKey,
+  parseDraftVersionChange,
   preferIntakeSnapshot,
+  resolveDraftAfterLoad,
+  type DraftVersionChange,
   type IntakeDraftSnapshot,
 } from "@/lib/intake-draft-shared";
 import { INTAKE_REVIEW, INTAKE_STEPS } from "@/lib/intake-questions";
@@ -153,6 +156,7 @@ export function IntakeForm({
     changeSummary: "",
     changedBy: session.email,
   });
+  const [draftRestored, setDraftRestored] = useState(false);
   // Entwurf: localStorage (Fallback) + Server (gerätübergreifend).
   const draftKey = normalizeDraftKey({
     sessionId: session.stripeSessionId,
@@ -163,9 +167,6 @@ export function IntakeForm({
     modus: gesamtMode ? "gesamt" : "bereich",
   });
   const localDraftKey = `gobd-intake-draft:${draftKey || session.stripeSessionId || "neu"}`;
-  const [draftOffer, setDraftOffer] = useState<
-    (IntakeDraftSnapshot & { source: "server" | "local" }) | null
-  >(null);
   const [draftReady, setDraftReady] = useState(false);
   const [serverDraftAt, setServerDraftAt] = useState("");
   const revisionRef = useRef(0);
@@ -173,9 +174,16 @@ export function IntakeForm({
   const baselineRef = useRef("");
   const answersRef = useRef(answers);
   const stepRef = useRef(step);
+  const changeRef = useRef(change);
+  const liveFactsRef = useRef(liveFacts);
   const serverDraftAtRef = useRef("");
   const draftReadyRef = useRef(false);
-  const draftOfferRef = useRef(draftOffer);
+  const formDirtyRef = useRef(false);
+  const initialFormRef = useRef<{
+    answers: IntakeAnswers;
+    step: number;
+    change: VersionChangeDraft;
+  } | null>(null);
   const draftMetaRef = useRef({
     draftKey,
     localDraftKey,
@@ -189,9 +197,19 @@ export function IntakeForm({
   useLayoutEffect(() => {
     answersRef.current = answers;
     stepRef.current = step;
+    changeRef.current = change;
+    liveFactsRef.current = liveFacts;
     serverDraftAtRef.current = serverDraftAt;
     draftReadyRef.current = draftReady;
-    draftOfferRef.current = draftOffer;
+    if (initialFormRef.current == null) {
+      initialFormRef.current = {
+        answers: JSON.parse(JSON.stringify(answers)) as IntakeAnswers,
+        step,
+        change: { ...change },
+      };
+      baselineRef.current = JSON.stringify({ answers, step, change });
+    }
+    formDirtyRef.current = JSON.stringify({ answers, step, change }) !== baselineRef.current;
     draftMetaRef.current = {
       draftKey,
       localDraftKey,
@@ -204,13 +222,14 @@ export function IntakeForm({
     };
   });
 
-  function writeLocalDraft(revision: number) {
+  const writeLocalDraft = useCallback((revision: number) => {
     const savedAt = new Date().toISOString();
     const snapshot: IntakeDraftSnapshot = {
       answers: answersRef.current,
       step: stepRef.current,
       savedAt,
       revision,
+      change: { ...changeRef.current },
     };
     try {
       window.localStorage.setItem(draftMetaRef.current.localDraftKey, JSON.stringify(snapshot));
@@ -218,9 +237,9 @@ export function IntakeForm({
       // Speicher voll oder gesperrt
     }
     return snapshot;
-  }
+  }, []);
 
-  function postServerDraft(revision: number, keepalive = false) {
+  const postServerDraft = useCallback((revision: number, keepalive = false) => {
     const meta = draftMetaRef.current;
     if (!meta.draftKey || revision <= 0) return;
     const savedAt = new Date().toISOString();
@@ -239,6 +258,7 @@ export function IntakeForm({
         step: stepRef.current,
         answers: answersRef.current,
         revision,
+        change: { ...changeRef.current },
         clientUpdatedAt: serverDraftAtRef.current || savedAt,
       }),
     })
@@ -248,16 +268,13 @@ export function IntakeForm({
             draft?: { answers: IntakeAnswers; step: number; updatedAt: string; revision?: number };
           };
           const serverRev = draftRevision(data.draft);
-          // Stale response of our own earlier save: the browser already has this or a newer edit.
-          if (!data.draft?.answers || serverRev <= revisionRef.current) return;
-          setDraftOffer({
-            answers: data.draft.answers,
-            step: Number(data.draft.step) || 0,
-            savedAt: data.draft.updatedAt,
-            revision: serverRev,
-            source: "server",
-          });
-          setServerDraftAt(data.draft.updatedAt);
+          // Keep what is on screen. Raise the revision floor and write it locally
+          // so the next edit is stored instead of being dropped.
+          if (serverRev > revisionRef.current) {
+            revisionRef.current = serverRev;
+            writeLocalDraft(serverRev);
+          }
+          if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
           return;
         }
         if (response.ok) {
@@ -268,7 +285,7 @@ export function IntakeForm({
       .catch(() => {
         // offline: localStorage reicht als Fallback
       });
-  }
+  }, [writeLocalDraft]);
 
   useEffect(() => {
     let cancelled = false;
@@ -279,11 +296,13 @@ export function IntakeForm({
         if (raw) {
           const parsed = JSON.parse(raw) as IntakeDraftSnapshot;
           if (parsed.answers && typeof parsed.answers === "object") {
+            const change = parseDraftVersionChange(parsed.change);
             local = {
               answers: parsed.answers,
               step: Number(parsed.step) || 0,
               savedAt: parsed.savedAt ?? "",
               revision: draftRevision(parsed),
+              ...(change ? { change } : {}),
             };
           }
         }
@@ -303,14 +322,17 @@ export function IntakeForm({
                 step: number;
                 updatedAt: string;
                 revision?: number;
+                change?: DraftVersionChange;
               } | null;
             };
             if (data.draft?.answers) {
+              const change = parseDraftVersionChange(data.draft.change);
               server = {
                 answers: data.draft.answers,
                 step: Number(data.draft.step) || 0,
                 savedAt: data.draft.updatedAt,
                 revision: draftRevision(data.draft),
+                ...(change ? { change } : {}),
               };
               setServerDraftAt(data.draft.updatedAt);
             }
@@ -320,16 +342,35 @@ export function IntakeForm({
         }
       }
       if (cancelled) return;
-      // Edits in this session already landed in localStorage. Don't cover them
-      // with a draft response that was in flight since page load.
-      if (revisionRef.current > 0) {
-        setDraftReady(true);
-        return;
-      }
       const chosen = preferIntakeSnapshot(server, local);
-      if (chosen) {
-        revisionRef.current = Math.max(revisionRef.current, draftRevision(chosen));
-        setDraftOffer({ ...chosen, source: chosen === server ? "server" : "local" });
+      const decision = resolveDraftAfterLoad({
+        saved: chosen,
+        localEdited: formDirtyRef.current || revisionRef.current > 0,
+        localRevision: revisionRef.current,
+        current: {
+          answers: answersRef.current,
+          step: stepRef.current,
+          change: changeRef.current,
+        },
+      });
+      revisionRef.current = decision.revision;
+      if (decision.restored) {
+        const restoredAnswers = prefillKnownFacts(decision.answers, liveFactsRef.current);
+        const restoredStep = Math.max(
+          nextApplicableStep(-1, restoredAnswers),
+          Math.min(decision.step, INTAKE_STEPS.length),
+        );
+        const restoredChange = decision.change;
+        baselineRef.current = JSON.stringify({
+          answers: restoredAnswers,
+          step: restoredStep,
+          change: restoredChange,
+        });
+        lastSnapshotRef.current = baselineRef.current;
+        setAnswers(restoredAnswers);
+        setStep(restoredStep);
+        setChange(restoredChange);
+        setDraftRestored(true);
       }
       setDraftReady(true);
     })();
@@ -338,12 +379,12 @@ export function IntakeForm({
     };
   }, [draftKey, localDraftKey, session.stripeSessionId]);
   useEffect(() => {
-    if (!draftReady || draftOffer) return;
-    const snapshot = JSON.stringify({ answers, step });
+    if (!draftReady) return;
+    const snapshot = JSON.stringify({ answers, step, change });
     // The untouched prefill is not a user draft. Saving it used to win the
     // reload and looked like only the company field had been restored.
     if (!baselineRef.current) baselineRef.current = snapshot;
-    if (snapshot === baselineRef.current && revisionRef.current === 0) return;
+    if (snapshot === baselineRef.current) return;
     let revision = revisionRef.current;
     if (snapshot !== lastSnapshotRef.current) {
       lastSnapshotRef.current = snapshot;
@@ -354,18 +395,24 @@ export function IntakeForm({
     if (!draftKey || revision <= 0) return;
     const timer = window.setTimeout(() => postServerDraft(revisionRef.current), 400);
     return () => window.clearTimeout(timer);
-  }, [answers, step, draftKey, draftReady, draftOffer]);
+  }, [answers, step, change, draftKey, draftReady, postServerDraft, writeLocalDraft]);
   useEffect(() => {
     function flush() {
-      if (!draftReadyRef.current || draftOfferRef.current) return;
+      if (!draftReadyRef.current) return;
       const revision = revisionRef.current;
       if (revision <= 0) return;
+      const snapshot = JSON.stringify({
+        answers: answersRef.current,
+        step: stepRef.current,
+        change: changeRef.current,
+      });
+      if (snapshot === baselineRef.current) return;
       writeLocalDraft(revision);
       postServerDraft(revision, true);
     }
     window.addEventListener("pagehide", flush);
     return () => window.removeEventListener("pagehide", flush);
-  }, []);
+  }, [postServerDraft, writeLocalDraft]);
   function clearDraft() {
     try {
       window.localStorage.removeItem(localDraftKey);
@@ -378,6 +425,30 @@ export function IntakeForm({
       void fetch(`/api/intake/draft?${params}`, { method: "DELETE" }).catch(() => undefined);
     }
     setServerDraftAt("");
+  }
+  function beginFresh() {
+    const confirmed = window.confirm(
+      "Neu beginnen? Der gespeicherte Entwurf wird verworfen. Angaben, die nur in diesem Entwurf stehen, gehen verloren.",
+    );
+    if (!confirmed) return;
+    const fresh = initialFormRef.current;
+    if (!fresh) return;
+    clearDraft();
+    const snapshot = JSON.stringify({
+      answers: fresh.answers,
+      step: fresh.step,
+      change: fresh.change,
+    });
+    baselineRef.current = snapshot;
+    lastSnapshotRef.current = snapshot;
+    revisionRef.current = 0;
+    formDirtyRef.current = false;
+    setAnswers(JSON.parse(JSON.stringify(fresh.answers)) as IntakeAnswers);
+    setStep(fresh.step);
+    setChange({ ...fresh.change });
+    setDraftRestored(false);
+    setNotice("");
+    setError("");
   }
   const isEdit = Boolean(sourceDocumentId);
   const isNewArea = Boolean(areaBaseDocumentId);
@@ -539,36 +610,12 @@ export function IntakeForm({
         </p>
       )}
 
-      {draftOffer ? (
-        <div className="banner">
-          <p style={{ margin: 0 }}>
-            Ein nicht abgesendeter Entwurf ist gespeichert
-            {draftOffer.savedAt
-              ? ` (Stand ${new Date(draftOffer.savedAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin", dateStyle: "short", timeStyle: "short" })})`
-              : ""}
-            {draftOffer.source === "server" ? " (Server)." : " (dieser Browser)."}
-          </p>
+      {draftRestored ? (
+        <div className="banner" role="status">
+          <p style={{ margin: 0 }}>Ihr Entwurf wurde wiederhergestellt.</p>
           <div className="actions" style={{ marginTop: 8 }}>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setAnswers(prefillKnownFacts(draftOffer.answers, liveFacts));
-                setStep(Math.max(nextApplicableStep(-1, draftOffer.answers), Math.min(draftOffer.step, INTAKE_STEPS.length)));
-                setDraftOffer(null);
-              }}
-            >
-              Entwurf fortsetzen
-            </button>
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                clearDraft();
-                setDraftOffer(null);
-              }}
-            >
-              Verwerfen
+            <button type="button" className="btn ghost" onClick={beginFresh}>
+              Neu beginnen
             </button>
           </div>
         </div>
