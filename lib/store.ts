@@ -37,6 +37,8 @@ import {
   PROFILE_SHEET_COLUMNS,
   type AccountProfile,
 } from "@/lib/profile";
+import { SHEETS_CELL_SAFE_CHARS } from "@/lib/document-content";
+import { DurableStoreError, intakePayloadLocator } from "@/lib/intake-payload";
 import { normalizeQueryId, queryIdsEqual } from "@/lib/query";
 import {
   lookupStripeCustomerIdByEmail,
@@ -61,6 +63,13 @@ import {
   toSheetRow,
   type SheetRow,
 } from "@/lib/types";
+import type { BlobIo } from "@/lib/blob";
+
+export type IntakeStoreOverrides = {
+  appendSheet?: (row: SheetRow) => Promise<void>;
+  readSheets?: () => Promise<SheetRow[]>;
+  blob?: BlobIo;
+};
 
 const FILE_NAME = "intakes.json";
 const READINESS_FILE_NAME = "readiness-leads.json";
@@ -88,6 +97,18 @@ export type StoreResult = {
 
 function isVercelRuntime(): boolean {
   return process.env.VERCEL === "1" || process.env.VERCEL === "true";
+}
+
+/**
+ * Local dev may keep the file fallback. On Vercel a file under /tmp is not a
+ * successful save. The preview smoke is the only exception, and only for
+ * @example.com while GOBD_BLOB_SMOKE=1 is set — never in production.
+ */
+export function fileFallbackCountsAsSuccess(row: SheetRow): boolean {
+  if (!isVercelRuntime()) return true;
+  if (process.env.VERCEL_ENV === "production") return false;
+  if (process.env.GOBD_BLOB_SMOKE !== "1") return false;
+  return row.email.trim().toLowerCase().endsWith("@example.com");
 }
 
 function isFsUnavailable(error: unknown): boolean {
@@ -309,18 +330,81 @@ async function readAllFileRows(): Promise<SheetRow[]> {
   return mergeRows(primary, await readRows(tmpFile));
 }
 
-export async function appendRecord(row: SheetRow): Promise<StoreResult> {
+async function prepareDurableRow(
+  row: SheetRow,
+  blob?: BlobIo,
+): Promise<SheetRow> {
+  if (row.fragen.length <= SHEETS_CELL_SAFE_CHARS) return row;
+  const { persistIntakePayload } = await import("@/lib/blob");
+  const familyId = (row.parentDocumentId || row.documentId).trim();
+  const documentId = row.documentId.trim() || familyId;
+  const version = Number.parseInt(row.version, 10) || 1;
+  const fragen = await persistIntakePayload(
+    { familyId, documentId, version, json: row.fragen },
+    blob,
+  );
+  return { ...row, fragen };
+}
+
+/** Shrink an oversized answer JSON before PDF generation or the sheet append. */
+export async function prepareDurableIntakeRow(
+  row: SheetRow,
+  blob?: BlobIo,
+): Promise<SheetRow> {
   const complete = { ...emptySheetRow(), ...row };
-  if (isSheetsConfigured()) {
+  if (!isSheetsConfigured() && !fileFallbackCountsAsSuccess(complete)) {
+    throw new DurableStoreError();
+  }
+  return prepareDurableRow(complete, blob);
+}
+
+function isDurableReadError(error: unknown): boolean {
+  if (error instanceof DurableStoreError) return true;
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      (error as { name?: string }).name === "BlobStorageError",
+  );
+}
+
+async function hydrateRows(rows: SheetRow[], blob?: BlobIo): Promise<SheetRow[]> {
+  if (!rows.some((row) => intakePayloadLocator(row.fragen))) return rows;
+  const { resolveIntakePayload } = await import("@/lib/blob");
+  return Promise.all(
+    rows.map(async (row) => {
+      if (!intakePayloadLocator(row.fragen)) return row;
+      const fragen = await resolveIntakePayload(row.fragen, blob);
+      return { ...row, fragen };
+    }),
+  );
+}
+
+async function writePreparedRecord(
+  prepared: SheetRow,
+  overrides?: IntakeStoreOverrides,
+): Promise<StoreResult> {
+  const sheetsOn = Boolean(overrides?.appendSheet) || isSheetsConfigured();
+  if (sheetsOn) {
     try {
-      await appendSheetRow(complete);
-      return { backend: "sheets", row: complete };
+      if (overrides?.appendSheet) await overrides.appendSheet(prepared);
+      else await appendSheetRow(prepared);
+      return { backend: "sheets", row: prepared };
     } catch (error) {
+      console.error(
+        "[store] Google Sheets append fehlgeschlagen",
+        error instanceof Error ? error.name : "error",
+      );
+      if (!fileFallbackCountsAsSuccess(prepared)) {
+        throw new DurableStoreError();
+      }
       console.error(
         "[store] Google Sheets append fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
+  } else if (!fileFallbackCountsAsSuccess(prepared)) {
+    console.error("[store] dauerhafte Speicherung nicht verfügbar");
+    throw new DurableStoreError();
   } else {
     console.warn(
       "[store] Google Sheets nicht konfiguriert — schreibe nach",
@@ -328,24 +412,46 @@ export async function appendRecord(row: SheetRow): Promise<StoreResult> {
     );
   }
 
-  const filePath = await appendFileRow(complete);
-  return { backend: "file", row: complete, filePath };
+  const filePath = await appendFileRow(prepared);
+  return { backend: "file", row: prepared, filePath };
 }
 
-async function loadRows(): Promise<{ backend: "sheets" | "file"; rows: SheetRow[] }> {
-  if (isSheetsConfigured()) {
+export async function appendRecord(
+  row: SheetRow,
+  overrides?: IntakeStoreOverrides,
+): Promise<StoreResult> {
+  const prepared = await prepareDurableIntakeRow(row, overrides?.blob);
+  return writePreparedRecord(prepared, overrides);
+}
+
+async function loadRows(
+  overrides?: IntakeStoreOverrides,
+): Promise<{ backend: "sheets" | "file"; rows: SheetRow[] }> {
+  if (overrides?.readSheets || isSheetsConfigured()) {
     try {
-      const sheetRows = await readSheetRows();
-      const fileRows = await readAllFileRows();
-      return { backend: "sheets", rows: mergeRows(sheetRows, fileRows) };
+      const sheetRows = overrides?.readSheets
+        ? await overrides.readSheets()
+        : await readSheetRows();
+      const fileRows = overrides?.readSheets ? [] : await readAllFileRows();
+      const rows = await hydrateRows(mergeRows(sheetRows, fileRows), overrides?.blob);
+      return { backend: "sheets", rows };
     } catch (error) {
+      if (isDurableReadError(error) || overrides?.readSheets) throw error;
       console.error(
         "[store] Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
   }
-  return { backend: "file", rows: await readAllFileRows() };
+  return { backend: "file", rows: await hydrateRows(await readAllFileRows(), overrides?.blob) };
+}
+
+/** Same read path as Konto, Bearbeitung and PDF, with optional test doubles. */
+export async function readStoredIntakeRows(
+  overrides?: IntakeStoreOverrides,
+): Promise<SheetRow[]> {
+  const loaded = await loadRows(overrides);
+  return loaded.rows;
 }
 
 export async function findDocumentById(documentId: string): Promise<SheetRow | null> {

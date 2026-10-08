@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import { BlobStorageError, blobFailureClass, persistChapterContent, storePdf } from "@/lib/blob";
+import { DURABLE_STORE_MESSAGE, intakePersistenceFailure } from "@/lib/intake-payload";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
 import {
   canAccessDocument,
@@ -19,6 +20,7 @@ import {
   appendRecord,
   getOwnedEntity,
   listDocumentFamily,
+  prepareDurableIntakeRow,
   resolveEntityIdForEmail,
 } from "@/lib/store";
 import {
@@ -114,6 +116,34 @@ async function handleDocumentEdit(request: Request) {
   const identity = applyEntityToIdentity(sourceIdentity, entity);
   const status = identity.stub ? "document_edited_stub" : "document_edited";
 
+  let rowForStore;
+  try {
+    rowForStore = await prepareDurableIntakeRow(
+      toSheetRow({
+        identity,
+        answers,
+        status,
+        deliveryStatus: "",
+        documentId,
+        parentDocumentId,
+        version: String(version),
+        entityId,
+        validFrom: change.validFrom,
+        validTo: change.validTo,
+        changeSummary: change.changeSummary,
+        changedBy: change.changedBy,
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[document] dauerhafte Speicherung fehlgeschlagen",
+      error instanceof Error ? error.name : "error",
+    );
+    const persistence = intakePersistenceFailure(error);
+    if (persistence) return jsonError(persistence.error, persistence.status);
+    return jsonError(DURABLE_STORE_MESSAGE, 503);
+  }
+
   let delivery: DeliveryPlan;
   let pdfUrl = "";
 
@@ -169,27 +199,20 @@ async function handleDocumentEdit(request: Request) {
 
   let stored;
   try {
-    stored = await appendRecord(
-      toSheetRow({
-        identity,
-        answers,
-        status,
-        deliveryStatus: delivery.status,
-        documentId,
-        parentDocumentId,
-        pdfUrl,
-        version: String(version),
-        chapterContent,
-        entityId,
-        validFrom: change.validFrom,
-        validTo: change.validTo,
-        changeSummary: change.changeSummary,
-        changedBy: change.changedBy,
-      }),
-    );
+    stored = await appendRecord({
+      ...rowForStore,
+      pdfUrl,
+      deliveryStatus: delivery.status,
+      chapterContent,
+    });
   } catch (error) {
-    console.error("[document] appendRecord fehlgeschlagen", error);
-    return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
+    console.error(
+      "[document] appendRecord fehlgeschlagen",
+      error instanceof Error ? error.name : "error",
+    );
+    const persistence = intakePersistenceFailure(error);
+    if (persistence) return jsonError(persistence.error, persistence.status);
+    return jsonError(DURABLE_STORE_MESSAGE, 503);
   }
 
   const appUrl = getAppUrl();

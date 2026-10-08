@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { intakeDraftBlobPath, intakeDraftHash } from "@/lib/draft-path";
+import { intakeAnswersBlobPath } from "@/lib/intake-payload";
 import { documentFamilyId } from "@/lib/documents";
 import { normalizeDraftKey } from "@/lib/intake-draft-shared";
 import { emailsEqual } from "@/lib/types";
@@ -430,6 +431,14 @@ export function derivedDocumentPaths(records: readonly AccountRecord[]): string[
     if (family && safeVersion > 0 && !family.includes("/")) {
       paths.add(`gobd/${family}/v${safeVersion}.pdf`);
       paths.add(`gobd/${family}/v${safeVersion}-chapters.json`);
+      const documentId = record.documentId.trim();
+      if (documentId && !documentId.includes("/") && !documentId.includes("..")) {
+        try {
+          paths.add(intakeAnswersBlobPath(family, documentId, safeVersion));
+        } catch {
+          // Ungültige Id erzeugt keinen Antwort-Pfad.
+        }
+      }
     }
     if (record.leadId.trim()) {
       paths.add(`gobd/readiness-${record.leadId.trim()}/v1.pdf`);
@@ -478,6 +487,19 @@ export function localPdfNameMatches(filename: string, familyIds: readonly string
     if (!familyId || familyId.includes("/") || familyId.includes("..")) continue;
     if (filename === `${familyId}.pdf`) return true;
     if (filename.startsWith(`${familyId}-v`) && filename.endsWith(".pdf")) return true;
+  }
+  return false;
+}
+
+export function localAnswerNameMatches(
+  filename: string,
+  documentIds: readonly string[],
+): boolean {
+  for (const documentId of documentIds) {
+    if (!documentId || documentId.includes("/") || documentId.includes("..")) continue;
+    if (filename.startsWith(`${documentId}-v`) && filename.endsWith("-answers.json")) {
+      return true;
+    }
   }
   return false;
 }

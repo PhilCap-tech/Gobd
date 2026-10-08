@@ -7,6 +7,7 @@ import { DEMO_BEISPIEL_SEED_NOTE, demoBeispielAnswers, demoBlankAnswers } from "
 import { intakeSummary } from "@/lib/frage-intake";
 import {
   catalogStepIssues,
+  intakeFormIssues,
   nextApplicableStep,
   paperStepSkipped,
   previousApplicableStep,
@@ -35,7 +36,7 @@ export function DemoWalkthrough() {
   const [scrollTick, setScrollTick] = useState(0);
   const [scrollIssue, setScrollIssue] = useState<CatalogIssue | null>(null);
   const [notice, setNotice] = useState("");
-  const stepIssues = showGaps ? catalogStepIssues(step, answers) : [];
+  const stepIssues = intakeFormIssues(step, answers, showGaps);
   const visibleError = stepIssues[0]?.message || error;
 
   const openPoints = useMemo(

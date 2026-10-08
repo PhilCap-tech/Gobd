@@ -15,6 +15,8 @@ import {
   CATALOG_STEPS,
   catalogStepApplies,
   catalogStepIssues,
+  firstFreitextIssue,
+  intakeFormIssues,
   nextApplicableStep,
   paperStepSkipped,
   prefillKnownFacts,
@@ -455,7 +457,7 @@ export function IntakeForm({
   const showFirmSelect = !isEdit && !isNewArea && entities.length > 1;
 
   const firmMissing = showGaps && step === firstStep && showFirmSelect && !entityId.trim();
-  const stepIssues = showGaps && !firmMissing ? catalogStepIssues(step, answers) : [];
+  const stepIssues = intakeFormIssues(step, answers, showGaps && !firmMissing);
   const visibleError = firmMissing
     ? "Bitte eine Firma wählen."
     : stepIssues[0]?.message || error;
@@ -497,6 +499,15 @@ export function IntakeForm({
       setError("Bitte eine Firma wählen.");
       return;
     }
+    const overflow = firstFreitextIssue(answers);
+    if (overflow) {
+      setShowGaps(true);
+      setStep(overflow.step);
+      setScrollIssue(overflow.issue);
+      setScrollTick((tick) => tick + 1);
+      setError(overflow.issue.message);
+      return;
+    }
     const changeError = versionChangeDraftError(change, {
       requireSummary: isEdit,
     });
@@ -526,6 +537,8 @@ export function IntakeForm({
       });
       let data: {
         error?: string;
+        questionId?: string;
+        fieldKey?: string;
         store?: string;
         documentId?: string;
         loginMail?: string;
@@ -539,6 +552,15 @@ export function IntakeForm({
         data = {};
       }
       if (!response.ok) {
+        if (data.questionId) {
+          const found = firstFreitextIssue(answers);
+          if (found) {
+            setShowGaps(true);
+            setStep(found.step);
+            setScrollIssue(found.issue);
+            setScrollTick((tick) => tick + 1);
+          }
+        }
         setError(data.error || "Speichern fehlgeschlagen.");
         return;
       }

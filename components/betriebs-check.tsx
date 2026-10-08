@@ -17,6 +17,7 @@ import {
 } from "@/lib/module/status";
 import { MODUL_STATUSES, type CheckAntwort } from "@/lib/module/typen";
 import { customerUploadHref } from "@/lib/blob-ref";
+import { FreitextAlert } from "@/components/freitext-alert";
 import type { IntakeAnswers } from "@/lib/types";
 
 const ANTWORTEN: Array<{ value: CheckAntwort; label: string }> = [
@@ -124,20 +125,39 @@ export function BetriebsCheckStep({
         <p className="hint">
           Tragen Sie hier die Namen (und Systeme) ein. Wir belegen passende Felder in den Modulen vor.
         </p>
-        {STAMMDATEN_FELDER.map((field) => (
-          <div className="field" key={field.key}>
-            <label htmlFor={`stamm-${field.key}`}>{field.label}</label>
-            <input
+        {STAMMDATEN_FELDER.map((field) => {
+          const value = stammdaten[field.key] ?? "";
+          const gap = issues.find(
+            (issue) => issue.questionId === "stammdaten" && issue.fieldKey === field.key,
+          );
+          return (
+            <div
+              className={gap ? "field field-invalid" : "field"}
+              key={field.key}
               id={`stamm-${field.key}`}
-              value={stammdaten[field.key] ?? ""}
-              placeholder={field.placeholder}
-              onChange={(event) => {
-                const next = prefillKnownFacts(setStammdaten(answers, { [field.key]: event.target.value }));
-                onChange(next);
-              }}
-            />
-          </div>
-        ))}
+              tabIndex={gap ? -1 : undefined}
+            >
+              <label htmlFor={`stamm-input-${field.key}`}>{field.label}</label>
+              <input
+                id={`stamm-input-${field.key}`}
+                value={value}
+                placeholder={field.placeholder}
+                aria-invalid={Boolean(gap) || undefined}
+                onChange={(event) => {
+                  const next = prefillKnownFacts(setStammdaten(answers, { [field.key]: event.target.value }));
+                  onChange(next);
+                }}
+              />
+              {gap ? (
+                <p className="field-error" role="alert">
+                  {gap.message}
+                </p>
+              ) : (
+                <FreitextAlert value={value} />
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -245,32 +265,36 @@ export function ModulUebersichtStep({
                   <td>
                     {(current?.status ?? row.status) === "extern" ? (
                       <div style={{ display: "grid", gap: 6 }}>
-                        <input
-                          placeholder="Titel / Ablageort der Dokumentation"
-                          value={current?.ref ?? ""}
-                          onChange={(event) => {
-                            const nextStatus = {
-                              ...(answers.module?.status ?? {}),
-                              [row.modul]: {
-                                status: "extern" as const,
-                                ref: event.target.value,
-                                link: current?.link ?? "",
-                                uploadUrl: current?.uploadUrl,
-                                uploadName: current?.uploadName,
-                                uploadAt: current?.uploadAt,
-                                uploadSize: current?.uploadSize,
-                                uploadType: current?.uploadType,
-                              },
-                            };
-                            onChange({
-                              ...answers,
-                              module: {
-                                ...(answers.module ?? { version: 1, check: {}, status: {} }),
-                                status: nextStatus,
-                              },
-                            });
-                          }}
-                        />
+                        <div id={`modul-${row.modul}-ref`}>
+                          <input
+                            placeholder="Titel / Ablageort der Dokumentation"
+                            value={current?.ref ?? ""}
+                            onChange={(event) => {
+                              const nextStatus = {
+                                ...(answers.module?.status ?? {}),
+                                [row.modul]: {
+                                  status: "extern" as const,
+                                  ref: event.target.value,
+                                  link: current?.link ?? "",
+                                  uploadUrl: current?.uploadUrl,
+                                  uploadName: current?.uploadName,
+                                  uploadAt: current?.uploadAt,
+                                  uploadSize: current?.uploadSize,
+                                  uploadType: current?.uploadType,
+                                },
+                              };
+                              onChange({
+                                ...answers,
+                                module: {
+                                  ...(answers.module ?? { version: 1, check: {}, status: {} }),
+                                  status: nextStatus,
+                                },
+                              });
+                            }}
+                          />
+                          <FreitextAlert value={current?.ref ?? ""} />
+                        </div>
+                        <div id={`modul-${row.modul}-link`}>
                         <input
                           placeholder="URL (optional)"
                           value={current?.link ?? ""}
@@ -297,6 +321,8 @@ export function ModulUebersichtStep({
                             });
                           }}
                         />
+                        <FreitextAlert value={current?.link ?? ""} />
+                        </div>
                         <label className="hint" style={{ display: "grid", gap: 4 }}>
                           Datei (PDF, DOCX, JPEG/PNG/WebP, max. 12 MB)
                           <input
@@ -379,6 +405,7 @@ export function ModulUebersichtStep({
                       </div>
                     ) : null}
                     {(current?.status ?? row.status) === "nicht_vorhanden" ? (
+                      <div id={`modul-${row.modul}-reason`}>
                       <input
                         placeholder="Kurze Begründung"
                         value={current?.reason ?? ""}
@@ -399,6 +426,8 @@ export function ModulUebersichtStep({
                           });
                         }}
                       />
+                      <FreitextAlert value={current?.reason ?? ""} />
+                      </div>
                     ) : null}
                     {(current?.status ?? row.status) === "tool" || (current?.status ?? row.status) === "offen"
                       ? STATUS_OPTION_LABEL[current?.status ?? row.status]

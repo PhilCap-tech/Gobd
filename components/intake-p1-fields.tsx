@@ -37,6 +37,8 @@ import {
   type ChannelDetail,
 } from "@/lib/intake-present";
 import { KEINE_AUSNAHMEN, KEINE_REGELMAESSIGE_KONTROLLE, KONTROLLEN_HINWEIS } from "@/lib/keine-angaben";
+import { FreitextAlert } from "@/components/freitext-alert";
+import { freitextTooLong } from "@/lib/intake-payload";
 import type { IntakeAnswers } from "@/lib/types";
 
 function text(value: unknown): string {
@@ -103,7 +105,13 @@ function TextField({
   return (
     <label>
       {label}
-      <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <input
+        value={value}
+        placeholder={placeholder}
+        aria-invalid={freitextTooLong(value) || undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <FreitextAlert value={value} />
     </label>
   );
 }
@@ -762,27 +770,33 @@ export function P1QuestionFields({
                 <td>
                   <input
                     aria-label={`${step.schritt}: Person oder Rolle`}
+                    aria-invalid={freitextTooLong(text(values[step.key])) || undefined}
                     value={text(values[step.key])}
                     onChange={(event) => commit({ [step.key]: event.target.value })}
                   />
+                  <FreitextAlert value={text(values[step.key])} />
                 </td>
                 <td>
                   <input
                     aria-label={`${step.schritt}: System`}
+                    aria-invalid={freitextTooLong(text(systems[step.key])) || undefined}
                     value={text(systems[step.key])}
                     onChange={(event) =>
                       commit({ schrittSystem: { ...systems, [step.key]: event.target.value } })
                     }
                   />
+                  <FreitextAlert value={text(systems[step.key])} />
                 </td>
                 <td>
                   <input
                     aria-label={`${step.schritt}: Nachweis`}
+                    aria-invalid={freitextTooLong(text(proofs[step.key])) || undefined}
                     value={text(proofs[step.key])}
                     onChange={(event) =>
                       commit({ schrittNachweis: { ...proofs, [step.key]: event.target.value } })
                     }
                   />
+                  <FreitextAlert value={text(proofs[step.key])} />
                 </td>
               </tr>
             ))}
@@ -1092,8 +1106,10 @@ export function P1QuestionFields({
                 Ergebnis
                 <textarea
                   value={text(values.ergebnis)}
+                  aria-invalid={freitextTooLong(text(values.ergebnis)) || undefined}
                   onChange={(event) => commit({ ergebnis: event.target.value })}
                 />
+                <FreitextAlert value={text(values.ergebnis)} />
               </label>
             </div>
           </>
@@ -1256,10 +1272,12 @@ export function ProcessStatus({
           <input
             id={`${questionId}-wer`}
             value={entry?.responsible ?? ""}
+            aria-invalid={freitextTooLong(entry?.responsible ?? "") || undefined}
             onChange={(event) =>
               onChange(setCatalogMeta(answers, questionId, { responsible: event.target.value }))
             }
           />
+          <FreitextAlert value={entry?.responsible ?? ""} />
           <label htmlFor={`${questionId}-bis`}>Datum</label>
           <input
             id={`${questionId}-bis`}
