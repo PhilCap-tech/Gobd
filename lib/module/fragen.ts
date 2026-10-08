@@ -121,7 +121,7 @@ export const AR = gruppe("AR", "Ausgangsrechnungen und Korrekturen", [
   q("AR02", "Gutschriften", "Werden Gutschriften erstellt – als Abrechnung durch den Leistungsempfänger oder als Korrektur einer Rechnung?", [
     many("art", "Art", ["Abrechnungsgutschrift (Leistungsempfänger rechnet ab)", "Korrektur / Rechnungsminderung", "keine"]),
     text("bezeichnung", "Bezeichnung auf dem Beleg", false),
-  ], "Art und Bezeichnung von Gutschriften sind nicht bestätigt.", { hint: "Eine umsatzsteuerliche Gutschrift (§ 14 Abs. 2 Satz 2 UStG) trägt die Angabe „Gutschrift“. Eine kaufmännische Gutschrift ist eine Rechnungskorrektur und sollte nicht so bezeichnet werden." }),
+  ], "Art und Bezeichnung von Gutschriften sind nicht bestätigt.", { hint: "Eine umsatzsteuerliche Gutschrift (§ 14 Abs. 2 Satz 5 UStG; Angabe „Gutschrift“ nach § 14 Abs. 4 Satz 1 Nr. 10 UStG) trägt die Angabe „Gutschrift“. Eine kaufmännische Gutschrift ist eine Rechnungskorrektur und sollte nicht so bezeichnet werden." }),
   q("AR03", "Stornos und Berichtigungen", "Wie wird eine fehlerhafte Rechnung storniert oder berichtigt, und wer gibt das frei?", [
     area("ablauf", "Ablauf mit Bezug zur Ursprungsrechnung"),
     text("freigabe", "Freigabe durch", false),

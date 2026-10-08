@@ -146,7 +146,7 @@ export const MODULE: ModulDef[] = [
     ],
     aufbewahrung: [beleg("Doppel der Ausgangsrechnungen, Gutschriften, Storno- und Korrekturrechnungen")],
     begriffe: [
-      ["Gutschrift (umsatzsteuerlich)", "Rechnung, die der Leistungsempfänger ausstellt (§ 14 Abs. 2 Satz 2 UStG)."],
+      ["Gutschrift (umsatzsteuerlich)", "Rechnung, die der Leistungsempfänger ausstellt (§ 14 Abs. 2 Satz 5 UStG; Angabe „Gutschrift“ nach § 14 Abs. 4 Satz 1 Nr. 10 UStG)."],
       ["Stornorechnung", "Beleg, der eine fehlerhafte Rechnung mit Bezug auf diese aufhebt."],
     ],
   },
@@ -358,7 +358,7 @@ export const MODULE: ModulDef[] = [
     catalogIds: ["G05"],
     vorlagen: ["09.2", "09.5"],
     gruppen: [own("Fristen und Löschung", AF)],
-    hinweis: "Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die Unterlage entstanden ist (§ 147 Abs. 4 AO). Sie läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch nicht abgelaufen ist (§ 147 Abs. 3 AO).",
+    hinweis: "Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die Unterlage entstanden ist (§ 147 Abs. 4 AO), und läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch nicht abgelaufen ist (§ 147 Abs. 3 AO).",
     prozess: [
       { schritt: "Frist zuordnen", beschreibung: "Jeder Unterlagenart wird ihre Frist zugeordnet.", frage: "AF01", nachweis: "Fristenliste" },
       { schritt: "Weitere Gründe prüfen", beschreibung: "Vor Löschung: offene Festsetzung, Prüfung, Rechtsstreit.", frage: "AF02", nachweis: "Prüfvermerk" },
@@ -525,8 +525,20 @@ export function modulFragen(modul: ModulDef): BereichQuestion[] {
   return modul.gruppen.flatMap((gruppe) => gruppenFragen(gruppe));
 }
 
+/** Volle Bereiche eines Moduls. Teilgruppen (`ids`) ziehen nicht den ganzen Bereich. */
 export function modulBereiche(modul: ModulDef): Bereich[] {
-  return modul.gruppen.filter((gruppe) => gruppe.bereich).map((gruppe) => bereichById(gruppe.bereich));
+  return modul.gruppen
+    .filter((gruppe) => gruppe.bereich && !gruppe.ids)
+    .map((gruppe) => bereichById(gruppe.bereich));
+}
+
+/** Prozessschritte einer Gruppe. Mit `ids` nur Schritte, deren Frage in der Teilmenge liegt. */
+function prozessDerGruppe(gruppe: ModulGruppe): BereichSchritt[] {
+  if (!gruppe.bereich) return [];
+  const bereich = bereichById(gruppe.bereich);
+  if (!gruppe.ids) return bereich.prozess;
+  const ids = new Set(gruppe.ids);
+  return bereich.prozess.filter((step) => Boolean(step.frage && ids.has(step.frage)));
 }
 
 function unique<T>(items: T[], key: (item: T) => string): T[] {
@@ -569,7 +581,7 @@ export function modulAufbewahrung(modul: ModulDef): BereichFrist[] {
 
 export function modulProzess(modul: ModulDef): BereichSchritt[] {
   if (modul.prozess?.length) return modul.prozess;
-  return modulBereiche(modul).flatMap((bereich) => bereich.prozess);
+  return modul.gruppen.flatMap((gruppe) => prozessDerGruppe(gruppe));
 }
 
 export function modulBegriffe(modul: ModulDef): Array<[string, string]> {

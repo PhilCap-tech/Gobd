@@ -5,6 +5,7 @@ import {
   suppressRuleForFragen,
 } from "@/lib/frage-intake";
 import { BEREICHE, bereichChapterId, isBelegfluss } from "@/lib/bereiche";
+import { kanzleiAbgelehnt } from "@/lib/module/aussagen";
 import { BUNDLE_KAPITEL_ZU_MODUL } from "@/lib/module/katalog";
 import { effectiveModulStatus, isGesamt } from "@/lib/module/status";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
@@ -236,6 +237,12 @@ export function evaluateOpenPoints(input: {
     if (!ruleIsCustomerFacing(rule)) continue;
     if (!ruleAppliesToArea(rule, input.answers)) continue;
     if (suppressRuleForFragen(rule.id, input.answers)) continue;
+    if (
+      kanzleiAbgelehnt(input.answers) &&
+      (rule.id === "op-steuerberater" || rule.id === "op-f05-kanzlei-umfang")
+    ) {
+      continue;
+    }
     const when = "when" in rule ? String(rule.when) : "empty";
     const field = "field" in rule && rule.field ? String(rule.field) : undefined;
     const value = field ? lookup(root, field) : undefined;
@@ -269,7 +276,10 @@ export function evaluateOpenPoints(input: {
       matches = mentionsScanReplace && !mentionsPaper;
     }
     if (!matches) continue;
-    const text = rule.text;
+    const text =
+      rule.id === "op-berechtigungsliste" && kanzleiAbgelehnt(input.answers)
+        ? "Berechtigungsliste als mitgeltende Unterlage ablegen."
+        : rule.text;
     const rawDue = "dueDate" in rule ? (rule.dueDate as unknown) : undefined;
     const dueDate = typeof rawDue === "string" && rawDue.trim() ? rawDue.trim() : undefined;
     const priority =

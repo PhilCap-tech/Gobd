@@ -6,14 +6,28 @@ import path from "node:path";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { catalogAnswerLine } from "@/lib/intake-catalog";
 import {
+  collapseRepeatedTokens,
+  betriebFacts,
+  hiddenQuestion,
+  livedAufbewahrung,
+  livedBegriffe,
+  ausnahmenInDetails,
+  kontrollenAbschnitt,
+  kontrolleSichtbar,
+  livedProzess,
+  moduleHasLivedAnswers,
+  redactDenied,
+  rewriteChapterRefs,
+  staticModulText,
+  stripFalseFallbacks,
+  modulNrPresent,
+  type BetriebFacts,
+} from "@/lib/module/aussagen";
+import {
   MODULE,
   TEIL_KURZ,
   TEIL_TITEL,
-  modulAufbewahrung,
-  modulBegriffe,
   modulById,
-  modulKontrollen,
-  modulProzess,
   gruppenFragen,
 } from "@/lib/module/katalog";
 import type { ModulDef } from "@/lib/module/typen";
@@ -63,13 +77,8 @@ function templateSections(): Map<string, string> {
     } catch {
       continue;
     }
-    // Strip handlebars for Gesamt embedding — lived facts come from questions.
-    // Keep static paragraphs; drop {{...}} blocks crudely by removing lines with {{.
-    const cleaned = raw
-      .split("\n")
-      .filter((line) => !line.includes("{{") && !line.includes("}}"))
-      .join("\n");
-    const parts = cleaned.split(/(?=^#{1,3} )/m).filter(Boolean);
+    // Roh behalten. Platzhalter werden beim Einbetten gerendert, nicht zeilenweise verworfen.
+    const parts = raw.split(/(?=^#{1,3} )/m).filter(Boolean);
     for (const part of parts) {
       const match = part.match(/^#{1,3}\s+(\d+)(?:\.(\d+))?/);
       if (!match) continue;
@@ -85,6 +94,127 @@ function templateSections(): Map<string, string> {
 }
 
 const TEMPLATES = templateSections();
+
+function vorlageLookup(path: string, answers: IntakeAnswers): unknown {
+  const parts = path.split(".").filter(Boolean);
+  if (parts[0] !== "answers" || !parts[1]) return undefined;
+  return (answers as Record<string, unknown>)[parts[1]];
+}
+
+function vorlageFilled(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some((item) => String(item ?? "").trim());
+  return Boolean(value != null && String(value).trim());
+}
+
+function vorlageCondition(expr: string, answers: IntakeAnswers, facts: BetriebFacts): boolean {
+  const contains = expr.match(/^(.+?)\s+contains\s+["']([^"']+)["']$/);
+  if (contains) {
+    const value = vorlageLookup(contains[1].trim(), answers);
+    const blob = Array.isArray(value) ? value.map((item) => String(item)).join(" ") : String(value ?? "");
+    return blob.includes(contains[2]);
+  }
+  const path = expr.trim();
+  if (path === "answers.backup") return facts.backup;
+  if (path === "answers.kontrollen") return facts.kontrollen;
+  return vorlageFilled(vorlageLookup(path, answers));
+}
+
+function vorlageBlockEnd(input: string, from: number): { bodyEnd: number; tagEnd: number } {
+  let depth = 1;
+  let index = from;
+  while (index < input.length) {
+    const nextOpen = input.indexOf("{{#", index);
+    const nextClose = input.indexOf("{{/", index);
+    if (nextClose === -1) break;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth += 1;
+      const closeBrace = input.indexOf("}}", nextOpen);
+      index = closeBrace === -1 ? input.length : closeBrace + 2;
+      continue;
+    }
+    depth -= 1;
+    const closeBrace = input.indexOf("}}", nextClose);
+    const tagEnd = closeBrace === -1 ? input.length : closeBrace + 2;
+    if (depth === 0) return { bodyEnd: nextClose, tagEnd };
+    index = tagEnd;
+  }
+  return { bodyEnd: input.length, tagEnd: input.length };
+}
+
+function vorlageFilters(value: unknown, filters: string[]): string {
+  let current: unknown = value;
+  for (const filter of filters) {
+    const or = filter.match(/^or\s+["']([\s\S]*)["']$/);
+    if (or) {
+      if (!vorlageFilled(current)) current = or[1];
+      continue;
+    }
+    const join = filter.match(/^join\s+["']([\s\S]*)["']$/);
+    if (join) {
+      current = Array.isArray(current)
+        ? current.map((item) => String(item).trim()).filter(Boolean).join(join[1])
+        : (current ?? "");
+    }
+  }
+  if (Array.isArray(current)) return current.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  return current == null ? "" : String(current);
+}
+
+function renderVorlageValues(template: string, answers: IntakeAnswers): string {
+  return template.replace(/\{\{\s*([^}#/][^}]*?)\s*\}\}/g, (_, expr: string) => {
+    const pieces = expr.split("|").map((part) => part.trim());
+    const path = pieces[0] ?? "";
+    return vorlageFilters(vorlageLookup(path, answers), pieces.slice(1));
+  });
+}
+
+function renderVorlageBlocks(template: string, answers: IntakeAnswers, facts: BetriebFacts): string {
+  let output = "";
+  let index = 0;
+  while (index < template.length) {
+    const open = template.indexOf("{{#", index);
+    if (open === -1) {
+      output += template.slice(index);
+      break;
+    }
+    output += template.slice(index, open);
+    const tagEnd = template.indexOf("}}", open);
+    if (tagEnd === -1) {
+      output += template.slice(open);
+      break;
+    }
+    const tag = template.slice(open + 3, tagEnd).trim();
+    const unless = tag.startsWith("unless");
+    const expr = tag.replace(/^(if|unless)\s+/, "");
+    const block = vorlageBlockEnd(template, tagEnd + 2);
+    const include = unless
+      ? !vorlageCondition(expr, answers, facts)
+      : vorlageCondition(expr, answers, facts);
+    if (include) output += renderVorlageBlocks(template.slice(tagEnd + 2, block.bodyEnd), answers, facts);
+    index = block.tagEnd;
+  }
+  return output;
+}
+
+/**
+ * Belegfluss-Vorlage für ein Modul ohne eigene Angaben.
+ * Bedingungen werden ausgewertet, Platzhalter ersetzt.
+ * „Kap. 14“ der Belegfluss-Vorlage ist dort der offene-Punkte-Teil, im Gesamtdokument Anhang A.
+ */
+function prepareVorlage(raw: string, answers: IntakeAnswers, facts: BetriebFacts): string {
+  const referred = raw.replace(/Kap(?:itel)?\.?\s*14\b/gi, "Anhang A");
+  let rendered = renderVorlageValues(renderVorlageBlocks(referred, answers, facts), answers).trim();
+  rendered = rendered
+    .split("\n")
+    .filter((line) => {
+      if (facts.kontrollen && /nur bestätigte Kontrollen aus Intake/.test(line)) return false;
+      // Sicherung ist woanders beschrieben, das Vorlagenfeld answers.backup aber leer.
+      if (/erfolgt laut Intake über:\s*\.?\s*$/.test(line.trim())) return false;
+      return true;
+    })
+    .join("\n");
+  return stripFalseFallbacks(rendered, facts);
+}
 
 function renumberTemplate(body: string, modulNr: number, subStart: number): { text: string; nextSub: number } {
   let sub = subStart;
@@ -115,6 +245,8 @@ function statusBlock(status: ModulStatus, detail: string): string[] {
 function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedChapter {
   const eintrag = effectiveModulStatus(answers, modul.id);
   const state: State = answers.katalog ?? {};
+  const facts = betriebFacts(answers);
+  const wording = staticModulText(modul, facts);
   const lines: string[] = [];
   let sub = 1;
   const heading = (title: string) => {
@@ -124,11 +256,14 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
 
   lines.push(`# ${modul.nr} ${modul.titel}`, "");
   lines.push(
-    `Dieses Kapitel gehört zu **${TEIL_TITEL[modul.teil]}**. Gegenstand: ${modul.kurz}`,
+    `Dieses Kapitel gehört zu **${TEIL_TITEL[modul.teil]}**. Gegenstand: ${wording.kurz}`,
     "",
   );
-  if (modul.inhalt.length) {
-    lines.push("Im Einzelnen:", "", ...modul.inhalt.map((item) => `- ${item}`), "");
+  if (wording.inhalt.length) {
+    lines.push("Im Einzelnen:", "", ...wording.inhalt.map((item) => `- ${item}`), "");
+  }
+  if (modul.id === "m09" && facts.kanzleiDenied) {
+    lines.push(`Buchhaltung und Steuererklärungen liegen bei ${facts.rolle}.`, "");
   }
 
   heading("Dokumentationsstatus");
@@ -155,20 +290,24 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     lines.push(hinweis(modul.hinweis), "");
   }
 
-  // Embedded Belegfluss template sections (static text only).
-  const embedded = modul.vorlagen
-    .map((key) => TEMPLATES.get(key))
-    .filter((item): item is string => Boolean(item));
+  // Belegfluss-Vorlagen nur ohne eigene Angaben. Fallback-Sätze nur, wenn die Angabe fehlt.
+  const embedded = moduleHasLivedAnswers(modul, answers)
+    ? []
+    : modul.vorlagen
+        .map((key) => TEMPLATES.get(key))
+        .filter((item): item is string => Boolean(item))
+        .map((block) => prepareVorlage(block, answers, facts))
+        .filter(Boolean);
   if (embedded.length) {
-    heading("Allgemeine Beschreibung (Vorlage)");
+    heading("Ergänzende Beschreibung");
     for (const block of embedded) {
       const { text, nextSub } = renumberTemplate(block, modul.nr, sub);
       sub = nextSub;
-      lines.push(text, "");
+      if (text) lines.push(text, "");
     }
   }
 
-  const prozess = modulProzess(modul);
+  const prozess = livedProzess(modul, answers);
   if (prozess.length) {
     heading("Prozessübersicht");
     lines.push(
@@ -179,12 +318,39 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     );
   }
 
+  const kontrollen = kontrollenAbschnitt(modul, answers);
+
   for (const gruppe of modul.gruppen) {
     const check = answers.module?.check ?? {};
     if (gruppe.teil && check[gruppe.teil] === "nein") continue;
     heading(gruppe.titel);
     for (const question of gruppenFragen(gruppe)) {
-      lines.push(...bereichQuestionLines(question, state[question.id]), "");
+      if (hiddenQuestion(question.id, facts)) continue;
+      const kontrollStatus = state[question.id]?.status;
+      if (
+        /92$/.test(question.id) &&
+        kontrollStatus !== "bestaetigt" &&
+        kontrollStatus !== "nicht_zutreffend" &&
+        kontrollen.zeilen.length
+      ) {
+        lines.push(
+          `**${question.title}:** Für diesen Teil sind noch keine Kontrollen bestätigt. Siehe offene Punkte.`,
+          "",
+        );
+        continue;
+      }
+      let shown = state[question.id];
+      const namen = shown?.values?.kontrollen;
+      if (/92$/.test(question.id) && shown?.status === "bestaetigt" && Array.isArray(namen)) {
+        shown = {
+          ...shown,
+          values: {
+            ...shown.values,
+            kontrollen: namen.filter((item) => typeof item === "string" && kontrolleSichtbar(item, answers)),
+          },
+        };
+      }
+      lines.push(...bereichQuestionLines(question, shown), "");
     }
   }
 
@@ -192,27 +358,36 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
   if (modul.catalogIds.length) {
     heading("Angaben aus dem Fragenkatalog");
     for (const id of modul.catalogIds) {
+      if (hiddenQuestion(id, facts)) {
+        if (id === "F05") {
+          lines.push(`- **Externe Steuerberatung** — keine. Buchhaltung und Steuererklärungen: ${facts.rolle}.`);
+        }
+        continue;
+      }
       const line = catalogAnswerLine(id, answers);
       if (!line) continue;
-      const details = line.details.length ? ` ${line.details.map((bit) => cell(bit)).join(" · ")}` : "";
+      const shown = ausnahmenInDetails(id, answers, line.details);
+      const details = shown.length ? ` ${shown.map((bit) => cell(bit)).join(" · ")}` : "";
       const reason = line.reason ? ` Begründung: ${cell(line.reason)}` : "";
-      lines.push(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`);
+      lines.push(collapseRepeatedTokens(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`));
     }
     lines.push("");
   }
 
-  const kontrollen = modulKontrollen(modul);
-  if (kontrollen.length) {
+  if (kontrollen.zeilen.length || kontrollen.satz) {
     heading("Kontrollen");
-    lines.push(
-      "| Kontrolle | Zweck |",
-      "| --- | --- |",
-      ...kontrollen.map((item) => `| ${cell(item.name)} | ${cell(item.zweck)} |`),
-      "",
-    );
+    if (kontrollen.satz) lines.push(kontrollen.satz, "");
+    if (kontrollen.zeilen.length) {
+      lines.push(
+        "| Kontrolle | Zweck |",
+        "| --- | --- |",
+        ...kontrollen.zeilen.map((item) => `| ${cell(item.name)} | ${cell(item.zweck)} |`),
+        "",
+      );
+    }
   }
 
-  const fristen = modulAufbewahrung(modul);
+  const fristen = livedAufbewahrung(modul, answers);
   if (fristen.length) {
     heading("Aufbewahrung");
     lines.push(
@@ -223,7 +398,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     );
   }
 
-  const begriffe = modulBegriffe(modul);
+  const begriffe = livedBegriffe(modul, answers);
   if (begriffe.length) {
     heading("Begriffe");
     lines.push(
@@ -237,7 +412,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
   return {
     id: `modul-${modul.id}`,
     title: `${modul.nr} ${modul.titel}`,
-    body: lines.join("\n").trim(),
+    body: redactDenied(lines.join("\n"), facts),
   };
 }
 
@@ -300,7 +475,7 @@ function anhangProzessmatrix(answers: IntakeAnswers): RenderedChapter {
   ];
   for (const modul of activeModules(answers)) {
     if (effectiveModulStatus(answers, modul.id).status !== "tool") continue;
-    const prozess = modulProzess(modul);
+    const prozess = livedProzess(modul, answers);
     if (!prozess.length) continue;
     lines.push(`## Modul ${modul.nr} ${modul.titel}`, "");
     lines.push(
@@ -317,7 +492,7 @@ function anhangBegriffe(answers: IntakeAnswers): RenderedChapter {
   const seen = new Set<string>();
   const rows: Array<[string, string]> = [];
   for (const modul of activeModules(answers)) {
-    for (const [term, meaning] of modulBegriffe(modul)) {
+    for (const [term, meaning] of livedBegriffe(modul, answers)) {
       if (seen.has(term)) continue;
       seen.add(term);
       rows.push([term, meaning]);
@@ -380,7 +555,15 @@ export function renderGesamtChapters(
   });
   out.push(anhangProzessmatrix(answers));
   out.push(anhangBegriffe(answers));
-  return out;
+  const present = modulNrPresent(answers);
+  const facts = betriebFacts(answers);
+  return out.map((chapter) => ({
+    ...chapter,
+    body:
+      chapter.id === "vollstaendigkeit"
+        ? rewriteChapterRefs(chapter.body, present)
+        : redactDenied(rewriteChapterRefs(chapter.body, present), facts),
+  }));
 }
 
 export function gesamtDocTitle(): string {

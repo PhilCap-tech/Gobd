@@ -24,6 +24,7 @@ import {
   bereichQuestion,
   ALLGEMEINER_TEIL_IDS,
 } from "@/lib/bereiche";
+import { kanzleiAbgelehnt } from "@/lib/module/aussagen";
 import {
   MODULE,
   gruppenFragen,
@@ -1268,6 +1269,7 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
     if (!catalogStepApplies(step, answers)) continue;
     for (const question of step.questions) {
       if (!catalogQuestionApplies(question, answers)) continue;
+      if (question.id === "BU07" && kanzleiAbgelehnt(answers)) continue;
       const status = state[question.id]?.status;
       if (status === "unbekannt" || status === "geplant") points.push(pointFor(question.id));
       if (question.id === "H01" && status !== "bestaetigt") {
