@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -25,6 +26,12 @@ import {
 import { canAccessDocument } from "@/lib/documents";
 import { applyEntityToIdentity } from "@/lib/entities";
 import { isBlobConfigured, isSheetsConfigured } from "@/lib/env";
+import {
+  DurableStoreError,
+  encodeIntakePayloadRef,
+  intakeAnswersBlobPath,
+  intakePayloadLocator,
+} from "@/lib/intake-payload";
 import { uploadOwnerSegment } from "@/lib/upload-path";
 import { generateReadinessPdf, type ReadinessLead } from "@/lib/readiness";
 import {
@@ -432,6 +439,131 @@ export async function resolveChapterContent(
   }
 
   return "";
+}
+
+async function writeLocalAnswersJson(
+  documentId: string,
+  version: number,
+  json: string,
+): Promise<string> {
+  const versionNo = version > 0 ? version : 1;
+  const base = documentId.replace(/[^a-zA-Z0-9_-]/g, "") || "dokument";
+  const name = `${base}-v${versionNo}-answers.json`;
+  const tryWrite = async (dir: string): Promise<string> => {
+    const answersDir = path.join(dir, "answers");
+    await mkdir(answersDir, { recursive: true });
+    const pathname = path.join(answersDir, name);
+    await writeFile(pathname, json, "utf8");
+    return pathname;
+  };
+
+  try {
+    return await tryWrite(getFileFallbackDir());
+  } catch (error) {
+    const tmpDir = path.join(tmpdir(), "gobd-data");
+    if (isFsUnavailable(error) && getFileFallbackDir() !== tmpDir) {
+      console.warn("[blob] lokales Antwort-JSON nicht beschreibbar — weiche auf tmpdir aus");
+      return tryWrite(tmpDir);
+    }
+    throw error;
+  }
+}
+
+function assertIntakeSha(json: string, sha256: string): void {
+  if (!sha256) return;
+  const actual = createHash("sha256").update(json).digest("hex");
+  if (actual !== sha256) {
+    throw new DurableStoreError();
+  }
+}
+
+/**
+ * Keep `fragen` inline when it fits a Sheets cell.
+ * Oversized answer JSON goes to a private Blob (or a local file in dev) and
+ * the cell stores `{__gobdAnswers, sha256}`. Existing inline cells stay as they are.
+ * `requireBlob` is only for the preview smoke, which has no Sheets credentials.
+ */
+export async function persistIntakePayload(
+  input: {
+    familyId: string;
+    documentId: string;
+    version: number;
+    json: string;
+  },
+  io: BlobIo = defaultBlobIo,
+  options?: { requireBlob?: boolean },
+): Promise<string> {
+  if (input.json.length <= SHEETS_CELL_SAFE_CHARS) {
+    return input.json;
+  }
+  if (!options?.requireBlob && !isSheetsConfigured()) {
+    return input.json;
+  }
+
+  const familyId = input.familyId || input.documentId;
+  const documentId = input.documentId || familyId;
+  const version = input.version > 0 ? input.version : 1;
+  const blobPath = intakeAnswersBlobPath(familyId, documentId, version);
+  const sha256 = createHash("sha256").update(input.json).digest("hex");
+  const token = privateBlobToken();
+
+  if (token) {
+    try {
+      const blob = await io.put(
+        blobPath,
+        input.json,
+        privateWriteOptions(token, "application/json; charset=utf-8", true),
+      );
+      return encodeIntakePayloadRef(blob.pathname || blobPath, sha256);
+    } catch (error) {
+      if (error instanceof BlobStorageError) throw error;
+      logBlobFailure("Schreiben", error);
+      throw new BlobStorageError("write", error);
+    }
+  }
+
+  if (isVercelRuntime() || options?.requireBlob) {
+    throw new DurableStoreError();
+  }
+
+  const pathname = await writeLocalAnswersJson(documentId, version, input.json);
+  return encodeIntakePayloadRef(pathname, sha256);
+}
+
+/** Inline JSON passes through. A pointer is loaded from private Blob or the local file. */
+export async function resolveIntakePayload(
+  raw: string | undefined | null,
+  io: BlobIo = defaultBlobIo,
+): Promise<string> {
+  const text = raw ?? "";
+  const ref = intakePayloadLocator(text);
+  if (!ref) return text;
+
+  const token = privateBlobToken();
+  const blobPath = blobPathFromLocator(ref.locator);
+  if (blobPath && token) {
+    const read = await readPrivateBlob(blobPath, token, io);
+    if (!read) {
+      logBlobFailure("Lesen", new Error("Antwort-JSON fehlt"));
+      throw new BlobStorageError("read", new Error("missing answers"));
+    }
+    const json = read.buffer.toString("utf8");
+    assertIntakeSha(json, ref.sha256);
+    return json;
+  }
+
+  if (ref.locator.startsWith("http://") || ref.locator.startsWith("https://")) {
+    throw new DurableStoreError();
+  }
+
+  try {
+    const json = await readFile(ref.locator, "utf8");
+    assertIntakeSha(json, ref.sha256);
+    return json;
+  } catch (error) {
+    if (error instanceof DurableStoreError) throw error;
+    throw new DurableStoreError();
+  }
 }
 
 export async function loadDocumentPdf(row: SheetRow, io: BlobIo = defaultBlobIo): Promise<Buffer> {

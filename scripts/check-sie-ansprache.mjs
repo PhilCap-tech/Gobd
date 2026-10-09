@@ -40,6 +40,8 @@ const COVERED = [
   "components/bereich-select.tsx",
   "components/intake-questionnaire.tsx",
   "components/intake-p1-fields.tsx",
+  "components/freitext-alert.tsx",
+  "lib/intake-payload.ts",
   "components/firma-select.tsx",
   "components/document-revision.tsx",
   "components/version-change-fields.tsx",

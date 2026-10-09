@@ -12,6 +12,7 @@ import {
   emptyFileWipe,
   emptyPathWipe,
   isWipeEmailAllowed,
+  localAnswerNameMatches,
   localChapterNameMatches,
   ownerColumnIndexes,
   localPdfNameMatches,
@@ -342,6 +343,12 @@ async function collectLocalArtifacts(
     for (const name of await listFileNames(path.join(root, "chapters"))) {
       if (localChapterNameMatches(name, scope.documentIds)) {
         chapters.push(path.join(root, "chapters", name));
+      }
+    }
+
+    for (const name of await listFileNames(path.join(root, "answers"))) {
+      if (localAnswerNameMatches(name, scope.documentIds)) {
+        chapters.push(path.join(root, "answers", name));
       }
     }
 

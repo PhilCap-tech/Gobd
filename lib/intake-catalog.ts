@@ -47,6 +47,10 @@ import {
   toolModules,
 } from "@/lib/module/status";
 import type { CheckKey } from "@/lib/module/typen";
+import {
+  FREITEXT_LIMIT_MESSAGE,
+  freitextOverflows,
+} from "@/lib/intake-payload";
 import type { IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 
@@ -869,18 +873,104 @@ function modulUebersichtIssues(answers: IntakeAnswers): CatalogIssue[] {
   return issues;
 }
 
+function dedupeCatalogIssues(issues: CatalogIssue[]): CatalogIssue[] {
+  const seen = new Set<string>();
+  const out: CatalogIssue[] = [];
+  for (const issue of issues) {
+    const key = `${issue.questionId}:${issue.fieldKey}:${issue.anchor}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(issue);
+  }
+  return out;
+}
+
+/** Free-text overflows on this step. Empty when the step does not apply. */
+export function freitextIssuesForStep(
+  stepIndex: number,
+  answers: IntakeAnswers,
+): CatalogIssue[] {
+  const step = CATALOG_STEPS[stepIndex];
+  if (!step || !catalogStepApplies(step, answers)) return [];
+  const questionIds = new Set(step.questions.map((question) => question.id));
+  const seen = new Set<string>();
+  const issues: CatalogIssue[] = [];
+  for (const hit of freitextOverflows(answers)) {
+    const onQuestion = questionIds.has(hit.questionId);
+    const onStamm = step.id === BETRIEBS_CHECK_STEP_ID && hit.questionId === "stammdaten";
+    const onModul =
+      step.id === MODUL_UEBERSICHT_STEP_ID && /^m\d{2}$/.test(hit.questionId);
+    if (!onQuestion && !onStamm && !onModul) continue;
+    const key = `${hit.questionId}:${hit.fieldKey}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const anchor = onStamm
+      ? `stamm-${hit.fieldKey}`
+      : onModul
+        ? `modul-${hit.questionId}-${hit.fieldKey}`
+        : `angabe-${hit.questionId}-${hit.fieldKey}`;
+    const focusId = onStamm
+      ? `stamm-${hit.fieldKey}`
+      : onModul
+        ? `modul-${hit.questionId}-${hit.fieldKey}`
+        : `${hit.questionId}-${hit.fieldKey}`;
+    issues.push({
+      ...catalogIssue(hit.questionId, hit.fieldKey, hit.message, focusId),
+      anchor,
+    });
+  }
+  return issues;
+}
+
+/** First step that still has a free-text overflow, for the submit guard. */
+export function firstFreitextIssue(
+  answers: IntakeAnswers,
+): { step: number; issue: CatalogIssue } | null {
+  for (let index = 0; index < CATALOG_STEPS.length; index += 1) {
+    const issue = freitextIssuesForStep(index, answers)[0];
+    if (issue) return { step: index, issue };
+  }
+  const leftover = freitextOverflows(answers)[0];
+  if (!leftover) return null;
+  return {
+    step: 0,
+    issue: catalogIssue(leftover.questionId, leftover.fieldKey, leftover.message),
+  };
+}
+
+/**
+ * Length messages stay visible while typing. Other gaps appear after Weiter.
+ */
+export function intakeFormIssues(
+  stepIndex: number,
+  answers: IntakeAnswers,
+  showGaps: boolean,
+): CatalogIssue[] {
+  const lengthIssues = freitextIssuesForStep(stepIndex, answers);
+  if (!showGaps) return lengthIssues;
+  const rest = catalogStepIssues(stepIndex, answers).filter(
+    (issue) => issue.message !== FREITEXT_LIMIT_MESSAGE,
+  );
+  return dedupeCatalogIssues([...lengthIssues, ...rest]);
+}
+
 /** Every open control on this step, in page order. Empty when the step can continue. */
 export function catalogStepIssues(stepIndex: number, answers: IntakeAnswers): CatalogIssue[] {
   const step = CATALOG_STEPS[stepIndex];
   if (!step || !catalogStepApplies(step, answers)) return [];
-  if (step.id === BETRIEBS_CHECK_STEP_ID) return betriebsCheckIssues(answers);
-  if (step.id === MODUL_UEBERSICHT_STEP_ID) return modulUebersichtIssues(answers);
+  const lengthIssues = freitextIssuesForStep(stepIndex, answers);
+  if (step.id === BETRIEBS_CHECK_STEP_ID) {
+    return dedupeCatalogIssues([...lengthIssues, ...betriebsCheckIssues(answers)]);
+  }
+  if (step.id === MODUL_UEBERSICHT_STEP_ID) {
+    return dedupeCatalogIssues([...lengthIssues, ...modulUebersichtIssues(answers)]);
+  }
   const state = catalogState(answers);
   const issues: CatalogIssue[] = [];
   for (const question of visibleCatalogQuestions(stepIndex, answers)) {
     issues.push(...questionIssues(question, state[question.id], answers));
   }
-  return issues;
+  return dedupeCatalogIssues([...lengthIssues, ...issues]);
 }
 
 export function catalogStepError(stepIndex: number, answers: IntakeAnswers): string {

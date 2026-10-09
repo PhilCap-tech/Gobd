@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSessionEmail, magicLinkUrl, withoutSessionCookie } from "@/lib/auth";
 import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
+import {
+  DURABLE_STORE_MESSAGE,
+  freitextOverflows,
+  intakePersistenceFailure,
+} from "@/lib/intake-payload";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
 import {
   canAccessDocument,
@@ -21,6 +26,7 @@ import {
   getOwnedEntity,
   listDocumentFamily,
   listEntitiesByEmail,
+  prepareDurableIntakeRow,
 } from "@/lib/store";
 import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import { intakeCheckoutStatus, resolveCheckoutSession } from "@/lib/stripe";
@@ -286,6 +292,17 @@ async function handleIntake(request: Request) {
   }
 
   const answers = normalizeIntakeAnswers(body.answers);
+  const tooLong = freitextOverflows(answers)[0];
+  if (tooLong) {
+    return NextResponse.json(
+      {
+        error: tooLong.message,
+        questionId: tooLong.questionId,
+        fieldKey: tooLong.fieldKey,
+      },
+      { status: 400 },
+    );
+  }
   const change = normalizeVersionChange(body, {
     version,
     defaultChangedBy: identity.email,
@@ -300,6 +317,34 @@ async function handleIntake(request: Request) {
   const documentId = randomUUID();
   if (!parentDocumentId) {
     parentDocumentId = documentId;
+  }
+
+  let rowForStore;
+  try {
+    rowForStore = await prepareDurableIntakeRow(
+      toSheetRow({
+        identity,
+        answers,
+        status,
+        deliveryStatus: "",
+        documentId,
+        parentDocumentId,
+        version: String(version),
+        entityId,
+        validFrom: change.validFrom,
+        validTo: change.validTo,
+        changeSummary: change.changeSummary,
+        changedBy: change.changedBy,
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[intake] dauerhafte Speicherung fehlgeschlagen",
+      error instanceof Error ? error.name : "error",
+    );
+    const persistence = intakePersistenceFailure(error);
+    if (persistence) return jsonError(persistence.error, persistence.status);
+    return jsonError(DURABLE_STORE_MESSAGE, 503);
   }
 
   let delivery: DeliveryPlan;
@@ -342,26 +387,19 @@ async function handleIntake(request: Request) {
 
   let stored;
   try {
-    stored = await appendRecord(
-      toSheetRow({
-        identity,
-        answers,
-        status,
-        deliveryStatus: delivery.status,
-        documentId,
-        parentDocumentId,
-        pdfUrl,
-        version: String(version),
-        entityId,
-        validFrom: change.validFrom,
-        validTo: change.validTo,
-        changeSummary: change.changeSummary,
-        changedBy: change.changedBy,
-      }),
-    );
+    stored = await appendRecord({
+      ...rowForStore,
+      pdfUrl,
+      deliveryStatus: delivery.status,
+    });
   } catch (error) {
-    console.error("[intake] appendRecord fehlgeschlagen", error);
-    return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
+    console.error(
+      "[intake] appendRecord fehlgeschlagen",
+      error instanceof Error ? error.name : "error",
+    );
+    const persistence = intakePersistenceFailure(error);
+    if (persistence) return jsonError(persistence.error, persistence.status);
+    return jsonError(DURABLE_STORE_MESSAGE, 503);
   }
 
   const appUrl = getAppUrl();

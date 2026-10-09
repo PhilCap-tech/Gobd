@@ -187,6 +187,23 @@ try {
   ok(secondFile.status === 200, `second owner session upload download is 200 (got ${secondFile.status})`);
   ok(secondFile.sha256 === uploadSha, "second owner session receives the same upload");
 
+  const answers = await callJson("/api/internal/blob-smoke", {
+    method: "POST",
+    cookie: cookieA,
+    body: { action: "answers" },
+  });
+  ok(answers.status === 200, `answers roundtrip status 200 (got ${answers.status} ${answers.json?.error || answers.text})`);
+  ok(Number(answers.json?.chars) > 50_000, `answers payload exceeds 50000 (got ${answers.json?.chars})`);
+  ok(
+    typeof answers.json?.pathname === "string" && answers.json.pathname.endsWith("-answers.json"),
+    "answers pathname is the private answers object",
+  );
+  ok(
+    !JSON.stringify(answers.json).includes("blob.vercel-storage.com"),
+    "answers response does not expose a blob host",
+  );
+  remember(answers.json.pathname);
+
   const deleted = await callJson("/api/internal/blob-smoke", {
     method: "POST",
     cookie: cookieA,
@@ -195,7 +212,7 @@ try {
   ok(deleted.status === 200 && deleted.json?.ok === true, `synthetic blobs deleted (got ${deleted.status})`);
   created.length = 0;
 
-  console.log("PDF_SMOKE_OK backend=blob owner=200 foreign=denied second-session=same upload=blob delete=ok email=synthetic");
+  console.log("PDF_SMOKE_OK backend=blob owner=200 foreign=denied second-session=same upload=blob answers=blob delete=ok email=synthetic");
 } catch (error) {
   console.error(error instanceof Error ? error.message : "PDF_SMOKE_FAIL");
   process.exitCode = 1;

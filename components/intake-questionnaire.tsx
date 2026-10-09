@@ -41,6 +41,7 @@ import {
   normalizeExclusiveSelection,
 } from "@/lib/keine-angaben";
 import { INTAKE_STEPS } from "@/lib/intake-questions";
+import { FreitextAlert } from "@/components/freitext-alert";
 import type { IntakeAnswers } from "@/lib/types";
 
 function itemFields(field: CatalogField): Array<{ key: string; type: string; options?: string[] }> {
@@ -663,6 +664,7 @@ export function IntakeQuestionnaire({
                                 onChange(setCatalogValue(answers, "A01", field.key, event.target.value))
                               }
                             />
+                            <FreitextAlert value={asText(values[field.key])} />
                           </div>
                         ))}
                       </div>
