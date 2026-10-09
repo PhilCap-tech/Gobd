@@ -240,7 +240,7 @@ function assertMusterPdf(label: string, pages: string[], buffer: Buffer, require
   pages.forEach((page, index) => {
     expect(page.includes(MUSTER_WATERMARK), `${label} page ${index + 1} has the watermark`);
   });
-  expect(pages[0]?.includes(MUSTER_COVER_LINE), `${label} cover says ${MUSTER_COVER_LINE}`);
+  expect(Boolean(pages[0]?.includes(MUSTER_COVER_LINE)), `${label} cover says ${MUSTER_COVER_LINE}`);
   expect(!pages[0]?.includes(KUNDE_COVER_LINE), `${label} cover is not the customer line`);
   const last = pages.at(-1) ?? "";
   expect(last.includes(PDF_UPSELL_HEADLINE), `${label} last page is the upsell`);
@@ -342,7 +342,10 @@ async function main() {
   fragePages.forEach((page, index) => {
     expect(page.includes(MUSTER_WATERMARK), `Fragebogen page ${index + 1} has the watermark`);
   });
-  expect(fragePages.at(-1)?.includes(PDF_UPSELL_HEADLINE), "Fragebogen last page is the upsell");
+  expect(
+    Boolean(fragePages.at(-1)?.includes(PDF_UPSELL_HEADLINE)),
+    "Fragebogen last page is the upsell",
+  );
   expect(!joined(fragePages).includes(KUNDE_COVER_LINE), "Fragebogen is not a customer working copy");
 
   const plain = await generateMarkdownPdf({
