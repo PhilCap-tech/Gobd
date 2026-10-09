@@ -21,6 +21,7 @@ import {
 import { writeMarkdownish } from "@/lib/pdf-markdown";
 import { CANONICAL_PRODUCTION_APP_URL } from "@/lib/env";
 import {
+  GELD_ZURUECK_MICRO,
   PDF_UPSELL_BODY,
   PDF_UPSELL_CTA,
   PDF_UPSELL_DISCLAIMER,
@@ -338,7 +339,9 @@ function writeUpsellPage(doc: PDFKit.PDFDocument) {
   doc.font("Helvetica").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_BODY, { width });
   doc.moveDown(0.9);
   doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_PRICE, { width });
-  doc.moveDown(1);
+  doc.moveDown(0.35);
+  doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(GELD_ZURUECK_MICRO, { width });
+  doc.moveDown(0.85);
   doc
     .font("Helvetica")
     .fontSize(12)

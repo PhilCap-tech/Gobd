@@ -1,5 +1,7 @@
 import Link from "next/link";
 import {
+  GELD_ZURUECK_HREF,
+  GELD_ZURUECK_MICRO,
   UPSELL_BULLETS,
   UPSELL_CTA,
   UPSELL_CTA_HREF,
@@ -40,6 +42,9 @@ export function MusterUpsell() {
       <p className="prose">{UPSELL_EFFORT_NOTE}</p>
 
       <p className="upsell-price">{UPSELL_PRICE}</p>
+      <p className="upsell-guarantee">
+        <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
+      </p>
       <p className="hint">{UPSELL_PRICE_BREAKDOWN}</p>
       <div className="actions">
         <Link className="btn" href={UPSELL_CTA_HREF}>

@@ -22,6 +22,7 @@ import {
 import { MODULE } from "../lib/module/katalog";
 import { getGesamtMuster } from "../lib/module-muster";
 import {
+  GELD_ZURUECK_MICRO,
   PDF_UPSELL_BODY,
   PDF_UPSELL_CTA,
   PDF_UPSELL_DISCLAIMER,
@@ -172,6 +173,19 @@ expect(UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording
 expect(PDF_UPSELL_PRICE === UPSELL_PRICE, "PDF price line is the web price line");
 expect(UPSELL_PRICE_BREAKDOWN === EXPECTED_BREAKDOWN, "price breakdown matches pricing.ts");
 expect(UPSELL_CTA_HREF === "/checkout", "CTA target is /checkout");
+expect(
+  GELD_ZURUECK_MICRO ===
+    "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde",
+  "guarantee line stays the landing sentence",
+);
+expect(
+  readFileSync("components/muster-upsell.tsx", "utf8").includes("GELD_ZURUECK_MICRO"),
+  "web upsell reuses the guarantee constant",
+);
+expect(
+  readFileSync("lib/delivery.ts", "utf8").includes("GELD_ZURUECK_MICRO"),
+  "pdf upsell reuses the guarantee constant",
+);
 expect(UPSELL_CTA === "Eigene Dokumentation erstellen", "CTA label");
 expect(UPSELL_HEADLINE.startsWith("Das Muster zeigt eine fiktive Firma"), "web headline");
 expect(UPSELL_SECTION_2_TEXT.includes("¹"), "web footnote marker kept");
@@ -245,6 +259,10 @@ function assertMusterPdf(label: string, pages: string[], buffer: Buffer, require
   const last = pages.at(-1) ?? "";
   expect(last.includes(PDF_UPSELL_HEADLINE), `${label} last page is the upsell`);
   expect(last.includes(PDF_UPSELL_PRICE), `${label} last page has the price line`);
+  expect(
+    last.indexOf(GELD_ZURUECK_MICRO) > last.indexOf(PDF_UPSELL_PRICE),
+    `${label} guarantee sits under the price line`,
+  );
   expect(last.includes(PDF_UPSELL_CTA), `${label} last page has the checkout link text`);
   expect(last.includes(PDF_UPSELL_DISCLAIMER), `${label} last page has the disclaimer`);
   expect(last.includes(PDF_UPSELL_FOOTNOTE), `${label} last page has the footnote`);
@@ -272,6 +290,7 @@ function assertKundePdf(label: string, pages: string[], buffer: Buffer) {
   expect(!text.includes(PDF_UPSELL_HEADLINE), `${label} has no upsell headline`);
   expect(!text.includes(PDF_UPSELL_BODY.slice(0, 40)), `${label} has no upsell body`);
   expect(!text.includes(PDF_UPSELL_PRICE), `${label} has no upsell price`);
+  expect(!text.includes(GELD_ZURUECK_MICRO), `${label} has no guarantee line`);
   expect(!text.includes(PDF_UPSELL_URL), `${label} has no checkout url`);
   expect(!text.includes(UPSELL_HEADLINE), `${label} has no web upsell headline`);
 }
@@ -346,6 +365,10 @@ async function main() {
     Boolean(fragePages.at(-1)?.includes(PDF_UPSELL_HEADLINE)),
     "Fragebogen last page is the upsell",
   );
+  expect(
+    Boolean(fragePages.at(-1)?.includes(GELD_ZURUECK_MICRO)),
+    "Fragebogen last page has the guarantee",
+  );
   expect(!joined(fragePages).includes(KUNDE_COVER_LINE), "Fragebogen is not a customer working copy");
 
   const plain = await generateMarkdownPdf({
@@ -357,6 +380,7 @@ async function main() {
   const plainText = joined(pageTexts(plain));
   expect(!plainText.includes(MUSTER_WATERMARK), "markdown default has no watermark");
   expect(!plainText.includes(PDF_UPSELL_HEADLINE), "markdown default has no upsell");
+  expect(!plainText.includes(GELD_ZURUECK_MICRO), "markdown default has no guarantee line");
 
   const denied = await POST(
     new Request("http://localhost/api/delivery", {
