@@ -13,6 +13,7 @@ import {
   MUSTER_VORLAGEN,
   modulMusterFragebogenPath,
 } from "@/lib/module-muster";
+import { MusterUpsell } from "@/components/muster-upsell";
 import { ALL_AREAS_LINE, INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import { canonicalUrl } from "@/lib/seo";
 
@@ -104,6 +105,8 @@ export default async function GesamtMusterPage({ params }: Params) {
             </div>
           ))}
         </section>
+
+        <MusterUpsell />
 
         <p className="disclaimer">
           Muster der IKAT GmbH. Alle Angaben sind fiktiv. Keine Steuer-, Rechts-

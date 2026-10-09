@@ -36,6 +36,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ vor
     company: muster.identity.company,
     title: `Muster-Fragebogen ${muster.label}`,
     footer: "Muster · fiktiv · keine Steuerberatung",
+    variant: "muster",
   });
   return new NextResponse(new Uint8Array(buffer), {
     headers: {

@@ -11,6 +11,7 @@ import {
   getGesamtMuster,
   redirectForBereichMuster,
 } from "@/lib/module-muster";
+import { MusterUpsell } from "@/components/muster-upsell";
 import { ALL_AREAS_DETAIL, ALL_AREAS_LINE, INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import { canonicalUrl } from "@/lib/seo";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
@@ -94,6 +95,8 @@ export default function MusterIndexPage() {
             Prüfungsberatung.
           </p>
         </section>
+
+        <MusterUpsell />
       </main>
       <SiteFooter />
     </>
