@@ -239,8 +239,17 @@ assert(
 assert(safeNextPath("/intake") === "/intake", "/intake is an allowed next path");
 assert(safeNextPath("/intake/extra") === null, "intake subpaths stay blocked");
 assert(
-  safeNextPath("/intake?session_id=cs_live_abc") === "/intake",
-  "intake query is stripped and cannot redirect elsewhere",
+  safeNextPath("/intake?session_id=cs_live_abc") === "/intake?session_id=cs_live_abc",
+  "intake keeps a checkout session id and cannot redirect elsewhere",
+);
+assert(
+  safeNextPath("/intake?session_id=cs_live_abc&next=https://evil.example") ===
+    "/intake?session_id=cs_live_abc",
+  "unknown intake query is dropped",
+);
+assert(
+  safeNextPath("/intake?session_id=../admin") === "/intake",
+  "unsafe session id is dropped",
 );
 assert(safeNextPath("https://evil.example/intake") === null, "absolute next is rejected");
 assert(safeNextPath("//evil.example/intake") === null, "protocol-relative next is rejected");

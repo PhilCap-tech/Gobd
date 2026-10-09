@@ -47,6 +47,7 @@ const COVERED = [
   "components/version-change-fields.tsx",
   "lib/module/status.ts",
   "lib/stripe.ts",
+  "lib/session-write.ts",
 ];
 
 const PRONOUNS =

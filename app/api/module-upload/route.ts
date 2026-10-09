@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
-import { getSessionEmail } from "@/lib/auth";
+import { sessionEmailFromRequest } from "@/lib/auth";
 import { BlobStorageError, storeCustomerUpload, uploadAllowed } from "@/lib/blob";
 import {
-  accessDeniedStatus,
   authorizeUploadSession,
+  type CheckoutResolver,
 } from "@/lib/checkout-access";
-import { canAccessDocument } from "@/lib/documents";
+import {
+  authorizeDeliveredWrite,
+  lookupDeliveredRows,
+  type DeliveryLookup,
+} from "@/lib/session-write";
 import {
   findDocumentById,
   findLatestDocumentByStripeSessionId,
+  listDocumentFamily,
 } from "@/lib/store";
+import { resolveCheckoutSession } from "@/lib/stripe";
 import { MODULE } from "@/lib/module/katalog";
 
 export const runtime = "nodejs";
@@ -18,27 +24,51 @@ function jsonError(error: string, status: number) {
   return NextResponse.json({ error }, { status });
 }
 
-async function assertAccess(input: {
-  sessionId?: string;
-  documentId?: string;
-}): Promise<{ ok: true; ownerKey: string } | { ok: false; response: NextResponse }> {
-  const sessionEmail = await getSessionEmail();
+export type UploadIo = {
+  lookup: DeliveryLookup;
+  resolveCheckout: CheckoutResolver;
+  storeCustomerUpload: typeof storeCustomerUpload;
+};
+
+const defaultUploadIo: UploadIo = {
+  lookup: {
+    findDocumentById,
+    listDocumentFamily,
+    findLatestDocumentByStripeSessionId,
+  },
+  resolveCheckout: resolveCheckoutSession,
+  storeCustomerUpload,
+};
+
+async function assertAccess(
+  request: Request,
+  input: { sessionId?: string; documentId?: string },
+  io: UploadIo,
+): Promise<{ ok: true; ownerKey: string } | { ok: false; response: NextResponse }> {
+  const sessionEmail = sessionEmailFromRequest(request);
   const sessionId = input.sessionId?.trim() ?? "";
   const documentId = input.documentId?.trim() ?? "";
+  const rows = await lookupDeliveredRows({ documentId, sessionId }, io.lookup);
 
-  if (documentId) {
-    const row = await findDocumentById(documentId);
-    if (!row) return { ok: false, response: jsonError("Dokument nicht gefunden.", 404) };
-    if (!canAccessDocument(row, { sessionEmail, sessionId })) {
-      return {
-        ok: false,
-        response: jsonError("Kein Zugriff.", accessDeniedStatus(sessionEmail)),
-      };
+  if (documentId && rows.length === 0) {
+    return { ok: false, response: jsonError("Dokument nicht gefunden.", 404) };
+  }
+  if (rows.length > 0) {
+    const write = authorizeDeliveredWrite({ sessionEmail, rows });
+    if (!write.ok) {
+      return { ok: false, response: jsonError(write.error, write.status) };
     }
-    return { ok: true, ownerKey: row.entityId || row.documentId || sessionEmail || sessionId };
+    if (write.kind !== "owner") {
+      return { ok: false, response: jsonError("Dokument nicht gefunden.", 404) };
+    }
+    const row = write.row;
+    return {
+      ok: true,
+      ownerKey: row.entityId || row.documentId || write.ownerEmail,
+    };
   }
 
-  const upload = await authorizeUploadSession({ sessionEmail, sessionId });
+  const upload = await authorizeUploadSession({ sessionEmail, sessionId }, io.resolveCheckout);
   if (!upload.ok) {
     const presented = Boolean(sessionId) || Boolean(sessionEmail);
     return {
@@ -49,18 +79,10 @@ async function assertAccess(input: {
       ),
     };
   }
-
-  let ownerKey = upload.ownerKey;
-  if (sessionId) {
-    const latest = await findLatestDocumentByStripeSessionId(sessionId);
-    if (latest && canAccessDocument(latest, { sessionEmail, sessionId })) {
-      ownerKey = latest.entityId || latest.documentId || ownerKey;
-    }
-  }
-  return { ok: true, ownerKey };
+  return { ok: true, ownerKey: upload.ownerKey };
 }
 
-export async function POST(request: Request) {
+export async function postModuleUpload(request: Request, io: UploadIo = defaultUploadIo) {
   const form = await request.formData();
   const file = form.get("file");
   const modulId = String(form.get("modulId") ?? "").trim();
@@ -78,12 +100,12 @@ export async function POST(request: Request) {
   const allowed = uploadAllowed(contentType, file.size);
   if (allowed) return jsonError(allowed, 400);
 
-  const access = await assertAccess({ sessionId, documentId });
+  const access = await assertAccess(request, { sessionId, documentId }, io);
   if (!access.ok) return access.response;
 
   const buffer = Buffer.from(await file.arrayBuffer());
   try {
-    const stored = await storeCustomerUpload({
+    const stored = await io.storeCustomerUpload({
       ownerKey: access.ownerKey,
       modulId,
       filename: file.name || "dokument.pdf",
@@ -108,4 +130,8 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "Upload fehlgeschlagen.";
     return jsonError(message, 400);
   }
+}
+
+export function POST(request: Request) {
+  return postModuleUpload(request);
 }

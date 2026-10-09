@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
@@ -65,6 +66,8 @@ type IntakeFormProps = {
   focusModulId?: string;
   /** Firmenstammdaten für leere Felder (Name, Anschrift, Steuernummer). */
   firm?: FirmFacts;
+  /** Anmeldung, wenn eine gelieferte Fassung ohne Login geändert werden soll. */
+  loginHref?: string;
 };
 
 function firmFactsFor(
@@ -125,6 +128,7 @@ export function IntakeForm({
   initialStepId = "",
   focusModulId = "",
   firm,
+  loginHref = "",
 }: IntakeFormProps) {
   const facts = firmFactsFor(initialEntityId, entities, firm, session.company);
   const companyLabel = customerHubTitle(session.company, "");
@@ -147,6 +151,7 @@ export function IntakeForm({
   // Erster Schritt des Modus: Gesamt beginnt mit dem Betriebs-Check, Bereichs-VDs mit Schritt A.
   const firstStep = nextApplicableStep(-1, answers);
   const [error, setError] = useState("");
+  const [needsLogin, setNeedsLogin] = useState(false);
   const [showGaps, setShowGaps] = useState(false);
   const [scrollTick, setScrollTick] = useState(0);
   const [scrollIssue, setScrollIssue] = useState<CatalogIssue | null>(null);
@@ -265,6 +270,11 @@ export function IntakeForm({
       }),
     })
       .then(async (response) => {
+        if (response.status === 401) {
+          setNeedsLogin(true);
+          setError("Bitte melden Sie sich an, um Ihre Angaben zu ändern.");
+          return;
+        }
         if (response.status === 409) {
           const data = (await response.json()) as {
             draft?: { answers: IntakeAnswers; step: number; updatedAt: string; revision?: number };
@@ -516,6 +526,7 @@ export function IntakeForm({
       return;
     }
     setError("");
+    setNeedsLogin(false);
     setPending(true);
     try {
       const response = await fetch("/api/intake", {
@@ -552,6 +563,7 @@ export function IntakeForm({
         data = {};
       }
       if (!response.ok) {
+        if (response.status === 401) setNeedsLogin(true);
         if (data.questionId) {
           const found = firstFreitextIssue(answers);
           if (found) {
@@ -725,7 +737,17 @@ export function IntakeForm({
         </section>
       )}
 
-      {visibleError && <p className="error">{visibleError}</p>}
+      {visibleError && (
+        <p className="error">
+          {visibleError}
+          {needsLogin && loginHref ? (
+            <>
+              {" "}
+              <Link href={loginHref}>Zur Anmeldung</Link>
+            </>
+          ) : null}
+        </p>
+      )}
 
       {step < INTAKE_STEPS.length + 1 && (
         <div className="actions" style={{ marginTop: 18 }}>

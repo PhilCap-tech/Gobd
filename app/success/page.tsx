@@ -110,6 +110,7 @@ export default async function SuccessPage({
                 row={row}
                 sessionId={sessionId}
                 showAccountLink
+                loggedIn={Boolean(sessionEmail)}
               />
               <VersionHistory
                 versions={family?.versions ?? [row]}

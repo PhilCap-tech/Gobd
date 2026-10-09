@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSessionEmail } from "@/lib/auth";
+import { sessionEmailFromRequest } from "@/lib/auth";
 import {
   authorizeDraftAccess,
   draftAccessHttpStatus,
   nextStripeSessionId,
+  type CheckoutResolver,
 } from "@/lib/checkout-access";
 import {
   clearIntakeDraft,
@@ -18,6 +19,17 @@ import {
   type IntakeDraft,
 } from "@/lib/intake-draft";
 import { normalizeIntakeAnswers } from "@/lib/intake-present";
+import {
+  authorizeDeliveredWrite,
+  lookupDeliveredRows,
+  type DeliveryLookup,
+} from "@/lib/session-write";
+import {
+  findDocumentById,
+  findLatestDocumentByStripeSessionId,
+  listDocumentFamily,
+} from "@/lib/store";
+import { resolveCheckoutSession } from "@/lib/stripe";
 import type { IntakeAnswers } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -39,7 +51,62 @@ function deny(access: { ok: false; status: 401 | 403 }) {
   return jsonError("Kein Zugriff.", draftAccessHttpStatus(access));
 }
 
-export async function GET(request: Request) {
+export type DraftWriteIo = {
+  loadIntakeDraft: typeof loadIntakeDraft;
+  saveIntakeDraft: typeof saveIntakeDraft;
+  clearIntakeDraft: typeof clearIntakeDraft;
+  lookup: DeliveryLookup;
+  resolveCheckout: CheckoutResolver;
+};
+
+const defaultDraftIo: DraftWriteIo = {
+  loadIntakeDraft,
+  saveIntakeDraft,
+  clearIntakeDraft,
+  lookup: {
+    findDocumentById,
+    listDocumentFamily,
+    findLatestDocumentByStripeSessionId,
+  },
+  resolveCheckout: resolveCheckoutSession,
+};
+
+function idsFromDraftKey(draftKey: string): {
+  documentId?: string;
+  areaFromDocumentId?: string;
+  sessionId?: string;
+} {
+  if (draftKey.startsWith("doc:")) return { documentId: draftKey.slice(4) };
+  if (draftKey.startsWith("area:")) {
+    const body = draftKey.slice("area:".length);
+    const split = body.lastIndexOf(":");
+    return { areaFromDocumentId: split > 0 ? body.slice(0, split) : body };
+  }
+  if (draftKey.startsWith("session:")) {
+    const body = draftKey.slice("session:".length);
+    const split = body.lastIndexOf(":");
+    return { sessionId: split > 0 ? body.slice(0, split) : body };
+  }
+  return {};
+}
+
+/** 401/403 bevor ein Entwurf einer gelieferten Fassung gelesen oder geschrieben wird. */
+async function deliveredDraftGate(
+  request: Request,
+  ids: { sessionId?: string; documentId?: string; areaFromDocumentId?: string },
+  io: DraftWriteIo,
+): Promise<NextResponse | null> {
+  const rows = await lookupDeliveredRows(ids, io.lookup);
+  if (rows.length === 0) return null;
+  const write = authorizeDeliveredWrite({
+    sessionEmail: sessionEmailFromRequest(request),
+    rows,
+  });
+  if (!write.ok) return jsonError(write.error, write.status);
+  return null;
+}
+
+export async function readIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {
   const url = new URL(request.url);
   const draftKey =
     url.searchParams.get("draftKey")?.trim() ||
@@ -55,7 +122,7 @@ export async function GET(request: Request) {
 
   let draft: IntakeDraft | null;
   try {
-    draft = await loadIntakeDraft(draftKey);
+    draft = await io.loadIntakeDraft(draftKey);
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
     if (failure) return failure;
@@ -64,17 +131,31 @@ export async function GET(request: Request) {
   if (!draft || draftIsEmpty(draft)) {
     return NextResponse.json({ draft: null });
   }
-  const access = await authorizeDraftAccess({
-    sessionEmail: await getSessionEmail(),
-    sessionId: url.searchParams.get("sessionId") ?? undefined,
-    draftKey,
-    draft,
-  });
+  const fromKey = idsFromDraftKey(draft.draftKey || draftKey);
+  const blocked = await deliveredDraftGate(
+    request,
+    {
+      sessionId: url.searchParams.get("sessionId") ?? fromKey.sessionId,
+      documentId: draft.documentId || fromKey.documentId,
+      areaFromDocumentId: fromKey.areaFromDocumentId,
+    },
+    io,
+  );
+  if (blocked) return blocked;
+  const access = await authorizeDraftAccess(
+    {
+      sessionEmail: sessionEmailFromRequest(request),
+      sessionId: url.searchParams.get("sessionId") ?? undefined,
+      draftKey,
+      draft,
+    },
+    io.resolveCheckout,
+  );
   if (!access.ok) return deny(access);
   return NextResponse.json({ draft });
 }
 
-export async function PUT(request: Request) {
+export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {
   let body: {
     draftKey?: string;
     sessionId?: string;
@@ -109,27 +190,41 @@ export async function PUT(request: Request) {
   if (!isAnswers(body.answers)) return jsonError("answers fehlen.", 400);
 
   // 401 before any blob read. A storage outage must not turn "no session" into 503.
-  const sessionEmail = await getSessionEmail();
+  const sessionEmail = sessionEmailFromRequest(request);
   if (!body.sessionId?.trim() && !sessionEmail) {
     return jsonError("Kein Zugriff.", 401);
   }
+  const fromKey = idsFromDraftKey(draftKey);
+  const blocked = await deliveredDraftGate(
+    request,
+    {
+      sessionId: body.sessionId || fromKey.sessionId,
+      documentId: body.documentId || fromKey.documentId,
+      areaFromDocumentId: body.areaFromDocumentId || fromKey.areaFromDocumentId,
+    },
+    io,
+  );
+  if (blocked) return blocked;
 
   let existing: IntakeDraft | null;
   try {
-    existing = await loadIntakeDraft(draftKey);
+    existing = await io.loadIntakeDraft(draftKey);
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
     if (failure) return failure;
     throw error;
   }
   const stored = existing && !draftIsEmpty(existing) ? existing : null;
-  const access = await authorizeDraftAccess({
-    sessionEmail,
-    sessionId: body.sessionId,
-    email: body.email,
-    draftKey,
-    draft: stored,
-  });
+  const access = await authorizeDraftAccess(
+    {
+      sessionEmail,
+      sessionId: body.sessionId,
+      email: body.email,
+      draftKey,
+      draft: stored,
+    },
+    io.resolveCheckout,
+  );
   if (!access.ok) return deny(access);
 
   if (
@@ -159,7 +254,7 @@ export async function PUT(request: Request) {
   };
 
   try {
-    const { backend } = await saveIntakeDraft(draft);
+    const { backend } = await io.saveIntakeDraft(draft);
     return NextResponse.json({ ok: true, draft, backend });
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht gespeichert werden.");
@@ -168,34 +263,60 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {
   const url = new URL(request.url);
   const draftKey = url.searchParams.get("draftKey")?.trim() ?? "";
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
+  const fromKey = idsFromDraftKey(draftKey);
+  const blocked = await deliveredDraftGate(
+    request,
+    {
+      sessionId: url.searchParams.get("sessionId") ?? fromKey.sessionId,
+      documentId: fromKey.documentId,
+      areaFromDocumentId: fromKey.areaFromDocumentId,
+    },
+    io,
+  );
+  if (blocked) return blocked;
 
   let existing: IntakeDraft | null;
   try {
-    existing = await loadIntakeDraft(draftKey);
+    existing = await io.loadIntakeDraft(draftKey);
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
     if (failure) return failure;
     throw error;
   }
   if (existing && !draftIsEmpty(existing)) {
-    const access = await authorizeDraftAccess({
-      sessionEmail: await getSessionEmail(),
-      sessionId: url.searchParams.get("sessionId") ?? undefined,
-      draftKey,
-      draft: existing,
-    });
+    const access = await authorizeDraftAccess(
+      {
+        sessionEmail: sessionEmailFromRequest(request),
+        sessionId: url.searchParams.get("sessionId") ?? undefined,
+        draftKey,
+        draft: existing,
+      },
+      io.resolveCheckout,
+    );
     if (!access.ok) return deny(access);
   }
   try {
-    await clearIntakeDraft(draftKey);
+    await io.clearIntakeDraft(draftKey);
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht gelöscht werden.");
     if (failure) return failure;
     throw error;
   }
   return NextResponse.json({ ok: true });
+}
+
+export function GET(request: Request) {
+  return readIntakeDraft(request);
+}
+
+export function PUT(request: Request) {
+  return putIntakeDraft(request);
+}
+
+export function DELETE(request: Request) {
+  return deleteIntakeDraft(request);
 }
