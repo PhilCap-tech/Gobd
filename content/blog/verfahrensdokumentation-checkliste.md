@@ -146,7 +146,7 @@ Bevor die Geschäftsleitung freigibt und Sie den Entwurf zur Abstimmung geben:
 
 ## Verfahrensdokumentation erstellen
 
-Wenn Sie die Checkliste nicht in ein leeres Dokument tippen wollen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, dann strukturiertes PDF plus Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie die Checkliste nicht in ein leeres Dokument tippen wollen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, dann strukturiertes PDF plus Offene-Punkte-Liste. Einstieg in ca. 5 Minuten. Die vollständige Dokumentation füllen Sie in Etappen aus – je nach Betrieb insgesamt ca. 2–3 Stunden. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 Die Checkliste hier bleibt nützlich: zum Gegenlesen, zum Abstimmen mit dem Berater und zum Nachhalten offener Punkte.
 

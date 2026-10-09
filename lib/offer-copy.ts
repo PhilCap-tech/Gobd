@@ -63,14 +63,23 @@ export const ALL_MODULES_DETAIL = ALL_AREAS_DETAIL;
  * und der Betriebs-Check, der die Module freischaltet.
  * Lang ist die Beschreibung der Module. QA 08.10.2026, neun Testfirmen:
  * vollständiges Intake meist etwa 2–3 Stunden, Spanne etwa 1,5–5 Stunden.
- * Eine Gesamtzeit nur als INTAKE_EFFORT_RANGE. Keine Minuten-Zusage für das Gesamtdokument.
+ * Usability: Checkout und Betriebs-Check bleiben kurz; das Ausfüllen
+ * der Dokumentation liegt bei etwa 2–3 Stunden. Keine Minuten-Zusage für das Gesamtdokument.
  *
- * Neue Blogartikel übernehmen INTAKE_EFFORT_LINE wörtlich.
- * Enthält ein Artikel noch die alte Minuten-Angabe, ersetzt sie
- * rewriteLegacyEffortClaims beim Rendern. Siehe content/blog/README.md.
+ * Blog-Schlüsse übernehmen BLOG_CTA_EFFORT_LINE wörtlich.
+ * Enthält ein Artikel noch die alte Minuten-Angabe oder INTAKE_EFFORT_LINE,
+ * ersetzt sie rewriteLegacyEffortClaims beim Rendern. Siehe content/blog/README.md.
+ * Die feinere Spanne (1,5 bis 5 Stunden) steht nur in INTAKE_EFFORT_RANGE und in der FAQ.
  */
 export const INTAKE_EFFORT_LINE =
   "Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.";
+
+/**
+ * Blog-CTA. Einstieg kurz, vollständige Dokumentation in Etappen.
+ * „ca. 5 Minuten“ gilt nur für den Einstieg, nicht für das Gesamtdokument.
+ */
+export const BLOG_CTA_EFFORT_LINE =
+  "Einstieg in ca. 5 Minuten. Die vollständige Dokumentation füllen Sie in Etappen aus – je nach Betrieb insgesamt ca. 2–3 Stunden.";
 
 /** Nur dort, wo eine Gesamtdauer genannt wird (FAQ). Spanne aus dem QA-Durchlauf vom 08.10.2026. */
 export const INTAKE_EFFORT_RANGE =
@@ -99,9 +108,10 @@ export function rewriteLegacyEffortClaims(source: string): string {
     "g",
   );
   return source
-    .replace(withEinstieg, INTAKE_EFFORT_LINE)
-    .replace(bare, INTAKE_EFFORT_LINE)
+    .replace(withEinstieg, BLOG_CTA_EFFORT_LINE)
+    .replace(bare, BLOG_CTA_EFFORT_LINE)
     .replace(/kurzes Intake/g, "geführtes Intake")
+    .replaceAll(INTAKE_EFFORT_LINE, BLOG_CTA_EFFORT_LINE)
     .replace(
       /Einstieg typischerweise wenige Minuten, Nacharbeit bleibt/g,
       "Betriebs-Check kurz, Module in Etappen; Zwischenstand bleibt gespeichert",

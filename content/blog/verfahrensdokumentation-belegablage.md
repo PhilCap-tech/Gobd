@@ -92,7 +92,7 @@ Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation
 
 ## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Belegfluss nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung.
+Wenn Sie den Belegfluss nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Einstieg in ca. 5 Minuten. Die vollständige Dokumentation füllen Sie in Etappen aus – je nach Betrieb insgesamt ca. 2–3 Stunden. Keine Steuerberatung.
 
 ## FAQ
 

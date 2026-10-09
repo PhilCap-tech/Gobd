@@ -98,7 +98,7 @@ Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation
 
 ## Geführt statt leerer Seite
 
-Wenn Selbst-Erstellen an der leeren Datei scheitert: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach mit dem Berater abstimmen und freigeben — Beratung wird dadurch nicht ersetzt.
+Wenn Selbst-Erstellen an der leeren Datei scheitert: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Einstieg in ca. 5 Minuten. Die vollständige Dokumentation füllen Sie in Etappen aus – je nach Betrieb insgesamt ca. 2–3 Stunden. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach mit dem Berater abstimmen und freigeben — Beratung wird dadurch nicht ersetzt.
 
 ## FAQ
 
