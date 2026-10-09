@@ -623,6 +623,37 @@ h3 {
   color: var(--muted);
 }
 
+.upsell {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 24px 22px;
+  margin: 28px 0 8px;
+}
+
+.upsell h2 {
+  margin-top: 0;
+}
+
+.upsell h3 {
+  font-size: 1.05rem;
+  margin: 18px 0 6px;
+}
+
+.upsell-price {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 650;
+  margin: 16px 0 4px;
+}
+
+.upsell-footnote {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 14px 0 0;
+}
+
 .disclaimer {
   background: var(--warn-bg);
   color: var(--warn-text);

@@ -29,6 +29,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ mod
     company: muster.identity.company,
     title: `Modul ${muster.modul.nr} Fragebogen`,
     footer: "Muster · fiktiv · keine Steuerberatung",
+    variant: "muster",
   });
   return new NextResponse(new Uint8Array(buffer), {
     headers: {

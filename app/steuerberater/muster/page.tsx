@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { MusterUpsell } from "@/components/muster-upsell";
 import { planDelivery } from "@/lib/delivery";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import {
@@ -195,6 +196,7 @@ export default function PartnerMusterPage() {
             {" · "}
             <Link href={PARTNER_DEMO_PATH}>Fragenprozess testen</Link>
           </p>
+          <MusterUpsell />
           <p className="disclaimer">
             Muster der IKAT GmbH, gobd-doku-erstellen.de. Keine Steuer-, Rechts-
             oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität. Die
