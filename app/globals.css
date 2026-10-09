@@ -647,6 +647,17 @@ h3 {
   margin: 16px 0 4px;
 }
 
+.upsell-guarantee {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.upsell-guarantee a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
 .upsell-footnote {
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 12px;
