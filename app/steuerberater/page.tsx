@@ -226,8 +226,9 @@ export default function SteuerberaterPage() {
           <p className="prose">
             Ihr Mandant erhält ein Gesamtdokument mit bis zu 24 Modulen in der
             klassischen Vier-Teile-Struktur. Ein Betriebs-Check ermittelt die
-            vorhandenen Abläufe; Systeme und Verantwortliche werden einmal
-            erfasst und vorbefüllt. Vorhandene Bereiche werden nicht
+            vorhandenen Abläufe. Firmendaten, Programme und Ansprechpartner
+            gibt der Mandant einmal an – wo möglich, füllen wir sie in den
+            Themen vor. Vorhandene Bereiche werden nicht
             stillschweigend ausgelassen. {ALL_AREAS_LINE}
           </p>
           <PartnerModuleTeile />
