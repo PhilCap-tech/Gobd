@@ -112,7 +112,7 @@ Vermeiden Sie Angebote, die „rechtssicher“ oder „GoBD-konform garantiert�
 
 ## Geführt starten
 
-Wenn Sie einen strukturierten Entwurf wollen, ohne bei Null zu tippen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF, Offene-Punkte-Liste. Einstieg in ca. 5 Minuten. Die vollständige Dokumentation füllen Sie in Etappen aus – je nach Betrieb insgesamt ca. 2–3 Stunden. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie einen strukturierten Entwurf wollen, ohne bei Null zu tippen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF, Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

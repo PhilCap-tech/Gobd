@@ -1,13 +1,11 @@
 /**
  * Öffentliche Texte dürfen die Verfahrensdokumentation nicht mehr als
- * kurzen Minuten-Einstieg verkaufen. Blogartikel nennen im Schluss die
- * Dauer aus BLOG_CTA_EFFORT_LINE. rewriteLegacyEffortClaims ersetzt eine
- * alte Minuten-Angabe oder den früheren Aufwandssatz beim Rendern.
+ * kurzen Minuten-Einstieg verkaufen. Blogartikel dürfen die alte Formulierung
+ * im Markdown noch enthalten: rewriteLegacyEffortClaims ersetzt sie beim Rendern.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import {
-  BLOG_CTA_EFFORT_LINE,
   INTAKE_EFFORT_LINE,
   INTAKE_EFFORT_RANGE,
   PARTNER_EFFORT_LINE,
@@ -29,7 +27,7 @@ function assertRewrites(sample: string, extra?: string): void {
   if (SHORT_PROMISE.test(out) || /wenige Minuten/.test(out) || /oft schnell/.test(out)) {
     fail(`rewrite left a short promise in ${JSON.stringify(out)}`);
   }
-  if (!out.includes(BLOG_CTA_EFFORT_LINE) && !extra) {
+  if (!out.includes(INTAKE_EFFORT_LINE) && !extra) {
     fail(`rewrite dropped the effort line for ${JSON.stringify(sample)}`);
   }
   if (extra && !out.includes(extra)) {
@@ -61,22 +59,6 @@ const tool = rewriteLegacyEffortClaims("oft schnell, Fragen führen");
 if (tool !== "Fragen führen, Ausfüllen in Etappen") {
   fail(`tool comparison cell is ${JSON.stringify(tool)}`);
 }
-if (rewriteLegacyEffortClaims(INTAKE_EFFORT_LINE) !== BLOG_CTA_EFFORT_LINE) {
-  fail("old effort line must render as the blog duration sentence");
-}
-if (rewriteLegacyEffortClaims(BLOG_CTA_EFFORT_LINE) !== BLOG_CTA_EFFORT_LINE) {
-  fail("blog duration sentence is not stable");
-}
-if (SHORT_PROMISE.test(BLOG_CTA_EFFORT_LINE) || /5\s*[–-]\s*8/.test(BLOG_CTA_EFFORT_LINE)) {
-  fail("blog duration sentence still promises 5–8 minutes");
-}
-if (!BLOG_CTA_EFFORT_LINE.includes("ca. 5 Minuten") || !BLOG_CTA_EFFORT_LINE.includes("2–3 Stunden")) {
-  fail("blog duration sentence must name the short start and the 2–3 hour total");
-}
-const kurzes = rewriteLegacyEffortClaims("kurzes Intake, dann PDF.");
-if (kurzes.includes("kurzes Intake") || !kurzes.includes("geführtes Intake")) {
-  fail(`kurzes Intake was not neutralized: ${JSON.stringify(kurzes)}`);
-}
 
 for (const line of [INTAKE_EFFORT_LINE, INTAKE_EFFORT_RANGE, READINESS_EFFORT_NOTE, PARTNER_EFFORT_LINE]) {
   if (SHORT_PROMISE.test(line) || /\d+\s*[–-]\s*\d+\s*Minuten/.test(line)) {
@@ -105,16 +87,9 @@ const blogFiles = walk("content/blog").filter(
 );
 if (blogFiles.length === 0) fail("no blog files");
 for (const file of blogFiles) {
-  const raw = readFileSync(file, "utf8");
-  const rendered = rewriteLegacyEffortClaims(raw);
+  const rendered = rewriteLegacyEffortClaims(readFileSync(file, "utf8"));
   if (SHORT_PROMISE.test(rendered) || /wenige Minuten/.test(rendered)) {
     fail(`${file} still promises a short full documentation after rewrite`);
-  }
-  if (raw.includes(INTAKE_EFFORT_LINE)) {
-    fail(`${file} still uses the effort line without the 2–3 hour span`);
-  }
-  if (!file.endsWith(`${path.sep}README.md`) && !raw.includes(BLOG_CTA_EFFORT_LINE)) {
-    fail(`${file} blog CTA is missing the duration sentence`);
   }
 }
 

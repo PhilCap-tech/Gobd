@@ -269,8 +269,8 @@ function buildCustomerOnboardingMail(input: {
       "",
       "vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:",
       "",
-      "1. Betriebs-Check: Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten.",
-      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Der Zwischenstand wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten. Je Thema ca. 5–15 Minuten. Sie können jederzeit unterbrechen; Ihr Stand wird gespeichert.",
+      "1. Betriebs-Check: ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten.",
+      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Der Zwischenstand wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.",
       "3. Gesamt-PDF erstellen – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.",
       "",
       CUSTOMER_ONBOARDING_CTA,
@@ -292,8 +292,8 @@ function buildCustomerOnboardingMail(input: {
     <p>${escapeHtml(greeting)}</p>
     <p>vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:</p>
     <ol>
-      <li><strong>Betriebs-Check:</strong> Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten.</li>
-      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Der Zwischenstand wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten. Je Thema ca. 5–15 Minuten. Sie können jederzeit unterbrechen; Ihr Stand wird gespeichert.</li>
+      <li><strong>Betriebs-Check:</strong> ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten.</li>
+      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Der Zwischenstand wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.</li>
       <li><strong>Gesamt-PDF erstellen</strong> – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.</li>
     </ol>
     <p>${transactionalPrimaryButton(startUrl, CUSTOMER_ONBOARDING_CTA)}</p>
