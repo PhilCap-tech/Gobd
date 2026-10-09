@@ -106,7 +106,7 @@ Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation
 
 ## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Entwurf nicht leer starten möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie den Entwurf nicht leer starten möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

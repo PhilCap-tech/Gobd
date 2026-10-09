@@ -22,7 +22,9 @@ import {
   HERO_OUTCOME_LINE,
   PRICE_FRAME_LINE,
   PRICE_INCLUSION_LINE,
+  INTAKE_EFFORT_LINE,
   PRICE_MICRO,
+  READINESS_EFFORT_NOTE,
   RESULT_PROMISE,
 } from "@/lib/offer-copy";
 import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
@@ -282,6 +284,7 @@ export default function HomePage() {
               Bestellung. Mit dem Abo bleiben Versionen und Anpassungen verfügbar.
             </li>
           </ol>
+          <p className="prose">{INTAKE_EFFORT_LINE}</p>
           {excerptChapter ? (
             <figure className="doc-excerpt">
               <figcaption>
@@ -386,6 +389,7 @@ export default function HomePage() {
             ein Hinweis auf nächste Schritte (Muster ansehen oder Dokumentation
             erstellen).
           </p>
+          <p className="prose">{READINESS_EFFORT_NOTE}</p>
           <Link className="btn ghost" href="/readiness">
             {CTA_CHECK}
           </Link>

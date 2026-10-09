@@ -9,7 +9,7 @@ import {
   loginMailState,
 } from "@/lib/login-mail";
 import { isMailConfigured } from "@/lib/env";
-import { CTA_CREATE_WITH_PRICE, DISCLAIMER_ONCE } from "@/lib/offer-copy";
+import { CTA_CREATE_WITH_PRICE, DISCLAIMER_ONCE, READINESS_EFFORT_NOTE } from "@/lib/offer-copy";
 import { firstQueryValue } from "@/lib/query";
 import { canAccessReadinessLead, readinessDownloadPath } from "@/lib/readiness";
 import { readinessBrancheLabel } from "@/lib/readiness-options";
@@ -110,8 +110,8 @@ export default async function ReadinessSuccessPage({
               </div>
               <p className="hint" style={{ marginTop: 14 }}>
                 Nächster Schritt: Dokumentation erstellen, dann PDF und Liste
-                offener Punkte aus Ihren Angaben. Im 3-Minuten-Check selbst
-                wird nichts berechnet.
+                offener Punkte aus Ihren Angaben. {READINESS_EFFORT_NOTE} Im
+                3-Minuten-Check selbst wird nichts berechnet.
               </p>
               <p className="disclaimer" role="note">
                 {DISCLAIMER_ONCE} Dieses PDF ist eine kurze Einschätzung, keine

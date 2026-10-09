@@ -131,7 +131,7 @@ Zum Abgleich aller Doku-Teile: [Verfahrensdokumentation Checkliste](/blog/verfah
 
 ## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Scan-Block nicht leer formulieren wollen: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF plus Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie den Scan-Block nicht leer formulieren wollen: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF plus Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

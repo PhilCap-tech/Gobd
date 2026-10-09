@@ -56,3 +56,55 @@ export const ALL_AREAS_DETAIL =
 /** Alias for pages that still say Bereiche. */
 export const ALL_MODULES_LINE = ALL_AREAS_LINE;
 export const ALL_MODULES_DETAIL = ALL_AREAS_DETAIL;
+
+/**
+ * Aufwand der Verfahrensdokumentation.
+ * Kurz sind der Readiness-Check (drei Schritte, Schritt 1 zeigt „ca. 1 Minute“)
+ * und der Betriebs-Check, der die Module freischaltet.
+ * Lang ist die Beschreibung der Module. QA 08.10.2026, neun Testfirmen:
+ * vollständiges Intake meist etwa 2–3 Stunden, Spanne etwa 1,5–5 Stunden.
+ * Eine Gesamtzeit nur als INTAKE_EFFORT_RANGE. Keine Minuten-Zusage für das Gesamtdokument.
+ *
+ * Neue Blogartikel übernehmen INTAKE_EFFORT_LINE wörtlich.
+ * Enthält ein Artikel noch die alte Minuten-Angabe, ersetzt sie
+ * rewriteLegacyEffortClaims beim Rendern. Siehe content/blog/README.md.
+ */
+export const INTAKE_EFFORT_LINE =
+  "Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.";
+
+/** Nur dort, wo eine Gesamtdauer genannt wird (FAQ). Spanne aus dem QA-Durchlauf vom 08.10.2026. */
+export const INTAKE_EFFORT_RANGE =
+  "Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orientierend mit etwa 2–3 Stunden, in der Spanne von etwa 1,5 bis 5 Stunden — je nachdem, wie viele Module vorkommen und wie griffbereit die Angaben sind.";
+
+/** Readiness-Check bleibt der kurze Überblick. Die Dokumentation ist der längere, unterteilbare Teil. */
+export const READINESS_EFFORT_NOTE = `Dieser Check ist der kurze Überblick in drei Schritten. ${INTAKE_EFFORT_LINE}`;
+
+/** Steuerberater-Seite: der Mandant füllt aus, nicht die Kanzlei. */
+export const PARTNER_EFFORT_LINE =
+  "Für den Mandanten ist der Betriebs-Check der kurze Einstieg. Die Module füllt der Mandant in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos im Konto, und „Später ausfüllen“ ist möglich.";
+
+/**
+ * Macht alte Blog-Schlüsse ehrlich, auch wenn die tägliche Blog-Routine
+ * den früheren Satz noch einsetzt. Garantie-, Preis- und Beratungssätze
+ * bleiben stehen, weil sie nicht Teil der Muster sind.
+ * Muster stehen als Konstruktor, damit der öffentliche Text die alte Zusage nicht mehr enthält.
+ */
+export function rewriteLegacyEffortClaims(source: string): string {
+  const withEinstieg = new RegExp(
+    "(?:Ca\\.\\s*)?5\\s*[–-]\\s*8\\s*Minuten(?:\\s+für\\s+den)?\\s*Einstieg\\.?",
+    "g",
+  );
+  const bare = new RegExp(
+    "(?:Ca\\.\\s*)?(?<!\\d)5\\s*[–-]\\s*8\\s*Minuten\\.?",
+    "g",
+  );
+  return source
+    .replace(withEinstieg, INTAKE_EFFORT_LINE)
+    .replace(bare, INTAKE_EFFORT_LINE)
+    .replace(/kurzes Intake/g, "geführtes Intake")
+    .replace(
+      /Einstieg typischerweise wenige Minuten, Nacharbeit bleibt/g,
+      "Betriebs-Check kurz, Module in Etappen; Zwischenstand bleibt gespeichert",
+    )
+    .replace(/oft schnell, Fragen führen/g, "Fragen führen, Ausfüllen in Etappen");
+}

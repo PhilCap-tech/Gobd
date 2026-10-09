@@ -29,7 +29,9 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 3. Automatische Erstellung der Dokumentation aus dem Intake.
 4. Digitale Lieferung (Download / Zugangslink / Ergebnis per E-Mail).
 
-**Dauer:** Nach erfolgreicher Zahlung und fertig abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
+**Ausfüllen:** Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orientierend mit etwa 2–3 Stunden, in der Spanne von etwa 1,5 bis 5 Stunden — je nachdem, wie viele Module vorkommen und wie griffbereit die Angaben sind.
+
+**Bereitstellung:** Nach erfolgreicher Zahlung und fertig abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
 
 Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adresse.
 
