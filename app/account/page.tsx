@@ -322,7 +322,7 @@ export default async function AccountPage({
                                       <div className="open-modules">
                                         <h4>Offene Module</h4>
                                         <p className="hint">
-                                          Noch auszufüllen. Im Intake setzen Sie den Status auf „{STATUS_OPTION_LABEL.tool}“, „{STATUS_OPTION_LABEL.extern}“ oder „{STATUS_OPTION_LABEL.nicht_vorhanden}“.
+                                          Noch auszufüllen. Der Zwischenstand wird gespeichert. Im Intake setzen Sie den Status auf „{STATUS_OPTION_LABEL.tool}“, „{STATUS_OPTION_LABEL.extern}“ oder „{STATUS_OPTION_LABEL.nicht_vorhanden}“.
                                         </p>
                                         <ul className="open-module-list">
                                           {offenRows.map((row) => (

@@ -9,6 +9,7 @@
  */
 
 import { CUSTOMER_ONBOARDING_NEXT_PATH, magicLinkUrl } from "@/lib/auth";
+import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import { isMailConfigured } from "@/lib/env";
 import { sendEmail, type MailResult } from "@/lib/mail";
 import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
@@ -269,7 +270,7 @@ function buildCustomerOnboardingMail(input: {
       "vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:",
       "",
       "1. Betriebs-Check: ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten.",
-      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.",
+      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Der Zwischenstand wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.",
       "3. Gesamt-PDF erstellen – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.",
       "",
       CUSTOMER_ONBOARDING_CTA,
@@ -292,7 +293,7 @@ function buildCustomerOnboardingMail(input: {
     <p>vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:</p>
     <ol>
       <li><strong>Betriebs-Check:</strong> ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten.</li>
-      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.</li>
+      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Der Zwischenstand wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.</li>
       <li><strong>Gesamt-PDF erstellen</strong> – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.</li>
     </ol>
     <p>${transactionalPrimaryButton(startUrl, CUSTOMER_ONBOARDING_CTA)}</p>
@@ -332,7 +333,7 @@ function buildSteuerberaterOnboardingMail(input: {
       "vielen Dank für Ihre Bestellung im Partner-Pilot.",
       "",
       "Nächste Schritte:",
-      "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen)",
+      "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.",
       "2. Das PDF herunterladen, sobald die Generierung fertig ist",
       `3. Konto: Anmeldung unter ${MAIL_LOGIN_URL}`,
       "",
@@ -353,7 +354,7 @@ function buildSteuerberaterOnboardingMail(input: {
     <p>vielen Dank für Ihre Bestellung im Partner-Pilot.</p>
     <p>Nächste Schritte:</p>
     <ol>
-      <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen)</li>
+      <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.</li>
       <li>Das PDF herunterladen, sobald die Generierung fertig ist</li>
       <li>Konto: Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
     </ol>
@@ -483,6 +484,7 @@ export function buildReferralAfterDeliveryMail(input: {
       REFERRAL_AFTER_DELIVERY_URL,
       "",
       "Kurz: Online-Intake → Entwurf als PDF. Einrichtung 149 € zzgl. USt, danach 49 € zzgl. USt pro Monat. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.",
+      INTAKE_EFFORT_LINE,
       "",
       `Ihr Konto: ${MAIL_LOGIN_URL}`,
       `Fragen: ${MAIL_FAQ_URL}`,
@@ -497,6 +499,7 @@ export function buildReferralAfterDeliveryMail(input: {
     <p>Wenn Ihr Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, können Sie diesen Link weitergeben:</p>
     <p><a href="${escapeAttr(REFERRAL_AFTER_DELIVERY_URL)}">Link weitergeben</a></p>
     <p>Kurz: Online-Intake → Entwurf als PDF. Einrichtung 149 € zzgl. USt, danach 49 € zzgl. USt pro Monat. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.</p>
+    <p>${escapeHtml(INTAKE_EFFORT_LINE)}</p>
     <p>${escapeHtml(REFERRAL_MICRO)}</p>
     <p>Ihr Konto: <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></p>
     <p>Fragen: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>

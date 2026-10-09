@@ -111,7 +111,7 @@ Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-o
 
 ## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Abschnitt zum Datenzugriff nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
+Wenn Sie den Abschnitt zum Datenzugriff nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung.
 
 ## FAQ
 

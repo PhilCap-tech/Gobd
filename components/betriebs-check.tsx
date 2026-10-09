@@ -18,6 +18,7 @@ import {
 import { MODUL_STATUSES, type CheckAntwort } from "@/lib/module/typen";
 import { customerUploadHref } from "@/lib/blob-ref";
 import { FreitextAlert } from "@/components/freitext-alert";
+import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import type { IntakeAnswers } from "@/lib/types";
 
 const ANTWORTEN: Array<{ value: CheckAntwort; label: string }> = [
@@ -55,9 +56,10 @@ export function BetriebsCheckStep({
       <p className="step-label">Betriebs-Check</p>
       <h1>Welche Bereiche gibt es in Ihrem Betrieb?</h1>
       <p className="prose">
-        Anhand dieser Angaben schaltet das Tool die passenden Module frei. Sie können Module später im
-        Konto ergänzen. Kernmodule (Organisation, Buchführung, Archiv, Systeme, Rechte, Sicherung,
-        Kontrollen, Auslagerung, Prüfung, Änderungen, Pflege) sind immer aktiv.
+        Anhand dieser Angaben schaltet das Tool die passenden Module frei. Dieser Schritt ist der
+        kurze Einstieg. Sie können Module später im Konto ergänzen. Kernmodule (Organisation,
+        Buchführung, Archiv, Systeme, Rechte, Sicherung, Kontrollen, Auslagerung, Prüfung,
+        Änderungen, Pflege) sind immer aktiv.
       </p>
       <div className="card">
         <h2>Branchenvorlage (optional)</h2>
@@ -189,7 +191,7 @@ export function ModulUebersichtStep({
       <p className="step-label">Module</p>
       <h1>Module und Dokumentationsstatus</h1>
       <p className="prose">
-        So wird Ihr Gesamtdokument aufgebaut. Ein vorhandener Bereich darf nicht stillschweigend
+        So wird Ihr Gesamtdokument aufgebaut. {INTAKE_EFFORT_LINE} Ein vorhandener Bereich darf nicht stillschweigend
         fehlen: „{STATUS_OPTION_LABEL.tool}“, bestehende Dokumentation verlinken oder den Status „{STATUS_OPTION_LABEL.offen}“ setzen. „Nicht vorhanden“ nur, wenn es den Ablauf bei Ihnen nicht gibt — mit kurzer Begründung.
       </p>
       <details className="status-hilfe" open>

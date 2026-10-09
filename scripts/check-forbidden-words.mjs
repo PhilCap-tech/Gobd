@@ -9,7 +9,10 @@
 // stays here and reuses the blog walker instead of a second COVERED list.
 // Lead magnets live in TypeScript string literals. Those files are scanned
 // for the same du-forms, comments and code identifiers excluded.
+import { spawnSync } from "node:child_process";
 import { globSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const forbidden =
   /\b(TODO|Counsel|Variante B|Platzhalter|Go-Live|Soft-CTA|Primär-CTA|Pillar)\b|\[klären/i; // allow-forbidden
@@ -426,6 +429,23 @@ for (const file of resourceFiles) {
 
 if (failed) {
   process.exit(1);
+}
+
+const tsxBin = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "node_modules",
+  ".bin",
+  "tsx",
+);
+const effort = spawnSync(
+  process.execPath,
+  ["--disable-warning=ExperimentalWarning", tsxBin, "scripts/check-effort-copy.ts"],
+  { stdio: "inherit", env: process.env },
+);
+if (effort.status !== 0) {
+  if (effort.error) console.error(effort.error);
+  process.exit(effort.status ?? 1);
 }
 
 console.log(

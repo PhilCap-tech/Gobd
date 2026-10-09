@@ -13,7 +13,7 @@ import {
   MUSTER_VORLAGEN,
   modulMusterFragebogenPath,
 } from "@/lib/module-muster";
-import { ALL_AREAS_LINE } from "@/lib/offer-copy";
+import { ALL_AREAS_LINE, INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import { canonicalUrl } from "@/lib/seo";
 
 type Params = { params: Promise<{ vorlage: string }> };
@@ -49,6 +49,7 @@ export default async function GesamtMusterPage({ params }: Params) {
           <p className="kicker">Muster-Gesamtdokument · fiktiv</p>
           <h1>{muster.label}</h1>
           <p className="lead">{muster.steckbrief}</p>
+          <p className="prose">{INTAKE_EFFORT_LINE}</p>
           <p className="price-frame">
             <strong>{ALL_AREAS_LINE}</strong>
           </p>

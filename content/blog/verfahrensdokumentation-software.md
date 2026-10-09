@@ -41,7 +41,7 @@ Viele Betriebe kombinieren Wege: Tool oder Vorlage für den Entwurf, Berater fü
 
 | Kriterium | Geführtes Tool | Blanko-Vorlage | Berater-fokussiert |
 |-----------|----------------|----------------|--------------------|
-| Einstieg | oft schnell, Fragen führen | Struktur da, Inhalt selbst | Termin / Auftrag nötig |
+| Einstieg | Fragen führen, Ausfüllen in Etappen | Struktur da, Inhalt selbst | Termin / Auftrag nötig |
 | Bezug zu Ihren Prozessen | hängt von Ihren Antworten ab | nur so gut, wie Sie sie ausfüllen | oft stark, wenn gut briefed |
 | Offene Punkte sichtbar | bei guten Tools ja | leicht zu übersehen | Berater markiert oft Lücken |
 | Kostenmodell | typisch Setup / Abo | günstig bis kostenlos | Beratungshonorar |
@@ -112,7 +112,7 @@ Vermeiden Sie Angebote, die „rechtssicher“ oder „GoBD-konform garantiert�
 
 ## Geführt starten
 
-Wenn Sie einen strukturierten Entwurf wollen, ohne bei Null zu tippen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF, Offene-Punkte-Liste. Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie einen strukturierten Entwurf wollen, ohne bei Null zu tippen: [Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF, Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

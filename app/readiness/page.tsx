@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { CTA_CREATE_WITH_PRICE, CTA_MUSTER } from "@/lib/offer-copy";
+import { CTA_CREATE_WITH_PRICE, CTA_MUSTER, READINESS_EFFORT_NOTE } from "@/lib/offer-copy";
 import { ReadinessForm } from "./readiness-form";
 
 export const metadata: Metadata = {
@@ -24,6 +24,7 @@ export default function ReadinessPage() {
           und ein Hinweis auf nächste Schritte: Muster ansehen oder
           Dokumentation erstellen.
         </p>
+        <p className="prose">{READINESS_EFFORT_NOTE}</p>
         <ReadinessForm />
         <p className="hint back-links">
           <Link href="/#muster">{CTA_MUSTER}</Link>

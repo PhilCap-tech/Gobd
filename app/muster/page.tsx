@@ -11,7 +11,7 @@ import {
   getGesamtMuster,
   redirectForBereichMuster,
 } from "@/lib/module-muster";
-import { ALL_AREAS_DETAIL, ALL_AREAS_LINE } from "@/lib/offer-copy";
+import { ALL_AREAS_DETAIL, ALL_AREAS_LINE, INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import { canonicalUrl } from "@/lib/seo";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 
@@ -44,6 +44,7 @@ export default function MusterIndexPage() {
             Fünf vollständige Muster nach Branchenvorlage sowie die bisherigen
             Bereichs-Muster (leiten auf das passende Gesamtmuster weiter).
           </p>
+          <p className="prose">{INTAKE_EFFORT_LINE}</p>
           <p className="price-frame">
             <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
           </p>

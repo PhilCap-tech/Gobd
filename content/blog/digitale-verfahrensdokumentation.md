@@ -103,7 +103,7 @@ Bei wesentlichen Änderungen neu versionieren; intervallmäßig prüfen, ob der 
 
 ## Geführtes PDF als Start
 
-Unter gobd-doku-erstellen.de erhalten Sie nach dem Intake eine **strukturierte Verfahrensdokumentation als PDF** plus Offene-Punkte-Liste: [Verfahrensdokumentation erstellen](/checkout). Ca. 5–8 Minuten Einstieg. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach digital ablegen, versionieren und mit dem Berater freigeben.
+Unter gobd-doku-erstellen.de erhalten Sie nach dem Intake eine **strukturierte Verfahrensdokumentation als PDF** plus Offene-Punkte-Liste: [Verfahrensdokumentation erstellen](/checkout). Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Danach digital ablegen, versionieren und mit dem Berater freigeben.
 
 ## FAQ
 

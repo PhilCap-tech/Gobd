@@ -93,7 +93,7 @@ Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation
 
 Unter gobd-doku-erstellen.de geht der Weg so:
 
-1. Sie beantworten geführte Fragen zu Ihrem Betrieb.
+1. Sie starten mit dem kurzen Betriebs-Check und füllen die Module in Etappen aus. Der Zwischenstand wird gespeichert.
 2. Sie erhalten eine **strukturierte Verfahrensdokumentation als PDF** plus eine **Offene-Punkte-Liste**.
 3. Sie stimmen den Entwurf mit Ihrer Steuerberatung ab und schließen Lücken.
 
@@ -132,13 +132,13 @@ Die Beratung muss nicht bei Null starten. Ein strukturierter Entwurf spart Schle
 | Einstieg | Schnell herunterladen | Fragen beantworten |
 | Bezug zu Ihrem Betrieb | Manuell alles eintragen | Aus Ihren Antworten abgeleitet |
 | Lücken | Leicht übersehen | Offene-Punkte-Liste macht sie sichtbar |
-| Aufwand | Oft unterschätzt | Einstieg typischerweise wenige Minuten, Nacharbeit bleibt |
+| Aufwand | Oft unterschätzt | Betriebs-Check kurz, Module in Etappen; Zwischenstand bleibt gespeichert |
 | Abstimmung mit der Beratung | Braucht oft Nachfragen | Entwurf als Gesprächsgrundlage |
 | Zusage zur Anerkennung | Keine, und es sollte keine geben | Keine — bewusst |
 
 ## Verfahrensdokumentation online erstellen
 
-Wenn Sie nicht mit einer leeren Datei starten wollen: [GoBD-Verfahrensdokumentation erstellen](/checkout) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie nicht mit einer leeren Datei starten wollen: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
 
 ## FAQ
 

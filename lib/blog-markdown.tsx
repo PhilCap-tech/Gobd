@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { rewriteLegacyEffortClaims } from "@/lib/offer-copy";
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
@@ -255,5 +256,5 @@ function renderBlocks(body: string): ReactNode[] {
 }
 
 export function BlogMarkdown({ source }: { source: string }) {
-  return <>{renderBlocks(source)}</>;
+  return <>{renderBlocks(rewriteLegacyEffortClaims(source))}</>;
 }
