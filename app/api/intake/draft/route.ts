@@ -18,7 +18,7 @@ import {
   saveIntakeDraft,
   type IntakeDraft,
 } from "@/lib/intake-draft";
-import { normalizeIntakeAnswers } from "@/lib/intake-present";
+import { normalizeIntakeAnswers, stripEmptyIntakeCards } from "@/lib/intake-present";
 import {
   authorizeDeliveredWrite,
   lookupDeliveredRows,
@@ -152,7 +152,9 @@ export async function readIntakeDraft(request: Request, io: DraftWriteIo = defau
     io.resolveCheckout,
   );
   if (!access.ok) return deny(access);
-  return NextResponse.json({ draft });
+  return NextResponse.json({
+    draft: { ...draft, answers: stripEmptyIntakeCards(draft.answers) },
+  });
 }
 
 export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {

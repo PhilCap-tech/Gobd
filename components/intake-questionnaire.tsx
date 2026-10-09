@@ -370,6 +370,16 @@ function FieldInput({
                 />
               ),
             )}
+            {rows.length > 1 ? (
+              <button
+                type="button"
+                className="btn ghost"
+                aria-label={`Eintrag ${index + 1} entfernen`}
+                onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))}
+              >
+                Entfernen
+              </button>
+            ) : null}
           </div>
         ))}
         <button
