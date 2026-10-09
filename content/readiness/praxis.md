@@ -150,7 +150,7 @@ Haken Sie ab, was bei {{Firma}} bereits klar ist. Offenpunkte gehören in den Re
    Fokus: Liquidation, Zahlungswege, Eingangsbelege, Rechte. Medizinische Doku-Themen bewusst ausklammern oder an die richtige Stelle verweisen.
 
 2. **Einen Belegfluss skizzieren**  
-   Beispiel Privatpatient: Termin → Liquidation im PVS → Versand → Zahlung → Ablage → Buchung. Notiere, wo es hakt (z. B. „PDF nur im Portal“, „Storno ohne Info an Buchhaltung“).
+   Beispiel Privatpatient: Termin → Liquidation im PVS → Versand → Zahlung → Ablage → Buchung. Notieren Sie, wo es hakt (z. B. „PDF nur im Portal“, „Storno ohne Info an Buchhaltung“).
 
 3. **Systeme und Zugriffe listen**  
    PVS-Name, Buchhaltungswege, Terminal, wer darf liquidieren/stornieren. Das brauchen Sie später für die Verfahrensdokumentation.

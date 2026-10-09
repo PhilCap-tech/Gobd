@@ -232,9 +232,9 @@ export default function HomePage() {
           <p className="prose">
             Der Maßstab: alle steuerrelevanten Prozesse von der Entstehung eines
             Geschäftsvorfalls bis zur Aufbewahrung und Prüfung. Ein Betriebs-Check
-            ermittelt zu Beginn, welche Module bei Ihnen vorkommen. Systeme und
-            Verantwortliche geben Sie einmal an; sie werden in alle Module
-            übernommen. Vorhandene Bereiche werden nicht stillschweigend
+            ermittelt zu Beginn, welche Module bei Ihnen vorkommen. Firmendaten,
+            Programme und Ansprechpartner geben Sie einmal an – wo möglich,
+            füllen wir sie in den Themen vor. Vorhandene Bereiche werden nicht stillschweigend
             ausgelassen — sie tragen den Status „Im Tool beschreiben“, sind durch
             bestehende Dokumentation abgedeckt oder haben den Status „Später ausfüllen“.
           </p>
