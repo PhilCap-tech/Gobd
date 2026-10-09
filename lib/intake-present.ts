@@ -566,6 +566,68 @@ function rowList(value: unknown): Record<string, unknown>[] {
   return value.filter((item) => item && typeof item === "object") as Record<string, unknown>[];
 }
 
+/** Wahr, wenn die Karte mehr als Leerzeichen enthält. `false` und leere Verschachtelungen zählen nicht. */
+function valueHasInput(value: unknown): boolean {
+  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.some((item) => valueHasInput(item));
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some((item) => valueHasInput(item));
+  }
+  return false;
+}
+
+function rowHasInput(row: Record<string, unknown>): boolean {
+  return valueHasInput(row);
+}
+
+/** Listen, die per „Weitere …“ eine leere Karte anhängen. */
+const EMPTY_CARD_LISTS: Record<string, string> = {
+  B01: "systeme",
+  B04: "originalJeWeg",
+  B05: "externeSysteme",
+  G01: "ablageJeArt",
+};
+
+function withoutEmptyRows(values: Record<string, unknown>, key: string): Record<string, unknown> {
+  const raw = values[key];
+  if (!Array.isArray(raw)) return values;
+  const kept = raw.filter(
+    (item) => item && typeof item === "object" && !Array.isArray(item) && rowHasInput(item as Record<string, unknown>),
+  );
+  if (kept.length === raw.length && kept.every((row, index) => row === raw[index])) return values;
+  return { ...values, [key]: kept };
+}
+
+/**
+ * Entfernt völlig leere Karten aus B01, B04, B05 und G01.
+ * Teilweise ausgefüllte Karten und alle übrigen Angaben bleiben.
+ * Ein Entwurf ohne leere Karte bleibt dasselbe Objekt.
+ */
+export function stripEmptyIntakeCards(answers: IntakeAnswers): IntakeAnswers {
+  const katalog = answers.katalog;
+  if (!katalog) return answers;
+  let changed = false;
+  const next: NonNullable<IntakeAnswers["katalog"]> = {};
+  for (const [id, entry] of Object.entries(katalog)) {
+    const key = EMPTY_CARD_LISTS[id];
+    if (!entry?.values || !key) {
+      next[id] = entry;
+      continue;
+    }
+    const normalized = withoutEmptyRows(entry.values, key);
+    if (normalized !== entry.values) {
+      changed = true;
+      next[id] = { ...entry, values: normalized };
+    } else {
+      next[id] = entry;
+    }
+  }
+  if (!changed) return answers;
+  return { ...answers, katalog: next };
+}
+
 function channelMap(value: unknown): Record<string, ChannelDetail> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as Record<string, ChannelDetail>;
@@ -724,7 +786,7 @@ export function p1FieldError(
   }
   if (status !== "bestaetigt" && status !== "geplant") return "";
   if (id === "B01") {
-    const rows = rowList(values.systeme);
+    const rows = rowList(values.systeme).filter(rowHasInput);
     if (!rows.length) return "Bitte mindestens ein System nennen.";
     for (const row of rows) {
       if (!textOf(row.name) || !textOf(row.funktion) || !textOf(row.typ)) {
@@ -738,10 +800,19 @@ export function p1FieldError(
       }
     }
   }
+  if (id === "B04") {
+    for (const row of rowList(values.originalJeWeg)) {
+      if (!rowHasInput(row)) continue;
+      if (!textOf(row.belegweg) || !textOf(row.originalBeschreibung)) {
+        return "Bitte je Eingangsweg den Weg und das Original nennen.";
+      }
+    }
+  }
   if (id === "B05" && values.anbieter === "ja") {
-    const rows = rowList(values.externeSysteme).filter((row) => textOf(row.name));
+    const rows = rowList(values.externeSysteme).filter(rowHasInput);
     if (!rows.length) return "Bitte das System beim Anbieter benennen.";
     for (const row of rows) {
+      if (!textOf(row.name)) return "Bitte das System beim Anbieter benennen.";
       const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
       if (ANBIETER_UNTERLAGEN.some((name) => !textOf(stand[name]))) {
         return "Bitte je Unterlage angeben, ob sie vorhanden ist, ergänzt werden muss oder nicht relevant ist.";
@@ -800,8 +871,13 @@ export function p1FieldError(
     }
   }
   if (id === "G01") {
-    const rows = rowList(values.ablageJeArt).filter((row) => textOf(row.ort) && textOf(row.suche));
+    const rows = rowList(values.ablageJeArt).filter(rowHasInput);
     if (!rows.length) return "Bitte je Belegart Ablageort und Suchmerkmale angeben.";
+    for (const row of rows) {
+      if (!textOf(row.ort) || !textOf(row.suche)) {
+        return "Bitte je Belegart Ablageort und Suchmerkmale angeben.";
+      }
+    }
   }
   if (id === "G02") {
     const rows = rowList(values.zugriffRollen).filter((row) => listOf(row.rechte).length);
@@ -947,6 +1023,8 @@ function normalizeEntryValues(id: string, values: Record<string, unknown>): Reco
   if (/92$/.test(id)) return normalizeNamedControls(values);
   if (id === "C02") return normalizeC02(values);
   if (id === "C03") return normalizeC03(values);
+  const listKey = EMPTY_CARD_LISTS[id];
+  if (listKey) return withoutEmptyRows(values, listKey);
   return values;
 }
 

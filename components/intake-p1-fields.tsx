@@ -224,6 +224,14 @@ function ChannelFields({
   );
 }
 
+function RemoveCardButton({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <button type="button" className="btn ghost" aria-label={label} onClick={onRemove}>
+      Entfernen
+    </button>
+  );
+}
+
 function StandChips({
   value,
   onChange,
@@ -265,7 +273,15 @@ export function P1QuestionFields({
       <div>
         {cards.map((row, index) => (
           <div className="system-card" key={`system-${index}`}>
-            <p className="prose">System {index + 1}</p>
+            <div className="system-card-head">
+              <p className="prose">System {index + 1}</p>
+              {cards.length > 1 ? (
+                <RemoveCardButton
+                  label={`System ${index + 1} entfernen`}
+                  onRemove={() => commit({ systeme: cards.filter((_, cardIndex) => cardIndex !== index) })}
+                />
+              ) : null}
+            </div>
             <div className="field">
               <TextField
                 label="Name"
@@ -406,6 +422,17 @@ export function P1QuestionFields({
           const picked = channels.includes(weg) ? weg : other ? "anderer Weg" : "";
           return (
             <div className="system-card" key={`original-${index}`}>
+              {originals.length > 1 ? (
+                <div className="system-card-head">
+                  <p className="prose">Eingangsweg {index + 1}</p>
+                  <RemoveCardButton
+                    label={`Eingangsweg ${index + 1} entfernen`}
+                    onRemove={() =>
+                      commit({ originalJeWeg: originals.filter((_, cardIndex) => cardIndex !== index) })
+                    }
+                  />
+                </div>
+              ) : null}
               <div className="field">
                 {choices.length ? (
                   <>
@@ -486,6 +513,17 @@ export function P1QuestionFields({
               const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
               return (
                 <div className="system-card" key={`provider-${index}`}>
+                  {cards.length > 1 ? (
+                    <div className="system-card-head">
+                      <p className="prose">System beim Anbieter {index + 1}</p>
+                      <RemoveCardButton
+                        label={`System beim Anbieter ${index + 1} entfernen`}
+                        onRemove={() =>
+                          commit({ externeSysteme: cards.filter((_, cardIndex) => cardIndex !== index) })
+                        }
+                      />
+                    </div>
+                  ) : null}
                   <div className="field">
                     <TextField
                       label="Name des Systems"
@@ -873,6 +911,15 @@ export function P1QuestionFields({
       <div>
         {table.map((row, index) => (
           <div className="system-card" key={`ablage-${index}`}>
+            {table.length > 1 ? (
+              <div className="system-card-head">
+                <p className="prose">Belegart {index + 1}</p>
+                <RemoveCardButton
+                  label={`Belegart ${index + 1} entfernen`}
+                  onRemove={() => commit({ ablageJeArt: table.filter((_, cardIndex) => cardIndex !== index) })}
+                />
+              </div>
+            ) : null}
             <div className="field">
               <TextField
                 label="Belegart oder Belegweg"

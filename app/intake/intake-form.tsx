@@ -37,6 +37,7 @@ import {
   type IntakeDraftSnapshot,
 } from "@/lib/intake-draft-shared";
 import { INTAKE_REVIEW, INTAKE_STEPS } from "@/lib/intake-questions";
+import { stripEmptyIntakeCards } from "@/lib/intake-present";
 import { customerHubTitle } from "@/lib/account-display";
 import { bereichIdOf, bereichLabel } from "@/lib/bereiche";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
@@ -232,7 +233,7 @@ export function IntakeForm({
   const writeLocalDraft = useCallback((revision: number) => {
     const savedAt = new Date().toISOString();
     const snapshot: IntakeDraftSnapshot = {
-      answers: answersRef.current,
+      answers: stripEmptyIntakeCards(answersRef.current),
       step: stepRef.current,
       savedAt,
       revision,
@@ -263,7 +264,7 @@ export function IntakeForm({
         entityId: meta.entityId,
         modus: meta.modus,
         step: stepRef.current,
-        answers: answersRef.current,
+        answers: stripEmptyIntakeCards(answersRef.current),
         revision,
         change: { ...changeRef.current },
         clientUpdatedAt: serverDraftAtRef.current || savedAt,
@@ -367,7 +368,10 @@ export function IntakeForm({
       });
       revisionRef.current = decision.revision;
       if (decision.restored) {
-        const restoredAnswers = prefillKnownFacts(decision.answers, liveFactsRef.current);
+        const restoredAnswers = prefillKnownFacts(
+          stripEmptyIntakeCards(decision.answers),
+          liveFactsRef.current,
+        );
         const restoredStep = Math.max(
           nextApplicableStep(-1, restoredAnswers),
           Math.min(decision.step, INTAKE_STEPS.length),
