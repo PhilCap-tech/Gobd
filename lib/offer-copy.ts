@@ -89,6 +89,70 @@ export const PARTNER_EFFORT_LINE =
  * bleiben stehen, weil sie nicht Teil der Muster sind.
  * Muster stehen als Konstruktor, damit der öffentliche Text die alte Zusage nicht mehr enthält.
  */
+/**
+ * Upsell auf Musterseiten, am Demo-Ende und als letzte Seite der Muster-PDFs.
+ * Wortlaut Growth 09.10.2026. Beträge kommen aus pricing.ts, die Formulierung
+ * bleibt die freigegebene Preiszeile.
+ * Uploads bleiben drin: Datei-Upload und öffnen im Intake, Abruf über
+ * /api/module-upload/file. Frühere Fassungen bleiben drin: Versionshistorie
+ * im Konto verlinkt jede Fassung auf ihren PDF-Download.
+ * Die Fußnote ist enthalten; das hochgestellte ¹ bleibt deshalb stehen.
+ */
+export const UPSELL_HEADLINE =
+  "Das Muster zeigt eine fiktive Firma. Ihre Dokumentation zeigt Ihren Betrieb.";
+
+export const UPSELL_SECTION_1_TITLE = "Ihre Abläufe statt Beispiel";
+
+export const UPSELL_SECTION_1_TEXT =
+  "Das Muster beschreibt ein erfundenes Unternehmen. Ihr Entwurf entsteht aus Ihren Angaben: Ihre Abläufe, Ihre Systeme, Ihre Verantwortlichen. Dazu erhalten Sie eine Liste offener Punkte, die Sie prüfen und ergänzen.";
+
+export const UPSELL_SECTION_2_TITLE = "Keine einmalige Sache";
+
+export const UPSELL_SECTION_2_TEXT =
+  "Eine einmal erstellte Fassung bildet nur den heutigen Stand ab. Ändern sich Software, Abläufe oder Zuständigkeiten, ist die Verfahrensdokumentation nachzuziehen. Frühere Fassungen bleiben aufbewahrungspflichtig, Änderungen müssen nachvollziehbar versioniert sein.¹";
+
+export const UPSELL_SECTION_3_TITLE = "Darum ein Monatsabo";
+
+export const UPSELL_BULLETS = [
+  "Versionierung: jede Fassung mit Änderungshistorie",
+  "Speicherung Ihrer Dokumentation und früherer Fassungen",
+  "Änderungen jederzeit nachtragen, wenn sich in Ihrem Betrieb etwas ändert",
+  "Konto mit To-dos für offene Punkte und Module, inklusive Uploads",
+] as const;
+
+export const UPSELL_EFFORT_NOTE =
+  "Sie können in Etappen arbeiten, der Stand wird gespeichert.";
+
+export const UPSELL_PRICE = `heute ${TODAY_EUR} € zzgl. USt, danach ${MONTHLY_EUR} €/Monat, monatlich kündbar, alle 24 Module inklusive`;
+
+export const UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € erster Monat`;
+
+export const UPSELL_CTA = "Eigene Dokumentation erstellen";
+
+export const UPSELL_CTA_HREF = "/checkout";
+
+export const UPSELL_DISCLAIMER =
+  "Sie erhalten einen Entwurf, den Sie prüfen und ergänzen · keine Steuerberatung";
+
+export const UPSELL_FOOTNOTE =
+  "¹ Vgl. GoBD (BMF-Schreiben vom 28.11.2019 in der Fassung vom 14.07.2025), Rz. 150 und 154; § 147 AO.";
+
+export const PDF_UPSELL_HEADLINE = "Dieses Muster zeigt eine fiktive Firma.";
+
+export const PDF_UPSELL_BODY =
+  "Ihre Verfahrensdokumentation beschreibt Ihre eigenen Abläufe, Systeme und Verantwortlichen – als Entwurf mit Liste offener Punkte. Ändern sich Software, Abläufe oder Zuständigkeiten, ist sie nachzuziehen; frühere Fassungen sind aufzubewahren.¹ Im Monatsabo werden Ihre Fassungen versioniert und gespeichert, Sie tragen Änderungen jederzeit nach, To-dos und Uploads liegen in Ihrem Konto. Sie können in Etappen arbeiten, der Stand wird gespeichert.";
+
+export const PDF_UPSELL_PRICE = UPSELL_PRICE;
+
+export const PDF_UPSELL_URL = "gobd-doku-erstellen.de/checkout";
+
+export const PDF_UPSELL_CTA = `Eigene Dokumentation erstellen: ${PDF_UPSELL_URL}`;
+
+export const PDF_UPSELL_DISCLAIMER =
+  "Entwurf zum Prüfen und Ergänzen · keine Steuerberatung";
+
+export const PDF_UPSELL_FOOTNOTE = "¹ Vgl. GoBD Rz. 150, 154; § 147 AO.";
+
 export function rewriteLegacyEffortClaims(source: string): string {
   const withEinstieg = new RegExp(
     "(?:Ca\\.\\s*)?5\\s*[–-]\\s*8\\s*Minuten(?:\\s+für\\s+den)?\\s*Einstieg\\.?",

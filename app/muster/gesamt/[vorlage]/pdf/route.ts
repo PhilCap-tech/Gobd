@@ -16,6 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ vor
     documentId: muster.documentId,
     version: muster.version,
     versionMeta: muster.versionMeta,
+    variant: "muster",
   });
   return new NextResponse(new Uint8Array(generated.buffer), {
     headers: {

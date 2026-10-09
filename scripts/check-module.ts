@@ -233,6 +233,7 @@ async function checkMusterPdfDepth() {
       identity: muster.identity,
       documentId: muster.documentId,
       version: muster.version,
+      variant: "muster",
     });
     // Byte length only guards against a collapsed render. Word and chapter
     // counts above are the content gate. Unconfirmed catalog sentences are

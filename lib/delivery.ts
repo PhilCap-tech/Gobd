@@ -19,6 +19,15 @@ import {
   drawBrandLockup,
 } from "@/lib/pdf-brand";
 import { writeMarkdownish } from "@/lib/pdf-markdown";
+import { CANONICAL_PRODUCTION_APP_URL } from "@/lib/env";
+import {
+  PDF_UPSELL_BODY,
+  PDF_UPSELL_CTA,
+  PDF_UPSELL_DISCLAIMER,
+  PDF_UPSELL_FOOTNOTE,
+  PDF_UPSELL_HEADLINE,
+  PDF_UPSELL_PRICE,
+} from "@/lib/offer-copy";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
 
@@ -29,6 +38,35 @@ import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
 
 const FOOTER_CHROME =
   "Kein Steuerberatungsersatz. Arbeitsfassung aus Kunden-Intake — vollständiger Hinweis auf dem Deckblatt.";
+
+/** Nur Muster-PDFs. Kunden-PDFs bleiben ohne diesen Zusatz. */
+export type PdfVariant = "muster" | "kunde";
+
+export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
+export const MUSTER_COVER_LINE = "Muster mit fiktiven Angaben";
+export const KUNDE_COVER_LINE = "Arbeitsfassung aus Kunden-Intake";
+
+const MUSTER_WATERMARK_COLOR = "#b5b5b5";
+const MUSTER_WATERMARK_OPACITY = 0.18;
+
+function isMuster(variant: PdfVariant | undefined): variant is "muster" {
+  return variant === "muster";
+}
+
+function coverLine(variant: PdfVariant): string {
+  return isMuster(variant) ? MUSTER_COVER_LINE : KUNDE_COVER_LINE;
+}
+
+function footerChrome(variant: PdfVariant): string {
+  if (isMuster(variant)) {
+    return "Kein Steuerberatungsersatz. Muster mit fiktiven Angaben.";
+  }
+  return FOOTER_CHROME;
+}
+
+function pdfCheckoutHref(): string {
+  return `${CANONICAL_PRODUCTION_APP_URL}/checkout`;
+}
 
 export const DELIVERY_DISCLAIMER = deliveryBundle.disclaimer;
 
@@ -222,6 +260,7 @@ function drawFooter(
     pages: number;
     versionLabel: string;
     validFrom?: string;
+    chrome: string;
   },
 ) {
   withOpenMargins(doc, () => {
@@ -240,7 +279,7 @@ function drawFooter(
       .font("Helvetica")
       .fontSize(7.5)
       .fillColor(BRAND_MUTED)
-      .text(FOOTER_CHROME, left, ruleY + 6, { width: width - 92, lineBreak: false });
+      .text(input.chrome, left, ruleY + 6, { width: width - 92, lineBreak: false });
     doc
       .font("Helvetica")
       .fontSize(8)
@@ -263,9 +302,62 @@ function drawFooter(
   });
 }
 
+function drawWatermark(doc: PDFKit.PDFDocument) {
+  withOpenMargins(doc, () => {
+    const width = doc.page.width;
+    const height = doc.page.height;
+    const pagesBefore = doc.bufferedPageRange().count;
+    doc.save();
+    doc.fillColor(MUSTER_WATERMARK_COLOR);
+    doc.fillOpacity(MUSTER_WATERMARK_OPACITY);
+    doc.font("Helvetica").fontSize(34);
+    const label = MUSTER_WATERMARK;
+    const textWidth = doc.widthOfString(label);
+    const cx = width / 2;
+    const cy = height / 2;
+    doc.rotate(-36, { origin: [cx, cy] });
+    doc.text(label, cx - textWidth / 2, cy - 12, {
+      lineBreak: false,
+      width: textWidth + 8,
+    });
+    doc.restore();
+    if (doc.bufferedPageRange().count !== pagesBefore) {
+      throw new Error("Muster-Wasserzeichen hat eine zusätzliche Seite erzeugt.");
+    }
+  });
+}
+
+function writeUpsellPage(doc: PDFKit.PDFDocument) {
+  doc.addPage();
+  const left = doc.page.margins.left;
+  const width = contentWidth(doc);
+  doc.x = left;
+  doc.y = doc.page.margins.top;
+  doc.font("Helvetica-Bold").fontSize(16).fillColor(BRAND_NAVY).text(PDF_UPSELL_HEADLINE, { width });
+  doc.moveDown(0.8);
+  doc.font("Helvetica").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_BODY, { width });
+  doc.moveDown(0.9);
+  doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_PRICE, { width });
+  doc.moveDown(1);
+  doc
+    .font("Helvetica")
+    .fontSize(12)
+    .fillColor(BRAND_NAVY)
+    .text(PDF_UPSELL_CTA, {
+      width,
+      link: pdfCheckoutHref(),
+      underline: true,
+    });
+  doc.moveDown(0.9);
+  doc.font("Helvetica").fontSize(9).fillColor(BRAND_MUTED).text(PDF_UPSELL_DISCLAIMER, { width });
+  doc.moveDown(0.7);
+  doc.font("Helvetica").fontSize(8).fillColor(BRAND_MUTED).text(PDF_UPSELL_FOOTNOTE, { width });
+}
+
 function writeTitlePage(
   doc: PDFKit.PDFDocument,
   rendered: RenderedDocument,
+  coverLineText: string,
   cover?: string,
   metaSentence?: string,
 ) {
@@ -277,7 +369,7 @@ function writeTitlePage(
     .font("Helvetica")
     .fontSize(10)
     .fillColor(BRAND_NAVY)
-    .text("Arbeitsfassung aus Kunden-Intake", left, 44 + lockupHeight + 10, {
+    .text(coverLineText, left, 44 + lockupHeight + 10, {
       width,
     });
 
@@ -299,6 +391,7 @@ function decoratePages(
   input: {
     identity: CheckoutIdentity;
     rendered: RenderedDocument;
+    variant: PdfVariant;
   },
 ) {
   const range = doc.bufferedPageRange();
@@ -307,11 +400,13 @@ function decoratePages(
     if (i > 0) {
       drawHeader(doc, input.identity.company);
     }
+    if (isMuster(input.variant)) drawWatermark(doc);
     drawFooter(doc, {
       page: i + 1,
       pages: range.count,
       versionLabel: input.rendered.versionLabel,
       validFrom: input.rendered.validFromDisplay,
+      chrome: footerChrome(input.variant),
     });
   }
 }
@@ -327,6 +422,7 @@ function writePdf(
     versionMeta?: VersionPdfMeta;
     versionHistory?: VersionHistoryEntry[];
     onlyModul?: string;
+    variant: PdfVariant;
   },
 ) {
   const rendered = renderDeliveryDocument(input);
@@ -343,6 +439,7 @@ function writePdf(
   writeTitlePage(
     doc,
     rendered,
+    coverLine(input.variant),
     cover,
     customCover ? rendered.versionMetaSentence : "",
   );
@@ -353,9 +450,12 @@ function writePdf(
     doc.moveDown(0.55);
   }
 
+  if (isMuster(input.variant)) writeUpsellPage(doc);
+
   decoratePages(doc, {
     identity: input.identity,
     rendered,
+    variant: input.variant,
   });
 }
 
@@ -370,9 +470,15 @@ export async function generatePdf(input: {
   versionHistory?: VersionHistoryEntry[];
   /** Gesamtdokument: optional single-module PDF. */
   onlyModul?: string;
+  /**
+   * Muster-PDFs tragen Wasserzeichen, Deckblattzeile und Upsell.
+   * Alles andere, auch ein vergessenes Feld, bleibt eine Kundenfassung.
+   */
+  variant?: PdfVariant;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const documentId = input.documentId || randomUUID();
   const version = input.version && input.version > 0 ? input.version : 1;
+  const variant: PdfVariant = isMuster(input.variant) ? "muster" : "kunde";
   const plan = planDelivery(input.answers, input.identity, version);
 
   const buffer = await new Promise<Buffer>((resolve, reject) => {
@@ -382,9 +488,12 @@ export async function generatePdf(input: {
       bufferPages: true,
       autoFirstPage: true,
       info: {
-        Title: `${isGesamt(input.answers) ? gesamtDocTitle() : isBelegfluss(input.answers) ? BRAND_DOC_TITLE : bereichDocTitle(bereichIdOf(input.answers))} — ${input.identity.company || "Arbeitsfassung"}`,
+        Title: `${isGesamt(input.answers) ? gesamtDocTitle() : isBelegfluss(input.answers) ? BRAND_DOC_TITLE : bereichDocTitle(bereichIdOf(input.answers))} — ${input.identity.company || (variant === "muster" ? "Muster" : "Arbeitsfassung")}`,
         Author: BRAND_NAME,
-        Subject: `Arbeitsfassung ${isGesamt(input.answers) ? "Gesamtdokument" : isBelegfluss(input.answers) ? "Belegablage" : bereichLabel(bereichIdOf(input.answers))} — kein Steuerberatungsersatz`,
+        Subject:
+          variant === "muster"
+            ? "Muster mit fiktiven Angaben — kein Steuerberatungsersatz"
+            : `Arbeitsfassung ${isGesamt(input.answers) ? "Gesamtdokument" : isBelegfluss(input.answers) ? "Belegablage" : bereichLabel(bereichIdOf(input.answers))} — kein Steuerberatungsersatz`,
       },
     });
     const chunks: Buffer[] = [];
@@ -392,7 +501,7 @@ export async function generatePdf(input: {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
     doc.lineGap(1.6);
-    writePdf(doc, { ...input, documentId, version });
+    writePdf(doc, { ...input, documentId, version, variant });
     doc.end();
   });
 
@@ -418,7 +527,10 @@ export async function generateMarkdownPdf(input: {
   company: string;
   title: string;
   footer: string;
+  /** Fragebogen-Muster setzen „muster“. Sonst kein Wasserzeichen und kein Upsell. */
+  variant?: PdfVariant;
 }): Promise<Buffer> {
+  const variant: PdfVariant = isMuster(input.variant) ? "muster" : "kunde";
   return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
@@ -433,10 +545,12 @@ export async function generateMarkdownPdf(input: {
     doc.on("error", reject);
     doc.lineGap(1.6);
     writeMarkdownish(doc, input.markdown, contentWidth(doc));
+    if (isMuster(variant)) writeUpsellPage(doc);
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i += 1) {
       doc.switchToPage(range.start + i);
       drawHeader(doc, input.company);
+      if (isMuster(variant)) drawWatermark(doc);
       withOpenMargins(doc, () => {
         const left = doc.page.margins.left;
         const width = contentWidth(doc);

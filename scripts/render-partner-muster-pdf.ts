@@ -24,6 +24,7 @@ async function main() {
     documentId: PARTNER_MUSTER_DOCUMENT_ID,
     version: 1,
     versionMeta: PARTNER_MUSTER_VERSION_META,
+    variant: "muster",
   });
 
   mkdirSync(path.dirname(out), { recursive: true });
