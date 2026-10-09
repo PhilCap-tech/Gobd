@@ -27,7 +27,7 @@ Kontext Aufbau: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdo
 
 ## Was „Software“ in diesem Kontext meint
 
-Gemeint ist hier Software bzw. Online-Hilfen **zur Erstellung der Verfahrensdokumentation** — nicht die Buchhaltungssoftware selbst (DATEV, sevdesk, lexoffice & Co. sind Gegenstand der Doku, nicht der Ersatz dafür).
+Gemeint ist hier Software bzw. Online-Hilfen **zur Erstellung der Verfahrensdokumentation** — nicht die Buchhaltungssoftware selbst (DATEV, sevdesk, lexoffice & Co. sind Gegenstand der Doku, nicht der Ersatz dafür). Welche Abläufe das Unternehmen beschreibt, wenn die Buchhaltung über DATEV läuft: [Verfahrensdokumentation DATEV](/blog/verfahrensdokumentation-datev).
 
 Typische Wege:
 
