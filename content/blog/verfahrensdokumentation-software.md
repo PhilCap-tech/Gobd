@@ -27,7 +27,7 @@ Kontext Aufbau: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdo
 
 ## Was „Software“ in diesem Kontext meint
 
-Gemeint ist hier Software bzw. Online-Hilfen **zur Erstellung der Verfahrensdokumentation** — nicht die Buchhaltungssoftware selbst (DATEV, sevdesk, lexoffice & Co. sind Gegenstand der Doku, nicht der Ersatz dafür). Welche Abläufe das Unternehmen beschreibt, wenn die Buchhaltung über DATEV läuft: [Verfahrensdokumentation DATEV](/blog/verfahrensdokumentation-datev).
+Gemeint ist hier Software bzw. Online-Hilfen **zur Erstellung der Verfahrensdokumentation** — nicht die Buchhaltungssoftware selbst (DATEV, sevdesk, lexoffice & Co. sind Gegenstand der Doku, nicht der Ersatz dafür). Welche Abläufe das Unternehmen beschreibt, wenn die Buchhaltung über DATEV läuft: [Verfahrensdokumentation DATEV](/blog/verfahrensdokumentation-datev). Welche Abläufe Sie beschreiben, wenn Buchhaltung oder Rechnungen in Lexware (einschließlich Lexware Office, früher lexoffice) oder sevdesk laufen: [Verfahrensdokumentation Lexware und sevdesk](/blog/verfahrensdokumentation-lexware-sevdesk).
 
 Typische Wege:
 
@@ -147,6 +147,7 @@ Nein. Wir und seriöse Anbieter versprechen das nicht. Verantwortung bleibt bei 
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste)
 - [Digitale Verfahrensdokumentation](/blog/digitale-verfahrensdokumentation)
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung)
+- [Verfahrensdokumentation Lexware und sevdesk](/blog/verfahrensdokumentation-lexware-sevdesk)
 
 ## Disclaimer
 

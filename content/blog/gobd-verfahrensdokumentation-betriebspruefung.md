@@ -136,6 +136,7 @@ Nein. Wir leisten keine Steuer- oder Rechtsberatung und versprechen keine Anerke
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — Abgleich vor „fertig“
 - [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage) — Muster vs. geführt
 - [Ersetzendes Scannen in der Verfahrensdokumentation](/blog/ersetzendes-scannen-verfahrensdokumentation)
+- [Betriebsprüfung Ablauf und Unterlagen](/blog/betriebspruefung-ablauf-unterlagen) — Reihenfolge der Prüfung und angeforderte Unterlagen
 
 ## Disclaimer
 
