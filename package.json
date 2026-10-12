@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "npm run check:ads-consent && node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:session-privacy && npm run check:draft-return && npm run check:onboarding-mail && npm run check:account-tiles && npm run check:account-prefill && npm run check:account-render && npm run check:buyer-onboarding && npm run check:checkout-owner && npm run check:document-lookup && npm run check:kuendigung && npm run check:checkout-tax && npm run check:intake-submit",
+    "prebuild": "npm run check:ads-consent && node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && node --disable-warning=ExperimentalWarning scripts/check-stripe-live-copy.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:session-privacy && npm run check:draft-return && npm run check:onboarding-mail && npm run check:account-tiles && npm run check:account-prefill && npm run check:account-render && npm run check:buyer-onboarding && npm run check:checkout-owner && npm run check:document-lookup && npm run check:kuendigung && npm run check:checkout-tax && npm run check:intake-submit",
     "check:ads-consent": "tsx scripts/check-ads-consent.ts",
     "check:checkout-tax": "tsx scripts/check-checkout-tax.ts",
     "check:intake-submit": "tsx scripts/check-intake-submit.ts",
@@ -22,6 +22,7 @@
     "check:muster-mark": "tsx scripts/check-muster-mark.ts",
     "check:onboarding-mail": "tsx scripts/check-onboarding-mail.ts",
     "check:ansprache": "node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
+    "check:stripe-live-copy": "node --disable-warning=ExperimentalWarning scripts/check-stripe-live-copy.mjs",
     "check:export": "tsx scripts/check-export-mvp.ts",
     "check:pdf": "tsx scripts/check-pdf-consistency.ts",
     "check:keine": "tsx scripts/check-keine-angaben.ts",

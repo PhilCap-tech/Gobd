@@ -26,7 +26,7 @@ export function AccountBillingStatus({
   const lookupHint =
     "Rechnungen und Abo-Status konnten gerade nicht geladen werden. Bitte später erneut versuchen.";
   const emptyHint = !stripeReady
-    ? "Zahlung ist in diesem Testpfad nicht angebunden. Abo-Status und Rechnungen sind hier nicht verfügbar."
+    ? "Die Zahlung ist derzeit nicht angebunden. Abo-Status und Rechnungen sind hier nicht verfügbar."
     : lookupFailed
       ? lookupHint
       : !hasCustomer
@@ -107,7 +107,7 @@ export function AccountInvoiceList({
   lookupFailed?: boolean;
 }) {
   const emptyCopy = !stripeReady
-    ? "Zahlung ist in diesem Testpfad nicht angebunden. Rechnungen sind hier nicht verfügbar."
+    ? "Die Zahlung ist derzeit nicht angebunden. Rechnungen sind hier nicht verfügbar."
     : lookupFailed
       ? "Rechnungen konnten gerade nicht geladen werden. Bitte später erneut versuchen."
       : !hasCustomer

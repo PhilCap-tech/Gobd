@@ -25,7 +25,7 @@ import {
   openDraftCompany,
   openDraftIsBereich,
 } from "@/lib/open-drafts";
-import { isStripeConfigured } from "@/lib/env";
+import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { answersForNewBereich } from "@/lib/intake-catalog";
 import { BELEGFLUSS, bereichIdOf, isBereichId } from "@/lib/bereiche";
@@ -441,6 +441,7 @@ async function IntakePage({
               areaBaseDocumentId={basisRow.documentId}
               existingBereiche={existingBereiche}
               firm={firmFromEntity(basisEntity, basisRow.company)}
+              stripeTestMode={isStripeTestMode()}
             />
           )}
         </main>
@@ -491,6 +492,7 @@ async function IntakePage({
               initialStepId={initialStepId}
               focusModulId={focusModulId}
               firm={firmFromEntity(sourceEntity, latest.company)}
+              stripeTestMode={isStripeTestMode()}
             />
           )}
         </main>
@@ -544,6 +546,7 @@ async function IntakePage({
             gesamtMode={!openDraftIsBereich(resumeDraft)}
             initialStepId={initialStepId}
             focusModulId={focusModulId}
+            stripeTestMode={isStripeTestMode()}
           />
         </main>
         <SiteFooter />
@@ -649,6 +652,7 @@ async function IntakePage({
             gesamtMode={gesamtMode}
             initialStepId={initialStepId}
             focusModulId={focusModulId}
+            stripeTestMode={isStripeTestMode()}
           />
         )}
       </main>

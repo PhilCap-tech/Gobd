@@ -135,12 +135,14 @@ export function CheckoutForm({
     <div className="grid-2">
       <form className="card" onSubmit={onSubmit}>
         <h2>Rechnungsdaten</h2>
-        {!stripeReady && (
-          <p className="banner">
-            Zahlung ist hier nicht angebunden. Es geht ohne Zahlung weiter zum
-            Intake.
-          </p>
-        )}
+        {stripeTestMode ? (
+          !stripeReady ? (
+            <p className="banner">
+              Zahlung ist hier nicht angebunden. Es geht ohne Zahlung weiter zum
+              Intake.
+            </p>
+          ) : null
+        ) : null}
         {entities.length > 1 && (
           <FirmaSelect
             entities={entities}
@@ -223,11 +225,13 @@ export function CheckoutForm({
                 : "Weiter zum Intake"}
         </button>
         <p className="hint">
-          {stripeReady
-            ? stripeTestMode
+          {stripeTestMode ? (
+            stripeReady
               ? "Weiter zu Stripe Checkout (Testmodus)."
-              : "Weiter zu Stripe Checkout."
-            : "Keine Zahlung angebunden — nach dem Absenden direkt zum Intake."}
+              : "Keine Zahlung angebunden — nach dem Absenden direkt zum Intake."
+          ) : (
+            "Weiter zu Stripe Checkout."
+          )}
         </p>
       </form>
 
