@@ -1,5 +1,5 @@
 // Fails the build when covered customer copy still addresses the customer with du.
-// COVERED is the entry path plus transactional mails, account, and intake.
+// COVERED is the entry path plus transactional mails, account, intake, and legal pages.
 // Blog and lead magnets stay in check-forbidden-words.mjs. Leave the matchers
 // as they are.
 //
@@ -24,6 +24,15 @@ const COVERED = [
   "components/site-footer.tsx",
   "content/readiness/**/*.md",
   "lib/readiness.ts",
+  "content/legal/**/*.md",
+  "app/datenschutz/**/*.{ts,tsx}",
+  "app/agb/**/*.{ts,tsx}",
+  "app/cookies/**/*.{ts,tsx}",
+  "app/impressum/**/*.{ts,tsx}",
+  "lib/legal.ts",
+  "lib/legal-content.ts",
+  "lib/legal-markdown.tsx",
+  "components/legal-page.tsx",
   "lib/ops.ts",
   "app/account/**/*.{ts,tsx}",
   "app/login/**/*.{ts,tsx}",

@@ -6,15 +6,15 @@
 
 ## Keine Steuer- oder Rechtsberatung
 
-Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt dich bei der Erstellung eines **Entwurfs einer Verfahrensdokumentation für die von dir gewählten Module/Bereiche** (z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn) je Firma; 24 Module, alle inklusive. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar.
+Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt Sie bei der Erstellung eines **Entwurfs einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche** (z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn) je Firma; 24 Module, alle inklusive. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar.
 
 Es kommt **kein Steuerberatungsvertrag** und **kein Anwaltsvertrag** zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
-Ob und in welchem Umfang eine Verfahrensdokumentation für dein Unternehmen erforderlich oder ausreichend ist, hängt von deiner konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
+Ob und in welchem Umfang eine Verfahrensdokumentation für Ihr Unternehmen erforderlich oder ausreichend ist, hängt von Ihrer konkreten Situation ab. Eine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 
-Du bleibst für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich.
+Sie bleiben für die inhaltliche Richtigkeit, Vollständigkeit und Aktualität der erzeugten Dokumentation sowie für deren Verwendung gegenüber Finanzverwaltung oder Dritten selbst verantwortlich.
 
-**Kurz:** Wir erstellen einen Entwurf und eine Liste offener Punkte. Das ist keine Steuer- oder Rechtsberatung. Bitte stimme die Dokumentation mit deinem Steuerberater ab.
+**Kurz:** Wir erstellen einen Entwurf und eine Liste offener Punkte. Das ist keine Steuer- oder Rechtsberatung. Bitte stimmen Sie die Dokumentation mit Ihrem Steuerberater ab.
 
 Ergänzend gelten unsere **AGB** und die **Datenschutzerklärung**.
 
