@@ -6,6 +6,7 @@ import { renderDeliveryDocument, type RenderedChapter } from "@/lib/delivery-tem
 import gastroFixture from "@/scripts/fixtures/gastro-bella-vista.json";
 import { KEINE_AUSNAHMEN_SATZ, KEINE_KONTROLLE_SATZ, KEINE_REGELMAESSIGE_KONTROLLE } from "@/lib/keine-angaben";
 import { kanzleiKasseAnswers, oezguerAnswers, pixelwerkAnswers, shkAnswers } from "@/scripts/fixtures/pdf-consistency";
+import { collapseRepeatedTokens, processFieldSentence } from "@/lib/module/aussagen";
 import { ensureGesamt, setCheckAntwort } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
@@ -367,15 +368,17 @@ const lexoffice = render(
     ensureGesamt({
       ...emptyAnswers(),
       katalog: {
-        VK02: { status: "bestaetigt", values: { system: "lexoffice", ablage: "lexoffice" } },
+        VK02: { status: "bestaetigt", values: { system: "Lexoffice", ablage: "lexoffice" } },
         LE01: {
           status: "bestaetigt",
-          values: { ablauf: "lexoffice. lexoffice liest die Rechnung", wer: "Inhaber" },
+          values: { ablauf: "lexoffice. lexoffice liest die Rechnung", wer: "Inhaber | Vertretung" },
         },
         ER02: { status: "bestaetigt", values: { viewer: "lexoffice", validierung: "nein" } },
+        VK07: { status: "bestaetigt", values: { format: ["PDF per E-Mail"], eRechnung: "nein" } },
+        E03: { status: "bestaetigt", values: { pruefer: "keine. Keine Ausnahmen" } },
         E05: {
           status: "bestaetigt",
-          values: { systeme: "lexoffice", wer: "Inhaber", nummernvergabe: "fortlaufend je Jahr" },
+          values: { systeme: "lexoffice", wer: "Inhaber", nummernvergabe: "RE-2026-014" },
         },
       },
     }),
@@ -388,24 +391,69 @@ const prozess = processDescriptions(lexoffice.body);
 expect(!prozess.includes("lexoffice. lexoffice"), "Prozesstabelle wiederholt lexoffice");
 expect(!prozess.includes("lexoffice lexoffice"), "Prozesstabelle wiederholt lexoffice ohne Punkt");
 expect(!prozess.includes("lexoffice. nein"), "Prozesstabelle hängt nein an den Softwarenamen");
-expect(prozess.includes("System: lexoffice"), "Prozesstabelle nennt lexoffice ohne Feldbezeichnung");
-expect(prozess.includes("Ablage: lexoffice"), "Prozesstabelle verliert die bestätigte Ablage");
+expect(prozess.includes("System: Lexoffice"), "Prozesstabelle nennt Lexoffice ohne Feldbezeichnung");
+expect(prozess.includes("Ablage: lexoffice"), "Prozesstabelle verwirft die Ablage, weil sie sich nur in der Schreibweise unterscheidet");
 expect(
   prozess.includes("Ablauf und Form der Bestätigung: lexoffice liest die Rechnung"),
   "Prozesstabelle behält den Rohwert lexoffice. lexoffice",
 );
-expect(prozess.includes("Wer bestätigt Änderungen: Inhaber"), "Prozesstabelle verliert die bestätigte Person");
+expect(prozess.includes("Wer bestätigt Änderungen: Inhaber / Vertretung"), "Prozesstabelle lässt den senkrechten Strich in der Zelle stehen");
 expect(prozess.includes("Viewer oder Software: lexoffice"), "Prozesstabelle dumpt den Viewer als Rohwert");
 expect(
   prozess.includes("Technische Validierung findet statt: nein"),
   "Prozesstabelle dumpt die Validierung als Rohwert",
 );
+expect(prozess.includes("Format: PDF per E-Mail"), "Prozesstabelle zeigt den Versandweg ohne Feldbezeichnung");
+expect(
+  prozess.includes("E-Rechnungen können versendet werden: nein"),
+  "Prozesstabelle hängt nein ohne Feldbezeichnung an das Format",
+);
 expect(
   prozess.includes("Systeme für Ausgangsrechnungen: lexoffice"),
   "Prozesstabelle dumpt das Ausgangssystem als Rohwert",
 );
-expect(prozess.includes("Wer erstellt die Rechnungen?: Inhaber"), "Prozesstabelle verliert die Rechnungsperson");
-expect(prozess.includes("fortlaufend je Jahr"), "Prozesstabelle verliert den Nummernkreis");
+expect(prozess.includes("Wer erstellt die Rechnungen: Inhaber"), "Prozesstabelle lässt das Fragezeichen vor dem Doppelpunkt stehen");
+expect(!prozess.includes("Wer erstellt die Rechnungen?:"), "Prozesstabelle setzt ein Fragezeichen vor den Doppelpunkt");
+expect(prozess.includes("RE-2026-014"), "Prozesstabelle verliert den Nummernkreis");
+const scanZweck = processFieldSentence("D01", { scanZweck: "ersetzend" });
+expect(scanZweck.includes("Ersetzendes Scannen"), "Prozesstabelle lässt den Optionsschlüssel ersetzend stehen");
+expect(!scanZweck.includes("ersetzend"), "Prozesstabelle druckt den Optionsschlüssel ersetzend");
+expect(
+  collapseRepeatedTokens("keine. Keine Ausnahmen") === "keine. Keine Ausnahmen",
+  "Wiederholungen über den Satzpunkt ziehen keine. Keine Ausnahmen zusammen",
+);
+expect(lexoffice.claims.includes("keine. Keine Ausnahmen"), "Katalogzeile verliert keine. Keine Ausnahmen");
+
+const turnus = render(
+  setCheckAntwort(
+    ensureGesamt({
+      ...emptyAnswers(),
+      katalog: {
+        C02: { status: "bestaetigt", values: { turnus: "wöchentlich" } },
+        ER92: {
+          status: "bestaetigt",
+          values: { kontrollen: ["Tägliche Sichtung des Rechnungspostfachs"] },
+        },
+        BA92: {
+          status: "bestaetigt",
+          values: { kontrollen: ["Monatliche Abstimmung Saldo Bank und FiBu"] },
+        },
+      },
+    }),
+    "erechnung",
+    "ja",
+  ),
+  { company: "QA Turnus GmbH" },
+);
+expect(
+  turnus.claims.includes("wöchentlich Sichtung des Rechnungspostfachs"),
+  "Sichtung behält den Katalogturnus täglich",
+);
+expect(
+  turnus.claims.includes("Monatliche Abstimmung Saldo Bank und FiBu"),
+  "Turnus der Sichtung hängt an der Bankabstimmung",
+);
+expect(!turnus.claims.includes("wöchentlich Abstimmung Saldo Bank"), "Turnus ersetzt die Bankabstimmung");
 
 if (failures.length) {
   console.error(failures.join("\n"));

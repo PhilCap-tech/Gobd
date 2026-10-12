@@ -8,6 +8,7 @@ import {
   type BereichField,
   type BereichQuestion,
 } from "@/lib/bereiche";
+import { columnLabel, optionLabel } from "@/lib/intake-present";
 import { isControlQuestionId, isKeineKontrolleValues, KEINE_KONTROLLE_SATZ } from "@/lib/keine-angaben";
 import type { IntakeAnswers } from "@/lib/types";
 
@@ -27,36 +28,68 @@ function cell(value: string): string {
   return clean(value).replaceAll("|", "/");
 }
 
+const GENERIC_OPTION: Record<string, string> = { ja: "Ja", nein: "Nein", unbekannt: "Unbekannt" };
+
+function legacyChoice(text: string): string | null {
+  if (text === "ja") return "ja";
+  if (text === "nein") return "nein";
+  if (text === "unbekannt") return "noch zu klären";
+  return null;
+}
+
+/** Option key from the field's list, shown as the label the form already uses. */
+function optionText(field: BereichField, raw: string): string {
+  const text = clean(raw);
+  if (!text) return "";
+  if (field.options?.includes(text)) {
+    const mapped = optionLabel(field.key, text);
+    if (mapped !== text && mapped !== GENERIC_OPTION[text]) return mapped;
+    return legacyChoice(text) ?? text;
+  }
+  if (field.type === "enum" || field.type === "multi") return legacyChoice(text) ?? text;
+  return text;
+}
+
 function shown(field: BereichField, value: unknown): string {
   if (Array.isArray(value)) {
-    return clean(value.map((item) => String(item)).filter(Boolean).join(", "));
+    return clean(
+      value
+        .map((item) => (typeof item === "string" ? optionText(field, item) : clean(String(item))))
+        .filter(Boolean)
+        .join(", "),
+    );
   }
   if (typeof value !== "string") return "";
-  const text = clean(value);
-  if (field.type === "enum") {
-    if (text === "ja") return "ja";
-    if (text === "nein") return "nein";
-    if (text === "unbekannt") return "noch zu klären";
-  }
-  return text;
+  return optionText(field, value);
 }
 
 export type PhraseField = {
   key: string;
   type: string;
   label: string;
+  options?: string[];
 };
 
 function asField(field: PhraseField): BereichField {
+  const type =
+    field.type === "enum" || field.type === "multi" || field.type === "textarea" || field.type === "date"
+      ? field.type
+      : "text";
   return {
     key: field.key,
-    type: field.type === "enum" ? "enum" : "text",
+    type,
     label: field.label,
+    options: field.options,
   };
 }
 
+/** Same spelling, including case. „DATEV“ and „datev“ are both confirmed content. */
 function sameText(left: string, right: string): boolean {
-  return left.trim().toLowerCase() === right.trim().toLowerCase();
+  return left.trim() === right.trim();
+}
+
+function sentenceLabel(label: string): string {
+  return label.trim().replace(/\?+$/u, "").trim();
 }
 
 /** Drop a repeated software name inside one card (`lexoffice, lexoffice`). */
@@ -70,15 +103,25 @@ function uniqueBits(bits: string[]): string[] {
 }
 
 function formatIntakeValue(field: PhraseField, value: unknown): string {
-  if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) {
-    return clean(uniqueBits(value.map((item) => formatIntakeValue(field, item)).filter(Boolean)).join(", "));
+  if (Array.isArray(value)) {
+    if (value.some((item) => item && typeof item === "object")) {
+      return clean(uniqueBits(value.map((item) => formatIntakeValue(field, item)).filter(Boolean)).join(", "));
+    }
+    return shown(asField(field), value);
   }
   if (value && typeof value === "object") {
     const bits: string[] = [];
-    for (const part of Object.values(value as Record<string, unknown>)) {
+    for (const [key, part] of Object.entries(value as Record<string, unknown>)) {
       if (part && typeof part === "object") continue;
-      const text = formatIntakeValue({ ...field, type: "text" }, part);
-      if (text) bits.push(text);
+      const text = formatIntakeValue({ key, type: "text", label: "" }, part);
+      if (!text) continue;
+      const keyLabel = sentenceLabel(columnLabel(field.key, key));
+      const prefix = `${keyLabel}:`;
+      bits.push(
+        !keyLabel || keyLabel === "Angabe" || sameText(text, keyLabel) || text.startsWith(prefix)
+          ? text
+          : `${keyLabel}: ${text}`,
+      );
     }
     return uniqueBits(bits).join(", ");
   }
@@ -95,12 +138,9 @@ export function confirmedFieldSentence(fields: PhraseField[], values: Record<str
   for (const field of fields) {
     const value = inline(formatIntakeValue(field, values?.[field.key]));
     if (!value) continue;
-    const label = field.label.trim();
+    const label = sentenceLabel(field.label);
     const prefix = `${label}:`;
-    const phrase =
-      !label || sameText(value, label) || value.toLowerCase().startsWith(prefix.toLowerCase())
-        ? value
-        : `${label}: ${value}`;
+    const phrase = !label || sameText(value, label) || value.startsWith(prefix) ? value : `${label}: ${value}`;
     if (parts.some((kept) => sameText(kept, phrase))) continue;
     parts.push(phrase);
   }
