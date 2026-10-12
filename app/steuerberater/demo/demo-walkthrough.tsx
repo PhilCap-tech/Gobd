@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
+import { MusterUpsell } from "@/components/muster-upsell";
 import { DEMO_BEISPIEL_SEED_NOTE, demoBeispielAnswers, demoBlankAnswers } from "@/lib/demo-beispiel";
 import { intakeSummary } from "@/lib/frage-intake";
 import {
@@ -182,6 +183,7 @@ export function DemoWalkthrough() {
               </Link>
             </div>
           </div>
+          <MusterUpsell />
         </section>
       )}
 
