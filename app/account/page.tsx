@@ -14,6 +14,7 @@ import { PAID_INTAKE_LABEL, paidIntakePathForOwner } from "@/lib/account-paid-in
 import { accountCompanyCards, draftsNotOnCompanyCard } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
+import { runWithSheetsMeasure } from "@/lib/sheets-meter";
 import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { firmaEditPath } from "@/lib/documents";
 import { entityCapReached, MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
@@ -49,54 +50,82 @@ export default async function AccountPage({
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
-  let entities: Awaited<ReturnType<typeof prepareAccountCheckout>>["entities"] = [];
-  let docs: Awaited<ReturnType<typeof prepareAccountCheckout>>["documents"] = [];
-  let profile: Awaited<ReturnType<typeof prepareAccountCheckout>>["profile"] = null;
-  let groups: ReturnType<typeof accountCompanyCards>["groups"] = [];
-  let openDrafts: ReturnType<typeof accountCompanyCards>["openDrafts"] = [];
-  let looseDrafts: ReturnType<typeof accountCompanyCards>["openDrafts"] = [];
-  let sheetsDown = false;
-  let customerId = "";
-  let loadFailed = false;
-  try {
-    const prepared = await prepareAccountCheckout(email);
-    entities = prepared.entities;
-    docs = prepared.documents;
-    profile = prepared.profile;
-    const hub = accountCompanyCards(entities, docs, await listOpenDraftsForEmail(email));
-    groups = hub.groups;
-    openDrafts = hub.openDrafts;
-    looseDrafts = draftsNotOnCompanyCard(hub);
-    customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
-  } catch (error) {
-    loadFailed = true;
-    console.error(
-      "[account] Konto nicht geladen",
-      error instanceof Error ? error.name : "error",
-    );
-    sheetsDown = isSheetsOutage(error);
-  }
-  let lifecycleRows: Awaited<ReturnType<typeof listLifecycleByEmail>> = [];
-  try {
-    lifecycleRows = await listLifecycleByEmail(email);
-  } catch (error) {
-    console.error(
-      "[account] Abo-Status konnte nicht gelesen werden",
-      error instanceof Error ? error.name : "error",
-    );
-  }
+  const loaded = await runWithSheetsMeasure("GET /account", async () => {
+    let entities: Awaited<ReturnType<typeof prepareAccountCheckout>>["entities"] = [];
+    let docs: Awaited<ReturnType<typeof prepareAccountCheckout>>["documents"] = [];
+    let profile: Awaited<ReturnType<typeof prepareAccountCheckout>>["profile"] = null;
+    let groups: ReturnType<typeof accountCompanyCards>["groups"] = [];
+    let openDrafts: ReturnType<typeof accountCompanyCards>["openDrafts"] = [];
+    let looseDrafts: ReturnType<typeof accountCompanyCards>["openDrafts"] = [];
+    let sheetsDown = false;
+    let customerId = "";
+    let loadFailed = false;
+    let lifecycleRows: Awaited<ReturnType<typeof listLifecycleByEmail>> = [];
+    let openPaidSession = "";
+    try {
+      const prepared = await prepareAccountCheckout(email);
+      entities = prepared.entities;
+      docs = prepared.documents;
+      profile = prepared.profile;
+      const hub = accountCompanyCards(entities, docs, await listOpenDraftsForEmail(email));
+      groups = hub.groups;
+      openDrafts = hub.openDrafts;
+      looseDrafts = draftsNotOnCompanyCard(hub);
+      customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
+    } catch (error) {
+      loadFailed = true;
+      console.error(
+        "[account] Konto nicht geladen",
+        error instanceof Error ? error.name : "error",
+      );
+      sheetsDown = isSheetsOutage(error);
+    }
+    try {
+      lifecycleRows = await listLifecycleByEmail(email);
+    } catch (error) {
+      console.error(
+        "[account] Abo-Status konnte nicht gelesen werden",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+    try {
+      openPaidSession = await findUndocumentedPaidSessionId(email);
+    } catch (error) {
+      console.error(
+        "[account] offene Zahlung nicht gelesen",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+    return {
+      entities,
+      docs,
+      profile,
+      groups,
+      openDrafts,
+      looseDrafts,
+      sheetsDown,
+      customerId,
+      loadFailed,
+      lifecycleRows,
+      openPaidSession,
+    };
+  });
+  const {
+    entities,
+    docs,
+    profile,
+    groups,
+    openDrafts,
+    looseDrafts,
+    sheetsDown,
+    customerId,
+    loadFailed,
+    lifecycleRows,
+    openPaidSession,
+  } = loaded;
   const notice = lifecycleNotice(lifecycleRows);
   const writesOpen = notice.writesOpen;
   const downloadsOpen = notice.downloadsOpen;
-  let openPaidSession = "";
-  try {
-    openPaidSession = await findUndocumentedPaidSessionId(email);
-  } catch (error) {
-    console.error(
-      "[account] offene Zahlung nicht gelesen",
-      error instanceof Error ? error.name : "error",
-    );
-  }
   const draftCoversPurchase = openDrafts.some(
     (draft) => draft.stripeSessionId.trim() && draft.stripeSessionId.trim() === openPaidSession,
   );

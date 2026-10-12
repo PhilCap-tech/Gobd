@@ -48,6 +48,7 @@ const COVERED = [
   "components/account-billing.tsx",
   "lib/account-labels.ts",
   "components/account-company-card.tsx",
+  "components/pdf-download-link.tsx",
   "components/account-free.tsx",
   "components/account-profile-form.tsx",
   "components/logout-button.tsx",
@@ -68,6 +69,7 @@ const COVERED = [
   "lib/checkout-session.ts",
   "lib/sheets-outage.ts",
   "lib/sheets-unavailable.ts",
+  "lib/fetch-retry.ts",
 ];
 
 const PRONOUNS =

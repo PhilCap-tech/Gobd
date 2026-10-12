@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { google } from "googleapis";
+import { writeDocumentIndex, readDocumentIndex, peekDocumentIndex } from "@/lib/document-index";
+import { createSheetsClient } from "@/lib/sheets-client";
+import { readCachedGrid, sheetsBatchGet, sheetsValuesGet } from "@/lib/sheets-grid";
 import { undocumentedPaidSessionId } from "@/lib/account-paid-intake";
 import {
   parseDocumentVersion,
@@ -52,6 +54,7 @@ import {
   createTtlSingleflight,
   INTAKE_READ_TTL_MS,
   isSheetsOutage,
+  SHEETS_HEADER_TTL_MS,
   currentSheetsRoute,
   logSheetsFailure,
   retrySheetsCall,
@@ -132,6 +135,15 @@ function isVercelRuntime(): boolean {
   return process.env.VERCEL === "1" || process.env.VERCEL === "true";
 }
 
+/** On Vercel a Sheets miss is a 503. The tmp file is not a second database. */
+function rethrowSheetsOnVercel(error: unknown, op: string): void {
+  if (!isVercelRuntime()) return;
+  if (isSheetsOutage(error)) throw error;
+  const status = sheetsStatusCode(error);
+  logSheetsFailure(op, status);
+  throw new SheetsUnavailableError(status);
+}
+
 /**
  * Local dev may keep the file fallback. On Vercel a file under /tmp is not a
  * successful save. The preview smoke is the only exception, and only for
@@ -179,22 +191,6 @@ function tmpReadinessFallbackPath(): string {
   return path.join(tmpdir(), "gobd-data", READINESS_FILE_NAME);
 }
 
-function sheetsAuth() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(
-    /\\n/g,
-    "\n",
-  );
-  if (!email || !key) {
-    throw new Error("Google-Service-Account unvollständig");
-  }
-  return new google.auth.JWT({
-    email,
-    key,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-}
-
 function spreadsheetId(): string {
   const id = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
   if (!id) {
@@ -204,7 +200,7 @@ function spreadsheetId(): string {
 }
 
 async function ensureSpreadsheetTab(tab: string): Promise<void> {
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   const id = spreadsheetId();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
   const exists = meta.data.sheets?.some((sheet) => sheet.properties?.title === tab);
@@ -217,23 +213,67 @@ async function ensureSpreadsheetTab(tab: string): Promise<void> {
   });
 }
 
-const columnCountCache = createTtlSingleflight<number>(INTAKE_READ_TTL_MS);
-const headerCache = createTtlSingleflight<string[]>(INTAKE_READ_TTL_MS);
+const columnCountCache = createTtlSingleflight<number>(SHEETS_HEADER_TTL_MS);
+const headerCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
+const intakeValuesCache = createTtlSingleflight<string[][]>(INTAKE_READ_TTL_MS);
+const entityHeaderCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
+const entityValuesCache = createTtlSingleflight<string[][]>(INTAKE_READ_TTL_MS);
+const readinessHeaderCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
+const readinessValuesCache = createTtlSingleflight<string[][]>(INTAKE_READ_TTL_MS);
+const profileHeaderCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
+const profileValuesCache = createTtlSingleflight<string[][]>(INTAKE_READ_TTL_MS);
 const rowsCache = createTtlSingleflight<{ backend: "sheets" | "file"; rows: SheetRow[] }>(
   INTAKE_READ_TTL_MS,
 );
 
-/** Drop the short intake cache after a write so the next read sees the new row. */
+/**
+ * Tests reset every intake cache. A production write does not: the header
+ * stays, and the new row is written through the row cache.
+ */
 export function clearIntakeSheetCache(): void {
   columnCountCache.clear();
   headerCache.clear();
+  intakeValuesCache.clear();
   rowsCache.clear();
+}
+
+export function clearAllSheetReadCaches(): void {
+  clearIntakeSheetCache();
+  entityHeaderCache.clear();
+  entityValuesCache.clear();
+  readinessHeaderCache.clear();
+  readinessValuesCache.clear();
+  profileHeaderCache.clear();
+  profileValuesCache.clear();
+}
+
+/** Forget only the row snapshot so the next read still uses the cached header. */
+export function expireIntakeRowsCache(): void {
+  intakeValuesCache.clear();
+  rowsCache.clear();
+}
+
+async function writeThroughIntakeRow(row: SheetRow): Promise<void> {
+  await writeDocumentIndex(row);
+  const cached = rowsCache.peek();
+  if (!cached) return;
+  const id = row.documentId.trim();
+  const rows = [...cached.rows];
+  if (!id) {
+    rows.push(row);
+  } else {
+    const index = rows.findIndex((item) => item.documentId.trim() === id);
+    if (index >= 0) rows[index] = row;
+    else rows.push(row);
+  }
+  rowsCache.remember({ backend: cached.backend, rows });
+  intakeValuesCache.clear();
 }
 
 async function readIntakeColumnCount(tab: string): Promise<number> {
   try {
     return await retrySheetsCall("intakes.columnCount", async () => {
-      const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+      const sheets = createSheetsClient();
       const meta = await sheets.spreadsheets.get({
         spreadsheetId: spreadsheetId(),
         fields: "sheets(properties(title,gridProperties(columnCount)))",
@@ -262,22 +302,9 @@ async function intakeColumnCount(tab: string): Promise<number> {
   return columnCountCache.read(() => readIntakeColumnCount(tab));
 }
 
-async function loadSheetHeader(): Promise<string[]> {
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+async function materializeIntakeHeader(tab: string, header: string[]): Promise<string[]> {
+  const sheets = createSheetsClient();
   const id = spreadsheetId();
-  const tab = getSheetsTab();
-  const headerRange = intakeHeaderRange(await intakeColumnCount(tab));
-  const existing = await retrySheetsCall("intakes.header", () =>
-    sheets.spreadsheets.values.get(
-      {
-        spreadsheetId: id,
-        range: `${tab}!${headerRange}`,
-      },
-      SHEETS_GET_OPTS,
-    ),
-  );
-  const header = (existing.data.values?.[0] ?? []).map((cell) => String(cell));
-
   if (header.length === 0) {
     await retrySheetsCall("intakes.header", () =>
       sheets.spreadsheets.values.append({
@@ -287,6 +314,7 @@ async function loadSheetHeader(): Promise<string[]> {
         requestBody: { values: [SHEET_COLUMNS as unknown as string[]] },
       }),
     );
+    columnCountCache.remember(SHEET_COLUMNS.length);
     return [...SHEET_COLUMNS];
   }
 
@@ -295,9 +323,7 @@ async function loadSheetHeader(): Promise<string[]> {
     if (!field) return true;
     return !header.some((cell) => sheetFieldForHeader(cell) === field);
   });
-  if (missing.length === 0) {
-    return header;
-  }
+  if (missing.length === 0) return header;
 
   const next = [...header, ...missing];
   await retrySheetsCall("intakes.header", () =>
@@ -308,17 +334,28 @@ async function loadSheetHeader(): Promise<string[]> {
       requestBody: { values: [next] },
     }),
   );
-  columnCountCache.clear();
+  columnCountCache.remember(next.length);
   return next;
 }
 
 async function ensureSheetHeader(): Promise<string[]> {
-  return headerCache.read(() => loadSheetHeader());
+  const cached = headerCache.peek();
+  if (cached) return cached;
+  const tab = getSheetsTab();
+  const knownWidth = columnCountCache.peek();
+  const range = knownWidth
+    ? `${tab}!${intakeHeaderRange(knownWidth)}`
+    : `${tab}!1:1`;
+  const [headerRows] = await sheetsBatchGet([range], "intakes.header");
+  const header = await materializeIntakeHeader(tab, headerRows[0] ?? []);
+  headerCache.remember(header);
+  if (!knownWidth) columnCountCache.remember(Math.max(header.length, 1));
+  return header;
 }
 
 async function appendSheetRow(row: SheetRow): Promise<void> {
   const header = await ensureSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   await retrySheetsCall("intakes.append", () =>
     sheets.spreadsheets.values.append({
       spreadsheetId: spreadsheetId(),
@@ -331,27 +368,33 @@ async function appendSheetRow(row: SheetRow): Promise<void> {
 
 async function readSheetValues(tab: string): Promise<string[][]> {
   const count = await intakeColumnCount(tab);
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-  const result = await retrySheetsCall("intakes.values", () =>
-    sheets.spreadsheets.values.get(
-      {
-        spreadsheetId: spreadsheetId(),
-        range: `${tab}!${intakeValuesRange(count)}`,
-      },
-      SHEETS_GET_OPTS,
-    ),
-  );
-  return (result.data.values ?? []).map((row) =>
-    (row ?? []).map((cell) => String(cell ?? "")),
-  );
+  const grid = await readCachedGrid({
+    tab,
+    op: "intakes",
+    headerRange: intakeHeaderRange(count),
+    valuesRange: intakeValuesRange(count),
+    headerCache,
+    valuesCache: intakeValuesCache,
+    materializeHeader: (header) => materializeIntakeHeader(tab, header),
+  });
+  return grid.values;
 }
 
 async function readSheetRows(): Promise<SheetRow[]> {
-  const header = await ensureSheetHeader();
-  const values = await readSheetValues(getSheetsTab());
-  return values
+  const tab = getSheetsTab();
+  const count = await intakeColumnCount(tab);
+  const grid = await readCachedGrid({
+    tab,
+    op: "intakes",
+    headerRange: intakeHeaderRange(count),
+    valuesRange: intakeValuesRange(count),
+    headerCache,
+    valuesCache: intakeValuesCache,
+    materializeHeader: (header) => materializeIntakeHeader(tab, header),
+  });
+  return grid.values
     .filter((row) => row.some((cell) => cell.trim()))
-    .map((row) => recoverStoredDocumentId(sheetRowFromValues(header, row)));
+    .map((row) => recoverStoredDocumentId(sheetRowFromValues(grid.header, row)));
 }
 
 async function readRows(file: string): Promise<SheetRow[]> {
@@ -484,7 +527,7 @@ async function writePreparedRecord(
     try {
       if (overrides?.appendSheet) await overrides.appendSheet(prepared);
       else await appendSheetRow(prepared);
-      clearIntakeSheetCache();
+      await writeThroughIntakeRow(prepared);
       return { backend: "sheets", row: prepared };
     } catch (error) {
       if (isSheetsOutage(error)) throw error;
@@ -509,7 +552,7 @@ async function writePreparedRecord(
   }
 
   const filePath = await appendFileRow(prepared);
-  clearIntakeSheetCache();
+  await writeThroughIntakeRow(prepared);
   return { backend: "file", row: prepared, filePath };
 }
 
@@ -529,7 +572,8 @@ async function loadRowsUncached(
       const sheetRows = overrides?.readSheets
         ? await overrides.readSheets()
         : await readSheetRows();
-      const fileRows = overrides?.readSheets ? [] : await readAllFileRows();
+      const fileRows =
+        overrides?.readSheets || isVercelRuntime() ? [] : await readAllFileRows();
       const rows = await hydrateRows(mergeRows(sheetRows, fileRows), overrides?.blob);
       return { backend: "sheets", rows: rows.map(recoverStoredDocumentId) };
     } catch (error) {
@@ -573,11 +617,63 @@ export async function readStoredIntakeRows(
   return loaded.rows;
 }
 
+async function readDocumentRowById(documentId: string): Promise<SheetRow | null> {
+  const tab = getSheetsTab();
+  const header = await ensureSheetHeader();
+  const column = header.findIndex((cell) => sheetFieldForHeader(cell) === "documentId");
+  if (column < 0) return null;
+  const letter = columnA1(column);
+  const ids = await sheetsValuesGet(`${tab}!${letter}2:${letter}`, "intakes.documentId");
+  let hit = -1;
+  ids.forEach((row, index) => {
+    if (queryIdsEqual(String(row[0] ?? ""), documentId)) hit = index;
+  });
+  if (hit < 0) return null;
+  const sheetRow = hit + 2;
+  const last = columnA1(Math.max(header.length - 1, 0));
+  const line = await sheetsValuesGet(
+    `${tab}!A${sheetRow}:${last}${sheetRow}`,
+    "intakes.row",
+  );
+  return recoverStoredDocumentId(sheetRowFromValues(header, line[0] ?? []));
+}
+
 export async function findDocumentById(documentId: string): Promise<SheetRow | null> {
   const id = normalizeQueryId(documentId);
   if (!id) return null;
-  const { rows } = await loadRows();
-  return pickStoredDocument(rows, id);
+  const remembered = peekDocumentIndex(id) ?? (await readDocumentIndex(id));
+  if (remembered) return remembered;
+  const warm = rowsCache.peek();
+  if (warm) {
+    const row = pickStoredDocument(warm.rows, id);
+    if (row) {
+      await writeDocumentIndex(row);
+      return row;
+    }
+    return null;
+  }
+  if (!isSheetsConfigured()) {
+    const { rows } = await loadRows();
+    return pickStoredDocument(rows, id);
+  }
+  try {
+    const row = await readDocumentRowById(id);
+    if (row?.documentId.trim()) await writeDocumentIndex(row);
+    return row;
+  } catch (error) {
+    if (isSheetsOutage(error)) throw error;
+    const status = sheetsStatusCode(error);
+    if (isVercelRuntime()) {
+      logSheetsFailure("intakes.documentId", status);
+      throw new SheetsUnavailableError(status);
+    }
+    console.error(
+      "[store] Dokumentzeile nicht gelesen",
+      JSON.stringify({ route: currentSheetsRoute(), op: "intakes.documentId", status }),
+    );
+    const { rows } = await loadRows();
+    return pickStoredDocument(rows, id);
+  }
 }
 
 /** Submitted documents for this mailbox. A shared entity id is not access. */
@@ -858,7 +954,7 @@ export type ReadinessStoreResult = {
 async function ensureReadinessSheetHeader(): Promise<string[]> {
   const tab = getReadinessSheetsTab();
   await ensureSpreadsheetTab(tab);
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   const id = spreadsheetId();
   const existing = await sheets.spreadsheets.values.get(
     {
@@ -896,34 +992,30 @@ async function ensureReadinessSheetHeader(): Promise<string[]> {
 
 async function appendReadinessSheetRow(lead: ReadinessLead): Promise<void> {
   const header = await ensureReadinessSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   await sheets.spreadsheets.values.append({
     spreadsheetId: spreadsheetId(),
     range: `${getReadinessSheetsTab()}!A1`,
     valueInputOption: "RAW",
     requestBody: { values: [readinessSheetValues(lead, header)] },
   });
+  readinessValuesCache.clear();
 }
 
 async function readReadinessSheetRows(): Promise<ReadinessLead[]> {
-  const header = await ensureReadinessSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-  const result = await sheets.spreadsheets.values.get(
-    {
-      spreadsheetId: spreadsheetId(),
-      range: `${getReadinessSheetsTab()}!A2:AZ`,
-    },
-    SHEETS_GET_OPTS,
-  );
-  const values = result.data.values ?? [];
-  return values
-    .filter((row) => row.some((cell) => String(cell || "").trim()))
-    .map((row) =>
-      parseReadinessLead(
-        header,
-        row.map((cell) => String(cell ?? "")),
-      ),
-    );
+  const tab = getReadinessSheetsTab();
+  const grid = await readCachedGrid({
+    tab,
+    op: "readiness",
+    headerRange: "A1:AZ1",
+    valuesRange: "A2:AZ",
+    headerCache: readinessHeaderCache,
+    valuesCache: readinessValuesCache,
+    materializeHeader: async (header) => header,
+  });
+  return grid.values
+    .filter((row) => row.some((cell) => cell.trim()))
+    .map((row) => parseReadinessLead(grid.header, row));
 }
 
 async function readReadinessFileRows(file: string): Promise<ReadinessLead[]> {
@@ -1014,11 +1106,14 @@ export async function appendReadinessLead(
       await appendReadinessSheetRow(complete);
       return { backend: "sheets", lead: complete };
     } catch (error) {
+      rethrowSheetsOnVercel(error, "readiness.append");
       console.error(
         "[store] Readiness Google Sheets append fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
+  } else if (isVercelRuntime()) {
+    throw new SheetsUnavailableError(0);
   } else {
     console.warn(
       "[store] Google Sheets nicht konfiguriert — schreibe Readiness nach",
@@ -1037,14 +1132,18 @@ async function loadReadinessLeads(): Promise<{
   if (isSheetsConfigured()) {
     try {
       const sheetRows = await readReadinessSheetRows();
+      if (isVercelRuntime()) return { backend: "sheets", rows: sheetRows };
       const fileRows = await readAllReadinessFileRows();
       return { backend: "sheets", rows: mergeReadinessLeads(sheetRows, fileRows) };
     } catch (error) {
+      rethrowSheetsOnVercel(error, "readiness.read");
       console.error(
         "[store] Readiness Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
+  } else if (isVercelRuntime()) {
+    throw new SheetsUnavailableError(0);
   }
   return { backend: "file", rows: await readAllReadinessFileRows() };
 }
@@ -1080,7 +1179,7 @@ export function getEntitiesFileFallbackPath(): string {
 async function ensureEntitiesSheetHeader(): Promise<string[]> {
   const tab = getEntitiesSheetsTab();
   await ensureSpreadsheetTab(tab);
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   const id = spreadsheetId();
   const existing = await sheets.spreadsheets.values.get(
     {
@@ -1122,29 +1221,30 @@ async function ensureEntitiesSheetHeader(): Promise<string[]> {
 
 async function appendEntitySheetRow(entity: Entity): Promise<void> {
   const header = await ensureEntitiesSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   await sheets.spreadsheets.values.append({
     spreadsheetId: spreadsheetId(),
     range: `${getEntitiesSheetsTab()}!A1`,
     valueInputOption: "RAW",
     requestBody: { values: [entitySheetValues(entity, header)] },
   });
+  entityValuesCache.clear();
 }
 
 async function readEntitySheetRows(): Promise<Entity[]> {
-  const header = await ensureEntitiesSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-  const result = await sheets.spreadsheets.values.get(
-    {
-      spreadsheetId: spreadsheetId(),
-      range: `${getEntitiesSheetsTab()}!A2:AZ`,
-    },
-    SHEETS_GET_OPTS,
-  );
-  const values = result.data.values ?? [];
-  return values
-    .filter((row) => row.some((cell) => String(cell || "").trim()))
-    .map((row) => parseEntity(header, row.map((cell) => String(cell ?? ""))));
+  const tab = getEntitiesSheetsTab();
+  const grid = await readCachedGrid({
+    tab,
+    op: "entities",
+    headerRange: "A1:AZ1",
+    valuesRange: "A2:AZ",
+    headerCache: entityHeaderCache,
+    valuesCache: entityValuesCache,
+    materializeHeader: async (header) => header,
+  });
+  return grid.values
+    .filter((row) => row.some((cell) => cell.trim()))
+    .map((row) => parseEntity(grid.header, row));
 }
 
 async function readEntityFileRows(file: string): Promise<Entity[]> {
@@ -1231,7 +1331,7 @@ function upsertEntityRow(rows: Entity[], entity: Entity): Entity[] {
 
 async function updateEntitySheetRow(entity: Entity): Promise<boolean> {
   const header = await ensureEntitiesSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   const id = spreadsheetId();
   const tab = getEntitiesSheetsTab();
   const result = await sheets.spreadsheets.values.get(
@@ -1259,6 +1359,7 @@ async function updateEntitySheetRow(entity: Entity): Promise<boolean> {
     spreadsheetId: id,
     requestBody: { valueInputOption: "RAW", data: updates },
   });
+  entityValuesCache.clear();
   return true;
 }
 
@@ -1269,14 +1370,18 @@ async function loadEntities(): Promise<{
   if (isSheetsConfigured()) {
     try {
       const sheetRows = await readEntitySheetRows();
+      if (isVercelRuntime()) return { backend: "sheets", rows: sheetRows };
       const fileRows = await readAllEntityFileRows();
       return { backend: "sheets", rows: mergeEntities(sheetRows, fileRows) };
     } catch (error) {
+      rethrowSheetsOnVercel(error, "entities.read");
       console.error(
         "[store] Entities Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
+  } else if (isVercelRuntime()) {
+    throw new SheetsUnavailableError(0);
   }
   return { backend: "file", rows: await readAllEntityFileRows() };
 }
@@ -1323,11 +1428,14 @@ export async function createEntity(
       await appendEntitySheetRow(entity);
       return { backend: "sheets", entity };
     } catch (error) {
+      rethrowSheetsOnVercel(error, "entities.append");
       console.error(
         "[store] Entities Google Sheets append fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
+  } else if (isVercelRuntime()) {
+    throw new SheetsUnavailableError(0);
   } else {
     console.warn(
       "[store] Google Sheets nicht konfiguriert — schreibe Entities nach",
@@ -1372,21 +1480,26 @@ export async function updateEntity(
     try {
       const updated = await updateEntitySheetRow(next);
       if (updated) {
-        try {
-          await appendEntityFileRow(next);
-        } catch (error) {
-          console.warn("[store] Entity-Datei nach Sheets-Update nicht geschrieben", error);
+        if (!isVercelRuntime()) {
+          try {
+            await appendEntityFileRow(next);
+          } catch (error) {
+            console.warn("[store] Entity-Datei nach Sheets-Update nicht geschrieben", error);
+          }
         }
         return next;
       }
       await appendEntitySheetRow(next);
       return next;
     } catch (error) {
+      rethrowSheetsOnVercel(error, "entities.update");
       console.error(
         "[store] Entity-Update in Sheets fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
+  } else if (isVercelRuntime()) {
+    throw new SheetsUnavailableError(0);
   }
 
   await appendEntityFileRow(next);
@@ -1411,11 +1524,12 @@ async function updateSheetDocumentEntityIds(
   const header = await ensureSheetHeader();
   const colIndex = header.findIndex((col) => sheetFieldForHeader(col) === "entityId");
   if (colIndex < 0) return 0;
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   const id = spreadsheetId();
   const tab = getSheetsTab();
   const values = await readSheetValues(tab);
   const updates: Array<{ range: string; values: string[][] }> = [];
+  const changed: SheetRow[] = [];
   const col = columnA1(colIndex);
   for (let i = 0; i < values.length; i++) {
     const row = recoverStoredDocumentId(sheetRowFromValues(header, values[i] ?? []));
@@ -1425,12 +1539,14 @@ async function updateSheetDocumentEntityIds(
       range: `${tab}!${col}${i + 2}`,
       values: [[entityId]],
     });
+    changed.push({ ...row, entityId });
   }
   if (updates.length === 0) return 0;
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: id,
     requestBody: { valueInputOption: "RAW", data: updates },
   });
+  for (const row of changed) await writeThroughIntakeRow(row);
   return updates.length;
 }
 
@@ -1468,7 +1584,11 @@ export async function setDocumentsEntityId(
     } catch (error) {
       console.error("[store] entity_id-Backfill in Sheets fehlgeschlagen", error);
     }
+  } else if (isVercelRuntime()) {
+    throw new SheetsUnavailableError(0);
   }
+
+  if (isVercelRuntime()) return;
 
   const primaryDir = getFileFallbackDir();
   const primaryFile = path.join(primaryDir, FILE_NAME);
@@ -1598,7 +1718,7 @@ function mergeProfiles(
 async function ensureProfilesSheetHeader(): Promise<string[]> {
   const tab = getProfilesSheetsTab();
   await ensureSpreadsheetTab(tab);
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   const id = spreadsheetId();
   const existing = await sheets.spreadsheets.values.get(
     {
@@ -1638,7 +1758,7 @@ async function ensureProfilesSheetHeader(): Promise<string[]> {
 
 async function appendProfileSheetRow(profile: AccountProfile): Promise<void> {
   const header = await ensureProfilesSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   await sheets.spreadsheets.values.append({
     spreadsheetId: spreadsheetId(),
     range: `${getProfilesSheetsTab()}!A1`,
@@ -1648,24 +1768,19 @@ async function appendProfileSheetRow(profile: AccountProfile): Promise<void> {
 }
 
 async function readProfileSheetRows(): Promise<AccountProfile[]> {
-  const header = await ensureProfilesSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-  const result = await sheets.spreadsheets.values.get(
-    {
-      spreadsheetId: spreadsheetId(),
-      range: `${getProfilesSheetsTab()}!A2:AZ`,
-    },
-    SHEETS_GET_OPTS,
-  );
-  const values = result.data.values ?? [];
-  return values
-    .filter((row) => row.some((cell) => String(cell || "").trim()))
-    .map((row) =>
-      parseAccountProfile(
-        header,
-        row.map((cell) => String(cell ?? "")),
-      ),
-    )
+  const tab = getProfilesSheetsTab();
+  const grid = await readCachedGrid({
+    tab,
+    op: "profiles",
+    headerRange: "A1:AZ1",
+    valuesRange: "A2:AZ",
+    headerCache: profileHeaderCache,
+    valuesCache: profileValuesCache,
+    materializeHeader: async (header) => header,
+  });
+  return grid.values
+    .filter((row) => row.some((cell) => cell.trim()))
+    .map((row) => parseAccountProfile(grid.header, row))
     .filter((row) => row.email);
 }
 
@@ -1737,7 +1852,7 @@ async function writeProfileFile(profile: AccountProfile): Promise<string> {
 
 async function updateProfileSheetRow(profile: AccountProfile): Promise<boolean> {
   const header = await ensureProfilesSheetHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const sheets = createSheetsClient();
   const id = spreadsheetId();
   const tab = getProfilesSheetsTab();
   const result = await sheets.spreadsheets.values.get(
@@ -1775,14 +1890,18 @@ async function loadProfiles(): Promise<{
   if (isSheetsConfigured()) {
     try {
       const sheetRows = await readProfileSheetRows();
+      if (isVercelRuntime()) return { backend: "sheets", rows: sheetRows };
       const fileRows = await readAllProfileFileRows();
       return { backend: "sheets", rows: mergeProfiles(sheetRows, fileRows) };
     } catch (error) {
+      rethrowSheetsOnVercel(error, "profiles.read");
       console.error(
         "[store] Profil Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
+  } else if (isVercelRuntime()) {
+    throw new SheetsUnavailableError(0);
   }
   return { backend: "file", rows: await readAllProfileFileRows() };
 }
@@ -1815,18 +1934,23 @@ export async function upsertAccountProfile(
     try {
       const updated = await updateProfileSheetRow(profile);
       if (!updated) await appendProfileSheetRow(profile);
-      try {
-        await writeProfileFile(profile);
-      } catch (error) {
-        console.warn("[store] Profil-Datei nach Sheets-Update nicht geschrieben", error);
+      if (!isVercelRuntime()) {
+        try {
+          await writeProfileFile(profile);
+        } catch (error) {
+          console.warn("[store] Profil-Datei nach Sheets-Update nicht geschrieben", error);
+        }
       }
       return { backend: "sheets", profile };
     } catch (error) {
+      rethrowSheetsOnVercel(error, "profiles.update");
       console.error(
         "[store] Profil-Update in Sheets fehlgeschlagen — falle auf Datei zurück",
         error,
       );
     }
+  } else if (isVercelRuntime()) {
+    throw new SheetsUnavailableError(0);
   } else {
     console.warn(
       "[store] Google Sheets nicht konfiguriert — schreibe Profil nach",

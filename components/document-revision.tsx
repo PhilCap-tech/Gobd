@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PdfDownloadLink } from "@/components/pdf-download-link";
 import {
   customerChangedBy,
   customerChangeSummary,
@@ -51,9 +52,9 @@ export function DocumentRevisionActions({
     <>
       <div className="actions" style={{ marginTop: 12 }}>
         {showDownload && downloadsOpen && (
-          <a className="btn" href={documentDownloadPath(row, sessionId)}>
+          <PdfDownloadLink className="btn" href={documentDownloadPath(row, sessionId)}>
             {downloadLabel}
-          </a>
+          </PdfDownloadLink>
         )}
         {writesOpen && (
           <>
@@ -140,7 +141,7 @@ export function VersionHistory({
                   </span>
                 </div>
                 {downloadsOpen ? (
-                  <a href={documentDownloadPath(row, sessionId)}>Download</a>
+                  <PdfDownloadLink href={documentDownloadPath(row, sessionId)}>Download</PdfDownloadLink>
                 ) : null}
               </li>
             );

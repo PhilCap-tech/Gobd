@@ -360,6 +360,7 @@ async function checkCacheAndRetry() {
 
 function checkSources() {
   const store = readFileSync("lib/store.ts", "utf8");
+  const grid = readFileSync("lib/sheets-grid.ts", "utf8");
   const uncached = store.slice(
     store.indexOf("async function loadRowsUncached"),
     store.indexOf("async function loadRows("),
@@ -370,13 +371,13 @@ function checkSources() {
     "the file fallback runs only after the Vercel outage throw",
   );
   ok(store.includes("columnCountCache"), "column count is cached");
-  ok(store.includes("headerCache.read"), "the header is read once per cache window");
+  ok(store.includes("headerCache.peek"), "a cached header is not read again");
   ok(store.includes("rowsCache.read"), "loadRows is cached for the request burst");
   ok(store.includes('retrySheetsCall("intakes.columnCount"'), "column count retries 429 and 5xx");
   ok(store.includes('retrySheetsCall("intakes.header"'), "header reads retry 429 and 5xx");
-  ok(store.includes('retrySheetsCall("intakes.values"'), "value reads retry 429 and 5xx");
+  ok(grid.includes("values.batchGet"), "intake header and values share one batchGet");
   ok(store.includes('retrySheetsCall("intakes.append"'), "appends retry 429 and 5xx");
-  ok(store.includes("clearIntakeSheetCache"), "a write drops the intake cache");
+  ok(store.includes("writeThroughIntakeRow"), "a write updates the cached row");
   ok(store.includes("logSheetsFailure"), "sheets failures log route and status");
   ok(!store.includes("getSheetsTab()}!A2:AZ"), "intake values are not clipped at AZ");
 

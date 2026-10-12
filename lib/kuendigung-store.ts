@@ -3,6 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { google } from "googleapis";
 import { getLifecycleSheetsTab, isSheetsConfigured } from "@/lib/env";
+import { readCachedGrid } from "@/lib/sheets-grid";
+import {
+  createTtlSingleflight,
+  INTAKE_READ_TTL_MS,
+  SHEETS_HEADER_TTL_MS,
+} from "@/lib/sheets-outage";
 import {
   emptyLifecycleRow,
   type EndReason,
@@ -31,6 +37,14 @@ export const LIFECYCLE_SHEET_COLUMNS = [
   "last_event_id",
   "updated_at",
 ] as const;
+
+export function clearLifecycleReadCache(): void {
+  lifecycleHeaderCache.clear();
+  lifecycleValuesCache.clear();
+}
+
+const lifecycleHeaderCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
+const lifecycleValuesCache = createTtlSingleflight<string[][]>(INTAKE_READ_TTL_MS);
 
 const PHASES = new Set<LifecyclePhase>(["active", "cancel_scheduled", "restore", "purged"]);
 const REASONS = new Set<EndReason>(["", "customer_cancel", "payment_failed", "refund", "other"]);
@@ -237,14 +251,16 @@ async function ensureHeader(): Promise<string[]> {
 }
 
 async function readSheetRows(): Promise<LifecycleRow[]> {
-  const header = await ensureHeader();
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-  const result = await sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId(),
-    range: `${getLifecycleSheetsTab()}!A2:AZ`,
+  const grid = await readCachedGrid({
+    tab: getLifecycleSheetsTab(),
+    op: "lifecycle",
+    headerRange: "A1:AZ1",
+    valuesRange: "A2:AZ",
+    headerCache: lifecycleHeaderCache,
+    valuesCache: lifecycleValuesCache,
   });
-  return (result.data.values ?? [])
-    .map((row) => lifecycleRowFromSheet(header, row.map((cellValue) => String(cellValue ?? ""))))
+  return grid.values
+    .map((row) => lifecycleRowFromSheet(grid.header, row))
     .filter((row): row is LifecycleRow => Boolean(row));
 }
 
@@ -321,6 +337,7 @@ export async function saveLifecycleRow(row: LifecycleRow): Promise<void> {
   if (isSheetsConfigured()) {
     try {
       await writeSheetRow(stored);
+      lifecycleValuesCache.clear();
       try {
         await writeFileRow(stored);
       } catch (error) {

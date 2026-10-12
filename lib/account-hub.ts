@@ -1,6 +1,6 @@
 import type { Entity } from "@/lib/entities";
 import { groupDocumentFamilies, type DocumentFamily } from "@/lib/documents";
-import { isUndeliveredDraft, openDraftCompany } from "@/lib/open-drafts";
+import { isUndeliveredDraft, openDraftCompany, openDraftLabel } from "@/lib/open-drafts";
 import type { IntakeDraft } from "@/lib/intake-draft-shared";
 import type { SheetRow } from "@/lib/types";
 
@@ -72,12 +72,43 @@ function entityForFamily(
   );
 }
 
+function entityByName(entities: readonly Entity[], name: unknown): Entity | null {
+  const key = normName(name);
+  if (!key) return null;
+  return entities.find((entity) => normName(entity.name) === key) ?? null;
+}
+
 function entityForDraft(draft: IntakeDraft, entities: readonly Entity[]): Entity | null {
   return (
     knownEntity(entities, draft.entityId) ??
     uniqueEntityByName(entities, openDraftCompany(draft)) ??
+    entityByName(entities, openDraftCompany(draft)) ??
     soleEntity(entities)
   );
+}
+
+function preferOpenDraft(current: IntakeDraft, next: IntakeDraft): IntakeDraft {
+  const currentEntity = textId(current.entityId);
+  const nextEntity = textId(next.entityId);
+  if (currentEntity && !nextEntity) return current;
+  if (nextEntity && !currentEntity) return next;
+  return textId(next.updatedAt).localeCompare(textId(current.updatedAt)) >= 0 ? next : current;
+}
+
+/** One continue link per checkout before the intake is submitted. */
+function dedupeOpenDrafts(drafts: readonly IntakeDraft[]): IntakeDraft[] {
+  const bySession = new Map<string, IntakeDraft>();
+  const rest: IntakeDraft[] = [];
+  for (const draft of drafts) {
+    const session = textId(draft.stripeSessionId);
+    if (!session) {
+      rest.push(draft);
+      continue;
+    }
+    const prev = bySession.get(session);
+    bySession.set(session, prev ? preferOpenDraft(prev, draft) : draft);
+  }
+  return [...bySession.values(), ...rest];
 }
 
 /**
@@ -104,7 +135,7 @@ export function accountCompanyCards(
     byEntity.set(entity.entityId, list);
   }
 
-  const openDrafts = drafts.filter((draft) => isUndeliveredDraft(draft, docs));
+  const openDrafts = dedupeOpenDrafts(drafts.filter((draft) => isUndeliveredDraft(draft, docs)));
   const draftsByEntity = new Map<string, IntakeDraft[]>();
   for (const draft of openDrafts) {
     const entity = entityForDraft(draft, entities);
@@ -127,8 +158,19 @@ export function accountCompanyCards(
 
 /** Drafts that are not already rendered inside a company card. */
 export function draftsNotOnCompanyCard(hub: AccountHub): IntakeDraft[] {
-  const onCard = new Set(
-    hub.groups.flatMap((group) => group.continueDrafts.map((draft) => draft.draftKey)),
+  const onCard = hub.groups.flatMap((group) => group.continueDrafts);
+  const keys = new Set(onCard.map((draft) => draft.draftKey));
+  const sessions = new Set(onCard.map((draft) => textId(draft.stripeSessionId)).filter(Boolean));
+  const labels = new Set(
+    onCard
+      .map((draft) => openDraftLabel(draft))
+      .filter((label) => label && label !== "Verfahrensdokumentation"),
   );
-  return hub.openDrafts.filter((draft) => !onCard.has(draft.draftKey));
+  return hub.openDrafts.filter((draft) => {
+    if (keys.has(draft.draftKey)) return false;
+    const session = textId(draft.stripeSessionId);
+    if (session && sessions.has(session)) return false;
+    const label = openDraftLabel(draft);
+    return !label || !labels.has(label);
+  });
 }
