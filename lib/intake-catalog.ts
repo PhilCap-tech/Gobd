@@ -1684,8 +1684,60 @@ function isProtected(protect: Array<[string, string]> | undefined, id: string, k
   return Boolean(protect?.some(([pid, pkey]) => pid === id && pkey === key));
 }
 
-/** Name fields copied from „Namen der Verantwortlichen“. */
-const NAME_PREFILL_FIELDS = new Set(["A01.gf", "F01.buchhaltung", "B01.it", "F05.kanzleiName"]);
+/**
+ * Every catalog field whose prefill source is a name from
+ * „Namen der Verantwortlichen“. Modul lead questions (…00 verantwortlich)
+ * are not in this list: nothing copies a Verantwortliche name into them.
+ */
+export const VERANTWORTLICHE_NAME_FIELDS = [
+  {
+    modulId: "m01",
+    modulNr: 1,
+    modulTitel: "Unternehmen und Organisation",
+    questionId: "A01",
+    key: "gf",
+    source: "gf",
+    label: "Geschäftsleitung (Name)",
+  },
+  {
+    modulId: "m01",
+    modulNr: 1,
+    modulTitel: "Unternehmen und Organisation",
+    questionId: "UO03",
+    key: "zustaendigkeiten",
+    source: "rollen",
+    label: "Aufgabe und zuständige Person oder Rolle",
+  },
+  {
+    modulId: "m09",
+    modulNr: 9,
+    modulTitel: "Buchführung und Abschlüsse",
+    questionId: "F01",
+    key: "buchhaltung",
+    source: "buchhaltung",
+    label: "Buchhaltung (Name oder Rolle)",
+  },
+  {
+    modulId: "m17",
+    modulNr: 17,
+    modulTitel: "Systeme und Datenübertragung",
+    questionId: "B01",
+    key: "it",
+    source: "it",
+    label: "IT-Verantwortung",
+  },
+  {
+    modulId: "m21",
+    modulNr: 21,
+    modulTitel: "Ausgelagerte Aufgaben",
+    questionId: "F05",
+    key: "kanzleiName",
+    source: "kanzlei",
+    label: "Kanzlei",
+  },
+] as const;
+
+export type VerantwortlicheNameSource = (typeof VERANTWORTLICHE_NAME_FIELDS)[number]["source"];
 
 const ROLE_LABELS = ["Geschäftsleitung", "Buchhaltung", "IT", "Steuerkanzlei"];
 
@@ -1703,7 +1755,7 @@ function isKeystrokeArtifact(stored: string, source: string): boolean {
 }
 
 function namePrefillField(id: string, key: string): boolean {
-  return NAME_PREFILL_FIELDS.has(`${id}.${key}`) || (id === "UO03" && key === "zustaendigkeiten");
+  return VERANTWORTLICHE_NAME_FIELDS.some((field) => field.questionId === id && field.key === key);
 }
 
 function parseRoleBlock(text: string): Map<string, string> | null {
@@ -1740,8 +1792,9 @@ function roleTextIsArtifact(stored: string, source: string): boolean {
 }
 
 function storedIsNameArtifact(id: string, key: string, stored: string, source: string): boolean {
-  if (id === "UO03" && key === "zustaendigkeiten") return roleTextIsArtifact(stored, source);
-  if (!NAME_PREFILL_FIELDS.has(`${id}.${key}`)) return false;
+  const field = VERANTWORTLICHE_NAME_FIELDS.find((item) => item.questionId === id && item.key === key);
+  if (!field) return false;
+  if (field.source === "rollen") return roleTextIsArtifact(stored, source);
   return isKeystrokeArtifact(stored, source);
 }
 
@@ -1819,24 +1872,35 @@ function textOr(primary: string | undefined, fallback: string | undefined): stri
   return first || (fallback?.trim() ?? "");
 }
 
-function itSource(legacy: string | undefined, stammIt: string | undefined): string {
-  const first = legacy?.trim() ?? "";
-  if (first && first !== "nicht angegeben") return first;
-  return stammIt?.trim() ?? "";
+/**
+ * Legacy answer and Stammdaten can both hold a name. A one- or two-character
+ * prefix of the other value is the frozen keystroke, so the full name wins.
+ */
+function preferName(primary: string | undefined, fallback: string | undefined): string {
+  const first = primary?.trim() ?? "";
+  const second = fallback?.trim() ?? "";
+  const usable = (value: string) => (value && value !== "nicht angegeben" ? value : "");
+  const left = usable(first);
+  const right = usable(second);
+  if (!left) return right;
+  if (!right) return left;
+  if (isKeystrokeArtifact(left, right)) return right;
+  if (isKeystrokeArtifact(right, left)) return left;
+  return left;
 }
 
 function verantwortlicheRoleText(answers: IntakeAnswers): string {
   const stamm = modulZustand(answers).stammdaten ?? {};
   return roleLines([
-    ["Geschäftsleitung", asText(answers.katalog?.A01?.values?.gf) || textOr(answers.gf, stamm.gf)],
+    ["Geschäftsleitung", asText(answers.katalog?.A01?.values?.gf) || preferName(answers.gf, stamm.gf)],
     [
       "Buchhaltung",
-      asText(answers.katalog?.F01?.values?.buchhaltung) || textOr(answers.buchhaltung, stamm.buchhaltung),
+      asText(answers.katalog?.F01?.values?.buchhaltung) || preferName(answers.buchhaltung, stamm.buchhaltung),
     ],
-    ["IT", asText(answers.katalog?.B01?.values?.it) || itSource(answers.it, stamm.it)],
+    ["IT", asText(answers.katalog?.B01?.values?.it) || preferName(answers.it, stamm.it)],
     [
       "Steuerkanzlei",
-      asText(answers.katalog?.F05?.values?.kanzleiName) || textOr(answers.steuerberater, stamm.kanzlei),
+      asText(answers.katalog?.F05?.values?.kanzleiName) || preferName(answers.steuerberater, stamm.kanzlei),
     ],
   ]);
 }
@@ -1846,9 +1910,11 @@ function verantwortlicheRoleText(answers: IntakeAnswers): string {
  * A field that still holds the previous automatic value follows the source,
  * so typing a name does not freeze the first character. A stored name of one
  * or two characters that is a strict prefix of the current Verantwortliche
- * name is that same freeze and is replaced. Clearing such a name field allows
- * the prefill again. Any other stored value stays. Never sets a process
- * status, a date, or the no-backdating confirmation.
+ * name is that same freeze and is replaced. That covers every field in
+ * VERANTWORTLICHE_NAME_FIELDS, including Modul 17 „IT-Verantwortung“.
+ * Clearing such a name field allows the prefill again. Any other stored
+ * value stays. Never sets a process status, a date, or the no-backdating
+ * confirmation.
  */
 export function prefillKnownFacts(
   answers: IntakeAnswers,
@@ -1881,9 +1947,9 @@ export function prefillKnownFacts(
     katalog,
     "A01",
     "gf",
-    textOr(answers.gf, stamm.gf),
+    preferName(answers.gf, stamm.gf),
     protect,
-    prior(textOr(previousAnswers?.gf, previousStamm?.gf)),
+    prior(preferName(previousAnswers?.gf, previousStamm?.gf)),
   );
   fillText(katalog, "B01", "weitereFreitext", answers.weitereSysteme);
   fillText(katalog, "B01", "hosting", answers.hosting);
@@ -1891,9 +1957,9 @@ export function prefillKnownFacts(
     katalog,
     "B01",
     "it",
-    itSource(answers.it, stamm.it),
+    preferName(answers.it, stamm.it),
     protect,
-    prior(itSource(previousAnswers?.it, previousStamm?.it)),
+    prior(preferName(previousAnswers?.it, previousStamm?.it)),
   );
   for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
   if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
@@ -1904,17 +1970,17 @@ export function prefillKnownFacts(
     katalog,
     "F01",
     "buchhaltung",
-    textOr(answers.buchhaltung, stamm.buchhaltung),
+    preferName(answers.buchhaltung, stamm.buchhaltung),
     undefined,
-    prior(textOr(previousAnswers?.buchhaltung, previousStamm?.buchhaltung)),
+    prior(preferName(previousAnswers?.buchhaltung, previousStamm?.buchhaltung)),
   );
   fillText(
     katalog,
     "F05",
     "kanzleiName",
-    textOr(answers.steuerberater, stamm.kanzlei),
+    preferName(answers.steuerberater, stamm.kanzlei),
     undefined,
-    prior(textOr(previousAnswers?.steuerberater, previousStamm?.kanzlei)),
+    prior(preferName(previousAnswers?.steuerberater, previousStamm?.kanzlei)),
   );
   fillText(
     katalog,

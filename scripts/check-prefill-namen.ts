@@ -11,10 +11,13 @@ import {
   standortFromBillingAddress,
   standortPrefillLine,
   setCatalogValue,
+  VERANTWORTLICHE_NAME_FIELDS,
   type BillingAddressParts,
   type FirmFacts,
 } from "../lib/intake-catalog";
 import { scrollIntakeStepIntoView } from "../lib/intake-step-focus";
+import { fieldLabel } from "../lib/intake-present";
+import { gruppenFragen, MODULE } from "../lib/module/katalog";
 import { ensureGesamt, setStammdaten } from "../lib/module/status";
 import type { Stammdaten } from "../lib/module/typen";
 import { billingAddressFromCustomerDetails, resolveCheckoutSession } from "../lib/stripe";
@@ -496,7 +499,190 @@ function checkStepFocus() {
   }
 }
 
+const NAME_SAMPLES = {
+  gf: { full: "Jörg Philip Cappelletti", prefix: "Jö", real: "Petra Beispiel" },
+  buchhaltung: { full: "Änne Müller-Groß", prefix: "Ä", real: "Eigene Buchhaltung" },
+  it: { full: "Nevaf Ay", prefix: "N", prefixTwo: "Ne", longer: "Nev", real: "Eigene IT" },
+  kanzlei: { full: "Sören Höfer", prefix: "Sö", real: "Eigene Kanzlei" },
+} as const;
+
+function roleBlock(names: { gf: string; buchhaltung: string; it: string; kanzlei: string }): string {
+  return [
+    `Geschäftsleitung: ${names.gf}`,
+    `Buchhaltung: ${names.buchhaltung}`,
+    `IT: ${names.it}`,
+    `Steuerkanzlei: ${names.kanzlei}`,
+  ].join("\n");
+}
+
+function fieldsContaining(answers: IntakeAnswers, needle: string): string[] {
+  const hits: string[] = [];
+  for (const [id, entry] of Object.entries(answers.katalog ?? {})) {
+    for (const [key, stored] of Object.entries(entry?.values ?? {})) {
+      if (typeof stored === "string" && stored.includes(needle)) hits.push(`${id}.${key}`);
+    }
+  }
+  return hits.sort();
+}
+
+function moduleAsks(modulId: string, questionId: string): boolean {
+  const modul = MODULE.find((item) => item.id === modulId);
+  if (!modul) return false;
+  if (modul.catalogIds.includes(questionId)) return true;
+  return modul.gruppen.some((gruppe) => gruppenFragen(gruppe).some((question) => question.id === questionId));
+}
+
+/** One case per field whose source is a Verantwortliche name. */
+function checkEveryNameField() {
+  const expected = [
+    "m01.A01.gf",
+    "m01.UO03.zustaendigkeiten",
+    "m09.F01.buchhaltung",
+    "m17.B01.it",
+    "m21.F05.kanzleiName",
+  ];
+  ok(
+    VERANTWORTLICHE_NAME_FIELDS.map((field) => `${field.modulId}.${field.questionId}.${field.key}`).join(",") ===
+      expected.join(","),
+    "die Liste der Namensfelder ist vollständig und ohne weitere Ziele",
+  );
+
+  const scalars = VERANTWORTLICHE_NAME_FIELDS.filter((field) => field.source !== "rollen");
+  for (const field of scalars) {
+    const sample = NAME_SAMPLES[field.source];
+    const where = `Modul ${field.modulNr} ${field.label}`;
+    ok(moduleAsks(field.modulId, field.questionId), `${where} liegt in ${field.modulId}`);
+    ok(fieldLabel(field.questionId, field.key) === field.label, `${where} trägt das Feldetikett`);
+
+    const fresh = prefillKnownFacts(
+      setStammdaten(ensureGesamt(emptyAnswers()), { [field.source]: sample.full }),
+    );
+    ok(value(fresh, field.questionId, field.key) === sample.full, `${where}: frisch der volle Name`);
+
+    const typed = typeField(ensureGesamt(emptyAnswers()), field.source, sample.full);
+    ok(value(typed, field.questionId, field.key) === sample.full, `${where}: Tippweg bleibt beim vollen Namen`);
+
+    const reloaded = prefillKnownFacts(roundTrip(fresh));
+    ok(value(reloaded, field.questionId, field.key) === sample.full, `${where}: neu geladener Entwurf bleibt vollständig`);
+
+    const frozen = prefillKnownFacts(
+      roundTrip(
+        setCatalogValue(
+          setStammdaten(ensureGesamt(emptyAnswers()), { [field.source]: sample.full }),
+          field.questionId,
+          field.key,
+          sample.prefix,
+        ),
+      ),
+    );
+    ok(
+      value(frozen, field.questionId, field.key) === sample.full,
+      `${where}: eingefrorenes ${JSON.stringify(sample.prefix)} wird ersetzt`,
+    );
+
+    const kept = prefillKnownFacts(
+      roundTrip(
+        setCatalogValue(
+          setStammdaten(ensureGesamt(emptyAnswers()), { [field.source]: sample.full }),
+          field.questionId,
+          field.key,
+          sample.real,
+        ),
+      ),
+    );
+    ok(value(kept, field.questionId, field.key) === sample.real, `${where}: eigene Angabe bleibt`);
+
+    const cleared = prefillKnownFacts(setCatalogValue(fresh, field.questionId, field.key, ""), undefined, {
+      protect: [[field.questionId, field.key]],
+    });
+    ok(value(cleared, field.questionId, field.key) === sample.full, `${where}: Leeren holt den Namen zurück`);
+  }
+
+  const it = NAME_SAMPLES.it;
+  const two = prefillKnownFacts(
+    setCatalogValue(setStammdaten(ensureGesamt(emptyAnswers()), { it: it.full }), "B01", "it", it.prefixTwo),
+  );
+  ok(value(two, "B01", "it") === it.full, "Modul 17: gespeichertes Ne wird zu Nevaf Ay");
+  const three = prefillKnownFacts(
+    setCatalogValue(setStammdaten(ensureGesamt(emptyAnswers()), { it: it.full }), "B01", "it", it.longer),
+  );
+  ok(value(three, "B01", "it") === it.longer, "Modul 17: Nev ab drei Zeichen bleibt stehen");
+  const legacyShort = ensureGesamt(emptyAnswers());
+  legacyShort.it = it.prefix;
+  const fromLegacy = prefillKnownFacts(
+    setCatalogValue(setStammdaten(legacyShort, { it: it.full }), "B01", "it", it.prefix),
+  );
+  ok(value(fromLegacy, "B01", "it") === it.full, "Modul 17: altes N weicht Nevaf Ay aus den Verantwortlichen");
+  const unspecified = ensureGesamt(emptyAnswers());
+  unspecified.it = "nicht angegeben";
+  ok(
+    value(prefillKnownFacts(setStammdaten(unspecified, { it: it.full })), "B01", "it") === it.full,
+    "Modul 17: nicht angegeben blockiert den IT-Namen nicht",
+  );
+
+  const stamm = {
+    gf: NAME_SAMPLES.gf.full,
+    buchhaltung: NAME_SAMPLES.buchhaltung.full,
+    it: NAME_SAMPLES.it.full,
+    kanzlei: NAME_SAMPLES.kanzlei.full,
+  };
+  const roles = roleBlock(stamm);
+  const roleField = VERANTWORTLICHE_NAME_FIELDS.find((field) => field.source === "rollen");
+  ok(roleField?.questionId === "UO03", "Zuständigkeiten sind das zusammengesetzte Namensfeld");
+  ok(moduleAsks("m01", "UO03"), "Zuständigkeiten liegen in Modul 1");
+  ok(
+    fieldLabel("UO03", "zustaendigkeiten", roleField?.label) === roleField?.label,
+    "Zuständigkeiten tragen das Feldetikett",
+  );
+  const freshRoles = prefillKnownFacts(setStammdaten(ensureGesamt(emptyAnswers()), stamm));
+  ok(value(freshRoles, "UO03", "zustaendigkeiten") === roles, "Zuständigkeiten frisch mit allen vollen Namen");
+  ok(
+    value(prefillKnownFacts(roundTrip(freshRoles)), "UO03", "zustaendigkeiten") === roles,
+    "Zuständigkeiten bleiben im neu geladenen Entwurf",
+  );
+  const frozenRoles = prefillKnownFacts(
+    setCatalogValue(
+      setStammdaten(ensureGesamt(emptyAnswers()), stamm),
+      "UO03",
+      "zustaendigkeiten",
+      roleBlock({
+        gf: NAME_SAMPLES.gf.prefix,
+        buchhaltung: NAME_SAMPLES.buchhaltung.prefix,
+        it: NAME_SAMPLES.it.prefix,
+        kanzlei: NAME_SAMPLES.kanzlei.prefix,
+      }),
+    ),
+  );
+  ok(value(frozenRoles, "UO03", "zustaendigkeiten") === roles, "eingefrorene Kürzel in den Zuständigkeiten werden ersetzt");
+  const customRoles = prefillKnownFacts(
+    setCatalogValue(setStammdaten(ensureGesamt(emptyAnswers()), stamm), "UO03", "zustaendigkeiten", "Selbst eingetragen"),
+  );
+  ok(value(customRoles, "UO03", "zustaendigkeiten") === "Selbst eingetragen", "eigene Zuständigkeiten bleiben je Feld");
+  const clearedRoles = prefillKnownFacts(setCatalogValue(freshRoles, "UO03", "zustaendigkeiten", ""), undefined, {
+    protect: [["UO03", "zustaendigkeiten"]],
+  });
+  ok(value(clearedRoles, "UO03", "zustaendigkeiten") === roles, "Leeren der Zuständigkeiten holt die Namen zurück");
+
+  ok(
+    fieldsContaining(freshRoles, NAME_SAMPLES.gf.full).join(",") === "A01.gf,UO03.zustaendigkeiten",
+    "der Name der Geschäftsführung landet nur in Modul 1",
+  );
+  ok(
+    fieldsContaining(freshRoles, NAME_SAMPLES.buchhaltung.full).join(",") === "F01.buchhaltung,UO03.zustaendigkeiten",
+    "der Name der Buchhaltung landet nur in Modul 9 und den Zuständigkeiten",
+  );
+  ok(
+    fieldsContaining(freshRoles, NAME_SAMPLES.it.full).join(",") === "B01.it,UO03.zustaendigkeiten",
+    "Nevaf Ay landet nur in der IT-Verantwortung und den Zuständigkeiten",
+  );
+  ok(
+    fieldsContaining(freshRoles, NAME_SAMPLES.kanzlei.full).join(",") === "F05.kanzleiName,UO03.zustaendigkeiten",
+    "der Kanzleiname landet nur in Modul 21 und den Zuständigkeiten",
+  );
+}
+
 checkNames();
+checkEveryNameField();
 checkStandort();
 checkStepFocus();
 checkStripeAddress()
