@@ -150,6 +150,18 @@ const CUSTOMER_ONBOARDING_SUBJECT =
 const CUSTOMER_ONBOARDING_DISCLAIMER =
   "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus Ihren Angaben.";
 const CUSTOMER_ONBOARDING_CTA = "Jetzt starten: Betriebs-Check";
+export const CUSTOMER_ONBOARDING_CONTINUE_CTA = "Verfahrensdokumentation weiter ausfüllen";
+
+/**
+ * Intake des Kaufs. Die Session ist der Schlüssel des Server-Entwurfs
+ * (`session:<id>:gesamt`). Ohne gültige Session bleibt `/intake`; die Seite
+ * hängt dann die letzte bezahlte Session der angemeldeten Adresse an.
+ */
+export function customerOnboardingDraftPath(sessionId?: string | null): string {
+  const id = sessionId?.trim() ?? "";
+  if (!id || !/^[A-Za-z0-9_-]+$/.test(id)) return CUSTOMER_ONBOARDING_NEXT_PATH;
+  return `${CUSTOMER_ONBOARDING_NEXT_PATH}?session_id=${id}`;
+}
 
 /** Trim, drop control chars, collapse whitespace. Empty stays empty. */
 export function normalizeOnboardingName(value: string | null | undefined): string {
@@ -260,9 +272,12 @@ function buildCustomerOnboardingMail(input: {
   company?: string;
   contactName?: string;
   magicLinkUrl?: string;
+  /** Magic-Link in den Server-Entwurf. Fehlt er, gilt derselbe Startlink. */
+  continueUrl?: string;
 }): TransactionalMailContent {
   const greeting = customerOnboardingGreeting(input.contactName, [input.company]);
   const startUrl = customerOnboardingStartUrl(input.magicLinkUrl);
+  const continueUrl = input.continueUrl?.trim() || startUrl;
   const text = wrapTransactionalText(
     [
       greeting,
@@ -277,6 +292,11 @@ function buildCustomerOnboardingMail(input: {
       startUrl,
       "",
       "Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordern Sie auf der Anmeldeseite einen neuen Link an – Sie landen danach wieder im Fragebogen.",
+      "",
+      CUSTOMER_ONBOARDING_CONTINUE_CTA,
+      continueUrl,
+      "",
+      "Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.",
       "",
       `Ihr Konto: ${MAIL_ACCOUNT_URL}`,
       "",
@@ -300,6 +320,8 @@ function buildCustomerOnboardingMail(input: {
     </ol>
     <p>${transactionalPrimaryButton(startUrl, CUSTOMER_ONBOARDING_CTA)}</p>
     <p>Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordern Sie auf der Anmeldeseite einen neuen Link an – Sie landen danach wieder im Fragebogen.</p>
+    <p>${transactionalPrimaryButton(continueUrl, CUSTOMER_ONBOARDING_CONTINUE_CTA)}</p>
+    <p>Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.</p>
     <p>Ihr Konto: <a href="${escapeAttr(MAIL_ACCOUNT_URL)}">${escapeHtml(MAIL_ACCOUNT_URL)}</a></p>
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Ihr Ansprechpartner: <a href="${escapeAttr(`mailto:${MAIL_SUPPORT_EMAIL}`)}">${escapeHtml(MAIL_SUPPORT_EMAIL)}</a>. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.</p>
@@ -318,6 +340,7 @@ export function buildOnboardingMail(input: {
   audience?: OnboardingAudience;
   contactName?: string;
   magicLinkUrl?: string;
+  continueUrl?: string;
 }): TransactionalMailContent {
   if (input.audience === "steuerberater") return buildSteuerberaterOnboardingMail(input);
   return buildCustomerOnboardingMail(input);
@@ -568,6 +591,7 @@ export async function triggerOnboardingMail(input: {
 
   let contactName = "";
   let startUrl: string | undefined;
+  let continueUrl: string | undefined;
   if (audience === "kunde") {
     const companyNames = [input.company ?? "", ...(input.extraCompanyNames ?? [])];
     let profileName = "";
@@ -587,6 +611,7 @@ export async function triggerOnboardingMail(input: {
       companyNames,
     });
     startUrl = magicLinkUrl(input.email, CUSTOMER_ONBOARDING_NEXT_PATH);
+    continueUrl = magicLinkUrl(input.email, customerOnboardingDraftPath(input.sessionId));
   }
 
   const mail = buildOnboardingMail({
@@ -594,6 +619,7 @@ export async function triggerOnboardingMail(input: {
     audience,
     contactName,
     magicLinkUrl: startUrl,
+    continueUrl,
   });
   const result = await sendEmail({
     to: input.email,

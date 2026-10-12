@@ -11,6 +11,11 @@ https://www.gobd-doku-erstellen.de/auth/verify?token=preview-onboarding&next=%2F
 
 Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordern Sie auf der Anmeldeseite einen neuen Link an – Sie landen danach wieder im Fragebogen.
 
+Verfahrensdokumentation weiter ausfüllen
+https://www.gobd-doku-erstellen.de/auth/verify?token=preview-continue&next=%2Fintake%3Fsession_id%3Dcs_owner_draft
+
+Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.
+
 Ihr Konto: https://www.gobd-doku-erstellen.de/account
 
 Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:

@@ -15,7 +15,9 @@ import {
   buildReadinessMail,
   buildReferralAfterDeliveryMail,
   checkoutContactFromCustomerDetails,
+  CUSTOMER_ONBOARDING_CONTINUE_CTA,
   CUSTOMER_ONBOARDING_SIGNATURE,
+  customerOnboardingDraftPath,
   customerOnboardingGreeting,
   intakeContactNameFromAnswers,
   PARTNER_ONBOARDING_SIGNATURE,
@@ -54,20 +56,25 @@ const readiness = buildReadinessMail({
 });
 const onboardingStartUrl =
   "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-onboarding&next=%2Fintake";
+const onboardingContinueUrl =
+  "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-continue&next=%2Fintake%3Fsession_id%3Dcs_owner_draft";
 const onboarding = buildOnboardingMail({
   company: "Muster GmbH",
   contactName: "Philip Cappelletti",
   magicLinkUrl: onboardingStartUrl,
+  continueUrl: onboardingContinueUrl,
 });
 const onboardingCompanyOnly = buildOnboardingMail({
   company: "IKAT GmbH",
   contactName: "IKAT GmbH",
   magicLinkUrl: onboardingStartUrl,
+  continueUrl: onboardingContinueUrl,
 });
 const onboardingWhitespace = buildOnboardingMail({
   company: "Muster GmbH",
   contactName: "   \n  ",
   magicLinkUrl: onboardingStartUrl,
+  continueUrl: onboardingContinueUrl,
 });
 const partnerOnboarding = buildOnboardingMail({
   company: "Beispiel Kanzlei",
@@ -193,6 +200,18 @@ assert(
 assert(
   onboarding.html.includes("Jetzt starten: Betriebs-Check"),
   "Customer onboarding has the Betriebs-Check button",
+);
+const onboardingContinueHref = onboardingContinueUrl.replaceAll("&", "&amp;");
+assert(
+  customerOnboardingDraftPath("cs_owner_draft") === "/intake?session_id=cs_owner_draft",
+  "Draft continue path keeps the owner session",
+);
+assert(
+  onboarding.html.includes(`>${CUSTOMER_ONBOARDING_CONTINUE_CTA}</a>`) &&
+    onboarding.html.includes(`href="${onboardingContinueHref}"`) &&
+    onboarding.text.includes(CUSTOMER_ONBOARDING_CONTINUE_CTA) &&
+    onboarding.text.includes(onboardingContinueUrl),
+  "Customer onboarding continues into the draft via verify, with a plaintext link",
 );
 assert(
   onboarding.html.includes(`background:#002050`),
