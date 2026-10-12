@@ -240,16 +240,50 @@ if (!deliveryPerson.text.startsWith("Guten Tag Anna Berg,")) {
   fail("delivery salutation must use the contact name");
 }
 
+const readinessCompany = buildReadinessMail({
+  name: "IKAT GmbH",
+  company: "IKAT GmbH",
+  brancheLabel: "Handwerk",
+  downloadUrl: DOWNLOAD,
+});
+const readinessWhitespace = buildReadinessMail({
+  name: "  IKAT   GmbH  ",
+  company: "ikat gmbh",
+  brancheLabel: "Handwerk",
+  downloadUrl: DOWNLOAD,
+});
+const readinessPerson = buildReadinessMail({
+  name: "Anna Berg",
+  company: "IKAT GmbH",
+  brancheLabel: "Handwerk",
+  downloadUrl: DOWNLOAD,
+});
+for (const [label, mail] of [
+  ["readiness-company", readinessCompany],
+  ["readiness-whitespace", readinessWhitespace],
+] as const) {
+  assertCustomerClosing(label, mail);
+  if (!mail.text.startsWith("Guten Tag,") || !mail.html.includes("<p>Guten Tag,</p>")) {
+    fail(`${label}: salutation must fall back to Guten Tag,`);
+  }
+  if (mail.text.includes("Guten Tag IKAT GmbH") || mail.html.includes("Guten Tag IKAT GmbH")) {
+    fail(`${label}: greets the company name`);
+  }
+}
+assertCustomerClosing("readiness-person", readinessPerson);
+if (!readinessPerson.text.startsWith("Guten Tag Anna Berg,")) {
+  fail("readiness salutation must use the contact name");
+}
+if (
+  readinessPerson.text.includes("Guten Tag IKAT GmbH") ||
+  readinessPerson.html.includes("Guten Tag IKAT GmbH")
+) {
+  fail("readiness person mail greets the company name");
+}
+
 const otherCustomerMails = [
   ["magic", buildMagicLinkMail({ magicLinkUrl: START })],
-  [
-    "readiness",
-    buildReadinessMail({
-      name: "Alex",
-      brancheLabel: "Handwerk",
-      downloadUrl: DOWNLOAD,
-    }),
-  ],
+  ["readiness-person-closing", readinessPerson],
   ["failed-payment", buildFailedPaymentMail()],
   ["failed-job", buildFailedJobMail()],
 ] as const;
@@ -258,6 +292,10 @@ for (const [label, mail] of otherCustomerMails) {
 }
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const readinessRoute = readFileSync(path.join(repoRoot, "app/api/readiness/route.ts"), "utf8");
+if (!readinessRoute.includes("company: parsed.company")) {
+  fail("readiness route does not pass the company into the salutation");
+}
 for (const rel of ["lib/ops.ts", "app/api/intake/route.ts", "app/api/document/route.ts"]) {
   const source = readFileSync(path.join(repoRoot, rel), "utf8");
   if (

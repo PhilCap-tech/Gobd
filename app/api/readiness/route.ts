@@ -79,6 +79,7 @@ async function handleReadiness(request: Request) {
     const mail = await sendReadinessMail({
       email: parsed.email,
       name: parsed.name,
+      company: parsed.company,
       brancheLabel,
       downloadUrl,
       successUrl,
