@@ -533,9 +533,11 @@ export function parseSheetRow(header: string[], values: string[]): SheetRow {
   const row = emptySheetRow();
   header.forEach((col, index) => {
     const field = sheetFieldForHeader(col);
-    if (field) {
-      row[field] = String(values[index] ?? "").trim();
-    }
+    if (!field) return;
+    // A later empty alias (documentId after document_id) must not wipe the value.
+    const value = String(values[index] ?? "").trim();
+    if (!value) return;
+    row[field] = value;
   });
   return row;
 }
@@ -552,18 +554,12 @@ export function coerceSheetRow(value: unknown): SheetRow | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
   const row = { ...emptySheetRow(), ...(value as Partial<SheetRow>) };
-  const aliases: Array<[keyof SheetRow, string]> = [
-    ["entityId", "entity_id"],
-    ["validFrom", "valid_from"],
-    ["validTo", "valid_to"],
-    ["changeSummary", "change_summary"],
-    ["changedBy", "changed_by"],
-    ["fragen", "fragen"],
-  ];
-  for (const [field, column] of aliases) {
-    if (!row[field] && typeof raw[column] === "string") {
-      row[field] = raw[column];
-    }
+  for (const [column, field] of Object.entries(SHEET_COLUMN_FIELDS) as Array<
+    [SheetColumn, keyof SheetRow]
+  >) {
+    if (row[field]) continue;
+    const alias = raw[column];
+    if (typeof alias === "string" && alias.trim()) row[field] = alias.trim();
   }
   return row;
 }
@@ -611,7 +607,11 @@ export function identityFromSheetRow(row: SheetRow): CheckoutIdentity {
   };
 }
 
+function compactEmail(value: string): string {
+  return value.replace(/[\s\u200B-\u200D\uFEFF]+/g, "").toLowerCase();
+}
+
 export function emailsEqual(a: unknown, b: unknown): boolean {
   if (typeof a !== "string" || typeof b !== "string") return false;
-  return a.trim().toLowerCase() === b.trim().toLowerCase();
+  return compactEmail(a) === compactEmail(b);
 }

@@ -4,7 +4,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { google } from "googleapis";
 import { undocumentedPaidSessionId } from "@/lib/account-paid-intake";
-import { parseDocumentVersion, rowsInFamily } from "@/lib/documents";
+import {
+  parseDocumentVersion,
+  pickStoredDocument,
+  recoverStoredDocumentId,
+  rowHasStoredDocument,
+  rowsInFamily,
+} from "@/lib/documents";
 import {
   coerceEntity,
   DEFAULT_ENTITY_NAME,
@@ -85,6 +91,20 @@ const SHEETS_GET_OPTS = {
     Pragma: "no-cache",
   },
 } as const;
+
+/** Used only when the grid width cannot be read. AZ is 52 columns. */
+const SHEET_FALLBACK_COLUMN_COUNT = 52;
+
+/** Every column of the intakes grid. A fixed `A2:AZ` window drops later cells. */
+export function intakeValuesRange(columnCount: number): string {
+  const count = Number.isFinite(columnCount) ? Math.max(1, Math.floor(columnCount)) : 1;
+  return `A2:${columnA1(count - 1)}`;
+}
+
+export function intakeHeaderRange(columnCount: number): string {
+  const count = Number.isFinite(columnCount) ? Math.max(1, Math.floor(columnCount)) : 1;
+  return `A1:${columnA1(count - 1)}1`;
+}
 
 const SESSION_LOOKUP_BACKOFF_MS = [300, 500, 800, 800];
 
@@ -187,6 +207,25 @@ async function ensureSpreadsheetTab(tab: string): Promise<void> {
   });
 }
 
+async function intakeColumnCount(tab: string): Promise<number> {
+  try {
+    const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: spreadsheetId(),
+      fields: "sheets(properties(title,gridProperties(columnCount)))",
+    });
+    const sheet = meta.data.sheets?.find((item) => item.properties?.title === tab);
+    const count = sheet?.properties?.gridProperties?.columnCount ?? 0;
+    if (count > 0) return count;
+  } catch (error) {
+    console.error(
+      "[store] Tabellenbreite nicht gelesen",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  return SHEET_FALLBACK_COLUMN_COUNT;
+}
+
 async function ensureSheetHeader(): Promise<string[]> {
   const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
   const id = spreadsheetId();
@@ -194,7 +233,7 @@ async function ensureSheetHeader(): Promise<string[]> {
   const existing = await sheets.spreadsheets.values.get(
     {
       spreadsheetId: id,
-      range: `${tab}!A1:AZ1`,
+      range: `${tab}!${intakeHeaderRange(await intakeColumnCount(tab))}`,
     },
     SHEETS_GET_OPTS,
   );
@@ -240,25 +279,26 @@ async function appendSheetRow(row: SheetRow): Promise<void> {
   });
 }
 
-async function readSheetRows(): Promise<SheetRow[]> {
-  const header = await ensureSheetHeader();
+async function readSheetValues(tab: string): Promise<string[][]> {
   const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
   const result = await sheets.spreadsheets.values.get(
     {
       spreadsheetId: spreadsheetId(),
-      range: `${getSheetsTab()}!A2:AZ`,
+      range: `${tab}!${intakeValuesRange(await intakeColumnCount(tab))}`,
     },
     SHEETS_GET_OPTS,
   );
-  const values = result.data.values ?? [];
+  return (result.data.values ?? []).map((row) =>
+    (row ?? []).map((cell) => String(cell ?? "")),
+  );
+}
+
+async function readSheetRows(): Promise<SheetRow[]> {
+  const header = await ensureSheetHeader();
+  const values = await readSheetValues(getSheetsTab());
   return values
-    .filter((row) => row.some((cell) => String(cell || "").trim()))
-    .map((row) =>
-      sheetRowFromValues(
-        header,
-        row.map((cell) => String(cell ?? "")),
-      ),
-    );
+    .filter((row) => row.some((cell) => cell.trim()))
+    .map((row) => recoverStoredDocumentId(sheetRowFromValues(header, row)));
 }
 
 async function readRows(file: string): Promise<SheetRow[]> {
@@ -437,7 +477,7 @@ async function loadRows(
         : await readSheetRows();
       const fileRows = overrides?.readSheets ? [] : await readAllFileRows();
       const rows = await hydrateRows(mergeRows(sheetRows, fileRows), overrides?.blob);
-      return { backend: "sheets", rows };
+      return { backend: "sheets", rows: rows.map(recoverStoredDocumentId) };
     } catch (error) {
       if (isDurableReadError(error) || overrides?.readSheets) throw error;
       console.error(
@@ -446,7 +486,12 @@ async function loadRows(
       );
     }
   }
-  return { backend: "file", rows: await hydrateRows(await readAllFileRows(), overrides?.blob) };
+  return {
+    backend: "file",
+    rows: (await hydrateRows(await readAllFileRows(), overrides?.blob)).map(
+      recoverStoredDocumentId,
+    ),
+  };
 }
 
 /** Same read path as Konto, Bearbeitung and PDF, with optional test doubles. */
@@ -461,18 +506,24 @@ export async function findDocumentById(documentId: string): Promise<SheetRow | n
   const id = normalizeQueryId(documentId);
   if (!id) return null;
   const { rows } = await loadRows();
-  const exact = rows.filter((row) => queryIdsEqual(row.documentId, id));
-  if (exact.length > 0) return exact.at(-1) ?? null;
-  const family = rows.filter((row) => queryIdsEqual(row.parentDocumentId, id));
-  return family.at(-1) ?? null;
+  return pickStoredDocument(rows, id);
+}
+
+/** Submitted documents for this mailbox. A shared entity id is not access. */
+export function documentsOwnedByEmail(
+  rows: readonly SheetRow[],
+  email: string,
+): SheetRow[] {
+  if (!email.trim()) return [];
+  return rows
+    .map(recoverStoredDocumentId)
+    .filter((row) => rowHasStoredDocument(row) && emailsEqual(row.email, email))
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 }
 
 export async function listDocumentsByEmail(email: string): Promise<SheetRow[]> {
-  if (!email.trim()) return [];
   const { rows } = await loadRows();
-  return rows
-    .filter((row) => row.documentId && emailsEqual(row.email, email))
-    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  return documentsOwnedByEmail(rows, email);
 }
 
 export async function listDocumentFamily(documentId: string): Promise<SheetRow[]> {
@@ -654,7 +705,7 @@ function latestRowForSession(
 ): SheetRow | null {
   const matches = rows.filter(
     (row) =>
-      Boolean(row.documentId) &&
+      rowHasStoredDocument(row) &&
       row.stripeSessionId &&
       queryIdsEqual(row.stripeSessionId, sessionId),
   );
@@ -715,7 +766,7 @@ export async function findSuccessDocument(input: {
     }
     const { backend, rows } = await loadRows();
     if (documentId) {
-      const byId = rows.filter((row) => queryIdsEqual(row.documentId, documentId)).at(-1);
+      const byId = pickStoredDocument(rows, documentId);
       if (byId) return byId;
     }
     if (sessionId) {
@@ -1292,21 +1343,11 @@ async function updateSheetDocumentEntityIds(
   const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
   const id = spreadsheetId();
   const tab = getSheetsTab();
-  const result = await sheets.spreadsheets.values.get(
-    {
-      spreadsheetId: id,
-      range: `${tab}!A2:AZ`,
-    },
-    SHEETS_GET_OPTS,
-  );
-  const values = result.data.values ?? [];
+  const values = await readSheetValues(tab);
   const updates: Array<{ range: string; values: string[][] }> = [];
   const col = columnA1(colIndex);
   for (let i = 0; i < values.length; i++) {
-    const row = sheetRowFromValues(
-      header,
-      (values[i] ?? []).map((cell) => String(cell ?? "")),
-    );
+    const row = recoverStoredDocumentId(sheetRowFromValues(header, values[i] ?? []));
     if (!row.documentId || !documentIds.has(row.documentId)) continue;
     if (row.entityId.trim() === entityId) continue;
     updates.push({
