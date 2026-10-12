@@ -1,9 +1,10 @@
+import { blobPathFromLocator } from "@/lib/blob-ref";
 import {
   devCheckoutStubAllowed,
   isStubCheckoutSessionId,
 } from "@/lib/checkout-stub";
 import type { Entity } from "@/lib/entities";
-import { queryIdsEqual } from "@/lib/query";
+import { normalizeQueryId, queryIdsEqual } from "@/lib/query";
 import { emailsEqual, type SheetRow } from "@/lib/types";
 
 export type DocumentAccess = {
@@ -61,15 +62,76 @@ export function canAccessDocument(
   return queryIdsEqual(sessionId, row.stripeSessionId);
 }
 
+function compactDocumentId(value: string): string {
+  return normalizeQueryId(value).replace(/[\s\u200B-\u200D\uFEFF]+/g, "").toLowerCase();
+}
+
+function documentIdsEqual(a: string, b: string): boolean {
+  const left = compactDocumentId(a);
+  const right = compactDocumentId(b);
+  return Boolean(left) && left === right;
+}
+
+/** Family id from `gobd/<id>/v1.pdf`. Uploads and other objects do not match. */
+export function pdfFamilyId(pdfUrl: string): string {
+  const path = blobPathFromLocator(pdfUrl);
+  if (!path) return "";
+  const match = /^gobd\/([^/]+)\/v\d+\.pdf$/i.exec(path);
+  const id = match?.[1] ?? "";
+  if (!id || id === "uploads" || id.includes("..")) return "";
+  return id;
+}
+
+/**
+ * Fill an empty document id from the PDF key the server wrote
+ * (`gobd/<id>/vN.pdf`). A parent id is not copied: another row can name it.
+ */
+export function recoverStoredDocumentId(row: SheetRow): SheetRow {
+  if (row.documentId.trim()) return row;
+  const fromPdf = pdfFamilyId(row.pdfUrl);
+  if (!fromPdf) return row;
+  return {
+    ...row,
+    documentId: fromPdf,
+    parentDocumentId: row.parentDocumentId.trim() || fromPdf,
+  };
+}
+
+/** A submitted Verfahrensdokumentation, not a paid checkout row without a file. */
+export function rowHasStoredDocument(
+  row: Pick<SheetRow, "documentId" | "parentDocumentId" | "pdfUrl">,
+): boolean {
+  return Boolean(row.documentId.trim() || pdfFamilyId(row.pdfUrl));
+}
+
+/**
+ * The row is this document. Exact document id wins over a shared parent.
+ * A self-parent (document id equals parent id) is an exact match.
+ */
+export function pickStoredDocument(
+  rows: readonly SheetRow[],
+  documentId: string,
+): SheetRow | null {
+  const id = compactDocumentId(documentId);
+  if (!id) return null;
+  const prepared = rows.map(recoverStoredDocumentId);
+  const exact = prepared.filter((row) => documentIdsEqual(row.documentId, id));
+  if (exact.length > 0) return exact.at(-1) ?? null;
+  const byPdf = prepared.filter((row) => documentIdsEqual(pdfFamilyId(row.pdfUrl), id));
+  if (byPdf.length > 0) return byPdf.at(-1) ?? null;
+  const byParent = prepared.filter((row) => documentIdsEqual(row.parentDocumentId, id));
+  return byParent.at(-1) ?? null;
+}
+
 export function rowsInFamily(rows: SheetRow[], documentId: string): SheetRow[] {
-  if (!documentId) return [];
-  const seed = rows.filter((row) => row.documentId === documentId).at(-1);
+  if (!compactDocumentId(documentId)) return [];
+  const seed = rows.filter((row) => documentIdsEqual(row.documentId, documentId)).at(-1);
   if (!seed) return [];
   const id = documentFamilyId(seed);
   return rows.filter(
     (row) =>
       Boolean(row.documentId) &&
-      (row.documentId === id || documentFamilyId(row) === id),
+      (documentIdsEqual(row.documentId, id) || documentIdsEqual(documentFamilyId(row), id)),
   );
 }
 
