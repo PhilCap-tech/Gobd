@@ -62,7 +62,7 @@ Schreiben Sie uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Re
 
 ## 6. 14 Tage Zufriedenheitsgarantie
 
-Innerhalb von **14 Tagen** nach Bestellung erstatten wir die volle Zahlung (198 € zzgl. USt), solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir den bereits gezahlten Monatsbeitrag von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht mehr erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
+Innerhalb von **14 Tagen** nach Bestellung erstatten wir 198 € zzgl. USt (149 € Einrichtung und 49 € Nutzungsentgelt des ersten Monats), solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
 
 **So beantragen Sie die Erstattung**
 
@@ -74,8 +74,8 @@ Schreiben Sie an **info@gobd-doku-erstellen.de** mit Betreff „Zufriedenheitsga
 
 **Was wird im Rahmen der Garantie erstattet?**
 
-- **Vor dem ersten PDF** (noch keine Erzeugung und kein Download der Verfahrensdokumentation): die gesamte bis dahin gezahlte Vergütung, Einrichtung und Nutzungsentgelt.
-- **Nach dem ersten PDF** (Erzeugung oder Download): nur das bereits gezahlte monatliche Nutzungsentgelt (49 € zzgl. USt). Die Einrichtung (149 € zzgl. USt) ist nicht erstattungsfähig.
+- **Vor dem ersten PDF** (noch keine Erzeugung und kein Download der Verfahrensdokumentation): 198 € zzgl. USt (149 € Einrichtung und 49 € Nutzungsentgelt des ersten Monats).
+- **Nach dem ersten PDF** (Erzeugung oder Download): nur das laufende monatliche Nutzungsentgelt (49 € zzgl. USt). Die Einrichtung (149 € zzgl. USt) ist nicht erstattungsfähig.
 
 **Voraussetzungen**
 

@@ -178,7 +178,7 @@ expect(UPSELL_PRICE_BREAKDOWN === EXPECTED_BREAKDOWN, "price breakdown matches p
 expect(UPSELL_CTA_HREF === "/checkout", "CTA target is /checkout");
 expect(
   GELD_ZURUECK_MICRO ===
-    "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde",
+    "14 Tage Zufriedenheitsgarantie — 198 € nur, solange noch kein PDF erzeugt oder heruntergeladen wurde",
   "guarantee line stays the landing sentence",
 );
 expect(
