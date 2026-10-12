@@ -21,7 +21,9 @@ export function renewExpiredLinkLabel(maskedEmail: string): string {
 }
 
 /** Nur der Intake-Zielpfad der Onboarding-Mail, nach safeNextPath. */
-export function isOnboardingIntakeNext(next: string | null | undefined): boolean {
+export function isOnboardingIntakeNext(
+  next: string | null | undefined,
+): next is string {
   if (!next) return false;
   return next === "/intake" || next.startsWith("/intake?");
 }
