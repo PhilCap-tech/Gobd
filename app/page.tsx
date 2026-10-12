@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ModuleTeile } from "@/components/module-teile";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { CATALOG_STEPS } from "@/lib/intake-catalog";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
-import { MODULE, TEIL_TITEL } from "@/lib/module/katalog";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
+import { LEGAL_OPERATOR } from "@/lib/legal";
 import {
   ALL_AREAS_DETAIL,
   ALL_AREAS_LINE,
   CTA_CHECK,
-  CTA_CHECK_HERO,
   CTA_CREATE,
   CTA_CREATE_WITH_PRICE,
   CTA_MUSTER,
@@ -19,11 +19,11 @@ import {
   GELD_ZURUECK_HREF,
   GELD_ZURUECK_MICRO,
   HERO_FACTS_LINE,
-  HERO_OUTCOME_LINE,
+  HERO_INTRO,
+  HERO_PRICE_BOX,
   PRICE_FRAME_LINE,
   PRICE_INCLUSION_LINE,
   INTAKE_EFFORT_LINE,
-  PRICE_MICRO,
   READINESS_EFFORT_NOTE,
   RESULT_PROMISE,
 } from "@/lib/offer-copy";
@@ -88,24 +88,6 @@ function plainExcerpt(markdown: string, maxChars = 520): string {
   return `${cut.slice(0, end).trimEnd()} …`;
 }
 
-function PriceLine({
-  guarantee = "short",
-}: {
-  guarantee?: "short" | "bedingungen" | "none";
-}) {
-  return (
-    <p className="trust-line">
-      {PRICE_MICRO}
-      {guarantee === "none" ? null : (
-        <>
-          {" · "}
-          <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
-        </>
-      )}
-    </p>
-  );
-}
-
 export default function HomePage() {
   const sample = renderDeliveryDocument({
     identity: PARTNER_MUSTER_IDENTITY,
@@ -124,7 +106,6 @@ export default function HomePage() {
       <SiteHeader
         ctaHref="/checkout"
         ctaLabel={CTA_CREATE}
-        ctaNote={PRICE_MICRO}
         links={[
           { href: "#muster", label: "Muster" },
           { href: "#bereiche", label: "Module" },
@@ -133,45 +114,67 @@ export default function HomePage() {
           { href: "/readiness", label: "3-Minuten-Check" },
         ]}
       />
-      <main className="home-wrap">
+      <main className="shell">
         <section className="hero">
           <p className="hook">Buchhaltungsabläufe nachvollziehbar dokumentieren</p>
-          <h1>GoBD-Verfahrensdokumentation online erstellen</h1>
-          <p className="outcome-line">{HERO_OUTCOME_LINE}</p>
-          <p className="lead">
-            Geführte Fragen zu Ihren Abläufen. {RESULT_PROMISE} Schritt für
-            Schritt online erstellen.
-          </p>
-          <div className="cta-stack">
-            <div className="hero-cta-row">
-              <div className="cta-paid">
-                <Link className="btn" href="/checkout">
-                  {CTA_CREATE}
-                </Link>
-                <PriceLine />
-              </div>
-            </div>
-            <div className="hero-secondary">
-              <Link className="btn ghost" href="/readiness">
-                {CTA_CHECK_HERO}
-              </Link>
-              <Link className="btn ghost" href="#muster">
-                {CTA_MUSTER_HERO}
-              </Link>
-            </div>
+          <h1>
+            <span className="h1-keep">GoBD-Verfahrensdokumentation</span> online
+            erstellen
+          </h1>
+          <p className="lead">{HERO_INTRO}</p>
+          <p className="price-box">{HERO_PRICE_BOX}</p>
+          <div className="hero-actions">
+            <Link className="btn" href="/checkout">
+              {CTA_CREATE}
+            </Link>
+            <Link className="btn ghost" href="#muster">
+              {CTA_MUSTER_HERO}
+            </Link>
           </div>
-          <p className="hero-facts">{HERO_FACTS_LINE}</p>
-          <p className="advisor-note">
-            Steuerberater oder Kanzlei? →{" "}
-            <Link href="/steuerberater">Seite für Berater</Link>
-          </p>
-          <p className="disclaimer" role="note">
-            {DISCLAIMER_ONCE}
+          <p className="guarantee-line">
+            <svg
+              className="guarantee-mark"
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              aria-hidden="true"
+            >
+              <path
+                fill="currentColor"
+                d="M6.1 11.2 3 8.1l1.1-1.1 2 2 5.8-5.8 1.1 1.1-6.9 6.9z"
+              />
+            </svg>
+            <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
           </p>
         </section>
 
+        <section className="trust-bar" aria-label="Zahlung, Garantie und Anbieter">
+          <ul>
+            <li>Sichere Zahlung über Stripe</li>
+            <li>
+              14 Tage Zufriedenheitsgarantie (volle Erstattung, solange kein PDF
+              erzeugt wurde)
+            </li>
+            <li>Monatlich kündbar</li>
+            <li>
+              <Link href="/impressum">
+                Anbieter: {LEGAL_OPERATOR.name}, Monheim am Rhein
+              </Link>
+            </li>
+          </ul>
+        </section>
+
+        <p className="disclaimer" role="note">
+          {DISCLAIMER_ONCE}
+        </p>
+        <p className="advisor-note">
+          Steuerberater oder Kanzlei? →{" "}
+          <Link href="/steuerberater">Seite für Berater</Link>
+        </p>
+
         <section className="block" id="muster">
           <h2>So sieht das Ergebnis aus</h2>
+          <p className="prose">{HERO_FACTS_LINE}</p>
           <div className="proof-grid">
             <article className="proof-card">
               <h3>Muster-Dokumentation</h3>
@@ -238,23 +241,7 @@ export default function HomePage() {
             ausgelassen — sie tragen den Status „Im Tool beschreiben“, sind durch
             bestehende Dokumentation abgedeckt oder haben den Status „Später ausfüllen“.
           </p>
-          <div className="bereich-grid muster-grid">
-            {([1, 2, 3, 4] as const).map((teil) => (
-              <div key={teil}>
-                <h3>{TEIL_TITEL[teil]}</h3>
-                <ul>
-                  {MODULE.filter((modul) => modul.teil === teil).map((modul) => (
-                    <li key={modul.id}>
-                      <strong>
-                        {modul.nr}. {modul.titel}
-                      </strong>
-                      <span>{modul.kurz}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <ModuleTeile idPrefix="home-modul" />
           <p className="hint">
             Muster-Gesamtdokumente (Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau) und Fragebögen:{" "}
             <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
@@ -453,11 +440,10 @@ export default function HomePage() {
           </div>
         </section>
       </main>
-      <div className="sticky-cta tall">
+      <div className="sticky-cta">
         <Link className="btn" href="/checkout">
           {CTA_CREATE}
         </Link>
-        <PriceLine />
       </div>
       <SiteFooter />
     </>

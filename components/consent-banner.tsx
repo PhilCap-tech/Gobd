@@ -40,46 +40,43 @@ export function ConsentBanner() {
     <aside
       className="consent-banner"
       role="dialog"
-      aria-labelledby="consent-title"
+      aria-label="Cookies"
       aria-describedby="consent-text"
     >
-      <div className="consent-banner-inner">
-        <div>
-          <h2 id="consent-title">Cookies</h2>
-          <p id="consent-text">
-            {partner ? (
-              <>
-                Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel
-                die Anmeldung). Optionales Marketing (Google-Tag, Meta Pixel)
-                läuft nur, wenn Sie zustimmen. Ohne Zustimmung laden wir diese
-                Tags nicht.
-              </>
-            ) : (
-              <>
-                Essenzielle Cookies brauchen wir für den Betrieb (z. B. Login und
-                Stripe-Checkout). Optionales Marketing (Google-Tag, Meta Pixel)
-                läuft nur, wenn Sie zustimmen. Ohne Zustimmung laden wir diese Tags
-                nicht.
-              </>
-            )}
-            {" "}
-            <Link href="/cookies">Cookie-Hinweis</Link>
-          </p>
-        </div>
+      <div className="consent-banner-inner shell">
+        <p id="consent-text">
+          {partner ? (
+            <>
+              Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel
+              die Anmeldung). Optionales Marketing (Google-Tag, Meta Pixel)
+              läuft nur, wenn Sie zustimmen. Ohne Zustimmung laden wir diese
+              Tags nicht.
+            </>
+          ) : (
+            <>
+              Essenzielle Cookies brauchen wir für den Betrieb (z. B. Login und
+              Stripe-Checkout). Optionales Marketing (Google-Tag, Meta Pixel)
+              läuft nur, wenn Sie zustimmen. Ohne Zustimmung laden wir diese Tags
+              nicht.
+            </>
+          )}
+          {" "}
+          <Link href="/cookies">Cookie-Hinweis</Link>
+        </p>
         <div className="consent-actions">
           <button
             type="button"
-            className="btn ghost"
+            className="btn consent-choice"
             onClick={() => saveConsent(false)}
           >
-            Nur essenziell
+            Ablehnen
           </button>
           <button
             type="button"
-            className="btn"
+            className="btn consent-choice"
             onClick={() => saveConsent(true)}
           >
-            Marketing erlauben
+            Akzeptieren
           </button>
         </div>
       </div>
