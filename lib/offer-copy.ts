@@ -14,19 +14,15 @@ export const PRICE_FRAME_LINE = `${TODAY_EUR} € zzgl. USt = individuelles PDF 
 export const HERO_OUTCOME_LINE =
   "PDF + Offene-Punkte aus Ihren Angaben · Entwurf für Sie und Ihren Steuerberater.";
 
-/**
- * Homepage hero: the outcome line and the lead paragraph as one sentence.
- * Review duty and the individual PDF stay the same in substance.
- */
-export const HERO_INTRO =
-  "Geführte Fragen zu Ihren Abläufen führen Schritt für Schritt zu einer individuell aus Ihren Angaben erstellten Verfahrensdokumentation als PDF und einer Liste offener Punkte, die Sie vor der Verwendung prüfen und ergänzen — ein Entwurf für Sie und Ihren Steuerberater.";
+/** Homepage hero, the sentence directly under the H1. */
+export const HERO_SCOPE_LINE =
+  "Die komplette Verfahrensdokumentation: Belegfluss, Kasse, Warenwirtschaft, Lohn und weitere Bereiche, alles zu einem Preis.";
 
 /** Compact price box on the homepage hero. Amounts follow pricing.ts. Net, like the AGB. */
-export const HERO_PRICE_BOX = `${TODAY_EUR} € heute (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt`;
+export const HERO_PRICE_BOX = `${TODAY_EUR} € zum Start (${SETUP_EUR} € Einrichtung + erster Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt`;
 
-/** Homepage hero, after the CTA row. Competitor-watch copy 07.10.2026. */
-export const HERO_FACTS_LINE =
-  "24 Module · 5 Branchen-Muster · Muster-PDF ohne Anmeldung";
+/** Homepage: modules in the tool vs chapters in the delivered PDF. */
+export const HERO_FACTS_LINE = "24 Module, im PDF gegliedert in 14 Kapitel";
 
 /**
  * Price block inclusion line. The cancellation timing from the old

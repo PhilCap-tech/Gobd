@@ -47,6 +47,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // The black “N” badge is the Next.js dev route indicator (dev hot-reloader
+  // only). Production builds do not ship it; this also hides it in `next dev`.
+  devIndicators: false,
   serverExternalPackages: ["pdfkit"],
   outputFileTracingIncludes: {
     "/blog": ["./content/blog/**/*"],

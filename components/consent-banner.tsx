@@ -76,7 +76,7 @@ export function ConsentBanner() {
             className="btn consent-choice"
             onClick={() => saveConsent(true)}
           >
-            Akzeptieren
+            Marketing erlauben
           </button>
         </div>
       </div>

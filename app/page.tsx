@@ -15,12 +15,11 @@ import {
   CTA_CREATE_WITH_PRICE,
   CTA_MUSTER,
   CTA_MUSTER_HERO,
-  DISCLAIMER_ONCE,
   GELD_ZURUECK_HREF,
   GELD_ZURUECK_MICRO,
   HERO_FACTS_LINE,
-  HERO_INTRO,
   HERO_PRICE_BOX,
+  HERO_SCOPE_LINE,
   PRICE_FRAME_LINE,
   PRICE_INCLUSION_LINE,
   INTAKE_EFFORT_LINE,
@@ -116,13 +115,20 @@ export default function HomePage() {
       />
       <main className="shell">
         <section className="hero">
-          <p className="hook">Buchhaltungsabläufe nachvollziehbar dokumentieren</p>
+          <p className="hook">
+            Geführte Fragen führen zu einem PDF-Entwurf und offenen Punkten.
+          </p>
           <h1>
             <span className="h1-keep">GoBD-Verfahrensdokumentation</span> online
             erstellen
           </h1>
-          <p className="lead">{HERO_INTRO}</p>
-          <p className="price-box">{HERO_PRICE_BOX}</p>
+          <p className="lead">{HERO_SCOPE_LINE}</p>
+          <p className="price-box">
+            {HERO_PRICE_BOX}
+            <span className="price-box-guarantee">
+              <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
+            </span>
+          </p>
           <div className="hero-actions">
             <Link className="btn" href="/checkout">
               {CTA_CREATE}
@@ -131,30 +137,11 @@ export default function HomePage() {
               {CTA_MUSTER_HERO}
             </Link>
           </div>
-          <p className="guarantee-line">
-            <svg
-              className="guarantee-mark"
-              viewBox="0 0 16 16"
-              width="16"
-              height="16"
-              aria-hidden="true"
-            >
-              <path
-                fill="currentColor"
-                d="M6.1 11.2 3 8.1l1.1-1.1 2 2 5.8-5.8 1.1 1.1-6.9 6.9z"
-              />
-            </svg>
-            <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
-          </p>
         </section>
 
-        <section className="trust-bar" aria-label="Zahlung, Garantie und Anbieter">
+        <section className="trust-bar" aria-label="Zahlung und Anbieter">
           <ul>
             <li>Sichere Zahlung über Stripe</li>
-            <li>
-              14 Tage Zufriedenheitsgarantie (volle Erstattung, solange kein PDF
-              erzeugt wurde)
-            </li>
             <li>Monatlich kündbar</li>
             <li>
               <Link href="/impressum">
@@ -164,11 +151,8 @@ export default function HomePage() {
           </ul>
         </section>
 
-        <p className="disclaimer" role="note">
-          {DISCLAIMER_ONCE}
-        </p>
         <p className="advisor-note">
-          Steuerberater oder Kanzlei? →{" "}
+          Steuerberater oder Kanzlei?{" "}
           <Link href="/steuerberater">Seite für Berater</Link>
         </p>
 
@@ -354,9 +338,6 @@ export default function HomePage() {
               <Link className="btn" href="/checkout">
                 {CTA_CREATE_WITH_PRICE}
               </Link>
-              <p className="trust-line">
-                <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
-              </p>
             </div>
             <Link className="btn ghost" href="#muster">
               {CTA_MUSTER}
@@ -432,11 +413,6 @@ export default function HomePage() {
             <Link className="text-cta" href="/readiness">
               {CTA_CHECK}
             </Link>
-            <p className="trust-line">
-              <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
-              {" · "}
-              Keine Steuerberatung
-            </p>
           </div>
         </section>
       </main>

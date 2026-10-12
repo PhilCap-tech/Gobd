@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { CookieSettingsButton } from "@/components/consent-banner";
 import { LEGAL_LINKS, LEGAL_OPERATOR } from "@/lib/legal";
+import { DISCLAIMER_ONCE } from "@/lib/offer-copy";
 
 export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="shell">
+        <p className="footer-disclaimer">{DISCLAIMER_ONCE}</p>
         GoBD Verfahrensdoku ·{" "}
         <Link href="/faq">kein Steuerberatungsersatz</Link>
         <br />
