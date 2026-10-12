@@ -181,9 +181,9 @@ export default async function AccountPage({
               <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
                 <span className="doc-meta">{openDraftLabel(draft)}</span>
                 {writesOpen ? (
-                  <Link className="btn" href={openDraftContinuePath(draft)}>
+                  <a className="btn" href={openDraftContinuePath(draft)}>
                     Weiter ausfüllen
-                  </Link>
+                  </a>
                 ) : (
                   <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
                 )}
