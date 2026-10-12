@@ -18,12 +18,15 @@ import {
   verifyMagicToken,
   verifySessionToken,
 } from "../lib/auth";
+import { accountCompanyCards } from "../lib/account-hub";
+import type { Entity } from "../lib/entities";
 import { getMagicLinkSecret } from "../lib/env";
 import {
   clearIntakeDraft,
   loadIntakeDraft,
   normalizeDraftKey,
   saveIntakeDraft,
+  type IntakeDraft,
 } from "../lib/intake-draft";
 import {
   forgetOpenDraft,
@@ -32,7 +35,7 @@ import {
   openDraftContinuePath,
   rememberOpenDraft,
 } from "../lib/open-drafts";
-import { emptyAnswers, type IntakeAnswers } from "../lib/types";
+import { emptyAnswers, emptySheetRow, type IntakeAnswers } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -53,6 +56,88 @@ function answers(): IntakeAnswers {
     A01: { status: "bestaetigt", values: { company: COMPANY, rechtsform: "GmbH" } },
   };
   return base;
+}
+
+function firm(id: string, name: string): Entity {
+  return {
+    entityId: id,
+    userEmail: BUYER,
+    name,
+    street: "",
+    zip: "",
+    city: "",
+    stnr: "",
+    ustId: "",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function hubDraft(sessionId: string, entityId: string, company: string): IntakeDraft {
+  const body = answers();
+  body.katalog = {
+    A01: { status: "bestaetigt", values: { company, rechtsform: "GmbH" } },
+  };
+  return {
+    draftKey: normalizeDraftKey({ sessionId, modus: "gesamt" }),
+    email: BUYER,
+    stripeSessionId: sessionId,
+    documentId: "",
+    entityId,
+    step: 2,
+    answers: body,
+    revision: 1,
+    updatedAt: "2026-01-02T00:00:00.000Z",
+  };
+}
+
+function checkHubCards() {
+  const alpha = firm("firm-a", "Alpha GmbH");
+  const beta = firm("firm-b", "Beta GmbH");
+  const open = hubDraft("cs_test_hub_open", "firm-a", "Alpha GmbH");
+  const openHub = accountCompanyCards([alpha, beta], [], [open]);
+  const openA = openHub.groups.find((group) => group.entity?.entityId === "firm-a");
+  const openB = openHub.groups.find((group) => group.entity?.entityId === "firm-b");
+  ok(openA?.continueDrafts.length === 1, "an open draft is on its company card");
+  ok(
+    openDraftContinuePath(openA?.continueDrafts[0] ?? open) ===
+      `/intake?session_id=${encodeURIComponent("cs_test_hub_open")}`,
+    "the company card continues the open draft",
+  );
+  ok(openB?.continueDrafts.length === 0 && openB?.families.length === 0, "the other company has no draft");
+  ok(openHub.openDrafts.length === 1, "Weiter ausfüllen stays available for the open draft");
+
+  const submitted = emptySheetRow();
+  submitted.documentId = "doc-hub-1";
+  submitted.email = BUYER;
+  submitted.company = "";
+  submitted.entityId = "";
+  submitted.stripeSessionId = "cs_test_hub_done";
+  submitted.status = "intake_submitted";
+  submitted.version = "1";
+  submitted.timestamp = "2026-02-01T00:00:00.000Z";
+  const doneDraft = hubDraft("cs_test_hub_done", "firm-a", "Alpha GmbH");
+  const done = accountCompanyCards([alpha, beta], [submitted], [doneDraft]);
+  const doneA = done.groups.find((group) => group.entity?.entityId === "firm-a");
+  const doneB = done.groups.find((group) => group.entity?.entityId === "firm-b");
+  ok(doneA?.families.length === 1, "a submitted document is shown on the company card");
+  ok(doneA?.families[0]?.latest.documentId === "doc-hub-1", "the card keeps the document id");
+  ok(doneA?.continueDrafts.length === 0, "a submitted intake is not offered as an open draft");
+  ok(doneB?.families.length === 0 && doneB?.continueDrafts.length === 0, "the other company stays without that document");
+
+  const bound = emptySheetRow();
+  bound.documentId = "doc-hub-2";
+  bound.entityId = "firm-b";
+  bound.email = BUYER;
+  bound.stripeSessionId = "cs_test_hub_bound";
+  bound.version = "1";
+  bound.timestamp = "2026-03-01T00:00:00.000Z";
+  const boundHub = accountCompanyCards([alpha, beta], [bound], []);
+  ok(
+    boundHub.groups.find((group) => group.entity?.entityId === "firm-b")?.families[0]?.latest.documentId ===
+      "doc-hub-2",
+    "a document that already names its firm stays on that card",
+  );
 }
 
 function signRaw(payload: Record<string, unknown>): string {
@@ -119,6 +204,12 @@ async function main() {
     const account = readFileSync("app/account/page.tsx", "utf8");
     ok(account.includes("Weiter ausfüllen"), "hub renders Weiter ausfüllen");
     ok(account.includes("listOpenDraftsForEmail"), "hub reads the owner's open drafts");
+    ok(account.includes("accountCompanyCards"), "hub places drafts and documents on the company cards");
+    ok(
+      account.includes("group.families.length === 0 && group.continueDrafts.length === 0"),
+      "Noch kein Entwurf is only the card with neither a draft nor a document",
+    );
+    checkHubCards();
     const intakePage = readFileSync("app/intake/page.tsx", "utf8");
     ok(intakePage.includes("loadOwnerSessionDraft"), "intake resumes the owner draft without a fresh checkout cookie");
 

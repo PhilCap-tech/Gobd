@@ -4,12 +4,13 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
-import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
 import {
   CHECKOUT_BACK_TO_ACCOUNT,
+  checkoutAlreadyGranted,
   checkoutHandoffButtonCopy,
   checkoutOwnerMismatchCopy,
   intakeCheckoutGate,
+  intakeEntryDecision,
   ownerEmailAfterVerifiedCheckout,
 } from "@/lib/checkout-session";
 import { LOGIN_LINK_FAILED_NOTICE } from "@/lib/login-mail";
@@ -251,10 +252,11 @@ export default async function IntakePage({
   const returnPath = intakeReturnPath(params);
   const handoffFailed = firstQueryValue(params.handoff) === "failed";
 
-  if (sessionIdQuery) {
-    const recorded = await checkoutSessionGrant(sessionIdQuery);
-    let customerEmail = recorded?.email ?? "";
-    if (!customerEmail && sessionEmail) {
+  let resumeDraft: Awaited<ReturnType<typeof loadOwnerSessionDraft>> = null;
+  if (sessionIdQuery && !isStubCheckoutSessionId(sessionIdQuery)) {
+    const prior = await checkoutAlreadyGranted(sessionIdQuery);
+    let ownerEmail = prior.ownerEmail;
+    if (!ownerEmail && sessionEmail) {
       const resolved = await resolveCheckoutSession(sessionIdQuery);
       if (!("error" in resolved) && !resolved.stub) {
         const owner = await ownerEmailAfterVerifiedCheckout(
@@ -268,22 +270,25 @@ export default async function IntakePage({
             return row ? row.email : null;
           },
         );
-        customerEmail = owner || resolved.email.trim().toLowerCase();
+        ownerEmail = owner || resolved.email.trim().toLowerCase();
       }
     }
-    const gate = intakeCheckoutGate({
+    const entry = intakeEntryDecision({
       sessionEmail,
-      customerEmail,
-      grantRecorded: Boolean(recorded),
+      ownerEmail,
+      alreadyUsed: prior.granted,
+      checkoutCookieMatches: checkoutGrant?.sessionId === sessionIdQuery,
+      grantFlag,
+      hasSessionQuery: true,
     });
-    if (gate === "mismatch" && sessionEmail && customerEmail) {
+    if (entry === "mismatch" && sessionEmail && ownerEmail) {
       return (
         <>
           <SiteHeader backHref="/account" backLabel="← Zum Konto" />
           <main className="wrap page">
             <CheckoutOwnerClash
               signedInEmail={sessionEmail}
-              ownerEmail={customerEmail}
+              ownerEmail={ownerEmail}
               sessionId={sessionIdQuery}
               failed={handoffFailed}
             />
@@ -292,22 +297,13 @@ export default async function IntakePage({
         </>
       );
     }
-    if (gate === "login") {
+    if (entry === "login") {
       redirect(loginPath(returnPath));
     }
-  }
-
-  let resumeDraft: Awaited<ReturnType<typeof loadOwnerSessionDraft>> = null;
-  if (
-    sessionIdQuery &&
-    checkoutGrant?.sessionId !== sessionIdQuery &&
-    grantFlag !== "skip" &&
-    grantFlag !== "set"
-  ) {
     if (sessionEmail) {
       resumeDraft = await loadOwnerSessionDraft(sessionEmail, sessionIdQuery);
     }
-    if (!resumeDraft) {
+    if (entry === "grant" && !resumeDraft) {
       const q = new URLSearchParams();
       for (const key of [
         "session_id",
@@ -565,12 +561,12 @@ export default async function IntakePage({
   }
 
   if (!("error" in session) && sessionId && !session.stub) {
-    const recorded = await checkoutSessionGrant(sessionId);
-    const customer = recorded?.email || session.email.trim().toLowerCase();
+    const prior = await checkoutAlreadyGranted(sessionId);
+    const customer = prior.ownerEmail || session.email.trim().toLowerCase();
     const gate = intakeCheckoutGate({
       sessionEmail,
       customerEmail: customer,
-      grantRecorded: Boolean(recorded),
+      grantRecorded: prior.granted,
     });
     if (gate === "login") redirect(loginPath(returnPath));
     if (gate === "mismatch" && sessionEmail && customer) {

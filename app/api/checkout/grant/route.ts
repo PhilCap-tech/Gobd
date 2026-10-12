@@ -3,7 +3,8 @@ import { loginPath, sessionEmailFromRequest } from "@/lib/auth";
 import { finishCheckoutReturn } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { findLatestDocumentByStripeSessionId } from "@/lib/store";
-import { resolveCheckoutSession } from "@/lib/stripe";
+import { resolveCheckoutSession, type CheckoutResolveError } from "@/lib/stripe";
+import type { CheckoutIdentity } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -40,19 +41,38 @@ function intakePath(source: URL): string {
   return query ? `/intake?${query}` : "/intake";
 }
 
+export type CheckoutGrantIo = {
+  resolveCheckout: (
+    sessionId: string,
+  ) => Promise<CheckoutIdentity | { error: CheckoutResolveError }>;
+  lookupDocumentOwner: (sessionId: string) => Promise<string | null>;
+};
+
+const defaultGrantIo: CheckoutGrantIo = {
+  resolveCheckout: resolveCheckoutSession,
+  lookupDocumentOwner: async (id) => {
+    const existing = await findLatestDocumentByStripeSessionId(id);
+    return existing ? existing.email : null;
+  },
+};
+
 /**
  * Rückkehr aus Stripe: `session_id` serverseitig prüfen.
- * Ein bestehendes Login wird nie ersetzt. Nach dem ersten Login
- * für diese Session führt dieselbe ID zur Anmeldung statt zu einem neuen Cookie.
+ * Ein bestehendes Login wird nie ersetzt. Nach dem ersten Login,
+ * nach einer gespeicherten Fassung und nach jedem abgesendeten Intake
+ * führt dieselbe ID zur Anmeldung statt zu einem neuen Cookie.
  */
-export async function GET(request: Request) {
+export async function completeCheckoutGrant(
+  request: Request,
+  io: CheckoutGrantIo = defaultGrantIo,
+): Promise<NextResponse> {
   const source = new URL(request.url);
   const sessionId = source.searchParams.get("session_id")?.trim() ?? "";
   if (!sessionId) {
     return NextResponse.redirect(intakeReturn(request, source, "skip"));
   }
 
-  const resolved = await resolveCheckoutSession(sessionId);
+  const resolved = await io.resolveCheckout(sessionId);
   if ("error" in resolved || (resolved.stub && !devCheckoutStubAllowed())) {
     return NextResponse.redirect(intakeReturn(request, source, "skip"));
   }
@@ -75,10 +95,7 @@ export async function GET(request: Request) {
       stripeSessionId: resolved.stripeSessionId,
       existingSessionEmail: sessionEmailFromRequest(request),
     },
-    async (id) => {
-      const existing = await findLatestDocumentByStripeSessionId(id);
-      return existing ? existing.email : null;
-    },
+    io.lookupDocumentOwner,
   );
 
   if (decision === "mismatch") {
@@ -88,4 +105,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(loginPath(intakePath(source)), request.url));
   }
   return response;
+}
+
+export async function GET(request: Request) {
+  return completeCheckoutGrant(request);
 }

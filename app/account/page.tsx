@@ -15,6 +15,7 @@ import {
   customerChangeSummary,
   customerHubTitle,
 } from "@/lib/account-display";
+import { accountCompanyCards } from "@/lib/account-hub";
 import { getSessionEmail } from "@/lib/auth";
 import { BEREICHE, BELEGFLUSS, bereichIdOf, bereichLabel } from "@/lib/bereiche";
 import { gesamtDocTitle } from "@/lib/gesamt-document";
@@ -23,7 +24,6 @@ import { isGesamt, STATUS_LABEL, STATUS_OPTION_LABEL, vollstaendigkeitsZeilen } 
 import { answersFromSheetRow } from "@/lib/types";
 import {
   firmaEditPath,
-  groupFamiliesByEntity,
   latestOwnedInFamily,
   newDocumentPath,
 } from "@/lib/documents";
@@ -33,7 +33,6 @@ import {
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
 import {
-  isUndeliveredDraft,
   listOpenDraftsForEmail,
   openDraftContinuePath,
   openDraftLabel,
@@ -86,10 +85,9 @@ export default async function AccountPage({
     ensureAccountEntities(email),
     getAccountProfile(email),
   ]);
-  const groups = groupFamiliesByEntity(entities, docs);
-  const openDrafts = (await listOpenDraftsForEmail(email)).filter((draft) =>
-    isUndeliveredDraft(draft, docs),
-  );
+  const hub = accountCompanyCards(entities, docs, await listOpenDraftsForEmail(email));
+  const groups = hub.groups;
+  const openDrafts = hub.openDrafts;
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   const stripeBound =
     Boolean(customerId) ||
@@ -290,13 +288,29 @@ export default async function AccountPage({
                         );
                       })()}
 
-                    {group.families.length === 0 ? (
+                    {group.continueDrafts.length > 0 && (
+                      <div className="entity-docs">
+                        <p className="prose">
+                          Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
+                        </p>
+                        {group.continueDrafts.map((draft) => (
+                          <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
+                            <span className="doc-meta">{openDraftLabel(draft)}</span>
+                            <Link className="btn" href={openDraftContinuePath(draft)}>
+                              Weiter ausfüllen
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {group.families.length === 0 && group.continueDrafts.length === 0 ? (
                       <div className="entity-docs">
                         <p className="prose">
                           Für diese Firma liegt noch kein Entwurf vor.
                         </p>
                       </div>
-                    ) : (
+                    ) : group.families.length === 0 ? null : (
                       <div className="entity-docs">
                         {group.families.map((family) => {
                           const editRow = latestOwnedInFamily(family.versions, email) ?? family.latest;

@@ -12,6 +12,7 @@ import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { NextResponse } from "next/server";
 import { completeCheckoutHandoff } from "../app/api/auth/checkout-handoff/route";
+import { completeCheckoutGrant } from "../app/api/checkout/grant/route";
 import { putIntakeDraft, readIntakeDraft, type DraftWriteIo } from "../app/api/intake/draft/route";
 import { submitIntake, type IntakeIo } from "../app/api/intake/route";
 import { GET as verifyMagicLink } from "../app/auth/verify/route";
@@ -37,8 +38,10 @@ import {
   checkoutOwnerMismatchCopy,
   decideCheckoutAttach,
   emailForAnswersLogin,
+  checkoutAlreadyGranted,
   finishCheckoutReturn,
   intakeCheckoutGate,
+  intakeEntryDecision,
   intakeTargetFromNext,
   loginCheckoutEmail,
   maskCheckoutEmail,
@@ -46,6 +49,7 @@ import {
 } from "../lib/checkout-session";
 import { intakeEditPath } from "../lib/documents";
 import { getMagicLinkSecret } from "../lib/env";
+import { clearIntakeDraft, normalizeDraftKey, saveIntakeDraft } from "../lib/intake-draft";
 import { LOGIN_TO_CHANGE_COPY } from "../lib/session-write";
 import { emptyAnswers, emptySheetRow, type IntakeAnswers, type SheetRow } from "../lib/types";
 
@@ -633,6 +637,8 @@ async function checkSessionGuards() {
   ok(loginPage.includes("checkoutSessionGrant"), "login page falls back to the stored checkout customer email");
   const intakePage = readFileSync("app/intake/page.tsx", "utf8");
   ok(intakePage.includes("intakeCheckoutGate"), "intake applies the session guard before the form");
+  ok(intakePage.includes("intakeEntryDecision"), "intake decides login before it follows a session id");
+  ok(intakePage.includes("checkoutAlreadyGranted"), "intake treats a saved draft and a submitted document as already used");
   ok(intakePage.includes("checkoutOwnerMismatchCopy"), "intake shows the mismatch sentence");
   ok(intakePage.includes("checkoutHandoffButtonCopy"), "intake offers the handoff button");
   ok(intakePage.includes("CHECKOUT_BACK_TO_ACCOUNT"), "intake offers the way back to the account");
@@ -642,6 +648,97 @@ async function checkSessionGuards() {
   ok(handoff.includes("deliverLoginLink"), "handoff uses the existing magic link");
   ok(handoff.includes("clearSessionCookie"), "handoff clears the login only through the session helper");
   ok(!handoff.includes('form.get("email")') && !handoff.includes("form.get('email')"), "handoff does not accept an email from the form");
+}
+
+const FRESH = "cs_test_incognito_repro";
+const SUBMITTED = "cs_test_submitted_repro";
+
+function paidGrantIo(sessionId: string, ownerEmail: string | null) {
+  return {
+    resolveCheckout: async (id: string) => {
+      if (id !== sessionId) return { error: "invalid" as const };
+      return {
+        email: BUYER,
+        company: COMPANY,
+        stripeSessionId: id,
+        stripeCustomerId: "cus_test_buyer",
+        stub: false,
+      };
+    },
+    lookupDocumentOwner: async () => ownerEmail,
+  };
+}
+
+/** The prod repro: /intake?session_id= in a fresh window must not come back as grant=set. */
+async function checkFreshWindow() {
+  const draftKey = normalizeDraftKey({ sessionId: FRESH, modus: "gesamt" });
+  await forgetCheckoutSessionGrant(FRESH).catch(() => undefined);
+  await forgetCheckoutSessionGrant(SUBMITTED).catch(() => undefined);
+  await clearIntakeDraft(draftKey).catch(() => undefined);
+
+  const first = await completeCheckoutGrant(
+    new Request(`http://localhost/api/checkout/grant?session_id=${encodeURIComponent(FRESH)}`),
+    paidGrantIo(FRESH, null),
+  );
+  const firstLocation = first.headers.get("location") ?? "";
+  ok(firstLocation.includes("grant=set"), "the immediate post-payment return still appends grant=set");
+  ok(
+    verifySessionToken(first.cookies.get(SESSION_COOKIE)?.value) === BUYER,
+    "the immediate post-payment return still sets the owner session",
+  );
+
+  const again = await completeCheckoutGrant(
+    new Request(`http://localhost/api/checkout/grant?session_id=${encodeURIComponent(FRESH)}`),
+    paidGrantIo(FRESH, null),
+  );
+  const againLocation = again.headers.get("location") ?? "";
+  ok(againLocation.includes("/login"), "a fresh window after the grant opens the login page");
+  ok(!againLocation.includes("grant=set"), "a fresh window does not append grant=set");
+  ok(!sessionLine(again), "a fresh window sets no gobd_session");
+  ok(
+    intakeEntryDecision({
+      sessionEmail: null,
+      ownerEmail: BUYER,
+      alreadyUsed: true,
+      checkoutCookieMatches: false,
+      grantFlag: "set",
+      hasSessionQuery: true,
+    }) === "login",
+    "/intake?session_id=&grant=set without cookies does not open the draft",
+  );
+
+  await forgetCheckoutSessionGrant(FRESH);
+  await saveIntakeDraft({
+    draftKey,
+    email: BUYER,
+    stripeSessionId: FRESH,
+    documentId: "",
+    entityId: "",
+    step: 2,
+    answers: answers(),
+    revision: 1,
+    updatedAt: new Date().toISOString(),
+  });
+  const withDraft = await completeCheckoutGrant(
+    new Request(`http://localhost/api/checkout/grant?session_id=${encodeURIComponent(FRESH)}`),
+    paidGrantIo(FRESH, null),
+  );
+  const draftLocation = withDraft.headers.get("location") ?? "";
+  ok(draftLocation.includes("/login"), "a saved draft in a fresh window goes to the login page");
+  ok(!draftLocation.includes("grant=set"), "a saved draft does not append grant=set");
+  ok(!sessionLine(withDraft), "a saved draft sets no gobd_session");
+  ok((await checkoutAlreadyGranted(FRESH)).granted, "the saved draft counts as already granted");
+
+  const afterSubmit = await completeCheckoutGrant(
+    new Request(`http://localhost/api/checkout/grant?session_id=${encodeURIComponent(SUBMITTED)}`),
+    paidGrantIo(SUBMITTED, BUYER),
+  );
+  const submitLocation = afterSubmit.headers.get("location") ?? "";
+  ok(submitLocation.includes("/login"), "after intake submission a bare session id goes to login");
+  ok(!submitLocation.includes("grant=set"), "after intake submission the return does not append grant=set");
+  ok(!sessionLine(afterSubmit), "after intake submission no session cookie is set");
+
+  await clearIntakeDraft(draftKey).catch(() => undefined);
 }
 
 async function main() {
@@ -656,11 +753,15 @@ async function main() {
     await checkMismatchAndExpiry();
     await checkCheckoutReturn();
     await checkSessionGuards();
+    await checkFreshWindow();
     console.log("check-checkout-session: green");
   } finally {
     await forgetCheckoutSessionGrant(SESSION).catch(() => undefined);
     await forgetCheckoutSessionGrant(GUARD).catch(() => undefined);
     await forgetCheckoutSessionGrant(SAME).catch(() => undefined);
+    await forgetCheckoutSessionGrant(FRESH).catch(() => undefined);
+    await forgetCheckoutSessionGrant(SUBMITTED).catch(() => undefined);
+    await clearIntakeDraft(normalizeDraftKey({ sessionId: FRESH, modus: "gesamt" })).catch(() => undefined);
     if (savedBlob === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
     else process.env.BLOB_READ_WRITE_TOKEN = savedBlob;
     if (savedSecret === undefined) delete process.env.MAGIC_LINK_SECRET;
