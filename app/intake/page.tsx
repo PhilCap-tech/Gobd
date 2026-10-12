@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
@@ -205,9 +206,7 @@ function CheckoutOwnerClash({
         <form method="post" action="/api/auth/checkout-handoff">
           <input type="hidden" name="session_id" value={sessionId} />
           {entityId ? <input type="hidden" name="entity_id" value={entityId} /> : null}
-          <button className="btn" type="submit">
-            {checkoutHandoffButtonCopy(ownerEmail)}
-          </button>
+          <PendingSubmitButton>{checkoutHandoffButtonCopy(ownerEmail)}</PendingSubmitButton>
         </form>
         <Link className="btn ghost" href="/account">
           {CHECKOUT_BACK_TO_ACCOUNT}

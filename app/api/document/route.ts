@@ -233,6 +233,7 @@ async function handleDocumentEdit(request: Request) {
       company: identity.company,
       downloadUrl,
       successUrl,
+      documentId,
       version,
     });
   } catch (error) {
