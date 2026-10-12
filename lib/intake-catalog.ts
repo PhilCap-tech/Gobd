@@ -1721,6 +1721,12 @@ const CARE_OF_SEGMENT = /^(?:c\s*\/\s*o|care\s+of|z\.?\s*hd\.?|zu händen)\b/i;
 const CARE_OF_TAIL = /\s+(?:c\s*\/\s*o|care\s+of|z\.?\s*hd\.?|zu händen)\b.*$/i;
 const FLOOR_SEGMENT =
   /^(?:\d+\.?\s*)?(?:og|eg|ug|dg|stock|etage|geschoss|obergeschoss|erdgeschoss|untergeschoss|dachgeschoss|hinterhaus|vorderhaus)\b/i;
+/** „Whg. 12“, „Wohnung 3“, „App. 3“, „Apartment 4“ — not a street. */
+const APARTMENT_SEGMENT = /^(?:whg\.?|wohnung|app\.?|apartment|apt\.?)\s*(?:nr\.?\s*)?\d+\b/i;
+const APARTMENT_TAIL = /\s+(?:whg\.?|wohnung|app\.?|apartment|apt\.?)\s*(?:nr\.?\s*)?\d+\b.*$/i;
+/** „Postfach 1234“, „Postf. 12“, „PF 9“ — a box number is not a house number. */
+const POSTFACH_SEGMENT = /^(?:postfach|postf\.?|pf\.?)(?=$|[\s.,\d-]|nr\b)/i;
+const POSTFACH_TAIL = /\s+(?:postfach|postf\.?|pf\.?)(?=$|[\s.,\d-]|nr\b).*$/i;
 
 function isCareOfSegment(value: string): boolean {
   return CARE_OF_SEGMENT.test(value.trim());
@@ -1733,17 +1739,36 @@ function isFloorSegment(value: string): boolean {
   return FLOOR_SEGMENT.test(text);
 }
 
+/** Apartment notes contain a number, but they are not the house number. */
+function isApartmentSegment(value: string): boolean {
+  return APARTMENT_SEGMENT.test(value.trim());
+}
+
+/** A post-office box is not a street, even when the box number looks like one. */
+function isPostfachSegment(value: string): boolean {
+  return POSTFACH_SEGMENT.test(value.trim());
+}
+
 /**
- * Keep real street segments. Drop c/o lines, person names, and floor notes
- * so „c/o Max Test, 3. OG“ does not become the Standort street.
+ * Keep real street segments. Drop c/o lines, person names, floor notes,
+ * apartment notes, and post-office boxes so „c/o Max Test, 3. OG“ and
+ * „Teststraße 5, Whg. 12“ do not become extra Standort streets.
  */
 function billingStreetLine(value: string | null | undefined, city: string): string {
   const line = billingSingleLine(value);
   if (!line) return "";
   const kept: string[] = [];
   for (const part of line.split(",")) {
-    const segment = part.replace(CARE_OF_TAIL, "").trim();
-    if (!segment || isCareOfSegment(segment) || isFloorSegment(segment)) continue;
+    const segment = part.replace(CARE_OF_TAIL, "").replace(APARTMENT_TAIL, "").replace(POSTFACH_TAIL, "").trim();
+    if (
+      !segment ||
+      isCareOfSegment(segment) ||
+      isFloorSegment(segment) ||
+      isApartmentSegment(segment) ||
+      isPostfachSegment(segment)
+    ) {
+      continue;
+    }
     if (!billingStreetFits(segment, city)) continue;
     if (!/[\p{L}]{3,}/u.test(segment)) continue;
     kept.push(segment);
@@ -1754,8 +1779,9 @@ function billingStreetLine(value: string | null | undefined, city: string): stri
 /**
  * Standort from a Checkout billing address.
  * City is required. A street is added only when a segment is a street with
- * a house number. c/o lines, person names, and floor notes are left out.
- * Without a street, the result is postal code and city. Otherwise empty.
+ * a house number. c/o lines, person names, floor notes, apartment notes,
+ * and post-office boxes are left out. Without a street, the result is
+ * postal code and city. Otherwise empty.
  */
 export function standortFromBillingAddress(address: BillingAddressParts | null | undefined): string {
   if (!address) return "";

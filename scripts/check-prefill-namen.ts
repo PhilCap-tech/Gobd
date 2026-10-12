@@ -351,6 +351,38 @@ function checkStandort() {
     }) === "Königstraße 12, 50667 Köln",
     "Straße bleibt, c/o und Personenname fallen weg",
   );
+  for (const note of ["Whg. 12", "Wohnung 3", "App. 3", "Apartment 4"]) {
+    ok(
+      standortFromBillingAddress({
+        line1: `Teststraße 5, ${note}`,
+        postalCode: "50667",
+        city: "Köln",
+      }) === "Teststraße 5, 50667 Köln",
+      `Wohnungszusatz „${note}“ fällt weg`,
+    );
+  }
+  ok(
+    standortFromBillingAddress({ line1: "Whg. 12", postalCode: "50667", city: "Köln" }) === "50667 Köln",
+    "nur ein Wohnungszusatz lässt PLZ und Ort",
+  );
+  ok(
+    standortFromBillingAddress({ line1: "Postfach 1234", postalCode: "50667", city: "Köln" }) === "50667 Köln",
+    "Postfach ist keine Straße",
+  );
+  for (const box of ["Postfach", "Postfach Nr. 1234", "Postf. 12", "Postfach1234", "PF 9"]) {
+    ok(
+      standortFromBillingAddress({ line1: box, postalCode: "10115", city: "Berlin" }) === "10115 Berlin",
+      `Postfach-Variante „${box}“ lässt nur PLZ und Ort`,
+    );
+  }
+  ok(
+    standortFromBillingAddress({
+      line1: "Teststraße 5, Postfach 1234",
+      postalCode: "50667",
+      city: "Köln",
+    }) === "Teststraße 5, 50667 Köln",
+    "Straße bleibt, Postfach fällt weg",
+  );
   ok(
     standortPrefillLine({
       street: "Hafenweg 2",
@@ -393,6 +425,17 @@ function checkStandort() {
   const careOf = prefillKnownFacts(ensureGesamt(emptyAnswers()), careOfFirm);
   ok(value(careOf, "A01", "standort") === "50667 Köln", "Modul 1 übernimmt bei c/o nur PLZ und Ort");
   ok(!value(careOf, "A01", "standort").includes("Max"), "der Personenname steht nicht im Standort");
+
+  const apartment = prefillKnownFacts(
+    ensureGesamt(emptyAnswers()),
+    firmFromBilling({ line1: "Teststraße 5, Whg. 12", postalCode: "50667", city: "Köln" }),
+  );
+  ok(value(apartment, "A01", "standort") === "Teststraße 5, 50667 Köln", "Modul 1 übernimmt die Straße ohne Wohnungszusatz");
+  const postfach = prefillKnownFacts(
+    ensureGesamt(emptyAnswers()),
+    firmFromBilling({ line1: "Postfach 1234", postalCode: "10115", city: "Berlin" }),
+  );
+  ok(value(postfach, "A01", "standort") === "10115 Berlin", "Modul 1 übernimmt bei Postfach nur PLZ und Ort");
 
   const clearedStandort = prefillKnownFacts(setCatalogValue(present, "A01", "standort", ""), firmFromBilling(fullAddress), {
     protect: [["A01", "standort"]],
