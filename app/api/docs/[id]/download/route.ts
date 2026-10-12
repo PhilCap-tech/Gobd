@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
+import { subscriptionDownloadDenial } from "@/lib/kuendigung-access";
 import { BlobStorageError, blobFailureClass, loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
 import { sessionOwnerDenial } from "@/lib/checkout-access";
 import { generatePdf } from "@/lib/delivery";
@@ -28,6 +29,11 @@ export async function GET(
   const denial = sessionOwnerDenial(sessionEmail, row.email);
   if (denial) {
     return NextResponse.json({ error: "Kein Zugriff." }, { status: denial });
+  }
+
+  const downloadClosed = await subscriptionDownloadDenial(row.email);
+  if (downloadClosed) {
+    return NextResponse.json({ error: downloadClosed }, { status: 403 });
   }
 
   try {

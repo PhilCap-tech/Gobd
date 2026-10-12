@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
+import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import { BlobStorageError, storeCustomerUpload, uploadAllowed } from "@/lib/blob";
 import {
   authorizeUploadSession,
@@ -46,6 +47,8 @@ async function assertAccess(
   io: UploadIo,
 ): Promise<{ ok: true; ownerKey: string } | { ok: false; response: NextResponse }> {
   const sessionEmail = sessionEmailFromRequest(request);
+  const closed = await subscriptionWriteDenial(sessionEmail);
+  if (closed) return { ok: false, response: jsonError(closed, 403) };
   const sessionId = input.sessionId?.trim() ?? "";
   const documentId = input.documentId?.trim() ?? "";
   const rows = await lookupDeliveredRows({ documentId, sessionId }, io.lookup);

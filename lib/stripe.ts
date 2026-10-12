@@ -252,6 +252,8 @@ export async function createCheckoutSession(input: {
   company: string;
   entityId?: string;
   audience?: "kunde" | "steuerberater";
+  /** Vorhandener Stripe-Kunde, damit eine Wiederherstellung kein zweites `cus_` anlegt. */
+  customerId?: string;
 }): Promise<{ url: string; stub: boolean }> {
   const appUrl = getAppUrl();
   const entityId = input.entityId?.trim() ?? "";
@@ -282,11 +284,17 @@ export async function createCheckoutSession(input: {
   }
 
   const stripe = getStripe();
+  const customerId = input.customerId?.trim() ?? "";
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     locale: "de",
-    customer_email: input.email,
+    ...(customerId
+      ? {
+          customer: customerId,
+          customer_update: { name: "auto" as const, address: "auto" as const },
+        }
+      : { customer_email: input.email }),
     billing_address_collection: "required",
     tax_id_collection: { enabled: true },
     allow_promotion_codes: true,

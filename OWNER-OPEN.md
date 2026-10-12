@@ -10,7 +10,7 @@ Philip, 08.10.2026, 13:08: Die Rechtstexte aus PR #62 (live seit 02.10.) sind be
 
 - **§ 36 VSBG:** Der Satz im Impressum bleibt: nicht bereit und nicht verpflichtet, an einer Verbraucherschlichtung teilzunehmen.
 - **Gerichtsstand:** Monheim am Rhein (Sitz der IKAT GmbH) bleibt.
-- **Fristen:** Download bereits erzeugter PDFs nach Vertragsende **30 Tage**, danach Löschung soweit keine Aufbewahrungspflicht entgegensteht. Zahlungsausfall: Mahnung, danach Sperre des Kontozugangs nach **14 Tagen**. Preisänderung des Monatsentgelts: Ankündigung **4 Wochen** in Textform, dann außerordentliche Kündigung zum Wirksamwerden. Der Code setzt Sperre und Löschung noch nicht automatisch um. Heute verschickt der Webhook nur eine Hinweis-Mail bei `invoice.payment_failed`. Eine automatische Sperre gibt es nicht.
+- **Fristen:** Download bereits erzeugter PDFs nach Vertragsende **30 Tage**, danach Löschung soweit keine Aufbewahrungspflicht entgegensteht. Zahlungsausfall: Mahnung, danach Sperre des Kontozugangs nach **14 Tagen**. Preisänderung des Monatsentgelts: Ankündigung **4 Wochen** in Textform, dann außerordentliche Kündigung zum Wirksamwerden. Die Löschung nach der 30-Tage-Frist setzt der tägliche Lauf um, sobald `CRON_SECRET` gesetzt ist. Die Sperre nach Zahlungsausfall setzt der Code weiterhin nicht um. Heute verschickt der Webhook eine Hinweis-Mail bei `invoice.payment_failed` und startet damit keine Frist.
 - **AGB-Umfang:** „24 Module, alle inklusive“ bleibt.
 
 ## Wirklich offen

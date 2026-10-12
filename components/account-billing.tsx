@@ -1,4 +1,5 @@
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
+import type { LifecycleNotice } from "@/lib/kuendigung";
 import {
   formatStripeDate,
   formatStripeMoney,
@@ -13,11 +14,13 @@ export function AccountBillingStatus({
   stripeReady,
   hasCustomer,
   lookupFailed,
+  notice = null,
 }: {
   status: BillingSubscriptionStatus;
   stripeReady: boolean;
   hasCustomer: boolean;
   lookupFailed: boolean;
+  notice?: LifecycleNotice | null;
 }) {
   const copy = subscriptionStatusCopy(status);
   const lookupHint =
@@ -33,6 +36,12 @@ export function AccountBillingStatus({
   return (
     <section className="card" aria-labelledby="billing-status-heading">
       <h2 id="billing-status-heading">Abo-Status</h2>
+      {notice && notice.phase !== "none" && notice.phase !== "active" && (notice.label || notice.detail) ? (
+        <p className="billing-status warn">
+          {notice.label ? <span className="billing-status-label">{notice.label}</span> : null}
+          {notice.detail ? <span>{notice.detail}</span> : null}
+        </p>
+      ) : null}
       {lookupFailed ? (
         <p className="banner warn" role="status">
           {lookupHint}
@@ -41,13 +50,17 @@ export function AccountBillingStatus({
         <p className="banner warn" role="status">
           {emptyHint}
         </p>
-      ) : (
-        <>
-          <p className={`billing-status ${copy.tone}`}>
-            <span className="billing-status-label">{copy.label}</span>
-            <span>{copy.text}</span>
+      ) : notice && notice.phase !== "none" && notice.phase !== "active" && (notice.label || notice.detail) ? (
+        status === "past_due" ? (
+          <p className="banner warn" role="status">
+            {copy.text}
           </p>
-        </>
+        ) : null
+      ) : (
+        <p className={`billing-status ${copy.tone}`}>
+          <span className="billing-status-label">{copy.label}</span>
+          <span>{copy.text}</span>
+        </p>
       )}
       <p className="prose">
         Ein Abo gilt für bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen — nicht pro
@@ -55,11 +68,18 @@ export function AccountBillingStatus({
       </p>
       <div className="actions" style={{ marginTop: 12 }}>
         {stripeReady && hasCustomer ? (
-          <form action="/api/stripe/portal" method="post">
-            <button className="btn" type="submit">
-              Zahlungsmethode / Abo im Stripe-Portal öffnen
-            </button>
-          </form>
+          <>
+            <form action="/api/stripe/portal" method="post">
+              <button className="btn" type="submit">
+                Zahlungsmethode und Rechnungen im Stripe-Portal öffnen
+              </button>
+            </form>
+            {notice?.phase !== "restore" && notice?.phase !== "purged" && (
+              <a className="btn ghost" href="/account/kuendigung">
+                Kündigen
+              </a>
+            )}
+          </>
         ) : (
           <button
             className="btn"
@@ -67,7 +87,7 @@ export function AccountBillingStatus({
             disabled
             title={emptyHint || copy.text}
           >
-            Zahlungsmethode / Abo im Stripe-Portal öffnen
+            Zahlungsmethode und Rechnungen im Stripe-Portal öffnen
           </button>
         )}
       </div>

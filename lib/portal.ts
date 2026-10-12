@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { getAppUrl, isStripeSecretConfigured } from "@/lib/env";
 import { resolveStripeCustomerForEmail } from "@/lib/store";
+import { loadCancellationPreview } from "@/lib/kuendigung-stripe";
 import {
   accountBillingPath,
   classifyBillingPortalError,
@@ -72,6 +73,37 @@ export async function redirectToStripePortalOrAccount(
 ): Promise<void> {
   const { location } = await resolvePortalRedirect(loginNext);
   redirect(location);
+}
+
+/**
+ * Kurzwege `/portal` und `/billing` führen auf die Kündigungsseite,
+ * sobald ein kündbares Abo existiert. Zahlungsmittel bleiben über
+ * `/account/billing` erreichbar.
+ */
+export async function redirectToKuendigungOrPortal(
+  loginNext: string = "/portal",
+): Promise<void> {
+  const email = await getSessionEmail();
+  if (!email) {
+    redirect(loginPath(loginNext));
+  }
+  if (!isStripeSecretConfigured()) {
+    redirect(accountPortalPath("unavailable"));
+  }
+  let toCancellation = false;
+  try {
+    const resolved = await resolveStripeCustomerForEmail(email);
+    if (resolved.customerId && !resolved.lookupFailed) {
+      const preview = await loadCancellationPreview(resolved.customerId);
+      toCancellation = Boolean(preview.subscriptionId);
+    }
+  } catch (error) {
+    console.error("[portal] Kündigungsziel nicht geprüft", error);
+  }
+  if (toCancellation) {
+    redirect("/account/kuendigung");
+  }
+  await redirectToStripePortalOrAccount(loginNext);
 }
 
 export async function portalRedirectResponse(

@@ -107,6 +107,11 @@ export function getProfilesSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_PROFILES_TAB || "profiles";
 }
 
+/** Abo-Lebenszyklus. Fester Tab-Name, keine zusätzliche Umgebungsvariable. */
+export function getLifecycleSheetsTab(): string {
+  return "subscription_lifecycle";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }

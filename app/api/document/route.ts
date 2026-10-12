@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
+import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import { BlobStorageError, blobFailureClass, persistChapterContent, storePdf } from "@/lib/blob";
 import { DURABLE_STORE_MESSAGE, intakePersistenceFailure } from "@/lib/intake-payload";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
@@ -47,6 +48,8 @@ async function handleDocumentEdit(request: Request) {
   if (!sessionEmail) {
     return jsonError("Bitte anmelden.", 401);
   }
+  const closed = await subscriptionWriteDenial(sessionEmail);
+  if (closed) return jsonError(closed, 403);
 
   let body: {
     documentId?: string;

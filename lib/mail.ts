@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { isMailConfigured, magicLinkDevFallbackAllowed } from "@/lib/env";
+import { magicLinkDevFallbackAllowed } from "@/lib/env";
 
 export {
   wrapTransactionalHtml,
@@ -21,8 +21,14 @@ export async function sendEmail(input: {
   idempotencyKey?: string;
   /** Antwortadresse, z. B. die E-Mail aus einem Formular. */
   replyTo?: string;
+  /**
+   * Absender für diese eine Mail. Ohne Angabe gilt `EMAIL_FROM`.
+   * Kündigungsmails setzen hier die info@-Adresse, ohne die Umgebung zu ändern.
+   */
+  from?: string;
 }): Promise<MailResult> {
-  if (!isMailConfigured()) {
+  const from = input.from?.trim() || process.env.EMAIL_FROM?.trim() || "";
+  if (!process.env.RESEND_API_KEY?.trim() || !from) {
     const text =
       input.text.includes("/auth/verify?") && !magicLinkDevFallbackAllowed()
         ? "[redacted]"
@@ -39,7 +45,7 @@ export async function sendEmail(input: {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const result = await resend.emails.send(
       {
-        from: process.env.EMAIL_FROM as string,
+        from,
         to: input.to,
         subject: input.subject,
         text: input.text,

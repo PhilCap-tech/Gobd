@@ -21,7 +21,7 @@ import {
   openDraftLabel,
 } from "@/lib/open-drafts";
 import { CHECKOUT_PREFILL_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
-import { formatEntityAddress } from "@/lib/entities";
+import { formatEntityAddress, type Entity } from "@/lib/entities";
 import { gesamtDocTitle } from "@/lib/gesamt-document";
 import { MODUL_UEBERSICHT_STEP_ID } from "@/lib/intake-catalog";
 import {
@@ -30,7 +30,62 @@ import {
   STATUS_OPTION_LABEL,
   vollstaendigkeitsZeilen,
 } from "@/lib/module/status";
-import { answersFromSheetRow } from "@/lib/types";
+import { answersFromSheetRow, emptyAnswers, type SheetRow } from "@/lib/types";
+
+function asText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function presentEntity(entity: Entity): Entity {
+  return {
+    ...entity,
+    entityId: asText(entity.entityId),
+    name: asText(entity.name),
+    street: asText(entity.street),
+    zip: asText(entity.zip),
+    city: asText(entity.city),
+    createdAt: asText(entity.createdAt),
+    updatedAt: asText(entity.updatedAt),
+  };
+}
+
+function presentRow(row: SheetRow): SheetRow {
+  const next = { ...row };
+  for (const key of [
+    "documentId",
+    "version",
+    "validFrom",
+    "validTo",
+    "changeSummary",
+    "changedBy",
+    "company",
+    "email",
+    "entityId",
+    "stripeSessionId",
+    "parentDocumentId",
+    "timestamp",
+    "fragen",
+    "branchen",
+    "rechtsform",
+    "mitarbeitende",
+    "fibu",
+    "weitereSysteme",
+    "eingangsbelege",
+    "ausgangsrechnungen",
+    "archiv",
+    "hosting",
+    "backup",
+    "zugriff",
+    "gf",
+    "buchhaltung",
+    "it",
+    "steuerberater",
+    "status",
+  ] as const) {
+    if (typeof next[key] !== "string") next[key] = "";
+  }
+  return next;
+}
 import {
   currentVersionBadge,
   formatValidityRange,
@@ -62,23 +117,45 @@ export function AccountCompanyCard({
   group,
   email,
   empty,
+  writesOpen = true,
+  downloadsOpen = true,
 }: {
   group: EntityDocumentGroup & { continueDrafts?: IntakeDraft[] };
   email: string;
   /** True only when the firm has neither an open draft nor a document. */
   empty?: boolean;
+  /** Nach Vertragsende keine neuen Versionen und keine Stammdatenänderung. */
+  writesOpen?: boolean;
+  /** Nach der 30-Tage-Frist kein Download. */
+  downloadsOpen?: boolean;
 }) {
-  const entity = group.entity;
-  const continueDrafts = group.continueDrafts ?? [];
-  const showEmpty = empty ?? (group.families.length === 0 && continueDrafts.length === 0);
+  const entity = group.entity ? presentEntity(group.entity) : null;
+  const families = (group.families ?? []).map((family) => {
+    const versions = (family?.versions ?? []).filter(Boolean).map(presentRow);
+    const latest = family?.latest ? presentRow(family.latest) : versions[0];
+    return {
+      ...family,
+      latest: latest ?? presentRow({} as SheetRow),
+      versions: versions.length > 0 ? versions : latest ? [latest] : [],
+    };
+  });
+  const continueDrafts = (group.continueDrafts ?? []).map((draft) => ({
+    ...draft,
+    draftKey: asText(draft?.draftKey),
+    documentId: asText(draft?.documentId),
+    stripeSessionId: asText(draft?.stripeSessionId),
+    entityId: asText(draft?.entityId),
+    answers: draft?.answers && typeof draft.answers === "object" ? draft.answers : emptyAnswers(),
+  }));
+  const showEmpty = empty ?? (families.length === 0 && continueDrafts.length === 0);
   const title = entity ? customerHubTitle(entity.name, "Firma") : "Ohne Firma";
   const address = entity ? formatEntityAddress(entity) : "";
   const selectId = `bereich-${entity?.entityId ?? "unbound"}`;
   const present = new Set(
-    group.families.map((family) => bereichIdOf(answersFromSheetRow(family.latest))),
+    families.map((family) => bereichIdOf(answersFromSheetRow(family.latest))),
   );
   const firstMissing = BEREICHE.find((item) => !present.has(item.id))?.id ?? BELEGFLUSS;
-  const basisId = group.families[0]?.latest.documentId ?? "";
+  const basisId = families[0]?.latest.documentId ?? "";
 
   return (
     <article className="card entity-card">
@@ -98,17 +175,20 @@ export function AccountCompanyCard({
         </p>
       )}
 
-      {entity && (
+      {entity && writesOpen && (
         <div className="actions entity-actions">
           <Link className="btn ghost" href={firmaEditPath(entity.entityId)}>
             {FIRMA_EDIT_LABEL}
           </Link>
-          {group.families.length === 0 && (
+          {families.length === 0 && (
             <Link className="btn" href={newDocumentPath(entity.entityId)}>
               Neues Dokument
             </Link>
           )}
         </div>
+      )}
+      {entity && !writesOpen && (
+        <p className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</p>
       )}
 
       {continueDrafts.length > 0 && (
@@ -119,9 +199,13 @@ export function AccountCompanyCard({
           {continueDrafts.map((draft) => (
             <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
               <span className="doc-meta">{openDraftLabel(draft)}</span>
-              <Link className="btn" href={openDraftContinuePath(draft)}>
-                {ACCOUNT_CONTINUE_LABEL}
-              </Link>
+              {writesOpen ? (
+                <Link className="btn" href={openDraftContinuePath(draft)}>
+                  {ACCOUNT_CONTINUE_LABEL}
+                </Link>
+              ) : (
+                <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
+              )}
             </div>
           ))}
         </div>
@@ -131,9 +215,9 @@ export function AccountCompanyCard({
         <div className="entity-docs">
           <p className="prose">Für diese Firma liegt noch kein Entwurf vor.</p>
         </div>
-      ) : group.families.length === 0 ? null : (
+      ) : families.length === 0 ? null : (
         <div className="entity-docs">
-          {group.families.map((family) => {
+          {families.map((family) => {
             const editRow = latestOwnedInFamily(family.versions, email) ?? family.latest;
             const pick = selectCurrentVersion(family.versions);
             const current = pick?.row ?? editRow;
@@ -185,7 +269,11 @@ export function AccountCompanyCard({
                       <p className="doc-meta">
                         {parts.join(" · ")}
                         {" · "}
-                        <Link href={accountModuleHref(editRow.documentId)}>Module bearbeiten</Link>
+                        {writesOpen ? (
+                          <Link href={accountModuleHref(editRow.documentId)}>Module bearbeiten</Link>
+                        ) : (
+                          <span>Pflege beendet</span>
+                        )}
                       </p>
                     </div>
                     {offenRows.length > 0 ? (
@@ -201,9 +289,11 @@ export function AccountCompanyCard({
                               <span>
                                 {row.nr}. {row.titel}
                               </span>
-                              <Link href={accountModuleHref(editRow.documentId, row.modul)}>
-                                {ACCOUNT_CONTINUE_LABEL}
-                              </Link>
+                              {writesOpen ? (
+                                <Link href={accountModuleHref(editRow.documentId, row.modul)}>
+                                  {ACCOUNT_CONTINUE_LABEL}
+                                </Link>
+                              ) : null}
                             </li>
                           ))}
                         </ul>
@@ -224,24 +314,31 @@ export function AccountCompanyCard({
                   {formatValidityRange(current, family.versions)} · {summary} · {who}
                 </p>
                 <div className="actions doc-actions">
-                  <a className="btn" href={documentDownloadPath(editRow)}>
-                    PDF herunterladen
-                  </a>
-                  <Link className="btn" href={intakeEditPath(editRow)}>
-                    Überarbeiten
-                  </Link>
-                  <Link className="btn ghost" href={documentEditPath(editRow)}>
-                    Dokument bearbeiten
-                  </Link>
+                  {downloadsOpen && (
+                    <a className="btn" href={documentDownloadPath(editRow)}>
+                      PDF herunterladen
+                    </a>
+                  )}
+                  {writesOpen && (
+                    <>
+                      <Link className="btn" href={intakeEditPath(editRow)}>
+                        Überarbeiten
+                      </Link>
+                      <Link className="btn ghost" href={documentEditPath(editRow)}>
+                        Dokument bearbeiten
+                      </Link>
+                    </>
+                  )}
                 </div>
                 <p className="hint revision-hint">
-                  „Überarbeiten“ ändert die Angaben in diesem Entwurf. „Dokument bearbeiten“
-                  ändert den Kapiteltext. Beides erzeugt die nächste PDF-Version — bisherige
-                  Downloads bleiben.
+                  {writesOpen
+                    ? "„Überarbeiten“ ändert die Angaben in diesem Entwurf. „Dokument bearbeiten“ ändert den Kapiteltext. Beides erzeugt die nächste PDF-Version — bisherige Downloads bleiben."
+                    : "Online-Pflege und neue Versionen sind mit dem Vertragsende entfallen. Bereits erzeugte PDFs können Sie in der Frist herunterladen."}
                 </p>
                 <VersionHistory
                   headingId={`versionshistorie-${family.familyId}`}
                   versions={family.versions}
+                  downloadsOpen={downloadsOpen}
                 />
               </section>
             );
@@ -249,7 +346,7 @@ export function AccountCompanyCard({
         </div>
       )}
 
-      {group.families.length > 0 && (
+      {writesOpen && families.length > 0 && (
         <details className="account-more">
           <summary>Weitere Optionen</summary>
           <div className="account-more-body">

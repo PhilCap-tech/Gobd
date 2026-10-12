@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
 import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
+import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import {
   authorizeDraftAccess,
   draftAccessHttpStatus,
@@ -292,6 +293,8 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
   if (!body.sessionId?.trim() && !fromKey.sessionId && !sessionEmail) {
     return jsonError("Kein Zugriff.", 401);
   }
+  const closed = await subscriptionWriteDenial(sessionEmail);
+  if (closed) return jsonError(closed, 403);
   const blocked = await deliveredDraftGate(
     request,
     {
