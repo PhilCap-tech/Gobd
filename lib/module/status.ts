@@ -366,6 +366,7 @@ export function applyStammdatenPrefill(
     if (!trimmed) return;
     const entry = katalog[id] ?? {};
     const values = { ...(entry.values ?? {}) };
+    if (entry.cleared?.includes(key)) return;
     if (!untouchedPrefill(values[key], prior)) return;
     if (typeof values[key] === "string" && values[key].trim() === trimmed) return;
     values[key] = trimmed;
