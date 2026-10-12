@@ -1,8 +1,8 @@
 # Konzept: Rolle Mitwirkende
 
-Stand 12.10.2026. Konzept, keine Umsetzung. Betrifft PhilCap-tech/Gobd, Produktion www.gobd-doku-erstellen.de.
+Stand 12.10.2026. Konzept, keine Umsetzung. Die Entscheidungen des Inhabers sind eingearbeitet. Betrifft PhilCap-tech/Gobd, Produktion www.gobd-doku-erstellen.de.
 
-Die Rolle **Mitwirkende** erlaubt einer eingeladenen Person, Module einer einzelnen Firma auszufüllen und Entwürfe zu speichern. Abo, Rechnungen und das Erzeugen einer PDF-Fassung bleiben beim Kontoinhaber.
+Die Rolle **Mitwirkende** erlaubt einer eingeladenen Person, Module einer Firma auszufüllen und Entwürfe zu speichern. Eine Mail kann mehrere Mitgliedschaften haben, auch bei verschiedenen Inhabern. Jede Mitgliedschaft gilt für genau eine Firma. Abo, Rechnungen und die PDF-Fassung bleiben beim Kontoinhaber. Die Bezeichnung der Rolle ist „Mitwirkende“.
 
 ## 1. Ausgangslage
 
@@ -47,22 +47,24 @@ Sheets sind die Quelle für Stammdaten und Fassungen, der Blob für Entwürfe, P
 
 **Mitwirkende** ist eine Mitgliedschaft, kein zweites Konto und kein zweiter Stripe-Kunde.
 
-Eine Mitgliedschaft bindet genau eine E-Mail an genau eine `entity_id`. Die Person sieht die anderen Firmen des Inhabers nicht, auch wenn das Konto bis zu fünf Firmen hat.
+Eine Mitgliedschaft bindet eine E-Mail an genau eine `entity_id`. Dieselbe Mail darf weitere Mitgliedschaften haben, jede an eine andere Firma, auch bei einem anderen Inhaber. Die Person sieht nur Firmen mit eigener aktiver Mitgliedschaft. Die übrigen Firmen eines Inhabers bleiben unsichtbar, auch wenn das Konto bis zu fünf Firmen hat.
 
 ### 2.1 Erlaubt
 
-- Einladung per E-Mail annehmen und sich danach mit dem bestehenden Magic-Link-Login anmelden.
-- Die eine Firma öffnen und die zugewiesenen Module im Intake ausfüllen.
+- Einladung per E-Mail annehmen und sich danach mit dem bestehenden Magic-Link-Login anmelden. Eine gesonderte Annahme der AGB gibt es nicht; den Vertrag hält der Inhaber.
+- Jede Firma öffnen, für die eine aktive Mitgliedschaft besteht, und die zugewiesenen Module im Intake ausfüllen. Das können mehrere Firmen sein, auch von verschiedenen Inhabern.
+- Firmenname und Anschrift dieser Firma sehen: `name`, `street`, `zip`, `city`.
 - Entwürfe serverseitig speichern (derselbe Blob wie der Inhaber).
 - Dateien zu einer zugewiesenen Frage hochladen, abgelegt unter dem Owner-Schlüssel des Inhabers.
-- Die eigenen Einträge in der Änderungshistorie dieser Firma sehen.
+- Die eigene letzte Speicherung dieser Firma sehen („Zuletzt von Ihnen gespeichert am …“ aus `updatedBy`).
 
 ### 2.2 Ausgeschlossen
 
 - Abo anlegen, ändern oder kündigen. Kein Checkout, kein Kundenportal, keine Seite „Abo & Rechnungen“ für diese Firma.
 - Rechnungen, Zahlungsdaten und die Stripe-Kunden-ID des Inhabers sehen oder verwenden.
-- Eine PDF-Fassung erzeugen, herunterladen oder per Liefermail versenden. Das betrifft `POST /api/intake`, `POST /api/document`, den Modul-Export und `GET /api/docs/[id]/download`.
-- Weitere Firmen anlegen, Stammdaten der Firma ändern, andere Personen einladen, das Profil des Inhabers ändern, ein Konto löschen.
+- Eine PDF-Fassung lesen, herunterladen, erzeugen oder per Liefermail versenden. Das betrifft die Dokumentansicht, eine Vorschau, `GET /api/docs/[id]/download`, `POST /api/intake`, `POST /api/document` und den Modul-Export.
+- Steuernummer (`stnr`) und USt-IdNr. (`ust_id`) sehen. Beide Felder fehlen in jeder Antwort an eine Mitwirkende.
+- Stammdaten ändern, weitere Firmen anlegen, andere Personen einladen, das Profil des Inhabers ändern, ein Konto löschen.
 - Den Betriebs-Check und den Modulstatus setzen (`tool`, „durch bestehende Dokumentation abgedeckt“, `offen`, „nicht vorhanden“). Das legt den Umfang der Verfahrensdokumentation fest und bleibt beim Inhaber.
 - Über eine Checkout-`session_id` in der URL Zugriff auf Dokumente des Inhabers bekommen.
 
@@ -71,6 +73,8 @@ Hat die eingeladene Person ein eigenes bezahltes Konto, bleiben ihre eigenen Fir
 ### 2.3 Modulzuweisung
 
 Optional. Leer bedeutet: alle Module, die der Inhaber für diese Firma aktiviert hat (`m01`–`m24` aus `lib/module/katalog.ts`). Gesetzt bedeutet: nur die genannten Modul-IDs, und auch die nur, soweit der Inhaber sie aktiviert hat. Eine Zuweisung schaltet kein abgeschaltetes Modul ein.
+
+Der Inhaber darf Kernmodule ebenfalls zuweisen (Modul 1, 9, 15–24). Kernmodule sind im Produkt immer aktiv; die Zuweisung entscheidet, ob die Mitwirkende sie ausfüllen darf. Bei leerer Zuweisung sind sie enthalten, weil „alle aktiven Module“ sie umfasst. Eine explizite Liste kann sie auslassen.
 
 Die Prüfung sitzt auf dem Server. Ausgeblendete Fragen im Client sind keine Grenze. Ein `PUT` mit Antworten außerhalb der Zuweisung wird abgelehnt, nicht still auf den erlaubten Teil gekürzt, damit die Person den Konflikt sieht.
 
@@ -133,7 +137,7 @@ sequenceDiagram
   Inhaber->>App: Einladung (Mail, Firma, Module)
   App->>Sheet: Zeile pending, token_hash
   App->>Mail: Einladung mit Link
-  Mail->>Person: von info@gobd-doku-erstellen.de
+  Mail->>Person: From info@, Reply-To Inhaber
   Person->>App: GET Link, Seite ohne Verbrauch
   Person->>App: POST Annahme
   App->>Sheet: active, token_hash leer, accepted_at
@@ -143,25 +147,27 @@ sequenceDiagram
 ### 4.1 Einladen
 
 1. Sitzung ist der Inhaber der gewählten Firma. `entityOwnedByEmail` muss gelten. Eine Mitwirkende lädt niemanden ein.
-2. Mail prüfen (eine Adresse, kleingeschrieben). Die eigene Mail des Inhabers für dieselbe Firma ablehnen.
+2. Mail prüfen (eine Adresse, kleingeschrieben). Die eigene Mail des Inhabers für dieselbe Firma ablehnen. Dieselbe Mail darf an anderen Firmen Mitglied sein, auch bei einem anderen Inhaber.
 3. Liegt für das Paar schon `pending` oder `active`, keine zweite Zeile anlegen. Bei `pending` den Token erneuern und die Mail erneut senden.
-4. Zeile `pending` schreiben, Token mit 20 Minuten erzeugen, nur den Hash speichern.
-5. Mail versenden. Absender ist `info@gobd-doku-erstellen.de`. Der Betreff nennt die Firma und das Wort Einladung, der Link steht nur im Body. Schlägt Resend fehl, bleibt die Zeile `pending` ohne gültigen Hash, und die Oberfläche sagt den Fehlschlag. Die HTTP-Antwort enthält den Link nicht (dieselbe Regel wie `deliverLoginLink`).
-6. Audit `invite.sent`.
+4. Höchstens 5 Mitgliedschaften mit Status `active` je Firma. Liegt diese Zahl schon vor, die Einladung ablehnen.
+5. Zeile `pending` schreiben, Token mit 20 Minuten erzeugen, nur den Hash speichern.
+6. Mail versenden. `From` ist `info@gobd-doku-erstellen.de`, `Reply-To` ist die Mail des Inhabers. Der Betreff nennt die Firma und das Wort Einladung, der Link steht nur im Body. Schlägt Resend fehl, bleibt die Zeile `pending` ohne gültigen Hash, und die Oberfläche sagt den Fehlschlag. Die HTTP-Antwort enthält den Link nicht (dieselbe Regel wie `deliverLoginLink`).
+7. Audit `invite.sent`.
 
 Der Inhaber kann die Einladung erneut senden. Jeder Versand invalidiert den vorherigen Link.
 
-Antwortadresse der Mail ist die Inhaber-Mail, damit Rückfragen ankommen. Die eingeladene Person sieht diese Adresse dadurch. Das ist gewollt, weil sie ohnehin an dieser Firma mitarbeitet.
+Alle Mails dieser Rolle gehen von `info@gobd-doku-erstellen.de` hinaus: die Einladung, die Annahmebestätigung an den Inhaber und die Widerrufsmail. `Reply-To` ist jeweils die Mail des Inhabers, damit eine Antwort der eingeladenen Person beim Inhaber ankommt. Die eingeladene Person sieht diese Adresse dadurch. Das ist gewollt, weil sie an dieser Firma mitarbeitet.
 
-`EMAIL_FROM` muss diese Absenderadresse sein, oder der Einladungsversand setzt `from` ausdrücklich auf `info@gobd-doku-erstellen.de`. Die Domain ist bei Resend bereits die Produktionsdomain; ein zweiter Absender wäre ein eigener Eintrag dort.
+`EMAIL_FROM` muss diese Absenderadresse sein, oder der Versand setzt `from` ausdrücklich auf `info@gobd-doku-erstellen.de` und `reply_to` auf die Inhaber-Mail. Die Domain ist bei Resend bereits die Produktionsdomain; ein zweiter Absender wäre ein eigener Eintrag dort.
 
 ### 4.2 Annehmen
 
-1. `GET /auth/invite?token=` prüft Signatur, Ablauf, Art `invite`, Mail und `jti` gegen `token_hash`, Status `pending`. Die Seite zeigt Firma (Name, keine Steuernummer), Inhaber-Mail und die Modulauswahl. Der GET verbraucht den Token nicht. Mail-Programme rufen Links vorab auf; ein Verbrauch beim GET würde die Einladung entwerten, bevor die Person klickt.
-2. `POST` mit demselben Token bestätigt. Erst der POST leert `token_hash`, setzt `active` und `accepted_at`.
-3. Das Sitzungs-Cookie wird für `member_email` gesetzt, mit dem bestehenden `createSessionToken`. Es wird nie für `owner_email` gesetzt.
-4. Weiterleitung auf die Mitwirkenden-Ansicht dieser einen Firma. `next` aus der URL entfällt. Ein mitgeschicktes `next` wäre eine offene Weiterleitung in das Konto des Inhabers.
-5. Audit `invite.accepted`. Der Inhaber erhält eine kurze Mail (Firma, angenommene Adresse, Zeitpunkt).
+1. `GET /auth/invite?token=` prüft Signatur, Ablauf, Art `invite`, Mail und `jti` gegen `token_hash`, Status `pending`. Die Seite zeigt Firmenname, Anschrift (`street`, `zip`, `city`), Inhaber-Mail und die Modulauswahl. Steuernummer und USt-IdNr. erscheinen nicht. Eine AGB-Bestätigung erscheint nicht. Der GET verbraucht den Token nicht. Mail-Programme rufen Links vorab auf; ein Verbrauch beim GET würde die Einladung entwerten, bevor die Person klickt.
+2. Sind für die Firma bereits 5 Mitgliedschaften `active`, bleibt die Zeile `pending` und die Annahme endet mit einer knappen Meldung. Der Inhaber entzieht zuerst einen Zugriff. `token_hash` bleibt in diesem Fall bestehen, damit die Person nach einem Freiwerden erneut annehmen kann, solange der Token gilt.
+3. `POST` mit demselben Token bestätigt die Einladung. Erst der POST leert `token_hash`, setzt `active` und `accepted_at`. Eine gesonderte Annahme der AGB gibt es nicht. Der Inhaber hält den Vertrag.
+4. Das Sitzungs-Cookie wird für `member_email` gesetzt, mit dem bestehenden `createSessionToken`. Es wird nie für `owner_email` gesetzt.
+5. Weiterleitung auf die Mitwirkenden-Ansicht dieser Firma. `next` aus der URL entfällt. Ein mitgeschicktes `next` wäre eine offene Weiterleitung in das Konto des Inhabers.
+6. Audit `invite.accepted`. Der Inhaber erhält eine kurze Mail (Firma, angenommene Adresse, Zeitpunkt), `From` `info@gobd-doku-erstellen.de`, `Reply-To` seine eigene Mail.
 
 Abgelaufener oder bereits verbrauchter Token: dieselbe knappe Meldung, kein Hinweis, welche der beiden Ursachen gilt. Der Inhaber sendet neu.
 
@@ -172,9 +178,9 @@ Ist die Person schon mit einer anderen Mail angemeldet, endet die Annahme mit de
 Nach dem Login lädt das Konto zwei Mengen:
 
 - Firmen mit `entities.user_email` = Sitzungs-Mail (eigene Firmen, kann leer sein).
-- Mitgliedschaften mit `member_email` = Sitzungs-Mail und `status = active`.
+- Mitgliedschaften mit `member_email` = Sitzungs-Mail und `status = active`. Mehrere Zeilen sind zulässig, auch mit unterschiedlichem `owner_email`.
 
-Die Mitwirkenden-Ansicht einer Firma zeigt Modulübersicht, Intake und Entwurf. Sie zeigt kein Abo, keine Rechnung, keinen Button „Speichern und PDF erzeugen“, keinen Download, keinen Betriebs-Check, keine Firmendaten zum Bearbeiten, keine Einladung.
+Die Mitwirkenden-Ansicht einer Firma zeigt Modulübersicht, Intake und Entwurf, dazu Firmenname und Anschrift. Steuernummer und USt-IdNr. fehlen in der Antwort. Sie zeigt kein Abo, keine Rechnung, keine PDF-Ansicht, keinen Button „Speichern und PDF erzeugen“, keinen Download, keinen Betriebs-Check, keine Firmendaten zum Bearbeiten, keine Einladung.
 
 Jeder schreibende Aufruf lädt die Mitgliedschaft neu. Ein Cache über den Request hinaus würde einen Widerruf verzögern.
 
@@ -184,7 +190,7 @@ Der Inhaber setzt `status = revoked`, `revoked_at = now`, `token_hash` leer. Pen
 
 Der Entwurf bleibt. Er gehört der Firma. Offene Antworten der Mitwirkenden liegen dem Inhaber damit weiter vor.
 
-Audit `invite.revoked`. Eine Mail an die bisherige Mitwirkende nennt die Firma und den Zeitpunkt, ohne Inhalte.
+Audit `invite.revoked`. Eine Mail an die bisherige Mitwirkende nennt die Firma und den Zeitpunkt, ohne Inhalte. `From` und `Reply-To` wie in Abschnitt 4.1.
 
 Moduländerung an einer aktiven Zeile ist kein Widerruf: `module_ids` aktualisieren, Audit `membership.modules_changed`. Die laufende Sitzung sieht die neue Liste beim nächsten Speichern.
 
@@ -210,7 +216,7 @@ Gegenmaßnahmen: Einmalverwendung, kurze Frist, Bestätigungsseite mit lesbarer 
 
 Das Cookie berechtigt heute zu allem, was der Mail gehört. Für eine Mitwirkende ohne eigene Firma ist das leer, und genau deshalb muss die fremde Firma über die Mitgliedschaft dazukommen. Dieselbe Stelle darf nicht die anderen Firmen des Inhabers dazunehmen.
 
-Gegenmaßnahmen: jede Firmenaktion nennt eine `entity_id` und besteht nur, wenn entweder `entityOwnedByEmail` gilt oder genau eine aktive Mitgliedschaft dieser Sitzungs-Mail auf diese `entity_id` zeigt. Die Kontoübersicht listet Mitgliedschaften einzeln. Pfade `/account/billing`, `/billing`, `/checkout`, `/api/stripe/portal`, `/api/checkout` bleiben an der eigenen Mail. Sie lösen Stripe nie über eine `entity_id` auf, die nur per Mitgliedschaft erreichbar ist.
+Gegenmaßnahmen: jede Firmenaktion nennt eine `entity_id` und besteht nur, wenn entweder `entityOwnedByEmail` gilt oder eine aktive Mitgliedschaft dieser Sitzungs-Mail auf genau diese `entity_id` zeigt. Mehrere aktive Mitgliedschaften derselben Mail, auch bei verschiedenen Inhabern, sind zulässig; geprüft wird die Zeile der genannten Firma. Die Kontoübersicht listet Mitgliedschaften einzeln. Pfade `/account/billing`, `/billing`, `/checkout`, `/api/stripe/portal`, `/api/checkout` bleiben an der eigenen Mail. Sie lösen Stripe nie über eine `entity_id` auf, die nur per Mitgliedschaft erreichbar ist.
 
 `POST /api/checkout` vertraut heute der Mail aus dem JSON-Body und prüft keine Sitzung. Die Mitwirkenden-Oberfläche bietet den Aufruf nicht an. Zusätzlich lehnt der Checkout eine `entity_id` ab, deren Inhaber nicht die Mail im Body ist. Sonst könnte eine eingeladene Person eine Checkout-Session auf die Firma des Inhabers starten.
 
@@ -223,8 +229,10 @@ Gegenmaßnahmen, serverseitig und unabhängig von der Oberfläche:
 | Aktion | Inhaber | Mitwirkende |
 | --- | --- | --- |
 | Entwurf lesen und schreiben, Upload in zugewiesenen Modulen | ja | ja, nur diese Firma und diese Module |
-| Modulstatus, Betriebs-Check, Stammdaten, Firma anlegen | ja | nein |
-| `POST /api/intake`, `POST /api/document`, PDF-Download, Liefermail | ja | nein |
+| Firmenname und Anschrift lesen | ja | ja, nur diese Firma |
+| Steuernummer und USt-IdNr. lesen | ja | nein |
+| Modulstatus, Betriebs-Check, Stammdaten ändern, Firma anlegen | ja | nein |
+| PDF lesen, herunterladen oder erzeugen, Liefermail | ja | nein |
 | Billing, Portal, Checkout dieser Firma | ja | nein |
 | Einladen, Widerruf, Modulzuweisung, Audit der Firma | ja | nein |
 | Konto des Inhabers löschen, Profil des Inhabers | ja | nein |
@@ -243,7 +251,7 @@ Regeln für jeden Entwurf, jedes Dokument und jeden Upload:
 - Bei Schlüsseln `doc:` und `area:` die Fassung laden und deren `entity_id` prüfen. Diese Schlüssel enthalten keine Mail.
 - Schlüssel `session:<checkoutId>` lehnt die Mitgliedschaft ab. Der Checkout-Bearer bleibt ein Weg des Inhabers und des Zahlungsflusses.
 - Ein `email:`-Schlüssel mit der Mail der Mitwirkenden legt keinen parallelen Entwurf an. Der Server setzt den Schlüssel auf den Inhaber.
-- Fremde `entity_id` desselben Inhabers (seine zweite bis fünfte Firma) ergibt 403, auch wenn die Person eine andere Firma dieses Inhabers bearbeiten darf.
+- Eine `entity_id` ohne eigene aktive Mitgliedschaft ergibt 403. Das gilt auch für eine weitere Firma desselben Inhabers. Eine zweite Mitgliedschaft derselben Mail auf diese Firma, auch bei einem anderen Inhaber, ist ein eigener zulässiger Weg.
 - Antworten außerhalb `module_ids` ergeben 403, bevor der Blob geschrieben wird.
 - Upload-Pfad bleibt das Owner-Segment des Inhabers. Die Mitwirkende schickt den Pfad nicht selbst.
 
@@ -261,9 +269,9 @@ Offen bleibt nur das Fenster eines Requests, der die Zeile vor dem Widerruf gele
 
 Heute unbegrenzte Magic-Link-Anforderungen. Einladungen vergrößern das: Massenversand über Resend, Erraten von Annahme-Tokens (durch den HMAC praktisch ausgeschlossen), Ausprobieren von Firmen-IDs.
 
-Vorschlag, bewusst einfach und zur bestehenden Infrastruktur passend:
+Festgelegt: höchstens 5 aktive Mitwirkende je Firma. Die übrigen Grenzen bleiben bewusst einfach und zur bestehenden Infrastruktur passend:
 
-- Höchstens 20 Einladungs-Sendungen je Inhaber-Mail und Stunde, höchstens 5 offene `pending` je Firma, höchstens 10 aktive Mitwirkende je Firma.
+- Höchstens 20 Einladungs-Sendungen je Inhaber-Mail und Stunde, höchstens 5 offene `pending` je Firma, höchstens 5 aktive Mitwirkende je Firma.
 - Annahme: höchstens 10 fehlgeschlagene POSTs je IP und 15 Minuten.
 - Zähler als Anhäng-Zeilen in einer kleinen Karteikarte `auth_events` (`at`, `kind`, `actor_hash`, `ip_hash`). Keine Klartext-IP.
 - Die Grenze ist best effort. Zwei parallele Instanzen können sie um wenige Aufrufe überschreiten, analog zur heutigen Schreibsperre im Prozessspeicher. Für das erwartete Volumen (wenige Einladungen je Firma) reicht das. Ein eigener Zählerdienst ist für diese Rolle nicht vorgesehen.
@@ -312,11 +320,11 @@ Eine Zeile je Ereignis, kurz gehalten. Volle Antworten stehen nicht im Log. Die 
 
 Aktionen: `invite.sent`, `invite.accepted`, `invite.revoked`, `invite.failed`, `membership.modules_changed`, `draft.saved`, `draft.conflict`, `upload.added`.
 
-`draft.saved` nicht bei jedem Tastendruck. Der Intake speichert häufig. Vorgesehen ist höchstens eine Zeile je (`actor_email`, `entity_id`, Modulmenge) und 15 Minuten, mit der jeweils letzten Revision. Konflikte, Einladungen, Widerruf, Moduländerungen und Uploads schreiben immer. So bleibt die Sheet-API in dem Rahmen, den Konto und Intake heute schon nutzen.
+`draft.saved` nicht bei jedem Tastendruck. Der Intake speichert häufig. Festgelegt ist höchstens eine Zeile je (`actor_email`, `entity_id`, Modulmenge) und 15 Minuten, mit der jeweils letzten Revision. Konflikte, Einladungen, Widerruf, Moduländerungen und Uploads schreiben immer. So bleibt die Sheet-API in dem Rahmen, den Konto und Intake heute schon nutzen.
 
 Lesen darf der Inhaber dieser `entity_id`. Mitwirkende sehen keine fremden Zeilen und nicht die Einladungsereignisse anderer. Die eigene letzte Speicherung darf die Mitwirkenden-Ansicht als „Zuletzt von Ihnen gespeichert am …“ zeigen; das kommt aus `updatedBy` am Entwurf, nicht aus einem vollen Log-Export.
 
-Aufbewahrung als offene Frage in Abschnitt 8. Technisch ist die Karteikarte append-only und wird vom bestehenden Kontolöschen noch nicht erfasst. Eine spätere Umsetzung muss `audit_log` und `memberships` in den Admin-Wipe der Mail aufnehmen, sonst bleiben Mitgliedschaften nach dem Löschen liegen.
+Aufbewahrung ist festgelegt. Inhaltliche Einträge (`draft.saved`, `draft.conflict`, `upload.added`) bleiben, solange die Firma besteht, und entfallen mit ihr. Einladungs- und Widerrufseinträge (`invite.sent`, `invite.accepted`, `invite.revoked`, `invite.failed`) bleiben 24 Monate. `membership.modules_changed` folgt derselben Frist von 24 Monaten. Widerrufene Zeilen in `memberships` bleiben 24 Monate und werden danach entfernt; das Paar ist durch den Status `revoked` ohnehin wieder einladbar. Die Karteikarte ist append-only. Eine Umsetzung nimmt `audit_log` und `memberships` in den Admin-Wipe der Mail auf, sonst bleiben Mitgliedschaften nach dem Löschen liegen.
 
 ### 6.2 Was das Log nicht leistet
 
@@ -324,7 +332,7 @@ Es beweist nicht, welche Person vor dem Bildschirm saß, sondern welche Mail die
 
 ## 7. Oberflächen
 
-Drei Skizzen. Texte in der Sie-Form, wie der übrige Kontobereich. Keine Preise und kein Stripe-Wortlaut auf der Mitwirkenden-Ansicht.
+Drei Skizzen. Texte in der Sie-Form, wie der übrige Kontobereich. Die Rollenbezeichnung in Oberfläche und Mails ist „Mitwirkende“. „Mitarbeitende“ bleibt die Bezeichnung für die Beschäftigtenzahl im Intake und wird für diese Rolle nicht verwendet. Keine Preise und kein Stripe-Wortlaut auf der Mitwirkenden-Ansicht.
 
 ### 7.1 Einladung durch den Inhaber
 
@@ -335,8 +343,9 @@ Ort: Kontoseite der Firma, neuer Abschnitt unter den Stammdaten. Nur für die Si
 | Firma: Nordlicht GmbH                                            |
 | Mitwirkende                                                      |
 |                                                                  |
-| Personen, die Module ausfüllen. Abo, Rechnungen und die         |
-| PDF-Fassung bleiben bei Ihnen.                                   |
+| Personen, die Module ausfüllen. Höchstens fünf aktive            |
+| Personen je Firma. Abo, Rechnungen und die PDF-Fassung           |
+| bleiben bei Ihnen.                                               |
 |                                                                  |
 | E-Mail                                                           |
 | [ buchhaltung@nordlicht.example              ]                   |
@@ -369,10 +378,12 @@ Nach Annahme und bei späterem Login. Eigene Firmen, falls vorhanden, stehen dar
 +------------------------------------------------------------------+
 | Angemeldet als buchhaltung@nordlicht.example                     |
 | Mitwirkung · Nordlicht GmbH                                      |
+| Hafenstraße 4, 20457 Hamburg                                     |
 | Eingeladen von inhaber@nordlicht.example                         |
 |                                                                  |
 | Sie füllen Module aus und speichern Entwürfe.                   |
-| Die PDF-Fassung erzeugt der Kontoinhaber.                        |
+| Die PDF-Fassung ist für Sie nicht lesbar.                        |
+| Sie erzeugt der Kontoinhaber.                                    |
 |                                                                  |
 | Modul                         Stand            Zuletzt           |
 | 3 Einkauf und Rechnungseingang  6 von 11 Fragen  Sie, 12.10. 09:40|
@@ -384,7 +395,7 @@ Nach Annahme und bei späterem Login. Eigene Firmen, falls vorhanden, stehen dar
 +------------------------------------------------------------------+
 ```
 
-Im Modul selbst entfällt „Speichern und PDF erzeugen“. Sichtbar bleibt das Speichern des Entwurfs, mit dem bestehenden Konflikt-Hinweis, ergänzt um die Mail aus `updatedBy`. Navigation enthält keinen Punkt Abo, keine Rechnung, keinen Download.
+Im Modul selbst entfällt „Speichern und PDF erzeugen“. Eine bestehende PDF-Fassung hat weder Ansicht noch Download. Sichtbar bleibt das Speichern des Entwurfs, mit dem bestehenden Konflikt-Hinweis, ergänzt um die Mail aus `updatedBy`. Navigation enthält keinen Punkt Abo, keine Rechnung, keinen Download. Die Anschrift steht in der Kopfzeile. Steuernummer und USt-IdNr. stehen dort nicht und werden nicht nachgeladen.
 
 ### 7.3 Änderungshistorie für den Inhaber
 
@@ -407,37 +418,90 @@ Eigener Abschnitt der Firma, unterhalb der Mitwirkenden-Liste.
 +------------------------------------------------------------------+
 ```
 
-Die Liste ist die Karteikarte `audit_log`, neueste Zeile zuerst, seitenweise, gefiltert auf diese `entity_id`.
+Die Liste ist die Karteikarte `audit_log`, neueste Zeile zuerst, seitenweise, gefiltert auf diese `entity_id`. Inhaltliche Einträge bleiben, solange die Firma besteht. Einladungs- und Widerrufseinträge bleiben 24 Monate (Abschnitt 6.1).
 
-## 8. Offene Fragen an den Inhaber
+## 8. Festlegungen
 
-1. Darf eine Mail mehrere Mitgliedschaften haben, also bei mehreren Firmen mitwirken (auch bei verschiedenen Inhabern)? Das Datenmodell erlaubt eine Zeile je Paar. Die Alternative ist eine harte Grenze von einer aktiven Mitgliedschaft je Mail.
-2. Sollen Mitwirkende eine schon erzeugte PDF-Fassung nur lesen können? Dieses Konzept sperrt Download und Erzeugen. Ein reines Lesen wäre ein späterer, eng geschnittener Zusatz an `GET /api/docs/[id]/download`.
-3. Dürfen Mitwirkende Stammdaten der Firma sehen (Adresse, Steuernummer)? Die Skizze zeigt nur den Firmennamen.
-4. Darf die Zuweisung auch Kernmodule aussparen (Modul 1, 9, 15–24)? Dieses Konzept erlaubt das. Fachlich kann der Inhaber wollen, dass Kernmodule immer beim Inhaber bleiben.
-5. Wie fein soll „wer hat was geändert“ sein: die hier vorgesehene Bündelung je 15 Minuten, oder jede Speicherung? Jede Speicherung trifft die Limits der Sheet-API, weil der Intake oft schreibt.
-6. Wie lange bleiben Audit und widerrufene Mitgliedschaften? Die Verfahrensdokumentation selbst hat lange Fristen; Einladungszeilen sind Kontaktdaten und brauchen eine eigene Frist. Vorschlag zur Entscheidung: Inhaltliche Speicherungen so lange wie die Firma, Einladungs- und Widerrufszeilen 24 Monate, sofern keine längere Pflicht greift.
-7. Obergrenze aktiver Mitwirkende je Firma. Vorschlag in diesem Text: 10. Für Kanzleien mit mehreren Sachbearbeitern kann das zu niedrig sein.
-8. Soll die Annahme eine eigene Bestätigung der AGB verlangen, oder reicht die Einladung durch den Inhaber, der den Vertrag hält?
-9. Antwortadresse der Einladung: Inhaber-Mail, wie hier vorgeschlagen, oder nur `info@gobd-doku-erstellen.de`?
-10. Branchensprache: die Rolle heißt in diesem Dokument durchgängig „Mitwirkende“. Falls die Oberfläche „Mitarbeitende“ oder „Kolleginnen und Kollegen“ sagen soll, bitte vor der Umsetzung festlegen. „Mitarbeitende“ ist im Intake schon die Bezeichnung für die Beschäftigtenzahl.
+Diese Punkte sind entschieden und im Text oben ausgeführt.
 
-## 9. Aufwand
+1. Eine Mail darf mehrere Mitgliedschaften haben, auch bei verschiedenen Inhabern. Eindeutig bleibt das Paar aus Mail und Firma (Abschnitt 2, 3.1).
+2. Mitwirkende können eine PDF-Fassung weder lesen noch herunterladen, und sie können sie nicht erzeugen (Abschnitt 2.2, 5.4).
+3. Mitwirkende sehen Firmenname und Anschrift. Steuernummer und USt-IdNr. werden nicht ausgeliefert (Abschnitt 2.1, 4.2, 4.3).
+4. Der Inhaber darf Kernmodule ebenfalls zuweisen, Modul 1, 9 und 15–24 (Abschnitt 2.3).
+5. `draft.saved` wird je (`actor_email`, `entity_id`, Modulmenge) und 15 Minuten gebündelt, mit der letzten Revision (Abschnitt 6.1).
+6. Inhaltliche Audit-Einträge bleiben, solange die Firma besteht. Einladungs- und Widerrufseinträge, `membership.modules_changed` und widerrufene Mitgliedschaftszeilen bleiben 24 Monate (Abschnitt 6.1).
+7. Höchstens 5 aktive Mitwirkende je Firma (Abschnitt 4.1, 4.2, 5.7).
+8. Eine gesonderte Annahme der AGB gibt es nicht. Der Inhaber hält den Vertrag (Abschnitt 4.2).
+9. Mails haben `From` `info@gobd-doku-erstellen.de` und `Reply-To` der Inhaber-Mail (Abschnitt 4.1).
+10. Die Rolle heißt „Mitwirkende“ (Abschnitt 7).
 
-Keine Kalenderplanung. Der Umfang sitzt in der Autorisierung, nicht in einem neuen Dienst. Speicher, Mailversand und Cookie existieren.
+## 9. Slices A–D
 
-**Schnitt A, Mitgliedschaft und Prüfung.** Karteikarten `memberships` und die Lese-/Schreibfunktionen nach dem Muster von `lib/entities.ts` und `lib/store.ts`. Token-Art `invite` in `lib/auth.ts`. Eine Funktion, die aus Sitzungs-Mail und `entity_id` entweder Inhaber oder aktive Mitgliedschaft zurückgibt. `authorizeDraftAccess` um den Mitgliedschaftsweg erweitern, ohne `canAccessDocument` und das Billing mitzuziehen. Tests in der Art von `scripts/check-draft-auth.ts` und `scripts/check-auth-session.ts`: fremde Firma, zweite Firma desselben Inhabers, `doc:`-Schlüssel, `session:`-Schlüssel, Modul außerhalb der Zuweisung, widerrufene Zeile.
+Keine Kalenderplanung. Der Umfang sitzt in der Autorisierung, nicht in einem neuen Dienst. Speicher, Mailversand und Cookie existieren. Die Slices bauen aufeinander auf: B auf A, C auf B, D auf A und B. Jeder Slice ist für sich abnahmefähig.
 
-**Schnitt B, Einladen, Annehmen, Widerruf.** Routen, Mailvorlage über `lib/mail.ts` mit Absender `info@gobd-doku-erstellen.de`, Bestätigungsseite mit POST, Inhaber-Mail bei Annahme. Rate-Limit und Idempotency-Key.
-
-**Schnitt C, Oberflächen und Sperren.** Abschnitt auf der Firmenseite, Mitwirkenden-Ansicht, Verbergen von Abo, Rechnung, PDF-Button und Download. Serverantworten 403 auf `POST /api/intake`, `POST /api/document`, Download, Portal und Checkout mit fremder `entity_id`, auch wenn die Oberfläche den Knopf nicht zeigt. Upload nur im Owner-Segment des Inhabers und nur in zugewiesenen Modulen.
-
-**Schnitt D, Historie und Konflikt.** Karteikarte `audit_log`, Bündelung der Entwurf-Speicherungen, 409 mit `updatedBy`, Hinweis in der bestehenden Intake-Oberfläche. Admin-Wipe um `memberships` und `audit_log` ergänzen, sobald die Zeilen existieren.
-
-Der empfindliche Teil ist Schnitt A zusammen mit der Sperrliste in Schnitt C. Besitz wird heute an vielen Stellen über Mailgleichheit geprüft (`getOwnedEntity`, `canAccessDocument`, `authorizeDeliveredWrite`, `authorizeDraftAccess`, Kontoseiten, Download, Upload). Jede dieser Stellen braucht eine bewusste Entscheidung aus der Tabelle in Abschnitt 5.4. Eine vergessene Stelle, die die Mitgliedschaft wie Eigentum behandelt, gibt PDF oder Stripe frei. Eine vergessene Stelle, die nur die Mail prüft, sperrt die Mitwirkende vom Entwurf aus. Beides lässt sich an den genannten Skripten festnageln, bevor die Oberfläche dazukommt.
+Besitz wird heute an vielen Stellen über Mailgleichheit geprüft (`getOwnedEntity`, `canAccessDocument`, `authorizeDeliveredWrite`, `authorizeDraftAccess`, Kontoseiten, Download, Upload). Jede dieser Stellen folgt der Tabelle in Abschnitt 5.4. Eine Stelle, die die Mitgliedschaft wie Eigentum behandelt, gibt PDF oder Stripe frei. Eine Stelle, die nur die Mail prüft, sperrt die Mitwirkende vom Entwurf aus. Die negativen Fälle stehen in der Abnahme von Slice B und Slice C, in der Art von `scripts/check-draft-auth.ts` und `scripts/check-auth-session.ts`.
 
 Was diese Rolle nicht verlangt: neues Login-Verfahren, anderer Blob-Anbieter, andere Stripe-Preise, feldweiser Merge, eigene Sitzungsdatenbank.
 
+### Slice A — Datenmodell und Einladung
+
+**Umfang.** Karteikarte `memberships` samt Fallback `.data/memberships.json`, Spalten aus Abschnitt 3.1, Schreib- und Lesefunktionen nach dem Muster von `lib/entities.ts` und `lib/store.ts`. Eindeutigkeit des Paares (`member_email`, `entity_id`) für `pending` und `active`. Dieselbe Mail darf mehrere Zeilen haben, auch mit unterschiedlichem `owner_email`. Token-Art `invite` in `lib/auth.ts` (Abschnitt 3.2); `GET /auth/verify` nimmt sie nicht an. Einladen nur durch den Inhaber: Zeile `pending`, nur der Hash, 20 Minuten, erneuter Versand rotiert `jti`. Liegen bereits 5 aktive Mitgliedschaften vor, wird die Einladung abgelehnt. Einladungsmail über `lib/mail.ts`: `From` `info@gobd-doku-erstellen.de`, `Reply-To` die Inhaber-Mail, Link nur im Body, nicht in der HTTP-Antwort. `GET /auth/invite` zeigt Firmenname und Anschrift, keine Steuernummer, keine AGB, und verbraucht den Token nicht.
+
+**Abnahme.**
+
+- Eine Mitgliedschaft lässt sich schreiben und über `member_email` sowie über `entity_id` wieder lesen.
+- Eine zweite Mitgliedschaft derselben Mail an eine Firma eines anderen Inhabers wird gespeichert.
+- Eine zweite `pending`- oder `active`-Zeile desselben Paares entsteht nicht. Bei `pending` erneuert ein erneuter Versand den Token, der vorherige Link verfällt.
+- Die eigene Mail des Inhabers für dieselbe Firma wird abgelehnt. Bei bereits 5 aktiven Mitgliedschaften wird eine weitere Einladung abgelehnt.
+- Ein `invite`-Token setzt über `GET /auth/verify` kein Sitzungs-Cookie.
+- GET der Annahmeseite lässt `token_hash` unverändert. Die Nutzlast enthält `name`, `street`, `zip`, `city` und enthält `stnr` und `ust_id` nicht. Eine AGB-Abfrage fehlt.
+- Die gebaute Einladungsmail hat `From` `info@gobd-doku-erstellen.de` und `Reply-To` gleich `owner_email`. Die HTTP-Antwort enthält den Link nicht.
+
+### Slice B — Anmeldung und Modulzuweisung
+
+**Umfang.** `POST` der Annahme setzt `active`, leert `token_hash`, setzt `accepted_at` und das Cookie nur für `member_email`. Keine AGB-Bestätigung. Sind bereits 5 Mitgliedschaften der Firma aktiv, bleibt die Zeile `pending` und die Annahme endet knapp. Das Konto listet eigene Firmen und jede aktive Mitgliedschaft, auch über mehrere Inhaber. Der Inhaber setzt `module_ids`, einschließlich der Kernmodule 1, 9 und 15–24. Leer heißt: alle für die Firma aktiven Module. Ein abgeschaltetes Modul wird nicht freigeschaltet. Die Mitwirkenden-Ansicht zeigt Name und Anschrift, ohne Steuernummer, ohne Abo, ohne PDF-Ansicht und ohne Download. Serverseitig antworten Dokumentansicht, PDF-Download, `POST /api/intake`, `POST /api/document`, Portal und Checkout für eine nur per Mitgliedschaft erreichbare Firma mit 403.
+
+**Abnahme.**
+
+- Nach dem POST ist die Sitzungs-Mail die eingeladene Mail, nicht die Inhaber-Mail.
+- Abgelaufener und bereits verbrauchter Token ergeben dieselbe knappe Meldung.
+- Die sechste aktive Mitgliedschaft wird bei der Annahme abgelehnt. Die fünf bestehenden bleiben `active`, die neue Zeile bleibt `pending`.
+- Die Kontoübersicht zeigt zwei Mitgliedschaften derselben Mail bei zwei Inhabern und zeigt die übrigen Firmen dieser Inhaber nicht.
+- Eine Zuweisung, die Modul 1 und Modul 9 nennt, enthält beide in der erlaubten Menge. Ein für die Firma abgeschaltetes Modul ist nicht enthalten, auch wenn die Liste es nennt. Leere `module_ids` ergeben alle aktiven Module, einschließlich der Kernmodule.
+- Die Firmenantwort an die Mitwirkende enthält `name`, `street`, `zip`, `city` und enthält `stnr` und `ust_id` nicht.
+- Dokumentansicht, Download, PDF-Erzeugen, Portal und Checkout dieser Firma antworten für die Mitwirkende mit 403 und für den Inhaber weiterhin erfolgreich. Die Ansicht verlinkt diese Wege nicht.
+
+### Slice C — Bearbeitung und Audit
+
+**Umfang.** Entwurf lesen und schreiben über die aktive Mitgliedschaft. Der Blob-Schlüssel bleibt der des Inhabers (`email:<owner>:<entityId>:gesamt` bzw. `doc:<documentId>`), `updatedBy` ist die Sitzungs-Mail, `draft.email` bleibt die Inhaber-Mail (Abschnitt 3.3). Der Server lehnt Frage-IDs außerhalb der Zuweisung mit 403 ab und kürzt den PUT nicht still. Weichen nicht zugewiesene IDs vom gelesenen Stand ab, wird der PUT abgelehnt. Gleichstand einer anderen Mail ergibt 409 mit `updatedBy` und `updatedAt`. Karteikarte `audit_log`, nur anhängen. `draft.saved` gebündelt je 15 Minuten. Inhaltliche Einträge (`draft.saved`, `draft.conflict`, `upload.added`) bleiben, solange die Firma besteht. Upload nur in zugewiesenen Modulen und nur im Owner-Segment des Inhabers. Schlüssel `session:` lehnt die Mitgliedschaft ab.
+
+**Abnahme.**
+
+- Eine Mitwirkende speichert einen Entwurf im zugewiesenen Modul. Der Inhaber liest denselben Blob, `draft.email` ist seine Mail, `updatedBy` ist die Mail der Mitwirkenden.
+- Eine Antwort außerhalb der Zuweisung lässt den Blob unverändert und antwortet 403. Ein stilles Kürzen findet nicht statt.
+- Ein PUT, der Frage-IDs außerhalb der Zuweisung gegenüber dem gelesenen Stand verändert, antwortet 403.
+- Fremde `entity_id`, Schlüssel `doc:` und `area:` einer anderen Firma, und Schlüssel `session:` antworten 403.
+- Zwei Personen mit gleicher Revision: die zweite erhält 409 und die Mail aus `updatedBy`. Dieselbe Mail darf ihren eigenen Gleichstand erneut schreiben.
+- Zwei Speicherungen derselben Person, derselben Firma und derselben Modulmenge innerhalb von 15 Minuten ergeben eine Audit-Zeile mit der letzten Revision. Nach 15 Minuten entsteht eine weitere Zeile. Einladungen, Konflikte und Uploads schreiben jedes Mal.
+- Die Audit-Zeile enthält keine Antworttexte.
+- Ein Upload in einem zugewiesenen Modul liegt unter dem Owner-Segment des Inhabers. Ein Upload außerhalb der Zuweisung wird abgelehnt.
+- Ein inhaltlicher Audit-Eintrag bleibt lesbar, solange die Firma besteht.
+
+### Slice D — Widerruf, Grenzen und Mails
+
+**Umfang.** Widerruf setzt `revoked` und `revoked_at`, leert `token_hash`. Der nächste Zugriff auf diese Firma antwortet 403, der Entwurf bleibt. Eine erneute Einladung legt eine neue `membership_id` an. Grenzen aus Abschnitt 5.7: höchstens 20 Einladungs-Sendungen je Inhaber-Mail und Stunde, höchstens 5 offene `pending` je Firma, höchstens 5 aktive Mitwirkende je Firma, höchstens 10 fehlgeschlagene Annahme-POSTs je IP und 15 Minuten, Resend-Idempotency-Key je (`membership_id`, Stunde). Annahmebestätigung an den Inhaber und Widerrufsmail an die bisherige Mitwirkende, beide mit `From` `info@gobd-doku-erstellen.de` und `Reply-To` der Inhaber-Mail, ebenso die Einladung aus Slice A. Einladungs- und Widerrufseinträge sowie `membership.modules_changed` sind nach 24 Monaten nicht mehr auslieferbar. Widerrufene Mitgliedschaftszeilen entfallen nach 24 Monaten. Oberflächentexte und Mailtexte sagen „Mitwirkende“. Der Admin-Wipe der Mail erfasst `memberships` und `audit_log`.
+
+**Abnahme.**
+
+- Nach dem Widerruf antwortet die Firma mit 403. Eine eigene Firma derselben Mail und eine zweite Mitgliedschaft bei einem anderen Inhaber bleiben erreichbar. Der Entwurf des Inhabers ist unverändert lesbar.
+- Ein noch nicht abgelaufener Einladungslink ist nach Widerruf unbrauchbar. Eine neue Einladung derselben Mail erhält eine neue `membership_id`.
+- Die sechste aktive Mitgliedschaft wird beim Einladen und beim Annehmen abgelehnt. Eine sechste offene `pending`-Zeile derselben Firma wird abgelehnt. Der 21. Einladungsversand derselben Inhaber-Mail innerhalb einer Stunde wird abgelehnt.
+- Ein Doppelklick erzeugt eine Mail, nicht zwei (Idempotency-Key).
+- Annahmebestätigung und Widerrufsmail haben `From` `info@gobd-doku-erstellen.de` und `Reply-To` gleich der Inhaber-Mail. Die Widerrufsmail nennt Firma und Zeitpunkt und keinen Antworttext.
+- Einladungs- und Widerrufseinträge älter als 24 Monate werden nicht ausgeliefert. Ein `draft.saved` derselben Firma bleibt auslieferbar, solange die Firma besteht. Eine widerrufene Mitgliedschaftszeile älter als 24 Monate ist entfernt; das Paar lässt sich neu einladen.
+- Sichtbare Texte der neuen Oberflächen und der drei Mails verwenden „Mitwirkende“. Das Wort „Mitarbeitende“ kommt darin nicht vor.
+- Ein Kontolöschen des Inhabers entfernt seine Zeilen in `memberships` und `audit_log`.
+
 ## 10. Abgrenzung
 
-Dieses Dokument ändert keinen Produktcode. Es legt die Rolle so fest, dass eine Umsetzung auf den vorhandenen Sheets, dem privaten Blob, dem Cookie `gobd_session` und dem 20-Minuten-Token aufsetzen kann, ohne der eingeladenen Person Abo, Rechnungen oder die PDF-Fassung zu geben.
+Dieses Dokument ändert keinen Produktcode. Es legt die Rolle so fest, dass eine Umsetzung auf den vorhandenen Sheets, dem privaten Blob, dem Cookie `gobd_session` und dem 20-Minuten-Token aufsetzen kann. Die eingeladene Person erhält damit weder Abo noch Rechnungen noch eine lesbare oder herunterladbare PDF-Fassung. Umgesetzt wird in den Slices A–D.
