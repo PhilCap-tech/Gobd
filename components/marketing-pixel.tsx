@@ -10,7 +10,7 @@ import {
 
 /**
  * Loads fbq / gtag only after marketing consent. Missing IDs (Meta, Ads, GA4) → skip that tag.
- * PageView on every consented route; ReadinessStart on `/readiness` mount.
+ * Consent Mode v2 stays denied until that consent. PageView on every consented route.
  */
 export function MarketingPixel() {
   const pathname = usePathname() || "";

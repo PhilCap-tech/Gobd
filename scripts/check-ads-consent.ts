@@ -1,0 +1,396 @@
+/**
+ * Prebuild: no Google Ads request without marketing consent.
+ *
+ *   npx tsx scripts/check-ads-consent.ts
+ *
+ * Runs the tracking module against a fake window. A script src or a gtag
+ * config / event / js command counts as an Ads request. Consent Mode
+ * default/update commands do not. Also checks the purchase conversion
+ * fires once per paid session and never uses the Readiness label.
+ */
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import {
+  GOOGLE_ADS_CONSENT_DENIED,
+  GOOGLE_ADS_CONSENT_GRANTED,
+  PURCHASE_CONVERSION_CURRENCY,
+  PURCHASE_CONVERSION_STORAGE_PREFIX,
+  PURCHASE_CONVERSION_VALUE_EUR,
+  getGoogleAdsPurchaseSendTo,
+  purchaseSessionIdFromCheckout,
+  resetTrackingForChecks,
+  saveConsent,
+  trackPurchaseConversion,
+  trackReadinessSubmit,
+  trackRoute,
+} from "../lib/tracking";
+
+const ADS_SCRIPT =
+  /googletagmanager\.com\/gtag\/js|googleadservices\.com|googleads\.g\.doubleclick\.net|google-analytics\.com|googlesyndication\.com|doubleclick\.net/i;
+
+type Tag = { id: string; src: string; async: boolean };
+type Command = unknown[];
+
+const adsId = "AW-586367190";
+const gaId = "G-RJ4KLBP1SF";
+const purchaseSendTo = "AW-586367190/PURCHASELABEL";
+const readinessLabel = "READINESS_OLD";
+const paidSession = "cs_test_paid_session_1";
+const secondSession = "cs_live_paid_session_2";
+
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    clear() {
+      map.clear();
+    },
+    getItem(key: string) {
+      return map.has(key) ? map.get(key)! : null;
+    },
+    key(index: number) {
+      return [...map.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      map.delete(key);
+    },
+    setItem(key: string, value: string) {
+      map.set(key, String(value));
+    },
+  };
+}
+
+function installDom() {
+  const scripts: Tag[] = [];
+  const local = memoryStorage();
+  const session = memoryStorage();
+  const listeners = new Map<string, Set<() => void>>();
+  const win = {
+    localStorage: local,
+    sessionStorage: session,
+    location: { protocol: "https:", search: "" },
+    dataLayer: [] as unknown[],
+    dispatchEvent(event: Event) {
+      listeners.get(event.type)?.forEach((fn) => fn());
+      return true;
+    },
+    addEventListener(type: string, fn: () => void) {
+      const set = listeners.get(type) ?? new Set<() => void>();
+      set.add(fn);
+      listeners.set(type, set);
+    },
+    removeEventListener(type: string, fn: () => void) {
+      listeners.get(type)?.delete(fn);
+    },
+  };
+  const doc = {
+    cookie: "",
+    getElementById(id: string) {
+      return scripts.find((script) => script.id === id) ?? null;
+    },
+    createElement() {
+      return { id: "", src: "", async: false };
+    },
+    head: {
+      appendChild(el: Tag) {
+        scripts.push(el);
+      },
+    },
+  };
+  globalThis.window = win as unknown as Window & typeof globalThis;
+  globalThis.document = doc as unknown as Document;
+  return { scripts, local, session };
+}
+
+function commands(): Command[] {
+  return (window.dataLayer ?? []) as Command[];
+}
+
+function adsScripts(scripts: Tag[]): Tag[] {
+  return scripts.filter((script) => ADS_SCRIPT.test(script.src));
+}
+
+function requestCommands(): Command[] {
+  return commands().filter((cmd) => {
+    const name = cmd[0];
+    return name === "config" || name === "event" || name === "js";
+  });
+}
+
+function consentCommands(kind: "default" | "update"): Command[] {
+  return commands().filter((cmd) => cmd[0] === "consent" && cmd[1] === kind);
+}
+
+function conversionCommands(): Command[] {
+  return commands().filter((cmd) => cmd[0] === "event" && cmd[1] === "conversion");
+}
+
+function assertNoAdsRequest(scripts: Tag[], label: string) {
+  assert.equal(adsScripts(scripts).length, 0, `${label}: ads script loaded`);
+  assert.equal(requestCommands().length, 0, `${label}: gtag request queued`);
+}
+
+function assertDeniedDefaults(label: string) {
+  const defaults = consentCommands("default");
+  assert.ok(defaults.length >= 1, `${label}: missing consent default`);
+  const state = defaults[0]?.[2] as Record<string, string>;
+  assert.equal(state.ad_storage, "denied", label);
+  assert.equal(state.ad_user_data, "denied", label);
+  assert.equal(state.ad_personalization, "denied", label);
+  assert.equal(state.analytics_storage, "denied", label);
+  assert.deepEqual(state, GOOGLE_ADS_CONSENT_DENIED, label);
+}
+
+function fresh(env: {
+  ads?: string;
+  ga?: string;
+  purchase?: string;
+  readiness?: string;
+  meta?: string;
+}) {
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_ID = env.ads ?? "";
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = env.ga ?? "";
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO = env.purchase ?? "";
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL = env.readiness ?? "";
+  process.env.NEXT_PUBLIC_META_PIXEL_ID = env.meta ?? "";
+  const dom = installDom();
+  resetTrackingForChecks();
+  return dom;
+}
+
+function indexOfCommand(match: (cmd: Command) => boolean): number {
+  return commands().findIndex(match);
+}
+
+const saved = {
+  ads: process.env.NEXT_PUBLIC_GOOGLE_ADS_ID,
+  ga: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+  purchase: process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO,
+  readiness: process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL,
+  meta: process.env.NEXT_PUBLIC_META_PIXEL_ID,
+};
+
+try {
+  {
+    const dom = fresh({
+      ads: adsId,
+      ga: gaId,
+      purchase: purchaseSendTo,
+      readiness: readinessLabel,
+    });
+    trackRoute("/");
+    trackRoute("/checkout");
+    trackPurchaseConversion(paidSession);
+    trackReadinessSubmit();
+    assertNoAdsRequest(dom.scripts, "without consent");
+    assertDeniedDefaults("without consent");
+    assert.equal(conversionCommands().length, 0, "without consent: conversion");
+    const updates = consentCommands("update");
+    assert.ok(updates.length >= 1, "without consent: consent update");
+    assert.deepEqual(updates.at(-1)?.[2], GOOGLE_ADS_CONSENT_DENIED);
+  }
+
+  {
+    const dom = fresh({ purchase: purchaseSendTo, readiness: readinessLabel });
+    saveConsent(true);
+    trackRoute("/");
+    assertNoAdsRequest(dom.scripts, "pages do not load Ads without NEXT_PUBLIC_GOOGLE_ADS_ID");
+    trackPurchaseConversion(paidSession);
+    assert.equal(adsScripts(dom.scripts).length, 1, "send_to alone still loads gtag for the conversion");
+    assert.equal(
+      commands().some((cmd) => cmd[0] === "config"),
+      false,
+      "unset NEXT_PUBLIC_GOOGLE_ADS_ID does not config an Ads tag",
+    );
+    assert.equal(conversionCommands().length, 1);
+    assert.equal(conversionCommands()[0]?.[2] && (conversionCommands()[0][2] as { send_to: string }).send_to, purchaseSendTo);
+  }
+
+  {
+    const dom = fresh({});
+    saveConsent(true);
+    trackRoute("/intake");
+    trackPurchaseConversion(paidSession);
+    assertNoAdsRequest(dom.scripts, "no ids and no send_to");
+  }
+
+  {
+    const dom = fresh({ ads: adsId, ga: gaId, readiness: readinessLabel });
+    saveConsent(true);
+    trackRoute("/");
+    trackPurchaseConversion(paidSession);
+    assert.equal(adsScripts(dom.scripts).length, 1, "consented ads tag");
+    assert.match(dom.scripts[0]?.src ?? "", /googletagmanager\.com\/gtag\/js\?id=AW-586367190/);
+    assert.equal(conversionCommands().length, 0, "unset purchase send_to sends nothing");
+    const defaultAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "default");
+    const grantedAt = indexOfCommand(
+      (cmd) => cmd[0] === "consent" && cmd[1] === "update",
+    );
+    const configAt = indexOfCommand(
+      (cmd) => cmd[0] === "config" && cmd[1] === adsId,
+    );
+    assert.ok(defaultAt !== -1 && grantedAt !== -1 && configAt !== -1);
+    assert.ok(defaultAt < grantedAt && grantedAt < configAt, "denied default before grant before config");
+    assert.deepEqual(commands()[defaultAt]?.[2], GOOGLE_ADS_CONSENT_DENIED);
+    assert.deepEqual(commands()[grantedAt]?.[2], GOOGLE_ADS_CONSENT_GRANTED);
+    assert.ok(
+      commands().some((cmd) => cmd[0] === "config" && cmd[1] === gaId),
+      "GA4 still shares the consented gtag",
+    );
+    const beforeRevoke = dom.scripts.length;
+    saveConsent(false);
+    trackRoute("/checkout");
+    trackPurchaseConversion(paidSession);
+    assert.equal(dom.scripts.length, beforeRevoke, "revoke does not load another tag");
+    assert.equal(conversionCommands().length, 0, "revoke sends no conversion");
+    assert.deepEqual(consentCommands("update").at(-1)?.[2], GOOGLE_ADS_CONSENT_DENIED);
+  }
+
+  {
+    const dom = fresh({
+      ads: adsId,
+      ga: gaId,
+      purchase: purchaseSendTo,
+      readiness: readinessLabel,
+    });
+    saveConsent(true);
+    trackPurchaseConversion(paidSession);
+    trackPurchaseConversion(paidSession);
+    assert.equal(conversionCommands().length, 1, "reload in the same runtime sends once");
+    const payload = conversionCommands()[0]?.[2] as {
+      send_to: string;
+      value: number;
+      currency: string;
+      transaction_id: string;
+    };
+    assert.equal(payload.send_to, purchaseSendTo);
+    assert.equal(payload.value, PURCHASE_CONVERSION_VALUE_EUR);
+    assert.equal(payload.value, 198);
+    assert.equal(payload.currency, PURCHASE_CONVERSION_CURRENCY);
+    assert.equal(payload.currency, "EUR");
+    assert.equal(payload.transaction_id, paidSession);
+    assert.notEqual(payload.send_to, `${adsId}/${readinessLabel}`);
+    assert.equal(
+      dom.local.getItem(`${PURCHASE_CONVERSION_STORAGE_PREFIX}${paidSession}`),
+      "1",
+    );
+    assert.equal(
+      dom.session.getItem(`${PURCHASE_CONVERSION_STORAGE_PREFIX}${paidSession}`),
+      "1",
+    );
+    resetTrackingForChecks();
+    window.dataLayer = [];
+    delete window.gtag;
+    trackPurchaseConversion(paidSession);
+    assert.equal(conversionCommands().length, 0, "storage guard blocks a second send after reload");
+    dom.local.clear();
+    dom.session.clear();
+    resetTrackingForChecks();
+    window.dataLayer = [];
+    delete window.gtag;
+    trackPurchaseConversion(secondSession);
+    assert.equal(conversionCommands().length, 1, "a different session may send once");
+    assert.equal(
+      (conversionCommands()[0]?.[2] as { transaction_id: string }).transaction_id,
+      secondSession,
+    );
+    trackPurchaseConversion("mock_123");
+    trackPurchaseConversion("not-a-stripe-session");
+    assert.equal(conversionCommands().length, 1, "stub and non-checkout ids send nothing");
+  }
+
+  assert.equal(
+    purchaseSessionIdFromCheckout({ error: "not_paid" }),
+    "",
+  );
+  assert.equal(
+    purchaseSessionIdFromCheckout({ error: "lookup_failed" }),
+    "",
+  );
+  assert.equal(
+    purchaseSessionIdFromCheckout({ stub: true, stripeSessionId: "cs_test_stub" }),
+    "",
+  );
+  assert.equal(
+    purchaseSessionIdFromCheckout({ stub: false, stripeSessionId: "mock_direct" }),
+    "",
+  );
+  assert.equal(
+    purchaseSessionIdFromCheckout({ stub: false, stripeSessionId: "  cs_live_real  " }),
+    "cs_live_real",
+  );
+
+  assert.equal(getGoogleAdsPurchaseSendTo(), purchaseSendTo);
+
+  const tracking = readFileSync("lib/tracking.ts", "utf8");
+  const enableStart = tracking.indexOf("function enableGoogleTag");
+  const enableEnd = tracking.indexOf("function ensureGtagStub");
+  const enableBody = tracking.slice(enableStart, enableEnd);
+  const guardAt = enableBody.indexOf("if (!hasMarketingConsent())");
+  const defaultAt = enableBody.indexOf("applyConsentDefaultDenied()");
+  const grantAt = enableBody.indexOf("applyConsentUpdate(true)");
+  const scriptAt = enableBody.indexOf("googletagmanager.com/gtag/js");
+  assert.ok(guardAt !== -1 && defaultAt !== -1 && grantAt !== -1 && scriptAt !== -1);
+  assert.ok(guardAt < scriptAt && defaultAt < scriptAt && grantAt < scriptAt);
+
+  const purchaseStart = tracking.indexOf("export function trackPurchaseConversion");
+  const purchaseEnd = tracking.indexOf("function trackPageView");
+  const purchaseBody = tracking.slice(purchaseStart, purchaseEnd);
+  const eventAt = purchaseBody.indexOf('gtag("event", "conversion"');
+  assert.ok(eventAt !== -1);
+  assert.ok(purchaseBody.indexOf("getGoogleAdsPurchaseSendTo()") < eventAt);
+  assert.ok(purchaseBody.indexOf("hasMarketingConsent()") < eventAt);
+  assert.ok(purchaseBody.indexOf("purchaseConversionAlreadySent") < eventAt);
+  assert.equal(purchaseBody.includes("getGoogleAdsReadinessLabel"), false);
+  assert.equal(purchaseBody.includes("ReadinessSubmit"), false);
+  assert.equal(tracking.includes("trackPurchaseConversion"), true);
+  assert.equal(
+    tracking.slice(tracking.indexOf("export function trackRoute"), purchaseStart).includes(
+      "trackPurchaseConversion",
+    ),
+    false,
+  );
+
+  const success = readFileSync("app/success/page.tsx", "utf8");
+  assert.ok(success.includes("purchaseSessionIdFromCheckout"));
+  assert.ok(success.includes('showSuccess && sessionId.startsWith("cs_")'));
+  const pendingAt = success.indexOf("<SuccessPending");
+  const conversionAt = success.indexOf("<PurchaseConversion");
+  assert.ok(pendingAt !== -1 && conversionAt > pendingAt);
+  assert.equal(success.indexOf("<PurchaseConversion", conversionAt + 1), -1);
+
+  const readiness = readFileSync("app/readiness/readiness-form.tsx", "utf8");
+  assert.equal(readiness.includes("trackPurchaseConversion"), false);
+  assert.equal(readiness.includes("PurchaseConversion"), false);
+
+  const hits: string[] = [];
+  const roots = ["app", "components", "lib", "scripts"];
+  const stack = roots.map((root) => path.join(process.cwd(), root));
+  while (stack.length) {
+    const dir = stack.pop()!;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!/\.(ts|tsx|js|mjs)$/.test(entry.name)) continue;
+      const rel = path.relative(process.cwd(), full);
+      if (rel === "lib/tracking.ts" || rel === "scripts/check-ads-consent.ts") continue;
+      const text = readFileSync(full, "utf8");
+      if (text.includes("googletagmanager.com/gtag/js")) hits.push(rel);
+    }
+  }
+  assert.deepEqual(hits, []);
+
+  console.log("check-ads-consent: ok");
+} finally {
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_ID = saved.ads;
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = saved.ga;
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO = saved.purchase;
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL = saved.readiness;
+  process.env.NEXT_PUBLIC_META_PIXEL_ID = saved.meta;
+}

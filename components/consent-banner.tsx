@@ -48,16 +48,18 @@ export function ConsentBanner() {
           {partner ? (
             <>
               Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel
-              die Anmeldung). Optionales Marketing (Google-Tag, Meta Pixel)
-              läuft nur, wenn Sie zustimmen. Ohne Zustimmung laden wir diese
-              Tags nicht.
+              die Anmeldung). Optionales Marketing (Google Ads inklusive
+              Conversion-Messung, Google Analytics, Meta Pixel) läuft nur,
+              wenn Sie zustimmen. Ohne Zustimmung laden wir diese Tags nicht
+              und senden keine Anzeigenanfrage.
             </>
           ) : (
             <>
               Essenzielle Cookies brauchen wir für den Betrieb (z. B. Login und
-              Stripe-Checkout). Optionales Marketing (Google-Tag, Meta Pixel)
-              läuft nur, wenn Sie zustimmen. Ohne Zustimmung laden wir diese Tags
-              nicht.
+              Stripe-Checkout). Optionales Marketing (Google Ads inklusive
+              Conversion-Messung, Google Analytics, Meta Pixel) läuft nur,
+              wenn Sie zustimmen. Ohne Zustimmung laden wir diese Tags nicht
+              und senden keine Anzeigenanfrage.
             </>
           )}
           {" "}
