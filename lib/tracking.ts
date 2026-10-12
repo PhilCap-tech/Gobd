@@ -1,8 +1,17 @@
 /**
  * Consent-gated marketing tracking (Google tag + Meta Pixel).
- * Stripe stays TEST — never fire Purchase or InitiateCheckout
- * (neither Meta nor Google checkout conversions).
+ *
+ * Google Consent Mode v2: ad_storage, ad_user_data and ad_personalization
+ * (and analytics_storage for the shared GA4 tag) default to denied.
+ * They are granted only after marketing consent. The gtag script is not
+ * inserted before that grant, so no Ads request leaves without consent.
+ *
+ * NEXT_PUBLIC_GOOGLE_ADS_ID unset → no Ads config on pages.
+ * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO unset → no purchase conversion.
+ * The purchase conversion is not the Readiness submit conversion.
  */
+
+import { isStubCheckoutSessionId } from "@/lib/checkout-stub";
 
 export type ConsentChoice = {
   essential: true;
@@ -26,6 +35,26 @@ declare global {
   }
 }
 
+/** Consent Mode v2 defaults. analytics_storage follows the same marketing gate as GA4. */
+export const GOOGLE_ADS_CONSENT_DENIED = {
+  ad_storage: "denied",
+  ad_user_data: "denied",
+  ad_personalization: "denied",
+  analytics_storage: "denied",
+} as const;
+
+export const GOOGLE_ADS_CONSENT_GRANTED = {
+  ad_storage: "granted",
+  ad_user_data: "granted",
+  ad_personalization: "granted",
+  analytics_storage: "granted",
+} as const;
+
+/** Agreed purchase conversion value. Not read from pricing. */
+export const PURCHASE_CONVERSION_VALUE_EUR = 198;
+export const PURCHASE_CONVERSION_CURRENCY = "EUR";
+export const PURCHASE_CONVERSION_STORAGE_PREFIX = "gobd_ads_purchase:";
+
 export const CONSENT_STORAGE_KEY = "gobd_consent";
 export const CONSENT_COOKIE = "gobd_consent";
 export const CONSENT_EVENT = "gobd-consent";
@@ -45,6 +74,8 @@ let googleInitialized = false;
 let lastPageViewPath = "";
 let lastReadinessStartPath = "";
 let lastGooglePagePath = "";
+let consentDefaultSet = false;
+let lastConsentGranted: boolean | null = null;
 
 export function getMetaPixelId(): string {
   return process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || "";
@@ -58,6 +89,28 @@ export function getGoogleAdsId(): string {
 /** Conversion label for ReadinessSubmit only. Unset → traffic/config, no conversion. */
 export function getGoogleAdsReadinessLabel(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL?.trim() || "";
+}
+
+/**
+ * Full Google Ads purchase send_to, e.g. AW-586367190/LABEL.
+ * Unset → the purchase conversion is not sent. Not the Readiness label.
+ */
+export function getGoogleAdsPurchaseSendTo(): string {
+  return process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO?.trim() || "";
+}
+
+/**
+ * Stripe checkout session id only when the lookup is a real paid session.
+ * Errors, stubs and mock_ ids yield nothing, so the conversion is not armed.
+ */
+export function purchaseSessionIdFromCheckout(
+  resolved: { error: string } | { stub: boolean; stripeSessionId: string },
+): string {
+  if ("error" in resolved) return "";
+  if (resolved.stub) return "";
+  const id = resolved.stripeSessionId.trim();
+  if (!id || isStubCheckoutSessionId(id) || !id.startsWith("cs_")) return "";
+  return id;
 }
 
 /** GA4 measurement ID, e.g. G-XXXXXXXX. Unset → skip GA4 config. */
@@ -179,13 +232,43 @@ export function trackRoute(pathname: string): void {
   if (pathname !== "/readiness") {
     lastReadinessStartPath = "";
   }
-  if (!hasMarketingConsent()) return;
+  applyConsentDefaultDenied();
+  if (!hasMarketingConsent()) {
+    applyConsentUpdate(false);
+    return;
+  }
   enableMarketingScripts();
   trackPageView(pathname);
   trackGooglePageView(pathname);
   if (pathname === "/readiness") {
     trackReadinessStart();
   }
+}
+
+/**
+ * Purchase conversion on the paid success page. Sends nothing unless
+ * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO is set, marketing consent is
+ * granted, and this checkout session was not sent before. Does not use
+ * the Readiness conversion label.
+ */
+export function trackPurchaseConversion(sessionId: string): void {
+  const id = sessionId.trim();
+  const sendTo = getGoogleAdsPurchaseSendTo();
+  if (!id || !sendTo || !id.startsWith("cs_") || isStubCheckoutSessionId(id)) return;
+  if (!hasMarketingConsent()) return;
+  if (purchaseConversionAlreadySent(id)) return;
+  const account = sendTo.split("/")[0]?.trim() ?? "";
+  const loadId = getGoogleAdsId() || (account.startsWith("AW-") ? account : "");
+  enableGoogleTag(loadId);
+  if (typeof document === "undefined" || !document.getElementById("google-gtag")) return;
+  if (!window.gtag) return;
+  window.gtag("event", "conversion", {
+    send_to: sendTo,
+    value: PURCHASE_CONVERSION_VALUE_EUR,
+    currency: PURCHASE_CONVERSION_CURRENCY,
+    transaction_id: id,
+  });
+  markPurchaseConversionSent(id);
 }
 
 function trackPageView(pathname: string): void {
@@ -214,7 +297,7 @@ function trackReadinessStart(): void {
  * The event sends no `value`. Google Ads keeps the conversion-action default
  * of 198 € net (setup + first month). Do not pass the gross total.
  * GA4: custom `readiness_submit` when NEXT_PUBLIC_GA_MEASUREMENT_ID is set.
- * Does not fire Purchase / InitiateCheckout (Meta or Google).
+ * This is not the purchase conversion.
  */
 export function trackReadinessSubmit(): void {
   if (!hasMarketingConsent()) return;
@@ -250,28 +333,100 @@ function enableMetaPixel(pixelId: string): void {
   pixelInitialized = true;
 }
 
-/** Shared gtag/dataLayer: load once, config AW- and/or G- when present. */
-function enableGoogleTag(): void {
+/** Shared gtag/dataLayer. Loads only after marketing consent, and only when an id exists. */
+function enableGoogleTag(purchaseLoadId = ""): void {
   if (typeof window === "undefined") return;
+  if (!hasMarketingConsent()) {
+    applyConsentUpdate(false);
+    return;
+  }
   const adsId = getGoogleAdsId();
   const gaId = getGaMeasurementId();
-  if (!adsId && !gaId) return;
-  const loadId = adsId || gaId;
+  const loadId = adsId || gaId || purchaseLoadId;
+  if (!loadId) return;
+  applyConsentDefaultDenied();
+  applyConsentUpdate(true);
   loadScript(
     "google-gtag",
     `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(loadId)}`,
   );
   if (googleInitialized) return;
+  window.gtag?.("js", new Date());
+  if (adsId) window.gtag?.("config", adsId);
+  if (gaId) window.gtag?.("config", gaId);
+  googleInitialized = true;
+}
+
+function ensureGtagStub(): void {
   window.dataLayer = window.dataLayer || [];
   if (!window.gtag) {
     window.gtag = function gtag(...args: unknown[]) {
       window.dataLayer?.push(args);
     };
   }
-  window.gtag("js", new Date());
-  if (adsId) window.gtag("config", adsId);
-  if (gaId) window.gtag("config", gaId);
-  googleInitialized = true;
+}
+
+/** First Google command: Consent Mode v2 defaults denied. No network request. */
+function applyConsentDefaultDenied(): void {
+  if (typeof window === "undefined" || consentDefaultSet) return;
+  ensureGtagStub();
+  window.gtag?.("consent", "default", { ...GOOGLE_ADS_CONSENT_DENIED });
+  consentDefaultSet = true;
+}
+
+function applyConsentUpdate(granted: boolean): void {
+  if (typeof window === "undefined") return;
+  applyConsentDefaultDenied();
+  if (lastConsentGranted === granted) return;
+  window.gtag?.("consent", "update", {
+    ...(granted ? GOOGLE_ADS_CONSENT_GRANTED : GOOGLE_ADS_CONSENT_DENIED),
+  });
+  lastConsentGranted = granted;
+}
+
+function purchaseStorageKey(sessionId: string): string {
+  return `${PURCHASE_CONVERSION_STORAGE_PREFIX}${sessionId}`;
+}
+
+function readStorageFlag(storage: Storage, key: string): boolean {
+  try {
+    return storage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeStorageFlag(storage: Storage, key: string): void {
+  try {
+    storage.setItem(key, "1");
+  } catch {
+    /* private mode */
+  }
+}
+
+function purchaseConversionAlreadySent(sessionId: string): boolean {
+  const key = purchaseStorageKey(sessionId);
+  return (
+    readStorageFlag(window.localStorage, key) ||
+    readStorageFlag(window.sessionStorage, key)
+  );
+}
+
+function markPurchaseConversionSent(sessionId: string): void {
+  const key = purchaseStorageKey(sessionId);
+  writeStorageFlag(window.localStorage, key);
+  writeStorageFlag(window.sessionStorage, key);
+}
+
+/** Clears in-memory guards so the prebuild check can replay consent cases. */
+export function resetTrackingForChecks(): void {
+  pixelInitialized = false;
+  googleInitialized = false;
+  lastPageViewPath = "";
+  lastReadinessStartPath = "";
+  lastGooglePagePath = "";
+  consentDefaultSet = false;
+  lastConsentGranted = null;
 }
 
 function trackGooglePageView(pathname: string): void {

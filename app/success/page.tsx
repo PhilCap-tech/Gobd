@@ -5,6 +5,7 @@ import {
 } from "@/components/document-revision";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { PurchaseConversion } from "@/components/purchase-conversion";
 import {
   SuccessNotFound,
   SuccessPending,
@@ -27,6 +28,8 @@ import {
   SETUP_EUR,
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
+import { resolveCheckoutSession } from "@/lib/stripe";
+import { purchaseSessionIdFromCheckout } from "@/lib/tracking";
 import { versionLabelFromRow } from "@/lib/versioning";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +64,12 @@ export default async function SuccessPage({
   const version = row ? parseDocumentVersion(row) : 1;
   const visibleEmail = row ? emailShownToViewer(row.email, sessionEmail) : "";
   const ownerView = Boolean(visibleEmail && sessionEmail && visibleEmail === row?.email.trim().toLowerCase());
+  const showSuccess = Boolean(row && allowed);
+  // Live Stripe lookup only once the success view is stable (not the pending reload).
+  const purchaseSessionId =
+    showSuccess && sessionId.startsWith("cs_")
+      ? purchaseSessionIdFromCheckout(await resolveCheckoutSession(sessionId))
+      : "";
 
   const pendingQuery = new URLSearchParams();
   if (sessionId) pendingQuery.set("session_id", sessionId);
@@ -83,6 +92,9 @@ export default async function SuccessPage({
           <SuccessNotFound />
         ) : (
           <section>
+            {purchaseSessionId ? (
+              <PurchaseConversion sessionId={purchaseSessionId} />
+            ) : null}
             <p className="kicker">
               Version {versionLabelFromRow({ version: String(version) })}
             </p>

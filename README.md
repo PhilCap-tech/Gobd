@@ -205,7 +205,7 @@ Link-Token: 20 Minuten. Ohne `MAGIC_LINK_SECRET` gibt es einen Dev-Fallback (nur
 
 Identität ist die Checkout-/Intake-E-Mail (weiche Bindung an Stripe-Session/Customer-ID). Nur diese Session-E-Mail **oder** die passende Stripe-Checkout-Session darf bearbeiten und herunterladen. **Abo** auf `/account` ist nach Login immer sichtbar; **Abo verwalten** führt auf `/account/billing` (Status, Stripe-Rechnungen, Portal-Button). Alias-Routen: `/meine-dokumente`, `/portal`, `/billing`.
 
-Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben); Ads: `NEXT_PUBLIC_META_PIXEL_ID`, `NEXT_PUBLIC_GOOGLE_ADS_ID`, `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL`, `NEXT_PUBLIC_GA_MEASUREMENT_ID` (optional, siehe Ads tracking).
+Weitere Env: `NEXT_PUBLIC_APP_URL` (siehe oben); Ads: `NEXT_PUBLIC_META_PIXEL_ID`, `NEXT_PUBLIC_GOOGLE_ADS_ID`, `NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO`, `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL`, `NEXT_PUBLIC_GA_MEASUREMENT_ID` (optional, siehe Ads tracking).
 
 ## Re-Edit und Versionierung
 
@@ -299,7 +299,7 @@ Prüfung ohne Speicher: `npx tsx scripts/check-admin-wipe.ts`
 
 ## Ads tracking (Google Search first, then Meta Pixel; consent-gated)
 
-Messung **vor** Paid-Spend: Traffic + Readiness-Submit. Stripe bleibt **TEST** — **keine** `Purchase`- oder Checkout-Conversion-Events (weder Google noch Meta).
+Messung: Traffic, optionale Readiness-Conversion, und — nur nach bezahlter Stripe-Session — eine Google-Ads-Kauf-Conversion. Meta feuert weiter kein `Purchase`.
 
 ### Vercel / Env
 
@@ -307,25 +307,26 @@ Messung **vor** Paid-Spend: Traffic + Readiness-Submit. Stripe bleibt **TEST** �
 
 | Variable | Pflicht | Wirkung |
 |---|---|---|
-| `NEXT_PUBLIC_GOOGLE_ADS_ID` | nein | Google Ads-Konto, z. B. `AW-XXXXXXXXX`. Leer = kein Ads-`config` |
-| `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL` | nein | Conversion-Label. Nur zusammen mit der ID: Conversion **nur** nach erfolgreichem Readiness-Submit. ID ohne Label = Traffic/Config (Monat 1), keine Conversion |
-| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | nein | GA4 Measurement-ID, z. B. `G-XXXXXXXX`. Leer = kein GA4. Teilt `gtag`/`dataLayer` mit Ads |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID` | nein | Google Ads-Konto, z. B. `AW-586367190`. Leer = kein Ads-`config` |
+| `NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO` | nein | Voller Kauf-`send_to`, z. B. `AW-586367190/LABEL`. Leer = keine Kauf-Conversion. Nicht das Readiness-Label |
+| `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL` | nein | Conversion-Label nur für den Readiness-Submit. Leer = keine Readiness-Conversion |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | nein | GA4 Measurement-ID, z. B. `G-RJ4KLBP1SF`. Leer = kein GA4. Teilt `gtag`/`dataLayer` mit Ads |
 | `NEXT_PUBLIC_META_PIXEL_ID` | nein | Meta Pixel-ID. Leer = kein Pixel |
 
 Lokal in `.env.local`, Produktion in Vercel → Environment Variables (Production + Preview nach Bedarf).
 
 ### Consent
 
-Deutsches Banner (Du-Form): **Nur essenziell** vs **Marketing erlauben**. Google-Tag und Meta Pixel laden erst nach Marketing-Zustimmung. Auswahl in `localStorage` und Cookie `gobd_consent` (180 Tage). Ablehnen → kein `gtag`, kein `fbq`. Änderung später: Footer **Cookie-Einstellungen**.
+Deutsches Banner (Sie): **Nur essenziell** vs **Marketing erlauben**. Google Consent Mode v2 setzt `ad_storage`, `ad_user_data` und `ad_personalization` zuerst auf `denied` und hebt sie nur nach Marketing-Zustimmung auf `granted`. Google-Tag und Meta Pixel laden erst danach. Auswahl in `localStorage` und Cookie `gobd_consent` (180 Tage). Ablehnen → kein `gtag/js`, kein `fbq`. Änderung später: Footer **Cookie-Einstellungen**.
 
 ### Google (Search first + optional GA4)
 
 Nach Consent + `NEXT_PUBLIC_GOOGLE_ADS_ID`: `gtag('config', AW-…)` (Traffic).  
 Nach Consent + `NEXT_PUBLIC_GA_MEASUREMENT_ID`: `gtag('config', G-…)` (GA4). Beide IDs können gleichzeitig gesetzt sein — ein gemeinsames `gtag`/`dataLayer`.  
 Client-Navigation: `gtag('event', 'page_view', { page_path })` (erster View kommt vom `config`).  
-Nach erfolgreichem Readiness-Submit **und** gesetztem Ads-Label: `gtag('event', 'conversion', { send_to: 'AW-…/label' })`.  
+Nach erfolgreichem Readiness-Submit **und** gesetztem Ads-Label: `gtag('event', 'conversion', { send_to: 'AW-…/label' })`. Das ist nicht die Kauf-Conversion.  
 GA4 optional: `gtag('event', 'readiness_submit', { send_to: G-… })`.  
-Kein Purchase, kein Checkout-Conversion-Event.
+Kauf-Conversion nur auf `/success`, nur bei serverseitig bezahlter Checkout-Session (kein Stub), nur mit `NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO`, genau einmal je Session-ID (`localStorage` und `sessionStorage`): `gtag('event', 'conversion', { send_to, value: 198, currency: 'EUR', transaction_id })`. Meta bleibt ohne `Purchase`.
 
 ### Meta events (nur mit Marketing-Consent **und** Pixel-ID)
 
@@ -349,7 +350,7 @@ Erwartete Kampagnen-URL:
 
 ### Checkliste nach Deploy
 
-1. Env setzen (`NEXT_PUBLIC_GOOGLE_ADS_ID`, optional Label, optional `NEXT_PUBLIC_GA_MEASUREMENT_ID`, optional Pixel-ID) und neu deployen
+1. Env setzen (`NEXT_PUBLIC_GOOGLE_ADS_ID`, optional `NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO`, optional Readiness-Label, optional `NEXT_PUBLIC_GA_MEASUREMENT_ID`, optional Pixel-ID) und neu deployen
 2. Seite öffnen → Banner **Marketing erlauben**
 3. Network: `gtag/js?id=AW-…` oder `gtag/js?id=G-…` (je nach gesetzter ID), `fbevents.js` (wenn Pixel-ID gesetzt)
 4. `/readiness` → Meta: `PageView` + `ReadinessStart`; Google: config/page_view
