@@ -7,7 +7,6 @@ import {
   safeNextPath,
   verifyMagicToken,
 } from "@/lib/auth";
-import { isOnboardingIntakeNext } from "@/lib/expired-onboarding-link";
 
 export const runtime = "nodejs";
 
@@ -23,12 +22,14 @@ export async function GET(request: Request) {
     return response;
   }
 
-  // Abgelaufener Link der Onboarding-Mail: kein Cookie, Seite zum neuen Link.
+  // Korrekt signiert, aber abgelaufen: kein Cookie, Seite zum neuen Link.
+  // Gilt für Login, Onboarding und erneutes Bearbeiten. Nur eine
+  // ungültige Signatur fällt auf /login?error=invalid zurück.
   const expiredEmail = readExpiredMagicToken(token);
-  if (expiredEmail && next && isOnboardingIntakeNext(next)) {
+  if (expiredEmail) {
     const expired = new URL("/auth/abgelaufen", request.url);
     expired.searchParams.set("token", token);
-    expired.searchParams.set("next", next);
+    if (next) expired.searchParams.set("next", next);
     return NextResponse.redirect(expired);
   }
 

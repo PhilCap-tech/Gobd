@@ -281,8 +281,14 @@ if (
   fail("readiness person mail greets the company name");
 }
 
+const anmeldelink = buildMagicLinkMail({ magicLinkUrl: START });
+if (anmeldelink.subject !== "Ihr Anmeldelink — GoBD Verfahrensdoku") {
+  fail(`Anmeldelink subject is ${JSON.stringify(anmeldelink.subject)}`);
+}
+assertCustomerClosing("anmeldelink", anmeldelink);
+
 const otherCustomerMails = [
-  ["magic", buildMagicLinkMail({ magicLinkUrl: START })],
+  ["magic", anmeldelink],
   ["readiness-person-closing", readinessPerson],
   ["failed-payment", buildFailedPaymentMail()],
   ["failed-job", buildFailedJobMail()],
@@ -475,21 +481,56 @@ async function checkExpiredOnboardingLink(): Promise<void> {
   if (tamperedLocation.includes("/auth/abgelaufen") || tamperedLocation.includes(email)) {
     fail("tampered token reached the expired page");
   }
+  if (!tamperedLocation.includes("error=invalid")) {
+    fail(`tampered token did not use the invalid login (${tamperedLocation})`);
+  }
   if (cookieNames(tamperedResponse).includes(SESSION_COOKIE)) {
     fail("tampered token set a session cookie");
   }
 
-  const otherNext = await verifyMagicLink(
+  const editNext = "/account/dokument/doc_owner1";
+  if (safeNextPath(editNext) !== editNext) fail("re-edit path is not a safe next");
+  for (const [label, next] of [
+    ["login", "/account"],
+    ["re-edit", editNext],
+  ] as const) {
+    const response = await verifyMagicLink(
+      new Request(
+        `http://localhost/auth/verify?token=${encodeURIComponent(expired)}&next=${encodeURIComponent(next)}`,
+      ),
+    );
+    const location = new URL(response.headers.get("location") ?? "", "http://localhost");
+    if (location.pathname !== "/auth/abgelaufen") {
+      fail(`${label} expired link location is ${location.pathname}${location.search}`);
+    }
+    if (location.searchParams.get("token") !== expired) fail(`${label} expired page dropped the token`);
+    if (safeNextPath(location.searchParams.get("next")) !== next) {
+      fail(`${label} expired page dropped the redirect`);
+    }
+    if (cookieNames(response).includes(SESSION_COOKIE)) {
+      fail(`${label} expired link set a session cookie`);
+    }
+  }
+
+  const bare = await verifyMagicLink(
+    new Request(`http://localhost/auth/verify?token=${encodeURIComponent(expired)}`),
+  );
+  const bareLocation = new URL(bare.headers.get("location") ?? "", "http://localhost");
+  if (bareLocation.pathname !== "/auth/abgelaufen" || bareLocation.searchParams.get("next")) {
+    fail(`expired login without next is ${bareLocation.pathname}${bareLocation.search}`);
+  }
+  if (cookieNames(bare).includes(SESSION_COOKIE)) {
+    fail("expired login without next set a session cookie");
+  }
+
+  const unsafe = await verifyMagicLink(
     new Request(
-      `http://localhost/auth/verify?token=${encodeURIComponent(expired)}&next=${encodeURIComponent("/account")}`,
+      `http://localhost/auth/verify?token=${encodeURIComponent(expired)}&next=${encodeURIComponent("https://evil.example")}`,
     ),
   );
-  const otherLocation = otherNext.headers.get("location") ?? "";
-  if (otherLocation.includes("/auth/abgelaufen")) {
-    fail("non-onboarding next used the onboarding expired page");
-  }
-  if (cookieNames(otherNext).includes(SESSION_COOKIE)) {
-    fail("expired account link set a session cookie");
+  const unsafeLocation = new URL(unsafe.headers.get("location") ?? "", "http://localhost");
+  if (unsafeLocation.pathname !== "/auth/abgelaufen" || unsafeLocation.searchParams.get("next")) {
+    fail("expired token kept an unsafe next");
   }
 
   const page = readFileSync(
@@ -505,6 +546,9 @@ async function checkExpiredOnboardingLink(): Promise<void> {
   }
   if (!page.includes("EXPIRED_LINK_HEADING") || page.includes("applySessionCookie")) {
     fail("expired page heading missing or page sets a session");
+  }
+  if (page.includes("!isOnboardingIntakeNext(next)")) {
+    fail("expired page still limits renewal to the onboarding draft");
   }
   if (!button.includes("/api/auth/magic-link") || !button.includes("renewExpiredLinkLabel")) {
     fail("renew button does not use the existing magic-link route");
