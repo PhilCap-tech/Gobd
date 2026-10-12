@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { IntakeStepHeading, useIntakeStepFocus } from "@/components/intake-step-heading";
 import Link from "next/link";
+import { IntakeProgress } from "@/components/intake-progress";
 import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
 import { MusterUpsell } from "@/components/muster-upsell";
 import { DEMO_BEISPIEL_SEED_NOTE, demoBeispielAnswers, demoBlankAnswers } from "@/lib/demo-beispiel";
@@ -30,6 +32,7 @@ type StartMode = "example" | "blank";
 export function DemoWalkthrough() {
   const [mode, setMode] = useState<StartMode | null>(null);
   const [step, setStep] = useState(() => nextApplicableStep(-1, demoBlankAnswers()));
+  useIntakeStepFocus(step);
   const [answers, setAnswers] = useState<IntakeAnswers>(() => demoBlankAnswers());
   const firstStep = nextApplicableStep(-1, answers);
   const [error, setError] = useState("");
@@ -95,13 +98,7 @@ export function DemoWalkthrough() {
       </p>
       {mode === "example" ? <p className="hint">{DEMO_BEISPIEL_SEED_NOTE}</p> : null}
 
-      {step <= INTAKE_STEPS.length && (
-        <div className="progress" aria-hidden="true">
-          {Array.from({ length: INTAKE_STEPS.length + 1 }, (_, index) => (
-            <i key={index} className={index < step ? "done" : index === step ? "on" : ""} />
-          ))}
-        </div>
-      )}
+      {step <= INTAKE_STEPS.length && <IntakeProgress step={step} answers={answers} />}
 
       {notice ? <p className="banner ok">{notice}</p> : null}
 
@@ -119,7 +116,7 @@ export function DemoWalkthrough() {
       {step === INTAKE_STEPS.length && (
         <section>
           <p className="step-label">{INTAKE_REVIEW.stepLabel}</p>
-          <h1>Angaben und offene Punkte</h1>
+          <IntakeStepHeading>Angaben und offene Punkte</IntakeStepHeading>
           <p className="prose">
             Im Produkt hieße dieser Schritt „{INTAKE_REVIEW.title}“ und würde speichern. Hier endet
             die Demo. Die Liste nutzt denselben Regelsatz wie die Offene-Punkte-Tabelle im PDF.

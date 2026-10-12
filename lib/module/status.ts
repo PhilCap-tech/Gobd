@@ -339,24 +339,43 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
   return next;
 }
 
-/** Stammdaten in bekannte Katalogfelder schreiben (nur leere Felder). */
-export function applyStammdatenPrefill(answers: IntakeAnswers): IntakeAnswers {
+/**
+ * True when a catalog field may still receive a Stammdaten value: it is empty,
+ * or it still holds the previous automatic text. A different stored value was
+ * typed or saved and stays.
+ */
+function untouchedPrefill(current: unknown, prior: string | undefined): boolean {
+  if (current == null) return true;
+  if (typeof current !== "string") return false;
+  const text = current.trim();
+  if (!text) return true;
+  const before = prior?.trim() ?? "";
+  return Boolean(before) && text === before;
+}
+
+/** Stammdaten in leere oder noch unveränderte Katalogfelder schreiben. */
+export function applyStammdatenPrefill(
+  answers: IntakeAnswers,
+  previous?: Partial<Stammdaten>,
+): IntakeAnswers {
   const s = modulZustand(answers).stammdaten;
   if (!s) return answers;
   const katalog = { ...(answers.katalog ?? {}) };
-  const fill = (id: string, key: string, value: string | undefined) => {
-    if (!value?.trim()) return;
+  const fill = (id: string, key: string, value: string | undefined, prior?: string) => {
+    const trimmed = value?.trim() ?? "";
+    if (!trimmed) return;
     const entry = katalog[id] ?? {};
     const values = { ...(entry.values ?? {}) };
-    if (values[key]) return;
-    values[key] = value;
+    if (!untouchedPrefill(values[key], prior)) return;
+    if (typeof values[key] === "string" && values[key].trim() === trimmed) return;
+    values[key] = trimmed;
     katalog[id] = { ...entry, values };
   };
-  fill("A01", "gf", s.gf);
-  fill("F01", "buchhaltung", s.buchhaltung);
-  fill("B01", "it", s.it);
-  fill("F05", "kanzleiName", s.kanzlei);
-  fill("G01", "ablage", s.archiv);
+  fill("A01", "gf", s.gf, previous?.gf);
+  fill("F01", "buchhaltung", s.buchhaltung, previous?.buchhaltung);
+  fill("B01", "it", s.it, previous?.it);
+  fill("F05", "kanzleiName", s.kanzlei, previous?.kanzlei);
+  fill("G01", "ablage", s.archiv, previous?.archiv);
   if (s.fibu) {
     const entry = katalog.B01 ?? {};
     const values = { ...(entry.values ?? {}) };

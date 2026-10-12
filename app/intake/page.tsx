@@ -96,6 +96,18 @@ function IntakeGate({
   );
 }
 
+function firmFromCheckout(session: {
+  company: string;
+  billingAddress?: { line1?: string; postalCode?: string; city?: string };
+}): FirmFacts {
+  return {
+    name: session.company,
+    billingLine1: session.billingAddress?.line1,
+    billingPostalCode: session.billingAddress?.postalCode,
+    billingCity: session.billingAddress?.city,
+  };
+}
+
 function firmFromEntity(entity: Entity | null | undefined, fallbackName: string): FirmFacts {
   if (!entity) return { name: fallbackName };
   return {
@@ -422,6 +434,7 @@ export default async function IntakePage({
         ) : (
           <IntakeForm
             session={session}
+            firm={firmFromCheckout(session)}
             loginHref={loginPath(returnPath)}
             entities={entityChoices(entities)}
             initialEntityId={initialEntityId}

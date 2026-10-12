@@ -39,6 +39,7 @@ import {
 import {
   applyStammdatenPrefill,
   CHECK_FRAGEN,
+  setStammdaten,
   effectiveModulStatus,
   isGesamt,
   modulStatusError,
@@ -46,7 +47,7 @@ import {
   STATUS_LABEL as MODUL_STATUS_LABEL,
   toolModules,
 } from "@/lib/module/status";
-import type { CheckKey } from "@/lib/module/typen";
+import type { CheckKey, Stammdaten } from "@/lib/module/typen";
 import {
   FREITEXT_LIMIT_MESSAGE,
   freitextOverflows,
@@ -620,6 +621,26 @@ export function catalogStepPosition(stepIndex: number, answers: IntakeAnswers): 
   const list = isGesamt(answers) ? inMode : inMode.filter(({ step }) => bereichMatches(step.when, bereich));
   const position = list.findIndex(({ index }) => index === stepIndex);
   return { index: position < 0 ? stepIndex : position, total: list.length || applicable.length };
+}
+
+/** Same numbering as the „Schritt k von n“ label. */
+export function intakeStepLabel(stepIndex: number, answers: IntakeAnswers): string {
+  const position = catalogStepPosition(stepIndex, answers);
+  return `Schritt ${position.index + 1} von ${position.total}`;
+}
+
+/**
+ * Progress segments for the current mode. Count and active segment follow
+ * intakeStepLabel, including conditional steps that stay in the count.
+ * On the review page every counted step is done.
+ */
+export function intakeProgressSegments(stepIndex: number, answers: IntakeAnswers): Array<"done" | "on" | ""> {
+  const onReview = stepIndex >= CATALOG_STEPS.length;
+  const position = catalogStepPosition(onReview ? CATALOG_STEPS.length - 1 : stepIndex, answers);
+  const active = onReview ? position.total : position.index;
+  return Array.from({ length: position.total }, (_, index) =>
+    index < active ? "done" : index === active ? "on" : "",
+  );
 }
 
 /** Area-aware step title. The area step carries the area label. */
@@ -1584,6 +1605,13 @@ export type FirmFacts = {
   city?: string;
   stnr?: string;
   ustId?: string;
+  /**
+   * Stripe Checkout billing address (`customer_details.address`).
+   * Used for Standort only when street/zip/city are empty.
+   */
+  billingLine1?: string;
+  billingPostalCode?: string;
+  billingCity?: string;
 };
 
 export function firmAddressLine(firm?: FirmFacts): string {
@@ -1591,6 +1619,64 @@ export function firmAddressLine(firm?: FirmFacts): string {
   const street = firm.street?.trim() ?? "";
   const place = [firm.zip?.trim(), firm.city?.trim()].filter(Boolean).join(" ");
   return [street, place].filter(Boolean).join(", ");
+}
+
+/** Raw billing parts. Formatting decides which pieces fit the Standort field. */
+export type BillingAddressParts = {
+  line1?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+};
+
+function billingSingleLine(value: string | null | undefined): string {
+  if (value == null) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/[\r\n\u2028\u2029\u0000-\u001F\u007F]/.test(trimmed)) return "";
+  return trimmed.replace(/\s+/g, " ");
+}
+
+/** Postal codes in the existing „PLZ Ort“ shape: one line, with a digit. */
+function billingPostalFits(value: string): boolean {
+  if (value.length < 3 || value.length > 12) return false;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} -]*$/u.test(value)) return false;
+  return /\d/.test(value);
+}
+
+/** Street lines in the existing „Straße Hausnummer, PLZ Ort“ shape. */
+function billingStreetFits(value: string, city: string): boolean {
+  if (!value || value.length > 80) return false;
+  if (value.toLocaleLowerCase("de-DE") === city.toLocaleLowerCase("de-DE")) return false;
+  return /\d/.test(value);
+}
+
+/**
+ * Standort from a Checkout billing address.
+ * City is required. postal_code and line1 are added only when they fit
+ * the single-line form already used for firm addresses. Otherwise empty.
+ */
+export function standortFromBillingAddress(address: BillingAddressParts | null | undefined): string {
+  if (!address) return "";
+  const city = billingSingleLine(address.city);
+  if (!city || city.length > 80) return "";
+  const postalRaw = billingSingleLine(address.postalCode);
+  const postal = postalRaw && billingPostalFits(postalRaw) ? postalRaw : "";
+  const streetRaw = billingSingleLine(address.line1);
+  const street = streetRaw && billingStreetFits(streetRaw, city) ? streetRaw : "";
+  const place = [postal, city].filter(Boolean).join(" ");
+  return [street, place].filter(Boolean).join(", ");
+}
+
+/** Entity address wins. Billing address fills Standort only when that is empty. */
+export function standortPrefillLine(firm?: FirmFacts): string {
+  return (
+    firmAddressLine(firm) ||
+    standortFromBillingAddress({
+      line1: firm?.billingLine1,
+      postalCode: firm?.billingPostalCode,
+      city: firm?.billingCity,
+    })
+  );
 }
 
 const PREFILL_SKIP_KEYS = new Set([
@@ -1618,18 +1704,146 @@ function isProtected(protect: Array<[string, string]> | undefined, id: string, k
   return Boolean(protect?.some(([pid, pkey]) => pid === id && pkey === key));
 }
 
+/**
+ * Every catalog field whose prefill source is a name from
+ * „Namen der Verantwortlichen“. Modul lead questions (…00 verantwortlich)
+ * are not in this list: nothing copies a Verantwortliche name into them.
+ */
+export const VERANTWORTLICHE_NAME_FIELDS = [
+  {
+    modulId: "m01",
+    modulNr: 1,
+    modulTitel: "Unternehmen und Organisation",
+    questionId: "A01",
+    key: "gf",
+    source: "gf",
+    label: "Geschäftsleitung (Name)",
+  },
+  {
+    modulId: "m01",
+    modulNr: 1,
+    modulTitel: "Unternehmen und Organisation",
+    questionId: "UO03",
+    key: "zustaendigkeiten",
+    source: "rollen",
+    label: "Aufgabe und zuständige Person oder Rolle",
+  },
+  {
+    modulId: "m09",
+    modulNr: 9,
+    modulTitel: "Buchführung und Abschlüsse",
+    questionId: "F01",
+    key: "buchhaltung",
+    source: "buchhaltung",
+    label: "Buchhaltung (Name oder Rolle)",
+  },
+  {
+    modulId: "m17",
+    modulNr: 17,
+    modulTitel: "Systeme und Datenübertragung",
+    questionId: "B01",
+    key: "it",
+    source: "it",
+    label: "IT-Verantwortung",
+  },
+  {
+    modulId: "m21",
+    modulNr: 21,
+    modulTitel: "Ausgelagerte Aufgaben",
+    questionId: "F05",
+    key: "kanzleiName",
+    source: "kanzlei",
+    label: "Kanzlei",
+  },
+] as const;
+
+export type VerantwortlicheNameSource = (typeof VERANTWORTLICHE_NAME_FIELDS)[number]["source"];
+
+const ROLE_LABELS = ["Geschäftsleitung", "Buchhaltung", "IT", "Steuerkanzlei"];
+
+/**
+ * A one- or two-character strict prefix is the frozen first keystroke of an
+ * automatic name prefill. A longer prefix, or any other text, is user input.
+ */
+function isKeystrokeArtifact(stored: string, source: string): boolean {
+  const current = stored.trim();
+  const full = source.trim();
+  if (!current || !full || current === full) return false;
+  if (!full.startsWith(current)) return false;
+  const length = Array.from(current).length;
+  return length >= 1 && length <= 2;
+}
+
+function namePrefillField(id: string, key: string): boolean {
+  return VERANTWORTLICHE_NAME_FIELDS.some((field) => field.questionId === id && field.key === key);
+}
+
+function parseRoleBlock(text: string): Map<string, string> | null {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return null;
+  const map = new Map<string, string>();
+  for (const line of lines) {
+    const splitAt = line.indexOf(": ");
+    if (splitAt <= 0) return null;
+    const label = line.slice(0, splitAt);
+    if (!ROLE_LABELS.includes(label) || map.has(label)) return null;
+    map.set(label, line.slice(splitAt + 2).trim());
+  }
+  return map;
+}
+
+/** The Zuständigkeiten block is an artifact only when every differing line is one. */
+function roleTextIsArtifact(stored: string, source: string): boolean {
+  const current = parseRoleBlock(stored);
+  const next = parseRoleBlock(source);
+  if (!current || !next) return false;
+  let artifact = false;
+  for (const [label, value] of current) {
+    const full = next.get(label);
+    if (full == null) return false;
+    if (value === full) continue;
+    if (!isKeystrokeArtifact(value, full)) return false;
+    artifact = true;
+  }
+  return artifact;
+}
+
+function storedIsNameArtifact(id: string, key: string, stored: string, source: string): boolean {
+  const field = VERANTWORTLICHE_NAME_FIELDS.find((item) => item.questionId === id && item.key === key);
+  if (!field) return false;
+  if (field.source === "rollen") return roleTextIsArtifact(stored, source);
+  return isKeystrokeArtifact(stored, source);
+}
+
 function fillText(
   katalog: CatalogState,
   id: string,
   key: string,
   value: string | undefined,
   protect?: Array<[string, string]>,
+  previous?: string,
 ): void {
   const trimmed = value?.trim() ?? "";
-  if (!trimmed || PREFILL_SKIP_KEYS.has(key) || isProtected(protect, id, key)) return;
+  if (!trimmed || PREFILL_SKIP_KEYS.has(key)) return;
+  const protectedField = isProtected(protect, id, key);
   const entry = katalog[id] ?? {};
   const values = { ...(entry.values ?? {}) };
-  if (!valueEmpty(values[key])) return;
+  const current = values[key];
+  // The field the user is editing right now stays, including a first letter.
+  if (protectedField && !valueEmpty(current)) return;
+  // Clearing a name lets the Verantwortliche source fill it again. Other fields stay empty.
+  if (protectedField && !namePrefillField(id, key)) return;
+  if (!protectedField && !valueEmpty(current)) {
+    const prior = previous?.trim() ?? "";
+    const stored = asText(current);
+    if (stored === trimmed) return;
+    const followsPrevious = Boolean(prior) && stored === prior;
+    if (!followsPrevious && !storedIsNameArtifact(id, key, stored, trimmed)) return;
+  }
+  if (asText(current) === trimmed) return;
   values[key] = trimmed;
   katalog[id] = { ...entry, values };
 }
@@ -1673,18 +1887,64 @@ function roleLines(pairs: Array<[string, string]>): string {
     .join("\n");
 }
 
+function textOr(primary: string | undefined, fallback: string | undefined): string {
+  const first = primary?.trim() ?? "";
+  return first || (fallback?.trim() ?? "");
+}
+
 /**
- * Copy facts the user already gave into empty catalog fields.
- * Never sets a process status, a date, or the no-backdating confirmation.
- * Never replaces a value the user already typed.
+ * Legacy answer and Stammdaten can both hold a name. A one- or two-character
+ * prefix of the other value is the frozen keystroke, so the full name wins.
+ */
+function preferName(primary: string | undefined, fallback: string | undefined): string {
+  const first = primary?.trim() ?? "";
+  const second = fallback?.trim() ?? "";
+  const usable = (value: string) => (value && value !== "nicht angegeben" ? value : "");
+  const left = usable(first);
+  const right = usable(second);
+  if (!left) return right;
+  if (!right) return left;
+  if (isKeystrokeArtifact(left, right)) return right;
+  if (isKeystrokeArtifact(right, left)) return left;
+  return left;
+}
+
+function verantwortlicheRoleText(answers: IntakeAnswers): string {
+  const stamm = modulZustand(answers).stammdaten ?? {};
+  return roleLines([
+    ["Geschäftsleitung", asText(answers.katalog?.A01?.values?.gf) || preferName(answers.gf, stamm.gf)],
+    [
+      "Buchhaltung",
+      asText(answers.katalog?.F01?.values?.buchhaltung) || preferName(answers.buchhaltung, stamm.buchhaltung),
+    ],
+    ["IT", asText(answers.katalog?.B01?.values?.it) || preferName(answers.it, stamm.it)],
+    [
+      "Steuerkanzlei",
+      asText(answers.katalog?.F05?.values?.kanzleiName) || preferName(answers.steuerberater, stamm.kanzlei),
+    ],
+  ]);
+}
+
+/**
+ * Copy facts the user already gave into catalog fields that are still empty.
+ * A field that still holds the previous automatic value follows the source,
+ * so typing a name does not freeze the first character. A stored name of one
+ * or two characters that is a strict prefix of the current Verantwortliche
+ * name is that same freeze and is replaced. That covers every field in
+ * VERANTWORTLICHE_NAME_FIELDS, including Modul 17 „IT-Verantwortung“.
+ * Clearing such a name field allows the prefill again. Any other stored
+ * value stays. Never sets a process status, a date, or the no-backdating
+ * confirmation.
  */
 export function prefillKnownFacts(
   answers: IntakeAnswers,
   firm?: FirmFacts,
-  options?: { protect?: Array<[string, string]> },
+  options?: { protect?: Array<[string, string]>; previous?: IntakeAnswers },
 ): IntakeAnswers {
   const protect = options?.protect;
-  const next = applyStammdatenPrefill(answers);
+  const previousAnswers = options?.previous;
+  const previousStamm = previousAnswers ? modulZustand(previousAnswers).stammdaten ?? {} : undefined;
+  const next = applyStammdatenPrefill(answers, previousStamm);
   const katalog: CatalogState = { ...(next.katalog ?? {}) };
   for (const [id, key] of protect ?? []) {
     const entry = katalog[id] ?? {};
@@ -1697,23 +1957,59 @@ export function prefillKnownFacts(
   const stamm = modulZustand(next).stammdaten ?? {};
   const a01 = () => katalog.A01?.values ?? {};
 
+  const prior = (value: string) => (previousAnswers ? value : undefined);
   fillText(katalog, "A01", "company", firm?.name, protect);
-  fillText(katalog, "A01", "standort", firmAddressLine(firm) || answers.standort, protect);
+  fillText(katalog, "A01", "standort", standortPrefillLine(firm) || answers.standort, protect);
   fillRaw(katalog, "A01", "branchen", answers.branchen, protect);
   fillText(katalog, "A01", "rechtsform", answers.rechtsform, protect);
   fillText(katalog, "A01", "mitarbeitende", answers.mitarbeitende, protect);
-  fillText(katalog, "A01", "gf", answers.gf || stamm.gf, protect);
+  fillText(
+    katalog,
+    "A01",
+    "gf",
+    preferName(answers.gf, stamm.gf),
+    protect,
+    prior(preferName(previousAnswers?.gf, previousStamm?.gf)),
+  );
   fillText(katalog, "B01", "weitereFreitext", answers.weitereSysteme);
   fillText(katalog, "B01", "hosting", answers.hosting);
-  fillText(katalog, "B01", "it", answers.it === "nicht angegeben" ? "" : answers.it);
+  fillText(
+    katalog,
+    "B01",
+    "it",
+    preferName(answers.it, stamm.it),
+    protect,
+    prior(preferName(previousAnswers?.it, previousStamm?.it)),
+  );
   for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
   if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
   fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege));
   fillRaw(katalog, "E01", "formate", answers.formate);
   fillRaw(katalog, "E05", "systeme", answers.ausgangsrechnungen);
-  fillText(katalog, "F01", "buchhaltung", answers.buchhaltung || stamm.buchhaltung);
-  fillText(katalog, "F05", "kanzleiName", answers.steuerberater || stamm.kanzlei);
-  fillText(katalog, "G01", "ablage", answers.archiv || stamm.archiv);
+  fillText(
+    katalog,
+    "F01",
+    "buchhaltung",
+    preferName(answers.buchhaltung, stamm.buchhaltung),
+    undefined,
+    prior(preferName(previousAnswers?.buchhaltung, previousStamm?.buchhaltung)),
+  );
+  fillText(
+    katalog,
+    "F05",
+    "kanzleiName",
+    preferName(answers.steuerberater, stamm.kanzlei),
+    undefined,
+    prior(preferName(previousAnswers?.steuerberater, previousStamm?.kanzlei)),
+  );
+  fillText(
+    katalog,
+    "G01",
+    "ablage",
+    textOr(answers.archiv, stamm.archiv),
+    undefined,
+    prior(textOr(previousAnswers?.archiv, previousStamm?.archiv)),
+  );
   fillText(katalog, "G02", "zugriffKurz", answers.zugriff);
   if (answers.backup.length) fillText(katalog, "G06", "backupArten", answers.backup.join(", "));
 
@@ -1756,10 +2052,21 @@ export function prefillKnownFacts(
       ["IT", asText(katalog.B01?.values?.it) || stamm.it || ""],
       ["Steuerkanzlei", asText(katalog.F05?.values?.kanzleiName) || stamm.kanzlei || ""],
     ]),
+    protect,
+    previousAnswers ? verantwortlicheRoleText(previousAnswers) : undefined,
   );
 
   if (JSON.stringify(katalog) === JSON.stringify(next.katalog ?? {})) return next;
   return { ...next, katalog };
+}
+
+/** One keystroke in „Namen der Verantwortlichen“: keep untouched name fields in sync. */
+export function prefillStammdatenInput(
+  answers: IntakeAnswers,
+  patch: Partial<Stammdaten>,
+  firm?: FirmFacts,
+): IntakeAnswers {
+  return prefillKnownFacts(setStammdaten(answers, patch), firm, { previous: answers });
 }
 
 export function statusLabel(status: CatalogStatus): string {

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
+import { IntakeProgress } from "@/components/intake-progress";
 import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
+import { IntakeStepHeading, useIntakeStepFocus } from "@/components/intake-step-heading";
 import {
   VersionChangeFields,
   type VersionChangeDraft,
@@ -71,12 +73,24 @@ type IntakeFormProps = {
   loginHref?: string;
 };
 
+function checkoutBilling(firm: FirmFacts | undefined): Pick<
+  FirmFacts,
+  "billingLine1" | "billingPostalCode" | "billingCity"
+> {
+  return {
+    billingLine1: firm?.billingLine1,
+    billingPostalCode: firm?.billingPostalCode,
+    billingCity: firm?.billingCity,
+  };
+}
+
 function firmFactsFor(
   entityId: string,
   entities: EntityChoice[],
   firm: FirmFacts | undefined,
   company: string,
 ): FirmFacts {
+  const billing = checkoutBilling(firm);
   const selected = entities.find((item) => item.entityId === entityId);
   if (selected) {
     return {
@@ -86,12 +100,23 @@ function firmFactsFor(
       city: selected.city,
       stnr: selected.stnr,
       ustId: selected.ustId,
+      ...billing,
     };
   }
-  if (firm && (firm.name || firm.street || firm.city || firm.stnr || firm.ustId)) {
+  if (
+    firm &&
+    (firm.name ||
+      firm.street ||
+      firm.city ||
+      firm.stnr ||
+      firm.ustId ||
+      firm.billingCity ||
+      firm.billingLine1 ||
+      firm.billingPostalCode)
+  ) {
     return { ...firm, name: firm.name || company };
   }
-  return { name: company };
+  return { name: company, ...billing };
 }
 
 function resolveInitialStep(answers: IntakeAnswers, stepId?: string, modulId?: string): number {
@@ -144,6 +169,7 @@ export function IntakeForm({
       focusModulId,
     ),
   );
+  useIntakeStepFocus(step);
   const [entityId, setEntityId] = useState(initialEntityId);
   const [answers, setAnswers] = useState<IntakeAnswers>(() =>
     startAnswers(initialAnswers, session.company, gesamtMode, facts),
@@ -604,16 +630,7 @@ export function IntakeForm({
 
   return (
     <>
-      {step < INTAKE_STEPS.length + 1 && (
-        <div className="progress" aria-hidden="true">
-          {Array.from({ length: INTAKE_STEPS.length + 1 }, (_, index) => (
-            <i
-              key={index}
-              className={index < step ? "done" : index === step ? "on" : ""}
-            />
-          ))}
-        </div>
-      )}
+      {step < INTAKE_STEPS.length + 1 && <IntakeProgress step={step} answers={answers} />}
 
       {session.stub && step <= INTAKE_STEPS.length && !isEdit && (
         <p className="banner">
@@ -714,7 +731,7 @@ export function IntakeForm({
       {step === INTAKE_STEPS.length && (
         <section>
           <p className="step-label">{INTAKE_REVIEW.stepLabel}</p>
-          <h1>{INTAKE_REVIEW.title}</h1>
+          <IntakeStepHeading>{INTAKE_REVIEW.title}</IntakeStepHeading>
           <div className="card">
             <dl className="summary">
               {summary.map(([label, value]) => (

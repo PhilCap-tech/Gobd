@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { prefillKnownFacts, type CatalogIssue } from "@/lib/intake-catalog";
+import { prefillKnownFacts, prefillStammdatenInput, type CatalogIssue } from "@/lib/intake-catalog";
 import {
   applySoftwarePreset,
   BRANCHEN_VORLAGEN,
   CHECK_FRAGEN,
   modulFortschritt,
   setCheckAntwort,
-  setStammdaten,
   setVorlage,
   SOFTWARE_PRESETS,
   STATUS_HILFE,
@@ -18,6 +17,7 @@ import {
 import { MODUL_STATUSES, type CheckAntwort } from "@/lib/module/typen";
 import { customerUploadHref } from "@/lib/blob-ref";
 import { FreitextAlert } from "@/components/freitext-alert";
+import { IntakeStepHeading } from "@/components/intake-step-heading";
 import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import type { IntakeAnswers } from "@/lib/types";
 
@@ -54,7 +54,7 @@ export function BetriebsCheckStep({
   return (
     <section>
       <p className="step-label">Betriebs-Check</p>
-      <h1>Welche Bereiche gibt es in Ihrem Betrieb?</h1>
+      <IntakeStepHeading>Welche Bereiche gibt es in Ihrem Betrieb?</IntakeStepHeading>
       <p className="prose">
         Anhand dieser Angaben schaltet das Tool die passenden Module frei. Dieser Schritt ist der
         kurze Einstieg. Sie können Module später im Konto ergänzen. Kernmodule (Organisation,
@@ -146,8 +146,7 @@ export function BetriebsCheckStep({
                 placeholder={field.placeholder}
                 aria-invalid={Boolean(gap) || undefined}
                 onChange={(event) => {
-                  const next = prefillKnownFacts(setStammdaten(answers, { [field.key]: event.target.value }));
-                  onChange(next);
+                  onChange(prefillStammdatenInput(answers, { [field.key]: event.target.value }));
                 }}
               />
               {gap ? (
@@ -189,7 +188,7 @@ export function ModulUebersichtStep({
   return (
     <section id="modul-uebersicht">
       <p className="step-label">Module</p>
-      <h1>Module und Dokumentationsstatus</h1>
+      <IntakeStepHeading>Module und Dokumentationsstatus</IntakeStepHeading>
       <p className="prose">
         So wird Ihr Gesamtdokument aufgebaut. {INTAKE_EFFORT_LINE} Ein vorhandener Bereich darf nicht stillschweigend
         fehlen: „{STATUS_OPTION_LABEL.tool}“, bestehende Dokumentation verlinken oder den Status „{STATUS_OPTION_LABEL.offen}“ setzen. „Nicht vorhanden“ nur, wenn es den Ablauf bei Ihnen nicht gibt — mit kurzer Begründung.

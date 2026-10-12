@@ -7,9 +7,9 @@ import {
   CATALOG_STEPS,
   catalogQuestionApplies,
   catalogStepApplies,
-  catalogStepPosition,
   catalogStepTitle,
-  firmAddressLine,
+  intakeStepLabel,
+  standortPrefillLine,
   MODUL_UEBERSICHT_STEP_ID,
   prefillKnownFacts,
   setCatalogValue,
@@ -20,6 +20,7 @@ import {
   type FirmFacts,
 } from "@/lib/intake-catalog";
 import { BetriebsCheckStep, ModulUebersichtStep } from "@/components/betriebs-check";
+import { IntakeStepHeading } from "@/components/intake-step-heading";
 import { P1_QUESTION_IDS, P1QuestionFields, ProcessStatus } from "@/components/intake-p1-fields";
 import {
   activityFollowupsFor,
@@ -465,7 +466,6 @@ export function IntakeQuestionnaire({
     );
   }
   const questions = visibleCatalogQuestions(step, answers);
-  const position = catalogStepPosition(step, answers);
 
   function commitValue(questionId: string, key: string, value: unknown) {
     let stored = value;
@@ -495,9 +495,9 @@ export function IntakeQuestionnaire({
   return (
     <section>
       <p className="step-label">
-        Schritt {position.index + 1} von {position.total}
+        {intakeStepLabel(step, answers)}
       </p>
-      <h1>{catalogStepTitle(step, answers)}</h1>
+      <IntakeStepHeading>{catalogStepTitle(step, answers)}</IntakeStepHeading>
       <OpenOnPage issues={issues} />
       <div className="card">
         {!catalogStepApplies(catalogStep, answers) || (questions.length === 0 && !SPECIAL_STEP_IDS.has(catalogStep.id)) ? (
@@ -592,13 +592,13 @@ export function IntakeQuestionnaire({
                       question.id === "A01" && field.key === "company"
                         ? firm?.name
                         : question.id === "A01" && field.key === "standort"
-                          ? firmAddressLine(firm)
+                          ? standortPrefillLine(firm)
                           : question.id === "A01" && field.key === "gf"
                             ? answers.module?.stammdaten?.gf
                             : question.id === "UO01" && field.key === "gesellschaften"
                               ? firm?.name || asText(answers.katalog?.A01?.values?.company)
                               : question.id === "UO01" && field.key === "standorte"
-                                ? asText(answers.katalog?.A01?.values?.standort) || firmAddressLine(firm)
+                                ? asText(answers.katalog?.A01?.values?.standort) || standortPrefillLine(firm)
                                 : undefined;
                     const prefilled =
                       question.id === "UO03" && field.key === "zustaendigkeiten"
