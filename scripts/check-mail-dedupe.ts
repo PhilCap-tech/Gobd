@@ -22,7 +22,7 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-function assert(condition: unknown, message: string): asserts condition {
+function assert(condition: unknown, message: string): void {
   if (!condition) fail(message);
 }
 
