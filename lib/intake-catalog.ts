@@ -623,6 +623,26 @@ export function catalogStepPosition(stepIndex: number, answers: IntakeAnswers): 
   return { index: position < 0 ? stepIndex : position, total: list.length || applicable.length };
 }
 
+/** Same numbering as the „Schritt k von n“ label. */
+export function intakeStepLabel(stepIndex: number, answers: IntakeAnswers): string {
+  const position = catalogStepPosition(stepIndex, answers);
+  return `Schritt ${position.index + 1} von ${position.total}`;
+}
+
+/**
+ * Progress segments for the current mode. Count and active segment follow
+ * intakeStepLabel, including conditional steps that stay in the count.
+ * On the review page every counted step is done.
+ */
+export function intakeProgressSegments(stepIndex: number, answers: IntakeAnswers): Array<"done" | "on" | ""> {
+  const onReview = stepIndex >= CATALOG_STEPS.length;
+  const position = catalogStepPosition(onReview ? CATALOG_STEPS.length - 1 : stepIndex, answers);
+  const active = onReview ? position.total : position.index;
+  return Array.from({ length: position.total }, (_, index) =>
+    index < active ? "done" : index === active ? "on" : "",
+  );
+}
+
 /** Area-aware step title. The area step carries the area label. */
 export function catalogStepTitle(stepIndex: number, answers: IntakeAnswers): string {
   const step = CATALOG_STEPS[stepIndex];

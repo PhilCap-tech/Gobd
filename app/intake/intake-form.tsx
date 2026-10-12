@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
+import { IntakeProgress } from "@/components/intake-progress";
 import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
 import { IntakeStepHeading, useIntakeStepFocus } from "@/components/intake-step-heading";
 import {
@@ -629,16 +630,7 @@ export function IntakeForm({
 
   return (
     <>
-      {step < INTAKE_STEPS.length + 1 && (
-        <div className="progress" aria-hidden="true">
-          {Array.from({ length: INTAKE_STEPS.length + 1 }, (_, index) => (
-            <i
-              key={index}
-              className={index < step ? "done" : index === step ? "on" : ""}
-            />
-          ))}
-        </div>
-      )}
+      {step < INTAKE_STEPS.length + 1 && <IntakeProgress step={step} answers={answers} />}
 
       {session.stub && step <= INTAKE_STEPS.length && !isEdit && (
         <p className="banner">

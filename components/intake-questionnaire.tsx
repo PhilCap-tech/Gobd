@@ -7,8 +7,8 @@ import {
   CATALOG_STEPS,
   catalogQuestionApplies,
   catalogStepApplies,
-  catalogStepPosition,
   catalogStepTitle,
+  intakeStepLabel,
   standortPrefillLine,
   MODUL_UEBERSICHT_STEP_ID,
   prefillKnownFacts,
@@ -466,7 +466,6 @@ export function IntakeQuestionnaire({
     );
   }
   const questions = visibleCatalogQuestions(step, answers);
-  const position = catalogStepPosition(step, answers);
 
   function commitValue(questionId: string, key: string, value: unknown) {
     let stored = value;
@@ -496,7 +495,7 @@ export function IntakeQuestionnaire({
   return (
     <section>
       <p className="step-label">
-        Schritt {position.index + 1} von {position.total}
+        {intakeStepLabel(step, answers)}
       </p>
       <IntakeStepHeading>{catalogStepTitle(step, answers)}</IntakeStepHeading>
       <OpenOnPage issues={issues} />

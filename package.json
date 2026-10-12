@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen",
+    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress",
     "check:prefill-namen": "tsx scripts/check-prefill-namen.ts",
+    "check:intake-progress": "tsx scripts/check-intake-progress.ts",
     "check:muster-mark": "tsx scripts/check-muster-mark.ts",
     "check:ansprache": "node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
     "check:export": "tsx scripts/check-export-mvp.ts",
