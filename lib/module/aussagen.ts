@@ -7,7 +7,7 @@ import catalogFile from "@/content/intake-catalog/INTAKE-CATALOG-MVP-v1.json";
 import { confirmedFieldSentence, type PhraseField } from "@/lib/bereich-chapter";
 import { bereichQuestion, type BereichFrist, type BereichKontrolle, type BereichSchritt } from "@/lib/bereiche";
 import type { CatalogQuestion } from "@/lib/intake-catalog";
-import { fieldLabel } from "@/lib/intake-present";
+import { dedupeIdenticalTurnus, fieldLabel } from "@/lib/intake-present";
 import {
   modulAufbewahrung,
   modulBegriffe,
@@ -20,6 +20,7 @@ import {
 import { effectiveModulStatus } from "@/lib/module/status";
 import type { ModulDef } from "@/lib/module/typen";
 import {
+  ausnahmenPhrase,
   isControlQuestionId,
   isKeineKontrolleValues,
   KEINE_AUSNAHMEN_SATZ,
@@ -107,7 +108,7 @@ function sichtungTurnus(answers: IntakeAnswers): string {
   const values = entry(answers, "C02")?.values;
   if (!confirmed(answers, "C02") || !values) return "";
   const direct = text(values.turnus);
-  if (direct && direct !== "anders") return direct;
+  if (direct && direct !== "anders") return dedupeIdenticalTurnus(direct);
   if (direct === "anders") return text(values.turnusFrei);
   const detail = values.kanaeleDetail;
   if (!detail || typeof detail !== "object" || Array.isArray(detail)) return "";
@@ -462,6 +463,39 @@ function collapseValue(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Papierannahme in der Prozesszelle: Wer und Turnus mit Feldbezeichnung.
+ * Der gespeicherte Ablauf für den Fließtext bleibt ohne diese Zusätze.
+ */
+function labeledPaperSteps(values: Record<string, unknown>): string {
+  const row = values.eingang;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return "";
+  const detail = row as {
+    ort?: unknown;
+    wer?: unknown;
+    turnus?: unknown;
+    turnusFrei?: unknown;
+    uebergabe?: unknown;
+    ausnahmen?: unknown;
+    keineAusnahmen?: boolean;
+  };
+  const ort = text(detail.ort);
+  const wer = text(detail.wer);
+  const turnus = text(detail.turnus) === "anders" ? text(detail.turnusFrei) : text(detail.turnus);
+  const uebergabe = text(detail.uebergabe);
+  const ausnahme = ausnahmenPhrase(detail);
+  if (!ort && !wer && !turnus && !uebergabe && !ausnahme) return "";
+  return [
+    ort,
+    wer && `Welche Person: ${wer}`,
+    turnus && `Wie oft wird gesichtet: ${turnus}`,
+    uebergabe && `Übergabe: ${uebergabe}`,
+    ausnahme,
+  ]
+    .filter(Boolean)
+    .join(". ");
+}
+
 /** Prozesszelle: dieselbe Bezeichnung wie im bestätigten Fragebogen, nicht der Rohwert. */
 function processBeschreibung(id: string, values: Record<string, unknown>): string {
   const question = questionOf(id);
@@ -475,8 +509,14 @@ function processBeschreibung(id: string, values: Record<string, unknown>): strin
       }))
     : catalogPhraseFields(id);
   if (!fields?.length) return "";
-  const cleaned = collapseValue(values);
-  return confirmedFieldSentence(fields, cleaned && typeof cleaned === "object" ? (cleaned as Record<string, unknown>) : values);
+  const prepared: Record<string, unknown> = { ...values };
+  if (typeof prepared.turnus === "string") prepared.turnus = dedupeIdenticalTurnus(prepared.turnus);
+  if (id === "C03") {
+    const schritte = labeledPaperSteps(values);
+    if (schritte) prepared.schritte = schritte;
+  }
+  const cleaned = collapseValue(prepared);
+  return confirmedFieldSentence(fields, cleaned && typeof cleaned === "object" ? (cleaned as Record<string, unknown>) : prepared);
 }
 
 /** Prozesszelle einer bestätigten Frage, mit Optionsbezeichnungen aus Bereich oder Katalog. */

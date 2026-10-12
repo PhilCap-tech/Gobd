@@ -6,6 +6,7 @@ import { renderDeliveryDocument, type RenderedChapter } from "@/lib/delivery-tem
 import gastroFixture from "@/scripts/fixtures/gastro-bella-vista.json";
 import { KEINE_AUSNAHMEN_SATZ, KEINE_KONTROLLE_SATZ, KEINE_REGELMAESSIGE_KONTROLLE } from "@/lib/keine-angaben";
 import { kanzleiKasseAnswers, oezguerAnswers, pixelwerkAnswers, shkAnswers } from "@/scripts/fixtures/pdf-consistency";
+import { composeCatalogValues } from "@/lib/intake-present";
 import { collapseRepeatedTokens, processFieldSentence } from "@/lib/module/aussagen";
 import { ensureGesamt, setCheckAntwort } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
@@ -454,6 +455,114 @@ expect(
   "Turnus der Sichtung hängt an der Bankabstimmung",
 );
 expect(!turnus.claims.includes("wöchentlich Abstimmung Saldo Bank"), "Turnus ersetzt die Bankabstimmung");
+
+const sharedTurnus = composeCatalogValues("C02", {
+  kanaeleDetail: {
+    "E-Mail-PDF": { turnus: "täglich", ort: "rechnung@example.com", wer: "Özgür Şahin" },
+    Portal: { turnus: "täglich", ort: "Lieferantenportal", wer: "Özgür Şahin" },
+  },
+});
+expect(sharedTurnus.turnus === "täglich", "Zwei Kanäle mit gleichem Turnus bleiben „täglich; täglich“");
+const mixedTurnus = composeCatalogValues("C02", {
+  kanaeleDetail: {
+    "E-Mail-PDF": { turnus: "täglich" },
+    Portal: { turnus: "wöchentlich" },
+  },
+});
+expect(
+  mixedTurnus.turnus === "täglich; wöchentlich",
+  "Unterschiedliche Turnus-Angaben zweier Kanäle fallen zusammen",
+);
+const sharedCell = processFieldSentence("C02", {
+  postfachOderPortal: "rechnung@example.com; Lieferantenportal",
+  wer: "Özgür Şahin; Özgür Şahin",
+  turnus: "täglich; täglich",
+});
+expect(sharedCell.includes("Wie oft wird gesichtet: täglich"), "Prozesstabelle lässt den gemeinsamen Turnus ohne Bezeichnung");
+expect(!sharedCell.includes("täglich; täglich"), "Prozesstabelle wiederholt den gleichen Turnus");
+expect(sharedCell.includes("Özgür Şahin; Özgür Şahin"), "Prozesstabelle zieht verschiedene Personen zu einem Namen zusammen");
+
+const oezguerTurnus = render(
+  setCheckAntwort(
+    ensureGesamt({
+      ...emptyAnswers(),
+      katalog: {
+        C02: {
+          status: "bestaetigt",
+          values: {
+            turnus: "täglich; täglich",
+            wer: "Özgür Şahin; Özgür Şahin",
+            postfachOderPortal: "rechnung@example.com; Lieferantenportal",
+            kanaeleDetail: {
+              "E-Mail-PDF": {
+                ort: "rechnung@example.com",
+                wer: "Özgür Şahin",
+                turnus: "täglich",
+                uebergabe: "Ablage",
+                ausnahmen: "keine",
+              },
+              Portal: {
+                ort: "Lieferantenportal",
+                wer: "Özgür Şahin",
+                turnus: "täglich",
+                uebergabe: "Ablage",
+                ausnahmen: "keine",
+              },
+            },
+          },
+        },
+        ER92: {
+          status: "bestaetigt",
+          values: { kontrollen: ["Tägliche Sichtung des Rechnungspostfachs"] },
+        },
+      },
+    }),
+    "erechnung",
+    "ja",
+  ),
+  { company: "TEST Özgür & Söhne – Grüne Straße ß € GmbH" },
+);
+expect(
+  !oezguerTurnus.claims.includes("täglich; täglich Sichtung des Rechnungspostfachs"),
+  "Özgür nennt täglich; täglich Sichtung des Rechnungspostfachs",
+);
+expect(
+  oezguerTurnus.claims.includes("Tägliche Sichtung des Rechnungspostfachs"),
+  "Özgür verliert die Sichtung des Rechnungspostfachs",
+);
+
+const papier = processFieldSentence("C03", {
+  schritte:
+    "Küche bei Warenannahme (Lieferscheine/Rechnungen). diensthabender Koch, dann Fach Büro. wöchentlich. Übergabe: Fach Büro, Scan freitags durch Elena Rossi. Ausnahmen: Bewirtungs-/Tankbelege per DATEV-App",
+  eingang: {
+    ort: "Küche bei Warenannahme (Lieferscheine/Rechnungen)",
+    wer: "diensthabender Koch, dann Fach Büro",
+    turnus: "wöchentlich",
+    uebergabe: "Fach Büro, Scan freitags durch Elena Rossi",
+    ausnahmen: "Bewirtungs-/Tankbelege per DATEV-App",
+  },
+});
+expect(
+  papier.includes("Ablauf: Küche bei Warenannahme (Lieferscheine/Rechnungen)"),
+  "Papierannahme verliert den Ablauf",
+);
+expect(
+  papier.includes("Welche Person: diensthabender Koch, dann Fach Büro"),
+  "Papierannahme nennt die Person ohne Bezeichnung",
+);
+expect(papier.includes("Wie oft wird gesichtet: wöchentlich"), "Papierannahme nennt den Turnus ohne Bezeichnung");
+expect(
+  !papier.includes("diensthabender Koch, dann Fach Büro. wöchentlich"),
+  "Papierannahme hängt Person und Turnus ohne Bezeichnung aneinander",
+);
+expect(
+  papier.includes("Übergabe: Fach Büro, Scan freitags durch Elena Rossi"),
+  "Papierannahme verliert die Übergabe",
+);
+expect(
+  papier.includes("Ausnahmen: Bewirtungs-/Tankbelege per DATEV-App"),
+  "Papierannahme verliert die Ausnahmen",
+);
 
 if (failures.length) {
   console.error(failures.join("\n"));

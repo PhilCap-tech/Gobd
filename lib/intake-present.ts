@@ -639,6 +639,17 @@ function resolvedTurnus(row: { turnus?: string; turnusFrei?: string } | undefine
   return textOf(row.turnus);
 }
 
+/** Gleicher Turnus mehrerer Kanäle nur einmal: „täglich; täglich“ bleibt „täglich“. */
+export function dedupeIdenticalTurnus(value: string): string {
+  const unique: string[] = [];
+  for (const part of value.split(";")) {
+    const token = part.trim();
+    if (!token || unique.includes(token)) continue;
+    unique.push(token);
+  }
+  return unique.join("; ");
+}
+
 export function composeCatalogValues(
   id: string,
   values: Record<string, unknown>,
@@ -670,7 +681,9 @@ export function composeCatalogValues(
     if (rows.length) {
       next.postfachOderPortal = rows.map((row) => textOf(row.ort)).filter(Boolean).join("; ");
       next.wer = rows.map((row) => textOf(row.wer)).filter(Boolean).join("; ");
-      next.turnus = rows.map((row) => resolvedTurnus(row)).filter(Boolean).join("; ");
+      next.turnus = dedupeIdenticalTurnus(
+        rows.map((row) => resolvedTurnus(row)).filter(Boolean).join("; "),
+      );
     }
   }
   if (id === "C03") {
