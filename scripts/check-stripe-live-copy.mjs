@@ -5,6 +5,8 @@
 // "Test ohne Zahlung", and the test-card fragment 4242 fail.
 //
 // Price IDs stay in the environment. This script does not read secrets.
+// A line marked `allow-test-order` may name Testmodus. That is only for the
+// 401 shown when a stored cs_test_ checkout has no paid entitlement.
 import { globSync, readFileSync } from "node:fs";
 
 /** @type {string[]} */
@@ -196,8 +198,11 @@ export function liveCopyHits(source) {
       const index = match.index ?? 0;
       const start = live.lastIndexOf("\n", index) + 1;
       const end = live.indexOf("\n", index);
+      const line = lineAt(live, index);
+      const original = source.split("\n")[line - 1] ?? "";
+      if (original.includes("allow-test-order")) continue;
       const text = live.slice(start, end === -1 ? live.length : end).trim();
-      hits.push({ line: lineAt(live, index), name: rule.name, text });
+      hits.push({ line, name: rule.name, text });
     }
   }
   return hits;
@@ -294,6 +299,14 @@ function assertScan() {
   const testpfad = `<p>E-Mail-Versand ist in diesem Testpfad nicht eingerichtet.</p>`;
   if (!liveCopyHits(testpfad).some((hit) => hit.name === "Testpfad")) {
     console.error("check-stripe-live-copy: Testpfad was missed");
+    process.exit(1);
+  }
+
+  const allowedOrder =
+    'export const COPY = "Diese Bestellung stammt aus dem Testmodus. Bitte melden Sie sich an oder kontaktieren Sie uns."; // allow-test-order\n<p>Testmodus</p>';
+  const allowedHits = liveCopyHits(allowedOrder);
+  if (allowedHits.length !== 1 || allowedHits[0]?.name !== "Testmodus") {
+    console.error("check-stripe-live-copy: allow-test-order skipped the wrong line", allowedHits);
     process.exit(1);
   }
 }

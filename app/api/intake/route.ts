@@ -10,8 +10,11 @@ import {
 import { sessionOwnerDenial } from "@/lib/checkout-access";
 import {
   applyCheckoutOwnerSession,
+  isStoredPaidEntitlementStatus,
+  isTestModeCheckoutSessionId,
   ownerEmailForFirstCompletion,
   rememberCheckoutSessionGrant,
+  TEST_MODE_CHECKOUT_COPY,
 } from "@/lib/checkout-session";
 import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import {
@@ -22,13 +25,14 @@ import {
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
 import { documentFamilyId, nextVersionNumber } from "@/lib/documents";
 import { applyEntityToIdentity } from "@/lib/entities";
-import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
+import { devCheckoutStubAllowed, isStubCheckoutSessionId } from "@/lib/checkout-stub";
 import { getAppUrl } from "@/lib/env";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import { reopenIfActiveCheckout } from "@/lib/kuendigung-stripe";
 import { deliverLoginLink } from "@/lib/login-mail";
 import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import { sendDeliveryMail } from "@/lib/ops";
+import { queryIdsEqual } from "@/lib/query";
 import { intakeEntityBinding } from "@/lib/session-issue";
 import {
   authorizeDeliveredWrite,
@@ -42,6 +46,7 @@ import {
   findDocumentById,
   findLatestDocumentByStripeSessionId,
   findLatestStripeCustomerIdByEmail,
+  findRowByStripeSessionId,
   getOwnedEntity,
   listDocumentFamily,
   listEntitiesByEmail,
@@ -122,6 +127,11 @@ type ResolvedIntake = {
   ownerEmail: string;
   /** Erste Fassung dieser Bestellung. Nur dann darf der Checkout eine Session setzen. */
   firstDelivery: boolean;
+  /**
+   * Paid row already stored for this owner. Stripe is not asked again
+   * (a live key cannot read a cs_test_ session).
+   */
+  fromStoredEntitlement?: boolean;
   family?: SheetRow[];
 };
 
@@ -132,6 +142,8 @@ export type IntakeIo = {
   listEntitiesByEmail: typeof listEntitiesByEmail;
   getOwnedEntity: typeof getOwnedEntity;
   findLatestStripeCustomerIdByEmail: typeof findLatestStripeCustomerIdByEmail;
+  /** Optional so existing test doubles stay valid. Production wires the store. */
+  findRowByStripeSessionId?: typeof findRowByStripeSessionId;
   resolveCheckoutSession: typeof resolveCheckoutSession;
   prepareDurableIntakeRow: typeof prepareDurableIntakeRow;
   appendRecord: typeof appendRecord;
@@ -148,6 +160,7 @@ const defaultIntakeIo: IntakeIo = {
   listEntitiesByEmail,
   getOwnedEntity,
   findLatestStripeCustomerIdByEmail,
+  findRowByStripeSessionId,
   resolveCheckoutSession,
   prepareDurableIntakeRow,
   appendRecord,
@@ -173,6 +186,68 @@ function ownedWrite(
     return { response: jsonError("Dokument nicht gefunden.", 404) };
   }
   return write;
+}
+
+function checkoutFailureMessage(sessionId: string, error: string): string {
+  if (error === "missing") return "Checkout-Session fehlt.";
+  if (error === "not_paid") return "Zahlung noch nicht bestätigt.";
+  if (error === "invalid") {
+    return isTestModeCheckoutSessionId(sessionId)
+      ? TEST_MODE_CHECKOUT_COPY
+      : "Checkout-Session ist ungültig.";
+  }
+  return "Session konnte nicht geprüft werden. Bitte erneut versuchen.";
+}
+
+/**
+ * Stored paid row for this checkout. Authorizes only the logged-in owner,
+ * and only when the company on the row or the request belongs to that owner.
+ * A cs_test_ id with no such row is not payment. No login falls through
+ * so the caller keeps 401. A foreign owner is 403 and Stripe is not asked.
+ */
+async function identityFromStoredEntitlement(
+  body: IntakeBody,
+  sessionEmail: string | null,
+  sessionId: string,
+  io: IntakeIo,
+): Promise<ResolvedIntake | { response: NextResponse } | null> {
+  if (!sessionId || isStubCheckoutSessionId(sessionId) || !io.findRowByStripeSessionId) {
+    return null;
+  }
+  const row = await io.findRowByStripeSessionId(sessionId);
+  if (!row || !queryIdsEqual(row.stripeSessionId, sessionId)) return null;
+  if (!isStoredPaidEntitlementStatus(row.status)) return null;
+
+  const owner = row.email.trim();
+  if (!owner.includes("@")) return null;
+  const denial = sessionOwnerDenial(sessionEmail, owner);
+  if (denial === 403) {
+    return { response: jsonError("Kein Zugriff.", 403) };
+  }
+  if (denial !== null) return null;
+
+  const requestedEntity = body.entityId?.trim() ?? "";
+  const rowEntity = row.entityId.trim();
+  for (const entityId of [requestedEntity, rowEntity]) {
+    if (!entityId) continue;
+    const owned = await io.getOwnedEntity(entityId, owner);
+    if (!owned) return { response: jsonError("Kein Zugriff.", 403) };
+  }
+
+  const identity = identityFromSheetRow(row);
+  identity.email = owner;
+  identity.stub = false;
+  identity.stripeSessionId = row.stripeSessionId.trim();
+  return {
+    identity,
+    version: 1,
+    parentDocumentId: "",
+    status: "intake_submitted",
+    entityId: requestedEntity || rowEntity,
+    ownerEmail: owner,
+    firstDelivery: true,
+    fromStoredEntitlement: true,
+  };
 }
 
 function revisionFromOwner(
@@ -243,16 +318,12 @@ async function resolveIdentity(
     }
   }
 
+  const entitled = await identityFromStoredEntitlement(body, sessionEmail, sessionId, io);
+  if (entitled) return entitled;
+
   const identity = await io.resolveCheckoutSession(sessionId);
   if ("error" in identity) {
-    const message =
-      identity.error === "missing"
-        ? "Checkout-Session fehlt."
-        : identity.error === "not_paid"
-          ? "Zahlung noch nicht bestätigt."
-          : identity.error === "invalid"
-            ? "Checkout-Session ist ungültig."
-            : "Session konnte nicht geprüft werden. Bitte erneut versuchen.";
+    const message = checkoutFailureMessage(sessionId, identity.error);
     return {
       response: NextResponse.json(
         { error: message, reason: identity.error },
@@ -292,11 +363,12 @@ async function resolveIdentity(
 async function withStripeCustomerId(
   identity: CheckoutIdentity,
   io: IntakeIo,
+  options?: { skipStripeSession?: boolean },
 ): Promise<CheckoutIdentity> {
   if (identity.stub || identity.stripeCustomerId.trim()) {
     return identity;
   }
-  if (identity.stripeSessionId) {
+  if (!options?.skipStripeSession && identity.stripeSessionId) {
     const fresh = await io.resolveCheckoutSession(identity.stripeSessionId);
     if (!("error" in fresh) && fresh.stripeCustomerId.trim()) {
       return { ...identity, stripeCustomerId: fresh.stripeCustomerId };
@@ -326,7 +398,9 @@ async function writeIntake(
 
   const { version, status } = resolved;
   let { identity, parentDocumentId } = resolved;
-  identity = await withStripeCustomerId(identity, io);
+  identity = await withStripeCustomerId(identity, io, {
+    skipStripeSession: resolved.fromStoredEntitlement === true,
+  });
   identity = { ...identity, email: resolved.ownerEmail };
   let closed = await subscriptionWriteDenial(identity.email);
   if (closed && identity.stripeSessionId) {

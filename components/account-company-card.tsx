@@ -95,7 +95,12 @@ import {
   versionLabelFromRow,
 } from "@/lib/versioning";
 
-/** Continue an existing draft. A hub entry can reuse this label. */
+/**
+ * Continue an existing draft. A hub entry can reuse this label.
+ * Native `<a>`, not `next/link`: Link calls preventDefault and then
+ * client-navigates. /intake often redirects that href to the grant route
+ * handler, so the click never loads. Opening the href directly still works.
+ */
 export const ACCOUNT_CONTINUE_LABEL = "Weiter ausfüllen";
 
 /** Intake of this draft, optionally on one module. Does not start a new document. */
@@ -209,9 +214,9 @@ export function AccountCompanyCard({
             <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
               <span className="doc-meta">{openDraftLabel(draft)}</span>
               {writesOpen ? (
-                <Link className="btn" href={openDraftContinuePath(draft)}>
+                <a className="btn" href={openDraftContinuePath(draft)}>
                   {ACCOUNT_CONTINUE_LABEL}
-                </Link>
+                </a>
               ) : (
                 <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
               )}
@@ -299,9 +304,9 @@ export function AccountCompanyCard({
                                 {row.nr}. {row.titel}
                               </span>
                               {writesOpen ? (
-                                <Link href={accountModuleHref(editRow.documentId, row.modul)}>
+                                <a href={accountModuleHref(editRow.documentId, row.modul)}>
                                   {ACCOUNT_CONTINUE_LABEL}
-                                </Link>
+                                </a>
                               ) : null}
                             </li>
                           ))}

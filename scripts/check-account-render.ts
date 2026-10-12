@@ -239,4 +239,62 @@ ok(!loginPage.includes("cookies().set") && !loginPage.includes("cookies().delete
 ok(!notFoundSource.includes("cookies("), "not-found does not read cookies");
 ok(readFileSync("app/api/auth/logout/route.ts", "utf8").includes("clearSessionCookie"), "logout still clears through the route");
 
+function continueAnchors(html: string): string[] {
+  const anchors: string[] = [];
+  const re = /<a\b[^>]*>[\s\S]*?Weiter ausfüllen[\s\S]*?<\/a>/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html))) anchors.push(match[0]);
+  return anchors;
+}
+
+function formDepthBefore(html: string, index: number): number {
+  const before = html.slice(0, index);
+  const opens = before.match(/<form\b/g)?.length ?? 0;
+  const closes = before.match(/<\/form>/g)?.length ?? 0;
+  return opens - closes;
+}
+
+function assertContinueAnchors(html: string, hrefPart: string, label: string) {
+  const anchors = continueAnchors(html);
+  ok(anchors.length > 0, `${label} renders Weiter ausfüllen as an anchor`);
+  ok(!/<button\b[^>]*>[\s\S]*?Weiter ausfüllen/.test(html), `${label} continue control is not a button`);
+  for (const anchor of anchors) {
+    const at = html.indexOf(anchor);
+    ok(anchor.includes("href="), `${label} continue anchor has an href`);
+    ok(anchor.includes(hrefPart), `${label} continue href is ${hrefPart}`);
+    ok(!/\sdisabled\b/.test(anchor), `${label} continue anchor is not disabled`);
+    ok(!anchor.includes("preventDefault"), `${label} continue anchor does not preventDefault`);
+    ok(formDepthBefore(html, at) === 0, `${label} continue anchor is not inside a form`);
+  }
+}
+
+assertContinueAnchors(openOnly, "/intake?session_id=cs_test_open", "open draft");
+assertContinueAnchors(finished, "/intake?document_id=doc_finished_v1", "open module");
+
+function continueTags(source: string): Array<{ tag: string; attrs: string }> {
+  const found: Array<{ tag: string; attrs: string }> = [];
+  const re = /<(a|Link|button)\b([^>]*)>\s*(?:\{ACCOUNT_CONTINUE_LABEL\}|Weiter ausfüllen)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(source))) found.push({ tag: match[1] ?? "", attrs: match[2] ?? "" });
+  return found;
+}
+
+const cardSource = readFileSync("components/account-company-card.tsx", "utf8");
+const cardTags = continueTags(cardSource);
+ok(cardTags.length === 2, "company card has two Weiter ausfüllen controls");
+for (const tag of cardTags) {
+  ok(tag.tag === "a", "company card continue is a native anchor, not Link");
+  ok(tag.attrs.includes("href="), "company card continue anchor has href");
+  ok(!tag.attrs.includes("preventDefault") && !/\sdisabled\b/.test(tag.attrs), "company card continue is not disabled and does not preventDefault");
+}
+ok(
+  cardSource.lastIndexOf("ACCOUNT_CONTINUE_LABEL") < cardSource.indexOf("<form"),
+  "company card continue controls sit before the bereich form",
+);
+
+const looseTags = continueTags(accountPage);
+ok(looseTags.length === 1 && looseTags[0]?.tag === "a", "loose draft continue is a native anchor");
+ok(looseTags[0]?.attrs.includes("href={openDraftContinuePath(draft)}"), "loose draft continue uses the draft href");
+ok(!accountPage.includes("preventDefault"), "account page does not preventDefault on continue");
+
 console.log("check-account-render: ok");

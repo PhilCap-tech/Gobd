@@ -22,6 +22,37 @@ import type { CheckoutIdentity } from "@/lib/types";
 export const LOGIN_FOR_ANSWERS_COPY =
   "Zum Schutz Ihrer Angaben bitten wir Sie, sich kurz anzumelden.";
 
+/**
+ * A live Stripe key cannot retrieve a test-mode Checkout Session.
+ * The id alone is not payment; this is the message when no stored entitlement applies.
+ */
+export const TEST_MODE_CHECKOUT_COPY =
+  "Diese Bestellung stammt aus dem Testmodus. Bitte melden Sie sich an oder kontaktieren Sie uns."; // allow-test-order
+
+/** `cs_test_…` from Stripe test mode. Not a stub, and not proof of payment by itself. */
+export function isTestModeCheckoutSessionId(
+  sessionId: string | null | undefined,
+): boolean {
+  return (sessionId ?? "").trim().startsWith("cs_test_");
+}
+
+/**
+ * Paid webhook row or a completed intake. A stub status is not an entitlement,
+ * and neither is the session id.
+ */
+export function isStoredPaidEntitlementStatus(
+  status: string | null | undefined,
+): boolean {
+  const value = (status ?? "").trim().toLowerCase();
+  if (!value || value.includes("stub")) return false;
+  return (
+    value === "paid" ||
+    value.startsWith("paid") ||
+    value === "intake_submitted" ||
+    value === "intake_resubmitted"
+  );
+}
+
 function normalizeEmail(value: string | null | undefined): string {
   const email = (value ?? "").trim().toLowerCase();
   if (!email || !email.includes("@") || /\s/.test(email)) return "";
