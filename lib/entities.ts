@@ -174,6 +174,10 @@ export function parseEntity(header: string[], values: string[]): Entity {
   return entity;
 }
 
+function entityText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 export function coerceEntity(value: unknown): Entity | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
@@ -196,6 +200,16 @@ export function coerceEntity(value: unknown): Entity | null {
   if (!entity.checkoutPrefill && typeof raw.checkout_prefill === "string") {
     entity.checkoutPrefill = normalizeCheckoutPrefill(raw.checkout_prefill);
   }
+  entity.entityId = entityText(entity.entityId);
+  entity.userEmail = entityText(entity.userEmail);
+  entity.name = entityText(entity.name);
+  entity.street = entityText(entity.street);
+  entity.zip = entityText(entity.zip);
+  entity.city = entityText(entity.city);
+  entity.stnr = entityText(entity.stnr);
+  entity.ustId = entityText(entity.ustId);
+  entity.createdAt = entityText(entity.createdAt);
+  entity.updatedAt = entityText(entity.updatedAt);
   entity.checkoutPrefill = normalizeCheckoutPrefill(entity.checkoutPrefill);
   return entity.entityId ? entity : null;
 }
@@ -210,9 +224,9 @@ export function latestEntities(rows: Entity[]): Entity[] {
     }
   }
   return [...map.values()].sort((a, b) => {
-    const created = a.createdAt.localeCompare(b.createdAt);
+    const created = entityText(a.createdAt).localeCompare(entityText(b.createdAt));
     if (created !== 0) return created;
-    return a.name.localeCompare(b.name, "de");
+    return entityText(a.name).localeCompare(entityText(b.name), "de");
   });
 }
 
@@ -222,8 +236,12 @@ export function entitiesForEmail(rows: Entity[], email: string): Entity[] {
 }
 
 export function formatEntityAddress(entity: Pick<Entity, "street" | "zip" | "city">): string {
-  const line = [entity.zip, entity.city].filter((part) => part.trim()).join(" ");
-  return [entity.street.trim(), line].filter(Boolean).join(", ");
+  const street = entityText(entity.street).trim();
+  const line = [entityText(entity.zip), entityText(entity.city)]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" ");
+  return [street, line].filter(Boolean).join(", ");
 }
 
 export function entityCapReached(count: number): boolean {

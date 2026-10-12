@@ -65,7 +65,8 @@ const MAX_WHO = 200;
 export const CURRENT_VERSION_RULE =
   "Aktuell ist die Fassung, deren Gültigkeit den heutigen Tag einschließt. Leeres Gültig-bis endet am Tag vor dem nächsten Gültig-ab, sonst bleibt die Fassung offen. Liegt keine solche Fassung vor, gilt die letzte nach Gültig-ab, dann Versionsnummer.";
 
-export function isIsoDate(value: string): boolean {
+export function isIsoDate(value: unknown): boolean {
+  if (typeof value !== "string") return false;
   const match = ISO_DATE.exec(value.trim());
   if (!match) return false;
   const year = Number(match[1]);

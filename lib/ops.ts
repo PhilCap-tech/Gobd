@@ -547,6 +547,8 @@ export async function triggerOnboardingMail(input: {
   checkoutNames?: string[];
   /** Firm names that must not be used as a greeting (metadata, business_name). */
   extraCompanyNames?: string[];
+  /** Resend key. Same checkout session must not send a second order mail. */
+  idempotencyKey?: string;
 }): Promise<OpsResult & MailResult> {
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   if (!isMailConfigured()) {
@@ -604,6 +606,7 @@ export async function triggerOnboardingMail(input: {
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
+    idempotencyKey: input.idempotencyKey,
   });
   console.info("[ops] onboarding mail", {
     email: input.email,

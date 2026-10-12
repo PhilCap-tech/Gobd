@@ -91,14 +91,20 @@ export function groupDocumentFamilies(rows: SheetRow[]): DocumentFamily[] {
     const versions = [...members].sort((a, b) => {
       const versionDiff = parseDocumentVersion(b) - parseDocumentVersion(a);
       if (versionDiff !== 0) return versionDiff;
-      return b.timestamp.localeCompare(a.timestamp);
+      const left = typeof b.timestamp === "string" ? b.timestamp : "";
+      const right = typeof a.timestamp === "string" ? a.timestamp : "";
+      return left.localeCompare(right);
     });
     const latest = versions[0];
     if (!latest) continue;
     families.push({ familyId, latest, versions });
   }
 
-  families.sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp));
+  families.sort((a, b) => {
+    const left = typeof b.latest.timestamp === "string" ? b.latest.timestamp : "";
+    const right = typeof a.latest.timestamp === "string" ? a.latest.timestamp : "";
+    return left.localeCompare(right);
+  });
   return families;
 }
 
@@ -155,12 +161,18 @@ export function documentDownloadPath(
   return `${base}?session_id=${encodeURIComponent(sessionId)}`;
 }
 
+function pathText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export function intakeEditPath(
   row: Pick<SheetRow, "documentId" | "stripeSessionId">,
   sessionId?: string,
 ): string {
-  const params = new URLSearchParams({ document_id: row.documentId });
-  const sid = (sessionId || row.stripeSessionId).trim();
+  const params = new URLSearchParams();
+  const documentId = pathText(row.documentId);
+  if (documentId) params.set("document_id", documentId);
+  const sid = pathText(sessionId || row.stripeSessionId);
   if (sid) params.set("session_id", sid);
   return `/intake?${params}`;
 }
@@ -168,11 +180,11 @@ export function intakeEditPath(
 export function documentEditPath(
   row: Pick<SheetRow, "documentId">,
 ): string {
-  return `/account/dokument/${encodeURIComponent(row.documentId)}`;
+  return `/account/dokument/${encodeURIComponent(pathText(row.documentId))}`;
 }
 
 export function firmaEditPath(entityId: string): string {
-  return `/account/firma/${encodeURIComponent(entityId)}`;
+  return `/account/firma/${encodeURIComponent(pathText(entityId))}`;
 }
 
 export function newDocumentPath(entityId?: string): string {

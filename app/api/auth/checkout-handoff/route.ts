@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { clearSessionCookie, loginPath, sessionEmailFromRequest } from "@/lib/auth";
-import {
-  checkoutHandoffPlan,
-  ownerEmailAfterVerifiedCheckout,
-} from "@/lib/checkout-session";
+import { ownerEmailAfterVerifiedCheckout } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
 import { deliverLoginLink, type LoginMailStatus } from "@/lib/login-mail";
@@ -28,17 +25,38 @@ export async function completeCheckoutHandoff(
   const form = await request.formData();
   const sessionId = String(form.get("session_id") ?? "").trim();
   const current = sessionEmailFromRequest(request);
-  if (!sessionId || !current) {
-    return NextResponse.redirect(new URL("/account", request.url), 303);
+
+  const loggedOut = (path: string) => {
+    const response = NextResponse.redirect(new URL(path, request.url), 303);
+    clearSessionCookie(response);
+    return response;
+  };
+
+  if (!sessionId) {
+    return loggedOut("/login");
   }
 
-  const owner = await deps.resolveOwner(sessionId);
-  if (checkoutHandoffPlan({ currentEmail: current, ownerEmail: owner }) !== "send" || !owner) {
+  let owner: string | null = null;
+  try {
+    owner = await deps.resolveOwner(sessionId);
+  } catch (error) {
+    console.error(
+      "[auth] Checkout-Inhaber nicht lesbar",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+
+  const ownerEmail = owner?.trim().toLowerCase() ?? "";
+  const currentEmail = current?.trim().toLowerCase() ?? "";
+  if (ownerEmail && currentEmail && ownerEmail === currentEmail) {
     return NextResponse.redirect(new URL("/account", request.url), 303);
+  }
+  if (!ownerEmail) {
+    return loggedOut("/login");
   }
 
   const nextPath = `/intake?session_id=${encodeURIComponent(sessionId)}`;
-  const status = await deps.deliver(owner, nextPath);
+  const status = await deps.deliver(ownerEmail, nextPath);
   if (status === "failed") {
     const back = new URL("/intake", request.url);
     back.searchParams.set("session_id", sessionId);
@@ -46,9 +64,7 @@ export async function completeCheckoutHandoff(
     return NextResponse.redirect(back, 303);
   }
 
-  const response = NextResponse.redirect(new URL(loginPath(nextPath), request.url), 303);
-  clearSessionCookie(response);
-  return response;
+  return loggedOut(loginPath(nextPath));
 }
 
 async function resolveHandoffOwner(sessionId: string): Promise<string | null> {

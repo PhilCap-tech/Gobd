@@ -41,22 +41,41 @@ export default async function AccountBillingPage({
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
   const stripeReady = isStripeSecretConfigured();
-  const resolved = await resolveStripeCustomerForEmail(email);
-  const billing =
-    stripeReady && resolved.customerId
-      ? await loadCustomerBilling(resolved.customerId, { email })
-      : {
-          subscriptionStatus: "none" as const,
-          invoices: [],
-          lookupFailed: resolved.lookupFailed,
-          customerMissing: !resolved.customerId,
-          resolvedCustomerId: "",
-        };
-  if (
-    billing.resolvedCustomerId &&
-    billing.resolvedCustomerId !== resolved.customerId
-  ) {
-    await persistLinkedStripeCustomerId(email, billing.resolvedCustomerId);
+  let resolved: Awaited<ReturnType<typeof resolveStripeCustomerForEmail>> = {
+    customerId: null,
+    lookupFailed: false,
+  };
+  let billing: Awaited<ReturnType<typeof loadCustomerBilling>> = {
+    subscriptionStatus: "none",
+    invoices: [],
+    lookupFailed: false,
+    customerMissing: true,
+    resolvedCustomerId: "",
+  };
+  try {
+    resolved = await resolveStripeCustomerForEmail(email);
+    billing =
+      stripeReady && resolved.customerId
+        ? await loadCustomerBilling(resolved.customerId, { email })
+        : {
+            subscriptionStatus: "none",
+            invoices: [],
+            lookupFailed: resolved.lookupFailed,
+            customerMissing: !resolved.customerId,
+            resolvedCustomerId: "",
+          };
+    if (
+      billing.resolvedCustomerId &&
+      billing.resolvedCustomerId !== resolved.customerId
+    ) {
+      await persistLinkedStripeCustomerId(email, billing.resolvedCustomerId);
+    }
+  } catch (error) {
+    billing = { ...billing, lookupFailed: true };
+    console.error(
+      "[account] Abo nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
   }
   const hasCustomer =
     Boolean(billing.resolvedCustomerId || resolved.customerId) &&

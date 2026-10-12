@@ -40,29 +40,37 @@ export default async function LoginPage({
   }
 
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
-  const target = intakeTargetFromNext(next);
-  let documentEmail = "";
-  if (target && (target.documentId || target.sessionId)) {
-    const row = target.documentId
-      ? await findDocumentById(target.documentId)
-      : await findLatestDocumentByStripeSessionId(target.sessionId);
-    documentEmail = emailForAnswersLogin(row, target);
+  let offer = answersLoginOffer({ next, checkoutEmail: "" });
+  try {
+    const target = intakeTargetFromNext(next);
+    let documentEmail = "";
+    if (target && (target.documentId || target.sessionId)) {
+      const row = target.documentId
+        ? await findDocumentById(target.documentId)
+        : await findLatestDocumentByStripeSessionId(target.sessionId);
+      documentEmail = emailForAnswersLogin(row, target);
+    }
+    const fromCheckout =
+      target?.sessionId && !documentEmail
+        ? await checkoutCustomerEmail(target.sessionId, resolveCheckoutSession)
+        : "";
+    const recorded =
+      target?.sessionId && !documentEmail && !fromCheckout
+        ? await checkoutSessionGrant(target.sessionId)
+        : null;
+    offer = answersLoginOffer({
+      next,
+      checkoutEmail: loginCheckoutEmail({
+        documentEmail,
+        checkoutCustomerEmail: fromCheckout || recorded?.email,
+      }),
+    });
+  } catch (lookupError) {
+    console.error(
+      "[login] Checkout-Adresse nicht geladen",
+      lookupError instanceof Error ? lookupError.name : "error",
+    );
   }
-  const fromCheckout =
-    target?.sessionId && !documentEmail
-      ? await checkoutCustomerEmail(target.sessionId, resolveCheckoutSession)
-      : "";
-  const recorded =
-    target?.sessionId && !documentEmail && !fromCheckout
-      ? await checkoutSessionGrant(target.sessionId)
-      : null;
-  const offer = answersLoginOffer({
-    next,
-    checkoutEmail: loginCheckoutEmail({
-      documentEmail,
-      checkoutCustomerEmail: fromCheckout || recorded?.email,
-    }),
-  });
 
   return (
     <>

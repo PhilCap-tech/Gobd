@@ -40,7 +40,15 @@ export default async function EditFirmaPage({
     redirect(loginPath(`/account/firma/${id}`));
   }
 
-  const entity = await getOwnedEntity(id, email);
+  let entity: Awaited<ReturnType<typeof getOwnedEntity>> = null;
+  try {
+    entity = await getOwnedEntity(id, email);
+  } catch (error) {
+    console.error(
+      "[account] Firma nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
+  }
 
   return (
     <>

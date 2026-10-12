@@ -35,6 +35,7 @@ const COVERED = [
   "components/legal-page.tsx",
   "lib/ops.ts",
   "app/account/**/*.{ts,tsx}",
+  "app/not-found.tsx",
   "app/login/**/*.{ts,tsx}",
   "app/auth/**/*.{ts,tsx}",
   "app/intake/**/*.{ts,tsx}",

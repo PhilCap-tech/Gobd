@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loginPath, sessionEmailFromRequest } from "@/lib/auth";
+import { notifyBuyerOfCheckout } from "@/lib/buyer-onboarding";
 import { finishCheckoutReturn } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { findLatestDocumentByStripeSessionId } from "@/lib/store";
@@ -46,6 +47,12 @@ export type CheckoutGrantIo = {
     sessionId: string,
   ) => Promise<CheckoutIdentity | { error: CheckoutResolveError }>;
   lookupDocumentOwner: (sessionId: string) => Promise<string | null>;
+  /** Order mail to the checkout email. Defaults ignore the browser session. */
+  notifyBuyer?: (input: {
+    email: string;
+    company?: string;
+    sessionId: string;
+  }) => Promise<void>;
 };
 
 const defaultGrantIo: CheckoutGrantIo = {
@@ -77,13 +84,29 @@ export async function completeCheckoutGrant(
     return NextResponse.redirect(intakeReturn(request, source, "skip"));
   }
 
-  let email = resolved.email.trim();
+  let email = typeof resolved.email === "string" ? resolved.email.trim() : "";
   if (resolved.stub) {
     email = source.searchParams.get("email")?.trim() || email;
   }
 
   if (!email || !resolved.stripeSessionId) {
     return NextResponse.redirect(intakeReturn(request, source, "skip"));
+  }
+
+  if (!resolved.stub) {
+    try {
+      const notify = io.notifyBuyer ?? notifyBuyerOfCheckout;
+      await notify({
+        email,
+        company: resolved.company,
+        sessionId: resolved.stripeSessionId,
+      });
+    } catch (error) {
+      console.error(
+        "[checkout] Bestellmail nicht ausgelöst",
+        error instanceof Error ? error.name : "error",
+      );
+    }
   }
 
   const response = NextResponse.redirect(intakeReturn(request, source, "set"));

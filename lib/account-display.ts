@@ -11,28 +11,32 @@
 const INTERNAL_TEST_LABEL =
   /\bversionierung\s+smoke(?:\s+gmbh)?\b|\bsmoke\s+gmbh\b|\bgobd\s+tester\b|\badmin\s+e2e\b|\be2e\s+edit\s+marker\b|\bedit\s+marker\b/i;
 
+function displayText(value: unknown): string {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
 export function isInternalTestLabel(value: string): boolean {
   return INTERNAL_TEST_LABEL.test(value);
 }
 
 /** Company or entity title. Internal markers become the neutral hub label. */
-export function customerHubTitle(value: string, fallback: string): string {
-  const trimmed = value.replace(/\s+/g, " ").trim();
+export function customerHubTitle(value: unknown, fallback: string): string {
+  const trimmed = displayText(value);
   if (!trimmed || isInternalTestLabel(trimmed)) return fallback;
   return trimmed;
 }
 
 /** Changelog line. Internal markers become a plain draft note. */
-export function customerChangeSummary(value: string): string {
-  const trimmed = value.replace(/\s+/g, " ").trim();
+export function customerChangeSummary(value: unknown): string {
+  const trimmed = displayText(value);
   if (!trimmed || trimmed === "—") return "—";
   if (isInternalTestLabel(trimmed)) return "Entwurf";
   return trimmed;
 }
 
 /** "Wer" line. Internal markers are omitted. */
-export function customerChangedBy(value: string): string {
-  const trimmed = value.replace(/\s+/g, " ").trim();
+export function customerChangedBy(value: unknown): string {
+  const trimmed = displayText(value);
   if (!trimmed || trimmed === "—" || isInternalTestLabel(trimmed)) return "—";
   return trimmed;
 }

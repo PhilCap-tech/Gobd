@@ -341,9 +341,9 @@ export function withoutSessionCookie(
   return response;
 }
 
-export function clearSessionCookie(response: NextResponse): void {
+function expireCookie(response: NextResponse, name: string): void {
   response.cookies.set({
-    name: SESSION_COOKIE,
+    name,
     value: "",
     httpOnly: true,
     sameSite: "lax",
@@ -353,15 +353,38 @@ export function clearSessionCookie(response: NextResponse): void {
   });
 }
 
+/** Logout and checkout handoff. Clears the login and the checkout grant. */
+export function clearSessionCookie(response: NextResponse): void {
+  expireCookie(response, SESSION_COOKIE);
+  expireCookie(response, CHECKOUT_GRANT_COOKIE);
+}
+
+function authReadFailed(error: unknown): null {
+  console.error(
+    "[auth] Cookie nicht lesbar",
+    error instanceof Error ? error.name : "error",
+  );
+  return null;
+}
+
 export async function getSessionEmail(): Promise<string | null> {
-  const store = await cookies();
-  return verifySessionToken(store.get(SESSION_COOKIE)?.value);
+  try {
+    const store = await cookies();
+    return verifySessionToken(store.get(SESSION_COOKIE)?.value);
+  } catch (error) {
+    return authReadFailed(error);
+  }
 }
 
 /** Checkout-Nachweis. Das ist kein Login und öffnet nicht das Konto. */
 export async function getCheckoutGrant(): Promise<CheckoutGrant | null> {
-  const store = await cookies();
-  return verifyCheckoutGrantToken(store.get(CHECKOUT_GRANT_COOKIE)?.value);
+  try {
+    const store = await cookies();
+    return verifyCheckoutGrantToken(store.get(CHECKOUT_GRANT_COOKIE)?.value);
+  } catch (error) {
+    authReadFailed(error);
+    return null;
+  }
 }
 
 /**

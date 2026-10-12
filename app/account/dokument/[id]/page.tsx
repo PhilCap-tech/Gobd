@@ -56,8 +56,16 @@ export default async function DocumentEditPage({
     redirect(loginPath(`/account/dokument/${id}`));
   }
 
-  await ensureAccountEntities(sessionEmail);
-  const sourceRow = await findDocumentById(id);
+  let sourceRow: Awaited<ReturnType<typeof findDocumentById>> = null;
+  try {
+    await ensureAccountEntities(sessionEmail);
+    sourceRow = await findDocumentById(id);
+  } catch (error) {
+    console.error(
+      "[account] Dokument nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
+  }
   if (!sourceRow) {
     return (
       <>
@@ -70,7 +78,15 @@ export default async function DocumentEditPage({
     );
   }
 
-  const family = await listDocumentFamily(sourceRow.documentId);
+  let family: Awaited<ReturnType<typeof listDocumentFamily>> = [];
+  try {
+    family = await listDocumentFamily(sourceRow.documentId);
+  } catch (error) {
+    console.error(
+      "[account] Dokumentfassung nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
+  }
   const owned = emailsEqual(sourceRow.email, sessionEmail);
   const latest = owned ? latestOwnedInFamily(family, sessionEmail) ?? sourceRow : null;
   const versions =

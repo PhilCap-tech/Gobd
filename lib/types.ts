@@ -374,11 +374,11 @@ function catalogFrom(answers: IntakeAnswers): Partial<IntakeAnswers> {
   return snapshot;
 }
 
-function splitStoredFragen(raw: string): {
+function splitStoredFragen(raw: unknown): {
   fragen: IntakeAnswers["fragen"];
   katalog: Partial<IntakeAnswers>;
 } {
-  if (!raw.trim()) return { fragen: {}, katalog: {} };
+  if (typeof raw !== "string" || !raw.trim()) return { fragen: {}, katalog: {} };
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     if (!parsed || typeof parsed !== "object") return { fragen: {}, katalog: {} };
@@ -568,7 +568,8 @@ export function coerceSheetRow(value: unknown): SheetRow | null {
   return row;
 }
 
-function splitList(value: string): string[] {
+function splitList(value: unknown): string[] {
+  if (typeof value !== "string" || !value) return [];
   return value
     .split(",")
     .map((part) => part.trim())
@@ -610,6 +611,7 @@ export function identityFromSheetRow(row: SheetRow): CheckoutIdentity {
   };
 }
 
-export function emailsEqual(a: string, b: string): boolean {
+export function emailsEqual(a: unknown, b: unknown): boolean {
+  if (typeof a !== "string" || typeof b !== "string") return false;
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }

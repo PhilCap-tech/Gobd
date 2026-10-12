@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
+import { notifyBuyerOfCheckout } from "@/lib/buyer-onboarding";
 import {
   CHECKOUT_BACK_TO_ACCOUNT,
   checkoutAlreadyGranted,
@@ -257,20 +258,27 @@ export default async function IntakePage({
     const prior = await checkoutAlreadyGranted(sessionIdQuery);
     let ownerEmail = prior.ownerEmail;
     if (!ownerEmail && sessionEmail) {
-      const resolved = await resolveCheckoutSession(sessionIdQuery);
-      if (!("error" in resolved) && !resolved.stub) {
-        const owner = await ownerEmailAfterVerifiedCheckout(
-          {
-            stub: resolved.stub,
-            customerEmail: resolved.email,
-            stripeSessionId: resolved.stripeSessionId,
-          },
-          async (id) => {
-            const row = await findLatestDocumentByStripeSessionId(id);
-            return row ? row.email : null;
-          },
+      try {
+        const resolved = await resolveCheckoutSession(sessionIdQuery);
+        if (!("error" in resolved) && !resolved.stub) {
+          const owner = await ownerEmailAfterVerifiedCheckout(
+            {
+              stub: resolved.stub,
+              customerEmail: resolved.email,
+              stripeSessionId: resolved.stripeSessionId,
+            },
+            async (id) => {
+              const row = await findLatestDocumentByStripeSessionId(id);
+              return row ? row.email : null;
+            },
+          );
+          ownerEmail = owner || resolved.email.trim().toLowerCase();
+        }
+      } catch (error) {
+        console.error(
+          "[checkout] Kaufadresse nicht lesbar",
+          error instanceof Error ? error.name : "error",
         );
-        ownerEmail = owner || resolved.email.trim().toLowerCase();
       }
     }
     const entry = intakeEntryDecision({
@@ -282,6 +290,17 @@ export default async function IntakePage({
       hasSessionQuery: true,
     });
     if (entry === "mismatch" && sessionEmail && ownerEmail) {
+      try {
+        await notifyBuyerOfCheckout({
+          email: ownerEmail,
+          sessionId: sessionIdQuery,
+        });
+      } catch (error) {
+        console.error(
+          "[checkout] Bestellmail nicht ausgelöst",
+          error instanceof Error ? error.name : "error",
+        );
+      }
       return (
         <>
           <SiteHeader backHref="/account" backLabel="← Zum Konto" />
