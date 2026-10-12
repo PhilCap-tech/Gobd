@@ -41,6 +41,72 @@ function shown(field: BereichField, value: unknown): string {
   return text;
 }
 
+export type PhraseField = {
+  key: string;
+  type: string;
+  label: string;
+};
+
+function asField(field: PhraseField): BereichField {
+  return {
+    key: field.key,
+    type: field.type === "enum" ? "enum" : "text",
+    label: field.label,
+  };
+}
+
+function sameText(left: string, right: string): boolean {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+/** Drop a repeated software name inside one card (`lexoffice, lexoffice`). */
+function uniqueBits(bits: string[]): string[] {
+  const out: string[] = [];
+  for (const bit of bits) {
+    if (!bit || out.some((kept) => sameText(kept, bit))) continue;
+    out.push(bit);
+  }
+  return out;
+}
+
+function formatIntakeValue(field: PhraseField, value: unknown): string {
+  if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) {
+    return clean(uniqueBits(value.map((item) => formatIntakeValue(field, item)).filter(Boolean)).join(", "));
+  }
+  if (value && typeof value === "object") {
+    const bits: string[] = [];
+    for (const part of Object.values(value as Record<string, unknown>)) {
+      if (part && typeof part === "object") continue;
+      const text = formatIntakeValue({ ...field, type: "text" }, part);
+      if (text) bits.push(text);
+    }
+    return uniqueBits(bits).join(", ");
+  }
+  return shown(asField(field), value);
+}
+
+/**
+ * One confirmed answer as the sentence the form already shows:
+ * field label, then the value. A label that is the value itself is not
+ * written twice (`lexoffice: lexoffice`).
+ */
+export function confirmedFieldSentence(fields: PhraseField[], values: Record<string, unknown> | undefined): string {
+  const parts: string[] = [];
+  for (const field of fields) {
+    const value = inline(formatIntakeValue(field, values?.[field.key]));
+    if (!value) continue;
+    const label = field.label.trim();
+    const prefix = `${label}:`;
+    const phrase =
+      !label || sameText(value, label) || value.toLowerCase().startsWith(prefix.toLowerCase())
+        ? value
+        : `${label}: ${value}`;
+    if (parts.some((kept) => sameText(kept, phrase))) continue;
+    parts.push(phrase);
+  }
+  return parts.join(". ");
+}
+
 /** One question as PDF lines. Only `bestaetigt` is written as present-tense practice. */
 export function bereichQuestionLines(
   question: BereichQuestion,

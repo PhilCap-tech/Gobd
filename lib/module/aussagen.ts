@@ -3,7 +3,10 @@
  * Katalogtexte sind nur Kandidaten: verneinte oder nicht vorhandene
  * Themen werden nicht als Kontrolle, Prozess oder Behauptung gedruckt.
  */
+import catalogFile from "@/content/intake-catalog/INTAKE-CATALOG-MVP-v1.json";
+import { confirmedFieldSentence, type PhraseField } from "@/lib/bereich-chapter";
 import { bereichQuestion, type BereichFrist, type BereichKontrolle, type BereichSchritt } from "@/lib/bereiche";
+import { fieldLabel } from "@/lib/intake-present";
 import {
   modulAufbewahrung,
   modulBegriffe,
@@ -415,6 +418,51 @@ function answerSentence(question: NonNullable<ReturnType<typeof questionOf>>, va
     .join(". ");
 }
 
+type CatalogField = { key: string; type?: string; label?: string };
+
+/** Catalog questions (E05, C03, …) have no Bereich question. Use their form labels. */
+function catalogPhraseFields(id: string): PhraseField[] | null {
+  const steps = (
+    catalogFile as { steps: Array<{ questions: Array<{ id: string; fields: CatalogField[] }> }> }
+  ).steps;
+  for (const step of steps) {
+    const question = step.questions.find((item) => item.id === id);
+    if (!question) continue;
+    return question.fields.map((field) => {
+      const label = fieldLabel(id, field.key, field.label);
+      return {
+        key: field.key,
+        type: field.type === "enum" ? "enum" : "text",
+        label: label === "Angabe" ? "" : label,
+      };
+    });
+  }
+  return null;
+}
+
+function collapseValue(value: unknown): unknown {
+  if (typeof value === "string") return collapseRepeatedTokens(value);
+  if (Array.isArray(value)) return value.map((item) => collapseValue(item));
+  if (value && typeof value === "object") {
+    const next: Record<string, unknown> = {};
+    for (const [key, part] of Object.entries(value as Record<string, unknown>)) next[key] = collapseValue(part);
+    return next;
+  }
+  return value;
+}
+
+/** Prozesszelle: dieselbe Bezeichnung wie im bestätigten Fragebogen, nicht der Rohwert. */
+function processBeschreibung(id: string, values: Record<string, unknown>): string {
+  const question = questionOf(id);
+  if (question && isControlQuestionId(question.id) && isKeineKontrolleValues(values)) return "";
+  const fields: PhraseField[] | null = question
+    ? question.fields.map((field) => ({ key: field.key, type: field.type, label: field.label }))
+    : catalogPhraseFields(id);
+  if (!fields?.length) return "";
+  const cleaned = collapseValue(values);
+  return confirmedFieldSentence(fields, cleaned && typeof cleaned === "object" ? (cleaned as Record<string, unknown>) : values);
+}
+
 /** Prozessschritte, deren Frage bestätigt ist. Teilgruppen beachten nur ihre ids. */
 export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSchritt[] {
   const seen = new Set<string>();
@@ -424,7 +472,7 @@ export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSc
     const item = entry(answers, step.frage);
     if (item?.status !== "bestaetigt") continue;
     const question = questionOf(step.frage);
-    const beschreibung = question ? answerSentence(question, item.values ?? {}) : "";
+    const beschreibung = processBeschreibung(step.frage, item.values ?? {});
     if (!beschreibung) continue;
     const schritt = question?.title || step.schritt;
     const nachweis = step.nachweis
@@ -736,9 +784,9 @@ export function staticModulText(modul: ModulDef, facts: BetriebFacts): { kurz: s
   return { kurz: cleanup(kurz) || modul.titel, inhalt };
 }
 
-/** Benachbarte Wortwiederholungen („lexoffice lexoffice“) zusammenziehen. */
+/** Benachbarte Wortwiederholungen („lexoffice lexoffice“, „lexoffice. lexoffice“) zusammenziehen. */
 export function collapseRepeatedTokens(value: string): string {
-  const repeated = /(^|[^\p{L}\p{N}])([\p{L}\p{N}]+)(?:\s+\2)+/giu;
+  const repeated = /(^|[^\p{L}\p{N}])([\p{L}\p{N}]+)(?:(?:\s*\.\s+|\s+)\2)+/giu;
   let current = value;
   let next = current.replace(repeated, "$1$2");
   while (next !== current) {

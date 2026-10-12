@@ -6,7 +6,7 @@ import { renderDeliveryDocument, type RenderedChapter } from "@/lib/delivery-tem
 import gastroFixture from "@/scripts/fixtures/gastro-bella-vista.json";
 import { KEINE_AUSNAHMEN_SATZ, KEINE_KONTROLLE_SATZ, KEINE_REGELMAESSIGE_KONTROLLE } from "@/lib/keine-angaben";
 import { kanzleiKasseAnswers, oezguerAnswers, pixelwerkAnswers, shkAnswers } from "@/scripts/fixtures/pdf-consistency";
-import { ensureGesamt } from "@/lib/module/status";
+import { ensureGesamt, setCheckAntwort } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
 const failures: string[] = [];
@@ -341,6 +341,71 @@ expect(keineAusnahmen.claims.includes(KEINE_AUSNAHMEN_SATZ), "Keine-Ausnahme nen
 expect(keineAusnahmen.claims.includes("Keine Ausnahmen"), "Keine Ausnahmen steht nicht ausdrücklich im PDF");
 expect(!keineAusnahmen.claims.includes("Barbelege vom Wochenmarkt"), "Keine-Ausnahme behält den Katalogtext");
 expect(!keineAusnahmen.claims.includes("Urlaubsvertretung"), "Keine-Ausnahme nutzt die Beispielausnahme");
+
+function processDescriptions(body: string): string {
+  const cells: string[] = [];
+  let inTable = false;
+  for (const line of body.split("\n")) {
+    if (line.includes("| Nr. | Schritt | Beschreibung |")) {
+      inTable = true;
+      continue;
+    }
+    if (!inTable) continue;
+    if (line.includes("---")) continue;
+    if (!line.startsWith("|")) {
+      inTable = false;
+      continue;
+    }
+    const columns = line.split("|").map((part) => part.trim());
+    cells.push(columns[3] ?? "");
+  }
+  return cells.join("\n");
+}
+
+const lexoffice = render(
+  setCheckAntwort(
+    ensureGesamt({
+      ...emptyAnswers(),
+      katalog: {
+        VK02: { status: "bestaetigt", values: { system: "lexoffice", ablage: "lexoffice" } },
+        LE01: {
+          status: "bestaetigt",
+          values: { ablauf: "lexoffice. lexoffice liest die Rechnung", wer: "Inhaber" },
+        },
+        ER02: { status: "bestaetigt", values: { viewer: "lexoffice", validierung: "nein" } },
+        E05: {
+          status: "bestaetigt",
+          values: { systeme: "lexoffice", wer: "Inhaber", nummernvergabe: "fortlaufend je Jahr" },
+        },
+      },
+    }),
+    "erechnung",
+    "ja",
+  ),
+  { company: "QA lexoffice GmbH" },
+);
+const prozess = processDescriptions(lexoffice.body);
+expect(!prozess.includes("lexoffice. lexoffice"), "Prozesstabelle wiederholt lexoffice");
+expect(!prozess.includes("lexoffice lexoffice"), "Prozesstabelle wiederholt lexoffice ohne Punkt");
+expect(!prozess.includes("lexoffice. nein"), "Prozesstabelle hängt nein an den Softwarenamen");
+expect(prozess.includes("System: lexoffice"), "Prozesstabelle nennt lexoffice ohne Feldbezeichnung");
+expect(prozess.includes("Ablage: lexoffice"), "Prozesstabelle verliert die bestätigte Ablage");
+expect(
+  prozess.includes("Ablauf und Form der Bestätigung: lexoffice liest die Rechnung"),
+  "Prozesstabelle behält den Rohwert lexoffice. lexoffice",
+);
+expect(prozess.includes("Wer bestätigt Änderungen: Inhaber"), "Prozesstabelle verliert die bestätigte Person");
+expect(prozess.includes("Viewer oder Software: lexoffice"), "Prozesstabelle dumpt den Viewer als Rohwert");
+expect(
+  prozess.includes("Technische Validierung findet statt: nein"),
+  "Prozesstabelle dumpt die Validierung als Rohwert",
+);
+expect(
+  prozess.includes("Systeme für Ausgangsrechnungen: lexoffice"),
+  "Prozesstabelle dumpt das Ausgangssystem als Rohwert",
+);
+expect(prozess.includes("Wer erstellt die Rechnungen?: Inhaber"), "Prozesstabelle verliert die Rechnungsperson");
+expect(prozess.includes("fortlaufend je Jahr"), "Prozesstabelle verliert den Nummernkreis");
 
 if (failures.length) {
   console.error(failures.join("\n"));
