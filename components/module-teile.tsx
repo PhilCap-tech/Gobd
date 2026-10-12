@@ -10,7 +10,12 @@ function modulAnzahl(count: number): string {
   return count === 1 ? "1 Modul" : `${count} Module`;
 }
 
-export function PartnerModuleTeile() {
+type ModuleTeileProps = {
+  /** Prefix for in-page anchors. The partner page keeps sb-modul. */
+  idPrefix?: string;
+};
+
+export function ModuleTeile({ idPrefix = "sb-modul" }: ModuleTeileProps) {
   return (
     <div className="teil-accordion">
       {TEILE.map((teil) => {
@@ -32,7 +37,7 @@ export function PartnerModuleTeile() {
                   <a
                     key={modul.id}
                     className="chip teil-chip"
-                    href={`#sb-modul-${modul.id}`}
+                    href={`#${idPrefix}-${modul.id}`}
                   >
                     {modul.nr}. {modul.titel}
                   </a>
@@ -40,7 +45,7 @@ export function PartnerModuleTeile() {
               </nav>
               <ul className="teil-module-list">
                 {eintraege.map((modul) => (
-                  <li key={modul.id} id={`sb-modul-${modul.id}`}>
+                  <li key={modul.id} id={`${idPrefix}-${modul.id}`}>
                     <strong>
                       {modul.nr}. {modul.titel}
                     </strong>

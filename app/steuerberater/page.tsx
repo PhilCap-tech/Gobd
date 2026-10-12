@@ -18,7 +18,7 @@ import {
   PARTNER_MUSTER_PATH,
   PARTNER_MUSTER_PDF_PATH,
 } from "@/lib/partner-muster";
-import { PartnerModuleTeile } from "./module-teile";
+import { ModuleTeile } from "@/components/module-teile";
 import { PartnerInquiryForm } from "./partner-inquiry-form";
 
 const PAGE_TITLE =
@@ -231,7 +231,7 @@ export default function SteuerberaterPage() {
             Themen vor. Vorhandene Bereiche werden nicht
             stillschweigend ausgelassen. {ALL_AREAS_LINE}
           </p>
-          <PartnerModuleTeile />
+          <ModuleTeile />
           <p className="hint">
             Muster-Gesamtdokumente (fünf Branchenvorlagen) und bisherige Bereichs-Muster:{" "}
             <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.

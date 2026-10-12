@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { ConsentBanner } from "@/components/consent-banner";
 import { MarketingPixel } from "@/components/marketing-pixel";
 import { SITE_ORIGIN } from "@/lib/seo";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
@@ -19,7 +26,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="de">
+    <html lang="de" className={inter.variable}>
       <body>
         {children}
         <ConsentBanner />

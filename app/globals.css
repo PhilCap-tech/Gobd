@@ -1,14 +1,21 @@
 :root {
   --bg: #f4f5f2;
   --surface: #ffffff;
-  --text: #14201b;
-  --muted: #5a6560;
+  --text: #24302b;
+  --muted: #3d4742;
   --line: #d8ddd8;
   --accent: #1f6b4a;
   --accent-soft: #e6f3ec;
-  --warn-bg: #fff8e8;
-  --warn-text: #7a4e00;
-  --warn-line: #ecd7a2;
+  --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  --h1-size: 2.375rem;
+  --h2-size: 1.5rem;
+  --h3-size: 1.0625rem;
+  --heading-weight: 650;
+  --shell: 1160px;
+  --gutter: 24px;
+  --warn-bg: #f2f4f2;
+  --warn-text: #24302b;
+  --warn-line: #d5dbd6;
 }
 
 * {
@@ -23,7 +30,7 @@ body {
 
 body {
   min-height: 100vh;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   color: var(--text);
   background: var(--bg);
   line-height: 1.6;
@@ -42,7 +49,7 @@ nav,
 .btn,
 .chip,
 .meta {
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .site-header,
@@ -52,22 +59,27 @@ nav,
 }
 
 .site-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.header-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 16px 28px;
-  border-bottom: 1px solid var(--line);
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .header-price {
   margin: 0;
-  padding: 0 28px 12px;
+  padding-top: 0;
+  padding-bottom: 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   text-align: right;
-  font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 13px;
   font-weight: 650;
   line-height: 1.4;
@@ -77,14 +89,31 @@ nav,
 .logo {
   display: inline-flex;
   align-items: center;
-  line-height: 0;
+  color: var(--accent);
   text-decoration: none;
 }
 
-.logo img {
-  height: 40px;
-  width: auto;
+.logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+}
+
+.logo-mark {
   display: block;
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+
+.logo-word {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 .nav {
@@ -150,9 +179,11 @@ nav,
   margin: 0 auto;
 }
 
+.shell,
 .home-wrap {
-  width: min(960px, calc(100% - 40px));
-  margin: 0 auto;
+  width: min(var(--shell), 100%);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
 }
 
 .wrap.wide {
@@ -166,13 +197,70 @@ nav,
 }
 
 .hero {
-  padding: 56px 0 36px;
+  padding: 36px 0 20px;
+}
+
+.price-box {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.price-box-guarantee {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.price-box-guarantee a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.trust-bar {
+  margin: 20px 0 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.trust-bar ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.trust-bar a {
+  color: var(--accent);
+  text-underline-offset: 2px;
 }
 
 .kicker,
 .hook {
   display: inline-block;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-weight: 650;
   color: var(--accent);
   margin: 0 0 12px;
@@ -190,12 +278,22 @@ nav,
   line-height: 1.4;
 }
 
+h1,
+h2,
+h3 {
+  font-weight: var(--heading-weight);
+  color: var(--text);
+}
+
 h1 {
-  font-size: clamp(30px, 5vw, 42px);
-  line-height: 1.15;
-  letter-spacing: -0.03em;
-  margin: 0 0 14px;
-  font-weight: 600;
+  font-size: var(--h1-size);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+
+.h1-keep {
+  white-space: nowrap;
 }
 
 #intake-step-heading:focus {
@@ -204,13 +302,25 @@ h1 {
 }
 
 h2 {
-  font-size: 22px;
+  font-size: var(--h2-size);
+  line-height: 1.3;
+  letter-spacing: -0.015em;
   margin: 0 0 12px;
-  letter-spacing: -0.02em;
+}
+
+h3 {
+  font-size: var(--h3-size);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
 }
 
 .lead,
 .prose,
+.prose-list {
+  color: var(--text);
+}
+
 .field-hint,
 .hint {
   color: var(--muted);
@@ -257,13 +367,13 @@ h2 {
 
 .cta-soft .hint {
   max-width: 28ch;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   line-height: 1.45;
 }
 
 .outcome-line {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.01em;
@@ -272,7 +382,7 @@ h2 {
 }
 
 .hero-facts {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 650;
   letter-spacing: -0.01em;
@@ -283,7 +393,7 @@ h2 {
 
 .price-inclusion {
   grid-column: 1 / -1;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 650;
   line-height: 1.45;
@@ -292,7 +402,7 @@ h2 {
 }
 
 .price-lead {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.02em;
@@ -312,7 +422,7 @@ h2 {
 }
 
 .tags span {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   color: var(--muted);
   background: var(--surface);
@@ -322,7 +432,7 @@ h2 {
 }
 
 .advisor-note {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--muted);
   margin: 14px 0 0;
@@ -346,7 +456,6 @@ h2 {
 .prose-list {
   margin: 0;
   padding-left: 18px;
-  color: var(--muted);
 }
 
 .prose-list li {
@@ -407,7 +516,7 @@ h2 {
 }
 
 .value-note h2 {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .value-note .prose {
@@ -439,7 +548,7 @@ h2 {
 }
 
 .trust-line {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 650;
   color: var(--accent);
@@ -473,7 +582,7 @@ h2 {
 }
 
 .price-frame {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.45;
   color: var(--muted);
@@ -487,7 +596,7 @@ h2 {
 }
 
 .text-cta {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 650;
   color: var(--accent);
@@ -536,7 +645,7 @@ h2 {
 }
 
 .doc-excerpt figcaption {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 650;
   color: var(--text);
@@ -565,7 +674,7 @@ h2 {
 .price-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -597,12 +706,6 @@ h2 {
   font-size: 18px;
 }
 
-h3 {
-  font-size: 16px;
-  margin: 0 0 6px;
-  letter-spacing: -0.01em;
-}
-
 .faq-item {
   margin-top: 18px;
 }
@@ -619,7 +722,7 @@ h3 {
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .price small {
@@ -641,19 +744,18 @@ h3 {
 }
 
 .upsell h3 {
-  font-size: 1.05rem;
-  margin: 18px 0 6px;
+  margin: 18px 0 8px;
 }
 
 .upsell-price {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 650;
   margin: 16px 0 4px;
 }
 
 .upsell-guarantee {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   margin: 0 0 8px;
 }
@@ -664,7 +766,7 @@ h3 {
 }
 
 .upsell-footnote {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   color: var(--muted);
   margin: 14px 0 0;
@@ -677,20 +779,27 @@ h3 {
   border-radius: 8px;
   padding: 12px 14px;
   font-size: 13px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   margin-top: 16px;
 }
 
 .site-footer {
   border-top: 1px solid var(--line);
-  padding: 24px;
+  padding: 24px 0;
   text-align: center;
   font-size: 12px;
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .site-footer a {
+  color: var(--muted);
+}
+
+.footer-disclaimer {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--muted);
 }
 
@@ -703,12 +812,10 @@ h3 {
 }
 
 .legal h2 {
-  font-size: 18px;
-  margin: 28px 0 10px;
+  margin: 28px 0 12px;
 }
 
 .legal h3 {
-  font-size: 16px;
   margin: 20px 0 8px;
 }
 
@@ -719,12 +826,10 @@ h3 {
 }
 
 .blog h2 {
-  font-size: 22px;
   margin: 32px 0 12px;
 }
 
 .blog h3 {
-  font-size: 17px;
   margin: 22px 0 8px;
 }
 
@@ -742,7 +847,7 @@ h3 {
   border: 1px solid var(--warn-line);
   border-radius: 8px;
   font-size: 14px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .blog-quote p {
@@ -782,8 +887,7 @@ h3 {
 }
 
 .blog-index h2 {
-  margin: 0 0 8px;
-  font-size: 22px;
+  margin: 0 0 12px;
 }
 
 .blog-index h2 a {
@@ -804,7 +908,7 @@ h3 {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .blog th,
@@ -833,7 +937,7 @@ h3 {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .legal th,
@@ -901,7 +1005,7 @@ h3 {
 }
 
 .account-subhead {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0;
@@ -914,7 +1018,7 @@ h3 {
   padding: 0;
   display: grid;
   gap: 6px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
 }
 
@@ -1014,7 +1118,7 @@ tr.row-invalid td {
 .field-error {
   color: #8a1f1f;
   font-size: 13px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   margin: 6px 0 0;
 }
 
@@ -1028,12 +1132,7 @@ tr.row-invalid td {
 }
 
 h2.angabe-prompt {
-  font-size: 18px;
-  line-height: 1.35;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--text);
-  margin: 0 0 8px;
+  margin: 0 0 12px;
 }
 
 .angabe > .hint {
@@ -1119,7 +1218,7 @@ textarea:focus {
   padding: 8px 0;
   font-size: 14px;
   border-bottom: 1px dashed var(--line);
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .total {
@@ -1129,7 +1228,7 @@ textarea:focus {
   padding-top: 12px;
   border-top: 1px solid var(--line);
   font-weight: 700;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .progress {
@@ -1154,7 +1253,7 @@ textarea:focus {
 }
 
 .step-label {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--muted);
   margin: 0 0 8px;
@@ -1253,7 +1352,7 @@ textarea:focus {
 
 .status-hilfe summary {
   cursor: pointer;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 650;
 }
@@ -1311,7 +1410,7 @@ textarea:focus {
 }
 
 .summary dt {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   color: var(--muted);
   margin-top: 10px;
@@ -1323,7 +1422,7 @@ textarea:focus {
 }
 
 .banner {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   background: #eef2ee;
   border: 1px solid var(--line);
@@ -1348,7 +1447,7 @@ textarea:focus {
 .error {
   color: #8a1f1f;
   font-size: 13px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   margin: 0 0 10px;
 }
 
@@ -1375,7 +1474,7 @@ textarea:focus {
 }
 
 .entity-card h2 {
-  margin-bottom: 4px;
+  margin-bottom: 12px;
 }
 
 .entity-card > .checkout-note {
@@ -1407,7 +1506,6 @@ form.card > .checkout-note {
 }
 
 .entity-doc h3 {
-  font-size: 18px;
   margin: 0 0 8px;
 }
 
@@ -1524,7 +1622,7 @@ form.card > .checkout-note {
 }
 
 .doc-meta {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--muted);
   margin: 0;
@@ -1539,7 +1637,7 @@ form.card > .checkout-note {
 }
 
 .open-modules h4 {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
   margin: 0 0 4px;
@@ -1564,7 +1662,7 @@ form.card > .checkout-note {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px 16px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
 }
 
@@ -1583,7 +1681,7 @@ tr.modul-focus td {
 }
 
 .version-heading {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
   margin: 0;
@@ -1593,7 +1691,7 @@ tr.modul-focus td {
 
 .version-hint,
 .revision-hint {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--muted);
   margin: 8px 0 0;
@@ -1617,7 +1715,7 @@ tr.modul-focus td {
 }
 
 .version-change legend {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
   padding: 0 6px;
@@ -1631,7 +1729,7 @@ tr.modul-focus td {
   align-items: flex-start;
   padding: 10px 12px;
   border-top: 1px solid #c5d4cc;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   color: var(--text);
   background: var(--surface);
@@ -1686,7 +1784,7 @@ code {
 }
 
 .promo-code {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text);
@@ -1714,13 +1812,36 @@ code {
     grid-template-columns: 1fr;
   }
 
+  :root {
+    --h1-size: 1.35rem;
+    --gutter: 16px;
+  }
+
+  h1 {
+    letter-spacing: -0.03em;
+  }
+
+  .hero {
+    padding: 16px 0 8px;
+  }
+
+  .hero .lead {
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+
+  .header-bar {
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .logo-word {
+    font-size: 15px;
+  }
+
   .nav .hide-sm,
   .header-price {
     display: none;
-  }
-
-  .site-header {
-    padding: 14px 16px;
   }
 
   .sticky-cta {
@@ -1732,8 +1853,7 @@ code {
     bottom: 0;
     background: var(--surface);
     border-top: 1px solid var(--line);
-    padding: 12px 16px 16px;
-    box-shadow: 0 -8px 24px rgba(20, 32, 27, 0.1);
+    padding: 10px 16px 12px;
   }
 
   .sticky-cta .btn {
@@ -1754,7 +1874,7 @@ code {
   }
 
   body {
-    padding-bottom: 120px;
+    padding-bottom: 84px;
   }
 
   body:has(.sticky-cta.tall) {
@@ -1767,7 +1887,7 @@ code {
 }
 
 body.consent-open {
-  padding-bottom: 200px;
+  padding-bottom: 96px;
 }
 
 .consent-banner {
@@ -1778,35 +1898,33 @@ body.consent-open {
   bottom: 0;
   background: var(--surface);
   border-top: 1px solid var(--line);
-  padding: 16px 20px 20px;
-  box-shadow: 0 -8px 28px rgba(20, 32, 27, 0.1);
+  padding: 8px 0;
 }
 
 .consent-banner-inner {
-  width: min(840px, 100%);
-  margin: 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 16px 24px;
-  align-items: flex-end;
+  gap: 10px 16px;
+  align-items: center;
   justify-content: space-between;
-}
-
-.consent-banner h2 {
-  font-family: "Segoe UI", system-ui, sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  margin: 0 0 6px;
-  letter-spacing: 0;
 }
 
 .consent-banner p {
   margin: 0;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
   font-size: 13px;
-  color: var(--muted);
-  max-width: 52rem;
-  line-height: 1.5;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.consent-banner .consent-choice,
+.consent-banner .consent-choice:hover {
+  background: var(--surface);
+  color: var(--text);
+  border-color: #8b958f;
+  font-weight: 650;
 }
 
 .consent-banner a {
@@ -1815,9 +1933,43 @@ body.consent-open {
 
 .consent-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.consent-actions .btn {
+  width: 12.25rem;
+  text-align: center;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+@media (max-width: 800px) {
+  body.consent-open {
+    padding-bottom: 156px;
+  }
+
+  .consent-banner-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .consent-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .consent-banner p {
+    font-size: 12.5px;
+  }
+
+  .consent-actions .btn {
+    width: 100%;
+    text-align: center;
+    padding: 8px 10px;
+  }
 }
 
 .footer-text-btn {
@@ -1847,7 +1999,7 @@ body.consent-open {
 }
 
 .billing-status-label {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 650;
   padding: 3px 9px;
@@ -1877,7 +2029,7 @@ body.consent-open {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .invoice-table th,
@@ -1916,8 +2068,7 @@ body.consent-open {
 }
 
 .lead-magnet-cta h2 {
-  font-size: 18px;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 
 .lead-magnet-cta p {
@@ -1996,7 +2147,7 @@ body.consent-open {
   padding: 14px 16px;
   cursor: pointer;
   list-style: none;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .teil-panel summary::-webkit-details-marker {
@@ -2033,11 +2184,6 @@ body.consent-open {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-family: "Segoe UI", system-ui, sans-serif;
-  font-size: 16px;
-  font-weight: 650;
-  line-height: 1.35;
-  letter-spacing: -0.01em;
 }
 
 .teil-count {

@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 type HeaderLink = {
   href: string;
@@ -33,47 +33,43 @@ export function SiteHeader({
 }: SiteHeaderProps) {
   return (
     <>
-    <header className="site-header">
-      <Link className="logo" href="/">
-        <Image
-          src="/brand/logo-lockup.png"
-          alt="GoBD Verfahrensdoku"
-          width={106}
-          height={40}
-          preload
-        />
-      </Link>
-      <nav className="nav">
-        {backHref ? (
-          <Link href={backHref}>{backLabel || "Zurück"}</Link>
-        ) : (
-          <>
-            {links.map((item) =>
-              item.href.startsWith("/") ? (
-                <Link key={item.href} className="hide-sm" href={item.href}>
-                  {item.label}
-                </Link>
-              ) : (
-                <a key={item.href} className="hide-sm" href={item.href}>
-                  {item.label}
-                </a>
-              ),
-            )}
-            {ctaHref.startsWith("#") ? (
-              <a className="btn hide-sm" href={ctaHref}>
-                {ctaLabel}
-              </a>
+      <header className="site-header">
+        <div className="shell header-bar">
+          <Link className="logo" href="/">
+            <Logo />
+          </Link>
+          <nav className="nav">
+            {backHref ? (
+              <Link href={backHref}>{backLabel || "Zurück"}</Link>
             ) : (
-              <Link className="btn hide-sm" href={ctaHref}>
-                {ctaLabel}
-              </Link>
+              <>
+                {links.map((item) =>
+                  item.href.startsWith("/") ? (
+                    <Link key={item.href} className="hide-sm" href={item.href}>
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <a key={item.href} className="hide-sm" href={item.href}>
+                      {item.label}
+                    </a>
+                  ),
+                )}
+                {ctaHref.startsWith("#") ? (
+                  <a className="btn hide-sm" href={ctaHref}>
+                    {ctaLabel}
+                  </a>
+                ) : (
+                  <Link className="btn hide-sm" href={ctaHref}>
+                    {ctaLabel}
+                  </Link>
+                )}
+              </>
             )}
-          </>
-        )}
-        <Link href="/account">Konto</Link>
-      </nav>
-    </header>
-    {ctaNote ? <p className="header-price">{ctaNote}</p> : null}
+            <Link href="/account">Konto</Link>
+          </nav>
+        </div>
+      </header>
+      {ctaNote ? <p className="header-price shell">{ctaNote}</p> : null}
     </>
   );
 }
