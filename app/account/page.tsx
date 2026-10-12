@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AccountAboCard } from "@/components/account-abo";
 import { AccountCompanyCard } from "@/components/account-company-card";
-import { AccountFreeCard } from "@/components/account-free";
+import { AccountResourcesCard } from "@/components/account-free";
 import { AccountProfileForm } from "@/components/account-profile-form";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -130,7 +130,7 @@ export default async function AccountPage({
             atCap={atCap}
             firmHref={entities[0] ? firmaEditPath(entities[0].entityId) : null}
           />
-          <AccountFreeCard />
+          <AccountResourcesCard subscribed={stripeBound} />
         </div>
 
         <p className="hint account-note">
