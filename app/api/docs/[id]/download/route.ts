@@ -6,6 +6,8 @@ import { sessionOwnerDenial } from "@/lib/checkout-access";
 import { generatePdf } from "@/lib/delivery";
 import { isGesamt } from "@/lib/module/status";
 import { modulById } from "@/lib/module/katalog";
+import { sheetsOutageResponse } from "@/lib/sheets-http";
+import { runWithSheetsRoute } from "@/lib/sheets-outage";
 import { findDocumentById } from "@/lib/store";
 import { answersFromSheetRow, identityFromSheetRow, type SheetRow } from "@/lib/types";
 
@@ -35,12 +37,29 @@ export async function downloadPdf(
   id: string,
   find: (documentId: string) => Promise<SheetRow | null> = findDocumentById,
 ) {
+  return runWithSheetsRoute("GET /api/docs/[id]/download", () =>
+    downloadPdfBody(request, id, find),
+  );
+}
+
+async function downloadPdfBody(
+  request: Request,
+  id: string,
+  find: (documentId: string) => Promise<SheetRow | null>,
+) {
   const url = new URL(request.url);
   const modul = (url.searchParams.get("modul") ?? "").trim();
   const sessionEmail = await sessionEmailFromRequest(request);
   if (!sessionEmail) return jsonError("Kein Zugriff.", 401);
 
-  const row = await find(id);
+  let row: SheetRow | null;
+  try {
+    row = await find(id);
+  } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
+    throw error;
+  }
   if (!row || sessionOwnerDenial(sessionEmail, row.email)) {
     return jsonError("Kein Zugriff.", 403);
   }

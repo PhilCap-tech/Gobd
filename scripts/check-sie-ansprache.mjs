@@ -66,6 +66,7 @@ const COVERED = [
   "lib/stripe.ts",
   "lib/session-write.ts",
   "lib/checkout-session.ts",
+  "lib/sheets-outage.ts",
 ];
 
 const PRONOUNS =

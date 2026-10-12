@@ -47,6 +47,8 @@ import {
   listEntitiesByEmail,
   prepareDurableIntakeRow,
 } from "@/lib/store";
+import { sheetsOutageResponse } from "@/lib/sheets-http";
+import { runWithSheetsRoute } from "@/lib/sheets-outage";
 import { intakeCheckoutStatus, resolveCheckoutSession } from "@/lib/stripe";
 import {
   emailsEqual,
@@ -402,6 +404,8 @@ async function writeIntake(
       }),
     );
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error(
       "[intake] dauerhafte Speicherung fehlgeschlagen",
       error instanceof Error ? error.name : "error",
@@ -457,6 +461,8 @@ async function writeIntake(
       deliveryStatus: delivery.status,
     });
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error(
       "[intake] appendRecord fehlgeschlagen",
       error instanceof Error ? error.name : "error",
@@ -522,6 +528,21 @@ export async function submitIntake(
   request: Request,
   io: IntakeIo = defaultIntakeIo,
 ): Promise<NextResponse> {
+  return runWithSheetsRoute("POST /api/intake", async () => {
+    try {
+      return await submitIntakeBody(request, io);
+    } catch (error) {
+      const outage = sheetsOutageResponse(error);
+      if (outage) return outage;
+      throw error;
+    }
+  });
+}
+
+async function submitIntakeBody(
+  request: Request,
+  io: IntakeIo,
+): Promise<NextResponse> {
   let body: IntakeBody;
   try {
     body = await request.json();
@@ -542,6 +563,8 @@ export async function POST(request: Request) {
   try {
     return await submitIntake(request);
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error("[intake] POST fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }

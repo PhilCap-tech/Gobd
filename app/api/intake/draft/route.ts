@@ -35,6 +35,8 @@ import {
   findLatestDocumentByStripeSessionId,
   listDocumentFamily,
 } from "@/lib/store";
+import { sheetsOutageResponse } from "@/lib/sheets-http";
+import { isSheetsOutage, runWithSheetsRoute } from "@/lib/sheets-outage";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import { emailsEqual, type IntakeAnswers } from "@/lib/types";
 
@@ -144,6 +146,7 @@ async function ownerForCheckoutSession(
     const fromRow = row?.email?.trim().toLowerCase() ?? "";
     if (fromRow.includes("@")) return fromRow;
   } catch (error) {
+    if (isSheetsOutage(error)) throw error;
     console.error(
       "[draft] Inhaber zur Session nicht lesbar",
       error instanceof Error ? error.name : "error",
@@ -191,7 +194,7 @@ async function sessionOwnerGate(
   return null;
 }
 
-export async function readIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {
+async function readIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDraftIo) {
   const url = new URL(request.url);
   const draftKey =
     url.searchParams.get("draftKey")?.trim() ||
@@ -253,7 +256,7 @@ export async function readIntakeDraft(request: Request, io: DraftWriteIo = defau
   });
 }
 
-export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {
+async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDraftIo) {
   let body: {
     draftKey?: string;
     sessionId?: string;
@@ -426,7 +429,7 @@ async function draftDeleteDenial(
   return null;
 }
 
-export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {
+async function deleteIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDraftIo) {
   const url = new URL(request.url);
   const draftKey = url.searchParams.get("draftKey")?.trim() ?? "";
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
@@ -507,6 +510,33 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
     }
   }
   return NextResponse.json({ ok: true });
+}
+
+function guardDraft(
+  route: string,
+  run: () => Promise<NextResponse>,
+): Promise<NextResponse> {
+  return runWithSheetsRoute(route, async () => {
+    try {
+      return await run();
+    } catch (error) {
+      const outage = sheetsOutageResponse(error);
+      if (outage) return outage;
+      throw error;
+    }
+  });
+}
+
+export function readIntakeDraft(request: Request, io?: DraftWriteIo) {
+  return guardDraft("GET /api/intake/draft", () => readIntakeDraftBody(request, io));
+}
+
+export function putIntakeDraft(request: Request, io?: DraftWriteIo) {
+  return guardDraft("PUT /api/intake/draft", () => putIntakeDraftBody(request, io));
+}
+
+export function deleteIntakeDraft(request: Request, io?: DraftWriteIo) {
+  return guardDraft("DELETE /api/intake/draft", () => deleteIntakeDraftBody(request, io));
 }
 
 export function GET(request: Request) {

@@ -16,6 +16,7 @@ import {
   findLatestDocumentByStripeSessionId,
   listDocumentFamily,
 } from "@/lib/store";
+import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import { MODULE } from "@/lib/module/katalog";
 
@@ -103,7 +104,14 @@ export async function postModuleUpload(request: Request, io: UploadIo = defaultU
   const allowed = uploadAllowed(contentType, file.size);
   if (allowed) return jsonError(allowed, 400);
 
-  const access = await assertAccess(request, { sessionId, documentId }, io);
+  let access: Awaited<ReturnType<typeof assertAccess>>;
+  try {
+    access = await assertAccess(request, { sessionId, documentId }, io);
+  } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
+    throw error;
+  }
   if (!access.ok) return access.response;
 
   const buffer = Buffer.from(await file.arrayBuffer());

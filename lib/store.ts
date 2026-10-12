@@ -48,6 +48,16 @@ import {
 } from "@/lib/profile";
 import { SHEETS_CELL_SAFE_CHARS } from "@/lib/document-content";
 import { DurableStoreError, intakePayloadLocator } from "@/lib/intake-payload";
+import {
+  createTtlSingleflight,
+  INTAKE_READ_TTL_MS,
+  isSheetsOutage,
+  currentSheetsRoute,
+  logSheetsFailure,
+  retrySheetsCall,
+  SheetsUnavailableError,
+  sheetsStatusCode,
+} from "@/lib/sheets-outage";
 import { normalizeQueryId, queryIdsEqual } from "@/lib/query";
 import {
   lookupStripeCustomerIdByEmail,
@@ -207,45 +217,76 @@ async function ensureSpreadsheetTab(tab: string): Promise<void> {
   });
 }
 
-async function intakeColumnCount(tab: string): Promise<number> {
-  try {
-    const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-    const meta = await sheets.spreadsheets.get({
-      spreadsheetId: spreadsheetId(),
-      fields: "sheets(properties(title,gridProperties(columnCount)))",
-    });
-    const sheet = meta.data.sheets?.find((item) => item.properties?.title === tab);
-    const count = sheet?.properties?.gridProperties?.columnCount ?? 0;
-    if (count > 0) return count;
-  } catch (error) {
-    console.error(
-      "[store] Tabellenbreite nicht gelesen",
-      error instanceof Error ? error.name : "error",
-    );
-  }
-  return SHEET_FALLBACK_COLUMN_COUNT;
+const columnCountCache = createTtlSingleflight<number>(INTAKE_READ_TTL_MS);
+const headerCache = createTtlSingleflight<string[]>(INTAKE_READ_TTL_MS);
+const rowsCache = createTtlSingleflight<{ backend: "sheets" | "file"; rows: SheetRow[] }>(
+  INTAKE_READ_TTL_MS,
+);
+
+/** Drop the short intake cache after a write so the next read sees the new row. */
+export function clearIntakeSheetCache(): void {
+  columnCountCache.clear();
+  headerCache.clear();
+  rowsCache.clear();
 }
 
-async function ensureSheetHeader(): Promise<string[]> {
+async function readIntakeColumnCount(tab: string): Promise<number> {
+  try {
+    return await retrySheetsCall("intakes.columnCount", async () => {
+      const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+      const meta = await sheets.spreadsheets.get({
+        spreadsheetId: spreadsheetId(),
+        fields: "sheets(properties(title,gridProperties(columnCount)))",
+      });
+      const sheet = meta.data.sheets?.find((item) => item.properties?.title === tab);
+      const count = sheet?.properties?.gridProperties?.columnCount ?? 0;
+      if (count > 0) return count;
+      return SHEET_FALLBACK_COLUMN_COUNT;
+    });
+  } catch (error) {
+    if (isSheetsOutage(error)) throw error;
+    const status = sheetsStatusCode(error);
+    if (isVercelRuntime()) {
+      logSheetsFailure("intakes.columnCount", status);
+      throw new SheetsUnavailableError(status);
+    }
+    console.error(
+      "[store] Tabellenbreite nicht gelesen",
+      JSON.stringify({ route: currentSheetsRoute(), op: "intakes.columnCount", status }),
+    );
+    return SHEET_FALLBACK_COLUMN_COUNT;
+  }
+}
+
+async function intakeColumnCount(tab: string): Promise<number> {
+  return columnCountCache.read(() => readIntakeColumnCount(tab));
+}
+
+async function loadSheetHeader(): Promise<string[]> {
   const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
   const id = spreadsheetId();
   const tab = getSheetsTab();
-  const existing = await sheets.spreadsheets.values.get(
-    {
-      spreadsheetId: id,
-      range: `${tab}!${intakeHeaderRange(await intakeColumnCount(tab))}`,
-    },
-    SHEETS_GET_OPTS,
+  const headerRange = intakeHeaderRange(await intakeColumnCount(tab));
+  const existing = await retrySheetsCall("intakes.header", () =>
+    sheets.spreadsheets.values.get(
+      {
+        spreadsheetId: id,
+        range: `${tab}!${headerRange}`,
+      },
+      SHEETS_GET_OPTS,
+    ),
   );
   const header = (existing.data.values?.[0] ?? []).map((cell) => String(cell));
 
   if (header.length === 0) {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: id,
-      range: `${tab}!A1`,
-      valueInputOption: "RAW",
-      requestBody: { values: [SHEET_COLUMNS as unknown as string[]] },
-    });
+    await retrySheetsCall("intakes.header", () =>
+      sheets.spreadsheets.values.append({
+        spreadsheetId: id,
+        range: `${tab}!A1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [SHEET_COLUMNS as unknown as string[]] },
+      }),
+    );
     return [...SHEET_COLUMNS];
   }
 
@@ -259,34 +300,46 @@ async function ensureSheetHeader(): Promise<string[]> {
   }
 
   const next = [...header, ...missing];
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: id,
-    range: `${tab}!A1`,
-    valueInputOption: "RAW",
-    requestBody: { values: [next] },
-  });
+  await retrySheetsCall("intakes.header", () =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${tab}!A1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [next] },
+    }),
+  );
+  columnCountCache.clear();
   return next;
+}
+
+async function ensureSheetHeader(): Promise<string[]> {
+  return headerCache.read(() => loadSheetHeader());
 }
 
 async function appendSheetRow(row: SheetRow): Promise<void> {
   const header = await ensureSheetHeader();
   const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: spreadsheetId(),
-    range: `${getSheetsTab()}!A1`,
-    valueInputOption: "RAW",
-    requestBody: { values: [sheetRowValues(row, header)] },
-  });
+  await retrySheetsCall("intakes.append", () =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId(),
+      range: `${getSheetsTab()}!A1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [sheetRowValues(row, header)] },
+    }),
+  );
 }
 
 async function readSheetValues(tab: string): Promise<string[][]> {
+  const count = await intakeColumnCount(tab);
   const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
-  const result = await sheets.spreadsheets.values.get(
-    {
-      spreadsheetId: spreadsheetId(),
-      range: `${tab}!${intakeValuesRange(await intakeColumnCount(tab))}`,
-    },
-    SHEETS_GET_OPTS,
+  const result = await retrySheetsCall("intakes.values", () =>
+    sheets.spreadsheets.values.get(
+      {
+        spreadsheetId: spreadsheetId(),
+        range: `${tab}!${intakeValuesRange(count)}`,
+      },
+      SHEETS_GET_OPTS,
+    ),
   );
   return (result.data.values ?? []).map((row) =>
     (row ?? []).map((cell) => String(cell ?? "")),
@@ -431,18 +484,18 @@ async function writePreparedRecord(
     try {
       if (overrides?.appendSheet) await overrides.appendSheet(prepared);
       else await appendSheetRow(prepared);
+      clearIntakeSheetCache();
       return { backend: "sheets", row: prepared };
     } catch (error) {
-      console.error(
-        "[store] Google Sheets append fehlgeschlagen",
-        error instanceof Error ? error.name : "error",
-      );
+      if (isSheetsOutage(error)) throw error;
+      const status = sheetsStatusCode(error);
+      logSheetsFailure("intakes.append", status);
       if (!fileFallbackCountsAsSuccess(prepared)) {
-        throw new DurableStoreError();
+        throw new SheetsUnavailableError(status);
       }
       console.error(
         "[store] Google Sheets append fehlgeschlagen — falle auf Datei zurück",
-        error,
+        JSON.stringify({ route: currentSheetsRoute(), op: "intakes.append", status }),
       );
     }
   } else if (!fileFallbackCountsAsSuccess(prepared)) {
@@ -456,6 +509,7 @@ async function writePreparedRecord(
   }
 
   const filePath = await appendFileRow(prepared);
+  clearIntakeSheetCache();
   return { backend: "file", row: prepared, filePath };
 }
 
@@ -467,7 +521,7 @@ export async function appendRecord(
   return writePreparedRecord(prepared, overrides);
 }
 
-async function loadRows(
+async function loadRowsUncached(
   overrides?: IntakeStoreOverrides,
 ): Promise<{ backend: "sheets" | "file"; rows: SheetRow[] }> {
   if (overrides?.readSheets || isSheetsConfigured()) {
@@ -479,10 +533,17 @@ async function loadRows(
       const rows = await hydrateRows(mergeRows(sheetRows, fileRows), overrides?.blob);
       return { backend: "sheets", rows: rows.map(recoverStoredDocumentId) };
     } catch (error) {
-      if (isDurableReadError(error) || overrides?.readSheets) throw error;
+      if (overrides?.readSheets || isDurableReadError(error) || isSheetsOutage(error)) {
+        throw error;
+      }
+      const status = sheetsStatusCode(error);
+      if (isVercelRuntime()) {
+        logSheetsFailure("intakes.read", status);
+        throw new SheetsUnavailableError(status);
+      }
       console.error(
         "[store] Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
-        error,
+        JSON.stringify({ route: currentSheetsRoute(), op: "intakes.read", status }),
       );
     }
   }
@@ -492,6 +553,16 @@ async function loadRows(
       recoverStoredDocumentId,
     ),
   };
+}
+
+async function loadRows(
+  overrides?: IntakeStoreOverrides,
+  options?: { fresh?: boolean },
+): Promise<{ backend: "sheets" | "file"; rows: SheetRow[] }> {
+  if (overrides?.readSheets || !isSheetsConfigured()) {
+    return loadRowsUncached(overrides);
+  }
+  return rowsCache.read(() => loadRowsUncached(overrides), options?.fresh);
 }
 
 /** Same read path as Konto, Bearbeitung and PDF, with optional test doubles. */
@@ -736,7 +807,7 @@ export async function findLatestDocumentByStripeSessionId(
       const wait = backoff[Math.min(i - 1, backoff.length - 1)] ?? 500;
       await sleep(wait);
     }
-    const { backend, rows } = await loadRows();
+    const { backend, rows } = await loadRows(undefined, { fresh: i > 0 });
     const match = latestRowForSession(rows, normalized);
     if (match) return match;
     if (backend !== "sheets") break;
@@ -764,7 +835,7 @@ export async function findSuccessDocument(input: {
         ] ?? 500;
       await sleep(wait);
     }
-    const { backend, rows } = await loadRows();
+    const { backend, rows } = await loadRows(undefined, { fresh: i > 0 });
     if (documentId) {
       const byId = pickStoredDocument(rows, documentId);
       if (byId) return byId;

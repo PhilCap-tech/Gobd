@@ -12,7 +12,7 @@ export type AccountCompanyCard = {
 
 export type AccountHub = {
   groups: AccountCompanyCard[];
-  /** Undelivered drafts, including those also shown on a company card. */
+  /** Undelivered drafts. A draft that already sits on a company card is not repeated. */
   openDrafts: IntakeDraft[];
 };
 
@@ -123,4 +123,12 @@ export function accountCompanyCards(
     groups.push({ entity: null, families: unbound, continueDrafts: [] });
   }
   return { groups, openDrafts };
+}
+
+/** Drafts that are not already rendered inside a company card. */
+export function draftsNotOnCompanyCard(hub: AccountHub): IntakeDraft[] {
+  const onCard = new Set(
+    hub.groups.flatMap((group) => group.continueDrafts.map((draft) => draft.draftKey)),
+  );
+  return hub.openDrafts.filter((draft) => !onCard.has(draft.draftKey));
 }
