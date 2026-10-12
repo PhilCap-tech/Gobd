@@ -27,7 +27,7 @@ export const LOGIN_FOR_ANSWERS_COPY =
  * The id alone is not payment; this is the message when no stored entitlement applies.
  */
 export const TEST_MODE_CHECKOUT_COPY =
-  "Diese Bestellung stammt aus dem Testmodus. Bitte melden Sie sich an oder kontaktieren Sie uns.";
+  "Diese Bestellung stammt aus dem Testmodus. Bitte melden Sie sich an oder kontaktieren Sie uns."; // allow-test-order
 
 /** `cs_test_…` from Stripe test mode. Not a stub, and not proof of payment by itself. */
 export function isTestModeCheckoutSessionId(
