@@ -49,6 +49,16 @@ export function isStripeConfigured(): boolean {
   );
 }
 
+/**
+ * Stripe Tax Rate (`txr_…`) für 19 % USt, Deutschland, exclusive.
+ * Leer, wenn die Variable fehlt. Kein Fallback auf eine echte ID:
+ * es gibt keine Test-Tax-Rate, und die Live-ID steht nicht im Code.
+ * Der Checkout legt die Session dann ohne Steuer an und warnt.
+ */
+export function getStripeTaxRateId(): string {
+  return process.env.STRIPE_TAX_RATE_ID?.trim() ?? "";
+}
+
 export function isStripeSecretConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
 }

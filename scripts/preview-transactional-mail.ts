@@ -465,7 +465,9 @@ assert(
   "Readiness mail must include Checkout upsell",
 );
 assert(
-  readiness.html.includes("Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo"),
+  readiness.html.includes(
+    "Jetzt Verfahrensdokumentation erstellen — 149 € netto (177,31 € brutto) + 49 €/Mo netto (58,31 € brutto)",
+  ),
   "Readiness mail must use Growth Checkout CTA",
 );
 assert(

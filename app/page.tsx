@@ -26,7 +26,14 @@ import {
   READINESS_EFFORT_NOTE,
   RESULT_PROMISE,
 } from "@/lib/offer-copy";
-import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
+import {
+  MONTHLY_EUR,
+  MONTHLY_GROSS_LABEL,
+  SETUP_EUR,
+  SETUP_GROSS_LABEL,
+  TODAY_EUR,
+  TODAY_GROSS_LABEL,
+} from "@/lib/pricing";
 import { canonicalUrl } from "@/lib/seo";
 import {
   PARTNER_DEMO_PATH,
@@ -286,8 +293,9 @@ export default function HomePage() {
             <li>Liste offener Punkte zum Prüfen und Ergänzen</li>
             <li>Geführter Frageprozess statt leerer Vorlage</li>
             <li>
-              Versionierung und Speicherung über das Abo ({MONTHLY_EUR} € zzgl.
-              USt pro Monat nach dem ersten Monat)
+              Versionierung und Speicherung über das Abo ({MONTHLY_EUR} € netto,{" "}
+              {MONTHLY_GROSS_LABEL} € brutto pro Monat nach dem ersten Monat,
+              inkl. 19 % USt)
             </li>
           </ul>
         </section>
@@ -299,19 +307,29 @@ export default function HomePage() {
               <tbody>
                 <tr>
                   <th scope="row">Einrichtung</th>
-                  <td>{SETUP_EUR}&nbsp;€ zzgl. USt</td>
+                  <td>
+                    {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
+                  </td>
                 </tr>
                 <tr>
                   <th scope="row">Erster Monat</th>
-                  <td>{MONTHLY_EUR}&nbsp;€ zzgl. USt</td>
+                  <td>
+                    {MONTHLY_EUR}&nbsp;€ netto ({MONTHLY_GROSS_LABEL}&nbsp;€
+                    brutto)
+                  </td>
                 </tr>
                 <tr>
                   <th scope="row">Heute fällig</th>
-                  <td>{TODAY_EUR}&nbsp;€ zzgl. USt</td>
+                  <td>
+                    {TODAY_EUR}&nbsp;€ netto ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
+                  </td>
                 </tr>
                 <tr>
                   <th scope="row">Danach</th>
-                  <td>{MONTHLY_EUR}&nbsp;€ zzgl. USt pro Monat</td>
+                  <td>
+                    {MONTHLY_EUR}&nbsp;€ netto ({MONTHLY_GROSS_LABEL}&nbsp;€
+                    brutto) pro Monat
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -320,7 +338,8 @@ export default function HomePage() {
             </p>
             <p className="price-inclusion">
               {PRICE_INCLUSION_LINE} zum Ende des laufenden Abrechnungsmonats.
-              Alle Preise zzgl. USt.
+              Alle Preise netto, zuzüglich 19 % Umsatzsteuer. Die Beträge in
+              Klammern sind brutto.
             </p>
             <p className="prose">{RESULT_PROMISE}</p>
           </div>

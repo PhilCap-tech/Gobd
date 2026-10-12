@@ -21,6 +21,12 @@ import {
 import { isMailConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { findSuccessDocument, listDocumentFamily } from "@/lib/store";
+import {
+  MONTHLY_EUR,
+  MONTHLY_GROSS_LABEL,
+  SETUP_EUR,
+  SETUP_GROSS_LABEL,
+} from "@/lib/pricing";
 import { versionLabelFromRow } from "@/lib/versioning";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +91,12 @@ export default async function SuccessPage({
               {row.company || "Ihr Unternehmen"} — Verfahrensdokumentation als
               PDF plus offene Punkte. Entwurf aus Ihren Angaben — keine
               Freigabe.
+            </p>
+            <p className="hint">
+              Die Rechnung weist die Nettopreise zuzüglich 19&nbsp;% Umsatzsteuer
+              aus: Einrichtung {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}
+              &nbsp;€ brutto), danach {MONTHLY_EUR}&nbsp;€ netto (
+              {MONTHLY_GROSS_LABEL}&nbsp;€ brutto) pro Monat.
             </p>
             <div className="card">
               <p className="prose">

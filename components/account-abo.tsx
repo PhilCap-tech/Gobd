@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import type { LifecycleNotice } from "@/lib/kuendigung";
-import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
+import {
+  MONTHLY_EUR,
+  MONTHLY_GROSS_LABEL,
+  SETUP_EUR,
+  SETUP_GROSS_LABEL,
+} from "@/lib/pricing";
 import { accountBillingPath } from "@/lib/stripe";
 
-export const ACCOUNT_PAID_CTA_LABEL = `Jetzt Verfahrensdokumentation erstellen — ${SETUP_EUR} € + ${MONTHLY_EUR} €/Mo`;
+export const ACCOUNT_PAID_CTA_LABEL = `Jetzt Verfahrensdokumentation erstellen — ${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Mo netto (${MONTHLY_GROSS_LABEL} € brutto)`;
 
 export function AccountPaidActions() {
   return (
@@ -43,7 +48,8 @@ export function AccountUpgradeCard({
           <p className="prose">
             Der Leitfaden zeigt Lücken. Die bezahlte Version liefert geführtes
             PDF plus Offene-Punkte-Liste und Login zum Nachpflegen ({SETUP_EUR}{" "}
-            € Setup + {MONTHLY_EUR} €/Mo).
+            € netto / {SETUP_GROSS_LABEL} € brutto Einrichtung + {MONTHLY_EUR} €
+            netto / {MONTHLY_GROSS_LABEL} € brutto pro Monat, inkl. 19 % USt).
           </p>
           <div className="price-grid" style={{ marginTop: 16 }}>
             <div>
@@ -67,7 +73,9 @@ export function AccountUpgradeCard({
         <p className="hint">
           <Link href="/checkout">Checkout öffnen</Link>
           {" · "}
-          {SETUP_EUR} € Einrichtung + {MONTHLY_EUR} €/Mo
+          {SETUP_EUR} € netto ({SETUP_GROSS_LABEL} € brutto) Einrichtung +{" "}
+          {MONTHLY_EUR} € netto ({MONTHLY_GROSS_LABEL} € brutto) pro Monat, inkl.
+          19 % USt
         </p>
       ) : (
         <>
@@ -97,8 +105,9 @@ export function AccountAboCard({
         <h2 id="abo-heading">Abo</h2>
         <p className="prose">
           Der Leitfaden bleibt die kostenlose Arbeitshilfe. Die bezahlte Version
-          ist der geführte Entwurf nach Checkout ({SETUP_EUR} € Einrichtung +{" "}
-          {MONTHLY_EUR} €/Mo).
+          ist der geführte Entwurf nach Checkout ({SETUP_EUR} € netto /{" "}
+          {SETUP_GROSS_LABEL} € brutto Einrichtung + {MONTHLY_EUR} € netto /{" "}
+          {MONTHLY_GROSS_LABEL} € brutto pro Monat, inkl. 19 % USt).
         </p>
         <div className="actions">
           <Link className="btn" href="/checkout">

@@ -1,14 +1,21 @@
-import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
+import {
+  MONTHLY_EUR,
+  MONTHLY_GROSS_LABEL,
+  SETUP_EUR,
+  TODAY_EUR,
+  TODAY_GROSS_LABEL,
+  netWithGross,
+} from "@/lib/pricing";
 
 /** Owner Spec 29.09 — same sentence on hero, pricing, and checkout summary. */
 export const RESULT_PROMISE =
   "Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentation als PDF und eine Liste offener Punkte. Sie prüfen und ergänzen die Angaben vor der Verwendung.";
 
-/** Exact price line next to the first paid CTA and the sticky bar. Net, like the AGB. */
-export const PRICE_MICRO = `Heute ${TODAY_EUR} € zzgl. USt (${SETUP_EUR} € Einrichtung + erster Monat), danach ${MONTHLY_EUR} € zzgl. USt pro Monat`;
+/** Exact price line next to the first paid CTA and the sticky bar. Net plus gross at 19 %. */
+export const PRICE_MICRO = `Heute ${netWithGross(TODAY_EUR)} (${SETUP_EUR} € Einrichtung + erster Monat, inkl. 19 % USt), danach ${netWithGross(MONTHLY_EUR)} pro Monat`;
 
 /** Homepage only: one line under the price table. Amounts follow pricing.ts. */
-export const PRICE_FRAME_LINE = `${TODAY_EUR} € zzgl. USt = individuelles PDF + Liste offener Punkte (kein reines Tool-Abo und kein reiner Check) · ${MONTHLY_EUR} € zzgl. USt pro Monat = Versionen und Pflege.`;
+export const PRICE_FRAME_LINE = `${netWithGross(TODAY_EUR)} = individuelles PDF + Liste offener Punkte (kein reines Tool-Abo und kein reiner Check) · ${netWithGross(MONTHLY_EUR)} pro Monat = Versionen und Pflege.`;
 
 /** Homepage hero, directly under the H1. No social-proof counts. */
 export const HERO_OUTCOME_LINE =
@@ -18,8 +25,8 @@ export const HERO_OUTCOME_LINE =
 export const HERO_SCOPE_LINE =
   "Die komplette Verfahrensdokumentation: Belegfluss, Kasse, Warenwirtschaft, Lohn und weitere Bereiche, alles zu einem Preis.";
 
-/** Compact price box on the homepage hero. Amounts follow pricing.ts. Net, like the AGB. */
-export const HERO_PRICE_BOX = `${TODAY_EUR} € zum Start (${SETUP_EUR} € Einrichtung + erster Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt`;
+/** Compact price box on the homepage hero. Amounts follow pricing.ts. Net plus 19 % USt. */
+export const HERO_PRICE_BOX = `${netWithGross(TODAY_EUR)} zum Start (${SETUP_EUR} € Einrichtung + erster Monat, inkl. 19 % USt), danach ${netWithGross(MONTHLY_EUR)} pro Monat`;
 
 /** Homepage: modules in the tool vs chapters in the delivered PDF. */
 export const HERO_FACTS_LINE = "24 Module, im PDF gegliedert in 14 Kapitel";
@@ -35,7 +42,7 @@ export const PRICE_INCLUSION_LINE =
 export const CTA_CHECK_HERO = "Kostenlosen 3-Minuten-Check";
 export const CTA_MUSTER_HERO = "Muster ansehen";
 
-export const PRICE_CTA_SUFFIX = `Heute ${TODAY_EUR} € zzgl. USt, danach ${MONTHLY_EUR} € zzgl. USt pro Monat`;
+export const PRICE_CTA_SUFFIX = `Heute ${netWithGross(TODAY_EUR)}, danach ${netWithGross(MONTHLY_EUR)} pro Monat`;
 
 export const CTA_CREATE = "Dokumentation erstellen";
 export const CTA_CREATE_WITH_PRICE = `${CTA_CREATE} — ${PRICE_CTA_SUFFIX}`;
@@ -129,9 +136,9 @@ export const UPSELL_BULLETS = [
 export const UPSELL_EFFORT_NOTE =
   "Sie können in Etappen arbeiten, der Stand wird gespeichert.";
 
-export const UPSELL_PRICE = `heute ${TODAY_EUR} € zzgl. USt, danach ${MONTHLY_EUR} €/Monat, monatlich kündbar, alle 24 Module inklusive`;
+export const UPSELL_PRICE = `heute ${netWithGross(TODAY_EUR)}, danach ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), monatlich kündbar, alle 24 Module inklusive`;
 
-export const UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € erster Monat`;
+export const UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € netto = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € erster Monat (brutto ${TODAY_GROSS_LABEL} € inkl. 19 % USt)`;
 
 export const UPSELL_CTA = "Eigene Dokumentation erstellen";
 

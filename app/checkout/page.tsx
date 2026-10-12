@@ -8,7 +8,12 @@ import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
 import { ALL_AREAS_LINE, INTAKE_EFFORT_LINE, PRICE_MICRO } from "@/lib/offer-copy";
-import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
+import {
+  MONTHLY_EUR,
+  MONTHLY_GROSS_LABEL,
+  SETUP_EUR,
+  SETUP_GROSS_LABEL,
+} from "@/lib/pricing";
 import { CheckoutForm } from "./checkout-form";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +55,9 @@ export default async function CheckoutPage({
         <p className="lead">
           {partner ? (
             <>
-              Listenpreis: {SETUP_EUR}&nbsp;€ Setup plus {MONTHLY_EUR}&nbsp;€/Monat.
+              Listenpreis: {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}&nbsp;€
+              brutto) Einrichtung plus {MONTHLY_EUR}&nbsp;€ netto (
+              {MONTHLY_GROSS_LABEL}&nbsp;€ brutto) pro Monat, inkl. 19 % USt.
               Den Aktionscode lösen Sie im Checkout ein. Danach der Fragenkatalog.
             </>
           ) : (

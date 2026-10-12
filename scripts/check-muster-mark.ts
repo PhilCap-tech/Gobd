@@ -39,7 +39,14 @@ import {
   UPSELL_PRICE_BREAKDOWN,
   UPSELL_SECTION_2_TEXT,
 } from "../lib/offer-copy";
-import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "../lib/pricing";
+import {
+  MONTHLY_EUR,
+  MONTHLY_GROSS_LABEL,
+  SETUP_EUR,
+  TODAY_EUR,
+  TODAY_GROSS_LABEL,
+  netWithGross,
+} from "../lib/pricing";
 import {
   PARTNER_MUSTER_ANSWERS,
   PARTNER_MUSTER_DOCUMENT_ID,
@@ -169,8 +176,8 @@ function joined(pages: string[]): string {
   return pages.join("\n");
 }
 
-const EXPECTED_PRICE = `heute ${TODAY_EUR} € zzgl. USt, danach ${MONTHLY_EUR} €/Monat, monatlich kündbar, alle 24 Module inklusive`;
-const EXPECTED_BREAKDOWN = `${TODAY_EUR} € = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € erster Monat`;
+const EXPECTED_PRICE = `heute ${netWithGross(TODAY_EUR)}, danach ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), monatlich kündbar, alle 24 Module inklusive`;
+const EXPECTED_BREAKDOWN = `${TODAY_EUR} € netto = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € erster Monat (brutto ${TODAY_GROSS_LABEL} € inkl. 19 % USt)`;
 
 expect(UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording");
 expect(PDF_UPSELL_PRICE === UPSELL_PRICE, "PDF price line is the web price line");

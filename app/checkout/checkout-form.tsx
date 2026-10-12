@@ -6,7 +6,14 @@ import { checkoutEntityIdForEmail } from "@/lib/checkout-entity";
 import { PilotKlartextSentence } from "@/components/pilot-klartext";
 import type { EntityChoice } from "@/lib/entities";
 import { RESULT_PROMISE } from "@/lib/offer-copy";
-import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
+import {
+  MONTHLY_EUR,
+  MONTHLY_GROSS_LABEL,
+  SETUP_EUR,
+  SETUP_GROSS_LABEL,
+  TODAY_EUR,
+  TODAY_GROSS_LABEL,
+} from "@/lib/pricing";
 
 type CheckoutAudience = "kunde" | "steuerberater";
 
@@ -228,28 +235,37 @@ export function CheckoutForm({
         <h2>Bestellübersicht</h2>
         {partner && (
           <p className="hint">
-            Der Betrag „Heute fällig“ ist der Listenpreis. Den Code lösen Sie
-            erst im Stripe-Checkout ein. Ohne Code bleibt das Setup {SETUP_EUR}
-            &nbsp;€ einmalig.
+            Der Betrag „Heute fällig“ ist der Listenpreis netto. Den Code lösen
+            Sie erst im Stripe-Checkout ein. Ohne Code bleibt die Einrichtung{" "}
+            {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
+            einmalig.
           </p>
         )}
         {partner ? (
           <>
             <div className="line">
               <span>Setup GoBD Verfahrensdoku</span>
-              <strong>{SETUP_EUR}&nbsp;€ zzgl. USt</strong>
+              <strong>
+                {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
+              </strong>
             </div>
             <div className="line">
               <span>Monatliche Betreuung</span>
-              <strong>{MONTHLY_EUR}&nbsp;€ zzgl. USt / Monat</strong>
+              <strong>
+                {MONTHLY_EUR}&nbsp;€ netto ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto)
+                / Monat
+              </strong>
             </div>
             <div className="total">
               <span>Heute fällig</span>
-              <span>{TODAY_EUR}&nbsp;€ zzgl. USt</span>
+              <span>
+                {TODAY_EUR}&nbsp;€ netto ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
+              </span>
             </div>
             <p className="hint">
               Mit Code: Setup und die ersten zwei Monate 0&nbsp;€. Danach{" "}
-              {MONTHLY_EUR}&nbsp;€ zzgl. USt pro Monat, wenn Sie nicht kündigen.
+              {MONTHLY_EUR}&nbsp;€ netto ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto)
+              pro Monat, wenn Sie nicht kündigen.
             </p>
             <p className="disclaimer" role="note">
               Kein Steuerberatungsersatz. Die erzeugte Dokumentation ist ein
@@ -261,23 +277,34 @@ export function CheckoutForm({
           <>
             <div className="line">
               <span>Einrichtung</span>
-              <strong>{SETUP_EUR}&nbsp;€ zzgl. USt</strong>
+              <strong>
+                {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
+              </strong>
             </div>
             <div className="line">
               <span>Erster Monat</span>
-              <strong>{MONTHLY_EUR}&nbsp;€ zzgl. USt</strong>
+              <strong>
+                {MONTHLY_EUR}&nbsp;€ netto ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto)
+              </strong>
             </div>
             <div className="total">
               <span>Heute fällig</span>
-              <span>{TODAY_EUR}&nbsp;€ zzgl. USt</span>
+              <span>
+                {TODAY_EUR}&nbsp;€ netto ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
+              </span>
             </div>
             <p className="hint">
-              Danach {MONTHLY_EUR}&nbsp;€ zzgl. USt pro Monat, jederzeit zum
-              Monatsende kündbar.
+              Danach {MONTHLY_EUR}&nbsp;€ netto ({MONTHLY_GROSS_LABEL}&nbsp;€
+              brutto) pro Monat, jederzeit zum Monatsende kündbar.
             </p>
             <p className="prose">{RESULT_PROMISE}</p>
           </>
         )}
+        <p className="hint">
+          Inland (Deutschland): 19&nbsp;% Umsatzsteuer auf die Nettopreise. Eine
+          Umkehr der Steuerschuldnerschaft (Reverse Charge) bieten wir derzeit
+          nicht an.
+        </p>
       </aside>
     </div>
   );

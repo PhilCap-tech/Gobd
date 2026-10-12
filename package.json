@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:session-privacy && npm run check:draft-return && npm run check:onboarding-mail && npm run check:account-tiles && npm run check:account-prefill && npm run check:account-render && npm run check:buyer-onboarding && npm run check:checkout-owner && npm run check:document-lookup && npm run check:kuendigung",
+    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:session-privacy && npm run check:draft-return && npm run check:onboarding-mail && npm run check:account-tiles && npm run check:account-prefill && npm run check:account-render && npm run check:buyer-onboarding && npm run check:checkout-owner && npm run check:document-lookup && npm run check:kuendigung && npm run check:checkout-tax",
+    "check:checkout-tax": "tsx scripts/check-checkout-tax.ts",
     "check:checkout-owner": "tsx scripts/check-checkout-owner.ts",
     "check:document-lookup": "tsx scripts/check-document-lookup.ts",
     "check:kuendigung": "tsx scripts/check-kuendigung.ts",
