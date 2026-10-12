@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 05.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 12.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -73,13 +73,15 @@ Bei der Bestellung leiten wir Sie auf die Stripe-Seite weiter. Dort geben Sie Ih
 
 Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO und Art. 6 Abs. 1 lit. c DSGVO. Stripe verarbeitet Daten teilweise auch als eigener Verantwortlicher (z. B. Betrugsprävention); siehe https://stripe.com/de/privacy. Für Übermittlungen in die USA gelten Standardvertragsklauseln oder ein Angemessenheitsbeschluss, sofern Stripe danach zertifiziert ist.
 
-## 11. Google Ads Conversion-Messung und Google Analytics 4
+## 11. Google Ads Conversion-Tracking und Google Analytics 4
 
-Wenn Sie im Cookie-Banner „Marketing erlauben“ wählen, laden wir das Google-Tag der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Im ausgelieferten Client sind die Mess-IDs Google Ads AW-586367190 und Google Analytics 4 G-RJ4KLBP1SF hinterlegt. Zwecke sind die Messung der Wirksamkeit unserer Anzeigen und die statistische Auswertung der Nutzung unserer Website. Dabei werden Cookies bzw. ähnliche Technologien gesetzt und Daten (u. a. IP-Adresse, Geräte- und Browserinformationen, aufgerufene Seiten) an Google übermittelt; sie können an Konzerngesellschaften von Google in den USA übermittelt werden. Eine Conversion messen wir nur für den Abschluss des kostenlosen Checks, und nur wenn dafür ein Conversion-Label konfiguriert ist. Bestellabschlüsse (Purchase, Checkout) übermitteln wir nicht.
+Wir nutzen das Google-Tag der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland („Google“), für das Conversion-Tracking von Google Ads (Konto-ID AW-586367190) und für Google Analytics 4 (Mess-ID G-RJ4KLBP1SF). Dabei setzen wir den Google Consent Mode v2 ein. Das Google-Tag wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Ohne Ihre Einwilligung werden keine Daten an Google übermittelt.
 
-Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Für die Übermittlung in die USA stützen wir uns auf Standardvertragsklauseln oder auf einen Angemessenheitsbeschluss, sofern Google danach zertifiziert ist. Die Aufbewahrungsdauer in GA4 steht im GA4-Konto und ist in dieser Anwendung nicht hinterlegt.
+Zwecke sind die Messung, ob eine Anzeige zu einem Kaufabschluss geführt hat, sowie die statistische Auswertung der Nutzung unserer Website. Nach einem erfolgreichen Kauf übermitteln wir an Google Ads eine Conversion mit dem Bestellwert und der Stripe-Checkout-Session-ID als Transaktions-ID. Die Transaktions-ID dient dazu, doppelte Zählungen zu vermeiden. Zahlungsdaten wie Kartennummern übermitteln wir nicht. Außerdem werden Cookies bzw. ähnliche Technologien gesetzt und Daten wie IP-Adresse, Geräte- und Browserinformationen, aufgerufene Seiten und Klicks auf Anzeigen an Google übermittelt. Weitere Conversions (z. B. für den kostenlosen Check) melden wir nicht. Enhanced Conversions (Übermittlung gehashter E-Mail-Adressen o. Ä.) nutzen wir nicht. Diese Daten können an Konzerngesellschaften von Google in den USA übermittelt werden.
 
-Sie können Ihre Einwilligung jederzeit über „Cookie-Einstellungen“ im Seitenfuß widerrufen. Weitere Informationen: https://policies.google.com/privacy
+Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Für die Übermittlung in die USA stützen wir uns auf Standardvertragsklauseln oder auf einen Angemessenheitsbeschluss, sofern Google danach zertifiziert ist. Die Aufbewahrungsdauer in GA4 richtet sich nach der Einstellung im GA4-Konto; eingestellt sind 14 Monate.
+
+Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft über „Cookie-Einstellungen“ im Seitenfuß widerrufen. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt unberührt. Weitere Informationen: https://policies.google.com/privacy
 
 ## 12. Meta Pixel
 
@@ -141,4 +143,4 @@ Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von 
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 
-**Stand:** 05.10.2026
+**Stand:** 12.10.2026

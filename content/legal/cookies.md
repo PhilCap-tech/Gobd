@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 02.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 12.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -20,7 +20,7 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. f bzw. lit. b DSGVO und § 25 Abs. 2 Nr. 2 T
 
 Marketing-Dienste von Google und Meta laden wir erst, nachdem Sie im Cookie-Banner Marketing erlauben. Dabei können Daten an Google bzw. Meta und in Drittländer (insbesondere die USA) übermittelt werden. Einzelheiten finden Sie in unserer Datenschutzerklärung. Ihre Einwilligung können Sie jederzeit über „Cookie-Einstellungen“ im Seitenfuß widerrufen.
 
-Nach Ihrer Einwilligung messen wir mit dem Google-Tag, ob eine Anzeige zu einer Bestellung geführt hat (Google Ads Conversion-Messung), und werten die Nutzung der Website statistisch aus (Google Analytics 4). Ohne Einwilligung findet keine Übertragung an Google statt.
+Wir setzen den Google Consent Mode v2 ein. Das Google-Tag wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Danach messen wir, ob eine Anzeige zu einem Kauf geführt hat (Google Ads Conversion-Tracking, AW-586367190). Dazu übermitteln wir nach einem erfolgreichen Kauf den Bestellwert und die Stripe-Checkout-Session-ID als Transaktions-ID an Google. Zahlungsdaten übermitteln wir nicht. Außerdem werten wir die Nutzung der Website statistisch aus (Google Analytics 4, Aufbewahrung 14 Monate). Ohne Einwilligung findet keine Übertragung an Google statt. Ihre Einwilligung können Sie jederzeit über „Cookie-Einstellungen“ im Seitenfuß widerrufen.
 
 ## Stripe Checkout
 
@@ -44,7 +44,7 @@ Kampagnenparameter in der Adresse (UTM) speichern wir beim ersten Seitenaufruf i
 | Stripe-Cookies bzw. -Speicher (z. B. `__stripe_mid`, `__stripe_sid`) | Stripe Payments Europe, Ltd. | Zahlungsabwicklung, Betrugsprävention; gesetzt auf der Domain von Stripe, nicht auf unserer Website | Essenziell für die Zahlung | typischerweise etwa 1 Jahr (`__stripe_mid`) bzw. 30 Minuten (`__stripe_sid`); genaue Laufzeit im Browser beim Checkout sichtbar |
 | `_ga` | Google Ireland Ltd. | GA4: Unterscheidung von Besuchern | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
 | `_ga_RJ4KLBP1SF` | Google Ireland Ltd. | GA4: Sitzungsstatus zur Mess-ID G-RJ4KLBP1SF | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
-| `_gcl_au` | Google Ireland Ltd. | Google Ads: Conversion-Zuordnung (Ads-ID AW-586367190) | Marketing (nur nach Einwilligung) | typischerweise 90 Tage; genaue Laufzeit im Browser nach Einwilligung sichtbar |
+| `_gcl_au` | Google Ireland Ltd. | Google Ads: Zuordnung von Kaufabschlüssen zu Anzeigen (Ads-ID AW-586367190) | Marketing (nur nach Einwilligung) | typischerweise 90 Tage; genaue Laufzeit im Browser nach Einwilligung sichtbar |
 | `_fbp` | Meta Platforms Ireland Ltd. | Meta Pixel: Browser-Kennung für Werbemessung, nur wenn eine Pixel-ID konfiguriert ist | Marketing (nur nach Einwilligung) | typischerweise 90 Tage; genaue Laufzeit im Browser nach Einwilligung sichtbar |
 
 ## Verwaltung / Ablehnung
@@ -57,4 +57,4 @@ Ausführliche Informationen: **Datenschutzerklärung**.
 Verantwortlicher: IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein  
 Kontakt: **info@gobd-doku-erstellen.de**
 
-**Stand:** 02.10.2026
+**Stand:** 12.10.2026
