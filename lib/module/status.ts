@@ -11,7 +11,7 @@ import type {
   ModulZustand,
   Stammdaten,
 } from "@/lib/module/typen";
-import { CHECK_KEYS } from "@/lib/module/typen";
+import { CHECK_KEYS, MODUL_STATUSES } from "@/lib/module/typen";
 
 export const CHECK_FRAGEN: Array<{ key: CheckKey; label: string; hilfe: string }> = [
   { key: "bargeld", label: "Bargeld oder Kasse", hilfe: "Elektronische Kasse, POS oder offene Ladenkasse." },
@@ -147,8 +147,34 @@ export function isGesamt(answers: IntakeAnswers | null | undefined): boolean {
   return Boolean(answers?.module);
 }
 
-export function modulZustand(answers: IntakeAnswers): ModulZustand {
-  return answers.module ?? emptyModulZustand();
+const MODUL_STATUS_VALUES = new Set<ModulStatus>(MODUL_STATUSES);
+
+function modulStatusMap(value: unknown): Record<string, ModulEintrag> {
+  if (!value || typeof value !== "object") return {};
+  const out: Record<string, ModulEintrag> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (!entry || typeof entry !== "object") continue;
+    const raw = entry as ModulEintrag;
+    if (!MODUL_STATUS_VALUES.has(raw.status)) continue;
+    out[key] = {
+      ...raw,
+      uploadAt: typeof raw.uploadAt === "string" ? raw.uploadAt : undefined,
+    };
+  }
+  return out;
+}
+
+export function modulZustand(answers: IntakeAnswers | null | undefined): ModulZustand {
+  const raw = answers?.module;
+  if (!raw || typeof raw !== "object") return emptyModulZustand();
+  const check =
+    raw.check && typeof raw.check === "object" ? raw.check : emptyModulZustand().check;
+  return {
+    ...emptyModulZustand(),
+    ...raw,
+    check,
+    status: modulStatusMap(raw.status),
+  };
 }
 
 const AUTO_REASON: Partial<Record<CheckKey, string>> = {
@@ -429,7 +455,11 @@ export function vollstaendigkeitsZeilen(answers: IntakeAnswers): Array<{
             eintrag.ref,
             eintrag.link,
             eintrag.uploadName
-              ? `Datei: ${eintrag.uploadName}${eintrag.uploadAt ? ` (${eintrag.uploadAt.slice(0, 10)})` : ""}`
+              ? `Datei: ${eintrag.uploadName}${
+                  typeof eintrag.uploadAt === "string" && eintrag.uploadAt
+                    ? ` (${eintrag.uploadAt.slice(0, 10)})`
+                    : ""
+                }`
               : "",
           ]
             .filter(Boolean)

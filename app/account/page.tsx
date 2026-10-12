@@ -46,11 +46,29 @@ export default async function AccountPage({
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
-  const { entities, documents: docs, profile } = await prepareAccountCheckout(email);
-  const hub = accountCompanyCards(entities, docs, await listOpenDraftsForEmail(email));
-  const groups = hub.groups;
-  const openDrafts = hub.openDrafts;
-  const customerId = await findLatestStripeCustomerIdByEmail(email);
+  let entities: Awaited<ReturnType<typeof prepareAccountCheckout>>["entities"] = [];
+  let docs: Awaited<ReturnType<typeof prepareAccountCheckout>>["documents"] = [];
+  let profile: Awaited<ReturnType<typeof prepareAccountCheckout>>["profile"] = null;
+  let groups: ReturnType<typeof accountCompanyCards>["groups"] = [];
+  let openDrafts: ReturnType<typeof accountCompanyCards>["openDrafts"] = [];
+  let customerId = "";
+  let loadFailed = false;
+  try {
+    const prepared = await prepareAccountCheckout(email);
+    entities = prepared.entities;
+    docs = prepared.documents;
+    profile = prepared.profile;
+    const hub = accountCompanyCards(entities, docs, await listOpenDraftsForEmail(email));
+    groups = hub.groups;
+    openDrafts = hub.openDrafts;
+    customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
+  } catch (error) {
+    loadFailed = true;
+    console.error(
+      "[account] Konto nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
+  }
   const stripeBound =
     Boolean(customerId) ||
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId);
@@ -101,7 +119,13 @@ export default async function AccountPage({
         )}
 
         <div className="account-companies" id="firmen">
-          {entities.length === 0 && docs.length === 0 ? (
+          {loadFailed ? (
+            <div className="card">
+              <p className="prose">
+                Ihre Firmen konnten gerade nicht geladen werden. Bitte laden Sie die Seite neu.
+              </p>
+            </div>
+          ) : entities.length === 0 && docs.length === 0 ? (
             <div className="card">
               <p className="prose">
                 Zu dieser E-Mail liegt noch keine Firma vor.

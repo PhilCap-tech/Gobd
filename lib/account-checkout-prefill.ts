@@ -123,7 +123,7 @@ export function mergeCheckoutIntoFirstCompany(
 
   const untouched =
     Boolean(entity.createdAt) && entity.createdAt === entity.updatedAt;
-  let name = entity.name;
+  let name = typeof entity.name === "string" ? entity.name : "";
   let review = false;
   if (!name.trim() && facts.companyName) {
     name = facts.companyName;
@@ -138,8 +138,9 @@ export function mergeCheckoutIntoFirstCompany(
     review = true;
   }
 
-  const fill = (current: string, incoming: string) => {
-    if (current.trim() || !incoming.trim()) return current;
+  const fill = (current: unknown, incoming: string) => {
+    const text = typeof current === "string" ? current : "";
+    if (text.trim() || !incoming.trim()) return text;
     review = true;
     return incoming.trim();
   };
@@ -149,7 +150,7 @@ export function mergeCheckoutIntoFirstCompany(
     street: fill(entity.street, facts.street),
     zip: fill(entity.zip, facts.zip),
     city: fill(entity.city, facts.city),
-    stnr: entity.stnr,
+    stnr: typeof entity.stnr === "string" ? entity.stnr : "",
     ustId: fill(entity.ustId, facts.ustId),
   };
   return { review, input };

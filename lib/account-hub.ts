@@ -16,17 +16,21 @@ export type AccountHub = {
   openDrafts: IntakeDraft[];
 };
 
-function normName(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
+function normName(value: unknown): string {
+  return textId(value).toLowerCase().replace(/\s+/g, " ");
 }
 
-function knownEntity(entities: readonly Entity[], entityId: string): Entity | null {
-  const id = entityId.trim();
+function textId(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function knownEntity(entities: readonly Entity[], entityId: unknown): Entity | null {
+  const id = textId(entityId);
   if (!id) return null;
   return entities.find((entity) => entity.entityId === id) ?? null;
 }
 
-function uniqueEntityByName(entities: readonly Entity[], name: string): Entity | null {
+function uniqueEntityByName(entities: readonly Entity[], name: unknown): Entity | null {
   const key = normName(name);
   if (!key) return null;
   const matches = entities.filter((entity) => normName(entity.name) === key);
@@ -49,14 +53,14 @@ function entityForFamily(
     if (found) return found;
   }
   const documentIds = new Set(
-    family.versions.map((row) => row.documentId.trim()).filter(Boolean),
+    family.versions.map((row) => textId(row.documentId)).filter(Boolean),
   );
   const sessionIds = new Set(
-    family.versions.map((row) => row.stripeSessionId.trim()).filter(Boolean),
+    family.versions.map((row) => textId(row.stripeSessionId)).filter(Boolean),
   );
   for (const draft of drafts) {
-    const documentId = draft.documentId.trim();
-    const sessionId = draft.stripeSessionId.trim();
+    const documentId = textId(draft.documentId);
+    const sessionId = textId(draft.stripeSessionId);
     const related =
       (documentId && documentIds.has(documentId)) || (sessionId && sessionIds.has(sessionId));
     if (!related) continue;

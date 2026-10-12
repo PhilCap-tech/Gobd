@@ -28,7 +28,15 @@ export default async function NewFirmaPage() {
     redirect(loginPath("/account/firma/neu"));
   }
 
-  const entities = await listEntitiesByEmail(email);
+  let entities: Awaited<ReturnType<typeof listEntitiesByEmail>> = [];
+  try {
+    entities = await listEntitiesByEmail(email);
+  } catch (error) {
+    console.error(
+      "[account] Firmen nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
+  }
   const atCap = entityCapReached(entities.length);
   let formDefaults: ReturnType<typeof firstCompanyFormDefaults> = { showNote: false };
   if (!atCap && entities.length === 0) {

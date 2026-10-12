@@ -4,11 +4,11 @@ import {
   isProductionRuntime,
   isStripeSecretConfigured,
 } from "@/lib/env";
+import { deliverBuyerOnboarding } from "@/lib/buyer-onboarding";
 import {
   checkoutContactFromCustomerDetails,
   handleFailedJob,
   handleFailedPayment,
-  triggerOnboardingMail,
 } from "@/lib/ops";
 import { appendRecord, findRowByStripeSessionId } from "@/lib/store";
 import {
@@ -89,6 +89,7 @@ export async function POST(request: Request) {
         }
 
         const existing = await findRowByStripeSessionId(session.id);
+        const buyerEmail = (email || existing?.email || "").trim();
         if (existing) {
           console.info(
             "[webhook] checkout.session.completed bereits verarbeitet",
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
             await appendRecord(
               toSheetRow({
                 identity: {
-                  email: email || existing.email,
+                  email: buyerEmail || existing.email,
                   company: company || existing.company,
                   stripeSessionId: session.id,
                   stripeCustomerId: customerId,
@@ -109,33 +110,35 @@ export async function POST(request: Request) {
               }),
             );
           }
-          break;
+        } else {
+          await appendRecord(
+            toSheetRow({
+              identity: {
+                email: buyerEmail,
+                company,
+                stripeSessionId: session.id,
+                stripeCustomerId: customerId,
+                stub: false,
+              },
+              status: "paid",
+              deliveryStatus: "",
+            }),
+          );
         }
 
-        await appendRecord(
-          toSheetRow({
-            identity: {
-              email,
-              company,
-              stripeSessionId: session.id,
-              stripeCustomerId: customerId,
-              stub: false,
-            },
-            status: "paid",
-            deliveryStatus: "",
-          }),
-        );
-
         const stripeContact = checkoutContactFromCustomerDetails(session.customer_details);
-        await triggerOnboardingMail({
-          email,
-          company,
+        const mailed = await deliverBuyerOnboarding({
+          email: buyerEmail,
+          company: company || existing?.company || "",
           sessionId: session.id,
           checkoutNames: stripeContact.checkoutNames,
           extraCompanyNames: stripeContact.extraCompanyNames,
           audience:
             session.metadata?.audience === "steuerberater" ? "steuerberater" : "kunde",
         });
+        if (mailed === "failed") {
+          throw new Error("Onboarding-Mail nicht gesendet");
+        }
         break;
       }
       case "invoice.payment_failed": {

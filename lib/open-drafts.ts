@@ -124,8 +124,10 @@ async function writeIndex(email: string, index: DraftIndex): Promise<void> {
   await writeFile(file, body, "utf8");
 }
 
-export function openDraftCompany(draft: Pick<IntakeDraft, "answers">): string {
-  const value = draft.answers.katalog?.A01?.values?.company;
+export function openDraftCompany(
+  draft: Pick<IntakeDraft, "answers"> | null | undefined,
+): string {
+  const value = draft?.answers?.katalog?.A01?.values?.company;
   return typeof value === "string" ? value.trim() : "";
 }
 
@@ -137,18 +139,22 @@ export function openDraftIsBereich(draft: Pick<IntakeDraft, "draftKey">): boolea
   return draft.draftKey.endsWith(":bereich");
 }
 
+function draftText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export function openDraftContinuePath(
   draft: Pick<IntakeDraft, "documentId" | "stripeSessionId" | "entityId">,
 ): string {
-  const documentId = draft.documentId.trim();
-  const sessionId = draft.stripeSessionId.trim();
+  const documentId = draftText(draft.documentId);
+  const sessionId = draftText(draft.stripeSessionId);
   if (documentId) {
     const params = new URLSearchParams({ document_id: documentId });
     if (sessionId) params.set("session_id", sessionId);
     return `/intake?${params.toString()}`;
   }
   if (sessionId) return `/intake?session_id=${encodeURIComponent(sessionId)}`;
-  const entityId = draft.entityId.trim();
+  const entityId = draftText(draft.entityId);
   if (entityId) return `/intake?entity_id=${encodeURIComponent(entityId)}`;
   return "/intake";
 }
@@ -157,13 +163,13 @@ export function isUndeliveredDraft(
   draft: Pick<IntakeDraft, "documentId" | "stripeSessionId">,
   delivered: readonly { documentId?: string; stripeSessionId?: string }[],
 ): boolean {
-  const documentId = draft.documentId.trim();
-  const sessionId = draft.stripeSessionId.trim();
+  const documentId = draftText(draft.documentId);
+  const sessionId = draftText(draft.stripeSessionId);
   return !delivered.some((row) => {
-    const rowDocument = row.documentId?.trim() ?? "";
+    const rowDocument = draftText(row.documentId);
     if (!rowDocument) return false;
     if (documentId && rowDocument === documentId) return true;
-    return Boolean(sessionId) && (row.stripeSessionId?.trim() ?? "") === sessionId;
+    return Boolean(sessionId) && draftText(row.stripeSessionId) === sessionId;
   });
 }
 
