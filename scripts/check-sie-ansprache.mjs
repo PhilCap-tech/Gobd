@@ -27,6 +27,7 @@ const COVERED = [
   "lib/ops.ts",
   "app/account/**/*.{ts,tsx}",
   "app/login/**/*.{ts,tsx}",
+  "app/auth/**/*.{ts,tsx}",
   "app/intake/**/*.{ts,tsx}",
   "app/success/**/*.{ts,tsx}",
   "app/billing/**/*.{ts,tsx}",

@@ -15,7 +15,7 @@ import {
 } from "@/lib/document-content";
 import { applyEntityToIdentity } from "@/lib/entities";
 import { getAppUrl } from "@/lib/env";
-import { sendDeliveryMail, sendReferralAfterDeliveryMail } from "@/lib/ops";
+import { sendDeliveryMail } from "@/lib/ops";
 import {
   appendRecord,
   getOwnedEntity,
@@ -229,17 +229,6 @@ async function handleDocumentEdit(request: Request) {
     });
   } catch (error) {
     console.error("[document] delivery mail fehlgeschlagen", error);
-  }
-
-  try {
-    await sendReferralAfterDeliveryMail({
-      email: identity.email,
-      company: identity.company,
-      documentId,
-      sessionId: identity.stripeSessionId,
-    });
-  } catch (error) {
-    console.error("[document] referral mail fehlgeschlagen", error);
   }
 
   return NextResponse.json({

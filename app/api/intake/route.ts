@@ -24,7 +24,7 @@ import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { getAppUrl } from "@/lib/env";
 import { deliverLoginLink } from "@/lib/login-mail";
 import { normalizeIntakeAnswers } from "@/lib/intake-present";
-import { sendDeliveryMail, sendReferralAfterDeliveryMail } from "@/lib/ops";
+import { sendDeliveryMail } from "@/lib/ops";
 import { intakeEntityBinding } from "@/lib/session-issue";
 import {
   authorizeDeliveredWrite,
@@ -132,7 +132,6 @@ export type IntakeIo = {
   generatePdf: typeof generatePdf;
   storePdf: typeof storePdf;
   sendDeliveryMail: typeof sendDeliveryMail;
-  sendReferralAfterDeliveryMail: typeof sendReferralAfterDeliveryMail;
   deliverLoginLink: typeof deliverLoginLink;
 };
 
@@ -149,7 +148,6 @@ const defaultIntakeIo: IntakeIo = {
   generatePdf,
   storePdf,
   sendDeliveryMail,
-  sendReferralAfterDeliveryMail,
   deliverLoginLink,
 };
 
@@ -470,17 +468,6 @@ async function writeIntake(
     });
   } catch (error) {
     console.error("[intake] delivery mail fehlgeschlagen", error);
-  }
-
-  try {
-    await io.sendReferralAfterDeliveryMail({
-      email: identity.email,
-      company: identity.company,
-      documentId,
-      sessionId: identity.stripeSessionId,
-    });
-  } catch (error) {
-    console.error("[intake] referral mail fehlgeschlagen", error);
   }
 
   const loginMail = identity.email

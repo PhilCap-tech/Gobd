@@ -147,11 +147,6 @@ function intakeIo(store: Memory, pdfCalls: { n: number }, prepares?: { n: number
       sent: false,
       action: "delivery",
     }),
-    sendReferralAfterDeliveryMail: async () => ({
-      stub: true,
-      sent: false,
-      action: "referral_after_delivery",
-    }),
     deliverLoginLink: async () => "stub",
   };
 }
