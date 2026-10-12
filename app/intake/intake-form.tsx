@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
 import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
+import { IntakeStepHeading, useIntakeStepFocus } from "@/components/intake-step-heading";
 import {
   VersionChangeFields,
   type VersionChangeDraft,
@@ -167,6 +168,7 @@ export function IntakeForm({
       focusModulId,
     ),
   );
+  useIntakeStepFocus(step);
   const [entityId, setEntityId] = useState(initialEntityId);
   const [answers, setAnswers] = useState<IntakeAnswers>(() =>
     startAnswers(initialAnswers, session.company, gesamtMode, facts),
@@ -737,7 +739,7 @@ export function IntakeForm({
       {step === INTAKE_STEPS.length && (
         <section>
           <p className="step-label">{INTAKE_REVIEW.stepLabel}</p>
-          <h1>{INTAKE_REVIEW.title}</h1>
+          <IntakeStepHeading>{INTAKE_REVIEW.title}</IntakeStepHeading>
           <div className="card">
             <dl className="summary">
               {summary.map(([label, value]) => (

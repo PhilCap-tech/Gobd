@@ -1684,6 +1684,67 @@ function isProtected(protect: Array<[string, string]> | undefined, id: string, k
   return Boolean(protect?.some(([pid, pkey]) => pid === id && pkey === key));
 }
 
+/** Name fields copied from „Namen der Verantwortlichen“. */
+const NAME_PREFILL_FIELDS = new Set(["A01.gf", "F01.buchhaltung", "B01.it", "F05.kanzleiName"]);
+
+const ROLE_LABELS = ["Geschäftsleitung", "Buchhaltung", "IT", "Steuerkanzlei"];
+
+/**
+ * A one- or two-character strict prefix is the frozen first keystroke of an
+ * automatic name prefill. A longer prefix, or any other text, is user input.
+ */
+function isKeystrokeArtifact(stored: string, source: string): boolean {
+  const current = stored.trim();
+  const full = source.trim();
+  if (!current || !full || current === full) return false;
+  if (!full.startsWith(current)) return false;
+  const length = Array.from(current).length;
+  return length >= 1 && length <= 2;
+}
+
+function namePrefillField(id: string, key: string): boolean {
+  return NAME_PREFILL_FIELDS.has(`${id}.${key}`) || (id === "UO03" && key === "zustaendigkeiten");
+}
+
+function parseRoleBlock(text: string): Map<string, string> | null {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return null;
+  const map = new Map<string, string>();
+  for (const line of lines) {
+    const splitAt = line.indexOf(": ");
+    if (splitAt <= 0) return null;
+    const label = line.slice(0, splitAt);
+    if (!ROLE_LABELS.includes(label) || map.has(label)) return null;
+    map.set(label, line.slice(splitAt + 2).trim());
+  }
+  return map;
+}
+
+/** The Zuständigkeiten block is an artifact only when every differing line is one. */
+function roleTextIsArtifact(stored: string, source: string): boolean {
+  const current = parseRoleBlock(stored);
+  const next = parseRoleBlock(source);
+  if (!current || !next) return false;
+  let artifact = false;
+  for (const [label, value] of current) {
+    const full = next.get(label);
+    if (full == null) return false;
+    if (value === full) continue;
+    if (!isKeystrokeArtifact(value, full)) return false;
+    artifact = true;
+  }
+  return artifact;
+}
+
+function storedIsNameArtifact(id: string, key: string, stored: string, source: string): boolean {
+  if (id === "UO03" && key === "zustaendigkeiten") return roleTextIsArtifact(stored, source);
+  if (!NAME_PREFILL_FIELDS.has(`${id}.${key}`)) return false;
+  return isKeystrokeArtifact(stored, source);
+}
+
 function fillText(
   katalog: CatalogState,
   id: string,
@@ -1693,14 +1754,21 @@ function fillText(
   previous?: string,
 ): void {
   const trimmed = value?.trim() ?? "";
-  if (!trimmed || PREFILL_SKIP_KEYS.has(key) || isProtected(protect, id, key)) return;
+  if (!trimmed || PREFILL_SKIP_KEYS.has(key)) return;
+  const protectedField = isProtected(protect, id, key);
   const entry = katalog[id] ?? {};
   const values = { ...(entry.values ?? {}) };
   const current = values[key];
-  if (!valueEmpty(current)) {
+  // The field the user is editing right now stays, including a first letter.
+  if (protectedField && !valueEmpty(current)) return;
+  // Clearing a name lets the Verantwortliche source fill it again. Other fields stay empty.
+  if (protectedField && !namePrefillField(id, key)) return;
+  if (!protectedField && !valueEmpty(current)) {
     const prior = previous?.trim() ?? "";
-    // Still the last automatic value: the user has not edited this field.
-    if (!prior || asText(current) !== prior) return;
+    const stored = asText(current);
+    if (stored === trimmed) return;
+    const followsPrevious = Boolean(prior) && stored === prior;
+    if (!followsPrevious && !storedIsNameArtifact(id, key, stored, trimmed)) return;
   }
   if (asText(current) === trimmed) return;
   values[key] = trimmed;
@@ -1775,10 +1843,12 @@ function verantwortlicheRoleText(answers: IntakeAnswers): string {
 
 /**
  * Copy facts the user already gave into catalog fields that are still empty.
- * A field that still holds the previous automatic value counts as untouched
- * and follows the source, so typing a name does not freeze the first character.
- * A different stored value stays. Never sets a process status, a date, or the
- * no-backdating confirmation.
+ * A field that still holds the previous automatic value follows the source,
+ * so typing a name does not freeze the first character. A stored name of one
+ * or two characters that is a strict prefix of the current Verantwortliche
+ * name is that same freeze and is replaced. Clearing such a name field allows
+ * the prefill again. Any other stored value stays. Never sets a process
+ * status, a date, or the no-backdating confirmation.
  */
 export function prefillKnownFacts(
   answers: IntakeAnswers,

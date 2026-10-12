@@ -20,6 +20,7 @@ import {
   type FirmFacts,
 } from "@/lib/intake-catalog";
 import { BetriebsCheckStep, ModulUebersichtStep } from "@/components/betriebs-check";
+import { IntakeStepHeading } from "@/components/intake-step-heading";
 import { P1_QUESTION_IDS, P1QuestionFields, ProcessStatus } from "@/components/intake-p1-fields";
 import {
   activityFollowupsFor,
@@ -497,7 +498,7 @@ export function IntakeQuestionnaire({
       <p className="step-label">
         Schritt {position.index + 1} von {position.total}
       </p>
-      <h1>{catalogStepTitle(step, answers)}</h1>
+      <IntakeStepHeading>{catalogStepTitle(step, answers)}</IntakeStepHeading>
       <OpenOnPage issues={issues} />
       <div className="card">
         {!catalogStepApplies(catalogStep, answers) || (questions.length === 0 && !SPECIAL_STEP_IDS.has(catalogStep.id)) ? (

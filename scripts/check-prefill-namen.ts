@@ -14,6 +14,7 @@ import {
   type BillingAddressParts,
   type FirmFacts,
 } from "../lib/intake-catalog";
+import { scrollIntakeStepIntoView } from "../lib/intake-step-focus";
 import { ensureGesamt, setStammdaten } from "../lib/module/status";
 import type { Stammdaten } from "../lib/module/typen";
 import { billingAddressFromCustomerDetails, resolveCheckoutSession } from "../lib/stripe";
@@ -117,12 +118,14 @@ function checkNames() {
   ok(value(typed, "A01", "company") === "IKAT GmbH", "Unternehmen bleibt beim Tippen der Namen vollständig");
 
   let frozen = ensureGesamt(emptyAnswers());
-  for (const typedPrefix of Array.from("Philip Cappelletti").map((_, index, chars) => chars.slice(0, index + 1).join(""))) {
+  for (const typedPrefix of Array.from("Philip Cappelletti").map((_, index, chars) =>
+    chars.slice(0, index + 1).join(""),
+  )) {
     frozen = prefillKnownFacts(setStammdaten(frozen, { gf: typedPrefix }));
   }
   ok(
-    value(frozen, "A01", "gf") === "P",
-    "ohne vorherigen Wert bleibt der erste Buchstabe stehen",
+    value(frozen, "A01", "gf") === "Phi",
+    "ohne vorherigen Wert bleibt der Name beim dritten Zeichen stehen",
   );
 
   const savedFull = roundTrip(typed);
@@ -161,14 +164,112 @@ function checkNames() {
     "P",
   );
   const stuckReload = prefillKnownFacts(roundTrip(stuck));
-  ok(value(stuckReload, "A01", "gf") === "P", "bereits gespeichertes P wird nicht repariert");
+  ok(value(stuckReload, "A01", "gf") === "Philip Cappelletti", "gespeichertes P wird durch den vollen Namen ersetzt");
   const stuckTyped = prefillStammdatenInput(stuckReload, { gf: "Philip Cappelletti." });
-  ok(value(stuckTyped, "A01", "gf") === "P", "ein gespeichertes P gilt als eigener Wert");
+  ok(
+    value(stuckTyped, "A01", "gf") === "Philip Cappelletti.",
+    "nach der Reparatur folgt die Geschäftsleitung wieder der Quelle",
+  );
 
-  const cleared = prefillKnownFacts(setCatalogValue(stuckReload, "A01", "gf", ""), undefined, {
+  const twoLetters = setCatalogValue(
+    setStammdaten(ensureGesamt(emptyAnswers()), { gf: "Philip Cappelletti" }),
+    "A01",
+    "gf",
+    "Ph",
+  );
+  ok(value(prefillKnownFacts(roundTrip(twoLetters)), "A01", "gf") === "Philip Cappelletti", "gespeichertes Ph wird ersetzt");
+
+  const threeLetters = setCatalogValue(
+    setStammdaten(ensureGesamt(emptyAnswers()), { gf: "Philip Cappelletti" }),
+    "A01",
+    "gf",
+    "Phi",
+  );
+  ok(value(prefillKnownFacts(threeLetters), "A01", "gf") === "Phi", "ab drei Zeichen bleibt ein Präfix stehen");
+
+  const otherInitial = setCatalogValue(
+    setStammdaten(ensureGesamt(emptyAnswers()), { gf: "Özlem Yılmaz" }),
+    "A01",
+    "gf",
+    "P",
+  );
+  ok(
+    value(prefillKnownFacts(otherInitial), "A01", "gf") === "P",
+    "P bleibt, wenn es kein Präfix des Namens ist",
+  );
+
+  const prefixes = setStammdaten(ensureGesamt(emptyAnswers()), { ...NAMES });
+  let withPrefixes = setCatalogValue(prefixes, "A01", "gf", "Jö");
+  withPrefixes = setCatalogValue(withPrefixes, "F01", "buchhaltung", "Ä");
+  withPrefixes = setCatalogValue(withPrefixes, "B01", "it", "Jü");
+  withPrefixes = setCatalogValue(withPrefixes, "F05", "kanzleiName", "Sö");
+  withPrefixes = setCatalogValue(
+    withPrefixes,
+    "UO03",
+    "zustaendigkeiten",
+    ["Geschäftsleitung: Jö", "Buchhaltung: Ä", "IT: Jü", "Steuerkanzlei: Sö"].join("\n"),
+  );
+  assertFullNames(prefillKnownFacts(roundTrip(withPrefixes)), "eingefrorene Kürzel");
+
+  const mixedRoles = setCatalogValue(
+    setCatalogValue(
+      setStammdaten(ensureGesamt(emptyAnswers()), { ...NAMES, gf: "Philip Cappelletti" }),
+      "A01",
+      "gf",
+      "P",
+    ),
+    "UO03",
+    "zustaendigkeiten",
+    "Geschäftsleitung: P\nBuchhaltung: Eigene Buchhaltung",
+  );
+  const mixedKept = prefillKnownFacts(mixedRoles);
+  ok(
+    value(mixedKept, "A01", "gf") === "Philip Cappelletti",
+    "P wird ersetzt, auch wenn die Zuständigkeiten eigen sind",
+  );
+  ok(
+    value(mixedKept, "UO03", "zustaendigkeiten") === "Geschäftsleitung: P\nBuchhaltung: Eigene Buchhaltung",
+    "eine eigene Zuständigkeit bleibt stehen",
+  );
+
+  const companyPrefix = prefillKnownFacts(
+    setCatalogValue(ensureGesamt(emptyAnswers()), "A01", "company", "IK"),
+    { name: "IKAT GmbH" },
+  );
+  ok(value(companyPrefix, "A01", "company") === "IK", "ein Firmenkürzel wird nicht ersetzt");
+
+  const archivPrefix = prefillKnownFacts(
+    setCatalogValue(setStammdaten(ensureGesamt(emptyAnswers()), { archiv: "NAS Server" }), "G01", "ablage", "NA"),
+  );
+  ok(value(archivPrefix, "G01", "ablage") === "NA", "ein Ablage-Kürzel wird nicht ersetzt");
+
+  let protectedTyping = setStammdaten(ensureGesamt(emptyAnswers()), { gf: "Philip Cappelletti" });
+  for (const part of ["P", "Pe", "Pet", "Petra"]) {
+    protectedTyping = prefillKnownFacts(setCatalogValue(protectedTyping, "A01", "gf", part), undefined, {
+      protect: [["A01", "gf"]],
+    });
+    ok(value(protectedTyping, "A01", "gf") === part, `geschützte Eingabe ${part} bleibt während des Tippens`);
+  }
+
+  const cleared = prefillKnownFacts(setCatalogValue(protectedTyping, "A01", "gf", ""), undefined, {
     protect: [["A01", "gf"]],
   });
-  ok(!value(cleared, "A01", "gf"), "Leeren im Modul bleibt leer und holt den Namen nicht zurück");
+  ok(value(cleared, "A01", "gf") === "Philip Cappelletti", "Leeren holt den Namen der Verantwortlichen zurück");
+
+  let clearedNames = setStammdaten(ensureGesamt(emptyAnswers()), { ...NAMES });
+  clearedNames = prefillKnownFacts(clearedNames);
+  for (const [id, key] of [
+    ["F01", "buchhaltung"],
+    ["B01", "it"],
+    ["F05", "kanzleiName"],
+  ] as const) {
+    clearedNames = prefillKnownFacts(setCatalogValue(clearedNames, id, key, ""), undefined, {
+      protect: [[id, key]],
+    });
+  }
+  ok(value(clearedNames, "F01", "buchhaltung") === NAMES.buchhaltung, "geleerte Buchhaltung wird wieder gefüllt");
+  ok(value(clearedNames, "B01", "it") === NAMES.it, "geleerte IT wird wieder gefüllt");
+  ok(value(clearedNames, "F05", "kanzleiName") === NAMES.kanzlei, "geleerte Steuerkanzlei wird wieder gefüllt");
 
   const ui = readFileSync("components/betriebs-check.tsx", "utf8");
   ok(ui.includes("prefillStammdatenInput"), "die Namensfelder nutzen die tastensichere Vorausfüllung");
@@ -357,8 +458,47 @@ async function checkStripeAddress() {
   }
 }
 
+function checkStepFocus() {
+  const reduced: ScrollToOptions[] = [];
+  const focused: Array<FocusOptions | undefined> = [];
+  scrollIntakeStepIntoView({
+    reducedMotion: true,
+    scrollTo: (opts) => reduced.push(opts),
+    heading: { focus: (opts) => focused.push(opts) },
+  });
+  ok(reduced.length === 1 && reduced[0]?.top === 0 && reduced[0]?.left === 0, "Seitenwechsel springt nach oben");
+  ok(reduced[0]?.behavior === "auto", "reduzierte Bewegung scrollt ohne Animation");
+  ok(focused[0]?.preventScroll === true, "der Fokus verschiebt die Überschrift nicht vom Fortschritt weg");
+
+  const smooth: ScrollToOptions[] = [];
+  scrollIntakeStepIntoView({
+    reducedMotion: false,
+    scrollTo: (opts) => smooth.push(opts),
+    heading: null,
+  });
+  ok(smooth[0]?.behavior === "smooth" && smooth[0]?.top === 0, "sonst scrollt der Seitenwechsel sanft nach oben");
+
+  const form = readFileSync("app/intake/intake-form.tsx", "utf8");
+  ok(form.includes("useIntakeStepFocus(step)"), "Weiter und Zurück lösen den Fokus über den Schritt aus");
+  const demo = readFileSync("app/steuerberater/demo/demo-walkthrough.tsx", "utf8");
+  ok(demo.includes("useIntakeStepFocus(step)"), "Modulwechsel in der Demo nutzen denselben Fokus");
+  const hook = readFileSync("components/intake-step-heading.tsx", "utf8");
+  ok(hook.includes("prefers-reduced-motion: reduce"), "der Seitenwechsel fragt reduzierte Bewegung ab");
+  ok(hook.includes("}, [step]);"), "der Fokus hängt nur am Seitenwechsel");
+  for (const file of [
+    "components/intake-questionnaire.tsx",
+    "components/betriebs-check.tsx",
+    "app/intake/intake-form.tsx",
+  ]) {
+    const source = readFileSync(file, "utf8");
+    ok(source.includes("<IntakeStepHeading>"), `${file} fokussiert die Schrittüberschrift`);
+    ok(!source.includes("<h1>"), `${file} hat keine weitere Schrittüberschrift ohne Fokus`);
+  }
+}
+
 checkNames();
 checkStandort();
+checkStepFocus();
 checkStripeAddress()
   .then(() => {
     console.log("check-prefill-namen: green");

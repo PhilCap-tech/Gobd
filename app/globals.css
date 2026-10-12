@@ -198,6 +198,11 @@ h1 {
   font-weight: 600;
 }
 
+#intake-step-heading:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 h2 {
   font-size: 22px;
   margin: 0 0 12px;
