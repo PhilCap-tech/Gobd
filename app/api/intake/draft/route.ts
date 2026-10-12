@@ -5,6 +5,7 @@ import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import {
   authorizeDraftAccess,
   draftAccessHttpStatus,
+  emailFromDraftKey,
   nextStripeSessionId,
   sessionOwnerDenial,
   stubCheckoutMayAuthorize,
@@ -35,7 +36,7 @@ import {
   listDocumentFamily,
 } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
-import { type IntakeAnswers } from "@/lib/types";
+import { emailsEqual, type IntakeAnswers } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -381,10 +382,56 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
   }
 }
 
+function sessionCandidateFromDraftKey(draftKey: string): string {
+  const parsed = idsFromDraftKey(draftKey).sessionId?.trim() ?? "";
+  if (parsed) return parsed;
+  if (
+    draftKey.startsWith("doc:") ||
+    draftKey.startsWith("area:") ||
+    draftKey.startsWith("email:")
+  ) {
+    return "";
+  }
+  return draftKey;
+}
+
+/**
+ * DELETE may remove only an Entwurf the caller owns.
+ * A missing or foreign key is not deleted. Submitted documents are untouched.
+ */
+async function draftDeleteDenial(
+  sessionEmail: string,
+  draftKey: string,
+  existing: IntakeDraft | null,
+  io: DraftWriteIo,
+): Promise<403 | null> {
+  const ownerOnDraft = existing?.email?.trim() ?? "";
+  if (ownerOnDraft && !emailsEqual(ownerOnDraft, sessionEmail)) return 403;
+  const keyOwner = emailFromDraftKey(draftKey);
+  if (keyOwner && !emailsEqual(keyOwner, sessionEmail)) return 403;
+  if (keyOwner && emailsEqual(keyOwner, sessionEmail)) return null;
+
+  const fromKey = idsFromDraftKey(draftKey);
+  const documentId = fromKey.documentId || fromKey.areaFromDocumentId || "";
+  if (documentId) {
+    const row = await io.lookup.findDocumentById(documentId);
+    if (!row || !emailsEqual(row.email, sessionEmail)) return 403;
+    return null;
+  }
+
+  const sessionId = sessionCandidateFromDraftKey(draftKey);
+  if (!sessionId) return ownerOnDraft ? null : 403;
+  const owner = await ownerForCheckoutSession(sessionId, io, existing);
+  if (!owner || !emailsEqual(owner, sessionEmail)) return 403;
+  return null;
+}
+
 export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {
   const url = new URL(request.url);
   const draftKey = url.searchParams.get("draftKey")?.trim() ?? "";
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
+  const sessionEmail = sessionEmailFromRequest(request);
+  if (!sessionEmail) return jsonError("Kein Zugriff.", 401);
   const fromKey = idsFromDraftKey(draftKey);
   const blocked = await deliveredDraftGate(
     request,
@@ -400,9 +447,6 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
     url.searchParams.get("sessionId") ?? undefined,
     fromKey.sessionId,
   ];
-  if (!sessionEmailFromRequest(request) && sessionIds.some((value) => value?.trim())) {
-    return jsonError("Kein Zugriff.", 401);
-  }
 
   let existing: IntakeDraft | null;
   try {
@@ -430,7 +474,20 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
       io.resolveCheckout,
     );
     if (!access.ok) return deny(access);
+  } else {
+    const access = await authorizeDraftAccess(
+      {
+        sessionEmail,
+        sessionId: url.searchParams.get("sessionId") ?? fromKey.sessionId,
+        draftKey,
+        draft: existing,
+      },
+      io.resolveCheckout,
+    );
+    if (!access.ok) return deny(access);
   }
+  const denial = await draftDeleteDenial(sessionEmail, draftKey, existing, io);
+  if (denial) return jsonError("Kein Zugriff.", denial);
   try {
     await io.clearIntakeDraft(draftKey);
   } catch (error) {

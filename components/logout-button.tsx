@@ -6,20 +6,37 @@ import { useState } from "react";
 export function LogoutButton({ className }: { className?: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
     setPending(true);
+    setError("");
     try {
-      await fetch("/api/auth/logout", {
+      const response = await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "same-origin",
         cache: "no-store",
-        redirect: "follow",
+        redirect: "manual",
       });
+      const loggedOut =
+        response.type === "opaqueredirect" ||
+        response.status === 303 ||
+        response.status === 302;
+      if (!loggedOut) {
+        setError(
+          "Die Abmeldung ist fehlgeschlagen. Bitte laden Sie die Seite neu und versuchen Sie es noch einmal.",
+        );
+        setPending(false);
+        return;
+      }
     } catch {
-      // The full navigation below still drops the cached view.
+      setError(
+        "Die Abmeldung ist fehlgeschlagen. Bitte laden Sie die Seite neu und versuchen Sie es noch einmal.",
+      );
+      setPending(false);
+      return;
     }
     router.refresh();
     window.location.replace("/login");
@@ -30,6 +47,11 @@ export function LogoutButton({ className }: { className?: string }) {
       <button className="btn ghost" type="submit" disabled={pending}>
         {pending ? "Bitte warten…" : "Abmelden"}
       </button>
+      {error ? (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

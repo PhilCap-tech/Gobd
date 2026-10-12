@@ -10,6 +10,7 @@ import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { prepareAccountCheckout } from "@/lib/account-checkout-prefill";
+import { PAID_INTAKE_LABEL, paidIntakePathForOwner } from "@/lib/account-paid-intake";
 import { accountCompanyCards } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
@@ -23,7 +24,7 @@ import {
   openDraftLabel,
 } from "@/lib/open-drafts";
 import { firstQueryValue } from "@/lib/query";
-import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
+import { findLatestStripeCustomerIdByEmail, findUndocumentedPaidSessionId } from "@/lib/store";
 import { portalStatusCopy, portalStatusFromQuery } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +83,27 @@ export default async function AccountPage({
   const notice = lifecycleNotice(lifecycleRows);
   const writesOpen = notice.writesOpen;
   const downloadsOpen = notice.downloadsOpen;
+  let openPaidSession = "";
+  try {
+    openPaidSession = await findUndocumentedPaidSessionId(email);
+  } catch (error) {
+    console.error(
+      "[account] offene Zahlung nicht gelesen",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  const draftCoversPurchase = openDrafts.some(
+    (draft) => draft.stripeSessionId.trim() && draft.stripeSessionId.trim() === openPaidSession,
+  );
+  const paidIntakeHref =
+    writesOpen && openPaidSession && !draftCoversPurchase
+      ? paidIntakePathForOwner({
+          sessionEmail: email,
+          ownerEmail: email,
+          sessionId: openPaidSession,
+        })
+      : "";
+  let paidIntakePlaced = false;
   const stripeBound =
     Boolean(customerId) ||
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId) ||
@@ -150,8 +172,13 @@ export default async function AccountPage({
               </p>
               {writesOpen && (
                 <div className="actions entity-actions">
+                  {paidIntakeHref ? (
+                    <Link className="btn" href={paidIntakeHref}>
+                      {PAID_INTAKE_LABEL}
+                    </Link>
+                  ) : null}
                   <Link
-                    className={stripeBound ? "btn" : "btn ghost"}
+                    className={paidIntakeHref || !stripeBound ? "btn ghost" : "btn"}
                     href="/account/firma/neu"
                   >
                     Firma anlegen
@@ -162,16 +189,23 @@ export default async function AccountPage({
           ) : (
             <>
               <div className="entity-list">
-                {groups.map((group) => (
-                  <AccountCompanyCard
-                    key={group.entity?.entityId ?? "unbound"}
-                    group={group}
-                    email={email}
-                    empty={group.families.length === 0 && group.continueDrafts.length === 0}
-                    writesOpen={writesOpen}
-                    downloadsOpen={downloadsOpen}
-                  />
-                ))}
+                {groups.map((group) => {
+                  const emptyCard =
+                    group.families.length === 0 && group.continueDrafts.length === 0;
+                  const offerPaidIntake = Boolean(paidIntakeHref) && emptyCard && !paidIntakePlaced;
+                  if (offerPaidIntake) paidIntakePlaced = true;
+                  return (
+                    <AccountCompanyCard
+                      key={group.entity?.entityId ?? "unbound"}
+                      group={group}
+                      email={email}
+                      empty={emptyCard}
+                      writesOpen={writesOpen}
+                      downloadsOpen={downloadsOpen}
+                      paidIntakeHref={offerPaidIntake ? paidIntakeHref : ""}
+                    />
+                  );
+                })}
               </div>
               <div className="entity-toolbar">
                 {atCap ? (
@@ -180,9 +214,16 @@ export default async function AccountPage({
                     erreicht.
                   </p>
                 ) : writesOpen ? (
-                  <Link className="btn ghost" href="/account/firma/neu">
-                    {entities.length === 0 ? "Firma anlegen" : FIRMA_ADD_LABEL}
-                  </Link>
+                  <>
+                    {paidIntakeHref && !paidIntakePlaced ? (
+                      <Link className="btn" href={paidIntakeHref}>
+                        {PAID_INTAKE_LABEL}
+                      </Link>
+                    ) : null}
+                    <Link className="btn ghost" href="/account/firma/neu">
+                      {entities.length === 0 ? "Firma anlegen" : FIRMA_ADD_LABEL}
+                    </Link>
+                  </>
                 ) : null}
               </div>
             </>

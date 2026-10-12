@@ -5,6 +5,7 @@ import {
   isStripeSecretConfigured,
 } from "@/lib/env";
 import { deliverBuyerOnboarding } from "@/lib/buyer-onboarding";
+import { ensureBuyerFirmForCheckout } from "@/lib/checkout-firm";
 import {
   checkoutContactFromCustomerDetails,
   handleFailedJob,
@@ -13,10 +14,12 @@ import {
 import { recordCheckoutSubscription, recordSubscriptionEvent } from "@/lib/kuendigung-stripe";
 import { appendRecord, findRowByStripeSessionId } from "@/lib/store";
 import {
+  billingAddressFromCustomerDetails,
   getStripe,
   listStripeCustomerIdByEmail,
   retrieveCustomerEmail,
   stripeCustomerIdFrom,
+  ustIdFromCustomerDetails,
 } from "@/lib/stripe";
 import { toSheetRow } from "@/lib/types";
 
@@ -137,6 +140,25 @@ export async function POST(request: Request) {
               status: "paid",
               deliveryStatus: "",
             }),
+          );
+        }
+
+        try {
+          const address = billingAddressFromCustomerDetails(session.customer_details);
+          await ensureBuyerFirmForCheckout({
+            email: buyerEmail,
+            company: company || existing?.company || "",
+            entityId: session.metadata?.entity_id,
+            sessionId: session.id,
+            street: address?.line1,
+            zip: address?.postalCode,
+            city: address?.city,
+            ustId: ustIdFromCustomerDetails(session.customer_details),
+          });
+        } catch (error) {
+          console.error(
+            "[webhook] Firma für den Käufer nicht angelegt",
+            error instanceof Error ? error.name : "error",
           );
         }
 

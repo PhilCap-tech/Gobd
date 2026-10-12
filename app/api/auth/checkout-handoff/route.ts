@@ -1,18 +1,38 @@
 import { NextResponse } from "next/server";
 import { clearSessionCookie, loginPath, sessionEmailFromRequest } from "@/lib/auth";
+import { ensureBuyerFirmForCheckout } from "@/lib/checkout-firm";
 import { ownerEmailAfterVerifiedCheckout } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
 import { deliverLoginLink, type LoginMailStatus } from "@/lib/login-mail";
 import { findLatestDocumentByStripeSessionId } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
+import { emailsEqual } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export type CheckoutHandoffDeps = {
   resolveOwner: (sessionId: string) => Promise<string | null>;
   deliver: (email: string, next: string) => Promise<LoginMailStatus>;
+  /**
+   * Firm id to keep on the magic-link next. Empty omits entity_id.
+   * Only an id owned by the buyer may be returned.
+   */
+  buyerEntityId?: (input: {
+    email: string;
+    sessionId: string;
+    requestedEntityId: string;
+  }) => Promise<string>;
 };
+
+function intakeNextPath(sessionId: string, entityId: string): string {
+  const params = new URLSearchParams();
+  params.set("session_id", sessionId);
+  if (/^[A-Za-z0-9_-]+$/.test(entityId) && entityId.length <= 200) {
+    params.set("entity_id", entityId);
+  }
+  return `/intake?${params.toString()}`;
+}
 
 /**
  * Abmelden und den Anmeldelink an die Kauf-Adresse schicken.
@@ -55,7 +75,22 @@ export async function completeCheckoutHandoff(
     return loggedOut("/login");
   }
 
-  const nextPath = `/intake?session_id=${encodeURIComponent(sessionId)}`;
+  let buyerEntityId = "";
+  if (deps.buyerEntityId) {
+    try {
+      buyerEntityId = await deps.buyerEntityId({
+        email: ownerEmail,
+        sessionId,
+        requestedEntityId: String(form.get("entity_id") ?? "").trim(),
+      });
+    } catch (error) {
+      console.error(
+        "[auth] Firma des Käufers nicht lesbar",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+  }
+  const nextPath = intakeNextPath(sessionId, buyerEntityId);
   const status = await deps.deliver(ownerEmail, nextPath);
   if (status === "failed") {
     const back = new URL("/intake", request.url);
@@ -87,9 +122,51 @@ async function resolveHandoffOwner(sessionId: string): Promise<string | null> {
   return recorded?.email ?? null;
 }
 
+async function resolveBuyerEntityId(input: {
+  email: string;
+  sessionId: string;
+  requestedEntityId: string;
+}): Promise<string> {
+  let company = "";
+  let entityId = input.requestedEntityId.trim();
+  let street = "";
+  let zip = "";
+  let city = "";
+  let ustId = "";
+  try {
+    const resolved = await resolveCheckoutSession(input.sessionId);
+    if (!("error" in resolved) && !(resolved.stub && !devCheckoutStubAllowed())) {
+      if (!resolved.email.trim() || emailsEqual(resolved.email, input.email)) {
+        company = resolved.company;
+        if (!entityId) entityId = resolved.entityId?.trim() ?? "";
+        street = resolved.billingAddress?.line1?.trim() ?? "";
+        zip = resolved.billingAddress?.postalCode?.trim() ?? "";
+        city = resolved.billingAddress?.city?.trim() ?? "";
+        ustId = resolved.ustId?.trim() ?? "";
+      }
+    }
+  } catch (error) {
+    console.error(
+      "[auth] Checkout-Firma nicht aus der Session gelesen",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  return ensureBuyerFirmForCheckout({
+    email: input.email,
+    company,
+    entityId,
+    sessionId: input.sessionId,
+    street,
+    zip,
+    city,
+    ustId,
+  });
+}
+
 export function POST(request: Request) {
   return completeCheckoutHandoff(request, {
     resolveOwner: resolveHandoffOwner,
     deliver: deliverLoginLink,
+    buyerEntityId: resolveBuyerEntityId,
   });
 }

@@ -3,7 +3,7 @@ import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
-import { entityById, entityChoices } from "@/lib/entities";
+import { entityChoices } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
@@ -31,15 +31,11 @@ export default async function CheckoutPage({
   const partner = firstQueryValue(params.utm_campaign) === "steuerberater";
   const email = await getSessionEmail();
   const entities = email ? await listEntitiesByEmail(email) : [];
-  const owned = email
-    ? requestedEntityId
-      ? await getOwnedEntity(requestedEntityId, email)
-      : entityById(entities, requestedEntityId)
-    : null;
-  const initialEntityId =
-    owned?.entityId ||
-    (entities.length === 1 ? entities[0]?.entityId ?? "" : "") ||
-    requestedEntityId;
+  const owned =
+    email && requestedEntityId ? await getOwnedEntity(requestedEntityId, email) : null;
+  const sole = !requestedEntityId && entities.length === 1 ? entities[0] : undefined;
+  const boundEntity = owned ?? sole ?? null;
+  const initialEntityId = boundEntity?.entityId ?? "";
 
   return (
     <>
@@ -71,7 +67,7 @@ export default async function CheckoutPage({
           stripeTestMode={isStripeTestMode()}
           entities={entityChoices(entities)}
           initialEntityId={initialEntityId}
-          initialCompany={owned?.name ?? ""}
+          initialCompany={boundEntity?.name ?? ""}
           initialEmail={email ?? ""}
           audience={partner ? "steuerberater" : "kunde"}
         />

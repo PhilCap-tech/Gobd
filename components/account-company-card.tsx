@@ -21,6 +21,7 @@ import {
   openDraftLabel,
 } from "@/lib/open-drafts";
 import { CHECKOUT_PREFILL_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
+import { PAID_INTAKE_LABEL } from "@/lib/account-paid-intake";
 import { formatEntityAddress, type Entity } from "@/lib/entities";
 import { gesamtDocTitle } from "@/lib/gesamt-document";
 import { MODUL_UEBERSICHT_STEP_ID } from "@/lib/intake-catalog";
@@ -119,6 +120,7 @@ export function AccountCompanyCard({
   empty,
   writesOpen = true,
   downloadsOpen = true,
+  paidIntakeHref = "",
 }: {
   group: EntityDocumentGroup & { continueDrafts?: IntakeDraft[] };
   email: string;
@@ -128,6 +130,8 @@ export function AccountCompanyCard({
   writesOpen?: boolean;
   /** Nach der 30-Tage-Frist kein Download. */
   downloadsOpen?: boolean;
+  /** Bezahlter Intake ohne Dokument. Leer, wenn keiner offen ist. */
+  paidIntakeHref?: string;
 }) {
   const entity = group.entity ? presentEntity(group.entity) : null;
   const families = (group.families ?? []).map((family) => {
@@ -180,11 +184,15 @@ export function AccountCompanyCard({
           <Link className="btn ghost" href={firmaEditPath(entity.entityId)}>
             {FIRMA_EDIT_LABEL}
           </Link>
-          {families.length === 0 && (
+          {families.length === 0 && paidIntakeHref ? (
+            <Link className="btn" href={paidIntakeHref}>
+              {PAID_INTAKE_LABEL}
+            </Link>
+          ) : families.length === 0 ? (
             <Link className="btn" href={newDocumentPath(entity.entityId)}>
               Neues Dokument
             </Link>
-          )}
+          ) : null}
         </div>
       )}
       {entity && !writesOpen && (

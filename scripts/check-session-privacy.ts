@@ -173,26 +173,34 @@ async function checkLogout() {
     (response.headers.get("cache-control") ?? "").includes("no-store"),
     "logout response is no-store",
   );
+  ok(lines.length <= 8, `logout sends few Set-Cookie lines (got ${lines.length})`);
   ok(
-    lines.some((line) => line.startsWith(`${SESSION_COOKIE}=`) && line.includes("Max-Age=0") && !/domain=/i.test(line)),
-    "logout expires the host-only gobd_session",
-  );
-  ok(
-    lines.some((line) => line.startsWith(`${CHECKOUT_GRANT_COOKIE}=`) && line.includes("Max-Age=0")),
-    "logout expires gobd_checkout",
+    lines.every((line) => !/domain=/i.test(line)),
+    "logout stays host-only, matching the cookie that was set",
   );
   ok(
     lines.some(
       (line) =>
         line.startsWith(`${SESSION_COOKIE}=`) &&
-        line.includes("Domain=gobd-doku-erstellen.de") &&
-        line.includes("Max-Age=0"),
+        line.includes("Path=/;") &&
+        line.includes("Max-Age=0") &&
+        line.includes("Secure"),
     ),
-    "logout expires gobd_session on the apex domain",
+    "logout expires the host-only Secure gobd_session on Path=/",
   );
   ok(
-    lines.some((line) => line.startsWith(`${SESSION_COOKIE}=`) && line.includes("Path=/account")),
-    "logout expires a cookie scoped to /account",
+    lines.some(
+      (line) =>
+        line.startsWith(`${CHECKOUT_GRANT_COOKIE}=`) &&
+        line.includes("Path=/;") &&
+        line.includes("Max-Age=0") &&
+        line.includes("Secure"),
+    ),
+    "logout expires gobd_checkout the same way",
+  );
+  ok(
+    !lines.some((line) => line.includes("Path=/account")),
+    "logout does not emit a path variant",
   );
 
   const account = readFileSync("app/account/page.tsx", "utf8");
@@ -202,6 +210,8 @@ async function checkLogout() {
   ok(account.includes("LogoutButton") && account.includes("RefreshStoredView"), "account refreshes after logout");
   ok(checkout.includes("RefreshStoredView"), "checkout refreshes after logout");
   ok(button.includes("router.refresh()"), "logout refreshes the router cache");
+  ok(button.includes("Die Abmeldung ist fehlgeschlagen"), "a failed logout tells the user");
+  ok(button.includes('redirect: "manual"'), "logout does not hide a 500 behind a followed redirect");
   ok(config.includes('source: "/account"') && config.includes('source: "/checkout"'), "account and checkout are no-store");
   ok(sessionOwnerDenial(null, BUYER) === 401, "pdf/draft helper is 401 without a session");
   ok(sessionOwnerDenial(OTHER, BUYER) === 403, "pdf/draft helper is 403 for someone else");

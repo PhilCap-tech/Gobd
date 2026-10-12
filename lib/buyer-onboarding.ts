@@ -49,12 +49,12 @@ function blobToken(): string | undefined {
   return token || undefined;
 }
 
-function writeOptions(token: string): PutCommandOptions {
+function writeOptions(token: string, allowOverwrite = true): PutCommandOptions {
   return {
     access: "private",
     contentType: "application/json; charset=utf-8",
     addRandomSuffix: false,
-    allowOverwrite: true,
+    allowOverwrite,
     token,
   };
 }
@@ -145,6 +145,39 @@ async function alreadySent(sessionId: string): Promise<boolean> {
   }
 }
 
+/** One welcome per checkout. The loser of the claim does not send. */
+async function claimOnboardingSend(sessionId: string, email: string): Promise<"claimed" | "done"> {
+  const body = JSON.stringify({
+    email,
+    status: "claiming",
+    claimedAt: new Date().toISOString(),
+  });
+  const token = blobToken();
+  if (isBlobConfigured() && token) {
+    try {
+      await put(markerBlobPath(sessionId), body, writeOptions(token, false));
+      return "claimed";
+    } catch (error) {
+      if (await alreadySent(sessionId)) return "done";
+      console.error(
+        "[ops] Onboarding-Anspruch nicht gespeichert",
+        error instanceof Error ? error.name : "error",
+      );
+      throw error;
+    }
+  }
+  const file = markerFile(sessionId);
+  await mkdir(path.dirname(file), { recursive: true });
+  try {
+    await writeFile(file, body, { flag: "wx" });
+    return "claimed";
+  } catch (error) {
+    const code = (error as { code?: unknown }).code;
+    if (code === "EEXIST") return "done";
+    throw error;
+  }
+}
+
 /**
  * Sends the order mail to `email` (the checkout customer).
  * Does not read cookies or the signed-in account.
@@ -157,20 +190,30 @@ export async function deliverBuyerOnboarding(
   if (!sessionId) return "failed";
   if (!email || !email.includes("@")) return "skipped";
   if (input.enforceWindow && !buyerOnboardingStillDue(input.paidAt)) return "skipped";
-  if (await alreadySent(sessionId)) return "skipped";
+  const claim = await claimOnboardingSend(sessionId, email);
+  if (claim === "done") return "skipped";
 
-  const result = await triggerOnboardingMail({
-    email,
-    company: input.company,
-    sessionId,
-    audience: input.audience,
-    checkoutNames: input.checkoutNames,
-    extraCompanyNames: input.extraCompanyNames,
-    idempotencyKey: `checkout-onboarding/${sessionHash(sessionId)}`,
-  });
+  let result;
+  try {
+    result = await triggerOnboardingMail({
+      email,
+      company: input.company,
+      sessionId,
+      audience: input.audience,
+      checkoutNames: input.checkoutNames,
+      extraCompanyNames: input.extraCompanyNames,
+      idempotencyKey: `checkout-onboarding/${sessionHash(sessionId)}`,
+    });
+  } catch (error) {
+    await forgetBuyerOnboarding(sessionId);
+    throw error;
+  }
 
   const delivered = result.sent || (result.stub && !isProductionRuntime());
-  if (!delivered) return "failed";
+  if (!delivered) {
+    await forgetBuyerOnboarding(sessionId);
+    return "failed";
+  }
   try {
     await writeMarker(sessionId, email);
   } catch (error) {

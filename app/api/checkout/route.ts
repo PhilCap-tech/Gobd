@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { sessionEmailFromRequest } from "@/lib/auth";
+import { boundCheckoutEntityId } from "@/lib/checkout-entity";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
-import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
+import { findLatestStripeCustomerIdByEmail, getEntity } from "@/lib/store";
 import { createCheckoutSession, verifyStripeCustomerId } from "@/lib/stripe";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
@@ -38,7 +40,26 @@ export async function POST(request: Request) {
 
   const email = body.email?.trim() ?? "";
   const company = body.company?.trim() ?? "";
-  const entityId = body.entityId?.trim() ?? "";
+  const requestedEntityId = body.entityId?.trim() ?? "";
+  let entityOwnerEmail = "";
+  if (requestedEntityId) {
+    try {
+      const entity = await getEntity(requestedEntityId);
+      entityOwnerEmail = entity?.userEmail ?? "";
+    } catch (error) {
+      console.error(
+        "[checkout] Firma nicht lesbar",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+  }
+  const entityId = boundCheckoutEntityId({
+    checkoutEmail: email,
+    entityId: requestedEntityId,
+    entityOwnerEmail,
+    sessionEmail: sessionEmailFromRequest(request),
+    dropWhenSessionDiffers: true,
+  });
 
   if (!company || !email) {
     return NextResponse.json(
