@@ -1,12 +1,13 @@
 /**
  * Prebuild: tax rates are passed through when STRIPE_TAX_RATE_ID is set.
  * Does not require the variable in the environment and does not call Stripe.
+ * The live-id scan uses Node fs only (no rg). A missing STRIPE_TAX_RATE_ID must not fail.
  *
  *   npx tsx scripts/check-checkout-tax.ts
  */
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import {
   CHECKOUT_SESSION_ROUTE,
   buildCheckoutSessionParams,
@@ -22,6 +23,41 @@ import {
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
   console.log("ok:", msg);
+}
+
+const SKIP_DIRS = new Set(["node_modules", ".git", ".next", ".data", "coverage", "dist"]);
+
+/** Walk the repo with Node fs only. No rg or other external binaries. */
+function filesContaining(root: string, needle: string): string[] {
+  const hits: string[] = [];
+  const stack = [root];
+  while (stack.length > 0) {
+    const dir = stack.pop();
+    if (!dir) continue;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (SKIP_DIRS.has(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      let bytes: Buffer;
+      try {
+        bytes = readFileSync(full);
+      } catch {
+        continue;
+      }
+      if (bytes.includes(needle)) hits.push(path.relative(root, full));
+    }
+  }
+  return hits;
 }
 
 const FIXTURE_TAX_RATE = "txr_prebuild_fixture";
@@ -149,21 +185,13 @@ try {
   ok(MONTHLY_GROSS_LABEL === "58,31", "monthly gross is 58,31");
   ok(TODAY_GROSS_LABEL === "235,62", "today gross is 235,62");
 
-  let liveHits = "";
-  try {
-    liveHits = execFileSync(
-      "rg",
-      ["-n", "txr_1", "-g", "!node_modules/**", "-g", "!.git/**"],
-      { encoding: "utf8" },
-    );
-  } catch (error) {
-    const status =
-      error && typeof error === "object" && "status" in error
-        ? (error as { status?: number }).status
-        : undefined;
-    if (status !== 1) throw error;
-  }
-  ok(liveHits.trim() === "", "no live tax rate id is hardcoded");
+  const liveHits = filesContaining(process.cwd(), "txr_" + "1");
+  ok(
+    liveHits.length === 0,
+    liveHits.length === 0
+      ? "no live tax rate id is hardcoded"
+      : `live tax rate id is hardcoded in ${liveHits.join(", ")}`,
+  );
 } finally {
   if (savedTaxRate === undefined) delete process.env.STRIPE_TAX_RATE_ID;
   else process.env.STRIPE_TAX_RATE_ID = savedTaxRate;
