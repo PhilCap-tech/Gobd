@@ -141,10 +141,13 @@ function textFromContent(latin: string): string {
 function pageTexts(buffer: Buffer): string[] {
   const raw = buffer.toString("latin1");
   const texts: string[] = [];
-  const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  // Length, not the next "endstream" bytes: Flate data can contain that sequence.
+  const re = /\/Length\s+(\d+)\b[^>]*>>\s*stream\r?\n/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(raw))) {
-    const data = Buffer.from(match[1] ?? "", "latin1");
+    const length = Number(match[1]);
+    const start = match.index + match[0].length;
+    const data = Buffer.from(raw.slice(start, start + length), "latin1");
     let inflated: Buffer;
     try {
       inflated = zlib.inflateSync(data);

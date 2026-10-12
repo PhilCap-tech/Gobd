@@ -84,7 +84,7 @@ const fullAblage = { art: "Eingangsrechnungen", ort: "DATEV Unternehmen online",
 const partialAblage = { art: "Kassenbelege", ort: "", suche: " " };
 const emptyAblage = { art: "  ", ort: "", suche: "" };
 
-const b01Name = "Bitte Name, Zweck und Art je System nennen.";
+const b01Name = "bitte Zweck und Art nennen.";
 const b01Rest =
   "Bitte das Hosting je System wählen. Bitte je System Nutzer, eingehende Belege, Übergabe und den Ort des Originals nennen.";
 const b01Open = `${b01Name} ${b01Rest}`;
@@ -116,6 +116,23 @@ expect(
 expect(
   p1FieldError("B01", "bestaetigt", { systeme: [partialSystem] }) === `System 1: ${b01Open}`,
   "B01 nur Name blockiert und nennt System 1",
+);
+expect(
+  !p1FieldError("B01", "bestaetigt", { systeme: [partialSystem] }).includes("Name, Zweck und Art"),
+  "B01 nennt den gefüllten Namen nicht in der Meldung",
+);
+expect(
+  p1FieldError("B01", "bestaetigt", { systeme: [{ ...fullSystem, typ: "" }] }) === "System 1: bitte Art nennen.",
+  "B01 nennt nur die fehlende Art",
+);
+expect(
+  p1FieldError("B01", "bestaetigt", { systeme: [{ ...fullSystem, name: "" }] }) === "System 1: bitte Name nennen.",
+  "B01 nennt nur den fehlenden Namen",
+);
+expect(
+  p1FieldError("B01", "bestaetigt", { systeme: [fullSystem, { ...fullSystem, funktion: "", typ: "" }] }) ===
+    "System 2: bitte Zweck und Art nennen.",
+  "B01 nennt bei System 2 nur Zweck und Art",
 );
 expect(
   p1FieldError("B01", "bestaetigt", { systeme: [fullSystem, partialSystem] }) === `System 2: ${b01Open}`,
@@ -510,12 +527,12 @@ expect(
 );
 expect(!mixedText.includes("heute. Belege") && !mixedText.includes("· Belege"), "PDF lässt die vorgeschlagene Belegart weg");
 expect(
-  mixedText.includes("Ablageort und Suchmerkmale sind nicht bestätigt."),
+  mixedText.includes("Ablageort und Suchmerkmale sind nicht angegeben."),
   "G01 nur mit Vorschlägen erzeugt den offenen Punkt",
 );
 expect(mixedText.includes("nicht angegeben"), "leere Ablage nutzt den bestehenden Hinweis");
 expect(
-  !mixedText.includes("Welche Dateien als Original aufbewahrt werden, ist nicht bestätigt."),
+  !mixedText.includes("Welche Dateien als Original aufbewahrt werden, ist nicht angegeben."),
   "B04 mit einer vollen Karte bleibt ohne offenen Punkt",
 );
 
@@ -535,7 +552,7 @@ const onlySuggestedWege = withErechnung(
 );
 const onlySuggestedText = pdfBody(onlySuggestedWege);
 expect(
-  onlySuggestedText.includes("Welche Dateien als Original aufbewahrt werden, ist nicht bestätigt."),
+  onlySuggestedText.includes("Welche Dateien als Original aufbewahrt werden, ist nicht angegeben."),
   "B04 nur mit Vorschlägen erzeugt den offenen Punkt",
 );
 expect(!onlySuggestedText.includes("Als Original aufbewahrt"), "B04 nur mit Vorschlägen nennt kein Original");

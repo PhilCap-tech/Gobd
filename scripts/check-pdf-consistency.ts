@@ -8,7 +8,7 @@ import { KEINE_AUSNAHMEN_SATZ, KEINE_KONTROLLE_SATZ, KEINE_REGELMAESSIGE_KONTROL
 import { kanzleiKasseAnswers, oezguerAnswers, pixelwerkAnswers, shkAnswers } from "@/scripts/fixtures/pdf-consistency";
 import { composeCatalogValues } from "@/lib/intake-present";
 import { collapseRepeatedTokens, processFieldSentence } from "@/lib/module/aussagen";
-import { ensureGesamt, setCheckAntwort } from "@/lib/module/status";
+import { ensureGesamt, setCheckAntwort, setModulEintrag } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
 const failures: string[] = [];
@@ -562,6 +562,63 @@ expect(
 expect(
   papier.includes("Ausnahmen: Bewirtungs-/Tankbelege per DATEV-App"),
   "Papierannahme verliert die Ausnahmen",
+);
+
+const alpha = {
+  name: "AlphaSystem",
+  funktion: "FiBu",
+  typ: "fibu",
+  nutzer: "Buchhaltung",
+  belegeRein: ["Eingangsrechnungen"],
+  uebergabe: "Upload",
+  originalOrt: "AlphaArchiv",
+  hostingArt: "Anbieter-Cloud",
+};
+const beta = {
+  name: "BetaSystem",
+  funktion: "Rechnungen",
+  typ: "rechnungssoftware",
+  nutzer: "Geschäftsführung",
+  belegeRein: ["Ausgangsrechnungen"],
+  uebergabe: "Export",
+  originalOrt: "BetaArchiv",
+  hostingArt: "eigene Cloud",
+};
+const karten = {
+  ...setModulEintrag(ensureGesamt(emptyAnswers()), "m17", { status: "tool" }),
+  katalog: {
+    B01: { status: "bestaetigt" as const, values: { systeme: [alpha, beta], it: "Geschäftsführung" } },
+  },
+};
+const kartenDoc = render(karten, { onlyModul: "m17" });
+const abschnitt174 = kartenDoc.chapters.find((chapter) => chapter.id === "modul-m17")?.body ?? "";
+const block174 = abschnitt174.split("## 17.5")[0]?.split("## 17.4")[1] ?? "";
+expect(block174.includes("## 17.4") === false && block174.length > 0, "17.4 ist der Katalogabschnitt");
+expect((block174.match(/AlphaSystem/g) ?? []).length === 1, "17.4 nennt AlphaSystem nur einmal");
+expect((block174.match(/BetaSystem/g) ?? []).length === 1, "17.4 nennt BetaSystem nur einmal");
+expect(block174.includes("AlphaSystem, FiBu, Art Buchhaltung"), "17.4 zeigt die Systemkarte strukturiert");
+expect(!block174.includes("AlphaSystem FiBu"), "17.4 wiederholt die Systemkarte nicht als Fließtext");
+expect(
+  !kartenDoc.body.split("\n").some((line) => /— So läuft es heute\.\s*$/.test(line)),
+  "keine leere Zeile „— So läuft es heute.“",
+);
+
+const luecke = {
+  ...ensureGesamt(emptyAnswers()),
+  katalog: {
+    B01: { status: "unbekannt" as const, values: {} },
+    E05: { status: "bestaetigt" as const, values: {} },
+  },
+};
+const lueckeDoc = render(luecke);
+expect(
+  lueckeDoc.body.includes("Systeme, die Belege erzeugen oder archivieren, sind nicht angegeben."),
+  "fehlende Angabe heißt „nicht angegeben“",
+);
+expect(!lueckeDoc.body.includes("nicht bestätigt"), "PDF sagt bei fehlender Angabe nicht „nicht bestätigt“");
+expect(
+  !lueckeDoc.body.split("\n").some((line) => /— So läuft es heute\.\s*$/.test(line)),
+  "bestätigt ohne Inhalt erzeugt keine leere Statuszeile",
 );
 
 if (failures.length) {

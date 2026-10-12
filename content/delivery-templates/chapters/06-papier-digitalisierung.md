@@ -25,7 +25,7 @@ Ein Scan ist nicht eingerichtet. Das Papier bleibt der Beleg.
 {{/if}}
 {{/if}}
 {{#unless answers.scanZweck}}
-Ob Papierbelege gescannt werden, ist nicht bestätigt.
+Ob Papierbelege gescannt werden, ist nicht angegeben.
 {{/unless}}
 
 ## 6.3 Keine ersetzende Vernichtung (Standardhinweis)

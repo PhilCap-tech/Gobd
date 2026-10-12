@@ -916,6 +916,15 @@ function cardGap(label: string, index: number, parts: string[], missing: string[
   return { message: `${label} ${index + 1}: ${parts.join(" ")}`, cardIndex: index, missing };
 }
 
+/** „bitte Zweck und Art nennen.“ — nur die leeren Felder, in fester Reihenfolge. */
+function bitteNennen(labels: string[]): string {
+  const list =
+    labels.length <= 1
+      ? (labels[0] ?? "")
+      : `${labels.slice(0, -1).join(", ")} und ${labels[labels.length - 1]}`;
+  return `bitte ${list} nennen.`;
+}
+
 function fromCards(cards: P1CardGap[]): P1Issue {
   return { message: cards.map((card) => card.message).join(" "), cards };
 }
@@ -955,10 +964,16 @@ export function p1FieldIssue(
     for (const { row, index } of active) {
       const missing: string[] = [];
       const parts: string[] = [];
-      if (!textOf(row.name)) missing.push("name");
-      if (!textOf(row.funktion)) missing.push("funktion");
-      if (!textOf(row.typ)) missing.push("typ");
-      if (missing.length) parts.push("Bitte Name, Zweck und Art je System nennen.");
+      const core: Array<[string, string]> = [
+        ["name", "Name"],
+        ["funktion", "Zweck"],
+        ["typ", "Art"],
+      ];
+      const missingCore = core.filter(([key]) => !textOf(row[key]));
+      if (missingCore.length) {
+        missing.push(...missingCore.map(([key]) => key));
+        parts.push(bitteNennen(missingCore.map(([, label]) => label)));
+      }
       if (!textOf(row.hostingArt)) {
         missing.push("hostingArt");
         parts.push("Bitte das Hosting je System wählen.");
@@ -1132,6 +1147,7 @@ export function presentationBits(id: string, values: Record<string, unknown> | u
       return [
         textOf(row.name),
         textOf(row.funktion),
+        textOf(row.typ) && `Art ${optionLabel("typ", textOf(row.typ))}`,
         textOf(row.nutzer) && `Nutzer ${textOf(row.nutzer)}`,
         belege && `Belege ${belege}`,
         textOf(row.uebergabe) && `Übergabe ${textOf(row.uebergabe)}`,

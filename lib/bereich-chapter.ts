@@ -341,7 +341,7 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
         : [],
     );
     const stand = (name: string) => {
-      if (!chosen.has(name)) return "nicht bestätigt";
+      if (!chosen.has(name)) return "nicht angegeben";
       if (entry?.status === "bestaetigt") return "durchgeführt";
       if (entry?.status === "geplant") return "vorgesehen";
       return "zu klären";

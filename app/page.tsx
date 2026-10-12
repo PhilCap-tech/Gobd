@@ -57,7 +57,7 @@ const EXAMPLE_OPEN_POINTS = [
   "Offener Punkt: Wer verwaltet die Zugriffsrechte im Archiv? Bitte Verantwortliche benennen.",
   "Offener Punkt: Die Berechtigungsliste und der Mandatsumfang der Steuerkanzlei sind noch nicht als mitgeltende Unterlagen abgelegt.",
   "Offener Punkt: IT- und Systemverantwortung (Backup, Rechteverwaltung) sind nicht benannt.",
-  "Offener Punkt: Die technische Prüfung strukturierter E-Rechnungen ist noch nicht bestätigt — bitte Praxis kurz beschreiben.",
+  "Offener Punkt: Die technische Prüfung strukturierter E-Rechnungen ist noch nicht angegeben — bitte Praxis kurz beschreiben.",
 ];
 
 function exampleQuestions(): string[] {
