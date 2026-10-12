@@ -9,7 +9,7 @@ vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:
 Jetzt starten: Betriebs-Check
 https://www.gobd-doku-erstellen.de/auth/verify?token=preview-onboarding&next=%2Fintake
 
-Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordern Sie auf der Anmeldeseite einen neuen Link an – Sie landen danach wieder im Fragebogen.
+Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.
 
 Verfahrensdokumentation weiter ausfüllen
 https://www.gobd-doku-erstellen.de/auth/verify?token=preview-continue&next=%2Fintake%3Fsession_id%3Dcs_owner_draft

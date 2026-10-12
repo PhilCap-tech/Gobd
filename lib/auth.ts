@@ -37,7 +37,10 @@ function sign(payload: TokenPayload): string {
   return `${body}.${sig}`;
 }
 
-function verify(token: string | undefined | null): TokenPayload | null {
+function verify(
+  token: string | undefined | null,
+  options?: { allowExpired?: boolean },
+): TokenPayload | null {
   if (!token) return null;
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
@@ -55,9 +58,8 @@ function verify(token: string | undefined | null): TokenPayload | null {
     const payload = JSON.parse(
       Buffer.from(body, "base64url").toString("utf8"),
     ) as TokenPayload;
-    if (!payload.email || !payload.exp || payload.exp < Date.now()) {
-      return null;
-    }
+    if (!payload.email || !payload.exp) return null;
+    if (!options?.allowExpired && payload.exp < Date.now()) return null;
     if (
       payload.typ !== "magic" &&
       payload.typ !== "session" &&
@@ -110,6 +112,17 @@ export function verifyMagicToken(token: string | undefined | null): string | nul
   const payload = verify(token);
   if (!payload || payload.typ !== "magic") return null;
   return payload.email;
+}
+
+/**
+ * Signatur gültig, aber abgelaufen. Kein Login.
+ * Ein noch gültiger Token liefert null, damit er nicht auf der Ablaufseite landet.
+ */
+export function readExpiredMagicToken(token: string | undefined | null): string | null {
+  const payload = verify(token, { allowExpired: true });
+  if (!payload || payload.typ !== "magic") return null;
+  if (payload.exp >= Date.now()) return null;
+  return payload.email.trim().toLowerCase();
 }
 
 export function verifySessionToken(

@@ -3,10 +3,28 @@
  * Signatur exakt „Ihr Team von gobd-doku-erstellen.de“, kein „GoBD Ops“.
  * Der Plaintext mit Namen liegt als Snapshot unter scripts/fixtures/.
  */
+import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MAGIC_TTL_MS, magicLinkUrl, safeNextPath, verifyMagicToken } from "@/lib/auth";
+import { POST as postMagicLink } from "@/app/api/auth/magic-link/route";
+import { GET as verifyMagicLink } from "@/app/auth/verify/route";
+import {
+  MAGIC_TTL_MS,
+  SESSION_COOKIE,
+  createMagicToken,
+  magicLinkUrl,
+  readExpiredMagicToken,
+  safeNextPath,
+  verifyMagicToken,
+} from "@/lib/auth";
+import { getMagicLinkSecret } from "@/lib/env";
+import {
+  EXPIRED_LINK_HEADING,
+  isOnboardingIntakeNext,
+  maskEmailAddress,
+  renewExpiredLinkLabel,
+} from "@/lib/expired-onboarding-link";
 import { MAIL_ACCOUNT_URL, MAIL_SUPPORT_EMAIL } from "@/lib/mail-layout";
 import {
   buildOnboardingMail,
@@ -192,4 +210,186 @@ if (named.text !== expected) {
   );
 }
 
-console.log("check-onboarding-mail: ok");
+function signMagic(payload: Record<string, unknown>): string {
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const sig = createHmac("sha256", getMagicLinkSecret()).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function cookieNames(response: Response): string[] {
+  return response.headers.getSetCookie().map((line) => line.split("=")[0] ?? "");
+}
+
+const ENV_KEYS = ["NODE_ENV", "VERCEL_ENV", "VERCEL", "RESEND_API_KEY", "EMAIL_FROM"] as const;
+const savedEnv: Record<string, string | undefined> = {};
+for (const key of ENV_KEYS) savedEnv[key] = process.env[key];
+
+function setEnv(patch: Record<string, string | undefined>) {
+  const env = process.env as Record<string, string | undefined>;
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) delete env[key];
+    else env[key] = value;
+  }
+}
+
+function restoreEnv() {
+  const env = process.env as Record<string, string | undefined>;
+  for (const key of ENV_KEYS) {
+    if (savedEnv[key] === undefined) delete env[key];
+    else env[key] = savedEnv[key];
+  }
+}
+
+async function capture(fn: () => Promise<void>): Promise<string> {
+  const lines: string[] = [];
+  const orig = { info: console.info, error: console.error, warn: console.warn };
+  const sink = (...args: unknown[]) => {
+    lines.push(args.map((part) => String(part)).join(" "));
+  };
+  console.info = sink;
+  console.error = sink;
+  console.warn = sink;
+  try {
+    await fn();
+  } finally {
+    console.info = orig.info;
+    console.error = orig.error;
+    console.warn = orig.warn;
+  }
+  return lines.join("\n");
+}
+
+async function checkExpiredOnboardingLink(): Promise<void> {
+  const email = "kauf@example.com";
+  const expired = signMagic({ typ: "magic", email, exp: Date.now() - 60_000 });
+  if (verifyMagicToken(expired) !== null) fail("expired token must not verify as a login");
+  if (readExpiredMagicToken(expired) !== email) fail("expired token must still name the purchaser");
+  const masked = maskEmailAddress(email);
+  if (renewExpiredLinkLabel(masked) !== "Neuen Link an k***@example.com senden") {
+    fail(`renew label is ${renewExpiredLinkLabel(masked)}`);
+  }
+  if (!isOnboardingIntakeNext(DRAFT_NEXT)) fail("draft next must use the expired-link page");
+
+  const expiredResponse = await verifyMagicLink(
+    new Request(
+      `http://localhost/auth/verify?token=${encodeURIComponent(expired)}&next=${encodeURIComponent(DRAFT_NEXT)}`,
+    ),
+  );
+  const expiredLocation = expiredResponse.headers.get("location") ?? "";
+  if (expiredResponse.status < 300 || expiredResponse.status >= 400) {
+    fail(`expired verify status is ${expiredResponse.status}`);
+  }
+  if (!expiredLocation.includes("/auth/abgelaufen")) {
+    fail(`expired verify location is ${expiredLocation}`);
+  }
+  const expiredUrl = new URL(expiredLocation, "http://localhost");
+  if (expiredUrl.searchParams.get("token") !== expired) fail("expired page dropped the token");
+  if (safeNextPath(expiredUrl.searchParams.get("next")) !== DRAFT_NEXT) {
+    fail("expired page dropped the intake draft redirect");
+  }
+  if (cookieNames(expiredResponse).includes(SESSION_COOKIE)) {
+    fail("expired token set a session cookie");
+  }
+
+  const fresh = createMagicToken(email);
+  if (readExpiredMagicToken(fresh) !== null) fail("fresh token must not use the expired page");
+  const freshResponse = await verifyMagicLink(
+    new Request(
+      `http://localhost/auth/verify?token=${encodeURIComponent(fresh)}&next=${encodeURIComponent(DRAFT_NEXT)}`,
+    ),
+  );
+  const freshLocation = new URL(freshResponse.headers.get("location") ?? "", "http://localhost");
+  if (freshLocation.pathname !== "/intake" || freshLocation.searchParams.get("session_id") !== DRAFT_SESSION) {
+    fail(`fresh verify location is ${freshLocation.pathname}${freshLocation.search}`);
+  }
+  if (!cookieNames(freshResponse).includes(SESSION_COOKIE)) {
+    fail("fresh token did not set a session cookie");
+  }
+
+  const tampered = `${expired.slice(0, -1)}${expired.endsWith("a") ? "b" : "a"}`;
+  const tamperedResponse = await verifyMagicLink(
+    new Request(
+      `http://localhost/auth/verify?token=${encodeURIComponent(tampered)}&next=${encodeURIComponent(DRAFT_NEXT)}`,
+    ),
+  );
+  const tamperedLocation = tamperedResponse.headers.get("location") ?? "";
+  if (tamperedLocation.includes("/auth/abgelaufen") || tamperedLocation.includes(email)) {
+    fail("tampered token reached the expired page");
+  }
+  if (cookieNames(tamperedResponse).includes(SESSION_COOKIE)) {
+    fail("tampered token set a session cookie");
+  }
+
+  const otherNext = await verifyMagicLink(
+    new Request(
+      `http://localhost/auth/verify?token=${encodeURIComponent(expired)}&next=${encodeURIComponent("/account")}`,
+    ),
+  );
+  const otherLocation = otherNext.headers.get("location") ?? "";
+  if (otherLocation.includes("/auth/abgelaufen")) {
+    fail("non-onboarding next used the onboarding expired page");
+  }
+  if (cookieNames(otherNext).includes(SESSION_COOKIE)) {
+    fail("expired account link set a session cookie");
+  }
+
+  const page = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "../app/auth/abgelaufen/page.tsx"),
+    "utf8",
+  );
+  const button = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "../app/auth/abgelaufen/renew-link-button.tsx"),
+    "utf8",
+  );
+  if (EXPIRED_LINK_HEADING !== "Dieser Anmeldelink ist abgelaufen") {
+    fail(`expired heading is ${JSON.stringify(EXPIRED_LINK_HEADING)}`);
+  }
+  if (!page.includes("EXPIRED_LINK_HEADING") || page.includes("applySessionCookie")) {
+    fail("expired page heading missing or page sets a session");
+  }
+  if (!button.includes("/api/auth/magic-link") || !button.includes("renewExpiredLinkLabel")) {
+    fail("renew button does not use the existing magic-link route");
+  }
+
+  setEnv({
+    RESEND_API_KEY: undefined,
+    EMAIL_FROM: undefined,
+    NODE_ENV: "development",
+    VERCEL_ENV: undefined,
+    VERCEL: undefined,
+  });
+  try {
+    let resendBody = "";
+    const logs = await capture(async () => {
+      const response = await postMagicLink(
+        new Request("http://localhost/api/auth/magic-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, next: DRAFT_NEXT }),
+        }),
+      );
+      resendBody = JSON.stringify(await response.json());
+      if (!response.ok) fail(`renew route status is ${response.status}`);
+      if (cookieNames(response).includes(SESSION_COOKIE)) {
+        fail("renew route set a session cookie");
+      }
+    });
+    if (resendBody.includes("/auth/verify") || resendBody.includes("token=")) {
+      fail("renew route returned a magic link");
+    }
+    if (!logs.includes("/auth/verify?") || !logs.includes("session_id%3Dcs_owner_draft") && !logs.includes("session_id=cs_owner_draft")) {
+      fail("renew route did not keep the intake draft redirect in the server log");
+    }
+  } finally {
+    restoreEnv();
+  }
+}
+
+checkExpiredOnboardingLink()
+  .then(() => {
+    console.log("check-onboarding-mail: ok");
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

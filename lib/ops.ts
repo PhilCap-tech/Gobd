@@ -291,7 +291,7 @@ function buildCustomerOnboardingMail(input: {
       CUSTOMER_ONBOARDING_CTA,
       startUrl,
       "",
-      "Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordern Sie auf der Anmeldeseite einen neuen Link an – Sie landen danach wieder im Fragebogen.",
+      "Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.",
       "",
       CUSTOMER_ONBOARDING_CONTINUE_CTA,
       continueUrl,
@@ -319,7 +319,7 @@ function buildCustomerOnboardingMail(input: {
       <li><strong>Gesamt-PDF erstellen</strong> – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.</li>
     </ol>
     <p>${transactionalPrimaryButton(startUrl, CUSTOMER_ONBOARDING_CTA)}</p>
-    <p>Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordern Sie auf der Anmeldeseite einen neuen Link an – Sie landen danach wieder im Fragebogen.</p>
+    <p>Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.</p>
     <p>${transactionalPrimaryButton(continueUrl, CUSTOMER_ONBOARDING_CONTINUE_CTA)}</p>
     <p>Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.</p>
     <p>Ihr Konto: <a href="${escapeAttr(MAIL_ACCOUNT_URL)}">${escapeHtml(MAIL_ACCOUNT_URL)}</a></p>
