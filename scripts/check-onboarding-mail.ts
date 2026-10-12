@@ -1,6 +1,8 @@
 /**
- * Kunden-Onboarding nach dem Kauf (24 Module).
- * Signatur exakt „Ihr Team von gobd-doku-erstellen.de“, kein „GoBD Ops“.
+ * Kundenmails: Onboarding, Liefermail, Anmeldelink, Readiness, Zahlung, Fehler.
+ * Signatur exakt „Ihr Team von GoBD Verfahrensdoku“, kein „GoBD Ops“.
+ * Anrede fällt auf „Guten Tag,“ zurück und nennt nie den Firmennamen.
+ * Die Weitergabe steht in der Liefermail; es gibt keinen zweiten Versand.
  * Der Plaintext mit Namen liegt als Snapshot unter scripts/fixtures/.
  */
 import { createHmac } from "node:crypto";
@@ -26,14 +28,24 @@ import {
   renewExpiredLinkLabel,
 } from "@/lib/expired-onboarding-link";
 import { MAIL_ACCOUNT_URL, MAIL_SUPPORT_EMAIL } from "@/lib/mail-layout";
+import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import {
+  buildDeliveryMail,
+  buildFailedJobMail,
+  buildFailedPaymentMail,
+  buildMagicLinkMail,
   buildOnboardingMail,
+  buildReadinessMail,
+  CUSTOMER_MAIL_SIGNATURE,
   CUSTOMER_ONBOARDING_CONTINUE_CTA,
   CUSTOMER_ONBOARDING_SIGNATURE,
   customerOnboardingDraftPath,
+  PARTNER_ONBOARDING_SIGNATURE,
+  REFERRAL_AFTER_DELIVERY_URL,
+  REFERRAL_MICRO,
 } from "@/lib/ops";
 
-const SIGNATURE = "Ihr Team von gobd-doku-erstellen.de";
+const SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 const REPLY = "info@gobd-doku-erstellen.de";
 const ACCOUNT = "https://www.gobd-doku-erstellen.de/account";
 const START =
@@ -116,6 +128,9 @@ function assertMail(label: string, mail: { text: string; html: string }): void {
 if (CUSTOMER_ONBOARDING_SIGNATURE !== SIGNATURE) {
   fail(`signature constant is ${JSON.stringify(CUSTOMER_ONBOARDING_SIGNATURE)}`);
 }
+if (CUSTOMER_MAIL_SIGNATURE !== SIGNATURE || PARTNER_ONBOARDING_SIGNATURE !== SIGNATURE) {
+  fail("customer mail signature drifted");
+}
 if (MAIL_SUPPORT_EMAIL !== REPLY) fail(`reply address is ${MAIL_SUPPORT_EMAIL}`);
 if (MAIL_ACCOUNT_URL !== ACCOUNT) fail(`account url is ${MAIL_ACCOUNT_URL}`);
 
@@ -147,6 +162,112 @@ if (!named.text.startsWith("Guten Tag Philip Cappelletti,")) {
 }
 if (!companyOnly.text.startsWith("Guten Tag,")) fail("company-only greeting drifted");
 if (!blankName.text.startsWith("Guten Tag,")) fail("blank-name greeting drifted");
+if (companyOnly.text.includes("Guten Tag IKAT GmbH") || companyOnly.html.includes("Guten Tag IKAT GmbH")) {
+  fail("onboarding greets the company name");
+}
+
+function occurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+function assertCustomerClosing(label: string, mail: { text: string; html: string }): void {
+  if (!mail.html.includes(`<p>${SIGNATURE}</p>`)) fail(`${label}: HTML signature missing`);
+  if (!mail.text.includes(SIGNATURE)) fail(`${label}: plaintext signature missing`);
+  if (/GoBD Ops/i.test(mail.html) || /GoBD Ops/i.test(mail.text)) {
+    fail(`${label}: contains GoBD Ops`);
+  }
+}
+
+const DOWNLOAD = "https://www.gobd-doku-erstellen.de/api/docs/preview/download";
+const deliveryCompany = buildDeliveryMail({
+  company: "IKAT GmbH",
+  contactName: "IKAT GmbH",
+  downloadUrl: DOWNLOAD,
+  version: 1,
+});
+const deliveryBlank = buildDeliveryMail({
+  company: "IKAT GmbH",
+  contactName: "   ",
+  downloadUrl: DOWNLOAD,
+  version: 1,
+});
+const deliveryPerson = buildDeliveryMail({
+  company: "IKAT GmbH",
+  contactName: "Anna Berg",
+  downloadUrl: DOWNLOAD,
+  version: 1,
+});
+
+for (const [label, mail] of [
+  ["delivery-company", deliveryCompany],
+  ["delivery-blank", deliveryBlank],
+  ["delivery-person", deliveryPerson],
+] as const) {
+  assertCustomerClosing(label, mail);
+  if (mail.subject !== "Ihr Entwurf der Verfahrensdokumentation") {
+    fail(`${label}: subject drifted`);
+  }
+  if (occurrences(mail.text, "Gern weitergeben") !== 1 || occurrences(mail.html, "Gern weitergeben") !== 1) {
+    fail(`${label}: share section must appear once`);
+  }
+  if (!mail.text.includes(REFERRAL_AFTER_DELIVERY_URL)) fail(`${label}: share URL missing`);
+  if (!mail.html.includes(`href="${REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;")}"`)) {
+    fail(`${label}: share href missing`);
+  }
+  if (occurrences(mail.text, "149 €") !== 1 || occurrences(mail.html, "149 €") !== 1) {
+    fail(`${label}: price line must appear once`);
+  }
+  if (!mail.text.includes(REFERRAL_MICRO) || !mail.html.includes(REFERRAL_MICRO)) {
+    fail(`${label}: single price line missing`);
+  }
+  if (
+    mail.text.includes(INTAKE_EFFORT_LINE) ||
+    mail.html.includes(INTAKE_EFFORT_LINE) ||
+    mail.text.includes("Betriebs-Check") ||
+    mail.html.includes("Betriebs-Check")
+  ) {
+    fail(`${label}: re-explains the Betriebs-Check`);
+  }
+  if (mail.text.includes("Guten Tag IKAT GmbH") || mail.html.includes("Guten Tag IKAT GmbH")) {
+    fail(`${label}: greets the company name`);
+  }
+}
+
+if (!deliveryCompany.text.startsWith("Guten Tag,") || !deliveryBlank.text.startsWith("Guten Tag,")) {
+  fail("delivery salutation must fall back to Guten Tag,");
+}
+if (!deliveryPerson.text.startsWith("Guten Tag Anna Berg,")) {
+  fail("delivery salutation must use the contact name");
+}
+
+const otherCustomerMails = [
+  ["magic", buildMagicLinkMail({ magicLinkUrl: START })],
+  [
+    "readiness",
+    buildReadinessMail({
+      name: "Alex",
+      brancheLabel: "Handwerk",
+      downloadUrl: DOWNLOAD,
+    }),
+  ],
+  ["failed-payment", buildFailedPaymentMail()],
+  ["failed-job", buildFailedJobMail()],
+] as const;
+for (const [label, mail] of otherCustomerMails) {
+  assertCustomerClosing(label, mail);
+}
+
+const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+for (const rel of ["lib/ops.ts", "app/api/intake/route.ts", "app/api/document/route.ts"]) {
+  const source = readFileSync(path.join(repoRoot, rel), "utf8");
+  if (
+    source.includes("sendReferralAfterDeliveryMail") ||
+    source.includes("buildReferralAfterDeliveryMail")
+  ) {
+    fail(`${rel} still sends a separate referral mail`);
+  }
+  if (/GoBD Ops/i.test(source)) fail(`${rel} still contains GoBD Ops`);
+}
 
 if (CUSTOMER_ONBOARDING_CONTINUE_CTA !== CONTINUE_LABEL) {
   fail(`continue label is ${JSON.stringify(CUSTOMER_ONBOARDING_CONTINUE_CTA)}`);

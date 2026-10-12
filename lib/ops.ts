@@ -1,25 +1,16 @@
 /**
- * GoBD Ops.
+ * Transactional mail.
  *
- * Onboarding, Delivery, Referral nach Delivery, Readiness, Magic-Link,
- * Failed Payment und Failed Job gehen über Resend, wenn Mail-Env gesetzt ist.
+ * Onboarding, Delivery, Readiness, Magic-Link, Failed Payment und Failed Job
+ * gehen über Resend, wenn Mail-Env gesetzt ist.
  * HTML läuft durch wrapTransactionalHtml. Ohne Env: bisheriger Log-Stub, kein Versand.
- * Referral hängt nur am Delivery-Erfolg (eigene Funktion), nicht an Onboarding,
- * Failed Job, Failed Payment oder Magic-Link.
+ * Die Weitergabe steht in der Liefermail. Es gibt keine zweite Mail dazu.
  */
 
 import { CUSTOMER_ONBOARDING_NEXT_PATH, magicLinkUrl } from "@/lib/auth";
-import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import { isMailConfigured } from "@/lib/env";
 import { sendEmail, type MailResult } from "@/lib/mail";
 import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
-import {
-  cancelReferralDelivery,
-  completeReferralDelivery,
-  referralDeliveryKey,
-  referralIdempotencyKey,
-  reserveReferralDelivery,
-} from "@/lib/referral-sent";
 import {
   escapeAttr,
   escapeHtml,
@@ -42,7 +33,7 @@ import { answersFromSheetRow } from "@/lib/types";
 export type OpsResult = {
   stub: boolean;
   sent: boolean;
-  /** Kein Versand: keine Adresse, keine Delivery-Id, Referral schon gesendet, oder Pilot-Exemption. */
+  /** Kein Versand: keine Adresse oder Pilot-Exemption. */
   skipped?: boolean;
   action:
     | "onboarding"
@@ -50,7 +41,6 @@ export type OpsResult = {
     | "failed_job"
     | "delivery"
     | "readiness"
-    | "referral_after_delivery"
     | "partner_inquiry";
 };
 
@@ -64,13 +54,15 @@ const CHECKOUT_CTA = "Jetzt Verfahrensdokumentation erstellen — 149 € + 49 �
 const READINESS_MICRO =
   "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung · Entwurf für Ihren Steuerberater";
 
-/** Exact product URL from the Post-Delivery Referral spec (Track C). */
+/** Exact product URL for the short share section in the delivery mail. */
 export const REFERRAL_AFTER_DELIVERY_URL =
   "https://www.gobd-doku-erstellen.de/?utm_source=referral&utm_medium=email&utm_campaign=post_delivery";
-export const REFERRAL_AFTER_DELIVERY_SUBJECT =
-  "Ihr Entwurf ist fertig — gern an Steuerberater oder Kollegen weitergeben";
+/** One price line. The delivery mail includes this at most once. */
 export const REFERRAL_MICRO =
   "149 € + 49 €/Monat, jeweils zzgl. USt · 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung";
+
+/** Closes every customer mail, including the partner pilot. */
+export const CUSTOMER_MAIL_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 
 export function buildMagicLinkMail(input: {
   magicLinkUrl: string;
@@ -83,6 +75,8 @@ export function buildMagicLinkMail(input: {
       input.magicLinkUrl,
       "",
       "Wenn Sie das nicht angefordert haben, können Sie diese Mail ignorieren.",
+      "",
+      CUSTOMER_MAIL_SIGNATURE,
     ].join("\n"),
   );
   const html = wrapTransactionalHtml(`
@@ -90,6 +84,7 @@ export function buildMagicLinkMail(input: {
     <p>hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):</p>
     <p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden</a></p>
     <p>Wenn Sie das nicht angefordert haben, können Sie diese Mail ignorieren.</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
     subject: "Ihr Anmeldelink — GoBD Verfahrensdoku",
@@ -123,6 +118,8 @@ export function buildReadinessMail(input: {
     MAIL_CHECKOUT_URL,
     "",
     READINESS_MICRO,
+    "",
+    CUSTOMER_MAIL_SIGNATURE,
   );
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
@@ -131,6 +128,7 @@ export function buildReadinessMail(input: {
     ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
     <p><a href="${escapeAttr(MAIL_CHECKOUT_URL)}">${escapeHtml(CHECKOUT_CTA)}</a></p>
     <p>${escapeHtml(READINESS_MICRO)}</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
     subject: "Ihr Readiness-Ergebnis — nächster Schritt zur Verfahrensdokumentation",
@@ -141,9 +139,8 @@ export function buildReadinessMail(input: {
 
 export type OnboardingAudience = "kunde" | "steuerberater";
 
-export const CUSTOMER_ONBOARDING_SIGNATURE = "Ihr Team von gobd-doku-erstellen.de";
-/** Partner-Pilot behält die eigene Sie-Zeile. Kundenmail signiert mit der Domain. */
-export const PARTNER_ONBOARDING_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
+export const CUSTOMER_ONBOARDING_SIGNATURE = CUSTOMER_MAIL_SIGNATURE;
+export const PARTNER_ONBOARDING_SIGNATURE = CUSTOMER_MAIL_SIGNATURE;
 
 const CUSTOMER_ONBOARDING_SUBJECT =
   "Willkommen — nächste Schritte zu Ihrer Verfahrensdokumentation";
@@ -407,6 +404,8 @@ export function buildFailedPaymentMail(): TransactionalMailContent {
       "",
       `Fragen: ${MAIL_FAQ_URL}`,
       `Support: ${MAIL_SUPPORT_EMAIL}`,
+      "",
+      CUSTOMER_MAIL_SIGNATURE,
     ].join("\n"),
   );
   const html = wrapTransactionalHtml(`
@@ -415,6 +414,7 @@ export function buildFailedPaymentMail(): TransactionalMailContent {
     <p><a href="${escapeAttr(MAIL_ACCOUNT_URL)}">${escapeHtml(MAIL_ACCOUNT_URL)}</a></p>
     <p>Fragen: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
     subject: "Zahlung fehlgeschlagen — bitte prüfen",
@@ -432,6 +432,8 @@ export function buildFailedJobMail(): TransactionalMailContent {
       "",
       `Zwischenzeitlich: ${MAIL_FAQ_URL}`,
       `Support: ${MAIL_SUPPORT_EMAIL}`,
+      "",
+      CUSTOMER_MAIL_SIGNATURE,
     ].join("\n"),
   );
   const html = wrapTransactionalHtml(`
@@ -439,6 +441,7 @@ export function buildFailedJobMail(): TransactionalMailContent {
     <p>bei der Erstellung Ihrer Verfahrensdokumentation ist ein technischer Fehler aufgetreten. Wir prüfen das und melden uns.</p>
     <p>Zwischenzeitlich: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
     subject: "Technisches Problem bei der Erstellung — wir kümmern uns",
@@ -447,16 +450,22 @@ export function buildFailedJobMail(): TransactionalMailContent {
   };
 }
 
+const DELIVERY_SHARE_INTRO =
+  "Wenn Ihr Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, können Sie diesen Link weitergeben:";
+
 export function buildDeliveryMail(input: {
   company?: string;
+  /** Person. A company name is ignored; the greeting then stays „Guten Tag,“. */
+  contactName?: string;
   downloadUrl: string;
   magicLinkUrl?: string;
   successUrl?: string;
   version?: number;
 }): TransactionalMailContent {
   const version = input.version && input.version > 0 ? input.version : 1;
+  const greeting = customerOnboardingGreeting(input.contactName, [input.company]);
   const lines = [
-    `Guten Tag${input.company ? ` ${input.company}` : ""},`,
+    greeting,
     "",
     `Ihr Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.`,
     "",
@@ -475,66 +484,32 @@ export function buildDeliveryMail(input: {
     "",
     "Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit Ihrem Steuerberater.",
     "",
-    "GoBD Verfahrensdoku",
+    "Gern weitergeben",
+    "",
+    DELIVERY_SHARE_INTRO,
+    REFERRAL_AFTER_DELIVERY_URL,
+    "",
+    REFERRAL_MICRO,
+    "",
+    CUSTOMER_MAIL_SIGNATURE,
   );
   const html = wrapTransactionalHtml(`
-    <p>Guten Tag${input.company ? ` ${escapeHtml(input.company)}` : ""},</p>
+    <p>${escapeHtml(greeting)}</p>
     <p>Ihr Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.</p>
     <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a></p>
     ${input.successUrl ? `<p><a href="${escapeAttr(input.successUrl)}">Zur Übersicht</a></p>` : ""}
     ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit Ihrem Steuerberater.</p>
-    <p>GoBD Verfahrensdoku</p>
+    <p><strong>Gern weitergeben</strong></p>
+    <p>${escapeHtml(DELIVERY_SHARE_INTRO)}</p>
+    <p><a href="${escapeAttr(REFERRAL_AFTER_DELIVERY_URL)}">${escapeHtml(REFERRAL_AFTER_DELIVERY_URL)}</a></p>
+    <p>${escapeHtml(REFERRAL_MICRO)}</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
     subject: "Ihr Entwurf der Verfahrensdokumentation",
     text: wrapTransactionalText(lines.join("\n")),
-    html,
-  };
-}
-
-export function buildReferralAfterDeliveryMail(input: {
-  company?: string;
-}): TransactionalMailContent {
-  const company = input.company?.trim() ?? "";
-  const greeting = company ? `Guten Tag ${company},` : "Guten Tag,";
-  const text = wrapTransactionalText(
-    [
-      greeting,
-      "",
-      "Ihr Entwurf der Verfahrensdokumentation ist bereit.",
-      "",
-      "Wenn Ihr Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, können Sie diesen Link weitergeben:",
-      "",
-      REFERRAL_AFTER_DELIVERY_URL,
-      "",
-      "Kurz: Online-Intake → Entwurf als PDF. Einrichtung 149 € zzgl. USt, danach 49 € zzgl. USt pro Monat. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.",
-      INTAKE_EFFORT_LINE,
-      "",
-      `Ihr Konto: ${MAIL_LOGIN_URL}`,
-      `Fragen: ${MAIL_FAQ_URL}`,
-      `Support: ${MAIL_SUPPORT_EMAIL}`,
-      "",
-      "GoBD Ops · IKAT GmbH",
-    ].join("\n"),
-  );
-  const html = wrapTransactionalHtml(`
-    <p>${escapeHtml(greeting)}</p>
-    <p>Ihr Entwurf der Verfahrensdokumentation ist bereit.</p>
-    <p>Wenn Ihr Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, können Sie diesen Link weitergeben:</p>
-    <p><a href="${escapeAttr(REFERRAL_AFTER_DELIVERY_URL)}">Link weitergeben</a></p>
-    <p>Kurz: Online-Intake → Entwurf als PDF. Einrichtung 149 € zzgl. USt, danach 49 € zzgl. USt pro Monat. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.</p>
-    <p>${escapeHtml(INTAKE_EFFORT_LINE)}</p>
-    <p>${escapeHtml(REFERRAL_MICRO)}</p>
-    <p>Ihr Konto: <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></p>
-    <p>Fragen: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
-    <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
-    <p>GoBD Ops · IKAT GmbH</p>
-  `);
-  return {
-    subject: REFERRAL_AFTER_DELIVERY_SUBJECT,
-    text,
     html,
   };
 }
@@ -733,7 +708,19 @@ export async function sendDeliveryMail(input: {
     return { stub: true, sent: false, action: "delivery" };
   }
 
-  const mail = buildDeliveryMail(input);
+  let contactName = "";
+  try {
+    const found = await lookupOnboardingContactSources(input.email);
+    contactName = pickOnboardingContactName({
+      profileName: found.profileName,
+      intakeContactNames: found.intakeContactNames,
+      companyNames: [input.company ?? "", ...found.companyNames],
+    });
+  } catch (error) {
+    console.warn("[ops] Ansprechperson für die Liefermail nicht geladen", error);
+  }
+
+  const mail = buildDeliveryMail({ ...input, contactName });
   const result = await sendEmail({
     to: input.email,
     subject: mail.subject,
@@ -741,90 +728,6 @@ export async function sendDeliveryMail(input: {
     html: mail.html,
   });
   return { ...result, action: "delivery" };
-}
-
-/**
- * Post-Delivery Referral. Eigene Funktion, nicht Teil von sendDeliveryMail.
- * Nur aufrufen, nachdem eine Delivery wirklich erfolgreich war (PDF liegt).
- * Höchstens einmal pro documentId (sonst pro sessionId).
- */
-export async function sendReferralAfterDeliveryMail(input: {
-  email: string;
-  company?: string;
-  documentId?: string;
-  sessionId?: string;
-}): Promise<OpsResult & MailResult> {
-  const email = input.email.trim();
-  const documentId = input.documentId?.trim() ?? "";
-  const sessionId = input.sessionId?.trim() ?? "";
-
-  if (!email) {
-    console.info("[ops] referral mail übersprungen — keine E-Mail", {
-      documentId,
-      sessionId,
-    });
-    return {
-      stub: true,
-      sent: false,
-      skipped: true,
-      action: "referral_after_delivery",
-    };
-  }
-
-  const eventKey = referralDeliveryKey({ documentId, sessionId });
-  if (!eventKey) {
-    console.info("[ops] referral mail übersprungen — keine Delivery-Id", {
-      email,
-    });
-    return {
-      stub: true,
-      sent: false,
-      skipped: true,
-      action: "referral_after_delivery",
-    };
-  }
-
-  const reservation = await reserveReferralDelivery(eventKey);
-  if (reservation === "duplicate") {
-    console.info("[ops] referral mail bereits gesendet", {
-      email,
-      documentId,
-      sessionId,
-    });
-    return {
-      stub: false,
-      sent: false,
-      skipped: true,
-      action: "referral_after_delivery",
-    };
-  }
-
-  try {
-    const mail = buildReferralAfterDeliveryMail({ company: input.company });
-    const result = await sendEmail({
-      to: email,
-      subject: mail.subject,
-      text: mail.text,
-      html: mail.html,
-      idempotencyKey: referralIdempotencyKey(eventKey),
-    });
-    if (result.sent || result.stub) {
-      await completeReferralDelivery(eventKey);
-    } else {
-      cancelReferralDelivery(eventKey);
-    }
-    console.info("[ops] referral mail", {
-      email,
-      documentId,
-      sessionId,
-      sent: result.sent,
-      stub: result.stub,
-    });
-    return { ...result, skipped: false, action: "referral_after_delivery" };
-  } catch (error) {
-    cancelReferralDelivery(eventKey);
-    throw error;
-  }
 }
 
 export type PartnerInquiryMailInput = {

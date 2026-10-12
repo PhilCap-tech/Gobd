@@ -5,7 +5,6 @@
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { loginPath, magicLinkUrl, safeNextPath } from "@/lib/auth";
-import { isMailConfigured } from "@/lib/env";
 import {
   buildDeliveryMail,
   buildFailedJobMail,
@@ -13,7 +12,6 @@ import {
   buildMagicLinkMail,
   buildOnboardingMail,
   buildReadinessMail,
-  buildReferralAfterDeliveryMail,
   checkoutContactFromCustomerDetails,
   CUSTOMER_ONBOARDING_CONTINUE_CTA,
   CUSTOMER_ONBOARDING_SIGNATURE,
@@ -22,17 +20,14 @@ import {
   intakeContactNameFromAnswers,
   PARTNER_ONBOARDING_SIGNATURE,
   pickOnboardingContactName,
-  REFERRAL_AFTER_DELIVERY_SUBJECT,
   REFERRAL_AFTER_DELIVERY_URL,
   REFERRAL_MICRO,
-  sendReferralAfterDeliveryMail,
 } from "@/lib/ops";
 import {
   MAIL_ACCOUNT_URL,
   MAIL_CHECKOUT_URL,
   MAIL_FAQ_URL,
   MAIL_HOME_URL,
-  MAIL_LOGIN_URL,
   MAIL_SUPPORT_EMAIL,
 } from "@/lib/mail-layout";
 import {
@@ -87,13 +82,18 @@ const failedPayment = buildFailedPaymentMail();
 const failedJob = buildFailedJobMail();
 const delivery = buildDeliveryMail({
   company: "Muster GmbH",
+  contactName: "Anna Berg",
   downloadUrl: "https://www.gobd-doku-erstellen.de/api/docs/preview/download",
   successUrl: "https://www.gobd-doku-erstellen.de/success?session_id=preview",
   magicLinkUrl: "https://www.gobd-doku-erstellen.de/auth/verify?token=delivery-preview",
   version: 1,
 });
-const referral = buildReferralAfterDeliveryMail({ company: "Muster GmbH" });
-const referralNoCompany = buildReferralAfterDeliveryMail({ company: "  " });
+const deliveryCompanyOnly = buildDeliveryMail({
+  company: "IKAT GmbH",
+  contactName: "IKAT GmbH",
+  downloadUrl: "https://www.gobd-doku-erstellen.de/api/docs/preview/download",
+  version: 1,
+});
 
 const files: Record<string, string> = {
   "magic-link.html": magic.html,
@@ -104,7 +104,6 @@ const files: Record<string, string> = {
   "failed-payment.html": failedPayment.html,
   "failed-job.html": failedJob.html,
   "delivery.html": delivery.html,
-  "referral-after-delivery.html": referral.html,
 };
 
 for (const [name, html] of Object.entries(files)) {
@@ -225,10 +224,10 @@ assert(
   onboardingCompanyOnly.text.includes(onboardingStartUrl),
   "Fallback plaintext includes the same start URL",
 );
-const ONBOARDING_SIGNATURE = "Ihr Team von gobd-doku-erstellen.de";
+const ONBOARDING_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 assert(
   CUSTOMER_ONBOARDING_SIGNATURE === ONBOARDING_SIGNATURE,
-  "Customer onboarding signature is exactly Ihr Team von gobd-doku-erstellen.de",
+  "Customer onboarding signature is exactly Ihr Team von GoBD Verfahrensdoku",
 );
 assert(
   onboarding.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`),
@@ -518,87 +517,77 @@ assert(
   "Readiness plain text must include Steuerberatung disclaimer",
 );
 assert(
-  referral.subject === REFERRAL_AFTER_DELIVERY_SUBJECT,
-  "Referral subject must match Ops copy",
+  delivery.subject === "Ihr Entwurf der Verfahrensdokumentation",
+  "Delivery keeps its own subject",
 );
 assert(
-  referral.subject ===
-    "Ihr Entwurf ist fertig — gern an Steuerberater oder Kollegen weitergeben",
-  "Referral subject must be exact",
-);
-const referralHref = REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;");
-assert(
-  referral.html.includes(`href="${referralHref}"`),
-  "Referral HTML must link the exact UTM product URL",
+  delivery.text.startsWith("Guten Tag Anna Berg,"),
+  "Delivery greets the contact person",
 );
 assert(
-  referral.text.includes(REFERRAL_AFTER_DELIVERY_URL),
-  "Referral plain text must include the exact UTM product URL",
+  deliveryCompanyOnly.text.startsWith("Guten Tag,"),
+  "Delivery falls back when the only name is the company",
 );
 assert(
-  referral.html.includes("utm_source=referral") &&
-    referral.html.includes("utm_medium=email") &&
-    referral.html.includes("utm_campaign=post_delivery"),
-  "Referral HTML must include the post_delivery UTM campaign",
+  !delivery.text.includes("Guten Tag Muster GmbH") &&
+    !delivery.html.includes("Guten Tag Muster GmbH") &&
+    !deliveryCompanyOnly.text.includes("Guten Tag IKAT GmbH") &&
+    !deliveryCompanyOnly.html.includes("Guten Tag IKAT GmbH"),
+  "Delivery must not greet the company name",
 );
-assert(referral.html.includes(MAIL_FAQ_URL), "Referral HTML must link to FAQ");
+const shareHref = REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;");
 assert(
-  referral.text.includes(MAIL_FAQ_URL),
-  "Referral plain text must include FAQ",
-);
-assert(
-  referral.html.includes(MAIL_LOGIN_URL),
-  "Referral HTML must link to login",
-);
-assert(
-  referral.text.includes(MAIL_LOGIN_URL),
-  "Referral plain text must include login",
+  delivery.html.includes("<strong>Gern weitergeben</strong>") &&
+    delivery.text.includes("Gern weitergeben") &&
+    delivery.html.includes(`href="${shareHref}"`) &&
+    delivery.text.includes(REFERRAL_AFTER_DELIVERY_URL),
+  "Delivery includes one share section with the UTM product URL",
 );
 assert(
-  referral.html.includes(REFERRAL_MICRO),
-  "Referral HTML must include the pricing micro line",
+  delivery.html.includes(REFERRAL_MICRO) && delivery.text.includes(REFERRAL_MICRO),
+  "Delivery includes the single price line",
 );
 assert(
-  referral.html.includes("149 €"),
-  "Referral HTML must keep the 149 € setup price",
+  delivery.html.split("149 €").length - 1 === 1 &&
+    delivery.text.split("149 €").length - 1 === 1,
+  "Delivery states the price once",
 );
 assert(
-  referral.html.includes("49 €/Monat"),
-  "Referral HTML must keep the 49 €/Monat price",
+  !delivery.html.includes("Betriebs-Check") && !delivery.text.includes("Betriebs-Check"),
+  "Delivery does not re-explain the Betriebs-Check",
 );
 assert(
-  !/unsubscribe/i.test(referral.html),
-  "Referral HTML must not include unsubscribe",
+  delivery.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`) &&
+    delivery.text.includes(ONBOARDING_SIGNATURE) &&
+    deliveryCompanyOnly.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`),
+  "Delivery uses the customer signature",
 );
 assert(
-  !/unsubscribe/i.test(referral.text),
-  "Referral plain text must not include unsubscribe",
+  !/GoBD Ops/i.test(`${delivery.html}\n${delivery.text}\n${deliveryCompanyOnly.html}`),
+  "Delivery must not contain GoBD Ops",
 );
-assert(
-  !referral.html.includes("/api/docs/"),
-  "Referral must not attach or link a second PDF",
-);
-assert(
-  !/PDF herunterladen/i.test(referral.html),
-  "Referral must not repeat the delivery download CTA",
-);
-assert(
-  referral.html.includes("Guten Tag Muster GmbH,"),
-  "Referral greeting must include the company",
-);
-assert(
-  referralNoCompany.text.startsWith("Guten Tag,"),
-  "Empty company must render as Guten Tag,",
-);
-assert(
-  !referralNoCompany.text.includes("Guten Tag ,"),
-  "Empty company must not leave a gap in the greeting",
-);
-const customerMails = [magic, readiness, onboarding, failedPayment, failedJob, delivery, referral];
+const customerMails = [
+  magic,
+  readiness,
+  onboarding,
+  failedPayment,
+  failedJob,
+  delivery,
+  deliveryCompanyOnly,
+];
 for (const mail of customerMails) {
   assert(
     !hasCustomerDu(`${mail.subject}\n${mail.html}\n${mail.text}`),
     `Customer mail must use Sie: ${mail.subject}`,
+  );
+  assert(
+    mail.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`) &&
+      mail.text.includes(ONBOARDING_SIGNATURE),
+    `Customer mail signature: ${mail.subject}`,
+  );
+  assert(
+    !/GoBD Ops/i.test(`${mail.html}\n${mail.text}`),
+    `Customer mail must not contain GoBD Ops: ${mail.subject}`,
   );
 }
 
@@ -642,55 +631,6 @@ async function assertReferralIdempotency(): Promise<void> {
     "parallel reserves of one delivery must claim only once",
   );
   assert((await reserveReferralDelivery(nextDelivery)) === "reserved", "new version can reserve");
-
-  if (isMailConfigured()) {
-    console.info(
-      "[preview] Mail-Env gesetzt — Idempotenz nur über das Ledger, kein Live-Versand",
-    );
-  } else {
-    const first = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      company: "Muster GmbH",
-      documentId: "preview-doc",
-      sessionId: "preview-session",
-    });
-    const duplicate = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      company: "Muster GmbH",
-      documentId: "preview-doc",
-      sessionId: "preview-session",
-    });
-    const nextVersion = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      company: "Muster GmbH",
-      documentId: "preview-doc-v2",
-      sessionId: "preview-session",
-    });
-    const missingEmail = await sendReferralAfterDeliveryMail({
-      email: "  ",
-      documentId: "preview-doc-v2",
-      sessionId: "preview-session",
-    });
-    const missingId = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-    });
-    const sessionFirst = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      sessionId: "preview-session-only",
-    });
-    const sessionDuplicate = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      sessionId: "preview-session-only",
-    });
-    assert(first.skipped === false && first.stub === true && first.sent === false, "First referral stub must run once");
-    assert(first.action === "referral_after_delivery", "Referral action must be distinct");
-    assert(duplicate.skipped === true && duplicate.sent === false, "Duplicate delivery must skip referral");
-    assert(nextVersion.skipped === false, "A new document version is a new delivery event");
-    assert(missingEmail.skipped === true && missingEmail.sent === false, "Missing email must skip");
-    assert(missingId.skipped === true && missingId.sent === false, "Missing delivery id must skip");
-    assert(sessionFirst.skipped === false, "Session-only delivery sends once");
-    assert(sessionDuplicate.skipped === true, "Same session without a new document skips");
-  }
 }
 
 assertReferralIdempotency().catch((error) => {
