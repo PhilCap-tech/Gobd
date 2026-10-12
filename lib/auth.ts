@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { getAppUrl, getMagicLinkSecret } from "@/lib/env";
+import { isSessionRevoked } from "@/lib/session-revocation";
 
 export const SESSION_COOKIE = "gobd_session";
 export const MAGIC_TTL_MS = 20 * 60 * 1000;
@@ -125,16 +126,31 @@ export function readExpiredMagicToken(token: string | undefined | null): string 
   return payload.email.trim().toLowerCase();
 }
 
-export function verifySessionToken(
+function sessionClaims(
   token: string | undefined | null,
-): string | null {
+): { email: string; iat: number } | null {
   const payload = verify(token);
   if (!payload || payload.typ !== "session") return null;
   if (typeof payload.iat !== "number" || !Number.isFinite(payload.iat)) {
     return null;
   }
   if (payload.iat < sessionMinIssuedAt()) return null;
-  return payload.email;
+  return { email: payload.email, iat: payload.iat };
+}
+
+export function verifySessionToken(
+  token: string | undefined | null,
+): string | null {
+  return sessionClaims(token)?.email ?? null;
+}
+
+async function liveSessionEmail(
+  token: string | undefined | null,
+): Promise<string | null> {
+  const claims = sessionClaims(token);
+  if (!claims) return null;
+  if (await isSessionRevoked(claims.email, claims.iat)) return null;
+  return claims.email;
 }
 
 export type CheckoutGrant = {
@@ -272,8 +288,16 @@ function cookieFromHeader(header: string | null, name: string): string | null {
   return null;
 }
 
-/** Login-Mail aus dem Request-Cookie. Dieselbe Prüfung wie `getSessionEmail`. */
-export function sessionEmailFromRequest(request: Request): string | null {
+/**
+ * Login-Mail aus dem Request-Cookie. Dieselbe Prüfung wie `getSessionEmail`,
+ * einschließlich serverseitigem Widerruf nach Abmelden.
+ */
+export async function sessionEmailFromRequest(request: Request): Promise<string | null> {
+  return liveSessionEmail(cookieFromHeader(request.headers.get("cookie"), SESSION_COOKIE));
+}
+
+/** Signatur der Sitzung, ohne Widerruf. Nur zum Abmelden der vorgelegten Mailbox. */
+export function presentedSessionEmail(request: Request): string | null {
   return verifySessionToken(cookieFromHeader(request.headers.get("cookie"), SESSION_COOKIE));
 }
 
@@ -394,7 +418,7 @@ function authReadFailed(error: unknown): null {
 export async function getSessionEmail(): Promise<string | null> {
   try {
     const store = await cookies();
-    return verifySessionToken(store.get(SESSION_COOKIE)?.value);
+    return liveSessionEmail(store.get(SESSION_COOKIE)?.value);
   } catch (error) {
     return authReadFailed(error);
   }

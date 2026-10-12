@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { clearSessionCookie, loginPath, sessionEmailFromRequest } from "@/lib/auth";
+import {
+  clearSessionCookie,
+  loginPath,
+  presentedSessionEmail,
+  sessionEmailFromRequest,
+} from "@/lib/auth";
+import { revokeSessionsForEmail } from "@/lib/session-revocation";
 import { ensureBuyerFirmForCheckout } from "@/lib/checkout-firm";
 import { ownerEmailAfterVerifiedCheckout } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
@@ -44,16 +50,31 @@ export async function completeCheckoutHandoff(
 ): Promise<NextResponse> {
   const form = await request.formData();
   const sessionId = String(form.get("session_id") ?? "").trim();
-  const current = sessionEmailFromRequest(request);
+  const presented = presentedSessionEmail(request);
+  const current = await sessionEmailFromRequest(request);
 
-  const loggedOut = (path: string) => {
+  const loggedOut = async (path: string) => {
+    if (presented) {
+      try {
+        await revokeSessionsForEmail(presented);
+      } catch (error) {
+        console.error(
+          "[auth] Abmelden nicht gespeichert",
+          error instanceof Error ? error.name : "error",
+        );
+        return NextResponse.json(
+          { error: "Die Abmeldung ist fehlgeschlagen. Bitte versuchen Sie es noch einmal." },
+          { status: 500, headers: { "Cache-Control": "private, no-store" } },
+        );
+      }
+    }
     const response = NextResponse.redirect(new URL(path, request.url), 303);
     clearSessionCookie(response, request.url);
     return response;
   };
 
   if (!sessionId) {
-    return loggedOut("/login");
+    return await loggedOut("/login");
   }
 
   let owner: string | null = null;
@@ -72,7 +93,7 @@ export async function completeCheckoutHandoff(
     return NextResponse.redirect(new URL("/account", request.url), 303);
   }
   if (!ownerEmail) {
-    return loggedOut("/login");
+    return await loggedOut("/login");
   }
 
   let buyerEntityId = "";
@@ -99,7 +120,7 @@ export async function completeCheckoutHandoff(
     return NextResponse.redirect(back, 303);
   }
 
-  return loggedOut(loginPath(nextPath));
+  return await loggedOut(loginPath(nextPath));
 }
 
 async function resolveHandoffOwner(sessionId: string): Promise<string | null> {

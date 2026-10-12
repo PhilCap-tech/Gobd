@@ -10,6 +10,7 @@ import {
   SuccessPending,
 } from "@/components/success-status";
 import { getSessionEmail, sessionIdForCheckoutProof } from "@/lib/auth";
+import { emailShownToViewer } from "@/lib/checkout-session";
 import { LOGIN_LINK_FAILED_NOTICE, loginLinkSentNotice } from "@/lib/login-mail";
 import { DELIVERY_DISCLAIMER } from "@/lib/delivery";
 import {
@@ -52,6 +53,8 @@ export default async function SuccessPage({
     : undefined;
   const mailReady = isMailConfigured();
   const version = row ? parseDocumentVersion(row) : 1;
+  const visibleEmail = row ? emailShownToViewer(row.email, sessionEmail) : "";
+  const ownerView = Boolean(visibleEmail && sessionEmail && visibleEmail === row?.email.trim().toLowerCase());
 
   const pendingQuery = new URLSearchParams();
   if (sessionId) pendingQuery.set("session_id", sessionId);
@@ -93,11 +96,11 @@ export default async function SuccessPage({
               {anmeldung === "fehler" ? (
                 <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p>
               ) : anmeldung === "gesendet" || (mailReady && anmeldung !== "stub") ? (
-                <p className="banner">{loginLinkSentNotice(row.email)}</p>
+                <p className="banner">{loginLinkSentNotice(visibleEmail)}</p>
               ) : null}
               {mailReady ? (
                 <p className="hint">
-                  Wir haben den Download-Link{row.email ? ` an ${row.email}` : ""}{" "}
+                  Wir haben den Download-Link{visibleEmail ? ` an ${visibleEmail}` : ""}{" "}
                   geschickt. Später geht’s über Magic Link ins Konto.
                 </p>
               ) : (
@@ -115,6 +118,7 @@ export default async function SuccessPage({
               <VersionHistory
                 versions={family?.versions ?? [row]}
                 sessionId={sessionId}
+                maskActors={!ownerView}
               />
               <p className="disclaimer" role="note">
                 {DELIVERY_DISCLAIMER}

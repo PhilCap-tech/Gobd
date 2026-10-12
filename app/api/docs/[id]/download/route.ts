@@ -7,40 +7,52 @@ import { generatePdf } from "@/lib/delivery";
 import { isGesamt } from "@/lib/module/status";
 import { modulById } from "@/lib/module/katalog";
 import { findDocumentById } from "@/lib/store";
-import { answersFromSheetRow, identityFromSheetRow } from "@/lib/types";
+import { answersFromSheetRow, identityFromSheetRow, type SheetRow } from "@/lib/types";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const NO_STORE = { "Cache-Control": "private, no-store" };
+
+function jsonError(error: string, status: number) {
+  return NextResponse.json({ error }, { status, headers: NO_STORE });
+}
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  return downloadPdf(request, id);
+}
+
+/**
+ * Ohne Sitzung immer 401, ob die Zeile liegt oder nicht.
+ * Mit Sitzung, aber ohne diese Mailbox: immer 403 „Kein Zugriff.“
+ */
+export async function downloadPdf(
+  request: Request,
+  id: string,
+  find: (documentId: string) => Promise<SheetRow | null> = findDocumentById,
+) {
   const url = new URL(request.url);
   const modul = (url.searchParams.get("modul") ?? "").trim();
-  const sessionEmail = sessionEmailFromRequest(request);
-  const row = await findDocumentById(id);
+  const sessionEmail = await sessionEmailFromRequest(request);
+  if (!sessionEmail) return jsonError("Kein Zugriff.", 401);
 
-  if (!row) {
-    return NextResponse.json({ error: "Dokument nicht gefunden." }, { status: 404 });
-  }
-
-  // The checkout id in the query is not a bearer. The owner session is.
-  const denial = sessionOwnerDenial(sessionEmail, row.email);
-  if (denial) {
-    return NextResponse.json({ error: "Kein Zugriff." }, { status: denial });
+  const row = await find(id);
+  if (!row || sessionOwnerDenial(sessionEmail, row.email)) {
+    return jsonError("Kein Zugriff.", 403);
   }
 
   const downloadClosed = await subscriptionDownloadDenial(row.email);
-  if (downloadClosed) {
-    return NextResponse.json({ error: downloadClosed }, { status: 403 });
-  }
+  if (downloadClosed) return jsonError(downloadClosed, 403);
 
   try {
     if (modul) {
       const answers = answersFromSheetRow(row);
       if (!isGesamt(answers) || !modulById(modul)) {
-        return NextResponse.json({ error: "Modul-Export nur für Gesamtdokumente." }, { status: 400 });
+        return jsonError("Modul-Export nur für Gesamtdokumente.", 400);
       }
       const generated = await generatePdf({
         answers,
@@ -68,9 +80,9 @@ export async function GET(
     });
   } catch (error) {
     console.error("[docs] PDF-Download fehlgeschlagen", blobFailureClass(error));
-    return NextResponse.json(
-      { error: "PDF konnte nicht geladen werden." },
-      { status: error instanceof BlobStorageError ? 503 : 500 },
+    return jsonError(
+      "PDF konnte nicht geladen werden.",
+      error instanceof BlobStorageError ? 503 : 500,
     );
   }
 }

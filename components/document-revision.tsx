@@ -4,6 +4,7 @@ import {
   customerChangeSummary,
 } from "@/lib/account-display";
 import { loginPath } from "@/lib/auth";
+import { maskCheckoutEmail } from "@/lib/checkout-session";
 import {
   documentDownloadPath,
   documentEditPath,
@@ -87,11 +88,14 @@ export function VersionHistory({
   sessionId,
   headingId = "versionshistorie",
   downloadsOpen = true,
+  maskActors = false,
 }: {
   versions: SheetRow[];
   sessionId?: string;
   headingId?: string;
   downloadsOpen?: boolean;
+  /** Ohne Inhaber-Sitzung keine volle Adresse in „Wer“. */
+  maskActors?: boolean;
 }) {
   const current = selectCurrentVersion(versions, berlinTodayIso());
   const ordered = [...versions].sort((a, b) => {
@@ -116,7 +120,9 @@ export function VersionHistory({
           {ordered.map((row) => {
             const isCurrent = current?.row.documentId === row.documentId;
             const summary = customerChangeSummary(row.changeSummary);
-            const who = customerChangedBy(row.changedBy);
+            const actor = customerChangedBy(row.changedBy);
+            const who =
+              maskActors && actor.includes("@") ? maskCheckoutEmail(actor) : actor;
             return (
               <li key={row.documentId}>
                 <div className="version-copy">

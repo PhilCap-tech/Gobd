@@ -421,7 +421,9 @@ async function main() {
       body: "{}",
     }),
   );
-  expect(grant.status === 200, `checkout grant may read the plan (got ${grant.status})`);
+  expect(grant.status === 401, `checkout grant without a login is 401 (got ${grant.status})`);
+  const grantBody = (await grant.json()) as { delivery?: unknown };
+  expect(!grantBody.delivery, "a checkout grant alone does not return a plan");
 
   if (failures.length) {
     for (const failure of failures) console.error(`FAIL ${failure}`);

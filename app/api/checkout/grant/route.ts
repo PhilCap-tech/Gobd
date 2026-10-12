@@ -146,7 +146,7 @@ export async function completeCheckoutGrant(
       stub: resolved.stub,
       customerEmail: email,
       stripeSessionId: resolved.stripeSessionId,
-      existingSessionEmail: sessionEmailFromRequest(request),
+      existingSessionEmail: await sessionEmailFromRequest(request),
     },
     io.lookupDocumentOwner,
   );
