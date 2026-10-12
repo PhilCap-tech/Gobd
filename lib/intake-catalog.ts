@@ -320,97 +320,97 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   A02: {
     priority: "mittel",
-    text: "Geltungsbereich (Belegarten und Ausschlüsse) ist nicht bestätigt.",
+    text: "Geltungsbereich (Belegarten und Ausschlüsse) ist nicht angegeben.",
     chapter: "01-zweck-geltung",
   },
   A03: {
     priority: "mittel",
-    text: "Kasse, Shop, Lager, Lohn oder weitere Vorsysteme sind nicht bestätigt.",
+    text: "Kasse, Shop, Lager, Lohn oder weitere Vorsysteme sind nicht angegeben.",
     chapter: "01-zweck-geltung",
   },
   A04: {
     priority: "mittel",
-    text: "Seit wann der Ablauf so ausgeführt wird, ist nicht bestätigt. Es wird nicht rückdatiert.",
+    text: "Seit wann der Ablauf so ausgeführt wird, ist nicht angegeben. Es wird nicht rückdatiert.",
     chapter: "12-versionspflege",
   },
   B01: {
     priority: "hoch",
-    text: "Systeme, die Belege erzeugen oder archivieren, sind nicht bestätigt.",
+    text: "Systeme, die Belege erzeugen oder archivieren, sind nicht angegeben.",
     chapter: "03-systeme-datenfluss",
   },
   B04: {
     priority: "mittel",
-    text: "Welche Dateien als Original aufbewahrt werden, ist nicht bestätigt.",
+    text: "Welche Dateien als Original aufbewahrt werden, ist nicht angegeben.",
     chapter: "03-systeme-datenfluss",
   },
   B05: {
     priority: "mittel",
-    text: "Unterlagen zu externen Systemen oder Anbietern sind nicht bestätigt.",
+    text: "Unterlagen zu externen Systemen oder Anbietern sind nicht angegeben.",
     chapter: "13-mitgeltende-unterlagen",
   },
   C01: {
     priority: "hoch",
-    text: "Eingangswege sind nicht bestätigt.",
+    text: "Eingangswege sind nicht angegeben.",
     chapter: "04-belegarten-kanaele",
   },
   C02: {
     priority: "mittel",
-    text: "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist nicht bestätigt.",
+    text: "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist nicht angegeben.",
     chapter: "05-eingang-erechnung",
   },
   C03: {
     priority: "mittel",
-    text: "Wer Papier entgegennimmt und wohin es gelangt, ist nicht bestätigt.",
+    text: "Wer Papier entgegennimmt und wohin es gelangt, ist nicht angegeben.",
     chapter: "06-papier-digitalisierung",
   },
   D01: {
     priority: "hoch",
-    text: "Ob Papier gescannt wird und zu welchem Zweck, ist nicht bestätigt.",
+    text: "Ob Papier gescannt wird und zu welchem Zweck, ist nicht angegeben.",
     chapter: "06-papier-digitalisierung",
   },
   E01: {
     priority: "mittel",
-    text: "Empfangene Rechnungsformate sind nicht bestätigt. PDF ist damit keine strukturierte E-Rechnung.",
+    text: "Empfangene Rechnungsformate sind nicht angegeben. PDF ist damit keine strukturierte E-Rechnung.",
     chapter: "05-eingang-erechnung",
   },
   E02: {
     priority: "hoch",
-    text: "Empfang, Prüfung und Aufbewahrung des strukturierten Teils einer E-Rechnung sind nicht bestätigt.",
+    text: "Empfang, Prüfung und Aufbewahrung des strukturierten Teils einer E-Rechnung sind nicht angegeben.",
     chapter: "05-eingang-erechnung",
   },
   E03: {
     priority: "mittel",
-    text: "Wer die sachliche Prüfung vor der Freigabe macht, ist nicht bestätigt.",
+    text: "Wer die sachliche Prüfung vor der Freigabe macht, ist nicht angegeben.",
     chapter: "08-freigabe-buchung-status",
   },
   E05: {
     priority: "mittel",
-    text: "System und Nummernkreis der Ausgangsrechnungen sind nicht bestätigt.",
+    text: "System und Nummernkreis der Ausgangsrechnungen sind nicht angegeben.",
     chapter: "07-ausgangsrechnungen",
   },
   F01: {
     priority: "hoch",
-    text: "Wer prüft, freigibt und bucht, ist nicht bestätigt.",
+    text: "Wer prüft, freigibt und bucht, ist nicht angegeben.",
     chapter: "08-freigabe-buchung-status",
   },
   F02: {
     priority: "mittel",
-    text: "Welche Beleg-ID Original, Freigabe und Buchung verbindet, ist nicht bestätigt.",
+    text: "Welche Beleg-ID Original, Freigabe und Buchung verbindet, ist nicht angegeben.",
     chapter: "08-freigabe-buchung-status",
   },
   F05: {
     priority: "mittel",
-    text: "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung wird nicht als gelebter Prozess angenommen.",
+    text: "Leistungsumfang der Kanzlei ist nicht angegeben. Eine Verbuchung wird nicht als gelebter Prozess angenommen.",
     chapter: "08-freigabe-buchung-status",
   },
   G01: {
     priority: "hoch",
-    text: "Ablageort und Suchmerkmale sind nicht bestätigt.",
+    text: "Ablageort und Suchmerkmale sind nicht angegeben.",
     chapter: "09-ablage-aufbewahrung",
   },
   G02: {
     priority: "hoch",
-    text: "Wer einsehen, ändern oder löschen darf, ist nicht bestätigt.",
+    text: "Wer einsehen, ändern oder löschen darf, ist nicht angegeben.",
     chapter: "10-berechtigungen-sicherung",
   },
   G05: {
@@ -420,12 +420,12 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   G06: {
     priority: "hoch",
-    text: "Sicherung ist nicht bestätigt.",
+    text: "Sicherung ist nicht angegeben.",
     chapter: "10-berechtigungen-sicherung",
   },
   H01: {
     priority: "mittel",
-    text: "Welche Kontrollen tatsächlich laufen, von wem und in welchem Turnus, ist nicht bestätigt.",
+    text: "Welche Kontrollen tatsächlich laufen, von wem und in welchem Turnus, ist nicht angegeben.",
     chapter: "11-iks",
   },
   H04: {
@@ -435,12 +435,12 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   I01: {
     priority: "mittel",
-    text: "Wer die Dokumentation pflegt und wann eine neue Fassung entsteht, ist nicht bestätigt.",
+    text: "Wer die Dokumentation pflegt und wann eine neue Fassung entsteht, ist nicht angegeben.",
     chapter: "12-versionspflege",
   },
   I02: {
     priority: "mittel",
-    text: "Die Liste mitgeltender Unterlagen ist nicht bestätigt.",
+    text: "Die Liste mitgeltender Unterlagen ist nicht angegeben.",
     chapter: "13-mitgeltende-unterlagen",
   },
   I04: {
@@ -450,7 +450,7 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   I05: {
     priority: "niedrig",
-    text: "Gültigkeitszeitraum dieser Fassung und der Ablageort älterer Fassungen sind nicht bestätigt.",
+    text: "Gültigkeitszeitraum dieser Fassung und der Ablageort älterer Fassungen sind nicht angegeben.",
     chapter: "12-versionspflege",
   },
 };
@@ -1433,7 +1433,7 @@ function modulOpenText(id: string): { priority: "hoch" | "mittel" | "niedrig"; t
 function pointFor(id: string): CatalogOpenPoint {
   const meta = OPEN_TEXT[id] ?? modulOpenText(id) ?? bereichOpenText(id) ?? {
     priority: "mittel" as const,
-    text: `${id} ist nicht bestätigt.`,
+    text: `${id} ist nicht angegeben.`,
     chapter: "14-offene-punkte",
   };
   return {
@@ -1504,7 +1504,7 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
         points.push({
           id: "op-g06-test",
           priority: "hoch",
-          text: "Ein Wiederherstellungstest ist nicht bestätigt.",
+          text: "Ein Wiederherstellungstest ist nicht angegeben.",
           chapter: "10-berechtigungen-sicherung",
           suppress: ["op-backup-test"],
         });
@@ -1553,7 +1553,7 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
         points.push({
           id: "op-berechtigungsliste",
           priority: "mittel",
-          text: "Eine Berechtigungsliste ist nicht bestätigt.",
+          text: "Eine Berechtigungsliste ist nicht angegeben.",
           chapter: "10-berechtigungen-sicherung",
           suppress: [],
         });
@@ -1721,6 +1721,12 @@ const CARE_OF_SEGMENT = /^(?:c\s*\/\s*o|care\s+of|z\.?\s*hd\.?|zu händen)\b/i;
 const CARE_OF_TAIL = /\s+(?:c\s*\/\s*o|care\s+of|z\.?\s*hd\.?|zu händen)\b.*$/i;
 const FLOOR_SEGMENT =
   /^(?:\d+\.?\s*)?(?:og|eg|ug|dg|stock|etage|geschoss|obergeschoss|erdgeschoss|untergeschoss|dachgeschoss|hinterhaus|vorderhaus)\b/i;
+/** „Whg. 12“, „Wohnung 3“, „App. 3“, „Apartment 4“ — not a street. */
+const APARTMENT_SEGMENT = /^(?:whg\.?|wohnung|app\.?|apartment|apt\.?)\s*(?:nr\.?\s*)?\d+\b/i;
+const APARTMENT_TAIL = /\s+(?:whg\.?|wohnung|app\.?|apartment|apt\.?)\s*(?:nr\.?\s*)?\d+\b.*$/i;
+/** „Postfach 1234“, „Postf. 12“, „PF 9“ — a box number is not a house number. */
+const POSTFACH_SEGMENT = /^(?:postfach|postf\.?|pf\.?)(?=$|[\s.,\d-]|nr\b)/i;
+const POSTFACH_TAIL = /\s+(?:postfach|postf\.?|pf\.?)(?=$|[\s.,\d-]|nr\b).*$/i;
 
 function isCareOfSegment(value: string): boolean {
   return CARE_OF_SEGMENT.test(value.trim());
@@ -1733,17 +1739,36 @@ function isFloorSegment(value: string): boolean {
   return FLOOR_SEGMENT.test(text);
 }
 
+/** Apartment notes contain a number, but they are not the house number. */
+function isApartmentSegment(value: string): boolean {
+  return APARTMENT_SEGMENT.test(value.trim());
+}
+
+/** A post-office box is not a street, even when the box number looks like one. */
+function isPostfachSegment(value: string): boolean {
+  return POSTFACH_SEGMENT.test(value.trim());
+}
+
 /**
- * Keep real street segments. Drop c/o lines, person names, and floor notes
- * so „c/o Max Test, 3. OG“ does not become the Standort street.
+ * Keep real street segments. Drop c/o lines, person names, floor notes,
+ * apartment notes, and post-office boxes so „c/o Max Test, 3. OG“ and
+ * „Teststraße 5, Whg. 12“ do not become extra Standort streets.
  */
 function billingStreetLine(value: string | null | undefined, city: string): string {
   const line = billingSingleLine(value);
   if (!line) return "";
   const kept: string[] = [];
   for (const part of line.split(",")) {
-    const segment = part.replace(CARE_OF_TAIL, "").trim();
-    if (!segment || isCareOfSegment(segment) || isFloorSegment(segment)) continue;
+    const segment = part.replace(CARE_OF_TAIL, "").replace(APARTMENT_TAIL, "").replace(POSTFACH_TAIL, "").trim();
+    if (
+      !segment ||
+      isCareOfSegment(segment) ||
+      isFloorSegment(segment) ||
+      isApartmentSegment(segment) ||
+      isPostfachSegment(segment)
+    ) {
+      continue;
+    }
     if (!billingStreetFits(segment, city)) continue;
     if (!/[\p{L}]{3,}/u.test(segment)) continue;
     kept.push(segment);
@@ -1754,8 +1779,9 @@ function billingStreetLine(value: string | null | undefined, city: string): stri
 /**
  * Standort from a Checkout billing address.
  * City is required. A street is added only when a segment is a street with
- * a house number. c/o lines, person names, and floor notes are left out.
- * Without a street, the result is postal code and city. Otherwise empty.
+ * a house number. c/o lines, person names, floor notes, apartment notes,
+ * and post-office boxes are left out. Without a street, the result is
+ * postal code and city. Otherwise empty.
  */
 export function standortFromBillingAddress(address: BillingAddressParts | null | undefined): string {
   if (!address) return "";
@@ -2247,6 +2273,8 @@ function summaryBits(
     asList(valuesOf(state, "A02").belegartenScope),
   );
   const bits = question.fields.map((field) => {
+    // Systemkarten stehen einmal, strukturiert, über presentationBits.
+    if (question.id === "B01" && field.key === "systeme") return "";
     const shown = displayFieldValue(field.key, shownValues[field.key]);
     if (!shown) return "";
     if (field.type === "enum" || field.key === "kasse" || field.key === "shop") {

@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { isKeineKontrolleValues } from "@/lib/keine-angaben";
-import { catalogAnswerLine } from "@/lib/intake-catalog";
+import { catalogAnswerLine, statusLabel as catalogStatusLabel } from "@/lib/intake-catalog";
 import {
   collapseRepeatedTokens,
   betriebFacts,
@@ -362,11 +362,11 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
 
   // Catalog questions belonging to this module
   if (modul.catalogIds.length) {
-    heading("Angaben aus dem Fragenkatalog");
+    const catalogLines: string[] = [];
     for (const id of modul.catalogIds) {
       if (hiddenQuestion(id, facts)) {
         if (id === "F05") {
-          lines.push(`- **Externe Steuerberatung** — keine. Buchhaltung und Steuererklärungen: ${facts.rolle}.`);
+          catalogLines.push(`- **Externe Steuerberatung** — keine. Buchhaltung und Steuererklärungen: ${facts.rolle}.`);
         }
         continue;
       }
@@ -375,9 +375,14 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
       const shown = ausnahmenInDetails(id, answers, line.details);
       const details = shown.length ? ` ${shown.map((bit) => cell(bit)).join(" · ")}` : "";
       const reason = line.reason ? ` Begründung: ${cell(line.reason)}` : "";
-      lines.push(collapseRepeatedTokens(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`));
+      // „— So läuft es heute.“ ohne Angabe danach ist eine leere Zeile.
+      if (!details && !reason && line.status === catalogStatusLabel("bestaetigt")) continue;
+      catalogLines.push(collapseRepeatedTokens(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`));
     }
-    lines.push("");
+    if (catalogLines.length) {
+      heading("Angaben aus dem Fragenkatalog");
+      lines.push(...catalogLines, "");
+    }
   }
 
   if (kontrollen.zeilen.length || kontrollen.satz) {

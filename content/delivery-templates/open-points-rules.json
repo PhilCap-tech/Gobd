@@ -240,7 +240,7 @@
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.it",
-      "text": "Technische Prüfung strukturierter E-Rechnungen ist nicht bestätigt. Eine PDF- oder E-Mail-Rechnung ist damit nicht als strukturierte E-Rechnung beschrieben.",
+      "text": "Technische Prüfung strukturierter E-Rechnungen ist nicht angegeben. Eine PDF- oder E-Mail-Rechnung ist damit nicht als strukturierte E-Rechnung beschrieben.",
       "priority": "hoch",
       "dueDate": null
     },
@@ -252,7 +252,7 @@
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Kontrollroutine (z. B. Stichprobe) und Kontrollprotokoll betrieblich festlegen und dokumentieren — im Intake nicht bestätigt.",
+      "text": "Kontrollroutine (z. B. Stichprobe) und Kontrollprotokoll betrieblich festlegen und dokumentieren — im Intake nicht angegeben.",
       "priority": "mittel",
       "dueDate": null
     },
@@ -282,7 +282,7 @@
       "when": "unconfirmedScope",
       "customerFacing": true,
       "responsibilityField": "answers.gf",
-      "text": "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung oder ein Mandatszugang wird nicht als gelebter Prozess angenommen.",
+      "text": "Leistungsumfang der Kanzlei ist nicht angegeben. Eine Verbuchung oder ein Mandatszugang wird nicht als gelebter Prozess angenommen.",
       "priority": "mittel",
       "dueDate": null
     },
@@ -294,7 +294,7 @@
       "when": "always",
       "customerFacing": true,
       "responsibilityField": "answers.buchhaltung",
-      "text": "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist im Intake nicht bestätigt.",
+      "text": "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist im Intake nicht angegeben.",
       "priority": "mittel",
       "dueDate": null
     },

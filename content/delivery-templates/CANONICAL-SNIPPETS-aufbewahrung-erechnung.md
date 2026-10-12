@@ -39,7 +39,7 @@ Beispielpräsens (Rollen aus Intake, z. B. `{{answers.buchhaltung}}`):
 `{{answers.buchhaltung}}` prüft eingehende strukturierte E-Rechnungen auf technische Lesbarkeit. Die Originaldatei bleibt unverändert erhalten; eine Ansicht wird nicht als Ersatzoriginal abgelegt.
 
 ### H — wenn Intake E-Mail/PDF nennt, aber keine strukturierte E-Rechnung bestätigt
-Ob strukturierte E-Rechnungen empfangen und wie sie technisch geprüft werden, ist aus dem Intake nicht bestätigt und bleibt zu beschreiben.
+Ob strukturierte E-Rechnungen empfangen und wie sie technisch geprüft werden, ist aus dem Intake nicht angegeben und bleibt zu beschreiben.
 
 ### OP — wenn Kapitel E-Rechnung anspricht ohne bestätigte Validierung
 Kennung z. B. `OP-ERECHNUNG-VALIDIERUNG`: Verfahren und Nachweis der technischen Prüfung strukturierter E-Rechnungen konkretisieren.
