@@ -131,11 +131,6 @@ function intakeIo(store: Memory): IntakeIo {
     }),
     storePdf: async () => ({ url: "", pathname: "memory/a.pdf", backend: "file" as const }),
     sendDeliveryMail: async () => ({ stub: true, sent: false, action: "delivery" }),
-    sendReferralAfterDeliveryMail: async () => ({
-      stub: true,
-      sent: false,
-      action: "referral_after_delivery",
-    }),
     deliverLoginLink: async () => "stub",
   };
 }
