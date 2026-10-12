@@ -181,8 +181,11 @@ export async function checkoutCustomerEmail(
   if (!id) return "";
   try {
     const resolved = await resolve(id);
-    if (!resolved || ("error" in resolved && resolved.error)) return "";
-    return normalizeEmail(resolved.email);
+    if (!resolved) return "";
+    const failure = "error" in resolved ? resolved.error : "";
+    const email = "email" in resolved ? resolved.email : "";
+    if (failure) return "";
+    return normalizeEmail(email);
   } catch {
     return "";
   }
