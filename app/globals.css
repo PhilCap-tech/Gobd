@@ -1191,11 +1191,17 @@ textarea:focus {
   border-color: #e3b4b4;
 }
 
-.system-card.system-card-invalid input,
-.system-card.system-card-invalid select,
-.system-card.system-card-invalid textarea {
+.field-invalid .chip {
   border-color: #a33b3b;
-  background: #fff;
+}
+
+.field-invalid .chip.on {
+  border-color: var(--accent);
+}
+
+.error ul {
+  margin: 0;
+  padding-left: 18px;
 }
 
 .intake-table-wrap {

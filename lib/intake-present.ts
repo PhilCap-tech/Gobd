@@ -840,18 +840,97 @@ export function onlyUntouchedSuggestions(
   return rows.length > 0 && rows.every((row) => isUntouchedSuggestion(id, row, channels, scope));
 }
 
-export type P1Issue = {
+/**
+ * Unberührte B04-/G01-Vorschläge zählen wie leere Karten.
+ * G01-Ablage und Ordnung, die nur aus diesen Vorschlägen entstanden sind, fallen mit weg.
+ * Eigene Angaben bleiben.
+ */
+export function withoutUntouchedSuggestions(
+  id: string,
+  values: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): Record<string, unknown> {
+  if (id !== "B04" && id !== "G01") return values;
+  const key = EMPTY_CARD_LISTS[id];
+  const raw = values[key];
+  if (!Array.isArray(raw)) return values;
+  const kept: unknown[] = [];
+  const dropped: Record<string, unknown>[] = [];
+  let removed = false;
+  for (const item of raw) {
+    if (
+      item &&
+      typeof item === "object" &&
+      !Array.isArray(item) &&
+      isUntouchedSuggestion(id, item as Record<string, unknown>, channels, scope)
+    ) {
+      removed = true;
+      dropped.push(item as Record<string, unknown>);
+    } else {
+      kept.push(item);
+    }
+  }
+  if (!removed) return values;
+  const next: Record<string, unknown> = { ...values, [key]: kept };
+  if (id !== "G01") return next;
+  const real = rowList(kept).filter((row) => textOf(row.art) || textOf(row.ort));
+  if (real.length) return composeCatalogValues("G01", next);
+  const fromDropped = composedArchive(dropped);
+  if (textOf(next.ablage) === fromDropped.ablage) next.ablage = "";
+  if (textOf(next.ordnung) === fromDropped.ordnung) next.ordnung = "";
+  return next;
+}
+
+/** Keine eigene Kartenangabe, auch nachdem unberührte Vorschläge wie leer gelten. */
+export function cardQuestionLacksFacts(
+  id: string,
+  values: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): boolean {
+  const cleaned = withoutUntouchedSuggestions(id, values, channels, scope);
+  if (id === "B04") {
+    return !rowList(cleaned.originalJeWeg).some((row) => textOf(row.belegweg) && textOf(row.originalBeschreibung));
+  }
+  if (id === "G01") {
+    if (rowList(cleaned.ablageJeArt).some((row) => rowHasInput(row))) return false;
+    return !textOf(cleaned.ablage) && !textOf(cleaned.ordnung);
+  }
+  return false;
+}
+
+export type P1CardGap = {
+  cardIndex: number;
   message: string;
-  /** Index in der gespeicherten Liste. Nur gesetzt, wenn genau eine Karte unvollständig ist. */
-  cardIndex?: number;
+  /** Schlüssel der noch leeren Pflichtfelder auf dieser Karte. */
+  missing: string[];
 };
 
-function namedCard(label: string, index: number, message: string): P1Issue {
-  return { message: `${label} ${index + 1}: ${message}`, cardIndex: index };
+export type P1Issue = {
+  message: string;
+  cards: P1CardGap[];
+};
+
+function cardGap(label: string, index: number, parts: string[], missing: string[]): P1CardGap {
+  return { message: `${label} ${index + 1}: ${parts.join(" ")}`, cardIndex: index, missing };
+}
+
+function fromCards(cards: P1CardGap[]): P1Issue {
+  return { message: cards.map((card) => card.message).join(" "), cards };
 }
 
 function plain(message: string): P1Issue {
-  return { message };
+  return { message, cards: [] };
+}
+
+function composedArchive(rows: Record<string, unknown>[]): { ablage: string; ordnung: string } {
+  const orte = [...new Set(rows.map((row) => textOf(row.ort)).filter(Boolean))];
+  const ordnung = rows
+    .map((row) => [textOf(row.art), textOf(row.suche)].filter(Boolean).join(": "))
+    .filter(Boolean)
+    .join("; ");
+  return { ablage: orte.join("; "), ordnung };
 }
 
 /** Extra completeness for the P1 questions. Empty when the status is not a described process. */
@@ -872,49 +951,67 @@ export function p1FieldIssue(
     const rows = rowList(values.systeme);
     const active = rows.map((row, index) => ({ row, index })).filter(({ row }) => rowHasInput(row));
     if (!active.length) return plain("Bitte mindestens ein System nennen.");
+    const cards: P1CardGap[] = [];
     for (const { row, index } of active) {
-      if (!textOf(row.name) || !textOf(row.funktion) || !textOf(row.typ)) {
-        return namedCard("System", index, "Bitte Name, Zweck und Art je System nennen.");
-      }
+      const missing: string[] = [];
+      const parts: string[] = [];
+      if (!textOf(row.name)) missing.push("name");
+      if (!textOf(row.funktion)) missing.push("funktion");
+      if (!textOf(row.typ)) missing.push("typ");
+      if (missing.length) parts.push("Bitte Name, Zweck und Art je System nennen.");
       if (!textOf(row.hostingArt)) {
-        return namedCard("System", index, "Bitte das Hosting je System wählen.");
+        missing.push("hostingArt");
+        parts.push("Bitte das Hosting je System wählen.");
       }
-      if (!textOf(row.nutzer) || !listOf(row.belegeRein).length || !textOf(row.uebergabe) || !textOf(row.originalOrt)) {
-        return namedCard(
-          "System",
-          index,
-          "Bitte je System Nutzer, eingehende Belege, Übergabe und den Ort des Originals nennen.",
-        );
+      const detail: string[] = [];
+      if (!textOf(row.nutzer)) detail.push("nutzer");
+      if (!listOf(row.belegeRein).length) detail.push("belegeRein");
+      if (!textOf(row.uebergabe)) detail.push("uebergabe");
+      if (!textOf(row.originalOrt)) detail.push("originalOrt");
+      if (detail.length) {
+        missing.push(...detail);
+        parts.push("Bitte je System Nutzer, eingehende Belege, Übergabe und den Ort des Originals nennen.");
       }
+      if (missing.length) cards.push(cardGap("System", index, parts, missing));
     }
+    if (cards.length) return fromCards(cards);
   }
   if (id === "B04") {
     const rows = rowList(values.originalJeWeg);
+    const cards: P1CardGap[] = [];
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
       if (!row || !cardCounts("B04", row, channels, scope)) continue;
-      if (!textOf(row.belegweg) || !textOf(row.originalBeschreibung)) {
-        return namedCard("Eingangsweg", index, "Bitte je Eingangsweg den Weg und das Original nennen.");
+      const missing: string[] = [];
+      if (!textOf(row.belegweg)) missing.push("belegweg");
+      if (!textOf(row.originalBeschreibung)) missing.push("originalBeschreibung");
+      if (missing.length) {
+        cards.push(cardGap("Eingangsweg", index, ["Bitte je Eingangsweg den Weg und das Original nennen."], missing));
       }
     }
+    if (cards.length) return fromCards(cards);
   }
   if (id === "B05" && values.anbieter === "ja") {
     const rows = rowList(values.externeSysteme);
     const active = rows.map((row, index) => ({ row, index })).filter(({ row }) => rowHasInput(row));
     if (!active.length) return plain("Bitte das System beim Anbieter benennen.");
+    const cards: P1CardGap[] = [];
     for (const { row, index } of active) {
+      const missing: string[] = [];
+      const parts: string[] = [];
       if (!textOf(row.name)) {
-        return namedCard("System beim Anbieter", index, "Bitte das System beim Anbieter benennen.");
+        missing.push("name");
+        parts.push("Bitte das System beim Anbieter benennen.");
       }
       const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
-      if (ANBIETER_UNTERLAGEN.some((name) => !textOf(stand[name]))) {
-        return namedCard(
-          "System beim Anbieter",
-          index,
-          "Bitte je Unterlage angeben, ob sie vorhanden ist, ergänzt werden muss oder nicht relevant ist.",
-        );
+      const openDocs = ANBIETER_UNTERLAGEN.filter((name) => !textOf(stand[name]));
+      if (openDocs.length) {
+        missing.push(...openDocs.map((name) => `unterlage:${name}`));
+        parts.push("Bitte je Unterlage angeben, ob sie vorhanden ist, ergänzt werden muss oder nicht relevant ist.");
       }
+      if (missing.length) cards.push(cardGap("System beim Anbieter", index, parts, missing));
     }
+    if (cards.length) return fromCards(cards);
   }
   if (id === "C02") {
     const detail = channelMap(values.kanaeleDetail);
@@ -976,11 +1073,16 @@ export function p1FieldIssue(
       if (onlyUntouchedSuggestions("G01", values, channels, scope)) return plain("");
       return plain("Bitte je Belegart Ablageort und Suchmerkmale angeben.");
     }
+    const cards: P1CardGap[] = [];
     for (const { row, index } of active) {
-      if (!textOf(row.ort) || !textOf(row.suche)) {
-        return namedCard("Belegart", index, "Bitte je Belegart Ablageort und Suchmerkmale angeben.");
+      const missing: string[] = [];
+      if (!textOf(row.ort)) missing.push("ort");
+      if (!textOf(row.suche)) missing.push("suche");
+      if (missing.length) {
+        cards.push(cardGap("Belegart", index, ["Bitte je Belegart Ablageort und Suchmerkmale angeben."], missing));
       }
     }
+    if (cards.length) return fromCards(cards);
   }
   if (id === "G02") {
     const rows = rowList(values.zugriffRollen).filter((row) => listOf(row.rechte).length);
@@ -1130,14 +1232,19 @@ function normalizeC03(values: Record<string, unknown>): Record<string, unknown> 
   return composed;
 }
 
-function normalizeEntryValues(id: string, values: Record<string, unknown>): Record<string, unknown> {
+function normalizeEntryValues(
+  id: string,
+  values: Record<string, unknown>,
+  channels: string[],
+  scope: string[],
+): Record<string, unknown> {
   if (id === "H01") return normalizeH01(values);
   if (/^KF0[1-5]$/.test(id)) return normalizeKf(values);
   if (/92$/.test(id)) return normalizeNamedControls(values);
   if (id === "C02") return normalizeC02(values);
   if (id === "C03") return normalizeC03(values);
   const listKey = EMPTY_CARD_LISTS[id];
-  if (listKey) return withoutEmptyRows(values, listKey);
+  if (listKey) return withoutEmptyRows(withoutUntouchedSuggestions(id, values, channels, scope), listKey);
   return values;
 }
 
@@ -1147,12 +1254,14 @@ export function normalizeIntakeAnswers(answers: IntakeAnswers): IntakeAnswers {
   if (!katalog) return answers;
   let changed = false;
   const next: NonNullable<IntakeAnswers["katalog"]> = {};
+  const channels = listOf(katalog.C01?.values?.kanaele);
+  const scope = listOf(katalog.A02?.values?.belegartenScope);
   for (const [id, entry] of Object.entries(katalog)) {
     if (!entry?.values) {
       next[id] = entry;
       continue;
     }
-    const normalized = normalizeEntryValues(id, entry.values);
+    const normalized = normalizeEntryValues(id, entry.values, channels, scope);
     if (normalized !== entry.values) {
       changed = true;
       next[id] = { ...entry, values: normalized };

@@ -49,6 +49,10 @@ function markEdited(row: Record<string, unknown>, patch: Record<string, unknown>
   return { ...row, ...patch, bearbeitet: true };
 }
 
+function fieldClass(missing: string[] | undefined, key: string): string {
+  return missing?.includes(key) ? "field field-invalid" : "field";
+}
+
 function CardFrame({
   questionId,
   index,
@@ -57,10 +61,10 @@ function CardFrame({
 }: {
   questionId: string;
   index: number;
-  invalidCards?: Record<number, string>;
+  invalidCards?: Record<number, { message: string; missing: string[] }>;
   children: ReactNode;
 }) {
-  const message = invalidCards?.[index];
+  const message = invalidCards?.[index]?.message;
   return (
     <div
       className={message ? "system-card system-card-invalid" : "system-card"}
@@ -290,8 +294,8 @@ export function P1QuestionFields({
   questionId: string;
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
-  /** Meldung je Kartenindex. Nur diese Karte wird rot. */
-  invalidCards?: Record<number, string>;
+  /** Meldung und leere Pflichtfelder je Kartenindex. Nur diese Karte wird rot. */
+  invalidCards?: Record<number, { message: string; missing: string[] }>;
 }) {
   const values = answers.katalog?.[questionId]?.values ?? {};
   const channels = list(answers.katalog?.C01?.values?.kanaele);
@@ -306,7 +310,9 @@ export function P1QuestionFields({
     const cards = systems.length ? systems : [{}];
     return (
       <div>
-        {cards.map((row, index) => (
+        {cards.map((row, index) => {
+          const missing = invalidCards?.[index]?.missing;
+          return (
           <CardFrame key={`system-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
             <div className="system-card-head">
               <p className="prose">System {index + 1}</p>
@@ -317,7 +323,7 @@ export function P1QuestionFields({
                 />
               ) : null}
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "name")}>
               <TextField
                 label="Name"
                 value={text(row.name)}
@@ -328,7 +334,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "funktion")}>
               <TextField
                 label="Zweck"
                 value={text(row.funktion)}
@@ -339,7 +345,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "typ")}>
               <span className="hint">Art</span>
               <Chips
                 options={["fibu", "postfach", "portal", "archiv", "rechnungssoftware", "sonstiges"]}
@@ -352,7 +358,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "nutzer")}>
               <TextField
                 label="Wer nutzt es?"
                 value={text(row.nutzer)}
@@ -363,7 +369,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "belegeRein")}>
               <span className="hint">Welche Belege gehen hinein?</span>
               <Chips
                 options={BELEG_REIN}
@@ -376,7 +382,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "uebergabe")}>
               <TextField
                 label="Wohin wird übergeben?"
                 value={text(row.uebergabe)}
@@ -387,7 +393,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "originalOrt")}>
               <TextField
                 label="Wo liegt das Original?"
                 value={text(row.originalOrt)}
@@ -398,7 +404,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "hostingArt")}>
               <span className="hint">Hosting</span>
               <Chips
                 options={HOSTING_OPTIONS}
@@ -411,7 +417,8 @@ export function P1QuestionFields({
               />
             </div>
           </CardFrame>
-        ))}
+          );
+        })}
         <button
           type="button"
           className="btn ghost"
@@ -455,6 +462,7 @@ export function P1QuestionFields({
           const weg = text(row.belegweg);
           const other = row.andererWeg === true || (Boolean(weg) && !channels.includes(weg));
           const picked = channels.includes(weg) ? weg : other ? "anderer Weg" : "";
+          const missing = invalidCards?.[index]?.missing;
           return (
             <CardFrame key={`original-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
               {originals.length > 1 ? (
@@ -468,7 +476,7 @@ export function P1QuestionFields({
                   />
                 </div>
               ) : null}
-              <div className="field">
+              <div className={fieldClass(missing, "belegweg")}>
                 {choices.length ? (
                   <>
                     <span className="hint">Eingangsweg</span>
@@ -501,7 +509,7 @@ export function P1QuestionFields({
                   />
                 ) : null}
               </div>
-              <div className="field">
+              <div className={fieldClass(missing, "originalBeschreibung")}>
                 <TextField
                   label="Was gilt als Original?"
                   value={text(row.originalBeschreibung)}
@@ -548,6 +556,7 @@ export function P1QuestionFields({
         {gate === "ja"
           ? cards.map((row, index) => {
               const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
+              const missing = invalidCards?.[index]?.missing;
               return (
                 <CardFrame key={`provider-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
                   {cards.length > 1 ? (
@@ -561,7 +570,7 @@ export function P1QuestionFields({
                       />
                     </div>
                   ) : null}
-                  <div className="field">
+                  <div className={fieldClass(missing, "name")}>
                     <TextField
                       label="Name des Systems"
                       value={text(row.name)}
@@ -573,7 +582,7 @@ export function P1QuestionFields({
                     />
                   </div>
                   {ANBIETER_UNTERLAGEN.map((name) => (
-                    <div className="field" key={name}>
+                    <div className={fieldClass(missing, `unterlage:${name}`)} key={name}>
                       <span className="hint">{name}</span>
                       <StandChips
                         value={text(stand[name])}
@@ -946,7 +955,9 @@ export function P1QuestionFields({
     const table = stored.length ? stored : suggested;
     return (
       <div>
-        {table.map((row, index) => (
+        {table.map((row, index) => {
+          const missing = invalidCards?.[index]?.missing;
+          return (
           <CardFrame key={`ablage-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
             {table.length > 1 ? (
               <div className="system-card-head">
@@ -968,7 +979,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "ort")}>
               <TextField
                 label="Ablageort"
                 value={text(row.ort)}
@@ -979,7 +990,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "suche")}>
               <TextField
                 label="Woran findet man den Beleg?"
                 value={text(row.suche)}
@@ -992,7 +1003,8 @@ export function P1QuestionFields({
               />
             </div>
           </CardFrame>
-        ))}
+          );
+        })}
         <button
           type="button"
           className="btn ghost"

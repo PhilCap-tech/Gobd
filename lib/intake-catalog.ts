@@ -7,8 +7,10 @@ import {
   describedActivityLines,
   fieldLabel,
   optionLabel,
+  cardQuestionLacksFacts,
   onlyUntouchedSuggestions,
   p1FieldIssue,
+  withoutUntouchedSuggestions,
   presentationBits,
   projectedBranchen,
   projectedRechtsform,
@@ -706,6 +708,8 @@ export type CatalogIssue = {
   anchor: string;
   focusId: string;
   message: string;
+  /** Leere Pflichtfelder einer Karte. Nur die werden rot, nicht die ganze Karte. */
+  missing?: string[];
 };
 
 function catalogIssue(
@@ -848,16 +852,17 @@ function questionIssues(
     const scope = asList(valuesOf(state, "A02").belegartenScope);
     const p1 = p1FieldIssue(question.id, entry.status, values, channels, scope);
     const keineKontrolle = isControlQuestionId(question.id) && isKeineKontrolleValues(values);
-    if (p1.message) {
-      if (p1.cardIndex != null) {
-        const anchor = `card-${question.id}-${p1.cardIndex}`;
+    if (p1.cards.length) {
+      for (const card of p1.cards) {
+        const anchor = `card-${question.id}-${card.cardIndex}`;
         issues.push({
-          ...catalogIssue(question.id, `card-${p1.cardIndex}`, p1.message, anchor),
+          ...catalogIssue(question.id, `card-${card.cardIndex}`, card.message, anchor),
           anchor,
+          missing: card.missing,
         });
-      } else {
-        issues.push(catalogIssue(question.id, "block", p1.message));
       }
+    } else if (p1.message) {
+      issues.push(catalogIssue(question.id, "block", p1.message));
     } else if (!keineKontrolle && !onlyUntouchedSuggestions(question.id, values, channels, scope)) {
       for (const field of question.fields) {
         if (!fieldReady(field, values[field.key])) issues.push(fieldIssue(question, field));
@@ -1286,7 +1291,9 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     }
   }
   if (live(state, "G01")) {
-    const values = valuesOf(state, "G01");
+    const channels = asList(valuesOf(state, "C01").kanaele);
+    const scope = asList(valuesOf(state, "A02").belegartenScope);
+    const values = withoutUntouchedSuggestions("G01", valuesOf(state, "G01"), channels, scope);
     const rows = asRows(values.ablageJeArt).filter((row) => asText(row.art) || asText(row.ort));
     next.archiv = rows.length
       ? rows
@@ -1401,6 +1408,8 @@ function pointFor(id: string): CatalogOpenPoint {
 export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
   if (!hasCatalogAnswers(answers)) return [];
   const state = catalogState(answers);
+  const suggestionChannels = asList(valuesOf(state, "C01").kanaele);
+  const suggestionScope = asList(valuesOf(state, "A02").belegartenScope);
   const points: CatalogOpenPoint[] = [];
   for (const step of CATALOG_STEPS) {
     if (!catalogStepApplies(step, answers)) continue;
@@ -1492,6 +1501,13 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
             suppress: [],
           });
         }
+      }
+      if (
+        (question.id === "B04" || question.id === "G01") &&
+        status === "bestaetigt" &&
+        cardQuestionLacksFacts(question.id, valuesOf(state, question.id), suggestionChannels, suggestionScope)
+      ) {
+        points.push(pointFor(question.id));
       }
       if (question.id === "G02" && status === "bestaetigt" && asText(valuesOf(state, "G02").berechtigungslisteVorhanden) !== "ja") {
         points.push({
@@ -2144,12 +2160,23 @@ function displayFieldValue(fieldKey: string, value: unknown): string {
   return optionLabel(fieldKey, asText(value));
 }
 
-function summaryBits(question: CatalogQuestion, entry: CatalogState[string] | undefined): string[] {
+function summaryBits(
+  question: CatalogQuestion,
+  entry: CatalogState[string] | undefined,
+  answers: IntakeAnswers,
+): string[] {
   if (isControlQuestionId(question.id) && isKeineKontrolleValues(entry?.values)) {
     return [KEINE_KONTROLLE_SATZ];
   }
+  const state = catalogState(answers);
+  const shownValues = withoutUntouchedSuggestions(
+    question.id,
+    entry?.values ?? {},
+    asList(valuesOf(state, "C01").kanaele),
+    asList(valuesOf(state, "A02").belegartenScope),
+  );
   const bits = question.fields.map((field) => {
-    const shown = displayFieldValue(field.key, entry?.values?.[field.key]);
+    const shown = displayFieldValue(field.key, shownValues[field.key]);
     if (!shown) return "";
     if (field.type === "enum" || field.key === "kasse" || field.key === "shop") {
       return `${fieldLabel(question.id, field.key, field.label)}: ${shown}`;
@@ -2167,7 +2194,7 @@ function summaryBits(question: CatalogQuestion, entry: CatalogState[string] | un
     const where = asText(entry?.values?.ausgeschlossenWo);
     if (where) bits.push(`dokumentiert in: ${where}`);
   }
-  return [...bits.filter(Boolean), ...presentationBits(question.id, entry?.values)].filter(Boolean);
+  return [...bits.filter(Boolean), ...presentationBits(question.id, shownValues)].filter(Boolean);
 }
 
 export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> {
@@ -2180,7 +2207,7 @@ export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> 
       const status = entry?.status ? STATUS_LABEL[entry.status] : "offen";
       rows.push([
         customerPrompt(question.id, question.prompt),
-        [status, ...summaryBits(question, entry)].join(" · "),
+        [status, ...summaryBits(question, entry, answers)].join(" · "),
       ]);
     }
   }
@@ -2230,7 +2257,7 @@ export function catalogFragebogen(answers: IntakeAnswers): FragebogenStep[] {
                 return shown ? `${field.label}: ${shown}` : "";
               })
               .filter(Boolean)
-          : summaryBits(question, entry);
+          : summaryBits(question, entry, answers);
         return {
           id: question.id,
           prompt: customerPrompt(question.id, question.prompt),
@@ -2274,7 +2301,7 @@ export function catalogAnswerLine(
   return {
     prompt: customerPrompt(question.id, question.prompt),
     status: entry?.status ? STATUS_LABEL[entry.status] : "offen",
-    details: summaryBits(question, entry),
+    details: summaryBits(question, entry, answers),
     reason: entry?.status === "nicht_zutreffend" ? asText(entry.reason) : "",
   };
 }

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { IntakeStepHeading, useIntakeStepFocus } from "@/components/intake-step-heading";
 import Link from "next/link";
 import { IntakeProgress } from "@/components/intake-progress";
-import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
+import { IntakeQuestionnaire, StepError } from "@/components/intake-questionnaire";
 import { MusterUpsell } from "@/components/muster-upsell";
 import { DEMO_BEISPIEL_SEED_NOTE, demoBeispielAnswers, demoBlankAnswers } from "@/lib/demo-beispiel";
 import { intakeSummary } from "@/lib/frage-intake";
@@ -41,7 +41,7 @@ export function DemoWalkthrough() {
   const [scrollIssue, setScrollIssue] = useState<CatalogIssue | null>(null);
   const [notice, setNotice] = useState("");
   const stepIssues = intakeFormIssues(step, answers, showGaps);
-  const visibleError = stepIssues[0]?.message || error;
+  const visibleError = error;
 
   const openPoints = useMemo(
     () =>
@@ -184,7 +184,7 @@ export function DemoWalkthrough() {
         </section>
       )}
 
-      {visibleError && <p className="error">{visibleError}</p>}
+      {stepIssues.length ? <StepError issues={stepIssues} /> : visibleError ? <p className="error">{visibleError}</p> : null}
 
       <div className="actions" style={{ marginTop: 18 }}>
         {step > firstStep && (
