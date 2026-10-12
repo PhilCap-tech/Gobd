@@ -3,7 +3,12 @@ import {
   devCheckoutStubAllowed,
   isStubCheckoutSessionId,
 } from "@/lib/checkout-stub";
-import { getAppUrl, isStripeConfigured, isStripeSecretConfigured } from "@/lib/env";
+import {
+  getAppUrl,
+  getStripeTaxRateId,
+  isStripeConfigured,
+  isStripeSecretConfigured,
+} from "@/lib/env";
 import type { CheckoutBillingAddress, CheckoutIdentity } from "@/lib/types";
 
 const CUSTOMER_LIST_TTL_MS = 60_000;
@@ -247,14 +252,35 @@ async function retrieveCheckoutSession(sessionId: string) {
   }
 }
 
-export async function createCheckoutSession(input: {
+/**
+ * Einziger Checkout. Landing, /checkout, Konto und „Abonnement wiederherstellen“
+ * posten alle auf diese Route.
+ */
+export const CHECKOUT_SESSION_ROUTE = "/api/checkout";
+
+export type CheckoutSessionInput = {
   email: string;
   company: string;
   entityId?: string;
   audience?: "kunde" | "steuerberater";
   /** Vorhandener Stripe-Kunde, damit eine Wiederherstellung kein zweites `cus_` anlegt. */
   customerId?: string;
-}): Promise<{ url: string; stub: boolean }> {
+  /** Für die Warnung, wenn STRIPE_TAX_RATE_ID fehlt. Default: CHECKOUT_SESSION_ROUTE. */
+  route?: string;
+};
+
+/**
+ * Inland (DE) only. The Tax Rate is exclusive 19 % and is applied even when
+ * the customer enters a VAT ID. No EU reverse charge.
+ *
+ * Subscription mode already creates invoices. `invoice_creation` is only for
+ * one-time payments, so it stays unset. The seller VAT ID is the Stripe
+ * account default and is printed on those invoices without an override here.
+ * `tax_id_collection` stays on so the customer's own VAT ID can appear.
+ */
+export function buildCheckoutSessionParams(
+  input: CheckoutSessionInput,
+): Stripe.Checkout.SessionCreateParams {
   const appUrl = getAppUrl();
   const entityId = input.entityId?.trim() ?? "";
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
@@ -263,6 +289,65 @@ export async function createCheckoutSession(input: {
     : `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl =
     audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/`;
+  const customerId = input.customerId?.trim() ?? "";
+  const route = input.route?.trim() || CHECKOUT_SESSION_ROUTE;
+  const taxRateId = getStripeTaxRateId();
+  if (!taxRateId) {
+    console.warn(
+      `[stripe] STRIPE_TAX_RATE_ID fehlt — Checkout ohne Umsatzsteuer (Route ${route}).`,
+    );
+  }
+  const taxRates = taxRateId ? [taxRateId] : undefined;
+
+  return {
+    mode: "subscription",
+    locale: "de",
+    ...(customerId
+      ? {
+          customer: customerId,
+          customer_update: { name: "auto" as const, address: "auto" as const },
+        }
+      : { customer_email: input.email }),
+    billing_address_collection: "required",
+    tax_id_collection: { enabled: true },
+    allow_promotion_codes: true,
+    payment_method_collection: "if_required",
+    line_items: [
+      {
+        price: process.env.STRIPE_PRICE_SETUP_ID,
+        quantity: 1,
+        ...(taxRates ? { tax_rates: taxRates } : {}),
+      },
+      {
+        price: process.env.STRIPE_PRICE_MONTHLY_ID,
+        quantity: 1,
+        ...(taxRates ? { tax_rates: taxRates } : {}),
+      },
+    ],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      company: input.company,
+      product: "gobd-verfahrensdoku",
+      audience,
+      ...(entityId ? { entity_id: entityId } : {}),
+    },
+    subscription_data: {
+      ...(taxRates ? { default_tax_rates: taxRates } : {}),
+      metadata: {
+        company: input.company,
+        product: "gobd-verfahrensdoku",
+        audience,
+        ...(entityId ? { entity_id: entityId } : {}),
+      },
+    },
+  };
+}
+
+export async function createCheckoutSession(
+  input: CheckoutSessionInput,
+): Promise<{ url: string; stub: boolean }> {
+  const entityId = input.entityId?.trim() ?? "";
 
   if (!isStripeConfigured()) {
     if (!devCheckoutStubAllowed()) {
@@ -284,42 +369,9 @@ export async function createCheckoutSession(input: {
   }
 
   const stripe = getStripe();
-  const customerId = input.customerId?.trim() ?? "";
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    locale: "de",
-    ...(customerId
-      ? {
-          customer: customerId,
-          customer_update: { name: "auto" as const, address: "auto" as const },
-        }
-      : { customer_email: input.email }),
-    billing_address_collection: "required",
-    tax_id_collection: { enabled: true },
-    allow_promotion_codes: true,
-    payment_method_collection: "if_required",
-    line_items: [
-      { price: process.env.STRIPE_PRICE_SETUP_ID, quantity: 1 },
-      { price: process.env.STRIPE_PRICE_MONTHLY_ID, quantity: 1 },
-    ],
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: {
-      company: input.company,
-      product: "gobd-verfahrensdoku",
-      audience,
-      ...(entityId ? { entity_id: entityId } : {}),
-    },
-    subscription_data: {
-      metadata: {
-        company: input.company,
-        product: "gobd-verfahrensdoku",
-        audience,
-        ...(entityId ? { entity_id: entityId } : {}),
-      },
-    },
-  });
+  const session = await stripe.checkout.sessions.create(
+    buildCheckoutSessionParams(input),
+  );
 
   if (!session.url) {
     throw new Error("Stripe Session ohne URL");

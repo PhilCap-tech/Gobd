@@ -4,7 +4,11 @@ import { boundCheckoutEntityId } from "@/lib/checkout-entity";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
 import { findLatestStripeCustomerIdByEmail, getEntity } from "@/lib/store";
-import { createCheckoutSession, verifyStripeCustomerId } from "@/lib/stripe";
+import {
+  CHECKOUT_SESSION_ROUTE,
+  createCheckoutSession,
+  verifyStripeCustomerId,
+} from "@/lib/stripe";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
   if (!isStripeSecretConfigured()) return undefined;
@@ -92,6 +96,7 @@ export async function POST(request: Request) {
       entityId: entityId || undefined,
       audience: body.audience === "steuerberater" ? "steuerberater" : "kunde",
       customerId: await reusableCustomerId(email),
+      route: CHECKOUT_SESSION_ROUTE,
     });
     return NextResponse.json(session);
   } catch (error) {

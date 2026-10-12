@@ -211,6 +211,8 @@ function trackReadinessStart(): void {
  * After a successful readiness POST — before navigating to success.
  * Meta: CompleteRegistration + ReadinessSubmit.
  * Google Ads: conversion only if NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL is set.
+ * The event sends no `value`. Google Ads keeps the conversion-action default
+ * of 198 € net (setup + first month). Do not pass the gross total.
  * GA4: custom `readiness_submit` when NEXT_PUBLIC_GA_MEASUREMENT_ID is set.
  * Does not fire Purchase / InitiateCheckout (Meta or Google).
  */

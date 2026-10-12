@@ -1,4 +1,4 @@
-import { MONTHLY_EUR } from "@/lib/pricing";
+import { MONTHLY_EUR, MONTHLY_GROSS_LABEL } from "@/lib/pricing";
 
 export const PROMO_CODE = "KANZLEI-PILOT";
 /**
@@ -16,7 +16,8 @@ export function PilotKlartextSentence() {
     <>
       Mit Code <strong className="promo-code">{PROMO_CODE}</strong>: Setup und
       Abo {PROMO_MONTHS}&nbsp;Monate 0&nbsp;€ (100&nbsp;%); danach{" "}
-      {MONTHLY_EUR}&nbsp;€/Monat, wenn Sie nicht kündigen — kein
+      {MONTHLY_EUR}&nbsp;€/Monat netto ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto,
+      inkl. 19&nbsp;% USt), wenn Sie nicht kündigen — kein
       Überraschungs-Abo hinter ‚gratis‘.
     </>
   );

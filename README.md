@@ -1,6 +1,6 @@
 # GoBD Verfahrensdoku
 
-Landing, Stripe Checkout (149 € Setup + 49 €/Monat), 5-Schritt-Intake, PDF-Entwurf (Kapitelgerüst + offene Punkte), Magic-Link-Konto.
+Landing, Stripe Checkout (149 € Setup + 49 €/Monat netto, zzgl. 19 % USt), 5-Schritt-Intake, PDF-Entwurf (Kapitelgerüst + offene Punkte), Magic-Link-Konto.
 
 ## Lokal starten
 
@@ -16,7 +16,7 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 
 ## Demo-Pfad
 
-1. Landing → **Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo** (`/checkout`) — Primary; optional **Readiness-Check (kostenlos)** (`/readiness`) — 3 kurze Schritte, kein Stripe
+1. Landing → **Dokumentation erstellen** (`/checkout`) — Primary; Preise netto zzgl. 19 % USt (brutto 177,31 € Einrichtung / 58,31 € Monat). Optional **Readiness-Check (kostenlos)** (`/readiness`) — 3 kurze Schritte, kein Stripe
 2. PDF „GoBD-Grundlagen für [Branche]“ auf `/readiness/success` herunterladen; Lead in Tab `readiness_leads` (oder `.data/readiness-leads.json`)
 3. Optional weicher CTA zum Checkout. Checkout: Firma + E-Mail + Disclaimer
 4. Stripe Checkout (Testmodus) **oder** Stub-Weiterleitung, wenn Keys fehlen
@@ -31,8 +31,13 @@ Ohne Stripe-, Sheets-, Blob- und Mail-Keys läuft der Demo-Pfad trotzdem (Stub-C
 
 Checkout Session im `subscription`-Modus mit zwei Line Items:
 
-- einmalig 149 € — `STRIPE_PRICE_SETUP_ID`
-- monatlich 49 € — `STRIPE_PRICE_MONTHLY_ID`
+- einmalig 149 € netto — `STRIPE_PRICE_SETUP_ID`
+- monatlich 49 € netto — `STRIPE_PRICE_MONTHLY_ID`
+- 19 % USt, exclusive, DE — `STRIPE_TAX_RATE_ID` (Tax Rate, nicht Stripe Tax / `automatic_tax`)
+
+Beide Line Items bekommen `tax_rates`, das Abo zusätzlich `subscription_data.default_tax_rates`, damit auch die Folgerechnung 49 € netto + 19 % ausweist. Fehlt `STRIPE_TAX_RATE_ID`, läuft der Checkout ohne Steuer weiter und schreibt `console.warn` mit der Route `/api/checkout`. Der Build prüft nur den Codepfad (`npm run check:checkout-tax`), nicht die Variable. Es gibt keine Test-Tax-Rate; die ID nicht ins Repo schreiben.
+
+Rechnungen entstehen über den Subscription-Modus. `invoice_creation` gilt nur für Einmalzahlungen und bleibt aus. Die USt-IdNr. des Anbieters ist der Account-Default in Stripe und steht dadurch auf der Rechnung, ohne Override im Code. Nur Inland: kein Reverse Charge.
 
 `success_url` → `{NEXT_PUBLIC_APP_URL}/intake?session_id={CHECKOUT_SESSION_ID}`  
 `cancel_url` → `{NEXT_PUBLIC_APP_URL}/`
