@@ -3,6 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import {
+  firstCompanyFormDefaults,
+  readCheckoutAccountFacts,
+} from "@/lib/account-checkout-prefill";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import {
   entityCapReached,
@@ -26,6 +30,14 @@ export default async function NewFirmaPage() {
 
   const entities = await listEntitiesByEmail(email);
   const atCap = entityCapReached(entities.length);
+  let formDefaults: ReturnType<typeof firstCompanyFormDefaults> = { showNote: false };
+  if (!atCap && entities.length === 0) {
+    try {
+      formDefaults = firstCompanyFormDefaults(0, await readCheckoutAccountFacts(email));
+    } catch (error) {
+      console.error("[account] Checkout-Daten für die erste Firma fehlen", error);
+    }
+  }
 
   return (
     <>
@@ -47,7 +59,7 @@ export default async function NewFirmaPage() {
             </div>
           </div>
         ) : (
-          <FirmaForm />
+          <FirmaForm initial={formDefaults.initial} showCheckoutNote={formDefaults.showNote} />
         )}
       </main>
       <SiteFooter />

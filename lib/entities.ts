@@ -3,6 +3,13 @@ import { emailsEqual, type CheckoutIdentity } from "@/lib/types";
 export const MAX_ENTITIES_PER_ACCOUNT = 5;
 export const DEFAULT_ENTITY_NAME = "Meine Firma";
 
+/** Empty until checkout prefill runs. `review` still needs a look. `done` is settled. */
+export type CheckoutPrefillState = "" | "review" | "done";
+
+export function normalizeCheckoutPrefill(value: unknown): CheckoutPrefillState {
+  return value === "review" || value === "done" ? value : "";
+}
+
 export type Entity = {
   entityId: string;
   userEmail: string;
@@ -14,6 +21,8 @@ export type Entity = {
   ustId: string;
   createdAt: string;
   updatedAt: string;
+  /** Set once from checkout. A later user save is `done` and is not filled again. */
+  checkoutPrefill: CheckoutPrefillState;
 };
 
 export type EntityInput = {
@@ -36,6 +45,7 @@ export const ENTITY_SHEET_COLUMNS = [
   "ust_id",
   "created_at",
   "updated_at",
+  "checkout_prefill",
 ] as const;
 
 export type EntitySheetColumn = (typeof ENTITY_SHEET_COLUMNS)[number];
@@ -51,6 +61,7 @@ export const ENTITY_SHEET_COLUMN_FIELDS = {
   ust_id: "ustId",
   created_at: "createdAt",
   updated_at: "updatedAt",
+  checkout_prefill: "checkoutPrefill",
 } as const satisfies Record<EntitySheetColumn, keyof Entity>;
 
 export class EntityLimitError extends Error {
@@ -75,6 +86,7 @@ export function emptyEntity(): Entity {
     ustId: "",
     createdAt: "",
     updatedAt: "",
+    checkoutPrefill: "",
   };
 }
 
@@ -107,6 +119,7 @@ export function toEntity(
     ustId: fields.ustId ?? "",
     createdAt,
     updatedAt: createdAt,
+    checkoutPrefill: "",
   };
 }
 
@@ -150,9 +163,13 @@ export function parseEntity(header: string[], values: string[]): Entity {
   const entity = emptyEntity();
   header.forEach((col, index) => {
     const field = entityFieldForHeader(col);
-    if (field) {
-      entity[field] = String(values[index] ?? "").trim();
+    if (!field) return;
+    const value = String(values[index] ?? "").trim();
+    if (field === "checkoutPrefill") {
+      entity.checkoutPrefill = normalizeCheckoutPrefill(value);
+      return;
     }
+    entity[field] = value;
   });
   return entity;
 }
@@ -176,6 +193,10 @@ export function coerceEntity(value: unknown): Entity | null {
   if (!entity.updatedAt && typeof raw.updated_at === "string") {
     entity.updatedAt = raw.updated_at;
   }
+  if (!entity.checkoutPrefill && typeof raw.checkout_prefill === "string") {
+    entity.checkoutPrefill = normalizeCheckoutPrefill(raw.checkout_prefill);
+  }
+  entity.checkoutPrefill = normalizeCheckoutPrefill(entity.checkoutPrefill);
   return entity.entityId ? entity : null;
 }
 

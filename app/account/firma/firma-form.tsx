@@ -2,18 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CHECKOUT_PREFILL_NOTE } from "@/lib/account-labels";
 import { MAX_ENTITIES_PER_ACCOUNT, type EntityInput } from "@/lib/entities";
 
 type FirmaFormProps = {
   mode?: "create" | "edit";
   entityId?: string;
   initial?: EntityInput;
+  showCheckoutNote?: boolean;
 };
 
 export function FirmaForm({
   mode = "create",
   entityId,
   initial,
+  showCheckoutNote = false,
 }: FirmaFormProps) {
   const router = useRouter();
   const isEdit = mode === "edit";
@@ -69,6 +72,11 @@ export function FirmaForm({
 
   return (
     <form className="card" onSubmit={onSubmit}>
+      {showCheckoutNote && (
+        <p className="hint checkout-note" role="status">
+          {CHECKOUT_PREFILL_NOTE}
+        </p>
+      )}
       <div className="field">
         <label htmlFor="firma-name">Firmenname</label>
         <input

@@ -128,6 +128,12 @@ export type CheckoutIdentity = {
   entityId?: string;
   /** From `customer_details.address` when the session was retrieved. */
   billingAddress?: CheckoutBillingAddress;
+  /** `customer_details.name` when the session was retrieved. */
+  customerName?: string;
+  /** `customer_details.business_name` when the session payload includes it. */
+  businessName?: string;
+  /** EU VAT id from `customer_details.tax_ids` (USt-IdNr.). */
+  ustId?: string;
 };
 
 export type SheetRow = {

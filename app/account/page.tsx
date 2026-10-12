@@ -1,35 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AccountAboCard, AccountUpgradeCard } from "@/components/account-abo";
-import { AccountFreeCard } from "@/components/account-free";
+import { AccountAboCard } from "@/components/account-abo";
+import { AccountCompanyCard } from "@/components/account-company-card";
+import { AccountResourcesCard } from "@/components/account-free";
 import { AccountProfileForm } from "@/components/account-profile-form";
-import {
-  DocumentRevisionActions,
-  VersionHistory,
-} from "@/components/document-revision";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import {
-  customerChangedBy,
-  customerChangeSummary,
-  customerHubTitle,
-} from "@/lib/account-display";
+import { prepareAccountCheckout } from "@/lib/account-checkout-prefill";
 import { accountCompanyCards } from "@/lib/account-hub";
+import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
-import { BEREICHE, BELEGFLUSS, bereichIdOf, bereichLabel } from "@/lib/bereiche";
-import { gesamtDocTitle } from "@/lib/gesamt-document";
-import { MODUL_UEBERSICHT_STEP_ID } from "@/lib/intake-catalog";
-import { isGesamt, STATUS_LABEL, STATUS_OPTION_LABEL, vollstaendigkeitsZeilen } from "@/lib/module/status";
-import { answersFromSheetRow } from "@/lib/types";
-import {
-  firmaEditPath,
-  latestOwnedInFamily,
-  newDocumentPath,
-} from "@/lib/documents";
+import { firmaEditPath } from "@/lib/documents";
 import {
   entityCapReached,
-  formatEntityAddress,
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
 import {
@@ -38,27 +22,8 @@ import {
   openDraftLabel,
 } from "@/lib/open-drafts";
 import { firstQueryValue } from "@/lib/query";
-
-function intakeModulHref(documentId: string, modulId?: string): string {
-  const params = new URLSearchParams({
-    document_id: documentId,
-    schritt: MODUL_UEBERSICHT_STEP_ID,
-  });
-  if (modulId) params.set("modul", modulId);
-  return `/intake?${params.toString()}`;
-}
-import {
-  ensureAccountEntities,
-  findLatestStripeCustomerIdByEmail,
-  getAccountProfile,
-} from "@/lib/store";
+import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
 import { portalStatusCopy, portalStatusFromQuery } from "@/lib/stripe";
-import {
-  currentVersionBadge,
-  formatValidityRange,
-  selectCurrentVersion,
-  versionLabelFromRow,
-} from "@/lib/versioning";
 
 export const dynamic = "force-dynamic";
 
@@ -81,10 +46,7 @@ export default async function AccountPage({
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
-  const [{ entities, documents: docs }, profile] = await Promise.all([
-    ensureAccountEntities(email),
-    getAccountProfile(email),
-  ]);
+  const { entities, documents: docs, profile } = await prepareAccountCheckout(email);
   const hub = accountCompanyCards(entities, docs, await listOpenDraftsForEmail(email));
   const groups = hub.groups;
   const openDrafts = hub.openDrafts;
@@ -121,21 +83,6 @@ export default async function AccountPage({
           </p>
         )}
 
-        <div className="account-split">
-          <AccountAboCard stripeBound={stripeBound} />
-          <div className="account-side">
-            <AccountFreeCard />
-            <AccountProfileForm
-              email={email}
-              initialName={profile?.name ?? ""}
-              atCap={atCap}
-              firmHref={
-                entities[0] ? firmaEditPath(entities[0].entityId) : null
-              }
-            />
-          </div>
-        </div>
-
         {openDrafts.length > 0 && (
           <section className="card" id="offene-entwuerfe" aria-labelledby="offene-entwuerfe-heading">
             <h2 id="offene-entwuerfe-heading">Offener Entwurf</h2>
@@ -153,276 +100,61 @@ export default async function AccountPage({
           </section>
         )}
 
-        {entities.length === 0 && docs.length === 0 ? (
-          <div className="card" id="firmen">
-            <p className="prose">
-              Zu dieser E-Mail liegt noch keine Firma vor.
-            </p>
-            <div className="actions" style={{ marginTop: 16 }}>
-              <Link
-                className={stripeBound ? "btn" : "btn ghost"}
-                href="/account/firma/neu"
-              >
-                Firma anlegen
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="entity-toolbar" id="firmen">
-              {atCap ? (
-                <p className="hint" style={{ margin: 0 }}>
-                  Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
-                  erreicht.
-                </p>
-              ) : (
-                <Link className="btn ghost" href="/account/firma/neu">
+        <div className="account-companies" id="firmen">
+          {entities.length === 0 && docs.length === 0 ? (
+            <div className="card">
+              <p className="prose">
+                Zu dieser E-Mail liegt noch keine Firma vor.
+              </p>
+              <div className="actions entity-actions">
+                <Link
+                  className={stripeBound ? "btn" : "btn ghost"}
+                  href="/account/firma/neu"
+                >
                   Firma anlegen
                 </Link>
-              )}
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="entity-list">
+                {groups.map((group) => (
+                  <AccountCompanyCard
+                    key={group.entity?.entityId ?? "unbound"}
+                    group={group}
+                    email={email}
+                    empty={group.families.length === 0 && group.continueDrafts.length === 0}
+                  />
+                ))}
+              </div>
+              <div className="entity-toolbar">
+                {atCap ? (
+                  <p className="hint">
+                    Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
+                    erreicht.
+                  </p>
+                ) : (
+                  <Link className="btn ghost" href="/account/firma/neu">
+                    {entities.length === 0 ? "Firma anlegen" : FIRMA_ADD_LABEL}
+                  </Link>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
-            <div className="entity-list">
-              {groups.map((group) => {
-                const entity = group.entity;
-                const title = entity
-                  ? customerHubTitle(entity.name, "Firma")
-                  : "Ohne Firma";
-                const address = entity ? formatEntityAddress(entity) : "";
-                return (
-                  <article
-                    className="card entity-card"
-                    key={entity?.entityId ?? "unbound"}
-                  >
-                    <h2>{title}</h2>
-                    {address ? (
-                      <p className="doc-meta">{address}</p>
-                    ) : entity ? (
-                      <p className="doc-meta">Keine Adresse hinterlegt.</p>
-                    ) : (
-                      <p className="doc-meta">
-                        Dokumente ohne Firmenzuordnung — bis zur Zuordnung
-                        ungebunden.
-                      </p>
-                    )}
+        <div className="account-tiles">
+          <AccountAboCard stripeBound={stripeBound} />
+          <AccountProfileForm
+            email={email}
+            initialName={profile?.name ?? ""}
+            atCap={atCap}
+            firmHref={entities[0] ? firmaEditPath(entities[0].entityId) : null}
+          />
+          <AccountResourcesCard subscribed={stripeBound} />
+        </div>
 
-                    {entity && (
-                      <div className="actions" style={{ marginTop: 12 }}>
-                        <Link
-                          className="btn ghost"
-                          href={firmaEditPath(entity.entityId)}
-                        >
-                          Stammdaten bearbeiten
-                        </Link>
-                        {group.families.length === 0 && (
-                          <Link
-                            className="btn"
-                            href={newDocumentPath(entity.entityId)}
-                          >
-                            Neues Dokument
-                          </Link>
-                        )}
-                      </div>
-                    )}
-
-                    {group.families.length > 0 &&
-                      (() => {
-                        const present = new Set(
-                          group.families.map((family) =>
-                            bereichIdOf(answersFromSheetRow(family.latest)),
-                          ),
-                        );
-                        const firstMissing =
-                          BEREICHE.find((item) => !present.has(item.id))?.id ??
-                          BELEGFLUSS;
-                        return (
-                          <form
-                            className="bereich-add"
-                            method="get"
-                            action="/intake"
-                            style={{ marginTop: 12 }}
-                          >
-                            <input
-                              type="hidden"
-                              name="basis"
-                              value={group.families[0]?.latest.documentId ?? ""}
-                            />
-                            <label
-                              htmlFor={`bereich-${entity?.entityId ?? "unbound"}`}
-                            >
-                              Weiteren Legacy-Bereich dokumentieren
-                            </label>
-                            <div className="actions">
-                              <select
-                                id={`bereich-${entity?.entityId ?? "unbound"}`}
-                                name="bereich"
-                                defaultValue={firstMissing}
-                              >
-                                {BEREICHE.map((item) => (
-                                  <option key={item.id} value={item.id}>
-                                    {item.label}
-                                    {present.has(item.id)
-                                      ? " (bereits vorhanden)"
-                                      : ""}
-                                  </option>
-                                ))}
-                              </select>
-                              <button className="btn" type="submit">
-                                Bereich anlegen
-                              </button>
-                            </div>
-                            <p className="hint">
-                              24 Module, alle inklusive – ein Preis für die
-                              komplette GoBD-Verfahrensdokumentation. Legacy-Bereiche
-                              bleiben lesbar; neue Dokumente starten als Gesamtdokument.
-                            </p>
-                            <p className="actions" style={{ marginTop: 8 }}>
-                              <Link
-                                className="btn ghost"
-                                href={`/intake?basis=${encodeURIComponent(group.families[0]?.latest.documentId ?? "")}&modus=gesamt`}
-                              >
-                                Gesamtdokument anlegen
-                              </Link>
-                            </p>
-                          </form>
-                        );
-                      })()}
-
-                    {group.continueDrafts.length > 0 && (
-                      <div className="entity-docs">
-                        <p className="prose">
-                          Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
-                        </p>
-                        {group.continueDrafts.map((draft) => (
-                          <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
-                            <span className="doc-meta">{openDraftLabel(draft)}</span>
-                            <Link className="btn" href={openDraftContinuePath(draft)}>
-                              Weiter ausfüllen
-                            </Link>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {group.families.length === 0 && group.continueDrafts.length === 0 ? (
-                      <div className="entity-docs">
-                        <p className="prose">
-                          Für diese Firma liegt noch kein Entwurf vor.
-                        </p>
-                      </div>
-                    ) : group.families.length === 0 ? null : (
-                      <div className="entity-docs">
-                        {group.families.map((family) => {
-                          const editRow = latestOwnedInFamily(family.versions, email) ?? family.latest;
-                          const pick = selectCurrentVersion(family.versions);
-                          const current = pick?.row ?? editRow;
-                          const summary = customerChangeSummary(
-                            current.changeSummary,
-                          );
-                          const who = customerChangedBy(current.changedBy);
-                          return (
-                            <section
-                              className="entity-doc"
-                              key={family.familyId}
-                            >
-                              <h3>
-                                {(() => {
-                                  const ans = answersFromSheetRow(editRow);
-                                  return isGesamt(ans)
-                                    ? gesamtDocTitle()
-                                    : `Verfahrensdokumentation ${bereichLabel(bereichIdOf(ans))}`;
-                                })()}
-                              </h3>
-                              {(() => {
-                                const ans = answersFromSheetRow(editRow);
-                                if (!isGesamt(ans)) return null;
-                                const rows = vollstaendigkeitsZeilen(ans);
-                                const offenRows = rows.filter((row) => row.status === "offen");
-                                const extern = rows.filter((row) => row.status === "extern").length;
-                                const uploads = rows.filter((row) => {
-                                  const eintrag = ans.module?.status?.[row.modul];
-                                  return eintrag?.status === "extern" && Boolean(eintrag.uploadName || eintrag.uploadUrl);
-                                });
-                                const tool = rows.filter((row) => row.status === "tool").length;
-                                const parts = [
-                                  `${tool} Module „${STATUS_LABEL.tool}“`,
-                                  `${offenRows.length} ${STATUS_LABEL.offen}`,
-                                  `${extern} ${STATUS_OPTION_LABEL.extern}`,
-                                ];
-                                if (uploads.length) parts.push(`${uploads.length} Datei(en) verknüpft`);
-                                return (
-                                  <>
-                                    <p className="doc-meta">
-                                      Vollständigkeit: {parts.join(" · ")} ·{" "}
-                                      <Link href={intakeModulHref(editRow.documentId)}>
-                                        Module bearbeiten
-                                      </Link>
-                                    </p>
-                                    {offenRows.length > 0 ? (
-                                      <div className="open-modules">
-                                        <h4>Offene Module</h4>
-                                        <p className="hint">
-                                          Noch auszufüllen. Der Zwischenstand wird gespeichert. Im Intake setzen Sie den Status auf „{STATUS_OPTION_LABEL.tool}“, „{STATUS_OPTION_LABEL.extern}“ oder „{STATUS_OPTION_LABEL.nicht_vorhanden}“.
-                                        </p>
-                                        <ul className="open-module-list">
-                                          {offenRows.map((row) => (
-                                            <li key={row.modul}>
-                                              <span>
-                                                {row.nr}. {row.titel}
-                                              </span>
-                                              <Link href={intakeModulHref(editRow.documentId, row.modul)}>
-                                                Jetzt ausfüllen
-                                              </Link>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    ) : (
-                                      <p className="hint" style={{ marginTop: 8 }}>
-                                        Keine offenen Module.
-                                      </p>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                              {!entity && editRow.company ? (
-                                <p className="doc-meta">
-                                  {customerHubTitle(
-                                    editRow.company,
-                                    "Verfahrensdokumentation",
-                                  )}
-                                </p>
-                              ) : null}
-                              <p className="doc-meta">
-                                {currentVersionBadge(Boolean(pick?.fallback))}
-                                : Version {versionLabelFromRow(current)} · Gültig{" "}
-                                {formatValidityRange(current, family.versions)} ·{" "}
-                                {summary} · {who}
-                              </p>
-                              <DocumentRevisionActions row={editRow} />
-                              <VersionHistory
-                                headingId={`versionshistorie-${family.familyId}`}
-                                versions={family.versions}
-                              />
-                            </section>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-            {!stripeBound && (
-              <AccountUpgradeCard
-                compact
-                headingId="upgrade-heading-docs"
-              />
-            )}
-          </>
-        )}
-
-        <p className="hint" style={{ marginTop: 20 }}>
+        <p className="hint account-note">
           {stripeBound
             ? "Identität über die E-Mail aus dem Checkout."
             : "Identität über die E-Mail aus dem Intake."}{" "}
@@ -430,7 +162,7 @@ export default async function AccountPage({
           {MAX_ENTITIES_PER_ACCOUNT} Firmen pro Konto.
         </p>
 
-        <form action="/api/auth/logout" method="post" style={{ marginTop: 16 }}>
+        <form action="/api/auth/logout" method="post" className="account-logout">
           <button className="btn ghost" type="submit">
             Abmelden
           </button>

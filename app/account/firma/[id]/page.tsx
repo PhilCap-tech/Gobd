@@ -58,6 +58,7 @@ export default async function EditFirmaPage({
             <FirmaForm
               mode="edit"
               entityId={entity.entityId}
+              showCheckoutNote={entity.checkoutPrefill === "review"}
               initial={{
                 name: entity.name,
                 street: entity.street,

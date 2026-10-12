@@ -1,5 +1,27 @@
 import Link from "next/link";
 
+const RESOURCE_LINKS = [
+  { href: "/resources/10-offene-punkte", label: "10 offene Punkte" },
+  {
+    href: "/resources/inhalt-verfahrensdokumentation",
+    label: "Inhalt einer Verfahrensdokumentation",
+  },
+  { href: "/blog", label: "Berichte / Bibliothek" },
+  { href: "/faq", label: "FAQ" },
+] as const;
+
+function ResourceLinks() {
+  return (
+    <ul className="free-list">
+      {RESOURCE_LINKS.map((item) => (
+        <li key={item.href}>
+          <Link href={item.href}>{item.label}</Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function AccountFreeCard() {
   return (
     <section className="card account-panel" aria-labelledby="free-heading">
@@ -13,22 +35,24 @@ export function AccountFreeCard() {
         </Link>
       </div>
       <p className="hint">Readiness-Test nochmal.</p>
-      <ul className="free-list">
-        <li>
-          <Link href="/resources/10-offene-punkte">10 offene Punkte</Link>
-        </li>
-        <li>
-          <Link href="/resources/inhalt-verfahrensdokumentation">
-            Inhalt einer Verfahrensdokumentation
-          </Link>
-        </li>
-        <li>
-          <Link href="/blog">Berichte / Bibliothek</Link>
-        </li>
-        <li>
-          <Link href="/faq">FAQ</Link>
-        </li>
-      </ul>
+      <ResourceLinks />
     </section>
   );
+}
+
+/** Shown instead of „Kostenlos nutzen“ when the account has a subscription. */
+export function AccountHelpCard() {
+  return (
+    <section className="card account-panel" aria-labelledby="help-heading">
+      <h2 id="help-heading">Hilfe & Wissen</h2>
+      <p className="prose">
+        Arbeitshilfen, Berichte und Antworten zu Ihrer Verfahrensdokumentation.
+      </p>
+      <ResourceLinks />
+    </section>
+  );
+}
+
+export function AccountResourcesCard({ subscribed }: { subscribed: boolean }) {
+  return subscribed ? <AccountHelpCard /> : <AccountFreeCard />;
 }

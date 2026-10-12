@@ -15,8 +15,10 @@ import {
   EntityLimitError,
   latestEntities,
   MAX_ENTITIES_PER_ACCOUNT,
+  normalizeCheckoutPrefill,
   parseEntity,
   toEntity,
+  type CheckoutPrefillState,
   type Entity,
   type EntityInput,
 } from "@/lib/entities";
@@ -1169,12 +1171,14 @@ export async function getOwnedEntity(
 export async function createEntity(
   email: string,
   input: EntityInput,
+  options?: { checkoutPrefill?: CheckoutPrefillState },
 ): Promise<EntityStoreResult> {
   const existing = await listEntitiesByEmail(email);
   if (existing.length >= MAX_ENTITIES_PER_ACCOUNT) {
     throw new EntityLimitError(existing.length);
   }
   const entity = toEntity(email, input, randomUUID());
+  entity.checkoutPrefill = normalizeCheckoutPrefill(options?.checkoutPrefill);
   if (!entity.name) {
     throw new Error("Bitte einen Firmennamen angeben.");
   }
@@ -1204,6 +1208,7 @@ export async function updateEntity(
   entityId: string,
   input: Partial<EntityInput>,
   email?: string,
+  options?: { checkoutPrefill?: CheckoutPrefillState },
 ): Promise<Entity | null> {
   const current = await getEntity(entityId);
   if (!current) return null;
@@ -1218,6 +1223,10 @@ export async function updateEntity(
     city: input.city !== undefined ? input.city.trim() : current.city,
     stnr: input.stnr !== undefined ? input.stnr.trim() : current.stnr,
     ustId: input.ustId !== undefined ? input.ustId.trim() : current.ustId,
+    checkoutPrefill:
+      options?.checkoutPrefill !== undefined
+        ? normalizeCheckoutPrefill(options.checkoutPrefill)
+        : normalizeCheckoutPrefill(current.checkoutPrefill),
     updatedAt: new Date().toISOString(),
   };
   if (!next.name) {

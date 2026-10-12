@@ -9,6 +9,9 @@
 // stays here and reuses the blog walker instead of a second COVERED list.
 // Lead magnets live in TypeScript string literals. Those files are scanned
 // for the same du-forms, comments and code identifiers excluded.
+// Rendered UI (app and components TSX): the word Legacy must not appear in
+// customer-visible text or prose strings. Comments and lowercase machine
+// tokens (ids, paths, slugs) are ignored. A line marked allow-legacy is skipped.
 import { spawnSync } from "node:child_process";
 import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -37,6 +40,10 @@ const resourceDuPatterns = [
   "lib/lead-magnet-inhalt.ts",
   "app/resources/**/*.{ts,tsx}",
 ];
+
+const uiPatterns = ["app/**/*.tsx", "components/**/*.tsx"];
+
+const LEGACY_WORD = /(?<![\p{L}\p{N}_])legacy(?![\p{L}\p{N}_])/iu;
 
 const visibleFrontmatter = new Set([
   "title",
@@ -254,6 +261,107 @@ function resourceDuHits(raw) {
   return hits;
 }
 
+function isMachineToken(text) {
+  const trimmed = text.trim();
+  if (!trimmed || /\s/.test(trimmed)) return false;
+  return (
+    trimmed === trimmed.toLowerCase() &&
+    /^[\p{L}\p{N}_./:#?=&%+\-]+$/u.test(trimmed)
+  );
+}
+
+function legacyInRegion(text) {
+  const trimmed = text.replace(/\{\/\*[\s\S]*?\*\/\}/g, "").trim();
+  if (!trimmed || isMachineToken(trimmed) || !LEGACY_WORD.test(trimmed)) return null;
+  return trimmed.match(LEGACY_WORD)?.[0] ?? null;
+}
+
+function lineAllowsLegacy(source, index) {
+  const start = source.lastIndexOf("\n", Math.max(0, index - 1)) + 1;
+  const end = source.indexOf("\n", index);
+  const line = source.slice(start, end === -1 ? source.length : end);
+  return line.includes("allow-legacy");
+}
+
+function closesTag(source, gtIndex) {
+  let i = gtIndex - 1;
+  while (i >= 0 && source[i] !== "<" && source[i] !== ">") i -= 1;
+  if (i < 0 || source[i] !== "<") return false;
+  const tag = source.slice(i + 1, gtIndex).trim();
+  return /^\/?[A-Za-z][\w.-]*(\s[\s\S]*)?$/.test(tag);
+}
+
+function lineAt(source, index) {
+  let line = 1;
+  for (let i = 0; i < index && i < source.length; i += 1) {
+    if (source[i] === "\n") line += 1;
+  }
+  return line;
+}
+
+/** String literals and JSX text. Comments are skipped. */
+function uiRegions(source) {
+  const regions = [];
+  let i = 0;
+  while (i < source.length) {
+    if (source[i] === "/" && source[i + 1] === "/") {
+      while (i < source.length && source[i] !== "\n") i += 1;
+      continue;
+    }
+    if (source[i] === "/" && source[i + 1] === "*") {
+      i += 2;
+      while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
+      i += 2;
+      continue;
+    }
+    const quote = source[i];
+    if (quote === '"' || quote === "'" || quote === "`") {
+      const start = i + 1;
+      i += 1;
+      while (i < source.length) {
+        if (source[i] === "\\") {
+          i += 2;
+          continue;
+        }
+        if (source[i] === quote) break;
+        i += 1;
+      }
+      regions.push({ start, text: source.slice(start, i) });
+      i += 1;
+      continue;
+    }
+    if (source[i] === ">" && source[i - 1] !== "=" && closesTag(source, i)) {
+      const start = i + 1;
+      i += 1;
+      let text = "";
+      while (i < source.length && source[i] !== "<") {
+        text += source[i];
+        i += 1;
+      }
+      if (text.trim()) regions.push({ start, text });
+      continue;
+    }
+    i += 1;
+  }
+  return regions;
+}
+
+function uiLegacyHits(source) {
+  const hits = [];
+  for (const region of uiRegions(source)) {
+    if (lineAllowsLegacy(source, region.start)) continue;
+    const match = legacyInRegion(region.text);
+    if (match) {
+      hits.push({
+        line: lineAt(source, region.start),
+        match,
+        text: region.text.replace(/\s+/g, " ").trim().slice(0, 180),
+      });
+    }
+  }
+  return hits;
+}
+
 function assertSelfTest() {
   const cases = [
     ["soft heading", "## Soft-CTA: Readiness-Check\n\nAbsatz.\n", true],
@@ -373,6 +481,61 @@ function assertSelfTest() {
       process.exit(1);
     }
   }
+
+  const legacyCases = [
+    [
+      "jsx sentence",
+      "export function A(){ return <p>Weiteren Legacy-Bereich dokumentieren</p> }\n",
+      true,
+    ],
+    [
+      "hint",
+      "export function A(){ return <p>Legacy-Bereiche bleiben lesbar.</p> }\n",
+      true,
+    ],
+    [
+      "string label",
+      'const label = "Weiteren Legacy-Bereich dokumentieren";\n',
+      true,
+    ],
+    [
+      "template",
+      "const label = `Legacy-Bereich`;\n",
+      true,
+    ],
+    [
+      "id attr",
+      'export function A(){ return <section id="legacy" /> }\n',
+      false,
+    ],
+    ['slug', 'const reference = "legacy-url";\n', false],
+    [
+      "comment",
+      '// Legacy-Bereich intern\nexport const x = "Gesamtdokument";\n',
+      false,
+    ],
+    [
+      "jsx comment",
+      "export function A(){ return <p>{/* Legacy */}Gesamtdokument</p> }\n",
+      false,
+    ],
+    [
+      "clean",
+      "export function A(){ return <p>Weiteren Bereich dokumentieren</p> }\n",
+      false,
+    ],
+    ['allow', 'const label = "Legacy"; // allow-legacy\n', false],
+  ];
+
+  for (const [name, source, expectHit] of legacyCases) {
+    const hit = uiLegacyHits(source).length > 0;
+    if (hit !== expectHit) {
+      console.error(
+        `check-forbidden-words: legacy self-test failed (${name}, expected ${expectHit ? "hit" : "clean"})`,
+      );
+      process.exit(1);
+    }
+  }
 }
 
 assertSelfTest();
@@ -380,6 +543,7 @@ assertSelfTest();
 const files = patterns.flatMap((pattern) => globSync(pattern));
 const blogFiles = blogPatterns.flatMap((pattern) => globSync(pattern));
 const resourceFiles = resourceDuPatterns.flatMap((pattern) => globSync(pattern));
+const uiFiles = [...new Set(uiPatterns.flatMap((pattern) => globSync(pattern)))].sort();
 let failed = false;
 
 if (files.length === 0) {
@@ -394,6 +558,11 @@ if (blogFiles.length === 0) {
 
 if (resourceFiles.length === 0) {
   console.error("check-forbidden-words: no resource files matched");
+  process.exit(1);
+}
+
+if (uiFiles.length === 0) {
+  console.error("check-forbidden-words: no UI files matched");
   process.exit(1);
 }
 
@@ -427,6 +596,13 @@ for (const file of resourceFiles) {
   }
 }
 
+for (const file of uiFiles) {
+  for (const hit of uiLegacyHits(readFileSync(file, "utf8"))) {
+    console.error(`${file}:${hit.line}: Legacy in rendered UI „${hit.match}“ in ${hit.text}`);
+    failed = true;
+  }
+}
+
 if (failed) {
   process.exit(1);
 }
@@ -449,5 +625,5 @@ if (effort.status !== 0) {
 }
 
 console.log(
-  `check-forbidden-words: ok (${files.length + blogFiles.length + resourceFiles.length} files)`,
+  `check-forbidden-words: ok (${files.length + blogFiles.length + resourceFiles.length + uiFiles.length} files)`,
 );

@@ -197,6 +197,43 @@ export function billingAddressFromCustomerDetails(
   };
 }
 
+/** Person name already on a retrieved Checkout Session. No extra Stripe call. */
+export function customerNameFromCustomerDetails(
+  details: { name?: string | null } | null | undefined,
+): string {
+  return details?.name?.trim() ?? "";
+}
+
+/**
+ * Business name when Stripe includes it on `customer_details`.
+ * Older API versions omit the field; metadata.company stays the primary name.
+ */
+export function businessNameFromCustomerDetails(details: unknown): string {
+  if (!details || typeof details !== "object") return "";
+  const name = (details as { business_name?: unknown }).business_name;
+  return typeof name === "string" ? name.trim() : "";
+}
+
+const UST_ID_TAX_TYPES = ["eu_vat", "eu_oss_vat"] as const;
+
+/** USt-IdNr. from Checkout tax IDs. Steuernummer (`de_stn`) is not a USt-IdNr. */
+export function ustIdFromCustomerDetails(
+  details:
+    | {
+        tax_ids?: Array<{ type?: string | null; value?: string | null }> | null;
+      }
+    | null
+    | undefined,
+): string {
+  const ids = details?.tax_ids ?? [];
+  for (const type of UST_ID_TAX_TYPES) {
+    const match = ids.find((id) => id.type === type && id.value?.trim());
+    const value = match?.value?.trim() ?? "";
+    if (value) return value;
+  }
+  return "";
+}
+
 async function retrieveCheckoutSession(sessionId: string) {
   const stripe = getStripe();
   try {
@@ -331,6 +368,9 @@ export async function resolveCheckoutSession(
     }
 
     const billingAddress = billingAddressFromCustomerDetails(session.customer_details);
+    const customerName = customerNameFromCustomerDetails(session.customer_details);
+    const businessName = businessNameFromCustomerDetails(session.customer_details);
+    const ustId = ustIdFromCustomerDetails(session.customer_details);
     return {
       email,
       company: session.metadata?.company || "",
@@ -339,6 +379,9 @@ export async function resolveCheckoutSession(
       stub: false,
       entityId: session.metadata?.entity_id?.trim() || "",
       ...(billingAddress ? { billingAddress } : {}),
+      ...(customerName ? { customerName } : {}),
+      ...(businessName ? { businessName } : {}),
+      ...(ustId ? { ustId } : {}),
     };
   } catch (error) {
     const kind = checkoutLookupError(error);
