@@ -14,10 +14,7 @@ import { accountCompanyCards } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
 import { firmaEditPath } from "@/lib/documents";
-import {
-  entityCapReached,
-  MAX_ENTITIES_PER_ACCOUNT,
-} from "@/lib/entities";
+import { entityCapReached, MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { lifecycleNotice } from "@/lib/kuendigung";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
 import {
