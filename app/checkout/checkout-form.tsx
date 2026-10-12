@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FirmaSelect } from "@/components/firma-select";
+import { checkoutEntityIdForEmail } from "@/lib/checkout-entity";
 import { PilotKlartextSentence } from "@/components/pilot-klartext";
 import type { EntityChoice } from "@/lib/entities";
 import { RESULT_PROMISE } from "@/lib/offer-copy";
@@ -32,8 +33,10 @@ export function CheckoutForm({
   const [entityId, setEntityId] = useState(initialEntityId);
   const [company, setCompany] = useState(initialCompany);
   const [email, setEmail] = useState(initialEmail);
+  const sessionEntityRef = useRef(initialEntityId);
   const [accepted, setAccepted] = useState(false);
   useEffect(() => {
+    sessionEntityRef.current = initialEntityId;
     setEntityId(initialEntityId);
     setCompany(initialCompany);
     setEmail(initialEmail);
@@ -45,9 +48,27 @@ export function CheckoutForm({
 
   function onEntityChange(nextId: string) {
     setEntityId(nextId);
+    sessionEntityRef.current = nextId;
     const selected = entities.find((entity) => entity.entityId === nextId);
     if (selected) {
       setCompany(selected.name);
+    }
+  }
+
+  function onEmailChange(value: string) {
+    const kept = checkoutEntityIdForEmail({
+      typedEmail: value,
+      sessionEmail: initialEmail,
+      entityId: sessionEntityRef.current || initialEntityId,
+    });
+    setEmail(value);
+    if (kept) {
+      setEntityId(kept);
+      return;
+    }
+    if (initialEmail.trim()) {
+      setEntityId("");
+      if (company.trim() === initialCompany.trim()) setCompany("");
     }
   }
 
@@ -78,7 +99,12 @@ export function CheckoutForm({
           email: email.trim(),
           acceptedDisclaimer: accepted,
           entrepreneur,
-          entityId: entityId.trim() || undefined,
+          entityId:
+            checkoutEntityIdForEmail({
+              typedEmail: email,
+              sessionEmail: initialEmail,
+              entityId,
+            }) || undefined,
           audience,
         }),
       });
@@ -137,7 +163,7 @@ export function CheckoutForm({
             autoComplete="email"
             placeholder={partner ? "name@kanzlei.de" : "name@firma.de"}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => onEmailChange(e.target.value)}
             required
           />
         </div>

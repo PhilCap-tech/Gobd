@@ -186,11 +186,13 @@ function CheckoutOwnerClash({
   signedInEmail,
   ownerEmail,
   sessionId,
+  entityId = "",
   failed,
 }: {
   signedInEmail: string;
   ownerEmail: string;
   sessionId: string;
+  entityId?: string;
   failed: boolean;
 }) {
   return (
@@ -201,6 +203,7 @@ function CheckoutOwnerClash({
       <div className="actions" style={{ marginTop: 16 }}>
         <form method="post" action="/api/auth/checkout-handoff">
           <input type="hidden" name="session_id" value={sessionId} />
+          {entityId ? <input type="hidden" name="entity_id" value={entityId} /> : null}
           <button className="btn" type="submit">
             {checkoutHandoffButtonCopy(ownerEmail)}
           </button>
@@ -309,6 +312,7 @@ export default async function IntakePage({
               signedInEmail={sessionEmail}
               ownerEmail={ownerEmail}
               sessionId={sessionIdQuery}
+              entityId={firstQueryValue(params.entity_id) ?? ""}
               failed={handoffFailed}
             />
           </main>
@@ -568,9 +572,14 @@ export default async function IntakePage({
   const owned = accountEmail && requestedEntityId
     ? await getOwnedEntity(requestedEntityId, accountEmail)
     : entityById(entities, requestedEntityId);
+  const stripeEntityId = !("error" in session) ? session.entityId?.trim() ?? "" : "";
+  const stripeOwned =
+    accountEmail && stripeEntityId
+      ? await getOwnedEntity(stripeEntityId, accountEmail)
+      : null;
   const initialEntityId = sessionEmail
     ? owned?.entityId ||
-      (!("error" in session) ? session.entityId?.trim() ?? "" : "") ||
+      stripeOwned?.entityId ||
       (entities.length === 1 ? entities[0]?.entityId ?? "" : "")
     : "";
   if (!("error" in session) && !session.company.trim()) {
@@ -597,6 +606,7 @@ export default async function IntakePage({
               signedInEmail={sessionEmail}
               ownerEmail={customer}
               sessionId={sessionId}
+              entityId={requestedEntityId}
               failed={handoffFailed}
             />
           </main>

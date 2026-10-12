@@ -341,63 +341,39 @@ export function withoutSessionCookie(
   return response;
 }
 
-const APEX_HOST = "gobd-doku-erstellen.de";
-
 const AUTH_COOKIE_NAMES = [SESSION_COOKIE, CHECKOUT_GRANT_COOKIE] as const;
 
 /**
- * The app sets Path=/. Also expire the directories of the routes that
- * issued cookies, in case a host-only cookie picked up that default path.
- */
-const AUTH_COOKIE_PATHS = ["/", "/auth", "/api", "/account", "/checkout", "/login", "/intake"];
-
-function requestHostname(requestUrl?: string): string {
-  if (!requestUrl) return "";
-  try {
-    return new URL(requestUrl).hostname.toLowerCase();
-  } catch {
-    return "";
-  }
-}
-
-/**
  * Set-Cookie lines that delete gobd_session and gobd_checkout.
- * Host-only and, on the production host, the apex domain (www and apex
- * share a Domain cookie; a host-only clear does not remove it).
- * Secure and non-Secure are both sent so either variant is removed.
- * The cookie jar keys by name, so the extra domains go out as raw headers.
+ * The setters use a host-only cookie (no Domain) and Path=/.
+ * The jar keys on name + domain + path, so a Domain or another Path
+ * does not remove that cookie and must not be added here.
+ * Secure and non-Secure are both sent: production sets Secure, and a
+ * non-Secure deletion does not remove a Secure cookie.
+ * Two names × two Secure flags. Nothing else — a large Set-Cookie
+ * block makes the logout response fail before the browser applies it.
  */
-export function authCookieDeletionLines(hostname?: string): string[] {
-  const host = (hostname ?? "").toLowerCase();
-  const domains: Array<string | null> = [null];
-  if (host === APEX_HOST || host.endsWith(`.${APEX_HOST}`)) {
-    domains.push(APEX_HOST, `.${APEX_HOST}`, `www.${APEX_HOST}`);
-  }
+export function authCookieDeletionLines(_hostname?: string): string[] {
   const lines: string[] = [];
   for (const name of AUTH_COOKIE_NAMES) {
-    for (const domain of domains) {
-      for (const path of AUTH_COOKIE_PATHS) {
-        for (const secure of [false, true]) {
-          const parts = [
-            `${name}=`,
-            `Path=${path}`,
-            "Max-Age=0",
-            "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
-            "HttpOnly",
-            "SameSite=Lax",
-          ];
-          if (domain) parts.push(`Domain=${domain}`);
-          if (secure) parts.push("Secure");
-          lines.push(parts.join("; "));
-        }
-      }
+    for (const secure of [false, true]) {
+      const parts = [
+        `${name}=`,
+        "Path=/",
+        "Max-Age=0",
+        "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+        "HttpOnly",
+        "SameSite=Lax",
+      ];
+      if (secure) parts.push("Secure");
+      lines.push(parts.join("; "));
     }
   }
   return lines;
 }
 
 export function clearAuthCookies(response: NextResponse, requestUrl?: string): void {
-  for (const line of authCookieDeletionLines(requestHostname(requestUrl))) {
+  for (const line of authCookieDeletionLines(requestUrl)) {
     response.headers.append("Set-Cookie", line);
   }
 }

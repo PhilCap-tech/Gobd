@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { google } from "googleapis";
+import { undocumentedPaidSessionId } from "@/lib/account-paid-intake";
 import { parseDocumentVersion, rowsInFamily } from "@/lib/documents";
 import {
   coerceEntity,
@@ -460,8 +461,10 @@ export async function findDocumentById(documentId: string): Promise<SheetRow | n
   const id = normalizeQueryId(documentId);
   if (!id) return null;
   const { rows } = await loadRows();
-  const matches = rows.filter((row) => queryIdsEqual(row.documentId, id));
-  return matches.at(-1) ?? null;
+  const exact = rows.filter((row) => queryIdsEqual(row.documentId, id));
+  if (exact.length > 0) return exact.at(-1) ?? null;
+  const family = rows.filter((row) => queryIdsEqual(row.parentDocumentId, id));
+  return family.at(-1) ?? null;
 }
 
 export async function listDocumentsByEmail(email: string): Promise<SheetRow[]> {
@@ -496,6 +499,16 @@ export async function findLatestPaidCheckoutByEmail(
     )
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   return matches[0] ?? null;
+}
+
+/**
+ * Paid checkout for this mailbox that has no submitted document yet.
+ * Used so /account can open that intake. Another mailbox's rows are ignored.
+ */
+export async function findUndocumentedPaidSessionId(email: string): Promise<string> {
+  if (!email.trim()) return "";
+  const { rows } = await loadRows();
+  return undocumentedPaidSessionId(rows, email);
 }
 
 export async function findRowByStripeSessionId(
