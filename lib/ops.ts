@@ -141,8 +141,8 @@ export function buildReadinessMail(input: {
 
 export type OnboardingAudience = "kunde" | "steuerberater";
 
-export const CUSTOMER_ONBOARDING_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
-/** Dieselbe Sie-Grußzeile wie die Kundenmail. Partner-Text bleibt sonst unverändert. */
+export const CUSTOMER_ONBOARDING_SIGNATURE = "Ihr Team von gobd-doku-erstellen.de";
+/** Partner-Pilot behält die eigene Sie-Zeile. Kundenmail signiert mit der Domain. */
 export const PARTNER_ONBOARDING_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 
 const CUSTOMER_ONBOARDING_SUBJECT =
@@ -269,8 +269,8 @@ function buildCustomerOnboardingMail(input: {
       "",
       "vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:",
       "",
-      "1. Betriebs-Check: ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten.",
-      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Der Zwischenstand wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.",
+      "1. Betriebs-Check: ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten. Antworten, die Sie jetzt nicht zur Hand haben, füllen Sie später aus.",
+      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Der Entwurf wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.",
       "3. Gesamt-PDF erstellen – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.",
       "",
       CUSTOMER_ONBOARDING_CTA,
@@ -278,10 +278,12 @@ function buildCustomerOnboardingMail(input: {
       "",
       "Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordern Sie auf der Anmeldeseite einen neuen Link an – Sie landen danach wieder im Fragebogen.",
       "",
+      `Ihr Konto: ${MAIL_ACCOUNT_URL}`,
+      "",
       "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
       MAIL_FAQ_URL,
       "",
-      `Support: ${MAIL_SUPPORT_EMAIL}`,
+      `Ihr Ansprechpartner: ${MAIL_SUPPORT_EMAIL}. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.`,
       "",
       CUSTOMER_ONBOARDING_DISCLAIMER,
       "",
@@ -292,14 +294,15 @@ function buildCustomerOnboardingMail(input: {
     <p>${escapeHtml(greeting)}</p>
     <p>vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:</p>
     <ol>
-      <li><strong>Betriebs-Check:</strong> ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten.</li>
-      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Der Zwischenstand wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.</li>
+      <li><strong>Betriebs-Check:</strong> ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten. Antworten, die Sie jetzt nicht zur Hand haben, füllen Sie später aus.</li>
+      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Der Entwurf wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.</li>
       <li><strong>Gesamt-PDF erstellen</strong> – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.</li>
     </ol>
     <p>${transactionalPrimaryButton(startUrl, CUSTOMER_ONBOARDING_CTA)}</p>
     <p>Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordern Sie auf der Anmeldeseite einen neuen Link an – Sie landen danach wieder im Fragebogen.</p>
+    <p>Ihr Konto: <a href="${escapeAttr(MAIL_ACCOUNT_URL)}">${escapeHtml(MAIL_ACCOUNT_URL)}</a></p>
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
-    <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+    <p>Ihr Ansprechpartner: <a href="${escapeAttr(`mailto:${MAIL_SUPPORT_EMAIL}`)}">${escapeHtml(MAIL_SUPPORT_EMAIL)}</a>. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.</p>
     <p>${escapeHtml(CUSTOMER_ONBOARDING_DISCLAIMER)}</p>
     <p>${escapeHtml(CUSTOMER_ONBOARDING_SIGNATURE)}</p>
   `);
@@ -594,6 +597,7 @@ export async function triggerOnboardingMail(input: {
   });
   const result = await sendEmail({
     to: input.email,
+    replyTo: MAIL_SUPPORT_EMAIL,
     subject: mail.subject,
     text: mail.text,
     html: mail.html,

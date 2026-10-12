@@ -26,6 +26,7 @@ import {
   sendReferralAfterDeliveryMail,
 } from "@/lib/ops";
 import {
+  MAIL_ACCOUNT_URL,
   MAIL_CHECKOUT_URL,
   MAIL_FAQ_URL,
   MAIL_HOME_URL,
@@ -205,22 +206,62 @@ assert(
   onboardingCompanyOnly.text.includes(onboardingStartUrl),
   "Fallback plaintext includes the same start URL",
 );
+const ONBOARDING_SIGNATURE = "Ihr Team von gobd-doku-erstellen.de";
 assert(
-  onboarding.html.includes(CUSTOMER_ONBOARDING_SIGNATURE),
-  "Customer onboarding HTML signs the team",
+  CUSTOMER_ONBOARDING_SIGNATURE === ONBOARDING_SIGNATURE,
+  "Customer onboarding signature is exactly Ihr Team von gobd-doku-erstellen.de",
 );
 assert(
-  onboarding.text.includes(CUSTOMER_ONBOARDING_SIGNATURE),
-  "Customer onboarding plaintext signs the team",
+  onboarding.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`),
+  "Customer onboarding HTML signature paragraph is exact",
 );
 assert(
-  !onboarding.html.includes("GoBD Ops") && !onboarding.text.includes("GoBD Ops"),
-  "Customer onboarding must not sign GoBD Ops",
+  onboarding.text.includes(ONBOARDING_SIGNATURE),
+  "Customer onboarding plaintext signature is exact",
+);
+assert(
+  onboardingCompanyOnly.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`) &&
+    onboardingCompanyOnly.text.includes(ONBOARDING_SIGNATURE) &&
+    onboardingWhitespace.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`) &&
+    onboardingWhitespace.text.includes(ONBOARDING_SIGNATURE),
+  "Every customer onboarding variant uses the same signature",
+);
+assert(
+  !/GoBD Ops/i.test(onboarding.html) &&
+    !/GoBD Ops/i.test(onboarding.text) &&
+    !/GoBD Ops/i.test(onboardingCompanyOnly.html) &&
+    !/GoBD Ops/i.test(onboardingCompanyOnly.text) &&
+    !/GoBD Ops/i.test(onboardingWhitespace.html) &&
+    !/GoBD Ops/i.test(onboardingWhitespace.text),
+  "Customer onboarding must not contain GoBD Ops",
+);
+assert(
+  onboarding.html.includes("Ihr Ansprechpartner:") &&
+    onboarding.text.includes(
+      `Ihr Ansprechpartner: ${MAIL_SUPPORT_EMAIL}. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.`,
+    ) &&
+    onboarding.html.includes(`href="mailto:${MAIL_SUPPORT_EMAIL}"`) &&
+    MAIL_SUPPORT_EMAIL === "info@gobd-doku-erstellen.de",
+  "Customer onboarding names the Ansprechpartner reply address",
+);
+assert(
+  onboarding.html.includes(`href="${MAIL_ACCOUNT_URL}"`) &&
+    onboarding.text.includes(`Ihr Konto: ${MAIL_ACCOUNT_URL}`) &&
+    MAIL_ACCOUNT_URL === "https://www.gobd-doku-erstellen.de/account",
+  "Customer onboarding links the Konto page",
+);
+assert(
+  onboarding.html.includes("Entwurf wird gespeichert") &&
+    onboarding.text.includes("Entwurf wird gespeichert") &&
+    onboarding.html.includes("Später ausfüllen") &&
+    onboarding.text.includes("Später ausfüllen"),
+  "Customer onboarding explains later answers and a saved Entwurf",
 );
 assert(
   onboarding.html.includes("Betriebs-Check") &&
     onboarding.html.includes("24 Module") &&
     onboarding.html.includes("Später ausfüllen") &&
+    onboarding.html.includes("Entwurf wird gespeichert") &&
     onboarding.html.includes("To-dos") &&
     onboarding.html.includes("Gesamt-PDF") &&
     onboarding.html.includes("Vollständigkeitsübersicht"),
