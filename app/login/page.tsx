@@ -5,15 +5,19 @@ import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, safeNextPath } from "@/lib/auth";
 import {
   answersLoginOffer,
+  checkoutCustomerEmail,
   emailForAnswersLogin,
   intakeTargetFromNext,
+  loginCheckoutEmail,
   LOGIN_FOR_ANSWERS_COPY,
 } from "@/lib/checkout-session";
+import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
 import { firstQueryValue } from "@/lib/query";
 import {
   findDocumentById,
   findLatestDocumentByStripeSessionId,
 } from "@/lib/store";
+import { resolveCheckoutSession } from "@/lib/stripe";
 import { LoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
@@ -37,14 +41,28 @@ export default async function LoginPage({
 
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
   const target = intakeTargetFromNext(next);
-  let checkoutEmail = "";
+  let documentEmail = "";
   if (target && (target.documentId || target.sessionId)) {
     const row = target.documentId
       ? await findDocumentById(target.documentId)
       : await findLatestDocumentByStripeSessionId(target.sessionId);
-    checkoutEmail = emailForAnswersLogin(row, target);
+    documentEmail = emailForAnswersLogin(row, target);
   }
-  const offer = answersLoginOffer({ next, checkoutEmail });
+  const fromCheckout =
+    target?.sessionId && !documentEmail
+      ? await checkoutCustomerEmail(target.sessionId, resolveCheckoutSession)
+      : "";
+  const recorded =
+    target?.sessionId && !documentEmail && !fromCheckout
+      ? await checkoutSessionGrant(target.sessionId)
+      : null;
+  const offer = answersLoginOffer({
+    next,
+    checkoutEmail: loginCheckoutEmail({
+      documentEmail,
+      checkoutCustomerEmail: fromCheckout || recorded?.email,
+    }),
+  });
 
   return (
     <>

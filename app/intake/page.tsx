@@ -4,6 +4,15 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
+import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
+import {
+  CHECKOUT_BACK_TO_ACCOUNT,
+  checkoutHandoffButtonCopy,
+  checkoutOwnerMismatchCopy,
+  intakeCheckoutGate,
+  ownerEmailAfterVerifiedCheckout,
+} from "@/lib/checkout-session";
+import { LOGIN_LINK_FAILED_NOTICE } from "@/lib/login-mail";
 import { groupDocumentFamilies, nextVersionNumber } from "@/lib/documents";
 import { authorizeDeliveredWrite, LOGIN_TO_CHANGE_COPY } from "@/lib/session-write";
 import { entityById, entityChoices, type Entity } from "@/lib/entities";
@@ -171,6 +180,37 @@ function intakeReturnPath(params: {
   return text ? `/intake?${text}` : "/intake";
 }
 
+function CheckoutOwnerClash({
+  signedInEmail,
+  ownerEmail,
+  sessionId,
+  failed,
+}: {
+  signedInEmail: string;
+  ownerEmail: string;
+  sessionId: string;
+  failed: boolean;
+}) {
+  return (
+    <div className="card">
+      <h1>Anmeldung</h1>
+      <p className="prose">{checkoutOwnerMismatchCopy(signedInEmail, ownerEmail)}</p>
+      {failed ? <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p> : null}
+      <div className="actions" style={{ marginTop: 16 }}>
+        <form method="post" action="/api/auth/checkout-handoff">
+          <input type="hidden" name="session_id" value={sessionId} />
+          <button className="btn" type="submit">
+            {checkoutHandoffButtonCopy(ownerEmail)}
+          </button>
+        </form>
+        <Link className="btn ghost" href="/account">
+          {CHECKOUT_BACK_TO_ACCOUNT}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function LoginToChange({ nextPath }: { nextPath: string }) {
   return (
     <div className="card">
@@ -200,6 +240,7 @@ export default async function IntakePage({
     schritt?: string | string[];
     modul?: string | string[];
     grant?: string | string[];
+    handoff?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -207,6 +248,55 @@ export default async function IntakePage({
   const grantFlag = firstQueryValue(params.grant) ?? "";
   const checkoutGrant = await getCheckoutGrant();
   const sessionEmail = await getSessionEmail();
+  const returnPath = intakeReturnPath(params);
+  const handoffFailed = firstQueryValue(params.handoff) === "failed";
+
+  if (sessionIdQuery) {
+    const recorded = await checkoutSessionGrant(sessionIdQuery);
+    let customerEmail = recorded?.email ?? "";
+    if (!customerEmail && sessionEmail) {
+      const resolved = await resolveCheckoutSession(sessionIdQuery);
+      if (!("error" in resolved) && !resolved.stub) {
+        const owner = await ownerEmailAfterVerifiedCheckout(
+          {
+            stub: resolved.stub,
+            customerEmail: resolved.email,
+            stripeSessionId: resolved.stripeSessionId,
+          },
+          async (id) => {
+            const row = await findLatestDocumentByStripeSessionId(id);
+            return row ? row.email : null;
+          },
+        );
+        customerEmail = owner || resolved.email.trim().toLowerCase();
+      }
+    }
+    const gate = intakeCheckoutGate({
+      sessionEmail,
+      customerEmail,
+      grantRecorded: Boolean(recorded),
+    });
+    if (gate === "mismatch" && sessionEmail && customerEmail) {
+      return (
+        <>
+          <SiteHeader backHref="/account" backLabel="← Zum Konto" />
+          <main className="wrap page">
+            <CheckoutOwnerClash
+              signedInEmail={sessionEmail}
+              ownerEmail={customerEmail}
+              sessionId={sessionIdQuery}
+              failed={handoffFailed}
+            />
+          </main>
+          <SiteFooter />
+        </>
+      );
+    }
+    if (gate === "login") {
+      redirect(loginPath(returnPath));
+    }
+  }
+
   let resumeDraft: Awaited<ReturnType<typeof loadOwnerSessionDraft>> = null;
   if (
     sessionIdQuery &&
@@ -252,8 +342,6 @@ export default async function IntakePage({
   const modus = (firstQueryValue(params.modus) ?? "").toLowerCase();
   // Default for new intakes: Gesamtdokument. Opt out with ?modus=bereich.
   const gesamtMode = modus !== "bereich" && (modus === "gesamt" || !bereich);
-
-  const returnPath = intakeReturnPath(params);
 
   // Weiterer Bereich für eine Firma mit bestehender Dokumentation: kein neuer Checkout.
   if (basisId) {
@@ -474,6 +562,33 @@ export default async function IntakePage({
     const firmName =
       owned?.name || entityById(entities, initialEntityId)?.name || "";
     if (firmName) session.company = firmName;
+  }
+
+  if (!("error" in session) && sessionId && !session.stub) {
+    const recorded = await checkoutSessionGrant(sessionId);
+    const customer = recorded?.email || session.email.trim().toLowerCase();
+    const gate = intakeCheckoutGate({
+      sessionEmail,
+      customerEmail: customer,
+      grantRecorded: Boolean(recorded),
+    });
+    if (gate === "login") redirect(loginPath(returnPath));
+    if (gate === "mismatch" && sessionEmail && customer) {
+      return (
+        <>
+          <SiteHeader backHref="/account" backLabel="← Zum Konto" />
+          <main className="wrap page">
+            <CheckoutOwnerClash
+              signedInEmail={sessionEmail}
+              ownerEmail={customer}
+              sessionId={sessionId}
+              failed={handoffFailed}
+            />
+          </main>
+          <SiteFooter />
+        </>
+      );
+    }
   }
 
   return (

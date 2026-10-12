@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { attachVerifiedCheckoutCookies } from "@/lib/checkout-session";
+import { loginPath, sessionEmailFromRequest } from "@/lib/auth";
+import { finishCheckoutReturn } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { findLatestDocumentByStripeSessionId } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
@@ -29,11 +30,20 @@ function intakeReturn(request: Request, source: URL, grant: "set" | "skip"): URL
   return target;
 }
 
+function intakePath(source: URL): string {
+  const target = new URL("/intake", "http://safe.invalid");
+  for (const key of PASSTHROUGH) {
+    const value = source.searchParams.get(key)?.trim();
+    if (value) target.searchParams.set(key, value);
+  }
+  const query = target.searchParams.toString();
+  return query ? `/intake?${query}` : "/intake";
+}
+
 /**
- * Rückkehr aus Stripe: `session_id` serverseitig prüfen und einen
- * kurzlebigen Nachweis nur für diese Checkout-Session setzen.
- * Bei bezahlter Session und passender Inhaber-Mail zusätzlich das
- * Login-Cookie, mit demselben Signierer wie /auth/verify.
+ * Rückkehr aus Stripe: `session_id` serverseitig prüfen.
+ * Ein bestehendes Login wird nie ersetzt. Nach dem ersten Login
+ * für diese Session führt dieselbe ID zur Anmeldung statt zu einem neuen Cookie.
  */
 export async function GET(request: Request) {
   const source = new URL(request.url);
@@ -52,20 +62,30 @@ export async function GET(request: Request) {
     email = source.searchParams.get("email")?.trim() || email;
   }
 
+  if (!email || !resolved.stripeSessionId) {
+    return NextResponse.redirect(intakeReturn(request, source, "skip"));
+  }
+
   const response = NextResponse.redirect(intakeReturn(request, source, "set"));
-  if (email && resolved.stripeSessionId) {
-    await attachVerifiedCheckoutCookies(
-      response,
-      {
-        stub: resolved.stub,
-        customerEmail: email,
-        stripeSessionId: resolved.stripeSessionId,
-      },
-      async (sessionId) => {
-        const existing = await findLatestDocumentByStripeSessionId(sessionId);
-        return existing ? existing.email : null;
-      },
-    );
+  const decision = await finishCheckoutReturn(
+    response,
+    {
+      stub: resolved.stub,
+      customerEmail: email,
+      stripeSessionId: resolved.stripeSessionId,
+      existingSessionEmail: sessionEmailFromRequest(request),
+    },
+    async (id) => {
+      const existing = await findLatestDocumentByStripeSessionId(id);
+      return existing ? existing.email : null;
+    },
+  );
+
+  if (decision === "mismatch") {
+    return NextResponse.redirect(intakeReturn(request, source, "skip"));
+  }
+  if (decision === "login") {
+    return NextResponse.redirect(new URL(loginPath(intakePath(source)), request.url));
   }
   return response;
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
+import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
 import {
   authorizeDraftAccess,
   draftAccessHttpStatus,
@@ -31,7 +32,7 @@ import {
   listDocumentFamily,
 } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
-import type { IntakeAnswers } from "@/lib/types";
+import { emailsEqual, type IntakeAnswers } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -111,6 +112,28 @@ async function deliveredDraftGate(
   return null;
 }
 
+/**
+ * Nach dem ersten Login für eine Checkout-Session ist die Session-ID kein
+ * Nachweis mehr. Lesen und Schreiben brauchen das Login der Kauf-Adresse.
+ */
+async function grantedSessionGate(
+  request: Request,
+  sessionIds: Array<string | undefined>,
+): Promise<NextResponse | null> {
+  const ids = [
+    ...new Set(sessionIds.map((value) => value?.trim() ?? "").filter((value) => value.length > 0)),
+  ];
+  if (ids.length === 0) return null;
+  const sessionEmail = sessionEmailFromRequest(request);
+  for (const id of ids) {
+    const grant = await checkoutSessionGrant(id);
+    if (!grant) continue;
+    if (!sessionEmail) return jsonError("Kein Zugriff.", 401);
+    if (!emailsEqual(sessionEmail, grant.email)) return jsonError("Kein Zugriff.", 403);
+  }
+  return null;
+}
+
 export async function readIntakeDraft(request: Request, io: DraftWriteIo = defaultDraftIo) {
   const url = new URL(request.url);
   const draftKey =
@@ -133,10 +156,10 @@ export async function readIntakeDraft(request: Request, io: DraftWriteIo = defau
     if (failure) return failure;
     throw error;
   }
+  const fromKey = idsFromDraftKey(draft?.draftKey || draftKey);
   if (!draft || draftIsEmpty(draft)) {
     return NextResponse.json({ draft: null });
   }
-  const fromKey = idsFromDraftKey(draft.draftKey || draftKey);
   const blocked = await deliveredDraftGate(
     request,
     {
@@ -147,6 +170,12 @@ export async function readIntakeDraft(request: Request, io: DraftWriteIo = defau
     io,
   );
   if (blocked) return blocked;
+  const granted = await grantedSessionGate(request, [
+    url.searchParams.get("sessionId") ?? undefined,
+    fromKey.sessionId,
+    draft.stripeSessionId,
+  ]);
+  if (granted) return granted;
   const access = await authorizeDraftAccess(
     {
       sessionEmail: sessionEmailFromRequest(request),
@@ -212,6 +241,8 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
     io,
   );
   if (blocked) return blocked;
+  const granted = await grantedSessionGate(request, [body.sessionId, fromKey.sessionId]);
+  if (granted) return granted;
 
   let existing: IntakeDraft | null;
   try {
@@ -222,6 +253,8 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
     throw error;
   }
   const stored = existing && !draftIsEmpty(existing) ? existing : null;
+  const grantedStored = await grantedSessionGate(request, [stored?.stripeSessionId]);
+  if (grantedStored) return grantedStored;
   const access = await authorizeDraftAccess(
     {
       sessionEmail,
@@ -293,6 +326,11 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
     io,
   );
   if (blocked) return blocked;
+  const grantedKey = await grantedSessionGate(request, [
+    url.searchParams.get("sessionId") ?? undefined,
+    fromKey.sessionId,
+  ]);
+  if (grantedKey) return grantedKey;
 
   let existing: IntakeDraft | null;
   try {
@@ -303,6 +341,8 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
     throw error;
   }
   if (existing && !draftIsEmpty(existing)) {
+    const grantedDraft = await grantedSessionGate(request, [existing.stripeSessionId]);
+    if (grantedDraft) return grantedDraft;
     const access = await authorizeDraftAccess(
       {
         sessionEmail: sessionEmailFromRequest(request),

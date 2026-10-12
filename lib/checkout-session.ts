@@ -4,6 +4,10 @@ import {
   applySessionCookie,
   type CheckoutGrant,
 } from "@/lib/auth";
+import {
+  checkoutSessionGrant,
+  recordCheckoutSessionGrant,
+} from "@/lib/checkout-session-grant";
 import { queryIdsEqual } from "@/lib/query";
 
 /**
@@ -93,6 +97,97 @@ export async function ownerEmailAfterVerifiedCheckout(
   });
 }
 
+export type CheckoutAttachDecision = "session" | "same" | "mismatch" | "login" | "skip";
+
+/**
+ * Ob die Rückkehr aus dem Checkout ein Login setzen darf.
+ * Eine bestehende Anmeldung wird nie ersetzt. Nach dem ersten Login
+ * für diese Session reicht die Session-ID allein nicht mehr.
+ */
+export function decideCheckoutAttach(input: {
+  existingSessionEmail?: string | null;
+  customerEmail?: string | null;
+  sessionOwnerEmail?: string | null;
+  alreadyGranted: boolean;
+  stub?: boolean;
+}): CheckoutAttachDecision {
+  const existing = normalizeEmail(input.existingSessionEmail);
+  const customer = normalizeEmail(input.customerEmail);
+  const sessionOwner = normalizeEmail(input.sessionOwnerEmail);
+  if (existing && customer && existing !== customer && !input.stub) return "mismatch";
+  if (!sessionOwner) return "skip";
+  if (existing && existing === sessionOwner) return "same";
+  if (existing && existing !== sessionOwner) return "mismatch";
+  if (input.alreadyGranted) return "login";
+  return "session";
+}
+
+/**
+ * Seite, wenn die Anmeldung und der Kauf verschiedenen Adressen gehören.
+ * Setzt kein Cookie und öffnet den fremden Entwurf nicht.
+ */
+export function intakeCheckoutGate(input: {
+  sessionEmail?: string | null;
+  customerEmail?: string | null;
+  grantRecorded: boolean;
+}): "mismatch" | "login" | "proceed" {
+  const session = normalizeEmail(input.sessionEmail);
+  const customer = normalizeEmail(input.customerEmail);
+  if (session && customer && session !== customer) return "mismatch";
+  if (!session && input.grantRecorded) return "login";
+  return "proceed";
+}
+
+export function checkoutOwnerMismatchCopy(signedInEmail: string, ownerEmail: string): string {
+  return `Sie sind als ${maskCheckoutEmail(signedInEmail)} angemeldet. Dieser Kauf gehört zu ${maskCheckoutEmail(ownerEmail)}.`;
+}
+
+export function checkoutHandoffButtonCopy(ownerEmail: string): string {
+  return `Abmelden und Anmeldelink an ${maskCheckoutEmail(ownerEmail)} senden`;
+}
+
+export const CHECKOUT_BACK_TO_ACCOUNT = "Zurück zum Konto";
+
+/** Link nur an die Kauf-Adresse, und nur wenn sie nicht die aktuelle Anmeldung ist. */
+export function checkoutHandoffPlan(input: {
+  currentEmail?: string | null;
+  ownerEmail?: string | null;
+}): "send" | "ignore" {
+  const current = normalizeEmail(input.currentEmail);
+  const owner = normalizeEmail(input.ownerEmail);
+  if (!current || !owner || current === owner) return "ignore";
+  return "send";
+}
+
+/** Dokument-Mail, sonst die Kundenmail des Checkouts. Leer bleibt leer. */
+export function loginCheckoutEmail(input: {
+  documentEmail?: string | null;
+  checkoutCustomerEmail?: string | null;
+}): string {
+  return normalizeEmail(input.documentEmail) || normalizeEmail(input.checkoutCustomerEmail);
+}
+
+/**
+ * Kundenmail einer Checkout-Session. Fehler und eine leere Stub-Mail liefern "".
+ * Eine gesetzte Stub-Mail bleibt für die lokale Erklärung nutzbar.
+ */
+export async function checkoutCustomerEmail(
+  sessionId: string,
+  resolve: (
+    sessionId: string,
+  ) => Promise<{ email?: string; error?: string } | { error: string }>,
+): Promise<string> {
+  const id = sessionId.trim();
+  if (!id) return "";
+  try {
+    const resolved = await resolve(id);
+    if (!resolved || ("error" in resolved && resolved.error)) return "";
+    return normalizeEmail(resolved.email);
+  } catch {
+    return "";
+  }
+}
+
 /** Checkout cookie plus, when the payer is the owner, the same login cookie as /auth/verify. */
 export async function attachVerifiedCheckoutCookies(
   response: NextResponse,
@@ -112,6 +207,68 @@ export function applyCheckoutOwnerSession(response: NextResponse, email: string)
   const address = normalizeEmail(email);
   if (!address) return;
   applySessionCookie(response, address);
+}
+
+/** Merkt sich die erste Ausstellung. Ein Schreibfehler hält die Rückkehr nicht auf. */
+export async function rememberCheckoutSessionGrant(sessionId: string, email: string): Promise<void> {
+  const id = sessionId.trim();
+  const owner = normalizeEmail(email);
+  if (!id || !owner) return;
+  try {
+    const existing = await checkoutSessionGrant(id);
+    if (existing) return;
+    await recordCheckoutSessionGrant({ sessionId: id, email: owner });
+  } catch (error) {
+    console.error(
+      "[checkout] Sitzungsnachweis konnte nicht gespeichert werden",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+}
+
+/**
+ * Rückkehr aus Stripe. Eine bestehende Anmeldung bleibt unverändert.
+ * Das Login wird nur gesetzt, wenn noch keins da ist und diese Session
+ * noch keins bekommen hat. Danach führt dieselbe Session-ID zum Login.
+ */
+export async function finishCheckoutReturn(
+  response: NextResponse,
+  input: {
+    stub: boolean;
+    customerEmail: string;
+    stripeSessionId: string;
+    existingSessionEmail?: string | null;
+  },
+  lookupDocumentOwner: (sessionId: string) => Promise<string | null>,
+): Promise<CheckoutAttachDecision> {
+  const sessionId = input.stripeSessionId.trim();
+  const email = input.customerEmail.trim();
+  if (!sessionId || !email) return "skip";
+
+  const owner = await ownerEmailAfterVerifiedCheckout(
+    { stub: input.stub, customerEmail: email, stripeSessionId: sessionId },
+    lookupDocumentOwner,
+  );
+  const recorded = input.stub ? null : await checkoutSessionGrant(sessionId);
+  const decision = decideCheckoutAttach({
+    existingSessionEmail: input.existingSessionEmail,
+    customerEmail: email,
+    sessionOwnerEmail: owner,
+    alreadyGranted: Boolean(recorded),
+    stub: input.stub,
+  });
+
+  if (decision === "mismatch" || decision === "login") return decision;
+
+  if (decision === "session" || decision === "same") {
+    if (owner && !recorded) await rememberCheckoutSessionGrant(sessionId, owner);
+    applyCheckoutGrantCookie(response, { sessionId, email });
+    if (decision === "session" && owner) applyCheckoutOwnerSession(response, owner);
+    return decision;
+  }
+
+  applyCheckoutGrantCookie(response, { sessionId, email });
+  return decision;
 }
 
 export function intakeTargetFromNext(

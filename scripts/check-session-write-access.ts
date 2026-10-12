@@ -395,7 +395,7 @@ async function checkDraftAndUpload() {
       method: "PUT",
       headers: { "content-type": "application/json", cookie: checkoutCookie() },
       body: JSON.stringify({
-        sessionId: SESSION,
+        sessionId: "cs_test_buyer_open",
         email: BUYER,
         modus: "gesamt",
         step: 1,
