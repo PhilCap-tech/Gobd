@@ -95,11 +95,13 @@ export function buildMagicLinkMail(input: {
 
 export function buildReadinessMail(input: {
   name?: string;
+  /** Firm names that must not be used as the greeting. */
+  company?: string;
   brancheLabel: string;
   downloadUrl: string;
   magicLinkUrl?: string;
 }): TransactionalMailContent {
-  const greeting = input.name?.trim() ? `Guten Tag ${input.name.trim()},` : "Guten Tag,";
+  const greeting = customerOnboardingGreeting(input.name, [input.company]);
   const lines = [
     greeting,
     "",
@@ -795,6 +797,7 @@ export async function sendPartnerInquiryMail(
 export async function sendReadinessMail(input: {
   email: string;
   name?: string;
+  company?: string;
   brancheLabel: string;
   downloadUrl: string;
   successUrl?: string;

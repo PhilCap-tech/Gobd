@@ -10,7 +10,7 @@ export function RenewExpiredLinkButton({
 }: {
   email: string;
   masked: string;
-  next: string;
+  next?: string | null;
 }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -25,7 +25,7 @@ export function RenewExpiredLinkButton({
       const response = await fetch("/api/auth/magic-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, next }),
+        body: JSON.stringify(next ? { email, next } : { email }),
       });
       const data = (await response.json()) as {
         error?: string;

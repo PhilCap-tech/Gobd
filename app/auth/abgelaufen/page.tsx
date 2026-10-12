@@ -4,6 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, readExpiredMagicToken, safeNextPath } from "@/lib/auth";
 import {
+  EXPIRED_LINK_DRAFT_LEAD,
   EXPIRED_LINK_HEADING,
   EXPIRED_LINK_LEAD,
   isOnboardingIntakeNext,
@@ -30,23 +31,24 @@ export default async function ExpiredOnboardingLinkPage({
   const token = firstQueryValue(params.token) ?? "";
   const email = readExpiredMagicToken(token);
 
-  if (!email || !isOnboardingIntakeNext(next)) {
+  if (!email) {
     redirect(next ? `/login?error=invalid&next=${encodeURIComponent(next)}` : "/login?error=invalid");
   }
 
   const sessionEmail = await getSessionEmail();
   if (sessionEmail) {
-    redirect(next);
+    redirect(next ?? "/account");
   }
 
   const masked = maskEmailAddress(email);
+  const lead = isOnboardingIntakeNext(next) ? EXPIRED_LINK_DRAFT_LEAD : EXPIRED_LINK_LEAD;
 
   return (
     <>
       <SiteHeader backHref="/" backLabel="← Zur Landing" />
       <main className="wrap page">
         <h1>{EXPIRED_LINK_HEADING}</h1>
-        <p className="lead">{EXPIRED_LINK_LEAD}</p>
+        <p className="lead">{lead}</p>
         <RenewExpiredLinkButton email={email} masked={masked} next={next} />
       </main>
       <SiteFooter />

@@ -240,16 +240,56 @@ if (!deliveryPerson.text.startsWith("Guten Tag Anna Berg,")) {
   fail("delivery salutation must use the contact name");
 }
 
+const readinessCompany = buildReadinessMail({
+  name: "IKAT GmbH",
+  company: "IKAT GmbH",
+  brancheLabel: "Handwerk",
+  downloadUrl: DOWNLOAD,
+});
+const readinessWhitespace = buildReadinessMail({
+  name: "  IKAT   GmbH  ",
+  company: "ikat gmbh",
+  brancheLabel: "Handwerk",
+  downloadUrl: DOWNLOAD,
+});
+const readinessPerson = buildReadinessMail({
+  name: "Anna Berg",
+  company: "IKAT GmbH",
+  brancheLabel: "Handwerk",
+  downloadUrl: DOWNLOAD,
+});
+for (const [label, mail] of [
+  ["readiness-company", readinessCompany],
+  ["readiness-whitespace", readinessWhitespace],
+] as const) {
+  assertCustomerClosing(label, mail);
+  if (!mail.text.startsWith("Guten Tag,") || !mail.html.includes("<p>Guten Tag,</p>")) {
+    fail(`${label}: salutation must fall back to Guten Tag,`);
+  }
+  if (mail.text.includes("Guten Tag IKAT GmbH") || mail.html.includes("Guten Tag IKAT GmbH")) {
+    fail(`${label}: greets the company name`);
+  }
+}
+assertCustomerClosing("readiness-person", readinessPerson);
+if (!readinessPerson.text.startsWith("Guten Tag Anna Berg,")) {
+  fail("readiness salutation must use the contact name");
+}
+if (
+  readinessPerson.text.includes("Guten Tag IKAT GmbH") ||
+  readinessPerson.html.includes("Guten Tag IKAT GmbH")
+) {
+  fail("readiness person mail greets the company name");
+}
+
+const anmeldelink = buildMagicLinkMail({ magicLinkUrl: START });
+if (anmeldelink.subject !== "Ihr Anmeldelink — GoBD Verfahrensdoku") {
+  fail(`Anmeldelink subject is ${JSON.stringify(anmeldelink.subject)}`);
+}
+assertCustomerClosing("anmeldelink", anmeldelink);
+
 const otherCustomerMails = [
-  ["magic", buildMagicLinkMail({ magicLinkUrl: START })],
-  [
-    "readiness",
-    buildReadinessMail({
-      name: "Alex",
-      brancheLabel: "Handwerk",
-      downloadUrl: DOWNLOAD,
-    }),
-  ],
+  ["magic", anmeldelink],
+  ["readiness-person-closing", readinessPerson],
   ["failed-payment", buildFailedPaymentMail()],
   ["failed-job", buildFailedJobMail()],
 ] as const;
@@ -258,6 +298,10 @@ for (const [label, mail] of otherCustomerMails) {
 }
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const readinessRoute = readFileSync(path.join(repoRoot, "app/api/readiness/route.ts"), "utf8");
+if (!readinessRoute.includes("company: parsed.company")) {
+  fail("readiness route does not pass the company into the salutation");
+}
 for (const rel of ["lib/ops.ts", "app/api/intake/route.ts", "app/api/document/route.ts"]) {
   const source = readFileSync(path.join(repoRoot, rel), "utf8");
   if (
@@ -437,21 +481,56 @@ async function checkExpiredOnboardingLink(): Promise<void> {
   if (tamperedLocation.includes("/auth/abgelaufen") || tamperedLocation.includes(email)) {
     fail("tampered token reached the expired page");
   }
+  if (!tamperedLocation.includes("error=invalid")) {
+    fail(`tampered token did not use the invalid login (${tamperedLocation})`);
+  }
   if (cookieNames(tamperedResponse).includes(SESSION_COOKIE)) {
     fail("tampered token set a session cookie");
   }
 
-  const otherNext = await verifyMagicLink(
+  const editNext = "/account/dokument/doc_owner1";
+  if (safeNextPath(editNext) !== editNext) fail("re-edit path is not a safe next");
+  for (const [label, next] of [
+    ["login", "/account"],
+    ["re-edit", editNext],
+  ] as const) {
+    const response = await verifyMagicLink(
+      new Request(
+        `http://localhost/auth/verify?token=${encodeURIComponent(expired)}&next=${encodeURIComponent(next)}`,
+      ),
+    );
+    const location = new URL(response.headers.get("location") ?? "", "http://localhost");
+    if (location.pathname !== "/auth/abgelaufen") {
+      fail(`${label} expired link location is ${location.pathname}${location.search}`);
+    }
+    if (location.searchParams.get("token") !== expired) fail(`${label} expired page dropped the token`);
+    if (safeNextPath(location.searchParams.get("next")) !== next) {
+      fail(`${label} expired page dropped the redirect`);
+    }
+    if (cookieNames(response).includes(SESSION_COOKIE)) {
+      fail(`${label} expired link set a session cookie`);
+    }
+  }
+
+  const bare = await verifyMagicLink(
+    new Request(`http://localhost/auth/verify?token=${encodeURIComponent(expired)}`),
+  );
+  const bareLocation = new URL(bare.headers.get("location") ?? "", "http://localhost");
+  if (bareLocation.pathname !== "/auth/abgelaufen" || bareLocation.searchParams.get("next")) {
+    fail(`expired login without next is ${bareLocation.pathname}${bareLocation.search}`);
+  }
+  if (cookieNames(bare).includes(SESSION_COOKIE)) {
+    fail("expired login without next set a session cookie");
+  }
+
+  const unsafe = await verifyMagicLink(
     new Request(
-      `http://localhost/auth/verify?token=${encodeURIComponent(expired)}&next=${encodeURIComponent("/account")}`,
+      `http://localhost/auth/verify?token=${encodeURIComponent(expired)}&next=${encodeURIComponent("https://evil.example")}`,
     ),
   );
-  const otherLocation = otherNext.headers.get("location") ?? "";
-  if (otherLocation.includes("/auth/abgelaufen")) {
-    fail("non-onboarding next used the onboarding expired page");
-  }
-  if (cookieNames(otherNext).includes(SESSION_COOKIE)) {
-    fail("expired account link set a session cookie");
+  const unsafeLocation = new URL(unsafe.headers.get("location") ?? "", "http://localhost");
+  if (unsafeLocation.pathname !== "/auth/abgelaufen" || unsafeLocation.searchParams.get("next")) {
+    fail("expired token kept an unsafe next");
   }
 
   const page = readFileSync(
@@ -467,6 +546,9 @@ async function checkExpiredOnboardingLink(): Promise<void> {
   }
   if (!page.includes("EXPIRED_LINK_HEADING") || page.includes("applySessionCookie")) {
     fail("expired page heading missing or page sets a session");
+  }
+  if (page.includes("!isOnboardingIntakeNext(next)")) {
+    fail("expired page still limits renewal to the onboarding draft");
   }
   if (!button.includes("/api/auth/magic-link") || !button.includes("renewExpiredLinkLabel")) {
     fail("renew button does not use the existing magic-link route");
