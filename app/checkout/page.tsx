@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
@@ -63,7 +64,9 @@ export default async function CheckoutPage({
           )}
         </p>
         <p className="prose">{INTAKE_EFFORT_LINE}</p>
+        <RefreshStoredView />
         <CheckoutForm
+          key={email ?? "signed-out"}
           stripeReady={isStripeConfigured()}
           stripeTestMode={isStripeTestMode()}
           entities={entityChoices(entities)}

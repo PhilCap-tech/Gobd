@@ -28,7 +28,7 @@ export async function completeCheckoutHandoff(
 
   const loggedOut = (path: string) => {
     const response = NextResponse.redirect(new URL(path, request.url), 303);
-    clearSessionCookie(response);
+    clearSessionCookie(response, request.url);
     return response;
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FirmaSelect } from "@/components/firma-select";
 import { PilotKlartextSentence } from "@/components/pilot-klartext";
 import type { EntityChoice } from "@/lib/entities";
@@ -33,6 +33,11 @@ export function CheckoutForm({
   const [company, setCompany] = useState(initialCompany);
   const [email, setEmail] = useState(initialEmail);
   const [accepted, setAccepted] = useState(false);
+  useEffect(() => {
+    setEntityId(initialEntityId);
+    setCompany(initialCompany);
+    setEmail(initialEmail);
+  }, [initialEntityId, initialCompany, initialEmail]);
   const [entrepreneur, setEntrepreneur] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);

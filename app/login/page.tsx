@@ -3,15 +3,12 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, safeNextPath } from "@/lib/auth";
-import {
-  answersLoginOffer,
-  checkoutCustomerEmail,
-  emailForAnswersLogin,
-  intakeTargetFromNext,
-  loginCheckoutEmail,
-  LOGIN_FOR_ANSWERS_COPY,
-} from "@/lib/checkout-session";
 import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
+import {
+  LOGIN_FOR_ANSWERS_COPY,
+  loginClientFields,
+  ownerEmailForLoginNext,
+} from "@/lib/checkout-session";
 import { firstQueryValue } from "@/lib/query";
 import {
   findDocumentById,
@@ -30,7 +27,11 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string | string[]; next?: string | string[] }>;
+  searchParams: Promise<{
+    error?: string | string[];
+    next?: string | string[];
+    sent?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const next = safeNextPath(firstQueryValue(params.next));
@@ -40,37 +41,18 @@ export default async function LoginPage({
   }
 
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
-  let offer = answersLoginOffer({ next, checkoutEmail: "" });
-  try {
-    const target = intakeTargetFromNext(next);
-    let documentEmail = "";
-    if (target && (target.documentId || target.sessionId)) {
-      const row = target.documentId
-        ? await findDocumentById(target.documentId)
-        : await findLatestDocumentByStripeSessionId(target.sessionId);
-      documentEmail = emailForAnswersLogin(row, target);
-    }
-    const fromCheckout =
-      target?.sessionId && !documentEmail
-        ? await checkoutCustomerEmail(target.sessionId, resolveCheckoutSession)
-        : "";
-    const recorded =
-      target?.sessionId && !documentEmail && !fromCheckout
-        ? await checkoutSessionGrant(target.sessionId)
-        : null;
-    offer = answersLoginOffer({
-      next,
-      checkoutEmail: loginCheckoutEmail({
-        documentEmail,
-        checkoutCustomerEmail: fromCheckout || recorded?.email,
-      }),
-    });
-  } catch (lookupError) {
-    console.error(
-      "[login] Checkout-Adresse nicht geladen",
-      lookupError instanceof Error ? lookupError.name : "error",
-    );
-  }
+  const sent = Array.isArray(params.sent) ? params.sent[0] : params.sent;
+  const checkoutEmail = await ownerEmailForLoginNext(next, {
+    findDocumentById,
+    findLatestBySession: findLatestDocumentByStripeSessionId,
+    resolveCheckout: resolveCheckoutSession,
+    grantEmail: async (sessionId) => (await checkoutSessionGrant(sessionId))?.email ?? null,
+  });
+  const fields = loginClientFields({
+    next,
+    checkoutEmail,
+    sessionEmail: null,
+  });
 
   return (
     <>
@@ -78,7 +60,7 @@ export default async function LoginPage({
       <main className="wrap page">
         <h1>Anmelden</h1>
         <p className="lead">
-          {offer.explain
+          {fields.explain
             ? LOGIN_FOR_ANSWERS_COPY
             : "Magic Link an die Checkout-E-Mail. Kein Passwort."}
         </p>
@@ -87,10 +69,16 @@ export default async function LoginPage({
             Der Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.
           </p>
         )}
+        {error === "send" && (
+          <p className="error">
+            Der Anmeldelink konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.
+          </p>
+        )}
         <LoginForm
           next={next}
-          prefillEmail={offer.email}
-          maskedEmail={offer.masked}
+          maskedEmail={fields.masked}
+          resolveOwner={fields.resolveOwner}
+          initialSent={sent === "1"}
         />
       </main>
       <SiteFooter />

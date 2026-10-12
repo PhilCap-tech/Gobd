@@ -174,10 +174,29 @@ async function main() {
   };
 
   try {
-    const saved = await putIntakeDraft(
+    const anonSave = await putIntakeDraft(
       new Request("http://localhost/api/intake/draft", {
         method: "PUT",
         headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sessionId: SESSION,
+          modus: "gesamt",
+          step: 2,
+          revision: 1,
+          answers: answers(),
+        }),
+      }),
+      io,
+    );
+    ok(anonSave.status === 401, `mid-intake save without gobd_session is 401 (got ${anonSave.status})`);
+
+    const saved = await putIntakeDraft(
+      new Request("http://localhost/api/intake/draft", {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          cookie: `${SESSION_COOKIE}=${createSessionToken(BUYER)}`,
+        },
         body: JSON.stringify({
           sessionId: SESSION,
           modus: "gesamt",

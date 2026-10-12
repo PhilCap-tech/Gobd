@@ -5,6 +5,8 @@ import {
   authorizeDraftAccess,
   draftAccessHttpStatus,
   nextStripeSessionId,
+  sessionOwnerDenial,
+  stubCheckoutMayAuthorize,
   type CheckoutResolver,
 } from "@/lib/checkout-access";
 import {
@@ -32,7 +34,7 @@ import {
   listDocumentFamily,
 } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
-import { emailsEqual, type IntakeAnswers } from "@/lib/types";
+import { type IntakeAnswers } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -112,24 +114,77 @@ async function deliveredDraftGate(
   return null;
 }
 
+function boundDraftEmail(
+  draft: { email?: string; stripeSessionId?: string; draftKey?: string } | null | undefined,
+  sessionId: string,
+): string {
+  if (!draft) return "";
+  const stored = draft.stripeSessionId?.trim() ?? "";
+  const fromKey = idsFromDraftKey(draft.draftKey ?? "").sessionId ?? "";
+  if (stored !== sessionId && fromKey !== sessionId) return "";
+  const email = draft.email?.trim().toLowerCase() ?? "";
+  return email.includes("@") ? email : "";
+}
+
 /**
- * Nach dem ersten Login für eine Checkout-Session ist die Session-ID kein
- * Nachweis mehr. Lesen und Schreiben brauchen das Login der Kauf-Adresse.
+ * Owner of a checkout session. A missing grant blob is not open access:
+ * the document, the stored Entwurf, then the checkout customer are the fallback.
  */
-async function grantedSessionGate(
+async function ownerForCheckoutSession(
+  sessionId: string,
+  io: DraftWriteIo,
+  draft: { email?: string; stripeSessionId?: string; draftKey?: string } | null | undefined,
+): Promise<string> {
+  const grant = await checkoutSessionGrant(sessionId);
+  if (grant?.email) return grant.email.trim().toLowerCase();
+  try {
+    const row = await io.lookup.findLatestDocumentByStripeSessionId(sessionId);
+    const fromRow = row?.email?.trim().toLowerCase() ?? "";
+    if (fromRow.includes("@")) return fromRow;
+  } catch (error) {
+    console.error(
+      "[draft] Inhaber zur Session nicht lesbar",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  const fromDraft = boundDraftEmail(draft, sessionId);
+  if (fromDraft) return fromDraft;
+  try {
+    const resolved = await io.resolveCheckout(sessionId);
+    if (resolved && !("error" in resolved)) {
+      if (resolved.stub && !stubCheckoutMayAuthorize()) return "";
+      const email = (resolved.email ?? "").trim().toLowerCase();
+      if (email.includes("@")) return email;
+    }
+  } catch (error) {
+    console.error(
+      "[draft] Checkout-Inhaber nicht lesbar",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  return "";
+}
+
+/**
+ * sessionId is not a bearer. gobd_session must match the checkout owner,
+ * whether or not a grant blob exists. No session → 401, someone else → 403.
+ */
+async function sessionOwnerGate(
   request: Request,
-  sessionIds: Array<string | undefined>,
+  sessionIds: Array<string | undefined | null>,
+  io: DraftWriteIo,
+  draft?: { email?: string; stripeSessionId?: string; draftKey?: string } | null,
 ): Promise<NextResponse | null> {
   const ids = [
     ...new Set(sessionIds.map((value) => value?.trim() ?? "").filter((value) => value.length > 0)),
   ];
   if (ids.length === 0) return null;
   const sessionEmail = sessionEmailFromRequest(request);
+  if (!sessionEmail) return jsonError("Kein Zugriff.", 401);
   for (const id of ids) {
-    const grant = await checkoutSessionGrant(id);
-    if (!grant) continue;
-    if (!sessionEmail) return jsonError("Kein Zugriff.", 401);
-    if (!emailsEqual(sessionEmail, grant.email)) return jsonError("Kein Zugriff.", 403);
+    const owner = await ownerForCheckoutSession(id, io, draft);
+    const denial = sessionOwnerDenial(sessionEmail, owner);
+    if (denial) return jsonError("Kein Zugriff.", denial);
   }
   return null;
 }
@@ -157,6 +212,17 @@ export async function readIntakeDraft(request: Request, io: DraftWriteIo = defau
     throw error;
   }
   const fromKey = idsFromDraftKey(draft?.draftKey || draftKey);
+  const owned = await sessionOwnerGate(
+    request,
+    [
+      url.searchParams.get("sessionId") ?? undefined,
+      fromKey.sessionId,
+      draft?.stripeSessionId,
+    ],
+    io,
+    draft,
+  );
+  if (owned) return owned;
   if (!draft || draftIsEmpty(draft)) {
     return NextResponse.json({ draft: null });
   }
@@ -170,12 +236,6 @@ export async function readIntakeDraft(request: Request, io: DraftWriteIo = defau
     io,
   );
   if (blocked) return blocked;
-  const granted = await grantedSessionGate(request, [
-    url.searchParams.get("sessionId") ?? undefined,
-    fromKey.sessionId,
-    draft.stripeSessionId,
-  ]);
-  if (granted) return granted;
   const access = await authorizeDraftAccess(
     {
       sessionEmail: sessionEmailFromRequest(request),
@@ -226,11 +286,12 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
   if (!isAnswers(body.answers)) return jsonError("answers fehlen.", 400);
 
   // 401 before any blob read. A storage outage must not turn "no session" into 503.
+  // A delivered document keeps its own 401 copy, so that gate runs first.
   const sessionEmail = sessionEmailFromRequest(request);
-  if (!body.sessionId?.trim() && !sessionEmail) {
+  const fromKey = idsFromDraftKey(draftKey);
+  if (!body.sessionId?.trim() && !fromKey.sessionId && !sessionEmail) {
     return jsonError("Kein Zugriff.", 401);
   }
-  const fromKey = idsFromDraftKey(draftKey);
   const blocked = await deliveredDraftGate(
     request,
     {
@@ -241,8 +302,9 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
     io,
   );
   if (blocked) return blocked;
-  const granted = await grantedSessionGate(request, [body.sessionId, fromKey.sessionId]);
-  if (granted) return granted;
+  if (!sessionEmail && (body.sessionId?.trim() || fromKey.sessionId)) {
+    return jsonError("Kein Zugriff.", 401);
+  }
 
   let existing: IntakeDraft | null;
   try {
@@ -253,8 +315,13 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
     throw error;
   }
   const stored = existing && !draftIsEmpty(existing) ? existing : null;
-  const grantedStored = await grantedSessionGate(request, [stored?.stripeSessionId]);
-  if (grantedStored) return grantedStored;
+  const owned = await sessionOwnerGate(
+    request,
+    [body.sessionId, fromKey.sessionId, stored?.stripeSessionId],
+    io,
+    stored,
+  );
+  if (owned) return owned;
   const access = await authorizeDraftAccess(
     {
       sessionEmail,
@@ -326,11 +393,13 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
     io,
   );
   if (blocked) return blocked;
-  const grantedKey = await grantedSessionGate(request, [
+  const sessionIds = [
     url.searchParams.get("sessionId") ?? undefined,
     fromKey.sessionId,
-  ]);
-  if (grantedKey) return grantedKey;
+  ];
+  if (!sessionEmailFromRequest(request) && sessionIds.some((value) => value?.trim())) {
+    return jsonError("Kein Zugriff.", 401);
+  }
 
   let existing: IntakeDraft | null;
   try {
@@ -341,8 +410,13 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
     throw error;
   }
   if (existing && !draftIsEmpty(existing)) {
-    const grantedDraft = await grantedSessionGate(request, [existing.stripeSessionId]);
-    if (grantedDraft) return grantedDraft;
+    const owned = await sessionOwnerGate(
+      request,
+      [...sessionIds, existing.stripeSessionId],
+      io,
+      existing,
+    );
+    if (owned) return owned;
     const access = await authorizeDraftAccess(
       {
         sessionEmail: sessionEmailFromRequest(request),

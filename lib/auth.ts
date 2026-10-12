@@ -341,22 +341,70 @@ export function withoutSessionCookie(
   return response;
 }
 
-function expireCookie(response: NextResponse, name: string): void {
-  response.cookies.set({
-    name,
-    value: "",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: cookieSecure(),
-    path: "/",
-    maxAge: 0,
-  });
+const APEX_HOST = "gobd-doku-erstellen.de";
+
+const AUTH_COOKIE_NAMES = [SESSION_COOKIE, CHECKOUT_GRANT_COOKIE] as const;
+
+/**
+ * The app sets Path=/. Also expire the directories of the routes that
+ * issued cookies, in case a host-only cookie picked up that default path.
+ */
+const AUTH_COOKIE_PATHS = ["/", "/auth", "/api", "/account", "/checkout", "/login", "/intake"];
+
+function requestHostname(requestUrl?: string): string {
+  if (!requestUrl) return "";
+  try {
+    return new URL(requestUrl).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
-/** Logout and checkout handoff. Clears the login and the checkout grant. */
-export function clearSessionCookie(response: NextResponse): void {
-  expireCookie(response, SESSION_COOKIE);
-  expireCookie(response, CHECKOUT_GRANT_COOKIE);
+/**
+ * Set-Cookie lines that delete gobd_session and gobd_checkout.
+ * Host-only and, on the production host, the apex domain (www and apex
+ * share a Domain cookie; a host-only clear does not remove it).
+ * Secure and non-Secure are both sent so either variant is removed.
+ * The cookie jar keys by name, so the extra domains go out as raw headers.
+ */
+export function authCookieDeletionLines(hostname?: string): string[] {
+  const host = (hostname ?? "").toLowerCase();
+  const domains: Array<string | null> = [null];
+  if (host === APEX_HOST || host.endsWith(`.${APEX_HOST}`)) {
+    domains.push(APEX_HOST, `.${APEX_HOST}`, `www.${APEX_HOST}`);
+  }
+  const lines: string[] = [];
+  for (const name of AUTH_COOKIE_NAMES) {
+    for (const domain of domains) {
+      for (const path of AUTH_COOKIE_PATHS) {
+        for (const secure of [false, true]) {
+          const parts = [
+            `${name}=`,
+            `Path=${path}`,
+            "Max-Age=0",
+            "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+            "HttpOnly",
+            "SameSite=Lax",
+          ];
+          if (domain) parts.push(`Domain=${domain}`);
+          if (secure) parts.push("Secure");
+          lines.push(parts.join("; "));
+        }
+      }
+    }
+  }
+  return lines;
+}
+
+export function clearAuthCookies(response: NextResponse, requestUrl?: string): void {
+  for (const line of authCookieDeletionLines(requestHostname(requestUrl))) {
+    response.headers.append("Set-Cookie", line);
+  }
+}
+
+/** Logout and checkout handoff. Clears gobd_session and gobd_checkout. */
+export function clearSessionCookie(response: NextResponse, requestUrl?: string): void {
+  clearAuthCookies(response, requestUrl);
 }
 
 function authReadFailed(error: unknown): null {

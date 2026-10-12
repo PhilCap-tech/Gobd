@@ -25,6 +25,22 @@ export function accessDeniedStatus(
   return sessionEmail?.trim() ? 403 : 401;
 }
 
+/**
+ * A checkout session id is an identifier, not a bearer.
+ * No gobd_session → 401. A session for a different address → 403.
+ * An empty owner is not open access.
+ */
+export function sessionOwnerDenial(
+  sessionEmail: string | null | undefined,
+  ownerEmail: string | null | undefined,
+): 401 | 403 | null {
+  const session = (sessionEmail ?? "").trim().toLowerCase();
+  const owner = (ownerEmail ?? "").trim().toLowerCase();
+  if (!session || !session.includes("@")) return 401;
+  if (!owner || !owner.includes("@") || !emailsEqual(session, owner)) return 403;
+  return null;
+}
+
 export type CheckoutLookup =
   | { email: string; stub: boolean }
   | { error: "missing" | "not_paid" | "lookup_failed" | "invalid" };

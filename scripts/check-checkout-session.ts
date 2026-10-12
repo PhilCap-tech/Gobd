@@ -38,8 +38,10 @@ import {
   checkoutOwnerMismatchCopy,
   decideCheckoutAttach,
   emailForAnswersLogin,
+  applyCheckoutOwnerSession,
   checkoutAlreadyGranted,
   finishCheckoutReturn,
+  loginClientFields,
   intakeCheckoutGate,
   intakeEntryDecision,
   intakeTargetFromNext,
@@ -194,15 +196,26 @@ const firstBody = {
 };
 
 async function checkMatchingCheckout() {
+  const deniedStore = memoryStore();
+  const denied = await submitIntake(postIntake(firstBody, grantCookie(BUYER)), intakeIo(deniedStore));
+  const deniedJson = (await denied.json()) as { error?: string };
+  ok(denied.status === 401, `first delivery without gobd_session is 401 (got ${denied.status})`);
+  ok(deniedJson.error === "Kein Zugriff.", "missing session uses the forbidden copy");
+  ok(deniedStore.rows.length === 0, "unauthenticated first delivery writes nothing");
+
+  const minted = NextResponse.redirect("http://localhost/account");
+  applyCheckoutOwnerSession(minted, BUYER);
+  const line = sessionLine(minted);
+  ok(Boolean(line), "checkout owner session still uses the login cookie");
+  const token = createSessionToken(BUYER);
+  ok(verifySessionToken(minted.cookies.get(SESSION_COOKIE)?.value) === BUYER, "session email is the document owner");
+
   const store = memoryStore();
   const io = intakeIo(store);
-  const first = await submitIntake(postIntake(firstBody, grantCookie(BUYER)), io);
+  const first = await submitIntake(postIntake(firstBody, `${SESSION_COOKIE}=${token}`), io);
   const firstJson = (await first.json()) as { documentId?: string; error?: string };
-  ok(first.status === 200, `matching checkout first delivery is 200 (got ${first.status} ${firstJson.error ?? ""})`);
-  const line = sessionLine(first);
-  ok(Boolean(line), "matching checkout sets gobd_session");
-  const token = first.cookies.get(SESSION_COOKIE)?.value ?? "";
-  ok(verifySessionToken(token) === BUYER, "session email is the document owner");
+  ok(first.status === 200, `owner session first delivery is 200 (got ${first.status} ${firstJson.error ?? ""})`);
+  ok(store.rows[0]?.email === BUYER, "first row email is the Stripe email");
   ok(/httponly/i.test(line), "session cookie is httpOnly");
   ok(/samesite=lax/i.test(line), "session cookie is sameSite=lax");
   ok(line.includes("Path=/"), "session cookie path is /");
@@ -256,10 +269,16 @@ async function checkMismatchAndExpiry() {
     postIntake(firstBody, grantCookie(OTHER)),
     intakeIo(mismatched),
   );
-  ok(mismatch.status === 200, `mismatched checkout email still delivers the first version (got ${mismatch.status})`);
-  ok(mismatched.rows[0]?.email === BUYER, "stripe email stays the owner when the cookie email differs");
-  ok(!sessionLine(mismatch), "mismatched email sets no session");
-  ok(verifySessionToken(mismatch.cookies.get(SESSION_COOKIE)?.value) === null, "mismatched response has no session token");
+  ok(mismatch.status === 401, `mismatched checkout cookie without a session does not deliver (got ${mismatch.status})`);
+  ok(mismatched.rows.length === 0, "mismatched checkout writes nothing");
+  const allowedStore = memoryStore();
+  const allowed = await submitIntake(
+    postIntake(firstBody, `${SESSION_COOKIE}=${createSessionToken(BUYER)}; ${grantCookie(OTHER)}`),
+    intakeIo(allowedStore),
+  );
+  ok(allowed.status === 200, `owner session still delivers when the checkout cookie differs (got ${allowed.status})`);
+  ok(allowedStore.rows[0]?.email === BUYER, "stripe email stays the owner when the cookie email differs");
+  ok(!sessionLine(allowed), "an existing owner session is not replaced");
 
   const expiredToken = signRaw({
     typ: "checkout",
@@ -274,10 +293,17 @@ async function checkMismatchAndExpiry() {
     postIntake(firstBody, `${CHECKOUT_GRANT_COOKIE}=${expiredToken}`),
     intakeIo(expiredStore),
   );
-  ok(expired.status === 200, "expired checkout still allows the first paid delivery via Stripe");
+  ok(expired.status === 401, "expired checkout without a session does not deliver");
   ok(!sessionLine(expired), "expired checkout sets no session");
-  const row = expiredStore.rows[0];
-  ok(Boolean(row?.documentId), "expired checkout still stored the document");
+  ok(expiredStore.rows.length === 0, "expired checkout writes nothing");
+  const rowStore = memoryStore();
+  const created = await submitIntake(
+    postIntake(firstBody, `${SESSION_COOKIE}=${createSessionToken(BUYER)}`),
+    intakeIo(rowStore),
+  );
+  ok(created.status === 200, "owner session still stores the first version");
+  const row = rowStore.rows[0];
+  ok(Boolean(row?.documentId), "owner session stored the document");
   const next = safeNextPath(intakeEditPath(row!, SESSION));
   const target = intakeTargetFromNext(next);
   ok(Boolean(target), "edit path is an intake login target");
@@ -289,11 +315,18 @@ async function checkMismatchAndExpiry() {
   ok(offer.masked === "b•••@example.com", "buyer address is masked");
   ok(LOGIN_FOR_ANSWERS_COPY.includes("Sie"), "login explanation uses Sie");
 
+  const fields = loginClientFields({ next, checkoutEmail, sessionEmail: null });
+  ok(fields.resolveOwner && fields.masked === "b•••@example.com", "visitor login keeps only the mask");
+  ok(!JSON.stringify(fields).includes(BUYER), "client login fields omit the owner email");
+
   const loginPage = readFileSync("app/login/page.tsx", "utf8");
   const loginForm = readFileSync("app/login/login-form.tsx", "utf8");
   ok(loginPage.includes("LOGIN_FOR_ANSWERS_COPY"), "login page shows the protection sentence");
-  ok(loginForm.includes("prefillEmail"), "login form prefills the checkout email");
+  ok(loginPage.includes("loginClientFields"), "login page passes only the masked fields");
+  ok(!loginPage.includes("prefillEmail") && !loginPage.includes("offer.email"), "login page does not prefill the owner email");
+  ok(!loginForm.includes("prefillEmail"), "login form has no owner-email prefill");
   ok(loginForm.includes("maskedEmail"), "login form offers the masked checkout email");
+  ok(loginForm.includes("resolveOwner"), "login form sends the link without the address");
 }
 
 async function checkCheckoutReturn() {
@@ -495,9 +528,9 @@ async function checkSessionGuards() {
     postIntake(firstBody, `${SESSION_COOKIE}=${createSessionToken(OTHER)}; ${grantCookie(BUYER)}`),
     intakeIo(held),
   );
-  ok(foreignFirst.status === 200, "first delivery still stores the paid checkout");
-  ok(held.rows[0]?.email === BUYER, "the document owner stays the buyer");
-  ok(!sessionLine(foreignFirst), "first delivery does not replace a foreign login");
+  ok(foreignFirst.status === 403, `a foreign session cannot submit the paid checkout (got ${foreignFirst.status})`);
+  ok(held.rows.length === 0, "a foreign session does not store the first delivery");
+  ok(!sessionLine(foreignFirst), "a foreign session does not receive the buyer login");
 
   const draftIo = guardDraftIo(GUARD);
   const denied = await putIntakeDraft(
@@ -632,8 +665,10 @@ async function checkSessionGuards() {
   ok(offer.explain && offer.email === BUYER && offer.masked === "b•••@example.com", "login explains with the masked checkout email");
 
   const loginPage = readFileSync("app/login/page.tsx", "utf8");
-  ok(loginPage.includes("loginCheckoutEmail"), "login page derives the address from the checkout");
-  ok(loginPage.includes("checkoutCustomerEmail"), "login page reads the checkout customer email");
+  const checkoutSession = readFileSync("lib/checkout-session.ts", "utf8");
+  ok(loginPage.includes("ownerEmailForLoginNext"), "login page derives the address on the server");
+  ok(loginPage.includes("loginClientFields"), "login page does not pass the address to the form");
+  ok(checkoutSession.includes("checkoutCustomerEmail"), "the login address can come from the checkout customer");
   ok(loginPage.includes("checkoutSessionGrant"), "login page falls back to the stored checkout customer email");
   const intakePage = readFileSync("app/intake/page.tsx", "utf8");
   ok(intakePage.includes("intakeCheckoutGate"), "intake applies the session guard before the form");
