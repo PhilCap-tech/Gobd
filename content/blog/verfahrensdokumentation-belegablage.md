@@ -18,7 +18,7 @@ date: "2026-10-06"
 
 # Verfahrensdokumentation Muster zur Belegablage
 
-Ein **Verfahrensdokumentation Muster** zur Belegablage ist ein Abschnitt, kein fertiges Dokument. Es zeigt, wie der Belegfluss der Eingangsrechnungen beschrieben werden kann: Eingang, Prüfung, Freigabe, Buchung, Zahlung, Ablage. Die **Verfahrensdokumentation Vorlage** im weiteren Sinn — Aufbau, typische Lücken, Unterschied zwischen Blanko-Datei und geführtem Entwurf — steht im Artikel [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage). Dieser Text bleibt beim Belegfluss der Eingangsrechnungen.
+Ein **Verfahrensdokumentation Muster** zur Belegablage ist ein Abschnitt, kein fertiges Dokument. Es zeigt, wie der Belegfluss der Eingangsrechnungen beschrieben werden kann: Eingang, Prüfung, Freigabe, Buchung, Zahlung, Ablage. Die **Verfahrensdokumentation Vorlage** im weiteren Sinn — Aufbau, typische Lücken, Unterschied zwischen Blanko-Datei und geführtem Entwurf — steht im Artikel [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage). Wie der Abschnitt in die gesamte Dokumentation passt, steht im Leitfaden [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen). Dieser Text bleibt beim Belegfluss der Eingangsrechnungen.
 
 **Kurz:** Der Abschnitt nennt die Wege, auf denen Rechnungen ankommen, wer sachlich und rechnerisch prüft, wer freigibt, wo gebucht und gezahlt wird und wie die Datei unverändert wiederauffindbar bleibt. Seit dem 1. Januar 2025 müssen inländische Unternehmer im Geschäftsverkehr mit anderen Unternehmern E-Rechnungen empfangen können. Das Muster unten ist ein fiktives Beispiel mit Feldern in eckigen Klammern. Es ist kein Rechtstext zum Abheften.
 
@@ -118,6 +118,7 @@ Das hängt davon ab, ob Sie nur eine Arbeitskopie erzeugen oder ersetzend scanne
 
 ## Weiterlesen
 
+- [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage) — Muster und Vorlage insgesamt, dieser Artikel ist nur die Belegablage
 - [Ersetzendes Scannen in der Verfahrensdokumentation](/blog/ersetzendes-scannen-verfahrensdokumentation) — wenn Papier nach dem Scan vernichtet wird
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — Abgleich, bevor der Entwurf als fertig gilt

@@ -94,6 +94,8 @@ Altdaten bleiben für die Aufbewahrungsfrist verfügbar, lesbar und maschinell a
 
 Liegt die Buchhaltung in der Kanzlei, oft in einem System wie DATEV, und das Belegarchiv bei Ihnen, beschreiben Sie beide Orte und die Grenze dazwischen: was Sie tun, bis die Unterlagen die Kanzlei erreichen, und was danach dort liegt. Der Auftrag verschiebt die Verantwortung für Ihre Bücher nicht. Klären Sie, wer einen Export anstößt und wer einen Lesezugang einrichtet. Dieselbe Frage gilt für einen Cloud-Anbieter oder ein Lohnbüro, soweit dort aufbewahrungspflichtige Daten liegen.
 
+Wo dieser Abschnitt im Gesamtaufbau steht — in der technischen Systemdokumentation —, zeigt der Artikel [Verfahrensdokumentation Schritt für Schritt erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
+
 ## Eine kurze Vorbereitung, ohne Ergebnisversprechen
 
 Sinnvoll ist ein Stand, den Sie und Ihre Beratung kennen.
@@ -137,6 +139,7 @@ Die Dokumentation sollte zu dem passen, was Sie erzeugen können. Ein nie geprü
 
 ## Weiterlesen
 
+- [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung) — der Überblick, dieser Artikel ist nur der Datenzugriff
 - [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software) — was ein Programm leistet und was nicht
 - [Digitale Verfahrensdokumentation](/blog/digitale-verfahrensdokumentation) — Ablage und Wiederfinden digitaler Unterlagen
