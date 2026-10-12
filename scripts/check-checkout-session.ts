@@ -741,10 +741,19 @@ async function checkFreshWindow() {
   await clearIntakeDraft(draftKey).catch(() => undefined);
 }
 
+const SHEETS_ENV = [
+  "GOOGLE_SERVICE_ACCOUNT_EMAIL",
+  "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
+  "GOOGLE_SHEETS_SPREADSHEET_ID",
+] as const;
+
 async function main() {
   const savedBlob = process.env.BLOB_READ_WRITE_TOKEN;
   const savedSecret = process.env.MAGIC_LINK_SECRET;
+  const savedSheets = Object.fromEntries(SHEETS_ENV.map((key) => [key, process.env[key]]));
+  // Live Blob and Sheets would make this prebuild depend on production data.
   delete process.env.BLOB_READ_WRITE_TOKEN;
+  for (const key of SHEETS_ENV) delete process.env[key];
   if (!process.env.MAGIC_LINK_SECRET?.trim()) {
     process.env.MAGIC_LINK_SECRET = "check-checkout-session-offline-secret";
   }
@@ -766,6 +775,11 @@ async function main() {
     else process.env.BLOB_READ_WRITE_TOKEN = savedBlob;
     if (savedSecret === undefined) delete process.env.MAGIC_LINK_SECRET;
     else process.env.MAGIC_LINK_SECRET = savedSecret;
+    for (const key of SHEETS_ENV) {
+      const value = savedSheets[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 }
 
