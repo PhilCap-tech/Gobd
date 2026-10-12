@@ -43,6 +43,24 @@ async function capture(run: () => Promise<void>): Promise<string> {
   return lines.join("\n");
 }
 
+const MAIL_ENV = ["RESEND_API_KEY", "EMAIL_FROM", "VERCEL_ENV", "NODE_ENV"] as const;
+
+function withoutMailEnv<T>(run: () => Promise<T>): Promise<T> {
+  const env = process.env as Record<string, string | undefined>;
+  const saved: Record<string, string | undefined> = {};
+  for (const key of MAIL_ENV) saved[key] = env[key];
+  delete env.RESEND_API_KEY;
+  delete env.EMAIL_FROM;
+  delete env.VERCEL_ENV;
+  env.NODE_ENV = "development";
+  return run().finally(() => {
+    for (const key of MAIL_ENV) {
+      if (saved[key] === undefined) delete env[key];
+      else env[key] = saved[key];
+    }
+  });
+}
+
 async function checkMailIgnoresSession() {
   ok(buyerOnboardingStillDue(null), "a checkout without a paid row is still due");
   ok(buyerOnboardingStillDue(new Date().toISOString()), "a fresh paid row is still due");
@@ -169,7 +187,7 @@ async function checkMailIgnoresSession() {
   await forgetBuyerOnboarding(SESSION);
 }
 
-checkMailIgnoresSession()
+withoutMailEnv(checkMailIgnoresSession)
   .then(() => {
     console.log("check-buyer-onboarding: ok");
   })
