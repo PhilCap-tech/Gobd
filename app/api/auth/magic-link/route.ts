@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeNextPath } from "@/lib/auth";
 import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
 import { ownerEmailForLoginNext } from "@/lib/checkout-session";
 import {
@@ -48,16 +49,44 @@ async function resolveOwnerFromNext(next: string | null | undefined): Promise<st
   });
 }
 
+function loginReturnUrl(request: Request, next: string | undefined, sent: boolean): URL {
+  const url = new URL("/login", request.url);
+  const safe = safeNextPath(next);
+  if (safe) url.searchParams.set("next", safe);
+  url.searchParams.set(sent ? "sent" : "error", sent ? "1" : "send");
+  return url;
+}
+
 export async function POST(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
   let body: { email?: string; next?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+  let formPost = false;
+  if (contentType.includes("application/json")) {
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+    }
+  } else {
+    formPost = true;
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+    }
+    const email = form.get("email");
+    const next = form.get("next");
+    body = {
+      email: typeof email === "string" ? email : "",
+      next: typeof next === "string" ? next : "",
+    };
   }
 
-  return completeMagicLinkRequest(body, {
+  const response = await completeMagicLinkRequest(body, {
     deliver: deliverLoginLink,
     resolveOwner: resolveOwnerFromNext,
   });
+  if (!formPost) return response;
+  return NextResponse.redirect(loginReturnUrl(request, body.next, response.ok), 303);
 }

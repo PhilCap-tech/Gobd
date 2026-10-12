@@ -137,7 +137,12 @@ async function checkLoginDoesNotLeak() {
   const loginPage = readFileSync("app/login/page.tsx", "utf8");
   const loginForm = readFileSync("app/login/login-form.tsx", "utf8");
   ok(!loginPage.includes("prefillEmail"), "login page has no prefill prop");
-  ok(!loginForm.includes("type=\"hidden\""), "login form has no hidden email");
+  ok(
+    !loginForm.includes('type="hidden" name="email"') &&
+      !loginForm.includes('name="email" type="hidden"'),
+    "login form has no hidden email",
+  );
+  ok(loginForm.includes('name="next"'), "no-js submit posts the return path, not the address");
   ok(loginForm.includes("resolveOwner"), "login form posts without the address");
 
   let sentTo = "";

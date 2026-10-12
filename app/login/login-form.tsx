@@ -6,16 +6,18 @@ export function LoginForm({
   next,
   maskedEmail = "",
   resolveOwner = false,
+  initialSent = false,
 }: {
   next?: string | null;
   maskedEmail?: string;
   /** Send to the checkout owner resolved from next. The address is not in the browser. */
   resolveOwner?: boolean;
+  initialSent?: boolean;
 }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState(initialSent);
   const buttonLabel =
     resolveOwner && maskedEmail ? `Link an ${maskedEmail} senden` : "Anmeldelink senden";
 
@@ -55,7 +57,8 @@ export function LoginForm({
   }
 
   return (
-    <form className="card" onSubmit={onSubmit}>
+    <form className="card" method="post" action="/api/auth/magic-link" onSubmit={onSubmit}>
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       {resolveOwner ? null : (
         <div className="field">
           <label htmlFor="login-email">E-Mail</label>

@@ -27,7 +27,11 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string | string[]; next?: string | string[] }>;
+  searchParams: Promise<{
+    error?: string | string[];
+    next?: string | string[];
+    sent?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const next = safeNextPath(firstQueryValue(params.next));
@@ -37,6 +41,7 @@ export default async function LoginPage({
   }
 
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
+  const sent = Array.isArray(params.sent) ? params.sent[0] : params.sent;
   const checkoutEmail = await ownerEmailForLoginNext(next, {
     findDocumentById,
     findLatestBySession: findLatestDocumentByStripeSessionId,
@@ -64,10 +69,16 @@ export default async function LoginPage({
             Der Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.
           </p>
         )}
+        {error === "send" && (
+          <p className="error">
+            Der Anmeldelink konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.
+          </p>
+        )}
         <LoginForm
           next={next}
           maskedEmail={fields.masked}
           resolveOwner={fields.resolveOwner}
+          initialSent={sent === "1"}
         />
       </main>
       <SiteFooter />
