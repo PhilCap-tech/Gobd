@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSessionEmail, sessionIdForCheckoutProof } from "@/lib/auth";
+import { sessionEmailFromRequest } from "@/lib/auth";
 import { BlobStorageError, blobFailureClass, loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
+import { sessionOwnerDenial } from "@/lib/checkout-access";
 import { generatePdf } from "@/lib/delivery";
-import { canAccessDocument } from "@/lib/documents";
 import { isGesamt } from "@/lib/module/status";
 import { modulById } from "@/lib/module/katalog";
-import { normalizeQueryId } from "@/lib/query";
 import { findDocumentById } from "@/lib/store";
 import { answersFromSheetRow, identityFromSheetRow } from "@/lib/types";
 
@@ -17,24 +16,18 @@ export async function GET(
 ) {
   const { id } = await params;
   const url = new URL(request.url);
-  const sessionId = await sessionIdForCheckoutProof(
-    normalizeQueryId(url.searchParams.get("session_id")),
-  );
   const modul = (url.searchParams.get("modul") ?? "").trim();
-  const sessionEmail = await getSessionEmail();
+  const sessionEmail = sessionEmailFromRequest(request);
   const row = await findDocumentById(id);
 
   if (!row) {
     return NextResponse.json({ error: "Dokument nicht gefunden." }, { status: 404 });
   }
 
-  const allowed = canAccessDocument(row, { sessionEmail, sessionId });
-
-  if (!allowed) {
-    return NextResponse.json(
-      { error: "Kein Zugriff." },
-      { status: sessionEmail ? 403 : 401 },
-    );
+  // The checkout id in the query is not a bearer. The owner session is.
+  const denial = sessionOwnerDenial(sessionEmail, row.email);
+  if (denial) {
+    return NextResponse.json({ error: "Kein Zugriff." }, { status: denial });
   }
 
   try {

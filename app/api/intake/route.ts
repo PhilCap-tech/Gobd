@@ -7,6 +7,7 @@ import {
   withoutSessionCookie,
   type CheckoutGrant,
 } from "@/lib/auth";
+import { sessionOwnerDenial } from "@/lib/checkout-access";
 import {
   applyCheckoutOwnerSession,
   ownerEmailForFirstCompletion,
@@ -267,6 +268,10 @@ async function resolveIdentity(
     grantEmail: actor.grant?.email,
   });
   identity.email = ownerEmail;
+  const denial = sessionOwnerDenial(sessionEmail, identity.email);
+  if (denial) {
+    return { response: jsonError("Kein Zugriff.", denial) };
+  }
 
   return {
     identity,

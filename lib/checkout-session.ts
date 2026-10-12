@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   applyCheckoutGrantCookie,
   applySessionCookie,
+  safeNextPath,
   type CheckoutGrant,
 } from "@/lib/auth";
 import {
@@ -413,4 +414,79 @@ export function answersLoginOffer(input: {
     email,
     masked: email ? maskCheckoutEmail(email) : "",
   };
+}
+
+/** Button on the session-bound login. The mask is the only address the browser sees. */
+export function loginLinkButtonLabel(masked: string): string {
+  const hint = masked.trim();
+  return hint ? `Link an ${hint} senden` : "Anmeldelink senden";
+}
+
+/**
+ * What the login form may receive. A next path with session_id and no
+ * matching gobd_session does not include the owner address at all.
+ */
+export function loginClientFields(input: {
+  next: string | null | undefined;
+  checkoutEmail?: string | null;
+  sessionEmail?: string | null;
+}): { explain: boolean; masked: string; resolveOwner: boolean } {
+  const offer = answersLoginOffer({
+    next: input.next,
+    checkoutEmail: input.checkoutEmail,
+  });
+  const target = intakeTargetFromNext(input.next);
+  const session = normalizeEmail(input.sessionEmail);
+  const owner = normalizeEmail(input.checkoutEmail);
+  const matching = Boolean(target?.sessionId && session && owner && session === owner);
+  if (target?.sessionId && !matching) {
+    return {
+      explain: offer.explain,
+      masked: offer.masked,
+      resolveOwner: Boolean(offer.masked),
+    };
+  }
+  return { explain: offer.explain, masked: "", resolveOwner: false };
+}
+
+type LoginOwnerRow = {
+  documentId?: string;
+  stripeSessionId?: string;
+  email?: string;
+};
+
+/**
+ * Owner address for a login next path. Stays on the server: the page only
+ * forwards the mask, and the magic-link route sends to this address.
+ */
+export async function ownerEmailForLoginNext(
+  next: string | null | undefined,
+  deps: {
+    findDocumentById: (id: string) => Promise<LoginOwnerRow | null | undefined>;
+    findLatestBySession: (id: string) => Promise<LoginOwnerRow | null | undefined>;
+    resolveCheckout: (
+      sessionId: string,
+    ) => Promise<{ email?: string; error?: string } | { error: string }>;
+    grantEmail: (sessionId: string) => Promise<string | null>;
+  },
+): Promise<string> {
+  try {
+    const target = intakeTargetFromNext(safeNextPath(next));
+    if (!target || (!target.documentId && !target.sessionId)) return "";
+    const row = target.documentId
+      ? await deps.findDocumentById(target.documentId)
+      : await deps.findLatestBySession(target.sessionId);
+    const documentEmail = emailForAnswersLogin(row, target);
+    if (documentEmail) return documentEmail;
+    if (!target.sessionId) return "";
+    const fromCheckout = await checkoutCustomerEmail(target.sessionId, deps.resolveCheckout);
+    if (fromCheckout) return fromCheckout;
+    return normalizeEmail(await deps.grantEmail(target.sessionId));
+  } catch (error) {
+    console.error(
+      "[login] Checkout-Adresse nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
+    return "";
+  }
 }

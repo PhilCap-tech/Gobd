@@ -99,6 +99,10 @@ function checkoutCookie(): string {
   })}`;
 }
 
+function ownerCookie(): string {
+  return `${loginCookie(BUYER)}; ${checkoutCookie()}`;
+}
+
 function loginCookie(email: string): string {
   return `${SESSION_COOKIE}=${createSessionToken(email)}`;
 }
@@ -180,7 +184,7 @@ async function checkIntake() {
   const prepares = { n: 0 };
   const io = intakeIo(store, pdfCalls, prepares);
 
-  const first = await submitIntake(postIntake(firstBody, checkoutCookie()), io);
+  const first = await submitIntake(postIntake(firstBody, ownerCookie()), io);
   const firstJson = await jsonOf(first);
   ok(first.status === 200, `first checkout submit is 200 (got ${first.status} ${firstJson.error ?? ""})`);
   ok(store.rows.length === 1, "first submit appends exactly one row");
@@ -287,7 +291,7 @@ async function checkBlobPointerAndFieldLimit() {
   const overflow = await submitIntake(
     postIntake(
       { sessionId: SESSION, email: OTHER, company: "Fremd GmbH", answers: huge },
-      checkoutCookie(),
+      ownerCookie(),
     ),
     intakeIo(fresh, { n: 0 }, freshPrepares),
   );
@@ -304,19 +308,28 @@ async function checkRace() {
   const pdfCalls = { n: 0 };
   const io = intakeIo(store, pdfCalls);
   const [left, right] = await Promise.all([
-    submitIntake(postIntake(firstBody, checkoutCookie()), io),
-    submitIntake(postIntake(firstBody, checkoutCookie()), io),
+    submitIntake(postIntake(firstBody, ownerCookie()), io),
+    submitIntake(postIntake(firstBody, ownerCookie()), io),
   ]);
   const statuses = [left.status, right.status].sort((a, b) => a - b);
-  ok(statuses[0] === 200 && statuses[1] === 401, `parallel first submit is 200 then 401 (got ${statuses.join(",")})`);
-  ok(store.rows.length === 1, "parallel first submit appends one row");
-  ok(store.rows[0]?.email === BUYER, "the single raced row belongs to the Stripe email");
+  ok(statuses[0] === 200 && statuses[1] === 400, `parallel owner submits are 200 then 400 (got ${statuses.join(",")})`);
+  ok(store.rows.length === 1, "the second parallel submit does not append another first version");
+  ok(store.rows[0]?.version === "1", "the stored row stays the first version");
+  ok(store.rows[0]?.email === BUYER, "the raced row belongs to the Stripe email");
+
+  const open = memoryStore();
+  const [anonLeft, anonRight] = await Promise.all([
+    submitIntake(postIntake(firstBody, checkoutCookie()), intakeIo(open, { n: 0 })),
+    submitIntake(postIntake(firstBody, checkoutCookie()), intakeIo(open, { n: 0 })),
+  ]);
+  ok(anonLeft.status === 401 && anonRight.status === 401, "parallel submit without gobd_session is 401");
+  ok(open.rows.length === 0, "unauthenticated parallel submit writes nothing");
 }
 
 async function checkDraftAndUpload() {
   const store = memoryStore();
   const pdfCalls = { n: 0 };
-  await submitIntake(postIntake(firstBody, checkoutCookie()), intakeIo(store, pdfCalls));
+  await submitIntake(postIntake(firstBody, ownerCookie()), intakeIo(store, pdfCalls));
   ok(store.rows.length === 1, "draft fixture has the delivered row");
   const documentId = store.rows[0]?.documentId ?? "";
 
@@ -390,7 +403,7 @@ async function checkDraftAndUpload() {
       return { backend: "file" };
     },
   };
-  const created = await putIntakeDraft(
+  const checkoutOnly = await putIntakeDraft(
     new Request("http://localhost/api/intake/draft", {
       method: "PUT",
       headers: { "content-type": "application/json", cookie: checkoutCookie() },
@@ -405,7 +418,25 @@ async function checkDraftAndUpload() {
     }),
     firstDraft,
   );
-  ok(created.status === 200, "first draft before delivery still works with checkout");
+  ok(checkoutOnly.status === 401, "first draft before delivery rejects a bare checkout cookie");
+  ok(firstSaves === 0, "a checkout cookie does not store the first draft");
+
+  const created = await putIntakeDraft(
+    new Request("http://localhost/api/intake/draft", {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie: loginCookie(BUYER) },
+      body: JSON.stringify({
+        sessionId: "cs_test_buyer_open",
+        email: BUYER,
+        modus: "gesamt",
+        step: 1,
+        answers: answers(),
+        revision: 1,
+      }),
+    }),
+    firstDraft,
+  );
+  ok(created.status === 200, `first draft before delivery works for the owner session (got ${created.status})`);
   ok(firstSaves === 1 && savedEmail === BUYER, "first draft email is the Stripe email");
 
   let uploads = 0;
@@ -459,8 +490,9 @@ async function checkDraftAndUpload() {
 
 function checkDownloadStaysOnSession() {
   const download = readFileSync("app/api/docs/[id]/download/route.ts", "utf8");
-  ok(download.includes("session_id"), "PDF download still accepts session_id");
-  ok(download.includes("canAccessDocument"), "PDF download keeps the existing read check");
+  ok(download.includes("sessionOwnerDenial"), "PDF download requires the owner session");
+  ok(!download.includes("session_id"), "PDF download does not treat session_id as a bearer");
+  ok(!download.includes("canAccessDocument"), "PDF download does not fall back to the session id");
   const intake = readFileSync("app/api/intake/route.ts", "utf8");
   ok(intake.includes("withoutSessionCookie"), "intake still does not issue a login cookie");
   ok(!intake.includes("applySessionCookie"), "intake source has no session cookie");

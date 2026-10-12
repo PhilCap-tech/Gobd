@@ -48,6 +48,8 @@ const COVERED = [
   "components/account-company-card.tsx",
   "components/account-free.tsx",
   "components/account-profile-form.tsx",
+  "components/logout-button.tsx",
+  "app/login/login-form.tsx",
   "components/success-status.tsx",
   "components/betriebs-check.tsx",
   "components/bereich-select.tsx",

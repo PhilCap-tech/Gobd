@@ -88,6 +88,10 @@ const nextConfig: NextConfig = {
     return [
       { source: "/portal", headers: noStoreHeaders },
       { source: "/billing", headers: noStoreHeaders },
+      { source: "/account", headers: noStoreHeaders },
+      { source: "/account/:path*", headers: noStoreHeaders },
+      { source: "/checkout", headers: noStoreHeaders },
+      { source: "/login", headers: noStoreHeaders },
       { source: "/api/stripe/portal", headers: noStoreHeaders },
       { source: "/:path*", headers: securityHeaders },
     ];

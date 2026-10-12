@@ -5,6 +5,8 @@ import { AccountAboCard } from "@/components/account-abo";
 import { AccountCompanyCard } from "@/components/account-company-card";
 import { AccountResourcesCard } from "@/components/account-free";
 import { AccountProfileForm } from "@/components/account-profile-form";
+import { LogoutButton } from "@/components/logout-button";
+import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { prepareAccountCheckout } from "@/lib/account-checkout-prefill";
@@ -186,11 +188,8 @@ export default async function AccountPage({
           {MAX_ENTITIES_PER_ACCOUNT} Firmen pro Konto.
         </p>
 
-        <form action="/api/auth/logout" method="post" className="account-logout">
-          <button className="btn ghost" type="submit">
-            Abmelden
-          </button>
-        </form>
+        <LogoutButton className="account-logout" />
+        <RefreshStoredView />
       </main>
       <SiteFooter />
     </>
