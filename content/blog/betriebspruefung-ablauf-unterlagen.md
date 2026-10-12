@@ -41,6 +41,8 @@ Aus der Anordnung lesen Sie Steuerarten, Zeiträume und eine etwaige Beschränku
 
 Sie sammeln, was zum genannten Umfang gehört, und klären mit der Steuerberatung, wer welche Unterlagen führt. Dazu können Steuererklärungen und Bescheide der genannten Zeiträume gehören, Bücher und Aufzeichnungen, Buchungsbelege, Verträge, die den Zeitraum tragen, und die Organisationsunterlagen. Was bei Ihnen nicht vorkommt — eine Kasse, Lohn, ein Lager — lassen Sie weg.
 
+Fehlt die Verfahrensdokumentation noch, finden Sie Aufbau und Reihenfolge im Leitfaden [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
+
 Legen Sie fest, wer im Betrieb Ansprechpartner ist und wer vertritt. Die Kanzlei bleibt die fachliche Seite. Im Betrieb braucht es eine Person, die Unterlagen findet. Fragen zur Organisation: [Modul 1 Unternehmen und Organisation](/muster/modul/m01/fragebogen) (PDF).
 
 ### Prüfung vor Ort oder an Amtsstelle
@@ -116,6 +118,7 @@ Nein. Die Unterlagen machen den Zeitraum auffindbar. Die rechtliche Einordnung d
 
 ## Weiterlesen
 
+- [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung) — Rolle der Dokumentation, nicht der Ablauf
 - [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd) — acht Jahre für Buchungsbelege, zehn Jahre für Organisationsunterlagen
 - [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren) — Version und Gültig-ab
