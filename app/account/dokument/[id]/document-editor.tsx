@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { PdfDownloadLink } from "@/components/pdf-download-link";
 import {
   VersionChangeFields,
   type VersionChangeDraft,
@@ -133,7 +134,7 @@ export function DocumentEditor({
         <p className="banner ok" role="status">
           Version {versionLabelFromRow({ version: String(savedVersion) })} ist
           gespeichert.{" "}
-          <a href={downloadPath}>PDF herunterladen</a>
+          <PdfDownloadLink href={downloadPath}>PDF herunterladen</PdfDownloadLink>
         </p>
       )}
 
@@ -186,9 +187,9 @@ export function DocumentEditor({
           {pending ? "Bitte warten…" : "Speichern und PDF erzeugen"}
         </button>
         {savedVersion && (
-          <a className="btn" href={downloadPath}>
+          <PdfDownloadLink className="btn" href={downloadPath}>
             PDF herunterladen
-          </a>
+          </PdfDownloadLink>
         )}
         {savedVersion && (
           <button className="btn ghost" type="submit" disabled={pending}>

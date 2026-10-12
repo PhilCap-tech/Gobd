@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PdfDownloadLink } from "@/components/pdf-download-link";
 import { VersionHistory } from "@/components/document-revision";
 import {
   customerChangedBy,
@@ -323,9 +324,9 @@ export function AccountCompanyCard({
                 </p>
                 <div className="actions doc-actions">
                   {downloadsOpen && (
-                    <a className="btn" href={documentDownloadPath(editRow)}>
+                    <PdfDownloadLink className="btn" href={documentDownloadPath(editRow)}>
                       PDF herunterladen
-                    </a>
+                    </PdfDownloadLink>
                   )}
                   {writesOpen && (
                     <>

@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { runWithSheetsMeasure } from "@/lib/sheets-meter";
 import {
   isRetryableSheetsStatus,
   sheetsStatusCode,
@@ -12,8 +13,11 @@ export {
   sheetsStatusCode,
 } from "@/lib/sheets-unavailable";
 
-/** One intake read is reused across the request and a short burst of follow-ups. */
-export const INTAKE_READ_TTL_MS = 5_000;
+/** Module-level intake snapshot. Long enough to stay under the per-minute read quota. */
+export const INTAKE_READ_TTL_MS = 45_000;
+
+/** Header and column width stay for the life of the instance. Writes do not re-read them. */
+export const SHEETS_HEADER_TTL_MS = Number.POSITIVE_INFINITY;
 
 const SHEETS_BACKOFF_MS = [250, 700];
 
@@ -28,7 +32,7 @@ export function sheetsRouteIsSet(): boolean {
 }
 
 export function runWithSheetsRoute<T>(route: string, fn: () => Promise<T>): Promise<T> {
-  return routeStore.run(route, fn);
+  return routeStore.run(route, () => runWithSheetsMeasure(route, fn));
 }
 
 export function logSheetsFailure(op: string, status: number, attempt?: number): void {
@@ -67,14 +71,21 @@ export async function retrySheetsCall<T>(
 export function createTtlSingleflight<T>(ttlMs: number) {
   let entry: { at: number; value: T } | null = null;
   let inflight: Promise<T> | null = null;
+  const freshEnough = (at: number) => Date.now() - at < ttlMs;
   return {
     clear() {
       entry = null;
       inflight = null;
     },
+    peek(): T | null {
+      if (!entry || !freshEnough(entry.at)) return null;
+      return entry.value;
+    },
+    remember(value: T) {
+      entry = { at: Date.now(), value };
+    },
     async read(load: () => Promise<T>, fresh = false): Promise<T> {
-      const now = Date.now();
-      if (!fresh && entry && now - entry.at < ttlMs) return entry.value;
+      if (!fresh && entry && freshEnough(entry.at)) return entry.value;
       if (!fresh && inflight) return inflight;
       const run = load().then((value) => {
         entry = { at: Date.now(), value };

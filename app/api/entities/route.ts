@@ -5,6 +5,7 @@ import {
   MAX_ENTITIES_PER_ACCOUNT,
   normalizeEntityInput,
 } from "@/lib/entities";
+import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { createEntity, updateEntity } from "@/lib/store";
 
 export const runtime = "nodejs";
@@ -64,6 +65,8 @@ export async function POST(request: Request) {
       entity: stored.entity,
     });
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     if (error instanceof EntityLimitError) {
       return jsonError(error.message, 409, {
         code: error.code,
@@ -122,6 +125,8 @@ export async function PATCH(request: Request) {
       entity,
     });
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error("[entities] Speichern fehlgeschlagen", error);
     return jsonError(
       error instanceof Error && error.message

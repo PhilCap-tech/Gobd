@@ -14,6 +14,7 @@ import {
   readinessSuccessPath,
   toReadinessLead,
 } from "@/lib/readiness";
+import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { appendReadinessLead } from "@/lib/store";
 
 export const runtime = "nodejs";
@@ -109,6 +110,8 @@ async function handleReadiness(request: Request) {
   try {
     stored = await appendReadinessLead(lead);
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error("[readiness] appendReadinessLead fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }

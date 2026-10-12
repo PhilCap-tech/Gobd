@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { fetchRetrying503, SAVE_PENDING_LABEL } from "@/lib/fetch-retry";
+import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
 import { IntakeProgress } from "@/components/intake-progress";
@@ -190,6 +192,7 @@ export function IntakeForm({
   const [scrollIssue, setScrollIssue] = useState<CatalogIssue | null>(null);
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [change, setChange] = useState<VersionChangeDraft>({
     validFrom: berlinTodayIso(),
     validTo: "",
@@ -283,7 +286,8 @@ export function IntakeForm({
     const meta = draftMetaRef.current;
     if (!meta.draftKey || revision <= 0) return;
     const savedAt = new Date().toISOString();
-    void fetch("/api/intake/draft", {
+    setSaving(true);
+    void fetchRetrying503("/api/intake/draft", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       keepalive,
@@ -329,7 +333,8 @@ export function IntakeForm({
       })
       .catch(() => {
         // offline: localStorage reicht als Fallback
-      });
+      })
+      .finally(() => setSaving(false));
   }, [writeLocalDraft]);
 
   useEffect(() => {
@@ -563,7 +568,7 @@ export function IntakeForm({
     setNeedsLogin(false);
     setPending(true);
     try {
-      const response = await fetch("/api/intake", {
+      const response = await fetchRetrying503("/api/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -607,7 +612,7 @@ export function IntakeForm({
             setScrollTick((tick) => tick + 1);
           }
         }
-        setError(data.error || "Speichern fehlgeschlagen.");
+        setError(data.error || (response.status === 503 ? SHEETS_RETRY_MESSAGE : "Speichern fehlgeschlagen."));
         return;
       }
       if (!data.store || !data.documentId) {
@@ -683,6 +688,11 @@ export function IntakeForm({
       ) : null}
 
       {notice ? <p className="banner ok">{notice}</p> : null}
+      {saving && !pending ? (
+        <p className="hint" role="status">
+          {SAVE_PENDING_LABEL}
+        </p>
+      ) : null}
 
       {session.email && step === firstStep && (
         <p className="hint">
@@ -817,7 +827,7 @@ export function IntakeForm({
               {pending
                 ? isEdit
                   ? "Erzeuge Version…"
-                  : "Speichern…"
+                  : SAVE_PENDING_LABEL
                 : isEdit
                   ? "Neue Version erzeugen"
                   : "Intake absenden"}
