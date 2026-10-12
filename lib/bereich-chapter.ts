@@ -8,6 +8,7 @@ import {
   type BereichField,
   type BereichQuestion,
 } from "@/lib/bereiche";
+import { columnLabel, optionLabel } from "@/lib/intake-present";
 import { isControlQuestionId, isKeineKontrolleValues, KEINE_KONTROLLE_SATZ } from "@/lib/keine-angaben";
 import type { IntakeAnswers } from "@/lib/types";
 
@@ -27,18 +28,123 @@ function cell(value: string): string {
   return clean(value).replaceAll("|", "/");
 }
 
+const GENERIC_OPTION: Record<string, string> = { ja: "Ja", nein: "Nein", unbekannt: "Unbekannt" };
+
+function legacyChoice(text: string): string | null {
+  if (text === "ja") return "ja";
+  if (text === "nein") return "nein";
+  if (text === "unbekannt") return "noch zu klären";
+  return null;
+}
+
+/** Option key from the field's list, shown as the label the form already uses. */
+function optionText(field: BereichField, raw: string): string {
+  const text = clean(raw);
+  if (!text) return "";
+  if (field.options?.includes(text)) {
+    const mapped = optionLabel(field.key, text);
+    if (mapped !== text && mapped !== GENERIC_OPTION[text]) return mapped;
+    return legacyChoice(text) ?? text;
+  }
+  if (field.type === "enum" || field.type === "multi") return legacyChoice(text) ?? text;
+  return text;
+}
+
 function shown(field: BereichField, value: unknown): string {
   if (Array.isArray(value)) {
-    return clean(value.map((item) => String(item)).filter(Boolean).join(", "));
+    return clean(
+      value
+        .map((item) => (typeof item === "string" ? optionText(field, item) : clean(String(item))))
+        .filter(Boolean)
+        .join(", "),
+    );
   }
   if (typeof value !== "string") return "";
-  const text = clean(value);
-  if (field.type === "enum") {
-    if (text === "ja") return "ja";
-    if (text === "nein") return "nein";
-    if (text === "unbekannt") return "noch zu klären";
+  return optionText(field, value);
+}
+
+export type PhraseField = {
+  key: string;
+  type: string;
+  label: string;
+  options?: string[];
+};
+
+function asField(field: PhraseField): BereichField {
+  const type =
+    field.type === "enum" || field.type === "multi" || field.type === "textarea" || field.type === "date"
+      ? field.type
+      : "text";
+  return {
+    key: field.key,
+    type,
+    label: field.label,
+    options: field.options,
+  };
+}
+
+/** Same spelling, including case. „DATEV“ and „datev“ are both confirmed content. */
+function sameText(left: string, right: string): boolean {
+  return left.trim() === right.trim();
+}
+
+function sentenceLabel(label: string): string {
+  return label.trim().replace(/\?+$/u, "").trim();
+}
+
+/** Drop a repeated software name inside one card (`lexoffice, lexoffice`). */
+function uniqueBits(bits: string[]): string[] {
+  const out: string[] = [];
+  for (const bit of bits) {
+    if (!bit || out.some((kept) => sameText(kept, bit))) continue;
+    out.push(bit);
   }
-  return text;
+  return out;
+}
+
+function formatIntakeValue(field: PhraseField, value: unknown): string {
+  if (Array.isArray(value)) {
+    if (value.some((item) => item && typeof item === "object")) {
+      return clean(uniqueBits(value.map((item) => formatIntakeValue(field, item)).filter(Boolean)).join(", "));
+    }
+    return shown(asField(field), value);
+  }
+  if (value && typeof value === "object") {
+    const bits: string[] = [];
+    for (const [key, part] of Object.entries(value as Record<string, unknown>)) {
+      if (part && typeof part === "object") continue;
+      const text = formatIntakeValue({ key, type: "text", label: "" }, part);
+      if (!text) continue;
+      const keyLabel = sentenceLabel(columnLabel(field.key, key));
+      const prefix = `${keyLabel}:`;
+      bits.push(
+        !keyLabel || keyLabel === "Angabe" || sameText(text, keyLabel) || text.startsWith(prefix)
+          ? text
+          : `${keyLabel}: ${text}`,
+      );
+    }
+    return uniqueBits(bits).join(", ");
+  }
+  return shown(asField(field), value);
+}
+
+/**
+ * One confirmed answer as the sentence the form already shows:
+ * field label, then the value. A label that is the value itself is not
+ * written twice (`lexoffice: lexoffice`).
+ */
+export function confirmedFieldSentence(fields: PhraseField[], values: Record<string, unknown> | undefined): string {
+  const parts: string[] = [];
+  for (const field of fields) {
+    const value = inline(formatIntakeValue(field, values?.[field.key]));
+    if (!value) continue;
+    const label = sentenceLabel(field.label);
+    const prefix = `${label}:`;
+    const phrase = !label || sameText(value, label) || value.startsWith(prefix) ? value : `${label}: ${value}`;
+    if (parts.some((kept) => sameText(kept, phrase))) continue;
+    parts.push(phrase);
+  }
+  return parts.join(". ");
 }
 
 /** One question as PDF lines. Only `bestaetigt` is written as present-tense practice. */

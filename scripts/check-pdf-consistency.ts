@@ -6,7 +6,9 @@ import { renderDeliveryDocument, type RenderedChapter } from "@/lib/delivery-tem
 import gastroFixture from "@/scripts/fixtures/gastro-bella-vista.json";
 import { KEINE_AUSNAHMEN_SATZ, KEINE_KONTROLLE_SATZ, KEINE_REGELMAESSIGE_KONTROLLE } from "@/lib/keine-angaben";
 import { kanzleiKasseAnswers, oezguerAnswers, pixelwerkAnswers, shkAnswers } from "@/scripts/fixtures/pdf-consistency";
-import { ensureGesamt } from "@/lib/module/status";
+import { composeCatalogValues } from "@/lib/intake-present";
+import { collapseRepeatedTokens, processFieldSentence } from "@/lib/module/aussagen";
+import { ensureGesamt, setCheckAntwort } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
 const failures: string[] = [];
@@ -341,6 +343,226 @@ expect(keineAusnahmen.claims.includes(KEINE_AUSNAHMEN_SATZ), "Keine-Ausnahme nen
 expect(keineAusnahmen.claims.includes("Keine Ausnahmen"), "Keine Ausnahmen steht nicht ausdrücklich im PDF");
 expect(!keineAusnahmen.claims.includes("Barbelege vom Wochenmarkt"), "Keine-Ausnahme behält den Katalogtext");
 expect(!keineAusnahmen.claims.includes("Urlaubsvertretung"), "Keine-Ausnahme nutzt die Beispielausnahme");
+
+function processDescriptions(body: string): string {
+  const cells: string[] = [];
+  let inTable = false;
+  for (const line of body.split("\n")) {
+    if (line.includes("| Nr. | Schritt | Beschreibung |")) {
+      inTable = true;
+      continue;
+    }
+    if (!inTable) continue;
+    if (line.includes("---")) continue;
+    if (!line.startsWith("|")) {
+      inTable = false;
+      continue;
+    }
+    const columns = line.split("|").map((part) => part.trim());
+    cells.push(columns[3] ?? "");
+  }
+  return cells.join("\n");
+}
+
+const lexoffice = render(
+  setCheckAntwort(
+    ensureGesamt({
+      ...emptyAnswers(),
+      katalog: {
+        VK02: { status: "bestaetigt", values: { system: "Lexoffice", ablage: "lexoffice" } },
+        LE01: {
+          status: "bestaetigt",
+          values: { ablauf: "lexoffice. lexoffice liest die Rechnung", wer: "Inhaber | Vertretung" },
+        },
+        ER02: { status: "bestaetigt", values: { viewer: "lexoffice", validierung: "nein" } },
+        VK07: { status: "bestaetigt", values: { format: ["PDF per E-Mail"], eRechnung: "nein" } },
+        E03: { status: "bestaetigt", values: { pruefer: "keine. Keine Ausnahmen" } },
+        E05: {
+          status: "bestaetigt",
+          values: { systeme: "lexoffice", wer: "Inhaber", nummernvergabe: "RE-2026-014" },
+        },
+      },
+    }),
+    "erechnung",
+    "ja",
+  ),
+  { company: "QA lexoffice GmbH" },
+);
+const prozess = processDescriptions(lexoffice.body);
+expect(!prozess.includes("lexoffice. lexoffice"), "Prozesstabelle wiederholt lexoffice");
+expect(!prozess.includes("lexoffice lexoffice"), "Prozesstabelle wiederholt lexoffice ohne Punkt");
+expect(!prozess.includes("lexoffice. nein"), "Prozesstabelle hängt nein an den Softwarenamen");
+expect(prozess.includes("System: Lexoffice"), "Prozesstabelle nennt Lexoffice ohne Feldbezeichnung");
+expect(prozess.includes("Ablage: lexoffice"), "Prozesstabelle verwirft die Ablage, weil sie sich nur in der Schreibweise unterscheidet");
+expect(
+  prozess.includes("Ablauf und Form der Bestätigung: lexoffice liest die Rechnung"),
+  "Prozesstabelle behält den Rohwert lexoffice. lexoffice",
+);
+expect(prozess.includes("Wer bestätigt Änderungen: Inhaber / Vertretung"), "Prozesstabelle lässt den senkrechten Strich in der Zelle stehen");
+expect(prozess.includes("Viewer oder Software: lexoffice"), "Prozesstabelle dumpt den Viewer als Rohwert");
+expect(
+  prozess.includes("Technische Validierung findet statt: nein"),
+  "Prozesstabelle dumpt die Validierung als Rohwert",
+);
+expect(prozess.includes("Format: PDF per E-Mail"), "Prozesstabelle zeigt den Versandweg ohne Feldbezeichnung");
+expect(
+  prozess.includes("E-Rechnungen können versendet werden: nein"),
+  "Prozesstabelle hängt nein ohne Feldbezeichnung an das Format",
+);
+expect(
+  prozess.includes("Systeme für Ausgangsrechnungen: lexoffice"),
+  "Prozesstabelle dumpt das Ausgangssystem als Rohwert",
+);
+expect(prozess.includes("Wer erstellt die Rechnungen: Inhaber"), "Prozesstabelle lässt das Fragezeichen vor dem Doppelpunkt stehen");
+expect(!prozess.includes("Wer erstellt die Rechnungen?:"), "Prozesstabelle setzt ein Fragezeichen vor den Doppelpunkt");
+expect(prozess.includes("RE-2026-014"), "Prozesstabelle verliert den Nummernkreis");
+const scanZweck = processFieldSentence("D01", { scanZweck: "ersetzend" });
+expect(scanZweck.includes("Ersetzendes Scannen"), "Prozesstabelle lässt den Optionsschlüssel ersetzend stehen");
+expect(!scanZweck.includes("ersetzend"), "Prozesstabelle druckt den Optionsschlüssel ersetzend");
+expect(
+  collapseRepeatedTokens("keine. Keine Ausnahmen") === "keine. Keine Ausnahmen",
+  "Wiederholungen über den Satzpunkt ziehen keine. Keine Ausnahmen zusammen",
+);
+expect(lexoffice.claims.includes("keine. Keine Ausnahmen"), "Katalogzeile verliert keine. Keine Ausnahmen");
+
+const turnus = render(
+  setCheckAntwort(
+    ensureGesamt({
+      ...emptyAnswers(),
+      katalog: {
+        C02: { status: "bestaetigt", values: { turnus: "wöchentlich" } },
+        ER92: {
+          status: "bestaetigt",
+          values: { kontrollen: ["Tägliche Sichtung des Rechnungspostfachs"] },
+        },
+        BA92: {
+          status: "bestaetigt",
+          values: { kontrollen: ["Monatliche Abstimmung Saldo Bank und FiBu"] },
+        },
+      },
+    }),
+    "erechnung",
+    "ja",
+  ),
+  { company: "QA Turnus GmbH" },
+);
+expect(
+  turnus.claims.includes("wöchentlich Sichtung des Rechnungspostfachs"),
+  "Sichtung behält den Katalogturnus täglich",
+);
+expect(
+  turnus.claims.includes("Monatliche Abstimmung Saldo Bank und FiBu"),
+  "Turnus der Sichtung hängt an der Bankabstimmung",
+);
+expect(!turnus.claims.includes("wöchentlich Abstimmung Saldo Bank"), "Turnus ersetzt die Bankabstimmung");
+
+const sharedTurnus = composeCatalogValues("C02", {
+  kanaeleDetail: {
+    "E-Mail-PDF": { turnus: "täglich", ort: "rechnung@example.com", wer: "Özgür Şahin" },
+    Portal: { turnus: "täglich", ort: "Lieferantenportal", wer: "Özgür Şahin" },
+  },
+});
+expect(sharedTurnus.turnus === "täglich", "Zwei Kanäle mit gleichem Turnus bleiben „täglich; täglich“");
+const mixedTurnus = composeCatalogValues("C02", {
+  kanaeleDetail: {
+    "E-Mail-PDF": { turnus: "täglich" },
+    Portal: { turnus: "wöchentlich" },
+  },
+});
+expect(
+  mixedTurnus.turnus === "täglich; wöchentlich",
+  "Unterschiedliche Turnus-Angaben zweier Kanäle fallen zusammen",
+);
+const sharedCell = processFieldSentence("C02", {
+  postfachOderPortal: "rechnung@example.com; Lieferantenportal",
+  wer: "Özgür Şahin; Özgür Şahin",
+  turnus: "täglich; täglich",
+});
+expect(sharedCell.includes("Wie oft wird gesichtet: täglich"), "Prozesstabelle lässt den gemeinsamen Turnus ohne Bezeichnung");
+expect(!sharedCell.includes("täglich; täglich"), "Prozesstabelle wiederholt den gleichen Turnus");
+expect(sharedCell.includes("Özgür Şahin; Özgür Şahin"), "Prozesstabelle zieht verschiedene Personen zu einem Namen zusammen");
+
+const oezguerTurnus = render(
+  setCheckAntwort(
+    ensureGesamt({
+      ...emptyAnswers(),
+      katalog: {
+        C02: {
+          status: "bestaetigt",
+          values: {
+            turnus: "täglich; täglich",
+            wer: "Özgür Şahin; Özgür Şahin",
+            postfachOderPortal: "rechnung@example.com; Lieferantenportal",
+            kanaeleDetail: {
+              "E-Mail-PDF": {
+                ort: "rechnung@example.com",
+                wer: "Özgür Şahin",
+                turnus: "täglich",
+                uebergabe: "Ablage",
+                ausnahmen: "keine",
+              },
+              Portal: {
+                ort: "Lieferantenportal",
+                wer: "Özgür Şahin",
+                turnus: "täglich",
+                uebergabe: "Ablage",
+                ausnahmen: "keine",
+              },
+            },
+          },
+        },
+        ER92: {
+          status: "bestaetigt",
+          values: { kontrollen: ["Tägliche Sichtung des Rechnungspostfachs"] },
+        },
+      },
+    }),
+    "erechnung",
+    "ja",
+  ),
+  { company: "TEST Özgür & Söhne – Grüne Straße ß € GmbH" },
+);
+expect(
+  !oezguerTurnus.claims.includes("täglich; täglich Sichtung des Rechnungspostfachs"),
+  "Özgür nennt täglich; täglich Sichtung des Rechnungspostfachs",
+);
+expect(
+  oezguerTurnus.claims.includes("Tägliche Sichtung des Rechnungspostfachs"),
+  "Özgür verliert die Sichtung des Rechnungspostfachs",
+);
+
+const papier = processFieldSentence("C03", {
+  schritte:
+    "Küche bei Warenannahme (Lieferscheine/Rechnungen). diensthabender Koch, dann Fach Büro. wöchentlich. Übergabe: Fach Büro, Scan freitags durch Elena Rossi. Ausnahmen: Bewirtungs-/Tankbelege per DATEV-App",
+  eingang: {
+    ort: "Küche bei Warenannahme (Lieferscheine/Rechnungen)",
+    wer: "diensthabender Koch, dann Fach Büro",
+    turnus: "wöchentlich",
+    uebergabe: "Fach Büro, Scan freitags durch Elena Rossi",
+    ausnahmen: "Bewirtungs-/Tankbelege per DATEV-App",
+  },
+});
+expect(
+  papier.includes("Ablauf: Küche bei Warenannahme (Lieferscheine/Rechnungen)"),
+  "Papierannahme verliert den Ablauf",
+);
+expect(
+  papier.includes("Welche Person: diensthabender Koch, dann Fach Büro"),
+  "Papierannahme nennt die Person ohne Bezeichnung",
+);
+expect(papier.includes("Wie oft wird gesichtet: wöchentlich"), "Papierannahme nennt den Turnus ohne Bezeichnung");
+expect(
+  !papier.includes("diensthabender Koch, dann Fach Büro. wöchentlich"),
+  "Papierannahme hängt Person und Turnus ohne Bezeichnung aneinander",
+);
+expect(
+  papier.includes("Übergabe: Fach Büro, Scan freitags durch Elena Rossi"),
+  "Papierannahme verliert die Übergabe",
+);
+expect(
+  papier.includes("Ausnahmen: Bewirtungs-/Tankbelege per DATEV-App"),
+  "Papierannahme verliert die Ausnahmen",
+);
 
 if (failures.length) {
   console.error(failures.join("\n"));

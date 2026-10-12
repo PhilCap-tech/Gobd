@@ -3,7 +3,11 @@
  * Katalogtexte sind nur Kandidaten: verneinte oder nicht vorhandene
  * Themen werden nicht als Kontrolle, Prozess oder Behauptung gedruckt.
  */
+import catalogFile from "@/content/intake-catalog/INTAKE-CATALOG-MVP-v1.json";
+import { confirmedFieldSentence, type PhraseField } from "@/lib/bereich-chapter";
 import { bereichQuestion, type BereichFrist, type BereichKontrolle, type BereichSchritt } from "@/lib/bereiche";
+import type { CatalogQuestion } from "@/lib/intake-catalog";
+import { dedupeIdenticalTurnus, fieldLabel } from "@/lib/intake-present";
 import {
   modulAufbewahrung,
   modulBegriffe,
@@ -16,6 +20,7 @@ import {
 import { effectiveModulStatus } from "@/lib/module/status";
 import type { ModulDef } from "@/lib/module/typen";
 import {
+  ausnahmenPhrase,
   isControlQuestionId,
   isKeineKontrolleValues,
   KEINE_AUSNAHMEN_SATZ,
@@ -103,7 +108,7 @@ function sichtungTurnus(answers: IntakeAnswers): string {
   const values = entry(answers, "C02")?.values;
   if (!confirmed(answers, "C02") || !values) return "";
   const direct = text(values.turnus);
-  if (direct && direct !== "anders") return direct;
+  if (direct && direct !== "anders") return dedupeIdenticalTurnus(direct);
   if (direct === "anders") return text(values.turnusFrei);
   const detail = values.kanaeleDetail;
   if (!detail || typeof detail !== "object" || Array.isArray(detail)) return "";
@@ -392,7 +397,8 @@ export function redactDenied(markdown: string, facts: BetriebFacts): string {
 }
 
 function withTurnus(name: string, turnus: string): string {
-  if (!turnus) return name;
+  // Der Turnus aus der Sichtung gehört nur zur Sichtung, nicht zu jeder anderen Kontrolle.
+  if (!turnus || !/sichtung/i.test(name)) return name;
   const freq = /\b(täglich|tägliche|tageweise|monatlich|monatliche|wöchentlich|wöchentliche|quartalsweise|jährlich|jährliche)\b/i;
   if (!freq.test(name)) return name;
   if (name.toLowerCase().includes(turnus.toLowerCase())) return name;
@@ -415,6 +421,109 @@ function answerSentence(question: NonNullable<ReturnType<typeof questionOf>>, va
     .join(". ");
 }
 
+/** Catalog questions (E05, C03, …) have no Bereich question. Use their form labels. */
+function catalogPhraseFields(id: string): PhraseField[] | null {
+  const steps = (catalogFile as { steps: Array<{ questions: CatalogQuestion[] }> }).steps;
+  for (const step of steps) {
+    const question = step.questions.find((item) => item.id === id);
+    if (!question) continue;
+    return question.fields.map((field) => {
+      const label = fieldLabel(id, field.key, field.label);
+      return {
+        key: field.key,
+        type: field.type,
+        label: label === "Angabe" ? "" : label,
+        options: field.options,
+      };
+    });
+  }
+  return null;
+}
+
+/** „lexoffice. lexoffice“ in einer Prozesszelle, gleiche Schreibweise. „keine. Keine“ bleibt. */
+function collapseProcessRepeats(value: string): string {
+  const repeated = /(^|[^\p{L}\p{N}])([\p{L}\p{N}]+)(?:(?:\s*\.\s+|\s+)\2)+/gu;
+  let current = value;
+  let next = current.replace(repeated, "$1$2");
+  while (next !== current) {
+    current = next;
+    next = current.replace(repeated, "$1$2");
+  }
+  return next;
+}
+
+function collapseValue(value: unknown): unknown {
+  if (typeof value === "string") return collapseProcessRepeats(value);
+  if (Array.isArray(value)) return value.map((item) => collapseValue(item));
+  if (value && typeof value === "object") {
+    const next: Record<string, unknown> = {};
+    for (const [key, part] of Object.entries(value as Record<string, unknown>)) next[key] = collapseValue(part);
+    return next;
+  }
+  return value;
+}
+
+/**
+ * Papierannahme in der Prozesszelle: Wer und Turnus mit Feldbezeichnung.
+ * Der gespeicherte Ablauf für den Fließtext bleibt ohne diese Zusätze.
+ */
+function labeledPaperSteps(values: Record<string, unknown>): string {
+  const row = values.eingang;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return "";
+  const detail = row as {
+    ort?: unknown;
+    wer?: unknown;
+    turnus?: unknown;
+    turnusFrei?: unknown;
+    uebergabe?: unknown;
+    ausnahmen?: unknown;
+    keineAusnahmen?: boolean;
+  };
+  const ort = text(detail.ort);
+  const wer = text(detail.wer);
+  const turnus = text(detail.turnus) === "anders" ? text(detail.turnusFrei) : text(detail.turnus);
+  const uebergabe = text(detail.uebergabe);
+  const ausnahme = ausnahmenPhrase(detail);
+  if (!ort && !wer && !turnus && !uebergabe && !ausnahme) return "";
+  return [
+    ort,
+    wer && `Welche Person: ${wer}`,
+    turnus && `Wie oft wird gesichtet: ${turnus}`,
+    uebergabe && `Übergabe: ${uebergabe}`,
+    ausnahme,
+  ]
+    .filter(Boolean)
+    .join(". ");
+}
+
+/** Prozesszelle: dieselbe Bezeichnung wie im bestätigten Fragebogen, nicht der Rohwert. */
+function processBeschreibung(id: string, values: Record<string, unknown>): string {
+  const question = questionOf(id);
+  if (question && isControlQuestionId(question.id) && isKeineKontrolleValues(values)) return "";
+  const fields: PhraseField[] | null = question
+    ? question.fields.map((field) => ({
+        key: field.key,
+        type: field.type,
+        label: field.label,
+        options: field.options,
+      }))
+    : catalogPhraseFields(id);
+  if (!fields?.length) return "";
+  const prepared: Record<string, unknown> = { ...values };
+  if (typeof prepared.turnus === "string") prepared.turnus = dedupeIdenticalTurnus(prepared.turnus);
+  if (id === "C03") {
+    const schritte = labeledPaperSteps(values);
+    if (schritte) prepared.schritte = schritte;
+  }
+  const cleaned = collapseValue(prepared);
+  return confirmedFieldSentence(fields, cleaned && typeof cleaned === "object" ? (cleaned as Record<string, unknown>) : prepared);
+}
+
+/** Prozesszelle einer bestätigten Frage, mit Optionsbezeichnungen aus Bereich oder Katalog. */
+export function processFieldSentence(id: string, values: Record<string, unknown>): string {
+  return processBeschreibung(id, values);
+}
+
 /** Prozessschritte, deren Frage bestätigt ist. Teilgruppen beachten nur ihre ids. */
 export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSchritt[] {
   const seen = new Set<string>();
@@ -424,7 +533,7 @@ export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSc
     const item = entry(answers, step.frage);
     if (item?.status !== "bestaetigt") continue;
     const question = questionOf(step.frage);
-    const beschreibung = question ? answerSentence(question, item.values ?? {}) : "";
+    const beschreibung = processBeschreibung(step.frage, item.values ?? {});
     if (!beschreibung) continue;
     const schritt = question?.title || step.schritt;
     const nachweis = step.nachweis
@@ -736,7 +845,7 @@ export function staticModulText(modul: ModulDef, facts: BetriebFacts): { kurz: s
   return { kurz: cleanup(kurz) || modul.titel, inhalt };
 }
 
-/** Benachbarte Wortwiederholungen („lexoffice lexoffice“) zusammenziehen. */
+/** Benachbarte Wortwiederholungen („lexoffice lexoffice“) zusammenziehen. Punktgrenzen bleiben. */
 export function collapseRepeatedTokens(value: string): string {
   const repeated = /(^|[^\p{L}\p{N}])([\p{L}\p{N}]+)(?:\s+\2)+/giu;
   let current = value;
