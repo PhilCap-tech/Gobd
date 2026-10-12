@@ -25,6 +25,15 @@ function ok(cond: unknown, msg: string) {
   console.log("ok:", msg);
 }
 
+function assertEuroSession(
+  params: ReturnType<typeof buildCheckoutSessionParams>,
+  label: string,
+) {
+  ok(params.currency === "eur", `${label}: currency is eur`);
+  ok(params.locale === "de", `${label}: locale is de`);
+  ok(params.adaptive_pricing?.enabled === false, `${label}: adaptive pricing is off`);
+}
+
 const SKIP_DIRS = new Set(["node_modules", ".git", ".next", ".data", "coverage", "dist"]);
 
 /** Walk the repo with Node fs only. No rg or other external binaries. */
@@ -115,6 +124,7 @@ try {
   );
   ok(!("automatic_tax" in missingParams!), "automatic_tax stays unset");
   ok(missingParams!.mode === "subscription", "checkout stays in subscription mode");
+  assertEuroSession(missingParams!, "missing tax rate");
 
   process.env.STRIPE_TAX_RATE_ID = "   ";
   const blankWarnings = withWarn(() => {
@@ -152,6 +162,7 @@ try {
     "subscription_data.default_tax_rates receives the same tax rate",
   );
   ok(!("invoice_creation" in taxed!), "subscription invoices do not use invoice_creation");
+  assertEuroSession(taxed!, "set tax rate");
 
   const stripeSource = readFileSync("lib/stripe.ts", "utf8");
   ok(stripeSource.includes("tax_rates: taxRates"), "source passes tax_rates onto line items");

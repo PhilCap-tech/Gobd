@@ -301,7 +301,12 @@ export function buildCheckoutSessionParams(
 
   return {
     mode: "subscription",
+    // Prices are EUR. Adaptive Pricing would present another currency
+    // (a test charge came back as USD). The SDK (18.5.0, API 2025-08-27.basil)
+    // accepts this per session; it overrides the Dashboard default.
+    currency: "eur",
     locale: "de",
+    adaptive_pricing: { enabled: false },
     ...(customerId
       ? {
           customer: customerId,

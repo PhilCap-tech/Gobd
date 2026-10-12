@@ -37,6 +37,8 @@ Checkout Session im `subscription`-Modus mit zwei Line Items:
 
 Beide Line Items bekommen `tax_rates`, das Abo zusätzlich `subscription_data.default_tax_rates`, damit auch die Folgerechnung 49 € netto + 19 % ausweist. Fehlt `STRIPE_TAX_RATE_ID`, läuft der Checkout ohne Steuer weiter und schreibt `console.warn` mit der Route `/api/checkout`. Der Build prüft nur den Codepfad (`npm run check:checkout-tax`), nicht die Variable. Es gibt keine Test-Tax-Rate; die ID nicht ins Repo schreiben.
 
+Die Session ist fest `currency: "eur"` und `locale: "de"`. `adaptive_pricing.enabled` ist `false`, damit Stripe keine Währungsumrechnung anbietet. Die Price-IDs bleiben die Euro-Preise.
+
 Rechnungen entstehen über den Subscription-Modus. `invoice_creation` gilt nur für Einmalzahlungen und bleibt aus. Die USt-IdNr. des Anbieters ist der Account-Default in Stripe und steht dadurch auf der Rechnung, ohne Override im Code. Nur Inland: kein Reverse Charge.
 
 `success_url` → `{NEXT_PUBLIC_APP_URL}/intake?session_id={CHECKOUT_SESSION_ID}`  
