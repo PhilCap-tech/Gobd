@@ -71,6 +71,11 @@ type IntakeFormProps = {
   firm?: FirmFacts;
   /** Anmeldung, wenn eine gelieferte Fassung ohne Login geändert werden soll. */
   loginHref?: string;
+  /**
+   * Nur bei Stripe-Test-Key (`sk_test_` / `pk_test_`). Live blendet den
+   * Hinweis aus.
+   */
+  stripeTestMode?: boolean;
 };
 
 function checkoutBilling(firm: FirmFacts | undefined): Pick<
@@ -155,6 +160,7 @@ export function IntakeForm({
   focusModulId = "",
   firm,
   loginHref = "",
+  stripeTestMode = false,
 }: IntakeFormProps) {
   const facts = firmFactsFor(initialEntityId, entities, firm, session.company);
   const companyLabel = customerHubTitle(session.company, "");
@@ -630,12 +636,14 @@ export function IntakeForm({
     <>
       {step < INTAKE_STEPS.length + 1 && <IntakeProgress step={step} answers={answers} />}
 
-      {session.stub && step <= INTAKE_STEPS.length && !isEdit && (
-        <p className="banner">
-          Test ohne Zahlung. Die Angaben werden gespeichert, sobald Sie
-          absenden.
-        </p>
-      )}
+      {stripeTestMode ? (
+        session.stub && step <= INTAKE_STEPS.length && !isEdit ? (
+          <p className="banner">
+            Test ohne Zahlung. Die Angaben werden gespeichert, sobald Sie
+            absenden.
+          </p>
+        ) : null
+      ) : null}
 
       {isEdit && step <= INTAKE_STEPS.length && (
         <p className="banner">

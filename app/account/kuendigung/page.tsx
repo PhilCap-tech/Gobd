@@ -42,7 +42,7 @@ const STATUS_COPY: Record<string, { tone: "ok" | "warn"; text: string }> = {
   },
   unverfuegbar: {
     tone: "warn",
-    text: "Zahlung ist in diesem Testpfad nicht angebunden. Eine Kündigung ist hier nicht möglich.",
+    text: "Die Zahlung ist derzeit nicht angebunden. Eine Kündigung ist hier nicht möglich.",
   },
 };
 
@@ -181,7 +181,7 @@ export default async function KuendigungPage({
             <p className="prose">
               {stripeReady
                 ? "Zu diesem Konto liegt kein kündbares Abonnement vor."
-                : "Zahlung ist in diesem Testpfad nicht angebunden. Eine Kündigung ist hier nicht möglich."}
+                : "Die Zahlung ist derzeit nicht angebunden. Eine Kündigung ist hier nicht möglich."}
             </p>
           )}
           <p className="hint">

@@ -94,7 +94,7 @@ export default async function ReadinessSuccessPage({
                 </p>
               ) : (
                 <p className="banner">
-                  E-Mail-Versand ist in diesem Testpfad nicht eingerichtet. Der
+                  Der E-Mail-Versand ist derzeit nicht eingerichtet. Der
                   Download bleibt hier auf der Seite.
                 </p>
               )}

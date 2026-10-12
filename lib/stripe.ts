@@ -860,7 +860,7 @@ export function portalStatusCopy(status: PortalStatus): {
       };
     case "unavailable":
       return {
-        text: "Zahlung ist in diesem Testpfad nicht angebunden. Abo-Verwaltung ist hier nicht verfügbar.",
+        text: "Die Zahlung ist derzeit nicht angebunden. Die Abo-Verwaltung ist hier nicht verfügbar.",
         tone: "warn",
       };
     case "error":
