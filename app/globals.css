@@ -1186,6 +1186,24 @@ textarea:focus {
   flex: 0 0 auto;
 }
 
+.system-card.system-card-invalid {
+  background: #fdf2f2;
+  border-color: #e3b4b4;
+}
+
+.field-invalid .chip {
+  border-color: #a33b3b;
+}
+
+.field-invalid .chip.on {
+  border-color: var(--accent);
+}
+
+.error ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .intake-table-wrap {
   overflow-x: auto;
   margin: 8px 0 14px;

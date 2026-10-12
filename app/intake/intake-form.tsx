@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
 import { IntakeProgress } from "@/components/intake-progress";
-import { IntakeQuestionnaire } from "@/components/intake-questionnaire";
+import { IntakeQuestionnaire, StepError } from "@/components/intake-questionnaire";
 import { IntakeStepHeading, useIntakeStepFocus } from "@/components/intake-step-heading";
 import {
   VersionChangeFields,
@@ -498,9 +498,7 @@ export function IntakeForm({
 
   const firmMissing = showGaps && step === firstStep && showFirmSelect && !entityId.trim();
   const stepIssues = intakeFormIssues(step, answers, showGaps && !firmMissing);
-  const visibleError = firmMissing
-    ? "Bitte eine Firma wählen."
-    : stepIssues[0]?.message || error;
+  const visibleError = error;
   useEffect(() => {
     if (!scrollTick || !firmMissing) return;
     const node = document.getElementById("firma-select");
@@ -758,7 +756,9 @@ export function IntakeForm({
         </section>
       )}
 
-      {visibleError && (
+      {firmMissing ? <p className="error">Bitte eine Firma wählen.</p> : null}
+      {stepIssues.length ? <StepError issues={stepIssues} /> : null}
+      {!firmMissing && !stepIssues.length && visibleError ? (
         <p className="error">
           {visibleError}
           {needsLogin && loginHref ? (
@@ -768,7 +768,7 @@ export function IntakeForm({
             </>
           ) : null}
         </p>
-      )}
+      ) : null}
 
       {step < INTAKE_STEPS.length + 1 && (
         <div className="actions" style={{ marginTop: 18 }}>

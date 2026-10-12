@@ -61,6 +61,31 @@ function issueFor(issues: CatalogIssue[], questionId: string, fieldKey: string):
   return issues.find((issue) => issue.questionId === questionId && issue.fieldKey === fieldKey);
 }
 
+function cardMessages(issues: CatalogIssue[], questionId: string): Record<number, { message: string; missing: string[] }> {
+  const out: Record<number, { message: string; missing: string[] }> = {};
+  for (const issue of issues) {
+    if (issue.questionId !== questionId) continue;
+    const match = /^card-(\d+)$/.exec(issue.fieldKey);
+    if (!match) continue;
+    out[Number(match[1])] = { message: issue.message, missing: issue.missing ?? [] };
+  }
+  return out;
+}
+
+export function StepError({ issues }: { issues: CatalogIssue[] }) {
+  if (!issues.length) return null;
+  if (issues.length === 1) return <p className="error">{issues[0]?.message}</p>;
+  return (
+    <div className="error" role="alert">
+      <ul>
+        {issues.map((issue) => (
+          <li key={`${issue.questionId}-${issue.fieldKey}-${issue.anchor}`}>{issue.message}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function matchesPrefill(value: unknown, source: string | undefined): boolean {
   const text = asText(value).trim();
   const from = source?.trim() ?? "";
@@ -581,7 +606,12 @@ export function IntakeQuestionnaire({
                   </div>
                 ) : null}
                 {P1_QUESTION_IDS.has(question.id) ? (
-                  <P1QuestionFields questionId={question.id} answers={answers} onChange={onChange} />
+                  <P1QuestionFields
+                    questionId={question.id}
+                    answers={answers}
+                    onChange={onChange}
+                    invalidCards={cardMessages(issues, question.id)}
+                  />
                 ) : (
                   question.fields.map((field) => {
                     if (/^KF0[1-5]$/.test(question.id) && values.keineKontrolle === true) return null;

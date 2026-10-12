@@ -1,15 +1,19 @@
 /**
  * Offline-Check: leere Karten bei B01 und den gleichen Listen B04, B05, G01.
  * Eine volle plus eine leere Karte geht durch. Eine teilweise ausgefüllte Karte
- * blockiert. Ein Entwurf mit leerer Karte wird beim Laden und Speichern bereinigt.
+ * blockiert und nennt jede unvollständige Karte. Unberührte B04-/G01-Vorschläge
+ * zählen wie leer, auch in PDF und offenen Punkten.
+ * Ein Entwurf mit leerer Karte wird beim Laden und Speichern bereinigt.
  * Usage: npx tsx scripts/check-b01-systemkarten.ts
  */
 import { CATALOG_STEPS, catalogStepIssues } from "@/lib/intake-catalog";
 import { demoBeispielAnswers } from "@/lib/demo-beispiel";
+import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import {
   ANBIETER_UNTERLAGEN,
   normalizeIntakeAnswers,
   p1FieldError,
+  p1FieldIssue,
   stripEmptyIntakeCards,
 } from "@/lib/intake-present";
 import { ensureGesamt } from "@/lib/module/status";
@@ -81,6 +85,9 @@ const partialAblage = { art: "Kassenbelege", ort: "", suche: " " };
 const emptyAblage = { art: "  ", ort: "", suche: "" };
 
 const b01Name = "Bitte Name, Zweck und Art je System nennen.";
+const b01Rest =
+  "Bitte das Hosting je System wählen. Bitte je System Nutzer, eingehende Belege, Übergabe und den Ort des Originals nennen.";
+const b01Open = `${b01Name} ${b01Rest}`;
 const b04Partial = "Bitte je Eingangsweg den Weg und das Original nennen.";
 const b05Name = "Bitte das System beim Anbieter benennen.";
 const g01Partial = "Bitte je Belegart Ablageort und Suchmerkmale angeben.";
@@ -107,12 +114,12 @@ expect(
   "B01 Whitespace-Karte zählt als leer",
 );
 expect(
-  p1FieldError("B01", "bestaetigt", { systeme: [partialSystem] }) === b01Name,
-  "B01 nur Name blockiert",
+  p1FieldError("B01", "bestaetigt", { systeme: [partialSystem] }) === `System 1: ${b01Open}`,
+  "B01 nur Name blockiert und nennt System 1",
 );
 expect(
-  p1FieldError("B01", "bestaetigt", { systeme: [fullSystem, partialSystem] }) === b01Name,
-  "B01 volle plus teilweise Karte blockiert",
+  p1FieldError("B01", "bestaetigt", { systeme: [fullSystem, partialSystem] }) === `System 2: ${b01Open}`,
+  "B01 volle plus teilweise Karte nennt System 2",
 );
 expect(
   p1FieldError("B01", "bestaetigt", { systeme: [{}] }) === "Bitte mindestens ein System nennen.",
@@ -120,14 +127,28 @@ expect(
 );
 expect(p1FieldError("B01", "unbekannt", { systeme: [fullSystem, {}] }) === "", "B01 ungeklärt prüft die Karten nicht");
 expect(messages("step-B", "B01", b01([fullSystem, {}])).length === 0, "Demo-Schritt lässt volle plus leere Karte durch");
-expect(messages("step-B", "B01", b01([fullSystem, partialSystem])).includes(b01Name), "Demo-Schritt blockiert die teilweise Karte");
+expect(
+  messages("step-B", "B01", b01([fullSystem, partialSystem])).includes(`System 2: ${b01Open}`),
+  "Demo-Schritt blockiert die teilweise Karte und nennt System 2",
+);
 expect(
   messages("step-M17", "B01", paid(b01([fullSystem, {}]).katalog ?? {})).length === 0,
   "Modul 17 lässt volle plus leere Karte durch",
 );
 expect(
-  messages("step-M17", "B01", paid(b01([partialSystem]).katalog ?? {})).includes(b01Name),
-  "Modul 17 blockiert die teilweise Karte",
+  messages("step-M17", "B01", paid(b01([partialSystem]).katalog ?? {})).includes(`System 1: ${b01Open}`),
+  "Modul 17 blockiert die teilweise Karte und nennt System 1",
+);
+const b01Card = catalogStepIssues(stepId("step-M17"), paid(b01([fullSystem, partialSystem]).katalog ?? {})).filter(
+  (issue) => issue.questionId === "B01",
+);
+expect(
+  b01Card.length === 1 && b01Card[0]?.fieldKey === "card-1" && b01Card[0]?.anchor === "card-B01-1",
+  "Modul 17 markiert nur System 2",
+);
+expect(
+  b01Card[0]?.message.startsWith("System 2:") === true && b01Card.every((issue) => issue.fieldKey !== "block"),
+  "Die volle Systemkarte färbt nicht die ganze Frage",
 );
 
 const demo = demoBeispielAnswers();
@@ -152,12 +173,12 @@ expect(
   "B04 volle plus leere Karte",
 );
 expect(
-  p1FieldError("B04", "bestaetigt", { originalJeWeg: [fullWeg, partialWeg] }) === b04Partial,
-  "B04 teilweise Karte blockiert",
+  p1FieldError("B04", "bestaetigt", { originalJeWeg: [fullWeg, partialWeg] }) === `Eingangsweg 2: ${b04Partial}`,
+  "B04 teilweise Karte nennt Eingangsweg 2",
 );
 expect(
-  p1FieldError("B04", "bestaetigt", { originalJeWeg: [fullWeg, flaggedWeg] }) === b04Partial,
-  "B04 nur gesetztes „anderer Weg“ blockiert",
+  p1FieldError("B04", "bestaetigt", { originalJeWeg: [fullWeg, flaggedWeg] }) === `Eingangsweg 2: ${b04Partial}`,
+  "B04 nur gesetztes „anderer Weg“ nennt Eingangsweg 2",
 );
 expect(
   messages("step-B", "B04", legacy({ B04: { status: "bestaetigt", values: { originalJeWeg: [fullWeg, {}] } } })).length ===
@@ -169,15 +190,18 @@ expect(
   p1FieldError("B05", "bestaetigt", { anbieter: "ja", externeSysteme: [fullProvider, emptyProvider] }) === "",
   "B05 volle plus leere Karte",
 );
+const b05Docs = p1FieldError("B05", "bestaetigt", {
+  anbieter: "ja",
+  externeSysteme: [fullProvider, partialProvider],
+});
 expect(
-  p1FieldError("B05", "bestaetigt", { anbieter: "ja", externeSysteme: [fullProvider, partialProvider] }).includes(
-    "Unterlage",
-  ),
-  "B05 Name ohne Unterlagen blockiert",
+  b05Docs.startsWith("System beim Anbieter 2:") && b05Docs.includes("Unterlage"),
+  "B05 nennt das System ohne Unterlagen",
 );
 expect(
-  p1FieldError("B05", "bestaetigt", { anbieter: "ja", externeSysteme: [fullProvider, standOnlyProvider] }) === b05Name,
-  "B05 Unterlage ohne Name blockiert",
+  p1FieldError("B05", "bestaetigt", { anbieter: "ja", externeSysteme: [fullProvider, standOnlyProvider] }) ===
+    `System beim Anbieter 2: ${b05Name} Bitte je Unterlage angeben, ob sie vorhanden ist, ergänzt werden muss oder nicht relevant ist.`,
+  "B05 Unterlage ohne Name nennt das Anbietersystem",
 );
 expect(
   messages("step-M17", "B05", paid({
@@ -191,8 +215,8 @@ expect(
   "G01 volle plus leere Karte",
 );
 expect(
-  p1FieldError("G01", "bestaetigt", { ablageJeArt: [fullAblage, partialAblage] }) === g01Partial,
-  "G01 teilweise Karte blockiert",
+  p1FieldError("G01", "bestaetigt", { ablageJeArt: [fullAblage, partialAblage] }) === `Belegart 2: ${g01Partial}`,
+  "G01 teilweise Karte nennt Belegart 2",
 );
 expect(
   messages("step-G", "G01", legacy({
@@ -209,9 +233,9 @@ expect(
 );
 expect(
   messages("step-M15", "G01", paid({ G01: { status: "bestaetigt", values: { ablageJeArt: [fullAblage, partialAblage] } } })).includes(
-    g01Partial,
+    `Belegart 2: ${g01Partial}`,
   ),
-  "Modul 15 blockiert die teilweise Belegart",
+  "Modul 15 blockiert die teilweise Belegart und nennt Belegart 2",
 );
 
 const h01Values = {
@@ -309,6 +333,218 @@ const demoLoaded = stripEmptyIntakeCards(demoWithEmpty);
 const demoLeft = demoLoaded.katalog?.B01?.values?.systeme as Array<{ name?: string }>;
 expect(demoLeft.length === 1 && demoLeft[0]?.name === "DATEV", "Beispielbetrieb verliert nur die leere Karte");
 expect(demoLoaded.katalog?.B04 === demo.katalog?.B04, "übrige Demo-Fragen bleiben");
+
+const channels = ["E-Mail-PDF", "Portal"];
+const scope = ["Eingangsrechnungen", "Ausgangsrechnungen"];
+const suggestedWeg = { belegweg: "Portal", originalBeschreibung: "" };
+const touchedWeg = { ...suggestedWeg, bearbeitet: true };
+const suggestedArt = { art: "Ausgangsrechnungen", ort: "", suche: "" };
+const touchedArt = { ...suggestedArt, bearbeitet: true };
+
+function withErechnung(answers: IntakeAnswers): IntakeAnswers {
+  const current = answers.module ?? { version: 1 as const, check: {}, status: {} };
+  return { ...answers, module: { ...current, check: { ...current.check, erechnung: "ja" } } };
+}
+
+expect(
+  p1FieldError("B04", "bestaetigt", { originalJeWeg: [fullWeg, suggestedWeg] }, channels) === "",
+  "B04 unberührter Kanalvorschlag blockiert nicht",
+);
+expect(
+  p1FieldError("B04", "bestaetigt", { originalJeWeg: [suggestedWeg] }, channels) === "",
+  "B04 nur unberührte Kanalvorschläge blockieren nicht",
+);
+expect(
+  p1FieldError("B04", "bestaetigt", { originalJeWeg: [fullWeg, touchedWeg] }, channels) === `Eingangsweg 2: ${b04Partial}`,
+  "B04 bearbeiteter Eingangsweg ohne Original blockiert",
+);
+expect(
+  p1FieldError("B04", "bestaetigt", { originalJeWeg: [{ belegweg: "Post", originalBeschreibung: "" }] }, channels) ===
+    `Eingangsweg 1: ${b04Partial}`,
+  "B04 eigener Weg ohne Original blockiert",
+);
+
+function b04Paid(rows: unknown[]): IntakeAnswers {
+  return withErechnung(
+    paid({
+      C01: { status: "bestaetigt", values: { kanaele: channels } },
+      B04: { status: "bestaetigt", values: { originalJeWeg: rows } },
+    }),
+  );
+}
+
+expect(
+  messages("step-M05", "B04", b04Paid([suggestedWeg, { belegweg: "E-Mail-PDF", originalBeschreibung: "" }])).length === 0,
+  "Modul 5 lässt unberührte Eingangswege durch",
+);
+const b04Card = catalogStepIssues(stepId("step-M05"), b04Paid([fullWeg, touchedWeg])).filter(
+  (issue) => issue.questionId === "B04",
+);
+expect(
+  b04Card.length === 1 &&
+    b04Card[0]?.fieldKey === "card-1" &&
+    b04Card[0]?.anchor === "card-B04-1" &&
+    b04Card[0]?.message.startsWith("Eingangsweg 2:") === true,
+  "Modul 5 nennt und markiert nur Eingangsweg 2",
+);
+
+expect(
+  p1FieldError("G01", "bestaetigt", { ablageJeArt: [suggestedArt] }, [], scope) === "",
+  "G01 unberührter Artvorschlag blockiert nicht",
+);
+expect(
+  p1FieldError("G01", "bestaetigt", { ablageJeArt: [fullAblage, touchedArt] }, [], scope) === `Belegart 2: ${g01Partial}`,
+  "G01 bearbeitete unvollständige Belegart blockiert",
+);
+expect(
+  p1FieldError("G01", "bestaetigt", { ablageJeArt: [{}] }) === g01Partial,
+  "G01 ohne Belegart bleibt die Pflichtmeldung",
+);
+
+const g01Suggestions = paid({
+  A02: { status: "bestaetigt", values: { belegartenScope: scope } },
+  G01: {
+    status: "bestaetigt",
+    values: {
+      ablageJeArt: [suggestedArt, { art: "Eingangsrechnungen", ort: "", suche: "" }],
+    },
+  },
+});
+expect(messages("step-M15", "G01", g01Suggestions).length === 0, "Modul 15 lässt unberührte Belegarten durch");
+const g01Card = catalogStepIssues(
+  stepId("step-M15"),
+  paid({
+    A02: { status: "bestaetigt", values: { belegartenScope: scope } },
+    G01: { status: "bestaetigt", values: { ablageJeArt: [fullAblage, touchedArt] } },
+  }),
+).filter((issue) => issue.questionId === "G01");
+expect(
+  g01Card.length === 1 &&
+    g01Card[0]?.fieldKey === "card-1" &&
+    g01Card[0]?.anchor === "card-G01-1" &&
+    g01Card[0]?.message.startsWith("Belegart 2:") === true &&
+    g01Card.every((issue) => issue.fieldKey !== "block"),
+  "Modul 15 nennt und markiert nur Belegart 2",
+);
+expect(
+  g01Card[0]?.missing?.includes("ort") === true &&
+    g01Card[0]?.missing?.includes("suche") === true &&
+    g01Card[0]?.missing?.includes("art") !== true,
+  "Modul 15 färbt nur Ablageort und Suche, nicht die gefüllte Belegart",
+);
+
+const twoPartial = p1FieldIssue("B01", "bestaetigt", { systeme: [fullSystem, partialSystem, partialSystem] });
+expect(twoPartial.cards.length === 2, "B01 nennt jede unvollständige Karte");
+expect(
+  twoPartial.cards[0]?.message.startsWith("System 2:") === true &&
+    twoPartial.cards[1]?.message.startsWith("System 3:") === true,
+  "B01-Meldungen heißen System 2 und System 3",
+);
+expect(
+  twoPartial.cards[0]?.missing.includes("funktion") === true &&
+    twoPartial.cards[0]?.missing.includes("name") !== true,
+  "B01 färbt den gefüllten Namen nicht",
+);
+const twoIssues = catalogStepIssues(
+  stepId("step-M17"),
+  paid(b01([fullSystem, partialSystem, partialSystem]).katalog ?? {}),
+).filter((issue) => issue.questionId === "B01");
+expect(
+  twoIssues.length === 2 && twoIssues[0]?.fieldKey === "card-1" && twoIssues[1]?.fieldKey === "card-2",
+  "Modul 17 markiert System 2 und System 3",
+);
+const touchedGap = p1FieldIssue("B04", "bestaetigt", { originalJeWeg: [fullWeg, touchedWeg] }, channels);
+expect(
+  touchedGap.cards.length === 1 &&
+    touchedGap.cards[0]?.missing.includes("originalBeschreibung") === true &&
+    touchedGap.cards[0]?.missing.includes("belegweg") !== true,
+  "B04 färbt nur das leere Original",
+);
+
+function pdfBody(answers: IntakeAnswers): string {
+  const doc = renderDeliveryDocument({
+    identity: {
+      email: "qa@example.com",
+      company: "TEST Karten GmbH",
+      stripeSessionId: "",
+      stripeCustomerId: "",
+      stub: true,
+    },
+    answers,
+    documentId: "karten-vorschlag",
+    version: 1,
+  });
+  return [doc.cover, ...doc.chapters.map((chapter) => chapter.body), ...doc.openPoints.map((point) => point.text)].join(
+    "\n",
+  );
+}
+
+const mixedWege = withErechnung(
+  paid({
+    C01: { status: "bestaetigt", values: { kanaele: channels } },
+    B04: {
+      status: "bestaetigt",
+      values: {
+        originalJeWeg: [
+          { belegweg: "E-Mail-PDF", originalBeschreibung: "empfangene PDF-Datei" },
+          { belegweg: "Portal", originalBeschreibung: "" },
+        ],
+      },
+    },
+    A02: { status: "bestaetigt", values: { belegartenScope: ["Belege"] } },
+    G01: {
+      status: "bestaetigt",
+      values: {
+        ablageJeArt: [{ art: "Belege", ort: "", suche: "" }],
+        ablage: "",
+        ordnung: "Belege",
+      },
+    },
+  }),
+);
+const mixedText = pdfBody(mixedWege);
+expect(
+  mixedText.includes("E-Mail-PDF empfangene PDF-Datei") &&
+    !mixedText.includes("E-Mail-PDF empfangene PDF-Datei; Portal"),
+  "PDF behält den ausgefüllten Eingangsweg und lässt den Vorschlag weg",
+);
+expect(!mixedText.includes("heute. Belege") && !mixedText.includes("· Belege"), "PDF lässt die vorgeschlagene Belegart weg");
+expect(
+  mixedText.includes("Ablageort und Suchmerkmale sind nicht bestätigt."),
+  "G01 nur mit Vorschlägen erzeugt den offenen Punkt",
+);
+expect(mixedText.includes("nicht angegeben"), "leere Ablage nutzt den bestehenden Hinweis");
+expect(
+  !mixedText.includes("Welche Dateien als Original aufbewahrt werden, ist nicht bestätigt."),
+  "B04 mit einer vollen Karte bleibt ohne offenen Punkt",
+);
+
+const onlySuggestedWege = withErechnung(
+  paid({
+    C01: { status: "bestaetigt", values: { kanaele: ["E-Mail-PDF", "Portal"] } },
+    B04: {
+      status: "bestaetigt",
+      values: {
+        originalJeWeg: [
+          { belegweg: "E-Mail-PDF", originalBeschreibung: "" },
+          { belegweg: "Portal", originalBeschreibung: "" },
+        ],
+      },
+    },
+  }),
+);
+const onlySuggestedText = pdfBody(onlySuggestedWege);
+expect(
+  onlySuggestedText.includes("Welche Dateien als Original aufbewahrt werden, ist nicht bestätigt."),
+  "B04 nur mit Vorschlägen erzeugt den offenen Punkt",
+);
+expect(!onlySuggestedText.includes("Als Original aufbewahrt"), "B04 nur mit Vorschlägen nennt kein Original");
+
+const stripped = normalizeIntakeAnswers(mixedWege);
+const strippedWege = stripped.katalog?.B04?.values?.originalJeWeg as Array<{ belegweg?: string }>;
+expect(strippedWege.length === 1 && strippedWege[0]?.belegweg === "E-Mail-PDF", "Speichern streicht unberührte Eingangswege");
+expect(stripped.katalog?.G01?.values?.ordnung === "", "Speichern streicht die aus Vorschlägen gebaute Ordnung");
+expect(normalizeIntakeAnswers(stripped) === stripped, "Bereinigen der Vorschläge ist idempotent");
 
 if (failures.length) {
   console.error(failures.join("\n"));
