@@ -8,15 +8,15 @@ import { AccountProfileForm } from "@/components/account-profile-form";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { prepareAccountCheckout } from "@/lib/account-checkout-prefill";
+import { accountCompanyCards } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
-import { firmaEditPath, groupFamiliesByEntity } from "@/lib/documents";
+import { firmaEditPath } from "@/lib/documents";
 import {
   entityCapReached,
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
 import {
-  isUndeliveredDraft,
   listOpenDraftsForEmail,
   openDraftContinuePath,
   openDraftLabel,
@@ -47,10 +47,9 @@ export default async function AccountPage({
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
   const { entities, documents: docs, profile } = await prepareAccountCheckout(email);
-  const groups = groupFamiliesByEntity(entities, docs);
-  const openDrafts = (await listOpenDraftsForEmail(email)).filter((draft) =>
-    isUndeliveredDraft(draft, docs),
-  );
+  const hub = accountCompanyCards(entities, docs, await listOpenDraftsForEmail(email));
+  const groups = hub.groups;
+  const openDrafts = hub.openDrafts;
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   const stripeBound =
     Boolean(customerId) ||
@@ -124,6 +123,7 @@ export default async function AccountPage({
                     key={group.entity?.entityId ?? "unbound"}
                     group={group}
                     email={email}
+                    empty={group.families.length === 0 && group.continueDrafts.length === 0}
                   />
                 ))}
               </div>

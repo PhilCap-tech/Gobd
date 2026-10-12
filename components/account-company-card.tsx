@@ -15,6 +15,11 @@ import {
   newDocumentPath,
   type EntityDocumentGroup,
 } from "@/lib/documents";
+import type { IntakeDraft } from "@/lib/intake-draft-shared";
+import {
+  openDraftContinuePath,
+  openDraftLabel,
+} from "@/lib/open-drafts";
 import { CHECKOUT_PREFILL_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
 import { formatEntityAddress } from "@/lib/entities";
 import { gesamtDocTitle } from "@/lib/gesamt-document";
@@ -56,11 +61,16 @@ function docTitle(row: Parameters<typeof answersFromSheetRow>[0]): string {
 export function AccountCompanyCard({
   group,
   email,
+  empty,
 }: {
-  group: EntityDocumentGroup;
+  group: EntityDocumentGroup & { continueDrafts?: IntakeDraft[] };
   email: string;
+  /** True only when the firm has neither an open draft nor a document. */
+  empty?: boolean;
 }) {
   const entity = group.entity;
+  const continueDrafts = group.continueDrafts ?? [];
+  const showEmpty = empty ?? (group.families.length === 0 && continueDrafts.length === 0);
   const title = entity ? customerHubTitle(entity.name, "Firma") : "Ohne Firma";
   const address = entity ? formatEntityAddress(entity) : "";
   const selectId = `bereich-${entity?.entityId ?? "unbound"}`;
@@ -101,11 +111,27 @@ export function AccountCompanyCard({
         </div>
       )}
 
-      {group.families.length === 0 ? (
+      {continueDrafts.length > 0 && (
+        <div className="entity-docs">
+          <p className="prose">
+            Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
+          </p>
+          {continueDrafts.map((draft) => (
+            <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
+              <span className="doc-meta">{openDraftLabel(draft)}</span>
+              <Link className="btn" href={openDraftContinuePath(draft)}>
+                {ACCOUNT_CONTINUE_LABEL}
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showEmpty ? (
         <div className="entity-docs">
           <p className="prose">Für diese Firma liegt noch kein Entwurf vor.</p>
         </div>
-      ) : (
+      ) : group.families.length === 0 ? null : (
         <div className="entity-docs">
           {group.families.map((family) => {
             const editRow = latestOwnedInFamily(family.versions, email) ?? family.latest;
