@@ -394,7 +394,7 @@ function postSession(cookie: string, sessionId: string, entityId = ENTITY) {
 function entitlementIo(options: {
   row: SheetRow | null;
   ownEntity: boolean;
-  stripe?: (sessionId: string) => Promise<
+  stripe?: (sessionId: string | undefined) => Promise<
     | { error: "invalid" | "lookup_failed" | "missing" | "not_paid" }
     | {
         email: string;
