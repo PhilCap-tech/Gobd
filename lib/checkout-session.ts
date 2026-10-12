@@ -4,7 +4,14 @@ import {
   applySessionCookie,
   type CheckoutGrant,
 } from "@/lib/auth";
+import {
+  checkoutSessionGrant,
+  recordCheckoutSessionGrant,
+} from "@/lib/checkout-session-grant";
+import { isStubCheckoutSessionId } from "@/lib/checkout-stub";
+import { loadSessionDraftAnyOwner } from "@/lib/open-drafts";
 import { queryIdsEqual } from "@/lib/query";
+import { findLatestDocumentByStripeSessionId } from "@/lib/store";
 
 /**
  * Shown when Angaben can no longer be changed without a login
@@ -93,6 +100,176 @@ export async function ownerEmailAfterVerifiedCheckout(
   });
 }
 
+export type CheckoutAttachDecision = "session" | "same" | "mismatch" | "login" | "skip";
+
+/**
+ * Ob die Rückkehr aus dem Checkout ein Login setzen darf.
+ * Eine bestehende Anmeldung wird nie ersetzt. Nach dem ersten Login
+ * für diese Session reicht die Session-ID allein nicht mehr.
+ */
+export function decideCheckoutAttach(input: {
+  existingSessionEmail?: string | null;
+  customerEmail?: string | null;
+  sessionOwnerEmail?: string | null;
+  alreadyGranted: boolean;
+  /** A delivered document already exists for this checkout. */
+  submitted?: boolean;
+  stub?: boolean;
+}): CheckoutAttachDecision {
+  const existing = normalizeEmail(input.existingSessionEmail);
+  const customer = normalizeEmail(input.customerEmail);
+  const sessionOwner = normalizeEmail(input.sessionOwnerEmail);
+  if (existing && customer && existing !== customer && !input.stub) return "mismatch";
+  if (!sessionOwner) {
+    if (!existing && input.submitted && !input.stub) return "login";
+    return "skip";
+  }
+  if (existing && existing === sessionOwner) return "same";
+  if (existing && existing !== sessionOwner) return "mismatch";
+  if (input.alreadyGranted || input.submitted) return "login";
+  return "session";
+}
+
+/**
+ * Seite, wenn die Anmeldung und der Kauf verschiedenen Adressen gehören.
+ * Setzt kein Cookie und öffnet den fremden Entwurf nicht.
+ */
+export function intakeCheckoutGate(input: {
+  sessionEmail?: string | null;
+  customerEmail?: string | null;
+  grantRecorded: boolean;
+  /** Grant record, delivered document, or a saved Entwurf. */
+  alreadyUsed?: boolean;
+}): "mismatch" | "login" | "proceed" {
+  const session = normalizeEmail(input.sessionEmail);
+  const customer = normalizeEmail(input.customerEmail);
+  if (session && customer && session !== customer) return "mismatch";
+  if (!session && (input.grantRecorded || input.alreadyUsed)) return "login";
+  return "proceed";
+}
+
+/**
+ * What /intake does with a session_id before the form.
+ * `grant=set` does not reopen a checkout that was already used.
+ */
+export function intakeEntryDecision(input: {
+  sessionEmail?: string | null;
+  ownerEmail?: string | null;
+  alreadyUsed: boolean;
+  checkoutCookieMatches: boolean;
+  grantFlag?: string | null;
+  hasSessionQuery: boolean;
+}): "login" | "mismatch" | "grant" | "proceed" {
+  const gate = intakeCheckoutGate({
+    sessionEmail: input.sessionEmail,
+    customerEmail: input.ownerEmail,
+    grantRecorded: input.alreadyUsed,
+  });
+  if (gate !== "proceed") return gate;
+  if (input.alreadyUsed) return "proceed";
+  const flag = (input.grantFlag ?? "").trim();
+  if (flag === "skip" || flag === "set") return "proceed";
+  if (input.checkoutCookieMatches) return "proceed";
+  if (input.hasSessionQuery) return "grant";
+  return "proceed";
+}
+
+/**
+ * The checkout was already handed to a browser: a grant was stored, a document
+ * was delivered, or a server draft holds answers. A later bare session_id
+ * must not mint another login.
+ */
+export async function checkoutAlreadyGranted(sessionId: string): Promise<{
+  granted: boolean;
+  ownerEmail: string;
+}> {
+  const id = sessionId.trim();
+  if (!id || isStubCheckoutSessionId(id)) return { granted: false, ownerEmail: "" };
+  try {
+    const recorded = await checkoutSessionGrant(id);
+    if (recorded) return { granted: true, ownerEmail: normalizeEmail(recorded.email) };
+  } catch (error) {
+    console.error(
+      "[checkout] Sitzungsnachweis nicht lesbar",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  try {
+    const row = await findLatestDocumentByStripeSessionId(id);
+    if (row?.documentId?.trim()) {
+      return { granted: true, ownerEmail: normalizeEmail(row.email) };
+    }
+  } catch (error) {
+    console.error(
+      "[checkout] Dokument zur Session nicht lesbar",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  try {
+    const draft = await loadSessionDraftAnyOwner(id);
+    if (draft) return { granted: true, ownerEmail: normalizeEmail(draft.email) };
+  } catch (error) {
+    console.error(
+      "[checkout] Entwurf zur Session nicht lesbar",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  return { granted: false, ownerEmail: "" };
+}
+
+export function checkoutOwnerMismatchCopy(signedInEmail: string, ownerEmail: string): string {
+  return `Sie sind als ${maskCheckoutEmail(signedInEmail)} angemeldet. Dieser Kauf gehört zu ${maskCheckoutEmail(ownerEmail)}.`;
+}
+
+export function checkoutHandoffButtonCopy(ownerEmail: string): string {
+  return `Abmelden und Anmeldelink an ${maskCheckoutEmail(ownerEmail)} senden`;
+}
+
+export const CHECKOUT_BACK_TO_ACCOUNT = "Zurück zum Konto";
+
+/** Link nur an die Kauf-Adresse, und nur wenn sie nicht die aktuelle Anmeldung ist. */
+export function checkoutHandoffPlan(input: {
+  currentEmail?: string | null;
+  ownerEmail?: string | null;
+}): "send" | "ignore" {
+  const current = normalizeEmail(input.currentEmail);
+  const owner = normalizeEmail(input.ownerEmail);
+  if (!current || !owner || current === owner) return "ignore";
+  return "send";
+}
+
+/** Dokument-Mail, sonst die Kundenmail des Checkouts. Leer bleibt leer. */
+export function loginCheckoutEmail(input: {
+  documentEmail?: string | null;
+  checkoutCustomerEmail?: string | null;
+}): string {
+  return normalizeEmail(input.documentEmail) || normalizeEmail(input.checkoutCustomerEmail);
+}
+
+/**
+ * Kundenmail einer Checkout-Session. Fehler und eine leere Stub-Mail liefern "".
+ * Eine gesetzte Stub-Mail bleibt für die lokale Erklärung nutzbar.
+ */
+export async function checkoutCustomerEmail(
+  sessionId: string,
+  resolve: (
+    sessionId: string,
+  ) => Promise<{ email?: string; error?: string } | { error: string }>,
+): Promise<string> {
+  const id = sessionId.trim();
+  if (!id) return "";
+  try {
+    const resolved = await resolve(id);
+    if (!resolved) return "";
+    const failure = "error" in resolved ? resolved.error : "";
+    const email = "email" in resolved ? resolved.email : "";
+    if (failure) return "";
+    return normalizeEmail(email);
+  } catch {
+    return "";
+  }
+}
+
 /** Checkout cookie plus, when the payer is the owner, the same login cookie as /auth/verify. */
 export async function attachVerifiedCheckoutCookies(
   response: NextResponse,
@@ -112,6 +289,89 @@ export function applyCheckoutOwnerSession(response: NextResponse, email: string)
   const address = normalizeEmail(email);
   if (!address) return;
   applySessionCookie(response, address);
+}
+
+/** Merkt sich die erste Ausstellung. Ein Schreibfehler hält die Rückkehr nicht auf. */
+export async function rememberCheckoutSessionGrant(sessionId: string, email: string): Promise<void> {
+  const id = sessionId.trim();
+  const owner = normalizeEmail(email);
+  if (!id || !owner) return;
+  try {
+    const existing = await checkoutSessionGrant(id);
+    if (existing) return;
+    await recordCheckoutSessionGrant({ sessionId: id, email: owner });
+  } catch (error) {
+    console.error(
+      "[checkout] Sitzungsnachweis konnte nicht gespeichert werden",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+}
+
+/**
+ * Rückkehr aus Stripe. Eine bestehende Anmeldung bleibt unverändert.
+ * Das Login wird nur gesetzt, wenn noch keins da ist und diese Session
+ * noch keins bekommen hat. Danach führt dieselbe Session-ID zum Login.
+ */
+export async function finishCheckoutReturn(
+  response: NextResponse,
+  input: {
+    stub: boolean;
+    customerEmail: string;
+    stripeSessionId: string;
+    existingSessionEmail?: string | null;
+  },
+  lookupDocumentOwner: (sessionId: string) => Promise<string | null>,
+): Promise<CheckoutAttachDecision> {
+  const sessionId = input.stripeSessionId.trim();
+  const email = input.customerEmail.trim();
+  if (!sessionId || !email) return "skip";
+
+  let documentOwnerEmail: string | null = null;
+  let lookupFailed = false;
+  try {
+    documentOwnerEmail = await lookupDocumentOwner(sessionId);
+  } catch {
+    lookupFailed = true;
+  }
+  const owner = lookupFailed
+    ? null
+    : ownerEmailForCheckoutReturn({
+        paid: true,
+        stub: input.stub,
+        customerEmail: email,
+        documentOwnerEmail,
+      });
+  const recorded = input.stub ? null : await checkoutSessionGrant(sessionId);
+  const submitted = !input.stub && !lookupFailed && documentOwnerEmail !== null;
+  let draftUsed = false;
+  if (!input.stub && !recorded && !submitted) {
+    try {
+      draftUsed = Boolean(await loadSessionDraftAnyOwner(sessionId));
+    } catch {
+      draftUsed = false;
+    }
+  }
+  const decision = decideCheckoutAttach({
+    existingSessionEmail: input.existingSessionEmail,
+    customerEmail: email,
+    sessionOwnerEmail: owner,
+    alreadyGranted: Boolean(recorded) || submitted || draftUsed,
+    submitted,
+    stub: input.stub,
+  });
+
+  if (decision === "mismatch" || decision === "login") return decision;
+
+  if (decision === "session" || decision === "same") {
+    if (owner && !recorded) await rememberCheckoutSessionGrant(sessionId, owner);
+    applyCheckoutGrantCookie(response, { sessionId, email });
+    if (decision === "session" && owner) applyCheckoutOwnerSession(response, owner);
+    return decision;
+  }
+
+  applyCheckoutGrantCookie(response, { sessionId, email });
+  return decision;
 }
 
 export function intakeTargetFromNext(

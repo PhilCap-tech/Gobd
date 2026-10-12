@@ -10,6 +10,7 @@ import {
 import {
   applyCheckoutOwnerSession,
   ownerEmailForFirstCompletion,
+  rememberCheckoutSessionGrant,
 } from "@/lib/checkout-session";
 import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import {
@@ -491,7 +492,10 @@ async function writeIntake(
         stub: identity.stub,
       })
     : null;
-  if (sessionOwner) applyCheckoutOwnerSession(response, sessionOwner);
+  if (sessionOwner && !sessionEmail) applyCheckoutOwnerSession(response, sessionOwner);
+  if (sessionOwner && (!sessionEmail || emailsEqual(sessionEmail, sessionOwner))) {
+    await rememberCheckoutSessionGrant(identity.stripeSessionId, sessionOwner);
+  }
   const checkoutGrant =
     identity.email &&
     identity.stripeSessionId &&

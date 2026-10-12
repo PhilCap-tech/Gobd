@@ -297,7 +297,7 @@ function checkSources() {
   ok(!form.includes("Hier anmelden"), "login form does not offer a browser login link");
 
   const grantRoute = readFileSync("app/api/checkout/grant/route.ts", "utf8");
-  ok(grantRoute.includes("attachVerifiedCheckoutCookies"), "checkout return attaches the owner session when the payment matches");
+  ok(grantRoute.includes("finishCheckoutReturn"), "checkout return attaches the owner session when the payment matches");
   ok(!grantRoute.includes("applySessionCookie"), "checkout grant route does not sign a session itself");
   ok(grantRoute.includes("resolveCheckoutSession"), "checkout grant is checked against Stripe");
 

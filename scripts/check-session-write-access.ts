@@ -395,7 +395,7 @@ async function checkDraftAndUpload() {
       method: "PUT",
       headers: { "content-type": "application/json", cookie: checkoutCookie() },
       body: JSON.stringify({
-        sessionId: SESSION,
+        sessionId: "cs_test_buyer_open",
         email: BUYER,
         modus: "gesamt",
         step: 1,
@@ -472,15 +472,22 @@ function checkDownloadStaysOnSession() {
 }
 
 async function main() {
+  const savedBlob = process.env.BLOB_READ_WRITE_TOKEN;
+  delete process.env.BLOB_READ_WRITE_TOKEN;
   if (!process.env.MAGIC_LINK_SECRET?.trim()) {
     process.env.MAGIC_LINK_SECRET = "check-session-write-offline-secret";
   }
-  await checkIntake();
-  await checkBlobPointerAndFieldLimit();
-  await checkRace();
-  await checkDraftAndUpload();
-  checkDownloadStaysOnSession();
-  console.log("check-session-write-access: green");
+  try {
+    await checkIntake();
+    await checkBlobPointerAndFieldLimit();
+    await checkRace();
+    await checkDraftAndUpload();
+    checkDownloadStaysOnSession();
+    console.log("check-session-write-access: green");
+  } finally {
+    if (savedBlob === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
+    else process.env.BLOB_READ_WRITE_TOKEN = savedBlob;
+  }
 }
 
 main().catch((error) => {

@@ -1,0 +1,122 @@
+import type { Entity } from "@/lib/entities";
+import { groupDocumentFamilies, type DocumentFamily } from "@/lib/documents";
+import { isUndeliveredDraft, openDraftCompany } from "@/lib/open-drafts";
+import type { IntakeDraft } from "@/lib/intake-draft-shared";
+import type { SheetRow } from "@/lib/types";
+
+export type AccountCompanyCard = {
+  entity: Entity | null;
+  families: DocumentFamily[];
+  continueDrafts: IntakeDraft[];
+};
+
+export type AccountHub = {
+  groups: AccountCompanyCard[];
+  /** Undelivered drafts, including those also shown on a company card. */
+  openDrafts: IntakeDraft[];
+};
+
+function normName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function knownEntity(entities: readonly Entity[], entityId: string): Entity | null {
+  const id = entityId.trim();
+  if (!id) return null;
+  return entities.find((entity) => entity.entityId === id) ?? null;
+}
+
+function uniqueEntityByName(entities: readonly Entity[], name: string): Entity | null {
+  const key = normName(name);
+  if (!key) return null;
+  const matches = entities.filter((entity) => normName(entity.name) === key);
+  return matches.length === 1 ? matches[0] ?? null : null;
+}
+
+function soleEntity(entities: readonly Entity[]): Entity | null {
+  return entities.length === 1 ? entities[0] ?? null : null;
+}
+
+function entityForFamily(
+  family: DocumentFamily,
+  entities: readonly Entity[],
+  drafts: readonly IntakeDraft[],
+): Entity | null {
+  const fromLatest = knownEntity(entities, family.latest.entityId);
+  if (fromLatest) return fromLatest;
+  for (const row of family.versions) {
+    const found = knownEntity(entities, row.entityId);
+    if (found) return found;
+  }
+  const documentIds = new Set(
+    family.versions.map((row) => row.documentId.trim()).filter(Boolean),
+  );
+  const sessionIds = new Set(
+    family.versions.map((row) => row.stripeSessionId.trim()).filter(Boolean),
+  );
+  for (const draft of drafts) {
+    const documentId = draft.documentId.trim();
+    const sessionId = draft.stripeSessionId.trim();
+    const related =
+      (documentId && documentIds.has(documentId)) || (sessionId && sessionIds.has(sessionId));
+    if (!related) continue;
+    const found = knownEntity(entities, draft.entityId);
+    if (found) return found;
+  }
+  return (
+    uniqueEntityByName(entities, family.latest.company) ?? soleEntity(entities)
+  );
+}
+
+function entityForDraft(draft: IntakeDraft, entities: readonly Entity[]): Entity | null {
+  return (
+    knownEntity(entities, draft.entityId) ??
+    uniqueEntityByName(entities, openDraftCompany(draft)) ??
+    soleEntity(entities)
+  );
+}
+
+/**
+ * Company cards for the hub. An open draft stays on its firm with
+ * „Weiter ausfüllen“. A submitted document stays on its firm even when the
+ * row itself has no entity id, as long as the firm is unambiguous.
+ */
+export function accountCompanyCards(
+  entities: readonly Entity[],
+  docs: readonly SheetRow[],
+  drafts: readonly IntakeDraft[],
+): AccountHub {
+  const families = groupDocumentFamilies([...docs]);
+  const byEntity = new Map<string, DocumentFamily[]>();
+  const unbound: DocumentFamily[] = [];
+  for (const family of families) {
+    const entity = entityForFamily(family, entities, drafts);
+    if (!entity) {
+      unbound.push(family);
+      continue;
+    }
+    const list = byEntity.get(entity.entityId) ?? [];
+    list.push(family);
+    byEntity.set(entity.entityId, list);
+  }
+
+  const openDrafts = drafts.filter((draft) => isUndeliveredDraft(draft, docs));
+  const draftsByEntity = new Map<string, IntakeDraft[]>();
+  for (const draft of openDrafts) {
+    const entity = entityForDraft(draft, entities);
+    if (!entity) continue;
+    const list = draftsByEntity.get(entity.entityId) ?? [];
+    list.push(draft);
+    draftsByEntity.set(entity.entityId, list);
+  }
+
+  const groups: AccountCompanyCard[] = entities.map((entity) => ({
+    entity,
+    families: byEntity.get(entity.entityId) ?? [],
+    continueDrafts: draftsByEntity.get(entity.entityId) ?? [],
+  }));
+  if (unbound.length > 0) {
+    groups.push({ entity: null, families: unbound, continueDrafts: [] });
+  }
+  return { groups, openDrafts };
+}

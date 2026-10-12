@@ -223,6 +223,33 @@ export async function listOpenDraftsForEmail(email: string): Promise<IntakeDraft
   }
 }
 
+async function loadSessionDrafts(sessionId: string): Promise<IntakeDraft[]> {
+  const id = sessionId.trim();
+  if (!id) return [];
+  const found: IntakeDraft[] = [];
+  for (const modus of ["gesamt", "bereich"] as const) {
+    const key = normalizeDraftKey({ sessionId: id, modus });
+    try {
+      const draft = await loadIntakeDraft(key);
+      if (!draft || draftIsEmpty(draft)) continue;
+      found.push(draft);
+    } catch (error) {
+      console.error("[draft] Fortsetzen fehlgeschlagen", failureClass(error));
+    }
+  }
+  found.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return found;
+}
+
+/**
+ * Any saved Entwurf for this checkout, regardless of who is logged in.
+ * Used only to see that the session was already used. Not an access grant.
+ */
+export async function loadSessionDraftAnyOwner(sessionId: string): Promise<IntakeDraft | null> {
+  const found = await loadSessionDrafts(sessionId);
+  return found[0] ?? null;
+}
+
 /**
  * Server-Entwurf to this checkout session, only when the stored email is the login.
  * A foreign login gets nothing, even if it knows the session id.
@@ -234,17 +261,6 @@ export async function loadOwnerSessionDraft(
   const owner = email.trim().toLowerCase();
   const id = sessionId.trim();
   if (!owner || !id) return null;
-  const found: IntakeDraft[] = [];
-  for (const modus of ["gesamt", "bereich"] as const) {
-    const key = normalizeDraftKey({ sessionId: id, modus });
-    try {
-      const draft = await loadIntakeDraft(key);
-      if (!draft || draftIsEmpty(draft) || !emailsEqual(draft.email, owner)) continue;
-      found.push(draft);
-    } catch (error) {
-      console.error("[draft] Fortsetzen fehlgeschlagen", failureClass(error));
-    }
-  }
-  found.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const found = (await loadSessionDrafts(id)).filter((draft) => emailsEqual(draft.email, owner));
   return found[0] ?? null;
 }
