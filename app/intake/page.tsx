@@ -26,6 +26,7 @@ import {
   openDraftIsBereich,
 } from "@/lib/open-drafts";
 import { isStripeConfigured } from "@/lib/env";
+import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { answersForNewBereich } from "@/lib/intake-catalog";
 import { BELEGFLUSS, bereichIdOf, isBereichId } from "@/lib/bereiche";
 import { firstQueryValue } from "@/lib/query";
@@ -230,7 +231,22 @@ function LoginToChange({ nextPath }: { nextPath: string }) {
   );
 }
 
-export default async function IntakePage({
+function SheetsPause() {
+  return (
+    <>
+      <SiteHeader backHref="/" backLabel="← Zur Landing" />
+      <main className="wrap page">
+        <div className="card">
+          <h1>Bitte einen Moment</h1>
+          <p className="prose">{SHEETS_RETRY_MESSAGE}</p>
+        </div>
+      </main>
+      <SiteFooter />
+    </>
+  );
+}
+
+async function IntakePage({
   searchParams,
 }: {
   searchParams: Promise<{
@@ -639,4 +655,13 @@ export default async function IntakePage({
       <SiteFooter />
     </>
   );
+}
+
+export default async function IntakePageEntry(props: Parameters<typeof IntakePage>[0]) {
+  try {
+    return await IntakePage(props);
+  } catch (error) {
+    if (!isSheetsOutage(error)) throw error;
+    return <SheetsPause />;
+  }
 }

@@ -21,6 +21,7 @@ import {
 } from "@/lib/documents";
 import { isMailConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
+import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { findSuccessDocument, listDocumentFamily } from "@/lib/store";
 import {
   MONTHLY_EUR,
@@ -53,13 +54,27 @@ export default async function SuccessPage({
   const anmeldung = firstQueryValue(params.anmeldung) ?? "";
   const documentId = firstQueryValue(params.document_id);
   const sessionEmail = await getSessionEmail();
-  const row = await findSuccessDocument({ documentId, sessionId });
+  let sheetsDown = false;
+  let row: Awaited<ReturnType<typeof findSuccessDocument>> = null;
+  try {
+    row = await findSuccessDocument({ documentId, sessionId });
+  } catch (error) {
+    if (!isSheetsOutage(error)) throw error;
+    sheetsDown = true;
+  }
   const allowed = Boolean(
     row && canAccessDocument(row, { sessionEmail, sessionId }),
   );
-  const family = allowed && row
-    ? groupDocumentFamilies(await listDocumentFamily(row.documentId))[0]
-    : undefined;
+  let family: ReturnType<typeof groupDocumentFamilies>[number] | undefined;
+  try {
+    family =
+      allowed && row
+        ? groupDocumentFamilies(await listDocumentFamily(row.documentId))[0]
+        : undefined;
+  } catch (error) {
+    if (!isSheetsOutage(error)) throw error;
+    sheetsDown = true;
+  }
   const mailReady = isMailConfigured();
   const version = row ? parseDocumentVersion(row) : 1;
   const visibleEmail = row ? emailShownToViewer(row.email, sessionEmail) : "";
@@ -82,7 +97,12 @@ export default async function SuccessPage({
     <>
       <SiteHeader backHref="/" backLabel="← Zur Landing" />
       <main className="wrap page">
-        {!row ? (
+        {sheetsDown ? (
+          <div className="card">
+            <h1>Bitte einen Moment</h1>
+            <p className="prose">{SHEETS_RETRY_MESSAGE}</p>
+          </div>
+        ) : !row ? (
           sessionId ? (
             <SuccessPending href={pendingHref} sessionId={sessionId} />
           ) : (

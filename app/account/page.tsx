@@ -11,9 +11,10 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { prepareAccountCheckout } from "@/lib/account-checkout-prefill";
 import { PAID_INTAKE_LABEL, paidIntakePathForOwner } from "@/lib/account-paid-intake";
-import { accountCompanyCards } from "@/lib/account-hub";
+import { accountCompanyCards, draftsNotOnCompanyCard } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
+import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { firmaEditPath } from "@/lib/documents";
 import { entityCapReached, MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { lifecycleNotice } from "@/lib/kuendigung";
@@ -53,6 +54,8 @@ export default async function AccountPage({
   let profile: Awaited<ReturnType<typeof prepareAccountCheckout>>["profile"] = null;
   let groups: ReturnType<typeof accountCompanyCards>["groups"] = [];
   let openDrafts: ReturnType<typeof accountCompanyCards>["openDrafts"] = [];
+  let looseDrafts: ReturnType<typeof accountCompanyCards>["openDrafts"] = [];
+  let sheetsDown = false;
   let customerId = "";
   let loadFailed = false;
   try {
@@ -63,6 +66,7 @@ export default async function AccountPage({
     const hub = accountCompanyCards(entities, docs, await listOpenDraftsForEmail(email));
     groups = hub.groups;
     openDrafts = hub.openDrafts;
+    looseDrafts = draftsNotOnCompanyCard(hub);
     customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
   } catch (error) {
     loadFailed = true;
@@ -70,6 +74,7 @@ export default async function AccountPage({
       "[account] Konto nicht geladen",
       error instanceof Error ? error.name : "error",
     );
+    sheetsDown = isSheetsOutage(error);
   }
   let lifecycleRows: Awaited<ReturnType<typeof listLifecycleByEmail>> = [];
   try {
@@ -137,13 +142,13 @@ export default async function AccountPage({
           </p>
         )}
 
-        {openDrafts.length > 0 && (
+        {looseDrafts.length > 0 && (
           <section className="card" id="offene-entwuerfe" aria-labelledby="offene-entwuerfe-heading">
             <h2 id="offene-entwuerfe-heading">Offener Entwurf</h2>
             <p className="prose">
               Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
             </p>
-            {openDrafts.map((draft) => (
+            {looseDrafts.map((draft) => (
               <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
                 <span className="doc-meta">{openDraftLabel(draft)}</span>
                 {writesOpen ? (
@@ -162,7 +167,9 @@ export default async function AccountPage({
           {loadFailed ? (
             <div className="card">
               <p className="prose">
-                Ihre Firmen konnten gerade nicht geladen werden. Bitte laden Sie die Seite neu.
+                {sheetsDown
+                  ? SHEETS_RETRY_MESSAGE
+                  : "Ihre Firmen konnten gerade nicht geladen werden. Bitte laden Sie die Seite neu."}
               </p>
             </div>
           ) : entities.length === 0 && docs.length === 0 ? (

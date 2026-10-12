@@ -29,6 +29,7 @@ import {
   identityFromSheetRow,
   toSheetRow,
 } from "@/lib/types";
+import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { normalizeVersionChange, toVersionPdfMeta } from "@/lib/versioning";
 
 export const runtime = "nodejs";
@@ -138,6 +139,8 @@ async function handleDocumentEdit(request: Request) {
       }),
     );
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error(
       "[document] dauerhafte Speicherung fehlgeschlagen",
       error instanceof Error ? error.name : "error",
@@ -209,6 +212,8 @@ async function handleDocumentEdit(request: Request) {
       chapterContent,
     });
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error(
       "[document] appendRecord fehlgeschlagen",
       error instanceof Error ? error.name : "error",
@@ -248,6 +253,8 @@ export async function POST(request: Request) {
   try {
     return await handleDocumentEdit(request);
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error("[document] POST fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }

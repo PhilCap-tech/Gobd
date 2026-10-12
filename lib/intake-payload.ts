@@ -1,3 +1,4 @@
+import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import type { IntakeAnswers } from "@/lib/types";
 
 /**
@@ -38,6 +39,7 @@ export function freitextTooLong(value: string): boolean {
 export function intakePersistenceFailure(
   error: unknown,
 ): { status: number; error: string } | null {
+  if (isSheetsOutage(error)) return { status: 503, error: SHEETS_RETRY_MESSAGE };
   if (!error || typeof error !== "object") return null;
   const name = (error as { name?: string }).name;
   if (name === "DurableStoreError" || name === "BlobStorageError") {

@@ -13,6 +13,7 @@ import {
   findLatestDocumentByStripeSessionId,
   listDocumentFamily,
 } from "@/lib/store";
+import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { intakeCheckoutStatus, resolveCheckoutSession, type CheckoutResolveError } from "@/lib/stripe";
 import { emailsEqual, emptyAnswers, type CheckoutIdentity, type IntakeAnswers, type SheetRow } from "@/lib/types";
 
@@ -101,6 +102,8 @@ async function deliveryDenied(
   try {
     rows = await lookupDeliveredRows({ sessionId }, io.lookup);
   } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
     console.error(
       "[delivery] Nachweis nicht geprüft",
       error instanceof Error ? error.name : "error",
