@@ -4,7 +4,7 @@ import {
   isStubCheckoutSessionId,
 } from "@/lib/checkout-stub";
 import { getAppUrl, isStripeConfigured, isStripeSecretConfigured } from "@/lib/env";
-import type { CheckoutIdentity } from "@/lib/types";
+import type { CheckoutBillingAddress, CheckoutIdentity } from "@/lib/types";
 
 const CUSTOMER_LIST_TTL_MS = 60_000;
 const CUSTOMER_LIST_EMPTY_TTL_MS = 5_000;
@@ -171,6 +171,32 @@ export function classifyBillingPortalError(error: unknown): PortalErrorKind {
   return "api";
 }
 
+/** Address fields already on a retrieved Checkout Session. No extra Stripe call. */
+export function billingAddressFromCustomerDetails(
+  details:
+    | {
+        address?: {
+          line1?: string | null;
+          postal_code?: string | null;
+          city?: string | null;
+        } | null;
+      }
+    | null
+    | undefined,
+): CheckoutBillingAddress | undefined {
+  const address = details?.address;
+  if (!address) return undefined;
+  const line1 = address.line1?.trim() ?? "";
+  const postalCode = address.postal_code?.trim() ?? "";
+  const city = address.city?.trim() ?? "";
+  if (!line1 && !postalCode && !city) return undefined;
+  return {
+    ...(line1 ? { line1 } : {}),
+    ...(postalCode ? { postalCode } : {}),
+    ...(city ? { city } : {}),
+  };
+}
+
 async function retrieveCheckoutSession(sessionId: string) {
   const stripe = getStripe();
   try {
@@ -304,6 +330,7 @@ export async function resolveCheckoutSession(
       customerId = (await listStripeCustomerIdByEmail(email)) || "";
     }
 
+    const billingAddress = billingAddressFromCustomerDetails(session.customer_details);
     return {
       email,
       company: session.metadata?.company || "",
@@ -311,6 +338,7 @@ export async function resolveCheckoutSession(
       stripeCustomerId: customerId,
       stub: false,
       entityId: session.metadata?.entity_id?.trim() || "",
+      ...(billingAddress ? { billingAddress } : {}),
     };
   } catch (error) {
     const kind = checkoutLookupError(error);

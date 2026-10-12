@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { prefillKnownFacts, type CatalogIssue } from "@/lib/intake-catalog";
+import { prefillKnownFacts, prefillStammdatenInput, type CatalogIssue } from "@/lib/intake-catalog";
 import {
   applySoftwarePreset,
   BRANCHEN_VORLAGEN,
   CHECK_FRAGEN,
   modulFortschritt,
   setCheckAntwort,
-  setStammdaten,
   setVorlage,
   SOFTWARE_PRESETS,
   STATUS_HILFE,
@@ -146,8 +145,7 @@ export function BetriebsCheckStep({
                 placeholder={field.placeholder}
                 aria-invalid={Boolean(gap) || undefined}
                 onChange={(event) => {
-                  const next = prefillKnownFacts(setStammdaten(answers, { [field.key]: event.target.value }));
-                  onChange(next);
+                  onChange(prefillStammdatenInput(answers, { [field.key]: event.target.value }));
                 }}
               />
               {gap ? (

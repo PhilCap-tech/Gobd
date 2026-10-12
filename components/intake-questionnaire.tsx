@@ -9,7 +9,7 @@ import {
   catalogStepApplies,
   catalogStepPosition,
   catalogStepTitle,
-  firmAddressLine,
+  standortPrefillLine,
   MODUL_UEBERSICHT_STEP_ID,
   prefillKnownFacts,
   setCatalogValue,
@@ -592,13 +592,13 @@ export function IntakeQuestionnaire({
                       question.id === "A01" && field.key === "company"
                         ? firm?.name
                         : question.id === "A01" && field.key === "standort"
-                          ? firmAddressLine(firm)
+                          ? standortPrefillLine(firm)
                           : question.id === "A01" && field.key === "gf"
                             ? answers.module?.stammdaten?.gf
                             : question.id === "UO01" && field.key === "gesellschaften"
                               ? firm?.name || asText(answers.katalog?.A01?.values?.company)
                               : question.id === "UO01" && field.key === "standorte"
-                                ? asText(answers.katalog?.A01?.values?.standort) || firmAddressLine(firm)
+                                ? asText(answers.katalog?.A01?.values?.standort) || standortPrefillLine(firm)
                                 : undefined;
                     const prefilled =
                       question.id === "UO03" && field.key === "zustaendigkeiten"

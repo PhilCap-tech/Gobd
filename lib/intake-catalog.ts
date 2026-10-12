@@ -39,6 +39,7 @@ import {
 import {
   applyStammdatenPrefill,
   CHECK_FRAGEN,
+  setStammdaten,
   effectiveModulStatus,
   isGesamt,
   modulStatusError,
@@ -46,7 +47,7 @@ import {
   STATUS_LABEL as MODUL_STATUS_LABEL,
   toolModules,
 } from "@/lib/module/status";
-import type { CheckKey } from "@/lib/module/typen";
+import type { CheckKey, Stammdaten } from "@/lib/module/typen";
 import {
   FREITEXT_LIMIT_MESSAGE,
   freitextOverflows,
@@ -1584,6 +1585,13 @@ export type FirmFacts = {
   city?: string;
   stnr?: string;
   ustId?: string;
+  /**
+   * Stripe Checkout billing address (`customer_details.address`).
+   * Used for Standort only when street/zip/city are empty.
+   */
+  billingLine1?: string;
+  billingPostalCode?: string;
+  billingCity?: string;
 };
 
 export function firmAddressLine(firm?: FirmFacts): string {
@@ -1591,6 +1599,64 @@ export function firmAddressLine(firm?: FirmFacts): string {
   const street = firm.street?.trim() ?? "";
   const place = [firm.zip?.trim(), firm.city?.trim()].filter(Boolean).join(" ");
   return [street, place].filter(Boolean).join(", ");
+}
+
+/** Raw billing parts. Formatting decides which pieces fit the Standort field. */
+export type BillingAddressParts = {
+  line1?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+};
+
+function billingSingleLine(value: string | null | undefined): string {
+  if (value == null) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/[\r\n\u2028\u2029\u0000-\u001F\u007F]/.test(trimmed)) return "";
+  return trimmed.replace(/\s+/g, " ");
+}
+
+/** Postal codes in the existing „PLZ Ort“ shape: one line, with a digit. */
+function billingPostalFits(value: string): boolean {
+  if (value.length < 3 || value.length > 12) return false;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} -]*$/u.test(value)) return false;
+  return /\d/.test(value);
+}
+
+/** Street lines in the existing „Straße Hausnummer, PLZ Ort“ shape. */
+function billingStreetFits(value: string, city: string): boolean {
+  if (!value || value.length > 80) return false;
+  if (value.toLocaleLowerCase("de-DE") === city.toLocaleLowerCase("de-DE")) return false;
+  return /\d/.test(value);
+}
+
+/**
+ * Standort from a Checkout billing address.
+ * City is required. postal_code and line1 are added only when they fit
+ * the single-line form already used for firm addresses. Otherwise empty.
+ */
+export function standortFromBillingAddress(address: BillingAddressParts | null | undefined): string {
+  if (!address) return "";
+  const city = billingSingleLine(address.city);
+  if (!city || city.length > 80) return "";
+  const postalRaw = billingSingleLine(address.postalCode);
+  const postal = postalRaw && billingPostalFits(postalRaw) ? postalRaw : "";
+  const streetRaw = billingSingleLine(address.line1);
+  const street = streetRaw && billingStreetFits(streetRaw, city) ? streetRaw : "";
+  const place = [postal, city].filter(Boolean).join(" ");
+  return [street, place].filter(Boolean).join(", ");
+}
+
+/** Entity address wins. Billing address fills Standort only when that is empty. */
+export function standortPrefillLine(firm?: FirmFacts): string {
+  return (
+    firmAddressLine(firm) ||
+    standortFromBillingAddress({
+      line1: firm?.billingLine1,
+      postalCode: firm?.billingPostalCode,
+      city: firm?.billingCity,
+    })
+  );
 }
 
 const PREFILL_SKIP_KEYS = new Set([
@@ -1624,12 +1690,19 @@ function fillText(
   key: string,
   value: string | undefined,
   protect?: Array<[string, string]>,
+  previous?: string,
 ): void {
   const trimmed = value?.trim() ?? "";
   if (!trimmed || PREFILL_SKIP_KEYS.has(key) || isProtected(protect, id, key)) return;
   const entry = katalog[id] ?? {};
   const values = { ...(entry.values ?? {}) };
-  if (!valueEmpty(values[key])) return;
+  const current = values[key];
+  if (!valueEmpty(current)) {
+    const prior = previous?.trim() ?? "";
+    // Still the last automatic value: the user has not edited this field.
+    if (!prior || asText(current) !== prior) return;
+  }
+  if (asText(current) === trimmed) return;
   values[key] = trimmed;
   katalog[id] = { ...entry, values };
 }
@@ -1673,18 +1746,49 @@ function roleLines(pairs: Array<[string, string]>): string {
     .join("\n");
 }
 
+function textOr(primary: string | undefined, fallback: string | undefined): string {
+  const first = primary?.trim() ?? "";
+  return first || (fallback?.trim() ?? "");
+}
+
+function itSource(legacy: string | undefined, stammIt: string | undefined): string {
+  const first = legacy?.trim() ?? "";
+  if (first && first !== "nicht angegeben") return first;
+  return stammIt?.trim() ?? "";
+}
+
+function verantwortlicheRoleText(answers: IntakeAnswers): string {
+  const stamm = modulZustand(answers).stammdaten ?? {};
+  return roleLines([
+    ["Geschäftsleitung", asText(answers.katalog?.A01?.values?.gf) || textOr(answers.gf, stamm.gf)],
+    [
+      "Buchhaltung",
+      asText(answers.katalog?.F01?.values?.buchhaltung) || textOr(answers.buchhaltung, stamm.buchhaltung),
+    ],
+    ["IT", asText(answers.katalog?.B01?.values?.it) || itSource(answers.it, stamm.it)],
+    [
+      "Steuerkanzlei",
+      asText(answers.katalog?.F05?.values?.kanzleiName) || textOr(answers.steuerberater, stamm.kanzlei),
+    ],
+  ]);
+}
+
 /**
- * Copy facts the user already gave into empty catalog fields.
- * Never sets a process status, a date, or the no-backdating confirmation.
- * Never replaces a value the user already typed.
+ * Copy facts the user already gave into catalog fields that are still empty.
+ * A field that still holds the previous automatic value counts as untouched
+ * and follows the source, so typing a name does not freeze the first character.
+ * A different stored value stays. Never sets a process status, a date, or the
+ * no-backdating confirmation.
  */
 export function prefillKnownFacts(
   answers: IntakeAnswers,
   firm?: FirmFacts,
-  options?: { protect?: Array<[string, string]> },
+  options?: { protect?: Array<[string, string]>; previous?: IntakeAnswers },
 ): IntakeAnswers {
   const protect = options?.protect;
-  const next = applyStammdatenPrefill(answers);
+  const previousAnswers = options?.previous;
+  const previousStamm = previousAnswers ? modulZustand(previousAnswers).stammdaten ?? {} : undefined;
+  const next = applyStammdatenPrefill(answers, previousStamm);
   const katalog: CatalogState = { ...(next.katalog ?? {}) };
   for (const [id, key] of protect ?? []) {
     const entry = katalog[id] ?? {};
@@ -1697,23 +1801,59 @@ export function prefillKnownFacts(
   const stamm = modulZustand(next).stammdaten ?? {};
   const a01 = () => katalog.A01?.values ?? {};
 
+  const prior = (value: string) => (previousAnswers ? value : undefined);
   fillText(katalog, "A01", "company", firm?.name, protect);
-  fillText(katalog, "A01", "standort", firmAddressLine(firm) || answers.standort, protect);
+  fillText(katalog, "A01", "standort", standortPrefillLine(firm) || answers.standort, protect);
   fillRaw(katalog, "A01", "branchen", answers.branchen, protect);
   fillText(katalog, "A01", "rechtsform", answers.rechtsform, protect);
   fillText(katalog, "A01", "mitarbeitende", answers.mitarbeitende, protect);
-  fillText(katalog, "A01", "gf", answers.gf || stamm.gf, protect);
+  fillText(
+    katalog,
+    "A01",
+    "gf",
+    textOr(answers.gf, stamm.gf),
+    protect,
+    prior(textOr(previousAnswers?.gf, previousStamm?.gf)),
+  );
   fillText(katalog, "B01", "weitereFreitext", answers.weitereSysteme);
   fillText(katalog, "B01", "hosting", answers.hosting);
-  fillText(katalog, "B01", "it", answers.it === "nicht angegeben" ? "" : answers.it);
+  fillText(
+    katalog,
+    "B01",
+    "it",
+    itSource(answers.it, stamm.it),
+    protect,
+    prior(itSource(previousAnswers?.it, previousStamm?.it)),
+  );
   for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
   if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
   fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege));
   fillRaw(katalog, "E01", "formate", answers.formate);
   fillRaw(katalog, "E05", "systeme", answers.ausgangsrechnungen);
-  fillText(katalog, "F01", "buchhaltung", answers.buchhaltung || stamm.buchhaltung);
-  fillText(katalog, "F05", "kanzleiName", answers.steuerberater || stamm.kanzlei);
-  fillText(katalog, "G01", "ablage", answers.archiv || stamm.archiv);
+  fillText(
+    katalog,
+    "F01",
+    "buchhaltung",
+    textOr(answers.buchhaltung, stamm.buchhaltung),
+    undefined,
+    prior(textOr(previousAnswers?.buchhaltung, previousStamm?.buchhaltung)),
+  );
+  fillText(
+    katalog,
+    "F05",
+    "kanzleiName",
+    textOr(answers.steuerberater, stamm.kanzlei),
+    undefined,
+    prior(textOr(previousAnswers?.steuerberater, previousStamm?.kanzlei)),
+  );
+  fillText(
+    katalog,
+    "G01",
+    "ablage",
+    textOr(answers.archiv, stamm.archiv),
+    undefined,
+    prior(textOr(previousAnswers?.archiv, previousStamm?.archiv)),
+  );
   fillText(katalog, "G02", "zugriffKurz", answers.zugriff);
   if (answers.backup.length) fillText(katalog, "G06", "backupArten", answers.backup.join(", "));
 
@@ -1756,10 +1896,21 @@ export function prefillKnownFacts(
       ["IT", asText(katalog.B01?.values?.it) || stamm.it || ""],
       ["Steuerkanzlei", asText(katalog.F05?.values?.kanzleiName) || stamm.kanzlei || ""],
     ]),
+    protect,
+    previousAnswers ? verantwortlicheRoleText(previousAnswers) : undefined,
   );
 
   if (JSON.stringify(katalog) === JSON.stringify(next.katalog ?? {})) return next;
   return { ...next, katalog };
+}
+
+/** One keystroke in „Namen der Verantwortlichen“: keep untouched name fields in sync. */
+export function prefillStammdatenInput(
+  answers: IntakeAnswers,
+  patch: Partial<Stammdaten>,
+  firm?: FirmFacts,
+): IntakeAnswers {
+  return prefillKnownFacts(setStammdaten(answers, patch), firm, { previous: answers });
 }
 
 export function statusLabel(status: CatalogStatus): string {
