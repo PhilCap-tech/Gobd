@@ -26,7 +26,7 @@ import {
   openDraftIsBereich,
 } from "@/lib/open-drafts";
 import { isStripeConfigured } from "@/lib/env";
-import { isSheetsOutage, runWithSheetsRoute, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-outage";
+import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { answersForNewBereich } from "@/lib/intake-catalog";
 import { BELEGFLUSS, bereichIdOf, isBereichId } from "@/lib/bereiche";
 import { firstQueryValue } from "@/lib/query";
@@ -657,13 +657,11 @@ async function IntakePage({
   );
 }
 
-export default function IntakePageEntry(props: Parameters<typeof IntakePage>[0]) {
-  return runWithSheetsRoute("GET /intake", async () => {
-    try {
-      return await IntakePage(props);
-    } catch (error) {
-      if (!isSheetsOutage(error)) throw error;
-      return <SheetsPause />;
-    }
-  });
+export default async function IntakePageEntry(props: Parameters<typeof IntakePage>[0]) {
+  try {
+    return await IntakePage(props);
+  } catch (error) {
+    if (!isSheetsOutage(error)) throw error;
+    return <SheetsPause />;
+  }
 }

@@ -1,4 +1,4 @@
-import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-outage";
+import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import type { IntakeAnswers } from "@/lib/types";
 
 /**

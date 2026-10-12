@@ -107,7 +107,7 @@ function draftIo(options?: { throwOutage?: boolean; stored?: IntakeDraft | null 
     clearIntakeDraft: async (key) => {
       drafts.delete(key);
     },
-    rememberOpenDraft: async () => {},
+    rememberOpenDraft: async () => true,
     forgetOpenDraft: async () => {},
     lookup,
     resolveCheckout: async (sessionId) => {

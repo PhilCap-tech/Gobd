@@ -3,7 +3,7 @@ import {
   isSheetsOutage,
   SHEETS_RETRY_AFTER_SECONDS,
   SHEETS_RETRY_MESSAGE,
-} from "@/lib/sheets-outage";
+} from "@/lib/sheets-unavailable";
 
 /** 503 with Retry-After. Callers must use this instead of 403, 404, or 409. */
 export function sheetsOutageResponse(error: unknown): NextResponse | null {

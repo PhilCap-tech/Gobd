@@ -21,7 +21,7 @@ import {
 } from "@/lib/documents";
 import { isMailConfigured } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
-import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-outage";
+import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { findSuccessDocument, listDocumentFamily } from "@/lib/store";
 import {
   MONTHLY_EUR,
