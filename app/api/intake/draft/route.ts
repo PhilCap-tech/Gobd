@@ -18,6 +18,7 @@ import {
   saveIntakeDraft,
   type IntakeDraft,
 } from "@/lib/intake-draft";
+import { forgetOpenDraft, rememberOpenDraft } from "@/lib/open-drafts";
 import { normalizeIntakeAnswers, stripEmptyIntakeCards } from "@/lib/intake-present";
 import {
   authorizeDeliveredWrite,
@@ -55,6 +56,8 @@ export type DraftWriteIo = {
   loadIntakeDraft: typeof loadIntakeDraft;
   saveIntakeDraft: typeof saveIntakeDraft;
   clearIntakeDraft: typeof clearIntakeDraft;
+  rememberOpenDraft?: typeof rememberOpenDraft;
+  forgetOpenDraft?: typeof forgetOpenDraft;
   lookup: DeliveryLookup;
   resolveCheckout: CheckoutResolver;
 };
@@ -63,6 +66,8 @@ const defaultDraftIo: DraftWriteIo = {
   loadIntakeDraft,
   saveIntakeDraft,
   clearIntakeDraft,
+  rememberOpenDraft,
+  forgetOpenDraft,
   lookup: {
     findDocumentById,
     listDocumentFamily,
@@ -257,6 +262,14 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
 
   try {
     const { backend } = await io.saveIntakeDraft(draft);
+    try {
+      await (io.rememberOpenDraft ?? rememberOpenDraft)(draft);
+    } catch (error) {
+      console.error(
+        "[draft] Index schreiben fehlgeschlagen",
+        error instanceof Error ? error.name : "error",
+      );
+    }
     return NextResponse.json({ ok: true, draft, backend });
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht gespeichert werden.");
@@ -307,6 +320,17 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
     const failure = blobStorageResponse(error, "Entwurf konnte nicht gelöscht werden.");
     if (failure) return failure;
     throw error;
+  }
+  const ownerEmail = existing && !draftIsEmpty(existing) ? existing.email : "";
+  if (ownerEmail) {
+    try {
+      await (io.forgetOpenDraft ?? forgetOpenDraft)(ownerEmail, draftKey);
+    } catch (error) {
+      console.error(
+        "[draft] Index löschen fehlgeschlagen",
+        error instanceof Error ? error.name : "error",
+      );
+    }
   }
   return NextResponse.json({ ok: true });
 }

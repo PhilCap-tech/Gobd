@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 
-export function LoginForm({ next }: { next?: string | null }) {
-  const [email, setEmail] = useState("");
+export function LoginForm({
+  next,
+  prefillEmail = "",
+  maskedEmail = "",
+}: {
+  next?: string | null;
+  prefillEmail?: string;
+  maskedEmail?: string;
+}) {
+  const [email, setEmail] = useState(prefillEmail);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -66,7 +74,11 @@ export function LoginForm({ next }: { next?: string | null }) {
       <button className="btn" type="submit" disabled={pending}>
         {pending ? "Bitte warten…" : "Anmeldelink senden"}
       </button>
-      <p className="hint">Kein Passwort. Nur ein Link per E-Mail.</p>
+      {maskedEmail ? (
+        <p className="hint">Wir senden den Anmeldelink an {maskedEmail}.</p>
+      ) : (
+        <p className="hint">Kein Passwort. Nur ein Link per E-Mail.</p>
+      )}
     </form>
   );
 }

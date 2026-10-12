@@ -8,7 +8,12 @@ import { groupDocumentFamilies, nextVersionNumber } from "@/lib/documents";
 import { authorizeDeliveredWrite, LOGIN_TO_CHANGE_COPY } from "@/lib/session-write";
 import { entityById, entityChoices, type Entity } from "@/lib/entities";
 import type { FirmFacts } from "@/lib/intake-catalog";
-import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
+import { devCheckoutStubAllowed, isStubCheckoutSessionId } from "@/lib/checkout-stub";
+import {
+  loadOwnerSessionDraft,
+  openDraftCompany,
+  openDraftIsBereich,
+} from "@/lib/open-drafts";
 import { isStripeConfigured } from "@/lib/env";
 import { answersForNewBereich } from "@/lib/intake-catalog";
 import { BELEGFLUSS, bereichIdOf, isBereichId } from "@/lib/bereiche";
@@ -201,29 +206,36 @@ export default async function IntakePage({
   const sessionIdQuery = firstQueryValue(params.session_id);
   const grantFlag = firstQueryValue(params.grant) ?? "";
   const checkoutGrant = await getCheckoutGrant();
+  const sessionEmail = await getSessionEmail();
+  let resumeDraft: Awaited<ReturnType<typeof loadOwnerSessionDraft>> = null;
   if (
     sessionIdQuery &&
     checkoutGrant?.sessionId !== sessionIdQuery &&
     grantFlag !== "skip" &&
     grantFlag !== "set"
   ) {
-    const q = new URLSearchParams();
-    for (const key of [
-      "session_id",
-      "email",
-      "company",
-      "document_id",
-      "entity_id",
-      "bereich",
-      "basis",
-      "modus",
-      "schritt",
-      "modul",
-    ] as const) {
-      const value = firstQueryValue(params[key]);
-      if (value) q.set(key, value);
+    if (sessionEmail) {
+      resumeDraft = await loadOwnerSessionDraft(sessionEmail, sessionIdQuery);
     }
-    redirect(`/api/checkout/grant?${q.toString()}`);
+    if (!resumeDraft) {
+      const q = new URLSearchParams();
+      for (const key of [
+        "session_id",
+        "email",
+        "company",
+        "document_id",
+        "entity_id",
+        "bereich",
+        "basis",
+        "modus",
+        "schritt",
+        "modul",
+      ] as const) {
+        const value = firstQueryValue(params[key]);
+        if (value) q.set(key, value);
+      }
+      redirect(`/api/checkout/grant?${q.toString()}`);
+    }
   }
   const sessionId = sessionIdQuery || checkoutGrant?.sessionId || "";
   const requestedSchritt = firstQueryValue(params.schritt) ?? "";
@@ -240,7 +252,6 @@ export default async function IntakePage({
   const modus = (firstQueryValue(params.modus) ?? "").toLowerCase();
   // Default for new intakes: Gesamtdokument. Opt out with ?modus=bereich.
   const gesamtMode = modus !== "bereich" && (modus === "gesamt" || !bereich);
-  const sessionEmail = await getSessionEmail();
 
   const returnPath = intakeReturnPath(params);
 
@@ -371,6 +382,46 @@ export default async function IntakePage({
         <SiteHeader backHref="/" backLabel="← Zur Landing" />
         <main className="wrap page">
           <EditGate loggedIn={Boolean(sessionEmail)} />
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
+
+  // Neuer Browser: Login reicht, wenn der Server-Entwurf dieser Mail gehört.
+  // Ohne Entwurf bleibt der Checkout-Nachweis Pflicht.
+  if (resumeDraft && sessionEmail && sessionId) {
+    const resumeSession = {
+      email: resumeDraft.email,
+      company: openDraftCompany(resumeDraft) || company || "",
+      stripeSessionId: sessionId,
+      stripeCustomerId: "",
+      stub: isStubCheckoutSessionId(sessionId),
+      entityId: resumeDraft.entityId || undefined,
+    };
+    const entities = await listEntitiesByEmail(sessionEmail);
+    const ownedEntity = requestedEntityId
+      ? await getOwnedEntity(requestedEntityId, sessionEmail)
+      : null;
+    const initialEntityId =
+      ownedEntity?.entityId ||
+      resumeDraft.entityId ||
+      (entities.length === 1 ? entities[0]?.entityId ?? "" : "");
+    return (
+      <>
+        <SiteHeader backHref="/" backLabel="← Zur Landing" />
+        <main className="wrap page">
+          <IntakeForm
+            session={resumeSession}
+            firm={firmFromCheckout(resumeSession)}
+            loginHref={loginPath(returnPath)}
+            entities={entityChoices(entities)}
+            initialEntityId={initialEntityId}
+            initialAnswers={resumeDraft.answers}
+            gesamtMode={!openDraftIsBereich(resumeDraft)}
+            initialStepId={initialStepId}
+            focusModulId={focusModulId}
+          />
         </main>
         <SiteFooter />
       </>

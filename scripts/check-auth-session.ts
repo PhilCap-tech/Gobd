@@ -1,6 +1,7 @@
 /**
- * Offline: Login-Cookies entstehen nur nach einem Magic-Link.
- * Readiness, Intake und ein fehlgeschlagener Mailversand setzen keines.
+ * Offline: Login-Cookies entstehen nach einem Magic-Link oder, bei
+ * nachgewiesenem Checkout des Inhabers, über denselben Signierer.
+ * Readiness und ein fehlgeschlagener Mailversand setzen keines.
  *
  *   npx tsx scripts/check-auth-session.ts
  *
@@ -264,9 +265,14 @@ function checkSources() {
     );
     if (calls.length > 0) setters.push(file);
   }
+  const allowedSetters = new Set([
+    "app/auth/verify/route.ts",
+    "lib/checkout-session.ts",
+  ]);
   ok(
-    setters.length === 1 && setters[0] === "app/auth/verify/route.ts",
-    "only /auth/verify sets the login cookie",
+    setters.length === allowedSetters.size &&
+      setters.every((file) => allowedSetters.has(file)),
+    `login cookie is signed only by verify and the checkout-owner helper (got ${setters.join(", ")})`,
   );
   console.log("session setters:", setters.join(", "));
 
@@ -277,7 +283,8 @@ function checkSources() {
 
   const intake = readFileSync("app/api/intake/route.ts", "utf8");
   ok(intake.includes("withoutSessionCookie"), "intake uses withoutSessionCookie");
-  ok(!intake.includes("applySessionCookie"), "intake source has no session cookie");
+  ok(intake.includes("applyCheckoutOwnerSession"), "first completion uses the shared owner session");
+  ok(!intake.includes("applySessionCookie"), "intake does not sign a session itself");
   ok(intake.includes("intakeEntityBinding"), "intake binds firms only through the guard");
 
   const magic = readFileSync("app/api/auth/magic-link/route.ts", "utf8");
@@ -290,7 +297,8 @@ function checkSources() {
   ok(!form.includes("Hier anmelden"), "login form does not offer a browser login link");
 
   const grantRoute = readFileSync("app/api/checkout/grant/route.ts", "utf8");
-  ok(!grantRoute.includes("applySessionCookie"), "checkout grant route does not set a session");
+  ok(grantRoute.includes("attachVerifiedCheckoutCookies"), "checkout return attaches the owner session when the payment matches");
+  ok(!grantRoute.includes("applySessionCookie"), "checkout grant route does not sign a session itself");
   ok(grantRoute.includes("resolveCheckoutSession"), "checkout grant is checked against Stripe");
 
   const smoke = readFileSync("scripts/run-preview-draft-smoke.mjs", "utf8");

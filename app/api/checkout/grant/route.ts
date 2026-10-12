@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { applyCheckoutGrantCookie } from "@/lib/auth";
+import { attachVerifiedCheckoutCookies } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
+import { findLatestDocumentByStripeSessionId } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -31,7 +32,8 @@ function intakeReturn(request: Request, source: URL, grant: "set" | "skip"): URL
 /**
  * Rückkehr aus Stripe: `session_id` serverseitig prüfen und einen
  * kurzlebigen Nachweis nur für diese Checkout-Session setzen.
- * Das Login-Cookie wird hier nicht gesetzt.
+ * Bei bezahlter Session und passender Inhaber-Mail zusätzlich das
+ * Login-Cookie, mit demselben Signierer wie /auth/verify.
  */
 export async function GET(request: Request) {
   const source = new URL(request.url);
@@ -52,10 +54,18 @@ export async function GET(request: Request) {
 
   const response = NextResponse.redirect(intakeReturn(request, source, "set"));
   if (email && resolved.stripeSessionId) {
-    applyCheckoutGrantCookie(response, {
-      sessionId: resolved.stripeSessionId,
-      email,
-    });
+    await attachVerifiedCheckoutCookies(
+      response,
+      {
+        stub: resolved.stub,
+        customerEmail: email,
+        stripeSessionId: resolved.stripeSessionId,
+      },
+      async (sessionId) => {
+        const existing = await findLatestDocumentByStripeSessionId(sessionId);
+        return existing ? existing.email : null;
+      },
+    );
   }
   return response;
 }

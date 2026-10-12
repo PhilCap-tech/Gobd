@@ -335,6 +335,8 @@ async function checkDraftAndUpload() {
       return { backend: "file" };
     },
     clearIntakeDraft: async () => undefined,
+    rememberOpenDraft: async () => false,
+    forgetOpenDraft: async () => undefined,
     lookup: store,
     resolveCheckout: async () => ({ email: BUYER, stub: false }),
   };
