@@ -34,6 +34,8 @@ const COVERED = [
   "lib/legal-markdown.tsx",
   "components/legal-page.tsx",
   "lib/ops.ts",
+  "lib/kuendigung-mail.ts",
+  "lib/kuendigung.ts",
   "app/account/**/*.{ts,tsx}",
   "app/not-found.tsx",
   "app/login/**/*.{ts,tsx}",

@@ -27,6 +27,8 @@ export function DocumentRevisionActions({
   showAccountLink = false,
   downloadLabel = "PDF herunterladen",
   loggedIn = true,
+  writesOpen = true,
+  downloadsOpen = true,
 }: {
   row: Pick<SheetRow, "documentId" | "stripeSessionId">;
   sessionId?: string;
@@ -35,6 +37,10 @@ export function DocumentRevisionActions({
   downloadLabel?: string;
   /** Ohne Login führt „Angaben überarbeiten“ zur Anmeldung und danach zurück ins Intake. */
   loggedIn?: boolean;
+  /** Nach Vertragsende keine neuen Versionen. */
+  writesOpen?: boolean;
+  /** Nach der 30-Tage-Frist kein Download. */
+  downloadsOpen?: boolean;
 }) {
   const intakeHref = intakeEditPath(row, sessionId);
   const editHref = loggedIn ? intakeHref : loginPath(intakeHref);
@@ -43,20 +49,24 @@ export function DocumentRevisionActions({
   return (
     <>
       <div className="actions" style={{ marginTop: 12 }}>
-        {showDownload && (
+        {showDownload && downloadsOpen && (
           <a className="btn" href={documentDownloadPath(row, sessionId)}>
             {downloadLabel}
           </a>
         )}
-        <Link className="btn" href={editHref}>
-          Angaben überarbeiten
-        </Link>
-        <Link className="btn ghost" href={documentHref}>
-          Dokument bearbeiten
-        </Link>
-        <Link className="btn ghost" href={editHref}>
-          Neue PDF-Version erzeugen
-        </Link>
+        {writesOpen && (
+          <>
+            <Link className="btn" href={editHref}>
+              Angaben überarbeiten
+            </Link>
+            <Link className="btn ghost" href={documentHref}>
+              Dokument bearbeiten
+            </Link>
+            <Link className="btn ghost" href={editHref}>
+              Neue PDF-Version erzeugen
+            </Link>
+          </>
+        )}
         {showAccountLink && (
           <Link className="btn ghost" href="/account">
             Zum Konto
@@ -64,9 +74,9 @@ export function DocumentRevisionActions({
         )}
       </div>
       <p className="hint revision-hint">
-        „Angaben überarbeiten“ ändert die Intake-Antworten. „Dokument
-        bearbeiten“ ändert den Kapiteltext des Entwurfs. Beides erzeugt die
-        nächste PDF-Version — bisherige Downloads bleiben.
+        {writesOpen
+          ? "„Angaben überarbeiten“ ändert die Intake-Antworten. „Dokument bearbeiten“ ändert den Kapiteltext des Entwurfs. Beides erzeugt die nächste PDF-Version — bisherige Downloads bleiben."
+          : "Online-Pflege und neue Versionen sind mit dem Vertragsende entfallen. Bereits erzeugte PDFs können Sie in der Frist herunterladen."}
       </p>
     </>
   );
@@ -76,10 +86,12 @@ export function VersionHistory({
   versions,
   sessionId,
   headingId = "versionshistorie",
+  downloadsOpen = true,
 }: {
   versions: SheetRow[];
   sessionId?: string;
   headingId?: string;
+  downloadsOpen?: boolean;
 }) {
   const current = selectCurrentVersion(versions, berlinTodayIso());
   const ordered = [...versions].sort((a, b) => {
@@ -121,7 +133,9 @@ export function VersionHistory({
                     {who}
                   </span>
                 </div>
-                <a href={documentDownloadPath(row, sessionId)}>Download</a>
+                {downloadsOpen ? (
+                  <a href={documentDownloadPath(row, sessionId)}>Download</a>
+                ) : null}
               </li>
             );
           })}

@@ -18,6 +18,8 @@ import {
   entityCapReached,
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
+import { lifecycleNotice } from "@/lib/kuendigung";
+import { listLifecycleByEmail } from "@/lib/kuendigung-store";
 import {
   listOpenDraftsForEmail,
   openDraftContinuePath,
@@ -71,9 +73,22 @@ export default async function AccountPage({
       error instanceof Error ? error.name : "error",
     );
   }
+  let lifecycleRows: Awaited<ReturnType<typeof listLifecycleByEmail>> = [];
+  try {
+    lifecycleRows = await listLifecycleByEmail(email);
+  } catch (error) {
+    console.error(
+      "[account] Abo-Status konnte nicht gelesen werden",
+      error instanceof Error ? error.name : "error",
+    );
+  }
+  const notice = lifecycleNotice(lifecycleRows);
+  const writesOpen = notice.writesOpen;
+  const downloadsOpen = notice.downloadsOpen;
   const stripeBound =
     Boolean(customerId) ||
-    docs.some((row) => row.stripeCustomerId || row.stripeSessionId);
+    docs.some((row) => row.stripeCustomerId || row.stripeSessionId) ||
+    lifecycleRows.some((row) => row.stripeCustomerId);
   const atCap = entityCapReached(entities.length);
 
   return (
@@ -112,9 +127,13 @@ export default async function AccountPage({
             {openDrafts.map((draft) => (
               <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
                 <span className="doc-meta">{openDraftLabel(draft)}</span>
-                <Link className="btn" href={openDraftContinuePath(draft)}>
-                  Weiter ausfüllen
-                </Link>
+                {writesOpen ? (
+                  <Link className="btn" href={openDraftContinuePath(draft)}>
+                    Weiter ausfüllen
+                  </Link>
+                ) : (
+                  <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
+                )}
               </div>
             ))}
           </section>
@@ -132,14 +151,16 @@ export default async function AccountPage({
               <p className="prose">
                 Zu dieser E-Mail liegt noch keine Firma vor.
               </p>
-              <div className="actions entity-actions">
-                <Link
-                  className={stripeBound ? "btn" : "btn ghost"}
-                  href="/account/firma/neu"
-                >
-                  Firma anlegen
-                </Link>
-              </div>
+              {writesOpen && (
+                <div className="actions entity-actions">
+                  <Link
+                    className={stripeBound ? "btn" : "btn ghost"}
+                    href="/account/firma/neu"
+                  >
+                    Firma anlegen
+                  </Link>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -150,6 +171,8 @@ export default async function AccountPage({
                     group={group}
                     email={email}
                     empty={group.families.length === 0 && group.continueDrafts.length === 0}
+                    writesOpen={writesOpen}
+                    downloadsOpen={downloadsOpen}
                   />
                 ))}
               </div>
@@ -159,18 +182,18 @@ export default async function AccountPage({
                     Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
                     erreicht.
                   </p>
-                ) : (
+                ) : writesOpen ? (
                   <Link className="btn ghost" href="/account/firma/neu">
                     {entities.length === 0 ? "Firma anlegen" : FIRMA_ADD_LABEL}
                   </Link>
-                )}
+                ) : null}
               </div>
             </>
           )}
         </div>
 
         <div className="account-tiles">
-          <AccountAboCard stripeBound={stripeBound} />
+          <AccountAboCard stripeBound={stripeBound} notice={notice} />
           <AccountProfileForm
             email={email}
             initialName={profile?.name ?? ""}

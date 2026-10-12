@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
+import type { LifecycleNotice } from "@/lib/kuendigung";
 import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
 import { accountBillingPath } from "@/lib/stripe";
 
@@ -82,8 +83,15 @@ export function AccountUpgradeCard({
   );
 }
 
-export function AccountAboCard({ stripeBound }: { stripeBound: boolean }) {
-  if (!stripeBound) {
+export function AccountAboCard({
+  stripeBound,
+  notice = null,
+}: {
+  stripeBound: boolean;
+  notice?: LifecycleNotice | null;
+}) {
+  const ended = notice?.phase === "restore" || notice?.phase === "purged";
+  if (!stripeBound && !ended) {
     return (
       <section className="card account-panel" aria-labelledby="abo-heading">
         <h2 id="abo-heading">Abo</h2>
@@ -106,17 +114,45 @@ export function AccountAboCard({ stripeBound }: { stripeBound: boolean }) {
     );
   }
 
+  const cancellable = stripeBound && !ended;
+
   return (
     <section className="card account-panel" aria-labelledby="abo-heading">
       <h2 id="abo-heading">Abo</h2>
-      <p className="prose">
-        Ein Abo gilt für bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen. Status,
-        Rechnungen und Zahlungsmittel finden Sie unter Abo verwalten.
-      </p>
+      {notice?.label ? (
+        <p className="billing-status warn">
+          <span className="billing-status-label">{notice.label}</span>
+          {notice.detail ? <span>{notice.detail}</span> : null}
+        </p>
+      ) : notice?.detail ? (
+        <p className="prose">{notice.detail}</p>
+      ) : (
+        <p className="prose">
+          Ein Abo gilt für bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen. Status,
+          Rechnungen und Zahlungsmittel finden Sie unter Abo verwalten.
+        </p>
+      )}
       <div className="actions">
-        <Link className="btn ghost" href={accountBillingPath()}>
-          Abo verwalten
-        </Link>
+        {stripeBound && (
+          <Link className="btn ghost" href={accountBillingPath()}>
+            Abo verwalten
+          </Link>
+        )}
+        {cancellable && (
+          <Link className="btn" href="/account/kuendigung">
+            Kündigen
+          </Link>
+        )}
+        {notice?.downloadsOpen && stripeBound && (
+          <a className="btn ghost" href="/api/account/export">
+            Alle Dokumente als ZIP
+          </a>
+        )}
+        {notice?.showRestoreCheckout && (
+          <Link className="btn" href="/checkout">
+            Abonnement wiederherstellen
+          </Link>
+        )}
       </div>
     </section>
   );

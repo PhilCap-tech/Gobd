@@ -10,6 +10,7 @@ import {
   handleFailedJob,
   handleFailedPayment,
 } from "@/lib/ops";
+import { recordCheckoutSubscription, recordSubscriptionEvent } from "@/lib/kuendigung-stripe";
 import { appendRecord, findRowByStripeSessionId } from "@/lib/store";
 import {
   getStripe,
@@ -20,6 +21,19 @@ import {
 import { toSheetRow } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+function idFrom(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "id" in value) {
+    const id = (value as { id?: unknown }).id;
+    return typeof id === "string" ? id : "";
+  }
+  return "";
+}
+
+function eventTimeIso(created: number): string {
+  return new Date((created || Math.floor(Date.now() / 1000)) * 1000).toISOString();
+}
 
 function missingSecretResponse() {
   const production = isProductionRuntime();
@@ -139,6 +153,23 @@ export async function POST(request: Request) {
         if (mailed === "failed") {
           throw new Error("Onboarding-Mail nicht gesendet");
         }
+        await recordCheckoutSubscription({
+          eventId: event.id,
+          at: eventTimeIso(event.created),
+          email: buyerEmail,
+          customerId,
+          subscriptionId: idFrom(session.subscription),
+        });
+        break;
+      }
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        await recordSubscriptionEvent({
+          eventId: event.id,
+          at: eventTimeIso(event.created),
+          subscription: event.data.object,
+          deleted: event.type === "customer.subscription.deleted",
+        });
         break;
       }
       case "invoice.payment_failed": {

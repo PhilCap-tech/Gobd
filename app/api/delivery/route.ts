@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkoutGrantFromRequest, sessionEmailFromRequest } from "@/lib/auth";
+import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { enqueueDelivery } from "@/lib/delivery";
 import {
@@ -41,6 +42,10 @@ export async function POST(request: Request) {
   }
 
   const sessionEmail = sessionEmailFromRequest(request);
+  const closed = await subscriptionWriteDenial(sessionEmail);
+  if (closed) {
+    return NextResponse.json({ error: closed }, { status: 403 });
+  }
   const grant = checkoutGrantFromRequest(request);
   const bodySessionId = body.sessionId?.trim() ?? "";
   const denied = await deliveryDenied({

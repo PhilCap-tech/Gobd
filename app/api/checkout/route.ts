@@ -1,5 +1,23 @@
 import { NextResponse } from "next/server";
-import { createCheckoutSession } from "@/lib/stripe";
+import { isStripeSecretConfigured } from "@/lib/env";
+import { listLifecycleByEmail } from "@/lib/kuendigung-store";
+import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
+import { createCheckoutSession, verifyStripeCustomerId } from "@/lib/stripe";
+
+async function reusableCustomerId(email: string): Promise<string | undefined> {
+  if (!isStripeSecretConfigured()) return undefined;
+  try {
+    const rows = await listLifecycleByEmail(email);
+    const fromLife =
+      [...rows].reverse().find((row) => row.stripeCustomerId)?.stripeCustomerId ?? "";
+    const id = fromLife || (await findLatestStripeCustomerIdByEmail(email)) || "";
+    if (!id) return undefined;
+    return (await verifyStripeCustomerId(id)) === "valid" ? id : undefined;
+  } catch (error) {
+    console.error("[checkout] bekannter Kunde nicht geladen", error);
+    return undefined;
+  }
+}
 
 export const runtime = "nodejs";
 
@@ -52,6 +70,7 @@ export async function POST(request: Request) {
       company,
       entityId: entityId || undefined,
       audience: body.audience === "steuerberater" ? "steuerberater" : "kunde",
+      customerId: await reusableCustomerId(email),
     });
     return NextResponse.json(session);
   } catch (error) {

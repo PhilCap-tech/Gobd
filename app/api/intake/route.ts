@@ -24,6 +24,8 @@ import { documentFamilyId, nextVersionNumber } from "@/lib/documents";
 import { applyEntityToIdentity } from "@/lib/entities";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { getAppUrl } from "@/lib/env";
+import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
+import { reopenIfActiveCheckout } from "@/lib/kuendigung-stripe";
 import { deliverLoginLink } from "@/lib/login-mail";
 import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import { sendDeliveryMail } from "@/lib/ops";
@@ -324,6 +326,12 @@ async function writeIntake(
   let { identity, parentDocumentId } = resolved;
   identity = await withStripeCustomerId(identity, io);
   identity = { ...identity, email: resolved.ownerEmail };
+  let closed = await subscriptionWriteDenial(identity.email);
+  if (closed && identity.stripeSessionId) {
+    await reopenIfActiveCheckout(identity.email, identity.stripeSessionId);
+    closed = await subscriptionWriteDenial(identity.email);
+  }
+  if (closed) return jsonError(closed, 403);
   const loggedInAsBuyer = Boolean(
     sessionEmail && identity.email && emailsEqual(sessionEmail, identity.email),
   );

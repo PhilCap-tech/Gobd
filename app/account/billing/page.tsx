@@ -8,6 +8,8 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { isStripeSecretConfigured } from "@/lib/env";
+import { lifecycleNotice } from "@/lib/kuendigung";
+import { listLifecycleByEmail } from "@/lib/kuendigung-store";
 import { firstQueryValue } from "@/lib/query";
 import {
   persistLinkedStripeCustomerId,
@@ -81,6 +83,7 @@ export default async function AccountBillingPage({
     Boolean(billing.resolvedCustomerId || resolved.customerId) &&
     !billing.customerMissing;
   const lookupFailed = resolved.lookupFailed || billing.lookupFailed;
+  const notice = lifecycleNotice(await listLifecycleByEmail(email));
 
   return (
     <>
@@ -105,6 +108,7 @@ export default async function AccountBillingPage({
             stripeReady={stripeReady}
             hasCustomer={hasCustomer}
             lookupFailed={lookupFailed}
+            notice={notice}
           />
           <AccountInvoiceList
             invoices={billing.invoices}

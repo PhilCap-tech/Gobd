@@ -62,11 +62,17 @@ export function AccountCompanyCard({
   group,
   email,
   empty,
+  writesOpen = true,
+  downloadsOpen = true,
 }: {
   group: EntityDocumentGroup & { continueDrafts?: IntakeDraft[] };
   email: string;
   /** True only when the firm has neither an open draft nor a document. */
   empty?: boolean;
+  /** Nach Vertragsende keine neuen Versionen und keine Stammdatenänderung. */
+  writesOpen?: boolean;
+  /** Nach der 30-Tage-Frist kein Download. */
+  downloadsOpen?: boolean;
 }) {
   const entity = group.entity;
   const continueDrafts = group.continueDrafts ?? [];
@@ -98,7 +104,7 @@ export function AccountCompanyCard({
         </p>
       )}
 
-      {entity && (
+      {entity && writesOpen && (
         <div className="actions entity-actions">
           <Link className="btn ghost" href={firmaEditPath(entity.entityId)}>
             {FIRMA_EDIT_LABEL}
@@ -110,6 +116,9 @@ export function AccountCompanyCard({
           )}
         </div>
       )}
+      {entity && !writesOpen && (
+        <p className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</p>
+      )}
 
       {continueDrafts.length > 0 && (
         <div className="entity-docs">
@@ -119,9 +128,13 @@ export function AccountCompanyCard({
           {continueDrafts.map((draft) => (
             <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
               <span className="doc-meta">{openDraftLabel(draft)}</span>
-              <Link className="btn" href={openDraftContinuePath(draft)}>
-                {ACCOUNT_CONTINUE_LABEL}
-              </Link>
+              {writesOpen ? (
+                <Link className="btn" href={openDraftContinuePath(draft)}>
+                  {ACCOUNT_CONTINUE_LABEL}
+                </Link>
+              ) : (
+                <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
+              )}
             </div>
           ))}
         </div>
@@ -185,7 +198,11 @@ export function AccountCompanyCard({
                       <p className="doc-meta">
                         {parts.join(" · ")}
                         {" · "}
-                        <Link href={accountModuleHref(editRow.documentId)}>Module bearbeiten</Link>
+                        {writesOpen ? (
+                          <Link href={accountModuleHref(editRow.documentId)}>Module bearbeiten</Link>
+                        ) : (
+                          <span>Pflege beendet</span>
+                        )}
                       </p>
                     </div>
                     {offenRows.length > 0 ? (
@@ -201,9 +218,11 @@ export function AccountCompanyCard({
                               <span>
                                 {row.nr}. {row.titel}
                               </span>
-                              <Link href={accountModuleHref(editRow.documentId, row.modul)}>
-                                {ACCOUNT_CONTINUE_LABEL}
-                              </Link>
+                              {writesOpen ? (
+                                <Link href={accountModuleHref(editRow.documentId, row.modul)}>
+                                  {ACCOUNT_CONTINUE_LABEL}
+                                </Link>
+                              ) : null}
                             </li>
                           ))}
                         </ul>
@@ -224,24 +243,31 @@ export function AccountCompanyCard({
                   {formatValidityRange(current, family.versions)} · {summary} · {who}
                 </p>
                 <div className="actions doc-actions">
-                  <a className="btn" href={documentDownloadPath(editRow)}>
-                    PDF herunterladen
-                  </a>
-                  <Link className="btn" href={intakeEditPath(editRow)}>
-                    Überarbeiten
-                  </Link>
-                  <Link className="btn ghost" href={documentEditPath(editRow)}>
-                    Dokument bearbeiten
-                  </Link>
+                  {downloadsOpen && (
+                    <a className="btn" href={documentDownloadPath(editRow)}>
+                      PDF herunterladen
+                    </a>
+                  )}
+                  {writesOpen && (
+                    <>
+                      <Link className="btn" href={intakeEditPath(editRow)}>
+                        Überarbeiten
+                      </Link>
+                      <Link className="btn ghost" href={documentEditPath(editRow)}>
+                        Dokument bearbeiten
+                      </Link>
+                    </>
+                  )}
                 </div>
                 <p className="hint revision-hint">
-                  „Überarbeiten“ ändert die Angaben in diesem Entwurf. „Dokument bearbeiten“
-                  ändert den Kapiteltext. Beides erzeugt die nächste PDF-Version — bisherige
-                  Downloads bleiben.
+                  {writesOpen
+                    ? "„Überarbeiten“ ändert die Angaben in diesem Entwurf. „Dokument bearbeiten“ ändert den Kapiteltext. Beides erzeugt die nächste PDF-Version — bisherige Downloads bleiben."
+                    : "Online-Pflege und neue Versionen sind mit dem Vertragsende entfallen. Bereits erzeugte PDFs können Sie in der Frist herunterladen."}
                 </p>
                 <VersionHistory
                   headingId={`versionshistorie-${family.familyId}`}
                   versions={family.versions}
+                  downloadsOpen={downloadsOpen}
                 />
               </section>
             );
@@ -249,7 +275,7 @@ export function AccountCompanyCard({
         </div>
       )}
 
-      {group.families.length > 0 && (
+      {writesOpen && group.families.length > 0 && (
         <details className="account-more">
           <summary>Weitere Optionen</summary>
           <div className="account-more-body">
