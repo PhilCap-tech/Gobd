@@ -95,6 +95,8 @@ export type IntakeAnswers = {
       responsible?: string;
       date?: string;
       values?: Record<string, unknown>;
+      /** Field keys the user emptied on purpose. Prefill must not fill them again. */
+      cleared?: string[];
     }
   >;
   fragen?: Partial<

@@ -125,6 +125,8 @@ export type CatalogQuestionState = {
   responsible?: string;
   date?: string;
   values?: Record<string, unknown>;
+  /** Field keys the user emptied on purpose. Prefill must not fill them again. */
+  cleared?: string[];
 };
 
 export type CatalogState = Record<string, CatalogQuestionState>;
@@ -1053,6 +1055,36 @@ export function setCatalogMeta(
   return touch(answers, id, meta);
 }
 
+/**
+ * Emptying a field that held a value is a deliberate clear. The key is stored
+ * on the catalog entry and survives the draft. A later non-empty value lifts it.
+ * A frozen one- or two-character prefix is not a clear.
+ */
+function clearedAfterEdit(
+  existing: string[] | undefined,
+  edits: Array<{ key: string; previous: unknown; nextValue: unknown }>,
+): string[] | undefined {
+  const cleared = new Set(existing ?? []);
+  for (const edit of edits) {
+    if (valueEmpty(edit.nextValue)) {
+      if (!valueEmpty(edit.previous)) cleared.add(edit.key);
+    } else {
+      cleared.delete(edit.key);
+    }
+  }
+  return cleared.size ? [...cleared] : undefined;
+}
+
+function withClearedPatch(
+  current: CatalogQuestionState,
+  cleared: string[] | undefined,
+  values: Record<string, unknown>,
+): CatalogQuestionState {
+  const patch: CatalogQuestionState = { values };
+  if ((current.cleared?.length ?? 0) > 0 || (cleared?.length ?? 0) > 0) patch.cleared = cleared;
+  return patch;
+}
+
 export function setCatalogValue(
   answers: IntakeAnswers,
   id: string,
@@ -1060,9 +1092,10 @@ export function setCatalogValue(
   value: unknown,
 ): IntakeAnswers {
   const current = catalogState(answers)[id] ?? {};
-  return touch(answers, id, {
-    values: { ...(current.values ?? {}), [key]: value },
-  });
+  const cleared = clearedAfterEdit(current.cleared, [
+    { key, previous: current.values?.[key], nextValue: value },
+  ]);
+  return touch(answers, id, withClearedPatch(current, cleared, { ...(current.values ?? {}), [key]: value }));
 }
 
 export function setCatalogValues(
@@ -1071,9 +1104,15 @@ export function setCatalogValues(
   values: Record<string, unknown>,
 ): IntakeAnswers {
   const current = catalogState(answers)[id] ?? {};
-  return touch(answers, id, {
-    values: { ...(current.values ?? {}), ...values },
-  });
+  const cleared = clearedAfterEdit(
+    current.cleared,
+    Object.entries(values).map(([key, nextValue]) => ({
+      key,
+      previous: current.values?.[key],
+      nextValue,
+    })),
+  );
+  return touch(answers, id, withClearedPatch(current, cleared, { ...(current.values ?? {}), ...values }));
 }
 
 export function clearCatalogStatus(answers: IntakeAnswers, id: string): IntakeAnswers {
@@ -1081,6 +1120,7 @@ export function clearCatalogStatus(answers: IntakeAnswers, id: string): IntakeAn
   const nextEntry: CatalogQuestionState = { values: current.values ?? {} };
   if (current.responsible) nextEntry.responsible = current.responsible;
   if (current.date) nextEntry.date = current.date;
+  if (current.cleared?.length) nextEntry.cleared = current.cleared;
   return {
     ...answers,
     katalog: { ...catalogState(answers), [id]: nextEntry },
@@ -1677,10 +1717,45 @@ function billingStreetFits(value: string, city: string): boolean {
   return /\d/.test(value);
 }
 
+const CARE_OF_SEGMENT = /^(?:c\s*\/\s*o|care\s+of|z\.?\s*hd\.?|zu händen)\b/i;
+const CARE_OF_TAIL = /\s+(?:c\s*\/\s*o|care\s+of|z\.?\s*hd\.?|zu händen)\b.*$/i;
+const FLOOR_SEGMENT =
+  /^(?:\d+\.?\s*)?(?:og|eg|ug|dg|stock|etage|geschoss|obergeschoss|erdgeschoss|untergeschoss|dachgeschoss|hinterhaus|vorderhaus)\b/i;
+
+function isCareOfSegment(value: string): boolean {
+  return CARE_OF_SEGMENT.test(value.trim());
+}
+
+/** „3. OG“ is a floor note, not a street, even though it contains a digit. */
+function isFloorSegment(value: string): boolean {
+  const text = value.trim();
+  if (!text || text.length > 40) return false;
+  return FLOOR_SEGMENT.test(text);
+}
+
+/**
+ * Keep real street segments. Drop c/o lines, person names, and floor notes
+ * so „c/o Max Test, 3. OG“ does not become the Standort street.
+ */
+function billingStreetLine(value: string | null | undefined, city: string): string {
+  const line = billingSingleLine(value);
+  if (!line) return "";
+  const kept: string[] = [];
+  for (const part of line.split(",")) {
+    const segment = part.replace(CARE_OF_TAIL, "").trim();
+    if (!segment || isCareOfSegment(segment) || isFloorSegment(segment)) continue;
+    if (!billingStreetFits(segment, city)) continue;
+    if (!/[\p{L}]{3,}/u.test(segment)) continue;
+    kept.push(segment);
+  }
+  return kept.join(", ");
+}
+
 /**
  * Standort from a Checkout billing address.
- * City is required. postal_code and line1 are added only when they fit
- * the single-line form already used for firm addresses. Otherwise empty.
+ * City is required. A street is added only when a segment is a street with
+ * a house number. c/o lines, person names, and floor notes are left out.
+ * Without a street, the result is postal code and city. Otherwise empty.
  */
 export function standortFromBillingAddress(address: BillingAddressParts | null | undefined): string {
   if (!address) return "";
@@ -1688,8 +1763,7 @@ export function standortFromBillingAddress(address: BillingAddressParts | null |
   if (!city || city.length > 80) return "";
   const postalRaw = billingSingleLine(address.postalCode);
   const postal = postalRaw && billingPostalFits(postalRaw) ? postalRaw : "";
-  const streetRaw = billingSingleLine(address.line1);
-  const street = streetRaw && billingStreetFits(streetRaw, city) ? streetRaw : "";
+  const street = billingStreetLine(address.line1, city);
   const place = [postal, city].filter(Boolean).join(" ");
   return [street, place].filter(Boolean).join(", ");
 }
@@ -1801,10 +1875,6 @@ function isKeystrokeArtifact(stored: string, source: string): boolean {
   return length >= 1 && length <= 2;
 }
 
-function namePrefillField(id: string, key: string): boolean {
-  return VERANTWORTLICHE_NAME_FIELDS.some((field) => field.questionId === id && field.key === key);
-}
-
 function parseRoleBlock(text: string): Map<string, string> | null {
   const lines = text
     .split("\n")
@@ -1859,10 +1929,10 @@ function fillText(
   const entry = katalog[id] ?? {};
   const values = { ...(entry.values ?? {}) };
   const current = values[key];
-  // The field the user is editing right now stays, including a first letter.
-  if (protectedField && !valueEmpty(current)) return;
-  // Clearing a name lets the Verantwortliche source fill it again. Other fields stay empty.
-  if (protectedField && !namePrefillField(id, key)) return;
+  // The user emptied this field on purpose. Keep it empty, also after a reload.
+  if (valueEmpty(current) && entry.cleared?.includes(key)) return;
+  // The field the user is editing right now stays, including a first letter or a clear.
+  if (protectedField) return;
   if (!protectedField && !valueEmpty(current)) {
     const prior = previous?.trim() ?? "";
     const stored = asText(current);
@@ -1959,9 +2029,10 @@ function verantwortlicheRoleText(answers: IntakeAnswers): string {
  * or two characters that is a strict prefix of the current Verantwortliche
  * name is that same freeze and is replaced. That covers every field in
  * VERANTWORTLICHE_NAME_FIELDS, including Modul 17 „IT-Verantwortung“.
- * Clearing such a name field allows the prefill again. Any other stored
- * value stays. Never sets a process status, a date, or the no-backdating
- * confirmation.
+ * A field the user emptied on purpose stays empty, in the same step and
+ * after a reload. The decision is stored on the catalog entry (`cleared`).
+ * Untouched empty fields are still filled. Any other stored value stays.
+ * Never sets a process status, a date, or the no-backdating confirmation.
  */
 export function prefillKnownFacts(
   answers: IntakeAnswers,

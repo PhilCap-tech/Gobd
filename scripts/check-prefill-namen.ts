@@ -257,7 +257,12 @@ function checkNames() {
   const cleared = prefillKnownFacts(setCatalogValue(protectedTyping, "A01", "gf", ""), undefined, {
     protect: [["A01", "gf"]],
   });
-  ok(value(cleared, "A01", "gf") === "Philip Cappelletti", "Leeren holt den Namen der Verantwortlichen zurück");
+  ok(value(cleared, "A01", "gf") === "", "Leeren der Geschäftsleitung bleibt leer");
+  ok(cleared.katalog?.A01?.cleared?.includes("gf") === true, "Leeren der Geschäftsleitung wird im Entwurf gemerkt");
+  ok(
+    value(prefillKnownFacts(roundTrip(cleared)), "A01", "gf") === "",
+    "geleerte Geschäftsleitung bleibt nach dem Neuladen leer",
+  );
 
   let clearedNames = setStammdaten(ensureGesamt(emptyAnswers()), { ...NAMES });
   clearedNames = prefillKnownFacts(clearedNames);
@@ -269,10 +274,13 @@ function checkNames() {
     clearedNames = prefillKnownFacts(setCatalogValue(clearedNames, id, key, ""), undefined, {
       protect: [[id, key]],
     });
+    ok(value(clearedNames, id, key) === "", `geleertes ${key} bleibt in der Sitzung leer`);
   }
-  ok(value(clearedNames, "F01", "buchhaltung") === NAMES.buchhaltung, "geleerte Buchhaltung wird wieder gefüllt");
-  ok(value(clearedNames, "B01", "it") === NAMES.it, "geleerte IT wird wieder gefüllt");
-  ok(value(clearedNames, "F05", "kanzleiName") === NAMES.kanzlei, "geleerte Steuerkanzlei wird wieder gefüllt");
+  const reloadedClears = prefillKnownFacts(roundTrip(clearedNames));
+  ok(value(reloadedClears, "F01", "buchhaltung") === "", "geleerte Buchhaltung bleibt nach dem Neuladen leer");
+  ok(value(reloadedClears, "B01", "it") === "", "geleerte IT bleibt nach dem Neuladen leer");
+  ok(value(reloadedClears, "F05", "kanzleiName") === "", "geleerte Steuerkanzlei bleibt nach dem Neuladen leer");
+  ok(reloadedClears.katalog?.B01?.cleared?.includes("it") === true, "geleerte IT bleibt im neu geladenen Entwurf gemerkt");
 
   const ui = readFileSync("components/betriebs-check.tsx", "utf8");
   ok(ui.includes("prefillStammdatenInput"), "die Namensfelder nutzen die tastensichere Vorausfüllung");
@@ -332,6 +340,18 @@ function checkStandort() {
   ok(standortFromBillingAddress({}) === "", "leeres Adressobjekt bleibt leer");
   ok(standortFromBillingAddress({ city: "  \n  " }) === "", "Ort mit Zeilenumbruch bleibt leer");
   ok(
+    standortFromBillingAddress({ line1: "c/o Max Test, 3. OG", postalCode: "50667", city: "Köln" }) === "50667 Köln",
+    "c/o und Personenname fallen weg, es bleiben PLZ und Ort",
+  );
+  ok(
+    standortFromBillingAddress({
+      line1: "Königstraße 12, c/o Max Test, 3. OG",
+      postalCode: "50667",
+      city: "Köln",
+    }) === "Königstraße 12, 50667 Köln",
+    "Straße bleibt, c/o und Personenname fallen weg",
+  );
+  ok(
     standortPrefillLine({
       street: "Hafenweg 2",
       zip: "20457",
@@ -368,6 +388,23 @@ function checkStandort() {
   const emptyDraft = roundTrip(ensureGesamt(emptyAnswers()));
   const filledOnReload = prefillKnownFacts(emptyDraft, firmFromBilling({ city: "München" }));
   ok(value(filledOnReload, "A01", "standort") === "München", "leerer Entwurf erhält den Ort");
+
+  const careOfFirm = firmFromBilling({ line1: "c/o Max Test, 3. OG", postalCode: "50667", city: "Köln" });
+  const careOf = prefillKnownFacts(ensureGesamt(emptyAnswers()), careOfFirm);
+  ok(value(careOf, "A01", "standort") === "50667 Köln", "Modul 1 übernimmt bei c/o nur PLZ und Ort");
+  ok(!value(careOf, "A01", "standort").includes("Max"), "der Personenname steht nicht im Standort");
+
+  const clearedStandort = prefillKnownFacts(setCatalogValue(present, "A01", "standort", ""), firmFromBilling(fullAddress), {
+    protect: [["A01", "standort"]],
+  });
+  ok(value(clearedStandort, "A01", "standort") === "", "geleerter Standort bleibt in der Sitzung leer");
+  ok(clearedStandort.katalog?.A01?.cleared?.includes("standort") === true, "geleerter Standort wird im Entwurf gemerkt");
+  const reloadedStandort = prefillKnownFacts(roundTrip(clearedStandort), firmFromBilling(fullAddress));
+  ok(value(reloadedStandort, "A01", "standort") === "", "geleerter Standort bleibt nach dem Neuladen leer");
+  ok(
+    reloadedStandort.katalog?.A01?.cleared?.includes("standort") === true,
+    "die Entscheidung bleibt nach dem Neuladen gespeichert",
+  );
 }
 
 function paidSession(
@@ -595,7 +632,15 @@ function checkEveryNameField() {
     const cleared = prefillKnownFacts(setCatalogValue(fresh, field.questionId, field.key, ""), undefined, {
       protect: [[field.questionId, field.key]],
     });
-    ok(value(cleared, field.questionId, field.key) === sample.full, `${where}: Leeren holt den Namen zurück`);
+    ok(value(cleared, field.questionId, field.key) === "", `${where}: Leeren bleibt leer`);
+    ok(
+      cleared.katalog?.[field.questionId]?.cleared?.includes(field.key) === true,
+      `${where}: Leeren wird im Entwurf gemerkt`,
+    );
+    ok(
+      value(prefillKnownFacts(roundTrip(cleared)), field.questionId, field.key) === "",
+      `${where}: Leeren bleibt nach dem Neuladen leer`,
+    );
   }
 
   const it = NAME_SAMPLES.it;
@@ -661,7 +706,11 @@ function checkEveryNameField() {
   const clearedRoles = prefillKnownFacts(setCatalogValue(freshRoles, "UO03", "zustaendigkeiten", ""), undefined, {
     protect: [["UO03", "zustaendigkeiten"]],
   });
-  ok(value(clearedRoles, "UO03", "zustaendigkeiten") === roles, "Leeren der Zuständigkeiten holt die Namen zurück");
+  ok(value(clearedRoles, "UO03", "zustaendigkeiten") === "", "Leeren der Zuständigkeiten bleibt leer");
+  ok(
+    value(prefillKnownFacts(roundTrip(clearedRoles)), "UO03", "zustaendigkeiten") === "",
+    "geleerte Zuständigkeiten bleiben nach dem Neuladen leer",
+  );
 
   ok(
     fieldsContaining(freshRoles, NAME_SAMPLES.gf.full).join(",") === "A01.gf,UO03.zustaendigkeiten",
