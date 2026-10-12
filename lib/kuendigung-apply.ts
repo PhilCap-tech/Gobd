@@ -18,7 +18,8 @@ import {
   type LifecycleRow,
   type MailKind,
 } from "@/lib/kuendigung";
-import { sendEmail, type MailResult } from "@/lib/mail";
+import { sendDedupedEmail } from "@/lib/mail-dedupe";
+import type { MailResult } from "@/lib/mail";
 import {
   findLifecycleBySubscription,
   listLifecycleRows,
@@ -57,14 +58,16 @@ async function deliver(
 ): Promise<MailResult> {
   if (!row.email) return { stub: true, sent: false };
   const content = mailFor(kind, row, eventId);
-  return sendEmail({
+  const result = await sendDedupedEmail({
+    dedupeKey: content.idempotencyKey,
     to: row.email,
     subject: content.subject,
     text: content.text,
     html: content.html,
-    idempotencyKey: content.idempotencyKey,
     from: CANCELLATION_MAIL_FROM,
   });
+  if (result.duplicate && !result.inflight) return { ...result, sent: true };
+  return result;
 }
 
 export async function applyLifecycleEvent(event: LifecycleEvent): Promise<ApplyResult> {
@@ -85,15 +88,19 @@ export async function applyLifecycleEvent(event: LifecycleEvent): Promise<ApplyR
 export async function remindLifecycleRow(row: LifecycleRow, at: string): Promise<LifecycleRow> {
   if (!row.email) return row;
   const content = buildCancellationReminderMail(row);
-  const contentSent = await sendEmail({
+  const contentSent = await sendDedupedEmail({
+    dedupeKey: reminderIdempotencyKey(row),
     to: row.email,
     subject: content.subject,
     text: content.text,
     html: content.html,
-    idempotencyKey: reminderIdempotencyKey(row),
     from: CANCELLATION_MAIL_FROM,
   });
-  if (!contentSent.sent && !contentSent.stub) return row;
+  const mailed =
+    contentSent.duplicate && !contentSent.inflight
+      ? { ...contentSent, sent: true }
+      : contentSent;
+  if (!mailed.sent && !mailed.stub) return row;
   const saved = { ...row, reminderMailAt: at, updatedAt: at };
   await saveLifecycleRow(saved);
   return saved;

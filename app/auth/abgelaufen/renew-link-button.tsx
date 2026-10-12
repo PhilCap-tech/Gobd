@@ -17,8 +17,11 @@ export function RenewExpiredLinkButton({
   const [sent, setSent] = useState(false);
   const label = renewExpiredLinkLabel(masked);
 
-  async function onSubmit(event: React.FormEvent) {
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const button = event.currentTarget.querySelector("button[type=submit]");
+    if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+    button.disabled = true;
     setError("");
     setPending(true);
     try {

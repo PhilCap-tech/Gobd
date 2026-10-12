@@ -3,6 +3,7 @@ import { magicLinkUrl, withoutSessionCookie } from "@/lib/auth";
 import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import { getAppUrl } from "@/lib/env";
 import { deliverLoginLink, readinessMailStatus } from "@/lib/login-mail";
+import { readinessDedupeKey } from "@/lib/mail-dedupe";
 import { sendReadinessMail } from "@/lib/ops";
 import {
   createReadinessAccessToken,
@@ -85,6 +86,12 @@ async function handleReadiness(request: Request) {
       downloadUrl,
       successUrl,
       magicLinkUrl: magicUrl,
+      dedupeKey: readinessDedupeKey({
+        email: parsed.email,
+        name: parsed.name,
+        company: parsed.company,
+        answers: parsed.answers,
+      }),
     });
     pdfMailStatus = mail.sent ? "sent" : mail.stub ? "stub" : "failed";
   } catch (error) {

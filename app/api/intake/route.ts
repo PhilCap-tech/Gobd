@@ -558,6 +558,7 @@ async function writeIntake(
       downloadUrl,
       magicLinkUrl: magicUrl,
       successUrl,
+      documentId,
       version,
     });
   } catch (error) {

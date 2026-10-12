@@ -135,6 +135,17 @@ function isVercelRuntime(): boolean {
   return process.env.VERCEL === "1" || process.env.VERCEL === "true";
 }
 
+/**
+ * The preview build smoke strips Sheets credentials so it cannot write
+ * production rows. It still has to read and write the local file store.
+ * Production never takes this path.
+ */
+function previewSmokeUsesFiles(): boolean {
+  return (
+    process.env.GOBD_BLOB_SMOKE === "1" && process.env.VERCEL_ENV !== "production"
+  );
+}
+
 /** On Vercel a Sheets miss is a 503. The tmp file is not a second database. */
 function rethrowSheetsOnVercel(error: unknown, op: string): void {
   if (!isVercelRuntime()) return;
@@ -1112,7 +1123,7 @@ export async function appendReadinessLead(
         error,
       );
     }
-  } else if (isVercelRuntime()) {
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   } else {
     console.warn(
@@ -1142,7 +1153,7 @@ async function loadReadinessLeads(): Promise<{
         error,
       );
     }
-  } else if (isVercelRuntime()) {
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   }
   return { backend: "file", rows: await readAllReadinessFileRows() };
@@ -1380,7 +1391,7 @@ async function loadEntities(): Promise<{
         error,
       );
     }
-  } else if (isVercelRuntime()) {
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   }
   return { backend: "file", rows: await readAllEntityFileRows() };
@@ -1434,7 +1445,7 @@ export async function createEntity(
         error,
       );
     }
-  } else if (isVercelRuntime()) {
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   } else {
     console.warn(
@@ -1498,7 +1509,7 @@ export async function updateEntity(
         error,
       );
     }
-  } else if (isVercelRuntime()) {
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   }
 
@@ -1584,11 +1595,11 @@ export async function setDocumentsEntityId(
     } catch (error) {
       console.error("[store] entity_id-Backfill in Sheets fehlgeschlagen", error);
     }
-  } else if (isVercelRuntime()) {
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   }
 
-  if (isVercelRuntime()) return;
+  if (isVercelRuntime() && !previewSmokeUsesFiles()) return;
 
   const primaryDir = getFileFallbackDir();
   const primaryFile = path.join(primaryDir, FILE_NAME);
@@ -1900,7 +1911,7 @@ async function loadProfiles(): Promise<{
         error,
       );
     }
-  } else if (isVercelRuntime()) {
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   }
   return { backend: "file", rows: await readAllProfileFileRows() };
@@ -1949,7 +1960,7 @@ export async function upsertAccountProfile(
         error,
       );
     }
-  } else if (isVercelRuntime()) {
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   } else {
     console.warn(

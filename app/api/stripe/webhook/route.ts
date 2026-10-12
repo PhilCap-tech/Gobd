@@ -204,6 +204,7 @@ export async function POST(request: Request) {
         await handleFailedPayment({
           email: email || undefined,
           invoiceId: invoice.id,
+          eventId: event.id,
           customerId: customerId || undefined,
           reason: invoice.last_finalization_error?.message,
         });

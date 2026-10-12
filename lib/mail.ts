@@ -10,6 +10,10 @@ export type MailResult = {
   stub: boolean;
   sent: boolean;
   id?: string;
+  /** Claim already recorded this logical mail. No second send. */
+  duplicate?: boolean;
+  /** Another request still holds a fresh claim. */
+  inflight?: boolean;
 };
 
 export async function sendEmail(input: {

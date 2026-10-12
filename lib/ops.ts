@@ -7,9 +7,20 @@
  * Die Weitergabe steht in der Liefermail. Es gibt keine zweite Mail dazu.
  */
 
+import { createHash } from "node:crypto";
 import { CUSTOMER_ONBOARDING_NEXT_PATH, magicLinkUrl } from "@/lib/auth";
 import { isMailConfigured } from "@/lib/env";
-import { sendEmail, type MailResult } from "@/lib/mail";
+import type { MailResult } from "@/lib/mail";
+import {
+  MAGIC_LINK_WINDOW_MS,
+  deliveryMailKey,
+  failedJobMailKey,
+  failedPaymentMailKey,
+  magicLinkMailKey,
+  onboardingMailKey,
+  partnerInquiryMailKey,
+  sendDedupedEmail,
+} from "@/lib/mail-dedupe";
 import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
 import {
   escapeAttr,
@@ -55,6 +66,18 @@ export type TransactionalMailContent = {
   text: string;
   html: string;
 };
+
+/** A settled claim already delivered this mail. Callers treat that as success. */
+function claimedMail(
+  result: MailResult,
+  action: OpsResult["action"],
+  inflightAsSent = false,
+): OpsResult & MailResult {
+  if (result.duplicate && (!result.inflight || inflightAsSent)) {
+    return { ...result, sent: true, action };
+  }
+  return { ...result, action };
+}
 
 const CHECKOUT_CTA = `Jetzt Verfahrensdokumentation erstellen — ${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Mo netto (${MONTHLY_GROSS_LABEL} € brutto)`;
 const READINESS_MICRO =
@@ -605,13 +628,16 @@ export async function triggerOnboardingMail(input: {
     magicLinkUrl: startUrl,
     continueUrl,
   });
-  const result = await sendEmail({
+  const sessionId = input.sessionId?.trim() ?? "";
+  const result = await sendDedupedEmail({
+    dedupeKey: sessionId
+      ? onboardingMailKey(sessionId)
+      : input.idempotencyKey?.trim() || onboardingMailKey(input.email.trim().toLowerCase()),
     to: input.email,
     replyTo: MAIL_SUPPORT_EMAIL,
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
-    idempotencyKey: input.idempotencyKey,
   });
   console.info("[ops] onboarding mail", {
     email: input.email,
@@ -620,13 +646,15 @@ export async function triggerOnboardingMail(input: {
     sent: result.sent,
     stub: result.stub,
   });
-  return { ...result, action: "onboarding" };
+  return claimedMail(result, "onboarding");
 }
 
 export async function handleFailedPayment(input: {
   email?: string;
   sessionId?: string;
   invoiceId?: string;
+  /** Stripe `event.id`, used when the invoice has no id. */
+  eventId?: string;
   customerId?: string;
   reason?: string;
 }): Promise<OpsResult & MailResult> {
@@ -652,7 +680,13 @@ export async function handleFailedPayment(input: {
   }
 
   const mail = buildFailedPaymentMail();
-  const result = await sendEmail({
+  const anchor =
+    input.invoiceId?.trim() ||
+    input.eventId?.trim() ||
+    input.sessionId?.trim() ||
+    email.toLowerCase();
+  const result = await sendDedupedEmail({
+    dedupeKey: failedPaymentMailKey(anchor),
     to: email,
     subject: mail.subject,
     text: mail.text,
@@ -667,7 +701,7 @@ export async function handleFailedPayment(input: {
     sent: result.sent,
     stub: result.stub,
   });
-  return { ...result, action: "failed_payment" };
+  return claimedMail(result, "failed_payment");
 }
 
 export async function handleFailedJob(input: {
@@ -688,7 +722,11 @@ export async function handleFailedJob(input: {
   }
 
   const mail = buildFailedJobMail();
-  const result = await sendEmail({
+  const result = await sendDedupedEmail({
+    dedupeKey: failedJobMailKey(
+      input.sessionId?.trim() || email.toLowerCase(),
+      input.job?.trim() || input.reason?.trim() || "job",
+    ),
     to: email,
     subject: mail.subject,
     text: mail.text,
@@ -702,7 +740,7 @@ export async function handleFailedJob(input: {
     sent: result.sent,
     stub: result.stub,
   });
-  return { ...result, action: "failed_job" };
+  return claimedMail(result, "failed_job");
 }
 
 export async function sendDeliveryMail(input: {
@@ -711,6 +749,7 @@ export async function sendDeliveryMail(input: {
   downloadUrl: string;
   magicLinkUrl?: string;
   successUrl?: string;
+  documentId?: string;
   version?: number;
 }): Promise<OpsResult & MailResult> {
   if (!input.email.trim()) {
@@ -731,13 +770,21 @@ export async function sendDeliveryMail(input: {
   }
 
   const mail = buildDeliveryMail({ ...input, contactName });
-  const result = await sendEmail({
+  const documentId = input.documentId?.trim() ?? "";
+  const dedupeKey =
+    documentId && input.version != null
+      ? deliveryMailKey(documentId, input.version)
+      : documentId
+        ? `delivery:${documentId}`
+        : `delivery:${input.email.trim().toLowerCase()}:${input.downloadUrl}`;
+  const result = await sendDedupedEmail({
+    dedupeKey,
     to: input.email,
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
   });
-  return { ...result, action: "delivery" };
+  return claimedMail(result, "delivery");
 }
 
 export type PartnerInquiryMailInput = {
@@ -785,7 +832,13 @@ export async function sendPartnerInquiryMail(
   input: PartnerInquiryMailInput,
 ): Promise<OpsResult & MailResult> {
   const mail = buildPartnerInquiryMail(input);
-  const result = await sendEmail({
+  const canonical = [input.email, input.name, input.kanzlei, input.mandantenZahl, input.message]
+    .map((part) => part.replace(/\s+/g, " ").trim().toLowerCase())
+    .join("\n");
+  const result = await sendDedupedEmail({
+    dedupeKey: partnerInquiryMailKey(
+      createHash("sha256").update(canonical).digest("hex").slice(0, 40),
+    ),
     to: MAIL_SUPPORT_EMAIL,
     replyTo: input.email,
     subject: mail.subject,
@@ -799,7 +852,7 @@ export async function sendPartnerInquiryMail(
     sent: result.sent,
     stub: result.stub,
   });
-  return { ...result, action: "partner_inquiry" };
+  return claimedMail(result, "partner_inquiry");
 }
 
 export async function sendReadinessMail(input: {
@@ -810,6 +863,8 @@ export async function sendReadinessMail(input: {
   downloadUrl: string;
   successUrl?: string;
   magicLinkUrl?: string;
+  /** Stable submission key. A new lead id must not bypass it. */
+  dedupeKey?: string;
 }): Promise<OpsResult & MailResult> {
   if (!input.email.trim()) {
     console.info("[ops] readiness mail übersprungen — keine E-Mail");
@@ -817,13 +872,16 @@ export async function sendReadinessMail(input: {
   }
 
   const mail = buildReadinessMail(input);
-  const result = await sendEmail({
+  const result = await sendDedupedEmail({
+    dedupeKey:
+      input.dedupeKey?.trim() ||
+      `readiness:${input.email.trim().toLowerCase()}:${input.downloadUrl}`,
     to: input.email,
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
   });
-  return { ...result, action: "readiness" };
+  return claimedMail(result, "readiness");
 }
 
 export async function sendMagicLinkMail(input: {
@@ -831,11 +889,13 @@ export async function sendMagicLinkMail(input: {
   magicLinkUrl: string;
 }): Promise<OpsResult & MailResult> {
   const mail = buildMagicLinkMail(input);
-  const result = await sendEmail({
+  const result = await sendDedupedEmail({
+    dedupeKey: magicLinkMailKey(input.email),
+    windowMs: MAGIC_LINK_WINDOW_MS,
     to: input.email,
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
   });
-  return { ...result, action: "onboarding" };
+  return claimedMail(result, "onboarding", true);
 }

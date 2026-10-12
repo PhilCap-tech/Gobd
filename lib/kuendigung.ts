@@ -509,8 +509,13 @@ export function endedIdempotencyKey(row: LifecycleRow): string {
   return `beendet-${row.stripeSubscriptionId}-${row.endedAt}`;
 }
 
+/**
+ * Eine Aufhebung pro Kündigung. Dieselbe `event.id` würde bei mehreren
+ * `customer.subscription.updated` derselben Aufhebung jedes Mal neu senden.
+ */
 export function reactivatedIdempotencyKey(row: LifecycleRow, eventId: string): string {
-  return `reaktivierung-${row.stripeSubscriptionId}-${eventId}`;
+  const anchor = row.confirmMailAt.trim() || row.periodEnd.trim() || eventId.trim();
+  return `reaktivierung-${row.stripeSubscriptionId}-${anchor}`;
 }
 
 /**
