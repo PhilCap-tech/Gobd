@@ -868,21 +868,36 @@ h3 {
   margin: 16px 0;
 }
 
-.account-split {
+.account-companies {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
   gap: 16px;
-  align-items: start;
 }
 
-.account-split .account-panel,
-.account-side .account-panel {
+.account-companies .entity-toolbar,
+.account-companies .entity-list {
   margin: 0;
 }
 
-.account-side {
-  display: grid;
+.account-companies .entity-list {
   gap: 16px;
+}
+
+.account-companies .entity-toolbar .hint {
+  margin: 0;
+}
+
+.account-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 20px;
+}
+
+.account-tiles > .account-panel {
+  margin: 0;
+  height: 100%;
+  min-width: 0;
 }
 
 .account-subhead {
@@ -915,9 +930,28 @@ h3 {
   color: #185a3e;
 }
 
-.account-split .actions .btn {
+.account-tiles .actions,
+.entity-doc .doc-actions {
+  margin-top: 12px;
+}
+
+.account-tiles .actions .btn,
+.entity-doc .actions .btn {
   white-space: normal;
   line-height: 1.35;
+}
+
+.account-note {
+  margin-top: 20px;
+}
+
+.account-logout {
+  margin-top: 16px;
+}
+
+.entity-actions,
+.doc-actions {
+  margin-top: 12px;
 }
 
 input[readonly] {
@@ -1369,6 +1403,118 @@ textarea:focus {
   margin: 0 0 8px;
 }
 
+.entity-doc .doc-meta a {
+  color: var(--accent);
+  font-weight: 650;
+  text-underline-offset: 2px;
+}
+
+.entity-doc .doc-meta a:hover {
+  color: #185a3e;
+}
+
+.completeness {
+  margin: 12px 0 4px;
+}
+
+.completeness-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.completeness-track {
+  margin-top: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.completeness-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.completeness .doc-meta {
+  margin-top: 8px;
+}
+
+.account-more {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.account-more summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.account-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-more summary::marker {
+  content: "";
+}
+
+.account-more summary::after {
+  content: "";
+  flex: none;
+  margin-left: auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-top: -0.15rem;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(45deg);
+}
+
+.account-more[open] summary::after {
+  margin-top: 0.2rem;
+  transform: rotate(225deg);
+}
+
+.account-more summary:focus-visible {
+  outline: 2px solid #c6e6d6;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.account-more-body {
+  margin-top: 12px;
+}
+
+.account-more-body .bereich-add {
+  margin: 0;
+}
+
+.account-more-body label {
+  display: block;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 5px;
+}
+
+.account-more .actions {
+  margin-top: 8px;
+}
+
 .doc-meta {
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 13px;
@@ -1556,7 +1702,7 @@ code {
   .price-grid,
   .proof-grid,
   .price-split,
-  .account-split {
+  .account-tiles {
     grid-template-columns: 1fr;
   }
 

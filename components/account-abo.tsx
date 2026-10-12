@@ -84,7 +84,26 @@ export function AccountUpgradeCard({
 
 export function AccountAboCard({ stripeBound }: { stripeBound: boolean }) {
   if (!stripeBound) {
-    return <AccountUpgradeCard />;
+    return (
+      <section className="card account-panel" aria-labelledby="abo-heading">
+        <h2 id="abo-heading">Abo</h2>
+        <p className="prose">
+          Der Leitfaden bleibt die kostenlose Arbeitshilfe. Die bezahlte Version
+          ist der geführte Entwurf nach Checkout ({SETUP_EUR} € Einrichtung +{" "}
+          {MONTHLY_EUR} €/Mo).
+        </p>
+        <div className="actions">
+          <Link className="btn" href="/checkout">
+            {ACCOUNT_PAID_CTA_LABEL}
+          </Link>
+        </div>
+        <p className="hint">
+          14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein
+          PDF erzeugt wurde · Keine Steuerberatung · Entwurf für Ihren
+          Steuerberater
+        </p>
+      </section>
+    );
   }
 
   return (
@@ -94,7 +113,7 @@ export function AccountAboCard({ stripeBound }: { stripeBound: boolean }) {
         Ein Abo gilt für bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen. Status,
         Rechnungen und Zahlungsmittel finden Sie unter Abo verwalten.
       </p>
-      <div className="actions" style={{ marginTop: 12 }}>
+      <div className="actions">
         <Link className="btn ghost" href={accountBillingPath()}>
           Abo verwalten
         </Link>

@@ -43,6 +43,7 @@ const COVERED = [
   "app/portal/**/*.{ts,tsx}",
   "components/account-abo.tsx",
   "components/account-billing.tsx",
+  "components/account-company-card.tsx",
   "components/account-free.tsx",
   "components/account-profile-form.tsx",
   "components/success-status.tsx",
