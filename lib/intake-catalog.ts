@@ -7,7 +7,8 @@ import {
   describedActivityLines,
   fieldLabel,
   optionLabel,
-  p1FieldError,
+  onlyUntouchedSuggestions,
+  p1FieldIssue,
   presentationBits,
   projectedBranchen,
   projectedRechtsform,
@@ -842,12 +843,22 @@ function questionIssues(
   }
   const issues: CatalogIssue[] = [];
   if (entry.status === "bestaetigt" || entry.status === "geplant") {
-    const channels = asList(valuesOf(catalogState(answers), "C01").kanaele);
-    const p1 = p1FieldError(question.id, entry.status, values, channels);
+    const state = catalogState(answers);
+    const channels = asList(valuesOf(state, "C01").kanaele);
+    const scope = asList(valuesOf(state, "A02").belegartenScope);
+    const p1 = p1FieldIssue(question.id, entry.status, values, channels, scope);
     const keineKontrolle = isControlQuestionId(question.id) && isKeineKontrolleValues(values);
-    if (p1) {
-      issues.push(catalogIssue(question.id, "block", p1));
-    } else if (!keineKontrolle) {
+    if (p1.message) {
+      if (p1.cardIndex != null) {
+        const anchor = `card-${question.id}-${p1.cardIndex}`;
+        issues.push({
+          ...catalogIssue(question.id, `card-${p1.cardIndex}`, p1.message, anchor),
+          anchor,
+        });
+      } else {
+        issues.push(catalogIssue(question.id, "block", p1.message));
+      }
+    } else if (!keineKontrolle && !onlyUntouchedSuggestions(question.id, values, channels, scope)) {
       for (const field of question.fields) {
         if (!fieldReady(field, values[field.key])) issues.push(fieldIssue(question, field));
       }

@@ -785,50 +785,134 @@ function channelDetailReady(row: ChannelDetail | undefined): string {
   return "";
 }
 
+/** Die Karte wurde im Formular geändert. Vorschläge ohne dieses Kennzeichen zählen wie leer. */
+function cardEdited(row: Record<string, unknown>): boolean {
+  return row.bearbeitet === true;
+}
+
+/**
+ * Vorgeschlagene B04- oder G01-Karte, die nie bearbeitet wurde.
+ * B04: Belegweg aus den gewählten Eingangswegen, Original leer.
+ * G01: Belegart aus dem Scope (ohne Scope der Vorschlag „Belege“), Ablageort und Suche leer.
+ */
+export function isUntouchedSuggestion(
+  id: string,
+  row: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): boolean {
+  if (cardEdited(row)) return false;
+  if (id === "B04") {
+    if (row.andererWeg === true) return false;
+    const weg = textOf(row.belegweg);
+    if (!weg || textOf(row.originalBeschreibung)) return false;
+    return channels.includes(weg);
+  }
+  if (id === "G01") {
+    const art = textOf(row.art);
+    if (!art || textOf(row.ort) || textOf(row.suche)) return false;
+    if (scope.length) return scope.includes(art);
+    return art === "Belege";
+  }
+  return false;
+}
+
+function cardCounts(
+  id: string,
+  row: Record<string, unknown>,
+  channels: string[],
+  scope: string[],
+): boolean {
+  if (!rowHasInput(row)) return false;
+  return !isUntouchedSuggestion(id, row, channels, scope);
+}
+
+/** Wahr, wenn jede gefüllte Karte nur ein unberührter Vorschlag ist. */
+export function onlyUntouchedSuggestions(
+  id: string,
+  values: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): boolean {
+  const key = EMPTY_CARD_LISTS[id];
+  if (!key) return false;
+  const rows = rowList(values[key]).filter((row) => rowHasInput(row));
+  return rows.length > 0 && rows.every((row) => isUntouchedSuggestion(id, row, channels, scope));
+}
+
+export type P1Issue = {
+  message: string;
+  /** Index in der gespeicherten Liste. Nur gesetzt, wenn genau eine Karte unvollständig ist. */
+  cardIndex?: number;
+};
+
+function namedCard(label: string, index: number, message: string): P1Issue {
+  return { message: `${label} ${index + 1}: ${message}`, cardIndex: index };
+}
+
+function plain(message: string): P1Issue {
+  return { message };
+}
+
 /** Extra completeness for the P1 questions. Empty when the status is not a described process. */
-export function p1FieldError(
+export function p1FieldIssue(
   id: string,
   status: string | undefined,
   values: Record<string, unknown>,
   channels: string[] = [],
-): string {
+  scope: string[] = [],
+): P1Issue {
   if (id === "H04" && status === "bestaetigt" && textOf(values.status) === "bestaetigt") {
     if (!textOf(values.datum) && !textOf(values.ergebnis)) {
-      return "Bitte Datum oder Ergebnis der Prüfung angeben.";
+      return plain("Bitte Datum oder Ergebnis der Prüfung angeben.");
     }
   }
-  if (status !== "bestaetigt" && status !== "geplant") return "";
+  if (status !== "bestaetigt" && status !== "geplant") return plain("");
   if (id === "B01") {
-    const rows = rowList(values.systeme).filter(rowHasInput);
-    if (!rows.length) return "Bitte mindestens ein System nennen.";
-    for (const row of rows) {
+    const rows = rowList(values.systeme);
+    const active = rows.map((row, index) => ({ row, index })).filter(({ row }) => rowHasInput(row));
+    if (!active.length) return plain("Bitte mindestens ein System nennen.");
+    for (const { row, index } of active) {
       if (!textOf(row.name) || !textOf(row.funktion) || !textOf(row.typ)) {
-        return "Bitte Name, Zweck und Art je System nennen.";
+        return namedCard("System", index, "Bitte Name, Zweck und Art je System nennen.");
       }
       if (!textOf(row.hostingArt)) {
-        return "Bitte das Hosting je System wählen.";
+        return namedCard("System", index, "Bitte das Hosting je System wählen.");
       }
       if (!textOf(row.nutzer) || !listOf(row.belegeRein).length || !textOf(row.uebergabe) || !textOf(row.originalOrt)) {
-        return "Bitte je System Nutzer, eingehende Belege, Übergabe und den Ort des Originals nennen.";
+        return namedCard(
+          "System",
+          index,
+          "Bitte je System Nutzer, eingehende Belege, Übergabe und den Ort des Originals nennen.",
+        );
       }
     }
   }
   if (id === "B04") {
-    for (const row of rowList(values.originalJeWeg)) {
-      if (!rowHasInput(row)) continue;
+    const rows = rowList(values.originalJeWeg);
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      if (!row || !cardCounts("B04", row, channels, scope)) continue;
       if (!textOf(row.belegweg) || !textOf(row.originalBeschreibung)) {
-        return "Bitte je Eingangsweg den Weg und das Original nennen.";
+        return namedCard("Eingangsweg", index, "Bitte je Eingangsweg den Weg und das Original nennen.");
       }
     }
   }
   if (id === "B05" && values.anbieter === "ja") {
-    const rows = rowList(values.externeSysteme).filter(rowHasInput);
-    if (!rows.length) return "Bitte das System beim Anbieter benennen.";
-    for (const row of rows) {
-      if (!textOf(row.name)) return "Bitte das System beim Anbieter benennen.";
+    const rows = rowList(values.externeSysteme);
+    const active = rows.map((row, index) => ({ row, index })).filter(({ row }) => rowHasInput(row));
+    if (!active.length) return plain("Bitte das System beim Anbieter benennen.");
+    for (const { row, index } of active) {
+      if (!textOf(row.name)) {
+        return namedCard("System beim Anbieter", index, "Bitte das System beim Anbieter benennen.");
+      }
       const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
       if (ANBIETER_UNTERLAGEN.some((name) => !textOf(stand[name]))) {
-        return "Bitte je Unterlage angeben, ob sie vorhanden ist, ergänzt werden muss oder nicht relevant ist.";
+        return namedCard(
+          "System beim Anbieter",
+          index,
+          "Bitte je Unterlage angeben, ob sie vorhanden ist, ergänzt werden muss oder nicht relevant ist.",
+        );
       }
     }
   }
@@ -838,34 +922,34 @@ export function p1FieldError(
     for (const channel of channels) {
       if (!digital.has(channel)) continue;
       const message = channelDetailReady(detail[channel]);
-      if (message) return `${channel}: ${message}`;
+      if (message) return plain(`${channel}: ${message}`);
     }
   }
   if (id === "C03") {
     const message = channelDetailReady(values.eingang as ChannelDetail | undefined);
-    if (message) return message;
+    if (message) return plain(message);
   }
   if (id === "D01" && textOf(values.scanZweck) === "nein") {
     if (!textOf(values.eingang) || !textOf(values.originalVerbleib) || !textOf(values.verantwortlich)) {
-      return "Bitte Eingang, Verbleib des Originals und die zuständige Person angeben.";
+      return plain("Bitte Eingang, Verbleib des Originals und die zuständige Person angeben.");
     }
   }
   if (id === "D01" && textOf(values.scanZweck) && textOf(values.scanZweck) !== "nein") {
     if (!textOf(values.eingang) || !textOf(values.scanZeitpunkt) || !textOf(values.vollstaendigkeit) || !textOf(values.originalVerbleib) || !textOf(values.verantwortlich)) {
-      return "Bitte Eingang, Zeitpunkt des Scans, Vollständigkeitsprüfung, Verbleib des Originals und die zuständige Person angeben.";
+      return plain("Bitte Eingang, Zeitpunkt des Scans, Vollständigkeitsprüfung, Verbleib des Originals und die zuständige Person angeben.");
     }
   }
   if (id === "E02") {
     if (!textOf(values.empfang) || !textOf(values.lesbar) || !textOf(values.pruefung) || !textOf(values.aufbewahrung)) {
-      return "Bitte Empfang, Lesbarkeit, Prüfung und Aufbewahrung des Originalformats beschreiben.";
+      return plain("Bitte Empfang, Lesbarkeit, Prüfung und Aufbewahrung des Originalformats beschreiben.");
     }
   }
   if (id === "E03" && !listOf(values.kriterienAuswahl).length && !textOf(values.kriterienFrei) && !textOf(values.kriterien)) {
-    return "Bitte die Prüfkriterien wählen oder kurz beschreiben.";
+    return plain("Bitte die Prüfkriterien wählen oder kurz beschreiben.");
   }
   if (id === "E05") {
     if (!textOf(values.freigabe) || !textOf(values.versand) || !textOf(values.storno)) {
-      return "Bitte Freigabe, Versandweg und den Umgang mit Korrektur oder Storno angeben.";
+      return plain("Bitte Freigabe, Versandweg und den Umgang mit Korrektur oder Storno angeben.");
     }
   }
   if (id === "F01") {
@@ -873,53 +957,69 @@ export function p1FieldError(
     const proofs = (values.schrittNachweis ?? {}) as Record<string, string>;
     for (const step of FREIGABE_SCHRITTE) {
       if (!textOf(values[step.key]) || !textOf(systems[step.key]) || !textOf(proofs[step.key])) {
-        return "Bitte je Schritt Person oder Rolle, System und Nachweis angeben.";
+        return plain("Bitte je Schritt Person oder Rolle, System und Nachweis angeben.");
       }
     }
   }
   if (id === "F05" && values.kanzleiBeteiligt === "ja") {
-    if (!textOf(values.kanzleiName)) return "Bitte die Kanzlei benennen.";
+    if (!textOf(values.kanzleiName)) return plain("Bitte die Kanzlei benennen.");
     if (!listOf(values.aufgaben).length && !textOf(values.aufgabenFrei)) {
-      return "Bitte die Aufgaben der Kanzlei auswählen.";
+      return plain("Bitte die Aufgaben der Kanzlei auswählen.");
     }
   }
   if (id === "G01") {
-    const rows = rowList(values.ablageJeArt).filter(rowHasInput);
-    if (!rows.length) return "Bitte je Belegart Ablageort und Suchmerkmale angeben.";
-    for (const row of rows) {
+    const rows = rowList(values.ablageJeArt);
+    const active = rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => cardCounts("G01", row, channels, scope));
+    if (!active.length) {
+      if (onlyUntouchedSuggestions("G01", values, channels, scope)) return plain("");
+      return plain("Bitte je Belegart Ablageort und Suchmerkmale angeben.");
+    }
+    for (const { row, index } of active) {
       if (!textOf(row.ort) || !textOf(row.suche)) {
-        return "Bitte je Belegart Ablageort und Suchmerkmale angeben.";
+        return namedCard("Belegart", index, "Bitte je Belegart Ablageort und Suchmerkmale angeben.");
       }
     }
   }
   if (id === "G02") {
     const rows = rowList(values.zugriffRollen).filter((row) => listOf(row.rechte).length);
-    if (!rows.length && !textOf(values.zugriffKurz)) return "Bitte die Rechte je Rolle angeben.";
+    if (!rows.length && !textOf(values.zugriffKurz)) return plain("Bitte die Rechte je Rolle angeben.");
   }
   if (id === "G06" && !listOf(values.sicherung).length && !textOf(values.backupArten)) {
-    return "Bitte angeben, ob der Anbieter sichert oder eine Rücksicherung geprüft wurde.";
+    return plain("Bitte angeben, ob der Anbieter sichert oder eine Rücksicherung geprüft wurde.");
   }
   if (id === "H01") {
-    if (values.keineKontrolle === true || controlRowsAreKeine(values.kontrollen)) return "";
+    if (values.keineKontrolle === true || controlRowsAreKeine(values.kontrollen)) return plain("");
     for (const row of rowList(values.kontrollen)) {
       if (!textOf(row.name)) continue;
       const turnus = textOf(row.turnusWahl) || textOf(row.turnus);
       if (!turnus || !textOf(row.wer) || !textOf(row.nachweis)) {
-        return "Bitte zu jeder gewählten Kontrolle angeben, wie oft sie läuft, wer sie macht und woran man sie erkennt.";
+        return plain("Bitte zu jeder gewählten Kontrolle angeben, wie oft sie läuft, wer sie macht und woran man sie erkennt.");
       }
-      if (row.turnusWahl === "anders" && !textOf(row.turnusFrei)) return "Bitte den anderen Turnus benennen.";
+      if (row.turnusWahl === "anders" && !textOf(row.turnusFrei)) return plain("Bitte den anderen Turnus benennen.");
     }
   }
   if (id === "I01" && !listOf(values.ausloeserAuswahl).length && !textOf(values.ausloeser)) {
-    return "Bitte mindestens einen Anlass für eine neue Fassung wählen.";
+    return plain("Bitte mindestens einen Anlass für eine neue Fassung wählen.");
   }
   if (id === "I02") {
     const rows = rowList(values.anlagen);
     if (ANLAGEN_CHECKLISTE.some((name) => !rows.some((row) => textOf(row.name) === name && textOf(row.status)))) {
-      return "Bitte jede Anlage als vorhanden, zu ergänzen oder nicht relevant markieren.";
+      return plain("Bitte jede Anlage als vorhanden, zu ergänzen oder nicht relevant markieren.");
     }
   }
-  return "";
+  return plain("");
+}
+
+export function p1FieldError(
+  id: string,
+  status: string | undefined,
+  values: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): string {
+  return p1FieldIssue(id, status, values, channels, scope).message;
 }
 
 export function presentationBits(id: string, values: Record<string, unknown> | undefined): string[] {

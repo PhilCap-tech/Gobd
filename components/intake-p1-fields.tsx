@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import {
   applyDerivedStatus,
   clearCatalogStatus,
@@ -43,6 +43,38 @@ import type { IntakeAnswers } from "@/lib/types";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function markEdited(row: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  return { ...row, ...patch, bearbeitet: true };
+}
+
+function CardFrame({
+  questionId,
+  index,
+  invalidCards,
+  children,
+}: {
+  questionId: string;
+  index: number;
+  invalidCards?: Record<number, string>;
+  children: ReactNode;
+}) {
+  const message = invalidCards?.[index];
+  return (
+    <div
+      className={message ? "system-card system-card-invalid" : "system-card"}
+      id={`card-${questionId}-${index}`}
+      tabIndex={message ? -1 : undefined}
+    >
+      {message ? (
+        <p className="field-error" role="alert">
+          {message}
+        </p>
+      ) : null}
+      {children}
+    </div>
+  );
 }
 
 function list(value: unknown): string[] {
@@ -253,10 +285,13 @@ export function P1QuestionFields({
   questionId,
   answers,
   onChange,
+  invalidCards,
 }: {
   questionId: string;
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
+  /** Meldung je Kartenindex. Nur diese Karte wird rot. */
+  invalidCards?: Record<number, string>;
 }) {
   const values = answers.katalog?.[questionId]?.values ?? {};
   const channels = list(answers.katalog?.C01?.values?.kanaele);
@@ -272,7 +307,7 @@ export function P1QuestionFields({
     return (
       <div>
         {cards.map((row, index) => (
-          <div className="system-card" key={`system-${index}`}>
+          <CardFrame key={`system-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
             <div className="system-card-head">
               <p className="prose">System {index + 1}</p>
               {cards.length > 1 ? (
@@ -375,7 +410,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-          </div>
+          </CardFrame>
         ))}
         <button
           type="button"
@@ -421,7 +456,7 @@ export function P1QuestionFields({
           const other = row.andererWeg === true || (Boolean(weg) && !channels.includes(weg));
           const picked = channels.includes(weg) ? weg : other ? "anderer Weg" : "";
           return (
-            <div className="system-card" key={`original-${index}`}>
+            <CardFrame key={`original-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
               {originals.length > 1 ? (
                 <div className="system-card-head">
                   <p className="prose">Eingangsweg {index + 1}</p>
@@ -443,10 +478,12 @@ export function P1QuestionFields({
                       onChange={(next) => {
                         const copy = originals.map((item) => ({ ...item }));
                         const choice = next[0] ?? "";
-                        copy[index] =
+                        copy[index] = markEdited(
+                          copy[index],
                           choice === "anderer Weg"
-                            ? { ...copy[index], andererWeg: true, belegweg: channels.includes(weg) ? "" : weg }
-                            : { ...copy[index], andererWeg: false, belegweg: choice };
+                            ? { andererWeg: true, belegweg: channels.includes(weg) ? "" : weg }
+                            : { andererWeg: false, belegweg: choice },
+                        );
                         commit({ originalJeWeg: copy });
                       }}
                     />
@@ -458,7 +495,7 @@ export function P1QuestionFields({
                     value={channels.includes(weg) ? "" : weg}
                     onChange={(belegweg) => {
                       const copy = originals.map((item) => ({ ...item }));
-                      copy[index] = { ...copy[index], andererWeg: true, belegweg };
+                      copy[index] = markEdited(copy[index], { andererWeg: true, belegweg });
                       commit({ originalJeWeg: copy });
                     }}
                   />
@@ -471,12 +508,12 @@ export function P1QuestionFields({
                   placeholder="Zum Beispiel die empfangene PDF-Datei"
                   onChange={(originalBeschreibung) => {
                     const copy = originals.map((item) => ({ ...item }));
-                    copy[index] = { ...copy[index], originalBeschreibung };
+                    copy[index] = markEdited(copy[index], { originalBeschreibung });
                     commit({ originalJeWeg: copy });
                   }}
                 />
               </div>
-            </div>
+            </CardFrame>
           );
         })}
         <button
@@ -512,7 +549,7 @@ export function P1QuestionFields({
           ? cards.map((row, index) => {
               const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
               return (
-                <div className="system-card" key={`provider-${index}`}>
+                <CardFrame key={`provider-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
                   {cards.length > 1 ? (
                     <div className="system-card-head">
                       <p className="prose">System beim Anbieter {index + 1}</p>
@@ -551,7 +588,7 @@ export function P1QuestionFields({
                       />
                     </div>
                   ))}
-                </div>
+                </CardFrame>
               );
             })
           : null}
@@ -910,7 +947,7 @@ export function P1QuestionFields({
     return (
       <div>
         {table.map((row, index) => (
-          <div className="system-card" key={`ablage-${index}`}>
+          <CardFrame key={`ablage-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
             {table.length > 1 ? (
               <div className="system-card-head">
                 <p className="prose">Belegart {index + 1}</p>
@@ -926,7 +963,7 @@ export function P1QuestionFields({
                 value={text(row.art)}
                 onChange={(art) => {
                   const copy = table.map((item) => ({ ...item }));
-                  copy[index] = { ...copy[index], art };
+                  copy[index] = markEdited(copy[index], { art });
                   commit({ ablageJeArt: copy });
                 }}
               />
@@ -937,7 +974,7 @@ export function P1QuestionFields({
                 value={text(row.ort)}
                 onChange={(ort) => {
                   const copy = table.map((item) => ({ ...item }));
-                  copy[index] = { ...copy[index], ort };
+                  copy[index] = markEdited(copy[index], { ort });
                   commit({ ablageJeArt: copy });
                 }}
               />
@@ -949,12 +986,12 @@ export function P1QuestionFields({
                 placeholder="Zum Beispiel Datum und Lieferant"
                 onChange={(suche) => {
                   const copy = table.map((item) => ({ ...item }));
-                  copy[index] = { ...copy[index], suche };
+                  copy[index] = markEdited(copy[index], { suche });
                   commit({ ablageJeArt: copy });
                 }}
               />
             </div>
-          </div>
+          </CardFrame>
         ))}
         <button
           type="button"
