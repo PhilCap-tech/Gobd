@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FIRMA_ADD_LABEL, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { PROFILE_NAME_MAX } from "@/lib/profile";
 
@@ -99,12 +100,12 @@ export function AccountProfileForm({
       <div className="actions">
         {!atCap && (
           <Link className="btn ghost" href="/account/firma/neu">
-            Firma anlegen
+            {firmHref ? FIRMA_ADD_LABEL : "Firma anlegen"}
           </Link>
         )}
         {firmHref && (
           <Link className="btn ghost" href={firmHref}>
-            Stammdaten bearbeiten
+            {FIRMA_EDIT_LABEL}
           </Link>
         )}
       </div>

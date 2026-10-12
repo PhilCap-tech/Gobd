@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const stored = await createEntity(email, input);
+    const stored = await createEntity(email, input, { checkoutPrefill: "done" });
     return NextResponse.json({
       ok: true,
       store: stored.backend,
@@ -113,7 +113,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const entity = await updateEntity(entityId, input, email);
+    const entity = await updateEntity(entityId, input, email, { checkoutPrefill: "done" });
     if (!entity) {
       return jsonError("Firma nicht gefunden.", 404);
     }

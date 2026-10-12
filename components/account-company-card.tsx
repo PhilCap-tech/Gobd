@@ -15,6 +15,7 @@ import {
   newDocumentPath,
   type EntityDocumentGroup,
 } from "@/lib/documents";
+import { CHECKOUT_PREFILL_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
 import { formatEntityAddress } from "@/lib/entities";
 import { gesamtDocTitle } from "@/lib/gesamt-document";
 import { MODUL_UEBERSICHT_STEP_ID } from "@/lib/intake-catalog";
@@ -81,11 +82,16 @@ export function AccountCompanyCard({
           Dokumente ohne Firmenzuordnung — bis zur Zuordnung ungebunden.
         </p>
       )}
+      {entity?.checkoutPrefill === "review" && (
+        <p className="hint checkout-note" role="status">
+          {CHECKOUT_PREFILL_NOTE}
+        </p>
+      )}
 
       {entity && (
         <div className="actions entity-actions">
           <Link className="btn ghost" href={firmaEditPath(entity.entityId)}>
-            Stammdaten bearbeiten
+            {FIRMA_EDIT_LABEL}
           </Link>
           {group.families.length === 0 && (
             <Link className="btn" href={newDocumentPath(entity.entityId)}>

@@ -7,18 +7,22 @@ import { AccountResourcesCard } from "@/components/account-free";
 import { AccountProfileForm } from "@/components/account-profile-form";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { prepareAccountCheckout } from "@/lib/account-checkout-prefill";
+import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
 import { firmaEditPath, groupFamiliesByEntity } from "@/lib/documents";
 import {
   entityCapReached,
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
-import { firstQueryValue } from "@/lib/query";
 import {
-  ensureAccountEntities,
-  findLatestStripeCustomerIdByEmail,
-  getAccountProfile,
-} from "@/lib/store";
+  isUndeliveredDraft,
+  listOpenDraftsForEmail,
+  openDraftContinuePath,
+  openDraftLabel,
+} from "@/lib/open-drafts";
+import { firstQueryValue } from "@/lib/query";
+import { findLatestStripeCustomerIdByEmail } from "@/lib/store";
 import { portalStatusCopy, portalStatusFromQuery } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -42,11 +46,11 @@ export default async function AccountPage({
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
-  const [{ entities, documents: docs }, profile] = await Promise.all([
-    ensureAccountEntities(email),
-    getAccountProfile(email),
-  ]);
+  const { entities, documents: docs, profile } = await prepareAccountCheckout(email);
   const groups = groupFamiliesByEntity(entities, docs);
+  const openDrafts = (await listOpenDraftsForEmail(email)).filter((draft) =>
+    isUndeliveredDraft(draft, docs),
+  );
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   const stripeBound =
     Boolean(customerId) ||
@@ -80,6 +84,23 @@ export default async function AccountPage({
           </p>
         )}
 
+        {openDrafts.length > 0 && (
+          <section className="card" id="offene-entwuerfe" aria-labelledby="offene-entwuerfe-heading">
+            <h2 id="offene-entwuerfe-heading">Offener Entwurf</h2>
+            <p className="prose">
+              Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
+            </p>
+            {openDrafts.map((draft) => (
+              <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
+                <span className="doc-meta">{openDraftLabel(draft)}</span>
+                <Link className="btn" href={openDraftContinuePath(draft)}>
+                  Weiter ausfüllen
+                </Link>
+              </div>
+            ))}
+          </section>
+        )}
+
         <div className="account-companies" id="firmen">
           {entities.length === 0 && docs.length === 0 ? (
             <div className="card">
@@ -97,18 +118,6 @@ export default async function AccountPage({
             </div>
           ) : (
             <>
-              <div className="entity-toolbar">
-                {atCap ? (
-                  <p className="hint">
-                    Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
-                    erreicht.
-                  </p>
-                ) : (
-                  <Link className="btn ghost" href="/account/firma/neu">
-                    Firma anlegen
-                  </Link>
-                )}
-              </div>
               <div className="entity-list">
                 {groups.map((group) => (
                   <AccountCompanyCard
@@ -117,6 +126,18 @@ export default async function AccountPage({
                     email={email}
                   />
                 ))}
+              </div>
+              <div className="entity-toolbar">
+                {atCap ? (
+                  <p className="hint">
+                    Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
+                    erreicht.
+                  </p>
+                ) : (
+                  <Link className="btn ghost" href="/account/firma/neu">
+                    {entities.length === 0 ? "Firma anlegen" : FIRMA_ADD_LABEL}
+                  </Link>
+                )}
               </div>
             </>
           )}
