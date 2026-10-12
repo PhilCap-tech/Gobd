@@ -48,6 +48,7 @@ const COVERED = [
   "lib/module/status.ts",
   "lib/stripe.ts",
   "lib/session-write.ts",
+  "lib/checkout-session.ts",
 ];
 
 const PRONOUNS =

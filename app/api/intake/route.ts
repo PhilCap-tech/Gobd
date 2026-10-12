@@ -7,6 +7,10 @@ import {
   withoutSessionCookie,
   type CheckoutGrant,
 } from "@/lib/auth";
+import {
+  applyCheckoutOwnerSession,
+  ownerEmailForFirstCompletion,
+} from "@/lib/checkout-session";
 import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import {
   DURABLE_STORE_MESSAGE,
@@ -110,6 +114,8 @@ type ResolvedIntake = {
   entityId: string;
   /** Mail, die auf der Zeile stehen muss. Kommt nie aus body.email. */
   ownerEmail: string;
+  /** Erste Fassung dieser Bestellung. Nur dann darf der Checkout eine Session setzen. */
+  firstDelivery: boolean;
   family?: SheetRow[];
 };
 
@@ -186,6 +192,7 @@ function revisionFromOwner(
         : "intake_submitted",
     entityId: write.row.entityId,
     ownerEmail: write.ownerEmail,
+    firstDelivery: false,
     family: revising ? family : undefined,
   };
 }
@@ -269,6 +276,7 @@ async function resolveIdentity(
     status: identity.stub ? "intake_submitted_stub" : "intake_submitted",
     entityId: body.entityId?.trim() || identity.entityId || "",
     ownerEmail,
+    firstDelivery: true,
   };
 }
 
@@ -488,6 +496,15 @@ async function writeIntake(
     version,
     loginMail,
   });
+  const sessionOwner = resolved.firstDelivery
+    ? ownerEmailForFirstCompletion({
+        grant,
+        ownerEmail: identity.email,
+        stripeSessionId: identity.stripeSessionId,
+        stub: identity.stub,
+      })
+    : null;
+  if (sessionOwner) applyCheckoutOwnerSession(response, sessionOwner);
   const checkoutGrant =
     identity.email &&
     identity.stripeSessionId &&

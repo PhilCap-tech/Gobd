@@ -32,6 +32,12 @@ import {
   formatEntityAddress,
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
+import {
+  isUndeliveredDraft,
+  listOpenDraftsForEmail,
+  openDraftContinuePath,
+  openDraftLabel,
+} from "@/lib/open-drafts";
 import { firstQueryValue } from "@/lib/query";
 
 function intakeModulHref(documentId: string, modulId?: string): string {
@@ -81,6 +87,9 @@ export default async function AccountPage({
     getAccountProfile(email),
   ]);
   const groups = groupFamiliesByEntity(entities, docs);
+  const openDrafts = (await listOpenDraftsForEmail(email)).filter((draft) =>
+    isUndeliveredDraft(draft, docs),
+  );
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   const stripeBound =
     Boolean(customerId) ||
@@ -128,6 +137,23 @@ export default async function AccountPage({
             />
           </div>
         </div>
+
+        {openDrafts.length > 0 && (
+          <section className="card" id="offene-entwuerfe" aria-labelledby="offene-entwuerfe-heading">
+            <h2 id="offene-entwuerfe-heading">Offener Entwurf</h2>
+            <p className="prose">
+              Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
+            </p>
+            {openDrafts.map((draft) => (
+              <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
+                <span className="doc-meta">{openDraftLabel(draft)}</span>
+                <Link className="btn" href={openDraftContinuePath(draft)}>
+                  Weiter ausfüllen
+                </Link>
+              </div>
+            ))}
+          </section>
+        )}
 
         {entities.length === 0 && docs.length === 0 ? (
           <div className="card" id="firmen">
