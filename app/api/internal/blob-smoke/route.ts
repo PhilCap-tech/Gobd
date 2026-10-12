@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
-import { deleteStoredBlob, storePdf } from "@/lib/blob";
+import { deleteStoredBlob, persistIntakePayload, resolveIntakePayload, storePdf } from "@/lib/blob";
+import { intakePayloadLocator } from "@/lib/intake-payload";
 import { generatePdf } from "@/lib/delivery";
 import {
   isMailConfigured,
@@ -58,6 +59,9 @@ function smokePathAllowed(pathname: string): boolean {
     return false;
   }
   if (pathname.startsWith("gobd/uploads/pdf-blob-smokeexamplecom/")) return true;
+  if (/^gobd\/smoke-[A-Za-z0-9-]+\/[A-Za-z0-9-]+\/v\d+-answers\.json$/.test(pathname)) {
+    return true;
+  }
   return /^gobd\/smoke-[A-Za-z0-9-]+\/v\d+\.pdf$/.test(pathname);
 }
 
@@ -106,6 +110,47 @@ async function createSmokePdf(email: string) {
   };
 }
 
+async function roundtripSmokeAnswers() {
+  const documentId = randomUUID();
+  const familyId = `smoke-${documentId}`;
+  const marker = "ANTWORT-ANFANG";
+  const end = "ANTWORT-ENDE";
+  const json = JSON.stringify({
+    katalog: {
+      B01: {
+        status: "bestaetigt",
+        values: {
+          a: `${marker}${"A".repeat(20_000)}`,
+          b: `${"B".repeat(20_000)}${end}`,
+          c: "C".repeat(12_000),
+        },
+      },
+    },
+  });
+  if (json.length <= 50_000) {
+    throw new Error("Antwort-Fixture ist zu kurz");
+  }
+  const stored = await persistIntakePayload(
+    { familyId, documentId, version: 1, json },
+    undefined,
+    { requireBlob: true },
+  );
+  const loaded = await resolveIntakePayload(stored);
+  if (loaded !== json) {
+    throw new Error("Antwort-Roundtrip weicht ab");
+  }
+  const ref = intakePayloadLocator(stored);
+  if (!ref?.locator.endsWith("-answers.json")) {
+    throw new Error("Antwort-Pfad fehlt");
+  }
+  return {
+    ok: true as const,
+    pathname: ref.locator,
+    chars: json.length,
+    sha256: createHash("sha256").update(json).digest("hex"),
+  };
+}
+
 export async function POST(request: Request) {
   if (!blobSmokeEnabled()) {
     return jsonError("Nicht gefunden.", 404);
@@ -132,6 +177,19 @@ export async function POST(request: Request) {
       await deleteStoredBlob(pathname);
     }
     return NextResponse.json({ ok: true, deleted: pathnames.length });
+  }
+
+  if (body.action === "answers") {
+    try {
+      const created = await roundtripSmokeAnswers();
+      return NextResponse.json(created);
+    } catch (error) {
+      console.error(
+        "[blob-smoke] Antworten fehlgeschlagen",
+        error instanceof Error ? error.name : "Unknown",
+      );
+      return jsonError("Antworten konnten nicht gespeichert werden.", 503);
+    }
   }
 
   if (body.action === "pdf") {

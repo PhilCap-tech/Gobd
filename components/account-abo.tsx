@@ -30,7 +30,7 @@ export function AccountUpgradeCard({
       <h2 id={headingId}>
         {compact
           ? "Volle Verfahrensdokumentation"
-          : "Dein Readiness-Ergebnis ist da — die volle Verfahrensdokumentation fehlt noch"}
+          : "Ihr Readiness-Ergebnis ist da — die volle Verfahrensdokumentation fehlt noch"}
       </h2>
       {compact ? (
         <p className="prose">
@@ -73,7 +73,7 @@ export function AccountUpgradeCard({
           <AccountPaidActions />
           <p className="trust-line">
             14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein
-            PDF erzeugt wurde · Keine Steuerberatung · Entwurf für deinen
+            PDF erzeugt wurde · Keine Steuerberatung · Entwurf für Ihren
             Steuerberater
           </p>
         </>
@@ -92,7 +92,7 @@ export function AccountAboCard({ stripeBound }: { stripeBound: boolean }) {
       <h2 id="abo-heading">Abo</h2>
       <p className="prose">
         Ein Abo gilt für bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen. Status,
-        Rechnungen und Zahlungsmittel findest du unter Abo verwalten.
+        Rechnungen und Zahlungsmittel finden Sie unter Abo verwalten.
       </p>
       <div className="actions" style={{ marginTop: 12 }}>
         <Link className="btn ghost" href={accountBillingPath()}>

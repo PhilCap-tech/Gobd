@@ -198,6 +198,11 @@ h1 {
   font-weight: 600;
 }
 
+#intake-step-heading:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 h2 {
   font-size: 22px;
   margin: 0 0 12px;
@@ -621,6 +626,48 @@ h3 {
   font-size: 14px;
   font-weight: 500;
   color: var(--muted);
+}
+
+.upsell {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 24px 22px;
+  margin: 28px 0 8px;
+}
+
+.upsell h2 {
+  margin-top: 0;
+}
+
+.upsell h3 {
+  font-size: 1.05rem;
+  margin: 18px 0 6px;
+}
+
+.upsell-price {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 650;
+  margin: 16px 0 4px;
+}
+
+.upsell-guarantee {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.upsell-guarantee a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+.upsell-footnote {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 14px 0 0;
 }
 
 .disclaimer {
@@ -1121,6 +1168,40 @@ textarea:focus {
 
 .system-card .prose {
   margin-top: 0;
+}
+
+.system-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
+.system-card-head .prose {
+  margin: 0;
+}
+
+.system-card-head .btn {
+  flex: 0 0 auto;
+}
+
+.system-card.system-card-invalid {
+  background: #fdf2f2;
+  border-color: #e3b4b4;
+}
+
+.field-invalid .chip {
+  border-color: #a33b3b;
+}
+
+.field-invalid .chip.on {
+  border-color: var(--accent);
+}
+
+.error ul {
+  margin: 0;
+  padding-left: 18px;
 }
 
 .intake-table-wrap {

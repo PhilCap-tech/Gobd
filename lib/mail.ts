@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { isMailConfigured } from "@/lib/env";
+import { isMailConfigured, magicLinkDevFallbackAllowed } from "@/lib/env";
 
 export {
   wrapTransactionalHtml,
@@ -23,10 +23,14 @@ export async function sendEmail(input: {
   replyTo?: string;
 }): Promise<MailResult> {
   if (!isMailConfigured()) {
+    const text =
+      input.text.includes("/auth/verify?") && !magicLinkDevFallbackAllowed()
+        ? "[redacted]"
+        : input.text;
     console.info("[mail] stub — RESEND_API_KEY oder EMAIL_FROM fehlt", {
       to: input.to,
       subject: input.subject,
-      text: input.text,
+      text,
     });
     return { stub: true, sent: false };
   }

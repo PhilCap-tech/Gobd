@@ -6,7 +6,7 @@ import { entityById, entityChoices } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
-import { ALL_AREAS_LINE, PRICE_MICRO } from "@/lib/offer-copy";
+import { ALL_AREAS_LINE, INTAKE_EFFORT_LINE, PRICE_MICRO } from "@/lib/offer-copy";
 import { MONTHLY_EUR, SETUP_EUR } from "@/lib/pricing";
 import { CheckoutForm } from "./checkout-form";
 
@@ -62,6 +62,7 @@ export default async function CheckoutPage({
             </>
           )}
         </p>
+        <p className="prose">{INTAKE_EFFORT_LINE}</p>
         <CheckoutForm
           stripeReady={isStripeConfigured()}
           stripeTestMode={isStripeTestMode()}

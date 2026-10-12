@@ -3,7 +3,17 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, safeNextPath } from "@/lib/auth";
+import {
+  answersLoginOffer,
+  emailForAnswersLogin,
+  intakeTargetFromNext,
+  LOGIN_FOR_ANSWERS_COPY,
+} from "@/lib/checkout-session";
 import { firstQueryValue } from "@/lib/query";
+import {
+  findDocumentById,
+  findLatestDocumentByStripeSessionId,
+} from "@/lib/store";
 import { LoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +36,15 @@ export default async function LoginPage({
   }
 
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
+  const target = intakeTargetFromNext(next);
+  let checkoutEmail = "";
+  if (target && (target.documentId || target.sessionId)) {
+    const row = target.documentId
+      ? await findDocumentById(target.documentId)
+      : await findLatestDocumentByStripeSessionId(target.sessionId);
+    checkoutEmail = emailForAnswersLogin(row, target);
+  }
+  const offer = answersLoginOffer({ next, checkoutEmail });
 
   return (
     <>
@@ -33,14 +52,20 @@ export default async function LoginPage({
       <main className="wrap page">
         <h1>Anmelden</h1>
         <p className="lead">
-          Magic Link an die Checkout-E-Mail. Kein Passwort.
+          {offer.explain
+            ? LOGIN_FOR_ANSWERS_COPY
+            : "Magic Link an die Checkout-E-Mail. Kein Passwort."}
         </p>
         {error === "invalid" && (
           <p className="error">
             Der Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.
           </p>
         )}
-        <LoginForm next={next} />
+        <LoginForm
+          next={next}
+          prefillEmail={offer.email}
+          maskedEmail={offer.masked}
+        />
       </main>
       <SiteFooter />
     </>

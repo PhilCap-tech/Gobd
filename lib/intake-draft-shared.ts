@@ -3,6 +3,14 @@
  */
 import type { IntakeAnswers } from "@/lib/types";
 
+/** Gültig ab/bis and Änderungsgrund, stored with the Entwurf (R10). */
+export type DraftVersionChange = {
+  validFrom: string;
+  validTo: string;
+  changeSummary: string;
+  changedBy: string;
+};
+
 export type IntakeDraft = {
   draftKey: string;
   email: string;
@@ -19,6 +27,8 @@ export type IntakeDraft = {
    * later edit just because the server stamped it later.
    */
   revision?: number;
+  /** Absent on drafts saved before version fields were part of the Entwurf. */
+  change?: DraftVersionChange;
 };
 
 /** Browser or server snapshot used to pick which Entwurf to restore. */
@@ -27,6 +37,7 @@ export type IntakeDraftSnapshot = {
   step: number;
   savedAt: string;
   revision?: number;
+  change?: DraftVersionChange;
 };
 
 export function normalizeDraftKey(parts: {
@@ -101,4 +112,86 @@ export function preferIntakeSnapshot<T extends IntakeDraftSnapshot>(
   const rightRev = draftRevision(right);
   if (leftRev !== rightRev) return leftRev > rightRev ? left : right;
   return left.savedAt.localeCompare(right.savedAt) >= 0 ? left : right;
+}
+
+export function parseDraftVersionChange(value: unknown): DraftVersionChange | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const text = (key: string) => (typeof raw[key] === "string" ? raw[key] : "");
+  const change: DraftVersionChange = {
+    validFrom: text("validFrom"),
+    validTo: text("validTo"),
+    changeSummary: text("changeSummary"),
+    changedBy: text("changedBy"),
+  };
+  if (!change.validFrom && !change.validTo && !change.changeSummary && !change.changedBy) {
+    return null;
+  }
+  return change;
+}
+
+export type DraftLoadDecision = {
+  /** Saved Entwurf replaced the untouched form. */
+  restored: boolean;
+  answers: IntakeAnswers;
+  step: number;
+  change: DraftVersionChange;
+  /**
+   * Revision the next save starts from. Local edits keep at least the saved
+   * revision so a later flush is not rejected as stale and then discarded.
+   */
+  revision: number;
+};
+
+/**
+ * What the form shows once a saved Entwurf has been read.
+ * Untouched form: restore the Entwurf, including Gültig ab/bis and Änderungsgrund.
+ * Edits already typed on this page: those edits stay. The saved Entwurf must
+ * not replace them.
+ */
+export function resolveDraftAfterLoad(input: {
+  saved: Pick<IntakeDraftSnapshot, "answers" | "step" | "revision" | "change"> | null;
+  localEdited: boolean;
+  localRevision: number;
+  current: {
+    answers: IntakeAnswers;
+    step: number;
+    change: DraftVersionChange;
+  };
+}): DraftLoadDecision {
+  const currentChange = input.current.change;
+  if (!input.saved?.answers) {
+    return {
+      restored: false,
+      answers: input.current.answers,
+      step: input.current.step,
+      change: currentChange,
+      revision: input.localRevision,
+    };
+  }
+  const savedRevision = draftRevision(input.saved);
+  if (input.localEdited) {
+    return {
+      restored: false,
+      answers: input.current.answers,
+      step: input.current.step,
+      change: currentChange,
+      revision: Math.max(input.localRevision, savedRevision),
+    };
+  }
+  const savedChange = input.saved.change ?? null;
+  return {
+    restored: true,
+    answers: input.saved.answers,
+    step: Number.isFinite(input.saved.step) ? Number(input.saved.step) : 0,
+    change: savedChange
+      ? {
+          validFrom: savedChange.validFrom || currentChange.validFrom,
+          validTo: savedChange.validTo,
+          changeSummary: savedChange.changeSummary,
+          changedBy: savedChange.changedBy || currentChange.changedBy,
+        }
+      : currentChange,
+    revision: Math.max(input.localRevision, savedRevision),
+  };
 }

@@ -91,7 +91,7 @@ Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die Unterlage entst
 
 Nach Art. 97 § 19a Abs. 2 EGAO gilt diese Fassung erstmals für alle Unterlagen, deren Aufbewahrungsfrist nach dem bis einschließlich 31. Dezember 2024 geltenden Recht noch nicht abgelaufen war. Für Kreditinstitute im Sinne des § 1 Abs. 1b KWG einschließlich Zweigstellen nach § 53 KWG, für Unternehmen unter Aufsicht nach § 1 Abs. 1 VAG und für Wertpapierinstitute im Sinne des § 2 Abs. 1 WpIG gilt abweichend die am 31. Dezember 2024 geltende Fassung (Art. 97 § 19a Abs. 3 EGAO). Welche Datei in welche Gruppe fällt und ob die Ausnahme Sie betrifft, stimmen Sie mit Ihrer Steuerberatung ab. Eine pauschale „zehn Jahre für alles“ beschreibt das geltende Recht nicht.
 
-**So beheben Sie es.** Ordnen Sie die Unterlagenarten zu, die bei Ihnen vorkommen, und streichen Sie Fristen aus alten Mustern, die noch überall zehn Jahre nennen. Fragen zur Zuordnung: [Modul 16 Aufbewahrungsfristen und Löschung](/muster/modul/m16/fragebogen) (PDF).
+**So beheben Sie es.** Ordnen Sie die Unterlagenarten zu, die bei Ihnen vorkommen, und streichen Sie Fristen aus alten Mustern, die noch überall zehn Jahre nennen. Die Fristen im Zusammenhang und was sie für die Verfahrensdokumentation selbst bedeuten: [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd). Fragen zur Zuordnung: [Modul 16 Aufbewahrungsfristen und Löschung](/muster/modul/m16/fragebogen) (PDF).
 
 ## Scannen ohne beschriebenen Prozess
 
@@ -127,9 +127,9 @@ Den Abgleich über die vier Teile hinweg macht die [Verfahrensdokumentation Chec
 
 Unsicher, ob Systeme, Belegwege und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Entwurf nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
+Wenn Sie den Entwurf nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung.
 
 ## FAQ
 

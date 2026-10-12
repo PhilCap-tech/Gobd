@@ -5,7 +5,6 @@
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { loginPath, magicLinkUrl, safeNextPath } from "@/lib/auth";
-import { isMailConfigured } from "@/lib/env";
 import {
   buildDeliveryMail,
   buildFailedJobMail,
@@ -13,23 +12,22 @@ import {
   buildMagicLinkMail,
   buildOnboardingMail,
   buildReadinessMail,
-  buildReferralAfterDeliveryMail,
   checkoutContactFromCustomerDetails,
+  CUSTOMER_ONBOARDING_CONTINUE_CTA,
   CUSTOMER_ONBOARDING_SIGNATURE,
+  customerOnboardingDraftPath,
   customerOnboardingGreeting,
   intakeContactNameFromAnswers,
   PARTNER_ONBOARDING_SIGNATURE,
   pickOnboardingContactName,
-  REFERRAL_AFTER_DELIVERY_SUBJECT,
   REFERRAL_AFTER_DELIVERY_URL,
   REFERRAL_MICRO,
-  sendReferralAfterDeliveryMail,
 } from "@/lib/ops";
 import {
+  MAIL_ACCOUNT_URL,
   MAIL_CHECKOUT_URL,
   MAIL_FAQ_URL,
   MAIL_HOME_URL,
-  MAIL_LOGIN_URL,
   MAIL_SUPPORT_EMAIL,
 } from "@/lib/mail-layout";
 import {
@@ -53,20 +51,25 @@ const readiness = buildReadinessMail({
 });
 const onboardingStartUrl =
   "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-onboarding&next=%2Fintake";
+const onboardingContinueUrl =
+  "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-continue&next=%2Fintake%3Fsession_id%3Dcs_owner_draft";
 const onboarding = buildOnboardingMail({
   company: "Muster GmbH",
   contactName: "Philip Cappelletti",
   magicLinkUrl: onboardingStartUrl,
+  continueUrl: onboardingContinueUrl,
 });
 const onboardingCompanyOnly = buildOnboardingMail({
   company: "IKAT GmbH",
   contactName: "IKAT GmbH",
   magicLinkUrl: onboardingStartUrl,
+  continueUrl: onboardingContinueUrl,
 });
 const onboardingWhitespace = buildOnboardingMail({
   company: "Muster GmbH",
   contactName: "   \n  ",
   magicLinkUrl: onboardingStartUrl,
+  continueUrl: onboardingContinueUrl,
 });
 const partnerOnboarding = buildOnboardingMail({
   company: "Beispiel Kanzlei",
@@ -79,13 +82,18 @@ const failedPayment = buildFailedPaymentMail();
 const failedJob = buildFailedJobMail();
 const delivery = buildDeliveryMail({
   company: "Muster GmbH",
+  contactName: "Anna Berg",
   downloadUrl: "https://www.gobd-doku-erstellen.de/api/docs/preview/download",
   successUrl: "https://www.gobd-doku-erstellen.de/success?session_id=preview",
   magicLinkUrl: "https://www.gobd-doku-erstellen.de/auth/verify?token=delivery-preview",
   version: 1,
 });
-const referral = buildReferralAfterDeliveryMail({ company: "Muster GmbH" });
-const referralNoCompany = buildReferralAfterDeliveryMail({ company: "  " });
+const deliveryCompanyOnly = buildDeliveryMail({
+  company: "IKAT GmbH",
+  contactName: "IKAT GmbH",
+  downloadUrl: "https://www.gobd-doku-erstellen.de/api/docs/preview/download",
+  version: 1,
+});
 
 const files: Record<string, string> = {
   "magic-link.html": magic.html,
@@ -96,7 +104,6 @@ const files: Record<string, string> = {
   "failed-payment.html": failedPayment.html,
   "failed-job.html": failedJob.html,
   "delivery.html": delivery.html,
-  "referral-after-delivery.html": referral.html,
 };
 
 for (const [name, html] of Object.entries(files)) {
@@ -131,28 +138,28 @@ for (const [name, html] of Object.entries(files)) {
 assert(!hasPageReadinessHref(onboarding.html), "Onboarding must not link to /readiness");
 assert(
   onboarding.subject ===
-    "Willkommen — nächste Schritte zu deiner Verfahrensdokumentation",
-  "Customer onboarding subject stays du",
+    "Willkommen — nächste Schritte zu Ihrer Verfahrensdokumentation",
+  "Customer onboarding subject uses Sie",
 );
 assert(
-  onboarding.html.includes("danke für deine Bestellung"),
-  "Customer onboarding stays du",
+  onboarding.html.includes("vielen Dank für Ihre Bestellung"),
+  "Customer onboarding thanks in Sie",
 );
 assert(
   !onboarding.html.includes("KANZLEI-PILOT"),
   "Customer onboarding must not mention the partner code",
 );
 function greetingParagraph(html: string): string {
-  const match = html.match(/<p>(Hallo.*?)<\/p>/);
+  const match = html.match(/<p>(Guten Tag.*?)<\/p>/);
   return match?.[1] ?? "";
 }
 const onboardingHref = onboardingStartUrl.replaceAll("&", "&amp;");
 assert(
-  greetingParagraph(onboarding.html) === "Hallo Philip Cappelletti,",
+  greetingParagraph(onboarding.html) === "Guten Tag Philip Cappelletti,",
   "Customer onboarding greets the contact name",
 );
 assert(
-  onboarding.text.startsWith("Hallo Philip Cappelletti,"),
+  onboarding.text.startsWith("Guten Tag Philip Cappelletti,"),
   "Customer onboarding plaintext greets the contact name",
 );
 assert(
@@ -161,24 +168,24 @@ assert(
   "Customer onboarding greeting must not use the company name",
 );
 assert(
-  greetingParagraph(onboardingCompanyOnly.html) === "Hallo,",
-  "Company-only name falls back to Hallo,",
+  greetingParagraph(onboardingCompanyOnly.html) === "Guten Tag,",
+  "Company-only name falls back to Guten Tag,",
 );
 assert(
-  onboardingCompanyOnly.text.startsWith("Hallo,"),
-  "Company-only plaintext falls back to Hallo,",
+  onboardingCompanyOnly.text.startsWith("Guten Tag,"),
+  "Company-only plaintext falls back to Guten Tag,",
 );
 assert(
-  !onboardingCompanyOnly.text.includes("Hallo IKAT") &&
-    !onboardingCompanyOnly.html.includes("Hallo IKAT"),
+  !onboardingCompanyOnly.text.includes("Guten Tag IKAT") &&
+    !onboardingCompanyOnly.html.includes("Guten Tag IKAT"),
   "Company name must not appear in the greeting",
 );
 assert(
-  greetingParagraph(onboardingWhitespace.html) === "Hallo,",
-  "Whitespace contact name falls back to Hallo,",
+  greetingParagraph(onboardingWhitespace.html) === "Guten Tag,",
+  "Whitespace contact name falls back to Guten Tag,",
 );
 assert(
-  !onboardingWhitespace.text.includes("Hallo ,"),
+  !onboardingWhitespace.text.includes("Guten Tag ,"),
   "Whitespace contact name must not leave a gap",
 );
 assert(
@@ -193,6 +200,18 @@ assert(
   onboarding.html.includes("Jetzt starten: Betriebs-Check"),
   "Customer onboarding has the Betriebs-Check button",
 );
+const onboardingContinueHref = onboardingContinueUrl.replaceAll("&", "&amp;");
+assert(
+  customerOnboardingDraftPath("cs_owner_draft") === "/intake?session_id=cs_owner_draft",
+  "Draft continue path keeps the owner session",
+);
+assert(
+  onboarding.html.includes(`>${CUSTOMER_ONBOARDING_CONTINUE_CTA}</a>`) &&
+    onboarding.html.includes(`href="${onboardingContinueHref}"`) &&
+    onboarding.text.includes(CUSTOMER_ONBOARDING_CONTINUE_CTA) &&
+    onboarding.text.includes(onboardingContinueUrl),
+  "Customer onboarding continues into the draft via verify, with a plaintext link",
+);
 assert(
   onboarding.html.includes(`background:#002050`),
   "Customer onboarding button is a primary CTA",
@@ -205,22 +224,62 @@ assert(
   onboardingCompanyOnly.text.includes(onboardingStartUrl),
   "Fallback plaintext includes the same start URL",
 );
+const ONBOARDING_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 assert(
-  onboarding.html.includes(CUSTOMER_ONBOARDING_SIGNATURE),
-  "Customer onboarding HTML signs the team",
+  CUSTOMER_ONBOARDING_SIGNATURE === ONBOARDING_SIGNATURE,
+  "Customer onboarding signature is exactly Ihr Team von GoBD Verfahrensdoku",
 );
 assert(
-  onboarding.text.includes(CUSTOMER_ONBOARDING_SIGNATURE),
-  "Customer onboarding plaintext signs the team",
+  onboarding.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`),
+  "Customer onboarding HTML signature paragraph is exact",
 );
 assert(
-  !onboarding.html.includes("GoBD Ops") && !onboarding.text.includes("GoBD Ops"),
-  "Customer onboarding must not sign GoBD Ops",
+  onboarding.text.includes(ONBOARDING_SIGNATURE),
+  "Customer onboarding plaintext signature is exact",
+);
+assert(
+  onboardingCompanyOnly.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`) &&
+    onboardingCompanyOnly.text.includes(ONBOARDING_SIGNATURE) &&
+    onboardingWhitespace.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`) &&
+    onboardingWhitespace.text.includes(ONBOARDING_SIGNATURE),
+  "Every customer onboarding variant uses the same signature",
+);
+assert(
+  !/GoBD Ops/i.test(onboarding.html) &&
+    !/GoBD Ops/i.test(onboarding.text) &&
+    !/GoBD Ops/i.test(onboardingCompanyOnly.html) &&
+    !/GoBD Ops/i.test(onboardingCompanyOnly.text) &&
+    !/GoBD Ops/i.test(onboardingWhitespace.html) &&
+    !/GoBD Ops/i.test(onboardingWhitespace.text),
+  "Customer onboarding must not contain GoBD Ops",
+);
+assert(
+  onboarding.html.includes("Ihr Ansprechpartner:") &&
+    onboarding.text.includes(
+      `Ihr Ansprechpartner: ${MAIL_SUPPORT_EMAIL}. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.`,
+    ) &&
+    onboarding.html.includes(`href="mailto:${MAIL_SUPPORT_EMAIL}"`) &&
+    MAIL_SUPPORT_EMAIL === "info@gobd-doku-erstellen.de",
+  "Customer onboarding names the Ansprechpartner reply address",
+);
+assert(
+  onboarding.html.includes(`href="${MAIL_ACCOUNT_URL}"`) &&
+    onboarding.text.includes(`Ihr Konto: ${MAIL_ACCOUNT_URL}`) &&
+    MAIL_ACCOUNT_URL === "https://www.gobd-doku-erstellen.de/account",
+  "Customer onboarding links the Konto page",
+);
+assert(
+  onboarding.html.includes("Entwurf wird gespeichert") &&
+    onboarding.text.includes("Entwurf wird gespeichert") &&
+    onboarding.html.includes("Später ausfüllen") &&
+    onboarding.text.includes("Später ausfüllen"),
+  "Customer onboarding explains later answers and a saved Entwurf",
 );
 assert(
   onboarding.html.includes("Betriebs-Check") &&
     onboarding.html.includes("24 Module") &&
     onboarding.html.includes("Später ausfüllen") &&
+    onboarding.html.includes("Entwurf wird gespeichert") &&
     onboarding.html.includes("To-dos") &&
     onboarding.html.includes("Gesamt-PDF") &&
     onboarding.html.includes("Vollständigkeitsübersicht"),
@@ -228,7 +287,7 @@ assert(
 );
 assert(
   onboarding.html.includes(
-    "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus deinen Angaben.",
+    "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus Ihren Angaben.",
   ),
   "Customer onboarding keeps the disclaimer",
 );
@@ -239,8 +298,17 @@ assert(
 assert(safeNextPath("/intake") === "/intake", "/intake is an allowed next path");
 assert(safeNextPath("/intake/extra") === null, "intake subpaths stay blocked");
 assert(
-  safeNextPath("/intake?session_id=cs_live_abc") === "/intake",
-  "intake query is stripped and cannot redirect elsewhere",
+  safeNextPath("/intake?session_id=cs_live_abc") === "/intake?session_id=cs_live_abc",
+  "intake keeps a checkout session id and cannot redirect elsewhere",
+);
+assert(
+  safeNextPath("/intake?session_id=cs_live_abc&next=https://evil.example") ===
+    "/intake?session_id=cs_live_abc",
+  "unknown intake query is dropped",
+);
+assert(
+  safeNextPath("/intake?session_id=../admin") === "/intake",
+  "unsafe session id is dropped",
 );
 assert(safeNextPath("https://evil.example/intake") === null, "absolute next is rejected");
 assert(safeNextPath("//evil.example/intake") === null, "protocol-relative next is rejected");
@@ -295,7 +363,7 @@ assert(
   "intake contact is used when checkout is only the company",
 );
 assert(
-  customerOnboardingGreeting("   ", ["IKAT GmbH"]) === "Hallo,",
+  customerOnboardingGreeting("   ", ["IKAT GmbH"]) === "Guten Tag,",
   "greeting helper falls back on whitespace",
 );
 assert(
@@ -334,7 +402,9 @@ assert(
   "Stripe business name alone does not greet",
 );
 function hasCustomerDu(value: string): boolean {
-  return /\b(du|dein|deine|deinen|deiner|deinem|dich)\b/i.test(value);
+  return /\b(du|dich|dir|dein|deine|deinem|deinen|deiner|deines|euch|euer|eure|eurem|euren|eurer|eures)\b/i.test(
+    value,
+  );
 }
 const partnerMail = `${partnerOnboarding.subject}\n${partnerOnboarding.html}\n${partnerOnboarding.text}`;
 assert(
@@ -447,82 +517,79 @@ assert(
   "Readiness plain text must include Steuerberatung disclaimer",
 );
 assert(
-  referral.subject === REFERRAL_AFTER_DELIVERY_SUBJECT,
-  "Referral subject must match Ops copy",
+  delivery.subject === "Ihr Entwurf der Verfahrensdokumentation",
+  "Delivery keeps its own subject",
 );
 assert(
-  referral.subject ===
-    "Dein Entwurf ist fertig — gern an Steuerberater oder Kollegen weitergeben",
-  "Referral subject must be exact",
-);
-const referralHref = REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;");
-assert(
-  referral.html.includes(`href="${referralHref}"`),
-  "Referral HTML must link the exact UTM product URL",
+  delivery.text.startsWith("Guten Tag Anna Berg,"),
+  "Delivery greets the contact person",
 );
 assert(
-  referral.text.includes(REFERRAL_AFTER_DELIVERY_URL),
-  "Referral plain text must include the exact UTM product URL",
+  deliveryCompanyOnly.text.startsWith("Guten Tag,"),
+  "Delivery falls back when the only name is the company",
 );
 assert(
-  referral.html.includes("utm_source=referral") &&
-    referral.html.includes("utm_medium=email") &&
-    referral.html.includes("utm_campaign=post_delivery"),
-  "Referral HTML must include the post_delivery UTM campaign",
+  !delivery.text.includes("Guten Tag Muster GmbH") &&
+    !delivery.html.includes("Guten Tag Muster GmbH") &&
+    !deliveryCompanyOnly.text.includes("Guten Tag IKAT GmbH") &&
+    !deliveryCompanyOnly.html.includes("Guten Tag IKAT GmbH"),
+  "Delivery must not greet the company name",
 );
-assert(referral.html.includes(MAIL_FAQ_URL), "Referral HTML must link to FAQ");
+const shareHref = REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;");
 assert(
-  referral.text.includes(MAIL_FAQ_URL),
-  "Referral plain text must include FAQ",
-);
-assert(
-  referral.html.includes(MAIL_LOGIN_URL),
-  "Referral HTML must link to login",
-);
-assert(
-  referral.text.includes(MAIL_LOGIN_URL),
-  "Referral plain text must include login",
+  delivery.html.includes("<strong>Gern weitergeben</strong>") &&
+    delivery.text.includes("Gern weitergeben") &&
+    delivery.html.includes(`href="${shareHref}"`) &&
+    delivery.text.includes(REFERRAL_AFTER_DELIVERY_URL),
+  "Delivery includes one share section with the UTM product URL",
 );
 assert(
-  referral.html.includes(REFERRAL_MICRO),
-  "Referral HTML must include the pricing micro line",
+  delivery.html.includes(REFERRAL_MICRO) && delivery.text.includes(REFERRAL_MICRO),
+  "Delivery includes the single price line",
 );
 assert(
-  referral.html.includes("149 €"),
-  "Referral HTML must keep the 149 € setup price",
+  delivery.html.split("149 €").length - 1 === 1 &&
+    delivery.text.split("149 €").length - 1 === 1,
+  "Delivery states the price once",
 );
 assert(
-  referral.html.includes("49 €/Monat"),
-  "Referral HTML must keep the 49 €/Monat price",
+  !delivery.html.includes("Betriebs-Check") && !delivery.text.includes("Betriebs-Check"),
+  "Delivery does not re-explain the Betriebs-Check",
 );
 assert(
-  !/unsubscribe/i.test(referral.html),
-  "Referral HTML must not include unsubscribe",
+  delivery.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`) &&
+    delivery.text.includes(ONBOARDING_SIGNATURE) &&
+    deliveryCompanyOnly.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`),
+  "Delivery uses the customer signature",
 );
 assert(
-  !/unsubscribe/i.test(referral.text),
-  "Referral plain text must not include unsubscribe",
+  !/GoBD Ops/i.test(`${delivery.html}\n${delivery.text}\n${deliveryCompanyOnly.html}`),
+  "Delivery must not contain GoBD Ops",
 );
-assert(
-  !referral.html.includes("/api/docs/"),
-  "Referral must not attach or link a second PDF",
-);
-assert(
-  !/PDF herunterladen/i.test(referral.html),
-  "Referral must not repeat the delivery download CTA",
-);
-assert(
-  referral.html.includes("Hallo Muster GmbH,"),
-  "Referral greeting must include the company",
-);
-assert(
-  referralNoCompany.text.startsWith("Hallo,"),
-  "Empty company must render as Hallo,",
-);
-assert(
-  !referralNoCompany.text.includes("Hallo ,"),
-  "Empty company must not leave a gap in the greeting",
-);
+const customerMails = [
+  magic,
+  readiness,
+  onboarding,
+  failedPayment,
+  failedJob,
+  delivery,
+  deliveryCompanyOnly,
+];
+for (const mail of customerMails) {
+  assert(
+    !hasCustomerDu(`${mail.subject}\n${mail.html}\n${mail.text}`),
+    `Customer mail must use Sie: ${mail.subject}`,
+  );
+  assert(
+    mail.html.includes(`<p>${ONBOARDING_SIGNATURE}</p>`) &&
+      mail.text.includes(ONBOARDING_SIGNATURE),
+    `Customer mail signature: ${mail.subject}`,
+  );
+  assert(
+    !/GoBD Ops/i.test(`${mail.html}\n${mail.text}`),
+    `Customer mail must not contain GoBD Ops: ${mail.subject}`,
+  );
+}
 
 async function assertReferralIdempotency(): Promise<void> {
   const referralLedgerFile = path.join(outDir, "referral-ledger.json");
@@ -564,55 +631,6 @@ async function assertReferralIdempotency(): Promise<void> {
     "parallel reserves of one delivery must claim only once",
   );
   assert((await reserveReferralDelivery(nextDelivery)) === "reserved", "new version can reserve");
-
-  if (isMailConfigured()) {
-    console.info(
-      "[preview] Mail-Env gesetzt — Idempotenz nur über das Ledger, kein Live-Versand",
-    );
-  } else {
-    const first = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      company: "Muster GmbH",
-      documentId: "preview-doc",
-      sessionId: "preview-session",
-    });
-    const duplicate = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      company: "Muster GmbH",
-      documentId: "preview-doc",
-      sessionId: "preview-session",
-    });
-    const nextVersion = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      company: "Muster GmbH",
-      documentId: "preview-doc-v2",
-      sessionId: "preview-session",
-    });
-    const missingEmail = await sendReferralAfterDeliveryMail({
-      email: "  ",
-      documentId: "preview-doc-v2",
-      sessionId: "preview-session",
-    });
-    const missingId = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-    });
-    const sessionFirst = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      sessionId: "preview-session-only",
-    });
-    const sessionDuplicate = await sendReferralAfterDeliveryMail({
-      email: "preview@example.com",
-      sessionId: "preview-session-only",
-    });
-    assert(first.skipped === false && first.stub === true && first.sent === false, "First referral stub must run once");
-    assert(first.action === "referral_after_delivery", "Referral action must be distinct");
-    assert(duplicate.skipped === true && duplicate.sent === false, "Duplicate delivery must skip referral");
-    assert(nextVersion.skipped === false, "A new document version is a new delivery event");
-    assert(missingEmail.skipped === true && missingEmail.sent === false, "Missing email must skip");
-    assert(missingId.skipped === true && missingId.sent === false, "Missing delivery id must skip");
-    assert(sessionFirst.skipped === false, "Session-only delivery sends once");
-    assert(sessionDuplicate.skipped === true, "Same session without a new document skips");
-  }
 }
 
 assertReferralIdempotency().catch((error) => {

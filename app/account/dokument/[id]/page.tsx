@@ -13,9 +13,10 @@ import { VersionHistory } from "@/components/document-revision";
 import {
   canAccessDocument,
   documentDownloadPath,
-  groupDocumentFamilies,
+  latestOwnedInFamily,
   nextVersionNumber,
 } from "@/lib/documents";
+import { emailsEqual } from "@/lib/types";
 import { ensureAccountEntities, findDocumentById, listDocumentFamily } from "@/lib/store";
 import { DocumentEditor } from "./document-editor";
 
@@ -32,7 +33,7 @@ function EditGate({ loggedIn }: { loggedIn: boolean }) {
       <h1>Dokument nicht verfügbar</h1>
       <p className="prose">
         {loggedIn
-          ? "Dieses Dokument gehört nicht zu deinem Konto."
+          ? "Dieses Dokument gehört nicht zu Ihrem Konto."
           : "Bitte mit der Checkout-E-Mail anmelden."}
       </p>
       <div className="actions" style={{ marginTop: 16 }}>
@@ -70,13 +71,16 @@ export default async function DocumentEditPage({
   }
 
   const family = await listDocumentFamily(sourceRow.documentId);
-  const grouped = groupDocumentFamilies(family)[0];
-  const latest = grouped?.latest ?? sourceRow;
-  const versions = grouped?.versions ?? family;
-  const allowed = canAccessDocument(latest, { sessionEmail });
+  const owned = emailsEqual(sourceRow.email, sessionEmail);
+  const latest = owned ? latestOwnedInFamily(family, sessionEmail) ?? sourceRow : null;
+  const versions =
+    latest && owned
+      ? family.filter((row) => emailsEqual(row.email, sessionEmail))
+      : [];
+  const allowed = latest ? canAccessDocument(latest, { sessionEmail }) : false;
   let chapterError = false;
   let draft: EditableDocument | null = null;
-  if (allowed) {
+  if (allowed && latest) {
     try {
       draft = editableDocumentFromRow({
         ...latest,
@@ -101,14 +105,14 @@ export default async function DocumentEditPage({
               erneut öffnen. Nichts wurde überschrieben.
             </p>
           </div>
-        ) : !allowed || !draft ? (
+        ) : !allowed || !draft || !latest ? (
           <EditGate loggedIn />
         ) : (
           <>
             <p className="kicker">Konto</p>
             <h1>Dokument bearbeiten</h1>
             <p className="lead">
-              Kapiteltext deines Entwurfs. Intake-Angaben bleiben unter
+              Kapiteltext Ihres Entwurfs. Intake-Angaben bleiben unter
               „Angaben überarbeiten“.
             </p>
             <DocumentEditor

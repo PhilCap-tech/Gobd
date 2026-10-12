@@ -53,7 +53,7 @@ Die empfangene XML-Datei wird im ursprünglichen Format aufbewahrt. Technische V
 {{#unless answers.eingangsbelege contains "XRechnung"}}
 ## 5.2 Strukturierte E-Rechnungen
 
-Ob strukturierte E-Rechnungen empfangen und wie sie technisch geprüft werden, ist aus dem Intake nicht bestätigt und bleibt zu beschreiben. Eine reine PDF per E-Mail ist nicht mit einer strukturierten E-Rechnung gleichzusetzen.
+Ob strukturierte E-Rechnungen empfangen und wie sie technisch geprüft werden, ist aus dem Intake nicht angegeben und bleibt zu beschreiben. Eine reine PDF per E-Mail ist nicht mit einer strukturierten E-Rechnung gleichzusetzen.
 {{/unless}}
 {{/unless}}
 {{/unless}}

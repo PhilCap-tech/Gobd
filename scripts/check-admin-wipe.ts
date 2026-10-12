@@ -25,9 +25,11 @@ import {
   stripeWipeDecision,
   unknownMatchesEmail,
   WIPE_EMAIL_ALLOWLIST,
+  WIPE_SMOKE_EMAIL,
   type AccountRecord,
   type AccountScope,
 } from "../lib/admin-wipe";
+import { commitBlobWipe, planAccountBlobs, type BlobStoreIo } from "../lib/admin-wipe-blobs";
 import { handleAdminWipeRequest, resetAdminWipeRateLimit } from "../lib/admin-wipe-http";
 import { intakeDraftBlobPath, intakeDraftHash } from "../lib/draft-path";
 import { uploadOwnerSegment, wipeUploadOwner } from "../lib/upload-path";
@@ -38,7 +40,7 @@ function ok(cond: unknown, msg: string) {
 }
 
 const ALLOWED = "cappe@gmx.de";
-const OTHER = "kunde@example.com";
+const OTHER = "foreign.user@gmail.com";
 const TOKEN = `wipe-test-token-${"a".repeat(24)}`;
 
 function post(body: unknown, token?: string, method = "POST"): Request {
@@ -157,7 +159,7 @@ async function checkAuth() {
       },
     });
     ok(forbidden.status === 403 && !called, "403 for a foreign email and no wipe call");
-    const routeForbidden = await route.POST(post({ email: "Foreign.User@example.com" }, TOKEN));
+    const routeForbidden = await route.POST(post({ email: "Foreign.User@gmail.com" }, TOKEN));
     ok(routeForbidden.status === 403, "route 403 for a foreign email");
 
     const invalid = await handleAdminWipeRequest(post({ email: "not-an-email" }, TOKEN), {
@@ -213,9 +215,10 @@ async function checkAuth() {
 
 function checkMatching() {
   ok(
-    WIPE_EMAIL_ALLOWLIST.length === 2 &&
+    WIPE_EMAIL_ALLOWLIST.length === 3 &&
       isWipeEmailAllowed("Philip.Cappelletti@SDC-Ventures.com") &&
-      isWipeEmailAllowed("  cappe@gmx.de "),
+      isWipeEmailAllowed("  cappe@gmx.de ") &&
+      isWipeEmailAllowed("Delivered@Resend.Dev"),
     "allowlist is case-insensitive",
   );
   ok(!isWipeEmailAllowed(OTHER), "foreign email is not allowlisted");
@@ -374,9 +377,270 @@ function checkMatching() {
   ok(stripeWipeDecision(undefined).action === "skip", "missing key skips stripe");
 }
 
+class BlobNotFoundError extends Error {
+  constructor() {
+    super("not found");
+    this.name = "BlobNotFoundError";
+  }
+}
+
+type StoredBlob = { uploadedAt: string; body: string };
+
+function memoryBlob(initial: Record<string, StoredBlob>, ignoreDel = false) {
+  const blobs = new Map(Object.entries(initial));
+  const calls: { op: string; target: string | string[]; token?: string }[] = [];
+  let listedUploadedAt: string | undefined;
+  const io: BlobStoreIo = {
+    async list({ prefix } = {}) {
+      const found = [...blobs.entries()].filter(([pathname]) => !prefix || pathname.startsWith(prefix));
+      return {
+        blobs: found.map(([pathname]) => {
+          listedUploadedAt = "2000-01-01T00:00:00.000Z";
+          return { pathname, uploadedAt: new Date(listedUploadedAt) };
+        }),
+        hasMore: false,
+      };
+    },
+    async del(target, options) {
+      calls.push({ op: "del", target, token: options?.token });
+      if (ignoreDel) return;
+      const paths = Array.isArray(target) ? target : [target];
+      for (const pathname of paths) blobs.delete(pathname);
+    },
+    async head(target, options) {
+      calls.push({ op: "head", target, token: options?.token });
+      const found = blobs.get(target);
+      if (!found) throw new BlobNotFoundError();
+      return { pathname: target, uploadedAt: new Date(found.uploadedAt) };
+    },
+    async get(pathname) {
+      const found = blobs.get(pathname);
+      if (!found) throw new BlobNotFoundError();
+      return {
+        statusCode: 200,
+        stream: new Response(found.body).body,
+        blob: { uploadedAt: new Date(found.uploadedAt) },
+      };
+    },
+  };
+  return {
+    io,
+    blobs,
+    calls,
+    listedUploadedAt: () => listedUploadedAt,
+  };
+}
+
+async function withEnv(
+  vars: Record<string, string | undefined>,
+  fn: () => Promise<void> | void,
+) {
+  const previous = new Map<string, string | undefined>();
+  for (const key of Object.keys(vars)) previous.set(key, process.env[key]);
+  try {
+    for (const [key, value] of Object.entries(vars)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    await fn();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+async function checkBlobWipe() {
+  const incident = "philip.cappelletti@sdc-ventures.com";
+  ok(
+    (WIPE_EMAIL_ALLOWLIST as readonly string[]).includes(incident),
+    "incident mailbox stays on the wipe allowlist",
+  );
+  const bereichKey = `email:${incident}:default:bereich`;
+  const gesamtKey = `email:${incident}:default:gesamt`;
+  const bereichPath = intakeDraftBlobPath(bereichKey);
+  const gesamtPath = intakeDraftBlobPath(gesamtKey);
+  ok(
+    intakeDraftHash(bereichKey) === "139fd4eaf09112ddd6f64e2e917dc5b074aa14ba",
+    "bereich default hash is the first reported draft",
+  );
+  ok(
+    intakeDraftHash(gesamtKey) === "43e20cbd7ec661b5e01e94a9a80981f2083fd281",
+    "gesamt default hash is the second reported draft",
+  );
+  const emailOnly = collectAccountScope(incident, []);
+  ok(
+    emailOnly.draftKeys.length === 2 &&
+      emailOnly.draftKeys.includes(bereichKey) &&
+      emailOnly.draftKeys.includes(gesamtKey),
+    "email alone still derives both default draft keys",
+  );
+  ok(bereichPath.endsWith("/139fd4eaf09112ddd6f64e2e917dc5b074aa14ba.json"), "bereich pathname");
+  ok(gesamtPath.endsWith("/43e20cbd7ec661b5e01e94a9a80981f2083fd281.json"), "gesamt pathname");
+
+  const empty = memoryBlob({});
+  const absent = await planAccountBlobs(emailOnly, [], empty.io, "blob-token");
+  ok(absent.drafts.matched === 0, "missing derived drafts are not matched");
+  ok(absent.drafts.pathnames.length === 0, "dry-run omits pathnames head() cannot see");
+  ok(absent.drafts.deleted === 0, "dry-run does not count deletes");
+  ok(
+    !(absent.drafts.blobs ?? []).some((blob) => blob.pathname === bereichPath || blob.pathname === gesamtPath),
+    "dry-run blobs omit the two default keys when head is 404",
+  );
+
+  const uploadedAt = "2026-10-08T09:30:00.000Z";
+  const presentStore = memoryBlob({
+    [gesamtPath]: {
+      uploadedAt,
+      body: JSON.stringify({ email: incident, draftKey: gesamtKey, answers: { rechtsform: "GmbH" } }),
+    },
+  });
+  const present = await planAccountBlobs(emailOnly, [], presentStore.io, "blob-token");
+  ok(present.drafts.pathnames.length === 1 && present.drafts.pathnames[0] === gesamtPath, "only the existing draft is listed");
+  ok(!present.drafts.pathnames.includes(bereichPath), "unsaved sibling mode is not listed");
+  ok(present.drafts.blobs?.[0]?.uploadedAt === uploadedAt, "uploadedAt comes from head(), not from list()");
+  ok(presentStore.listedUploadedAt() !== uploadedAt, "list() timestamp differs from head()");
+
+  const foreign = `gobd/drafts/${"ab".repeat(20)}.json`;
+  const matchedBody = memoryBlob({
+    [foreign]: {
+      uploadedAt,
+      body: JSON.stringify({ email: incident, draftKey: "doc:not-derived", answers: {} }),
+    },
+    "gobd/drafts/other.json": {
+      uploadedAt,
+      body: JSON.stringify({ email: "other@example.com", draftKey: "doc:other", answers: {} }),
+    },
+  });
+  const matched = await planAccountBlobs(emailOnly, [], matchedBody.io, "blob-token");
+  ok(matched.drafts.pathnames.includes(foreign), "content match keeps a non-derived draft");
+  ok(!matched.drafts.pathnames.includes("gobd/drafts/other.json"), "foreign draft stays");
+
+  const sticky = memoryBlob(
+    {
+      [gesamtPath]: { uploadedAt, body: "{}" },
+    },
+    true,
+  );
+  const planned = await planAccountBlobs(emailOnly, [], sticky.io, "blob-token");
+  await commitBlobWipe(planned.drafts, sticky.io, "blob-token");
+  ok(planned.drafts.deleted === 0, "del() that leaves the blob does not count as deleted");
+  ok(planned.drafts.blobs?.[0]?.error?.includes("noch vorhanden"), "surviving blob is reported per path");
+  ok(planned.drafts.blobs?.[0]?.uploadedAt === uploadedAt, "surviving blob keeps uploadedAt");
+
+  const gone = memoryBlob({
+    [gesamtPath]: { uploadedAt, body: "{}" },
+    [bereichPath]: { uploadedAt: "2026-10-08T09:31:00.000Z", body: "{}" },
+  });
+  const both = await planAccountBlobs(emailOnly, [], gone.io, "blob-token");
+  ok(both.drafts.matched === 2, "both real default drafts are matched");
+  await commitBlobWipe(both.drafts, gone.io, "blob-token");
+  ok(
+    gone.calls.some((call) => call.op === "del" && call.target === gesamtPath && call.token === "blob-token"),
+    "del() receives the pathname and the store token",
+  );
+  ok(both.drafts.deleted === 2, "head() 404 counts both deletes");
+  ok(both.drafts.blobs?.every((blob) => blob.deleted === true && !blob.error), "each deleted path is verified");
+  const after = await planAccountBlobs(emailOnly, [], gone.io, "blob-token");
+  ok(after.drafts.matched === 0 && after.drafts.pathnames.length === 0, "dry-run after a verified delete is empty");
+
+  const headMiss = {
+    async list() {
+      return { blobs: [], hasMore: false };
+    },
+    async del() {},
+    async head(target: string) {
+      if (target !== gesamtPath) throw new BlobNotFoundError();
+      throw new BlobNotFoundError();
+    },
+    async get(target: string) {
+      if (target !== gesamtPath) throw new BlobNotFoundError();
+      return {
+        statusCode: 200,
+        stream: new Response("{}").body,
+        blob: { uploadedAt: new Date(uploadedAt) },
+      };
+    },
+  };
+  const viaGet = await planAccountBlobs(emailOnly, [], headMiss, "blob-token");
+  ok(viaGet.drafts.pathnames.includes(gesamtPath), "uncached get keeps a draft head() missed");
+  ok(!viaGet.drafts.pathnames.includes(bereichPath), "a sibling head() and get() both miss stays out");
+  ok(
+    viaGet.drafts.blobs?.find((blob) => blob.pathname === gesamtPath)?.uploadedAt === uploadedAt,
+    "uploadedAt falls back to uncached get()",
+  );
+
+  let removed = false;
+  const staleHead = {
+    async list() {
+      return { blobs: [{ pathname: gesamtPath }], hasMore: false };
+    },
+    async del() {
+      removed = true;
+    },
+    async head(target: string) {
+      if (target !== gesamtPath) throw new BlobNotFoundError();
+      return { pathname: gesamtPath, uploadedAt: new Date(uploadedAt) };
+    },
+    async get(target: string) {
+      if (target !== gesamtPath || removed) {
+        if (target !== gesamtPath) throw new BlobNotFoundError();
+        return null;
+      }
+      return {
+        statusCode: 200,
+        stream: new Response("{}").body,
+        blob: { uploadedAt: new Date(uploadedAt) },
+      };
+    },
+  };
+  const stalePlan = await planAccountBlobs(emailOnly, [], staleHead, "blob-token");
+  await commitBlobWipe(stalePlan.drafts, staleHead, "blob-token");
+  ok(stalePlan.drafts.deleted === 1, "uncached get 404 counts the delete when head() is still stale");
+
+  await withEnv({ GOBD_BLOB_SMOKE: undefined, VERCEL_ENV: "preview" }, () => {
+    ok(isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "example.com smoke mailbox stays allowed without the smoke flag");
+  });
+  await withEnv({ GOBD_BLOB_SMOKE: "1", VERCEL_ENV: "production" }, () => {
+    ok(isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "example.com smoke mailbox stays allowed in production");
+    ok(!isWipeEmailAllowed(OTHER), "a real mailbox stays refused in production");
+  });
+  await withEnv({ GOBD_BLOB_SMOKE: "1", VERCEL_ENV: "preview" }, () => {
+    ok(isWipeEmailAllowed(WIPE_SMOKE_EMAIL), "smoke mailbox is allowed on a preview smoke");
+    ok(isWipeEmailAllowed("other-smoke@example.com"), "other example.com mailboxes are allowed");
+  });
+}
+
+function checkTestAddresses() {
+  const allowed = ["delivered@resend.dev", "a@example.com", "A@EXAMPLE.COM"];
+  for (const email of allowed) {
+    ok(isWipeEmailAllowed(email), `${email} is a wipe test address`);
+    const parsed = parseWipeEmail(email);
+    ok(parsed.ok && parsed.email === email.trim().toLowerCase(), `${email} parses as allowed`);
+  }
+  ok(isWipeEmailAllowed("  Delivered@Resend.DEV  "), "resend sink ignores case and surrounding space");
+
+  const refused = [
+    "x@foo.example.com",
+    "x@example.com.evil.de",
+    "x@xexample.com",
+    "delivered@resend.dev.evil",
+    "not-delivered@resend.dev",
+    "foreign.user@gmail.com",
+  ];
+  for (const email of refused) {
+    ok(!isWipeEmailAllowed(email), `${email} is not a wipe test address`);
+    const parsed = parseWipeEmail(email);
+    ok(!parsed.ok && parsed.reason === "forbidden", `${email} parses as forbidden`);
+  }
+}
+
 async function main() {
   await checkAuth();
   checkMatching();
+  checkTestAddresses();
+  await checkBlobWipe();
   console.log("check-admin-wipe: green");
 }
 

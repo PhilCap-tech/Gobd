@@ -25,7 +25,7 @@ export function BereichSelect({
   }
   return (
     <div className="field" style={{ margin: 0 }}>
-      <label htmlFor="intake-bereich">Für welchen Bereich erstellst du diese Verfahrensdokumentation?</label>
+      <label htmlFor="intake-bereich">Für welchen Bereich erstellen Sie diese Verfahrensdokumentation?</label>
       <select
         id="intake-bereich"
         value={current.id}

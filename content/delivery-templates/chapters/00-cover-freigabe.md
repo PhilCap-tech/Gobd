@@ -15,8 +15,12 @@ Dieses Dokument beschreibt {{#if bereich.belegfluss}}den Belegweg{{/if}}{{#if be
 | Unternehmen | {{identity.company | or "zu bestätigen"}}{{#if answers.branchen}}, {{answers.branchen | join ", "}}{{/if}}{{#if answers.rechtsform}}, {{answers.rechtsform}}{{/if}}{{#if answers.mitarbeitende}}, Mitarbeitende: {{answers.mitarbeitende}}{{/if}} |
 | Geschäftsführung | {{answers.gf | or "zu bestätigen"}} |
 {{#if bereich.belegfluss}}| Buchhaltung | {{answers.buchhaltung | or "zu bestätigen"}} |
-| Externe Kanzlei | {{answers.steuerberater | or "zu bestätigen (soweit beteiligt)"}} |
-| Geltungsbereich | Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung im beschriebenen Umfang |
+{{#if keineKanzlei}}| Buchhaltung und Steuererklärungen | {{eigenbuchhaltung}} |
+{{/if}}{{#unless keineKanzlei}}| Externe Kanzlei | {{answers.steuerberater | or "zu bestätigen (soweit beteiligt)"}} |
+{{/unless}}
+{{#if geltungText}}| Geltungsbereich | {{geltungText}} |
+{{/if}}{{#unless geltungText}}| Geltungsbereich | Eingangs- und Ausgangsrechnungen, sonstige Buchungsbelege, Übergabe zur Buchung und Aufbewahrung im beschriebenen Umfang |
+{{/unless}}
 {{/if}}{{#if bereich.andere}}| Bereich | {{bereich.label}} |
 | Bereichsverantwortung | {{bereich.verantwortlich | or "zu bestätigen"}} |
 | Geltungsbereich | {{bereich.kurz}} Allgemeiner Teil (Unternehmen, Systeme, Aufbewahrung, Berechtigungen, Kontrollen) im beschriebenen Umfang |

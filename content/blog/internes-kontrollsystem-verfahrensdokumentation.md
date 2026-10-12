@@ -125,6 +125,8 @@ Fragen zu Änderungen: [Modul 23 System- und Prozessänderungen](/muster/modul/m
 
 Ein Haken ohne Nachweis im Betrieb ist derselbe Fehler wie eine Kontrolle, die nur im Muster stand. Die [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) bleibt der Rahmen für die übrigen Teile. Diesen IKS-Block legen Sie daneben, nicht darüber.
 
+Die Kontrollen gehören in die Betriebsdokumentation; den Aufbau aller vier Teile finden Sie unter [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
+
 - [ ] Nur Punkte abgehakt, die so laufen
 - [ ] Entfallenes in einem Satz begründet, nicht mit einer erfundenen Rolle gefüllt
 - [ ] Turnus, Rolle und Nachweis je Kontrolle, die Sie wirklich ausüben
@@ -135,9 +137,9 @@ Zum Sortieren der übrigen Kapitel: [Inhalt einer Verfahrensdokumentation](/reso
 
 Unsicher, ob Rollen, Systeme und Belegwege schon greifbar sind, bevor Sie Kontrollen beschreiben? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
-Wenn Sie den IKS-Abschnitt nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
+Wenn Sie den IKS-Abschnitt nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung.
 
 ## FAQ
 
@@ -163,6 +165,7 @@ Nein. Sie hält fest, welche Kontrollen Sie eingerichtet haben und welche noch o
 
 ## Weiterlesen
 
+- [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — der Rahmen, dieser Artikel ist nur das IKS
 - [Datenzugriff in der Betriebsprüfung](/blog/datenzugriff-betriebspruefung) — Lesezugang, Export und wer ihn einrichtet
 - [Verfahrensdokumentation Belegablage](/blog/verfahrensdokumentation-belegablage) — Prüfung und Freigabe im Belegfluss

@@ -123,10 +123,10 @@ export function DocumentEditor({
   return (
     <form onSubmit={submit}>
       <p className="banner">
-        Du bearbeitest den Entwurf
+        Sie bearbeiten den Entwurf
         {companyLabel ? ` für ${companyLabel}` : ""}. Speichern erzeugt Version{" "}
         {nextLabel} — bisherige PDFs bleiben downloadbar. Der Text stammt aus
-        deinem generierten Entwurf, nicht aus zusätzlichen Rechtstexten.
+        Ihrem generierten Entwurf, nicht aus zusätzlichen Rechtstexten.
       </p>
 
       {savedVersion && (

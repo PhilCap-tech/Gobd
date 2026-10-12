@@ -21,7 +21,7 @@ export const INHALT_GLIEDERUNG_HEADLINE =
 export const INHALT_GLIEDERUNG_SUBHEAD =
   "Kurzüberblick zum Abhaken — keine Steuerberatung";
 export const INHALT_GLIEDERUNG_INTRO =
-  "Die Verfahrensdokumentation soll einem sachverständigen Dritten eure Belegwege erklären — so, wie sie bei euch wirklich laufen. Diese Mini-Gliederung hilft dir, den Inhalt grob zu sortieren. Sie ersetzt keine Beratung und keine Freigabe durch dich bzw. deinen Steuerberater.";
+  "Die Verfahrensdokumentation soll einem sachverständigen Dritten Ihre Belegwege erklären — so, wie sie bei Ihnen wirklich laufen. Diese Mini-Gliederung hilft Ihnen, den Inhalt grob zu sortieren. Die Gliederung ersetzt keine Beratung und keine Freigabe durch Sie bzw. Ihren Steuerberater.";
 
 export const INHALT_GLIEDERUNG_POINTS = [
   {
@@ -38,11 +38,11 @@ export const INHALT_GLIEDERUNG_POINTS = [
   },
   {
     title: "Belegweg Ende-zu-Ende",
-    body: "Vom Eingang bis Ablage/Buchhaltung: Schritte, Kontrollen, typische Ausnahmen — in eurer Sprache.",
+    body: "Vom Eingang bis Ablage/Buchhaltung: Schritte, Kontrollen, typische Ausnahmen — in Ihrer Sprache.",
   },
   {
     title: "Systeme & Datenzugriff",
-    body: "Welche Software (Beispiele: DATEV, sevdesk, lexoffice — nur soweit bei euch relevant), wo Daten liegen, Export/Backup soweit für euch beschrieben.",
+    body: "Welche Software (Beispiele: DATEV, sevdesk, lexoffice — nur soweit bei Ihnen relevant), wo Daten liegen, Export/Backup soweit für Sie beschrieben.",
   },
   {
     title: "Scan / Digitales Archiv (falls zutreffend)",
@@ -54,14 +54,14 @@ export const INHALT_GLIEDERUNG_POINTS = [
   },
 ] as const;
 
-export const INHALT_GLIEDERUNG_CTA_TITLE = "Unsicher, wo ihr steht?";
+export const INHALT_GLIEDERUNG_CTA_TITLE = "Unsicher, wo Sie stehen?";
 export const INHALT_GLIEDERUNG_CTA_BEFORE = "Kostenloser ";
 export const INHALT_GLIEDERUNG_CTA_LINK_LABEL = "Readiness-Check";
 export const INHALT_GLIEDERUNG_CTA_AFTER =
   " — kurze Fragen zu Branche, Software, Belegwegen und IT. Ohne Kreditkarte. Keine Steuerberatung.";
 
 export const INHALT_GLIEDERUNG_DISCLAIMER =
-  "Allgemeine Arbeitshilfe von gobd-doku-erstellen.de. Keine Steuer-, Rechts- oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität, Vollständigkeit oder Prüfungsergebnis. Abstimmung und Freigabe bleiben bei dir bzw. deinem Berater.";
+  "Allgemeine Arbeitshilfe von gobd-doku-erstellen.de. Keine Steuer-, Rechts- oder Prüfungsberatung. Keine Zusicherung von GoBD-Konformität, Vollständigkeit oder Prüfungsergebnis. Abstimmung und Freigabe bleiben bei Ihnen bzw. Ihrem Berater.";
 
 export function inhaltGliederungReadinessHref(): string {
   return leadMagnetReadinessHrefFor(INHALT_GLIEDERUNG_UTM);

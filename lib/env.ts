@@ -115,6 +115,17 @@ export function isMailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
 }
 
+/**
+ * Lokaler Login ohne Resend: der Link darf nur ins Server-Log, nie in die
+ * HTTP-Antwort. Produktion und jede Umgebung mit Resend-Zugangsdaten bleiben
+ * geschlossen — analog zur harten Abgrenzung von /api/internal/blob-smoke.
+ */
+export function magicLinkDevFallbackAllowed(): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  if (process.env.VERCEL_ENV === "production") return false;
+  return !isMailConfigured();
+}
+
 export function isMagicLinkConfigured(): boolean {
   return Boolean(process.env.MAGIC_LINK_SECRET);
 }

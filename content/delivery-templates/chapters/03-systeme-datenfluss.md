@@ -21,4 +21,4 @@
 ## 3.3 Vorsysteme
 
 {{#if answers.weitereSysteme}}Laut Intake genannte weitere Systeme / Kanäle: {{answers.weitereSysteme}}. Ob darüber hinaus Portale, Apps, Tabellen oder Plattformen belegrelevant sind, ist periodisch zu prüfen.{{/if}}
-{{#unless answers.weitereSysteme}}Weitere Vorsysteme sind im Intake nicht bestätigt. Vertragsunterlagen oder Zahlungsnachweise werden als mitgeltende Unterlagen aufgenommen, wenn der Beleg allein den Geschäftsvorfall nicht ausreichend erklärt. Die jährliche Systemprüfung fragt ausdrücklich nach neuen Portalen, Apps, Tabellen oder Plattformen — siehe offene Punkte.{{/unless}}
+{{#unless answers.weitereSysteme}}Weitere Vorsysteme sind im Intake nicht angegeben. Vertragsunterlagen oder Zahlungsnachweise werden als mitgeltende Unterlagen aufgenommen, wenn der Beleg allein den Geschäftsvorfall nicht ausreichend erklärt. Die jährliche Systemprüfung fragt ausdrücklich nach neuen Portalen, Apps, Tabellen oder Plattformen — siehe offene Punkte.{{/unless}}

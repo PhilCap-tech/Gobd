@@ -15,7 +15,7 @@ export default async function BillingPage() {
     <main className="wrap page">
       <h1>Weiterleitung…</h1>
       <p className="lead">
-        Falls du nicht automatisch weitergeleitet wirst:
+        Falls Sie nicht automatisch weitergeleitet werden:
       </p>
       <p>
         <Link href="/account">Zum Konto</Link>

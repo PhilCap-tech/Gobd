@@ -3,8 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
+    "prebuild": "node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:draft-return && npm run check:onboarding-mail",
+    "check:checkout-session": "tsx scripts/check-checkout-session.ts",
+    "check:draft-return": "tsx scripts/check-draft-return.ts",
+    "check:prefill-namen": "tsx scripts/check-prefill-namen.ts",
+    "check:intake-progress": "tsx scripts/check-intake-progress.ts",
+    "check:muster-mark": "tsx scripts/check-muster-mark.ts",
+    "check:onboarding-mail": "tsx scripts/check-onboarding-mail.ts",
     "check:ansprache": "node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs",
+    "check:export": "tsx scripts/check-export-mvp.ts",
+    "check:pdf": "tsx scripts/check-pdf-consistency.ts",
+    "check:keine": "tsx scripts/check-keine-angaben.ts",
+    "check:systemkarten": "tsx scripts/check-b01-systemkarten.ts",
+    "check:intake-payload": "tsx scripts/check-intake-payload-storage.ts",
+    "check:session-write": "tsx scripts/check-session-write-access.ts",
     "dev": "next dev",
     "build": "next build",
     "postbuild": "node scripts/run-preview-draft-smoke.mjs",
@@ -29,6 +41,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "tsx": "4.23.15",
     "typescript": "^5"
   }
 }

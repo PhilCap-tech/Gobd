@@ -7,14 +7,23 @@ import {
   describedActivityLines,
   fieldLabel,
   optionLabel,
-  p1FieldError,
+  cardQuestionLacksFacts,
+  onlyUntouchedSuggestions,
+  p1FieldIssue,
+  withoutUntouchedSuggestions,
   presentationBits,
   projectedBranchen,
   projectedRechtsform,
   RECHTSFORM_FREITEXT,
   statusChoiceVisible,
   TAETIGKEIT_FREITEXT,
+  channelExceptionPhrases,
 } from "@/lib/intake-present";
+import {
+  isControlQuestionId,
+  isKeineKontrolleValues,
+  KEINE_KONTROLLE_SATZ,
+} from "@/lib/keine-angaben";
 import {
   BELEGFLUSS,
   BEREICHE,
@@ -24,6 +33,7 @@ import {
   bereichQuestion,
   ALLGEMEINER_TEIL_IDS,
 } from "@/lib/bereiche";
+import { kanzleiAbgelehnt } from "@/lib/module/aussagen";
 import {
   MODULE,
   gruppenFragen,
@@ -32,6 +42,7 @@ import {
 import {
   applyStammdatenPrefill,
   CHECK_FRAGEN,
+  setStammdaten,
   effectiveModulStatus,
   isGesamt,
   modulStatusError,
@@ -39,7 +50,11 @@ import {
   STATUS_LABEL as MODUL_STATUS_LABEL,
   toolModules,
 } from "@/lib/module/status";
-import type { CheckKey } from "@/lib/module/typen";
+import type { CheckKey, Stammdaten } from "@/lib/module/typen";
+import {
+  FREITEXT_LIMIT_MESSAGE,
+  freitextOverflows,
+} from "@/lib/intake-payload";
 import type { IntakeAnswers } from "@/lib/types";
 import { emptyAnswers } from "@/lib/types";
 
@@ -110,6 +125,8 @@ export type CatalogQuestionState = {
   responsible?: string;
   date?: string;
   values?: Record<string, unknown>;
+  /** Field keys the user emptied on purpose. Prefill must not fill them again. */
+  cleared?: string[];
 };
 
 export type CatalogState = Record<string, CatalogQuestionState>;
@@ -303,97 +320,97 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   A02: {
     priority: "mittel",
-    text: "Geltungsbereich (Belegarten und Ausschlüsse) ist nicht bestätigt.",
+    text: "Geltungsbereich (Belegarten und Ausschlüsse) ist nicht angegeben.",
     chapter: "01-zweck-geltung",
   },
   A03: {
     priority: "mittel",
-    text: "Kasse, Shop, Lager, Lohn oder weitere Vorsysteme sind nicht bestätigt.",
+    text: "Kasse, Shop, Lager, Lohn oder weitere Vorsysteme sind nicht angegeben.",
     chapter: "01-zweck-geltung",
   },
   A04: {
     priority: "mittel",
-    text: "Seit wann der Ablauf so ausgeführt wird, ist nicht bestätigt. Es wird nicht rückdatiert.",
+    text: "Seit wann der Ablauf so ausgeführt wird, ist nicht angegeben. Es wird nicht rückdatiert.",
     chapter: "12-versionspflege",
   },
   B01: {
     priority: "hoch",
-    text: "Systeme, die Belege erzeugen oder archivieren, sind nicht bestätigt.",
+    text: "Systeme, die Belege erzeugen oder archivieren, sind nicht angegeben.",
     chapter: "03-systeme-datenfluss",
   },
   B04: {
     priority: "mittel",
-    text: "Welche Dateien als Original aufbewahrt werden, ist nicht bestätigt.",
+    text: "Welche Dateien als Original aufbewahrt werden, ist nicht angegeben.",
     chapter: "03-systeme-datenfluss",
   },
   B05: {
     priority: "mittel",
-    text: "Unterlagen zu externen Systemen oder Anbietern sind nicht bestätigt.",
+    text: "Unterlagen zu externen Systemen oder Anbietern sind nicht angegeben.",
     chapter: "13-mitgeltende-unterlagen",
   },
   C01: {
     priority: "hoch",
-    text: "Eingangswege sind nicht bestätigt.",
+    text: "Eingangswege sind nicht angegeben.",
     chapter: "04-belegarten-kanaele",
   },
   C02: {
     priority: "mittel",
-    text: "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist nicht bestätigt.",
+    text: "Sichtungsturnus der Eingangsbelege (Postfach oder Portal, wer, wie oft) ist nicht angegeben.",
     chapter: "05-eingang-erechnung",
   },
   C03: {
     priority: "mittel",
-    text: "Wer Papier entgegennimmt und wohin es gelangt, ist nicht bestätigt.",
+    text: "Wer Papier entgegennimmt und wohin es gelangt, ist nicht angegeben.",
     chapter: "06-papier-digitalisierung",
   },
   D01: {
     priority: "hoch",
-    text: "Ob Papier gescannt wird und zu welchem Zweck, ist nicht bestätigt.",
+    text: "Ob Papier gescannt wird und zu welchem Zweck, ist nicht angegeben.",
     chapter: "06-papier-digitalisierung",
   },
   E01: {
     priority: "mittel",
-    text: "Empfangene Rechnungsformate sind nicht bestätigt. PDF ist damit keine strukturierte E-Rechnung.",
+    text: "Empfangene Rechnungsformate sind nicht angegeben. PDF ist damit keine strukturierte E-Rechnung.",
     chapter: "05-eingang-erechnung",
   },
   E02: {
     priority: "hoch",
-    text: "Empfang, Prüfung und Aufbewahrung des strukturierten Teils einer E-Rechnung sind nicht bestätigt.",
+    text: "Empfang, Prüfung und Aufbewahrung des strukturierten Teils einer E-Rechnung sind nicht angegeben.",
     chapter: "05-eingang-erechnung",
   },
   E03: {
     priority: "mittel",
-    text: "Wer die sachliche Prüfung vor der Freigabe macht, ist nicht bestätigt.",
+    text: "Wer die sachliche Prüfung vor der Freigabe macht, ist nicht angegeben.",
     chapter: "08-freigabe-buchung-status",
   },
   E05: {
     priority: "mittel",
-    text: "System und Nummernkreis der Ausgangsrechnungen sind nicht bestätigt.",
+    text: "System und Nummernkreis der Ausgangsrechnungen sind nicht angegeben.",
     chapter: "07-ausgangsrechnungen",
   },
   F01: {
     priority: "hoch",
-    text: "Wer prüft, freigibt und bucht, ist nicht bestätigt.",
+    text: "Wer prüft, freigibt und bucht, ist nicht angegeben.",
     chapter: "08-freigabe-buchung-status",
   },
   F02: {
     priority: "mittel",
-    text: "Welche Beleg-ID Original, Freigabe und Buchung verbindet, ist nicht bestätigt.",
+    text: "Welche Beleg-ID Original, Freigabe und Buchung verbindet, ist nicht angegeben.",
     chapter: "08-freigabe-buchung-status",
   },
   F05: {
     priority: "mittel",
-    text: "Leistungsumfang der Kanzlei ist nicht bestätigt. Eine Verbuchung wird nicht als gelebter Prozess angenommen.",
+    text: "Leistungsumfang der Kanzlei ist nicht angegeben. Eine Verbuchung wird nicht als gelebter Prozess angenommen.",
     chapter: "08-freigabe-buchung-status",
   },
   G01: {
     priority: "hoch",
-    text: "Ablageort und Suchmerkmale sind nicht bestätigt.",
+    text: "Ablageort und Suchmerkmale sind nicht angegeben.",
     chapter: "09-ablage-aufbewahrung",
   },
   G02: {
     priority: "hoch",
-    text: "Wer einsehen, ändern oder löschen darf, ist nicht bestätigt.",
+    text: "Wer einsehen, ändern oder löschen darf, ist nicht angegeben.",
     chapter: "10-berechtigungen-sicherung",
   },
   G05: {
@@ -403,12 +420,12 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   G06: {
     priority: "hoch",
-    text: "Sicherung ist nicht bestätigt.",
+    text: "Sicherung ist nicht angegeben.",
     chapter: "10-berechtigungen-sicherung",
   },
   H01: {
     priority: "mittel",
-    text: "Welche Kontrollen tatsächlich laufen, von wem und in welchem Turnus, ist nicht bestätigt.",
+    text: "Welche Kontrollen tatsächlich laufen, von wem und in welchem Turnus, ist nicht angegeben.",
     chapter: "11-iks",
   },
   H04: {
@@ -418,12 +435,12 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   I01: {
     priority: "mittel",
-    text: "Wer die Dokumentation pflegt und wann eine neue Fassung entsteht, ist nicht bestätigt.",
+    text: "Wer die Dokumentation pflegt und wann eine neue Fassung entsteht, ist nicht angegeben.",
     chapter: "12-versionspflege",
   },
   I02: {
     priority: "mittel",
-    text: "Die Liste mitgeltender Unterlagen ist nicht bestätigt.",
+    text: "Die Liste mitgeltender Unterlagen ist nicht angegeben.",
     chapter: "13-mitgeltende-unterlagen",
   },
   I04: {
@@ -433,7 +450,7 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   I05: {
     priority: "niedrig",
-    text: "Gültigkeitszeitraum dieser Fassung und der Ablageort älterer Fassungen sind nicht bestätigt.",
+    text: "Gültigkeitszeitraum dieser Fassung und der Ablageort älterer Fassungen sind nicht angegeben.",
     chapter: "12-versionspflege",
   },
 };
@@ -611,6 +628,26 @@ export function catalogStepPosition(stepIndex: number, answers: IntakeAnswers): 
   return { index: position < 0 ? stepIndex : position, total: list.length || applicable.length };
 }
 
+/** Same numbering as the „Schritt k von n“ label. */
+export function intakeStepLabel(stepIndex: number, answers: IntakeAnswers): string {
+  const position = catalogStepPosition(stepIndex, answers);
+  return `Schritt ${position.index + 1} von ${position.total}`;
+}
+
+/**
+ * Progress segments for the current mode. Count and active segment follow
+ * intakeStepLabel, including conditional steps that stay in the count.
+ * On the review page every counted step is done.
+ */
+export function intakeProgressSegments(stepIndex: number, answers: IntakeAnswers): Array<"done" | "on" | ""> {
+  const onReview = stepIndex >= CATALOG_STEPS.length;
+  const position = catalogStepPosition(onReview ? CATALOG_STEPS.length - 1 : stepIndex, answers);
+  const active = onReview ? position.total : position.index;
+  return Array.from({ length: position.total }, (_, index) =>
+    index < active ? "done" : index === active ? "on" : "",
+  );
+}
+
 /** Area-aware step title. The area step carries the area label. */
 export function catalogStepTitle(stepIndex: number, answers: IntakeAnswers): string {
   const step = CATALOG_STEPS[stepIndex];
@@ -673,6 +710,8 @@ export type CatalogIssue = {
   anchor: string;
   focusId: string;
   message: string;
+  /** Leere Pflichtfelder einer Karte. Nur die werden rot, nicht die ganze Karte. */
+  missing?: string[];
 };
 
 function catalogIssue(
@@ -810,11 +849,23 @@ function questionIssues(
   }
   const issues: CatalogIssue[] = [];
   if (entry.status === "bestaetigt" || entry.status === "geplant") {
-    const channels = asList(valuesOf(catalogState(answers), "C01").kanaele);
-    const p1 = p1FieldError(question.id, entry.status, values, channels);
-    if (p1) {
-      issues.push(catalogIssue(question.id, "block", p1));
-    } else {
+    const state = catalogState(answers);
+    const channels = asList(valuesOf(state, "C01").kanaele);
+    const scope = asList(valuesOf(state, "A02").belegartenScope);
+    const p1 = p1FieldIssue(question.id, entry.status, values, channels, scope);
+    const keineKontrolle = isControlQuestionId(question.id) && isKeineKontrolleValues(values);
+    if (p1.cards.length) {
+      for (const card of p1.cards) {
+        const anchor = `card-${question.id}-${card.cardIndex}`;
+        issues.push({
+          ...catalogIssue(question.id, `card-${card.cardIndex}`, card.message, anchor),
+          anchor,
+          missing: card.missing,
+        });
+      }
+    } else if (p1.message) {
+      issues.push(catalogIssue(question.id, "block", p1.message));
+    } else if (!keineKontrolle && !onlyUntouchedSuggestions(question.id, values, channels, scope)) {
       for (const field of question.fields) {
         if (!fieldReady(field, values[field.key])) issues.push(fieldIssue(question, field));
       }
@@ -861,18 +912,104 @@ function modulUebersichtIssues(answers: IntakeAnswers): CatalogIssue[] {
   return issues;
 }
 
+function dedupeCatalogIssues(issues: CatalogIssue[]): CatalogIssue[] {
+  const seen = new Set<string>();
+  const out: CatalogIssue[] = [];
+  for (const issue of issues) {
+    const key = `${issue.questionId}:${issue.fieldKey}:${issue.anchor}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(issue);
+  }
+  return out;
+}
+
+/** Free-text overflows on this step. Empty when the step does not apply. */
+export function freitextIssuesForStep(
+  stepIndex: number,
+  answers: IntakeAnswers,
+): CatalogIssue[] {
+  const step = CATALOG_STEPS[stepIndex];
+  if (!step || !catalogStepApplies(step, answers)) return [];
+  const questionIds = new Set(step.questions.map((question) => question.id));
+  const seen = new Set<string>();
+  const issues: CatalogIssue[] = [];
+  for (const hit of freitextOverflows(answers)) {
+    const onQuestion = questionIds.has(hit.questionId);
+    const onStamm = step.id === BETRIEBS_CHECK_STEP_ID && hit.questionId === "stammdaten";
+    const onModul =
+      step.id === MODUL_UEBERSICHT_STEP_ID && /^m\d{2}$/.test(hit.questionId);
+    if (!onQuestion && !onStamm && !onModul) continue;
+    const key = `${hit.questionId}:${hit.fieldKey}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const anchor = onStamm
+      ? `stamm-${hit.fieldKey}`
+      : onModul
+        ? `modul-${hit.questionId}-${hit.fieldKey}`
+        : `angabe-${hit.questionId}-${hit.fieldKey}`;
+    const focusId = onStamm
+      ? `stamm-${hit.fieldKey}`
+      : onModul
+        ? `modul-${hit.questionId}-${hit.fieldKey}`
+        : `${hit.questionId}-${hit.fieldKey}`;
+    issues.push({
+      ...catalogIssue(hit.questionId, hit.fieldKey, hit.message, focusId),
+      anchor,
+    });
+  }
+  return issues;
+}
+
+/** First step that still has a free-text overflow, for the submit guard. */
+export function firstFreitextIssue(
+  answers: IntakeAnswers,
+): { step: number; issue: CatalogIssue } | null {
+  for (let index = 0; index < CATALOG_STEPS.length; index += 1) {
+    const issue = freitextIssuesForStep(index, answers)[0];
+    if (issue) return { step: index, issue };
+  }
+  const leftover = freitextOverflows(answers)[0];
+  if (!leftover) return null;
+  return {
+    step: 0,
+    issue: catalogIssue(leftover.questionId, leftover.fieldKey, leftover.message),
+  };
+}
+
+/**
+ * Length messages stay visible while typing. Other gaps appear after Weiter.
+ */
+export function intakeFormIssues(
+  stepIndex: number,
+  answers: IntakeAnswers,
+  showGaps: boolean,
+): CatalogIssue[] {
+  const lengthIssues = freitextIssuesForStep(stepIndex, answers);
+  if (!showGaps) return lengthIssues;
+  const rest = catalogStepIssues(stepIndex, answers).filter(
+    (issue) => issue.message !== FREITEXT_LIMIT_MESSAGE,
+  );
+  return dedupeCatalogIssues([...lengthIssues, ...rest]);
+}
+
 /** Every open control on this step, in page order. Empty when the step can continue. */
 export function catalogStepIssues(stepIndex: number, answers: IntakeAnswers): CatalogIssue[] {
   const step = CATALOG_STEPS[stepIndex];
   if (!step || !catalogStepApplies(step, answers)) return [];
-  if (step.id === BETRIEBS_CHECK_STEP_ID) return betriebsCheckIssues(answers);
-  if (step.id === MODUL_UEBERSICHT_STEP_ID) return modulUebersichtIssues(answers);
+  const lengthIssues = freitextIssuesForStep(stepIndex, answers);
+  if (step.id === BETRIEBS_CHECK_STEP_ID) {
+    return dedupeCatalogIssues([...lengthIssues, ...betriebsCheckIssues(answers)]);
+  }
+  if (step.id === MODUL_UEBERSICHT_STEP_ID) {
+    return dedupeCatalogIssues([...lengthIssues, ...modulUebersichtIssues(answers)]);
+  }
   const state = catalogState(answers);
   const issues: CatalogIssue[] = [];
   for (const question of visibleCatalogQuestions(stepIndex, answers)) {
     issues.push(...questionIssues(question, state[question.id], answers));
   }
-  return issues;
+  return dedupeCatalogIssues([...lengthIssues, ...issues]);
 }
 
 export function catalogStepError(stepIndex: number, answers: IntakeAnswers): string {
@@ -918,6 +1055,36 @@ export function setCatalogMeta(
   return touch(answers, id, meta);
 }
 
+/**
+ * Emptying a field that held a value is a deliberate clear. The key is stored
+ * on the catalog entry and survives the draft. A later non-empty value lifts it.
+ * A frozen one- or two-character prefix is not a clear.
+ */
+function clearedAfterEdit(
+  existing: string[] | undefined,
+  edits: Array<{ key: string; previous: unknown; nextValue: unknown }>,
+): string[] | undefined {
+  const cleared = new Set(existing ?? []);
+  for (const edit of edits) {
+    if (valueEmpty(edit.nextValue)) {
+      if (!valueEmpty(edit.previous)) cleared.add(edit.key);
+    } else {
+      cleared.delete(edit.key);
+    }
+  }
+  return cleared.size ? [...cleared] : undefined;
+}
+
+function withClearedPatch(
+  current: CatalogQuestionState,
+  cleared: string[] | undefined,
+  values: Record<string, unknown>,
+): CatalogQuestionState {
+  const patch: CatalogQuestionState = { values };
+  if ((current.cleared?.length ?? 0) > 0 || (cleared?.length ?? 0) > 0) patch.cleared = cleared;
+  return patch;
+}
+
 export function setCatalogValue(
   answers: IntakeAnswers,
   id: string,
@@ -925,9 +1092,10 @@ export function setCatalogValue(
   value: unknown,
 ): IntakeAnswers {
   const current = catalogState(answers)[id] ?? {};
-  return touch(answers, id, {
-    values: { ...(current.values ?? {}), [key]: value },
-  });
+  const cleared = clearedAfterEdit(current.cleared, [
+    { key, previous: current.values?.[key], nextValue: value },
+  ]);
+  return touch(answers, id, withClearedPatch(current, cleared, { ...(current.values ?? {}), [key]: value }));
 }
 
 export function setCatalogValues(
@@ -936,9 +1104,15 @@ export function setCatalogValues(
   values: Record<string, unknown>,
 ): IntakeAnswers {
   const current = catalogState(answers)[id] ?? {};
-  return touch(answers, id, {
-    values: { ...(current.values ?? {}), ...values },
-  });
+  const cleared = clearedAfterEdit(
+    current.cleared,
+    Object.entries(values).map(([key, nextValue]) => ({
+      key,
+      previous: current.values?.[key],
+      nextValue,
+    })),
+  );
+  return touch(answers, id, withClearedPatch(current, cleared, { ...(current.values ?? {}), ...values }));
 }
 
 export function clearCatalogStatus(answers: IntakeAnswers, id: string): IntakeAnswers {
@@ -946,6 +1120,7 @@ export function clearCatalogStatus(answers: IntakeAnswers, id: string): IntakeAn
   const nextEntry: CatalogQuestionState = { values: current.values ?? {} };
   if (current.responsible) nextEntry.responsible = current.responsible;
   if (current.date) nextEntry.date = current.date;
+  if (current.cleared?.length) nextEntry.cleared = current.cleared;
   return {
     ...answers,
     katalog: { ...catalogState(answers), [id]: nextEntry },
@@ -1079,6 +1254,8 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     next.sichtungWer = asText(values.wer);
     next.sichtungTurnus = asText(values.turnus);
     next.sichtung = [next.postfach, next.sichtungWer, next.sichtungTurnus].filter(Boolean).join(", ");
+    const ausnahmen = channelExceptionPhrases(values);
+    if (ausnahmen.length) next.sichtung = [next.sichtung, ...ausnahmen].filter(Boolean).join(". ");
   }
   if (live(state, "C03")) {
     next.papierannahme = asText(valuesOf(state, "C03").schritte);
@@ -1154,7 +1331,9 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     }
   }
   if (live(state, "G01")) {
-    const values = valuesOf(state, "G01");
+    const channels = asList(valuesOf(state, "C01").kanaele);
+    const scope = asList(valuesOf(state, "A02").belegartenScope);
+    const values = withoutUntouchedSuggestions("G01", valuesOf(state, "G01"), channels, scope);
     const rows = asRows(values.ablageJeArt).filter((row) => asText(row.art) || asText(row.ort));
     next.archiv = rows.length
       ? rows
@@ -1185,16 +1364,22 @@ export function projectCatalogAnswers(answers: IntakeAnswers): IntakeAnswers {
     if (tested === "ja") next.wiederherstellungstest = asText(values.letztesTestdatum);
   }
   if (live(state, "H01")) {
-    const rows = completeControls(asRows(valuesOf(state, "H01").kontrollen));
-    next.kontrollen = rows
-      .map((row) => `| ${asText(row.name)} | ${asText(row.turnus)} | ${asText(row.wer)} | ${asText(row.nachweis)} |`)
-      .join("\n");
-    next.kontrollenListe = rows.map((row) => ({
-      was: asText(row.name),
-      turnus: asText(row.turnus),
-      wer: asText(row.wer),
-      nachweis: asText(row.nachweis),
-    }));
+    const values = valuesOf(state, "H01");
+    if (isKeineKontrolleValues(values)) {
+      next.kontrollen = KEINE_KONTROLLE_SATZ;
+      next.kontrollenListe = [];
+    } else {
+      const rows = completeControls(asRows(values.kontrollen));
+      next.kontrollen = rows
+        .map((row) => `| ${asText(row.name)} | ${asText(row.turnus)} | ${asText(row.wer)} | ${asText(row.nachweis)} |`)
+        .join("\n");
+      next.kontrollenListe = rows.map((row) => ({
+        was: asText(row.name),
+        turnus: asText(row.turnus),
+        wer: asText(row.wer),
+        nachweis: asText(row.nachweis),
+      }));
+    }
   }
   if (live(state, "H04") && asText(valuesOf(state, "H04").status) === "bestaetigt") {
     const values = valuesOf(state, "H04");
@@ -1248,7 +1433,7 @@ function modulOpenText(id: string): { priority: "hoch" | "mittel" | "niedrig"; t
 function pointFor(id: string): CatalogOpenPoint {
   const meta = OPEN_TEXT[id] ?? modulOpenText(id) ?? bereichOpenText(id) ?? {
     priority: "mittel" as const,
-    text: `${id} ist nicht bestätigt.`,
+    text: `${id} ist nicht angegeben.`,
     chapter: "14-offene-punkte",
   };
   return {
@@ -1263,19 +1448,39 @@ function pointFor(id: string): CatalogOpenPoint {
 export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
   if (!hasCatalogAnswers(answers)) return [];
   const state = catalogState(answers);
+  const suggestionChannels = asList(valuesOf(state, "C01").kanaele);
+  const suggestionScope = asList(valuesOf(state, "A02").belegartenScope);
   const points: CatalogOpenPoint[] = [];
   for (const step of CATALOG_STEPS) {
     if (!catalogStepApplies(step, answers)) continue;
     for (const question of step.questions) {
       if (!catalogQuestionApplies(question, answers)) continue;
+      if (question.id === "BU07" && kanzleiAbgelehnt(answers)) continue;
       const status = state[question.id]?.status;
       if (status === "unbekannt" || status === "geplant") points.push(pointFor(question.id));
       if (question.id === "H01" && status !== "bestaetigt") {
         if (!points.some((point) => point.id === "op-h01")) points.push(pointFor("H01"));
       }
-      if (question.id === "H01" && status === "bestaetigt") {
+      if (
+        question.id === "H01" &&
+        status === "bestaetigt" &&
+        !isKeineKontrolleValues(valuesOf(state, "H01"))
+      ) {
         const rows = completeControls(asRows(valuesOf(state, "H01").kontrollen));
         if (!rows.length) points.push(pointFor("H01"));
+      }
+      if (
+        status === "bestaetigt" &&
+        isControlQuestionId(question.id) &&
+        isKeineKontrolleValues(valuesOf(state, question.id))
+      ) {
+        const base = pointFor(question.id);
+        points.push({
+          ...base,
+          id: `${base.id}-keine`,
+          priority: "mittel",
+          text: KEINE_KONTROLLE_SATZ,
+        });
       }
       if (
         question.id === "A03" &&
@@ -1299,7 +1504,7 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
         points.push({
           id: "op-g06-test",
           priority: "hoch",
-          text: "Ein Wiederherstellungstest ist nicht bestätigt.",
+          text: "Ein Wiederherstellungstest ist nicht angegeben.",
           chapter: "10-berechtigungen-sicherung",
           suppress: ["op-backup-test"],
         });
@@ -1337,11 +1542,18 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
           });
         }
       }
+      if (
+        (question.id === "B04" || question.id === "G01") &&
+        status === "bestaetigt" &&
+        cardQuestionLacksFacts(question.id, valuesOf(state, question.id), suggestionChannels, suggestionScope)
+      ) {
+        points.push(pointFor(question.id));
+      }
       if (question.id === "G02" && status === "bestaetigt" && asText(valuesOf(state, "G02").berechtigungslisteVorhanden) !== "ja") {
         points.push({
           id: "op-berechtigungsliste",
           priority: "mittel",
-          text: "Eine Berechtigungsliste ist nicht bestätigt.",
+          text: "Eine Berechtigungsliste ist nicht angegeben.",
           chapter: "10-berechtigungen-sicherung",
           suppress: [],
         });
@@ -1460,6 +1672,13 @@ export type FirmFacts = {
   city?: string;
   stnr?: string;
   ustId?: string;
+  /**
+   * Stripe Checkout billing address (`customer_details.address`).
+   * Used for Standort only when street/zip/city are empty.
+   */
+  billingLine1?: string;
+  billingPostalCode?: string;
+  billingCity?: string;
 };
 
 export function firmAddressLine(firm?: FirmFacts): string {
@@ -1467,6 +1686,124 @@ export function firmAddressLine(firm?: FirmFacts): string {
   const street = firm.street?.trim() ?? "";
   const place = [firm.zip?.trim(), firm.city?.trim()].filter(Boolean).join(" ");
   return [street, place].filter(Boolean).join(", ");
+}
+
+/** Raw billing parts. Formatting decides which pieces fit the Standort field. */
+export type BillingAddressParts = {
+  line1?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+};
+
+function billingSingleLine(value: string | null | undefined): string {
+  if (value == null) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/[\r\n\u2028\u2029\u0000-\u001F\u007F]/.test(trimmed)) return "";
+  return trimmed.replace(/\s+/g, " ");
+}
+
+/** Postal codes in the existing „PLZ Ort“ shape: one line, with a digit. */
+function billingPostalFits(value: string): boolean {
+  if (value.length < 3 || value.length > 12) return false;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} -]*$/u.test(value)) return false;
+  return /\d/.test(value);
+}
+
+/** Street lines in the existing „Straße Hausnummer, PLZ Ort“ shape. */
+function billingStreetFits(value: string, city: string): boolean {
+  if (!value || value.length > 80) return false;
+  if (value.toLocaleLowerCase("de-DE") === city.toLocaleLowerCase("de-DE")) return false;
+  return /\d/.test(value);
+}
+
+const CARE_OF_SEGMENT = /^(?:c\s*\/\s*o|care\s+of|z\.?\s*hd\.?|zu händen)\b/i;
+const CARE_OF_TAIL = /\s+(?:c\s*\/\s*o|care\s+of|z\.?\s*hd\.?|zu händen)\b.*$/i;
+const FLOOR_SEGMENT =
+  /^(?:\d+\.?\s*)?(?:og|eg|ug|dg|stock|etage|geschoss|obergeschoss|erdgeschoss|untergeschoss|dachgeschoss|hinterhaus|vorderhaus)\b/i;
+/** „Whg. 12“, „Wohnung 3“, „App. 3“, „Apartment 4“ — not a street. */
+const APARTMENT_SEGMENT = /^(?:whg\.?|wohnung|app\.?|apartment|apt\.?)\s*(?:nr\.?\s*)?\d+\b/i;
+const APARTMENT_TAIL = /\s+(?:whg\.?|wohnung|app\.?|apartment|apt\.?)\s*(?:nr\.?\s*)?\d+\b.*$/i;
+/** „Postfach 1234“, „Postf. 12“, „PF 9“ — a box number is not a house number. */
+const POSTFACH_SEGMENT = /^(?:postfach|postf\.?|pf\.?)(?=$|[\s.,\d-]|nr\b)/i;
+const POSTFACH_TAIL = /\s+(?:postfach|postf\.?|pf\.?)(?=$|[\s.,\d-]|nr\b).*$/i;
+
+function isCareOfSegment(value: string): boolean {
+  return CARE_OF_SEGMENT.test(value.trim());
+}
+
+/** „3. OG“ is a floor note, not a street, even though it contains a digit. */
+function isFloorSegment(value: string): boolean {
+  const text = value.trim();
+  if (!text || text.length > 40) return false;
+  return FLOOR_SEGMENT.test(text);
+}
+
+/** Apartment notes contain a number, but they are not the house number. */
+function isApartmentSegment(value: string): boolean {
+  return APARTMENT_SEGMENT.test(value.trim());
+}
+
+/** A post-office box is not a street, even when the box number looks like one. */
+function isPostfachSegment(value: string): boolean {
+  return POSTFACH_SEGMENT.test(value.trim());
+}
+
+/**
+ * Keep real street segments. Drop c/o lines, person names, floor notes,
+ * apartment notes, and post-office boxes so „c/o Max Test, 3. OG“ and
+ * „Teststraße 5, Whg. 12“ do not become extra Standort streets.
+ */
+function billingStreetLine(value: string | null | undefined, city: string): string {
+  const line = billingSingleLine(value);
+  if (!line) return "";
+  const kept: string[] = [];
+  for (const part of line.split(",")) {
+    const segment = part.replace(CARE_OF_TAIL, "").replace(APARTMENT_TAIL, "").replace(POSTFACH_TAIL, "").trim();
+    if (
+      !segment ||
+      isCareOfSegment(segment) ||
+      isFloorSegment(segment) ||
+      isApartmentSegment(segment) ||
+      isPostfachSegment(segment)
+    ) {
+      continue;
+    }
+    if (!billingStreetFits(segment, city)) continue;
+    if (!/[\p{L}]{3,}/u.test(segment)) continue;
+    kept.push(segment);
+  }
+  return kept.join(", ");
+}
+
+/**
+ * Standort from a Checkout billing address.
+ * City is required. A street is added only when a segment is a street with
+ * a house number. c/o lines, person names, floor notes, apartment notes,
+ * and post-office boxes are left out. Without a street, the result is
+ * postal code and city. Otherwise empty.
+ */
+export function standortFromBillingAddress(address: BillingAddressParts | null | undefined): string {
+  if (!address) return "";
+  const city = billingSingleLine(address.city);
+  if (!city || city.length > 80) return "";
+  const postalRaw = billingSingleLine(address.postalCode);
+  const postal = postalRaw && billingPostalFits(postalRaw) ? postalRaw : "";
+  const street = billingStreetLine(address.line1, city);
+  const place = [postal, city].filter(Boolean).join(" ");
+  return [street, place].filter(Boolean).join(", ");
+}
+
+/** Entity address wins. Billing address fills Standort only when that is empty. */
+export function standortPrefillLine(firm?: FirmFacts): string {
+  return (
+    firmAddressLine(firm) ||
+    standortFromBillingAddress({
+      line1: firm?.billingLine1,
+      postalCode: firm?.billingPostalCode,
+      city: firm?.billingCity,
+    })
+  );
 }
 
 const PREFILL_SKIP_KEYS = new Set([
@@ -1494,18 +1831,142 @@ function isProtected(protect: Array<[string, string]> | undefined, id: string, k
   return Boolean(protect?.some(([pid, pkey]) => pid === id && pkey === key));
 }
 
+/**
+ * Every catalog field whose prefill source is a name from
+ * „Namen der Verantwortlichen“. Modul lead questions (…00 verantwortlich)
+ * are not in this list: nothing copies a Verantwortliche name into them.
+ */
+export const VERANTWORTLICHE_NAME_FIELDS = [
+  {
+    modulId: "m01",
+    modulNr: 1,
+    modulTitel: "Unternehmen und Organisation",
+    questionId: "A01",
+    key: "gf",
+    source: "gf",
+    label: "Geschäftsleitung (Name)",
+  },
+  {
+    modulId: "m01",
+    modulNr: 1,
+    modulTitel: "Unternehmen und Organisation",
+    questionId: "UO03",
+    key: "zustaendigkeiten",
+    source: "rollen",
+    label: "Aufgabe und zuständige Person oder Rolle",
+  },
+  {
+    modulId: "m09",
+    modulNr: 9,
+    modulTitel: "Buchführung und Abschlüsse",
+    questionId: "F01",
+    key: "buchhaltung",
+    source: "buchhaltung",
+    label: "Buchhaltung (Name oder Rolle)",
+  },
+  {
+    modulId: "m17",
+    modulNr: 17,
+    modulTitel: "Systeme und Datenübertragung",
+    questionId: "B01",
+    key: "it",
+    source: "it",
+    label: "IT-Verantwortung",
+  },
+  {
+    modulId: "m21",
+    modulNr: 21,
+    modulTitel: "Ausgelagerte Aufgaben",
+    questionId: "F05",
+    key: "kanzleiName",
+    source: "kanzlei",
+    label: "Kanzlei",
+  },
+] as const;
+
+export type VerantwortlicheNameSource = (typeof VERANTWORTLICHE_NAME_FIELDS)[number]["source"];
+
+const ROLE_LABELS = ["Geschäftsleitung", "Buchhaltung", "IT", "Steuerkanzlei"];
+
+/**
+ * A one- or two-character strict prefix is the frozen first keystroke of an
+ * automatic name prefill. A longer prefix, or any other text, is user input.
+ */
+function isKeystrokeArtifact(stored: string, source: string): boolean {
+  const current = stored.trim();
+  const full = source.trim();
+  if (!current || !full || current === full) return false;
+  if (!full.startsWith(current)) return false;
+  const length = Array.from(current).length;
+  return length >= 1 && length <= 2;
+}
+
+function parseRoleBlock(text: string): Map<string, string> | null {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return null;
+  const map = new Map<string, string>();
+  for (const line of lines) {
+    const splitAt = line.indexOf(": ");
+    if (splitAt <= 0) return null;
+    const label = line.slice(0, splitAt);
+    if (!ROLE_LABELS.includes(label) || map.has(label)) return null;
+    map.set(label, line.slice(splitAt + 2).trim());
+  }
+  return map;
+}
+
+/** The Zuständigkeiten block is an artifact only when every differing line is one. */
+function roleTextIsArtifact(stored: string, source: string): boolean {
+  const current = parseRoleBlock(stored);
+  const next = parseRoleBlock(source);
+  if (!current || !next) return false;
+  let artifact = false;
+  for (const [label, value] of current) {
+    const full = next.get(label);
+    if (full == null) return false;
+    if (value === full) continue;
+    if (!isKeystrokeArtifact(value, full)) return false;
+    artifact = true;
+  }
+  return artifact;
+}
+
+function storedIsNameArtifact(id: string, key: string, stored: string, source: string): boolean {
+  const field = VERANTWORTLICHE_NAME_FIELDS.find((item) => item.questionId === id && item.key === key);
+  if (!field) return false;
+  if (field.source === "rollen") return roleTextIsArtifact(stored, source);
+  return isKeystrokeArtifact(stored, source);
+}
+
 function fillText(
   katalog: CatalogState,
   id: string,
   key: string,
   value: string | undefined,
   protect?: Array<[string, string]>,
+  previous?: string,
 ): void {
   const trimmed = value?.trim() ?? "";
-  if (!trimmed || PREFILL_SKIP_KEYS.has(key) || isProtected(protect, id, key)) return;
+  if (!trimmed || PREFILL_SKIP_KEYS.has(key)) return;
+  const protectedField = isProtected(protect, id, key);
   const entry = katalog[id] ?? {};
   const values = { ...(entry.values ?? {}) };
-  if (!valueEmpty(values[key])) return;
+  const current = values[key];
+  // The user emptied this field on purpose. Keep it empty, also after a reload.
+  if (valueEmpty(current) && entry.cleared?.includes(key)) return;
+  // The field the user is editing right now stays, including a first letter or a clear.
+  if (protectedField) return;
+  if (!protectedField && !valueEmpty(current)) {
+    const prior = previous?.trim() ?? "";
+    const stored = asText(current);
+    if (stored === trimmed) return;
+    const followsPrevious = Boolean(prior) && stored === prior;
+    if (!followsPrevious && !storedIsNameArtifact(id, key, stored, trimmed)) return;
+  }
+  if (asText(current) === trimmed) return;
   values[key] = trimmed;
   katalog[id] = { ...entry, values };
 }
@@ -1549,18 +2010,65 @@ function roleLines(pairs: Array<[string, string]>): string {
     .join("\n");
 }
 
+function textOr(primary: string | undefined, fallback: string | undefined): string {
+  const first = primary?.trim() ?? "";
+  return first || (fallback?.trim() ?? "");
+}
+
 /**
- * Copy facts the user already gave into empty catalog fields.
+ * Legacy answer and Stammdaten can both hold a name. A one- or two-character
+ * prefix of the other value is the frozen keystroke, so the full name wins.
+ */
+function preferName(primary: string | undefined, fallback: string | undefined): string {
+  const first = primary?.trim() ?? "";
+  const second = fallback?.trim() ?? "";
+  const usable = (value: string) => (value && value !== "nicht angegeben" ? value : "");
+  const left = usable(first);
+  const right = usable(second);
+  if (!left) return right;
+  if (!right) return left;
+  if (isKeystrokeArtifact(left, right)) return right;
+  if (isKeystrokeArtifact(right, left)) return left;
+  return left;
+}
+
+function verantwortlicheRoleText(answers: IntakeAnswers): string {
+  const stamm = modulZustand(answers).stammdaten ?? {};
+  return roleLines([
+    ["Geschäftsleitung", asText(answers.katalog?.A01?.values?.gf) || preferName(answers.gf, stamm.gf)],
+    [
+      "Buchhaltung",
+      asText(answers.katalog?.F01?.values?.buchhaltung) || preferName(answers.buchhaltung, stamm.buchhaltung),
+    ],
+    ["IT", asText(answers.katalog?.B01?.values?.it) || preferName(answers.it, stamm.it)],
+    [
+      "Steuerkanzlei",
+      asText(answers.katalog?.F05?.values?.kanzleiName) || preferName(answers.steuerberater, stamm.kanzlei),
+    ],
+  ]);
+}
+
+/**
+ * Copy facts the user already gave into catalog fields that are still empty.
+ * A field that still holds the previous automatic value follows the source,
+ * so typing a name does not freeze the first character. A stored name of one
+ * or two characters that is a strict prefix of the current Verantwortliche
+ * name is that same freeze and is replaced. That covers every field in
+ * VERANTWORTLICHE_NAME_FIELDS, including Modul 17 „IT-Verantwortung“.
+ * A field the user emptied on purpose stays empty, in the same step and
+ * after a reload. The decision is stored on the catalog entry (`cleared`).
+ * Untouched empty fields are still filled. Any other stored value stays.
  * Never sets a process status, a date, or the no-backdating confirmation.
- * Never replaces a value the user already typed.
  */
 export function prefillKnownFacts(
   answers: IntakeAnswers,
   firm?: FirmFacts,
-  options?: { protect?: Array<[string, string]> },
+  options?: { protect?: Array<[string, string]>; previous?: IntakeAnswers },
 ): IntakeAnswers {
   const protect = options?.protect;
-  const next = applyStammdatenPrefill(answers);
+  const previousAnswers = options?.previous;
+  const previousStamm = previousAnswers ? modulZustand(previousAnswers).stammdaten ?? {} : undefined;
+  const next = applyStammdatenPrefill(answers, previousStamm);
   const katalog: CatalogState = { ...(next.katalog ?? {}) };
   for (const [id, key] of protect ?? []) {
     const entry = katalog[id] ?? {};
@@ -1573,23 +2081,59 @@ export function prefillKnownFacts(
   const stamm = modulZustand(next).stammdaten ?? {};
   const a01 = () => katalog.A01?.values ?? {};
 
+  const prior = (value: string) => (previousAnswers ? value : undefined);
   fillText(katalog, "A01", "company", firm?.name, protect);
-  fillText(katalog, "A01", "standort", firmAddressLine(firm) || answers.standort, protect);
+  fillText(katalog, "A01", "standort", standortPrefillLine(firm) || answers.standort, protect);
   fillRaw(katalog, "A01", "branchen", answers.branchen, protect);
   fillText(katalog, "A01", "rechtsform", answers.rechtsform, protect);
   fillText(katalog, "A01", "mitarbeitende", answers.mitarbeitende, protect);
-  fillText(katalog, "A01", "gf", answers.gf || stamm.gf, protect);
+  fillText(
+    katalog,
+    "A01",
+    "gf",
+    preferName(answers.gf, stamm.gf),
+    protect,
+    prior(preferName(previousAnswers?.gf, previousStamm?.gf)),
+  );
   fillText(katalog, "B01", "weitereFreitext", answers.weitereSysteme);
   fillText(katalog, "B01", "hosting", answers.hosting);
-  fillText(katalog, "B01", "it", answers.it === "nicht angegeben" ? "" : answers.it);
+  fillText(
+    katalog,
+    "B01",
+    "it",
+    preferName(answers.it, stamm.it),
+    protect,
+    prior(preferName(previousAnswers?.it, previousStamm?.it)),
+  );
   for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
   if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
   fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege));
   fillRaw(katalog, "E01", "formate", answers.formate);
   fillRaw(katalog, "E05", "systeme", answers.ausgangsrechnungen);
-  fillText(katalog, "F01", "buchhaltung", answers.buchhaltung || stamm.buchhaltung);
-  fillText(katalog, "F05", "kanzleiName", answers.steuerberater || stamm.kanzlei);
-  fillText(katalog, "G01", "ablage", answers.archiv || stamm.archiv);
+  fillText(
+    katalog,
+    "F01",
+    "buchhaltung",
+    preferName(answers.buchhaltung, stamm.buchhaltung),
+    undefined,
+    prior(preferName(previousAnswers?.buchhaltung, previousStamm?.buchhaltung)),
+  );
+  fillText(
+    katalog,
+    "F05",
+    "kanzleiName",
+    preferName(answers.steuerberater, stamm.kanzlei),
+    undefined,
+    prior(preferName(previousAnswers?.steuerberater, previousStamm?.kanzlei)),
+  );
+  fillText(
+    katalog,
+    "G01",
+    "ablage",
+    textOr(answers.archiv, stamm.archiv),
+    undefined,
+    prior(textOr(previousAnswers?.archiv, previousStamm?.archiv)),
+  );
   fillText(katalog, "G02", "zugriffKurz", answers.zugriff);
   if (answers.backup.length) fillText(katalog, "G06", "backupArten", answers.backup.join(", "));
 
@@ -1632,10 +2176,21 @@ export function prefillKnownFacts(
       ["IT", asText(katalog.B01?.values?.it) || stamm.it || ""],
       ["Steuerkanzlei", asText(katalog.F05?.values?.kanzleiName) || stamm.kanzlei || ""],
     ]),
+    protect,
+    previousAnswers ? verantwortlicheRoleText(previousAnswers) : undefined,
   );
 
   if (JSON.stringify(katalog) === JSON.stringify(next.katalog ?? {})) return next;
   return { ...next, katalog };
+}
+
+/** One keystroke in „Namen der Verantwortlichen“: keep untouched name fields in sync. */
+export function prefillStammdatenInput(
+  answers: IntakeAnswers,
+  patch: Partial<Stammdaten>,
+  firm?: FirmFacts,
+): IntakeAnswers {
+  return prefillKnownFacts(setStammdaten(answers, patch), firm, { previous: answers });
 }
 
 export function statusLabel(status: CatalogStatus): string {
@@ -1702,9 +2257,25 @@ function displayFieldValue(fieldKey: string, value: unknown): string {
   return optionLabel(fieldKey, asText(value));
 }
 
-function summaryBits(question: CatalogQuestion, entry: CatalogState[string] | undefined): string[] {
+function summaryBits(
+  question: CatalogQuestion,
+  entry: CatalogState[string] | undefined,
+  answers: IntakeAnswers,
+): string[] {
+  if (isControlQuestionId(question.id) && isKeineKontrolleValues(entry?.values)) {
+    return [KEINE_KONTROLLE_SATZ];
+  }
+  const state = catalogState(answers);
+  const shownValues = withoutUntouchedSuggestions(
+    question.id,
+    entry?.values ?? {},
+    asList(valuesOf(state, "C01").kanaele),
+    asList(valuesOf(state, "A02").belegartenScope),
+  );
   const bits = question.fields.map((field) => {
-    const shown = displayFieldValue(field.key, entry?.values?.[field.key]);
+    // Systemkarten stehen einmal, strukturiert, über presentationBits.
+    if (question.id === "B01" && field.key === "systeme") return "";
+    const shown = displayFieldValue(field.key, shownValues[field.key]);
     if (!shown) return "";
     if (field.type === "enum" || field.key === "kasse" || field.key === "shop") {
       return `${fieldLabel(question.id, field.key, field.label)}: ${shown}`;
@@ -1722,7 +2293,7 @@ function summaryBits(question: CatalogQuestion, entry: CatalogState[string] | un
     const where = asText(entry?.values?.ausgeschlossenWo);
     if (where) bits.push(`dokumentiert in: ${where}`);
   }
-  return [...bits.filter(Boolean), ...presentationBits(question.id, entry?.values)].filter(Boolean);
+  return [...bits.filter(Boolean), ...presentationBits(question.id, shownValues)].filter(Boolean);
 }
 
 export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> {
@@ -1735,7 +2306,7 @@ export function catalogSummary(answers: IntakeAnswers): Array<[string, string]> 
       const status = entry?.status ? STATUS_LABEL[entry.status] : "offen";
       rows.push([
         customerPrompt(question.id, question.prompt),
-        [status, ...summaryBits(question, entry)].join(" · "),
+        [status, ...summaryBits(question, entry, answers)].join(" · "),
       ]);
     }
   }
@@ -1769,7 +2340,10 @@ export function catalogFragebogen(answers: IntakeAnswers): FragebogenStep[] {
       questions: questions.map((question) => {
         const entry = state[question.id];
         const area = bereichQuestion(question.id);
-        const lines = area
+        const lines =
+          isControlQuestionId(question.id) && isKeineKontrolleValues(entry?.values)
+            ? [KEINE_KONTROLLE_SATZ]
+            : area
           ? area.question.fields
               .map((field) => {
                 const value = entry?.values?.[field.key];
@@ -1782,7 +2356,7 @@ export function catalogFragebogen(answers: IntakeAnswers): FragebogenStep[] {
                 return shown ? `${field.label}: ${shown}` : "";
               })
               .filter(Boolean)
-          : summaryBits(question, entry);
+          : summaryBits(question, entry, answers);
         return {
           id: question.id,
           prompt: customerPrompt(question.id, question.prompt),
@@ -1826,7 +2400,7 @@ export function catalogAnswerLine(
   return {
     prompt: customerPrompt(question.id, question.prompt),
     status: entry?.status ? STATUS_LABEL[entry.status] : "offen",
-    details: summaryBits(question, entry),
+    details: summaryBits(question, entry, answers),
     reason: entry?.status === "nicht_zutreffend" ? asText(entry.reason) : "",
   };
 }

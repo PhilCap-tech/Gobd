@@ -152,7 +152,7 @@ Haken Sie ab, was bei {{Firma}} bereits geregelt ist. Offene Punkte nehmen Sie i
    Nehmen Sie sich jemanden aus Büro/Filiale/Shop und gehen Sie die Punkte durch. Besonders kritisch: Wareneingang, Kasse/Storno, Retoure, Inventur.
 
 2. **Systemlandschaft skizzieren**  
-   Ein einfaches Diagramm oder eine Liste: Shop, Kasse, WaWi, Zahlungsanbieter, Buchhaltung. Markiere, wo Belege entstehen und wo sie landen.
+   Ein einfaches Diagramm oder eine Liste: Shop, Kasse, WaWi, Zahlungsanbieter, Buchhaltung. Markieren Sie, wo Belege entstehen und wo sie landen.
 
 3. **Einen „Problemfall“ durchspielen**  
    Beispiel: Kunde retourniert online gekaufte Ware in der Filiale. Welche Belege entstehen? Wer bucht was? Wenn Sie das nicht in zwei Minuten erklären können, ist das ein klarer Handlungsbedarf.

@@ -31,7 +31,7 @@ import { getGesamtMuster, MUSTER_VORLAGEN } from "../lib/module-muster";
 import { renderGesamtChapters } from "../lib/gesamt-document";
 import { uploadAllowed } from "../lib/blob";
 import { draftIsNewer, normalizeDraftKey } from "../lib/intake-draft";
-import { checkIntakeDraftRestore } from "./check-intake-draft";
+import { checkDocumentOwnership, checkDraftMerge, checkIntakeDraftRestore } from "./check-intake-draft";
 import { BEREICHE } from "../lib/bereiche";
 
 function ok(cond: unknown, msg: string) {
@@ -50,7 +50,7 @@ ok(
   ),
   "offen status no longer uses noch nicht dokumentiert",
 );
-ok(STATUS_HILFE.offen.startsWith("Du "), "offen hilfe is du-form");
+ok(STATUS_HILFE.offen.startsWith("Sie "), "offen hilfe is Sie-form");
 ok(STATUS_OPTION_LABEL.nicht_vorhanden === "nicht vorhanden", "absent option label unchanged");
 ok(STATUS_LABEL.tool === "Im Tool beschreiben", "tool display label");
 ok(!/beschrieben/.test(`${STATUS_LABEL.tool} ${STATUS_OPTION_LABEL.tool}`), "tool label is infinitive");
@@ -233,9 +233,12 @@ async function checkMusterPdfDepth() {
       identity: muster.identity,
       documentId: muster.documentId,
       version: muster.version,
+      variant: "muster",
     });
-    // buffer to text via crude latin extraction is weak; use byte length as proxy + word estimate from chapters already done
-    const minBytes = 400_000;
+    // Byte length only guards against a collapsed render. Word and chapter
+    // counts above are the content gate. Unconfirmed catalog sentences are
+    // no longer printed, so complete Muster sit under the old 400_000 floor.
+    const minBytes = 350_000;
     ok(pdf.buffer.length > minBytes, `${vorlage} PDF bytes > ${minBytes} (got ${pdf.buffer.length})`);
   }
   console.log("check-module muster pdf depth: green");
@@ -296,5 +299,7 @@ checkMusterPdfDepth().catch((error) => {
   ok(draftIsNewer("2026-10-05T12:00:00.000Z", "2026-10-05T11:00:00.000Z"), "server newer wins");
   ok(!draftIsNewer("2026-10-05T11:00:00.000Z", "2026-10-05T12:00:00.000Z"), "client newer keeps");
   checkIntakeDraftRestore();
+  checkDraftMerge();
+  checkDocumentOwnership();
   console.log("check-module upload/draft helpers: green");
 }

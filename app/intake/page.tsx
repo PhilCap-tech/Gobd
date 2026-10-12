@@ -3,15 +3,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { getSessionEmail } from "@/lib/auth";
-import {
-  canAccessDocument,
-  groupDocumentFamilies,
-  nextVersionNumber,
-} from "@/lib/documents";
+import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
+import { groupDocumentFamilies, nextVersionNumber } from "@/lib/documents";
+import { authorizeDeliveredWrite, LOGIN_TO_CHANGE_COPY } from "@/lib/session-write";
 import { entityById, entityChoices, type Entity } from "@/lib/entities";
 import type { FirmFacts } from "@/lib/intake-catalog";
-import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
+import { devCheckoutStubAllowed, isStubCheckoutSessionId } from "@/lib/checkout-stub";
+import {
+  loadOwnerSessionDraft,
+  openDraftCompany,
+  openDraftIsBereich,
+} from "@/lib/open-drafts";
 import { isStripeConfigured } from "@/lib/env";
 import { answersForNewBereich } from "@/lib/intake-catalog";
 import { BELEGFLUSS, bereichIdOf, isBereichId } from "@/lib/bereiche";
@@ -31,6 +33,7 @@ import {
 } from "@/lib/stripe";
 import {
   answersFromSheetRow,
+  emailsEqual,
   emptyAnswers,
   identityFromSheetRow,
   type IntakeAnswers,
@@ -55,11 +58,15 @@ const GATE_COPY: Record<
   },
   not_paid: {
     title: "Zahlung noch nicht bestätigt",
-    body: "Die Zahlung ist noch nicht als abgeschlossen markiert. Wenn du gerade bezahlt hast, warte kurz und prüfe erneut.",
+    body: "Die Zahlung ist noch nicht als abgeschlossen markiert. Wenn Sie gerade bezahlt haben, warten Sie kurz und prüfen Sie erneut.",
   },
   lookup_failed: {
     title: "Session konnte nicht geladen werden",
     body: "Die Zahlung konnte gerade nicht geprüft werden. Das ist oft vorübergehend. Bitte erneut versuchen.",
+  },
+  invalid: {
+    title: "Checkout-Session ungültig",
+    body: "Die Zahlungssitzung ist unbekannt oder abgelaufen. Bitte starten Sie den Checkout erneut.",
   },
 };
 
@@ -94,6 +101,18 @@ function IntakeGate({
   );
 }
 
+function firmFromCheckout(session: {
+  company: string;
+  billingAddress?: { line1?: string; postalCode?: string; city?: string };
+}): FirmFacts {
+  return {
+    name: session.company,
+    billingLine1: session.billingAddress?.line1,
+    billingPostalCode: session.billingAddress?.postalCode,
+    billingCity: session.billingAddress?.city,
+  };
+}
+
 function firmFromEntity(entity: Entity | null | undefined, fallbackName: string): FirmFacts {
   if (!entity) return { name: fallbackName };
   return {
@@ -112,12 +131,54 @@ function EditGate({ loggedIn }: { loggedIn: boolean }) {
       <h1>Angaben nicht verfügbar</h1>
       <p className="prose">
         {loggedIn
-          ? "Dieses Dokument gehört nicht zu deinem Konto."
-          : "Bitte mit der Checkout-E-Mail anmelden oder den Link von der Success-Seite mit gültiger Session nutzen."}
+          ? "Dieses Dokument gehört nicht zu Ihrem Konto."
+          : "Dieses Dokument wurde nicht gefunden."}
       </p>
       <div className="actions" style={{ marginTop: 16 }}>
-        <Link className="btn" href={loggedIn ? "/account" : "/login"}>
+        <Link className="btn" href={loggedIn ? "/account" : loginPath("/intake")}>
           {loggedIn ? "Zum Konto" : "Anmelden"}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function intakeReturnPath(params: {
+  session_id?: string | string[];
+  document_id?: string | string[];
+  entity_id?: string | string[];
+  bereich?: string | string[];
+  basis?: string | string[];
+  modus?: string | string[];
+  schritt?: string | string[];
+  modul?: string | string[];
+}): string {
+  const query = new URLSearchParams();
+  for (const key of [
+    "session_id",
+    "document_id",
+    "entity_id",
+    "bereich",
+    "basis",
+    "modus",
+    "schritt",
+    "modul",
+  ] as const) {
+    const value = firstQueryValue(params[key]);
+    if (value) query.set(key, value);
+  }
+  const text = query.toString();
+  return text ? `/intake?${text}` : "/intake";
+}
+
+function LoginToChange({ nextPath }: { nextPath: string }) {
+  return (
+    <div className="card">
+      <h1>Angaben ändern</h1>
+      <p className="prose">{LOGIN_TO_CHANGE_COPY}</p>
+      <div className="actions" style={{ marginTop: 16 }}>
+        <Link className="btn" href={loginPath(nextPath)}>
+          Anmelden
         </Link>
       </div>
     </div>
@@ -138,10 +199,45 @@ export default async function IntakePage({
     modus?: string | string[];
     schritt?: string | string[];
     modul?: string | string[];
+    grant?: string | string[];
   }>;
 }) {
   const params = await searchParams;
-  const sessionId = firstQueryValue(params.session_id);
+  const sessionIdQuery = firstQueryValue(params.session_id);
+  const grantFlag = firstQueryValue(params.grant) ?? "";
+  const checkoutGrant = await getCheckoutGrant();
+  const sessionEmail = await getSessionEmail();
+  let resumeDraft: Awaited<ReturnType<typeof loadOwnerSessionDraft>> = null;
+  if (
+    sessionIdQuery &&
+    checkoutGrant?.sessionId !== sessionIdQuery &&
+    grantFlag !== "skip" &&
+    grantFlag !== "set"
+  ) {
+    if (sessionEmail) {
+      resumeDraft = await loadOwnerSessionDraft(sessionEmail, sessionIdQuery);
+    }
+    if (!resumeDraft) {
+      const q = new URLSearchParams();
+      for (const key of [
+        "session_id",
+        "email",
+        "company",
+        "document_id",
+        "entity_id",
+        "bereich",
+        "basis",
+        "modus",
+        "schritt",
+        "modul",
+      ] as const) {
+        const value = firstQueryValue(params[key]);
+        if (value) q.set(key, value);
+      }
+      redirect(`/api/checkout/grant?${q.toString()}`);
+    }
+  }
+  const sessionId = sessionIdQuery || checkoutGrant?.sessionId || "";
   const requestedSchritt = firstQueryValue(params.schritt) ?? "";
   const requestedModul = firstQueryValue(params.modul) ?? "";
   const initialStepId = /^step-[A-Za-z0-9]+$/.test(requestedSchritt) ? requestedSchritt : "";
@@ -156,19 +252,22 @@ export default async function IntakePage({
   const modus = (firstQueryValue(params.modus) ?? "").toLowerCase();
   // Default for new intakes: Gesamtdokument. Opt out with ?modus=bereich.
   const gesamtMode = modus !== "bereich" && (modus === "gesamt" || !bereich);
-  const sessionEmail = await getSessionEmail();
+
+  const returnPath = intakeReturnPath(params);
 
   // Weiterer Bereich für eine Firma mit bestehender Dokumentation: kein neuer Checkout.
   if (basisId) {
     const basisRow = await findDocumentById(basisId);
-    const allowed =
-      basisRow && canAccessDocument(basisRow, { sessionEmail, sessionId });
+    const family = basisRow ? await listDocumentFamily(basisRow.documentId) : [];
+    const write = basisRow
+      ? authorizeDeliveredWrite({ sessionEmail, rows: family.length > 0 ? family : [basisRow] })
+      : null;
+    const ownedBasis = write?.ok && write.kind === "owner" ? write : null;
     let existingBereiche: string[] = [];
-    let base = basisRow;
+    let base = ownedBasis?.row ?? null;
     let gesamtStart: IntakeAnswers | null = null;
-    if (basisRow && allowed) {
-      const family = await listDocumentFamily(basisRow.documentId);
-      base = groupDocumentFamilies(family)[0]?.latest ?? basisRow;
+    if (basisRow && ownedBasis) {
+      base = ownedBasis.row;
       const owned = sessionEmail ? await listDocumentsByEmail(sessionEmail) : family;
       const sameFirm = owned.filter(
         (row) => (row.entityId || "") === (basisRow.entityId || ""),
@@ -193,12 +292,17 @@ export default async function IntakePage({
       <>
         <SiteHeader backHref="/account" backLabel="← Zum Konto" />
         <main className="wrap page">
-          {!basisRow || !allowed || !base ? (
+          {!basisRow ? (
+            <EditGate loggedIn={Boolean(sessionEmail)} />
+          ) : write && !write.ok && write.status === 401 ? (
+            <LoginToChange nextPath={returnPath} />
+          ) : !ownedBasis || !base ? (
             <EditGate loggedIn={Boolean(sessionEmail)} />
           ) : (
             <IntakeForm
               key={`${base.documentId}-${gesamtStart ? "gesamt" : bereich}`}
-              session={identityFromSheetRow(basisRow)}
+              loginHref={loginPath(returnPath)}
+              session={identityFromSheetRow(ownedBasis.row)}
               initialAnswers={
                 gesamtStart ??
                 answersForNewBereich(
@@ -234,8 +338,13 @@ export default async function IntakePage({
       family.find((row) => row.documentId === resolvedRow.documentId) ??
       family.at(-1) ??
       resolvedRow;
-    const latest = groupDocumentFamilies(family)[0]?.latest ?? source;
-    const allowed = canAccessDocument(source, { sessionEmail, sessionId });
+    const write = authorizeDeliveredWrite({
+      sessionEmail,
+      rows: family.length > 0 ? family : [source],
+    });
+    const owned = write.ok && write.kind === "owner" ? write : null;
+    const latest = owned?.row ?? null;
+    const ownedFamily = family.filter((row) => emailsEqual(row.email, owned?.ownerEmail ?? ""));
     const sourceEntity =
       latest?.entityId && sessionEmail ? await getOwnedEntity(latest.entityId, sessionEmail) : null;
 
@@ -243,15 +352,18 @@ export default async function IntakePage({
       <>
         <SiteHeader backHref="/" backLabel="← Zur Landing" />
         <main className="wrap page">
-          {!allowed || !latest ? (
+          {write.ok === false && write.status === 401 ? (
+            <LoginToChange nextPath={returnPath} />
+          ) : !latest ? (
             <EditGate loggedIn={Boolean(sessionEmail)} />
           ) : (
             <IntakeForm
               key={latest.documentId}
-              session={identityFromSheetRow(source)}
+              loginHref={loginPath(returnPath)}
+              session={identityFromSheetRow(latest)}
               initialAnswers={answersFromSheetRow(latest)}
               sourceDocumentId={latest.documentId}
-              nextVersion={nextVersionNumber(family)}
+              nextVersion={nextVersionNumber(ownedFamily.length > 0 ? ownedFamily : [source])}
               initialEntityId={latest.entityId}
               initialStepId={initialStepId}
               focusModulId={focusModulId}
@@ -270,6 +382,46 @@ export default async function IntakePage({
         <SiteHeader backHref="/" backLabel="← Zur Landing" />
         <main className="wrap page">
           <EditGate loggedIn={Boolean(sessionEmail)} />
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
+
+  // Neuer Browser: Login reicht, wenn der Server-Entwurf dieser Mail gehört.
+  // Ohne Entwurf bleibt der Checkout-Nachweis Pflicht.
+  if (resumeDraft && sessionEmail && sessionId) {
+    const resumeSession = {
+      email: resumeDraft.email,
+      company: openDraftCompany(resumeDraft) || company || "",
+      stripeSessionId: sessionId,
+      stripeCustomerId: "",
+      stub: isStubCheckoutSessionId(sessionId),
+      entityId: resumeDraft.entityId || undefined,
+    };
+    const entities = await listEntitiesByEmail(sessionEmail);
+    const ownedEntity = requestedEntityId
+      ? await getOwnedEntity(requestedEntityId, sessionEmail)
+      : null;
+    const initialEntityId =
+      ownedEntity?.entityId ||
+      resumeDraft.entityId ||
+      (entities.length === 1 ? entities[0]?.entityId ?? "" : "");
+    return (
+      <>
+        <SiteHeader backHref="/" backLabel="← Zur Landing" />
+        <main className="wrap page">
+          <IntakeForm
+            session={resumeSession}
+            firm={firmFromCheckout(resumeSession)}
+            loginHref={loginPath(returnPath)}
+            entities={entityChoices(entities)}
+            initialEntityId={initialEntityId}
+            initialAnswers={resumeDraft.answers}
+            gesamtMode={!openDraftIsBereich(resumeDraft)}
+            initialStepId={initialStepId}
+            focusModulId={focusModulId}
+          />
         </main>
         <SiteFooter />
       </>
@@ -304,18 +456,20 @@ export default async function IntakePage({
     session.company = company || session.company;
   }
 
-  const accountEmail =
-    sessionEmail || (!("error" in session) ? session.email : "");
+  // Firmenliste nur mit Login für diese Adresse. Der Checkout-Nachweis
+  // öffnet keine bestehenden Firmen.
+  const accountEmail = sessionEmail ?? "";
   const entities = accountEmail
     ? await listEntitiesByEmail(accountEmail)
     : [];
   const owned = accountEmail && requestedEntityId
     ? await getOwnedEntity(requestedEntityId, accountEmail)
     : entityById(entities, requestedEntityId);
-  const initialEntityId =
-    owned?.entityId ||
-    (!("error" in session) ? session.entityId?.trim() ?? "" : "") ||
-    (entities.length === 1 ? entities[0]?.entityId ?? "" : "");
+  const initialEntityId = sessionEmail
+    ? owned?.entityId ||
+      (!("error" in session) ? session.entityId?.trim() ?? "" : "") ||
+      (entities.length === 1 ? entities[0]?.entityId ?? "" : "")
+    : "";
   if (!("error" in session) && !session.company.trim()) {
     const firmName =
       owned?.name || entityById(entities, initialEntityId)?.name || "";
@@ -331,6 +485,8 @@ export default async function IntakePage({
         ) : (
           <IntakeForm
             session={session}
+            firm={firmFromCheckout(session)}
+            loginHref={loginPath(returnPath)}
             entities={entityChoices(entities)}
             initialEntityId={initialEntityId}
             initialAnswers={bereich ? { ...emptyAnswers(), bereich } : undefined}

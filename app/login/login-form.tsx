@@ -2,19 +2,25 @@
 
 import { useState } from "react";
 
-export function LoginForm({ next }: { next?: string | null }) {
-  const [email, setEmail] = useState("");
+export function LoginForm({
+  next,
+  prefillEmail = "",
+  maskedEmail = "",
+}: {
+  next?: string | null;
+  prefillEmail?: string;
+  maskedEmail?: string;
+}) {
+  const [email, setEmail] = useState(prefillEmail);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [stubUrl, setStubUrl] = useState("");
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
     setPending(true);
     setSent(false);
-    setStubUrl("");
     try {
       const response = await fetch("/api/auth/magic-link", {
         method: "POST",
@@ -27,18 +33,16 @@ export function LoginForm({ next }: { next?: string | null }) {
       const data = (await response.json()) as {
         error?: string;
         ok?: boolean;
-        sent?: boolean;
-        stub?: boolean;
-        verifyUrl?: string;
+        message?: string;
       };
       if (!response.ok || !data.ok) {
-        setError(data.error || "Link konnte nicht gesendet werden.");
+        setError(
+          data.error ||
+            "Der Anmeldelink konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.",
+        );
         return;
       }
       setSent(true);
-      if (data.verifyUrl) {
-        setStubUrl(data.verifyUrl);
-      }
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");
     } finally {
@@ -55,29 +59,26 @@ export function LoginForm({ next }: { next?: string | null }) {
           name="email"
           type="email"
           autoComplete="email"
-          placeholder="du@firma.de"
+          placeholder="name@firma.de"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
       </div>
       {error && <p className="error">{error}</p>}
-      {sent && !stubUrl && (
+      {sent && (
         <p className="banner">
-          Falls ein Konto zu dieser Adresse gehört, ist der Anmeldelink unterwegs.
-          Er ist 20 Minuten gültig.
-        </p>
-      )}
-      {stubUrl && (
-        <p className="banner">
-          E-Mail wurde nicht zugestellt.{" "}
-          <a href={stubUrl}>Hier anmelden</a>
+          Wenn ein Konto existiert, ist ein Link unterwegs. Er ist 20 Minuten gültig.
         </p>
       )}
       <button className="btn" type="submit" disabled={pending}>
         {pending ? "Bitte warten…" : "Anmeldelink senden"}
       </button>
-      <p className="hint">Kein Passwort. Nur ein Link per E-Mail.</p>
+      {maskedEmail ? (
+        <p className="hint">Wir senden den Anmeldelink an {maskedEmail}.</p>
+      ) : (
+        <p className="hint">Kein Passwort. Nur ein Link per E-Mail.</p>
+      )}
     </form>
   );
 }

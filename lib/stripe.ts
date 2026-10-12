@@ -4,7 +4,7 @@ import {
   isStubCheckoutSessionId,
 } from "@/lib/checkout-stub";
 import { getAppUrl, isStripeConfigured, isStripeSecretConfigured } from "@/lib/env";
-import type { CheckoutIdentity } from "@/lib/types";
+import type { CheckoutBillingAddress, CheckoutIdentity } from "@/lib/types";
 
 const CUSTOMER_LIST_TTL_MS = 60_000;
 const CUSTOMER_LIST_EMPTY_TTL_MS = 5_000;
@@ -44,7 +44,7 @@ export function clearStripeLookupCache(): void {
   customerVerifyCache.clear();
 }
 
-export type CheckoutResolveError = "missing" | "not_paid" | "lookup_failed";
+export type CheckoutResolveError = "missing" | "not_paid" | "lookup_failed" | "invalid";
 
 export function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -101,6 +101,29 @@ function isRetryableStripeError(error: unknown): boolean {
   return typeof e.statusCode === "number" && e.statusCode >= 500;
 }
 
+function isInvalidCheckoutSessionError(error: unknown): boolean {
+  const e = stripeErrorFields(error);
+  if (e.code === "resource_missing") return true;
+  const message = (e.message || "").toLowerCase();
+  if (message.includes("no such")) return true;
+  const status = e.statusCode;
+  return (
+    (status === 400 || status === 404) &&
+    message.includes("invalid") &&
+    (message.includes("checkout.session") || message.includes("session"))
+  );
+}
+
+/** Ungültige Session-ID ist kein vorübergehender Ausfall. */
+export function checkoutLookupError(error: unknown): "invalid" | "lookup_failed" {
+  return isInvalidCheckoutSessionError(error) ? "invalid" : "lookup_failed";
+}
+
+/** Intake: nur ein echter Lookup-Ausfall bleibt 503, alles andere 401. */
+export function intakeCheckoutStatus(error: CheckoutResolveError): number {
+  return error === "lookup_failed" ? 503 : 401;
+}
+
 export function isStripeResourceMissingError(error: unknown): boolean {
   const e = stripeErrorFields(error);
   if (e.code === "resource_missing") return true;
@@ -146,6 +169,32 @@ export function classifyBillingPortalError(error: unknown): PortalErrorKind {
   if (isStripePortalConfigurationError(error)) return "portal_config";
   if (isStripeCustomerMissingError(error)) return "missing_customer";
   return "api";
+}
+
+/** Address fields already on a retrieved Checkout Session. No extra Stripe call. */
+export function billingAddressFromCustomerDetails(
+  details:
+    | {
+        address?: {
+          line1?: string | null;
+          postal_code?: string | null;
+          city?: string | null;
+        } | null;
+      }
+    | null
+    | undefined,
+): CheckoutBillingAddress | undefined {
+  const address = details?.address;
+  if (!address) return undefined;
+  const line1 = address.line1?.trim() ?? "";
+  const postalCode = address.postal_code?.trim() ?? "";
+  const city = address.city?.trim() ?? "";
+  if (!line1 && !postalCode && !city) return undefined;
+  return {
+    ...(line1 ? { line1 } : {}),
+    ...(postalCode ? { postalCode } : {}),
+    ...(city ? { city } : {}),
+  };
 }
 
 async function retrieveCheckoutSession(sessionId: string) {
@@ -240,6 +289,7 @@ export async function createCheckoutSession(input: {
  */
 export async function resolveCheckoutSession(
   sessionId: string | undefined,
+  retrieve: (id: string) => Promise<Stripe.Checkout.Session> = retrieveCheckoutSession,
 ): Promise<CheckoutIdentity | { error: CheckoutResolveError }> {
   if (!sessionId) {
     return { error: "missing" };
@@ -268,7 +318,7 @@ export async function resolveCheckoutSession(
   }
 
   try {
-    const session = await retrieveCheckoutSession(sessionId);
+    const session = await retrieve(sessionId);
     if (!isCheckoutSessionFulfilled(session)) {
       return { error: "not_paid" };
     }
@@ -280,6 +330,7 @@ export async function resolveCheckoutSession(
       customerId = (await listStripeCustomerIdByEmail(email)) || "";
     }
 
+    const billingAddress = billingAddressFromCustomerDetails(session.customer_details);
     return {
       email,
       company: session.metadata?.company || "",
@@ -287,8 +338,14 @@ export async function resolveCheckoutSession(
       stripeCustomerId: customerId,
       stub: false,
       entityId: session.metadata?.entity_id?.trim() || "",
+      ...(billingAddress ? { billingAddress } : {}),
     };
   } catch (error) {
+    const kind = checkoutLookupError(error);
+    if (kind === "invalid") {
+      console.warn("[stripe] Checkout-Session ungültig", error);
+      return { error: "invalid" };
+    }
     console.error("[stripe] Session-Lookup fehlgeschlagen", error);
     return { error: "lookup_failed" };
   }
@@ -537,13 +594,13 @@ export function subscriptionStatusCopy(status: BillingSubscriptionStatus): {
     case "active":
       return {
         label: "Aktiv",
-        text: "Dein Abo ist aktiv.",
+        text: "Ihr Abo ist aktiv.",
         tone: "ok",
       };
     case "past_due":
       return {
         label: "Zahlungsrückstand",
-        text: "Dein Abo hat einen Zahlungsrückstand. Bitte Zahlungsmittel im Stripe-Portal prüfen.",
+        text: "Ihr Abo hat einen Zahlungsrückstand. Bitte Zahlungsmittel im Stripe-Portal prüfen.",
         tone: "warn",
       };
     case "none":

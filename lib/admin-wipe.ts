@@ -1,18 +1,32 @@
 import { timingSafeEqual } from "node:crypto";
 import { intakeDraftBlobPath, intakeDraftHash } from "@/lib/draft-path";
+import { intakeAnswersBlobPath } from "@/lib/intake-payload";
 import { documentFamilyId } from "@/lib/documents";
 import { normalizeDraftKey } from "@/lib/intake-draft-shared";
 import { emailsEqual } from "@/lib/types";
 import { wipeUploadOwner } from "@/lib/upload-path";
 
 /**
- * Only these addresses may be wiped. Comparison is case-insensitive.
- * Anything else is rejected before a store is touched.
+ * Fixed addresses that may be wiped. Comparison is case-insensitive.
+ * Any mailbox at the exact domain `example.com` is also allowed
+ * (no subdomains, no lookalike hosts). Anything else is rejected
+ * before a store is touched.
  */
 export const WIPE_EMAIL_ALLOWLIST = [
   "philip.cappelletti@sdc-ventures.com",
   "cappe@gmx.de",
+  "delivered@resend.dev",
 ] as const;
+
+/** Exact documentation host. Subdomains such as `foo.example.com` do not match. */
+const WIPE_TEST_DOMAIN = "example.com";
+
+/**
+ * Synthetic preview-smoke mailbox. Allowed because its domain is exactly
+ * `example.com`, under the same bearer token and dry-run default as every
+ * other wipe. `GOBD_BLOB_SMOKE` does not widen or narrow this list.
+ */
+export const WIPE_SMOKE_EMAIL = "draft-blob-smoke@example.com";
 
 export const ADMIN_WIPE_TOKEN_MIN_LENGTH = 32;
 
@@ -79,8 +93,20 @@ export type FileJsonWipe = WipeCount & {
   rows: unknown[];
 };
 
+export type BlobObjectWipe = {
+  pathname: string;
+  /** ISO time from `head()`. Set when the object was still in the store. */
+  uploadedAt?: string;
+  /** True only after `head()` throws `BlobNotFoundError`. */
+  deleted?: boolean;
+  /** Set when this path could not be inspected or was still present after `del()`. */
+  error?: string;
+};
+
 export type PathWipe = WipeCount & {
   pathnames: string[];
+  /** Blob groups only. Local file wipes leave this unset. */
+  blobs?: BlobObjectWipe[];
 };
 
 export type WipeAccountResult = {
@@ -164,9 +190,17 @@ export function adminTokensMatch(provided: string, expected: string): boolean {
   return timingSafeEqual(providedBuf, expectedBuf);
 }
 
+/** One `@`, non-empty local part, domain compared after trim and lowercasing. */
+function hasExactEmailDomain(normalized: string, domain: string): boolean {
+  const at = normalized.indexOf("@");
+  if (at <= 0 || at !== normalized.lastIndexOf("@")) return false;
+  return normalized.slice(at + 1) === domain;
+}
+
 export function isWipeEmailAllowed(email: string): boolean {
   const normalized = email.trim().toLowerCase();
-  return WIPE_EMAIL_ALLOWLIST.some((item) => item === normalized);
+  if (WIPE_EMAIL_ALLOWLIST.some((item) => item === normalized)) return true;
+  return hasExactEmailDomain(normalized, WIPE_TEST_DOMAIN);
 }
 
 export function parseWipeEmail(
@@ -397,6 +431,14 @@ export function derivedDocumentPaths(records: readonly AccountRecord[]): string[
     if (family && safeVersion > 0 && !family.includes("/")) {
       paths.add(`gobd/${family}/v${safeVersion}.pdf`);
       paths.add(`gobd/${family}/v${safeVersion}-chapters.json`);
+      const documentId = record.documentId.trim();
+      if (documentId && !documentId.includes("/") && !documentId.includes("..")) {
+        try {
+          paths.add(intakeAnswersBlobPath(family, documentId, safeVersion));
+        } catch {
+          // Ungültige Id erzeugt keinen Antwort-Pfad.
+        }
+      }
     }
     if (record.leadId.trim()) {
       paths.add(`gobd/readiness-${record.leadId.trim()}/v1.pdf`);
@@ -445,6 +487,19 @@ export function localPdfNameMatches(filename: string, familyIds: readonly string
     if (!familyId || familyId.includes("/") || familyId.includes("..")) continue;
     if (filename === `${familyId}.pdf`) return true;
     if (filename.startsWith(`${familyId}-v`) && filename.endsWith(".pdf")) return true;
+  }
+  return false;
+}
+
+export function localAnswerNameMatches(
+  filename: string,
+  documentIds: readonly string[],
+): boolean {
+  for (const documentId of documentIds) {
+    if (!documentId || documentId.includes("/") || documentId.includes("..")) continue;
+    if (filename.startsWith(`${documentId}-v`) && filename.endsWith("-answers.json")) {
+      return true;
+    }
   }
   return false;
 }

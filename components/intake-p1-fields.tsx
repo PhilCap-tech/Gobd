@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import {
   applyDerivedStatus,
   clearCatalogStatus,
@@ -36,10 +36,49 @@ import {
   ZUGRIFF_ROLLEN,
   type ChannelDetail,
 } from "@/lib/intake-present";
+import { KEINE_AUSNAHMEN, KEINE_REGELMAESSIGE_KONTROLLE, KONTROLLEN_HINWEIS } from "@/lib/keine-angaben";
+import { FreitextAlert } from "@/components/freitext-alert";
+import { freitextTooLong } from "@/lib/intake-payload";
 import type { IntakeAnswers } from "@/lib/types";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function markEdited(row: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  return { ...row, ...patch, bearbeitet: true };
+}
+
+function fieldClass(missing: string[] | undefined, key: string): string {
+  return missing?.includes(key) ? "field field-invalid" : "field";
+}
+
+function CardFrame({
+  questionId,
+  index,
+  invalidCards,
+  children,
+}: {
+  questionId: string;
+  index: number;
+  invalidCards?: Record<number, { message: string; missing: string[] }>;
+  children: ReactNode;
+}) {
+  const message = invalidCards?.[index]?.message;
+  return (
+    <div
+      className={message ? "system-card system-card-invalid" : "system-card"}
+      id={`card-${questionId}-${index}`}
+      tabIndex={message ? -1 : undefined}
+    >
+      {message ? (
+        <p className="field-error" role="alert">
+          {message}
+        </p>
+      ) : null}
+      {children}
+    </div>
+  );
 }
 
 function list(value: unknown): string[] {
@@ -102,7 +141,13 @@ function TextField({
   return (
     <label>
       {label}
-      <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <input
+        value={value}
+        placeholder={placeholder}
+        aria-invalid={freitextTooLong(value) || undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <FreitextAlert value={value} />
     </label>
   );
 }
@@ -186,14 +231,40 @@ function ChannelFields({
         />
       </div>
       <div className="field">
-        <TextField
-          label="Welche Ausnahmen gibt es?"
-          value={row.ausnahmen}
-          placeholder="Zum Beispiel keine, oder eine Urlaubsvertretung"
-          onChange={(ausnahmen) => onChange({ ...row, ausnahmen })}
-        />
+        <span className="hint">Welche Ausnahmen gibt es?</span>
+        <div className="chips">
+          <button
+            type="button"
+            className={row.keineAusnahmen ? "chip on" : "chip"}
+            onClick={() =>
+              onChange({
+                ...row,
+                keineAusnahmen: !row.keineAusnahmen,
+                ausnahmen: row.keineAusnahmen ? row.ausnahmen : "",
+              })
+            }
+          >
+            {KEINE_AUSNAHMEN}
+          </button>
+        </div>
+        {row.keineAusnahmen ? null : (
+          <TextField
+            label="Welche Ausnahmen gibt es?"
+            value={row.ausnahmen}
+            placeholder="Zum Beispiel eine Urlaubsvertretung"
+            onChange={(ausnahmen) => onChange({ ...row, ausnahmen, keineAusnahmen: false })}
+          />
+        )}
       </div>
     </div>
+  );
+}
+
+function RemoveCardButton({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <button type="button" className="btn ghost" aria-label={label} onClick={onRemove}>
+      Entfernen
+    </button>
   );
 }
 
@@ -218,10 +289,13 @@ export function P1QuestionFields({
   questionId,
   answers,
   onChange,
+  invalidCards,
 }: {
   questionId: string;
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
+  /** Meldung und leere Pflichtfelder je Kartenindex. Nur diese Karte wird rot. */
+  invalidCards?: Record<number, { message: string; missing: string[] }>;
 }) {
   const values = answers.katalog?.[questionId]?.values ?? {};
   const channels = list(answers.katalog?.C01?.values?.kanaele);
@@ -236,10 +310,20 @@ export function P1QuestionFields({
     const cards = systems.length ? systems : [{}];
     return (
       <div>
-        {cards.map((row, index) => (
-          <div className="system-card" key={`system-${index}`}>
-            <p className="prose">System {index + 1}</p>
-            <div className="field">
+        {cards.map((row, index) => {
+          const missing = invalidCards?.[index]?.missing;
+          return (
+          <CardFrame key={`system-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
+            <div className="system-card-head">
+              <p className="prose">System {index + 1}</p>
+              {cards.length > 1 ? (
+                <RemoveCardButton
+                  label={`System ${index + 1} entfernen`}
+                  onRemove={() => commit({ systeme: cards.filter((_, cardIndex) => cardIndex !== index) })}
+                />
+              ) : null}
+            </div>
+            <div className={fieldClass(missing, "name")}>
               <TextField
                 label="Name"
                 value={text(row.name)}
@@ -250,7 +334,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "funktion")}>
               <TextField
                 label="Zweck"
                 value={text(row.funktion)}
@@ -261,7 +345,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "typ")}>
               <span className="hint">Art</span>
               <Chips
                 options={["fibu", "postfach", "portal", "archiv", "rechnungssoftware", "sonstiges"]}
@@ -274,7 +358,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "nutzer")}>
               <TextField
                 label="Wer nutzt es?"
                 value={text(row.nutzer)}
@@ -285,7 +369,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "belegeRein")}>
               <span className="hint">Welche Belege gehen hinein?</span>
               <Chips
                 options={BELEG_REIN}
@@ -298,7 +382,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "uebergabe")}>
               <TextField
                 label="Wohin wird übergeben?"
                 value={text(row.uebergabe)}
@@ -309,7 +393,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "originalOrt")}>
               <TextField
                 label="Wo liegt das Original?"
                 value={text(row.originalOrt)}
@@ -320,7 +404,7 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "hostingArt")}>
               <span className="hint">Hosting</span>
               <Chips
                 options={HOSTING_OPTIONS}
@@ -332,8 +416,9 @@ export function P1QuestionFields({
                 }}
               />
             </div>
-          </div>
-        ))}
+          </CardFrame>
+          );
+        })}
         <button
           type="button"
           className="btn ghost"
@@ -377,9 +462,21 @@ export function P1QuestionFields({
           const weg = text(row.belegweg);
           const other = row.andererWeg === true || (Boolean(weg) && !channels.includes(weg));
           const picked = channels.includes(weg) ? weg : other ? "anderer Weg" : "";
+          const missing = invalidCards?.[index]?.missing;
           return (
-            <div className="system-card" key={`original-${index}`}>
-              <div className="field">
+            <CardFrame key={`original-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
+              {originals.length > 1 ? (
+                <div className="system-card-head">
+                  <p className="prose">Eingangsweg {index + 1}</p>
+                  <RemoveCardButton
+                    label={`Eingangsweg ${index + 1} entfernen`}
+                    onRemove={() =>
+                      commit({ originalJeWeg: originals.filter((_, cardIndex) => cardIndex !== index) })
+                    }
+                  />
+                </div>
+              ) : null}
+              <div className={fieldClass(missing, "belegweg")}>
                 {choices.length ? (
                   <>
                     <span className="hint">Eingangsweg</span>
@@ -389,10 +486,12 @@ export function P1QuestionFields({
                       onChange={(next) => {
                         const copy = originals.map((item) => ({ ...item }));
                         const choice = next[0] ?? "";
-                        copy[index] =
+                        copy[index] = markEdited(
+                          copy[index],
                           choice === "anderer Weg"
-                            ? { ...copy[index], andererWeg: true, belegweg: channels.includes(weg) ? "" : weg }
-                            : { ...copy[index], andererWeg: false, belegweg: choice };
+                            ? { andererWeg: true, belegweg: channels.includes(weg) ? "" : weg }
+                            : { andererWeg: false, belegweg: choice },
+                        );
                         commit({ originalJeWeg: copy });
                       }}
                     />
@@ -404,25 +503,25 @@ export function P1QuestionFields({
                     value={channels.includes(weg) ? "" : weg}
                     onChange={(belegweg) => {
                       const copy = originals.map((item) => ({ ...item }));
-                      copy[index] = { ...copy[index], andererWeg: true, belegweg };
+                      copy[index] = markEdited(copy[index], { andererWeg: true, belegweg });
                       commit({ originalJeWeg: copy });
                     }}
                   />
                 ) : null}
               </div>
-              <div className="field">
+              <div className={fieldClass(missing, "originalBeschreibung")}>
                 <TextField
                   label="Was gilt als Original?"
                   value={text(row.originalBeschreibung)}
                   placeholder="Zum Beispiel die empfangene PDF-Datei"
                   onChange={(originalBeschreibung) => {
                     const copy = originals.map((item) => ({ ...item }));
-                    copy[index] = { ...copy[index], originalBeschreibung };
+                    copy[index] = markEdited(copy[index], { originalBeschreibung });
                     commit({ originalJeWeg: copy });
                   }}
                 />
               </div>
-            </div>
+            </CardFrame>
           );
         })}
         <button
@@ -457,9 +556,21 @@ export function P1QuestionFields({
         {gate === "ja"
           ? cards.map((row, index) => {
               const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
+              const missing = invalidCards?.[index]?.missing;
               return (
-                <div className="system-card" key={`provider-${index}`}>
-                  <div className="field">
+                <CardFrame key={`provider-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
+                  {cards.length > 1 ? (
+                    <div className="system-card-head">
+                      <p className="prose">System beim Anbieter {index + 1}</p>
+                      <RemoveCardButton
+                        label={`System beim Anbieter ${index + 1} entfernen`}
+                        onRemove={() =>
+                          commit({ externeSysteme: cards.filter((_, cardIndex) => cardIndex !== index) })
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <div className={fieldClass(missing, "name")}>
                     <TextField
                       label="Name des Systems"
                       value={text(row.name)}
@@ -471,7 +582,7 @@ export function P1QuestionFields({
                     />
                   </div>
                   {ANBIETER_UNTERLAGEN.map((name) => (
-                    <div className="field" key={name}>
+                    <div className={fieldClass(missing, `unterlage:${name}`)} key={name}>
                       <span className="hint">{name}</span>
                       <StandChips
                         value={text(stand[name])}
@@ -486,7 +597,7 @@ export function P1QuestionFields({
                       />
                     </div>
                   ))}
-                </div>
+                </CardFrame>
               );
             })
           : null}
@@ -743,27 +854,33 @@ export function P1QuestionFields({
                 <td>
                   <input
                     aria-label={`${step.schritt}: Person oder Rolle`}
+                    aria-invalid={freitextTooLong(text(values[step.key])) || undefined}
                     value={text(values[step.key])}
                     onChange={(event) => commit({ [step.key]: event.target.value })}
                   />
+                  <FreitextAlert value={text(values[step.key])} />
                 </td>
                 <td>
                   <input
                     aria-label={`${step.schritt}: System`}
+                    aria-invalid={freitextTooLong(text(systems[step.key])) || undefined}
                     value={text(systems[step.key])}
                     onChange={(event) =>
                       commit({ schrittSystem: { ...systems, [step.key]: event.target.value } })
                     }
                   />
+                  <FreitextAlert value={text(systems[step.key])} />
                 </td>
                 <td>
                   <input
                     aria-label={`${step.schritt}: Nachweis`}
+                    aria-invalid={freitextTooLong(text(proofs[step.key])) || undefined}
                     value={text(proofs[step.key])}
                     onChange={(event) =>
                       commit({ schrittNachweis: { ...proofs, [step.key]: event.target.value } })
                     }
                   />
+                  <FreitextAlert value={text(proofs[step.key])} />
                 </td>
               </tr>
             ))}
@@ -838,44 +955,56 @@ export function P1QuestionFields({
     const table = stored.length ? stored : suggested;
     return (
       <div>
-        {table.map((row, index) => (
-          <div className="system-card" key={`ablage-${index}`}>
+        {table.map((row, index) => {
+          const missing = invalidCards?.[index]?.missing;
+          return (
+          <CardFrame key={`ablage-${index}`} questionId={questionId} index={index} invalidCards={invalidCards}>
+            {table.length > 1 ? (
+              <div className="system-card-head">
+                <p className="prose">Belegart {index + 1}</p>
+                <RemoveCardButton
+                  label={`Belegart ${index + 1} entfernen`}
+                  onRemove={() => commit({ ablageJeArt: table.filter((_, cardIndex) => cardIndex !== index) })}
+                />
+              </div>
+            ) : null}
             <div className="field">
               <TextField
                 label="Belegart oder Belegweg"
                 value={text(row.art)}
                 onChange={(art) => {
                   const copy = table.map((item) => ({ ...item }));
-                  copy[index] = { ...copy[index], art };
+                  copy[index] = markEdited(copy[index], { art });
                   commit({ ablageJeArt: copy });
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "ort")}>
               <TextField
                 label="Ablageort"
                 value={text(row.ort)}
                 onChange={(ort) => {
                   const copy = table.map((item) => ({ ...item }));
-                  copy[index] = { ...copy[index], ort };
+                  copy[index] = markEdited(copy[index], { ort });
                   commit({ ablageJeArt: copy });
                 }}
               />
             </div>
-            <div className="field">
+            <div className={fieldClass(missing, "suche")}>
               <TextField
                 label="Woran findet man den Beleg?"
                 value={text(row.suche)}
                 placeholder="Zum Beispiel Datum und Lieferant"
                 onChange={(suche) => {
                   const copy = table.map((item) => ({ ...item }));
-                  copy[index] = { ...copy[index], suche };
+                  copy[index] = markEdited(copy[index], { suche });
                   commit({ ablageJeArt: copy });
                 }}
               />
             </div>
-          </div>
-        ))}
+          </CardFrame>
+          );
+        })}
         <button
           type="button"
           className="btn ghost"
@@ -951,11 +1080,15 @@ export function P1QuestionFields({
 
   if (questionId === "H01") {
     const controls = rowsOf(values.kontrollen);
-    const selected = controls.map((row) => text(row.name)).filter(Boolean);
-    const options = [...TYPISCHE_KONTROLLEN] as string[];
+    const keine = values.keineKontrolle === true;
+    const selected = keine
+      ? [KEINE_REGELMAESSIGE_KONTROLLE]
+      : controls.map((row) => text(row.name)).filter(Boolean);
+    const options = [KEINE_REGELMAESSIGE_KONTROLLE, ...TYPISCHE_KONTROLLEN] as string[];
     for (const name of selected) if (!options.includes(name)) options.push(name);
     return (
       <div>
+        <p className="hint">{KONTROLLEN_HINWEIS}</p>
         <div className="field">
           <span className="hint">Welche Kontrollen gibt es?</span>
           <Chips
@@ -963,15 +1096,23 @@ export function P1QuestionFields({
             value={selected}
             multi
             onChange={(next) => {
-              const kept = controls.filter((row) => next.includes(text(row.name)));
-              const added = next
+              const added = next.filter((name) => !selected.includes(name));
+              if (added.includes(KEINE_REGELMAESSIGE_KONTROLLE)) {
+                commit({ kontrollen: [], keineKontrolle: true });
+                return;
+              }
+              const names = next.filter((name) => name !== KEINE_REGELMAESSIGE_KONTROLLE);
+              const kept = controls.filter((row) => names.includes(text(row.name)));
+              const addedRows = names
                 .filter((name) => !selected.includes(name))
                 .map((name) => ({ name, turnusWahl: "", turnusFrei: "", wer: "", nachweis: "" }));
-              commit({ kontrollen: [...kept, ...added] });
+              commit({ kontrollen: [...kept, ...addedRows], keineKontrolle: false });
             }}
           />
         </div>
-        {controls.map((row, index) => {
+        {keine
+          ? null
+          : controls.map((row, index) => {
           const choice =
             text(row.turnusWahl) ||
             ((KONTROLL_TURNUS as readonly string[]).includes(text(row.turnus)) ? text(row.turnus) : "");
@@ -1061,8 +1202,10 @@ export function P1QuestionFields({
                 Ergebnis
                 <textarea
                   value={text(values.ergebnis)}
+                  aria-invalid={freitextTooLong(text(values.ergebnis)) || undefined}
                   onChange={(event) => commit({ ergebnis: event.target.value })}
                 />
+                <FreitextAlert value={text(values.ergebnis)} />
               </label>
             </div>
           </>
@@ -1225,10 +1368,12 @@ export function ProcessStatus({
           <input
             id={`${questionId}-wer`}
             value={entry?.responsible ?? ""}
+            aria-invalid={freitextTooLong(entry?.responsible ?? "") || undefined}
             onChange={(event) =>
               onChange(setCatalogMeta(answers, questionId, { responsible: event.target.value }))
             }
           />
+          <FreitextAlert value={entry?.responsible ?? ""} />
           <label htmlFor={`${questionId}-bis`}>Datum</label>
           <input
             id={`${questionId}-bis`}

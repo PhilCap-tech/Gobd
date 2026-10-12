@@ -94,6 +94,8 @@ Altdaten bleiben für die Aufbewahrungsfrist verfügbar, lesbar und maschinell a
 
 Liegt die Buchhaltung in der Kanzlei, oft in einem System wie DATEV, und das Belegarchiv bei Ihnen, beschreiben Sie beide Orte und die Grenze dazwischen: was Sie tun, bis die Unterlagen die Kanzlei erreichen, und was danach dort liegt. Der Auftrag verschiebt die Verantwortung für Ihre Bücher nicht. Klären Sie, wer einen Export anstößt und wer einen Lesezugang einrichtet. Dieselbe Frage gilt für einen Cloud-Anbieter oder ein Lohnbüro, soweit dort aufbewahrungspflichtige Daten liegen.
 
+Wo dieser Abschnitt im Gesamtaufbau steht — in der technischen Systemdokumentation —, zeigt der Artikel [Verfahrensdokumentation Schritt für Schritt erstellen](/blog/gobd-verfahrensdokumentation-erstellen).
+
 ## Eine kurze Vorbereitung, ohne Ergebnisversprechen
 
 Sinnvoll ist ein Stand, den Sie und Ihre Beratung kennen.
@@ -109,9 +111,9 @@ Unsicher, ob Systeme, Datenorte und Verantwortliche schon greifbar sind? Machen 
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Abschnitt zum Datenzugriff nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
+Wenn Sie den Abschnitt zum Datenzugriff nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung.
 
 ## FAQ
 
@@ -137,6 +139,7 @@ Die Dokumentation sollte zu dem passen, was Sie erzeugen können. Ein nie geprü
 
 ## Weiterlesen
 
+- [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung) — der Überblick, dieser Artikel ist nur der Datenzugriff
 - [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software) — was ein Programm leistet und was nicht
 - [Digitale Verfahrensdokumentation](/blog/digitale-verfahrensdokumentation) — Ablage und Wiederfinden digitaler Unterlagen

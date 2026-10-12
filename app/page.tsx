@@ -22,7 +22,9 @@ import {
   HERO_OUTCOME_LINE,
   PRICE_FRAME_LINE,
   PRICE_INCLUSION_LINE,
+  INTAKE_EFFORT_LINE,
   PRICE_MICRO,
+  READINESS_EFFORT_NOTE,
   RESULT_PROMISE,
 } from "@/lib/offer-copy";
 import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "@/lib/pricing";
@@ -55,7 +57,7 @@ const EXAMPLE_OPEN_POINTS = [
   "Offener Punkt: Wer verwaltet die Zugriffsrechte im Archiv? Bitte Verantwortliche benennen.",
   "Offener Punkt: Die Berechtigungsliste und der Mandatsumfang der Steuerkanzlei sind noch nicht als mitgeltende Unterlagen abgelegt.",
   "Offener Punkt: IT- und Systemverantwortung (Backup, Rechteverwaltung) sind nicht benannt.",
-  "Offener Punkt: Die technische Prüfung strukturierter E-Rechnungen ist noch nicht bestätigt — bitte Praxis kurz beschreiben.",
+  "Offener Punkt: Die technische Prüfung strukturierter E-Rechnungen ist noch nicht angegeben — bitte Praxis kurz beschreiben.",
 ];
 
 function exampleQuestions(): string[] {
@@ -230,9 +232,9 @@ export default function HomePage() {
           <p className="prose">
             Der Maßstab: alle steuerrelevanten Prozesse von der Entstehung eines
             Geschäftsvorfalls bis zur Aufbewahrung und Prüfung. Ein Betriebs-Check
-            ermittelt zu Beginn, welche Module bei Ihnen vorkommen. Systeme und
-            Verantwortliche geben Sie einmal an; sie werden in alle Module
-            übernommen. Vorhandene Bereiche werden nicht stillschweigend
+            ermittelt zu Beginn, welche Module bei Ihnen vorkommen. Firmendaten,
+            Programme und Ansprechpartner geben Sie einmal an – wo möglich,
+            füllen wir sie in den Themen vor. Vorhandene Bereiche werden nicht stillschweigend
             ausgelassen — sie tragen den Status „Im Tool beschreiben“, sind durch
             bestehende Dokumentation abgedeckt oder haben den Status „Später ausfüllen“.
           </p>
@@ -282,6 +284,7 @@ export default function HomePage() {
               Bestellung. Mit dem Abo bleiben Versionen und Anpassungen verfügbar.
             </li>
           </ol>
+          <p className="prose">{INTAKE_EFFORT_LINE}</p>
           {excerptChapter ? (
             <figure className="doc-excerpt">
               <figcaption>
@@ -386,6 +389,7 @@ export default function HomePage() {
             ein Hinweis auf nächste Schritte (Muster ansehen oder Dokumentation
             erstellen).
           </p>
+          <p className="prose">{READINESS_EFFORT_NOTE}</p>
           <Link className="btn ghost" href="/readiness">
             {CTA_CHECK}
           </Link>

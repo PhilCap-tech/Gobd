@@ -11,7 +11,7 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 - Eine strukturierte GoBD-Verfahrensdokumentation als PDF, erzeugt aus Ihrem Online-Intake (Branche/Rechtsform, Systeme, Belegwege, IT/Hosting, Verantwortliche).
 - Aufbau in den vier klassischen Teilen: Allgemeine Beschreibung, Anwenderdokumentation, Technische Systemdokumentation und Betriebsdokumentation. Dazu eine Vollständigkeitsübersicht, Aufbewahrung, Verantwortlichkeiten und eine Liste offener Punkte.
 - Ein Gesamtdokument je Firma mit 24 Modulen (Muster je Branchenvorlage: Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau): von Unternehmen und Organisation über Verkauf, Einkauf, Rechnungen, E-Rechnungen, Papierbelege, Zahlungsverkehr, Kasse, Buchführung, Lager, Anlagen, Personal, Onlineshop und branchenspezifische Abläufe bis zu Archivierung, Aufbewahrung und Löschung, Systemen, Zugriffsrechten, Datensicherung, Kontrollen, ausgelagerten Aufgaben, Prüfungszugriff, Änderungen und Pflege der Dokumentation.
-- Ein kurzer Betriebs-Check zu Beginn legt fest, welche Module bei Ihnen vorkommen. Kein vorhandener Bereich wird stillschweigend ausgelassen: Jedes Modul hat den Status „Im Tool beschreiben“, ist durch eine bestehende Dokumentation abgedeckt, hat den Status „Später ausfüllen“ oder ist begründet als „nicht vorhanden“ markiert. Systeme, Verantwortliche und Steuerkanzlei geben Sie einmal an, sie werden in alle Module übernommen.
+- Ein kurzer Betriebs-Check zu Beginn legt fest, welche Module bei Ihnen vorkommen. Kein vorhandener Bereich wird stillschweigend ausgelassen: Jedes Modul hat den Status „Im Tool beschreiben“, ist durch eine bestehende Dokumentation abgedeckt, hat den Status „Später ausfüllen“ oder ist begründet als „nicht vorhanden“ markiert. Firmendaten, Programme und Ansprechpartner geben Sie einmal an – wo möglich, füllen wir sie in den Themen vor.
 - Ein fester Produkt-Disclaimer in der Dokumentation (kein Steuer-/Rechtsberatungsersatz; Verantwortung für inhaltliche Richtigkeit liegt bei Ihnen).
 
 ### Nicht geliefert wird
@@ -29,7 +29,9 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 3. Automatische Erstellung der Dokumentation aus dem Intake.
 4. Digitale Lieferung (Download / Zugangslink / Ergebnis per E-Mail).
 
-**Dauer:** Nach erfolgreicher Zahlung und fertig abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
+**Ausfüllen:** Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orientierend mit etwa 2–3 Stunden, in der Spanne von etwa 1,5 bis 5 Stunden — je nachdem, wie viele Module vorkommen und wie griffbereit die Angaben sind.
+
+**Bereitstellung:** Nach erfolgreicher Zahlung und fertig abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
 
 Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adresse.
 

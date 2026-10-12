@@ -12,14 +12,17 @@ import {
   setCatalogStatus,
   setCatalogValue,
 } from "../lib/intake-catalog";
+import { latestOwnedInFamily } from "../lib/documents";
 import {
   draftRevision,
   incomingDraftWins,
+  parseDraftVersionChange,
   preferIntakeSnapshot,
+  resolveDraftAfterLoad,
   type IntakeDraftSnapshot,
 } from "../lib/intake-draft-shared";
 import { ensureGesamt, setCheckAntwort, setModulEintrag } from "../lib/module/status";
-import { emptyAnswers } from "../lib/types";
+import { emptyAnswers, emptySheetRow, type SheetRow } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -110,7 +113,139 @@ export function checkIntakeDraftRestore(): void {
   console.log("check-intake-draft: green");
 }
 
+export function checkDraftMerge(): void {
+  const saved = ensureGesamt(emptyAnswers());
+  saved.gf = "Gespeichert";
+  const typed = ensureGesamt(emptyAnswers());
+  typed.gf = "Neu getippt";
+  const defaults = {
+    validFrom: "2026-10-08",
+    validTo: "",
+    changeSummary: "",
+    changedBy: "owner@example.com",
+  };
+  const restored = resolveDraftAfterLoad({
+    saved: {
+      answers: saved,
+      step: 4,
+      revision: 3,
+      change: {
+        validFrom: "2026-01-01",
+        validTo: "2026-12-31",
+        changeSummary: "Erstfassung",
+        changedBy: "owner@example.com",
+      },
+    },
+    localEdited: false,
+    localRevision: 0,
+    current: { answers: typed, step: 0, change: defaults },
+  });
+  ok(restored.restored, "untouched form restores the draft");
+  ok(restored.answers.gf === "Gespeichert", "restored answers come from the draft");
+  ok(restored.step === 4, "restored step comes from the draft");
+  ok(restored.change.validFrom === "2026-01-01", "Gültig ab is restored");
+  ok(restored.change.validTo === "2026-12-31", "Gültig bis is restored");
+  ok(restored.change.changeSummary === "Erstfassung", "Änderungsgrund is restored");
+  ok(restored.revision === 3, "restore keeps the saved revision");
+
+  const kept = resolveDraftAfterLoad({
+    saved: {
+      answers: saved,
+      step: 4,
+      revision: 3,
+      change: {
+        validFrom: "2026-01-01",
+        validTo: "",
+        changeSummary: "Alt",
+        changedBy: "owner@example.com",
+      },
+    },
+    localEdited: true,
+    localRevision: 1,
+    current: {
+      answers: typed,
+      step: 2,
+      change: { ...defaults, validFrom: "2026-06-01", changeSummary: "Neu" },
+    },
+  });
+  ok(!kept.restored, "typed input is not marked restored");
+  ok(kept.answers.gf === "Neu getippt", "typed answers are not overwritten by Fortsetzen");
+  ok(kept.step === 2, "typed step is not overwritten");
+  ok(kept.change.validFrom === "2026-06-01", "typed Gültig ab is not overwritten");
+  ok(kept.change.changeSummary === "Neu", "typed Änderungsgrund is not overwritten");
+  ok(kept.revision === 3, "local edits keep a revision the server will accept");
+
+  const legacy = resolveDraftAfterLoad({
+    saved: { answers: saved, step: 1, revision: 2 },
+    localEdited: false,
+    localRevision: 0,
+    current: { answers: typed, step: 0, change: defaults },
+  });
+  ok(legacy.restored, "draft without version fields still restores answers");
+  ok(legacy.change.validFrom === defaults.validFrom, "missing Gültig ab keeps the form default");
+  ok(parseDraftVersionChange(null) === null, "absent change does not invent dates");
+  ok(
+    parseDraftVersionChange({ validFrom: "2026-03-01", validTo: "", changeSummary: "Grund", changedBy: "a@example.com" })
+      ?.changeSummary === "Grund",
+    "change payload round-trips",
+  );
+  console.log("check-draft-merge: green");
+}
+
+function sheetRow(partial: Partial<SheetRow>): SheetRow {
+  return { ...emptySheetRow(), ...partial };
+}
+
+export function checkDocumentOwnership(): void {
+  const older = sheetRow({
+    documentId: "doc-old",
+    parentDocumentId: "doc-old",
+    email: "owner@example.com",
+    version: "1",
+    timestamp: "2026-10-01T10:00:00.000Z",
+  });
+  const newer = sheetRow({
+    documentId: "doc-new",
+    parentDocumentId: "doc-old",
+    email: "owner@example.com",
+    version: "2",
+    timestamp: "2026-10-08T10:00:00.000Z",
+  });
+  const foreign = sheetRow({
+    documentId: "foreign-doc",
+    parentDocumentId: "doc-old",
+    email: "other@example.com",
+    version: "9",
+    timestamp: "2026-10-08T12:00:00.000Z",
+  });
+  const picked = latestOwnedInFamily([older, foreign, newer], "owner@example.com");
+  ok(picked?.documentId === "doc-new", "edit target is the newest version of this mailbox");
+  ok(picked?.email === "owner@example.com", "edit target email matches the session mailbox");
+  ok(latestOwnedInFamily([foreign], "owner@example.com") === null, "another mailbox is not selectable");
+  const first = sheetRow({
+    documentId: "first-row",
+    parentDocumentId: "fam",
+    email: "owner@example.com",
+    version: "1",
+    timestamp: "2026-01-01T00:00:00.000Z",
+  });
+  const second = sheetRow({
+    documentId: "second-row",
+    parentDocumentId: "fam",
+    email: "owner@example.com",
+    version: "1",
+    timestamp: "2026-10-08T00:00:00.000Z",
+  });
+  ok(
+    latestOwnedInFamily([first, second], "Owner@Example.com")?.documentId === "second-row",
+    "same version: newest timestamp wins over the first sheet row",
+  );
+  console.log("check-document-ownership: green");
+}
+
 const entry = process.argv[1] ?? "";
 if (entry.endsWith("check-intake-draft.ts") || entry.endsWith("check-intake-draft.js")) {
   checkIntakeDraftRestore();
+  checkDraftMerge();
+  checkDocumentOwnership();
 }

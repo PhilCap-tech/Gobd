@@ -9,7 +9,8 @@ import {
   SuccessNotFound,
   SuccessPending,
 } from "@/components/success-status";
-import { getSessionEmail } from "@/lib/auth";
+import { getSessionEmail, sessionIdForCheckoutProof } from "@/lib/auth";
+import { LOGIN_LINK_FAILED_NOTICE, loginLinkSentNotice } from "@/lib/login-mail";
 import { DELIVERY_DISCLAIMER } from "@/lib/delivery";
 import {
   canAccessDocument,
@@ -34,10 +35,12 @@ export default async function SuccessPage({
   searchParams: Promise<{
     session_id?: string | string[];
     document_id?: string | string[];
+    anmeldung?: string | string[];
   }>;
 }) {
   const params = await searchParams;
-  const sessionId = firstQueryValue(params.session_id);
+  const sessionId = await sessionIdForCheckoutProof(firstQueryValue(params.session_id));
+  const anmeldung = firstQueryValue(params.anmeldung) ?? "";
   const documentId = firstQueryValue(params.document_id);
   const sessionEmail = await getSessionEmail();
   const row = await findSuccessDocument({ documentId, sessionId });
@@ -74,19 +77,24 @@ export default async function SuccessPage({
             <p className="kicker">
               Version {versionLabelFromRow({ version: String(version) })}
             </p>
-            <h1>Dein Entwurf ist fertig</h1>
+            <h1>Ihr Entwurf ist fertig</h1>
             <p className="lead">
-              {row.company || "Dein Unternehmen"} — Verfahrensdokumentation als
-              PDF plus offene Punkte. Entwurf aus deinen Angaben — keine
+              {row.company || "Ihr Unternehmen"} — Verfahrensdokumentation als
+              PDF plus offene Punkte. Entwurf aus Ihren Angaben — keine
               Freigabe.
             </p>
             <div className="card">
               <p className="prose">
-                Kapitelgerüst aus deinen Intake-Angaben. Keine erfundenen
+                Kapitelgerüst aus Ihren Intake-Angaben. Keine erfundenen
                 GoBD-Rechtstexte. Offene Punkte kennzeichnen, was noch zu
                 bestätigen ist. Eine Abstimmung mit dem Steuerberater ist
                 optional und nur im Rahmen eines gesonderten Auftrags.
               </p>
+              {anmeldung === "fehler" ? (
+                <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p>
+              ) : anmeldung === "gesendet" || (mailReady && anmeldung !== "stub") ? (
+                <p className="banner">{loginLinkSentNotice(row.email)}</p>
+              ) : null}
               {mailReady ? (
                 <p className="hint">
                   Wir haben den Download-Link{row.email ? ` an ${row.email}` : ""}{" "}
@@ -102,6 +110,7 @@ export default async function SuccessPage({
                 row={row}
                 sessionId={sessionId}
                 showAccountLink
+                loggedIn={Boolean(sessionEmail)}
               />
               <VersionHistory
                 versions={family?.versions ?? [row]}

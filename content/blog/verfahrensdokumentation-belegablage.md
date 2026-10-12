@@ -18,7 +18,7 @@ date: "2026-10-06"
 
 # Verfahrensdokumentation Muster zur Belegablage
 
-Ein **Verfahrensdokumentation Muster** zur Belegablage ist ein Abschnitt, kein fertiges Dokument. Es zeigt, wie der Belegfluss der Eingangsrechnungen beschrieben werden kann: Eingang, Prüfung, Freigabe, Buchung, Zahlung, Ablage. Die **Verfahrensdokumentation Vorlage** im weiteren Sinn — Aufbau, typische Lücken, Unterschied zwischen Blanko-Datei und geführtem Entwurf — steht im Artikel [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage). Dieser Text bleibt beim Belegfluss der Eingangsrechnungen.
+Ein **Verfahrensdokumentation Muster** zur Belegablage ist ein Abschnitt, kein fertiges Dokument. Es zeigt, wie der Belegfluss der Eingangsrechnungen beschrieben werden kann: Eingang, Prüfung, Freigabe, Buchung, Zahlung, Ablage. Die **Verfahrensdokumentation Vorlage** im weiteren Sinn — Aufbau, typische Lücken, Unterschied zwischen Blanko-Datei und geführtem Entwurf — steht im Artikel [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage). Wie der Abschnitt in die gesamte Dokumentation passt, steht im Leitfaden [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen). Dieser Text bleibt beim Belegfluss der Eingangsrechnungen.
 
 **Kurz:** Der Abschnitt nennt die Wege, auf denen Rechnungen ankommen, wer sachlich und rechnerisch prüft, wer freigibt, wo gebucht und gezahlt wird und wie die Datei unverändert wiederauffindbar bleibt. Seit dem 1. Januar 2025 müssen inländische Unternehmer im Geschäftsverkehr mit anderen Unternehmern E-Rechnungen empfangen können. Das Muster unten ist ein fiktives Beispiel mit Feldern in eckigen Klammern. Es ist kein Rechtstext zum Abheften.
 
@@ -90,9 +90,9 @@ Unsicher, ob Eingangswege, Freigabe und Ablage schon benennbar sind? Machen Sie 
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF). Ein fiktives Gesamtdokument zum Ansehen: [Muster Dienstleister als PDF](/muster/gesamt/dienstleister/pdf) (PDF).
 
-## Primär-CTA: Verfahrensdokumentation online erstellen
+## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Belegfluss nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — kurzes Intake, dann PDF und Offene-Punkte-Liste. Ca. 5–8 Minuten für den Einstieg. Keine Steuerberatung.
+Wenn Sie den Belegfluss nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung.
 
 ## FAQ
 
@@ -118,6 +118,7 @@ Das hängt davon ab, ob Sie nur eine Arbeitskopie erzeugen oder ersetzend scanne
 
 ## Weiterlesen
 
+- [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage) — Muster und Vorlage insgesamt, dieser Artikel ist nur die Belegablage
 - [Ersetzendes Scannen in der Verfahrensdokumentation](/blog/ersetzendes-scannen-verfahrensdokumentation) — wenn Papier nach dem Scan vernichtet wird
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — Abgleich, bevor der Entwurf als fertig gilt

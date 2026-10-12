@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { magicLinkUrl } from "@/lib/auth";
-import { isMailConfigured } from "@/lib/env";
-import { sendMagicLinkMail } from "@/lib/ops";
+import {
+  LOGIN_LINK_FAILED_NOTICE,
+  LOGIN_LINK_GENERIC_OK,
+  deliverLoginLink,
+} from "@/lib/login-mail";
 
 export const runtime = "nodejs";
 
@@ -18,16 +20,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bitte eine gültige E-Mail angeben." }, { status: 400 });
   }
 
-  const verifyUrl = magicLinkUrl(email, body.next);
-  const mail = await sendMagicLinkMail({ email, magicLinkUrl: verifyUrl });
-  const mailReady = isMailConfigured();
+  const status = await deliverLoginLink(email, body.next);
+  if (status === "failed") {
+    return NextResponse.json(
+      { ok: false, error: LOGIN_LINK_FAILED_NOTICE },
+      { status: 503 },
+    );
+  }
 
-  // Never log MAGIC_LINK_SECRET. verifyUrl is the signed login link testers
-  // need when Resend is configured but delivery fails (sent: false).
-  return NextResponse.json({
-    ok: true,
-    sent: mail.sent,
-    stub: mail.stub || !mailReady,
-    verifyUrl: mail.sent ? undefined : verifyUrl,
-  });
+  return NextResponse.json({ ok: true, message: LOGIN_LINK_GENERIC_OK });
 }

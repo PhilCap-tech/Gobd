@@ -2,6 +2,12 @@
  * Customer-facing labels for the catalog intake.
  * Question ids and field keys stay in the catalog for rules; they are not labels.
  */
+import {
+  ausnahmenPhrase,
+  KEINE_REGELMAESSIGE_KONTROLLE,
+  normalizeExclusiveSelection,
+} from "@/lib/keine-angaben";
+import type { IntakeAnswers } from "@/lib/types";
 
 export const RECHTSFORMEN = [
   "Einzelunternehmen",
@@ -493,6 +499,8 @@ export type ChannelDetail = {
   turnusFrei: string;
   uebergabe: string;
   ausnahmen: string;
+  /** Erfüllt das Pflichtfeld, ohne eine Ausnahme zu erfinden. */
+  keineAusnahmen?: boolean;
 };
 
 export function emptyChannelDetail(): ChannelDetail {
@@ -558,6 +566,68 @@ function rowList(value: unknown): Record<string, unknown>[] {
   return value.filter((item) => item && typeof item === "object") as Record<string, unknown>[];
 }
 
+/** Wahr, wenn die Karte mehr als Leerzeichen enthält. `false` und leere Verschachtelungen zählen nicht. */
+function valueHasInput(value: unknown): boolean {
+  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.some((item) => valueHasInput(item));
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some((item) => valueHasInput(item));
+  }
+  return false;
+}
+
+function rowHasInput(row: Record<string, unknown>): boolean {
+  return valueHasInput(row);
+}
+
+/** Listen, die per „Weitere …“ eine leere Karte anhängen. */
+const EMPTY_CARD_LISTS: Record<string, string> = {
+  B01: "systeme",
+  B04: "originalJeWeg",
+  B05: "externeSysteme",
+  G01: "ablageJeArt",
+};
+
+function withoutEmptyRows(values: Record<string, unknown>, key: string): Record<string, unknown> {
+  const raw = values[key];
+  if (!Array.isArray(raw)) return values;
+  const kept = raw.filter(
+    (item) => item && typeof item === "object" && !Array.isArray(item) && rowHasInput(item as Record<string, unknown>),
+  );
+  if (kept.length === raw.length && kept.every((row, index) => row === raw[index])) return values;
+  return { ...values, [key]: kept };
+}
+
+/**
+ * Entfernt völlig leere Karten aus B01, B04, B05 und G01.
+ * Teilweise ausgefüllte Karten und alle übrigen Angaben bleiben.
+ * Ein Entwurf ohne leere Karte bleibt dasselbe Objekt.
+ */
+export function stripEmptyIntakeCards(answers: IntakeAnswers): IntakeAnswers {
+  const katalog = answers.katalog;
+  if (!katalog) return answers;
+  let changed = false;
+  const next: NonNullable<IntakeAnswers["katalog"]> = {};
+  for (const [id, entry] of Object.entries(katalog)) {
+    const key = EMPTY_CARD_LISTS[id];
+    if (!entry?.values || !key) {
+      next[id] = entry;
+      continue;
+    }
+    const normalized = withoutEmptyRows(entry.values, key);
+    if (normalized !== entry.values) {
+      changed = true;
+      next[id] = { ...entry, values: normalized };
+    } else {
+      next[id] = entry;
+    }
+  }
+  if (!changed) return answers;
+  return { ...answers, katalog: next };
+}
+
 function channelMap(value: unknown): Record<string, ChannelDetail> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as Record<string, ChannelDetail>;
@@ -567,6 +637,17 @@ function resolvedTurnus(row: { turnus?: string; turnusFrei?: string } | undefine
   if (!row) return "";
   if (row.turnus === "anders") return textOf(row.turnusFrei);
   return textOf(row.turnus);
+}
+
+/** Gleicher Turnus mehrerer Kanäle nur einmal: „täglich; täglich“ bleibt „täglich“. */
+export function dedupeIdenticalTurnus(value: string): string {
+  const unique: string[] = [];
+  for (const part of value.split(";")) {
+    const token = part.trim();
+    if (!token || unique.includes(token)) continue;
+    unique.push(token);
+  }
+  return unique.join("; ");
 }
 
 export function composeCatalogValues(
@@ -600,19 +681,22 @@ export function composeCatalogValues(
     if (rows.length) {
       next.postfachOderPortal = rows.map((row) => textOf(row.ort)).filter(Boolean).join("; ");
       next.wer = rows.map((row) => textOf(row.wer)).filter(Boolean).join("; ");
-      next.turnus = rows.map((row) => resolvedTurnus(row)).filter(Boolean).join("; ");
+      next.turnus = dedupeIdenticalTurnus(
+        rows.map((row) => resolvedTurnus(row)).filter(Boolean).join("; "),
+      );
     }
   }
   if (id === "C03") {
     const row = next.eingang as ChannelDetail | undefined;
     if (row && typeof row === "object") {
       const turnus = resolvedTurnus(row);
+      const ausnahme = ausnahmenPhrase(row);
       next.schritte = [
         textOf(row.ort),
         textOf(row.wer),
         turnus,
         textOf(row.uebergabe) && `Übergabe: ${textOf(row.uebergabe)}`,
-        textOf(row.ausnahmen) && `Ausnahmen: ${textOf(row.ausnahmen)}`,
+        ausnahme,
       ]
         .filter(Boolean)
         .join(". ");
@@ -672,10 +756,17 @@ export function composeCatalogValues(
     }
   }
   if (id === "H01") {
-    next.kontrollen = rowList(next.kontrollen).map((row) => ({
-      ...row,
-      turnus: row.turnusWahl === "anders" ? textOf(row.turnusFrei) : textOf(row.turnusWahl) || textOf(row.turnus),
-    }));
+    if (next.keineKontrolle === true || controlRowsAreKeine(next.kontrollen)) {
+      next.kontrollen = [];
+      next.keineKontrolle = true;
+    } else {
+      next.kontrollen = rowList(next.kontrollen)
+        .filter((row) => textOf(row.name) !== KEINE_REGELMAESSIGE_KONTROLLE)
+        .map((row) => ({
+          ...row,
+          turnus: row.turnusWahl === "anders" ? textOf(row.turnusFrei) : textOf(row.turnusWahl) || textOf(row.turnus),
+        }));
+    }
   }
   if (id === "I01") {
     const selected = listOf(next.ausloeserAuswahl).filter((item) => item !== "Sonstiges");
@@ -686,50 +777,256 @@ export function composeCatalogValues(
 }
 
 function channelDetailReady(row: ChannelDetail | undefined): string {
-  if (!row || !textOf(row.ort) || !textOf(row.wer) || !textOf(row.turnus) || !textOf(row.uebergabe) || !textOf(row.ausnahmen)) {
+  const ausnahmenOk = row?.keineAusnahmen === true || Boolean(textOf(row?.ausnahmen));
+  if (!row || !textOf(row.ort) || !textOf(row.wer) || !textOf(row.turnus) || !textOf(row.uebergabe) || !ausnahmenOk) {
     return "Bitte Ort, Person, Turnus, Übergabe und Ausnahmen angeben.";
   }
   if (row.turnus === "anders" && !textOf(row.turnusFrei)) return "Bitte den anderen Turnus benennen.";
   return "";
 }
 
+/** Die Karte wurde im Formular geändert. Vorschläge ohne dieses Kennzeichen zählen wie leer. */
+function cardEdited(row: Record<string, unknown>): boolean {
+  return row.bearbeitet === true;
+}
+
+/**
+ * Vorgeschlagene B04- oder G01-Karte, die nie bearbeitet wurde.
+ * B04: Belegweg aus den gewählten Eingangswegen, Original leer.
+ * G01: Belegart aus dem Scope (ohne Scope der Vorschlag „Belege“), Ablageort und Suche leer.
+ */
+export function isUntouchedSuggestion(
+  id: string,
+  row: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): boolean {
+  if (cardEdited(row)) return false;
+  if (id === "B04") {
+    if (row.andererWeg === true) return false;
+    const weg = textOf(row.belegweg);
+    if (!weg || textOf(row.originalBeschreibung)) return false;
+    return channels.includes(weg);
+  }
+  if (id === "G01") {
+    const art = textOf(row.art);
+    if (!art || textOf(row.ort) || textOf(row.suche)) return false;
+    if (scope.length) return scope.includes(art);
+    return art === "Belege";
+  }
+  return false;
+}
+
+function cardCounts(
+  id: string,
+  row: Record<string, unknown>,
+  channels: string[],
+  scope: string[],
+): boolean {
+  if (!rowHasInput(row)) return false;
+  return !isUntouchedSuggestion(id, row, channels, scope);
+}
+
+/** Wahr, wenn jede gefüllte Karte nur ein unberührter Vorschlag ist. */
+export function onlyUntouchedSuggestions(
+  id: string,
+  values: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): boolean {
+  const key = EMPTY_CARD_LISTS[id];
+  if (!key) return false;
+  const rows = rowList(values[key]).filter((row) => rowHasInput(row));
+  return rows.length > 0 && rows.every((row) => isUntouchedSuggestion(id, row, channels, scope));
+}
+
+/**
+ * Unberührte B04-/G01-Vorschläge zählen wie leere Karten.
+ * G01-Ablage und Ordnung, die nur aus diesen Vorschlägen entstanden sind, fallen mit weg.
+ * Eigene Angaben bleiben.
+ */
+export function withoutUntouchedSuggestions(
+  id: string,
+  values: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): Record<string, unknown> {
+  if (id !== "B04" && id !== "G01") return values;
+  const key = EMPTY_CARD_LISTS[id];
+  const raw = values[key];
+  if (!Array.isArray(raw)) return values;
+  const kept: unknown[] = [];
+  const dropped: Record<string, unknown>[] = [];
+  let removed = false;
+  for (const item of raw) {
+    if (
+      item &&
+      typeof item === "object" &&
+      !Array.isArray(item) &&
+      isUntouchedSuggestion(id, item as Record<string, unknown>, channels, scope)
+    ) {
+      removed = true;
+      dropped.push(item as Record<string, unknown>);
+    } else {
+      kept.push(item);
+    }
+  }
+  if (!removed) return values;
+  const next: Record<string, unknown> = { ...values, [key]: kept };
+  if (id !== "G01") return next;
+  const real = rowList(kept).filter((row) => textOf(row.art) || textOf(row.ort));
+  if (real.length) return composeCatalogValues("G01", next);
+  const fromDropped = composedArchive(dropped);
+  if (textOf(next.ablage) === fromDropped.ablage) next.ablage = "";
+  if (textOf(next.ordnung) === fromDropped.ordnung) next.ordnung = "";
+  return next;
+}
+
+/** Keine eigene Kartenangabe, auch nachdem unberührte Vorschläge wie leer gelten. */
+export function cardQuestionLacksFacts(
+  id: string,
+  values: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): boolean {
+  const cleaned = withoutUntouchedSuggestions(id, values, channels, scope);
+  if (id === "B04") {
+    return !rowList(cleaned.originalJeWeg).some((row) => textOf(row.belegweg) && textOf(row.originalBeschreibung));
+  }
+  if (id === "G01") {
+    if (rowList(cleaned.ablageJeArt).some((row) => rowHasInput(row))) return false;
+    return !textOf(cleaned.ablage) && !textOf(cleaned.ordnung);
+  }
+  return false;
+}
+
+export type P1CardGap = {
+  cardIndex: number;
+  message: string;
+  /** Schlüssel der noch leeren Pflichtfelder auf dieser Karte. */
+  missing: string[];
+};
+
+export type P1Issue = {
+  message: string;
+  cards: P1CardGap[];
+};
+
+function cardGap(label: string, index: number, parts: string[], missing: string[]): P1CardGap {
+  return { message: `${label} ${index + 1}: ${parts.join(" ")}`, cardIndex: index, missing };
+}
+
+/** „bitte Zweck und Art nennen.“ — nur die leeren Felder, in fester Reihenfolge. */
+function bitteNennen(labels: string[]): string {
+  const list =
+    labels.length <= 1
+      ? (labels[0] ?? "")
+      : `${labels.slice(0, -1).join(", ")} und ${labels[labels.length - 1]}`;
+  return `bitte ${list} nennen.`;
+}
+
+function fromCards(cards: P1CardGap[]): P1Issue {
+  return { message: cards.map((card) => card.message).join(" "), cards };
+}
+
+function plain(message: string): P1Issue {
+  return { message, cards: [] };
+}
+
+function composedArchive(rows: Record<string, unknown>[]): { ablage: string; ordnung: string } {
+  const orte = [...new Set(rows.map((row) => textOf(row.ort)).filter(Boolean))];
+  const ordnung = rows
+    .map((row) => [textOf(row.art), textOf(row.suche)].filter(Boolean).join(": "))
+    .filter(Boolean)
+    .join("; ");
+  return { ablage: orte.join("; "), ordnung };
+}
+
 /** Extra completeness for the P1 questions. Empty when the status is not a described process. */
-export function p1FieldError(
+export function p1FieldIssue(
   id: string,
   status: string | undefined,
   values: Record<string, unknown>,
   channels: string[] = [],
-): string {
+  scope: string[] = [],
+): P1Issue {
   if (id === "H04" && status === "bestaetigt" && textOf(values.status) === "bestaetigt") {
     if (!textOf(values.datum) && !textOf(values.ergebnis)) {
-      return "Bitte Datum oder Ergebnis der Prüfung angeben.";
+      return plain("Bitte Datum oder Ergebnis der Prüfung angeben.");
     }
   }
-  if (status !== "bestaetigt" && status !== "geplant") return "";
+  if (status !== "bestaetigt" && status !== "geplant") return plain("");
   if (id === "B01") {
     const rows = rowList(values.systeme);
-    if (!rows.length) return "Bitte mindestens ein System nennen.";
-    for (const row of rows) {
-      if (!textOf(row.name) || !textOf(row.funktion) || !textOf(row.typ)) {
-        return "Bitte Name, Zweck und Art je System nennen.";
+    const active = rows.map((row, index) => ({ row, index })).filter(({ row }) => rowHasInput(row));
+    if (!active.length) return plain("Bitte mindestens ein System nennen.");
+    const cards: P1CardGap[] = [];
+    for (const { row, index } of active) {
+      const missing: string[] = [];
+      const parts: string[] = [];
+      const core: Array<[string, string]> = [
+        ["name", "Name"],
+        ["funktion", "Zweck"],
+        ["typ", "Art"],
+      ];
+      const missingCore = core.filter(([key]) => !textOf(row[key]));
+      if (missingCore.length) {
+        missing.push(...missingCore.map(([key]) => key));
+        parts.push(bitteNennen(missingCore.map(([, label]) => label)));
       }
       if (!textOf(row.hostingArt)) {
-        return "Bitte das Hosting je System wählen.";
+        missing.push("hostingArt");
+        parts.push("Bitte das Hosting je System wählen.");
       }
-      if (!textOf(row.nutzer) || !listOf(row.belegeRein).length || !textOf(row.uebergabe) || !textOf(row.originalOrt)) {
-        return "Bitte je System Nutzer, eingehende Belege, Übergabe und den Ort des Originals nennen.";
+      const detail: string[] = [];
+      if (!textOf(row.nutzer)) detail.push("nutzer");
+      if (!listOf(row.belegeRein).length) detail.push("belegeRein");
+      if (!textOf(row.uebergabe)) detail.push("uebergabe");
+      if (!textOf(row.originalOrt)) detail.push("originalOrt");
+      if (detail.length) {
+        missing.push(...detail);
+        parts.push("Bitte je System Nutzer, eingehende Belege, Übergabe und den Ort des Originals nennen.");
+      }
+      if (missing.length) cards.push(cardGap("System", index, parts, missing));
+    }
+    if (cards.length) return fromCards(cards);
+  }
+  if (id === "B04") {
+    const rows = rowList(values.originalJeWeg);
+    const cards: P1CardGap[] = [];
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      if (!row || !cardCounts("B04", row, channels, scope)) continue;
+      const missing: string[] = [];
+      if (!textOf(row.belegweg)) missing.push("belegweg");
+      if (!textOf(row.originalBeschreibung)) missing.push("originalBeschreibung");
+      if (missing.length) {
+        cards.push(cardGap("Eingangsweg", index, ["Bitte je Eingangsweg den Weg und das Original nennen."], missing));
       }
     }
+    if (cards.length) return fromCards(cards);
   }
   if (id === "B05" && values.anbieter === "ja") {
-    const rows = rowList(values.externeSysteme).filter((row) => textOf(row.name));
-    if (!rows.length) return "Bitte das System beim Anbieter benennen.";
-    for (const row of rows) {
-      const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
-      if (ANBIETER_UNTERLAGEN.some((name) => !textOf(stand[name]))) {
-        return "Bitte je Unterlage angeben, ob sie vorhanden ist, ergänzt werden muss oder nicht relevant ist.";
+    const rows = rowList(values.externeSysteme);
+    const active = rows.map((row, index) => ({ row, index })).filter(({ row }) => rowHasInput(row));
+    if (!active.length) return plain("Bitte das System beim Anbieter benennen.");
+    const cards: P1CardGap[] = [];
+    for (const { row, index } of active) {
+      const missing: string[] = [];
+      const parts: string[] = [];
+      if (!textOf(row.name)) {
+        missing.push("name");
+        parts.push("Bitte das System beim Anbieter benennen.");
       }
+      const stand = (row.unterlagenStand ?? {}) as Record<string, string>;
+      const openDocs = ANBIETER_UNTERLAGEN.filter((name) => !textOf(stand[name]));
+      if (openDocs.length) {
+        missing.push(...openDocs.map((name) => `unterlage:${name}`));
+        parts.push("Bitte je Unterlage angeben, ob sie vorhanden ist, ergänzt werden muss oder nicht relevant ist.");
+      }
+      if (missing.length) cards.push(cardGap("System beim Anbieter", index, parts, missing));
     }
+    if (cards.length) return fromCards(cards);
   }
   if (id === "C02") {
     const detail = channelMap(values.kanaeleDetail);
@@ -737,34 +1034,34 @@ export function p1FieldError(
     for (const channel of channels) {
       if (!digital.has(channel)) continue;
       const message = channelDetailReady(detail[channel]);
-      if (message) return `${channel}: ${message}`;
+      if (message) return plain(`${channel}: ${message}`);
     }
   }
   if (id === "C03") {
     const message = channelDetailReady(values.eingang as ChannelDetail | undefined);
-    if (message) return message;
+    if (message) return plain(message);
   }
   if (id === "D01" && textOf(values.scanZweck) === "nein") {
     if (!textOf(values.eingang) || !textOf(values.originalVerbleib) || !textOf(values.verantwortlich)) {
-      return "Bitte Eingang, Verbleib des Originals und die zuständige Person angeben.";
+      return plain("Bitte Eingang, Verbleib des Originals und die zuständige Person angeben.");
     }
   }
   if (id === "D01" && textOf(values.scanZweck) && textOf(values.scanZweck) !== "nein") {
     if (!textOf(values.eingang) || !textOf(values.scanZeitpunkt) || !textOf(values.vollstaendigkeit) || !textOf(values.originalVerbleib) || !textOf(values.verantwortlich)) {
-      return "Bitte Eingang, Zeitpunkt des Scans, Vollständigkeitsprüfung, Verbleib des Originals und die zuständige Person angeben.";
+      return plain("Bitte Eingang, Zeitpunkt des Scans, Vollständigkeitsprüfung, Verbleib des Originals und die zuständige Person angeben.");
     }
   }
   if (id === "E02") {
     if (!textOf(values.empfang) || !textOf(values.lesbar) || !textOf(values.pruefung) || !textOf(values.aufbewahrung)) {
-      return "Bitte Empfang, Lesbarkeit, Prüfung und Aufbewahrung des Originalformats beschreiben.";
+      return plain("Bitte Empfang, Lesbarkeit, Prüfung und Aufbewahrung des Originalformats beschreiben.");
     }
   }
   if (id === "E03" && !listOf(values.kriterienAuswahl).length && !textOf(values.kriterienFrei) && !textOf(values.kriterien)) {
-    return "Bitte die Prüfkriterien wählen oder kurz beschreiben.";
+    return plain("Bitte die Prüfkriterien wählen oder kurz beschreiben.");
   }
   if (id === "E05") {
     if (!textOf(values.freigabe) || !textOf(values.versand) || !textOf(values.storno)) {
-      return "Bitte Freigabe, Versandweg und den Umgang mit Korrektur oder Storno angeben.";
+      return plain("Bitte Freigabe, Versandweg und den Umgang mit Korrektur oder Storno angeben.");
     }
   }
   if (id === "F01") {
@@ -772,47 +1069,74 @@ export function p1FieldError(
     const proofs = (values.schrittNachweis ?? {}) as Record<string, string>;
     for (const step of FREIGABE_SCHRITTE) {
       if (!textOf(values[step.key]) || !textOf(systems[step.key]) || !textOf(proofs[step.key])) {
-        return "Bitte je Schritt Person oder Rolle, System und Nachweis angeben.";
+        return plain("Bitte je Schritt Person oder Rolle, System und Nachweis angeben.");
       }
     }
   }
   if (id === "F05" && values.kanzleiBeteiligt === "ja") {
-    if (!textOf(values.kanzleiName)) return "Bitte die Kanzlei benennen.";
+    if (!textOf(values.kanzleiName)) return plain("Bitte die Kanzlei benennen.");
     if (!listOf(values.aufgaben).length && !textOf(values.aufgabenFrei)) {
-      return "Bitte die Aufgaben der Kanzlei auswählen.";
+      return plain("Bitte die Aufgaben der Kanzlei auswählen.");
     }
   }
   if (id === "G01") {
-    const rows = rowList(values.ablageJeArt).filter((row) => textOf(row.ort) && textOf(row.suche));
-    if (!rows.length) return "Bitte je Belegart Ablageort und Suchmerkmale angeben.";
+    const rows = rowList(values.ablageJeArt);
+    const active = rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => cardCounts("G01", row, channels, scope));
+    if (!active.length) {
+      if (onlyUntouchedSuggestions("G01", values, channels, scope)) return plain("");
+      return plain("Bitte je Belegart Ablageort und Suchmerkmale angeben.");
+    }
+    const cards: P1CardGap[] = [];
+    for (const { row, index } of active) {
+      const missing: string[] = [];
+      if (!textOf(row.ort)) missing.push("ort");
+      if (!textOf(row.suche)) missing.push("suche");
+      if (missing.length) {
+        cards.push(cardGap("Belegart", index, ["Bitte je Belegart Ablageort und Suchmerkmale angeben."], missing));
+      }
+    }
+    if (cards.length) return fromCards(cards);
   }
   if (id === "G02") {
     const rows = rowList(values.zugriffRollen).filter((row) => listOf(row.rechte).length);
-    if (!rows.length && !textOf(values.zugriffKurz)) return "Bitte die Rechte je Rolle angeben.";
+    if (!rows.length && !textOf(values.zugriffKurz)) return plain("Bitte die Rechte je Rolle angeben.");
   }
   if (id === "G06" && !listOf(values.sicherung).length && !textOf(values.backupArten)) {
-    return "Bitte angeben, ob der Anbieter sichert oder eine Rücksicherung geprüft wurde.";
+    return plain("Bitte angeben, ob der Anbieter sichert oder eine Rücksicherung geprüft wurde.");
   }
   if (id === "H01") {
+    if (values.keineKontrolle === true || controlRowsAreKeine(values.kontrollen)) return plain("");
     for (const row of rowList(values.kontrollen)) {
       if (!textOf(row.name)) continue;
       const turnus = textOf(row.turnusWahl) || textOf(row.turnus);
       if (!turnus || !textOf(row.wer) || !textOf(row.nachweis)) {
-        return "Bitte zu jeder gewählten Kontrolle angeben, wie oft sie läuft, wer sie macht und woran man sie erkennt.";
+        return plain("Bitte zu jeder gewählten Kontrolle angeben, wie oft sie läuft, wer sie macht und woran man sie erkennt.");
       }
-      if (row.turnusWahl === "anders" && !textOf(row.turnusFrei)) return "Bitte den anderen Turnus benennen.";
+      if (row.turnusWahl === "anders" && !textOf(row.turnusFrei)) return plain("Bitte den anderen Turnus benennen.");
     }
   }
   if (id === "I01" && !listOf(values.ausloeserAuswahl).length && !textOf(values.ausloeser)) {
-    return "Bitte mindestens einen Anlass für eine neue Fassung wählen.";
+    return plain("Bitte mindestens einen Anlass für eine neue Fassung wählen.");
   }
   if (id === "I02") {
     const rows = rowList(values.anlagen);
     if (ANLAGEN_CHECKLISTE.some((name) => !rows.some((row) => textOf(row.name) === name && textOf(row.status)))) {
-      return "Bitte jede Anlage als vorhanden, zu ergänzen oder nicht relevant markieren.";
+      return plain("Bitte jede Anlage als vorhanden, zu ergänzen oder nicht relevant markieren.");
     }
   }
-  return "";
+  return plain("");
+}
+
+export function p1FieldError(
+  id: string,
+  status: string | undefined,
+  values: Record<string, unknown>,
+  channels: string[] = [],
+  scope: string[] = [],
+): string {
+  return p1FieldIssue(id, status, values, channels, scope).message;
 }
 
 export function presentationBits(id: string, values: Record<string, unknown> | undefined): string[] {
@@ -823,6 +1147,7 @@ export function presentationBits(id: string, values: Record<string, unknown> | u
       return [
         textOf(row.name),
         textOf(row.funktion),
+        textOf(row.typ) && `Art ${optionLabel("typ", textOf(row.typ))}`,
         textOf(row.nutzer) && `Nutzer ${textOf(row.nutzer)}`,
         belege && `Belege ${belege}`,
         textOf(row.uebergabe) && `Übergabe ${textOf(row.uebergabe)}`,
@@ -836,7 +1161,7 @@ export function presentationBits(id: string, values: Record<string, unknown> | u
   if (id === "C02") {
     return Object.entries(channelMap(values.kanaeleDetail)).map(([channel, row]) => {
       const turnus = resolvedTurnus(row);
-      return [channel, textOf(row.ort), textOf(row.wer), turnus, textOf(row.uebergabe), textOf(row.ausnahmen)]
+      return [channel, textOf(row.ort), textOf(row.wer), turnus, textOf(row.uebergabe), ausnahmenPhrase(row)]
         .filter(Boolean)
         .join(", ");
     });
@@ -847,4 +1172,127 @@ export function presentationBits(id: string, values: Record<string, unknown> | u
     );
   }
   return [];
+}
+
+function controlRowsAreKeine(raw: unknown): boolean {
+  const names = rowList(raw).map((row) => textOf(row.name)).filter(Boolean);
+  return names.length > 0 && names.every((name) => name === KEINE_REGELMAESSIGE_KONTROLLE);
+}
+
+function normalizeNamedControls(values: Record<string, unknown>): Record<string, unknown> {
+  const raw = values.kontrollen;
+  if (!Array.isArray(raw) || raw.some((item) => typeof item !== "string")) return values;
+  const names = raw.map((item) => String(item));
+  const normalized = normalizeExclusiveSelection(names, KEINE_REGELMAESSIGE_KONTROLLE);
+  const keine = normalized.length === 1 && normalized[0] === KEINE_REGELMAESSIGE_KONTROLLE;
+  const sameList = normalized.length === names.length && normalized.every((item, index) => item === names[index]);
+  if (keine) {
+    if (sameList && !textOf(values.details)) return values;
+    return { ...values, kontrollen: normalized, details: "" };
+  }
+  if (sameList) return values;
+  return { ...values, kontrollen: normalized };
+}
+
+function normalizeH01(values: Record<string, unknown>): Record<string, unknown> {
+  if (values.keineKontrolle === true || controlRowsAreKeine(values.kontrollen)) {
+    if (values.keineKontrolle === true && rowList(values.kontrollen).length === 0) return values;
+    return { ...values, kontrollen: [], keineKontrolle: true };
+  }
+  const rows = rowList(values.kontrollen);
+  const hasSentinel = rows.some((row) => textOf(row.name) === KEINE_REGELMAESSIGE_KONTROLLE);
+  if (!hasSentinel) return values;
+  const real = rows.filter((row) => textOf(row.name) && textOf(row.name) !== KEINE_REGELMAESSIGE_KONTROLLE);
+  return { ...values, kontrollen: real, keineKontrolle: false };
+}
+
+const KF_TEXT_KEYS = ["kontrollen", "ablauf", "wer", "nachweis", "turnus", "details"] as const;
+
+function normalizeKf(values: Record<string, unknown>): Record<string, unknown> {
+  if (values.keineKontrolle !== true) return values;
+  let next: Record<string, unknown> | null = null;
+  for (const key of KF_TEXT_KEYS) {
+    if (typeof values[key] === "string" && textOf(values[key])) {
+      if (!next) next = { ...values };
+      next[key] = "";
+    }
+  }
+  return next ?? values;
+}
+
+function normalizeChannelRow(row: ChannelDetail): ChannelDetail {
+  if (row.keineAusnahmen === true && textOf(row.ausnahmen)) return { ...row, ausnahmen: "" };
+  return row;
+}
+
+function normalizeC02(values: Record<string, unknown>): Record<string, unknown> {
+  const map = channelMap(values.kanaeleDetail);
+  let changed = false;
+  const nextMap: Record<string, ChannelDetail> = {};
+  for (const [channel, row] of Object.entries(map)) {
+    const next = normalizeChannelRow(row);
+    nextMap[channel] = next;
+    if (next !== row) changed = true;
+  }
+  if (!changed) return values;
+  return composeCatalogValues("C02", { ...values, kanaeleDetail: nextMap });
+}
+
+function normalizeC03(values: Record<string, unknown>): Record<string, unknown> {
+  const row = values.eingang;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return values;
+  const nextRow = normalizeChannelRow(row as ChannelDetail);
+  const source = nextRow === row ? values : { ...values, eingang: nextRow };
+  const composed = composeCatalogValues("C03", source);
+  if (nextRow === row && textOf(composed.schritte) === textOf(values.schritte)) return values;
+  return composed;
+}
+
+function normalizeEntryValues(
+  id: string,
+  values: Record<string, unknown>,
+  channels: string[],
+  scope: string[],
+): Record<string, unknown> {
+  if (id === "H01") return normalizeH01(values);
+  if (/^KF0[1-5]$/.test(id)) return normalizeKf(values);
+  if (/92$/.test(id)) return normalizeNamedControls(values);
+  if (id === "C02") return normalizeC02(values);
+  if (id === "C03") return normalizeC03(values);
+  const listKey = EMPTY_CARD_LISTS[id];
+  if (listKey) return withoutEmptyRows(withoutUntouchedSuggestions(id, values, channels, scope), listKey);
+  return values;
+}
+
+/** Exklusive Keine-Angaben bereinigen. Unveränderte Entwürfe bleiben dasselbe Objekt. */
+export function normalizeIntakeAnswers(answers: IntakeAnswers): IntakeAnswers {
+  const katalog = answers.katalog;
+  if (!katalog) return answers;
+  let changed = false;
+  const next: NonNullable<IntakeAnswers["katalog"]> = {};
+  const channels = listOf(katalog.C01?.values?.kanaele);
+  const scope = listOf(katalog.A02?.values?.belegartenScope);
+  for (const [id, entry] of Object.entries(katalog)) {
+    if (!entry?.values) {
+      next[id] = entry;
+      continue;
+    }
+    const normalized = normalizeEntryValues(id, entry.values, channels, scope);
+    if (normalized !== entry.values) {
+      changed = true;
+      next[id] = { ...entry, values: normalized };
+    } else {
+      next[id] = entry;
+    }
+  }
+  if (!changed) return answers;
+  return { ...answers, katalog: next };
+}
+
+/** Ausnahme-Sätze der digitalen Kanäle, jeder Wortlaut einmal. */
+export function channelExceptionPhrases(values: Record<string, unknown> | undefined): string[] {
+  if (!values) return [];
+  return [
+    ...new Set(Object.values(channelMap(values.kanaeleDetail)).map((row) => ausnahmenPhrase(row)).filter(Boolean)),
+  ];
 }

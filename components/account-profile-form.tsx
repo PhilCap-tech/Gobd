@@ -94,7 +94,7 @@ export function AccountProfileForm({
 
       <h3 className="account-subhead">Firma</h3>
       <p className="prose">
-        Stammdaten legst du unabhängig vom Abo an.
+        Stammdaten legen Sie unabhängig vom Abo an.
       </p>
       <div className="actions">
         {!atCap && (
@@ -110,7 +110,7 @@ export function AccountProfileForm({
       </div>
       {atCap && (
         <p className="hint">
-          Du hast das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen erreicht.
+          Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen erreicht.
         </p>
       )}
     </section>

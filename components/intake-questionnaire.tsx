@@ -7,9 +7,9 @@ import {
   CATALOG_STEPS,
   catalogQuestionApplies,
   catalogStepApplies,
-  catalogStepPosition,
   catalogStepTitle,
-  firmAddressLine,
+  intakeStepLabel,
+  standortPrefillLine,
   MODUL_UEBERSICHT_STEP_ID,
   prefillKnownFacts,
   setCatalogValue,
@@ -20,6 +20,7 @@ import {
   type FirmFacts,
 } from "@/lib/intake-catalog";
 import { BetriebsCheckStep, ModulUebersichtStep } from "@/components/betriebs-check";
+import { IntakeStepHeading } from "@/components/intake-step-heading";
 import { P1_QUESTION_IDS, P1QuestionFields, ProcessStatus } from "@/components/intake-p1-fields";
 import {
   activityFollowupsFor,
@@ -34,7 +35,14 @@ import {
   TAETIGKEIT_FREITEXT,
   TAETIGKEITEN,
 } from "@/lib/intake-present";
+import {
+  isControlQuestionId,
+  isKeineKontrolleValues,
+  KEINE_REGELMAESSIGE_KONTROLLE,
+  normalizeExclusiveSelection,
+} from "@/lib/keine-angaben";
 import { INTAKE_STEPS } from "@/lib/intake-questions";
+import { FreitextAlert } from "@/components/freitext-alert";
 import type { IntakeAnswers } from "@/lib/types";
 
 function itemFields(field: CatalogField): Array<{ key: string; type: string; options?: string[] }> {
@@ -51,6 +59,31 @@ function asText(value: unknown): string {
 
 function issueFor(issues: CatalogIssue[], questionId: string, fieldKey: string): CatalogIssue | undefined {
   return issues.find((issue) => issue.questionId === questionId && issue.fieldKey === fieldKey);
+}
+
+function cardMessages(issues: CatalogIssue[], questionId: string): Record<number, { message: string; missing: string[] }> {
+  const out: Record<number, { message: string; missing: string[] }> = {};
+  for (const issue of issues) {
+    if (issue.questionId !== questionId) continue;
+    const match = /^card-(\d+)$/.exec(issue.fieldKey);
+    if (!match) continue;
+    out[Number(match[1])] = { message: issue.message, missing: issue.missing ?? [] };
+  }
+  return out;
+}
+
+export function StepError({ issues }: { issues: CatalogIssue[] }) {
+  if (!issues.length) return null;
+  if (issues.length === 1) return <p className="error">{issues[0]?.message}</p>;
+  return (
+    <div className="error" role="alert">
+      <ul>
+        {issues.map((issue) => (
+          <li key={`${issue.questionId}-${issue.fieldKey}-${issue.anchor}`}>{issue.message}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function matchesPrefill(value: unknown, source: string | undefined): boolean {
@@ -135,12 +168,14 @@ function ChoiceList({
   options,
   value,
   multi,
+  exclusive,
   onChange,
 }: {
   fieldKey: string;
   options: string[];
   value: string[];
   multi?: boolean;
+  exclusive?: string;
   onChange: (next: string[]) => void;
 }) {
   return (
@@ -153,8 +188,16 @@ function ChoiceList({
             type="button"
             className={on ? "chip on" : "chip"}
             onClick={() => {
-              if (multi) onChange(on ? value.filter((item) => item !== option) : [...value, option]);
-              else onChange([option]);
+              if (!multi) {
+                onChange([option]);
+                return;
+              }
+              if (exclusive && option === exclusive) {
+                onChange(on ? [] : [exclusive]);
+                return;
+              }
+              const withoutExclusive = exclusive ? value.filter((item) => item !== exclusive) : value;
+              onChange(on ? withoutExclusive.filter((item) => item !== option) : [...withoutExclusive, option]);
             }}
           >
             {optionLabel(fieldKey, option)}
@@ -286,12 +329,16 @@ function FieldInput({
     );
   }
   if ((field.type === "multi" || field.type === "multi_or_text") && field.options) {
+    const exclusive = field.options.includes(KEINE_REGELMAESSIGE_KONTROLLE)
+      ? KEINE_REGELMAESSIGE_KONTROLLE
+      : undefined;
     return (
       <ChoiceList
         fieldKey={field.key}
         options={field.options}
         value={asList(value)}
         multi
+        exclusive={exclusive}
         onChange={onChange}
       />
     );
@@ -349,6 +396,16 @@ function FieldInput({
                 />
               ),
             )}
+            {rows.length > 1 ? (
+              <button
+                type="button"
+                className="btn ghost"
+                aria-label={`Eintrag ${index + 1} entfernen`}
+                onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))}
+              >
+                Entfernen
+              </button>
+            ) : null}
           </div>
         ))}
         <button
@@ -434,10 +491,25 @@ export function IntakeQuestionnaire({
     );
   }
   const questions = visibleCatalogQuestions(step, answers);
-  const position = catalogStepPosition(step, answers);
 
   function commitValue(questionId: string, key: string, value: unknown) {
-    let next = setCatalogValue(answers, questionId, key, value);
+    let stored = value;
+    if (
+      key === "kontrollen" &&
+      Array.isArray(value) &&
+      value.every((item) => typeof item === "string")
+    ) {
+      stored = normalizeExclusiveSelection(value.map((item) => String(item)), KEINE_REGELMAESSIGE_KONTROLLE);
+    }
+    let next = setCatalogValue(answers, questionId, key, stored);
+    if (
+      key === "kontrollen" &&
+      Array.isArray(stored) &&
+      stored.length === 1 &&
+      stored[0] === KEINE_REGELMAESSIGE_KONTROLLE
+    ) {
+      next = setCatalogValue(next, questionId, "details", "");
+    }
     if (questionId === "A03") next = applyDerivedStatus(next, questionId);
     if (questionId === "A01") {
       next = prefillKnownFacts(next, firm, { protect: [[questionId, key]] });
@@ -448,9 +520,9 @@ export function IntakeQuestionnaire({
   return (
     <section>
       <p className="step-label">
-        Schritt {position.index + 1} von {position.total}
+        {intakeStepLabel(step, answers)}
       </p>
-      <h1>{catalogStepTitle(step, answers)}</h1>
+      <IntakeStepHeading>{catalogStepTitle(step, answers)}</IntakeStepHeading>
       <OpenOnPage issues={issues} />
       <div className="card">
         {!catalogStepApplies(catalogStep, answers) || (questions.length === 0 && !SPECIAL_STEP_IDS.has(catalogStep.id)) ? (
@@ -522,23 +594,41 @@ export function IntakeQuestionnaire({
                   onChange={onChange}
                   issue={statusIssue?.message}
                 />
+                {isControlQuestionId(question.id) && /^KF0[1-5]$/.test(question.id) ? (
+                  <div className="chips">
+                    <button
+                      type="button"
+                      className={values.keineKontrolle === true ? "chip on" : "chip"}
+                      onClick={() => commitValue(question.id, "keineKontrolle", values.keineKontrolle !== true)}
+                    >
+                      {KEINE_REGELMAESSIGE_KONTROLLE}
+                    </button>
+                  </div>
+                ) : null}
                 {P1_QUESTION_IDS.has(question.id) ? (
-                  <P1QuestionFields questionId={question.id} answers={answers} onChange={onChange} />
+                  <P1QuestionFields
+                    questionId={question.id}
+                    answers={answers}
+                    onChange={onChange}
+                    invalidCards={cardMessages(issues, question.id)}
+                  />
                 ) : (
                   question.fields.map((field) => {
+                    if (/^KF0[1-5]$/.test(question.id) && values.keineKontrolle === true) return null;
+                    if (field.key === "details" && isKeineKontrolleValues(values)) return null;
                     const label = fieldLabel(question.id, field.key, field.label);
                     const gap = issueFor(issues, question.id, field.key);
                     const source =
                       question.id === "A01" && field.key === "company"
                         ? firm?.name
                         : question.id === "A01" && field.key === "standort"
-                          ? firmAddressLine(firm)
+                          ? standortPrefillLine(firm)
                           : question.id === "A01" && field.key === "gf"
                             ? answers.module?.stammdaten?.gf
                             : question.id === "UO01" && field.key === "gesellschaften"
                               ? firm?.name || asText(answers.katalog?.A01?.values?.company)
                               : question.id === "UO01" && field.key === "standorte"
-                                ? asText(answers.katalog?.A01?.values?.standort) || firmAddressLine(firm)
+                                ? asText(answers.katalog?.A01?.values?.standort) || standortPrefillLine(firm)
                                 : undefined;
                     const prefilled =
                       question.id === "UO03" && field.key === "zustaendigkeiten"
@@ -614,6 +704,7 @@ export function IntakeQuestionnaire({
                                 onChange(setCatalogValue(answers, "A01", field.key, event.target.value))
                               }
                             />
+                            <FreitextAlert value={asText(values[field.key])} />
                           </div>
                         ))}
                       </div>

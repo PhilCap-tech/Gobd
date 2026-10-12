@@ -12,8 +12,8 @@ export function SuccessNotFound() {
     <div className="card">
       <h1>Dokument nicht gefunden</h1>
       <p className="prose">
-        Der Entwurf ist nicht verfügbar. Wenn du gerade bezahlt hast, öffne den
-        Link aus der E-Mail oder melde dich an.
+        Der Entwurf ist nicht verfügbar. Wenn Sie gerade bezahlt haben, öffnen
+        Sie den Link aus der E-Mail oder melden Sie sich an.
       </p>
       <div className="actions" style={{ marginTop: 16 }}>
         <Link className="btn" href="/login">

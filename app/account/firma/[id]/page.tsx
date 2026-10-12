@@ -19,7 +19,7 @@ function EditGate() {
   return (
     <div className="card">
       <h1>Firma nicht verfügbar</h1>
-      <p className="prose">Diese Firma gehört nicht zu deinem Konto.</p>
+      <p className="prose">Diese Firma gehört nicht zu Ihrem Konto.</p>
       <div className="actions" style={{ marginTop: 16 }}>
         <Link className="btn" href="/account">
           Zum Konto

@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { prefillKnownFacts, type CatalogIssue } from "@/lib/intake-catalog";
+import { prefillKnownFacts, prefillStammdatenInput, type CatalogIssue } from "@/lib/intake-catalog";
 import {
   applySoftwarePreset,
   BRANCHEN_VORLAGEN,
   CHECK_FRAGEN,
   modulFortschritt,
   setCheckAntwort,
-  setStammdaten,
   setVorlage,
   SOFTWARE_PRESETS,
   STATUS_HILFE,
@@ -17,6 +16,9 @@ import {
 } from "@/lib/module/status";
 import { MODUL_STATUSES, type CheckAntwort } from "@/lib/module/typen";
 import { customerUploadHref } from "@/lib/blob-ref";
+import { FreitextAlert } from "@/components/freitext-alert";
+import { IntakeStepHeading } from "@/components/intake-step-heading";
+import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import type { IntakeAnswers } from "@/lib/types";
 
 const ANTWORTEN: Array<{ value: CheckAntwort; label: string }> = [
@@ -52,11 +54,12 @@ export function BetriebsCheckStep({
   return (
     <section>
       <p className="step-label">Betriebs-Check</p>
-      <h1>Welche Bereiche gibt es in deinem Betrieb?</h1>
+      <IntakeStepHeading>Welche Bereiche gibt es in Ihrem Betrieb?</IntakeStepHeading>
       <p className="prose">
-        Anhand dieser Angaben schaltet das Tool die passenden Module frei. Du kannst Module später im
-        Konto ergänzen. Kernmodule (Organisation, Buchführung, Archiv, Systeme, Rechte, Sicherung,
-        Kontrollen, Auslagerung, Prüfung, Änderungen, Pflege) sind immer aktiv.
+        Anhand dieser Angaben schaltet das Tool die passenden Module frei. Dieser Schritt ist der
+        kurze Einstieg. Sie können Module später im Konto ergänzen. Kernmodule (Organisation,
+        Buchführung, Archiv, Systeme, Rechte, Sicherung, Kontrollen, Auslagerung, Prüfung,
+        Änderungen, Pflege) sind immer aktiv.
       </p>
       <div className="card">
         <h2>Branchenvorlage (optional)</h2>
@@ -105,7 +108,7 @@ export function BetriebsCheckStep({
       </div>
       <div className="card">
         <h2>Software-Vorlagen (optional)</h2>
-        <p className="hint">Trägt vorgeschlagene Systemnamen ein — Status setzt du selbst.</p>
+        <p className="hint">Trägt vorgeschlagene Systemnamen ein — den Status setzen Sie selbst.</p>
         <div className="chips">
           {SOFTWARE_PRESETS.map((preset) => (
             <button
@@ -122,22 +125,40 @@ export function BetriebsCheckStep({
       <div className="card">
         <h2>Namen der Verantwortlichen — einmal erfassen, überall nutzen</h2>
         <p className="hint">
-          Trage hier die Namen (und Systeme) ein. Wir belegen passende Felder in den Modulen vor.
+          Tragen Sie hier die Namen (und Systeme) ein. Wir belegen passende Felder in den Modulen vor.
         </p>
-        {STAMMDATEN_FELDER.map((field) => (
-          <div className="field" key={field.key}>
-            <label htmlFor={`stamm-${field.key}`}>{field.label}</label>
-            <input
+        {STAMMDATEN_FELDER.map((field) => {
+          const value = stammdaten[field.key] ?? "";
+          const gap = issues.find(
+            (issue) => issue.questionId === "stammdaten" && issue.fieldKey === field.key,
+          );
+          return (
+            <div
+              className={gap ? "field field-invalid" : "field"}
+              key={field.key}
               id={`stamm-${field.key}`}
-              value={stammdaten[field.key] ?? ""}
-              placeholder={field.placeholder}
-              onChange={(event) => {
-                const next = prefillKnownFacts(setStammdaten(answers, { [field.key]: event.target.value }));
-                onChange(next);
-              }}
-            />
-          </div>
-        ))}
+              tabIndex={gap ? -1 : undefined}
+            >
+              <label htmlFor={`stamm-input-${field.key}`}>{field.label}</label>
+              <input
+                id={`stamm-input-${field.key}`}
+                value={value}
+                placeholder={field.placeholder}
+                aria-invalid={Boolean(gap) || undefined}
+                onChange={(event) => {
+                  onChange(prefillStammdatenInput(answers, { [field.key]: event.target.value }));
+                }}
+              />
+              {gap ? (
+                <p className="field-error" role="alert">
+                  {gap.message}
+                </p>
+              ) : (
+                <FreitextAlert value={value} />
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -167,10 +188,10 @@ export function ModulUebersichtStep({
   return (
     <section id="modul-uebersicht">
       <p className="step-label">Module</p>
-      <h1>Module und Dokumentationsstatus</h1>
+      <IntakeStepHeading>Module und Dokumentationsstatus</IntakeStepHeading>
       <p className="prose">
-        So wird dein Gesamtdokument aufgebaut. Ein vorhandener Bereich darf nicht stillschweigend
-        fehlen: „{STATUS_OPTION_LABEL.tool}“, bestehende Dokumentation verlinken oder den Status „{STATUS_OPTION_LABEL.offen}“ setzen. „Nicht vorhanden“ nur, wenn es den Ablauf bei dir nicht gibt — mit kurzer Begründung.
+        So wird Ihr Gesamtdokument aufgebaut. {INTAKE_EFFORT_LINE} Ein vorhandener Bereich darf nicht stillschweigend
+        fehlen: „{STATUS_OPTION_LABEL.tool}“, bestehende Dokumentation verlinken oder den Status „{STATUS_OPTION_LABEL.offen}“ setzen. „Nicht vorhanden“ nur, wenn es den Ablauf bei Ihnen nicht gibt — mit kurzer Begründung.
       </p>
       <details className="status-hilfe" open>
         <summary>Was die Status bedeuten</summary>
@@ -245,32 +266,36 @@ export function ModulUebersichtStep({
                   <td>
                     {(current?.status ?? row.status) === "extern" ? (
                       <div style={{ display: "grid", gap: 6 }}>
-                        <input
-                          placeholder="Titel / Ablageort der Dokumentation"
-                          value={current?.ref ?? ""}
-                          onChange={(event) => {
-                            const nextStatus = {
-                              ...(answers.module?.status ?? {}),
-                              [row.modul]: {
-                                status: "extern" as const,
-                                ref: event.target.value,
-                                link: current?.link ?? "",
-                                uploadUrl: current?.uploadUrl,
-                                uploadName: current?.uploadName,
-                                uploadAt: current?.uploadAt,
-                                uploadSize: current?.uploadSize,
-                                uploadType: current?.uploadType,
-                              },
-                            };
-                            onChange({
-                              ...answers,
-                              module: {
-                                ...(answers.module ?? { version: 1, check: {}, status: {} }),
-                                status: nextStatus,
-                              },
-                            });
-                          }}
-                        />
+                        <div id={`modul-${row.modul}-ref`}>
+                          <input
+                            placeholder="Titel / Ablageort der Dokumentation"
+                            value={current?.ref ?? ""}
+                            onChange={(event) => {
+                              const nextStatus = {
+                                ...(answers.module?.status ?? {}),
+                                [row.modul]: {
+                                  status: "extern" as const,
+                                  ref: event.target.value,
+                                  link: current?.link ?? "",
+                                  uploadUrl: current?.uploadUrl,
+                                  uploadName: current?.uploadName,
+                                  uploadAt: current?.uploadAt,
+                                  uploadSize: current?.uploadSize,
+                                  uploadType: current?.uploadType,
+                                },
+                              };
+                              onChange({
+                                ...answers,
+                                module: {
+                                  ...(answers.module ?? { version: 1, check: {}, status: {} }),
+                                  status: nextStatus,
+                                },
+                              });
+                            }}
+                          />
+                          <FreitextAlert value={current?.ref ?? ""} />
+                        </div>
+                        <div id={`modul-${row.modul}-link`}>
                         <input
                           placeholder="URL (optional)"
                           value={current?.link ?? ""}
@@ -297,6 +322,8 @@ export function ModulUebersichtStep({
                             });
                           }}
                         />
+                        <FreitextAlert value={current?.link ?? ""} />
+                        </div>
                         <label className="hint" style={{ display: "grid", gap: 4 }}>
                           Datei (PDF, DOCX, JPEG/PNG/WebP, max. 12 MB)
                           <input
@@ -379,6 +406,7 @@ export function ModulUebersichtStep({
                       </div>
                     ) : null}
                     {(current?.status ?? row.status) === "nicht_vorhanden" ? (
+                      <div id={`modul-${row.modul}-reason`}>
                       <input
                         placeholder="Kurze Begründung"
                         value={current?.reason ?? ""}
@@ -399,6 +427,8 @@ export function ModulUebersichtStep({
                           });
                         }}
                       />
+                      <FreitextAlert value={current?.reason ?? ""} />
+                      </div>
                     ) : null}
                     {(current?.status ?? row.status) === "tool" || (current?.status ?? row.status) === "offen"
                       ? STATUS_OPTION_LABEL[current?.status ?? row.status]

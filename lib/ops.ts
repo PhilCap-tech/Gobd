@@ -1,24 +1,16 @@
 /**
- * GoBD Ops.
+ * Transactional mail.
  *
- * Onboarding, Delivery, Referral nach Delivery, Readiness, Magic-Link,
- * Failed Payment und Failed Job gehen über Resend, wenn Mail-Env gesetzt ist.
+ * Onboarding, Delivery, Readiness, Magic-Link, Failed Payment und Failed Job
+ * gehen über Resend, wenn Mail-Env gesetzt ist.
  * HTML läuft durch wrapTransactionalHtml. Ohne Env: bisheriger Log-Stub, kein Versand.
- * Referral hängt nur am Delivery-Erfolg (eigene Funktion), nicht an Onboarding,
- * Failed Job, Failed Payment oder Magic-Link.
+ * Die Weitergabe steht in der Liefermail. Es gibt keine zweite Mail dazu.
  */
 
 import { CUSTOMER_ONBOARDING_NEXT_PATH, magicLinkUrl } from "@/lib/auth";
 import { isMailConfigured } from "@/lib/env";
 import { sendEmail, type MailResult } from "@/lib/mail";
 import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
-import {
-  cancelReferralDelivery,
-  completeReferralDelivery,
-  referralDeliveryKey,
-  referralIdempotencyKey,
-  reserveReferralDelivery,
-} from "@/lib/referral-sent";
 import {
   escapeAttr,
   escapeHtml,
@@ -41,7 +33,7 @@ import { answersFromSheetRow } from "@/lib/types";
 export type OpsResult = {
   stub: boolean;
   sent: boolean;
-  /** Kein Versand: keine Adresse, keine Delivery-Id, Referral schon gesendet, oder Pilot-Exemption. */
+  /** Kein Versand: keine Adresse oder Pilot-Exemption. */
   skipped?: boolean;
   action:
     | "onboarding"
@@ -49,7 +41,6 @@ export type OpsResult = {
     | "failed_job"
     | "delivery"
     | "readiness"
-    | "referral_after_delivery"
     | "partner_inquiry";
 };
 
@@ -61,37 +52,42 @@ export type TransactionalMailContent = {
 
 const CHECKOUT_CTA = "Jetzt Verfahrensdokumentation erstellen — 149 € + 49 €/Mo";
 const READINESS_MICRO =
-  "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung · Entwurf für deinen Steuerberater";
+  "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung · Entwurf für Ihren Steuerberater";
 
-/** Exact product URL from the Post-Delivery Referral spec (Track C). */
+/** Exact product URL for the short share section in the delivery mail. */
 export const REFERRAL_AFTER_DELIVERY_URL =
   "https://www.gobd-doku-erstellen.de/?utm_source=referral&utm_medium=email&utm_campaign=post_delivery";
-export const REFERRAL_AFTER_DELIVERY_SUBJECT =
-  "Dein Entwurf ist fertig — gern an Steuerberater oder Kollegen weitergeben";
+/** One price line. The delivery mail includes this at most once. */
 export const REFERRAL_MICRO =
   "149 € + 49 €/Monat, jeweils zzgl. USt · 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung";
+
+/** Closes every customer mail, including the partner pilot. */
+export const CUSTOMER_MAIL_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 
 export function buildMagicLinkMail(input: {
   magicLinkUrl: string;
 }): TransactionalMailContent {
   const text = wrapTransactionalText(
     [
-      "Hallo,",
+      "Guten Tag,",
       "",
-      "hier ist dein Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):",
+      "hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):",
       input.magicLinkUrl,
       "",
-      "Wenn du das nicht angefordert hast, kannst du diese Mail ignorieren.",
+      "Wenn Sie das nicht angefordert haben, können Sie diese Mail ignorieren.",
+      "",
+      CUSTOMER_MAIL_SIGNATURE,
     ].join("\n"),
   );
   const html = wrapTransactionalHtml(`
-    <p>Hallo,</p>
-    <p>hier ist dein Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):</p>
+    <p>Guten Tag,</p>
+    <p>hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):</p>
     <p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden</a></p>
-    <p>Wenn du das nicht angefordert hast, kannst du diese Mail ignorieren.</p>
+    <p>Wenn Sie das nicht angefordert haben, können Sie diese Mail ignorieren.</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
-    subject: "Dein Anmeldelink — GoBD Verfahrensdoku",
+    subject: "Ihr Anmeldelink — GoBD Verfahrensdoku",
     text,
     html,
   };
@@ -99,15 +95,17 @@ export function buildMagicLinkMail(input: {
 
 export function buildReadinessMail(input: {
   name?: string;
+  /** Firm names that must not be used as the greeting. */
+  company?: string;
   brancheLabel: string;
   downloadUrl: string;
   magicLinkUrl?: string;
 }): TransactionalMailContent {
-  const greeting = input.name?.trim() ? `Hallo ${input.name.trim()},` : "Hallo,";
+  const greeting = customerOnboardingGreeting(input.name, [input.company]);
   const lines = [
     greeting,
     "",
-    `dein Readiness-Ergebnis für ${input.brancheLabel} ist da — der Leitfaden zeigt Lücken. Die volle Verfahrensdokumentation fehlt noch.`,
+    `Ihr Readiness-Ergebnis für ${input.brancheLabel} ist da — der Leitfaden zeigt Lücken. Die volle Verfahrensdokumentation fehlt noch.`,
     "",
     `Download (Arbeitshilfe, keine Verfahrensdokumentation): ${input.downloadUrl}`,
   ];
@@ -122,17 +120,20 @@ export function buildReadinessMail(input: {
     MAIL_CHECKOUT_URL,
     "",
     READINESS_MICRO,
+    "",
+    CUSTOMER_MAIL_SIGNATURE,
   );
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
-    <p>dein Readiness-Ergebnis für ${escapeHtml(input.brancheLabel)} ist da — der Leitfaden zeigt Lücken. Die volle Verfahrensdokumentation fehlt noch.</p>
+    <p>Ihr Readiness-Ergebnis für ${escapeHtml(input.brancheLabel)} ist da — der Leitfaden zeigt Lücken. Die volle Verfahrensdokumentation fehlt noch.</p>
     <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a> (Arbeitshilfe, keine Verfahrensdokumentation)</p>
     ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
     <p><a href="${escapeAttr(MAIL_CHECKOUT_URL)}">${escapeHtml(CHECKOUT_CTA)}</a></p>
     <p>${escapeHtml(READINESS_MICRO)}</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
-    subject: "Dein Readiness-Ergebnis — nächster Schritt zur Verfahrensdokumentation",
+    subject: "Ihr Readiness-Ergebnis — nächster Schritt zur Verfahrensdokumentation",
     text: wrapTransactionalText(lines.join("\n")),
     html,
   };
@@ -140,15 +141,26 @@ export function buildReadinessMail(input: {
 
 export type OnboardingAudience = "kunde" | "steuerberater";
 
-export const CUSTOMER_ONBOARDING_SIGNATURE = "Dein Team von GoBD Verfahrensdoku";
-/** Sie-Form der Kundensignatur. Partner-Mail bleibt sonst unverändert. */
-export const PARTNER_ONBOARDING_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
+export const CUSTOMER_ONBOARDING_SIGNATURE = CUSTOMER_MAIL_SIGNATURE;
+export const PARTNER_ONBOARDING_SIGNATURE = CUSTOMER_MAIL_SIGNATURE;
 
 const CUSTOMER_ONBOARDING_SUBJECT =
-  "Willkommen — nächste Schritte zu deiner Verfahrensdokumentation";
+  "Willkommen — nächste Schritte zu Ihrer Verfahrensdokumentation";
 const CUSTOMER_ONBOARDING_DISCLAIMER =
-  "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus deinen Angaben.";
+  "Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus Ihren Angaben.";
 const CUSTOMER_ONBOARDING_CTA = "Jetzt starten: Betriebs-Check";
+export const CUSTOMER_ONBOARDING_CONTINUE_CTA = "Verfahrensdokumentation weiter ausfüllen";
+
+/**
+ * Intake des Kaufs. Die Session ist der Schlüssel des Server-Entwurfs
+ * (`session:<id>:gesamt`). Ohne gültige Session bleibt `/intake`; die Seite
+ * hängt dann die letzte bezahlte Session der angemeldeten Adresse an.
+ */
+export function customerOnboardingDraftPath(sessionId?: string | null): string {
+  const id = sessionId?.trim() ?? "";
+  if (!id || !/^[A-Za-z0-9_-]+$/.test(id)) return CUSTOMER_ONBOARDING_NEXT_PATH;
+  return `${CUSTOMER_ONBOARDING_NEXT_PATH}?session_id=${id}`;
+}
 
 /** Trim, drop control chars, collapse whitespace. Empty stays empty. */
 export function normalizeOnboardingName(value: string | null | undefined): string {
@@ -204,7 +216,7 @@ export function pickOnboardingContactName(input: {
   return "";
 }
 
-/** „Hallo {Name},“ or exactly „Hallo,“ when no person name is usable. */
+/** „Guten Tag {Name},“ or exactly „Guten Tag,“ when no person name is usable. */
 export function customerOnboardingGreeting(
   contactName?: string | null,
   companyNames?: Array<string | null | undefined>,
@@ -213,7 +225,7 @@ export function customerOnboardingGreeting(
     profileName: contactName,
     companyNames,
   });
-  return name ? `Hallo ${name},` : "Hallo,";
+  return name ? `Guten Tag ${name},` : "Guten Tag,";
 }
 
 type IntakeContactSource = {
@@ -259,28 +271,38 @@ function buildCustomerOnboardingMail(input: {
   company?: string;
   contactName?: string;
   magicLinkUrl?: string;
+  /** Magic-Link in den Server-Entwurf. Fehlt er, gilt derselbe Startlink. */
+  continueUrl?: string;
 }): TransactionalMailContent {
   const greeting = customerOnboardingGreeting(input.contactName, [input.company]);
   const startUrl = customerOnboardingStartUrl(input.magicLinkUrl);
+  const continueUrl = input.continueUrl?.trim() || startUrl;
   const text = wrapTransactionalText(
     [
       greeting,
       "",
-      "danke für deine Bestellung bei gobd-doku-erstellen.de. So geht es weiter:",
+      "vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:",
       "",
-      "1. Betriebs-Check: ein paar Fragen zu deinem Betrieb. Daraus ergibt sich, welche der 24 Module für dich gelten.",
-      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Offene Module erscheinen als To-dos in deinem Konto, dort machst du jederzeit weiter.",
+      "1. Betriebs-Check: ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten. Antworten, die Sie jetzt nicht zur Hand haben, füllen Sie später aus.",
+      "2. Module ausfüllen – oder „Später ausfüllen“ wählen. Der Entwurf wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.",
       "3. Gesamt-PDF erstellen – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.",
       "",
       CUSTOMER_ONBOARDING_CTA,
       startUrl,
       "",
-      "Der Button meldet dich direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordere auf der Anmeldeseite einen neuen Link an – du landest danach wieder im Fragebogen.",
+      "Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.",
+      "",
+      CUSTOMER_ONBOARDING_CONTINUE_CTA,
+      continueUrl,
+      "",
+      "Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.",
+      "",
+      `Ihr Konto: ${MAIL_ACCOUNT_URL}`,
       "",
       "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
       MAIL_FAQ_URL,
       "",
-      `Support: ${MAIL_SUPPORT_EMAIL}`,
+      `Ihr Ansprechpartner: ${MAIL_SUPPORT_EMAIL}. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.`,
       "",
       CUSTOMER_ONBOARDING_DISCLAIMER,
       "",
@@ -289,16 +311,19 @@ function buildCustomerOnboardingMail(input: {
   );
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
-    <p>danke für deine Bestellung bei gobd-doku-erstellen.de. So geht es weiter:</p>
+    <p>vielen Dank für Ihre Bestellung bei gobd-doku-erstellen.de. So geht es weiter:</p>
     <ol>
-      <li><strong>Betriebs-Check:</strong> ein paar Fragen zu deinem Betrieb. Daraus ergibt sich, welche der 24 Module für dich gelten.</li>
-      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Offene Module erscheinen als To-dos in deinem Konto, dort machst du jederzeit weiter.</li>
+      <li><strong>Betriebs-Check:</strong> ein paar Fragen zu Ihrem Betrieb. Daraus ergibt sich, welche der 24 Module für Sie gelten. Antworten, die Sie jetzt nicht zur Hand haben, füllen Sie später aus.</li>
+      <li><strong>Module ausfüllen</strong> – oder „Später ausfüllen“ wählen. Der Entwurf wird gespeichert. Offene Module erscheinen als To-dos in Ihrem Konto, dort können Sie jederzeit weiterarbeiten.</li>
       <li><strong>Gesamt-PDF erstellen</strong> – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.</li>
     </ol>
     <p>${transactionalPrimaryButton(startUrl, CUSTOMER_ONBOARDING_CTA)}</p>
-    <p>Der Button meldet dich direkt an (Link 20 Minuten gültig). Ist er abgelaufen, fordere auf der Anmeldeseite einen neuen Link an – du landest danach wieder im Fragebogen.</p>
+    <p>Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.</p>
+    <p>${transactionalPrimaryButton(continueUrl, CUSTOMER_ONBOARDING_CONTINUE_CTA)}</p>
+    <p>Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.</p>
+    <p>Ihr Konto: <a href="${escapeAttr(MAIL_ACCOUNT_URL)}">${escapeHtml(MAIL_ACCOUNT_URL)}</a></p>
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
-    <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+    <p>Ihr Ansprechpartner: <a href="${escapeAttr(`mailto:${MAIL_SUPPORT_EMAIL}`)}">${escapeHtml(MAIL_SUPPORT_EMAIL)}</a>. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.</p>
     <p>${escapeHtml(CUSTOMER_ONBOARDING_DISCLAIMER)}</p>
     <p>${escapeHtml(CUSTOMER_ONBOARDING_SIGNATURE)}</p>
   `);
@@ -314,6 +339,7 @@ export function buildOnboardingMail(input: {
   audience?: OnboardingAudience;
   contactName?: string;
   magicLinkUrl?: string;
+  continueUrl?: string;
 }): TransactionalMailContent {
   if (input.audience === "steuerberater") return buildSteuerberaterOnboardingMail(input);
   return buildCustomerOnboardingMail(input);
@@ -332,7 +358,7 @@ function buildSteuerberaterOnboardingMail(input: {
       "vielen Dank für Ihre Bestellung im Partner-Pilot.",
       "",
       "Nächste Schritte:",
-      "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen)",
+      "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.",
       "2. Das PDF herunterladen, sobald die Generierung fertig ist",
       `3. Konto: Anmeldung unter ${MAIL_LOGIN_URL}`,
       "",
@@ -353,7 +379,7 @@ function buildSteuerberaterOnboardingMail(input: {
     <p>vielen Dank für Ihre Bestellung im Partner-Pilot.</p>
     <p>Nächste Schritte:</p>
     <ol>
-      <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen)</li>
+      <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.</li>
       <li>Das PDF herunterladen, sobald die Generierung fertig ist</li>
       <li>Konto: Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
     </ol>
@@ -373,21 +399,24 @@ function buildSteuerberaterOnboardingMail(input: {
 export function buildFailedPaymentMail(): TransactionalMailContent {
   const text = wrapTransactionalText(
     [
-      "Hallo,",
+      "Guten Tag,",
       "",
-      "eine Zahlung für dein GoBD-Abo ist fehlgeschlagen. Bitte Zahlungsmittel im Kundenportal aktualisieren:",
+      "eine Zahlung für Ihr GoBD-Abo ist fehlgeschlagen. Bitte aktualisieren Sie das Zahlungsmittel im Kundenportal:",
       MAIL_ACCOUNT_URL,
       "",
       `Fragen: ${MAIL_FAQ_URL}`,
       `Support: ${MAIL_SUPPORT_EMAIL}`,
+      "",
+      CUSTOMER_MAIL_SIGNATURE,
     ].join("\n"),
   );
   const html = wrapTransactionalHtml(`
-    <p>Hallo,</p>
-    <p>eine Zahlung für dein GoBD-Abo ist fehlgeschlagen. Bitte Zahlungsmittel im Kundenportal aktualisieren:</p>
+    <p>Guten Tag,</p>
+    <p>eine Zahlung für Ihr GoBD-Abo ist fehlgeschlagen. Bitte aktualisieren Sie das Zahlungsmittel im Kundenportal:</p>
     <p><a href="${escapeAttr(MAIL_ACCOUNT_URL)}">${escapeHtml(MAIL_ACCOUNT_URL)}</a></p>
     <p>Fragen: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
     subject: "Zahlung fehlgeschlagen — bitte prüfen",
@@ -399,19 +428,22 @@ export function buildFailedPaymentMail(): TransactionalMailContent {
 export function buildFailedJobMail(): TransactionalMailContent {
   const text = wrapTransactionalText(
     [
-      "Hallo,",
+      "Guten Tag,",
       "",
-      "bei der Erstellung deiner Verfahrensdokumentation ist ein technischer Fehler aufgetreten. Wir prüfen das und melden uns.",
+      "bei der Erstellung Ihrer Verfahrensdokumentation ist ein technischer Fehler aufgetreten. Wir prüfen das und melden uns.",
       "",
       `Zwischenzeitlich: ${MAIL_FAQ_URL}`,
       `Support: ${MAIL_SUPPORT_EMAIL}`,
+      "",
+      CUSTOMER_MAIL_SIGNATURE,
     ].join("\n"),
   );
   const html = wrapTransactionalHtml(`
-    <p>Hallo,</p>
-    <p>bei der Erstellung deiner Verfahrensdokumentation ist ein technischer Fehler aufgetreten. Wir prüfen das und melden uns.</p>
+    <p>Guten Tag,</p>
+    <p>bei der Erstellung Ihrer Verfahrensdokumentation ist ein technischer Fehler aufgetreten. Wir prüfen das und melden uns.</p>
     <p>Zwischenzeitlich: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
     subject: "Technisches Problem bei der Erstellung — wir kümmern uns",
@@ -420,18 +452,24 @@ export function buildFailedJobMail(): TransactionalMailContent {
   };
 }
 
+const DELIVERY_SHARE_INTRO =
+  "Wenn Ihr Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, können Sie diesen Link weitergeben:";
+
 export function buildDeliveryMail(input: {
   company?: string;
+  /** Person. A company name is ignored; the greeting then stays „Guten Tag,“. */
+  contactName?: string;
   downloadUrl: string;
   magicLinkUrl?: string;
   successUrl?: string;
   version?: number;
 }): TransactionalMailContent {
   const version = input.version && input.version > 0 ? input.version : 1;
+  const greeting = customerOnboardingGreeting(input.contactName, [input.company]);
   const lines = [
-    `Hallo${input.company ? ` ${input.company}` : ""},`,
+    greeting,
     "",
-    `dein Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.`,
+    `Ihr Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.`,
     "",
     `Download: ${input.downloadUrl}`,
   ];
@@ -446,66 +484,34 @@ export function buildDeliveryMail(input: {
     "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
     MAIL_FAQ_URL,
     "",
-    "Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit deinem Steuerberater.",
+    "Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit Ihrem Steuerberater.",
     "",
-    "GoBD Verfahrensdoku",
+    "Gern weitergeben",
+    "",
+    DELIVERY_SHARE_INTRO,
+    REFERRAL_AFTER_DELIVERY_URL,
+    "",
+    REFERRAL_MICRO,
+    "",
+    CUSTOMER_MAIL_SIGNATURE,
   );
   const html = wrapTransactionalHtml(`
-    <p>Hallo${input.company ? ` ${escapeHtml(input.company)}` : ""},</p>
-    <p>dein Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.</p>
+    <p>${escapeHtml(greeting)}</p>
+    <p>Ihr Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.</p>
     <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a></p>
     ${input.successUrl ? `<p><a href="${escapeAttr(input.successUrl)}">Zur Übersicht</a></p>` : ""}
     ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
-    <p>Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit deinem Steuerberater.</p>
-    <p>GoBD Verfahrensdoku</p>
-  `);
-  return {
-    subject: "Dein Entwurf der Verfahrensdokumentation",
-    text: wrapTransactionalText(lines.join("\n")),
-    html,
-  };
-}
-
-export function buildReferralAfterDeliveryMail(input: {
-  company?: string;
-}): TransactionalMailContent {
-  const company = input.company?.trim() ?? "";
-  const greeting = company ? `Hallo ${company},` : "Hallo,";
-  const text = wrapTransactionalText(
-    [
-      greeting,
-      "",
-      "dein Entwurf der Verfahrensdokumentation ist bereit.",
-      "",
-      "Wenn dein Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, kannst du diesen Link weitergeben:",
-      "",
-      REFERRAL_AFTER_DELIVERY_URL,
-      "",
-      "Kurz: Online-Intake → Entwurf als PDF. Einrichtung 149 € zzgl. USt, danach 49 € zzgl. USt pro Monat. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.",
-      "",
-      `Dein Konto: ${MAIL_LOGIN_URL}`,
-      `Fragen: ${MAIL_FAQ_URL}`,
-      `Support: ${MAIL_SUPPORT_EMAIL}`,
-      "",
-      "GoBD Ops · IKAT GmbH",
-    ].join("\n"),
-  );
-  const html = wrapTransactionalHtml(`
-    <p>${escapeHtml(greeting)}</p>
-    <p>dein Entwurf der Verfahrensdokumentation ist bereit.</p>
-    <p>Wenn dein Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, kannst du diesen Link weitergeben:</p>
-    <p><a href="${escapeAttr(REFERRAL_AFTER_DELIVERY_URL)}">Link weitergeben</a></p>
-    <p>Kurz: Online-Intake → Entwurf als PDF. Einrichtung 149 € zzgl. USt, danach 49 € zzgl. USt pro Monat. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuer- oder Rechtsberatung — Arbeitshilfe aus den Angaben.</p>
+    <p>Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit Ihrem Steuerberater.</p>
+    <p><strong>Gern weitergeben</strong></p>
+    <p>${escapeHtml(DELIVERY_SHARE_INTRO)}</p>
+    <p><a href="${escapeAttr(REFERRAL_AFTER_DELIVERY_URL)}">${escapeHtml(REFERRAL_AFTER_DELIVERY_URL)}</a></p>
     <p>${escapeHtml(REFERRAL_MICRO)}</p>
-    <p>Dein Konto: <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></p>
-    <p>Fragen: <a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
-    <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
-    <p>GoBD Ops · IKAT GmbH</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
-    subject: REFERRAL_AFTER_DELIVERY_SUBJECT,
-    text,
+    subject: "Ihr Entwurf der Verfahrensdokumentation",
+    text: wrapTransactionalText(lines.join("\n")),
     html,
   };
 }
@@ -562,6 +568,7 @@ export async function triggerOnboardingMail(input: {
 
   let contactName = "";
   let startUrl: string | undefined;
+  let continueUrl: string | undefined;
   if (audience === "kunde") {
     const companyNames = [input.company ?? "", ...(input.extraCompanyNames ?? [])];
     let profileName = "";
@@ -581,6 +588,7 @@ export async function triggerOnboardingMail(input: {
       companyNames,
     });
     startUrl = magicLinkUrl(input.email, CUSTOMER_ONBOARDING_NEXT_PATH);
+    continueUrl = magicLinkUrl(input.email, customerOnboardingDraftPath(input.sessionId));
   }
 
   const mail = buildOnboardingMail({
@@ -588,9 +596,11 @@ export async function triggerOnboardingMail(input: {
     audience,
     contactName,
     magicLinkUrl: startUrl,
+    continueUrl,
   });
   const result = await sendEmail({
     to: input.email,
+    replyTo: MAIL_SUPPORT_EMAIL,
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
@@ -700,7 +710,19 @@ export async function sendDeliveryMail(input: {
     return { stub: true, sent: false, action: "delivery" };
   }
 
-  const mail = buildDeliveryMail(input);
+  let contactName = "";
+  try {
+    const found = await lookupOnboardingContactSources(input.email);
+    contactName = pickOnboardingContactName({
+      profileName: found.profileName,
+      intakeContactNames: found.intakeContactNames,
+      companyNames: [input.company ?? "", ...found.companyNames],
+    });
+  } catch (error) {
+    console.warn("[ops] Ansprechperson für die Liefermail nicht geladen", error);
+  }
+
+  const mail = buildDeliveryMail({ ...input, contactName });
   const result = await sendEmail({
     to: input.email,
     subject: mail.subject,
@@ -708,90 +730,6 @@ export async function sendDeliveryMail(input: {
     html: mail.html,
   });
   return { ...result, action: "delivery" };
-}
-
-/**
- * Post-Delivery Referral. Eigene Funktion, nicht Teil von sendDeliveryMail.
- * Nur aufrufen, nachdem eine Delivery wirklich erfolgreich war (PDF liegt).
- * Höchstens einmal pro documentId (sonst pro sessionId).
- */
-export async function sendReferralAfterDeliveryMail(input: {
-  email: string;
-  company?: string;
-  documentId?: string;
-  sessionId?: string;
-}): Promise<OpsResult & MailResult> {
-  const email = input.email.trim();
-  const documentId = input.documentId?.trim() ?? "";
-  const sessionId = input.sessionId?.trim() ?? "";
-
-  if (!email) {
-    console.info("[ops] referral mail übersprungen — keine E-Mail", {
-      documentId,
-      sessionId,
-    });
-    return {
-      stub: true,
-      sent: false,
-      skipped: true,
-      action: "referral_after_delivery",
-    };
-  }
-
-  const eventKey = referralDeliveryKey({ documentId, sessionId });
-  if (!eventKey) {
-    console.info("[ops] referral mail übersprungen — keine Delivery-Id", {
-      email,
-    });
-    return {
-      stub: true,
-      sent: false,
-      skipped: true,
-      action: "referral_after_delivery",
-    };
-  }
-
-  const reservation = await reserveReferralDelivery(eventKey);
-  if (reservation === "duplicate") {
-    console.info("[ops] referral mail bereits gesendet", {
-      email,
-      documentId,
-      sessionId,
-    });
-    return {
-      stub: false,
-      sent: false,
-      skipped: true,
-      action: "referral_after_delivery",
-    };
-  }
-
-  try {
-    const mail = buildReferralAfterDeliveryMail({ company: input.company });
-    const result = await sendEmail({
-      to: email,
-      subject: mail.subject,
-      text: mail.text,
-      html: mail.html,
-      idempotencyKey: referralIdempotencyKey(eventKey),
-    });
-    if (result.sent || result.stub) {
-      await completeReferralDelivery(eventKey);
-    } else {
-      cancelReferralDelivery(eventKey);
-    }
-    console.info("[ops] referral mail", {
-      email,
-      documentId,
-      sessionId,
-      sent: result.sent,
-      stub: result.stub,
-    });
-    return { ...result, skipped: false, action: "referral_after_delivery" };
-  } catch (error) {
-    cancelReferralDelivery(eventKey);
-    throw error;
-  }
 }
 
 export type PartnerInquiryMailInput = {
@@ -859,6 +797,7 @@ export async function sendPartnerInquiryMail(
 export async function sendReadinessMail(input: {
   email: string;
   name?: string;
+  company?: string;
   brancheLabel: string;
   downloadUrl: string;
   successUrl?: string;

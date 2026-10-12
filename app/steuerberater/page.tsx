@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 import { LEGAL_OPERATOR } from "@/lib/legal";
-import { ALL_AREAS_LINE } from "@/lib/offer-copy";
+import { ALL_AREAS_LINE, PARTNER_EFFORT_LINE } from "@/lib/offer-copy";
 import {
   evaluateOpenPoints,
   openPointChapterLabel,
@@ -218,6 +218,7 @@ export default function SteuerberaterPage() {
               Historie statt Dateichaos.
             </li>
           </ol>
+          <p className="prose">{PARTNER_EFFORT_LINE}</p>
         </section>
 
         <section className="block" id="bereiche">
@@ -225,8 +226,9 @@ export default function SteuerberaterPage() {
           <p className="prose">
             Ihr Mandant erhält ein Gesamtdokument mit bis zu 24 Modulen in der
             klassischen Vier-Teile-Struktur. Ein Betriebs-Check ermittelt die
-            vorhandenen Abläufe; Systeme und Verantwortliche werden einmal
-            erfasst und vorbefüllt. Vorhandene Bereiche werden nicht
+            vorhandenen Abläufe. Firmendaten, Programme und Ansprechpartner
+            gibt der Mandant einmal an – wo möglich, füllen wir sie in den
+            Themen vor. Vorhandene Bereiche werden nicht
             stillschweigend ausgelassen. {ALL_AREAS_LINE}
           </p>
           <PartnerModuleTeile />

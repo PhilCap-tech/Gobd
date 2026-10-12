@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionEmail } from "@/lib/auth";
+import { getSessionEmail, sessionIdForCheckoutProof } from "@/lib/auth";
 import { BlobStorageError, blobFailureClass, loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
 import { generatePdf } from "@/lib/delivery";
 import { canAccessDocument } from "@/lib/documents";
@@ -17,7 +17,9 @@ export async function GET(
 ) {
   const { id } = await params;
   const url = new URL(request.url);
-  const sessionId = normalizeQueryId(url.searchParams.get("session_id"));
+  const sessionId = await sessionIdForCheckoutProof(
+    normalizeQueryId(url.searchParams.get("session_id")),
+  );
   const modul = (url.searchParams.get("modul") ?? "").trim();
   const sessionEmail = await getSessionEmail();
   const row = await findDocumentById(id);

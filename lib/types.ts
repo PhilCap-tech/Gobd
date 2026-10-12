@@ -95,6 +95,8 @@ export type IntakeAnswers = {
       responsible?: string;
       date?: string;
       values?: Record<string, unknown>;
+      /** Field keys the user emptied on purpose. Prefill must not fill them again. */
+      cleared?: string[];
     }
   >;
   fragen?: Partial<
@@ -110,6 +112,13 @@ export type IntakeAnswers = {
   >;
 };
 
+/** Billing address already present on a retrieved Checkout Session. */
+export type CheckoutBillingAddress = {
+  line1?: string;
+  postalCode?: string;
+  city?: string;
+};
+
 export type CheckoutIdentity = {
   email: string;
   company: string;
@@ -117,6 +126,8 @@ export type CheckoutIdentity = {
   stripeCustomerId: string;
   stub: boolean;
   entityId?: string;
+  /** From `customer_details.address` when the session was retrieved. */
+  billingAddress?: CheckoutBillingAddress;
 };
 
 export type SheetRow = {

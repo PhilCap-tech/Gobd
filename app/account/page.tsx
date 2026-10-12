@@ -24,6 +24,7 @@ import { answersFromSheetRow } from "@/lib/types";
 import {
   firmaEditPath,
   groupFamiliesByEntity,
+  latestOwnedInFamily,
   newDocumentPath,
 } from "@/lib/documents";
 import {
@@ -31,6 +32,12 @@ import {
   formatEntityAddress,
   MAX_ENTITIES_PER_ACCOUNT,
 } from "@/lib/entities";
+import {
+  isUndeliveredDraft,
+  listOpenDraftsForEmail,
+  openDraftContinuePath,
+  openDraftLabel,
+} from "@/lib/open-drafts";
 import { firstQueryValue } from "@/lib/query";
 
 function intakeModulHref(documentId: string, modulId?: string): string {
@@ -80,6 +87,9 @@ export default async function AccountPage({
     getAccountProfile(email),
   ]);
   const groups = groupFamiliesByEntity(entities, docs);
+  const openDrafts = (await listOpenDraftsForEmail(email)).filter((draft) =>
+    isUndeliveredDraft(draft, docs),
+  );
   const customerId = await findLatestStripeCustomerIdByEmail(email);
   const stripeBound =
     Boolean(customerId) ||
@@ -128,6 +138,23 @@ export default async function AccountPage({
           </div>
         </div>
 
+        {openDrafts.length > 0 && (
+          <section className="card" id="offene-entwuerfe" aria-labelledby="offene-entwuerfe-heading">
+            <h2 id="offene-entwuerfe-heading">Offener Entwurf</h2>
+            <p className="prose">
+              Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
+            </p>
+            {openDrafts.map((draft) => (
+              <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
+                <span className="doc-meta">{openDraftLabel(draft)}</span>
+                <Link className="btn" href={openDraftContinuePath(draft)}>
+                  Weiter ausfüllen
+                </Link>
+              </div>
+            ))}
+          </section>
+        )}
+
         {entities.length === 0 && docs.length === 0 ? (
           <div className="card" id="firmen">
             <p className="prose">
@@ -147,7 +174,7 @@ export default async function AccountPage({
             <div className="entity-toolbar" id="firmen">
               {atCap ? (
                 <p className="hint" style={{ margin: 0 }}>
-                  Du hast das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
+                  Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
                   erreicht.
                 </p>
               ) : (
@@ -272,8 +299,9 @@ export default async function AccountPage({
                     ) : (
                       <div className="entity-docs">
                         {group.families.map((family) => {
+                          const editRow = latestOwnedInFamily(family.versions, email) ?? family.latest;
                           const pick = selectCurrentVersion(family.versions);
-                          const current = pick?.row ?? family.latest;
+                          const current = pick?.row ?? editRow;
                           const summary = customerChangeSummary(
                             current.changeSummary,
                           );
@@ -285,14 +313,14 @@ export default async function AccountPage({
                             >
                               <h3>
                                 {(() => {
-                                  const ans = answersFromSheetRow(family.latest);
+                                  const ans = answersFromSheetRow(editRow);
                                   return isGesamt(ans)
                                     ? gesamtDocTitle()
                                     : `Verfahrensdokumentation ${bereichLabel(bereichIdOf(ans))}`;
                                 })()}
                               </h3>
                               {(() => {
-                                const ans = answersFromSheetRow(family.latest);
+                                const ans = answersFromSheetRow(editRow);
                                 if (!isGesamt(ans)) return null;
                                 const rows = vollstaendigkeitsZeilen(ans);
                                 const offenRows = rows.filter((row) => row.status === "offen");
@@ -312,7 +340,7 @@ export default async function AccountPage({
                                   <>
                                     <p className="doc-meta">
                                       Vollständigkeit: {parts.join(" · ")} ·{" "}
-                                      <Link href={intakeModulHref(family.latest.documentId)}>
+                                      <Link href={intakeModulHref(editRow.documentId)}>
                                         Module bearbeiten
                                       </Link>
                                     </p>
@@ -320,7 +348,7 @@ export default async function AccountPage({
                                       <div className="open-modules">
                                         <h4>Offene Module</h4>
                                         <p className="hint">
-                                          Noch auszufüllen. Im Intake setzt du den Status auf „{STATUS_OPTION_LABEL.tool}“, „{STATUS_OPTION_LABEL.extern}“ oder „{STATUS_OPTION_LABEL.nicht_vorhanden}“.
+                                          Noch auszufüllen. Der Zwischenstand wird gespeichert. Im Intake setzen Sie den Status auf „{STATUS_OPTION_LABEL.tool}“, „{STATUS_OPTION_LABEL.extern}“ oder „{STATUS_OPTION_LABEL.nicht_vorhanden}“.
                                         </p>
                                         <ul className="open-module-list">
                                           {offenRows.map((row) => (
@@ -328,7 +356,7 @@ export default async function AccountPage({
                                               <span>
                                                 {row.nr}. {row.titel}
                                               </span>
-                                              <Link href={intakeModulHref(family.latest.documentId, row.modul)}>
+                                              <Link href={intakeModulHref(editRow.documentId, row.modul)}>
                                                 Jetzt ausfüllen
                                               </Link>
                                             </li>
@@ -343,10 +371,10 @@ export default async function AccountPage({
                                   </>
                                 );
                               })()}
-                              {!entity && family.latest.company ? (
+                              {!entity && editRow.company ? (
                                 <p className="doc-meta">
                                   {customerHubTitle(
-                                    family.latest.company,
+                                    editRow.company,
                                     "Verfahrensdokumentation",
                                   )}
                                 </p>
@@ -357,7 +385,7 @@ export default async function AccountPage({
                                 {formatValidityRange(current, family.versions)} ·{" "}
                                 {summary} · {who}
                               </p>
-                              <DocumentRevisionActions row={family.latest} />
+                              <DocumentRevisionActions row={editRow} />
                               <VersionHistory
                                 headingId={`versionshistorie-${family.familyId}`}
                                 versions={family.versions}

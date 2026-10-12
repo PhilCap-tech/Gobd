@@ -37,7 +37,7 @@ export default async function NewFirmaPage() {
         {atCap ? (
           <div className="card">
             <p className="prose">
-              Du hast das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
+              Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
               erreicht.
             </p>
             <div className="actions" style={{ marginTop: 16 }}>

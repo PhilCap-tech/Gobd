@@ -3,8 +3,13 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
+import {
+  LOGIN_LINK_FAILED_NOTICE,
+  loginLinkSentNotice,
+  loginMailState,
+} from "@/lib/login-mail";
 import { isMailConfigured } from "@/lib/env";
-import { CTA_CREATE_WITH_PRICE, DISCLAIMER_ONCE } from "@/lib/offer-copy";
+import { CTA_CREATE_WITH_PRICE, DISCLAIMER_ONCE, READINESS_EFFORT_NOTE } from "@/lib/offer-copy";
 import { firstQueryValue } from "@/lib/query";
 import { canAccessReadinessLead, readinessDownloadPath } from "@/lib/readiness";
 import { readinessBrancheLabel } from "@/lib/readiness-options";
@@ -39,6 +44,7 @@ export default async function ReadinessSuccessPage({
       : null;
   const mailReady = isMailConfigured();
   const brancheLabel = lead ? readinessBrancheLabel(lead.branche) : "";
+  const loginState = lead ? loginMailState(lead.mailStatus) : "unknown";
 
   return (
     <>
@@ -74,6 +80,11 @@ export default async function ReadinessSuccessPage({
                 Inhalt aus dem Modul {brancheLabel}: Themenfelder und nächste
                 Schritte. Zur Orientierung.
               </p>
+              {loginState === "failed" ? (
+                <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p>
+              ) : loginState === "sent" || (loginState === "unknown" && mailReady) ? (
+                <p className="banner">{loginLinkSentNotice(lead.email)}</p>
+              ) : null}
               {mailReady ? (
                 <p className="hint">
                   Wir haben den Download-Link
@@ -99,8 +110,8 @@ export default async function ReadinessSuccessPage({
               </div>
               <p className="hint" style={{ marginTop: 14 }}>
                 Nächster Schritt: Dokumentation erstellen, dann PDF und Liste
-                offener Punkte aus Ihren Angaben. Im 3-Minuten-Check selbst
-                wird nichts berechnet.
+                offener Punkte aus Ihren Angaben. {READINESS_EFFORT_NOTE} Im
+                3-Minuten-Check selbst wird nichts berechnet.
               </p>
               <p className="disclaimer" role="note">
                 {DISCLAIMER_ONCE} Dieses PDF ist eine kurze Einschätzung, keine

@@ -140,7 +140,7 @@ export function FirmaForm({
       </button>
       {!isEdit && (
         <p className="hint" style={{ marginTop: 12 }}>
-          Du kannst bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen in einem Konto
+          Sie können bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen in einem Konto
           anlegen.
         </p>
       )}

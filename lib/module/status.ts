@@ -131,12 +131,12 @@ export const STATUS_OPTION_LABEL: Record<ModulStatus, string> = {
   nicht_vorhanden: "nicht vorhanden",
 };
 
-/** Ein Satz je Option, du-Form, ohne Rechtsanspruch. */
+/** Ein Satz je Option, Sie-Form, ohne Rechtsanspruch. */
 export const STATUS_HILFE: Record<ModulStatus, string> = {
-  tool: "Du beantwortest die Fragen zu diesem Modul hier; die Angaben erscheinen im Gesamt-PDF.",
-  extern: "Du hast die Beschreibung schon und verlinkst oder lädst sie hier hoch.",
-  offen: "Du hast noch nicht genug Infos (zum Beispiel, weil der Prozess unklar ist oder ein Mitarbeiter fehlt) und füllst das Modul später aus; es bleibt als offene Aufgabe sichtbar, bis du es beschreibst oder auf „nicht vorhanden“ setzt.",
-  nicht_vorhanden: "Diesen Ablauf gibt es in deinem Betrieb nicht; du schließt ihn bewusst aus.",
+  tool: "Sie beantworten die Fragen zu diesem Modul hier; die Angaben erscheinen im Gesamt-PDF.",
+  extern: "Sie haben die Beschreibung schon und verlinken oder laden sie hier hoch.",
+  offen: "Sie haben noch nicht genug Infos (zum Beispiel, weil der Prozess unklar ist oder ein Mitarbeiter fehlt) und füllen das Modul später aus; es bleibt als offene Aufgabe sichtbar, bis Sie es beschreiben oder auf „nicht vorhanden“ setzen.",
+  nicht_vorhanden: "Diesen Ablauf gibt es in Ihrem Betrieb nicht; Sie schließen ihn bewusst aus.",
 };
 
 export function emptyModulZustand(): ModulZustand {
@@ -339,24 +339,44 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
   return next;
 }
 
-/** Stammdaten in bekannte Katalogfelder schreiben (nur leere Felder). */
-export function applyStammdatenPrefill(answers: IntakeAnswers): IntakeAnswers {
+/**
+ * True when a catalog field may still receive a Stammdaten value: it is empty,
+ * or it still holds the previous automatic text. A different stored value was
+ * typed or saved and stays.
+ */
+function untouchedPrefill(current: unknown, prior: string | undefined): boolean {
+  if (current == null) return true;
+  if (typeof current !== "string") return false;
+  const text = current.trim();
+  if (!text) return true;
+  const before = prior?.trim() ?? "";
+  return Boolean(before) && text === before;
+}
+
+/** Stammdaten in leere oder noch unveränderte Katalogfelder schreiben. */
+export function applyStammdatenPrefill(
+  answers: IntakeAnswers,
+  previous?: Partial<Stammdaten>,
+): IntakeAnswers {
   const s = modulZustand(answers).stammdaten;
   if (!s) return answers;
   const katalog = { ...(answers.katalog ?? {}) };
-  const fill = (id: string, key: string, value: string | undefined) => {
-    if (!value?.trim()) return;
+  const fill = (id: string, key: string, value: string | undefined, prior?: string) => {
+    const trimmed = value?.trim() ?? "";
+    if (!trimmed) return;
     const entry = katalog[id] ?? {};
     const values = { ...(entry.values ?? {}) };
-    if (values[key]) return;
-    values[key] = value;
+    if (entry.cleared?.includes(key)) return;
+    if (!untouchedPrefill(values[key], prior)) return;
+    if (typeof values[key] === "string" && values[key].trim() === trimmed) return;
+    values[key] = trimmed;
     katalog[id] = { ...entry, values };
   };
-  fill("A01", "gf", s.gf);
-  fill("F01", "buchhaltung", s.buchhaltung);
-  fill("B01", "it", s.it);
-  fill("F05", "kanzleiName", s.kanzlei);
-  fill("G01", "ablage", s.archiv);
+  fill("A01", "gf", s.gf, previous?.gf);
+  fill("F01", "buchhaltung", s.buchhaltung, previous?.buchhaltung);
+  fill("B01", "it", s.it, previous?.it);
+  fill("F05", "kanzleiName", s.kanzlei, previous?.kanzlei);
+  fill("G01", "ablage", s.archiv, previous?.archiv);
   if (s.fibu) {
     const entry = katalog.B01 ?? {};
     const values = { ...(entry.values ?? {}) };

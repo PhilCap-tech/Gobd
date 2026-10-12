@@ -3,6 +3,7 @@ import {
   customerChangedBy,
   customerChangeSummary,
 } from "@/lib/account-display";
+import { loginPath } from "@/lib/auth";
 import {
   documentDownloadPath,
   documentEditPath,
@@ -25,14 +26,18 @@ export function DocumentRevisionActions({
   showDownload = true,
   showAccountLink = false,
   downloadLabel = "PDF herunterladen",
+  loggedIn = true,
 }: {
   row: Pick<SheetRow, "documentId" | "stripeSessionId">;
   sessionId?: string;
   showDownload?: boolean;
   showAccountLink?: boolean;
   downloadLabel?: string;
+  /** Ohne Login führt „Angaben überarbeiten“ zur Anmeldung und danach zurück ins Intake. */
+  loggedIn?: boolean;
 }) {
-  const editHref = intakeEditPath(row, sessionId);
+  const intakeHref = intakeEditPath(row, sessionId);
+  const editHref = loggedIn ? intakeHref : loginPath(intakeHref);
   const documentHref = documentEditPath(row);
 
   return (
