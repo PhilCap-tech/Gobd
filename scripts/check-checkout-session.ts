@@ -645,6 +645,9 @@ async function checkSessionGuards() {
 }
 
 async function main() {
+  const savedBlob = process.env.BLOB_READ_WRITE_TOKEN;
+  const savedSecret = process.env.MAGIC_LINK_SECRET;
+  delete process.env.BLOB_READ_WRITE_TOKEN;
   if (!process.env.MAGIC_LINK_SECRET?.trim()) {
     process.env.MAGIC_LINK_SECRET = "check-checkout-session-offline-secret";
   }
@@ -658,6 +661,10 @@ async function main() {
     await forgetCheckoutSessionGrant(SESSION).catch(() => undefined);
     await forgetCheckoutSessionGrant(GUARD).catch(() => undefined);
     await forgetCheckoutSessionGrant(SAME).catch(() => undefined);
+    if (savedBlob === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
+    else process.env.BLOB_READ_WRITE_TOKEN = savedBlob;
+    if (savedSecret === undefined) delete process.env.MAGIC_LINK_SECRET;
+    else process.env.MAGIC_LINK_SECRET = savedSecret;
   }
 }
 
