@@ -13,6 +13,7 @@ import { isStubCheckoutSessionId } from "@/lib/checkout-stub";
 import { loadSessionDraftAnyOwner } from "@/lib/open-drafts";
 import { queryIdsEqual } from "@/lib/query";
 import { findLatestDocumentByStripeSessionId } from "@/lib/store";
+import type { CheckoutIdentity } from "@/lib/types";
 
 /**
  * Shown when Angaben can no longer be changed without a login
@@ -27,12 +28,59 @@ function normalizeEmail(value: string | null | undefined): string {
   return email;
 }
 
-/** Checkout address for display. The local part stays hidden except its first character. */
+/**
+ * Checkout address for display. The local part is never complete:
+ * one character up to length 2, the first two from length 3, and from
+ * length 4 also the last character. Same domain and same first letter
+ * stay distinguishable without revealing the mailbox.
+ */
 export function maskCheckoutEmail(email: string): string {
   const normalized = normalizeEmail(email);
   const at = normalized.indexOf("@");
   if (at <= 0) return "";
-  return `${normalized.slice(0, 1)}•••@${normalized.slice(at + 1)}`;
+  const local = normalized.slice(0, at);
+  const domain = normalized.slice(at + 1);
+  let visible = `${local.slice(0, 1)}•••`;
+  if (local.length >= 3) visible = `${local.slice(0, 2)}•••`;
+  if (local.length >= 4) visible = `${local.slice(0, 2)}•••${local.slice(-1)}`;
+  if (visible.replace(/•/g, "") === local) visible = `${local.slice(0, 1)}•••`;
+  return `${visible}@${domain}`;
+}
+
+/** Full address only for the logged-in owner. Everyone else sees the mask. */
+export function emailShownToViewer(
+  ownerEmail: string | null | undefined,
+  sessionEmail: string | null | undefined,
+): string {
+  const owner = normalizeEmail(ownerEmail);
+  const session = normalizeEmail(sessionEmail);
+  if (!owner) return "";
+  if (session && session === owner) return ownerEmail?.trim() ?? owner;
+  return maskCheckoutEmail(owner);
+}
+
+export type PublicCheckoutSession = {
+  paid: true;
+  stripeSessionId: string;
+  emailMasked: string;
+};
+
+/**
+ * GET /api/session without the owner cookie. Paid flag, session id, masked
+ * mail — nothing else. No firm, no address, no `cus_` id.
+ */
+export function checkoutSessionForViewer(
+  identity: CheckoutIdentity,
+  sessionEmail: string | null | undefined,
+): CheckoutIdentity | PublicCheckoutSession {
+  const session = normalizeEmail(sessionEmail);
+  const owner = normalizeEmail(identity.email);
+  if (session && owner && session === owner) return identity;
+  return {
+    paid: true,
+    stripeSessionId: identity.stripeSessionId,
+    emailMasked: maskCheckoutEmail(identity.email),
+  };
 }
 
 /**

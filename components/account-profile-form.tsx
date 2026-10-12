@@ -21,7 +21,10 @@ export function AccountProfileForm({
   firmHref,
 }: AccountProfileFormProps) {
   const router = useRouter();
-  const [name, setName] = useState(initialName);
+  // Null until the field is edited, so a name that arrives with a later
+  // server render fills the empty first paint.
+  const [editedName, setEditedName] = useState<string | null>(null);
+  const name = editedName ?? initialName;
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
@@ -62,7 +65,7 @@ export function AccountProfileForm({
             name="name"
             value={name}
             onChange={(event) => {
-              setName(event.target.value);
+              setEditedName(event.target.value);
               setSaved(false);
             }}
             maxLength={PROFILE_NAME_MAX}

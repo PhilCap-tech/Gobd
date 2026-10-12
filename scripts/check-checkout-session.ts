@@ -312,11 +312,11 @@ async function checkMismatchAndExpiry() {
   ok(offer.explain, "expired checkout sends the user to an explaining login");
   ok(offer.email === BUYER, "login offer uses the checkout email");
   ok(offer.masked === maskCheckoutEmail(BUYER), "login offer masks the checkout email");
-  ok(offer.masked === "b•••@example.com", "buyer address is masked");
+  ok(offer.masked === "bu•••r@example.com", "buyer address is masked");
   ok(LOGIN_FOR_ANSWERS_COPY.includes("Sie"), "login explanation uses Sie");
 
   const fields = loginClientFields({ next, checkoutEmail, sessionEmail: null });
-  ok(fields.resolveOwner && fields.masked === "b•••@example.com", "visitor login keeps only the mask");
+  ok(fields.resolveOwner && fields.masked === "bu•••r@example.com", "visitor login keeps only the mask");
   ok(!JSON.stringify(fields).includes(BUYER), "client login fields omit the owner email");
 
   const loginPage = readFileSync("app/login/page.tsx", "utf8");
@@ -473,11 +473,20 @@ async function checkSessionGuards() {
   );
   ok(
     checkoutOwnerMismatchCopy(OTHER, BUYER) ===
-      "Sie sind als o•••@example.com angemeldet. Dieser Kauf gehört zu b•••@example.com.",
+      "Sie sind als ot•••r@example.com angemeldet. Dieser Kauf gehört zu bu•••r@example.com.",
     "mismatch page names both masked addresses",
   );
+  const clashCopy = checkoutOwnerMismatchCopy("guido@maxxspace.com", "gerd@maxxspace.com");
   ok(
-    checkoutHandoffButtonCopy(BUYER) === "Abmelden und Anmeldelink an b•••@example.com senden",
+    clashCopy.includes("gu•••o@maxxspace.com") && clashCopy.includes("ge•••d@maxxspace.com"),
+    "mismatch page keeps two g-mailboxes apart",
+  );
+  ok(
+    !clashCopy.includes("guido@maxxspace.com") && !clashCopy.includes("gerd@maxxspace.com"),
+    "mismatch page does not print either full address",
+  );
+  ok(
+    checkoutHandoffButtonCopy(BUYER) === "Abmelden und Anmeldelink an bu•••r@example.com senden",
     "handoff button offers the magic link to the buyer",
   );
   ok(CHECKOUT_BACK_TO_ACCOUNT === "Zurück zum Konto", "the other option returns to the account");
@@ -662,7 +671,7 @@ async function checkSessionGuards() {
     next: `/intake?session_id=${encodeURIComponent(GUARD)}`,
     checkoutEmail: loginCheckoutEmail({ documentEmail: "", checkoutCustomerEmail: noDocument }),
   });
-  ok(offer.explain && offer.email === BUYER && offer.masked === "b•••@example.com", "login explains with the masked checkout email");
+  ok(offer.explain && offer.email === BUYER && offer.masked === "bu•••r@example.com", "login explains with the masked checkout email");
 
   const loginPage = readFileSync("app/login/page.tsx", "utf8");
   const checkoutSession = readFileSync("lib/checkout-session.ts", "utf8");

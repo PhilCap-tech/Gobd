@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkoutGrantFromRequest, sessionEmailFromRequest } from "@/lib/auth";
+import { sessionEmailFromRequest } from "@/lib/auth";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { enqueueDelivery } from "@/lib/delivery";
@@ -13,8 +13,8 @@ import {
   findLatestDocumentByStripeSessionId,
   listDocumentFamily,
 } from "@/lib/store";
-import { intakeCheckoutStatus, resolveCheckoutSession } from "@/lib/stripe";
-import { emptyAnswers, type IntakeAnswers, type SheetRow } from "@/lib/types";
+import { intakeCheckoutStatus, resolveCheckoutSession, type CheckoutResolveError } from "@/lib/stripe";
+import { emailsEqual, emptyAnswers, type CheckoutIdentity, type IntakeAnswers, type SheetRow } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -24,16 +24,34 @@ const lookup: DeliveryLookup = {
   findLatestDocumentByStripeSessionId,
 };
 
+export type DeliveryAuthIo = {
+  lookup: DeliveryLookup;
+  resolveCheckout: (
+    sessionId: string | undefined,
+  ) => Promise<CheckoutIdentity | { error: CheckoutResolveError }>;
+};
+
+const defaultIo: DeliveryAuthIo = {
+  lookup,
+  resolveCheckout: resolveCheckoutSession,
+};
+
 function jsonError(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return NextResponse.json(
+    { error },
+    { status, headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 /**
  * Kapitelplan. PDF entsteht beim Intake.
- * Ohne Login oder Checkout-Nachweis 401. Nach der ersten Lieferung gilt
- * dieselbe Inhaber-Regel wie bei den anderen Schreibzugriffen.
+ * Ohne Sitzung immer 401. Eine fremde Mailbox immer 403,
+ * auch wenn zur Checkout-Session noch kein Dokument liegt.
  */
-export async function POST(request: Request) {
+export async function postDelivery(
+  request: Request,
+  io: DeliveryAuthIo = defaultIo,
+) {
   let body: { sessionId?: string; answers?: Partial<IntakeAnswers> } = {};
   try {
     body = await request.json();
@@ -41,22 +59,23 @@ export async function POST(request: Request) {
     body = {};
   }
 
-  const sessionEmail = sessionEmailFromRequest(request);
+  const sessionEmail = await sessionEmailFromRequest(request);
   const closed = await subscriptionWriteDenial(sessionEmail);
   if (closed) {
-    return NextResponse.json({ error: closed }, { status: 403 });
+    return NextResponse.json(
+      { error: closed },
+      { status: 403, headers: { "Cache-Control": "private, no-store" } },
+    );
   }
-  const grant = checkoutGrantFromRequest(request);
   const bodySessionId = body.sessionId?.trim() ?? "";
-  const denied = await deliveryDenied({
-    sessionEmail,
-    grant: Boolean(grant),
-    sessionId: bodySessionId,
-  });
+  const denied = await deliveryDenied(
+    { sessionEmail, sessionId: bodySessionId },
+    io,
+  );
   if (denied) return denied;
 
   const plan = await enqueueDelivery({
-    sessionId: bodySessionId || grant?.sessionId || "session",
+    sessionId: bodySessionId || "session",
     answers: { ...emptyAnswers(), ...body.answers },
   });
 
@@ -66,53 +85,54 @@ export async function POST(request: Request) {
   });
 }
 
-async function deliveryDenied(input: {
-  sessionEmail: string | null;
-  grant: boolean;
-  sessionId: string;
-}): Promise<NextResponse | null> {
-  const { sessionEmail, grant, sessionId } = input;
+export function POST(request: Request) {
+  return postDelivery(request);
+}
 
-  if (sessionId) {
-    let rows: SheetRow[] | null = null;
-    try {
-      rows = await lookupDeliveredRows({ sessionId }, lookup);
-    } catch (error) {
-      console.error(
-        "[delivery] Nachweis nicht geprüft",
-        error instanceof Error ? error.name : "error",
-      );
-      rows = null;
-    }
-    if (rows && rows.length > 0) {
-      const write = authorizeDeliveredWrite({ sessionEmail, rows });
-      if (!write.ok) return jsonError(write.error, write.status);
-      return null;
-    }
-    if (rows === null && !sessionEmail && !grant) {
-      return jsonError("Bitte anmelden.", 401);
-    }
+async function deliveryDenied(
+  input: { sessionEmail: string | null; sessionId: string },
+  io: DeliveryAuthIo,
+): Promise<NextResponse | null> {
+  const { sessionEmail, sessionId } = input;
+  if (!sessionEmail) return jsonError("Bitte anmelden.", 401);
+  if (!sessionId) return null;
+
+  let rows: SheetRow[] | null = null;
+  try {
+    rows = await lookupDeliveredRows({ sessionId }, io.lookup);
+  } catch (error) {
+    console.error(
+      "[delivery] Nachweis nicht geprüft",
+      error instanceof Error ? error.name : "error",
+    );
+    rows = null;
   }
-
-  if (sessionEmail || grant) return null;
-
-  if (sessionId) {
-    const resolved = await resolveCheckoutSession(sessionId);
-    if ("error" in resolved) {
-      return jsonError(
-        resolved.error === "not_paid"
-          ? "Zahlung noch nicht bestätigt."
-          : resolved.error === "invalid"
-            ? "Checkout-Session ist ungültig."
-            : "Bitte anmelden.",
-        intakeCheckoutStatus(resolved.error),
-      );
-    }
-    if (resolved.stub && !devCheckoutStubAllowed()) {
-      return jsonError("Bitte anmelden.", 401);
-    }
+  if (rows && rows.length > 0) {
+    const write = authorizeDeliveredWrite({ sessionEmail, rows });
+    if (!write.ok) return jsonError(write.error, write.status);
     return null;
   }
 
-  return jsonError("Bitte anmelden.", 401);
+  const resolved = await io.resolveCheckout(sessionId);
+  if ("error" in resolved) {
+    if (resolved.error === "lookup_failed") {
+      return jsonError("Session konnte nicht geprüft werden. Bitte erneut versuchen.", 503);
+    }
+    return jsonError(
+      resolved.error === "not_paid"
+        ? "Zahlung noch nicht bestätigt."
+        : resolved.error === "invalid"
+          ? "Checkout-Session ist ungültig."
+          : "Kein Zugriff.",
+      intakeCheckoutStatus(resolved.error),
+    );
+  }
+  const owner = resolved.email.trim();
+  if (!owner || !emailsEqual(sessionEmail, owner)) {
+    return jsonError("Kein Zugriff.", 403);
+  }
+  if (resolved.stub && !devCheckoutStubAllowed()) {
+    return jsonError("Bitte anmelden.", 401);
+  }
+  return null;
 }

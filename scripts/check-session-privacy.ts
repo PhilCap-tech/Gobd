@@ -1,7 +1,7 @@
 /**
- * R127 follow-up: owner email stays off the login page, one logout clears
- * gobd_session and gobd_checkout, and a legacy checkout without a grant blob
- * does not open the draft (R127-F01).
+ * Session privacy: owner email stays off the login page, logout revokes the
+ * cookie on the server, and a checkout id is not a bearer for address,
+ * customer id, delivery or PDF download (R136-F01…F04).
  *
  *   npx tsx scripts/check-session-privacy.ts
  *
@@ -11,19 +11,25 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { POST as logout } from "../app/api/auth/logout/route";
 import { completeMagicLinkRequest } from "../app/api/auth/magic-link/route";
+import { postDelivery } from "../app/api/delivery/route";
+import { downloadPdf } from "../app/api/docs/[id]/download/route";
 import { putIntakeDraft, readIntakeDraft, type DraftWriteIo } from "../app/api/intake/draft/route";
-import { CHECKOUT_GRANT_COOKIE, SESSION_COOKIE, createSessionToken } from "../lib/auth";
+import { readCheckoutSession } from "../app/api/session/route";
+import { CHECKOUT_GRANT_COOKIE, SESSION_COOKIE, createSessionToken, sessionEmailFromRequest } from "../lib/auth";
 import { sessionOwnerDenial } from "../lib/checkout-access";
 import {
+  emailShownToViewer,
   loginClientFields,
   loginLinkButtonLabel,
+  maskCheckoutEmail,
 } from "../lib/checkout-session";
+import { forgetSessionRevocation } from "../lib/session-revocation";
 import {
   forgetCheckoutSessionGrant,
   recordCheckoutSessionGrant,
 } from "../lib/checkout-session-grant";
 import { normalizeDraftKey } from "../lib/intake-draft";
-import { emptyAnswers, type IntakeAnswers } from "../lib/types";
+import { emptyAnswers, emptySheetRow, type IntakeAnswers, type SheetRow } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -127,10 +133,10 @@ async function checkLoginDoesNotLeak() {
   });
   const packed = JSON.stringify(fields);
   ok(fields.resolveOwner, "session login resolves the owner on the server");
-  ok(fields.masked === "b•••@example.com", "the hint stays masked");
+  ok(fields.masked === "bu•••r@example.com", "the hint stays masked");
   ok(!packed.includes(BUYER), "client login props omit the owner email");
   ok(
-    loginLinkButtonLabel(fields.masked) === "Link an b•••@example.com senden",
+    loginLinkButtonLabel(fields.masked) === "Link an bu•••r@example.com senden",
     "the button names only the mask",
   );
 
@@ -222,6 +228,253 @@ async function checkLogout() {
   ok(!download.includes("session_id"), "PDF download does not authorize session_id");
 }
 
+const PAID = "cs_test_paid_privacy";
+const GUIDO = "guido@maxxspace.com";
+const GERD = "gerd@maxxspace.com";
+const COPIED = "copied-cookie@example.com";
+
+function paidIdentity() {
+  return {
+    email: BUYER,
+    company: "Maxx GmbH",
+    stripeSessionId: PAID,
+    stripeCustomerId: "cus_privacy_secret",
+    stub: false,
+    billingAddress: { line1: "Geheimstraße 1", postalCode: "50667", city: "Köln" },
+    customerName: "Guido Beispiel",
+    ustId: "DE136695976",
+  };
+}
+
+function deliveryIo(rows: SheetRow[]) {
+  return {
+    lookup: {
+      findDocumentById: async () => rows[0] ?? null,
+      listDocumentFamily: async () => rows,
+      findLatestDocumentByStripeSessionId: async () => rows[0] ?? null,
+    },
+    resolveCheckout: async () => paidIdentity(),
+  };
+}
+
+function paidRow(): SheetRow {
+  return {
+    ...emptySheetRow(),
+    email: BUYER,
+    company: "Maxx GmbH",
+    stripeSessionId: PAID,
+    stripeCustomerId: "cus_privacy_secret",
+    documentId: "doc_privacy",
+    status: "intake_submitted",
+  };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function checkCheckoutSessionView() {
+  const identity = {
+    ...paidIdentity(),
+    email: GUIDO,
+    stripeSessionId: "cs_test_guido",
+  };
+  const resolve = async () => identity;
+  const anon = await readCheckoutSession(
+    new Request("http://localhost/api/session?session_id=cs_test_guido"),
+    resolve,
+  );
+  const anonBody = await anon.json();
+  const anonText = JSON.stringify(anonBody);
+  ok(anon.status === 200, `session without a cookie is the public view (got ${anon.status})`);
+  ok(anonBody.emailMasked === "gu•••o@maxxspace.com", "public session email is masked");
+  ok(anonBody.paid === true && anonBody.stripeSessionId === "cs_test_guido", "public session says paid");
+  ok(!anonText.includes(GUIDO), "public session omits the full email");
+  ok(!anonText.includes("cus_"), "public session omits the customer id");
+  ok(!anonText.includes("Geheim"), "public session omits the address");
+  ok(!anonText.includes("Maxx"), "public session omits the company");
+  ok(!("email" in anonBody) && !("billingAddress" in anonBody), "public session has no raw fields");
+
+  const foreign = await readCheckoutSession(
+    new Request("http://localhost/api/session?session_id=cs_test_guido", {
+      headers: { cookie: sessionCookie(GERD) },
+    }),
+    resolve,
+  );
+  const foreignText = JSON.stringify(await foreign.json());
+  ok(foreign.status === 200, "a foreign login still gets only the public view");
+  ok(!foreignText.includes(GUIDO) && !foreignText.includes("cus_"), "foreign login does not receive the checkout record");
+
+  const owner = await readCheckoutSession(
+    new Request("http://localhost/api/session?session_id=cs_test_guido", {
+      headers: { cookie: sessionCookie(GUIDO) },
+    }),
+    resolve,
+  );
+  const ownerBody = await owner.json();
+  ok(owner.status === 200 && ownerBody.email === GUIDO, "the owner session still receives the checkout email");
+  ok(ownerBody.stripeCustomerId === "cus_privacy_secret", "the owner session still receives the customer id");
+  ok(ownerBody.billingAddress?.line1 === "Geheimstraße 1", "the owner session still receives the address");
+  ok(
+    emailShownToViewer(GUIDO, null) === "gu•••o@maxxspace.com" &&
+      emailShownToViewer(GUIDO, GUIDO) === GUIDO,
+    "success copy is masked unless the viewer is the owner",
+  );
+  ok(
+    maskCheckoutEmail(GUIDO) !== maskCheckoutEmail(GERD) &&
+      !maskCheckoutEmail(GUIDO).includes("guido") &&
+      !maskCheckoutEmail(GERD).includes("gerd"),
+    "masks that share a first letter stay apart and incomplete",
+  );
+}
+
+async function checkDeliveryAuth() {
+  const open = deliveryIo([]);
+  const anon = await postDelivery(
+    new Request("http://localhost/api/delivery", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId: PAID }),
+    }),
+    open,
+  );
+  const anonText = await anon.text();
+  ok(anon.status === 401, `paid session without login is 401 (got ${anon.status})`);
+  ok(!anonText.includes(BUYER) && !anonText.includes("cus_"), "401 delivery does not echo the checkout");
+
+  const foreign = await postDelivery(
+    new Request("http://localhost/api/delivery", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: sessionCookie(OTHER),
+      },
+      body: JSON.stringify({ sessionId: PAID }),
+    }),
+    open,
+  );
+  const foreignBody = (await foreign.json()) as { error?: string; delivery?: unknown };
+  ok(foreign.status === 403, `foreign login without a document is 403 (got ${foreign.status})`);
+  ok(!foreignBody.delivery, "foreign delivery has no plan");
+  ok(foreignBody.error === "Kein Zugriff.", "foreign delivery uses the forbidden copy");
+
+  const documented = deliveryIo([paidRow()]);
+  const foreignDoc = await postDelivery(
+    new Request("http://localhost/api/delivery", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: sessionCookie(OTHER),
+      },
+      body: JSON.stringify({ sessionId: PAID }),
+    }),
+    documented,
+  );
+  ok(foreignDoc.status === 403, `foreign login with a document is 403 (got ${foreignDoc.status})`);
+
+  const owner = await postDelivery(
+    new Request("http://localhost/api/delivery", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: sessionCookie(BUYER),
+      },
+      body: JSON.stringify({ sessionId: PAID }),
+    }),
+    open,
+  );
+  ok(owner.status === 200, `owner of a paid session without a document is 200 (got ${owner.status})`);
+}
+
+async function checkPdfDownload() {
+  let lookups = 0;
+  const find = async () => {
+    lookups += 1;
+    return paidRow();
+  };
+  const bare = await downloadPdf(
+    new Request("http://localhost/api/docs/doc_privacy/download"),
+    "doc_privacy",
+    find,
+  );
+  const queried = await downloadPdf(
+    new Request("http://localhost/api/docs/doc_privacy/download?session_id=cs_test_paid_privacy"),
+    "doc_privacy",
+    find,
+  );
+  ok(bare.status === 401 && queried.status === 401, "anonymous PDF download is 401 with or without a checkout id");
+  ok(lookups === 0, "anonymous PDF download does not look the row up");
+  const bareBody = (await bare.json()) as { error?: string };
+  const queriedBody = (await queried.json()) as { error?: string };
+  ok(bareBody.error === queriedBody.error, "both anonymous downloads use the same error");
+
+  const foreign = await downloadPdf(
+    new Request("http://localhost/api/docs/doc_privacy/download", {
+      headers: { cookie: sessionCookie(OTHER) },
+    }),
+    "doc_privacy",
+    async () => paidRow(),
+  );
+  const missing = await downloadPdf(
+    new Request("http://localhost/api/docs/doc_privacy/download", {
+      headers: { cookie: sessionCookie(OTHER) },
+    }),
+    "doc_privacy",
+    async () => null,
+  );
+  const foreignBody = (await foreign.json()) as { error?: string };
+  const missingBody = (await missing.json()) as { error?: string };
+  ok(foreign.status === 403 && missing.status === 403, "a foreign download is 403 whether the row is found or not");
+  ok(
+    foreignBody.error === "Kein Zugriff." && missingBody.error === "Kein Zugriff.",
+    "a foreign download does not alternate with nicht gefunden",
+  );
+
+  const download = readFileSync("app/api/docs/[id]/download/route.ts", "utf8");
+  ok(!download.includes("nicht gefunden"), "PDF download has no not-found copy");
+  ok(!download.includes("session_id"), "PDF download does not read the checkout id");
+}
+
+async function checkLogoutRevokes() {
+  await forgetSessionRevocation(COPIED);
+  const token = createSessionToken(COPIED);
+  const cookie = `${SESSION_COOKIE}=${token}`;
+  await sleep(15);
+  const response = await logout(
+    new Request("https://www.gobd-doku-erstellen.de/api/auth/logout", {
+      method: "POST",
+      headers: { cookie },
+    }),
+  );
+  ok(response.status === 303, "logout with a cookie still redirects");
+  const copied = await sessionEmailFromRequest(
+    new Request("http://localhost/account", { headers: { cookie } }),
+  );
+  ok(copied === null, "a copied cookie is rejected after logout");
+  const fresh = createSessionToken(COPIED);
+  const again = await sessionEmailFromRequest(
+    new Request("http://localhost/account", {
+      headers: { cookie: `${SESSION_COOKIE}=${fresh}` },
+    }),
+  );
+  ok(again === COPIED, "a session issued after logout is accepted");
+  const other = await sessionEmailFromRequest(
+    new Request("http://localhost/account", { headers: { cookie: sessionCookie(OTHER) } }),
+  );
+  ok(other === OTHER, "logout does not revoke a different mailbox");
+}
+
+function checkSmallItems() {
+  const checkoutPage = readFileSync("app/checkout/page.tsx", "utf8");
+  const checkoutForm = readFileSync("app/checkout/checkout-form.tsx", "utf8");
+  ok(checkoutPage.includes("initialEmail={email"), "signed-in checkout prefills that mailbox");
+  ok(checkoutPage.includes("initialCompany={boundEntity"), "signed-in checkout prefills that firm");
+  ok(checkoutForm.includes("checkoutEntityIdForEmail"), "a different typed email does not keep the firm");
+  const profile = readFileSync("components/account-profile-form.tsx", "utf8");
+  ok(profile.includes("editedName ?? initialName"), "profile name follows the loaded value");
+  ok(readFileSync("app/account/page.tsx", "utf8").includes("initialName={profile?.name"), "account passes the stored profile name");
+}
+
 async function main() {
   const savedBlob = process.env.BLOB_READ_WRITE_TOKEN;
   delete process.env.BLOB_READ_WRITE_TOKEN;
@@ -235,9 +488,15 @@ async function main() {
     await checkLegacyDraft("with grant");
     await checkLoginDoesNotLeak();
     await checkLogout();
+    await checkCheckoutSessionView();
+    await checkDeliveryAuth();
+    await checkPdfDownload();
+    await checkLogoutRevokes();
+    checkSmallItems();
     console.log("check-session-privacy: green");
   } finally {
     await forgetCheckoutSessionGrant(LEGACY).catch(() => undefined);
+    await forgetSessionRevocation(COPIED).catch(() => undefined);
     if (savedBlob === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
     else process.env.BLOB_READ_WRITE_TOKEN = savedBlob;
   }

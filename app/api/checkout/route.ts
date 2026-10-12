@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     checkoutEmail: email,
     entityId: requestedEntityId,
     entityOwnerEmail,
-    sessionEmail: sessionEmailFromRequest(request),
+    sessionEmail: await sessionEmailFromRequest(request),
     dropWhenSessionDiffers: true,
   });
 

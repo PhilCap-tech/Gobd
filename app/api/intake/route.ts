@@ -314,7 +314,7 @@ async function writeIntake(
   body: IntakeBody,
   io: IntakeIo,
 ): Promise<NextResponse> {
-  const sessionEmail = sessionEmailFromRequest(request);
+  const sessionEmail = await sessionEmailFromRequest(request);
   const grant = checkoutGrantFromRequest(request);
   const sessionId = body.sessionId?.trim() || grant?.sessionId || "";
   const resolved = await resolveIdentity(body, { sessionEmail, grant, sessionId }, io);
@@ -534,7 +534,7 @@ export async function submitIntake(
     sessionId ||
     body.documentId?.trim() ||
     body.areaFromDocumentId?.trim() ||
-    `anon:${sessionEmailFromRequest(request) ?? "none"}`;
+    `anon:${await sessionEmailFromRequest(request) ?? "none"}`;
   return withSessionWriteLock(lockKey, () => writeIntake(request, body, io));
 }
 

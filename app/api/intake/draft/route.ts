@@ -109,7 +109,7 @@ async function deliveredDraftGate(
   const rows = await lookupDeliveredRows(ids, io.lookup);
   if (rows.length === 0) return null;
   const write = authorizeDeliveredWrite({
-    sessionEmail: sessionEmailFromRequest(request),
+    sessionEmail: await sessionEmailFromRequest(request),
     rows,
   });
   if (!write.ok) return jsonError(write.error, write.status);
@@ -181,7 +181,7 @@ async function sessionOwnerGate(
     ...new Set(sessionIds.map((value) => value?.trim() ?? "").filter((value) => value.length > 0)),
   ];
   if (ids.length === 0) return null;
-  const sessionEmail = sessionEmailFromRequest(request);
+  const sessionEmail = await sessionEmailFromRequest(request);
   if (!sessionEmail) return jsonError("Kein Zugriff.", 401);
   for (const id of ids) {
     const owner = await ownerForCheckoutSession(id, io, draft);
@@ -240,7 +240,7 @@ export async function readIntakeDraft(request: Request, io: DraftWriteIo = defau
   if (blocked) return blocked;
   const access = await authorizeDraftAccess(
     {
-      sessionEmail: sessionEmailFromRequest(request),
+      sessionEmail: await sessionEmailFromRequest(request),
       sessionId: url.searchParams.get("sessionId") ?? undefined,
       draftKey,
       draft,
@@ -289,7 +289,7 @@ export async function putIntakeDraft(request: Request, io: DraftWriteIo = defaul
 
   // 401 before any blob read. A storage outage must not turn "no session" into 503.
   // A delivered document keeps its own 401 copy, so that gate runs first.
-  const sessionEmail = sessionEmailFromRequest(request);
+  const sessionEmail = await sessionEmailFromRequest(request);
   const fromKey = idsFromDraftKey(draftKey);
   if (!body.sessionId?.trim() && !fromKey.sessionId && !sessionEmail) {
     return jsonError("Kein Zugriff.", 401);
@@ -430,7 +430,7 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
   const url = new URL(request.url);
   const draftKey = url.searchParams.get("draftKey")?.trim() ?? "";
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
-  const sessionEmail = sessionEmailFromRequest(request);
+  const sessionEmail = await sessionEmailFromRequest(request);
   if (!sessionEmail) return jsonError("Kein Zugriff.", 401);
   const fromKey = idsFromDraftKey(draftKey);
   const blocked = await deliveredDraftGate(
@@ -466,7 +466,7 @@ export async function deleteIntakeDraft(request: Request, io: DraftWriteIo = def
     if (owned) return owned;
     const access = await authorizeDraftAccess(
       {
-        sessionEmail: sessionEmailFromRequest(request),
+        sessionEmail: await sessionEmailFromRequest(request),
         sessionId: url.searchParams.get("sessionId") ?? undefined,
         draftKey,
         draft: existing,

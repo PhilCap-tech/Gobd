@@ -46,7 +46,7 @@ async function assertAccess(
   input: { sessionId?: string; documentId?: string },
   io: UploadIo,
 ): Promise<{ ok: true; ownerKey: string } | { ok: false; response: NextResponse }> {
-  const sessionEmail = sessionEmailFromRequest(request);
+  const sessionEmail = await sessionEmailFromRequest(request);
   const closed = await subscriptionWriteDenial(sessionEmail);
   if (closed) return { ok: false, response: jsonError(closed, 403) };
   const sessionId = input.sessionId?.trim() ?? "";
