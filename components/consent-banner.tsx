@@ -45,24 +45,12 @@ export function ConsentBanner() {
     >
       <div className="consent-banner-inner shell">
         <p id="consent-text">
-          {partner ? (
-            <>
-              Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel
-              die Anmeldung). Optionales Marketing (Google Ads inklusive
-              Conversion-Messung, Google Analytics, Meta Pixel) läuft nur,
-              wenn Sie zustimmen. Ohne Zustimmung laden wir diese Tags nicht
-              und senden keine Anzeigenanfrage.
-            </>
-          ) : (
-            <>
-              Essenzielle Cookies brauchen wir für den Betrieb (z. B. Login und
-              Stripe-Checkout). Optionales Marketing (Google Ads inklusive
-              Conversion-Messung, Google Analytics, Meta Pixel) läuft nur,
-              wenn Sie zustimmen. Ohne Zustimmung laden wir diese Tags nicht
-              und senden keine Anzeigenanfrage.
-            </>
-          )}
-          {" "}
+          {partner
+            ? "Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel die Anmeldung). "
+            : "Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel Anmeldung und Stripe-Checkout). "}
+          {
+            "Optionales Marketing laden wir nur, wenn Sie zustimmen. Das sind Google Analytics 4 (Mess-ID G-RJ4KLBP1SF) und Google Ads (Konto AW-586367190, einschließlich Conversion-Messung). Ein Meta-Pixel laden wir nur, wenn eine Pixel-ID konfiguriert ist; derzeit ist keine hinterlegt. Ohne Zustimmung laden wir diese Tags nicht und senden keine Anzeigenanfrage."
+          }{" "}
           <Link href="/cookies">Cookie-Hinweis</Link>
         </p>
         <div className="consent-actions">
