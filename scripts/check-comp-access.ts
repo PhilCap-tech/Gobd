@@ -7,6 +7,9 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { POST as postCheckout } from "../app/api/checkout/route";
@@ -45,7 +48,9 @@ import { installSheetsHandler } from "../lib/sheets-client";
 import { readCachedGrid } from "../lib/sheets-grid";
 import { createTtlSingleflight } from "../lib/sheets-outage";
 import { SheetsUnavailableError } from "../lib/sheets-unavailable";
-import { clearAllSheetReadCaches, createEntity, listEntitiesByEmail } from "../lib/store";
+import { clearAllSheetReadCaches, createEntity, getFileFallbackDir, listEntitiesByEmail } from "../lib/store";
+import { coveredIntakePath } from "../lib/subscription-coverage";
+import { installSubscriptionStatusHandler } from "../lib/stripe";
 import { handleFailedPayment, sendDeliveryMail, triggerOnboardingMail } from "../lib/ops";
 import { isPilotPaymentFailedExempt } from "../lib/pilot-exemptions";
 import { emptyAnswers, emptySheetRow, type IntakeAnswers, type SheetRow } from "../lib/types";
@@ -406,31 +411,111 @@ async function checkCheckoutGuard() {
   ok(!ordinaryBody.url, "a non-comp checkout POST does not receive the comp questionnaire");
 
   const paidFirmBody = await withLocalCheckoutStub(async () => {
-    const paidFirm = await postCheckout(
-      new Request("http://localhost/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    const env = process.env as Record<string, string | undefined>;
+    const savedSheets = {
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      GOOGLE_SHEETS_SPREADSHEET_ID: env.GOOGLE_SHEETS_SPREADSHEET_ID,
+    };
+    delete env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    delete env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    delete env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    clearAllSheetReadCaches();
+    const dirs = [getFileFallbackDir(), path.join(tmpdir(), "gobd-data")];
+    const entitiesFiles = dirs.map((dir) => path.join(dir, "entities.json"));
+    const intakesFiles = dirs.map((dir) => path.join(dir, "intakes.json"));
+    const previousEntities = await Promise.all(entitiesFiles.map((file) => readTextIfPresent(file)));
+    const previousIntakes = await Promise.all(intakesFiles.map((file) => readTextIfPresent(file)));
+    installSubscriptionStatusHandler(async () => ({ ok: true, statuses: ["active"] }));
+    try {
+      await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })));
+      const first = toEntity(
+        OTHER,
+        { name: "Erste Firma GmbH", street: "Teststraße 1", zip: "10115", city: "Berlin" },
+        "ent_paid_first",
+        "2026-10-01T00:00:00.000Z",
+      );
+      const second = toEntity(
+        OTHER,
+        { name: "Zweite Firma GmbH", street: "Teststraße 2", zip: "10115", city: "Berlin" },
+        "ent_paid_second",
+        "2026-10-02T00:00:00.000Z",
+      );
+      const entitiesJson = JSON.stringify([first, second]);
+      const intakesJson = JSON.stringify([
+        {
+          ...emptySheetRow(),
+          timestamp: "2099-01-01T00:00:00.000Z",
+          stripeSessionId: "cs_live_covered_second",
+          stripeCustomerId: "cus_covered_second",
           email: OTHER,
-          company: "Zweite Firma GmbH",
-          entityId: "ent_paid_second",
-          entrepreneur: true,
-          acceptedDisclaimer: true,
+          company: "Erste Firma GmbH",
+          status: "paid",
+          entityId: "ent_paid_first",
+        },
+      ]);
+      await Promise.all(entitiesFiles.map((file) => writeFile(file, entitiesJson, "utf8")));
+      await Promise.all(intakesFiles.map((file) => writeFile(file, intakesJson, "utf8")));
+      const paidFirm = await postCheckout(
+        new Request("http://localhost/api/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            cookie: `${SESSION_COOKIE}=${createSessionToken(OTHER)}`,
+          },
+          body: JSON.stringify({
+            email: OTHER,
+            company: "Zweite Firma GmbH",
+            entityId: "ent_paid_second",
+            entrepreneur: true,
+            acceptedDisclaimer: true,
+          }),
         }),
-      }),
-    );
-    const body = (await paidFirm.json()) as { url?: string; error?: string };
-    ok(paidFirm.status === 200, `a paid second firm still starts checkout (got ${paidFirm.status} ${body.error ?? ""})`);
-    return body;
+      );
+      const body = (await paidFirm.json()) as { url?: string; error?: string };
+      ok(
+        paidFirm.status === 200,
+        `a paid second firm with an active subscription starts intake (got ${paidFirm.status} ${body.error ?? ""})`,
+      );
+      return body;
+    } finally {
+      installSubscriptionStatusHandler(null);
+      await Promise.all(entitiesFiles.map((file, index) => restoreText(file, previousEntities[index] ?? null)));
+      await Promise.all(intakesFiles.map((file, index) => restoreText(file, previousIntakes[index] ?? null)));
+      const restore = (name: string, value: string | undefined) => {
+        if (value === undefined) delete env[name];
+        else env[name] = value;
+      };
+      restore("GOOGLE_SERVICE_ACCOUNT_EMAIL", savedSheets.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+      restore("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", savedSheets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+      restore("GOOGLE_SHEETS_SPREADSHEET_ID", savedSheets.GOOGLE_SHEETS_SPREADSHEET_ID);
+      clearAllSheetReadCaches();
+    }
   });
   ok(
-    Boolean(paidFirmBody.url?.includes("session_id=mock_")),
-    "a paid second firm still receives a checkout session",
+    paidFirmBody.url === coveredIntakePath("ent_paid_second"),
+    "a paid second firm with an active subscription opens intake",
   );
-  ok(
-    paidFirmBody.url !== compIntakePath("ent_paid_second") && !paidFirmBody.url?.includes("modus=gesamt"),
-    "a paid second firm is not sent to the comp questionnaire",
-  );
+  ok(paidFirmBody.url?.includes("modus=gesamt") === true, "the covered second firm uses the questionnaire");
+  ok(!paidFirmBody.url?.includes("session_id=mock_"), "the covered second firm does not start checkout");
+  ok(compCheckoutRedirect(OTHER, "ent_paid_second") === null, "the covered second firm is not a comp mailbox");
+}
+
+async function readTextIfPresent(file: string): Promise<string | null> {
+  try {
+    return await readFile(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function restoreText(file: string, previous: string | null): Promise<void> {
+  if (previous === null) {
+    await rm(file, { force: true });
+    return;
+  }
+  await writeFile(file, previous, "utf8");
 }
 
 /** Local stub only. Clears live Stripe keys so this check never calls Stripe. */

@@ -1,4 +1,4 @@
-import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
+import { EXTRA_FIRM_NOTE } from "@/lib/account-labels";
 import type { LifecycleNotice } from "@/lib/kuendigung";
 import {
   formatStripeDate,
@@ -77,10 +77,7 @@ export function AccountBillingStatus({
           <span>{copy.text}</span>
         </p>
       )}
-      <p className="prose">
-        Ein Abo gilt für bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen — nicht pro
-        Firma.
-      </p>
+      <p className="prose">{EXTRA_FIRM_NOTE}</p>
       <div className="actions" style={{ marginTop: 12 }}>
         {stripeReady && hasCustomer ? (
           <>

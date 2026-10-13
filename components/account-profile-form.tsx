@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FIRMA_ADD_LABEL, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
-import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
+import { EXTRA_FIRM_NOTE, FIRMA_ADD_LABEL, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
 import { PROFILE_NAME_MAX } from "@/lib/profile";
 
 type AccountProfileFormProps = {
@@ -101,22 +100,16 @@ export function AccountProfileForm({
         Stammdaten legen Sie unabhängig vom Abo an.
       </p>
       <div className="actions">
-        {!atCap && (
-          <Link className="btn ghost" href="/account/firma/neu">
-            {firmHref ? FIRMA_ADD_LABEL : "Firma anlegen"}
-          </Link>
-        )}
+        <Link className="btn ghost" href="/account/firma/neu">
+          {firmHref ? FIRMA_ADD_LABEL : "Firma anlegen"}
+        </Link>
         {firmHref && (
           <Link className="btn ghost" href={firmHref}>
             {FIRMA_EDIT_LABEL}
           </Link>
         )}
       </div>
-      {atCap && (
-        <p className="hint">
-          Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen erreicht.
-        </p>
-      )}
+      {atCap && <p className="hint">{EXTRA_FIRM_NOTE}</p>}
     </section>
   );
 }

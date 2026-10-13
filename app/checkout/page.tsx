@@ -5,12 +5,19 @@ import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
-import { compCheckoutRedirect } from "@/lib/comp-access";
-import { entityChoices } from "@/lib/entities";
+import { compCheckoutRedirect, isCompAccessEmail } from "@/lib/comp-access";
+import { entityChoices, MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
 import { ALL_AREAS_LINE, INTAKE_EFFORT_LINE, PRICE_MICRO } from "@/lib/offer-copy";
+import {
+  coveredIntakePath,
+  EXTRA_FIRM_NOTE,
+  firmPosition,
+  firmStartDecision,
+  loadIncludedFirmCoverage,
+} from "@/lib/subscription-coverage";
 import { breadcrumbJsonLd, productOfferJsonLd } from "@/lib/jsonld";
 import {
   MONTHLY_EUR,
@@ -47,6 +54,22 @@ export default async function CheckoutPage({
   const sole = !requestedEntityId && entities.length === 1 ? entities[0] : undefined;
   const boundEntity = owned ?? sole ?? null;
   const initialEntityId = boundEntity?.entityId ?? "";
+  let extraFirmNote = false;
+  if (email && owned && !isCompAccessEmail(email)) {
+    const coverage = await loadIncludedFirmCoverage(email);
+    const position = firmPosition(entities, owned.entityId);
+    const decision = firmStartDecision({
+      sessionEmail: email,
+      entityOwnerEmail: owned.userEmail,
+      entityId: owned.entityId,
+      firmPosition: position,
+      coverage,
+    });
+    if (decision === "intake") {
+      redirect(coveredIntakePath(owned.entityId));
+    }
+    extraFirmNote = position > MAX_ENTITIES_PER_ACCOUNT;
+  }
 
   return (
     <>
@@ -80,6 +103,7 @@ export default async function CheckoutPage({
           )}
         </p>
         <p className="prose">{INTAKE_EFFORT_LINE}</p>
+        {extraFirmNote ? <p className="hint">{EXTRA_FIRM_NOTE}</p> : null}
         <RefreshStoredView />
         <CheckoutForm
           key={email ?? "signed-out"}

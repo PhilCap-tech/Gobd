@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CHECKOUT_PREFILL_NOTE } from "@/lib/account-labels";
+import { CHECKOUT_PREFILL_NOTE, EXTRA_FIRM_NOTE } from "@/lib/account-labels";
 import {
-  MAX_ENTITIES_PER_ACCOUNT,
   firmaSaveError,
   type EntityInput,
 } from "@/lib/entities";
@@ -154,8 +153,7 @@ export function FirmaForm({
       </button>
       {!isEdit && (
         <p className="hint" style={{ marginTop: 12 }}>
-          Sie können bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen in einem Konto
-          anlegen.
+          {EXTRA_FIRM_NOTE}
         </p>
       )}
     </form>

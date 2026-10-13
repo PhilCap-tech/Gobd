@@ -21,7 +21,7 @@ import {
   openDraftContinuePath,
   openDraftLabel,
 } from "@/lib/open-drafts";
-import { CHECKOUT_PREFILL_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
+import { CHECKOUT_PREFILL_NOTE, EXTRA_FIRM_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
 import { PAID_INTAKE_LABEL } from "@/lib/account-paid-intake";
 import { compIntakePath } from "@/lib/comp-access";
 import { formatEntityAddress, type Entity } from "@/lib/entities";
@@ -101,8 +101,8 @@ import {
  * Native `<a>`, not `next/link`: Link calls preventDefault and then
  * client-navigates. /intake often redirects that href to the grant route
  * handler, so the click never loads. Opening the href directly still works.
- * „Neues Dokument“ uses the same anchor: its target is /intake for a comp
- * mailbox and /checkout for everyone else.
+ * „Neues Dokument“ uses the same anchor: /intake for a comp mailbox, /intake
+ * for a firm an active subscription already covers, and /checkout otherwise.
  */
 export const ACCOUNT_CONTINUE_LABEL = "Weiter ausfüllen";
 
@@ -131,6 +131,8 @@ export function AccountCompanyCard({
   downloadsOpen = true,
   paidIntakeHref = "",
   compAccess = false,
+  coveredIntakeHref = "",
+  extraFirmNote = false,
 }: {
   group: EntityDocumentGroup & { continueDrafts?: IntakeDraft[] };
   email: string;
@@ -144,6 +146,14 @@ export function AccountCompanyCard({
   paidIntakeHref?: string;
   /** Allowlist mailbox starts the questionnaire without Checkout. */
   compAccess?: boolean;
+  /**
+   * Set only when this firm is inside the active subscription (firms 1–5).
+   * Native `<a>` to /intake, not checkout. Empty for comp — that path stays
+   * on `compAccess`.
+   */
+  coveredIntakeHref?: string;
+  /** Firm 6 and later: checkout stays, with the extra-subscription note. */
+  extraFirmNote?: boolean;
 }) {
   const entity = group.entity ? presentEntity(group.entity) : null;
   const families = (group.families ?? []).map((family) => {
@@ -190,6 +200,7 @@ export function AccountCompanyCard({
           {CHECKOUT_PREFILL_NOTE}
         </p>
       )}
+      {extraFirmNote ? <p className="hint">{EXTRA_FIRM_NOTE}</p> : null}
 
       {entity && writesOpen && (
         <div className="actions entity-actions">
@@ -203,7 +214,11 @@ export function AccountCompanyCard({
           ) : families.length === 0 ? (
             <a
               className="btn"
-              href={compAccess ? compIntakePath(entity.entityId) : newDocumentPath(entity.entityId)}
+              href={
+                compAccess
+                  ? compIntakePath(entity.entityId)
+                  : coveredIntakeHref || newDocumentPath(entity.entityId)
+              }
             >
               Neues Dokument
             </a>
