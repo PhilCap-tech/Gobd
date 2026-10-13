@@ -56,7 +56,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     weight: 3,
     applicable: "required",
     source:
-      "§ 147 Abs. 3 AO i. d. F. BEG IV vom 23.10.2024, BGBl. 2024 I Nr. 323 (Buchungsbelege 8 Jahre seit 01.01.2025); Übergangsregel Art. 97 § 19a Abs. 2 EGAO",
+      "§ 147 Abs. 1 und 3 AO i. d. F. BEG IV vom 23.10.2024, BGBl. 2024 I Nr. 323 (Buchungsbelege 8 Jahre seit 01.01.2025); Übergangsregel Art. 97 § 19a Abs. 2 EGAO; GoBD Rz. 113 ff.",
   },
   {
     id: "unveraenderbarkeit",
