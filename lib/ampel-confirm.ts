@@ -1,9 +1,14 @@
 import type { MailResult } from "@/lib/mail";
 import type { ReadinessLead } from "@/lib/readiness";
-import { sendAmpelResultMail } from "@/lib/ampel-mail";
+import { sendAmpelConfirmationMail, sendAmpelResultMail } from "@/lib/ampel-mail";
 import {
+  AMPEL_CONFIRM_WINDOW_MS,
   ampelLeadId,
+  createAmpelDoiToken,
   decodeAmpelAnswers,
+  encodeAmpelAnswers,
+  normalizeAmpelEmail,
+  sanitizeAmpelRef,
   scoreAmpel,
   toAmpelReadinessLead,
   verifyAmpelDoiToken,
@@ -154,5 +159,181 @@ export function confirmAmpelDoi(token: string, deps: AmpelConfirmDeps): Promise<
     if (runs.get(leadId) === run) runs.delete(leadId);
   });
   runs.set(leadId, run);
+  return run;
+}
+
+const CONFIRM_RECORDED = new Set(["confirm_sent", "confirm_duplicate", "confirm_stub"]);
+const confirmRuns = new Map<string, Promise<AmpelConfirmationResult>>();
+
+export function ampelConfirmMailRecorded(status: string | undefined): boolean {
+  return CONFIRM_RECORDED.has((status ?? "").trim());
+}
+
+export type AmpelConfirmationInput = {
+  email: string;
+  answers: string;
+  ref: string;
+};
+
+export type AmpelConfirmationDeps = {
+  findLead: (email: string, answers: string) => Promise<ReadinessLead | null>;
+  saveLead: (lead: ReadinessLead) => Promise<void>;
+  sendConfirmation?: (input: { email: string; token: string }) => Promise<MailResult>;
+  sleep?: (ms: number) => Promise<void>;
+  now?: () => number;
+};
+
+export type AmpelConfirmationResult =
+  | { ok: true; throttled: boolean }
+  | { ok: false; status: 400 | 503; reason: "invalid" | "mail" };
+
+function confirmMailLabel(mail: MailResult): string {
+  if (mail.sent) return "confirm_sent";
+  if (mail.duplicate) return "confirm_duplicate";
+  if (mail.stub) return "confirm_stub";
+  return "confirm_pending";
+}
+
+function withinConfirmWindow(consentAt: string, now: number): boolean {
+  const at = Date.parse(consentAt);
+  if (!Number.isFinite(at)) return false;
+  return now - at < AMPEL_CONFIRM_WINDOW_MS;
+}
+
+function resultAlreadyRecorded(lead: ReadinessLead): boolean {
+  return Boolean(lead.doiConfirmedAt) && ampelResultMailRecorded(lead.mailStatus);
+}
+
+async function readConfirmLead(
+  deps: AmpelConfirmationDeps,
+  email: string,
+  answers: string,
+): Promise<ReadinessLead | null> {
+  try {
+    return await deps.findLead(email, answers);
+  } catch (error) {
+    console.error("[ampel] Lead lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return null;
+  }
+}
+
+async function writeConfirmLead(deps: AmpelConfirmationDeps, lead: ReadinessLead): Promise<void> {
+  try {
+    await deps.saveLead(lead);
+  } catch (error) {
+    console.error("[ampel] Lead speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
+  }
+}
+
+async function runConfirmation(
+  input: AmpelConfirmationInput,
+  deps: AmpelConfirmationDeps,
+): Promise<AmpelConfirmationResult> {
+  const nowMs = deps.now?.() ?? Date.now();
+  const email = normalizeAmpelEmail(input.email);
+  const decoded = decodeAmpelAnswers(input.answers);
+  const scored = decoded ? scoreAmpel(decoded) : null;
+  const code = decoded ? encodeAmpelAnswers(decoded) : null;
+  if (!email || !decoded || !code || !scored) {
+    return { ok: false, status: 400, reason: "invalid" };
+  }
+  const ref = sanitizeAmpelRef(input.ref);
+  const existing = await readConfirmLead(deps, email, code);
+  if (
+    existing &&
+    ampelConfirmMailRecorded(existing.mailStatus) &&
+    withinConfirmWindow(existing.consentAt, nowMs)
+  ) {
+    return { ok: true, throttled: true };
+  }
+  if (existing && resultAlreadyRecorded(existing) && withinConfirmWindow(existing.consentAt, nowMs)) {
+    return { ok: true, throttled: true };
+  }
+
+  const reuse =
+    existing &&
+    !existing.doiConfirmedAt &&
+    !ampelConfirmMailRecorded(existing.mailStatus) &&
+    withinConfirmWindow(existing.consentAt, nowMs)
+      ? existing
+      : null;
+  const consentAt = reuse?.consentAt || new Date(nowMs).toISOString();
+  const token = createAmpelDoiToken({ email, answers: code, ref, consentAt }, nowMs);
+  if (!token) return { ok: false, status: 400, reason: "invalid" };
+
+  const pending: ReadinessLead = {
+    ...toAmpelReadinessLead({
+      email,
+      answers: code,
+      ref,
+      consentAt,
+      doiConfirmedAt: "",
+      score: scored.score,
+      light: scored.light,
+      mailStatus: "confirm_pending",
+    }),
+    timestamp: consentAt,
+    status: "ampel_doi_pending",
+    doiConfirmedAt: "",
+  };
+  await writeConfirmLead(deps, pending);
+
+  const send = deps.sendConfirmation ?? sendAmpelConfirmationMail;
+  const pause = deps.sleep ?? wait;
+  for (let attempt = 0; attempt < AMPEL_RESULT_RETRY_DELAYS_MS.length; attempt += 1) {
+    const delay = AMPEL_RESULT_RETRY_DELAYS_MS[attempt] ?? 0;
+    if (delay > 0) await pause(delay);
+    const current = await readConfirmLead(deps, email, code);
+    if (current && ampelConfirmMailRecorded(current.mailStatus)) {
+      return { ok: true, throttled: true };
+    }
+    if (current && resultAlreadyRecorded(current) && withinConfirmWindow(current.consentAt, nowMs)) {
+      return { ok: true, throttled: true };
+    }
+    const mail = await send({ email, token });
+    if (!delivered(mail)) continue;
+    const base = current && current.leadId === pending.leadId ? current : pending;
+    await writeConfirmLead(deps, {
+      ...base,
+      leadId: pending.leadId,
+      email: pending.email,
+      timestamp: base.timestamp || pending.timestamp,
+      status: "ampel_doi_pending",
+      consentAt: pending.consentAt,
+      doiConfirmedAt: "",
+      advisorRef: pending.advisorRef,
+      ampelAnswers: pending.ampelAnswers,
+      ampelScore: pending.ampelScore,
+      ampelLight: pending.ampelLight,
+      mailStatus: confirmMailLabel(mail),
+    });
+    return { ok: true, throttled: mail.duplicate === true };
+  }
+
+  const after = await readConfirmLead(deps, email, code);
+  if (after && ampelConfirmMailRecorded(after.mailStatus)) {
+    return { ok: true, throttled: true };
+  }
+  return { ok: false, status: 503, reason: "mail" };
+}
+
+/** One in-flight confirmation mail per address and answers. A joined click waits for that attempt. */
+export function requestAmpelConfirmation(
+  input: AmpelConfirmationInput,
+  deps: AmpelConfirmationDeps,
+): Promise<AmpelConfirmationResult> {
+  const email = normalizeAmpelEmail(input.email);
+  const decoded = decodeAmpelAnswers(input.answers);
+  const code = decoded ? encodeAmpelAnswers(decoded) : null;
+  if (!email || !decoded || !code || !scoreAmpel(decoded)) {
+    return Promise.resolve({ ok: false, status: 400, reason: "invalid" });
+  }
+  const key = `${email}\n${code}`;
+  const current = confirmRuns.get(key);
+  if (current) return current;
+  const run = runConfirmation(input, deps).finally(() => {
+    if (confirmRuns.get(key) === run) confirmRuns.delete(key);
+  });
+  confirmRuns.set(key, run);
   return run;
 }

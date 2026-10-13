@@ -25,8 +25,8 @@ import {
 } from "@/lib/ampel-score";
 import type { AmpelAnswer } from "@/lib/ampel-questions";
 import { buildAmpelConfirmationMail, buildAmpelResultMail } from "@/lib/ampel-mail";
-import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi } from "@/lib/ampel-confirm";
-import type { MailResult } from "@/lib/mail";
+import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi, requestAmpelConfirmation } from "@/lib/ampel-confirm";
+import { isTransientResendError, MAIL_SEND_RETRY_DELAYS_MS, type MailResult } from "@/lib/mail";
 import type { ReadinessLead } from "@/lib/readiness";
 import { READINESS_SHEET_COLUMNS } from "@/lib/readiness";
 import { INDEXABLE_STATIC_PATHS } from "@/lib/seo";
@@ -249,6 +249,13 @@ try {
   assertOk(AMPEL_CONFIRM_WINDOW_MS === 15 * 60 * 1000, "one confirmation per email per 15 minutes");
   const confirmRoute = readFileSync("app/api/ampel/confirm/route.ts", "utf8");
   assertOk(confirmRoute.includes("AMPEL_CONFIRM_WINDOW_MS") === false, "window constant stays in the mail helper");
+  assertOk(confirmRoute.includes("requestAmpelConfirmation"), "confirmation route stores the lead and retries");
+  assertOk(confirmRoute.includes("fresh: true"), "confirmation reads the lead past the sheet cache");
+  assertOk(!confirmRoute.includes("mail.inflight"), "an in-flight confirmation is not success");
+  assertOk(
+    confirmRoute.includes("Die Bestätigungsmail konnte gerade nicht gesendet werden."),
+    "confirmation failure keeps the same error",
+  );
   const mailSource = readFileSync("lib/ampel-mail.ts", "utf8");
   assertOk(mailSource.includes("windowMs: AMPEL_CONFIRM_WINDOW_MS"), "confirmation send is throttled");
   assertOk(readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8").includes("trackLeadSubmit()"), "DOI confirm fires the lead event");
@@ -376,6 +383,168 @@ try {
   });
   assertOk(blinded.ok && blindSends === 1, "a sheet write error does not hide a sent mail");
   assertOk(await confirmAmpelDoi("not-a-token", blind.deps(async () => ({ stub: false, sent: true }))).then((result) => !result.ok && result.reason === "invalid"), "a bad token does not send");
+
+  assert.deepEqual([...MAIL_SEND_RETRY_DELAYS_MS], [0, 200, 600], "Resend retries a dropped connection with backoff");
+  assertOk(isTransientResendError({ statusCode: null }), "an unresolved fetch is retried");
+  assertOk(isTransientResendError({ statusCode: 503 }) && isTransientResendError({ statusCode: 429 }), "503 and 429 are retried");
+  assertOk(
+    !isTransientResendError({ statusCode: 400 }) &&
+      !isTransientResendError({ statusCode: 401 }) &&
+      !isTransientResendError({ statusCode: 403 }) &&
+      !isTransientResendError({ statusCode: 422 }) &&
+      !isTransientResendError(null),
+    "validation and auth errors are not retried",
+  );
+  const sender = readFileSync("lib/mail.ts", "utf8");
+  assertOk(
+    sender.includes(["await resend", "emails", "send(payload, options)"].join(".")),
+    "the Resend send is awaited",
+  );
+  assertOk(!sender.includes("keepalive"), "the Resend request does not set fetch keepalive");
+  assertOk(
+    sender.includes("input.idempotencyKey ? MAIL_SEND_RETRY_DELAYS_MS.length : 1"),
+    "a transient retry reuses the Idempotency-Key",
+  );
+  const enableStart = tracking.indexOf("function enableGoogleTag");
+  const enableBody = tracking.slice(enableStart, tracking.indexOf("function currentPath"));
+  assertOk(tracking.includes("process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID"), "GA4 reads NEXT_PUBLIC_GA_MEASUREMENT_ID");
+  assertOk(tracking.includes("process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO"), "the lead conversion reads NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO");
+  assertOk(tracking.includes("/^AW-\\d+\\//"), "a lead send_to may be AW-<digits>/<label>");
+  assertOk(enableBody.includes("getGaMeasurementId()") && enableBody.includes('window.gtag?.("config", gaId)'), "GA4 config runs when the measurement id is set");
+  assertOk(!enableBody.includes("getGoogleAdsLeadSendTo"), "GA4 init does not read the lead send_to");
+
+  function confirmationStore() {
+    const leads = new Map<string, ReadinessLead>();
+    const delays: number[] = [];
+    const statuses: string[] = [];
+    return {
+      leads,
+      delays,
+      statuses,
+      deps(sendConfirmation: (input: { email: string; token: string }) => Promise<MailResult>) {
+        return {
+          now: () => confirmNow,
+          sleep: async (ms: number) => {
+            delays.push(ms);
+          },
+          findLead: async (email: string, answers: string) => {
+            const matches = [...leads.values()].filter(
+              (row) => row.email === email && row.ampelAnswers === answers,
+            );
+            return matches.at(-1) ?? null;
+          },
+          saveLead: async (lead: ReadinessLead) => {
+            statuses.push(lead.mailStatus);
+            leads.set(lead.leadId, { ...lead });
+          },
+          sendConfirmation,
+        };
+      },
+    };
+  }
+
+  const confirmRetry = confirmationStore();
+  let confirmSends = 0;
+  const confirmInput = { email: "Mandant@Kanzlei.example", answers: code ?? "", ref: "Kanzlei" };
+  const retriedConfirm = await requestAmpelConfirmation(
+    confirmInput,
+    confirmRetry.deps(async () => {
+      confirmSends += 1;
+      if (confirmSends < 3) return { stub: false, sent: false };
+      return { stub: false, sent: true, id: "confirm-1" };
+    }),
+  );
+  assertOk(retriedConfirm.ok && retriedConfirm.throttled === false, "a transient confirmation failure retries and then succeeds");
+  assertOk(confirmSends === 3, "confirmation mail retries before the error");
+  assert.deepEqual(confirmRetry.delays, [400, 1200], "confirmation retries wait with backoff");
+  assert.deepEqual(confirmRetry.statuses, ["confirm_pending", "confirm_sent"], "the lead is pending before it is marked sent");
+  const confirmLead = [...confirmRetry.leads.values()][0];
+  assertOk(confirmLead?.status === "ampel_doi_pending" && confirmLead.doiConfirmedAt === "", "confirmation does not consume the DOI");
+  const repeatedConfirm = await requestAmpelConfirmation(
+    confirmInput,
+    confirmRetry.deps(async () => {
+      confirmSends += 1;
+      return { stub: false, sent: true };
+    }),
+  );
+  assertOk(repeatedConfirm.ok && repeatedConfirm.throttled, "a sent confirmation succeeds without another mail");
+  assertOk(confirmSends === 3, "the second click does not send");
+
+  const confirmInflight = confirmationStore();
+  let inflightSends = 0;
+  const inflightConfirm = await requestAmpelConfirmation(
+    confirmInput,
+    confirmInflight.deps(async () => {
+      inflightSends += 1;
+      return { stub: false, sent: false, duplicate: true, inflight: true };
+    }),
+  );
+  assertOk(!inflightConfirm.ok && inflightConfirm.reason === "mail" && inflightConfirm.status === 503, "an in-flight confirmation is not success");
+  assertOk(inflightSends === AMPEL_RESULT_RETRY_DELAYS_MS.length, "in-flight confirmation waits through every attempt");
+  assertOk(
+    [...confirmInflight.leads.values()][0]?.mailStatus === "confirm_pending",
+    "a failed confirmation stays pending",
+  );
+
+  const confirmJoined = confirmationStore();
+  let joinedConfirmSends = 0;
+  const joinedConfirmDeps = confirmJoined.deps(async () => {
+    joinedConfirmSends += 1;
+    return { stub: false, sent: true, id: "confirm-2" };
+  });
+  const [confirmLeft, confirmRight] = await Promise.all([
+    requestAmpelConfirmation(confirmInput, joinedConfirmDeps),
+    requestAmpelConfirmation(confirmInput, joinedConfirmDeps),
+  ]);
+  assertOk(confirmLeft.ok && confirmRight.ok, "a double click shares one confirmation mail");
+  assertOk(joinedConfirmSends === 1, "a double click sends one confirmation mail");
+
+  const confirmBlind = confirmationStore();
+  let blindConfirmSends = 0;
+  const blindedConfirm = await requestAmpelConfirmation(confirmInput, {
+    ...confirmBlind.deps(async () => {
+      blindConfirmSends += 1;
+      return { stub: false, sent: true };
+    }),
+    saveLead: async () => {
+      throw new Error("sheets");
+    },
+  });
+  assertOk(blindedConfirm.ok && blindConfirmSends === 1, "a sheet write error does not hide a sent confirmation");
+  const invalidConfirm = await requestAmpelConfirmation(
+    { email: "not-an-email", answers: code ?? "", ref: "" },
+    confirmBlind.deps(async () => {
+      blindConfirmSends += 1;
+      return { stub: false, sent: true };
+    }),
+  );
+  assertOk(!invalidConfirm.ok && invalidConfirm.reason === "invalid" && blindConfirmSends === 1, "a bad address does not send");
+
+  const confirmThenResult = confirmationStore();
+  let doiToken = "";
+  const requested = await requestAmpelConfirmation(
+    confirmInput,
+    confirmThenResult.deps(async (mail) => {
+      doiToken = mail.token;
+      return { stub: false, sent: true, id: "confirm-3" };
+    }),
+  );
+  assertOk(requested.ok && doiToken, "confirmation returns a DOI token to the mail");
+  let resultAfterConfirm = 0;
+  const afterLink = await confirmAmpelDoi(doiToken, {
+    now: () => confirmNow,
+    sleep: async () => undefined,
+    findLead: async (leadId) => confirmThenResult.leads.get(leadId) ?? null,
+    saveLead: async (lead) => {
+      confirmThenResult.leads.set(lead.leadId, { ...lead });
+    },
+    sendResult: async () => {
+      resultAfterConfirm += 1;
+      return { stub: false, sent: true, id: "result-after-confirm" };
+    },
+  });
+  assertOk(afterLink.ok && afterLink.alreadySent === false && resultAfterConfirm === 1, "a confirmation-sent lead still sends the result mail");
+  assertOk([...confirmThenResult.leads.values()][0]?.mailStatus === "sent", "the result mail replaces the confirmation status");
 
   console.log("check-ampel: ok");
 } finally {
