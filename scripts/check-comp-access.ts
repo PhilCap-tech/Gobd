@@ -443,18 +443,19 @@ async function withLocalCheckoutStub<T>(fn: () => Promise<T>): Promise<T> {
     STRIPE_PRICE_SETUP_ID: process.env.STRIPE_PRICE_SETUP_ID,
     STRIPE_PRICE_MONTHLY_ID: process.env.STRIPE_PRICE_MONTHLY_ID,
   };
-  delete process.env.VERCEL;
-  delete process.env.VERCEL_ENV;
-  delete process.env.STRIPE_SECRET_KEY;
-  delete process.env.STRIPE_PRICE_SETUP_ID;
-  delete process.env.STRIPE_PRICE_MONTHLY_ID;
-  process.env.NODE_ENV = "test";
+  const env = process.env as Record<string, string | undefined>;
+  delete env.VERCEL;
+  delete env.VERCEL_ENV;
+  delete env.STRIPE_SECRET_KEY;
+  delete env.STRIPE_PRICE_SETUP_ID;
+  delete env.STRIPE_PRICE_MONTHLY_ID;
+  env.NODE_ENV = "test";
   try {
     return await fn();
   } finally {
     const restore = (name: string, value: string | undefined) => {
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
+      if (value === undefined) delete env[name];
+      else env[name] = value;
     };
     restore("NODE_ENV", saved.NODE_ENV);
     restore("VERCEL", saved.VERCEL);
