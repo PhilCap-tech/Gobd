@@ -405,23 +405,64 @@ async function checkCheckoutGuard() {
   ok(ordinary.status === 400, `a non-comp checkout POST still validates (got ${ordinary.status})`);
   ok(!ordinaryBody.url, "a non-comp checkout POST does not receive the comp questionnaire");
 
-  const paidFirm = await postCheckout(
-    new Request("http://localhost/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: OTHER,
-        company: "Zweite Firma GmbH",
-        entityId: "ent_paid_second",
-        entrepreneur: true,
-        acceptedDisclaimer: true,
+  const paidFirmBody = await withLocalCheckoutStub(async () => {
+    const paidFirm = await postCheckout(
+      new Request("http://localhost/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: OTHER,
+          company: "Zweite Firma GmbH",
+          entityId: "ent_paid_second",
+          entrepreneur: true,
+          acceptedDisclaimer: true,
+        }),
       }),
-    }),
+    );
+    const body = (await paidFirm.json()) as { url?: string; error?: string };
+    ok(paidFirm.status === 200, `a paid second firm still starts checkout (got ${paidFirm.status} ${body.error ?? ""})`);
+    return body;
+  });
+  ok(
+    Boolean(paidFirmBody.url?.includes("session_id=mock_")),
+    "a paid second firm still receives a checkout session",
   );
-  const paidFirmBody = (await paidFirm.json()) as { url?: string };
-  ok(paidFirm.status === 200, `a paid second firm still starts checkout (got ${paidFirm.status})`);
-  ok(Boolean(paidFirmBody.url?.includes("session_id=")), "a paid second firm still receives a checkout session");
-  ok(paidFirmBody.url !== compIntakePath("ent_paid_second"), "a paid second firm is not sent to the comp questionnaire");
+  ok(
+    paidFirmBody.url !== compIntakePath("ent_paid_second") && !paidFirmBody.url?.includes("modus=gesamt"),
+    "a paid second firm is not sent to the comp questionnaire",
+  );
+}
+
+/** Local stub only. Clears live Stripe keys so this check never calls Stripe. */
+async function withLocalCheckoutStub<T>(fn: () => Promise<T>): Promise<T> {
+  const saved = {
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL: process.env.VERCEL,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_PRICE_SETUP_ID: process.env.STRIPE_PRICE_SETUP_ID,
+    STRIPE_PRICE_MONTHLY_ID: process.env.STRIPE_PRICE_MONTHLY_ID,
+  };
+  delete process.env.VERCEL;
+  delete process.env.VERCEL_ENV;
+  delete process.env.STRIPE_SECRET_KEY;
+  delete process.env.STRIPE_PRICE_SETUP_ID;
+  delete process.env.STRIPE_PRICE_MONTHLY_ID;
+  process.env.NODE_ENV = "test";
+  try {
+    return await fn();
+  } finally {
+    const restore = (name: string, value: string | undefined) => {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    };
+    restore("NODE_ENV", saved.NODE_ENV);
+    restore("VERCEL", saved.VERCEL);
+    restore("VERCEL_ENV", saved.VERCEL_ENV);
+    restore("STRIPE_SECRET_KEY", saved.STRIPE_SECRET_KEY);
+    restore("STRIPE_PRICE_SETUP_ID", saved.STRIPE_PRICE_SETUP_ID);
+    restore("STRIPE_PRICE_MONTHLY_ID", saved.STRIPE_PRICE_MONTHLY_ID);
+  }
 }
 
 async function checkSubmit() {
