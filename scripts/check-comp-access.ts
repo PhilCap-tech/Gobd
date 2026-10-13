@@ -145,8 +145,13 @@ function postIntake(cookie: string, body: Record<string, unknown>) {
 }
 
 function checkAllowlist() {
-  ok(COMP_ACCESS_EMAILS.length === 1, "the allowlist is exactly one mailbox");
+  ok(COMP_ACCESS_EMAILS.length === 2, "the allowlist is the approved mailbox plus the smoke address");
   ok(COMP_ACCESS_EMAILS[0] === COMP, "the mailbox is winkler@winkler-segtrop.de");
+  ok(
+    COMP_ACCESS_EMAILS[1] === "gobd-test@mail.grokbot.com" &&
+      isCompAccessEmail("GOBD-TEST@mail.grokbot.com"),
+    "the temporary smoke address is entitled",
+  );
   ok(isCompAccessEmail(`  ${COMP.toUpperCase()}  `), "the match is case-insensitive and trimmed");
   ok(!isCompAccessEmail(OTHER), "a non-listed mailbox has no comp entitlement");
   ok(!isCompAccessEmail(""), "an empty address is not entitled");
