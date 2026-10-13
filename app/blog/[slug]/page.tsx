@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { BlogMarkdown } from "@/lib/blog-markdown";
@@ -44,6 +45,13 @@ export default async function BlogArticlePage({
 
   return (
     <>
+      <CrumbJsonLd
+        items={[
+          { name: "Startseite", path: "/" },
+          { name: "Blog", path: "/blog" },
+          { name: post.h1, path: `/blog/${post.slug}` },
+        ]}
+      />
       <SiteHeader backHref="/blog" backLabel="← Zum Blog" />
       <main className="wrap page blog">
         <p className="kicker">Blog</p>

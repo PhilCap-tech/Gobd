@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { planDelivery } from "@/lib/delivery";
@@ -70,6 +71,12 @@ function HeroProofButtons() {
 export default function SteuerberaterPage() {
   return (
     <>
+      <CrumbJsonLd
+        items={[
+          { name: "Startseite", path: "/" },
+          { name: "Für Steuerberater", path: "/steuerberater" },
+        ]}
+      />
       <SiteHeader
         ctaHref="#anfrage"
         ctaLabel="Anfrage senden"

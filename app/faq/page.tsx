@@ -1,7 +1,8 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/json-ld";
 import { LegalPage } from "@/components/legal-page";
+import { faqEntries, readFaqMarkdown } from "@/lib/faq-entries";
+import { faqPageJsonLd } from "@/lib/jsonld";
 import { LegalMarkdown } from "@/lib/legal-markdown";
 import { canonicalUrl } from "@/lib/seo";
 
@@ -12,15 +13,14 @@ export const metadata: Metadata = {
   alternates: { canonical: canonicalUrl("/faq") },
 };
 
-async function faqMarkdown() {
-  return readFile(path.join(process.cwd(), "content", "faq.md"), "utf8");
-}
-
-export default async function FaqPage() {
-  const source = await faqMarkdown();
+export default function FaqPage() {
+  const source = readFaqMarkdown();
   return (
-    <LegalPage title="FAQ">
-      <LegalMarkdown source={source} />
-    </LegalPage>
+    <>
+      <JsonLd data={faqPageJsonLd(faqEntries(source))} />
+      <LegalPage title="FAQ" crumbPath="/faq">
+        <LegalMarkdown source={source} />
+      </LegalPage>
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { MusterUpsell } from "@/components/muster-upsell";
@@ -74,6 +75,13 @@ const facts: Array<[string, string]> = [
 export default function PartnerMusterPage() {
   return (
     <>
+      <CrumbJsonLd
+        items={[
+          { name: "Startseite", path: "/" },
+          { name: "Für Steuerberater", path: "/steuerberater" },
+          { name: "Musterergebnis", path: PARTNER_MUSTER_PATH },
+        ]}
+      />
       <SiteHeader backHref="/steuerberater" backLabel="Für Steuerberater" />
       <main className="wrap partner-copy">
         <section className="hero">

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function CookiesPage() {
   return (
-    <LegalPage title={legalTitle(cookiesMarkdown) || "Cookies"}>
+    <LegalPage title={legalTitle(cookiesMarkdown) || "Cookies"} crumbPath="/cookies">
       <LegalMarkdown source={cookiesMarkdown} />
     </LegalPage>
   );

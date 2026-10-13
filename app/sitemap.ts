@@ -26,5 +26,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const moduleFragebogen: MetadataRoute.Sitemap = MODULE.map((modul) => ({
     url: canonicalUrl(modulMusterFragebogenPath(modul.id)),
   }));
-  return [...staticPages, ...gesamt, ...moduleFragebogen, ...blogPosts];
+  const llmsTxt: MetadataRoute.Sitemap = [{ url: canonicalUrl("/llms.txt") }];
+  return [...staticPages, ...llmsTxt, ...gesamt, ...moduleFragebogen, ...blogPosts];
 }

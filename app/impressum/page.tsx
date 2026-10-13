@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function ImpressumPage() {
   return (
-    <LegalPage title={legalTitle(impressumMarkdown) || "Impressum"}>
+    <LegalPage title={legalTitle(impressumMarkdown) || "Impressum"} crumbPath="/impressum">
       <LegalMarkdown source={impressumMarkdown} />
     </LegalPage>
   );

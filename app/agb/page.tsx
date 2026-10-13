@@ -16,6 +16,7 @@ export default function AgbPage() {
       title={
         legalTitle(agbMarkdown) || "Allgemeine Geschäftsbedingungen"
       }
+      crumbPath="/agb"
     >
       <LegalMarkdown source={agbMarkdown} />
     </LegalPage>

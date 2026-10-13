@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/json-ld";
 import { ModuleTeile } from "@/components/module-teile";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -34,6 +35,7 @@ import {
   TODAY_EUR,
   TODAY_GROSS_LABEL,
 } from "@/lib/pricing";
+import { productOfferJsonLd } from "@/lib/jsonld";
 import { canonicalUrl } from "@/lib/seo";
 import {
   PARTNER_DEMO_PATH,
@@ -109,6 +111,7 @@ export default function HomePage() {
 
   return (
     <>
+      <JsonLd data={productOfferJsonLd()} />
       <SiteHeader
         ctaHref="/checkout"
         ctaLabel={CTA_CREATE}

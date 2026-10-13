@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { ConsentBanner } from "@/components/consent-banner";
+import { JsonLd } from "@/components/json-ld";
 import { MarketingPixel } from "@/components/marketing-pixel";
+import { organizationJsonLd } from "@/lib/jsonld";
 import { SITE_ORIGIN } from "@/lib/seo";
 import "./globals.css";
 
@@ -28,6 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="de" className={inter.variable}>
       <body>
+        <JsonLd data={organizationJsonLd()} />
         {children}
         <ConsentBanner />
         <Suspense fallback={null}>
