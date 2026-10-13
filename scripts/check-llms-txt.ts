@@ -5,6 +5,7 @@
  *   npx tsx scripts/check-llms-txt.ts
  */
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import robots from "../app/robots";
@@ -42,6 +43,7 @@ const routeSource = readFileSync(routePath, "utf8");
 ok(routeSource.includes("buildLlmsTxt"), "route serves buildLlmsTxt");
 ok(routeSource.includes("text/plain"), "route content type is text/plain");
 
+const origin = CANONICAL_PRODUCTION_APP_URL;
 const text = buildLlmsTxt();
 ok(text.startsWith("# GoBD-Verfahrensdokumentation"), "llms.txt has a title");
 ok(text.includes("keine Steuerberatung"), "llms.txt contains keine Steuerberatung");
@@ -56,6 +58,12 @@ ok(
   "llms.txt contains start net and gross price",
 );
 ok(text.includes("Fragebogen mit 24 Modulen"), "llms.txt describes the intake");
+ok(
+  text.includes(
+    `Über POST ${origin}/api/checkout starten Sie den Stripe-Checkout über den Ablauf der Website, und die Zahlung schließen Sie bei Stripe ab.`,
+  ),
+  "llms.txt names POST /api/checkout in one Sie sentence",
+);
 ok(text.includes("Nur für Unternehmen"), "llms.txt is B2B only");
 const checkoutForm = readFileSync(
   path.join(process.cwd(), "app/checkout/checkout-form.tsx"),
@@ -68,7 +76,6 @@ ok(
 );
 ok(text.includes("Reverse Charge"), "llms.txt keeps the checkout tax sentence");
 
-const origin = CANONICAL_PRODUCTION_APP_URL;
 for (const page of [
   "/faq",
   "/agb",
@@ -113,12 +120,73 @@ ok(allowList.includes("/llms.txt"), "robots allows /llms.txt");
 ok(allowList.includes("/sitemap.xml"), "robots allows the sitemap");
 ok(allowList.includes("/faq"), "robots allows a public page");
 ok(allowList.includes("/"), "robots keeps the public site allowed");
+ok(allowList[0] === "/api/checkout", "Allow /api/checkout is the first allow");
+ok(allowList.includes("/api/checkout"), "robots allows /api/checkout");
+ok(
+  allowList.filter((entry) => entry === "/api/checkout").length === 1,
+  "robots allows /api/checkout once",
+);
+ok(
+  !allowList.some((entry) => entry.startsWith("/api") && entry !== "/api/checkout"),
+  "robots allows no other /api path",
+);
+ok(allowList.every((entry) => entry !== "/api/checkout/"), "checkout allow has no trailing slash");
 ok(disallowList.includes("/api/"), "robots disallows /api/");
-ok(!allowList.some((entry) => entry.startsWith("/api")), "robots does not allow /api");
+ok(
+  disallowList.every((entry) => entry !== "/api/checkout"),
+  "robots does not disallow /api/checkout itself",
+);
+ok(
+  "/api/checkout".length > "/api/".length && "/api/checkout".startsWith("/api/"),
+  "Allow /api/checkout is a longer path than Disallow /api/",
+);
+
+/** RFC 9309: longest matching path wins; an equal-length allow beats a disallow. */
+function robotsDecision(path: string): "allow" | "disallow" {
+  let best = -1;
+  let decision: "allow" | "disallow" = "allow";
+  const visit = (entries: string[], kind: "allow" | "disallow") => {
+    for (const rule of entries) {
+      if (!path.startsWith(rule)) continue;
+      if (rule.length > best || (rule.length === best && kind === "allow")) {
+        best = rule.length;
+        decision = kind;
+      }
+    }
+  };
+  visit(allowList, "allow");
+  visit(disallowList, "disallow");
+  return decision;
+}
+ok(robotsDecision("/api/checkout") === "allow", "/api/checkout allow takes precedence");
+ok(robotsDecision("/api/other") === "disallow", "another /api/ path stays disallowed");
+ok(robotsDecision("/api/") === "disallow", "/api/ itself stays disallowed");
+ok(robotsDecision("/faq") === "allow", "a public page stays allowed");
 ok(
   robots().sitemap === `${origin}/sitemap.xml`,
   "robots references the sitemap",
 );
+
+const { resolveRobots } = createRequire(import.meta.url)(
+  "next/dist/build/webpack/loaders/metadata/resolve-route-data.js",
+) as {
+  resolveRobots: (data: ReturnType<typeof robots>) => string;
+};
+const robotsTxt = resolveRobots(robots());
+const checkoutAllowAt = robotsTxt.indexOf("Allow: /api/checkout\n");
+const apiDisallowAt = robotsTxt.indexOf("Disallow: /api/\n");
+ok(robotsTxt.startsWith("User-Agent: *\n"), "robots.txt is for every user agent");
+ok(
+  (robotsTxt.match(/^User-Agent:/gm) ?? []).length === 1,
+  "allow and disallow share one user-agent group",
+);
+ok(checkoutAllowAt === robotsTxt.indexOf("Allow:"), "Allow /api/checkout is the first Allow line");
+ok(
+  checkoutAllowAt !== -1 && apiDisallowAt > checkoutAllowAt,
+  "Disallow /api/ is ordered after Allow /api/checkout",
+);
+ok(!robotsTxt.includes("Allow: /api/\n"), "robots.txt does not allow every /api/ path");
+ok(!robotsTxt.includes("Allow: /api/checkout/\n"), "robots.txt checkout allow has no trailing slash");
 
 const impressum = readFileSync(
   path.join(process.cwd(), "content/legal/impressum.md"),

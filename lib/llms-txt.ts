@@ -66,6 +66,8 @@ export function buildLlmsTxt(): string {
     "2. Fragebogen mit 24 Modulen (Online-Intake zu Abläufen, Software, IT und Verantwortlichen).",
     "3. PDF der Verfahrensdokumentation, dazu eine Liste offener Punkte.",
     "",
+    `Über POST ${canonicalUrl("/api/checkout")} starten Sie den Stripe-Checkout über den Ablauf der Website, und die Zahlung schließen Sie bei Stripe ab.`,
+    "",
     delivery,
     "",
     "## Für wen",
