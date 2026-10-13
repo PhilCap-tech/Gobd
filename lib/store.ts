@@ -1230,6 +1230,11 @@ async function ensureEntitiesSheetHeader(): Promise<string[]> {
   return next;
 }
 
+function clearEntityReadCache(): void {
+  entityHeaderCache.clear();
+  entityValuesCache.clear();
+}
+
 async function appendEntitySheetRow(entity: Entity): Promise<void> {
   const header = await ensureEntitiesSheetHeader();
   const sheets = createSheetsClient();
@@ -1239,11 +1244,13 @@ async function appendEntitySheetRow(entity: Entity): Promise<void> {
     valueInputOption: "RAW",
     requestBody: { values: [entitySheetValues(entity, header)] },
   });
-  entityValuesCache.clear();
+  clearEntityReadCache();
 }
 
 async function readEntitySheetRows(): Promise<Entity[]> {
   const tab = getEntitiesSheetsTab();
+  // Value snapshots are per instance and outlive the redirect to /account.
+  // Reusing one hides a company that was just appended on another instance.
   const grid = await readCachedGrid({
     tab,
     op: "entities",
@@ -1252,10 +1259,17 @@ async function readEntitySheetRows(): Promise<Entity[]> {
     headerCache: entityHeaderCache,
     valuesCache: entityValuesCache,
     materializeHeader: async (header) => header,
+    reuseValues: false,
   });
   return grid.values
     .filter((row) => row.some((cell) => cell.trim()))
     .map((row) => parseEntity(grid.header, row));
+}
+
+async function requireStoredEntity(email: string, entityId: string): Promise<void> {
+  const stored = await listEntitiesByEmail(email);
+  if (stored.some((row) => row.entityId === entityId)) return;
+  throw new Error("Die Firma konnte nicht angelegt werden. Bitte versuchen Sie es erneut.");
 }
 
 async function readEntityFileRows(file: string): Promise<Entity[]> {
@@ -1370,7 +1384,7 @@ async function updateEntitySheetRow(entity: Entity): Promise<boolean> {
     spreadsheetId: id,
     requestBody: { valueInputOption: "RAW", data: updates },
   });
-  entityValuesCache.clear();
+  clearEntityReadCache();
   return true;
 }
 
@@ -1437,14 +1451,18 @@ export async function createEntity(
   if (isSheetsConfigured()) {
     try {
       await appendEntitySheetRow(entity);
-      return { backend: "sheets", entity };
     } catch (error) {
       rethrowSheetsOnVercel(error, "entities.append");
       console.error(
         "[store] Entities Google Sheets append fehlgeschlagen — falle auf Datei zurück",
         error,
       );
+      const filePath = await appendEntityFileRow(entity);
+      await requireStoredEntity(email, entity.entityId);
+      return { backend: "file", entity, filePath };
     }
+    await requireStoredEntity(email, entity.entityId);
+    return { backend: "sheets", entity };
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
   } else {
@@ -1455,6 +1473,7 @@ export async function createEntity(
   }
 
   const filePath = await appendEntityFileRow(entity);
+  await requireStoredEntity(email, entity.entityId);
   return { backend: "file", entity, filePath };
 }
 

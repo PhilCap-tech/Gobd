@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CHECKOUT_PREFILL_NOTE } from "@/lib/account-labels";
-import { MAX_ENTITIES_PER_ACCOUNT, type EntityInput } from "@/lib/entities";
+import {
+  MAX_ENTITIES_PER_ACCOUNT,
+  firmaSaveError,
+  type EntityInput,
+} from "@/lib/entities";
 
 type FirmaFormProps = {
   mode?: "create" | "edit";
@@ -51,20 +55,22 @@ export function FirmaForm({
         error?: string;
         code?: string;
         ok?: boolean;
+        entity?: { entityId?: string };
       };
-      if (!response.ok || !data.ok) {
-        setError(
-          data.error ||
-            (isEdit
-              ? "Firma konnte nicht gespeichert werden."
-              : "Firma konnte nicht angelegt werden."),
-        );
+      const failure = firmaSaveError(
+        response.ok ? data : { ...data, ok: false },
+        isEdit
+          ? "Die Firma konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
+          : "Die Firma konnte nicht angelegt werden. Bitte versuchen Sie es erneut.",
+      );
+      if (failure) {
+        setError(failure);
         return;
       }
       router.push("/account");
       router.refresh();
     } catch {
-      setError("Netzwerkfehler. Bitte erneut versuchen.");
+      setError("Die Verbindung ist abgebrochen. Bitte versuchen Sie es erneut.");
     } finally {
       setPending(false);
     }

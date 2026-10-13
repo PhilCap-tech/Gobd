@@ -29,7 +29,20 @@ import {
   isCompAccessEmail,
 } from "../lib/comp-access";
 import { canAccessDocument } from "../lib/documents";
-import { emptyEntity } from "../lib/entities";
+import {
+  ENTITY_SHEET_COLUMNS,
+  EntityLimitError,
+  customerFacingSaveError,
+  emptyEntity,
+  entitySheetValues,
+  firmaSaveError,
+  toEntity,
+} from "../lib/entities";
+import { installSheetsHandler } from "../lib/sheets-client";
+import { readCachedGrid } from "../lib/sheets-grid";
+import { createTtlSingleflight } from "../lib/sheets-outage";
+import { SheetsUnavailableError } from "../lib/sheets-unavailable";
+import { clearAllSheetReadCaches, createEntity, listEntitiesByEmail } from "../lib/store";
 import { handleFailedPayment, sendDeliveryMail, triggerOnboardingMail } from "../lib/ops";
 import { isPilotPaymentFailedExempt } from "../lib/pilot-exemptions";
 import { emptyAnswers, emptySheetRow, type IntakeAnswers, type SheetRow } from "../lib/types";
@@ -40,6 +53,7 @@ function ok(cond: unknown, msg: string) {
 }
 
 const COMP = "winkler@winkler-segtrop.de";
+const SMOKE = "gobd-test@mail.grokbot.com";
 const OTHER = "other-buyer@example.com";
 const ENTITY = "ent_comp_winkler";
 const COMPANY = "Winkler Segtrop GmbH";
@@ -490,11 +504,242 @@ async function checkDeliveryPlan() {
   ok(calls.n === 1, "the test-mode id is still resolved, not treated as payment");
 }
 
+function colIndex(letters: string): number {
+  let n = 0;
+  for (const ch of letters.toUpperCase()) {
+    if (ch < "A" || ch > "Z") break;
+    n = n * 26 + (ch.charCodeAt(0) - 64);
+  }
+  return n - 1;
+}
+
+function sliceGrid(grid: string[][], range: string): string[][] {
+  const bang = range.indexOf("!");
+  const spec = bang >= 0 ? range.slice(bang + 1) : range;
+  const [start, end] = spec.split(":");
+  const startMatch = /^([A-Z]+)(\d+)$/.exec(start ?? "");
+  if (!startMatch) return [];
+  const startCol = colIndex(startMatch[1] ?? "A");
+  const startRow = Number(startMatch[2]);
+  let endCol = startCol;
+  let endRow = grid.length;
+  if (end) {
+    const endMatch = /^([A-Z]+)(\d+)?$/.exec(end);
+    if (endMatch) {
+      endCol = colIndex(endMatch[1] ?? "A");
+      if (endMatch[2]) endRow = Number(endMatch[2]);
+    }
+  }
+  const rows: string[][] = [];
+  for (let row = startRow - 1; row < endRow && row < grid.length; row += 1) {
+    const line = grid[row] ?? [];
+    const cells: string[] = [];
+    for (let col = startCol; col <= endCol; col += 1) cells.push(line[col] ?? "");
+    rows.push(cells);
+  }
+  return rows;
+}
+
+/**
+ * The account hub keeps an entity snapshot for 45s on each instance.
+ * „Firma anlegen“ appends on whichever instance handles the POST, then
+ * /account often renders somewhere else. A warm snapshot must not hide the row.
+ */
+async function checkFirmaCreate() {
+  const fallback = "Die Firma konnte nicht angelegt werden. Bitte versuchen Sie es erneut.";
+  ok(firmaSaveError({ ok: true }, fallback) === fallback, "ok without a company id is not a success");
+  ok(
+    firmaSaveError({ ok: true, entity: { entityId: "ent-saved" } }, fallback) === null,
+    "a stored company id may leave the form",
+  );
+  ok(
+    firmaSaveError({ ok: false, error: "Bitte anmelden." }, fallback) === "Bitte anmelden.",
+    "a rejected save keeps the server message",
+  );
+  ok(
+    customerFacingSaveError(new Error("Request failed with status code 403"), fallback) === fallback,
+    "a Sheets client error is replaced by the Sie-Form sentence",
+  );
+  ok(
+    customerFacingSaveError(new EntityLimitError(5), fallback).startsWith("Maximal "),
+    "the company limit stays the existing sentence",
+  );
+  const form = readFileSync("app/account/firma/firma-form.tsx", "utf8");
+  ok(form.includes("firmaSaveError"), "the form stays on the page unless the company was stored");
+  ok(
+    form.includes(fallback),
+    "a failed create shows the Sie-Form error",
+  );
+  ok(
+    form.indexOf("firmaSaveError") < form.indexOf('router.push("/account")'),
+    "the redirect is not reached when the save failed",
+  );
+
+  const saved = {
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+    sheet: process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
+    vercel: process.env.VERCEL,
+    smoke: process.env.GOBD_BLOB_SMOKE,
+  };
+  const header = [...ENTITY_SHEET_COLUMNS];
+  const existing = toEntity(OTHER, { name: "Bestehende GmbH" }, "ent-paid", "2026-10-01T00:00:00.000Z");
+  const grid: string[][] = [header, entitySheetValues(existing, header)];
+  let failAppend = false;
+  const ops: string[] = [];
+  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = "sheets@example.com";
+  process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "test-key";
+  process.env.GOOGLE_SHEETS_SPREADSHEET_ID = "sheet-test";
+  process.env.VERCEL = "1";
+  delete process.env.GOBD_BLOB_SMOKE;
+  clearAllSheetReadCaches();
+  installSheetsHandler(async ({ op, args }) => {
+    ops.push(op);
+    const range = typeof args.range === "string" ? args.range : "";
+    const ranges = Array.isArray(args.ranges) ? (args.ranges as string[]) : [];
+    if (op === "spreadsheets.get") {
+      return { data: { sheets: [{ properties: { title: "entities" } }] } };
+    }
+    if (op === "values.batchGet") {
+      return { data: { valueRanges: ranges.map((item) => ({ values: sliceGrid(grid, item) })) } };
+    }
+    if (op === "values.get") return { data: { values: sliceGrid(grid, range) } };
+    if (op === "values.append") {
+      if (failAppend) {
+        const error = new Error("quota") as Error & { response?: { status: number } };
+        error.response = { status: 503 };
+        throw error;
+      }
+      const body = args.requestBody as { values?: string[][] } | undefined;
+      for (const row of body?.values ?? []) grid.push(row);
+      return { data: { updates: { updatedRows: body?.values?.length ?? 0 } } };
+    }
+    if (op === "values.update" || op === "values.batchUpdate" || op === "spreadsheets.batchUpdate") {
+      return { data: {} };
+    }
+    throw new Error(`unexpected sheets op ${op}`);
+  });
+  try {
+    const headerCache = createTtlSingleflight<string[]>(Number.POSITIVE_INFINITY);
+    const valuesCache = createTtlSingleflight<string[][]>(45_000);
+    headerCache.remember(header);
+    valuesCache.remember([["stale-id", "stale@example.com", "Stale GmbH"]]);
+    const fresh = await readCachedGrid({
+      tab: "entities",
+      op: "entities",
+      headerRange: "A1:AZ1",
+      valuesRange: "A2:AZ",
+      headerCache,
+      valuesCache,
+      reuseValues: false,
+    });
+    ok(
+      fresh.values.every((row) => row[0] !== "stale-id"),
+      "a company read does not reuse the previous instance snapshot",
+    );
+    const blankHeader = createTtlSingleflight<string[]>(Number.POSITIVE_INFINITY);
+    blankHeader.remember([]);
+    const blankValues = createTtlSingleflight<string[][]>(45_000);
+    blankValues.remember([["ent-hidden", SMOKE, "Versteckt GmbH"]]);
+    const reread = await readCachedGrid({
+      tab: "entities",
+      op: "entities",
+      headerRange: "A1:AZ1",
+      valuesRange: "A2:AZ",
+      headerCache: blankHeader,
+      valuesCache: blankValues,
+      reuseValues: false,
+    });
+    ok(reread.header[0] === "entity_id", "a blank cached header is not reused");
+
+    ok((await listEntitiesByEmail(SMOKE)).length === 0, "the smoke mailbox starts without a company");
+    const sneaked = toEntity(
+      SMOKE,
+      { name: "Comp Smoke Test GmbH", street: "Teststraße 1", zip: "10115", city: "Berlin" },
+      "ent-sneak",
+      "2026-10-13T08:00:00.000Z",
+    );
+    grid.push(entitySheetValues(sneaked, header));
+    const afterOtherInstance = await listEntitiesByEmail(SMOKE);
+    ok(
+      afterOtherInstance.some((row) => row.entityId === "ent-sneak" && row.city === "Berlin"),
+      "a company appended on another instance is visible on the next account read",
+    );
+    ok(
+      (await listEntitiesByEmail(OTHER)).some((row) => row.entityId === "ent-paid") &&
+        (await listEntitiesByEmail(OTHER)).every((row) => row.userEmail === OTHER),
+      "another mailbox still sees only its own company",
+    );
+
+    const created = await createEntity(
+      SMOKE,
+      { name: "Comp Smoke Test GmbH", street: "Teststraße 1", zip: "10115", city: "Berlin", stnr: "", ustId: "" },
+      { checkoutPrefill: "done" },
+    );
+    ok(created.backend === "sheets", "a comp mailbox writes the company sheet, not a file");
+    ok(created.entity.userEmail === SMOKE, "the stored company belongs to the comp login");
+    ok(created.entity.checkoutPrefill === "done", "saving the form settles checkout prefill");
+    ok(!ops.some((op) => op.toLowerCase().includes("stripe")), "creating a company does not call Stripe");
+    const listed = await listEntitiesByEmail(SMOKE);
+    ok(
+      listed.some(
+        (row) =>
+          row.entityId === created.entity.entityId &&
+          row.name === "Comp Smoke Test GmbH" &&
+          row.street === "Teststraße 1" &&
+          row.zip === "10115" &&
+          row.city === "Berlin" &&
+          row.stnr === "" &&
+          row.ustId === "",
+      ),
+      "the account list returns the company the form just saved",
+    );
+    ok(listed.every((row) => row.userEmail === SMOKE), "the comp list does not include the other mailbox");
+
+    const paid = await createEntity(OTHER, {
+      name: "Weitere GmbH",
+      street: "Hafenweg 2",
+      zip: "20095",
+      city: "Hamburg",
+    });
+    ok(paid.entity.userEmail === OTHER, "a non-comp mailbox still creates a company");
+    ok(
+      (await listEntitiesByEmail(OTHER)).some((row) => row.entityId === paid.entity.entityId) &&
+        (await listEntitiesByEmail(SMOKE)).every((row) => row.entityId !== paid.entity.entityId),
+      "the new company stays on the mailbox that created it",
+    );
+
+    failAppend = true;
+    await assert.rejects(
+      () => createEntity(SMOKE, { name: "Unsichtbar GmbH" }),
+      (error: unknown) => error instanceof SheetsUnavailableError,
+      "a Sheets failure is not stored as a successful company",
+    );
+    ok(
+      (await listEntitiesByEmail(SMOKE)).every((row) => row.name !== "Unsichtbar GmbH"),
+      "the failed save does not show up as a company",
+    );
+  } finally {
+    installSheetsHandler(null);
+    clearAllSheetReadCaches();
+    const restore = (name: string, value: string | undefined) => {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    };
+    restore("GOOGLE_SERVICE_ACCOUNT_EMAIL", saved.email);
+    restore("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", saved.key);
+    restore("GOOGLE_SHEETS_SPREADSHEET_ID", saved.sheet);
+    restore("VERCEL", saved.vercel);
+    restore("GOBD_BLOB_SMOKE", saved.smoke);
+  }
+}
+
 checkAllowlist();
 checkAccountUi();
 checkSubmit()
   .then(() => checkMailsStaySilent())
   .then(() => checkDeliveryPlan())
+  .then(() => checkFirmaCreate())
   .then(() => {
     console.log("check-comp-access: green");
   })
