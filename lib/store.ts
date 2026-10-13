@@ -1242,6 +1242,22 @@ export async function findReadinessLeadById(
   return matches.at(-1) ?? null;
 }
 
+/** Latest Ampel row for this address and answer code. Pass `fresh` to skip the sheet cache. */
+export async function findLatestAmpelReadinessLead(
+  email: string,
+  answers: string,
+  options?: { fresh?: boolean },
+): Promise<ReadinessLead | null> {
+  const normalized = email.trim().toLowerCase();
+  const code = answers.trim();
+  if (!normalized || !code) return null;
+  const { rows } = await loadReadinessLeads(options?.fresh === true);
+  const matches = rows.filter(
+    (row) => row.email.trim().toLowerCase() === normalized && row.ampelAnswers.trim() === code,
+  );
+  return matches.at(-1) ?? null;
+}
+
 export type EntityStoreResult = {
   backend: "sheets" | "file";
   entity: Entity;
