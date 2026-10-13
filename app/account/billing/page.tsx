@@ -7,6 +7,7 @@ import {
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
+import { isCompAccessEmail } from "@/lib/comp-access";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { lifecycleNotice } from "@/lib/kuendigung";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
@@ -37,6 +38,7 @@ export default async function AccountBillingPage({
   if (!email) {
     redirect(loginPath("/account/billing"));
   }
+  const compAccess = isCompAccessEmail(email);
 
   const params = await searchParams;
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
@@ -55,7 +57,9 @@ export default async function AccountBillingPage({
     resolvedCustomerId: "",
   };
   try {
-    resolved = await resolveStripeCustomerForEmail(email);
+    resolved = compAccess
+      ? { customerId: null, lookupFailed: false }
+      : await resolveStripeCustomerForEmail(email);
     billing =
       stripeReady && resolved.customerId
         ? await loadCustomerBilling(resolved.customerId, { email })
@@ -109,12 +113,14 @@ export default async function AccountBillingPage({
             hasCustomer={hasCustomer}
             lookupFailed={lookupFailed}
             notice={notice}
+            compAccess={compAccess}
           />
           <AccountInvoiceList
             invoices={billing.invoices}
             stripeReady={stripeReady}
             hasCustomer={hasCustomer}
             lookupFailed={lookupFailed}
+            compAccess={compAccess}
           />
         </div>
       </main>

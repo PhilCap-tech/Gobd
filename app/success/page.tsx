@@ -137,12 +137,16 @@ export default async function SuccessPage({
                 bestätigen ist. Eine Abstimmung mit dem Steuerberater ist
                 optional und nur im Rahmen eines gesonderten Auftrags.
               </p>
-              {anmeldung === "fehler" ? (
+              {anmeldung === "keine" ? (
+                <p className="hint">
+                  Der Download bleibt in Ihrem Konto. Es geht keine weitere E-Mail hinaus.
+                </p>
+              ) : anmeldung === "fehler" ? (
                 <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p>
               ) : anmeldung === "gesendet" || (mailReady && anmeldung !== "stub") ? (
                 <p className="banner">{loginLinkSentNotice(visibleEmail)}</p>
               ) : null}
-              {mailReady ? (
+              {anmeldung === "keine" ? null : mailReady ? (
                 <p className="hint">
                   Wir haben den Download-Link{visibleEmail ? ` an ${visibleEmail}` : ""}{" "}
                   geschickt. Später geht’s über Magic Link ins Konto.

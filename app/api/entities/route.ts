@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
+import { firmaAnlegenAllowed } from "@/lib/comp-access";
 import {
   EntityLimitError,
   MAX_ENTITIES_PER_ACCOUNT,
@@ -34,7 +35,7 @@ function parseEntityBody(body: {
 
 export async function POST(request: Request) {
   const email = await getSessionEmail();
-  if (!email) {
+  if (!firmaAnlegenAllowed(email)) {
     return jsonError("Bitte anmelden.", 401);
   }
 

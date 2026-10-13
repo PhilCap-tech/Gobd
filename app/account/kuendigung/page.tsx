@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
+import { isCompAccessEmail } from "@/lib/comp-access";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { formatBerlinDate, lifecycleNotice } from "@/lib/kuendigung";
 import { loadCancellationPreview } from "@/lib/kuendigung-stripe";
@@ -53,12 +54,14 @@ export default async function KuendigungPage({
 }) {
   const email = await getSessionEmail();
   if (!email) redirect(loginPath("/account/kuendigung"));
+  const compAccess = isCompAccessEmail(email);
 
   const params = await searchParams;
   const status = firstQueryValue(params.status);
   const banner = status ? STATUS_COPY[status] : undefined;
   const stripeReady = isStripeSecretConfigured();
-  const resolved = stripeReady ? await resolveStripeCustomerForEmail(email) : null;
+  const resolved =
+    stripeReady && !compAccess ? await resolveStripeCustomerForEmail(email) : null;
   const preview =
     resolved?.customerId && !resolved.lookupFailed
       ? await loadCancellationPreview(resolved.customerId)
@@ -73,6 +76,31 @@ export default async function KuendigungPage({
   const periodLabel = formatBerlinDate(periodEnd);
   const scheduled = Boolean(preview?.alreadyScheduled || notice.phase === "cancel_scheduled");
   const canConfirm = Boolean(stripeReady && preview?.subscriptionId && !scheduled && !preview.lookupFailed);
+
+  if (compAccess && !preview?.subscriptionId) {
+    return (
+      <>
+        <SiteHeader backHref="/account" backLabel="← Zum Konto" />
+        <main className="wrap page">
+          <p className="kicker">Konto</p>
+          <h1>Zugang</h1>
+          <p className="lead">{email}</p>
+          <section className="card">
+            <p className="prose">
+              <strong>Kostenfreier Zugang.</strong> Sie nutzen die Verfahrensdokumentation
+              ohne Zahlung. Eine Kündigung ist nicht erforderlich.
+            </p>
+            <div className="actions" style={{ marginTop: 16 }}>
+              <Link className="btn" href="/account">
+                Zurück zum Konto
+              </Link>
+            </div>
+          </section>
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
 
   return (
     <>

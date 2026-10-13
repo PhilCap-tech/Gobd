@@ -94,11 +94,33 @@ export function AccountUpgradeCard({
 export function AccountAboCard({
   stripeBound,
   notice = null,
+  compAccess = false,
 }: {
   stripeBound: boolean;
   notice?: LifecycleNotice | null;
+  /** Allowlist mailbox: full product, no Stripe customer. */
+  compAccess?: boolean;
 }) {
   const ended = notice?.phase === "restore" || notice?.phase === "purged";
+  if (compAccess && !stripeBound && !ended) {
+    return (
+      <section className="card account-panel" aria-labelledby="abo-heading">
+        <h2 id="abo-heading">Zugang</h2>
+        <p className="prose">
+          <strong>Kostenfreier Zugang.</strong> Sie können die Verfahrensdokumentation
+          ausfüllen, als PDF erzeugen und herunterladen. Eine Zahlung ist dafür nicht
+          erforderlich.
+        </p>
+        {notice?.downloadsOpen ? (
+          <div className="actions">
+            <a className="btn ghost" href="/api/account/export">
+              Alle Dokumente als ZIP
+            </a>
+          </div>
+        ) : null}
+      </section>
+    );
+  }
   if (!stripeBound && !ended) {
     return (
       <section className="card account-panel" aria-labelledby="abo-heading">

@@ -14,6 +14,7 @@ import { PAID_INTAKE_LABEL, paidIntakePathForOwner } from "@/lib/account-paid-in
 import { accountCompanyCards, draftsNotOnCompanyCard } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
+import { isCompAccessEmail } from "@/lib/comp-access";
 import { runWithSheetsMeasure } from "@/lib/sheets-meter";
 import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { firmaEditPath } from "@/lib/documents";
@@ -45,6 +46,7 @@ export default async function AccountPage({
   if (!email) {
     redirect("/login");
   }
+  const compAccess = isCompAccessEmail(email);
 
   const params = await searchParams;
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
@@ -71,7 +73,9 @@ export default async function AccountPage({
       groups = hub.groups;
       openDrafts = hub.openDrafts;
       looseDrafts = draftsNotOnCompanyCard(hub);
-      customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
+      customerId = compAccess
+        ? ""
+        : ((await findLatestStripeCustomerIdByEmail(email)) ?? "");
     } catch (error) {
       loadFailed = true;
       console.error(
@@ -214,7 +218,9 @@ export default async function AccountPage({
                     </Link>
                   ) : null}
                   <Link
-                    className={paidIntakeHref || !stripeBound ? "btn ghost" : "btn"}
+                    className={
+                      paidIntakeHref || (!stripeBound && !compAccess) ? "btn ghost" : "btn"
+                    }
                     href="/account/firma/neu"
                   >
                     Firma anlegen
@@ -239,6 +245,7 @@ export default async function AccountPage({
                       writesOpen={writesOpen}
                       downloadsOpen={downloadsOpen}
                       paidIntakeHref={offerPaidIntake ? paidIntakeHref : ""}
+                      compAccess={compAccess}
                     />
                   );
                 })}
@@ -267,14 +274,14 @@ export default async function AccountPage({
         </div>
 
         <div className="account-tiles">
-          <AccountAboCard stripeBound={stripeBound} notice={notice} />
+          <AccountAboCard stripeBound={stripeBound} notice={notice} compAccess={compAccess} />
           <AccountProfileForm
             email={email}
             initialName={profile?.name ?? ""}
             atCap={atCap}
             firmHref={entities[0] ? firmaEditPath(entities[0].entityId) : null}
           />
-          <AccountResourcesCard subscribed={stripeBound} />
+          <AccountResourcesCard subscribed={stripeBound || compAccess} />
         </div>
 
         <p className="hint account-note">

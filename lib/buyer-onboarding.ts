@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { del, get, put, type GetCommandOptions, type PutCommandOptions } from "@vercel/blob";
+import { isCompAccessEmail } from "@/lib/comp-access";
 import { isBlobConfigured, isProductionRuntime } from "@/lib/env";
 import { triggerOnboardingMail, type OnboardingAudience } from "@/lib/ops";
 import { findRowByStripeSessionId, getFileFallbackDir } from "@/lib/store";
@@ -189,6 +190,7 @@ export async function deliverBuyerOnboarding(
   const email = input.email.trim().toLowerCase();
   if (!sessionId) return "failed";
   if (!email || !email.includes("@")) return "skipped";
+  if (isCompAccessEmail(email)) return "skipped";
   if (input.enforceWindow && !buyerOnboardingStillDue(input.paidAt)) return "skipped";
   const claim = await claimOnboardingSend(sessionId, email);
   if (claim === "done") return "skipped";
