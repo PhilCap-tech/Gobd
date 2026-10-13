@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "npm run check:ads-consent && node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && node --disable-warning=ExperimentalWarning scripts/check-stripe-live-copy.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:session-privacy && npm run check:draft-return && npm run check:onboarding-mail && npm run check:account-tiles && npm run check:account-prefill && npm run check:account-render && npm run check:buyer-onboarding && npm run check:checkout-owner && npm run check:document-lookup && npm run check:kuendigung && npm run check:checkout-tax && npm run check:intake-submit && npm run check:comp-access && npm run check:subscription-coverage && npm run check:sheets-quota && npm run check:mail-dedupe && npm run check:llms",
+    "prebuild": "npm run check:ads-consent && node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && node --disable-warning=ExperimentalWarning scripts/check-stripe-live-copy.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:session-privacy && npm run check:draft-return && npm run check:onboarding-mail && npm run check:account-tiles && npm run check:account-prefill && npm run check:account-render && npm run check:buyer-onboarding && npm run check:checkout-owner && npm run check:document-lookup && npm run check:kuendigung && npm run check:checkout-tax && npm run check:intake-submit && npm run check:comp-access && npm run check:subscription-coverage && npm run check:sheets-quota && npm run check:mail-dedupe && npm run check:llms && npm run check:ampel",
     "check:sheets-quota": "tsx scripts/check-sheets-quota.ts",
     "check:ads-consent": "tsx scripts/check-ads-consent.ts",
     "check:checkout-tax": "tsx scripts/check-checkout-tax.ts",
@@ -14,6 +14,7 @@
     "check:document-lookup": "tsx scripts/check-document-lookup.ts",
     "check:mail-dedupe": "tsx scripts/check-mail-dedupe.ts",
     "check:llms": "tsx scripts/check-llms-txt.ts",
+    "check:ampel": "tsx scripts/check-ampel.ts",
     "check:kuendigung": "tsx scripts/check-kuendigung.ts",
     "check:checkout-session": "tsx scripts/check-checkout-session.ts",
     "check:session-privacy": "tsx scripts/check-session-privacy.ts",
