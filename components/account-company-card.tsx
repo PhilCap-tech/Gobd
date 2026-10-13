@@ -101,6 +101,8 @@ import {
  * Native `<a>`, not `next/link`: Link calls preventDefault and then
  * client-navigates. /intake often redirects that href to the grant route
  * handler, so the click never loads. Opening the href directly still works.
+ * „Neues Dokument“ uses the same anchor: its target is /intake for a comp
+ * mailbox and /checkout for everyone else.
  */
 export const ACCOUNT_CONTINUE_LABEL = "Weiter ausfüllen";
 
@@ -195,16 +197,16 @@ export function AccountCompanyCard({
             {FIRMA_EDIT_LABEL}
           </Link>
           {families.length === 0 && paidIntakeHref ? (
-            <Link className="btn" href={paidIntakeHref}>
+            <a className="btn" href={paidIntakeHref}>
               {PAID_INTAKE_LABEL}
-            </Link>
+            </a>
           ) : families.length === 0 ? (
-            <Link
+            <a
               className="btn"
               href={compAccess ? compIntakePath(entity.entityId) : newDocumentPath(entity.entityId)}
             >
               Neues Dokument
-            </Link>
+            </a>
           ) : null}
         </div>
       )}

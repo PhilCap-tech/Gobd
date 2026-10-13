@@ -14,6 +14,7 @@ import { submitIntake, type IntakeIo } from "../app/api/intake/route";
 import { AccountAboCard } from "../components/account-abo";
 import { AccountBillingStatus } from "../components/account-billing";
 import { AccountCompanyCard } from "../components/account-company-card";
+import { SuccessAccessNote } from "../app/success/page";
 import { SESSION_COOKIE, createSessionToken } from "../lib/auth";
 import { deliverBuyerOnboarding } from "../lib/buyer-onboarding";
 import { sessionOwnerDenial } from "../lib/checkout-access";
@@ -268,6 +269,11 @@ function checkAccountUi() {
   ok(company.includes("/intake?"), "Neues Dokument opens the questionnaire");
   ok(company.includes("entity_id="), "Neues Dokument keeps the company");
   ok(!company.includes("/checkout"), "Neues Dokument does not open checkout");
+  ok(
+    /<a\b[^>]*>Neues Dokument<\/a>/.test(company),
+    "Neues Dokument is a native anchor in the markup",
+  );
+  ok(!/<button\b[^>]*>Neues Dokument<\/button>/.test(company), "Neues Dokument is not a nested button");
 
   const ordinary = renderToStaticMarkup(
     createElement(AccountCompanyCard, {
@@ -280,6 +286,36 @@ function checkAccountUi() {
     }),
   );
   ok(ordinary.includes("/checkout?entity_id="), "other accounts still start at checkout");
+  ok(
+    /<a\b[^>]*>Neues Dokument<\/a>/.test(ordinary),
+    "other accounts also get Neues Dokument as a native anchor",
+  );
+
+  const cardSource = readFileSync("components/account-company-card.tsx", "utf8");
+  const neuesTag = cardSource.match(/<(a|Link|button)\b[^>]*>\s*Neues Dokument/);
+  ok(neuesTag?.[1] === "a", "Neues Dokument is authored as a native anchor");
+  const paidStartTag = cardSource.match(/<(a|Link|button)\b[^>]*>\s*\{PAID_INTAKE_LABEL\}/);
+  ok(paidStartTag?.[1] === "a", "the empty-card paid intake start is a native anchor");
+
+  const compNote = renderToStaticMarkup(
+    createElement(SuccessAccessNote, { compAccess: true }),
+  );
+  ok(compNote.includes("Kostenfreier Zugang"), "the comp success page names the free access");
+  ok(compNote.includes("Sie können"), "the comp success note uses Sie");
+  ok(!compNote.includes("149"), "the comp success page hides the setup price");
+  ok(!compNote.includes("Umsatzsteuer"), "the comp success page hides the invoice line");
+  const paidNote = renderToStaticMarkup(
+    createElement(SuccessAccessNote, { compAccess: false }),
+  );
+  ok(
+    paidNote.includes("Die Rechnung weist die Nettopreise zuzüglich 19"),
+    "a paid success page keeps the invoice line",
+  );
+  ok(paidNote.includes("149"), "a paid success page still names the setup price");
+  ok(!paidNote.includes("Kostenfreier Zugang"), "a paid success page does not show the comp note");
+  const successSource = readFileSync("app/success/page.tsx", "utf8");
+  ok(successSource.includes("isCompAccessEmail(row?.email)"), "success uses the document owner");
+  ok(successSource.includes("isCompAccessEmail(sessionEmail)"), "success uses the login mailbox");
 
   const account = readFileSync("app/account/page.tsx", "utf8");
   ok(account.includes("Firma anlegen"), "the hub still offers Firma anlegen");
