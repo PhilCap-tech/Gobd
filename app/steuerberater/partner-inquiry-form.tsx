@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { PARTNER_INQUIRY_HONEYPOT_FIELD } from "@/lib/partner-inquiry";
+import { trackLeadSubmit } from "@/lib/tracking";
 
 type Fields = {
   name: string;
@@ -28,6 +29,7 @@ export function PartnerInquiryForm() {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
+  const sending = useRef(false);
 
   function patch(partial: Partial<Fields>) {
     setForm((current) => ({ ...current, ...partial }));
@@ -35,7 +37,9 @@ export function PartnerInquiryForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (sending.current) return;
     setError("");
+    sending.current = true;
     setPending(true);
     try {
       const response = await fetch("/api/partner-inquiry", {
@@ -50,7 +54,7 @@ export function PartnerInquiryForm() {
           [PARTNER_INQUIRY_HONEYPOT_FIELD]: form.companyWebsite,
         }),
       });
-      let data: { error?: string; ok?: boolean } = {};
+      let data: { error?: string; ok?: boolean; mailStatus?: string } = {};
       try {
         const text = await response.text();
         if (text.trim()) data = JSON.parse(text) as typeof data;
@@ -58,14 +62,17 @@ export function PartnerInquiryForm() {
         data = {};
       }
       if (!response.ok || !data.ok) {
+        sending.current = false;
         setError(
           data.error ||
             "Die Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
         );
         return;
       }
+      if (data.mailStatus !== "skipped") trackLeadSubmit();
       setDone(true);
     } catch {
+      sending.current = false;
       setError("Die Verbindung ist fehlgeschlagen. Bitte versuchen Sie es erneut.");
     } finally {
       setPending(false);

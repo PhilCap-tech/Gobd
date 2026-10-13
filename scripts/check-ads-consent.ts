@@ -6,7 +6,9 @@
  * Runs the tracking module against a fake window. A script src or a gtag
  * config / event / js command counts as an Ads request. Consent Mode
  * default/update commands do not. Also checks the purchase conversion
- * fires once per paid session and never uses the Readiness label.
+ * fires once per paid session and never uses the Readiness label, that
+ * Readiness and the lead form each use their own send_to after config,
+ * and that the Ads tag is configured on every consented page.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -21,6 +23,7 @@ import {
   purchaseSessionIdFromCheckout,
   resetTrackingForChecks,
   saveConsent,
+  trackLeadSubmit,
   trackPurchaseConversion,
   trackReadinessSubmit,
   trackRoute,
@@ -36,6 +39,7 @@ const adsId = "AW-586367190";
 const gaId = "G-RJ4KLBP1SF";
 const purchaseSendTo = "AW-586367190/PURCHASELABEL";
 const readinessLabel = "READINESS_OLD";
+const leadSendTo = "AW-586367190/LEADLABEL";
 const paidSession = "cs_test_paid_session_1";
 const secondSession = "cs_live_paid_session_2";
 
@@ -149,12 +153,14 @@ function fresh(env: {
   ga?: string;
   purchase?: string;
   readiness?: string;
+  lead?: string;
   meta?: string;
 }) {
   process.env.NEXT_PUBLIC_GOOGLE_ADS_ID = env.ads ?? "";
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = env.ga ?? "";
   process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO = env.purchase ?? "";
   process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL = env.readiness ?? "";
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO = env.lead ?? "";
   process.env.NEXT_PUBLIC_META_PIXEL_ID = env.meta ?? "";
   const dom = installDom();
   resetTrackingForChecks();
@@ -170,6 +176,7 @@ const saved = {
   ga: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
   purchase: process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO,
   readiness: process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL,
+  lead: process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO,
   meta: process.env.NEXT_PUBLIC_META_PIXEL_ID,
 };
 
@@ -185,6 +192,7 @@ try {
     trackRoute("/checkout");
     trackPurchaseConversion(paidSession);
     trackReadinessSubmit();
+    trackLeadSubmit();
     assertNoAdsRequest(dom.scripts, "without consent");
     assertDeniedDefaults("without consent");
     assert.equal(conversionCommands().length, 0, "without consent: conversion");
@@ -325,6 +333,129 @@ try {
 
   assert.equal(getGoogleAdsPurchaseSendTo(), purchaseSendTo);
 
+  {
+    const dom = fresh({
+      ads: adsId,
+      ga: gaId,
+      purchase: purchaseSendTo,
+      readiness: readinessLabel,
+      lead: leadSendTo,
+    });
+    saveConsent(true);
+    trackRoute("/");
+    trackRoute("/readiness");
+    trackRoute("/readiness");
+    const adsConfigs = commands().filter((cmd) => cmd[0] === "config" && cmd[1] === adsId);
+    assert.equal(adsConfigs.length, 2, "Ads config runs on every consented page, not twice on the same page");
+    assert.equal(
+      (adsConfigs[1]?.[2] as { page_path?: string } | undefined)?.page_path,
+      "/readiness",
+    );
+    const gaConfigs = commands().filter((cmd) => cmd[0] === "config" && cmd[1] === gaId);
+    assert.equal(gaConfigs.length, 1, "GA4 stays a single config on the shared gtag");
+    const pageViews = commands().filter((cmd) => cmd[0] === "event" && cmd[1] === "page_view");
+    assert.equal(pageViews.length, 1, "GA4 page_view only on the later route");
+    assert.equal((pageViews[0]?.[2] as { send_to?: string }).send_to, gaId);
+    assert.equal(dom.scripts.length, 1, "one shared gtag script");
+
+    const grantedAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "update");
+    const configAt = indexOfCommand((cmd) => cmd[0] === "config" && cmd[1] === adsId);
+    trackReadinessSubmit();
+    const readinessHits = conversionCommands();
+    assert.equal(readinessHits.length, 1, "readiness conversion");
+    const readinessPayload = readinessHits[0]?.[2] as {
+      send_to: string;
+      value?: number;
+      currency?: string;
+    };
+    assert.equal(readinessPayload.send_to, `${adsId}/${readinessLabel}`);
+    assert.equal(readinessPayload.value, undefined, "readiness sends no value");
+    assert.equal(readinessPayload.currency, undefined);
+    const readinessAt = commands().findIndex(
+      (cmd) => cmd[0] === "event" && cmd[1] === "conversion",
+    );
+    assert.ok(grantedAt !== -1 && configAt !== -1 && readinessAt !== -1);
+    assert.ok(grantedAt < configAt && configAt < readinessAt, "consent update and Ads config before the readiness event");
+    assert.ok(
+      commands().some((cmd) => cmd[0] === "event" && cmd[1] === "readiness_submit" && (cmd[2] as { send_to: string }).send_to === gaId),
+      "GA4 readiness_submit still uses the measurement id",
+    );
+  }
+
+  {
+    fresh({
+      ads: adsId,
+      ga: gaId,
+      readiness: `${adsId}/FULLLABEL`,
+    });
+    saveConsent(true);
+    trackRoute("/readiness");
+    trackReadinessSubmit();
+    assert.equal(
+      (conversionCommands()[0]?.[2] as { send_to: string }).send_to,
+      `${adsId}/FULLLABEL`,
+      "a full readiness send_to is not prefixed again",
+    );
+  }
+
+  {
+    fresh({ ads: adsId, ga: gaId, purchase: purchaseSendTo, readiness: readinessLabel });
+    saveConsent(true);
+    trackRoute("/steuerberater");
+    trackLeadSubmit();
+    assert.equal(conversionCommands().length, 0, "unset lead send_to sends nothing");
+  }
+
+  {
+    fresh({
+      ads: adsId,
+      ga: gaId,
+      purchase: purchaseSendTo,
+      readiness: readinessLabel,
+      lead: leadSendTo,
+    });
+    saveConsent(true);
+    trackRoute("/");
+    trackRoute("/steuerberater");
+    trackLeadSubmit();
+    trackLeadSubmit();
+    assert.equal(conversionCommands().length, 1, "lead form sends one conversion");
+    const leadPayload = conversionCommands()[0]?.[2] as { send_to: string };
+    assert.equal(leadPayload.send_to, leadSendTo);
+    assert.notEqual(leadPayload.send_to, purchaseSendTo);
+    assert.notEqual(leadPayload.send_to, `${adsId}/${readinessLabel}`);
+    const leadAt = commands().findIndex((cmd) => cmd[0] === "event" && cmd[1] === "conversion");
+    const configAt = commands().findIndex((cmd) => cmd[0] === "config" && cmd[1] === adsId);
+    const grantedAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "update");
+    assert.ok(grantedAt < configAt && configAt < leadAt, "lead event follows consent update and Ads config");
+  }
+
+  {
+    fresh({
+      ads: adsId,
+      ga: gaId,
+      purchase: `"${purchaseSendTo}"`,
+      readiness: readinessLabel,
+    });
+    saveConsent(true);
+    trackPurchaseConversion(paidSession);
+    const payload = conversionCommands()[0]?.[2] as {
+      send_to: string;
+      value: number;
+      currency: string;
+      transaction_id: string;
+    };
+    assert.equal(payload.send_to, purchaseSendTo, "quoted purchase send_to is normalized");
+    assert.equal(payload.value, 198);
+    assert.equal(payload.currency, "EUR");
+    assert.equal(payload.transaction_id, paidSession);
+    const eventAt = commands().findIndex((cmd) => cmd[0] === "event" && cmd[1] === "conversion");
+    const configAt = commands().findIndex((cmd) => cmd[0] === "config" && cmd[1] === adsId);
+    const grantedAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "update");
+    const defaultAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "default");
+    assert.ok(defaultAt < grantedAt && grantedAt < configAt && configAt < eventAt);
+  }
+
   const tracking = readFileSync("lib/tracking.ts", "utf8");
   const enableStart = tracking.indexOf("function enableGoogleTag");
   const enableEnd = tracking.indexOf("function ensureGtagStub");
@@ -365,6 +496,21 @@ try {
   const readiness = readFileSync("app/readiness/readiness-form.tsx", "utf8");
   assert.equal(readiness.includes("trackPurchaseConversion"), false);
   assert.equal(readiness.includes("PurchaseConversion"), false);
+  assert.equal(readiness.includes("trackLeadSubmit"), false);
+  const readinessOk = readiness.indexOf("!response.ok || !successUrl");
+  const readinessTrack = readiness.indexOf("trackReadinessSubmit(");
+  assert.ok(readinessOk !== -1 && readinessTrack > readinessOk);
+  assert.ok(readiness.includes("router.push(successUrl)"));
+
+  const partner = readFileSync("app/steuerberater/partner-inquiry-form.tsx", "utf8");
+  assert.equal(partner.includes("trackPurchaseConversion"), false);
+  assert.equal(partner.includes("trackReadinessSubmit"), false);
+  const partnerOk = partner.indexOf("!response.ok || !data.ok");
+  const partnerTrack = partner.indexOf("trackLeadSubmit()");
+  assert.ok(partnerOk !== -1 && partnerTrack > partnerOk);
+
+  const example = readFileSync(".env.example", "utf8");
+  assert.ok(example.includes("NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO="));
 
   const hits: string[] = [];
   const roots = ["app", "components", "lib", "scripts"];
@@ -392,5 +538,6 @@ try {
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = saved.ga;
   process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO = saved.purchase;
   process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL = saved.readiness;
+  process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO = saved.lead;
   process.env.NEXT_PUBLIC_META_PIXEL_ID = saved.meta;
 }

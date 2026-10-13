@@ -8,7 +8,9 @@
  *
  * NEXT_PUBLIC_GOOGLE_ADS_ID unset → no Ads config on pages.
  * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO unset → no purchase conversion.
+ * NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO unset → no lead-form conversion.
  * The purchase conversion is not the Readiness submit conversion.
+ * After consent, gtag('config', AW-…) runs on every page so Ads sees the tag.
  */
 
 import { isStubCheckoutSessionId } from "@/lib/checkout-stub";
@@ -74,6 +76,8 @@ let googleInitialized = false;
 let lastPageViewPath = "";
 let lastReadinessStartPath = "";
 let lastGooglePagePath = "";
+let lastAdsConfigPath: string | null = null;
+let leadConversionQueued = false;
 let consentDefaultSet = false;
 let lastConsentGranted: boolean | null = null;
 
@@ -97,6 +101,32 @@ export function getGoogleAdsReadinessLabel(): string {
  */
 export function getGoogleAdsPurchaseSendTo(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO?.trim() || "";
+}
+
+/**
+ * Full Google Ads lead-form send_to, e.g. AW-XXXXXXXXX/LABEL.
+ * Unset → the Steuerberater lead form sends no conversion.
+ */
+export function getGoogleAdsLeadSendTo(): string {
+  return process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO?.trim() || "";
+}
+
+/**
+ * Full `AW-…/LABEL`, or a bare label joined with the account id.
+ * A value that already starts with `AW-…/` is not prefixed again.
+ */
+export function normalizeGoogleAdsSendTo(raw: string, adsId = ""): string {
+  let value = raw.trim();
+  if (
+    (value.startsWith("'") && value.endsWith("'")) ||
+    (value.startsWith('"') && value.endsWith('"'))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+  if (!value) return "";
+  if (/^AW-\d+\//.test(value)) return value;
+  if (!value.includes("/") && /^AW-\d+$/.test(adsId)) return `${adsId}/${value}`;
+  return value;
 }
 
 /**
@@ -253,15 +283,14 @@ export function trackRoute(pathname: string): void {
  */
 export function trackPurchaseConversion(sessionId: string): void {
   const id = sessionId.trim();
-  const sendTo = getGoogleAdsPurchaseSendTo();
+  const sendTo = normalizeGoogleAdsSendTo(
+    getGoogleAdsPurchaseSendTo(),
+    getGoogleAdsId(),
+  );
   if (!id || !sendTo || !id.startsWith("cs_") || isStubCheckoutSessionId(id)) return;
   if (!hasMarketingConsent()) return;
   if (purchaseConversionAlreadySent(id)) return;
-  const account = sendTo.split("/")[0]?.trim() ?? "";
-  const loadId = getGoogleAdsId() || (account.startsWith("AW-") ? account : "");
-  enableGoogleTag(loadId);
-  if (typeof document === "undefined" || !document.getElementById("google-gtag")) return;
-  if (!window.gtag) return;
+  if (!armGoogleTag(sendTo) || !window.gtag) return;
   window.gtag("event", "conversion", {
     send_to: sendTo,
     value: PURCHASE_CONVERSION_VALUE_EUR,
@@ -297,10 +326,19 @@ function trackReadinessStart(): void {
  * The event sends no `value`. Google Ads keeps the conversion-action default
  * of 198 € net (setup + first month). Do not pass the gross total.
  * GA4: custom `readiness_submit` when NEXT_PUBLIC_GA_MEASUREMENT_ID is set.
- * This is not the purchase conversion.
+ * This is not the purchase conversion and not the lead-form conversion.
+ * `onDone` runs after the Ads hit is handed to gtag (callback or timeout) so
+ * the following client navigation does not drop it. It runs immediately when
+ * no Ads conversion is sent.
  */
-export function trackReadinessSubmit(): void {
-  if (!hasMarketingConsent()) return;
+export function trackReadinessSubmit(onDone?: () => void): void {
+  const finish = () => {
+    onDone?.();
+  };
+  if (!hasMarketingConsent()) {
+    finish();
+    return;
+  }
   const params = eventParams();
   const pixelId = getMetaPixelId();
   if (pixelId) {
@@ -308,20 +346,52 @@ export function trackReadinessSubmit(): void {
     window.fbq?.("track", "CompleteRegistration", params);
     window.fbq?.("trackCustom", "ReadinessSubmit", params);
   }
-  enableGoogleTag();
-  const googleId = getGoogleAdsId();
-  if (googleId) {
-    const label = getGoogleAdsReadinessLabel();
-    if (label) {
-      window.gtag?.("event", "conversion", {
-        send_to: `${googleId}/${label}`,
-      });
-    }
-  }
+  const sendTo = normalizeGoogleAdsSendTo(
+    getGoogleAdsReadinessLabel(),
+    getGoogleAdsId(),
+  );
   const gaId = getGaMeasurementId();
-  if (gaId) {
-    window.gtag?.("event", "readiness_submit", { send_to: gaId });
+  const armed = Boolean((gaId || sendTo) && armGoogleTag(sendTo));
+  if (gaId && window.gtag) {
+    window.gtag("event", "readiness_submit", { send_to: gaId });
   }
+  if (!sendTo || !armed || !window.gtag) {
+    finish();
+    return;
+  }
+  let settled = false;
+  const done = () => {
+    if (settled) return;
+    settled = true;
+    finish();
+  };
+  window.gtag?.("event", "conversion", {
+    send_to: sendTo,
+    event_callback: done,
+    event_timeout: 2000,
+  });
+  const timer = setTimeout(done, 2000) as unknown;
+  if (typeof timer === "object" && timer !== null && "unref" in timer) {
+    (timer as { unref: () => void }).unref();
+  }
+}
+
+/**
+ * Steuerberater lead form (`/steuerberater` Anfrage), after a successful POST.
+ * Sends nothing when NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO is unset.
+ * One conversion per page load. Not the Readiness or purchase conversion.
+ */
+export function trackLeadSubmit(): void {
+  const sendTo = normalizeGoogleAdsSendTo(
+    getGoogleAdsLeadSendTo(),
+    getGoogleAdsId(),
+  );
+  if (!sendTo || !hasMarketingConsent() || leadConversionQueued) return;
+  if (!armGoogleTag(sendTo)) return;
+  leadConversionQueued = true;
+  window.gtag?.("event", "conversion", {
+    send_to: sendTo,
+  });
 }
 
 function enableMetaPixel(pixelId: string): void {
@@ -352,9 +422,50 @@ function enableGoogleTag(purchaseLoadId = ""): void {
   );
   if (googleInitialized) return;
   window.gtag?.("js", new Date());
-  if (adsId) window.gtag?.("config", adsId);
+  if (adsId) {
+    window.gtag?.("config", adsId);
+    lastAdsConfigPath = currentPath();
+  }
   if (gaId) window.gtag?.("config", gaId);
   googleInitialized = true;
+}
+
+function currentPath(): string {
+  if (typeof window === "undefined") return "";
+  const path = window.location?.pathname;
+  return typeof path === "string" ? path : "";
+}
+
+/** Ads config for this path. Skips a repeat on the same path. No GA4 config. */
+function ensureAdsConfigForPath(path: string): void {
+  const adsId = getGoogleAdsId();
+  if (!adsId || !window.gtag) return;
+  if (lastAdsConfigPath === path) return;
+  if (path) {
+    const params: Record<string, string> = { page_path: path };
+    const origin = window.location?.origin;
+    if (typeof origin === "string" && origin) {
+      params.page_location = `${origin}${path}`;
+    }
+    window.gtag("config", adsId, params);
+  } else {
+    window.gtag("config", adsId);
+  }
+  lastAdsConfigPath = path;
+}
+
+/**
+ * Consent default, then consent update granted, then the tag and Ads config,
+ * all before the caller queues a conversion.
+ */
+function armGoogleTag(sendTo = ""): boolean {
+  if (typeof window === "undefined" || !hasMarketingConsent()) return false;
+  const account = sendTo.split("/")[0]?.trim() ?? "";
+  const loadId = getGoogleAdsId() || (account.startsWith("AW-") ? account : "");
+  enableGoogleTag(loadId);
+  ensureAdsConfigForPath(currentPath());
+  if (typeof document === "undefined" || !document.getElementById("google-gtag")) return false;
+  return typeof window.gtag === "function";
 }
 
 function ensureGtagStub(): void {
@@ -425,18 +536,29 @@ export function resetTrackingForChecks(): void {
   lastPageViewPath = "";
   lastReadinessStartPath = "";
   lastGooglePagePath = "";
+  lastAdsConfigPath = null;
+  leadConversionQueued = false;
   consentDefaultSet = false;
   lastConsentGranted = null;
 }
 
 function trackGooglePageView(pathname: string): void {
-  if (!getGoogleAdsId() && !getGaMeasurementId()) return;
+  const adsId = getGoogleAdsId();
+  const gaId = getGaMeasurementId();
+  if (!adsId && !gaId) return;
   enableGoogleTag();
   if (lastGooglePagePath === pathname) return;
   const first = lastGooglePagePath === "";
   lastGooglePagePath = pathname;
   if (first) return;
-  window.gtag?.("event", "page_view", { page_path: pathname });
+  // Ads config on every later page. GA4 keeps a single config plus page_view.
+  if (adsId) ensureAdsConfigForPath(pathname);
+  if (gaId) {
+    window.gtag?.("event", "page_view", {
+      page_path: pathname,
+      send_to: gaId,
+    });
+  }
 }
 
 function ensureFbq(): void {
