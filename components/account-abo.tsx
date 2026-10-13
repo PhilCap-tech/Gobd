@@ -102,7 +102,7 @@ export function AccountAboCard({
   compAccess?: boolean;
 }) {
   const ended = notice?.phase === "restore" || notice?.phase === "purged";
-  if (compAccess) {
+  if (compAccess && !stripeBound && !ended) {
     return (
       <section className="card account-panel" aria-labelledby="abo-heading">
         <h2 id="abo-heading">Zugang</h2>

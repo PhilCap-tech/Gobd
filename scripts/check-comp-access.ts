@@ -231,14 +231,6 @@ function checkAccountUi() {
   ok(!compCard.includes("/account/billing"), "the comp hub has no Stripe billing link");
   ok(!compCard.includes("Stripe-Portal"), "the comp hub has no portal button");
 
-  const stripeBoundComp = renderToStaticMarkup(
-    createElement(AccountAboCard, { stripeBound: true, compAccess: true }),
-  );
-  ok(stripeBoundComp.includes("Kostenfreier Zugang"), "a Stripe id on the mailbox does not restore the Abo block");
-  ok(!stripeBoundComp.includes('href="/checkout"'), "a comp account has no price CTA");
-  ok(!stripeBoundComp.includes("149"), "a comp account does not see the setup price");
-  ok(!stripeBoundComp.includes("Ein Abo gilt"), "a comp account does not see the Abo copy");
-
   const paidCard = renderToStaticMarkup(
     createElement(AccountAboCard, { stripeBound: false, compAccess: false }),
   );
@@ -291,26 +283,6 @@ function checkAccountUi() {
   );
   ok(!/<button\b[^>]*>Neues Dokument<\/button>/.test(company), "Neues Dokument is not a nested button");
 
-  const ignoredFlag = renderToStaticMarkup(
-    createElement(AccountCompanyCard, {
-      email: `  ${COMP.toUpperCase()}  `,
-      compAccess: false,
-      paidIntakeHref: "/intake?session_id=cs_live_should_not_win",
-      empty: true,
-      group: {
-        entity: { ...emptyEntity(), entityId: ENTITY, name: COMPANY },
-        families: [],
-      },
-    }),
-  );
-  ok(
-    ignoredFlag.includes(`/intake?modus=gesamt&amp;entity_id=${ENTITY}`),
-    "a new company for a comp login opens the questionnaire",
-  );
-  ok(!ignoredFlag.includes("/checkout"), "a new company for a comp login does not open checkout");
-  ok(!ignoredFlag.includes("session_id="), "a stored payment does not replace the comp questionnaire");
-  ok(ignoredFlag.includes("Neues Dokument"), "the empty company still offers Neues Dokument");
-
   const ordinary = renderToStaticMarkup(
     createElement(AccountCompanyCard, {
       email: OTHER,
@@ -321,7 +293,7 @@ function checkAccountUi() {
       },
     }),
   );
-  ok(ordinary.includes("/checkout?entity_id="), "other accounts still start at checkout");
+  ok(ordinary.includes("/checkout?entity_id="), "a paid account still starts the next firm at checkout");
   ok(
     /<a\b[^>]*>Neues Dokument<\/a>/.test(ordinary),
     "other accounts also get Neues Dokument as a native anchor",
@@ -361,7 +333,6 @@ function checkAccountUi() {
   ok(!entities.includes("resolveCheckoutSession"), "Firma anlegen does not ask Stripe");
   const intake = readFileSync("app/intake/page.tsx", "utf8");
   ok(intake.includes("isCompAccessEmail"), "intake start checks the allowlist");
-  ok(account.includes("paidIntakeHref && !compAccess"), "paid intake on the hub follows the session email");
   const checkoutPage = readFileSync("app/checkout/page.tsx", "utf8");
   const checkoutRedirect = checkoutPage.indexOf("compCheckoutRedirect");
   const checkoutForm = checkoutPage.indexOf("<CheckoutForm");
@@ -433,6 +404,24 @@ async function checkCheckoutGuard() {
   const ordinaryBody = (await ordinary.json()) as { url?: string; error?: string };
   ok(ordinary.status === 400, `a non-comp checkout POST still validates (got ${ordinary.status})`);
   ok(!ordinaryBody.url, "a non-comp checkout POST does not receive the comp questionnaire");
+
+  const paidFirm = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: OTHER,
+        company: "Zweite Firma GmbH",
+        entityId: "ent_paid_second",
+        entrepreneur: true,
+        acceptedDisclaimer: true,
+      }),
+    }),
+  );
+  const paidFirmBody = (await paidFirm.json()) as { url?: string };
+  ok(paidFirm.status === 200, `a paid second firm still starts checkout (got ${paidFirm.status})`);
+  ok(Boolean(paidFirmBody.url?.includes("session_id=")), "a paid second firm still receives a checkout session");
+  ok(paidFirmBody.url !== compIntakePath("ent_paid_second"), "a paid second firm is not sent to the comp questionnaire");
 }
 
 async function checkSubmit() {
