@@ -50,8 +50,8 @@ for (const [href, label] of LINKS) {
 
 const page = readFileSync("app/account/page.tsx", "utf8");
 ok(
-  page.includes("<AccountResourcesCard subscribed={stripeBound} />"),
-  "Konto schaltet die Kachel über die bestehende Abo-Bindung",
+  page.includes("<AccountResourcesCard subscribed={stripeBound || compAccess} />"),
+  "Konto schaltet die Kachel über die Abo-Bindung oder den kostenfreien Zugang",
 );
 ok(!page.includes("<AccountFreeCard"), "Konto rendert die freie Kachel nicht fest");
 

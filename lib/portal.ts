@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { getSessionEmail, loginPath } from "@/lib/auth";
+import { isCompAccessEmail } from "@/lib/comp-access";
 import { getAppUrl, isStripeSecretConfigured } from "@/lib/env";
 import { resolveStripeCustomerForEmail } from "@/lib/store";
 import { loadCancellationPreview } from "@/lib/kuendigung-stripe";
@@ -31,6 +32,9 @@ export async function resolvePortalRedirect(
   const email = await getSessionEmail();
   if (!email) {
     return { location: loginPath(loginNext) };
+  }
+  if (isCompAccessEmail(email)) {
+    return { location: "/account" };
   }
   if (!isStripeSecretConfigured()) {
     return { location: accountPortalPath("unavailable") };
@@ -86,6 +90,9 @@ export async function redirectToKuendigungOrPortal(
   const email = await getSessionEmail();
   if (!email) {
     redirect(loginPath(loginNext));
+  }
+  if (isCompAccessEmail(email)) {
+    redirect("/account");
   }
   if (!isStripeSecretConfigured()) {
     redirect(accountPortalPath("unavailable"));

@@ -5,6 +5,7 @@ import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
+import { isCompAccessEmail } from "@/lib/comp-access";
 import { notifyBuyerOfCheckout } from "@/lib/buyer-onboarding";
 import {
   CHECKOUT_BACK_TO_ACCOUNT,
@@ -564,7 +565,7 @@ async function IntakePage({
     }
   }
 
-  const session = sessionId
+  let session = sessionId
     ? await resolveCheckoutSession(sessionId)
     : isStripeConfigured() || !devCheckoutStubAllowed()
       ? ({ error: "missing" } as const)
@@ -579,6 +580,18 @@ async function IntakePage({
   if (!("error" in session) && session.stub) {
     session.email = email || session.email;
     session.company = company || session.company;
+  }
+
+  // Comp: the logged-in mailbox is the entitlement. No Checkout Session,
+  // no Stripe lookup, and no order mail.
+  if ("error" in session && !sessionId && sessionEmail && isCompAccessEmail(sessionEmail)) {
+    session = {
+      email: sessionEmail,
+      company: company || "",
+      stripeSessionId: "",
+      stripeCustomerId: "",
+      stub: false,
+    };
   }
 
   // Firmenliste nur mit Login für diese Adresse. Der Checkout-Nachweis

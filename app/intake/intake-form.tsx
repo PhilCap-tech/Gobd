@@ -620,13 +620,12 @@ export function IntakeForm({
         return;
       }
       clearDraft();
-      const params = new URLSearchParams({
-        session_id: session.stripeSessionId,
-        document_id: data.documentId,
-      });
+      const params = new URLSearchParams({ document_id: data.documentId });
+      if (session.stripeSessionId) params.set("session_id", session.stripeSessionId);
       if (data.loginMail === "sent") params.set("anmeldung", "gesendet");
       else if (data.loginMail === "failed") params.set("anmeldung", "fehler");
       else if (data.loginMail === "stub") params.set("anmeldung", "stub");
+      else if (data.loginMail === "skipped") params.set("anmeldung", "keine");
       router.push(`/success?${params}`);
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");

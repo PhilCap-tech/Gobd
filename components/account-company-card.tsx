@@ -23,6 +23,7 @@ import {
 } from "@/lib/open-drafts";
 import { CHECKOUT_PREFILL_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
 import { PAID_INTAKE_LABEL } from "@/lib/account-paid-intake";
+import { compIntakePath } from "@/lib/comp-access";
 import { formatEntityAddress, type Entity } from "@/lib/entities";
 import { gesamtDocTitle } from "@/lib/gesamt-document";
 import { MODUL_UEBERSICHT_STEP_ID } from "@/lib/intake-catalog";
@@ -127,6 +128,7 @@ export function AccountCompanyCard({
   writesOpen = true,
   downloadsOpen = true,
   paidIntakeHref = "",
+  compAccess = false,
 }: {
   group: EntityDocumentGroup & { continueDrafts?: IntakeDraft[] };
   email: string;
@@ -138,6 +140,8 @@ export function AccountCompanyCard({
   downloadsOpen?: boolean;
   /** Bezahlter Intake ohne Dokument. Leer, wenn keiner offen ist. */
   paidIntakeHref?: string;
+  /** Allowlist mailbox starts the questionnaire without Checkout. */
+  compAccess?: boolean;
 }) {
   const entity = group.entity ? presentEntity(group.entity) : null;
   const families = (group.families ?? []).map((family) => {
@@ -195,7 +199,10 @@ export function AccountCompanyCard({
               {PAID_INTAKE_LABEL}
             </Link>
           ) : families.length === 0 ? (
-            <Link className="btn" href={newDocumentPath(entity.entityId)}>
+            <Link
+              className="btn"
+              href={compAccess ? compIntakePath(entity.entityId) : newDocumentPath(entity.entityId)}
+            >
               Neues Dokument
             </Link>
           ) : null}

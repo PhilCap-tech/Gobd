@@ -104,6 +104,11 @@ const nextConfig: NextConfig = {
         destination: "/steuerberater",
         permanent: true,
       },
+      {
+        source: "/konto",
+        destination: "/login?next=/account",
+        permanent: false,
+      },
     ];
   },
   async rewrites() {

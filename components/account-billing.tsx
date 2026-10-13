@@ -15,13 +15,28 @@ export function AccountBillingStatus({
   hasCustomer,
   lookupFailed,
   notice = null,
+  compAccess = false,
 }: {
   status: BillingSubscriptionStatus;
   stripeReady: boolean;
   hasCustomer: boolean;
   lookupFailed: boolean;
   notice?: LifecycleNotice | null;
+  compAccess?: boolean;
 }) {
+  if (compAccess && !hasCustomer) {
+    return (
+      <section className="card" aria-labelledby="billing-status-heading">
+        <h2 id="billing-status-heading">Abo-Status</h2>
+        <p className="prose">
+          <strong>Kostenfreier Zugang.</strong> Sie können die Verfahrensdokumentation
+          ausfüllen, als PDF erzeugen und herunterladen. Eine Zahlung ist dafür nicht
+          erforderlich.
+        </p>
+      </section>
+    );
+  }
+
   const copy = subscriptionStatusCopy(status);
   const lookupHint =
     "Rechnungen und Abo-Status konnten gerade nicht geladen werden. Bitte später erneut versuchen.";
@@ -100,13 +115,17 @@ export function AccountInvoiceList({
   stripeReady = true,
   hasCustomer = true,
   lookupFailed = false,
+  compAccess = false,
 }: {
   invoices: BillingInvoice[];
   stripeReady?: boolean;
   hasCustomer?: boolean;
   lookupFailed?: boolean;
+  compAccess?: boolean;
 }) {
-  const emptyCopy = !stripeReady
+  const emptyCopy = compAccess && !hasCustomer
+    ? "Zu diesem Zugang liegen keine Rechnungen vor."
+    : !stripeReady
     ? "Die Zahlung ist derzeit nicht angebunden. Rechnungen sind hier nicht verfügbar."
     : lookupFailed
       ? "Rechnungen konnten gerade nicht geladen werden. Bitte später erneut versuchen."
