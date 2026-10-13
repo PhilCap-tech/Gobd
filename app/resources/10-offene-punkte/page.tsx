@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { canonicalUrl } from "@/lib/seo";
@@ -27,6 +28,12 @@ export const metadata: Metadata = {
 export default function LeadMagnetPage() {
   return (
     <>
+      <CrumbJsonLd
+        items={[
+          { name: "Startseite", path: "/" },
+          { name: LEAD_MAGNET_HEADLINE, path: "/resources/10-offene-punkte" },
+        ]}
+      />
       <SiteHeader
         backHref="/blog/gobd-verfahrensdokumentation-betriebspruefung"
         backLabel="← Zum Artikel"

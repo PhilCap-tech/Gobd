@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/json-ld";
 import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -8,6 +9,7 @@ import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
 import { getOwnedEntity, listEntitiesByEmail } from "@/lib/store";
 import { ALL_AREAS_LINE, INTAKE_EFFORT_LINE, PRICE_MICRO } from "@/lib/offer-copy";
+import { breadcrumbJsonLd, productOfferJsonLd } from "@/lib/jsonld";
 import {
   MONTHLY_EUR,
   MONTHLY_GROSS_LABEL,
@@ -44,6 +46,13 @@ export default async function CheckoutPage({
 
   return (
     <>
+      <JsonLd data={productOfferJsonLd()} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Startseite", path: "/" },
+          { name: "Dokumentation starten", path: "/checkout" },
+        ])}
+      />
       <SiteHeader
         backHref={partner ? "/steuerberater" : "/"}
         backLabel={

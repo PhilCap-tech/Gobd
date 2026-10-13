@@ -12,7 +12,10 @@ export const metadata: Metadata = {
 
 export default function DatenschutzPage() {
   return (
-    <LegalPage title={legalTitle(datenschutzMarkdown) || "Datenschutz"}>
+    <LegalPage
+      title={legalTitle(datenschutzMarkdown) || "Datenschutz"}
+      crumbPath="/datenschutz"
+    >
       <LegalMarkdown source={datenschutzMarkdown} />
     </LegalPage>
   );

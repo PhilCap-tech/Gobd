@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { MODULE, TEIL_TITEL } from "@/lib/module/katalog";
@@ -44,6 +45,13 @@ export default async function GesamtMusterPage({ params }: Params) {
 
   return (
     <>
+      <CrumbJsonLd
+        items={[
+          { name: "Startseite", path: "/" },
+          { name: "Muster", path: "/muster" },
+          { name: muster.label, path: `/muster/gesamt/${vorlage}` },
+        ]}
+      />
       <SiteHeader backHref="/muster" backLabel="← Alle Muster" />
       <main className="wrap partner-copy">
         <section className="hero">

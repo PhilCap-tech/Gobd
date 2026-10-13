@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { BEREICHE } from "@/lib/bereiche";
@@ -36,6 +37,12 @@ export const metadata: Metadata = {
 export default function MusterIndexPage() {
   return (
     <>
+      <CrumbJsonLd
+        items={[
+          { name: "Startseite", path: "/" },
+          { name: "Muster", path: "/muster" },
+        ]}
+      />
       <SiteHeader backHref="/#bereiche" backLabel="Module" />
       <main className="wrap partner-copy">
         <section className="hero">

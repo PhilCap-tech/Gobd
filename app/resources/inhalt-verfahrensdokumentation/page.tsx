@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { canonicalUrl } from "@/lib/seo";
@@ -29,6 +30,15 @@ export const metadata: Metadata = {
 export default function InhaltGliederungPage() {
   return (
     <>
+      <CrumbJsonLd
+        items={[
+          { name: "Startseite", path: "/" },
+          {
+            name: INHALT_GLIEDERUNG_HEADLINE,
+            path: "/resources/inhalt-verfahrensdokumentation",
+          },
+        ]}
+      />
       <SiteHeader
         backHref="/blog/gobd-verfahrensdokumentation-erstellen"
         backLabel="← Zum Artikel"

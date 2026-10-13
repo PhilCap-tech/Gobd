@@ -83,6 +83,7 @@ const nextConfig: NextConfig = {
     "/muster/[bereich]/fragebogen": ["./public/brand/**/*"],
     "/resources/10-offene-punkte/download": ["./public/brand/**/*"],
     "/resources/inhalt-verfahrensdokumentation/download": ["./public/brand/**/*"],
+    "/llms.txt": ["./content/faq.md", "./content/legal/**/*"],
   },
   async headers() {
     return [
