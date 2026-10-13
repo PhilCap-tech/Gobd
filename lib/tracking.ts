@@ -511,8 +511,10 @@ function armGoogleTag(sendTo = ""): boolean {
 function ensureGtagStub(): void {
   window.dataLayer = window.dataLayer || [];
   if (!window.gtag) {
-    window.gtag = function gtag(...args: unknown[]) {
-      window.dataLayer?.push(args);
+    // gtag.js runs config, js, event and consent only for an Arguments
+    // object. A plain array is ignored, so a queued GA4 config never sends.
+    window.gtag = function gtag() {
+      window.dataLayer?.push(arguments);
     };
   }
 }
