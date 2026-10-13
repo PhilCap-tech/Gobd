@@ -54,7 +54,7 @@ export const GELD_ZURUECK_HREF = "/faq#geld-zurueck";
 
 /** Short form for hero, sticky bar, and closing CTA. Details stay in the FAQ. */
 export const GELD_ZURUECK_MICRO =
-  "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde";
+  "14 Tage Zufriedenheitsgarantie — 198 € nur, solange noch kein PDF erzeugt oder heruntergeladen wurde";
 
 export const DISCLAIMER_ONCE =
   "Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.";

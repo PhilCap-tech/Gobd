@@ -87,7 +87,7 @@ Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vo
 
 (1) Wir gewähren dem Kunden eine **14-Tage-Zufriedenheitsgarantie** ab Vertragsschluss. Innerhalb dieser Frist kann der Kunde die Erstattung verlangen, indem er sich in Textform an **info@gobd-doku-erstellen.de** wendet. Ein eigener Button im Kundenkonto ist dafür nicht eingerichtet.
 
-(2) Hat der Kunde noch kein PDF der Dokumentation erzeugt oder heruntergeladen, erstatten wir die **gesamte bis dahin gezahlte Vergütung** (Einrichtung und Nutzungsentgelt). Das Abonnement endet mit der Erstattung.
+(2) Hat der Kunde noch kein PDF der Dokumentation erzeugt oder heruntergeladen, erstatten wir **198 € zzgl. USt** (149 € Einrichtung und 49 € Nutzungsentgelt des ersten Monats). Das Abonnement endet mit der Erstattung.
 
 (3) Hat der Kunde bereits ein PDF erzeugt oder heruntergeladen, erstatten wir das **bereits gezahlte monatliche Nutzungsentgelt** (49 € zzgl. USt). Die **Einrichtungsvergütung (149 € zzgl. USt) ist in diesem Fall nicht erstattungsfähig**, da die Einrichtungsleistung dann erbracht ist. Das Abonnement endet mit der Erstattung.
 
