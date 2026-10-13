@@ -113,6 +113,16 @@ function commands(): Command[] {
   return (window.dataLayer ?? []) as Command[];
 }
 
+/** gtag.js ignores a plain array. config/js/event/consent must be Arguments. */
+function isGtagArguments(entry: unknown): boolean {
+  return (
+    !!entry &&
+    typeof entry === "object" &&
+    (Object.prototype.toString.call(entry) === "[object Arguments]" ||
+      Object.prototype.hasOwnProperty.call(entry, "callee"))
+  );
+}
+
 function adsScripts(scripts: Tag[]): Tag[] {
   return scripts.filter((script) => ADS_SCRIPT.test(script.src));
 }
@@ -244,10 +254,18 @@ try {
     assert.ok(defaultAt < grantedAt && grantedAt < configAt, "denied default before grant before config");
     assert.deepEqual(commands()[defaultAt]?.[2], GOOGLE_ADS_CONSENT_DENIED);
     assert.deepEqual(commands()[grantedAt]?.[2], GOOGLE_ADS_CONSENT_GRANTED);
-    assert.ok(
-      commands().some((cmd) => cmd[0] === "config" && cmd[1] === gaId),
-      "GA4 still shares the consented gtag",
+    assert.equal(
+      (commands()[grantedAt]?.[2] as { analytics_storage?: string }).analytics_storage,
+      "granted",
+      "consent update grants analytics_storage",
     );
+    const jsAt = indexOfCommand((cmd) => cmd[0] === "js");
+    const gaAt = indexOfCommand((cmd) => cmd[0] === "config" && cmd[1] === gaId);
+    assert.ok(gaAt !== -1, "GA4 config fires after consent when the Ads id is also set");
+    assert.ok(grantedAt < jsAt && jsAt < configAt && configAt < gaAt, "consent update, then js, then Ads config, then GA4 config");
+    for (const entry of window.dataLayer ?? []) {
+      assert.ok(isGtagArguments(entry), "gtag.js ignores a plain array, so GA4 config would not run");
+    }
     const beforeRevoke = dom.scripts.length;
     saveConsent(false);
     trackRoute("/checkout");
