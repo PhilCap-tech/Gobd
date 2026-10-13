@@ -53,7 +53,6 @@ function ok(cond: unknown, msg: string) {
 }
 
 const COMP = "winkler@winkler-segtrop.de";
-const SMOKE = "gobd-test@mail.grokbot.com";
 const OTHER = "other-buyer@example.com";
 const ENTITY = "ent_comp_winkler";
 const COMPANY = "Winkler Segtrop GmbH";
@@ -159,12 +158,12 @@ function postIntake(cookie: string, body: Record<string, unknown>) {
 }
 
 function checkAllowlist() {
-  ok(COMP_ACCESS_EMAILS.length === 2, "the allowlist is the approved mailbox plus the smoke address");
+  ok(COMP_ACCESS_EMAILS.length === 1, "the allowlist is the approved mailbox");
   ok(COMP_ACCESS_EMAILS[0] === COMP, "the mailbox is winkler@winkler-segtrop.de");
   ok(
-    COMP_ACCESS_EMAILS[1] === "gobd-test@mail.grokbot.com" &&
-      isCompAccessEmail("GOBD-TEST@mail.grokbot.com"),
-    "the temporary smoke address is entitled",
+    !isCompAccessEmail("gobd-test@mail.grokbot.com") &&
+      !isCompAccessEmail("GOBD-TEST@mail.grokbot.com"),
+    "the temporary smoke address is not entitled",
   );
   ok(isCompAccessEmail(`  ${COMP.toUpperCase()}  `), "the match is case-insensitive and trimmed");
   ok(!isCompAccessEmail(OTHER), "a non-listed mailbox has no comp entitlement");
@@ -640,7 +639,7 @@ async function checkFirmaCreate() {
     const blankHeader = createTtlSingleflight<string[]>(Number.POSITIVE_INFINITY);
     blankHeader.remember([]);
     const blankValues = createTtlSingleflight<string[][]>(45_000);
-    blankValues.remember([["ent-hidden", SMOKE, "Versteckt GmbH"]]);
+    blankValues.remember([["ent-hidden", COMP, "Versteckt GmbH"]]);
     const reread = await readCachedGrid({
       tab: "entities",
       op: "entities",
@@ -652,15 +651,15 @@ async function checkFirmaCreate() {
     });
     ok(reread.header[0] === "entity_id", "a blank cached header is not reused");
 
-    ok((await listEntitiesByEmail(SMOKE)).length === 0, "the smoke mailbox starts without a company");
+    ok((await listEntitiesByEmail(COMP)).length === 0, "the comp mailbox starts without a company");
     const sneaked = toEntity(
-      SMOKE,
+      COMP,
       { name: "Comp Smoke Test GmbH", street: "Teststraße 1", zip: "10115", city: "Berlin" },
       "ent-sneak",
       "2026-10-13T08:00:00.000Z",
     );
     grid.push(entitySheetValues(sneaked, header));
-    const afterOtherInstance = await listEntitiesByEmail(SMOKE);
+    const afterOtherInstance = await listEntitiesByEmail(COMP);
     ok(
       afterOtherInstance.some((row) => row.entityId === "ent-sneak" && row.city === "Berlin"),
       "a company appended on another instance is visible on the next account read",
@@ -672,15 +671,15 @@ async function checkFirmaCreate() {
     );
 
     const created = await createEntity(
-      SMOKE,
+      COMP,
       { name: "Comp Smoke Test GmbH", street: "Teststraße 1", zip: "10115", city: "Berlin", stnr: "", ustId: "" },
       { checkoutPrefill: "done" },
     );
     ok(created.backend === "sheets", "a comp mailbox writes the company sheet, not a file");
-    ok(created.entity.userEmail === SMOKE, "the stored company belongs to the comp login");
+    ok(created.entity.userEmail === COMP, "the stored company belongs to the comp login");
     ok(created.entity.checkoutPrefill === "done", "saving the form settles checkout prefill");
     ok(!ops.some((op) => op.toLowerCase().includes("stripe")), "creating a company does not call Stripe");
-    const listed = await listEntitiesByEmail(SMOKE);
+    const listed = await listEntitiesByEmail(COMP);
     ok(
       listed.some(
         (row) =>
@@ -694,7 +693,7 @@ async function checkFirmaCreate() {
       ),
       "the account list returns the company the form just saved",
     );
-    ok(listed.every((row) => row.userEmail === SMOKE), "the comp list does not include the other mailbox");
+    ok(listed.every((row) => row.userEmail === COMP), "the comp list does not include the other mailbox");
 
     const paid = await createEntity(OTHER, {
       name: "Weitere GmbH",
@@ -705,18 +704,18 @@ async function checkFirmaCreate() {
     ok(paid.entity.userEmail === OTHER, "a non-comp mailbox still creates a company");
     ok(
       (await listEntitiesByEmail(OTHER)).some((row) => row.entityId === paid.entity.entityId) &&
-        (await listEntitiesByEmail(SMOKE)).every((row) => row.entityId !== paid.entity.entityId),
+        (await listEntitiesByEmail(COMP)).every((row) => row.entityId !== paid.entity.entityId),
       "the new company stays on the mailbox that created it",
     );
 
     failAppend = true;
     await assert.rejects(
-      () => createEntity(SMOKE, { name: "Unsichtbar GmbH" }),
+      () => createEntity(COMP, { name: "Unsichtbar GmbH" }),
       (error: unknown) => error instanceof SheetsUnavailableError,
       "a Sheets failure is not stored as a successful company",
     );
     ok(
-      (await listEntitiesByEmail(SMOKE)).every((row) => row.name !== "Unsichtbar GmbH"),
+      (await listEntitiesByEmail(COMP)).every((row) => row.name !== "Unsichtbar GmbH"),
       "the failed save does not show up as a company",
     );
   } finally {
