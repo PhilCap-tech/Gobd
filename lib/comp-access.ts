@@ -10,7 +10,11 @@
  * `extra` is an optional test address on the same comparison. Production
  * call sites omit it.
  */
-export const COMP_ACCESS_EMAILS = ["winkler@winkler-segtrop.de"] as const;
+export const COMP_ACCESS_EMAILS = [
+  "winkler@winkler-segtrop.de",
+  // Temporary Prod smoke test (CoS, 2026-10-13). Will be removed afterward.
+  "gobd-test@mail.grokbot.com",
+] as const;
 
 const allowlist = new Set(
   COMP_ACCESS_EMAILS.map((email) => email.toLowerCase()),
