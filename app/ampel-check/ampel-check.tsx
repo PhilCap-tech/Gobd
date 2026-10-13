@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AmpelCta, AmpelDisclaimer, AmpelResult } from "@/components/ampel-result";
 import {
@@ -20,6 +20,7 @@ import {
   sanitizeAmpelRef,
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
+import { trackAmpelResult, trackAmpelStart } from "@/lib/tracking";
 
 const CONSENT_LABEL = "Ich willige ein, das Ergebnis an diese E-Mail-Adresse zu erhalten.";
 const THROTTLED_MESSAGE =
@@ -45,16 +46,28 @@ export function AmpelCheck() {
   const [mailNotice, setMailNotice] = useState("");
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState("");
+  const startedRef = useRef(false);
+  const resultTrackedRef = useRef(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
+
+  useEffect(() => {
+    if (mode !== "result" || resultTrackedRef.current) return;
+    resultTrackedRef.current = true;
+    trackAmpelResult();
+  }, [mode]);
 
   const question = AMPEL_QUESTIONS[step];
   const encoded = useMemo(() => encodeAmpelAnswers(answers), [answers]);
 
   function choose(answer: AmpelAnswer) {
     if (!question) return;
+    if (!startedRef.current) {
+      startedRef.current = true;
+      trackAmpelStart();
+    }
     const next = { ...answers, [question.id]: answer };
     setAnswers(next);
     if (step < AMPEL_QUESTIONS.length - 1) {
@@ -71,6 +84,7 @@ export function AmpelCheck() {
   }
 
   function restart() {
+    resultTrackedRef.current = false;
     setMode("questions");
     setStep(0);
     setMailNotice("");

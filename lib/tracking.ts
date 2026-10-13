@@ -78,6 +78,8 @@ let lastReadinessStartPath = "";
 let lastGooglePagePath = "";
 let lastAdsConfigPath: string | null = null;
 let leadConversionQueued = false;
+let ampelStartTracked = false;
+let ampelResultTracked = false;
 let consentDefaultSet = false;
 let lastConsentGranted: boolean | null = null;
 
@@ -184,6 +186,8 @@ export function saveConsent(marketing: boolean): ConsentChoice {
     lastPageViewPath = "";
     lastReadinessStartPath = "";
     lastGooglePagePath = "";
+    ampelStartTracked = false;
+    ampelResultTracked = false;
   }
   window.dispatchEvent(new Event(CONSENT_EVENT));
   emitBanner();
@@ -394,6 +398,42 @@ export function trackLeadSubmit(): void {
   });
 }
 
+/**
+ * First answer on `/ampel-check`. GA4 `ampel_start` when a measurement id is
+ * set. Meta `AmpelStart` only when a pixel id is already configured.
+ * No new Ads label.
+ */
+export function trackAmpelStart(): void {
+  if (!hasMarketingConsent() || ampelStartTracked) return;
+  ampelStartTracked = true;
+  trackAmpelGaEvent("ampel_start");
+  trackAmpelPixel("AmpelStart");
+}
+
+/**
+ * Result view on `/ampel-check`, including a shared `?a=` link.
+ * GA4 `ampel_result`. Meta `AmpelResult` only when a pixel id is set.
+ */
+export function trackAmpelResult(): void {
+  if (!hasMarketingConsent() || ampelResultTracked) return;
+  ampelResultTracked = true;
+  trackAmpelGaEvent("ampel_result");
+  trackAmpelPixel("AmpelResult");
+}
+
+function trackAmpelGaEvent(name: "ampel_start" | "ampel_result"): void {
+  const gaId = getGaMeasurementId();
+  if (!gaId || !armGoogleTag() || !window.gtag) return;
+  window.gtag("event", name, { send_to: gaId });
+}
+
+function trackAmpelPixel(name: "AmpelStart" | "AmpelResult"): void {
+  const pixelId = getMetaPixelId();
+  if (!pixelId) return;
+  enableMetaPixel(pixelId);
+  window.fbq?.("trackCustom", name, eventParams());
+}
+
 function enableMetaPixel(pixelId: string): void {
   if (typeof window === "undefined" || !pixelId) return;
   ensureFbq();
@@ -538,6 +578,8 @@ export function resetTrackingForChecks(): void {
   lastGooglePagePath = "";
   lastAdsConfigPath = null;
   leadConversionQueued = false;
+  ampelStartTracked = false;
+  ampelResultTracked = false;
   consentDefaultSet = false;
   lastConsentGranted = null;
 }

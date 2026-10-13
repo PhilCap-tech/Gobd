@@ -1011,7 +1011,35 @@ async function appendReadinessSheetRow(lead: ReadinessLead): Promise<void> {
   readinessValuesCache.clear();
 }
 
-async function readReadinessSheetRows(): Promise<ReadinessLead[]> {
+async function upsertReadinessSheetRow(lead: ReadinessLead): Promise<void> {
+  const header = await ensureReadinessSheetHeader();
+  const tab = getReadinessSheetsTab();
+  const values = await sheetsValuesGet(`${tab}!A2:AZ`, "readiness.upsertRead");
+  const idIndex = header.indexOf("lead_id");
+  let rowNumber = -1;
+  if (idIndex >= 0) {
+    for (let index = 0; index < values.length; index += 1) {
+      if (queryIdsEqual(values[index]?.[idIndex] ?? "", lead.leadId)) rowNumber = index + 2;
+    }
+  }
+  const row = readinessSheetValues(lead, header);
+  if (rowNumber < 2) {
+    await appendReadinessSheetRow(lead);
+    return;
+  }
+  const sheets = createSheetsClient();
+  await retrySheetsCall("readiness.upsert", () =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId(),
+      range: `${tab}!A${rowNumber}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    }),
+  );
+  readinessValuesCache.clear();
+}
+
+async function readReadinessSheetRows(fresh = false): Promise<ReadinessLead[]> {
   const tab = getReadinessSheetsTab();
   const grid = await readCachedGrid({
     tab,
@@ -1021,6 +1049,7 @@ async function readReadinessSheetRows(): Promise<ReadinessLead[]> {
     headerCache: readinessHeaderCache,
     valuesCache: readinessValuesCache,
     materializeHeader: async (header) => header,
+    reuseValues: !fresh,
   });
   return grid.values
     .filter((row) => row.some((cell) => cell.trim()))
@@ -1134,13 +1163,58 @@ export async function appendReadinessLead(
   return { backend: "file", lead: complete, filePath };
 }
 
-async function loadReadinessLeads(): Promise<{
+async function upsertReadinessFileRow(lead: ReadinessLead): Promise<string> {
+  const write = async (dir: string, file: string) => {
+    const rows = await readReadinessFileRows(file);
+    const index = rows.findLastIndex((row) => queryIdsEqual(row.leadId, lead.leadId));
+    if (index >= 0) rows[index] = lead;
+    else rows.push(lead);
+    await writeReadinessFileRows(dir, file, rows);
+    return file;
+  };
+  const primaryDir = getFileFallbackDir();
+  const primaryFile = readinessFilePath(primaryDir);
+  try {
+    return await write(primaryDir, primaryFile);
+  } catch (error) {
+    const tmpFile = tmpReadinessFallbackPath();
+    if (isFsUnavailable(error) && primaryFile !== tmpFile) {
+      return write(path.dirname(tmpFile), tmpFile);
+    }
+    throw error;
+  }
+}
+
+export async function upsertReadinessLead(
+  lead: ReadinessLead,
+): Promise<ReadinessStoreResult> {
+  const complete = { ...emptyReadinessLead(), ...lead };
+  if (isSheetsConfigured()) {
+    try {
+      await upsertReadinessSheetRow(complete);
+      return { backend: "sheets", lead: complete };
+    } catch (error) {
+      rethrowSheetsOnVercel(error, "readiness.upsert");
+      console.error(
+        "[store] Readiness Google Sheets upsert fehlgeschlagen — falle auf Datei zurück",
+        error,
+      );
+    }
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
+    throw new SheetsUnavailableError(0);
+  }
+
+  const filePath = await upsertReadinessFileRow(complete);
+  return { backend: "file", lead: complete, filePath };
+}
+
+async function loadReadinessLeads(fresh = false): Promise<{
   backend: "sheets" | "file";
   rows: ReadinessLead[];
 }> {
   if (isSheetsConfigured()) {
     try {
-      const sheetRows = await readReadinessSheetRows();
+      const sheetRows = await readReadinessSheetRows(fresh);
       if (isVercelRuntime()) return { backend: "sheets", rows: sheetRows };
       const fileRows = await readAllReadinessFileRows();
       return { backend: "sheets", rows: mergeReadinessLeads(sheetRows, fileRows) };
@@ -1159,10 +1233,11 @@ async function loadReadinessLeads(): Promise<{
 
 export async function findReadinessLeadById(
   leadId: string,
+  options?: { fresh?: boolean },
 ): Promise<ReadinessLead | null> {
   const id = normalizeQueryId(leadId);
   if (!id) return null;
-  const { rows } = await loadReadinessLeads();
+  const { rows } = await loadReadinessLeads(options?.fresh === true);
   const matches = rows.filter((row) => queryIdsEqual(row.leadId, id));
   return matches.at(-1) ?? null;
 }
