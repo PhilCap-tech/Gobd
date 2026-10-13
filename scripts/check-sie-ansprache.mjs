@@ -70,6 +70,7 @@ const COVERED = [
   "lib/stripe.ts",
   "lib/session-write.ts",
   "lib/checkout-session.ts",
+  "lib/subscription-coverage.ts",
   "lib/sheets-outage.ts",
   "lib/sheets-unavailable.ts",
   "lib/fetch-retry.ts",

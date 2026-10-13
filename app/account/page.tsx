@@ -15,6 +15,14 @@ import { accountCompanyCards, draftsNotOnCompanyCard } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import {
+  coveredIntakePath,
+  emptyIncludedFirmCoverage,
+  EXTRA_FIRM_NOTE,
+  firmPosition,
+  firmStartDecision,
+  loadIncludedFirmCoverage,
+} from "@/lib/subscription-coverage";
 import { runWithSheetsMeasure } from "@/lib/sheets-meter";
 import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { firmaEditPath } from "@/lib/documents";
@@ -147,6 +155,9 @@ export default async function AccountPage({
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId) ||
     lifecycleRows.some((row) => row.stripeCustomerId);
   const atCap = entityCapReached(entities.length);
+  const coverage = compAccess
+    ? emptyIncludedFirmCoverage()
+    : await loadIncludedFirmCoverage(email);
 
   return (
     <>
@@ -234,7 +245,21 @@ export default async function AccountPage({
                 {groups.map((group) => {
                   const emptyCard =
                     group.families.length === 0 && group.continueDrafts.length === 0;
-                  const offerPaidIntake = Boolean(paidIntakeHref) && emptyCard && !paidIntakePlaced;
+                  const entityId = group.entity?.entityId ?? "";
+                  const position = entityId ? firmPosition(entities, entityId) : 0;
+                  const start =
+                    !compAccess && group.entity
+                      ? firmStartDecision({
+                          sessionEmail: email,
+                          entityOwnerEmail: group.entity.userEmail,
+                          entityId,
+                          firmPosition: position,
+                          coverage,
+                        })
+                      : "checkout";
+                  const coveredIntakeHref = start === "intake" ? coveredIntakePath(entityId) : "";
+                  const offerPaidIntake =
+                    Boolean(paidIntakeHref) && emptyCard && !paidIntakePlaced && !coveredIntakeHref;
                   if (offerPaidIntake) paidIntakePlaced = true;
                   return (
                     <AccountCompanyCard
@@ -246,17 +271,14 @@ export default async function AccountPage({
                       downloadsOpen={downloadsOpen}
                       paidIntakeHref={offerPaidIntake ? paidIntakeHref : ""}
                       compAccess={compAccess}
+                      coveredIntakeHref={coveredIntakeHref}
+                      extraFirmNote={!compAccess && position > MAX_ENTITIES_PER_ACCOUNT}
                     />
                   );
                 })}
               </div>
               <div className="entity-toolbar">
-                {atCap ? (
-                  <p className="hint">
-                    Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
-                    erreicht.
-                  </p>
-                ) : writesOpen ? (
+                {writesOpen ? (
                   <>
                     {paidIntakeHref && !paidIntakePlaced ? (
                       <Link className="btn" href={paidIntakeHref}>
@@ -266,6 +288,7 @@ export default async function AccountPage({
                     <Link className="btn ghost" href="/account/firma/neu">
                       {entities.length === 0 ? "Firma anlegen" : FIRMA_ADD_LABEL}
                     </Link>
+                    {atCap ? <p className="hint">{EXTRA_FIRM_NOTE}</p> : null}
                   </>
                 ) : null}
               </div>
@@ -288,8 +311,7 @@ export default async function AccountPage({
           {stripeBound
             ? "Identität über die E-Mail aus dem Checkout."
             : "Identität über die E-Mail aus dem Intake."}{" "}
-          Der Name im Profil ändert die Anmeldung nicht. Bis zu{" "}
-          {MAX_ENTITIES_PER_ACCOUNT} Firmen pro Konto.
+          Der Name im Profil ändert die Anmeldung nicht. {EXTRA_FIRM_NOTE}
         </p>
 
         <LogoutButton className="account-logout" />

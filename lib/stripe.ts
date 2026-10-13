@@ -646,6 +646,46 @@ export function billingSubscriptionStatusFrom(
   return "none";
 }
 
+type SubscriptionStatusLookup = (
+  customerId: string,
+) => Promise<{ ok: true; statuses: string[] } | { ok: false }>;
+
+let subscriptionStatusHandler: SubscriptionStatusLookup | null = null;
+
+/** Tests substitute the subscription list. Production leaves this unset. */
+export function installSubscriptionStatusHandler(
+  next: SubscriptionStatusLookup | null,
+): void {
+  subscriptionStatusHandler = next;
+}
+
+/**
+ * Statuses of this customer's subscriptions. `ok: false` when Stripe cannot
+ * be asked or the list fails — callers must not treat that as „kein Abo“.
+ */
+export async function listCustomerSubscriptionStatuses(
+  customerId: string,
+): Promise<{ ok: true; statuses: string[] } | { ok: false }> {
+  const id = customerId.trim();
+  if (!id) return { ok: false };
+  if (subscriptionStatusHandler) return subscriptionStatusHandler(id);
+  if (!isStripeSecretConfigured()) return { ok: false };
+  try {
+    const list = await getStripe().subscriptions.list({
+      customer: id,
+      status: "all",
+      limit: 20,
+    });
+    return { ok: true, statuses: list.data.map((item) => item.status) };
+  } catch (error) {
+    console.error(
+      "[stripe] subscriptions.list für weitere Firmen fehlgeschlagen",
+      error instanceof Error ? error.name : "error",
+    );
+    return { ok: false };
+  }
+}
+
 export function billingInvoiceFrom(invoice: Stripe.Invoice): BillingInvoice {
   const id = invoice.id ?? "";
   return {

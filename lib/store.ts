@@ -21,9 +21,7 @@ import {
   entityFieldForHeader,
   entityOwnedByEmail,
   entitySheetValues,
-  EntityLimitError,
   latestEntities,
-  MAX_ENTITIES_PER_ACCOUNT,
   normalizeCheckoutPrefill,
   parseEntity,
   toEntity,
@@ -1438,10 +1436,6 @@ export async function createEntity(
   input: EntityInput,
   options?: { checkoutPrefill?: CheckoutPrefillState },
 ): Promise<EntityStoreResult> {
-  const existing = await listEntitiesByEmail(email);
-  if (existing.length >= MAX_ENTITIES_PER_ACCOUNT) {
-    throw new EntityLimitError(existing.length);
-  }
   const entity = toEntity(email, input, randomUUID());
   entity.checkoutPrefill = normalizeCheckoutPrefill(options?.checkoutPrefill);
   if (!entity.name) {

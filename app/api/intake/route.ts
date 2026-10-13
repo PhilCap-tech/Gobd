@@ -8,6 +8,12 @@ import {
   type CheckoutGrant,
 } from "@/lib/auth";
 import { sessionOwnerDenial } from "@/lib/checkout-access";
+import {
+  firmPosition,
+  firmStartDecision,
+  loadIncludedFirmCoverage,
+  type IncludedFirmCoverage,
+} from "@/lib/subscription-coverage";
 import { isCompAccessEmail } from "@/lib/comp-access";
 import {
   applyCheckoutOwnerSession,
@@ -148,6 +154,11 @@ export type IntakeIo = {
   /** Optional so existing test doubles stay valid. Production wires the store. */
   findRowByStripeSessionId?: typeof findRowByStripeSessionId;
   resolveCheckoutSession: typeof resolveCheckoutSession;
+  /**
+   * Optional. Production wires the stored paid row plus Stripe subscription
+   * status. Test doubles omit it and keep the checkout gate.
+   */
+  includedFirmCoverage?: (email: string) => Promise<IncludedFirmCoverage>;
   prepareDurableIntakeRow: typeof prepareDurableIntakeRow;
   appendRecord: typeof appendRecord;
   generatePdf: typeof generatePdf;
@@ -165,6 +176,7 @@ const defaultIntakeIo: IntakeIo = {
   findLatestStripeCustomerIdByEmail,
   findRowByStripeSessionId,
   resolveCheckoutSession,
+  includedFirmCoverage: loadIncludedFirmCoverage,
   prepareDurableIntakeRow,
   appendRecord,
   generatePdf,
@@ -341,6 +353,45 @@ async function resolveIdentity(
       firstDelivery: false,
       compAccess: true,
     };
+  }
+
+  const requestedEntity = body.entityId?.trim() ?? "";
+  if (!sessionId && sessionEmail && requestedEntity && io.includedFirmCoverage) {
+    const owned = await io.getOwnedEntity(requestedEntity, sessionEmail);
+    const denial = sessionOwnerDenial(sessionEmail, owned?.userEmail ?? "");
+    if (!owned || denial) {
+      return { response: jsonError("Kein Zugriff.", denial ?? 403) };
+    }
+    const coverage = await io.includedFirmCoverage(sessionEmail);
+    const firms = await io.listEntitiesByEmail(sessionEmail);
+    const decision = firmStartDecision({
+      sessionEmail,
+      entityOwnerEmail: owned.userEmail,
+      entityId: owned.entityId,
+      firmPosition: firmPosition(firms, owned.entityId),
+      coverage,
+    });
+    if (decision === "denied") {
+      return { response: jsonError("Kein Zugriff.", 403) };
+    }
+    if (decision === "intake") {
+      return {
+        identity: {
+          email: sessionEmail,
+          company: owned.name,
+          stripeSessionId: "",
+          stripeCustomerId: coverage.stripeCustomerId,
+          stub: false,
+        },
+        version: 1,
+        parentDocumentId: "",
+        status: "intake_submitted",
+        entityId: owned.entityId,
+        ownerEmail: sessionEmail,
+        firstDelivery: false,
+        fromStoredEntitlement: true,
+      };
+    }
   }
 
   const identity = await io.resolveCheckoutSession(sessionId);
