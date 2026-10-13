@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { JsonLd } from "@/components/json-ld";
 import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
+import { compCheckoutRedirect } from "@/lib/comp-access";
 import { entityChoices } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
@@ -35,8 +37,10 @@ export default async function CheckoutPage({
 }) {
   const params = await searchParams;
   const requestedEntityId = firstQueryValue(params.entity_id) ?? "";
-  const partner = firstQueryValue(params.utm_campaign) === "steuerberater";
   const email = await getSessionEmail();
+  const compTarget = compCheckoutRedirect(email, requestedEntityId);
+  if (compTarget) redirect(compTarget);
+  const partner = firstQueryValue(params.utm_campaign) === "steuerberater";
   const entities = email ? await listEntitiesByEmail(email) : [];
   const owned =
     email && requestedEntityId ? await getOwnedEntity(requestedEntityId, email) : null;

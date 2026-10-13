@@ -212,10 +212,10 @@ export default async function AccountPage({
               </p>
               {writesOpen && (
                 <div className="actions entity-actions">
-                  {paidIntakeHref ? (
-                    <Link className="btn" href={paidIntakeHref}>
+                  {paidIntakeHref && !compAccess ? (
+                    <a className="btn" href={paidIntakeHref}>
                       {PAID_INTAKE_LABEL}
-                    </Link>
+                    </a>
                   ) : null}
                   <Link
                     className={
@@ -258,10 +258,10 @@ export default async function AccountPage({
                   </p>
                 ) : writesOpen ? (
                   <>
-                    {paidIntakeHref && !paidIntakePlaced ? (
-                      <Link className="btn" href={paidIntakeHref}>
+                    {paidIntakeHref && !paidIntakePlaced && !compAccess ? (
+                      <a className="btn" href={paidIntakeHref}>
                         {PAID_INTAKE_LABEL}
-                      </Link>
+                      </a>
                     ) : null}
                     <Link className="btn ghost" href="/account/firma/neu">
                       {entities.length === 0 ? "Firma anlegen" : FIRMA_ADD_LABEL}

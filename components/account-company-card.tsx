@@ -23,7 +23,7 @@ import {
 } from "@/lib/open-drafts";
 import { CHECKOUT_PREFILL_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
 import { PAID_INTAKE_LABEL } from "@/lib/account-paid-intake";
-import { compIntakePath } from "@/lib/comp-access";
+import { compIntakePath, isCompAccessEmail } from "@/lib/comp-access";
 import { formatEntityAddress, type Entity } from "@/lib/entities";
 import { gesamtDocTitle } from "@/lib/gesamt-document";
 import { MODUL_UEBERSICHT_STEP_ID } from "@/lib/intake-catalog";
@@ -101,8 +101,8 @@ import {
  * Native `<a>`, not `next/link`: Link calls preventDefault and then
  * client-navigates. /intake often redirects that href to the grant route
  * handler, so the click never loads. Opening the href directly still works.
- * „Neues Dokument“ uses the same anchor: its target is /intake for a comp
- * mailbox and /checkout for everyone else.
+ * „Neues Dokument“ uses the same anchor. The session email decides the
+ * target: /intake for an allowlisted mailbox, /checkout otherwise.
  */
 export const ACCOUNT_CONTINUE_LABEL = "Weiter ausfüllen";
 
@@ -130,7 +130,6 @@ export function AccountCompanyCard({
   writesOpen = true,
   downloadsOpen = true,
   paidIntakeHref = "",
-  compAccess = false,
 }: {
   group: EntityDocumentGroup & { continueDrafts?: IntakeDraft[] };
   email: string;
@@ -142,7 +141,10 @@ export function AccountCompanyCard({
   downloadsOpen?: boolean;
   /** Bezahlter Intake ohne Dokument. Leer, wenn keiner offen ist. */
   paidIntakeHref?: string;
-  /** Allowlist mailbox starts the questionnaire without Checkout. */
+  /**
+   * Kept so callers can pass the hub flag. The href uses `email`
+   * (`isCompAccessEmail`), so a false flag cannot open checkout.
+   */
   compAccess?: boolean;
 }) {
   const entity = group.entity ? presentEntity(group.entity) : null;
@@ -172,6 +174,7 @@ export function AccountCompanyCard({
   );
   const firstMissing = BEREICHE.find((item) => !present.has(item.id))?.id ?? BELEGFLUSS;
   const basisId = families[0]?.latest.documentId ?? "";
+  const sessionComp = isCompAccessEmail(email);
 
   return (
     <article className="card entity-card">
@@ -196,14 +199,18 @@ export function AccountCompanyCard({
           <Link className="btn ghost" href={firmaEditPath(entity.entityId)}>
             {FIRMA_EDIT_LABEL}
           </Link>
-          {families.length === 0 && paidIntakeHref ? (
+          {families.length === 0 && paidIntakeHref && !sessionComp ? (
             <a className="btn" href={paidIntakeHref}>
               {PAID_INTAKE_LABEL}
             </a>
           ) : families.length === 0 ? (
             <a
               className="btn"
-              href={compAccess ? compIntakePath(entity.entityId) : newDocumentPath(entity.entityId)}
+              href={
+                sessionComp
+                  ? compIntakePath(entity.entityId)
+                  : newDocumentPath(entity.entityId)
+              }
             >
               Neues Dokument
             </a>

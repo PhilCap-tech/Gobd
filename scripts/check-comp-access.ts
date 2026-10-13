@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { POST as postCheckout } from "../app/api/checkout/route";
 import { postDelivery } from "../app/api/delivery/route";
 import { submitIntake, type IntakeIo } from "../app/api/intake/route";
 import { AccountAboCard } from "../components/account-abo";
@@ -25,6 +26,7 @@ import {
 } from "../lib/checkout-session";
 import {
   COMP_ACCESS_EMAILS,
+  compCheckoutRedirect,
   compIntakePath,
   firmaAnlegenAllowed,
   isCompAccessEmail,
@@ -191,6 +193,12 @@ function checkAllowlist() {
   ok(!firmaAnlegenAllowed(""), "Firma anlegen still requires a login");
   ok(compIntakePath(ENTITY).includes("entity_id=" + ENTITY), "the comp questionnaire names the company");
   ok(!compIntakePath(ENTITY).includes("session_id"), "the comp questionnaire has no checkout session");
+  ok(
+    compCheckoutRedirect(`  ${COMP.toUpperCase()}  `, ENTITY) === compIntakePath(ENTITY),
+    "a comp session with a new company leaves checkout for the questionnaire",
+  );
+  ok(compCheckoutRedirect(COMP, "  ") === "/account", "a comp session without a company leaves checkout for the account");
+  ok(compCheckoutRedirect(OTHER, ENTITY) === null, "another mailbox still reaches checkout");
   ok(sessionOwnerDenial(COMP, COMP) === null, "the comp mailbox owns its own document");
   ok(sessionOwnerDenial(OTHER, COMP) === 403, "another mailbox does not own the comp document");
   ok(sessionOwnerDenial(null, COMP) === 401, "a missing login does not own the comp document");
@@ -222,6 +230,14 @@ function checkAccountUi() {
   ok(!compCard.includes("/account/kuendigung"), "the comp hub has no cancel button");
   ok(!compCard.includes("/account/billing"), "the comp hub has no Stripe billing link");
   ok(!compCard.includes("Stripe-Portal"), "the comp hub has no portal button");
+
+  const stripeBoundComp = renderToStaticMarkup(
+    createElement(AccountAboCard, { stripeBound: true, compAccess: true }),
+  );
+  ok(stripeBoundComp.includes("Kostenfreier Zugang"), "a Stripe id on the mailbox does not restore the Abo block");
+  ok(!stripeBoundComp.includes('href="/checkout"'), "a comp account has no price CTA");
+  ok(!stripeBoundComp.includes("149"), "a comp account does not see the setup price");
+  ok(!stripeBoundComp.includes("Ein Abo gilt"), "a comp account does not see the Abo copy");
 
   const paidCard = renderToStaticMarkup(
     createElement(AccountAboCard, { stripeBound: false, compAccess: false }),
@@ -275,6 +291,26 @@ function checkAccountUi() {
   );
   ok(!/<button\b[^>]*>Neues Dokument<\/button>/.test(company), "Neues Dokument is not a nested button");
 
+  const ignoredFlag = renderToStaticMarkup(
+    createElement(AccountCompanyCard, {
+      email: `  ${COMP.toUpperCase()}  `,
+      compAccess: false,
+      paidIntakeHref: "/intake?session_id=cs_live_should_not_win",
+      empty: true,
+      group: {
+        entity: { ...emptyEntity(), entityId: ENTITY, name: COMPANY },
+        families: [],
+      },
+    }),
+  );
+  ok(
+    ignoredFlag.includes(`/intake?modus=gesamt&amp;entity_id=${ENTITY}`),
+    "a new company for a comp login opens the questionnaire",
+  );
+  ok(!ignoredFlag.includes("/checkout"), "a new company for a comp login does not open checkout");
+  ok(!ignoredFlag.includes("session_id="), "a stored payment does not replace the comp questionnaire");
+  ok(ignoredFlag.includes("Neues Dokument"), "the empty company still offers Neues Dokument");
+
   const ordinary = renderToStaticMarkup(
     createElement(AccountCompanyCard, {
       email: OTHER,
@@ -325,6 +361,78 @@ function checkAccountUi() {
   ok(!entities.includes("resolveCheckoutSession"), "Firma anlegen does not ask Stripe");
   const intake = readFileSync("app/intake/page.tsx", "utf8");
   ok(intake.includes("isCompAccessEmail"), "intake start checks the allowlist");
+  ok(account.includes("paidIntakeHref && !compAccess"), "paid intake on the hub follows the session email");
+  const checkoutPage = readFileSync("app/checkout/page.tsx", "utf8");
+  const checkoutRedirect = checkoutPage.indexOf("compCheckoutRedirect");
+  const checkoutForm = checkoutPage.indexOf("<CheckoutForm");
+  ok(checkoutRedirect !== -1 && checkoutRedirect < checkoutForm, "checkout redirects a comp session before the price form");
+  ok(checkoutPage.includes("if (compTarget) redirect(compTarget)"), "checkout uses a server redirect");
+  const checkoutApi = readFileSync("app/api/checkout/route.ts", "utf8");
+  ok(
+    checkoutApi.indexOf("compCheckoutRedirect") < checkoutApi.indexOf("createCheckoutSession"),
+    "the checkout API refuses a comp email before Stripe",
+  );
+}
+
+async function checkCheckoutGuard() {
+  const withCompany = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: `  ${COMP.toUpperCase()}  `,
+        company: COMPANY,
+        entityId: ENTITY,
+        entrepreneur: true,
+        acceptedDisclaimer: true,
+      }),
+    }),
+  );
+  const withCompanyBody = (await withCompany.json()) as { url?: string };
+  ok(withCompany.status === 200, `comp checkout POST is 200 (got ${withCompany.status})`);
+  ok(withCompanyBody.url === compIntakePath(ENTITY), "comp checkout POST returns the questionnaire");
+  ok(!String(withCompanyBody.url).includes("cs_"), "comp checkout POST does not create a Checkout Session");
+
+  const noCompany = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: COMP, company: COMPANY, entrepreneur: true, acceptedDisclaimer: true }),
+    }),
+  );
+  const noCompanyBody = (await noCompany.json()) as { url?: string };
+  ok(noCompanyBody.url === "/account", "comp checkout POST without a company returns the account");
+
+  const switchedEmail = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: `${SESSION_COOKIE}=${createSessionToken(COMP)}`,
+      },
+      body: JSON.stringify({
+        email: OTHER,
+        company: COMPANY,
+        entityId: ENTITY,
+        entrepreneur: true,
+        acceptedDisclaimer: true,
+      }),
+    }),
+  );
+  const switchedBody = (await switchedEmail.json()) as { url?: string };
+  ok(switchedEmail.status === 200, "a comp login cannot start Stripe by typing another email");
+  ok(switchedBody.url === compIntakePath(ENTITY), "the session email keeps the questionnaire");
+
+  const ordinary = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: OTHER }),
+    }),
+  );
+  const ordinaryBody = (await ordinary.json()) as { url?: string; error?: string };
+  ok(ordinary.status === 400, `a non-comp checkout POST still validates (got ${ordinary.status})`);
+  ok(!ordinaryBody.url, "a non-comp checkout POST does not receive the comp questionnaire");
 }
 
 async function checkSubmit() {
@@ -771,7 +879,8 @@ async function checkFirmaCreate() {
 
 checkAllowlist();
 checkAccountUi();
-checkSubmit()
+checkCheckoutGuard()
+  .then(() => checkSubmit())
   .then(() => checkMailsStaySilent())
   .then(() => checkDeliveryPlan())
   .then(() => checkFirmaCreate())
