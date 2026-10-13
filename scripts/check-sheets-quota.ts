@@ -313,7 +313,14 @@ async function main() {
       await listLifecycleByEmail(BUYER);
       await findUndocumentedPaidSessionId(BUYER);
     });
-    ok(accountAgain.length === 0, "a repeated account load makes no Sheets call");
+    ok(
+      accountAgain.length === 1 && (accountAgain[0]?.range ?? "").startsWith("entities!"),
+      "a repeated account load only re-reads the company sheet",
+    );
+    ok(
+      accountAgain.every((call) => !(call.range ?? "").startsWith("intakes")),
+      "a repeated account load does not re-read the intake grid",
+    );
 
     resetMemory();
     const draftPut = await measure("PUT /api/intake/draft", async () => {
