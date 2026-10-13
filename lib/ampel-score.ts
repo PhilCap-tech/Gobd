@@ -36,7 +36,7 @@ const CODE_ANSWER: Record<string, AmpelAnswer> = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Bracket notes such as „[prüfen]“ stay in the config and never reach the page. */
+/** Drops a bracketed review note from a source line before it is shown. */
 const REVIEW_MARKER = /\s*\[[^\]]*\bprüfen\b[^\]]*\]/gi;
 
 export function publicAmpelSource(source: string): string {

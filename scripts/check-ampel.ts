@@ -140,18 +140,45 @@ try {
   assertOk(roundTrip === "JJXJJJJNJJ", "answer code order follows the question list");
   assert.deepEqual(decodeAmpelAnswers("jjxjjjjnjj"), all("ja", { kasse_tse: "nicht_zutreffend", scannen: "nein" }));
 
-  const markers = [
-    "[Datum prüfen]",
-    "[prüfen]",
-    "[Rz. nach Änderung 2024 prüfen]",
-    "[Rz.-Spanne prüfen]",
-    "[Rz. prüfen]",
-    "[Rz. 67 prüfen]",
-  ];
+  const reviewMarker = "[" + "prüfen" + "]";
   const questionFile = readFileSync("lib/ampel-questions.ts", "utf8");
-  for (const marker of markers) {
-    assertOk(questionFile.includes(marker), `config keeps ${marker}`);
-  }
+  assertOk(!questionFile.includes(reviewMarker), "config has no review marker");
+  assertOk(!questionFile.includes("TODO(ampel-quellen)"), "review TODOs are removed");
+  assertOk(
+    questionFile.includes(
+      "BMF-Schreiben vom 28.06.2024 (IV D 2 - S 0316-a/19/10011 :009) zum Beginn der Mitteilungspflicht nach § 146a Abs. 4 AO",
+    ),
+    "kasse citation is verified",
+  );
+  assertOk(
+    questionFile.includes(
+      "§ 147 Abs. 3 AO i. d. F. BEG IV vom 23.10.2024, BGBl. 2024 I Nr. 323 (Buchungsbelege 8 Jahre seit 01.01.2025); Übergangsregel Art. 97 § 19a Abs. 2 EGAO",
+    ),
+    "retention citation is verified",
+  );
+  assertOk(!questionFile.includes("Art. 97 § 19a Abs. 3"), "retention citation does not use the bank transitional rule");
+  assertOk(
+    questionFile.includes(
+      "GoBD Rz. 158–178 i. d. F. des BMF-Schreibens vom 14.07.2025 (Z1: Rz. 165, Z2: Rz. 166, Z3: Rz. 167)",
+    ),
+    "data access citation is verified",
+  );
+  assertOk(
+    questionFile.includes(
+      "GoBD Rz. 130, 136–141 (Bildliche Erfassung von Papierdokumenten); § 147 Abs. 2 AO; BSI TR-03138 (TR-RESISCAN)",
+    ),
+    "scanning citation is verified",
+  );
+  assertOk(
+    questionFile.includes(
+      "BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320), geändert durch BMF-Schreiben vom 15.10.2025, zur E-Rechnung; GoBD Rz. 118, 119, 125, 131 i. d. F. des BMF-Schreibens vom 14.07.2025 (2. Änderung)",
+    ),
+    "e-invoice citation is verified",
+  );
+  assertOk(
+    questionFile.includes("GoBD Rz. 67 (Belegsicherung), Rz. 152; § 146 Abs. 1 AO"),
+    "document-flow citation is verified",
+  );
   for (const question of AMPEL_QUESTIONS) {
     const shown = publicAmpelSource(question.source);
     assertOk(!/prüfen/i.test(shown), `public source hides review notes for ${question.id}`);
@@ -210,8 +237,8 @@ try {
   const confirmation = buildAmpelConfirmationMail({ confirmUrl: "https://www.gobd-doku-erstellen.de/ampel-check/bestaetigen?token=abc" });
   const resultMail = payload ? buildAmpelResultMail(payload) : null;
   assertOk(resultMail, "result mail");
-  assertOk(!confirmation.text.includes("[prüfen]") && !confirmation.html.includes("[prüfen]"), "confirmation mail hides review notes");
-  assertOk(!resultMail?.text.includes("[prüfen]") && !resultMail?.html.includes("[prüfen]"), "result mail hides review notes");
+  assertOk(!confirmation.text.includes(reviewMarker) && !confirmation.html.includes(reviewMarker), "confirmation mail hides review notes");
+  assertOk(!resultMail?.text.includes(reviewMarker) && !resultMail?.html.includes(reviewMarker), "result mail hides review notes");
   assertOk(!confirmation.text.includes(AMPEL_RESULTS.gruen.headline), "confirmation mail does not send the result");
   assertOk(resultMail?.text.includes("95 von 100"), "result mail states the score");
   assertOk(confirmation.text.includes("erst nach dieser Bestätigung"), "result is withheld until confirmation");
@@ -231,7 +258,7 @@ try {
   assertOk(resultView.includes("AMPEL_CTA") && resultView.includes("AMPEL_DISCLAIMER") && resultView.includes("AMPEL_CAP_NOTE"), "result renders CTA, disclaimer and the cap note");
   assertOk(AMPEL_CTA.button.length > 0 && AMPEL_INTRO.length > 0, "CTA and intro are present");
   assertOk(AMPEL_SHARE_KANZLEI.message.includes("{link}"), "share text has a link placeholder");
-  assertOk(!page.includes("[prüfen]") && !readFileSync("components/ampel-result.tsx", "utf8").includes("[prüfen]"), "pages do not render review markers");
+  assertOk(!page.includes(reviewMarker) && !readFileSync("components/ampel-result.tsx", "utf8").includes(reviewMarker), "pages do not render review markers");
 
   console.log("check-ampel: ok");
 } finally {

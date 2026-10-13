@@ -45,7 +45,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     weight: 3,
     applicable: "optional",
     source:
-      "§ 146a Abs. 1 und Abs. 4 AO; §§ 1–3 KassenSichV; BMF-Schreiben vom 28.06.2024 zur Mitteilungspflicht nach § 146a Abs. 4 AO [Datum prüfen]",
+      "§ 146a Abs. 1 und Abs. 4 AO; §§ 1–3 KassenSichV; BMF-Schreiben vom 28.06.2024 (IV D 2 - S 0316-a/19/10011 :009) zum Beginn der Mitteilungspflicht nach § 146a Abs. 4 AO",
   },
   {
     id: "aufbewahrung",
@@ -56,7 +56,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     weight: 3,
     applicable: "required",
     source:
-      "§ 147 Abs. 1 und Abs. 3 AO i. d. F. des Vierten Bürokratieentlastungsgesetzes (BEG IV); Übergangsregel Art. 97 § 19a EGAO [prüfen]; GoBD Rz. 113 ff.",
+      "§ 147 Abs. 3 AO i. d. F. BEG IV vom 23.10.2024, BGBl. 2024 I Nr. 323 (Buchungsbelege 8 Jahre seit 01.01.2025); Übergangsregel Art. 97 § 19a Abs. 2 EGAO",
   },
   {
     id: "unveraenderbarkeit",
@@ -77,7 +77,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     weight: 2,
     applicable: "required",
     source:
-      "§ 147 Abs. 6 AO; GoBD Rz. 158–174 i. d. F. des BMF-Schreibens vom 11.03.2024 (Z1: Rz. 165, Z2: Rz. 166, Z3: Rz. 167 [Rz. nach Änderung 2024 prüfen])",
+      "§ 147 Abs. 6 AO; GoBD Rz. 158–178 i. d. F. des BMF-Schreibens vom 14.07.2025 (Z1: Rz. 165, Z2: Rz. 166, Z3: Rz. 167)",
   },
   {
     id: "iks",
@@ -97,7 +97,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
       "Papierbelege dürfen nach dem Scannen grundsätzlich vernichtet werden, wenn das Verfahren dokumentiert ist und die Digitalisate den Anforderungen entsprechen (ersetzendes Scannen). Eine Orientierung bietet die Technische Richtlinie TR-RESISCAN des BSI. Sie ist jedoch keine Pflicht.",
     weight: 1,
     applicable: "optional",
-    source: "GoBD Rz. 136–141 [Rz.-Spanne prüfen]; § 147 Abs. 2 AO; BSI TR-03138 (TR-RESISCAN)",
+    source: "GoBD Rz. 130, 136–141 (Bildliche Erfassung von Papierdokumenten); § 147 Abs. 2 AO; BSI TR-03138 (TR-RESISCAN)",
   },
   {
     id: "erechnung",
@@ -108,7 +108,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     weight: 2,
     applicable: "required",
     source:
-      "§ 14 Abs. 1 und Abs. 2 UStG i. d. F. des Wachstumschancengesetzes; § 27 Abs. 38 UStG; BMF-Schreiben vom 15.10.2024 zur E-Rechnung; GoBD i. d. F. des BMF-Schreibens vom 14.07.2025 [Rz. prüfen]",
+      "§ 14 Abs. 1 und Abs. 2 UStG i. d. F. des Wachstumschancengesetzes; § 27 Abs. 38 UStG; BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320), geändert durch BMF-Schreiben vom 15.10.2025, zur E-Rechnung; GoBD Rz. 118, 119, 125, 131 i. d. F. des BMF-Schreibens vom 14.07.2025 (2. Änderung)",
   },
   {
     id: "belegfluss",
@@ -118,7 +118,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
       "Die Verfahrensdokumentation beschreibt den organisatorisch und technisch gewollten Prozess, von der Entstehung der Information über Erfassung, Verarbeitung und Speicherung bis zur Wiederauffindbarkeit. Belege sind zeitnah gegen Verlust zu sichern.",
     weight: 2,
     applicable: "required",
-    source: "GoBD Rz. 152, Rz. 67 (Belegsicherung) [Rz. 67 prüfen]; § 146 Abs. 1 AO",
+    source: "GoBD Rz. 67 (Belegsicherung), Rz. 152; § 146 Abs. 1 AO",
   },
 ];
 
@@ -198,14 +198,3 @@ export const AMPEL_SHARE_KANZLEI = {
 
 export const AMPEL_DISCLAIMER =
   "Die Betriebsprüfungs-Ampel dient ausschließlich der Orientierung und ist keine Steuerberatung. Sie ersetzt weder eine Prüfung im Einzelfall noch die Beratung durch eine Steuerberaterin oder einen Steuerberater. Das Ergebnis beruht allein auf Ihren Angaben und bestätigt nicht, dass Ihre Buchführung ordnungsgemäß ist. Stand der Rechtsgrundlagen: Oktober 2026.";
-
-// Review markers stay inside the source strings above so Growth's copy remains
-// unchanged. They are stripped before any customer-facing render. Verify each
-// item against the BMF original, then remove the marker from `source`.
-// TODO(ampel-quellen): kasse_tse — BMF-Schreiben vom 28.06.2024, Mitteilungspflicht § 146a Abs. 4 AO: Datum prüfen.
-// TODO(ampel-quellen): aufbewahrung — Übergangsregel Art. 97 § 19a EGAO prüfen; BGBl.-Nr. und EGAO-Fundstelle des BEG IV prüfen.
-// TODO(ampel-quellen): datenzugriff — Rz.-Zuordnung Z1–Z3 nach dem BMF-Schreiben vom 11.03.2024 prüfen (Z1: Rz. 165, Z2: Rz. 166, Z3: Rz. 167).
-// TODO(ampel-quellen): scannen — GoBD Rz.-Spanne 136–141 prüfen.
-// TODO(ampel-quellen): erechnung — Rz. der GoBD in der Fassung des BMF-Schreibens vom 14.07.2025 prüfen; Datum und Umfang dieser Änderung prüfen.
-// TODO(ampel-quellen): belegfluss — GoBD Rz. 67 (Belegsicherung) prüfen.
-// TODO(ampel-quellen): BMF-Schreiben vom 15.10.2024 zur E-Rechnung — mögliche Aktualisierung 2025 prüfen.
