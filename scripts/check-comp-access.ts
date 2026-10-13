@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { POST as postCheckout } from "../app/api/checkout/route";
 import { postDelivery } from "../app/api/delivery/route";
 import { submitIntake, type IntakeIo } from "../app/api/intake/route";
 import { AccountAboCard } from "../components/account-abo";
@@ -25,6 +26,7 @@ import {
 } from "../lib/checkout-session";
 import {
   COMP_ACCESS_EMAILS,
+  compCheckoutRedirect,
   compIntakePath,
   firmaAnlegenAllowed,
   isCompAccessEmail,
@@ -191,6 +193,12 @@ function checkAllowlist() {
   ok(!firmaAnlegenAllowed(""), "Firma anlegen still requires a login");
   ok(compIntakePath(ENTITY).includes("entity_id=" + ENTITY), "the comp questionnaire names the company");
   ok(!compIntakePath(ENTITY).includes("session_id"), "the comp questionnaire has no checkout session");
+  ok(
+    compCheckoutRedirect(`  ${COMP.toUpperCase()}  `, ENTITY) === compIntakePath(ENTITY),
+    "a comp session with a new company leaves checkout for the questionnaire",
+  );
+  ok(compCheckoutRedirect(COMP, "  ") === "/account", "a comp session without a company leaves checkout for the account");
+  ok(compCheckoutRedirect(OTHER, ENTITY) === null, "another mailbox still reaches checkout");
   ok(sessionOwnerDenial(COMP, COMP) === null, "the comp mailbox owns its own document");
   ok(sessionOwnerDenial(OTHER, COMP) === 403, "another mailbox does not own the comp document");
   ok(sessionOwnerDenial(null, COMP) === 401, "a missing login does not own the comp document");
@@ -285,7 +293,7 @@ function checkAccountUi() {
       },
     }),
   );
-  ok(ordinary.includes("/checkout?entity_id="), "other accounts still start at checkout");
+  ok(ordinary.includes("/checkout?entity_id="), "a paid account still starts the next firm at checkout");
   ok(
     /<a\b[^>]*>Neues Dokument<\/a>/.test(ordinary),
     "other accounts also get Neues Dokument as a native anchor",
@@ -325,6 +333,137 @@ function checkAccountUi() {
   ok(!entities.includes("resolveCheckoutSession"), "Firma anlegen does not ask Stripe");
   const intake = readFileSync("app/intake/page.tsx", "utf8");
   ok(intake.includes("isCompAccessEmail"), "intake start checks the allowlist");
+  const checkoutPage = readFileSync("app/checkout/page.tsx", "utf8");
+  const checkoutRedirect = checkoutPage.indexOf("compCheckoutRedirect");
+  const checkoutForm = checkoutPage.indexOf("<CheckoutForm");
+  ok(checkoutRedirect !== -1 && checkoutRedirect < checkoutForm, "checkout redirects a comp session before the price form");
+  ok(checkoutPage.includes("if (compTarget) redirect(compTarget)"), "checkout uses a server redirect");
+  const checkoutApi = readFileSync("app/api/checkout/route.ts", "utf8");
+  ok(
+    checkoutApi.indexOf("compCheckoutRedirect") < checkoutApi.indexOf("createCheckoutSession"),
+    "the checkout API refuses a comp email before Stripe",
+  );
+}
+
+async function checkCheckoutGuard() {
+  const withCompany = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: `  ${COMP.toUpperCase()}  `,
+        company: COMPANY,
+        entityId: ENTITY,
+        entrepreneur: true,
+        acceptedDisclaimer: true,
+      }),
+    }),
+  );
+  const withCompanyBody = (await withCompany.json()) as { url?: string };
+  ok(withCompany.status === 200, `comp checkout POST is 200 (got ${withCompany.status})`);
+  ok(withCompanyBody.url === compIntakePath(ENTITY), "comp checkout POST returns the questionnaire");
+  ok(!String(withCompanyBody.url).includes("cs_"), "comp checkout POST does not create a Checkout Session");
+
+  const noCompany = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: COMP, company: COMPANY, entrepreneur: true, acceptedDisclaimer: true }),
+    }),
+  );
+  const noCompanyBody = (await noCompany.json()) as { url?: string };
+  ok(noCompanyBody.url === "/account", "comp checkout POST without a company returns the account");
+
+  const switchedEmail = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: `${SESSION_COOKIE}=${createSessionToken(COMP)}`,
+      },
+      body: JSON.stringify({
+        email: OTHER,
+        company: COMPANY,
+        entityId: ENTITY,
+        entrepreneur: true,
+        acceptedDisclaimer: true,
+      }),
+    }),
+  );
+  const switchedBody = (await switchedEmail.json()) as { url?: string };
+  ok(switchedEmail.status === 200, "a comp login cannot start Stripe by typing another email");
+  ok(switchedBody.url === compIntakePath(ENTITY), "the session email keeps the questionnaire");
+
+  const ordinary = await postCheckout(
+    new Request("http://localhost/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: OTHER }),
+    }),
+  );
+  const ordinaryBody = (await ordinary.json()) as { url?: string; error?: string };
+  ok(ordinary.status === 400, `a non-comp checkout POST still validates (got ${ordinary.status})`);
+  ok(!ordinaryBody.url, "a non-comp checkout POST does not receive the comp questionnaire");
+
+  const paidFirmBody = await withLocalCheckoutStub(async () => {
+    const paidFirm = await postCheckout(
+      new Request("http://localhost/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: OTHER,
+          company: "Zweite Firma GmbH",
+          entityId: "ent_paid_second",
+          entrepreneur: true,
+          acceptedDisclaimer: true,
+        }),
+      }),
+    );
+    const body = (await paidFirm.json()) as { url?: string; error?: string };
+    ok(paidFirm.status === 200, `a paid second firm still starts checkout (got ${paidFirm.status} ${body.error ?? ""})`);
+    return body;
+  });
+  ok(
+    Boolean(paidFirmBody.url?.includes("session_id=mock_")),
+    "a paid second firm still receives a checkout session",
+  );
+  ok(
+    paidFirmBody.url !== compIntakePath("ent_paid_second") && !paidFirmBody.url?.includes("modus=gesamt"),
+    "a paid second firm is not sent to the comp questionnaire",
+  );
+}
+
+/** Local stub only. Clears live Stripe keys so this check never calls Stripe. */
+async function withLocalCheckoutStub<T>(fn: () => Promise<T>): Promise<T> {
+  const saved = {
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL: process.env.VERCEL,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_PRICE_SETUP_ID: process.env.STRIPE_PRICE_SETUP_ID,
+    STRIPE_PRICE_MONTHLY_ID: process.env.STRIPE_PRICE_MONTHLY_ID,
+  };
+  const env = process.env as Record<string, string | undefined>;
+  delete env.VERCEL;
+  delete env.VERCEL_ENV;
+  delete env.STRIPE_SECRET_KEY;
+  delete env.STRIPE_PRICE_SETUP_ID;
+  delete env.STRIPE_PRICE_MONTHLY_ID;
+  env.NODE_ENV = "test";
+  try {
+    return await fn();
+  } finally {
+    const restore = (name: string, value: string | undefined) => {
+      if (value === undefined) delete env[name];
+      else env[name] = value;
+    };
+    restore("NODE_ENV", saved.NODE_ENV);
+    restore("VERCEL", saved.VERCEL);
+    restore("VERCEL_ENV", saved.VERCEL_ENV);
+    restore("STRIPE_SECRET_KEY", saved.STRIPE_SECRET_KEY);
+    restore("STRIPE_PRICE_SETUP_ID", saved.STRIPE_PRICE_SETUP_ID);
+    restore("STRIPE_PRICE_MONTHLY_ID", saved.STRIPE_PRICE_MONTHLY_ID);
+  }
 }
 
 async function checkSubmit() {
@@ -771,7 +910,8 @@ async function checkFirmaCreate() {
 
 checkAllowlist();
 checkAccountUi();
-checkSubmit()
+checkCheckoutGuard()
+  .then(() => checkSubmit())
   .then(() => checkMailsStaySilent())
   .then(() => checkDeliveryPlan())
   .then(() => checkFirmaCreate())

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
+import { compCheckoutRedirect } from "@/lib/comp-access";
 import { boundCheckoutEntityId } from "@/lib/checkout-entity";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
@@ -45,6 +46,13 @@ export async function POST(request: Request) {
   const email = body.email?.trim() ?? "";
   const company = body.company?.trim() ?? "";
   const requestedEntityId = body.entityId?.trim() ?? "";
+  const sessionEmail = await sessionEmailFromRequest(request);
+  const compTarget =
+    compCheckoutRedirect(sessionEmail, requestedEntityId) ||
+    compCheckoutRedirect(email, requestedEntityId);
+  if (compTarget) {
+    return NextResponse.json({ url: compTarget });
+  }
   let entityOwnerEmail = "";
   if (requestedEntityId) {
     try {
@@ -61,7 +69,7 @@ export async function POST(request: Request) {
     checkoutEmail: email,
     entityId: requestedEntityId,
     entityOwnerEmail,
-    sessionEmail: await sessionEmailFromRequest(request),
+    sessionEmail,
     dropWhenSessionDiffers: true,
   });
 

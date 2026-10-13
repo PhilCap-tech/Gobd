@@ -47,3 +47,16 @@ export function compIntakePath(entityId?: string): string {
   if (id) params.set("entity_id", id);
   return `/intake?${params.toString()}`;
 }
+
+/**
+ * Comp sessions never see the price page. A company id opens the questionnaire.
+ * Without one, the account hub is the next step. Other mailboxes get null.
+ */
+export function compCheckoutRedirect(
+  email: string | null | undefined,
+  entityId?: string | null,
+): string | null {
+  if (!isCompAccessEmail(email)) return null;
+  const id = entityId?.trim() ?? "";
+  return id ? compIntakePath(id) : "/account";
+}
