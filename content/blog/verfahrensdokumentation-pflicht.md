@@ -59,7 +59,7 @@ Der Status als Kleinunternehmer betrifft die Umsatzsteuer. Er nimmt die GoBD nic
 
 ### GmbH
 
-Eine GmbH führt in der Regel Bücher. Die Verfahrensdokumentation ist dann Sache der Gesellschaft, praktisch der Geschäftsführung. Mehrere Standorte, mehrere Systeme oder verteilte Rollen machen den Text länger. Eine schlanke GmbH mit einem Programm und einem klaren Belegweg braucht trotzdem keine Konzernakte.
+Eine GmbH führt in der Regel Bücher. Die Verfahrensdokumentation ist dann Sache der Gesellschaft, praktisch der Geschäftsführung. Mehrere Standorte, mehrere Systeme oder verteilte Rollen machen den Text länger. Eine schlanke GmbH mit einem Programm und einem klaren Belegweg braucht trotzdem keine Konzernakte. Was Buchführungspflicht und Geschäftsführung für die Dokumentation praktisch heißen, steht in [Verfahrensdokumentation für GmbH und UG](/blog/verfahrensdokumentation-gmbh).
 
 ### Mandanten von Steuerkanzleien
 
@@ -135,6 +135,7 @@ Ein PDF ist ein Format, keine Freigabe durch die Finanzverwaltung. Wir leisten k
 - [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau und Vorgehen
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung) — was Prüfer typischerweise ansehen
 - [Verfahrensdokumentation für die Kasse](/blog/verfahrensdokumentation-kasse) — TSE, offene Ladenkasse, Kassenbuch
+- [Verfahrensdokumentation für GmbH und UG](/blog/verfahrensdokumentation-gmbh) — Buchführungspflicht und Verantwortung der Geschäftsführung
 
 ## Disclaimer
 
