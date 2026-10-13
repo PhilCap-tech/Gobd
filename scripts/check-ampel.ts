@@ -25,6 +25,9 @@ import {
 } from "@/lib/ampel-score";
 import type { AmpelAnswer } from "@/lib/ampel-questions";
 import { buildAmpelConfirmationMail, buildAmpelResultMail } from "@/lib/ampel-mail";
+import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi } from "@/lib/ampel-confirm";
+import type { MailResult } from "@/lib/mail";
+import type { ReadinessLead } from "@/lib/readiness";
 import { READINESS_SHEET_COLUMNS } from "@/lib/readiness";
 import { INDEXABLE_STATIC_PATHS } from "@/lib/seo";
 
@@ -60,6 +63,7 @@ if (!process.env.MAGIC_LINK_SECRET?.trim()) {
   process.env.MAGIC_LINK_SECRET = "check-ampel-offline-secret";
 }
 
+async function main() {
 try {
   assertOk(AMPEL_QUESTIONS.length === 10, "ten questions");
   assertOk(ampelMaxWeight() === 22, "weights sum to 22");
@@ -260,8 +264,127 @@ try {
   assertOk(AMPEL_SHARE_KANZLEI.message.includes("{link}"), "share text has a link placeholder");
   assertOk(!page.includes(reviewMarker) && !readFileSync("components/ampel-result.tsx", "utf8").includes(reviewMarker), "pages do not render review markers");
 
+  const doiRoute = readFileSync("app/api/ampel/bestaetigen/route.ts", "utf8");
+  assertOk(doiRoute.includes("confirmAmpelDoi"), "confirm route uses the idempotent confirm");
+  assertOk(doiRoute.includes("fresh: true"), "confirm reads the lead past the sheet cache");
+  assertOk(doiRoute.includes("Das Ergebnis konnte gerade nicht gesendet werden."), "mail failure keeps the same error");
+  const panel = readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8");
+  const confirmedAt = panel.indexOf("if (!response.ok || !data.ok)");
+  const leadTrackAt = panel.indexOf("trackLeadSubmit()");
+  assertOk(confirmedAt >= 0 && leadTrackAt > confirmedAt, "lead event fires only after the confirm request succeeds");
+  const tracking = readFileSync("lib/tracking.ts", "utf8");
+  assertOk(tracking.includes("export function trackAmpelStart") && tracking.includes("export function trackAmpelResult"), "ampel events exist");
+  assertOk(tracking.includes('trackAmpelGaEvent("ampel_start")') && tracking.includes('trackAmpelGaEvent("ampel_result")'), "ampel events are GA4 events");
+  assertOk(tracking.includes("if (!hasMarketingConsent() || ampelStartTracked) return;"), "ampel start is consent-gated");
+  assertOk(tracking.includes("if (!hasMarketingConsent() || ampelResultTracked) return;"), "ampel result is consent-gated");
+  assertOk(!tracking.includes("NEXT_PUBLIC_AMPEL"), "ampel tracking adds no env var");
+  assertOk(page.includes("trackAmpelStart()") && page.includes("trackAmpelResult()"), "the check tracks the first answer and the result");
+  assertOk(!page.includes("trackLeadSubmit"), "the check itself does not fire the lead event");
+
+  const consentAt = "2026-10-13T08:00:00.000Z";
+  const confirmNow = 1_700_000_000_000;
+  const code = encodeAmpelAnswers(all("ja"));
+  const confirmToken = createAmpelDoiToken(
+    { email: "Mandant@Kanzlei.example", answers: code ?? "", ref: "Kanzlei", consentAt },
+    confirmNow,
+  );
+  assertOk(confirmToken, "confirm test token");
+
+  function leadStore() {
+    const leads = new Map<string, ReadinessLead>();
+    const delays: number[] = [];
+    return {
+      leads,
+      delays,
+      deps(sendResult: (payload: { email: string }) => Promise<MailResult>) {
+        return {
+          now: () => confirmNow,
+          sleep: async (ms: number) => {
+            delays.push(ms);
+          },
+          findLead: async (leadId: string) => leads.get(leadId) ?? null,
+          saveLead: async (lead: ReadinessLead) => {
+            leads.set(lead.leadId, { ...lead });
+          },
+          sendResult,
+        };
+      },
+    };
+  }
+
+  const retry = leadStore();
+  let retrySends = 0;
+  const retried = await confirmAmpelDoi(
+    confirmToken ?? "",
+    retry.deps(async () => {
+      retrySends += 1;
+      if (retrySends < 3) return { stub: false, sent: false };
+      return { stub: false, sent: true, id: "mail-1" };
+    }),
+  );
+  assertOk(retried.ok && retried.alreadySent === false, "a transient mail failure retries and then succeeds");
+  assertOk(retrySends === 3, "result mail retries before the error");
+  assert.deepEqual(retry.delays, [400, 1200], "retries wait with backoff");
+  const recorded = [...retry.leads.values()][0];
+  assertOk(recorded?.doiConfirmedAt && recorded.mailStatus === "sent", "confirmed lead records the sent mail");
+  const second = await confirmAmpelDoi(
+    confirmToken ?? "",
+    retry.deps(async () => {
+      retrySends += 1;
+      return { stub: false, sent: true };
+    }),
+  );
+  assertOk(second.ok && second.alreadySent, "a sent lead succeeds without another mail");
+  assertOk(retrySends === 3, "the second confirm does not send");
+
+  const failed = leadStore();
+  let failedSends = 0;
+  const failure = await confirmAmpelDoi(
+    confirmToken ?? "",
+    failed.deps(async () => {
+      failedSends += 1;
+      return { stub: false, sent: false, duplicate: true, inflight: true };
+    }),
+  );
+  assertOk(!failure.ok && failure.reason === "mail" && failure.status === 503, "an in-flight claim is not success");
+  assertOk(failedSends === AMPEL_RESULT_RETRY_DELAYS_MS.length, "in-flight waits through every attempt");
+  assertOk([...failed.leads.values()][0]?.mailStatus === "pending", "a failed confirm stays pending");
+
+  const joined = leadStore();
+  let joinedSends = 0;
+  const joinedDeps = joined.deps(async () => {
+    joinedSends += 1;
+    return { stub: false, sent: true, id: "mail-2" };
+  });
+  const [left, right] = await Promise.all([
+    confirmAmpelDoi(confirmToken ?? "", joinedDeps),
+    confirmAmpelDoi(confirmToken ?? "", joinedDeps),
+  ]);
+  assertOk(left.ok && right.ok, "a double click shares one confirmation");
+  assertOk(joinedSends === 1, "a double click sends one result mail");
+
+  const blind = leadStore();
+  let blindSends = 0;
+  const blinded = await confirmAmpelDoi(confirmToken ?? "", {
+    ...blind.deps(async () => {
+      blindSends += 1;
+      return { stub: false, sent: true };
+    }),
+    saveLead: async () => {
+      throw new Error("sheets");
+    },
+  });
+  assertOk(blinded.ok && blindSends === 1, "a sheet write error does not hide a sent mail");
+  assertOk(await confirmAmpelDoi("not-a-token", blind.deps(async () => ({ stub: false, sent: true }))).then((result) => !result.ok && result.reason === "invalid"), "a bad token does not send");
+
   console.log("check-ampel: ok");
 } finally {
   if (savedSecret === undefined) delete process.env.MAGIC_LINK_SECRET;
   else process.env.MAGIC_LINK_SECRET = savedSecret;
 }
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

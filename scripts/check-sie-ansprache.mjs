@@ -20,6 +20,7 @@ const COVERED = [
   "components/ampel-result.tsx",
   "lib/ampel-questions.ts",
   "lib/ampel-mail.ts",
+  "lib/ampel-confirm.ts",
   "app/checkout/**/*.{ts,tsx}",
   "app/api/checkout/route.ts",
   "app/muster/**/*.{ts,tsx}",
