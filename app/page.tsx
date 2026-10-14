@@ -390,10 +390,14 @@ export default function HomePage() {
                 <figcaption className={styles.excerptCaption}>
                   Beispiel-Ausschnitt — Ihr Dokument entsteht aus Ihren Angaben.
                 </figcaption>
-                {excerpt.title ? <h3>{excerpt.title}</h3> : <h3>{excerptChapter?.title}</h3>}
+                {excerpt.title || excerptChapter?.title ? (
+                  <p className={styles.excerptTitle}>
+                    {excerpt.title || excerptChapter?.title}
+                  </p>
+                ) : null}
                 {excerpt.sections.map((section) => (
                   <div key={section.heading}>
-                    <h4>{section.heading}</h4>
+                    <p className={styles.excerptSection}>{section.heading}</p>
                     <p>{section.text}</p>
                   </div>
                 ))}
