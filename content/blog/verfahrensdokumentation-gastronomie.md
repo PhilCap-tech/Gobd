@@ -158,7 +158,7 @@ Nein. Die [GoBD Verfahrensdokumentation für die Kasse](/blog/verfahrensdokument
 
 Jede, über die Sie verkaufen. Name, Rechnung an den Gast, Abrechnung, Konto der Auszahlung und die Person, die abgleicht. Einen Kanal, den Sie nicht nutzen, streichen Sie. Was die Plattform intern tut, nur soweit es Ihnen bekannt ist.
 
-### Wie halte ich Trinkgeld fest?
+### Wie halten Sie Trinkgeld fest?
 
 So, wie es bei Ihnen läuft: bar, auf der Karte, über eine gemeinsame Kasse oder als Betrag, den der Gast schuldet. § 3 Nr. 51 EStG befreit nur Trinkgelder, die dem Arbeitnehmer von Dritten freiwillig, ohne Rechtsanspruch und zusätzlich zum geschuldeten Betrag gegeben werden. Ob Ihr Weg diese Voraussetzungen erfüllt, klärt Ihre Steuerberatung.
 
