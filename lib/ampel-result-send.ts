@@ -13,6 +13,7 @@ import type { ReadinessLead } from "@/lib/readiness";
 
 export const AMPEL_PDF_FROM = "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
 export const AMPEL_PDF_FILENAME = "Betriebspruefungs-Ampel.pdf";
+export const AMPEL_SEND_TIMEOUT_MS = 8_000;
 
 export type SubmitAmpelInput = {
   email: unknown;
@@ -35,13 +36,41 @@ export type SubmitAmpelDeps = {
   }) => Promise<AmpelConfirmationResult>;
   saveLead?: (lead: ReadinessLead) => Promise<void>;
   purge?: () => Promise<void>;
+  mail?: (input: { email: string; answers: AmpelAnswerMap; code: string }) => Promise<MailResult>;
+  sendTimeoutMs?: number;
 };
 
 export type SubmitAmpelOutcome =
   | { ok: true; honeypot: true }
-  | { ok: true; duplicate: boolean; marketing: "started" | "failed" | "skipped" }
-  | { ok: false; status: 400 | 503; error: string }
+  | {
+      ok: true;
+      duplicate: boolean;
+      marketing: "started" | "failed" | "skipped";
+      mailed: boolean;
+      notice?: string;
+    }
+  | { ok: false; status: 400; error: string }
   | { ok: false; status: 429; error: string; scope: "ip" | "email" };
+
+export function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("ampel-timeout")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+function withheld(notice: string): SubmitAmpelOutcome {
+  return { ok: true, duplicate: false, marketing: "skipped", mailed: false, notice };
+}
 
 const runs = new Map<string, Promise<SubmitAmpelOutcome>>();
 
@@ -76,29 +105,35 @@ async function confirmMarketing(input: {
   });
 }
 
-export async function sendAmpelPdfMail(input: {
-  email: string;
-  answers: AmpelAnswerMap;
-  code: string;
-}): Promise<MailResult> {
+export async function sendAmpelPdfMail(
+  input: {
+    email: string;
+    answers: AmpelAnswerMap;
+    code: string;
+  },
+  timeoutMs = AMPEL_SEND_TIMEOUT_MS,
+): Promise<MailResult> {
   const mail = buildAmpelPdfMail(input.answers);
   if (!mail) return { stub: false, sent: false };
-  const pdf = await buildAmpelResultPdf(input.answers);
-  return sendDedupedEmail({
-    dedupeKey: ampelPdfDedupeKey(input.email, input.code),
-    to: input.email,
-    from: AMPEL_PDF_FROM,
-    subject: mail.subject,
-    text: mail.text,
-    html: mail.html,
-    attachments: [
-      {
-        filename: AMPEL_PDF_FILENAME,
-        content: pdf,
-        contentType: "application/pdf",
-      },
-    ],
-  });
+  const pdf = await withDeadline(buildAmpelResultPdf(input.answers), timeoutMs);
+  return withDeadline(
+    sendDedupedEmail({
+      dedupeKey: ampelPdfDedupeKey(input.email, input.code),
+      to: input.email,
+      from: AMPEL_PDF_FROM,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+      attachments: [
+        {
+          filename: AMPEL_PDF_FILENAME,
+          content: pdf,
+          contentType: "application/pdf",
+        },
+      ],
+    }),
+    timeoutMs,
+  );
 }
 
 async function runSubmit(
@@ -119,28 +154,34 @@ async function runSubmit(
     });
   } catch (error) {
     console.error("[ampel] Rate-Limit fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return { ok: false, status: 503, error: AMPEL_RESULT_MAIL.sendFailed };
+    return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
   if (decision !== "ok") {
     return { ok: false, status: 429, error: AMPEL_RESULT_MAIL.rateLimited, scope: decision };
   }
 
+  const timeoutMs = deps.sendTimeoutMs ?? AMPEL_SEND_TIMEOUT_MS;
   let mail: MailResult;
   try {
-    mail = await sendAmpelPdfMail({ email, answers, code });
+    const send = deps.mail ?? ((payload) => sendAmpelPdfMail(payload, timeoutMs));
+    mail = await withDeadline(send({ email, answers, code }), timeoutMs);
   } catch (error) {
     console.error("[ampel] Ergebnis-PDF fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return { ok: false, status: 503, error: AMPEL_RESULT_MAIL.sendFailed };
+    return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
   if (mail.inflight || !delivered(mail)) {
-    return { ok: false, status: 503, error: AMPEL_RESULT_MAIL.sendFailed };
+    return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
 
+  const purge = deps.purge ?? (async () => {
+    await purgeExpiredAmpelLeads(now);
+  });
   try {
-    const purge = deps.purge ?? (async () => {
-      await purgeExpiredAmpelLeads(now);
-    });
-    await purge();
+    await withDeadline(purge(), timeoutMs);
+  } catch (error) {
+    console.error("[ampel] Ergebnis speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
+  }
+  try {
     const scored = scoreAmpel(answers);
     if (scored) {
       const consentAt = new Date(now).toISOString();
@@ -159,7 +200,7 @@ async function runSubmit(
       const save = deps.saveLead ?? (async (row: ReadinessLead) => {
         await upsertReadinessLead(row);
       });
-      await save(lead);
+      await withDeadline(save(lead), timeoutMs);
     }
   } catch (error) {
     console.error("[ampel] Ergebnis speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
@@ -169,20 +210,23 @@ async function runSubmit(
   if (input.marketing === true) {
     try {
       const confirm = deps.confirm ?? confirmMarketing;
-      const confirmed = await confirm({
-        email,
-        answers: code,
-        ref: sanitizeAmpelRef(input.ref),
-        consentIp: input.ip,
-        consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
-      });
+      const confirmed = await withDeadline(
+        confirm({
+          email,
+          answers: code,
+          ref: sanitizeAmpelRef(input.ref),
+          consentIp: input.ip,
+          consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
+        }),
+        timeoutMs,
+      );
       marketing = confirmed.ok ? "started" : "failed";
     } catch (error) {
       console.error("[ampel] Einwilligung fehlgeschlagen", error instanceof Error ? error.name : "error");
       marketing = "failed";
     }
   }
-  return { ok: true, duplicate: mail.duplicate === true, marketing };
+  return { ok: true, duplicate: mail.duplicate === true, marketing, mailed: true };
 }
 
 export function submitAmpelResult(

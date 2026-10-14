@@ -35,11 +35,14 @@ import {
   AMPEL_IP_LIMIT,
   AMPEL_IP_WINDOW_MS,
   AMPEL_RATE_RETENTION_DAYS,
+  ampelClientIp,
   createFileAmpelRateStore,
   createMemoryAmpelRateStore,
+  createSlotAmpelRateStore,
   pruneAmpelRateLedger,
+  type AmpelRateIo,
 } from "@/lib/ampel-rate-limit";
-import { AMPEL_PDF_FROM, submitAmpelResult } from "@/lib/ampel-result-send";
+import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
 import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
 import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi, requestAmpelConfirmation } from "@/lib/ampel-confirm";
 import {
@@ -319,9 +322,11 @@ try {
   assertOk(doiRoute.includes("Das Ergebnis konnte gerade nicht gesendet werden."), "mail failure keeps the same error");
   const panel = readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8");
   assertOk(!panel.includes("trackLeadSubmit"), "DOI confirm does not fire the lead event");
-  const submittedAt = page.indexOf("!response.ok || !data.ok || data.honeypot");
+  const blockedAt = page.indexOf("response.status === 429");
   const leadTrackAt = page.indexOf('trackLeadSubmit({ value: 1, currency: "EUR" })');
-  assertOk(submittedAt >= 0 && leadTrackAt > submittedAt, "lead event fires only after the email submit succeeds");
+  assertOk(blockedAt >= 0 && leadTrackAt > blockedAt, "lead event fires only after the email submit is accepted");
+  assertOk(page.includes("AbortSignal.timeout(20_000)"), "the form does not wait forever");
+  assertOk(AMPEL_RESULT_MAIL.rateLimited === "Zu viele Anfragen. Bitte versuchen Sie es später erneut.", "the limit message is the Sie sentence");
   assertOk(!page.includes("KE_4CP3UoZwdENaBzZcC"), "the lead label stays in the environment");
   assertOk(page.includes("/api/ampel/ergebnis") && !page.includes("/api/ampel/confirm"), "the check posts the PDF request");
   assertOk(page.includes("noValidate") && page.includes("fax_number"), "the form validates in page and keeps a honeypot");
@@ -875,6 +880,210 @@ try {
     assertOk(afterPrune.ok && !("honeypot" in afterPrune), "a write still accepts a fresh request");
     const prunedLedger = readFileSync(staleFile, "utf8");
     assertOk(!prunedLedger.includes("ip:stale") && prunedLedger.includes("email:kept"), "a ledger write drops stamps older than 7 days");
+
+    function memoryBlob(): AmpelRateIo {
+      const objects = new Map<string, string>();
+      return {
+        async get(pathname) {
+          return objects.has(pathname) ? (objects.get(pathname) ?? null) : null;
+        },
+        async create(pathname, body) {
+          if (objects.has(pathname)) return "exists";
+          objects.set(pathname, body);
+          return "created";
+        },
+        async remove(pathname) {
+          objects.delete(pathname);
+        },
+      };
+    }
+
+    const shared = memoryBlob();
+    const instanceA = createSlotAmpelRateStore(shared);
+    const instanceB = createSlotAmpelRateStore(shared);
+    const isolated = createSlotAmpelRateStore(memoryBlob());
+    for (let index = 0; index < AMPEL_IP_LIMIT; index += 1) {
+      const decision = await (index % 2 === 0 ? instanceA : instanceB).take({
+        ipKey: "ip:shared",
+        emailKey: `em:slot-${index}@example.com`,
+        now: clock,
+      });
+      assertOk(decision === "ok", `shared slot ${index + 1} is allowed`);
+    }
+    assertOk(
+      (await instanceB.take({ ipKey: "ip:shared", emailKey: "em:slot-extra@example.com", now: clock })) === "ip",
+      "a second instance sees the IP limit",
+    );
+    assertOk(
+      (await isolated.take({ ipKey: "ip:shared", emailKey: "em:alone@example.com", now: clock })) === "ok",
+      "a fresh instance does not keep the other counter in memory",
+    );
+
+    const emailBlob = memoryBlob();
+    const emailA = createSlotAmpelRateStore(emailBlob);
+    const emailB = createSlotAmpelRateStore(emailBlob);
+    for (let index = 0; index < AMPEL_EMAIL_LIMIT; index += 1) {
+      const decision = await (index % 2 === 0 ? emailA : emailB).take({
+        ipKey: `ip:mail-${index}`,
+        emailKey: "em:same@example.com",
+        now: clock,
+      });
+      assertOk(decision === "ok", `shared email slot ${index + 1} is allowed`);
+    }
+    assertOk(
+      (await emailA.take({ ipKey: "ip:mail-extra", emailKey: "em:same@example.com", now: clock })) === "email",
+      "a second instance sees the daily address limit",
+    );
+    assertOk(
+      (await emailB.take({
+        ipKey: "ip:mail-later",
+        emailKey: "em:same@example.com",
+        now: clock + AMPEL_EMAIL_WINDOW_MS,
+      })) === "ok",
+      "the address limit starts again in the next window",
+    );
+
+    const parallelBlob = memoryBlob();
+    const parallelA = createSlotAmpelRateStore(parallelBlob);
+    const parallelB = createSlotAmpelRateStore(parallelBlob);
+    const raced = await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        (index % 2 === 0 ? parallelA : parallelB).take({
+          ipKey: "ip:race",
+          emailKey: `em:race-${index}@example.com`,
+          now: clock,
+        }),
+      ),
+    );
+    assertOk(
+      raced.filter((decision) => decision === "ok").length === AMPEL_IP_LIMIT,
+      "parallel instances take five IP slots",
+    );
+    assertOk(raced.filter((decision) => decision === "ip").length === 3, "parallel instances refuse the rest");
+
+    const submitBlob = memoryBlob();
+    const submitA = createSlotAmpelRateStore(submitBlob);
+    const submitB = createSlotAmpelRateStore(submitBlob);
+    let slotSends = 0;
+    const slotMail = async () => {
+      slotSends += 1;
+      return { stub: false, sent: true, id: `slot-${slotSends}` };
+    };
+    for (let index = 0; index < AMPEL_IP_LIMIT; index += 1) {
+      const sent = await submitAmpelResult(
+        {
+          email: `cross-${index}@example.com`,
+          answers: jaCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: "203.0.113.60",
+        },
+        { store: index % 2 === 0 ? submitA : submitB, now: () => clock, confirm: noConfirm, mail: slotMail },
+      );
+      assertOk(sent.ok && !("honeypot" in sent) && sent.mailed === true, `cross-instance send ${index + 1}`);
+    }
+    const crossBlocked = await submitAmpelResult(
+      {
+        email: "cross-blocked@example.com",
+        answers: jaCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: "203.0.113.60",
+      },
+      { store: submitA, now: () => clock, confirm: noConfirm, mail: slotMail },
+    );
+    assertOk(
+      !crossBlocked.ok && crossBlocked.status === 429 && crossBlocked.error === AMPEL_RESULT_MAIL.rateLimited,
+      "the sixth cross-instance submit is a 429",
+    );
+    assertOk(slotSends === AMPEL_IP_LIMIT, "the sixth submit sends no mail");
+
+    assertOk(
+      ampelClientIp(new Headers({ "x-forwarded-for": "203.0.113.8, 10.0.0.4" })) === "203.0.113.8",
+      "the first forwarded address is the client",
+    );
+    assertOk(ampelClientIp(new Headers({ "x-real-ip": "198.51.100.9" })) === "198.51.100.9", "x-real-ip is the fallback");
+    assertOk(
+      ampelClientIp(new Headers({ "x-vercel-forwarded-for": "192.0.2.4" })) === "192.0.2.4",
+      "the vercel forwarded header is the last fallback",
+    );
+    assertOk(
+      ampelClientIp(new Headers({ "x-forwarded-for": " , 203.0.113.15" })) === "203.0.113.15",
+      "an empty forwarded entry is skipped",
+    );
+    assertOk(ampelClientIp(new Headers()) === "unknown", "a missing address is one shared bucket");
+
+    const rateSource = readFileSync("lib/ampel-rate-limit.ts", "utf8");
+    const factory = rateSource.slice(rateSource.indexOf("export function ampelRateStore"));
+    assertOk(rateSource.includes("useCache: false"), "blob rate reads bypass the cache");
+    assertOk(rateSource.includes("allowOverwrite: false"), "rate slots are created once");
+    assertOk(
+      rateSource.includes("cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE"),
+      "rate blobs set the shortest cache lifetime",
+    );
+    assertOk(rateSource.includes('AMPEL_RATE_BLOB_PREFIX = "gobd/ampel-rate"'), "each window has its own slot keys");
+    assertOk(
+      factory.indexOf("createBlobAmpelRateStore") < factory.indexOf("createFileAmpelRateStore"),
+      "the shared store is blob before any local file",
+    );
+    assertOk(factory.includes("createClosedAmpelRateStore"), "vercel without blob does not count in /tmp");
+    assertOk(AMPEL_SEND_TIMEOUT_MS === 8_000, "mail and pdf steps time out after 8 seconds");
+
+    let hungSends = 0;
+    const hung = await submitAmpelResult(
+      { email: "hung@example.com", answers: jaCode, ref: "", marketing: true, honeypot: "", ip: "203.0.113.50" },
+      {
+        store: createSlotAmpelRateStore(memoryBlob()),
+        now: () => clock,
+        sendTimeoutMs: 40,
+        confirm: async () => {
+          throw new Error("should-not-confirm");
+        },
+        mail: () =>
+          new Promise<Awaited<ReturnType<typeof slotMail>>>(() => {
+            hungSends += 1;
+          }),
+      },
+    );
+    assertOk(
+      hung.ok && !("honeypot" in hung) && hung.mailed === false && hung.notice === AMPEL_RESULT_MAIL.shownWithoutMail,
+      "a hung send still returns the result without a mail",
+    );
+    assertOk(hungSends === 1, "the hung send was started once");
+
+    let closedSends = 0;
+    const closed = await submitAmpelResult(
+      { email: "closed@example.com", answers: neinCode, ref: "", marketing: true, honeypot: "", ip: "203.0.113.51" },
+      {
+        store: {
+          async take() {
+            throw new Error("blob-down");
+          },
+        },
+        now: () => clock,
+        confirm: async () => {
+          throw new Error("should-not-confirm");
+        },
+        mail: async () => {
+          closedSends += 1;
+          return { stub: false, sent: true, id: "nope" };
+        },
+      },
+    );
+    assertOk(
+      closed.ok && !("honeypot" in closed) && closed.mailed === false && closedSends === 0,
+      "an unreadable limit store sends no mail",
+    );
+
+    let timedOut = false;
+    try {
+      await withDeadline(new Promise(() => undefined), 30);
+    } catch (error) {
+      timedOut = error instanceof Error && error.message === "ampel-timeout";
+    }
+    assertOk(timedOut, "the deadline rejects a step that does not finish");
   } finally {
     setMailDedupeTestHooks(null);
     await rm(mailDir, { recursive: true, force: true });

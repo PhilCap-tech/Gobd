@@ -182,7 +182,9 @@ export const AMPEL_RESULT_MAIL = {
   button: "Ergebnis anzeigen",
   invalidEmail: "Bitte geben Sie eine gültige E-Mail-Adresse an.",
   sendFailed: "Das Ergebnis konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.",
-  rateLimited: "Sie haben diese Abfrage zu oft gesendet. Bitte versuchen Sie es später erneut.",
+  rateLimited: "Zu viele Anfragen. Bitte versuchen Sie es später erneut.",
+  shownWithoutMail: "Die Auswertung sehen Sie auf dieser Seite. Die E-Mail konnte gerade nicht gesendet werden.",
+  offline: "Die Verbindung ist fehlgeschlagen. Die Auswertung sehen Sie auf dieser Seite.",
   sent: "Das PDF mit Ihrem Ergebnis ist unterwegs. Die Auswertung sehen Sie auch auf dieser Seite.",
   doiSuccess:
     "Zusätzlich haben wir Ihnen eine E-Mail mit einem Bestätigungslink gesendet. Die Einwilligung können Sie jederzeit widerrufen.",
