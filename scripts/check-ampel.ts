@@ -3,6 +3,7 @@
  *
  *   npx tsx scripts/check-ampel.ts
  */
+import { BlobError, BlobPreconditionFailedError, BlobUnknownError } from "@vercel/blob";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -38,9 +39,11 @@ import {
   ampelClientIp,
   ampelRateIpKey,
   ampelRateLogLine,
+  ampelRateResponseHeader,
   ampelRateSlotPath,
   ampelRateWindowId,
   readAmpelClientIp,
+  createBlobPutAmpelRateStore,
   createFileAmpelRateStore,
   createMemoryAmpelRateStore,
   createSlotAmpelRateStore,
@@ -49,8 +52,11 @@ import {
 } from "@/lib/ampel-rate-limit";
 import { ampelMailStatusId, createMemoryAmpelMailStatusStore } from "@/lib/ampel-mail-status";
 import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, completeAmpelResult, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
+import { ampelApiResponse } from "@/lib/ampel-api-response";
+import { POST as postAmpelErgebnis } from "@/app/api/ampel/ergebnis/route";
 import { POST as postAmpelErgebnisSenden } from "@/app/api/ampel/ergebnis/senden/route";
-import { consumeAmpelSendToken, createMemoryAmpelSendTokenStore, issueAmpelSendToken } from "@/lib/ampel-send-token";
+import { consumeAmpelSendToken, createBlobPutAmpelSendTokenStore, createMemoryAmpelSendTokenStore, issueAmpelSendToken } from "@/lib/ampel-send-token";
+import type { ExclusivePutOptions } from "@/lib/ampel-blob-slot";
 import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
 import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi, requestAmpelConfirmation } from "@/lib/ampel-confirm";
 import {
@@ -918,6 +924,10 @@ try {
     );
     const directBody = (await direct.json()) as { error?: string };
     assertOk(direct.status === 403 && directBody.error === AMPEL_RESULT_MAIL.sendUnauthorized, "direct POST without a token is forbidden");
+    assertOk(
+      direct.headers.get("x-ampel-rl")?.startsWith("src=none;slot=0;win=") === true,
+      "a token rejection still returns the rate header",
+    );
     assertOk(pdfSends === beforeDirect, "direct POST without a token sends no mail");
     const invalidWithoutToken = await postAmpelErgebnisSenden(
       new Request("http://localhost/api/ampel/ergebnis/senden", {
@@ -1334,8 +1344,15 @@ try {
           "x-real-ip": "198.51.100.21",
           "x-vercel-forwarded-for": "203.0.113.8",
         }),
-      ).source === "x-vercel-forwarded-for",
-      "the vercel header is the client address",
+      ).source === "x-real-ip" &&
+        readAmpelClientIp(
+          new Headers({
+            "x-forwarded-for": "198.51.100.20, 10.0.0.1",
+            "x-real-ip": "198.51.100.21",
+            "x-vercel-forwarded-for": "203.0.113.8",
+          }),
+        ).ip === "198.51.100.21",
+      "ipAddress reads x-real-ip before the forwarded headers",
     );
     assertOk(
       ampelClientIp(new Headers({ "x-forwarded-for": "198.51.100.20", "x-real-ip": "198.51.100.9" })) === "198.51.100.9",
@@ -1351,12 +1368,20 @@ try {
     );
     assertOk(ampelClientIp(new Headers({ "x-forwarded-for": "unknown" })) === "", "unknown alone is not a bucket");
     const stableLeft = ampelRateIpKey(
-      readAmpelClientIp(new Headers({ "x-vercel-forwarded-for": "203.0.113.8", "x-forwarded-for": "10.1.1.1" })).ip,
+      readAmpelClientIp(
+        new Headers({ "x-real-ip": "104.28.218.14", "x-vercel-forwarded-for": "203.0.113.1", "x-forwarded-for": "10.1.1.1" }),
+      ).ip,
     );
     const stableRight = ampelRateIpKey(
-      readAmpelClientIp(new Headers({ "x-vercel-forwarded-for": "203.0.113.8", "x-forwarded-for": "10.2.2.2" })).ip,
+      readAmpelClientIp(
+        new Headers({ "x-real-ip": "104.28.218.14", "x-vercel-forwarded-for": "203.0.113.2", "x-forwarded-for": "10.2.2.2" }),
+      ).ip,
     );
     assertOk(stableLeft === stableRight, "a rotating forwarded hop does not open a new IP bucket");
+    const forwardedBuckets = new Set(
+      Array.from({ length: 8 }, (_, index) => ampelRateIpKey(`203.0.113.${index + 1}`)),
+    );
+    assertOk(forwardedBuckets.size === 8, "eight different forwarded hops would be eight IP buckets");
     const hour = ampelRateWindowId(clock, AMPEL_IP_WINDOW_MS);
     const hourStart = hour * AMPEL_IP_WINDOW_MS;
     assertOk(ampelRateWindowId(hourStart + AMPEL_IP_WINDOW_MS - 1, AMPEL_IP_WINDOW_MS) === hour, "the IP window stays open for the hour");
@@ -1505,8 +1530,21 @@ try {
 
     const rateSource = readFileSync("lib/ampel-rate-limit.ts", "utf8");
     const factory = rateSource.slice(rateSource.indexOf("export function ampelRateStore"));
+    const slotSource = readFileSync("lib/ampel-blob-slot.ts", "utf8");
+    const tokenSource = readFileSync("lib/ampel-send-token.ts", "utf8");
     assertOk(rateSource.includes("useCache: false"), "blob rate reads bypass the cache");
-    assertOk(rateSource.includes("allowOverwrite: false"), "rate slots are created once");
+    assertOk(
+      slotSource.includes("addRandomSuffix: false") && slotSource.includes("allowOverwrite: false"),
+      "exclusive blob slots disable the random suffix",
+    );
+    assertOk(
+      rateSource.includes("exclusiveBlobCreate") && tokenSource.includes("exclusiveBlobCreate"),
+      "IP, email, and token slots share the exclusive put",
+    );
+    const submitSource = readFileSync("lib/ampel-result-send.ts", "utf8");
+    const takeAt = submitSource.indexOf("await store.take(");
+    const issueAt = submitSource.indexOf("issueAmpelSendToken(");
+    assertOk(takeAt !== -1 && issueAt !== -1 && takeAt < issueAt, "the IP slot is occupied before the send token is issued");
     assertOk(
       rateSource.includes("cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE"),
       "rate blobs set the shortest cache lifetime",
@@ -1575,6 +1613,325 @@ try {
       timedOut = error instanceof Error && error.message === "ampel-timeout";
     }
     assertOk(timedOut, "the deadline rejects a step that does not finish");
+
+    type BlobMode = "sdk" | "unknown" | "suspended" | "precondition" | "suffix";
+    function blobLike(
+      mode: BlobMode,
+      objects = new Map<string, string>(),
+    ) {
+      const calls: { pathname: string; addRandomSuffix?: boolean; allowOverwrite?: boolean }[] = [];
+      let suffix = 0;
+      return {
+        objects,
+        calls,
+        async put(pathname: string, body: string, options: Partial<ExclusivePutOptions> = {}) {
+          calls.push({
+            pathname,
+            addRandomSuffix: options.addRandomSuffix,
+            allowOverwrite: options.allowOverwrite,
+          });
+          if (mode === "suspended") throw new BlobError("This store has been suspended.");
+          if (mode === "precondition") throw new BlobPreconditionFailedError();
+          const suffixOn = options.addRandomSuffix !== false || mode === "suffix";
+          const stored = suffixOn ? `${pathname}-rand${++suffix}` : pathname;
+          if (!suffixOn && objects.has(stored)) {
+            if (mode === "unknown") throw new BlobUnknownError();
+            throw new BlobError("The blob already exists, use allowOverwrite: true to overwrite it.");
+          }
+          objects.set(stored, body);
+          return { pathname: stored };
+        },
+        async read(pathname: string) {
+          return objects.get(pathname) ?? null;
+        },
+        async remove(pathname: string) {
+          objects.delete(pathname);
+        },
+      };
+    }
+
+    const loose = blobLike("sdk");
+    const looseFirst = await loose.put("gobd/ampel-rate/ip-demo-1-1", "{}");
+    const looseSecond = await loose.put("gobd/ampel-rate/ip-demo-1-1", "{}");
+    assertOk(
+      looseFirst.pathname !== "gobd/ampel-rate/ip-demo-1-1" &&
+        looseSecond.pathname !== looseFirst.pathname &&
+        loose.objects.size === 2,
+      "the Blob default adds a suffix, so an existing pathname never conflicts",
+    );
+
+    const sameAddress = "104.28.218.14";
+    const seenIps = Array.from({ length: 8 }, (_, index) =>
+      readAmpelClientIp(
+        new Headers({
+          "x-real-ip": sameAddress,
+          "x-vercel-forwarded-for": `203.0.113.${index + 1}`,
+          "x-forwarded-for": `198.51.100.${index + 1}`,
+        }),
+      ),
+    );
+    assertOk(
+      seenIps.every((item) => item.source === "x-real-ip" && item.ip === sameAddress) &&
+        new Set(seenIps.map((item) => ampelRateIpKey(item.ip))).size === 1,
+      "eight requests with one x-real-ip share one bucket",
+    );
+
+    const live = blobLike("sdk");
+    const liveStore = createBlobPutAmpelRateStore(live);
+    const windowId = ampelRateWindowId(clock, AMPEL_IP_WINDOW_MS);
+    let liveSends = 0;
+    for (let index = 0; index < 8; index += 1) {
+      const sent = await submitAmpelResult(
+        {
+          email: `blob-${index}@example.com`,
+          answers: index % 2 === 0 ? jaCode : neinCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: seenIps[index]?.ip ?? "",
+          ipSource: seenIps[index]?.source ?? "",
+        },
+        {
+          store: liveStore,
+          now: () => clock,
+          confirm: noConfirm,
+          mail: async () => {
+            liveSends += 1;
+            return { stub: false, sent: true, id: `live-${liveSends}` };
+          },
+        },
+      );
+      assertOk(sent.ok && !("honeypot" in sent), `blob-backed submit ${index + 1} answers`);
+      if (!sent.ok || "honeypot" in sent) fail("blob-backed submit");
+      if (index < AMPEL_IP_LIMIT) {
+        assertOk(
+          sent.mailed === true && sent.trace?.src === "x-real-ip" && sent.trace.slot === index + 1 && sent.trace.win === windowId,
+          `request ${index + 1} takes the next IP slot in the same window`,
+        );
+      } else {
+        assertOk(
+          sent.limited === "ip" && sent.mailed === false && sent.trace?.slot === 0 && sent.trace?.win === windowId,
+          `request ${index + 1} is limited in the same window`,
+        );
+      }
+    }
+    assertOk(liveSends === AMPEL_IP_LIMIT, "the sixth blob-backed submit sends no mail");
+    assertOk(
+      live.calls.length > 0 && live.calls.every((call) => call.addRandomSuffix === false && call.allowOverwrite === false),
+      "rate slots pass addRandomSuffix false and allowOverwrite false",
+    );
+    const liveIpSlots = [...live.objects.keys()].filter((key) => key.includes("/ip-"));
+    assertOk(
+      liveIpSlots.length === AMPEL_IP_LIMIT && liveIpSlots.every((key) => new RegExp(`/ip-[a-f0-9]{32}-${windowId}-[1-5]$`).test(key)),
+      "five IP slots keep the requested pathname",
+    );
+
+    const exclusiveEmail = blobLike("sdk");
+    const exclusiveEmailStore = createBlobPutAmpelRateStore(exclusiveEmail);
+    for (let index = 0; index < AMPEL_EMAIL_LIMIT; index += 1) {
+      const decision = await exclusiveEmailStore.take({
+        ipKey: ampelRateIpKey(`198.51.100.${index + 1}`),
+        emailKey: "em:same@example.com",
+        now: clock,
+      });
+      assertOk(decision === "ok", `email slot ${index + 1} is free`);
+    }
+    assertOk(
+      (await exclusiveEmailStore.take({
+        ipKey: ampelRateIpKey("198.51.100.40"),
+        emailKey: "em:same@example.com",
+        now: clock,
+      })) === "email",
+      "the fourth email slot is occupied",
+    );
+    assertOk(
+      [...exclusiveEmail.objects.keys()].filter((key) => key.includes("/email-")).length === AMPEL_EMAIL_LIMIT,
+      "email slots use the same exclusive pathname",
+    );
+
+    const unknownBlob = blobLike("unknown");
+    const unknownStore = createBlobPutAmpelRateStore(unknownBlob);
+    let unknownSends = 0;
+    for (let index = 0; index < AMPEL_IP_LIMIT + 1; index += 1) {
+      const sent = await submitAmpelResult(
+        {
+          email: `unknown-blob-${index}@example.com`,
+          answers: jaCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: sameAddress,
+          ipSource: "x-real-ip",
+        },
+        {
+          store: unknownStore,
+          now: () => clock,
+          confirm: noConfirm,
+          mail: async () => {
+            unknownSends += 1;
+            return { stub: false, sent: true, id: `unknown-${unknownSends}` };
+          },
+        },
+      );
+      assertOk(sent.ok && !("honeypot" in sent), "unknown-blob submit");
+      if (!sent.ok || "honeypot" in sent) fail("unknown-blob submit");
+      if (index < AMPEL_IP_LIMIT) assertOk(sent.mailed === true, `swallowed already-exists still fills slot ${index + 1}`);
+      else assertOk(sent.limited === "ip" && sent.mailed === false, "a swallowed already-exists error is occupied, not free");
+    }
+    assertOk(unknownSends === AMPEL_IP_LIMIT, "BlobUnknownError on an existing pathname sends no sixth mail");
+
+    async function closedPut(mode: "suspended" | "precondition", label: string) {
+      const blob = blobLike(mode);
+      let sends = 0;
+      const sent = await submitAmpelResult(
+        {
+          email: `${label}@example.com`,
+          answers: jaCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: sameAddress,
+          ipSource: "x-real-ip",
+        },
+        {
+          store: createBlobPutAmpelRateStore(blob),
+          now: () => clock,
+          confirm: noConfirm,
+          mail: async () => {
+            sends += 1;
+            return { stub: false, sent: true, id: label };
+          },
+        },
+      );
+      assertOk(
+        sent.ok && !("honeypot" in sent) && sent.mailed === false && sent.limited !== "ip" && sent.limited !== "email" && sends === 0,
+        `${label} fails closed and sends no mail`,
+      );
+    }
+    await closedPut("suspended", "suspended-store");
+    await closedPut("precondition", "etag-mismatch");
+
+    const suffixed = blobLike("suffix");
+    let suffixSends = 0;
+    const suffixSent = await submitAmpelResult(
+      {
+        email: "suffix@example.com",
+        answers: jaCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: sameAddress,
+        ipSource: "x-real-ip",
+      },
+      {
+        store: createBlobPutAmpelRateStore(suffixed),
+        now: () => clock,
+        confirm: noConfirm,
+        mail: async () => {
+          suffixSends += 1;
+          return { stub: false, sent: true, id: "suffix" };
+        },
+      },
+    );
+    assertOk(
+      suffixSent.ok && !("honeypot" in suffixSent) && suffixSent.mailed === false && suffixSends === 0 && suffixed.objects.size === 0,
+      "a suffixed pathname is not a free slot and sends no mail",
+    );
+
+    const paired = blobLike("sdk");
+    const pairedStore = createBlobPutAmpelRateStore(paired);
+    const pairedTokens = createBlobPutAmpelSendTokenStore(paired);
+    const pairedStatus = createMemoryAmpelMailStatusStore();
+    const pairedInput = {
+      email: "paired@example.com",
+      answers: jaCode,
+      ref: "",
+      marketing: false,
+      honeypot: "",
+      ip: sameAddress,
+      ipSource: "x-real-ip",
+    };
+    const pairedHandoff = await submitAmpelResult(pairedInput, {
+      store: pairedStore,
+      now: () => clock,
+      confirm: noConfirm,
+      handoff: true,
+      status: pairedStatus,
+      tokens: pairedTokens,
+    });
+    assertOk(pairedHandoff.ok && !("honeypot" in pairedHandoff) && pairedHandoff.pending === true, "the paired handoff reserves a slot");
+    if (!pairedHandoff.ok || "honeypot" in pairedHandoff) fail("paired handoff");
+    const ratePuts = paired.calls.filter((call) => call.pathname.includes("/ampel-rate/")).length;
+    assertOk(ratePuts >= 2 && paired.calls.every((call) => !call.pathname.includes("/ampel-send/")), "the slot is occupied before the token is stored");
+    let pairedSends = 0;
+    const pairedDone = await completeAmpelResult(
+      { ...pairedInput, sendToken: pairedHandoff.token },
+      {
+        store: pairedStore,
+        now: () => clock,
+        confirm: noConfirm,
+        status: pairedStatus,
+        tokens: pairedTokens,
+        mail: async () => {
+          pairedSends += 1;
+          return { stub: false, sent: true, id: "paired" };
+        },
+      },
+    );
+    assertOk(
+      pairedDone.ok && !("honeypot" in pairedDone) && pairedDone.mailed === true && pairedSends === 1 &&
+        pairedHandoff.trace?.win === windowId && pairedDone.trace?.win === windowId &&
+        pairedHandoff.trace?.slot === 1 && pairedDone.trace?.slot === 1,
+      "submit and senden use the same window and the reserved slot",
+    );
+    assertOk(
+      [...paired.objects.keys()].filter((key) => key.includes("/ip-")).length === 1,
+      "senden does not open a second IP slot",
+    );
+    const tokenPuts = paired.calls.filter((call) => call.pathname.includes("/ampel-send/"));
+    assertOk(
+      tokenPuts.length === 1 && tokenPuts.every((call) => call.addRandomSuffix === false && call.allowOverwrite === false),
+      "the token slot is an exclusive pathname",
+    );
+    const reused = await consumeAmpelSendToken(
+      { token: pairedHandoff.token, email: pairedInput.email, code: jaCode, now: clock },
+      pairedTokens,
+    );
+    assertOk(reused.verdict === "reused", "a second consume of the same token slot sends nothing");
+
+    const header = ampelRateResponseHeader("x-real-ip", 2, windowId);
+    assertOk(header === `src=x-real-ip;slot=2;win=${windowId}` && !header.includes(sameAddress), "the rate header has no address");
+    assertOk(ampelRateResponseHeader(sameAddress, 9, -1) === "src=none;slot=0;win=0", "a raw address cannot be a rate header source");
+    const shaped = ampelApiResponse({ ok: true }, 200, "x-real-ip", { src: "x-real-ip", slot: 2, win: windowId }, clock);
+    assertOk(shaped.headers.get("x-ampel-rl") === header, "the submit response sets x-ampel-rl");
+    const badJson = await postAmpelErgebnis(
+      new Request("http://localhost/api/ampel/ergebnis", {
+        method: "POST",
+        headers: { "x-real-ip": sameAddress, "x-vercel-forwarded-for": "203.0.113.8" },
+        body: "{",
+      }),
+    );
+    const badHeader = badJson.headers.get("x-ampel-rl") ?? "";
+    assertOk(
+      badJson.status === 400 && badHeader.startsWith("src=x-real-ip;slot=0;win=") && !badHeader.includes(sameAddress),
+      "submit sets x-ampel-rl from ipAddress",
+    );
+    const denied = await postAmpelErgebnisSenden(
+      new Request("http://localhost/api/ampel/ergebnis/senden", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-real-ip": sameAddress,
+          "x-vercel-forwarded-for": "203.0.113.9",
+        },
+        body: JSON.stringify({ email: "not-an-email", answers: "x" }),
+      }),
+    );
+    const deniedHeader = denied.headers.get("x-ampel-rl") ?? "";
+    assertOk(
+      denied.status === 403 && deniedHeader.startsWith("src=x-real-ip;slot=0;win=") && !deniedHeader.includes(sameAddress),
+      "senden sets x-ampel-rl before it validates the email",
+    );
   } finally {
     setMailDedupeTestHooks(null);
     await rm(mailDir, { recursive: true, force: true });
