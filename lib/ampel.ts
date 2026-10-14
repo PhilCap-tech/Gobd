@@ -39,6 +39,13 @@ export type AmpelDoiPayload = {
   ref: string;
   consentAt: string;
   exp: number;
+  consentTextVersion?: string;
+};
+
+export type AmpelUnsubscribePayload = {
+  purpose: "ampel-unsubscribe";
+  email: string;
+  consentAt: string;
 };
 
 function signAmpelBody(body: string): string {
@@ -51,6 +58,7 @@ export function createAmpelDoiToken(
     answers: string;
     ref: string;
     consentAt: string;
+    consentTextVersion?: string;
   },
   now = Date.now(),
 ): string | null {
@@ -68,6 +76,9 @@ export function createAmpelDoiToken(
     ref: sanitizeAmpelRef(input.ref),
     consentAt,
     exp: now + AMPEL_DOI_TTL_MS,
+    ...(input.consentTextVersion?.trim()
+      ? { consentTextVersion: input.consentTextVersion.trim() }
+      : {}),
   };
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${body}.${signAmpelBody(body)}`;
@@ -98,6 +109,8 @@ export function verifyAmpelDoiToken(
     if (!email || !decoded || !code || !scoreAmpel(decoded)) return null;
     const consentAt = typeof parsed.consentAt === "string" ? parsed.consentAt.trim() : "";
     if (!Number.isFinite(Date.parse(consentAt))) return null;
+    const consentTextVersion =
+      typeof parsed.consentTextVersion === "string" ? parsed.consentTextVersion.trim() : "";
     return {
       purpose: "ampel-doi",
       email,
@@ -105,6 +118,7 @@ export function verifyAmpelDoiToken(
       ref: sanitizeAmpelRef(parsed.ref),
       consentAt,
       exp: parsed.exp,
+      ...(consentTextVersion ? { consentTextVersion } : {}),
     };
   } catch {
     return null;
@@ -119,6 +133,39 @@ export function ampelLeadId(email: string, answers: string, consentAt: string): 
   return `ampel-${hash}`;
 }
 
+export function createAmpelUnsubscribeToken(email: string, consentAt: string): string | null {
+  const normalized = normalizeAmpelEmail(email);
+  if (!normalized || !Number.isFinite(Date.parse(consentAt))) return null;
+  const payload: AmpelUnsubscribePayload = {
+    purpose: "ampel-unsubscribe",
+    email: normalized,
+    consentAt: consentAt.trim(),
+  };
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return `${body}.${signAmpelBody(body)}`;
+}
+
+export function verifyAmpelUnsubscribeToken(token: string): AmpelUnsubscribePayload | null {
+  const dot = token.indexOf(".");
+  if (dot <= 0) return null;
+  const body = token.slice(0, dot);
+  const signature = token.slice(dot + 1);
+  const expected = signAmpelBody(body);
+  const left = Buffer.from(signature);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length || !timingSafeEqual(left, right)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Partial<AmpelUnsubscribePayload>;
+    if (parsed.purpose !== "ampel-unsubscribe") return null;
+    const email = normalizeAmpelEmail(parsed.email);
+    const consentAt = typeof parsed.consentAt === "string" ? parsed.consentAt.trim() : "";
+    if (!email || !Number.isFinite(Date.parse(consentAt))) return null;
+    return { purpose: "ampel-unsubscribe", email, consentAt };
+  } catch {
+    return null;
+  }
+}
+
 export function toAmpelReadinessLead(input: {
   email: string;
   answers: string;
@@ -128,6 +175,9 @@ export function toAmpelReadinessLead(input: {
   score: number;
   light: AmpelLight;
   mailStatus: string;
+  marketingOptIn?: string;
+  consentIp?: string;
+  consentTextVersion?: string;
 }): ReadinessLead {
   const email = input.email.trim().toLowerCase();
   return {
@@ -143,5 +193,9 @@ export function toAmpelReadinessLead(input: {
     ampelAnswers: input.answers,
     ampelScore: String(input.score),
     ampelLight: input.light,
+    marketingOptIn: input.marketingOptIn ?? "",
+    consentIp: input.consentIp?.trim() ?? "",
+    consentTextVersion: input.consentTextVersion?.trim() ?? "",
+    withdrawnAt: "",
   };
 }

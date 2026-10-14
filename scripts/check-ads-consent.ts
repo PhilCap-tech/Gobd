@@ -440,12 +440,30 @@ try {
     assert.equal(conversionCommands().length, 1, "lead form sends one conversion");
     const leadPayload = conversionCommands()[0]?.[2] as { send_to: string };
     assert.equal(leadPayload.send_to, leadSendTo);
+    assert.equal("value" in leadPayload, false, "a lead call without a value omits it");
     assert.notEqual(leadPayload.send_to, purchaseSendTo);
     assert.notEqual(leadPayload.send_to, `${adsId}/${readinessLabel}`);
     const leadAt = commands().findIndex((cmd) => cmd[0] === "event" && cmd[1] === "conversion");
     const configAt = commands().findIndex((cmd) => cmd[0] === "config" && cmd[1] === adsId);
     const grantedAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "update");
     assert.ok(grantedAt < configAt && configAt < leadAt, "lead event follows consent update and Ads config");
+  }
+
+  {
+    fresh({
+      ads: adsId,
+      ga: gaId,
+      purchase: purchaseSendTo,
+      readiness: readinessLabel,
+      lead: leadSendTo,
+    });
+    saveConsent(true);
+    trackRoute("/ampel-check");
+    trackLeadSubmit({ value: 1, currency: "EUR" });
+    const valued = conversionCommands()[0]?.[2] as { send_to: string; value?: number; currency?: string };
+    assert.equal(valued.send_to, leadSendTo, "ampel lead uses the env send_to");
+    assert.equal(valued.value, 1);
+    assert.equal(valued.currency, "EUR");
   }
 
   {

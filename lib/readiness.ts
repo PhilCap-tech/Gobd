@@ -57,6 +57,11 @@ export type ReadinessLead = {
   ampelAnswers: string;
   ampelScore: string;
   ampelLight: string;
+  /** Empty, pending, confirmed, or withdrawn. Confirmed only after the DOI click. */
+  marketingOptIn: string;
+  consentIp: string;
+  consentTextVersion: string;
+  withdrawnAt: string;
 };
 
 export const READINESS_SHEET_COLUMNS = [
@@ -82,6 +87,10 @@ export const READINESS_SHEET_COLUMNS = [
   "ampel_answers",
   "ampel_score",
   "ampel_light",
+  "marketing_opt_in",
+  "consent_ip",
+  "consent_text_version",
+  "withdrawn_at",
 ] as const;
 
 export type ReadinessSheetColumn = (typeof READINESS_SHEET_COLUMNS)[number];
@@ -109,6 +118,10 @@ export const READINESS_SHEET_COLUMN_FIELDS = {
   ampel_answers: "ampelAnswers",
   ampel_score: "ampelScore",
   ampel_light: "ampelLight",
+  marketing_opt_in: "marketingOptIn",
+  consent_ip: "consentIp",
+  consent_text_version: "consentTextVersion",
+  withdrawn_at: "withdrawnAt",
 } as const satisfies Record<ReadinessSheetColumn, keyof ReadinessLead>;
 
 export function emptyReadinessLead(): ReadinessLead {
@@ -135,6 +148,10 @@ export function emptyReadinessLead(): ReadinessLead {
     ampelAnswers: "",
     ampelScore: "",
     ampelLight: "",
+    marketingOptIn: "",
+    consentIp: "",
+    consentTextVersion: "",
+    withdrawnAt: "",
   };
 }
 
@@ -321,6 +338,10 @@ export function toReadinessLead(input: {
     ampelAnswers: "",
     ampelScore: "",
     ampelLight: "",
+    marketingOptIn: "",
+    consentIp: "",
+    consentTextVersion: "",
+    withdrawnAt: "",
   };
 }
 

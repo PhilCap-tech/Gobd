@@ -6,6 +6,7 @@ import { writeDocumentIndex, readDocumentIndex, peekDocumentIndex } from "@/lib/
 import { createSheetsClient } from "@/lib/sheets-client";
 import { readCachedGrid, sheetsBatchGet, sheetsValuesGet } from "@/lib/sheets-grid";
 import { undocumentedPaidSessionId } from "@/lib/account-paid-intake";
+import { ampelRecordExpired, redactAmpelLead } from "@/lib/ampel-retention";
 import {
   parseDocumentVersion,
   pickStoredDocument,
@@ -1255,7 +1256,39 @@ export async function findLatestAmpelReadinessLead(
   const matches = rows.filter(
     (row) => row.email.trim().toLowerCase() === normalized && row.ampelAnswers.trim() === code,
   );
-  return matches.at(-1) ?? null;
+  const now = Date.now();
+  const live: ReadinessLead[] = [];
+  for (const row of matches) {
+    if (!ampelRecordExpired(row, now)) {
+      live.push(row);
+      continue;
+    }
+    await upsertReadinessLead(redactAmpelLead(row));
+  }
+  return live.at(-1) ?? null;
+}
+
+/** Ampel rows for one address, including rows kept after a withdrawal. */
+export async function listAmpelReadinessLeadsByEmail(
+  email: string,
+  options?: { fresh?: boolean },
+): Promise<ReadinessLead[]> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return [];
+  const { rows } = await loadReadinessLeads(options?.fresh === true);
+  return rows.filter((row) => row.email.trim().toLowerCase() === normalized && row.leadId.startsWith("ampel-"));
+}
+
+/** Removes address, answers, and IP from Ampel rows whose retention has ended. */
+export async function purgeExpiredAmpelLeads(now = Date.now()): Promise<number> {
+  const { rows } = await loadReadinessLeads(true);
+  let count = 0;
+  for (const row of rows) {
+    if (!row.leadId.startsWith("ampel-") || !ampelRecordExpired(row, now)) continue;
+    await upsertReadinessLead(redactAmpelLead(row));
+    count += 1;
+  }
+  return count;
 }
 
 export type EntityStoreResult = {

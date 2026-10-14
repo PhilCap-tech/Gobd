@@ -21,6 +21,7 @@ import {
   AMPEL_DOI_TTL_MS,
   ampelNeinQuestions,
   ampelResultPath,
+  createAmpelUnsubscribeToken,
   decodeAmpelAnswers,
   publicAmpelSource,
   scoreAmpel,
@@ -42,9 +43,9 @@ export function buildAmpelConfirmationMail(input: { confirmUrl: string }): {
   const lines = [
     "Guten Tag,",
     "",
-    "Sie haben das Ergebnis der Betriebsprüfungs-Ampel angefordert.",
+    "Sie haben zugestimmt, weitere E-Mails zur Betriebsprüfungs-Ampel zu erhalten.",
     `Bitte bestätigen Sie Ihre E-Mail-Adresse über den folgenden Link (${DOI_HOURS} Stunden gültig).`,
-    "Ihr Ergebnis senden wir Ihnen erst nach dieser Bestätigung.",
+    "Ohne diese Bestätigung senden wir keine weiteren E-Mails. Das angeforderte Ergebnis-PDF erhalten Sie unabhängig davon.",
     "",
     input.confirmUrl,
     "",
@@ -55,7 +56,7 @@ export function buildAmpelConfirmationMail(input: { confirmUrl: string }): {
   ];
   const html = wrapTransactionalHtml(`
     <p>Guten Tag,</p>
-    <p>Sie haben das Ergebnis der Betriebsprüfungs-Ampel angefordert. Bitte bestätigen Sie Ihre E-Mail-Adresse. Ihr Ergebnis senden wir Ihnen erst nach dieser Bestätigung.</p>
+    <p>Sie haben zugestimmt, weitere E-Mails zur Betriebsprüfungs-Ampel zu erhalten. Bitte bestätigen Sie Ihre E-Mail-Adresse. Ohne diese Bestätigung senden wir keine weiteren E-Mails. Das angeforderte Ergebnis-PDF erhalten Sie unabhängig davon.</p>
     <p>${transactionalPrimaryButton(input.confirmUrl, "E-Mail-Adresse bestätigen")}</p>
     <p>Der Link ist ${DOI_HOURS} Stunden gültig. Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren. Die Einwilligung können Sie jederzeit widerrufen.</p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
@@ -95,6 +96,7 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
   }
   lines.push("", "Hinweise:");
   for (const hint of band.hints) lines.push(`- ${hint}`);
+  const unsubscribeUrl = ampelUnsubscribeUrl(payload);
   lines.push(
     "",
     AMPEL_CTA.headline,
@@ -105,6 +107,8 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
     `Ergebnis erneut öffnen: ${resultUrl}`,
     "",
     AMPEL_DISCLAIMER,
+    "",
+    unsubscribeUrl ? `Wenn Sie keine weiteren Informationen wünschen, melden Sie sich hier ab: ${unsubscribeUrl}` : "",
     "",
     CUSTOMER_MAIL_SIGNATURE,
   );
@@ -130,9 +134,20 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
     <p>${transactionalPrimaryButton(MAIL_CHECKOUT_URL, AMPEL_CTA.button)}</p>
     <p><a href="${escapeAttr(resultUrl)}">Ergebnis erneut öffnen</a></p>
     <p>${escapeHtml(AMPEL_DISCLAIMER)}</p>
+    ${
+      unsubscribeUrl
+        ? `<p>Wenn Sie keine weiteren Informationen wünschen, <a href="${escapeAttr(unsubscribeUrl)}">melden Sie sich hier ab</a>.</p>`
+        : ""
+    }
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return { subject, text: wrapTransactionalText(lines.join("\n")), html };
+}
+
+function ampelUnsubscribeUrl(payload: AmpelDoiPayload): string {
+  const token = createAmpelUnsubscribeToken(payload.email, payload.consentAt);
+  if (!token) return "";
+  return `${getAppUrl()}/ampel-check/abmelden?token=${encodeURIComponent(token)}`;
 }
 
 function ampelConfirmDedupeKey(email: string): string {

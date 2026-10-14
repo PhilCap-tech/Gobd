@@ -177,14 +177,46 @@ export const AMPEL_CTA = {
 };
 
 export const AMPEL_RESULT_MAIL = {
-  label: "Ergebnis per E-Mail erhalten",
+  label: "Ergebnis ansehen",
   placeholder: "Ihre E-Mail-Adresse",
-  button: "Ergebnis zusenden",
-  doiNote:
-    "Sie erhalten zuerst eine E-Mail mit einem Bestätigungslink. Ihr Ergebnis senden wir Ihnen erst, wenn Sie diesen Link angeklickt haben. Die Einwilligung können Sie jederzeit widerrufen.",
+  button: "Ergebnis anzeigen",
+  invalidEmail: "Bitte geben Sie eine gültige E-Mail-Adresse an.",
+  sendFailed: "Das Ergebnis konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.",
+  rateLimited: "Sie haben diese Abfrage zu oft gesendet. Bitte versuchen Sie es später erneut.",
+  sent: "Das PDF mit Ihrem Ergebnis ist unterwegs. Die Auswertung sehen Sie auch auf dieser Seite.",
   doiSuccess:
-    "Fast geschafft: Bitte bestätigen Sie Ihre E-Mail-Adresse über den Link, den wir Ihnen gerade gesendet haben.",
+    "Zusätzlich haben wir Ihnen eine E-Mail mit einem Bestätigungslink gesendet. Die Einwilligung können Sie jederzeit widerrufen.",
 };
+
+export const AMPEL_EMAIL_PRIVACY_NOTE =
+  "Wir senden Ihnen Ihr Ergebnis zusätzlich als PDF an diese Adresse. Ihre E-Mail-Adresse verwenden wir nur dafür. Werbung erhalten Sie nur, wenn Sie unten ausdrücklich zustimmen. Mehr dazu in unserer Datenschutzerklärung.";
+
+export const AMPEL_MARKETING_CONSENT =
+  "Ja, ich möchte per E-Mail Informationen zu GoBD-Themen und Angeboten von gobd-doku-erstellen.de (IKAT GmbH) erhalten, etwa zu Gesetzesänderungen, Fristen und neuen Funktionen. Ich erhalte zuerst eine E-Mail mit einem Bestätigungslink. Meine Einwilligung kann ich jederzeit widerrufen, zum Beispiel über den Abmeldelink in jeder E-Mail oder per Nachricht an info@gobd-doku-erstellen.de.";
+
+/** Text der Checkbox. Mit dem Text speichern, damit der Nachweis die Fassung nennt. */
+export const AMPEL_CONSENT_TEXT_VERSION = "2026-10-14";
+
+export const AMPEL_RESULT_REGISTER_LINE =
+  "IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein, GF Philip Cappelletti, HRB 81430 AG Düsseldorf.";
+
+export const AMPEL_PRIVACY_TITLE =
+  "Ampel-Check: Versand des Ergebnisses und E-Mail-Informationen";
+
+/**
+ * Offene Punkte, nicht auf der Seite:
+ * Für die Übermittlung in die USA stützen wir uns auf [klären: EU-US Data Privacy Framework, sofern Resend zertifiziert ist, sonst Standardvertragsklauseln].
+ * Das Nachweisprotokoll bewahren wir bis zu drei Jahre nach dem Widerruf auf [klären].
+ * Diese Daten löschen wir nach [klären: Frist, z. B. 7 Tagen], soweit sie nicht zur Aufklärung eines konkreten Missbrauchs länger benötigt werden.
+ */
+export const AMPEL_PRIVACY_PARAGRAPHS = [
+  "Wenn Sie den Ampel-Check nutzen, verarbeiten wir Ihre E-Mail-Adresse und Ihre Antworten im Check, um Ihnen das Ergebnis anzuzeigen und zusätzlich als PDF per E-Mail zuzusenden. Die Angabe der E-Mail-Adresse ist dafür erforderlich. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Durchführung vorvertraglicher Maßnahmen auf Ihre Anfrage). Ohne Ihre gesonderte Einwilligung nutzen wir die Adresse nicht für Werbung.",
+  "Wenn Sie zusätzlich in E-Mail-Informationen einwilligen, senden wir Ihnen zunächst eine Bestätigungs-E-Mail (Double-Opt-in). Erst nach Ihrer Bestätigung erhalten Sie Informationen zu GoBD-Themen und unseren Angeboten. Wir speichern den Zeitpunkt Ihrer Anmeldung und Bestätigung, die dabei verwendete IP-Adresse und den Text der Einwilligung, um die Einwilligung nachweisen zu können. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 7 Abs. 2 Nr. 2 UWG), für das Nachweisprotokoll Art. 6 Abs. 1 lit. c und f DSGVO.",
+  "Für den Versand der E-Mails setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter nach Art. 28 DSGVO ein. Dabei werden Ihre E-Mail-Adresse, der Inhalt der E-Mail und technische Versanddaten (z. B. Zustellstatus) verarbeitet.",
+  "Schutz vor Missbrauch: Um den Ampel-Check und den E-Mail-Versand vor Missbrauch zu schützen (z. B. massenhafte Anfragen oder Versand an fremde Adressen), verarbeiten wir beim Absenden Ihre IP-Adresse, den Zeitpunkt und eine Zählung der Anfragen (Rate-Limiting). Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren, missbrauchsfreien Betrieb (Art. 6 Abs. 1 lit. f DSGVO).",
+  "Speicherdauer: Die Angaben zum Ampel-Check speichern wir 90 Tage nach dem Check und löschen sie danach, soweit keine gesetzlichen Aufbewahrungspflichten bestehen oder Sie Kunde werden. Bei erteilter Einwilligung speichern wir Ihre Adresse für E-Mail-Informationen, bis Sie die Einwilligung widerrufen.",
+  "Widerruf: Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen, über den Abmeldelink in jeder E-Mail oder per Nachricht an info@gobd-doku-erstellen.de. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt unberührt.",
+] as const;
 
 export const AMPEL_SHARE_KANZLEI = {
   button: "Mit Mandanten teilen",

@@ -33,7 +33,7 @@ Soweit nicht anders angegeben, stützen wir uns insbesondere auf:
 
 ## 4. Auftragsverarbeiter
 
-Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten.
+Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten. Für den E-Mail-Versand setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein. Die Einzelheiten stehen in Abschnitt 9.
 
 ## 5. Hosting über Vercel
 

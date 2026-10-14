@@ -6,6 +6,12 @@ export {
   wrapTransactionalText,
 } from "@/lib/mail-layout";
 
+export type MailAttachment = {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+};
+
 export type MailResult = {
   stub: boolean;
   sent: boolean;
@@ -70,6 +76,7 @@ export async function sendEmail(input: {
    * Kündigungsmails setzen hier die info@-Adresse, ohne die Umgebung zu ändern.
    */
   from?: string;
+  attachments?: MailAttachment[];
 }): Promise<MailResult> {
   const from = input.from?.trim() || process.env.EMAIL_FROM?.trim() || "";
   const apiKey = process.env.RESEND_API_KEY?.trim() || "";
@@ -94,6 +101,9 @@ export async function sendEmail(input: {
     text: input.text,
     html: input.html,
     ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+    ...(input.attachments && input.attachments.length > 0
+      ? { attachments: input.attachments }
+      : {}),
   };
   const options = input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined;
   const attempts = input.idempotencyKey ? MAIL_SEND_RETRY_DELAYS_MS.length : 1;

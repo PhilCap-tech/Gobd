@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AmpelCta, AmpelDisclaimer, AmpelResult } from "@/components/ampel-result";
 import {
+  AMPEL_EMAIL_PRIVACY_NOTE,
   AMPEL_H1,
   AMPEL_INTRO,
+  AMPEL_MARKETING_CONSENT,
   AMPEL_QUESTIONS,
   AMPEL_RESULT_MAIL,
   AMPEL_SHARE_KANZLEI,
@@ -20,27 +23,45 @@ import {
   sanitizeAmpelRef,
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
-import { trackAmpelResult, trackAmpelStart } from "@/lib/tracking";
+import { trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
 
-const CONSENT_LABEL = "Ich willige ein, das Ergebnis an diese E-Mail-Adresse zu erhalten.";
-const THROTTLED_MESSAGE =
-  "Wir haben Ihnen bereits eine Bestätigungsmail gesendet. Bitte prüfen Sie Ihr Postfach. Eine weitere Mail ist in diesem Zeitraum nicht möglich.";
+function EmailPrivacyNote() {
+  const label = "Datenschutzerklärung";
+  const [before, after] = AMPEL_EMAIL_PRIVACY_NOTE.split(label);
+  return (
+    <>
+      {before}
+      <Link href="/datenschutz">{label}</Link>
+      {after}
+    </>
+  );
+}
 
 function shareMessage(ref: string, origin = ""): string {
   const link = `${origin}${ampelSharePath(ref)}`;
   return AMPEL_SHARE_KANZLEI.message.replaceAll("{link}", link);
 }
 
+function shownKey(code: string): string {
+  return `gobd_ampel_shown:${code}`;
+}
+
+function emailLooksValid(value: string): boolean {
+  const email = value.trim();
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export function AmpelCheck() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initial = decodeAmpelAnswers(searchParams.get("a") ?? "");
-  const [mode, setMode] = useState<"questions" | "result">(initial ? "result" : "questions");
+  const [mode, setMode] = useState<"questions" | "email" | "result">(initial ? "email" : "questions");
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<AmpelAnswerMap>(initial ?? {});
   const [refName, setRefName] = useState(sanitizeAmpelRef(searchParams.get("ref") ?? ""));
   const [email, setEmail] = useState("");
-  const [consent, setConsent] = useState(false);
+  const [marketing, setMarketing] = useState(false);
+  const [fax, setFax] = useState("");
   const [pending, setPending] = useState(false);
   const [mailError, setMailError] = useState("");
   const [mailNotice, setMailNotice] = useState("");
@@ -53,14 +74,30 @@ export function AmpelCheck() {
     setOrigin(window.location.origin);
   }, []);
 
+  const question = AMPEL_QUESTIONS[step];
+  const encoded = useMemo(() => encodeAmpelAnswers(answers), [answers]);
+
+  useEffect(() => {
+    if (!encoded) return;
+    try {
+      if (sessionStorage.getItem(shownKey(encoded)) === "1") setMode("result");
+    } catch {
+      // Private mode keeps the email step.
+    }
+  }, [encoded]);
+
   useEffect(() => {
     if (mode !== "result" || resultTrackedRef.current) return;
     resultTrackedRef.current = true;
     trackAmpelResult();
   }, [mode]);
 
-  const question = AMPEL_QUESTIONS[step];
-  const encoded = useMemo(() => encodeAmpelAnswers(answers), [answers]);
+  function rememberAnswers(code: string) {
+    const params = new URLSearchParams();
+    params.set("a", code);
+    if (refName) params.set("ref", refName);
+    router.replace(`${AMPEL_PATH}?${params.toString()}`);
+  }
 
   function choose(answer: AmpelAnswer) {
     if (!question) return;
@@ -76,19 +113,26 @@ export function AmpelCheck() {
     }
     const code = encodeAmpelAnswers(next);
     if (!code) return;
-    setMode("result");
-    const params = new URLSearchParams();
-    params.set("a", code);
-    if (refName) params.set("ref", refName);
-    router.replace(`${AMPEL_PATH}?${params.toString()}`);
+    setMailError("");
+    setMode("email");
+    rememberAnswers(code);
+  }
+
+  function editAnswers() {
+    resultTrackedRef.current = false;
+    setMailError("");
+    setMode("questions");
+    setStep(Math.max(AMPEL_QUESTIONS.length - 1, 0));
   }
 
   function restart() {
     resultTrackedRef.current = false;
     setMode("questions");
     setStep(0);
+    setAnswers({});
     setMailNotice("");
     setMailError("");
+    setMarketing(false);
     const params = new URLSearchParams();
     if (refName) params.set("ref", refName);
     const query = params.toString();
@@ -108,32 +152,53 @@ export function AmpelCheck() {
   async function sendResult(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!encoded || pending) return;
+    if (!emailLooksValid(email)) {
+      setMailError(AMPEL_RESULT_MAIL.invalidEmail);
+      return;
+    }
     setMailError("");
     setPending(true);
     try {
-      const response = await fetch("/api/ampel/confirm", {
+      const response = await fetch("/api/ampel/ergebnis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          consent,
           answers: encoded,
           ref: refName,
+          marketing,
+          fax_number: fax,
         }),
       });
-      let data: { ok?: boolean; error?: string; throttled?: boolean; message?: string } = {};
+      let data: {
+        ok?: boolean;
+        error?: string;
+        honeypot?: boolean;
+        marketing?: string;
+      } = {};
       try {
         data = (await response.json()) as typeof data;
       } catch {
         data = {};
       }
-      if (!response.ok || !data.ok) {
-        setMailError(data.error || "Die E-Mail konnte nicht gesendet werden. Bitte versuchen Sie es erneut.");
+      if (!response.ok || !data.ok || data.honeypot) {
+        if (!data.honeypot) {
+          setMailError(data.error || AMPEL_RESULT_MAIL.sendFailed);
+        }
         return;
       }
+      trackLeadSubmit({ value: 1, currency: "EUR" });
+      try {
+        sessionStorage.setItem(shownKey(encoded), "1");
+      } catch {
+        // The result still shows for this view.
+      }
       setMailNotice(
-        data.throttled ? data.message || THROTTLED_MESSAGE : AMPEL_RESULT_MAIL.doiSuccess,
+        data.marketing === "started"
+          ? `${AMPEL_RESULT_MAIL.sent} ${AMPEL_RESULT_MAIL.doiSuccess}`
+          : AMPEL_RESULT_MAIL.sent,
       );
+      setMode("result");
     } catch {
       setMailError("Die Verbindung ist fehlgeschlagen. Bitte versuchen Sie es erneut.");
     } finally {
@@ -193,60 +258,76 @@ export function AmpelCheck() {
         </section>
       ) : null}
 
+      {mode === "email" && encoded ? (
+        <form className="card ampel-mail" noValidate onSubmit={sendResult}>
+          <h2>{AMPEL_RESULT_MAIL.label}</h2>
+          <p>Tragen Sie Ihre E-Mail-Adresse ein. Das Ergebnis erscheint danach auf dieser Seite, das PDF senden wir Ihnen zu.</p>
+          <div className="ampel-honeypot" aria-hidden="true">
+            <label htmlFor="ampel-fax">Fax</label>
+            <input
+              id="ampel-fax"
+              name="fax_number"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={fax}
+              onChange={(event) => setFax(event.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="ampel-email">E-Mail-Adresse</label>
+            <input
+              id="ampel-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              aria-describedby="ampel-email-privacy"
+              placeholder={AMPEL_RESULT_MAIL.placeholder}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+            <p id="ampel-email-privacy" className="hint">
+              <EmailPrivacyNote />
+            </p>
+          </div>
+          <div className="field">
+            <label className="check" htmlFor="ampel-marketing">
+              <input
+                id="ampel-marketing"
+                name="marketing"
+                type="checkbox"
+                checked={marketing}
+                onChange={(event) => setMarketing(event.target.checked)}
+              />
+              <span>{AMPEL_MARKETING_CONSENT}</span>
+            </label>
+          </div>
+          {mailError ? (
+            <p className="hint" role="alert">
+              {mailError}
+            </p>
+          ) : null}
+          <p className="actions">
+            <button className="btn" type="submit" disabled={pending}>
+              {pending ? "Wird gesendet …" : AMPEL_RESULT_MAIL.button}
+            </button>
+            <button type="button" className="btn ghost" onClick={editAnswers}>
+              Antworten ändern
+            </button>
+          </p>
+        </form>
+      ) : null}
+
       {mode === "result" && encoded ? (
         <>
+          {mailNotice ? <p className="card" role="status">{mailNotice}</p> : null}
           <AmpelResult answers={answers} />
           <p className="actions">
             <button type="button" className="btn ghost" onClick={restart}>
               Antworten ändern
             </button>
           </p>
-          <form className="card ampel-mail" onSubmit={sendResult}>
-            <h2>{AMPEL_RESULT_MAIL.label}</h2>
-            {mailNotice ? (
-              <p role="status">{mailNotice}</p>
-            ) : (
-              <>
-                <div className="field">
-                  <label htmlFor="ampel-email">E-Mail-Adresse</label>
-                  <input
-                    id="ampel-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    placeholder={AMPEL_RESULT_MAIL.placeholder}
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label className="check" htmlFor="ampel-consent">
-                    <input
-                      id="ampel-consent"
-                      name="consent"
-                      type="checkbox"
-                      required
-                      checked={consent}
-                      onChange={(event) => setConsent(event.target.checked)}
-                    />
-                    <span>{CONSENT_LABEL}</span>
-                  </label>
-                </div>
-                <p className="hint">{AMPEL_RESULT_MAIL.doiNote}</p>
-                {mailError ? (
-                  <p className="hint" role="alert">
-                    {mailError}
-                  </p>
-                ) : null}
-                <p className="actions">
-                  <button className="btn" type="submit" disabled={pending || !consent}>
-                    {pending ? "Wird gesendet …" : AMPEL_RESULT_MAIL.button}
-                  </button>
-                </p>
-              </>
-            )}
-          </form>
           <AmpelCta />
         </>
       ) : null}
