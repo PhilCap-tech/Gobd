@@ -5,7 +5,10 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO } from "@/lib/ampel-questions";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO, AMPEL_EMAIL_PRIVACY_NOTE, AMPEL_MARKETING_CONSENT, AMPEL_PRIVACY_SECTION, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
 import {
   AMPEL_CONFIRM_WINDOW_MS,
   AMPEL_DOI_TTL_MS,
@@ -25,6 +28,17 @@ import {
 } from "@/lib/ampel-score";
 import type { AmpelAnswer } from "@/lib/ampel-questions";
 import { buildAmpelConfirmationMail, buildAmpelResultMail } from "@/lib/ampel-mail";
+import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
+import {
+  AMPEL_EMAIL_LIMIT,
+  AMPEL_EMAIL_WINDOW_MS,
+  AMPEL_IP_LIMIT,
+  AMPEL_IP_WINDOW_MS,
+  createFileAmpelRateStore,
+  createMemoryAmpelRateStore,
+} from "@/lib/ampel-rate-limit";
+import { AMPEL_PDF_FROM, submitAmpelResult } from "@/lib/ampel-result-send";
+import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
 import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi, requestAmpelConfirmation } from "@/lib/ampel-confirm";
 import { isTransientResendError, MAIL_SEND_RETRY_DELAYS_MS, type MailResult } from "@/lib/mail";
 import type { ReadinessLead } from "@/lib/readiness";
@@ -245,7 +259,8 @@ try {
   assertOk(!resultMail?.text.includes(reviewMarker) && !resultMail?.html.includes(reviewMarker), "result mail hides review notes");
   assertOk(!confirmation.text.includes(AMPEL_RESULTS.gruen.headline), "confirmation mail does not send the result");
   assertOk(resultMail?.text.includes("95 von 100"), "result mail states the score");
-  assertOk(confirmation.text.includes("erst nach dieser Bestätigung"), "result is withheld until confirmation");
+  assertOk(confirmation.text.includes("keine weiteren E-Mails"), "confirmation mail is the optional extra consent");
+  assertOk(!confirmation.text.includes("erst nach dieser Bestätigung"), "confirmation mail does not withhold the PDF");
   assertOk(AMPEL_CONFIRM_WINDOW_MS === 15 * 60 * 1000, "one confirmation per email per 15 minutes");
   const confirmRoute = readFileSync("app/api/ampel/confirm/route.ts", "utf8");
   assertOk(confirmRoute.includes("AMPEL_CONFIRM_WINDOW_MS") === false, "window constant stays in the mail helper");
@@ -258,8 +273,11 @@ try {
   );
   const mailSource = readFileSync("lib/ampel-mail.ts", "utf8");
   assertOk(mailSource.includes("windowMs: AMPEL_CONFIRM_WINDOW_MS"), "confirmation send is throttled");
-  assertOk(readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8").includes("trackLeadSubmit()"), "DOI confirm fires the lead event");
-  assertOk(!readFileSync("app/ampel-check/ampel-check.tsx", "utf8").includes("trackLeadSubmit"), "the check itself does not fire the lead event");
+  assertOk(!readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8").includes("trackLeadSubmit"), "DOI confirm does not fire the lead event");
+  assertOk(
+    readFileSync("app/ampel-check/ampel-check.tsx", "utf8").includes('trackLeadSubmit({ value: 1, currency: "EUR" })'),
+    "the email step fires the lead event",
+  );
   assertOk(INDEXABLE_STATIC_PATHS.includes("/ampel-check"), "sitemap source lists the page");
   assertOk(readFileSync("components/site-footer.tsx", "utf8").includes('href="/ampel-check"'), "footer links the page");
   const page = readFileSync("app/ampel-check/ampel-check.tsx", "utf8");
@@ -276,9 +294,24 @@ try {
   assertOk(doiRoute.includes("fresh: true"), "confirm reads the lead past the sheet cache");
   assertOk(doiRoute.includes("Das Ergebnis konnte gerade nicht gesendet werden."), "mail failure keeps the same error");
   const panel = readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8");
-  const confirmedAt = panel.indexOf("if (!response.ok || !data.ok)");
-  const leadTrackAt = panel.indexOf("trackLeadSubmit()");
-  assertOk(confirmedAt >= 0 && leadTrackAt > confirmedAt, "lead event fires only after the confirm request succeeds");
+  assertOk(!panel.includes("trackLeadSubmit"), "DOI confirm does not fire the lead event");
+  const submittedAt = page.indexOf("!response.ok || !data.ok || data.honeypot");
+  const leadTrackAt = page.indexOf('trackLeadSubmit({ value: 1, currency: "EUR" })');
+  assertOk(submittedAt >= 0 && leadTrackAt > submittedAt, "lead event fires only after the email submit succeeds");
+  assertOk(!page.includes("KE_4CP3UoZwdENaBzZcC"), "the lead label stays in the environment");
+  assertOk(page.includes("/api/ampel/ergebnis") && !page.includes("/api/ampel/confirm"), "the check posts the PDF request");
+  assertOk(page.includes("noValidate") && page.includes("fax_number"), "the form validates in page and keeps a honeypot");
+  assertOk(page.includes("AMPEL_EMAIL_PRIVACY_NOTE") && page.includes("AMPEL_MARKETING_CONSENT"), "privacy placeholders are rendered");
+  assertOk(!page.includes("TODO"), "the check source keeps the placeholder in the question module");
+  const privacyPage = readFileSync("app/datenschutz/page.tsx", "utf8");
+  assertOk(privacyPage.includes("AMPEL_PRIVACY_SECTION") && privacyPage.includes("Betriebsprüfungs-Ampel"), "privacy page has the ampel section");
+  assertOk(!privacyPage.includes("TODO"), "privacy page source has no draft marker");
+  assertOk(AMPEL_EMAIL_PRIVACY_NOTE.includes("TODO-LEGAL"), "email note is marked for Legal Draft");
+  assertOk(AMPEL_MARKETING_CONSENT.includes("TODO-LEGAL"), "checkbox text is marked for Legal Draft");
+  assertOk(AMPEL_PRIVACY_SECTION.includes("TODO-LEGAL"), "privacy section is marked for Legal Draft");
+  assertOk(readFileSync("app/api/ampel/ergebnis/route.ts", "utf8").includes("submitAmpelResult"), "result route sends the PDF");
+  const pdfSource = readFileSync("lib/ampel-pdf.ts", "utf8");
+  assertOk(!pdfSource.includes("AMPEL_CTA") && !pdfSource.includes("149"), "the PDF mail has no offer and no price");
   const tracking = readFileSync("lib/tracking.ts", "utf8");
   assertOk(tracking.includes("export function trackAmpelStart") && tracking.includes("export function trackAmpelResult"), "ampel events exist");
   assertOk(tracking.includes('trackAmpelGaEvent("ampel_start")') && tracking.includes('trackAmpelGaEvent("ampel_result")'), "ampel events are GA4 events");
@@ -286,7 +319,7 @@ try {
   assertOk(tracking.includes("if (!hasMarketingConsent() || ampelResultTracked) return;"), "ampel result is consent-gated");
   assertOk(!tracking.includes("NEXT_PUBLIC_AMPEL"), "ampel tracking adds no env var");
   assertOk(page.includes("trackAmpelStart()") && page.includes("trackAmpelResult()"), "the check tracks the first answer and the result");
-  assertOk(!page.includes("trackLeadSubmit"), "the check itself does not fire the lead event");
+  assertOk(page.includes('trackLeadSubmit({ value: 1, currency: "EUR" })'), "the email step fires the lead event");
 
   const consentAt = "2026-10-13T08:00:00.000Z";
   const confirmNow = 1_700_000_000_000;
@@ -545,6 +578,245 @@ try {
   });
   assertOk(afterLink.ok && afterLink.alreadySent === false && resultAfterConfirm === 1, "a confirmation-sent lead still sends the result mail");
   assertOk([...confirmThenResult.leads.values()][0]?.mailStatus === "sent", "the result mail replaces the confirmation status");
+
+  const jaCode = encodeAmpelAnswers(all("ja")) ?? "";
+  const neinCode = encodeAmpelAnswers(all("nein")) ?? "";
+  const mixedCode = encodeAmpelAnswers(all("ja", { vd_vorhanden: "nein" })) ?? "";
+  const optionalCode = encodeAmpelAnswers(all("ja", { kasse_tse: "nicht_zutreffend" })) ?? "";
+  assertOk(jaCode && neinCode && mixedCode && optionalCode, "answer codes for the limit tests");
+  const pdf = await buildAmpelResultPdf(all("ja"));
+  assertOk(pdf.subarray(0, 4).toString() === "%PDF", "pdf header");
+  const pdfBytes = pdf.toString("latin1");
+  assertOk(pdfBytes.includes("keine Steuerberatung"), "pdf carries the disclaimer");
+  assertOk(pdfBytes.includes("GoBD"), "pdf carries a source");
+  const pdfMail = buildAmpelPdfMail(all("nein"));
+  assertOk(pdfMail?.text.includes("GoBD Rz. 151"), "mail quotes a source");
+  assertOk(pdfMail?.text.includes("keine Steuerberatung"), "mail carries the disclaimer");
+  assertOk(!pdfMail?.text.includes("149") && !pdfMail?.html.includes("149"), "pdf mail has no price");
+  assertOk(pdfMail?.subject === "Ihr Ergebnis der Betriebsprüfungs-Ampel", "pdf mail subject");
+
+  const mailDir = await mkdtemp(path.join(tmpdir(), "ampel-mail-"));
+  const rateDir = await mkdtemp(path.join(tmpdir(), "ampel-rate-"));
+  let pdfSends = 0;
+  let lastFrom = "";
+  let lastFilename = "";
+  let lastType = "";
+  let lastHeader = "";
+  setMailDedupeTestHooks({
+    dir: mailDir,
+    send: async (input) => {
+      pdfSends += 1;
+      lastFrom = input.from ?? "";
+      const attachment = input.attachments?.[0];
+      lastFilename = attachment?.filename ?? "";
+      lastType = attachment?.contentType ?? "";
+      lastHeader = attachment?.content.subarray(0, 4).toString() ?? "";
+      return { stub: false, sent: true, id: `pdf-${pdfSends}` };
+    },
+  });
+  const noConfirm = async () => {
+    throw new Error("no-doi");
+  };
+  try {
+    const clock = 1_700_000_000_000;
+    const ipStore = createMemoryAmpelRateStore();
+    for (let index = 0; index < AMPEL_IP_LIMIT; index += 1) {
+      const sent = await submitAmpelResult(
+        {
+          email: `ip-${index}@example.com`,
+          answers: jaCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: "203.0.113.10",
+        },
+        { store: ipStore, now: () => clock, confirm: noConfirm },
+      );
+      assertOk(sent.ok && !("honeypot" in sent), `ip send ${index + 1} is allowed`);
+    }
+    const blockedIp = await submitAmpelResult(
+      {
+        email: "ip-extra@example.com",
+        answers: jaCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: "203.0.113.10",
+      },
+      { store: ipStore, now: () => clock, confirm: noConfirm },
+    );
+    assertOk(
+      !blockedIp.ok && blockedIp.status === 429 && blockedIp.scope === "ip",
+      "sixth address from one IP is limited",
+    );
+    const laterIp = await submitAmpelResult(
+      {
+        email: "ip-later@example.com",
+        answers: jaCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: "203.0.113.10",
+      },
+      { store: ipStore, now: () => clock + AMPEL_IP_WINDOW_MS + 1, confirm: noConfirm },
+    );
+    assertOk(laterIp.ok && !("honeypot" in laterIp), "the IP limit ends after the window");
+
+    const emailStore = createMemoryAmpelRateStore();
+    const codes = [jaCode, neinCode, mixedCode];
+    for (let index = 0; index < AMPEL_EMAIL_LIMIT; index += 1) {
+      const sent = await submitAmpelResult(
+        {
+          email: "Same.Person@example.com",
+          answers: codes[index] ?? "",
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: `198.51.100.${index + 1}`,
+        },
+        { store: emailStore, now: () => clock, confirm: noConfirm },
+      );
+      assertOk(sent.ok && !("honeypot" in sent), `email send ${index + 1} is allowed`);
+    }
+    const blockedEmail = await submitAmpelResult(
+      {
+        email: "same.person@example.com",
+        answers: optionalCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: "198.51.100.20",
+      },
+      { store: emailStore, now: () => clock, confirm: noConfirm },
+    );
+    assertOk(
+      !blockedEmail.ok && blockedEmail.status === 429 && blockedEmail.scope === "email",
+      "fourth result for one address is limited",
+    );
+    const laterEmail = await submitAmpelResult(
+      {
+        email: "same.person@example.com",
+        answers: optionalCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: "198.51.100.21",
+      },
+      { store: emailStore, now: () => clock + AMPEL_EMAIL_WINDOW_MS + 1, confirm: noConfirm },
+    );
+    assertOk(laterEmail.ok && !("honeypot" in laterEmail), "the email limit ends after a day");
+
+    const dupStore = createMemoryAmpelRateStore();
+    const beforeDup = pdfSends;
+    const firstDup = await submitAmpelResult(
+      { email: "dup@example.com", answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "198.51.100.30" },
+      { store: dupStore, now: () => clock, confirm: noConfirm },
+    );
+    const secondDup = await submitAmpelResult(
+      { email: "dup@example.com", answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "198.51.100.31" },
+      { store: dupStore, now: () => clock, confirm: noConfirm },
+    );
+    assertOk(firstDup.ok && !("honeypot" in firstDup) && firstDup.duplicate === false, "first result sends");
+    assertOk(secondDup.ok && !("honeypot" in secondDup) && secondDup.duplicate === true, "the same result is not sent twice");
+    assertOk(pdfSends === beforeDup + 1, "a retry does not send a second PDF");
+
+    const beforeParallel = pdfSends;
+    const parallelStore = createMemoryAmpelRateStore();
+    const [left, right] = await Promise.all([
+      submitAmpelResult(
+        { email: "parallel@example.com", answers: neinCode, ref: "", marketing: false, honeypot: "", ip: "198.51.100.32" },
+        { store: parallelStore, now: () => clock, confirm: noConfirm },
+      ),
+      submitAmpelResult(
+        { email: "parallel@example.com", answers: neinCode, ref: "", marketing: false, honeypot: "", ip: "198.51.100.32" },
+        { store: parallelStore, now: () => clock, confirm: noConfirm },
+      ),
+    ]);
+    assertOk(left.ok && right.ok, "a double click still returns the result");
+    assertOk(pdfSends === beforeParallel + 1, "a double click sends one PDF");
+
+    const beforeQuiet = pdfSends;
+    const honey = await submitAmpelResult(
+      { email: "honey@example.com", answers: jaCode, ref: "", marketing: true, honeypot: "filled", ip: "198.51.100.33" },
+      { store: createMemoryAmpelRateStore(), now: () => clock, confirm: noConfirm },
+    );
+    const invalid = await submitAmpelResult(
+      { email: "not-an-email", answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "198.51.100.34" },
+      { store: createMemoryAmpelRateStore(), now: () => clock, confirm: noConfirm },
+    );
+    assertOk(honey.ok && "honeypot" in honey, "honeypot stays quiet");
+    assertOk(!invalid.ok && invalid.status === 400 && invalid.error === AMPEL_RESULT_MAIL.invalidEmail, "server rejects a bad address");
+    assertOk(pdfSends === beforeQuiet, "honeypot and a bad address do not send");
+
+    let confirmCalls = 0;
+    const skipped = await submitAmpelResult(
+      { email: "plain@example.com", answers: mixedCode, ref: "Kanzlei", marketing: false, honeypot: "", ip: "198.51.100.35" },
+      {
+        store: createMemoryAmpelRateStore(),
+        now: () => clock,
+        confirm: async () => {
+          confirmCalls += 1;
+          return { ok: true, throttled: false };
+        },
+      },
+    );
+    const opted = await submitAmpelResult(
+      { email: "opted@example.com", answers: mixedCode, ref: "Kanzlei", marketing: true, honeypot: "", ip: "198.51.100.36" },
+      {
+        store: createMemoryAmpelRateStore(),
+        now: () => clock,
+        confirm: async (lead) => {
+          confirmCalls += 1;
+          assertOk(lead.email === "opted@example.com" && lead.answers === mixedCode, "doi receives the submitted answers");
+          return { ok: true, throttled: false };
+        },
+      },
+    );
+    assertOk(skipped.ok && !("honeypot" in skipped) && skipped.marketing === "skipped", "without the checkbox there is no marketing mail");
+    assertOk(opted.ok && !("honeypot" in opted) && opted.marketing === "started" && confirmCalls === 1, "the checkbox starts the confirmation");
+
+    assertOk(lastFrom === AMPEL_PDF_FROM, "pdf mail comes from info@");
+    assertOk(lastFilename === "Betriebspruefungs-Ampel.pdf", "pdf filename");
+    assertOk(lastType === "application/pdf", "pdf content type");
+    assertOk(lastHeader === "%PDF", "attachment is a pdf");
+
+    const ledgerFile = path.join(rateDir, "ampel-rate.json");
+    const fileStore = createFileAmpelRateStore(ledgerFile);
+    const filed = await submitAmpelResult(
+      { email: "file@example.com", answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.77" },
+      { store: fileStore, now: () => clock, confirm: noConfirm },
+    );
+    assertOk(filed.ok && !("honeypot" in filed), "file ledger accepts the first result");
+    const rawLedger = readFileSync(ledgerFile, "utf8");
+    assertOk(!rawLedger.includes("203.0.113.77"), "the ledger stores no raw IP");
+    const secondStore = createFileAmpelRateStore(ledgerFile);
+    for (let index = 0; index < AMPEL_IP_LIMIT - 1; index += 1) {
+      const sent = await submitAmpelResult(
+        {
+          email: `file-${index}@example.com`,
+          answers: jaCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: "203.0.113.77",
+        },
+        { store: secondStore, now: () => clock, confirm: noConfirm },
+      );
+      assertOk(sent.ok && !("honeypot" in sent), "file ledger counts across stores");
+    }
+    const fileBlocked = await submitAmpelResult(
+      { email: "file-blocked@example.com", answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.77" },
+      { store: secondStore, now: () => clock, confirm: noConfirm },
+    );
+    assertOk(
+      !fileBlocked.ok && fileBlocked.status === 429 && fileBlocked.scope === "ip",
+      "file ledger enforces the IP limit",
+    );
+  } finally {
+    setMailDedupeTestHooks(null);
+    await rm(mailDir, { recursive: true, force: true });
+    await rm(rateDir, { recursive: true, force: true });
+  }
 
   console.log("check-ampel: ok");
 } finally {

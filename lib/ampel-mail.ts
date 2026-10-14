@@ -42,9 +42,9 @@ export function buildAmpelConfirmationMail(input: { confirmUrl: string }): {
   const lines = [
     "Guten Tag,",
     "",
-    "Sie haben das Ergebnis der Betriebsprüfungs-Ampel angefordert.",
+    "Sie haben zugestimmt, weitere E-Mails zur Betriebsprüfungs-Ampel zu erhalten.",
     `Bitte bestätigen Sie Ihre E-Mail-Adresse über den folgenden Link (${DOI_HOURS} Stunden gültig).`,
-    "Ihr Ergebnis senden wir Ihnen erst nach dieser Bestätigung.",
+    "Ohne diese Bestätigung senden wir keine weiteren E-Mails. Das angeforderte Ergebnis-PDF erhalten Sie unabhängig davon.",
     "",
     input.confirmUrl,
     "",
@@ -55,7 +55,7 @@ export function buildAmpelConfirmationMail(input: { confirmUrl: string }): {
   ];
   const html = wrapTransactionalHtml(`
     <p>Guten Tag,</p>
-    <p>Sie haben das Ergebnis der Betriebsprüfungs-Ampel angefordert. Bitte bestätigen Sie Ihre E-Mail-Adresse. Ihr Ergebnis senden wir Ihnen erst nach dieser Bestätigung.</p>
+    <p>Sie haben zugestimmt, weitere E-Mails zur Betriebsprüfungs-Ampel zu erhalten. Bitte bestätigen Sie Ihre E-Mail-Adresse. Ohne diese Bestätigung senden wir keine weiteren E-Mails. Das angeforderte Ergebnis-PDF erhalten Sie unabhängig davon.</p>
     <p>${transactionalPrimaryButton(input.confirmUrl, "E-Mail-Adresse bestätigen")}</p>
     <p>Der Link ist ${DOI_HOURS} Stunden gültig. Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren. Die Einwilligung können Sie jederzeit widerrufen.</p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>

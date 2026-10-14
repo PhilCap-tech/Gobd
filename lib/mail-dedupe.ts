@@ -41,6 +41,7 @@ export type DedupedMailInput = {
   html: string;
   replyTo?: string;
   from?: string;
+  attachments?: Parameters<typeof sendEmail>[0]["attachments"];
   /**
    * When set, a later send with the same key is allowed after this many
    * milliseconds. Magic links pass {@link MAGIC_LINK_WINDOW_MS}.
@@ -437,6 +438,7 @@ async function sendDedupedEmailLocked(input: DedupedMailInput): Promise<MailResu
     html: input.html,
     replyTo: input.replyTo,
     from: input.from,
+    attachments: input.attachments,
     idempotencyKey: resendIdempotencyKey(claim.resendKey),
   });
   const keep = result.sent || (result.stub && !isProductionRuntime());

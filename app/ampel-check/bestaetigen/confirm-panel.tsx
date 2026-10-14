@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { AmpelCta, AmpelDisclaimer, AmpelResult } from "@/components/ampel-result";
 import type { AmpelAnswerMap } from "@/lib/ampel-score";
-import { trackLeadSubmit } from "@/lib/tracking";
 
 export function AmpelConfirmPanel({
   token,
@@ -37,7 +36,6 @@ export function AmpelConfirmPanel({
         setError(data.error || "Die Bestätigung ist fehlgeschlagen. Bitte versuchen Sie es erneut.");
         return;
       }
-      trackLeadSubmit();
       setDone(true);
     } catch {
       setError("Die Verbindung ist fehlgeschlagen. Bitte versuchen Sie es erneut.");

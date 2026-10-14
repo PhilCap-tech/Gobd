@@ -177,14 +177,26 @@ export const AMPEL_CTA = {
 };
 
 export const AMPEL_RESULT_MAIL = {
-  label: "Ergebnis per E-Mail erhalten",
+  label: "Ergebnis ansehen",
   placeholder: "Ihre E-Mail-Adresse",
-  button: "Ergebnis zusenden",
-  doiNote:
-    "Sie erhalten zuerst eine E-Mail mit einem Bestätigungslink. Ihr Ergebnis senden wir Ihnen erst, wenn Sie diesen Link angeklickt haben. Die Einwilligung können Sie jederzeit widerrufen.",
+  button: "Ergebnis anzeigen",
+  invalidEmail: "Bitte geben Sie eine gültige E-Mail-Adresse an.",
+  sendFailed: "Das Ergebnis konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.",
+  rateLimited: "Sie haben diese Abfrage zu oft gesendet. Bitte versuchen Sie es später erneut.",
+  sent: "Das PDF mit Ihrem Ergebnis ist unterwegs. Die Auswertung sehen Sie auch auf dieser Seite.",
   doiSuccess:
-    "Fast geschafft: Bitte bestätigen Sie Ihre E-Mail-Adresse über den Link, den wir Ihnen gerade gesendet haben.",
+    "Zusätzlich haben wir Ihnen eine E-Mail mit einem Bestätigungslink gesendet. Die Einwilligung können Sie jederzeit widerrufen.",
 };
+
+/** Legal Draft ersetzt diese Texte. Der Marker bleibt sichtbar, bis der Text vorliegt. */
+export const AMPEL_EMAIL_PRIVACY_NOTE =
+  "TODO-LEGAL: Hinweis, wofür wir Ihre E-Mail-Adresse für das angeforderte Ergebnis-PDF verwenden.";
+
+export const AMPEL_MARKETING_CONSENT =
+  "TODO-LEGAL: Optionale Einwilligung in weitere E-Mails. Ohne Häkchen senden wir nur das angeforderte PDF.";
+
+export const AMPEL_PRIVACY_SECTION =
+  "TODO-LEGAL: Abschnitt zur Betriebsprüfungs-Ampel. Beschreiben Sie die angeforderte Ergebnis-PDF, die optionale Einwilligung und die Speicherdauer.";
 
 export const AMPEL_SHARE_KANZLEI = {
   button: "Mit Mandanten teilen",

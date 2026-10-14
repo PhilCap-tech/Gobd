@@ -381,11 +381,12 @@ export function trackReadinessSubmit(onDone?: () => void): void {
 }
 
 /**
- * Steuerberater lead form (`/steuerberater` Anfrage), after a successful POST.
+ * Steuerberater lead form and the Ampel email step, after a successful POST.
  * Sends nothing when NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO is unset.
- * One conversion per page load. Not the Readiness or purchase conversion.
+ * One conversion per page load. Value and currency are included only when passed.
+ * Not the Readiness or purchase conversion.
  */
-export function trackLeadSubmit(): void {
+export function trackLeadSubmit(detail?: { value?: number; currency?: string }): void {
   const sendTo = normalizeGoogleAdsSendTo(
     getGoogleAdsLeadSendTo(),
     getGoogleAdsId(),
@@ -395,6 +396,9 @@ export function trackLeadSubmit(): void {
   leadConversionQueued = true;
   window.gtag?.("event", "conversion", {
     send_to: sendTo,
+    ...(detail?.value != null
+      ? { value: detail.value, currency: detail.currency ?? "EUR" }
+      : {}),
   });
 }
 
