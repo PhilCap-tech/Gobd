@@ -3,29 +3,27 @@ import Link from "next/link";
 import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { planDelivery } from "@/lib/delivery";
-import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
+import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { ALL_AREAS_LINE, PARTNER_EFFORT_LINE } from "@/lib/offer-copy";
 import {
-  evaluateOpenPoints,
-  openPointChapterLabel,
-  openPointDueLabel,
-} from "@/lib/open-points";
-import {
   PARTNER_DEMO_PATH,
-  PARTNER_MUSTER_ANSWERS,
-  PARTNER_MUSTER_IDENTITY,
   PARTNER_MUSTER_PATH,
   PARTNER_MUSTER_PDF_PATH,
 } from "@/lib/partner-muster";
-import { ModuleTeile } from "@/components/module-teile";
+import {
+  MONTHLY_EUR,
+  MONTHLY_GROSS_LABEL,
+  SETUP_EUR,
+  SETUP_GROSS_LABEL,
+} from "@/lib/pricing";
+import styles from "../home.module.css";
 import { PartnerInquiryForm } from "./partner-inquiry-form";
 
 const PAGE_TITLE =
-  "Für Steuerberater: Fragen und Muster ansehen, bevor Sie empfehlen | GoBD Verfahrensdoku";
+  "Für Steuerberater: Logo im Mandanten-PDF, auf Anfrage | GoBD Verfahrensdoku";
 const PAGE_DESCRIPTION =
-  "Mandanten erfassen ihre Abläufe geführt. Entwurf, Offene Punkte und Versionen. Fragen und ein Musterergebnis ansehen. Für Kanzleien ohne Zahlung auf dieser Seite. Keine Steuerberatung.";
+  "Kanzleien zahlen 49 € netto pro Monat auf Anfrage für das Logo im PDF der Mandanten und eine Übersicht der Mandanten, die zugestimmt haben. Keine Provision. Mandanten zahlen den Listenpreis direkt an die IKAT GmbH. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -42,35 +40,42 @@ export const metadata: Metadata = {
   },
 };
 
-const musterPlan = planDelivery(
-  PARTNER_MUSTER_ANSWERS,
-  PARTNER_MUSTER_IDENTITY,
-  1,
-);
-const musterOpenPoints = evaluateOpenPoints({
-  answers: PARTNER_MUSTER_ANSWERS,
-  identity: PARTNER_MUSTER_IDENTITY,
-});
+const PARTNER_MAIL = `mailto:${LEGAL_OPERATOR.email}?subject=${encodeURIComponent("Partneranfrage Kanzlei")}`;
 
-function HeroProofButtons() {
-  return (
-    <div className="actions">
-      <a className="btn" href="#fragen-demo">
-        Fragenprozess testen
-      </a>
-      <a className="btn" href="#muster">
-        Muster-Dokumentation ansehen
-      </a>
-      <a className="btn ghost" href="#anfrage">
-        VD für mehrere Mandanten
-      </a>
-    </div>
-  );
+const FAQ = [
+  {
+    q: "Was zahlt die Kanzlei?",
+    a: `49 € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto, inkl. 19 % USt), auf Anfrage. Darin liegen das Logo der Kanzlei im PDF der Mandanten und eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben. Ein Bereich zum Hochladen des Logos oder zum Abruf der Übersicht ist hier nicht eingerichtet.`,
+  },
+  {
+    q: "Erhält die Kanzlei eine Provision?",
+    a: "Nein. Die Kanzlei erhält keine Provision. Mandanten zahlen den Listenpreis direkt an die IKAT GmbH.",
+  },
+  {
+    q: "Was zahlen Mandanten?",
+    a: `${SETUP_EUR} € netto Einrichtung (${SETUP_GROSS_LABEL} € brutto) plus ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto). Ein Abo umfasst bis zu ${MAX_ENTITIES_PER_ACCOUNT} Firmen. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft.`,
+  },
+  {
+    q: "Ist das Steuerberatung?",
+    a: "Nein. Keine Steuerberatung. Das Produkt ersetzt keine steuerliche Beratung und keine Prüfung durch die Kanzlei.",
+  },
+  {
+    q: "Muss die Kanzlei die Dokumentation für den Mandanten ausfüllen?",
+    a: "Nein. Sie füllen die Dokumentation nicht für den Mandanten aus. Der Mandant liefert die Betriebsdaten.",
+  },
+  {
+    q: "Kann ich das Muster ohne Bestellung ansehen?",
+    a: "Ja. Das Muster-PDF und die Fragen-Demo sind Beispiele. Sie speichern keine Eingaben und lösen keine Bestellung aus.",
+  },
+] as const;
+
+function euro(amount: number): string {
+  return `${amount}\u00A0€`;
 }
 
 export default function SteuerberaterPage() {
   return (
-    <>
+    <div className={`${styles.page} kanzlei-home`}>
       <CrumbJsonLd
         items={[
           { name: "Startseite", path: "/" },
@@ -79,454 +84,256 @@ export default function SteuerberaterPage() {
       />
       <SiteHeader
         ctaHref="#anfrage"
-        ctaLabel="Anfrage senden"
+        ctaLabel="Partneranfrage"
         links={[
-          { href: "#fragen-demo", label: "Fragen" },
+          { href: "#modell", label: "Modell" },
           { href: "#muster", label: "Muster" },
-          { href: "#prozess", label: "Ablauf" },
+          { href: "#ablauf", label: "Ablauf" },
           { href: "#anfrage", label: "Anfrage" },
         ]}
       />
-      <main className="wrap partner-copy">
-        <section className="hero">
-          <p className="kicker">Für Steuerberater und Kanzleien</p>
-          <h1>
-            Ihre Mandanten wissen, dass sie ihre Buchhaltungsprozesse
-            dokumentieren müssen. Trotzdem bleibt die Verfahrensdokumentation
-            oft liegen.
-          </h1>
-          <p className="lead">
-            Mit gobd-doku-erstellen.de erfassen Mandanten ihre Abläufe geführt.
-            Herauskommen Entwurf, Offene Punkte und Versionen. Sehen Sie Fragen
-            und ein Musterergebnis an, bevor Sie etwas empfehlen. Für die
-            Kanzlei ist diese Seite ohne Zahlung: es gibt hier keinen
-            Bestellweg.
-          </p>
-          <HeroProofButtons />
-          <p className="trust-line">
-            Keine Steuerberatung · Sie füllen nicht für Mandanten aus · Muster
-            und Demo sind Beispiele und speichern keine Eingaben
-          </p>
-        </section>
-
-        <section className="block" id="rolle">
-          <h2>Ihre Rolle</h2>
-          <p className="prose">
-            Sie prüfen Fragen und Muster — und leiten bei Überzeugung an
-            Mandanten weiter.
-          </p>
-          <p className="prose">
-            <strong>
-              Sie füllen die Dokumentation nicht für das Unternehmen aus.
-            </strong>{" "}
-            Der Mandant liefert die Betriebsdaten.
-          </p>
-          <p className="prose">
-            Diese Seite nimmt keine Zahlung entgegen und führt nicht in eine
-            Bestellung.
-          </p>
-        </section>
-
-        <section className="block" id="fragen-demo">
-          <h2>Fragen im produktiven Ablauf</h2>
-          <p className="prose">
-            Eine zweite Beispiel-Tabelle gibt es hier nicht. Den Fragebogen
-            sehen Sie im Live-Test: dieselben Fragen und dieselbe Prüfung vor
-            „Weiter“ wie im produktiven Ablauf. Der Test ist linear und
-            verzweigt nicht. Ersetzendes Scannen und „was hat sich geändert“
-            sind dort keine eigenen Fragen.
-          </p>
-          <p className="prose">
-            In der Demo spielen Sie die Parameter selbst durch. Beim Mandanten
-            antwortet der Mandant — nicht die Kanzlei stellvertretend. Die Demo
-            ist ein Beispiel und speichert keine Eingaben.
-          </p>
-          <div className="actions">
-            <Link className="btn" href={PARTNER_DEMO_PATH}>
-              Fragenprozess live testen
-            </Link>
+      <main>
+        <section className={styles.hero}>
+          <div className={`shell ${styles.heroInner}`}>
+            <p className={styles.eyebrow}>Für Steuerberater und Kanzleien</p>
+            <h1>Logo der Kanzlei im PDF der Mandanten</h1>
+            <p className={styles.lead}>
+              Die Kanzlei zahlt {euro(MONTHLY_EUR)} netto pro Monat, auf Anfrage.
+              Dafür erscheint das Logo im PDF der Mandanten, und die Kanzlei erhält
+              eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben.
+              Mandanten zahlen den Listenpreis direkt an die {LEGAL_OPERATOR.name}.
+              Die Kanzlei erhält keine Provision.
+            </p>
+            <p className={styles.priceBanner}>
+              <strong>{euro(MONTHLY_EUR)} netto / Monat für die Kanzlei</strong>
+              <span>
+                Auf Anfrage · keine Provision · Mandanten: {euro(SETUP_EUR)} Einrichtung +{" "}
+                {euro(MONTHLY_EUR)}/Monat direkt an die {LEGAL_OPERATOR.name}
+              </span>
+            </p>
+            <div className={styles.ctas}>
+              <a className="btn" href="#anfrage">
+                Partneranfrage
+              </a>
+              <a className={`btn ${styles.btnSec}`} href={PARTNER_MUSTER_PDF_PATH}>
+                Muster-PDF öffnen
+              </a>
+              <Link className={`btn ${styles.btnSec}`} href={PARTNER_DEMO_PATH}>
+                Fragen ansehen
+              </Link>
+            </div>
+            <ul className={styles.trust}>
+              <li>Keine Steuerberatung</li>
+              <li>Keine Provision</li>
+              <li>Kein Bestellweg für die Kanzlei auf dieser Seite</li>
+            </ul>
           </div>
         </section>
 
-        <section className="block" id="muster">
-          <h2>Herleitung der Verfahrensdokumentation</h2>
-          <p className="prose">
-            Das Muster zeigt, wie der Generator aus festen Beispieldaten die
-            Kapitel und die offenen Punkte ableitet. Dieselbe Quelle wie das
-            Muster-PDF. Keine zweite Gliederung und keine Beispielzeilen
-            daneben. Das Muster ist ein Beispiel und speichert keine Eingaben.
-          </p>
-          <p className="hint">
-            Beispiel GmbH (fiktiv) · DATEV · Eingang E-Mail und PDF · Ausgang
-            Rechnungssoftware · kein Papierweg · Gliederung am detaillierten
-            Muster ausgerichtet · kein echtes Mandantendokument · keine
-            Konformitätszusage · keine Freigabe durch die Geschäftsführung.
-          </p>
-          <h3>Kapitel</h3>
-          <ol className="prose-list">
-            {musterPlan.chapters.map((chapter) => (
-              <li key={chapter.id}>{chapter.title}</li>
-            ))}
-          </ol>
-          <h3>Offene Punkte</h3>
-          <p className="prose">
-            Diese Liste erzeugt der Regelsatz aus leeren oder unbestätigten
-            Angaben und aus Schritten, die der Fragebogen nicht abfragt.
-            Dieselbe Tabelle steht im PDF (Kapitel Offene Punkte), mit
-            Priorität hoch, mittel oder niedrig und Zieltermin „nicht
-            festgelegt“. Das Muster zeigt Transparenz bei Lücken, nicht „fertig
-            für jeden Betrieb“.
-          </p>
-          <div className="legal legal-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Priorität</th>
-                  <th scope="col">Offener Punkt aus dem Generator</th>
-                  <th scope="col">Kapitel</th>
-                  <th scope="col">Zieltermin</th>
-                </tr>
-              </thead>
-              <tbody>
-                {musterOpenPoints.map((point) => (
-                  <tr key={point.id}>
-                    <td>{point.priority}</td>
-                    <td>{point.text}</td>
-                    <td>{openPointChapterLabel(point.chapter)}</td>
-                    <td>{point.dueDate ?? openPointDueLabel()}</td>
+        <p className={`shell ${styles.factBar}`}>
+          Logo im Mandanten-PDF · Übersicht nur bei Zustimmung · keine Provision ·
+          Muster-PDF ohne Anmeldung
+        </p>
+
+        <section className={styles.section} id="modell">
+          <div className="shell">
+            <h2>Was die Partnerschaft umfasst</h2>
+            <p className={styles.sub}>Auf Anfrage. Kein Selbstbedienungsbereich.</p>
+            <div className={styles.grid3}>
+              <article className={styles.card}>
+                <h3>Logo im PDF</h3>
+                <p>
+                  Das Logo der Kanzlei erscheint im PDF der Mandanten. Den Upload
+                  richten wir auf Anfrage ein. Ein Formular dafür gibt es auf
+                  dieser Seite nicht.
+                </p>
+              </article>
+              <article className={styles.card}>
+                <h3>Übersicht der Mandanten</h3>
+                <p>
+                  Die Übersicht zeigt nur Mandanten, die der Weitergabe zugestimmt
+                  haben. Sie sehen Mandantendaten nicht automatisch. Der Abruf ist
+                  auf Anfrage, nicht als Kontofunktion.
+                </p>
+              </article>
+              <article className={styles.card}>
+                <h3>Muster ansehen</h3>
+                <p>
+                  Das Muster-PDF stammt aus festen Beispieldaten einer fiktiven
+                  GmbH. Es speichert nichts und ist keine Freigabe.
+                </p>
+                <a className={styles.cardLink} href={PARTNER_MUSTER_PDF_PATH}>
+                  Muster-PDF herunterladen
+                </a>
+                <Link className={styles.cardLink} href={PARTNER_MUSTER_PATH}>
+                  Musterseite mit den Beispieldaten
+                </Link>
+              </article>
+            </div>
+            <p className={styles.note}>
+              Keine Steuerberatung. Das Produkt ersetzt keine steuerliche Beratung.
+              Sie füllen die Dokumentation nicht für den Mandanten aus.
+            </p>
+          </div>
+        </section>
+
+        <section className={`${styles.section} ${styles.alt}`} id="preise">
+          <div className={`shell ${styles.priceLayout}`}>
+            <div className={styles.priceBox}>
+              <p className={styles.eyebrow}>Kanzlei, auf Anfrage</p>
+              <h2>{euro(MONTHLY_EUR)} netto / Monat</h2>
+              <p>
+                {MONTHLY_GROSS_LABEL}&nbsp;€ brutto, inkl. 19&nbsp;% USt. Keine
+                Provision. Kein Bestellbutton.
+              </p>
+              <table className={styles.priceTable}>
+                <tbody>
+                  <tr>
+                    <th scope="row">Logo im PDF</th>
+                    <td>auf Anfrage</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="actions">
-            <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
-              Muster-PDF herunterladen
-            </a>
-            <Link className="btn ghost" href={PARTNER_MUSTER_PATH}>
-              Musterseite mit den Beispieldaten
-            </Link>
-          </div>
-        </section>
-
-        <section className="block" id="prozess">
-          <h2>Von den Fragen zum gepflegten Stand</h2>
-          <ol className="prose-list">
-            <li>
-              <strong>Fragen / Parameter</strong> — Sie in der Demo, später der
-              Mandant.
-            </li>
-            <li>
-              <strong>Ergebnis</strong> — PDF-Entwurf und Offene-Punkte-Liste,
-              abgeleitet aus den Angaben.
-            </li>
-            <li>
-              <strong>Versionierung</strong> — neue Fassung bei Änderungen;
-              Historie statt Dateichaos.
-            </li>
-          </ol>
-          <p className="prose">{PARTNER_EFFORT_LINE}</p>
-        </section>
-
-        <section className="block" id="bereiche">
-          <h2>24 Module: komplette Verfahrensdokumentation</h2>
-          <p className="prose">
-            Ihr Mandant erhält ein Gesamtdokument mit bis zu 24 Modulen in der
-            klassischen Vier-Teile-Struktur. Ein Betriebs-Check ermittelt die
-            vorhandenen Abläufe. Firmendaten, Programme und Ansprechpartner
-            gibt der Mandant einmal an – wo möglich, füllen wir sie in den
-            Themen vor. Vorhandene Bereiche werden nicht
-            stillschweigend ausgelassen. {ALL_AREAS_LINE}
-          </p>
-          <ModuleTeile />
-          <p className="hint">
-            Muster-Gesamtdokumente (fünf Branchenvorlagen) und bisherige Bereichs-Muster:{" "}
-            <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
-          </p>
-        </section>
-
-        <section className="block" id="eignung">
-          <h2>Geeignet — und wo die Grenze liegt</h2>
-          <div className="legal legal-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Geeignet</th>
-                  <th scope="col">Nicht unser Anspruch</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Fragen-Demo und Muster zum eigenen Prüfen</td>
-                  <td>Prüfungsangst als Verkauf</td>
-                </tr>
-                <tr>
-                  <td>Weiterleiten nach Ihrer Bewertung</td>
-                  <td>Ausfüllen für den Mandanten</td>
-                </tr>
-                <tr>
-                  <td>Versionierung und erneute Exporte</td>
-                  <td>Steuerberatung oder Konformitätsversprechen</td>
-                </tr>
-                <tr>
-                  <td>KMU, Handwerk, Freiberufler typisch</td>
-                  <td>Blanko-„Muster fertig“ ohne Betriebsbezug</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="legal legal-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Situation</th>
-                  <th scope="col">Eignung</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    Freiberufler, kleine GmbH, Handwerk mit überschaubarer IT
-                  </td>
-                  <td>Gut geeignet</td>
-                </tr>
-                <tr>
-                  <td>
-                    Mehrere Systeme, viele Standorte, viele interne
-                    Zuständigkeiten
-                  </td>
-                  <td>
-                    Oft geeignet — leere Angaben und nicht abgefragte Schritte
-                    werden Punkte
-                  </td>
-                </tr>
-                <tr>
-                  <td>Sehr individuelle Konzernprozesse, Sonderfälle</td>
-                  <td>Grenzen — manuell ergänzen oder anderes Vorgehen</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p className="prose">
-            Das Tool ist keine Steuerberatung. Offene Punkte markieren leere
-            oder unbestätigte Angaben und Schritte, die der Fragebogen nicht
-            erfasst. Ein Hinweis erscheint, wenn ersetzendes Scannen genannt
-            ist und ein Papierweg fehlt. Das ist kein allgemeiner
-            Widerspruchs-Check und keine Freigabe. Eine Bestätigung durch den
-            Mandanten ist nicht eingebaut. Für die meisten Betriebe reicht die
-            Fassung aus den Angaben. Anpassungen bei besonderen Verfahren sind
-            möglich.
-          </p>
-        </section>
-
-        <section className="block" id="versionierung">
-          <h2>Versionierung</h2>
-          <p className="prose">
-            Ein einzelnes PDF veraltet, wenn Software oder Prozesse wechseln.
-            Im Produkt legt der Mandant eine neue Fassung an: Gültig-ab,
-            optional Gültig-bis, ein Kurztext zur Änderung und wer sie
-            eingetragen hat. Bisherige Fassungen bleiben erhalten. Das
-            Muster-PDF ist ein Beispiel aus festen Daten, keine gespeicherte
-            Mandantenfassung. Präsens steht nur bei bestätigten Angaben. Die
-            Erzeugung ist keine Freigabe durch die Geschäftsführung. Gültig-ab
-            setzt der Mandant im Produkt, nicht in dieser Vorschau.
-          </p>
-        </section>
-
-        <section className="block" id="daten">
-          <h2>Daten</h2>
-          <ul className="prose-list">
-            <li>
-              <strong>Datenfluss.</strong> Die Website läuft bei Vercel. Muster
-              und Demo auf dieser Seite speichern keine Eingaben. Die Anfrage
-              „VD für mehrere Mandanten“ übermittelt nur die Formularfelder per
-              E-Mail an{" "}
-              <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
-              . Die <Link href="/datenschutz">Datenschutzerklärung</Link> benennt
-              die heutigen Empfänger. Weitere Dienstleister sind dort nicht
-              genannt. Eine ausführlichere Beschreibung der Verarbeitung ist
-              Zukunft und auf dieser Seite nicht verfügbar.
-            </li>
-            <li>
-              <strong>Zugriff.</strong> Sie sehen Mandantendaten nicht
-              automatisch — nur wenn der Mandant sie teilt. Ein Rollenmodell für
-              Kanzleimitarbeiter ist nicht eingebaut.
-            </li>
-            <li>
-              <strong>Auskunft.</strong> Keine Selbstbedienung für die Auskunft
-              über alle personenbezogenen Daten — Rechte per E-Mail an{" "}
-              <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
-              .
-            </li>
-            <li>
-              <strong>Änderungsprotokoll.</strong> Jede neue Fassung im Produkt
-              speichert Gültig-ab, optionales Gültig-bis, einen Kurztext zur
-              Änderung und wer sie eingetragen hat. Ein Feld-für-Feld-Vergleich
-              wird nicht geführt. Diese Vorschau speichert keine Fassung.
-            </li>
-            <li>
-              <strong>AVV.</strong> Ein ausführlicher
-              Auftragsverarbeitungsvertrag liegt nicht zum Download und ist
-              heute nicht veröffentlicht. Die Datenschutzerklärung markiert den
-              AVV mit Vercel als noch zu prüfen. Eine vollständigere AVV- und
-              Prozessbeschreibung ist Zukunft und auf dieser Seite nicht
-              verfügbar. Anfragen:{" "}
-              <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
-              .
-            </li>
-            <li>
-              <strong>Zahlung.</strong> Für Steuerberater entsteht auf dieser
-              Seite keine Zahlung. Es gibt keinen Bestellweg.
-            </li>
-          </ul>
-        </section>
-
-        <section className="block" id="anfrage">
-          <h2>VD für mehrere Mandanten</h2>
-          <p className="prose">
-            Wenn Sie die Verfahrensdokumentation für mehrere Mandanten ansprechen
-            möchten, schreiben Sie uns. Die Anfrage ist unverbindlich. Muster
-            und Demo bleiben Beispiele und speichern keine Eingaben.
-          </p>
-          <PartnerInquiryForm />
-        </section>
-
-        <section className="block" id="grenzen">
-          <h2>Grenzen</h2>
-          <p className="prose">
-            Wir leisten keine Steuer- oder Rechtsberatung und geben keine
-            Konformitäts- oder Prüfungszusage.
-          </p>
-          <p className="prose">
-            Eigenes Produkt der IKAT GmbH — keine fremden Zertifikat-Siegel;
-            optionales eigenes Zeichen nur klar als unseres.
-          </p>
-        </section>
-
-        <section className="block" id="faq">
-          <h2>Häufige Fragen</h2>
-          <div className="faq-item">
-            <h3>Kostet mich das Zeit mit jedem Mandanten?</h3>
-            <p className="prose">
-              Demo und Muster sind zum eigenen Prüfen. Danach arbeitet der
-              Mandant selbst. Sie füllen nicht für ihn aus.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Was, wenn nach der Weiterempfehlung etwas fehlt?</h3>
-            <p className="prose">
-              Keine Konformitätszusage. Offene Punkte zeigen leere oder
-              unbestätigte Angaben und nicht abgefragte Schritte. Die
-              gelieferte Fassung reicht in der Regel; bei besonderen Verfahren
-              ergänzt der Mandant die Dokumentation selbst. Eine zusätzliche
-              Abstimmung durch die Kanzlei ist freiwillig und nur im Rahmen
-              eines gesonderten Auftrags. Die Weiterempfehlung begründet keinen
-              solchen Auftrag.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Warum nicht eine Word-Vorlage?</h3>
-            <p className="prose">
-              Geführte Fragen, ein Ergebnis aus diesen Angaben, und Versionen
-              statt einer einzelnen Datei.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Ist das DATEV oder behördlich zertifiziert?</h3>
-            <p className="prose">
-              Nein. Eigenes Produkt. Ein optionales Zeichen nur als unseres.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Entsteht für die Kanzlei eine Zahlung?</h3>
-            <p className="prose">
-              Nein. Diese Seite hat keinen Bestellweg. Muster und Demo sind
-              Beispiele und speichern keine Eingaben. Für mehrere Mandanten
-              nutzen Sie das Formular „VD für mehrere Mandanten“.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Welche Daten brauche ich für Muster und Fragen?</h3>
-            <p className="prose">
-              Keine Mandanten-Geheimnisse. Muster und Demo auf dieser Seite
-              speichern nichts. In der Demo geben Sie ein, was Sie selbst
-              durchspielen.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Für welche Mandanten?</h3>
-            <p className="prose">
-              Typisch KMU, Handwerk, Freiberufler, kleine GmbH. In der Demo
-              können Sie die Beispieldaten ansehen und verändern. Sehr
-              individuelle Konzernprozesse stoßen an die Grenze oben.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Muss ich die Software schulen?</h3>
-            <p className="prose">Nein.</p>
-          </div>
-          <div className="faq-item">
-            <h3>Was wird aus unbekannten Angaben?</h3>
-            <p className="prose">
-              Leere Angaben und nicht abgefragte Schritte werden Offene Punkte.
-              Das Muster zeigt das an der Beispiel GmbH. Widersprüche zwischen
-              ausgefüllten Feldern prüft das Tool nicht.
-            </p>
-          </div>
-          <div className="faq-item">
-            <h3>Kann ich Muster und Demo ohne Bestellung ansehen?</h3>
-            <p className="prose">
-              Ja. Beides sind Beispiele auf dieser Seite. Es wird nichts
-              gespeichert und nichts bestellt.
-            </p>
+                  <tr>
+                    <th scope="row">Mandantenübersicht</th>
+                    <td>nur bei Zustimmung, auf Anfrage</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Provision</th>
+                    <td>keine</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className={styles.ctas}>
+                <a className={`btn ${styles.btnOnDark}`} href={PARTNER_MAIL}>
+                  Partneranfrage per E-Mail
+                </a>
+                <a className={styles.textLink} href="#anfrage">
+                  Oder das Formular nutzen
+                </a>
+              </div>
+            </div>
+            <div className={styles.side}>
+              <h3>Was Mandanten zahlen</h3>
+              <p className={styles.prose}>
+                Den Listenpreis, direkt an die {LEGAL_OPERATOR.name}. Die Kanzlei
+                erhält keine Provision.
+              </p>
+              <ul className={styles.checks} role="list">
+                <li>
+                  {euro(SETUP_EUR)} netto Einrichtung ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
+                </li>
+                <li>
+                  {euro(MONTHLY_EUR)} netto pro Monat ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto)
+                </li>
+                <li>Ein Abo umfasst bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen</li>
+                <li>{ALL_AREAS_LINE}</li>
+              </ul>
+              <p className={styles.fine}>
+                Die Bestellung der Mandanten läuft über die{" "}
+                <Link href="/">öffentliche Seite</Link>. Diese Partnerschaft hat
+                keinen Bestellweg.
+              </p>
+            </div>
           </div>
         </section>
 
-        <section className="block" id="abschluss">
-          <h2>Fragen und Muster prüfen — bei mehreren Mandanten schreiben Sie uns</h2>
-          <p className="prose">
-            Muster und Demo speichern keine Eingaben. Die Anfrage über das
-            Formular ist unverbindlich.
-          </p>
-          <div className="actions">
-            <a className="btn" href="#anfrage">
-              VD für mehrere Mandanten
-            </a>
-            <a className="btn ghost" href="#fragen-demo">
-              Fragenprozess testen
-            </a>
-            <a className="btn ghost" href="#muster">
-              Muster ansehen
-            </a>
+        <section className={styles.section} id="ablauf">
+          <div className={`shell ${styles.split}`}>
+            <div>
+              <h2>So läuft’s ab</h2>
+              <ol className={styles.steps} role="list">
+                <li>Sie senden eine Partneranfrage. Es gibt hier keine Selbstbedienung.</li>
+                <li>
+                  Logo im PDF und die Übersicht der Mandanten, die zugestimmt haben,
+                  richten wir danach auf Anfrage ein.
+                </li>
+                <li>
+                  Mandanten bestellen selbst und zahlen den Listenpreis direkt an die{" "}
+                  {LEGAL_OPERATOR.name}.
+                </li>
+                <li>Sie füllen die Dokumentation nicht für den Mandanten aus.</li>
+              </ol>
+              <p className={styles.fine}>{PARTNER_EFFORT_LINE}</p>
+            </div>
+            <div>
+              <h2>Grenze</h2>
+              <p className={styles.prose}>
+                Keine Steuerberatung und keine Rechtsberatung. Keine Zusage, dass
+                eine Dokumentation einer Prüfung standhält. Die Verantwortung für
+                die Angaben bleibt beim Mandanten.
+              </p>
+              <p className={styles.prose}>
+                <Link className={styles.inlineLink} href={PARTNER_DEMO_PATH}>
+                  Fragenprozess ansehen
+                </Link>
+                . Die Demo speichert keine Eingaben.
+              </p>
+            </div>
           </div>
-          <p className="hint back-links">
-            <a href="#fragen-demo">Fragen</a>
-            {" · "}
-            <a href="#muster">Muster</a>
-            {" · "}
-            <a href="#anfrage">Anfrage</a>
-            {" · "}
-            <Link href="/datenschutz">Datenschutz</Link>
-            {" · "}
-            <Link href="/impressum">Impressum</Link>
-          </p>
-          <p className="disclaimer">
-            Keine Steuer- oder Rechtsberatung. Muster und Demo dienen der
-            eigenen Bewertung durch die Kanzlei. Die Weiterempfehlung begründet
-            keinen Auftrag zur Prüfung. Die Verfahrensdokumentation bleibt in
-            der Verantwortung des Mandanten.
-          </p>
+        </section>
+
+        <section className={`${styles.section} ${styles.alt}`} id="anfrage">
+          <div className={`shell ${styles.split}`}>
+            <div>
+              <h2>Partneranfrage</h2>
+              <p className={styles.prose}>
+                Schreiben Sie uns, wenn die Kanzlei das Logo im PDF und die
+                Übersicht eingewilligter Mandanten nutzen möchte. Die Anfrage ist
+                unverbindlich. Eine Provision gibt es nicht.
+              </p>
+              <p className={styles.fine}>
+                <a href={PARTNER_MAIL}>
+                  {LEGAL_OPERATOR.email} mit dem Betreff „Partneranfrage Kanzlei“
+                </a>
+              </p>
+            </div>
+            <PartnerInquiryForm />
+          </div>
+        </section>
+
+        <section className={styles.section} id="faq">
+          <div className={`shell ${styles.faqGrid}`}>
+            <h2>Häufige Fragen</h2>
+            <div className={styles.faqList}>
+              {FAQ.map((item) => (
+                <details key={item.q}>
+                  <summary>
+                    <h3>{item.q}</h3>
+                  </summary>
+                  <p>{item.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.final} id="abschluss">
+          <div className="shell">
+            <h2>Partnerschaft auf Anfrage</h2>
+            <p>
+              {euro(MONTHLY_EUR)} netto pro Monat für die Kanzlei · keine Provision ·
+              Mandanten zahlen den Listenpreis direkt an die {LEGAL_OPERATOR.name}.
+              Keine Steuerberatung.
+            </p>
+            <div className={styles.ctas}>
+              <a className={`btn ${styles.btnOnDark}`} href={PARTNER_MAIL}>
+                Partneranfrage per E-Mail
+              </a>
+              <a className={`btn ${styles.btnSecOnDark}`} href="#anfrage">
+                Formular
+              </a>
+              <a className={styles.textLink} href={PARTNER_MUSTER_PDF_PATH}>
+                Muster-PDF
+              </a>
+            </div>
+          </div>
         </section>
       </main>
-      <div className="sticky-cta tall">
+      <div className="sticky-cta">
         <a className="btn" href="#anfrage">
-          Anfrage senden
-        </a>
-        <a className="btn" href="#muster">
-          Muster-Dokumentation ansehen
+          Partneranfrage
         </a>
       </div>
       <SiteFooter />
-    </>
+    </div>
   );
 }

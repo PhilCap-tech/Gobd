@@ -12,6 +12,8 @@ import { globSync, readFileSync } from "node:fs";
 /** @type {string[]} */
 const COVERED = [
   "app/page.tsx",
+  "app/steuerberater/page.tsx",
+  "app/steuerberater/partner-inquiry-form.tsx",
   "app/faq/**/*.{ts,tsx}",
   "content/faq.md",
   "app/readiness/**/*.{ts,tsx}",

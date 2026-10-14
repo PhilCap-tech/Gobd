@@ -181,6 +181,7 @@ export function PartnerInquiryForm() {
         an{" "}
         <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>.
         Die Anfrage ist unverbindlich. Auf dieser Seite gibt es keinen Bestellweg.
+        Eine Provision wird nicht gezahlt.
         Hinweise zur Verarbeitung stehen in der{" "}
         <Link href="/datenschutz">Datenschutzerklärung</Link>.
       </p>
