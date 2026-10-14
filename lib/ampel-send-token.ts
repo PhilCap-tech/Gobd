@@ -1,14 +1,10 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, open, readFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  BlobNotFoundError,
-  BlobPreconditionFailedError,
-  get,
-  put,
-} from "@vercel/blob";
+import { get, put } from "@vercel/blob";
+import { blobMissing, exclusiveBlobCreate, type ExclusivePut } from "@/lib/ampel-blob-slot";
 import { getMagicLinkSecret, isMagicLinkConfigured } from "@/lib/env";
-import { AMPEL_EMAIL_LIMIT, AMPEL_IP_LIMIT } from "@/lib/ampel-rate-limit";
+import { AMPEL_EMAIL_LIMIT, AMPEL_IP_LIMIT, AMPEL_RATE_BLOB_CACHE_MAX_AGE } from "@/lib/ampel-rate-limit";
 import { getFileFallbackDir } from "@/lib/store";
 
 /** The follow-up send must start within this window. */
@@ -99,54 +95,60 @@ export function createMemoryAmpelSendTokenStore(): AmpelSendTokenStore {
   };
 }
 
-function blobConflict(error: unknown): boolean {
-  if (error instanceof BlobPreconditionFailedError) return true;
-  const name = error instanceof Error ? error.name : "";
-  if (name === "BlobPreconditionFailedError") return true;
-  const message = error instanceof Error ? error.message.toLowerCase() : "";
-  return message.includes("already exists") || message.includes("precondition");
+const blobPut: ExclusivePut = async (pathname, body, options) => {
+  const result = await put(pathname, body, options);
+  return { pathname: result.pathname };
+};
+
+async function readTokenBlob(pathname: string, token: string): Promise<string | null> {
+  try {
+    const result = await get(pathname, { access: "private", useCache: false, token });
+    if (result == null || result.statusCode !== 200 || !result.stream) return null;
+    return await new Response(result.stream).text();
+  } catch (error) {
+    if (blobMissing(error)) return null;
+    throw error;
+  }
 }
 
-function blobMissing(error: unknown): boolean {
-  return error instanceof BlobNotFoundError || (error instanceof Error && error.name === "BlobNotFoundError");
-}
-
-function blobTokenStore(): AmpelSendTokenStore {
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? "";
+export function createBlobPutAmpelSendTokenStore(blob: {
+  put: ExclusivePut;
+  read: (pathname: string) => Promise<string | null>;
+  remove?: (pathname: string) => Promise<void>;
+  token?: string;
+}): AmpelSendTokenStore {
+  const token = blob.token ?? "";
   const pathname = (slotId: string) => `${PREFIX}/${slotId}`;
   return {
     async claim(slotId, body) {
       if (!safeSlot(slotId)) return "exists";
-      try {
-        await put(pathname(slotId), body, {
-          access: "private",
-          addRandomSuffix: false,
-          allowOverwrite: false,
-          cacheControlMaxAge: 60,
-          contentType: "application/json; charset=utf-8",
-          token,
-        });
-        return "created";
-      } catch (error) {
-        if (blobConflict(error)) return "exists";
-        throw error;
-      }
+      return exclusiveBlobCreate({
+        pathname: pathname(slotId),
+        body,
+        token,
+        cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE,
+        put: blob.put,
+        read: (path) => blob.read(path),
+        remove: blob.remove,
+      });
     },
     async putIssue(slotId, body) {
       return this.claim(slotId, body);
     },
     async readIssue(slotId) {
       if (!safeSlot(slotId)) return null;
-      try {
-        const result = await get(pathname(slotId), { access: "private", useCache: false, token });
-        if (result == null || result.statusCode !== 200 || !result.stream) return null;
-        return await new Response(result.stream).text();
-      } catch (error) {
-        if (blobMissing(error)) return null;
-        throw error;
-      }
+      return blob.read(pathname(slotId));
     },
   };
+}
+
+function blobTokenStore(): AmpelSendTokenStore {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? "";
+  return createBlobPutAmpelSendTokenStore({
+    token,
+    put: blobPut,
+    read: (pathname) => readTokenBlob(pathname, token),
+  });
 }
 
 function fileTokenStore(): AmpelSendTokenStore {

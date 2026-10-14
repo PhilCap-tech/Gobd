@@ -1,13 +1,9 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  BlobNotFoundError,
-  BlobPreconditionFailedError,
-  del,
-  get as readBlob,
-  put,
-} from "@vercel/blob";
+import { del, get as readBlob, put } from "@vercel/blob";
+import { ipAddress } from "@vercel/functions/headers";
+import { blobMissing, exclusiveBlobCreate, type ExclusivePut } from "@/lib/ampel-blob-slot";
 import { getFileFallbackDir } from "@/lib/store";
 
 export const AMPEL_IP_LIMIT = 5;
@@ -42,32 +38,62 @@ export type AmpelRateStore = {
 
 type Ledger = Record<string, number[]>;
 
-const IP_HEADER_SOURCES = ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"] as const;
+const IP_HEADER_SOURCES = ["x-real-ip", "x-vercel-forwarded-for", "x-forwarded-for"] as const;
 
 export type AmpelIpSource = (typeof IP_HEADER_SOURCES)[number] | "";
 
-function firstHeaderValue(value: string | null): string {
+export type AmpelRateTrace = {
+  src: string;
+  slot: number;
+  win: number;
+};
+
+function firstHeaderValue(value: string | null | undefined): string {
   if (!value) return "";
   const first = value.split(",")[0]?.trim() ?? "";
   if (!first || first.length > 80 || first.toLowerCase() === "unknown") return "";
   return first;
 }
 
+function requestHeaders(input: Request | Headers): Headers {
+  if (input instanceof Headers) return input;
+  return input.headers;
+}
+
 /**
- * On Vercel the client address is `x-vercel-forwarded-for`. The first
- * `x-forwarded-for` hop is only a fallback: it can be empty or a proxy.
- * An empty or `unknown` value is not an address.
+ * `ipAddress()` reads `x-real-ip`, the client address Vercel calculated.
+ * `x-vercel-forwarded-for` is only the next choice: its first hop can change
+ * while that address stays the same. An empty or `unknown` value is not an address.
  */
-export function readAmpelClientIp(headers: Headers): { ip: string; source: AmpelIpSource } {
-  for (const source of IP_HEADER_SOURCES) {
+export function readAmpelClientIp(input: Request | Headers): { ip: string; source: AmpelIpSource } {
+  const headers = requestHeaders(input);
+  const fromIpAddress = firstHeaderValue(ipAddress(input));
+  if (fromIpAddress) return { ip: fromIpAddress, source: "x-real-ip" };
+  for (const source of ["x-vercel-forwarded-for", "x-forwarded-for"] as const) {
     const ip = firstHeaderValue(headers.get(source));
     if (ip) return { ip, source };
   }
   return { ip: "", source: "" };
 }
 
-export function ampelClientIp(headers: Headers): string {
-  return readAmpelClientIp(headers).ip;
+export function ampelClientIp(input: Request | Headers): string {
+  return readAmpelClientIp(input).ip;
+}
+
+/** Temporary Prod diagnostic: `x-ampel-rl: src=<source>;slot=<n>;win=<window>`. No address. */
+export function ampelRateTrace(source: string, slot: number, now: number): AmpelRateTrace {
+  return {
+    src: (IP_HEADER_SOURCES as readonly string[]).includes(source) ? source : "none",
+    slot: Number.isInteger(slot) && slot >= 1 && slot <= AMPEL_IP_LIMIT ? slot : 0,
+    win: ampelRateWindowId(now, AMPEL_IP_WINDOW_MS),
+  };
+}
+
+export function ampelRateResponseHeader(source: string, slot: number, windowId: number): string {
+  const src = (IP_HEADER_SOURCES as readonly string[]).includes(source) ? source : "none";
+  const safeSlot = Number.isInteger(slot) && slot >= 1 && slot <= AMPEL_IP_LIMIT ? slot : 0;
+  const win = Number.isInteger(windowId) && windowId >= 0 && windowId <= 10_000_000 ? windowId : 0;
+  return `src=${src};slot=${safeSlot};win=${win}`;
 }
 
 /** One PII-free line: header source, slot number, and a hash of the address. */
@@ -231,57 +257,75 @@ function blobToken(): string {
   return process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? "";
 }
 
-function blobMissing(error: unknown): boolean {
-  if (error instanceof BlobNotFoundError) return true;
-  const name = error instanceof Error ? error.constructor?.name ?? error.name : "";
-  return name === "BlobNotFoundError";
+async function readPrivateBlob(pathname: string, token: string): Promise<string | null> {
+  try {
+    const result = await readBlob(pathname, { access: "private", useCache: false, token });
+    if (result == null) return null;
+    if (result.statusCode !== 200 || !result.stream) throw new Error("ampel-rate-read");
+    return await new Response(result.stream).text();
+  } catch (error) {
+    if (blobMissing(error)) return null;
+    throw error;
+  }
 }
 
-function blobConflict(error: unknown): boolean {
-  if (error instanceof BlobPreconditionFailedError) return true;
-  const name = error instanceof Error ? error.constructor?.name ?? error.name : "";
-  if (name === "BlobPreconditionFailedError") return true;
-  const message = error instanceof Error ? error.message.toLowerCase() : "";
-  return message.includes("already exists") || message.includes("precondition");
+async function removePrivateBlob(pathname: string, token: string): Promise<void> {
+  try {
+    await del(pathname, { token });
+  } catch (error) {
+    if (blobMissing(error)) return;
+    throw error;
+  }
+}
+
+const blobPut: ExclusivePut = async (pathname, body, options) => {
+  const result = await put(pathname, body, options);
+  return { pathname: result.pathname };
+};
+
+export function createBlobPutAmpelRateStore(blob: {
+  put: ExclusivePut;
+  read: (pathname: string) => Promise<string | null>;
+  remove: (pathname: string) => Promise<void>;
+  token?: string;
+}): AmpelRateStore {
+  const token = blob.token ?? "";
+  return createSlotAmpelRateStore({
+    get: blob.read,
+    async create(pathname, body) {
+      return exclusiveBlobCreate({
+        pathname,
+        body,
+        token,
+        cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE,
+        put: blob.put,
+        read: blob.read,
+        remove: blob.remove,
+      });
+    },
+    remove: blob.remove,
+  });
 }
 
 function blobAmpelRateIo(): AmpelRateIo {
   const token = blobToken();
   return {
-    async get(pathname) {
-      try {
-        const result = await readBlob(pathname, { access: "private", useCache: false, token });
-        if (result == null) return null;
-        if (result.statusCode !== 200 || !result.stream) throw new Error("ampel-rate-read");
-        return await new Response(result.stream).text();
-      } catch (error) {
-        if (blobMissing(error)) return null;
-        throw error;
-      }
+    get(pathname) {
+      return readPrivateBlob(pathname, token);
     },
-    async create(pathname, body) {
-      try {
-        await put(pathname, body, {
-          access: "private",
-          addRandomSuffix: false,
-          allowOverwrite: false,
-          cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE,
-          contentType: "application/json; charset=utf-8",
-          token,
-        });
-        return "created";
-      } catch (error) {
-        if (blobConflict(error)) return "exists";
-        throw error;
-      }
+    create(pathname, body) {
+      return exclusiveBlobCreate({
+        pathname,
+        body,
+        token,
+        cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE,
+        put: blobPut,
+        read: (path) => readPrivateBlob(path, token),
+        remove: (path) => removePrivateBlob(path, token),
+      });
     },
-    async remove(pathname) {
-      try {
-        await del(pathname, { token });
-      } catch (error) {
-        if (blobMissing(error)) return;
-        throw error;
-      }
+    remove(pathname) {
+      return removePrivateBlob(pathname, token);
     },
   };
 }
