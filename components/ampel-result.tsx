@@ -3,6 +3,7 @@ import {
   AMPEL_CAP_NOTE,
   AMPEL_CTA,
   AMPEL_DISCLAIMER,
+  AMPEL_QUELLEN_PATH,
   AMPEL_RESULTS,
 } from "@/lib/ampel-questions";
 import {
@@ -69,5 +70,10 @@ export function AmpelCta() {
 }
 
 export function AmpelDisclaimer() {
-  return <p className="hint ampel-disclaimer">{AMPEL_DISCLAIMER}</p>;
+  return (
+    <p className="hint ampel-disclaimer">
+      {AMPEL_DISCLAIMER}{" "}
+      <Link href={AMPEL_QUELLEN_PATH}>Quellen & Methodik</Link>
+    </p>
+  );
 }

@@ -41,11 +41,11 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     question:
       "Falls Sie eine elektronische Kasse nutzen: Ist sie mit einer zertifizierten technischen Sicherheitseinrichtung (TSE) ausgestattet und beim Finanzamt gemeldet?",
     explanation:
-      "Elektronische Aufzeichnungssysteme mit Kassenfunktion müssen durch eine zertifizierte TSE geschützt sein. Seit dem 01.01.2025 werden sie über ELSTER gemeldet. Antworten Sie nur mit „Ja“, wenn beides zutrifft.",
+      "Elektronische Aufzeichnungssysteme mit Kassenfunktion müssen durch eine zertifizierte TSE geschützt sein. Seit dem 01.01.2025 steht für die Mitteilung an das Finanzamt das Verfahren über „Mein ELSTER“ zur Verfügung. Neu angeschaffte Systeme sind innerhalb eines Monats zu melden, ebenso ihre Außerbetriebnahme. Antworten Sie nur mit „Ja“, wenn beides zutrifft.",
     weight: 3,
     applicable: "optional",
     source:
-      "§ 146a Abs. 1 und Abs. 4 AO; §§ 1–3 KassenSichV; BMF-Schreiben vom 28.06.2024 (IV D 2 - S 0316-a/19/10011 :009) zum Beginn der Mitteilungspflicht nach § 146a Abs. 4 AO",
+      "§ 146a Abs. 1 Satz 2 und Abs. 4 AO; §§ 1–3 KassenSichV; BMF-Schreiben vom 28.06.2024 (IV D 2 – S 0316-a/19/10011 :009) zur Mitteilungspflicht nach § 146a Abs. 4 AO",
   },
   {
     id: "aufbewahrung",
@@ -56,7 +56,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     weight: 3,
     applicable: "required",
     source:
-      "§ 147 Abs. 1 und 3 AO i. d. F. BEG IV vom 23.10.2024, BGBl. 2024 I Nr. 323 (Buchungsbelege 8 Jahre seit 01.01.2025); Übergangsregel Art. 97 § 19a Abs. 2 EGAO; GoBD Rz. 113 ff.",
+      "§ 147 Abs. 1 und Abs. 3 AO i. d. F. des Vierten Bürokratieentlastungsgesetzes (BGBl. 2024 I Nr. 323); Übergangsregel Art. 97 § 19a Abs. 2 und 3 EGAO; GoBD Rz. 113 ff.",
   },
   {
     id: "unveraenderbarkeit",
@@ -71,13 +71,13 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
   {
     id: "datenzugriff",
     question:
-      "Könnten Sie der Betriebsprüfung Ihre steuerrelevanten Daten maschinell auswertbar zur Verfügung stellen, also per Lesezugriff, per Auswertung nach Vorgabe oder auf einem Datenträger?",
+      "Könnten Sie der Betriebsprüfung Ihre steuerrelevanten Daten maschinell auswertbar zur Verfügung stellen, also per Lesezugriff, per Auswertung nach Vorgabe oder als Datenüberlassung, zum Beispiel auf einem Datenträger?",
     explanation:
-      "Die Finanzverwaltung hat das Recht auf unmittelbaren Datenzugriff (Z1), mittelbaren Datenzugriff (Z2) und Datenträgerüberlassung (Z3). Dafür müssen die Daten während der Aufbewahrungsfrist verfügbar und maschinell auswertbar sein.",
+      "Die Finanzverwaltung hat das Recht auf unmittelbaren Datenzugriff (Z1), mittelbaren Datenzugriff (Z2) und Datenüberlassung (Z3), zum Beispiel auf einem Datenträger oder über eine Datenaustauschplattform der Finanzbehörde. Dafür müssen die Daten während der Aufbewahrungsfrist verfügbar und maschinell auswertbar sein.",
     weight: 2,
     applicable: "required",
     source:
-      "§ 147 Abs. 6 AO; GoBD Rz. 158–178 i. d. F. des BMF-Schreibens vom 14.07.2025 (Z1: Rz. 165, Z2: Rz. 166, Z3: Rz. 167)",
+      "§ 147 Abs. 6 AO; GoBD Rz. 158–178 i. d. F. vom 14.07.2025 (Z1 unmittelbarer Datenzugriff: Rz. 165; Z2 mittelbarer Datenzugriff: Rz. 166; Z3 Datenüberlassung: Rz. 167)",
   },
   {
     id: "iks",
@@ -97,18 +97,18 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
       "Papierbelege dürfen nach dem Scannen grundsätzlich vernichtet werden, wenn das Verfahren dokumentiert ist und die Digitalisate den Anforderungen entsprechen (ersetzendes Scannen). Eine Orientierung bietet die Technische Richtlinie TR-RESISCAN des BSI. Sie ist jedoch keine Pflicht.",
     weight: 1,
     applicable: "optional",
-    source: "GoBD Rz. 130, 136–141 (Bildliche Erfassung von Papierdokumenten); § 147 Abs. 2 AO; BSI TR-03138 (TR-RESISCAN)",
+    source: "GoBD Rz. 130 und Rz. 136–141; § 147 Abs. 2 AO; BSI TR-03138 (TR-RESISCAN)",
   },
   {
     id: "erechnung",
     question:
       "Können Sie E-Rechnungen (z. B. XRechnung oder ZUGFeRD) empfangen, verarbeiten und im strukturierten Originalformat aufbewahren?",
     explanation:
-      "Seit dem 01.01.2025 müssen alle inländischen Unternehmen E-Rechnungen im B2B-Bereich empfangen können. Für die Aufbewahrung ist der strukturierte Teil der E-Rechnung maßgeblich.",
+      "Seit dem 01.01.2025 müssen alle inländischen Unternehmen E-Rechnungen im B2B-Bereich empfangen können. Für die Aufbewahrung ist der strukturierte Teil der E-Rechnung (z. B. die XML-Datei) maßgeblich. Den Bildteil einer hybriden Rechnung bewahren Sie zusätzlich auf, wenn er weitere steuerlich wichtige Angaben enthält, etwa Buchungsvermerke.",
     weight: 2,
     applicable: "required",
     source:
-      "§ 14 Abs. 1 und Abs. 2 UStG i. d. F. des Wachstumschancengesetzes; § 27 Abs. 38 UStG; BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320), geändert durch BMF-Schreiben vom 15.10.2025, zur E-Rechnung; GoBD Rz. 118, 119, 125, 131 i. d. F. des BMF-Schreibens vom 14.07.2025 (2. Änderung)",
+      "§ 14 Abs. 1 und Abs. 2 UStG i. d. F. des Wachstumschancengesetzes; § 27 Abs. 38 UStG; BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320) und vom 15.10.2025 zur E-Rechnung; GoBD Rz. 118, 119 und 131 i. d. F. vom 14.07.2025",
   },
   {
     id: "belegfluss",
@@ -118,7 +118,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
       "Die Verfahrensdokumentation beschreibt den organisatorisch und technisch gewollten Prozess, von der Entstehung der Information über Erfassung, Verarbeitung und Speicherung bis zur Wiederauffindbarkeit. Belege sind zeitnah gegen Verlust zu sichern.",
     weight: 2,
     applicable: "required",
-    source: "GoBD Rz. 67 (Belegsicherung), Rz. 152; § 146 Abs. 1 AO",
+    source: "GoBD Rz. 152, Rz. 67–70 (Belegsicherung); § 146 Abs. 1 AO",
   },
 ];
 
@@ -230,3 +230,67 @@ export const AMPEL_SHARE_KANZLEI = {
 
 export const AMPEL_DISCLAIMER =
   "Die Betriebsprüfungs-Ampel dient ausschließlich der Orientierung und ist keine Steuerberatung. Sie ersetzt weder eine Prüfung im Einzelfall noch die Beratung durch eine Steuerberaterin oder einen Steuerberater. Das Ergebnis beruht allein auf Ihren Angaben und bestätigt nicht, dass Ihre Buchführung ordnungsgemäß ist. Stand der Rechtsgrundlagen: Oktober 2026.";
+
+export const AMPEL_QUELLEN_PATH = "/ampel-check/quellen";
+
+/** Abbreviations on the Quellen & Methodik page. Source check 14.10.2026, item 1. */
+export const AMPEL_ABBREVIATIONS =
+  "Abkürzungen: GoBD = BMF-Schreiben vom 28.11.2019 (IV A 4 – S 0316/19/10003 :001, BStBl I S. 1269), geändert durch BMF-Schreiben vom 11.03.2024 (BStBl I S. 374) und vom 14.07.2025 (IV D 2 – S 0316/00128/005/088, BStBl I S. 1502). Rz. bezieht sich auf die Randziffern in der Fassung vom 14.07.2025.";
+
+export type AmpelSourceRow = {
+  source: string;
+  content: string;
+  status: string;
+};
+
+/** Quellen & Methodik table. Source check 14.10.2026, item 12. */
+export const AMPEL_SOURCE_ROWS: readonly AmpelSourceRow[] = [
+  {
+    source: "BMF-Schreiben vom 11.03.2024 (1. Änderung GoBD, BStBl I S. 374)",
+    content:
+      "u. a. Datenüberlassung (Z3, Rz. 167–169 n. F.), Beschränkung des Datenzugriffs auf die Außenprüfung (Rz. 159), Anlage zur Datenüberlassung",
+    status:
+      "gesichert; Z1 = Rz. 165, Z2 = Rz. 166 (neu gefasst am 14.07.2025), Z3 = Rz. 167",
+  },
+  {
+    source:
+      "BMF-Schreiben vom 14.07.2025 (2. Änderung GoBD, IV D 2 – S 0316/00128/005/088, BStBl I S. 1502)",
+    content:
+      "Aufbewahrung von E-Rechnungen (Rz. 118, 119, 125, 127, 131), Fakturierung (Rz. 76), Zahlungsdienst-Nachweise (Rz. 121), Z2 (Rz. 166), Anwendung ab 14.07.2025 (Rz. 185)",
+    status: "gesichert",
+  },
+  {
+    source: "GoBD Rz. 130 und Rz. 136–141",
+    content: "Bildliche Erfassung von Papierdokumenten",
+    status: "gesichert",
+  },
+  {
+    source: "GoBD Rz. 67",
+    content: "Belegsicherung",
+    status: "gesichert",
+  },
+  {
+    source: "BEG IV (BGBl. 2024 I Nr. 323 vom 29.10.2024), Art. 97 § 19a Abs. 2 und 3 EGAO",
+    content:
+      "8 Jahre für Buchungsbelege (§ 147 Abs. 3 Satz 1 AO), anzuwenden auf alle Unterlagen, deren Frist am 31.12.2024 noch nicht abgelaufen war",
+    status:
+      "gesichert; Ausnahmen nach Abs. 3 für Institute i. S. d. KWG, VAG-beaufsichtigte Unternehmen und Wertpapierinstitute",
+  },
+  {
+    source: "BMF-Schreiben vom 28.06.2024 (IV D 2 – S 0316-a/19/10011 :009)",
+    content:
+      "Mitteilungspflicht § 146a Abs. 4 AO über ELSTER ab 01.01.2025; Altbestand bis 31.07.2025; danach Monatsfrist",
+    status: "gesichert",
+  },
+  {
+    source: "BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320)",
+    content: "E-Rechnung",
+    status: "gesichert",
+  },
+  {
+    source: "BMF-Schreiben vom 15.10.2025 (III C 2 – S 7287-a/00019/007/243)",
+    content:
+      "Änderung des Schreibens vom 15.10.2024 und des UStAE: Formatfehler, Validierung, Aufbewahrung des strukturierten Teils (UStAE 14b.1)",
+    status: "gesichert",
+  },
+];

@@ -173,39 +173,54 @@ try {
   assertOk(!questionFile.includes("TODO(ampel-quellen)"), "review TODOs are removed");
   assertOk(
     questionFile.includes(
-      "BMF-Schreiben vom 28.06.2024 (IV D 2 - S 0316-a/19/10011 :009) zum Beginn der Mitteilungspflicht nach § 146a Abs. 4 AO",
+      "BMF-Schreiben vom 28.06.2024 (IV D 2 – S 0316-a/19/10011 :009) zur Mitteilungspflicht nach § 146a Abs. 4 AO",
     ),
     "kasse citation is verified",
   );
   assertOk(
     questionFile.includes(
-      "§ 147 Abs. 1 und 3 AO i. d. F. BEG IV vom 23.10.2024, BGBl. 2024 I Nr. 323 (Buchungsbelege 8 Jahre seit 01.01.2025); Übergangsregel Art. 97 § 19a Abs. 2 EGAO; GoBD Rz. 113 ff.",
+      "§ 147 Abs. 1 und Abs. 3 AO i. d. F. des Vierten Bürokratieentlastungsgesetzes (BGBl. 2024 I Nr. 323); Übergangsregel Art. 97 § 19a Abs. 2 und 3 EGAO; GoBD Rz. 113 ff.",
     ),
     "retention citation is verified",
   );
-  assertOk(!questionFile.includes("Art. 97 § 19a Abs. 3"), "retention citation does not use the bank transitional rule");
   assertOk(
     questionFile.includes(
-      "GoBD Rz. 158–178 i. d. F. des BMF-Schreibens vom 14.07.2025 (Z1: Rz. 165, Z2: Rz. 166, Z3: Rz. 167)",
+      "GoBD Rz. 158–178 i. d. F. vom 14.07.2025 (Z1 unmittelbarer Datenzugriff: Rz. 165; Z2 mittelbarer Datenzugriff: Rz. 166; Z3 Datenüberlassung: Rz. 167)",
     ),
     "data access citation is verified",
   );
   assertOk(
-    questionFile.includes(
-      "GoBD Rz. 130, 136–141 (Bildliche Erfassung von Papierdokumenten); § 147 Abs. 2 AO; BSI TR-03138 (TR-RESISCAN)",
-    ),
+    questionFile.includes("GoBD Rz. 130 und Rz. 136–141; § 147 Abs. 2 AO; BSI TR-03138 (TR-RESISCAN)"),
     "scanning citation is verified",
   );
   assertOk(
     questionFile.includes(
-      "BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320), geändert durch BMF-Schreiben vom 15.10.2025, zur E-Rechnung; GoBD Rz. 118, 119, 125, 131 i. d. F. des BMF-Schreibens vom 14.07.2025 (2. Änderung)",
+      "BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320) und vom 15.10.2025 zur E-Rechnung; GoBD Rz. 118, 119 und 131 i. d. F. vom 14.07.2025",
     ),
     "e-invoice citation is verified",
   );
   assertOk(
-    questionFile.includes("GoBD Rz. 67 (Belegsicherung), Rz. 152; § 146 Abs. 1 AO"),
+    questionFile.includes("GoBD Rz. 152, Rz. 67–70 (Belegsicherung); § 146 Abs. 1 AO"),
     "document-flow citation is verified",
   );
+  assertOk(
+    questionFile.includes("Seit dem 01.01.2025 steht für die Mitteilung an das Finanzamt das Verfahren über „Mein ELSTER“ zur Verfügung."),
+    "kasse explanation names Mein ELSTER",
+  );
+  assertOk(
+    questionFile.includes("oder als Datenüberlassung, zum Beispiel auf einem Datenträger?"),
+    "data access question names Datenüberlassung",
+  );
+  assertOk(
+    questionFile.includes("Den Bildteil einer hybriden Rechnung bewahren Sie zusätzlich auf"),
+    "e-invoice explanation keeps the image part when it carries further tax details",
+  );
+  const quellenPage = readFileSync("app/ampel-check/quellen/page.tsx", "utf8");
+  assertOk(quellenPage.includes("AMPEL_ABBREVIATIONS"), "sources page shows the abbreviations");
+  assertOk(quellenPage.includes("AMPEL_SOURCE_ROWS"), "sources page shows the source table");
+  assertOk(questionFile.includes("Abkürzungen: GoBD = BMF-Schreiben vom 28.11.2019"), "abbreviations name the 2019 GoBD writing");
+  assertOk(questionFile.includes("BMF-Schreiben vom 15.10.2025 (III C 2 – S 7287-a/00019/007/243)"), "2025 e-invoice writing is a source row");
+  assertOk(!questionFile.includes(reviewMarker) && !quellenPage.includes(reviewMarker), "sources page has no review marker");
   for (const question of AMPEL_QUESTIONS) {
     const shown = publicAmpelSource(question.source);
     assertOk(!/prüfen/i.test(shown), `public source hides review notes for ${question.id}`);
