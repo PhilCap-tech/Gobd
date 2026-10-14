@@ -11,6 +11,19 @@ export const metadata: Metadata = {
   alternates: { canonical: canonicalUrl("/datenschutz") },
 };
 
+function AmpelPrivacyParagraph({ paragraph }: { paragraph: string }) {
+  const label = "Interne Auswertung:";
+  if (paragraph.startsWith(label)) {
+    return (
+      <p>
+        <strong>Interne Auswertung:</strong>
+        {paragraph.slice(label.length)}
+      </p>
+    );
+  }
+  return <p>{paragraph}</p>;
+}
+
 export default function DatenschutzPage() {
   return (
     <LegalPage
@@ -21,7 +34,7 @@ export default function DatenschutzPage() {
       <section>
         <h2>{AMPEL_PRIVACY_TITLE}</h2>
         {AMPEL_PRIVACY_PARAGRAPHS.map((paragraph) => (
-          <p key={paragraph.slice(0, 24)}>{paragraph}</p>
+          <AmpelPrivacyParagraph key={paragraph.slice(0, 24)} paragraph={paragraph} />
         ))}
       </section>
     </LegalPage>

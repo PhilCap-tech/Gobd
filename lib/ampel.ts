@@ -166,31 +166,6 @@ export function verifyAmpelUnsubscribeToken(token: string): AmpelUnsubscribePayl
   }
 }
 
-/** Stored when a new check had no utm_source. An empty cell is an older row. */
-export const AMPEL_UTM_NONE = "-";
-
-const UTM_SOURCE_RE = /^[\p{L}\p{N}._~+-]+$/u;
-
-/** First-touch source, or `AMPEL_UTM_NONE` when this check recorded none. */
-export function recordedAmpelUtm(value: unknown): string {
-  if (typeof value !== "string") return AMPEL_UTM_NONE;
-  const trimmed = value.trim().slice(0, 80);
-  if (!trimmed || trimmed.includes("@") || !UTM_SOURCE_RE.test(trimmed)) return AMPEL_UTM_NONE;
-  if (trimmed === AMPEL_UTM_NONE) return AMPEL_UTM_NONE;
-  return trimmed;
-}
-
-/** Keeps a real source across later sheet updates. Blank means the column was not written yet. */
-export function keepAmpelUtm(incoming: string | undefined, existing: string | undefined): string {
-  const current = (existing ?? "").trim();
-  if (incoming === undefined) return current;
-  const next = incoming.trim();
-  if (next && next !== AMPEL_UTM_NONE) return next;
-  if (current && current !== AMPEL_UTM_NONE) return current;
-  if (next) return next;
-  return current;
-}
-
 /** `ja` stays once a result mail was sent. Empty means the column was not written yet. */
 export function keepAmpelMailed(incoming: string | undefined, existing: string | undefined): string {
   if (incoming === "ja" || existing === "ja") return "ja";
@@ -211,7 +186,6 @@ export function toAmpelReadinessLead(input: {
   consentIp?: string;
   consentTextVersion?: string;
   mailed?: string;
-  utmSource?: string;
 }): ReadinessLead {
   const email = input.email.trim().toLowerCase();
   return {
@@ -232,6 +206,5 @@ export function toAmpelReadinessLead(input: {
     consentTextVersion: input.consentTextVersion?.trim() ?? "",
     withdrawnAt: "",
     mailed: input.mailed === "ja" || input.mailed === "nein" ? input.mailed : "",
-    utmSource: input.utmSource ?? "",
   };
 }

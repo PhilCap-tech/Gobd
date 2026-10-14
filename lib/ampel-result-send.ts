@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { recordedAmpelUtm, sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
+import { sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
 import { requestAmpelConfirmation, type AmpelConfirmationInput, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
 import { sendAmpelConfirmationMail } from "@/lib/ampel-mail";
 import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
@@ -46,8 +46,6 @@ export type SubmitAmpelInput = {
   ipSource?: string;
   /** One-time token from the handoff response. Required to send the mail. */
   sendToken?: unknown;
-  /** First-touch utm_source. Undefined leaves older rows unchanged. */
-  utmSource?: unknown;
 };
 
 export type SubmitAmpelDeps = {
@@ -286,7 +284,6 @@ export async function deliverAmpelResult(
   } catch (error) {
     console.error("[ampel] Ergebnis speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
   }
-  const utmSource = input.utmSource === undefined ? undefined : recordedAmpelUtm(input.utmSource);
   try {
     const scored = scoreAmpel(answers);
     if (scored) {
@@ -302,7 +299,6 @@ export async function deliverAmpelResult(
         mailStatus: "pdf_sent",
         marketingOptIn: input.marketing === true ? "pending" : "",
         mailed: "ja",
-        ...(utmSource === undefined ? {} : { utmSource }),
       });
       lead.status = "ampel_pdf";
       lead.timestamp = consentAt;
@@ -327,7 +323,6 @@ export async function deliverAmpelResult(
           consentIp: input.ip,
           consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
           mailed: "ja",
-          ...(utmSource === undefined ? {} : { utmSource }),
         }),
         timeoutMs,
       );

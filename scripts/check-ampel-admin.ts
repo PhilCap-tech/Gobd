@@ -12,7 +12,6 @@ import { WIPE_EMAIL_ALLOWLIST } from "../lib/admin-wipe";
 import { isAmpelAdminEmail } from "../lib/ampel-admin";
 import { AMPEL_ADMIN_CACHE_CONTROL, AMPEL_ADMIN_ROBOTS_TAG } from "../lib/ampel-admin-headers";
 import { handleAmpelStatsRequest } from "../lib/ampel-admin-http";
-import { AMPEL_UTM_NONE } from "../lib/ampel";
 import { requestAmpelConfirmation } from "../lib/ampel-confirm";
 import { AMPEL_QUESTIONS, type AmpelAnswer } from "../lib/ampel-questions";
 import { AMPEL_CHECK_RETENTION_DAYS } from "../lib/ampel-retention";
@@ -25,7 +24,7 @@ import {
   isAmpelTestEmail,
   type AmpelStatsReport,
 } from "../lib/ampel-stats";
-import { emptyReadinessLead, type ReadinessLead } from "../lib/readiness";
+import { emptyReadinessLead, READINESS_SHEET_COLUMNS, type ReadinessLead } from "../lib/readiness";
 import { INDEXABLE_STATIC_PATHS } from "../lib/seo";
 import { SheetsUnavailableError } from "../lib/sheets-unavailable";
 
@@ -178,7 +177,6 @@ async function main() {
       timestamp: "2026-03-28T23:10:00.000Z",
       marketingOptIn: "pending",
       mailed: "",
-      utmSource: "",
       ampelLight: "gelb",
       accessToken: "secret-access-token-xyz",
       consentIp: "198.51.100.77",
@@ -190,7 +188,6 @@ async function main() {
       timestamp: "2026-03-28T22:30:00.000Z",
       marketingOptIn: "confirmed",
       mailed: "ja",
-      utmSource: "newsletter",
       ampelLight: "gruen",
     }),
     lead({
@@ -199,7 +196,6 @@ async function main() {
       timestamp: "2026-03-22T22:30:00.000Z",
       marketingOptIn: "",
       mailed: "nein",
-      utmSource: AMPEL_UTM_NONE,
       ampelLight: "rot",
     }),
     lead({
@@ -207,7 +203,6 @@ async function main() {
       email: "gobd16x-probe@gmail.com",
       timestamp: "2026-03-28T23:20:00.000Z",
       mailed: "ja",
-      utmSource: "ads",
     }),
     lead({
       leadId: "ampel-test-week",
@@ -252,11 +247,11 @@ async function main() {
   ok(!hidden.entries.some((entry) => entry.email.endsWith("@mail.tm")), "a mail.tm row stays hidden");
   const today = hidden.entries.find((entry) => entry.email === "today@kunde.example");
   ok(today?.result === "Gelb" && today.optIn === "unbestätigt", "stored opt-in and light are shown");
-  ok(today?.mailed === "unbekannt" && today.utmSource === "unbekannt", "old mailed and utm cells stay unknown");
+  ok(today != null && today.mailed === "unbekannt" && !("utmSource" in today), "an empty mailed cell stays unknown and utm is not reported");
   const week = hidden.entries.find((entry) => entry.email === "week@kunde.example");
-  ok(week?.optIn === "bestätigt" && week.mailed === "ja" && week.utmSource === "newsletter", "new mailed and utm values are shown");
+  ok(week != null && week.optIn === "bestätigt" && week.mailed === "ja" && !("utmSource" in week), "stored mailed is shown without a source");
   const older = hidden.entries.find((entry) => entry.email === "old@kunde.example");
-  ok(older?.optIn === "keins" && older.mailed === "nein" && older.utmSource === "keine", "recorded empty utm is not unknown");
+  ok(older?.optIn === "keins" && older.mailed === "nein", "a recorded nein stays nein");
   const expired = hidden.entries.find((entry) => entry.email === "");
   ok(expired?.optIn === "unbekannt" && expired.result === "unbekannt", "a redacted row does not invent an opt-in");
   ok(hidden.entries[0]?.email === "future@kunde.example", "the newest row is first");
@@ -349,7 +344,6 @@ async function main() {
       marketing: true,
       honeypot: "",
       ip: "203.0.113.10",
-      utmSource: "newsletter",
     },
     {
       now: () => Date.parse("2026-10-14T10:00:00.000Z"),
@@ -359,13 +353,13 @@ async function main() {
         saved.push({ ...row });
       },
       confirm: async (input) => {
-        ok(input.utmSource === "newsletter" && input.mailed === "ja", "confirmation keeps the recorded source and mail flag");
+        ok(input.mailed === "ja" && !("utmSource" in input), "confirmation keeps the mail flag and no source");
         return { ok: true, throttled: false };
       },
     },
   );
   ok(sent.ok && !("honeypot" in sent) && sent.mailed, "a sent result still reports mailed");
-  ok(saved[0]?.mailed === "ja" && saved[0]?.utmSource === "newsletter", "the sheet row stores mailed and utm from now on");
+  ok(saved[0] != null && saved[0].mailed === "ja" && !("utmSource" in saved[0]), "the sheet row stores mailed and not utm");
   ok(saved[0]?.marketingOptIn === "pending", "a checked opt-in is stored as unconfirmed");
 
   const savedEmpty: ReadinessLead[] = [];
@@ -380,7 +374,6 @@ async function main() {
       marketing: false,
       honeypot: "",
       ip: "203.0.113.11",
-      utmSource: "",
     },
     {
       now: () => Date.parse("2026-10-14T11:00:00.000Z"),
@@ -392,7 +385,10 @@ async function main() {
       confirm: async () => ({ ok: true, throttled: false }),
     },
   );
-  ok(savedEmpty[0]?.utmSource === AMPEL_UTM_NONE && savedEmpty[0]?.marketingOptIn === "", "an empty source is recorded and no opt-in stays empty");
+  ok(
+    savedEmpty[0] != null && savedEmpty[0].mailed === "ja" && savedEmpty[0].marketingOptIn === "" && !("utmSource" in savedEmpty[0]),
+    "a sent mail is recorded and no opt-in stays empty",
+  );
 
   const confirmStore = new Map<string, ReadinessLead>();
   const confirmed = await requestAmpelConfirmation(
@@ -400,7 +396,6 @@ async function main() {
       email: "keep@example.com",
       answers: code ?? "",
       ref: "",
-      utmSource: "google",
       mailed: "ja",
     },
     {
@@ -413,7 +408,7 @@ async function main() {
     },
   );
   const confirmedRow = [...confirmStore.values()].at(-1);
-  ok(confirmed.ok && confirmedRow?.utmSource === "google" && confirmedRow.mailed === "ja", "the confirmation write keeps utm and mailed");
+  ok(confirmed.ok && confirmedRow != null && confirmedRow.mailed === "ja" && !("utmSource" in confirmedRow), "the confirmation write keeps mailed and not utm");
 
   ok(AMPEL_CHECK_RETENTION_DAYS === 90, "the 90-day retention is unchanged");
   const storeSource = readFileSync("lib/store.ts", "utf8");
@@ -436,6 +431,14 @@ async function main() {
   ok(page.includes("isAmpelAdminEmail") && page.includes("notFound("), "the page refuses anyone outside the allowlist");
   ok(page.includes("index: false") && page.includes("follow: false"), "the page metadata is noindex");
   ok(!page.includes("console."), "the page does not log");
+  ok(page.includes("E-Mail-Adresse") && page.includes("{entry.email"), "the admin page shows the stored address");
+  ok(!page.includes("UTM") && !page.includes("utm"), "the admin page does not show a source");
+  ok(
+    (READINESS_SHEET_COLUMNS as readonly string[]).includes("mailed") &&
+      !(READINESS_SHEET_COLUMNS as readonly string[]).includes("utm_source"),
+    "the sheet stores mailed and not utm_source",
+  );
+  ok(!bodyText.includes("utmSource") && !bodyText.includes("utm_source"), "the report has no utm field");
 
   const allowedMentions = new Set([
     "app/admin/ampel/page.tsx",

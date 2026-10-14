@@ -24,7 +24,7 @@ import {
   sanitizeAmpelRef,
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
-import { readFirstTouchUtms, trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
+import { trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
 
 function EmailPrivacyNote() {
   const label = "Datenschutzerklärung";
@@ -165,7 +165,6 @@ export function AmpelCheck() {
       ref: refName,
       marketing,
       fax_number: fax,
-      utm_source: readFirstTouchUtms()?.utm_source ?? "",
     };
     const showResult = (notice: string) => {
       try {

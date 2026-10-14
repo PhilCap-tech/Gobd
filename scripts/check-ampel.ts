@@ -404,10 +404,17 @@ try {
   assertOk(AMPEL_CONSENT_TEXT_VERSION === "2026-10-14", "checkbox text is versioned");
   assertOk(AMPEL_PRIVACY_TITLE === "Ampel-Check: Versand des Ergebnisses und E-Mail-Informationen", "privacy subsection title");
   const privacyText = AMPEL_PRIVACY_PARAGRAPHS.join("\n");
+  const resultAt = privacyText.indexOf("Wenn Sie den Ampel-Check nutzen");
   const abuseAt = privacyText.indexOf("Schutz vor Missbrauch:");
+  const internal =
+    "Interne Auswertung: Damit wir den Ampel-Check verbessern und den Versand überwachen können, werten wir die Einträge intern aus. Dabei geht es um die Anzahl der Checks, den Zeitpunkt, das Ergebnis (Ampelfarbe), ob die Ergebnis-E-Mail versendet wurde und ob Sie in E-Mail-Informationen eingewilligt haben. Die Auswertung ist nur für uns auf einer geschützten Admin-Seite sichtbar. Wir geben diese Daten nicht an Dritte weiter und verwenden sie nicht für Werbung. Kampagnenparameter (UTM) speichern wir dabei nicht. Rechtsgrundlage ist unser berechtigtes Interesse an der Verbesserung unseres Angebots und an einem zuverlässigen Versand (Art. 6 Abs. 1 lit. f DSGVO). Die Einträge löschen wir 90 Tage nach dem Check, soweit Sie nicht in E-Mail-Informationen eingewilligt haben oder Kunde geworden sind. Sie können der Auswertung jederzeit widersprechen (Art. 21 DSGVO), per Nachricht an info@gobd-doku-erstellen.de.";
+  const internalAt = privacyText.indexOf(internal);
   const storageAt = privacyText.indexOf("Speicherdauer:");
-  assertOk(abuseAt >= 0 && storageAt === privacyText.indexOf("\n", abuseAt) + 1, "abuse paragraph sits directly before the storage paragraph");
-  assertOk(privacyText.slice(abuseAt, storageAt).includes("Art. 6 Abs. 1 lit. f DSGVO"), "abuse paragraph is the legal text");
+  assertOk(resultAt >= 0 && internalAt > resultAt, "internal evaluation follows the result paragraph");
+  assertOk(abuseAt >= 0 && internalAt === privacyText.indexOf("\n", abuseAt) + 1, "internal evaluation follows the abuse paragraph");
+  assertOk(storageAt === privacyText.indexOf("\n", internalAt) + 1, "internal evaluation sits directly before the storage paragraph");
+  assertOk(privacyText.slice(abuseAt, internalAt).includes("Art. 6 Abs. 1 lit. f DSGVO"), "abuse paragraph is the legal text");
+  assertOk(privacyPage.includes("<strong>Interne Auswertung:</strong>"), "the internal evaluation label is bold");
   assertOk(!privacyText.includes("[klären") && !privacyText.includes("7 Tagen"), "open legal items are not published");
   const questionsSource = readFileSync("lib/ampel-questions.ts", "utf8");
   assertOk(questionsSource.includes("[klären:"), "open legal items stay visible in the source");

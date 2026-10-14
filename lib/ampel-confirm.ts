@@ -9,7 +9,6 @@ import {
   encodeAmpelAnswers,
   normalizeAmpelEmail,
   keepAmpelMailed,
-  keepAmpelUtm,
   sanitizeAmpelRef,
   scoreAmpel,
   toAmpelReadinessLead,
@@ -143,7 +142,6 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
       consentIp: current?.consentIp || pending.consentIp,
       consentTextVersion: current?.consentTextVersion || pending.consentTextVersion || payload.consentTextVersion || "",
       mailStatus: mailLabel(mail),
-      utmSource: keepAmpelUtm(current?.utmSource, pending.utmSource),
       mailed: keepAmpelMailed(current?.mailed, pending.mailed),
     });
     return {
@@ -189,8 +187,6 @@ export type AmpelConfirmationInput = {
   ref: string;
   consentIp?: string;
   consentTextVersion?: string;
-  /** Sanitized source, or the recorded-empty marker. Omitted on older callers. */
-  utmSource?: string;
   /** `ja` after the result mail was sent. */
   mailed?: string;
 };
@@ -286,7 +282,6 @@ async function runConfirmation(
   );
   if (!token) return { ok: false, status: 400, reason: "invalid" };
 
-  const utmSource = keepAmpelUtm(input.utmSource, existing?.utmSource);
   const mailed = keepAmpelMailed(input.mailed, existing?.mailed);
   const pending: ReadinessLead = {
     ...toAmpelReadinessLead({
@@ -301,7 +296,6 @@ async function runConfirmation(
       marketingOptIn: "pending",
       consentIp,
       consentTextVersion,
-      utmSource,
       mailed,
     }),
     timestamp: consentAt,
@@ -344,7 +338,6 @@ async function runConfirmation(
       ampelScore: pending.ampelScore,
       ampelLight: pending.ampelLight,
       mailStatus: confirmMailLabel(mail),
-      utmSource: keepAmpelUtm(base.utmSource, pending.utmSource),
       mailed: keepAmpelMailed(base.mailed, pending.mailed),
     });
     return { ok: true, throttled: mail.duplicate === true };

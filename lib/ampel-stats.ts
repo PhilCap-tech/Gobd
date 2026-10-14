@@ -1,4 +1,3 @@
-import { AMPEL_UTM_NONE } from "@/lib/ampel";
 import type { ReadinessLead } from "@/lib/readiness";
 
 export const AMPEL_STATS_TIMEZONE = "Europe/Berlin";
@@ -20,7 +19,6 @@ export type AmpelStatsEntry = {
   result: AmpelResultLabel;
   optIn: AmpelOptInLabel;
   mailed: AmpelMailedLabel;
-  utmSource: string;
   test: boolean;
 };
 
@@ -173,13 +171,6 @@ export function ampelMailedLabel(value: string): AmpelMailedLabel {
   return "unbekannt";
 }
 
-export function ampelUtmLabel(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return "unbekannt";
-  if (trimmed === AMPEL_UTM_NONE) return "keine";
-  return trimmed;
-}
-
 function emptyCount(): AmpelCount {
   return { total: 0, today: 0, last7Days: 0 };
 }
@@ -217,7 +208,6 @@ export function buildAmpelStats(
       result: ampelResultLabel(row.ampelLight),
       optIn: ampelOptInLabel(row),
       mailed: ampelMailedLabel(row.mailed),
-      utmSource: ampelUtmLabel(row.utmSource),
       test,
     });
   }

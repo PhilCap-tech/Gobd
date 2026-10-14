@@ -25,7 +25,6 @@ export async function POST(request: Request) {
       honeypot: value.fax_number,
       ip: client.ip,
       ipSource: client.source,
-      utmSource: typeof value.utm_source === "string" ? value.utm_source : "",
     },
     { handoff: true },
   );

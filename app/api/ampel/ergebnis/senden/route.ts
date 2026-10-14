@@ -30,7 +30,6 @@ export async function POST(request: Request) {
     ip: client.ip,
     ipSource: client.source,
     sendToken: value.send_token,
-    utmSource: typeof value.utm_source === "string" ? value.utm_source : "",
   });
   return ampelSubmitResponse(result, client.source);
 }

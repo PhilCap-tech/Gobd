@@ -71,7 +71,6 @@ function Report({ report }: { report: AmpelStatsReport }) {
                 <th>Ergebnis</th>
                 <th>Opt-in</th>
                 <th>E-Mail versendet</th>
-                <th>UTM-Quelle</th>
                 <th>Hinweis</th>
               </tr>
             </thead>
@@ -83,7 +82,6 @@ function Report({ report }: { report: AmpelStatsReport }) {
                   <td>{entry.result}</td>
                   <td>{entry.optIn}</td>
                   <td>{entry.mailed}</td>
-                  <td>{entry.utmSource}</td>
                   <td>{entry.test ? "Test" : ""}</td>
                 </tr>
               ))}

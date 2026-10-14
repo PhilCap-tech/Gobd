@@ -67,10 +67,6 @@ export type ReadinessLead = {
    * before this column existed.
    */
   mailed: string;
-  /**
-   * First-touch `utm_source`, `-` when a new check had none, empty on older rows.
-   */
-  utmSource: string;
 };
 
 export const READINESS_SHEET_COLUMNS = [
@@ -101,7 +97,6 @@ export const READINESS_SHEET_COLUMNS = [
   "consent_text_version",
   "withdrawn_at",
   "mailed",
-  "utm_source",
 ] as const;
 
 export type ReadinessSheetColumn = (typeof READINESS_SHEET_COLUMNS)[number];
@@ -134,7 +129,6 @@ export const READINESS_SHEET_COLUMN_FIELDS = {
   consent_text_version: "consentTextVersion",
   withdrawn_at: "withdrawnAt",
   mailed: "mailed",
-  utm_source: "utmSource",
 } as const satisfies Record<ReadinessSheetColumn, keyof ReadinessLead>;
 
 export function emptyReadinessLead(): ReadinessLead {
@@ -166,7 +160,6 @@ export function emptyReadinessLead(): ReadinessLead {
     consentTextVersion: "",
     withdrawnAt: "",
     mailed: "",
-    utmSource: "",
   };
 }
 
@@ -358,7 +351,6 @@ export function toReadinessLead(input: {
     consentTextVersion: "",
     withdrawnAt: "",
     mailed: "",
-    utmSource: "",
   };
 }
 
