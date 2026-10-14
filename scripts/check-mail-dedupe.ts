@@ -2,7 +2,7 @@
  * Every Resend send goes through the dedupe helper, and the claim is
  * exclusive. Synthetic only: no Stripe, no Resend, no Blob.
  */
-import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -101,7 +101,9 @@ function assertCallSites() {
   assert(webhook.includes("recordSubscriptionEvent"), "subscription events reach the cancellation mail");
   assert(!webhook.includes("invoice.paid"), "invoice.paid does not send a second order mail");
 
-  assert(read("app/api/cron/lifecycle/route.ts").includes("runLifecycleJob"), "the lifecycle cron sends through the helper");
+  assert(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "the deletion cron is gone");
+  assert(!cancellation.includes("runLifecycleJob"), "cancellation does not run a deletion job");
+  assert(!cancellation.includes("buildCancellationReminderMail"), "cancellation does not send a deletion reminder");
   assert(read("app/api/checkout/grant/route.ts").includes("notifyBuyerOfCheckout"), "grant sends the same welcome mail");
   assert(read("app/api/auth/checkout-handoff/route.ts").includes("deliverLoginLink"), "handoff uses the login link");
   assert(read("app/api/intake/route.ts").includes("documentId,"), "intake delivery mail carries the document id");

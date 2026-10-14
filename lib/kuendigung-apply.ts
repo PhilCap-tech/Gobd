@@ -2,34 +2,21 @@ import {
   buildCancellationConfirmMail,
   buildCancellationEndedMail,
   buildCancellationReactivatedMail,
-  buildCancellationReminderMail,
   CANCELLATION_MAIL_FROM,
 } from "@/lib/kuendigung-mail";
 import {
   confirmIdempotencyKey,
   endedIdempotencyKey,
-  guardLifecycleActions,
-  jobEffects,
-  LIFECYCLE_JOB_DRY_RUN,
-  lifecycleActionLog,
   markMailDelivered,
   nextLifecycle,
-  planLifecycleJob,
   reactivatedIdempotencyKey,
-  reminderIdempotencyKey,
-  type JobAction,
   type LifecycleEvent,
   type LifecycleRow,
   type MailKind,
 } from "@/lib/kuendigung";
 import { sendDedupedEmail } from "@/lib/mail-dedupe";
 import type { MailResult } from "@/lib/mail";
-import {
-  findLifecycleBySubscription,
-  listLifecycleRows,
-  saveLifecycleRow,
-} from "@/lib/kuendigung-store";
-import { purgeContractData } from "@/lib/kuendigung-purge";
+import { findLifecycleBySubscription, saveLifecycleRow } from "@/lib/kuendigung-store";
 
 export type ApplyResult = {
   row: LifecycleRow;
@@ -87,75 +74,4 @@ export async function applyLifecycleEvent(event: LifecycleEvent): Promise<ApplyR
   }
   await saveLifecycleRow(row);
   return { row, mail: next.mail, mailResult };
-}
-
-export async function remindLifecycleRow(row: LifecycleRow, at: string): Promise<LifecycleRow> {
-  if (!row.email) return row;
-  const content = buildCancellationReminderMail(row);
-  const contentSent = await sendDedupedEmail({
-    dedupeKey: reminderIdempotencyKey(row),
-    to: row.email,
-    subject: content.subject,
-    text: content.text,
-    html: content.html,
-    from: CANCELLATION_MAIL_FROM,
-  });
-  const mailed =
-    contentSent.duplicate && !contentSent.inflight
-      ? { ...contentSent, sent: true }
-      : contentSent;
-  if (!mailed.sent && !mailed.stub) return row;
-  const saved = { ...row, reminderMailAt: at, updatedAt: at };
-  await saveLifecycleRow(saved);
-  return saved;
-}
-
-export async function runLifecycleJob(
-  now = new Date(),
-  options?: { dryRun?: boolean },
-): Promise<{
-  dryRun: boolean;
-  reminded: number;
-  purged: number;
-  planned: number;
-}> {
-  const dryRun = options?.dryRun ?? LIFECYCLE_JOB_DRY_RUN;
-  const rows = await listLifecycleRows();
-  const nowMs = now.getTime();
-  const guarded = guardLifecycleActions(planLifecycleJob(rows, nowMs), rows, nowMs);
-  for (const action of guarded.actions) {
-    console.info("[kuendigung] Lauf", lifecycleActionLog(action, dryRun));
-  }
-  if (guarded.skippedComp > 0 || guarded.skippedProtected > 0) {
-    console.info("[kuendigung] Lauf ausgelassen", {
-      skippedComp: guarded.skippedComp,
-      skippedProtected: guarded.skippedProtected,
-      dryRun,
-    });
-  }
-  const actions = jobEffects(guarded.actions, dryRun);
-  let reminded = 0;
-  let purged = 0;
-  for (const action of actions) {
-    if (action.type === "remind") {
-      const saved = await remindLifecycleRow(action.row, now.toISOString());
-      if (saved.reminderMailAt) reminded += 1;
-      continue;
-    }
-    await purgeLifecycleAction(action, now.toISOString());
-    console.info("[kuendigung] Löschung", lifecycleActionLog(action, false));
-    purged += 1;
-  }
-  return { dryRun, reminded, purged, planned: guarded.actions.length };
-}
-
-async function purgeLifecycleAction(action: Extract<JobAction, { type: "purge" }>, at: string) {
-  if (action.deleteContractData) {
-    await purgeContractData(action.row.email);
-  }
-  await saveLifecycleRow({
-    ...action.row,
-    phase: "purged",
-    updatedAt: at,
-  });
 }
