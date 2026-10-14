@@ -117,6 +117,11 @@ export function getProfilesSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_PROFILES_TAB || "profiles";
 }
 
+/** Mitgliedschaften Mitwirkende. Dieselbe Tabelle wie die Firmen, eigener Tab. */
+export function getMembershipsSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_MEMBERSHIPS_TAB || "memberships";
+}
+
 /** Abo-Lebenszyklus. Fester Tab-Name, keine zusätzliche Umgebungsvariable. */
 export function getLifecycleSheetsTab(): string {
   return "subscription_lifecycle";

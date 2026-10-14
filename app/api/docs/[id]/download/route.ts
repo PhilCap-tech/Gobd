@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
+import { pdfAllowedForMembership } from "@/lib/membership-access";
 import { subscriptionDownloadDenial } from "@/lib/kuendigung-access";
 import { BlobStorageError, blobFailureClass, loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
 import { sessionOwnerDenial } from "@/lib/checkout-access";
@@ -60,8 +61,16 @@ async function downloadPdfBody(
     if (outage) return outage;
     throw error;
   }
-  if (!row || sessionOwnerDenial(sessionEmail, row.email)) {
-    return jsonError("Kein Zugriff.", 403);
+  if (!row) return jsonError("Kein Zugriff.", 403);
+  const denial = sessionOwnerDenial(sessionEmail, row.email);
+  const pdfAllowed = pdfAllowedForMembership({
+    sessionEmail,
+    documentEmail: row.email,
+    documentEntityId: row.entityId,
+    membership: null,
+  });
+  if (denial || !pdfAllowed) {
+    return jsonError("Kein Zugriff.", denial === 401 ? 401 : 403);
   }
 
   const downloadClosed = await subscriptionDownloadDenial(row.email);

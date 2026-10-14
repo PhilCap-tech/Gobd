@@ -10,13 +10,17 @@ export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 type TokenPayload = {
-  typ: "magic" | "session" | "checkout";
+  typ: "magic" | "session" | "checkout" | "invite";
   email: string;
   exp: number;
   /** Ausgestellt am, Unix-Millisekunden. Pflicht für Session-Cookies. */
   iat?: number;
   /** Stripe-Checkout-Session, nur bei typ "checkout". */
   sid?: string;
+  /** Mitgliedschaft, nur bei typ "invite". */
+  membershipId?: string;
+  /** Einmaliger Zufallswert, nur bei typ "invite". Gespeichert wird nur der Hash. */
+  jti?: string;
 };
 
 export const CHECKOUT_GRANT_COOKIE = "gobd_checkout";
@@ -61,6 +65,10 @@ function verify(
     ) as TokenPayload;
     if (!payload.email || !payload.exp) return null;
     if (!options?.allowExpired && payload.exp < Date.now()) return null;
+    if (payload.typ === "invite") {
+      if (!payload.membershipId?.trim() || !payload.jti?.trim()) return null;
+      return payload;
+    }
     if (
       payload.typ !== "magic" &&
       payload.typ !== "session" &&
@@ -80,6 +88,44 @@ export function createMagicToken(email: string): string {
     email: email.trim().toLowerCase(),
     exp: Date.now() + MAGIC_TTL_MS,
   });
+}
+
+export type InviteTokenClaims = {
+  membershipId: string;
+  email: string;
+  jti: string;
+  exp: number;
+};
+
+/**
+ * Einladung, dieselbe HMAC-Hülle wie der Magic Link, andere Art.
+ * `GET /auth/verify` nimmt nur `typ: "magic"` an und setzt dafür kein Cookie.
+ * Gültigkeit ist `MAGIC_TTL_MS` (20 Minuten).
+ */
+export function createInviteToken(input: {
+  membershipId: string;
+  email: string;
+  jti: string;
+}): string {
+  return sign({
+    typ: "invite",
+    email: input.email.trim().toLowerCase(),
+    membershipId: input.membershipId.trim(),
+    jti: input.jti.trim(),
+    exp: Date.now() + MAGIC_TTL_MS,
+  });
+}
+
+export function verifyInviteToken(
+  token: string | undefined | null,
+): InviteTokenClaims | null {
+  const payload = verify(token);
+  if (!payload || payload.typ !== "invite") return null;
+  const membershipId = payload.membershipId?.trim() ?? "";
+  const jti = payload.jti?.trim() ?? "";
+  const email = payload.email.trim().toLowerCase();
+  if (!membershipId || !jti || !email) return null;
+  return { membershipId, email, jti, exp: payload.exp };
 }
 
 /**
