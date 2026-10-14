@@ -4,7 +4,7 @@
  *   npx tsx scripts/check-ampel.ts
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -34,8 +34,10 @@ import {
   AMPEL_EMAIL_WINDOW_MS,
   AMPEL_IP_LIMIT,
   AMPEL_IP_WINDOW_MS,
+  AMPEL_RATE_RETENTION_DAYS,
   createFileAmpelRateStore,
   createMemoryAmpelRateStore,
+  pruneAmpelRateLedger,
 } from "@/lib/ampel-rate-limit";
 import { AMPEL_PDF_FROM, submitAmpelResult } from "@/lib/ampel-result-send";
 import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
@@ -318,8 +320,18 @@ try {
   assertOk(AMPEL_MARKETING_CONSENT.startsWith("Ja, ich möchte per E-Mail Informationen"), "checkbox is the legal text");
   assertOk(AMPEL_CONSENT_TEXT_VERSION === "2026-10-14", "checkbox text is versioned");
   assertOk(AMPEL_PRIVACY_TITLE === "Ampel-Check: Versand des Ergebnisses und E-Mail-Informationen", "privacy subsection title");
-  assertOk(!AMPEL_PRIVACY_PARAGRAPHS.join("\n").includes("[klären"), "open legal items are not published");
-  assertOk(readFileSync("lib/ampel-questions.ts", "utf8").includes("[klären:"), "open legal items stay visible in the source");
+  const privacyText = AMPEL_PRIVACY_PARAGRAPHS.join("\n");
+  const abuseAt = privacyText.indexOf("Schutz vor Missbrauch:");
+  const storageAt = privacyText.indexOf("Speicherdauer:");
+  assertOk(abuseAt >= 0 && storageAt === privacyText.indexOf("\n", abuseAt) + 1, "abuse paragraph sits directly before the storage paragraph");
+  assertOk(privacyText.slice(abuseAt, storageAt).includes("Art. 6 Abs. 1 lit. f DSGVO"), "abuse paragraph is the legal text");
+  assertOk(!privacyText.includes("[klären") && !privacyText.includes("7 Tagen"), "open legal items are not published");
+  const questionsSource = readFileSync("lib/ampel-questions.ts", "utf8");
+  assertOk(questionsSource.includes("[klären:"), "open legal items stay visible in the source");
+  assertOk(
+    questionsSource.includes("[klären: Frist, z. B. 7 Tagen]"),
+    "the open rate-limit period stays in the source",
+  );
   assertOk(readFileSync("content/legal/datenschutz.md", "utf8").includes("Resend (Plus Five Five, Inc., USA)"), "processors section names Resend");
   assertOk(readFileSync("app/api/ampel/ergebnis/route.ts", "utf8").includes("submitAmpelResult"), "result route sends the PDF");
   const pdfSource = readFileSync("lib/ampel-pdf.ts", "utf8");
@@ -830,6 +842,24 @@ try {
       !fileBlocked.ok && fileBlocked.status === 429 && fileBlocked.scope === "ip",
       "file ledger enforces the IP limit",
     );
+
+    const day = 24 * 60 * 60 * 1000;
+    assertOk(AMPEL_RATE_RETENTION_DAYS === 7, "rate records are kept for 7 days by default");
+    const pruned = pruneAmpelRateLedger(
+      { "ip:old": [clock - 8 * day], "email:fresh": [clock - 6 * day] },
+      clock,
+    );
+    assertOk(!("ip:old" in pruned) && pruned["email:fresh"]?.length === 1, "rate records older than 7 days are dropped");
+    const staleFile = path.join(rateDir, "stale-rate.json");
+    writeFileSync(staleFile, JSON.stringify({ "ip:stale": [clock - 8 * day], "email:kept": [clock - day] }));
+    const staleStore = createFileAmpelRateStore(staleFile);
+    const afterPrune = await submitAmpelResult(
+      { email: "kept@example.com", answers: neinCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.88" },
+      { store: staleStore, now: () => clock, confirm: noConfirm },
+    );
+    assertOk(afterPrune.ok && !("honeypot" in afterPrune), "a write still accepts a fresh request");
+    const prunedLedger = readFileSync(staleFile, "utf8");
+    assertOk(!prunedLedger.includes("ip:stale") && prunedLedger.includes("email:kept"), "a ledger write drops stamps older than 7 days");
   } finally {
     setMailDedupeTestHooks(null);
     await rm(mailDir, { recursive: true, force: true });

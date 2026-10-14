@@ -8,6 +8,10 @@ export const AMPEL_IP_WINDOW_MS = 60 * 60 * 1000;
 export const AMPEL_EMAIL_LIMIT = 3;
 export const AMPEL_EMAIL_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+/** Hashed IP, timestamps, and request counts. [Default, Philip prüft] */
+export const AMPEL_RATE_RETENTION_DAYS = 7;
+export const AMPEL_RATE_RETENTION_MS = AMPEL_RATE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
 export type AmpelRateDecision = "ok" | "ip" | "email";
 
 export type AmpelRateStore = {
@@ -28,12 +32,27 @@ export function ampelRateIpKey(ip: string): string {
   return `ip:${createHash("sha256").update(ip).digest("hex").slice(0, 32)}`;
 }
 
+export function pruneAmpelRateLedger(
+  ledger: Ledger,
+  now: number,
+  retentionMs = AMPEL_RATE_RETENTION_MS,
+): Ledger {
+  const next: Ledger = {};
+  for (const [key, stamps] of Object.entries(ledger)) {
+    const fresh = stamps.filter((at) => now - at < retentionMs);
+    if (fresh.length > 0) next[key] = fresh;
+  }
+  return next;
+}
+
 export function judgeAmpelRate(
   hits: { ip: number[]; email: number[] },
   now: number,
 ): { decision: AmpelRateDecision; ip: number[]; email: number[] } {
-  const ip = hits.ip.filter((at) => now - at < AMPEL_IP_WINDOW_MS);
-  const email = hits.email.filter((at) => now - at < AMPEL_EMAIL_WINDOW_MS);
+  const ipWindow = Math.min(AMPEL_IP_WINDOW_MS, AMPEL_RATE_RETENTION_MS);
+  const emailWindow = Math.min(AMPEL_EMAIL_WINDOW_MS, AMPEL_RATE_RETENTION_MS);
+  const ip = hits.ip.filter((at) => now - at < ipWindow);
+  const email = hits.email.filter((at) => now - at < emailWindow);
   if (ip.length >= AMPEL_IP_LIMIT) return { decision: "ip", ip, email };
   if (email.length >= AMPEL_EMAIL_LIMIT) return { decision: "email", ip, email };
   ip.push(now);
@@ -84,7 +103,7 @@ export function createFileAmpelRateStore(file: string): AmpelRateStore {
   return {
     take(input) {
       const run = chain.then(async () => {
-        const ledger = await loadLedger(file);
+        const ledger = pruneAmpelRateLedger(await loadLedger(file), input.now);
         const judged = judgeAmpelRate(
           { ip: ledger[input.ipKey] ?? [], email: ledger[input.emailKey] ?? [] },
           input.now,

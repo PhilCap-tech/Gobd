@@ -207,11 +207,13 @@ export const AMPEL_PRIVACY_TITLE =
  * Offene Punkte, nicht auf der Seite:
  * Für die Übermittlung in die USA stützen wir uns auf [klären: EU-US Data Privacy Framework, sofern Resend zertifiziert ist, sonst Standardvertragsklauseln].
  * Das Nachweisprotokoll bewahren wir bis zu drei Jahre nach dem Widerruf auf [klären].
+ * Diese Daten löschen wir nach [klären: Frist, z. B. 7 Tagen], soweit sie nicht zur Aufklärung eines konkreten Missbrauchs länger benötigt werden.
  */
 export const AMPEL_PRIVACY_PARAGRAPHS = [
   "Wenn Sie den Ampel-Check nutzen, verarbeiten wir Ihre E-Mail-Adresse und Ihre Antworten im Check, um Ihnen das Ergebnis anzuzeigen und zusätzlich als PDF per E-Mail zuzusenden. Die Angabe der E-Mail-Adresse ist dafür erforderlich. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Durchführung vorvertraglicher Maßnahmen auf Ihre Anfrage). Ohne Ihre gesonderte Einwilligung nutzen wir die Adresse nicht für Werbung.",
   "Wenn Sie zusätzlich in E-Mail-Informationen einwilligen, senden wir Ihnen zunächst eine Bestätigungs-E-Mail (Double-Opt-in). Erst nach Ihrer Bestätigung erhalten Sie Informationen zu GoBD-Themen und unseren Angeboten. Wir speichern den Zeitpunkt Ihrer Anmeldung und Bestätigung, die dabei verwendete IP-Adresse und den Text der Einwilligung, um die Einwilligung nachweisen zu können. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 7 Abs. 2 Nr. 2 UWG), für das Nachweisprotokoll Art. 6 Abs. 1 lit. c und f DSGVO.",
   "Für den Versand der E-Mails setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter nach Art. 28 DSGVO ein. Dabei werden Ihre E-Mail-Adresse, der Inhalt der E-Mail und technische Versanddaten (z. B. Zustellstatus) verarbeitet.",
+  "Schutz vor Missbrauch: Um den Ampel-Check und den E-Mail-Versand vor Missbrauch zu schützen (z. B. massenhafte Anfragen oder Versand an fremde Adressen), verarbeiten wir beim Absenden Ihre IP-Adresse, den Zeitpunkt und eine Zählung der Anfragen (Rate-Limiting). Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren, missbrauchsfreien Betrieb (Art. 6 Abs. 1 lit. f DSGVO).",
   "Speicherdauer: Die Angaben zum Ampel-Check speichern wir 90 Tage nach dem Check und löschen sie danach, soweit keine gesetzlichen Aufbewahrungspflichten bestehen oder Sie Kunde werden. Bei erteilter Einwilligung speichern wir Ihre Adresse für E-Mail-Informationen, bis Sie die Einwilligung widerrufen.",
   "Widerruf: Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen, über den Abmeldelink in jeder E-Mail oder per Nachricht an info@gobd-doku-erstellen.de. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt unberührt.",
 ] as const;
