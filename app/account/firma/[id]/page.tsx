@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header";
 import { customerHubTitle } from "@/lib/account-display";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { getOwnedEntity } from "@/lib/store";
+import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { MODULE } from "@/lib/module/katalog";
 import { listMembershipsByEntity } from "@/lib/membership-store";
 import { moduleIdList } from "@/lib/memberships";
@@ -19,11 +20,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function EditGate() {
+function EditGate({ unavailable }: { unavailable: boolean }) {
   return (
     <div className="card">
       <h1>Firma nicht verfügbar</h1>
-      <p className="prose">Diese Firma gehört nicht zu Ihrem Konto.</p>
+      <p className="prose">
+        {unavailable ? SHEETS_RETRY_MESSAGE : "Diese Firma gehört nicht zu Ihrem Konto."}
+      </p>
       <div className="actions" style={{ marginTop: 16 }}>
         <Link className="btn" href="/account">
           Zum Konto
@@ -45,9 +48,11 @@ export default async function EditFirmaPage({
   }
 
   let entity: Awaited<ReturnType<typeof getOwnedEntity>> = null;
+  let entityUnavailable = false;
   try {
     entity = await getOwnedEntity(id, email);
   } catch (error) {
+    entityUnavailable = true;
     console.error(
       "[account] Firma nicht geladen",
       error instanceof Error ? error.name : "error",
@@ -81,8 +86,8 @@ export default async function EditFirmaPage({
       <SiteHeader backHref="/account" backLabel="← Zum Konto" />
       <main className="wrap page">
         <p className="kicker">Konto</p>
-        {!entity ? (
-          <EditGate />
+        {entityUnavailable || !entity ? (
+          <EditGate unavailable={entityUnavailable} />
         ) : (
           <>
             <h1>Firma bearbeiten</h1>

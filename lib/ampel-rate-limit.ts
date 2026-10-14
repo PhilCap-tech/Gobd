@@ -4,6 +4,7 @@ import path from "node:path";
 import { del, get as readBlob, put } from "@vercel/blob";
 import { ipAddress } from "@vercel/functions/headers";
 import { blobMissing, exclusiveBlobCreate, type ExclusivePut } from "@/lib/ampel-blob-slot";
+import { assertLiveWriteAllowed, automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { getFileFallbackDir } from "@/lib/store";
 
 export const AMPEL_IP_LIMIT = 5;
@@ -279,6 +280,7 @@ async function removePrivateBlob(pathname: string, token: string): Promise<void>
 }
 
 const blobPut: ExclusivePut = async (pathname, body, options) => {
+  assertLiveWriteAllowed("blob");
   const result = await put(pathname, body, options);
   return { pathname: result.pathname };
 };
@@ -462,8 +464,8 @@ function vercelRuntime(): boolean {
 
 export function ampelRateStore(): AmpelRateStore {
   if (!sharedStore) {
-    if (blobToken()) sharedStore = createBlobAmpelRateStore();
-    else if (vercelRuntime()) sharedStore = createClosedAmpelRateStore();
+    if (blobToken() && !automatedRunForbidsLiveWrites()) sharedStore = createBlobAmpelRateStore();
+    else if (vercelRuntime() && !automatedRunForbidsLiveWrites()) sharedStore = createClosedAmpelRateStore();
     else sharedStore = createFileAmpelRateStore(path.join(getFileFallbackDir(), "ampel-rate.json"));
   }
   return sharedStore;

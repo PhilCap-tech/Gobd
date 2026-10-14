@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { BlobNotFoundError, get, put } from "@vercel/blob";
+import { assertLiveWriteAllowed, automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { getFileFallbackDir } from "@/lib/store";
 
 export type AmpelMailStatusState = "sending" | "sent" | "failed";
@@ -72,6 +73,7 @@ function blobStore(): AmpelMailStatusStore {
   const pathname = (key: string) => `${PREFIX}/${key}.json`;
   return {
     async write(key, row) {
+      assertLiveWriteAllowed("blob");
       await put(pathname(key), JSON.stringify(row), {
         access: "private",
         addRandomSuffix: false,
@@ -100,7 +102,10 @@ let shared: AmpelMailStatusStore | null = null;
 
 export function ampelMailStatusStore(): AmpelMailStatusStore {
   if (!shared) {
-    shared = process.env.BLOB_READ_WRITE_TOKEN?.trim() ? blobStore() : fileStore();
+    shared =
+      process.env.BLOB_READ_WRITE_TOKEN?.trim() && !automatedRunForbidsLiveWrites()
+        ? blobStore()
+        : fileStore();
   }
   return shared;
 }

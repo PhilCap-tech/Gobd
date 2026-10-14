@@ -4,6 +4,7 @@
  *   npx tsx scripts/check-ampel.ts
  */
 import { BlobError, BlobPreconditionFailedError, BlobUnknownError } from "@vercel/blob";
+import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -96,6 +97,10 @@ function all(answer: AmpelAnswer, overrides: Record<string, AmpelAnswer> = {}): 
   const map: Record<string, AmpelAnswer> = {};
   for (const question of AMPEL_QUESTIONS) map[question.id] = answer;
   return answers({ ...map, ...overrides });
+}
+
+if (!automatedRunForbidsLiveWrites()) {
+  process.env.npm_lifecycle_event = "check:ampel";
 }
 
 const savedSecret = process.env.MAGIC_LINK_SECRET;

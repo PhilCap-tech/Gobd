@@ -23,6 +23,7 @@ import {
   put,
 } from "@vercel/blob";
 import { isBlobConfigured, isProductionRuntime } from "@/lib/env";
+import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { sendEmail, type MailResult } from "@/lib/mail";
 import { getFileFallbackDir } from "@/lib/store";
 
@@ -140,6 +141,7 @@ function storageId(key: string): string {
 
 function blobStoreEnabled(): boolean {
   if (fileRootOverride) return false;
+  if (automatedRunForbidsLiveWrites()) return false;
   return isBlobConfigured() && Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
 }
 

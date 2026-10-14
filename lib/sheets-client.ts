@@ -1,4 +1,5 @@
 import { google, type sheets_v4 } from "googleapis";
+import { assertLiveWriteAllowed } from "@/lib/live-write-guard";
 import { noteSheetsCall } from "@/lib/sheets-meter";
 
 type Handler = (call: { op: string; args: Record<string, unknown> }) => Promise<unknown>;
@@ -27,9 +28,17 @@ function rangeOf(args: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
+const SHEET_WRITE_OPS = new Set([
+  "spreadsheets.batchUpdate",
+  "values.append",
+  "values.update",
+  "values.batchUpdate",
+]);
+
 async function dispatch<T>(op: string, args: Record<string, unknown>, live: () => Promise<T>): Promise<T> {
   noteSheetsCall(op, rangeOf(args));
   if (handler) return (await handler({ op, args })) as T;
+  if (SHEET_WRITE_OPS.has(op)) assertLiveWriteAllowed("sheets");
   return live();
 }
 

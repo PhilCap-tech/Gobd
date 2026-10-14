@@ -11,6 +11,9 @@ import sitemap from "../app/sitemap";
 import { WIPE_EMAIL_ALLOWLIST } from "../lib/admin-wipe";
 import { isAmpelAdminEmail } from "../lib/ampel-admin";
 import { AMPEL_ADMIN_CACHE_CONTROL, AMPEL_ADMIN_ROBOTS_TAG } from "../lib/ampel-admin-headers";
+import { automatedRunForbidsLiveWrites, LiveWriteRefusedError } from "../lib/live-write-guard";
+import { tryClaimMailDedupeSlot } from "../lib/mail-dedupe";
+import { createSheetsClient } from "../lib/sheets-client";
 import { handleAmpelStatsRequest } from "../lib/ampel-admin-http";
 import { requestAmpelConfirmation } from "../lib/ampel-confirm";
 import { AMPEL_QUESTIONS, type AmpelAnswer } from "../lib/ampel-questions";
@@ -21,12 +24,17 @@ import {
   ampelCountWindows,
   berlinDayStart,
   buildAmpelStats,
+  ampelAddressNote,
   isAmpelTestEmail,
   type AmpelStatsReport,
 } from "../lib/ampel-stats";
 import { emptyReadinessLead, READINESS_SHEET_COLUMNS, type ReadinessLead } from "../lib/readiness";
 import { INDEXABLE_STATIC_PATHS } from "../lib/seo";
 import { SheetsUnavailableError } from "../lib/sheets-unavailable";
+
+if (!automatedRunForbidsLiveWrites()) {
+  process.env.npm_lifecycle_event = "check:ampel-admin";
+}
 
 const TOKEN = `ampel-admin-${"k".repeat(32)}`;
 const STATS_URL = "https://www.gobd-doku-erstellen.de/api/admin/ampel-stats";
@@ -257,7 +265,24 @@ async function main() {
   ok(hidden.entries[0]?.email === "future@kunde.example", "the newest row is first");
 
   const shown = buildAmpelStats(rows, { now: springNow, includeTests: true });
-  ok(shown.includeTests && shown.entries.some((entry) => entry.test && entry.email === "gobd16x-probe@gmail.com"), "the filter can show marked test rows");
+  ok(
+    shown.includeTests &&
+      shown.entries.some((entry) => entry.test && entry.note === "Test" && entry.email === "gobd16x-probe@gmail.com"),
+    "the filter can show marked test rows",
+  );
+  const marked = buildAmpelStats(
+    [
+      lead({ leadId: "ampel-ex", email: "blob-1@example.com", timestamp: "2023-11-14T22:13:20.000Z" }),
+      lead({ leadId: "ampel-ikat", email: "team@ikat-gmbh.de", timestamp: "2026-03-28T23:10:00.000Z" }),
+      lead({ leadId: "ampel-sdc", email: "team@sdc-ventures.com", timestamp: "2026-03-28T23:10:00.000Z" }),
+      lead({ leadId: "ampel-real", email: "real@kunde.example", timestamp: "2026-03-28T23:10:00.000Z" }),
+    ],
+    { now: springNow, includeTests: true },
+  );
+  ok(marked.entries.find((entry) => entry.email === "blob-1@example.com")?.note === "Test", "example.com is labelled Test");
+  ok(marked.entries.find((entry) => entry.email === "team@ikat-gmbh.de")?.note === "intern", "ikat-gmbh.de is labelled intern");
+  ok(marked.entries.find((entry) => entry.email === "team@sdc-ventures.com")?.note === "intern", "sdc-ventures.com is labelled intern");
+  ok(marked.counts.withoutTests.total === 1, "example.com and company domains stay out of the cleaned counter");
   ok(shown.counts.withoutTests.total === hidden.counts.withoutTests.total, "showing test rows does not change the cleaned counter");
 
   const autumn = buildAmpelStats(
@@ -284,7 +309,13 @@ async function main() {
   ok(!isAmpelTestEmail("info@gobd-doku-erstellen.de.example"), "a lookalike of the site domain is kept");
   ok(isAmpelTestEmail("Cappe@GMX.de"), "cappe@gmx.de is a test address");
   ok(!isAmpelTestEmail("cappe@gmx.com"), "a different gmx host is kept");
-  ok(!isAmpelTestEmail("kunde@example.com"), "a normal address is kept");
+  ok(isAmpelTestEmail("kunde@example.com") && ampelAddressNote("kunde@example.com") === "Test", "example.com is a test address");
+  ok(!isAmpelTestEmail("kunde@example.com.example"), "a lookalike of example.com is kept");
+  ok(!isAmpelTestEmail("kunde@sub.example.com"), "a subdomain of example.com is kept");
+  ok(isAmpelTestEmail("person@ikat-gmbh.de") && ampelAddressNote("person@IKAT-GmbH.de") === "intern", "ikat-gmbh.de is internal");
+  ok(isAmpelTestEmail("person@sdc-ventures.com") && ampelAddressNote("person@sdc-ventures.com") === "intern", "sdc-ventures.com is internal");
+  ok(!isAmpelTestEmail("person@sub.sdc-ventures.com"), "a subdomain of sdc-ventures.com is kept");
+  ok(!isAmpelTestEmail("kunde@example.org"), "a normal address is kept");
 
   const authed = await handleAmpelStatsRequest(
     request(`Bearer ${TOKEN}`, `${STATS_URL}?includeTests=1`),
@@ -471,6 +502,39 @@ async function main() {
   for (const set of [pageHeaders, apiHeaders]) {
     ok(set.some((item) => item.key === "Cache-Control" && item.value === "no-store"), "config sets no-store");
     ok(set.some((item) => item.key === "X-Robots-Tag" && item.value === "noindex, nofollow"), "config sets the robots header");
+  }
+
+  const sheetEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const sheetKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  const sheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = "sheets@example.com";
+  process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "not-used";
+  process.env.GOOGLE_SHEETS_SPREADSHEET_ID = "sheet-test";
+  process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_test";
+  try {
+    let refused = false;
+    try {
+      await createSheetsClient().spreadsheets.values.append({
+        spreadsheetId: "sheet-test",
+        range: "readiness_leads!A1",
+        requestBody: { values: [["blob-0@example.com"]] },
+      });
+    } catch (error) {
+      refused = error instanceof LiveWriteRefusedError;
+    }
+    ok(refused, "a Sheets append during this check is refused before the network");
+    const claim = await tryClaimMailDedupeSlot("ampel-admin-live-write-guard");
+    ok(claim === "created" || claim === "exists", "mail dedupe uses the file ledger while Blob credentials are set");
+  } finally {
+    if (sheetEmail === undefined) delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    else process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = sheetEmail;
+    if (sheetKey === undefined) delete process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    else process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = sheetKey;
+    if (sheetId === undefined) delete process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    else process.env.GOOGLE_SHEETS_SPREADSHEET_ID = sheetId;
+    if (blobToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
+    else process.env.BLOB_READ_WRITE_TOKEN = blobToken;
   }
 
   console.log("check-ampel-admin: green");
