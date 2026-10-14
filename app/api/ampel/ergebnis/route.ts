@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ampelClientIp } from "@/lib/ampel-rate-limit";
+import { readAmpelClientIp } from "@/lib/ampel-rate-limit";
 import { submitAmpelResult } from "@/lib/ampel-result-send";
 
 export const runtime = "nodejs";
@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
   }
   const value = body as Record<string, unknown>;
+  const client = readAmpelClientIp(request.headers);
   const result = await submitAmpelResult(
     {
       email: value.email,
@@ -22,7 +23,8 @@ export async function POST(request: Request) {
       ref: value.ref,
       marketing: value.marketing,
       honeypot: value.fax_number,
-      ip: ampelClientIp(request.headers),
+      ip: client.ip,
+      ipSource: client.source,
     },
     { handoff: true },
   );

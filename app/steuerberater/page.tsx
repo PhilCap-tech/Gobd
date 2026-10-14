@@ -156,7 +156,7 @@ export default function SteuerberaterPage() {
                   auf Anfrage, nicht als Kontofunktion.
                 </p>
               </article>
-              <article className={styles.card}>
+              <article className={styles.card} id="muster">
                 <h3>Muster ansehen</h3>
                 <p>
                   Das Muster-PDF stammt aus festen Beispieldaten einer fiktiven

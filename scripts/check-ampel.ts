@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO, AMPEL_EMAIL_PRIVACY_NOTE, AMPEL_MARKETING_CONSENT, AMPEL_PRIVACY_PARAGRAPHS, AMPEL_PRIVACY_TITLE, AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_REGISTER_LINE, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
+import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO, AMPEL_EMAIL_PRIVACY_NOTE, AMPEL_MARKETING_CONSENT, AMPEL_PRIVACY_PARAGRAPHS, AMPEL_PRIVACY_TITLE, AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_REGISTER_LINE, AMPEL_RESULT_MAIL, ampelSendStatusNotice } from "@/lib/ampel-questions";
 import {
   AMPEL_CONFIRM_WINDOW_MS,
   AMPEL_DOI_TTL_MS,
@@ -36,6 +36,11 @@ import {
   AMPEL_IP_WINDOW_MS,
   AMPEL_RATE_RETENTION_DAYS,
   ampelClientIp,
+  ampelRateIpKey,
+  ampelRateLogLine,
+  ampelRateSlotPath,
+  ampelRateWindowId,
+  readAmpelClientIp,
   createFileAmpelRateStore,
   createMemoryAmpelRateStore,
   createSlotAmpelRateStore,
@@ -336,17 +341,30 @@ try {
   assertOk(page.slice(blockedAt, blockedAt + 180).includes("showResult"), "a rate limit still shows the result");
   assertOk(page.includes('fetch("/api/ampel/ergebnis/senden"'), "the mail is sent in a second request");
   assertOk(page.includes("send_token: data.token"), "the follow-up send carries the one-time token");
-  assertOk(page.includes("follow.status === 403"), "a rejected follow-up does not claim the mail was sent");
+  const sendenAt = page.indexOf('fetch("/api/ampel/ergebnis/senden"');
+  const statusAt = page.indexOf("ampelSendStatusNotice({");
+  assertOk(sendenAt >= 0 && statusAt > sendenAt, "the status updates after the send response");
+  assertOk(page.includes('error.name === "AbortError"'), "a timeout or abort replaces the sending line");
   const sendRoute = readFileSync("app/api/ampel/ergebnis/senden/route.ts", "utf8");
   assertOk(sendRoute.includes("sendToken: value.send_token"), "the send route requires the one-time token");
+  assertOk(
+    sendRoute.indexOf("ampelSendTokenPresent") >= 0 && sendRoute.indexOf("ampelSendTokenPresent") < sendRoute.indexOf("value.email"),
+    "a missing token is rejected before the email is validated",
+  );
   const sendSource = readFileSync("lib/ampel-result-send.ts", "utf8");
   const completeAt = sendSource.indexOf("export async function completeAmpelResult");
   const completeBody = sendSource.slice(completeAt, sendSource.indexOf("export function submitAmpelResult"));
   assertOk(
+    completeBody.indexOf("ampelSendTokenPresent") >= 0 &&
+      completeBody.indexOf("ampelSendTokenPresent") < completeBody.indexOf("normalizeAmpelEmail"),
+    "the send function checks the token before the email",
+  );
+  assertOk(
     completeBody.indexOf("consumeAmpelSendToken") >= 0 &&
-      completeBody.indexOf("consumeAmpelSendToken") < completeBody.indexOf("lookupMailDedupe") &&
+      completeBody.indexOf(".confirm(") > completeBody.indexOf("consumeAmpelSendToken") &&
+      completeBody.indexOf(".confirm(") < completeBody.indexOf("deliverAmpelResult") &&
       completeBody.indexOf("lookupMailDedupe") < completeBody.indexOf("deliverAmpelResult"),
-    "the send route checks the token and then the duplicate slot before mail",
+    "the send route checks the token, the IP slot, and the duplicate slot before mail",
   );
   assertOk(
     sendSource.indexOf('if (decision !== "ok") return limited(decision);') < sendSource.indexOf("await issueAmpelSendToken"),
@@ -833,8 +851,9 @@ try {
         releaseMail = resolve;
       });
     };
+    const asyncStore = createMemoryAmpelRateStore();
     const handoff = await submitAmpelResult(asyncInput, {
-      store: createMemoryAmpelRateStore(),
+      store: asyncStore,
       now: () => clock,
       confirm: noConfirm,
       handoff: true,
@@ -856,6 +875,7 @@ try {
         confirm: noConfirm,
         status: asyncStatus,
         tokens: asyncTokens,
+        store: asyncStore,
         mail: asyncMail,
         sendTimeoutMs: 1_000,
       },
@@ -899,9 +919,17 @@ try {
     const directBody = (await direct.json()) as { error?: string };
     assertOk(direct.status === 403 && directBody.error === AMPEL_RESULT_MAIL.sendUnauthorized, "direct POST without a token is forbidden");
     assertOk(pdfSends === beforeDirect, "direct POST without a token sends no mail");
+    const invalidWithoutToken = await postAmpelErgebnisSenden(
+      new Request("http://localhost/api/ampel/ergebnis/senden", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "not-an-email", answers: "x", fax_number: "" }),
+      }),
+    );
+    assertOk(invalidWithoutToken.status === 403, "a missing token is rejected before the email is validated");
 
     const foreignToken = await issueAmpelSendToken(
-      { email: "owner@example.com", code: jaCode, now: clock },
+      { email: "owner@example.com", code: jaCode, now: clock, ipSlot: 1, emailSlot: 1 },
       createMemoryAmpelSendTokenStore(),
     );
     const foreign = await postAmpelErgebnisSenden(
@@ -936,8 +964,9 @@ try {
       reuseSends += 1;
       return { stub: false as const, sent: true as const, id: "reuse-1" };
     };
+    const reuseStore = createMemoryAmpelRateStore();
     const reuseHandoff = await submitAmpelResult(reuseInput, {
-      store: createMemoryAmpelRateStore(),
+      store: reuseStore,
       now: () => clock,
       confirm: noConfirm,
       handoff: true,
@@ -948,17 +977,17 @@ try {
     const reuseToken = reuseHandoff.ok && !("honeypot" in reuseHandoff) ? reuseHandoff.token : "";
     const wrongEmail = await completeAmpelResult(
       { ...reuseInput, email: "other@example.com", sendToken: reuseToken },
-      { now: () => clock, confirm: noConfirm, status: reuseStatus, tokens: reuseTokens, mail: reuseMail },
+      { now: () => clock, confirm: noConfirm, status: reuseStatus, tokens: reuseTokens, store: reuseStore, mail: reuseMail },
     );
     assertOk(!wrongEmail.ok && wrongEmail.status === 403 && reuseSends === 0, "a token does not send to a different email");
     const reuseOnce = await completeAmpelResult(
       { ...reuseInput, sendToken: reuseToken },
-      { now: () => clock, confirm: noConfirm, status: reuseStatus, tokens: reuseTokens, mail: reuseMail },
+      { now: () => clock, confirm: noConfirm, status: reuseStatus, tokens: reuseTokens, store: reuseStore, mail: reuseMail },
     );
     assertOk(reuseOnce.ok && !("honeypot" in reuseOnce) && reuseOnce.mailed === true && reuseSends === 1, "the first token use sends one mail");
     const reuseTwice = await completeAmpelResult(
       { ...reuseInput, sendToken: reuseToken },
-      { now: () => clock, confirm: noConfirm, status: reuseStatus, tokens: reuseTokens, mail: reuseMail },
+      { now: () => clock, confirm: noConfirm, status: reuseStatus, tokens: reuseTokens, store: reuseStore, mail: reuseMail },
     );
     assertOk(!reuseTwice.ok && reuseTwice.status === 403 && reuseSends === 1, "reusing the token sends no second mail");
 
@@ -968,7 +997,18 @@ try {
       state: "sending",
       notice: AMPEL_RESULT_MAIL.sending,
     });
-    const dupToken = await issueAmpelSendToken({ email: "dup@example.com", code: jaCode, now: clock }, dupTokens);
+    const dupRate = createMemoryAmpelRateStore();
+    const dupHold = { ipSlot: 0, emailSlot: 0 };
+    await dupRate.take({
+      ipKey: ampelRateIpKey("203.0.113.51"),
+      emailKey: "em:dup@example.com",
+      now: clock,
+      hold: dupHold,
+    });
+    const dupToken = await issueAmpelSendToken(
+      { email: "dup@example.com", code: jaCode, now: clock, ipSlot: dupHold.ipSlot, emailSlot: dupHold.emailSlot },
+      dupTokens,
+    );
     let dupExtra = 0;
     const dupAgain = await completeAmpelResult(
       {
@@ -985,6 +1025,7 @@ try {
         confirm: noConfirm,
         status: dupStatus,
         tokens: dupTokens,
+        store: dupRate,
         mail: async () => {
           dupExtra += 1;
           return { stub: false, sent: true, id: "dup-extra" };
@@ -1019,23 +1060,26 @@ try {
     delete process.env.MAGIC_LINK_SECRET;
     try {
       const opaqueStore = createMemoryAmpelSendTokenStore();
-      const opaque = await issueAmpelSendToken({ email: "opaque@example.com", code: jaCode, now: clock }, opaqueStore);
+      const opaque = await issueAmpelSendToken(
+        { email: "opaque@example.com", code: jaCode, now: clock, ipSlot: 1, emailSlot: 1 },
+        opaqueStore,
+      );
       assertOk(opaque?.startsWith("v0."), "without the server secret the token is stored as an opaque slot");
       const opaqueMismatch = await consumeAmpelSendToken(
         { token: opaque, email: "other@example.com", code: jaCode, now: clock },
         opaqueStore,
       );
-      assertOk(opaqueMismatch === "mismatch", "an opaque token stays bound to its email");
+      assertOk(opaqueMismatch.verdict === "mismatch", "an opaque token stays bound to its email");
       const opaqueOk = await consumeAmpelSendToken(
         { token: opaque, email: "opaque@example.com", code: jaCode, now: clock },
         opaqueStore,
       );
-      assertOk(opaqueOk === "ok", "an opaque token can be used once");
+      assertOk(opaqueOk.verdict === "ok", "an opaque token can be used once");
       const opaqueReuse = await consumeAmpelSendToken(
         { token: opaque, email: "opaque@example.com", code: jaCode, now: clock },
         opaqueStore,
       );
-      assertOk(opaqueReuse === "reused", "an opaque token cannot be used twice");
+      assertOk(opaqueReuse.verdict === "reused", "an opaque token cannot be used twice");
     } finally {
       if (savedMagic === undefined) delete process.env.MAGIC_LINK_SECRET;
       else process.env.MAGIC_LINK_SECRET = savedMagic;
@@ -1280,13 +1324,184 @@ try {
     assertOk(ampelClientIp(new Headers({ "x-real-ip": "198.51.100.9" })) === "198.51.100.9", "x-real-ip is the fallback");
     assertOk(
       ampelClientIp(new Headers({ "x-vercel-forwarded-for": "192.0.2.4" })) === "192.0.2.4",
-      "the vercel forwarded header is the last fallback",
+      "the vercel forwarded header is the client address when it is the only one",
+    );
+    assertOk(ampelClientIp(new Headers()) === "", "a missing address is not a shared bucket");
+    assertOk(
+      readAmpelClientIp(
+        new Headers({
+          "x-forwarded-for": "198.51.100.20, 10.0.0.1",
+          "x-real-ip": "198.51.100.21",
+          "x-vercel-forwarded-for": "203.0.113.8",
+        }),
+      ).source === "x-vercel-forwarded-for",
+      "the vercel header is the client address",
     );
     assertOk(
-      ampelClientIp(new Headers({ "x-forwarded-for": " , 203.0.113.15" })) === "203.0.113.15",
-      "an empty forwarded entry is skipped",
+      ampelClientIp(new Headers({ "x-forwarded-for": "198.51.100.20", "x-real-ip": "198.51.100.9" })) === "198.51.100.9",
+      "x-real-ip wins over x-forwarded-for",
     );
-    assertOk(ampelClientIp(new Headers()) === "unknown", "a missing address is one shared bucket");
+    assertOk(
+      ampelClientIp(new Headers({ "x-forwarded-for": " , 203.0.113.15" })) === "",
+      "an empty first forwarded value is not an address",
+    );
+    assertOk(
+      ampelClientIp(new Headers({ "x-vercel-forwarded-for": "unknown", "x-real-ip": "198.51.100.9" })) === "198.51.100.9",
+      "the label unknown is not an address",
+    );
+    assertOk(ampelClientIp(new Headers({ "x-forwarded-for": "unknown" })) === "", "unknown alone is not a bucket");
+    const stableLeft = ampelRateIpKey(
+      readAmpelClientIp(new Headers({ "x-vercel-forwarded-for": "203.0.113.8", "x-forwarded-for": "10.1.1.1" })).ip,
+    );
+    const stableRight = ampelRateIpKey(
+      readAmpelClientIp(new Headers({ "x-vercel-forwarded-for": "203.0.113.8", "x-forwarded-for": "10.2.2.2" })).ip,
+    );
+    assertOk(stableLeft === stableRight, "a rotating forwarded hop does not open a new IP bucket");
+    const hour = ampelRateWindowId(clock, AMPEL_IP_WINDOW_MS);
+    const hourStart = hour * AMPEL_IP_WINDOW_MS;
+    assertOk(ampelRateWindowId(hourStart + AMPEL_IP_WINDOW_MS - 1, AMPEL_IP_WINDOW_MS) === hour, "the IP window stays open for the hour");
+    assertOk(ampelRateWindowId(hourStart + AMPEL_IP_WINDOW_MS, AMPEL_IP_WINDOW_MS) === hour + 1, "the next hour is a new IP window");
+    assertOk(AMPEL_IP_LIMIT === 5, "the IP limit is five per hour");
+    const slotPath = ampelRateSlotPath("ip", ampelRateIpKey("203.0.113.8"), hour, 1);
+    assertOk(/\/ip-[a-f0-9]{32}-\d+-1$/.test(slotPath), "an IP slot is named ip-hash-window-n");
+    const logLine = ampelRateLogLine("x-vercel-forwarded-for", 3, "203.0.113.8");
+    assertOk(
+      /^\[ampel\] rate src=x-vercel-forwarded-for slot=3 ip=[a-f0-9]{12}$/.test(logLine) && !logLine.includes("203.0.113.8"),
+      "the rate log is one hashed line",
+    );
+    assertOk(
+      ampelSendStatusNotice({ email: "delivered@resend.dev", status: 200, ok: true, mailed: true }) ===
+        "Das Ergebnis wurde an delivered@resend.dev gesendet.",
+      "a sent mail replaces the sending line",
+    );
+    assertOk(
+      ampelSendStatusNotice({
+        email: "delivered@resend.dev",
+        status: 500,
+        ok: false,
+        error: "Das Ergebnis konnte gerade nicht gesendet werden.",
+      }) === "Das Ergebnis konnte gerade nicht gesendet werden.",
+      "a failed follow-up shows the error",
+    );
+    assertOk(
+      ampelSendStatusNotice({ email: "delivered@resend.dev", status: 0, ok: false, aborted: true }) ===
+        AMPEL_RESULT_MAIL.sendInterrupted,
+      "a timeout replaces the sending line",
+    );
+
+    const blindObjects = new Map<string, string>();
+    const blindStore = createSlotAmpelRateStore({
+      async get() {
+        return null;
+      },
+      async create(pathname, body) {
+        if (blindObjects.has(pathname)) return "exists";
+        blindObjects.set(pathname, body);
+        return "created";
+      },
+      async remove(pathname) {
+        blindObjects.delete(pathname);
+      },
+    });
+    for (let index = 0; index < AMPEL_IP_LIMIT; index += 1) {
+      const decision = await blindStore.take({
+        ipKey: "ip:blind",
+        emailKey: `em:blind-${index}@example.com`,
+        now: clock,
+      });
+      assertOk(decision === "ok", `a blind read still reserves IP slot ${index + 1}`);
+    }
+    assertOk(
+      (await blindStore.take({ ipKey: "ip:blind", emailKey: "em:blind-extra@example.com", now: clock })) === "ip",
+      "five occupied IP slots are a 429 even when reads miss them",
+    );
+    const blindIpSlots = [...blindObjects.keys()].filter((key) => key.includes("/ip-"));
+    assertOk(blindIpSlots.length === AMPEL_IP_LIMIT, "the IP limit keeps five slots");
+    assertOk(
+      blindIpSlots.every((key) => /\/ip-[a-f0-9]{32}-\d+-[1-5]$/.test(key)),
+      "occupied IP slots use deterministic names",
+    );
+
+    let missingTakes = 0;
+    const missingStore = createMemoryAmpelRateStore();
+    const wrappedMissing = {
+      async take(input: { ipKey: string; emailKey: string; now: number }) {
+        missingTakes += 1;
+        return missingStore.take(input);
+      },
+      confirm: missingStore.confirm.bind(missingStore),
+    };
+    const missingIp = await submitAmpelResult(
+      { email: "missing-ip@example.com", answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "" },
+      { store: wrappedMissing, now: () => clock, confirm: noConfirm, handoff: true },
+    );
+    const unknownIp = await submitAmpelResult(
+      { email: "unknown-ip@example.com", answers: neinCode, ref: "", marketing: false, honeypot: "", ip: "unknown" },
+      { store: wrappedMissing, now: () => clock, confirm: noConfirm, handoff: true },
+    );
+    assertOk(
+      missingIp.ok && !("honeypot" in missingIp) && missingIp.mailed === false && missingIp.pending !== true &&
+        unknownIp.ok && !("honeypot" in unknownIp) && unknownIp.mailed === false && missingTakes === 0,
+      "an empty or unknown address does not share a bucket and sends no mail",
+    );
+
+    const heldObjects = new Map<string, string>();
+    const heldStore = createSlotAmpelRateStore({
+      async get() {
+        return null;
+      },
+      async create(pathname, body) {
+        if (heldObjects.has(pathname)) return "exists";
+        heldObjects.set(pathname, body);
+        return "created";
+      },
+      async remove(pathname) {
+        heldObjects.delete(pathname);
+      },
+    });
+    const heldTokens = createMemoryAmpelSendTokenStore();
+    const heldStatus = createMemoryAmpelMailStatusStore();
+    let heldSends = 0;
+    const heldInput = {
+      email: "held@example.com",
+      answers: jaCode,
+      ref: "",
+      marketing: false,
+      honeypot: "",
+      ip: "203.0.113.70",
+    };
+    const heldHandoff = await submitAmpelResult(heldInput, {
+      store: heldStore,
+      now: () => clock,
+      confirm: noConfirm,
+      handoff: true,
+      status: heldStatus,
+      tokens: heldTokens,
+      mail: async () => {
+        heldSends += 1;
+        return { stub: false as const, sent: true as const, id: "held" };
+      },
+    });
+    const heldIpSlots = [...heldObjects.keys()].filter((key) => key.includes("/ip-")).length;
+    const heldDone = await completeAmpelResult(
+      { ...heldInput, sendToken: heldHandoff.ok && !("honeypot" in heldHandoff) ? heldHandoff.token : "" },
+      {
+        store: heldStore,
+        now: () => clock,
+        confirm: noConfirm,
+        status: heldStatus,
+        tokens: heldTokens,
+        mail: async () => {
+          heldSends += 1;
+          return { stub: false, sent: true, id: "held-2" };
+        },
+      },
+    );
+    assertOk(
+      heldDone.ok && !("honeypot" in heldDone) && heldDone.mailed === true && heldSends === 1 &&
+        [...heldObjects.keys()].filter((key) => key.includes("/ip-")).length === heldIpSlots,
+      "senden confirms the reserved IP slot and does not open another",
+    );
 
     const rateSource = readFileSync("lib/ampel-rate-limit.ts", "utf8");
     const factory = rateSource.slice(rateSource.indexOf("export function ampelRateStore"));
@@ -1332,6 +1547,9 @@ try {
       {
         store: {
           async take() {
+            throw new Error("blob-down");
+          },
+          async confirm() {
             throw new Error("blob-down");
           },
         },

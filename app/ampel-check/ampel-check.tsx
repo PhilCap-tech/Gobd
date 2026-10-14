@@ -12,6 +12,7 @@ import {
   AMPEL_QUESTIONS,
   AMPEL_RESULT_MAIL,
   AMPEL_SHARE_KANZLEI,
+  ampelSendStatusNotice,
   type AmpelAnswer,
 } from "@/lib/ampel-questions";
 import {
@@ -230,39 +231,45 @@ export function AmpelCheck() {
           showResult(AMPEL_RESULT_MAIL.shownWithoutMail);
           return;
         }
-        const follow = await fetch("/api/ampel/ergebnis/senden", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...payload, send_token: data.token }),
-          signal: AbortSignal.timeout(20_000),
-        });
-        let sent: { notice?: string; marketing?: string; mailed?: boolean; duplicate?: boolean; error?: string } = {};
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 20_000);
         try {
-          sent = (await follow.json()) as typeof sent;
-        } catch {
-          sent = {};
+          const follow = await fetch("/api/ampel/ergebnis/senden", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...payload, send_token: data.token }),
+            signal: controller.signal,
+          });
+          let sent: { notice?: string; marketing?: string; mailed?: boolean; duplicate?: boolean; error?: string } = {};
+          try {
+            sent = (await follow.json()) as typeof sent;
+          } catch {
+            sent = {};
+          }
+          showResult(
+            ampelSendStatusNotice({
+              email,
+              status: follow.status,
+              ok: follow.ok,
+              mailed: sent.mailed,
+              duplicate: sent.duplicate,
+              notice: sent.notice,
+              error: sent.error,
+              marketing: sent.marketing,
+            }),
+          );
+        } catch (error) {
+          const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+          showResult(ampelSendStatusNotice({ email, aborted, status: 0, ok: false }));
+        } finally {
+          clearTimeout(timer);
         }
-        if (follow.status === 403 || !follow.ok) {
-          showResult(AMPEL_RESULT_MAIL.shownWithoutMail);
-          return;
-        }
-        if (sent.duplicate) {
-          showResult(sent.notice || AMPEL_RESULT_MAIL.alreadySent);
-          return;
-        }
-        showResult(
-          sent.notice ||
-            (sent.mailed === false
-              ? AMPEL_RESULT_MAIL.shownWithoutMail
-              : sent.marketing === "started"
-                ? `${AMPEL_RESULT_MAIL.sent} ${AMPEL_RESULT_MAIL.doiSuccess}`
-                : AMPEL_RESULT_MAIL.sent),
-        );
         return;
       }
       showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
-    } catch {
-      showResult(AMPEL_RESULT_MAIL.offline);
+    } catch (error) {
+      const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+      showResult(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
       setPending(false);
     }

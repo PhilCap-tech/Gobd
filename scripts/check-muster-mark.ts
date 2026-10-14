@@ -256,6 +256,9 @@ expect(
   !readFileSync("app/steuerberater/page.tsx", "utf8").includes('href="/checkout"'),
   "steuerberater overview has no checkout link",
 );
+const advisorPage = readFileSync("app/steuerberater/page.tsx", "utf8");
+expect(advisorPage.includes('href: "#muster"'), "the advisor nav links to the sample");
+expect(advisorPage.includes('id="muster"'), "the sample section is the target of #muster");
 
 function assertMusterPdf(label: string, pages: string[], buffer: Buffer, requireModules: boolean) {
   const count = pageCount(buffer);

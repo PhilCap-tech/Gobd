@@ -8,6 +8,7 @@ import {
   put,
 } from "@vercel/blob";
 import { getMagicLinkSecret, isMagicLinkConfigured } from "@/lib/env";
+import { AMPEL_EMAIL_LIMIT, AMPEL_IP_LIMIT } from "@/lib/ampel-rate-limit";
 import { getFileFallbackDir } from "@/lib/store";
 
 /** The follow-up send must start within this window. */
@@ -27,7 +28,17 @@ type TokenBody = {
   eh: string;
   ah: string;
   exp: number;
+  is: number;
+  es: number;
 };
+
+function slotInRange(slot: number, limit: number): boolean {
+  return Number.isInteger(slot) && slot >= 1 && slot <= limit;
+}
+
+export function ampelSendTokenPresent(token: unknown): token is string {
+  return typeof token === "string" && token.length >= 20 && token.length <= 512;
+}
 
 function digest(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 32);
@@ -56,7 +67,8 @@ function parseBody(raw: string): TokenBody | null {
     const parsed = JSON.parse(raw) as Partial<TokenBody>;
     if (typeof parsed.eh !== "string" || typeof parsed.ah !== "string") return null;
     if (typeof parsed.exp !== "number" || !Number.isFinite(parsed.exp)) return null;
-    return { eh: parsed.eh, ah: parsed.ah, exp: parsed.exp };
+    if (!slotInRange(parsed.is ?? NaN, AMPEL_IP_LIMIT) || !slotInRange(parsed.es ?? NaN, AMPEL_EMAIL_LIMIT)) return null;
+    return { eh: parsed.eh, ah: parsed.ah, exp: parsed.exp, is: parsed.is as number, es: parsed.es as number };
   } catch {
     return null;
   }
@@ -184,58 +196,75 @@ export function ampelSendTokenStore(): AmpelSendTokenStore {
 }
 
 export async function issueAmpelSendToken(
-  input: { email: string; code: string; now: number },
+  input: { email: string; code: string; now: number; ipSlot: number; emailSlot: number },
   store: AmpelSendTokenStore = ampelSendTokenStore(),
 ): Promise<string | null> {
+  if (!slotInRange(input.ipSlot, AMPEL_IP_LIMIT) || !slotInRange(input.emailSlot, AMPEL_EMAIL_LIMIT)) return null;
   const bound = binding(input.email, input.code);
   const exp = input.now + AMPEL_SEND_TOKEN_TTL_MS;
+  const slots = { is: input.ipSlot, es: input.emailSlot };
   if (isMagicLinkConfigured()) {
     const nonce = randomBytes(16).toString("hex");
-    const payload = Buffer.from(JSON.stringify({ p: "ampel-send", ...bound, n: nonce, exp })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({ p: "ampel-send", ...bound, n: nonce, exp, ...slots })).toString("base64url");
     return `v1.${payload}.${sign(payload)}`;
   }
   const secret = randomBytes(32).toString("base64url");
   const slotId = `open/${digest(secret)}`;
-  const created = await store.putIssue(slotId, JSON.stringify({ ...bound, exp }));
+  const created = await store.putIssue(slotId, JSON.stringify({ ...bound, exp, ...slots }));
   if (created !== "created") return null;
   return `v0.${secret}`;
 }
 
 export type AmpelSendTokenVerdict = "ok" | "invalid" | "mismatch" | "expired" | "reused";
 
+export type AmpelSendTokenResult = {
+  verdict: AmpelSendTokenVerdict;
+  ipSlot: number;
+  emailSlot: number;
+};
+
+function refused(verdict: Exclude<AmpelSendTokenVerdict, "ok">): AmpelSendTokenResult {
+  return { verdict, ipSlot: 0, emailSlot: 0 };
+}
+
 export async function consumeAmpelSendToken(
   input: { token: unknown; email: string; code: string; now: number },
   store: AmpelSendTokenStore = ampelSendTokenStore(),
-): Promise<AmpelSendTokenVerdict> {
-  if (typeof input.token !== "string" || input.token.length < 20 || input.token.length > 512) return "invalid";
+): Promise<AmpelSendTokenResult> {
+  if (!ampelSendTokenPresent(input.token)) return refused("invalid");
   const bound = binding(input.email, input.code);
   if (input.token.startsWith("v1.")) {
-    if (!isMagicLinkConfigured()) return "invalid";
+    if (!isMagicLinkConfigured()) return refused("invalid");
     const parts = input.token.split(".");
-    if (parts.length !== 3) return "invalid";
+    if (parts.length !== 3) return refused("invalid");
     const payload = parts[1] ?? "";
     const signature = parts[2] ?? "";
-    if (!payload || !signaturesMatch(signature, sign(payload))) return "invalid";
-    let parsed: { p?: string; eh?: string; ah?: string; n?: string; exp?: number };
+    if (!payload || !signaturesMatch(signature, sign(payload))) return refused("invalid");
+    let parsed: { p?: string; eh?: string; ah?: string; n?: string; exp?: number; is?: number; es?: number };
     try {
       parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as typeof parsed;
     } catch {
-      return "invalid";
+      return refused("invalid");
     }
-    if (parsed.p !== "ampel-send" || typeof parsed.n !== "string" || !/^[a-f0-9]{32}$/.test(parsed.n)) return "invalid";
-    if (typeof parsed.exp !== "number" || !fresh(parsed.exp, input.now)) return "expired";
-    if (parsed.eh !== bound.eh || parsed.ah !== bound.ah) return "mismatch";
+    if (parsed.p !== "ampel-send" || typeof parsed.n !== "string" || !/^[a-f0-9]{32}$/.test(parsed.n)) return refused("invalid");
+    if (!slotInRange(parsed.is ?? NaN, AMPEL_IP_LIMIT) || !slotInRange(parsed.es ?? NaN, AMPEL_EMAIL_LIMIT)) return refused("invalid");
+    if (typeof parsed.exp !== "number" || !fresh(parsed.exp, input.now)) return refused("expired");
+    if (parsed.eh !== bound.eh || parsed.ah !== bound.ah) return refused("mismatch");
     const claimed = await store.claim(`used/${parsed.n}`, JSON.stringify({ exp: parsed.exp }));
-    return claimed === "created" ? "ok" : "reused";
+    return claimed === "created"
+      ? { verdict: "ok", ipSlot: parsed.is as number, emailSlot: parsed.es as number }
+      : refused("reused");
   }
-  if (!input.token.startsWith("v0.")) return "invalid";
+  if (!input.token.startsWith("v0.")) return refused("invalid");
   const secret = input.token.slice(3);
-  if (!secret) return "invalid";
+  if (!secret) return refused("invalid");
   const raw = await store.readIssue(`open/${digest(secret)}`);
   const issued = raw ? parseBody(raw) : null;
-  if (!issued) return "invalid";
-  if (!fresh(issued.exp, input.now)) return "expired";
-  if (issued.eh !== bound.eh || issued.ah !== bound.ah) return "mismatch";
+  if (!issued) return refused("invalid");
+  if (!fresh(issued.exp, input.now)) return refused("expired");
+  if (issued.eh !== bound.eh || issued.ah !== bound.ah) return refused("mismatch");
   const claimed = await store.claim(`used/${digest(secret)}`, JSON.stringify({ exp: issued.exp }));
-  return claimed === "created" ? "ok" : "reused";
+  return claimed === "created"
+    ? { verdict: "ok", ipSlot: issued.is, emailSlot: issued.es }
+    : refused("reused");
 }
