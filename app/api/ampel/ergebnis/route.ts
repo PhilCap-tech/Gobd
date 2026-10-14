@@ -33,5 +33,7 @@ export async function POST(request: Request) {
     ok: true,
     duplicate: result.duplicate,
     marketing: result.marketing,
+    mailed: result.mailed,
+    ...(result.notice ? { notice: result.notice } : {}),
   });
 }

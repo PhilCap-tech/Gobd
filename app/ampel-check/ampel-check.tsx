@@ -158,6 +158,15 @@ export function AmpelCheck() {
     }
     setMailError("");
     setPending(true);
+    const showResult = (notice: string) => {
+      try {
+        sessionStorage.setItem(shownKey(encoded), "1");
+      } catch {
+        // The result still shows for this view.
+      }
+      setMailNotice(notice);
+      setMode("result");
+    };
     try {
       const response = await fetch("/api/ampel/ergebnis", {
         method: "POST",
@@ -169,38 +178,45 @@ export function AmpelCheck() {
           marketing,
           fax_number: fax,
         }),
+        signal: AbortSignal.timeout(20_000),
       });
       let data: {
         ok?: boolean;
         error?: string;
         honeypot?: boolean;
         marketing?: string;
+        mailed?: boolean;
+        notice?: string;
       } = {};
       try {
         data = (await response.json()) as typeof data;
       } catch {
         data = {};
       }
-      if (!response.ok || !data.ok || data.honeypot) {
-        if (!data.honeypot) {
-          setMailError(data.error || AMPEL_RESULT_MAIL.sendFailed);
-        }
+      if (response.status === 429) {
+        setMailError(data.error || AMPEL_RESULT_MAIL.rateLimited);
+        return;
+      }
+      if (response.status === 400 || data.honeypot) {
+        if (!data.honeypot) setMailError(data.error || AMPEL_RESULT_MAIL.invalidEmail);
         return;
       }
       trackLeadSubmit({ value: 1, currency: "EUR" });
-      try {
-        sessionStorage.setItem(shownKey(encoded), "1");
-      } catch {
-        // The result still shows for this view.
+      if (!response.ok || !data.ok) {
+        showResult(data.error || AMPEL_RESULT_MAIL.shownWithoutMail);
+        return;
       }
-      setMailNotice(
+      if (data.mailed === false) {
+        showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
+        return;
+      }
+      showResult(
         data.marketing === "started"
           ? `${AMPEL_RESULT_MAIL.sent} ${AMPEL_RESULT_MAIL.doiSuccess}`
           : AMPEL_RESULT_MAIL.sent,
       );
-      setMode("result");
     } catch {
-      setMailError("Die Verbindung ist fehlgeschlagen. Bitte versuchen Sie es erneut.");
+      showResult(AMPEL_RESULT_MAIL.offline);
     } finally {
       setPending(false);
     }
