@@ -21,32 +21,61 @@ export const AMPEL_RATE_RETENTION_MS = AMPEL_RATE_RETENTION_DAYS * 24 * 60 * 60 
 
 export type AmpelRateDecision = "ok" | "ip" | "email";
 
+export type AmpelRateHold = {
+  ipSlot: number;
+  emailSlot: number;
+};
+
+export type AmpelRateConfirm = "ok" | "ip" | "email" | "missing";
+
 export type AmpelRateStore = {
-  take(input: { ipKey: string; emailKey: string; now: number }): Promise<AmpelRateDecision>;
+  take(input: { ipKey: string; emailKey: string; now: number; hold?: AmpelRateHold }): Promise<AmpelRateDecision>;
+  /** Checks the slot reserved by `take`. Does not open a second slot. */
+  confirm(input: {
+    ipKey: string;
+    emailKey: string;
+    now: number;
+    ipSlot: number;
+    emailSlot: number;
+  }): Promise<AmpelRateConfirm>;
 };
 
 type Ledger = Record<string, number[]>;
 
-function firstHeaderIp(value: string | null): string {
+const IP_HEADER_SOURCES = ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"] as const;
+
+export type AmpelIpSource = (typeof IP_HEADER_SOURCES)[number] | "";
+
+function firstHeaderValue(value: string | null): string {
   if (!value) return "";
-  for (const part of value.split(",")) {
-    const ip = part.trim();
-    if (ip) return ip.slice(0, 80);
-  }
-  return "";
+  const first = value.split(",")[0]?.trim() ?? "";
+  if (!first || first.length > 80 || first.toLowerCase() === "unknown") return "";
+  return first;
 }
 
 /**
- * Vercel puts the client in the first `x-forwarded-for` entry and in
- * `x-real-ip`. The Web `Request` used by the route has no `ip` field.
+ * On Vercel the client address is `x-vercel-forwarded-for`. The first
+ * `x-forwarded-for` hop is only a fallback: it can be empty or a proxy.
+ * An empty or `unknown` value is not an address.
  */
+export function readAmpelClientIp(headers: Headers): { ip: string; source: AmpelIpSource } {
+  for (const source of IP_HEADER_SOURCES) {
+    const ip = firstHeaderValue(headers.get(source));
+    if (ip) return { ip, source };
+  }
+  return { ip: "", source: "" };
+}
+
 export function ampelClientIp(headers: Headers): string {
-  return (
-    firstHeaderIp(headers.get("x-forwarded-for")) ||
-    firstHeaderIp(headers.get("x-real-ip")) ||
-    firstHeaderIp(headers.get("x-vercel-forwarded-for")) ||
-    "unknown"
-  );
+  return readAmpelClientIp(headers).ip;
+}
+
+/** One PII-free line: header source, slot number, and a hash of the address. */
+export function ampelRateLogLine(source: string, slot: number, ip: string): string {
+  const hash = createHash("sha256").update(ip || "none").digest("hex").slice(0, 12);
+  const safeSlot = Number.isInteger(slot) && slot > 0 ? slot : 0;
+  const safeSource = (IP_HEADER_SOURCES as readonly string[]).includes(source) ? source : "none";
+  return `[ampel] rate src=${safeSource} slot=${safeSlot} ip=${hash}`;
 }
 
 /** Stores a hash, never the raw address. */
@@ -100,27 +129,14 @@ export function ampelRateWindowId(now: number, windowMs: number): number {
   return Math.floor(now / windowMs);
 }
 
+/** `gobd/ampel-rate/ip-<hash>-<window>-<n>`. The index is the slot, not a list cursor. */
 export function ampelRateSlotPath(
   kind: "ip" | "email",
   logicalKey: string,
   windowId: number,
   slot: number,
 ): string {
-  return `${AMPEL_RATE_BLOB_PREFIX}/${kind}/${rateHash(logicalKey)}/${windowId}/${slot}`;
-}
-
-async function readSlots(
-  io: AmpelRateIo,
-  kind: "ip" | "email",
-  logicalKey: string,
-  windowId: number,
-  limit: number,
-): Promise<Array<string | null>> {
-  return Promise.all(
-    Array.from({ length: limit }, (_, index) =>
-      io.get(ampelRateSlotPath(kind, logicalKey, windowId, index + 1)),
-    ),
-  );
+  return `${AMPEL_RATE_BLOB_PREFIX}/${kind}-${rateHash(logicalKey)}-${windowId}-${slot}`;
 }
 
 async function claimDimension(
@@ -130,7 +146,7 @@ async function claimDimension(
   limit: number,
   windowMs: number,
   now: number,
-): Promise<{ status: "ok"; path: string } | { status: "limited" }> {
+): Promise<{ status: "ok"; path: string; slot: number } | { status: "limited"; path: ""; slot: 0 }> {
   const windowId = ampelRateWindowId(now, windowMs);
   const keep = Math.max(1, Math.ceil(AMPEL_RATE_RETENTION_MS / windowMs));
   const expired = windowId - keep;
@@ -141,15 +157,25 @@ async function claimDimension(
       ),
     ).catch(() => undefined);
   }
-  for (let attempt = 0; attempt < limit; attempt += 1) {
-    const slots = await readSlots(io, kind, logicalKey, windowId, limit);
-    const open = slots.findIndex((slot) => slot == null);
-    if (open < 0) return { status: "limited" };
-    const path = ampelRateSlotPath(kind, logicalKey, windowId, open + 1);
+  for (let slot = 1; slot <= limit; slot += 1) {
+    const path = ampelRateSlotPath(kind, logicalKey, windowId, slot);
     const created = await io.create(path, JSON.stringify({ at: now }));
-    if (created === "created") return { status: "ok", path };
+    if (created === "created") return { status: "ok", path, slot };
   }
-  return { status: "limited" };
+  return { status: "limited", path: "", slot: 0 };
+}
+
+async function slotHeld(io: AmpelRateIo, pathname: string, now: number): Promise<boolean> {
+  const created = await io.create(pathname, JSON.stringify({ at: now }));
+  if (created === "created") {
+    try {
+      await io.remove(pathname);
+    } catch {
+      // The probe slot may remain. The request still sends no mail.
+    }
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -158,15 +184,7 @@ async function claimDimension(
  */
 export function createSlotAmpelRateStore(io: AmpelRateIo): AmpelRateStore {
   return {
-    async take({ ipKey, emailKey, now }) {
-      const emailWindow = ampelRateWindowId(now, AMPEL_EMAIL_WINDOW_MS);
-      const ipWindow = ampelRateWindowId(now, AMPEL_IP_WINDOW_MS);
-      const [emailSlots, ipSlots] = await Promise.all([
-        readSlots(io, "email", emailKey, emailWindow, AMPEL_EMAIL_LIMIT),
-        readSlots(io, "ip", ipKey, ipWindow, AMPEL_IP_LIMIT),
-      ]);
-      if (emailSlots.every((slot) => slot != null)) return "email";
-      if (ipSlots.every((slot) => slot != null)) return "ip";
+    async take({ ipKey, emailKey, now, hold }) {
       const email = await claimDimension(
         io,
         "email",
@@ -192,6 +210,18 @@ export function createSlotAmpelRateStore(io: AmpelRateIo): AmpelRateStore {
         }
         return "ip";
       }
+      if (hold) {
+        hold.ipSlot = ip.slot;
+        hold.emailSlot = email.slot;
+      }
+      return "ok";
+    },
+    async confirm({ ipKey, emailKey, now, ipSlot, emailSlot }) {
+      if (ipSlot < 1 || ipSlot > AMPEL_IP_LIMIT || emailSlot < 1 || emailSlot > AMPEL_EMAIL_LIMIT) return "missing";
+      const ipPath = ampelRateSlotPath("ip", ipKey, ampelRateWindowId(now, AMPEL_IP_WINDOW_MS), ipSlot);
+      const emailPath = ampelRateSlotPath("email", emailKey, ampelRateWindowId(now, AMPEL_EMAIL_WINDOW_MS), emailSlot);
+      if (!(await slotHeld(io, ipPath, now))) return "missing";
+      if (!(await slotHeld(io, emailPath, now))) return "missing";
       return "ok";
     },
   };
@@ -266,20 +296,52 @@ export function createClosedAmpelRateStore(): AmpelRateStore {
     async take() {
       throw new Error("ampel-rate-unshared");
     },
+    async confirm() {
+      throw new Error("ampel-rate-unshared");
+    },
   };
+}
+
+function ledgerConfirm(
+  hits: { ip: number[]; email: number[] },
+  now: number,
+  ipSlot: number,
+  emailSlot: number,
+): AmpelRateConfirm {
+  if (ipSlot < 1 || ipSlot > AMPEL_IP_LIMIT || emailSlot < 1 || emailSlot > AMPEL_EMAIL_LIMIT) return "missing";
+  const ipWindow = Math.min(AMPEL_IP_WINDOW_MS, AMPEL_RATE_RETENTION_MS);
+  const emailWindow = Math.min(AMPEL_EMAIL_WINDOW_MS, AMPEL_RATE_RETENTION_MS);
+  const ip = hits.ip.filter((at) => now - at < ipWindow);
+  const email = hits.email.filter((at) => now - at < emailWindow);
+  if (ip.length === 0 || email.length === 0) return "missing";
+  if (ip.length > AMPEL_IP_LIMIT) return "ip";
+  if (email.length > AMPEL_EMAIL_LIMIT) return "email";
+  return "ok";
 }
 
 export function createMemoryAmpelRateStore(): AmpelRateStore {
   const hits = new Map<string, number[]>();
   return {
-    async take({ ipKey, emailKey, now }) {
+    async take({ ipKey, emailKey, now, hold }) {
       const judged = judgeAmpelRate(
         { ip: hits.get(ipKey) ?? [], email: hits.get(emailKey) ?? [] },
         now,
       );
       hits.set(ipKey, judged.ip);
       hits.set(emailKey, judged.email);
+      if (hold && judged.decision === "ok") {
+        hold.ipSlot = judged.ip.length;
+        hold.emailSlot = judged.email.length;
+      }
       return judged.decision;
+    },
+    async confirm({ ipKey, emailKey, now, ipSlot, emailSlot }) {
+      return ledgerConfirm(
+        { ip: hits.get(ipKey) ?? [], email: hits.get(emailKey) ?? [] },
+        now,
+        ipSlot,
+        emailSlot,
+      );
     },
   };
 }
@@ -322,6 +384,10 @@ export function createFileAmpelRateStore(file: string): AmpelRateStore {
         if (judged.email.length > 0) ledger[input.emailKey] = judged.email;
         else delete ledger[input.emailKey];
         await saveLedger(file, ledger);
+        if (input.hold && judged.decision === "ok") {
+          input.hold.ipSlot = judged.ip.length;
+          input.hold.emailSlot = judged.email.length;
+        }
         return judged.decision;
       }, async () => {
         throw new Error("ampel-rate-chain");
@@ -331,6 +397,15 @@ export function createFileAmpelRateStore(file: string): AmpelRateStore {
         () => undefined,
       );
       return run;
+    },
+    async confirm(input) {
+      const ledger = await loadLedger(file);
+      return ledgerConfirm(
+        { ip: ledger[input.ipKey] ?? [], email: ledger[input.emailKey] ?? [] },
+        input.now,
+        input.ipSlot,
+        input.emailSlot,
+      );
     },
   };
 }

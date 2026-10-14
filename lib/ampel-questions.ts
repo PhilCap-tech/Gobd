@@ -189,12 +189,42 @@ export const AMPEL_RESULT_MAIL = {
   alreadySent: "Das Ergebnis wurde bereits an diese Adresse gesendet.",
   sendUnauthorized: "Diese Anfrage ist nicht gültig.",
   sending: "Die E-Mail wird gesendet …",
+  sendInterrupted: "Die Verbindung wurde unterbrochen. Bitte prüfen Sie Ihr Postfach.",
   shownWithoutMail: "Die Auswertung sehen Sie auf dieser Seite. Die E-Mail konnte gerade nicht gesendet werden.",
   offline: "Die Verbindung ist fehlgeschlagen. Die Auswertung sehen Sie auf dieser Seite.",
   sent: "Das PDF mit Ihrem Ergebnis ist unterwegs. Die Auswertung sehen Sie auch auf dieser Seite.",
   doiSuccess:
     "Zusätzlich haben wir Ihnen eine E-Mail mit einem Bestätigungslink gesendet. Die Einwilligung können Sie jederzeit widerrufen.",
 };
+
+export function ampelResultSentNotice(email: string): string {
+  return `Das Ergebnis wurde an ${email.trim()} gesendet.`;
+}
+
+export function ampelSendStatusNotice(input: {
+  email: string;
+  aborted?: boolean;
+  status: number;
+  ok: boolean;
+  mailed?: boolean;
+  duplicate?: boolean;
+  notice?: string;
+  error?: string;
+  marketing?: string;
+}): string {
+  if (input.aborted) return AMPEL_RESULT_MAIL.sendInterrupted;
+  if (!input.ok || input.status === 403 || input.status === 429) {
+    const message = input.error || input.notice || AMPEL_RESULT_MAIL.shownWithoutMail;
+    return message === AMPEL_RESULT_MAIL.sending ? AMPEL_RESULT_MAIL.shownWithoutMail : message;
+  }
+  if (input.duplicate) return input.notice || AMPEL_RESULT_MAIL.alreadySent;
+  if (input.mailed === false) {
+    const message = input.notice || AMPEL_RESULT_MAIL.shownWithoutMail;
+    return message === AMPEL_RESULT_MAIL.sending ? AMPEL_RESULT_MAIL.shownWithoutMail : message;
+  }
+  const sent = ampelResultSentNotice(input.email);
+  return input.marketing === "started" ? `${sent} ${AMPEL_RESULT_MAIL.doiSuccess}` : sent;
+}
 
 export const AMPEL_EMAIL_PRIVACY_NOTE =
   "Wir senden Ihnen Ihr Ergebnis zusätzlich als PDF an diese Adresse. Ihre E-Mail-Adresse verwenden wir nur dafür. Werbung erhalten Sie nur, wenn Sie unten ausdrücklich zustimmen. Mehr dazu in unserer Datenschutzerklärung.";
