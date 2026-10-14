@@ -211,7 +211,9 @@ export default function HomePage() {
               <strong>
                 {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
               </strong>
-              <span>Ein Abo umfasst bis zu 5 Firmen.</span>
+              <span>
+                Alle 24 Module inklusive · bis zu 5 Firmen · keine Jahresvorauszahlung · monatlich kündbar
+              </span>
               <span>{HERO_PRICE_BOX}</span>
             </p>
             <div className={styles.ctas}>
@@ -219,9 +221,9 @@ export default function HomePage() {
                 {CTA_CREATE}
               </Link>
               <Link className={`btn ${styles.btnSec}`} href={AMPEL_HREF}>
-                {AMPEL_LABEL}
+                Ampel-Check starten
               </Link>
-              <Link className={styles.textLink} href="#muster">
+              <Link className={`btn ${styles.btnSec}`} href="#muster">
                 {CTA_MUSTER_HERO}
               </Link>
             </div>
@@ -245,6 +247,10 @@ export default function HomePage() {
             </p>
           </div>
         </section>
+
+        <p className={`shell ${styles.factBar}`}>
+          24 Module · bis zu 5 Firmen · Ampel-Check in ~2 Min · Muster-PDF ohne Anmeldung
+        </p>
 
         <section className={styles.section} id="muster">
           <div className="shell">
@@ -427,6 +433,9 @@ export default function HomePage() {
               <h2>
                 {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
               </h2>
+              <p>
+                Alle 24 Module inklusive · bis zu 5 Firmen · keine Jahresvorauszahlung · monatlich kündbar
+              </p>
               <p>
                 <strong>Ein Abo umfasst bis zu 5 Firmen.</strong> {ALL_AREAS_LINE}
               </p>
