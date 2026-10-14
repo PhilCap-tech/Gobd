@@ -4,11 +4,20 @@
  * Reine Funktionen: kein Stripe, kein Sheet, kein Versand.
  */
 
+import { isCompAccessEmail } from "@/lib/comp-access";
+import { createHash } from "node:crypto";
+
 export const RETENTION_DAYS = 30;
 export const REMINDER_LEAD_DAYS = 7;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const RETENTION_WINDOW_MS = RETENTION_DAYS * DAY_MS;
 export const REMINDER_LEAD_MS = REMINDER_LEAD_DAYS * DAY_MS;
+
+/**
+ * Löschung und Erinnerung bleiben aus, bis diese Konstante auf false steht.
+ * Kein Env. Der sichere Default ist der Trockenlauf.
+ */
+export const LIFECYCLE_JOB_DRY_RUN = true;
 
 export const CANCELLATION_MAIL_FROM =
   "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
@@ -93,6 +102,48 @@ export function formatBerlinDate(iso: string): string {
 export function cancellationStatusLabel(periodEndIso: string): string {
   const date = formatBerlinDate(periodEndIso);
   return date ? `gekündigt zum ${date}` : "gekündigt zum Periodenende";
+}
+
+/** Downloadfrist nach AGB § 12 Abs. 4: Vertragsende plus 30 Tage. */
+export function downloadsAvailableUntilIso(input: {
+  periodEnd?: string;
+  endedAt?: string;
+  purgeAt?: string;
+  restoreUntil?: string;
+}): string {
+  if (input.purgeAt) return input.purgeAt;
+  if (input.restoreUntil) return input.restoreUntil;
+  const anchor = input.endedAt || input.periodEnd || "";
+  return anchor ? addMs(anchor, RETENTION_WINDOW_MS) : "";
+}
+
+export function downloadsAvailableLabel(iso: string): string {
+  const date = formatBerlinDate(iso);
+  return date ? `Downloads verfügbar bis ${date}` : "";
+}
+
+/**
+ * `cancel_at` (Zeitpunkt) und `cancel_at_period_end` sind dieselbe Vormerkung.
+ * Ein bereits beendetes Abo fällt nicht darunter.
+ */
+export function subscriptionCancelScheduled(subscription: {
+  status?: string | null;
+  cancel_at_period_end?: boolean | null;
+  cancel_at?: number | null;
+}): boolean {
+  if (subscription.status === "canceled") return false;
+  if (subscription.cancel_at_period_end === true) return true;
+  return typeof subscription.cancel_at === "number" && subscription.cancel_at > 0;
+}
+
+/** Phase `restore` ist das beendete Abo. Nur dieser Stand darf gelöscht werden. */
+export function deletionStatus(
+  row: LifecycleRow,
+): "active" | "cancel_scheduled" | "deleted" | "purged" {
+  if (row.phase === "purged") return "purged";
+  if (row.phase === "restore") return "deleted";
+  if (row.phase === "cancel_scheduled" || row.cancelAtPeriodEnd) return "cancel_scheduled";
+  return "active";
 }
 
 export function addMs(iso: string, ms: number): string {
@@ -339,6 +390,77 @@ export type JobAction =
   | { type: "remind"; row: LifecycleRow }
   | { type: "purge"; row: LifecycleRow; deleteContractData: boolean };
 
+export function deletionLogRef(subscriptionId: string): string {
+  const id = subscriptionId.trim();
+  if (!id) return "unbekannt";
+  return createHash("sha256").update(id).digest("hex").slice(0, 12);
+}
+
+export function lifecycleActionLog(
+  action: JobAction,
+  dryRun: boolean,
+): { ref: string; type: string; dryRun: boolean; deleteData: boolean } {
+  return {
+    ref: deletionLogRef(action.row.stripeSubscriptionId),
+    type: action.type,
+    dryRun,
+    deleteData: action.type === "purge" && action.deleteContractData === true,
+  };
+}
+
+/**
+ * Nur beendete Abos nach abgelaufener Frist.
+ * Comp-Allowlist und aktive Abos bleiben unangetastet.
+ */
+export function guardLifecycleActions(
+  actions: JobAction[],
+  rows: LifecycleRow[],
+  nowMs: number,
+): { actions: JobAction[]; skippedComp: number; skippedProtected: number } {
+  const kept: JobAction[] = [];
+  let skippedComp = 0;
+  let skippedProtected = 0;
+  for (const action of actions) {
+    if (isCompAccessEmail(action.row.email)) {
+      skippedComp += 1;
+      continue;
+    }
+    if (deletionStatus(action.row) !== "deleted") {
+      skippedProtected += 1;
+      continue;
+    }
+    const purgeMs = Date.parse(action.row.purgeAt);
+    if (!Number.isFinite(purgeMs)) {
+      skippedProtected += 1;
+      continue;
+    }
+    const alive = rows.some(
+      (other) =>
+        other.email === action.row.email &&
+        other.stripeSubscriptionId !== action.row.stripeSubscriptionId &&
+        (other.phase === "active" || other.phase === "cancel_scheduled"),
+    );
+    if (action.type === "purge") {
+      if (nowMs < purgeMs) {
+        skippedProtected += 1;
+        continue;
+      }
+      kept.push({
+        ...action,
+        deleteContractData: action.deleteContractData && !alive,
+      });
+      continue;
+    }
+    kept.push(action);
+  }
+  return { actions: kept, skippedComp, skippedProtected };
+}
+
+/** Trockenlauf führt keine Erinnerung und keine Löschung aus. */
+export function jobEffects(actions: JobAction[], dryRun: boolean): JobAction[] {
+  return dryRun ? [] : actions;
+}
+
 export function planLifecycleJob(rows: LifecycleRow[], nowMs: number): JobAction[] {
   const actions: JobAction[] = [];
   for (const row of rows) {
@@ -425,6 +547,7 @@ export function accessForRows(rows: LifecycleRow[]): LifecycleAccess {
 export type LifecycleNotice = {
   phase: LifecyclePhase | "none";
   label: string;
+  downloadsLabel: string;
   detail: string;
   writesOpen: boolean;
   downloadsOpen: boolean;
@@ -440,6 +563,7 @@ export function lifecycleNotice(rows: LifecycleRow[]): LifecycleNotice {
     return {
       phase: purged ? "purged" : "none",
       label: "",
+      downloadsLabel: "",
       detail: purged
         ? "Ihre bisherigen Entwürfe und Dokumente wurden nach der Frist von 30 Tagen gelöscht. Ein neues Abonnement beginnt ohne diese Daten."
         : "",
@@ -451,11 +575,15 @@ export function lifecycleNotice(rows: LifecycleRow[]): LifecycleNotice {
   }
   if (selected.phase === "cancel_scheduled") {
     const label = cancellationStatusLabel(selected.periodEnd);
+    const downloadsLabel = downloadsAvailableLabel(
+      downloadsAvailableUntilIso({ periodEnd: selected.periodEnd }),
+    );
     return {
       phase: "cancel_scheduled",
       label,
+      downloadsLabel,
       detail:
-        "Pflege und neue Versionen enden an diesem Datum. Bis dahin bleiben Download und weitere Versionen verfügbar. Danach können Sie bereits erzeugte PDFs noch 30 Tage herunterladen oder das Abonnement wiederherstellen.",
+        "Pflege und neue Versionen enden an diesem Datum. Bis dahin und noch 30 Tage danach bleiben bereits erzeugte PDFs zum Download verfügbar. In dieser Frist können Sie das Abonnement wiederherstellen.",
       writesOpen: true,
       downloadsOpen: true,
       showCancel: true,
@@ -464,10 +592,12 @@ export function lifecycleNotice(rows: LifecycleRow[]): LifecycleNotice {
   }
   if (selected.phase === "restore") {
     const ended = formatBerlinDate(selected.endedAt || selected.periodEnd);
-    const until = formatBerlinDate(selected.restoreUntil || selected.purgeAt);
+    const untilIso = downloadsAvailableUntilIso(selected);
+    const until = formatBerlinDate(untilIso);
     return {
       phase: "restore",
       label: ended ? `Abo beendet am ${ended}` : "Abo beendet",
+      downloadsLabel: downloadsAvailableLabel(untilIso),
       detail: until
         ? `Download und Wiederherstellung bis ${until}. Online-Pflege und neue Versionen sind entfallen.`
         : "Download und Wiederherstellung sind noch möglich. Online-Pflege und neue Versionen sind entfallen.",
@@ -480,6 +610,7 @@ export function lifecycleNotice(rows: LifecycleRow[]): LifecycleNotice {
   return {
     phase: "active",
     label: "",
+    downloadsLabel: "",
     detail: "",
     writesOpen: true,
     downloadsOpen: true,

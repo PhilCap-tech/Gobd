@@ -8,6 +8,10 @@ import {
 import {
   confirmIdempotencyKey,
   endedIdempotencyKey,
+  guardLifecycleActions,
+  jobEffects,
+  LIFECYCLE_JOB_DRY_RUN,
+  lifecycleActionLog,
   markMailDelivered,
   nextLifecycle,
   planLifecycleJob,
@@ -106,12 +110,30 @@ export async function remindLifecycleRow(row: LifecycleRow, at: string): Promise
   return saved;
 }
 
-export async function runLifecycleJob(now = new Date()): Promise<{
+export async function runLifecycleJob(
+  now = new Date(),
+  options?: { dryRun?: boolean },
+): Promise<{
+  dryRun: boolean;
   reminded: number;
   purged: number;
+  planned: number;
 }> {
+  const dryRun = options?.dryRun ?? LIFECYCLE_JOB_DRY_RUN;
   const rows = await listLifecycleRows();
-  const actions = planLifecycleJob(rows, now.getTime());
+  const nowMs = now.getTime();
+  const guarded = guardLifecycleActions(planLifecycleJob(rows, nowMs), rows, nowMs);
+  for (const action of guarded.actions) {
+    console.info("[kuendigung] Lauf", lifecycleActionLog(action, dryRun));
+  }
+  if (guarded.skippedComp > 0 || guarded.skippedProtected > 0) {
+    console.info("[kuendigung] Lauf ausgelassen", {
+      skippedComp: guarded.skippedComp,
+      skippedProtected: guarded.skippedProtected,
+      dryRun,
+    });
+  }
+  const actions = jobEffects(guarded.actions, dryRun);
   let reminded = 0;
   let purged = 0;
   for (const action of actions) {
@@ -121,9 +143,10 @@ export async function runLifecycleJob(now = new Date()): Promise<{
       continue;
     }
     await purgeLifecycleAction(action, now.toISOString());
+    console.info("[kuendigung] Löschung", lifecycleActionLog(action, false));
     purged += 1;
   }
-  return { reminded, purged };
+  return { dryRun, reminded, purged, planned: guarded.actions.length };
 }
 
 async function purgeLifecycleAction(action: Extract<JobAction, { type: "purge" }>, at: string) {

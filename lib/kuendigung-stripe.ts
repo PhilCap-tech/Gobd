@@ -1,5 +1,6 @@
 import { applyLifecycleEvent } from "@/lib/kuendigung-apply";
 import {
+  subscriptionCancelScheduled,
   subscriptionPeriodEndUnix,
   unixToIso,
   type LifecycleEvent,
@@ -54,7 +55,7 @@ export async function loadCancellationPreview(customerId: string): Promise<Cance
       subscriptionId: pending.id,
       periodEnd: periodEndIso(pending),
       status: pending.status,
-      alreadyScheduled: pending.cancel_at_period_end === true,
+      alreadyScheduled: subscriptionCancelScheduled(pending),
       lookupFailed: false,
     };
   } catch (error) {
@@ -135,7 +136,7 @@ export function lifecycleEventFromSubscription(input: {
     subscriptionId: input.subscription.id,
     periodEnd,
     status: input.subscription.status,
-    cancelAtPeriodEnd: input.subscription.cancel_at_period_end === true,
+    cancelAtPeriodEnd: subscriptionCancelScheduled(input.subscription),
     cancellationReason: reason,
   };
 }
