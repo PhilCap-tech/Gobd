@@ -41,6 +41,10 @@
   line-height: 1.08;
   letter-spacing: -0.01em;
   margin: 0 0 0.4em;
+  /* Only the soft hyphen in „Verfahrens­dokumentation“ may break the H1. */
+  hyphens: manual;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .page :global(.h1-keep) {
@@ -322,6 +326,17 @@
   margin: 14px 0 0;
   font-size: 13px;
   color: var(--muted);
+}
+
+.factBar {
+  margin: 0;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--forest);
 }
 
 .section {
