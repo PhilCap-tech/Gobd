@@ -27,8 +27,7 @@
 
 .page :global(h1),
 .page :global(h2),
-.page :global(h3),
-.page :global(.logo-word) {
+.page :global(h3) {
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
   font-weight: 400;
   color: var(--forest);
@@ -89,9 +88,12 @@
 }
 
 .page :global(.logo-word) {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
   font-size: 1.35rem;
+  font-weight: 400;
   letter-spacing: 0;
   line-height: 1.15;
+  color: var(--forest);
 }
 
 .page :global(.nav) {
@@ -557,11 +559,11 @@
   padding: 44px;
 }
 
-.priceBox :global(h2),
-.priceBox h2,
-.final :global(h2),
-.final h2 {
-  color: var(--cream);
+/* Cream on forest. Must beat the page heading color (a grouped :is() rule). */
+.page .priceBox :global(h2),
+.page .final :global(h2) {
+  color: #f6f1e7;
+  opacity: 1;
 }
 
 .priceBox .eyebrow,
@@ -615,6 +617,19 @@
 .due th,
 .due td {
   font-weight: 700;
+}
+
+.priceCta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.priceCta .fine {
+  margin: 0;
 }
 
 .side h3 {
@@ -766,8 +781,13 @@
   .split,
   .priceLayout,
   .faqGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
+  }
+
+  .priceCta {
+    width: 100%;
+    align-items: stretch;
   }
 
   .modgrid > :nth-child(2) {

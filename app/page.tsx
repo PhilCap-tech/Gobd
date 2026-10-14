@@ -21,6 +21,7 @@ import {
   HERO_FACTS_LINE,
   HERO_PRICE_BOX,
   HERO_SCOPE_LINE,
+  PRICE_CTA_SUFFIX,
   PRICE_FRAME_LINE,
   PRICE_INCLUSION_LINE,
   INTAKE_EFFORT_LINE,
@@ -458,9 +459,12 @@ export default function HomePage() {
                 </tbody>
               </table>
               <div className={styles.ctas}>
-                <Link className={`btn ${styles.btnOnDark}`} href="/checkout">
-                  {CTA_CREATE_WITH_PRICE}
-                </Link>
+                <div className={styles.priceCta}>
+                  <Link className={`btn ${styles.btnOnDark}`} href="/checkout">
+                    {CTA_CREATE}
+                  </Link>
+                  <p className={styles.fine}>{PRICE_CTA_SUFFIX}</p>
+                </div>
                 <Link className={styles.textLink} href="#muster">
                   {CTA_MUSTER}
                 </Link>
