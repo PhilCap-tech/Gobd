@@ -3,6 +3,7 @@ import { mkdir, open, readFile } from "node:fs/promises";
 import path from "node:path";
 import { get, put } from "@vercel/blob";
 import { blobMissing, exclusiveBlobCreate, type ExclusivePut } from "@/lib/ampel-blob-slot";
+import { assertLiveWriteAllowed, automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { getMagicLinkSecret, isMagicLinkConfigured } from "@/lib/env";
 import { AMPEL_EMAIL_LIMIT, AMPEL_IP_LIMIT, AMPEL_RATE_BLOB_CACHE_MAX_AGE } from "@/lib/ampel-rate-limit";
 import { getFileFallbackDir } from "@/lib/store";
@@ -96,6 +97,7 @@ export function createMemoryAmpelSendTokenStore(): AmpelSendTokenStore {
 }
 
 const blobPut: ExclusivePut = async (pathname, body, options) => {
+  assertLiveWriteAllowed("blob");
   const result = await put(pathname, body, options);
   return { pathname: result.pathname };
 };
@@ -192,7 +194,10 @@ let shared: AmpelSendTokenStore | null = null;
 
 export function ampelSendTokenStore(): AmpelSendTokenStore {
   if (!shared) {
-    shared = process.env.BLOB_READ_WRITE_TOKEN?.trim() ? blobTokenStore() : fileTokenStore();
+    shared =
+      process.env.BLOB_READ_WRITE_TOKEN?.trim() && !automatedRunForbidsLiveWrites()
+        ? blobTokenStore()
+        : fileTokenStore();
   }
   return shared;
 }

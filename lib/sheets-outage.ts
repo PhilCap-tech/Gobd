@@ -71,11 +71,13 @@ export async function retrySheetsCall<T>(
 export function createTtlSingleflight<T>(ttlMs: number) {
   let entry: { at: number; value: T } | null = null;
   let inflight: Promise<T> | null = null;
+  let generation = 0;
   const freshEnough = (at: number) => Date.now() - at < ttlMs;
   return {
     clear() {
       entry = null;
       inflight = null;
+      generation += 1;
     },
     peek(): T | null {
       if (!entry || !freshEnough(entry.at)) return null;
@@ -87,8 +89,9 @@ export function createTtlSingleflight<T>(ttlMs: number) {
     async read(load: () => Promise<T>, fresh = false): Promise<T> {
       if (!fresh && entry && freshEnough(entry.at)) return entry.value;
       if (!fresh && inflight) return inflight;
+      const token = generation;
       const run = load().then((value) => {
-        entry = { at: Date.now(), value };
+        if (token === generation) entry = { at: Date.now(), value };
         return value;
       });
       const current = run.finally(() => {

@@ -13,7 +13,13 @@ import {
   type Membership,
 } from "@/lib/memberships";
 import { createSheetsClient } from "@/lib/sheets-client";
-import { SheetsUnavailableError, isSheetsOutage, sheetsStatusCode } from "@/lib/sheets-outage";
+import {
+  createTtlSingleflight,
+  retrySheetsCall,
+  SheetsUnavailableError,
+  isSheetsOutage,
+  sheetsStatusCode,
+} from "@/lib/sheets-outage";
 import { getFileFallbackDir } from "@/lib/store";
 
 const FILE_NAME = "memberships.json";
@@ -28,10 +34,19 @@ const SHEETS_GET_OPTS = {
 let fileRootOverride: string | null = null;
 let chain: Promise<unknown> = Promise.resolve();
 
+/** Short enough that a new invitation shows up, long enough to absorb a 429 burst. */
+const MEMBERSHIP_READ_TTL_MS = 10_000;
+const membershipRowsCache = createTtlSingleflight<Membership[]>(MEMBERSHIP_READ_TTL_MS);
+
+export function clearMembershipReadCache(): void {
+  membershipRowsCache.clear();
+}
+
 /** Isoliertes Verzeichnis für die Prüfung. Kein Sheet, kein Produktionspfad. */
 export function setMembershipStoreTestHooks(hooks: { dir: string } | null): void {
   fileRootOverride = hooks?.dir ?? null;
   chain = Promise.resolve();
+  clearMembershipReadCache();
 }
 
 export class MembershipConflictError extends Error {
@@ -133,26 +148,31 @@ async function ensureHeader(): Promise<string[]> {
   const tab = getMembershipsSheetsTab();
   const sheets = createSheetsClient();
   const id = spreadsheetId();
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
+  const meta = await retrySheetsCall("memberships.meta", () =>
+    sheets.spreadsheets.get({ spreadsheetId: id }),
+  );
   const exists = meta.data.sheets?.some((sheet) => sheet.properties?.title === tab);
   if (!exists) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: id,
-      requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
-    });
+    await retrySheetsCall("memberships.addSheet", () =>
+      sheets.spreadsheets.batchUpdate({
+        spreadsheetId: id,
+        requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
+      }),
+    );
   }
-  const existing = await sheets.spreadsheets.values.get(
-    { spreadsheetId: id, range: `${tab}!A1:AZ1` },
-    SHEETS_GET_OPTS,
+  const existing = await retrySheetsCall("memberships.header", () =>
+    sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${tab}!A1:AZ1` }, SHEETS_GET_OPTS),
   );
   const header = (existing.data.values?.[0] ?? []).map((cell) => String(cell));
   if (header.length === 0) {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: id,
-      range: `${tab}!A1`,
-      valueInputOption: "RAW",
-      requestBody: { values: [MEMBERSHIP_SHEET_COLUMNS as unknown as string[]] },
-    });
+    await retrySheetsCall("memberships.header", () =>
+      sheets.spreadsheets.values.append({
+        spreadsheetId: id,
+        range: `${tab}!A1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [MEMBERSHIP_SHEET_COLUMNS as unknown as string[]] },
+      }),
+    );
     return [...MEMBERSHIP_SHEET_COLUMNS];
   }
   const missing = MEMBERSHIP_SHEET_COLUMNS.filter((col) => {
@@ -162,22 +182,26 @@ async function ensureHeader(): Promise<string[]> {
   });
   if (missing.length === 0) return header;
   const next = [...header, ...missing];
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: id,
-    range: `${tab}!A1`,
-    valueInputOption: "RAW",
-    requestBody: { values: [next] },
-  });
+  await retrySheetsCall("memberships.header", () =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${tab}!A1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [next] },
+    }),
+  );
   return next;
 }
 
-async function readSheetRows(): Promise<Membership[]> {
+async function readMembershipSheet(): Promise<Membership[]> {
   const header = await ensureHeader();
   const tab = getMembershipsSheetsTab();
   const sheets = createSheetsClient();
-  const result = await sheets.spreadsheets.values.get(
-    { spreadsheetId: spreadsheetId(), range: `${tab}!A2:AZ` },
-    SHEETS_GET_OPTS,
+  const result = await retrySheetsCall("memberships.values", () =>
+    sheets.spreadsheets.values.get(
+      { spreadsheetId: spreadsheetId(), range: `${tab}!A2:AZ` },
+      SHEETS_GET_OPTS,
+    ),
   );
   return (result.data.values ?? [])
     .filter((row) => row.some((cell) => String(cell ?? "").trim()))
@@ -185,15 +209,22 @@ async function readSheetRows(): Promise<Membership[]> {
     .filter((row): row is Membership => Boolean(row));
 }
 
+async function readSheetRows(): Promise<Membership[]> {
+  return membershipRowsCache.read(readMembershipSheet);
+}
+
 async function appendSheetRow(row: Membership): Promise<void> {
   const header = await ensureHeader();
   const sheets = createSheetsClient();
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: spreadsheetId(),
-    range: `${getMembershipsSheetsTab()}!A1`,
-    valueInputOption: "RAW",
-    requestBody: { values: [membershipSheetValues(row, header)] },
-  });
+  await retrySheetsCall("memberships.append", () =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId: spreadsheetId(),
+      range: `${getMembershipsSheetsTab()}!A1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [membershipSheetValues(row, header)] },
+    }),
+  );
+  clearMembershipReadCache();
 }
 
 async function updateSheetRow(row: Membership): Promise<boolean> {
@@ -201,9 +232,8 @@ async function updateSheetRow(row: Membership): Promise<boolean> {
   const sheets = createSheetsClient();
   const tab = getMembershipsSheetsTab();
   const id = spreadsheetId();
-  const result = await sheets.spreadsheets.values.get(
-    { spreadsheetId: id, range: `${tab}!A2:AZ` },
-    SHEETS_GET_OPTS,
+  const result = await retrySheetsCall("memberships.values", () =>
+    sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${tab}!A2:AZ` }, SHEETS_GET_OPTS),
   );
   const values = result.data.values ?? [];
   const updates: Array<{ range: string; values: string[][] }> = [];
@@ -219,10 +249,13 @@ async function updateSheetRow(row: Membership): Promise<boolean> {
     });
   }
   if (updates.length === 0) return false;
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId: id,
-    requestBody: { valueInputOption: "RAW", data: updates },
-  });
+  await retrySheetsCall("memberships.update", () =>
+    sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: id,
+      requestBody: { valueInputOption: "RAW", data: updates },
+    }),
+  );
+  clearMembershipReadCache();
   return true;
 }
 

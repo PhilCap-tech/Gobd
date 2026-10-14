@@ -19,6 +19,8 @@ export type AmpelStatsEntry = {
   result: AmpelResultLabel;
   optIn: AmpelOptInLabel;
   mailed: AmpelMailedLabel;
+  /** Hidden by default. `intern` is a company domain, `Test` every other fixture. */
+  note: "" | "Test" | "intern";
   test: boolean;
 };
 
@@ -112,18 +114,27 @@ export function ampelCountWindows(now: Date): { todayStart: number; last7Start: 
   };
 }
 
-export function isAmpelTestEmail(email: string): boolean {
+const INTERNAL_DOMAINS = new Set(["ikat-gmbh.de", "sdc-ventures.com"]);
+
+export function ampelAddressNote(email: string): "" | "Test" | "intern" {
   const normalized = email.trim().toLowerCase();
   const at = normalized.indexOf("@");
-  if (at <= 0 || at !== normalized.lastIndexOf("@")) return false;
+  if (at <= 0 || at !== normalized.lastIndexOf("@")) return "";
   const local = normalized.slice(0, at);
   const domain = normalized.slice(at + 1);
-  if (!local || !domain || domain.includes(" ")) return false;
-  if (local.startsWith("gobd16x-")) return true;
+  if (!local || !domain || domain.includes(" ")) return "";
+  if (INTERNAL_DOMAINS.has(domain)) return "intern";
+  if (domain === "example.com") return "Test";
+  if (local.startsWith("gobd16x-")) return "Test";
   if (domain === "maxxspace.com" || domain === "mail.tm" || domain === "gobd-doku-erstellen.de") {
-    return true;
+    return "Test";
   }
-  return normalized === "cappe@gmx.de";
+  if (normalized === "cappe@gmx.de") return "Test";
+  return "";
+}
+
+export function isAmpelTestEmail(email: string): boolean {
+  return ampelAddressNote(email) !== "";
 }
 
 export function ampelLeadInstant(lead: Pick<ReadinessLead, "timestamp" | "consentAt">): number | null {
@@ -197,7 +208,8 @@ export function buildAmpelStats(
   for (const row of rows) {
     if (!row.leadId.startsWith("ampel-")) continue;
     const instant = ampelLeadInstant(row);
-    const test = isAmpelTestEmail(row.email);
+    const note = ampelAddressNote(row.email);
+    const test = note !== "";
     bump(withTests, instant, windows, nowMs);
     if (!test) bump(withoutTests, instant, windows, nowMs);
     if (test && !includeTests) continue;
@@ -208,6 +220,7 @@ export function buildAmpelStats(
       result: ampelResultLabel(row.ampelLight),
       optIn: ampelOptInLabel(row),
       mailed: ampelMailedLabel(row.mailed),
+      note,
       test,
     });
   }

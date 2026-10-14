@@ -50,13 +50,13 @@ function Report({ report }: { report: AmpelStatsReport }) {
       </div>
       <p className="actions">
         <a className="btn ghost" href={toggleHref}>
-          {report.includeTests ? "Testadressen ausblenden" : "Testadressen einblenden"}
+          {report.includeTests ? "Test- und interne Adressen ausblenden" : "Test- und interne Adressen einblenden"}
         </a>
       </p>
       <p>
         {report.includeTests
-          ? "Testadressen sind in der Liste markiert."
-          : "Testadressen sind in der Liste ausgeblendet. Die Zähler oben bleiben vollständig."}
+          ? "Test- und interne Adressen sind in der Liste markiert."
+          : "Test- und interne Adressen sind in der Liste ausgeblendet. Die Zähler oben bleiben vollständig."}
       </p>
       {report.entries.length === 0 ? (
         <p>Keine Einträge in dieser Ansicht.</p>
@@ -82,7 +82,7 @@ function Report({ report }: { report: AmpelStatsReport }) {
                   <td>{entry.result}</td>
                   <td>{entry.optIn}</td>
                   <td>{entry.mailed}</td>
-                  <td>{entry.test ? "Test" : ""}</td>
+                  <td>{entry.note}</td>
                 </tr>
               ))}
             </tbody>

@@ -61,6 +61,15 @@ export default async function AccountPage({
   const portalCopy = portalStatus ? portalStatusCopy(portalStatus) : null;
 
   const loaded = await runWithSheetsMeasure("GET /account", async () => {
+    const prepare = async () => {
+      try {
+        return await prepareAccountCheckout(email);
+      } catch (error) {
+        if (!isSheetsOutage(error)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        return prepareAccountCheckout(email);
+      }
+    };
     let entities: Awaited<ReturnType<typeof prepareAccountCheckout>>["entities"] = [];
     let docs: Awaited<ReturnType<typeof prepareAccountCheckout>>["documents"] = [];
     let profile: Awaited<ReturnType<typeof prepareAccountCheckout>>["profile"] = null;
@@ -70,10 +79,11 @@ export default async function AccountPage({
     let sheetsDown = false;
     let customerId = "";
     let loadFailed = false;
+    let firmsReady = false;
     let lifecycleRows: Awaited<ReturnType<typeof listLifecycleByEmail>> = [];
     let openPaidSession = "";
     try {
-      const prepared = await prepareAccountCheckout(email);
+      const prepared = await prepare();
       entities = prepared.entities;
       docs = prepared.documents;
       profile = prepared.profile;
@@ -81,16 +91,25 @@ export default async function AccountPage({
       groups = hub.groups;
       openDrafts = hub.openDrafts;
       looseDrafts = draftsNotOnCompanyCard(hub);
-      customerId = compAccess
-        ? ""
-        : ((await findLatestStripeCustomerIdByEmail(email)) ?? "");
+      firmsReady = true;
     } catch (error) {
       loadFailed = true;
+      firmsReady = false;
       console.error(
         "[account] Konto nicht geladen",
         error instanceof Error ? error.name : "error",
       );
       sheetsDown = isSheetsOutage(error);
+    }
+    if (!loadFailed && !compAccess) {
+      try {
+        customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
+      } catch (error) {
+        console.error(
+          "[account] Stripe-Kunde nicht gelesen",
+          error instanceof Error ? error.name : "error",
+        );
+      }
     }
     try {
       lifecycleRows = await listLifecycleByEmail(email);
@@ -118,6 +137,7 @@ export default async function AccountPage({
       sheetsDown,
       customerId,
       loadFailed,
+      firmsReady,
       lifecycleRows,
       openPaidSession,
     };
@@ -132,6 +152,7 @@ export default async function AccountPage({
     sheetsDown,
     customerId,
     loadFailed,
+    firmsReady,
     lifecycleRows,
     openPaidSession,
   } = loaded;
@@ -208,7 +229,7 @@ export default async function AccountPage({
         )}
 
         <div className="account-companies" id="firmen">
-          {loadFailed ? (
+          {!firmsReady || loadFailed ? (
             <div className="card">
               <p className="prose">
                 {sheetsDown

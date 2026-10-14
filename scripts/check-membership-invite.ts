@@ -25,6 +25,8 @@ import {
 import { sessionOwnerDenial } from "../lib/checkout-access";
 import type { Entity } from "../lib/entities";
 import { getMagicLinkSecret } from "../lib/env";
+import { installSheetsHandler } from "../lib/sheets-client";
+import { SHEETS_RETRY_MESSAGE, SheetsUnavailableError } from "../lib/sheets-unavailable";
 import { setMailDedupeTestHooks } from "../lib/mail-dedupe";
 import { pdfAllowedForMembership } from "../lib/membership-access";
 import {
@@ -39,13 +41,21 @@ import {
 } from "../lib/membership-invite";
 import { INVITE_MAIL_FROM } from "../lib/membership-mail";
 import {
+  clearMembershipReadCache,
   getMembership,
   insertMembership,
+  listMemberships,
   listMembershipsByEntity,
   listMembershipsByMember,
   setMembershipStoreTestHooks,
 } from "../lib/membership-store";
-import { hashInviteJti, inviteHashMatches, type Membership } from "../lib/memberships";
+import {
+  hashInviteJti,
+  inviteHashMatches,
+  MEMBERSHIP_SHEET_COLUMNS,
+  membershipSheetValues,
+  type Membership,
+} from "../lib/memberships";
 import { emptySheetRow } from "../lib/types";
 
 function ok(condition: unknown, message: string) {
@@ -302,6 +312,52 @@ async function main() {
     ok(!expiredPreview.ok, "expired token is rejected");
     if (expiredPreview.ok) throw new Error("expired preview");
 
+    const outageInvite = await postInvite(
+      new Request("http://localhost/api/auth/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityId: nordlicht.entityId,
+          memberEmail: MEMBER,
+          moduleIds: [],
+        }),
+      }),
+      {
+        sessionEmail: async () => OWNER,
+        ownedEntity: async () => {
+          throw new SheetsUnavailableError(429);
+        },
+        invite: inviteMitwirkende,
+      },
+    );
+    const outageInviteBody = (await outageInvite.json()) as { error?: string };
+    ok(outageInvite.status === 503, "invite read outage is 503");
+    ok(outageInviteBody.error === SHEETS_RETRY_MESSAGE, "invite outage uses the retry sentence");
+    ok(outageInviteBody.error !== "Kein Zugriff.", "invite outage is not a missing firm");
+
+    await assert.rejects(
+      () =>
+        acceptInvite(rotated, async () => {
+          throw new SheetsUnavailableError(503);
+        }),
+      (error: unknown) => error instanceof SheetsUnavailableError,
+      "accept does not turn a company read error into an invalid link",
+    );
+    const outageAccept = await postAccept(
+      new Request("http://localhost/api/auth/invite/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: rotated }),
+      }),
+      async () => {
+        throw new SheetsUnavailableError(503);
+      },
+    );
+    const outageAcceptBody = (await outageAccept.json()) as { error?: string };
+    ok(outageAccept.status === 503, "accept read outage is 503");
+    ok(outageAcceptBody.error === SHEETS_RETRY_MESSAGE, "accept outage uses the retry sentence");
+    ok(outageAcceptBody.error !== INVITE_LINK_INVALID, "accept outage is not an invalid link");
+
     const accepted = await postAccept(
       new Request("http://localhost/api/auth/invite/accept", {
         method: "POST",
@@ -403,6 +459,96 @@ async function main() {
     ok(!page.includes("/api/docs") && !form.includes("download"), "acceptance page has no PDF download");
     ok(panel.includes("Mitwirkende") && !panel.includes("Mitarbeitende"), "the role is Mitwirkende");
     ok(readFileSync(path.join(root, "app/api/docs/[id]/download/route.ts"), "utf8").includes("pdfAllowedForMembership"), "download uses the membership PDF rule");
+    const firmPage = readFileSync(path.join(root, "app/account/firma/[id]/page.tsx"), "utf8");
+    ok(firmPage.includes("entityUnavailable"), "firm page records a read failure separately");
+    ok(
+      firmPage.includes("unavailable ? SHEETS_RETRY_MESSAGE"),
+      "a firm read failure shows the retry sentence",
+    );
+    const invitePage = readFileSync(path.join(root, "app/auth/invite/page.tsx"), "utf8");
+    ok(invitePage.includes("previewUnavailable"), "invite page records a read failure separately");
+    const accountPage = readFileSync(path.join(root, "app/account/page.tsx"), "utf8");
+    const emptyAt = accountPage.indexOf("Zu dieser E-Mail liegt noch keine Firma vor.");
+    const readyAt = accountPage.indexOf("firmsReady");
+    ok(readyAt >= 0 && emptyAt > readyAt, "the empty firm list is only the successful read");
+
+    const savedSheets = {
+      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      sheet: process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
+      vercel: process.env.VERCEL,
+    };
+    setMembershipStoreTestHooks(null);
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = "sheets@example.com";
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "test-key";
+    process.env.GOOGLE_SHEETS_SPREADSHEET_ID = "sheet-test";
+    const sheetRow: Membership = {
+      membershipId: "mem-sheet",
+      ownerEmail: OWNER,
+      memberEmail: MEMBER,
+      entityId: nordlicht.entityId,
+      status: "pending",
+      moduleIds: "",
+      tokenHash: "",
+      invitedAt: "2026-10-14T08:00:00.000Z",
+      acceptedAt: "",
+      revokedAt: "",
+      invitedBy: OWNER,
+      updatedAt: "2026-10-14T08:00:00.000Z",
+    };
+    try {
+      let valueGets = 0;
+      installSheetsHandler(async ({ op, args }) => {
+        if (op === "spreadsheets.get") {
+          return { data: { sheets: [{ properties: { title: "memberships" } }] } };
+        }
+        if (op === "values.get") {
+          valueGets += 1;
+          if (valueGets <= 2) {
+            const error = new Error("quota") as Error & { response?: { status: number } };
+            error.response = { status: 429 };
+            throw error;
+          }
+          const range = typeof args.range === "string" ? args.range : "";
+          if (range.includes("A1:")) {
+            return { data: { values: [[...MEMBERSHIP_SHEET_COLUMNS]] } };
+          }
+          return { data: { values: [membershipSheetValues(sheetRow)] } };
+        }
+        throw new Error(`unexpected ${op}`);
+      });
+      clearMembershipReadCache();
+      const recovered = await listMemberships();
+      ok(
+        recovered.some((row) => row.membershipId === "mem-sheet"),
+        "a membership read retries 429 and then returns the row",
+      );
+      ok(valueGets >= 3, "the 429 was retried before the row was read");
+
+      clearMembershipReadCache();
+      installSheetsHandler(async () => {
+        const error = new Error("down") as Error & { response?: { status: number } };
+        error.response = { status: 503 };
+        throw error;
+      });
+      process.env.VERCEL = "1";
+      await assert.rejects(
+        () => listMemberships(),
+        (error: unknown) => error instanceof SheetsUnavailableError,
+        "a membership read outage stays an error and is not an empty list",
+      );
+    } finally {
+      installSheetsHandler(null);
+      clearMembershipReadCache();
+      const restore = (name: string, value: string | undefined) => {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      };
+      restore("GOOGLE_SERVICE_ACCOUNT_EMAIL", savedSheets.email);
+      restore("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", savedSheets.key);
+      restore("GOOGLE_SHEETS_SPREADSHEET_ID", savedSheets.sheet);
+      restore("VERCEL", savedSheets.vercel);
+    }
 
     console.log("check-membership-invite: ok");
   } finally {

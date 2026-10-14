@@ -28,6 +28,7 @@ import {
 import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
+import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { findLatestAmpelReadinessLead, purgeExpiredAmpelLeads, upsertReadinessLead } from "@/lib/store";
 import type { ReadinessLead } from "@/lib/readiness";
 
@@ -143,6 +144,7 @@ async function confirmMarketing(input: AmpelConfirmationInput): Promise<AmpelCon
     findLead: (leadEmail, leadAnswers) =>
       findLatestAmpelReadinessLead(leadEmail, leadAnswers, { fresh: true }),
     saveLead: async (lead) => {
+      if (automatedRunForbidsLiveWrites()) return;
       await upsertReadinessLead(lead);
     },
     sendConfirmation: sendAmpelConfirmationMail,
@@ -277,6 +279,7 @@ export async function deliverAmpelResult(
   }
 
   const purge = deps.purge ?? (async () => {
+    if (automatedRunForbidsLiveWrites()) return;
     await purgeExpiredAmpelLeads(now);
   });
   try {
@@ -303,6 +306,7 @@ export async function deliverAmpelResult(
       lead.status = "ampel_pdf";
       lead.timestamp = consentAt;
       const save = deps.saveLead ?? (async (row: ReadinessLead) => {
+        if (automatedRunForbidsLiveWrites()) return;
         await upsertReadinessLead(row);
       });
       await withDeadline(save(lead), timeoutMs);

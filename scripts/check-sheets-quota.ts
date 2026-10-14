@@ -16,7 +16,7 @@ import {
   clearDocumentIndexMemory,
   installDocumentIndex,
 } from "../lib/document-index";
-import { emptyEntity } from "../lib/entities";
+import { emptyEntity, ENTITY_SHEET_COLUMNS } from "../lib/entities";
 import { fetchRetrying503, isPdfResponse } from "../lib/fetch-retry";
 import type { IntakeDraft } from "../lib/intake-draft-shared";
 import { clearLifecycleReadCache, listLifecycleByEmail } from "../lib/kuendigung-store";
@@ -387,6 +387,51 @@ async function main() {
       (error: unknown) => error instanceof SheetsUnavailableError,
       "a readiness read on Vercel does not fall back to an empty file",
     );
+
+    clearAllSheetReadCaches();
+    let entityBatches = 0;
+    installSheetsHandler(async ({ op, args }) => {
+      if (op !== "values.batchGet") throw new Error(op);
+      entityBatches += 1;
+      const ranges = Array.isArray(args.ranges) ? args.ranges.map(String) : [];
+      const headerReady = entityBatches > 1;
+      return {
+        data: {
+          valueRanges: ranges.map((range) => {
+            if (range.includes("!A1:")) {
+              return { values: headerReady ? [[...ENTITY_SHEET_COLUMNS]] : [[]] };
+            }
+            return { values: [["ent-hidden", BUYER, "Sichtbare GmbH"]] };
+          }),
+        },
+      };
+    });
+    const recoveredFirms = await listEntitiesByEmail(BUYER);
+    ok(
+      recoveredFirms.some((row) => row.entityId === "ent-hidden"),
+      "a company read with rows but no header retries and does not come back empty",
+    );
+    clearAllSheetReadCaches();
+    entityBatches = 0;
+    installSheetsHandler(async ({ op, args }) => {
+      if (op !== "values.batchGet") throw new Error(op);
+      const ranges = Array.isArray(args.ranges) ? args.ranges.map(String) : [];
+      return {
+        data: {
+          valueRanges: ranges.map((range) => {
+            if (range.includes("!A1:")) return { values: [[]] };
+            return { values: [["ent-hidden", BUYER, "Sichtbare GmbH"]] };
+          }),
+        },
+      };
+    });
+    await assert.rejects(
+      () => listEntitiesByEmail(BUYER),
+      (error: unknown) => error instanceof SheetsUnavailableError,
+      "a company grid that stays headerless is an outage, not zero firms",
+    );
+    clearAllSheetReadCaches();
+    installClient();
     delete process.env.VERCEL;
     failSheets = false;
 

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { MODULE } from "@/lib/module/katalog";
-import { previewInvite } from "@/lib/membership-invite";
+import { previewInvite, type InvitePreview } from "@/lib/membership-invite";
+import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { getEntity } from "@/lib/store";
 import { InviteAcceptForm } from "./accept-form";
 
@@ -27,7 +28,19 @@ export default async function InvitePage({
 }) {
   const params = await searchParams;
   const token = (Array.isArray(params.token) ? params.token[0] : params.token)?.trim() ?? "";
-  const preview = token ? await previewInvite(token, getEntity) : null;
+  let preview: InvitePreview | null = null;
+  let previewUnavailable = false;
+  if (token) {
+    try {
+      preview = await previewInvite(token, getEntity);
+    } catch (error) {
+      previewUnavailable = true;
+      console.error(
+        "[invite] Einladung nicht gelesen",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+  }
 
   return (
     <>
@@ -35,7 +48,11 @@ export default async function InvitePage({
       <main className="wrap page">
         <p className="kicker">Mitwirkende</p>
         <h1>Einladung annehmen</h1>
-        {!preview?.ok ? (
+        {previewUnavailable ? (
+          <div className="card">
+            <p className="prose">{SHEETS_RETRY_MESSAGE}</p>
+          </div>
+        ) : !preview?.ok ? (
           <div className="card">
             <p className="prose">
               Dieser Einladungslink ist nicht mehr gültig. Bitten Sie die einladende Person, die
