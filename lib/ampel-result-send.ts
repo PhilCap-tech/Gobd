@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
-import { requestAmpelConfirmation, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
+import { recordedAmpelUtm, sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
+import { requestAmpelConfirmation, type AmpelConfirmationInput, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
 import { sendAmpelConfirmationMail } from "@/lib/ampel-mail";
 import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
 import {
@@ -46,18 +46,14 @@ export type SubmitAmpelInput = {
   ipSource?: string;
   /** One-time token from the handoff response. Required to send the mail. */
   sendToken?: unknown;
+  /** First-touch utm_source. Undefined leaves older rows unchanged. */
+  utmSource?: unknown;
 };
 
 export type SubmitAmpelDeps = {
   now?: () => number;
   store?: AmpelRateStore;
-  confirm?: (input: {
-    email: string;
-    answers: string;
-    ref: string;
-    consentIp?: string;
-    consentTextVersion?: string;
-  }) => Promise<AmpelConfirmationResult>;
+  confirm?: (input: AmpelConfirmationInput) => Promise<AmpelConfirmationResult>;
   saveLead?: (lead: ReadinessLead) => Promise<void>;
   purge?: () => Promise<void>;
   mail?: (input: { email: string; answers: AmpelAnswerMap; code: string }) => Promise<MailResult>;
@@ -144,13 +140,7 @@ function delivered(mail: MailResult): boolean {
   return mail.sent || mail.stub || (mail.duplicate === true && mail.inflight !== true);
 }
 
-async function confirmMarketing(input: {
-  email: string;
-  answers: string;
-  ref: string;
-  consentIp?: string;
-  consentTextVersion?: string;
-}): Promise<AmpelConfirmationResult> {
+async function confirmMarketing(input: AmpelConfirmationInput): Promise<AmpelConfirmationResult> {
   return requestAmpelConfirmation(input, {
     findLead: (leadEmail, leadAnswers) =>
       findLatestAmpelReadinessLead(leadEmail, leadAnswers, { fresh: true }),
@@ -296,6 +286,7 @@ export async function deliverAmpelResult(
   } catch (error) {
     console.error("[ampel] Ergebnis speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
   }
+  const utmSource = input.utmSource === undefined ? undefined : recordedAmpelUtm(input.utmSource);
   try {
     const scored = scoreAmpel(answers);
     if (scored) {
@@ -309,6 +300,9 @@ export async function deliverAmpelResult(
         score: scored.score,
         light: scored.light,
         mailStatus: "pdf_sent",
+        marketingOptIn: input.marketing === true ? "pending" : "",
+        mailed: "ja",
+        ...(utmSource === undefined ? {} : { utmSource }),
       });
       lead.status = "ampel_pdf";
       lead.timestamp = consentAt;
@@ -332,6 +326,8 @@ export async function deliverAmpelResult(
           ref: sanitizeAmpelRef(input.ref),
           consentIp: input.ip,
           consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
+          mailed: "ja",
+          ...(utmSource === undefined ? {} : { utmSource }),
         }),
         timeoutMs,
       );

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { AMPEL_ADMIN_CACHE_CONTROL, AMPEL_ADMIN_ROBOTS_TAG } from "./lib/ampel-admin-headers";
 
 const noStoreHeaders = [
   {
@@ -44,6 +45,11 @@ const securityHeaders = [
     value:
       'camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com")',
   },
+];
+
+const ampelAdminHeaders = [
+  { key: "Cache-Control", value: AMPEL_ADMIN_CACHE_CONTROL },
+  { key: "X-Robots-Tag", value: AMPEL_ADMIN_ROBOTS_TAG },
 ];
 
 const nextConfig: NextConfig = {
@@ -93,6 +99,8 @@ const nextConfig: NextConfig = {
       { source: "/account/:path*", headers: noStoreHeaders },
       { source: "/checkout", headers: noStoreHeaders },
       { source: "/login", headers: noStoreHeaders },
+      { source: "/admin/ampel", headers: ampelAdminHeaders },
+      { source: "/api/admin/ampel-stats", headers: ampelAdminHeaders },
       { source: "/api/stripe/portal", headers: noStoreHeaders },
       { source: "/:path*", headers: securityHeaders },
     ];
