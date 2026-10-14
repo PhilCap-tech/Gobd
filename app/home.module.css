@@ -134,10 +134,24 @@
   max-width: 100%;
 }
 
-.page :global(a.btn:hover) {
+.page :global(a.btn:hover),
+.page :global(button.btn:hover) {
   background: #152e29;
   border-color: #152e29;
   color: var(--cream);
+}
+
+.page :global(button.btn) {
+  background: var(--forest);
+  color: var(--cream);
+  border: 1.5px solid var(--forest);
+  border-radius: 2px;
+  padding: 14px 22px;
+  font-family: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
 }
 
 .page :global(.nav a.btn) {
