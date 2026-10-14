@@ -10,6 +10,12 @@ import {
 } from "@/lib/ampel-mail-status";
 import { AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
 import { ampelRateIpKey, ampelRateStore, type AmpelRateStore } from "@/lib/ampel-rate-limit";
+import {
+  consumeAmpelSendToken,
+  issueAmpelSendToken,
+  ampelSendTokenStore,
+  type AmpelSendTokenStore,
+} from "@/lib/ampel-send-token";
 import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
@@ -27,6 +33,8 @@ export type SubmitAmpelInput = {
   marketing: unknown;
   honeypot: unknown;
   ip: string;
+  /** One-time token from the handoff response. Required to send the mail. */
+  sendToken?: unknown;
 };
 
 export type SubmitAmpelDeps = {
@@ -46,6 +54,7 @@ export type SubmitAmpelDeps = {
   /** Return after the limit check and let a second request send the mail. */
   handoff?: boolean;
   status?: AmpelMailStatusStore;
+  tokens?: AmpelSendTokenStore;
 };
 
 export type SubmitAmpelOutcome =
@@ -57,9 +66,10 @@ export type SubmitAmpelOutcome =
       mailed: boolean;
       notice?: string;
       pending?: boolean;
+      token?: string;
       limited?: "ip" | "email";
     }
-  | { ok: false; status: 400; error: string };
+  | { ok: false; status: 400 | 403; error: string };
 
 export function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -191,6 +201,14 @@ async function runSubmit(
   if (decision !== "ok") return limited(decision);
 
   if (deps.handoff) {
+    let token: string | null = null;
+    try {
+      token = await issueAmpelSendToken({ email, code, now }, deps.tokens ?? ampelSendTokenStore());
+    } catch (error) {
+      console.error("[ampel] Versandtoken fehlgeschlagen", error instanceof Error ? error.name : "error");
+      return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
+    }
+    if (!token) return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
     try {
       const status = deps.status ?? ampelMailStatusStore();
       await status.write(ampelMailStatusId(email, code), {
@@ -207,6 +225,7 @@ async function runSubmit(
       marketing: "skipped",
       mailed: false,
       pending: true,
+      token,
       notice: AMPEL_RESULT_MAIL.sending,
     };
   }
@@ -309,6 +328,22 @@ export async function completeAmpelResult(
   if (!answers || !code || !scoreAmpel(answers)) {
     return { ok: false, status: 400, error: "Bitte beantworten Sie alle Fragen." };
   }
+  const now = deps.now?.() ?? Date.now();
+  let verdict: Awaited<ReturnType<typeof consumeAmpelSendToken>> = "invalid";
+  try {
+    verdict = await consumeAmpelSendToken(
+      { token: input.sendToken, email, code, now },
+      deps.tokens ?? ampelSendTokenStore(),
+    );
+  } catch (error) {
+    console.error("[ampel] Versandtoken fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return { ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized };
+  }
+  if (verdict !== "ok") {
+    return { ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized };
+  }
+  const prior = await lookupMailDedupe(ampelPdfDedupeKey(email, code));
+  if (prior === "sent" || prior === "inflight") return alreadySent();
   const status = deps.status ?? ampelMailStatusStore();
   let row: { state: string; notice: string } | null = null;
   try {

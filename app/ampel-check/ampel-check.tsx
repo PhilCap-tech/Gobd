@@ -200,6 +200,7 @@ export function AmpelCheck() {
         pending?: boolean;
         duplicate?: boolean;
         notice?: string;
+        token?: string;
       } = {};
       try {
         data = (await response.json()) as typeof data;
@@ -225,17 +226,25 @@ export function AmpelCheck() {
         return;
       }
       if (data.pending) {
+        if (!data.token) {
+          showResult(AMPEL_RESULT_MAIL.shownWithoutMail);
+          return;
+        }
         const follow = await fetch("/api/ampel/ergebnis/senden", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, send_token: data.token }),
           signal: AbortSignal.timeout(20_000),
         });
-        let sent: { notice?: string; marketing?: string; mailed?: boolean; duplicate?: boolean } = {};
+        let sent: { notice?: string; marketing?: string; mailed?: boolean; duplicate?: boolean; error?: string } = {};
         try {
           sent = (await follow.json()) as typeof sent;
         } catch {
           sent = {};
+        }
+        if (follow.status === 403 || !follow.ok) {
+          showResult(AMPEL_RESULT_MAIL.shownWithoutMail);
+          return;
         }
         if (sent.duplicate) {
           showResult(sent.notice || AMPEL_RESULT_MAIL.alreadySent);

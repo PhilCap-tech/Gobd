@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     marketing: value.marketing,
     honeypot: value.fax_number,
     ip: ampelClientIp(request.headers),
+    sendToken: value.send_token,
   });
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });

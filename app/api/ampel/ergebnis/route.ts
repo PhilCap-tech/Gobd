@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     marketing: result.marketing,
     mailed: result.mailed,
     pending: result.pending === true,
+    ...(result.pending && result.token ? { token: result.token } : {}),
     ...(result.notice ? { notice: result.notice } : {}),
   });
 }

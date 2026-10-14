@@ -187,6 +187,7 @@ export const AMPEL_RESULT_MAIL = {
   rateLimitedIp:
     "Sie haben das Ergebnis heute bereits mehrfach angefordert. Ihr Ergebnis sehen Sie unten; eine weitere E-Mail ist in Kürze wieder möglich.",
   alreadySent: "Das Ergebnis wurde bereits an diese Adresse gesendet.",
+  sendUnauthorized: "Diese Anfrage ist nicht gültig.",
   sending: "Die E-Mail wird gesendet …",
   shownWithoutMail: "Die Auswertung sehen Sie auf dieser Seite. Die E-Mail konnte gerade nicht gesendet werden.",
   offline: "Die Verbindung ist fehlgeschlagen. Die Auswertung sehen Sie auf dieser Seite.",
