@@ -42,7 +42,8 @@ import {
   pruneAmpelRateLedger,
   type AmpelRateIo,
 } from "@/lib/ampel-rate-limit";
-import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
+import { ampelMailStatusId, createMemoryAmpelMailStatusStore } from "@/lib/ampel-mail-status";
+import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, completeAmpelResult, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
 import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
 import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi, requestAmpelConfirmation } from "@/lib/ampel-confirm";
 import {
@@ -323,10 +324,29 @@ try {
   const panel = readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8");
   assertOk(!panel.includes("trackLeadSubmit"), "DOI confirm does not fire the lead event");
   const blockedAt = page.indexOf("response.status === 429");
+  const duplicateAt = page.indexOf("data.duplicate");
   const leadTrackAt = page.indexOf('trackLeadSubmit({ value: 1, currency: "EUR" })');
-  assertOk(blockedAt >= 0 && leadTrackAt > blockedAt, "lead event fires only after the email submit is accepted");
+  const sendingAt = page.indexOf("AMPEL_RESULT_MAIL.sending");
+  const postAt = page.indexOf('fetch("/api/ampel/ergebnis"');
+  assertOk(sendingAt >= 0 && postAt > sendingAt, "the result is shown before the mail request returns");
+  assertOk(blockedAt >= 0 && leadTrackAt > blockedAt, "a rate limit does not fire the lead event");
+  assertOk(duplicateAt >= 0 && leadTrackAt > duplicateAt, "a duplicate does not fire the lead event");
+  assertOk(page.slice(blockedAt, blockedAt + 180).includes("showResult"), "a rate limit still shows the result");
+  assertOk(page.includes('fetch("/api/ampel/ergebnis/senden"'), "the mail is sent in a second request");
   assertOk(page.includes("AbortSignal.timeout(20_000)"), "the form does not wait forever");
-  assertOk(AMPEL_RESULT_MAIL.rateLimited === "Zu viele Anfragen. Bitte versuchen Sie es später erneut.", "the limit message is the Sie sentence");
+  assertOk(
+    AMPEL_RESULT_MAIL.rateLimitedEmail ===
+      "Sie haben das Ergebnis heute bereits mehrfach angefordert. Ihr Ergebnis sehen Sie unten; eine weitere E-Mail ist morgen wieder möglich.",
+    "the daily limit message is the Sie sentence",
+  );
+  assertOk(
+    AMPEL_RESULT_MAIL.rateLimitedIp.endsWith("eine weitere E-Mail ist in Kürze wieder möglich."),
+    "the hourly limit message says the mail can be requested again shortly",
+  );
+  assertOk(
+    AMPEL_RESULT_MAIL.alreadySent === "Das Ergebnis wurde bereits an diese Adresse gesendet.",
+    "the duplicate message is the Sie sentence",
+  );
   assertOk(!page.includes("KE_4CP3UoZwdENaBzZcC"), "the lead label stays in the environment");
   assertOk(page.includes("/api/ampel/ergebnis") && !page.includes("/api/ampel/confirm"), "the check posts the PDF request");
   assertOk(page.includes("noValidate") && page.includes("fax_number"), "the form validates in page and keeps a honeypot");
@@ -694,7 +714,7 @@ try {
       { store: ipStore, now: () => clock, confirm: noConfirm },
     );
     assertOk(
-      !blockedIp.ok && blockedIp.status === 429 && blockedIp.scope === "ip",
+      blockedIp.ok && !("honeypot" in blockedIp) && blockedIp.limited === "ip" && blockedIp.mailed === false && blockedIp.notice === AMPEL_RESULT_MAIL.rateLimitedIp,
       "sixth address from one IP is limited",
     );
     const laterIp = await submitAmpelResult(
@@ -738,7 +758,7 @@ try {
       { store: emailStore, now: () => clock, confirm: noConfirm },
     );
     assertOk(
-      !blockedEmail.ok && blockedEmail.status === 429 && blockedEmail.scope === "email",
+      blockedEmail.ok && !("honeypot" in blockedEmail) && blockedEmail.limited === "email" && blockedEmail.mailed === false && blockedEmail.notice === AMPEL_RESULT_MAIL.rateLimitedEmail,
       "fourth result for one address is limited",
     );
     const laterEmail = await submitAmpelResult(
@@ -765,8 +785,79 @@ try {
       { store: dupStore, now: () => clock, confirm: noConfirm },
     );
     assertOk(firstDup.ok && !("honeypot" in firstDup) && firstDup.duplicate === false, "first result sends");
-    assertOk(secondDup.ok && !("honeypot" in secondDup) && secondDup.duplicate === true, "the same result is not sent twice");
+    assertOk(
+      secondDup.ok && !("honeypot" in secondDup) && secondDup.duplicate === true && secondDup.mailed === false && secondDup.notice === AMPEL_RESULT_MAIL.alreadySent,
+      "a duplicate is not reported as a new mail",
+    );
     assertOk(pdfSends === beforeDup + 1, "a retry does not send a second PDF");
+
+    const asyncStatus = createMemoryAmpelMailStatusStore();
+    let asyncSends = 0;
+    let markStarted: () => void = () => undefined;
+    const mailStarted = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    let releaseMail: (value: { stub: false; sent: true; id: string }) => void = () => undefined;
+    const asyncInput = {
+      email: "async@example.com",
+      answers: mixedCode,
+      ref: "",
+      marketing: false,
+      honeypot: "",
+      ip: "203.0.113.40",
+    };
+    const asyncMail = () => {
+      asyncSends += 1;
+      markStarted();
+      return new Promise<{ stub: false; sent: true; id: string }>((resolve) => {
+        releaseMail = resolve;
+      });
+    };
+    const handoff = await submitAmpelResult(asyncInput, {
+      store: createMemoryAmpelRateStore(),
+      now: () => clock,
+      confirm: noConfirm,
+      handoff: true,
+      status: asyncStatus,
+      mail: asyncMail,
+    });
+    assertOk(
+      handoff.ok && !("honeypot" in handoff) && handoff.pending === true && handoff.mailed === false && asyncSends === 0,
+      "the page can show the result before the mail is sent",
+    );
+    const queued = await asyncStatus.read(ampelMailStatusId(asyncInput.email, mixedCode));
+    assertOk(queued?.state === "sending" && queued.notice === AMPEL_RESULT_MAIL.sending, "the mail status starts as sending");
+    const completing = completeAmpelResult(asyncInput, {
+      now: () => clock,
+      confirm: noConfirm,
+      status: asyncStatus,
+      mail: asyncMail,
+      sendTimeoutMs: 1_000,
+    });
+    await mailStarted;
+    assertOk(asyncSends === 1, "the follow-up request sends once");
+    releaseMail({ stub: false, sent: true, id: "async-1" });
+    const completed = await completing;
+    assertOk(completed.ok && !("honeypot" in completed) && completed.mailed === true, "the follow-up request reports the sent mail");
+    const finished = await asyncStatus.read(ampelMailStatusId(asyncInput.email, mixedCode));
+    assertOk(finished?.state === "sent", "the mail status finishes as sent");
+    let straySends = 0;
+    const unsolicited = await completeAmpelResult(
+      { ...asyncInput, email: "stray@example.com", answers: neinCode },
+      {
+        now: () => clock,
+        confirm: noConfirm,
+        status: asyncStatus,
+        mail: async () => {
+          straySends += 1;
+          return { stub: false, sent: true, id: "stray" };
+        },
+      },
+    );
+    assertOk(
+      unsolicited.ok && !("honeypot" in unsolicited) && unsolicited.mailed === false && straySends === 0,
+      "a send without a prepared status sends no mail",
+    );
 
     const beforeParallel = pdfSends;
     const parallelStore = createMemoryAmpelRateStore();
@@ -859,7 +950,7 @@ try {
       { store: secondStore, now: () => clock, confirm: noConfirm },
     );
     assertOk(
-      !fileBlocked.ok && fileBlocked.status === 429 && fileBlocked.scope === "ip",
+      fileBlocked.ok && !("honeypot" in fileBlocked) && fileBlocked.limited === "ip" && fileBlocked.mailed === false,
       "file ledger enforces the IP limit",
     );
 
@@ -995,7 +1086,7 @@ try {
       { store: submitA, now: () => clock, confirm: noConfirm, mail: slotMail },
     );
     assertOk(
-      !crossBlocked.ok && crossBlocked.status === 429 && crossBlocked.error === AMPEL_RESULT_MAIL.rateLimited,
+      crossBlocked.ok && !("honeypot" in crossBlocked) && crossBlocked.limited === "ip" && crossBlocked.mailed === false && crossBlocked.notice === AMPEL_RESULT_MAIL.rateLimitedIp,
       "the sixth cross-instance submit is a 429",
     );
     assertOk(slotSends === AMPEL_IP_LIMIT, "the sixth submit sends no mail");
