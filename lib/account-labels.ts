@@ -7,3 +7,7 @@ export const CHECKOUT_PREFILL_NOTE = "Vorausgefüllt aus dem Checkout. Bitte pr�
 /** Firms 1–5 share one subscription. Each firm after that needs its own. */
 export const EXTRA_FIRM_NOTE =
   `Ihr Abo umfasst bis zu ${MAX_ENTITIES_PER_ACCOUNT} Firmen. Für jede weitere Firma ist ein eigenes Abo erforderlich.`;
+
+/** Shown beside the checkout price unless the extra-firm note already applies. */
+export const INCLUDED_FIRM_NOTE =
+  `Ein Abo umfasst bis zu ${MAX_ENTITIES_PER_ACCOUNT} Firmen.`;

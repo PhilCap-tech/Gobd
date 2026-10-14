@@ -114,6 +114,7 @@ export default async function CheckoutPage({
           initialCompany={boundEntity?.name ?? ""}
           initialEmail={email ?? ""}
           audience={partner ? "steuerberater" : "kunde"}
+          showIncludedFirmNote={!extraFirmNote}
         />
       </main>
       <SiteFooter />

@@ -5,6 +5,7 @@ import { FirmaSelect } from "@/components/firma-select";
 import { checkoutEntityIdForEmail } from "@/lib/checkout-entity";
 import { PilotKlartextSentence } from "@/components/pilot-klartext";
 import type { EntityChoice } from "@/lib/entities";
+import { INCLUDED_FIRM_NOTE } from "@/lib/account-labels";
 import { RESULT_PROMISE } from "@/lib/offer-copy";
 import {
   MONTHLY_EUR,
@@ -25,6 +26,8 @@ type CheckoutFormProps = {
   initialCompany?: string;
   initialEmail?: string;
   audience?: CheckoutAudience;
+  /** False when the firm-6+ note already explains coverage. */
+  showIncludedFirmNote?: boolean;
 };
 
 export function CheckoutForm({
@@ -35,8 +38,12 @@ export function CheckoutForm({
   initialCompany = "",
   initialEmail = "",
   audience = "kunde",
+  showIncludedFirmNote = true,
 }: CheckoutFormProps) {
   const partner = audience === "steuerberater";
+  const includedFirmNote = showIncludedFirmNote ? (
+    <p className="hint">{INCLUDED_FIRM_NOTE}</p>
+  ) : null;
   const [entityId, setEntityId] = useState(initialEntityId);
   const [company, setCompany] = useState(initialCompany);
   const [email, setEmail] = useState(initialEmail);
@@ -266,6 +273,7 @@ export function CheckoutForm({
                 {TODAY_EUR}&nbsp;€ netto ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
               </span>
             </div>
+            {includedFirmNote}
             <p className="hint">
               Mit Code: Setup und die ersten zwei Monate 0&nbsp;€. Danach{" "}
               {MONTHLY_EUR}&nbsp;€ netto ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto)
@@ -297,6 +305,7 @@ export function CheckoutForm({
                 {TODAY_EUR}&nbsp;€ netto ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
               </span>
             </div>
+            {includedFirmNote}
             <p className="hint">
               Danach {MONTHLY_EUR}&nbsp;€ netto ({MONTHLY_GROSS_LABEL}&nbsp;€
               brutto) pro Monat, jederzeit zum Monatsende kündbar.
