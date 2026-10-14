@@ -227,6 +227,7 @@ const ALLOWED_NEXT_PATHS = new Set([
   "/billing",
   "/account",
   "/account/billing",
+  "/account/kuendigung",
   "/account/firma/neu",
   CUSTOMER_ONBOARDING_NEXT_PATH,
 ]);

@@ -54,6 +54,9 @@ export function AccountBillingStatus({
       {notice && notice.phase !== "none" && notice.phase !== "active" && (notice.label || notice.detail) ? (
         <p className="billing-status warn">
           {notice.label ? <span className="billing-status-label">{notice.label}</span> : null}
+          {notice.downloadsLabel ? (
+            <span className="billing-status-label">{notice.downloadsLabel}</span>
+          ) : null}
           {notice.detail ? <span>{notice.detail}</span> : null}
         </p>
       ) : null}

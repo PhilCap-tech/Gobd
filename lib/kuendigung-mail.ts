@@ -1,4 +1,10 @@
-import { CANCELLATION_MAIL_FROM, type LifecycleRow, formatBerlinDate } from "@/lib/kuendigung";
+import {
+  CANCELLATION_MAIL_FROM,
+  downloadsAvailableLabel,
+  downloadsAvailableUntilIso,
+  type LifecycleRow,
+  formatBerlinDate,
+} from "@/lib/kuendigung";
 import type { TransactionalMailContent } from "@/lib/ops";
 import {
   escapeHtml,
@@ -40,12 +46,15 @@ function dates(row: LifecycleRow): { end: string; purge: string } {
 
 export function buildCancellationConfirmMail(row: LifecycleRow): TransactionalMailContent {
   const end = formatBerlinDate(row.periodEnd);
+  const downloads = downloadsAvailableLabel(downloadsAvailableUntilIso({ periodEnd: row.periodEnd }));
   const body = [
     "Guten Tag,",
     "",
     `Sie haben das Abonnement für GoBD Verfahrensdoku gekündigt. Das Abo läuft bis zum ${end}, dem Ende des bereits bezahlten Zeitraums. Bis dahin bleiben Ihre Firmen, Entwürfe und PDF-Versionen in Ihrem Konto verfügbar, einschließlich Download und weiterer Versionen.`,
     "",
-    `Mit diesem Datum entfallen Online-Pflege und Versionierung. Bereits erzeugte PDFs und Ihre hochgeladenen Dateien können Sie noch 30 Tage nach diesem Datum herunterladen. In Ihrem Konto laden Sie alle Dokumente als ZIP herunter:`,
+    downloads,
+    "",
+    `Mit diesem Datum entfallen Online-Pflege und Versionierung. Bereits erzeugte PDFs und Ihre hochgeladenen Dateien können Sie noch 30 Tage nach diesem Datum herunterladen. In Ihrem Konto laden Sie alle PDF-Versionen als ZIP herunter:`,
     CANCELLATION_PAGE_URL,
     "",
     "Die Aufbewahrung steuerlich relevanter Unterlagen ist Ihre Pflicht. Für Bücher und Aufzeichnungen gelten in der Regel zehn Jahre (§ 147 AO). Wir führen kein Archiv für Sie. Mit der späteren Löschung bei uns ist Ihre Aufbewahrung nicht erfüllt.",
@@ -104,6 +113,8 @@ export function buildCancellationEndedMail(row: LifecycleRow): TransactionalMail
     "Guten Tag,",
     "",
     first,
+    "",
+    downloadsAvailableLabel(row.purgeAt || row.restoreUntil),
     "",
     `Bereits erzeugte PDFs und hochgeladene Dateien können Sie bis zum ${purge} herunterladen. Bis dahin stellen Sie den Zugang mit einem neuen Abonnement wieder her:`,
     MAIL_CHECKOUT_URL,

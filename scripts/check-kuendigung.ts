@@ -3,9 +3,12 @@
  * vorher, ZIP, Mails an synthetische Postfächer. Kein Versand.
  */
 import { readFileSync } from "node:fs";
+import { safeNextPath } from "@/lib/auth";
+import { COMP_ACCESS_EMAILS } from "@/lib/comp-access";
 import {
   CANCELLATION_MAIL_FROM,
   DAY_MS,
+  LIFECYCLE_JOB_DRY_RUN,
   REMINDER_LEAD_DAYS,
   RETENTION_DAYS,
   RETENTION_WINDOW_MS,
@@ -13,13 +16,22 @@ import {
   cancellationSendAllowed,
   cancellationStatusLabel,
   contractPurgeAllowsPath,
+  deletionLogRef,
+  deletionStatus,
+  downloadsAvailableLabel,
+  downloadsAvailableUntilIso,
   emptyLifecycleRow,
   formatBerlinDate,
+  guardLifecycleActions,
   isSyntheticInbox,
+  jobEffects,
+  lifecycleActionLog,
   lifecycleNotice,
   nextLifecycle,
   planLifecycleJob,
+  subscriptionCancelScheduled,
   subscriptionPeriodEndUnix,
+  type JobAction,
   type LifecycleEvent,
   type LifecycleRow,
 } from "@/lib/kuendigung";
@@ -31,7 +43,16 @@ import {
 } from "@/lib/kuendigung-mail";
 import { lifecycleRowFromSheet, lifecycleSheetValues, LIFECYCLE_SHEET_COLUMNS } from "@/lib/kuendigung-store";
 import { withoutEmailRows } from "@/lib/kuendigung-purge";
-import { buildStoredZip, collectUploadLocators, zipEntryName } from "@/lib/kuendigung-zip";
+import {
+  buildStoredZip,
+  collectUploadLocators,
+  documentsForOwnerZip,
+  zipCentralDirectory,
+  zipDownloadAllowed,
+  zipEntryName,
+  zipEntryParts,
+  type ZipPartMeta,
+} from "@/lib/kuendigung-zip";
 
 const SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 const BLOCKED = "philip.cappelletti@sdc-ventures.com";
@@ -109,12 +130,48 @@ assert(scheduled.mail === "confirm", "Bestätigung bei Kündigung");
 assert(scheduled.row.phase === "cancel_scheduled", "Phase cancel_scheduled");
 assert(scheduled.row.periodEnd === periodEnd, "Periodenende");
 assert(lifecycleNotice([scheduled.row]).label === "gekündigt zum 12.11.2026", "Konto-Status");
+const untilIso = downloadsAvailableUntilIso({ periodEnd });
+assert(
+  Date.parse(untilIso) - Date.parse(periodEnd) === RETENTION_WINDOW_MS,
+  "Download bis Periodenende plus 30 Tage",
+);
+assert(
+  downloadsAvailableLabel(untilIso) === "Downloads verfügbar bis 12.12.2026",
+  "Downloads verfügbar bis Datum",
+);
+assert(
+  lifecycleNotice([scheduled.row]).downloadsLabel === "Downloads verfügbar bis 12.12.2026",
+  "Konto nennt die Downloadfrist",
+);
 
 const replay = nextLifecycle(scheduled.row, updated({ id: "evt_cancel", at: "2026-10-12T10:00:00.000Z", cancel: true }));
 assert(replay.mail === "confirm", "ausstehende Bestätigung wird wiederholt");
 const delivered = { ...scheduled.row, confirmMailAt: "2026-10-12T10:00:01.000Z", lastEventId: "evt_cancel" };
 const again = nextLifecycle(delivered, updated({ id: "evt_cancel_2", at: "2026-10-12T11:00:00.000Z", cancel: true }));
 assert(again.mail === null, "keine zweite Bestätigung");
+const sameEvent = nextLifecycle(delivered, updated({ id: "evt_cancel", at: "2026-10-12T12:00:00.000Z", cancel: true }));
+assert(sameEvent.mail === null && sameEvent.row === delivered, "dieselbe Event-ID ist ein No-Op");
+assert(
+  subscriptionCancelScheduled({
+    status: "active",
+    cancel_at_period_end: false,
+    cancel_at: 1_762_945_200,
+  }),
+  "cancel_at merkt die Kündigung vor",
+);
+assert(
+  !subscriptionCancelScheduled({ status: "active", cancel_at_period_end: false, cancel_at: null }),
+  "ohne Flag und ohne cancel_at keine Vormerkung",
+);
+assert(
+  !subscriptionCancelScheduled({ status: "canceled", cancel_at: 1_762_945_200 }),
+  "beendetes Abo ist keine Vormerkung",
+);
+const viaCancelAt = nextLifecycle(
+  active,
+  updated({ id: "evt_cancel_at", at: "2026-10-12T10:00:00.000Z", cancel: true }),
+);
+assert(viaCancelAt.mail === "confirm" && viaCancelAt.row.phase === "cancel_scheduled", "Webhook-Pfad für cancel_at");
 const due = nextLifecycle(
   active,
   updated({ id: "evt_due", at: "2026-10-14T10:00:00.000Z", cancel: false, status: "past_due" }),
@@ -183,6 +240,57 @@ assert(
   "zweites lebendes Abo behält die Dateien",
 );
 
+assert(deletionStatus(deleted.row) === "deleted", "beendetes Abo hat Status deleted");
+assert(deletionStatus(active) === "active", "aktives Abo ist nicht deleted");
+assert(LIFECYCLE_JOB_DRY_RUN === true, "Trockenlauf ist der Default");
+const guardedPurge = guardLifecycleActions(purge, [reminded], purgeAt);
+assert(guardedPurge.actions.length === 1 && guardedPurge.actions[0]?.type === "purge", "Löschung nach Frist bleibt zulässig");
+assert(jobEffects(guardedPurge.actions, true).length === 0, "Trockenlauf löscht nicht und erinnert nicht");
+assert(jobEffects(guardedPurge.actions, false).length === 1, "ohne Trockenlauf bleibt die Löschung");
+
+const earlyPurge: JobAction = { type: "purge", row: deleted.row, deleteContractData: true };
+const earlyGuard = guardLifecycleActions([earlyPurge], [deleted.row], purgeAt - DAY_MS);
+assert(earlyGuard.actions.length === 0 && earlyGuard.skippedProtected === 1, "vor Fristende keine Löschung");
+
+const activePurge: JobAction = {
+  type: "purge",
+  row: { ...active, purgeAt: new Date(purgeAt).toISOString(), reminderMailAt: "2026-12-01T00:00:00.000Z" },
+  deleteContractData: true,
+};
+const activeGuard = guardLifecycleActions([activePurge], [activePurge.row], purgeAt);
+assert(activeGuard.actions.length === 0 && activeGuard.skippedProtected === 1, "aktives Abo wird nicht gelöscht");
+
+const compEmail = COMP_ACCESS_EMAILS[0] ?? "";
+const compRow = row({
+  email: compEmail,
+  stripeSubscriptionId: "sub_comp",
+  phase: "restore",
+  endedAt,
+  purgeAt: deleted.row.purgeAt,
+  reminderMailAt: reminded.reminderMailAt,
+});
+const compGuard = guardLifecycleActions(
+  [{ type: "purge", row: compRow, deleteContractData: true }],
+  [compRow],
+  purgeAt,
+);
+assert(compGuard.actions.length === 0 && compGuard.skippedComp === 1, "Comp-Allowlist wird nicht gelöscht");
+
+const siblingGuard = guardLifecycleActions(blockedPurge, [reminded, sibling], purgeAt);
+assert(
+  siblingGuard.actions.some((action) => action.type === "purge" && action.deleteContractData === false),
+  "lebendiges zweites Abo behält die Dateien auch nach der Schutzregel",
+);
+
+const log = lifecycleActionLog(
+  { type: "purge", row: reminded, deleteContractData: true },
+  true,
+);
+assert(!JSON.stringify(log).includes("@"), "Löschlog ohne E-Mail");
+assert(!JSON.stringify(log).includes(SYNTHETIC), "Löschlog ohne Kundenadresse");
+assert(deletionLogRef(reminded.stripeSubscriptionId) === log.ref, "stabile Referenz");
+assert(log.deleteData === true && log.dryRun === true, "Log nennt Trockenlauf und Löschabsicht");
+
 const restored = nextLifecycle(deleted.row, {
   id: "evt_new",
   type: "checkout_completed",
@@ -234,6 +342,71 @@ assert(zip.includes(Buffer.from("uploads/geheim.txt")), "Upload ohne Parent-Pfad
 assert(!zip.includes(Buffer.from("../")), "kein Parent im Namen");
 assert(zipEntryName("../uploads/../geheim.txt") === "uploads/geheim.txt", "Name bereinigt");
 
+const zipAt = new Date("2026-10-14T08:00:00.000Z");
+const zipEntries = [
+  { name: "pdf/Verfahrensdoku-Firma-v1.pdf", data: Buffer.from("%PDF-1.4 demo") },
+  { name: "inhalt.txt", data: Buffer.from("Firma\tVersion\n") },
+];
+const streamed: Buffer[] = [];
+const metas: ZipPartMeta[] = [];
+let zipOffset = 0;
+for (const entry of zipEntries) {
+  const part = zipEntryParts(entry, zipAt);
+  streamed.push(part.local, part.data);
+  metas.push({ name: part.name, crc: part.crc, size: part.size, offset: zipOffset });
+  zipOffset += part.local.length + part.data.length;
+}
+streamed.push(zipCentralDirectory(metas, zipAt));
+assert(Buffer.concat(streamed).equals(buildStoredZip(zipEntries, zipAt)), "gestreamtes ZIP entspricht dem Puffer");
+const umlaut = buildStoredZip(
+  [{ name: "pdf/Südwerk.pdf", data: Buffer.from("%PDF") }],
+  zipAt,
+);
+assert((umlaut.readUInt16LE(6) & 0x0800) === 0x0800, "ZIP-Namen sind UTF-8");
+assert(umlaut.includes(Buffer.from("Südwerk.pdf")), "Umlaut im Dateinamen");
+
+assert(
+  zipDownloadAllowed({ sessionEmail: SYNTHETIC, ownerEmail: SYNTHETIC, role: "owner" }),
+  "Inhaber darf das ZIP laden",
+);
+assert(
+  !zipDownloadAllowed({
+    sessionEmail: "mitwirkende@example.com",
+    ownerEmail: SYNTHETIC,
+    role: "mitwirkende",
+  }),
+  "Mitwirkende darf das ZIP nicht laden",
+);
+assert(
+  !zipDownloadAllowed({ sessionEmail: "mitwirkende@example.com", ownerEmail: SYNTHETIC }),
+  "fremde Mail ist kein Inhaber",
+);
+const ownedDocs = documentsForOwnerZip(
+  SYNTHETIC,
+  [{ email: SYNTHETIC, documentId: "d1" }, { email: "andere@example.com", documentId: "d2" }],
+);
+assert(ownedDocs.length === 1 && ownedDocs[0]?.documentId === "d1", "ZIP enthält nur Dokumente des Inhabers");
+assert(
+  documentsForOwnerZip(SYNTHETIC, [{ email: SYNTHETIC, documentId: "d1" }], "mitwirkende").length === 0,
+  "Rolle Mitwirkende liefert kein ZIP",
+);
+
+const exportRoute = readFileSync("app/api/account/export/route.ts", "utf8");
+assert(exportRoute.includes("documentsForOwnerZip"), "Export prüft den Inhaber");
+assert(exportRoute.includes("ReadableStream"), "Export streamt das ZIP");
+assert(!exportRoute.includes('role: "mitwirkende"') && exportRoute.includes('"owner"'), "Export setzt die Inhaberrolle");
+
+const webhookRoute = readFileSync("app/api/stripe/webhook/route.ts", "utf8");
+assert(webhookRoute.includes("constructEvent"), "Webhook prüft die Signatur");
+assert(webhookRoute.includes("customer.subscription.updated"), "Webhook liest die Vormerkung");
+assert(webhookRoute.includes("customer.subscription.deleted"), "Webhook liest das Ende");
+const stripeGlue = readFileSync("lib/kuendigung-stripe.ts", "utf8");
+assert(stripeGlue.includes("subscriptionCancelScheduled"), "cancel_at und cancel_at_period_end");
+assert(
+  safeNextPath("/account/kuendigung") === "/account/kuendigung",
+  "Login kehrt zur Kündigungsseite zurück",
+);
+
 function assertMail(label: string, mail: { subject: string; text: string; html: string }, extra: string[]) {
   if (!mail.text.includes(SIGNATURE) || !mail.html.includes(`<p>${SIGNATURE}</p>`)) {
     fail(`${label}: Signatur fehlt`);
@@ -247,7 +420,14 @@ function assertMail(label: string, mail: { subject: string; text: string; html: 
 }
 
 const confirm = buildCancellationConfirmMail(scheduled.row);
-assertMail("Bestätigung", confirm, ["30 Tage", "Sieben Tage", "info@gobd-doku-erstellen.de", "12.11.2026"]);
+assertMail("Bestätigung", confirm, [
+  "30 Tage",
+  "Sieben Tage",
+  "info@gobd-doku-erstellen.de",
+  "12.11.2026",
+  "Downloads verfügbar bis 12.12.2026",
+  "§ 147 AO",
+]);
 assert(confirm.subject.includes("12.11.2026"), "Betreff mit Datum");
 const reminderMail = buildCancellationReminderMail(deleted.row);
 assertMail("Erinnerung", reminderMail, ["löschen", "zehn Jahre"]);

@@ -114,7 +114,7 @@ export function AccountAboCard({
         {notice?.downloadsOpen ? (
           <div className="actions">
             <a className="btn ghost" href="/api/account/export">
-              Alle Dokumente als ZIP
+              ZIP aller PDF-Versionen herunterladen
             </a>
           </div>
         ) : null}
@@ -150,9 +150,12 @@ export function AccountAboCard({
   return (
     <section className="card account-panel" aria-labelledby="abo-heading">
       <h2 id="abo-heading">Abo</h2>
-      {notice?.label ? (
+      {notice?.label || notice?.downloadsLabel ? (
         <p className="billing-status warn">
-          <span className="billing-status-label">{notice.label}</span>
+          {notice.label ? <span className="billing-status-label">{notice.label}</span> : null}
+          {notice.downloadsLabel ? (
+            <span className="billing-status-label">{notice.downloadsLabel}</span>
+          ) : null}
           {notice.detail ? <span>{notice.detail}</span> : null}
         </p>
       ) : notice?.detail ? (
@@ -176,7 +179,7 @@ export function AccountAboCard({
         )}
         {notice?.downloadsOpen && stripeBound && (
           <a className="btn ghost" href="/api/account/export">
-            Alle Dokumente als ZIP
+            ZIP aller PDF-Versionen herunterladen
           </a>
         )}
         {notice?.showRestoreCheckout && (

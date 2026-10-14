@@ -6,7 +6,13 @@ import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { isCompAccessEmail } from "@/lib/comp-access";
 import { isStripeSecretConfigured } from "@/lib/env";
-import { formatBerlinDate, lifecycleNotice } from "@/lib/kuendigung";
+import {
+  downloadsAvailableLabel,
+  downloadsAvailableUntilIso,
+  formatBerlinDate,
+  lifecycleNotice,
+} from "@/lib/kuendigung";
+import { KuendigungActions } from "@/app/account/kuendigung/kuendigung-actions";
 import { loadCancellationPreview } from "@/lib/kuendigung-stripe";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
 import { MAIL_SUPPORT_EMAIL } from "@/lib/mail-layout";
@@ -74,6 +80,16 @@ export default async function KuendigungPage({
   );
   const periodEnd = preview?.periodEnd || rows.find((row) => row.periodEnd)?.periodEnd || "";
   const periodLabel = formatBerlinDate(periodEnd);
+  const downloadUntil =
+    notice.downloadsLabel ||
+    downloadsAvailableLabel(
+      downloadsAvailableUntilIso({
+        periodEnd,
+        endedAt: rows.find((row) => row.endedAt)?.endedAt,
+        purgeAt: rows.find((row) => row.purgeAt)?.purgeAt,
+        restoreUntil: rows.find((row) => row.restoreUntil)?.restoreUntil,
+      }),
+    );
   const scheduled = Boolean(preview?.alreadyScheduled || notice.phase === "cancel_scheduled");
   const canConfirm = Boolean(stripeReady && preview?.subscriptionId && !scheduled && !preview.lookupFailed);
 
@@ -113,17 +129,17 @@ export default async function KuendigungPage({
             ? `Das Abonnement endet am ${periodLabel}, sofern Sie die Kündigung bestätigen.`
             : "Das Abonnement endet mit dem bereits bezahlten Zeitraum."}
         </p>
+        {(notice.label || downloadUntil) && (
+          <p className="billing-status warn">
+            {notice.label ? <span className="billing-status-label">{notice.label}</span> : null}
+            {downloadUntil ? <span className="billing-status-label">{downloadUntil}</span> : null}
+            {notice.detail ? <span>{notice.detail}</span> : null}
+          </p>
+        )}
 
         {banner && (
           <p className={banner.tone === "ok" ? "banner ok" : "banner warn"} role="status">
             {banner.text}
-          </p>
-        )}
-
-        {notice.phase === "cancel_scheduled" && (
-          <p className="billing-status warn">
-            <span className="billing-status-label">{notice.label}</span>
-            <span>{notice.detail}</span>
           </p>
         )}
 
@@ -135,10 +151,9 @@ export default async function KuendigungPage({
             Ihre PDF-Versionen nutzbar.
           </p>
           <p className="prose">
-            Nach dem Vertragsende können Sie bereits erzeugte PDFs und hochgeladene
-            Dateien noch 30 Tage herunterladen oder das Abonnement durch einen neuen
-            Abschluss wiederherstellen. Danach löschen wir diese Daten. Sieben Tage vor
-            der Löschung erhalten Sie eine Erinnerung.
+            Nach dem Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen
+            oder das Abonnement durch einen neuen Abschluss wiederherstellen. Danach löschen wir
+            diese Daten. Sieben Tage vor der Löschung erhalten Sie eine Erinnerung.
           </p>
           <p className="prose">
             Die Aufbewahrung Ihrer Verfahrensdokumentation und der zugehörigen Unterlagen
@@ -153,58 +168,34 @@ export default async function KuendigungPage({
           </p>
         </section>
 
-        <section className="card" aria-labelledby="download-heading">
-          <h2 id="download-heading">Dokumente herunterladen</h2>
-          {hasExport && notice.downloadsOpen ? (
-            <p className="actions">
-              <a className="btn" href="/api/account/export">
-                Alle PDF-Versionen und Uploads als ZIP herunterladen
-              </a>
+        {notice.downloadsOpen ? (
+          <KuendigungActions
+            hasExport={hasExport}
+            canConfirm={canConfirm}
+            portalFallback={status === "portal" && canConfirm}
+          />
+        ) : (
+          <section className="card">
+            <p className="prose">
+              Die Downloadfrist nach dem Vertragsende ist abgelaufen.
             </p>
-          ) : (
-            <p className="prose">Es liegen noch keine PDF-Versionen vor.</p>
-          )}
-          <p className="hint">
-            Der Download bleibt auf dieser Seite. Die Kündigung ist davon nicht abhängig.
-            Sie können auch in Textform an {MAIL_SUPPORT_EMAIL} kündigen.
-          </p>
-        </section>
+          </section>
+        )}
 
         <section className="card" aria-labelledby="bestaetigen-heading">
-          <h2 id="bestaetigen-heading">Kündigung bestätigen</h2>
+          <h2 id="bestaetigen-heading">Kündigung</h2>
           {scheduled ? (
             <p className="prose">
               Die Kündigung zum{" "}
               {periodLabel || "Ende des bezahlten Zeitraums"} ist bereits vorgemerkt.
-              Bis dahin bleibt der bezahlte Umfang nutzbar.
+              Bis zum Vertragsende bleibt der bezahlte Umfang nutzbar.
             </p>
           ) : canConfirm ? (
-            <>
-              <form method="post" action="/api/account/kuendigung">
-                <label className="check">
-                  <input type="checkbox" name="acknowledged" value="yes" required />
-                  <span>
-                    Ich habe die Folgen der Kündigung zur Kenntnis genommen.
-                  </span>
-                </label>
-                <div className="actions" style={{ marginTop: 12 }}>
-                  <button className="btn" type="submit">
-                    Kündigung zum Periodenende bestätigen
-                  </button>
-                </div>
-              </form>
-              <form method="post" action="/api/account/kuendigung/portal" style={{ marginTop: 16 }}>
-                <label className="check">
-                  <input type="checkbox" name="acknowledged" value="yes" required />
-                  <span>Ich habe die Folgen gelesen und möchte im Stripe-Portal kündigen.</span>
-                </label>
-                <div className="actions" style={{ marginTop: 12 }}>
-                  <button className="btn ghost" type="submit">
-                    Im Stripe-Portal kündigen
-                  </button>
-                </div>
-              </form>
-            </>
+            <p className="prose">
+              Als Nächstes öffnet sich das Stripe-Portal. Die Kündigung wirkt zum Ende des
+              bereits bezahlten Zeitraums. Sie können auch in Textform an {MAIL_SUPPORT_EMAIL}{" "}
+              kündigen.
+            </p>
           ) : (
             <p className="prose">
               {stripeReady

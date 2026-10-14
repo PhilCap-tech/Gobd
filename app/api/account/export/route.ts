@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import {
   loadDocumentPdf,
@@ -8,7 +7,15 @@ import {
 } from "@/lib/blob";
 import { formatBerlinDate } from "@/lib/kuendigung";
 import { subscriptionDownloadDenial } from "@/lib/kuendigung-access";
-import { buildStoredZip, collectUploadLocators, zipEntryName } from "@/lib/kuendigung-zip";
+import {
+  collectUploadLocators,
+  documentsForOwnerZip,
+  zipCentralDirectory,
+  zipEntryName,
+  zipEntryParts,
+  type ZipEntry,
+  type ZipPartMeta,
+} from "@/lib/kuendigung-zip";
 import { listDocumentsByEmail } from "@/lib/store";
 import type { SheetRow } from "@/lib/types";
 
@@ -27,96 +34,116 @@ function inhaltLine(row: SheetRow): string {
   ].join("\t");
 }
 
+function jsonError(error: string, status: number): Response {
+  return Response.json(
+    { error },
+    { status, headers: { "Cache-Control": "private, no-store" } },
+  );
+}
+
 export async function GET() {
   const email = await getSessionEmail();
   if (!email) {
-    return NextResponse.json(
-      { error: "Bitte melden Sie sich an." },
-      { status: 401, headers: { "Cache-Control": "private, no-store" } },
-    );
+    return jsonError("Bitte melden Sie sich an.", 401);
   }
   const closed = await subscriptionDownloadDenial(email);
   if (closed) {
-    return NextResponse.json({ error: closed }, { status: 403 });
+    return jsonError(closed, 403);
   }
 
-  const documents = (await listDocumentsByEmail(email)).filter((row) => row.documentId);
-  const entries: { name: string; data: Buffer }[] = [];
-  const lines = ["Firma\tVersion\tGültig von\tDokument-ID"];
-  let total = 0;
-  const seenUploads = new Set<string>();
-
-  for (const row of documents) {
-    if (row.pdfUrl) {
-      try {
-        const pdf = await loadDocumentPdf(row);
-        total += pdf.length;
-        if (total > MAX_BYTES) {
-          return NextResponse.json(
-            {
-              error:
-                "Das Archiv ist zu groß für einen Download. Laden Sie die PDF-Versionen einzeln herunter.",
-            },
-            { status: 413 },
-          );
-        }
-        const name = zipEntryName(`pdf/${row.documentId}-${pdfDownloadName(row)}`);
-        entries.push({ name, data: pdf });
-        lines.push(inhaltLine(row));
-      } catch (error) {
-        console.error("[kuendigung] PDF fehlt im ZIP", row.documentId, error);
-        lines.push(`${inhaltLine(row)}\tPDF nicht lesbar`);
-      }
-    }
-    try {
-      const raw = await resolveIntakePayload(row.fragen);
-      const parsed = raw.trim().startsWith("{") || raw.trim().startsWith("[")
-        ? (JSON.parse(raw) as unknown)
-        : null;
-      const locators = new Set<string>();
-      collectUploadLocators(parsed, locators);
-      for (const locator of locators) {
-        if (seenUploads.has(locator)) continue;
-        seenUploads.add(locator);
-        const file = await readCustomerUpload(locator);
-        if (!file) continue;
-        total += file.buffer.length;
-        if (total > MAX_BYTES) {
-          return NextResponse.json(
-            {
-              error:
-                "Das Archiv ist zu groß für einen Download. Laden Sie die PDF-Versionen einzeln herunter.",
-            },
-            { status: 413 },
-          );
-        }
-        entries.push({
-          name: zipEntryName(`uploads/${file.filename}`),
-          data: file.buffer,
-        });
-        lines.push(`Upload\t${file.filename}\t\t${row.documentId}`);
-      }
-    } catch (error) {
-      console.error("[kuendigung] Upload nicht gelesen", row.documentId, error);
-    }
-  }
-
-  if (entries.length === 0) {
-    lines.push("Es liegen noch keine PDF-Versionen vor.");
-  }
-
-  lines.push("");
-  lines.push("Die Aufbewahrung dieser Unterlagen bleibt Ihre Pflicht.");
-  const manifest = Buffer.from(`${lines.join("\n")}\n`, "utf8");
-  const zip = buildStoredZip([
-    ...entries,
-    { name: "inhalt.txt", data: manifest },
-  ]);
+  const documents = documentsForOwnerZip(
+    email,
+    (await listDocumentsByEmail(email)).filter((row) => row.documentId),
+    "owner",
+  );
   const stamp = formatBerlinDate(new Date().toISOString()).replaceAll(".", "-") || "export";
-  return new NextResponse(new Uint8Array(zip), {
+  const at = new Date();
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const metas: ZipPartMeta[] = [];
+      const lines = ["Firma\tVersion\tGültig von\tDokument-ID"];
+      let total = 0;
+      let offset = 0;
+      const seenUploads = new Set<string>();
+      let wrotePdf = false;
+
+      const push = (entry: ZipEntry) => {
+        const part = zipEntryParts(entry, at);
+        controller.enqueue(new Uint8Array(part.local));
+        controller.enqueue(new Uint8Array(part.data));
+        metas.push({ name: part.name, crc: part.crc, size: part.size, offset });
+        offset += part.local.length + part.data.length;
+        total += part.size;
+      };
+
+      try {
+        for (const row of documents) {
+          if (row.pdfUrl) {
+            try {
+              const pdf = await loadDocumentPdf(row);
+              if (total + pdf.length > MAX_BYTES) {
+                lines.push(`${inhaltLine(row)}\tPDF wegen Größe nicht im ZIP`);
+              } else {
+                push({
+                  name: zipEntryName(`pdf/${row.documentId}-${pdfDownloadName(row)}`),
+                  data: pdf,
+                });
+                lines.push(inhaltLine(row));
+                wrotePdf = true;
+              }
+            } catch (error) {
+              console.error("[kuendigung] PDF fehlt im ZIP", row.documentId, error);
+              lines.push(`${inhaltLine(row)}\tPDF nicht lesbar`);
+            }
+          }
+          try {
+            const raw = await resolveIntakePayload(row.fragen);
+            const parsed =
+              raw.trim().startsWith("{") || raw.trim().startsWith("[")
+                ? (JSON.parse(raw) as unknown)
+                : null;
+            const locators = new Set<string>();
+            collectUploadLocators(parsed, locators);
+            for (const locator of locators) {
+              if (seenUploads.has(locator)) continue;
+              seenUploads.add(locator);
+              const file = await readCustomerUpload(locator);
+              if (!file) continue;
+              if (total + file.buffer.length > MAX_BYTES) {
+                lines.push(`Upload\t${file.filename}\tGröße\t${row.documentId}`);
+                continue;
+              }
+              push({
+                name: zipEntryName(`uploads/${file.filename}`),
+                data: file.buffer,
+              });
+              lines.push(`Upload\t${file.filename}\t\t${row.documentId}`);
+            }
+          } catch (error) {
+            console.error("[kuendigung] Upload nicht gelesen", row.documentId, error);
+          }
+        }
+
+        if (!wrotePdf) {
+          lines.push("Es liegen noch keine PDF-Versionen vor.");
+        }
+        lines.push("");
+        lines.push("Die Aufbewahrung dieser Unterlagen bleibt Ihre Pflicht.");
+        push({ name: "inhalt.txt", data: Buffer.from(`${lines.join("\n")}\n`, "utf8") });
+        controller.enqueue(new Uint8Array(zipCentralDirectory(metas, at)));
+        controller.close();
+      } catch (error) {
+        console.error("[kuendigung] ZIP-Strom fehlgeschlagen", error);
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(stream, {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="dokumente-${stamp}.zip"`,
+      "Content-Disposition": `attachment; filename="pdf-versionen-${stamp}.zip"`,
       "Cache-Control": "private, no-store",
     },
   });
