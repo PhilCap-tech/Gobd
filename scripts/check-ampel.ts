@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO, AMPEL_EMAIL_PRIVACY_NOTE, AMPEL_MARKETING_CONSENT, AMPEL_PRIVACY_SECTION, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
+import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO, AMPEL_EMAIL_PRIVACY_NOTE, AMPEL_MARKETING_CONSENT, AMPEL_PRIVACY_PARAGRAPHS, AMPEL_PRIVACY_TITLE, AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_REGISTER_LINE, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
 import {
   AMPEL_CONFIRM_WINDOW_MS,
   AMPEL_DOI_TTL_MS,
@@ -40,6 +40,13 @@ import {
 import { AMPEL_PDF_FROM, submitAmpelResult } from "@/lib/ampel-result-send";
 import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
 import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi, requestAmpelConfirmation } from "@/lib/ampel-confirm";
+import {
+  AMPEL_CHECK_RETENTION_DAYS,
+  AMPEL_UNCONFIRMED_OPT_IN_RETENTION_DAYS,
+  ampelRecordExpired,
+} from "@/lib/ampel-retention";
+import { withdrawAmpelMarketing } from "@/lib/ampel-unsubscribe";
+import { createAmpelUnsubscribeToken } from "@/lib/ampel";
 import { isTransientResendError, MAIL_SEND_RETRY_DELAYS_MS, type MailResult } from "@/lib/mail";
 import type { ReadinessLead } from "@/lib/readiness";
 import { READINESS_SHEET_COLUMNS } from "@/lib/readiness";
@@ -301,14 +308,19 @@ try {
   assertOk(!page.includes("KE_4CP3UoZwdENaBzZcC"), "the lead label stays in the environment");
   assertOk(page.includes("/api/ampel/ergebnis") && !page.includes("/api/ampel/confirm"), "the check posts the PDF request");
   assertOk(page.includes("noValidate") && page.includes("fax_number"), "the form validates in page and keeps a honeypot");
-  assertOk(page.includes("AMPEL_EMAIL_PRIVACY_NOTE") && page.includes("AMPEL_MARKETING_CONSENT"), "privacy placeholders are rendered");
-  assertOk(!page.includes("TODO"), "the check source keeps the placeholder in the question module");
+  assertOk(page.includes("AMPEL_EMAIL_PRIVACY_NOTE") && page.includes("AMPEL_MARKETING_CONSENT"), "privacy note and checkbox are rendered");
+  assertOk(page.includes('href="/datenschutz"'), "the privacy note links to the privacy policy");
+  assertOk(!page.includes("TODO") && !page.includes("[klären"), "the check does not show draft markers");
   const privacyPage = readFileSync("app/datenschutz/page.tsx", "utf8");
-  assertOk(privacyPage.includes("AMPEL_PRIVACY_SECTION") && privacyPage.includes("Betriebsprüfungs-Ampel"), "privacy page has the ampel section");
-  assertOk(!privacyPage.includes("TODO"), "privacy page source has no draft marker");
-  assertOk(AMPEL_EMAIL_PRIVACY_NOTE.includes("TODO-LEGAL"), "email note is marked for Legal Draft");
-  assertOk(AMPEL_MARKETING_CONSENT.includes("TODO-LEGAL"), "checkbox text is marked for Legal Draft");
-  assertOk(AMPEL_PRIVACY_SECTION.includes("TODO-LEGAL"), "privacy section is marked for Legal Draft");
+  assertOk(privacyPage.includes("AMPEL_PRIVACY_TITLE") && privacyPage.includes("AMPEL_PRIVACY_PARAGRAPHS"), "privacy page renders the ampel section");
+  assertOk(!privacyPage.includes("TODO") && !privacyPage.includes("[klären"), "privacy page source has no draft marker");
+  assertOk(AMPEL_EMAIL_PRIVACY_NOTE.startsWith("Wir senden Ihnen Ihr Ergebnis zusätzlich als PDF"), "email note is the legal text");
+  assertOk(AMPEL_MARKETING_CONSENT.startsWith("Ja, ich möchte per E-Mail Informationen"), "checkbox is the legal text");
+  assertOk(AMPEL_CONSENT_TEXT_VERSION === "2026-10-14", "checkbox text is versioned");
+  assertOk(AMPEL_PRIVACY_TITLE === "Ampel-Check: Versand des Ergebnisses und E-Mail-Informationen", "privacy subsection title");
+  assertOk(!AMPEL_PRIVACY_PARAGRAPHS.join("\n").includes("[klären"), "open legal items are not published");
+  assertOk(readFileSync("lib/ampel-questions.ts", "utf8").includes("[klären:"), "open legal items stay visible in the source");
+  assertOk(readFileSync("content/legal/datenschutz.md", "utf8").includes("Resend (Plus Five Five, Inc., USA)"), "processors section names Resend");
   assertOk(readFileSync("app/api/ampel/ergebnis/route.ts", "utf8").includes("submitAmpelResult"), "result route sends the PDF");
   const pdfSource = readFileSync("lib/ampel-pdf.ts", "utf8");
   assertOk(!pdfSource.includes("AMPEL_CTA") && !pdfSource.includes("149"), "the PDF mail has no offer and no price");
@@ -594,6 +606,10 @@ try {
   assertOk(pdfMail?.text.includes("keine Steuerberatung"), "mail carries the disclaimer");
   assertOk(!pdfMail?.text.includes("149") && !pdfMail?.html.includes("149"), "pdf mail has no price");
   assertOk(pdfMail?.subject === "Ihr Ergebnis der Betriebsprüfungs-Ampel", "pdf mail subject");
+  assertOk(pdfMail?.text.includes(AMPEL_RESULT_REGISTER_LINE), "pdf mail carries the register line");
+  assertOk(pdfMail?.text.includes("gobd-doku-erstellen.de") && !pdfMail?.html.includes("Jetzt buchen"), "pdf mail has a plain product link and no booking block");
+  assertOk(!pdfMail?.text.includes("/checkout") && !pdfMail?.html.includes("abmelden"), "pdf mail is not a marketing mail");
+  assertOk(resultMail?.html.includes("/ampel-check/abmelden"), "the marketing mail has an unsubscribe link");
 
   const mailDir = await mkdtemp(path.join(tmpdir(), "ampel-mail-"));
   const rateDir = await mkdtemp(path.join(tmpdir(), "ampel-rate-"));
@@ -768,6 +784,8 @@ try {
         confirm: async (lead) => {
           confirmCalls += 1;
           assertOk(lead.email === "opted@example.com" && lead.answers === mixedCode, "doi receives the submitted answers");
+          assertOk(lead.consentTextVersion === AMPEL_CONSENT_TEXT_VERSION, "doi stores the checkbox version");
+          assertOk(lead.consentIp === "198.51.100.36", "doi stores the signup IP");
           return { ok: true, throttled: false };
         },
       },
@@ -817,6 +835,93 @@ try {
     await rm(mailDir, { recursive: true, force: true });
     await rm(rateDir, { recursive: true, force: true });
   }
+
+  const day = 24 * 60 * 60 * 1000;
+  const signup = "2026-10-14T08:00:00.000Z";
+  const baseLead = toAmpelReadinessLead({
+    email: "keep@example.com",
+    answers: jaCode,
+    ref: "",
+    consentAt: signup,
+    doiConfirmedAt: "",
+    score: 100,
+    light: "gruen",
+    mailStatus: "pdf_sent",
+  });
+  assertOk(AMPEL_CHECK_RETENTION_DAYS === 90 && AMPEL_UNCONFIRMED_OPT_IN_RETENTION_DAYS === 30, "retention defaults");
+  assertOk(
+    !ampelRecordExpired(baseLead, Date.parse(signup) + 89 * day) &&
+      ampelRecordExpired(baseLead, Date.parse(signup) + 90 * day),
+    "check data without opt-in lasts 90 days",
+  );
+  assertOk(
+    ampelRecordExpired(
+      { ...baseLead, marketingOptIn: "pending" },
+      Date.parse(signup) + 30 * day,
+    ),
+    "an unconfirmed opt-in lasts 30 days",
+  );
+  assertOk(
+    !ampelRecordExpired(
+      { ...baseLead, marketingOptIn: "confirmed" },
+      Date.parse(signup) + 400 * day,
+    ),
+    "a confirmed opt-in is not deleted on the check timer",
+  );
+
+  const proofStore = new Map<string, ReadinessLead>();
+  const proofInput = { email: "proof@example.com", answers: jaCode, ref: "Kanzlei", consentIp: "203.0.113.50", consentTextVersion: AMPEL_CONSENT_TEXT_VERSION };
+  const proofDeps = {
+    now: () => Date.parse(signup),
+    sleep: async () => undefined,
+    findLead: async (leadEmail: string, answers: string) =>
+      [...proofStore.values()].find((lead) => lead.email === leadEmail && lead.ampelAnswers === answers) ?? null,
+    saveLead: async (lead: ReadinessLead) => {
+      proofStore.set(lead.leadId, { ...lead });
+    },
+    sendConfirmation: async () => ({ stub: false, sent: true, id: "confirm-proof" }) as MailResult,
+  };
+  const proofRequested = await requestAmpelConfirmation(proofInput, proofDeps);
+  const proofLead = [...proofStore.values()][0];
+  assertOk(proofRequested.ok && proofLead?.marketingOptIn === "pending" && proofLead.doiConfirmedAt === "", "signup does not mark the address for marketing");
+  assertOk(proofLead?.consentTextVersion === "2026-10-14" && proofLead.consentIp === "203.0.113.50", "signup stores the version and the IP");
+  const proofToken = createAmpelDoiToken(
+    { email: proofInput.email, answers: jaCode, ref: "Kanzlei", consentAt: proofLead?.consentAt ?? signup, consentTextVersion: AMPEL_CONSENT_TEXT_VERSION },
+    Date.parse(signup),
+  );
+  const proofConfirmed = await confirmAmpelDoi(proofToken ?? "", {
+    now: () => Date.parse(signup) + 1000,
+    sleep: async () => undefined,
+    findLead: async (leadId) => proofStore.get(leadId) ?? null,
+    saveLead: async (lead) => {
+      proofStore.set(lead.leadId, { ...lead });
+    },
+    sendResult: async () => ({ stub: false, sent: true, id: "marketing-result" }),
+  });
+  const confirmedLead = [...proofStore.values()][0];
+  assertOk(proofConfirmed.ok && confirmedLead?.marketingOptIn === "confirmed" && confirmedLead.doiConfirmedAt !== "", "the DOI click marks the address for marketing");
+
+  const unsubscribeToken = createAmpelUnsubscribeToken(confirmedLead?.email ?? "", confirmedLead?.consentAt ?? "");
+  const withdrawn = await withdrawAmpelMarketing(unsubscribeToken ?? "", {
+    now: () => Date.parse(signup) + 2000,
+    list: async () => [...proofStore.values()],
+    save: async (lead) => {
+      proofStore.set(lead.leadId, { ...lead });
+    },
+  });
+  assertOk(withdrawn.ok && [...proofStore.values()][0]?.marketingOptIn === "withdrawn", "the unsubscribe link withdraws marketing");
+  const afterWithdraw = await confirmAmpelDoi(proofToken ?? "", {
+    now: () => Date.parse(signup) + 3000,
+    sleep: async () => undefined,
+    findLead: async (leadId) => proofStore.get(leadId) ?? null,
+    saveLead: async (lead) => {
+      proofStore.set(lead.leadId, { ...lead });
+    },
+    sendResult: async () => {
+      throw new Error("withdrawn");
+    },
+  });
+  assertOk(afterWithdraw.ok && [...proofStore.values()][0]?.marketingOptIn === "withdrawn", "a withdrawn address is not marked again");
 
   console.log("check-ampel: ok");
 } finally {

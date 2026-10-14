@@ -15,6 +15,7 @@ import {
   type AmpelDoiPayload,
   type AmpelLight,
 } from "@/lib/ampel";
+import { AMPEL_CONSENT_TEXT_VERSION } from "@/lib/ampel-questions";
 
 /** Pauses between result-mail attempts. The first attempt does not wait. */
 export const AMPEL_RESULT_RETRY_DELAYS_MS = [0, 400, 1200] as const;
@@ -94,6 +95,9 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
   });
 
   const existing = await readLead(deps, leadId);
+  if (existing?.marketingOptIn === "withdrawn") {
+    return { ok: true, score: scored.score, light: scored.light, alreadySent: true };
+  }
   if (existing && existing.doiConfirmedAt && ampelResultMailRecorded(existing.mailStatus)) {
     return { ok: true, score: scored.score, light: scored.light, alreadySent: true };
   }
@@ -106,6 +110,9 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
     status: "ampel_doi_confirmed",
     consentAt: draft.consentAt,
     doiConfirmedAt: existing?.doiConfirmedAt || confirmedAt,
+    marketingOptIn: "confirmed",
+    consentIp: existing?.consentIp || "",
+    consentTextVersion: existing?.consentTextVersion || payload.consentTextVersion || "",
     advisorRef: draft.advisorRef,
     ampelAnswers: draft.ampelAnswers,
     ampelScore: draft.ampelScore,
@@ -130,6 +137,9 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
       leadId,
       status: "ampel_doi_confirmed",
       doiConfirmedAt: current?.doiConfirmedAt || pending.doiConfirmedAt,
+      marketingOptIn: "confirmed",
+      consentIp: current?.consentIp || pending.consentIp,
+      consentTextVersion: current?.consentTextVersion || pending.consentTextVersion || payload.consentTextVersion || "",
       mailStatus: mailLabel(mail),
     });
     return {
@@ -173,6 +183,8 @@ export type AmpelConfirmationInput = {
   email: string;
   answers: string;
   ref: string;
+  consentIp?: string;
+  consentTextVersion?: string;
 };
 
 export type AmpelConfirmationDeps = {
@@ -258,7 +270,12 @@ async function runConfirmation(
       ? existing
       : null;
   const consentAt = reuse?.consentAt || new Date(nowMs).toISOString();
-  const token = createAmpelDoiToken({ email, answers: code, ref, consentAt }, nowMs);
+  const consentTextVersion = input.consentTextVersion?.trim() || AMPEL_CONSENT_TEXT_VERSION;
+  const consentIp = input.consentIp?.trim() || reuse?.consentIp || "";
+  const token = createAmpelDoiToken(
+    { email, answers: code, ref, consentAt, consentTextVersion },
+    nowMs,
+  );
   if (!token) return { ok: false, status: 400, reason: "invalid" };
 
   const pending: ReadinessLead = {
@@ -271,10 +288,16 @@ async function runConfirmation(
       score: scored.score,
       light: scored.light,
       mailStatus: "confirm_pending",
+      marketingOptIn: "pending",
+      consentIp,
+      consentTextVersion,
     }),
     timestamp: consentAt,
     status: "ampel_doi_pending",
     doiConfirmedAt: "",
+    marketingOptIn: "pending",
+    consentIp,
+    consentTextVersion,
   };
   await writeConfirmLead(deps, pending);
 
@@ -301,6 +324,9 @@ async function runConfirmation(
       status: "ampel_doi_pending",
       consentAt: pending.consentAt,
       doiConfirmedAt: "",
+      marketingOptIn: "pending",
+      consentIp: pending.consentIp,
+      consentTextVersion: pending.consentTextVersion,
       advisorRef: pending.advisorRef,
       ampelAnswers: pending.ampelAnswers,
       ampelScore: pending.ampelScore,

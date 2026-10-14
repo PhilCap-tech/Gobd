@@ -3,14 +3,20 @@ import {
   AMPEL_CAP_NOTE,
   AMPEL_DISCLAIMER,
   AMPEL_QUESTIONS,
+  AMPEL_RESULT_REGISTER_LINE,
   AMPEL_RESULTS,
   type AmpelAnswer,
 } from "@/lib/ampel-questions";
 import { publicAmpelSource, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
 import { CUSTOMER_MAIL_SIGNATURE } from "@/lib/ops";
 import { BRAND_INK, BRAND_MUTED, BRAND_NAVY, drawBrandLockup } from "@/lib/pdf-brand";
-import { escapeHtml, wrapTransactionalHtml, wrapTransactionalText } from "@/lib/mail-layout";
-
+import {
+  escapeAttr,
+  escapeHtml,
+  MAIL_HOME_URL,
+  wrapTransactionalHtml,
+  wrapTransactionalText,
+} from "@/lib/mail-layout";
 const ANSWER_LABEL: Record<AmpelAnswer, string> = {
   ja: "Ja",
   nein: "Nein",
@@ -59,6 +65,8 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
     AMPEL_DISCLAIMER,
     "",
     CUSTOMER_MAIL_SIGNATURE,
+    `gobd-doku-erstellen.de: ${MAIL_HOME_URL}`,
+    AMPEL_RESULT_REGISTER_LINE,
   );
 
   const items = AMPEL_QUESTIONS.map((question) => {
@@ -80,7 +88,8 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
     <ul>${hints}</ul>
     <p>Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren.</p>
     <p>${escapeHtml(AMPEL_DISCLAIMER)}</p>
-    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}<br /><a href="${escapeAttr(MAIL_HOME_URL)}">gobd-doku-erstellen.de</a></p>
+    <p>${escapeHtml(AMPEL_RESULT_REGISTER_LINE)}</p>
   `);
   return { subject, text: wrapTransactionalText(lines.join("\n")), html };
 }

@@ -1,14 +1,15 @@
 import { createHash } from "node:crypto";
-import { sanitizeAmpelRef } from "@/lib/ampel";
+import { sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
 import { requestAmpelConfirmation, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
 import { sendAmpelConfirmationMail } from "@/lib/ampel-mail";
 import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
-import { AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
+import { AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
 import { ampelRateIpKey, ampelRateStore, type AmpelRateStore } from "@/lib/ampel-rate-limit";
 import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
 import type { MailResult } from "@/lib/mail";
 import { sendDedupedEmail } from "@/lib/mail-dedupe";
-import { findLatestAmpelReadinessLead, upsertReadinessLead } from "@/lib/store";
+import { findLatestAmpelReadinessLead, purgeExpiredAmpelLeads, upsertReadinessLead } from "@/lib/store";
+import type { ReadinessLead } from "@/lib/readiness";
 
 export const AMPEL_PDF_FROM = "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
 export const AMPEL_PDF_FILENAME = "Betriebspruefungs-Ampel.pdf";
@@ -25,7 +26,15 @@ export type SubmitAmpelInput = {
 export type SubmitAmpelDeps = {
   now?: () => number;
   store?: AmpelRateStore;
-  confirm?: (input: { email: string; answers: string; ref: string }) => Promise<AmpelConfirmationResult>;
+  confirm?: (input: {
+    email: string;
+    answers: string;
+    ref: string;
+    consentIp?: string;
+    consentTextVersion?: string;
+  }) => Promise<AmpelConfirmationResult>;
+  saveLead?: (lead: ReadinessLead) => Promise<void>;
+  purge?: () => Promise<void>;
 };
 
 export type SubmitAmpelOutcome =
@@ -54,6 +63,8 @@ async function confirmMarketing(input: {
   email: string;
   answers: string;
   ref: string;
+  consentIp?: string;
+  consentTextVersion?: string;
 }): Promise<AmpelConfirmationResult> {
   return requestAmpelConfirmation(input, {
     findLead: (leadEmail, leadAnswers) =>
@@ -125,6 +136,35 @@ async function runSubmit(
     return { ok: false, status: 503, error: AMPEL_RESULT_MAIL.sendFailed };
   }
 
+  try {
+    const purge = deps.purge ?? (async () => {
+      await purgeExpiredAmpelLeads(now);
+    });
+    await purge();
+    const scored = scoreAmpel(answers);
+    if (scored) {
+      const consentAt = new Date(now).toISOString();
+      const lead = toAmpelReadinessLead({
+        email,
+        answers: code,
+        ref: sanitizeAmpelRef(input.ref),
+        consentAt,
+        doiConfirmedAt: "",
+        score: scored.score,
+        light: scored.light,
+        mailStatus: "pdf_sent",
+      });
+      lead.status = "ampel_pdf";
+      lead.timestamp = consentAt;
+      const save = deps.saveLead ?? (async (row: ReadinessLead) => {
+        await upsertReadinessLead(row);
+      });
+      await save(lead);
+    }
+  } catch (error) {
+    console.error("[ampel] Ergebnis speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
+  }
+
   let marketing: "started" | "failed" | "skipped" = "skipped";
   if (input.marketing === true) {
     try {
@@ -133,6 +173,8 @@ async function runSubmit(
         email,
         answers: code,
         ref: sanitizeAmpelRef(input.ref),
+        consentIp: input.ip,
+        consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
       });
       marketing = confirmed.ok ? "started" : "failed";
     } catch (error) {

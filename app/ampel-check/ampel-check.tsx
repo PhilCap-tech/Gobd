@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AmpelCta, AmpelDisclaimer, AmpelResult } from "@/components/ampel-result";
 import {
@@ -23,6 +24,18 @@ import {
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
 import { trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
+
+function EmailPrivacyNote() {
+  const label = "Datenschutzerklärung";
+  const [before, after] = AMPEL_EMAIL_PRIVACY_NOTE.split(label);
+  return (
+    <>
+      {before}
+      <Link href="/datenschutz">{label}</Link>
+      {after}
+    </>
+  );
+}
 
 function shareMessage(ref: string, origin = ""): string {
   const link = `${origin}${ampelSharePath(ref)}`;
@@ -275,7 +288,7 @@ export function AmpelCheck() {
               onChange={(event) => setEmail(event.target.value)}
             />
             <p id="ampel-email-privacy" className="hint">
-              {AMPEL_EMAIL_PRIVACY_NOTE}
+              <EmailPrivacyNote />
             </p>
           </div>
           <div className="field">
