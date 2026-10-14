@@ -11,6 +11,7 @@ import {
   SuccessPending,
 } from "@/components/success-status";
 import { getSessionEmail, sessionIdForCheckoutProof } from "@/lib/auth";
+import { isCompAccessEmail } from "@/lib/comp-access";
 import { emailShownToViewer } from "@/lib/checkout-session";
 import { LOGIN_LINK_FAILED_NOTICE, loginLinkSentNotice } from "@/lib/login-mail";
 import { DELIVERY_DISCLAIMER } from "@/lib/delivery";
@@ -34,6 +35,25 @@ import { purchaseSessionIdFromCheckout } from "@/lib/tracking";
 import { versionLabelFromRow } from "@/lib/versioning";
 
 export const dynamic = "force-dynamic";
+
+/** Invoice line for a paid checkout. Comp accounts get no prices. */
+export function SuccessAccessNote({ compAccess }: { compAccess: boolean }) {
+  if (compAccess) {
+    return (
+      <p className="hint">
+        Kostenfreier Zugang. Sie können den Entwurf ohne Zahlung herunterladen.
+      </p>
+    );
+  }
+  return (
+    <p className="hint">
+      Die Rechnung weist die Nettopreise zuzüglich 19&nbsp;% Umsatzsteuer
+      aus: Einrichtung {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}
+      &nbsp;€ brutto), danach {MONTHLY_EUR}&nbsp;€ netto (
+      {MONTHLY_GROSS_LABEL}&nbsp;€ brutto) pro Monat.
+    </p>
+  );
+}
 
 export const metadata: Metadata = {
   title: "Dokument bereit",
@@ -79,6 +99,7 @@ export default async function SuccessPage({
   const version = row ? parseDocumentVersion(row) : 1;
   const visibleEmail = row ? emailShownToViewer(row.email, sessionEmail) : "";
   const ownerView = Boolean(visibleEmail && sessionEmail && visibleEmail === row?.email.trim().toLowerCase());
+  const compAccess = isCompAccessEmail(row?.email) || isCompAccessEmail(sessionEmail);
   const showSuccess = Boolean(row && allowed);
   // Live Stripe lookup only once the success view is stable (not the pending reload).
   const purchaseSessionId =
@@ -124,12 +145,7 @@ export default async function SuccessPage({
               PDF plus offene Punkte. Entwurf aus Ihren Angaben — keine
               Freigabe.
             </p>
-            <p className="hint">
-              Die Rechnung weist die Nettopreise zuzüglich 19&nbsp;% Umsatzsteuer
-              aus: Einrichtung {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}
-              &nbsp;€ brutto), danach {MONTHLY_EUR}&nbsp;€ netto (
-              {MONTHLY_GROSS_LABEL}&nbsp;€ brutto) pro Monat.
-            </p>
+            <SuccessAccessNote compAccess={compAccess} />
             <div className="card">
               <p className="prose">
                 Kapitelgerüst aus Ihren Intake-Angaben. Keine erfundenen
@@ -137,12 +153,16 @@ export default async function SuccessPage({
                 bestätigen ist. Eine Abstimmung mit dem Steuerberater ist
                 optional und nur im Rahmen eines gesonderten Auftrags.
               </p>
-              {anmeldung === "fehler" ? (
+              {anmeldung === "keine" ? (
+                <p className="hint">
+                  Der Download bleibt in Ihrem Konto. Es geht keine weitere E-Mail hinaus.
+                </p>
+              ) : anmeldung === "fehler" ? (
                 <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p>
               ) : anmeldung === "gesendet" || (mailReady && anmeldung !== "stub") ? (
                 <p className="banner">{loginLinkSentNotice(visibleEmail)}</p>
               ) : null}
-              {mailReady ? (
+              {anmeldung === "keine" ? null : mailReady ? (
                 <p className="hint">
                   Wir haben den Download-Link{visibleEmail ? ` an ${visibleEmail}` : ""}{" "}
                   geschickt. Später geht’s über Magic Link ins Konto.

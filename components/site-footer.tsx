@@ -16,6 +16,7 @@ export function SiteFooter() {
         <nav className="footer-links" aria-label="Weitere Seiten">
           <Link href="/faq">FAQ</Link>
           <Link href="/blog">Blog</Link>
+          <Link href="/ampel-check">Betriebsprüfungs-Ampel</Link>
           {LEGAL_LINKS.map((link) => (
             <a key={link.href} href={link.href}>
               {link.label}

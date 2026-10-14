@@ -50,6 +50,13 @@ export type ReadinessLead = {
   status: string;
   pdfUrl: string;
   mailStatus: string;
+  /** Set for Betriebsprüfungs-Ampel leads. Empty on readiness rows. */
+  consentAt: string;
+  doiConfirmedAt: string;
+  advisorRef: string;
+  ampelAnswers: string;
+  ampelScore: string;
+  ampelLight: string;
 };
 
 export const READINESS_SHEET_COLUMNS = [
@@ -69,6 +76,12 @@ export const READINESS_SHEET_COLUMNS = [
   "status",
   "pdf_url",
   "mail_status",
+  "consent_at",
+  "doi_confirmed_at",
+  "advisor_ref",
+  "ampel_answers",
+  "ampel_score",
+  "ampel_light",
 ] as const;
 
 export type ReadinessSheetColumn = (typeof READINESS_SHEET_COLUMNS)[number];
@@ -90,6 +103,12 @@ export const READINESS_SHEET_COLUMN_FIELDS = {
   status: "status",
   pdf_url: "pdfUrl",
   mail_status: "mailStatus",
+  consent_at: "consentAt",
+  doi_confirmed_at: "doiConfirmedAt",
+  advisor_ref: "advisorRef",
+  ampel_answers: "ampelAnswers",
+  ampel_score: "ampelScore",
+  ampel_light: "ampelLight",
 } as const satisfies Record<ReadinessSheetColumn, keyof ReadinessLead>;
 
 export function emptyReadinessLead(): ReadinessLead {
@@ -110,6 +129,12 @@ export function emptyReadinessLead(): ReadinessLead {
     status: "",
     pdfUrl: "",
     mailStatus: "",
+    consentAt: "",
+    doiConfirmedAt: "",
+    advisorRef: "",
+    ampelAnswers: "",
+    ampelScore: "",
+    ampelLight: "",
   };
 }
 
@@ -290,6 +315,12 @@ export function toReadinessLead(input: {
     status: "readiness_submitted",
     pdfUrl: input.pdfUrl ?? "",
     mailStatus: input.mailStatus ?? "",
+    consentAt: "",
+    doiConfirmedAt: "",
+    advisorRef: "",
+    ampelAnswers: "",
+    ampelScore: "",
+    ampelLight: "",
   };
 }
 

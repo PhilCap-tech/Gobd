@@ -292,6 +292,20 @@ ok(
   "company card continue controls sit before the bereich form",
 );
 
+function actionTags(source: string, label: string): Array<{ tag: string; attrs: string }> {
+  const found: Array<{ tag: string; attrs: string }> = [];
+  const re = new RegExp(`<(a|Link|button)\\b([^>]*)>\\s*(?:${label})`, "g");
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(source))) found.push({ tag: match[1] ?? "", attrs: match[2] ?? "" });
+  return found;
+}
+
+const neuesTags = actionTags(cardSource, "Neues Dokument");
+ok(neuesTags.length === 1 && neuesTags[0]?.tag === "a", "Neues Dokument is a native anchor");
+ok(neuesTags[0]?.attrs.includes("href="), "Neues Dokument has an href");
+const paidStartTags = actionTags(cardSource, "\\{PAID_INTAKE_LABEL\\}");
+ok(paidStartTags.length === 1 && paidStartTags[0]?.tag === "a", "empty-card paid intake start is a native anchor");
+
 const looseTags = continueTags(accountPage);
 ok(looseTags.length === 1 && looseTags[0]?.tag === "a", "loose draft continue is a native anchor");
 ok(looseTags[0]?.attrs.includes("href={openDraftContinuePath(draft)}"), "loose draft continue uses the draft href");

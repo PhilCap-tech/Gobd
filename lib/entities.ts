@@ -248,6 +248,31 @@ export function entityCapReached(count: number): boolean {
   return count >= MAX_ENTITIES_PER_ACCOUNT;
 }
 
+const CUSTOMER_SAVE_PREFIXES = ["Die Firma", "Bitte ", "Maximal "];
+
+/**
+ * Null only when the response names the stored company. The form stays put
+ * for every other answer, including `{ ok: true }` without an id.
+ */
+export function firmaSaveError(
+  data: { ok?: boolean; error?: string; entity?: { entityId?: string } | null },
+  fallback: string,
+): string | null {
+  const entityId = data.entity?.entityId?.trim() ?? "";
+  if (data.ok && entityId) return null;
+  const message = data.error?.trim() ?? "";
+  return message || fallback;
+}
+
+/** Customer copy only. A Sheets or runtime message must not replace the Sie-Form sentence. */
+export function customerFacingSaveError(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  const message = error.message.trim();
+  if (!message) return fallback;
+  if (CUSTOMER_SAVE_PREFIXES.some((prefix) => message.startsWith(prefix))) return message;
+  return fallback;
+}
+
 export function entityOwnedByEmail(
   entity: Pick<Entity, "userEmail">,
   email: string,

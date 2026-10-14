@@ -9,6 +9,13 @@ import {
 } from "@/lib/auth";
 import { sessionOwnerDenial } from "@/lib/checkout-access";
 import {
+  firmPosition,
+  firmStartDecision,
+  loadIncludedFirmCoverage,
+  type IncludedFirmCoverage,
+} from "@/lib/subscription-coverage";
+import { isCompAccessEmail } from "@/lib/comp-access";
+import {
   applyCheckoutOwnerSession,
   isStoredPaidEntitlementStatus,
   isTestModeCheckoutSessionId,
@@ -132,6 +139,8 @@ type ResolvedIntake = {
    * (a live key cannot read a cs_test_ session).
    */
   fromStoredEntitlement?: boolean;
+  /** Allowlist entitlement. No Stripe session and no customer id. */
+  compAccess?: boolean;
   family?: SheetRow[];
 };
 
@@ -145,6 +154,11 @@ export type IntakeIo = {
   /** Optional so existing test doubles stay valid. Production wires the store. */
   findRowByStripeSessionId?: typeof findRowByStripeSessionId;
   resolveCheckoutSession: typeof resolveCheckoutSession;
+  /**
+   * Optional. Production wires the stored paid row plus Stripe subscription
+   * status. Test doubles omit it and keep the checkout gate.
+   */
+  includedFirmCoverage?: (email: string) => Promise<IncludedFirmCoverage>;
   prepareDurableIntakeRow: typeof prepareDurableIntakeRow;
   appendRecord: typeof appendRecord;
   generatePdf: typeof generatePdf;
@@ -162,6 +176,7 @@ const defaultIntakeIo: IntakeIo = {
   findLatestStripeCustomerIdByEmail,
   findRowByStripeSessionId,
   resolveCheckoutSession,
+  includedFirmCoverage: loadIncludedFirmCoverage,
   prepareDurableIntakeRow,
   appendRecord,
   generatePdf,
@@ -321,6 +336,64 @@ async function resolveIdentity(
   const entitled = await identityFromStoredEntitlement(body, sessionEmail, sessionId, io);
   if (entitled) return entitled;
 
+  if (!sessionId && sessionEmail && isCompAccessEmail(sessionEmail)) {
+    return {
+      identity: {
+        email: sessionEmail,
+        company: "",
+        stripeSessionId: "",
+        stripeCustomerId: "",
+        stub: false,
+      },
+      version: 1,
+      parentDocumentId: "",
+      status: "intake_submitted",
+      entityId: body.entityId?.trim() || "",
+      ownerEmail: sessionEmail,
+      firstDelivery: false,
+      compAccess: true,
+    };
+  }
+
+  const requestedEntity = body.entityId?.trim() ?? "";
+  if (!sessionId && sessionEmail && requestedEntity && io.includedFirmCoverage) {
+    const owned = await io.getOwnedEntity(requestedEntity, sessionEmail);
+    const denial = sessionOwnerDenial(sessionEmail, owned?.userEmail ?? "");
+    if (!owned || denial) {
+      return { response: jsonError("Kein Zugriff.", denial ?? 403) };
+    }
+    const coverage = await io.includedFirmCoverage(sessionEmail);
+    const firms = await io.listEntitiesByEmail(sessionEmail);
+    const decision = firmStartDecision({
+      sessionEmail,
+      entityOwnerEmail: owned.userEmail,
+      entityId: owned.entityId,
+      firmPosition: firmPosition(firms, owned.entityId),
+      coverage,
+    });
+    if (decision === "denied") {
+      return { response: jsonError("Kein Zugriff.", 403) };
+    }
+    if (decision === "intake") {
+      return {
+        identity: {
+          email: sessionEmail,
+          company: owned.name,
+          stripeSessionId: "",
+          stripeCustomerId: coverage.stripeCustomerId,
+          stub: false,
+        },
+        version: 1,
+        parentDocumentId: "",
+        status: "intake_submitted",
+        entityId: owned.entityId,
+        ownerEmail: sessionEmail,
+        firstDelivery: false,
+        fromStoredEntitlement: true,
+      };
+    }
+  }
+
   const identity = await io.resolveCheckoutSession(sessionId);
   if ("error" in identity) {
     const message = checkoutFailureMessage(sessionId, identity.error);
@@ -398,9 +471,11 @@ async function writeIntake(
 
   const { version, status } = resolved;
   let { identity, parentDocumentId } = resolved;
-  identity = await withStripeCustomerId(identity, io, {
-    skipStripeSession: resolved.fromStoredEntitlement === true,
-  });
+  if (!resolved.compAccess) {
+    identity = await withStripeCustomerId(identity, io, {
+      skipStripeSession: resolved.fromStoredEntitlement === true,
+    });
+  }
   identity = { ...identity, email: resolved.ownerEmail };
   let closed = await subscriptionWriteDenial(identity.email);
   if (closed && identity.stripeSessionId) {
@@ -547,27 +622,33 @@ async function writeIntake(
   }
 
   const appUrl = getAppUrl();
-  const downloadUrl = `${appUrl}/api/docs/${documentId}/download?session_id=${encodeURIComponent(identity.stripeSessionId)}`;
-  const successUrl = `${appUrl}/success?session_id=${encodeURIComponent(identity.stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`;
-  const magicUrl = identity.email ? magicLinkUrl(identity.email) : undefined;
+  const downloadUrl = identity.stripeSessionId
+    ? `${appUrl}/api/docs/${documentId}/download?session_id=${encodeURIComponent(identity.stripeSessionId)}`
+    : `${appUrl}/api/docs/${documentId}/download`;
+  const successUrl = identity.stripeSessionId
+    ? `${appUrl}/success?session_id=${encodeURIComponent(identity.stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`
+    : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`;
+  let loginMail: "sent" | "stub" | "failed" | "skipped" = "skipped";
+  if (!resolved.compAccess) {
+    const magicUrl = identity.email ? magicLinkUrl(identity.email) : undefined;
+    try {
+      await io.sendDeliveryMail({
+        email: identity.email,
+        company: identity.company,
+        downloadUrl,
+        magicLinkUrl: magicUrl,
+        successUrl,
+        documentId,
+        version,
+      });
+    } catch (error) {
+      console.error("[intake] delivery mail fehlgeschlagen", error);
+    }
 
-  try {
-    await io.sendDeliveryMail({
-      email: identity.email,
-      company: identity.company,
-      downloadUrl,
-      magicLinkUrl: magicUrl,
-      successUrl,
-      documentId,
-      version,
-    });
-  } catch (error) {
-    console.error("[intake] delivery mail fehlgeschlagen", error);
+    loginMail = identity.email
+      ? await io.deliverLoginLink(identity.email, "/account")
+      : "failed";
   }
-
-  const loginMail = identity.email
-    ? await io.deliverLoginLink(identity.email, "/account")
-    : "failed";
 
   const response = NextResponse.json({
     ok: true,

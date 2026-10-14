@@ -14,6 +14,15 @@ import { PAID_INTAKE_LABEL, paidIntakePathForOwner } from "@/lib/account-paid-in
 import { accountCompanyCards, draftsNotOnCompanyCard } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
+import { isCompAccessEmail } from "@/lib/comp-access";
+import {
+  coveredIntakePath,
+  emptyIncludedFirmCoverage,
+  EXTRA_FIRM_NOTE,
+  firmPosition,
+  firmStartDecision,
+  loadIncludedFirmCoverage,
+} from "@/lib/subscription-coverage";
 import { runWithSheetsMeasure } from "@/lib/sheets-meter";
 import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { firmaEditPath } from "@/lib/documents";
@@ -45,6 +54,7 @@ export default async function AccountPage({
   if (!email) {
     redirect("/login");
   }
+  const compAccess = isCompAccessEmail(email);
 
   const params = await searchParams;
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
@@ -71,7 +81,9 @@ export default async function AccountPage({
       groups = hub.groups;
       openDrafts = hub.openDrafts;
       looseDrafts = draftsNotOnCompanyCard(hub);
-      customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
+      customerId = compAccess
+        ? ""
+        : ((await findLatestStripeCustomerIdByEmail(email)) ?? "");
     } catch (error) {
       loadFailed = true;
       console.error(
@@ -143,6 +155,9 @@ export default async function AccountPage({
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId) ||
     lifecycleRows.some((row) => row.stripeCustomerId);
   const atCap = entityCapReached(entities.length);
+  const coverage = compAccess
+    ? emptyIncludedFirmCoverage()
+    : await loadIncludedFirmCoverage(email);
 
   return (
     <>
@@ -214,7 +229,9 @@ export default async function AccountPage({
                     </Link>
                   ) : null}
                   <Link
-                    className={paidIntakeHref || !stripeBound ? "btn ghost" : "btn"}
+                    className={
+                      paidIntakeHref || (!stripeBound && !compAccess) ? "btn ghost" : "btn"
+                    }
                     href="/account/firma/neu"
                   >
                     Firma anlegen
@@ -228,7 +245,21 @@ export default async function AccountPage({
                 {groups.map((group) => {
                   const emptyCard =
                     group.families.length === 0 && group.continueDrafts.length === 0;
-                  const offerPaidIntake = Boolean(paidIntakeHref) && emptyCard && !paidIntakePlaced;
+                  const entityId = group.entity?.entityId ?? "";
+                  const position = entityId ? firmPosition(entities, entityId) : 0;
+                  const start =
+                    !compAccess && group.entity
+                      ? firmStartDecision({
+                          sessionEmail: email,
+                          entityOwnerEmail: group.entity.userEmail,
+                          entityId,
+                          firmPosition: position,
+                          coverage,
+                        })
+                      : "checkout";
+                  const coveredIntakeHref = start === "intake" ? coveredIntakePath(entityId) : "";
+                  const offerPaidIntake =
+                    Boolean(paidIntakeHref) && emptyCard && !paidIntakePlaced && !coveredIntakeHref;
                   if (offerPaidIntake) paidIntakePlaced = true;
                   return (
                     <AccountCompanyCard
@@ -239,17 +270,15 @@ export default async function AccountPage({
                       writesOpen={writesOpen}
                       downloadsOpen={downloadsOpen}
                       paidIntakeHref={offerPaidIntake ? paidIntakeHref : ""}
+                      compAccess={compAccess}
+                      coveredIntakeHref={coveredIntakeHref}
+                      extraFirmNote={!compAccess && position > MAX_ENTITIES_PER_ACCOUNT}
                     />
                   );
                 })}
               </div>
               <div className="entity-toolbar">
-                {atCap ? (
-                  <p className="hint">
-                    Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
-                    erreicht.
-                  </p>
-                ) : writesOpen ? (
+                {writesOpen ? (
                   <>
                     {paidIntakeHref && !paidIntakePlaced ? (
                       <Link className="btn" href={paidIntakeHref}>
@@ -259,6 +288,7 @@ export default async function AccountPage({
                     <Link className="btn ghost" href="/account/firma/neu">
                       {entities.length === 0 ? "Firma anlegen" : FIRMA_ADD_LABEL}
                     </Link>
+                    {atCap ? <p className="hint">{EXTRA_FIRM_NOTE}</p> : null}
                   </>
                 ) : null}
               </div>
@@ -267,22 +297,21 @@ export default async function AccountPage({
         </div>
 
         <div className="account-tiles">
-          <AccountAboCard stripeBound={stripeBound} notice={notice} />
+          <AccountAboCard stripeBound={stripeBound} notice={notice} compAccess={compAccess} />
           <AccountProfileForm
             email={email}
             initialName={profile?.name ?? ""}
             atCap={atCap}
             firmHref={entities[0] ? firmaEditPath(entities[0].entityId) : null}
           />
-          <AccountResourcesCard subscribed={stripeBound} />
+          <AccountResourcesCard subscribed={stripeBound || compAccess} />
         </div>
 
         <p className="hint account-note">
           {stripeBound
             ? "Identität über die E-Mail aus dem Checkout."
             : "Identität über die E-Mail aus dem Intake."}{" "}
-          Der Name im Profil ändert die Anmeldung nicht. Bis zu{" "}
-          {MAX_ENTITIES_PER_ACCOUNT} Firmen pro Konto.
+          Der Name im Profil ändert die Anmeldung nicht. {EXTRA_FIRM_NOTE}
         </p>
 
         <LogoutButton className="account-logout" />

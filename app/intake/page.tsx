@@ -5,6 +5,12 @@ import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
+import { isCompAccessEmail } from "@/lib/comp-access";
+import {
+  firmPosition,
+  firmStartDecision,
+  loadIncludedFirmCoverage,
+} from "@/lib/subscription-coverage";
 import { notifyBuyerOfCheckout } from "@/lib/buyer-onboarding";
 import {
   CHECKOUT_BACK_TO_ACCOUNT,
@@ -553,6 +559,64 @@ async function IntakePage({
     );
   }
 
+  // Firm named in the URL, without a checkout session id. An active
+  // subscription covers firms 1–5. A comp mailbox keeps the path below.
+  // The grant cookie must not replace this firm with the original session.
+  if (!sessionIdQuery && requestedEntityId && !isCompAccessEmail(sessionEmail)) {
+    if (!sessionEmail) redirect(loginPath(returnPath));
+    const accountEntities = await listEntitiesByEmail(sessionEmail);
+    const ownedEntity = await getOwnedEntity(requestedEntityId, sessionEmail);
+    const coverage = await loadIncludedFirmCoverage(sessionEmail);
+    const decision = firmStartDecision({
+      sessionEmail,
+      entityOwnerEmail: ownedEntity?.userEmail ?? "",
+      entityId: requestedEntityId,
+      firmPosition: ownedEntity ? firmPosition(accountEntities, ownedEntity.entityId) : 0,
+      coverage,
+    });
+    if (decision === "denied") {
+      return (
+        <>
+          <SiteHeader backHref="/account" backLabel="← Zum Konto" />
+          <main className="wrap page">
+            <EditGate loggedIn />
+          </main>
+          <SiteFooter />
+        </>
+      );
+    }
+    if (decision === "checkout") {
+      redirect(`/checkout?entity_id=${encodeURIComponent(requestedEntityId)}`);
+    }
+    const coveredSession = {
+      email: sessionEmail,
+      company: ownedEntity?.name || company || "",
+      stripeSessionId: "",
+      stripeCustomerId: coverage.stripeCustomerId,
+      stub: false,
+    };
+    return (
+      <>
+        <SiteHeader backHref="/account" backLabel="← Zum Konto" />
+        <main className="wrap page">
+          <IntakeForm
+            session={coveredSession}
+            firm={firmFromEntity(ownedEntity, coveredSession.company)}
+            loginHref={loginPath(returnPath)}
+            entities={entityChoices(accountEntities)}
+            initialEntityId={ownedEntity?.entityId ?? ""}
+            initialAnswers={bereich ? { ...emptyAnswers(), bereich } : undefined}
+            gesamtMode
+            initialStepId={initialStepId}
+            focusModulId={focusModulId}
+            stripeTestMode={isStripeTestMode()}
+          />
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
+
   // Magic-Link aus der Onboarding-Mail trägt nur next=/intake (ohne session_id).
   // Nach der Anmeldung die letzte bezahlte Checkout-Session weiterführen,
   // sonst zeigt das Intake die Zahlungssperre.
@@ -564,7 +628,7 @@ async function IntakePage({
     }
   }
 
-  const session = sessionId
+  let session = sessionId
     ? await resolveCheckoutSession(sessionId)
     : isStripeConfigured() || !devCheckoutStubAllowed()
       ? ({ error: "missing" } as const)
@@ -579,6 +643,18 @@ async function IntakePage({
   if (!("error" in session) && session.stub) {
     session.email = email || session.email;
     session.company = company || session.company;
+  }
+
+  // Comp: the logged-in mailbox is the entitlement. No Checkout Session,
+  // no Stripe lookup, and no order mail.
+  if ("error" in session && !sessionId && sessionEmail && isCompAccessEmail(sessionEmail)) {
+    session = {
+      email: sessionEmail,
+      company: company || "",
+      stripeSessionId: "",
+      stripeCustomerId: "",
+      stub: false,
+    };
   }
 
   // Firmenliste nur mit Login für diese Adresse. Der Checkout-Nachweis

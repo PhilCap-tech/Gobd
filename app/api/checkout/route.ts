@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
+import { compCheckoutRedirect, isCompAccessEmail } from "@/lib/comp-access";
 import { boundCheckoutEntityId } from "@/lib/checkout-entity";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
-import { findLatestStripeCustomerIdByEmail, getEntity } from "@/lib/store";
+import { findLatestStripeCustomerIdByEmail, getEntity, listEntitiesByEmail } from "@/lib/store";
+import {
+  coveredIntakePath,
+  firmPosition,
+  firmStartDecision,
+  loadIncludedFirmCoverage,
+} from "@/lib/subscription-coverage";
 import {
   CHECKOUT_SESSION_ROUTE,
   createCheckoutSession,
   verifyStripeCustomerId,
 } from "@/lib/stripe";
+import { emailsEqual } from "@/lib/types";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
   if (!isStripeSecretConfigured()) return undefined;
@@ -45,6 +53,13 @@ export async function POST(request: Request) {
   const email = body.email?.trim() ?? "";
   const company = body.company?.trim() ?? "";
   const requestedEntityId = body.entityId?.trim() ?? "";
+  const sessionEmail = await sessionEmailFromRequest(request);
+  const compTarget =
+    compCheckoutRedirect(sessionEmail, requestedEntityId) ||
+    compCheckoutRedirect(email, requestedEntityId);
+  if (compTarget) {
+    return NextResponse.json({ url: compTarget });
+  }
   let entityOwnerEmail = "";
   if (requestedEntityId) {
     try {
@@ -61,9 +76,37 @@ export async function POST(request: Request) {
     checkoutEmail: email,
     entityId: requestedEntityId,
     entityOwnerEmail,
-    sessionEmail: await sessionEmailFromRequest(request),
+    sessionEmail,
     dropWhenSessionDiffers: true,
   });
+
+  if (
+    sessionEmail &&
+    entityId &&
+    emailsEqual(sessionEmail, email) &&
+    !isCompAccessEmail(sessionEmail) &&
+    !isCompAccessEmail(email)
+  ) {
+    try {
+      const entities = await listEntitiesByEmail(sessionEmail);
+      const coverage = await loadIncludedFirmCoverage(sessionEmail);
+      const decision = firmStartDecision({
+        sessionEmail,
+        entityOwnerEmail,
+        entityId,
+        firmPosition: firmPosition(entities, entityId),
+        coverage,
+      });
+      if (decision === "intake") {
+        return NextResponse.json({ url: coveredIntakePath(entityId) });
+      }
+    } catch (error) {
+      console.error(
+        "[checkout] weitere Firma nicht geprüft",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+  }
 
   if (!company || !email) {
     return NextResponse.json(

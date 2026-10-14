@@ -10,7 +10,7 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 
 - Eine strukturierte GoBD-Verfahrensdokumentation als PDF, erzeugt aus Ihrem Online-Intake (Branche/Rechtsform, Systeme, Belegwege, IT/Hosting, Verantwortliche).
 - Aufbau in den vier klassischen Teilen: Allgemeine Beschreibung, Anwenderdokumentation, Technische Systemdokumentation und Betriebsdokumentation. Dazu eine Vollständigkeitsübersicht, Aufbewahrung, Verantwortlichkeiten und eine Liste offener Punkte.
-- Ein Gesamtdokument je Firma mit 24 Modulen (Muster je Branchenvorlage: Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau): von Unternehmen und Organisation über Verkauf, Einkauf, Rechnungen, E-Rechnungen, Papierbelege, Zahlungsverkehr, Kasse, Buchführung, Lager, Anlagen, Personal, Onlineshop und branchenspezifische Abläufe bis zu Archivierung, Aufbewahrung und Löschung, Systemen, Zugriffsrechten, Datensicherung, Kontrollen, ausgelagerten Aufgaben, Prüfungszugriff, Änderungen und Pflege der Dokumentation.
+- Ein Abo umfasst bis zu 5 Firmen. Je Firma ein Gesamtdokument mit 24 Modulen (Muster je Branchenvorlage: Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau): von Unternehmen und Organisation über Verkauf, Einkauf, Rechnungen, E-Rechnungen, Papierbelege, Zahlungsverkehr, Kasse, Buchführung, Lager, Anlagen, Personal, Onlineshop und branchenspezifische Abläufe bis zu Archivierung, Aufbewahrung und Löschung, Systemen, Zugriffsrechten, Datensicherung, Kontrollen, ausgelagerten Aufgaben, Prüfungszugriff, Änderungen und Pflege der Dokumentation.
 - Ein kurzer Betriebs-Check zu Beginn legt fest, welche Module bei Ihnen vorkommen. Kein vorhandener Bereich wird stillschweigend ausgelassen: Jedes Modul hat den Status „Im Tool beschreiben“, ist durch eine bestehende Dokumentation abgedeckt, hat den Status „Später ausfüllen“ oder ist begründet als „nicht vorhanden“ markiert. Firmendaten, Programme und Ansprechpartner geben Sie einmal an – wo möglich, füllen wir sie in den Themen vor.
 - Ein fester Produkt-Disclaimer in der Dokumentation (kein Steuer-/Rechtsberatungsersatz; Verantwortung für inhaltliche Richtigkeit liegt bei Ihnen).
 
@@ -37,7 +37,7 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 
 ## 3. Preise & Updates nach Lieferung
 
-- **24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.** Der Preis gilt je Firma und umfasst das Gesamtdokument mit allen Modulen dieser Firma. Bereits erstellte Bereichs-Dokumentationen bleiben im Konto lesbar.
+- **24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.** Ein Abo umfasst bis zu 5 Firmen und das Gesamtdokument mit allen Modulen jeder Firma. Bereits erstellte Bereichs-Dokumentationen bleiben im Konto lesbar.
 - **Preismodell:** einmalige Einrichtung 149 € zzgl. USt und 49 € zzgl. USt pro Monat. Der erste Monat ist im Einstiegspreis von 198 € zzgl. USt (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet. Maßgeblich sind die im Checkout angezeigten Beträge.
 - Das monatliche Abo deckt laufenden Zugang sowie Update-/Pflegeleistungen gemäß aktueller Produktbeschreibung ab (u. a. Versionierung und Speicherung).
 - Ein Update ist sinnvoll, wenn sich Systeme, Abläufe, Hosting oder Verantwortliche ändern. Das Gesamtdokument hat eine gemeinsame Versionierung mit „Gültig ab“ und Änderungshistorie; frühere Fassungen bleiben herunterladbar.
@@ -45,7 +45,7 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 
 ## 4. Ist das Steuerberatung / rechtssicher?
 
-Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt Sie bei der Erstellung von Entwürfen einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche (zum Beispiel Belegfluss, Kasse oder Warenwirtschaft). Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
+Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt Sie bei der Erstellung von Entwürfen einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche (zum Beispiel Belegfluss, Kasse oder Warenwirtschaft) für bis zu fünf Firmen je Abo. Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
 Ob und in welchem Umfang eine Verfahrensdokumentation für Ihr Unternehmen erforderlich oder ausreichend ist, hängt von Ihrer Situation ab. Eine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt ersetzen wir nicht.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   READINESS_BELEGWEGE,
@@ -86,6 +86,7 @@ export function ReadinessForm() {
   const [form, setForm] = useState<FormState>(INITIAL);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const submitted = useRef(false);
 
   function patch(partial: Partial<FormState>) {
     setForm((current) => ({ ...current, ...partial }));
@@ -117,7 +118,9 @@ export function ReadinessForm() {
   }
 
   async function submit() {
+    if (submitted.current) return;
     if (!validate(2)) return;
+    submitted.current = true;
     setPending(true);
     try {
       const response = await fetch("/api/readiness", {
@@ -143,16 +146,20 @@ export function ReadinessForm() {
       } catch {
         data = {};
       }
-      if (!response.ok || !data.successUrl) {
+      const successUrl = data.successUrl;
+      if (!response.ok || !successUrl) {
+        submitted.current = false;
         setError(data.error || "Speichern fehlgeschlagen.");
         return;
       }
-      trackReadinessSubmit();
-      router.push(data.successUrl);
+      trackReadinessSubmit(() => {
+        router.push(successUrl);
+      });
     } catch {
+      submitted.current = false;
       setError("Netzwerkfehler. Bitte erneut versuchen.");
     } finally {
-      setPending(false);
+      if (!submitted.current) setPending(false);
     }
   }
 

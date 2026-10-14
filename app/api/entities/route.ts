@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
+import { firmaAnlegenAllowed } from "@/lib/comp-access";
 import {
   EntityLimitError,
   MAX_ENTITIES_PER_ACCOUNT,
+  customerFacingSaveError,
   normalizeEntityInput,
 } from "@/lib/entities";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
@@ -34,7 +36,7 @@ function parseEntityBody(body: {
 
 export async function POST(request: Request) {
   const email = await getSessionEmail();
-  if (!email) {
+  if (!firmaAnlegenAllowed(email)) {
     return jsonError("Bitte anmelden.", 401);
   }
 
@@ -76,9 +78,10 @@ export async function POST(request: Request) {
     }
     console.error("[entities] Anlegen fehlgeschlagen", error);
     return jsonError(
-      error instanceof Error && error.message
-        ? error.message
-        : "Firma konnte nicht angelegt werden.",
+      customerFacingSaveError(
+        error,
+        "Die Firma konnte nicht angelegt werden. Bitte versuchen Sie es erneut.",
+      ),
       500,
     );
   }
@@ -129,9 +132,10 @@ export async function PATCH(request: Request) {
     if (outage) return outage;
     console.error("[entities] Speichern fehlgeschlagen", error);
     return jsonError(
-      error instanceof Error && error.message
-        ? error.message
-        : "Firma konnte nicht gespeichert werden.",
+      customerFacingSaveError(
+        error,
+        "Die Firma konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      ),
       500,
     );
   }

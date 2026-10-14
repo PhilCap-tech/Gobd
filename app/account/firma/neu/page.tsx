@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -8,10 +7,6 @@ import {
   readCheckoutAccountFacts,
 } from "@/lib/account-checkout-prefill";
 import { getSessionEmail, loginPath } from "@/lib/auth";
-import {
-  entityCapReached,
-  MAX_ENTITIES_PER_ACCOUNT,
-} from "@/lib/entities";
 import { listEntitiesByEmail } from "@/lib/store";
 import { FirmaForm } from "../firma-form";
 
@@ -37,9 +32,8 @@ export default async function NewFirmaPage() {
       error instanceof Error ? error.name : "error",
     );
   }
-  const atCap = entityCapReached(entities.length);
   let formDefaults: ReturnType<typeof firstCompanyFormDefaults> = { showNote: false };
-  if (!atCap && entities.length === 0) {
+  if (entities.length === 0) {
     try {
       formDefaults = firstCompanyFormDefaults(0, await readCheckoutAccountFacts(email));
     } catch (error) {
@@ -54,21 +48,7 @@ export default async function NewFirmaPage() {
         <p className="kicker">Konto</p>
         <h1>Firma anlegen</h1>
         <p className="lead">{email}</p>
-        {atCap ? (
-          <div className="card">
-            <p className="prose">
-              Sie haben das Maximum von {MAX_ENTITIES_PER_ACCOUNT} Firmen
-              erreicht.
-            </p>
-            <div className="actions" style={{ marginTop: 16 }}>
-              <Link className="btn" href="/account">
-                Zum Konto
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <FirmaForm initial={formDefaults.initial} showCheckoutNote={formDefaults.showNote} />
-        )}
+        <FirmaForm initial={formDefaults.initial} showCheckoutNote={formDefaults.showNote} />
       </main>
       <SiteFooter />
     </>

@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 05.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 13.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -29,9 +29,9 @@ und dem Kunden („Kunde“, „Sie“).
 
 ## § 2 Leistungsgegenstand — keine Steuer-/Rechtsberatung
 
-(1) Gegenstand ist die digitale Erstellung und Bereitstellung eines **Entwurfs einer Verfahrensdokumentation für die vom Kunden gewählten Module/Bereiche** (z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn) je Firma sowie — bei aktivem Abonnement — Zugang zu Versionen und späteren Anpassungen, je nach gebuchtem Angebot.
+(1) Gegenstand ist die digitale Erstellung und Bereitstellung eines **Entwurfs einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche** (z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn) für **bis zu fünf Firmen je Abonnement** sowie, solange das Abonnement aktiv ist, der Zugang zu Versionen und späteren Anpassungen im Umfang des gebuchten Angebots. Für jede weitere Firma ab der sechsten ist ein zusätzliches Abonnement erforderlich.
 
-(2) Je gewähltem Modul bzw. Gesamtdokument entsteht die Verfahrensdokumentation. **Alle 24 Module sind im Preis enthalten**; für weitere Module derselben Firma fällt kein zusätzliches Entgelt an. Welche Module dokumentiert werden, ergibt sich aus dem Betriebs-Check und der Auswahl des Kunden.
+(2) Für jedes gewählte Modul bzw. als Gesamtdokument entsteht eine Verfahrensdokumentation. **Alle 24 Module sind im Preis enthalten.** Für weitere Module fällt innerhalb eines Abonnements kein zusätzliches Entgelt an, auch nicht für eine weitere der bis zu fünf Firmen. Welche Module dokumentiert werden, ergibt sich aus dem Betriebs-Check und Ihrer Auswahl.
 
 (3) **Keine Steuerberatung, keine Rechtsberatung.** Der Anbieter erbringt keine Steuerberatungsleistungen i. S. d. StBerG und keine Rechtsdienstleistungen i. S. d. RDG. Es kommt kein Steuerberatungs- oder Anwaltsvertrag zustande. Die ausgegebenen Texte sind Arbeitshilfen/Entwürfe und ersetzen keine Prüfung durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
@@ -135,4 +135,4 @@ Es gelten die gesonderte Datenschutzerklärung und die Cookie-Hinweise auf der W
 
 (3) Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
 
-**Stand:** 05.10.2026
+**Stand:** 13.10.2026

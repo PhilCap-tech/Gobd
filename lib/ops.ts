@@ -21,6 +21,7 @@ import {
   partnerInquiryMailKey,
   sendDedupedEmail,
 } from "@/lib/mail-dedupe";
+import { isCompAccessEmail } from "@/lib/comp-access";
 import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
 import {
   escapeAttr,
@@ -578,6 +579,13 @@ export async function triggerOnboardingMail(input: {
   /** Resend key. Same checkout session must not send a second order mail. */
   idempotencyKey?: string;
 }): Promise<OpsResult & MailResult> {
+  if (isCompAccessEmail(input.email)) {
+    console.info("[ops] onboarding mail übersprungen — kostenfreier Zugang", {
+      sessionId: input.sessionId,
+    });
+    return { stub: false, sent: false, skipped: true, action: "onboarding" };
+  }
+
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   if (!isMailConfigured()) {
     console.info("[ops] onboarding mail stub", {
@@ -752,6 +760,11 @@ export async function sendDeliveryMail(input: {
   documentId?: string;
   version?: number;
 }): Promise<OpsResult & MailResult> {
+  if (isCompAccessEmail(input.email)) {
+    console.info("[ops] delivery mail übersprungen — kostenfreier Zugang");
+    return { stub: false, sent: false, skipped: true, action: "delivery" };
+  }
+
   if (!input.email.trim()) {
     console.info("[ops] delivery mail übersprungen — keine E-Mail");
     return { stub: true, sent: false, action: "delivery" };
