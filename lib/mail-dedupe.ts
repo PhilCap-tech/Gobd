@@ -454,6 +454,23 @@ async function sendDedupedEmailLocked(input: DedupedMailInput): Promise<MailResu
   return result;
 }
 
+/** Whether this logical mail was already claimed. Does not send and does not claim. */
+export async function lookupMailDedupe(key: string): Promise<"free" | "sent" | "inflight"> {
+  const dedupeKey = key.trim();
+  if (!dedupeKey) return "free";
+  try {
+    const row = await readRecord(dedupeKey);
+    if (!row) return "free";
+    const now = nowFn();
+    if (blocks(row, now)) return "sent";
+    if (freshPending(row, now)) return "inflight";
+    return "free";
+  } catch (error) {
+    console.error("[mail] Dedupe-Lesung fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return "free";
+  }
+}
+
 export async function sendDedupedEmail(input: DedupedMailInput): Promise<MailResult> {
   try {
     return await lock(input.dedupeKey.trim(), () => sendDedupedEmailLocked(input));

@@ -158,6 +158,13 @@ export function AmpelCheck() {
     }
     setMailError("");
     setPending(true);
+    const payload = {
+      email,
+      answers: encoded,
+      ref: refName,
+      marketing,
+      fax_number: fax,
+    };
     const showResult = (notice: string) => {
       try {
         sessionStorage.setItem(shownKey(encoded), "1");
@@ -167,17 +174,21 @@ export function AmpelCheck() {
       setMailNotice(notice);
       setMode("result");
     };
+    const hideResult = () => {
+      try {
+        sessionStorage.removeItem(shownKey(encoded));
+      } catch {
+        // The form is enough when the request itself was rejected.
+      }
+      setMailNotice("");
+      setMode("email");
+    };
+    showResult(AMPEL_RESULT_MAIL.sending);
     try {
       const response = await fetch("/api/ampel/ergebnis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          answers: encoded,
-          ref: refName,
-          marketing,
-          fax_number: fax,
-        }),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(20_000),
       });
       let data: {
@@ -186,35 +197,70 @@ export function AmpelCheck() {
         honeypot?: boolean;
         marketing?: string;
         mailed?: boolean;
+        pending?: boolean;
+        duplicate?: boolean;
         notice?: string;
+        token?: string;
       } = {};
       try {
         data = (await response.json()) as typeof data;
       } catch {
         data = {};
       }
-      if (response.status === 429) {
-        setMailError(data.error || AMPEL_RESULT_MAIL.rateLimited);
+      if (response.status === 400 || data.honeypot) {
+        hideResult();
+        if (!data.honeypot) setMailError(data.error || AMPEL_RESULT_MAIL.invalidEmail);
         return;
       }
-      if (response.status === 400 || data.honeypot) {
-        if (!data.honeypot) setMailError(data.error || AMPEL_RESULT_MAIL.invalidEmail);
+      if (response.status === 429) {
+        showResult(data.notice || AMPEL_RESULT_MAIL.rateLimitedEmail);
+        return;
+      }
+      if (data.duplicate) {
+        showResult(data.notice || AMPEL_RESULT_MAIL.alreadySent);
         return;
       }
       trackLeadSubmit({ value: 1, currency: "EUR" });
       if (!response.ok || !data.ok) {
-        showResult(data.error || AMPEL_RESULT_MAIL.shownWithoutMail);
+        showResult(data.error || data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
         return;
       }
-      if (data.mailed === false) {
-        showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
+      if (data.pending) {
+        if (!data.token) {
+          showResult(AMPEL_RESULT_MAIL.shownWithoutMail);
+          return;
+        }
+        const follow = await fetch("/api/ampel/ergebnis/senden", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, send_token: data.token }),
+          signal: AbortSignal.timeout(20_000),
+        });
+        let sent: { notice?: string; marketing?: string; mailed?: boolean; duplicate?: boolean; error?: string } = {};
+        try {
+          sent = (await follow.json()) as typeof sent;
+        } catch {
+          sent = {};
+        }
+        if (follow.status === 403 || !follow.ok) {
+          showResult(AMPEL_RESULT_MAIL.shownWithoutMail);
+          return;
+        }
+        if (sent.duplicate) {
+          showResult(sent.notice || AMPEL_RESULT_MAIL.alreadySent);
+          return;
+        }
+        showResult(
+          sent.notice ||
+            (sent.mailed === false
+              ? AMPEL_RESULT_MAIL.shownWithoutMail
+              : sent.marketing === "started"
+                ? `${AMPEL_RESULT_MAIL.sent} ${AMPEL_RESULT_MAIL.doiSuccess}`
+                : AMPEL_RESULT_MAIL.sent),
+        );
         return;
       }
-      showResult(
-        data.marketing === "started"
-          ? `${AMPEL_RESULT_MAIL.sent} ${AMPEL_RESULT_MAIL.doiSuccess}`
-          : AMPEL_RESULT_MAIL.sent,
-      );
+      showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
     } catch {
       showResult(AMPEL_RESULT_MAIL.offline);
     } finally {

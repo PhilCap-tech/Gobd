@@ -3,11 +3,22 @@ import { sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
 import { requestAmpelConfirmation, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
 import { sendAmpelConfirmationMail } from "@/lib/ampel-mail";
 import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
+import {
+  ampelMailStatusId,
+  ampelMailStatusStore,
+  type AmpelMailStatusStore,
+} from "@/lib/ampel-mail-status";
 import { AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
 import { ampelRateIpKey, ampelRateStore, type AmpelRateStore } from "@/lib/ampel-rate-limit";
+import {
+  consumeAmpelSendToken,
+  issueAmpelSendToken,
+  ampelSendTokenStore,
+  type AmpelSendTokenStore,
+} from "@/lib/ampel-send-token";
 import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
 import type { MailResult } from "@/lib/mail";
-import { sendDedupedEmail } from "@/lib/mail-dedupe";
+import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
 import { findLatestAmpelReadinessLead, purgeExpiredAmpelLeads, upsertReadinessLead } from "@/lib/store";
 import type { ReadinessLead } from "@/lib/readiness";
 
@@ -22,6 +33,8 @@ export type SubmitAmpelInput = {
   marketing: unknown;
   honeypot: unknown;
   ip: string;
+  /** One-time token from the handoff response. Required to send the mail. */
+  sendToken?: unknown;
 };
 
 export type SubmitAmpelDeps = {
@@ -38,6 +51,10 @@ export type SubmitAmpelDeps = {
   purge?: () => Promise<void>;
   mail?: (input: { email: string; answers: AmpelAnswerMap; code: string }) => Promise<MailResult>;
   sendTimeoutMs?: number;
+  /** Return after the limit check and let a second request send the mail. */
+  handoff?: boolean;
+  status?: AmpelMailStatusStore;
+  tokens?: AmpelSendTokenStore;
 };
 
 export type SubmitAmpelOutcome =
@@ -48,9 +65,11 @@ export type SubmitAmpelOutcome =
       marketing: "started" | "failed" | "skipped";
       mailed: boolean;
       notice?: string;
+      pending?: boolean;
+      token?: string;
+      limited?: "ip" | "email";
     }
-  | { ok: false; status: 400; error: string }
-  | { ok: false; status: 429; error: string; scope: "ip" | "email" };
+  | { ok: false; status: 400 | 403; error: string };
 
 export function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -70,6 +89,27 @@ export function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 function withheld(notice: string): SubmitAmpelOutcome {
   return { ok: true, duplicate: false, marketing: "skipped", mailed: false, notice };
+}
+
+function alreadySent(): SubmitAmpelOutcome {
+  return {
+    ok: true,
+    duplicate: true,
+    marketing: "skipped",
+    mailed: false,
+    notice: AMPEL_RESULT_MAIL.alreadySent,
+  };
+}
+
+function limited(scope: "ip" | "email"): SubmitAmpelOutcome {
+  return {
+    ok: true,
+    duplicate: false,
+    marketing: "skipped",
+    mailed: false,
+    limited: scope,
+    notice: scope === "ip" ? AMPEL_RESULT_MAIL.rateLimitedIp : AMPEL_RESULT_MAIL.rateLimitedEmail,
+  };
 }
 
 const runs = new Map<string, Promise<SubmitAmpelOutcome>>();
@@ -144,6 +184,8 @@ async function runSubmit(
   deps: SubmitAmpelDeps,
 ): Promise<SubmitAmpelOutcome> {
   const now = deps.now?.() ?? Date.now();
+  const prior = await lookupMailDedupe(ampelPdfDedupeKey(email, code));
+  if (prior === "sent" || prior === "inflight") return alreadySent();
   const store = deps.store ?? ampelRateStore();
   let decision: "ok" | "ip" | "email";
   try {
@@ -156,10 +198,49 @@ async function runSubmit(
     console.error("[ampel] Rate-Limit fehlgeschlagen", error instanceof Error ? error.name : "error");
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
-  if (decision !== "ok") {
-    return { ok: false, status: 429, error: AMPEL_RESULT_MAIL.rateLimited, scope: decision };
+  if (decision !== "ok") return limited(decision);
+
+  if (deps.handoff) {
+    let token: string | null = null;
+    try {
+      token = await issueAmpelSendToken({ email, code, now }, deps.tokens ?? ampelSendTokenStore());
+    } catch (error) {
+      console.error("[ampel] Versandtoken fehlgeschlagen", error instanceof Error ? error.name : "error");
+      return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
+    }
+    if (!token) return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
+    try {
+      const status = deps.status ?? ampelMailStatusStore();
+      await status.write(ampelMailStatusId(email, code), {
+        state: "sending",
+        notice: AMPEL_RESULT_MAIL.sending,
+      });
+    } catch (error) {
+      console.error("[ampel] Versandstatus fehlgeschlagen", error instanceof Error ? error.name : "error");
+      return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
+    }
+    return {
+      ok: true,
+      duplicate: false,
+      marketing: "skipped",
+      mailed: false,
+      pending: true,
+      token,
+      notice: AMPEL_RESULT_MAIL.sending,
+    };
   }
 
+  return deliverAmpelResult(email, answers, code, input, deps, now);
+}
+
+export async function deliverAmpelResult(
+  email: string,
+  answers: AmpelAnswerMap,
+  code: string,
+  input: SubmitAmpelInput,
+  deps: SubmitAmpelDeps,
+  now = deps.now?.() ?? Date.now(),
+): Promise<SubmitAmpelOutcome> {
   const timeoutMs = deps.sendTimeoutMs ?? AMPEL_SEND_TIMEOUT_MS;
   let mail: MailResult;
   try {
@@ -169,6 +250,7 @@ async function runSubmit(
     console.error("[ampel] Ergebnis-PDF fehlgeschlagen", error instanceof Error ? error.name : "error");
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
+  if (mail.duplicate) return alreadySent();
   if (mail.inflight || !delivered(mail)) {
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
@@ -226,7 +308,66 @@ async function runSubmit(
       marketing = "failed";
     }
   }
-  return { ok: true, duplicate: mail.duplicate === true, marketing, mailed: true };
+  const notice =
+    marketing === "started"
+      ? `${AMPEL_RESULT_MAIL.sent} ${AMPEL_RESULT_MAIL.doiSuccess}`
+      : AMPEL_RESULT_MAIL.sent;
+  return { ok: true, duplicate: false, marketing, mailed: true, notice };
+}
+
+export async function completeAmpelResult(
+  input: SubmitAmpelInput,
+  deps: SubmitAmpelDeps = {},
+): Promise<SubmitAmpelOutcome> {
+  if (honeypotTripped(input.honeypot)) return { ok: true, honeypot: true };
+  const email = normalizeAmpelEmail(input.email);
+  if (!email) return { ok: false, status: 400, error: AMPEL_RESULT_MAIL.invalidEmail };
+  const raw = typeof input.answers === "string" ? input.answers : "";
+  const answers = decodeAmpelAnswers(raw);
+  const code = answers ? encodeAmpelAnswers(answers) : null;
+  if (!answers || !code || !scoreAmpel(answers)) {
+    return { ok: false, status: 400, error: "Bitte beantworten Sie alle Fragen." };
+  }
+  const now = deps.now?.() ?? Date.now();
+  let verdict: Awaited<ReturnType<typeof consumeAmpelSendToken>> = "invalid";
+  try {
+    verdict = await consumeAmpelSendToken(
+      { token: input.sendToken, email, code, now },
+      deps.tokens ?? ampelSendTokenStore(),
+    );
+  } catch (error) {
+    console.error("[ampel] Versandtoken fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return { ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized };
+  }
+  if (verdict !== "ok") {
+    return { ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized };
+  }
+  const prior = await lookupMailDedupe(ampelPdfDedupeKey(email, code));
+  if (prior === "sent" || prior === "inflight") return alreadySent();
+  const status = deps.status ?? ampelMailStatusStore();
+  let row: { state: string; notice: string } | null = null;
+  try {
+    row = await status.read(ampelMailStatusId(email, code));
+  } catch (error) {
+    console.error("[ampel] Versandstatus fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
+  }
+  if (!row || row.state !== "sending") {
+    if (row?.state === "sent") return alreadySent();
+    return withheld(row?.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
+  }
+  const outcome = await deliverAmpelResult(email, answers, code, input, deps);
+  if (outcome.ok && !("honeypot" in outcome)) {
+    try {
+      await status.write(ampelMailStatusId(email, code), {
+        state: outcome.mailed || outcome.duplicate ? "sent" : "failed",
+        notice: outcome.notice || AMPEL_RESULT_MAIL.shownWithoutMail,
+      });
+    } catch (error) {
+      console.error("[ampel] Versandstatus fehlgeschlagen", error instanceof Error ? error.name : "error");
+    }
+  }
+  return outcome;
 }
 
 export function submitAmpelResult(
