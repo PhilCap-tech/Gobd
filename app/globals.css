@@ -2378,3 +2378,55 @@ body.consent-open {
   height: 1px;
   overflow: hidden;
 }
+
+.ampel-admin-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.ampel-admin-count dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.ampel-admin-count dt {
+  color: var(--muted);
+}
+
+.ampel-admin-count dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.ampel-admin-table-wrap {
+  overflow-x: auto;
+}
+
+.ampel-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.ampel-admin-table caption {
+  text-align: left;
+  font-weight: 650;
+  margin-bottom: 8px;
+}
+
+.ampel-admin-table th,
+.ampel-admin-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ampel-admin-table th {
+  font-size: 0.875rem;
+  color: var(--muted);
+}

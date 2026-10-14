@@ -30,7 +30,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: ALLOW,
       // API routes are not documents. Leave noindex pages crawlable
       // (/checkout, /login, /readiness, /account) so the meta robots tag is visible.
-      disallow: "/api/",
+      disallow: ["/api/", "/admin"],
     },
     sitemap: canonicalUrl("/sitemap.xml"),
   };

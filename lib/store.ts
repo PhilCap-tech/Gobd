@@ -1291,6 +1291,27 @@ export async function purgeExpiredAmpelLeads(now = Date.now()): Promise<number> 
   return count;
 }
 
+/**
+ * Ampel rows for the internal count. A Sheets 429/503 is not replaced with
+ * the local file. Retention is unchanged: this read does not redact or extend rows.
+ */
+export async function listAmpelLeads(): Promise<ReadinessLead[]> {
+  const ampelRows = (rows: ReadinessLead[]) =>
+    rows.filter((row) => row.leadId.startsWith("ampel-"));
+  if (isSheetsConfigured()) {
+    try {
+      return ampelRows(await readReadinessSheetRows(true));
+    } catch (error) {
+      if (isSheetsOutage(error)) throw error;
+      throw new SheetsUnavailableError(sheetsStatusCode(error));
+    }
+  }
+  if (isVercelRuntime() && !previewSmokeUsesFiles()) {
+    throw new SheetsUnavailableError(0);
+  }
+  return ampelRows(await readAllReadinessFileRows());
+}
+
 export type EntityStoreResult = {
   backend: "sheets" | "file";
   entity: Entity;

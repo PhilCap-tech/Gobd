@@ -166,6 +166,13 @@ export function verifyAmpelUnsubscribeToken(token: string): AmpelUnsubscribePayl
   }
 }
 
+/** `ja` stays once a result mail was sent. Empty means the column was not written yet. */
+export function keepAmpelMailed(incoming: string | undefined, existing: string | undefined): string {
+  if (incoming === "ja" || existing === "ja") return "ja";
+  if (incoming === "nein" || existing === "nein") return "nein";
+  return "";
+}
+
 export function toAmpelReadinessLead(input: {
   email: string;
   answers: string;
@@ -178,6 +185,7 @@ export function toAmpelReadinessLead(input: {
   marketingOptIn?: string;
   consentIp?: string;
   consentTextVersion?: string;
+  mailed?: string;
 }): ReadinessLead {
   const email = input.email.trim().toLowerCase();
   return {
@@ -197,5 +205,6 @@ export function toAmpelReadinessLead(input: {
     consentIp: input.consentIp?.trim() ?? "",
     consentTextVersion: input.consentTextVersion?.trim() ?? "",
     withdrawnAt: "",
+    mailed: input.mailed === "ja" || input.mailed === "nein" ? input.mailed : "",
   };
 }

@@ -8,6 +8,7 @@ import {
   decodeAmpelAnswers,
   encodeAmpelAnswers,
   normalizeAmpelEmail,
+  keepAmpelMailed,
   sanitizeAmpelRef,
   scoreAmpel,
   toAmpelReadinessLead,
@@ -141,6 +142,7 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
       consentIp: current?.consentIp || pending.consentIp,
       consentTextVersion: current?.consentTextVersion || pending.consentTextVersion || payload.consentTextVersion || "",
       mailStatus: mailLabel(mail),
+      mailed: keepAmpelMailed(current?.mailed, pending.mailed),
     });
     return {
       ok: true,
@@ -185,6 +187,8 @@ export type AmpelConfirmationInput = {
   ref: string;
   consentIp?: string;
   consentTextVersion?: string;
+  /** `ja` after the result mail was sent. */
+  mailed?: string;
 };
 
 export type AmpelConfirmationDeps = {
@@ -278,6 +282,7 @@ async function runConfirmation(
   );
   if (!token) return { ok: false, status: 400, reason: "invalid" };
 
+  const mailed = keepAmpelMailed(input.mailed, existing?.mailed);
   const pending: ReadinessLead = {
     ...toAmpelReadinessLead({
       email,
@@ -291,6 +296,7 @@ async function runConfirmation(
       marketingOptIn: "pending",
       consentIp,
       consentTextVersion,
+      mailed,
     }),
     timestamp: consentAt,
     status: "ampel_doi_pending",
@@ -332,6 +338,7 @@ async function runConfirmation(
       ampelScore: pending.ampelScore,
       ampelLight: pending.ampelLight,
       mailStatus: confirmMailLabel(mail),
+      mailed: keepAmpelMailed(base.mailed, pending.mailed),
     });
     return { ok: true, throttled: mail.duplicate === true };
   }
