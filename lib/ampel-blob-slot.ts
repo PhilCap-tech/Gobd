@@ -75,6 +75,16 @@ export async function exclusiveBlobCreate(input: {
       }
       throw new Error("ampel-blob-suffix");
     }
+    // A 2xx with the same pathname is not proof of a new object. @vercel/blob
+    // returns that whenever the API responds 2xx; it does not check the body.
+    // If the stored bytes are someone else's, the pathname was already taken.
+    let stored: string | null | undefined;
+    try {
+      stored = await input.read(input.pathname);
+    } catch {
+      stored = undefined;
+    }
+    if (typeof stored === "string" && stored !== input.body) return "exists";
     return "created";
   } catch (error) {
     if (blobAlreadyExists(error)) return "exists";

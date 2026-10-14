@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { del, get as readBlob, put } from "@vercel/blob";
@@ -185,23 +185,10 @@ async function claimDimension(
   }
   for (let slot = 1; slot <= limit; slot += 1) {
     const path = ampelRateSlotPath(kind, logicalKey, windowId, slot);
-    const created = await io.create(path, JSON.stringify({ at: now }));
+    const created = await io.create(path, JSON.stringify({ at: now, n: randomBytes(8).toString("hex") }));
     if (created === "created") return { status: "ok", path, slot };
   }
   return { status: "limited", path: "", slot: 0 };
-}
-
-async function slotHeld(io: AmpelRateIo, pathname: string, now: number): Promise<boolean> {
-  const created = await io.create(pathname, JSON.stringify({ at: now }));
-  if (created === "created") {
-    try {
-      await io.remove(pathname);
-    } catch {
-      // The probe slot may remain. The request still sends no mail.
-    }
-    return false;
-  }
-  return true;
 }
 
 /**
@@ -242,12 +229,12 @@ export function createSlotAmpelRateStore(io: AmpelRateIo): AmpelRateStore {
       }
       return "ok";
     },
-    async confirm({ ipKey, emailKey, now, ipSlot, emailSlot }) {
+    async confirm({ ipSlot, emailSlot }) {
+      // Submit and /senden name the slot with the same hash and window.
+      // Re-putting that pathname is not a hold check: a 2xx (the SDK's success
+      // path) was treated as "free" and the reservation was deleted, so the
+      // next submit received the same slot and the token-bound mail was withheld.
       if (ipSlot < 1 || ipSlot > AMPEL_IP_LIMIT || emailSlot < 1 || emailSlot > AMPEL_EMAIL_LIMIT) return "missing";
-      const ipPath = ampelRateSlotPath("ip", ipKey, ampelRateWindowId(now, AMPEL_IP_WINDOW_MS), ipSlot);
-      const emailPath = ampelRateSlotPath("email", emailKey, ampelRateWindowId(now, AMPEL_EMAIL_WINDOW_MS), emailSlot);
-      if (!(await slotHeld(io, ipPath, now))) return "missing";
-      if (!(await slotHeld(io, emailPath, now))) return "missing";
       return "ok";
     },
   };
