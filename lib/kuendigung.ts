@@ -1,23 +1,13 @@
 /**
- * Kündigung zum Periodenende, 30 Tage Download und Wiederherstellung, dann Löschung.
+ * Kündigung zum Periodenende und 30 Tage Download und Wiederherstellung.
  * Die Frist folgt AGB § 12 Abs. 4. Rechtstexte werden hier nicht verändert.
+ * Eine automatische Löschung gibt es nicht.
  * Reine Funktionen: kein Stripe, kein Sheet, kein Versand.
  */
 
-import { isCompAccessEmail } from "@/lib/comp-access";
-import { createHash } from "node:crypto";
-
 export const RETENTION_DAYS = 30;
-export const REMINDER_LEAD_DAYS = 7;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const RETENTION_WINDOW_MS = RETENTION_DAYS * DAY_MS;
-export const REMINDER_LEAD_MS = REMINDER_LEAD_DAYS * DAY_MS;
-
-/**
- * Löschung und Erinnerung bleiben aus, bis diese Konstante auf false steht.
- * Kein Env. Der sichere Default ist der Trockenlauf.
- */
-export const LIFECYCLE_JOB_DRY_RUN = true;
 
 export const CANCELLATION_MAIL_FROM =
   "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
@@ -134,16 +124,6 @@ export function subscriptionCancelScheduled(subscription: {
   if (subscription.status === "canceled") return false;
   if (subscription.cancel_at_period_end === true) return true;
   return typeof subscription.cancel_at === "number" && subscription.cancel_at > 0;
-}
-
-/** Phase `restore` ist das beendete Abo. Nur dieser Stand darf gelöscht werden. */
-export function deletionStatus(
-  row: LifecycleRow,
-): "active" | "cancel_scheduled" | "deleted" | "purged" {
-  if (row.phase === "purged") return "purged";
-  if (row.phase === "restore") return "deleted";
-  if (row.phase === "cancel_scheduled" || row.cancelAtPeriodEnd) return "cancel_scheduled";
-  return "active";
 }
 
 export function addMs(iso: string, ms: number): string {
@@ -386,108 +366,6 @@ export function markMailDelivered(
   };
 }
 
-export type JobAction =
-  | { type: "remind"; row: LifecycleRow }
-  | { type: "purge"; row: LifecycleRow; deleteContractData: boolean };
-
-export function deletionLogRef(subscriptionId: string): string {
-  const id = subscriptionId.trim();
-  if (!id) return "unbekannt";
-  return createHash("sha256").update(id).digest("hex").slice(0, 12);
-}
-
-export function lifecycleActionLog(
-  action: JobAction,
-  dryRun: boolean,
-): { ref: string; type: string; dryRun: boolean; deleteData: boolean } {
-  return {
-    ref: deletionLogRef(action.row.stripeSubscriptionId),
-    type: action.type,
-    dryRun,
-    deleteData: action.type === "purge" && action.deleteContractData === true,
-  };
-}
-
-/**
- * Nur beendete Abos nach abgelaufener Frist.
- * Comp-Allowlist und aktive Abos bleiben unangetastet.
- */
-export function guardLifecycleActions(
-  actions: JobAction[],
-  rows: LifecycleRow[],
-  nowMs: number,
-): { actions: JobAction[]; skippedComp: number; skippedProtected: number } {
-  const kept: JobAction[] = [];
-  let skippedComp = 0;
-  let skippedProtected = 0;
-  for (const action of actions) {
-    if (isCompAccessEmail(action.row.email)) {
-      skippedComp += 1;
-      continue;
-    }
-    if (deletionStatus(action.row) !== "deleted") {
-      skippedProtected += 1;
-      continue;
-    }
-    const purgeMs = Date.parse(action.row.purgeAt);
-    if (!Number.isFinite(purgeMs)) {
-      skippedProtected += 1;
-      continue;
-    }
-    const alive = rows.some(
-      (other) =>
-        other.email === action.row.email &&
-        other.stripeSubscriptionId !== action.row.stripeSubscriptionId &&
-        (other.phase === "active" || other.phase === "cancel_scheduled"),
-    );
-    if (action.type === "purge") {
-      if (nowMs < purgeMs) {
-        skippedProtected += 1;
-        continue;
-      }
-      kept.push({
-        ...action,
-        deleteContractData: action.deleteContractData && !alive,
-      });
-      continue;
-    }
-    kept.push(action);
-  }
-  return { actions: kept, skippedComp, skippedProtected };
-}
-
-/** Trockenlauf führt keine Erinnerung und keine Löschung aus. */
-export function jobEffects(actions: JobAction[], dryRun: boolean): JobAction[] {
-  return dryRun ? [] : actions;
-}
-
-export function planLifecycleJob(rows: LifecycleRow[], nowMs: number): JobAction[] {
-  const actions: JobAction[] = [];
-  for (const row of rows) {
-    if (row.phase !== "restore" || !row.purgeAt) continue;
-    const purgeMs = Date.parse(row.purgeAt);
-    if (!Number.isFinite(purgeMs)) continue;
-    const alive = rows.some(
-      (other) =>
-        other.email === row.email &&
-        other.stripeSubscriptionId !== row.stripeSubscriptionId &&
-        (other.phase === "active" || other.phase === "cancel_scheduled"),
-    );
-    if (nowMs >= purgeMs) {
-      if (!row.reminderMailAt) {
-        actions.push({ type: "remind", row });
-      } else {
-        actions.push({ type: "purge", row, deleteContractData: !alive });
-      }
-      continue;
-    }
-    if (!row.reminderMailAt && nowMs >= purgeMs - REMINDER_LEAD_MS) {
-      actions.push({ type: "remind", row });
-    }
-  }
-  return actions;
-}
-
 export function selectAccountLifecycle(rows: LifecycleRow[]): LifecycleRow | null {
   const open = rows.filter((row) => row.phase !== "purged");
   const active = open.filter((row) => row.phase === "active" && !row.cancelAtPeriodEnd);
@@ -617,19 +495,6 @@ export function lifecycleNotice(rows: LifecycleRow[]): LifecycleNotice {
     showCancel: true,
     showRestoreCheckout: false,
   };
-}
-
-/** Pfade, die eine Vertragslöschung nicht anfassen darf. */
-export function contractPurgeAllowsPath(pathname: string): boolean {
-  const path = pathname.replace(/^\/+/, "");
-  if (!path.startsWith("gobd/") || path.includes("..") || path.includes("\\")) return false;
-  if (path === "gobd/uploads/anon" || path.startsWith("gobd/uploads/anon/")) return false;
-  if (path.includes("/readiness-") || path.startsWith("gobd/readiness-")) return false;
-  return true;
-}
-
-export function reminderIdempotencyKey(row: LifecycleRow): string {
-  return `erinnerung-${row.stripeSubscriptionId}-${row.purgeAt}`;
 }
 
 export function confirmIdempotencyKey(row: LifecycleRow): string {

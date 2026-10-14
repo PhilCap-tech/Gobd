@@ -57,9 +57,9 @@ export function buildCancellationConfirmMail(row: LifecycleRow): TransactionalMa
     `Mit diesem Datum entfallen Online-Pflege und Versionierung. Bereits erzeugte PDFs und Ihre hochgeladenen Dateien können Sie noch 30 Tage nach diesem Datum herunterladen. In Ihrem Konto laden Sie alle PDF-Versionen als ZIP herunter:`,
     CANCELLATION_PAGE_URL,
     "",
-    "Die Aufbewahrung steuerlich relevanter Unterlagen ist Ihre Pflicht. Für Bücher und Aufzeichnungen gelten in der Regel zehn Jahre (§ 147 AO). Wir führen kein Archiv für Sie. Mit der späteren Löschung bei uns ist Ihre Aufbewahrung nicht erfüllt.",
+    "Die Aufbewahrung steuerlich relevanter Unterlagen ist Ihre Pflicht. Für Bücher und Aufzeichnungen gelten in der Regel zehn Jahre (§ 147 AO). Wir führen kein Archiv für Sie.",
     "",
-    `Nach dem ${end} halten wir die bei uns gespeicherten Entwürfe und Dokumente noch 30 Tage vor. In dieser Frist können Sie die Dokumente herunterladen oder den Zugang wiederherstellen, indem Sie ein neues Abonnement abschließen. Danach löschen wir diese Daten. Sieben Tage vor der Löschung erhalten Sie eine Erinnerung.`,
+    `Nach dem ${end} sind Downloads noch 30 Tage möglich. In dieser Frist können Sie die Dokumente herunterladen oder den Zugang wiederherstellen, indem Sie ein neues Abonnement abschließen.`,
     "",
     `Die Kündigung ist keine Erstattung. Die 14-Tage-Zufriedenheitsgarantie beantragen Sie gesondert per E-Mail an ${MAIL_SUPPORT_EMAIL}.`,
     "",
@@ -69,24 +69,6 @@ export function buildCancellationConfirmMail(row: LifecycleRow): TransactionalMa
     SIGNATURE,
   ].join("\n");
   return mail(`Ihre Kündigung — das Abo endet am ${end}`, body);
-}
-
-export function buildCancellationReminderMail(row: LifecycleRow): TransactionalMailContent {
-  const { end, purge } = dates(row);
-  const body = [
-    "Guten Tag,",
-    "",
-    `Ihr Abonnement für GoBD Verfahrensdoku ist am ${end} ausgelaufen. Wir löschen die bei uns gespeicherten Entwürfe, PDF-Versionen und hochgeladenen Dateien am ${purge}.`,
-    "",
-    "Bis zu diesem Datum können Sie die Dokumente in Ihrem Konto herunterladen oder den Zugang wiederherstellen, indem Sie ein neues Abonnement abschließen:",
-    CANCELLATION_PAGE_URL,
-    MAIL_CHECKOUT_URL,
-    "",
-    "Eine Wiederherstellung nach diesem Datum ist nicht mehr möglich. Bitte denken Sie an Ihre eigene Aufbewahrung. Für Bücher und Aufzeichnungen gelten in der Regel zehn Jahre (§ 147 AO). Die Löschung bei uns ersetzt diese Pflicht nicht.",
-    "",
-    SIGNATURE,
-  ].join("\n");
-  return mail(`Erinnerung — Löschung Ihrer Dokumentation am ${purge}`, body);
 }
 
 export function buildCancellationReactivatedMail(): TransactionalMailContent {
@@ -119,7 +101,7 @@ export function buildCancellationEndedMail(row: LifecycleRow): TransactionalMail
     `Bereits erzeugte PDFs und hochgeladene Dateien können Sie bis zum ${purge} herunterladen. Bis dahin stellen Sie den Zugang mit einem neuen Abonnement wieder her:`,
     MAIL_CHECKOUT_URL,
     "",
-    "Danach löschen wir diese Daten. Eine Erinnerung senden wir vor der Löschung. Die Aufbewahrung Ihrer Unterlagen bleibt Ihre Pflicht, in der Regel zehn Jahre (§ 147 AO).",
+    "Die Aufbewahrung Ihrer Unterlagen bleibt Ihre Pflicht, in der Regel zehn Jahre (§ 147 AO). Wir führen kein Archiv für Sie.",
     "",
     SIGNATURE,
   ].join("\n");

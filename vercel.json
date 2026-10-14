@@ -1,9 +1,3 @@
 {
-  "buildCommand": "npm run build",
-  "crons": [
-    {
-      "path": "/api/cron/lifecycle",
-      "schedule": "15 5 * * *"
-    }
-  ]
+  "buildCommand": "npm run build"
 }

@@ -1,37 +1,26 @@
 /**
- * Kündigung: Phasen, 30 Tage Download/Wiederherstellung, Erinnerung 7 Tage
- * vorher, ZIP, Mails an synthetische Postfächer. Kein Versand.
+ * Kündigung: Phasen, 30 Tage Download/Wiederherstellung, ZIP,
+ * Mails an synthetische Postfächer. Keine automatische Löschung, kein Versand.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { safeNextPath } from "@/lib/auth";
-import { COMP_ACCESS_EMAILS } from "@/lib/comp-access";
 import {
   CANCELLATION_MAIL_FROM,
   DAY_MS,
-  LIFECYCLE_JOB_DRY_RUN,
-  REMINDER_LEAD_DAYS,
   RETENTION_DAYS,
   RETENTION_WINDOW_MS,
   accessForRows,
   cancellationSendAllowed,
   cancellationStatusLabel,
-  contractPurgeAllowsPath,
-  deletionLogRef,
-  deletionStatus,
   downloadsAvailableLabel,
   downloadsAvailableUntilIso,
   emptyLifecycleRow,
   formatBerlinDate,
-  guardLifecycleActions,
   isSyntheticInbox,
-  jobEffects,
-  lifecycleActionLog,
   lifecycleNotice,
   nextLifecycle,
-  planLifecycleJob,
   subscriptionCancelScheduled,
   subscriptionPeriodEndUnix,
-  type JobAction,
   type LifecycleEvent,
   type LifecycleRow,
 } from "@/lib/kuendigung";
@@ -39,10 +28,8 @@ import {
   buildCancellationConfirmMail,
   buildCancellationEndedMail,
   buildCancellationReactivatedMail,
-  buildCancellationReminderMail,
 } from "@/lib/kuendigung-mail";
 import { lifecycleRowFromSheet, lifecycleSheetValues, LIFECYCLE_SHEET_COLUMNS } from "@/lib/kuendigung-store";
-import { withoutEmailRows } from "@/lib/kuendigung-purge";
 import {
   buildStoredZip,
   collectUploadLocators,
@@ -108,7 +95,6 @@ assert(
   "Statuszeile gekündigt zum Datum",
 );
 assert(RETENTION_DAYS === 30, "30 Tage");
-assert(REMINDER_LEAD_DAYS === 7, "7 Tage Erinnerung");
 assert(RETENTION_WINDOW_MS === 30 * DAY_MS, "Fenster in Millisekunden");
 
 assert(isSyntheticInbox(SYNTHETIC), "synthetisches Postfach");
@@ -184,7 +170,7 @@ const reactivated = nextLifecycle(
 );
 assert(reactivated.mail === "reactivated", "Mail bei Rücknahme");
 assert(reactivated.row.phase === "active", "wieder aktiv");
-assert(reactivated.row.purgeAt === "", "keine Löschfrist nach Rücknahme");
+assert(reactivated.row.purgeAt === "", "keine Downloadfrist nach Rücknahme");
 
 const endedAt = "2026-11-12T10:00:00.000Z";
 const deleted = nextLifecycle(delivered, {
@@ -200,7 +186,7 @@ const deleted = nextLifecycle(delivered, {
 });
 assert(deleted.mail === null, "keine zweite Endmail nach Bestätigung");
 assert(deleted.row.phase === "restore", "Phase nach Vertragsende");
-assert(Date.parse(deleted.row.purgeAt) - Date.parse(endedAt) === RETENTION_WINDOW_MS, "Löschung nach 30 Tagen");
+assert(Date.parse(deleted.row.purgeAt) - Date.parse(endedAt) === RETENTION_WINDOW_MS, "Downloadfrist nach 30 Tagen");
 assert(accessForRows([deleted.row]).downloadsOpen, "Download in den 30 Tagen");
 assert(!accessForRows([deleted.row]).writesOpen, "keine neuen Versionen nach Vertragsende");
 assert(lifecycleNotice([deleted.row]).detail.includes("Download und Wiederherstellung"), "Hinweis Download und Wiederherstellung");
@@ -219,78 +205,6 @@ const immediate = nextLifecycle(active, {
 assert(immediate.mail === "ended", "Endmail ohne vorherige Bestätigung");
 assert(immediate.row.endReason === "payment_failed", "Grund Zahlung");
 
-const purgeAt = Date.parse(deleted.row.purgeAt);
-const beforeReminder = planLifecycleJob([deleted.row], purgeAt - 7 * DAY_MS - 1);
-assert(beforeReminder.length === 0, "keine Erinnerung vor Tag 23");
-const reminder = planLifecycleJob([deleted.row], purgeAt - 7 * DAY_MS);
-assert(reminder.length === 1 && reminder[0]?.type === "remind", "Erinnerung 7 Tage vorher");
-const reminded = { ...deleted.row, reminderMailAt: new Date(purgeAt - 7 * DAY_MS).toISOString() };
-const purge = planLifecycleJob([reminded], purgeAt);
-assert(purge.length === 1 && purge[0]?.type === "purge" && purge[0].deleteContractData, "Löschung nach dem Fenster");
-const late = planLifecycleJob([deleted.row], purgeAt);
-assert(late.length === 1 && late[0]?.type === "remind", "ohne Erinnerung noch nicht löschen");
-const sibling = row({
-  email: SYNTHETIC,
-  stripeSubscriptionId: "sub_live",
-  phase: "active",
-});
-const blockedPurge = planLifecycleJob([reminded, sibling], purgeAt);
-assert(
-  blockedPurge.some((action) => action.type === "purge" && action.deleteContractData === false),
-  "zweites lebendes Abo behält die Dateien",
-);
-
-assert(deletionStatus(deleted.row) === "deleted", "beendetes Abo hat Status deleted");
-assert(deletionStatus(active) === "active", "aktives Abo ist nicht deleted");
-assert(LIFECYCLE_JOB_DRY_RUN === true, "Trockenlauf ist der Default");
-const guardedPurge = guardLifecycleActions(purge, [reminded], purgeAt);
-assert(guardedPurge.actions.length === 1 && guardedPurge.actions[0]?.type === "purge", "Löschung nach Frist bleibt zulässig");
-assert(jobEffects(guardedPurge.actions, true).length === 0, "Trockenlauf löscht nicht und erinnert nicht");
-assert(jobEffects(guardedPurge.actions, false).length === 1, "ohne Trockenlauf bleibt die Löschung");
-
-const earlyPurge: JobAction = { type: "purge", row: deleted.row, deleteContractData: true };
-const earlyGuard = guardLifecycleActions([earlyPurge], [deleted.row], purgeAt - DAY_MS);
-assert(earlyGuard.actions.length === 0 && earlyGuard.skippedProtected === 1, "vor Fristende keine Löschung");
-
-const activePurge: JobAction = {
-  type: "purge",
-  row: { ...active, purgeAt: new Date(purgeAt).toISOString(), reminderMailAt: "2026-12-01T00:00:00.000Z" },
-  deleteContractData: true,
-};
-const activeGuard = guardLifecycleActions([activePurge], [activePurge.row], purgeAt);
-assert(activeGuard.actions.length === 0 && activeGuard.skippedProtected === 1, "aktives Abo wird nicht gelöscht");
-
-const compEmail = COMP_ACCESS_EMAILS[0] ?? "";
-const compRow = row({
-  email: compEmail,
-  stripeSubscriptionId: "sub_comp",
-  phase: "restore",
-  endedAt,
-  purgeAt: deleted.row.purgeAt,
-  reminderMailAt: reminded.reminderMailAt,
-});
-const compGuard = guardLifecycleActions(
-  [{ type: "purge", row: compRow, deleteContractData: true }],
-  [compRow],
-  purgeAt,
-);
-assert(compGuard.actions.length === 0 && compGuard.skippedComp === 1, "Comp-Allowlist wird nicht gelöscht");
-
-const siblingGuard = guardLifecycleActions(blockedPurge, [reminded, sibling], purgeAt);
-assert(
-  siblingGuard.actions.some((action) => action.type === "purge" && action.deleteContractData === false),
-  "lebendiges zweites Abo behält die Dateien auch nach der Schutzregel",
-);
-
-const log = lifecycleActionLog(
-  { type: "purge", row: reminded, deleteContractData: true },
-  true,
-);
-assert(!JSON.stringify(log).includes("@"), "Löschlog ohne E-Mail");
-assert(!JSON.stringify(log).includes(SYNTHETIC), "Löschlog ohne Kundenadresse");
-assert(deletionLogRef(reminded.stripeSubscriptionId) === log.ref, "stabile Referenz");
-assert(log.deleteData === true && log.dryRun === true, "Log nennt Trockenlauf und Löschabsicht");
-
 const restored = nextLifecycle(deleted.row, {
   id: "evt_new",
   type: "checkout_completed",
@@ -301,19 +215,28 @@ const restored = nextLifecycle(deleted.row, {
   periodEnd: "2026-12-20T10:00:00.000Z",
 });
 assert(restored.row.phase === "active", "Wiederherstellung setzt aktiv");
-assert(restored.row.purgeAt === "", "Löschfrist geleert");
+assert(restored.row.purgeAt === "", "Downloadfrist geleert");
 assert(accessForRows([restored.row]).writesOpen, "Pflege nach neuem Abo");
 
-assert(!contractPurgeAllowsPath("gobd/uploads/anon/datei.pdf"), "anon bleibt");
-assert(!contractPurgeAllowsPath("gobd/readiness-lead/v1.pdf"), "Readiness bleibt");
-assert(contractPurgeAllowsPath("gobd/fam1/v1.pdf"), "Vertrags-PDF wird gelöscht");
-assert(
-  withoutEmailRows(
-    [{ email: SYNTHETIC, documentId: "d1" }, { email: "andere@example.com", documentId: "d2" }, { userEmail: SYNTHETIC, entityId: "e1" }],
-    SYNTHETIC,
-  ).length === 1,
-  "nur fremde Zeilen bleiben",
-);
+const lifecycleSource = readFileSync("lib/kuendigung.ts", "utf8");
+const applySource = readFileSync("lib/kuendigung-apply.ts", "utf8");
+const mailSource = readFileSync("lib/kuendigung-mail.ts", "utf8");
+const vercel = readFileSync("vercel.json", "utf8");
+assert(!lifecycleSource.includes("LIFECYCLE_JOB_DRY_RUN"), "kein Trockenlauf-Schalter");
+assert(!lifecycleSource.includes("planLifecycleJob"), "kein Löschplan");
+assert(!applySource.includes("purgeContractData"), "kein Löschlauf");
+assert(!applySource.includes("runLifecycleJob"), "kein Lifecycle-Job");
+assert(!mailSource.includes("buildCancellationReminderMail"), "keine Erinnerungsmail");
+assert(!existsSync("app/api/cron/lifecycle/route.ts"), "Cron-Route entfernt");
+assert(!existsSync("lib/kuendigung-purge.ts"), "Löschmodul entfernt");
+assert(!vercel.includes("crons"), "vercel.json ohne Cron");
+const warningPage = readFileSync("app/account/kuendigung/page.tsx", "utf8");
+assert(warningPage.includes("Downloads noch 30 Tage möglich"), "Warnseite nennt die Downloadfrist");
+assert(!/lösch/i.test(warningPage), "Warnseite verspricht keine Löschung");
+assert(!warningPage.includes("Erinnerung"), "Warnseite verspricht keine Erinnerung");
+const scheduledNotice = lifecycleNotice([scheduled.row]);
+assert(!/lösch/i.test(scheduledNotice.detail), "Kontoseite verspricht bei Vormerkung keine Löschung");
+assert(!/lösch/i.test(lifecycleNotice([deleted.row]).detail), "Kontoseite verspricht nach Vertragsende keine Löschung");
 
 const sheet = lifecycleRowFromSheet([...LIFECYCLE_SHEET_COLUMNS], lifecycleSheetValues(scheduled.row));
 assert(sheet?.phase === "cancel_scheduled", "Sheet-Zeile lesbar");
@@ -422,19 +345,20 @@ function assertMail(label: string, mail: { subject: string; text: string; html: 
 const confirm = buildCancellationConfirmMail(scheduled.row);
 assertMail("Bestätigung", confirm, [
   "30 Tage",
-  "Sieben Tage",
+  "noch 30 Tage möglich",
   "info@gobd-doku-erstellen.de",
   "12.11.2026",
   "Downloads verfügbar bis 12.12.2026",
   "§ 147 AO",
 ]);
 assert(confirm.subject.includes("12.11.2026"), "Betreff mit Datum");
-const reminderMail = buildCancellationReminderMail(deleted.row);
-assertMail("Erinnerung", reminderMail, ["löschen", "zehn Jahre"]);
-assert(reminderMail.subject.startsWith("Erinnerung — Löschung"), "Erinnerungsbetreff");
+assert(!/lösch/i.test(confirm.text), "Bestätigung nennt keine Löschung");
+assert(!confirm.text.includes("Erinnerung"), "Bestätigung nennt keine Erinnerung");
 assertMail("Rücknahme", buildCancellationReactivatedMail(), ["aufgehoben"]);
 const ended = buildCancellationEndedMail(immediate.row);
-assertMail("Ende", ended, ["Zahlung nicht abgeschlossen", "herunterladen"]);
+assertMail("Ende", ended, ["Zahlung nicht abgeschlossen", "herunterladen", "bis zum 12.12.2026"]);
+assert(!/lösch/i.test(ended.text), "Endmail nennt keine Löschung");
+assert(!ended.text.includes("Erinnerung"), "Endmail nennt keine Erinnerung");
 assert(CANCELLATION_MAIL_FROM === "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>", "Absender info@");
 
 const agb = readFileSync("content/legal/agb.md", "utf8");

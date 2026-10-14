@@ -151,15 +151,15 @@ export default async function KuendigungPage({
             Ihre PDF-Versionen nutzbar.
           </p>
           <p className="prose">
-            Nach dem Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen
-            oder das Abonnement durch einen neuen Abschluss wiederherstellen. Danach löschen wir
-            diese Daten. Sieben Tage vor der Löschung erhalten Sie eine Erinnerung.
+            Nach dem Vertragsende sind Downloads noch 30 Tage möglich. In dieser Frist können
+            Sie bereits erzeugte PDFs herunterladen oder das Abonnement durch einen neuen
+            Abschluss wiederherstellen.
           </p>
           <p className="prose">
             Die Aufbewahrung Ihrer Verfahrensdokumentation und der zugehörigen Unterlagen
             bleibt Ihre Pflicht. Für Bücher und Aufzeichnungen gelten in der Regel zehn
-            Jahre (§ 147 AO). Wir führen kein Archiv für Sie. Nach der Löschung bei uns
-            liegt eine Fassung nur noch dort, wo Sie sie gespeichert haben.
+            Jahre (§ 147 AO). Wir führen kein Archiv für Sie. Eine Fassung liegt dort, wo
+            Sie sie gespeichert haben.
           </p>
           <p className="prose">
             Diese Seite kündigt das Abonnement. Sie erstattet nicht. Die
