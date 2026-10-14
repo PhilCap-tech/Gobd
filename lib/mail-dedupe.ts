@@ -98,6 +98,11 @@ export function magicLinkMailKey(email: string): string {
   return `magic-link:${email.trim().toLowerCase()}`;
 }
 
+/** One invitation mail per membership. A window on the send throttles resends. */
+export function inviteMailKey(membershipId: string): string {
+  return `invite:${membershipId.trim()}`;
+}
+
 export function partnerInquiryMailKey(hash: string): string {
   return `partner-inquiry:${hash}`;
 }

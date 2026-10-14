@@ -17,6 +17,7 @@ export function MarketingPixel() {
   const pathname = usePathname() || "";
 
   useEffect(() => {
+    if (pathname.startsWith("/auth/invite")) return;
     captureFirstTouchUtms();
 
     function sync() {

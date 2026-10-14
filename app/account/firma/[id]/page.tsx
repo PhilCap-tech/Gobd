@@ -6,7 +6,11 @@ import { SiteHeader } from "@/components/site-header";
 import { customerHubTitle } from "@/lib/account-display";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { getOwnedEntity } from "@/lib/store";
+import { MODULE } from "@/lib/module/katalog";
+import { listMembershipsByEntity } from "@/lib/membership-store";
+import { moduleIdList } from "@/lib/memberships";
 import { FirmaForm } from "../firma-form";
+import { MitwirkendePanel, type MitwirkendeListItem } from "../mitwirkende-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +54,28 @@ export default async function EditFirmaPage({
     );
   }
 
+  let members: MitwirkendeListItem[] = [];
+  let membersUnavailable = false;
+  if (entity) {
+    try {
+      const rows = await listMembershipsByEntity(entity.entityId);
+      members = rows
+        .filter((row) => row.status === "pending" || row.status === "active")
+        .map((row) => ({
+          membershipId: row.membershipId,
+          memberEmail: row.memberEmail,
+          status: row.status === "active" ? "active" : "pending",
+          moduleIds: moduleIdList(row.moduleIds),
+        }));
+    } catch (error) {
+      membersUnavailable = true;
+      console.error(
+        "[account] Mitwirkende nicht geladen",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+  }
+
   return (
     <>
       <SiteHeader backHref="/account" backLabel="← Zum Konto" />
@@ -75,6 +101,17 @@ export default async function EditFirmaPage({
                 stnr: entity.stnr,
                 ustId: entity.ustId,
               }}
+            />
+            <MitwirkendePanel
+              entityId={entity.entityId}
+              firmName={entity.name}
+              members={members}
+              unavailable={membersUnavailable}
+              modules={MODULE.map((modul) => ({
+                id: modul.id,
+                nr: modul.nr,
+                titel: modul.titel,
+              }))}
             />
           </>
         )}

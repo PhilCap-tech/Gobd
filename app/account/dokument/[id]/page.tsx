@@ -16,6 +16,7 @@ import {
   latestOwnedInFamily,
   nextVersionNumber,
 } from "@/lib/documents";
+import { pdfAllowedForMembership } from "@/lib/membership-access";
 import { emailsEqual } from "@/lib/types";
 import { ensureAccountEntities, findDocumentById, listDocumentFamily } from "@/lib/store";
 import { DocumentEditor } from "./document-editor";
@@ -93,7 +94,14 @@ export default async function DocumentEditPage({
     latest && owned
       ? family.filter((row) => emailsEqual(row.email, sessionEmail))
       : [];
-  const allowed = latest ? canAccessDocument(latest, { sessionEmail }) : false;
+  const allowed = latest
+    ? pdfAllowedForMembership({
+        sessionEmail,
+        documentEmail: latest.email,
+        documentEntityId: latest.entityId,
+        membership: null,
+      }) && canAccessDocument(latest, { sessionEmail })
+    : false;
   let chapterError = false;
   let draft: EditableDocument | null = null;
   if (allowed && latest) {
