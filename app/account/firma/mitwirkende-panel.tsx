@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
+import {
+  REVOKE_ALREADY_MESSAGE,
+  REVOKE_CONFIRM,
+  REVOKE_DONE_MESSAGE,
+  REVOKE_MAIL_NOTE,
+} from "@/lib/membership-copy";
 
 export type MitwirkendeListItem = {
   membershipId: string;
@@ -45,6 +52,8 @@ export function MitwirkendePanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
+  const [target, setTarget] = useState<MitwirkendeListItem | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const active = members.filter((item) => item.status === "active");
   const invited = members.filter((item) => item.status === "pending");
@@ -92,6 +101,44 @@ export function MitwirkendePanel({
     setSelected((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
     );
+  }
+
+  function askRevoke(item: MitwirkendeListItem) {
+    if (pending) return;
+    flushSync(() => setTarget(item));
+    dialogRef.current?.showModal();
+  }
+
+  async function confirmRevoke() {
+    const item = target;
+    dialogRef.current?.close();
+    if (!item || pending) return;
+    setError("");
+    setNotice("");
+    setPending(true);
+    try {
+      const response = await fetch("/api/auth/invite/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entityId, membershipId: item.membershipId }),
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        ok?: boolean;
+        mailed?: boolean;
+        already?: boolean;
+      };
+      if (!response.ok || !data.ok) {
+        setError(data.error?.trim() || "Der Zugriff konnte nicht entzogen werden. Bitte versuchen Sie es erneut.");
+        return;
+      }
+      setNotice(data.already ? REVOKE_ALREADY_MESSAGE : data.mailed ? REVOKE_DONE_MESSAGE : REVOKE_MAIL_NOTE);
+      router.refresh();
+    } catch {
+      setError("Die Verbindung ist abgebrochen. Bitte versuchen Sie es erneut.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -169,7 +216,10 @@ export function MitwirkendePanel({
         <ul>
           {active.map((item) => (
             <li key={item.membershipId}>
-              {item.memberEmail} · {moduleSummary(item.moduleIds)}
+              {item.memberEmail} · {moduleSummary(item.moduleIds)}{" "}
+              <button className="btn ghost" type="button" disabled={pending} onClick={() => askRevoke(item)}>
+                Zugriff entziehen
+              </button>
             </li>
           ))}
         </ul>
@@ -190,11 +240,33 @@ export function MitwirkendePanel({
                 onClick={() => void send(item.memberEmail, item.moduleIds)}
               >
                 Erneut senden
+              </button>{" "}
+              <button className="btn ghost" type="button" disabled={pending} onClick={() => askRevoke(item)}>
+                Zurücknehmen
               </button>
             </li>
           ))}
         </ul>
       )}
+      <dialog
+        ref={dialogRef}
+        className="info-dialog"
+        aria-labelledby="mitwirkende-revoke-title"
+        onClose={() => setTarget(null)}
+      >
+        <h3 id="mitwirkende-revoke-title">
+          {target?.status === "pending" ? "Einladung zurücknehmen" : "Zugriff entziehen"}
+        </h3>
+        <p>{REVOKE_CONFIRM}</p>
+        <div className="actions" style={{ marginTop: 16 }}>
+          <button className="btn" type="button" disabled={pending} onClick={() => void confirmRevoke()}>
+            {target?.status === "pending" ? "Zurücknehmen" : "Zugriff entziehen"}
+          </button>
+          <button className="btn ghost" type="button" onClick={() => dialogRef.current?.close()}>
+            Abbrechen
+          </button>
+        </div>
+      </dialog>
     </section>
   );
 }

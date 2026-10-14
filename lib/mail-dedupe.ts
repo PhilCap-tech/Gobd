@@ -103,6 +103,11 @@ export function inviteMailKey(membershipId: string): string {
   return `invite:${membershipId.trim()}`;
 }
 
+/** One revocation note per membership. No window: a second click does not send again. */
+export function revokeMailKey(membershipId: string): string {
+  return `revoke:${membershipId.trim()}`;
+}
+
 export function partnerInquiryMailKey(hash: string): string {
   return `partner-inquiry:${hash}`;
 }

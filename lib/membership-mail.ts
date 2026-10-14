@@ -1,3 +1,4 @@
+import { formatBerlinDateTime } from "@/lib/delivery-templates";
 import { CANCELLATION_MAIL_FROM } from "@/lib/kuendigung";
 import {
   escapeAttr,
@@ -58,6 +59,45 @@ export function buildInviteMail(input: {
     text,
     html,
   };
+}
+
+/** Kurze Information nach dem Entzug. Firma und Zeitpunkt, keine Inhalte. */
+export function buildRevokeMail(input: {
+  firmName: string;
+  revokedAt: string;
+}): TransactionalMailContent {
+  const firm = input.firmName.trim() || "der Firma";
+  const when = revokeTimeLabel(input.revokedAt);
+  const ended = when
+    ? `Ihr Zugriff als Mitwirkende bei ${firm} ist am ${when} beendet.`
+    : `Ihr Zugriff als Mitwirkende bei ${firm} ist beendet.`;
+  const lines = [
+    "Guten Tag,",
+    "",
+    ended,
+    "",
+    "Der Entwurf bleibt beim Kontoinhaber.",
+    "",
+    CUSTOMER_MAIL_SIGNATURE,
+  ];
+  const text = wrapTransactionalText(lines.join("\n"));
+  const html = wrapTransactionalHtml(`
+    <p>Guten Tag,</p>
+    <p>${escapeHtml(ended)}</p>
+    <p>Der Entwurf bleibt beim Kontoinhaber.</p>
+    <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
+  `);
+  return {
+    subject: `Zugriff als Mitwirkende beendet — ${firm}`,
+    text,
+    html,
+  };
+}
+
+function revokeTimeLabel(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return formatBerlinDateTime(date);
 }
 
 /** Der Link steht nur im Body. Der Betreff nennt Firma und Einladung. */

@@ -24,3 +24,18 @@ export const INVITE_SENT_MESSAGE =
 
 export const INVITE_THROTTLED_MESSAGE =
   "Die Einladung ist bereits unterwegs. Bitte warten Sie einen Moment, bevor Sie erneut senden.";
+
+/** Einmalige Nachfrage vor Zurücknehmen und Zugriff entziehen. Wortlaut aus dem Konzept. */
+export const REVOKE_CONFIRM =
+  "Diese Person kann die Firma danach nicht mehr bearbeiten. Der Entwurf bleibt erhalten.";
+
+export const REVOKE_DONE_MESSAGE =
+  "Der Zugriff ist entzogen. Der Entwurf bleibt erhalten.";
+
+export const REVOKE_ALREADY_MESSAGE =
+  "Der Zugriff ist bereits entzogen. Der Entwurf bleibt erhalten.";
+
+export const REVOKE_MAIL_NOTE =
+  "Der Zugriff ist entzogen. Die Information an die Person konnte nicht gesendet werden.";
+
+export const REVOKE_NOT_FOUND = "Diese Mitgliedschaft liegt nicht vor.";

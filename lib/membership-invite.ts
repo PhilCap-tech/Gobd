@@ -2,8 +2,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { createInviteToken, verifyInviteToken, type InviteTokenClaims } from "@/lib/auth";
 import { getAppUrl, magicLinkDevFallbackAllowed } from "@/lib/env";
 import { formatEntityAddress, entityOwnedByEmail, type Entity } from "@/lib/entities";
-import { inviteMailKey, sendDedupedEmail } from "@/lib/mail-dedupe";
-import { buildInviteMail, INVITE_MAIL_FROM } from "@/lib/membership-mail";
+import { inviteMailKey, revokeMailKey, sendDedupedEmail } from "@/lib/mail-dedupe";
+import { buildInviteMail, buildRevokeMail, INVITE_MAIL_FROM } from "@/lib/membership-mail";
 import {
   activeCountForEntity,
   activeLimitReached,
@@ -32,6 +32,7 @@ import {
   INVITE_LINK_INVALID,
   INVITE_MAIL_FAILED,
   INVITE_SELF_MESSAGE,
+  REVOKE_NOT_FOUND,
 } from "@/lib/membership-copy";
 
 export {
@@ -288,4 +289,86 @@ export async function inviteMitwirkende(input: {
     }
     return deliverInvite(row, input.entity);
   });
+}
+
+export type RevokeFailureCode = "missing" | "entity";
+
+export type RevokeOutcome =
+  | { ok: true; membershipId: string; mailed: boolean; already: boolean }
+  | { ok: false; error: string; code: RevokeFailureCode };
+
+/**
+ * Widerruf durch den Inhaber. Die Zeile wird zuerst ungültig, danach geht
+ * höchstens eine Info-Mail hinaus. Ein zweiter Aufruf sendet nicht erneut.
+ * Der Rückgabewert enthält keinen Token.
+ */
+export async function revokeMitwirkende(input: {
+  ownerEmail: string;
+  entity: Entity;
+  membershipId: string;
+  now?: Date;
+}): Promise<RevokeOutcome> {
+  const ownerEmail = input.ownerEmail.trim().toLowerCase();
+  if (!entityOwnedByEmail(input.entity, ownerEmail)) {
+    return { ok: false, error: "Kein Zugriff.", code: "entity" };
+  }
+  const membershipId = input.membershipId.trim();
+  if (!membershipId) return { ok: false, error: REVOKE_NOT_FOUND, code: "missing" };
+
+  return lock(`accept:${input.entity.entityId}`, async () => {
+    const loaded = await getMembership(membershipId);
+    if (!loaded || loaded.entityId !== input.entity.entityId || !emailsEqual(loaded.ownerEmail, ownerEmail)) {
+      return { ok: false, error: REVOKE_NOT_FOUND, code: "missing" };
+    }
+    const memberEmail = normalizeMemberEmail(loaded.memberEmail) || loaded.memberEmail;
+    return lock(`${input.entity.entityId}:${memberEmail}`, () =>
+      revokeLocked(loaded.membershipId, input.entity, ownerEmail, input.now ?? new Date()),
+    );
+  });
+}
+
+async function revokeLocked(
+  membershipId: string,
+  entity: Entity,
+  ownerEmail: string,
+  now: Date,
+): Promise<RevokeOutcome> {
+  const row = await getMembership(membershipId);
+  if (!row || row.entityId !== entity.entityId || !emailsEqual(row.ownerEmail, ownerEmail)) {
+    return { ok: false, error: REVOKE_NOT_FOUND, code: "missing" };
+  }
+  if (row.status === "revoked") {
+    return { ok: true, membershipId: row.membershipId, mailed: false, already: true };
+  }
+
+  const revokedAt = now.toISOString();
+  const saved = await replaceMembership({
+    ...row,
+    status: "revoked",
+    revokedAt,
+    tokenHash: "",
+    updatedAt: revokedAt,
+  });
+  if (!saved) return { ok: false, error: REVOKE_NOT_FOUND, code: "missing" };
+
+  const mailed = await deliverRevokeMail(saved, entity);
+  return { ok: true, membershipId: saved.membershipId, mailed, already: false };
+}
+
+async function deliverRevokeMail(row: Membership, entity: Entity): Promise<boolean> {
+  const mail = buildRevokeMail({
+    firmName: entity.name,
+    revokedAt: row.revokedAt,
+  });
+  const result = await sendDedupedEmail({
+    dedupeKey: revokeMailKey(row.membershipId),
+    to: row.memberEmail,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+    from: INVITE_MAIL_FROM,
+    replyTo: row.ownerEmail,
+  });
+  if (result.duplicate) return true;
+  return Boolean(result.sent || (result.stub && magicLinkDevFallbackAllowed()));
 }
