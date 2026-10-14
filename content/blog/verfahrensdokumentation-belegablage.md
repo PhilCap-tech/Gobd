@@ -120,6 +120,7 @@ Das hängt davon ab, ob Sie nur eine Arbeitskopie erzeugen oder ersetzend scanne
 
 - [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage) — Muster und Vorlage insgesamt, dieser Artikel ist nur die Belegablage
+- [Verfahrensdokumentation Muster: Ausgangsrechnungen](/blog/verfahrensdokumentation-muster-ausgangsrechnungen) — Ausstellung und Korrekturen, nicht der Eingang
 - [Ersetzendes Scannen in der Verfahrensdokumentation](/blog/ersetzendes-scannen-verfahrensdokumentation) — wenn Papier nach dem Scan vernichtet wird
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — Abgleich, bevor der Entwurf als fertig gilt
 
