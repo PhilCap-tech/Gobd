@@ -29,7 +29,7 @@ Ob Sie überhaupt eine Verfahrensdokumentation brauchen, steht in [Verfahrensdok
 
 Kassenvorgänge sind Grundaufzeichnungen. Ein sachverständiger Dritter soll nachvollziehen können, wie aus einem Verkauf eine Buchung wird und wo das Geld geblieben ist. Der Produktname allein leistet das nicht. Die Dokumentation verbindet Gerät, Personen und Ablage.
 
-Typisch ist das in der Gastronomie, im Einzelhandel und im Friseurhandwerk: viel Bargeld, täglicher Abschluss, manchmal mehrere Personen an einer Kasse. Dieselben Punkte gelten für andere Betriebe mit Kasse. Die Branche ersetzt keine Beschreibung Ihres Systems.
+Typisch ist das in der Gastronomie, im Einzelhandel und im Friseurhandwerk: viel Bargeld, täglicher Abschluss, manchmal mehrere Personen an einer Kasse. Dieselben Punkte gelten für andere Betriebe mit Kasse. Die Branche ersetzt keine Beschreibung Ihres Systems. Einkauf, Lieferdienste, Kartenzahlung, Trinkgeld, Personal und Gutscheine eines Gastronomiebetriebs stehen in [Verfahrensdokumentation in der Gastronomie](/blog/verfahrensdokumentation-gastronomie). Dieser Artikel bleibt bei Kasse, TSE und Kassenbuch.
 
 Die Gesamtdokumentation — Belege, Rollen, Systeme, Freigabe — bleibt der Rahmen. Den Aufbau finden Sie unter [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen). Ändert sich Kasse oder Ablauf, passen Sie die Dokumentation an; dazu der Artikel [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren).
 
@@ -150,6 +150,7 @@ Nein. § 146b AO erlaubt eine unangekündigte Kassen-Nachschau. Sie ist ein eige
 - [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren) — wenn Kasse oder Ablauf sich ändert
 - [Verfahrensdokumentation GoBD Pflicht](/blog/verfahrensdokumentation-pflicht) — für wen die Dokumentation ein Thema ist
+- [Verfahrensdokumentation in der Gastronomie](/blog/verfahrensdokumentation-gastronomie) — Einkauf, Plattformen, Karte, Trinkgeld, Personal und Gutscheine
 
 ## Disclaimer
 
