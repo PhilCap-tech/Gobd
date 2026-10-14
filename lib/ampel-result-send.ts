@@ -373,24 +373,22 @@ export async function completeAmpelResult(
   }
   const clientIp = input.ip.trim();
   if (!clientIp || clientIp.toLowerCase() === "unknown") {
-    console.info(ampelRateLogLine(source, 0, ""));
-    return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), source, 0, now);
-  }
-  try {
-    const store = deps.store ?? ampelRateStore();
-    const confirmed = await store.confirm({
-      ipKey: ampelRateIpKey(clientIp),
-      emailKey: `em:${email}`,
-      now,
-      ipSlot: consumed.ipSlot,
-      emailSlot: consumed.emailSlot,
-    });
-    console.info(ampelRateLogLine(source, confirmed === "ok" ? consumed.ipSlot : 0, clientIp));
-    if (confirmed === "ip" || confirmed === "email") return stamp(limited(confirmed), source, 0, now);
-    if (confirmed !== "ok") return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), source, 0, now);
-  } catch (error) {
-    console.error("[ampel] Rate-Limit fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), source, 0, now);
+    console.info(ampelRateLogLine(source, consumed.ipSlot, ""));
+  } else {
+    try {
+      const store = deps.store ?? ampelRateStore();
+      const confirmed = await store.confirm({
+        ipKey: ampelRateIpKey(clientIp),
+        emailKey: `em:${email}`,
+        now,
+        ipSlot: consumed.ipSlot,
+        emailSlot: consumed.emailSlot,
+      });
+      console.info(ampelRateLogLine(source, consumed.ipSlot, clientIp));
+      if (confirmed === "ip" || confirmed === "email") return stamp(limited(confirmed), source, 0, now);
+    } catch (error) {
+      console.error("[ampel] Rate-Limit fehlgeschlagen", error instanceof Error ? error.name : "error");
+    }
   }
   const prior = await lookupMailDedupe(ampelPdfDedupeKey(email, code));
   if (prior === "sent" || prior === "inflight") return stamp(alreadySent(), source, consumed.ipSlot, now);

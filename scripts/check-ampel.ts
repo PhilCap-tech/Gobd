@@ -1939,6 +1939,166 @@ try {
       denied.status === 403 && deniedHeader.startsWith("src=x-real-ip;slot=0;win=") && !deniedHeader.includes(sameAddress),
       "senden sets x-ampel-rl before it validates the email",
     );
+
+    const indexDelayMs = 5_000;
+    const indexed = new Map<string, { body: string; writtenAt: number }>();
+    let indexNow = clock;
+    let indexPuts = 0;
+    const indexedBlob = {
+      objects: indexed,
+      puts: () => indexPuts,
+      setNow(value: number) {
+        indexNow = value;
+      },
+      async put(pathname: string, body: string, options: Partial<ExclusivePutOptions> = {}) {
+        indexPuts += 1;
+        assertOk(options.addRandomSuffix === false && options.allowOverwrite === false, "the indexed put keeps both flags");
+        const current = indexed.get(pathname);
+        if (current && indexNow - current.writtenAt >= indexDelayMs) {
+          throw new BlobUnknownError();
+        }
+        if (!current) indexed.set(pathname, { body, writtenAt: indexNow });
+        return { pathname };
+      },
+      async read(pathname: string) {
+        const current = indexed.get(pathname);
+        return current ? current.body : null;
+      },
+      async remove(pathname: string) {
+        indexed.delete(pathname);
+      },
+    };
+    const indexedStore = createBlobPutAmpelRateStore(indexedBlob);
+    const freshPath = "gobd/ampel-rate/ip-index-demo";
+    indexedBlob.setNow(clock);
+    const firstPut = await indexedBlob.put(freshPath, "{\"n\":\"a\"}", { addRandomSuffix: false, allowOverwrite: false });
+    indexedBlob.setNow(clock + 100);
+    let secondThrew = false;
+    let secondPath = "";
+    try {
+      secondPath = (await indexedBlob.put(freshPath, "{\"n\":\"b\"}", { addRandomSuffix: false, allowOverwrite: false })).pathname;
+    } catch (error) {
+      secondThrew = error instanceof BlobUnknownError;
+    }
+    assertOk(
+      firstPut.pathname === freshPath && !secondThrew && secondPath === freshPath &&
+        !(new BlobUnknownError().message.toLowerCase().includes("already exists")),
+      "a re-put before the index catches up returns 200 with the same pathname, and BlobUnknownError drops the exists message",
+    );
+    indexed.delete(freshPath);
+    let indexedSends = 0;
+    const indexedTokens = createMemoryAmpelSendTokenStore();
+    const indexedStatus = createMemoryAmpelMailStatusStore();
+    for (let index = 0; index < 8; index += 1) {
+      const at = clock + index * indexDelayMs;
+      indexedBlob.setNow(at);
+      const input = {
+        email: `indexed-${index}@example.com`,
+        answers: index % 2 === 0 ? jaCode : neinCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: sameAddress,
+        ipSource: "x-real-ip",
+      };
+      const handoff = await submitAmpelResult(input, {
+        store: indexedStore,
+        now: () => at,
+        confirm: noConfirm,
+        handoff: true,
+        tokens: indexedTokens,
+        status: indexedStatus,
+      });
+      assertOk(handoff.ok && !("honeypot" in handoff), `indexed submit ${index + 1}`);
+      if (!handoff.ok || "honeypot" in handoff) fail("indexed submit");
+      if (index >= AMPEL_IP_LIMIT) {
+        assertOk(handoff.limited === "ip" && handoff.pending !== true && handoff.trace?.slot === 0 && handoff.trace?.win === windowId, "the sixth indexed submit is a 429 in the same window");
+        continue;
+      }
+      assertOk(handoff.pending === true && handoff.trace?.slot === index + 1, `indexed submit ${index + 1} takes a new slot`);
+      const putsBeforeSend = indexPuts;
+      indexedBlob.setNow(at + 100);
+      const sent = await completeAmpelResult(
+        { ...input, sendToken: handoff.token },
+        {
+          store: indexedStore,
+          now: () => at + 100,
+          confirm: noConfirm,
+          tokens: indexedTokens,
+          status: indexedStatus,
+          mail: async () => {
+            indexedSends += 1;
+            return { stub: false, sent: true, id: `indexed-${indexedSends}` };
+          },
+        },
+      );
+      assertOk(
+        sent.ok && !("honeypot" in sent) && sent.mailed === true && indexPuts === putsBeforeSend &&
+          sent.trace?.slot === index + 1 && sent.trace?.win === windowId,
+        `senden ${index + 1} mails without putting the slot again`,
+      );
+    }
+    assertOk(indexedSends === AMPEL_IP_LIMIT, "five indexed reservations send, the rest do not");
+    assertOk(
+      [...indexed.keys()].filter((key) => key.includes("/ip-")).length === AMPEL_IP_LIMIT,
+      "a follow-up send does not delete the reserved IP slots",
+    );
+    const conflict = await indexedBlob.put(
+      [...indexed.keys()].find((key) => key.includes("/ip-")) ?? freshPath,
+      "{\"n\":\"late\"}",
+      { addRandomSuffix: false, allowOverwrite: false },
+    ).then(
+      () => "created",
+      (error: unknown) => (error instanceof BlobUnknownError ? "unknown" : "other"),
+    );
+    assertOk(conflict === "unknown", "an indexed pathname makes put throw BlobUnknownError");
+
+    const flakyBase = createMemoryAmpelRateStore();
+    const flakyStore = {
+      take: flakyBase.take.bind(flakyBase),
+      async confirm() {
+        throw new Error("blob-index");
+      },
+    };
+    const flakyTokens = createMemoryAmpelSendTokenStore();
+    const flakyStatus = createMemoryAmpelMailStatusStore();
+    const flakyInput = {
+      email: "flaky-confirm@example.com",
+      answers: jaCode,
+      ref: "",
+      marketing: false,
+      honeypot: "",
+      ip: sameAddress,
+      ipSource: "x-real-ip",
+    };
+    const flakyHandoff = await submitAmpelResult(flakyInput, {
+      store: flakyStore,
+      now: () => clock,
+      confirm: noConfirm,
+      handoff: true,
+      tokens: flakyTokens,
+      status: flakyStatus,
+    });
+    assertOk(flakyHandoff.ok && !("honeypot" in flakyHandoff) && flakyHandoff.token, "a passed limit still issues a token");
+    let flakySends = 0;
+    const flakyDone = await completeAmpelResult(
+      { ...flakyInput, sendToken: flakyHandoff.ok && !("honeypot" in flakyHandoff) ? flakyHandoff.token : "" },
+      {
+        store: flakyStore,
+        now: () => clock,
+        confirm: noConfirm,
+        tokens: flakyTokens,
+        status: flakyStatus,
+        mail: async () => {
+          flakySends += 1;
+          return { stub: false, sent: true, id: "flaky" };
+        },
+      },
+    );
+    assertOk(
+      flakyDone.ok && !("honeypot" in flakyDone) && flakyDone.mailed === true && flakySends === 1,
+      "a confirm error still sends the token-bound mail",
+    );
   } finally {
     setMailDedupeTestHooks(null);
     await rm(mailDir, { recursive: true, force: true });
