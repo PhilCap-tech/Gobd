@@ -26,7 +26,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: { absolute: seite.metaTitle },
     description: seite.metaDescription,
     alternates: { canonical },
-    robots: seite.noindex ? { index: false, follow: true } : undefined,
+    robots: seite.noindex
+      ? { index: false, follow: true }
+      : { index: true, follow: true },
     openGraph: {
       title: seite.metaTitle,
       description: seite.metaDescription,

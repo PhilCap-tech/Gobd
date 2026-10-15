@@ -12,7 +12,7 @@ secondaryKeywords:
   - "Kassenbuch Friseur"
 musterVorlage: "dienstleister"
 readinessBranche: "dienstleistung"
-noindex: true
+noindex: false
 ctaSoft: "/readiness"
 ctaPrimary: "/"
 stand: "2026-10-15"
