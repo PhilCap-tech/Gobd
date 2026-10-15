@@ -165,6 +165,8 @@ const privacyPage = readFileSync("app/datenschutz/page.tsx", "utf8");
 assertOk(privacyPage.includes('id="kanzlei-merkblatt"'), "the privacy heading has the anchor");
 const privacy = KANZLEI_PRIVACY_PARAGRAPHS.join("\n");
 assertOk(privacy.includes("Einladungen zu Veranstaltungen") && !privacy.includes("Webinar"), "privacy uses Veranstaltungen");
+assertOk(privacy.includes("Der Bestätigungslink ist 48 Stunden gültig."), "privacy states the 48-hour confirm link");
+assertOk(mail.text.includes("Der Link ist 48 Stunden gültig."), "mail b states the 48-hour confirm link");
 assertOk(privacy.includes("Eine automatische Löschung nach einer festen Frist findet nicht statt."), "privacy states there is no automatic deletion");
 assertOk(!privacy.includes("[") && !KANZLEI_EMAIL_HINT.includes("[") && !KANZLEI_OPT_IN.includes("["), "kanzlei copy has no bracket markers");
 assertOk(!AMPEL_PRIVACY_PARAGRAPHS.join("\n").includes("90 Tage"), "the ampel section no longer says 90 days");

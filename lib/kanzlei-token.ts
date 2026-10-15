@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getMagicLinkSecret } from "@/lib/env";
 import { normalizeAmpelEmail } from "@/lib/ampel-score";
+import { KANZLEI_DOI_HOURS } from "@/lib/kanzlei-copy";
 
 /** Signed double-opt-in link lifetime. Same length as the Ampel link. */
-export const KANZLEI_DOI_TTL_MS = 48 * 60 * 60 * 1000;
+export const KANZLEI_DOI_TTL_MS = KANZLEI_DOI_HOURS * 60 * 60 * 1000;
 
 export type KanzleiDoiPayload = {
   purpose: "kanzlei-doi";
