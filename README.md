@@ -299,7 +299,7 @@ Prüfung ohne Speicher: `npx tsx scripts/check-admin-wipe.ts`
 
 ## Ads tracking (Google Search first, then Meta Pixel; consent-gated)
 
-Messung: Traffic, optionale Readiness-Conversion, optionale Lead-Formular-Conversion (Steuerberater-Anfrage), und — nur nach bezahlter Stripe-Session — eine Google-Ads-Kauf-Conversion. Meta feuert weiter kein `Purchase`.
+Messung: Traffic, optionale Readiness-Conversion, optionale Ampel-Lead-Conversion (nur nach erfolgreichem E-Mail-Schritt), und — nur nach bezahlter Stripe-Session — eine Google-Ads-Kauf-Conversion. Die Steuerberater-Anfrage sendet keine Ads-Conversion. Meta feuert weiter kein `Purchase`.
 
 ### Vercel / Env
 
@@ -310,7 +310,7 @@ Messung: Traffic, optionale Readiness-Conversion, optionale Lead-Formular-Conver
 | `NEXT_PUBLIC_GOOGLE_ADS_ID` | nein | Google Ads-Konto, z. B. `AW-586367190`. Leer = kein Ads-`config` |
 | `NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO` | nein | Voller Kauf-`send_to`, z. B. `AW-586367190/LABEL`. Leer = keine Kauf-Conversion. Nicht das Readiness-Label |
 | `NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL` | nein | Label oder voller `AW-…/LABEL` nur für den Readiness-Submit. Leer = keine Readiness-Conversion. Ein bereits voller `send_to` wird nicht noch einmal mit der Konto-ID vorangestellt |
-| `NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO` | nein | Voller Lead-`send_to` (`AW-…/LABEL`) für die Steuerberater-Anfrage. Leer = keine Lead-Conversion |
+| `NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO` | nein | Voller Ampel-Lead-`send_to` (`AW-…/LABEL`), nur nach erfolgreichem Absenden des E-Mail-Schritts. Leer = keine Ampel-Lead-Conversion. Die Steuerberater-Anfrage nutzt dieses Label nicht |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | nein | GA4 Measurement-ID, z. B. `G-RJ4KLBP1SF`. Leer = kein GA4. Teilt `gtag`/`dataLayer` mit Ads |
 | `NEXT_PUBLIC_META_PIXEL_ID` | nein | Meta Pixel-ID. Leer = kein Pixel |
 
@@ -328,7 +328,7 @@ Client-Navigation (nur GA4): `gtag('event', 'page_view', { page_path, send_to: G
 Reihenfolge jeder Conversion: Consent-Default `denied`, dann Consent-Update `granted`, dann `config`, dann `event`.  
 Nach erfolgreichem Readiness-Submit **und** gesetztem Ads-Label: `gtag('event', 'conversion', { send_to: 'AW-…/label' })`, danach erst die Client-Navigation. Das ist nicht die Kauf-Conversion und sendet keinen `value`.  
 GA4 optional: `gtag('event', 'readiness_submit', { send_to: G-… })`.  
-Lead-Formular nur nach erfolgreicher Steuerberater-Anfrage und nur mit `NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO`, einmal je Seitenaufruf: `gtag('event', 'conversion', { send_to })`.  
+Ampel-Lead nur nach erfolgreichem Absenden des E-Mail-Schritts und nur mit `NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO`, einmal je Seitenaufruf, mit `value: 1` und `currency: 'EUR'`: `gtag('event', 'conversion', { send_to })`. Ein fehlgeschlagenes Absenden und die Steuerberater-Anfrage senden diese Conversion nicht.  
 Kauf-Conversion nur auf `/success`, nur bei serverseitig bezahlter Checkout-Session (kein Stub), nur mit `NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO`, genau einmal je Session-ID (`localStorage` und `sessionStorage`): `gtag('event', 'conversion', { send_to, value: 198, currency: 'EUR', transaction_id })`. Meta bleibt ohne `Purchase`.
 
 ### Meta events (nur mit Marketing-Consent **und** Pixel-ID)
@@ -357,5 +357,5 @@ Erwartete Kampagnen-URL:
 2. Seite öffnen → Banner **Marketing erlauben**
 3. Network: `gtag/js?id=AW-…` oder `gtag/js?id=G-…` (je nach gesetzter ID), `fbevents.js` (wenn Pixel-ID gesetzt)
 4. `/readiness` → Meta: `PageView` + `ReadinessStart`; Google: config/page_view
-5. Readiness-Formular absenden → Meta: `CompleteRegistration` + `ReadinessSubmit`; Ads-Conversion **nur** wenn Label gesetzt; GA4 `readiness_submit` wenn Measurement-ID gesetzt. Steuerberater-Anfrage → Ads-Lead **nur** wenn `NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO` gesetzt
+5. Readiness-Formular absenden → Meta: `CompleteRegistration` + `ReadinessSubmit`; Ads-Conversion **nur** wenn Label gesetzt; GA4 `readiness_submit` wenn Measurement-ID gesetzt. Ampel-Check mit E-Mail → Ads-Lead **nur** nach Erfolg und **nur** wenn `NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO` gesetzt. Steuerberater-Anfrage → keine Ads-Conversion
 6. Incognito: **Nur essenziell** → kein `gtag/js`, kein `fbevents.js`

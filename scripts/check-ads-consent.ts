@@ -7,8 +7,10 @@
  * config / event / js command counts as an Ads request. Consent Mode
  * default/update commands do not. Also checks the purchase conversion
  * fires once per paid session and never uses the Readiness label, that
- * Readiness and the lead form each use their own send_to after config,
- * and that the Ads tag is configured on every consented page.
+ * Readiness and the Ampel lead each use their own send_to after config,
+ * that the Ampel conversion is queued only after a successful submit,
+ * that the Steuerberater form sends no Ads conversion, and that the Ads
+ * tag is configured on every consented page.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -419,9 +421,9 @@ try {
   {
     fresh({ ads: adsId, ga: gaId, purchase: purchaseSendTo, readiness: readinessLabel });
     saveConsent(true);
-    trackRoute("/steuerberater");
+    trackRoute("/ampel-check");
     trackLeadSubmit();
-    assert.equal(conversionCommands().length, 0, "unset lead send_to sends nothing");
+    assert.equal(conversionCommands().length, 0, "unset Ampel lead send_to sends nothing");
   }
 
   {
@@ -434,10 +436,10 @@ try {
     });
     saveConsent(true);
     trackRoute("/");
-    trackRoute("/steuerberater");
+    trackRoute("/ampel-check");
     trackLeadSubmit();
     trackLeadSubmit();
-    assert.equal(conversionCommands().length, 1, "lead form sends one conversion");
+    assert.equal(conversionCommands().length, 1, "Ampel lead sends one conversion");
     const leadPayload = conversionCommands()[0]?.[2] as { send_to: string };
     assert.equal(leadPayload.send_to, leadSendTo);
     assert.equal("value" in leadPayload, false, "a lead call without a value omits it");
@@ -446,7 +448,7 @@ try {
     const leadAt = commands().findIndex((cmd) => cmd[0] === "event" && cmd[1] === "conversion");
     const configAt = commands().findIndex((cmd) => cmd[0] === "config" && cmd[1] === adsId);
     const grantedAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "update");
-    assert.ok(grantedAt < configAt && configAt < leadAt, "lead event follows consent update and Ads config");
+    assert.ok(grantedAt < configAt && configAt < leadAt, "Ampel lead event follows consent update and Ads config");
   }
 
   {
@@ -461,7 +463,7 @@ try {
     trackRoute("/ampel-check");
     trackLeadSubmit({ value: 1, currency: "EUR" });
     const valued = conversionCommands()[0]?.[2] as { send_to: string; value?: number; currency?: string };
-    assert.equal(valued.send_to, leadSendTo, "ampel lead uses the env send_to");
+    assert.equal(valued.send_to, leadSendTo, "Ampel lead uses the env send_to");
     assert.equal(valued.value, 1);
     assert.equal(valued.currency, "EUR");
   }
@@ -541,9 +543,54 @@ try {
   const partner = readFileSync("app/steuerberater/partner-inquiry-form.tsx", "utf8");
   assert.equal(partner.includes("trackPurchaseConversion"), false);
   assert.equal(partner.includes("trackReadinessSubmit"), false);
-  const partnerOk = partner.indexOf("!response.ok || !data.ok");
-  const partnerTrack = partner.indexOf("trackLeadSubmit()");
-  assert.ok(partnerOk !== -1 && partnerTrack > partnerOk);
+  assert.equal(partner.includes("trackLeadSubmit"), false, "Steuerberater form sends no Ads conversion");
+  assert.equal(partner.includes("getGoogleAdsLeadSendTo"), false);
+  assert.equal(partner.includes("gtag("), false, "Steuerberater form does not call gtag");
+  assert.equal(partner.includes("googleadservices"), false);
+  assert.equal(partner.includes("KE_4CP3UoZwdENaBzZcC"), false, "the Ampel label is not used by the Steuerberater form");
+  assert.ok(partner.includes("!response.ok || !data.ok"));
+
+  const ampel = readFileSync("app/ampel-check/ampel-check.tsx", "utf8");
+  const ampelOk = ampel.indexOf("!response.ok || !data.ok");
+  const ampelTrack = ampel.indexOf('trackLeadSubmit({ value: 1, currency: "EUR" })');
+  const ampelFollow = ampel.indexOf('fetch("/api/ampel/ergebnis/senden"');
+  const ampelAccepted = ampel.indexOf("leadAccepted =", ampelFollow);
+  assert.ok(ampelOk !== -1 && ampelTrack > ampelOk, "Ampel conversion only after the success check");
+  assert.equal(ampel.slice(0, ampelOk).includes("trackLeadSubmit("), false, "a failed Ampel submit does not convert");
+  assert.equal(ampel.indexOf("trackLeadSubmit(", ampelTrack + 1), -1, "Ampel queues one conversion call");
+  assert.ok(
+    ampel.includes('if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" })'),
+    "Ampel conversion is gated on an accepted submit",
+  );
+  assert.ok(ampelFollow !== -1 && ampelAccepted > ampelFollow && ampelTrack > ampelAccepted, "the follow-up is judged before the conversion");
+  assert.ok(ampel.includes("sent.mailed !== false"), "a follow-up that did not mail is not a conversion");
+  assert.ok(ampel.includes("data.mailed === false"), "a direct submit that did not mail is not a conversion");
+  assert.equal(ampel.includes("KE_4CP3UoZwdENaBzZcC"), false, "the Ampel label stays in the environment");
+
+  const steuerberaterHits: string[] = [];
+  const steuerberaterDir = path.join(process.cwd(), "app", "steuerberater");
+  const steuerberaterStack = [steuerberaterDir];
+  while (steuerberaterStack.length) {
+    const dir = steuerberaterStack.pop()!;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        steuerberaterStack.push(full);
+        continue;
+      }
+      if (!/\.(ts|tsx|js|mjs)$/.test(entry.name)) continue;
+      const text = readFileSync(full, "utf8");
+      if (
+        text.includes("trackLeadSubmit") ||
+        text.includes("getGoogleAdsLeadSendTo") ||
+        text.includes("KE_4CP3UoZwdENaBzZcC") ||
+        text.includes('gtag("event", "conversion"')
+      ) {
+        steuerberaterHits.push(path.relative(process.cwd(), full));
+      }
+    }
+  }
+  assert.deepEqual(steuerberaterHits, [], "no Ads conversion in the Steuerberater form");
 
   const example = readFileSync(".env.example", "utf8");
   assert.ok(example.includes("NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO="));

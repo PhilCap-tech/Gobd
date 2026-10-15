@@ -8,7 +8,7 @@
  *
  * NEXT_PUBLIC_GOOGLE_ADS_ID unset → no Ads config on pages.
  * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO unset → no purchase conversion.
- * NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO unset → no lead-form conversion.
+ * NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO unset → no Ampel lead conversion.
  * The purchase conversion is not the Readiness submit conversion.
  * After consent, gtag('config', AW-…) runs on every page so Ads sees the tag.
  */
@@ -106,8 +106,9 @@ export function getGoogleAdsPurchaseSendTo(): string {
 }
 
 /**
- * Full Google Ads lead-form send_to, e.g. AW-XXXXXXXXX/LABEL.
- * Unset → the Steuerberater lead form sends no conversion.
+ * Full Google Ads send_to for the Ampel lead, e.g. AW-XXXXXXXXX/LABEL.
+ * Used only after a successful Ampel email submit. Unset → no conversion.
+ * The Steuerberater form does not use this label.
  */
 export function getGoogleAdsLeadSendTo(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO?.trim() || "";
@@ -381,10 +382,10 @@ export function trackReadinessSubmit(onDone?: () => void): void {
 }
 
 /**
- * Steuerberater lead form and the Ampel email step, after a successful POST.
+ * Ampel email step, only after the submit has succeeded.
  * Sends nothing when NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO is unset.
  * One conversion per page load. Value and currency are included only when passed.
- * Not the Readiness or purchase conversion.
+ * Not the Readiness or purchase conversion, and not the Steuerberater form.
  */
 export function trackLeadSubmit(detail?: { value?: number; currency?: string }): void {
   const sendTo = normalizeGoogleAdsSendTo(
