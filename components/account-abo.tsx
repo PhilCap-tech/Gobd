@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import type { LifecycleNotice } from "@/lib/kuendigung";
+import { ACCOUNT_PAID_CTA_LABEL, GELD_ZURUECK_MICRO } from "@/lib/offer-copy";
 import {
   MONTHLY_EUR,
   MONTHLY_GROSS_LABEL,
@@ -9,7 +10,7 @@ import {
 } from "@/lib/pricing";
 import { accountBillingPath } from "@/lib/stripe";
 
-export const ACCOUNT_PAID_CTA_LABEL = `Jetzt Verfahrensdokumentation erstellen — ${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Mo netto (${MONTHLY_GROSS_LABEL} € brutto)`;
+export { ACCOUNT_PAID_CTA_LABEL };
 
 export function AccountPaidActions() {
   return (
@@ -81,9 +82,8 @@ export function AccountUpgradeCard({
         <>
           <AccountPaidActions />
           <p className="trust-line">
-            14 Tage Zufriedenheitsgarantie — 198 € nur, solange noch kein PDF
-            erzeugt oder heruntergeladen wurde · Keine Steuerberatung · Entwurf
-            für Ihren Steuerberater
+            {GELD_ZURUECK_MICRO} · Keine Steuerberatung · Entwurf für Ihren
+            Steuerberater
           </p>
         </>
       )}

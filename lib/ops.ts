@@ -22,6 +22,7 @@ import {
   sendDedupedEmail,
 } from "@/lib/mail-dedupe";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import { ACCOUNT_PAID_CTA_LABEL } from "@/lib/offer-copy";
 import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
 import {
   escapeAttr,
@@ -80,7 +81,7 @@ function claimedMail(
   return { ...result, action };
 }
 
-const CHECKOUT_CTA = `Jetzt Verfahrensdokumentation erstellen — ${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Mo netto (${MONTHLY_GROSS_LABEL} € brutto)`;
+const CHECKOUT_CTA = ACCOUNT_PAID_CTA_LABEL;
 const READINESS_MICRO =
   "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung · Entwurf für Ihren Steuerberater";
 

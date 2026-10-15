@@ -38,7 +38,7 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 ## 3. Preise & Updates nach Lieferung
 
 - **24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.** Ein Abo umfasst bis zu 5 Firmen und das Gesamtdokument mit allen Modulen jeder Firma. Bereits erstellte Bereichs-Dokumentationen bleiben im Konto lesbar.
-- **Preismodell:** einmalige Einrichtung 149 € zzgl. USt und 49 € zzgl. USt pro Monat. Der erste Monat ist im Einstiegspreis von 198 € zzgl. USt (149 € + 49 €) enthalten. Ab dem zweiten Monat wird das Nutzungsentgelt monatlich im Voraus berechnet. Maßgeblich sind die im Checkout angezeigten Beträge.
+- **Preismodell:** 198 € zum Start (Einrichtung 149 € + 1. Monat 49 €), danach 49 €/Monat, zzgl. USt. Ab dem zweiten Monat wird monatlich im Voraus berechnet. Maßgeblich sind die im Checkout angezeigten Beträge.
 - Das monatliche Abo deckt laufenden Zugang sowie Update-/Pflegeleistungen gemäß aktueller Produktbeschreibung ab (u. a. Versionierung und Speicherung).
 - Ein Update ist sinnvoll, wenn sich Systeme, Abläufe, Hosting oder Verantwortliche ändern. Das Gesamtdokument hat eine gemeinsame Versionierung mit „Gültig ab“ und Änderungshistorie; frühere Fassungen bleiben herunterladbar.
 - Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung. Bereits erzeugte PDFs können Sie nach Vertragsende noch 30 Tage herunterladen. Zugang zu früheren Fassungen und spätere Anpassungen gibt es nur mit aktivem Abonnement.
@@ -62,7 +62,7 @@ Schreiben Sie uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Re
 
 ## 6. 14 Tage Zufriedenheitsgarantie
 
-Innerhalb von **14 Tagen** nach Bestellung erstatten wir 198 € zzgl. USt (149 € Einrichtung und 49 € Nutzungsentgelt des ersten Monats), solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
+Innerhalb von **14 Tagen** nach Bestellung erstatten wir die 198 € zum Start (Einrichtung + 1. Monat), zzgl. USt., solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
 
 **So beantragen Sie die Erstattung**
 
@@ -74,7 +74,7 @@ Schreiben Sie an **info@gobd-doku-erstellen.de** mit Betreff „Zufriedenheitsga
 
 **Was wird im Rahmen der Garantie erstattet?**
 
-- **Vor dem ersten PDF** (noch keine Erzeugung und kein Download der Verfahrensdokumentation): 198 € zzgl. USt (149 € Einrichtung und 49 € Nutzungsentgelt des ersten Monats).
+- **Vor dem ersten PDF** (noch keine Erzeugung und kein Download der Verfahrensdokumentation): die 198 € zum Start (Einrichtung + 1. Monat), zzgl. USt.
 - **Nach dem ersten PDF** (Erzeugung oder Download): nur das laufende monatliche Nutzungsentgelt (49 € zzgl. USt). Die Einrichtung (149 € zzgl. USt) ist nicht erstattungsfähig.
 
 **Voraussetzungen**

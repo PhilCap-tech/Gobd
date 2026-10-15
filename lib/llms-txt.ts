@@ -50,7 +50,7 @@ export function buildLlmsTxt(): string {
     "",
     "## Preis",
     "",
-    `${SETUP_EUR} € Setup + ${MONTHLY_EUR} €/Monat netto. ${TODAY_EUR} € netto zum Start bzw. ${TODAY_GROSS_LABEL} € brutto inkl. ${VAT_PERCENT} % USt.`,
+    `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €).`,
     "",
     `Einrichtung: ${netWithGross(SETUP_EUR)}.`,
     `Nutzungsentgelt: ${netWithGross(MONTHLY_EUR)} pro Monat.`,

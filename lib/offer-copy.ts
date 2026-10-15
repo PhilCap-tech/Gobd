@@ -1,32 +1,33 @@
 import {
   MONTHLY_EUR,
-  MONTHLY_GROSS_LABEL,
   SETUP_EUR,
   TODAY_EUR,
   TODAY_GROSS_LABEL,
-  netWithGross,
 } from "@/lib/pricing";
 
 /** Owner Spec 29.09 — same sentence on hero, pricing, and checkout summary. */
 export const RESULT_PROMISE =
   "Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentation als PDF und eine Liste offener Punkte. Sie prüfen und ergänzen die Angaben vor der Verwendung.";
 
-/** Exact price line next to the first paid CTA and the sticky bar. Net plus gross at 19 %. */
-export const PRICE_MICRO = `Heute ${netWithGross(TODAY_EUR)} (${SETUP_EUR} € Einrichtung + erster Monat, inkl. 19 % USt), danach ${netWithGross(MONTHLY_EUR)} pro Monat`;
+/** Basistext 15.10.2026. Beträge bleiben in pricing.ts. */
+export const START_PRICE_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
+
+/** Checkout lead, branch-page close, and the fine print under paid CTAs. */
+export const PRICE_MICRO = START_PRICE_LINE;
 
 /** Homepage only: one line under the price table. Amounts follow pricing.ts. */
-export const PRICE_FRAME_LINE = `${netWithGross(TODAY_EUR)} = individuelles PDF + Liste offener Punkte (kein reines Tool-Abo und kein reiner Check) · ${netWithGross(MONTHLY_EUR)} pro Monat = Versionen und Pflege.`;
+export const PRICE_FRAME_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat) = individuelles PDF + Liste offener Punkte · danach ${MONTHLY_EUR} €/Monat für Versionen und Pflege, zzgl. USt.`;
 
 /** Homepage hero, directly under the H1. No social-proof counts. */
 export const HERO_OUTCOME_LINE =
   "PDF + Offene-Punkte aus Ihren Angaben · Entwurf für Sie und Ihren Steuerberater.";
 
-/** Homepage hero, the sentence directly under the H1. */
+/** Homepage hero, the sentence directly under the H1. Variante 1, 15.10.2026. */
 export const HERO_SCOPE_LINE =
-  "Die komplette Verfahrensdokumentation: Belegfluss, Kasse, Warenwirtschaft, Lohn und weitere Bereiche, alles zu einem Preis.";
+  "Sie beantworten geführte Fragen – wir erstellen daraus Ihre Verfahrensdokumentation als PDF-Entwurf mit Liste offener Punkte.";
 
-/** Compact price box on the homepage hero. Amounts follow pricing.ts. Net plus 19 % USt. */
-export const HERO_PRICE_BOX = `${netWithGross(TODAY_EUR)} zum Start (${SETUP_EUR} € Einrichtung + erster Monat, inkl. 19 % USt), danach ${netWithGross(MONTHLY_EUR)} pro Monat`;
+/** Compact price box on the homepage hero. Amounts follow pricing.ts. */
+export const HERO_PRICE_BOX = START_PRICE_LINE;
 
 /** Homepage: modules in the tool vs chapters in the delivered PDF. */
 export const HERO_FACTS_LINE = "24 Module, im PDF gegliedert in 14 Kapitel";
@@ -42,10 +43,16 @@ export const PRICE_INCLUSION_LINE =
 export const CTA_CHECK_HERO = "Kostenlosen 3-Minuten-Check";
 export const CTA_MUSTER_HERO = "Muster ansehen";
 
-export const PRICE_CTA_SUFFIX = `Heute ${netWithGross(TODAY_EUR)}, danach ${netWithGross(MONTHLY_EUR)} pro Monat`;
+export const PRICE_CTA_SUFFIX = START_PRICE_LINE;
+
+/** Shown under the short paid button. The button itself stays CTA_CREATE_WITH_PRICE. */
+export const PRICE_AFTER_MICRO = `danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
 
 export const CTA_CREATE = "Dokumentation erstellen";
-export const CTA_CREATE_WITH_PRICE = `${CTA_CREATE} — ${PRICE_CTA_SUFFIX}`;
+export const CTA_CREATE_WITH_PRICE = `Starten für ${TODAY_EUR} € (Einrichtung + 1. Monat)`;
+
+/** Account and the readiness mail use the short start line plus the monthly price. */
+export const ACCOUNT_PAID_CTA_LABEL = `Starten für ${TODAY_EUR} € (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
 export const CTA_MUSTER = "Muster-Dokument ansehen";
 export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
 
@@ -53,8 +60,7 @@ export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
 export const GELD_ZURUECK_HREF = "/faq#geld-zurueck";
 
 /** Short form for hero, sticky bar, and closing CTA. Details stay in the FAQ. */
-export const GELD_ZURUECK_MICRO =
-  "14 Tage Zufriedenheitsgarantie — 198 € nur, solange noch kein PDF erzeugt oder heruntergeladen wurde";
+export const GELD_ZURUECK_MICRO = `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`;
 
 export const DISCLAIMER_ONCE =
   "Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.";
@@ -104,8 +110,8 @@ export const PARTNER_EFFORT_LINE =
  */
 /**
  * Upsell auf Musterseiten, am Demo-Ende und als letzte Seite der Muster-PDFs.
- * Wortlaut Growth 09.10.2026. Beträge kommen aus pricing.ts, die Formulierung
- * bleibt die freigegebene Preiszeile.
+ * Wortlaut 15.10.2026. Beträge kommen aus pricing.ts. Der Einstieg ist
+ * START_PRICE_LINE; „alle 24 Module inklusive“ bleibt stehen.
  * Uploads bleiben drin: Datei-Upload und öffnen im Intake, Abruf über
  * /api/module-upload/file. Frühere Fassungen bleiben drin: Versionshistorie
  * im Konto verlinkt jede Fassung auf ihren PDF-Download.
@@ -136,9 +142,9 @@ export const UPSELL_BULLETS = [
 export const UPSELL_EFFORT_NOTE =
   "Sie können in Etappen arbeiten, der Stand wird gespeichert.";
 
-export const UPSELL_PRICE = `heute ${netWithGross(TODAY_EUR)}, danach ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), monatlich kündbar, alle 24 Module inklusive`;
+export const UPSELL_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
 
-export const UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € netto = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € erster Monat (brutto ${TODAY_GROSS_LABEL} € inkl. 19 % USt)`;
+export const UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
 
 export const UPSELL_CTA = "Eigene Dokumentation erstellen";
 

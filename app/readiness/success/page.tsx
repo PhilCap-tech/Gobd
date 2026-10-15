@@ -9,7 +9,12 @@ import {
   loginMailState,
 } from "@/lib/login-mail";
 import { isMailConfigured } from "@/lib/env";
-import { CTA_CREATE_WITH_PRICE, DISCLAIMER_ONCE, READINESS_EFFORT_NOTE } from "@/lib/offer-copy";
+import {
+  CTA_CREATE_WITH_PRICE,
+  DISCLAIMER_ONCE,
+  PRICE_AFTER_MICRO,
+  READINESS_EFFORT_NOTE,
+} from "@/lib/offer-copy";
 import { firstQueryValue } from "@/lib/query";
 import { canAccessReadinessLead, readinessDownloadPath } from "@/lib/readiness";
 import { readinessBrancheLabel } from "@/lib/readiness-options";
@@ -108,6 +113,9 @@ export default async function ReadinessSuccessPage({
                   {CTA_CREATE_WITH_PRICE}
                 </Link>
               </div>
+              <p className="hint" style={{ marginTop: 8 }}>
+                {PRICE_AFTER_MICRO}
+              </p>
               <p className="hint" style={{ marginTop: 14 }}>
                 Nächster Schritt: Dokumentation erstellen, dann PDF und Liste
                 offener Punkte aus Ihren Angaben. {READINESS_EFFORT_NOTE} Im
