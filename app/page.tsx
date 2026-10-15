@@ -20,6 +20,7 @@ import {
   HERO_FACTS_LINE,
   HERO_PRICE_BOX,
   HERO_SCOPE_LINE,
+  PRICE_AFTER_MICRO,
   PRICE_CTA_SUFFIX,
   PRICE_FRAME_LINE,
   PRICE_INCLUSION_LINE,
@@ -456,9 +457,9 @@ export default function HomePage() {
                     </td>
                   </tr>
                   <tr className={styles.due}>
-                    <th scope="row">Heute fällig</th>
+                    <th scope="row">Zum Start (Einrichtung + 1. Monat)</th>
                     <td>
-                      {euro(TODAY_EUR)} netto ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
+                      {euro(TODAY_EUR)} zzgl. USt. ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
                     </td>
                   </tr>
                   <tr>
@@ -562,9 +563,12 @@ export default function HomePage() {
               {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat · Ein Abo umfasst bis zu 5 Firmen.
             </p>
             <div className={styles.ctas}>
-              <Link className={`btn ${styles.btnOnDark}`} href="/checkout">
-                {CTA_CREATE_WITH_PRICE}
-              </Link>
+              <div className={styles.priceCta}>
+                <Link className={`btn ${styles.btnOnDark}`} href="/checkout">
+                  {CTA_CREATE_WITH_PRICE}
+                </Link>
+                <p className={styles.fine}>{PRICE_AFTER_MICRO}</p>
+              </div>
               <Link className={`btn ${styles.btnSecOnDark}`} href={AMPEL_HREF}>
                 {AMPEL_LABEL}
               </Link>

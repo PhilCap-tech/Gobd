@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { CTA_CREATE_WITH_PRICE, CTA_MUSTER, READINESS_EFFORT_NOTE } from "@/lib/offer-copy";
+import {
+  CTA_CREATE_WITH_PRICE,
+  CTA_MUSTER,
+  PRICE_AFTER_MICRO,
+  READINESS_EFFORT_NOTE,
+} from "@/lib/offer-copy";
 import { ReadinessForm } from "./readiness-form";
 
 export const metadata: Metadata = {
@@ -31,6 +36,7 @@ export default function ReadinessPage() {
           {" · "}
           <Link href="/checkout">{CTA_CREATE_WITH_PRICE}</Link>
         </p>
+        <p className="hint">{PRICE_AFTER_MICRO}</p>
       </main>
       <SiteFooter />
     </>

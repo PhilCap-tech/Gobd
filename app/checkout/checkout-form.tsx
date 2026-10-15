@@ -246,7 +246,7 @@ export function CheckoutForm({
         <h2>Bestellübersicht</h2>
         {partner && (
           <p className="hint">
-            Der Betrag „Heute fällig“ ist der Listenpreis netto. Den Code lösen
+            Der Betrag „Zum Start“ ist der Listenpreis netto. Den Code lösen
             Sie erst im Stripe-Checkout ein. Ohne Code bleibt die Einrichtung{" "}
             {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
             einmalig.
@@ -268,7 +268,7 @@ export function CheckoutForm({
               </strong>
             </div>
             <div className="total">
-              <span>Heute fällig</span>
+              <span>Zum Start fällig (Einrichtung + 1. Monat)</span>
               <span>
                 {TODAY_EUR}&nbsp;€ netto ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
               </span>
@@ -300,7 +300,7 @@ export function CheckoutForm({
               </strong>
             </div>
             <div className="total">
-              <span>Heute fällig</span>
+              <span>Zum Start fällig (Einrichtung + 1. Monat)</span>
               <span>
                 {TODAY_EUR}&nbsp;€ netto ({TODAY_GROSS_LABEL}&nbsp;€ brutto)
               </span>

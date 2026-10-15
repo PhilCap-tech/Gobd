@@ -4,7 +4,6 @@ import {
   MONTHLY_EUR,
   SETUP_EUR,
   TODAY_EUR,
-  TODAY_GROSS_LABEL,
   VAT_PERCENT,
   grossCents,
   grossEuroLabel,
@@ -129,7 +128,7 @@ export function productOfferJsonLd(): JsonLdNode {
     description: [
       "Strukturierte GoBD-Verfahrensdokumentation als PDF aus einem Fragebogen mit 24 Modulen.",
       `Einrichtung ${SETUP_EUR} € netto, Nutzungsentgelt ${MONTHLY_EUR} € netto pro Monat.`,
-      `Zum Start ${TODAY_EUR} € netto (${TODAY_GROSS_LABEL} € brutto inkl. ${VAT_PERCENT} % USt).`,
+      `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`,
       "Nur für Unternehmen. Hinweis: keine Steuerberatung.",
     ].join(" "),
     brand: {
@@ -147,7 +146,7 @@ export function productOfferJsonLd(): JsonLdNode {
         unitCode: "MON",
         billingDuration: 1,
       }),
-      offer("Startpreis (Einrichtung und erster Monat)", TODAY_EUR, {
+      offer("Start (Einrichtung + 1. Monat)", TODAY_EUR, {
         unitText: "Start",
       }),
     ],

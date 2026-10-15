@@ -41,11 +41,9 @@ import {
 } from "../lib/offer-copy";
 import {
   MONTHLY_EUR,
-  MONTHLY_GROSS_LABEL,
   SETUP_EUR,
   TODAY_EUR,
   TODAY_GROSS_LABEL,
-  netWithGross,
 } from "../lib/pricing";
 import {
   PARTNER_MUSTER_ANSWERS,
@@ -176,8 +174,8 @@ function joined(pages: string[]): string {
   return pages.join("\n");
 }
 
-const EXPECTED_PRICE = `heute ${netWithGross(TODAY_EUR)}, danach ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), monatlich kündbar, alle 24 Module inklusive`;
-const EXPECTED_BREAKDOWN = `${TODAY_EUR} € netto = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € erster Monat (brutto ${TODAY_GROSS_LABEL} € inkl. 19 % USt)`;
+const EXPECTED_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
+const EXPECTED_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
 
 expect(UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording");
 expect(PDF_UPSELL_PRICE === UPSELL_PRICE, "PDF price line is the web price line");
@@ -185,7 +183,7 @@ expect(UPSELL_PRICE_BREAKDOWN === EXPECTED_BREAKDOWN, "price breakdown matches p
 expect(UPSELL_CTA_HREF === "/checkout", "CTA target is /checkout");
 expect(
   GELD_ZURUECK_MICRO ===
-    "14 Tage Zufriedenheitsgarantie — 198 € nur, solange noch kein PDF erzeugt oder heruntergeladen wurde",
+    `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`,
   "guarantee line stays the landing sentence",
 );
 expect(

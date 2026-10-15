@@ -23,6 +23,7 @@ import {
   REFERRAL_AFTER_DELIVERY_URL,
   REFERRAL_MICRO,
 } from "@/lib/ops";
+import { MONTHLY_EUR, TODAY_EUR } from "@/lib/pricing";
 import {
   MAIL_ACCOUNT_URL,
   MAIL_CHECKOUT_URL,
@@ -466,9 +467,9 @@ assert(
 );
 assert(
   readiness.html.includes(
-    "Jetzt Verfahrensdokumentation erstellen — 149 € netto (177,31 € brutto) + 49 €/Mo netto (58,31 € brutto)",
+    `Starten für ${TODAY_EUR} € (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`,
   ),
-  "Readiness mail must use Growth Checkout CTA",
+  "Readiness mail must use the start-price Checkout CTA",
 );
 assert(
   !hasPageReadinessHref(readiness.html),

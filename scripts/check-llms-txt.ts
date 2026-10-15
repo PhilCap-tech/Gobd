@@ -28,7 +28,6 @@ import {
   SETUP_EUR,
   TODAY_EUR,
   TODAY_GROSS_LABEL,
-  VAT_PERCENT,
   grossCents,
 } from "../lib/pricing";
 import { CANONICAL_PRODUCTION_APP_URL } from "../lib/env";
@@ -50,14 +49,10 @@ const text = buildLlmsTxt();
 ok(text.startsWith("# GoBD-Verfahrensdokumentation"), "llms.txt has a title");
 ok(text.includes("keine Steuerberatung"), "llms.txt contains keine Steuerberatung");
 ok(
-  text.includes(`${SETUP_EUR} € Setup + ${MONTHLY_EUR} €/Monat netto`),
-  "llms.txt contains setup and monthly net price",
-);
-ok(
   text.includes(
-    `${TODAY_EUR} € netto zum Start bzw. ${TODAY_GROSS_LABEL} € brutto inkl. ${VAT_PERCENT} % USt`,
+    `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €).`,
   ),
-  "llms.txt contains start net and gross price",
+  "llms.txt contains the start price line",
 );
 ok(text.includes("Fragebogen mit 24 Modulen"), "llms.txt describes the intake");
 ok(
@@ -103,7 +98,8 @@ ok(text.includes(agbWithdrawal), "llms.txt quotes AGB § 8");
 ok(text.includes(agbGuarantee), "llms.txt quotes AGB § 9");
 ok(text.includes(agbTerm), "llms.txt quotes AGB § 12");
 ok(
-  faqGuarantee.includes("198 € zzgl. USt") && text.includes("198 € zzgl. USt"),
+  faqGuarantee.includes("198 € zum Start (Einrichtung + 1. Monat), zzgl. USt.") &&
+    text.includes("198 € zum Start (Einrichtung + 1. Monat), zzgl. USt."),
   "refund amount is the FAQ wording",
 );
 ok(
@@ -228,7 +224,9 @@ const entries = faqEntries(faq);
 ok(entries.length >= 6, "FAQ JSON-LD uses the FAQ sections");
 ok(entries.some((entry) => entry.question.includes("Zufriedenheitsgarantie")), "guarantee question");
 ok(
-  entries.some((entry) => entry.answer.includes("198 € zzgl. USt")),
+  entries.some((entry) =>
+    entry.answer.includes("198 € zum Start (Einrichtung + 1. Monat), zzgl. USt."),
+  ),
   "FAQ answer is the markdown, not a second copy",
 );
 const faqLd = JSON.stringify(faqPageJsonLd(entries));
