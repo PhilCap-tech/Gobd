@@ -33,7 +33,7 @@ Soweit nicht anders angegeben, stützen wir uns insbesondere auf:
 
 ## 4. Auftragsverarbeiter
 
-Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten. Für den E-Mail-Versand setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein. Die Einzelheiten stehen in Abschnitt 9.
+Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten. Für den E-Mail-Versand setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein. Die Einzelheiten stehen in Abschnitt 10.
 
 ## 5. Hosting über Vercel
 
@@ -43,17 +43,27 @@ Eine feste Region der Datenhaltung ist in dieser Anwendung nicht hinterlegt. Sow
 
 Weitere Informationen: https://vercel.com/legal/privacy-policy
 
-## 6. Server-Logfiles
+## 6. Vercel Web Analytics
+
+Für die Reichweitenmessung nutzen wir Vercel Web Analytics von Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA. Der Dienst arbeitet cookielos und ohne Speicherung auf Ihrem Endgerät. Dabei verarbeitet Vercel beim Seitenaufruf kurzzeitig technische Daten wie Ihre IP-Adresse, speichert sie aber nicht. Wir sehen nur zusammengefasste Statistiken (Seitenaufrufe, Referrer, Gerätetyp, Land) und können sie keiner Person zuordnen. Eine Profilbildung findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Reichweitenmessung und an der Verbesserung des Angebots).
+
+Grundlage ist ein Auftragsverarbeitungsvertrag mit Vercel. Für die Übermittlung in die USA sind Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO vereinbart. Vercel Inc. ist im EU-U.S. Data Privacy Framework aktiv gelistet (Art. 45 DSGVO).
+
+Widerspruch nach Art. 21 DSGVO jederzeit möglich, z. B. an info@gobd-doku-erstellen.de.
+
+Weitere Informationen: https://vercel.com/legal/privacy-policy
+
+## 7. Server-Logfiles
 
 Beim Aufruf unserer Website verarbeitet der Hosting-Anbieter technisch erforderliche Daten (IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Referrer-URL, Browser und Betriebssystem). Zweck ist der sichere und stabile Betrieb; Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO. Die Logdaten werden gelöscht, sobald sie für den sicheren Betrieb nicht mehr erforderlich sind, sofern sie nicht zur Aufklärung eines Sicherheitsvorfalls länger benötigt werden. Eine feste Löschfrist in Tagen ist in dieser Anwendung nicht hinterlegt.
 
-## 7. Datenbank und Dateispeicher
+## 8. Datenbank und Dateispeicher
 
 Kontodaten, Fragebogenangaben, Firmenstammdaten und die Zuordnung der Dokumente speichern wir in Google Sheets (Google Ireland Limited bzw. Google LLC). Die erzeugten PDFs, zugehörigen Kapiteltexte, Intake-Entwürfe sowie optional hochgeladene bestehende Dokumentationen (Status „durch bestehende Dokumentation abgedeckt“) speichern wir bei Vercel Blob (Vercel Inc.), sofern der Blob-Speicher konfiguriert ist. Ist er nicht konfiguriert, liegt nur ein nicht dauerhafter Datei-Fallback auf dem Server. Mit beiden Anbietern nutzen wir deren Auftragsverarbeitungsbedingungen nach Art. 28 DSGVO, soweit sie Daten in unserem Auftrag verarbeiten.
 
 Eine feste Region dieser Speicherung ist im Code nicht hinterlegt. Google und Vercel können Daten in den USA verarbeiten. Soweit das geschieht, stützt sich die Übermittlung auf Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO oder auf einen Angemessenheitsbeschluss, sofern der jeweilige Anbieter danach zertifiziert ist.
 
-## 8. Kundenkonto und Anmeldung per Magic-Link
+## 9. Kundenkonto und Anmeldung per Magic-Link
 
 Für den Zugang zu Ihrem Konto senden Sie uns Ihre E-Mail-Adresse. Wir senden Ihnen daraufhin einen einmaligen Anmeldelink per E-Mail (Magic-Link). Ein Passwort ist nicht erforderlich. Nach der Anmeldung setzen wir ein technisch notwendiges Sitzungs-Cookie (`gobd_session`, Gültigkeit 30 Tage), damit Sie angemeldet bleiben.
 
@@ -61,13 +71,13 @@ Zweck ist die Bereitstellung Ihres Kontos und der gebuchten Leistung. Rechtsgrun
 
 Wir speichern Ihre E-Mail-Adresse, den Firmennamen und die Stammdaten, die Sie im Konto eintragen (Anschrift, Steuernummer und USt-IdNr., soweit Sie sie angeben), die Fragebogenangaben und die daraus erzeugten Dokumente bis zur Löschung des Kontos, danach nur im Rahmen gesetzlicher Aufbewahrungspflichten. Ein gesondertes Protokoll der Anmeldezeitpunkte führen wir nicht.
 
-## 9. E-Mail-Versand
+## 10. E-Mail-Versand
 
 Für den Versand von Anmeldelinks, Bestellbestätigungen, Systemnachrichten und Partneranfragen setzen wir Resend (resend.com) als Auftragsverarbeiter ein. Dabei werden die Empfängeradresse und der Nachrichteninhalt verarbeitet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO, bei Partneranfragen auch Art. 6 Abs. 1 lit. f DSGVO. Mit Resend nutzen wir dessen Auftragsverarbeitungsbedingungen nach Art. 28 DSGVO. Der Serverstandort ist im Code nicht festgelegt; eine Übermittlung in die USA ist möglich und stützt sich dann auf Standardvertragsklauseln oder auf einen Angemessenheitsbeschluss, sofern Resend danach zertifiziert ist.
 
 Für den Versand der E-Mails setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein (Art. 28 DSGVO). Grundlage ist ein Auftragsverarbeitungsvertrag. Für die Übermittlung in die USA stützen wir uns auf die Zertifizierung von Resend nach dem EU-U.S. Data Privacy Framework (Angemessenheitsbeschluss der EU-Kommission, Art. 45 DSGVO). Ergänzend sind im Vertrag Standardvertragsklauseln vereinbart (Art. 46 Abs. 2 lit. c DSGVO).
 
-## 10. Zahlungsabwicklung über Stripe
+## 11. Zahlungsabwicklung über Stripe
 
 Für Zahlungen nutzen wir Stripe Checkout. Anbieter für Kunden im Europäischen Wirtschaftsraum ist Stripe Payments Europe, Ltd., 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, Irland; Stripe kann Daten an die Stripe, Inc. (USA) übermitteln.
 
@@ -75,7 +85,7 @@ Bei der Bestellung leiten wir Sie auf die Stripe-Seite weiter. Dort geben Sie Ih
 
 Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO und Art. 6 Abs. 1 lit. c DSGVO. Stripe verarbeitet Daten teilweise auch als eigener Verantwortlicher (z. B. Betrugsprävention); siehe https://stripe.com/de/privacy. Für Übermittlungen in die USA gelten Standardvertragsklauseln oder ein Angemessenheitsbeschluss, sofern Stripe danach zertifiziert ist.
 
-## 11. Google Ads Conversion-Tracking und Google Analytics 4
+## 12. Google Ads Conversion-Tracking und Google Analytics 4
 
 Wir nutzen das Google-Tag der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland („Google“), für das Conversion-Tracking von Google Ads (Konto-ID AW-586367190) und für Google Analytics 4 (Mess-ID G-RJ4KLBP1SF). Dabei setzen wir den Google Consent Mode v2 ein. Das Google-Tag wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Ohne Ihre Einwilligung werden keine Daten an Google übermittelt.
 
@@ -85,13 +95,13 @@ Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 
 
 Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft über „Cookie-Einstellungen“ im Seitenfuß widerrufen. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt unberührt. Weitere Informationen: https://policies.google.com/privacy
 
-## 12. Meta Pixel
+## 13. Meta Pixel
 
 Wenn Sie im Cookie-Banner „Marketing erlauben“ wählen und eine Meta-Pixel-ID konfiguriert ist, laden wir das Meta Pixel der Meta Platforms Ireland Limited, Merrion Road, Dublin 4, Irland. Im aktuellen Client ist keine Pixel-ID fest hinterlegt; ohne ID wird das Pixel nicht geladen. Zweck ist die Messung von Seitenaufrufen und des kostenlosen Checks. Eine Bildung von Zielgruppen ist nicht eingerichtet. Bestellabschlüsse übermitteln wir nicht. Dabei können Cookies (z. B. `_fbp`) gesetzt und Daten an Meta übermittelt werden; sie können an Meta Platforms, Inc. in den USA weitergegeben werden. Eine Vereinbarung zur gemeinsamen Verantwortlichkeit nach Art. 26 DSGVO ist in der Anwendung nicht hinterlegt.
 
 Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Für Übermittlungen in die USA gelten Standardvertragsklauseln oder ein Angemessenheitsbeschluss, sofern Meta danach zertifiziert ist. Widerruf über „Cookie-Einstellungen“. Weitere Informationen: https://www.facebook.com/privacy/policy
 
-## 13. Cookie-Einstellungen (Consent-Management)
+## 14. Cookie-Einstellungen (Consent-Management)
 
 Ihre Auswahl im Cookie-Banner speichern wir in einem Cookie (`gobd_consent`) und im lokalen Speicher Ihres Browsers für 180 Tage, damit wir Ihre Entscheidung respektieren. Rechtsgrundlage ist § 25 Abs. 2 Nr. 2 TDDDG in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nachweis der Einwilligung). Marketing-Dienste werden erst nach Einwilligung geladen.
 
@@ -99,11 +109,11 @@ Außerdem speichern wir Kampagnenparameter aus der Aufrufadresse (`utm_source`, 
 
 Details und die Cookie-Übersicht finden Sie unter /cookies.
 
-## 14. Readiness-Check (3-Minuten-Check)
+## 15. Readiness-Check (3-Minuten-Check)
 
 Im kostenlosen Check geben Sie Name, E-Mail-Adresse, Firma und Antworten zu Ihrem Betrieb an (Branche, Rechtsform, Mitarbeitende, Belegweg, Software, Verantwortliche). Wir speichern diese Angaben und das erzeugte PDF, damit wir Ihnen das Ergebnis und den Download bereitstellen können. Speicherort ist die Google-Sheets-Tabelle `readiness_leads`, ersatzweise eine Datei auf dem Server. Die Angaben werden nicht nur im Browser verarbeitet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahmen). Eine feste Löschfrist in Tagen ist nicht hinterlegt; wir löschen die Angaben, sobald der Zweck entfällt, sofern keine gesetzlichen Pflichten entgegenstehen. Eine Löschung können Sie unter info@gobd-doku-erstellen.de verlangen.
 
-## 15. Angaben im Fragebogen und erzeugte Dokumente
+## 16. Angaben im Fragebogen und erzeugte Dokumente
 
 Für die Erstellung Ihrer Verfahrensdokumentation verarbeiten wir die Angaben, die Sie im Fragebogen machen (z. B. Unternehmensdaten, Prozessbeschreibungen, verwendete Software, Namen und Funktionen von Geschäftsführung und Buchhaltung) sowie die daraus erzeugten Dokumente und Versionen. Wenn Sie für ein Modul eine bestehende Dokumentation hochladen, speichern wir diese Datei (PDF, DOCX oder Bild) zusammen mit Ihrem Konto, damit sie in der Vollständigkeitsübersicht und im Gesamtdokument referenziert werden kann. Wir speichern die Angaben in Google Sheets und die PDF-Dateien bei Vercel Blob (siehe Abschnitt „Datenbank und Dateispeicher“), damit Sie sie abrufen und fortschreiben können. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
 
@@ -111,37 +121,37 @@ Nach Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen; 
 
 Wenn Sie im Fragebogen personenbezogene Daten Dritter (z. B. Mitarbeitende) nennen, stellen Sie sicher, dass Sie dazu berechtigt sind. Die Angaben liegen in unseren Systemen und werden für die Erstellung Ihrer Dokumentation verarbeitet. Ein gesonderter Auftragsverarbeitungsvertrag mit Ihnen ist dafür nicht hinterlegt.
 
-## 16. Partneranfragen (Steuerberater-Bereich)
+## 17. Partneranfragen (Steuerberater-Bereich)
 
 Wenn Sie uns über das Formular im Steuerberater-Bereich kontaktieren, verarbeiten wir Name, Kanzlei, E-Mail-Adresse, eine grobe Mandanten-Zahl und Ihre Nachricht. Das Formular wird per E-Mail über Resend an info@gobd-doku-erstellen.de übermittelt und nicht in einer eigenen Datenbank gespeichert. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO bzw. Art. 6 Abs. 1 lit. f DSGVO. Wir löschen die Anfrage, sobald die Bearbeitung abgeschlossen ist und kein Vertrag zustande kommt, sofern keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
 
-## 17. Kontaktaufnahme
+## 18. Kontaktaufnahme
 
 Wenn Sie uns per E-Mail an info@gobd-doku-erstellen.de kontaktieren, verarbeiten wir die von Ihnen mitgeteilten Daten zur Bearbeitung der Anfrage (Art. 6 Abs. 1 lit. b bzw. lit. f DSGVO).
 
-## 18. Weitergabe von Daten
+## 19. Weitergabe von Daten
 
 Eine Weitergabe erfolgt nur, soweit erforderlich (Hosting, Zahlungsdienstleister, gesetzliche Verpflichtung) oder mit Einwilligung. Eine Weitergabe zu Werbezwecken an Dritte findet nicht statt, soweit nicht ausdrücklich in den Marketing-Abschnitten beschrieben.
 
-## 19. Speicherdauer
+## 20. Speicherdauer
 
 Soweit in den Abschnitten nicht anders angegeben, löschen wir personenbezogene Daten, sobald der Zweck entfällt und keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Rechnungs- und zahlungsrelevante Nachweise können wir nach den handels- und steuerrechtlichen Fristen aufbewahren, insbesondere nach § 147 AO. Eine darüber hinausgehende automatische Löschroutine mit weiteren festen Tagesfristen ist nicht hinterlegt. Für die Dokumente nach Vertragsende gilt die Frist von 30 Tagen aus dem Abschnitt zu Fragebogen und Dokumenten.
 
-## 20. Ihre Rechte
+## 21. Ihre Rechte
 
 Sie haben — soweit die gesetzlichen Voraussetzungen vorliegen — insbesondere: Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit, Widerspruch gegen Verarbeitungen auf Basis berechtigter Interessen sowie Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft.
 
 Zur Ausübung Ihrer Rechte genügt eine Nachricht an **info@gobd-doku-erstellen.de**. Sie haben zudem das Recht, sich bei einer Aufsichtsbehörde zu beschweren.
 
-## 21. Pflicht zur Bereitstellung
+## 22. Pflicht zur Bereitstellung
 
 Für einen Vertragsabschluss sind die zur Zahlung und Lieferung erforderlichen Daten notwendig. Ohne diese Daten kann der Vertrag nicht durchgeführt werden.
 
-## 22. Automatisierte Entscheidungsfindung
+## 23. Automatisierte Entscheidungsfindung
 
 Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von Art. 22 DSGVO, die Ihnen gegenüber rechtliche Wirkung entfaltet, führen wir nicht durch. Stripe kann zur Betrugsprävention eigene Prüfungen vornehmen; das ist im Abschnitt zur Zahlungsabwicklung beschrieben.
 
-## 23. Änderungen
+## 24. Änderungen
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 

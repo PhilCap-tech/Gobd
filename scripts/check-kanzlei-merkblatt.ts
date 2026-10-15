@@ -298,8 +298,8 @@ assertOk(
 const sectionNine = readFileSync("content/legal/datenschutz.md", "utf8");
 const resendSentence =
   "Für den Versand der E-Mails setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein (Art. 28 DSGVO). Grundlage ist ein Auftragsverarbeitungsvertrag. Für die Übermittlung in die USA stützen wir uns auf die Zertifizierung von Resend nach dem EU-U.S. Data Privacy Framework (Angemessenheitsbeschluss der EU-Kommission, Art. 45 DSGVO). Ergänzend sind im Vertrag Standardvertragsklauseln vereinbart (Art. 46 Abs. 2 lit. c DSGVO).";
-const sectionNineBody = sectionNine.slice(sectionNine.indexOf("## 9."), sectionNine.indexOf("## 10."));
-assertOk(sectionNineBody.includes(resendSentence), "section 9 states the Resend transfer basis");
+const sectionTenBody = sectionNine.slice(sectionNine.indexOf("## 10."), sectionNine.indexOf("## 11."));
+assertOk(sectionTenBody.includes(resendSentence), "section 10 states the Resend transfer basis");
 assertOk(
   KANZLEI_EMAIL_HINT.includes(
     " und um Ihnen auf Wunsch Rückfragen zum Merkblatt zu beantworten. Details in der Datenschutzerklärung.",
