@@ -36,7 +36,6 @@ import {
   TODAY_EUR,
   TODAY_GROSS_LABEL,
 } from "@/lib/pricing";
-import { BRANCHEN_LINKS } from "@/lib/branchen-links";
 import { HOME_CRUMBS, HOME_FAQ } from "@/lib/home-faq";
 import { faqPageJsonLd, productOfferJsonLd } from "@/lib/jsonld";
 import {
@@ -179,7 +178,6 @@ export default function HomePage() {
       <SiteHeader
         ctaHref="/checkout"
         ctaLabel={CTA_CREATE}
-        branchenNav
         links={[
           { href: "#muster", label: "Muster" },
           { href: "#bereiche", label: "Module" },
@@ -341,14 +339,6 @@ export default function HomePage() {
             <p className={styles.note}>
               Muster-Gesamtdokumente (Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau) und Fragebögen:{" "}
               <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
-              {" "}
-              Branchenseiten:{" "}
-              {BRANCHEN_LINKS.map((item, index) => (
-                <span key={item.slug}>
-                  {index > 0 ? " · " : null}
-                  <Link href={item.href}>{item.label}</Link>
-                </span>
-              ))}
             </p>
             <p className={styles.fine}>
               <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}

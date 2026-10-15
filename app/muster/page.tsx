@@ -14,7 +14,6 @@ import {
 } from "@/lib/module-muster";
 import { MusterUpsell } from "@/components/muster-upsell";
 import { ALL_AREAS_DETAIL, ALL_AREAS_LINE, INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
-import { BRANCHEN_LINKS } from "@/lib/branchen-links";
 import { canonicalUrl, withOgImage } from "@/lib/seo";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 
@@ -77,13 +76,6 @@ export default function MusterIndexPage() {
                     {" · "}
                     <a href={gesamtMusterFragebogenPath(vorlage)}>Fragebogen</a>
                   </span>
-                  {BRANCHEN_LINKS.filter((item) => item.musterVorlage === vorlage).map(
-                    (item) => (
-                      <span className="muster-links" key={item.slug}>
-                        <Link href={item.href}>{item.label}</Link>
-                      </span>
-                    ),
-                  )}
                 </li>
               );
             })}
