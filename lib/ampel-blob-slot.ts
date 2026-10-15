@@ -1,4 +1,5 @@
 import { BlobNotFoundError, BlobUnknownError } from "@vercel/blob";
+import { logAmpelRateFailure } from "@/lib/ampel-rate-limit";
 
 /**
  * Options for one exclusive slot. `addRandomSuffix` must stay false: the Blob
@@ -55,17 +56,6 @@ async function readSlot(
     if (blobMissing(error)) return null;
     throw error;
   }
-}
-
-/**
- * Logs a rate-store problem. `reason` is a fixed token. The error name is
- * kept; the message is not, so an address cannot leak into the line.
- */
-export function logAmpelRateFailure(reason: string, error?: unknown): void {
-  const safeReason = reason.replace(/[^a-z0-9-]/gi, "").slice(0, 48);
-  const name = error instanceof Error ? error.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 48) : "";
-  const detail = name ? `reason=${safeReason};name=${name}` : `reason=${safeReason}`;
-  console.error("[ampel] Rate-Limit fehlgeschlagen", detail);
 }
 
 /**

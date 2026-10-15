@@ -132,6 +132,11 @@ export function getLifecycleSheetsTab(): string {
   return "subscription_lifecycle";
 }
 
+/** Ampel rate rows. Same spreadsheet as the leads. No extra env var. */
+export function getAmpelRateSheetsTab(): string {
+  return "ampel_rate";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
