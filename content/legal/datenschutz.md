@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 13.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 15.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -64,6 +64,8 @@ Wir speichern Ihre E-Mail-Adresse, den Firmennamen und die Stammdaten, die Sie i
 ## 9. E-Mail-Versand
 
 Für den Versand von Anmeldelinks, Bestellbestätigungen, Systemnachrichten und Partneranfragen setzen wir Resend (resend.com) als Auftragsverarbeiter ein. Dabei werden die Empfängeradresse und der Nachrichteninhalt verarbeitet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO, bei Partneranfragen auch Art. 6 Abs. 1 lit. f DSGVO. Mit Resend nutzen wir dessen Auftragsverarbeitungsbedingungen nach Art. 28 DSGVO. Der Serverstandort ist im Code nicht festgelegt; eine Übermittlung in die USA ist möglich und stützt sich dann auf Standardvertragsklauseln oder auf einen Angemessenheitsbeschluss, sofern Resend danach zertifiziert ist.
+
+Für den Versand der E-Mails setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein (Art. 28 DSGVO). Grundlage ist ein Auftragsverarbeitungsvertrag. Für die Übermittlung in die USA stützen wir uns auf die Zertifizierung von Resend nach dem EU-U.S. Data Privacy Framework (Angemessenheitsbeschluss der EU-Kommission, Art. 45 DSGVO). Ergänzend sind im Vertrag Standardvertragsklauseln vereinbart (Art. 46 Abs. 2 lit. c DSGVO).
 
 ## 10. Zahlungsabwicklung über Stripe
 
@@ -143,4 +145,4 @@ Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von 
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 
-**Stand:** 13.10.2026
+**Stand:** 15.10.2026

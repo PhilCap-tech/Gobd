@@ -30,7 +30,7 @@ import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
-import { findLatestAmpelReadinessLead, purgeExpiredAmpelLeads, upsertReadinessLead } from "@/lib/store";
+import { findLatestAmpelReadinessLead, upsertReadinessLead } from "@/lib/store";
 import type { ReadinessLead } from "@/lib/readiness";
 
 export const AMPEL_PDF_FROM = "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
@@ -55,7 +55,6 @@ export type SubmitAmpelDeps = {
   store?: AmpelRateStore;
   confirm?: (input: AmpelConfirmationInput) => Promise<AmpelConfirmationResult>;
   saveLead?: (lead: ReadinessLead) => Promise<void>;
-  purge?: () => Promise<void>;
   mail?: (input: { email: string; answers: AmpelAnswerMap; code: string }) => Promise<MailResult>;
   sendTimeoutMs?: number;
   /** Return after the limit check and let a second request send the mail. */
@@ -280,15 +279,6 @@ export async function deliverAmpelResult(
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
 
-  const purge = deps.purge ?? (async () => {
-    if (automatedRunForbidsLiveWrites()) return;
-    await purgeExpiredAmpelLeads(now);
-  });
-  try {
-    await withDeadline(purge(), timeoutMs);
-  } catch (error) {
-    console.error("[ampel] Ergebnis speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
-  }
   try {
     const scored = scoreAmpel(answers);
     if (scored) {

@@ -17,7 +17,6 @@ import { createSheetsClient } from "../lib/sheets-client";
 import { handleAmpelStatsRequest } from "../lib/ampel-admin-http";
 import { requestAmpelConfirmation } from "../lib/ampel-confirm";
 import { AMPEL_QUESTIONS, type AmpelAnswer } from "../lib/ampel-questions";
-import { AMPEL_CHECK_RETENTION_DAYS } from "../lib/ampel-retention";
 import { deliverAmpelResult } from "../lib/ampel-result-send";
 import { encodeAmpelAnswers, type AmpelAnswerMap } from "../lib/ampel-score";
 import {
@@ -379,7 +378,6 @@ async function main() {
     {
       now: () => Date.parse("2026-10-14T10:00:00.000Z"),
       mail: async () => ({ sent: true, stub: false }),
-      purge: async () => {},
       saveLead: async (row) => {
         saved.push({ ...row });
       },
@@ -409,7 +407,6 @@ async function main() {
     {
       now: () => Date.parse("2026-10-14T11:00:00.000Z"),
       mail: async () => ({ sent: true, stub: false }),
-      purge: async () => {},
       saveLead: async (row) => {
         savedEmpty.push({ ...row });
       },
@@ -441,8 +438,10 @@ async function main() {
   const confirmedRow = [...confirmStore.values()].at(-1);
   ok(confirmed.ok && confirmedRow != null && confirmedRow.mailed === "ja" && !("utmSource" in confirmedRow), "the confirmation write keeps mailed and not utm");
 
-  ok(AMPEL_CHECK_RETENTION_DAYS === 90, "the 90-day retention is unchanged");
+  const retentionSource = readFileSync("lib/ampel-retention.ts", "utf8");
+  ok(!retentionSource.includes("RETENTION_DAYS"), "leads have no day timer");
   const storeSource = readFileSync("lib/store.ts", "utf8");
+  ok(!storeSource.includes("purgeExpiredAmpelLeads"), "the store does not purge leads");
   const listBody = storeSource.slice(
     storeSource.indexOf("export async function listAmpelLeads"),
     storeSource.indexOf("export type EntityStoreResult"),

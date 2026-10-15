@@ -28,6 +28,7 @@ const patterns = [
   "lib/legal-content.ts",
   "lib/legal-markdown.tsx",
   "lib/offer-copy.ts",
+  "lib/kanzlei-copy.ts",
   "app/datenschutz/**/*.{ts,tsx}",
   "app/agb/**/*.{ts,tsx}",
   "app/cookies/**/*.{ts,tsx}",

@@ -6,7 +6,6 @@ import { writeDocumentIndex, readDocumentIndex, peekDocumentIndex } from "@/lib/
 import { createSheetsClient } from "@/lib/sheets-client";
 import { readCachedGrid, sheetsBatchGet, sheetsValuesGet } from "@/lib/sheets-grid";
 import { undocumentedPaidSessionId } from "@/lib/account-paid-intake";
-import { ampelRecordExpired, redactAmpelLead } from "@/lib/ampel-retention";
 import {
   parseDocumentVersion,
   pickStoredDocument,
@@ -1256,22 +1255,7 @@ export async function findLatestAmpelReadinessLead(
   const matches = rows.filter(
     (row) => row.email.trim().toLowerCase() === normalized && row.ampelAnswers.trim() === code,
   );
-  const now = Date.now();
-  const live: ReadinessLead[] = [];
-  for (const row of matches) {
-    if (!ampelRecordExpired(row, now)) {
-      live.push(row);
-      continue;
-    }
-    await upsertReadinessLead(redactAmpelLead(row));
-  }
-  live.sort((a, b) => ampelConsentInstant(a) - ampelConsentInstant(b));
-  return live.at(-1) ?? null;
-}
-
-function ampelConsentInstant(row: ReadinessLead): number {
-  const ms = Date.parse(row.consentAt || row.timestamp);
-  return Number.isFinite(ms) ? ms : 0;
+  return matches.at(-1) ?? null;
 }
 
 /** Ampel rows for one address, including rows kept after a withdrawal. */
@@ -1285,21 +1269,20 @@ export async function listAmpelReadinessLeadsByEmail(
   return rows.filter((row) => row.email.trim().toLowerCase() === normalized && row.leadId.startsWith("ampel-"));
 }
 
-/** Removes address, answers, and IP from Ampel rows whose retention has ended. */
-export async function purgeExpiredAmpelLeads(now = Date.now()): Promise<number> {
-  const { rows } = await loadReadinessLeads(true);
-  let count = 0;
-  for (const row of rows) {
-    if (!row.leadId.startsWith("ampel-") || !ampelRecordExpired(row, now)) continue;
-    await upsertReadinessLead(redactAmpelLead(row));
-    count += 1;
-  }
-  return count;
+/** Kanzlei-Merkblatt rows for one address, including rows kept after a withdrawal. */
+export async function listKanzleiReadinessLeadsByEmail(
+  email: string,
+  options?: { fresh?: boolean },
+): Promise<ReadinessLead[]> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return [];
+  const { rows } = await loadReadinessLeads(options?.fresh === true);
+  return rows.filter((row) => row.email.trim().toLowerCase() === normalized && row.leadId.startsWith("kanzlei-"));
 }
 
 /**
  * Ampel rows for the internal count. A Sheets 429/503 is not replaced with
- * the local file. Retention is unchanged: this read does not redact or extend rows.
+ * the local file. This read does not change stored rows.
  */
 export async function listAmpelLeads(): Promise<ReadinessLead[]> {
   const ampelRows = (rows: ReadinessLead[]) =>

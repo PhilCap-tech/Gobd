@@ -64,11 +64,6 @@ import { consumeAmpelSendToken, createBlobPutAmpelSendTokenStore, createMemoryAm
 import type { ExclusivePutOptions } from "@/lib/ampel-blob-slot";
 import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
 import { AMPEL_RESULT_RETRY_DELAYS_MS, confirmAmpelDoi, requestAmpelConfirmation } from "@/lib/ampel-confirm";
-import {
-  AMPEL_CHECK_RETENTION_DAYS,
-  AMPEL_UNCONFIRMED_OPT_IN_RETENTION_DAYS,
-  ampelRecordExpired,
-} from "@/lib/ampel-retention";
 import { setAmpelWithdrawTestDeps, withdrawAmpelMarketing } from "@/lib/ampel-unsubscribe";
 import { createAmpelUnsubscribeToken } from "@/lib/ampel";
 import { isTransientResendError, MAIL_SEND_RETRY_DELAYS_MS, type MailResult } from "@/lib/mail";
@@ -428,14 +423,18 @@ try {
   const resultAt = privacyText.indexOf("Wenn Sie den Ampel-Check nutzen");
   const abuseAt = privacyText.indexOf("Schutz vor Missbrauch:");
   const internal =
-    "Interne Auswertung: Damit wir den Ampel-Check verbessern und den Versand überwachen können, werten wir die Einträge intern aus. Dabei geht es um die Anzahl der Checks, den Zeitpunkt, das Ergebnis (Ampelfarbe), ob die Ergebnis-E-Mail versendet wurde und ob Sie in E-Mail-Informationen eingewilligt haben. Die Auswertung ist nur für uns auf einer geschützten Admin-Seite sichtbar. Wir geben diese Daten nicht an Dritte weiter und verwenden sie nicht für Werbung. Kampagnenparameter (UTM) speichern wir dabei nicht. Rechtsgrundlage ist unser berechtigtes Interesse an der Verbesserung unseres Angebots und an einem zuverlässigen Versand (Art. 6 Abs. 1 lit. f DSGVO). Die Einträge löschen wir 90 Tage nach dem Check, soweit Sie nicht in E-Mail-Informationen eingewilligt haben oder Kunde geworden sind. Sie können der Auswertung jederzeit widersprechen (Art. 21 DSGVO), per Nachricht an info@gobd-doku-erstellen.de.";
+    "Interne Auswertung: Damit wir den Ampel-Check verbessern und den Versand überwachen können, werten wir die Einträge intern aus. Dabei geht es um die Anzahl der Checks, den Zeitpunkt, das Ergebnis (Ampelfarbe), ob die Ergebnis-E-Mail versendet wurde und ob Sie in E-Mail-Informationen eingewilligt haben. Die Auswertung ist nur für uns auf einer geschützten Admin-Seite sichtbar. Wir geben diese Daten nicht an Dritte weiter und verwenden sie nicht für Werbung. Kampagnenparameter (UTM) speichern wir dabei nicht. Rechtsgrundlage ist unser berechtigtes Interesse an der Verbesserung unseres Angebots und an einem zuverlässigen Versand (Art. 6 Abs. 1 lit. f DSGVO). Die Einträge löschen wir manuell, sobald sie für die Auswertung nicht mehr erforderlich sind, oder auf Ihren Wunsch. Sie können der Auswertung jederzeit widersprechen (Art. 21 DSGVO), per Nachricht an info@gobd-doku-erstellen.de.";
   const internalAt = privacyText.indexOf(internal);
   const storageAt = privacyText.indexOf("Speicherdauer:");
   assertOk(resultAt >= 0 && internalAt > resultAt, "internal evaluation follows the result paragraph");
   assertOk(abuseAt >= 0 && internalAt === privacyText.indexOf("\n", abuseAt) + 1, "internal evaluation follows the abuse paragraph");
   assertOk(storageAt === privacyText.indexOf("\n", internalAt) + 1, "internal evaluation sits directly before the storage paragraph");
   assertOk(privacyText.slice(abuseAt, internalAt).includes("Art. 6 Abs. 1 lit. f DSGVO"), "abuse paragraph is the legal text");
-  assertOk(privacyPage.includes("<strong>Interne Auswertung:</strong>"), "the internal evaluation label is bold");
+  assertOk(
+    privacyPage.includes('const BOLD_LABELS = ["Interne Auswertung:", "Speicherdauer:", "Widerruf und Ihre Rechte:"]') &&
+      privacyPage.includes("<strong>{label}</strong>"),
+    "the internal evaluation label is bold",
+  );
   assertOk(!privacyText.includes("[klären") && !privacyText.includes("7 Tagen"), "open legal items are not published");
   const questionsSource = readFileSync("lib/ampel-questions.ts", "utf8");
   assertOk(questionsSource.includes("[klären:"), "open legal items stay visible in the source");
@@ -2140,6 +2139,7 @@ try {
     await rm(rateDir, { recursive: true, force: true });
   }
 
+  assertOk(!privacyText.includes("90 Tage"), "the published ampel text names no 90-day deletion");
   const day = 24 * 60 * 60 * 1000;
   const signup = "2026-10-14T08:00:00.000Z";
   const baseLead = toAmpelReadinessLead({
@@ -2152,26 +2152,13 @@ try {
     light: "gruen",
     mailStatus: "pdf_sent",
   });
-  assertOk(AMPEL_CHECK_RETENTION_DAYS === 90 && AMPEL_UNCONFIRMED_OPT_IN_RETENTION_DAYS === 30, "retention defaults");
-  assertOk(
-    !ampelRecordExpired(baseLead, Date.parse(signup) + 89 * day) &&
-      ampelRecordExpired(baseLead, Date.parse(signup) + 90 * day),
-    "check data without opt-in lasts 90 days",
-  );
-  assertOk(
-    ampelRecordExpired(
-      { ...baseLead, marketingOptIn: "pending" },
-      Date.parse(signup) + 30 * day,
-    ),
-    "an unconfirmed opt-in lasts 30 days",
-  );
-  assertOk(
-    !ampelRecordExpired(
-      { ...baseLead, marketingOptIn: "confirmed" },
-      Date.parse(signup) + 400 * day,
-    ),
-    "a confirmed opt-in is not deleted on the check timer",
-  );
+  const storeSource = readFileSync("lib/store.ts", "utf8");
+  const resultSendSource = readFileSync("lib/ampel-result-send.ts", "utf8");
+  const retentionSource = readFileSync("lib/ampel-retention.ts", "utf8");
+  assertOk(!storeSource.includes("purgeExpiredAmpelLeads") && !storeSource.includes("ampelRecordExpired"), "stored leads are not purged on read");
+  assertOk(!resultSendSource.includes("purgeExpired"), "sending a result does not purge leads");
+  assertOk(!retentionSource.includes("RETENTION_DAYS") && !retentionSource.includes("ampelRecordExpired"), "the lead timer is gone");
+  assertOk(baseLead.email === "keep@example.com" && day > 0, "an old lead row is left intact");
 
   const proofStore = new Map<string, ReadinessLead>();
   const proofInput = { email: "proof@example.com", answers: jaCode, ref: "Kanzlei", consentIp: "203.0.113.50", consentTextVersion: AMPEL_CONSENT_TEXT_VERSION };
@@ -2424,7 +2411,6 @@ try {
       jaCode,
       { email: guardEmail, answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.50" },
       {
-        purge: async () => undefined,
         saveLead: async () => undefined,
         confirm: async () => {
           throw new Error("marketing");
