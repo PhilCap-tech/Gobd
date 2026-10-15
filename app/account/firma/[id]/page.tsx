@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { customerHubTitle } from "@/lib/account-display";
+import { readAuditPage } from "@/lib/audit-store";
+import type { AuditListItem } from "@/lib/audit-log";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { findActiveMembership } from "@/lib/membership-store";
 import { getOwnedEntity } from "@/lib/store";
@@ -11,6 +13,7 @@ import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { MODULE } from "@/lib/module/katalog";
 import { listMembershipsByEntity } from "@/lib/membership-store";
 import { moduleIdList } from "@/lib/memberships";
+import { Aenderungen } from "../aenderungen";
 import { FirmaForm } from "../firma-form";
 import { MitwirkendePanel, type MitwirkendeListItem } from "../mitwirkende-panel";
 
@@ -75,6 +78,9 @@ export default async function EditFirmaPage({
 
   let members: MitwirkendeListItem[] = [];
   let membersUnavailable = false;
+  let auditEntries: AuditListItem[] = [];
+  let auditNext: number | null = null;
+  let auditUnavailable = false;
   if (entity) {
     try {
       const rows = await listMembershipsByEntity(entity.entityId);
@@ -90,6 +96,17 @@ export default async function EditFirmaPage({
       membersUnavailable = true;
       console.error(
         "[account] Mitwirkende nicht geladen",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+    try {
+      const page = await readAuditPage(entity.entityId, 0);
+      auditEntries = page.entries;
+      auditNext = page.nextOffset;
+    } catch (error) {
+      auditUnavailable = true;
+      console.error(
+        "[account] Änderungshistorie nicht geladen",
         error instanceof Error ? error.name : "error",
       );
     }
@@ -131,6 +148,13 @@ export default async function EditFirmaPage({
                 nr: modul.nr,
                 titel: modul.titel,
               }))}
+            />
+            <Aenderungen
+              entityId={entity.entityId}
+              firmName={entity.name}
+              entries={auditEntries}
+              nextOffset={auditNext}
+              unavailable={auditUnavailable}
             />
           </>
         )}
