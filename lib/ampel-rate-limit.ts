@@ -25,7 +25,11 @@ export type AmpelRateHold = {
 
 export type AmpelRateConfirm = "ok" | "ip" | "email" | "missing";
 
+export type AmpelRateOrigin = "sheets" | "file" | "memory" | "closed";
+
 export type AmpelRateStore = {
+  /** Which counter actually ran. Missing means an injected test store. */
+  origin?: AmpelRateOrigin;
   take(input: { ipKey: string; emailKey: string; now: number; hold?: AmpelRateHold }): Promise<AmpelRateDecision>;
   /** Checks the position reserved by `take`. Does not append another row. */
   confirm(input: {
@@ -43,11 +47,11 @@ const IP_HEADER_SOURCES = ["x-real-ip", "x-vercel-forwarded-for", "x-forwarded-f
 
 export type AmpelIpSource = (typeof IP_HEADER_SOURCES)[number] | "";
 
-export type AmpelRateTrace = {
-  src: string;
-  slot: number;
-  win: number;
-};
+export type AmpelRateTrace =
+  | { kind: "sheets"; pos: number; win: number }
+  | { kind: "limit"; pos: number }
+  | { kind: "failopen"; err: string }
+  | { kind: "skip"; reason: string };
 
 function firstHeaderValue(value: string | null | undefined): string {
   if (!value) return "";
@@ -81,20 +85,23 @@ export function ampelClientIp(input: Request | Headers): string {
   return readAmpelClientIp(input).ip;
 }
 
-/** Temporary Prod diagnostic: `x-ampel-rl: src=<source>;slot=<position>;win=<window>`. No address. */
-export function ampelRateTrace(source: string, slot: number, now: number): AmpelRateTrace {
-  return {
-    src: (IP_HEADER_SOURCES as readonly string[]).includes(source) ? source : "none",
-    slot: Number.isInteger(slot) && slot >= 1 && slot <= AMPEL_IP_LIMIT ? slot : 0,
-    win: ampelRateWindowId(now, AMPEL_IP_WINDOW_MS),
-  };
+function headerToken(value: string): string {
+  return value.replace(/[^a-z0-9-]/gi, "").slice(0, 24) || "unknown";
 }
 
-export function ampelRateResponseHeader(source: string, slot: number, windowId: number): string {
-  const src = (IP_HEADER_SOURCES as readonly string[]).includes(source) ? source : "none";
-  const safeSlot = Number.isInteger(slot) && slot >= 1 && slot <= AMPEL_IP_LIMIT ? slot : 0;
-  const win = Number.isInteger(windowId) && windowId >= 0 && windowId <= 10_000_000 ? windowId : 0;
-  return `src=${src};slot=${safeSlot};win=${win}`;
+function headerCount(value: number): number {
+  return Number.isInteger(value) && value >= 0 && value <= 1_000_000 ? value : 0;
+}
+
+/** `x-ampel-rl` names the path. It never carries the address or the IP header name. */
+export function ampelRateResponseHeader(trace: AmpelRateTrace): string {
+  if (trace.kind === "sheets") {
+    const win = Number.isInteger(trace.win) && trace.win >= 0 && trace.win <= 10_000_000 ? trace.win : 0;
+    return `src=sheets;pos=${headerCount(trace.pos)};win=${win}`;
+  }
+  if (trace.kind === "limit") return `src=limit;pos=${headerCount(trace.pos)}`;
+  if (trace.kind === "failopen") return `src=failopen;err=${headerToken(trace.err)}`;
+  return `src=skip;reason=${headerToken(trace.reason)}`;
 }
 
 /** One PII-free line: header source, slot number, and a hash of the address. */
@@ -320,6 +327,7 @@ function liveAmpelRateSheetClient(): AmpelRateSheetClient {
 export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAmpelRateSheetClient()): AmpelRateStore {
   const tab = getAmpelRateSheetsTab();
   return {
+    origin: "sheets",
     async take({ ipKey, emailKey, now, hold }) {
       try {
         const id = spreadsheetId();
@@ -348,12 +356,12 @@ export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAm
         const emailPos = ampelRatePosition(cells, start, 4, 5, emailHash, emailWindow, ownRow);
         const ipPos = ampelRatePosition(cells, start, 0, 1, ipHash, ipWindow, ownRow);
         if (emailPos < 1 || ipPos < 1) throw new Error("ampel-rate-position");
-        if (emailPos > AMPEL_EMAIL_LIMIT) return "email";
-        if (ipPos > AMPEL_IP_LIMIT) return "ip";
         if (hold) {
           hold.ipSlot = ipPos;
           hold.emailSlot = emailPos;
         }
+        if (emailPos > AMPEL_EMAIL_LIMIT) return "email";
+        if (ipPos > AMPEL_IP_LIMIT) return "ip";
         return "ok";
       } catch (error) {
         logAmpelRateFailure("sheets", error);
@@ -371,6 +379,7 @@ export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAm
 /** No shared store. A take here throws; submit logs it and still sends the mail. */
 export function createClosedAmpelRateStore(): AmpelRateStore {
   return {
+    origin: "closed",
     async take() {
       throw new Error("ampel-rate-unshared");
     },
@@ -400,6 +409,7 @@ function ledgerConfirm(
 export function createMemoryAmpelRateStore(): AmpelRateStore {
   const hits = new Map<string, number[]>();
   return {
+    origin: "memory",
     async take({ ipKey, emailKey, now, hold }) {
       const judged = judgeAmpelRate(
         { ip: hits.get(ipKey) ?? [], email: hits.get(emailKey) ?? [] },
@@ -407,7 +417,7 @@ export function createMemoryAmpelRateStore(): AmpelRateStore {
       );
       hits.set(ipKey, judged.ip);
       hits.set(emailKey, judged.email);
-      if (hold && judged.decision === "ok") {
+      if (hold) {
         hold.ipSlot = judged.ip.length;
         hold.emailSlot = judged.email.length;
       }
@@ -450,6 +460,7 @@ async function saveLedger(file: string, ledger: Ledger): Promise<void> {
 export function createFileAmpelRateStore(file: string): AmpelRateStore {
   let chain: Promise<unknown> = Promise.resolve();
   return {
+    origin: "file",
     take(input) {
       const run = chain.then(async () => {
         const ledger = pruneAmpelRateLedger(await loadLedger(file), input.now);
@@ -462,7 +473,7 @@ export function createFileAmpelRateStore(file: string): AmpelRateStore {
         if (judged.email.length > 0) ledger[input.emailKey] = judged.email;
         else delete ledger[input.emailKey];
         await saveLedger(file, ledger);
-        if (input.hold && judged.decision === "ok") {
+        if (input.hold) {
           input.hold.ipSlot = judged.ip.length;
           input.hold.emailSlot = judged.email.length;
         }

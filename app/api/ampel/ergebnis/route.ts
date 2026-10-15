@@ -10,10 +10,10 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, client.source);
+    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, { kind: "skip", reason: "request" });
   }
   if (!body || typeof body !== "object") {
-    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, client.source);
+    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, { kind: "skip", reason: "request" });
   }
   const value = body as Record<string, unknown>;
   const result = await submitAmpelResult(
@@ -28,5 +28,5 @@ export async function POST(request: Request) {
     },
     { handoff: true },
   );
-  return ampelSubmitResponse(result, client.source);
+  return ampelSubmitResponse(result);
 }
