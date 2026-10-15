@@ -15,7 +15,6 @@ import {
   clearIntakeDraft,
   draftIsEmpty,
   draftRevision,
-  incomingDraftWins,
   IntakeDraftStorageError,
   loadIntakeDraft,
   normalizeDraftKey,
@@ -25,9 +24,22 @@ import {
 } from "@/lib/intake-draft";
 import { forgetOpenDraft, rememberOpenDraft } from "@/lib/open-drafts";
 import { normalizeIntakeAnswers, stripEmptyIntakeCards } from "@/lib/intake-present";
+import { MODULE_OUTSIDE_MESSAGE } from "@/lib/membership-copy";
+import {
+  allowedModuleIds,
+  answersStayInAssignment,
+  entityIdFromDraftKey,
+  grantMemberDraft,
+  revisionDecision,
+  storedDraftMatchesMember,
+  type MemberDraftGrant,
+} from "@/lib/membership-draft";
+import { findActiveMembership } from "@/lib/membership-store";
+import { ensureGesamt } from "@/lib/module/status";
 import {
   authorizeDeliveredWrite,
   lookupDeliveredRows,
+  withSessionWriteLock,
   type DeliveryLookup,
 } from "@/lib/session-write";
 import {
@@ -38,7 +50,7 @@ import {
 import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { isSheetsOutage, runWithSheetsRoute } from "@/lib/sheets-outage";
 import { resolveCheckoutSession } from "@/lib/stripe";
-import { emailsEqual, type IntakeAnswers } from "@/lib/types";
+import { emailsEqual, emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -59,6 +71,81 @@ function deny(access: { ok: false; status: 401 | 403 }) {
   return jsonError("Kein Zugriff.", draftAccessHttpStatus(access));
 }
 
+type MemberResolve =
+  | { kind: "skip" }
+  | { kind: "deny"; response: NextResponse }
+  | { kind: "allow"; grant: MemberDraftGrant };
+
+function documentIdFromDraftKey(draftKey: string): string {
+  if (draftKey.startsWith("doc:")) return draftKey.slice("doc:".length).trim();
+  if (draftKey.startsWith("area:")) {
+    const body = draftKey.slice("area:".length);
+    const split = body.lastIndexOf(":");
+    return (split > 0 ? body.slice(0, split) : body).trim();
+  }
+  return "";
+}
+
+async function resolveMemberDraft(
+  io: DraftWriteIo,
+  input: { sessionEmail: string | null; draftKey: string; entityId?: string },
+): Promise<MemberResolve> {
+  if (!io.findActiveMembership || !input.sessionEmail) return { kind: "skip" };
+  let entityId = input.entityId?.trim() || entityIdFromDraftKey(input.draftKey);
+  let document: { email: string; entityId: string } | null = null;
+  const documentId = documentIdFromDraftKey(input.draftKey);
+  if (documentId) {
+    try {
+      const row = await io.lookup.findDocumentById(documentId);
+      if (row?.documentId) {
+        document = { email: row.email, entityId: row.entityId };
+        if (!entityId) entityId = row.entityId;
+      }
+    } catch (error) {
+      const outage = sheetsOutageResponse(error);
+      if (outage) return { kind: "deny", response: outage };
+      throw error;
+    }
+  }
+  if (!entityId) return { kind: "skip" };
+  let membership: Awaited<ReturnType<typeof findActiveMembership>>;
+  try {
+    membership = await io.findActiveMembership(input.sessionEmail, entityId);
+  } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return { kind: "deny", response: outage };
+    throw error;
+  }
+  const decision = grantMemberDraft({
+    sessionEmail: input.sessionEmail,
+    draftKey: input.draftKey,
+    entityId,
+    membership,
+    document,
+  });
+  if (decision.kind === "deny") return { kind: "deny", response: jsonError("Kein Zugriff.", 403) };
+  if (decision.kind === "skip") return { kind: "skip" };
+  return { kind: "allow", grant: decision.grant };
+}
+
+function conflictResponse(stored: IntakeDraft, kind: "stale" | "other") {
+  const who = stored.updatedBy?.trim() ?? "";
+  const error =
+    kind === "other"
+      ? `Konflikt: Zwischenzeitlich gespeichert von ${who}.`
+      : "Konflikt: Server-Entwurf ist neuer.";
+  return NextResponse.json(
+    {
+      error,
+      conflict: true,
+      updatedBy: who,
+      updatedAt: stored.updatedAt,
+      draft: stored,
+    },
+    { status: 409 },
+  );
+}
+
 export type DraftWriteIo = {
   loadIntakeDraft: typeof loadIntakeDraft;
   saveIntakeDraft: typeof saveIntakeDraft;
@@ -67,6 +154,8 @@ export type DraftWriteIo = {
   forgetOpenDraft?: typeof forgetOpenDraft;
   lookup: DeliveryLookup;
   resolveCheckout: CheckoutResolver;
+  /** Frische Mitgliedschaft. Fehlt sie, bleibt der Entwurf beim Inhaber. */
+  findActiveMembership?: typeof findActiveMembership;
 };
 
 const defaultDraftIo: DraftWriteIo = {
@@ -81,6 +170,7 @@ const defaultDraftIo: DraftWriteIo = {
     findLatestDocumentByStripeSessionId,
   },
   resolveCheckout: resolveCheckoutSession,
+  findActiveMembership,
 };
 
 function idsFromDraftKey(draftKey: string): {
@@ -208,13 +298,29 @@ async function readIntakeDraftBody(request: Request, io: DraftWriteIo = defaultD
     });
   if (!draftKey) return jsonError("draftKey fehlt.", 400);
 
+  const sessionEmail = await sessionEmailFromRequest(request);
+  const member = await resolveMemberDraft(io, {
+    sessionEmail,
+    draftKey,
+    entityId: url.searchParams.get("entityId") ?? undefined,
+  });
+  if (member.kind === "deny") return member.response;
+  const readKey = member.kind === "allow" ? member.grant.draftKey : draftKey;
+
   let draft: IntakeDraft | null;
   try {
-    draft = await io.loadIntakeDraft(draftKey);
+    draft = await io.loadIntakeDraft(readKey);
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
     if (failure) return failure;
     throw error;
+  }
+  if (member.kind === "allow") {
+    if (!storedDraftMatchesMember(draft, member.grant)) return jsonError("Kein Zugriff.", 403);
+    if (!draft || draftIsEmpty(draft)) return NextResponse.json({ draft: null });
+    return NextResponse.json({
+      draft: { ...draft, answers: stripEmptyIntakeCards(draft.answers) },
+    });
   }
   const fromKey = idsFromDraftKey(draft?.draftKey || draftKey);
   const owned = await sessionOwnerGate(
@@ -253,6 +359,75 @@ async function readIntakeDraftBody(request: Request, io: DraftWriteIo = defaultD
   if (!access.ok) return deny(access);
   return NextResponse.json({
     draft: { ...draft, answers: stripEmptyIntakeCards(draft.answers) },
+  });
+}
+
+async function saveMemberDraft(
+  io: DraftWriteIo,
+  body: {
+    step?: number;
+    answers?: unknown;
+    clientUpdatedAt?: string;
+    revision?: number;
+  },
+  grant: MemberDraftGrant,
+  sessionEmail: string,
+) {
+  if (!isAnswers(body.answers)) return jsonError("answers fehlen.", 400);
+  const incoming = body.answers;
+  return withSessionWriteLock(`draft:${grant.draftKey}`, async () => {
+    let existing: IntakeDraft | null;
+    try {
+      existing = await io.loadIntakeDraft(grant.draftKey);
+    } catch (error) {
+      const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
+      if (failure) return failure;
+      throw error;
+    }
+    const stored = existing && !draftIsEmpty(existing) ? existing : null;
+    if (!storedDraftMatchesMember(stored, grant)) return jsonError("Kein Zugriff.", 403);
+    const verdict = revisionDecision({
+      sessionEmail,
+      incomingRevision: body.revision,
+      clientUpdatedAt: body.clientUpdatedAt,
+      stored,
+    });
+    if (verdict !== "ok" && stored) return conflictResponse(stored, verdict);
+    const allowed = allowedModuleIds(grant.moduleIds, stored?.answers ?? null);
+    const after = normalizeIntakeAnswers(incoming);
+    const before = stored ? normalizeIntakeAnswers(stored.answers) : ensureGesamt(emptyAnswers());
+    if (!answersStayInAssignment(before, after, allowed)) {
+      return jsonError(MODULE_OUTSIDE_MESSAGE, 403);
+    }
+    const draft: IntakeDraft = {
+      draftKey: grant.draftKey,
+      email: grant.ownerEmail,
+      stripeSessionId: stored?.stripeSessionId || "",
+      documentId: stored?.documentId || (grant.draftKey.startsWith("doc:") ? grant.draftKey.slice(4) : ""),
+      entityId: grant.entityId,
+      step: Number.isFinite(body.step) ? Number(body.step) : (stored?.step ?? 0),
+      answers: after,
+      revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(stored)),
+      updatedAt: new Date().toISOString(),
+      updatedBy: sessionEmail,
+      change: stored?.change,
+    };
+    try {
+      const { backend } = await io.saveIntakeDraft(draft);
+      try {
+        await (io.rememberOpenDraft ?? rememberOpenDraft)(draft);
+      } catch (error) {
+        console.error(
+          "[draft] Index schreiben fehlgeschlagen",
+          error instanceof Error ? error.name : "error",
+        );
+      }
+      return NextResponse.json({ ok: true, draft, backend });
+    } catch (error) {
+      const failure = blobStorageResponse(error, "Entwurf konnte nicht gespeichert werden.");
+      if (failure) return failure;
+      throw error;
+    }
   });
 }
 
@@ -299,6 +474,15 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
   }
   const closed = await subscriptionWriteDenial(sessionEmail);
   if (closed) return jsonError(closed, 403);
+  const member = await resolveMemberDraft(io, {
+    sessionEmail,
+    draftKey,
+    entityId: body.entityId,
+  });
+  if (member.kind === "deny") return member.response;
+  if (member.kind === "allow") {
+    return saveMemberDraft(io, body, member.grant, sessionEmail ?? "");
+  }
   const blocked = await deliveredDraftGate(
     request,
     {
@@ -341,18 +525,13 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
   );
   if (!access.ok) return deny(access);
 
-  if (
-    stored &&
-    !incomingDraftWins(
-      { revision: body.revision, clientUpdatedAt: body.clientUpdatedAt },
-      stored,
-    )
-  ) {
-    return NextResponse.json(
-      { error: "Konflikt: Server-Entwurf ist neuer.", draft: stored, conflict: true },
-      { status: 409 },
-    );
-  }
+  const verdict = revisionDecision({
+    sessionEmail: sessionEmail ?? "",
+    incomingRevision: body.revision,
+    clientUpdatedAt: body.clientUpdatedAt,
+    stored,
+  });
+  if (verdict !== "ok" && stored) return conflictResponse(stored, verdict);
 
   const draft: IntakeDraft = {
     draftKey,
@@ -364,6 +543,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     answers: normalizeIntakeAnswers(body.answers),
     revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(stored)),
     updatedAt: new Date().toISOString(),
+    updatedBy: sessionEmail || stored?.updatedBy || "",
     change: parseDraftVersionChange(body.change) ?? stored?.change,
   };
 

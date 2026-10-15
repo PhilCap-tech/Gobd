@@ -28,6 +28,9 @@ import { isSheetsOutage, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { firmaEditPath } from "@/lib/documents";
 import { entityCapReached, MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { lifecycleNotice } from "@/lib/kuendigung";
+import { MEMBER_PDF_HINT } from "@/lib/membership-copy";
+import { memberAddressLine } from "@/lib/membership-draft";
+import { loadMemberFirms } from "@/lib/membership-view";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
 import {
   listOpenDraftsForEmail,
@@ -157,6 +160,7 @@ export default async function AccountPage({
     openPaidSession,
   } = loaded;
   const notice = lifecycleNotice(lifecycleRows);
+  const memberFirms = await loadMemberFirms(email);
   const writesOpen = notice.writesOpen;
   const downloadsOpen = notice.downloadsOpen;
   const draftCoversPurchase = openDrafts.some(
@@ -175,6 +179,7 @@ export default async function AccountPage({
     Boolean(customerId) ||
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId) ||
     lifecycleRows.some((row) => row.stripeCustomerId);
+  const showAbo = !(memberFirms.length > 0 && entities.length === 0 && !stripeBound);
   const atCap = entityCapReached(entities.length);
   const coverage = compAccess
     ? emptyIncludedFirmCoverage()
@@ -228,6 +233,30 @@ export default async function AccountPage({
           </section>
         )}
 
+        {memberFirms.length > 0 ? (
+          <section aria-labelledby="mitwirkung-konto-heading">
+            <h2 id="mitwirkung-konto-heading">Mitwirkung</h2>
+            <p className="prose">
+              Angemeldet als {email}. {MEMBER_PDF_HINT}
+            </p>
+            <div className="entity-list">
+              {memberFirms.map((firm) => (
+                <article className="card" key={firm.entityId}>
+                  <h3>Mitwirkung · {firm.name}</h3>
+                  <p>{memberAddressLine(firm)}</p>
+                  <p className="doc-meta">Eingeladen von {firm.invitedBy}</p>
+                  <div className="actions">
+                    <Link className="btn" href={`/account/mitwirkung/${firm.entityId}`}>
+                      Module öffnen
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {memberFirms.length > 0 ? <h2>Ihre Firmen</h2> : null}
         <div className="account-companies" id="firmen">
           {!firmsReady || loadFailed ? (
             <div className="card">
@@ -318,7 +347,9 @@ export default async function AccountPage({
         </div>
 
         <div className="account-tiles">
-          <AccountAboCard stripeBound={stripeBound} notice={notice} compAccess={compAccess} />
+          {showAbo ? (
+            <AccountAboCard stripeBound={stripeBound} notice={notice} compAccess={compAccess} />
+          ) : null}
           <AccountProfileForm
             email={email}
             initialName={profile?.name ?? ""}

@@ -282,6 +282,9 @@ const ACCOUNT_DOCUMENT_EDIT =
 const ACCOUNT_FIRMA_EDIT =
   /^\/account\/firma\/[A-Za-z0-9_-]{8,80}$/;
 
+const ACCOUNT_MITWIRKUNG =
+  /^\/account\/mitwirkung\/[A-Za-z0-9_-]{8,80}(?:\/modul\/m(?:0[1-9]|1\d|2[0-4]))?$/;
+
 /**
  * Only same-origin relative paths we actually redirect to after login.
  * Rejects protocol-relative, absolute, and unknown paths (open-redirect).
@@ -300,6 +303,7 @@ export function safeNextPath(
     if (ALLOWED_NEXT_PATHS.has(parsed.pathname)) return parsed.pathname;
     if (ACCOUNT_DOCUMENT_EDIT.test(parsed.pathname)) return parsed.pathname;
     if (ACCOUNT_FIRMA_EDIT.test(parsed.pathname)) return parsed.pathname;
+    if (ACCOUNT_MITWIRKUNG.test(parsed.pathname)) return parsed.pathname;
     return null;
   } catch {
     return null;
