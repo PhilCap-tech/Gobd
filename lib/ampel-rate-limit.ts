@@ -1,10 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { del, get as readBlob, put } from "@vercel/blob";
 import { ipAddress } from "@vercel/functions/headers";
-import { blobMissing, exclusiveBlobCreate, type ExclusivePut } from "@/lib/ampel-blob-slot";
-import { assertLiveWriteAllowed, automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
+import { getAmpelRateSheetsTab, isSheetsConfigured } from "@/lib/env";
+import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
+import { createSheetsClient } from "@/lib/sheets-client";
 import { getFileFallbackDir } from "@/lib/store";
 
 export const AMPEL_IP_LIMIT = 5;
@@ -27,7 +27,7 @@ export type AmpelRateConfirm = "ok" | "ip" | "email" | "missing";
 
 export type AmpelRateStore = {
   take(input: { ipKey: string; emailKey: string; now: number; hold?: AmpelRateHold }): Promise<AmpelRateDecision>;
-  /** Checks the slot reserved by `take`. Does not open a second slot. */
+  /** Checks the position reserved by `take`. Does not append another row. */
   confirm(input: {
     ipKey: string;
     emailKey: string;
@@ -81,7 +81,7 @@ export function ampelClientIp(input: Request | Headers): string {
   return readAmpelClientIp(input).ip;
 }
 
-/** Temporary Prod diagnostic: `x-ampel-rl: src=<source>;slot=<n>;win=<window>`. No address. */
+/** Temporary Prod diagnostic: `x-ampel-rl: src=<source>;slot=<position>;win=<window>`. No address. */
 export function ampelRateTrace(source: string, slot: number, now: number): AmpelRateTrace {
   return {
     src: (IP_HEADER_SOURCES as readonly string[]).includes(source) ? source : "none",
@@ -138,202 +138,235 @@ export function judgeAmpelRate(
   return { decision: "ok", ip, email };
 }
 
-export const AMPEL_RATE_BLOB_PREFIX = "gobd/ampel-rate";
-/** The Blob SDK rejects a max-age below 60 seconds. Reads pass `useCache: false`. */
-export const AMPEL_RATE_BLOB_CACHE_MAX_AGE = 60;
 
-export type AmpelRateIo = {
-  get(pathname: string): Promise<string | null>;
-  create(pathname: string, body: string): Promise<"created" | "exists" | "unconfirmed">;
-  remove(pathname: string): Promise<void>;
-};
-
-function rateHash(logicalKey: string): string {
-  return createHash("sha256").update(logicalKey).digest("hex").slice(0, 32);
+/**
+ * Logs a rate-store problem. `reason` is a fixed token. The error name is
+ * kept; the message is not, so an address cannot leak into the line.
+ */
+export function logAmpelRateFailure(reason: string, error?: unknown): void {
+  const safeReason = reason.replace(/[^a-z0-9-]/gi, "").slice(0, 48);
+  const name = error instanceof Error ? error.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 48) : "";
+  const detail = name ? `reason=${safeReason};name=${name}` : `reason=${safeReason}`;
+  console.error("[ampel] Rate-Limit fehlgeschlagen", detail);
 }
 
 export function ampelRateWindowId(now: number, windowMs: number): number {
   return Math.floor(now / windowMs);
 }
 
-/** `gobd/ampel-rate/ip-<hash>-<window>-<n>`. The index is the slot, not a list cursor. */
-export function ampelRateSlotPath(
-  kind: "ip" | "email",
-  logicalKey: string,
-  windowId: number,
-  slot: number,
-): string {
-  return `${AMPEL_RATE_BLOB_PREFIX}/${kind}-${rateHash(logicalKey)}-${windowId}-${slot}`;
+/**
+ * One row on `ampel_rate`: IP hash, IP window, timestamp, request id,
+ * then the email hash and email window. Sheets appends are serialized, so
+ * the returned row number is a total order. Rows are not deleted.
+ */
+export const AMPEL_RATE_SHEET_COLUMNS = [
+  "key_hash",
+  "window_id",
+  "at",
+  "request_id",
+  "email_hash",
+  "email_window",
+] as const;
+
+/** The confirming read stays inside this many rows ending at our own row. */
+export const AMPEL_RATE_READ_ROWS = 2000;
+
+const SHEETS_GET_OPTS = {
+  headers: {
+    "Cache-Control": "no-cache, no-store",
+    Pragma: "no-cache",
+  },
+} as const;
+
+/** sha256 of the logical key. The IP key is already a hash. No plaintext address or email. */
+export function ampelRateStoredHash(logicalKey: string): string {
+  return createHash("sha256").update(logicalKey).digest("hex").slice(0, 32);
 }
 
-async function claimDimension(
-  io: AmpelRateIo,
-  kind: "ip" | "email",
-  logicalKey: string,
-  limit: number,
-  windowMs: number,
-  now: number,
-): Promise<{ status: "ok"; path: string; slot: number } | { status: "limited"; path: ""; slot: 0 }> {
-  const windowId = ampelRateWindowId(now, windowMs);
-  const keep = Math.max(1, Math.ceil(AMPEL_RATE_RETENTION_MS / windowMs));
-  const expired = windowId - keep;
-  if (expired >= 0) {
-    void Promise.all(
-      Array.from({ length: limit }, (_, index) =>
-        io.remove(ampelRateSlotPath(kind, logicalKey, expired, index + 1)),
-      ),
-    ).catch(() => undefined);
-  }
-  for (let slot = 1; slot <= limit; slot += 1) {
-    const path = ampelRateSlotPath(kind, logicalKey, windowId, slot);
-    const created = await io.create(path, JSON.stringify({ at: now, n: randomBytes(8).toString("hex") }));
-    // `unconfirmed` is a 2xx whose read missed. The slot is not proven full,
-    // so the send continues and only a later proven occupancy can return 429.
-    if (created === "created" || created === "unconfirmed") return { status: "ok", path, slot };
-  }
-  return { status: "limited", path: "", slot: 0 };
+/** Row number from `updates.updatedRange` (`ampel_rate!A12:F12`). Data starts at row 2. */
+export function ampelRateAppendedRow(updatedRange: string | null | undefined): number | null {
+  if (!updatedRange) return null;
+  const match = /!([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?/.exec(updatedRange.replace(/'/g, ""));
+  if (!match) return null;
+  const row = Number(match[4] ?? match[2]);
+  if (!Number.isInteger(row) || row < 2) return null;
+  return row;
 }
 
 /**
- * One private blob per allowed request in the current window.
- * `create` is conditional, so two instances cannot take the same slot.
+ * How many rows with this hash and window sit at or before `ownRow`.
+ * Later rows in the same read do not count: they were appended after this one.
  */
-export function createSlotAmpelRateStore(io: AmpelRateIo): AmpelRateStore {
+export function ampelRatePosition(
+  cells: readonly (readonly string[])[],
+  startRow: number,
+  keyColumn: number,
+  windowColumn: number,
+  keyHash: string,
+  windowId: number,
+  ownRow: number,
+): number {
+  const windowText = String(windowId);
+  let count = 0;
+  for (let index = 0; index < cells.length; index += 1) {
+    const rowNumber = startRow + index;
+    if (rowNumber > ownRow) break;
+    const row = cells[index] ?? [];
+    if ((row[keyColumn] ?? "") === keyHash && (row[windowColumn] ?? "") === windowText) count += 1;
+  }
+  return count;
+}
+
+export type AmpelRateSheetClient = {
+  get(args: {
+    spreadsheetId: string;
+  }): Promise<{ data: { sheets?: Array<{ properties?: { title?: string | null } | null } | null> | null } }>;
+  batchUpdate(args: {
+    spreadsheetId: string;
+    requestBody: { requests: Array<{ addSheet: { properties: { title: string } } }> };
+  }): Promise<unknown>;
+  valuesGet(
+    args: { spreadsheetId: string; range: string },
+    options?: { headers?: Record<string, string> },
+  ): Promise<{ data: { values?: unknown[][] | null } | null }>;
+  valuesAppend(args: {
+    spreadsheetId: string;
+    range: string;
+    valueInputOption: "RAW";
+    insertDataOption: "INSERT_ROWS";
+    requestBody: { values: string[][] };
+  }): Promise<{ data: { updates?: { updatedRange?: string | null } | null } | null }>;
+};
+
+let preparedSheet: { key: string; ready: Promise<void> } | null = null;
+
+export function clearAmpelRateSheetCache(): void {
+  preparedSheet = null;
+}
+
+function spreadsheetId(): string {
+  const id = process.env.GOOGLE_SHEETS_SPREADSHEET_ID?.trim();
+  if (!id) throw new Error("GOOGLE_SHEETS_SPREADSHEET_ID fehlt");
+  return id;
+}
+
+function errorText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return "";
+}
+
+function sheetAlreadyExists(error: unknown): boolean {
+  return /already exists/i.test(errorText(error));
+}
+
+function ensureAmpelRateSheet(client: AmpelRateSheetClient, id: string, tab: string): Promise<void> {
+  const key = `${id}:${tab}`;
+  if (preparedSheet?.key === key) return preparedSheet.ready;
+  const pending = openAmpelRateSheet(client, id, tab).then(
+    () => undefined,
+    (error: unknown) => {
+      if (preparedSheet?.ready === pending) preparedSheet = null;
+      throw error;
+    },
+  );
+  preparedSheet = { key, ready: pending };
+  return pending;
+}
+
+async function openAmpelRateSheet(client: AmpelRateSheetClient, id: string, tab: string): Promise<void> {
+  const meta = await client.get({ spreadsheetId: id });
+  const exists = meta.data.sheets?.some((sheet) => sheet?.properties?.title === tab);
+  if (!exists) {
+    try {
+      await client.batchUpdate({
+        spreadsheetId: id,
+        requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
+      });
+    } catch (error) {
+      if (!sheetAlreadyExists(error)) throw error;
+    }
+  }
+  const header = await client.valuesGet({ spreadsheetId: id, range: `${tab}!A1:F1` }, SHEETS_GET_OPTS);
+  const first = (header.data?.values?.[0] ?? []).map((cell) => String(cell ?? "").trim());
+  if (first.some((cell) => cell.length > 0)) return;
+  await client.valuesAppend({
+    spreadsheetId: id,
+    range: `${tab}!A1`,
+    valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: [[...AMPEL_RATE_SHEET_COLUMNS]] },
+  });
+}
+
+function liveAmpelRateSheetClient(): AmpelRateSheetClient {
+  const sheets = createSheetsClient();
+  return {
+    get: (args) => sheets.spreadsheets.get(args),
+    batchUpdate: (args) => sheets.spreadsheets.batchUpdate(args),
+    valuesGet: (args, options) => sheets.spreadsheets.values.get(args, options),
+    valuesAppend: (args) => sheets.spreadsheets.values.append(args),
+  };
+}
+
+/**
+ * Appends one row, then counts rows with the same hash and window at or
+ * before that row. Position 1..limit is allowed. A higher position is the
+ * limit. Any Sheets error is logged and rethrown so the caller still sends.
+ */
+export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAmpelRateSheetClient()): AmpelRateStore {
+  const tab = getAmpelRateSheetsTab();
   return {
     async take({ ipKey, emailKey, now, hold }) {
-      const email = await claimDimension(
-        io,
-        "email",
-        emailKey,
-        AMPEL_EMAIL_LIMIT,
-        AMPEL_EMAIL_WINDOW_MS,
-        now,
-      );
-      if (email.status === "limited") return "email";
-      let ip: Awaited<ReturnType<typeof claimDimension>>;
       try {
-        ip = await claimDimension(
-          io,
-          "ip",
-          ipKey,
-          AMPEL_IP_LIMIT,
-          AMPEL_IP_WINDOW_MS,
-          now,
+        const id = spreadsheetId();
+        await ensureAmpelRateSheet(client, id, tab);
+        const ipWindow = ampelRateWindowId(now, AMPEL_IP_WINDOW_MS);
+        const emailWindow = ampelRateWindowId(now, AMPEL_EMAIL_WINDOW_MS);
+        const ipHash = ampelRateStoredHash(ipKey);
+        const emailHash = ampelRateStoredHash(emailKey);
+        const appended = await client.valuesAppend({
+          spreadsheetId: id,
+          range: `${tab}!A1`,
+          valueInputOption: "RAW",
+          insertDataOption: "INSERT_ROWS",
+          requestBody: {
+            values: [[ipHash, String(ipWindow), String(now), randomBytes(8).toString("hex"), emailHash, String(emailWindow)]],
+          },
+        });
+        const ownRow = ampelRateAppendedRow(appended.data?.updates?.updatedRange);
+        if (ownRow == null) throw new Error("ampel-rate-range");
+        const start = Math.max(2, ownRow - AMPEL_RATE_READ_ROWS + 1);
+        const read = await client.valuesGet(
+          { spreadsheetId: id, range: `${tab}!A${start}:F${ownRow}` },
+          SHEETS_GET_OPTS,
         );
-      } catch (error) {
-        try {
-          await io.remove(email.path);
-        } catch {
-          // The daily slot may stay occupied. The caller logs the store error and still sends.
+        const cells = (read.data?.values ?? []).map((row) => (row ?? []).map((cell) => String(cell ?? "")));
+        const emailPos = ampelRatePosition(cells, start, 4, 5, emailHash, emailWindow, ownRow);
+        const ipPos = ampelRatePosition(cells, start, 0, 1, ipHash, ipWindow, ownRow);
+        if (emailPos < 1 || ipPos < 1) throw new Error("ampel-rate-position");
+        if (emailPos > AMPEL_EMAIL_LIMIT) return "email";
+        if (ipPos > AMPEL_IP_LIMIT) return "ip";
+        if (hold) {
+          hold.ipSlot = ipPos;
+          hold.emailSlot = emailPos;
         }
+        return "ok";
+      } catch (error) {
+        logAmpelRateFailure("sheets", error);
         throw error;
       }
-      if (ip.status === "limited") {
-        try {
-          await io.remove(email.path);
-        } catch {
-          // The daily slot may stay occupied. The request still sends no mail.
-        }
-        return "ip";
-      }
-      if (hold) {
-        hold.ipSlot = ip.slot;
-        hold.emailSlot = email.slot;
-      }
-      return "ok";
     },
     async confirm({ ipSlot, emailSlot }) {
-      // Submit and /senden name the slot with the same hash and window.
-      // Re-putting that pathname is not a hold check: a 2xx (the SDK's success
-      // path) was treated as "free" and the reservation was deleted, so the
-      // next submit received the same slot and the token-bound mail was withheld.
       if (ipSlot < 1 || ipSlot > AMPEL_IP_LIMIT || emailSlot < 1 || emailSlot > AMPEL_EMAIL_LIMIT) return "missing";
       return "ok";
     },
   };
 }
 
-function blobToken(): string {
-  return process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? "";
-}
-
-async function readPrivateBlob(pathname: string, token: string): Promise<string | null> {
-  try {
-    const result = await readBlob(pathname, { access: "private", useCache: false, token });
-    if (result == null) return null;
-    if (result.statusCode !== 200 || !result.stream) throw new Error("ampel-rate-read");
-    return await new Response(result.stream).text();
-  } catch (error) {
-    if (blobMissing(error)) return null;
-    throw error;
-  }
-}
-
-async function removePrivateBlob(pathname: string, token: string): Promise<void> {
-  try {
-    await del(pathname, { token });
-  } catch (error) {
-    if (blobMissing(error)) return;
-    throw error;
-  }
-}
-
-const blobPut: ExclusivePut = async (pathname, body, options) => {
-  assertLiveWriteAllowed("blob");
-  const result = await put(pathname, body, options);
-  return { pathname: result.pathname };
-};
-
-export function createBlobPutAmpelRateStore(blob: {
-  put: ExclusivePut;
-  read: (pathname: string) => Promise<string | null>;
-  remove: (pathname: string) => Promise<void>;
-  token?: string;
-}): AmpelRateStore {
-  const token = blob.token ?? "";
-  return createSlotAmpelRateStore({
-    get: blob.read,
-    async create(pathname, body) {
-      return exclusiveBlobCreate({
-        pathname,
-        body,
-        token,
-        cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE,
-        put: blob.put,
-        read: blob.read,
-        remove: blob.remove,
-      });
-    },
-    remove: blob.remove,
-  });
-}
-
-function blobAmpelRateIo(): AmpelRateIo {
-  const token = blobToken();
-  return {
-    get(pathname) {
-      return readPrivateBlob(pathname, token);
-    },
-    create(pathname, body) {
-      return exclusiveBlobCreate({
-        pathname,
-        body,
-        token,
-        cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE,
-        put: blobPut,
-        read: (path) => readPrivateBlob(path, token),
-        remove: (path) => removePrivateBlob(path, token),
-      });
-    },
-    remove(pathname) {
-      return removePrivateBlob(pathname, token);
-    },
-  };
-}
-
-export function createBlobAmpelRateStore(): AmpelRateStore {
-  return createSlotAmpelRateStore(blobAmpelRateIo());
-}
 
 /** No shared store. A take here throws; submit logs it and still sends the mail. */
 export function createClosedAmpelRateStore(): AmpelRateStore {
@@ -461,11 +494,17 @@ function vercelRuntime(): boolean {
   return process.env.VERCEL === "1" || process.env.VERCEL === "true";
 }
 
+export function clearAmpelRateStoreCache(): void {
+  sharedStore = null;
+}
+
 export function ampelRateStore(): AmpelRateStore {
   if (!sharedStore) {
-    if (blobToken() && !automatedRunForbidsLiveWrites()) sharedStore = createBlobAmpelRateStore();
-    else if (vercelRuntime() && !automatedRunForbidsLiveWrites()) sharedStore = createClosedAmpelRateStore();
-    else sharedStore = createFileAmpelRateStore(path.join(getFileFallbackDir(), "ampel-rate.json"));
+    const file = path.join(getFileFallbackDir(), "ampel-rate.json");
+    if (automatedRunForbidsLiveWrites()) sharedStore = createFileAmpelRateStore(file);
+    else if (isSheetsConfigured()) sharedStore = createSheetsAmpelRateStore();
+    else if (vercelRuntime()) sharedStore = createClosedAmpelRateStore();
+    else sharedStore = createFileAmpelRateStore(file);
   }
   return sharedStore;
 }

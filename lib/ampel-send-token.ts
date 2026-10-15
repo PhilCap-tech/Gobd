@@ -5,13 +5,15 @@ import { get, put } from "@vercel/blob";
 import { blobMissing, exclusiveBlobCreate, type ExclusivePut } from "@/lib/ampel-blob-slot";
 import { assertLiveWriteAllowed, automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { getMagicLinkSecret, isMagicLinkConfigured } from "@/lib/env";
-import { AMPEL_EMAIL_LIMIT, AMPEL_IP_LIMIT, AMPEL_RATE_BLOB_CACHE_MAX_AGE } from "@/lib/ampel-rate-limit";
+import { AMPEL_EMAIL_LIMIT, AMPEL_IP_LIMIT } from "@/lib/ampel-rate-limit";
 import { getFileFallbackDir } from "@/lib/store";
 
 /** The follow-up send must start within this window. */
 export const AMPEL_SEND_TOKEN_TTL_MS = 2 * 60 * 1000;
 
 const PREFIX = "gobd/ampel-send";
+/** The Blob SDK rejects a max-age below 60 seconds. Token reads pass `useCache: false`. */
+const AMPEL_TOKEN_BLOB_CACHE_MAX_AGE = 60;
 
 export type AmpelSendTokenStore = {
   /** `allowOverwrite: false`. `"exists"` means this slot was already taken. */
@@ -128,7 +130,7 @@ export function createBlobPutAmpelSendTokenStore(blob: {
         pathname: pathname(slotId),
         body,
         token,
-        cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE,
+        cacheControlMaxAge: AMPEL_TOKEN_BLOB_CACHE_MAX_AGE,
         put: blob.put,
         read: (path) => blob.read(path),
         remove: blob.remove,

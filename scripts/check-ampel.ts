@@ -3,8 +3,9 @@
  *
  *   npx tsx scripts/check-ampel.ts
  */
-import { BlobError, BlobPreconditionFailedError, BlobUnknownError } from "@vercel/blob";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
+import { getAmpelRateSheetsTab } from "@/lib/env";
+import { installSheetsHandler } from "@/lib/sheets-client";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -44,15 +45,17 @@ import {
   ampelRateIpKey,
   ampelRateLogLine,
   ampelRateResponseHeader,
-  ampelRateSlotPath,
+  ampelRateStoredHash,
+  ampelRateStore,
   ampelRateWindowId,
-  readAmpelClientIp,
-  createBlobPutAmpelRateStore,
+  clearAmpelRateSheetCache,
+  clearAmpelRateStoreCache,
   createFileAmpelRateStore,
   createMemoryAmpelRateStore,
-  createSlotAmpelRateStore,
+  createSheetsAmpelRateStore,
   pruneAmpelRateLedger,
-  type AmpelRateIo,
+  readAmpelClientIp,
+  type AmpelRateSheetClient,
 } from "@/lib/ampel-rate-limit";
 import { ampelMailStatusId, createMemoryAmpelMailStatusStore } from "@/lib/ampel-mail-status";
 import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, completeAmpelResult, deliverAmpelResult, sendAmpelPdfMail, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
@@ -1255,125 +1258,6 @@ try {
     const prunedLedger = readFileSync(staleFile, "utf8");
     assertOk(!prunedLedger.includes("ip:stale") && prunedLedger.includes("email:kept"), "a ledger write drops stamps older than 7 days");
 
-    function memoryBlob(): AmpelRateIo {
-      const objects = new Map<string, string>();
-      return {
-        async get(pathname) {
-          return objects.has(pathname) ? (objects.get(pathname) ?? null) : null;
-        },
-        async create(pathname, body) {
-          if (objects.has(pathname)) return "exists";
-          objects.set(pathname, body);
-          return "created";
-        },
-        async remove(pathname) {
-          objects.delete(pathname);
-        },
-      };
-    }
-
-    const shared = memoryBlob();
-    const instanceA = createSlotAmpelRateStore(shared);
-    const instanceB = createSlotAmpelRateStore(shared);
-    const isolated = createSlotAmpelRateStore(memoryBlob());
-    for (let index = 0; index < AMPEL_IP_LIMIT; index += 1) {
-      const decision = await (index % 2 === 0 ? instanceA : instanceB).take({
-        ipKey: "ip:shared",
-        emailKey: `em:slot-${index}@example.com`,
-        now: clock,
-      });
-      assertOk(decision === "ok", `shared slot ${index + 1} is allowed`);
-    }
-    assertOk(
-      (await instanceB.take({ ipKey: "ip:shared", emailKey: "em:slot-extra@example.com", now: clock })) === "ip",
-      "a second instance sees the IP limit",
-    );
-    assertOk(
-      (await isolated.take({ ipKey: "ip:shared", emailKey: "em:alone@example.com", now: clock })) === "ok",
-      "a fresh instance does not keep the other counter in memory",
-    );
-
-    const emailBlob = memoryBlob();
-    const emailA = createSlotAmpelRateStore(emailBlob);
-    const emailB = createSlotAmpelRateStore(emailBlob);
-    for (let index = 0; index < AMPEL_EMAIL_LIMIT; index += 1) {
-      const decision = await (index % 2 === 0 ? emailA : emailB).take({
-        ipKey: `ip:mail-${index}`,
-        emailKey: "em:same@example.com",
-        now: clock,
-      });
-      assertOk(decision === "ok", `shared email slot ${index + 1} is allowed`);
-    }
-    assertOk(
-      (await emailA.take({ ipKey: "ip:mail-extra", emailKey: "em:same@example.com", now: clock })) === "email",
-      "a second instance sees the daily address limit",
-    );
-    assertOk(
-      (await emailB.take({
-        ipKey: "ip:mail-later",
-        emailKey: "em:same@example.com",
-        now: clock + AMPEL_EMAIL_WINDOW_MS,
-      })) === "ok",
-      "the address limit starts again in the next window",
-    );
-
-    const parallelBlob = memoryBlob();
-    const parallelA = createSlotAmpelRateStore(parallelBlob);
-    const parallelB = createSlotAmpelRateStore(parallelBlob);
-    const raced = await Promise.all(
-      Array.from({ length: 8 }, (_, index) =>
-        (index % 2 === 0 ? parallelA : parallelB).take({
-          ipKey: "ip:race",
-          emailKey: `em:race-${index}@example.com`,
-          now: clock,
-        }),
-      ),
-    );
-    assertOk(
-      raced.filter((decision) => decision === "ok").length === AMPEL_IP_LIMIT,
-      "parallel instances take five IP slots",
-    );
-    assertOk(raced.filter((decision) => decision === "ip").length === 3, "parallel instances refuse the rest");
-
-    const submitBlob = memoryBlob();
-    const submitA = createSlotAmpelRateStore(submitBlob);
-    const submitB = createSlotAmpelRateStore(submitBlob);
-    let slotSends = 0;
-    const slotMail = async () => {
-      slotSends += 1;
-      return { stub: false, sent: true, id: `slot-${slotSends}` };
-    };
-    for (let index = 0; index < AMPEL_IP_LIMIT; index += 1) {
-      const sent = await submitAmpelResult(
-        {
-          email: `cross-${index}@example.com`,
-          answers: jaCode,
-          ref: "",
-          marketing: false,
-          honeypot: "",
-          ip: "203.0.113.60",
-        },
-        { store: index % 2 === 0 ? submitA : submitB, now: () => clock, confirm: noConfirm, mail: slotMail },
-      );
-      assertOk(sent.ok && !("honeypot" in sent) && sent.mailed === true, `cross-instance send ${index + 1}`);
-    }
-    const crossBlocked = await submitAmpelResult(
-      {
-        email: "cross-blocked@example.com",
-        answers: jaCode,
-        ref: "",
-        marketing: false,
-        honeypot: "",
-        ip: "203.0.113.60",
-      },
-      { store: submitA, now: () => clock, confirm: noConfirm, mail: slotMail },
-    );
-    assertOk(
-      crossBlocked.ok && !("honeypot" in crossBlocked) && crossBlocked.limited === "ip" && crossBlocked.mailed === false && crossBlocked.notice === AMPEL_RESULT_MAIL.rateLimitedIp,
-      "the sixth cross-instance submit is a 429",
-    );
-    assertOk(slotSends === AMPEL_IP_LIMIT, "the sixth submit sends no mail");
-
     assertOk(
       ampelClientIp(new Headers({ "x-forwarded-for": "203.0.113.8, 10.0.0.4" })) === "203.0.113.8",
       "the first forwarded address is the client",
@@ -1434,8 +1318,6 @@ try {
     assertOk(ampelRateWindowId(hourStart + AMPEL_IP_WINDOW_MS - 1, AMPEL_IP_WINDOW_MS) === hour, "the IP window stays open for the hour");
     assertOk(ampelRateWindowId(hourStart + AMPEL_IP_WINDOW_MS, AMPEL_IP_WINDOW_MS) === hour + 1, "the next hour is a new IP window");
     assertOk(AMPEL_IP_LIMIT === 5, "the IP limit is five per hour");
-    const slotPath = ampelRateSlotPath("ip", ampelRateIpKey("203.0.113.8"), hour, 1);
-    assertOk(/\/ip-[a-f0-9]{32}-\d+-1$/.test(slotPath), "an IP slot is named ip-hash-window-n");
     const logLine = ampelRateLogLine("x-vercel-forwarded-for", 3, "203.0.113.8");
     assertOk(
       /^\[ampel\] rate src=x-vercel-forwarded-for slot=3 ip=[a-f0-9]{12}$/.test(logLine) && !logLine.includes("203.0.113.8"),
@@ -1461,39 +1343,6 @@ try {
       "a timeout replaces the sending line",
     );
 
-    const blindObjects = new Map<string, string>();
-    const blindStore = createSlotAmpelRateStore({
-      async get() {
-        return null;
-      },
-      async create(pathname, body) {
-        if (blindObjects.has(pathname)) return "exists";
-        blindObjects.set(pathname, body);
-        return "created";
-      },
-      async remove(pathname) {
-        blindObjects.delete(pathname);
-      },
-    });
-    for (let index = 0; index < AMPEL_IP_LIMIT; index += 1) {
-      const decision = await blindStore.take({
-        ipKey: "ip:blind",
-        emailKey: `em:blind-${index}@example.com`,
-        now: clock,
-      });
-      assertOk(decision === "ok", `a blind read still reserves IP slot ${index + 1}`);
-    }
-    assertOk(
-      (await blindStore.take({ ipKey: "ip:blind", emailKey: "em:blind-extra@example.com", now: clock })) === "ip",
-      "five occupied IP slots are a 429 even when reads miss them",
-    );
-    const blindIpSlots = [...blindObjects.keys()].filter((key) => key.includes("/ip-"));
-    assertOk(blindIpSlots.length === AMPEL_IP_LIMIT, "the IP limit keeps five slots");
-    assertOk(
-      blindIpSlots.every((key) => /\/ip-[a-f0-9]{32}-\d+-[1-5]$/.test(key)),
-      "occupied IP slots use deterministic names",
-    );
-
     let missingTakes = 0;
     const missingStore = createMemoryAmpelRateStore();
     const wrappedMissing = {
@@ -1517,105 +1366,43 @@ try {
       "an empty or unknown address does not share a bucket and sends no mail",
     );
 
-    const heldObjects = new Map<string, string>();
-    const heldStore = createSlotAmpelRateStore({
-      async get() {
-        return null;
-      },
-      async create(pathname, body) {
-        if (heldObjects.has(pathname)) return "exists";
-        heldObjects.set(pathname, body);
-        return "created";
-      },
-      async remove(pathname) {
-        heldObjects.delete(pathname);
-      },
-    });
-    const heldTokens = createMemoryAmpelSendTokenStore();
-    const heldStatus = createMemoryAmpelMailStatusStore();
-    let heldSends = 0;
-    const heldInput = {
-      email: "held@example.com",
-      answers: jaCode,
-      ref: "",
-      marketing: false,
-      honeypot: "",
-      ip: "203.0.113.70",
-    };
-    const heldHandoff = await submitAmpelResult(heldInput, {
-      store: heldStore,
-      now: () => clock,
-      confirm: noConfirm,
-      handoff: true,
-      status: heldStatus,
-      tokens: heldTokens,
-      mail: async () => {
-        heldSends += 1;
-        return { stub: false as const, sent: true as const, id: "held" };
-      },
-    });
-    const heldIpSlots = [...heldObjects.keys()].filter((key) => key.includes("/ip-")).length;
-    const heldDone = await completeAmpelResult(
-      { ...heldInput, sendToken: heldHandoff.ok && !("honeypot" in heldHandoff) ? heldHandoff.token : "" },
-      {
-        store: heldStore,
-        now: () => clock,
-        confirm: noConfirm,
-        status: heldStatus,
-        tokens: heldTokens,
-        mail: async () => {
-          heldSends += 1;
-          return { stub: false, sent: true, id: "held-2" };
-        },
-      },
-    );
-    assertOk(
-      heldDone.ok && !("honeypot" in heldDone) && heldDone.mailed === true && heldSends === 1 &&
-        [...heldObjects.keys()].filter((key) => key.includes("/ip-")).length === heldIpSlots,
-      "senden confirms the reserved IP slot and does not open another",
-    );
-
     const rateSource = readFileSync("lib/ampel-rate-limit.ts", "utf8");
-    const factory = rateSource.slice(rateSource.indexOf("export function ampelRateStore"));
+    const factory = rateSource.slice(rateSource.indexOf("export function ampelRateStore()"));
     const slotSource = readFileSync("lib/ampel-blob-slot.ts", "utf8");
     const tokenSource = readFileSync("lib/ampel-send-token.ts", "utf8");
-    assertOk(rateSource.includes("useCache: false"), "blob rate reads bypass the cache");
+    const envSource = readFileSync("lib/env.ts", "utf8");
+    assertOk(!rateSource.includes("@vercel/blob") && !rateSource.includes("exclusiveBlobCreate"), "the rate store does not use Blob");
     assertOk(
-      slotSource.includes("addRandomSuffix: false") && slotSource.includes("allowOverwrite: false"),
-      "exclusive blob slots disable the random suffix",
-    );
-    assertOk(
-      rateSource.includes("exclusiveBlobCreate") && tokenSource.includes("exclusiveBlobCreate"),
-      "IP, email, and token slots share the exclusive put",
+      slotSource.includes("addRandomSuffix: false") &&
+        slotSource.includes("allowOverwrite: false") &&
+        tokenSource.includes("exclusiveBlobCreate"),
+      "token slots stay exclusive writes",
     );
     const submitSource = readFileSync("lib/ampel-result-send.ts", "utf8");
     const takeAt = submitSource.indexOf("await store.take(");
     const issueAt = submitSource.indexOf("issueAmpelSendToken(");
     assertOk(takeAt !== -1 && issueAt !== -1 && takeAt < issueAt, "the IP slot is occupied before the send token is issued");
     assertOk(
-      rateSource.includes("cacheControlMaxAge: AMPEL_RATE_BLOB_CACHE_MAX_AGE"),
-      "rate blobs set the shortest cache lifetime",
+      factory.indexOf("automatedRunForbidsLiveWrites") !== -1 &&
+        factory.indexOf("automatedRunForbidsLiveWrites") < factory.indexOf("createSheetsAmpelRateStore"),
+      "check:ampel uses the file ledger before the sheet",
     );
-    assertOk(rateSource.includes('AMPEL_RATE_BLOB_PREFIX = "gobd/ampel-rate"'), "each window has its own slot keys");
-    assertOk(
-      factory.indexOf("createBlobAmpelRateStore") < factory.indexOf("createFileAmpelRateStore"),
-      "the shared store is blob before any local file",
-    );
-    assertOk(factory.includes("createClosedAmpelRateStore"), "vercel without blob does not count in /tmp");
+    assertOk(factory.includes("createClosedAmpelRateStore"), "vercel without sheets does not count in /tmp");
+    assertOk(envSource.includes('return "ampel_rate"') && getAmpelRateSheetsTab() === "ampel_rate", "the rate tab is ampel_rate");
     assertOk(AMPEL_SEND_TIMEOUT_MS === 8_000, "mail and pdf steps time out after 8 seconds");
 
     let hungSends = 0;
     const hung = await submitAmpelResult(
       { email: "hung@example.com", answers: jaCode, ref: "", marketing: true, honeypot: "", ip: "203.0.113.50" },
       {
-        store: createSlotAmpelRateStore(memoryBlob()),
+        store: createMemoryAmpelRateStore(),
         now: () => clock,
         sendTimeoutMs: 40,
         confirm: async () => {
           throw new Error("should-not-confirm");
         },
         mail: () =>
-          new Promise<Awaited<ReturnType<typeof slotMail>>>(() => {
+          new Promise<MailResult>(() => {
             hungSends += 1;
           }),
       },
@@ -1661,228 +1448,168 @@ try {
     }
     assertOk(timedOut, "the deadline rejects a step that does not finish");
 
-    type BlobMode = "sdk" | "unknown" | "suspended" | "precondition" | "suffix" | "stale";
-    function blobLike(
-      mode: BlobMode,
-      objects = new Map<string, string>(),
-    ) {
-      const calls: { pathname: string; addRandomSuffix?: boolean; allowOverwrite?: boolean }[] = [];
-      let suffix = 0;
-      return {
-        objects,
-        calls,
-        async put(pathname: string, body: string, options: Partial<ExclusivePutOptions> = {}) {
-          calls.push({
-            pathname,
-            addRandomSuffix: options.addRandomSuffix,
-            allowOverwrite: options.allowOverwrite,
-          });
-          if (mode === "suspended") throw new BlobError("This store has been suspended.");
-          if (mode === "precondition") throw new BlobPreconditionFailedError();
-          const suffixOn = options.addRandomSuffix !== false || mode === "suffix";
-          const stored = suffixOn ? `${pathname}-rand${++suffix}` : pathname;
-          if (!suffixOn && objects.has(stored)) {
-            if (mode === "stale") {
-              objects.set(stored, body);
-              return { pathname: stored };
-            }
-            if (mode === "unknown") throw new BlobUnknownError();
-            throw new BlobError("The blob already exists, use allowOverwrite: true to overwrite it.");
-          }
-          objects.set(stored, body);
-          return { pathname: stored };
-        },
-        async read(pathname: string) {
-          return objects.get(pathname) ?? null;
-        },
-        async remove(pathname: string) {
-          objects.delete(pathname);
-        },
-      };
-    }
-
-    const loose = blobLike("sdk");
-    const looseFirst = await loose.put("gobd/ampel-rate/ip-demo-1-1", "{}");
-    const looseSecond = await loose.put("gobd/ampel-rate/ip-demo-1-1", "{}");
-    assertOk(
-      looseFirst.pathname !== "gobd/ampel-rate/ip-demo-1-1" &&
-        looseSecond.pathname !== looseFirst.pathname &&
-        loose.objects.size === 2,
-      "the Blob default adds a suffix, so an existing pathname never conflicts",
-    );
-
+    clearAmpelRateSheetCache();
+    const previousSheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    process.env.GOOGLE_SHEETS_SPREADSHEET_ID = "ampel-rate-test-sheet";
     const sameAddress = "104.28.218.14";
-    const seenIps = Array.from({ length: 8 }, (_, index) =>
-      readAmpelClientIp(
-        new Headers({
-          "x-real-ip": sameAddress,
-          "x-vercel-forwarded-for": `203.0.113.${index + 1}`,
-          "x-forwarded-for": `198.51.100.${index + 1}`,
-        }),
-      ),
-    );
-    assertOk(
-      seenIps.every((item) => item.source === "x-real-ip" && item.ip === sameAddress) &&
-        new Set(seenIps.map((item) => ampelRateIpKey(item.ip))).size === 1,
-      "eight requests with one x-real-ip share one bucket",
-    );
-
-    const live = blobLike("sdk");
-    const liveStore = createBlobPutAmpelRateStore(live);
-    const windowId = ampelRateWindowId(clock, AMPEL_IP_WINDOW_MS);
-    let liveSends = 0;
-    for (let index = 0; index < 8; index += 1) {
-      const sent = await submitAmpelResult(
-        {
-          email: `blob-${index}@example.com`,
-          answers: index % 2 === 0 ? jaCode : neinCode,
-          ref: "",
-          marketing: false,
-          honeypot: "",
-          ip: seenIps[index]?.ip ?? "",
-          ipSource: seenIps[index]?.source ?? "",
-        },
-        {
-          store: liveStore,
-          now: () => clock,
-          confirm: noConfirm,
-          mail: async () => {
-            liveSends += 1;
-            return { stub: false, sent: true, id: `live-${liveSends}` };
+    const windowId = hour;
+    try {
+      function sheetClient(options?: { plan?: number[]; failDataAppend?: boolean }) {
+        const titles: string[] = [];
+        const rows = new Map<number, string[]>();
+        const ops: { op: string; range?: string }[] = [];
+        let addSheets = 0;
+        let headerAppends = 0;
+        let nextRow = 2;
+        let planAt = 0;
+        let openGate: (() => void) | null = null;
+        const gate = options?.plan
+          ? new Promise<void>((resolve) => {
+              openGate = resolve;
+            })
+          : null;
+        const client: AmpelRateSheetClient = {
+          async get() {
+            ops.push({ op: "spreadsheets.get" });
+            return { data: { sheets: titles.map((title) => ({ properties: { title } })) } };
           },
-        },
-      );
-      assertOk(sent.ok && !("honeypot" in sent), `blob-backed submit ${index + 1} answers`);
-      if (!sent.ok || "honeypot" in sent) fail("blob-backed submit");
-      if (index < AMPEL_IP_LIMIT) {
-        assertOk(
-          sent.mailed === true && sent.trace?.src === "x-real-ip" && sent.trace.slot === index + 1 && sent.trace.win === windowId,
-          `request ${index + 1} takes the next IP slot in the same window`,
-        );
-      } else {
-        assertOk(
-          sent.limited === "ip" && sent.mailed === false && sent.trace?.slot === 0 && sent.trace?.win === windowId,
-          `request ${index + 1} is limited in the same window`,
-        );
+          async batchUpdate(args) {
+            ops.push({ op: "spreadsheets.batchUpdate" });
+            const title = args.requestBody.requests[0]?.addSheet.properties.title ?? "";
+            if (titles.includes(title)) throw new Error("Sheet already exists");
+            titles.push(title);
+            addSheets += 1;
+            return {};
+          },
+          async valuesGet(args) {
+            ops.push({ op: "values.get", range: args.range });
+            if (args.range.endsWith("!A1:F1")) {
+              const header = rows.get(1);
+              return { data: { values: header ? [header] : [] } };
+            }
+            const match = /!A(\d+):F(\d+)$/.exec(args.range);
+            if (!match) throw new Error("bad-range");
+            const start = Number(match[1]);
+            const end = Number(match[2]);
+            const values: string[][] = [];
+            for (let row = start; row <= end; row += 1) values.push(rows.get(row) ?? []);
+            return { data: { values } };
+          },
+          async valuesAppend(args) {
+            ops.push({ op: "values.append", range: args.range });
+            const row = args.requestBody.values[0] ?? [];
+            if (row[0] === "key_hash") {
+              headerAppends += 1;
+              rows.set(1, row);
+              return { data: { updates: { updatedRange: `${getAmpelRateSheetsTab()}!A1:F1` } } };
+            }
+            if (options?.failDataAppend) throw new Error("sheet-down");
+            const rowNumber = options?.plan ? options.plan[planAt++] : nextRow++;
+            if (!rowNumber) throw new Error("plan-exhausted");
+            rows.set(rowNumber, row);
+            if (options?.plan && planAt === options.plan.length) openGate?.();
+            if (gate) await gate;
+            return { data: { updates: { updatedRange: `'${getAmpelRateSheetsTab()}'!A${rowNumber}:F${rowNumber}` } } };
+          },
+        };
+        return {
+          client,
+          ops,
+          rows,
+          addSheets: () => addSheets,
+          headerAppends: () => headerAppends,
+          titles,
+        };
       }
-    }
-    assertOk(liveSends === AMPEL_IP_LIMIT, "the sixth blob-backed submit sends no mail");
-    assertOk(
-      live.calls.length > 0 && live.calls.every((call) => call.addRandomSuffix === false && call.allowOverwrite === false),
-      "rate slots pass addRandomSuffix false and allowOverwrite false",
-    );
-    const liveIpSlots = [...live.objects.keys()].filter((key) => key.includes("/ip-"));
-    assertOk(
-      liveIpSlots.length === AMPEL_IP_LIMIT && liveIpSlots.every((key) => new RegExp(`/ip-[a-f0-9]{32}-${windowId}-[1-5]$`).test(key)),
-      "five IP slots keep the requested pathname",
-    );
 
-    const overwrite = blobLike("stale");
-    const overwriteStore = createBlobPutAmpelRateStore(overwrite);
-    let overwriteSends = 0;
-    for (let index = 0; index < AMPEL_IP_LIMIT + 1; index += 1) {
-      const sent = await submitAmpelResult(
+      const counted = sheetClient();
+      const countedStore = createSheetsAmpelRateStore(counted.client);
+      let countedSends = 0;
+      for (let index = 0; index < AMPEL_IP_LIMIT + 1; index += 1) {
+        const sent = await submitAmpelResult(
+          {
+            email: `sheet-${index}@example.com`,
+            answers: index % 2 === 0 ? jaCode : neinCode,
+            ref: "",
+            marketing: false,
+            honeypot: "",
+            ip: sameAddress,
+            ipSource: "x-real-ip",
+          },
+          {
+            store: countedStore,
+            now: () => clock,
+            confirm: noConfirm,
+            mail: async () => {
+              countedSends += 1;
+              return { stub: false, sent: true, id: `sheet-${countedSends}` };
+            },
+          },
+        );
+        assertOk(sent.ok && !("honeypot" in sent), `sheet submit ${index + 1}`);
+        if (!sent.ok || "honeypot" in sent) fail("sheet submit");
+        const response = ampelSubmitResponse(sent, "x-real-ip", clock);
+        if (index < AMPEL_IP_LIMIT) {
+          assertOk(
+            sent.mailed === true &&
+              sent.trace?.slot === index + 1 &&
+              sent.trace.win === windowId &&
+              response.status === 200 &&
+              response.headers.get("x-ampel-rl") === `src=x-real-ip;slot=${index + 1};win=${windowId}`,
+            `sheet send ${index + 1} is allowed at position ${index + 1}`,
+          );
+        } else {
+          assertOk(
+            sent.limited === "ip" &&
+              sent.mailed === false &&
+              sent.trace?.slot === 0 &&
+              response.status === 429 &&
+              response.headers.get("x-ampel-rl") === `src=x-real-ip;slot=0;win=${windowId}`,
+            "five sheet sends are allowed and the sixth is a 429 with no mail",
+          );
+        }
+      }
+      assertOk(countedSends === AMPEL_IP_LIMIT, "the sixth sheet send does not mail");
+      const storedRows = [...counted.rows.values()].filter((row) => row[0] !== "key_hash");
+      const ipHash = ampelRateStoredHash(ampelRateIpKey(sameAddress));
+      assertOk(
+        storedRows.length === AMPEL_IP_LIMIT + 1 &&
+          storedRows.every((row) => row[0] === ipHash && !row.join(" ").includes(sameAddress) && !row.join(" ").includes("@")),
+        "a rate row stores the hash, the window, a timestamp and a request id",
+      );
+      const probeAt = counted.ops.length;
+      const probe = await submitAmpelResult(
         {
-          email: `stale-${index}@example.com`,
-          answers: index % 2 === 0 ? jaCode : neinCode,
+          email: "sheet-probe@example.com",
+          answers: jaCode,
           ref: "",
           marketing: false,
           honeypot: "",
-          ip: sameAddress,
+          ip: "198.51.100.77",
           ipSource: "x-real-ip",
         },
         {
-          store: overwriteStore,
+          store: countedStore,
           now: () => clock,
           confirm: noConfirm,
-          mail: async () => {
-            overwriteSends += 1;
-            return { stub: false, sent: true, id: `stale-${overwriteSends}` };
-          },
+          mail: async () => ({ stub: false, sent: true, id: "sheet-probe" }),
         },
       );
-      assertOk(sent.ok && !("honeypot" in sent), `stale submit ${index + 1} answers`);
-      if (!sent.ok || "honeypot" in sent) fail("stale submit");
-      const response = ampelSubmitResponse(sent, "x-real-ip", clock);
-      if (index < AMPEL_IP_LIMIT) {
-        assertOk(
-          sent.mailed === true &&
-            sent.trace?.slot === index + 1 &&
-            sent.trace.win === windowId &&
-            response.status === 200 &&
-            response.headers.get("x-ampel-rl") === `src=x-real-ip;slot=${index + 1};win=${windowId}`,
-          `five blob sends are allowed and the header shows slot ${index + 1}`,
-        );
-      } else {
-        assertOk(
-          sent.limited === "ip" &&
-            sent.mailed === false &&
-            sent.trace?.slot === 0 &&
-            response.status === 429 &&
-            response.headers.get("x-ampel-rl") === `src=x-real-ip;slot=0;win=${windowId}`,
-          "the sixth blob send is a 429 with no mail",
-        );
-      }
-    }
-    assertOk(overwriteSends === AMPEL_IP_LIMIT, "a stale 2xx overwrite does not send a sixth mail");
-    assertOk(
-      [...overwrite.objects.keys()].filter((key) => key.includes("/ip-")).length === AMPEL_IP_LIMIT,
-      "a stale 2xx overwrite keeps five IP slots",
-    );
-    const reset = await submitAmpelResult(
-      {
-        email: "stale-reset@example.com",
-        answers: jaCode,
-        ref: "",
-        marketing: false,
-        honeypot: "",
-        ip: sameAddress,
-        ipSource: "x-real-ip",
-      },
-      {
-        store: overwriteStore,
-        now: () => clock + AMPEL_IP_WINDOW_MS,
-        confirm: noConfirm,
-        mail: async () => {
-          overwriteSends += 1;
-          return { stub: false, sent: true, id: "stale-reset" };
-        },
-      },
-    );
-    assertOk(
-      reset.ok &&
-        !("honeypot" in reset) &&
-        reset.mailed === true &&
-        reset.trace?.slot === 1 &&
-        reset.trace.win === windowId + 1,
-      "a new IP window resets the slot and the header count",
-    );
-
-    const hiddenObjects = new Map<string, string>();
-    const hiddenRevealed = new Set<string>();
-    const hidden = {
-      async put(pathname: string, body: string) {
-        if (hiddenObjects.has(pathname)) throw new BlobUnknownError();
-        hiddenObjects.set(pathname, body);
-        hiddenRevealed.delete(pathname);
-        return { pathname };
-      },
-      async read(pathname: string) {
-        if (!hiddenObjects.has(pathname) || hiddenRevealed.has(pathname)) return null;
-        hiddenRevealed.add(pathname);
-        return hiddenObjects.get(pathname) ?? null;
-      },
-      async remove(pathname: string) {
-        hiddenObjects.delete(pathname);
-        hiddenRevealed.delete(pathname);
-      },
-    };
-    const hiddenStore = createBlobPutAmpelRateStore(hidden);
-    let hiddenSends = 0;
-    for (let index = 0; index < AMPEL_IP_LIMIT + 1; index += 1) {
-      const sent = await submitAmpelResult(
+      const probeOps = counted.ops.slice(probeAt);
+      assertOk(
+        probe.ok &&
+          !("honeypot" in probe) &&
+          probe.mailed === true &&
+          probeOps.length === 2 &&
+          probeOps[0]?.op === "values.append" &&
+          probeOps[1]?.op === "values.get" &&
+          (probeOps[1]?.range ?? "").startsWith(`${getAmpelRateSheetsTab()}!A`) &&
+          (probeOps[1]?.range ?? "").includes(":F"),
+        "a send appends one row and reads one range",
+      );
+      const reset = await submitAmpelResult(
         {
-          email: `hidden-${index}@example.com`,
+          email: "sheet-reset@example.com",
           answers: jaCode,
           ref: "",
           marketing: false,
@@ -1891,33 +1618,74 @@ try {
           ipSource: "x-real-ip",
         },
         {
-          store: hiddenStore,
-          now: () => clock,
+          store: countedStore,
+          now: () => clock + AMPEL_IP_WINDOW_MS,
           confirm: noConfirm,
-          mail: async () => {
-            hiddenSends += 1;
-            return { stub: false, sent: true, id: `hidden-${hiddenSends}` };
-          },
+          mail: async () => ({ stub: false, sent: true, id: "sheet-reset" }),
         },
       );
-      assertOk(sent.ok && !("honeypot" in sent), `hidden submit ${index + 1}`);
-      if (!sent.ok || "honeypot" in sent) fail("hidden submit");
-      if (index < AMPEL_IP_LIMIT) {
-        assertOk(sent.mailed === true && sent.trace?.slot === index + 1, `a cached miss still fills slot ${index + 1}`);
-      } else {
-        assertOk(sent.limited === "ip" && sent.mailed === false, "BlobUnknownError with a cached miss does not send a sixth mail");
-      }
-    }
-    assertOk(hiddenSends === AMPEL_IP_LIMIT, "BlobUnknownError with a cached miss still advances the slot");
+      assertOk(
+        reset.ok &&
+          !("honeypot" in reset) &&
+          reset.mailed === true &&
+          reset.trace?.slot === 1 &&
+          reset.trace.win === windowId + 1,
+        "a new window resets",
+      );
+      assertOk(counted.addSheets() === 1 && counted.headerAppends() === 1 && counted.titles[0] === "ampel_rate", "the tab is created once");
 
-    const parallelUnknown = blobLike("unknown");
-    const parallelUnknownStore = createBlobPutAmpelRateStore(parallelUnknown);
-    let parallelSends = 0;
-    const parallelSent = await Promise.all(
-      Array.from({ length: 8 }, (_, index) =>
-        submitAmpelResult(
+      clearAmpelRateSheetCache();
+      const plan = [16, 4, 18, 3, 9, 20, 5, 7];
+      const parallel = sheetClient({ plan });
+      const parallelStore = createSheetsAmpelRateStore(parallel.client);
+      let parallelSends = 0;
+      const parallelSent = await Promise.all(
+        plan.map((_, index) =>
+          submitAmpelResult(
+            {
+              email: `sheet-race-${index}@example.com`,
+              answers: jaCode,
+              ref: "",
+              marketing: false,
+              honeypot: "",
+              ip: sameAddress,
+              ipSource: "x-real-ip",
+            },
+            {
+              store: parallelStore,
+              now: () => clock,
+              confirm: noConfirm,
+              mail: async () => {
+                parallelSends += 1;
+                return { stub: false, sent: true, id: `sheet-race-${parallelSends}` };
+              },
+            },
+          ),
+        ),
+      );
+      const parallelMailed = parallelSent.filter((sent) => sent.ok && !("honeypot" in sent) && sent.mailed === true);
+      const parallelLimited = parallelSent.filter((sent) => sent.ok && !("honeypot" in sent) && sent.limited === "ip");
+      assertOk(
+        parallelMailed.length === AMPEL_IP_LIMIT &&
+          parallelLimited.length === plan.length - AMPEL_IP_LIMIT &&
+          parallelSends === AMPEL_IP_LIMIT &&
+          parallel.addSheets() === 1,
+        "parallel appends with interleaved row numbers never allow more than 5",
+      );
+
+      clearAmpelRateSheetCache();
+      const failing = sheetClient({ failDataAppend: true });
+      const rateLogs: string[] = [];
+      const originalError = console.error;
+      console.error = (...args: unknown[]) => {
+        rateLogs.push(args.map((item) => String(item)).join(" "));
+      };
+      let brokenSends = 0;
+      let broken: Awaited<ReturnType<typeof submitAmpelResult>>;
+      try {
+        broken = await submitAmpelResult(
           {
-            email: `race-blob-${index}@example.com`,
+            email: "sheet-down@example.com",
             answers: jaCode,
             ref: "",
             marketing: false,
@@ -1926,244 +1694,144 @@ try {
             ipSource: "x-real-ip",
           },
           {
-            store: parallelUnknownStore,
+            store: createSheetsAmpelRateStore(failing.client),
             now: () => clock,
             confirm: noConfirm,
             mail: async () => {
-              parallelSends += 1;
-              return { stub: false, sent: true, id: `race-blob-${parallelSends}` };
+              brokenSends += 1;
+              return { stub: false, sent: true, id: "sheet-down" };
             },
           },
-        ),
-      ),
-    );
-    const parallelMailed = parallelSent.filter((sent) => sent.ok && !("honeypot" in sent) && sent.mailed === true);
-    const parallelLimited = parallelSent.filter((sent) => sent.ok && !("honeypot" in sent) && sent.limited === "ip");
-    assertOk(
-      parallelMailed.length === AMPEL_IP_LIMIT &&
-        parallelLimited.length === 3 &&
-        parallelSends === AMPEL_IP_LIMIT &&
-        new Set(parallelMailed.map((sent) => (sent.ok && !("honeypot" in sent) ? sent.trace?.slot : 0))).size === AMPEL_IP_LIMIT,
-      "parallel sends share one blob index and do not exceed the IP limit",
-    );
+        );
+      } finally {
+        console.error = originalError;
+      }
+      const rateLog = rateLogs.find((line) => line.includes("[ampel] Rate-Limit fehlgeschlagen")) ?? "";
+      assertOk(
+        broken.ok &&
+          !("honeypot" in broken) &&
+          broken.mailed === true &&
+          broken.limited !== "ip" &&
+          broken.limited !== "email" &&
+          brokenSends === 1 &&
+          rateLog.startsWith("[ampel] Rate-Limit fehlgeschlagen") &&
+          rateLog.includes("reason=sheets") &&
+          !rateLog.includes(sameAddress),
+        "a Sheets error is fail-open",
+      );
 
-    const blindPut = {
-      async put(pathname: string) {
-        return { pathname };
-      },
-      async read() {
-        return null;
-      },
-      async remove() {
-        return undefined;
-      },
-    };
-    let blindSends = 0;
-    const blindSent = await submitAmpelResult(
-      {
-        email: "blind-put@example.com",
+      clearAmpelRateSheetCache();
+      const reserved = sheetClient();
+      const reservedStore = createSheetsAmpelRateStore(reserved.client);
+      const reservedTokens = createMemoryAmpelSendTokenStore();
+      const reservedStatus = createMemoryAmpelMailStatusStore();
+      const reservedInput = {
+        email: "sheet-held@example.com",
         answers: jaCode,
         ref: "",
         marketing: false,
         honeypot: "",
         ip: sameAddress,
         ipSource: "x-real-ip",
-      },
-      {
-        store: createBlobPutAmpelRateStore(blindPut),
+      };
+      const reservedHandoff = await submitAmpelResult(reservedInput, {
+        store: reservedStore,
         now: () => clock,
         confirm: noConfirm,
-        mail: async () => {
-          blindSends += 1;
-          return { stub: false, sent: true, id: "blind-put" };
-        },
-      },
-    );
-    assertOk(
-      blindSent.ok &&
-        !("honeypot" in blindSent) &&
-        blindSent.mailed === true &&
-        blindSent.limited !== "ip" &&
-        blindSent.trace?.slot === 1 &&
-        blindSends === 1,
-      "a 2xx put whose read misses still sends the mail",
-    );
-
-    let brokenSends = 0;
-    const rateLogs: string[] = [];
-    const originalError = console.error;
-    console.error = (...args: unknown[]) => {
-      rateLogs.push(args.map((item) => String(item)).join(" "));
-      originalError.apply(console, args);
-    };
-    let broken: Awaited<ReturnType<typeof submitAmpelResult>>;
-    try {
-      broken = await submitAmpelResult(
+        handoff: true,
+        status: reservedStatus,
+        tokens: reservedTokens,
+      });
+      const reservedAppends = reserved.ops.filter((op) => op.op === "values.append" && op.range?.endsWith("!A1")).length;
+      assertOk(
+        reservedHandoff.ok && !("honeypot" in reservedHandoff) && reservedHandoff.pending === true && reservedHandoff.trace?.slot === 1,
+        "the sheet handoff reserves the position before the token",
+      );
+      if (!reservedHandoff.ok || "honeypot" in reservedHandoff) fail("sheet handoff");
+      let reservedSends = 0;
+      const reservedDone = await completeAmpelResult(
+        { ...reservedInput, sendToken: reservedHandoff.token },
         {
-          email: "broken-read@example.com",
-          answers: jaCode,
-          ref: "",
-          marketing: false,
-          honeypot: "",
-          ip: sameAddress,
-          ipSource: "x-real-ip",
-        },
-        {
-          store: createBlobPutAmpelRateStore({
-            async put(pathname: string) {
-              return { pathname };
-            },
-            async read() {
-              throw new Error("blob-read-down");
-            },
-            async remove() {
-              return undefined;
-            },
-          }),
+          store: reservedStore,
           now: () => clock,
           confirm: noConfirm,
+          status: reservedStatus,
+          tokens: reservedTokens,
           mail: async () => {
-            brokenSends += 1;
-            return { stub: false, sent: true, id: "broken-read" };
+            reservedSends += 1;
+            return { stub: false, sent: true, id: "sheet-held" };
           },
         },
+      );
+      const reservedAppendsAfter = reserved.ops.filter((op) => op.op === "values.append" && op.range?.endsWith("!A1")).length;
+      assertOk(
+        reservedDone.ok &&
+          !("honeypot" in reservedDone) &&
+          reservedDone.mailed === true &&
+          reservedSends === 1 &&
+          reservedAppendsAfter === reservedAppends,
+        "senden does not append a second rate row",
       );
     } finally {
-      console.error = originalError;
+      if (previousSheetId === undefined) delete process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+      else process.env.GOOGLE_SHEETS_SPREADSHEET_ID = previousSheetId;
+      clearAmpelRateSheetCache();
+      installSheetsHandler(null);
     }
-    const rateLog = rateLogs.find((line) => line.includes("[ampel] Rate-Limit fehlgeschlagen")) ?? "";
-    assertOk(
-      broken.ok &&
-        !("honeypot" in broken) &&
-        broken.mailed === true &&
-        broken.limited !== "ip" &&
-        brokenSends === 1 &&
-        rateLog.startsWith("[ampel] Rate-Limit fehlgeschlagen") &&
-        rateLog.includes("reason=store") &&
-        !rateLog.includes(sameAddress),
-      "a rate-store read error still sends the mail and logs",
-    );
 
-    const exclusiveEmail = blobLike("sdk");
-    const exclusiveEmailStore = createBlobPutAmpelRateStore(exclusiveEmail);
-    for (let index = 0; index < AMPEL_EMAIL_LIMIT; index += 1) {
-      const decision = await exclusiveEmailStore.take({
-        ipKey: ampelRateIpKey(`198.51.100.${index + 1}`),
-        emailKey: "em:same@example.com",
+    clearAmpelRateStoreCache();
+    const productionOps: string[] = [];
+    installSheetsHandler(async ({ op }) => {
+      productionOps.push(op);
+      throw new Error("prod-sheet");
+    });
+    const savedSheet = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    const savedAccount = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const savedKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    process.env.GOOGLE_SHEETS_SPREADSHEET_ID = savedSheet || "prod-sheet-id";
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = savedAccount || "sheets-test@example.com";
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = savedKey || "test-key";
+    try {
+      clearAmpelRateStoreCache();
+      await ampelRateStore().take({
+        ipKey: ampelRateIpKey("203.0.113.9"),
+        emailKey: "em:check-ampel@example.com",
         now: clock,
       });
-      assertOk(decision === "ok", `email slot ${index + 1} is free`);
+    } finally {
+      installSheetsHandler(null);
+      if (savedSheet === undefined) delete process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+      else process.env.GOOGLE_SHEETS_SPREADSHEET_ID = savedSheet;
+      if (savedAccount === undefined) delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+      else process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = savedAccount;
+      if (savedKey === undefined) delete process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+      else process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = savedKey;
+      clearAmpelRateStoreCache();
     }
-    assertOk(
-      (await exclusiveEmailStore.take({
-        ipKey: ampelRateIpKey("198.51.100.40"),
-        emailKey: "em:same@example.com",
-        now: clock,
-      })) === "email",
-      "the fourth email slot is occupied",
-    );
-    assertOk(
-      [...exclusiveEmail.objects.keys()].filter((key) => key.includes("/email-")).length === AMPEL_EMAIL_LIMIT,
-      "email slots use the same exclusive pathname",
-    );
+    assertOk(productionOps.length === 0, "check:ampel does not write to the production sheet");
 
-    const unknownBlob = blobLike("unknown");
-    const unknownStore = createBlobPutAmpelRateStore(unknownBlob);
-    let unknownSends = 0;
-    for (let index = 0; index < AMPEL_IP_LIMIT + 1; index += 1) {
-      const sent = await submitAmpelResult(
-        {
-          email: `unknown-blob-${index}@example.com`,
-          answers: jaCode,
-          ref: "",
-          marketing: false,
-          honeypot: "",
-          ip: sameAddress,
-          ipSource: "x-real-ip",
-        },
-        {
-          store: unknownStore,
-          now: () => clock,
-          confirm: noConfirm,
-          mail: async () => {
-            unknownSends += 1;
-            return { stub: false, sent: true, id: `unknown-${unknownSends}` };
-          },
-        },
-      );
-      assertOk(sent.ok && !("honeypot" in sent), "unknown-blob submit");
-      if (!sent.ok || "honeypot" in sent) fail("unknown-blob submit");
-      if (index < AMPEL_IP_LIMIT) assertOk(sent.mailed === true, `swallowed already-exists still fills slot ${index + 1}`);
-      else assertOk(sent.limited === "ip" && sent.mailed === false, "a swallowed already-exists error is occupied, not free");
-    }
-    assertOk(unknownSends === AMPEL_IP_LIMIT, "BlobUnknownError on an existing pathname sends no sixth mail");
-
-    async function closedPut(mode: "suspended" | "precondition", label: string) {
-      const blob = blobLike(mode);
-      let sends = 0;
-      const sent = await submitAmpelResult(
-        {
-          email: `${label}@example.com`,
-          answers: jaCode,
-          ref: "",
-          marketing: false,
-          honeypot: "",
-          ip: sameAddress,
-          ipSource: "x-real-ip",
-        },
-        {
-          store: createBlobPutAmpelRateStore(blob),
-          now: () => clock,
-          confirm: noConfirm,
-          mail: async () => {
-            sends += 1;
-            return { stub: false, sent: true, id: label };
-          },
-        },
-      );
-      assertOk(
-        sent.ok && !("honeypot" in sent) && sent.mailed === true && sent.limited !== "ip" && sent.limited !== "email" && sends === 1,
-        `${label} is not a full window and still sends the mail`,
-      );
-    }
-    await closedPut("suspended", "suspended-store");
-    await closedPut("precondition", "etag-mismatch");
-
-    const suffixed = blobLike("suffix");
-    let suffixSends = 0;
-    const suffixSent = await submitAmpelResult(
-      {
-        email: "suffix@example.com",
-        answers: jaCode,
-        ref: "",
-        marketing: false,
-        honeypot: "",
-        ip: sameAddress,
-        ipSource: "x-real-ip",
+    const tokenObjects = new Map<string, string>();
+    const tokenCalls: { pathname: string; addRandomSuffix?: boolean; allowOverwrite?: boolean }[] = [];
+    const tokenBlob = {
+      async put(pathname: string, body: string, options: Partial<ExclusivePutOptions> = {}) {
+        tokenCalls.push({
+          pathname,
+          addRandomSuffix: options.addRandomSuffix,
+          allowOverwrite: options.allowOverwrite,
+        });
+        if (tokenObjects.has(pathname)) throw new Error("The blob already exists, use allowOverwrite: true to overwrite it.");
+        tokenObjects.set(pathname, body);
+        return { pathname };
       },
-      {
-        store: createBlobPutAmpelRateStore(suffixed),
-        now: () => clock,
-        confirm: noConfirm,
-        mail: async () => {
-          suffixSends += 1;
-          return { stub: false, sent: true, id: "suffix" };
-        },
+      async read(pathname: string) {
+        return tokenObjects.get(pathname) ?? null;
       },
-    );
-    assertOk(
-      suffixSent.ok &&
-        !("honeypot" in suffixSent) &&
-        suffixSent.mailed === true &&
-        suffixSent.limited !== "ip" &&
-        suffixSends === 1 &&
-        suffixed.objects.size === 0,
-      "a suffixed pathname is not a slot and the mail still goes out",
-    );
-
-    const paired = blobLike("sdk");
-    const pairedStore = createBlobPutAmpelRateStore(paired);
-    const pairedTokens = createBlobPutAmpelSendTokenStore(paired);
+      async remove(pathname: string) {
+        tokenObjects.delete(pathname);
+      },
+    };
+    const tokenStore = createMemoryAmpelRateStore();
+    const pairedTokens = createBlobPutAmpelSendTokenStore(tokenBlob);
     const pairedStatus = createMemoryAmpelMailStatusStore();
     const pairedInput = {
       email: "paired@example.com",
@@ -2171,11 +1839,11 @@ try {
       ref: "",
       marketing: false,
       honeypot: "",
-      ip: sameAddress,
+      ip: "104.28.218.14",
       ipSource: "x-real-ip",
     };
     const pairedHandoff = await submitAmpelResult(pairedInput, {
-      store: pairedStore,
+      store: tokenStore,
       now: () => clock,
       confirm: noConfirm,
       handoff: true,
@@ -2184,36 +1852,17 @@ try {
     });
     assertOk(pairedHandoff.ok && !("honeypot" in pairedHandoff) && pairedHandoff.pending === true, "the paired handoff reserves a slot");
     if (!pairedHandoff.ok || "honeypot" in pairedHandoff) fail("paired handoff");
-    const ratePuts = paired.calls.filter((call) => call.pathname.includes("/ampel-rate/")).length;
-    assertOk(ratePuts >= 2 && paired.calls.every((call) => !call.pathname.includes("/ampel-send/")), "the slot is occupied before the token is stored");
-    let pairedSends = 0;
-    const pairedDone = await completeAmpelResult(
-      { ...pairedInput, sendToken: pairedHandoff.token },
-      {
-        store: pairedStore,
-        now: () => clock,
-        confirm: noConfirm,
-        status: pairedStatus,
-        tokens: pairedTokens,
-        mail: async () => {
-          pairedSends += 1;
-          return { stub: false, sent: true, id: "paired" };
-        },
-      },
+    const opened = await consumeAmpelSendToken(
+      { token: pairedHandoff.token, email: pairedInput.email, code: jaCode, now: clock },
+      pairedTokens,
     );
+    assertOk(opened.verdict === "ok", "the first consume claims the token slot");
     assertOk(
-      pairedDone.ok && !("honeypot" in pairedDone) && pairedDone.mailed === true && pairedSends === 1 &&
-        pairedHandoff.trace?.win === windowId && pairedDone.trace?.win === windowId &&
-        pairedHandoff.trace?.slot === 1 && pairedDone.trace?.slot === 1,
-      "submit and senden use the same window and the reserved slot",
-    );
-    assertOk(
-      [...paired.objects.keys()].filter((key) => key.includes("/ip-")).length === 1,
-      "senden does not open a second IP slot",
-    );
-    const tokenPuts = paired.calls.filter((call) => call.pathname.includes("/ampel-send/"));
-    assertOk(
-      tokenPuts.length === 1 && tokenPuts.every((call) => call.addRandomSuffix === false && call.allowOverwrite === false),
+      tokenCalls.length >= 1 &&
+        tokenCalls.every(
+          (call) =>
+            call.pathname.includes("/ampel-send/") && call.addRandomSuffix === false && call.allowOverwrite === false,
+        ),
       "the token slot is an exclusive pathname",
     );
     const reused = await consumeAmpelSendToken(
@@ -2256,118 +1905,6 @@ try {
       "senden sets x-ampel-rl before it validates the email",
     );
 
-    const indexDelayMs = 5_000;
-    const indexed = new Map<string, { body: string; writtenAt: number }>();
-    let indexNow = clock;
-    let indexPuts = 0;
-    const indexedBlob = {
-      objects: indexed,
-      puts: () => indexPuts,
-      setNow(value: number) {
-        indexNow = value;
-      },
-      async put(pathname: string, body: string, options: Partial<ExclusivePutOptions> = {}) {
-        indexPuts += 1;
-        assertOk(options.addRandomSuffix === false && options.allowOverwrite === false, "the indexed put keeps both flags");
-        const current = indexed.get(pathname);
-        if (current && indexNow - current.writtenAt >= indexDelayMs) {
-          throw new BlobUnknownError();
-        }
-        if (!current) indexed.set(pathname, { body, writtenAt: indexNow });
-        return { pathname };
-      },
-      async read(pathname: string) {
-        const current = indexed.get(pathname);
-        return current ? current.body : null;
-      },
-      async remove(pathname: string) {
-        indexed.delete(pathname);
-      },
-    };
-    const indexedStore = createBlobPutAmpelRateStore(indexedBlob);
-    const freshPath = "gobd/ampel-rate/ip-index-demo";
-    indexedBlob.setNow(clock);
-    const firstPut = await indexedBlob.put(freshPath, "{\"n\":\"a\"}", { addRandomSuffix: false, allowOverwrite: false });
-    indexedBlob.setNow(clock + 100);
-    let secondThrew = false;
-    let secondPath = "";
-    try {
-      secondPath = (await indexedBlob.put(freshPath, "{\"n\":\"b\"}", { addRandomSuffix: false, allowOverwrite: false })).pathname;
-    } catch (error) {
-      secondThrew = error instanceof BlobUnknownError;
-    }
-    assertOk(
-      firstPut.pathname === freshPath && !secondThrew && secondPath === freshPath &&
-        !(new BlobUnknownError().message.toLowerCase().includes("already exists")),
-      "a re-put before the index catches up returns 200 with the same pathname, and BlobUnknownError drops the exists message",
-    );
-    indexed.delete(freshPath);
-    let indexedSends = 0;
-    const indexedTokens = createMemoryAmpelSendTokenStore();
-    const indexedStatus = createMemoryAmpelMailStatusStore();
-    for (let index = 0; index < 8; index += 1) {
-      const at = clock + index * indexDelayMs;
-      indexedBlob.setNow(at);
-      const input = {
-        email: `indexed-${index}@example.com`,
-        answers: index % 2 === 0 ? jaCode : neinCode,
-        ref: "",
-        marketing: false,
-        honeypot: "",
-        ip: sameAddress,
-        ipSource: "x-real-ip",
-      };
-      const handoff = await submitAmpelResult(input, {
-        store: indexedStore,
-        now: () => at,
-        confirm: noConfirm,
-        handoff: true,
-        tokens: indexedTokens,
-        status: indexedStatus,
-      });
-      assertOk(handoff.ok && !("honeypot" in handoff), `indexed submit ${index + 1}`);
-      if (!handoff.ok || "honeypot" in handoff) fail("indexed submit");
-      if (index >= AMPEL_IP_LIMIT) {
-        assertOk(handoff.limited === "ip" && handoff.pending !== true && handoff.trace?.slot === 0 && handoff.trace?.win === windowId, "the sixth indexed submit is a 429 in the same window");
-        continue;
-      }
-      assertOk(handoff.pending === true && handoff.trace?.slot === index + 1, `indexed submit ${index + 1} takes a new slot`);
-      const putsBeforeSend = indexPuts;
-      indexedBlob.setNow(at + 100);
-      const sent = await completeAmpelResult(
-        { ...input, sendToken: handoff.token },
-        {
-          store: indexedStore,
-          now: () => at + 100,
-          confirm: noConfirm,
-          tokens: indexedTokens,
-          status: indexedStatus,
-          mail: async () => {
-            indexedSends += 1;
-            return { stub: false, sent: true, id: `indexed-${indexedSends}` };
-          },
-        },
-      );
-      assertOk(
-        sent.ok && !("honeypot" in sent) && sent.mailed === true && indexPuts === putsBeforeSend &&
-          sent.trace?.slot === index + 1 && sent.trace?.win === windowId,
-        `senden ${index + 1} mails without putting the slot again`,
-      );
-    }
-    assertOk(indexedSends === AMPEL_IP_LIMIT, "five indexed reservations send, the rest do not");
-    assertOk(
-      [...indexed.keys()].filter((key) => key.includes("/ip-")).length === AMPEL_IP_LIMIT,
-      "a follow-up send does not delete the reserved IP slots",
-    );
-    const conflict = await indexedBlob.put(
-      [...indexed.keys()].find((key) => key.includes("/ip-")) ?? freshPath,
-      "{\"n\":\"late\"}",
-      { addRandomSuffix: false, allowOverwrite: false },
-    ).then(
-      () => "created",
-      (error: unknown) => (error instanceof BlobUnknownError ? "unknown" : "other"),
-    );
-    assertOk(conflict === "unknown", "an indexed pathname makes put throw BlobUnknownError");
 
     const flakyBase = createMemoryAmpelRateStore();
     const flakyStore = {

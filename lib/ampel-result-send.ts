@@ -10,12 +10,12 @@ import {
   type AmpelMailStatusStore,
 } from "@/lib/ampel-mail-status";
 import { AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
-import { logAmpelRateFailure } from "@/lib/ampel-blob-slot";
 import {
   ampelRateIpKey,
   ampelRateLogLine,
   ampelRateStore,
   ampelRateTrace,
+  logAmpelRateFailure,
   type AmpelRateHold,
   type AmpelRateStore,
   type AmpelRateTrace,
