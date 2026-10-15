@@ -6,7 +6,6 @@ import { SiteHeader } from "@/components/site-header";
 import { CATALOG_STEPS } from "@/lib/intake-catalog";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
-import { LEGAL_OPERATOR } from "@/lib/legal";
 import { AMPEL_INTRO } from "@/lib/ampel-questions";
 import {
   ALL_AREAS_DETAIL,
@@ -233,11 +232,6 @@ export default function HomePage() {
             <ul className={styles.trust}>
               <li>Sichere Zahlung über Stripe</li>
               <li>Monatlich kündbar</li>
-              <li>
-                <Link href="/impressum">
-                  Anbieter: {LEGAL_OPERATOR.name}, Monheim am Rhein
-                </Link>
-              </li>
             </ul>
             <p className={styles.advisor}>
               Steuerberater oder Kanzlei?{" "}
