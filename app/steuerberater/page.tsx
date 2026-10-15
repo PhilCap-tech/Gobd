@@ -18,6 +18,7 @@ import {
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
 import styles from "../home.module.css";
+import { MerkblattForm } from "./merkblatt-form";
 import { PartnerInquiryForm } from "./partner-inquiry-form";
 
 const PAGE_TITLE =
@@ -174,6 +175,12 @@ export default function SteuerberaterPage() {
               Keine Steuerberatung. Das Produkt ersetzt keine steuerliche Beratung.
               Sie füllen die Dokumentation nicht für den Mandanten aus.
             </p>
+          </div>
+        </section>
+
+        <section className={styles.section} id="merkblatt">
+          <div className="shell">
+            <MerkblattForm />
           </div>
         </section>
 
