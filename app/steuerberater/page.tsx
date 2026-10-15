@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { ALL_AREAS_LINE, PARTNER_EFFORT_LINE } from "@/lib/offer-copy";
+import { withOgImage } from "@/lib/seo";
 import {
   PARTNER_DEMO_PATH,
   PARTNER_MUSTER_PATH,
@@ -32,13 +33,13 @@ export const metadata: Metadata = {
   description: PAGE_DESCRIPTION,
   robots: { index: false, follow: true },
   alternates: { canonical: "/steuerberater" },
-  openGraph: {
+  openGraph: withOgImage({
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: "/steuerberater",
     locale: "de_DE",
     type: "website",
-  },
+  }),
 };
 
 const PARTNER_MAIL = `mailto:${LEGAL_OPERATOR.email}?subject=${encodeURIComponent("Partneranfrage Kanzlei")}`;

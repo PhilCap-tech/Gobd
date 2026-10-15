@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { JsonLd } from "@/components/json-ld";
+import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { CATALOG_STEPS } from "@/lib/intake-catalog";
@@ -36,8 +36,16 @@ import {
   TODAY_EUR,
   TODAY_GROSS_LABEL,
 } from "@/lib/pricing";
-import { productOfferJsonLd } from "@/lib/jsonld";
-import { canonicalUrl } from "@/lib/seo";
+import { BRANCHEN_LINKS } from "@/lib/branchen-links";
+import { HOME_CRUMBS, HOME_FAQ } from "@/lib/home-faq";
+import { faqPageJsonLd, productOfferJsonLd } from "@/lib/jsonld";
+import {
+  HOME_DESCRIPTION,
+  HOME_OPEN_GRAPH,
+  HOME_TITLE,
+  HOME_TWITTER,
+  canonicalUrl,
+} from "@/lib/seo";
 import { TEIL_TITEL, moduleImTeil } from "@/lib/module/katalog";
 import type { ModulTeil } from "@/lib/module/typen";
 import {
@@ -52,7 +60,11 @@ import {
 import styles from "./home.module.css";
 
 export const metadata: Metadata = {
+  title: { absolute: HOME_TITLE },
+  description: HOME_DESCRIPTION,
   alternates: { canonical: canonicalUrl("/") },
+  openGraph: HOME_OPEN_GRAPH,
+  twitter: HOME_TWITTER,
 };
 
 const EXAMPLE_QUESTION_IDS = ["B01", "C01", "F01", "G02"];
@@ -75,29 +87,6 @@ const EXAMPLE_OPEN_POINTS = [
   "Offener Punkt: IT- und Systemverantwortung (Backup, Rechteverwaltung) sind nicht benannt.",
   "Offener Punkt: Die technische Prüfung strukturierter E-Rechnungen ist noch nicht angegeben — bitte Praxis kurz beschreiben.",
 ];
-
-const FAQ = [
-  {
-    q: "Brauch ich eine Verfahrensdokumentation?",
-    a: "Die GoBD erwarten eine nachvollziehbare Verfahrensdokumentation. Viele Betriebe schieben sie auf, weil Vorlagen leer bleiben. Ein geführter Entwurf schafft einen greifbaren Stand.",
-  },
-  {
-    q: "Ist das fertig / reicht das für die Prüfung?",
-    a: "Nein — Sie erhalten PDF und offene Punkte aus Ihren Angaben. Sie prüfen und ergänzen vor der Verwendung. Die fachliche Prüfung bleibt bei Ihnen bzw. Ihrem Steuerberater.",
-  },
-  {
-    q: "Reicht ein einmaliges PDF?",
-    a: "Für den Moment vielleicht — bis sich Software, Belegwege oder Verantwortliche ändern. Das Abo hält Versionen und Updates verfügbar.",
-  },
-  {
-    q: "Deckt das auch Kasse, Warenwirtschaft oder Lohn ab?",
-    a: "Ja, als Module in Ihrer Gesamtdokumentation, alle inklusive.",
-  },
-  {
-    q: "Ist das Steuerberatung?",
-    a: "Nein. Wir leisten keine Steuerberatung.",
-  },
-] as const;
 
 function exampleQuestions(): string[] {
   const byId = new Map(
@@ -184,10 +173,13 @@ export default function HomePage() {
 
   return (
     <div className={`${styles.page} kanzlei-home`}>
+      <CrumbJsonLd items={HOME_CRUMBS} />
+      <JsonLd data={faqPageJsonLd(HOME_FAQ)} />
       <JsonLd data={productOfferJsonLd()} />
       <SiteHeader
         ctaHref="/checkout"
         ctaLabel={CTA_CREATE}
+        branchenNav
         links={[
           { href: "#muster", label: "Muster" },
           { href: "#bereiche", label: "Module" },
@@ -350,9 +342,13 @@ export default function HomePage() {
               Muster-Gesamtdokumente (Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau) und Fragebögen:{" "}
               <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
               {" "}
-              Branchenseiten: <Link href="/verfahrensdokumentation-friseure">Friseure</Link>
-              {" · "}
-              <Link href="/verfahrensdokumentation-einzelhandel">Einzelhandel</Link>
+              Branchenseiten:{" "}
+              {BRANCHEN_LINKS.map((item, index) => (
+                <span key={item.slug}>
+                  {index > 0 ? " · " : null}
+                  <Link href={item.href}>{item.label}</Link>
+                </span>
+              ))}
             </p>
             <p className={styles.fine}>
               <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
@@ -544,12 +540,12 @@ export default function HomePage() {
           <div className={`shell ${styles.faqGrid}`}>
             <h2>Häufige Fragen</h2>
             <div className={styles.faqList}>
-              {FAQ.map((item) => (
-                <details key={item.q}>
+              {HOME_FAQ.map((item) => (
+                <details key={item.question}>
                   <summary>
-                    <h3>{item.q}</h3>
+                    <h3>{item.question}</h3>
                   </summary>
-                  <p>{item.a}</p>
+                  <p>{item.answer}</p>
                 </details>
               ))}
             </div>

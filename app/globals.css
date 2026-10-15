@@ -132,6 +132,23 @@ nav,
   color: var(--text);
 }
 
+.header-branchen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding-bottom: 14px;
+  font-size: 14px;
+}
+
+.header-branchen a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.header-branchen a:hover {
+  color: var(--text);
+}
+
 .btn {
   display: inline-block;
   background: var(--accent);
@@ -609,6 +626,20 @@ h3 {
   margin-top: 10px;
   color: var(--muted);
   font-size: 14px;
+}
+
+.related-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 28px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.related-links a {
+  color: var(--accent);
 }
 
 .hero .text-cta {

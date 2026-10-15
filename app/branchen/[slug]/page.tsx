@@ -6,7 +6,7 @@ import {
   getBranchenSeite,
   listBranchenSeiten,
 } from "@/lib/branchen";
-import { canonicalUrl } from "@/lib/seo";
+import { canonicalUrl, withOgImage } from "@/lib/seo";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -29,13 +29,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     robots: seite.noindex
       ? { index: false, follow: true }
       : { index: true, follow: true },
-    openGraph: {
+    openGraph: withOgImage({
       title: seite.metaTitle,
       description: seite.metaDescription,
       url: canonical,
       locale: "de_DE",
       type: "website",
-    },
+    }),
   };
 }
 

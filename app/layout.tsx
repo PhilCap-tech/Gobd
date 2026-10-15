@@ -6,7 +6,14 @@ import { JsonLd } from "@/components/json-ld";
 import { MarketingPixel } from "@/components/marketing-pixel";
 import { VercelAnalytics } from "@/components/vercel-analytics";
 import { organizationJsonLd } from "@/lib/jsonld";
-import { SITE_ORIGIN } from "@/lib/seo";
+import {
+  HOME_DESCRIPTION,
+  HOME_TITLE,
+  ROOT_OPEN_GRAPH,
+  ROOT_TWITTER,
+  SITE_NAME,
+  SITE_ORIGIN,
+} from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,13 +25,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
   title: {
-    default:
-      "GoBD-Verfahrensdokumentation online erstellen | GoBD Verfahrensdoku",
-    template: "%s | GoBD Verfahrensdoku",
+    default: HOME_TITLE,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "GoBD-Verfahrensdokumentation online erstellen: strukturierte digitale Dokumentation für KMU & Handwerk — PDF plus offene Punkte. Kein Steuerberatungsersatz.",
+  description: HOME_DESCRIPTION,
   robots: { index: true, follow: true },
+  openGraph: ROOT_OPEN_GRAPH,
+  twitter: ROOT_TWITTER,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
