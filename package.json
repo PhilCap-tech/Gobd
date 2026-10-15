@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "npm run check:ads-consent && node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && node --disable-warning=ExperimentalWarning scripts/check-stripe-live-copy.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:session-privacy && npm run check:draft-return && npm run check:onboarding-mail && npm run check:account-tiles && npm run check:account-prefill && npm run check:account-render && npm run check:buyer-onboarding && npm run check:checkout-owner && npm run check:document-lookup && npm run check:kuendigung && npm run check:checkout-tax && npm run check:intake-submit && npm run check:comp-access && npm run check:subscription-coverage && npm run check:sheets-quota && npm run check:mail-dedupe && npm run check:membership && npm run check:revoke && npm run check:llms && npm run check:kanzlei-merkblatt && npm run check:ampel && npm run check:ampel-admin",
+    "prebuild": "npm run check:ads-consent && npm run check:analytics && node --disable-warning=ExperimentalWarning scripts/check-forbidden-words.mjs && node --disable-warning=ExperimentalWarning scripts/check-sie-ansprache.mjs && node --disable-warning=ExperimentalWarning scripts/check-stripe-live-copy.mjs && npm run check:export && npm run check:pdf && npm run check:keine && npm run check:systemkarten && npm run check:intake-payload && npm run check:session-write && npm run check:muster-mark && npm run check:prefill-namen && npm run check:intake-progress && npm run check:checkout-session && npm run check:session-privacy && npm run check:draft-return && npm run check:onboarding-mail && npm run check:account-tiles && npm run check:account-prefill && npm run check:account-render && npm run check:buyer-onboarding && npm run check:checkout-owner && npm run check:document-lookup && npm run check:kuendigung && npm run check:checkout-tax && npm run check:intake-submit && npm run check:comp-access && npm run check:subscription-coverage && npm run check:sheets-quota && npm run check:mail-dedupe && npm run check:membership && npm run check:revoke && npm run check:llms && npm run check:kanzlei-merkblatt && npm run check:ampel && npm run check:ampel-admin",
     "check:sheets-quota": "tsx scripts/check-sheets-quota.ts",
     "check:ads-consent": "tsx scripts/check-ads-consent.ts",
+    "check:analytics": "tsx scripts/check-analytics-url.ts",
     "check:checkout-tax": "tsx scripts/check-checkout-tax.ts",
     "check:intake-submit": "tsx scripts/check-intake-submit.ts",
     "check:comp-access": "tsx scripts/check-comp-access.ts",
@@ -47,6 +48,7 @@
     "check:admin-wipe": "npx --yes tsx scripts/check-admin-wipe.ts"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.0",
     "@vercel/functions": "^3.10.1",
     "googleapis": "^144.0.0",

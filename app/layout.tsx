@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { ConsentBanner } from "@/components/consent-banner";
 import { JsonLd } from "@/components/json-ld";
 import { MarketingPixel } from "@/components/marketing-pixel";
+import { VercelAnalytics } from "@/components/vercel-analytics";
 import { organizationJsonLd } from "@/lib/jsonld";
 import { SITE_ORIGIN } from "@/lib/seo";
 import "./globals.css";
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <JsonLd data={organizationJsonLd()} />
         {children}
+        <VercelAnalytics />
         <ConsentBanner />
         <Suspense fallback={null}>
           <MarketingPixel />
