@@ -1,6 +1,7 @@
 import type { MailResult } from "@/lib/mail";
 import type { ReadinessLead } from "@/lib/readiness";
 import { sendAmpelConfirmationMail, sendAmpelResultMail } from "@/lib/ampel-mail";
+import { ampelConsentBlocked } from "@/lib/ampel-marketing-guard";
 import {
   AMPEL_CONFIRM_WINDOW_MS,
   ampelLeadId,
@@ -96,7 +97,7 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
   });
 
   const existing = await readLead(deps, leadId);
-  if (existing?.marketingOptIn === "withdrawn") {
+  if (existing?.marketingOptIn === "withdrawn" || (await ampelConsentBlocked(payload.email, payload.consentAt))) {
     return { ok: true, score: scored.score, light: scored.light, alreadySent: true };
   }
   if (existing && existing.doiConfirmedAt && ampelResultMailRecorded(existing.mailStatus)) {
@@ -132,6 +133,9 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
       return { ok: true, score: scored.score, light: scored.light, alreadySent: true };
     }
     const mail = await send(payload);
+    if (mail.blocked === "suppressed") {
+      return { ok: true, score: scored.score, light: scored.light, alreadySent: true };
+    }
     if (!delivered(mail)) continue;
     await writeLead(deps, {
       ...(current ?? pending),
@@ -200,7 +204,7 @@ export type AmpelConfirmationDeps = {
 };
 
 export type AmpelConfirmationResult =
-  | { ok: true; throttled: boolean }
+  | { ok: true; throttled: boolean; blocked?: "suppressed" }
   | { ok: false; status: 400 | 503; reason: "invalid" | "mail" };
 
 function confirmMailLabel(mail: MailResult): string {
@@ -255,18 +259,23 @@ async function runConfirmation(
   }
   const ref = sanitizeAmpelRef(input.ref);
   const existing = await readConfirmLead(deps, email, code);
+  const withdrawnExisting = existing?.marketingOptIn === "withdrawn";
+  const suppressedExisting = Boolean(existing) && (await ampelConsentBlocked(email, existing?.consentAt ?? ""));
+  const freshConsent = withdrawnExisting || suppressedExisting;
   if (
+    !freshConsent &&
     existing &&
     ampelConfirmMailRecorded(existing.mailStatus) &&
     withinConfirmWindow(existing.consentAt, nowMs)
   ) {
     return { ok: true, throttled: true };
   }
-  if (existing && resultAlreadyRecorded(existing) && withinConfirmWindow(existing.consentAt, nowMs)) {
+  if (!freshConsent && existing && resultAlreadyRecorded(existing) && withinConfirmWindow(existing.consentAt, nowMs)) {
     return { ok: true, throttled: true };
   }
 
   const reuse =
+    !freshConsent &&
     existing &&
     !existing.doiConfirmedAt &&
     !ampelConfirmMailRecorded(existing.mailStatus) &&
@@ -274,6 +283,9 @@ async function runConfirmation(
       ? existing
       : null;
   const consentAt = reuse?.consentAt || new Date(nowMs).toISOString();
+  if (await ampelConsentBlocked(email, consentAt)) {
+    return { ok: true, throttled: true, blocked: "suppressed" };
+  }
   const consentTextVersion = input.consentTextVersion?.trim() || AMPEL_CONSENT_TEXT_VERSION;
   const consentIp = input.consentIp?.trim() || reuse?.consentIp || "";
   const token = createAmpelDoiToken(
@@ -320,6 +332,9 @@ async function runConfirmation(
       return { ok: true, throttled: true };
     }
     const mail = await send({ email, token });
+    if (mail.blocked === "suppressed") {
+      return { ok: true, throttled: true, blocked: "suppressed" };
+    }
     if (!delivered(mail)) continue;
     const base = current && current.leadId === pending.leadId ? current : pending;
     await writeConfirmLead(deps, {
