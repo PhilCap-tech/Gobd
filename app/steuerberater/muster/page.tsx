@@ -20,6 +20,7 @@ import {
   PARTNER_MUSTER_PDF_PATH,
   PARTNER_MUSTER_VERSION_META,
 } from "@/lib/partner-muster";
+import { withOgImage } from "@/lib/seo";
 
 const PAGE_TITLE =
   "Muster: Verfahrensdokumentation Beispiel GmbH (fiktiv) | GoBD Verfahrensdoku";
@@ -32,13 +33,13 @@ export const metadata: Metadata = {
   description: PAGE_DESCRIPTION,
   robots: { index: false, follow: true },
   alternates: { canonical: PARTNER_MUSTER_PATH },
-  openGraph: {
+  openGraph: withOgImage({
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: PARTNER_MUSTER_PATH,
     locale: "de_DE",
     type: "website",
-  },
+  }),
 };
 
 const plan = planDelivery(

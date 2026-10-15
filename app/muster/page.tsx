@@ -14,7 +14,8 @@ import {
 } from "@/lib/module-muster";
 import { MusterUpsell } from "@/components/muster-upsell";
 import { ALL_AREAS_DETAIL, ALL_AREAS_LINE, INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
-import { canonicalUrl } from "@/lib/seo";
+import { BRANCHEN_LINKS } from "@/lib/branchen-links";
+import { canonicalUrl, withOgImage } from "@/lib/seo";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 
 const PAGE_TITLE = "Muster: Gesamtdokument und Module (fiktiv) | GoBD Verfahrensdoku";
@@ -25,13 +26,13 @@ export const metadata: Metadata = {
   title: { absolute: PAGE_TITLE },
   description: PAGE_DESCRIPTION,
   alternates: { canonical: canonicalUrl(MUSTER_INDEX_PATH) },
-  openGraph: {
+  openGraph: withOgImage({
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: canonicalUrl(MUSTER_INDEX_PATH),
     locale: "de_DE",
     type: "website",
-  },
+  }),
 };
 
 export default function MusterIndexPage() {
@@ -76,20 +77,13 @@ export default function MusterIndexPage() {
                     {" · "}
                     <a href={gesamtMusterFragebogenPath(vorlage)}>Fragebogen</a>
                   </span>
-                  {vorlage === "dienstleister" ? (
-                    <span className="muster-links">
-                      <Link href="/verfahrensdokumentation-friseure">
-                        Verfahrensdokumentation für Friseure
-                      </Link>
-                    </span>
-                  ) : null}
-                  {vorlage === "handel" ? (
-                    <span className="muster-links">
-                      <Link href="/verfahrensdokumentation-einzelhandel">
-                        Verfahrensdokumentation im Einzelhandel
-                      </Link>
-                    </span>
-                  ) : null}
+                  {BRANCHEN_LINKS.filter((item) => item.musterVorlage === vorlage).map(
+                    (item) => (
+                      <span className="muster-links" key={item.slug}>
+                        <Link href={item.href}>{item.label}</Link>
+                      </span>
+                    ),
+                  )}
                 </li>
               );
             })}

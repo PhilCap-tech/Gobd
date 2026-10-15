@@ -7,33 +7,31 @@ import {
   modulMusterFragebogenPath,
   MUSTER_VORLAGEN,
 } from "@/lib/module-muster";
-import { INDEXABLE_STATIC_PATHS, canonicalUrl } from "@/lib/seo";
+import { INDEXABLE_STATIC_PATHS, SITEMAP_LASTMOD, canonicalUrl } from "@/lib/seo";
+
+function dated(url: string, lastModified = SITEMAP_LASTMOD): MetadataRoute.Sitemap[number] {
+  return { url, lastModified };
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await listPublishedPosts();
-  const staticPages: MetadataRoute.Sitemap = INDEXABLE_STATIC_PATHS.map((path) => ({
-    url: canonicalUrl(path),
-  }));
+  const staticPages: MetadataRoute.Sitemap = INDEXABLE_STATIC_PATHS.map((path) =>
+    dated(canonicalUrl(path)),
+  );
   const blogPosts: MetadataRoute.Sitemap = posts.map((post) => {
-    const lastModified = /^\d{4}-\d{2}-\d{2}$/.test(post.date) ? post.date : undefined;
-    return {
-      url: canonicalUrl(`/blog/${post.slug}`),
-      ...(lastModified ? { lastModified } : {}),
-    };
+    const lastModified = /^\d{4}-\d{2}-\d{2}$/.test(post.date) ? post.date : SITEMAP_LASTMOD;
+    return dated(canonicalUrl(`/blog/${post.slug}`), lastModified);
   });
-  const gesamt: MetadataRoute.Sitemap = MUSTER_VORLAGEN.map((vorlage) => ({
-    url: canonicalUrl(gesamtMusterPath(vorlage)),
-  }));
-  const moduleFragebogen: MetadataRoute.Sitemap = MODULE.map((modul) => ({
-    url: canonicalUrl(modulMusterFragebogenPath(modul.id)),
-  }));
-  const llmsTxt: MetadataRoute.Sitemap = [{ url: canonicalUrl("/llms.txt") }];
+  const gesamt: MetadataRoute.Sitemap = MUSTER_VORLAGEN.map((vorlage) =>
+    dated(canonicalUrl(gesamtMusterPath(vorlage))),
+  );
+  const moduleFragebogen: MetadataRoute.Sitemap = MODULE.map((modul) =>
+    dated(canonicalUrl(modulMusterFragebogenPath(modul.id))),
+  );
+  const llmsTxt: MetadataRoute.Sitemap = [dated(canonicalUrl("/llms.txt"))];
   const branchen: MetadataRoute.Sitemap = (await listBranchenSeiten())
     .filter((seite) => !seite.noindex)
-    .map((seite) => ({
-      url: canonicalUrl(branchenPath(seite.slug)),
-      lastModified: seite.stand,
-    }));
+    .map((seite) => dated(canonicalUrl(branchenPath(seite.slug)), seite.stand));
   return [
     ...staticPages,
     ...llmsTxt,

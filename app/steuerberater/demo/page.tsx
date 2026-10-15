@@ -4,6 +4,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { PARTNER_DEMO_PATH } from "@/lib/partner-muster";
+import { withOgImage } from "@/lib/seo";
 import { DemoWalkthrough } from "./demo-walkthrough";
 
 const PAGE_TITLE =
@@ -17,13 +18,13 @@ export const metadata: Metadata = {
   description: PAGE_DESCRIPTION,
   robots: { index: false, follow: true },
   alternates: { canonical: PARTNER_DEMO_PATH },
-  openGraph: {
+  openGraph: withOgImage({
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: PARTNER_DEMO_PATH,
     locale: "de_DE",
     type: "website",
-  },
+  }),
 };
 
 export default function PartnerDemoPage() {
