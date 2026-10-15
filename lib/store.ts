@@ -1265,7 +1265,13 @@ export async function findLatestAmpelReadinessLead(
     }
     await upsertReadinessLead(redactAmpelLead(row));
   }
+  live.sort((a, b) => ampelConsentInstant(a) - ampelConsentInstant(b));
   return live.at(-1) ?? null;
+}
+
+function ampelConsentInstant(row: ReadinessLead): number {
+  const ms = Date.parse(row.consentAt || row.timestamp);
+  return Number.isFinite(ms) ? ms : 0;
 }
 
 /** Ampel rows for one address, including rows kept after a withdrawal. */

@@ -29,7 +29,10 @@ import {
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
 import type { AmpelAnswer } from "@/lib/ampel-questions";
-import { buildAmpelConfirmationMail, buildAmpelResultMail } from "@/lib/ampel-mail";
+import { buildAmpelConfirmationMail, buildAmpelResultMail, sendAmpelConfirmationMail, sendAmpelResultMail } from "@/lib/ampel-mail";
+import { setAmpelMarketingLeadLookup } from "@/lib/ampel-marketing-guard";
+import { createMemoryAmpelSuppressionStore, readAmpelSuppression, setAmpelSuppressionTestStore } from "@/lib/ampel-suppression";
+import { MAIL_CHECKOUT_URL } from "@/lib/mail-layout";
 import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
 import {
   AMPEL_EMAIL_LIMIT,
@@ -55,6 +58,7 @@ import { ampelMailStatusId, createMemoryAmpelMailStatusStore } from "@/lib/ampel
 import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, completeAmpelResult, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
 import { ampelApiResponse } from "@/lib/ampel-api-response";
 import { POST as postAmpelErgebnis } from "@/app/api/ampel/ergebnis/route";
+import { GET as getAmpelAbmelden, POST as postAmpelAbmelden } from "@/app/api/ampel/abmelden/route";
 import { POST as postAmpelErgebnisSenden } from "@/app/api/ampel/ergebnis/senden/route";
 import { consumeAmpelSendToken, createBlobPutAmpelSendTokenStore, createMemoryAmpelSendTokenStore, issueAmpelSendToken } from "@/lib/ampel-send-token";
 import type { ExclusivePutOptions } from "@/lib/ampel-blob-slot";
@@ -65,7 +69,7 @@ import {
   AMPEL_UNCONFIRMED_OPT_IN_RETENTION_DAYS,
   ampelRecordExpired,
 } from "@/lib/ampel-retention";
-import { withdrawAmpelMarketing } from "@/lib/ampel-unsubscribe";
+import { setAmpelWithdrawTestDeps, withdrawAmpelMarketing } from "@/lib/ampel-unsubscribe";
 import { createAmpelUnsubscribeToken } from "@/lib/ampel";
 import { isTransientResendError, MAIL_SEND_RETRY_DELAYS_MS, type MailResult } from "@/lib/mail";
 import type { ReadinessLead } from "@/lib/readiness";
@@ -110,6 +114,7 @@ if (!process.env.MAGIC_LINK_SECRET?.trim()) {
 
 async function main() {
 try {
+  setAmpelSuppressionTestStore(createMemoryAmpelSuppressionStore());
   assertOk(AMPEL_QUESTIONS.length === 10, "ten questions");
   assertOk(ampelMaxWeight() === 22, "weights sum to 22");
   assert.deepEqual(
@@ -305,6 +310,17 @@ try {
   assertOk(!resultMail?.text.includes(reviewMarker) && !resultMail?.html.includes(reviewMarker), "result mail hides review notes");
   assertOk(!confirmation.text.includes(AMPEL_RESULTS.gruen.headline), "confirmation mail does not send the result");
   assertOk(resultMail?.text.includes("95 von 100"), "result mail states the score");
+  const consentSentence =
+    "Sie haben zugestimmt, per E-Mail Informationen zu GoBD-Themen und Angeboten von gobd-doku-erstellen.de (IKAT GmbH) zu erhalten. Bitte bestätigen Sie das über den folgenden Link.";
+  assertOk(
+    confirmation.text.includes(consentSentence) && confirmation.html.includes(consentSentence),
+    "confirmation mail matches the checkbox scope",
+  );
+  assertOk(
+    !confirmation.text.includes("weitere E-Mails zur Betriebsprüfungs-Ampel") &&
+      !confirmation.html.includes("weitere E-Mails zur Betriebsprüfungs-Ampel"),
+    "confirmation mail no longer narrows the consent",
+  );
   assertOk(confirmation.text.includes("keine weiteren E-Mails"), "confirmation mail is the optional extra consent");
   assertOk(!confirmation.text.includes("erst nach dieser Bestätigung"), "confirmation mail does not withhold the PDF");
   assertOk(AMPEL_CONFIRM_WINDOW_MS === 15 * 60 * 1000, "one confirmation per email per 15 minutes");
@@ -716,6 +732,20 @@ try {
   assertOk(pdfMail?.text.includes(AMPEL_RESULT_REGISTER_LINE), "pdf mail carries the register line");
   assertOk(pdfMail?.text.includes("gobd-doku-erstellen.de") && !pdfMail?.html.includes("Jetzt buchen"), "pdf mail has a plain product link and no booking block");
   assertOk(!pdfMail?.text.includes("/checkout") && !pdfMail?.html.includes("abmelden"), "pdf mail is not a marketing mail");
+  assertOk(
+    pdfMail != null && !pdfMail.text.includes(MAIL_CHECKOUT_URL) && !pdfMail.html.includes(MAIL_CHECKOUT_URL),
+    "pdf mail has no checkout link",
+  );
+  assertOk(
+    pdfMail != null && !pdfMail.text.includes(AMPEL_CTA.price) && !pdfMail.html.includes(AMPEL_CTA.price),
+    "pdf mail has no price",
+  );
+  assertOk(
+    resultMail != null &&
+      resultMail.text.includes(AMPEL_RESULT_REGISTER_LINE) &&
+      resultMail.html.includes(AMPEL_RESULT_REGISTER_LINE),
+    "price mail carries the register line",
+  );
   assertOk(resultMail?.html.includes("/ampel-check/abmelden"), "the marketing mail has an unsubscribe link");
 
   const mailDir = await mkdtemp(path.join(tmpdir(), "ampel-mail-"));
@@ -2197,8 +2227,328 @@ try {
   });
   assertOk(afterWithdraw.ok && [...proofStore.values()][0]?.marketingOptIn === "withdrawn", "a withdrawn address is not marked again");
 
+  const guardEmail = "delivered@resend.dev";
+  const guardLeads = new Map<string, ReadinessLead>();
+  const guardStore = createMemoryAmpelSuppressionStore();
+  setAmpelSuppressionTestStore(guardStore);
+  setAmpelMarketingLeadLookup(async (address) =>
+    [...guardLeads.values()].filter((lead) => lead.email === address),
+  );
+  const guardMailDir = await mkdtemp(path.join(tmpdir(), "ampel-guard-"));
+  const savedResend = process.env.RESEND_API_KEY;
+  const savedFrom = process.env.EMAIL_FROM;
+  process.env.RESEND_API_KEY = "re_test_ampel_guard";
+  process.env.EMAIL_FROM = "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
+  const logged: string[] = [];
+  const previousInfo = console.info;
+  const previousError = console.error;
+  const remember = (args: unknown[]) => {
+    logged.push(args.map((part) => (typeof part === "string" ? part : JSON.stringify(part))).join(" "));
+  };
+  console.info = (...args: unknown[]) => {
+    remember(args);
+    previousInfo(...args);
+  };
+  console.error = (...args: unknown[]) => {
+    remember(args);
+    previousError(...args);
+  };
+  let providerSends = 0;
+  const deliveredMails: { subject: string; headers?: Record<string, string>; text: string }[] = [];
+  try {
+    setMailDedupeTestHooks({
+      dir: guardMailDir,
+      send: async (input) => {
+        providerSends += 1;
+        deliveredMails.push({ subject: input.subject, headers: input.headers, text: input.text });
+        return { stub: false, sent: true, id: `guard-${providerSends}` };
+      },
+    });
+    const t0 = Date.parse("2026-10-14T10:00:00.000Z");
+    const bareToken = createAmpelDoiToken(
+      { email: guardEmail, answers: jaCode, ref: "", consentAt: new Date(t0).toISOString() },
+      t0,
+    );
+    const barePayload = verifyAmpelDoiToken(bareToken, t0);
+    const blockedBare = barePayload ? await sendAmpelResultMail(barePayload) : null;
+    assertOk(
+      blockedBare?.sent === false && blockedBare.blocked === "no-confirmed-doi" && providerSends === 0,
+      "sendAmpelResultMail without a confirmed DOI does not send",
+    );
+
+    const findGuardLead = async (leadEmail: string, answersCode: string) => {
+      const rows = [...guardLeads.values()].filter(
+        (lead) => lead.email === leadEmail && lead.ampelAnswers === answersCode,
+      );
+      rows.sort((a, b) => Date.parse(a.consentAt) - Date.parse(b.consentAt));
+      return rows.at(-1) ?? null;
+    };
+    const saveGuardLead = async (lead: ReadinessLead) => {
+      guardLeads.set(lead.leadId, { ...lead });
+    };
+    const doiTokens: string[] = [];
+    const sendConfirmation = async (input: { email: string; token: string }) => {
+      doiTokens.push(input.token);
+      return sendAmpelConfirmationMail(input);
+    };
+    const guardDeps = {
+      sleep: async () => undefined,
+      findLead: findGuardLead,
+      saveLead: saveGuardLead,
+      sendConfirmation,
+    };
+    const requested = await requestAmpelConfirmation(
+      { email: guardEmail, answers: jaCode, ref: "", consentTextVersion: AMPEL_CONSENT_TEXT_VERSION },
+      { ...guardDeps, now: () => t0 },
+    );
+    assertOk(requested.ok === true && requested.blocked !== "suppressed" && providerSends === 1, "the DOI mail is sent for a new checkbox");
+    const doiHeaders = deliveredMails[0]?.headers;
+    const confirmed = await confirmAmpelDoi(doiTokens[0] ?? "", {
+      now: () => t0 + 1000,
+      sleep: async () => undefined,
+      findLead: async (leadId) => guardLeads.get(leadId) ?? null,
+      saveLead: saveGuardLead,
+      sendResult: (payload) => sendAmpelResultMail(payload),
+    });
+    assertOk(confirmed.ok === true && providerSends === 2, "a confirmed DOI sends the price mail");
+    const ctaHeaders = deliveredMails[1]?.headers;
+    const headerOk = (headers: Record<string, string> | undefined) => {
+      const list = headers?.["List-Unsubscribe"] ?? "";
+      return (
+        list.includes("/api/ampel/abmelden?token=") &&
+        list.includes("<mailto:info@gobd-doku-erstellen.de?subject=Abmelden>") &&
+        !list.includes(guardEmail) &&
+        headers?.["List-Unsubscribe-Post"] === "List-Unsubscribe=One-Click"
+      );
+    };
+    assertOk(headerOk(doiHeaders) && headerOk(ctaHeaders), "DOI and price mails set both unsubscribe headers");
+    assertOk(
+      deliveredMails[0]?.text.includes(consentSentence) === true,
+      "the sent DOI mail uses the checkbox scope",
+    );
+
+    const firstLead = [...guardLeads.values()][0];
+    const unsubscribeToken = createAmpelUnsubscribeToken(guardEmail, firstLead?.consentAt ?? "");
+    const withdrawnGuard = await withdrawAmpelMarketing(unsubscribeToken ?? "", {
+      now: () => t0 + 60_000,
+      list: async () => [...guardLeads.values()],
+      save: saveGuardLead,
+    });
+    const suppression = await readAmpelSuppression(guardEmail);
+    assertOk(
+      withdrawnGuard.ok === true &&
+        firstLead &&
+        guardLeads.get(firstLead.leadId)?.marketingOptIn === "withdrawn" &&
+        suppression?.withdrawnAt === new Date(t0 + 60_000).toISOString(),
+      "withdrawal writes the suppression list",
+    );
+    assertOk(
+      [...guardStore.raw().values()].every((row) => !JSON.stringify(row).includes("@")),
+      "the suppression record stores no address",
+    );
+    const sendsAfterWithdraw = providerSends;
+    const oldAgain = await confirmAmpelDoi(doiTokens[0] ?? "", {
+      now: () => t0 + 61_000,
+      sleep: async () => undefined,
+      findLead: async (leadId) => guardLeads.get(leadId) ?? null,
+      saveLead: saveGuardLead,
+      sendResult: (payload) => sendAmpelResultMail(payload),
+    });
+    const oldPayload = verifyAmpelDoiToken(doiTokens[0], t0 + 1000);
+    const oldSend = oldPayload ? await sendAmpelResultMail(oldPayload) : null;
+    assertOk(
+      oldAgain.ok === true && oldSend?.blocked === "no-confirmed-doi" && providerSends === sendsAfterWithdraw,
+      "a withdrawn consent does not send the price mail",
+    );
+
+    const tNew = t0 + 120_000;
+    const renewed = await requestAmpelConfirmation(
+      { email: guardEmail, answers: jaCode, ref: "", consentTextVersion: AMPEL_CONSENT_TEXT_VERSION },
+      { ...guardDeps, now: () => tNew },
+    );
+    assertOk(
+      renewed.ok === true && renewed.blocked !== "suppressed" && doiTokens.length === 2 && providerSends === sendsAfterWithdraw + 1,
+      "a new checkbox after withdrawal still receives the DOI mail",
+    );
+    const pendingPayload = verifyAmpelDoiToken(doiTokens[1], tNew);
+    const pendingSend = pendingPayload ? await sendAmpelResultMail(pendingPayload) : null;
+    assertOk(
+      pendingSend?.blocked === "no-confirmed-doi" && providerSends === sendsAfterWithdraw + 1,
+      "without the new DOI click no price mail goes out",
+    );
+    const renewedConfirm = await confirmAmpelDoi(doiTokens[1] ?? "", {
+      now: () => tNew + 1000,
+      sleep: async () => undefined,
+      findLead: async (leadId) => guardLeads.get(leadId) ?? null,
+      saveLead: saveGuardLead,
+      sendResult: (payload) => sendAmpelResultMail(payload),
+    });
+    const renewedRow = [...guardLeads.values()].find((lead) => lead.consentAt === pendingPayload?.consentAt);
+    assertOk(
+      renewedConfirm.ok === true &&
+        renewedRow?.marketingOptIn === "confirmed" &&
+        Boolean(renewedRow?.doiConfirmedAt) &&
+        providerSends === sendsAfterWithdraw + 2,
+      "a DOI confirmed after withdrawal sends the price mail",
+    );
+
+    const staleConsent = new Date(t0).toISOString();
+    const stale = toAmpelReadinessLead({
+      email: guardEmail,
+      answers: neinCode,
+      ref: "",
+      consentAt: staleConsent,
+      doiConfirmedAt: "",
+      score: 10,
+      light: "rot",
+      mailStatus: "confirm_sent",
+      marketingOptIn: "pending",
+    });
+    guardLeads.set(stale.leadId, stale);
+    const sendsBeforeFresh = providerSends;
+    const freshAfterSuppression = await requestAmpelConfirmation(
+      { email: guardEmail, answers: neinCode, ref: "", consentTextVersion: AMPEL_CONSENT_TEXT_VERSION },
+      { ...guardDeps, now: () => tNew + 10_000 },
+    );
+    assertOk(
+      freshAfterSuppression.ok === true &&
+        freshAfterSuppression.blocked !== "suppressed" &&
+        providerSends === sendsBeforeFresh + 1,
+      "a suppressed pending consent does not block a new checkbox",
+    );
+
+    const routeLeads = new Map<string, ReadinessLead>();
+    const routeStore = createMemoryAmpelSuppressionStore();
+    setAmpelSuppressionTestStore(routeStore);
+    let routeNow = Date.parse("2026-10-14T12:00:00.000Z");
+    setAmpelWithdrawTestDeps({
+      now: () => routeNow,
+      list: async () => [...routeLeads.values()],
+      save: async (lead) => {
+        routeLeads.set(lead.leadId, { ...lead });
+      },
+    });
+    const routeConsent = new Date(routeNow).toISOString();
+    const routeLead = toAmpelReadinessLead({
+      email: guardEmail,
+      answers: jaCode,
+      ref: "",
+      consentAt: routeConsent,
+      doiConfirmedAt: routeConsent,
+      score: 100,
+      light: "gruen",
+      mailStatus: "sent",
+      marketingOptIn: "confirmed",
+    });
+    routeLeads.set(routeLead.leadId, routeLead);
+    const routeToken = createAmpelUnsubscribeToken(guardEmail, routeConsent) ?? "";
+    const scanned = await getAmpelAbmelden(
+      new Request(`https://www.gobd-doku-erstellen.de/api/ampel/abmelden?token=${encodeURIComponent(routeToken)}`),
+    );
+    assertOk(scanned.status === 303, "GET does not unsubscribe");
+    const location = scanned.headers.get("location") ?? "";
+    assertOk(
+      location.includes("/ampel-check/abmelden") && location.includes("token="),
+      "GET opens the confirmation page",
+    );
+    assertOk(
+      routeLeads.get(routeLead.leadId)?.marketingOptIn === "confirmed" && (await readAmpelSuppression(guardEmail)) == null,
+      "GET leaves the consent and the suppression list unchanged",
+    );
+    const wrong = await postAmpelAbmelden(
+      new Request("https://www.gobd-doku-erstellen.de/api/ampel/abmelden?token=not-a-token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "List-Unsubscribe=One-Click",
+      }),
+    );
+    assertOk(wrong.status === 400 && routeLeads.get(routeLead.leadId)?.marketingOptIn === "confirmed", "a wrong token is rejected");
+    const oneClick = await postAmpelAbmelden(
+      new Request(`https://www.gobd-doku-erstellen.de/api/ampel/abmelden?token=${encodeURIComponent(routeToken)}`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "List-Unsubscribe=One-Click",
+      }),
+    );
+    const oneClickBody = (await oneClick.json()) as { ok?: boolean };
+    const oneClickRow = await readAmpelSuppression(guardEmail);
+    assertOk(
+      oneClick.status === 200 &&
+        oneClickBody.ok === true &&
+        routeLeads.get(routeLead.leadId)?.marketingOptIn === "withdrawn" &&
+        oneClickRow?.channel === "one-click",
+      "one-click POST withdraws once and records the list",
+    );
+    routeNow += 60_000;
+    const repeated = await postAmpelAbmelden(
+      new Request(`https://www.gobd-doku-erstellen.de/api/ampel/abmelden?token=${encodeURIComponent(routeToken)}`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "List-Unsubscribe=One-Click",
+      }),
+    );
+    const repeatedBody = (await repeated.json()) as { ok?: boolean };
+    assertOk(
+      repeated.status === 200 &&
+        repeatedBody.ok === true &&
+        (await readAmpelSuppression(guardEmail))?.withdrawnAt === oneClickRow?.withdrawnAt,
+      "a second unsubscribe POST stays successful without moving the withdrawal",
+    );
+    assertOk(
+      [...routeStore.raw().values()].every((row) => !JSON.stringify(row).includes("@")),
+      "unsubscribe storage does not keep the address",
+    );
+    const laterConsent = new Date(routeNow + 120_000).toISOString();
+    const laterLead = toAmpelReadinessLead({
+      email: guardEmail,
+      answers: jaCode,
+      ref: "",
+      consentAt: laterConsent,
+      doiConfirmedAt: laterConsent,
+      score: 100,
+      light: "gruen",
+      mailStatus: "sent",
+      marketingOptIn: "confirmed",
+    });
+    routeLeads.set(laterLead.leadId, laterLead);
+    routeNow = Date.parse(laterConsent) + 1000;
+    const jsonToken = createAmpelUnsubscribeToken(guardEmail, laterConsent) ?? "";
+    const jsonPost = await postAmpelAbmelden(
+      new Request("https://www.gobd-doku-erstellen.de/api/ampel/abmelden", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: jsonToken }),
+      }),
+    );
+    const jsonBody = (await jsonPost.json()) as { ok?: boolean };
+    const jsonRow = await readAmpelSuppression(guardEmail);
+    assertOk(
+      jsonPost.status === 200 &&
+        jsonBody.ok === true &&
+        routeLeads.get(laterLead.leadId)?.marketingOptIn === "withdrawn" &&
+        jsonRow?.channel === "link" &&
+        jsonRow.withdrawnAt === new Date(routeNow).toISOString(),
+      "the confirmation page can withdraw with a JSON token",
+    );
+    assertOk(!logged.some((line) => line.includes(guardEmail)), "logs omit the address");
+  } finally {
+    console.info = previousInfo;
+    console.error = previousError;
+    setMailDedupeTestHooks(null);
+    setAmpelMarketingLeadLookup(null);
+    setAmpelWithdrawTestDeps(null);
+    if (savedResend === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = savedResend;
+    if (savedFrom === undefined) delete process.env.EMAIL_FROM;
+    else process.env.EMAIL_FROM = savedFrom;
+    await rm(guardMailDir, { recursive: true, force: true });
+  }
+
   console.log("check-ampel: ok");
 } finally {
+  setAmpelSuppressionTestStore(null);
+  setAmpelMarketingLeadLookup(null);
+  setAmpelWithdrawTestDeps(null);
   if (savedSecret === undefined) delete process.env.MAGIC_LINK_SECRET;
   else process.env.MAGIC_LINK_SECRET = savedSecret;
 }

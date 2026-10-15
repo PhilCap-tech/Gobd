@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
 import { requestAmpelConfirmation, type AmpelConfirmationInput, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
 import { sendAmpelConfirmationMail } from "@/lib/ampel-mail";
+import { ampelConsentBlocked } from "@/lib/ampel-marketing-guard";
 import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
 import {
   ampelMailStatusId,
@@ -318,19 +319,24 @@ export async function deliverAmpelResult(
   let marketing: "started" | "failed" | "skipped" = "skipped";
   if (input.marketing === true) {
     try {
-      const confirm = deps.confirm ?? confirmMarketing;
-      const confirmed = await withDeadline(
-        confirm({
-          email,
-          answers: code,
-          ref: sanitizeAmpelRef(input.ref),
-          consentIp: input.ip,
-          consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
-          mailed: "ja",
-        }),
-        timeoutMs,
-      );
-      marketing = confirmed.ok ? "started" : "failed";
+      const blocked = await ampelConsentBlocked(email, new Date(now).toISOString());
+      if (!blocked) {
+        const confirm = deps.confirm ?? confirmMarketing;
+        const confirmed = await withDeadline(
+          confirm({
+            email,
+            answers: code,
+            ref: sanitizeAmpelRef(input.ref),
+            consentIp: input.ip,
+            consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
+            mailed: "ja",
+          }),
+          timeoutMs,
+        );
+        if (!confirmed.ok) marketing = "failed";
+        else if (confirmed.blocked === "suppressed") marketing = "skipped";
+        else marketing = "started";
+      }
     } catch (error) {
       console.error("[ampel] Einwilligung fehlgeschlagen", error instanceof Error ? error.name : "error");
       marketing = "failed";
