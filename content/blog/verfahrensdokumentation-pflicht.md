@@ -43,7 +43,7 @@ Wichtig für kleinere Betriebe: Die GoBD gelten auch für die Einnahmenüberschu
 
 ## Für wen die Verfahrensdokumentation GoBD Pflicht gilt
 
-Die Frage „Wer braucht sie?“ lässt sich nicht an der Rechtsform allein festmachen. Die folgenden Gruppen sind in der Praxis regelmäßig betroffen, sobald digital gebucht, erfasst oder abgelegt wird.
+Die Frage „Wer braucht sie?“ lässt sich nicht an der Rechtsform allein festmachen. Die folgenden Gruppen sind in der Praxis regelmäßig betroffen, sobald digital gebucht, erfasst oder abgelegt wird. Das gilt auch für [Friseure](/verfahrensdokumentation-friseure) und den [Einzelhandel](/verfahrensdokumentation-einzelhandel), sobald Kasse oder Belegablage digital laufen.
 
 ### Einzelunternehmer
 

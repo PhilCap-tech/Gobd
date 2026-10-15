@@ -71,7 +71,7 @@ In Gastronomie, Einzelhandel und Friseursalon wiederholen sich dieselben Fragen,
 - Wohin wandert der Tagesabschluss — Ordner, Export, Kanzlei?
 - Wer gleicht Kasse und Buchhaltung ab, und in welchem Rhythmus?
 
-Schreiben Sie nur, was bei Ihnen vorkommt. Ein Friseursalon ohne Gutscheine braucht keinen Gutscheinprozess. Ein Laden mit Wechselgeld braucht einen Satz dazu, wo der Wechselgeldbestand herkommt und wie er gezählt wird.
+Schreiben Sie nur, was bei Ihnen vorkommt. Ein Friseursalon ohne Gutscheine braucht keinen Gutscheinprozess. Ein Laden mit Wechselgeld braucht einen Satz dazu, wo der Wechselgeldbestand herkommt und wie er gezählt wird. Was im Salon und im Laden dazukommt, steht in der [Verfahrensdokumentation für Friseure](/verfahrensdokumentation-friseure) und der [Verfahrensdokumentation im Einzelhandel](/verfahrensdokumentation-einzelhandel).
 
 ## Was der Kassenteil beschreiben sollte
 
