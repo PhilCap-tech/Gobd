@@ -6,6 +6,8 @@ export const SITE_ORIGIN = CANONICAL_PRODUCTION_APP_URL;
 /**
  * HTML routes that are index, follow.
  * Blog posts are appended in `app/sitemap.ts`.
+ * Branch pages (`/verfahrensdokumentation-<slug>`) are not listed here.
+ * `app/sitemap.ts` adds one only when its frontmatter `noindex` is false.
  * Left out on purpose: /steuerberater (noindex), /readiness, /checkout,
  * /intake, /login, and account/admin areas.
  */
