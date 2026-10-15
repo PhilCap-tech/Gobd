@@ -1,13 +1,14 @@
 // Fails the build when covered customer copy still addresses the customer with du.
 // COVERED is the entry path plus transactional mails, account, intake, and legal pages.
-// Blog and lead magnets stay in check-forbidden-words.mjs. Leave the matchers
-// as they are.
+// Blog and lead magnets stay in check-forbidden-words.mjs. Branch pages in
+// content/branchen are checked here as well. Leave the matchers as they are.
 //
 // Only user-visible copy is checked: markdown as written, and in TS/TSX the
 // string literals plus text nodes. Code identifiers such as `dir` are ignored.
 // Partner and Steuerberater templates in lib/ops.ts are Sie and pass as written.
 // A line marked with `allow-du` is skipped (same idea as allow-forbidden).
 import { globSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 /** @type {string[]} */
 const COVERED = [
@@ -38,6 +39,7 @@ const COVERED = [
   "components/site-header.tsx",
   "components/site-footer.tsx",
   "content/readiness/**/*.md",
+  "content/branchen/**/*.md",
   "lib/readiness.ts",
   "content/legal/**/*.md",
   "app/datenschutz/**/*.{ts,tsx}",
@@ -308,6 +310,10 @@ assertScan();
 const files = [...new Set(COVERED.flatMap((pattern) => globSync(pattern)))].sort();
 if (files.length === 0) {
   console.error("check-sie-ansprache: no files matched");
+  process.exit(1);
+}
+if (!files.some((file) => file.includes(`${path.sep}branchen${path.sep}`))) {
+  console.error("check-sie-ansprache: no branchen files matched");
   process.exit(1);
 }
 

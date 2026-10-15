@@ -16,6 +16,8 @@ export type MailResult = {
   stub: boolean;
   sent: boolean;
   id?: string;
+  /** Set when a guard refused the send. No mail was handed to the provider. */
+  blocked?: "no-confirmed-doi" | "suppressed";
   /** Claim already recorded this logical mail. No second send. */
   duplicate?: boolean;
   /** Another request still holds a fresh claim. */
@@ -77,6 +79,8 @@ export async function sendEmail(input: {
    */
   from?: string;
   attachments?: MailAttachment[];
+  /** Provider headers, for example List-Unsubscribe on marketing mail. */
+  headers?: Record<string, string>;
 }): Promise<MailResult> {
   const from = input.from?.trim() || process.env.EMAIL_FROM?.trim() || "";
   const apiKey = process.env.RESEND_API_KEY?.trim() || "";
@@ -104,6 +108,7 @@ export async function sendEmail(input: {
     ...(input.attachments && input.attachments.length > 0
       ? { attachments: input.attachments }
       : {}),
+    ...(input.headers && Object.keys(input.headers).length > 0 ? { headers: input.headers } : {}),
   };
   const options = input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined;
   const attempts = input.idempotencyKey ? MAIL_SEND_RETRY_DELAYS_MS.length : 1;

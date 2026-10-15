@@ -348,6 +348,10 @@ export default function HomePage() {
             <p className={styles.note}>
               Muster-Gesamtdokumente (Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau) und Fragebögen:{" "}
               <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
+              {" "}
+              Branchenseiten: <Link href="/verfahrensdokumentation-friseure">Friseure</Link>
+              {" · "}
+              <Link href="/verfahrensdokumentation-einzelhandel">Einzelhandel</Link>
             </p>
             <p className={styles.fine}>
               <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}

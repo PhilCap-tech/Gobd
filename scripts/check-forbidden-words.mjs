@@ -3,6 +3,8 @@
 // render that copy. Generator templates keep the word Platzhalter for unfilled
 // PDF fields; those files are outside this check.
 // Blog scope: visible article copy only (rendered frontmatter plus body).
+// Branch pages in content/branchen use the same rules, plus a short block list
+// (rechtssicher, GoBD-konform, 5–8 Minuten, kurzes Intake, Stripe).
 // Internal labels and informal du/ihr address there fail the build.
 // Ordinary prose, formal "Sie/Ihnen/Ihr", comments, and hidden frontmatter keys
 // such as ctaSoft do not. PR #94 (entry path) is still open, so this check
@@ -34,7 +36,13 @@ const patterns = [
   "app/faq/**/*.{ts,tsx}",
 ];
 
-const blogPatterns = ["content/blog/**/*.{md,mdx}"];
+const blogPatterns = [
+  "content/blog/**/*.{md,mdx}",
+  "content/branchen/**/*.{md,mdx}",
+];
+
+const BRANCHEN_SPERRE =
+  /rechtssicher|gobd-konform|5\s*[–—-]\s*8\s*minuten|kurzes\s+intake|(?<![\p{L}\p{N}_])stripe(?![\p{L}\p{N}_])/iu;
 
 const resourceDuPatterns = [
   "lib/lead-magnet.ts",
@@ -196,6 +204,15 @@ function blogMarkerHits(raw) {
   const hits = [];
   forEachVisibleBlog(raw, (line, text, visible) => {
     if (isBlogMarker(visible)) hits.push({ line, text });
+  });
+  return hits;
+}
+
+function branchenSperreHits(raw) {
+  const hits = [];
+  raw.split("\n").forEach((line, index) => {
+    const match = line.match(BRANCHEN_SPERRE);
+    if (match) hits.push({ line: index + 1, text: line.trim(), match: match[0] });
   });
   return hits;
 }
@@ -453,6 +470,18 @@ function assertSelfTest() {
     ["resource eure", 'body: "in eurer Sprache",\n', true],
   ];
 
+  const sperreCases = [
+    ["rechtssicher", "Das ist rechtssicher.\n", true],
+    ["gobd-konform", "Angabe „GoBD-konform“.\n", true],
+    ["minutes en", "Ca. 5–8 Minuten.\n", true],
+    ["minutes hyphen", "nur 5-8 Minuten.\n", true],
+    ["kurzes intake", "ein kurzes Intake.\n", true],
+    ["stripe", "Zahlung über Stripe.\n", true],
+    ["striped", "ein striped Muster.\n", false],
+    ["hours", "etwa 2–3 Stunden.\n", false],
+    ["steuerberatung", "Keine Steuerberatung.\n", false],
+  ];
+
   for (const [name, source, expectHit] of cases) {
     const hit = blogMarkerHits(source).length > 0;
     if (hit !== expectHit) {
@@ -468,6 +497,16 @@ function assertSelfTest() {
     if (hit !== expectHit) {
       console.error(
         `check-forbidden-words: du self-test failed (${name}, expected ${expectHit ? "hit" : "clean"})`,
+      );
+      process.exit(1);
+    }
+  }
+
+  for (const [name, source, expectHit] of sperreCases) {
+    const hit = branchenSperreHits(source).length > 0;
+    if (hit !== expectHit) {
+      console.error(
+        `check-forbidden-words: branchen sperre self-test failed (${name}, expected ${expectHit ? "hit" : "clean"})`,
       );
       process.exit(1);
     }
@@ -557,6 +596,12 @@ if (blogFiles.length === 0) {
   process.exit(1);
 }
 
+const branchenFiles = blogFiles.filter((file) => file.includes(`${path.sep}branchen${path.sep}`));
+if (branchenFiles.length === 0) {
+  console.error("check-forbidden-words: no branchen files matched");
+  process.exit(1);
+}
+
 if (resourceFiles.length === 0) {
   console.error("check-forbidden-words: no resource files matched");
   process.exit(1);
@@ -586,6 +631,13 @@ for (const file of blogFiles) {
   }
   for (const hit of blogDuHits(raw)) {
     console.error(`${file}:${hit.line}: du-Anrede „${hit.match}“ in ${hit.text}`);
+    failed = true;
+  }
+}
+
+for (const file of branchenFiles) {
+  for (const hit of branchenSperreHits(readFileSync(file, "utf8"))) {
+    console.error(`${file}:${hit.line}: gesperrt „${hit.match}“ in ${hit.text}`);
     failed = true;
   }
 }

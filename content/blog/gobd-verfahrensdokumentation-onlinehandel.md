@@ -146,7 +146,7 @@ Fragen zur Organisation: [Modul 1 Unternehmen und Organisation](/muster/modul/m0
 
 ## Was Sie nur aufnehmen, wenn es bei Ihnen vorkommt
 
-Bargeld, eine elektronische Kasse oder eine offene Ladenkasse sind hier nicht das Thema. Wenn Sie zusätzlich eine Kasse führen, beschreiben Sie sie in einem eigenen Abschnitt. Diesen Abschnitt wiederholt dieser Artikel nicht.
+Bargeld, eine elektronische Kasse oder eine offene Ladenkasse sind hier nicht das Thema. Wenn Sie zusätzlich eine Kasse führen, beschreiben Sie sie in einem eigenen Abschnitt. Diesen Abschnitt wiederholt dieser Artikel nicht. Den [stationären Einzelhandel mit Ladenkasse](/verfahrensdokumentation-einzelhandel) beschreibt eine eigene Seite.
 
 Ebenfalls nur bei tatsächlichem Einsatz: eigenes Lager und Inventur, Gutscheine, Verkäufe über weitere Plattformen, Papierbelege im Büro. Ein geplanter Prozess steht in der Offene-Punkte-Liste, nicht im Fließtext, als wäre er schon so. Version, Datum und Gültig-ab machen erkennbar, ab wann der beschriebene Stand gilt. Wechseln Shop, Marktplatz, Zahlungsdienstleister oder Schnittstelle, ziehen Sie die Fassung nach und bewahren die vorige auf.
 
