@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { listPublishedPosts } from "@/lib/blog";
+import { branchenPath, listBranchenSeiten } from "@/lib/branchen";
 import { MODULE } from "@/lib/module/katalog";
 import {
   gesamtMusterPath,
@@ -27,5 +28,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: canonicalUrl(modulMusterFragebogenPath(modul.id)),
   }));
   const llmsTxt: MetadataRoute.Sitemap = [{ url: canonicalUrl("/llms.txt") }];
-  return [...staticPages, ...llmsTxt, ...gesamt, ...moduleFragebogen, ...blogPosts];
+  const branchen: MetadataRoute.Sitemap = (await listBranchenSeiten())
+    .filter((seite) => !seite.noindex)
+    .map((seite) => ({
+      url: canonicalUrl(branchenPath(seite.slug)),
+      lastModified: seite.stand,
+    }));
+  return [
+    ...staticPages,
+    ...llmsTxt,
+    ...gesamt,
+    ...moduleFragebogen,
+    ...blogPosts,
+    ...branchen,
+  ];
 }

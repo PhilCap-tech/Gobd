@@ -55,7 +55,7 @@ Zugänge, Sicherung, Vertretung bei Abwesenheit und die Version der Dokumentatio
 
 ## Muster-Gliederung mit Beispieltext
 
-Unter jedem Abschnitt steht ein Beispieltext. Erfunden: Alex Berg, Einzelunternehmen Berg Lichtplanung, Einnahmenüberschussrechnung, keine Angestellten, Buchhaltung in der Steuerberatung. Felder in eckigen Klammern ersetzen Sie. Sätze zu Wegen, die es nicht gibt, streichen Sie. Der Beispieltext ist kein Rechtstext.
+Unter jedem Abschnitt steht ein Beispieltext. Erfunden: Alex Berg, Einzelunternehmen Berg Lichtplanung, Einnahmenüberschussrechnung, keine Angestellten, Buchhaltung in der Steuerberatung. Felder in eckigen Klammern ersetzen Sie. Sätze zu Wegen, die es nicht gibt, streichen Sie. Der Beispieltext ist kein Rechtstext. Ein [Beispiel Friseursalon](/verfahrensdokumentation-friseure) mit Kasse, Terminen und Belegen steht auf der Branchenseite, nicht in diesem Solo-Muster ohne Kasse.
 
 ### Allgemeine Beschreibung
 

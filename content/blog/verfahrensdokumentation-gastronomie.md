@@ -53,7 +53,7 @@ Waren, die privat oder für das Personal entnommen werden, sind ein eigener Vorg
 
 ## Lieferdienste und Plattformabrechnungen
 
-Verkauf über einen Lieferdienst ist ein eigener Kanal neben dem Verkauf im Lokal. Jede Plattform, die Sie nutzen, erhält einen eigenen Absatz. Was Sie nicht nutzen, streichen Sie.
+Verkauf über einen Lieferdienst ist ein eigener Kanal neben dem Verkauf im Lokal. Jede Plattform, die Sie nutzen, erhält einen eigenen Absatz. Was Sie nicht nutzen, streichen Sie. Der [Verkauf über die Ladentheke](/verfahrensdokumentation-einzelhandel) im stationären Einzelhandel ist ein anderes Verfahren.
 
 Zum Kanal gehören:
 

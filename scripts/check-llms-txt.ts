@@ -20,6 +20,7 @@ import {
   organizationJsonLd,
   productOfferJsonLd,
 } from "../lib/jsonld";
+import { branchenPath, listBranchenSeiten } from "../lib/branchen";
 import { buildLlmsTxt } from "../lib/llms-txt";
 import { markdownH2Section } from "../lib/markdown-section";
 import {
@@ -31,6 +32,7 @@ import {
   grossCents,
 } from "../lib/pricing";
 import { CANONICAL_PRODUCTION_APP_URL } from "../lib/env";
+import { canonicalUrl } from "../lib/seo";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -245,6 +247,20 @@ async function checkSitemap() {
   const urls = (await sitemap()).map((entry) => entry.url);
   ok(urls.includes(`${origin}/llms.txt`), "sitemap lists /llms.txt");
   ok(urls.includes(`${origin}/faq`), "sitemap still lists /faq");
+  const branchen = await listBranchenSeiten();
+  ok(branchen.length >= 2, "branch pages are loaded");
+  for (const seite of branchen) {
+    const url = canonicalUrl(branchenPath(seite.slug));
+    if (seite.noindex) {
+      ok(!urls.includes(url), `sitemap omits noindex ${branchenPath(seite.slug)}`);
+      ok(
+        !text.includes(branchenPath(seite.slug)),
+        `llms.txt omits noindex ${branchenPath(seite.slug)}`,
+      );
+    } else {
+      ok(urls.includes(url), `sitemap lists ${branchenPath(seite.slug)}`);
+    }
+  }
   console.log("check-llms-txt: ok");
 }
 

@@ -590,6 +590,27 @@ h3 {
   max-width: 68ch;
 }
 
+.branchen-abschluss {
+  margin-top: 36px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.branchen-abschluss p {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.branchen-abschluss p + p {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .hero .text-cta {
   font-size: 13px;
   font-weight: 600;

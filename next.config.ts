@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 import { AMPEL_ADMIN_CACHE_CONTROL, AMPEL_ADMIN_ROBOTS_TAG } from "./lib/ampel-admin-headers";
+import {
+  branchenInternalPath,
+  branchenPath,
+  listBranchenRoutes,
+} from "./lib/branchen-routes";
 
 const noStoreHeaders = [
   {
@@ -52,6 +57,34 @@ const ampelAdminHeaders = [
   { key: "X-Robots-Tag", value: AMPEL_ADMIN_ROBOTS_TAG },
 ];
 
+const BRANCHEN_ROBOTS_TAG = "noindex, follow";
+
+/** Public hyphen URLs rewrite to the one dynamic page. Direct /branchen/* redirects back. */
+function branchenRewrites() {
+  return listBranchenRoutes().map((route) => ({
+    source: branchenPath(route.slug),
+    destination: branchenInternalPath(route.slug),
+  }));
+}
+
+function branchenRedirects() {
+  return listBranchenRoutes().map((route) => ({
+    source: branchenInternalPath(route.slug),
+    destination: branchenPath(route.slug),
+    permanent: true,
+  }));
+}
+
+function branchenNoindexHeaders() {
+  const header = { key: "X-Robots-Tag", value: BRANCHEN_ROBOTS_TAG };
+  return listBranchenRoutes()
+    .filter((route) => route.noindex)
+    .flatMap((route) => [
+      { source: branchenPath(route.slug), headers: [header] },
+      { source: branchenInternalPath(route.slug), headers: [header] },
+    ]);
+}
+
 const nextConfig: NextConfig = {
   // The black “N” badge is the Next.js dev route indicator (dev hot-reloader
   // only). Production builds do not ship it; this also hides it in `next dev`.
@@ -90,6 +123,11 @@ const nextConfig: NextConfig = {
     "/resources/10-offene-punkte/download": ["./public/brand/**/*"],
     "/resources/inhalt-verfahrensdokumentation/download": ["./public/brand/**/*"],
     "/llms.txt": ["./content/faq.md", "./content/legal/**/*"],
+    "/branchen/[slug]": [
+      "./content/branchen/**/*",
+      "./content/blog/**/*",
+      "./content/readiness/**/*",
+    ],
   },
   async headers() {
     return [
@@ -101,6 +139,7 @@ const nextConfig: NextConfig = {
       { source: "/login", headers: noStoreHeaders },
       { source: "/admin/ampel", headers: ampelAdminHeaders },
       { source: "/api/admin/ampel-stats", headers: ampelAdminHeaders },
+      ...branchenNoindexHeaders(),
       { source: "/api/stripe/portal", headers: noStoreHeaders },
       { source: "/:path*", headers: securityHeaders },
     ];
@@ -117,12 +156,16 @@ const nextConfig: NextConfig = {
         destination: "/login?next=/account",
         permanent: false,
       },
+      ...branchenRedirects(),
     ];
   },
   async rewrites() {
     // Not a redirect to /account (that would skip Stripe). Only used if the
     // App Router page is missing from the production build, before the 404.
+    // Branch pages: redirects run before rewrites, so /branchen/:slug sends
+    // the browser to the hyphen URL, and that URL is rewritten back to the page.
     return {
+      beforeFiles: branchenRewrites(),
       fallback: [
         { source: "/portal", destination: "/api/stripe/portal" },
         { source: "/billing", destination: "/api/stripe/portal" },

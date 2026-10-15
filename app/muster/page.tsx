@@ -76,6 +76,20 @@ export default function MusterIndexPage() {
                     {" · "}
                     <a href={gesamtMusterFragebogenPath(vorlage)}>Fragebogen</a>
                   </span>
+                  {vorlage === "dienstleister" ? (
+                    <span className="muster-links">
+                      <Link href="/verfahrensdokumentation-friseure">
+                        Verfahrensdokumentation für Friseure
+                      </Link>
+                    </span>
+                  ) : null}
+                  {vorlage === "handel" ? (
+                    <span className="muster-links">
+                      <Link href="/verfahrensdokumentation-einzelhandel">
+                        Verfahrensdokumentation im Einzelhandel
+                      </Link>
+                    </span>
+                  ) : null}
                 </li>
               );
             })}

@@ -78,6 +78,8 @@ export function buildLlmsTxt(): string {
     "",
     "## Seiten",
     "",
+    // Branch pages (`/verfahrensdokumentation-<slug>`) stay out until `noindex`
+    // is cleared. Add them in the same change that publishes the page.
     `- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Zufriedenheitsgarantie`,
     `- [AGB](${canonicalUrl("/agb")}): Vertragsbedingungen`,
     `- [Muster](${canonicalUrl("/muster")}): fiktive Muster der Verfahrensdokumentation`,
