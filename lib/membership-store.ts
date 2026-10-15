@@ -209,8 +209,8 @@ async function readMembershipSheet(): Promise<Membership[]> {
     .filter((row): row is Membership => Boolean(row));
 }
 
-async function readSheetRows(): Promise<Membership[]> {
-  return membershipRowsCache.read(readMembershipSheet);
+async function readSheetRows(fresh = false): Promise<Membership[]> {
+  return membershipRowsCache.read(readMembershipSheet, fresh);
 }
 
 async function appendSheetRow(row: Membership): Promise<void> {
@@ -259,11 +259,11 @@ async function updateSheetRow(row: Membership): Promise<boolean> {
   return true;
 }
 
-async function loadRows(): Promise<Membership[]> {
+async function loadRows(fresh = false): Promise<Membership[]> {
   if (fileRootOverride) return readAllFileRows();
   if (isSheetsConfigured()) {
     try {
-      const sheetRows = await readSheetRows();
+      const sheetRows = await readSheetRows(fresh);
       if (isVercelRuntime()) return sheetRows;
       return mergeRows(sheetRows, await readAllFileRows());
     } catch (error) {
@@ -316,15 +316,29 @@ async function persist(rows: Membership[], changed: Membership, mode: "insert" |
   await writeFileStore(rows);
 }
 
-export async function listMemberships(): Promise<Membership[]> {
-  return loadRows();
+export async function listMemberships(options?: { fresh?: boolean }): Promise<Membership[]> {
+  return loadRows(options?.fresh ?? false);
 }
 
-export async function listMembershipsByMember(email: string): Promise<Membership[]> {
+export async function listMembershipsByMember(
+  email: string,
+  options?: { fresh?: boolean },
+): Promise<Membership[]> {
   const needle = email.trim().toLowerCase();
   if (!needle) return [];
-  const rows = await listMemberships();
+  const rows = await listMemberships(options);
   return rows.filter((row) => row.memberEmail === needle);
+}
+
+/** Aktive Mitgliedschaft dieser Mail an genau dieser Firma. Jeder Schreibzugriff liest neu. */
+export async function findActiveMembership(
+  memberEmail: string,
+  entityId: string,
+): Promise<Membership | null> {
+  const id = entityId.trim();
+  if (!id) return null;
+  const rows = await listMembershipsByMember(memberEmail, { fresh: true });
+  return rows.find((row) => row.status === "active" && row.entityId === id) ?? null;
 }
 
 export async function listMembershipsByEntity(entityId: string): Promise<Membership[]> {

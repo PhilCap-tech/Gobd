@@ -27,6 +27,11 @@ export type IntakeDraft = {
    * later edit just because the server stamped it later.
    */
   revision?: number;
+  /**
+   * Mail of the last successful save. Set by the server from the session.
+   * Absent on drafts saved before Mitwirkende.
+   */
+  updatedBy?: string;
   /** Absent on drafts saved before version fields were part of the Entwurf. */
   change?: DraftVersionChange;
 };

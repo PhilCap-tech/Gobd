@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { customerHubTitle } from "@/lib/account-display";
 import { getSessionEmail, loginPath } from "@/lib/auth";
+import { findActiveMembership } from "@/lib/membership-store";
 import { getOwnedEntity } from "@/lib/store";
 import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { MODULE } from "@/lib/module/katalog";
@@ -58,6 +59,19 @@ export default async function EditFirmaPage({
       error instanceof Error ? error.name : "error",
     );
   }
+  let memberOfFirm = false;
+  if (!entity && !entityUnavailable) {
+    try {
+      memberOfFirm = Boolean(await findActiveMembership(email, id));
+    } catch (error) {
+      entityUnavailable = true;
+      console.error(
+        "[account] Mitwirkung nicht geprüft",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+  }
+  if (memberOfFirm) redirect(`/account/mitwirkung/${id}`);
 
   let members: MitwirkendeListItem[] = [];
   let membersUnavailable = false;

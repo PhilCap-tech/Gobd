@@ -6,6 +6,12 @@ import {
   authorizeUploadSession,
   type CheckoutResolver,
 } from "@/lib/checkout-access";
+import { loadIntakeDraft } from "@/lib/intake-draft";
+import { normalizeDraftKey } from "@/lib/intake-draft-shared";
+import { MODULE_OUTSIDE_MESSAGE } from "@/lib/membership-copy";
+import { allowedModuleIds } from "@/lib/membership-draft";
+import { findActiveMembership } from "@/lib/membership-store";
+import { emailsEqual, type IntakeAnswers } from "@/lib/types";
 import {
   authorizeDeliveredWrite,
   lookupDeliveredRows,
@@ -30,6 +36,11 @@ export type UploadIo = {
   lookup: DeliveryLookup;
   resolveCheckout: CheckoutResolver;
   storeCustomerUpload: typeof storeCustomerUpload;
+  findActiveMembership?: typeof findActiveMembership;
+  loadOwnerDraft?: (
+    ownerEmail: string,
+    entityId: string,
+  ) => Promise<{ answers?: IntakeAnswers } | null>;
 };
 
 const defaultUploadIo: UploadIo = {
@@ -40,6 +51,9 @@ const defaultUploadIo: UploadIo = {
   },
   resolveCheckout: resolveCheckoutSession,
   storeCustomerUpload,
+  findActiveMembership,
+  loadOwnerDraft: (ownerEmail, entityId) =>
+    loadIntakeDraft(normalizeDraftKey({ email: ownerEmail, entityId, modus: "gesamt" })),
 };
 
 async function assertAccess(
@@ -103,6 +117,56 @@ export async function postModuleUpload(request: Request, io: UploadIo = defaultU
   const contentType = file.type || "application/octet-stream";
   const allowed = uploadAllowed(contentType, file.size);
   if (allowed) return jsonError(allowed, 400);
+
+  const entityId = String(form.get("entityId") ?? "").trim();
+  const sessionEmail = await sessionEmailFromRequest(request);
+  if (io.findActiveMembership && sessionEmail && entityId) {
+    let membership: Awaited<ReturnType<typeof findActiveMembership>> = null;
+    try {
+      membership = await io.findActiveMembership(sessionEmail, entityId);
+    } catch (error) {
+      const outage = sheetsOutageResponse(error);
+      if (outage) return outage;
+      throw error;
+    }
+    if (!membership || emailsEqual(membership.ownerEmail, sessionEmail)) {
+      return jsonError("Kein Zugriff.", 403);
+    }
+    {
+      const draft = io.loadOwnerDraft
+        ? await io.loadOwnerDraft(membership.ownerEmail, membership.entityId)
+        : null;
+      const modules = allowedModuleIds(membership.moduleIds, draft?.answers ?? null);
+      if (!modules.includes(modulId)) return jsonError(MODULE_OUTSIDE_MESSAGE, 403);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      try {
+        const stored = await io.storeCustomerUpload({
+          ownerKey: membership.ownerEmail,
+          modulId,
+          filename: file.name || "dokument.pdf",
+          contentType,
+          buffer,
+        });
+        return NextResponse.json({
+          ok: true,
+          uploadUrl: stored.url || stored.pathname,
+          uploadName: stored.filename,
+          uploadAt: new Date().toISOString(),
+          uploadSize: stored.size,
+          uploadType: stored.contentType,
+          backend: stored.backend,
+          pathname: stored.pathname,
+        });
+      } catch (error) {
+        if (error instanceof BlobStorageError) {
+          console.error("[upload] fehlgeschlagen", error.errorClass);
+          return jsonError("Upload fehlgeschlagen.", 503);
+        }
+        const message = error instanceof Error ? error.message : "Upload fehlgeschlagen.";
+        return jsonError(message, 400);
+      }
+    }
+  }
 
   let access: Awaited<ReturnType<typeof assertAccess>>;
   try {
