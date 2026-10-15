@@ -360,6 +360,12 @@ try {
   assertOk(sendingAt >= 0 && postAt > sendingAt, "the result is shown before the mail request returns");
   assertOk(blockedAt >= 0 && leadTrackAt > blockedAt, "a rate limit does not fire the lead event");
   assertOk(duplicateAt >= 0 && leadTrackAt > duplicateAt, "a duplicate does not fire the lead event");
+  const failedSubmitAt = page.indexOf("!response.ok || !data.ok");
+  assertOk(failedSubmitAt >= 0 && leadTrackAt > failedSubmitAt, "a failed submit does not fire the lead event");
+  assertOk(
+    page.includes('if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" })'),
+    "the lead event waits until the submit is accepted",
+  );
   assertOk(page.slice(blockedAt, blockedAt + 180).includes("showResult"), "a rate limit still shows the result");
   assertOk(page.includes('fetch("/api/ampel/ergebnis/senden"'), "the mail is sent in a second request");
   assertOk(page.includes("send_token: data.token"), "the follow-up send carries the one-time token");

@@ -184,6 +184,7 @@ export function AmpelCheck() {
       setMailNotice("");
       setMode("email");
     };
+    let leadAccepted = false;
     showResult(AMPEL_RESULT_MAIL.sending);
     try {
       const response = await fetch("/api/ampel/ergebnis", {
@@ -221,7 +222,6 @@ export function AmpelCheck() {
         showResult(data.notice || AMPEL_RESULT_MAIL.alreadySent);
         return;
       }
-      trackLeadSubmit({ value: 1, currency: "EUR" });
       if (!response.ok || !data.ok) {
         showResult(data.error || data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
         return;
@@ -240,12 +240,26 @@ export function AmpelCheck() {
             body: JSON.stringify({ ...payload, send_token: data.token }),
             signal: controller.signal,
           });
-          let sent: { notice?: string; marketing?: string; mailed?: boolean; duplicate?: boolean; error?: string } = {};
+          let sent: {
+            ok?: boolean;
+            notice?: string;
+            marketing?: string;
+            mailed?: boolean;
+            duplicate?: boolean;
+            error?: string;
+          } = {};
           try {
             sent = (await follow.json()) as typeof sent;
           } catch {
             sent = {};
           }
+          leadAccepted =
+            follow.ok &&
+            follow.status !== 403 &&
+            follow.status !== 429 &&
+            sent.ok !== false &&
+            sent.duplicate !== true &&
+            sent.mailed !== false;
           showResult(
             ampelSendStatusNotice({
               email,
@@ -266,11 +280,17 @@ export function AmpelCheck() {
         }
         return;
       }
+      if (data.mailed === false) {
+        showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
+        return;
+      }
+      leadAccepted = true;
       showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
     } catch (error) {
       const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
       showResult(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
+      if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" });
       setPending(false);
     }
   }
