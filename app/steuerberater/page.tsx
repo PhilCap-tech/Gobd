@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
   title: { absolute: PAGE_TITLE },
   description: PAGE_DESCRIPTION,
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "/steuerberater" },
   openGraph: withOgImage({
     title: PAGE_TITLE,

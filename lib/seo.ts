@@ -67,7 +67,8 @@ export const HOME_TWITTER: NonNullable<Metadata["twitter"]> = {
  * Blog posts are appended in `app/sitemap.ts`.
  * Branch pages (`/verfahrensdokumentation-<slug>`) are not listed here.
  * `app/sitemap.ts` adds one only when its frontmatter `noindex` is false.
- * Left out on purpose: /steuerberater (noindex), /readiness, /checkout,
+ * Left out on purpose: /steuerberater/muster, /steuerberater/demo,
+ * confirmation, DOI and unsubscribe pages, /readiness, /checkout,
  * /intake, /login, and account/admin areas.
  */
 export const INDEXABLE_STATIC_PATHS = [
@@ -79,6 +80,7 @@ export const INDEXABLE_STATIC_PATHS = [
   "/resources/10-offene-punkte",
   "/resources/inhalt-verfahrensdokumentation",
   "/muster",
+  "/steuerberater",
   "/impressum",
   "/datenschutz",
   "/agb",
