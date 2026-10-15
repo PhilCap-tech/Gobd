@@ -45,9 +45,11 @@ Weitere Informationen: https://vercel.com/legal/privacy-policy
 
 ## 6. Vercel Web Analytics
 
-Für die Reichweitenmessung nutzen wir Vercel Web Analytics von Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA. Der Dienst arbeitet cookielos und ohne Speicherung auf Ihrem Endgerät. Erfasst wird nur eine aggregierte, anonymisierte Nutzungsstatistik (Seitenaufrufe, Referrer, Gerätetyp, Land). Eine Profilbildung findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Reichweitenmessung und an der Verbesserung des Angebots).
+Für die Reichweitenmessung nutzen wir Vercel Web Analytics von Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA. Der Dienst arbeitet cookielos und ohne Speicherung auf Ihrem Endgerät. Dabei verarbeitet Vercel beim Seitenaufruf kurzzeitig technische Daten wie Ihre IP-Adresse, speichert sie aber nicht. Wir sehen nur zusammengefasste Statistiken (Seitenaufrufe, Referrer, Gerätetyp, Land) und können sie keiner Person zuordnen. Eine Profilbildung findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Reichweitenmessung und an der Verbesserung des Angebots).
 
-Soweit Vercel Daten in die USA übermittelt, stützt sich die Übermittlung auf Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO oder auf einen Angemessenheitsbeschluss, sofern Vercel danach zertifiziert ist.
+Grundlage ist ein Auftragsverarbeitungsvertrag mit Vercel. Für die Übermittlung in die USA sind Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO vereinbart. Vercel Inc. ist im EU-U.S. Data Privacy Framework aktiv gelistet (Art. 45 DSGVO).
+
+Widerspruch nach Art. 21 DSGVO jederzeit möglich, z. B. an info@gobd-doku-erstellen.de.
 
 Weitere Informationen: https://vercel.com/legal/privacy-policy
 

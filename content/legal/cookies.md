@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 12.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 15.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -6,7 +6,7 @@
 
 ## Kurzfassung
 
-Wir nutzen **notwendige** Cookies und ähnliche Technologien, damit die Website, Sicherheit, Anmeldung und Stripe Checkout funktionieren. **Marketing-Dienste** (Google Ads / GA4, Meta Pixel) laden wir erst nach Ihrer Einwilligung im Cookie-Banner.
+Wir nutzen **notwendige** Cookies und ähnliche Technologien, damit die Website, Sicherheit, Anmeldung und Stripe Checkout funktionieren. **Marketing-Dienste** (Google Ads / GA4, Meta Pixel) laden wir erst nach Ihrer Einwilligung im Cookie-Banner. **Vercel Web Analytics** läuft ohne Cookies und ohne Einwilligung.
 
 ## Was sind Cookies?
 
@@ -30,6 +30,10 @@ Für die Zahlung leiten wir Sie zu Stripe Checkout weiter. Dort kann Stripe eige
 
 Das Hosting kann technisch bedingte Verbindungsdaten umfassen. Siehe Datenschutzerklärung.
 
+## Vercel Web Analytics
+
+Vercel Web Analytics setzt keine Cookies und speichert nichts auf Ihrem Endgerät. Eine Einwilligung ist nicht erforderlich. Einzelheiten stehen in der Datenschutzerklärung, Abschnitt „Vercel Web Analytics“.
+
 ## Kampagnenparameter (UTM)
 
 Kampagnenparameter in der Adresse (UTM) speichern wir beim ersten Seitenaufruf in der Sitzung Ihres Browsers (`gobd_utm_first`, Session Storage). Die Speicherung bleibt in Ihrem Browser und endet mit dem Schließen des Tabs.
@@ -41,6 +45,7 @@ Kampagnenparameter in der Adresse (UTM) speichern wir beim ersten Seitenaufruf i
 | `gobd_consent` (Cookie und Local Storage) | IKAT GmbH | Speichert Ihre Cookie-Auswahl | Essenziell | 180 Tage |
 | `gobd_session` | IKAT GmbH | Hält Sie nach dem Magic-Link-Login angemeldet | Essenziell | 30 Tage |
 | `gobd_utm_first` (Session Storage) | IKAT GmbH | Merkt sich Kampagnenparameter der ersten Seite (UTM); bleibt im Browser, bis Sie Marketing erlauben | Sitzung, nur lokal | Ende der Browsersitzung |
+| Vercel Web Analytics | Vercel Inc. | Zusammengefasste Statistik zu Seitenaufrufen, Referrer, Gerätetyp und Land | Kein Cookie, keine Einwilligung | keine Speicherung auf dem Endgerät |
 | Stripe-Cookies bzw. -Speicher (z. B. `__stripe_mid`, `__stripe_sid`) | Stripe Payments Europe, Ltd. | Zahlungsabwicklung, Betrugsprävention; gesetzt auf der Domain von Stripe, nicht auf unserer Website | Essenziell für die Zahlung | typischerweise etwa 1 Jahr (`__stripe_mid`) bzw. 30 Minuten (`__stripe_sid`); genaue Laufzeit im Browser beim Checkout sichtbar |
 | `_ga` | Google Ireland Ltd. | GA4: Unterscheidung von Besuchern | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
 | `_ga_RJ4KLBP1SF` | Google Ireland Ltd. | GA4: Sitzungsstatus zur Mess-ID G-RJ4KLBP1SF | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
@@ -57,4 +62,4 @@ Ausführliche Informationen: **Datenschutzerklärung**.
 Verantwortlicher: IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein  
 Kontakt: **info@gobd-doku-erstellen.de**
 
-**Stand:** 12.10.2026
+**Stand:** 15.10.2026

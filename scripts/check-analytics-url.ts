@@ -107,13 +107,48 @@ assert.ok(section.length > 0, "Abschnitt Vercel Web Analytics fehlt");
 assert.ok(section.includes("Vercel Inc."));
 assert.ok(section.includes("cookielos"));
 assert.ok(section.includes("ohne Speicherung auf Ihrem Endgerät"));
-assert.ok(section.includes("aggregierte, anonymisierte Nutzungsstatistik"));
-assert.ok(section.includes("Seitenaufrufe, Referrer, Gerätetyp, Land"));
+assert.ok(
+  section.includes(
+    "Dabei verarbeitet Vercel beim Seitenaufruf kurzzeitig technische Daten wie Ihre IP-Adresse, speichert sie aber nicht. Wir sehen nur zusammengefasste Statistiken (Seitenaufrufe, Referrer, Gerätetyp, Land) und können sie keiner Person zuordnen.",
+  ),
+);
 assert.ok(section.includes("Eine Profilbildung findet nicht statt."));
 assert.ok(section.includes("Art. 6 Abs. 1 lit. f DSGVO"));
 assert.ok(section.includes("berechtigtes Interesse an der Reichweitenmessung und an der Verbesserung des Angebots"));
-assert.ok(section.includes("Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO"));
+assert.ok(
+  section.includes(
+    "Grundlage ist ein Auftragsverarbeitungsvertrag mit Vercel. Für die Übermittlung in die USA sind Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO vereinbart.",
+  ),
+);
+assert.ok(section.includes("EU-U.S. Data Privacy Framework"));
+assert.ok(section.includes("Art. 45 DSGVO"));
+assert.ok(
+  section.includes(
+    "Widerspruch nach Art. 21 DSGVO jederzeit möglich, z. B. an info@gobd-doku-erstellen.de",
+  ),
+);
 assert.equal(/lösch/i.test(section), false, "Abschnitt sagt keine Löschfrist zu");
 assert.ok(privacy.includes("Die Einzelheiten stehen in Abschnitt 10."));
+assert.ok(privacy.includes("## 10. E-Mail-Versand"));
+assert.ok(privacy.includes("## 11. Zahlungsabwicklung über Stripe"));
+assert.ok(privacy.includes("## 12. Google Ads Conversion-Tracking und Google Analytics 4"));
+assert.equal(privacy.includes("Abschnitt 11"), false);
+
+const cookies = readFileSync("content/legal/cookies.md", "utf8");
+assert.ok(cookies.includes("Vercel Web Analytics setzt keine Cookies"));
+assert.ok(cookies.includes("Eine Einwilligung ist nicht erforderlich."));
+assert.ok(cookies.includes("Abschnitt „Vercel Web Analytics“"));
+assert.ok(cookies.includes("Abschnitt „Zahlungsabwicklung über Stripe“"));
+assert.ok(privacy.includes("## 11. Zahlungsabwicklung über Stripe"));
+
+const privacyPage = readFileSync("app/datenschutz/page.tsx", "utf8");
+assert.ok(privacyPage.includes('id="kanzlei-merkblatt"'));
+assert.ok(privacyPage.includes("AMPEL_PRIVACY_TITLE"));
+const footer = readFileSync("components/site-footer.tsx", "utf8");
+assert.ok(footer.includes('href="/ampel-check"'));
+assert.ok(readFileSync("lib/legal.ts", "utf8").includes('href: "/datenschutz"'));
+assert.ok(readFileSync("lib/legal.ts", "utf8").includes('href: "/cookies"'));
+assert.ok(readFileSync("lib/legal.ts", "utf8").includes('href: "/agb"'));
+assert.ok(readFileSync("content/legal/agb.md", "utf8").includes("## § 12 Laufzeit, Verlängerung und Kündigung"));
 
 console.log("check-analytics-url: ok");
