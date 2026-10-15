@@ -21,11 +21,18 @@ type Base = {
   at?: string;
 };
 
-async function safely(run: () => Promise<unknown>): Promise<void> {
+async function safely(
+  context: { action: string; entityId: string },
+  run: () => Promise<unknown>,
+): Promise<void> {
   try {
     await run();
   } catch (error) {
-    console.error("[audit] nicht geschrieben", error instanceof Error ? error.name : "error");
+    console.error("[audit] nicht geschrieben", {
+      action: context.action,
+      entityId: context.entityId,
+      error: error instanceof Error ? error.name : "error",
+    });
   }
 }
 
@@ -38,7 +45,7 @@ export async function noteDraftSaved(
 ): Promise<void> {
   if (!present(input)) return;
   const moduleIds = normalizeAuditModules(input.moduleIds ?? "");
-  await safely(() =>
+  await safely({ action: "draft.saved", entityId: input.entityId }, () =>
     recordAudit({
       at: input.at,
       actorEmail: input.actorEmail,
@@ -58,7 +65,7 @@ export async function noteDraftConflict(
 ): Promise<void> {
   if (!present(input)) return;
   const moduleIds = normalizeAuditModules(input.moduleIds ?? "");
-  await safely(() =>
+  await safely({ action: "draft.conflict", entityId: input.entityId }, () =>
     recordAudit({
       at: input.at,
       actorEmail: input.actorEmail,
@@ -76,7 +83,7 @@ export async function noteDraftConflict(
 export async function noteUploadAdded(input: Base): Promise<void> {
   if (!present(input)) return;
   const moduleIds = normalizeAuditModules(input.moduleIds ?? "");
-  await safely(() =>
+  await safely({ action: "upload.added", entityId: input.entityId }, () =>
     recordAudit({
       at: input.at,
       actorEmail: input.actorEmail,
@@ -102,7 +109,7 @@ export async function noteInvite(input: {
 }): Promise<void> {
   if (!present(input)) return;
   const moduleIds = normalizeAuditModules(input.moduleIds ?? "");
-  await safely(() =>
+  await safely({ action: input.action, entityId: input.entityId }, () =>
     recordAudit({
       at: input.at,
       actorEmail: input.actorEmail,

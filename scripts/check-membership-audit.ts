@@ -15,6 +15,7 @@ import { getFirmAudit } from "../app/api/account/audit/route";
 import { putIntakeDraft, type DraftWriteIo } from "../app/api/intake/draft/route";
 import { postModuleUpload, type UploadIo } from "../app/api/module-upload/route";
 import { SESSION_COOKIE, createSessionToken } from "../lib/auth";
+import { installSheetsHandler } from "../lib/sheets-client";
 import { noteInvite } from "../lib/audit-record";
 import {
   DRAFT_SAVED_WINDOW_MS,
@@ -22,6 +23,8 @@ import {
   type AuditEvent,
 } from "../lib/audit-log";
 import {
+  clearAuditSheetCache,
+  ensureAuditSheet,
   listAuditForEntity,
   listAuditStored,
   readAuditPage,
@@ -454,11 +457,219 @@ async function main() {
     ok(!memberPage.includes("AUDIT_HEADING") && !memberPage.includes("Aenderungen"), "a contributor does not get the history");
     ok(!history.includes("Mitarbeitende"), "the history says Mitwirkende, not Mitarbeitende");
 
+    await auditSheetCases();
+
     console.log("check-membership-audit: ok");
   } finally {
     setMailDedupeTestHooks(null);
     setAuditStoreTestHooks(null);
     setMembershipStoreTestHooks(null);
+  }
+}
+
+async function auditSheetCases(): Promise<void> {
+  const saved = {
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+    sheet: process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
+    tab: process.env.GOOGLE_SHEETS_AUDIT_TAB,
+    vercel: process.env.VERCEL,
+  };
+  const restoreEnv = (name: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  };
+  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = "audit-sheets@example.com";
+  process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "test-key";
+  process.env.GOOGLE_SHEETS_SPREADSHEET_ID = "sheet-audit-test";
+  delete process.env.GOOGLE_SHEETS_AUDIT_TAB;
+  process.env.VERCEL = "1";
+  setAuditStoreTestHooks(null);
+  clearAuditSheetCache();
+
+  let titles: string[] = [];
+  let header: string[] | null = null;
+  let dataRows: string[][] = [];
+  let addSheetCount = 0;
+  let headerWrites = 0;
+  let metaReads = 0;
+  let rejectCreate = false;
+
+  installSheetsHandler(async ({ op, args }) => {
+    if (op === "spreadsheets.get") {
+      metaReads += 1;
+      return { data: { sheets: titles.map((title) => ({ properties: { title } })) } };
+    }
+    if (op === "spreadsheets.batchUpdate") {
+      const requests = (args.requestBody as { requests?: Array<{ addSheet?: { properties?: { title?: string } } }> })
+        .requests;
+      const title = requests?.[0]?.addSheet?.properties?.title ?? "";
+      addSheetCount += 1;
+      if (rejectCreate || titles.includes(title)) {
+        throw new Error(`A sheet with the name ${title} already exists.`);
+      }
+      titles.push(title);
+      return { data: {} };
+    }
+    if (op === "values.get") {
+      const range = typeof args.range === "string" ? args.range : "";
+      if (range.includes("!A1:")) return { data: { values: header ? [header] : [] } };
+      return { data: { values: dataRows } };
+    }
+    if (op === "values.append") {
+      const row = ((args.requestBody as { values?: string[][] }).values ?? [])[0] ?? [];
+      if (row[0] === "event_id") {
+        headerWrites += 1;
+        header = row;
+      } else {
+        dataRows.push(row);
+      }
+      return { data: {} };
+    }
+    if (op === "values.update" || op === "values.batchUpdate") {
+      headerWrites += 1;
+      return { data: {} };
+    }
+    throw new Error(`unexpected ${op}`);
+  });
+
+  try {
+    await Promise.all([ensureAuditSheet(), ensureAuditSheet(), ensureAuditSheet()]);
+    ok(titles.length === 1 && titles[0] === "audit_log", "a missing audit tab is created once");
+    ok(addSheetCount === 1, "parallel calls do not create a second audit tab");
+    ok(headerWrites === 1, "the header row is written once");
+    ok(metaReads === 1, "parallel calls share one exists check");
+    const created = { tabs: addSheetCount, headers: headerWrites, reads: metaReads };
+    await Promise.all([ensureAuditSheet(), ensureAuditSheet()]);
+    await recordAudit({
+      actorEmail: OWNER,
+      actorRole: "owner",
+      ownerEmail: OWNER,
+      entityId: ENTITY,
+      action: "invite.sent",
+      moduleIds: "m03",
+      summary: "Inhaber · Einladung gesendet · tab@example.com · Modul 3",
+    });
+    ok(
+      addSheetCount === created.tabs && headerWrites === created.headers && metaReads === created.reads,
+      "a repeated call does not create the tab or the header again",
+    );
+
+    clearAuditSheetCache();
+    titles = [];
+    header = null;
+    headerWrites = 0;
+    addSheetCount = 0;
+    metaReads = 0;
+    rejectCreate = true;
+    await ensureAuditSheet();
+    ok(addSheetCount === 1 && headerWrites === 1, "an existing tab name does not raise and still writes one header");
+    await ensureAuditSheet();
+    ok(addSheetCount === 1 && headerWrites === 1 && metaReads === 1, "the exists check stays cached after a raced create");
+
+    clearAuditSheetCache();
+    const logged: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      logged.push(args.map((item) => (typeof item === "string" ? item : JSON.stringify(item))).join(" "));
+    };
+    installSheetsHandler(async () => {
+      throw new Error("audit sheet timeout");
+    });
+    try {
+      const answers = baseAnswers();
+      const memory = memoryIo(draftOf(answers, 4, OWNER));
+      const key = normalizeDraftKey({ email: OWNER, entityId: ENTITY, modus: "gesamt" });
+      const saved = await putIntakeDraft(
+        put(MEMBER, {
+          draftKey: key,
+          email: OWNER,
+          entityId: ENTITY,
+          modus: "gesamt",
+          revision: 5,
+          answers: setCatalogValue(answers, "C01", "kanaele", [SECRET]),
+        }),
+        memory.io,
+      );
+      ok(saved.status === 200, "a failed audit write still saves the module");
+      const stored = memory.saved();
+      ok(
+        JSON.stringify(stored?.answers.katalog?.C01?.values?.kanaele) === JSON.stringify([SECRET]),
+        "the draft is stored when the audit write throws",
+      );
+      const auditLog = logged.filter((line) => line.includes("[audit]"));
+      ok(auditLog.some((line) => line.includes(ENTITY) && line.includes("draft.saved")), "the audit failure is logged with the firm id");
+      ok(
+        !auditLog.join(" ").includes(MEMBER) && !auditLog.join(" ").includes(OWNER) && !auditLog.join(" ").includes(SECRET),
+        "the audit failure log has no mail and no answer",
+      );
+
+      const uploads: string[] = [];
+      const uploaded = await postModuleUpload(
+        (() => {
+          const form = new FormData();
+          form.set("file", new File([Uint8Array.from([1, 2, 3, 4])], "beleg.pdf", { type: "application/pdf" }));
+          form.set("modulId", "m03");
+          form.set("entityId", ENTITY);
+          return new Request("http://localhost/api/module-upload", {
+            method: "POST",
+            headers: { cookie: cookie(MEMBER) },
+            body: form,
+          });
+        })(),
+        {
+          lookup: {
+            findDocumentById: async () => null,
+            listDocumentFamily: async () => [],
+            findLatestDocumentByStripeSessionId: async () => null,
+          },
+          resolveCheckout: async () => ({ error: "invalid" }),
+          storeCustomerUpload: async (input) => {
+            uploads.push(input.ownerKey);
+            return {
+              url: "/api/module-upload/file/x",
+              pathname: "gobd/uploads/owner/m03/x.pdf",
+              filename: "beleg.pdf",
+              contentType: "application/pdf",
+              size: 4,
+              backend: "file",
+            };
+          },
+          findActiveMembership,
+          loadOwnerDraft: async () => draftOf(answers, 4, OWNER),
+        } satisfies UploadIo,
+      );
+      ok(uploaded.status === 200 && uploads[0] === OWNER, "a failed audit write still stores the upload");
+
+      const invited = await inviteMitwirkende({
+        ownerEmail: OWNER,
+        entity: firm(),
+        memberEmail: INVITED,
+        moduleIds: ["m09"],
+      });
+      ok(invited.ok, "a failed audit write still sends the invitation");
+      const token = tokenFromMail(`${sentMail.at(-1)?.text ?? ""}\n${sentMail.at(-1)?.html ?? ""}`);
+      const accepted = await acceptInvite(token, async (id) => (id === ENTITY ? firm() : null));
+      ok(accepted.ok, "a failed audit write still accepts the invitation");
+      const active = await findActiveMembership(INVITED, ENTITY);
+      const revoked = await revokeMitwirkende({
+        ownerEmail: OWNER,
+        entity: firm(),
+        membershipId: active?.membershipId ?? "",
+      });
+      ok(revoked.ok === true && revoked.ok && !revoked.already, "a failed audit write still revokes access");
+    } finally {
+      console.error = originalError;
+    }
+  } finally {
+    installSheetsHandler(null);
+    clearAuditSheetCache();
+    setAuditStoreTestHooks(null);
+    restoreEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL", saved.email);
+    restoreEnv("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", saved.key);
+    restoreEnv("GOOGLE_SHEETS_SPREADSHEET_ID", saved.sheet);
+    restoreEnv("GOOGLE_SHEETS_AUDIT_TAB", saved.tab);
+    restoreEnv("VERCEL", saved.vercel);
   }
 }
 

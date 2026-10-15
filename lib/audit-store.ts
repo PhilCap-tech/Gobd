@@ -58,10 +58,16 @@ const FIELDS: Record<AuditSheetColumn, keyof AuditEvent> = {
 
 let fileRootOverride: string | null = null;
 let chain: Promise<unknown> = Promise.resolve();
+let preparedSheet: { key: string; header: Promise<string[]> } | null = null;
+
+export function clearAuditSheetCache(): void {
+  preparedSheet = null;
+}
 
 export function setAuditStoreTestHooks(hooks: { dir: string } | null): void {
   fileRootOverride = hooks?.dir ?? null;
   chain = Promise.resolve();
+  clearAuditSheetCache();
 }
 
 export type AuditWrite = {
@@ -219,19 +225,55 @@ async function writeFileStore(rows: AuditEvent[]): Promise<void> {
   }
 }
 
-async function ensureHeader(): Promise<string[]> {
+function errorText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return "";
+}
+
+function sheetAlreadyExists(error: unknown): boolean {
+  return /already exists/i.test(errorText(error));
+}
+
+/**
+ * Legt den Tab an, wenn er fehlt, und schreibt die Kopfzeile genau einmal.
+ * Parallele Aufrufe teilen sich denselben Lauf. Ein zweiter Lauf nutzt den Cache.
+ * „already exists“ ist kein Fehler: ein anderer Prozess war schneller.
+ */
+export function ensureAuditSheet(): Promise<string[]> {
   const tab = getAuditSheetsTab();
-  const sheets = createSheetsClient();
   const id = spreadsheetId();
+  const key = `${id}:${tab}`;
+  if (preparedSheet?.key === key) return preparedSheet.header;
+  const pending = openAuditSheet(tab, id).then(
+    (header) => header,
+    (error: unknown) => {
+      if (preparedSheet?.header === pending) preparedSheet = null;
+      throw error;
+    },
+  );
+  preparedSheet = { key, header: pending };
+  return pending;
+}
+
+async function openAuditSheet(tab: string, id: string): Promise<string[]> {
+  const sheets = createSheetsClient();
   const meta = await retrySheetsCall("audit.meta", () => sheets.spreadsheets.get({ spreadsheetId: id }));
   const exists = meta.data.sheets?.some((sheet) => sheet.properties?.title === tab);
   if (!exists) {
-    await retrySheetsCall("audit.addSheet", () =>
-      sheets.spreadsheets.batchUpdate({
-        spreadsheetId: id,
-        requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
-      }),
-    );
+    await retrySheetsCall("audit.addSheet", async () => {
+      try {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: id,
+          requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
+        });
+      } catch (error) {
+        if (!sheetAlreadyExists(error)) throw error;
+      }
+    });
   }
   const existing = await retrySheetsCall("audit.header", () =>
     sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${tab}!A1:AZ1` }, SHEETS_GET_OPTS),
@@ -248,7 +290,9 @@ async function ensureHeader(): Promise<string[]> {
     );
     return [...AUDIT_SHEET_COLUMNS];
   }
-  const missing = AUDIT_SHEET_COLUMNS.filter((column) => !header.some((cellName) => headerField(cellName) === FIELDS[column]));
+  const missing = AUDIT_SHEET_COLUMNS.filter(
+    (column) => !header.some((cellName) => headerField(cellName) === FIELDS[column]),
+  );
   if (missing.length === 0) return header;
   const next = [...header, ...missing];
   await retrySheetsCall("audit.header", () =>
@@ -263,7 +307,7 @@ async function ensureHeader(): Promise<string[]> {
 }
 
 async function readSheetRows(): Promise<AuditEvent[]> {
-  const header = await ensureHeader();
+  const header = await ensureAuditSheet();
   const tab = getAuditSheetsTab();
   const sheets = createSheetsClient();
   const result = await retrySheetsCall("audit.values", () =>
@@ -279,7 +323,7 @@ async function readSheetRows(): Promise<AuditEvent[]> {
 }
 
 async function appendSheetRow(row: AuditEvent): Promise<void> {
-  const header = await ensureHeader();
+  const header = await ensureAuditSheet();
   const sheets = createSheetsClient();
   await retrySheetsCall("audit.append", () =>
     sheets.spreadsheets.values.append({
@@ -292,7 +336,7 @@ async function appendSheetRow(row: AuditEvent): Promise<void> {
 }
 
 async function updateSheetRow(row: AuditEvent): Promise<boolean> {
-  const header = await ensureHeader();
+  const header = await ensureAuditSheet();
   const sheets = createSheetsClient();
   const tab = getAuditSheetsTab();
   const id = spreadsheetId();
