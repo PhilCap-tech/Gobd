@@ -45,10 +45,46 @@ function blobUnknown(error: unknown): boolean {
   return name === "BlobUnknownError";
 }
 
+async function readSlot(
+  read: (pathname: string) => Promise<string | null>,
+  pathname: string,
+): Promise<string | null> {
+  try {
+    return await read(pathname);
+  } catch (error) {
+    if (blobMissing(error)) return null;
+    throw error;
+  }
+}
+
 /**
- * Conditional create. `@vercel/blob` turns API code `blob_already_exists` into
- * `BlobUnknownError` and drops the message, so that case is occupied only when
- * the pathname is already stored. Any other put error is rethrown (fail closed).
+ * Logs a rate-store problem. `reason` is a fixed token. The error name is
+ * kept; the message is not, so an address cannot leak into the line.
+ */
+export function logAmpelRateFailure(reason: string, error?: unknown): void {
+  const safeReason = reason.replace(/[^a-z0-9-]/gi, "").slice(0, 48);
+  const name = error instanceof Error ? error.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 48) : "";
+  const detail = name ? `reason=${safeReason};name=${name}` : `reason=${safeReason}`;
+  console.error("[ampel] Rate-Limit fehlgeschlagen", detail);
+}
+
+/**
+ * Conditional create of one write-once slot.
+ *
+ * A 2xx from `put` is not proof of a new object. Until the pathname is
+ * indexed, Blob returns 200 with the same pathname and can replace the bytes.
+ * The no-cache read runs first. Bytes already stored mean the slot is taken,
+ * so this request does not write over them.
+ *
+ * After a 2xx, the same read must return these exact bytes to count as
+ * `created`. A miss or a thrown confirming read is `unconfirmed`: the slot is
+ * not proven, the failure is logged, and the caller still sends the mail.
+ * Any other put or read error is rethrown for the same fail-open decision.
+ * A 429 happens only when every slot 1..N is proven taken.
+ *
+ * API code `blob_already_exists` arrives as `BlobUnknownError` with the
+ * message dropped. That pathname is occupied even when the follow-up read
+ * misses. A read that throws `BlobNotFoundError` is not that proof.
  */
 export async function exclusiveBlobCreate(input: {
   pathname: string;
@@ -58,44 +94,50 @@ export async function exclusiveBlobCreate(input: {
   put: ExclusivePut;
   read: (pathname: string) => Promise<string | null>;
   remove?: (pathname: string) => Promise<void>;
-}): Promise<"created" | "exists"> {
+}): Promise<"created" | "exists" | "unconfirmed"> {
+  const prior = await readSlot(input.read, input.pathname);
+  if (typeof prior === "string") return "exists";
+
+  let result: { pathname: string };
   try {
-    const result = await input.put(input.pathname, input.body, {
+    result = await input.put(input.pathname, input.body, {
       ...AMPEL_EXCLUSIVE_PUT,
       cacheControlMaxAge: input.cacheControlMaxAge,
       token: input.token,
     });
-    if (result.pathname !== input.pathname) {
-      if (input.remove && result.pathname) {
-        try {
-          await input.remove(result.pathname);
-        } catch {
-          // The suffixed object is not a slot. The request still sends no mail.
-        }
-      }
-      throw new Error("ampel-blob-suffix");
-    }
-    // A 2xx with the same pathname is not proof of a new object. @vercel/blob
-    // returns that whenever the API responds 2xx; it does not check the body.
-    // If the stored bytes are someone else's, the pathname was already taken.
-    let stored: string | null | undefined;
-    try {
-      stored = await input.read(input.pathname);
-    } catch {
-      stored = undefined;
-    }
-    if (typeof stored === "string" && stored !== input.body) return "exists";
-    return "created";
   } catch (error) {
     if (blobAlreadyExists(error)) return "exists";
     if (blobUnknown(error)) {
       try {
         const existing = await input.read(input.pathname);
-        if (existing != null) return "exists";
+        if (typeof existing === "string") return "exists";
       } catch (readError) {
-        if (!blobMissing(readError)) throw error;
+        if (blobMissing(readError)) throw error;
+        return "exists";
       }
+      // Null is not proof of absence. The conflict error is the proof.
+      return "exists";
     }
     throw error;
+  }
+  if (result.pathname !== input.pathname) {
+    if (input.remove && result.pathname) {
+      try {
+        await input.remove(result.pathname);
+      } catch {
+        // The suffixed object is not a slot. The mail still goes out.
+      }
+    }
+    throw new Error("ampel-blob-suffix");
+  }
+  try {
+    const stored = await readSlot(input.read, input.pathname);
+    if (stored === input.body) return "created";
+    if (typeof stored === "string") return "exists";
+    logAmpelRateFailure("confirm-miss");
+    return "unconfirmed";
+  } catch (error) {
+    logAmpelRateFailure("confirm-read", error);
+    return "unconfirmed";
   }
 }

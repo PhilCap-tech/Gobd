@@ -56,7 +56,7 @@ import {
 } from "@/lib/ampel-rate-limit";
 import { ampelMailStatusId, createMemoryAmpelMailStatusStore } from "@/lib/ampel-mail-status";
 import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, completeAmpelResult, deliverAmpelResult, sendAmpelPdfMail, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
-import { ampelApiResponse } from "@/lib/ampel-api-response";
+import { ampelApiResponse, ampelSubmitResponse } from "@/lib/ampel-api-response";
 import { POST as postAmpelErgebnis } from "@/app/api/ampel/ergebnis/route";
 import { GET as getAmpelAbmelden, POST as postAmpelAbmelden } from "@/app/api/ampel/abmelden/route";
 import { POST as postAmpelErgebnisSenden } from "@/app/api/ampel/ergebnis/senden/route";
@@ -1649,8 +1649,8 @@ try {
       },
     );
     assertOk(
-      closed.ok && !("honeypot" in closed) && closed.mailed === false && closedSends === 0,
-      "an unreadable limit store sends no mail",
+      closed.ok && !("honeypot" in closed) && closed.mailed === true && closed.limited !== "ip" && closedSends === 1,
+      "an unreadable limit store still sends the mail",
     );
 
     let timedOut = false;
@@ -1661,7 +1661,7 @@ try {
     }
     assertOk(timedOut, "the deadline rejects a step that does not finish");
 
-    type BlobMode = "sdk" | "unknown" | "suspended" | "precondition" | "suffix";
+    type BlobMode = "sdk" | "unknown" | "suspended" | "precondition" | "suffix" | "stale";
     function blobLike(
       mode: BlobMode,
       objects = new Map<string, string>(),
@@ -1682,6 +1682,10 @@ try {
           const suffixOn = options.addRandomSuffix !== false || mode === "suffix";
           const stored = suffixOn ? `${pathname}-rand${++suffix}` : pathname;
           if (!suffixOn && objects.has(stored)) {
+            if (mode === "stale") {
+              objects.set(stored, body);
+              return { pathname: stored };
+            }
             if (mode === "unknown") throw new BlobUnknownError();
             throw new BlobError("The blob already exists, use allowOverwrite: true to overwrite it.");
           }
@@ -1773,6 +1777,273 @@ try {
       "five IP slots keep the requested pathname",
     );
 
+    const overwrite = blobLike("stale");
+    const overwriteStore = createBlobPutAmpelRateStore(overwrite);
+    let overwriteSends = 0;
+    for (let index = 0; index < AMPEL_IP_LIMIT + 1; index += 1) {
+      const sent = await submitAmpelResult(
+        {
+          email: `stale-${index}@example.com`,
+          answers: index % 2 === 0 ? jaCode : neinCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: sameAddress,
+          ipSource: "x-real-ip",
+        },
+        {
+          store: overwriteStore,
+          now: () => clock,
+          confirm: noConfirm,
+          mail: async () => {
+            overwriteSends += 1;
+            return { stub: false, sent: true, id: `stale-${overwriteSends}` };
+          },
+        },
+      );
+      assertOk(sent.ok && !("honeypot" in sent), `stale submit ${index + 1} answers`);
+      if (!sent.ok || "honeypot" in sent) fail("stale submit");
+      const response = ampelSubmitResponse(sent, "x-real-ip", clock);
+      if (index < AMPEL_IP_LIMIT) {
+        assertOk(
+          sent.mailed === true &&
+            sent.trace?.slot === index + 1 &&
+            sent.trace.win === windowId &&
+            response.status === 200 &&
+            response.headers.get("x-ampel-rl") === `src=x-real-ip;slot=${index + 1};win=${windowId}`,
+          `five blob sends are allowed and the header shows slot ${index + 1}`,
+        );
+      } else {
+        assertOk(
+          sent.limited === "ip" &&
+            sent.mailed === false &&
+            sent.trace?.slot === 0 &&
+            response.status === 429 &&
+            response.headers.get("x-ampel-rl") === `src=x-real-ip;slot=0;win=${windowId}`,
+          "the sixth blob send is a 429 with no mail",
+        );
+      }
+    }
+    assertOk(overwriteSends === AMPEL_IP_LIMIT, "a stale 2xx overwrite does not send a sixth mail");
+    assertOk(
+      [...overwrite.objects.keys()].filter((key) => key.includes("/ip-")).length === AMPEL_IP_LIMIT,
+      "a stale 2xx overwrite keeps five IP slots",
+    );
+    const reset = await submitAmpelResult(
+      {
+        email: "stale-reset@example.com",
+        answers: jaCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: sameAddress,
+        ipSource: "x-real-ip",
+      },
+      {
+        store: overwriteStore,
+        now: () => clock + AMPEL_IP_WINDOW_MS,
+        confirm: noConfirm,
+        mail: async () => {
+          overwriteSends += 1;
+          return { stub: false, sent: true, id: "stale-reset" };
+        },
+      },
+    );
+    assertOk(
+      reset.ok &&
+        !("honeypot" in reset) &&
+        reset.mailed === true &&
+        reset.trace?.slot === 1 &&
+        reset.trace.win === windowId + 1,
+      "a new IP window resets the slot and the header count",
+    );
+
+    const hiddenObjects = new Map<string, string>();
+    const hiddenRevealed = new Set<string>();
+    const hidden = {
+      async put(pathname: string, body: string) {
+        if (hiddenObjects.has(pathname)) throw new BlobUnknownError();
+        hiddenObjects.set(pathname, body);
+        hiddenRevealed.delete(pathname);
+        return { pathname };
+      },
+      async read(pathname: string) {
+        if (!hiddenObjects.has(pathname) || hiddenRevealed.has(pathname)) return null;
+        hiddenRevealed.add(pathname);
+        return hiddenObjects.get(pathname) ?? null;
+      },
+      async remove(pathname: string) {
+        hiddenObjects.delete(pathname);
+        hiddenRevealed.delete(pathname);
+      },
+    };
+    const hiddenStore = createBlobPutAmpelRateStore(hidden);
+    let hiddenSends = 0;
+    for (let index = 0; index < AMPEL_IP_LIMIT + 1; index += 1) {
+      const sent = await submitAmpelResult(
+        {
+          email: `hidden-${index}@example.com`,
+          answers: jaCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: sameAddress,
+          ipSource: "x-real-ip",
+        },
+        {
+          store: hiddenStore,
+          now: () => clock,
+          confirm: noConfirm,
+          mail: async () => {
+            hiddenSends += 1;
+            return { stub: false, sent: true, id: `hidden-${hiddenSends}` };
+          },
+        },
+      );
+      assertOk(sent.ok && !("honeypot" in sent), `hidden submit ${index + 1}`);
+      if (!sent.ok || "honeypot" in sent) fail("hidden submit");
+      if (index < AMPEL_IP_LIMIT) {
+        assertOk(sent.mailed === true && sent.trace?.slot === index + 1, `a cached miss still fills slot ${index + 1}`);
+      } else {
+        assertOk(sent.limited === "ip" && sent.mailed === false, "BlobUnknownError with a cached miss does not send a sixth mail");
+      }
+    }
+    assertOk(hiddenSends === AMPEL_IP_LIMIT, "BlobUnknownError with a cached miss still advances the slot");
+
+    const parallelUnknown = blobLike("unknown");
+    const parallelUnknownStore = createBlobPutAmpelRateStore(parallelUnknown);
+    let parallelSends = 0;
+    const parallelSent = await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        submitAmpelResult(
+          {
+            email: `race-blob-${index}@example.com`,
+            answers: jaCode,
+            ref: "",
+            marketing: false,
+            honeypot: "",
+            ip: sameAddress,
+            ipSource: "x-real-ip",
+          },
+          {
+            store: parallelUnknownStore,
+            now: () => clock,
+            confirm: noConfirm,
+            mail: async () => {
+              parallelSends += 1;
+              return { stub: false, sent: true, id: `race-blob-${parallelSends}` };
+            },
+          },
+        ),
+      ),
+    );
+    const parallelMailed = parallelSent.filter((sent) => sent.ok && !("honeypot" in sent) && sent.mailed === true);
+    const parallelLimited = parallelSent.filter((sent) => sent.ok && !("honeypot" in sent) && sent.limited === "ip");
+    assertOk(
+      parallelMailed.length === AMPEL_IP_LIMIT &&
+        parallelLimited.length === 3 &&
+        parallelSends === AMPEL_IP_LIMIT &&
+        new Set(parallelMailed.map((sent) => (sent.ok && !("honeypot" in sent) ? sent.trace?.slot : 0))).size === AMPEL_IP_LIMIT,
+      "parallel sends share one blob index and do not exceed the IP limit",
+    );
+
+    const blindPut = {
+      async put(pathname: string) {
+        return { pathname };
+      },
+      async read() {
+        return null;
+      },
+      async remove() {
+        return undefined;
+      },
+    };
+    let blindSends = 0;
+    const blindSent = await submitAmpelResult(
+      {
+        email: "blind-put@example.com",
+        answers: jaCode,
+        ref: "",
+        marketing: false,
+        honeypot: "",
+        ip: sameAddress,
+        ipSource: "x-real-ip",
+      },
+      {
+        store: createBlobPutAmpelRateStore(blindPut),
+        now: () => clock,
+        confirm: noConfirm,
+        mail: async () => {
+          blindSends += 1;
+          return { stub: false, sent: true, id: "blind-put" };
+        },
+      },
+    );
+    assertOk(
+      blindSent.ok &&
+        !("honeypot" in blindSent) &&
+        blindSent.mailed === true &&
+        blindSent.limited !== "ip" &&
+        blindSent.trace?.slot === 1 &&
+        blindSends === 1,
+      "a 2xx put whose read misses still sends the mail",
+    );
+
+    let brokenSends = 0;
+    const rateLogs: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      rateLogs.push(args.map((item) => String(item)).join(" "));
+      originalError.apply(console, args);
+    };
+    let broken: Awaited<ReturnType<typeof submitAmpelResult>>;
+    try {
+      broken = await submitAmpelResult(
+        {
+          email: "broken-read@example.com",
+          answers: jaCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: sameAddress,
+          ipSource: "x-real-ip",
+        },
+        {
+          store: createBlobPutAmpelRateStore({
+            async put(pathname: string) {
+              return { pathname };
+            },
+            async read() {
+              throw new Error("blob-read-down");
+            },
+            async remove() {
+              return undefined;
+            },
+          }),
+          now: () => clock,
+          confirm: noConfirm,
+          mail: async () => {
+            brokenSends += 1;
+            return { stub: false, sent: true, id: "broken-read" };
+          },
+        },
+      );
+    } finally {
+      console.error = originalError;
+    }
+    const rateLog = rateLogs.find((line) => line.includes("[ampel] Rate-Limit fehlgeschlagen")) ?? "";
+    assertOk(
+      broken.ok &&
+        !("honeypot" in broken) &&
+        broken.mailed === true &&
+        broken.limited !== "ip" &&
+        brokenSends === 1 &&
+        rateLog.startsWith("[ampel] Rate-Limit fehlgeschlagen") &&
+        rateLog.includes("reason=store") &&
+        !rateLog.includes(sameAddress),
+      "a rate-store read error still sends the mail and logs",
+    );
+
     const exclusiveEmail = blobLike("sdk");
     const exclusiveEmailStore = createBlobPutAmpelRateStore(exclusiveEmail);
     for (let index = 0; index < AMPEL_EMAIL_LIMIT; index += 1) {
@@ -1851,8 +2122,8 @@ try {
         },
       );
       assertOk(
-        sent.ok && !("honeypot" in sent) && sent.mailed === false && sent.limited !== "ip" && sent.limited !== "email" && sends === 0,
-        `${label} fails closed and sends no mail`,
+        sent.ok && !("honeypot" in sent) && sent.mailed === true && sent.limited !== "ip" && sent.limited !== "email" && sends === 1,
+        `${label} is not a full window and still sends the mail`,
       );
     }
     await closedPut("suspended", "suspended-store");
@@ -1881,8 +2152,13 @@ try {
       },
     );
     assertOk(
-      suffixSent.ok && !("honeypot" in suffixSent) && suffixSent.mailed === false && suffixSends === 0 && suffixed.objects.size === 0,
-      "a suffixed pathname is not a free slot and sends no mail",
+      suffixSent.ok &&
+        !("honeypot" in suffixSent) &&
+        suffixSent.mailed === true &&
+        suffixSent.limited !== "ip" &&
+        suffixSends === 1 &&
+        suffixed.objects.size === 0,
+      "a suffixed pathname is not a slot and the mail still goes out",
     );
 
     const paired = blobLike("sdk");

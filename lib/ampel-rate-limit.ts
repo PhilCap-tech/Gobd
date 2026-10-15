@@ -144,7 +144,7 @@ export const AMPEL_RATE_BLOB_CACHE_MAX_AGE = 60;
 
 export type AmpelRateIo = {
   get(pathname: string): Promise<string | null>;
-  create(pathname: string, body: string): Promise<"created" | "exists">;
+  create(pathname: string, body: string): Promise<"created" | "exists" | "unconfirmed">;
   remove(pathname: string): Promise<void>;
 };
 
@@ -187,7 +187,9 @@ async function claimDimension(
   for (let slot = 1; slot <= limit; slot += 1) {
     const path = ampelRateSlotPath(kind, logicalKey, windowId, slot);
     const created = await io.create(path, JSON.stringify({ at: now, n: randomBytes(8).toString("hex") }));
-    if (created === "created") return { status: "ok", path, slot };
+    // `unconfirmed` is a 2xx whose read missed. The slot is not proven full,
+    // so the send continues and only a later proven occupancy can return 429.
+    if (created === "created" || created === "unconfirmed") return { status: "ok", path, slot };
   }
   return { status: "limited", path: "", slot: 0 };
 }
@@ -208,14 +210,24 @@ export function createSlotAmpelRateStore(io: AmpelRateIo): AmpelRateStore {
         now,
       );
       if (email.status === "limited") return "email";
-      const ip = await claimDimension(
-        io,
-        "ip",
-        ipKey,
-        AMPEL_IP_LIMIT,
-        AMPEL_IP_WINDOW_MS,
-        now,
-      );
+      let ip: Awaited<ReturnType<typeof claimDimension>>;
+      try {
+        ip = await claimDimension(
+          io,
+          "ip",
+          ipKey,
+          AMPEL_IP_LIMIT,
+          AMPEL_IP_WINDOW_MS,
+          now,
+        );
+      } catch (error) {
+        try {
+          await io.remove(email.path);
+        } catch {
+          // The daily slot may stay occupied. The caller logs the store error and still sends.
+        }
+        throw error;
+      }
       if (ip.status === "limited") {
         try {
           await io.remove(email.path);
@@ -323,7 +335,7 @@ export function createBlobAmpelRateStore(): AmpelRateStore {
   return createSlotAmpelRateStore(blobAmpelRateIo());
 }
 
-/** No shared store. Callers must show the result and send no mail. */
+/** No shared store. A take here throws; submit logs it and still sends the mail. */
 export function createClosedAmpelRateStore(): AmpelRateStore {
   return {
     async take() {

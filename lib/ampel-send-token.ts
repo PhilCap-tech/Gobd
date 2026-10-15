@@ -124,7 +124,7 @@ export function createBlobPutAmpelSendTokenStore(blob: {
   return {
     async claim(slotId, body) {
       if (!safeSlot(slotId)) return "exists";
-      return exclusiveBlobCreate({
+      const outcome = await exclusiveBlobCreate({
         pathname: pathname(slotId),
         body,
         token,
@@ -133,6 +133,8 @@ export function createBlobPutAmpelSendTokenStore(blob: {
         read: (path) => blob.read(path),
         remove: blob.remove,
       });
+      // A missed confirming read is not proof the token slot was taken.
+      return outcome === "unconfirmed" ? "created" : outcome;
     },
     async putIssue(slotId, body) {
       return this.claim(slotId, body);
