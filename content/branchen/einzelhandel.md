@@ -12,7 +12,7 @@ secondaryKeywords:
   - "Verfahrensdokumentation Bäckerei"
 musterVorlage: "handel"
 readinessBranche: "handel"
-noindex: true
+noindex: false
 ctaSoft: "/readiness"
 ctaPrimary: "/"
 stand: "2026-10-15"
