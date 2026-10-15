@@ -209,6 +209,22 @@ async function checkSitemapLastmod() {
   ok(true, `lastmod on all ${entries.length} sitemap urls`);
   const branchen = entries.filter((entry) => entry.url.includes("/verfahrensdokumentation-"));
   ok(branchen.length >= 2, "sitemap lists the branch pages");
+  ok(
+    entries.some((entry) => entry.url === canonicalUrl("/steuerberater")),
+    "sitemap lists /steuerberater",
+  );
+  for (const path of [
+    "/steuerberater/muster",
+    "/steuerberater/demo",
+    "/steuerberater/merkblatt/bestaetigen",
+    "/steuerberater/merkblatt/abmelden",
+    "/ampel-check/bestaetigen",
+    "/ampel-check/abmelden",
+    "/success",
+    "/readiness/success",
+  ]) {
+    ok(!entries.some((entry) => entry.url === canonicalUrl(path)), `sitemap omits noindex ${path}`);
+  }
 }
 
 async function main() {
