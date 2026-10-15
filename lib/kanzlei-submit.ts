@@ -80,15 +80,29 @@ export async function submitKanzleiMerkblatt(
 
   const downloadedAt = new Date(now).toISOString();
   const list = deps.listLeads ?? ((address: string) => listKanzleiReadinessLeadsByEmail(address, { fresh: true }));
-  let blocked = false;
+  let existing: ReadinessLead[] = [];
+  let listFailed = false;
   try {
-    const existing = await list(email);
-    blocked = existing.some((lead) => lead.marketingOptIn === "withdrawn");
+    existing = await list(email);
   } catch (error) {
     console.error("[kanzlei] Sperrliste lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
+    listFailed = true;
   }
 
-  const recordOptIn = optin && !blocked && !rateFailed;
+  const recordOptIn = optin && !rateFailed && !listFailed;
+  const save = deps.saveLead ?? (async (row: ReadinessLead) => {
+    await upsertReadinessLead(row);
+  });
+  if (recordOptIn) {
+    for (const previous of existing) {
+      if (previous.marketingOptIn !== "pending") continue;
+      try {
+        await save({ ...previous, mailStatus: "doi_replaced" });
+      } catch (error) {
+        console.error("[kanzlei] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
+      }
+    }
+  }
   const lead = toKanzleiReadinessLead({
     email,
     downloadedAt,
@@ -97,9 +111,6 @@ export async function submitKanzleiMerkblatt(
     consentIp: recordOptIn ? ip : "",
     consentTextVersion: recordOptIn ? KANZLEI_CONSENT_TEXT_VERSION : "",
     mailStatus: recordOptIn ? "doi_pending" : "",
-  });
-  const save = deps.saveLead ?? (async (row: ReadinessLead) => {
-    await upsertReadinessLead(row);
   });
   try {
     await save(lead);

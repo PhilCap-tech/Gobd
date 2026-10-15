@@ -2,11 +2,11 @@ import { KANZLEI_CONSENT_TEXT_VERSION } from "@/lib/kanzlei-copy";
 import { kanzleiLeadId } from "@/lib/kanzlei-lead";
 import { verifyKanzleiDoiToken } from "@/lib/kanzlei-token";
 import { emptyReadinessLead, type ReadinessLead } from "@/lib/readiness";
-import { findReadinessLeadById, upsertReadinessLead } from "@/lib/store";
+import { listKanzleiReadinessLeadsByEmail, upsertReadinessLead } from "@/lib/store";
 
 export type ConfirmKanzleiDeps = {
   now?: () => number;
-  findLead?: (leadId: string) => Promise<ReadinessLead | null>;
+  listLeads?: (email: string) => Promise<ReadinessLead[]>;
   saveLead?: (lead: ReadinessLead) => Promise<void>;
 };
 
@@ -22,17 +22,34 @@ export async function confirmKanzleiDoi(
   const payload = verifyKanzleiDoiToken(token, now);
   if (!payload) return { ok: false, status: 400, reason: "invalid" };
   const leadId = kanzleiLeadId(payload.email, payload.consentAt);
-  const find = deps.findLead ?? ((id: string) => findReadinessLeadById(id, { fresh: true }));
+  const list = deps.listLeads ?? ((email: string) => listKanzleiReadinessLeadsByEmail(email, { fresh: true }));
   const save = deps.saveLead ?? (async (lead: ReadinessLead) => {
     await upsertReadinessLead(lead);
   });
-  let existing: ReadinessLead | null = null;
+  let leads: ReadinessLead[];
   try {
-    existing = await find(leadId);
+    leads = await list(payload.email);
   } catch (error) {
     console.error("[kanzlei] Lead lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return { ok: false, status: 400, reason: "invalid" };
   }
-  if (existing?.marketingOptIn === "withdrawn") return { ok: true, withdrawn: true };
+  const existing = leads.find((lead) => lead.leadId === leadId) ?? null;
+  const consentMs = Date.parse(payload.consentAt);
+  const coveredByWithdrawal = leads.some((lead) => {
+    if (lead.marketingOptIn !== "withdrawn" || !lead.withdrawnAt) return false;
+    const withdrawnMs = Date.parse(lead.withdrawnAt);
+    return Number.isFinite(withdrawnMs) && Number.isFinite(consentMs) && consentMs <= withdrawnMs;
+  });
+  if (existing?.marketingOptIn === "withdrawn" || coveredByWithdrawal) {
+    return { ok: true, withdrawn: true };
+  }
+  const replaced = existing?.mailStatus === "doi_replaced";
+  const newerConsent = leads.some((lead) => {
+    const at = Date.parse(lead.consentAt);
+    if (!Number.isFinite(at) || at <= consentMs) return false;
+    return lead.marketingOptIn === "pending" || lead.marketingOptIn === "confirmed";
+  });
+  if (replaced || newerConsent) return { ok: false, status: 400, reason: "invalid" };
   if (existing?.marketingOptIn === "confirmed" && existing.doiConfirmedAt) {
     return { ok: true, already: true };
   }

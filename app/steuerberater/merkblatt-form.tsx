@@ -25,6 +25,19 @@ import styles from "../home.module.css";
 
 type Done = { downloadUrl: string; mailed: boolean; email: string };
 
+function EmailHint() {
+  const marker = "Datenschutzerklärung";
+  const at = KANZLEI_EMAIL_HINT.indexOf(marker);
+  if (at < 0) return <>{KANZLEI_EMAIL_HINT}</>;
+  return (
+    <>
+      {KANZLEI_EMAIL_HINT.slice(0, at)}
+      <Link href="/datenschutz#kanzlei-merkblatt">{marker}</Link>
+      {KANZLEI_EMAIL_HINT.slice(at + marker.length)}
+    </>
+  );
+}
+
 export function MerkblattForm() {
   const [email, setEmail] = useState("");
   const [optin, setOptin] = useState(false);
@@ -130,7 +143,9 @@ export function MerkblattForm() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
-            <p className="hint">{KANZLEI_EMAIL_HINT}</p>
+            <p className="hint">
+              <EmailHint />
+            </p>
             {error ? (
               <p className="error" role="alert">
                 {error}

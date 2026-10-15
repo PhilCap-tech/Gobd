@@ -2411,7 +2411,6 @@ try {
       jaCode,
       { email: guardEmail, answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.50" },
       {
-        purge: async () => undefined,
         saveLead: async () => undefined,
         confirm: async () => {
           throw new Error("marketing");

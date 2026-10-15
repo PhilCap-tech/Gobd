@@ -17,9 +17,14 @@ import {
   KANZLEI_DOI_PREHEADER,
   KANZLEI_DOI_SUBJECT,
   KANZLEI_MAIL_FOOTER,
+  KANZLEI_OPT_IN_SCOPE,
   KANZLEI_UNSUBSCRIBE_LABEL,
 } from "@/lib/kanzlei-copy";
 import { KANZLEI_DOI_TTL_MS, createKanzleiUnsubscribeToken } from "@/lib/kanzlei-token";
+import { LEGAL_OPERATOR } from "@/lib/legal";
+import { normalizeAmpelEmail } from "@/lib/ampel-score";
+import type { ReadinessLead } from "@/lib/readiness";
+import { listKanzleiReadinessLeadsByEmail } from "@/lib/store";
 
 const DOI_HOURS = Math.round(KANZLEI_DOI_TTL_MS / (60 * 60 * 1000));
 
@@ -44,6 +49,70 @@ export function kanzleiUnsubscribeFooterLine(url: string): string {
   return `Abmelden: ${KANZLEI_UNSUBSCRIBE_LABEL} ${url}`.trim();
 }
 
+/** One-click and mailto headers for a Kanzlei marketing mail. The DOI mail does not use them. */
+export function kanzleiListUnsubscribeHeaders(
+  email: string,
+  consentAt: string,
+): Record<string, string> | undefined {
+  const token = createKanzleiUnsubscribeToken(email, consentAt);
+  if (!token) return undefined;
+  const oneClickUrl = `${getAppUrl()}/api/kanzlei-merkblatt/abmelden?token=${encodeURIComponent(token)}`;
+  const mailto = `mailto:${LEGAL_OPERATOR.email}?subject=Abmelden`;
+  return {
+    "List-Unsubscribe": `<${oneClickUrl}>, <${mailto}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
+
+function consentCovered(leads: ReadinessLead[], consentAt: string): boolean {
+  const consentMs = Date.parse(consentAt);
+  if (!Number.isFinite(consentMs)) return true;
+  return leads.some((lead) => {
+    if (lead.marketingOptIn !== "withdrawn" || !lead.withdrawnAt) return false;
+    const withdrawnMs = Date.parse(lead.withdrawnAt);
+    return Number.isFinite(withdrawnMs) && consentMs <= withdrawnMs;
+  });
+}
+
+/**
+ * Marketing mail only. A confirmed DOI for this exact consent is required.
+ * A withdrawal that already covers that consent blocks the send.
+ */
+export async function sendKanzleiMarketingMail(
+  input: { email: string; consentAt: string; subject: string; text: string; html: string },
+  deps: { listLeads?: (email: string) => Promise<ReadinessLead[]> } = {},
+): Promise<MailResult> {
+  const email = normalizeAmpelEmail(input.email);
+  const consentAt = input.consentAt.trim();
+  if (!email || !Number.isFinite(Date.parse(consentAt))) {
+    return { stub: false, sent: false, blocked: "no-confirmed-doi" };
+  }
+  const list = deps.listLeads ?? ((address: string) => listKanzleiReadinessLeadsByEmail(address, { fresh: true }));
+  let leads: ReadinessLead[];
+  try {
+    leads = await list(email);
+  } catch (error) {
+    console.error("[kanzlei] Einwilligung lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return { stub: false, sent: false, blocked: "no-confirmed-doi" };
+  }
+  if (consentCovered(leads, consentAt)) return { stub: false, sent: false, blocked: "suppressed" };
+  const confirmed = leads.some(
+    (lead) => lead.marketingOptIn === "confirmed" && Boolean(lead.doiConfirmedAt) && lead.consentAt === consentAt,
+  );
+  if (!confirmed) return { stub: false, sent: false, blocked: "no-confirmed-doi" };
+  const headers = kanzleiListUnsubscribeHeaders(email, consentAt);
+  if (!headers) return { stub: false, sent: false, blocked: "no-confirmed-doi" };
+  return sendDedupedEmail({
+    dedupeKey: `kanzlei-marketing:${email}:${consentAt}`,
+    to: email,
+    from: KANZLEI_MAIL_FROM,
+    subject: input.subject,
+    text: input.text,
+    html: input.html,
+    headers,
+  });
+}
+
 export function buildKanzleiDoiMail(input: { confirmUrl: string }): {
   subject: string;
   text: string;
@@ -56,7 +125,7 @@ export function buildKanzleiDoiMail(input: { confirmUrl: string }): {
     "",
     "Guten Tag,",
     "",
-    "Sie haben auf gobd-doku-erstellen.de angegeben, dass Sie per E-Mail Informationen zu GoBD-Themen und zu Angeboten von gobd-doku-erstellen.de (IKAT GmbH) für Kanzleien sowie Einladungen zu Veranstaltungen erhalten möchten. Bitte bestätigen Sie das über den folgenden Link:",
+    `Sie haben auf gobd-doku-erstellen.de angegeben, dass Sie per E-Mail ${KANZLEI_OPT_IN_SCOPE} erhalten möchten. Bitte bestätigen Sie das über den folgenden Link:`,
     "",
     `${KANZLEI_DOI_BUTTON}: ${input.confirmUrl}`,
     "",
@@ -77,7 +146,7 @@ export function buildKanzleiDoiMail(input: { confirmUrl: string }): {
   const html = wrapTransactionalHtml(`
     <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${escapeHtml(KANZLEI_DOI_PREHEADER)}</div>
     <p>Guten Tag,</p>
-    <p>Sie haben auf gobd-doku-erstellen.de angegeben, dass Sie per E-Mail Informationen zu GoBD-Themen und zu Angeboten von gobd-doku-erstellen.de (IKAT GmbH) für Kanzleien sowie Einladungen zu Veranstaltungen erhalten möchten. Bitte bestätigen Sie das über den folgenden Link:</p>
+    <p>Sie haben auf gobd-doku-erstellen.de angegeben, dass Sie per E-Mail ${escapeHtml(KANZLEI_OPT_IN_SCOPE)} erhalten möchten. Bitte bestätigen Sie das über den folgenden Link:</p>
     <p>${transactionalPrimaryButton(input.confirmUrl, KANZLEI_DOI_BUTTON)}</p>
     <p>Der Link ist ${DOI_HOURS} Stunden gültig. Ohne Ihre Bestätigung senden wir Ihnen keine solchen E-Mails. Das Merkblatt haben Sie unabhängig davon bereits direkt auf der Seite heruntergeladen.</p>
     <p>Wenn Sie sich nicht angemeldet haben, ignorieren Sie diese E-Mail bitte. Wir verwenden Ihre Adresse dann nicht für diesen Zweck.</p>

@@ -4,18 +4,38 @@ import { withdrawKanzleiMarketing } from "@/lib/kanzlei-unsubscribe";
 
 export const runtime = "nodejs";
 
+function tokenFromJson(body: unknown): string {
+  if (!body || typeof body !== "object") return "";
+  const token = (body as { token?: unknown }).token;
+  return typeof token === "string" ? token : "";
+}
+
+/** Human confirmation page. A GET never withdraws, including link scanners. */
+export async function GET(request: Request) {
+  const incoming = new URL(request.url);
+  const target = new URL("/steuerberater/merkblatt/abmelden", incoming.origin);
+  const token = incoming.searchParams.get("token");
+  if (token) target.searchParams.set("token", token);
+  return NextResponse.redirect(target, 303);
+}
+
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+  const url = new URL(request.url);
+  let token = url.searchParams.get("token") ?? "";
+  const type = request.headers.get("content-type") ?? "";
+  if (!token && type.includes("application/json")) {
+    try {
+      token = tokenFromJson(await request.json());
+    } catch {
+      return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+    }
   }
-  const token =
-    body && typeof body === "object" && typeof (body as { token?: unknown }).token === "string"
-      ? (body as { token: string }).token
-      : "";
-  const result = await withdrawKanzleiMarketing(token);
-  if (!result.ok) return NextResponse.json({ error: KANZLEI_UNSUBSCRIBE_INVALID }, { status: 400 });
-  return NextResponse.json({ ok: true });
+  try {
+    const result = await withdrawKanzleiMarketing(token);
+    if (!result.ok) return NextResponse.json({ error: KANZLEI_UNSUBSCRIBE_INVALID }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[kanzlei] Abmeldung fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return NextResponse.json({ error: KANZLEI_UNSUBSCRIBE_INVALID }, { status: 500 });
+  }
 }
