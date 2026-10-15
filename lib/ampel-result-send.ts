@@ -152,6 +152,7 @@ async function confirmMarketing(input: AmpelConfirmationInput): Promise<AmpelCon
   });
 }
 
+/** Transactional result PDF for every requested check. No DOI and no suppression check. */
 export async function sendAmpelPdfMail(
   input: {
     email: string;

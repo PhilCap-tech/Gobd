@@ -55,7 +55,7 @@ import {
   type AmpelRateIo,
 } from "@/lib/ampel-rate-limit";
 import { ampelMailStatusId, createMemoryAmpelMailStatusStore } from "@/lib/ampel-mail-status";
-import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, completeAmpelResult, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
+import { AMPEL_PDF_FROM, AMPEL_SEND_TIMEOUT_MS, completeAmpelResult, deliverAmpelResult, sendAmpelPdfMail, submitAmpelResult, withDeadline } from "@/lib/ampel-result-send";
 import { ampelApiResponse } from "@/lib/ampel-api-response";
 import { POST as postAmpelErgebnis } from "@/app/api/ampel/ergebnis/route";
 import { GET as getAmpelAbmelden, POST as postAmpelAbmelden } from "@/app/api/ampel/abmelden/route";
@@ -2416,6 +2416,39 @@ try {
         providerSends === sendsBeforeFresh + 1,
       "a suppressed pending consent does not block a new checkbox",
     );
+
+    const pdfBefore = providerSends;
+    const transactional = await deliverAmpelResult(
+      guardEmail,
+      all("ja"),
+      jaCode,
+      { email: guardEmail, answers: jaCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.50" },
+      {
+        purge: async () => undefined,
+        saveLead: async () => undefined,
+        confirm: async () => {
+          throw new Error("marketing");
+        },
+      },
+    );
+    const transactionalMail = deliveredMails.at(-1);
+    assertOk(
+      transactional.ok === true &&
+        !("honeypot" in transactional) &&
+        transactional.mailed === true &&
+        transactional.marketing === "skipped" &&
+        providerSends === pdfBefore + 1 &&
+        transactionalMail?.subject === "Ihr Ergebnis der Betriebsprüfungs-Ampel" &&
+        !transactionalMail.text.includes(AMPEL_CTA.price) &&
+        transactionalMail.headers?.["List-Unsubscribe"] == null,
+      "Ergebnis-Mail ohne Opt-in wird gesendet",
+    );
+    assertOk(
+      (await readAmpelSuppression(guardEmail)) != null && transactional.ok === true && !("honeypot" in transactional) && transactional.mailed === true,
+      "Ergebnis-Mail nach Widerruf wird gesendet",
+    );
+    const directPdf = await sendAmpelPdfMail({ email: guardEmail, answers: all("nein"), code: neinCode });
+    assertOk(directPdf.sent === true && directPdf.blocked == null, "sendAmpelPdfMail ignores DOI and the suppression list");
 
     const routeLeads = new Map<string, ReadinessLead>();
     const routeStore = createMemoryAmpelSuppressionStore();
