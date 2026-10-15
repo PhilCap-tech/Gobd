@@ -66,3 +66,12 @@ export function lastSavedByYou(when: string): string {
 }
 
 export const REVOKE_NOT_FOUND = "Diese Mitgliedschaft liegt nicht vor.";
+
+export const AUDIT_HEADING = "Änderungshistorie";
+
+export const AUDIT_EMPTY = "Noch keine Einträge.";
+
+export const AUDIT_LOAD_MORE = "Ältere Einträge laden";
+
+export const AUDIT_UNAVAILABLE =
+  "Die Historie konnte gerade nicht geladen werden. Bitte laden Sie die Seite neu.";

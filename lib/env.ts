@@ -122,6 +122,11 @@ export function getMembershipsSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_MEMBERSHIPS_TAB || "memberships";
 }
 
+/** Änderungshistorie der Mitwirkung. Dieselbe Tabelle, eigener Tab. */
+export function getAuditSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_AUDIT_TAB || "audit_log";
+}
+
 /** Abo-Lebenszyklus. Fester Tab-Name, keine zusätzliche Umgebungsvariable. */
 export function getLifecycleSheetsTab(): string {
   return "subscription_lifecycle";

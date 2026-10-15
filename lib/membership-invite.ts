@@ -23,6 +23,7 @@ import {
   MembershipConflictError,
   replaceMembership,
 } from "@/lib/membership-store";
+import { noteInvite } from "@/lib/audit-record";
 import { emailsEqual } from "@/lib/types";
 import {
   INVITE_ACCEPT_LIMIT_MESSAGE,
@@ -159,6 +160,15 @@ export async function acceptInvite(token: string, loadEntity: EntityLoader): Pro
       updatedAt: now,
     });
     if (!saved) return { ok: false, message: INVITE_LINK_INVALID };
+    await noteInvite({
+      action: "invite.accepted",
+      actorEmail: saved.memberEmail,
+      actorRole: "member",
+      ownerEmail: saved.ownerEmail,
+      entityId: saved.entityId,
+      memberEmail: saved.memberEmail,
+      moduleIds: saved.moduleIds,
+    });
     return { ok: true, email: saved.memberEmail, entityId: saved.entityId };
   });
 }
@@ -211,6 +221,15 @@ async function deliverInvite(row: Membership, entity: Entity): Promise<InviteOut
     console.info(url);
   }
   if (result.sent || loggedOnly) {
+    await noteInvite({
+      action: "invite.sent",
+      actorEmail: row.ownerEmail,
+      actorRole: "owner",
+      ownerEmail: row.ownerEmail,
+      entityId: row.entityId,
+      memberEmail: row.memberEmail,
+      moduleIds: row.moduleIds,
+    });
     return { ok: true, membershipId: row.membershipId, throttled: false };
   }
 
@@ -218,6 +237,15 @@ async function deliverInvite(row: Membership, entity: Entity): Promise<InviteOut
     ...stored,
     tokenHash: "",
     updatedAt: new Date().toISOString(),
+  });
+  await noteInvite({
+    action: "invite.failed",
+    actorEmail: row.ownerEmail,
+    actorRole: "owner",
+    ownerEmail: row.ownerEmail,
+    entityId: row.entityId,
+    memberEmail: row.memberEmail,
+    moduleIds: row.moduleIds,
   });
   return { ok: false, error: INVITE_MAIL_FAILED, code: "mail" };
 }
@@ -351,6 +379,15 @@ async function revokeLocked(
   });
   if (!saved) return { ok: false, error: REVOKE_NOT_FOUND, code: "missing" };
 
+  await noteInvite({
+    action: "invite.revoked",
+    actorEmail: ownerEmail,
+    actorRole: "owner",
+    ownerEmail,
+    entityId: entity.entityId,
+    memberEmail: saved.memberEmail,
+    moduleIds: saved.moduleIds,
+  });
   const mailed = await deliverRevokeMail(saved, entity);
   return { ok: true, membershipId: saved.membershipId, mailed, already: false };
 }

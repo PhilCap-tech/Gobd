@@ -8,6 +8,7 @@ import {
 } from "@/lib/checkout-access";
 import { loadIntakeDraft } from "@/lib/intake-draft";
 import { normalizeDraftKey } from "@/lib/intake-draft-shared";
+import { noteUploadAdded } from "@/lib/audit-record";
 import { MODULE_OUTSIDE_MESSAGE } from "@/lib/membership-copy";
 import { allowedModuleIds } from "@/lib/membership-draft";
 import { findActiveMembership } from "@/lib/membership-store";
@@ -147,6 +148,13 @@ export async function postModuleUpload(request: Request, io: UploadIo = defaultU
           contentType,
           buffer,
         });
+        await noteUploadAdded({
+          actorEmail: sessionEmail,
+          actorRole: "member",
+          ownerEmail: membership.ownerEmail,
+          entityId: membership.entityId,
+          moduleIds: [modulId],
+        });
         return NextResponse.json({
           ok: true,
           uploadUrl: stored.url || stored.pathname,
@@ -187,6 +195,15 @@ export async function postModuleUpload(request: Request, io: UploadIo = defaultU
       contentType,
       buffer,
     });
+    if (sessionEmail && entityId) {
+      await noteUploadAdded({
+        actorEmail: sessionEmail,
+        actorRole: "owner",
+        ownerEmail: access.ownerKey,
+        entityId,
+        moduleIds: [modulId],
+      });
+    }
     return NextResponse.json({
       ok: true,
       uploadUrl: stored.url || stored.pathname,

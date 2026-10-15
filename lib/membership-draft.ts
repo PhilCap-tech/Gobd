@@ -258,6 +258,19 @@ export function answersStayInAssignment(
   return true;
 }
 
+/** Frage-IDs, deren Katalogwert sich geändert hat, auf Modul-IDs. */
+export function changedCatalogModuleIds(before: IntakeAnswers, after: IntakeAnswers): string[] {
+  const left = JSON.parse(JSON.stringify(before.katalog ?? {})) as Record<string, unknown>;
+  const right = JSON.parse(JSON.stringify(after.katalog ?? {})) as Record<string, unknown>;
+  const ids = new Set([...Object.keys(left), ...Object.keys(right)]);
+  const modules = new Set<string>();
+  for (const id of ids) {
+    if (stable(left[id] ?? null) === stable(right[id] ?? null)) continue;
+    for (const moduleId of modulesForQuestion(id)) modules.add(moduleId);
+  }
+  return [...modules].sort();
+}
+
 export function moduleProgressLabel(answers: IntakeAnswers, moduleId: string): string {
   const progress = modulFortschritt(answers, moduleId);
   if (progress.beantwortet <= 0) return "noch leer";

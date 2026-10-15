@@ -24,10 +24,12 @@ import {
 } from "@/lib/intake-draft";
 import { forgetOpenDraft, rememberOpenDraft } from "@/lib/open-drafts";
 import { normalizeIntakeAnswers, stripEmptyIntakeCards } from "@/lib/intake-present";
+import { noteDraftConflict, noteDraftSaved } from "@/lib/audit-record";
 import { MODULE_OUTSIDE_MESSAGE } from "@/lib/membership-copy";
 import {
   allowedModuleIds,
   answersStayInAssignment,
+  changedCatalogModuleIds,
   entityIdFromDraftKey,
   grantMemberDraft,
   revisionDecision,
@@ -392,7 +394,18 @@ async function saveMemberDraft(
       clientUpdatedAt: body.clientUpdatedAt,
       stored,
     });
-    if (verdict !== "ok" && stored) return conflictResponse(stored, verdict);
+    if (verdict !== "ok" && stored) {
+      const attempted = normalizeIntakeAnswers(incoming);
+      await noteDraftConflict({
+        actorEmail: sessionEmail,
+        actorRole: "member",
+        ownerEmail: grant.ownerEmail,
+        entityId: grant.entityId,
+        moduleIds: changedCatalogModuleIds(normalizeIntakeAnswers(stored.answers), attempted),
+        draftRevision: draftRevision(stored),
+      });
+      return conflictResponse(stored, verdict);
+    }
     const allowed = allowedModuleIds(grant.moduleIds, stored?.answers ?? null);
     const after = normalizeIntakeAnswers(incoming);
     const before = stored ? normalizeIntakeAnswers(stored.answers) : ensureGesamt(emptyAnswers());
@@ -422,6 +435,14 @@ async function saveMemberDraft(
           error instanceof Error ? error.name : "error",
         );
       }
+      await noteDraftSaved({
+        actorEmail: sessionEmail,
+        actorRole: "member",
+        ownerEmail: grant.ownerEmail,
+        entityId: grant.entityId,
+        moduleIds: changedCatalogModuleIds(before, after),
+        draftRevision: draftRevision(draft),
+      });
       return NextResponse.json({ ok: true, draft, backend });
     } catch (error) {
       const failure = blobStorageResponse(error, "Entwurf konnte nicht gespeichert werden.");
@@ -531,7 +552,23 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     clientUpdatedAt: body.clientUpdatedAt,
     stored,
   });
-  if (verdict !== "ok" && stored) return conflictResponse(stored, verdict);
+  if (verdict !== "ok" && stored) {
+    const auditEntity = (body.entityId?.trim() || stored.entityId || entityIdFromDraftKey(draftKey)).trim();
+    if (sessionEmail && auditEntity) {
+      await noteDraftConflict({
+        actorEmail: sessionEmail,
+        actorRole: "owner",
+        ownerEmail: access.ownerEmail || sessionEmail,
+        entityId: auditEntity,
+        moduleIds: changedCatalogModuleIds(
+          normalizeIntakeAnswers(stored.answers),
+          normalizeIntakeAnswers(body.answers),
+        ),
+        draftRevision: draftRevision(stored),
+      });
+    }
+    return conflictResponse(stored, verdict);
+  }
 
   const draft: IntakeDraft = {
     draftKey,
@@ -556,6 +593,18 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
         "[draft] Index schreiben fehlgeschlagen",
         error instanceof Error ? error.name : "error",
       );
+    }
+    const auditEntity = (draft.entityId || entityIdFromDraftKey(draftKey)).trim();
+    if (sessionEmail && auditEntity) {
+      const before = stored ? normalizeIntakeAnswers(stored.answers) : ensureGesamt(emptyAnswers());
+      await noteDraftSaved({
+        actorEmail: sessionEmail,
+        actorRole: "owner",
+        ownerEmail: draft.email || sessionEmail,
+        entityId: auditEntity,
+        moduleIds: changedCatalogModuleIds(before, draft.answers),
+        draftRevision: draftRevision(draft),
+      });
     }
     return NextResponse.json({ ok: true, draft, backend });
   } catch (error) {
