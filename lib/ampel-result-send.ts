@@ -210,6 +210,9 @@ async function runSubmit(
       hold,
     });
   } catch (error) {
+    // Fail closed. A 2xx put whose no-cache read does not return these bytes,
+    // and any store error that is not "already exists", is not a free slot.
+    // The result stays on the page and no mail is sent.
     console.error("[ampel] Rate-Limit fehlgeschlagen", error instanceof Error ? error.name : "error");
     return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), source, 0, now);
   }

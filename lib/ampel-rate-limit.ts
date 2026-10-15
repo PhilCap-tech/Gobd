@@ -208,14 +208,24 @@ export function createSlotAmpelRateStore(io: AmpelRateIo): AmpelRateStore {
         now,
       );
       if (email.status === "limited") return "email";
-      const ip = await claimDimension(
-        io,
-        "ip",
-        ipKey,
-        AMPEL_IP_LIMIT,
-        AMPEL_IP_WINDOW_MS,
-        now,
-      );
+      let ip: Awaited<ReturnType<typeof claimDimension>>;
+      try {
+        ip = await claimDimension(
+          io,
+          "ip",
+          ipKey,
+          AMPEL_IP_LIMIT,
+          AMPEL_IP_WINDOW_MS,
+          now,
+        );
+      } catch (error) {
+        try {
+          await io.remove(email.path);
+        } catch {
+          // The daily slot may stay occupied. The request still sends no mail.
+        }
+        throw error;
+      }
       if (ip.status === "limited") {
         try {
           await io.remove(email.path);
