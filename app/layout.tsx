@@ -32,6 +32,9 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   openGraph: ROOT_OPEN_GRAPH,
   twitter: ROOT_TWITTER,
+  verification: {
+    google: "UdJko_oNkF_ToTGinfT7UJRB64VflyCe1elXacBI5NA",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
