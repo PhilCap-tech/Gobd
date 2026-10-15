@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
@@ -37,6 +37,51 @@ export type BranchenSeite = {
 };
 
 export const BRANCHEN_SLUGS = ["friseure", "einzelhandel"] as const;
+
+/** Visible anchor: the H1 up to the first colon. */
+export function branchenAnchorLabel(h1: string): string {
+  const label = h1.split(":")[0]?.trim() ?? "";
+  if (!label) fail("Ankertext aus der H1 ist leer");
+  return label;
+}
+
+export type BranchenNavLink = {
+  slug: string;
+  href: string;
+  label: string;
+};
+
+/**
+ * Every industry page in content/branchen (internal notes skipped).
+ * Sync so the footer stays a normal server component. A new file appears
+ * without a code change.
+ */
+export function listBranchenFooterLinks(): BranchenNavLink[] {
+  const dir = branchenContentDir();
+  let files: string[];
+  try {
+    files = readdirSync(dir);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") fail("content/branchen fehlt");
+    throw error;
+  }
+
+  const links: BranchenNavLink[] = [];
+  for (const file of files) {
+    if (!file.endsWith(".md") && !file.endsWith(".mdx")) continue;
+    const raw = readFileSync(path.join(dir, file), "utf8");
+    const seite = toSeite(file, raw);
+    if (!seite) continue;
+    links.push({
+      slug: seite.slug,
+      href: seite.route,
+      label: branchenAnchorLabel(seite.h1),
+    });
+  }
+  links.sort((a, b) => a.slug.localeCompare(b.slug, "de"));
+  return links;
+}
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const STAND = /^\d{4}-\d{2}-\d{2}$/;

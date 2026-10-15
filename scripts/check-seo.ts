@@ -10,12 +10,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import sitemap from "../app/sitemap";
 import openGraphImage, { size as ogSize } from "../app/opengraph-image";
-import { listBranchenSeiten } from "../lib/branchen";
 import {
-  BRANCHEN_LINKS,
-  HANDEL_MUSTER_HREF,
-  HANDEL_MUSTER_LABEL,
-} from "../lib/branchen-links";
+  branchenAnchorLabel,
+  listBranchenFooterLinks,
+  listBranchenSeiten,
+} from "../lib/branchen";
+import { HANDEL_MUSTER_HREF, HANDEL_MUSTER_LABEL } from "../lib/branchen-links";
 import { HOME_CRUMBS, HOME_FAQ } from "../lib/home-faq";
 import {
   breadcrumbJsonLd,
@@ -57,12 +57,11 @@ function checkAnchors(seiten: Awaited<ReturnType<typeof listBranchenSeiten>>) {
   const published = seiten.filter((seite) => !seite.noindex);
   ok(published.length >= 2, "at least two indexable branch pages");
   for (const seite of published) {
-    const link = BRANCHEN_LINKS.find((item) => item.slug === seite.slug);
-    ok(link, `nav link for ${seite.slug}`);
+    const label = branchenAnchorLabel(seite.h1);
     const fromH1 = seite.h1.split(":")[0]?.trim();
-    ok(link?.label === fromH1, `anchor for ${seite.slug} is the H1 up to the colon`);
-    ok(link && !ANCHOR_SPERRE.test(link.label), `anchor for ${seite.slug} has no blocked claim`);
-    ok(link?.href === seite.route, `anchor href matches ${seite.route}`);
+    ok(label === fromH1 && label.length > 0, `anchor for ${seite.slug} is the H1 up to the colon`);
+    ok(!ANCHOR_SPERRE.test(label), `anchor for ${seite.slug} has no blocked claim`);
+    ok(seite.route.endsWith(`-${seite.slug}`), `anchor href matches ${seite.route}`);
   }
   ok(!ANCHOR_SPERRE.test(HANDEL_MUSTER_LABEL), "handel muster anchor has no blocked claim");
   ok(HANDEL_MUSTER_HREF === "/muster/gesamt/handel", "handel muster path");
@@ -238,13 +237,28 @@ async function main() {
   await checkSitemapLastmod();
   const footer = source("components/site-footer.tsx");
   const header = source("components/site-header.tsx");
+  const home = source("app/page.tsx");
   const faq = source("app/faq/page.tsx");
   const muster = source("app/muster/page.tsx");
   const branchen = source("components/branchen-page.tsx");
-  ok(footer.includes("BRANCHEN_LINKS"), "footer links the branch pages");
-  ok(header.includes("aria-label=\"Branchenseiten\""), "header has a branch navigation");
-  ok(faq.includes("BRANCHEN_LINKS"), "faq links the branch pages");
-  ok(muster.includes("BRANCHEN_LINKS"), "muster links the branch pages");
+  ok(footer.includes("listBranchenFooterLinks"), "footer reads content/branchen");
+  ok(footer.includes(">Branchen<"), "footer column is titled Branchen");
+  ok(!footer.includes("BRANCHEN_LINKS"), "footer branch list is not hardcoded");
+  const footerLinks = listBranchenFooterLinks();
+  ok(footerLinks.length === seiten.length, "footer lists every industry page");
+  for (const seite of seiten) {
+    const link = footerLinks.find((item) => item.slug === seite.slug);
+    ok(link?.label === branchenAnchorLabel(seite.h1), `footer anchor for ${seite.slug}`);
+    ok(link?.href === seite.route, `footer href for ${seite.slug}`);
+  }
+  ok(
+    !header.includes("BRANCHEN_LINKS") && !header.includes("Branchenseiten"),
+    "header has no branch navigation",
+  );
+  ok(!home.includes("BRANCHEN_LINKS") && !home.includes("branchenNav"), "homepage has no branch links");
+  ok(!faq.includes("BRANCHEN_LINKS") && !faq.includes("Branchenseiten"), "faq has no branch links");
+  ok(!muster.includes("BRANCHEN_LINKS"), "muster has no branch links");
+  ok(branchen.includes("listBranchenFooterLinks"), "branch pages cross-link from content");
   ok(branchen.includes("Weitere Branchenseiten"), "branch pages cross-link");
   ok(branchen.includes("HANDEL_MUSTER_HREF"), "branch pages link the handel muster");
   console.log("check-seo: ok");

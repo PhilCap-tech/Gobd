@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import { LegalPage } from "@/components/legal-page";
-import { BRANCHEN_LINKS } from "@/lib/branchen-links";
 import { faqEntries, readFaqMarkdown } from "@/lib/faq-entries";
 import { faqPageJsonLd } from "@/lib/jsonld";
 import { LegalMarkdown } from "@/lib/legal-markdown";
@@ -22,15 +20,6 @@ export default function FaqPage() {
       <JsonLd data={faqPageJsonLd(faqEntries(source))} />
       <LegalPage title="FAQ" crumbPath="/faq">
         <LegalMarkdown source={source} />
-        <p className="related-links">
-          Branchenseiten:{" "}
-          {BRANCHEN_LINKS.map((item, index) => (
-            <span key={item.slug}>
-              {index > 0 ? " · " : null}
-              <Link href={item.href}>{item.label}</Link>
-            </span>
-          ))}
-        </p>
       </LegalPage>
     </>
   );

@@ -3,15 +3,12 @@ import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { BlogMarkdown } from "@/lib/blog-markdown";
-import {
-  BRANCHEN_LINKS,
-  HANDEL_MUSTER_HREF,
-  HANDEL_MUSTER_LABEL,
-} from "@/lib/branchen-links";
+import { HANDEL_MUSTER_HREF, HANDEL_MUSTER_LABEL } from "@/lib/branchen-links";
 import {
   branchenBodyForMarkdown,
   branchenFaq,
   branchenPath,
+  listBranchenFooterLinks,
   type BranchenSeite,
 } from "@/lib/branchen";
 import { faqPageJsonLd, productOfferJsonLd } from "@/lib/jsonld";
@@ -20,6 +17,7 @@ import { PRICE_MICRO, RESULT_PROMISE } from "@/lib/offer-copy";
 export function BranchenPage({ seite }: { seite: BranchenSeite }) {
   const path = branchenPath(seite.slug);
   const faqs = branchenFaq(seite.body);
+  const others = listBranchenFooterLinks().filter((item) => item.slug !== seite.slug);
   return (
     <>
       <CrumbJsonLd
@@ -36,7 +34,7 @@ export function BranchenPage({ seite }: { seite: BranchenSeite }) {
         <h1>{seite.h1}</h1>
         <BlogMarkdown source={branchenBodyForMarkdown(seite.body)} />
         <nav className="related-links" aria-label="Weitere Branchenseiten">
-          {BRANCHEN_LINKS.filter((item) => item.slug !== seite.slug).map((item) => (
+          {others.map((item) => (
             <Link key={item.slug} href={item.href}>
               {item.label}
             </Link>

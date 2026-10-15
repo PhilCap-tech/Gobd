@@ -774,6 +774,21 @@
   gap: 10px 16px;
 }
 
+.page :global(.footer-col-title) {
+  margin: 0 0 10px;
+  color: #f6f1e7;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0;
+  hyphens: manual;
+  text-wrap: wrap;
+}
+
+.page :global(.footer-branchen a:hover) {
+  color: var(--brass-btn);
+}
+
 .ampelBlock {
   margin-top: 22px;
   padding-top: 18px;

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { BRANCHEN_LINKS } from "@/lib/branchen-links";
 
 type HeaderLink = {
   href: string;
@@ -22,8 +21,6 @@ type SiteHeaderProps = {
   backHref?: string;
   backLabel?: string;
   links?: HeaderLink[];
-  /** Branch pages in the header. Used on the homepage navigation. */
-  branchenNav?: boolean;
 };
 
 export function SiteHeader({
@@ -33,7 +30,6 @@ export function SiteHeader({
   backHref,
   backLabel,
   links = DEFAULT_LINKS,
-  branchenNav = false,
 }: SiteHeaderProps) {
   return (
     <>
@@ -72,15 +68,6 @@ export function SiteHeader({
             <Link href="/account">Konto</Link>
           </nav>
         </div>
-        {branchenNav ? (
-          <nav className="header-branchen shell" aria-label="Branchenseiten">
-            {BRANCHEN_LINKS.map((item) => (
-              <Link key={item.slug} href={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        ) : null}
       </header>
       {ctaNote ? <p className="header-price shell">{ctaNote}</p> : null}
     </>
