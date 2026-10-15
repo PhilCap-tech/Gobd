@@ -58,24 +58,33 @@ async function readSlot(
 }
 
 /**
+ * Logs a rate-store problem. `reason` is a fixed token. The error name is
+ * kept; the message is not, so an address cannot leak into the line.
+ */
+export function logAmpelRateFailure(reason: string, error?: unknown): void {
+  const safeReason = reason.replace(/[^a-z0-9-]/gi, "").slice(0, 48);
+  const name = error instanceof Error ? error.name.replace(/[^A-Za-z0-9]/g, "").slice(0, 48) : "";
+  const detail = name ? `reason=${safeReason};name=${name}` : `reason=${safeReason}`;
+  console.error("[ampel] Rate-Limit fehlgeschlagen", detail);
+}
+
+/**
  * Conditional create of one write-once slot.
  *
- * A 2xx from `put` is not a claim. Until the pathname is indexed, Blob returns
- * 200 with the same pathname and can replace the bytes; the SDK does not look
- * at the body. Reading only after that put then sees this request's bytes, or
- * nothing (CDN, fetch cache, or a per-lambda miss), and the slot is taken
- * again. Prod kept `x-ampel-rl` at `slot=1` for that reason.
+ * A 2xx from `put` is not proof of a new object. Until the pathname is
+ * indexed, Blob returns 200 with the same pathname and can replace the bytes.
+ * The no-cache read runs first. Bytes already stored mean the slot is taken,
+ * so this request does not write over them.
  *
- * The no-cache read happens first. Bytes already stored mean the slot is
- * taken, so this request must not put over them. After a 2xx, the same read
- * has to return these exact bytes. A miss or a thrown read is
- * `ampel-blob-unconfirmed`: the caller logs it and sends no mail.
+ * After a 2xx, the same read must return these exact bytes to count as
+ * `created`. A miss or a thrown confirming read is `unconfirmed`: the slot is
+ * not proven, the failure is logged, and the caller still sends the mail.
+ * Any other put or read error is rethrown for the same fail-open decision.
+ * A 429 happens only when every slot 1..N is proven taken.
  *
  * API code `blob_already_exists` arrives as `BlobUnknownError` with the
  * message dropped. That pathname is occupied even when the follow-up read
- * misses — a hidden write is not a free slot. A read that throws
- * `BlobNotFoundError` means the error was not "already exists"; that still
- * fails closed. Any other put error is rethrown (fail closed).
+ * misses. A read that throws `BlobNotFoundError` is not that proof.
  */
 export async function exclusiveBlobCreate(input: {
   pathname: string;
@@ -85,30 +94,17 @@ export async function exclusiveBlobCreate(input: {
   put: ExclusivePut;
   read: (pathname: string) => Promise<string | null>;
   remove?: (pathname: string) => Promise<void>;
-}): Promise<"created" | "exists"> {
+}): Promise<"created" | "exists" | "unconfirmed"> {
   const prior = await readSlot(input.read, input.pathname);
   if (typeof prior === "string") return "exists";
 
+  let result: { pathname: string };
   try {
-    const result = await input.put(input.pathname, input.body, {
+    result = await input.put(input.pathname, input.body, {
       ...AMPEL_EXCLUSIVE_PUT,
       cacheControlMaxAge: input.cacheControlMaxAge,
       token: input.token,
     });
-    if (result.pathname !== input.pathname) {
-      if (input.remove && result.pathname) {
-        try {
-          await input.remove(result.pathname);
-        } catch {
-          // The suffixed object is not a slot. The request still sends no mail.
-        }
-      }
-      throw new Error("ampel-blob-suffix");
-    }
-    const stored = await readSlot(input.read, input.pathname);
-    if (stored === input.body) return "created";
-    if (typeof stored === "string") return "exists";
-    throw new Error("ampel-blob-unconfirmed");
   } catch (error) {
     if (blobAlreadyExists(error)) return "exists";
     if (blobUnknown(error)) {
@@ -123,5 +119,25 @@ export async function exclusiveBlobCreate(input: {
       return "exists";
     }
     throw error;
+  }
+  if (result.pathname !== input.pathname) {
+    if (input.remove && result.pathname) {
+      try {
+        await input.remove(result.pathname);
+      } catch {
+        // The suffixed object is not a slot. The mail still goes out.
+      }
+    }
+    throw new Error("ampel-blob-suffix");
+  }
+  try {
+    const stored = await readSlot(input.read, input.pathname);
+    if (stored === input.body) return "created";
+    if (typeof stored === "string") return "exists";
+    logAmpelRateFailure("confirm-miss");
+    return "unconfirmed";
+  } catch (error) {
+    logAmpelRateFailure("confirm-read", error);
+    return "unconfirmed";
   }
 }

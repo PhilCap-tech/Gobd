@@ -1649,8 +1649,8 @@ try {
       },
     );
     assertOk(
-      closed.ok && !("honeypot" in closed) && closed.mailed === false && closedSends === 0,
-      "an unreadable limit store sends no mail",
+      closed.ok && !("honeypot" in closed) && closed.mailed === true && closed.limited !== "ip" && closedSends === 1,
+      "an unreadable limit store still sends the mail",
     );
 
     let timedOut = false;
@@ -1980,44 +1980,68 @@ try {
       },
     );
     assertOk(
-      blindSent.ok && !("honeypot" in blindSent) && blindSent.mailed === false && blindSent.limited !== "ip" && blindSends === 0,
-      "a 2xx put whose read misses shows the result and sends no mail",
+      blindSent.ok &&
+        !("honeypot" in blindSent) &&
+        blindSent.mailed === true &&
+        blindSent.limited !== "ip" &&
+        blindSent.trace?.slot === 1 &&
+        blindSends === 1,
+      "a 2xx put whose read misses still sends the mail",
     );
 
     let brokenSends = 0;
-    const broken = await submitAmpelResult(
-      {
-        email: "broken-read@example.com",
-        answers: jaCode,
-        ref: "",
-        marketing: false,
-        honeypot: "",
-        ip: sameAddress,
-        ipSource: "x-real-ip",
-      },
-      {
-        store: createBlobPutAmpelRateStore({
-          async put(pathname: string) {
-            return { pathname };
-          },
-          async read() {
-            throw new Error("blob-read-down");
-          },
-          async remove() {
-            return undefined;
-          },
-        }),
-        now: () => clock,
-        confirm: noConfirm,
-        mail: async () => {
-          brokenSends += 1;
-          return { stub: false, sent: true, id: "broken-read" };
+    const rateLogs: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      rateLogs.push(args.map((item) => String(item)).join(" "));
+      originalError.apply(console, args);
+    };
+    let broken: Awaited<ReturnType<typeof submitAmpelResult>>;
+    try {
+      broken = await submitAmpelResult(
+        {
+          email: "broken-read@example.com",
+          answers: jaCode,
+          ref: "",
+          marketing: false,
+          honeypot: "",
+          ip: sameAddress,
+          ipSource: "x-real-ip",
         },
-      },
-    );
+        {
+          store: createBlobPutAmpelRateStore({
+            async put(pathname: string) {
+              return { pathname };
+            },
+            async read() {
+              throw new Error("blob-read-down");
+            },
+            async remove() {
+              return undefined;
+            },
+          }),
+          now: () => clock,
+          confirm: noConfirm,
+          mail: async () => {
+            brokenSends += 1;
+            return { stub: false, sent: true, id: "broken-read" };
+          },
+        },
+      );
+    } finally {
+      console.error = originalError;
+    }
+    const rateLog = rateLogs.find((line) => line.includes("[ampel] Rate-Limit fehlgeschlagen")) ?? "";
     assertOk(
-      broken.ok && !("honeypot" in broken) && broken.mailed === false && broken.limited !== "ip" && brokenSends === 0,
-      "a rate-store read error shows the result and sends no mail",
+      broken.ok &&
+        !("honeypot" in broken) &&
+        broken.mailed === true &&
+        broken.limited !== "ip" &&
+        brokenSends === 1 &&
+        rateLog.startsWith("[ampel] Rate-Limit fehlgeschlagen") &&
+        rateLog.includes("reason=store") &&
+        !rateLog.includes(sameAddress),
+      "a rate-store read error still sends the mail and logs",
     );
 
     const exclusiveEmail = blobLike("sdk");
@@ -2098,8 +2122,8 @@ try {
         },
       );
       assertOk(
-        sent.ok && !("honeypot" in sent) && sent.mailed === false && sent.limited !== "ip" && sent.limited !== "email" && sends === 0,
-        `${label} fails closed and sends no mail`,
+        sent.ok && !("honeypot" in sent) && sent.mailed === true && sent.limited !== "ip" && sent.limited !== "email" && sends === 1,
+        `${label} is not a full window and still sends the mail`,
       );
     }
     await closedPut("suspended", "suspended-store");
@@ -2128,8 +2152,13 @@ try {
       },
     );
     assertOk(
-      suffixSent.ok && !("honeypot" in suffixSent) && suffixSent.mailed === false && suffixSends === 0 && suffixed.objects.size === 0,
-      "a suffixed pathname is not a free slot and sends no mail",
+      suffixSent.ok &&
+        !("honeypot" in suffixSent) &&
+        suffixSent.mailed === true &&
+        suffixSent.limited !== "ip" &&
+        suffixSends === 1 &&
+        suffixed.objects.size === 0,
+      "a suffixed pathname is not a slot and the mail still goes out",
     );
 
     const paired = blobLike("sdk");

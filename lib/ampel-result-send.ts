@@ -10,6 +10,7 @@ import {
   type AmpelMailStatusStore,
 } from "@/lib/ampel-mail-status";
 import { AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
+import { logAmpelRateFailure } from "@/lib/ampel-blob-slot";
 import {
   ampelRateIpKey,
   ampelRateLogLine,
@@ -201,7 +202,7 @@ async function runSubmit(
   }
   const store = deps.store ?? ampelRateStore();
   const hold: AmpelRateHold = { ipSlot: 0, emailSlot: 0 };
-  let decision: "ok" | "ip" | "email";
+  let decision: "ok" | "ip" | "email" = "ok";
   try {
     decision = await store.take({
       ipKey: ampelRateIpKey(clientIp),
@@ -210,16 +211,15 @@ async function runSubmit(
       hold,
     });
   } catch (error) {
-    // Fail closed. A 2xx put whose no-cache read does not return these bytes,
-    // and any store error that is not "already exists", is not a free slot.
-    // The result stays on the page and no mail is sent.
-    console.error("[ampel] Rate-Limit fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), source, 0, now);
+    // Fail open. A store error is not proof that slots 1..N are full.
+    // Log it without the address and send the mail anyway.
+    logAmpelRateFailure("store", error);
+    decision = "ok";
   }
   console.info(ampelRateLogLine(source, decision === "ok" ? hold.ipSlot : 0, clientIp));
   if (decision !== "ok") return stamp(limited(decision), source, 0, now);
 
-  if (deps.handoff) {
+  if (deps.handoff && hold.ipSlot >= 1 && hold.emailSlot >= 1) {
     let token: string | null = null;
     try {
       token = await issueAmpelSendToken(
@@ -391,7 +391,7 @@ export async function completeAmpelResult(
       console.info(ampelRateLogLine(source, consumed.ipSlot, clientIp));
       if (confirmed === "ip" || confirmed === "email") return stamp(limited(confirmed), source, 0, now);
     } catch (error) {
-      console.error("[ampel] Rate-Limit fehlgeschlagen", error instanceof Error ? error.name : "error");
+      logAmpelRateFailure("confirm", error);
     }
   }
   const prior = await lookupMailDedupe(ampelPdfDedupeKey(email, code));
