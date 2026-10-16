@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     if (!result.ok) {
       return jsonError(result.reason === "invalid" ? INVALID_LINK : MAIL_FAILED, result.status);
     }
-    return NextResponse.json({ ok: true, score: result.score, light: result.light });
+    return NextResponse.json({ ok: true, light: result.light });
   } catch (error) {
     const outage = sheetsOutageResponse(error);
     if (outage) return outage;

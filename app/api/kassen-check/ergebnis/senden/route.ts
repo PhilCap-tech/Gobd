@@ -3,6 +3,7 @@ import { AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
 import { readAmpelClientIp, withAmpelRateIdentity } from "@/lib/ampel-rate-limit";
 import { ampelSendTokenPresent } from "@/lib/ampel-send-token";
 import { KASSEN_RATE_SCOPE } from "@/lib/kassen-check-questions";
+import { scheduleAmpelAfterResponse } from "@/lib/ampel-result-send";
 import { completeKassenResult } from "@/lib/kassen-check-send";
 
 export const runtime = "nodejs";
@@ -30,15 +31,18 @@ export async function POST(request: Request) {
       trace("token", client.ip, client.source),
     );
   }
-  const result = await completeKassenResult({
-    email: value.email,
-    answers: value.answers,
-    ref: value.ref,
-    marketing: value.marketing,
-    honeypot: value.fax_number,
-    ip: client.ip,
-    ipSource: client.source,
-    sendToken: value.send_token,
-  });
+  const result = await completeKassenResult(
+    {
+      email: value.email,
+      answers: value.answers,
+      ref: value.ref,
+      marketing: value.marketing,
+      honeypot: value.fax_number,
+      ip: client.ip,
+      ipSource: client.source,
+      sendToken: value.send_token,
+    },
+    { scheduleAfterSend: scheduleAmpelAfterResponse },
+  );
   return ampelSubmitResponse(result);
 }

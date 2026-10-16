@@ -21,9 +21,6 @@ export function AmpelResult({ answers }: { answers: AmpelAnswerMap }) {
   return (
     <section className={`ampel-banner ${scored.light}`} aria-label={`Ampel ${band.label}`}>
       <p className="ampel-kicker">{band.label}</p>
-      <p className="ampel-score">
-        {scored.score} von 100
-      </p>
       <h2>{band.headline}</h2>
       <p>{band.text}</p>
       {scored.capped ? <p className="ampel-cap">{AMPEL_CAP_NOTE}</p> : null}

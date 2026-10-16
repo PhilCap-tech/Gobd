@@ -238,6 +238,61 @@ try {
     storedSend.ok === true && storedLeads[0]?.ampelLight === "rot" && storedLeads[0]?.ampelScore === "86",
     "stored core no is red",
   );
+  let leadSaved = false;
+  let followUp: Promise<void> = Promise.resolve();
+  const slowLead = new Promise<void>((resolve) => {
+    setTimeout(resolve, 1500);
+  });
+  const redAnswers = all("ja", { vd_vorhanden: "nein" });
+  const startedAt = Date.now();
+  const quickSend = await deliverAmpelResult(
+    "schnell@example.com",
+    redAnswers,
+    encodeAmpelAnswers(redAnswers) ?? "",
+    { email: "schnell@example.com", answers: "", ref: "", marketing: false, honeypot: "", ip: "203.0.113.70" },
+    {
+      mail: async () => ({ sent: true, stub: false }),
+      saveLead: async () => {
+        await slowLead;
+        leadSaved = true;
+      },
+      scheduleAfterSend: (work) => {
+        followUp = work();
+      },
+    },
+  );
+  assertOk(
+    Date.now() - startedAt < 1000 &&
+      quickSend.ok === true &&
+      !("honeypot" in quickSend) &&
+      quickSend.mailed === true &&
+      !leadSaved,
+    "a confirmed send returns before the lead write",
+  );
+  await followUp;
+  assertOk(leadSaved, "the lead write still runs after the response");
+  let scheduled = false;
+  const failedSend = await deliverAmpelResult(
+    "fehler@example.com",
+    redAnswers,
+    encodeAmpelAnswers(redAnswers) ?? "",
+    { email: "fehler@example.com", answers: "", ref: "", marketing: false, honeypot: "", ip: "203.0.113.71" },
+    {
+      mail: async () => ({ sent: false, stub: false }),
+      scheduleAfterSend: () => {
+        scheduled = true;
+      },
+    },
+  );
+  assertOk(
+    !scheduled && failedSend.ok === true && !("honeypot" in failedSend) && failedSend.mailed === false,
+    "a failed send stays visible and does not report success",
+  );
+  assertOk(
+    readFileSync("app/api/ampel/ergebnis/senden/route.ts", "utf8").includes("scheduleAmpelAfterResponse") &&
+      readFileSync("app/api/kassen-check/ergebnis/senden/route.ts", "utf8").includes("scheduleAmpelAfterResponse"),
+    "both send routes return before the lead and DOI work",
+  );
 
   const low = scoreAmpel(
     all("nein", { kasse_tse: "ja", aufbewahrung: "ja", scannen: "ja" }),
@@ -390,7 +445,7 @@ try {
   assertOk(!confirmation.text.includes(reviewMarker) && !confirmation.html.includes(reviewMarker), "confirmation mail hides review notes");
   assertOk(!resultMail?.text.includes(reviewMarker) && !resultMail?.html.includes(reviewMarker), "result mail hides review notes");
   assertOk(!confirmation.text.includes(AMPEL_RESULTS.gruen.headline), "confirmation mail does not send the result");
-  assertOk(resultMail?.text.includes("95 von 100"), "result mail states the score");
+  assertOk(resultMail?.text.includes("Ihr Ergebnis: Gelb.") && !resultMail.text.includes("von 100"), "result mail names the color and hides the score");
   const consentSentence =
     "Sie haben zugestimmt, per E-Mail Informationen zu GoBD-Themen und Angeboten von gobd-doku-erstellen.de (IKAT GmbH) zu erhalten. Bitte bestätigen Sie das über den folgenden Link.";
   assertOk(
@@ -428,6 +483,7 @@ try {
   assertOk(page.includes("AMPEL_H1") && page.includes("AMPEL_INTRO"), "page renders the Growth H1 and intro");
   assertOk(page.includes("AMPEL_SHARE_KANZLEI") && page.includes("AMPEL_RESULT_MAIL"), "page renders share and DOI copy");
   assertOk(resultView.includes("AMPEL_CTA") && resultView.includes("AMPEL_DISCLAIMER") && resultView.includes("AMPEL_CAP_NOTE"), "result renders CTA, disclaimer and the cap note");
+  assertOk(!resultView.includes("von 100"), "the result page does not show the score");
   assertOk(AMPEL_CTA.button.length > 0 && AMPEL_INTRO.length > 0, "CTA and intro are present");
   assertOk(AMPEL_SHARE_KANZLEI.message.includes("{link}"), "share text has a link placeholder");
   assertOk(!page.includes(reviewMarker) && !readFileSync("components/ampel-result.tsx", "utf8").includes(reviewMarker), "pages do not render review markers");
@@ -814,6 +870,7 @@ try {
   assertOk(pdf.subarray(0, 4).toString() === "%PDF", "pdf header");
   const pdfBytes = pdf.toString("latin1");
   assertOk(pdfBytes.includes("keine Steuerberatung"), "pdf carries the disclaimer");
+  assertOk(!pdfBytes.includes("von 100"), "pdf hides the score");
   assertOk(pdfBytes.includes("GoBD"), "pdf carries a source");
   const pdfMail = buildAmpelPdfMail(all("nein"));
   assertOk(pdfMail?.text.includes("GoBD Rz. 151"), "mail quotes a source");

@@ -137,6 +137,7 @@ ok(form.includes("kassenOffersNotApplicable(question)") && form.includes("Trifft
 
 const mail = buildKassenResultMail(answers("JJJJJJ"));
 ok(Boolean(mail?.text.includes(KASSEN_RESULTS.gruen.headline)), "result mail includes the green text");
+ok(Boolean(mail && !mail.text.includes("von 100") && !mail.html.includes("von 100")), "result mail hides the score");
 const tseMail = buildKassenResultMail(answers("NJJJJJ"));
 ok(Boolean(tseMail?.text.includes(KASSEN_RESULTS.rot.headline)), "TSE no mail uses the red text");
 const currentMail = buildKassenResultMail(answers("JJJJJN"));

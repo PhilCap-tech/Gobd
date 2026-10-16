@@ -84,7 +84,7 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
   const lines = [
     "Guten Tag,",
     "",
-    `Ihr Ergebnis: ${band.label}, ${scored.score} von 100.`,
+    `Ihr Ergebnis: ${band.label}.`,
     band.headline,
     "",
     band.text,
@@ -127,7 +127,7 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
   const hintsHtml = band.hints.map((hint) => `<li>${escapeHtml(hint)}</li>`).join("");
   const html = wrapTransactionalHtml(`
     <p>Guten Tag,</p>
-    <p>Ihr Ergebnis: <strong>${escapeHtml(band.label)}</strong>, ${scored.score} von 100.</p>
+    <p>Ihr Ergebnis: <strong>${escapeHtml(band.label)}</strong>.</p>
     <p><strong>${escapeHtml(band.headline)}</strong></p>
     <p>${escapeHtml(band.text)}</p>
     ${scored.capped ? `<p>${escapeHtml(AMPEL_CAP_NOTE)}</p>` : ""}
