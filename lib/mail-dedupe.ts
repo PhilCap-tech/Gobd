@@ -84,6 +84,11 @@ export function onboardingMailKey(sessionId: string): string {
   return `onboarding:${sessionId.trim()}`;
 }
 
+/** One internal paid-checkout note per Stripe session. No expiry. */
+export function checkoutNoticeMailKey(sessionId: string): string {
+  return `checkout-notice:${sessionId.trim()}`;
+}
+
 export function failedPaymentMailKey(anchor: string): string {
   return `failed-payment:${anchor.trim()}`;
 }

@@ -5,6 +5,7 @@ import {
   isStripeSecretConfigured,
 } from "@/lib/env";
 import { deliverBuyerOnboarding } from "@/lib/buyer-onboarding";
+import { notifyCheckoutPaid } from "@/lib/checkout-notice";
 import { isTestEntity, matchingTestEntityId } from "@/lib/test-entities";
 import { ensureBuyerFirmForCheckout } from "@/lib/checkout-firm";
 import {
@@ -189,6 +190,24 @@ export async function POST(request: Request) {
           matchingTestEntityId(metadataEntityId, linkedEntityId) ||
           linkedEntityId ||
           metadataEntityId;
+        try {
+          await notifyCheckoutPaid({
+            livemode: session.livemode,
+            paymentStatus: session.payment_status,
+            entityId: checkoutEntityId,
+            sessionId: session.id,
+            company: company || existing?.company || "",
+            email: buyerEmail,
+            amountTotal: session.amount_total,
+            currency: session.currency,
+            created: session.created,
+          });
+        } catch (error) {
+          console.error(
+            "[webhook] Kaufhinweis nicht gesendet",
+            error instanceof Error ? error.name : "error",
+          );
+        }
         const stripeContact = checkoutContactFromCustomerDetails(session.customer_details);
         if (!isTestEntity(checkoutEntityId)) {
           const mailed = await deliverBuyerOnboarding({
