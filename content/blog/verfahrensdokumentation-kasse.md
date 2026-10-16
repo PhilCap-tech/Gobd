@@ -73,6 +73,9 @@ In Gastronomie, Einzelhandel und Friseursalon wiederholen sich dieselben Fragen,
 
 Schreiben Sie nur, was bei Ihnen vorkommt. Ein Friseursalon ohne Gutscheine braucht keinen Gutscheinprozess. Ein Laden mit Wechselgeld braucht einen Satz dazu, wo der Wechselgeldbestand herkommt und wie er gezählt wird. Was im Salon und im Laden dazukommt, steht in der [Verfahrensdokumentation für Friseure](/verfahrensdokumentation-friseure) und der [Verfahrensdokumentation im Einzelhandel](/verfahrensdokumentation-einzelhandel).
 
+- [Verfahrensdokumentation für Taxiunternehmen](/verfahrensdokumentation-taxi)
+- [Verfahrensdokumentation für Kioske](/verfahrensdokumentation-kiosk)
+
 ## Was der Kassenteil beschreiben sollte
 
 Orientieren Sie sich an dieser Liste und streichen Sie, was Sie nicht einsetzen. Ergänzen Sie, was bei Ihnen zusätzlich läuft.
@@ -151,6 +154,8 @@ Nein. § 146b AO erlaubt eine unangekündigte Kassen-Nachschau. Sie ist ein eige
 - [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren) — wenn Kasse oder Ablauf sich ändert
 - [Verfahrensdokumentation GoBD Pflicht](/blog/verfahrensdokumentation-pflicht) — für wen die Dokumentation ein Thema ist
 - [Verfahrensdokumentation in der Gastronomie](/blog/verfahrensdokumentation-gastronomie) — Einkauf, Plattformen, Karte, Trinkgeld, Personal und Gutscheine
+- [Verfahrensdokumentation für Taxiunternehmen](/verfahrensdokumentation-taxi)
+- [Verfahrensdokumentation für Kioske](/verfahrensdokumentation-kiosk)
 
 ## Disclaimer
 

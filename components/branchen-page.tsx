@@ -17,7 +17,7 @@ import { PRICE_MICRO, RESULT_PROMISE } from "@/lib/offer-copy";
 export function BranchenPage({ seite }: { seite: BranchenSeite }) {
   const path = branchenPath(seite.slug);
   const faqs = branchenFaq(seite.body);
-  const others = listBranchenFooterLinks().filter((item) => item.slug !== seite.slug);
+  const others = listBranchenFooterLinks();
   return (
     <>
       <CrumbJsonLd
