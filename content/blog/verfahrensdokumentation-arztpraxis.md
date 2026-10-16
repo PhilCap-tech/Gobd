@@ -126,6 +126,7 @@ Den Weg bis zur Übergabe und das, was in der Praxis liegen bleibt: Bescheid, Re
 
 - [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
 - [GoBD Verfahrensdokumentation für die Kasse](/blog/verfahrensdokumentation-kasse) — wenn an der Anmeldung Bargeld angenommen wird
+- [Verfahrensdokumentation für Apotheken](/verfahrensdokumentation-apotheke)
 
 ## Disclaimer
 

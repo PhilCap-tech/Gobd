@@ -81,12 +81,20 @@ export default function MusterIndexPage() {
                       <Link href="/verfahrensdokumentation-taxi">
                         Verfahrensdokumentation für Taxiunternehmen
                       </Link>
+                      {" · "}
+                      <Link href="/verfahrensdokumentation-verein">
+                        Verfahrensdokumentation für Vereine
+                      </Link>
                     </span>
                   ) : null}
                   {vorlage === "handel" ? (
                     <span className="muster-links">
                       <Link href="/verfahrensdokumentation-kiosk">
                         Verfahrensdokumentation für Kioske
+                      </Link>
+                      {" · "}
+                      <Link href="/verfahrensdokumentation-apotheke">
+                        Verfahrensdokumentation für Apotheken
                       </Link>
                     </span>
                   ) : null}
