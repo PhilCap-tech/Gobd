@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { after } from "next/server";
 import { sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
 import { requestAmpelConfirmation, type AmpelConfirmationInput, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
 import { ampelConsentBlocked } from "@/lib/ampel-marketing-guard";
@@ -78,7 +79,22 @@ export type SubmitAmpelDeps = {
   dedupeKey?: (email: string, code: string) => string;
   sentNotice?: string;
   sendConfirmation?: (input: { email: string; token: string }) => Promise<MailResult>;
+  /**
+   * Runs the lead write and the optional DOI after the result mail is confirmed,
+   * so the HTTP response can report success without waiting for them.
+   */
+  scheduleAfterSend?: (work: () => Promise<void>) => void;
 };
+
+/** Schedules lead and DOI work after the response. Outside a request it still runs, without holding the caller. */
+export function scheduleAmpelAfterResponse(work: () => Promise<void>): void {
+  try {
+    after(() => work());
+  } catch (error) {
+    console.error("[ampel] Nacharbeit ohne Anfragekontext", error instanceof Error ? error.name : "error");
+    void work();
+  }
+}
 
 export type SubmitAmpelOutcome =
   | { ok: true; honeypot: true; trace?: AmpelRateTrace }
@@ -362,24 +378,45 @@ export async function deliverAmpelResult(
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
 
+  const finish = () => finishAmpelResult(email, answers, code, input, deps, now, timeoutMs);
+  if (deps.scheduleAfterSend) {
+    const marketing = input.marketing === true ? "started" : "skipped";
+    deps.scheduleAfterSend(async () => {
+      await finish();
+    });
+    return sentOutcome(deps, marketing);
+  }
+  const finished = await finish();
+  return sentOutcome(deps, finished);
+}
+
+async function finishAmpelResult(
+  email: string,
+  answers: AmpelAnswerMap,
+  code: string,
+  input: SubmitAmpelInput,
+  deps: SubmitAmpelDeps,
+  now: number,
+  timeoutMs: number,
+): Promise<"started" | "failed" | "skipped"> {
   try {
-        const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
-        if (scored) {
-          const consentAt = new Date(now).toISOString();
-          const lead = toAmpelReadinessLead({
-            email,
-            answers: code,
-            ref: sanitizeAmpelRef(input.ref),
-            consentAt,
-            doiConfirmedAt: "",
-            score: scored.score,
-            light: scored.light,
-            mailStatus: "pdf_sent",
-            marketingOptIn: input.marketing === true ? "pending" : "",
-            mailed: "ja",
-            leadPrefix: deps.leadPrefix,
-          });
-          lead.status = deps.leadStatus ?? "ampel_pdf";
+    const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
+    if (scored) {
+      const consentAt = new Date(now).toISOString();
+      const lead = toAmpelReadinessLead({
+        email,
+        answers: code,
+        ref: sanitizeAmpelRef(input.ref),
+        consentAt,
+        doiConfirmedAt: "",
+        score: scored.score,
+        light: scored.light,
+        mailStatus: "pdf_sent",
+        marketingOptIn: input.marketing === true ? "pending" : "",
+        mailed: "ja",
+        leadPrefix: deps.leadPrefix,
+      });
+      lead.status = deps.leadStatus ?? "ampel_pdf";
       lead.timestamp = consentAt;
       const save = deps.saveLead ?? (async (row: ReadinessLead) => {
         if (automatedRunForbidsLiveWrites()) return;
@@ -391,40 +428,40 @@ export async function deliverAmpelResult(
     console.error("[ampel] Ergebnis speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
   }
 
-  let marketing: "started" | "failed" | "skipped" = "skipped";
-  if (input.marketing === true) {
-    try {
-      const blocked = await ampelConsentBlocked(email, new Date(now).toISOString());
-      if (!blocked) {
-        const confirm = deps.confirm ?? ((payload) => confirmMarketing(payload, deps.sendConfirmation));
-        const confirmed = await withDeadline(
-          confirm({
-            email,
-            answers: code,
-            ref: sanitizeAmpelRef(input.ref),
-            consentIp: input.ip,
-            consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
-            mailed: "ja",
-            ...(deps.check ? { check: deps.check } : {}),
-            ...(deps.leadPrefix ? { leadPrefix: deps.leadPrefix } : {}),
-            ...(deps.leadStatus ? { pendingStatus: deps.leadStatus } : {}),
-          }),
-          timeoutMs,
-        );
-        if (!confirmed.ok) marketing = "failed";
-        else if (confirmed.blocked === "suppressed") marketing = "skipped";
-        else marketing = "started";
-      }
-    } catch (error) {
-      console.error("[ampel] Einwilligung fehlgeschlagen", error instanceof Error ? error.name : "error");
-      marketing = "failed";
-    }
+  if (input.marketing !== true) return "skipped";
+  try {
+    const blocked = await ampelConsentBlocked(email, new Date(now).toISOString());
+    if (blocked) return "skipped";
+    const confirm = deps.confirm ?? ((payload) => confirmMarketing(payload, deps.sendConfirmation));
+    const confirmed = await withDeadline(
+      confirm({
+        email,
+        answers: code,
+        ref: sanitizeAmpelRef(input.ref),
+        consentIp: input.ip,
+        consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
+        mailed: "ja",
+        ...(deps.check ? { check: deps.check } : {}),
+        ...(deps.leadPrefix ? { leadPrefix: deps.leadPrefix } : {}),
+        ...(deps.leadStatus ? { pendingStatus: deps.leadStatus } : {}),
+      }),
+      timeoutMs,
+    );
+    if (!confirmed.ok) return "failed";
+    if (confirmed.blocked === "suppressed") return "skipped";
+    return "started";
+  } catch (error) {
+    console.error("[ampel] Einwilligung fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return "failed";
   }
+}
+
+function sentOutcome(
+  deps: SubmitAmpelDeps,
+  marketing: "started" | "failed" | "skipped",
+): SubmitAmpelOutcome {
   const sentLine = deps.sentNotice ?? AMPEL_RESULT_MAIL.sent;
-  const notice =
-    marketing === "started"
-      ? `${sentLine} ${AMPEL_RESULT_MAIL.doiSuccess}`
-      : sentLine;
+  const notice = marketing === "started" ? `${sentLine} ${AMPEL_RESULT_MAIL.doiSuccess}` : sentLine;
   return { ok: true, duplicate: false, marketing, mailed: true, notice };
 }
 

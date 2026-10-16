@@ -40,7 +40,7 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
     "",
     "anbei erhalten Sie das PDF mit Ihrem Ergebnis der Betriebsprüfungs-Ampel.",
     "",
-    `Ergebnis: ${band.label}, ${scored.score} von 100.`,
+    `Ergebnis: ${band.label}.`,
     band.headline,
     "",
     band.text,
@@ -79,7 +79,7 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
   const html = wrapTransactionalHtml(`
     <p>Guten Tag,</p>
     <p>anbei erhalten Sie das PDF mit Ihrem Ergebnis der Betriebsprüfungs-Ampel.</p>
-    <p>Ergebnis: <strong>${escapeHtml(band.label)}</strong>, ${scored.score} von 100.</p>
+    <p>Ergebnis: <strong>${escapeHtml(band.label)}</strong>.</p>
     <p><strong>${escapeHtml(band.headline)}</strong></p>
     <p>${escapeHtml(band.text)}</p>
     ${scored.capped ? `<p>${escapeHtml(AMPEL_CAP_NOTE)}</p>` : ""}
@@ -122,7 +122,7 @@ export function buildAmpelResultPdf(answers: AmpelAnswerMap): Promise<Buffer> {
     });
     doc.moveDown(0.4);
     doc.fillColor(BRAND_INK).font("Helvetica-Bold").fontSize(12).text(
-      `Ergebnis: ${band.label}, ${scored.score} von 100`,
+      `Ergebnis: ${band.label}`,
       { width: CONTENT_WIDTH },
     );
     doc.moveDown(0.3);
