@@ -485,8 +485,9 @@ export async function generatePdf(input: {
    */
   variant?: PdfVariant;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
-  if (!isMuster(input.variant) && isTestEntity(input.identity.entityId)) {
-    throw new TestEntityDeliverySkipped(input.identity.entityId.trim());
+  const entityId = input.identity.entityId;
+  if (!isMuster(input.variant) && entityId && isTestEntity(entityId)) {
+    throw new TestEntityDeliverySkipped(entityId.trim());
   }
   const documentId = input.documentId || randomUUID();
   const version = input.version && input.version > 0 ? input.version : 1;
