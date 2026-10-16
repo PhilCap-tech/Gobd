@@ -1,5 +1,5 @@
 import { ampelApiResponse, ampelSubmitResponse } from "@/lib/ampel-api-response";
-import { readAmpelClientIp } from "@/lib/ampel-rate-limit";
+import { readAmpelClientIp, withAmpelRateIdentity } from "@/lib/ampel-rate-limit";
 import { submitAmpelResult } from "@/lib/ampel-result-send";
 
 export const runtime = "nodejs";
@@ -10,10 +10,18 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, { kind: "skip", reason: "request" });
+    return ampelApiResponse(
+      { error: "Ungültige Anfrage" },
+      400,
+      withAmpelRateIdentity({ kind: "skip", reason: "request" }, client.ip, client.source),
+    );
   }
   if (!body || typeof body !== "object") {
-    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, { kind: "skip", reason: "request" });
+    return ampelApiResponse(
+      { error: "Ungültige Anfrage" },
+      400,
+      withAmpelRateIdentity({ kind: "skip", reason: "request" }, client.ip, client.source),
+    );
   }
   const value = body as Record<string, unknown>;
   const result = await submitAmpelResult(

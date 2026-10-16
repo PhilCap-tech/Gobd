@@ -1220,7 +1220,8 @@ try {
         !("honeypot" in filed) &&
         filed.trace?.kind === "skip" &&
         filed.trace.reason === "file" &&
-        ampelSubmitResponse(filed).headers.get("x-ampel-rl") === "src=skip;reason=file",
+        ampelSubmitResponse(filed).headers.get("x-ampel-rl") ===
+          `src=skip;reason=file;h=${ampelRateStoredHash(ampelRateIpKey("203.0.113.77")).slice(0, 8)}`,
       "the file ledger sets src=skip;reason=file",
     );
     const rawLedger = readFileSync(ledgerFile, "utf8");
@@ -1475,6 +1476,8 @@ try {
     process.env.GOOGLE_SHEETS_SPREADSHEET_ID = "ampel-rate-test-sheet";
     const sameAddress = "104.28.218.14";
     const windowId = hour;
+    const hash8 = ampelRateStoredHash(ampelRateIpKey(sameAddress)).slice(0, 8);
+    const seen = `;h=${hash8};ipsrc=x-real-ip`;
     try {
       function sheetClient(options?: { plan?: number[]; failDataAppend?: boolean }) {
         const titles: string[] = [];
@@ -1617,8 +1620,9 @@ try {
               sent.trace.pos === index + 1 &&
               sent.trace.win === windowId &&
               response.status === 200 &&
-              response.headers.get("x-ampel-rl") === `src=sheets;pos=${index + 1};win=${windowId}`,
-            `sheet send ${index + 1} sets src=sheets;pos=${index + 1};win=${windowId}`,
+              response.headers.get("x-ampel-rl") ===
+                `src=sheets;pos=${index + 1};win=${windowId}${seen};rows=${index + 1};match=${index + 1}`,
+            `sheet send ${index + 1} sets src=sheets;pos=${index + 1};win=${windowId}${seen};rows=${index + 1};match=${index + 1}`,
           );
         } else {
           assertOk(
@@ -1627,7 +1631,8 @@ try {
               sent.trace?.kind === "limit" &&
               sent.trace.pos === AMPEL_IP_LIMIT + 1 &&
               response.status === 429 &&
-              response.headers.get("x-ampel-rl") === `src=limit;pos=${AMPEL_IP_LIMIT + 1}`,
+              response.headers.get("x-ampel-rl") ===
+                `src=limit;pos=${AMPEL_IP_LIMIT + 1}${seen};rows=${AMPEL_IP_LIMIT + 1};match=${AMPEL_IP_LIMIT + 1}`,
             "five sheet sends are allowed and the sixth sets src=limit;pos=6",
           );
         }
@@ -1813,7 +1818,8 @@ try {
               sent.trace?.kind === "sheets" &&
               sent.trace.pos === index + 1 &&
               response.status === 200 &&
-              response.headers.get("x-ampel-rl") === `src=sheets;pos=${index + 1};win=${windowId}`,
+              response.headers.get("x-ampel-rl") ===
+                `src=sheets;pos=${index + 1};win=${windowId}${seen};rows=${index + 2};match=${index + 1}`,
             `reloaded instance ${index + 1} sets src=sheets;pos=${index + 1}`,
           );
         } else {
@@ -1823,7 +1829,8 @@ try {
               sent.trace?.kind === "limit" &&
               sent.trace.pos === AMPEL_IP_LIMIT + 1 &&
               response.status === 429 &&
-              response.headers.get("x-ampel-rl") === `src=limit;pos=${AMPEL_IP_LIMIT + 1}`,
+              response.headers.get("x-ampel-rl") ===
+                `src=limit;pos=${AMPEL_IP_LIMIT + 1}${seen};rows=${AMPEL_IP_LIMIT + 2};match=${AMPEL_IP_LIMIT + 1}`,
             "six reloaded instances take positions 1..6 and the sixth is a 429",
           );
         }
@@ -1929,7 +1936,7 @@ try {
           broken.trace?.kind === "failopen" &&
           broken.trace.err === "store" &&
           brokenResponse.status === 200 &&
-          brokenResponse.headers.get("x-ampel-rl") === "src=failopen;err=store",
+          brokenResponse.headers.get("x-ampel-rl") === `src=failopen;err=store${seen}`,
         "fail-open sets src=failopen;err=store",
       );
 
@@ -1986,7 +1993,10 @@ try {
           !("honeypot" in reservedDone) &&
           reservedDone.mailed === true &&
           reservedSends === 1 &&
-          reservedAppendsAfter === reservedAppends,
+          reservedAppendsAfter === reservedAppends &&
+          ampelSubmitResponse(reservedDone).headers.get("x-ampel-rl") ===
+            `src=sheets;pos=1;win=${windowId}${seen};rows=1;match=1` &&
+          !String(ampelSubmitResponse(reservedDone).headers.get("x-ampel-rl")).includes(sameAddress),
         "senden does not append a second rate row",
       );
     } finally {
@@ -2094,6 +2104,40 @@ try {
     const poisoned = ampelRateResponseHeader({ kind: "failopen", err: `store ${sameAddress}` });
     assertOk(poisoned === "src=failopen;err=store1042821814" && !poisoned.includes(sameAddress), "a raw address cannot appear in the rate header");
     assertOk(ampelRateResponseHeader({ kind: "limit", pos: 6 }) === "src=limit;pos=6", "a 429 sets src=limit;pos=N");
+    const diagnosed = ampelRateResponseHeader({
+      kind: "sheets",
+      pos: 2,
+      win: windowId,
+      h: hash8,
+      ipsrc: "x-forwarded-for[0]",
+      rows: 1,
+      match: 1,
+    });
+    assertOk(
+      diagnosed === `src=sheets;pos=2;win=${windowId};h=${hash8};ipsrc=x-forwarded-for[0];rows=1;match=1` &&
+        !diagnosed.includes(sameAddress),
+      "the rate header adds h, ipsrc, rows and match",
+    );
+    assertOk(
+      ampelRateResponseHeader({ kind: "limit", pos: 6, h: hash8, ipsrc: "x-real-ip", rows: 6, match: 6 }) ===
+        `src=limit;pos=6;h=${hash8};ipsrc=x-real-ip;rows=6;match=6`,
+      "a 429 keeps h, ipsrc, rows and match",
+    );
+    assertOk(
+      ampelRateResponseHeader({ kind: "failopen", err: "store", h: hash8, ipsrc: "x-vercel-forwarded-for[0]" }) ===
+        `src=failopen;err=store;h=${hash8};ipsrc=x-vercel-forwarded-for[0]`,
+      "fail-open keeps h and ipsrc",
+    );
+    assertOk(
+      ampelRateResponseHeader({ kind: "skip", reason: "duplicate", h: hash8, ipsrc: "x-real-ip" }) ===
+        `src=skip;reason=duplicate;h=${hash8};ipsrc=x-real-ip`,
+      "a skip keeps h and ipsrc",
+    );
+    assertOk(
+      ampelRateResponseHeader({ kind: "skip", reason: "request", h: sameAddress, ipsrc: sameAddress, rows: -1 }) ===
+        "src=skip;reason=request",
+      "a raw address cannot appear in h or ipsrc",
+    );
     const shaped = ampelApiResponse({ ok: true }, 200, { kind: "sheets", pos: 2, win: windowId });
     assertOk(shaped.headers.get("x-ampel-rl") === header, "the submit response sets x-ampel-rl");
     const badJson = await postAmpelErgebnis(
@@ -2105,7 +2149,7 @@ try {
     );
     const badHeader = badJson.headers.get("x-ampel-rl") ?? "";
     assertOk(
-      badJson.status === 400 && badHeader === "src=skip;reason=request" && !badHeader.includes(sameAddress),
+      badJson.status === 400 && badHeader === `src=skip;reason=request${seen}` && !badHeader.includes(sameAddress),
       "a bad request sets src=skip;reason=request",
     );
     const denied = await postAmpelErgebnisSenden(
@@ -2121,7 +2165,7 @@ try {
     );
     const deniedHeader = denied.headers.get("x-ampel-rl") ?? "";
     assertOk(
-      denied.status === 403 && deniedHeader === "src=skip;reason=token" && !deniedHeader.includes(sameAddress),
+      denied.status === 403 && deniedHeader === `src=skip;reason=token${seen}` && !deniedHeader.includes(sameAddress),
       "senden sets src=skip;reason=token before it validates the email",
     );
 
@@ -2175,7 +2219,7 @@ try {
         flakySends === 1 &&
         flakyDone.trace?.kind === "failopen" &&
         flakyDone.trace.err === "confirm" &&
-        ampelSubmitResponse(flakyDone).headers.get("x-ampel-rl") === "src=failopen;err=confirm",
+        ampelSubmitResponse(flakyDone).headers.get("x-ampel-rl") === `src=failopen;err=confirm${seen}`,
       "a confirm error sets src=failopen;err=confirm and still sends the mail",
     );
   } finally {
