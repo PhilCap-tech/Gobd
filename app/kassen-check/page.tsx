@@ -10,7 +10,7 @@ import { KassenCheck } from "./kassen-check";
 export const metadata: Metadata = {
   title: "Kassen- und TSE-Meldecheck",
   description: KASSEN_INTRO,
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: canonicalUrl(KASSEN_CHECK_PATH) },
 };
 

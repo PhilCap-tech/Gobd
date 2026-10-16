@@ -77,6 +77,7 @@ export const INDEXABLE_STATIC_PATHS = [
   "/faq",
   "/ampel-check",
   "/ampel-check/quellen",
+  "/kassen-check",
   "/resources/10-offene-punkte",
   "/resources/inhalt-verfahrensdokumentation",
   "/muster",

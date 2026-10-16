@@ -57,13 +57,16 @@ installSheetsHandler(async () => {
 });
 
 ok(automatedRunForbidsLiveWrites(), "check:kassen keeps live writes closed");
-ok(!(INDEXABLE_STATIC_PATHS as readonly string[]).includes(KASSEN_CHECK_PATH), "sitemap paths omit /kassen-check");
+ok((INDEXABLE_STATIC_PATHS as readonly string[]).includes(KASSEN_CHECK_PATH), "sitemap paths include /kassen-check");
 ok(source("app/sitemap.ts").includes("INDEXABLE_STATIC_PATHS"), "sitemap is built from the indexable list");
-ok(!source("app/sitemap.ts").includes("/kassen-check"), "sitemap source does not add /kassen-check");
-ok(source("next.config.ts").includes('source: "/kassen-check"'), "robots header covers /kassen-check");
-ok(source("next.config.ts").includes('value: "noindex, follow"'), "robots header is noindex, follow");
+ok(!source("next.config.ts").includes('{ source: "/kassen-check",'), "the check page has no robots header");
+ok(
+  source("next.config.ts").includes('{ source: "/kassen-check/:path*",'),
+  "the confirm path stays noindex",
+);
 const page = source("app/kassen-check/page.tsx");
-ok(page.includes("index: false") && page.includes("follow: true"), "page metadata is noindex, follow");
+ok(page.includes("index: true") && page.includes("follow: true"), "page metadata is index, follow");
+ok(!page.includes("noindex") && !page.includes("index: false"), "page metadata has no noindex");
 
 ok(KASSEN_H1 === "Kassen- und TSE-Meldecheck: Sind Ihre Kassen beim Finanzamt gemeldet?", "h1");
 ok(KASSEN_INTRO.startsWith("Beantworten Sie 6 Fragen"), "intro");

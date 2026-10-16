@@ -228,6 +228,10 @@ async function checkSitemapLastmod() {
     entries.some((entry) => entry.url === canonicalUrl("/steuerberater")),
     "sitemap lists /steuerberater",
   );
+  ok(
+    entries.some((entry) => entry.url === canonicalUrl("/kassen-check")),
+    "sitemap lists /kassen-check",
+  );
   for (const path of [
     "/steuerberater/muster",
     "/steuerberater/demo",
@@ -235,7 +239,6 @@ async function checkSitemapLastmod() {
     "/steuerberater/merkblatt/abmelden",
     "/ampel-check/bestaetigen",
     "/ampel-check/abmelden",
-    "/kassen-check",
     "/kassen-check/bestaetigen",
     "/success",
     "/readiness/success",
