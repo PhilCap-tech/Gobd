@@ -20,6 +20,7 @@ import {
 import { AMPEL_CONSENT_TEXT_VERSION, type AmpelQuestion } from "@/lib/ampel-questions";
 import type { AmpelAnswerMap } from "@/lib/ampel-score";
 import { KASSEN_QUESTIONS } from "@/lib/kassen-check-questions";
+import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
 import { sendKassenDoiAckMail } from "@/lib/kassen-check-mail";
 
@@ -49,12 +50,8 @@ function questionsForCheck(check: "kassen-check" | undefined): readonly AmpelQue
   return check === "kassen-check" ? KASSEN_QUESTIONS : undefined;
 }
 
-function scoreForCheck(
-  answers: AmpelAnswerMap,
-  check: "kassen-check" | undefined,
-  questions: readonly AmpelQuestion[] | undefined,
-) {
-  return check === "kassen-check" ? scoreKassen(answers) : scoreAmpel(answers, questions);
+function scoreForCheck(answers: AmpelAnswerMap, check: "kassen-check" | undefined) {
+  return check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
 }
 
 function wait(ms: number): Promise<void> {
@@ -99,7 +96,7 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
   const leadPrefix = payload.check === "kassen-check" ? "kassen" : "ampel";
   const confirmedStatus = payload.check === "kassen-check" ? "kassen-check" : "ampel_doi_confirmed";
   const answers = decodeAmpelAnswers(payload.answers, questions);
-  const scored = answers ? scoreForCheck(answers, payload.check, questions) : null;
+  const scored = answers ? scoreForCheck(answers, payload.check) : null;
   if (!scored) return { ok: false, status: 400, reason: "invalid" };
 
   const confirmedAt = new Date(now).toISOString();
@@ -279,7 +276,7 @@ async function runConfirmation(
   const pendingStatus = input.pendingStatus ?? (input.check === "kassen-check" ? "kassen-check" : "ampel_doi_pending");
   const email = normalizeAmpelEmail(input.email);
   const decoded = decodeAmpelAnswers(input.answers, questions);
-  const scored = decoded ? scoreForCheck(decoded, input.check, questions) : null;
+  const scored = decoded ? scoreForCheck(decoded, input.check) : null;
   const code = decoded ? encodeAmpelAnswers(decoded, questions) : null;
   if (!email || !decoded || !code || !scored) {
     return { ok: false, status: 400, reason: "invalid" };

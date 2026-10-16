@@ -7,7 +7,8 @@ import {
   AMPEL_RESULTS,
   type AmpelAnswer,
 } from "@/lib/ampel-questions";
-import { publicAmpelSource, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
+import { scoreAmpelCheck } from "@/lib/ampel-check-score";
+import { publicAmpelSource, type AmpelAnswerMap } from "@/lib/ampel-score";
 import { CUSTOMER_MAIL_SIGNATURE } from "@/lib/ops";
 import { BRAND_INK, BRAND_MUTED, BRAND_NAVY, drawBrandLockup } from "@/lib/pdf-brand";
 import {
@@ -30,7 +31,7 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
   text: string;
   html: string;
 } | null {
-  const scored = scoreAmpel(answers);
+  const scored = scoreAmpelCheck(answers);
   if (!scored) return null;
   const band = AMPEL_RESULTS[scored.light];
   const subject = "Ihr Ergebnis der Betriebsprüfungs-Ampel";
@@ -95,7 +96,7 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
 }
 
 export function buildAmpelResultPdf(answers: AmpelAnswerMap): Promise<Buffer> {
-  const scored = scoreAmpel(answers);
+  const scored = scoreAmpelCheck(answers);
   if (!scored) return Promise.reject(new Error("ampel-pdf-incomplete"));
   const band = AMPEL_RESULTS[scored.light];
   return new Promise((resolve, reject) => {

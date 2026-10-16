@@ -9,12 +9,12 @@ import {
 import {
   ampelNeinQuestions,
   publicAmpelSource,
-  scoreAmpel,
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
+import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 
 export function AmpelResult({ answers }: { answers: AmpelAnswerMap }) {
-  const scored = scoreAmpel(answers);
+  const scored = scoreAmpelCheck(answers);
   if (!scored) return null;
   const band = AMPEL_RESULTS[scored.light];
   const nein = ampelNeinQuestions(answers);
