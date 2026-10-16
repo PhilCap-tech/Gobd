@@ -209,6 +209,14 @@ async function checkSitemapLastmod() {
   const branchen = entries.filter((entry) => entry.url.includes("/verfahrensdokumentation-"));
   ok(branchen.length >= 2, "sitemap lists the branch pages");
   ok(
+    !entries.some((entry) => entry.url.includes("/verfahrensdokumentation-taxi")),
+    "sitemap omits noindex /verfahrensdokumentation-taxi",
+  );
+  ok(
+    !entries.some((entry) => entry.url.includes("/verfahrensdokumentation-kiosk")),
+    "sitemap omits noindex /verfahrensdokumentation-kiosk",
+  );
+  ok(
     entries.some((entry) => entry.url === canonicalUrl("/steuerberater")),
     "sitemap lists /steuerberater",
   );
@@ -241,16 +249,35 @@ async function main() {
   const faq = source("app/faq/page.tsx");
   const muster = source("app/muster/page.tsx");
   const branchen = source("components/branchen-page.tsx");
+  ok(
+    source("lib/branchen.ts").includes('["friseure", "einzelhandel", "taxi", "kiosk"]'),
+    "BRANCHEN_SLUGS includes taxi and kiosk",
+  );
   ok(footer.includes("listBranchenFooterLinks"), "footer reads content/branchen");
   ok(footer.includes(">Branchen<"), "footer column is titled Branchen");
   ok(!footer.includes("BRANCHEN_LINKS"), "footer branch list is not hardcoded");
   const footerLinks = listBranchenFooterLinks();
+  const bySlug = [...seiten]
+    .map((seite) => seite.slug)
+    .sort((a, b) => a.localeCompare(b, "de"));
   ok(footerLinks.length === seiten.length, "footer lists every industry page");
+  ok(
+    footerLinks.map((item) => item.slug).join(",") === bySlug.join(","),
+    "footer lists industry pages alphabetically by slug",
+  );
   for (const seite of seiten) {
     const link = footerLinks.find((item) => item.slug === seite.slug);
     ok(link?.label === branchenAnchorLabel(seite.h1), `footer anchor for ${seite.slug}`);
     ok(link?.href === seite.route, `footer href for ${seite.slug}`);
   }
+  for (const slug of ["taxi", "kiosk"] as const) {
+    const seite = seiten.find((item) => item.slug === slug);
+    ok(seite?.noindex === true, `${slug} stays noindex`);
+  }
+  ok(
+    !branchen.includes("item.slug !== seite.slug"),
+    "other-industries block lists every industry page",
+  );
   ok(
     !header.includes("BRANCHEN_LINKS") && !header.includes("Branchenseiten"),
     "header has no branch navigation",

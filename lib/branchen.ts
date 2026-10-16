@@ -36,7 +36,7 @@ export type BranchenSeite = {
   body: string;
 };
 
-export const BRANCHEN_SLUGS = ["friseure", "einzelhandel"] as const;
+export const BRANCHEN_SLUGS = ["friseure", "einzelhandel", "taxi", "kiosk"] as const;
 
 /** Visible anchor: the H1 up to the first colon. */
 export function branchenAnchorLabel(h1: string): string {
