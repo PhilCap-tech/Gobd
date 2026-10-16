@@ -588,6 +588,7 @@ async function checkScheduleRunsOnce() {
 async function checkBackgroundLeavesFreshClaim() {
   const sessionId = "cs_test_bg_inflight_4c98";
   const email = "inflight.bg@example.com";
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
   await forgetBuyerOnboarding(sessionId);
   await forgetCheckoutFirmClaim(email);
   await plantBuyerOnboardingMarker(sessionId, {
@@ -622,6 +623,7 @@ async function checkBackgroundLeavesFreshClaim() {
     sessionId,
   });
   ok(again === "inflight", "background work does not take over a fresh claim");
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
   await forgetBuyerOnboarding(sessionId);
   await forgetCheckoutFirmClaim(email);
 }
@@ -630,6 +632,7 @@ async function checkBackgroundSkipsTestFirm() {
   const sessionId = "cs_test_bg_listed_4c98";
   const listed = "48c6805d-3d34-4a80-9747-38ce4edb3eed";
   const email = "listed.bg@example.com";
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
   await forgetBuyerOnboarding(sessionId);
   await forgetCheckoutFirmClaim(email);
   let background = Promise.resolve();
@@ -658,6 +661,7 @@ async function checkBackgroundSkipsTestFirm() {
     sessionId,
   });
   ok(follow === "sent" || follow === "stub", "a test firm does not consume the welcome claim");
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
   await forgetBuyerOnboarding(sessionId);
   await forgetCheckoutFirmClaim(email);
 }
