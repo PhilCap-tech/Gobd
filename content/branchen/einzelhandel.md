@@ -123,6 +123,7 @@ Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orien
 > Keine Steuer-, Rechts- oder Prüfungsberatung. Diese Seite ist eine allgemeine Arbeitshilfe und ersetzt keine Prüfung durch Ihre Steuerberatung, Wirtschaftsprüfung oder Rechtsberatung. Keine Zusicherung zu Prüfungsergebnissen.
 
 ## Weiterlesen
+- [Kioske mit Lotto, Paketshop und Guthabenkarten](/verfahrensdokumentation-kiosk)
 - [GoBD Verfahrensdokumentation für die Kasse](/blog/verfahrensdokumentation-kasse)
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste)
 - [Verfahrensdokumentation Pflicht](/blog/verfahrensdokumentation-pflicht)

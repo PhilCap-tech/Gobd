@@ -65,6 +65,7 @@ Nennen Sie je System, was dort tatsächlich liegt. Systeme, die Sie nicht nutzen
 
 - Buchhaltung: Journal, Konten, offene Posten
 - Kasse: Einzelvorgänge, Tagesabschlüsse, Exporte
+- [Taxameter-Daten](/verfahrensdokumentation-taxi)
 - Warenwirtschaft: Bestände, Warenein- und -ausgänge
 - Lohn: Abrechnungsdaten bei Ihnen oder im Lohnbüro
 - Belegarchiv: Ein- und Ausgangsrechnungen, sonstige Buchungsbelege

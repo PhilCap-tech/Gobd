@@ -69,6 +69,9 @@ Randziffer 154 verlangt, dass das beschriebene Verfahren dem in der Praxis einge
 
 **So beheben Sie es.** Listen Sie nur die Systeme, die Sie nutzen: Name, was dort liegt, wo es liegt, wie die Daten weitergegeben werden. Was Sie nicht einsetzen, lassen Sie weg. Zur Systemlandschaft: [Modul 17 Systeme und Datenübertragung](/muster/modul/m17/fragebogen) (PDF). Was ein Programm leistet und was nicht: [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software). Was [typische Lücken im Salon](/verfahrensdokumentation-friseure) und [im Einzelhandel](/verfahrensdokumentation-einzelhandel) sonst ausmacht, steht auf den Branchenseiten.
 
+- [typische Lücken im Taxibetrieb](/verfahrensdokumentation-taxi)
+- [im Kiosk](/verfahrensdokumentation-kiosk)
+
 ## Die Kanzlei gilt als verantwortlich
 
 **So sieht es aus.** Im Dokument steht: „Die Verfahrensdokumentation erstellt der Steuerberater.“ Was in Ihrem Betrieb geschieht, bis der Beleg die Kanzlei erreicht, fehlt. Wer einen Export anstößt oder einen Lesezugang einrichtet, ist nicht benannt.
