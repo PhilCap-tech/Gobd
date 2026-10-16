@@ -166,9 +166,9 @@ export const AMPEL_RESULTS = {
   rot: {
     range: [0, 49],
     label: "Rot",
-    headline: "Deutlicher Nachholbedarf: Wichtige Grundlagen sind noch nicht dokumentiert.",
+    headline: "Deutlicher Nachholbedarf: Mindestens eine wichtige Grundlage ist noch nicht dokumentiert.",
     text:
-      "Laut Ihren Angaben fehlen mehrere grundlegende Bausteine. Das kommt häufig vor und lässt sich Schritt für Schritt angehen. Wichtig ist, mit einer klaren Reihenfolge zu beginnen.",
+      "Laut Ihren Angaben fehlt mindestens ein grundlegender Baustein. Das kommt häufig vor und lässt sich Schritt für Schritt angehen. Wichtig ist, mit einer klaren Reihenfolge zu beginnen.",
     hints: [
       "Erstellen Sie zuerst eine Übersicht: Welche Systeme (Buchhaltung, Kasse, Warenwirtschaft, Archiv) nutzen Sie und wer ist jeweils zuständig?",
       "Prüfen Sie, ob Ihre Kasse mit einer TSE ausgestattet und über ELSTER gemeldet ist, und ob Sie E-Rechnungen empfangen können.",
