@@ -4,7 +4,10 @@ import {
   isProductionRuntime,
   isStripeSecretConfigured,
 } from "@/lib/env";
-import { deliverBuyerOnboarding } from "@/lib/buyer-onboarding";
+import {
+  deliverBuyerOnboarding,
+  type BuyerOnboardingStatus,
+} from "@/lib/buyer-onboarding";
 import { notifyCheckoutPaid } from "@/lib/checkout-notice";
 import { isTestEntity, matchingTestEntityId } from "@/lib/test-entities";
 import { ensureBuyerFirmForCheckout } from "@/lib/checkout-firm";
@@ -26,6 +29,15 @@ import {
 import { toSheetRow } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+/**
+ * Stripe retries a non-2xx. A fresh claiming marker is still in flight, so
+ * 500 is the signal to try again. A settled send stays 200.
+ */
+export function checkoutWelcomeHttpStatus(mailed: BuyerOnboardingStatus): 200 | 500 {
+  if (mailed === "failed" || mailed === "inflight") return 500;
+  return 200;
+}
 
 function idFrom(value: unknown): string {
   if (typeof value === "string") return value;
@@ -220,8 +232,12 @@ export async function POST(request: Request) {
             audience:
               session.metadata?.audience === "steuerberater" ? "steuerberater" : "kunde",
           });
-          if (mailed === "failed") {
-            throw new Error("Onboarding-Mail nicht gesendet");
+          if (checkoutWelcomeHttpStatus(mailed) !== 200) {
+            throw new Error(
+              mailed === "inflight"
+                ? "Onboarding-Mail noch nicht abgeschlossen"
+                : "Onboarding-Mail nicht gesendet",
+            );
           }
         } else {
           console.info("[webhook] Onboarding übersprungen — Testfirma");
