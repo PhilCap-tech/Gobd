@@ -12,7 +12,7 @@ secondaryKeywords:
   - "Verfahrensdokumentation Taxiunternehmen"
 musterVorlage: "dienstleister"
 readinessBranche: "dienstleistung"
-noindex: true
+noindex: false
 ctaSoft: "/ampel-check"
 ctaPrimary: "/"
 stand: "2026-10-16"

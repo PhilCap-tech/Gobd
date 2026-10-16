@@ -209,12 +209,12 @@ async function checkSitemapLastmod() {
   const branchen = entries.filter((entry) => entry.url.includes("/verfahrensdokumentation-"));
   ok(branchen.length >= 2, "sitemap lists the branch pages");
   ok(
-    !entries.some((entry) => entry.url.includes("/verfahrensdokumentation-taxi")),
-    "sitemap omits noindex /verfahrensdokumentation-taxi",
+    entries.some((entry) => entry.url.includes("/verfahrensdokumentation-taxi")),
+    "sitemap lists /verfahrensdokumentation-taxi",
   );
   ok(
-    !entries.some((entry) => entry.url.includes("/verfahrensdokumentation-kiosk")),
-    "sitemap omits noindex /verfahrensdokumentation-kiosk",
+    entries.some((entry) => entry.url.includes("/verfahrensdokumentation-kiosk")),
+    "sitemap lists /verfahrensdokumentation-kiosk",
   );
   ok(
     entries.some((entry) => entry.url === canonicalUrl("/steuerberater")),
@@ -272,7 +272,7 @@ async function main() {
   }
   for (const slug of ["taxi", "kiosk"] as const) {
     const seite = seiten.find((item) => item.slug === slug);
-    ok(seite?.noindex === true, `${slug} stays noindex`);
+    ok(seite?.noindex === false, `${slug} is indexable`);
   }
   ok(
     !branchen.includes("item.slug !== seite.slug"),

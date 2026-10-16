@@ -12,7 +12,7 @@ secondaryKeywords:
   - "Kassenbuch führen Kiosk"
 musterVorlage: "handel"
 readinessBranche: "handel"
-noindex: true
+noindex: false
 ctaSoft: "/ampel-check"
 ctaPrimary: "/"
 stand: "2026-10-16"
