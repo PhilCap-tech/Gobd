@@ -21,6 +21,10 @@ export type AmpelRateDecision = "ok" | "ip" | "email";
 export type AmpelRateHold = {
   ipSlot: number;
   emailSlot: number;
+  /** Rows in the append response grid. Diagnostic only. */
+  rows?: number;
+  /** Rows in that grid with the same IP hash and window. Diagnostic only. */
+  match?: number;
 };
 
 export type AmpelRateConfirm = "ok" | "ip" | "email" | "missing";
@@ -47,11 +51,22 @@ const IP_HEADER_SOURCES = ["x-real-ip", "x-vercel-forwarded-for", "x-forwarded-f
 
 export type AmpelIpSource = (typeof IP_HEADER_SOURCES)[number] | "";
 
+type AmpelRateDiag = {
+  /** First 8 hex characters of the stored IP hash. */
+  h?: string;
+  /** Header the address was taken from, for example `x-forwarded-for[0]`. */
+  ipsrc?: string;
+  /** Rows in the append response grid. */
+  rows?: number;
+  /** Rows in that grid with the same IP hash and window. */
+  match?: number;
+};
+
 export type AmpelRateTrace =
-  | { kind: "sheets"; pos: number; win: number }
-  | { kind: "limit"; pos: number }
-  | { kind: "failopen"; err: string }
-  | { kind: "skip"; reason: string };
+  | ({ kind: "sheets"; pos: number; win: number } & AmpelRateDiag)
+  | ({ kind: "limit"; pos: number } & AmpelRateDiag)
+  | ({ kind: "failopen"; err: string } & AmpelRateDiag)
+  | ({ kind: "skip"; reason: string } & AmpelRateDiag);
 
 function firstHeaderValue(value: string | null | undefined): string {
   if (!value) return "";
@@ -93,15 +108,47 @@ function headerCount(value: number): number {
   return Number.isInteger(value) && value >= 0 && value <= 1_000_000 ? value : 0;
 }
 
-/** `x-ampel-rl` names the path. It never carries the address or the IP header name. */
+const IP_SOURCE_LABELS = ["x-real-ip", "x-forwarded-for[0]", "x-vercel-forwarded-for[0]"] as const;
+
+/** Names the header. A forwarded chain is the first hop. */
+export function ampelRateIpSourceLabel(source: string): string {
+  if (source === "x-real-ip") return "x-real-ip";
+  if (source === "x-forwarded-for" || source === "x-vercel-forwarded-for") return `${source}[0]`;
+  return "";
+}
+
+/** First 8 hex characters of the hash stored in the sheet. Empty when there is no address. */
+export function ampelRateStoredIpPrefix(ip: string): string {
+  const trimmed = ip.trim();
+  if (!trimmed || trimmed.toLowerCase() === "unknown") return "";
+  return ampelRateStoredHash(ampelRateIpKey(trimmed)).slice(0, 8);
+}
+
+export function withAmpelRateIdentity<T extends AmpelRateTrace>(trace: T, ip: string, source: string): T {
+  const h = ampelRateStoredIpPrefix(ip);
+  const ipsrc = ampelRateIpSourceLabel(source);
+  return { ...trace, ...(h ? { h } : {}), ...(ipsrc ? { ipsrc } : {}) };
+}
+
+function diagSuffix(trace: AmpelRateDiag): string {
+  const parts: string[] = [];
+  if (typeof trace.h === "string" && /^[a-f0-9]{8}$/.test(trace.h)) parts.push(`h=${trace.h}`);
+  if (trace.ipsrc && (IP_SOURCE_LABELS as readonly string[]).includes(trace.ipsrc)) parts.push(`ipsrc=${trace.ipsrc}`);
+  if (typeof trace.rows === "number" && headerCount(trace.rows) === trace.rows) parts.push(`rows=${trace.rows}`);
+  if (typeof trace.match === "number" && headerCount(trace.match) === trace.match) parts.push(`match=${trace.match}`);
+  return parts.length > 0 ? `;${parts.join(";")}` : "";
+}
+
+/** `x-ampel-rl` names the path. The hash prefix and header name are not the address. */
 export function ampelRateResponseHeader(trace: AmpelRateTrace): string {
+  const diag = diagSuffix(trace);
   if (trace.kind === "sheets") {
     const win = Number.isInteger(trace.win) && trace.win >= 0 && trace.win <= 10_000_000 ? trace.win : 0;
-    return `src=sheets;pos=${headerCount(trace.pos)};win=${win}`;
+    return `src=sheets;pos=${headerCount(trace.pos)};win=${win}${diag}`;
   }
-  if (trace.kind === "limit") return `src=limit;pos=${headerCount(trace.pos)}`;
-  if (trace.kind === "failopen") return `src=failopen;err=${headerToken(trace.err)}`;
-  return `src=skip;reason=${headerToken(trace.reason)}`;
+  if (trace.kind === "limit") return `src=limit;pos=${headerCount(trace.pos)}${diag}`;
+  if (trace.kind === "failopen") return `src=failopen;err=${headerToken(trace.err)}${diag}`;
+  return `src=skip;reason=${headerToken(trace.reason)}${diag}`;
 }
 
 /** One PII-free line: header source, slot number, and a hash of the address. */
@@ -231,6 +278,22 @@ export function ampelRateCountThroughRequest(
   for (let index = 0; index <= ownIndex; index += 1) {
     const row = rows[index] ?? [];
     if ((row[keyColumn] ?? "") === keyHash && (row[windowColumn] ?? "") === windowText) count += 1;
+  }
+  return count;
+}
+
+/** Rows in this grid with the same hash and window. Does not decide the position. */
+export function ampelRateGridMatch(
+  rows: readonly (readonly string[])[],
+  keyColumn: number,
+  windowColumn: number,
+  keyHash: string,
+  windowId: number,
+): number {
+  const windowText = String(windowId);
+  let count = 0;
+  for (const row of rows) {
+    if ((row?.[keyColumn] ?? "") === keyHash && (row?.[windowColumn] ?? "") === windowText) count += 1;
   }
   return count;
 }
@@ -445,6 +508,10 @@ export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAm
         if (!rows) throw new Error("ampel-rate-range");
         const emailPos = ampelRateCountThroughRequest(rows, 4, 5, emailHash, emailWindow, requestId);
         const ipPos = ampelRateCountThroughRequest(rows, 0, 1, ipHash, ipWindow, requestId);
+        if (hold) {
+          hold.rows = rows.length;
+          hold.match = ampelRateGridMatch(rows, 0, 1, ipHash, ipWindow);
+        }
         if (emailPos == null || ipPos == null || emailPos < 1 || ipPos < 1) throw new Error("ampel-rate-position");
         if (hold) {
           hold.ipSlot = ipPos;
