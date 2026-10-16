@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { loginPath, sessionEmailFromRequest } from "@/lib/auth";
 import { notifyBuyerOfCheckout } from "@/lib/buyer-onboarding";
-import { matchingTestEntityId } from "@/lib/test-entities";
+import { scheduleCheckoutAfterResponse } from "@/lib/checkout-after";
 import { ensureBuyerFirmForCheckout, type BuyerFirmRequest } from "@/lib/checkout-firm";
 import { finishCheckoutReturn } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { findLatestDocumentByStripeSessionId } from "@/lib/store";
 import { resolveCheckoutSession, type CheckoutResolveError } from "@/lib/stripe";
+import { matchingTestEntityId } from "@/lib/test-entities";
 import type { CheckoutIdentity } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -58,6 +59,11 @@ export type CheckoutGrantIo = {
   }) => Promise<void>;
   /** Firm owned by the checkout email. A foreign entity id is not returned. */
   bindBuyerFirm?: (input: BuyerFirmRequest) => Promise<string>;
+  /**
+   * Runs firm creation and the welcome mail after the redirect.
+   * Tests pass a recorder and do not wait. Production uses `after` and `waitUntil`.
+   */
+  schedule?: (work: () => Promise<void>) => void;
 };
 
 const defaultGrantIo: CheckoutGrantIo = {
@@ -67,6 +73,21 @@ const defaultGrantIo: CheckoutGrantIo = {
     return existing ? existing.email : null;
   },
 };
+
+/** Test-firm id wins, so a listed firm is skipped. Otherwise the firm we just bound. */
+function welcomeEntityId(
+  createdEntityId: string,
+  resolvedEntityId: string | undefined,
+  queryEntityId: string,
+): string {
+  return (
+    matchingTestEntityId(createdEntityId, resolvedEntityId, queryEntityId) ||
+    createdEntityId ||
+    resolvedEntityId ||
+    queryEntityId ||
+    ""
+  );
+}
 
 /**
  * Rückkehr aus Stripe: `session_id` serverseitig prüfen.
@@ -100,24 +121,68 @@ export async function completeCheckoutGrant(
     return NextResponse.redirect(intakeReturn(request, source, "skip"));
   }
 
+  const queryEntityId = source.searchParams.get("entity_id")?.trim() ?? "";
+  const firmRequest: BuyerFirmRequest = {
+    email,
+    company: resolved.company,
+    entityId: resolved.entityId || queryEntityId,
+    sessionId: resolved.stripeSessionId,
+    street: resolved.billingAddress?.line1,
+    zip: resolved.billingAddress?.postalCode,
+    city: resolved.billingAddress?.city,
+    ustId: resolved.ustId,
+  };
   let buyerEntityId = "";
-  try {
-    const bind = io.bindBuyerFirm ?? ensureBuyerFirmForCheckout;
-    buyerEntityId = await bind({
-      email,
-      company: resolved.company,
-      entityId: resolved.entityId || source.searchParams.get("entity_id") || "",
-      sessionId: resolved.stripeSessionId,
-      street: resolved.billingAddress?.line1,
-      zip: resolved.billingAddress?.postalCode,
-      city: resolved.billingAddress?.city,
-      ustId: resolved.ustId,
+  // Injected doubles stay on this request so checks can see them. The live
+  // path creates the firm and sends the mail after the redirect: both are
+  // idempotent and safe if the webhook is doing the same work.
+  if (!io.bindBuyerFirm || (!resolved.stub && !io.notifyBuyer)) {
+    const schedule = io.schedule ?? scheduleCheckoutAfterResponse;
+    schedule(async () => {
+      let createdEntityId = "";
+      if (!io.bindBuyerFirm) {
+        try {
+          createdEntityId = await ensureBuyerFirmForCheckout(firmRequest);
+        } catch (error) {
+          console.error(
+            "[checkout] Firma für den Käufer nicht angelegt",
+            error instanceof Error ? error.name : "error",
+          );
+        }
+      }
+      if (!resolved.stub && !io.notifyBuyer) {
+        try {
+          const mailed = await notifyBuyerOfCheckout({
+            email,
+            company: resolved.company,
+            sessionId: resolved.stripeSessionId,
+            entityId: welcomeEntityId(createdEntityId, resolved.entityId, queryEntityId),
+          });
+          // A fresh claim belongs to the other caller (usually the webhook).
+          // Leaving it alone lets that caller finish; Stripe retries a 500.
+          if (mailed === "inflight") {
+            console.info("[checkout] Bestellmail noch nicht abgeschlossen");
+          } else if (mailed === "failed") {
+            console.error("[checkout] Bestellmail nicht gesendet");
+          }
+        } catch (error) {
+          console.error(
+            "[checkout] Bestellmail nicht ausgelöst",
+            error instanceof Error ? error.name : "error",
+          );
+        }
+      }
     });
-  } catch (error) {
-    console.error(
-      "[checkout] Firma für den Käufer nicht angelegt",
-      error instanceof Error ? error.name : "error",
-    );
+  }
+  if (io.bindBuyerFirm) {
+    try {
+      buyerEntityId = await io.bindBuyerFirm(firmRequest);
+    } catch (error) {
+      console.error(
+        "[checkout] Firma für den Käufer nicht angelegt",
+        error instanceof Error ? error.name : "error",
+      );
+    }
   }
   if (buyerEntityId && /^[A-Za-z0-9_-]+$/.test(buyerEntityId) && buyerEntityId.length <= 200) {
     source.searchParams.set("entity_id", buyerEntityId);
@@ -125,23 +190,13 @@ export async function completeCheckoutGrant(
     source.searchParams.delete("entity_id");
   }
 
-  if (!resolved.stub) {
+  if (!resolved.stub && io.notifyBuyer) {
     try {
-      const notify = io.notifyBuyer ?? notifyBuyerOfCheckout;
-      await notify({
+      await io.notifyBuyer({
         email,
         company: resolved.company,
         sessionId: resolved.stripeSessionId,
-        entityId:
-          matchingTestEntityId(
-            buyerEntityId,
-            resolved.entityId,
-            source.searchParams.get("entity_id"),
-          ) ||
-          buyerEntityId ||
-          resolved.entityId ||
-          source.searchParams.get("entity_id") ||
-          "",
+        entityId: welcomeEntityId(buyerEntityId, resolved.entityId, queryEntityId),
       });
     } catch (error) {
       console.error(
