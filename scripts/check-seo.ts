@@ -217,12 +217,12 @@ async function checkSitemapLastmod() {
     "sitemap lists /verfahrensdokumentation-kiosk",
   );
   ok(
-    !entries.some((entry) => entry.url.includes("/verfahrensdokumentation-verein")),
-    "sitemap omits noindex /verfahrensdokumentation-verein",
+    entries.some((entry) => entry.url.includes("/verfahrensdokumentation-verein")),
+    "sitemap lists /verfahrensdokumentation-verein",
   );
   ok(
-    !entries.some((entry) => entry.url.includes("/verfahrensdokumentation-apotheke")),
-    "sitemap omits noindex /verfahrensdokumentation-apotheke",
+    entries.some((entry) => entry.url.includes("/verfahrensdokumentation-apotheke")),
+    "sitemap lists /verfahrensdokumentation-apotheke",
   );
   ok(
     entries.some((entry) => entry.url === canonicalUrl("/steuerberater")),
@@ -286,7 +286,7 @@ async function main() {
   }
   for (const slug of ["verein", "apotheke"] as const) {
     const seite = seiten.find((item) => item.slug === slug);
-    ok(seite?.noindex === true, `${slug} stays noindex`);
+    ok(seite?.noindex === false, `${slug} is indexable`);
   }
   ok(
     !branchen.includes("item.slug !== seite.slug"),
