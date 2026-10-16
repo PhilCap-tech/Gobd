@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { kassenTeaserSplit } from "@/components/kassen-check-teaser";
 import { createAmpelDoiToken, verifyAmpelDoiToken } from "@/lib/ampel";
 import { AMPEL_QUESTIONS } from "@/lib/ampel-questions";
 import { createMemoryAmpelRateStore } from "@/lib/ampel-rate-limit";
@@ -89,6 +90,16 @@ const copy = [
 ].join("\n");
 ok(!/automatische Löschung|149 €|Garantie/.test(copy), "no deletion, price, or guarantee claims");
 ok(!/\b(Soft-CTA|Primär-CTA|Sekundär-CTA)\b/.test(copy), "no CTA labels");
+
+for (const slug of ["kiosk", "friseure", "einzelhandel"]) {
+  const split = kassenTeaserSplit(slug, source(`content/branchen/${slug}.md`));
+  ok(split?.variant === "default" && split.before.includes("## Kasse und Bargeld"), `${slug} teaser follows Kasse und Bargeld`);
+  ok(split?.after.startsWith("\n"), `${slug} teaser leaves the following section`);
+}
+const taxi = kassenTeaserSplit("taxi", source("content/branchen/taxi.md"));
+ok(taxi?.variant === "taxi" && taxi.before.includes("## Taxameter, TSE und Belege"), "taxi teaser follows the taximeter section");
+ok(kassenTeaserSplit("apotheke", source("content/branchen/apotheke.md")) === null, "apotheke has no teaser");
+ok(kassenTeaserSplit("verein", source("content/branchen/verein.md")) === null, "verein has no teaser");
 
 const green = scoreAmpel(answers("JJJJJJ"), KASSEN_QUESTIONS);
 ok(green?.score === 100 && green.light === "gruen" && green.capped === false, "all ja is green 100");

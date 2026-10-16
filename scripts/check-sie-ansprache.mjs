@@ -28,6 +28,7 @@ const COVERED = [
   "app/api/ampel/**/*.ts",
   "app/api/kassen-check/**/*.ts",
   "components/ampel-result.tsx",
+  "components/kassen-check-teaser.tsx",
   "lib/ampel-questions.ts",
   "lib/kassen-check-questions.ts",
   "lib/kassen-check-mail.ts",
