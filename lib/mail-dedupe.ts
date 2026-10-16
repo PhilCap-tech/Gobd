@@ -30,7 +30,8 @@ import { getFileFallbackDir } from "@/lib/store";
 /** User-requested login links may repeat, but not twice inside this window. */
 export const MAGIC_LINK_WINDOW_MS = 60_000;
 
-const PENDING_FRESH_MS = 2 * 60 * 1000;
+/** A pending ledger row younger than this still belongs to an in-flight send. */
+export const PENDING_FRESH_MS = 2 * 60 * 1000;
 const WAIT_MS = 4_000;
 
 export type DedupedMailInput = {
