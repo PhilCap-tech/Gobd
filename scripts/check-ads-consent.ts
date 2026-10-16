@@ -541,6 +541,9 @@ try {
   assert.ok(intake.includes("purchaseSessionIdFromCheckout"));
   assert.ok(intake.includes('grantFlag === "set"'));
   assert.ok(intake.includes('firstQueryValue(params.fragebogen) === "1"'));
+  const fastReturnAt = intake.indexOf('fastEntry === "grant"');
+  const thanksAt = intake.indexOf("<PurchaseThanks");
+  assert.ok(fastReturnAt > 0 && thanksAt > fastReturnAt, "a fresh checkout still redirects before the thank-you step");
   assert.equal(intake.includes("<PurchaseConversion"), false, "the questionnaire page does not mount a second conversion");
   assert.equal(readFileSync("app/intake/intake-form.tsx", "utf8").includes("PurchaseConversion"), false);
 
