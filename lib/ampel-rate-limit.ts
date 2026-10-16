@@ -175,9 +175,6 @@ export const AMPEL_RATE_SHEET_COLUMNS = [
   "email_window",
 ] as const;
 
-/** The confirming read stays inside this many rows ending at our own row. */
-export const AMPEL_RATE_READ_ROWS = 2000;
-
 const SHEETS_GET_OPTS = {
   headers: {
     "Cache-Control": "no-cache, no-store",
@@ -190,48 +187,100 @@ export function ampelRateStoredHash(logicalKey: string): string {
   return createHash("sha256").update(logicalKey).digest("hex").slice(0, 32);
 }
 
-/** Row number from `updates.updatedRange` (`ampel_rate!A12:F12`). Data starts at row 2. */
-export function ampelRateAppendedRow(updatedRange: string | null | undefined): number | null {
-  if (!updatedRange) return null;
-  const match = /!([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?/.exec(updatedRange.replace(/'/g, ""));
-  if (!match) return null;
-  const row = Number(match[4] ?? match[2]);
-  if (!Number.isInteger(row) || row < 2) return null;
-  return row;
-}
+const REQUEST_ID_COLUMN = 3;
+
+type AmpelRateCell = {
+  userEnteredValue?: { stringValue?: string | null; numberValue?: number | null } | null;
+  formattedValue?: string | null;
+};
+
+type AmpelRateGridSheet = {
+  properties?: { title?: string | null; sheetId?: number | null } | null;
+  data?: Array<{
+    rowData?: Array<{ values?: Array<AmpelRateCell | null> | null } | null> | null;
+  } | null> | null;
+};
+
+export type AmpelRateUpdatedSpreadsheet = {
+  sheets?: Array<AmpelRateGridSheet | null> | null;
+};
 
 /**
- * How many rows with this hash and window sit at or before `ownRow`.
- * Later rows in the same read do not count: they were appended after this one.
+ * How many matching rows sit at or before this attempt's request id.
+ * Rows after that id were committed later. The id itself has to be in the
+ * grid; a missing id means this snapshot does not contain the append.
  */
-export function ampelRatePosition(
-  cells: readonly (readonly string[])[],
-  startRow: number,
+export function ampelRateCountThroughRequest(
+  rows: readonly (readonly string[])[],
   keyColumn: number,
   windowColumn: number,
   keyHash: string,
   windowId: number,
-  ownRow: number,
-): number {
+  requestId: string,
+): number | null {
   const windowText = String(windowId);
+  let ownIndex = -1;
+  for (let index = 0; index < rows.length; index += 1) {
+    if ((rows[index]?.[REQUEST_ID_COLUMN] ?? "") === requestId) {
+      ownIndex = index;
+      break;
+    }
+  }
+  if (ownIndex < 0) return null;
   let count = 0;
-  for (let index = 0; index < cells.length; index += 1) {
-    const rowNumber = startRow + index;
-    if (rowNumber > ownRow) break;
-    const row = cells[index] ?? [];
+  for (let index = 0; index <= ownIndex; index += 1) {
+    const row = rows[index] ?? [];
     if ((row[keyColumn] ?? "") === keyHash && (row[windowColumn] ?? "") === windowText) count += 1;
   }
   return count;
 }
 
+function cellText(cell: AmpelRateCell | null | undefined): string {
+  const entered = cell?.userEnteredValue;
+  if (typeof entered?.stringValue === "string") return entered.stringValue;
+  if (typeof entered?.numberValue === "number" && Number.isFinite(entered.numberValue)) return String(entered.numberValue);
+  if (typeof cell?.formattedValue === "string") return cell.formattedValue;
+  return "";
+}
+
+/** Data rows from the append response, in sheet order. Null when the grid is missing. */
+export function ampelRateRowsFromUpdate(
+  spreadsheet: AmpelRateUpdatedSpreadsheet | null | undefined,
+  tab: string,
+): string[][] | null {
+  const sheet = spreadsheet?.sheets?.find((item) => item?.properties?.title === tab) ?? spreadsheet?.sheets?.[0];
+  const rowData = sheet?.data?.[0]?.rowData;
+  if (!rowData) return null;
+  return rowData.map((row) => (row?.values ?? []).map((cell) => cellText(cell)));
+}
+
 export type AmpelRateSheetClient = {
   get(args: {
     spreadsheetId: string;
-  }): Promise<{ data: { sheets?: Array<{ properties?: { title?: string | null } | null } | null> | null } }>;
+  }): Promise<{
+    data: { sheets?: Array<{ properties?: { title?: string | null; sheetId?: number | null } | null } | null> | null };
+  }>;
   batchUpdate(args: {
     spreadsheetId: string;
-    requestBody: { requests: Array<{ addSheet: { properties: { title: string } } }> };
-  }): Promise<unknown>;
+    requestBody: {
+      requests: Array<{
+        addSheet?: { properties: { title: string } };
+        appendCells?: {
+          sheetId: number;
+          fields: string;
+          rows: Array<{ values: Array<{ userEnteredValue: { stringValue: string } }> }>;
+        };
+      }>;
+      includeSpreadsheetInResponse?: boolean;
+      responseIncludeGridData?: boolean;
+      responseRanges?: string[];
+    };
+  }): Promise<{
+    data: {
+      replies?: Array<{ addSheet?: { properties?: { sheetId?: number | null } | null } | null } | null> | null;
+      updatedSpreadsheet?: AmpelRateUpdatedSpreadsheet | null;
+    };
+  }>;
   valuesGet(
     args: { spreadsheetId: string; range: string },
     options?: { headers?: Record<string, string> },
@@ -245,7 +294,7 @@ export type AmpelRateSheetClient = {
   }): Promise<{ data: { updates?: { updatedRange?: string | null } | null } | null }>;
 };
 
-let preparedSheet: { key: string; ready: Promise<void> } | null = null;
+let preparedSheet: { key: string; ready: Promise<number> } | null = null;
 
 export function clearAmpelRateSheetCache(): void {
   preparedSheet = null;
@@ -270,11 +319,19 @@ function sheetAlreadyExists(error: unknown): boolean {
   return /already exists/i.test(errorText(error));
 }
 
-function ensureAmpelRateSheet(client: AmpelRateSheetClient, id: string, tab: string): Promise<void> {
+function sheetIdOf(
+  sheets: Array<{ properties?: { title?: string | null; sheetId?: number | null } | null } | null> | null | undefined,
+  tab: string,
+): number | null {
+  const id = sheets?.find((sheet) => sheet?.properties?.title === tab)?.properties?.sheetId;
+  return typeof id === "number" ? id : null;
+}
+
+function ensureAmpelRateSheet(client: AmpelRateSheetClient, id: string, tab: string): Promise<number> {
   const key = `${id}:${tab}`;
   if (preparedSheet?.key === key) return preparedSheet.ready;
   const pending = openAmpelRateSheet(client, id, tab).then(
-    () => undefined,
+    (sheetId) => sheetId,
     (error: unknown) => {
       if (preparedSheet?.ready === pending) preparedSheet = null;
       throw error;
@@ -284,22 +341,28 @@ function ensureAmpelRateSheet(client: AmpelRateSheetClient, id: string, tab: str
   return pending;
 }
 
-async function openAmpelRateSheet(client: AmpelRateSheetClient, id: string, tab: string): Promise<void> {
+async function openAmpelRateSheet(client: AmpelRateSheetClient, id: string, tab: string): Promise<number> {
   const meta = await client.get({ spreadsheetId: id });
-  const exists = meta.data.sheets?.some((sheet) => sheet?.properties?.title === tab);
-  if (!exists) {
+  let sheetId = sheetIdOf(meta.data.sheets, tab);
+  if (sheetId == null) {
     try {
-      await client.batchUpdate({
+      const created = await client.batchUpdate({
         spreadsheetId: id,
         requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
       });
+      sheetId = created.data.replies?.[0]?.addSheet?.properties?.sheetId ?? null;
     } catch (error) {
       if (!sheetAlreadyExists(error)) throw error;
     }
   }
+  if (sheetId == null) {
+    const again = await client.get({ spreadsheetId: id });
+    sheetId = sheetIdOf(again.data.sheets, tab);
+  }
+  if (sheetId == null) throw new Error("ampel-rate-sheet");
   const header = await client.valuesGet({ spreadsheetId: id, range: `${tab}!A1:F1` }, SHEETS_GET_OPTS);
   const first = (header.data?.values?.[0] ?? []).map((cell) => String(cell ?? "").trim());
-  if (first.some((cell) => cell.length > 0)) return;
+  if (first.some((cell) => cell.length > 0)) return sheetId;
   await client.valuesAppend({
     spreadsheetId: id,
     range: `${tab}!A1`,
@@ -307,6 +370,7 @@ async function openAmpelRateSheet(client: AmpelRateSheetClient, id: string, tab:
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [[...AMPEL_RATE_SHEET_COLUMNS]] },
   });
+  return sheetId;
 }
 
 function liveAmpelRateSheetClient(): AmpelRateSheetClient {
@@ -319,10 +383,22 @@ function liveAmpelRateSheetClient(): AmpelRateSheetClient {
   };
 }
 
+function stringCell(value: string): { userEnteredValue: { stringValue: string } } {
+  return { userEnteredValue: { stringValue: value } };
+}
+
 /**
- * Appends one row, then counts rows with the same hash and window at or
- * before that row. Position 1..limit is allowed. A higher position is the
- * limit. Any Sheets error is logged and rethrown so the caller still sends.
+ * Appends one row and counts from that write's grid.
+ *
+ * The old path appended at `tab!A1` and then called `values.get` on
+ * `A{start}:F{updatedRange}`. `values.append` only extends the table that
+ * contains A1, and `updatedRange` is that table's end. A short cursor (row
+ * 2, or once row 3) made the get a one- or two-row range, so
+ * `ampelRatePosition` counted the row just written and returned
+ * `src=sheets;pos=1`. `values.get` is also a separate, stale read. The
+ * batchUpdate response is the sheet after this append. Rows after our
+ * request id belong to later commits. Position 1..limit is allowed.
+ * Any Sheets error is logged and rethrown so the caller still sends.
  */
 export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAmpelRateSheetClient()): AmpelRateStore {
   const tab = getAmpelRateSheetsTab();
@@ -331,31 +407,45 @@ export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAm
     async take({ ipKey, emailKey, now, hold }) {
       try {
         const id = spreadsheetId();
-        await ensureAmpelRateSheet(client, id, tab);
+        const sheetId = await ensureAmpelRateSheet(client, id, tab);
         const ipWindow = ampelRateWindowId(now, AMPEL_IP_WINDOW_MS);
         const emailWindow = ampelRateWindowId(now, AMPEL_EMAIL_WINDOW_MS);
         const ipHash = ampelRateStoredHash(ipKey);
         const emailHash = ampelRateStoredHash(emailKey);
-        const appended = await client.valuesAppend({
+        const requestId = randomBytes(8).toString("hex");
+        const written = await client.batchUpdate({
           spreadsheetId: id,
-          range: `${tab}!A1`,
-          valueInputOption: "RAW",
-          insertDataOption: "INSERT_ROWS",
           requestBody: {
-            values: [[ipHash, String(ipWindow), String(now), randomBytes(8).toString("hex"), emailHash, String(emailWindow)]],
+            requests: [
+              {
+                appendCells: {
+                  sheetId,
+                  fields: "userEnteredValue",
+                  rows: [
+                    {
+                      values: [
+                        stringCell(ipHash),
+                        stringCell(String(ipWindow)),
+                        stringCell(String(now)),
+                        stringCell(requestId),
+                        stringCell(emailHash),
+                        stringCell(String(emailWindow)),
+                      ],
+                    },
+                  ],
+                },
+              },
+            ],
+            includeSpreadsheetInResponse: true,
+            responseIncludeGridData: true,
+            responseRanges: [`${tab}!A2:F`],
           },
         });
-        const ownRow = ampelRateAppendedRow(appended.data?.updates?.updatedRange);
-        if (ownRow == null) throw new Error("ampel-rate-range");
-        const start = Math.max(2, ownRow - AMPEL_RATE_READ_ROWS + 1);
-        const read = await client.valuesGet(
-          { spreadsheetId: id, range: `${tab}!A${start}:F${ownRow}` },
-          SHEETS_GET_OPTS,
-        );
-        const cells = (read.data?.values ?? []).map((row) => (row ?? []).map((cell) => String(cell ?? "")));
-        const emailPos = ampelRatePosition(cells, start, 4, 5, emailHash, emailWindow, ownRow);
-        const ipPos = ampelRatePosition(cells, start, 0, 1, ipHash, ipWindow, ownRow);
-        if (emailPos < 1 || ipPos < 1) throw new Error("ampel-rate-position");
+        const rows = ampelRateRowsFromUpdate(written.data?.updatedSpreadsheet, tab);
+        if (!rows) throw new Error("ampel-rate-range");
+        const emailPos = ampelRateCountThroughRequest(rows, 4, 5, emailHash, emailWindow, requestId);
+        const ipPos = ampelRateCountThroughRequest(rows, 0, 1, ipHash, ipWindow, requestId);
+        if (emailPos == null || ipPos == null || emailPos < 1 || ipPos < 1) throw new Error("ampel-rate-position");
         if (hold) {
           hold.ipSlot = ipPos;
           hold.emailSlot = emailPos;
