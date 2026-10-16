@@ -39,6 +39,7 @@ import { reopenIfActiveCheckout } from "@/lib/kuendigung-stripe";
 import { deliverLoginLink } from "@/lib/login-mail";
 import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import { sendDeliveryMail } from "@/lib/ops";
+import { isTestEntity } from "@/lib/test-entities";
 import { queryIdsEqual } from "@/lib/query";
 import { intakeEntityBinding } from "@/lib/session-issue";
 import {
@@ -500,7 +501,12 @@ async function writeIntake(
   const entityId = binding.entityId;
   const entity = entityId ? await io.getOwnedEntity(entityId, identity.email) : null;
   identity = applyEntityToIdentity(identity, entity);
-  identity = { ...identity, email: resolved.ownerEmail };
+  identity = {
+    ...identity,
+    email: resolved.ownerEmail,
+    entityId: entityId || identity.entityId || "",
+  };
+  const skipTestDelivery = isTestEntity(identity.entityId);
 
   if (!isAnswers(body.answers)) {
     return jsonError("Intake unvollständig.", 400);
@@ -567,39 +573,49 @@ async function writeIntake(
   let delivery: DeliveryPlan;
   let pdfUrl = "";
 
-  try {
-    const generated = await io.generatePdf({
-      answers,
-      identity,
-      documentId,
-      version,
-      versionMeta,
-      versionHistory,
-    });
-    const storedPdf = await io.storePdf({
-      familyId: parentDocumentId,
-      documentId,
-      version,
-      buffer: generated.buffer,
-    });
-    pdfUrl = storedPdf.url || storedPdf.pathname;
+  if (skipTestDelivery) {
+    console.info("[intake] Testfirma: PDF und Liefermail übersprungen");
     delivery = {
-      ...generated.plan,
       status: "ready",
-      pdf: {
-        version,
-        documentId,
-        url: storedPdf.url,
-        pathname: storedPdf.pathname,
-        backend: storedPdf.backend,
-      },
+      chapters: [],
+      openItems: [],
+      pdf: null,
     };
-  } catch (error) {
-    console.error("[intake] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
-    if (error instanceof BlobStorageError) {
-      return jsonError("PDF konnte nicht gespeichert werden.", 503);
+  } else {
+    try {
+      const generated = await io.generatePdf({
+        answers,
+        identity,
+        documentId,
+        version,
+        versionMeta,
+        versionHistory,
+      });
+      const storedPdf = await io.storePdf({
+        familyId: parentDocumentId,
+        documentId,
+        version,
+        buffer: generated.buffer,
+      });
+      pdfUrl = storedPdf.url || storedPdf.pathname;
+      delivery = {
+        ...generated.plan,
+        status: "ready",
+        pdf: {
+          version,
+          documentId,
+          url: storedPdf.url,
+          pathname: storedPdf.pathname,
+          backend: storedPdf.backend,
+        },
+      };
+    } catch (error) {
+      console.error("[intake] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
+      if (error instanceof BlobStorageError) {
+        return jsonError("PDF konnte nicht gespeichert werden.", 503);
+      }
+      return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
     }
-    return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
   }
 
   let stored;
@@ -607,7 +623,7 @@ async function writeIntake(
     stored = await io.appendRecord({
       ...rowForStore,
       pdfUrl,
-      deliveryStatus: delivery.status,
+      deliveryStatus: skipTestDelivery ? "" : delivery.status,
     });
   } catch (error) {
     const outage = sheetsOutageResponse(error);
@@ -629,7 +645,7 @@ async function writeIntake(
     ? `${appUrl}/success?session_id=${encodeURIComponent(identity.stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`
     : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`;
   let loginMail: "sent" | "stub" | "failed" | "skipped" = "skipped";
-  if (!resolved.compAccess) {
+  if (!resolved.compAccess && !skipTestDelivery) {
     const magicUrl = identity.email ? magicLinkUrl(identity.email) : undefined;
     try {
       await io.sendDeliveryMail({
@@ -640,6 +656,7 @@ async function writeIntake(
         successUrl,
         documentId,
         version,
+        entityId: identity.entityId,
       });
     } catch (error) {
       console.error("[intake] delivery mail fehlgeschlagen", error);

@@ -318,6 +318,7 @@ async function IntakePage({
         await notifyBuyerOfCheckout({
           email: ownerEmail,
           sessionId: sessionIdQuery,
+          entityId: firstQueryValue(params.entity_id) ?? "",
         });
       } catch (error) {
         console.error(

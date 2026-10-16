@@ -11,6 +11,7 @@ import {
   type PutCommandOptions,
 } from "@vercel/blob";
 import { generatePdf } from "@/lib/delivery";
+import { isTestEntity, TestEntityDeliverySkipped } from "@/lib/test-entities";
 import {
   blobPathFromLocator,
   customerUploadHref,
@@ -567,6 +568,9 @@ export async function resolveIntakePayload(
 }
 
 export async function loadDocumentPdf(row: SheetRow, io: BlobIo = defaultBlobIo): Promise<Buffer> {
+  if (isTestEntity(row.entityId)) {
+    throw new TestEntityDeliverySkipped(row.entityId.trim());
+  }
   const stored = await loadPdfFromStoredUrl(row.pdfUrl, io);
   if (stored) return stored;
 

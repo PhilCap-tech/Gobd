@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { loginPath, sessionEmailFromRequest } from "@/lib/auth";
 import { notifyBuyerOfCheckout } from "@/lib/buyer-onboarding";
+import { matchingTestEntityId } from "@/lib/test-entities";
 import { ensureBuyerFirmForCheckout, type BuyerFirmRequest } from "@/lib/checkout-firm";
 import { finishCheckoutReturn } from "@/lib/checkout-session";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
@@ -53,6 +54,7 @@ export type CheckoutGrantIo = {
     email: string;
     company?: string;
     sessionId: string;
+    entityId?: string;
   }) => Promise<void>;
   /** Firm owned by the checkout email. A foreign entity id is not returned. */
   bindBuyerFirm?: (input: BuyerFirmRequest) => Promise<string>;
@@ -130,6 +132,16 @@ export async function completeCheckoutGrant(
         email,
         company: resolved.company,
         sessionId: resolved.stripeSessionId,
+        entityId:
+          matchingTestEntityId(
+            buyerEntityId,
+            resolved.entityId,
+            source.searchParams.get("entity_id"),
+          ) ||
+          buyerEntityId ||
+          resolved.entityId ||
+          source.searchParams.get("entity_id") ||
+          "",
       });
     } catch (error) {
       console.error(

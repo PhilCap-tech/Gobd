@@ -31,6 +31,7 @@ import {
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
 import { resolveCheckoutSession } from "@/lib/stripe";
+import { countsInReporting } from "@/lib/test-entities";
 import { purchaseSessionIdFromCheckout } from "@/lib/tracking";
 import { versionLabelFromRow } from "@/lib/versioning";
 
@@ -102,9 +103,14 @@ export default async function SuccessPage({
   const compAccess = isCompAccessEmail(row?.email) || isCompAccessEmail(sessionEmail);
   const showSuccess = Boolean(row && allowed);
   // Live Stripe lookup only once the success view is stable (not the pending reload).
+  const purchaseLookup =
+    showSuccess && sessionId.startsWith("cs_") && row && countsInReporting(row.entityId)
+      ? await resolveCheckoutSession(sessionId)
+      : null;
   const purchaseSessionId =
-    showSuccess && sessionId.startsWith("cs_")
-      ? purchaseSessionIdFromCheckout(await resolveCheckoutSession(sessionId))
+    purchaseLookup &&
+    ("error" in purchaseLookup || countsInReporting(purchaseLookup.entityId))
+      ? purchaseSessionIdFromCheckout(purchaseLookup)
       : "";
 
   const pendingQuery = new URLSearchParams();

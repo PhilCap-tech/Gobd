@@ -3,6 +3,7 @@ import { sessionEmailFromRequest } from "@/lib/auth";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import { devCheckoutStubAllowed } from "@/lib/checkout-stub";
 import { enqueueDelivery } from "@/lib/delivery";
+import { isTestEntity } from "@/lib/test-entities";
 import {
   authorizeDeliveredWrite,
   lookupDeliveredRows,
@@ -53,7 +54,7 @@ export async function postDelivery(
   request: Request,
   io: DeliveryAuthIo = defaultIo,
 ) {
-  let body: { sessionId?: string; answers?: Partial<IntakeAnswers> } = {};
+  let body: { sessionId?: string; answers?: Partial<IntakeAnswers>; entityId?: string } = {};
   try {
     body = await request.json();
   } catch {
@@ -75,9 +76,33 @@ export async function postDelivery(
   );
   if (denied) return denied;
 
+  let entityId = body.entityId?.trim() ?? "";
+  if (bodySessionId) {
+    try {
+      const rows = await lookupDeliveredRows({ sessionId: bodySessionId }, io.lookup);
+      const fromRow = rows?.find((row) => row.entityId.trim())?.entityId ?? "";
+      if (!entityId) entityId = fromRow;
+      const listed = rows?.find((row) => isTestEntity(row.entityId));
+      if (listed) entityId = listed.entityId;
+    } catch (error) {
+      console.error(
+        "[delivery] Firma nicht geprüft",
+        error instanceof Error ? error.name : "error",
+      );
+    }
+  }
+  if (isTestEntity(entityId)) {
+    console.info("[delivery] Testfirma: Auslieferung übersprungen");
+    return NextResponse.json({
+      ok: true,
+      delivery: { status: "failed", chapters: [], openItems: [], pdf: null },
+    });
+  }
+
   const plan = await enqueueDelivery({
     sessionId: bodySessionId || "session",
     answers: { ...emptyAnswers(), ...body.answers },
+    entityId,
   });
 
   return NextResponse.json({

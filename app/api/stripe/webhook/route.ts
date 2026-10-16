@@ -5,6 +5,7 @@ import {
   isStripeSecretConfigured,
 } from "@/lib/env";
 import { deliverBuyerOnboarding } from "@/lib/buyer-onboarding";
+import { isTestEntity, matchingTestEntityId } from "@/lib/test-entities";
 import { ensureBuyerFirmForCheckout } from "@/lib/checkout-firm";
 import {
   checkoutContactFromCustomerDetails,
@@ -36,6 +37,25 @@ function idFrom(value: unknown): string {
 
 function eventTimeIso(created: number): string {
   return new Date((created || Math.floor(Date.now() / 1000)) * 1000).toISOString();
+}
+
+function metadataEntityId(metadata: { entity_id?: string | null } | null | undefined): string {
+  return metadata?.entity_id?.trim() ?? "";
+}
+
+/** Firm id copied onto the invoice or its subscription. No extra Stripe read. */
+function invoiceEntityId(invoice: {
+  metadata?: { entity_id?: string | null } | null;
+  parent?: {
+    subscription_details?: { metadata?: { entity_id?: string | null } | null } | null;
+  } | null;
+  subscription_details?: { metadata?: { entity_id?: string | null } | null } | null;
+}): string {
+  return (
+    metadataEntityId(invoice.metadata) ||
+    metadataEntityId(invoice.parent?.subscription_details?.metadata) ||
+    metadataEntityId(invoice.subscription_details?.metadata)
+  );
 }
 
 function missingSecretResponse() {
@@ -143,18 +163,21 @@ export async function POST(request: Request) {
           );
         }
 
+        const metadataEntityId = session.metadata?.entity_id?.trim() ?? "";
+        let linkedEntityId = metadataEntityId;
         try {
           const address = billingAddressFromCustomerDetails(session.customer_details);
-          await ensureBuyerFirmForCheckout({
+          const linked = await ensureBuyerFirmForCheckout({
             email: buyerEmail,
             company: company || existing?.company || "",
-            entityId: session.metadata?.entity_id,
+            entityId: metadataEntityId,
             sessionId: session.id,
             street: address?.line1,
             zip: address?.postalCode,
             city: address?.city,
             ustId: ustIdFromCustomerDetails(session.customer_details),
           });
+          if (linked) linkedEntityId = linked;
         } catch (error) {
           console.error(
             "[webhook] Firma für den Käufer nicht angelegt",
@@ -162,18 +185,27 @@ export async function POST(request: Request) {
           );
         }
 
+        const checkoutEntityId =
+          matchingTestEntityId(metadataEntityId, linkedEntityId) ||
+          linkedEntityId ||
+          metadataEntityId;
         const stripeContact = checkoutContactFromCustomerDetails(session.customer_details);
-        const mailed = await deliverBuyerOnboarding({
-          email: buyerEmail,
-          company: company || existing?.company || "",
-          sessionId: session.id,
-          checkoutNames: stripeContact.checkoutNames,
-          extraCompanyNames: stripeContact.extraCompanyNames,
-          audience:
-            session.metadata?.audience === "steuerberater" ? "steuerberater" : "kunde",
-        });
-        if (mailed === "failed") {
-          throw new Error("Onboarding-Mail nicht gesendet");
+        if (!isTestEntity(checkoutEntityId)) {
+          const mailed = await deliverBuyerOnboarding({
+            email: buyerEmail,
+            company: company || existing?.company || "",
+            sessionId: session.id,
+            checkoutNames: stripeContact.checkoutNames,
+            extraCompanyNames: stripeContact.extraCompanyNames,
+            entityId: checkoutEntityId,
+            audience:
+              session.metadata?.audience === "steuerberater" ? "steuerberater" : "kunde",
+          });
+          if (mailed === "failed") {
+            throw new Error("Onboarding-Mail nicht gesendet");
+          }
+        } else {
+          console.info("[webhook] Onboarding übersprungen — Testfirma");
         }
         await recordCheckoutSubscription({
           eventId: event.id,
@@ -181,6 +213,7 @@ export async function POST(request: Request) {
           email: buyerEmail,
           customerId,
           subscriptionId: idFrom(session.subscription),
+          entityId: checkoutEntityId,
         });
         break;
       }
@@ -207,6 +240,7 @@ export async function POST(request: Request) {
           eventId: event.id,
           customerId: customerId || undefined,
           reason: invoice.last_finalization_error?.message,
+          entityId: invoiceEntityId(invoice as Parameters<typeof invoiceEntityId>[0]),
         });
         break;
       }

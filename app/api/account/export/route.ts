@@ -17,6 +17,7 @@ import {
   type ZipPartMeta,
 } from "@/lib/kuendigung-zip";
 import { listDocumentsByEmail } from "@/lib/store";
+import { isTestEntity } from "@/lib/test-entities";
 import type { SheetRow } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -79,6 +80,10 @@ export async function GET() {
 
       try {
         for (const row of documents) {
+          if (isTestEntity(row.entityId)) {
+            lines.push(inhaltLine(row));
+            continue;
+          }
           if (row.pdfUrl) {
             try {
               const pdf = await loadDocumentPdf(row);

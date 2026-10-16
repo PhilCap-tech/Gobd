@@ -61,12 +61,15 @@ async function deliver(
   return result;
 }
 
-export async function applyLifecycleEvent(event: LifecycleEvent): Promise<ApplyResult> {
+export async function applyLifecycleEvent(
+  event: LifecycleEvent,
+  options?: { suppressCustomerMail?: boolean },
+): Promise<ApplyResult> {
   const previous = await findLifecycleBySubscription(event.subscriptionId);
   const next = nextLifecycle(previous, event);
   let row = next.row;
   let mailResult: MailResult | null = null;
-  if (next.mail) {
+  if (next.mail && !options?.suppressCustomerMail) {
     mailResult = await deliver(row, next.mail, event.id);
     if (mailResult.sent || mailResult.stub) {
       row = markMailDelivered(row, event.id, next.mail, event.at);

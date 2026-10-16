@@ -10,6 +10,7 @@ import { del, get, put, type GetCommandOptions, type PutCommandOptions } from "@
 import { isCompAccessEmail } from "@/lib/comp-access";
 import { isBlobConfigured, isProductionRuntime } from "@/lib/env";
 import { triggerOnboardingMail, type OnboardingAudience } from "@/lib/ops";
+import { isTestEntity } from "@/lib/test-entities";
 import { findRowByStripeSessionId, getFileFallbackDir } from "@/lib/store";
 
 /** A return visit long after payment must not send a second welcome mail. */
@@ -24,6 +25,8 @@ export type BuyerOnboardingInput = {
   audience?: OnboardingAudience;
   checkoutNames?: string[];
   extraCompanyNames?: string[];
+  /** Firm id from checkout metadata or the bound buyer firm. */
+  entityId?: string | null;
   /**
    * Paid-row timestamp. With `enforceWindow`, a row older than
    * {@link BUYER_ONBOARDING_WINDOW_MS} is left alone. The webhook omits this
@@ -188,6 +191,10 @@ export async function deliverBuyerOnboarding(
 ): Promise<BuyerOnboardingStatus> {
   const sessionId = input.sessionId.trim();
   const email = input.email.trim().toLowerCase();
+  if (isTestEntity(input.entityId)) {
+    console.info("[ops] Onboarding übersprungen — Testfirma");
+    return "skipped";
+  }
   if (!sessionId) return "failed";
   if (!email || !email.includes("@")) return "skipped";
   if (isCompAccessEmail(email)) return "skipped";
@@ -204,6 +211,7 @@ export async function deliverBuyerOnboarding(
       audience: input.audience,
       checkoutNames: input.checkoutNames,
       extraCompanyNames: input.extraCompanyNames,
+      entityId: input.entityId,
       idempotencyKey: `checkout-onboarding/${sessionHash(sessionId)}`,
     });
   } catch (error) {
@@ -238,11 +246,14 @@ export async function notifyBuyerOfCheckout(input: {
   audience?: OnboardingAudience;
   checkoutNames?: string[];
   extraCompanyNames?: string[];
+  entityId?: string | null;
 }): Promise<BuyerOnboardingStatus> {
   let paidAt: string | null = null;
+  let rowEntityId = "";
   try {
     const row = await findRowByStripeSessionId(input.sessionId);
     paidAt = row?.timestamp ?? null;
+    rowEntityId = row?.entityId ?? "";
   } catch (error) {
     console.error(
       "[ops] Bezahlte Zeile für die Bestellmail nicht lesbar",
@@ -251,6 +262,7 @@ export async function notifyBuyerOfCheckout(input: {
   }
   return deliverBuyerOnboarding({
     ...input,
+    entityId: input.entityId || rowEntityId,
     paidAt,
     enforceWindow: true,
   });
