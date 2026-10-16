@@ -2422,7 +2422,9 @@ try {
         return { stub: false, sent: true, id: `guard-${providerSends}` };
       },
     });
-    const t0 = Date.parse("2026-10-14T10:00:00.000Z");
+    // sendAmpelConfirmationMail verifies this DOI token with Date.now().
+    // Create it at test time. A fixed past timestamp leaves the 48h window.
+    const t0 = Date.now();
     const bareToken = createAmpelDoiToken(
       { email: guardEmail, answers: jaCode, ref: "", consentAt: new Date(t0).toISOString() },
       t0,
