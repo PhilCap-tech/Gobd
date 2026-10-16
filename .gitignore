@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+.ampel-rate-modules/
 
 # next.js
 /.next/

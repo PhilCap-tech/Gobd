@@ -29,10 +29,27 @@ type TokenBody = {
   exp: number;
   is: number;
   es: number;
+  /** Rows returned by the confirming read. Omitted on older tokens. */
+  rw?: number;
+  /** Rows in that read with the same IP hash and window. */
+  mt?: number;
 };
 
 function slotInRange(slot: number, limit: number): boolean {
   return Number.isInteger(slot) && slot >= 1 && slot <= limit;
+}
+
+function boundedCount(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 1_000_000) return undefined;
+  return value;
+}
+
+/** Both counts travel together. A token that has only one of them keeps neither. */
+function readCounts(rows: unknown, match: unknown): { rows: number; match: number } | undefined {
+  const rw = boundedCount(rows);
+  const mt = boundedCount(match);
+  if (rw == null || mt == null) return undefined;
+  return { rows: rw, match: mt };
 }
 
 export function ampelSendTokenPresent(token: unknown): token is string {
@@ -67,7 +84,15 @@ function parseBody(raw: string): TokenBody | null {
     if (typeof parsed.eh !== "string" || typeof parsed.ah !== "string") return null;
     if (typeof parsed.exp !== "number" || !Number.isFinite(parsed.exp)) return null;
     if (!slotInRange(parsed.is ?? NaN, AMPEL_IP_LIMIT) || !slotInRange(parsed.es ?? NaN, AMPEL_EMAIL_LIMIT)) return null;
-    return { eh: parsed.eh, ah: parsed.ah, exp: parsed.exp, is: parsed.is as number, es: parsed.es as number };
+    const counts = readCounts(parsed.rw, parsed.mt);
+    return {
+      eh: parsed.eh,
+      ah: parsed.ah,
+      exp: parsed.exp,
+      is: parsed.is as number,
+      es: parsed.es as number,
+      ...(counts ? { rw: counts.rows, mt: counts.match } : {}),
+    };
   } catch {
     return null;
   }
@@ -207,13 +232,22 @@ export function ampelSendTokenStore(): AmpelSendTokenStore {
 }
 
 export async function issueAmpelSendToken(
-  input: { email: string; code: string; now: number; ipSlot: number; emailSlot: number },
+  input: {
+    email: string;
+    code: string;
+    now: number;
+    ipSlot: number;
+    emailSlot: number;
+    rows?: number;
+    match?: number;
+  },
   store: AmpelSendTokenStore = ampelSendTokenStore(),
 ): Promise<string | null> {
   if (!slotInRange(input.ipSlot, AMPEL_IP_LIMIT) || !slotInRange(input.emailSlot, AMPEL_EMAIL_LIMIT)) return null;
   const bound = binding(input.email, input.code);
   const exp = input.now + AMPEL_SEND_TOKEN_TTL_MS;
-  const slots = { is: input.ipSlot, es: input.emailSlot };
+  const counts = readCounts(input.rows, input.match);
+  const slots = { is: input.ipSlot, es: input.emailSlot, ...(counts ? { rw: counts.rows, mt: counts.match } : {}) };
   if (isMagicLinkConfigured()) {
     const nonce = randomBytes(16).toString("hex");
     const payload = Buffer.from(JSON.stringify({ p: "ampel-send", ...bound, n: nonce, exp, ...slots })).toString("base64url");
@@ -232,6 +266,8 @@ export type AmpelSendTokenResult = {
   verdict: AmpelSendTokenVerdict;
   ipSlot: number;
   emailSlot: number;
+  rows?: number;
+  match?: number;
 };
 
 function refused(verdict: Exclude<AmpelSendTokenVerdict, "ok">): AmpelSendTokenResult {
@@ -251,7 +287,7 @@ export async function consumeAmpelSendToken(
     const payload = parts[1] ?? "";
     const signature = parts[2] ?? "";
     if (!payload || !signaturesMatch(signature, sign(payload))) return refused("invalid");
-    let parsed: { p?: string; eh?: string; ah?: string; n?: string; exp?: number; is?: number; es?: number };
+    let parsed: { p?: string; eh?: string; ah?: string; n?: string; exp?: number; is?: number; es?: number; rw?: number; mt?: number };
     try {
       parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as typeof parsed;
     } catch {
@@ -262,9 +298,7 @@ export async function consumeAmpelSendToken(
     if (typeof parsed.exp !== "number" || !fresh(parsed.exp, input.now)) return refused("expired");
     if (parsed.eh !== bound.eh || parsed.ah !== bound.ah) return refused("mismatch");
     const claimed = await store.claim(`used/${parsed.n}`, JSON.stringify({ exp: parsed.exp }));
-    return claimed === "created"
-      ? { verdict: "ok", ipSlot: parsed.is as number, emailSlot: parsed.es as number }
-      : refused("reused");
+    return claimed === "created" ? accepted(parsed.is as number, parsed.es as number, parsed.rw, parsed.mt) : refused("reused");
   }
   if (!input.token.startsWith("v0.")) return refused("invalid");
   const secret = input.token.slice(3);
@@ -275,7 +309,10 @@ export async function consumeAmpelSendToken(
   if (!fresh(issued.exp, input.now)) return refused("expired");
   if (issued.eh !== bound.eh || issued.ah !== bound.ah) return refused("mismatch");
   const claimed = await store.claim(`used/${digest(secret)}`, JSON.stringify({ exp: issued.exp }));
-  return claimed === "created"
-    ? { verdict: "ok", ipSlot: issued.is, emailSlot: issued.es }
-    : refused("reused");
+  return claimed === "created" ? accepted(issued.is, issued.es, issued.rw, issued.mt) : refused("reused");
+}
+
+function accepted(ipSlot: number, emailSlot: number, rows: unknown, match: unknown): AmpelSendTokenResult {
+  const counts = readCounts(rows, match);
+  return { verdict: "ok", ipSlot, emailSlot, ...(counts ?? {}) };
 }

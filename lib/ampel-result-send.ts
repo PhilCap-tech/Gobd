@@ -94,13 +94,23 @@ function failOpenCode(error: unknown): string {
 
 function allowTrace(store: AmpelRateStore, hold: AmpelRateHold, now: number): AmpelRateTrace {
   if ((store.origin ?? "memory") === "sheets") {
-    return { kind: "sheets", pos: hold.ipSlot, win: ampelRateWindowId(now, AMPEL_IP_WINDOW_MS) };
+    return {
+      kind: "sheets",
+      pos: hold.ipSlot,
+      win: ampelRateWindowId(now, AMPEL_IP_WINDOW_MS),
+      rows: hold.rows ?? 0,
+      match: hold.match ?? 0,
+    };
   }
   return { kind: "skip", reason: store.origin ?? "memory" };
 }
 
 function limitTrace(decision: "ip" | "email", hold: AmpelRateHold): AmpelRateTrace {
-  return { kind: "limit", pos: decision === "email" ? hold.emailSlot : hold.ipSlot };
+  const pos = decision === "email" ? hold.emailSlot : hold.ipSlot;
+  if (typeof hold.rows === "number" && typeof hold.match === "number") {
+    return { kind: "limit", pos, rows: hold.rows, match: hold.match };
+  }
+  return { kind: "limit", pos };
 }
 
 export function withDeadline<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -246,7 +256,15 @@ async function runSubmit(
     let token: string | null = null;
     try {
       token = await issueAmpelSendToken(
-        { email, code, now, ipSlot: hold.ipSlot, emailSlot: hold.emailSlot },
+        {
+          email,
+          code,
+          now,
+          ipSlot: hold.ipSlot,
+          emailSlot: hold.emailSlot,
+          rows: hold.rows,
+          match: hold.match,
+        },
         deps.tokens ?? ampelSendTokenStore(),
       );
     } catch (error) {
@@ -412,14 +430,23 @@ export async function completeAmpelResult(
       });
       console.info(ampelRateLogLine(source, consumed.ipSlot, clientIp));
       if (confirmed === "ip" || confirmed === "email") {
-        return stamp(limited(confirmed), {
-          kind: "limit",
-          pos: confirmed === "email" ? consumed.emailSlot : consumed.ipSlot,
-        });
+        const pos = confirmed === "email" ? consumed.emailSlot : consumed.ipSlot;
+        return stamp(
+          limited(confirmed),
+          typeof consumed.rows === "number" && typeof consumed.match === "number"
+            ? { kind: "limit", pos, rows: consumed.rows, match: consumed.match }
+            : { kind: "limit", pos },
+        );
       }
       trace =
         (store.origin ?? "memory") === "sheets"
-          ? { kind: "sheets", pos: consumed.ipSlot, win: ampelRateWindowId(now, AMPEL_IP_WINDOW_MS) }
+          ? {
+              kind: "sheets",
+              pos: consumed.ipSlot,
+              win: ampelRateWindowId(now, AMPEL_IP_WINDOW_MS),
+              rows: consumed.rows ?? 0,
+              match: consumed.match ?? 0,
+            }
           : { kind: "skip", reason: store.origin ?? "memory" };
     } catch (error) {
       logAmpelRateFailure("confirm", error);

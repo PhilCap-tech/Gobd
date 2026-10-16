@@ -1476,14 +1476,27 @@ try {
     const sameAddress = "104.28.218.14";
     const windowId = hour;
     try {
+      function sheetNumber(value: string, column: number): string | number {
+        if ((column === 1 || column === 2 || column === 5) && /^\d+$/.test(value)) return Number(value);
+        return value;
+      }
+      function openColumn(stored: Map<number, string[]>, start: number): Array<Array<string | number>> {
+        const max = stored.size === 0 ? start - 1 : Math.max(...stored.keys());
+        const values: Array<Array<string | number>> = [];
+        for (let row = start; row <= max; row += 1) {
+          values.push((stored.get(row) ?? []).map((value, column) => sheetNumber(value, column)));
+        }
+        return values;
+      }
       function sheetClient(options?: { plan?: number[]; failDataAppend?: boolean }) {
         const titles: string[] = [];
         const rows = new Map<number, string[]>();
-        const ops: { op: string; range?: string }[] = [];
+        const ops: { op: string; range?: string; valueRenderOption?: string }[] = [];
         let addSheets = 0;
         let headerAppends = 0;
         let nextRow = 2;
         let planAt = 0;
+        let lastAppendGridRows = 0;
         let openGate: (() => void) | null = null;
         const gate = options?.plan
           ? new Promise<void>((resolve) => {
@@ -1491,22 +1504,25 @@ try {
             })
           : null;
         const tab = getAmpelRateSheetsTab();
-        function gridResponse(sheetId: number) {
-          const ordered = [...rows.entries()].filter(([number]) => number >= 2).sort((left, right) => left[0] - right[0]);
-          return {
+        function gridResponse(sheetId: number, rowNumber: number, cells: string[]) {
+          const response = {
             data: {
+              replies: [{}],
               updatedSpreadsheet: {
                 sheets: [
                   {
                     properties: { title: tab, sheetId },
                     data: [
                       {
-                        rowData: ordered.map(([, row]) => ({
-                          values: row.map((value) => ({
-                            userEnteredValue: { stringValue: value },
-                            formattedValue: value,
-                          })),
-                        })),
+                        startRow: rowNumber - 1,
+                        rowData: [
+                          {
+                            values: cells.map((value) => ({
+                              userEnteredValue: { stringValue: value },
+                              formattedValue: value,
+                            })),
+                          },
+                        ],
                       },
                     ],
                   },
@@ -1514,6 +1530,8 @@ try {
               },
             },
           };
+          lastAppendGridRows = response.data.updatedSpreadsheet.sheets[0]?.data[0]?.rowData.length ?? 0;
+          return response;
         }
         const client: AmpelRateSheetClient = {
           async get() {
@@ -1540,20 +1558,24 @@ try {
             rows.set(rowNumber, cells);
             if (options?.plan && planAt === options.plan.length) openGate?.();
             if (gate) await gate;
-            return gridResponse(append.sheetId);
+            return gridResponse(append.sheetId, rowNumber, cells);
           },
           async valuesGet(args) {
-            ops.push({ op: "values.get", range: args.range });
+            ops.push({ op: "values.get", range: args.range, valueRenderOption: args.valueRenderOption });
             if (args.range.endsWith("!A1:F1")) {
               const header = rows.get(1);
               return { data: { values: header ? [header] : [] } };
             }
+            const open = /!A(\d*):F$/.exec(args.range);
+            if (open) return { data: { values: openColumn(rows, open[1] ? Number(open[1]) : 1) } };
             const match = /!A(\d+):F(\d+)$/.exec(args.range);
             if (!match) throw new Error("bad-range");
             const start = Number(match[1]);
             const end = Number(match[2]);
-            const values: string[][] = [];
-            for (let row = start; row <= end; row += 1) values.push(rows.get(row) ?? []);
+            const values: Array<Array<string | number>> = [];
+            for (let row = start; row <= end; row += 1) {
+              values.push((rows.get(row) ?? []).map((value, column) => sheetNumber(value, column)));
+            }
             return { data: { values } };
           },
           async valuesAppend(args) {
@@ -1579,6 +1601,7 @@ try {
           rows,
           addSheets: () => addSheets,
           headerAppends: () => headerAppends,
+          lastAppendGridRows: () => lastAppendGridRows,
           titles,
         };
       }
@@ -1617,8 +1640,9 @@ try {
               sent.trace.pos === index + 1 &&
               sent.trace.win === windowId &&
               response.status === 200 &&
-              response.headers.get("x-ampel-rl") === `src=sheets;pos=${index + 1};win=${windowId}`,
-            `sheet send ${index + 1} sets src=sheets;pos=${index + 1};win=${windowId}`,
+              response.headers.get("x-ampel-rl") ===
+                `src=sheets;pos=${index + 1};win=${windowId};rows=${index + 2};match=${index + 1}`,
+            `sheet send ${index + 1} sets src=sheets;pos=${index + 1};win=${windowId};rows=${index + 2};match=${index + 1}`,
           );
         } else {
           assertOk(
@@ -1627,8 +1651,9 @@ try {
               sent.trace?.kind === "limit" &&
               sent.trace.pos === AMPEL_IP_LIMIT + 1 &&
               response.status === 429 &&
-              response.headers.get("x-ampel-rl") === `src=limit;pos=${AMPEL_IP_LIMIT + 1}`,
-            "five sheet sends are allowed and the sixth sets src=limit;pos=6",
+              response.headers.get("x-ampel-rl") ===
+                `src=limit;pos=${AMPEL_IP_LIMIT + 1};rows=${AMPEL_IP_LIMIT + 2};match=${AMPEL_IP_LIMIT + 1}`,
+            "five sheet sends are allowed and the sixth sets src=limit;pos=6;rows=7;match=6",
           );
         }
       }
@@ -1663,11 +1688,15 @@ try {
         probe.ok &&
           !("honeypot" in probe) &&
           probe.mailed === true &&
-          probeOps.length === 1 &&
+          probeOps.length === 2 &&
           probeOps[0]?.op === "spreadsheets.batchUpdate" &&
           probeOps[0]?.range === "appendCells" &&
-          !probeOps.some((op) => op.op === "values.get"),
-        "a send appends one row and counts the rows in that write",
+          probeOps[1]?.op === "values.get" &&
+          probeOps[1]?.range?.endsWith("!A:F") === true &&
+          probeOps[1]?.valueRenderOption === "UNFORMATTED_VALUE" &&
+          counted.lastAppendGridRows() === 1 &&
+          counted.rows.size > 2,
+        "a send appends one row and reads the whole tab",
       );
       const reset = await submitAmpelResult(
         {
@@ -1692,7 +1721,9 @@ try {
           reset.mailed === true &&
           reset.trace?.kind === "sheets" &&
           reset.trace.pos === 1 &&
-          reset.trace.win === windowId + 1,
+          reset.trace.win === windowId + 1 &&
+          reset.trace.rows === 9 &&
+          reset.trace.match === 1,
         "a new window resets",
       );
       assertOk(counted.addSheets() === 1 && counted.headerAppends() === 1 && counted.titles[0] === "ampel_rate", "the tab is created once");
@@ -1702,7 +1733,8 @@ try {
       let isolatedNext = 2;
       let isolatedSheets = 0;
       let isolatedHeaders = 0;
-      const isolatedOps: { op: string; range?: string }[] = [];
+      let isolatedAppendGridRows = 0;
+      const isolatedOps: { op: string; range?: string; valueRenderOption?: string }[] = [];
       function isolatedClient(): AmpelRateSheetClient {
         const tabName = getAmpelRateSheetsTab();
         return {
@@ -1731,18 +1763,24 @@ try {
             const rowNumber = isolatedNext;
             isolatedNext += 1;
             isolatedRows.set(rowNumber, cells);
-            const ordered = [...isolatedRows.entries()].sort((left, right) => left[0] - right[0]);
-            return {
+            const response = {
               data: {
+                replies: [{}],
                 updatedSpreadsheet: {
                   sheets: [
                     {
                       properties: { title: tabName, sheetId: append.sheetId },
                       data: [
                         {
-                          rowData: ordered.map(([, row]) => ({
-                            values: row.map((value) => ({ userEnteredValue: { stringValue: value } })),
-                          })),
+                          startRow: rowNumber - 1,
+                          rowData: [
+                            {
+                              values: cells.map((value) => ({
+                                userEnteredValue: { stringValue: value },
+                                formattedValue: value,
+                              })),
+                            },
+                          ],
                         },
                       ],
                     },
@@ -1750,14 +1788,18 @@ try {
                 },
               },
             };
+            isolatedAppendGridRows = response.data.updatedSpreadsheet.sheets[0]?.data[0]?.rowData.length ?? 0;
+            return response;
           },
           async valuesGet(args) {
-            isolatedOps.push({ op: "values.get", range: args.range });
+            isolatedOps.push({ op: "values.get", range: args.range, valueRenderOption: args.valueRenderOption });
             if (args.range.endsWith("!A1:F1")) {
               const header = isolatedRows.get(1);
               return { data: { values: header ? [header] : [] } };
             }
-            throw new Error("data-get");
+            const open = /!A(\d*):F$/.exec(args.range);
+            if (!open) throw new Error("bad-range");
+            return { data: { values: openColumn(isolatedRows, open[1] ? Number(open[1]) : 1) } };
           },
           async valuesAppend(args) {
             isolatedOps.push({ op: "values.append", range: args.range });
@@ -1813,8 +1855,9 @@ try {
               sent.trace?.kind === "sheets" &&
               sent.trace.pos === index + 1 &&
               response.status === 200 &&
-              response.headers.get("x-ampel-rl") === `src=sheets;pos=${index + 1};win=${windowId}`,
-            `reloaded instance ${index + 1} sets src=sheets;pos=${index + 1}`,
+              response.headers.get("x-ampel-rl") ===
+                `src=sheets;pos=${index + 1};win=${windowId};rows=${index + 2};match=${index + 1}`,
+            `reloaded instance ${index + 1} sets src=sheets;pos=${index + 1};rows=${index + 2};match=${index + 1}`,
           );
         } else {
           assertOk(
@@ -1823,7 +1866,8 @@ try {
               sent.trace?.kind === "limit" &&
               sent.trace.pos === AMPEL_IP_LIMIT + 1 &&
               response.status === 429 &&
-              response.headers.get("x-ampel-rl") === `src=limit;pos=${AMPEL_IP_LIMIT + 1}`,
+              response.headers.get("x-ampel-rl") ===
+                `src=limit;pos=${AMPEL_IP_LIMIT + 1};rows=${AMPEL_IP_LIMIT + 2};match=${AMPEL_IP_LIMIT + 1}`,
             "six reloaded instances take positions 1..6 and the sixth is a 429",
           );
         }
@@ -1832,9 +1876,10 @@ try {
         isolatedSheets === 1 &&
           isolatedHeaders === 1 &&
           isolatedRows.size === AMPEL_IP_LIMIT + 2 &&
-          !isolatedOps.some((op) => op.op === "values.get" && !op.range?.endsWith("!A1:F1")) &&
+          isolatedAppendGridRows === 1 &&
+          isolatedOps.some((op) => op.op === "values.get" && op.range?.endsWith("!A:F") && op.valueRenderOption === "UNFORMATTED_VALUE") &&
           !isolatedOps.some((op) => op.op === "values.append" && !op.range?.endsWith("!A1")),
-        "reloaded instances share the sheet rows and do not count through values.get",
+        "reloaded instances read the whole tab and the append grid is one row",
       );
 
       clearAmpelRateSheetCache();
@@ -1981,13 +2026,19 @@ try {
         },
       );
       const reservedAppendsAfter = reserved.ops.filter((op) => op.op === "values.append" && op.range?.endsWith("!A1")).length;
+      const reservedResponse = ampelSubmitResponse(reservedDone);
       assertOk(
         reservedDone.ok &&
           !("honeypot" in reservedDone) &&
           reservedDone.mailed === true &&
           reservedSends === 1 &&
-          reservedAppendsAfter === reservedAppends,
-        "senden does not append a second rate row",
+          reservedAppendsAfter === reservedAppends &&
+          reservedDone.trace?.kind === "sheets" &&
+          reservedDone.trace.pos === 1 &&
+          reservedDone.trace.rows === 2 &&
+          reservedDone.trace.match === 1 &&
+          reservedResponse.headers.get("x-ampel-rl") === `src=sheets;pos=1;win=${windowId};rows=2;match=1`,
+        "senden does not append a second rate row and echoes rows and match",
       );
     } finally {
       if (previousSheetId === undefined) delete process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
@@ -2089,12 +2140,19 @@ try {
     );
     assertOk(reused.verdict === "reused", "a second consume of the same token slot sends nothing");
 
-    const header = ampelRateResponseHeader({ kind: "sheets", pos: 2, win: windowId });
-    assertOk(header === `src=sheets;pos=2;win=${windowId}` && !header.includes(sameAddress), "the sheets path sets src=sheets;pos=N;win=W");
+    const header = ampelRateResponseHeader({ kind: "sheets", pos: 2, win: windowId, rows: 8, match: 2 });
+    assertOk(
+      header === `src=sheets;pos=2;win=${windowId};rows=8;match=2` && !header.includes(sameAddress),
+      "the sheets path sets src=sheets;pos=N;win=W;rows=R;match=M",
+    );
     const poisoned = ampelRateResponseHeader({ kind: "failopen", err: `store ${sameAddress}` });
     assertOk(poisoned === "src=failopen;err=store1042821814" && !poisoned.includes(sameAddress), "a raw address cannot appear in the rate header");
     assertOk(ampelRateResponseHeader({ kind: "limit", pos: 6 }) === "src=limit;pos=6", "a 429 sets src=limit;pos=N");
-    const shaped = ampelApiResponse({ ok: true }, 200, { kind: "sheets", pos: 2, win: windowId });
+    assertOk(
+      ampelRateResponseHeader({ kind: "limit", pos: 6, rows: 7, match: 6 }) === "src=limit;pos=6;rows=7;match=6",
+      "a sheet 429 sets src=limit;pos=N;rows=R;match=M",
+    );
+    const shaped = ampelApiResponse({ ok: true }, 200, { kind: "sheets", pos: 2, win: windowId, rows: 8, match: 2 });
     assertOk(shaped.headers.get("x-ampel-rl") === header, "the submit response sets x-ampel-rl");
     const badJson = await postAmpelErgebnis(
       new Request("http://localhost/api/ampel/ergebnis", {

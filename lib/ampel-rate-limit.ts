@@ -21,6 +21,10 @@ export type AmpelRateDecision = "ok" | "ip" | "email";
 export type AmpelRateHold = {
   ipSlot: number;
   emailSlot: number;
+  /** Rows returned by the confirming `values.get`. */
+  rows?: number;
+  /** Rows in that read with the same IP hash and window. */
+  match?: number;
 };
 
 export type AmpelRateConfirm = "ok" | "ip" | "email" | "missing";
@@ -48,8 +52,8 @@ const IP_HEADER_SOURCES = ["x-real-ip", "x-vercel-forwarded-for", "x-forwarded-f
 export type AmpelIpSource = (typeof IP_HEADER_SOURCES)[number] | "";
 
 export type AmpelRateTrace =
-  | { kind: "sheets"; pos: number; win: number }
-  | { kind: "limit"; pos: number }
+  | { kind: "sheets"; pos: number; win: number; rows: number; match: number }
+  | { kind: "limit"; pos: number; rows?: number; match?: number }
   | { kind: "failopen"; err: string }
   | { kind: "skip"; reason: string };
 
@@ -93,13 +97,18 @@ function headerCount(value: number): number {
   return Number.isInteger(value) && value >= 0 && value <= 1_000_000 ? value : 0;
 }
 
+function countSuffix(rows: number | undefined, match: number | undefined): string {
+  if (typeof rows !== "number" || typeof match !== "number") return "";
+  return `;rows=${headerCount(rows)};match=${headerCount(match)}`;
+}
+
 /** `x-ampel-rl` names the path. It never carries the address or the IP header name. */
 export function ampelRateResponseHeader(trace: AmpelRateTrace): string {
   if (trace.kind === "sheets") {
     const win = Number.isInteger(trace.win) && trace.win >= 0 && trace.win <= 10_000_000 ? trace.win : 0;
-    return `src=sheets;pos=${headerCount(trace.pos)};win=${win}`;
+    return `src=sheets;pos=${headerCount(trace.pos)};win=${win}${countSuffix(trace.rows, trace.match)}`;
   }
-  if (trace.kind === "limit") return `src=limit;pos=${headerCount(trace.pos)}`;
+  if (trace.kind === "limit") return `src=limit;pos=${headerCount(trace.pos)}${countSuffix(trace.rows, trace.match)}`;
   if (trace.kind === "failopen") return `src=failopen;err=${headerToken(trace.err)}`;
   return `src=skip;reason=${headerToken(trace.reason)}`;
 }
@@ -239,8 +248,39 @@ function cellText(cell: AmpelRateCell | null | undefined): string {
   const entered = cell?.userEnteredValue;
   if (typeof entered?.stringValue === "string") return entered.stringValue;
   if (typeof entered?.numberValue === "number" && Number.isFinite(entered.numberValue)) return String(entered.numberValue);
+  const effective = cell && "effectiveValue" in cell ? (cell as { effectiveValue?: { stringValue?: string | null; numberValue?: number | null } | null }).effectiveValue : null;
+  if (typeof effective?.stringValue === "string") return effective.stringValue;
+  if (typeof effective?.numberValue === "number" && Number.isFinite(effective.numberValue)) return String(effective.numberValue);
   if (typeof cell?.formattedValue === "string") return cell.formattedValue;
   return "";
+}
+
+/** `values.get` cells: strings stay strings, numbers are not locale-formatted. */
+export function ampelRateCellString(cell: unknown): string {
+  if (typeof cell === "string") return cell;
+  if (typeof cell === "number" && Number.isFinite(cell)) return String(cell);
+  if (typeof cell === "boolean") return cell ? "TRUE" : "FALSE";
+  return "";
+}
+
+export function ampelRateRowsFromValues(values: readonly (readonly unknown[])[] | null | undefined): string[][] {
+  return (values ?? []).map((row) => (row ?? []).map((cell) => ampelRateCellString(cell)));
+}
+
+/** Every row in the read with this hash and window, including rows after our own. */
+export function ampelRateMatchCount(
+  rows: readonly (readonly string[])[],
+  keyColumn: number,
+  windowColumn: number,
+  keyHash: string,
+  windowId: number,
+): number {
+  const windowText = String(windowId);
+  let count = 0;
+  for (const row of rows) {
+    if ((row?.[keyColumn] ?? "") === keyHash && (row?.[windowColumn] ?? "") === windowText) count += 1;
+  }
+  return count;
 }
 
 /** Data rows from the append response, in sheet order. Null when the grid is missing. */
@@ -282,7 +322,7 @@ export type AmpelRateSheetClient = {
     };
   }>;
   valuesGet(
-    args: { spreadsheetId: string; range: string },
+    args: { spreadsheetId: string; range: string; valueRenderOption?: "FORMATTED_VALUE" | "UNFORMATTED_VALUE" | "FORMULA" },
     options?: { headers?: Record<string, string> },
   ): Promise<{ data: { values?: unknown[][] | null } | null }>;
   valuesAppend(args: {
@@ -388,17 +428,20 @@ function stringCell(value: string): { userEnteredValue: { stringValue: string } 
 }
 
 /**
- * Appends one row and counts from that write's grid.
+ * Appends one row, then counts a `values.get` of the whole tab.
  *
- * The old path appended at `tab!A1` and then called `values.get` on
- * `A{start}:F{updatedRange}`. `values.append` only extends the table that
- * contains A1, and `updatedRange` is that table's end. A short cursor (row
- * 2, or once row 3) made the get a one- or two-row range, so
- * `ampelRatePosition` counted the row just written and returned
- * `src=sheets;pos=1`. `values.get` is also a separate, stale read. The
- * batchUpdate response is the sheet after this append. Rows after our
- * request id belong to later commits. Position 1..limit is allowed.
- * Any Sheets error is logged and rethrown so the caller still sends.
+ * `AppendCellsRequest` has no reply (`Schema$Response` has no `appendCells`
+ * field). `includeSpreadsheetInResponse` returns `updatedSpreadsheet`, and
+ * `responseRanges` limits that snapshot. `responseIncludeGridData` is ignored
+ * only when the HTTP `fields` mask is set; this call does not set one.
+ * `GridData.rowData` is one entry per row starting at `startRow`, and the
+ * block this append returns is the row just written. Counting that block is
+ * always position 1. `values.get` on `A:F` has no end row and returns every
+ * stored row. `UNFORMATTED_VALUE` keeps a numeric `window_id` as a number;
+ * the count stringifies it instead of reading `formattedValue`. Position is
+ * the matches at or before this request id. A missing id throws, so a
+ * one-row grid is never reported as position 1. Any Sheets error is
+ * rethrown so the caller still sends.
  */
 export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAmpelRateSheetClient()): AmpelRateStore {
   const tab = getAmpelRateSheetsTab();
@@ -413,7 +456,7 @@ export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAm
         const ipHash = ampelRateStoredHash(ipKey);
         const emailHash = ampelRateStoredHash(emailKey);
         const requestId = randomBytes(8).toString("hex");
-        const written = await client.batchUpdate({
+        await client.batchUpdate({
           spreadsheetId: id,
           requestBody: {
             requests: [
@@ -441,15 +484,21 @@ export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAm
             responseRanges: [`${tab}!A2:F`],
           },
         });
-        const rows = ampelRateRowsFromUpdate(written.data?.updatedSpreadsheet, tab);
-        if (!rows) throw new Error("ampel-rate-range");
+        const read = await client.valuesGet(
+          { spreadsheetId: id, range: `${tab}!A:F`, valueRenderOption: "UNFORMATTED_VALUE" },
+          SHEETS_GET_OPTS,
+        );
+        const rows = ampelRateRowsFromValues(read.data?.values);
         const emailPos = ampelRateCountThroughRequest(rows, 4, 5, emailHash, emailWindow, requestId);
         const ipPos = ampelRateCountThroughRequest(rows, 0, 1, ipHash, ipWindow, requestId);
-        if (emailPos == null || ipPos == null || emailPos < 1 || ipPos < 1) throw new Error("ampel-rate-position");
+        const match = ampelRateMatchCount(rows, 0, 1, ipHash, ipWindow);
         if (hold) {
-          hold.ipSlot = ipPos;
-          hold.emailSlot = emailPos;
+          hold.ipSlot = ipPos ?? 0;
+          hold.emailSlot = emailPos ?? 0;
+          hold.rows = rows.length;
+          hold.match = match;
         }
+        if (emailPos == null || ipPos == null || emailPos < 1 || ipPos < 1) throw new Error("ampel-rate-position");
         if (emailPos > AMPEL_EMAIL_LIMIT) return "email";
         if (ipPos > AMPEL_IP_LIMIT) return "ip";
         return "ok";
