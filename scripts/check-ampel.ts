@@ -975,8 +975,8 @@ try {
     const directBody = (await direct.json()) as { error?: string };
     assertOk(direct.status === 403 && directBody.error === AMPEL_RESULT_MAIL.sendUnauthorized, "direct POST without a token is forbidden");
     assertOk(
-      direct.headers.get("x-ampel-rl")?.startsWith("src=none;slot=0;win=") === true,
-      "a token rejection still returns the rate header",
+      direct.headers.get("x-ampel-rl") === "src=skip;reason=token",
+      "a missing token sets src=skip;reason=token",
     );
     assertOk(pdfSends === beforeDirect, "direct POST without a token sends no mail");
     const invalidWithoutToken = await postAmpelErgebnisSenden(
@@ -1214,6 +1214,14 @@ try {
       { store: fileStore, now: () => clock, confirm: noConfirm },
     );
     assertOk(filed.ok && !("honeypot" in filed), "file ledger accepts the first result");
+    assertOk(
+      filed.ok &&
+        !("honeypot" in filed) &&
+        filed.trace?.kind === "skip" &&
+        filed.trace.reason === "file" &&
+        ampelSubmitResponse(filed).headers.get("x-ampel-rl") === "src=skip;reason=file",
+      "the file ledger sets src=skip;reason=file",
+    );
     const rawLedger = readFileSync(ledgerFile, "utf8");
     assertOk(!rawLedger.includes("203.0.113.77"), "the ledger stores no raw IP");
     const secondStore = createFileAmpelRateStore(ledgerFile);
@@ -1365,6 +1373,14 @@ try {
         unknownIp.ok && !("honeypot" in unknownIp) && unknownIp.mailed === false && missingTakes === 0,
       "an empty or unknown address does not share a bucket and sends no mail",
     );
+    assertOk(
+      missingIp.ok &&
+        !("honeypot" in missingIp) &&
+        missingIp.trace?.kind === "skip" &&
+        missingIp.trace.reason === "noip" &&
+        ampelSubmitResponse(missingIp).headers.get("x-ampel-rl") === "src=skip;reason=noip",
+      "a skipped check sets src=skip;reason=noip",
+    );
 
     const rateSource = readFileSync("lib/ampel-rate-limit.ts", "utf8");
     const factory = rateSource.slice(rateSource.indexOf("export function ampelRateStore()"));
@@ -1388,6 +1404,11 @@ try {
       "check:ampel uses the file ledger before the sheet",
     );
     assertOk(factory.includes("createClosedAmpelRateStore"), "vercel without sheets does not count in /tmp");
+    const responseSource = readFileSync("lib/ampel-api-response.ts", "utf8");
+    assertOk(
+      !rateSource.includes(";slot=") && !responseSource.includes(";slot=") && !responseSource.includes("x-real-ip"),
+      "the response header no longer names the IP header",
+    );
     assertOk(envSource.includes('return "ampel_rate"') && getAmpelRateSheetsTab() === "ampel_rate", "the rate tab is ampel_rate");
     assertOk(AMPEL_SEND_TIMEOUT_MS === 8_000, "mail and pdf steps time out after 8 seconds");
 
@@ -1548,24 +1569,26 @@ try {
         );
         assertOk(sent.ok && !("honeypot" in sent), `sheet submit ${index + 1}`);
         if (!sent.ok || "honeypot" in sent) fail("sheet submit");
-        const response = ampelSubmitResponse(sent, "x-real-ip", clock);
+        const response = ampelSubmitResponse(sent);
         if (index < AMPEL_IP_LIMIT) {
           assertOk(
             sent.mailed === true &&
-              sent.trace?.slot === index + 1 &&
+              sent.trace?.kind === "sheets" &&
+              sent.trace.pos === index + 1 &&
               sent.trace.win === windowId &&
               response.status === 200 &&
-              response.headers.get("x-ampel-rl") === `src=x-real-ip;slot=${index + 1};win=${windowId}`,
-            `sheet send ${index + 1} is allowed at position ${index + 1}`,
+              response.headers.get("x-ampel-rl") === `src=sheets;pos=${index + 1};win=${windowId}`,
+            `sheet send ${index + 1} sets src=sheets;pos=${index + 1};win=${windowId}`,
           );
         } else {
           assertOk(
             sent.limited === "ip" &&
               sent.mailed === false &&
-              sent.trace?.slot === 0 &&
+              sent.trace?.kind === "limit" &&
+              sent.trace.pos === AMPEL_IP_LIMIT + 1 &&
               response.status === 429 &&
-              response.headers.get("x-ampel-rl") === `src=x-real-ip;slot=0;win=${windowId}`,
-            "five sheet sends are allowed and the sixth is a 429 with no mail",
+              response.headers.get("x-ampel-rl") === `src=limit;pos=${AMPEL_IP_LIMIT + 1}`,
+            "five sheet sends are allowed and the sixth sets src=limit;pos=6",
           );
         }
       }
@@ -1628,7 +1651,8 @@ try {
         reset.ok &&
           !("honeypot" in reset) &&
           reset.mailed === true &&
-          reset.trace?.slot === 1 &&
+          reset.trace?.kind === "sheets" &&
+          reset.trace.pos === 1 &&
           reset.trace.win === windowId + 1,
         "a new window resets",
       );
@@ -1719,6 +1743,16 @@ try {
           !rateLog.includes(sameAddress),
         "a Sheets error is fail-open",
       );
+      const brokenResponse = ampelSubmitResponse(broken);
+      assertOk(
+        broken.ok &&
+          !("honeypot" in broken) &&
+          broken.trace?.kind === "failopen" &&
+          broken.trace.err === "store" &&
+          brokenResponse.status === 200 &&
+          brokenResponse.headers.get("x-ampel-rl") === "src=failopen;err=store",
+        "fail-open sets src=failopen;err=store",
+      );
 
       clearAmpelRateSheetCache();
       const reserved = sheetClient();
@@ -1744,7 +1778,11 @@ try {
       });
       const reservedAppends = reserved.ops.filter((op) => op.op === "values.append" && op.range?.endsWith("!A1")).length;
       assertOk(
-        reservedHandoff.ok && !("honeypot" in reservedHandoff) && reservedHandoff.pending === true && reservedHandoff.trace?.slot === 1,
+        reservedHandoff.ok &&
+          !("honeypot" in reservedHandoff) &&
+          reservedHandoff.pending === true &&
+          reservedHandoff.trace?.kind === "sheets" &&
+          reservedHandoff.trace.pos === 1,
         "the sheet handoff reserves the position before the token",
       );
       if (!reservedHandoff.ok || "honeypot" in reservedHandoff) fail("sheet handoff");
@@ -1871,10 +1909,12 @@ try {
     );
     assertOk(reused.verdict === "reused", "a second consume of the same token slot sends nothing");
 
-    const header = ampelRateResponseHeader("x-real-ip", 2, windowId);
-    assertOk(header === `src=x-real-ip;slot=2;win=${windowId}` && !header.includes(sameAddress), "the rate header has no address");
-    assertOk(ampelRateResponseHeader(sameAddress, 9, -1) === "src=none;slot=0;win=0", "a raw address cannot be a rate header source");
-    const shaped = ampelApiResponse({ ok: true }, 200, "x-real-ip", { src: "x-real-ip", slot: 2, win: windowId }, clock);
+    const header = ampelRateResponseHeader({ kind: "sheets", pos: 2, win: windowId });
+    assertOk(header === `src=sheets;pos=2;win=${windowId}` && !header.includes(sameAddress), "the sheets path sets src=sheets;pos=N;win=W");
+    const poisoned = ampelRateResponseHeader({ kind: "failopen", err: `store ${sameAddress}` });
+    assertOk(poisoned === "src=failopen;err=store1042821814" && !poisoned.includes(sameAddress), "a raw address cannot appear in the rate header");
+    assertOk(ampelRateResponseHeader({ kind: "limit", pos: 6 }) === "src=limit;pos=6", "a 429 sets src=limit;pos=N");
+    const shaped = ampelApiResponse({ ok: true }, 200, { kind: "sheets", pos: 2, win: windowId });
     assertOk(shaped.headers.get("x-ampel-rl") === header, "the submit response sets x-ampel-rl");
     const badJson = await postAmpelErgebnis(
       new Request("http://localhost/api/ampel/ergebnis", {
@@ -1885,8 +1925,8 @@ try {
     );
     const badHeader = badJson.headers.get("x-ampel-rl") ?? "";
     assertOk(
-      badJson.status === 400 && badHeader.startsWith("src=x-real-ip;slot=0;win=") && !badHeader.includes(sameAddress),
-      "submit sets x-ampel-rl from ipAddress",
+      badJson.status === 400 && badHeader === "src=skip;reason=request" && !badHeader.includes(sameAddress),
+      "a bad request sets src=skip;reason=request",
     );
     const denied = await postAmpelErgebnisSenden(
       new Request("http://localhost/api/ampel/ergebnis/senden", {
@@ -1901,8 +1941,8 @@ try {
     );
     const deniedHeader = denied.headers.get("x-ampel-rl") ?? "";
     assertOk(
-      denied.status === 403 && deniedHeader.startsWith("src=x-real-ip;slot=0;win=") && !deniedHeader.includes(sameAddress),
-      "senden sets x-ampel-rl before it validates the email",
+      denied.status === 403 && deniedHeader === "src=skip;reason=token" && !deniedHeader.includes(sameAddress),
+      "senden sets src=skip;reason=token before it validates the email",
     );
 
 
@@ -1949,8 +1989,14 @@ try {
       },
     );
     assertOk(
-      flakyDone.ok && !("honeypot" in flakyDone) && flakyDone.mailed === true && flakySends === 1,
-      "a confirm error still sends the token-bound mail",
+      flakyDone.ok &&
+        !("honeypot" in flakyDone) &&
+        flakyDone.mailed === true &&
+        flakySends === 1 &&
+        flakyDone.trace?.kind === "failopen" &&
+        flakyDone.trace.err === "confirm" &&
+        ampelSubmitResponse(flakyDone).headers.get("x-ampel-rl") === "src=failopen;err=confirm",
+      "a confirm error sets src=failopen;err=confirm and still sends the mail",
     );
   } finally {
     setMailDedupeTestHooks(null);

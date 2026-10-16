@@ -12,14 +12,14 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, client.source);
+    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, { kind: "skip", reason: "request" });
   }
   if (!body || typeof body !== "object") {
-    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, client.source);
+    return ampelApiResponse({ error: "Ungültige Anfrage" }, 400, { kind: "skip", reason: "request" });
   }
   const value = body as Record<string, unknown>;
   if (!ampelSendTokenPresent(value.send_token)) {
-    return ampelApiResponse({ error: AMPEL_RESULT_MAIL.sendUnauthorized }, 403, client.source);
+    return ampelApiResponse({ error: AMPEL_RESULT_MAIL.sendUnauthorized }, 403, { kind: "skip", reason: "token" });
   }
   const result = await completeAmpelResult({
     email: value.email,
@@ -31,5 +31,5 @@ export async function POST(request: Request) {
     ipSource: client.source,
     sendToken: value.send_token,
   });
-  return ampelSubmitResponse(result, client.source);
+  return ampelSubmitResponse(result);
 }
