@@ -18,13 +18,25 @@ import {
   paidIntakePathForOwner,
   undocumentedPaidSessionId,
 } from "../lib/account-paid-intake";
-import { authCookieDeletionLines, SESSION_COOKIE, createSessionToken } from "../lib/auth";
-import { deliverBuyerOnboarding, forgetBuyerOnboarding } from "../lib/buyer-onboarding";
+import { authCookieDeletionLines, SESSION_COOKIE, createSessionToken, verifySessionToken } from "../lib/auth";
+import {
+  deliverBuyerOnboarding,
+  forgetBuyerOnboarding,
+  plantBuyerOnboardingMarker,
+} from "../lib/buyer-onboarding";
+import { scheduleCheckoutAfterResponse } from "../lib/checkout-after";
 import { boundCheckoutEntityId, checkoutEntityIdForEmail } from "../lib/checkout-entity";
-import { ensureBuyerFirmForCheckout, type BuyerFirmStore } from "../lib/checkout-firm";
+import {
+  ensureBuyerFirmForCheckout,
+  forgetCheckoutFirmClaim,
+  type BuyerFirmStore,
+} from "../lib/checkout-firm";
+import { encodeIntakePayloadRef } from "../lib/intake-payload";
+import { installSheetsHandler } from "../lib/sheets-client";
+import { clearAllSheetReadCaches, findLatestDocumentByStripeSessionId } from "../lib/store";
 import { forgetCheckoutSessionGrant } from "../lib/checkout-session-grant";
 import { toEntity, type Entity, type EntityInput } from "../lib/entities";
-import { emptyAnswers, emptySheetRow, emailsEqual } from "../lib/types";
+import { SHEET_COLUMNS, emptyAnswers, emptySheetRow, emailsEqual, sheetRowValues } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -95,6 +107,7 @@ function draftIo(cleared: string[]): DraftWriteIo {
 }
 
 async function checkBinding() {
+  await forgetCheckoutFirmClaim(BUYER);
   ok(
     boundCheckoutEntityId({
       checkoutEmail: BUYER,
@@ -164,6 +177,7 @@ async function checkBinding() {
   ok(readFileSync("app/api/stripe/webhook/route.ts", "utf8").includes("ensureBuyerFirmForCheckout"), "the webhook binds the firm to the checkout email");
   const intake = readFileSync("app/intake/page.tsx", "utf8");
   ok(intake.includes("stripeOwned"), "intake does not keep a Stripe entity id the buyer does not own");
+  await forgetCheckoutFirmClaim(BUYER);
 }
 
 async function checkLogout() {
@@ -363,6 +377,295 @@ async function checkGrantAndHandoff() {
   ok(!nextSeen.includes("entity_id="), "a firm the buyer does not own is omitted");
 }
 
+function colIndex(letters: string): number {
+  let n = 0;
+  for (const ch of letters.toUpperCase()) {
+    if (ch < "A" || ch > "Z") break;
+    n = n * 26 + (ch.charCodeAt(0) - 64);
+  }
+  return n - 1;
+}
+
+function sliceRange(grid: string[][], range: string): string[][] {
+  const bang = range.indexOf("!");
+  const spec = bang >= 0 ? range.slice(bang + 1) : range;
+  if (/^\d+:\d+$/.test(spec)) {
+    const [start, end] = spec.split(":").map((part) => Number(part));
+    return grid.slice((start ?? 1) - 1, end);
+  }
+  const [start, end] = spec.split(":");
+  const startMatch = /^([A-Z]+)(\d+)$/.exec(start ?? "");
+  if (!startMatch) return [];
+  const startCol = colIndex(startMatch[1] ?? "A");
+  const startRow = Number(startMatch[2]);
+  let endCol = startCol;
+  let endRow = grid.length;
+  if (end) {
+    const endMatch = /^([A-Z]+)(\d+)?$/.exec(end);
+    if (endMatch) {
+      endCol = colIndex(endMatch[1] ?? "A");
+      if (endMatch[2]) endRow = Number(endMatch[2]);
+    }
+  }
+  const rows: string[][] = [];
+  for (let row = startRow - 1; row < endRow && row < grid.length; row += 1) {
+    const line = grid[row] ?? [];
+    const cells: string[] = [];
+    for (let col = startCol; col <= endCol; col += 1) cells.push(line[col] ?? "");
+    rows.push(cells);
+  }
+  return rows;
+}
+
+/** A session lookup must not download every Blob answer just to miss. */
+async function checkSessionLookupSkipsPayloads() {
+  const env = process.env as Record<string, string | undefined>;
+  const keys = [
+    "GOOGLE_SERVICE_ACCOUNT_EMAIL",
+    "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
+    "GOOGLE_SHEETS_SPREADSHEET_ID",
+  ] as const;
+  const saved = Object.fromEntries(keys.map((key) => [key, env[key]]));
+  env.GOOGLE_SERVICE_ACCOUNT_EMAIL = "sheet@example.com";
+  env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "key";
+  env.GOOGLE_SHEETS_SPREADSHEET_ID = "sheet-checkout-owner";
+  const hit = "cs_test_payload_hit";
+  const other = emptySheetRow();
+  other.documentId = "doc-payload-other";
+  other.email = OTHER;
+  other.stripeSessionId = "cs_test_payload_other";
+  other.status = "intake_submitted";
+  other.version = "1";
+  other.fragen = encodeIntakePayloadRef("/tmp/gobd-missing-checkout-answers.json", "deadbeef");
+  const owned = emptySheetRow();
+  owned.documentId = "doc-payload-hit";
+  owned.email = BUYER;
+  owned.stripeSessionId = hit;
+  owned.status = "intake_submitted";
+  owned.version = "1";
+  const grid = [
+    [...SHEET_COLUMNS],
+    sheetRowValues(other, [...SHEET_COLUMNS]),
+    sheetRowValues(owned, [...SHEET_COLUMNS]),
+  ];
+  installSheetsHandler(async ({ op, args }) => {
+    const range = typeof args.range === "string" ? args.range : "";
+    const ranges = Array.isArray(args.ranges) ? (args.ranges as string[]) : [];
+    if (op === "spreadsheets.get") {
+      return {
+        data: {
+          sheets: [
+            {
+              properties: {
+                title: "intakes",
+                gridProperties: { columnCount: SHEET_COLUMNS.length },
+              },
+            },
+          ],
+        },
+      };
+    }
+    if (op === "values.batchGet") {
+      return { data: { valueRanges: ranges.map((item) => ({ values: sliceRange(grid, item) })) } };
+    }
+    if (op === "values.get") return { data: { values: sliceRange(grid, range) } };
+    throw new Error(`unexpected sheets op ${op}`);
+  });
+  clearAllSheetReadCaches();
+  try {
+    const missing = await findLatestDocumentByStripeSessionId("cs_test_payload_nobody");
+    ok(missing === null, "a checkout without a document does not read every answer payload");
+    const found = await findLatestDocumentByStripeSessionId(hit);
+    ok(found?.email === BUYER, "the matching document is still found without the other payloads");
+  } finally {
+    installSheetsHandler(null);
+    clearAllSheetReadCaches();
+    for (const key of keys) {
+      if (saved[key] === undefined) delete env[key];
+      else env[key] = saved[key];
+    }
+  }
+}
+
+async function checkGrantReturnsBeforeAccountWork() {
+  const sessionId = "cs_test_fast_return_4c98";
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
+  const started = Date.now();
+  let scheduled = 0;
+  const granted = await completeCheckoutGrant(
+    new Request(
+      `http://localhost/api/checkout/grant?session_id=${encodeURIComponent(sessionId)}&entity_id=${encodeURIComponent(FOREIGN)}`,
+    ),
+    {
+      resolveCheckout: async () => ({
+        email: BUYER,
+        company: "Neue GmbH",
+        stripeSessionId: sessionId,
+        stripeCustomerId: "cus_buyer",
+        stub: false,
+      }),
+      lookupDocumentOwner: async () => null,
+      schedule: () => {
+        scheduled += 1;
+      },
+    },
+  );
+  ok(Date.now() - started < 2_000, "the redirect does not wait for firm or mail");
+  ok(scheduled === 1, "firm and mail are scheduled once");
+  const location = granted.headers.get("location") ?? "";
+  ok(location.includes("grant=set"), "the buyer still lands with grant=set");
+  ok(!location.includes("entity_id="), "an unverified firm id is not forwarded");
+  ok(!location.includes(FOREIGN), "another mailbox's firm id is dropped");
+  ok(
+    verifySessionToken(granted.cookies.get(SESSION_COOKIE)?.value) === BUYER,
+    "the session cookie is set before account work",
+  );
+  const grantSource = readFileSync("app/api/checkout/grant/route.ts", "utf8");
+  ok(grantSource.includes("scheduleCheckoutAfterResponse"), "production schedules account work after the response");
+  ok(grantSource.includes("notifyBuyerOfCheckout"), "the welcome mail still goes out");
+  ok(grantSource.includes("ensureBuyerFirmForCheckout"), "the firm is still created");
+  ok(grantSource.includes("matchingTestEntityId"), "the welcome mail still sees a test firm");
+  ok(grantSource.includes('mailed === "inflight"'), "a fresh welcome claim is left in place");
+  ok(!grantSource.includes("await scheduleCheckoutAfterResponse"), "the redirect does not await that schedule");
+  const afterSource = readFileSync("lib/checkout-after.ts", "utf8");
+  ok(afterSource.includes('from "next/server"'), "the scheduler still uses after");
+  ok(afterSource.includes('from "@vercel/functions"'), "the scheduler keeps the work alive with waitUntil");
+  ok(afterSource.includes("waitUntil(run())"), "waitUntil holds the same background promise");
+  const intake = readFileSync("app/intake/page.tsx", "utf8");
+  const redirectAt = intake.indexOf('fastEntry === "grant"');
+  const scanAt = intake.indexOf("await checkoutAlreadyGranted");
+  ok(redirectAt > 0 && scanAt > redirectAt, "a fresh session id redirects before the document scan");
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
+}
+
+async function checkFirmRace() {
+  const email = "race.firm@example.com";
+  await forgetCheckoutFirmClaim(email);
+  const firms: Entity[] = [];
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let creates = 0;
+  const store: BuyerFirmStore = {
+    async getEntity(id) {
+      return firms.find((firm) => firm.entityId === id) ?? null;
+    },
+    async listEntitiesByEmail(address) {
+      return firms.filter((firm) => emailsEqual(firm.userEmail, address));
+    },
+    async createEntity(owner, input, options) {
+      creates += 1;
+      if (creates === 1) await gate;
+      const entity = toEntity(owner, input, `firm-race-${creates}`);
+      entity.checkoutPrefill = options?.checkoutPrefill === "review" ? "review" : "";
+      firms.push(entity);
+      return { entity };
+    },
+    async updateEntity() {
+      return null;
+    },
+  };
+  const first = ensureBuyerFirmForCheckout({ email, company: "Race GmbH", city: "Hamburg" }, store);
+  const second = ensureBuyerFirmForCheckout({ email, company: "Race GmbH", city: "Hamburg" }, store);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  release();
+  const [a, b] = await Promise.all([first, second]);
+  ok(Boolean(a) && a === b, "webhook and the checkout return share one firm");
+  ok(firms.length === 1 && creates === 1, "the race does not create a second firm");
+  await forgetCheckoutFirmClaim(email);
+}
+
+async function checkScheduleRunsOnce() {
+  let runs = 0;
+  scheduleCheckoutAfterResponse(async () => {
+    runs += 1;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  ok(runs === 1, "background work starts once");
+}
+
+async function checkBackgroundLeavesFreshClaim() {
+  const sessionId = "cs_test_bg_inflight_4c98";
+  const email = "inflight.bg@example.com";
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
+  await forgetBuyerOnboarding(sessionId);
+  await forgetCheckoutFirmClaim(email);
+  await plantBuyerOnboardingMarker(sessionId, {
+    email,
+    status: "claiming",
+    at: new Date().toISOString(),
+  });
+  let background = Promise.resolve();
+  const started = Date.now();
+  const granted = await completeCheckoutGrant(
+    new Request(`http://localhost/api/checkout/grant?session_id=${encodeURIComponent(sessionId)}`),
+    {
+      resolveCheckout: async () => ({
+        email,
+        company: "Inflight GmbH",
+        stripeSessionId: sessionId,
+        stripeCustomerId: "cus_inflight",
+        stub: false,
+      }),
+      lookupDocumentOwner: async () => null,
+      schedule: (work) => {
+        background = work();
+      },
+    },
+  );
+  ok(Date.now() - started < 2_000, "a fresh claim does not hold the redirect");
+  ok((granted.headers.get("location") ?? "").includes("grant=set"), "the redirect still lands");
+  await background;
+  const again = await deliverBuyerOnboarding({
+    email,
+    company: "Inflight GmbH",
+    sessionId,
+  });
+  ok(again === "inflight", "background work does not take over a fresh claim");
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
+  await forgetBuyerOnboarding(sessionId);
+  await forgetCheckoutFirmClaim(email);
+}
+
+async function checkBackgroundSkipsTestFirm() {
+  const sessionId = "cs_test_bg_listed_4c98";
+  const listed = "48c6805d-3d34-4a80-9747-38ce4edb3eed";
+  const email = "listed.bg@example.com";
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
+  await forgetBuyerOnboarding(sessionId);
+  await forgetCheckoutFirmClaim(email);
+  let background = Promise.resolve();
+  await completeCheckoutGrant(
+    new Request(
+      `http://localhost/api/checkout/grant?session_id=${encodeURIComponent(sessionId)}&entity_id=${encodeURIComponent(listed)}`,
+    ),
+    {
+      resolveCheckout: async () => ({
+        email,
+        company: "R4 Mystery Test GmbH",
+        stripeSessionId: sessionId,
+        stripeCustomerId: "cus_listed",
+        stub: false,
+      }),
+      lookupDocumentOwner: async () => null,
+      schedule: (work) => {
+        background = work();
+      },
+    },
+  );
+  await background;
+  const follow = await deliverBuyerOnboarding({
+    email,
+    company: "R4 Mystery Test GmbH",
+    sessionId,
+  });
+  ok(follow === "sent" || follow === "stub", "a test firm does not consume the welcome claim");
+  await forgetCheckoutSessionGrant(sessionId).catch(() => undefined);
+  await forgetBuyerOnboarding(sessionId);
+  await forgetCheckoutFirmClaim(email);
+}
+
 async function checkWelcomeClaim() {
   const sessionId = "cs_test_welcome_claim_4c98";
   await forgetBuyerOnboarding(sessionId);
@@ -400,6 +703,12 @@ async function main() {
     await checkDocumentsStayVisible();
     await checkPaidIntake();
     await checkGrantAndHandoff();
+    await checkSessionLookupSkipsPayloads();
+    await checkGrantReturnsBeforeAccountWork();
+    await checkScheduleRunsOnce();
+    await checkBackgroundLeavesFreshClaim();
+    await checkBackgroundSkipsTestFirm();
+    await checkFirmRace();
     await checkWelcomeClaim();
     console.log("check-checkout-owner: ok");
   } finally {

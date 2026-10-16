@@ -21,6 +21,7 @@ import {
   intakeEntryDecision,
   ownerEmailAfterVerifiedCheckout,
 } from "@/lib/checkout-session";
+import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
 import { LOGIN_LINK_FAILED_NOTICE } from "@/lib/login-mail";
 import { groupDocumentFamilies, nextVersionNumber } from "@/lib/documents";
 import { authorizeDeliveredWrite, LOGIN_TO_CHANGE_COPY } from "@/lib/session-write";
@@ -279,7 +280,39 @@ async function IntakePage({
 
   let resumeDraft: Awaited<ReturnType<typeof loadOwnerSessionDraft>> = null;
   if (sessionIdQuery && !isStubCheckoutSessionId(sessionIdQuery)) {
-    const prior = await checkoutAlreadyGranted(sessionIdQuery);
+    // Fresh Stripe return: one grant-blob read, then redirect. Document and
+    // draft scans stay on the grant route so this response is not the 50s wait.
+    const recordedGrant = await checkoutSessionGrant(sessionIdQuery);
+    const fastEntry = intakeEntryDecision({
+      sessionEmail,
+      ownerEmail: recordedGrant?.email ?? "",
+      alreadyUsed: Boolean(recordedGrant),
+      checkoutCookieMatches: checkoutGrant?.sessionId === sessionIdQuery,
+      grantFlag,
+      hasSessionQuery: true,
+    });
+    if (fastEntry === "grant") {
+      const q = new URLSearchParams();
+      for (const key of [
+        "session_id",
+        "email",
+        "company",
+        "document_id",
+        "entity_id",
+        "bereich",
+        "basis",
+        "modus",
+        "schritt",
+        "modul",
+      ] as const) {
+        const value = firstQueryValue(params[key]);
+        if (value) q.set(key, value);
+      }
+      redirect(`/api/checkout/grant?${q.toString()}`);
+    }
+    const prior = recordedGrant
+      ? { granted: true, ownerEmail: recordedGrant.email }
+      : await checkoutAlreadyGranted(sessionIdQuery);
     let ownerEmail = prior.ownerEmail;
     if (!ownerEmail && sessionEmail) {
       try {

@@ -575,7 +575,12 @@ export async function appendRecord(
 
 async function loadRowsUncached(
   overrides?: IntakeStoreOverrides,
+  hydrate = true,
 ): Promise<{ backend: "sheets" | "file"; rows: SheetRow[] }> {
+  const finish = async (rows: SheetRow[]) => {
+    const ready = hydrate ? await hydrateRows(rows, overrides?.blob) : rows;
+    return ready.map(recoverStoredDocumentId);
+  };
   if (overrides?.readSheets || isSheetsConfigured()) {
     try {
       const sheetRows = overrides?.readSheets
@@ -583,8 +588,7 @@ async function loadRowsUncached(
         : await readSheetRows();
       const fileRows =
         overrides?.readSheets || isVercelRuntime() ? [] : await readAllFileRows();
-      const rows = await hydrateRows(mergeRows(sheetRows, fileRows), overrides?.blob);
-      return { backend: "sheets", rows: rows.map(recoverStoredDocumentId) };
+      return { backend: "sheets", rows: await finish(mergeRows(sheetRows, fileRows)) };
     } catch (error) {
       if (overrides?.readSheets || isDurableReadError(error) || isSheetsOutage(error)) {
         throw error;
@@ -600,22 +604,34 @@ async function loadRowsUncached(
       );
     }
   }
-  return {
-    backend: "file",
-    rows: (await hydrateRows(await readAllFileRows(), overrides?.blob)).map(
-      recoverStoredDocumentId,
-    ),
-  };
+  return { backend: "file", rows: await finish(await readAllFileRows()) };
 }
 
+/**
+ * The sheet snapshot stays without Blob bodies. A checkout return only needs
+ * ids and the owner address; downloading every answer payload here is what
+ * held the buyer on Stripe. Callers that read `fragen` hydrate after the cache.
+ */
 async function loadRows(
   overrides?: IntakeStoreOverrides,
-  options?: { fresh?: boolean },
+  options?: { fresh?: boolean; hydrate?: boolean },
 ): Promise<{ backend: "sheets" | "file"; rows: SheetRow[] }> {
+  const hydrate = options?.hydrate !== false;
   if (overrides?.readSheets || !isSheetsConfigured()) {
-    return loadRowsUncached(overrides);
+    return loadRowsUncached(overrides, hydrate);
   }
-  return rowsCache.read(() => loadRowsUncached(overrides), options?.fresh);
+  const loaded = await rowsCache.read(() => loadRowsUncached(undefined, false), options?.fresh);
+  if (!hydrate || !loaded.rows.some((row) => intakePayloadLocator(row.fragen))) return loaded;
+  const rows = (await hydrateRows(loaded.rows)).map(recoverStoredDocumentId);
+  const next = { backend: loaded.backend, rows };
+  rowsCache.remember(next);
+  return next;
+}
+
+async function rowWithPayload(row: SheetRow): Promise<SheetRow> {
+  if (!intakePayloadLocator(row.fragen)) return row;
+  const [full] = await hydrateRows([row]);
+  return full ?? row;
 }
 
 /** Same read path as Konto, Bearbeitung and PDF, with optional test doubles. */
@@ -743,12 +759,10 @@ export async function findRowByStripeSessionId(
 ): Promise<SheetRow | null> {
   const normalized = normalizeQueryId(sessionId);
   if (!normalized) return null;
-  const { rows } = await loadRows();
-  return (
-    rows
-      .filter((row) => queryIdsEqual(row.stripeSessionId, normalized))
-      .at(-1) ?? null
-  );
+  const { rows } = await loadRows(undefined, { hydrate: false });
+  const match =
+    rows.filter((row) => queryIdsEqual(row.stripeSessionId, normalized)).at(-1) ?? null;
+  return match ? rowWithPayload(match) : null;
 }
 
 function stripeCustomerIdFromRow(row: SheetRow): string {
@@ -912,9 +926,9 @@ export async function findLatestDocumentByStripeSessionId(
       const wait = backoff[Math.min(i - 1, backoff.length - 1)] ?? 500;
       await sleep(wait);
     }
-    const { backend, rows } = await loadRows(undefined, { fresh: i > 0 });
+    const { backend, rows } = await loadRows(undefined, { fresh: i > 0, hydrate: false });
     const match = latestRowForSession(rows, normalized);
-    if (match) return match;
+    if (match) return rowWithPayload(match);
     if (backend !== "sheets") break;
   }
   return null;
@@ -932,6 +946,7 @@ export async function findSuccessDocument(input: {
   if (!documentId && !sessionId) return null;
 
   const attempts = sessionId ? SUCCESS_LOOKUP_ATTEMPTS : 1;
+  let found: SheetRow | null = null;
   for (let i = 0; i < attempts; i++) {
     if (i > 0) {
       const wait =
@@ -940,18 +955,24 @@ export async function findSuccessDocument(input: {
         ] ?? 500;
       await sleep(wait);
     }
-    const { backend, rows } = await loadRows(undefined, { fresh: i > 0 });
+    const { backend, rows } = await loadRows(undefined, { fresh: i > 0, hydrate: false });
     if (documentId) {
       const byId = pickStoredDocument(rows, documentId);
-      if (byId) return byId;
+      if (byId) {
+        found = byId;
+        break;
+      }
     }
     if (sessionId) {
       const bySession = latestRowForSession(rows, sessionId);
-      if (bySession) return bySession;
+      if (bySession) {
+        found = bySession;
+        break;
+      }
     }
     if (backend !== "sheets") break;
   }
-  return null;
+  return found ? rowWithPayload(found) : null;
 }
 
 export type ReadinessStoreResult = {
