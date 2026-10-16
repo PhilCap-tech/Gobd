@@ -1960,8 +1960,32 @@ code {
     padding-bottom: 220px;
   }
 
+  /*
+   * Hide the bar before paint when the banner will take this spot, so the
+   * first tap is not stolen by Ablehnen / Marketing erlauben. On a short
+   * screen the banner also covers the hero button, so the bar stays and the
+   * banner sits above it.
+   */
+  html.consent-pending .sticky-cta,
   body.consent-open .sticky-cta {
     display: none;
+  }
+}
+
+@media (max-width: 800px) and (max-height: 820px) {
+  html.consent-pending .sticky-cta,
+  body.consent-open .sticky-cta {
+    display: block;
+    z-index: 90;
+  }
+
+  body:has(.sticky-cta) .consent-banner {
+    bottom: 74px;
+  }
+
+  html.consent-pending body:has(.sticky-cta),
+  body.consent-open:has(.sticky-cta) {
+    padding-bottom: 296px;
   }
 }
 
