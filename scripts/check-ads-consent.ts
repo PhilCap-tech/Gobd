@@ -531,6 +531,22 @@ try {
   assert.ok(pendingAt !== -1 && conversionAt > pendingAt);
   assert.equal(success.indexOf("<PurchaseConversion", conversionAt + 1), -1);
 
+  const thanks = readFileSync("app/intake/purchase-thanks.tsx", "utf8");
+  const thanksConversion = thanks.indexOf("<PurchaseConversion");
+  assert.ok(thanksConversion !== -1, "the thank-you step mounts the Kauf conversion");
+  assert.equal(thanks.indexOf("<PurchaseConversion", thanksConversion + 1), -1, "the thank-you step mounts it once");
+  assert.ok(thanks.includes("Vielen Dank für Ihren Kauf"));
+  assert.ok(thanks.includes("Fragebogen starten"));
+  const intake = readFileSync("app/intake/page.tsx", "utf8");
+  assert.ok(intake.includes("purchaseSessionIdFromCheckout"));
+  assert.ok(intake.includes('grantFlag === "set"'));
+  assert.ok(intake.includes('firstQueryValue(params.fragebogen) === "1"'));
+  const fastReturnAt = intake.indexOf('fastEntry === "grant"');
+  const thanksAt = intake.indexOf("<PurchaseThanks");
+  assert.ok(fastReturnAt > 0 && thanksAt > fastReturnAt, "a fresh checkout still redirects before the thank-you step");
+  assert.equal(intake.includes("<PurchaseConversion"), false, "the questionnaire page does not mount a second conversion");
+  assert.equal(readFileSync("app/intake/intake-form.tsx", "utf8").includes("PurchaseConversion"), false);
+
   const readiness = readFileSync("app/readiness/readiness-form.tsx", "utf8");
   assert.equal(readiness.includes("trackPurchaseConversion"), false);
   assert.equal(readiness.includes("PurchaseConversion"), false);

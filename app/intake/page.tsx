@@ -59,7 +59,9 @@ import {
   type IntakeAnswers,
 } from "@/lib/types";
 import { answersForGesamt } from "@/lib/module/migration";
+import { purchaseSessionIdFromCheckout } from "@/lib/tracking";
 import { IntakeForm } from "./intake-form";
+import { PurchaseThanks } from "./purchase-thanks";
 
 export const dynamic = "force-dynamic";
 
@@ -268,6 +270,7 @@ async function IntakePage({
     modul?: string | string[];
     grant?: string | string[];
     handoff?: string | string[];
+    fragebogen?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -744,12 +747,41 @@ async function IntakePage({
     }
   }
 
+  const startQuestionnaire = firstQueryValue(params.fragebogen) === "1";
+  const purchaseSessionId =
+    !("error" in session) && grantFlag === "set" && !startQuestionnaire
+      ? purchaseSessionIdFromCheckout(session)
+      : "";
+  const continueQuery = new URLSearchParams();
+  for (const key of [
+    "session_id",
+    "email",
+    "company",
+    "document_id",
+    "entity_id",
+    "bereich",
+    "basis",
+    "modus",
+    "schritt",
+    "modul",
+    "grant",
+  ] as const) {
+    const value = firstQueryValue(params[key]);
+    if (value) continueQuery.set(key, value);
+  }
+  continueQuery.set("fragebogen", "1");
+
   return (
     <>
       <SiteHeader backHref="/" backLabel="← Zur Landing" />
       <main className="wrap page">
         {"error" in session ? (
           <IntakeGate error={session.error} sessionId={sessionId} />
+        ) : purchaseSessionId ? (
+          <PurchaseThanks
+            sessionId={purchaseSessionId}
+            continueHref={`/intake?${continueQuery.toString()}`}
+          />
         ) : (
           <IntakeForm
             session={session}
