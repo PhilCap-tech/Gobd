@@ -14,9 +14,9 @@ import {
   encodeAmpelAnswers,
   publicAmpelSource,
   sanitizeAmpelRef,
-  scoreAmpel,
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
+import { scoreKassen } from "@/lib/kassen-check-score";
 import { trackLeadSubmit } from "@/lib/tracking";
 import {
   KASSEN_CHECK_PATH,
@@ -25,6 +25,7 @@ import {
   KASSEN_DISCLAIMER,
   KASSEN_H1,
   KASSEN_INTRO,
+  kassenOffersNotApplicable,
   KASSEN_OPT_IN,
   KASSEN_QUESTIONS,
   KASSEN_RESULTS,
@@ -70,7 +71,7 @@ export function KassenCheck() {
 
   const question = KASSEN_QUESTIONS[step];
   const encoded = useMemo(() => encodeAmpelAnswers(answers, KASSEN_QUESTIONS), [answers]);
-  const scored = encoded ? scoreAmpel(answers, KASSEN_QUESTIONS) : null;
+  const scored = encoded ? scoreKassen(answers) : null;
   const band = scored ? KASSEN_RESULTS[scored.light] : null;
 
   function remember(code: string) {
@@ -262,7 +263,7 @@ export function KassenCheck() {
             >
               Nein
             </button>
-            {question.applicable === "optional" ? (
+            {kassenOffersNotApplicable(question) ? (
               <button
                 type="button"
                 className="btn ghost"

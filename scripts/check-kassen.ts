@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { kassenTeaserSplit } from "@/components/kassen-check-teaser";
 import { createAmpelDoiToken, verifyAmpelDoiToken } from "@/lib/ampel";
+import { confirmAmpelDoi, requestAmpelConfirmation } from "@/lib/ampel-confirm";
 import { AMPEL_QUESTIONS } from "@/lib/ampel-questions";
 import { createMemoryAmpelRateStore } from "@/lib/ampel-rate-limit";
 import { submitAmpelResult } from "@/lib/ampel-result-send";
@@ -13,12 +14,14 @@ import {
   KASSEN_H1,
   KASSEN_INTRO,
   KASSEN_LEAD_STATUS,
+  kassenOffersNotApplicable,
   KASSEN_OPT_IN,
   KASSEN_QUESTIONS,
   KASSEN_RESULTS,
   KASSEN_TEASER,
   KASSEN_WEITER,
 } from "@/lib/kassen-check-questions";
+import { scoreKassen } from "@/lib/kassen-check-score";
 import { submitKassenResult } from "@/lib/kassen-check-send";
 import { INDEXABLE_STATIC_PATHS } from "@/lib/seo";
 import { installSheetsHandler } from "@/lib/sheets-client";
@@ -104,19 +107,40 @@ ok(taxi?.variant === "taxi" && taxi.before.includes("## Taxameter, TSE und Beleg
 ok(kassenTeaserSplit("apotheke", source("content/branchen/apotheke.md")) === null, "apotheke has no teaser");
 ok(kassenTeaserSplit("verein", source("content/branchen/verein.md")) === null, "verein has no teaser");
 
-const green = scoreAmpel(answers("JJJJJJ"), KASSEN_QUESTIONS);
+const sharedTseNo = scoreAmpel(answers("NJJJJJ"), KASSEN_QUESTIONS);
+ok(sharedTseNo?.score === 80 && sharedTseNo.light === "gelb" && sharedTseNo.capped === true, "shared formula still caps a weight-3 no at yellow");
+const sharedCurrentNo = scoreAmpel(answers("JJJJJN"), KASSEN_QUESTIONS);
+ok(sharedCurrentNo?.score === 87 && sharedCurrentNo.light === "gruen", "shared formula would leave current-data no green");
+
+const green = scoreKassen(answers("JJJJJJ"));
 ok(green?.score === 100 && green.light === "gruen" && green.capped === false, "all ja is green 100");
-const capped = scoreAmpel(answers("NJJJJJ"), KASSEN_QUESTIONS);
-ok(capped?.score === 80 && capped.light === "gelb" && capped.capped === true, "weight-3 no caps green to yellow");
-const yellow = scoreAmpel(answers("JJJNNN"), KASSEN_QUESTIONS);
+const tseNo = scoreKassen(answers("NJJJJJ"));
+ok(tseNo?.score === 80 && tseNo.light === "rot", "TSE no is always red");
+const currentNo = scoreKassen(answers("JJJJJN"));
+ok(currentNo?.score === 87 && currentNo.light === "gelb" && currentNo.capped === true, "current-data no is at most yellow");
+const bothRules = scoreKassen(answers("NJJJJN"));
+ok(bothRules?.light === "rot", "TSE no stays red when current data is also no");
+const yellow = scoreKassen(answers("JJJNNN"));
 ok(yellow?.score === 60 && yellow.light === "gelb" && yellow.capped === false, "score 60 is yellow");
-const red = scoreAmpel(answers("NNNNNN"), KASSEN_QUESTIONS);
+const red = scoreKassen(answers("NNNNNN"));
 ok(red?.score === 0 && red.light === "rot", "all no is red 0");
-const skipped = scoreAmpel(answers("JXXXXX"), KASSEN_QUESTIONS);
+const skipped = scoreKassen(answers("JXXXXX"));
 ok(skipped?.score === 100 && skipped.applicableWeight === 3, "trifft nicht zu is not scored");
+const optionalPair = scoreKassen(answers("JXJXJJ"));
+ok(optionalPair?.score === 100 && optionalPair.light === "gruen" && optionalPair.applicableWeight === 10, "questions 2 and 4 can be skipped");
+
+ok(kassenOffersNotApplicable(KASSEN_QUESTIONS[1]) && KASSEN_QUESTIONS[1].id === "meldung_neu", "question 2 offers Trifft nicht zu");
+ok(kassenOffersNotApplicable(KASSEN_QUESTIONS[3]) && KASSEN_QUESTIONS[3].id === "meldung_ausserbetrieb", "question 4 offers Trifft nicht zu");
+ok(!kassenOffersNotApplicable(KASSEN_QUESTIONS[0]) && KASSEN_QUESTIONS[0].id === "kasse_tse", "question 1 has no Trifft nicht zu");
+const form = source("app/kassen-check/kassen-check.tsx");
+ok(form.includes("kassenOffersNotApplicable(question)") && form.includes("Trifft nicht zu"), "the form uses the optional-question rule");
 
 const mail = buildKassenResultMail(answers("JJJJJJ"));
 ok(Boolean(mail?.text.includes(KASSEN_RESULTS.gruen.headline)), "result mail includes the green text");
+const tseMail = buildKassenResultMail(answers("NJJJJJ"));
+ok(Boolean(tseMail?.text.includes(KASSEN_RESULTS.rot.headline)), "TSE no mail uses the red text");
+const currentMail = buildKassenResultMail(answers("JJJJJN"));
+ok(Boolean(currentMail?.text.includes(KASSEN_RESULTS.gelb.headline)), "current-data no mail uses the yellow text");
 ok(Boolean(mail?.text.includes(KASSEN_QUESTIONS[0].source)), "result mail includes the source");
 ok(Boolean(mail && !mail.text.includes("149")), "result mail has no price");
 
@@ -245,6 +269,47 @@ const honeypot = await submitKassenResult(
 );
 ok(honeypot.ok && "honeypot" in honeypot, "honeypot is accepted quietly");
 ok(honeypotMails === 0, "honeypot does not mail");
+
+const tseLeads: ReadinessLead[] = [];
+const tseSaved = await submitKassenResult(
+  { email: "tse-nein@example.com", answers: "NJJJJJ", ref: "", marketing: false, honeypot: "", ip: "203.0.113.45" },
+  {
+    store: createMemoryAmpelRateStore(),
+    handoff: false,
+    mail: sent,
+    saveLead: async (lead) => { tseLeads.push(lead); },
+  },
+);
+ok(tseSaved.ok && tseLeads[0]?.ampelLight === "rot" && tseLeads[0]?.ampelScore === "80", "stored TSE no is red");
+
+const doiLeads: ReadinessLead[] = [];
+const doi = await requestAmpelConfirmation(
+  { email: "aktuell@example.com", answers: "JJJJJN", ref: "", check: "kassen-check" },
+  {
+    findLead: async () => null,
+    saveLead: async (lead) => { doiLeads.push(lead); },
+    sendConfirmation: async () => ({ sent: true, stub: false }),
+  },
+);
+ok(doi.ok === true && doiLeads[0]?.ampelLight === "gelb" && doiLeads[0]?.ampelScore === "87", "DOI stores current-data no as yellow");
+
+const tseToken = createAmpelDoiToken({
+  email: "tse-doi@example.com",
+  answers: "NJJJJJ",
+  ref: "",
+  consentAt,
+  check: "kassen-check",
+});
+if (!tseToken) {
+  ok(false, "DOI click scores TSE no as red");
+} else {
+  const tseConfirm = await confirmAmpelDoi(tseToken, {
+    findLead: async () => null,
+    saveLead: async () => {},
+    sendResult: async () => ({ sent: true, stub: false }),
+  });
+  ok(tseConfirm.ok === true && tseConfirm.light === "rot" && tseConfirm.score === 80, "DOI click scores TSE no as red");
+}
 }
 
 main()
