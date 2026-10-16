@@ -29,6 +29,7 @@ import {
   type AmpelSendTokenStore,
 } from "@/lib/ampel-send-token";
 import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
+import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
@@ -362,7 +363,7 @@ export async function deliverAmpelResult(
   }
 
   try {
-        const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpel(answers, deps.questions);
+        const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
         if (scored) {
           const consentAt = new Date(now).toISOString();
           const lead = toAmpelReadinessLead({

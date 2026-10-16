@@ -12,7 +12,8 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO, AMPEL_EMAIL_PRIVACY_NOTE, AMPEL_MARKETING_CONSENT, AMPEL_PRIVACY_PARAGRAPHS, AMPEL_PRIVACY_TITLE, AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_REGISTER_LINE, AMPEL_RESULT_MAIL, ampelSendStatusNotice } from "@/lib/ampel-questions";
+import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_NEIN_CAPS_AT_GELB, AMPEL_NEIN_FORCES_ROT, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO, AMPEL_EMAIL_PRIVACY_NOTE, AMPEL_MARKETING_CONSENT, AMPEL_PRIVACY_PARAGRAPHS, AMPEL_PRIVACY_TITLE, AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_REGISTER_LINE, AMPEL_RESULT_MAIL, ampelSendStatusNotice } from "@/lib/ampel-questions";
+import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import {
   AMPEL_CONFIRM_WINDOW_MS,
   AMPEL_DOI_TTL_MS,
@@ -155,7 +156,88 @@ try {
     assertOk(capped?.score === 86, `${id} no scores 86`);
     assertOk(ampelLightForScore(capped?.score ?? 0) === "gruen", `${id} would be green on the percentage alone`);
     assertOk(capped?.light === "gelb" && capped.capped === true, `${id} no caps green at yellow`);
+    const shownCore = scoreAmpelCheck(all("ja", { [id]: "nein" }));
+    assertOk(shownCore?.score === 86 && shownCore.light === "rot" && shownCore.capped === false, `${id} no is always red`);
   }
+
+  assert.deepEqual(
+    [...AMPEL_QUESTIONS.map((question) => question.id)].sort(),
+    [...AMPEL_NEIN_FORCES_ROT, ...AMPEL_NEIN_CAPS_AT_GELB].sort(),
+    "every question is either core red or capped at yellow",
+  );
+  const shownGreen = scoreAmpelCheck(all("ja"));
+  assertOk(shownGreen?.score === 100 && shownGreen.light === "gruen" && shownGreen.capped === false, "shown all ja is green");
+  for (const id of AMPEL_NEIN_CAPS_AT_GELB) {
+    const shown = scoreAmpelCheck(all("ja", { [id]: "nein" }));
+    assertOk(shown != null && shown.score >= 80 && shown.light === "gelb", `${id} no is at most yellow`);
+  }
+  const shownSkip = scoreAmpelCheck(all("ja", { kasse_tse: "nicht_zutreffend", scannen: "nicht_zutreffend" }));
+  assertOk(shownSkip?.score === 100 && shownSkip.light === "gruen", "Trifft nicht zu plus ja is green");
+  const shownCoreMail = buildAmpelPdfMail(all("ja", { vd_vorhanden: "nein" }));
+  const shownOtherMail = buildAmpelPdfMail(all("ja", { vd_aktuell: "nein" }));
+  const shownGreenMail = buildAmpelPdfMail(all("ja"));
+  const shownSkipMail = buildAmpelPdfMail(all("ja", { kasse_tse: "nicht_zutreffend", scannen: "nicht_zutreffend" }));
+  assertOk(shownCoreMail?.text.includes(AMPEL_RESULTS.rot.label), "result mail uses red for a core no");
+  assertOk(shownOtherMail?.text.includes(AMPEL_RESULTS.gelb.label), "result mail uses yellow for another no");
+  assertOk(shownGreenMail?.text.includes(AMPEL_RESULTS.gruen.label), "result mail uses green when every answer is ja");
+  assertOk(shownSkipMail?.text.includes(AMPEL_RESULTS.gruen.label), "result mail stays green when optional questions do not apply");
+  assertOk(shownCoreMail != null && !shownCoreMail.text.includes("höchstens Gelb"), "a core no does not claim the yellow cap");
+
+  const otherCode = encodeAmpelAnswers(all("ja", { scannen: "nein" })) ?? "";
+  const doiLeads: { ampelLight: string; ampelScore: string }[] = [];
+  const doiPending = await requestAmpelConfirmation(
+    { email: "scan-nein@example.com", answers: otherCode, ref: "" },
+    {
+      findLead: async () => null,
+      saveLead: async (lead) => {
+        doiLeads.push(lead);
+      },
+      sendConfirmation: async () => ({ sent: true, stub: false }),
+    },
+  );
+  assertOk(
+    doiPending.ok === true && doiLeads[0]?.ampelLight === "gelb" && doiLeads[0]?.ampelScore === "95",
+    "DOI stores another no as yellow",
+  );
+  const coreToken = createAmpelDoiToken({
+    email: "aufbewahrung-nein@example.com",
+    answers: encodeAmpelAnswers(all("ja", { aufbewahrung: "nein" })) ?? "",
+    ref: "",
+    consentAt: "2026-10-16T08:00:00.000Z",
+  });
+  if (!coreToken) {
+    assertOk(false, "DOI click scores a core no as red");
+  } else {
+    const clicked = await confirmAmpelDoi(coreToken, {
+      findLead: async () => null,
+      saveLead: async () => {},
+      sendResult: async () => ({ sent: true, stub: false }),
+    });
+    assertOk(clicked.ok === true && clicked.light === "rot" && clicked.score === 86, "DOI click scores a core no as red");
+  }
+  const storedLeads: { ampelLight: string; ampelScore: string }[] = [];
+  const storedSend = await submitAmpelResult(
+    {
+      email: "kasse-nein@example.com",
+      answers: encodeAmpelAnswers(all("ja", { kasse_tse: "nein" })) ?? "",
+      ref: "",
+      marketing: false,
+      honeypot: "",
+      ip: "203.0.113.77",
+    },
+    {
+      store: createMemoryAmpelRateStore(),
+      handoff: false,
+      mail: async () => ({ sent: true, stub: false }),
+      saveLead: async (lead) => {
+        storedLeads.push(lead);
+      },
+    },
+  );
+  assertOk(
+    storedSend.ok === true && storedLeads[0]?.ampelLight === "rot" && storedLeads[0]?.ampelScore === "86",
+    "stored core no is red",
+  );
 
   const low = scoreAmpel(
     all("nein", { kasse_tse: "ja", aufbewahrung: "ja", scannen: "ja" }),

@@ -28,9 +28,9 @@ import {
   decodeAmpelAnswers,
   verifyAmpelDoiToken,
   publicAmpelSource,
-  scoreAmpel,
   type AmpelDoiPayload,
 } from "@/lib/ampel";
+import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 
 const DOI_HOURS = Math.round(AMPEL_DOI_TTL_MS / (60 * 60 * 1000));
 
@@ -75,7 +75,7 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
 } | null {
   const answers = decodeAmpelAnswers(payload.answers);
   if (!answers) return null;
-  const scored = scoreAmpel(answers);
+  const scored = scoreAmpelCheck(answers);
   if (!scored) return null;
   const band = AMPEL_RESULTS[scored.light];
   const nein = ampelNeinQuestions(answers);

@@ -124,6 +124,20 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
 
 // Summe aller Gewichte: 22 (bei „Trifft nicht zu“ verringert sich die Bezugsgröße entsprechend)
 
+/** Nein forces Rot, including when the weighted score would be Grün or Gelb. */
+export const AMPEL_NEIN_FORCES_ROT = ["vd_vorhanden", "aufbewahrung", "kasse_tse"] as const;
+
+/** Nein cannot stay Grün. A Gelb or Rot from the weighted score stays. „Trifft nicht zu“ is not Nein. */
+export const AMPEL_NEIN_CAPS_AT_GELB = [
+  "vd_aktuell",
+  "unveraenderbarkeit",
+  "datenzugriff",
+  "iks",
+  "scannen",
+  "erechnung",
+  "belegfluss",
+] as const;
+
 export const AMPEL_RESULTS = {
   gruen: {
     range: [80, 100],
