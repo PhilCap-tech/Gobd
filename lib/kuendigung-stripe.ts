@@ -1,4 +1,5 @@
 import { applyLifecycleEvent } from "@/lib/kuendigung-apply";
+import { isTestEntity } from "@/lib/test-entities";
 import {
   subscriptionCancelScheduled,
   subscriptionPeriodEndUnix,
@@ -19,6 +20,8 @@ export type CancellationPreview = {
   status: string;
   alreadyScheduled: boolean;
   lookupFailed: boolean;
+  /** Firm id from subscription metadata, when Stripe stored one. */
+  entityId: string;
 };
 
 export function periodEndIso(subscription: Stripe.Subscription): string {
@@ -43,6 +46,7 @@ export async function loadCancellationPreview(customerId: string): Promise<Cance
     status: "",
     alreadyScheduled: false,
     lookupFailed: false,
+    entityId: "",
   };
   if (!customerId) return { ...empty, stripeReady: false };
   try {
@@ -57,6 +61,7 @@ export async function loadCancellationPreview(customerId: string): Promise<Cance
       status: pending.status,
       alreadyScheduled: subscriptionCancelScheduled(pending),
       lookupFailed: false,
+      entityId: pending.metadata?.entity_id?.trim() ?? "",
     };
   } catch (error) {
     console.error("[kuendigung] Abo lesen fehlgeschlagen", error);
@@ -161,6 +166,7 @@ export async function recordSubscriptionEvent(input: {
       subscription: input.subscription,
       deleted: input.deleted,
     }),
+    { suppressCustomerMail: isTestEntity(input.subscription.metadata?.entity_id) },
   );
 }
 
@@ -170,6 +176,7 @@ export async function recordCheckoutSubscription(input: {
   email: string;
   customerId: string;
   subscriptionId: string;
+  entityId?: string | null;
 }): Promise<void> {
   if (!input.subscriptionId || !input.email) return;
   let periodEnd = "";
@@ -179,15 +186,18 @@ export async function recordCheckoutSubscription(input: {
   } catch (error) {
     console.error("[kuendigung] Periodenende nicht gelesen", error);
   }
-  await applyLifecycleEvent({
-    id: input.eventId,
-    type: "checkout_completed",
-    at: input.at,
-    email: input.email,
-    customerId: input.customerId,
-    subscriptionId: input.subscriptionId,
-    periodEnd,
-  });
+  await applyLifecycleEvent(
+    {
+      id: input.eventId,
+      type: "checkout_completed",
+      at: input.at,
+      email: input.email,
+      customerId: input.customerId,
+      subscriptionId: input.subscriptionId,
+      periodEnd,
+    },
+    { suppressCustomerMail: isTestEntity(input.entityId) },
+  );
 }
 
 /**
@@ -210,6 +220,7 @@ export async function reopenIfActiveCheckout(email: string, sessionId: string): 
       email,
       customerId: stripeCustomerIdFrom(session.customer) || customerIdOf(subscription.customer),
       subscriptionId: subscription.id,
+      entityId: session.metadata?.entity_id || subscription.metadata?.entity_id,
     });
   } catch (error) {
     console.error("[kuendigung] Wiederherstellung aus Checkout fehlgeschlagen", error);

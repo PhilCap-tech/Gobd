@@ -10,6 +10,7 @@ import {
 } from "@/lib/kuendigung-stripe";
 import { resolveStripeCustomerForEmail } from "@/lib/store";
 import { accountBillingPath } from "@/lib/stripe";
+import { isTestEntity } from "@/lib/test-entities";
 
 export const runtime = "nodejs";
 
@@ -63,18 +64,24 @@ export async function POST(request: Request) {
       : await scheduleCancelAtPeriodEnd(preview.subscriptionId);
     const periodEnd = subscription ? periodEndIso(subscription) : preview.periodEnd;
     const at = new Date().toISOString();
-    await applyLifecycleEvent({
-      id: `account-confirm-${preview.subscriptionId}-${periodEnd}`,
-      type: "subscription_updated",
-      at,
-      email,
-      customerId: preview.customerId || resolved.customerId,
-      subscriptionId: preview.subscriptionId,
-      periodEnd,
-      status: subscription?.status || preview.status || "active",
-      cancelAtPeriodEnd: true,
-      cancellationReason: "cancellation_requested",
-    });
+    await applyLifecycleEvent(
+      {
+        id: `account-confirm-${preview.subscriptionId}-${periodEnd}`,
+        type: "subscription_updated",
+        at,
+        email,
+        customerId: preview.customerId || resolved.customerId,
+        subscriptionId: preview.subscriptionId,
+        periodEnd,
+        status: subscription?.status || preview.status || "active",
+        cancelAtPeriodEnd: true,
+        cancellationReason: "cancellation_requested",
+      },
+      {
+        suppressCustomerMail:
+          isTestEntity(subscription?.metadata?.entity_id) || isTestEntity(preview.entityId),
+      },
+    );
   } catch (error) {
     console.error("[kuendigung] Kündigung fehlgeschlagen", error);
     return back("fehler");

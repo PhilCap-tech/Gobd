@@ -17,6 +17,7 @@ import {
 import { applyEntityToIdentity } from "@/lib/entities";
 import { getAppUrl } from "@/lib/env";
 import { sendDeliveryMail } from "@/lib/ops";
+import { isTestEntity } from "@/lib/test-entities";
 import {
   appendRecord,
   getOwnedEntity,
@@ -117,7 +118,11 @@ async function handleDocumentEdit(request: Request) {
   const entity = entityId
     ? await getOwnedEntity(entityId, sourceIdentity.email)
     : null;
-  const identity = applyEntityToIdentity(sourceIdentity, entity);
+  const identity = {
+    ...applyEntityToIdentity(sourceIdentity, entity),
+    entityId: entityId || source.entityId || sourceIdentity.entityId || "",
+  };
+  const skipTestDelivery = isTestEntity(identity.entityId);
   const status = identity.stub ? "document_edited_stub" : "document_edited";
 
   let rowForStore;
@@ -153,39 +158,49 @@ async function handleDocumentEdit(request: Request) {
   let delivery: DeliveryPlan;
   let pdfUrl = "";
 
-  try {
-    const generated = await generatePdf({
-      answers,
-      identity,
-      documentId,
-      version,
-      content,
-      versionMeta,
-    });
-    const storedPdf = await storePdf({
-      familyId: parentDocumentId,
-      documentId,
-      version,
-      buffer: generated.buffer,
-    });
-    pdfUrl = storedPdf.url || storedPdf.pathname;
+  if (skipTestDelivery) {
+    console.info("[document] Testfirma: PDF und Liefermail übersprungen");
     delivery = {
-      ...generated.plan,
       status: "ready",
-      pdf: {
-        version,
-        documentId,
-        url: storedPdf.url,
-        pathname: storedPdf.pathname,
-        backend: storedPdf.backend,
-      },
+      chapters: [],
+      openItems: [],
+      pdf: null,
     };
-  } catch (error) {
-    console.error("[document] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
-    if (error instanceof BlobStorageError) {
-      return jsonError("PDF konnte nicht gespeichert werden.", 503);
+  } else {
+    try {
+      const generated = await generatePdf({
+        answers,
+        identity,
+        documentId,
+        version,
+        content,
+        versionMeta,
+      });
+      const storedPdf = await storePdf({
+        familyId: parentDocumentId,
+        documentId,
+        version,
+        buffer: generated.buffer,
+      });
+      pdfUrl = storedPdf.url || storedPdf.pathname;
+      delivery = {
+        ...generated.plan,
+        status: "ready",
+        pdf: {
+          version,
+          documentId,
+          url: storedPdf.url,
+          pathname: storedPdf.pathname,
+          backend: storedPdf.backend,
+        },
+      };
+    } catch (error) {
+      console.error("[document] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
+      if (error instanceof BlobStorageError) {
+        return jsonError("PDF konnte nicht gespeichert werden.", 503);
+      }
+      return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
     }
-    return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
   }
 
   try {
@@ -208,7 +223,7 @@ async function handleDocumentEdit(request: Request) {
     stored = await appendRecord({
       ...rowForStore,
       pdfUrl,
-      deliveryStatus: delivery.status,
+      deliveryStatus: skipTestDelivery ? "" : delivery.status,
       chapterContent,
     });
   } catch (error) {
@@ -227,17 +242,20 @@ async function handleDocumentEdit(request: Request) {
   const downloadUrl = `${appUrl}/api/docs/${documentId}/download`;
   const successUrl = `${appUrl}/account`;
 
-  try {
-    await sendDeliveryMail({
-      email: identity.email,
-      company: identity.company,
-      downloadUrl,
-      successUrl,
-      documentId,
-      version,
-    });
-  } catch (error) {
-    console.error("[document] delivery mail fehlgeschlagen", error);
+  if (!skipTestDelivery) {
+    try {
+      await sendDeliveryMail({
+        email: identity.email,
+        company: identity.company,
+        downloadUrl,
+        successUrl,
+        documentId,
+        version,
+        entityId: identity.entityId,
+      });
+    } catch (error) {
+      console.error("[document] delivery mail fehlgeschlagen", error);
+    }
   }
 
   return NextResponse.json({

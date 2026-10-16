@@ -1,3 +1,5 @@
+import { urlMentionsTestEntity } from "@/lib/test-entities";
+
 type AnalyticsEvent = {
   type: string;
   url: string;
@@ -67,6 +69,7 @@ export function sanitizeAnalyticsUrl(raw: string): string | null {
 /** Drops custom events and strips tokens or email addresses from the page URL. */
 export function sanitizeAnalyticsEvent<T extends AnalyticsEvent>(event: T): T | null {
   if (event.type !== "pageview") return null;
+  if (urlMentionsTestEntity(event.url)) return null;
   const url = sanitizeAnalyticsUrl(event.url);
   if (!url) return null;
   return { ...event, url };

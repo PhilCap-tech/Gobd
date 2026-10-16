@@ -2,6 +2,7 @@ import { bereichDocTitle, bereichIdOf, bereichLabel, isBelegfluss } from "@/lib/
 import { gesamtDocTitle } from "@/lib/gesamt-document";
 import { isGesamt } from "@/lib/module/status";
 import { randomUUID } from "node:crypto";
+import { isTestEntity, TestEntityDeliverySkipped } from "@/lib/test-entities";
 import PDFDocument from "pdfkit";
 import {
   deliveryBundle,
@@ -210,7 +211,12 @@ export function planDelivery(
 export async function enqueueDelivery(input: {
   sessionId: string;
   answers: IntakeAnswers;
+  entityId?: string | null;
 }): Promise<DeliveryPlan> {
+  if (isTestEntity(input.entityId)) {
+    console.info("[delivery] Testfirma: Auslieferung übersprungen");
+    return { status: "failed", chapters: [], openItems: [], pdf: null };
+  }
   const plan = planDelivery(input.answers);
   console.info("[delivery] plan", {
     sessionId: input.sessionId,
@@ -479,6 +485,9 @@ export async function generatePdf(input: {
    */
   variant?: PdfVariant;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
+  if (!isMuster(input.variant) && isTestEntity(input.identity.entityId)) {
+    throw new TestEntityDeliverySkipped(input.identity.entityId.trim());
+  }
   const documentId = input.documentId || randomUUID();
   const version = input.version && input.version > 0 ? input.version : 1;
   const variant: PdfVariant = isMuster(input.variant) ? "muster" : "kunde";

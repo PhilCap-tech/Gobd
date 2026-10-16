@@ -13,6 +13,7 @@ import { checkoutSessionGrant } from "@/lib/checkout-session-grant";
 import { deliverLoginLink, type LoginMailStatus } from "@/lib/login-mail";
 import { findLatestDocumentByStripeSessionId } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
+import { isTestEntity } from "@/lib/test-entities";
 import { emailsEqual } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -50,6 +51,7 @@ export async function completeCheckoutHandoff(
 ): Promise<NextResponse> {
   const form = await request.formData();
   const sessionId = String(form.get("session_id") ?? "").trim();
+  const requestedEntityId = String(form.get("entity_id") ?? "").trim();
   const presented = presentedSessionEmail(request);
   const current = await sessionEmailFromRequest(request);
 
@@ -102,7 +104,7 @@ export async function completeCheckoutHandoff(
       buyerEntityId = await deps.buyerEntityId({
         email: ownerEmail,
         sessionId,
-        requestedEntityId: String(form.get("entity_id") ?? "").trim(),
+        requestedEntityId,
       });
     } catch (error) {
       console.error(
@@ -112,6 +114,9 @@ export async function completeCheckoutHandoff(
     }
   }
   const nextPath = intakeNextPath(sessionId, buyerEntityId);
+  if (isTestEntity(buyerEntityId) || isTestEntity(requestedEntityId)) {
+    return await loggedOut(loginPath(nextPath));
+  }
   const status = await deps.deliver(ownerEmail, nextPath);
   if (status === "failed") {
     const back = new URL("/intake", request.url);

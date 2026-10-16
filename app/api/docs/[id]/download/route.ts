@@ -5,6 +5,7 @@ import { subscriptionDownloadDenial } from "@/lib/kuendigung-access";
 import { BlobStorageError, blobFailureClass, loadDocumentPdf, pdfDownloadName } from "@/lib/blob";
 import { sessionOwnerDenial } from "@/lib/checkout-access";
 import { generatePdf } from "@/lib/delivery";
+import { isTestEntity } from "@/lib/test-entities";
 import { isGesamt } from "@/lib/module/status";
 import { modulById } from "@/lib/module/katalog";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
@@ -75,6 +76,7 @@ async function downloadPdfBody(
 
   const downloadClosed = await subscriptionDownloadDenial(row.email);
   if (downloadClosed) return jsonError(downloadClosed, 403);
+  if (isTestEntity(row.entityId)) return jsonError("Kein Zugriff.", 403);
 
   try {
     if (modul) {

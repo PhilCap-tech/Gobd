@@ -22,6 +22,7 @@ import {
   sendDedupedEmail,
 } from "@/lib/mail-dedupe";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import { isTestEntity } from "@/lib/test-entities";
 import { ACCOUNT_PAID_CTA_LABEL } from "@/lib/offer-copy";
 import { isPilotPaymentFailedExempt } from "@/lib/pilot-exemptions";
 import {
@@ -579,7 +580,15 @@ export async function triggerOnboardingMail(input: {
   extraCompanyNames?: string[];
   /** Resend key. Same checkout session must not send a second order mail. */
   idempotencyKey?: string;
+  /** Firm id. A listed test firm does not receive the order mail. */
+  entityId?: string | null;
 }): Promise<OpsResult & MailResult> {
+  if (isTestEntity(input.entityId)) {
+    console.info("[ops] onboarding mail übersprungen — Testfirma", {
+      sessionId: input.sessionId,
+    });
+    return { stub: false, sent: false, skipped: true, action: "onboarding" };
+  }
   if (isCompAccessEmail(input.email)) {
     console.info("[ops] onboarding mail übersprungen — kostenfreier Zugang", {
       sessionId: input.sessionId,
@@ -666,7 +675,13 @@ export async function handleFailedPayment(input: {
   eventId?: string;
   customerId?: string;
   reason?: string;
+  /** Firm id from the invoice or subscription metadata. */
+  entityId?: string | null;
 }): Promise<OpsResult & MailResult> {
+  if (isTestEntity(input.entityId)) {
+    console.info("[ops] payment-failed übersprungen — Testfirma");
+    return { stub: false, sent: false, skipped: true, action: "failed_payment" };
+  }
   const email = input.email?.trim() ?? "";
   if (isPilotPaymentFailedExempt(email)) {
     console.info(`[ops] payment-failed skipped: pilot exemption ${email}`);
@@ -718,7 +733,13 @@ export async function handleFailedJob(input: {
   sessionId?: string;
   job?: string;
   reason?: string;
+  /** Firm id, when the failed job belongs to a checkout. */
+  entityId?: string | null;
 }): Promise<OpsResult & MailResult> {
+  if (isTestEntity(input.entityId)) {
+    console.info("[ops] failed job übersprungen — Testfirma");
+    return { stub: false, sent: false, skipped: true, action: "failed_job" };
+  }
   const email = input.email?.trim() ?? "";
   if (!isMailConfigured()) {
     console.warn("[ops] failed job stub", input);
@@ -760,7 +781,13 @@ export async function sendDeliveryMail(input: {
   successUrl?: string;
   documentId?: string;
   version?: number;
+  /** Firm the document belongs to. A listed test firm gets no delivery mail. */
+  entityId?: string | null;
 }): Promise<OpsResult & MailResult> {
+  if (isTestEntity(input.entityId)) {
+    console.info("[ops] delivery mail übersprungen — Testfirma");
+    return { stub: false, sent: false, skipped: true, action: "delivery" };
+  }
   if (isCompAccessEmail(input.email)) {
     console.info("[ops] delivery mail übersprungen — kostenfreier Zugang");
     return { stub: false, sent: false, skipped: true, action: "delivery" };

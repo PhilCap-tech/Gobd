@@ -21,6 +21,7 @@ export async function POST(request: Request) {
     checkoutNames?: string[];
     reason?: string;
     audience?: "kunde" | "steuerberater";
+    entityId?: string;
   };
   try {
     body = await request.json();
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
             company: body.company,
             sessionId: body.sessionId,
             checkoutNames: body.checkoutNames,
+            entityId: body.entityId,
             audience: body.audience === "steuerberater" ? "steuerberater" : "kunde",
           }),
         );
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
             email: body.email,
             sessionId: body.sessionId,
             reason: body.reason,
+            entityId: body.entityId,
           }),
         );
       case "failed_job":
@@ -54,6 +57,7 @@ export async function POST(request: Request) {
             email: body.email,
             sessionId: body.sessionId,
             reason: body.reason,
+            entityId: body.entityId,
           }),
         );
       default:
