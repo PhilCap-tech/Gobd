@@ -7,7 +7,7 @@ import {
 } from "@/lib/ampel";
 import { ampelConsentBlocked } from "@/lib/ampel-marketing-guard";
 import { ampelListUnsubscribeHeaders } from "@/lib/ampel-mail";
-import { publicAmpelSource, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
+import { publicAmpelSource, type AmpelAnswerMap } from "@/lib/ampel-score";
 import { getAppUrl, isMailConfigured, magicLinkDevFallbackAllowed } from "@/lib/env";
 import { CUSTOMER_MAIL_SIGNATURE } from "@/lib/ops";
 import type { MailResult } from "@/lib/mail";
@@ -19,6 +19,7 @@ import {
   wrapTransactionalHtml,
   wrapTransactionalText,
 } from "@/lib/mail-layout";
+import { scoreKassen } from "@/lib/kassen-check-score";
 import {
   KASSEN_CHECK_PATH,
   KASSEN_DISCLAIMER,
@@ -50,7 +51,7 @@ export function buildKassenResultMail(answers: AmpelAnswerMap): {
   text: string;
   html: string;
 } | null {
-  const scored = scoreAmpel(answers, KASSEN_QUESTIONS);
+  const scored = scoreKassen(answers);
   if (!scored) return null;
   const band = KASSEN_RESULTS[scored.light];
   const subject = `Ihr Kassen- und TSE-Meldecheck: ${band.headline}`;

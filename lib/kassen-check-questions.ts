@@ -77,6 +77,17 @@ export const KASSEN_QUESTIONS: AmpelQuestion[] = [
   },
 ];
 
+/** Nein forces Rot, including when the weighted score would be Grün or Gelb. */
+export const KASSEN_NEIN_FORCES_ROT = ["kasse_tse"] as const;
+
+/** Nein cannot stay Grün. A Gelb or Rot from the weighted score stays. */
+export const KASSEN_NEIN_CAPS_AT_GELB = ["meldung_angaben"] as const;
+
+/** Same flag the question form uses for the third choice. */
+export function kassenOffersNotApplicable(question: AmpelQuestion): boolean {
+  return question.applicable === "optional";
+}
+
 export const KASSEN_RESULTS = {
   gruen: {
     headline: "Ihre Kassenmeldungen wirken vollständig.",
