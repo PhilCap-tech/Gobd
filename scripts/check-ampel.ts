@@ -8,9 +8,10 @@ import { getAmpelRateSheetsTab } from "@/lib/env";
 import { installSheetsHandler } from "@/lib/sheets-client";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { AMPEL_QUESTIONS, AMPEL_RESULTS, AMPEL_H1, AMPEL_DISCLAIMER, AMPEL_SHARE_KANZLEI, AMPEL_CTA, AMPEL_INTRO, AMPEL_EMAIL_PRIVACY_NOTE, AMPEL_MARKETING_CONSENT, AMPEL_PRIVACY_PARAGRAPHS, AMPEL_PRIVACY_TITLE, AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_REGISTER_LINE, AMPEL_RESULT_MAIL, ampelSendStatusNotice } from "@/lib/ampel-questions";
 import {
   AMPEL_CONFIRM_WINDOW_MS,
@@ -1489,18 +1490,57 @@ try {
               openGate = resolve;
             })
           : null;
+        const tab = getAmpelRateSheetsTab();
+        function gridResponse(sheetId: number) {
+          const ordered = [...rows.entries()].filter(([number]) => number >= 2).sort((left, right) => left[0] - right[0]);
+          return {
+            data: {
+              updatedSpreadsheet: {
+                sheets: [
+                  {
+                    properties: { title: tab, sheetId },
+                    data: [
+                      {
+                        rowData: ordered.map(([, row]) => ({
+                          values: row.map((value) => ({
+                            userEnteredValue: { stringValue: value },
+                            formattedValue: value,
+                          })),
+                        })),
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          };
+        }
         const client: AmpelRateSheetClient = {
           async get() {
             ops.push({ op: "spreadsheets.get" });
-            return { data: { sheets: titles.map((title) => ({ properties: { title } })) } };
+            return { data: { sheets: titles.map((title, index) => ({ properties: { title, sheetId: index + 1 } })) } };
           },
           async batchUpdate(args) {
-            ops.push({ op: "spreadsheets.batchUpdate" });
-            const title = args.requestBody.requests[0]?.addSheet.properties.title ?? "";
-            if (titles.includes(title)) throw new Error("Sheet already exists");
-            titles.push(title);
-            addSheets += 1;
-            return {};
+            const request = args.requestBody.requests[0];
+            if (request?.addSheet) {
+              ops.push({ op: "spreadsheets.batchUpdate", range: "addSheet" });
+              const title = request.addSheet.properties.title;
+              if (titles.includes(title)) throw new Error("Sheet already exists");
+              titles.push(title);
+              addSheets += 1;
+              return { data: { replies: [{ addSheet: { properties: { sheetId: titles.length, title } } }] } };
+            }
+            const append = request?.appendCells;
+            if (!append) throw new Error("bad-batch");
+            ops.push({ op: "spreadsheets.batchUpdate", range: "appendCells" });
+            const cells = append.rows[0]?.values.map((cell) => cell.userEnteredValue.stringValue) ?? [];
+            if (options?.failDataAppend) throw new Error("sheet-down");
+            const rowNumber = options?.plan ? options.plan[planAt++] : nextRow++;
+            if (!rowNumber) throw new Error("plan-exhausted");
+            rows.set(rowNumber, cells);
+            if (options?.plan && planAt === options.plan.length) openGate?.();
+            if (gate) await gate;
+            return gridResponse(append.sheetId);
           },
           async valuesGet(args) {
             ops.push({ op: "values.get", range: args.range });
@@ -1623,12 +1663,11 @@ try {
         probe.ok &&
           !("honeypot" in probe) &&
           probe.mailed === true &&
-          probeOps.length === 2 &&
-          probeOps[0]?.op === "values.append" &&
-          probeOps[1]?.op === "values.get" &&
-          (probeOps[1]?.range ?? "").startsWith(`${getAmpelRateSheetsTab()}!A`) &&
-          (probeOps[1]?.range ?? "").includes(":F"),
-        "a send appends one row and reads one range",
+          probeOps.length === 1 &&
+          probeOps[0]?.op === "spreadsheets.batchUpdate" &&
+          probeOps[0]?.range === "appendCells" &&
+          !probeOps.some((op) => op.op === "values.get"),
+        "a send appends one row and counts the rows in that write",
       );
       const reset = await submitAmpelResult(
         {
@@ -1657,6 +1696,146 @@ try {
         "a new window resets",
       );
       assertOk(counted.addSheets() === 1 && counted.headerAppends() === 1 && counted.titles[0] === "ampel_rate", "the tab is created once");
+
+      const isolatedTitles: string[] = [];
+      const isolatedRows = new Map<number, string[]>();
+      let isolatedNext = 2;
+      let isolatedSheets = 0;
+      let isolatedHeaders = 0;
+      const isolatedOps: { op: string; range?: string }[] = [];
+      function isolatedClient(): AmpelRateSheetClient {
+        const tabName = getAmpelRateSheetsTab();
+        return {
+          async get() {
+            isolatedOps.push({ op: "spreadsheets.get" });
+            return {
+              data: {
+                sheets: isolatedTitles.map((title, index) => ({ properties: { title, sheetId: index + 1 } })),
+              },
+            };
+          },
+          async batchUpdate(args) {
+            const request = args.requestBody.requests[0];
+            if (request?.addSheet) {
+              isolatedOps.push({ op: "spreadsheets.batchUpdate", range: "addSheet" });
+              const title = request.addSheet.properties.title;
+              if (isolatedTitles.includes(title)) throw new Error("Sheet already exists");
+              isolatedTitles.push(title);
+              isolatedSheets += 1;
+              return { data: { replies: [{ addSheet: { properties: { sheetId: isolatedTitles.length, title } } }] } };
+            }
+            const append = request?.appendCells;
+            if (!append) throw new Error("bad-batch");
+            isolatedOps.push({ op: "spreadsheets.batchUpdate", range: "appendCells" });
+            const cells = append.rows[0]?.values.map((cell) => cell.userEnteredValue.stringValue) ?? [];
+            const rowNumber = isolatedNext;
+            isolatedNext += 1;
+            isolatedRows.set(rowNumber, cells);
+            const ordered = [...isolatedRows.entries()].sort((left, right) => left[0] - right[0]);
+            return {
+              data: {
+                updatedSpreadsheet: {
+                  sheets: [
+                    {
+                      properties: { title: tabName, sheetId: append.sheetId },
+                      data: [
+                        {
+                          rowData: ordered.map(([, row]) => ({
+                            values: row.map((value) => ({ userEnteredValue: { stringValue: value } })),
+                          })),
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            };
+          },
+          async valuesGet(args) {
+            isolatedOps.push({ op: "values.get", range: args.range });
+            if (args.range.endsWith("!A1:F1")) {
+              const header = isolatedRows.get(1);
+              return { data: { values: header ? [header] : [] } };
+            }
+            throw new Error("data-get");
+          },
+          async valuesAppend(args) {
+            isolatedOps.push({ op: "values.append", range: args.range });
+            const row = args.requestBody.values[0] ?? [];
+            if (row[0] !== "key_hash") throw new Error("data-append");
+            isolatedHeaders += 1;
+            isolatedRows.set(1, row);
+            return { data: { updates: { updatedRange: `${tabName}!A1:F1` } } };
+          },
+        };
+      }
+      const rateSource = readFileSync("lib/ampel-rate-limit.ts", "utf8");
+      const rateCopies = path.join(process.cwd(), ".ampel-rate-modules");
+      await mkdir(rateCopies, { recursive: true });
+      const loadRateLimit = async (nonce: string) => {
+        const file = path.join(rateCopies, `${nonce}.ts`);
+        writeFileSync(file, rateSource);
+        return import(pathToFileURL(file).href) as Promise<typeof import("@/lib/ampel-rate-limit")>;
+      };
+      const firstModule = await loadRateLimit("hash-a");
+      const secondModule = await loadRateLimit("hash-b");
+      assertOk(firstModule !== secondModule, "each instance loads its own rate-limit module");
+      assertOk(
+        firstModule.ampelRateStoredHash(firstModule.ampelRateIpKey(sameAddress)) ===
+          secondModule.ampelRateStoredHash(secondModule.ampelRateIpKey(sameAddress)),
+        "the rate hash is stable across reloaded instances",
+      );
+      for (let index = 0; index < AMPEL_IP_LIMIT + 1; index += 1) {
+        const loaded = await loadRateLimit(`send-${index}`);
+        const sent = await submitAmpelResult(
+          {
+            email: `reload-${index}@example.com`,
+            answers: index % 2 === 0 ? jaCode : neinCode,
+            ref: "",
+            marketing: false,
+            honeypot: "",
+            ip: sameAddress,
+            ipSource: "x-real-ip",
+          },
+          {
+            store: loaded.createSheetsAmpelRateStore(isolatedClient()),
+            now: () => clock,
+            confirm: noConfirm,
+            mail: async () => ({ stub: false, sent: true, id: `reload-${index}` }),
+          },
+        );
+        assertOk(sent.ok && !("honeypot" in sent), `reloaded sheet submit ${index + 1}`);
+        if (!sent.ok || "honeypot" in sent) fail("reloaded sheet submit");
+        const response = ampelSubmitResponse(sent);
+        if (index < AMPEL_IP_LIMIT) {
+          assertOk(
+            sent.mailed === true &&
+              sent.trace?.kind === "sheets" &&
+              sent.trace.pos === index + 1 &&
+              response.status === 200 &&
+              response.headers.get("x-ampel-rl") === `src=sheets;pos=${index + 1};win=${windowId}`,
+            `reloaded instance ${index + 1} sets src=sheets;pos=${index + 1}`,
+          );
+        } else {
+          assertOk(
+            sent.limited === "ip" &&
+              sent.mailed === false &&
+              sent.trace?.kind === "limit" &&
+              sent.trace.pos === AMPEL_IP_LIMIT + 1 &&
+              response.status === 429 &&
+              response.headers.get("x-ampel-rl") === `src=limit;pos=${AMPEL_IP_LIMIT + 1}`,
+            "six reloaded instances take positions 1..6 and the sixth is a 429",
+          );
+        }
+      }
+      assertOk(
+        isolatedSheets === 1 &&
+          isolatedHeaders === 1 &&
+          isolatedRows.size === AMPEL_IP_LIMIT + 2 &&
+          !isolatedOps.some((op) => op.op === "values.get" && !op.range?.endsWith("!A1:F1")) &&
+          !isolatedOps.some((op) => op.op === "values.append" && !op.range?.endsWith("!A1")),
+        "reloaded instances share the sheet rows and do not count through values.get",
+      );
 
       clearAmpelRateSheetCache();
       const plan = [16, 4, 18, 3, 9, 20, 5, 7];
@@ -1815,6 +1994,7 @@ try {
       else process.env.GOOGLE_SHEETS_SPREADSHEET_ID = previousSheetId;
       clearAmpelRateSheetCache();
       installSheetsHandler(null);
+      await rm(path.join(process.cwd(), ".ampel-rate-modules"), { recursive: true, force: true });
     }
 
     clearAmpelRateStoreCache();
