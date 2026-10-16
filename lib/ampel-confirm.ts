@@ -17,7 +17,9 @@ import {
   type AmpelDoiPayload,
   type AmpelLight,
 } from "@/lib/ampel";
-import { AMPEL_CONSENT_TEXT_VERSION } from "@/lib/ampel-questions";
+import { AMPEL_CONSENT_TEXT_VERSION, type AmpelQuestion } from "@/lib/ampel-questions";
+import { KASSEN_QUESTIONS } from "@/lib/kassen-check-questions";
+import { sendKassenDoiAckMail } from "@/lib/kassen-check-mail";
 
 /** Pauses between result-mail attempts. The first attempt does not wait. */
 export const AMPEL_RESULT_RETRY_DELAYS_MS = [0, 400, 1200] as const;
@@ -40,6 +42,10 @@ export type AmpelConfirmDeps = {
 export type AmpelConfirmResult =
   | { ok: true; score: number; light: AmpelLight; alreadySent: boolean }
   | { ok: false; status: 400 | 503; reason: "invalid" | "mail" };
+
+function questionsForCheck(check: "kassen-check" | undefined): readonly AmpelQuestion[] | undefined {
+  return check === "kassen-check" ? KASSEN_QUESTIONS : undefined;
+}
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -79,12 +85,15 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
   const now = deps.now?.() ?? Date.now();
   const payload = verifyAmpelDoiToken(token, now);
   if (!payload) return { ok: false, status: 400, reason: "invalid" };
-  const answers = decodeAmpelAnswers(payload.answers);
-  const scored = answers ? scoreAmpel(answers) : null;
+  const questions = questionsForCheck(payload.check);
+  const leadPrefix = payload.check === "kassen-check" ? "kassen" : "ampel";
+  const confirmedStatus = payload.check === "kassen-check" ? "kassen-check" : "ampel_doi_confirmed";
+  const answers = decodeAmpelAnswers(payload.answers, questions);
+  const scored = answers ? scoreAmpel(answers, questions) : null;
   if (!scored) return { ok: false, status: 400, reason: "invalid" };
 
   const confirmedAt = new Date(now).toISOString();
-  const leadId = ampelLeadId(payload.email, payload.answers, payload.consentAt);
+  const leadId = ampelLeadId(payload.email, payload.answers, payload.consentAt, leadPrefix);
   const draft = toAmpelReadinessLead({
     email: payload.email,
     answers: payload.answers,
@@ -94,6 +103,7 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
     score: scored.score,
     light: scored.light,
     mailStatus: "pending",
+    leadPrefix,
   });
 
   const existing = await readLead(deps, leadId);
@@ -109,7 +119,7 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
     ...(existing ?? {}),
     leadId,
     email: draft.email,
-    status: "ampel_doi_confirmed",
+    status: confirmedStatus,
     consentAt: draft.consentAt,
     doiConfirmedAt: existing?.doiConfirmedAt || confirmedAt,
     marketingOptIn: "confirmed",
@@ -123,7 +133,7 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
   };
   await writeLead(deps, pending);
 
-  const send = deps.sendResult ?? sendAmpelResultMail;
+  const send = deps.sendResult ?? (payload.check === "kassen-check" ? sendKassenDoiAckMail : sendAmpelResultMail);
   const pause = deps.sleep ?? wait;
   for (let attempt = 0; attempt < AMPEL_RESULT_RETRY_DELAYS_MS.length; attempt += 1) {
     const delay = AMPEL_RESULT_RETRY_DELAYS_MS[attempt] ?? 0;
@@ -140,7 +150,7 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
     await writeLead(deps, {
       ...(current ?? pending),
       leadId,
-      status: "ampel_doi_confirmed",
+      status: confirmedStatus,
       doiConfirmedAt: current?.doiConfirmedAt || pending.doiConfirmedAt,
       marketingOptIn: "confirmed",
       consentIp: current?.consentIp || pending.consentIp,
@@ -168,7 +178,8 @@ export function confirmAmpelDoi(token: string, deps: AmpelConfirmDeps): Promise<
   const now = deps.now?.() ?? Date.now();
   const payload = verifyAmpelDoiToken(token, now);
   if (!payload) return Promise.resolve({ ok: false, status: 400, reason: "invalid" });
-  const leadId = ampelLeadId(payload.email, payload.answers, payload.consentAt);
+  const leadPrefix = payload.check === "kassen-check" ? "kassen" : "ampel";
+  const leadId = ampelLeadId(payload.email, payload.answers, payload.consentAt, leadPrefix);
   const current = runs.get(leadId);
   if (current) return current;
   const run = runConfirm(token, deps).finally(() => {
@@ -193,6 +204,9 @@ export type AmpelConfirmationInput = {
   consentTextVersion?: string;
   /** `ja` after the result mail was sent. */
   mailed?: string;
+  check?: "kassen-check";
+  leadPrefix?: string;
+  pendingStatus?: string;
 };
 
 export type AmpelConfirmationDeps = {
@@ -250,10 +264,13 @@ async function runConfirmation(
   deps: AmpelConfirmationDeps,
 ): Promise<AmpelConfirmationResult> {
   const nowMs = deps.now?.() ?? Date.now();
+  const questions = questionsForCheck(input.check);
+  const leadPrefix = input.leadPrefix ?? (input.check === "kassen-check" ? "kassen" : "ampel");
+  const pendingStatus = input.pendingStatus ?? (input.check === "kassen-check" ? "kassen-check" : "ampel_doi_pending");
   const email = normalizeAmpelEmail(input.email);
-  const decoded = decodeAmpelAnswers(input.answers);
-  const scored = decoded ? scoreAmpel(decoded) : null;
-  const code = decoded ? encodeAmpelAnswers(decoded) : null;
+  const decoded = decodeAmpelAnswers(input.answers, questions);
+  const scored = decoded ? scoreAmpel(decoded, questions) : null;
+  const code = decoded ? encodeAmpelAnswers(decoded, questions) : null;
   if (!email || !decoded || !code || !scored) {
     return { ok: false, status: 400, reason: "invalid" };
   }
@@ -289,7 +306,7 @@ async function runConfirmation(
   const consentTextVersion = input.consentTextVersion?.trim() || AMPEL_CONSENT_TEXT_VERSION;
   const consentIp = input.consentIp?.trim() || reuse?.consentIp || "";
   const token = createAmpelDoiToken(
-    { email, answers: code, ref, consentAt, consentTextVersion },
+    { email, answers: code, ref, consentAt, consentTextVersion, check: input.check },
     nowMs,
   );
   if (!token) return { ok: false, status: 400, reason: "invalid" };
@@ -309,9 +326,10 @@ async function runConfirmation(
       consentIp,
       consentTextVersion,
       mailed,
+      leadPrefix,
     }),
     timestamp: consentAt,
-    status: "ampel_doi_pending",
+    status: pendingStatus,
     doiConfirmedAt: "",
     marketingOptIn: "pending",
     consentIp,
@@ -342,7 +360,7 @@ async function runConfirmation(
       leadId: pending.leadId,
       email: pending.email,
       timestamp: base.timestamp || pending.timestamp,
-      status: "ampel_doi_pending",
+      status: pendingStatus,
       consentAt: pending.consentAt,
       doiConfirmedAt: "",
       marketingOptIn: "pending",
@@ -371,9 +389,10 @@ export function requestAmpelConfirmation(
   deps: AmpelConfirmationDeps,
 ): Promise<AmpelConfirmationResult> {
   const email = normalizeAmpelEmail(input.email);
-  const decoded = decodeAmpelAnswers(input.answers);
-  const code = decoded ? encodeAmpelAnswers(decoded) : null;
-  if (!email || !decoded || !code || !scoreAmpel(decoded)) {
+  const questions = questionsForCheck(input.check);
+  const decoded = decodeAmpelAnswers(input.answers, questions);
+  const code = decoded ? encodeAmpelAnswers(decoded, questions) : null;
+  if (!email || !decoded || !code || !scoreAmpel(decoded, questions)) {
     return Promise.resolve({ ok: false, status: 400, reason: "invalid" });
   }
   const key = `${email}\n${code}`;

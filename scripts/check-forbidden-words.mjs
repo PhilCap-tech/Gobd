@@ -47,7 +47,10 @@ const BRANCHEN_SPERRE =
 const resourceDuPatterns = [
   "lib/lead-magnet.ts",
   "lib/lead-magnet-inhalt.ts",
+  "lib/kassen-check-questions.ts",
+  "lib/kassen-check-mail.ts",
   "app/resources/**/*.{ts,tsx}",
+  "app/kassen-check/**/*.{ts,tsx}",
 ];
 
 const uiPatterns = ["app/**/*.tsx", "components/**/*.tsx"];

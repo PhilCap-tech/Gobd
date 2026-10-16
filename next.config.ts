@@ -139,6 +139,7 @@ const nextConfig: NextConfig = {
       { source: "/login", headers: noStoreHeaders },
       { source: "/admin/ampel", headers: ampelAdminHeaders },
       { source: "/api/admin/ampel-stats", headers: ampelAdminHeaders },
+      { source: "/kassen-check/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }] },
       ...branchenNoindexHeaders(),
       { source: "/api/stripe/portal", headers: noStoreHeaders },
       { source: "/:path*", headers: securityHeaders },

@@ -118,14 +118,20 @@ export function ampelRateIpSourceLabel(source: string): string {
 }
 
 /** First 8 hex characters of the hash stored in the sheet. Empty when there is no address. */
-export function ampelRateStoredIpPrefix(ip: string): string {
+export function ampelRateStoredIpPrefix(ip: string, scope = ""): string {
   const trimmed = ip.trim();
   if (!trimmed || trimmed.toLowerCase() === "unknown") return "";
-  return ampelRateStoredHash(ampelRateIpKey(trimmed)).slice(0, 8);
+  const logical = scope ? `${scope}:${ampelRateIpKey(trimmed)}` : ampelRateIpKey(trimmed);
+  return ampelRateStoredHash(logical).slice(0, 8);
 }
 
-export function withAmpelRateIdentity<T extends AmpelRateTrace>(trace: T, ip: string, source: string): T {
-  const h = ampelRateStoredIpPrefix(ip);
+export function withAmpelRateIdentity<T extends AmpelRateTrace>(
+  trace: T,
+  ip: string,
+  source: string,
+  scope = "",
+): T {
+  const h = ampelRateStoredIpPrefix(ip, scope);
   const ipsrc = ampelRateIpSourceLabel(source);
   return { ...trace, ...(h ? { h } : {}), ...(ipsrc ? { ipsrc } : {}) };
 }

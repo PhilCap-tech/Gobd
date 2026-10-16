@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getMagicLinkSecret } from "@/lib/env";
+import { KASSEN_QUESTIONS } from "@/lib/kassen-check-questions";
 import { emptyReadinessLead, type ReadinessLead } from "@/lib/readiness";
 import {
   decodeAmpelAnswers,
@@ -9,6 +10,7 @@ import {
   scoreAmpel,
   type AmpelLight,
 } from "@/lib/ampel-score";
+import type { AmpelQuestion } from "@/lib/ampel-questions";
 
 export {
   AMPEL_PATH,
@@ -40,6 +42,8 @@ export type AmpelDoiPayload = {
   consentAt: string;
   exp: number;
   consentTextVersion?: string;
+  /** Absent on Ampel tokens. Selects the question list when the code is not an Ampel code. */
+  check?: "kassen-check";
 };
 
 export type AmpelUnsubscribePayload = {
@@ -59,14 +63,16 @@ export function createAmpelDoiToken(
     ref: string;
     consentAt: string;
     consentTextVersion?: string;
+    check?: "kassen-check";
   },
   now = Date.now(),
 ): string | null {
+  const questions = questionsForCheck(input.check);
   const email = normalizeAmpelEmail(input.email);
-  const answers = decodeAmpelAnswers(input.answers);
+  const answers = decodeAmpelAnswers(input.answers, questions);
   if (!email || !answers) return null;
-  const code = encodeAmpelAnswers(answers);
-  if (!code || !scoreAmpel(answers)) return null;
+  const code = encodeAmpelAnswers(answers, questions);
+  if (!code || !scoreAmpel(answers, questions)) return null;
   const consentAt = input.consentAt.trim();
   if (!Number.isFinite(Date.parse(consentAt))) return null;
   const payload: AmpelDoiPayload = {
@@ -79,6 +85,7 @@ export function createAmpelDoiToken(
     ...(input.consentTextVersion?.trim()
       ? { consentTextVersion: input.consentTextVersion.trim() }
       : {}),
+    ...(input.check === "kassen-check" ? { check: "kassen-check" as const } : {}),
   };
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${body}.${signAmpelBody(body)}`;
@@ -100,13 +107,16 @@ export function verifyAmpelDoiToken(
       Buffer.from(body, "base64url").toString("utf8"),
     ) as Partial<AmpelDoiPayload>;
     if (parsed.purpose !== "ampel-doi") return null;
+    if (parsed.check !== undefined && parsed.check !== "kassen-check") return null;
     if (typeof parsed.exp !== "number" || !Number.isFinite(parsed.exp) || parsed.exp < now) {
       return null;
     }
+    const check = parsed.check === "kassen-check" ? ("kassen-check" as const) : undefined;
+    const questions = questionsForCheck(check);
     const email = normalizeAmpelEmail(parsed.email);
-    const decoded = typeof parsed.answers === "string" ? decodeAmpelAnswers(parsed.answers) : null;
-    const code = decoded ? encodeAmpelAnswers(decoded) : null;
-    if (!email || !decoded || !code || !scoreAmpel(decoded)) return null;
+    const decoded = typeof parsed.answers === "string" ? decodeAmpelAnswers(parsed.answers, questions) : null;
+    const code = decoded ? encodeAmpelAnswers(decoded, questions) : null;
+    if (!email || !decoded || !code || !scoreAmpel(decoded, questions)) return null;
     const consentAt = typeof parsed.consentAt === "string" ? parsed.consentAt.trim() : "";
     if (!Number.isFinite(Date.parse(consentAt))) return null;
     const consentTextVersion =
@@ -119,18 +129,29 @@ export function verifyAmpelDoiToken(
       consentAt,
       exp: parsed.exp,
       ...(consentTextVersion ? { consentTextVersion } : {}),
+      ...(check ? { check } : {}),
     };
   } catch {
     return null;
   }
 }
 
-export function ampelLeadId(email: string, answers: string, consentAt: string): string {
+export function ampelLeadId(
+  email: string,
+  answers: string,
+  consentAt: string,
+  prefix = "ampel",
+): string {
+  const safe = prefix === "kassen" ? "kassen" : "ampel";
   const hash = createHash("sha256")
     .update(`${email}\n${answers}\n${consentAt}`)
     .digest("hex")
     .slice(0, 32);
-  return `ampel-${hash}`;
+  return `${safe}-${hash}`;
+}
+
+function questionsForCheck(check: "kassen-check" | undefined): readonly AmpelQuestion[] | undefined {
+  return check === "kassen-check" ? KASSEN_QUESTIONS : undefined;
 }
 
 export function createAmpelUnsubscribeToken(email: string, consentAt: string): string | null {
@@ -186,12 +207,13 @@ export function toAmpelReadinessLead(input: {
   consentIp?: string;
   consentTextVersion?: string;
   mailed?: string;
+  leadPrefix?: string;
 }): ReadinessLead {
   const email = input.email.trim().toLowerCase();
   return {
     ...emptyReadinessLead(),
     timestamp: input.doiConfirmedAt,
-    leadId: ampelLeadId(email, input.answers, input.consentAt),
+    leadId: ampelLeadId(email, input.answers, input.consentAt, input.leadPrefix),
     email,
     status: "ampel_doi_confirmed",
     mailStatus: input.mailStatus,

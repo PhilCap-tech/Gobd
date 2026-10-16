@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { KassenCheckTeaser, kassenTeaserSplit } from "@/components/kassen-check-teaser";
 import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -32,7 +33,7 @@ export function BranchenPage({ seite }: { seite: BranchenSeite }) {
       <main className="wrap page blog">
         <p className="kicker">{seite.branche}</p>
         <h1>{seite.h1}</h1>
-        <BlogMarkdown source={branchenBodyForMarkdown(seite.body)} />
+        <BranchenBody slug={seite.slug} body={seite.body} />
         <nav className="related-links" aria-label="Weitere Branchenseiten">
           {others.map((item) => (
             <Link key={item.slug} href={item.href}>
@@ -47,6 +48,18 @@ export function BranchenPage({ seite }: { seite: BranchenSeite }) {
         </aside>
       </main>
       <SiteFooter />
+    </>
+  );
+}
+
+function BranchenBody({ slug, body }: { slug: string; body: string }) {
+  const teaser = kassenTeaserSplit(slug, body);
+  if (!teaser) return <BlogMarkdown source={branchenBodyForMarkdown(body)} />;
+  return (
+    <>
+      <BlogMarkdown source={branchenBodyForMarkdown(teaser.before)} />
+      <KassenCheckTeaser variant={teaser.variant} />
+      {teaser.after.trim() ? <BlogMarkdown source={branchenBodyForMarkdown(teaser.after)} /> : null}
     </>
   );
 }
