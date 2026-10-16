@@ -207,9 +207,9 @@ export default function HomePage() {
               <span>{HERO_PRICE_BOX}</span>
             </p>
             <div className={styles.ctas}>
-              <Link className="btn" href="/checkout">
+              <a className="btn" href="/checkout">
                 {CTA_CREATE}
-              </Link>
+              </a>
               <Link className={`btn ${styles.btnSec}`} href={AMPEL_HREF}>
                 Ampel-Check starten
               </Link>
@@ -472,9 +472,9 @@ export default function HomePage() {
               </table>
               <div className={styles.ctas}>
                 <div className={styles.priceCta}>
-                  <Link className={`btn ${styles.btnOnDark}`} href="/checkout">
+                  <a className={`btn ${styles.btnOnDark}`} href="/checkout">
                     {CTA_CREATE}
-                  </Link>
+                  </a>
                   <p className={styles.fine}>{PRICE_CTA_SUFFIX}</p>
                 </div>
                 <Link className={styles.textLink} href="#muster">
@@ -564,9 +564,9 @@ export default function HomePage() {
             </p>
             <div className={styles.ctas}>
               <div className={styles.priceCta}>
-                <Link className={`btn ${styles.btnOnDark}`} href="/checkout">
+                <a className={`btn ${styles.btnOnDark}`} href="/checkout">
                   {CTA_CREATE_WITH_PRICE}
-                </Link>
+                </a>
                 <p className={styles.fine}>{PRICE_AFTER_MICRO}</p>
               </div>
               <Link className={`btn ${styles.btnSecOnDark}`} href={AMPEL_HREF}>
@@ -583,9 +583,9 @@ export default function HomePage() {
         </section>
       </main>
       <div className="sticky-cta">
-        <Link className="btn" href="/checkout">
+        <a className="btn" href="/checkout">
           {CTA_CREATE}
-        </Link>
+        </a>
       </div>
       <SiteFooter />
     </div>

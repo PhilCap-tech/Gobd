@@ -30,8 +30,12 @@ export function ConsentBanner() {
   const visible = ready && open;
 
   useEffect(() => {
+    document.documentElement.classList.toggle("consent-pending", visible);
     document.body.classList.toggle("consent-open", visible);
-    return () => document.body.classList.remove("consent-open");
+    return () => {
+      document.documentElement.classList.remove("consent-pending");
+      document.body.classList.remove("consent-open");
+    };
   }, [visible]);
 
   if (!visible) return null;

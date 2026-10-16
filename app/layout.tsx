@@ -41,6 +41,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="de" className={inter.variable}>
       <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var raw=null;try{raw=localStorage.getItem("gobd_consent")}catch(e){}if(!raw){var m=document.cookie.match(/(?:^|; )gobd_consent=([^;]*)/);raw=m?decodeURIComponent(m[1]):""}if(!raw)document.documentElement.classList.add("consent-pending")}catch(e){document.documentElement.classList.add("consent-pending")}})();`,
+          }}
+        />
         <JsonLd data={organizationJsonLd()} />
         {children}
         <VercelAnalytics />
