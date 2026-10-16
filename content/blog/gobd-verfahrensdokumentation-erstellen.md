@@ -201,6 +201,8 @@ Wenn Sie den Entwurf nicht leer starten möchten: [GoBD-Verfahrensdokumentation 
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — Abgleich über alle vier Teile
 - [Verfahrensdokumentation Betriebsprüfung: Ablauf und Unterlagen](/blog/betriebspruefung-ablauf-unterlagen)
 - [Ersetzendes Scannen in der Verfahrensdokumentation](/blog/ersetzendes-scannen-verfahrensdokumentation)
+- [Checkliste: Zuständigkeiten und Vertretung festhalten](/blog/verfahrensdokumentation-checkliste-zustaendigkeiten-vertretung)
+- [Vorlage: Kapitel Datensicherung und Archivierung](/blog/verfahrensdokumentation-vorlage-datensicherung-archivierung)
 
 ## Disclaimer
 

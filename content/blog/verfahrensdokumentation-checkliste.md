@@ -176,6 +176,11 @@ Immer bei wesentlichen Prozess- oder Systemänderungen — und in sinnvollen Abs
 
 Nein. Das PDF aus dem geführten Intake ist ein Entwurf auf Basis Ihrer Angaben. Diese Checkliste können Sie parallel nutzen, um Lücken und offene Punkte zu markieren, bevor Sie mit dem Steuerberater sprechen.
 
+## Weiterlesen
+
+- [Checkliste: Zuständigkeiten und Vertretung festhalten](/blog/verfahrensdokumentation-checkliste-zustaendigkeiten-vertretung)
+- [Vorlage: Kapitel Datensicherung und Archivierung](/blog/verfahrensdokumentation-vorlage-datensicherung-archivierung)
+
 ## Disclaimer
 
 Der Dienst unter gobd-doku-erstellen.de (Anbieter: IKAT GmbH) unterstützt Sie bei der Erstellung einer Verfahrensdokumentation im Sinne der GoBD. Die bereitgestellten Texte, Vorlagen, Checklisten und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung**, **keine Rechtsberatung** und keine verbindliche Auskunft dar.
