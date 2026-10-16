@@ -217,6 +217,14 @@ async function checkSitemapLastmod() {
     "sitemap lists /verfahrensdokumentation-kiosk",
   );
   ok(
+    entries.some((entry) => entry.url.includes("/verfahrensdokumentation-verein")),
+    "sitemap lists /verfahrensdokumentation-verein",
+  );
+  ok(
+    entries.some((entry) => entry.url.includes("/verfahrensdokumentation-apotheke")),
+    "sitemap lists /verfahrensdokumentation-apotheke",
+  );
+  ok(
     entries.some((entry) => entry.url === canonicalUrl("/steuerberater")),
     "sitemap lists /steuerberater",
   );
@@ -250,8 +258,10 @@ async function main() {
   const muster = source("app/muster/page.tsx");
   const branchen = source("components/branchen-page.tsx");
   ok(
-    source("lib/branchen.ts").includes('["friseure", "einzelhandel", "taxi", "kiosk"]'),
-    "BRANCHEN_SLUGS includes taxi and kiosk",
+    source("lib/branchen.ts").includes(
+      '["friseure", "einzelhandel", "taxi", "kiosk", "verein", "apotheke"]',
+    ),
+    "BRANCHEN_SLUGS includes verein and apotheke",
   );
   ok(footer.includes("listBranchenFooterLinks"), "footer reads content/branchen");
   ok(footer.includes(">Branchen<"), "footer column is titled Branchen");
@@ -271,6 +281,10 @@ async function main() {
     ok(link?.href === seite.route, `footer href for ${seite.slug}`);
   }
   for (const slug of ["taxi", "kiosk"] as const) {
+    const seite = seiten.find((item) => item.slug === slug);
+    ok(seite?.noindex === false, `${slug} is indexable`);
+  }
+  for (const slug of ["verein", "apotheke"] as const) {
     const seite = seiten.find((item) => item.slug === slug);
     ok(seite?.noindex === false, `${slug} is indexable`);
   }

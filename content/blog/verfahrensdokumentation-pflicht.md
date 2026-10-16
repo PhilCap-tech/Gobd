@@ -47,6 +47,8 @@ Die Frage „Wer braucht sie?“ lässt sich nicht an der Rechtsform allein fest
 
 - [Taxi](/verfahrensdokumentation-taxi)
 - [Kiosk](/verfahrensdokumentation-kiosk)
+- [Verein](/verfahrensdokumentation-verein)
+- [Apotheke](/verfahrensdokumentation-apotheke)
 
 ### Einzelunternehmer
 

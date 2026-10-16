@@ -74,6 +74,8 @@ Ein zweites Paar Augen ist eine betriebliche Kontrolle, keine eigene Randziffer 
 
 Wie eine Eingangsrechnung geprüft und freigegeben wird, bleibt beim Belegfluss: [Verfahrensdokumentation Belegablage](/blog/verfahrensdokumentation-belegablage).
 
+- [Freigaben und Kassenprüfung im Verein](/verfahrensdokumentation-verein)
+
 ### Plausibilität und Abstimmung
 
 Randziffer 100 nennt Erfassungskontrollen, darunter Plausibilitätsprüfungen, und Abstimmungskontrollen bei der Dateneingabe. Im kleinen Betrieb sind das oft konkrete Abgleiche, kein eigenes Kontrollsystem mit Handbuch.
@@ -169,6 +171,7 @@ Nein. Sie hält fest, welche Kontrollen Sie eingerichtet haben und welche noch o
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — der Rahmen, dieser Artikel ist nur das IKS
 - [Datenzugriff in der Betriebsprüfung](/blog/datenzugriff-betriebspruefung) — Lesezugang, Export und wer ihn einrichtet
 - [Verfahrensdokumentation Belegablage](/blog/verfahrensdokumentation-belegablage) — Prüfung und Freigabe im Belegfluss
+- [Freigaben und Kassenprüfung im Verein](/verfahrensdokumentation-verein)
 
 ## Disclaimer
 

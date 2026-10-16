@@ -75,6 +75,8 @@ Schreiben Sie nur, was bei Ihnen vorkommt. Ein Friseursalon ohne Gutscheine brau
 
 - [Verfahrensdokumentation für Taxiunternehmen](/verfahrensdokumentation-taxi)
 - [Verfahrensdokumentation für Kioske](/verfahrensdokumentation-kiosk)
+- [Verfahrensdokumentation für Vereine](/verfahrensdokumentation-verein)
+- [für Apotheken](/verfahrensdokumentation-apotheke)
 
 ## Was der Kassenteil beschreiben sollte
 
@@ -156,6 +158,8 @@ Nein. § 146b AO erlaubt eine unangekündigte Kassen-Nachschau. Sie ist ein eige
 - [Verfahrensdokumentation in der Gastronomie](/blog/verfahrensdokumentation-gastronomie) — Einkauf, Plattformen, Karte, Trinkgeld, Personal und Gutscheine
 - [Verfahrensdokumentation für Taxiunternehmen](/verfahrensdokumentation-taxi)
 - [Verfahrensdokumentation für Kioske](/verfahrensdokumentation-kiosk)
+- [Verfahrensdokumentation für Vereine](/verfahrensdokumentation-verein)
+- [für Apotheken](/verfahrensdokumentation-apotheke)
 
 ## Disclaimer
 

@@ -124,6 +124,7 @@ Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orien
 
 ## Weiterlesen
 - [Kioske mit Lotto, Paketshop und Guthabenkarten](/verfahrensdokumentation-kiosk)
+- [Apotheken mit Warenwirtschaft und Rezeptabrechnung](/verfahrensdokumentation-apotheke)
 - [GoBD Verfahrensdokumentation für die Kasse](/blog/verfahrensdokumentation-kasse)
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste)
 - [Verfahrensdokumentation Pflicht](/blog/verfahrensdokumentation-pflicht)

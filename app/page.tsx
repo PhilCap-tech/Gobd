@@ -348,6 +348,10 @@ export default function HomePage() {
               <Link href="/verfahrensdokumentation-taxi">Taxi</Link>
               {" · "}
               <Link href="/verfahrensdokumentation-kiosk">Kiosk</Link>
+              {" · "}
+              <Link href="/verfahrensdokumentation-verein">Verein</Link>
+              {" · "}
+              <Link href="/verfahrensdokumentation-apotheke">Apotheke</Link>
               .
             </p>
             <p className={styles.fine}>
