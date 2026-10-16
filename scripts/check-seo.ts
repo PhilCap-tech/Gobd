@@ -235,6 +235,8 @@ async function checkSitemapLastmod() {
     "/steuerberater/merkblatt/abmelden",
     "/ampel-check/bestaetigen",
     "/ampel-check/abmelden",
+    "/kassen-check",
+    "/kassen-check/bestaetigen",
     "/success",
     "/readiness/success",
   ]) {

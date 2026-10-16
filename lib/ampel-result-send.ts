@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
 import { requestAmpelConfirmation, type AmpelConfirmationInput, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
-import { sendAmpelConfirmationMail } from "@/lib/ampel-mail";
 import { ampelConsentBlocked } from "@/lib/ampel-marketing-guard";
 import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
 import {
@@ -9,7 +8,7 @@ import {
   ampelMailStatusStore,
   type AmpelMailStatusStore,
 } from "@/lib/ampel-mail-status";
-import { AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_MAIL } from "@/lib/ampel-questions";
+import { AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_MAIL, type AmpelQuestion } from "@/lib/ampel-questions";
 import {
   AMPEL_IP_WINDOW_MS,
   ampelRateIpKey,
@@ -64,6 +63,19 @@ export type SubmitAmpelDeps = {
   handoff?: boolean;
   status?: AmpelMailStatusStore;
   tokens?: AmpelSendTokenStore;
+  /** Question list. Absent means the Ampel-Check. */
+  questions?: readonly AmpelQuestion[];
+  /** Prefix on the logical rate keys. Absent means the Ampel counters. */
+  rateScope?: string;
+  /** Lead id prefix. Absent means `ampel`. */
+  leadPrefix?: string;
+  /** Stored status. Absent means `ampel_pdf` after the result mail. */
+  leadStatus?: string;
+  /** Selects the Kassen-Check inside the shared DOI token. */
+  check?: "kassen-check";
+  dedupeKey?: (email: string, code: string) => string;
+  sentNotice?: string;
+  sendConfirmation?: (input: { email: string; token: string }) => Promise<MailResult>;
 };
 
 export type SubmitAmpelOutcome =
@@ -92,8 +104,21 @@ function stamp(
   outcome: SubmitAmpelOutcome,
   trace: AmpelRateTrace,
   input: { ip: string; ipSource?: string },
+  scope = "",
 ): SubmitAmpelOutcome {
-  return { ...outcome, trace: withAmpelRateIdentity(trace, input.ip, input.ipSource ?? "") };
+  return { ...outcome, trace: withAmpelRateIdentity(trace, input.ip, input.ipSource ?? "", scope) };
+}
+
+function parsedAnswers(raw: unknown, questions?: readonly AmpelQuestion[]) {
+  const text = typeof raw === "string" ? raw : "";
+  const answers = decodeAmpelAnswers(text, questions);
+  const code = answers ? encodeAmpelAnswers(answers, questions) : null;
+  if (!answers || !code || !scoreAmpel(answers, questions)) return null;
+  return { answers, code };
+}
+
+function rateKey(scope: string, key: string): string {
+  return scope ? `${scope}:${key}` : key;
 }
 
 function failOpenCode(error: unknown): string {
@@ -177,7 +202,10 @@ function delivered(mail: MailResult): boolean {
   return mail.sent || mail.stub || (mail.duplicate === true && mail.inflight !== true);
 }
 
-async function confirmMarketing(input: AmpelConfirmationInput): Promise<AmpelConfirmationResult> {
+async function confirmMarketing(
+  input: AmpelConfirmationInput,
+  sendConfirmation?: (input: { email: string; token: string }) => Promise<MailResult>,
+): Promise<AmpelConfirmationResult> {
   return requestAmpelConfirmation(input, {
     findLead: (leadEmail, leadAnswers) =>
       findLatestAmpelReadinessLead(leadEmail, leadAnswers, { fresh: true }),
@@ -185,7 +213,7 @@ async function confirmMarketing(input: AmpelConfirmationInput): Promise<AmpelCon
       if (automatedRunForbidsLiveWrites()) return;
       await upsertReadinessLead(lead);
     },
-    sendConfirmation: sendAmpelConfirmationMail,
+    ...(sendConfirmation ? { sendConfirmation } : {}),
   });
 }
 
@@ -230,12 +258,14 @@ async function runSubmit(
 ): Promise<SubmitAmpelOutcome> {
   const now = deps.now?.() ?? Date.now();
   const source = input.ipSource ?? "";
-  const prior = await lookupMailDedupe(ampelPdfDedupeKey(email, code));
-  if (prior === "sent" || prior === "inflight") return stamp(alreadySent(), { kind: "skip", reason: "duplicate" }, input);
+  const rateScope = deps.rateScope ?? "";
+  const dedupe = deps.dedupeKey ?? ampelPdfDedupeKey;
+  const prior = await lookupMailDedupe(dedupe(email, code));
+  if (prior === "sent" || prior === "inflight") return stamp(alreadySent(), { kind: "skip", reason: "duplicate" }, input, rateScope);
   const clientIp = input.ip.trim();
   if (!clientIp || clientIp.toLowerCase() === "unknown") {
     console.info(ampelRateLogLine(source, 0, ""));
-    return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), { kind: "skip", reason: "noip" }, input);
+    return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), { kind: "skip", reason: "noip" }, input, rateScope);
   }
   const store = deps.store ?? ampelRateStore();
   const hold: AmpelRateHold = { ipSlot: 0, emailSlot: 0 };
@@ -243,8 +273,8 @@ async function runSubmit(
   let trace: AmpelRateTrace | null = null;
   try {
     decision = await store.take({
-      ipKey: ampelRateIpKey(clientIp),
-      emailKey: `em:${email}`,
+      ipKey: rateKey(rateScope, ampelRateIpKey(clientIp)),
+      emailKey: rateKey(rateScope, `em:${email}`),
       now,
       hold,
     });
@@ -257,7 +287,7 @@ async function runSubmit(
   }
   if (!trace) trace = decision === "ok" ? allowTrace(store, hold, now) : limitTrace(decision, hold);
   console.info(ampelRateLogLine(source, decision === "ok" ? hold.ipSlot : 0, clientIp));
-  if (decision !== "ok") return stamp(limited(decision), trace, input);
+  if (decision !== "ok") return stamp(limited(decision), trace, input, rateScope);
 
   if (deps.handoff && hold.ipSlot >= 1 && hold.emailSlot >= 1) {
     let token: string | null = null;
@@ -276,9 +306,9 @@ async function runSubmit(
       );
     } catch (error) {
       console.error("[ampel] Versandtoken fehlgeschlagen", error instanceof Error ? error.name : "error");
-      return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), trace, input);
+      return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), trace, input, rateScope);
     }
-    if (!token) return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), trace, input);
+    if (!token) return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), trace, input, rateScope);
     try {
       const status = deps.status ?? ampelMailStatusStore();
       await status.write(ampelMailStatusId(email, code), {
@@ -287,7 +317,7 @@ async function runSubmit(
       });
     } catch (error) {
       console.error("[ampel] Versandstatus fehlgeschlagen", error instanceof Error ? error.name : "error");
-      return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), trace, input);
+      return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), trace, input, rateScope);
     }
     return stamp(
       {
@@ -301,10 +331,11 @@ async function runSubmit(
       },
       trace,
       input,
+      rateScope,
     );
   }
 
-  return stamp(await deliverAmpelResult(email, answers, code, input, deps, now), trace, input);
+  return stamp(await deliverAmpelResult(email, answers, code, input, deps, now), trace, input, rateScope);
 }
 
 export async function deliverAmpelResult(
@@ -330,22 +361,23 @@ export async function deliverAmpelResult(
   }
 
   try {
-    const scored = scoreAmpel(answers);
-    if (scored) {
-      const consentAt = new Date(now).toISOString();
-      const lead = toAmpelReadinessLead({
-        email,
-        answers: code,
-        ref: sanitizeAmpelRef(input.ref),
-        consentAt,
-        doiConfirmedAt: "",
-        score: scored.score,
-        light: scored.light,
-        mailStatus: "pdf_sent",
-        marketingOptIn: input.marketing === true ? "pending" : "",
-        mailed: "ja",
-      });
-      lead.status = "ampel_pdf";
+        const scored = scoreAmpel(answers, deps.questions);
+        if (scored) {
+          const consentAt = new Date(now).toISOString();
+          const lead = toAmpelReadinessLead({
+            email,
+            answers: code,
+            ref: sanitizeAmpelRef(input.ref),
+            consentAt,
+            doiConfirmedAt: "",
+            score: scored.score,
+            light: scored.light,
+            mailStatus: "pdf_sent",
+            marketingOptIn: input.marketing === true ? "pending" : "",
+            mailed: "ja",
+            leadPrefix: deps.leadPrefix,
+          });
+          lead.status = deps.leadStatus ?? "ampel_pdf";
       lead.timestamp = consentAt;
       const save = deps.saveLead ?? (async (row: ReadinessLead) => {
         if (automatedRunForbidsLiveWrites()) return;
@@ -362,7 +394,7 @@ export async function deliverAmpelResult(
     try {
       const blocked = await ampelConsentBlocked(email, new Date(now).toISOString());
       if (!blocked) {
-        const confirm = deps.confirm ?? confirmMarketing;
+        const confirm = deps.confirm ?? ((payload) => confirmMarketing(payload, deps.sendConfirmation));
         const confirmed = await withDeadline(
           confirm({
             email,
@@ -371,6 +403,9 @@ export async function deliverAmpelResult(
             consentIp: input.ip,
             consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
             mailed: "ja",
+            ...(deps.check ? { check: deps.check } : {}),
+            ...(deps.leadPrefix ? { leadPrefix: deps.leadPrefix } : {}),
+            ...(deps.leadStatus ? { pendingStatus: deps.leadStatus } : {}),
           }),
           timeoutMs,
         );
@@ -383,10 +418,11 @@ export async function deliverAmpelResult(
       marketing = "failed";
     }
   }
+  const sentLine = deps.sentNotice ?? AMPEL_RESULT_MAIL.sent;
   const notice =
     marketing === "started"
-      ? `${AMPEL_RESULT_MAIL.sent} ${AMPEL_RESULT_MAIL.doiSuccess}`
-      : AMPEL_RESULT_MAIL.sent;
+      ? `${sentLine} ${AMPEL_RESULT_MAIL.doiSuccess}`
+      : sentLine;
   return { ok: true, duplicate: false, marketing, mailed: true, notice };
 }
 
@@ -396,18 +432,19 @@ export async function completeAmpelResult(
 ): Promise<SubmitAmpelOutcome> {
   const source = input.ipSource ?? "";
   const started = deps.now?.() ?? Date.now();
+  const rateScope = deps.rateScope ?? "";
+  const dedupe = deps.dedupeKey ?? ampelPdfDedupeKey;
   if (!ampelSendTokenPresent(input.sendToken)) {
-    return stamp({ ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized }, { kind: "skip", reason: "token" }, input);
+    return stamp({ ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized }, { kind: "skip", reason: "token" }, input, rateScope);
   }
-  if (honeypotTripped(input.honeypot)) return stamp({ ok: true, honeypot: true }, { kind: "skip", reason: "honeypot" }, input);
+  if (honeypotTripped(input.honeypot)) return stamp({ ok: true, honeypot: true }, { kind: "skip", reason: "honeypot" }, input, rateScope);
   const email = normalizeAmpelEmail(input.email);
-  if (!email) return stamp({ ok: false, status: 400, error: AMPEL_RESULT_MAIL.invalidEmail }, { kind: "skip", reason: "email" }, input);
-  const raw = typeof input.answers === "string" ? input.answers : "";
-  const answers = decodeAmpelAnswers(raw);
-  const code = answers ? encodeAmpelAnswers(answers) : null;
-  if (!answers || !code || !scoreAmpel(answers)) {
-    return stamp({ ok: false, status: 400, error: "Bitte beantworten Sie alle Fragen." }, { kind: "skip", reason: "answers" }, input);
+  if (!email) return stamp({ ok: false, status: 400, error: AMPEL_RESULT_MAIL.invalidEmail }, { kind: "skip", reason: "email" }, input, rateScope);
+  const parsed = parsedAnswers(input.answers, deps.questions);
+  if (!parsed) {
+    return stamp({ ok: false, status: 400, error: "Bitte beantworten Sie alle Fragen." }, { kind: "skip", reason: "answers" }, input, rateScope);
   }
+  const { answers, code } = parsed;
   const now = started;
   let consumed: Awaited<ReturnType<typeof consumeAmpelSendToken>> = { verdict: "invalid", ipSlot: 0, emailSlot: 0 };
   try {
@@ -417,10 +454,10 @@ export async function completeAmpelResult(
     );
   } catch (error) {
     console.error("[ampel] Versandtoken fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return stamp({ ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized }, { kind: "skip", reason: "token" }, input);
+    return stamp({ ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized }, { kind: "skip", reason: "token" }, input, rateScope);
   }
   if (consumed.verdict !== "ok") {
-    return stamp({ ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized }, { kind: "skip", reason: "token" }, input);
+    return stamp({ ok: false, status: 403, error: AMPEL_RESULT_MAIL.sendUnauthorized }, { kind: "skip", reason: "token" }, input, rateScope);
   }
   const store = deps.store ?? ampelRateStore();
   let trace: AmpelRateTrace = { kind: "skip", reason: "noip", ...gridFields(consumed) };
@@ -430,8 +467,8 @@ export async function completeAmpelResult(
   } else {
     try {
       const confirmed = await store.confirm({
-        ipKey: ampelRateIpKey(clientIp),
-        emailKey: `em:${email}`,
+        ipKey: rateKey(rateScope, ampelRateIpKey(clientIp)),
+        emailKey: rateKey(rateScope, `em:${email}`),
         now,
         ipSlot: consumed.ipSlot,
         emailSlot: consumed.emailSlot,
@@ -446,6 +483,7 @@ export async function completeAmpelResult(
             ...gridFields(consumed),
           },
           input,
+          rateScope,
         );
       }
       trace =
@@ -462,19 +500,19 @@ export async function completeAmpelResult(
       trace = { kind: "failopen", err: "confirm", ...gridFields(consumed) };
     }
   }
-  const prior = await lookupMailDedupe(ampelPdfDedupeKey(email, code));
-  if (prior === "sent" || prior === "inflight") return stamp(alreadySent(), trace, input);
+  const prior = await lookupMailDedupe(dedupe(email, code));
+  if (prior === "sent" || prior === "inflight") return stamp(alreadySent(), trace, input, rateScope);
   const status = deps.status ?? ampelMailStatusStore();
   let row: { state: string; notice: string } | null = null;
   try {
     row = await status.read(ampelMailStatusId(email, code));
   } catch (error) {
     console.error("[ampel] Versandstatus fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), trace, input);
+    return stamp(withheld(AMPEL_RESULT_MAIL.shownWithoutMail), trace, input, rateScope);
   }
   if (!row || row.state !== "sending") {
-    if (row?.state === "sent") return stamp(alreadySent(), trace, input);
-    return stamp(withheld(row?.notice || AMPEL_RESULT_MAIL.shownWithoutMail), trace, input);
+    if (row?.state === "sent") return stamp(alreadySent(), trace, input, rateScope);
+    return stamp(withheld(row?.notice || AMPEL_RESULT_MAIL.shownWithoutMail), trace, input, rateScope);
   }
   const outcome = await deliverAmpelResult(email, answers, code, input, deps);
   if (outcome.ok && !("honeypot" in outcome)) {
@@ -487,27 +525,27 @@ export async function completeAmpelResult(
       console.error("[ampel] Versandstatus fehlgeschlagen", error instanceof Error ? error.name : "error");
     }
   }
-  return stamp(outcome, trace, input);
+  return stamp(outcome, trace, input, rateScope);
 }
 
 export function submitAmpelResult(
   input: SubmitAmpelInput,
   deps: SubmitAmpelDeps = {},
 ): Promise<SubmitAmpelOutcome> {
+  const rateScope = deps.rateScope ?? "";
   if (honeypotTripped(input.honeypot)) {
-    return Promise.resolve(stamp({ ok: true, honeypot: true }, { kind: "skip", reason: "honeypot" }, input));
+    return Promise.resolve(stamp({ ok: true, honeypot: true }, { kind: "skip", reason: "honeypot" }, input, rateScope));
   }
   const email = normalizeAmpelEmail(input.email);
   if (!email) {
-    return Promise.resolve(stamp({ ok: false, status: 400, error: AMPEL_RESULT_MAIL.invalidEmail }, { kind: "skip", reason: "email" }, input));
+    return Promise.resolve(stamp({ ok: false, status: 400, error: AMPEL_RESULT_MAIL.invalidEmail }, { kind: "skip", reason: "email" }, input, rateScope));
   }
-  const raw = typeof input.answers === "string" ? input.answers : "";
-  const answers = decodeAmpelAnswers(raw);
-  const code = answers ? encodeAmpelAnswers(answers) : null;
-  if (!answers || !code || !scoreAmpel(answers)) {
-    return Promise.resolve(stamp({ ok: false, status: 400, error: "Bitte beantworten Sie alle Fragen." }, { kind: "skip", reason: "answers" }, input));
+  const parsed = parsedAnswers(input.answers, deps.questions);
+  if (!parsed) {
+    return Promise.resolve(stamp({ ok: false, status: 400, error: "Bitte beantworten Sie alle Fragen." }, { kind: "skip", reason: "answers" }, input, rateScope));
   }
-  const key = `${email}\n${code}`;
+  const { answers, code } = parsed;
+  const key = deps.rateScope ? `${deps.rateScope}\n${email}\n${code}` : `${email}\n${code}`;
   const current = runs.get(key);
   if (current) return current;
   const run = runSubmit(email, answers, code, input, deps).finally(() => {
