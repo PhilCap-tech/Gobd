@@ -294,8 +294,8 @@ async function main() {
     ok(seite?.noindex === false, `${slug} is indexable`);
   }
   ok(
-    !branchen.includes("item.slug !== seite.slug"),
-    "other-industries block lists every industry page",
+    branchen.includes("item.slug !== seite.slug"),
+    "other-industries block omits the current page",
   );
   ok(
     !header.includes("BRANCHEN_LINKS") && !header.includes("Branchenseiten"),
