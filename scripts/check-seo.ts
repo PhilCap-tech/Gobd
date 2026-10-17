@@ -264,9 +264,9 @@ async function main() {
   const branchen = source("components/branchen-page.tsx");
   ok(
     source("lib/branchen.ts").includes(
-      '["friseure", "einzelhandel", "taxi", "kiosk", "verein", "apotheke"]',
+      '["friseure", "einzelhandel", "taxi", "kiosk", "verein", "apotheke", "automaten", "hotel"]',
     ),
-    "BRANCHEN_SLUGS includes verein and apotheke",
+    "BRANCHEN_SLUGS includes verein, apotheke, automaten and hotel",
   );
   ok(footer.includes("listBranchenFooterLinks"), "footer reads content/branchen");
   ok(footer.includes(">Branchen<"), "footer column is titled Branchen");
@@ -289,13 +289,13 @@ async function main() {
     const seite = seiten.find((item) => item.slug === slug);
     ok(seite?.noindex === false, `${slug} is indexable`);
   }
-  for (const slug of ["verein", "apotheke"] as const) {
+  for (const slug of ["verein", "apotheke", "automaten", "hotel"] as const) {
     const seite = seiten.find((item) => item.slug === slug);
     ok(seite?.noindex === false, `${slug} is indexable`);
   }
   ok(
-    !branchen.includes("item.slug !== seite.slug"),
-    "other-industries block lists every industry page",
+    branchen.includes("item.slug !== seite.slug"),
+    "other-industries block omits the current page",
   );
   ok(
     !header.includes("BRANCHEN_LINKS") && !header.includes("Branchenseiten"),
