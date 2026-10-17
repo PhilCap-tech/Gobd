@@ -29,6 +29,8 @@ Grundlagen zum Aufbau: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfa
 
 Die Verfahrensdokumentation soll beschreiben, was **heute** bei Ihnen läuft — nicht was vor zwei Softwarewechseln galt. Bei einer Betriebsprüfung oder bei Rückfragen des Beraters wird oft zuerst geprüft, ob Text und Praxis zusammenpassen. Siehe auch: [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung).
 
+Eine ruhige Einordnung, ob die Beschreibung gepflegt, lückenhaft oder noch nicht vorhanden ist, gibt [Verfahrensdokumentation: Grün, Gelb oder Rot](/blog/verfahrensdokumentation-ampel-gruen-gelb-rot).
+
 Aktualisieren heißt nicht, jedes Tippfehler-Korrektur als Großprojekt zu behandeln. Es heißt: wesentliche Abweichungen bewusst nachziehen und freigeben.
 
 ## Wann sollten Sie aktualisieren?
