@@ -34,7 +34,7 @@ Die GoBD (Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büche
 - wer verantwortlich ist
 - wie Aufbewahrung, Zugriff und Änderungen organisiert sind
 
-Fehlt die Dokumentation, ist sie veraltet oder beschreibt etwas anderes als den Alltag, entstehen oft Rückfragen. Das heißt nicht automatisch „alles verloren“ — und eine vorhandene Datei heißt nicht automatisch „alles in Ordnung“. Es geht um **Nachvollziehbarkeit**, nicht um Show.
+Fehlt die Dokumentation, ist sie veraltet oder beschreibt etwas anderes als den Alltag, entstehen oft Rückfragen. Das heißt nicht automatisch „alles verloren“ — und eine vorhandene Datei heißt nicht automatisch „alles in Ordnung“. Es geht um **Nachvollziehbarkeit**, nicht um Show. Eine erste Sortierung dieses Stands gibt [Verfahrensdokumentation: Grün, Gelb oder Rot](/blog/verfahrensdokumentation-ampel-gruen-gelb-rot).
 
 Besonders häufig wird die Doku relevant, wenn:
 

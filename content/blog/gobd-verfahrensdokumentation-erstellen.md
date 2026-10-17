@@ -203,6 +203,7 @@ Wenn Sie den Entwurf nicht leer starten möchten: [GoBD-Verfahrensdokumentation 
 - [Ersetzendes Scannen in der Verfahrensdokumentation](/blog/ersetzendes-scannen-verfahrensdokumentation)
 - [Checkliste: Zuständigkeiten und Vertretung festhalten](/blog/verfahrensdokumentation-checkliste-zustaendigkeiten-vertretung)
 - [Vorlage: Kapitel Datensicherung und Archivierung](/blog/verfahrensdokumentation-vorlage-datensicherung-archivierung)
+- [Verfahrensdokumentation erstellen bei der Gründung](/blog/verfahrensdokumentation-erstellen-gruendung) — vom ersten Beleg an
 
 ## Disclaimer
 
