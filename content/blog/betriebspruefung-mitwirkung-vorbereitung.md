@@ -78,7 +78,7 @@ Haken Sie nur ab, was bei Ihnen so steht.
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF). Eine Gliederung zum Zuordnen der Kapitel: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF).
 
-Unsicher, ob Ansprechpartner, Ablageort und die aktuelle Fassung schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
+Unsicher, ob Ansprechpartner, Ablageort und die aktuelle Fassung schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte. Wo Sie heute stehen, können Sie vorher ruhig einordnen: die [Betriebsprüfungs-Ampel](/ampel-check) gibt Grün, Gelb oder Rot und ersetzt keine Steuerberatung.
 
 ## Was ältere Versionen leisten
 

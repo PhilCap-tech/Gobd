@@ -92,7 +92,7 @@ Buchungsbelege sind acht Jahre aufzubewahren (§ 147 Abs. 1 Nr. 4, Abs. 3 Satz 1
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF). Eine Gliederung zum Zuordnen der Kapitel: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF).
 
-Unsicher, ob Ansprechpartner, Systeme und die aktuelle Fassung schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
+Unsicher, ob Ansprechpartner, Systeme und die aktuelle Fassung schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte. Eine erste Einordnung in Grün, Gelb oder Rot gibt die [Betriebsprüfungs-Ampel](/ampel-check). Das Ergebnis beruht auf Ihren Angaben und sagt nichts über den Ausgang einer Prüfung.
 
 ## Verfahrensdokumentation online erstellen
 
