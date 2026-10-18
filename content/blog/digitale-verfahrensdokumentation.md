@@ -83,7 +83,7 @@ Ist-Zustand, vier Blöcke, Offene Punkte — wie im [Erstellen-Leitfaden](/blog/
 
 ### 2. Speicherort festlegen
 
-Ein klarer Ort (z. B. Freigabe-Ordner im DMS oder abgestimmter Cloud-Pfad). Berechtigungen: Lesen für Beteiligte, Schreiben begrenzt.
+Ein klarer Ort (z. B. Freigabe-Ordner im DMS oder abgestimmter Cloud-Pfad). Berechtigungen: Lesen für Beteiligte, Schreiben begrenzt. Entstehen Belege im Homeoffice oder liegen sie in einem Cloud-Speicher, beschreibt [Verfahrensdokumentation für Homeoffice und Cloud-Belege](/blog/verfahrensdokumentation-homeoffice-cloud) den Weg bis in die betriebliche Ablage.
 
 ### 3. Namens- und Versionskonvention
 

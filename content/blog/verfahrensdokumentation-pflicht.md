@@ -70,7 +70,7 @@ Eine GmbH führt in der Regel Bücher. Die Verfahrensdokumentation ist dann Sach
 
 Liegt die Buchhaltung bei der Steuerkanzlei, bleibt die Pflicht beim Steuerpflichtigen. Die Auslagerung ändert den Belegweg, sie verschiebt nicht die Verantwortung. In der Dokumentation gehört beides hin: was Sie im Betrieb tun, bis die Unterlagen die Kanzlei erreichen, und was die Kanzlei übernimmt, soweit Ihnen das bekannt ist.
 
-Die Kanzlei kann den Entwurf prüfen, ergänzen und mit Ihnen abstimmen. Den Text muss sie nicht von Null schreiben, und durch den Auftrag wird sie nicht automatisch zur Verantwortlichen für Ihre Verfahrensdokumentation. Freigabe und wahrheitsgemäßer Inhalt bleiben bei Ihnen.
+Die Kanzlei kann den Entwurf prüfen, ergänzen und mit Ihnen abstimmen. Den Text muss sie nicht von Null schreiben, und durch den Auftrag wird sie nicht automatisch zur Verantwortlichen für Ihre Verfahrensdokumentation. Freigabe und wahrheitsgemäßer Inhalt bleiben bei Ihnen. Wie Sie die Arbeit im laufenden Jahr zwischen Betrieb und Kanzlei aufteilen, steht in [Verfahrensdokumentation und Steuerberater: Wer macht was?](/blog/verfahrensdokumentation-steuerberater-arbeitsteilung).
 
 ## Was ohne Verfahrensdokumentation folgen kann
 
@@ -105,7 +105,7 @@ Vor einer Betriebsprüfung zählt vor allem, ob der Text zur Realität passt und
 
 Wenn Sie Bargeld führen, gehört der Kassenteil in dieselbe Dokumentation. Was dort hinein soll, steht in [Verfahrensdokumentation für die Kasse](/blog/verfahrensdokumentation-kasse).
 
-Unsicher, ob die Grundlagen schon beisammen sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
+Unsicher, ob die Grundlagen schon beisammen sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte. Eine erste Einordnung, ob Beschreibung, Belegweg und Verantwortliche schon greifbar sind, gibt die [Betriebsprüfungs-Ampel](/ampel-check). Sie ersetzt keine Steuerberatung.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).
 

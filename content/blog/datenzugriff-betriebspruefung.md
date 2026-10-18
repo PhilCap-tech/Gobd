@@ -108,7 +108,7 @@ Sinnvoll ist ein Stand, den Sie und Ihre Beratung kennen.
 - ein Probelauf des Exports, mit Datum
 - offene Punkte sichtbar, nicht durch Formulierungen ersetzt
 
-Unsicher, ob Systeme, Datenorte und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
+Unsicher, ob Systeme, Datenorte und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte. Eine erste Einordnung des Stands gibt die [Betriebsprüfungs-Ampel](/ampel-check). Sie dient der Orientierung und sagt nichts über den Ausgang einer Prüfung.
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).
 

@@ -12,7 +12,7 @@ secondaryKeywords:
 ctaSoft: "/readiness"
 ctaPrimary: "/checkout"
 status: "ready-for-publish"
-date: "2026-09-19"
+date: "2026-10-18"
 ---
 
 # Verfahrensdokumentation bei der Betriebsprüfung
@@ -85,9 +85,15 @@ Ziel ist nicht Perfektion um jeden Preis, sondern ein **aktueller, ehrlicher Sta
 6. **Zugriff und Export** — klären, wie Sie Prüfungsdaten bereitstellen können (technisch und organisatorisch), ohne hier technische Anleitungen zu versprechen.
 7. **Berater einbinden** — frühzeitig, nicht erst am Prüfungstag.
 
+Den Gang von der Anordnung bis zum Bericht beschreibt [Betriebsprüfung: Ablauf und Unterlagen](/blog/betriebspruefung-ablauf-unterlagen). Was in den ersten Tagen nach einer Ankündigung zu prüfen ist, steht in [Betriebsprüfung angekündigt](/blog/betriebspruefung-angekuendigt-pruefungsanordnung). Wer Auskunft gibt und wo die aktuelle Fassung liegt, steht in [Mitwirkung und Vorbereitung bei der Betriebsprüfung](/blog/betriebspruefung-mitwirkung-vorbereitung).
+
 Unsicher, ob die Basics schon beisammen sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen, IT und Verantwortlichen — ohne Kreditkarte.
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).
+
+## Wo stehen Sie? Die Betriebsprüfungs-Ampel
+
+Bevor Sie Unterlagen sortieren, können Sie den Stand ruhig einordnen. Die kostenlose [Betriebsprüfungs-Ampel](/ampel-check) stellt zehn Ja-oder-Nein-Fragen, unter anderem zu Verfahrensdokumentation, Kasse, Aufbewahrung, Datenzugriff und internen Kontrollen. Sie sehen Grün, Gelb oder Rot mit Hinweisen, wo Sie ansetzen können. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung. Sie sagt nichts über den Ausgang einer späteren Prüfung.
 
 ## Was die Verfahrensdokumentation nicht leistet
 
@@ -137,6 +143,8 @@ Nein. Wir leisten keine Steuer- oder Rechtsberatung und versprechen keine Anerke
 - [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage) — Muster vs. geführt
 - [Ersetzendes Scannen in der Verfahrensdokumentation](/blog/ersetzendes-scannen-verfahrensdokumentation)
 - [Betriebsprüfung Ablauf und Unterlagen](/blog/betriebspruefung-ablauf-unterlagen) — Reihenfolge der Prüfung und angeforderte Unterlagen
+- [Betriebsprüfung angekündigt](/blog/betriebspruefung-angekuendigt-pruefungsanordnung) — was in den ersten Tagen zu prüfen ist
+- [Mitwirkung und Vorbereitung bei der Betriebsprüfung](/blog/betriebspruefung-mitwirkung-vorbereitung) — wer Auskunft gibt und wo die Fassung liegt
 
 ## Disclaimer
 
