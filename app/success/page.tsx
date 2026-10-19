@@ -9,6 +9,7 @@ import { PurchaseConversion } from "@/components/purchase-conversion";
 import {
   SuccessNotFound,
   SuccessPending,
+  SuccessSessionInvalid,
 } from "@/components/success-status";
 import { getSessionEmail, sessionIdForCheckoutProof } from "@/lib/auth";
 import { isCompAccessEmail } from "@/lib/comp-access";
@@ -30,6 +31,14 @@ import {
   SETUP_EUR,
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
+import {
+  isUnresolvableCheckoutSession,
+  probeSuccessCheckout,
+  shouldProbeSuccessCheckout,
+  SUCCESS_CHECKOUT_CHECKED_PARAM,
+  successPageBody,
+  successPendingHref,
+} from "@/lib/success-session";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import { countsInReporting } from "@/lib/test-entities";
 import { purchaseSessionIdFromCheckout } from "@/lib/tracking";
@@ -68,10 +77,13 @@ export default async function SuccessPage({
     session_id?: string | string[];
     document_id?: string | string[];
     anmeldung?: string | string[];
+    geprueft?: string | string[];
   }>;
 }) {
   const params = await searchParams;
   const sessionId = await sessionIdForCheckoutProof(firstQueryValue(params.session_id));
+  const alreadyChecked =
+    firstQueryValue(params[SUCCESS_CHECKOUT_CHECKED_PARAM]) === "1";
   const anmeldung = firstQueryValue(params.anmeldung) ?? "";
   const documentId = firstQueryValue(params.document_id);
   const sessionEmail = await getSessionEmail();
@@ -113,31 +125,45 @@ export default async function SuccessPage({
       ? purchaseSessionIdFromCheckout(purchaseLookup)
       : "";
 
-  const pendingQuery = new URLSearchParams();
-  if (sessionId) pendingQuery.set("session_id", sessionId);
-  if (documentId) pendingQuery.set("document_id", documentId);
-  const pendingHref = pendingQuery.toString()
-    ? `/success?${pendingQuery.toString()}`
-    : "/success";
+  const sessionInvalid = isUnresolvableCheckoutSession(
+    shouldProbeSuccessCheckout({
+      sheetsDown,
+      hasRow: Boolean(row),
+      sessionId,
+      alreadyChecked,
+    })
+      ? await probeSuccessCheckout(sessionId, resolveCheckoutSession)
+      : null,
+  );
+  const body = successPageBody({
+    sheetsDown,
+    hasRow: Boolean(row),
+    allowed,
+    sessionId,
+    sessionInvalid,
+  });
+  const pendingHref = successPendingHref({
+    sessionId,
+    documentId,
+    checked:
+      alreadyChecked ||
+      (Boolean(sessionId) && !sheetsDown && !row && !sessionInvalid),
+  });
 
   return (
     <>
       <SiteHeader backHref="/" backLabel="← Zur Landing" />
       <main className="wrap page">
-        {sheetsDown ? (
+        {body === "sheets" ? (
           <div className="card">
             <h1>Bitte einen Moment</h1>
             <p className="prose">{SHEETS_RETRY_MESSAGE}</p>
           </div>
-        ) : !row ? (
-          sessionId ? (
-            <SuccessPending href={pendingHref} sessionId={sessionId} />
-          ) : (
-            <SuccessNotFound />
-          )
-        ) : !allowed ? (
-          <SuccessNotFound />
-        ) : (
+        ) : body === "invalid" ? (
+          <SuccessSessionInvalid />
+        ) : body === "pending" ? (
+          <SuccessPending href={pendingHref} sessionId={sessionId} />
+        ) : body === "ready" && row ? (
           <section>
             {purchaseSessionId ? (
               <PurchaseConversion sessionId={purchaseSessionId} />
@@ -195,6 +221,8 @@ export default async function SuccessPage({
               </p>
             </div>
           </section>
+        ) : (
+          <SuccessNotFound />
         )}
       </main>
       <SiteFooter />

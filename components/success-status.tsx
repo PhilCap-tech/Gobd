@@ -2,10 +2,35 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { LEGAL_OPERATOR } from "@/lib/legal";
 
 const POLL_MS = 2000;
 const MAX_WAIT_MS = 30_000;
 const STORAGE_PREFIX = "gobd-success-pending:";
+
+export const SUCCESS_SESSION_INVALID_HEADING =
+  "Diese Bestell-Sitzung ist ungültig oder abgelaufen";
+
+export const SUCCESS_SESSION_INVALID_LEAD =
+  "Wenn die Zahlung bereits erfolgt ist, schreiben Sie bitte an";
+
+export function successSessionInvalidSentence(
+  email: string = LEGAL_OPERATOR.email,
+): string {
+  return `${SUCCESS_SESSION_INVALID_LEAD} ${email}.`;
+}
+
+export function SuccessSessionInvalid() {
+  const email = LEGAL_OPERATOR.email;
+  return (
+    <div className="card" role="alert">
+      <h1>{SUCCESS_SESSION_INVALID_HEADING}</h1>
+      <p className="prose">
+        {SUCCESS_SESSION_INVALID_LEAD} <a href={`mailto:${email}`}>{email}</a>.
+      </p>
+    </div>
+  );
+}
 
 export function SuccessNotFound() {
   return (
@@ -55,7 +80,7 @@ export function SuccessPending({
     const reload =
       remaining > POLL_MS
         ? window.setTimeout(() => {
-            window.location.reload();
+            window.location.replace(href);
           }, POLL_MS)
         : undefined;
 
@@ -63,7 +88,7 @@ export function SuccessPending({
       window.clearTimeout(giveUp);
       if (reload) window.clearTimeout(reload);
     };
-  }, [sessionId]);
+  }, [href, sessionId]);
 
   if (timedOut) {
     return <SuccessNotFound />;
