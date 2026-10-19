@@ -4,6 +4,17 @@ import { CANONICAL_PRODUCTION_APP_URL } from "@/lib/env";
 /** Production origin for canonical links and the sitemap. No trailing slash. */
 export const SITE_ORIGIN = CANONICAL_PRODUCTION_APP_URL;
 
+/**
+ * Homepage URL. `https://gobd-doku-erstellen.de` answers 308 with
+ * `Location: https://www.gobd-doku-erstellen.de/` — the slash is part of
+ * the target. Other paths stay without one (`/faq/` 308s to `/faq`).
+ *
+ * Next's metadata resolver rewrites a root URL to the bare origin, so the
+ * homepage prints this string on a `<link rel="canonical">` and `og:url`
+ * instead of `alternates.canonical` / `openGraph.url`.
+ */
+export const HOME_CANONICAL_URL = `${SITE_ORIGIN}/`;
+
 export const SITE_NAME = "GoBD Verfahrensdoku";
 
 /** Default document title. Same string the homepage has used as its title. */
@@ -13,12 +24,6 @@ export const HOME_TITLE =
 /** Default meta description. Same string the homepage has used. */
 export const HOME_DESCRIPTION =
   "GoBD-Verfahrensdokumentation online erstellen: strukturierte digitale Dokumentation für KMU & Handwerk — PDF plus offene Punkte. Kein Steuerberatungsersatz.";
-
-/**
- * Sitemap `lastmod` for URLs that have no content date of their own.
- * Blog posts use their publication date; branch pages use their `stand`.
- */
-export const SITEMAP_LASTMOD = "2026-10-15";
 
 /** Static Open Graph image served by `app/opengraph-image.tsx` (1200×630). */
 export const OG_IMAGE = {
@@ -49,7 +54,6 @@ export const ROOT_TWITTER: NonNullable<Metadata["twitter"]> = {
 export const HOME_OPEN_GRAPH = withOgImage({
   title: HOME_TITLE,
   description: HOME_DESCRIPTION,
-  url: CANONICAL_PRODUCTION_APP_URL,
   siteName: SITE_NAME,
   locale: "de_DE",
   type: "website",
@@ -88,9 +92,9 @@ export const INDEXABLE_STATIC_PATHS = [
   "/cookies",
 ] as const;
 
-/** Absolute production URL. "/" is the origin without a trailing slash. */
+/** Absolute production URL. "/" is `HOME_CANONICAL_URL` (trailing slash). */
 export function canonicalUrl(path: string): string {
-  if (path === "/" || path === "") return SITE_ORIGIN;
+  if (path === "/" || path === "") return HOME_CANONICAL_URL;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${SITE_ORIGIN}${normalized}`;
 }

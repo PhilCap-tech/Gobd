@@ -41,12 +41,16 @@ export function ConsentBanner() {
   if (!visible) return null;
 
   return (
-    <aside
+    <div
       className="consent-banner"
       role="dialog"
-      aria-label="Cookies"
+      aria-modal="true"
+      aria-labelledby="consent-title"
       aria-describedby="consent-text"
     >
+      <span id="consent-title" className="consent-title">
+        Cookies
+      </span>
       <div className="consent-banner-inner shell">
         <p id="consent-text">
           {partner
@@ -74,7 +78,7 @@ export function ConsentBanner() {
           </button>
         </div>
       </div>
-    </aside>
+    </div>
   );
 }
 

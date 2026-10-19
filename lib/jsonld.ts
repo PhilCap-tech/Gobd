@@ -170,6 +170,38 @@ export function faqPageJsonLd(entries: FaqEntry[]): JsonLdNode {
 
 export type Crumb = { name: string; path: string };
 
+export type ArticleJsonLdInput = {
+  headline: string;
+  description: string;
+  datePublished: string;
+  dateModified: string;
+  url: string;
+};
+
+/** Blog article. Author and publisher are the site organization. */
+export function articleJsonLd(article: ArticleJsonLdInput): JsonLdNode {
+  const org = {
+    "@type": "Organization",
+    "@id": ORGANIZATION_ID,
+    name: LEGAL_OPERATOR.name,
+  };
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.headline,
+    description: article.description,
+    datePublished: article.datePublished,
+    dateModified: article.dateModified,
+    mainEntityOfPage: article.url,
+    author: org,
+    publisher: {
+      ...org,
+      url: SITE_ORIGIN,
+      logo: canonicalUrl("/brand/logo-lockup.png"),
+    },
+  };
+}
+
 export function breadcrumbJsonLd(items: Crumb[]): JsonLdNode {
   return {
     "@context": "https://schema.org",

@@ -17,6 +17,9 @@ const noStoreHeaders = [
  * Report-Only so a missing Google or Meta host cannot block the consent-gated
  * tag, Meta Pixel, the Stripe Checkout redirect, or magic-link fetch.
  * preload is omitted on purpose.
+ * `upgrade-insecure-requests` is omitted: browsers ignore it in a report-only
+ * policy and log an error. Enforcing it would upgrade `http://localhost`
+ * during `next dev` and `next start`. Production already sends HSTS.
  */
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -30,7 +33,6 @@ const contentSecurityPolicy = [
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",
-  "upgrade-insecure-requests",
 ].join("; ");
 
 const securityHeaders = [

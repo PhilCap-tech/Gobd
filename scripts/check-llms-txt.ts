@@ -20,7 +20,7 @@ import {
   organizationJsonLd,
   productOfferJsonLd,
 } from "../lib/jsonld";
-import { branchenPath, listBranchenSeiten } from "../lib/branchen";
+import { BRANCHEN_SLUGS, branchenPath, listBranchenSeiten } from "../lib/branchen";
 import { buildLlmsTxt } from "../lib/llms-txt";
 import { markdownH2Section } from "../lib/markdown-section";
 import {
@@ -243,18 +243,17 @@ ok(crumbJson.includes('"@type":"BreadcrumbList"'), "breadcrumb type");
 
 async function checkSitemap() {
   const urls = (await sitemap()).map((entry) => entry.url);
-  ok(urls.includes(`${origin}/llms.txt`), "sitemap lists /llms.txt");
+  ok(!urls.includes(`${origin}/llms.txt`), "sitemap omits /llms.txt");
   ok(urls.includes(`${origin}/faq`), "sitemap still lists /faq");
   const branchen = await listBranchenSeiten();
   ok(branchen.length >= 2, "branch pages are loaded");
+  for (const slug of BRANCHEN_SLUGS) {
+    ok(text.includes(canonicalUrl(branchenPath(slug))), `llms.txt links ${branchenPath(slug)}`);
+  }
   for (const seite of branchen) {
     const url = canonicalUrl(branchenPath(seite.slug));
     if (seite.noindex) {
       ok(!urls.includes(url), `sitemap omits noindex ${branchenPath(seite.slug)}`);
-      ok(
-        !text.includes(branchenPath(seite.slug)),
-        `llms.txt omits noindex ${branchenPath(seite.slug)}`,
-      );
     } else {
       ok(urls.includes(url), `sitemap lists ${branchenPath(seite.slug)}`);
     }

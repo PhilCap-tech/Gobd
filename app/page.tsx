@@ -61,7 +61,6 @@ import styles from "./home.module.css";
 export const metadata: Metadata = {
   title: { absolute: HOME_TITLE },
   description: HOME_DESCRIPTION,
-  alternates: { canonical: canonicalUrl("/") },
   openGraph: HOME_OPEN_GRAPH,
   twitter: HOME_TWITTER,
 };
@@ -172,6 +171,8 @@ export default function HomePage() {
 
   return (
     <div className={`${styles.page} kanzlei-home`}>
+      <link rel="canonical" href={canonicalUrl("/")} />
+      <meta property="og:url" content={canonicalUrl("/")} />
       <CrumbJsonLd items={HOME_CRUMBS} />
       <JsonLd data={faqPageJsonLd(HOME_FAQ)} />
       <JsonLd data={productOfferJsonLd()} />

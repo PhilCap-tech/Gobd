@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CrumbJsonLd } from "@/components/json-ld";
+import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { BlogMarkdown } from "@/lib/blog-markdown";
@@ -10,6 +10,7 @@ import {
   getPublishedPost,
   listPublishedPosts,
 } from "@/lib/blog";
+import { articleJsonLd } from "@/lib/jsonld";
 import { canonicalUrl } from "@/lib/seo";
 
 export async function generateStaticParams() {
@@ -51,6 +52,15 @@ export default async function BlogArticlePage({
           { name: "Blog", path: "/blog" },
           { name: post.h1, path: `/blog/${post.slug}` },
         ]}
+      />
+      <JsonLd
+        data={articleJsonLd({
+          headline: post.h1,
+          description: post.metaDescription,
+          datePublished: post.date,
+          dateModified: post.dateModified,
+          url: canonicalUrl(`/blog/${post.slug}`),
+        })}
       />
       <SiteHeader backHref="/blog" backLabel="← Zum Blog" />
       <main className="wrap page blog">
