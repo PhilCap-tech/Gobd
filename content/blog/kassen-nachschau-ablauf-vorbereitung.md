@@ -15,6 +15,12 @@ ctaSoft: "/kassen-check"
 ctaPrimary: "/checkout"
 status: "ready-for-publish"
 date: "2026-10-19"
+stand: "2026-10-19"
+quellen:
+  - "§ 146b AO — https://www.gesetze-im-internet.de/ao_1977/__146b.html"
+  - "§ 146a AO — https://www.gesetze-im-internet.de/ao_1977/__146a.html"
+  - "§ 146 AO — https://www.gesetze-im-internet.de/ao_1977/__146.html"
+  - "§ 147 AO — https://www.gesetze-im-internet.de/ao_1977/__147.html"
 ---
 
 # Kassennachschau: Ablauf, Unterlagen und Vorbereitung
