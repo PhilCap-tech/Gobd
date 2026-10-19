@@ -28,13 +28,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const moduleFragebogen: MetadataRoute.Sitemap = MODULE.map((modul) =>
     dated(canonicalUrl(modulMusterFragebogenPath(modul.id))),
   );
-  const llmsTxt: MetadataRoute.Sitemap = [dated(canonicalUrl("/llms.txt"))];
   const branchen: MetadataRoute.Sitemap = (await listBranchenSeiten())
     .filter((seite) => !seite.noindex)
     .map((seite) => dated(canonicalUrl(branchenPath(seite.slug)), seite.stand));
   return [
     ...staticPages,
-    ...llmsTxt,
     ...gesamt,
     ...moduleFragebogen,
     ...blogPosts,

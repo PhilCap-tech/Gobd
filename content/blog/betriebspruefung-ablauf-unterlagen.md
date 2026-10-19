@@ -123,6 +123,7 @@ Nein. Die Unterlagen machen den Zeitraum auffindbar. Die rechtliche Einordnung d
 - [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd) — acht Jahre für Buchungsbelege, zehn Jahre für Organisationsunterlagen
 - [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren) — Version und Gültig-ab
 - [Mitwirkung und digitale Vorbereitung](/blog/betriebspruefung-mitwirkung-vorbereitung) — wer antwortet und wo die aktuelle Fassung liegt
+- [Kassennachschau: Ablauf, Unterlagen und Vorbereitung](/blog/kassen-nachschau-ablauf-vorbereitung)
 
 ## Disclaimer
 

@@ -160,6 +160,7 @@ Nein. § 146b AO erlaubt eine unangekündigte Kassen-Nachschau. Sie ist ein eige
 - [Verfahrensdokumentation für Kioske](/verfahrensdokumentation-kiosk)
 - [Verfahrensdokumentation für Vereine](/verfahrensdokumentation-verein)
 - [für Apotheken](/verfahrensdokumentation-apotheke)
+- [Kassennachschau: Ablauf, Unterlagen und Vorbereitung](/blog/kassen-nachschau-ablauf-vorbereitung)
 
 ## Disclaimer
 

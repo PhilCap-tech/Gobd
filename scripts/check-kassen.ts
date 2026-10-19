@@ -64,8 +64,12 @@ ok((INDEXABLE_STATIC_PATHS as readonly string[]).includes(KASSEN_CHECK_PATH), "s
 ok(source("app/sitemap.ts").includes("INDEXABLE_STATIC_PATHS"), "sitemap is built from the indexable list");
 ok(!source("next.config.ts").includes('{ source: "/kassen-check",'), "the check page has no robots header");
 ok(
-  source("next.config.ts").includes('{ source: "/kassen-check/:path*",'),
+  source("next.config.ts").includes('{ source: "/kassen-check/:path+",'),
   "the confirm path stays noindex",
+);
+ok(
+  !source("next.config.ts").includes('{ source: "/kassen-check/:path*",'),
+  "the check page path is not covered by a zero-or-more robots header",
 );
 const page = source("app/kassen-check/page.tsx");
 ok(page.includes("index: true") && page.includes("follow: true"), "page metadata is index, follow");
