@@ -8,7 +8,7 @@
  *
  * NEXT_PUBLIC_GOOGLE_ADS_ID unset → no Ads config on pages.
  * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO unset → no purchase conversion.
- * NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO unset → no Ampel lead conversion.
+ * NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO unset → no Ampel or Kassen lead conversion.
  * The purchase conversion is not the Readiness submit conversion.
  * After consent, gtag('config', AW-…) runs on every page so Ads sees the tag.
  */
@@ -78,6 +78,7 @@ let lastReadinessStartPath = "";
 let lastGooglePagePath = "";
 let lastAdsConfigPath: string | null = null;
 let leadConversionQueued = false;
+let kassenSubmitTracked = false;
 let ampelStartTracked = false;
 let ampelResultTracked = false;
 let consentDefaultSet = false;
@@ -106,8 +107,8 @@ export function getGoogleAdsPurchaseSendTo(): string {
 }
 
 /**
- * Full Google Ads send_to for the Ampel lead, e.g. AW-XXXXXXXXX/LABEL.
- * Used only after a successful Ampel email submit. Unset → no conversion.
+ * Full Google Ads send_to for the Ampel and Kassen lead, e.g. AW-XXXXXXXXX/LABEL.
+ * Used only after a successful email submit. Unset → no conversion.
  * The Steuerberater form does not use this label.
  */
 export function getGoogleAdsLeadSendTo(): string {
@@ -382,18 +383,19 @@ export function trackReadinessSubmit(onDone?: () => void): void {
 }
 
 /**
- * Ampel email step, only after the submit has succeeded.
+ * Ampel or Kassen email step, only after the submit has succeeded.
  * Sends nothing when NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO is unset.
  * One conversion per page load. Value and currency are included only when passed.
  * Not the Readiness or purchase conversion, and not the Steuerberater form.
+ * Returns whether the conversion was queued.
  */
-export function trackLeadSubmit(detail?: { value?: number; currency?: string }): void {
+export function trackLeadSubmit(detail?: { value?: number; currency?: string }): boolean {
   const sendTo = normalizeGoogleAdsSendTo(
     getGoogleAdsLeadSendTo(),
     getGoogleAdsId(),
   );
-  if (!sendTo || !hasMarketingConsent() || leadConversionQueued) return;
-  if (!armGoogleTag(sendTo)) return;
+  if (!sendTo || !hasMarketingConsent() || leadConversionQueued) return false;
+  if (!armGoogleTag(sendTo)) return false;
   leadConversionQueued = true;
   window.gtag?.("event", "conversion", {
     send_to: sendTo,
@@ -401,6 +403,29 @@ export function trackLeadSubmit(detail?: { value?: number; currency?: string }):
       ? { value: detail.value, currency: detail.currency ?? "EUR" }
       : {}),
   });
+  return true;
+}
+
+/** Once per browser session for the Kassen email submit. */
+export const KASSEN_CHECK_SUBMIT_STORAGE_KEY = "gobd_kassen_check_submit";
+
+/**
+ * Successful Kassen email submit. Reuses {@link trackLeadSubmit} for the
+ * Google Ads lead (`NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO`) and sends GA4
+ * `kassen_check_submit` when a measurement id is set. Consent-gated.
+ * At most once per browser session, so a reload or a second submit does not
+ * count again.
+ */
+export function trackKassenCheckSubmit(detail?: { value?: number; currency?: string }): void {
+  if (typeof window === "undefined" || !hasMarketingConsent()) return;
+  if (kassenSubmitTracked || readStorageFlag(window.sessionStorage, KASSEN_CHECK_SUBMIT_STORAGE_KEY)) {
+    return;
+  }
+  const conversionSent = trackLeadSubmit(detail);
+  const gaSent = trackConsentedGaEvent("kassen_check_submit");
+  if (!conversionSent && !gaSent) return;
+  kassenSubmitTracked = true;
+  writeStorageFlag(window.sessionStorage, KASSEN_CHECK_SUBMIT_STORAGE_KEY);
 }
 
 /**
@@ -427,9 +452,15 @@ export function trackAmpelResult(): void {
 }
 
 function trackAmpelGaEvent(name: "ampel_start" | "ampel_result"): void {
+  trackConsentedGaEvent(name);
+}
+
+/** GA4 custom event after marketing consent. No event when the measurement id is unset. */
+function trackConsentedGaEvent(name: string): boolean {
   const gaId = getGaMeasurementId();
-  if (!gaId || !armGoogleTag() || !window.gtag) return;
+  if (!gaId || !armGoogleTag() || !window.gtag) return false;
   window.gtag("event", name, { send_to: gaId });
+  return true;
 }
 
 function trackAmpelPixel(name: "AmpelStart" | "AmpelResult"): void {
@@ -585,6 +616,7 @@ export function resetTrackingForChecks(): void {
   lastGooglePagePath = "";
   lastAdsConfigPath = null;
   leadConversionQueued = false;
+  kassenSubmitTracked = false;
   ampelStartTracked = false;
   ampelResultTracked = false;
   consentDefaultSet = false;
