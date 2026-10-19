@@ -32,6 +32,7 @@ import {
 import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
 import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
+import { queueLeadNotice } from "@/lib/lead-notice";
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
@@ -376,6 +377,20 @@ export async function deliverAmpelResult(
   if (mail.duplicate) return alreadySent();
   if (mail.inflight || !delivered(mail)) {
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
+  }
+
+  if (mail.sent) {
+    const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
+    const resultMailId = (deps.dedupeKey ?? ampelPdfDedupeKey)(email, code);
+    queueLeadNotice({
+      tool: deps.check === "kassen-check" ? "kassen" : "ampel",
+      email,
+      light: scored?.light ?? "",
+      marketingRequested: input.marketing === true,
+      ref: input.ref,
+      resultMailId,
+      at: now,
+    });
   }
 
   const finish = () => finishAmpelResult(email, answers, code, input, deps, now, timeoutMs);

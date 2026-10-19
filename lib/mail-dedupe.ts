@@ -90,6 +90,15 @@ export function checkoutNoticeMailKey(sessionId: string): string {
   return `checkout-notice:${sessionId.trim()}`;
 }
 
+/**
+ * One internal lead note per result mail. No expiry.
+ * `anchor` is the lead id, or the normalized lead address plus the result-mail id.
+ */
+export function leadNoticeMailKey(tool: "ampel" | "kassen", anchor: string): string {
+  const name = tool === "kassen" ? "kassen" : "ampel";
+  return `lead-notice:${name}:${anchor.trim()}`;
+}
+
 export function failedPaymentMailKey(anchor: string): string {
   return `failed-payment:${anchor.trim()}`;
 }
