@@ -48,5 +48,11 @@ if (!/html\.consent-pending \.sticky-cta/.test(css) || !/body\.consent-open \.st
 if (!/max-height:\s*820px/.test(css) || !/bottom:\s*74px/.test(css)) {
   fail("short screens do not keep the sticky CTA above the banner");
 }
+if (banner.includes("<aside") || !banner.includes('role="dialog"')) {
+  fail("consent dialog must be a div with role=dialog");
+}
+if (!banner.includes('aria-modal="true"') || !banner.includes('aria-labelledby="consent-title"')) {
+  fail("consent dialog is missing aria-modal or aria-labelledby");
+}
 
 console.log("home-cta: checkout anchors stay native and the banner does not cover them");

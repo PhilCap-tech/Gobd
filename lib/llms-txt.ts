@@ -1,3 +1,4 @@
+import { BRANCHEN_SLUGS, branchenPath, listBranchenFooterLinks } from "@/lib/branchen";
 import { readFaqMarkdown } from "@/lib/faq-entries";
 import { agbMarkdown } from "@/lib/legal-content";
 import { LEGAL_OPERATOR } from "@/lib/legal";
@@ -27,6 +28,17 @@ const REVERSE_CHARGE =
 
 function quote(title: string, body: string): string[] {
   return [`### ${title}`, "", body, ""];
+}
+
+/** One line per `BRANCHEN_SLUGS` entry, so a new slug shows up here too. */
+function industryLines(): string[] {
+  const labels = new Map(
+    listBranchenFooterLinks().map((link) => [link.slug, link.label]),
+  );
+  return BRANCHEN_SLUGS.map((slug) => {
+    const label = labels.get(slug) ?? slug;
+    return `- [${label}](${canonicalUrl(branchenPath(slug))})`;
+  });
 }
 
 /**
@@ -78,8 +90,6 @@ export function buildLlmsTxt(): string {
     "",
     "## Seiten",
     "",
-    // Branch pages (`/verfahrensdokumentation-<slug>`) stay out until `noindex`
-    // is cleared. Add them in the same change that publishes the page.
     `- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Zufriedenheitsgarantie`,
     `- [AGB](${canonicalUrl("/agb")}): Vertragsbedingungen`,
     `- [Muster](${canonicalUrl("/muster")}): fiktive Muster der Verfahrensdokumentation`,
@@ -87,6 +97,7 @@ export function buildLlmsTxt(): string {
     `- [Datenschutz](${canonicalUrl("/datenschutz")})`,
     `- [Impressum](${canonicalUrl("/impressum")}): ${LEGAL_OPERATOR.name}, ${LEGAL_OPERATOR.street}, ${LEGAL_OPERATOR.zipCity}, ${LEGAL_OPERATOR.country}`,
     `- [Checkout](${canonicalUrl("/checkout")}): hier starten Sie die Bestellung`,
+    ...industryLines(),
     "",
     "## Erstattung und Kündigung",
     "",

@@ -10,19 +10,25 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import sitemap from "../app/sitemap";
 import openGraphImage, { size as ogSize } from "../app/opengraph-image";
+import { listPublishedPosts } from "../lib/blog";
 import {
+  BRANCHEN_SLUGS,
   branchenAnchorLabel,
+  branchenPath,
   listBranchenFooterLinks,
   listBranchenSeiten,
 } from "../lib/branchen";
 import { HANDEL_MUSTER_HREF, HANDEL_MUSTER_LABEL } from "../lib/branchen-links";
 import { HOME_CRUMBS, HOME_FAQ } from "../lib/home-faq";
 import {
+  ORGANIZATION_ID,
+  articleJsonLd,
   breadcrumbJsonLd,
   faqPageJsonLd,
   productOfferJsonLd,
   type JsonLdNode,
 } from "../lib/jsonld";
+import { buildLlmsTxt } from "../lib/llms-txt";
 import { MONTHLY_EUR, SETUP_EUR } from "../lib/pricing";
 import {
   HOME_DESCRIPTION,
@@ -32,8 +38,10 @@ import {
   OG_IMAGE,
   ROOT_OPEN_GRAPH,
   ROOT_TWITTER,
+  HOME_CANONICAL_URL,
   canonicalUrl,
 } from "../lib/seo";
+import { articleDateModified, gitCommitDate, isIsoDate, sourceLastmod } from "../lib/source-date";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -143,7 +151,10 @@ function checkShareMeta() {
   const images = homeOg.images as Array<{ url: string; width: number; height: number; alt: string }>;
   ok(homeOg.title === HOME_TITLE, "homepage og:title matches the document title");
   ok(homeOg.description === HOME_DESCRIPTION, "homepage og:description matches the document description");
-  ok(homeOg.url === canonicalUrl("/"), "homepage og:url is the canonical origin");
+  ok(
+    !("url" in homeOg),
+    "homepage og:url is not openGraph.url, because Next strips the root slash",
+  );
   ok(
     homeOg.locale === "de_DE" && "type" in homeOg && homeOg.type === "website",
     "homepage og locale and type",
@@ -205,6 +216,49 @@ async function checkSitemapLastmod() {
         : String(entry.lastModified);
     assert.ok(/^\d{4}-\d{2}-\d{2}/.test(value), `lastmod date for ${entry.url}`);
   }
+  const dates = new Set(
+    entries.map((entry) => {
+      const value =
+        entry.lastModified instanceof Date
+          ? entry.lastModified.toISOString()
+          : String(entry.lastModified);
+      return value.slice(0, 10);
+    }),
+  );
+  ok(dates.size > 1, "sitemap lastmod is not one blanket date");
+  ok(!entries.some((entry) => entry.url.endsWith("/llms.txt")), "sitemap omits /llms.txt");
+  ok(!source("lib/seo.ts").includes("SITEMAP_LASTMOD"), "no blanket sitemap lastmod constant");
+  ok(!source("app/sitemap.ts").includes("2026-10-15"), "sitemap source has no blanket date");
+  const home = entries.find((entry) => entry.url === canonicalUrl("/"));
+  ok(
+    String(home?.lastModified).slice(0, 10) === sourceLastmod("app/page.tsx"),
+    "homepage lastmod is the page source commit",
+  );
+  const posts = await listPublishedPosts();
+  ok(posts.length >= 30, "published blog articles are in the sitemap check");
+  for (const post of posts) {
+    const entry = entries.find((item) => item.url === canonicalUrl(`/blog/${post.slug}`));
+    ok(
+      String(entry?.lastModified).slice(0, 10) === post.dateModified,
+      `blog lastmod follows dateModified for ${post.slug}`,
+    );
+  }
+  const seiten = await listBranchenSeiten();
+  for (const seite of seiten) {
+    const entry = entries.find((item) => item.url === canonicalUrl(branchenPath(seite.slug)));
+    if (seite.noindex) {
+      ok(!entry, `sitemap omits noindex ${seite.slug}`);
+      continue;
+    }
+    ok(
+      String(entry?.lastModified).slice(0, 10) === seite.stand,
+      `branch lastmod is stand for ${seite.slug}`,
+    );
+  }
+  const llms = buildLlmsTxt();
+  for (const slug of BRANCHEN_SLUGS) {
+    ok(llms.includes(canonicalUrl(branchenPath(slug))), `llms.txt links ${branchenPath(slug)}`);
+  }
   ok(true, `lastmod on all ${entries.length} sitemap urls`);
   const branchen = entries.filter((entry) => entry.url.includes("/verfahrensdokumentation-"));
   ok(branchen.length >= 2, "sitemap lists the branch pages");
@@ -247,6 +301,73 @@ async function checkSitemapLastmod() {
   }
 }
 
+function checkHomeCanonical() {
+  ok(
+    canonicalUrl("/") === HOME_CANONICAL_URL &&
+      HOME_CANONICAL_URL === "https://www.gobd-doku-erstellen.de/",
+    "homepage canonical matches the apex 308 target",
+  );
+  const page = source("app/page.tsx");
+  ok(page.includes('rel="canonical" href={canonicalUrl("/")}'), "homepage renders the canonical link");
+  ok(page.includes('property="og:url" content={canonicalUrl("/")}'), "homepage renders og:url");
+  ok(!page.includes("alternates:"), "homepage canonical bypasses metadata normalization");
+  const policy = source("next.config.ts");
+  const header = policy.slice(
+    policy.indexOf("const contentSecurityPolicy"),
+    policy.indexOf("].join"),
+  );
+  ok(
+    header.includes("const contentSecurityPolicy") &&
+      !header.includes("upgrade-insecure-requests"),
+    "report-only CSP omits upgrade-insecure-requests",
+  );
+}
+
+async function checkArticles() {
+  const posts = await listPublishedPosts();
+  const page = source("app/blog/[slug]/page.tsx");
+  ok(page.includes("articleJsonLd("), "article pages render Article JSON-LD");
+  ok(
+    articleDateModified("2026-10-05", "2026-11-02", "content/blog/missing.md") === "2026-11-02",
+    "explicit dateModified wins",
+  );
+  const sample = "content/blog/verfahrensdokumentation-pflicht.md";
+  const git = gitCommitDate(sample);
+  const modified = articleDateModified("2026-10-05", "", sample);
+  if (git && git >= "2026-10-05") {
+    ok(modified === git, "missing dateModified uses the file commit date");
+  } else {
+    ok(modified === "2026-10-05", "missing dateModified uses datePublished");
+  }
+  for (const post of posts) {
+    ok(isIsoDate(post.date), `${post.slug} has datePublished`);
+    ok(isIsoDate(post.dateModified), `${post.slug} has dateModified`);
+    const parsed = parseJsonLd(
+      articleJsonLd({
+        headline: post.h1,
+        description: post.metaDescription,
+        datePublished: post.date,
+        dateModified: post.dateModified,
+        url: canonicalUrl(`/blog/${post.slug}`),
+      }),
+    );
+    ok(parsed["@type"] === "Article", `${post.slug} JSON-LD is Article`);
+    ok(parsed.headline === post.h1, `${post.slug} headline is the H1`);
+    ok(parsed.datePublished === post.date, `${post.slug} datePublished`);
+    ok(parsed.dateModified === post.dateModified, `${post.slug} dateModified`);
+    const author = parsed.author as { "@type": string; "@id": string; name: string };
+    const publisher = parsed.publisher as { "@type": string; "@id": string; name: string };
+    ok(author["@type"] === "Organization" && author["@id"] === ORGANIZATION_ID, `${post.slug} author is the org`);
+    ok(author.name === "IKAT GmbH", `${post.slug} author name`);
+    ok(
+      publisher["@type"] === "Organization" && publisher["@id"] === ORGANIZATION_ID,
+      `${post.slug} publisher is the org`,
+    );
+    ok(publisher.name === "IKAT GmbH", `${post.slug} publisher name`);
+  }
+  ok(true, `Article JSON-LD on ${posts.length} posts`);
+}
+
 async function main() {
   const seiten = await listBranchenSeiten();
   checkAnchors(seiten);
@@ -254,6 +375,8 @@ async function main() {
   checkBreadcrumb();
   checkOffers();
   checkShareMeta();
+  checkHomeCanonical();
+  await checkArticles();
   await checkImage();
   await checkSitemapLastmod();
   const footer = source("components/site-footer.tsx");

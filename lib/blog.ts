@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
+import { articleDateModified } from "@/lib/source-date";
 
 export type BlogPost = {
   slug: string;
@@ -9,7 +10,15 @@ export type BlogPost = {
   description: string;
   metaTitle: string;
   metaDescription: string;
+  /** Frontmatter `date` (datePublished). */
   date: string;
+  /**
+   * Frontmatter `dateModified` when set. Otherwise the file's last commit,
+   * or `date` when that commit is older than publication.
+   */
+  dateModified: string;
+  /** Repo-relative markdown path, for lastmod. */
+  sourceFile: string;
   ctaSoft: string;
   ctaPrimary: string;
   status: string;
@@ -56,6 +65,8 @@ function toPost(fileName: string, raw: string): BlogPost {
   const fallbackSlug = fileName.replace(/\.mdx?$/, "");
   const title = fields.title || fallbackSlug;
   const description = fields.metaDescription || fields.description || "";
+  const date = fields.date || "";
+  const sourceFile = `content/blog/${fileName}`;
   return {
     slug: fields.slug || fallbackSlug,
     title,
@@ -63,7 +74,9 @@ function toPost(fileName: string, raw: string): BlogPost {
     description,
     metaTitle: fields.metaTitle || title,
     metaDescription: description,
-    date: fields.date || "",
+    date,
+    dateModified: articleDateModified(date, fields.dateModified, sourceFile),
+    sourceFile,
     ctaSoft: fields.ctaSoft || "/readiness",
     ctaPrimary: fields.ctaPrimary || "/",
     status: fields.status || "",
