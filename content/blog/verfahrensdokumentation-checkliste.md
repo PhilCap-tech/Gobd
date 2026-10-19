@@ -180,6 +180,7 @@ Nein. Das PDF aus dem geführten Intake ist ein Entwurf auf Basis Ihrer Angaben.
 
 - [Checkliste: Zuständigkeiten und Vertretung festhalten](/blog/verfahrensdokumentation-checkliste-zustaendigkeiten-vertretung)
 - [Vorlage: Kapitel Datensicherung und Archivierung](/blog/verfahrensdokumentation-vorlage-datensicherung-archivierung)
+- [Checkliste: Zugriffsrechte und Rollen festhalten](/blog/verfahrensdokumentation-checkliste-zugriffsrechte-rollen)
 
 ## Disclaimer
 

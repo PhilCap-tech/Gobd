@@ -57,7 +57,7 @@ Für elektronische Aufzeichnungssysteme gilt die Belegausgabepflicht nach § 146
 
 Hinzu kommt die Mitteilungspflicht nach § 146a Abs. 4 AO. Seit dem 1. Januar 2025 ist die Mitteilung elektronisch über Mein ELSTER beziehungsweise ERiC möglich. Systeme, die vor dem 1. Juli 2025 angeschafft wurden, waren bis zum 31. Juli 2025 mitzuteilen. Systeme, die ab dem 1. Juli 2025 angeschafft oder außer Betrieb genommen werden, sind innerhalb eines Monats mitzuteilen. Pro Betriebsstätte werden alle Systeme in einer Mitteilung erfasst. Die offene Ladenkasse fällt nicht unter diese Mitteilungspflicht.
 
-Die Kassen-Nachschau nach § 146b AO kann unangekündigt stattfinden. Sie prüft die Kassenführung vor Ort und ist kein Ersatz für eine Betriebsprüfung. Eine aktuelle Beschreibung von System, Abschluss und Aufbewahrung hilft, den Ablauf zu erklären, wenn danach gefragt wird. Sie sagt nichts über den Ausgang.
+Die Kassen-Nachschau nach § 146b AO kann unangekündigt stattfinden. Sie prüft die Kassenführung vor Ort und ist kein Ersatz für eine Betriebsprüfung. Eine aktuelle Beschreibung von System, Abschluss und Aufbewahrung hilft, den Ablauf zu erklären, wenn danach gefragt wird. Sie sagt nichts über den Ausgang. Wie eine Kassennachschau abläuft und welche Unterlagen dabei bereitliegen sollten, beschreibt der Beitrag [Kassennachschau: Ablauf, Unterlagen und Vorbereitung](/blog/kassen-nachschau-ablauf-vorbereitung).
 
 ## Kassenbuch und Branchenalltag
 
