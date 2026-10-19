@@ -659,6 +659,75 @@ for (const file of uiFiles) {
   }
 }
 
+// Price lines that already end with "USt." must not gain another "."
+// ({PRICE_MICRO}. renders as USt.<!-- -->.).
+function ustEndingConstants() {
+  const source = readFileSync("lib/offer-copy.ts", "utf8");
+  const values = new Map();
+  const literal =
+    /export const ([A-Z0-9_]+) = ("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`);/g;
+  for (const match of source.matchAll(literal)) {
+    values.set(match[1], match[2].slice(1, -1));
+  }
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const match of source.matchAll(/export const ([A-Z0-9_]+) = ([A-Z0-9_]+);/g)) {
+      if (!values.has(match[1]) && values.has(match[2])) {
+        values.set(match[1], values.get(match[2]));
+        grew = true;
+      }
+    }
+  }
+  return [...values.entries()].filter(([, value]) => value.endsWith("USt."));
+}
+
+function expandUstSentences(source, constants) {
+  let text = source;
+  for (const [name, value] of constants) {
+    text = text.split(`{${name}}`).join(value);
+    text = text.split("${" + name + "}").join(value);
+  }
+  return text.replace(/<!--\s*-->/g, "");
+}
+
+const ustConsts = ustEndingConstants();
+if (ustConsts.length === 0) {
+  console.error("check-forbidden-words: no price line ending in USt.");
+  failed = true;
+} else {
+  const broken = "{PRICE_MICRO}.";
+  const clean = "{PRICE_MICRO} ";
+  if (!expandUstSentences(broken, ustConsts).includes("USt..")) {
+    console.error("check-forbidden-words: USt.. self-test missed the extra period");
+    failed = true;
+  }
+  if (expandUstSentences(clean, ustConsts).includes("USt..")) {
+    console.error("check-forbidden-words: USt.. self-test false positive");
+    failed = true;
+  }
+  const ustFiles = [
+    ...new Set([
+      ...files,
+      ...blogFiles,
+      ...resourceFiles,
+      ...uiFiles,
+      ...globSync("lib/**/*.{ts,tsx}"),
+      ...globSync("content/**/*.md"),
+    ]),
+  ].sort();
+  for (const file of ustFiles) {
+    const rendered = expandUstSentences(readFileSync(file, "utf8"), ustConsts);
+    if (!rendered.includes("USt..")) continue;
+    rendered.split("\n").forEach((line, index) => {
+      if (line.includes("USt..")) {
+        console.error(`${file}:${index + 1}: doppelter Punkt nach USt. in ${line.trim()}`);
+        failed = true;
+      }
+    });
+  }
+}
+
 if (failed) {
   process.exit(1);
 }

@@ -98,7 +98,7 @@ export default async function CheckoutPage({
             </>
           ) : (
             <>
-              {PRICE_MICRO}. {ALL_AREAS_LINE}
+              {PRICE_MICRO} {ALL_AREAS_LINE}
             </>
           )}
         </p>
