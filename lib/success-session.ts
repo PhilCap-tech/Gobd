@@ -18,9 +18,18 @@ export type SuccessPageBody =
   | "sheets"
   | "invalid"
   | "pending"
-  | "not_found"
   | "denied"
   | "ready";
+
+/** Title segment for a stored document, the pending wait, and a hidden draft. */
+export const SUCCESS_DOCUMENT_TITLE = "Dokument bereit";
+
+/** Title segment for a missing or unresolvable Checkout Session. The root template adds the site name. */
+export const SUCCESS_INVALID_TITLE = "Bestell-Sitzung ungültig";
+
+export function successPageTitle(body: SuccessPageBody): string {
+  return body === "invalid" ? SUCCESS_INVALID_TITLE : SUCCESS_DOCUMENT_TITLE;
+}
 
 const probes = new Map<string, { at: number; value: SuccessCheckoutResult }>();
 
@@ -90,9 +99,10 @@ export function successPageBody(input: {
 }): SuccessPageBody {
   if (input.sheetsDown) return "sheets";
   if (!input.hasRow) {
-    if (input.sessionId && input.sessionInvalid) return "invalid";
-    if (input.sessionId) return "pending";
-    return "not_found";
+    // No Checkout Session at all is the same unresolved visit as an invalid id.
+    // A payable id still waits. A stored row the viewer cannot open is "denied".
+    if (!input.sessionId || input.sessionInvalid) return "invalid";
+    return "pending";
   }
   if (!input.allowed) return "denied";
   return "ready";

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import {
   DocumentRevisionActions,
   VersionHistory,
@@ -37,6 +38,7 @@ import {
   shouldProbeSuccessCheckout,
   SUCCESS_CHECKOUT_CHECKED_PARAM,
   successPageBody,
+  successPageTitle,
   successPendingHref,
 } from "@/lib/success-session";
 import { resolveCheckoutSession } from "@/lib/stripe";
@@ -65,27 +67,31 @@ export function SuccessAccessNote({ compAccess }: { compAccess: boolean }) {
   );
 }
 
-export const metadata: Metadata = {
-  title: "Dokument bereit",
-  robots: { index: false, follow: false },
+type SuccessSearch = {
+  session_id?: string | string[];
+  document_id?: string | string[];
+  anmeldung?: string | string[];
+  geprueft?: string | string[];
 };
 
-export default async function SuccessPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    session_id?: string | string[];
-    document_id?: string | string[];
-    anmeldung?: string | string[];
-    geprueft?: string | string[];
-  }>;
-}) {
-  const params = await searchParams;
-  const sessionId = await sessionIdForCheckoutProof(firstQueryValue(params.session_id));
-  const alreadyChecked =
-    firstQueryValue(params[SUCCESS_CHECKOUT_CHECKED_PARAM]) === "1";
-  const anmeldung = firstQueryValue(params.anmeldung) ?? "";
-  const documentId = firstQueryValue(params.document_id);
+function successLookupKey(params: SuccessSearch) {
+  return [
+    firstQueryValue(params.session_id) ?? "",
+    firstQueryValue(params.document_id) ?? "",
+    firstQueryValue(params[SUCCESS_CHECKOUT_CHECKED_PARAM]) ?? "",
+    firstQueryValue(params.anmeldung) ?? "",
+  ] as const;
+}
+
+const loadSuccessPage = cache(async function loadSuccessPage(
+  sessionQuery: string,
+  documentQuery: string,
+  checkedQuery: string,
+  anmeldung: string,
+) {
+  const sessionId = await sessionIdForCheckoutProof(sessionQuery);
+  const alreadyChecked = checkedQuery === "1";
+  const documentId = documentQuery || undefined;
   const sessionEmail = await getSessionEmail();
   let sheetsDown = false;
   let row: Awaited<ReturnType<typeof findSuccessDocument>> = null;
@@ -149,6 +155,60 @@ export default async function SuccessPage({
       alreadyChecked ||
       (Boolean(sessionId) && !sheetsDown && !row && !sessionInvalid),
   });
+
+  return {
+    anmeldung,
+    body,
+    compAccess,
+    documentId,
+    family,
+    mailReady,
+    ownerView,
+    pendingHref,
+    purchaseSessionId,
+    row,
+    sessionEmail,
+    sessionId,
+    version,
+    visibleEmail,
+  };
+});
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SuccessSearch>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const [sessionQuery, documentQuery, checkedQuery, anmeldung] = successLookupKey(params);
+  const model = await loadSuccessPage(sessionQuery, documentQuery, checkedQuery, anmeldung);
+  return {
+    title: successPageTitle(model.body),
+    robots: { index: false, follow: false },
+  };
+}
+
+export default async function SuccessPage({
+  searchParams,
+}: {
+  searchParams: Promise<SuccessSearch>;
+}) {
+  const params = await searchParams;
+  const [sessionQuery, documentQuery, checkedQuery, anmeldung] = successLookupKey(params);
+  const {
+    body,
+    compAccess,
+    family,
+    mailReady,
+    ownerView,
+    pendingHref,
+    purchaseSessionId,
+    row,
+    sessionEmail,
+    sessionId,
+    version,
+    visibleEmail,
+  } = await loadSuccessPage(sessionQuery, documentQuery, checkedQuery, anmeldung);
 
   return (
     <>
