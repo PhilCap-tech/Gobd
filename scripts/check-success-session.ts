@@ -18,14 +18,18 @@ import {
 } from "../components/success-status";
 import { LEGAL_OPERATOR } from "../lib/legal";
 import { checkoutLookupError } from "../lib/stripe";
+import { SITE_NAME } from "../lib/seo";
 import {
   SUCCESS_CHECKOUT_CHECKED_PARAM,
   SUCCESS_CHECKOUT_PROBE_TTL_MS,
+  SUCCESS_DOCUMENT_TITLE,
+  SUCCESS_INVALID_TITLE,
   clearSuccessCheckoutProbes,
   isUnresolvableCheckoutSession,
   probeSuccessCheckout,
   shouldProbeSuccessCheckout,
   successPageBody,
+  successPageTitle,
   successPendingHref,
   type SuccessCheckoutResult,
 } from "../lib/success-session";
@@ -151,9 +155,19 @@ function checkBodies() {
       hasRow: false,
       allowed: false,
       sessionId: "",
+      sessionInvalid: false,
+    }) === "invalid",
+    "no session id shows the same invalid notice",
+  );
+  ok(
+    successPageBody({
+      sheetsDown: false,
+      hasRow: false,
+      allowed: false,
+      sessionId: "",
       sessionInvalid: true,
-    }) === "not_found",
-    "no session id keeps the not-found view",
+    }) === "invalid",
+    "no session id stays invalid even if a probe would fail",
   );
   ok(purchaseSessionIdFromCheckout({ error: "invalid" }) === "", "invalid does not yield a conversion id");
   ok(purchaseSessionIdFromCheckout({ error: "missing" }) === "", "missing does not yield a conversion id");
@@ -215,6 +229,15 @@ async function checkProbeBudget() {
     }),
     "a sheets outage does not retrieve the session",
   );
+  ok(
+    !shouldProbeSuccessCheckout({
+      sheetsDown: false,
+      hasRow: false,
+      sessionId: "",
+      alreadyChecked: false,
+    }),
+    "a visit without a session id does not retrieve Stripe",
+  );
 
   ok(
     successPendingHref({
@@ -253,6 +276,13 @@ function checkPageSource() {
   ok(source.includes('body === "ready" && row'), "a stored document still reaches the success view");
   ok(pendingSource.includes("Dokument wird bereitgestellt"), "pending copy is unchanged");
   ok(pendingSource.includes("window.location.replace(href)"), "the pending poll follows the checked link");
+  ok(
+    pendingSource.includes("return <SuccessNotFound />"),
+    "a payable session that times out still says the document was not found",
+  );
+  ok(source.includes("<SuccessNotFound"), "a hidden document still uses the not-found view");
+  ok(source.includes("export async function generateMetadata"), "the invalid title comes from generateMetadata");
+  ok(source.includes("title: successPageTitle(model.body)"), "the title follows the same view as the page");
 
   const invalidAt = source.indexOf('body === "invalid"');
   const pendingAt = source.indexOf("<SuccessPending");
@@ -265,6 +295,28 @@ function checkPageSource() {
     !source.slice(invalidAt, pendingAt).includes("PurchaseConversion"),
     "the invalid branch does not mount the conversion",
   );
+  ok(
+    !source.slice(invalidAt, pendingAt).includes("SuccessNotFound"),
+    "the invalid branch does not use the not-found view",
+  );
+}
+
+function checkTitle() {
+  const composed = `${SUCCESS_INVALID_TITLE} | ${SITE_NAME}`;
+  ok(SUCCESS_INVALID_TITLE === "Bestell-Sitzung ungültig", "the invalid title segment is fixed");
+  ok(SITE_NAME === "GoBD Verfahrensdoku", "the site name in the title template is unchanged");
+  ok(
+    composed === "Bestell-Sitzung ungültig | GoBD Verfahrensdoku",
+    "the invalid document title is the segment plus the site name",
+  );
+  ok(successPageTitle("invalid") === SUCCESS_INVALID_TITLE, "an invalid view uses the invalid title");
+  ok(successPageTitle("ready") === SUCCESS_DOCUMENT_TITLE, "a paid document keeps Dokument bereit");
+  ok(successPageTitle("pending") === SUCCESS_DOCUMENT_TITLE, "the pending wait keeps Dokument bereit");
+  ok(successPageTitle("denied") === SUCCESS_DOCUMENT_TITLE, "a hidden document keeps Dokument bereit");
+  ok(successPageTitle("sheets") === SUCCESS_DOCUMENT_TITLE, "a sheets outage keeps Dokument bereit");
+  ok(SUCCESS_DOCUMENT_TITLE === "Dokument bereit", "the paid title segment is unchanged");
+  const layout = readFileSync("app/layout.tsx", "utf8");
+  ok(layout.includes("template: `%s | ${SITE_NAME}`"), "the root title template still appends the site name");
 }
 
 async function main() {
@@ -272,6 +324,7 @@ async function main() {
   checkBodies();
   await checkProbeBudget();
   checkPageSource();
+  checkTitle();
   console.log("check-success-session: ok");
 }
 

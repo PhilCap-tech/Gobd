@@ -44,7 +44,6 @@ export function ConsentBanner() {
     <div
       className="consent-banner"
       role="dialog"
-      aria-modal="true"
       aria-labelledby="consent-title"
       aria-describedby="consent-text"
     >

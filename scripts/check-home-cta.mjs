@@ -51,8 +51,11 @@ if (!/max-height:\s*820px/.test(css) || !/bottom:\s*74px/.test(css)) {
 if (banner.includes("<aside") || !banner.includes('role="dialog"')) {
   fail("consent dialog must be a div with role=dialog");
 }
-if (!banner.includes('aria-modal="true"') || !banner.includes('aria-labelledby="consent-title"')) {
-  fail("consent dialog is missing aria-modal or aria-labelledby");
+if (banner.includes("aria-modal")) {
+  fail("consent dialog must not set aria-modal; the page stays operable");
+}
+if (!banner.includes('aria-labelledby="consent-title"') || !banner.includes('aria-describedby="consent-text"')) {
+  fail("consent dialog is missing aria-labelledby or aria-describedby");
 }
 
 console.log("home-cta: checkout anchors stay native and the banner does not cover them");
