@@ -6,14 +6,15 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { BlogMarkdown } from "@/lib/blog-markdown";
 import {
+  blogPostIsIndexable,
   formatBlogDate,
-  getPublishedPost,
-  listPublishedPosts,
+  getBlogPost,
+  listRoutablePosts,
 } from "@/lib/blog";
 import { canonicalUrl } from "@/lib/seo";
 
 export async function generateStaticParams() {
-  const posts = await listPublishedPosts();
+  const posts = await listRoutablePosts();
   return posts.map((post) => ({ slug: post.slug }));
 }
 
@@ -23,7 +24,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = await getPublishedPost(slug);
+  const post = await getBlogPost(slug);
   if (!post) {
     return { title: "Artikel" };
   }
@@ -31,6 +32,9 @@ export async function generateMetadata({
     title: { absolute: post.metaTitle },
     description: post.metaDescription,
     alternates: { canonical: canonicalUrl(`/blog/${post.slug}`) },
+    ...(blogPostIsIndexable(post)
+      ? {}
+      : { robots: { index: false, follow: true } }),
   };
 }
 
@@ -40,7 +44,7 @@ export default async function BlogArticlePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = await getPublishedPost(slug);
+  const post = await getBlogPost(slug);
   if (!post) notFound();
 
   return (

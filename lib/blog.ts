@@ -81,7 +81,9 @@ export function formatBlogDate(iso: string): string {
   }).format(new Date(`${iso}T12:00:00`));
 }
 
-export const listPublishedPosts = cache(async (): Promise<BlogPost[]> => {
+const INTERNAL_NOTE = "internal-note";
+
+async function readBlogPosts(): Promise<BlogPost[]> {
   const dir = blogContentDir();
   let files: string[];
   try {
@@ -97,11 +99,30 @@ export const listPublishedPosts = cache(async (): Promise<BlogPost[]> => {
     if (!file.endsWith(".md") && !file.endsWith(".mdx")) continue;
     const raw = await readFile(path.join(dir, file), "utf8");
     const post = toPost(file, raw);
-    if (post.status === PUBLISHABLE) posts.push(post);
+    if (post.status === INTERNAL_NOTE) continue;
+    posts.push(post);
   }
+  return posts;
+}
+
+/** Sitemap and the blog index. A draft stays out. */
+export const listPublishedPosts = cache(async (): Promise<BlogPost[]> => {
+  const posts = (await readBlogPosts()).filter((post) => post.status === PUBLISHABLE);
   posts.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   return posts;
 });
+
+/**
+ * Every article the route may render, including drafts.
+ * Drafts are noindex and are not listed by `listPublishedPosts`.
+ */
+export const listRoutablePosts = cache(async (): Promise<BlogPost[]> => {
+  return readBlogPosts();
+});
+
+export function blogPostIsIndexable(post: BlogPost): boolean {
+  return post.status === PUBLISHABLE;
+}
 
 export const getPublishedPost = cache(
   async (slug: string): Promise<BlogPost | null> => {
@@ -109,3 +130,8 @@ export const getPublishedPost = cache(
     return posts.find((post) => post.slug === slug) ?? null;
   },
 );
+
+export const getBlogPost = cache(async (slug: string): Promise<BlogPost | null> => {
+  const posts = await listRoutablePosts();
+  return posts.find((post) => post.slug === slug) ?? null;
+});
