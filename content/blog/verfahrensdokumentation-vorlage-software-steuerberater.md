@@ -14,8 +14,7 @@ secondaryKeywords:
   - "Verfahrensdokumentation erstellen lassen"
 ctaSoft: "/readiness?utm_source=blog&utm_medium=article&utm_campaign=verfahrensdokumentation-vorlage-software-steuerberater"
 ctaPrimary: "/checkout"
-noindex: true
-status: "draft"
+status: "ready-for-publish"
 quellen:
   - "GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 150–154"
   - "§ 147 AO — https://www.gesetze-im-internet.de/ao_1977/__147.html"
