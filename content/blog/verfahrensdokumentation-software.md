@@ -8,7 +8,6 @@ primaryKeyword: "Verfahrensdokumentation Software"
 secondaryKeywords:
   - "Software Verfahrensdokumentation"
   - "Verfahrensdokumentation Tool"
-  - "Verfahrensdokumentation online erstellen"
 ctaSoft: "/readiness"
 ctaPrimary: "/checkout"
 status: "ready-for-publish"
@@ -148,6 +147,7 @@ Nein. Wir und seriöse Anbieter versprechen das nicht. Verantwortung bleibt bei 
 - [Digitale Verfahrensdokumentation](/blog/digitale-verfahrensdokumentation)
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung)
 - [Verfahrensdokumentation Lexware und sevdesk](/blog/verfahrensdokumentation-lexware-sevdesk)
+- [Verfahrensdokumentation: Vorlage, Software oder Steuerberater?](/blog/verfahrensdokumentation-vorlage-software-steuerberater)
 
 ## Disclaimer
 
