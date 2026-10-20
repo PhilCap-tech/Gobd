@@ -32,6 +32,7 @@ import {
 import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
 import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
+import { storedCheckAttribution } from "@/lib/lead-attribution";
 import { queueLeadNotice } from "@/lib/lead-notice";
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
@@ -54,6 +55,9 @@ export type SubmitAmpelInput = {
   ipSource?: string;
   /** One-time token from the handoff response. Required to send the mail. */
   sendToken?: unknown;
+  /** From the page URL. Click ids are not part of this input. */
+  utmSource?: unknown;
+  utmCampaign?: unknown;
 };
 
 export type SubmitAmpelDeps = {
@@ -414,6 +418,12 @@ async function finishAmpelResult(
   now: number,
   timeoutMs: number,
 ): Promise<"started" | "failed" | "skipped"> {
+  const attribution = storedCheckAttribution({
+    email,
+    tool: deps.check === "kassen-check" ? "kassen" : "ampel",
+    utmSource: input.utmSource,
+    utmCampaign: input.utmCampaign,
+  });
   try {
     const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
     if (scored) {
@@ -433,6 +443,9 @@ async function finishAmpelResult(
       });
       lead.status = deps.leadStatus ?? "ampel_pdf";
       lead.timestamp = consentAt;
+      lead.tool = attribution.tool;
+      lead.utmSource = attribution.utmSource;
+      lead.utmCampaign = attribution.utmCampaign;
       const save = deps.saveLead ?? (async (row: ReadinessLead) => {
         if (automatedRunForbidsLiveWrites()) return;
         await upsertReadinessLead(row);
@@ -456,6 +469,9 @@ async function finishAmpelResult(
         consentIp: input.ip,
         consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
         mailed: "ja",
+        tool: attribution.tool,
+        utmSource: attribution.utmSource,
+        utmCampaign: attribution.utmCampaign,
         ...(deps.check ? { check: deps.check } : {}),
         ...(deps.leadPrefix ? { leadPrefix: deps.leadPrefix } : {}),
         ...(deps.leadStatus ? { pendingStatus: deps.leadStatus } : {}),

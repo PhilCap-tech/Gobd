@@ -81,6 +81,7 @@ let leadConversionQueued = false;
 let kassenSubmitTracked = false;
 let ampelStartTracked = false;
 let ampelResultTracked = false;
+let ampelSubmitTracked = false;
 let consentDefaultSet = false;
 let lastConsentGranted: boolean | null = null;
 
@@ -190,6 +191,7 @@ export function saveConsent(marketing: boolean): ConsentChoice {
     lastGooglePagePath = "";
     ampelStartTracked = false;
     ampelResultTracked = false;
+    ampelSubmitTracked = false;
   }
   window.dispatchEvent(new Event(CONSENT_EVENT));
   emitBanner();
@@ -403,6 +405,19 @@ export function trackLeadSubmit(detail?: { value?: number; currency?: string }):
       ? { value: detail.value, currency: detail.currency ?? "EUR" }
       : {}),
   });
+  return true;
+}
+
+/**
+ * GA4 `ampel_check_submit` after a successful Ampel email submit.
+ * Same consent gate as the other GA4 events. Does not send or change the
+ * Google Ads lead conversion; the page still calls {@link trackLeadSubmit}.
+ */
+export function trackAmpelCheckSubmit(): boolean {
+  if (typeof window === "undefined" || !hasMarketingConsent() || ampelSubmitTracked) return false;
+  const sent = trackConsentedGaEvent("ampel_check_submit");
+  if (!sent) return false;
+  ampelSubmitTracked = true;
   return true;
 }
 

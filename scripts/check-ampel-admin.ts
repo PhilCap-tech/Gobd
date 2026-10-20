@@ -382,13 +382,26 @@ async function main() {
         saved.push({ ...row });
       },
       confirm: async (input) => {
-        ok(input.mailed === "ja" && !("utmSource" in input), "confirmation keeps the mail flag and no source");
+        ok(
+          input.mailed === "ja" && input.tool === "" && input.utmSource === "" && input.utmCampaign === "",
+          "a test address confirms without a countable source",
+        );
         return { ok: true, throttled: false };
       },
     },
   );
   ok(sent.ok && !("honeypot" in sent) && sent.mailed, "a sent result still reports mailed");
-  ok(saved[0] != null && saved[0].mailed === "ja" && !("utmSource" in saved[0]), "the sheet row stores mailed and not utm");
+  ok(
+    saved[0] != null &&
+      saved[0].mailed === "ja" &&
+      saved[0].tool === "" &&
+      saved[0].utmSource === "" &&
+      saved[0].utmCampaign === "" &&
+      !("gclid" in saved[0]) &&
+      !("gbraid" in saved[0]) &&
+      !("wbraid" in saved[0]),
+    "a test address is stored without a countable source or a click id",
+  );
   ok(saved[0]?.marketingOptIn === "pending", "a checked opt-in is stored as unconfirmed");
 
   const savedEmpty: ReadinessLead[] = [];
@@ -414,7 +427,11 @@ async function main() {
     },
   );
   ok(
-    savedEmpty[0] != null && savedEmpty[0].mailed === "ja" && savedEmpty[0].marketingOptIn === "" && !("utmSource" in savedEmpty[0]),
+    savedEmpty[0] != null &&
+      savedEmpty[0].mailed === "ja" &&
+      savedEmpty[0].marketingOptIn === "" &&
+      savedEmpty[0].tool === "" &&
+      savedEmpty[0].utmSource === "",
     "a sent mail is recorded and no opt-in stays empty",
   );
 
@@ -436,7 +453,10 @@ async function main() {
     },
   );
   const confirmedRow = [...confirmStore.values()].at(-1);
-  ok(confirmed.ok && confirmedRow != null && confirmedRow.mailed === "ja" && !("utmSource" in confirmedRow), "the confirmation write keeps mailed and not utm");
+  ok(
+    confirmed.ok && confirmedRow != null && confirmedRow.mailed === "ja" && confirmedRow.tool === "" && confirmedRow.utmSource === "",
+    "a confirmation without a stored source stays empty",
+  );
 
   const retentionSource = readFileSync("lib/ampel-retention.ts", "utf8");
   ok(!retentionSource.includes("RETENTION_DAYS"), "leads have no day timer");
@@ -465,10 +485,15 @@ async function main() {
   ok(!page.includes("UTM") && !page.includes("utm"), "the admin page does not show a source");
   ok(
     (READINESS_SHEET_COLUMNS as readonly string[]).includes("mailed") &&
-      !(READINESS_SHEET_COLUMNS as readonly string[]).includes("utm_source"),
-    "the sheet stores mailed and not utm_source",
+      (READINESS_SHEET_COLUMNS as readonly string[]).includes("tool") &&
+      (READINESS_SHEET_COLUMNS as readonly string[]).includes("utm_source") &&
+      (READINESS_SHEET_COLUMNS as readonly string[]).includes("utm_campaign") &&
+      !(READINESS_SHEET_COLUMNS as readonly string[]).includes("gclid") &&
+      !(READINESS_SHEET_COLUMNS as readonly string[]).includes("gbraid") &&
+      !(READINESS_SHEET_COLUMNS as readonly string[]).includes("wbraid"),
+    "the sheet stores tool and utm columns and no click id",
   );
-  ok(!bodyText.includes("utmSource") && !bodyText.includes("utm_source"), "the report has no utm field");
+  ok(!bodyText.includes("utmSource") && !bodyText.includes("utm_source"), "the admin report has no utm field");
 
   const allowedMentions = new Set([
     "app/admin/ampel/page.tsx",

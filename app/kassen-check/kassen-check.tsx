@@ -17,6 +17,7 @@ import {
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
+import { replaceCheckSearch, submitUtmFields } from "@/lib/campaign-params";
 import { trackKassenCheckSubmit } from "@/lib/tracking";
 import {
   KASSEN_CHECK_PATH,
@@ -75,10 +76,8 @@ export function KassenCheck() {
   const band = scored ? KASSEN_RESULTS[scored.light] : null;
 
   function remember(code: string) {
-    const params = new URLSearchParams();
-    params.set("a", code);
-    if (refName) params.set("ref", refName);
-    router.replace(`${KASSEN_CHECK_PATH}?${params.toString()}`);
+    const query = replaceCheckSearch(searchParams, { a: code, ref: refName });
+    router.replace(query ? `${KASSEN_CHECK_PATH}?${query}` : KASSEN_CHECK_PATH);
   }
 
   function choose(answer: AmpelAnswer) {
@@ -117,6 +116,7 @@ export function KassenCheck() {
       ref: refName,
       marketing,
       fax_number: fax,
+      ...submitUtmFields(window.location.search),
     };
     let leadAccepted = false;
     setMailNotice(AMPEL_RESULT_MAIL.sending);
