@@ -19,7 +19,6 @@ import {
   GELD_ZURUECK_MICRO,
   HERO_FACTS_LINE,
   HERO_PRICE_BOX,
-  HERO_SCOPE_LINE,
   PRICE_AFTER_MICRO,
   PRICE_CTA_SUFFIX,
   PRICE_FRAME_LINE,
@@ -69,7 +68,16 @@ const EXAMPLE_QUESTION_IDS = ["B01", "C01", "F01", "G02"];
 const HOME_MODULE_PREFIX = "home-modul";
 const TEILE: ModulTeil[] = [1, 2, 3, 4];
 const AMPEL_HREF = "/ampel-check";
+const AMPEL_HERO_HREF = "/ampel-check?src=hero&v=a";
 const AMPEL_LABEL = "Betriebsprüfungs-Ampel";
+const HERO_HEADLINE = "Kostenlos prüfen, ob Ihr Unternehmen die GoBD-Anforderungen erfüllt";
+const HERO_SUBLINE =
+  "Der Ampel-Check führt Sie in rund 2 Minuten durch 10 Ja/Nein-Fragen – von der Verfahrensdokumentation bis zur E-Rechnung – und zeigt, wo Ihre Prozesse gut aufgestellt sind und wo Sie nachbessern sollten.";
+const HERO_PRIMARY = "Kostenlosen Ampel-Check starten";
+const HERO_MICRO =
+  "Selbsteinschätzung auf Basis Ihrer Angaben · Ergebnis mit Quellen, zusätzlich als PDF per E-Mail · Keine Steuer- oder Rechtsberatung.";
+const HERO_DISCLAIMER =
+  "Der Ampel-Check ist eine Selbsteinschätzung zur Orientierung. Er ersetzt keine Steuer- oder Rechtsberatung und bestätigt nicht, dass Ihre Buchführung ordnungsgemäß ist.";
 
 const MUSTER_STRUCTURE = [
   "Dokumentenlenkung",
@@ -193,11 +201,8 @@ export default function HomePage() {
             <p className={styles.eyebrow}>
               Geführte Fragen führen zu einem PDF-Entwurf und offenen Punkten.
             </p>
-            <h1>
-              <span className="h1-keep">GoBD-Verfahrens{"\u00AD"}dokumentation</span> online
-              erstellen
-            </h1>
-            <p className={styles.lead}>{HERO_SCOPE_LINE}</p>
+            <h1>{HERO_HEADLINE}</h1>
+            <p className={styles.lead}>{HERO_SUBLINE}</p>
             <p className={styles.priceBanner}>
               <strong>
                 {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
@@ -208,16 +213,17 @@ export default function HomePage() {
               <span>{HERO_PRICE_BOX}</span>
             </p>
             <div className={styles.ctas}>
-              <a className="btn" href="/checkout">
+              <Link className="btn" href={AMPEL_HERO_HREF}>
+                {HERO_PRIMARY}
+              </Link>
+              <a className={`btn ${styles.btnSec}`} href="/checkout">
                 {CTA_CREATE}
               </a>
-              <Link className={`btn ${styles.btnSec}`} href={AMPEL_HREF}>
-                Ampel-Check starten
-              </Link>
               <Link className={`btn ${styles.btnSec}`} href="#muster">
                 {CTA_MUSTER_HERO}
               </Link>
             </div>
+            <p className={styles.micro}>{HERO_MICRO}</p>
             <p className={styles.guarantee}>
               <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
             </p>
@@ -233,6 +239,8 @@ export default function HomePage() {
             </p>
           </div>
         </section>
+
+        <p className={`shell ${styles.heroDisclaimer}`}>{HERO_DISCLAIMER}</p>
 
         <p className={`shell ${styles.factBar}`}>
           24 Module · bis zu 5 Firmen · Ampel-Check in ~2 Min · Muster-PDF ohne Anmeldung

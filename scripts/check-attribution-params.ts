@@ -36,6 +36,17 @@ ok(replaced.get("a") === "JJJJJJJJJJ", "replace sets the answer code");
 ok(replaced.get("ref") === "Kanzlei", "replace sets the internal ref");
 ok(replaced.get("foo") === null, "replace drops an unrelated param");
 
+const withVariant = new URLSearchParams(
+  "gclid=CLICK123&utm_source=google&utm_campaign=landing_pilot&src=hero&v=a&utm_medium=cpc",
+);
+const keptVariant = new URLSearchParams(replaceCheckSearch(withVariant, { a: "JJJJJJJJJJ", ref: "" }));
+ok(keptVariant.get("gclid") === "CLICK123", "src and v do not drop gclid");
+ok(keptVariant.get("utm_source") === "google", "src and v do not drop utm_source");
+ok(keptVariant.get("utm_medium") === "cpc", "src and v do not drop utm_medium");
+ok(keptVariant.get("utm_campaign") === "landing_pilot", "src and v do not drop utm_campaign");
+ok(keptVariant.get("src") === null && keptVariant.get("v") === null, "src and v are not written back onto the URL");
+ok(keptVariant.get("a") === "JJJJJJJJJJ", "an answer code still replaces the query");
+
 const restarted = new URLSearchParams(replaceCheckSearch(replaced, { a: "", ref: "Kanzlei" }));
 ok(restarted.get("a") === null, "restart drops the answer code");
 ok(restarted.get("gclid") === "CLICK123", "restart keeps gclid");
