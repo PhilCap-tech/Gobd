@@ -31,10 +31,10 @@ export const AMPEL_CHECK_PREVIEW_NOTE = "Selbsteinschätzung – keine Steuer- o
 export const AMPEL_CHECK_PREVIEW_DETAIL =
   "Welche Punkte das sind und was die Quellen dazu sagen, sehen Sie nach Eingabe Ihrer E-Mail-Adresse.";
 
-export const AMPEL_CHECK_PREVIEW_BASIS =
-  "Die Ampel beruht allein auf Ihren Angaben und ersetzt keine Steuer- oder Rechtsberatung.";
-
 export function ampelCheckPreviewLine(color: string, openPoints: number): string {
+  if (openPoints === 0) {
+    return `Ihre Einschätzung: ${color} – nach Ihren Angaben besteht kein offener Punkt.`;
+  }
   return `Ihre Einschätzung: ${color} – bei ${openPoints} von ${AMPEL_QUESTIONS.length} Punkten besteht möglicher Handlungsbedarf.`;
 }
 
