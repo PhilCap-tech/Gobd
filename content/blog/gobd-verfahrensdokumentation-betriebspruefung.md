@@ -145,6 +145,7 @@ Nein. Wir leisten keine Steuer- oder Rechtsberatung und versprechen keine Anerke
 - [Betriebsprüfung Ablauf und Unterlagen](/blog/betriebspruefung-ablauf-unterlagen) — Reihenfolge der Prüfung und angeforderte Unterlagen
 - [Betriebsprüfung angekündigt](/blog/betriebspruefung-angekuendigt-pruefungsanordnung) — was in den ersten Tagen zu prüfen ist
 - [Mitwirkung und Vorbereitung bei der Betriebsprüfung](/blog/betriebspruefung-mitwirkung-vorbereitung) — wer Auskunft gibt und wo die Fassung liegt
+- [Verfahrensdokumentation in der Betriebsprüfung: Typische Fragen beantworten](/blog/betriebspruefung-fragen-verfahrensdokumentation)
 
 ## Disclaimer
 
