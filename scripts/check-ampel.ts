@@ -1,5 +1,5 @@
 /**
- * Betriebsprüfungs-Ampel: weighted score, green cap, and the DOI token.
+ * GoBD-Ampel: weighted score, green cap, and the DOI token.
  *
  *   npx tsx scripts/check-ampel.ts
  */

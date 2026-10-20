@@ -315,7 +315,7 @@ export const AMPEL_SHARE_KANZLEI = {
 };
 
 export const AMPEL_DISCLAIMER =
-  "Die Betriebsprüfungs-Ampel dient ausschließlich der Orientierung und ist keine Steuerberatung. Sie ersetzt weder eine Prüfung im Einzelfall noch die Beratung durch eine Steuerberaterin oder einen Steuerberater. Das Ergebnis beruht allein auf Ihren Angaben und bestätigt nicht, dass Ihre Buchführung ordnungsgemäß ist. Stand der Rechtsgrundlagen: Oktober 2026.";
+  "Die GoBD-Ampel dient ausschließlich der Orientierung und ist keine Steuerberatung. Sie ersetzt weder eine Prüfung im Einzelfall noch die Beratung durch eine Steuerberaterin oder einen Steuerberater. Das Ergebnis beruht allein auf Ihren Angaben und bestätigt nicht, dass Ihre Buchführung ordnungsgemäß ist. Stand der Rechtsgrundlagen: Oktober 2026.";
 
 export const AMPEL_QUELLEN_PATH = "/ampel-check/quellen";
 
