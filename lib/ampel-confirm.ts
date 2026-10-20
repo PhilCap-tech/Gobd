@@ -216,6 +216,8 @@ export type AmpelConfirmationInput = {
   tool?: string;
   utmSource?: string;
   utmCampaign?: string;
+  src?: string;
+  variant?: string;
   check?: "kassen-check";
   leadPrefix?: string;
   pendingStatus?: string;
@@ -350,6 +352,8 @@ async function runConfirmation(
     tool: attribution.tool,
     utmSource: attribution.utmSource,
     utmCampaign: attribution.utmCampaign,
+    src: attribution.src,
+    variant: attribution.variant,
   };
   await writeConfirmLead(deps, pending);
 
@@ -391,6 +395,8 @@ async function runConfirmation(
       tool: pending.tool,
       utmSource: pending.utmSource,
       utmCampaign: pending.utmCampaign,
+      src: pending.src,
+      variant: pending.variant,
     });
     return { ok: true, throttled: mail.duplicate === true };
   }

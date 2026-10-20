@@ -35,7 +35,7 @@ import {
   sanitizeAmpelRef,
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
-import { replaceCheckSearch, submitUtmFields } from "@/lib/campaign-params";
+import { replaceCheckSearch, submitUtmFields, submitVariantFields } from "@/lib/campaign-params";
 import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
 
 function EmailPrivacyNote() {
@@ -245,6 +245,7 @@ export function AmpelCheck() {
       marketing,
       fax_number: fax,
       ...submitUtmFields(window.location.search),
+      ...submitVariantFields(window.location.search),
     };
     const showResult = (notice: string) => {
       try {
