@@ -164,7 +164,7 @@ Haken Sie nur ab, was **bei Ihnen wirklich** so läuft. Unklares als offenen Pun
 - [ ] Praxis zu Trinkgeld mit Steuerberater abgestimmt oder als offener Punkt markiert
 - [ ] Bewirtungsbelege: wer prüft Vollständigkeit der Angaben
 - [ ] Trennung privat / betrieblich angesprochen
-- [ ] Keine eigenmächtigen „Lösungen“ ohne Abstimmung in die Doku geschrieben
+- [ ] Keine eigenmächtigen „Lösungen“ ohne Abstimmung in die Verfahrensdokumentation aufgenommen
 
 ### Vorbereitung auf eine spätere Verfahrensdokumentation
 

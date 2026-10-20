@@ -57,7 +57,7 @@ Sinnvoller Mindeststandard:
 - Übergang Angebot → Auftrag dokumentierbar (Status, Datum, Ansprechpartner)
 - Bei Rahmenverträgen: wo liegt der Vertrag, wer pflegt Laufzeiten?
 
-Sie müssen keine Verkaufsstrategie in die GoBD-Doku schreiben. Es reicht der Beleg- und Systembezug.
+Sie müssen keine Verkaufsstrategie in die GoBD-Verfahrensdokumentation schreiben. Es reicht der Beleg- und Systembezug.
 
 ### Zeiten und Leistungsnachweise
 

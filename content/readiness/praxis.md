@@ -55,7 +55,7 @@ Häufige Lücke: **Liquidation ist im PVS erstellt**, Zahlung kommt aufs Konto, 
 
 Damit Sie keine falschen Erwartungen an diese Richtlinie haben:
 
-| Thema | Patienten-/Behandlungsdoku | Buchhaltung / GoBD-Fokus hier |
+| Thema | Patienten-/Behandlungsdokumentation | Buchhaltung / GoBD-Fokus hier |
 |-------|----------------------------|-------------------------------|
 | Inhalt | Befund, Therapie, Verlauf | Beträge, Belegnummern, Zahlungen, Ausgaben |
 | Zweck | Versorgung, Haftung, Berufsrecht | Steuern, Betriebsprüfung, Nachvollziehbarkeit der Bücher |
@@ -147,7 +147,7 @@ Haken Sie ab, was bei {{Firma}} bereits klar ist. Offenpunkte gehören in den Re
 ## Nächste Schritte
 
 1. **Checkliste mit Praxisleitung und Büro durchgehen**  
-   Fokus: Liquidation, Zahlungswege, Eingangsbelege, Rechte. Medizinische Doku-Themen bewusst ausklammern oder an die richtige Stelle verweisen.
+   Fokus: Liquidation, Zahlungswege, Eingangsbelege, Rechte. Medizinische Themen der Verfahrensdokumentation bewusst ausklammern oder an die richtige Stelle verweisen.
 
 2. **Einen Belegfluss skizzieren**  
    Beispiel Privatpatient: Termin → Liquidation im PVS → Versand → Zahlung → Ablage → Buchung. Notieren Sie, wo es Schwierigkeiten gibt (z. B. „PDF nur im Portal“, „Storno ohne Info an Buchhaltung“).

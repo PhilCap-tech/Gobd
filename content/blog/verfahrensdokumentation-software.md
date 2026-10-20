@@ -36,7 +36,7 @@ Typische Wege:
 
 Viele Betriebe kombinieren Wege: Tool oder Vorlage für den Entwurf, Berater für die Abstimmung.
 
-## Soft-Vergleich: worauf Sie achten können
+## Sachlicher Vergleich: worauf Sie achten können
 
 | Kriterium | Geführtes Tool | Blanko-Vorlage | Berater-fokussiert |
 |-----------|----------------|----------------|--------------------|

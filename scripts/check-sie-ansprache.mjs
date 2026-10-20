@@ -136,8 +136,8 @@ function findDu(text) {
 
 // Shortenings and colloquialisms. "Infos" stays case-sensitive so the noun
 // "Infos" is caught and slugs such as kanzlei-infos are not. "soft Vergleich"
-// is two words; the heading "Soft-Vergleich" is a different spelling and stays.
-// Apostrophes: ASCII ' and the typographic ’ / ʼ.
+// is two words; a hyphenated "Soft-Vergleich" is a different spelling and is
+// not this token. Apostrophes: ASCII ' and the typographic ’ / ʼ.
 const COLLOQUIAL = [
   {
     name: "brauch ich",
@@ -190,13 +190,8 @@ const COLLOQUIAL_EXTRA = [
 
 // Intentional quotations are listed here. A blocked token is ignored only
 // while it sits inside the phrase. Set `file` when the exception is local.
-const COLLOQUIAL_ALLOW = [
-  // Outside the 2026-10-20 wording list, so the sentence stays as written.
-  {
-    file: "content/readiness/allgemein.md",
-    phrase: "ohne Hype und ohne Konformitätsversprechen",
-  },
-];
+// Empty until a quotation needs to stay.
+const COLLOQUIAL_ALLOW = [];
 
 function colloquialMatches(text) {
   /** @type {{ term: string, index: number }[]} */
@@ -516,14 +511,10 @@ function assertColloquial() {
     console.error("check-sie-ansprache: colloquial self-test flagged kanzlei-infos");
     process.exit(1);
   }
-  const allowedLine =
+  const hypeLine =
     "Dieses Modul hilft Ihnen, den Ist-Stand zu erfassen — ohne Hype und ohne Konformitätsversprechen.\n";
-  if (scanColloquial(allowedLine, "content/readiness/allgemein.md").length !== 0) {
-    console.error("check-sie-ansprache: colloquial allowlist missed the readiness sentence");
-    process.exit(1);
-  }
-  if (scanColloquial(allowedLine, "content/blog/x.md").length !== 1) {
-    console.error("check-sie-ansprache: colloquial allowlist leaked to another file");
+  if (scanColloquial(hypeLine, "content/readiness/allgemein.md").length !== 1) {
+    console.error("check-sie-ansprache: empty allowlist should still flag ohne Hype");
     process.exit(1);
   }
   const quoted = `Die Haltung „okay“ bleibt stehen.\n`;
