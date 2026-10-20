@@ -23,7 +23,7 @@ export default async function AmpelUnsubscribePage({
     <>
       <SiteHeader backHref="/ampel-check" backLabel="← Zur Ampel" />
       <main className="wrap page">
-        <p className="kicker">Betriebsprüfungs-Ampel</p>
+        <p className="kicker">GoBD-Ampel</p>
         <h1>E-Mail-Informationen abmelden</h1>
         <UnsubscribePanel token={token} />
       </main>

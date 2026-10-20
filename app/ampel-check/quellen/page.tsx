@@ -8,7 +8,7 @@ import { canonicalUrl } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Quellen & Methodik",
   description:
-    "Quellen und Abkürzungen der Betriebsprüfungs-Ampel. Orientierung, keine Steuerberatung.",
+    "Quellen und Abkürzungen der GoBD-Ampel. Orientierung, keine Steuerberatung.",
   alternates: { canonical: canonicalUrl(AMPEL_QUELLEN_PATH) },
 };
 

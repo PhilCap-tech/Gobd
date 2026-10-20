@@ -85,7 +85,7 @@ Buchungsbelege sind acht Jahre aufzubewahren (§ 147 Abs. 1 Nr. 4, Abs. 3 Satz 1
 
 ## Die Grenze gegenlesen
 
-Zum Gegenlesen der Kapitel: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF). Offene Punkte vor einer Prüfung sortiert die Liste [10 offene Punkte vor der Prüfung](/resources/10-offene-punkte). Eine erste Einordnung in Grün, Gelb oder Rot gibt die [Betriebsprüfungs-Ampel](/ampel-check). Das Ergebnis beruht auf Ihren Angaben und sagt nichts über den Ausgang einer späteren Prüfung.
+Zum Gegenlesen der Kapitel: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF). Offene Punkte vor einer Prüfung sortiert die Liste [10 offene Punkte vor der Prüfung](/resources/10-offene-punkte). Eine erste Einordnung in Grün, Gelb oder Rot gibt die [GoBD-Ampel](/ampel-check). Das Ergebnis beruht auf Ihren Angaben und sagt nichts über den Ausgang einer späteren Prüfung.
 
 Unsicher, ob Belegwege, Software und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 

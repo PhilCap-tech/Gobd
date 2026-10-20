@@ -310,12 +310,12 @@ export const AMPEL_SHARE_KANZLEI = {
   intro:
     "Teilen Sie die Ampel mit Ihren Mandanten. Sie sehen dann vor dem Gespräch, wo bei der Dokumentation Handlungsbedarf besteht.",
   message:
-    "Wie gut ist Ihre Buchführung für eine Betriebsprüfung dokumentiert? Mit der kostenlosen Betriebsprüfungs-Ampel beantworten Sie in etwa zwei Minuten 10 Ja/Nein-Fragen und erhalten eine erste Einschätzung. Gerne besprechen wir das Ergebnis anschließend gemeinsam: {link}",
+    "Erfüllt Ihr Unternehmen die GoBD-Anforderungen? Mit der kostenlosen GoBD-Ampel beantworten Sie in etwa zwei Minuten 10 Fragen und erhalten eine erste Einschätzung. Gerne besprechen wir das Ergebnis anschließend gemeinsam: {link}",
   copied: "Link kopiert",
 };
 
 export const AMPEL_DISCLAIMER =
-  "Die Betriebsprüfungs-Ampel dient ausschließlich der Orientierung und ist keine Steuerberatung. Sie ersetzt weder eine Prüfung im Einzelfall noch die Beratung durch eine Steuerberaterin oder einen Steuerberater. Das Ergebnis beruht allein auf Ihren Angaben und bestätigt nicht, dass Ihre Buchführung ordnungsgemäß ist. Stand der Rechtsgrundlagen: Oktober 2026.";
+  "Die GoBD-Ampel dient ausschließlich der Orientierung und ist keine Steuerberatung. Sie ersetzt weder eine Prüfung im Einzelfall noch die Beratung durch eine Steuerberaterin oder einen Steuerberater. Das Ergebnis beruht allein auf Ihren Angaben und bestätigt nicht, dass Ihre Buchführung ordnungsgemäß ist. Stand der Rechtsgrundlagen: Oktober 2026.";
 
 export const AMPEL_QUELLEN_PATH = "/ampel-check/quellen";
 

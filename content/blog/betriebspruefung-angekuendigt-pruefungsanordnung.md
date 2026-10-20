@@ -57,9 +57,9 @@ Eine Verfahrensdokumentation beschreibt Inhalt, Aufbau, Ablauf und Ergebnisse Ih
 
 Rückwirkend schöne Dokumente zu erzeugen, die nicht zum damaligen Betrieb passen, ist nicht sinnvoll. Eine ehrliche Beschreibung des tatsächlichen Ablaufs ist die bessere Grundlage.
 
-## Wo stehen Sie? Die Betriebsprüfungs-Ampel
+## Wo stehen Sie? Die GoBD-Ampel
 
-Für einen ersten ruhigen Überblick eignet sich die kostenlose [Betriebsprüfungs-Ampel](/ampel-check): 10 Fragen mit Ja oder Nein, unter anderem zu Verfahrensdokumentation, Kasse, Aufbewahrung, Datenzugriff und internen Kontrollen. Nach etwa zwei Minuten sehen Sie Grün, Gelb oder Rot mit Hinweisen, wo Sie ansetzen können. So wissen Sie, welche Themen Sie zuerst mit Ihrer Steuerkanzlei besprechen. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.
+Für einen ersten ruhigen Überblick eignet sich die kostenlose [GoBD-Ampel](/ampel-check): 10 Fragen mit Ja oder Nein, unter anderem zu Verfahrensdokumentation, Kasse, Aufbewahrung, Datenzugriff und internen Kontrollen. Nach etwa zwei Minuten sehen Sie Grün, Gelb oder Rot mit Hinweisen, wo Sie ansetzen können. So wissen Sie, welche Themen Sie zuerst mit Ihrer Steuerkanzlei besprechen. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.
 
 Zum Abhaken eignen sich außerdem die [10 Offenen Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF). Einen breiteren Überblick zu Branche, Software und Belegwegen gibt der [Readiness-Check](/readiness) — ohne Kreditkarte.
 

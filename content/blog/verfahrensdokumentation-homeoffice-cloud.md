@@ -65,7 +65,7 @@ Bücher und die sonst erforderlichen Aufzeichnungen sind im Geltungsbereich der 
 
 ## Was Sie gegenlesen
 
-Zum Gegenlesen der Kapitel: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF). Eine erste Einordnung in Grün, Gelb oder Rot gibt die [Betriebsprüfungs-Ampel](/ampel-check). Das Ergebnis beruht auf Ihren Angaben und sagt nichts über den Ausgang einer späteren Prüfung.
+Zum Gegenlesen der Kapitel: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF). Eine erste Einordnung in Grün, Gelb oder Rot gibt die [GoBD-Ampel](/ampel-check). Das Ergebnis beruht auf Ihren Angaben und sagt nichts über den Ausgang einer späteren Prüfung.
 
 Unsicher, ob Ablageorte, Zugänge und Verantwortliche schon greifbar sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte.
 

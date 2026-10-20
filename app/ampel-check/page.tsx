@@ -8,7 +8,7 @@ import { canonicalUrl } from "@/lib/seo";
 import { AmpelCheck } from "./ampel-check";
 
 export const metadata: Metadata = {
-  title: AMPEL_H1,
+  title: { absolute: AMPEL_H1 },
   description: AMPEL_INTRO,
   alternates: { canonical: canonicalUrl("/ampel-check") },
 };

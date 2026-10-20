@@ -1,5 +1,5 @@
 /**
- * Betriebsprüfungs-Ampel: weighted score, green cap, and the DOI token.
+ * GoBD-Ampel: weighted score, green cap, and the DOI token.
  *
  *   npx tsx scripts/check-ampel.ts
  */
@@ -1343,7 +1343,7 @@ try {
     assertOk(opted.ok && !("honeypot" in opted) && opted.marketing === "started" && confirmCalls === 1, "the checkbox starts the confirmation");
 
     assertOk(lastFrom === AMPEL_PDF_FROM, "pdf mail comes from info@");
-    assertOk(lastFilename === "Betriebspruefungs-Ampel.pdf", "pdf filename");
+    assertOk(lastFilename === "GoBD-Ampel.pdf", "pdf filename");
     assertOk(lastType === "application/pdf", "pdf content type");
     assertOk(lastHeader === "%PDF", "attachment is a pdf");
 

@@ -50,7 +50,7 @@ export type ReadinessLead = {
   status: string;
   pdfUrl: string;
   mailStatus: string;
-  /** Set for Betriebsprüfungs-Ampel leads. Empty on readiness rows. */
+  /** Set for GoBD-Ampel leads. Empty on readiness rows. */
   consentAt: string;
   doiConfirmedAt: string;
   advisorRef: string;
