@@ -19,7 +19,7 @@ export function AccountPaidActions() {
         {ACCOUNT_PAID_CTA_LABEL}
       </Link>
       <Link className="btn ghost" href="/readiness">
-        Readiness nochmal ansehen
+        Readiness-Ergebnis erneut ansehen
       </Link>
     </div>
   );

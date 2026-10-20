@@ -57,14 +57,14 @@ Bewährt: Entwürfe bearbeiten, freigegebene Version als PDF (oder gleichwertige
 ## Was in die digitale Ablage gehört
 
 - aktuelle freigegebene Verfahrensdokumentation  
-- Vorversionen (Revision der Doku selbst)  
+- Vorversionen (Revision der Verfahrensdokumentation selbst)  
 - ggf. Anhänge: Scan-Anweisung, Berechtigungsliste, Verweis auf Systemhandbücher  
 - Offene-Punkte-Liste (als Teil des PDF oder separat)  
 - kurzer Hinweis, wo die Datei „offiziell“ liegt und wer freigibt  
 
 Eine [Checkliste](/blog/verfahrensdokumentation-checkliste) hilft vor der Freigabe.
 
-Unsicher, ob Systeme, Belegwege und Verantwortliche für eine digitale Doku schon klar genug sind? Machen Sie den kostenlosen [Readiness-Check](/readiness) — ohne Kreditkarte.
+Unsicher, ob Systeme, Belegwege und Verantwortliche für eine digitale Verfahrensdokumentation schon klar genug sind? Machen Sie den kostenlosen [Readiness-Check](/readiness) — ohne Kreditkarte.
 
 ## Typische Fehler bei „wir haben das digital“
 
@@ -91,7 +91,7 @@ z. B. **Verfahrensdokumentation_v1.2_2026-09-19.pdf** plus kurzer Änderungsverm
 
 ### 4. Freigabe dokumentieren
 
-Geschäftsleitung setzt in Kraft. Datum und Name gehören in die Doku.
+Geschäftsleitung setzt in Kraft. Datum und Name gehören in die Verfahrensdokumentation.
 
 ### 5. Mit dem Berater teilen
 
@@ -113,9 +113,9 @@ Nur wenn Ort, Version und Freigabe klar sind und Beteiligte bzw. der Berater bei
 
 ### Muss die Verfahrensdokumentation in der Cloud liegen?
 
-Nein. Lokal, Server oder Cloud können passen — entscheidend sind Nachvollziehbarkeit, Zugriff und Backup, soweit Sie das in der Doku beschreiben.
+Nein. Lokal, Server oder Cloud können passen — entscheidend sind Nachvollziehbarkeit, Zugriff und Backup, soweit Sie das in der Verfahrensdokumentation beschreiben.
 
-### Ist eine digitale Doku „besser“ als Papier?
+### Ist eine digitale Verfahrensdokumentation „besser“ als Papier?
 
 Praktisch oft ja bei Pflege und Teilen. Inhaltlich gelten dieselben Anforderungen an Nachvollziehbarkeit. Wir bewerten keine Formate als „rechtssicher“.
 
@@ -123,7 +123,7 @@ Praktisch oft ja bei Pflege und Teilen. Inhaltlich gelten dieselben Anforderunge
 
 Nein. Digitale Dateien veralten genauso. Siehe [aktualisieren](/blog/verfahrensdokumentation-aktualisieren).
 
-### Darf ich die Doku per E-Mail an den Prüfer schicken?
+### Darf ich die Verfahrensdokumentation per E-Mail an den Prüfer schicken?
 
 Das ist eine Einzelfallfrage (Form, Umfang, Abstimmung mit dem Berater). Intern sollten Sie jedenfalls wissen, welche Version die aktuelle freigegebene ist.
 

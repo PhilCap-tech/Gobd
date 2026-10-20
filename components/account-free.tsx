@@ -34,7 +34,7 @@ export function AccountFreeCard() {
           Test kostenlos machen
         </Link>
       </div>
-      <p className="hint">Readiness-Test nochmal.</p>
+      <p className="hint">Readiness-Test erneut durchführen.</p>
       <ResourceLinks />
     </section>
   );

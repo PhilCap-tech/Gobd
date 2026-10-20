@@ -13,7 +13,7 @@ date: 2026-09-19
 
 Diese Kurzrichtlinie richtet sich an Handelsbetriebe — stationär, online oder beides. Sie hilft Ihnen zu klären, welche Belege und Systeme für die GoBD besonders zählen: Wareneingang, Kasse/POS, Retouren und Inventur. Es ist eine Arbeitshilfe für {{Firma}} in der {{Branche}}, keine fertige Verfahrensdokumentation und kein Ersatz für die Abstimmung mit Ihrem Steuerberater.
 
-Im Handel entstehen prüfungsrelevante Spuren an vielen Stellen gleichzeitig: Lieferantenschreibung, Wareneingangskontrolle, Verkauf an der Kasse oder im Shop, Retoure, Gutschrift, Inventurdifferenz. Wenn diese Ketten nicht zusammenpassen, wird es bei einer Prüfung unangenehm — auch wenn Sie „eigentlich alles digital“ machen.
+Im Handel entstehen prüfungsrelevante Spuren an vielen Stellen gleichzeitig: Lieferantenbestellung, Wareneingangskontrolle, Verkauf an der Kasse oder im Shop, Retoure, Gutschrift, Inventurdifferenz. Wenn diese Ketten nicht zusammenpassen, wird es bei einer Prüfung unangenehm — auch wenn Sie „eigentlich alles digital“ machen.
 
 ---
 
@@ -141,7 +141,7 @@ Haken Sie ab, was bei {{Firma}} bereits geregelt ist. Offene Punkte nehmen Sie i
 
 ### Vorbereitung Verfahrensdokumentation
 
-- [ ] Wir können den Weg Ware rein → Bestand → Verkauf → Zahlung → Retoure grob beschreiben.
+- [ ] Wir können den Weg Wareneingang → Bestand → Verkauf → Zahlung → Retoure grob beschreiben.
 - [ ] Offene Punkte aus dieser Checkliste sind notiert.
 
 ---

@@ -19,7 +19,7 @@ date: "2026-10-18"
 
 Sie fragen sich, **warum die Verfahrensdokumentation bei einer Betriebsprüfung** überhaupt Thema wird — und was Sie sinnvoll vorbereiten können, ohne Panik zu machen. Hier ein nüchterner Überblick: Rolle der Dokumentation, typische Prüferfragen und ein Vorbereitungsweg für KMU und Handwerk.
 
-**Kurz:** Die Verfahrensdokumentation hilft einem sachverständigen Dritten, Ihre Belegwege und Systeme nachzuvollziehen. Bei der Prüfung kann sie als Einstieg oder bei Unklarheiten relevant werden — besonders bei digitaler Ablage und ersetzendem Scannen. Eine gute Doku ersetzt keine Beratung und garantiert kein bestimmtes Prüfungsergebnis.
+**Kurz:** Die Verfahrensdokumentation hilft einem sachverständigen Dritten, Ihre Belegwege und Systeme nachzuvollziehen. Bei der Prüfung kann sie als Einstieg oder bei Unklarheiten relevant werden — besonders bei digitaler Ablage und ersetzendem Scannen. Eine gute Verfahrensdokumentation ersetzt keine Beratung und garantiert kein bestimmtes Prüfungsergebnis.
 
 > **Keine Steuerberatung.** Dieser Text und alle Ergebnisse unter gobd-doku-erstellen.de sind allgemeine Arbeitshilfen. Sie ersetzen keine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
@@ -36,7 +36,7 @@ Die GoBD (Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büche
 
 Fehlt die Dokumentation, ist sie veraltet oder beschreibt etwas anderes als den Alltag, entstehen oft Rückfragen. Das heißt nicht automatisch „alles verloren“ — und eine vorhandene Datei heißt nicht automatisch „alles in Ordnung“. Es geht um **Nachvollziehbarkeit**, nicht um Show. Eine erste Sortierung dieses Stands gibt [Verfahrensdokumentation: Grün, Gelb oder Rot](/blog/verfahrensdokumentation-ampel-gruen-gelb-rot).
 
-Besonders häufig wird die Doku relevant, wenn:
+Besonders häufig wird die Verfahrensdokumentation relevant, wenn:
 
 - Belege gescannt und Papieroriginale vernichtet werden ([ersetzendes Scannen](/blog/ersetzendes-scannen-verfahrensdokumentation))
 - mehrere Systeme zusammenspielen (E-Mail, DMS, Buchhaltung, Cloud)
@@ -53,7 +53,7 @@ Stimmt der Text mit dem, was Mitarbeitende und Systeme tatsächlich machen? Stan
 
 ### 2. Belegweg von Eingang bis Ablage
 
-Wie kommen Eingangs- und Ausgangsbelege rein? Wer prüft? Wo liegen Dateien? Wie kommt es zur Buchhaltung (inhouse oder Steuerberater)?
+Wie gehen Eingangs- und Ausgangsbelege ein? Wer prüft? Wo liegen Dateien? Wie gelangen sie in die Buchhaltung (intern oder über die Steuerberatung)?
 
 ### 3. Systeme und Datenzugriff
 
@@ -69,7 +69,7 @@ Scanprozess, Qualitätskontrolle, wann Originale vernichtet werden dürfen, welc
 
 ### 6. Aktualität
 
-Passt die Doku noch zu aktueller Software und aktuellen Prozessen? Veraltete Versionen ohne Änderungsvermerk sind ein Klassiker.
+Passt die Verfahrensdokumentation noch zu aktueller Software und aktuellen Prozessen? Veraltete Versionen ohne Änderungsvermerk sind ein häufiger Mangel.
 
 Wichtig: Kein Text hier sagt voraus, was *Ihr* Prüfer verlangen oder akzeptieren wird. Das hängt von Branche, Größe, Datenlage und Einzelfall ab — und gehört in die Abstimmung mit Ihrem Steuerberater.
 
@@ -78,7 +78,7 @@ Wichtig: Kein Text hier sagt voraus, was *Ihr* Prüfer verlangen oder akzeptiere
 Ziel ist nicht Perfektion um jeden Preis, sondern ein **aktueller, ehrlicher Stand**, den Sie und Ihr Berater kennen.
 
 1. **Ist-Zustand prüfen** — Belegarten, Systeme, Rollen, Scan ja/nein kurz auflisten.
-2. **Doku gegen Realität legen** — mit Buchhaltung und ggf. IT durchgehen; Abweichungen korrigieren oder als offenen Punkt markieren.
+2. **Verfahrensdokumentation gegen Realität legen** — mit Buchhaltung und ggf. IT durchgehen; Abweichungen korrigieren oder als offenen Punkt markieren.
 3. **Checkliste abarbeiten** — [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) hilft, Lücken sichtbar zu machen.
 4. **Version und Freigabe** — Datum, Versionsnummer, Freigabe durch die Geschäftsleitung nachhalten.
 5. **Offene Punkte sichtbar lassen** — Unklares nicht verstecken; mit dem Steuerberater priorisieren.
@@ -116,7 +116,7 @@ Wenn Sie vor der Prüfung (oder einfach „endlich“) etwas Greifbares ablegen 
 
 Ob und in welchem Umfang sie erforderlich ist, hängt von Ihrer Situation ab (u. a. digitale Belege, Scannen, Systeme). Das klären Sie mit dem Steuerberater. Viele Betriebe mit DV-gestützter Buchführung halten eine nachvollziehbare Beschreibung ohnehin bereit.
 
-### Wird die Prüfung schlechter, wenn die Doku fehlt?
+### Wird die Prüfung schlechter, wenn die Verfahrensdokumentation fehlt?
 
 Fehlen oder Unbrauchbarkeit kann zu Beanstandungen oder Mehrarbeit führen — vor allem bei unklaren digitalen Abläufen. Wie schwer das wiegt, ist einzelfallabhängig. Kein Artikel kann das Ergebnis vorhersagen.
 
@@ -124,7 +124,7 @@ Fehlen oder Unbrauchbarkeit kann zu Beanstandungen oder Mehrarbeit führen — v
 
 Oft: Belegweg, Systeme, Verantwortliche, Aktualität und — falls relevant — Scan- und Vernichtungsprozess. Die Reihenfolge und Tiefe variieren.
 
-### Reicht es, die Doku am Prüfungstag nachzureichen?
+### Reicht es, die Verfahrensdokumentation am Prüfungstag nachzureichen?
 
 Manchmal wird nachgereicht — besser ist ein aktueller Stand *vorher*. Nachträgliches Schreiben unter Zeitdruck erhöht das Risiko von Lücken und Widersprüchen.
 

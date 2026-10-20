@@ -1,12 +1,17 @@
-// Fails the build when covered customer copy still addresses the customer with du.
+// Fails the build when covered customer copy still addresses the customer with du,
+// and when that copy uses the colloquial shortenings listed in COLLOQUIAL.
 // COVERED is the entry path plus transactional mails, account, intake, and legal pages.
-// Blog and lead magnets stay in check-forbidden-words.mjs. Branch pages in
-// content/branchen are checked here as well. Leave the matchers as they are.
+// Du-forms in blog and lead magnets stay in check-forbidden-words.mjs. The colloquial
+// blocklist also scans those customer-facing files, plus lib/home-faq.ts, because
+// that is where the shortened forms are written. Branch pages in content/branchen
+// are checked here as well. Leave the du matchers as they are.
 //
 // Only user-visible copy is checked: markdown as written, and in TS/TSX the
 // string literals plus text nodes. Code identifiers such as `dir` are ignored.
 // Partner and Steuerberater templates in lib/ops.ts are Sie and pass as written.
 // A line marked with `allow-du` is skipped (same idea as allow-forbidden).
+// A line marked with `allow-umgang` skips the colloquial blocklist.
+// Legal texts stay in the du scan and are left out of the colloquial scan.
 import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -127,6 +132,109 @@ function findDu(text) {
     text.match(DU_BESTAETIGE_RE)?.[0] ||
     null
   );
+}
+
+// Shortenings and colloquialisms. "Infos" stays case-sensitive so the noun
+// "Infos" is caught and slugs such as kanzlei-infos are not. "soft Vergleich"
+// is two words; a hyphenated "Soft-Vergleich" is a different spelling and is
+// not this token. Apostrophes: ASCII ' and the typographic ’ / ʼ.
+const COLLOQUIAL = [
+  {
+    name: "brauch ich",
+    re: /(?<![\p{L}\p{N}_])brauch ich(?![\p{L}\p{N}_])/giu,
+  },
+  {
+    name: "geht’s",
+    re: /(?<![\p{L}\p{N}_])geht['’ʼ]s(?![\p{L}\p{N}_])/giu,
+  },
+  {
+    name: "läuft’s",
+    re: /(?<![\p{L}\p{N}_])läuft['’ʼ]s(?![\p{L}\p{N}_])/giu,
+  },
+  {
+    name: "rauskommt",
+    re: /(?<![\p{L}\p{N}_])rauskommt(?![\p{L}\p{N}_])/giu,
+  },
+  {
+    name: "okay",
+    re: /(?<![\p{L}\p{N}_])okay(?![\p{L}\p{N}_])/giu,
+  },
+  {
+    name: "nochmal",
+    re: /(?<![\p{L}\p{N}_])nochmal(?![\p{L}\p{N}_])/giu,
+  },
+  {
+    name: "Infos",
+    re: /(?<![\p{L}\p{N}_])Infos(?![\p{L}\p{N}_])/gu,
+  },
+  {
+    name: "Hype",
+    re: /(?<![\p{L}\p{N}_])hype(?![\p{L}\p{N}_])/giu,
+  },
+  {
+    name: "soft Vergleich",
+    re: /(?<![\p{L}\p{N}_])soft\s+vergleich(?![\p{L}\p{N}_])/giu,
+  },
+  {
+    name: "briefed",
+    re: /(?<![\p{L}\p{N}_])briefed(?![\p{L}\p{N}_])/giu,
+  },
+];
+
+const COLLOQUIAL_EXTRA = [
+  "lib/home-faq.ts",
+  "content/blog/**/*.{md,mdx}",
+  "lib/lead-magnet.ts",
+  "lib/lead-magnet-inhalt.ts",
+];
+
+// Intentional quotations are listed here. A blocked token is ignored only
+// while it sits inside the phrase. Set `file` when the exception is local.
+// Empty until a quotation needs to stay.
+const COLLOQUIAL_ALLOW = [];
+
+function colloquialMatches(text) {
+  /** @type {{ term: string, index: number }[]} */
+  const hits = [];
+  for (const { re } of COLLOQUIAL) {
+    re.lastIndex = 0;
+    for (const match of text.matchAll(re)) {
+      hits.push({ term: match[0], index: match.index ?? 0 });
+    }
+  }
+  return hits;
+}
+
+function isLegalCopy(file) {
+  const normalized = file.replaceAll("\\", "/");
+  return (
+    normalized.includes("content/legal/") ||
+    /(?:^|\/)app\/(?:datenschutz|agb|cookies|impressum)\//.test(normalized) ||
+    /(?:^|\/)lib\/legal(?:-content|-markdown)?\.tsx?$/.test(normalized) ||
+    normalized.endsWith("components/legal-page.tsx")
+  );
+}
+
+function allowCovers(file, text, index, length, allow = COLLOQUIAL_ALLOW) {
+  const normalized = file.replaceAll("\\", "/");
+  for (const entry of allow) {
+    if (entry.file && !normalized.endsWith(entry.file)) continue;
+    let from = 0;
+    while (from <= text.length) {
+      const at = text.indexOf(entry.phrase, from);
+      if (at === -1) break;
+      if (index >= at && index + length <= at + entry.phrase.length) return true;
+      from = at + 1;
+    }
+  }
+  return false;
+}
+
+function lineAllowsUmgang(source, index) {
+  const start = source.lastIndexOf("\n", Math.max(0, index - 1)) + 1;
+  const end = source.indexOf("\n", index);
+  const line = source.slice(start, end === -1 ? source.length : end);
+  return line.includes("allow-umgang");
 }
 
 function assertMatcher() {
@@ -275,6 +383,38 @@ function scan(source, file) {
   return hits;
 }
 
+/** @returns {{ line: number, match: string, text: string }[]} */
+function scanColloquial(source, file, allow = COLLOQUIAL_ALLOW) {
+  /** @type {{ line: number, match: string, text: string }[]} */
+  const hits = [];
+  const keep = (line, text, match) => {
+    if (allowCovers(file, text, match.index, match.term.length, allow)) return;
+    hits.push({
+      line,
+      match: match.term,
+      text: text.replace(/\s+/g, " ").trim().slice(0, 180),
+    });
+  };
+  if (file.endsWith(".md") || file.endsWith(".mdx")) {
+    source.split("\n").forEach((line, index) => {
+      if (line.includes("allow-umgang")) return;
+      const visible = line.replace(/https?:\/\/\S+/g, " ");
+      for (const match of colloquialMatches(visible)) keep(index + 1, visible, match);
+    });
+    return hits;
+  }
+  for (const region of uiRegions(source)) {
+    if (lineAllowsUmgang(source, region.start)) continue;
+    for (const part of proseParts(region.text)) {
+      const visible = part.replace(/https?:\/\/\S+/g, " ");
+      for (const match of colloquialMatches(visible)) {
+        keep(lineAt(source, region.start), visible, match);
+      }
+    }
+  }
+  return hits;
+}
+
 function assertScan() {
   const dirty = `
     export function Demo() {
@@ -311,8 +451,100 @@ function assertScan() {
   }
 }
 
+function assertColloquial() {
+  const cases = [
+    ["Brauch ich eine Verfahrensdokumentation?", true],
+    ["Brauche ich eine Verfahrensdokumentation?", false],
+    ["So läuft’s ab", true],
+    ["So läuft's ab", true],
+    ["So läuft es ab", false],
+    ["So läuft es heute", false],
+    ["Später geht’s über Magic Link", true],
+    ["Später geht's ins Konto", true],
+    ["Was rauskommt: kurze Einschätzung", true],
+    ["Was herauskommt, bleibt", false],
+    ["Das ist okay — solange", true],
+    ["Das ist Okay.", true],
+    ["Das ist zulässig, solange", false],
+    ["Readiness nochmal ansehen", true],
+    ["nochmals prüfen", false],
+    ["nicht genug Infos", true],
+    ["Kanzlei-Infos mehr", true],
+    ["genügend Informationen", false],
+    ["value kanzlei-infos", false],
+    ["Prozessinfos bleiben", false],
+    ["ohne Hype?", true],
+    ["ein Hyperlink", false],
+    ["hier ein soft Vergleich", true],
+    ["## Soft-Vergleich: worauf Sie achten können", false],
+    ["sachlicher Vergleich", false],
+    ["wenn gut briefed", true],
+    ["ein Brief und Briefe", false],
+  ];
+  for (const [sample, expectHit] of cases) {
+    const hit = colloquialMatches(sample).length > 0;
+    if (hit !== expectHit) {
+      console.error(
+        `check-sie-ansprache: colloquial self-test failed for ${JSON.stringify(sample)} (hit=${hit}, expected=${expectHit})`,
+      );
+      process.exit(1);
+    }
+  }
+
+  const jsx = `export function Demo(){ return <h2>So läuft’s ab</h2>; }\n`;
+  if (scanColloquial(jsx, "app/page.tsx").length !== 1) {
+    console.error("check-sie-ansprache: colloquial self-test missed JSX");
+    process.exit(1);
+  }
+  const comment = `// So läuft’s ab\nexport const label = "So läuft es ab";\n`;
+  if (scanColloquial(comment, "app/page.tsx").length !== 0) {
+    console.error("check-sie-ansprache: colloquial self-test flagged a comment");
+    process.exit(1);
+  }
+  const ident = `const okay = true;\nexport const label = "Weiter";\n`;
+  if (scanColloquial(ident, "app/page.tsx").length !== 0) {
+    console.error("check-sie-ansprache: colloquial self-test flagged an identifier");
+    process.exit(1);
+  }
+  const slug = `export const field = "kanzlei-infos";\n`;
+  if (scanColloquial(slug, "app/steuerberater/merkblatt-form.tsx").length !== 0) {
+    console.error("check-sie-ansprache: colloquial self-test flagged kanzlei-infos");
+    process.exit(1);
+  }
+  const hypeLine =
+    "Dieses Modul hilft Ihnen, den Ist-Stand zu erfassen — ohne Hype und ohne Konformitätsversprechen.\n";
+  if (scanColloquial(hypeLine, "content/readiness/allgemein.md").length !== 1) {
+    console.error("check-sie-ansprache: empty allowlist should still flag ohne Hype");
+    process.exit(1);
+  }
+  const quoted = `Die Haltung „okay“ bleibt stehen.\n`;
+  const quoteAllow = [{ phrase: "„okay“" }];
+  if (scanColloquial(quoted, "content/blog/x.md", quoteAllow).length !== 0) {
+    console.error("check-sie-ansprache: quotation allowlist did not cover „okay“");
+    process.exit(1);
+  }
+  if (scanColloquial(quoted, "content/blog/x.md").length !== 1) {
+    console.error("check-sie-ansprache: quotation without allowlist should still fail");
+    process.exit(1);
+  }
+  const marked = `export const label = "nochmal"; // allow-umgang\n`;
+  if (scanColloquial(marked, "components/account-free.tsx").length !== 0) {
+    console.error("check-sie-ansprache: allow-umgang did not skip the line");
+    process.exit(1);
+  }
+  if (!isLegalCopy("content/legal/datenschutz.md") || !isLegalCopy("lib/legal.ts")) {
+    console.error("check-sie-ansprache: legal paths were not recognized");
+    process.exit(1);
+  }
+  if (isLegalCopy("content/blog/x.md") || isLegalCopy("app/page.tsx")) {
+    console.error("check-sie-ansprache: non-legal path classified as legal");
+    process.exit(1);
+  }
+}
+
 assertMatcher();
 assertScan();
+assertColloquial();
 
 const files = [...new Set(COVERED.flatMap((pattern) => globSync(pattern)))].sort();
 if (files.length === 0) {
@@ -324,6 +556,35 @@ if (!files.some((file) => file.includes(`${path.sep}branchen${path.sep}`))) {
   process.exit(1);
 }
 
+const colloquialFiles = [
+  ...new Set([
+    ...files,
+    ...COLLOQUIAL_EXTRA.flatMap((pattern) => globSync(pattern)),
+  ]),
+]
+  .filter((file) => !isLegalCopy(file))
+  .sort();
+if (colloquialFiles.length === 0) {
+  console.error("check-sie-ansprache: no colloquial files matched");
+  process.exit(1);
+}
+if (!files.some(isLegalCopy)) {
+  console.error("check-sie-ansprache: expected legal files in the du scan");
+  process.exit(1);
+}
+if (colloquialFiles.some(isLegalCopy)) {
+  console.error("check-sie-ansprache: legal file included in the colloquial scan");
+  process.exit(1);
+}
+if (!colloquialFiles.some((file) => file.endsWith("lib/home-faq.ts"))) {
+  console.error("check-sie-ansprache: lib/home-faq.ts is not in the colloquial scan");
+  process.exit(1);
+}
+if (!colloquialFiles.some((file) => file.includes(`${path.sep}blog${path.sep}`))) {
+  console.error("check-sie-ansprache: no blog files in the colloquial scan");
+  process.exit(1);
+}
+
 let failed = false;
 for (const file of files) {
   const source = readFileSync(file, "utf8");
@@ -332,7 +593,16 @@ for (const file of files) {
     failed = true;
   }
 }
+for (const file of colloquialFiles) {
+  const source = readFileSync(file, "utf8");
+  for (const hit of scanColloquial(source, file)) {
+    console.error(`${file}:${hit.line}: umgangssprachlich „${hit.match}“ in: ${hit.text}`);
+    failed = true;
+  }
+}
 
 if (failed) process.exit(1);
 
-console.log(`check-sie-ansprache: ok (${files.length} files)`);
+console.log(
+  `check-sie-ansprache: ok (${files.length} files, ${colloquialFiles.length} colloquial)`,
+);

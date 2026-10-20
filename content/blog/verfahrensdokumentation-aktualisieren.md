@@ -19,7 +19,7 @@ date: "2026-09-22"
 
 Sie haben eine Verfahrensdokumentation — aber Software, Team oder Belegweg haben sich geändert. Hier erfahren Sie, **wann Sie die Verfahrensdokumentation aktualisieren** sollten, wie Versionierung funktioniert und wie Sie den Pflegeprozess schlank halten.
 
-**Kurz:** Aktualisieren Sie bei wesentlichen Prozess- oder Systemänderungen und prüfen Sie in sinnvollen Intervallen, ob der Text noch stimmt. Jede freigegebene Version braucht Datum, Versionskennzeichen und idealerweise einen kurzen Änderungsvermerk. Eine veraltete Doku hilft wenig — und eine „lebende“ Datei ohne Freigabe auch nicht.
+**Kurz:** Aktualisieren Sie bei wesentlichen Prozess- oder Systemänderungen und prüfen Sie in sinnvollen Intervallen, ob der Text noch stimmt. Jede freigegebene Version braucht Datum, Versionskennzeichen und idealerweise einen kurzen Änderungsvermerk. Eine veraltete Verfahrensdokumentation hilft wenig — und eine „lebende“ Datei ohne Freigabe auch nicht.
 
 > **Keine Steuerberatung.** Dieser Text und alle Ergebnisse unter gobd-doku-erstellen.de sind allgemeine Arbeitshilfen. Sie ersetzen keine Prüfung oder Freigabe durch Steuerberater, Wirtschaftsprüfer oder Rechtsanwalt.
 
@@ -44,7 +44,7 @@ Aktualisieren heißt nicht, jedes Tippfehler-Korrektur als Großprojekt zu behan
 - Wechsel des Steuerberaters oder der Buchhaltungsorganisation (inhouse ↔ extern)
 - neue Standorte, Abteilungen oder wesentliche Rollenwechsel bei Verantwortlichen
 - geänderte Speicherorte, Hosting oder Zugriffskonzepte
-- geänderte Backup-/Wiederherstellungsregeln, soweit in der Doku beschrieben
+- geänderte Backup-/Wiederherstellungsregeln, soweit in der Verfahrensdokumentation beschrieben
 - Vernichtungsregeln oder Ausnahmen beim Scannen ändern sich
 
 ### Regelmäßige Prüfung (ohne Anlass)
@@ -68,7 +68,7 @@ Versionierung der Verfahrensdokumentation selbst gehört typischerweise in die B
 | Freigabe | Wer (Geschäftsleitung) hat in Kraft gesetzt |
 | Ablage alter Versionen | Vorversionen aufbewahren, nicht überschreiben und vergessen |
 
-Tipp: Alte Versionen behalten (Revisionssicherheit der Doku selbst). Beim Lesen immer die **aktuelle freigegebene** Version verwenden.
+Tipp: Alte Versionen behalten (Revisionssicherheit der Verfahrensdokumentation selbst). Beim Lesen immer die **aktuelle freigegebene** Version verwenden.
 
 ## So aktualisieren Sie — Schritt für Schritt
 
@@ -108,13 +108,13 @@ Zur Orientierung (kein starres Schema):
 
 - **Anwenderdokumentation** — geänderte Eingangskanäle, Rollen, Ablage-/Benennungsregeln, Weg zur Buchhaltung
 - **Technische Systemdokumentation** — Software, Versionen, Schnittstellen, Speicherorte, Export/Zugriff
-- **Betriebsdokumentation** — Berechtigungen, Backup, Änderungsmanagement, Schulung/Vertretung, Versionierung der Doku
-- **Allgemeine Beschreibung** — Geltungsbereich, Belegarten-Überblick, Verantwortliche für die Doku selbst
+- **Betriebsdokumentation** — Berechtigungen, Backup, Änderungsmanagement, Schulung/Vertretung, Versionierung der Verfahrensdokumentation
+- **Allgemeine Beschreibung** — Geltungsbereich, Belegarten-Überblick, Verantwortliche für die Verfahrensdokumentation selbst
 - **Scannen** — eigener Abschnitt oder Anhang, wenn Sie ersetzend scannen oder das planen
 
 ## Entwurf neu aufsetzen oder nachziehen
 
-Wenn die alte Doku kaum noch zur Realität passt oder nie richtig fertig wurde: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Den Entwurf danach versionieren und mit dem Berater freigeben.
+Wenn die alte Verfahrensdokumentation kaum noch zur Realität passt oder nie richtig fertig wurde: [GoBD-Verfahrensdokumentation erstellen](/checkout) — geführtes Intake, PDF und Offene-Punkte-Liste. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Den Entwurf danach versionieren und mit dem Berater freigeben.
 
 ## FAQ
 
@@ -128,7 +128,7 @@ Besser: neue Version mit Nummer, Datum und Änderungsvermerk, alte Version aufbe
 
 ### Wer darf aktualisieren und freigeben?
 
-Inhaltlich oft Buchhaltung/Organisation; freigeben sollte die Geschäftsleitung (oder eine klar benannte Vertretung). Die Rollen gehören in die Doku selbst.
+Inhaltlich oft Buchhaltung/Organisation; freigeben sollte die Geschäftsleitung (oder eine klar benannte Vertretung). Die Rollen gehören in die Verfahrensdokumentation selbst.
 
 ### Was ist mit kleinen Software-Updates?
 

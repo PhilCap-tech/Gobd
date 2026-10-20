@@ -49,7 +49,7 @@ export const KANZLEI_DOI_PREHEADER =
 export const KANZLEI_DOI_BUTTON = "Anmeldung bestätigen";
 export const KANZLEI_MAIL_FOOTER =
   "IKAT GmbH · Sitz der Gesellschaft: Monheim am Rhein · Gartzenweg 1a, 40789 Monheim am Rhein · Geschäftsführer: Philip Cappelletti · Registergericht: Amtsgericht Düsseldorf, HRB 81430 · info@gobd-doku-erstellen.de";
-export const KANZLEI_UNSUBSCRIBE_LABEL = "Keine Kanzlei-Infos mehr erhalten";
+export const KANZLEI_UNSUBSCRIBE_LABEL = "Keine Kanzlei-Informationen mehr erhalten";
 
 export const KANZLEI_CONFIRM_TITLE = "Danke, Ihre Anmeldung ist bestätigt.";
 export const KANZLEI_CONFIRM_BODY =

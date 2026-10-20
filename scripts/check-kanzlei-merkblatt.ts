@@ -268,7 +268,7 @@ assertOk(mail.text.includes("höchstens zweimal im Monat"), "the mail states the
 assertOk(mail.html.includes("bereits direkt auf der Seite heruntergeladen"), "the mail says the download already happened");
 assertOk(!mail.html.includes("Webinar") && !mail.text.includes("Webinar"), "the mail says Veranstaltungen, not Webinare");
 const footerLine = kanzleiUnsubscribeFooterLine("https://example.test/ab");
-assertOk(footerLine.startsWith("Abmelden: Keine Kanzlei-Infos mehr erhalten"), "later mails can use the unsubscribe line");
+assertOk(footerLine.startsWith("Abmelden: Keine Kanzlei-Informationen mehr erhalten"), "later mails can use the unsubscribe line");
 assertOk(AMPEL_CONFIRM_WINDOW_MS === 15 * 60 * 1000, "DOI dedupe uses the ampel window");
 
 const privacyPage = readFileSync("app/datenschutz/page.tsx", "utf8");

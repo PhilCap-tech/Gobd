@@ -31,7 +31,7 @@ Eine Verfahrensdokumentation beschreibt, wie Belege bei Ihnen entstehen, erfasst
 Diese Checkliste ist kein Ersatz für Beratung und kein Versprechen, dass jedes Finanzamt jedes Dokument als ausreichend anerkennt. Sie ist eine **Arbeitsliste**, damit Sie:
 
 - nichts Offensichtliches vergessen (Verantwortliche, Systeme, Belegwege)
-- Anwender- und Technikteil nicht durcheinanderwerfen
+- Anwender- und Technikteil nicht vermischen
 - beim Scannen die heiklen Punkte (Qualität, Vernichtung, Ausnahmen) bewusst prüfen
 - vor der Freigabe durch die Geschäftsleitung noch einmal strukturiert durchgehen
 
@@ -48,7 +48,7 @@ Tipp: Orientieren Sie sich an den vier Teilen als Gerüst. Details stehen oft sc
 
 ## Checkliste 1: Allgemeine Beschreibung
 
-Hier legen Sie den Rahmen fest: Wer Sie sind, wofür die Doku da ist, welche Belege und Systeme betroffen sind.
+Hier legen Sie den Rahmen fest: Wer Sie sind, wofür die Verfahrensdokumentation da ist, welche Belege und Systeme betroffen sind.
 
 - [ ] Unternehmen / Betrieb klar benannt (Name, ggf. Rechtsform, Standort)
 - [ ] Branche und kurze Beschreibung der Tätigkeit
@@ -63,7 +63,7 @@ Hier legen Sie den Rahmen fest: Wer Sie sind, wofür die Doku da ist, welche Bel
 
 ## Checkliste 2: Anwenderdokumentation
 
-Hier geht es um den Alltag: Wie kommen Belege rein, wer prüft, wer legt ab, wie kommt es zur Buchhaltung?
+Hier geht es um den Alltag: Wie gehen Belege ein, wer prüft, wer legt ab, wie gelangen sie in die Buchhaltung?
 
 - [ ] Eingangskanäle beschrieben (Post, E-Mail, Upload-Portal, App, Scan vor Ort)
 - [ ] Ablauf vom Eingang bis zur Ablage / Buchung in nachvollziehbaren Schritten

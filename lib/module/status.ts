@@ -135,7 +135,7 @@ export const STATUS_OPTION_LABEL: Record<ModulStatus, string> = {
 export const STATUS_HILFE: Record<ModulStatus, string> = {
   tool: "Sie beantworten die Fragen zu diesem Modul hier; die Angaben erscheinen im Gesamt-PDF.",
   extern: "Sie haben die Beschreibung schon und verlinken oder laden sie hier hoch.",
-  offen: "Sie haben noch nicht genug Infos (zum Beispiel, weil der Prozess unklar ist oder ein Mitarbeiter fehlt) und füllen das Modul später aus; es bleibt als offene Aufgabe sichtbar, bis Sie es beschreiben oder auf „nicht vorhanden“ setzen.",
+  offen: "Sie haben noch nicht genügend Informationen (zum Beispiel, weil der Prozess unklar ist oder ein Mitarbeiter fehlt) und füllen das Modul später aus; es bleibt als offene Aufgabe sichtbar, bis Sie es beschreiben oder auf „nicht vorhanden“ setzen.",
   nicht_vorhanden: "Diesen Ablauf gibt es in Ihrem Betrieb nicht; Sie schließen ihn bewusst aus.",
 };
 

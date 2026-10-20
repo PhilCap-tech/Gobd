@@ -3,7 +3,7 @@ slug: "kiosk"
 route: "/verfahrensdokumentation-kiosk"
 branche: "Kiosk"
 metaTitle: "Verfahrensdokumentation Kiosk: Kasse, Lotto, Pakete"
-metaDescription: "Verfahrensdokumentation für Kioske und Spätis: Kasse mit TSE, Kassenbuch, Fremdumsätze wie Lotto, Paketshop oder Guthabenkarten, Belegfluss und typische Lücken. Keine Steuerberatung."
+metaDescription: "Verfahrensdokumentation für Kioske und Spätverkaufsstellen: Kasse mit TSE, Kassenbuch, Fremdumsätze wie Lotto, Paketshop oder Guthabenkarten, Belegfluss und typische Lücken. Keine Steuerberatung."
 h1: "Verfahrensdokumentation für Kioske: Kasse, Fremdumsätze und Belege"
 primaryKeyword: "Verfahrensdokumentation Kiosk"
 secondaryKeywords:

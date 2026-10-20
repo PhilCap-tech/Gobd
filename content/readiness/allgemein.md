@@ -16,7 +16,7 @@ date: 2026-09-19
 
 Dieses Modul ist der **Fallback**, wenn keine spezialisierte Branchenvorlage passt: für gemischte Tätigkeiten, unklare Zuordnung oder als Einstieg, bevor Sie ein spezifischeres Modul nutzen. Es ist eine **Readiness-Arbeitshilfe** — keine fertige Verfahrensdokumentation und kein Ersatz für Steuerberatung.
 
-**Kurz:** Die GoBD verlangen nachvollziehbare Belegwege und Systeme. Unabhängig von der Branche brauchen Sie Klarheit über Belegarten, Eingangskanäle, Software, Rollen, Ablage und Übergabe an die Buchhaltung. Dieses Modul hilft Ihnen, den Ist-Stand zu erfassen — ohne Hype und ohne Konformitätsversprechen.
+**Kurz:** Die GoBD verlangen nachvollziehbare Belegwege und Systeme. Unabhängig von der Branche brauchen Sie Klarheit über Belegarten, Eingangskanäle, Software, Rollen, Ablage und Übergabe an die Buchhaltung. Dieses Modul hilft Ihnen, den Ist-Stand zu erfassen — ohne übertriebene Versprechen und ohne Konformitätsversprechen.
 
 ---
 

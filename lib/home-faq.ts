@@ -7,7 +7,7 @@ import type { Crumb } from "@/lib/jsonld";
  */
 export const HOME_FAQ: FaqEntry[] = [
   {
-    question: "Brauch ich eine Verfahrensdokumentation?",
+    question: "Brauche ich eine Verfahrensdokumentation?",
     answer:
       "Die GoBD erwarten eine nachvollziehbare Verfahrensdokumentation. Viele Betriebe schieben sie auf, weil Vorlagen leer bleiben. Ein geführter Entwurf schafft einen greifbaren Stand.",
   },

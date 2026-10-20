@@ -17,7 +17,7 @@ date: "2026-09-19"
 
 # Verfahrensdokumentation ersetzendes Scannen
 
-Sie scannen Belege und wollen Originale vernichten — dann gehört das **ersetzende Scannen** klar in Ihre Verfahrensdokumentation. Hier eine praxisnahe Übersicht, was Sie dazu beschreiben sollten: Scan-Prozess, Qualitätskontrolle, Vernichtungsfreigabe und Ausnahmen. Ohne Rechtsgarantien, ohne Hype.
+Sie scannen Belege und wollen Originale vernichten — dann gehört das **ersetzende Scannen** klar in Ihre Verfahrensdokumentation. Hier eine praxisnahe Übersicht, was Sie dazu beschreiben sollten: Scan-Prozess, Qualitätskontrolle, Vernichtungsfreigabe und Ausnahmen. Ohne Rechtsgarantien und ohne Übertreibungen.
 
 **Kurz:** Dokumentieren Sie, wie Sie papierne Originale durch digitale Abbilder ersetzen — wer scannt, wie geprüft wird, wann vernichtet wird und was ausgenommen ist. Das ersetzt keine Steuerberatung und kein Konformitätsversprechen.
 
@@ -115,10 +115,10 @@ Unklar, ob Ihr Scan-Setup schon dokumentationsreif ist? Der kostenlose [Readines
 4. Qualitätskontrolle inkl. Nachbearbeitung
 5. Vernichtungsfreigabe inkl. Dokumentation der Vernichtung
 6. Ausnahmen und Alternativwege
-7. Änderungen am Scan-Prozess (wer aktualisiert die Doku?)
+7. Änderungen am Scan-Prozess (wer aktualisiert die Verfahrensdokumentation?)
 8. Offene Punkte sichtbar listen
 
-Zum Abgleich aller Doku-Teile: [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste).
+Zum Abgleich aller Teile der Verfahrensdokumentation: [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste).
 
 ## Häufige Praxisfehler
 
@@ -126,7 +126,7 @@ Zum Abgleich aller Doku-Teile: [Verfahrensdokumentation Checkliste](/blog/verfah
 - „Das DMS macht das“ — ohne Rollen und Freigabe
 - Handy-Fotos im Außendienst **nicht** im Standardprozess erwähnt
 - Ausnahmen nur mündlich bekannt
-- Prozess geändert (neues Gerät, neuer Dienstleister), Doku nicht aktualisiert
+- Prozess geändert (neues Gerät, neuer Dienstleister), Verfahrensdokumentation nicht aktualisiert
 - Offene Punkte verschwiegen statt markiert
 
 ## Verfahrensdokumentation online erstellen
