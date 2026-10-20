@@ -123,6 +123,14 @@ nav,
   font-size: 14px;
 }
 
+/* Back link plus Konto (e.g. /ampel-check) wraps at 360px and still
+   sticks 2px past the shell. Tighten the nav gap only in that range. */
+@media (max-width: 362px) {
+  .nav {
+    gap: 14px;
+  }
+}
+
 .nav a:not(.btn) {
   color: var(--muted);
   text-decoration: none;

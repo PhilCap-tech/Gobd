@@ -10,7 +10,6 @@ import {
   AMPEL_CHECK_INTRO,
   AMPEL_CHECK_KICKER,
   AMPEL_CHECK_MAIL,
-  AMPEL_CHECK_PREVIEW_BASIS,
   AMPEL_CHECK_PREVIEW_DETAIL,
   AMPEL_CHECK_PREVIEW_NOTE,
   AMPEL_CHECK_WHY,
@@ -75,7 +74,6 @@ function AmpelPreview({ answers }: { answers: AmpelAnswerMap }) {
       <p className="ampel-preview-line">{ampelCheckPreviewLine(color, openPoints)}</p>
       <p className="hint ampel-preview-note">{AMPEL_CHECK_PREVIEW_NOTE}</p>
       <p>{AMPEL_CHECK_PREVIEW_DETAIL}</p>
-      <p className="hint">{AMPEL_CHECK_PREVIEW_BASIS}</p>
     </section>
   );
 }
