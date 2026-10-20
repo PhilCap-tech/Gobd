@@ -41,7 +41,7 @@ import { findLatestAmpelReadinessLead, upsertReadinessLead } from "@/lib/store";
 import type { ReadinessLead } from "@/lib/readiness";
 
 export const AMPEL_PDF_FROM = "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
-export const AMPEL_PDF_FILENAME = "Betriebspruefungs-Ampel.pdf";
+export const AMPEL_PDF_FILENAME = "GoBD-Ampel.pdf";
 export const AMPEL_SEND_TIMEOUT_MS = 8_000;
 
 export type SubmitAmpelInput = {

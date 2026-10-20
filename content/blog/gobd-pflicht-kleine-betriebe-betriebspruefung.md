@@ -8,7 +8,7 @@ primaryKeyword: "GoBD Pflicht"
 secondaryKeywords:
   - "GoBD kleine Betriebe"
   - "Betriebsprüfung Kleinbetrieb"
-  - "Betriebsprüfungs-Ampel"
+  - "GoBD-Ampel"
 ctaSoft: "/ampel-check"
 ctaPrimary: "/"
 status: "ready-for-publish"
@@ -67,9 +67,9 @@ Welche Unterlagen im Prüfungsablauf konkret angefragt werden, beschreibt [Betri
 
 Kein Punkt verlangt ein dickes Handbuch. Entscheidend ist, dass ein Dritter in angemessener Zeit nachvollziehen kann, wie Ihre Buchführung organisiert ist. Für viele kleine Betriebe reicht eine klare Systemliste, eine Beschreibung des Belegflusses, die Zuständigkeiten und Angaben zu Kasse, Aufbewahrung und Datenbereitstellung. Wie das als Muster aussieht: [Verfahrensdokumentation Muster für Einzelunternehmer](/blog/verfahrensdokumentation-muster-einzelunternehmer).
 
-## Wo stehen Sie? Die Betriebsprüfungs-Ampel
+## Wo stehen Sie? Die GoBD-Ampel
 
-Die kostenlose [Betriebsprüfungs-Ampel](/ampel-check) fragt genau diese Themen in 10 Ja/Nein-Fragen ab. Nach etwa zwei Minuten sehen Sie Grün, Gelb oder Rot mit Hinweisen für die nächsten Schritte. Fragen, die bei Ihnen nicht vorkommen, etwa zur Kasse oder zum Scannen, markieren Sie als nicht zutreffend. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.
+Die kostenlose [GoBD-Ampel](/ampel-check) fragt genau diese Themen in 10 Ja/Nein-Fragen ab. Nach etwa zwei Minuten sehen Sie Grün, Gelb oder Rot mit Hinweisen für die nächsten Schritte. Fragen, die bei Ihnen nicht vorkommen, etwa zur Kasse oder zum Scannen, markieren Sie als nicht zutreffend. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.
 
 Zum Gegenlesen eignen sich die [10 Offenen Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF). Einen breiteren Überblick gibt der [Readiness-Check](/readiness) — ohne Kreditkarte.
 

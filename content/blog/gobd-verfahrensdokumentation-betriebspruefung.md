@@ -91,9 +91,9 @@ Unsicher, ob die Basics schon beisammen sind? Machen Sie den kostenlosen [Readin
 
 Zum Abhaken auf einer Seite: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF).
 
-## Wo stehen Sie? Die Betriebsprüfungs-Ampel
+## Wo stehen Sie? Die GoBD-Ampel
 
-Bevor Sie Unterlagen sortieren, können Sie den Stand ruhig einordnen. Die kostenlose [Betriebsprüfungs-Ampel](/ampel-check) stellt zehn Ja-oder-Nein-Fragen, unter anderem zu Verfahrensdokumentation, Kasse, Aufbewahrung, Datenzugriff und internen Kontrollen. Sie sehen Grün, Gelb oder Rot mit Hinweisen, wo Sie ansetzen können. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung. Sie sagt nichts über den Ausgang einer späteren Prüfung.
+Bevor Sie Unterlagen sortieren, können Sie den Stand ruhig einordnen. Die kostenlose [GoBD-Ampel](/ampel-check) stellt zehn Ja-oder-Nein-Fragen, unter anderem zu Verfahrensdokumentation, Kasse, Aufbewahrung, Datenzugriff und internen Kontrollen. Sie sehen Grün, Gelb oder Rot mit Hinweisen, wo Sie ansetzen können. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung. Sie sagt nichts über den Ausgang einer späteren Prüfung.
 
 ## Was die Verfahrensdokumentation nicht leistet
 

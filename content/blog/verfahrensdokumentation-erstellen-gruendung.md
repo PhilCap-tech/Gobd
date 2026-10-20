@@ -61,7 +61,7 @@ Grundlage ist das BMF-Schreiben zu den GoBD vom 28.11.2019 in der Fassung vom 14
 
 Änderungen bleiben historisch nachvollziehbar. Frühere Fassungen sind aufzubewahren (Randziffer 154). Die erste Fassung trägt Datum und Version. Kommen später eine Kasse, eine weitere Person oder ein weiteres Programm hinzu, ziehen Sie nach und behalten die vorige Fassung. Ein festes jährliches Intervall schreibt das Gesetz nicht vor.
 
-Zum Gegenlesen: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF). Eine erste Einordnung, ob die Beschreibung schon trägt, lückenhaft ist oder noch fehlt, gibt die [Betriebsprüfungs-Ampel](/ampel-check). Das Ergebnis beruht auf Ihren Angaben und sagt nichts über den Ausgang einer späteren Prüfung.
+Zum Gegenlesen: [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF). Eine erste Einordnung, ob die Beschreibung schon trägt, lückenhaft ist oder noch fehlt, gibt die [GoBD-Ampel](/ampel-check). Das Ergebnis beruht auf Ihren Angaben und sagt nichts über den Ausgang einer späteren Prüfung.
 
 ## Die ersten Wochen
 

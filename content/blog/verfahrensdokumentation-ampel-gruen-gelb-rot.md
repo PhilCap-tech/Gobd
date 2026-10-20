@@ -8,7 +8,7 @@ primaryKeyword: "Verfahrensdokumentation"
 secondaryKeywords:
   - "Verfahrensdokumentation Betriebsprüfung"
   - "Verfahrensdokumentation aktuell"
-  - "Betriebsprüfungs-Ampel"
+  - "GoBD-Ampel"
 ctaSoft: "/ampel-check"
 ctaPrimary: "/"
 status: "ready-for-publish"
@@ -76,9 +76,9 @@ Eine Einteilung in Grün, Gelb und Rot ist eine Selbsteinschätzung. Sie bestät
 
 Zum Gegenlesen eignen sich die [10 Offenen Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF) und der [Inhalt einer Verfahrensdokumentation](/resources/inhalt-verfahrensdokumentation) (PDF).
 
-## Wo stehen Sie? Die Betriebsprüfungs-Ampel
+## Wo stehen Sie? Die GoBD-Ampel
 
-Wenn Sie Ihre Farbe nicht schätzen möchten: Die kostenlose [Betriebsprüfungs-Ampel](/ampel-check) stellt 10 Ja/Nein-Fragen, unter anderem zu Verfahrensdokumentation, Aktualisierung, Kasse, Aufbewahrung, Datenzugriff, internen Kontrollen, E-Rechnung und Belegfluss. Nach etwa zwei Minuten sehen Sie Grün, Gelb oder Rot mit Hinweisen für die nächsten Schritte. Fragen, die bei Ihnen nicht vorkommen, etwa zur Kasse oder zum Scannen, können Sie als nicht zutreffend markieren. Haben Sie eine grundlegende Frage mit Nein beantwortet, zeigt die Ampel höchstens Gelb. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.
+Wenn Sie Ihre Farbe nicht schätzen möchten: Die kostenlose [GoBD-Ampel](/ampel-check) stellt 10 Ja/Nein-Fragen, unter anderem zu Verfahrensdokumentation, Aktualisierung, Kasse, Aufbewahrung, Datenzugriff, internen Kontrollen, E-Rechnung und Belegfluss. Nach etwa zwei Minuten sehen Sie Grün, Gelb oder Rot mit Hinweisen für die nächsten Schritte. Fragen, die bei Ihnen nicht vorkommen, etwa zur Kasse oder zum Scannen, können Sie als nicht zutreffend markieren. Haben Sie eine grundlegende Frage mit Nein beantwortet, zeigt die Ampel höchstens Gelb. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.
 
 Einen breiteren Überblick zu Branche, Software und Belegwegen gibt der [Readiness-Check](/readiness) — ohne Kreditkarte.
 

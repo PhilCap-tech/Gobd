@@ -43,7 +43,7 @@ export function buildAmpelConfirmationMail(input: { confirmUrl: string }): {
   text: string;
   html: string;
 } {
-  const subject = "Bitte bestätigen Sie Ihre E-Mail — Betriebsprüfungs-Ampel";
+  const subject = "Bitte bestätigen Sie Ihre E-Mail — GoBD-Ampel";
   const lines = [
     "Guten Tag,",
     "",

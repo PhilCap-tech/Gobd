@@ -105,7 +105,7 @@ Vor einer Betriebsprüfung zählt vor allem, ob der Text zur Realität passt und
 
 Wenn Sie Bargeld führen, gehört der Kassenteil in dieselbe Dokumentation. Was dort hinein soll, steht in [Verfahrensdokumentation für die Kasse](/blog/verfahrensdokumentation-kasse).
 
-Unsicher, ob die Grundlagen schon beisammen sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte. Eine erste Einordnung, ob Beschreibung, Belegweg und Verantwortliche schon greifbar sind, gibt die [Betriebsprüfungs-Ampel](/ampel-check). Sie ersetzt keine Steuerberatung.
+Unsicher, ob die Grundlagen schon beisammen sind? Machen Sie den kostenlosen [Readiness-Check](/readiness): kurze Fragen zu Branche, Software, Belegwegen und Verantwortlichen — ohne Kreditkarte. Eine erste Einordnung, ob Beschreibung, Belegweg und Verantwortliche schon greifbar sind, gibt die [GoBD-Ampel](/ampel-check). Sie ersetzt keine Steuerberatung.
 
 Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF).
 
