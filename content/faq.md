@@ -29,6 +29,8 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 3. Automatische Erstellung der Dokumentation aus dem Intake.
 4. Digitale Lieferung (Download / Zugangslink / Ergebnis per E-Mail).
 
+Für Bestellungen über die Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot, die über Digistore24 abgewickelt werden, gelten ergänzend und vorrangig die Regelungen in § 9a.
+
 **Ausfüllen:** Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orientierend mit etwa 2–3 Stunden, in der Spanne von etwa 1,5 bis 5 Stunden — je nachdem, wie viele Module vorkommen und wie griffbereit die Angaben sind.
 
 **Bereitstellung:** Nach erfolgreicher Zahlung und fertig abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
@@ -60,6 +62,8 @@ Ergänzend gelten AGB und Datenschutzerklärung.
 
 Schreiben Sie uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Rechnung oder technischen Problemen (Checkout, Download, Login) ebenfalls an dieselbe Adresse — wir kümmern uns darum.
 
+Rechnungsfragen richten Sie bitte an Digistore24 (support@digistore24.com).
+
 ## 6. 14 Tage Zufriedenheitsgarantie
 
 Innerhalb von **14 Tagen** nach Bestellung erstatten wir die 198 € zum Start (Einrichtung + 1. Monat), zzgl. USt., solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
@@ -90,6 +94,8 @@ Inhaltliche Unzufriedenheit allein wegen unvollständiger eigener Angaben im Fra
 **Hinweis B2B**
 
 Unser Angebot richtet sich ausschließlich an Unternehmer (§ 14 BGB). Verbraucher sind vom Vertragsschluss ausgeschlossen. Die 14-Tage-Zufriedenheitsgarantie ist eine vertragliche Zusage in den AGB, kein gesetzliches Widerrufsrecht.
+
+Bei Bestellungen über unsere Partnerseite (Digistore24) gelten dieselben Erstattungsregeln; die Erstattung beantragen Sie über Digistore24 (Soforthilfe-Link in der Bestellbestätigung) oder bei uns, abgewickelt wird sie über Digistore24 (§ 9a AGB).
 
 Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 

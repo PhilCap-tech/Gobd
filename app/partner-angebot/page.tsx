@@ -31,7 +31,10 @@ import {
 import { HOME_FAQ } from "@/lib/home-faq";
 import {
   digistore24BuyHref,
-  PARTNER_ANGEBOT_LEGAL_NOTICE,
+  PARTNER_ANGEBOT_NOTICE_AFTER,
+  PARTNER_ANGEBOT_NOTICE_BEFORE,
+  PARTNER_ANGEBOT_NOTICE_HREF,
+  PARTNER_ANGEBOT_NOTICE_LINK,
 } from "@/lib/partner-angebot";
 import {
   PARTNER_DEMO_PATH,
@@ -159,7 +162,9 @@ function euro(amount: number): string {
 function LegalNotice() {
   return (
     <p className={noticeStyles.legalNotice} role="note">
-      {PARTNER_ANGEBOT_LEGAL_NOTICE}
+      {PARTNER_ANGEBOT_NOTICE_BEFORE}
+      <Link href={PARTNER_ANGEBOT_NOTICE_HREF}>{PARTNER_ANGEBOT_NOTICE_LINK}</Link>
+      {PARTNER_ANGEBOT_NOTICE_AFTER}
     </p>
   );
 }

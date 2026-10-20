@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 15.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 20.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -33,7 +33,7 @@ Soweit nicht anders angegeben, stützen wir uns insbesondere auf:
 
 ## 4. Auftragsverarbeiter
 
-Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten. Für den E-Mail-Versand setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein. Die Einzelheiten stehen in Abschnitt 10.
+Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten. Für den E-Mail-Versand setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein. Die Einzelheiten stehen in Abschnitt 10. Digistore24 ist nicht unser Auftragsverarbeiter, sondern bei Bestellungen über die Partnerseite als Wiederverkäufer eigener Verantwortlicher (Abschnitt 12).
 
 ## 5. Hosting über Vercel
 
@@ -85,23 +85,37 @@ Bei der Bestellung leiten wir Sie auf die Stripe-Seite weiter. Dort geben Sie Ih
 
 Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO und Art. 6 Abs. 1 lit. c DSGVO. Stripe verarbeitet Daten teilweise auch als eigener Verantwortlicher (z. B. Betrugsprävention); siehe https://stripe.com/de/privacy. Für Übermittlungen in die USA gelten Standardvertragsklauseln oder ein Angemessenheitsbeschluss, sofern Stripe danach zertifiziert ist.
 
-## 12. Google Ads Conversion-Tracking und Google Analytics 4
+## 12. Bestellungen über Digistore24 (Partner-Angebot)
+
+Wenn Sie über unsere Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot bestellen, führt Sie ein Link zum Bestellformular von Digistore24. „Digistore24“ ist die jeweils nach Ihrem Land zuständige Digistore24-Gesellschaft (für Käufer aus Deutschland: Digistore24 GmbH, St.-Godehard-Straße 32, 31139 Hildesheim, Deutschland). Digistore24 verkauft unsere Leistung als Wiederverkäufer im eigenen Namen und ist Ihr Vertragspartner für Kauf, Zahlung und Rechnung.
+
+Digistore24 verarbeitet die Daten aus dem Bestellformular und zur Zahlungsabwicklung als **eigener Verantwortlicher**, nicht in unserem Auftrag. Einzelheiten und Ihre Rechte gegenüber Digistore24 finden Sie in der Datenschutzerklärung der zuständigen Digistore24-Gesellschaft, die im Bestellformular verlinkt ist (für Käufer aus Deutschland: https://www.digistore24.com/page/privacy/1/de).
+
+Von Digistore24 erhalten wir die Daten, die für die Durchführung Ihrer Bestellung erforderlich sind: Angaben zu Ihrer Person und Ihrem Unternehmen aus dem Bestellformular sowie Angaben zur Bestellung und zu deren Status (z. B. Zahlung, Kündigung, Erstattung). Außerdem erhalten wir von Digistore24 Abrechnungen über die verkauften Leistungen. Wir verwenden diese Daten, um Ihre Bestellung Ihrem Kundenkonto zuzuordnen, die gebuchte Leistung zu erbringen, mit Ihnen zur Bestellung zu kommunizieren und Kündigungen und Erstattungen umzusetzen. Soweit dafür erforderlich, tauschen wir mit Digistore24 Angaben zu Ihrer Bestellung aus.
+
+Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Für die Aufbewahrung von Abrechnungen und Buchungsbelegen ist es Art. 6 Abs. 1 lit. c DSGVO in Verbindung mit § 147 AO und § 257 HGB.
+
+**Käufe über Digistore24 geben wir nicht an Werbedienste weiter, insbesondere nicht an Google Ads oder Meta.**
+
+Nach Angaben von Digistore24 können Daten auch außerhalb der EU bzw. des EWR verarbeitet werden, dann nur auf Grundlage geeigneter Garantien, von Standardvertragsklauseln oder eines Angemessenheitsbeschlusses (Art. 45, 46 DSGVO). Für die Daten, die wir von Digistore24 erhalten und bei uns speichern, gelten die Abschnitte 8 und 20 sowie die Speicherfristen in den Abschnitten 17 und 21.
+
+## 13. Google Ads Conversion-Tracking und Google Analytics 4
 
 Wir nutzen das Google-Tag der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland („Google“), für das Conversion-Tracking von Google Ads (Konto-ID AW-586367190) und für Google Analytics 4 (Mess-ID G-RJ4KLBP1SF). Dabei setzen wir den Google Consent Mode v2 ein. Das Google-Tag wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Ohne Ihre Einwilligung werden keine Daten an Google übermittelt.
 
-Zwecke sind die Messung, ob eine Anzeige zu einem Kaufabschluss geführt hat, sowie die statistische Auswertung der Nutzung unserer Website. Nach einem erfolgreichen Kauf übermitteln wir an Google Ads eine Conversion mit dem Bestellwert und der Stripe-Checkout-Session-ID als Transaktions-ID. Die Transaktions-ID dient dazu, doppelte Zählungen zu vermeiden. Zahlungsdaten wie Kartennummern übermitteln wir nicht. Außerdem werden Cookies bzw. ähnliche Technologien gesetzt und Daten wie IP-Adresse, Geräte- und Browserinformationen, aufgerufene Seiten und Klicks auf Anzeigen an Google übermittelt. Weitere Conversions (z. B. für den kostenlosen Check) melden wir nicht. Enhanced Conversions (Übermittlung gehashter E-Mail-Adressen o. Ä.) nutzen wir nicht. Diese Daten können an Konzerngesellschaften von Google in den USA übermittelt werden.
+Zwecke sind die Messung, ob eine Anzeige zu einem Kaufabschluss geführt hat, sowie die statistische Auswertung der Nutzung unserer Website. Nach einem erfolgreichen Kauf übermitteln wir an Google Ads eine Conversion mit dem Bestellwert und der Stripe-Checkout-Session-ID als Transaktions-ID. Die Transaktions-ID dient dazu, doppelte Zählungen zu vermeiden. Zahlungsdaten wie Kartennummern übermitteln wir nicht. Außerdem werden Cookies bzw. ähnliche Technologien gesetzt und Daten wie IP-Adresse, Geräte- und Browserinformationen, aufgerufene Seiten und Klicks auf Anzeigen an Google übermittelt. Weitere Conversions (z. B. für den kostenlosen Check) melden wir nicht. Käufe über Digistore24 melden wir nicht an Google. Enhanced Conversions (Übermittlung gehashter E-Mail-Adressen o. Ä.) nutzen wir nicht. Diese Daten können an Konzerngesellschaften von Google in den USA übermittelt werden.
 
 Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Für die Übermittlung in die USA stützen wir uns auf Standardvertragsklauseln oder auf einen Angemessenheitsbeschluss, sofern Google danach zertifiziert ist. Die Aufbewahrungsdauer in GA4 richtet sich nach der Einstellung im GA4-Konto; eingestellt sind 14 Monate.
 
 Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft über „Cookie-Einstellungen“ im Seitenfuß widerrufen. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt unberührt. Weitere Informationen: https://policies.google.com/privacy
 
-## 13. Meta Pixel
+## 14. Meta Pixel
 
 Wenn Sie im Cookie-Banner „Marketing erlauben“ wählen und eine Meta-Pixel-ID konfiguriert ist, laden wir das Meta Pixel der Meta Platforms Ireland Limited, Merrion Road, Dublin 4, Irland. Im aktuellen Client ist keine Pixel-ID fest hinterlegt; ohne ID wird das Pixel nicht geladen. Zweck ist die Messung von Seitenaufrufen und des kostenlosen Checks. Eine Bildung von Zielgruppen ist nicht eingerichtet. Bestellabschlüsse übermitteln wir nicht. Dabei können Cookies (z. B. `_fbp`) gesetzt und Daten an Meta übermittelt werden; sie können an Meta Platforms, Inc. in den USA weitergegeben werden. Eine Vereinbarung zur gemeinsamen Verantwortlichkeit nach Art. 26 DSGVO ist in der Anwendung nicht hinterlegt.
 
 Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Für Übermittlungen in die USA gelten Standardvertragsklauseln oder ein Angemessenheitsbeschluss, sofern Meta danach zertifiziert ist. Widerruf über „Cookie-Einstellungen“. Weitere Informationen: https://www.facebook.com/privacy/policy
 
-## 14. Cookie-Einstellungen (Consent-Management)
+## 15. Cookie-Einstellungen (Consent-Management)
 
 Ihre Auswahl im Cookie-Banner speichern wir in einem Cookie (`gobd_consent`) und im lokalen Speicher Ihres Browsers für 180 Tage, damit wir Ihre Entscheidung respektieren. Rechtsgrundlage ist § 25 Abs. 2 Nr. 2 TDDDG in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nachweis der Einwilligung). Marketing-Dienste werden erst nach Einwilligung geladen.
 
@@ -109,11 +123,11 @@ Außerdem speichern wir Kampagnenparameter aus der Aufrufadresse (`utm_source`, 
 
 Details und die Cookie-Übersicht finden Sie unter /cookies.
 
-## 15. Readiness-Check (3-Minuten-Check)
+## 16. Readiness-Check (3-Minuten-Check)
 
 Im kostenlosen Check geben Sie Name, E-Mail-Adresse, Firma und Antworten zu Ihrem Betrieb an (Branche, Rechtsform, Mitarbeitende, Belegweg, Software, Verantwortliche). Wir speichern diese Angaben und das erzeugte PDF, damit wir Ihnen das Ergebnis und den Download bereitstellen können. Speicherort ist die Google-Sheets-Tabelle `readiness_leads`, ersatzweise eine Datei auf dem Server. Die Angaben werden nicht nur im Browser verarbeitet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahmen). Eine feste Löschfrist in Tagen ist nicht hinterlegt; wir löschen die Angaben, sobald der Zweck entfällt, sofern keine gesetzlichen Pflichten entgegenstehen. Eine Löschung können Sie unter info@gobd-doku-erstellen.de verlangen.
 
-## 16. Angaben im Fragebogen und erzeugte Dokumente
+## 17. Angaben im Fragebogen und erzeugte Dokumente
 
 Für die Erstellung Ihrer Verfahrensdokumentation verarbeiten wir die Angaben, die Sie im Fragebogen machen (z. B. Unternehmensdaten, Prozessbeschreibungen, verwendete Software, Namen und Funktionen von Geschäftsführung und Buchhaltung) sowie die daraus erzeugten Dokumente und Versionen. Wenn Sie für ein Modul eine bestehende Dokumentation hochladen, speichern wir diese Datei (PDF, DOCX oder Bild) zusammen mit Ihrem Konto, damit sie in der Vollständigkeitsübersicht und im Gesamtdokument referenziert werden kann. Wir speichern die Angaben in Google Sheets und die PDF-Dateien bei Vercel Blob (siehe Abschnitt „Datenbank und Dateispeicher“), damit Sie sie abrufen und fortschreiben können. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
 
@@ -121,38 +135,38 @@ Nach Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen; 
 
 Wenn Sie im Fragebogen personenbezogene Daten Dritter (z. B. Mitarbeitende) nennen, stellen Sie sicher, dass Sie dazu berechtigt sind. Die Angaben liegen in unseren Systemen und werden für die Erstellung Ihrer Dokumentation verarbeitet. Ein gesonderter Auftragsverarbeitungsvertrag mit Ihnen ist dafür nicht hinterlegt.
 
-## 17. Partneranfragen (Steuerberater-Bereich)
+## 18. Partneranfragen (Steuerberater-Bereich)
 
 Wenn Sie uns über das Formular im Steuerberater-Bereich kontaktieren, verarbeiten wir Name, Kanzlei, E-Mail-Adresse, eine grobe Mandanten-Zahl und Ihre Nachricht. Das Formular wird per E-Mail über Resend an info@gobd-doku-erstellen.de übermittelt und nicht in einer eigenen Datenbank gespeichert. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO bzw. Art. 6 Abs. 1 lit. f DSGVO. Wir löschen die Anfrage, sobald die Bearbeitung abgeschlossen ist und kein Vertrag zustande kommt, sofern keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
 
-## 18. Kontaktaufnahme
+## 19. Kontaktaufnahme
 
 Wenn Sie uns per E-Mail an info@gobd-doku-erstellen.de kontaktieren, verarbeiten wir die von Ihnen mitgeteilten Daten zur Bearbeitung der Anfrage (Art. 6 Abs. 1 lit. b bzw. lit. f DSGVO).
 
-## 19. Weitergabe von Daten
+## 20. Weitergabe von Daten
 
-Eine Weitergabe erfolgt nur, soweit erforderlich (Hosting, Zahlungsdienstleister, gesetzliche Verpflichtung) oder mit Einwilligung. Eine Weitergabe zu Werbezwecken an Dritte findet nicht statt, soweit nicht ausdrücklich in den Marketing-Abschnitten beschrieben.
+Eine Weitergabe erfolgt nur, soweit erforderlich (Hosting, Zahlungsdienstleister, bei Bestellungen über die Partnerseite unser Vertriebspartner Digistore24 als eigener Verantwortlicher (Abschnitt 12), gesetzliche Verpflichtung) oder mit Einwilligung. Eine Weitergabe zu Werbezwecken an Dritte findet nicht statt, soweit nicht ausdrücklich in den Marketing-Abschnitten beschrieben.
 
-## 20. Speicherdauer
+## 21. Speicherdauer
 
 Soweit in den Abschnitten nicht anders angegeben, löschen wir personenbezogene Daten, sobald der Zweck entfällt und keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Rechnungs- und zahlungsrelevante Nachweise können wir nach den handels- und steuerrechtlichen Fristen aufbewahren, insbesondere nach § 147 AO. Eine darüber hinausgehende automatische Löschroutine mit weiteren festen Tagesfristen ist nicht hinterlegt. Für die Dokumente nach Vertragsende gilt die Frist von 30 Tagen aus dem Abschnitt zu Fragebogen und Dokumenten.
 
-## 21. Ihre Rechte
+## 22. Ihre Rechte
 
 Sie haben — soweit die gesetzlichen Voraussetzungen vorliegen — insbesondere: Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit, Widerspruch gegen Verarbeitungen auf Basis berechtigter Interessen sowie Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft.
 
 Zur Ausübung Ihrer Rechte genügt eine Nachricht an **info@gobd-doku-erstellen.de**. Sie haben zudem das Recht, sich bei einer Aufsichtsbehörde zu beschweren.
 
-## 22. Pflicht zur Bereitstellung
+## 23. Pflicht zur Bereitstellung
 
-Für einen Vertragsabschluss sind die zur Zahlung und Lieferung erforderlichen Daten notwendig. Ohne diese Daten kann der Vertrag nicht durchgeführt werden.
+Für einen Vertragsabschluss sind die zur Zahlung und Lieferung erforderlichen Daten notwendig. Ohne diese Daten kann der Vertrag nicht durchgeführt werden. Bei Bestellungen über Digistore24 erhebt Digistore24 die für Kauf und Zahlung erforderlichen Daten.
 
-## 23. Automatisierte Entscheidungsfindung
+## 24. Automatisierte Entscheidungsfindung
 
-Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von Art. 22 DSGVO, die Ihnen gegenüber rechtliche Wirkung entfaltet, führen wir nicht durch. Stripe kann zur Betrugsprävention eigene Prüfungen vornehmen; das ist im Abschnitt zur Zahlungsabwicklung beschrieben.
+Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von Art. 22 DSGVO, die Ihnen gegenüber rechtliche Wirkung entfaltet, führen wir nicht durch. Stripe kann zur Betrugsprävention eigene Prüfungen vornehmen; das ist im Abschnitt zur Zahlungsabwicklung beschrieben. Bei Bestellungen über Digistore24 kann Digistore24 eigene automatisierte Prüfungen vornehmen; siehe die Datenschutzerklärung von Digistore24.
 
-## 24. Änderungen
+## 25. Änderungen
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 
-**Stand:** 15.10.2026
+**Stand:** 20.10.2026

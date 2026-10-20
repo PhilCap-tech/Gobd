@@ -131,7 +131,8 @@ assert.equal(/lösch/i.test(section), false, "Abschnitt sagt keine Löschfrist z
 assert.ok(privacy.includes("Die Einzelheiten stehen in Abschnitt 10."));
 assert.ok(privacy.includes("## 10. E-Mail-Versand"));
 assert.ok(privacy.includes("## 11. Zahlungsabwicklung über Stripe"));
-assert.ok(privacy.includes("## 12. Google Ads Conversion-Tracking und Google Analytics 4"));
+assert.ok(privacy.includes("## 13. Google Ads Conversion-Tracking und Google Analytics 4"));
+assert.ok(privacy.includes("## 12. Bestellungen über Digistore24 (Partner-Angebot)"));
 assert.equal(privacy.includes("Abschnitt 11"), false);
 
 const cookies = readFileSync("content/legal/cookies.md", "utf8");

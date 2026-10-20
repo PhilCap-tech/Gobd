@@ -11,6 +11,8 @@ import { buildLlmsTxt } from "../lib/llms-txt";
 import {
   DIGISTORE24_PRODUCT_URL,
   PARTNER_ANGEBOT_LEGAL_NOTICE,
+  PARTNER_ANGEBOT_NOTICE_HREF,
+  PARTNER_ANGEBOT_NOTICE_LINK,
   PARTNER_ANGEBOT_PATH,
   PARTNER_ANGEBOT_ROBOTS_TAG,
   digistore24BuyHref,
@@ -34,9 +36,18 @@ ok(
 );
 ok(PARTNER_ANGEBOT_ROBOTS_TAG === "noindex, nofollow", "robots tag is noindex, nofollow");
 ok(
-  PARTNER_ANGEBOT_LEGAL_NOTICE.includes("Digistore24") &&
-    PARTNER_ANGEBOT_LEGAL_NOTICE.startsWith("["),
-  "legal notice is a marked placeholder",
+  PARTNER_ANGEBOT_LEGAL_NOTICE.startsWith("Der Kauf läuft über Digistore24") &&
+    PARTNER_ANGEBOT_LEGAL_NOTICE.includes(PARTNER_ANGEBOT_NOTICE_LINK) &&
+    PARTNER_ANGEBOT_NOTICE_HREF === "/agb" &&
+    !PARTNER_ANGEBOT_LEGAL_NOTICE.includes("PLATZHALTER") &&
+    !PARTNER_ANGEBOT_LEGAL_NOTICE.includes("["),
+  "partner notice is the approved Digistore24 sentence",
+);
+ok(
+  PARTNER_ANGEBOT_LEGAL_NOTICE.includes(
+    `${TODAY_EUR} € zum Start (Einrichtung ${SETUP_EUR} € + 1. Monat ${MONTHLY_EUR} €), danach ${MONTHLY_EUR} €/Monat`,
+  ),
+  "partner notice prices match pricing.ts",
 );
 
 function expectHref(search: Parameters<typeof digistore24BuyHref>[0], expected: string, label: string) {
@@ -87,7 +98,13 @@ for (const tag of buyTags) {
 ok(page.includes("ctaHref={buyHref}"), "the header buy button uses the same href");
 ok(page.includes("data-partner-cta=\"digistore24\""), "buy anchors are marked");
 ok(page.includes("digistore24BuyHref"), "the page builds the href from the helper");
-ok(page.includes("{PARTNER_ANGEBOT_LEGAL_NOTICE}"), "the placeholder is rendered");
+ok(
+  page.includes("{PARTNER_ANGEBOT_NOTICE_BEFORE}") &&
+    page.includes("{PARTNER_ANGEBOT_NOTICE_LINK}") &&
+    page.includes("{PARTNER_ANGEBOT_NOTICE_AFTER}") &&
+    page.includes("PARTNER_ANGEBOT_NOTICE_HREF"),
+  "the approved notice is rendered and AGB (§ 9a) links to /agb",
+);
 ok(page.includes("index: false") && page.includes("follow: false"), "metadata is noindex, nofollow");
 ok(page.includes("SETUP_EUR") && page.includes("MONTHLY_EUR") && page.includes("TODAY_EUR"), "prices come from pricing.ts");
 ok(page.includes("GELD_ZURUECK_MICRO") && page.includes("HERO_PRICE_BOX"), "guarantee and price box are the homepage constants");
@@ -110,6 +127,29 @@ ok(!footer.includes(PARTNER_ANGEBOT_PATH), "the footer does not link the partner
 ok(
   !(INDEXABLE_STATIC_PATHS as readonly string[]).includes(PARTNER_ANGEBOT_PATH),
   "the partner page is not an indexable path",
+);
+
+const agb = source("content/legal/agb.md");
+ok(agb.includes("## § 9a Bestellungen über Digistore24 (Partner-Angebot)"), "AGB has § 9a");
+ok(agb.includes("(4) Für Bestellungen über die Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot, die über Digistore24 abgewickelt werden, gelten ergänzend und vorrangig die Regelungen in § 9a."), "AGB § 1 Abs. 4");
+ok(
+  agb.includes(
+    `${TODAY_EUR} € zum Start (Einrichtung ${SETUP_EUR} € + 1. Monat ${MONTHLY_EUR} €), danach ${MONTHLY_EUR} € pro Monat`,
+  ),
+  "AGB § 9a prices match pricing.ts",
+);
+const privacy = source("content/legal/datenschutz.md");
+ok(privacy.includes("## 12. Bestellungen über Digistore24 (Partner-Angebot)"), "privacy section 12");
+ok(privacy.includes("## 13. Google Ads Conversion-Tracking und Google Analytics 4"), "Google Ads is section 13");
+ok(privacy.includes("## 25. Änderungen"), "privacy sections run through 25");
+ok(!privacy.includes("## 12. Google Ads"), "old section 12 heading is gone");
+ok(privacy.includes("Käufe über Digistore24 melden wir nicht an Google."), "Google Ads sentence");
+const faq = source("content/faq.md");
+ok(
+  faq.includes(
+    "Bei Bestellungen über unsere Partnerseite (Digistore24) gelten dieselben Erstattungsregeln; die Erstattung beantragen Sie über Digistore24 (Soforthilfe-Link in der Bestellbestätigung) oder bei uns, abgewickelt wird sie über Digistore24 (§ 9a AGB).",
+  ),
+  "FAQ item 6 has the approved sentence",
 );
 
 const llms = buildLlmsTxt();
