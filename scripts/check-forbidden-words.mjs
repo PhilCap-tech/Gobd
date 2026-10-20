@@ -626,6 +626,53 @@ for (const file of files) {
     });
 }
 
+// Legal pages must not carry the internal draft notice. A plain
+// "**Stand:** <date>" line is fine; "Entwurf einer Verfahrensdokumentation"
+// in the body is product wording, not this notice.
+const draftNotice =
+  /Interner Entwurf|Vor Veröffentlichung juristisch prüfen|juristisch prüfen/;
+const legalNoticeFiles = [
+  ...globSync("content/legal/**/*.{md,mdx}"),
+  ...globSync("app/agb/**/*.{ts,tsx}"),
+  ...globSync("app/datenschutz/**/*.{ts,tsx}"),
+  ...globSync("app/impressum/**/*.{ts,tsx}"),
+  ...globSync("app/cookies/**/*.{ts,tsx}"),
+  ...globSync("app/widerruf/**/*.{ts,tsx}"),
+  ...globSync("components/legal-page.tsx"),
+  ...globSync("lib/legal-content.ts"),
+  ...globSync("lib/legal-markdown.tsx"),
+].sort();
+if (legalNoticeFiles.length === 0) {
+  console.error("check-forbidden-words: no legal files for the draft-notice check");
+  failed = true;
+}
+const draftNoticeSample =
+  "> **Interner Entwurf · Stand 20.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.\n";
+if (!draftNotice.test(draftNoticeSample)) {
+  console.error("check-forbidden-words: draft-notice self-test missed the banner");
+  failed = true;
+}
+if (
+  draftNotice.test(
+    "**Stand:** 20.10.2026\nEntwurf einer Verfahrensdokumentation\njuristische Person\n",
+  )
+) {
+  console.error("check-forbidden-words: draft-notice self-test false positive");
+  failed = true;
+}
+for (const file of legalNoticeFiles) {
+  const raw = readFileSync(file, "utf8");
+  // Same leading-blockquote strip the legal pages apply before render.
+  const rendered = raw.replace(/^(?:>.*\n)+/m, "");
+  for (const text of [raw, rendered]) {
+    const match = text.match(draftNotice);
+    if (!match) continue;
+    console.error(`${file}: Entwurfs-Hinweis „${match[0]}“`);
+    failed = true;
+    break;
+  }
+}
+
 for (const file of blogFiles) {
   const raw = readFileSync(file, "utf8");
   for (const hit of blogMarkerHits(raw)) {
