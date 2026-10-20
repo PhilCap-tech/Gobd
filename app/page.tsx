@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CampaignLink } from "@/components/campaign-link";
 import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -213,9 +214,9 @@ export default function HomePage() {
               <span>{HERO_PRICE_BOX}</span>
             </p>
             <div className={styles.ctas}>
-              <Link className="btn" href={AMPEL_HERO_HREF}>
+              <CampaignLink className="btn" href={AMPEL_HERO_HREF}>
                 {HERO_PRIMARY}
-              </Link>
+              </CampaignLink>
               <a className={`btn ${styles.btnSec}`} href="/checkout">
                 {CTA_CREATE}
               </a>
@@ -540,9 +541,9 @@ export default function HomePage() {
                 <h3>{AMPEL_LABEL}</h3>
                 <p className={styles.prose}>{AMPEL_INTRO}</p>
                 <div className={styles.ctas}>
-                  <Link className={`btn ${styles.btnSec}`} href={AMPEL_HREF}>
+                  <CampaignLink className={`btn ${styles.btnSec}`} href={AMPEL_HREF}>
                     {AMPEL_LABEL}
-                  </Link>
+                  </CampaignLink>
                 </div>
               </div>
             </div>
@@ -578,9 +579,9 @@ export default function HomePage() {
                 </a>
                 <p className={styles.fine}>{PRICE_AFTER_MICRO}</p>
               </div>
-              <Link className={`btn ${styles.btnSecOnDark}`} href={AMPEL_HREF}>
+              <CampaignLink className={`btn ${styles.btnSecOnDark}`} href={AMPEL_HREF}>
                 {AMPEL_LABEL}
-              </Link>
+              </CampaignLink>
               <Link className={styles.textLink} href="#muster">
                 {CTA_MUSTER}
               </Link>
