@@ -23,6 +23,7 @@ import { KASSEN_QUESTIONS } from "@/lib/kassen-check-questions";
 import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
 import { sendKassenDoiAckMail } from "@/lib/kassen-check-mail";
+import { keptCheckAttribution } from "@/lib/lead-attribution";
 
 /** Pauses between result-mail attempts. The first attempt does not wait. */
 export const AMPEL_RESULT_RETRY_DELAYS_MS = [0, 400, 1200] as const;
@@ -211,6 +212,10 @@ export type AmpelConfirmationInput = {
   consentTextVersion?: string;
   /** `ja` after the result mail was sent. */
   mailed?: string;
+  /** Count columns already filtered for test addresses and listed firms. */
+  tool?: string;
+  utmSource?: string;
+  utmCampaign?: string;
   check?: "kassen-check";
   leadPrefix?: string;
   pendingStatus?: string;
@@ -319,6 +324,7 @@ async function runConfirmation(
   if (!token) return { ok: false, status: 400, reason: "invalid" };
 
   const mailed = keepAmpelMailed(input.mailed, existing?.mailed);
+  const attribution = keptCheckAttribution(input, existing);
   const pending: ReadinessLead = {
     ...toAmpelReadinessLead({
       email,
@@ -341,6 +347,9 @@ async function runConfirmation(
     marketingOptIn: "pending",
     consentIp,
     consentTextVersion,
+    tool: attribution.tool,
+    utmSource: attribution.utmSource,
+    utmCampaign: attribution.utmCampaign,
   };
   await writeConfirmLead(deps, pending);
 
@@ -379,6 +388,9 @@ async function runConfirmation(
       ampelLight: pending.ampelLight,
       mailStatus: confirmMailLabel(mail),
       mailed: keepAmpelMailed(base.mailed, pending.mailed),
+      tool: pending.tool,
+      utmSource: pending.utmSource,
+      utmCampaign: pending.utmCampaign,
     });
     return { ok: true, throttled: mail.duplicate === true };
   }

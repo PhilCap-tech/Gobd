@@ -657,6 +657,14 @@ try {
   assert.ok(ampel.includes("sent.mailed !== false"), "a follow-up that did not mail is not a conversion");
   assert.ok(ampel.includes("data.mailed === false"), "a direct submit that did not mail is not a conversion");
   assert.equal(ampel.includes("KE_4CP3UoZwdENaBzZcC"), false, "the Ampel label stays in the environment");
+  assert.ok(ampel.includes("trackAmpelCheckSubmit()"), "Ampel sends the GA4 submit event");
+  const ampelGa = tracking.indexOf("export function trackAmpelCheckSubmit");
+  const ampelGaEnd = tracking.indexOf("export const KASSEN_CHECK_SUBMIT_STORAGE_KEY");
+  const ampelGaBody = tracking.slice(ampelGa, ampelGaEnd);
+  assert.ok(ampelGa !== -1 && ampelGaEnd > ampelGa);
+  assert.ok(ampelGaBody.includes("hasMarketingConsent()"), "Ampel GA4 submit is consent-gated");
+  assert.ok(ampelGaBody.includes('trackConsentedGaEvent("ampel_check_submit")'), "Ampel sends ampel_check_submit");
+  assert.equal(ampelGaBody.includes("trackLeadSubmit("), false, "the GA4 helper does not send the Ads conversion");
 
   const kassen = readFileSync("app/kassen-check/kassen-check.tsx", "utf8");
   const kassenSend = kassen.indexOf("async function sendResult");

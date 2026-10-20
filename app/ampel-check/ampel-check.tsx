@@ -24,7 +24,8 @@ import {
   sanitizeAmpelRef,
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
-import { trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
+import { replaceCheckSearch, submitUtmFields } from "@/lib/campaign-params";
+import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
 
 function EmailPrivacyNote() {
   const label = "Datenschutzerklärung";
@@ -94,10 +95,8 @@ export function AmpelCheck() {
   }, [mode]);
 
   function rememberAnswers(code: string) {
-    const params = new URLSearchParams();
-    params.set("a", code);
-    if (refName) params.set("ref", refName);
-    router.replace(`${AMPEL_PATH}?${params.toString()}`);
+    const query = replaceCheckSearch(searchParams, { a: code, ref: refName });
+    router.replace(query ? `${AMPEL_PATH}?${query}` : AMPEL_PATH);
   }
 
   function choose(answer: AmpelAnswer) {
@@ -134,9 +133,7 @@ export function AmpelCheck() {
     setMailNotice("");
     setMailError("");
     setMarketing(false);
-    const params = new URLSearchParams();
-    if (refName) params.set("ref", refName);
-    const query = params.toString();
+    const query = replaceCheckSearch(searchParams, { a: "", ref: refName });
     router.replace(query ? `${AMPEL_PATH}?${query}` : AMPEL_PATH);
   }
 
@@ -165,6 +162,7 @@ export function AmpelCheck() {
       ref: refName,
       marketing,
       fax_number: fax,
+      ...submitUtmFields(window.location.search),
     };
     const showResult = (notice: string) => {
       try {
@@ -291,6 +289,7 @@ export function AmpelCheck() {
       showResult(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
       if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" });
+      if (leadAccepted) trackAmpelCheckSubmit();
       setPending(false);
     }
   }

@@ -67,6 +67,15 @@ export type ReadinessLead = {
    * before this column existed.
    */
   mailed: string;
+  /**
+   * `ampel` or `kassen` on a countable check submit. Empty for readiness rows,
+   * Kanzlei rows, and for test addresses or listed firms.
+   */
+  tool: string;
+  /** Present only when the submit carried utm_source. Never a click id. */
+  utmSource: string;
+  /** Present only when the submit carried utm_campaign. Never a click id. */
+  utmCampaign: string;
 };
 
 export const READINESS_SHEET_COLUMNS = [
@@ -97,6 +106,9 @@ export const READINESS_SHEET_COLUMNS = [
   "consent_text_version",
   "withdrawn_at",
   "mailed",
+  "tool",
+  "utm_source",
+  "utm_campaign",
 ] as const;
 
 export type ReadinessSheetColumn = (typeof READINESS_SHEET_COLUMNS)[number];
@@ -129,6 +141,9 @@ export const READINESS_SHEET_COLUMN_FIELDS = {
   consent_text_version: "consentTextVersion",
   withdrawn_at: "withdrawnAt",
   mailed: "mailed",
+  tool: "tool",
+  utm_source: "utmSource",
+  utm_campaign: "utmCampaign",
 } as const satisfies Record<ReadinessSheetColumn, keyof ReadinessLead>;
 
 export function emptyReadinessLead(): ReadinessLead {
@@ -160,6 +175,9 @@ export function emptyReadinessLead(): ReadinessLead {
     consentTextVersion: "",
     withdrawnAt: "",
     mailed: "",
+    tool: "",
+    utmSource: "",
+    utmCampaign: "",
   };
 }
 
@@ -351,6 +369,9 @@ export function toReadinessLead(input: {
     consentTextVersion: "",
     withdrawnAt: "",
     mailed: "",
+    tool: "",
+    utmSource: "",
+    utmCampaign: "",
   };
 }
 
