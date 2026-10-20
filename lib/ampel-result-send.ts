@@ -58,6 +58,10 @@ export type SubmitAmpelInput = {
   /** From the page URL. Click ids are not part of this input. */
   utmSource?: unknown;
   utmCampaign?: unknown;
+  /** Whitelisted funnel marker from the page URL. Never a click id. */
+  src?: unknown;
+  /** Whitelisted funnel variant from the page URL. Never a click id. */
+  variant?: unknown;
 };
 
 export type SubmitAmpelDeps = {
@@ -423,6 +427,8 @@ async function finishAmpelResult(
     tool: deps.check === "kassen-check" ? "kassen" : "ampel",
     utmSource: input.utmSource,
     utmCampaign: input.utmCampaign,
+    src: input.src,
+    variant: input.variant,
   });
   try {
     const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
@@ -446,6 +452,8 @@ async function finishAmpelResult(
       lead.tool = attribution.tool;
       lead.utmSource = attribution.utmSource;
       lead.utmCampaign = attribution.utmCampaign;
+      lead.src = attribution.src;
+      lead.variant = attribution.variant;
       const save = deps.saveLead ?? (async (row: ReadinessLead) => {
         if (automatedRunForbidsLiveWrites()) return;
         await upsertReadinessLead(row);
@@ -472,6 +480,8 @@ async function finishAmpelResult(
         tool: attribution.tool,
         utmSource: attribution.utmSource,
         utmCampaign: attribution.utmCampaign,
+        src: attribution.src,
+        variant: attribution.variant,
         ...(deps.check ? { check: deps.check } : {}),
         ...(deps.leadPrefix ? { leadPrefix: deps.leadPrefix } : {}),
         ...(deps.leadStatus ? { pendingStatus: deps.leadStatus } : {}),

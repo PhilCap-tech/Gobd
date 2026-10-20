@@ -76,6 +76,10 @@ export type ReadinessLead = {
   utmSource: string;
   /** Present only when the submit carried utm_campaign. Never a click id. */
   utmCampaign: string;
+  /** Funnel marker from the page URL, such as hero. Empty for test rows. Never a click id. */
+  src: string;
+  /** Funnel variant from the page URL, such as a. Empty for test rows. Never a click id. */
+  variant: string;
 };
 
 export const READINESS_SHEET_COLUMNS = [
@@ -109,6 +113,8 @@ export const READINESS_SHEET_COLUMNS = [
   "tool",
   "utm_source",
   "utm_campaign",
+  "src",
+  "variant",
 ] as const;
 
 export type ReadinessSheetColumn = (typeof READINESS_SHEET_COLUMNS)[number];
@@ -144,6 +150,8 @@ export const READINESS_SHEET_COLUMN_FIELDS = {
   tool: "tool",
   utm_source: "utmSource",
   utm_campaign: "utmCampaign",
+  src: "src",
+  variant: "variant",
 } as const satisfies Record<ReadinessSheetColumn, keyof ReadinessLead>;
 
 export function emptyReadinessLead(): ReadinessLead {
@@ -178,6 +186,8 @@ export function emptyReadinessLead(): ReadinessLead {
     tool: "",
     utmSource: "",
     utmCampaign: "",
+    src: "",
+    variant: "",
   };
 }
 
@@ -372,6 +382,8 @@ export function toReadinessLead(input: {
     tool: "",
     utmSource: "",
     utmCampaign: "",
+    src: "",
+    variant: "",
   };
 }
 

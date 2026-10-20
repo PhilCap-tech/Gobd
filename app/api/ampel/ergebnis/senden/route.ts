@@ -42,6 +42,8 @@ export async function POST(request: Request) {
       honeypot: value.fax_number,
       utmSource: value.utm_source,
       utmCampaign: value.utm_campaign,
+      src: value.src,
+      variant: value.v,
       ip: client.ip,
       ipSource: client.source,
       sendToken: value.send_token,
