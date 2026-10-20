@@ -13,6 +13,8 @@ import path from "node:path";
 /** @type {string[]} */
 const COVERED = [
   "app/page.tsx",
+  "app/partner-angebot/**/*.tsx",
+  "lib/partner-angebot.ts",
   "app/steuerberater/page.tsx",
   "app/steuerberater/partner-inquiry-form.tsx",
   "app/steuerberater/merkblatt-form.tsx",

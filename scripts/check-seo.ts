@@ -296,6 +296,7 @@ async function checkSitemapLastmod() {
     "/kassen-check/bestaetigen",
     "/success",
     "/readiness/success",
+    "/partner-angebot",
   ]) {
     ok(!entries.some((entry) => entry.url === canonicalUrl(path)), `sitemap omits noindex ${path}`);
   }

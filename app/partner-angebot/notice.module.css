@@ -1,0 +1,9 @@
+.legalNotice {
+  margin: 14px 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--brass, #7a5528);
+  background: #fff8e8;
+  color: var(--ink, #1c2124);
+  font-size: 13px;
+  line-height: 1.45;
+}

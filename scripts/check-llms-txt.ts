@@ -244,6 +244,8 @@ ok(crumbJson.includes('"@type":"BreadcrumbList"'), "breadcrumb type");
 async function checkSitemap() {
   const urls = (await sitemap()).map((entry) => entry.url);
   ok(!urls.includes(`${origin}/llms.txt`), "sitemap omits /llms.txt");
+  ok(!urls.includes(`${origin}/partner-angebot`), "sitemap omits /partner-angebot");
+  ok(!text.includes("/partner-angebot"), "llms.txt omits /partner-angebot");
   ok(urls.includes(`${origin}/faq`), "sitemap still lists /faq");
   const branchen = await listBranchenSeiten();
   ok(branchen.length >= 2, "branch pages are loaded");

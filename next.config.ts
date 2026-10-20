@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { AMPEL_ADMIN_CACHE_CONTROL, AMPEL_ADMIN_ROBOTS_TAG } from "./lib/ampel-admin-headers";
+import { PARTNER_ANGEBOT_PATH, PARTNER_ANGEBOT_ROBOTS_TAG } from "./lib/partner-angebot";
 import {
   branchenInternalPath,
   branchenPath,
@@ -125,6 +126,7 @@ const nextConfig: NextConfig = {
     "/resources/10-offene-punkte/download": ["./public/brand/**/*"],
     "/resources/inhalt-verfahrensdokumentation/download": ["./public/brand/**/*"],
     "/llms.txt": ["./content/faq.md", "./content/legal/**/*"],
+    "/partner-angebot": ["./content/delivery-templates/**/*", "./public/brand/**/*"],
     "/branchen/[slug]": [
       "./content/branchen/**/*",
       "./content/blog/**/*",
@@ -143,6 +145,16 @@ const nextConfig: NextConfig = {
       { source: "/api/admin/ampel-stats", headers: ampelAdminHeaders },
       // `:path+` is one or more segments. `:path*` also matches /kassen-check and would noindex the page.
       { source: "/kassen-check/:path+", headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }] },
+      {
+        source: PARTNER_ANGEBOT_PATH,
+        headers: [
+          { key: "X-Robots-Tag", value: PARTNER_ANGEBOT_ROBOTS_TAG },
+          {
+            key: "Cache-Control",
+            value: "private, no-store, max-age=0, must-revalidate",
+          },
+        ],
+      },
       ...branchenNoindexHeaders(),
       { source: "/api/stripe/portal", headers: noStoreHeaders },
       { source: "/:path*", headers: securityHeaders },
