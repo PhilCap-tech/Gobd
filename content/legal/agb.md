@@ -1,4 +1,4 @@
-> **Interner Entwurf · Stand 13.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
+> **Interner Entwurf · Stand 20.10.2026** · Keine Rechtsberatung. Vor Veröffentlichung juristisch prüfen.  
 > Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
 
 ---
@@ -26,6 +26,8 @@ und dem Kunden („Kunde“, „Sie“).
 (2) Unser Angebot richtet sich **ausschließlich an Unternehmer** im Sinne von § 14 BGB, die den Vertrag in Ausübung ihrer gewerblichen oder selbstständigen beruflichen Tätigkeit abschließen. **Verbraucher** im Sinne von § 13 BGB sind vom Vertragsschluss **ausgeschlossen**. Mit der Bestellung bestätigt der Kunde, dass er als Unternehmer handelt.
 
 (3) Abweichende Bedingungen des Kunden werden nicht Vertragsbestandteil, es sei denn, wir stimmen ausdrücklich in Textform zu.
+
+(4) Für Bestellungen über die Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot, die über Digistore24 abgewickelt werden, gelten ergänzend und vorrangig die Regelungen in § 9a.
 
 ## § 2 Leistungsgegenstand — keine Steuer-/Rechtsberatung
 
@@ -93,6 +95,34 @@ Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vo
 
 (4) Gesetzliche Rechte des Kunden, insbesondere Gewährleistungsrechte, bleiben unberührt.
 
+## § 9a Bestellungen über Digistore24 (Partner-Angebot)
+
+(1) **Anwendungsbereich.** Dieser § 9a gilt für Bestellungen, die Sie über die Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot im Bestellformular von Digistore24 aufgeben (Produkte 751404 und 751419). „Digistore24“ ist die jeweils nach Ihrem Land zuständige Digistore24-Gesellschaft (für Käufer aus Deutschland: Digistore24 GmbH, St.-Godehard-Straße 32, 31139 Hildesheim, Amtsgericht Hildesheim, HRB 202956). Welche Gesellschaft Ihr Vertragspartner ist, sehen Sie im Bestellformular und in der Bestellbestätigung. Für Bestellungen über Stripe Checkout auf unserer Website gilt dieser § 9a nicht.
+
+(2) **Nur für Unternehmer.** Das Partner-Angebot richtet sich **ausschließlich an Unternehmer** im Sinne von § 14 BGB, die in Ausübung ihrer gewerblichen oder selbstständigen beruflichen Tätigkeit bestellen. **Bestellungen sind nur als Unternehmen und nur mit Angabe des Firmennamens möglich**; der Firmenname ist im Bestellformular ein Pflichtfeld. Verbraucher im Sinne von § 13 BGB sind vom Vertragsschluss ausgeschlossen. Mit der Bestellung bestätigen Sie, dass Sie als Unternehmer handeln. § 1 Abs. 2 und § 7 Abs. 3 gelten.
+
+(3) **Vertragspartner für Kauf und Zahlung.** Digistore24 verkauft die Leistung als Wiederverkäufer im eigenen Namen und für eigene Rechnung. Ihr Vertragspartner für Kauf und Zahlung ist ausschließlich Digistore24. Der Vertrag kommt nach den Bedingungen von Digistore24 zustande, in der Regel mit der Bestellbestätigung per E-Mail von Digistore24. Für Vertragsschluss, Preise, Zahlung, Rechnung, Zahlungsverzug, Rückabwicklung und Kündigung gelten **vorrangig** die Käufer-AGB von Digistore24, die Ihnen im Bestellformular angezeigt werden (für Käufer aus Deutschland derzeit: https://www.digistore24.com/page/terms/1/de).
+
+(4) **Leistungserbringung durch die IKAT GmbH; Nutzungsbedingungen.** Die IKAT GmbH erbringt die bestellte Leistung (Bereitstellung des Online-Dienstes und Erstellung der Verfahrensdokumentation nach § 2 und § 5) im Auftrag von Digistore24. Für die **Nutzung des Dienstes** gelten diese AGB als produktspezifische Nutzungsbedingungen, insbesondere § 2, § 5, § 6, § 7, § 11, § 12 Abs. 4 und § 13. Ihre gesetzlichen Rechte gegenüber Digistore24 als Verkäufer bleiben unberührt.
+
+(5) **Preise.** Es gelten dieselben Preise wie bei einer Bestellung über unsere Website: **198 € zum Start (Einrichtung 149 € + 1. Monat 49 €), danach 49 € pro Monat**, jeweils netto zuzüglich der gesetzlichen Umsatzsteuer. Digistore24 berechnet beim Kauf 198 € netto. Das monatliche Nutzungsentgelt von 49 € netto berechnet Digistore24 erstmals einen Monat nach dem Kauf und danach monatlich im Voraus. Das Bestellformular von Digistore24 zeigt die Beträge einschließlich Umsatzsteuer an. Maßgeblich sind die im Bestellformular angezeigten Beträge. § 4 Abs. 2 und 3 gelten für Bestellungen über Digistore24 nicht.
+
+(6) **Preisänderungen.** Abweichend von § 4 Abs. 5 kündigen wir Änderungen des monatlichen Nutzungsentgelts für Bestellungen über Digistore24 **mindestens drei Monate** vor ihrem Wirksamwerden in Textform an. Mit der Ankündigung weisen wir Sie auf Ihr **Sonderkündigungsrecht** hin: Sie können das Abonnement außerordentlich zum Zeitpunkt des Wirksamwerdens der Preisänderung kündigen.
+
+(7) **Rechnung.** Die Rechnungen stellt **Digistore24** aus und übermittelt sie elektronisch, mit der Bestellbestätigung und für die Folgezahlungen nach den Bedingungen von Digistore24. Die IKAT GmbH stellt für diese Bestellungen keine eigene Rechnung. Rechnungsfragen richten Sie bitte an Digistore24 (support@digistore24.com).
+
+(8) **Laufzeit und Kündigung.** Das Abonnement läuft auf unbestimmte Zeit und ist **monatlich** zum Ende des jeweils laufenden Abrechnungsmonats kündbar. Die Kündigung erklären Sie **gegenüber Digistore24**: Öffnen Sie die Bestellbestätigung von Digistore24 (Absender support@digistore24.com, Betreff „Digistore24 - Bestellung erfolgreich / Zugang“), klicken Sie auf den Link zur Soforthilfe, wählen Sie „Frage zur Bezahlung“ → „Ich möchte die Zahlungen kündigen“ und senden Sie Ihr Anliegen über „Wenden Sie sich an uns“ an den Digistore24-Support. Alternativ kündigen Sie in Textform an support@digistore24.com unter Angabe Ihrer Bestell-ID. Die Kündigungsfunktion im Kundenkonto nach § 12 Abs. 2 steht für Bestellungen über Digistore24 nicht zur Verfügung. § 12 Abs. 1, 3 und 4 gelten entsprechend.
+
+(9) **14-Tage-Zufriedenheitsgarantie.** Auch für Bestellungen über Digistore24 gilt die **14-Tage-Zufriedenheitsgarantie** ab dem Kauf, und zwar ausschließlich nach den folgenden Regeln, die denen in § 9 entsprechen:
+- Haben Sie noch **kein PDF** der Dokumentation erzeugt oder heruntergeladen, erstatten wir **198 € zzgl. USt** (Einrichtung 149 € und 1. Monat 49 €).
+- Haben Sie bereits ein **PDF erzeugt oder heruntergeladen**, erstatten wir nur das **monatliche Nutzungsentgelt von 49 € zzgl. USt**. Die **Einrichtungsvergütung von 149 € zzgl. USt ist dann nicht erstattungsfähig**, da die Einrichtungsleistung erbracht ist.
+
+**So beantragen Sie die Erstattung:** Wenden Sie sich innerhalb der 14 Tage an Digistore24 über den Link zur Soforthilfe in Ihrer Bestellbestätigung von Digistore24 und geben Sie Ihre Bestell-ID an. Zusätzlich erreichen Sie uns unter **info@gobd-doku-erstellen.de** (Betreff „Zufriedenheitsgarantie“, mit Bestell-ID). **Erstattungen werden über Digistore24 abgewickelt**, und zwar über das beim Kauf verwendete Zahlungsmittel. Mit der Erstattung endet das Abonnement; weitere Beträge werden nicht abgebucht. Eine darüber hinausgehende Erstattung gewähren wir nicht; § 9 Abs. 4 (gesetzliche Rechte) bleibt unberührt. Ein gesetzliches Widerrufsrecht besteht nicht (§ 8); die Garantie ist eine vertragliche Zusage.
+
+(10) **Leistungsumfang.** Ein Abonnement umfasst **bis zu fünf Firmen** und alle Module (§ 2 Abs. 1 und 2). Für jede weitere Firma ab der sechsten ist ein weiteres Abonnement erforderlich.
+
+(11) **Verhältnis zu den übrigen Regelungen.** § 3 (Vertragsschluss), § 4 (Preise und Zahlung), § 9 Abs. 1 bis 3 (Antragsweg und Erstattung) und § 12 Abs. 2 (Kündigungsweg) gelten für Bestellungen über Digistore24 nicht, soweit dieser § 9a oder die Bedingungen von Digistore24 etwas anderes regeln. Wir dürfen den Zugang sperren oder beenden, wenn Digistore24 uns die Beendigung, Rückabwicklung oder einen Zahlungsausfall der Bestellung mitteilt; § 4 Abs. 4 gilt insoweit nicht. Im Übrigen gelten diese AGB, soweit sie dem § 9a und den Bedingungen von Digistore24 nicht widersprechen. Bei Widersprüchen gehen in Fragen von Kauf und Zahlung die Bedingungen von Digistore24 vor, in Fragen der Nutzung des Dienstes diese AGB.
+
 ## § 10 Gewährleistung
 
 (1) Es gelten die gesetzlichen Gewährleistungsrechte, soweit nachfolgend nicht abweichend und soweit zulässigerweise abdingbar (B2B).
@@ -135,4 +165,4 @@ Es gelten die gesonderte Datenschutzerklärung und die Cookie-Hinweise auf der W
 
 (3) Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
 
-**Stand:** 13.10.2026
+**Stand:** 20.10.2026

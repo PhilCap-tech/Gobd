@@ -8,6 +8,7 @@
  */
 import { createHash } from "node:crypto";
 import { get, head } from "@vercel/blob";
+import { previewSmokeSheetsClosed } from "./preview-smoke-sheets.mjs";
 
 const base = (process.argv[2] || "").replace(/\/$/, "");
 const email = "draft-blob-smoke@example.com";
@@ -141,6 +142,9 @@ function draftEntry(body) {
   return Array.isArray(blobs) ? blobs.find((blob) => blob?.pathname === gesamtPath) : undefined;
 }
 
+async function run() {
+let wroteDraft = false;
+
 try {
   const saved = await call("/api/intake/draft", {
     method: "PUT",
@@ -154,7 +158,14 @@ try {
       revision: 1,
     },
   });
+  if (previewSmokeSheetsClosed(saved)) {
+    console.log(
+      "skip: preview smoke has no Sheets credentials; wipe save is 503 before any Blob write",
+    );
+    return;
+  }
   ok(saved.status === 200 && saved.json?.backend === "blob", `draft save is blob (got ${saved.status} ${saved.json?.error || saved.text})`);
+  wroteDraft = true;
 
   const beforeProbe = await probe(gesamtPath);
   ok(
@@ -202,6 +213,11 @@ try {
     `WIPE_SMOKE_OK anlegen=blob dry-run uploadedAt=${before.uploadedAt} wipe deleted=1 gone=${goneVia} dry-run=leer`,
   );
 } finally {
-  const params = new URLSearchParams({ draftKey: gesamtKey });
-  await call(`/api/intake/draft?${params}`, { method: "DELETE", cookieValue: cookie }).catch(() => undefined);
+  if (wroteDraft) {
+    const params = new URLSearchParams({ draftKey: gesamtKey });
+    await call(`/api/intake/draft?${params}`, { method: "DELETE", cookieValue: cookie }).catch(() => undefined);
+  }
 }
+}
+
+await run();
