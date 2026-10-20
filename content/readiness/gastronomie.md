@@ -44,7 +44,7 @@ Für Gastronomiebetriebe heißt das vor allem: Kasse, Wareneingang, Rechnungen u
 | Trinkgeld | Auszahlung, ggf. Aufzeichnung | Klare, mit dem Steuerberater abgestimmte Praxis |
 | Schicht / Team | Schichtzettel, Übergabeprotokolle | Wer schließt die Kasse, wer prüft den Tagesabschluss |
 
-Software-Namen (z. B. bestimmte Kassensysteme oder Buchhaltungstools) dienen nur als **Beispiele**. Nennen Sie in Ihrer Doku die Produkte und Versionen, die Sie wirklich nutzen.
+Software-Namen (z. B. bestimmte Kassensysteme oder Buchhaltungstools) dienen nur als **Beispiele**. Nennen Sie in Ihrer Verfahrensdokumentation die Produkte und Versionen, die Sie wirklich nutzen.
 
 ### Kasse: der zentrale Punkt
 
@@ -103,7 +103,7 @@ Wenn etwas unklar ist: als offenen Punkt markieren und mit der Kanzlei klären �
 | Übergabe Buchhaltung | Büro ↔ Steuerberater |
 | Freigabe Verfahrensdokumentation (später) | Inhaber / Geschäftsleitung |
 
-In kleinen Betrieben macht oft dieselbe Person mehrere Rollen. Das ist okay — solange es klar benannt ist und Vertretung (Urlaub, Krankheit) zumindest kurz bedacht wird.
+In kleinen Betrieben macht oft dieselbe Person mehrere Rollen. Das ist zulässig, solange es klar benannt ist und Vertretung (Urlaub, Krankheit) zumindest kurz bedacht wird.
 
 ### Was dieses Modul bewusst nicht ist
 

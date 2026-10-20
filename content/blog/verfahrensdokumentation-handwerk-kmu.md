@@ -17,7 +17,7 @@ date: "2026-09-22"
 
 # Verfahrensdokumentation Handwerk & KMU
 
-Sie führen einen Handwerksbetrieb oder ein kleines Unternehmen — und die **Verfahrensdokumentation** soll nicht wie ein Konzernhandbuch wirken. Hier geht es um einen **praktischen Scope**: was bei kleinen Teams wirklich rein muss, wie typische Software-Setups aussehen und wo Sie Aufwand sparen können.
+Sie führen einen Handwerksbetrieb oder ein kleines Unternehmen — und die **Verfahrensdokumentation** soll nicht wie ein Konzernhandbuch wirken. Hier geht es um einen **praktikablen Umfang**: was bei kleinen Teams wirklich hineingehört, wie typische Software-Ausstattungen aussehen und wo Sie Aufwand sparen können.
 
 **Kurz:** Auch mit wenigen Mitarbeitenden brauchen Sie eine nachvollziehbare Beschreibung Ihrer Belegwege und Systeme. Sie müssen aber nicht jedes Detail aus einem Großunternehmen kopieren. Konkrete Prozesse, klare Verantwortliche, aktuelle Software — und eine Offene-Punkte-Liste statt Scheingenauigkeit.
 
@@ -31,9 +31,9 @@ Typische Gedanken: „Wir sind zu klein.“ „Das macht doch der Steuerberater.
 
 In der Praxis gilt: Die Verfahrensdokumentation beschreibt **Ihren** Betrieb — nicht die Größe. Kleine Teams brauchen oft **weniger Text**, aber **mehr Klarheit**: Wer scannt? Wer legt ab? Wer schickt an den Berater? Wo liegen die Dateien?
 
-Bei einer [Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung) hilft eine kurze, ehrliche Doku mehr als ein langes Muster ohne Bezug zu Ihnen.
+Bei einer [Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung) hilft eine kurze, ehrliche Verfahrensdokumentation mehr als ein langes Muster ohne Bezug zu Ihnen.
 
-## Praktischer Scope: was rein muss — und was nicht
+## Praktikabler Umfang: was hineingehört — und was nicht
 
 ### Reicht oft für den Start
 
@@ -61,25 +61,25 @@ Software-Namen dienen hier nur als **Beispiele** — keine Empfehlung, kein Verg
 
 - Belege sammeln, scannen oder per E-Mail/Upload an den Berater
 - Buchhaltung läuft z. B. über DATEV (oder vergleichbare Kanzlei-Software)
-- In der Doku: Ihr Belegweg bis zur Übergabe, was der Berater übernimmt, wo Originale/Scans liegen
+- In der Verfahrensdokumentation: Ihr Belegweg bis zur Übergabe, was der Berater übernimmt, wo Originale/Scans liegen
 
 ### Cloud-Buchhaltung im Betrieb
 
 - Erfassung in Tools wie sevdesk, lexoffice o. Ä.
 - Bankabgleich, Ausgangsrechnungen, ggf. Belegfoto per App
-- In der Doku: wer welche Rechte hat, wo Belege landen, wie Export/Datenzugriff gedacht ist
+- In der Verfahrensdokumentation: wer welche Rechte hat, wo Belege landen, wie Export/Datenzugriff gedacht ist
 
 ### Mischbetrieb
 
 - Erfassung im Betrieb, Abschluss oder Lohn beim Berater
 - mehrere Kanäle (Baustelle, Büro, E-Mail)
-- In der Doku: Schnittstellen und Verantwortlichkeiten besonders klar halten
+- In der Verfahrensdokumentation: Schnittstellen und Verantwortlichkeiten besonders klar halten
 
 Wichtig: Nennen Sie **Ihre** Produkte und Versionen so, wie sie tatsächlich heißen. „Buchhaltungsprogramm“ allein sagt wenig.
 
 ## Kleine Teams: Rollen ohne Bürokratie
 
-Mit 2–15 Personen überlappen Rollen oft. Das ist okay — solange es dokumentiert ist:
+Mit 2–15 Personen überlappen Rollen oft. Das ist zulässig, solange es dokumentiert ist:
 
 | Rolle (Beispiel) | Typisch verantwortlich |
 |------------------|------------------------|
@@ -131,7 +131,7 @@ Praktisch oft ja, sobald digital gebucht oder Belege digital abgelegt werden. Ob
 
 Nein als alleiniger Satz. Software ist ein Baustein. Beschreiben Sie Belegweg, Rollen, Speicherorte und — falls relevant — Scan und Vernichtung.
 
-### Wie lang sollte die Doku sein?
+### Wie lang sollte die Verfahrensdokumentation sein?
 
 So lang wie nötig, so kurz wie möglich. Für viele KMU reichen klare Seiten mit Bezug zur Realität — nicht 80 Seiten Mustertext.
 
@@ -139,7 +139,7 @@ So lang wie nötig, so kurz wie möglich. Für viele KMU reichen klare Seiten mi
 
 Viele Kanzleien unterstützen. Inhaltlich muss der Text Ihre Praxis treffen; Freigabe bleibt typischerweise bei der Geschäftsleitung. Abstimmung ist der Normalweg.
 
-### Macht eine schlanke Doku uns „GoBD-konform“?
+### Macht eine schlanke Verfahrensdokumentation uns „GoBD-konform“?
 
 Nein. Wir versprechen keine Konformität und keine Rechtssicherheit. Eine nachvollziehbare Dokumentation verbessert die Ausgangslage — mehr nicht.
 

@@ -372,7 +372,7 @@ export default async function PartnerAngebotPage({
         <section className={styles.section} id="ablauf">
           <div className={`shell ${styles.split}`}>
             <div>
-              <h2>So läuft’s ab</h2>
+              <h2>So läuft es ab</h2>
               <ol className={styles.steps} role="list">
                 <li>
                   Sie starten mit dem Betriebs-Check und beantworten die Fragen zu

@@ -257,7 +257,7 @@ export default async function SuccessPage({
               {anmeldung === "keine" ? null : mailReady ? (
                 <p className="hint">
                   Wir haben den Download-Link{visibleEmail ? ` an ${visibleEmail}` : ""}{" "}
-                  geschickt. Später geht’s über Magic Link ins Konto.
+                  geschickt. Später melden Sie sich über einen Magic Link in Ihrem Konto an.
                 </p>
               ) : (
                 <p className="banner">

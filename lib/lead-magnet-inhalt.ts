@@ -26,11 +26,11 @@ export const INHALT_GLIEDERUNG_INTRO =
 export const INHALT_GLIEDERUNG_POINTS = [
   {
     title: "Zweck & Geltungsbereich",
-    body: "Kurz: für welchen Betrieb / welche Prozesse gilt die Doku? Stand und Version notiert.",
+    body: "Kurz: für welchen Betrieb / welche Prozesse gilt die Verfahrensdokumentation? Stand und Version notiert.",
   },
   {
     title: "Organisation & Rollen",
-    body: "Wer erfasst Belege, wer prüft, wer bucht, wer freigibt die Doku? Vertretung wo nötig.",
+    body: "Wer erfasst Belege, wer prüft, wer bucht, wer gibt die Verfahrensdokumentation frei? Vertretung wo nötig.",
   },
   {
     title: "Belegarten & Herkunft",

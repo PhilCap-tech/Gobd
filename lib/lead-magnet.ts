@@ -45,7 +45,7 @@ export const LEAD_MAGNET_POINTS = [
   },
   {
     title: "Verantwortliche & Freigabe?",
-    body: "Wer pflegt die Doku? Wer hat freigegeben? Version und Datum vorhanden?",
+    body: "Wer pflegt die Verfahrensdokumentation? Wer hat freigegeben? Version und Datum vorhanden?",
   },
   {
     title: "Ersetzendes Scannen abgedeckt?",

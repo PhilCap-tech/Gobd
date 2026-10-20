@@ -34,7 +34,7 @@ Gesamtüberblick: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrens
 | Setzt Freigabe (Geschäftsleitung) | Berät; ersetzt nicht Ihre Prozesswahrheit |
 | Pflegt Versionen bei Änderungen | Wird bei größeren Umbauten einbezogen |
 
-**Entwurf abstimmen, Beratung nicht ersetzen** — das ist die Leitlinie. Wer „der Berater soll das irgendwie erledigen“ sagt, ohne Infos zu liefern, bekommt selten eine treffende Doku.
+**Entwurf abstimmen, Beratung nicht ersetzen** — das ist die Leitlinie. Wer „der Berater soll das irgendwie erledigen“ sagt, ohne Informationen zu liefern, erhält selten eine treffende Verfahrensdokumentation.
 
 ## Wann Selbst-Erstellen gut funktioniert
 
@@ -51,7 +51,7 @@ Gesamtüberblick: [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrens
 - Betriebsprüfung steht unmittelbar bevor und es gibt noch gar nichts — siehe [Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung)  
 - Sie merken, dass Annahmen und Realität auseinanderlaufen  
 
-Hilfe kann bedeuten: Berater, geführtes Tool oder beides — soft Vergleich unter [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software).
+Hilfe kann bedeuten: Berater, geführtes Tool oder beides — sachlicher Vergleich unter [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software).
 
 ## So erstellen Sie selbst — Schritt für Schritt
 
@@ -89,7 +89,7 @@ Zum Sortieren des Inhalts auf einer Seite: [Inhalt einer Verfahrensdokumentation
 
 ## Was Sie beim DIY vermeiden sollten
 
-- unveränderte Branchenmuster als „Ihre“ Doku ausgeben  
+- unveränderte Branchenmuster als „Ihre“ Verfahrensdokumentation ausgeben  
 - Software nur als Markenname ohne Belegweg  
 - Rollen erfinden, die es nicht gibt  
 - Scan-Thema aussparen, obwohl Sie Originale vernichten  
@@ -116,7 +116,7 @@ Stark abhängig vom Setup. Kleine Betriebe oft wenige Stunden plus Abstimmungsru
 
 ### Was kostet der DIY-Weg?
 
-Vor allem Zeit. Vorlagen können günstig sein; Tools und Beraterzeit kommen ggf. dazu. Transparenz schlägt Hype.
+Vor allem Zeit. Vorlagen können günstig sein; Tools und Beraterzeit kommen ggf. dazu. Transparenz ist wichtiger als Werbeversprechen.
 
 ### Reicht es, etwas „Ähnliches“ aus dem Internet zu kopieren?
 

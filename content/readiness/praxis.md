@@ -49,7 +49,7 @@ Nicht Gegenstand dieser Arbeitshilfe: Inhalt und Führung der medizinischen Pati
 | Storno / Gutschrift | Korrektur einer Liquidation | Nachvollziehbar, nicht „leise löschen“ |
 | Kontoauszug | Praxiskonto | Abgleich mit Liquidationen und Ausgaben |
 
-Häufige Lücke: **Liquidation ist im PVS erstellt**, Zahlung kommt aufs Konto, aber die **Belegablage und Buchung** hängen nur am Steuerberater-Ordner — ohne dass intern klar ist, wer für Vollständigkeit der Ausgangsrechnungen verantwortlich ist.
+Häufige Lücke: **Liquidation ist im PVS erstellt**, Zahlung kommt aufs Konto, aber die **Belegablage und Buchung** laufen nur über den Steuerberater-Ordner — ohne dass intern klar ist, wer für Vollständigkeit der Ausgangsrechnungen verantwortlich ist.
 
 ### Patientenakte vs. Buchhaltungsbelege — sauber trennen
 
@@ -72,7 +72,7 @@ Wenn ein System beides kann (PVS mit Akte und Liquidation), dokumentieren Sie f�
 - **Labor-, Röntgen- oder Geräte-Software:** oft eigene Welten; für GoBD relevant, wenn daraus Rechnungen oder kostenpflichtige Leistungen an Patienten abgerechnet werden
 - **E-Mail / Patientenportal:** Rechnungsversand — Archivfrage: Wo liegt das „Original“ der Rechnung?
 
-GoBD-Praxis-Tipp: Schreiben Sie auf, **welche Systeme Einnahmen erzeugen** und **wo die Rechnung als Beleg liegt**. Wenn die Rechnung nur als PDF im Patientenportal hängt und nirgends revisionssicher archiviert ist, ist das ein klassischer Nachholpunkt — unabhängig von der medizinischen Akte.
+GoBD-Praxis-Tipp: Schreiben Sie auf, **welche Systeme Einnahmen erzeugen** und **wo die Rechnung als Beleg liegt**. Wenn die Rechnung nur als PDF im Patientenportal liegt und nirgends revisionssicher archiviert ist, ist das ein klassischer Nachholpunkt — unabhängig von der medizinischen Akte.
 
 ### Typische Risiken in Praxen
 
@@ -150,7 +150,7 @@ Haken Sie ab, was bei {{Firma}} bereits klar ist. Offenpunkte gehören in den Re
    Fokus: Liquidation, Zahlungswege, Eingangsbelege, Rechte. Medizinische Doku-Themen bewusst ausklammern oder an die richtige Stelle verweisen.
 
 2. **Einen Belegfluss skizzieren**  
-   Beispiel Privatpatient: Termin → Liquidation im PVS → Versand → Zahlung → Ablage → Buchung. Notieren Sie, wo es hakt (z. B. „PDF nur im Portal“, „Storno ohne Info an Buchhaltung“).
+   Beispiel Privatpatient: Termin → Liquidation im PVS → Versand → Zahlung → Ablage → Buchung. Notieren Sie, wo es Schwierigkeiten gibt (z. B. „PDF nur im Portal“, „Storno ohne Info an Buchhaltung“).
 
 3. **Systeme und Zugriffe listen**  
    PVS-Name, Buchhaltungswege, Terminal, wer darf liquidieren/stornieren. Das brauchen Sie später für die Verfahrensdokumentation.

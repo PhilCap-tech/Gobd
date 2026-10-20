@@ -27,7 +27,7 @@ Sie suchen eine **Verfahrensdokumentation Vorlage** — oft als Blanko-Word oder
 
 Weil der Einstieg schwer fällt: Was gehört hinein? Wie tief? In welcher Reihenfolge? Eine Vorlage wirkt wie der schnelle Weg — und für den **Aufbau** ist sie das auch.
 
-Was oft schiefläuft: Die Datei wird ausgefüllt wie ein Formular, ohne Bezug zu Ihren Belegwegen, Systemen und Verantwortlichen. Beratung und Prüfung erkennen Standardtext. Die Dokumentation wirkt dann fertig, obwohl sie Ihre Realität nicht abbildet. Wie das im Einzelnen aussieht: [Verfahrensdokumentation erstellen: häufige Fehler](/blog/verfahrensdokumentation-fehler).
+Häufiger Fehler: Die Datei wird ausgefüllt wie ein Formular, ohne Bezug zu Ihren Belegwegen, Systemen und Verantwortlichen. Beratung und Prüfung erkennen Standardtext. Die Dokumentation wirkt dann fertig, obwohl sie Ihre Realität nicht abbildet. Wie das im Einzelnen aussieht: [Verfahrensdokumentation erstellen: häufige Fehler](/blog/verfahrensdokumentation-fehler).
 
 ## Was eine gute Verfahrensdokumentation Vorlage leisten soll
 
