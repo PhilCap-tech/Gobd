@@ -70,7 +70,7 @@ const HOME_MODULE_PREFIX = "home-modul";
 const TEILE: ModulTeil[] = [1, 2, 3, 4];
 const AMPEL_HREF = "/ampel-check";
 const AMPEL_HERO_HREF = "/ampel-check?src=hero&v=a";
-const AMPEL_LABEL = "Betriebsprüfungs-Ampel";
+const AMPEL_LABEL = "GoBD-Ampel";
 const HERO_HEADLINE = "Kostenlos prüfen, ob Ihr Unternehmen die GoBD-Anforderungen erfüllt";
 const HERO_SUBLINE =
   "Der Ampel-Check führt Sie in rund 2 Minuten durch 10 Ja/Nein-Fragen – von der Verfahrensdokumentation bis zur E-Rechnung – und zeigt, wo Ihre Prozesse gut aufgestellt sind und wo Sie nachbessern sollten.";

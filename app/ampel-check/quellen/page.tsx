@@ -18,7 +18,7 @@ export default function AmpelQuellenPage() {
       <CrumbJsonLd
         items={[
           { name: "Startseite", path: "/" },
-          { name: "Betriebsprüfungs-Ampel", path: "/ampel-check" },
+          { name: "GoBD-Ampel", path: "/ampel-check" },
           { name: "Quellen & Methodik", path: AMPEL_QUELLEN_PATH },
         ]}
       />

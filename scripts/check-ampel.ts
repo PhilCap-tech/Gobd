@@ -876,7 +876,7 @@ try {
   assertOk(pdfMail?.text.includes("GoBD Rz. 151"), "mail quotes a source");
   assertOk(pdfMail?.text.includes("keine Steuerberatung"), "mail carries the disclaimer");
   assertOk(!pdfMail?.text.includes("149") && !pdfMail?.html.includes("149"), "pdf mail has no price");
-  assertOk(pdfMail?.subject === "Ihr Ergebnis der Betriebsprüfungs-Ampel", "pdf mail subject");
+  assertOk(pdfMail?.subject === "Ihr Ergebnis der GoBD-Ampel", "pdf mail subject");
   assertOk(pdfMail?.text.includes(AMPEL_RESULT_REGISTER_LINE), "pdf mail carries the register line");
   assertOk(pdfMail?.text.includes("gobd-doku-erstellen.de") && !pdfMail?.html.includes("Jetzt buchen"), "pdf mail has a plain product link and no booking block");
   assertOk(!pdfMail?.text.includes("/checkout") && !pdfMail?.html.includes("abmelden"), "pdf mail is not a marketing mail");
@@ -2654,7 +2654,7 @@ try {
         transactional.mailed === true &&
         transactional.marketing === "skipped" &&
         providerSends === pdfBefore + 1 &&
-        transactionalMail?.subject === "Ihr Ergebnis der Betriebsprüfungs-Ampel" &&
+        transactionalMail?.subject === "Ihr Ergebnis der GoBD-Ampel" &&
         !transactionalMail.text.includes(AMPEL_CTA.price) &&
         transactionalMail.headers?.["List-Unsubscribe"] == null,
       "Ergebnis-Mail ohne Opt-in wird gesendet",

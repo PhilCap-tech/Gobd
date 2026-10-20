@@ -80,7 +80,7 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
   const band = AMPEL_RESULTS[scored.light];
   const nein = ampelNeinQuestions(answers);
   const resultUrl = `${getAppUrl()}${ampelResultPath(payload.answers, payload.ref)}`;
-  const subject = `Ihr Ampel-Ergebnis: ${band.label} — Betriebsprüfungs-Ampel`;
+  const subject = `Ihr Ampel-Ergebnis: ${band.label} — GoBD-Ampel`;
   const lines = [
     "Guten Tag,",
     "",
