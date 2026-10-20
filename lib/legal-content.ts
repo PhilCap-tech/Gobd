@@ -1,5 +1,5 @@
-// Public legal pages read these files. The leading blockquote is an
-// internal draft banner and is stripped at render time.
+// Public legal pages read these files. A leading blockquote is internal
+// and is stripped at render time.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
