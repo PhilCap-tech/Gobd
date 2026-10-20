@@ -10,7 +10,7 @@ export interface AmpelQuestion {
 }
 
 export const AMPEL_H1 =
-  "Betriebsprüfungs-Ampel: Wie gut ist Ihre Buchführung dokumentiert?";
+  "GoBD-Ampel: Erfüllt Ihr Unternehmen die GoBD-Anforderungen?";
 
 export const AMPEL_INTRO =
   "Beantworten Sie 10 Fragen mit Ja oder Nein und sehen Sie nach etwa zwei Minuten, wie gut Ihre Buchführungsprozesse für eine Betriebsprüfung dokumentiert sind. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.";

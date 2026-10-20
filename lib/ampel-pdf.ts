@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import {
   AMPEL_CAP_NOTE,
   AMPEL_DISCLAIMER,
+  AMPEL_H1,
   AMPEL_QUESTIONS,
   AMPEL_RESULT_REGISTER_LINE,
   AMPEL_RESULTS,
@@ -34,11 +35,11 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
   const scored = scoreAmpelCheck(answers);
   if (!scored) return null;
   const band = AMPEL_RESULTS[scored.light];
-  const subject = "Ihr Ergebnis der Betriebsprüfungs-Ampel";
+  const subject = "Ihr Ergebnis der GoBD-Ampel";
   const lines = [
     "Guten Tag,",
     "",
-    "anbei erhalten Sie das PDF mit Ihrem Ergebnis der Betriebsprüfungs-Ampel.",
+    "anbei erhalten Sie das PDF mit Ihrem Ergebnis der GoBD-Ampel.",
     "",
     `Ergebnis: ${band.label}.`,
     band.headline,
@@ -78,7 +79,7 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
   const hints = band.hints.map((hint) => `<li>${escapeHtml(hint)}</li>`).join("");
   const html = wrapTransactionalHtml(`
     <p>Guten Tag,</p>
-    <p>anbei erhalten Sie das PDF mit Ihrem Ergebnis der Betriebsprüfungs-Ampel.</p>
+    <p>anbei erhalten Sie das PDF mit Ihrem Ergebnis der GoBD-Ampel.</p>
     <p>Ergebnis: <strong>${escapeHtml(band.label)}</strong>.</p>
     <p><strong>${escapeHtml(band.headline)}</strong></p>
     <p>${escapeHtml(band.text)}</p>
@@ -105,7 +106,7 @@ export function buildAmpelResultPdf(answers: AmpelAnswerMap): Promise<Buffer> {
       margin: 56,
       compress: false,
       info: {
-        Title: "Betriebsprüfungs-Ampel",
+        Title: AMPEL_H1,
         Author: "GoBD Verfahrensdoku",
         Subject: "Orientierung, keine Steuerberatung",
       },
@@ -117,7 +118,7 @@ export function buildAmpelResultPdf(answers: AmpelAnswerMap): Promise<Buffer> {
 
     drawBrandLockup(doc, doc.page.margins.left, doc.page.margins.top, 28);
     doc.y = doc.page.margins.top + 42;
-    doc.fillColor(BRAND_NAVY).font("Helvetica-Bold").fontSize(16).text("Betriebsprüfungs-Ampel", {
+    doc.fillColor(BRAND_NAVY).font("Helvetica-Bold").fontSize(16).text(AMPEL_H1, {
       width: CONTENT_WIDTH,
     });
     doc.moveDown(0.4);
