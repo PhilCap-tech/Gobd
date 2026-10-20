@@ -66,34 +66,11 @@ export function sanitizeAnalyticsUrl(raw: string): string | null {
   return result;
 }
 
-const CLICK_IDS = new Set(["gclid", "gbraid", "wbraid"]);
-
-/** Click ids stay off cookieless custom events. Page views keep the existing URL. */
-function withoutClickIds(raw: string): string {
-  let url: URL;
-  try {
-    url = new URL(raw, "https://www.gobd-doku-erstellen.de");
-  } catch {
-    return raw;
-  }
-  for (const key of [...url.searchParams.keys()]) {
-    if (CLICK_IDS.has(key.toLowerCase())) url.searchParams.delete(key);
-  }
-  const absolute = /^https?:\/\//i.test(raw);
-  return absolute ? `${url.origin}${url.pathname}${url.search}` : `${url.pathname}${url.search}`;
-}
-
-/**
- * Page views and cookieless custom events. Tokens and email addresses leave
- * the URL. Click ids leave custom-event URLs and are not copied as fields.
- */
+/** Drops custom events and strips tokens or email addresses from the page URL. */
 export function sanitizeAnalyticsEvent<T extends AnalyticsEvent>(event: T): T | null {
-  if (event.type !== "pageview" && event.type !== "event") return null;
+  if (event.type !== "pageview") return null;
   if (urlMentionsTestEntity(event.url)) return null;
   const url = sanitizeAnalyticsUrl(event.url);
   if (!url) return null;
-  const safeUrl = event.type === "event" ? withoutClickIds(url) : url;
-  const next = { ...event, url: safeUrl } as T & Record<string, unknown>;
-  for (const key of CLICK_IDS) delete next[key];
-  return next;
+  return { ...event, url };
 }

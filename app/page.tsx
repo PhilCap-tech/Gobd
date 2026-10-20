@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HeroCtaClicks } from "@/components/hero-cta-clicks";
 import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -213,19 +212,17 @@ export default function HomePage() {
               </span>
               <span>{HERO_PRICE_BOX}</span>
             </p>
-            <HeroCtaClicks>
-              <div className={styles.ctas}>
-                <Link className="btn" href={AMPEL_HERO_HREF} data-hero-target="ampel">
-                  {HERO_PRIMARY}
-                </Link>
-                <a className={`btn ${styles.btnSec}`} href="/checkout" data-hero-target="checkout">
-                  {CTA_CREATE}
-                </a>
-                <Link className={`btn ${styles.btnSec}`} href="#muster" data-hero-target="muster">
-                  {CTA_MUSTER_HERO}
-                </Link>
-              </div>
-            </HeroCtaClicks>
+            <div className={styles.ctas}>
+              <Link className="btn" href={AMPEL_HERO_HREF}>
+                {HERO_PRIMARY}
+              </Link>
+              <a className={`btn ${styles.btnSec}`} href="/checkout">
+                {CTA_CREATE}
+              </a>
+              <Link className={`btn ${styles.btnSec}`} href="#muster">
+                {CTA_MUSTER_HERO}
+              </Link>
+            </div>
             <p className={styles.micro}>{HERO_MICRO}</p>
             <p className={styles.guarantee}>
               <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>

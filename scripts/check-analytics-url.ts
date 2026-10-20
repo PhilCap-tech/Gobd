@@ -52,29 +52,9 @@ assert.deepEqual(pageview, {
   type: "pageview",
   url: "https://www.gobd-doku-erstellen.de/auth/invite",
 });
-assert.deepEqual(
-  sanitizeAnalyticsEvent({
-    type: "event",
-    url: "https://www.gobd-doku-erstellen.de/",
-  }),
-  {
-    type: "event",
-    url: "https://www.gobd-doku-erstellen.de/",
-  },
-);
-assert.deepEqual(
-  sanitizeAnalyticsEvent({
-    type: "event",
-    url: "https://www.gobd-doku-erstellen.de/ampel-check?src=hero&v=a&gclid=CLICK&utm_source=google&token=secret",
-  }),
-  {
-    type: "event",
-    url: "https://www.gobd-doku-erstellen.de/ampel-check?src=hero&v=a&utm_source=google",
-  },
-);
 assert.equal(
   sanitizeAnalyticsEvent({
-    type: "other",
+    type: "event",
     url: "https://www.gobd-doku-erstellen.de/",
   }),
   null,
@@ -91,8 +71,7 @@ assert.ok(component.includes("beforeSend={sanitizeAnalyticsEvent}"));
 assert.equal(component.includes("useSearchParams"), false);
 assert.equal(component.includes("localStorage"), false);
 assert.equal(component.includes("document.cookie"), false);
-assert.ok(component.includes("export function trackCookielessEvent"));
-assert.equal(component.includes("gclid"), false);
+assert.equal(component.includes("track("), false);
 assert.equal(component.includes("consent"), false);
 assert.equal(component.includes("Consent"), false);
 
