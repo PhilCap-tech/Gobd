@@ -15,6 +15,40 @@ export const AMPEL_H1 =
 export const AMPEL_INTRO =
   "Beantworten Sie 10 Fragen mit Ja oder Nein und sehen Sie nach etwa zwei Minuten, wie gut Ihre Buchführungsprozesse für eine Betriebsprüfung dokumentiert sind. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.";
 
+/** Visible funnel copy on /ampel-check. Homepage and the page description keep AMPEL_INTRO. */
+export const AMPEL_CHECK_KICKER = "Kostenlos · 10 Fragen · rund 2 Minuten";
+
+export const AMPEL_CHECK_INTRO =
+  "Beantworten Sie 10 kurze Ja/Nein-Fragen – Sie erhalten eine Ampel-Einschätzung mit Quellen.";
+
+export const AMPEL_CHECK_WHY = "Warum fragen wir das?";
+
+export const AMPEL_CHECK_HINT =
+  "Selbsteinschätzung zur Orientierung – keine Steuer- oder Rechtsberatung.";
+
+export const AMPEL_CHECK_PREVIEW_NOTE = "Selbsteinschätzung – keine Steuer- oder Rechtsberatung.";
+
+export const AMPEL_CHECK_PREVIEW_DETAIL =
+  "Welche Punkte das sind und was die Quellen dazu sagen, sehen Sie nach Eingabe Ihrer E-Mail-Adresse.";
+
+export const AMPEL_CHECK_PREVIEW_BASIS =
+  "Die Ampel beruht allein auf Ihren Angaben und ersetzt keine Steuer- oder Rechtsberatung.";
+
+export function ampelCheckPreviewLine(color: string, openPoints: number): string {
+  return `Ihre Einschätzung: ${color} – bei ${openPoints} von ${AMPEL_QUESTIONS.length} Punkten besteht möglicher Handlungsbedarf.`;
+}
+
+export const AMPEL_CHECK_MAIL = {
+  heading: "Ihre Ampel ist bereit",
+  text:
+    "Geben Sie Ihre E-Mail-Adresse ein – Ihr Ergebnis erscheint sofort hier auf der Seite. Zusätzlich senden wir Ihnen das Ergebnis mit Quellen als PDF.",
+  label: "Ihre E-Mail-Adresse",
+  button: "Ampel-Ergebnis anzeigen",
+  note:
+    "Kein Newsletter ohne Ihre ausdrückliche Zustimmung. Selbsteinschätzung – keine Steuer- oder Rechtsberatung.",
+  emptyEmail: "Bitte geben Sie Ihre E-Mail-Adresse ein, damit wir Ihr Ergebnis anzeigen können.",
+} as const;
+
 export const AMPEL_QUESTIONS: AmpelQuestion[] = [
   {
     id: "vd_vorhanden",

@@ -1990,7 +1990,7 @@ code {
 }
 
 body.consent-open {
-  padding-bottom: 96px;
+  padding-bottom: var(--consent-banner-height, 96px);
 }
 
 .consent-banner {
@@ -2001,7 +2001,7 @@ body.consent-open {
   bottom: 0;
   background: var(--surface);
   border-top: 1px solid var(--line);
-  padding: 8px 0;
+  padding: 6px 0;
 }
 
 .consent-banner .consent-title {
@@ -2029,9 +2029,9 @@ body.consent-open {
   flex: 1 1 auto;
   min-width: 0;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text);
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .consent-banner .consent-choice,
@@ -2062,28 +2062,38 @@ body.consent-open {
 
 @media (max-width: 800px) {
   body.consent-open {
-    padding-bottom: 156px;
+    padding-bottom: var(--consent-banner-height, 120px);
+  }
+
+  .consent-banner {
+    padding: 6px 0;
+    max-height: 120px;
+    overflow: hidden;
   }
 
   .consent-banner-inner {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 6px;
   }
 
   .consent-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    flex: none;
   }
 
   .consent-banner p {
-    font-size: 12.5px;
+    font-size: 12px;
+    line-height: 1.25;
   }
 
   .consent-actions .btn {
     width: 100%;
     text-align: center;
-    padding: 8px 10px;
+    padding: 6px 8px;
+    font-size: 13px;
+    line-height: 1.2;
   }
 }
 
@@ -2386,6 +2396,29 @@ body.consent-open {
   }
 }
 
+.ampel-lead {
+  font-size: 16px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.ampel-gate {
+  scroll-margin-top: 12px;
+}
+
+.ampel-preview {
+  margin-top: 16px;
+}
+
+.ampel-preview-line {
+  margin: 0 0 8px;
+  font-weight: 650;
+}
+
+.ampel-preview-note {
+  margin-top: 0;
+}
+
 .ampel-progress {
   margin: 0 0 8px;
   font-size: 13px;
@@ -2393,11 +2426,76 @@ body.consent-open {
   color: var(--accent);
 }
 
+.ampel-question h2 {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+}
+
 .ampel-choices {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 0;
+}
+
+.ampel-why {
+  margin-top: 14px;
+}
+
+.ampel-why summary {
+  cursor: pointer;
+  width: fit-content;
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.ampel-why summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.ampel-why p {
+  margin: 8px 0 0;
+}
+
+.ampel-orientierung {
+  margin: 10px 0 0;
+}
+
+.ampel-mail-note {
+  margin: 10px 0 0;
+}
+
+.ampel-consent {
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+
+.ampel-consent .check {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.ampel-text-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.ampel-text-btn:hover {
+  color: #185a3e;
+}
+
+.ampel-text-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .ampel-choices .btn[aria-pressed="true"] {
@@ -2468,6 +2566,7 @@ body.consent-open {
 .ampel-share,
 .ampel-question {
   margin-top: 16px;
+  scroll-margin-top: 12px;
 }
 
 .ampel-price {
