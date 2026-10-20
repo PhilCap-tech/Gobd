@@ -8,6 +8,8 @@
  *   DRAFT_SMOKE_COOKIE_A=… DRAFT_SMOKE_COOKIE_B=… \
  *     node scripts/smoke-draft-blob-http.mjs http://127.0.0.1:3217
  */
+import { previewSmokeSheetsClosed } from "./preview-smoke-sheets.mjs";
+
 const base = (process.argv[2] || process.env.DRAFT_SMOKE_BASE_URL || "").replace(/\/$/, "");
 const email = (process.env.DRAFT_SMOKE_EMAIL || "draft-blob-smoke@example.com").trim().toLowerCase();
 const cookieA = process.env.DRAFT_SMOKE_COOKIE_A || "";
@@ -91,6 +93,9 @@ async function call(path, { method = "GET", cookie = "", body } = {}) {
 
 const query = new URLSearchParams({ draftKey });
 
+async function run() {
+let wroteDraft = false;
+
 try {
   const denied = await call("/api/intake/draft", {
     method: "PUT",
@@ -114,7 +119,14 @@ try {
       revision: 2,
     },
   });
+  if (previewSmokeSheetsClosed(saved)) {
+    console.log(
+      "skip: preview smoke has no Sheets credentials; draft save is 503 before any Blob write",
+    );
+    return;
+  }
   ok(saved.status === 200, `save status 200 (got ${saved.status} ${saved.json?.error || ""})`);
+  wroteDraft = true;
   ok(saved.json?.backend === "blob", `save storage is blob (got ${String(saved.json?.backend)})`);
   ok(saved.json?.draft?.email === email, "saved draft keeps the synthetic email");
 
@@ -172,5 +184,10 @@ try {
 
   console.log("DRAFT_SMOKE_OK backend=blob fresh=full 401=ok 409=ok delete=ok email=synthetic");
 } finally {
-  await call(`/api/intake/draft?${query}`, { method: "DELETE", cookie: cookieA }).catch(() => undefined);
+  if (wroteDraft) {
+    await call(`/api/intake/draft?${query}`, { method: "DELETE", cookie: cookieA }).catch(() => undefined);
+  }
 }
+}
+
+await run();

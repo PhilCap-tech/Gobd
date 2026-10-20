@@ -8,6 +8,7 @@
  *     node scripts/smoke-pdf-blob-http.mjs http://127.0.0.1:3217
  */
 import { createHash } from "node:crypto";
+import { previewSmokeSheetsConfigured } from "./preview-smoke-sheets.mjs";
 
 const base = (process.argv[2] || "").replace(/\/$/, "");
 const cookieA = process.env.PDF_SMOKE_COOKIE_A || "";
@@ -89,6 +90,7 @@ async function cleanup() {
   }).catch(() => undefined);
 }
 
+async function run() {
 try {
   const denied = await callJson("/api/internal/blob-smoke", {
     method: "POST",
@@ -102,6 +104,12 @@ try {
     body: { action: "pdf" },
   });
   ok(foreignCreate.status === 403, `PDF create with a foreign session is 403 (got ${foreignCreate.status})`);
+  if (!previewSmokeSheetsConfigured()) {
+    console.log(
+      "skip: preview smoke has no Sheets credentials; PDF and upload Blob writes are not run",
+    );
+    return;
+  }
 
   const createdPdf = await callJson("/api/internal/blob-smoke", {
     method: "POST",
@@ -220,3 +228,6 @@ try {
   await cleanup();
   if (process.exitCode) process.exit(process.exitCode);
 }
+}
+
+await run();
