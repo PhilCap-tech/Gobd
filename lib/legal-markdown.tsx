@@ -26,6 +26,13 @@ function extractTitle(markdown: string): { title: string; body: string } {
   return { title: match[1].trim(), body: match[2].trim() };
 }
 
+/** Punctuation that closes a sentence stays visible, but not inside the href. */
+function linkTarget(raw: string): { href: string; trailing: string } {
+  const split = raw.match(/^(.*?)([),.;:!?]+)$/);
+  if (!split?.[1]) return { href: raw, trailing: "" };
+  return { href: split[1], trailing: split[2] };
+}
+
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   const token =
@@ -60,11 +67,13 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
         </a>,
       );
     } else {
+      const { href, trailing } = linkTarget(raw);
       nodes.push(
-        <a key={key} href={raw} rel="noreferrer">
-          {raw}
+        <a key={key} href={href} rel="noreferrer">
+          {href}
         </a>,
       );
+      if (trailing) nodes.push(trailing);
     }
     last = match.index + raw.length;
   }

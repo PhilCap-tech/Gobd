@@ -6,7 +6,10 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import sitemap from "../app/sitemap";
+import { LegalMarkdown } from "../lib/legal-markdown";
 import { buildLlmsTxt } from "../lib/llms-txt";
 import {
   DIGISTORE24_PRODUCT_URL,
@@ -150,6 +153,43 @@ ok(
     "Bei Bestellungen über unsere Partnerseite (Digistore24) gelten dieselben Erstattungsregeln; die Erstattung beantragen Sie über Digistore24 (Soforthilfe-Link in der Bestellbestätigung) oder bei uns, abgewickelt wird sie über Digistore24 (§ 9a AGB).",
   ),
   "FAQ item 6 has the approved sentence",
+);
+
+function renderedHrefs(markdown: string): string[] {
+  const html = renderToStaticMarkup(createElement(LegalMarkdown, { source: markdown }));
+  return [...html.matchAll(/href="([^"]*)"/g)].map((match) => match[1]);
+}
+
+const agbHrefs = renderedHrefs(agb);
+const privacyHrefs = renderedHrefs(privacy);
+const faqHrefs = renderedHrefs(faq);
+const exactHrefs = [
+  "https://www.digistore24.com/page/privacy/1/de",
+  "https://www.digistore24.com/page/terms/1/de",
+  "https://www.gobd-doku-erstellen.de/partner-angebot",
+];
+for (const href of exactHrefs) {
+  const hits = [...agbHrefs, ...privacyHrefs, ...faqHrefs].filter((value) => value === href || value.startsWith(href));
+  ok(hits.includes(href), `autolink href is exactly ${href}`);
+  ok(
+    hits.every((value) => value === href),
+    `no trailing punctuation in ${href}`,
+  );
+}
+const privacyHtml = renderToStaticMarkup(createElement(LegalMarkdown, { source: privacy }));
+const agbHtml = renderToStaticMarkup(createElement(LegalMarkdown, { source: agb }));
+const faqHtml = renderToStaticMarkup(createElement(LegalMarkdown, { source: faq }));
+ok(
+  privacyHtml.includes("https://www.digistore24.com/page/privacy/1/de</a>)."),
+  "privacy URL keeps ').' outside the link",
+);
+ok(
+  agbHtml.includes("https://www.digistore24.com/page/terms/1/de</a>)."),
+  "AGB terms URL keeps ').' outside the link",
+);
+ok(
+  faqHtml.includes("https://www.gobd-doku-erstellen.de/partner-angebot</a>,"),
+  "FAQ partner URL keeps the comma outside the link",
 );
 
 const llms = buildLlmsTxt();
