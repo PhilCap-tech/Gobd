@@ -37,11 +37,10 @@
 }
 
 .page :global(h1) {
-  font-size: clamp(2rem, 6.2vw, 4.25rem);
-  line-height: 1.08;
+  font-size: clamp(1.85rem, 4.2vw, 3.15rem);
+  line-height: 1.12;
   letter-spacing: -0.01em;
   margin: 0 0 0.4em;
-  /* Only the soft hyphen in „Verfahrens­dokumentation“ may break the H1. */
   hyphens: manual;
   overflow-wrap: break-word;
   word-break: normal;
@@ -213,8 +212,7 @@
 }
 
 .hero {
-  border-bottom: 1px solid var(--line);
-  padding: 12px 0 72px;
+  padding: 12px 0 28px;
 }
 
 .heroInner {
@@ -234,7 +232,7 @@
 }
 
 .lead {
-  max-width: 640px;
+  max-width: 740px;
   margin: 0 auto 22px;
   font-size: 19px;
   line-height: 1.5;
@@ -293,6 +291,25 @@
 .final .priceCta {
   align-items: center;
   text-align: center;
+}
+
+.micro {
+  max-width: 740px;
+  margin: 16px auto 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.heroDisclaimer {
+  max-width: 820px;
+  padding-top: 4px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 .guarantee {
@@ -830,7 +847,7 @@
   }
 
   .hero {
-    padding: 8px 0 48px;
+    padding: 8px 0 20px;
   }
 
   .intro,

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AmpelCta, AmpelDisclaimer, AmpelResult } from "@/components/ampel-result";
+import { trackCookielessEvent } from "@/components/vercel-analytics";
 import {
   AMPEL_EMAIL_PRIVACY_NOTE,
   AMPEL_H1,
@@ -26,6 +27,11 @@ import {
 } from "@/lib/ampel-score";
 import { replaceCheckSearch, submitUtmFields } from "@/lib/campaign-params";
 import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
+
+function cookielessVariant(value: string | null): "a" | "b" | "c" | undefined {
+  if (value === "a" || value === "b" || value === "c") return value;
+  return undefined;
+}
 
 function EmailPrivacyNote() {
   const label = "Datenschutzerklärung";
@@ -104,6 +110,7 @@ export function AmpelCheck() {
     if (!startedRef.current) {
       startedRef.current = true;
       trackAmpelStart();
+      trackCookielessEvent("ampel_start", { variant: cookielessVariant(searchParams.get("v")) });
     }
     const next = { ...answers, [question.id]: answer };
     setAnswers(next);
