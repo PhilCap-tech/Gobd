@@ -480,7 +480,7 @@ try {
   assertOk(readFileSync("components/site-footer.tsx", "utf8").includes('href="/ampel-check"'), "footer links the page");
   const page = readFileSync("app/ampel-check/ampel-check.tsx", "utf8");
   const resultView = readFileSync("components/ampel-result.tsx", "utf8");
-  assertOk(page.includes("AMPEL_H1") && page.includes("AMPEL_INTRO"), "page renders the Growth H1 and intro");
+  assertOk(page.includes("AMPEL_H1") && page.includes("AMPEL_CHECK_INTRO"), "page renders the Growth H1 and intro");
   assertOk(page.includes("AMPEL_SHARE_KANZLEI") && page.includes("AMPEL_RESULT_MAIL"), "page renders share and DOI copy");
   assertOk(resultView.includes("AMPEL_CTA") && resultView.includes("AMPEL_DISCLAIMER") && resultView.includes("AMPEL_CAP_NOTE"), "result renders CTA, disclaimer and the cap note");
   assertOk(!resultView.includes("von 100"), "the result page does not show the score");

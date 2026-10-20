@@ -4,19 +4,30 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AmpelCta, AmpelDisclaimer, AmpelResult } from "@/components/ampel-result";
+import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import {
+  AMPEL_CHECK_HINT,
+  AMPEL_CHECK_INTRO,
+  AMPEL_CHECK_KICKER,
+  AMPEL_CHECK_MAIL,
+  AMPEL_CHECK_PREVIEW_BASIS,
+  AMPEL_CHECK_PREVIEW_DETAIL,
+  AMPEL_CHECK_PREVIEW_NOTE,
+  AMPEL_CHECK_WHY,
   AMPEL_EMAIL_PRIVACY_NOTE,
   AMPEL_H1,
-  AMPEL_INTRO,
   AMPEL_MARKETING_CONSENT,
   AMPEL_QUESTIONS,
+  AMPEL_RESULTS,
   AMPEL_RESULT_MAIL,
   AMPEL_SHARE_KANZLEI,
+  ampelCheckPreviewLine,
   ampelSendStatusNotice,
   type AmpelAnswer,
 } from "@/lib/ampel-questions";
 import {
   AMPEL_PATH,
+  ampelNeinQuestions,
   ampelSharePath,
   decodeAmpelAnswers,
   encodeAmpelAnswers,
@@ -53,6 +64,38 @@ function emailLooksValid(value: string): boolean {
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function AmpelPreview({ answers }: { answers: AmpelAnswerMap }) {
+  const scored = scoreAmpelCheck(answers);
+  if (!scored) return null;
+  const color = AMPEL_RESULTS[scored.light].label;
+  const openPoints = ampelNeinQuestions(answers).length;
+  return (
+    <section className={`ampel-banner ampel-preview ${scored.light}`} aria-live="polite" aria-label={`Ampel ${color}`}>
+      <p className="ampel-kicker">{color}</p>
+      <p className="ampel-preview-line">{ampelCheckPreviewLine(color, openPoints)}</p>
+      <p className="hint ampel-preview-note">{AMPEL_CHECK_PREVIEW_NOTE}</p>
+      <p>{AMPEL_CHECK_PREVIEW_DETAIL}</p>
+      <p className="hint">{AMPEL_CHECK_PREVIEW_BASIS}</p>
+    </section>
+  );
+}
+
+function scrollBlockClearOfBanner(block: HTMLElement, anchorSelector: string) {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const behavior: ScrollBehavior = reduce ? "auto" : "smooth";
+  const anchor = block.querySelector(anchorSelector);
+  const banner = document.querySelector(".consent-banner");
+  const bannerHeight = banner instanceof HTMLElement ? banner.getBoundingClientRect().height : 0;
+  const blockTop = block.getBoundingClientRect().top + window.scrollY;
+  let top = Math.max(0, blockTop - 12);
+  if (anchor instanceof HTMLElement) {
+    const anchorBottom = anchor.getBoundingClientRect().bottom + window.scrollY;
+    const visibleBottom = top + window.innerHeight - bannerHeight - 12;
+    if (anchorBottom > visibleBottom) top += anchorBottom - visibleBottom;
+  }
+  window.scrollTo({ top, behavior });
+}
+
 export function AmpelCheck() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -71,6 +114,10 @@ export function AmpelCheck() {
   const [origin, setOrigin] = useState("");
   const startedRef = useRef(false);
   const resultTrackedRef = useRef(false);
+  const questionRef = useRef<HTMLElement>(null);
+  const mailRef = useRef<HTMLDivElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const scrollTarget = useRef<"question" | "mail" | null>(null);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -94,6 +141,31 @@ export function AmpelCheck() {
     trackAmpelResult();
   }, [mode]);
 
+  const searchKey = searchParams.toString();
+
+  useEffect(() => {
+    const target = scrollTarget.current;
+    if (!target) return;
+    const node = target === "mail" ? mailRef.current : questionRef.current;
+    if (!node) return;
+    const selector = target === "mail" ? "#ampel-email" : ".ampel-choices";
+    const run = () => {
+      if (!node.isConnected) return;
+      scrollBlockClearOfBanner(node, selector);
+    };
+    if (target === "question") {
+      scrollTarget.current = null;
+      run();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      if (scrollTarget.current !== "mail") return;
+      scrollTarget.current = null;
+      run();
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [mode, step, searchKey]);
+
   function rememberAnswers(code: string) {
     const query = replaceCheckSearch(searchParams, { a: code, ref: refName });
     router.replace(query ? `${AMPEL_PATH}?${query}` : AMPEL_PATH);
@@ -108,12 +180,14 @@ export function AmpelCheck() {
     const next = { ...answers, [question.id]: answer };
     setAnswers(next);
     if (step < AMPEL_QUESTIONS.length - 1) {
+      scrollTarget.current = "question";
       setStep(step + 1);
       return;
     }
     const code = encodeAmpelAnswers(next);
     if (!code) return;
     setMailError("");
+    scrollTarget.current = "mail";
     setMode("email");
     rememberAnswers(code);
   }
@@ -121,12 +195,14 @@ export function AmpelCheck() {
   function editAnswers() {
     resultTrackedRef.current = false;
     setMailError("");
+    scrollTarget.current = "question";
     setMode("questions");
     setStep(Math.max(AMPEL_QUESTIONS.length - 1, 0));
   }
 
   function restart() {
     resultTrackedRef.current = false;
+    scrollTarget.current = "question";
     setMode("questions");
     setStep(0);
     setAnswers({});
@@ -150,8 +226,14 @@ export function AmpelCheck() {
   async function sendResult(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!encoded || pending) return;
+    if (!email.trim()) {
+      setMailError(AMPEL_CHECK_MAIL.emptyEmail);
+      emailRef.current?.focus();
+      return;
+    }
     if (!emailLooksValid(email)) {
       setMailError(AMPEL_RESULT_MAIL.invalidEmail);
+      emailRef.current?.focus();
       return;
     }
     setMailError("");
@@ -297,60 +379,75 @@ export function AmpelCheck() {
 
   return (
     <>
-      <p className="kicker">Kostenlos · etwa 2 Minuten</p>
+      <p className="kicker">{AMPEL_CHECK_KICKER}</p>
       <h1>{AMPEL_H1}</h1>
-      <p className="lead">{AMPEL_INTRO}</p>
+      <p className="lead ampel-lead">{AMPEL_CHECK_INTRO}</p>
 
       {mode === "questions" && question ? (
-        <section className="card ampel-question" aria-labelledby="ampel-question-title">
-          <p className="ampel-progress">
-            Frage {step + 1} von {AMPEL_QUESTIONS.length}
-          </p>
-          <h2 id="ampel-question-title">{question.question}</h2>
-          <p>{question.explanation}</p>
-          <p className="ampel-quelle">Quelle: {publicAmpelSource(question.source)}</p>
-          <div className="ampel-choices" role="group" aria-label="Antwort">
-            <button
-              type="button"
-              className="btn"
-              aria-pressed={answers[question.id] === "ja"}
-              onClick={() => choose("ja")}
-            >
-              Ja
-            </button>
-            <button
-              type="button"
-              className="btn ghost"
-              aria-pressed={answers[question.id] === "nein"}
-              onClick={() => choose("nein")}
-            >
-              Nein
-            </button>
-            {question.applicable === "optional" ? (
+        <>
+          <section ref={questionRef} className="card ampel-question" aria-labelledby="ampel-question-title">
+            <p className="ampel-progress">
+              Frage {step + 1} von {AMPEL_QUESTIONS.length}
+            </p>
+            <h2 id="ampel-question-title">{question.question}</h2>
+            <div className="ampel-choices" role="group" aria-label="Antwort">
+              <button
+                type="button"
+                className="btn"
+                aria-pressed={answers[question.id] === "ja"}
+                onClick={() => choose("ja")}
+              >
+                Ja
+              </button>
               <button
                 type="button"
                 className="btn ghost"
-                aria-pressed={answers[question.id] === "nicht_zutreffend"}
-                onClick={() => choose("nicht_zutreffend")}
+                aria-pressed={answers[question.id] === "nein"}
+                onClick={() => choose("nein")}
               >
-                Trifft nicht zu
+                Nein
               </button>
+              {question.applicable === "optional" ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  aria-pressed={answers[question.id] === "nicht_zutreffend"}
+                  onClick={() => choose("nicht_zutreffend")}
+                >
+                  Trifft nicht zu
+                </button>
+              ) : null}
+            </div>
+            <details className="ampel-why" key={question.id}>
+              <summary>{AMPEL_CHECK_WHY}</summary>
+              <p>{question.explanation}</p>
+              <p className="ampel-quelle">Quelle: {publicAmpelSource(question.source)}</p>
+            </details>
+            {step > 0 ? (
+              <p className="actions">
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    scrollTarget.current = "question";
+                    setStep(step - 1);
+                  }}
+                >
+                  Zurück
+                </button>
+              </p>
             ) : null}
-          </div>
-          {step > 0 ? (
-            <p className="actions">
-              <button type="button" className="btn ghost" onClick={() => setStep(step - 1)}>
-                Zurück
-              </button>
-            </p>
-          ) : null}
-        </section>
+          </section>
+          <p className="hint ampel-orientierung">{AMPEL_CHECK_HINT}</p>
+        </>
       ) : null}
 
       {mode === "email" && encoded ? (
+        <div ref={mailRef} className="ampel-gate">
+        <AmpelPreview answers={answers} />
         <form className="card ampel-mail" noValidate onSubmit={sendResult}>
-          <h2>{AMPEL_RESULT_MAIL.label}</h2>
-          <p>Tragen Sie Ihre E-Mail-Adresse ein. Das Ergebnis erscheint danach auf dieser Seite, das PDF senden wir Ihnen zu.</p>
+          <h2>{AMPEL_CHECK_MAIL.heading}</h2>
+          <p>{AMPEL_CHECK_MAIL.text}</p>
           <div className="ampel-honeypot" aria-hidden="true">
             <label htmlFor="ampel-fax">Fax</label>
             <input
@@ -364,23 +461,38 @@ export function AmpelCheck() {
             />
           </div>
           <div className="field">
-            <label htmlFor="ampel-email">E-Mail-Adresse</label>
+            <label htmlFor="ampel-email">{AMPEL_CHECK_MAIL.label}</label>
             <input
+              ref={emailRef}
               id="ampel-email"
               name="email"
               type="email"
+              inputMode="email"
+              enterKeyHint="send"
               autoComplete="email"
               required
-              aria-describedby="ampel-email-privacy"
+              aria-invalid={mailError ? true : undefined}
+              aria-describedby={mailError ? "ampel-email-error ampel-email-privacy" : "ampel-email-privacy"}
               placeholder={AMPEL_RESULT_MAIL.placeholder}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
+            {mailError ? (
+              <p id="ampel-email-error" className="field-error" role="alert">
+                {mailError}
+              </p>
+            ) : null}
             <p id="ampel-email-privacy" className="hint">
               <EmailPrivacyNote />
             </p>
           </div>
-          <div className="field">
+          <p className="actions">
+            <button className="btn ampel-submit" type="submit" disabled={pending}>
+              {pending ? "Wird gesendet …" : AMPEL_CHECK_MAIL.button}
+            </button>
+          </p>
+          <p className="hint ampel-mail-note">{AMPEL_CHECK_MAIL.note}</p>
+          <div className="field ampel-consent">
             <label className="check" htmlFor="ampel-marketing">
               <input
                 id="ampel-marketing"
@@ -392,20 +504,13 @@ export function AmpelCheck() {
               <span>{AMPEL_MARKETING_CONSENT}</span>
             </label>
           </div>
-          {mailError ? (
-            <p className="hint" role="alert">
-              {mailError}
-            </p>
-          ) : null}
           <p className="actions">
-            <button className="btn" type="submit" disabled={pending}>
-              {pending ? "Wird gesendet …" : AMPEL_RESULT_MAIL.button}
-            </button>
-            <button type="button" className="btn ghost" onClick={editAnswers}>
+            <button type="button" className="ampel-text-btn" onClick={editAnswers}>
               Antworten ändern
             </button>
           </p>
         </form>
+        </div>
       ) : null}
 
       {mode === "result" && encoded ? (

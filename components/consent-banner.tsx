@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   getBannerOpen,
   openConsentBanner,
@@ -19,8 +18,6 @@ function useClientReady() {
 }
 
 export function ConsentBanner() {
-  const pathname = usePathname() || "";
-  const partner = pathname.startsWith("/steuerberater");
   const ready = useClientReady();
   const open = useSyncExternalStore(
     subscribeBanner,
@@ -28,6 +25,7 @@ export function ConsentBanner() {
     () => false,
   );
   const visible = ready && open;
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle("consent-pending", visible);
@@ -38,10 +36,32 @@ export function ConsentBanner() {
     };
   }, [visible]);
 
+  useEffect(() => {
+    const node = bannerRef.current;
+    if (!visible || !node) {
+      document.documentElement.style.removeProperty("--consent-banner-height");
+      return;
+    }
+    const apply = () => {
+      const height = Math.ceil(node.getBoundingClientRect().height);
+      document.documentElement.style.setProperty("--consent-banner-height", `${height}px`);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(node);
+    window.addEventListener("resize", apply);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", apply);
+      document.documentElement.style.removeProperty("--consent-banner-height");
+    };
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
     <div
+      ref={bannerRef}
       className="consent-banner"
       role="dialog"
       aria-labelledby="consent-title"
@@ -52,13 +72,8 @@ export function ConsentBanner() {
       </span>
       <div className="consent-banner-inner shell">
         <p id="consent-text">
-          {partner
-            ? "Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel die Anmeldung). "
-            : "Essenzielle Cookies brauchen wir für den Betrieb (zum Beispiel Anmeldung und Stripe-Checkout). "}
-          {
-            "Optionales Marketing laden wir nur, wenn Sie zustimmen. Das sind Google Analytics 4 (Mess-ID G-RJ4KLBP1SF) und Google Ads (Konto AW-586367190, einschließlich Conversion-Messung). Ein Meta-Pixel laden wir nur, wenn eine Pixel-ID konfiguriert ist; derzeit ist keine hinterlegt. Ohne Zustimmung laden wir diese Tags nicht und senden keine Anzeigenanfrage."
-          }{" "}
-          <Link href="/cookies">Cookie-Hinweis</Link>
+          Wir nutzen essenzielle Cookies für den Betrieb. Google Analytics und Google Ads (inkl.
+          Conversion-Messung) laden wir nur mit Ihrer Zustimmung. <Link href="/cookies">Details</Link>
         </p>
         <div className="consent-actions">
           <button
