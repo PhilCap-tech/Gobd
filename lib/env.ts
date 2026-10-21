@@ -137,6 +137,11 @@ export function getAmpelRateSheetsTab(): string {
   return "ampel_rate";
 }
 
+/** Cookieless Ampel step counts. Same spreadsheet. No extra env var. */
+export function getAmpelStepsSheetsTab(): string {
+  return "ampel_steps";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }

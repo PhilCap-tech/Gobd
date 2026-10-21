@@ -34,6 +34,13 @@ import {
   sanitizeAmpelRef,
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
+import {
+  armAmpelEmailView,
+  noteAmpelSubmitResult,
+  sendAmpelEmailView,
+  sendAmpelQuestionView,
+  sendAmpelStep,
+} from "@/lib/ampel-step-beacon";
 import { replaceCheckSearch, submitUtmFields, submitVariantFields } from "@/lib/campaign-params";
 import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
 
@@ -121,6 +128,15 @@ export function AmpelCheck() {
     setOrigin(window.location.origin);
   }, []);
 
+  useEffect(() => {
+    if (mode === "questions") sendAmpelQuestionView(step + 1);
+  }, [mode, step]);
+
+  useEffect(() => {
+    if (mode === "email") sendAmpelEmailView();
+    else armAmpelEmailView();
+  }, [mode]);
+
   const question = AMPEL_QUESTIONS[step];
   const encoded = useMemo(() => encodeAmpelAnswers(answers), [answers]);
 
@@ -171,6 +187,7 @@ export function AmpelCheck() {
 
   function choose(answer: AmpelAnswer) {
     if (!question) return;
+    sendAmpelStep({ event: "ampel_q_answer", n: step + 1 });
     if (!startedRef.current) {
       startedRef.current = true;
       trackAmpelStart();
@@ -224,6 +241,7 @@ export function AmpelCheck() {
   async function sendResult(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!encoded || pending) return;
+    sendAmpelStep({ event: "ampel_submit_click", valid: emailLooksValid(email) });
     if (!email.trim()) {
       setMailError(AMPEL_CHECK_MAIL.emptyEmail);
       emailRef.current?.focus();
@@ -289,24 +307,29 @@ export function AmpelCheck() {
         data = {};
       }
       if (response.status === 400 || data.honeypot) {
+        noteAmpelSubmitResult(response.status);
         hideResult();
         if (!data.honeypot) setMailError(data.error || AMPEL_RESULT_MAIL.invalidEmail);
         return;
       }
       if (response.status === 429) {
+        noteAmpelSubmitResult(response.status);
         showResult(data.notice || AMPEL_RESULT_MAIL.rateLimitedEmail);
         return;
       }
       if (data.duplicate) {
+        noteAmpelSubmitResult(response.status);
         showResult(data.notice || AMPEL_RESULT_MAIL.alreadySent);
         return;
       }
       if (!response.ok || !data.ok) {
+        noteAmpelSubmitResult(response.status);
         showResult(data.error || data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
         return;
       }
       if (data.pending) {
         if (!data.token) {
+          noteAmpelSubmitResult(response.status, true);
           showResult(AMPEL_RESULT_MAIL.shownWithoutMail);
           return;
         }
@@ -339,6 +362,7 @@ export function AmpelCheck() {
             sent.ok !== false &&
             sent.duplicate !== true &&
             sent.mailed !== false;
+          noteAmpelSubmitResult(follow.status, true);
           showResult(
             ampelSendStatusNotice({
               email,
@@ -353,6 +377,7 @@ export function AmpelCheck() {
           );
         } catch (error) {
           const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+          if (aborted) noteAmpelSubmitResult(0, false, true);
           showResult(ampelSendStatusNotice({ email, aborted, status: 0, ok: false }));
         } finally {
           clearTimeout(timer);
@@ -360,13 +385,16 @@ export function AmpelCheck() {
         return;
       }
       if (data.mailed === false) {
+        noteAmpelSubmitResult(response.status);
         showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
         return;
       }
       leadAccepted = true;
+      noteAmpelSubmitResult(response.status);
       showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
     } catch (error) {
       const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+      if (aborted) noteAmpelSubmitResult(0, false, true);
       showResult(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
       if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" });
