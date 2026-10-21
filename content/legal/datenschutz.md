@@ -170,4 +170,4 @@ Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von 
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 
-**Stand:** 20.10.2026
+**Stand:** 21.10.2026
