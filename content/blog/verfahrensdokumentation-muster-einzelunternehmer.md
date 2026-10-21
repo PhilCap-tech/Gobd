@@ -143,6 +143,7 @@ Sie benennen eine Person und den Umfang, oder Sie lassen den offenen Punkt stehe
 
 - [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage) — Muster und Vorlage insgesamt, dieser Artikel ist die schlanke Fassung für eine Person
 - [Verfahrensdokumentation Belegablage](/blog/verfahrensdokumentation-belegablage) — der Belegfluss der Eingangsrechnungen im Einzelnen
+- [GoBD Verfahrensdokumentation für Dienstleister und Freiberufler](/blog/gobd-verfahrensdokumentation-dienstleister-freiberufler) — die Abläufe ohne Kasse und Lager im Einzelnen
 
 ## Disclaimer
 
