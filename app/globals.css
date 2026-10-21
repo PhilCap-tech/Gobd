@@ -2652,3 +2652,20 @@ body.consent-open {
   font-size: 0.875rem;
   color: var(--muted);
 }
+
+.ampel-steps {
+  margin-top: 36px;
+}
+
+.ampel-step-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.ampel-step-filter select {
+  width: auto;
+  min-width: 8rem;
+}

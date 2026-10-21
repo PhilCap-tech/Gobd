@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { sendAmpelConsentChoice } from "@/lib/ampel-step-beacon";
 import {
   getBannerOpen,
   openConsentBanner,
@@ -79,14 +80,20 @@ export function ConsentBanner() {
           <button
             type="button"
             className="btn consent-choice"
-            onClick={() => saveConsent(false)}
+            onClick={() => {
+              sendAmpelConsentChoice("reject");
+              saveConsent(false);
+            }}
           >
             Ablehnen
           </button>
           <button
             type="button"
             className="btn consent-choice"
-            onClick={() => saveConsent(true)}
+            onClick={() => {
+              sendAmpelConsentChoice("accept");
+              saveConsent(true);
+            }}
           >
             Marketing erlauben
           </button>
