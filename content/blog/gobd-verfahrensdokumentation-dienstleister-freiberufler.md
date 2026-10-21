@@ -25,7 +25,7 @@ quellen:
 
 # GoBD Verfahrensdokumentation für Dienstleister und Freiberufler
 
-Agenturen, Beratungen, IT- und Kreativdienstleister, Büros und Freiberufler arbeiten oft ohne Shop, ohne Kasse und ohne Warenlager. Die **GoBD Verfahrensdokumentation** ist kurz und nennt den Ablauf, den Sie fahren: Auftrag und Leistung, Rechnung, Zahlungseingang, Eingangsbelege, Bank, Ablage und Zuständigkeit. Den Gesamtaufbau erklärt [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen). Dieser Artikel bleibt bei den Abläufen eines Dienstleistungsbetriebs.
+Agenturen, Beratungen, IT- und Kreativdienstleister, Büros und Freiberufler arbeiten oft ohne Shop, ohne Kasse und ohne Warenlager. Die **GoBD Verfahrensdokumentation** ist kurz und nennt den Ablauf, den Sie tatsächlich nutzen: Auftrag und Leistung, Rechnung, Zahlungseingang, Eingangsbelege, Bank, Ablage und Zuständigkeit. Den Gesamtaufbau erklärt [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen). Dieser Artikel bleibt bei den Abläufen eines Dienstleistungsbetriebs.
 
 Für Heilberufe gilt ein eigener Text: [GoBD Verfahrensdokumentation für die Arztpraxis](/blog/verfahrensdokumentation-arztpraxis).
 
@@ -43,7 +43,7 @@ Das beschriebene Verfahren muss dem tatsächlich eingesetzten entsprechen. Ände
 
 Steuerpflichtige, die nicht gesetzlich verpflichtet sind, Bücher zu führen, und auch keine Bücher führen, können als Gewinn den Überschuss der Betriebseinnahmen über die Betriebsausgaben ansetzen (§ 4 Abs. 3 Satz 1 EStG). Auch diese Steuerpflichtigen sind verpflichtet, Aufzeichnungen und Unterlagen nach § 147 Abs. 1 AO aufzubewahren (GoBD Rz. 115). Ob Sie bilanzieren oder eine Einnahmenüberschussrechnung erstellen, klären Sie mit der Steuerberatung.
 
-Führen Sie den Betrieb allein, ist die Gliederung das [Verfahrensdokumentation Muster für Einzelunternehmer](/blog/verfahrensdokumentation-muster-einzelunternehmer). Ein Beispiel einer vollständigen Verfahrensdokumentation für Dienstleister finden Sie im [Muster für Dienstleister](/muster/gesamt/dienstleister).
+Führen Sie den Betrieb allein, finden Sie eine passende Gliederung im [Verfahrensdokumentation Muster für Einzelunternehmer](/blog/verfahrensdokumentation-muster-einzelunternehmer). Ein Beispiel einer vollständigen Verfahrensdokumentation für Dienstleister finden Sie im [Muster für Dienstleister](/muster/gesamt/dienstleister).
 
 ## Welche Abläufe ein Dienstleister typischerweise beschreibt
 
@@ -59,7 +59,7 @@ Nennen Sie den Ablageort, soweit die Unterlage Grundlage der Rechnung ist. Sie k
 
 Schreiben Sie, wer die Ausgangsrechnung erstellt, welches Programm die Nummer vergibt, auf welchem Weg sie versendet wird und wo das Doppel liegt. Eine Korrektur ist ein eigener Schritt: wer sie auslöst und dass die ursprüngliche Rechnung erhalten bleibt. Den Abschnitt im Einzelnen beschreibt [Verfahrensdokumentation Muster für Ausgangsrechnungen und Korrekturen](/blog/verfahrensdokumentation-muster-ausgangsrechnungen).
 
-Bei Leistungen an einen anderen Unternehmer für dessen Unternehmen ist die Rechnung als elektronische Rechnung auszustellen, wenn leistender Unternehmer und Leistungsempfänger im Inland ansässig sind (§ 14 Abs. 2 Satz 2 Nr. 1 UStG). Die Pflicht zur Rechnungsausstellung gilt nicht für nach § 4 Nr. 8 bis 29 UStG steuerfreie Umsätze. Welche Übergangsregeln und Ausnahmen, etwa steuerfreie Umsätze, für Sie gelten, klären Sie mit der Steuerberatung. Format, Versand und Ablage beschreiben Sie so, wie Sie sie fahren, und versionieren die Änderung (GoBD Rz. 154).
+Bei Leistungen an einen anderen Unternehmer für dessen Unternehmen ist die Rechnung als elektronische Rechnung auszustellen, wenn leistender Unternehmer und Leistungsempfänger im Inland ansässig sind (§ 14 Abs. 2 Satz 2 Nr. 1 UStG). Die Pflicht zur Rechnungsausstellung gilt nicht für nach § 4 Nr. 8 bis 29 UStG steuerfreie Umsätze. Welche Übergangsregeln und Ausnahmen für Sie gelten, klären Sie mit der Steuerberatung. Format, Versand und Ablage beschreiben Sie so, wie Sie sie tatsächlich handhaben, und versionieren die Änderung (GoBD Rz. 154).
 
 ### Eingangsbelege aus E-Mail, Portalen und Abos
 
@@ -126,7 +126,7 @@ Der Umfang hängt von der Komplexität der Geschäftstätigkeit, der Organisatio
 
 ### Was ändert sich, wenn ich E-Rechnungen an Unternehmen stellen muss?
 
-Dann beschreiben Sie Format, Versand und Ablage in der Verfahrensdokumentation und behalten die vorige Fassung (GoBD Rz. 154). Die Rechnung an einen anderen im Inland ansässigen Unternehmer ist als elektronische Rechnung auszustellen (§ 14 Abs. 2 Satz 2 Nr. 1 UStG). Für nach § 4 Nr. 8 bis 29 UStG steuerfreie Umsätze gilt die Pflicht zur Rechnungsausstellung nicht. Welche Übergangsregeln und Ausnahmen für Sie gelten, klären Sie mit der Steuerberatung. Das Fortschreiben beschreibt [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren).
+Dann beschreiben Sie Format, Versand und Ablage in der Verfahrensdokumentation und behalten die vorige Fassung (GoBD Rz. 154). Bei Leistungen an einen anderen Unternehmer für dessen Unternehmen ist die Rechnung als elektronische Rechnung auszustellen, wenn beide im Inland ansässig sind (§ 14 Abs. 2 Satz 2 Nr. 1 UStG). Für nach § 4 Nr. 8 bis 29 UStG steuerfreie Umsätze gilt die Pflicht zur Rechnungsausstellung nicht. Welche Übergangsregeln und Ausnahmen für Sie gelten, klären Sie mit der Steuerberatung. Das Fortschreiben beschreibt [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren).
 
 > Keine Steuer-, Rechts- oder Prüfungsberatung. Dieser Artikel ist eine allgemeine Arbeitshilfe und ersetzt keine Prüfung durch Ihre Steuerberatung. Keine Zusicherung zu Prüfungsergebnissen.
 
