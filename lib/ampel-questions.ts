@@ -7,6 +7,7 @@ export interface AmpelQuestion {
   weight: 1 | 2 | 3;
   applicable: "required" | "optional"; // optional = Option „Trifft nicht zu“ anzeigen
   source: string;
+  hint?: string;
 }
 
 export const AMPEL_H1 =
@@ -53,7 +54,8 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
   {
     id: "vd_vorhanden",
     question:
-      "Gibt es für Ihr Unternehmen eine schriftliche Verfahrensdokumentation zu Ihren buchführungsrelevanten Prozessen und IT-Systemen?",
+      "Haben Sie für Ihr Unternehmen bereits eine schriftliche Verfahrensdokumentation?",
+    hint: "Wenn Sie unsicher sind, wählen Sie „Nein“.",
     explanation:
       "Die GoBD verlangen für jedes DV-System eine übersichtlich gegliederte Verfahrensdokumentation, aus der Inhalt, Aufbau, Ablauf und Ergebnisse des Verfahrens ersichtlich sind. Sie besteht in der Regel aus allgemeiner Beschreibung, Anwenderdokumentation, technischer Systemdokumentation und Betriebsdokumentation.",
     weight: 3,

@@ -71,9 +71,9 @@ const TEILE: ModulTeil[] = [1, 2, 3, 4];
 const AMPEL_HREF = "/ampel-check";
 const AMPEL_HERO_HREF = "/ampel-check?src=hero&v=a";
 const AMPEL_LABEL = "GoBD-Ampel";
-const HERO_HEADLINE = "Kostenlos prüfen, ob Ihr Unternehmen die GoBD-Anforderungen erfüllt";
+const HERO_HEADLINE = "GoBD-Verfahrensdokumentation Schritt für Schritt online erstellen";
 const HERO_SUBLINE =
-  "Der Ampel-Check führt Sie in rund 2 Minuten durch 10 Ja/Nein-Fragen – von der Verfahrensdokumentation bis zur E-Rechnung – und zeigt, wo Ihre Prozesse gut aufgestellt sind und wo Sie nachbessern sollten.";
+  "Geführte Fragen statt leerer Vorlage: Sie erhalten einen PDF-Entwurf Ihrer Verfahrensdokumentation und eine Liste offener Punkte. Erst prüfen? Der kostenlose Ampel-Check zeigt in rund 2 Minuten mit 10 Ja/Nein-Fragen, ob die GoBD-Anforderungen bei Ihnen erfüllt sind und wo Sie nachbessern sollten.";
 const HERO_PRIMARY = "Kostenlosen Ampel-Check starten";
 const HERO_MICRO =
   "Selbsteinschätzung auf Basis Ihrer Angaben · Ergebnis mit Quellen, zusätzlich als PDF per E-Mail · Keine Steuer- oder Rechtsberatung.";

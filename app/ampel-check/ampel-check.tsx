@@ -416,10 +416,11 @@ export function AmpelCheck() {
               Frage {step + 1} von {AMPEL_QUESTIONS.length}
             </p>
             <h2 id="ampel-question-title">{question.question}</h2>
+            {question.hint ? <p className="hint ampel-question-hint">{question.hint}</p> : null}
             <div className="ampel-choices" role="group" aria-label="Antwort">
               <button
                 type="button"
-                className="btn"
+                className="btn ghost"
                 aria-pressed={answers[question.id] === "ja"}
                 onClick={() => choose("ja")}
               >
