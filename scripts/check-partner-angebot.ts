@@ -117,7 +117,8 @@ ok(!page.includes('"198') && !page.includes("198 €"), "198 is not hardcoded on
 ok(!page.includes("149 €") && !/[^A-Z_]149[^0-9]/.test(page), "149 is not hardcoded on the page");
 
 const home = source("app/page.tsx");
-ok(home.includes('href="/checkout"'), "the homepage checkout anchors stay");
+ok((home.match(/<CampaignLink\b[^>]*href="\/checkout"/g) ?? []).length >= 4, "the homepage checkout links stay");
+ok(!/<a\b[^>]*href="\/checkout"/.test(home), "the homepage checkout links are not plain anchors");
 
 const config = source("next.config.ts");
 ok(config.includes("PARTNER_ANGEBOT_PATH"), "the robots header is bound to the partner path");

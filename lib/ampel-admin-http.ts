@@ -1,7 +1,14 @@
 import { adminTokensMatch, bearerTokenFromHeader } from "@/lib/admin-wipe";
 import { adminStatsToken } from "@/lib/ampel-admin";
 import { AMPEL_ADMIN_CACHE_CONTROL, AMPEL_ADMIN_ROBOTS_TAG } from "@/lib/ampel-admin-headers";
-import { buildAmpelStats, type AmpelStatsReport } from "@/lib/ampel-stats";
+import { AMPEL_STATS_TIMEZONE, buildAmpelStats, type AmpelStatsReport } from "@/lib/ampel-stats";
+import {
+  AMPEL_STEP_WINDOW_DAYS,
+  buildAmpelStepReport,
+  type AmpelStepReport,
+  type AmpelStepRow,
+} from "@/lib/ampel-step-event";
+import { readAmpelStepRows } from "@/lib/ampel-step-store";
 import type { ReadinessLead } from "@/lib/readiness";
 import { listAmpelLeads } from "@/lib/store";
 import {
@@ -49,6 +56,49 @@ function includeTests(url: string): boolean {
   return params.get("includeTests") === "1" || params.get("tests") === "1";
 }
 
+/**
+ * Step counts for the last 14 Berlin days. `all` is the unfiltered
+ * "Schritte (letzte 14 Tage)" table. `a` and `default` are that same
+ * aggregation with the admin variant filter applied.
+ */
+export type AmpelStatsSteps =
+  | { configured: false }
+  | { error: true }
+  | {
+      configured: true;
+      timezone: typeof AMPEL_STATS_TIMEZONE;
+      windowDays: typeof AMPEL_STEP_WINDOW_DAYS;
+      byVariant: {
+        all: AmpelStepReport;
+        a: AmpelStepReport;
+        default: AmpelStepReport;
+      };
+    };
+
+function stepsFromRows(rows: AmpelStepRow[], now: Date): Extract<AmpelStatsSteps, { configured: true }> {
+  return {
+    configured: true,
+    timezone: AMPEL_STATS_TIMEZONE,
+    windowDays: AMPEL_STEP_WINDOW_DAYS,
+    byVariant: {
+      all: buildAmpelStepReport(rows, { now }),
+      a: buildAmpelStepReport(rows, { now, variant: "a" }),
+      default: buildAmpelStepReport(rows, { now, variant: "default" }),
+    },
+  };
+}
+
+/** Sheet failures stay inside `steps`. The lead report still returns. */
+async function loadAmpelStatsSteps(now: Date): Promise<AmpelStatsSteps> {
+  try {
+    const loaded = await readAmpelStepRows();
+    if (!loaded.configured) return { configured: false };
+    return stepsFromRows(loaded.rows, now);
+  } catch {
+    return { error: true };
+  }
+}
+
 export async function handleAmpelStatsRequest(
   request: Request,
   deps: AmpelStatsHttpDeps = {},
@@ -66,13 +116,15 @@ export async function handleAmpelStatsRequest(
   }
 
   const load = deps.load ?? listAmpelLeads;
+  const now = deps.now?.() ?? new Date();
   try {
     const rows = await load();
     const report: AmpelStatsReport = buildAmpelStats(rows, {
-      now: deps.now?.() ?? new Date(),
+      now,
       includeTests: includeTests(request.url),
     });
-    return { status: 200, body: report, headers: headers() };
+    const steps = await loadAmpelStatsSteps(now);
+    return { status: 200, body: { ...report, steps }, headers: headers() };
   } catch (error) {
     const failure = ampelStatsError(error);
     const retry = failure.status === 503 ? { "Retry-After": SHEETS_RETRY_AFTER_SECONDS } : undefined;

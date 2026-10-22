@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CampaignLink } from "@/components/campaign-link";
 import { Logo } from "@/components/logo";
 
 type HeaderLink = {
@@ -54,9 +55,9 @@ export function SiteHeader({
                     </a>
                   ),
                 )}
-                <a className="btn hide-sm" href={ctaHref}>
+                <CampaignLink className="btn hide-sm" href={ctaHref}>
                   {ctaLabel}
-                </a>
+                </CampaignLink>
               </>
             )}
             <Link href="/account">Konto</Link>

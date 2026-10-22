@@ -13,7 +13,14 @@ import { isAmpelAdminEmail } from "../lib/ampel-admin";
 import { AMPEL_ADMIN_CACHE_CONTROL, AMPEL_ADMIN_ROBOTS_TAG } from "../lib/ampel-admin-headers";
 import { automatedRunForbidsLiveWrites, LiveWriteRefusedError } from "../lib/live-write-guard";
 import { tryClaimMailDedupeSlot } from "../lib/mail-dedupe";
-import { createSheetsClient } from "../lib/sheets-client";
+import { createSheetsClient, installSheetsHandler } from "../lib/sheets-client";
+import {
+  AMPEL_STEP_COLUMNS,
+  ampelStepCells,
+  buildAmpelStepReport,
+  type AmpelStepRow,
+} from "../lib/ampel-step-event";
+import { installAmpelStepSheetClientForTest, type AmpelStepSheetClient } from "../lib/ampel-step-store";
 import { handleAmpelStatsRequest } from "../lib/ampel-admin-http";
 import { requestAmpelConfirmation } from "../lib/ampel-confirm";
 import { AMPEL_QUESTIONS, type AmpelAnswer } from "../lib/ampel-questions";
@@ -527,6 +534,245 @@ async function main() {
     ok(set.some((item) => item.key === "Cache-Control" && item.value === "no-store"), "config sets no-store");
     ok(set.some((item) => item.key === "X-Robots-Tag" && item.value === "noindex, nofollow"), "config sets the robots header");
   }
+
+  const stepNow = new Date("2026-10-21T22:30:00.000Z");
+  const stepLeads = [
+    lead({
+      leadId: "ampel-step-api",
+      email: "steps@kunde.example",
+      timestamp: "2026-10-21T22:30:00.000Z",
+      ampelLight: "gruen",
+    }),
+  ];
+  const stepRows: AmpelStepRow[] = [
+    { date: "2026-10-22", event: "ampel_q_view", n: "1", status: "", choice: "", valid: "", v: "a", device: "mobile" },
+    { date: "2026-10-22", event: "ampel_q_view", n: "1", status: "", choice: "", valid: "", v: "a", device: "desktop" },
+    { date: "2026-10-22", event: "ampel_q_view", n: "1", status: "", choice: "", valid: "", v: "default", device: "mobile" },
+    { date: "2026-10-22", event: "ampel_q_answer", n: "1", status: "", choice: "", valid: "", v: "a", device: "mobile" },
+    { date: "2026-10-22", event: "ampel_email_view", n: "", status: "", choice: "", valid: "", v: "a", device: "desktop" },
+    { date: "2026-10-22", event: "ampel_submit_click", n: "", status: "", choice: "", valid: "true", v: "a", device: "mobile" },
+    { date: "2026-10-22", event: "ampel_submit_click", n: "", status: "", choice: "", valid: "false", v: "default", device: "desktop" },
+    { date: "2026-10-22", event: "ampel_submit_result", n: "", status: "ok", choice: "", valid: "", v: "a", device: "mobile" },
+    { date: "2026-10-22", event: "ampel_submit_result", n: "", status: "timeout", choice: "", valid: "", v: "default", device: "desktop" },
+    { date: "2026-10-22", event: "consent_choice", n: "", status: "", choice: "accept", valid: "", v: "default", device: "desktop" },
+    { date: "2026-10-22", event: "consent_choice", n: "", status: "", choice: "reject", valid: "", v: "a", device: "mobile" },
+    { date: "2026-10-08", event: "ampel_q_view", n: "1", status: "", choice: "", valid: "", v: "a", device: "mobile" },
+  ];
+
+  function stepSheet(values: string[][] | null, options?: { fail?: string; sheets?: boolean }): {
+    client: AmpelStepSheetClient;
+    reads: () => number;
+    writes: () => number;
+  } {
+    let reads = 0;
+    let writes = 0;
+    const client: AmpelStepSheetClient = {
+      async get() {
+        reads += 1;
+        const present = options?.sheets !== false;
+        return {
+          data: {
+            sheets: present ? [{ properties: { title: "ampel_steps", sheetId: 7 } }] : [],
+          },
+        };
+      },
+      async batchUpdate() {
+        writes += 1;
+        throw new Error("step write");
+      },
+      async valuesGet() {
+        reads += 1;
+        if (options?.fail) throw new Error(options.fail);
+        return { data: { values: values ?? [] } };
+      },
+      async valuesAppend() {
+        writes += 1;
+        throw new Error("step write");
+      },
+    };
+    return { client, reads: () => reads, writes: () => writes };
+  }
+
+  function stepsOf(body: unknown): Record<string, unknown> {
+    ok(body && typeof body === "object" && "steps" in body, "the report includes steps");
+    const steps = (body as { steps: unknown }).steps;
+    ok(steps && typeof steps === "object" && !Array.isArray(steps), "steps is an object");
+    return steps as Record<string, unknown>;
+  }
+
+  const savedSheetEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const savedSheetKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  const savedSheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  delete process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  delete process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  installAmpelStepSheetClientForTest(null);
+  try {
+    const unconfigured = await handleAmpelStatsRequest(request(`Bearer ${TOKEN}`), {
+      token: TOKEN,
+      load: async () => stepLeads,
+      now: () => stepNow,
+    });
+    ok(unconfigured.status === 200, "missing sheet config still returns lead stats");
+    assert.deepEqual(stepsOf(unconfigured.body), { configured: false }, "an unconfigured step sheet sets configured false");
+    ok(reportOf(unconfigured.body).entries[0]?.email === "steps@kunde.example", "lead rows stay on the response");
+    ok(reportOf(unconfigured.body).timezone === "Europe/Berlin", "the lead timezone field stays");
+
+    const values = [[...AMPEL_STEP_COLUMNS], ...stepRows.map((row) => ampelStepCells(row))];
+    const populated = stepSheet(values);
+    installAmpelStepSheetClientForTest({ client: populated.client, configured: true });
+    const counted = await handleAmpelStatsRequest(request(`Bearer ${TOKEN}`), {
+      token: TOKEN,
+      load: async () => stepLeads,
+      now: () => stepNow,
+    });
+    ok(counted.status === 200 && populated.writes() === 0, "step stats are read-only");
+    const countedSteps = stepsOf(counted.body);
+    ok(countedSteps.configured === true && countedSteps.error !== true, "a readable sheet sets configured");
+    ok(countedSteps.timezone === "Europe/Berlin" && countedSteps.windowDays === 14, "steps use the Berlin 14-day window");
+    const byVariant = countedSteps.byVariant as {
+      all: ReturnType<typeof buildAmpelStepReport>;
+      a: ReturnType<typeof buildAmpelStepReport>;
+      default: ReturnType<typeof buildAmpelStepReport>;
+    };
+    assert.deepEqual(byVariant.all, buildAmpelStepReport(stepRows, { now: stepNow }), "all variants match the admin aggregation");
+    assert.deepEqual(byVariant.a, buildAmpelStepReport(stepRows, { now: stepNow, variant: "a" }), "variant a matches the admin filter");
+    assert.deepEqual(
+      byVariant.default,
+      buildAmpelStepReport(stepRows, { now: stepNow, variant: "default" }),
+      "variant default matches the admin filter",
+    );
+    const lastDay = byVariant.all.days.at(-1);
+    ok(lastDay?.date === "2026-10-22", "the window ends on the Berlin day");
+    ok(!byVariant.all.days.some((day) => day.date === "2026-10-08"), "a day outside the 14-day window is left out");
+    const gesamt = lastDay?.devices.find((item) => item.device === "gesamt");
+    const mobile = lastDay?.devices.find((item) => item.device === "mobile");
+    const desktop = lastDay?.devices.find((item) => item.device === "desktop");
+    ok(gesamt?.pageview === 3 && mobile?.pageview === 2 && desktop?.pageview === 1, "pageview splits by device");
+    ok(byVariant.a.days.at(-1)?.devices[0].pageview === 2, "variant a keeps its pageviews");
+    ok(byVariant.a.days.at(-1)?.devices[0].consentAccept === 0, "variant a leaves the default consent out");
+    ok(byVariant.default.days.at(-1)?.devices[0].pageview === 1, "variant default keeps its pageview");
+    ok(byVariant.default.days.at(-1)?.devices[0].consentAccept === 1, "variant default keeps the consent row");
+    ok(lastDay?.questions[0].viewed === 3 && lastDay?.questions[0].answered === 1, "question counts stay per event");
+    ok(mobile?.results.ok === 1 && desktop?.results.timeout === 1, "submit results stay per device");
+    ok(mobile?.submitValid === 1 && desktop?.submitInvalid === 1, "submit clicks stay per device and variant");
+    ok(!JSON.stringify(counted.body).includes("gclid"), "step stats do not carry a click id");
+    ok(reportOf(counted.body).counts.withoutTests.total === 1, "adding steps leaves the lead counters unchanged");
+
+    const missingTab = stepSheet(null, { sheets: false });
+    installAmpelStepSheetClientForTest({ client: missingTab.client, configured: true });
+    const emptyTab = await handleAmpelStatsRequest(request(`Bearer ${TOKEN}`), {
+      token: TOKEN,
+      load: async () => stepLeads,
+      now: () => stepNow,
+    });
+    const emptySteps = stepsOf(emptyTab.body);
+    ok(emptyTab.status === 200 && emptySteps.configured === true, "a missing tab is configured and empty");
+    ok((emptySteps.byVariant as { all: { hasRows: boolean } }).all.hasRows === false, "a missing tab has no rows");
+    ok(missingTab.writes() === 0, "a missing tab is not created");
+
+    const disabled = stepSheet(values);
+    installAmpelStepSheetClientForTest({ client: disabled.client, configured: false });
+    const disabledResult = await handleAmpelStatsRequest(request(`Bearer ${TOKEN}`), {
+      token: TOKEN,
+      load: async () => stepLeads,
+      now: () => stepNow,
+    });
+    assert.deepEqual(stepsOf(disabledResult.body), { configured: false }, "a disabled test client does not read");
+    ok(disabled.reads() === 0, "a disabled test client is not called");
+
+    await withConsole(async (lines) => {
+      const failing = stepSheet(null, { fail: `leak ${TOKEN} from the sheet` });
+      installAmpelStepSheetClientForTest({ client: failing.client, configured: true });
+      const broken = await handleAmpelStatsRequest(request(`Bearer ${TOKEN}`), {
+        token: TOKEN,
+        load: async () => stepLeads,
+        now: () => stepNow,
+      });
+      ok(broken.status === 200, "a step sheet failure still returns lead stats");
+      assert.deepEqual(stepsOf(broken.body), { error: true }, "a step sheet failure is steps.error and nothing else");
+      ok(reportOf(broken.body).entries[0]?.email === "steps@kunde.example", "lead rows survive a step failure");
+      ok(failing.writes() === 0, "a failed step read does not write");
+      const logged = lines.join("\n");
+      ok(!logged.includes(TOKEN), "a step failure does not log the admin token");
+      ok(!logged.includes("steps@kunde.example"), "a step failure does not log a lead address");
+      ok(logged.includes("[ampel-step]"), "a step failure logs the error name only");
+    });
+
+    const badHeader = stepSheet([["date", "event"]]);
+    installAmpelStepSheetClientForTest({ client: badHeader.client, configured: true });
+    const headerFailure = await handleAmpelStatsRequest(request(`Bearer ${TOKEN}`), {
+      token: TOKEN,
+      load: async () => stepLeads,
+      now: () => stepNow,
+    });
+    ok(headerFailure.status === 200, "a bad step header still returns lead stats");
+    assert.deepEqual(stepsOf(headerFailure.body), { error: true }, "a bad step header is steps.error");
+
+    let leadFailureReads = 0;
+    const leadFailureClient: AmpelStepSheetClient = {
+      async get() {
+        leadFailureReads += 1;
+        return { data: { sheets: [] } };
+      },
+      async batchUpdate() {
+        throw new Error("step write");
+      },
+      async valuesGet() {
+        leadFailureReads += 1;
+        return { data: { values: [] } };
+      },
+      async valuesAppend() {
+        throw new Error("step write");
+      },
+    };
+    installAmpelStepSheetClientForTest({ client: leadFailureClient, configured: true });
+    const leadDown = await handleAmpelStatsRequest(request(`Bearer ${TOKEN}`), {
+      token: TOKEN,
+      load: async () => {
+        throw new SheetsUnavailableError(429);
+      },
+      now: () => stepNow,
+    });
+    ok(leadDown.status === 503 && leadFailureReads === 0, "a lead failure does not read the step sheet");
+
+    installAmpelStepSheetClientForTest(null);
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = "sheets@example.com";
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "not-used";
+    process.env.GOOGLE_SHEETS_SPREADSHEET_ID = "sheet-live";
+    let liveReads = 0;
+    installSheetsHandler(async () => {
+      liveReads += 1;
+      throw new Error(`live ${TOKEN}`);
+    });
+    const skipped = await handleAmpelStatsRequest(request(`Bearer ${TOKEN}`), {
+      token: TOKEN,
+      load: async () => stepLeads,
+      now: () => stepNow,
+    });
+    ok(skipped.status === 200 && liveReads === 0, "a check run does not open the live step sheet");
+    const skippedSteps = stepsOf(skipped.body);
+    ok(skippedSteps.configured === true, "the skipped live read still reports that sheets is configured");
+    ok(
+      (skippedSteps.byVariant as { all: { total: { devices: Array<{ pageview: number }> } } }).all.total.devices[0]?.pageview === 0,
+      "the skipped live read does not invent rows",
+    );
+  } finally {
+    installAmpelStepSheetClientForTest(null);
+    installSheetsHandler(null);
+    if (savedSheetEmail === undefined) delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    else process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = savedSheetEmail;
+    if (savedSheetKey === undefined) delete process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    else process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = savedSheetKey;
+    if (savedSheetId === undefined) delete process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    else process.env.GOOGLE_SHEETS_SPREADSHEET_ID = savedSheetId;
+  }
+
+  const httpSource = readFileSync("lib/ampel-admin-http.ts", "utf8");
+  const envReads = httpSource.match(/process\.env\.[A-Z0-9_]+/g) ?? [];
+  ok(envReads.length === 1 && envReads[0] === "process.env.ADMIN_TOKEN", "stats auth still uses only ADMIN_TOKEN");
+  ok(httpSource.includes("readAmpelStepRows("), "the stats handler reads step rows");
+  ok(!httpSource.includes("recordAmpelStep") && !httpSource.includes("valuesAppend"), "the stats handler does not write steps");
 
   const sheetEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const sheetKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;

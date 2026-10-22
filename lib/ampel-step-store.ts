@@ -196,11 +196,15 @@ function sheetValues(values: unknown): string[][] {
 }
 
 export async function readAmpelStepRows(): Promise<{ configured: boolean; rows: AmpelStepRow[] }> {
-  if (!isSheetsConfigured()) return { configured: false, rows: [] };
+  const configured = installed ? installed.configured : isSheetsConfigured();
+  if (!configured) return { configured: false, rows: [] };
+  // Prebuild checks hold the live sheet credentials. Do not open that sheet
+  // unless a test installed a client. Production has no check lifecycle event.
+  if (!installed && automatedRunForbidsLiveWrites()) return { configured: true, rows: [] };
   const tab = getAmpelStepsSheetsTab();
   const id = spreadsheetId();
-  const client = liveAmpelStepSheetClient();
   try {
+    const client = installed?.client ?? liveAmpelStepSheetClient();
     const meta = await client.get({ spreadsheetId: id });
     if (sheetIdOf(meta.data.sheets, tab) == null) return { configured: true, rows: [] };
     const result = await client.valuesGet({ spreadsheetId: id, range: `${tab}!A:H` });
