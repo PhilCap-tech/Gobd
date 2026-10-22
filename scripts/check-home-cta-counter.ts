@@ -4,6 +4,9 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { HomeCtaSection } from "@/components/home-cta-admin";
 import { POST as postHomeCta, setHomeCtaNowForTest } from "@/app/api/home/cta/route";
 import { handleAmpelStatsRequest } from "@/lib/ampel-admin-http";
 import { readAmpelClientIp } from "@/lib/ampel-rate-limit";
@@ -16,12 +19,15 @@ import {
   HOME_CTA_IDS,
   HOME_CTA_LABELS,
   HOME_CTA_WINDOW_DAYS,
+  HOME_VIEW_COUNTING_FROM,
   HOME_VIEW_ENABLED,
   buildHomeCtaReport,
+  formatHomeCtaClickRate,
   homeCtaDate,
   homeCtaDevice,
   homeCtaRowsFromValues,
   homeCtaWindowDates,
+  homeViewCountingLabel,
   parseHomeCtaBody,
   type HomeCtaId,
   type HomeCtaReport,
@@ -175,7 +181,7 @@ function restoreEnv(saved: ReturnType<typeof savedEnv>): void {
   set("npm_lifecycle_event", saved.event);
 }
 
-function useSheetEnv(): void {
+function applySheetEnv(): void {
   process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = "sheets@example.com";
   process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "not-used";
   process.env.GOOGLE_SHEETS_SPREADSHEET_ID = "sheet-test";
@@ -213,11 +219,11 @@ async function main() {
     ok(HOME_CTA_WINDOW_DAYS === AMPEL_STEP_WINDOW_DAYS && HOME_CTA_WINDOW_DAYS === 14, "the window is 14 days");
     const buttonIds = HOME_CTA_IDS.filter((id) => id !== "home_view");
     ok(buttonIds.length === 10, "the ten buttons stay on the whitelist");
-    if (HOME_VIEW_ENABLED) {
-      ok(HOME_CTA_IDS.length === 11 && HOME_CTA_IDS.includes("home_view"), "the whitelist is the ten buttons plus the view");
-    } else {
-      ok(HOME_CTA_IDS.length === 10 && !HOME_CTA_IDS.includes("home_view"), "the parse whitelist excludes the view");
-    }
+    ok(HOME_VIEW_ENABLED === true, "home_view is enabled");
+    ok(HOME_VIEW_COUNTING_FROM === "2026-10-23", "views count from the Berlin day after 22.10");
+    ok(homeViewCountingLabel() === "ab 23.10.2026", "the admin label is ab 23.10.2026");
+    ok(formatHomeCtaClickRate(null) === "\u2013", "a zero home_view shows a dash");
+    ok(HOME_CTA_IDS.length === 11 && HOME_CTA_IDS.includes("home_view"), "the whitelist is the ten buttons plus the view");
     ok(HOME_CTA_LABELS.home_view.length > 0, "home_view keeps an admin label");
     for (const id of HOME_CTA_IDS) ok(HOME_CTA_LABELS[id].length > 0, `${id} has an admin label`);
     const clocks = [
@@ -258,8 +264,8 @@ async function main() {
       { event: "home_view" },
       { cta: "home_view", extra: true },
     ];
-    if (!HOME_VIEW_ENABLED) rejectedBodies.push({ cta: "home_view" });
     for (const body of rejectedBodies) ok(parseHomeCtaBody(body) == null, `rejected body ${JSON.stringify(body)}`);
+    assert.deepEqual(parseHomeCtaBody({ cta: "home_view" }), { cta: "home_view" }, "home_view is the only accepted view payload");
     ok(true, "parse keeps only the whitelisted cta");
 
     const home = readFileSync("app/page.tsx", "utf8");
@@ -270,12 +276,15 @@ async function main() {
     const campaign = readFileSync("components/campaign-link.tsx", "utf8");
     const route = readFileSync("app/api/home/cta/route.ts", "utf8");
     const store = readFileSync("lib/home-cta-store.ts", "utf8");
-    const admin = readFileSync("app/admin/ampel/page.tsx", "utf8");
+    const adminPage = readFileSync("app/admin/ampel/page.tsx", "utf8");
+    const adminTable = readFileSync("components/home-cta-admin.tsx", "utf8");
+    const admin = `${adminPage}\n${adminTable}`;
     const http = readFileSync("lib/ampel-admin-http.ts", "utf8");
     const privacy = readFileSync("content/legal/datenschutz.md", "utf8");
     const cookies = readFileSync("content/legal/cookies.md", "utf8");
     ok(home.includes("{HERO_HEADLINE}") && home.includes("{HERO_SUBLINE}") && home.includes("{HERO_PRIMARY}"), "the hero copy constants stay");
-    ok(/export const HOME_VIEW_ENABLED = (true|false)\b/.test(events), "HOME_VIEW_ENABLED is a compile-time constant");
+    ok(/export const HOME_VIEW_ENABLED = true\b/.test(events), "HOME_VIEW_ENABLED is the compile-time constant true");
+    ok(events.includes('HOME_VIEW_COUNTING_FROM = "2026-10-23"'), "the counting date is a constant");
     ok(!events.includes("process.env"), "the view flag is not an env var");
     ok(home.includes("<HomeViewBeacon"), "the homepage keeps the view beacon");
     const viewFn = beacon.slice(beacon.indexOf("export function sendHomeView"));
@@ -319,13 +328,25 @@ async function main() {
     ok(route.includes('headers.get("user-agent")') && route.includes("takeAmpelStepRate"), "device and the rate limit stay on the server");
     ok(store.includes('console.error("[home-cta]", name)') && !store.includes("console.log"), "sheet errors log the error name only");
     ok(store.includes("automatedRunForbidsLiveWrites()") && store.includes('VERCEL_ENV === "preview"'), "checks and previews do not write");
-    ok(admin.includes("Startseite CTA (letzte 14 Tage)") && admin.includes("HOME_CTA_LABELS") && admin.includes("<th>Mobil</th>"), "the admin page shows the CTA table");
+    ok(adminPage.includes("<HomeCtaSection") && admin.includes("Startseite CTA (letzte 14 Tage)") && admin.includes("HOME_CTA_LABELS") && admin.includes("<th>Mobil</th>"), "the admin page shows the CTA table");
+    ok(admin.includes("homeViewCountingLabel()") && admin.includes("formatHomeCtaClickRate") && admin.includes("Klickrate"), "the Startseite table shows the click rate");
+    ok(admin.includes("\u2013"), "the Startseite table shows a dash when home_view is zero");
     ok(!admin.includes("utm") && !admin.includes("UTM") && !admin.includes("gclid") && !admin.includes("console."), "the admin page still hides source and logs");
     ok(http.includes("readHomeCtaRows(") && http.includes("homeCta"), "the stats handler adds homeCta");
     ok(!http.includes("recordHomeCta") && !http.includes("valuesAppend"), "the stats handler does not write CTA rows");
     const envReads = http.match(/process\.env\.[A-Z0-9_]+/g) ?? [];
     ok(envReads.length === 1 && envReads[0] === "process.env.ADMIN_TOKEN", "stats auth still uses only ADMIN_TOKEN");
-    ok(!privacy.includes("home_cta") && !cookies.includes("home_cta"), "the legal texts are unchanged");
+    const privacySection = privacy.split("## 6. Vercel Web Analytics")[1]?.split("## 7. Server-Logfiles")[0] ?? "";
+    const homepageSentence =
+      "Ebenso zählen wir auf unserer Startseite cookielos, wie oft die einzelnen Schaltflächen angeklickt werden (z. B. „Dokumentation erstellen“ oder „Kostenlosen Ampel-Check starten“) und wie oft die Startseite aufgerufen wird.";
+    const sentFields =
+      "Ihr Browser sendet dazu nur den Namen des Schritts bzw. der Schaltfläche oder die Kennung des Seitenaufrufs, im Ampel-Check zusätzlich die angezeigte Seitenvariante, an unseren eigenen Server, und eine grobe Geräteklasse, die wir auf unserem Server aus der technischen Browserkennung ableiten und danach verwerfen.";
+    ok(privacySection.includes(homepageSentence), "section 6 states that the homepage count includes page views");
+    ok(privacySection.includes(sentFields), "section 6 names the page-view id in the following sentence");
+    ok(!privacySection.includes("nur den Namen des Schritts bzw. der Schaltfläche, im Ampel-Check"), "the old send sentence is not left in place");
+    ok(privacy.includes("**Stand:** 22.10.2026"), "the privacy stand date stays");
+    ok(!privacy.includes("home_cta") && !cookies.includes("home_cta"), "the legal texts do not name the sheet tab");
+    ok(!cookies.includes("wie oft die Startseite aufgerufen wird"), "the cookie notice is unchanged");
     ok(readFileSync("package.json", "utf8").includes("npm run check:home-cta-counter"), "prebuild runs the CTA check");
     ok(!readFileSync("components/vercel-analytics.tsx", "utf8").includes("home_cta"), "there is no Vercel custom event");
 
@@ -377,11 +398,9 @@ async function main() {
       sendHomeView();
     });
     const viewPayloads = await Promise.all(seen.slice(1).map((blob) => blob.text()));
-    if (HOME_VIEW_ENABLED) {
-      ok(viewPayloads.length === 1 && viewPayloads[0] === '{"cta":"home_view"}', "strict-mode remount sends one view");
-    } else {
-      ok(viewPayloads.length === 0, "the client sends nothing on load");
-    }
+    ok(viewPayloads.length === 1 && viewPayloads[0] === '{"cta":"home_view"}', "strict-mode remount sends one view");
+    const viewBody = JSON.parse(viewPayloads[0]) as Record<string, unknown>;
+    ok(Object.keys(viewBody).length === 1 && viewBody.cta === "home_view", "the view payload contains only the cta id");
     releaseHomeView();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await withHome("/", (_url, data) => {
@@ -390,11 +409,7 @@ async function main() {
     }, () => {
       sendHomeView();
     });
-    if (HOME_VIEW_ENABLED) {
-      ok(seen.length === 3, "a later entry sends another view");
-    } else {
-      ok(seen.length === 1, "a later entry still sends nothing");
-    }
+    ok(seen.length === 3, "a later entry sends another view");
     const fetchCalls: Array<{ url: string; init: RequestInit }> = [];
     const previousFetch = globalThis.fetch;
     globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -414,7 +429,7 @@ async function main() {
     resetHomeViewForTest();
 
     let handlerCalls = 0;
-    useSheetEnv();
+    applySheetEnv();
     installHomeCtaSheetClientForTest(null);
     installSheetsHandler(async () => {
       handlerCalls += 1;
@@ -423,12 +438,16 @@ async function main() {
     clearAmpelStepRateForTest();
     const guarded = await postHomeCta(post({ cta: "hero_ampel" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.10" }));
     ok(guarded.status === 204 && handlerCalls === 0, "a check run does not write the live sheet");
+    const guardedView = await postHomeCta(post({ cta: "home_view" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.10" }));
+    ok(guardedView.status === 204 && handlerCalls === 0, "a check run does not write a home_view");
     ok(!guarded.headers.get("set-cookie"), "a CTA response sets no cookie");
     const savedEvent = process.env.npm_lifecycle_event;
     process.env.npm_lifecycle_event = "dev";
     process.env.VERCEL_ENV = "preview";
     const preview = await postHomeCta(post({ cta: "hero_ampel" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.11" }));
     ok(preview.status === 204 && handlerCalls === 0 && !automatedRunForbidsLiveWrites(), "a preview does not write the live sheet");
+    const previewView = await postHomeCta(post({ cta: "home_view" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.11" }));
+    ok(previewView.status === 204 && handlerCalls === 0, "a preview does not write a home_view");
     if (savedEvent === undefined) delete process.env.npm_lifecycle_event;
     else process.env.npm_lifecycle_event = savedEvent;
     delete process.env.VERCEL_ENV;
@@ -440,10 +459,8 @@ async function main() {
     installSheetsHandler(null);
     const unconfigured = await postHomeCta(post({ cta: "hero_ampel" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.12" }));
     ok(unconfigured.status === 204 && handlerCalls === 0, "no write when Sheets is unconfigured");
-    if (!HOME_VIEW_ENABLED) {
-      const unconfiguredView = await postHomeCta(post({ cta: "home_view" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.12" }));
-      ok(unconfiguredView.status === 400 && handlerCalls === 0, "home_view is rejected when Sheets is unconfigured");
-    }
+    const unconfiguredView = await postHomeCta(post({ cta: "home_view" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.12" }));
+    ok(unconfiguredView.status === 204 && handlerCalls === 0, "home_view is accepted when Sheets is unconfigured and writes nothing");
 
     const mock = createMock();
     installHomeCtaSheetClientForTest({ client: mock.client, configured: false });
@@ -463,7 +480,6 @@ async function main() {
       { body: { cta: "hero_ampel", ctaNote: "free text" }, label: "free text" },
       { body: "x".repeat(513), label: "oversized body" },
     ];
-    if (!HOME_VIEW_ENABLED) rejected.push({ body: { cta: "home_view" }, label: "disabled home_view" });
     for (const [index, item] of rejected.entries()) {
       const response = await postHomeCta(post(item.body, { "user-agent": IPHONE, "x-real-ip": `203.0.113.${20 + index}` }));
       ok(response.status === 400, `${item.label} returns 400`);
@@ -474,13 +490,13 @@ async function main() {
 
     const acceptedIp = "203.0.113.40";
     for (const id of HOME_CTA_IDS) {
-      const userAgent = id === "home_view" || (!HOME_VIEW_ENABLED && id === "header_checkout") ? DESKTOP : IPHONE;
+      const userAgent = id === "home_view" ? DESKTOP : IPHONE;
       const response = await postHomeCta(post({ cta: id }, { "user-agent": userAgent, "x-real-ip": acceptedIp }));
       ok(response.status === 204, `${id} returns 204`);
     }
     ok(mock.adds() === 1 && mock.titles[0] === "home_cta", "the tab is created once");
     ok(JSON.stringify(mock.written[0]) === JSON.stringify([...HOME_CTA_COLUMNS]), "the header is date, cta, device");
-    const example = mock.written[1];
+    const example = mock.written.find((row) => row[1] === "hero_ampel");
     console.log("example row:", JSON.stringify(example));
     ok(
       JSON.stringify(example) === JSON.stringify(["2026-10-22", "hero_ampel", "mobile"]),
@@ -488,12 +504,12 @@ async function main() {
     );
     const viewRow = mock.written.find((row) => row[1] === "home_view");
     const heroRow = mock.written.find((row) => row[1] === "hero_ampel");
-    if (HOME_VIEW_ENABLED) {
-      ok(viewRow?.[2] === "desktop" && heroRow?.[2] === "mobile", "device comes from the user agent");
-    } else {
-      const headerRow = mock.written.find((row) => row[1] === "header_checkout");
-      ok(viewRow == null && headerRow?.[2] === "desktop" && heroRow?.[2] === "mobile", "home_view writes no row and device comes from the user agent");
-    }
+    ok(process.env.VERCEL_ENV !== "preview", "the configured write is not a preview");
+    ok(
+      viewRow != null && JSON.stringify(viewRow) === JSON.stringify(["2026-10-22", "home_view", "desktop"]),
+      "home_view is accepted and written in prod mode as the Berlin day, the event, and the device class",
+    );
+    ok(viewRow?.length === HOME_CTA_COLUMNS.length && heroRow?.[2] === "mobile", "device comes from the user agent and the view row has no extra field");
     ok(!mock.written.some((row) => row.join(" ").includes(EXAMPLE_IP) || row.join(" ").includes("iPhone")), "rows have no IP and no user agent");
     ok(mock.adds() === 1, "further events do not create the tab again");
 
@@ -572,13 +588,14 @@ async function main() {
       ["2026-10-22", "hero_ampel", "desktop"],
     ]);
     ok(stored.some((row) => row.cta === "hero_ampel"), "stored button clicks stay readable");
-    if (HOME_VIEW_ENABLED) {
-      ok(stored.some((row) => row.cta === "home_view"), "stored views stay readable while the flag is on");
-    } else {
-      ok(!stored.some((row) => row.cta === "home_view"), "stored views are ignored while the flag is off");
-    }
+    ok(stored.some((row) => row.cta === "home_view"), "stored views stay readable and are not deleted");
+    const storedBefore = JSON.stringify(stored);
+    buildHomeCtaReport(stored, { now: CLOCK });
+    ok(JSON.stringify(stored) === storedBefore, "aggregation does not modify stored rows");
     ok(homeCtaRowsFromValues([["date", "cta", "src"], ["2026-10-22", "hero_ampel", "mobile"]]).length === 0, "a foreign header yields no rows");
+    const rowsBefore = JSON.stringify(rows);
     const report = buildHomeCtaReport(rows, { now: CLOCK });
+    ok(JSON.stringify(rows) === rowsBefore, "aggregation does not modify the sheet rows");
     ok(report.days.length === HOME_CTA_WINDOW_DAYS, "the report covers 14 Berlin days");
     ok(report.days[0].date === "2026-10-09" && report.days.at(-1)?.date === "2026-10-22", "the window ends on the Berlin day");
     const last = report.days.at(-1);
@@ -586,20 +603,18 @@ async function main() {
     const view = last?.counts.find((item) => item.cta === "home_view");
     const sticky = last?.counts.find((item) => item.cta === "sticky_checkout");
     ok(hero?.mobile === 1 && hero.desktop === 1 && hero.total === 2, "a CTA splits mobile and desktop");
-    if (HOME_VIEW_ENABLED) {
-      ok(view?.mobile === 2 && view.desktop === 0 && view.total === 2, "home_view is the page-load count");
-    } else {
-      ok(view == null && !JSON.stringify(report).includes("home_view"), "no page-view numbers are shown");
-      const onlyViews = buildHomeCtaReport([{ date: "2026-10-22", cta: "home_view", device: "mobile" }], { now: CLOCK });
-      ok(!onlyViews.hasRows, "stored views are ignored while the flag is off");
-    }
+    ok(view?.mobile === 0 && view.desktop === 0 && view.total === 0, "home_view before 2026-10-23 is ignored");
+    const onlyOldViews = buildHomeCtaReport([{ date: "2026-10-22", cta: "home_view", device: "mobile" }], { now: CLOCK });
+    ok(!onlyOldViews.hasRows && onlyOldViews.clickRate.homeView === 0 && onlyOldViews.clickRate.rate === null, "views before the reactivation date do not count");
+    ok(formatHomeCtaClickRate(onlyOldViews.clickRate.rate) === "\u2013", "ignored views leave the rate as a dash");
     ok(sticky?.total === 0, "a day outside the window is left out");
     ok(report.total.counts.find((item) => item.cta === "hero_ampel")?.total === 2, "the total row sums the window");
+    ok(report.clickRate.from === "2026-10-23" && report.clickRate.homeView === 0 && report.clickRate.clicks === 0 && report.clickRate.rate === null, "clicks before the reactivation date stay in the table and out of the rate");
     ok(report.hasRows, "the report notices stored rows");
     ok(!report.days.some((day) => day.date === "2026-10-08"), "the outside day is not a column");
     ok(last?.counts.length === HOME_CTA_IDS.length, "every CTA is present even when it is zero");
 
-    useSheetEnv();
+    applySheetEnv();
     const values = [[...HOME_CTA_COLUMNS], ...rows.map((row) => [row.date, row.cta, row.device])];
     const populated = sheetReader(values);
     installHomeCtaSheetClientForTest({ client: populated.client, configured: true });
@@ -622,7 +637,63 @@ async function main() {
     ok(countedHome.configured === true && countedHome.error !== true, "a readable sheet sets configured");
     ok(countedHome.timezone === "Europe/Berlin" && countedHome.windowDays === 14, "homeCta uses the Berlin 14-day window");
     assert.deepEqual(body.homeCta?.report, buildHomeCtaReport(rows, { now: CLOCK }), "homeCta matches the admin aggregation");
+    ok(body.homeCta?.report?.clickRate.rate === null && body.homeCta.report.clickRate.homeView === 0, "the stats response ignores home_view before 2026-10-23");
     ok(!JSON.stringify(countedHome).includes("gclid") && !JSON.stringify(countedHome).includes("203.0.113"), "homeCta has no click id and no address");
+
+    const rateNow = new Date("2026-10-23T22:30:00.000Z");
+    ok(homeCtaDate(rateNow) === "2026-10-24", "the rate clock is the Berlin day after reactivation");
+    const rateRows: HomeCtaRow[] = [
+      { date: "2026-10-22", cta: "home_view", device: "mobile" },
+      { date: "2026-10-22", cta: "home_view", device: "desktop" },
+      { date: "2026-10-22", cta: "hero_checkout", device: "mobile" },
+      { date: "2026-10-22", cta: "hero_checkout", device: "desktop" },
+      { date: "2026-10-23", cta: "home_view", device: "mobile" },
+      { date: "2026-10-23", cta: "home_view", device: "desktop" },
+      { date: "2026-10-23", cta: "hero_ampel", device: "mobile" },
+      { date: "2026-10-23", cta: "hero_ampel", device: "desktop" },
+      { date: "2026-10-24", cta: "home_view", device: "mobile" },
+      { date: "2026-10-24", cta: "home_view", device: "mobile" },
+      { date: "2026-10-24", cta: "sticky_checkout", device: "mobile" },
+      { date: "2026-10-10", cta: "home_view", device: "mobile" },
+      { date: "2026-10-10", cta: "final_ampel", device: "desktop" },
+    ];
+    const rateReport = buildHomeCtaReport(rateRows, { now: rateNow });
+    const rateDay22 = rateReport.days.find((day) => day.date === "2026-10-22");
+    const rateDay23 = rateReport.days.find((day) => day.date === "2026-10-23");
+    ok(rateDay22?.counts.find((item) => item.cta === "home_view")?.total === 0, "22.10 views stay out of the daily count");
+    ok(rateDay22?.counts.find((item) => item.cta === "hero_checkout")?.total === 2, "22.10 button clicks stay in the per-CTA rows");
+    ok(rateDay23?.counts.find((item) => item.cta === "home_view")?.total === 2, "views on the reactivation day count");
+    ok(rateReport.total.counts.find((item) => item.cta === "home_view")?.total === 4, "the home_view total is the counted page loads");
+    ok(rateReport.clickRate.homeView === 4 && rateReport.clickRate.clicks === 3 && rateReport.clickRate.rate === 0.75, "the click rate is CTA clicks on or after 2026-10-23 divided by home_view");
+    ok(formatHomeCtaClickRate(rateReport.clickRate.rate) === "75 %", "the click rate is shown as a percent");
+    const ampelRate = rateReport.clickRate.byCta.find((item) => item.cta === "hero_ampel");
+    const stickyRate = rateReport.clickRate.byCta.find((item) => item.cta === "sticky_checkout");
+    const checkoutRate = rateReport.clickRate.byCta.find((item) => item.cta === "hero_checkout");
+    ok(ampelRate?.clicks === 2 && ampelRate.rate === 0.5, "a CTA rate uses only its clicks on or after the reactivation date");
+    ok(stickyRate?.clicks === 1 && stickyRate.rate === 0.25, "another CTA rate divides by the same home_view count");
+    ok(checkoutRate?.clicks === 0 && checkoutRate.rate === 0, "clicks before the reactivation date are not in that CTA rate");
+    ok(rateReport.clickRate.byCta.reduce((sum, item) => sum + item.clicks, 0) === rateReport.clickRate.clicks, "per-CTA clicks add up to the total click rate numerator");
+    ok(!rateReport.days.some((day) => day.date === "2026-10-10"), "a view outside the window is not a column");
+    const noViews = buildHomeCtaReport([{ date: "2026-10-24", cta: "hero_ampel", device: "mobile" }], { now: rateNow });
+    ok(noViews.clickRate.homeView === 0 && noViews.clickRate.clicks === 1 && noViews.clickRate.rate === null, "a click without a counted view has no rate");
+    ok(formatHomeCtaClickRate(noViews.clickRate.rate) === "\u2013", "the stats dash is the en dash");
+    const rateHtml = renderToStaticMarkup(createElement(HomeCtaSection, { report: rateReport, configured: true, failed: false }));
+    ok(rateHtml.includes("Startseite CTA (letzte 14 Tage)") && rateHtml.includes("Klickrate ab 23.10.2026"), "the rendered Startseite table labels the rate ab 23.10.2026");
+    ok(rateHtml.includes(">4<") && rateHtml.includes("75 %"), "the rendered table shows the home_view count and the click rate");
+    const emptyHtml = renderToStaticMarkup(createElement(HomeCtaSection, { report: noViews, configured: true, failed: false }));
+    ok(emptyHtml.includes("\u2013") && !emptyHtml.includes("75 %"), "the rendered table shows a dash when home_view is zero");
+    ok(!rateHtml.includes("utm") && !rateHtml.includes("gclid") && !rateHtml.includes("203.0.113"), "the rendered table has no campaign data and no address");
+    const rateValues = [[...HOME_CTA_COLUMNS], ...rateRows.map((row) => [row.date, row.cta, row.device])];
+    const rateSheet = sheetReader(rateValues);
+    installHomeCtaSheetClientForTest({ client: rateSheet.client, configured: true });
+    const rateStats = await handleAmpelStatsRequest(new Request("https://www.gobd-doku-erstellen.de/api/admin/ampel-stats", { headers: { authorization: `Bearer ${TOKEN}` } }), {
+      token: TOKEN,
+      load: async () => [lead()],
+      now: () => rateNow,
+    });
+    const rateHome = homeCtaOf(rateStats.body) as { report?: HomeCtaReport };
+    assert.deepEqual(rateHome.report?.clickRate, rateReport.clickRate, "the stats response carries the same click rate");
+    ok(rateSheet.writes() === 0, "the rate read does not write");
 
     const missingTab = sheetReader(null, { sheets: false });
     installHomeCtaSheetClientForTest({ client: missingTab.client, configured: true });
