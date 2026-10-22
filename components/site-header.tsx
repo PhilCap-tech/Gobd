@@ -55,7 +55,7 @@ export function SiteHeader({
                     </a>
                   ),
                 )}
-                <CampaignLink className="btn hide-sm" href={ctaHref}>
+                <CampaignLink className="btn hide-sm" cta="header_checkout" href={ctaHref}>
                   {ctaLabel}
                 </CampaignLink>
               </>

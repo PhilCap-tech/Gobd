@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CampaignLink } from "@/components/campaign-link";
+import { HomeCtaLink, HomeViewBeacon } from "@/components/home-cta-link";
 import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -180,6 +181,7 @@ export default function HomePage() {
 
   return (
     <div className={`${styles.page} kanzlei-home`}>
+      <HomeViewBeacon />
       <link rel="canonical" href={canonicalUrl("/")} />
       <meta property="og:url" content={canonicalUrl("/")} />
       <CrumbJsonLd items={HOME_CRUMBS} />
@@ -214,15 +216,15 @@ export default function HomePage() {
               <span>{HERO_PRICE_BOX}</span>
             </p>
             <div className={styles.ctas}>
-              <CampaignLink className="btn" href={AMPEL_HERO_HREF}>
+              <CampaignLink className="btn" cta="hero_ampel" href={AMPEL_HERO_HREF}>
                 {HERO_PRIMARY}
               </CampaignLink>
-              <CampaignLink className={`btn ${styles.btnSec}`} href="/checkout">
+              <CampaignLink className={`btn ${styles.btnSec}`} cta="hero_checkout" href="/checkout">
                 {CTA_CREATE}
               </CampaignLink>
-              <Link className={`btn ${styles.btnSec}`} href="#muster">
+              <HomeCtaLink className={`btn ${styles.btnSec}`} cta="hero_muster" href="#muster">
                 {CTA_MUSTER_HERO}
-              </Link>
+              </HomeCtaLink>
             </div>
             <p className={styles.micro}>{HERO_MICRO}</p>
             <p className={styles.guarantee}>
@@ -482,7 +484,7 @@ export default function HomePage() {
               </table>
               <div className={styles.ctas}>
                 <div className={styles.priceCta}>
-                  <CampaignLink className={`btn ${styles.btnOnDark}`} href="/checkout">
+                  <CampaignLink className={`btn ${styles.btnOnDark}`} cta="price_checkout" href="/checkout">
                     {CTA_CREATE}
                   </CampaignLink>
                   <p className={styles.fine}>{PRICE_CTA_SUFFIX}</p>
@@ -533,15 +535,15 @@ export default function HomePage() {
               </p>
               <p className={styles.fine}>{READINESS_EFFORT_NOTE}</p>
               <div className={styles.ctas}>
-                <Link className="btn" href="/readiness">
+                <HomeCtaLink className="btn" cta="unsure_readiness" href="/readiness">
                   {CTA_CHECK}
-                </Link>
+                </HomeCtaLink>
               </div>
               <div className={styles.ampelBlock}>
                 <h3>{AMPEL_LABEL}</h3>
                 <p className={styles.prose}>{AMPEL_INTRO}</p>
                 <div className={styles.ctas}>
-                  <CampaignLink className={`btn ${styles.btnSec}`} href={AMPEL_HREF}>
+                  <CampaignLink className={`btn ${styles.btnSec}`} cta="unsure_ampel" href={AMPEL_HREF}>
                     {AMPEL_LABEL}
                   </CampaignLink>
                 </div>
@@ -574,12 +576,12 @@ export default function HomePage() {
             </p>
             <div className={styles.ctas}>
               <div className={styles.priceCta}>
-                <CampaignLink className={`btn ${styles.btnOnDark}`} href="/checkout">
+                <CampaignLink className={`btn ${styles.btnOnDark}`} cta="final_checkout" href="/checkout">
                   {CTA_CREATE_WITH_PRICE}
                 </CampaignLink>
                 <p className={styles.fine}>{PRICE_AFTER_MICRO}</p>
               </div>
-              <CampaignLink className={`btn ${styles.btnSecOnDark}`} href={AMPEL_HREF}>
+              <CampaignLink className={`btn ${styles.btnSecOnDark}`} cta="final_ampel" href={AMPEL_HREF}>
                 {AMPEL_LABEL}
               </CampaignLink>
               <Link className={styles.textLink} href="#muster">
@@ -593,7 +595,7 @@ export default function HomePage() {
         </section>
       </main>
       <div className="sticky-cta">
-        <CampaignLink className="btn" href="/checkout">
+        <CampaignLink className="btn" cta="sticky_checkout" href="/checkout">
           {CTA_CREATE}
         </CampaignLink>
       </div>

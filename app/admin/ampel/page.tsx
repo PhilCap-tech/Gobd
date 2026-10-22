@@ -13,6 +13,8 @@ import {
   type AmpelStepReport,
 } from "@/lib/ampel-step-event";
 import { readAmpelStepRows } from "@/lib/ampel-step-store";
+import { HOME_CTA_LABELS, buildHomeCtaReport, type HomeCtaReport } from "@/lib/home-cta-event";
+import { readHomeCtaRows } from "@/lib/home-cta-store";
 import { buildAmpelStats, type AmpelCount, type AmpelStatsReport } from "@/lib/ampel-stats";
 import { listAmpelLeads } from "@/lib/store";
 
@@ -187,6 +189,71 @@ function StepsSection({
   );
 }
 
+function HomeCtaTable({ report }: { report: HomeCtaReport }) {
+  const days = [...report.days, report.total];
+  return (
+    <div className="ampel-admin-table-wrap">
+      <table className="ampel-admin-table">
+        <caption>Tag, CTA und Gerät</caption>
+        <thead>
+          <tr>
+            <th>Tag</th>
+            <th>CTA</th>
+            <th>Mobil</th>
+            <th>Desktop</th>
+            <th>Gesamt</th>
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((day) =>
+            day.counts.map((count, index) => (
+              <tr key={`${day.date}:${count.cta}`}>
+                <td>{index === 0 ? formatAmpelStepDay(day.date) : ""}</td>
+                <td>{HOME_CTA_LABELS[count.cta]}</td>
+                <td>{count.mobile}</td>
+                <td>{count.desktop}</td>
+                <td>{count.total}</td>
+              </tr>
+            )),
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function HomeCtaSection({
+  report,
+  configured,
+  failed,
+}: {
+  report: HomeCtaReport | null;
+  configured: boolean;
+  failed: boolean;
+}) {
+  return (
+    <section className="ampel-steps">
+      <h2>Startseite CTA (letzte 14 Tage)</h2>
+      {failed ? (
+        <p className="error">
+          Die Startseiten-Klicks konnten nicht geladen werden. Bitte laden Sie die Seite später erneut.
+        </p>
+      ) : !configured ? (
+        <p>Die Startseiten-Statistik ist in dieser Umgebung nicht eingerichtet.</p>
+      ) : report ? (
+        <>
+          <p>
+            Sie sehen die Klicks der letzten 14 Tage nach dem Kalendertag in Europe/Berlin. Der Seitenaufruf zählt
+            jedes Laden der Startseite. Mobil und Desktop sind getrennt ausgewiesen. Die letzte Zeile ist die Summe.
+          </p>
+          {report.hasRows ? null : <p>In den letzten 14 Tagen ist noch kein Eintrag gespeichert.</p>}
+          <HomeCtaTable report={report} />
+        </>
+      ) : null}
+    </section>
+  );
+}
+
 function Report({ report }: { report: AmpelStatsReport }) {
   const toggleHref = report.includeTests ? "/admin/ampel" : "/admin/ampel?tests=1";
   return (
@@ -273,6 +340,19 @@ export default async function AmpelAdminPage({
     stepsFailed = true;
   }
 
+  let homeCta: HomeCtaReport | null = null;
+  let homeCtaConfigured = false;
+  let homeCtaFailed = false;
+  try {
+    const loaded = await readHomeCtaRows();
+    homeCtaConfigured = loaded.configured;
+    if (loaded.configured) {
+      homeCta = buildHomeCtaReport(loaded.rows, { now: new Date() });
+    }
+  } catch {
+    homeCtaFailed = true;
+  }
+
   return (
     <main className="wrap page ampel-admin">
       <h1>Ampel-Check Auswertung</h1>
@@ -281,6 +361,7 @@ export default async function AmpelAdminPage({
       </p>
       {failure ? <p className="error">{failure}</p> : report ? <Report report={report} /> : null}
       <StepsSection report={steps} configured={stepsConfigured} failed={stepsFailed} testsOn={tests === "1"} />
+      <HomeCtaSection report={homeCta} configured={homeCtaConfigured} failed={homeCtaFailed} />
     </main>
   );
 }
