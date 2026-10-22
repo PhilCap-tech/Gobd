@@ -1,10 +1,17 @@
 /**
  * Cookieless homepage CTA counts. The browser may send only `cta`.
  * The Berlin day and the device class are added on the server.
+ *
+ * `HOME_VIEW_ENABLED` is a compile-time constant, not an environment
+ * variable. The approved privacy text covers button clicks only, so page
+ * views stay off until that text covers them too. Flip the constant to
+ * count `home_view` again. Existing sheet rows are never deleted.
  */
+export const HOME_VIEW_ENABLED = false;
 
-export const HOME_CTA_IDS = [
-  "home_view",
+const HOME_VIEW_ID = "home_view" as const;
+
+const HOME_CTA_BUTTON_IDS = [
   "hero_ampel",
   "hero_checkout",
   "hero_muster",
@@ -17,7 +24,14 @@ export const HOME_CTA_IDS = [
   "header_checkout",
 ] as const;
 
-export const HOME_CTA_LABELS: Record<(typeof HOME_CTA_IDS)[number], string> = {
+export type HomeCtaId = typeof HOME_VIEW_ID | (typeof HOME_CTA_BUTTON_IDS)[number];
+
+const HOME_CTA_IDS_WITH_VIEW = [HOME_VIEW_ID, ...HOME_CTA_BUTTON_IDS] as const satisfies readonly HomeCtaId[];
+
+/** Ids POST accepts and the admin table shows. Excludes `home_view` while the flag is off. */
+export const HOME_CTA_IDS: readonly HomeCtaId[] = HOME_VIEW_ENABLED ? HOME_CTA_IDS_WITH_VIEW : HOME_CTA_BUTTON_IDS;
+
+export const HOME_CTA_LABELS: Record<HomeCtaId, string> = {
   home_view: "Seitenaufruf",
   hero_ampel: "Hero: Ampel-Check",
   hero_checkout: "Hero: Dokumentation erstellen",
@@ -37,7 +51,6 @@ export const HOME_CTA_BODY_MAX_BYTES = 512;
 
 export const HOME_CTA_WINDOW_DAYS = 14;
 
-export type HomeCtaId = (typeof HOME_CTA_IDS)[number];
 export type HomeCtaDevice = "mobile" | "desktop";
 
 export type HomeCtaFields = {
@@ -177,6 +190,7 @@ export function buildHomeCtaReport(rows: HomeCtaRow[], options: { now: Date }): 
   const byKey = new Map<string, HomeCtaCount>();
   let hasRows = false;
   for (const row of rows) {
+    // Ids outside the active whitelist, including home_view while it is disabled, are ignored.
     if (!inWindow.has(row.date) || !isHomeCtaId(row.cta)) continue;
     hasRows = true;
     const key = `${row.date}|${row.cta}`;
