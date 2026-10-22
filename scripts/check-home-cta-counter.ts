@@ -16,6 +16,7 @@ import {
   HOME_CTA_IDS,
   HOME_CTA_LABELS,
   HOME_CTA_WINDOW_DAYS,
+  HOME_VIEW_ENABLED,
   buildHomeCtaReport,
   homeCtaDate,
   homeCtaDevice,
@@ -210,7 +211,14 @@ async function main() {
     delete process.env.GOOGLE_SHEETS_HOME_CTA_TAB;
     ok(RATE_LIMIT === 60, "the shared in-memory limit is 60 per minute");
     ok(HOME_CTA_WINDOW_DAYS === AMPEL_STEP_WINDOW_DAYS && HOME_CTA_WINDOW_DAYS === 14, "the window is 14 days");
-    ok(HOME_CTA_IDS.length === 11 && HOME_CTA_IDS.includes("home_view"), "the whitelist is the ten buttons plus the view");
+    const buttonIds = HOME_CTA_IDS.filter((id) => id !== "home_view");
+    ok(buttonIds.length === 10, "the ten buttons stay on the whitelist");
+    if (HOME_VIEW_ENABLED) {
+      ok(HOME_CTA_IDS.length === 11 && HOME_CTA_IDS.includes("home_view"), "the whitelist is the ten buttons plus the view");
+    } else {
+      ok(HOME_CTA_IDS.length === 10 && !HOME_CTA_IDS.includes("home_view"), "the parse whitelist excludes the view");
+    }
+    ok(HOME_CTA_LABELS.home_view.length > 0, "home_view keeps an admin label");
     for (const id of HOME_CTA_IDS) ok(HOME_CTA_LABELS[id].length > 0, `${id} has an admin label`);
     const clocks = [
       "2026-01-15T22:30:00.000Z",
@@ -250,12 +258,14 @@ async function main() {
       { event: "home_view" },
       { cta: "home_view", extra: true },
     ];
+    if (!HOME_VIEW_ENABLED) rejectedBodies.push({ cta: "home_view" });
     for (const body of rejectedBodies) ok(parseHomeCtaBody(body) == null, `rejected body ${JSON.stringify(body)}`);
     ok(true, "parse keeps only the whitelisted cta");
 
     const home = readFileSync("app/page.tsx", "utf8");
     const header = readFileSync("components/site-header.tsx", "utf8");
     const beacon = readFileSync("lib/home-cta-beacon.ts", "utf8");
+    const events = readFileSync("lib/home-cta-event.ts", "utf8");
     const link = readFileSync("components/home-cta-link.tsx", "utf8");
     const campaign = readFileSync("components/campaign-link.tsx", "utf8");
     const route = readFileSync("app/api/home/cta/route.ts", "utf8");
@@ -265,7 +275,14 @@ async function main() {
     const privacy = readFileSync("content/legal/datenschutz.md", "utf8");
     const cookies = readFileSync("content/legal/cookies.md", "utf8");
     ok(home.includes("{HERO_HEADLINE}") && home.includes("{HERO_SUBLINE}") && home.includes("{HERO_PRIMARY}"), "the hero copy constants stay");
-    ok(home.includes("<HomeViewBeacon"), "the homepage sends a view");
+    ok(/export const HOME_VIEW_ENABLED = (true|false)\b/.test(events), "HOME_VIEW_ENABLED is a compile-time constant");
+    ok(!events.includes("process.env"), "the view flag is not an env var");
+    ok(home.includes("<HomeViewBeacon"), "the homepage keeps the view beacon");
+    const viewFn = beacon.slice(beacon.indexOf("export function sendHomeView"));
+    ok(
+      viewFn.indexOf("HOME_VIEW_ENABLED") !== -1 && viewFn.indexOf('sendHomeCta("home_view")') > viewFn.indexOf("HOME_VIEW_ENABLED"),
+      "sendHomeView checks the flag before it sends a view",
+    );
     ok(!home.includes('cta="home_view"'), "the view is not a button id on the page");
     for (const id of HOME_CTA_IDS) {
       if (id === "home_view") continue;
@@ -360,7 +377,11 @@ async function main() {
       sendHomeView();
     });
     const viewPayloads = await Promise.all(seen.slice(1).map((blob) => blob.text()));
-    ok(viewPayloads.length === 1 && viewPayloads[0] === '{"cta":"home_view"}', "strict-mode remount sends one view");
+    if (HOME_VIEW_ENABLED) {
+      ok(viewPayloads.length === 1 && viewPayloads[0] === '{"cta":"home_view"}', "strict-mode remount sends one view");
+    } else {
+      ok(viewPayloads.length === 0, "the client sends nothing on load");
+    }
     releaseHomeView();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await withHome("/", (_url, data) => {
@@ -369,7 +390,11 @@ async function main() {
     }, () => {
       sendHomeView();
     });
-    ok(seen.length === 3, "a later entry sends another view");
+    if (HOME_VIEW_ENABLED) {
+      ok(seen.length === 3, "a later entry sends another view");
+    } else {
+      ok(seen.length === 1, "a later entry still sends nothing");
+    }
     const fetchCalls: Array<{ url: string; init: RequestInit }> = [];
     const previousFetch = globalThis.fetch;
     globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -413,12 +438,16 @@ async function main() {
     delete process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
     delete process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
     installSheetsHandler(null);
-    const unconfigured = await postHomeCta(post({ cta: "home_view" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.12" }));
+    const unconfigured = await postHomeCta(post({ cta: "hero_ampel" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.12" }));
     ok(unconfigured.status === 204 && handlerCalls === 0, "no write when Sheets is unconfigured");
+    if (!HOME_VIEW_ENABLED) {
+      const unconfiguredView = await postHomeCta(post({ cta: "home_view" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.12" }));
+      ok(unconfiguredView.status === 400 && handlerCalls === 0, "home_view is rejected when Sheets is unconfigured");
+    }
 
     const mock = createMock();
     installHomeCtaSheetClientForTest({ client: mock.client, configured: false });
-    const skipped = await postHomeCta(post({ cta: "home_view" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.13" }));
+    const skipped = await postHomeCta(post({ cta: "hero_ampel" }, { "user-agent": DESKTOP, "x-real-ip": "203.0.113.13" }));
     ok(skipped.status === 204 && mock.written.length === 0, "a disabled sheet client is not written");
 
     installHomeCtaSheetClientForTest({ client: mock.client, configured: true });
@@ -434,6 +463,7 @@ async function main() {
       { body: { cta: "hero_ampel", ctaNote: "free text" }, label: "free text" },
       { body: "x".repeat(513), label: "oversized body" },
     ];
+    if (!HOME_VIEW_ENABLED) rejected.push({ body: { cta: "home_view" }, label: "disabled home_view" });
     for (const [index, item] of rejected.entries()) {
       const response = await postHomeCta(post(item.body, { "user-agent": IPHONE, "x-real-ip": `203.0.113.${20 + index}` }));
       ok(response.status === 400, `${item.label} returns 400`);
@@ -444,7 +474,8 @@ async function main() {
 
     const acceptedIp = "203.0.113.40";
     for (const id of HOME_CTA_IDS) {
-      const response = await postHomeCta(post({ cta: id }, { "user-agent": id === "home_view" ? DESKTOP : IPHONE, "x-real-ip": acceptedIp }));
+      const userAgent = id === "home_view" || (!HOME_VIEW_ENABLED && id === "header_checkout") ? DESKTOP : IPHONE;
+      const response = await postHomeCta(post({ cta: id }, { "user-agent": userAgent, "x-real-ip": acceptedIp }));
       ok(response.status === 204, `${id} returns 204`);
     }
     ok(mock.adds() === 1 && mock.titles[0] === "home_cta", "the tab is created once");
@@ -457,7 +488,12 @@ async function main() {
     );
     const viewRow = mock.written.find((row) => row[1] === "home_view");
     const heroRow = mock.written.find((row) => row[1] === "hero_ampel");
-    ok(viewRow?.[2] === "desktop" && heroRow?.[2] === "mobile", "device comes from the user agent");
+    if (HOME_VIEW_ENABLED) {
+      ok(viewRow?.[2] === "desktop" && heroRow?.[2] === "mobile", "device comes from the user agent");
+    } else {
+      const headerRow = mock.written.find((row) => row[1] === "header_checkout");
+      ok(viewRow == null && headerRow?.[2] === "desktop" && heroRow?.[2] === "mobile", "home_view writes no row and device comes from the user agent");
+    }
     ok(!mock.written.some((row) => row.join(" ").includes(EXAMPLE_IP) || row.join(" ").includes("iPhone")), "rows have no IP and no user agent");
     ok(mock.adds() === 1, "further events do not create the tab again");
 
@@ -530,6 +566,17 @@ async function main() {
       ["2026-10-22", "hero_ampel", "tablet"],
     ]);
     ok(parsed.length === 1 && parsed[0].cta === "hero_ampel" && parsed[0].device === "mobile", "a timed row, an unknown id and a bad device are ignored");
+    const stored = homeCtaRowsFromValues([
+      [...HOME_CTA_COLUMNS],
+      ["2026-10-22", "home_view", "mobile"],
+      ["2026-10-22", "hero_ampel", "desktop"],
+    ]);
+    ok(stored.some((row) => row.cta === "hero_ampel"), "stored button clicks stay readable");
+    if (HOME_VIEW_ENABLED) {
+      ok(stored.some((row) => row.cta === "home_view"), "stored views stay readable while the flag is on");
+    } else {
+      ok(!stored.some((row) => row.cta === "home_view"), "stored views are ignored while the flag is off");
+    }
     ok(homeCtaRowsFromValues([["date", "cta", "src"], ["2026-10-22", "hero_ampel", "mobile"]]).length === 0, "a foreign header yields no rows");
     const report = buildHomeCtaReport(rows, { now: CLOCK });
     ok(report.days.length === HOME_CTA_WINDOW_DAYS, "the report covers 14 Berlin days");
@@ -539,7 +586,13 @@ async function main() {
     const view = last?.counts.find((item) => item.cta === "home_view");
     const sticky = last?.counts.find((item) => item.cta === "sticky_checkout");
     ok(hero?.mobile === 1 && hero.desktop === 1 && hero.total === 2, "a CTA splits mobile and desktop");
-    ok(view?.mobile === 2 && view.desktop === 0 && view.total === 2, "home_view is the page-load count");
+    if (HOME_VIEW_ENABLED) {
+      ok(view?.mobile === 2 && view.desktop === 0 && view.total === 2, "home_view is the page-load count");
+    } else {
+      ok(view == null && !JSON.stringify(report).includes("home_view"), "no page-view numbers are shown");
+      const onlyViews = buildHomeCtaReport([{ date: "2026-10-22", cta: "home_view", device: "mobile" }], { now: CLOCK });
+      ok(!onlyViews.hasRows, "stored views are ignored while the flag is off");
+    }
     ok(sticky?.total === 0, "a day outside the window is left out");
     ok(report.total.counts.find((item) => item.cta === "hero_ampel")?.total === 2, "the total row sums the window");
     ok(report.hasRows, "the report notices stored rows");

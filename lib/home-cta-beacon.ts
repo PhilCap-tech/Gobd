@@ -1,4 +1,4 @@
-import { isHomeCtaId, type HomeCtaId } from "@/lib/home-cta-event";
+import { HOME_VIEW_ENABLED, isHomeCtaId, type HomeCtaId } from "@/lib/home-cta-event";
 
 const HOME_CTA_URL = "/api/home/cta";
 const POINTER_CLICK_GAP_MS = 700;
@@ -67,6 +67,7 @@ let releaseTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** One view for this entry. A strict-mode remount cancels the release. */
 export function sendHomeView(): void {
+  if (!HOME_VIEW_ENABLED) return;
   if (!isHomePath()) return;
   if (releaseTimer != null) {
     clearTimeout(releaseTimer);
