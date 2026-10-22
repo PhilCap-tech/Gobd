@@ -142,6 +142,11 @@ export function getAmpelStepsSheetsTab(): string {
   return "ampel_steps";
 }
 
+/** Cookieless homepage CTA counts. Same spreadsheet. */
+export function getHomeCtaSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_HOME_CTA_TAB || "home_cta";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }

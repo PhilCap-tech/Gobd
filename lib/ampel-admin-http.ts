@@ -9,6 +9,13 @@ import {
   type AmpelStepRow,
 } from "@/lib/ampel-step-event";
 import { readAmpelStepRows } from "@/lib/ampel-step-store";
+import {
+  HOME_CTA_WINDOW_DAYS,
+  buildHomeCtaReport,
+  type HomeCtaReport,
+  type HomeCtaRow,
+} from "@/lib/home-cta-event";
+import { readHomeCtaRows } from "@/lib/home-cta-store";
 import type { ReadinessLead } from "@/lib/readiness";
 import { listAmpelLeads } from "@/lib/store";
 import {
@@ -88,6 +95,41 @@ function stepsFromRows(rows: AmpelStepRow[], now: Date): Extract<AmpelStatsSteps
   };
 }
 
+/**
+ * Homepage CTA counts for the last 14 Berlin days, split by CTA and device.
+ * `home_view` is the page-load denominator. A read failure is `{ error: true }`
+ * and does not replace the lead report.
+ */
+export type HomeCtaStats =
+  | { configured: false }
+  | { error: true }
+  | {
+      configured: true;
+      timezone: typeof AMPEL_STATS_TIMEZONE;
+      windowDays: typeof HOME_CTA_WINDOW_DAYS;
+      report: HomeCtaReport;
+    };
+
+function homeCtaFromRows(rows: HomeCtaRow[], now: Date): Extract<HomeCtaStats, { configured: true }> {
+  return {
+    configured: true,
+    timezone: AMPEL_STATS_TIMEZONE,
+    windowDays: HOME_CTA_WINDOW_DAYS,
+    report: buildHomeCtaReport(rows, { now }),
+  };
+}
+
+/** Sheet failures stay inside `homeCta`. The lead report still returns. */
+async function loadHomeCtaStats(now: Date): Promise<HomeCtaStats> {
+  try {
+    const loaded = await readHomeCtaRows();
+    if (!loaded.configured) return { configured: false };
+    return homeCtaFromRows(loaded.rows, now);
+  } catch {
+    return { error: true };
+  }
+}
+
 /** Sheet failures stay inside `steps`. The lead report still returns. */
 async function loadAmpelStatsSteps(now: Date): Promise<AmpelStatsSteps> {
   try {
@@ -124,7 +166,8 @@ export async function handleAmpelStatsRequest(
       includeTests: includeTests(request.url),
     });
     const steps = await loadAmpelStatsSteps(now);
-    return { status: 200, body: { ...report, steps }, headers: headers() };
+    const homeCta = await loadHomeCtaStats(now);
+    return { status: 200, body: { ...report, steps, homeCta }, headers: headers() };
   } catch (error) {
     const failure = ampelStatsError(error);
     const retry = failure.status === 503 ? { "Retry-After": SHEETS_RETRY_AFTER_SECONDS } : undefined;

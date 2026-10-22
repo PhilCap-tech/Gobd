@@ -327,7 +327,9 @@ ok(!/<a\b[^>]*className="btn hide-sm"/.test(header), "the header CTA is not a pl
 ok(!home.includes("localStorage") && !home.includes("sessionStorage") && !home.includes("document.cookie"), "the homepage writes nothing to storage");
 ok(!header.includes("localStorage") && !header.includes("sessionStorage") && !header.includes("document.cookie"), "the header writes nothing to storage");
 ok(!home.includes("gclid") && !header.includes("gclid"), "the homepage and header do not name a click id");
-ok(!campaignLink.includes("cta") && !home.includes("sendHomeCta") && !header.includes("sendHomeCta"), "checkout links do not count clicks");
+ok(campaignLink.includes("cta?: HomeCtaId"), "the campaign link accepts an optional homepage CTA id");
+ok(campaignLink.includes("sendHomeCta("), "the campaign link can send the homepage beacon");
+ok(!home.includes("sendHomeCta") && !header.includes("sendHomeCta"), "the page and header leave the beacon call in the client link");
 ok(campaignLink.includes("useState(href)") && campaignLink.includes("window.location.search"), "the link starts from the plain href and reads the page URL");
 ok(campaignLink.includes("hrefWithCampaignParams("), "the link reuses the campaign helper");
 ok(
