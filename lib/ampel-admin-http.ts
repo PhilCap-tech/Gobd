@@ -97,9 +97,9 @@ function stepsFromRows(rows: AmpelStepRow[], now: Date): Extract<AmpelStatsSteps
 
 /**
  * Homepage CTA counts for the last 14 Berlin days, split by CTA and device.
- * Page views are included only while `HOME_VIEW_ENABLED` is true. Existing
- * sheet rows stay where they are. A read failure is `{ error: true }` and
- * does not replace the lead report.
+ * `home_view` rows before `HOME_VIEW_COUNTING_FROM` stay in the sheet and
+ * are left out of the view count and the click rate. A read failure is
+ * `{ error: true }` and does not replace the lead report.
  */
 export type HomeCtaStats =
   | { configured: false }

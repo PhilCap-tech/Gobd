@@ -3,11 +3,17 @@
  * The Berlin day and the device class are added on the server.
  *
  * `HOME_VIEW_ENABLED` is a compile-time constant, not an environment
- * variable. The approved privacy text covers button clicks only, so page
- * views stay off until that text covers them too. Flip the constant to
- * count `home_view` again. Existing sheet rows are never deleted.
+ * variable. Page views are on. Sheet rows dated before
+ * `HOME_VIEW_COUNTING_FROM` stay stored and are left out of the view
+ * count and the click rate. Nothing in the sheet is deleted.
  */
-export const HOME_VIEW_ENABLED = false;
+export const HOME_VIEW_ENABLED = true;
+
+/**
+ * First Berlin day whose `home_view` rows count. 22.10.2026 still holds
+ * views from before the counter was switched off, so that day stays out.
+ */
+export const HOME_VIEW_COUNTING_FROM = "2026-10-23";
 
 const HOME_VIEW_ID = "home_view" as const;
 
@@ -28,8 +34,10 @@ export type HomeCtaId = typeof HOME_VIEW_ID | (typeof HOME_CTA_BUTTON_IDS)[numbe
 
 const HOME_CTA_IDS_WITH_VIEW = [HOME_VIEW_ID, ...HOME_CTA_BUTTON_IDS] as const satisfies readonly HomeCtaId[];
 
-/** Ids POST accepts and the admin table shows. Excludes `home_view` while the flag is off. */
+/** Ids POST accepts and the admin table shows. */
 export const HOME_CTA_IDS: readonly HomeCtaId[] = HOME_VIEW_ENABLED ? HOME_CTA_IDS_WITH_VIEW : HOME_CTA_BUTTON_IDS;
+
+export type HomeCtaButtonId = (typeof HOME_CTA_BUTTON_IDS)[number];
 
 export const HOME_CTA_LABELS: Record<HomeCtaId, string> = {
   home_view: "Seitenaufruf",
@@ -74,11 +82,41 @@ export type HomeCtaDayStat = {
   counts: HomeCtaCount[];
 };
 
+export type HomeCtaClickRate = {
+  from: typeof HOME_VIEW_COUNTING_FROM;
+  /** `home_view` rows inside the window, on or after `from`. */
+  homeView: number;
+  /** Button clicks inside the window, on or after `from`. `home_view` is not a click. */
+  clicks: number;
+  /** `clicks / homeView`, or null when `homeView` is 0. */
+  rate: number | null;
+  byCta: Array<{
+    cta: HomeCtaButtonId;
+    clicks: number;
+    rate: number | null;
+  }>;
+};
+
 export type HomeCtaReport = {
   days: HomeCtaDayStat[];
   total: HomeCtaDayStat;
   hasRows: boolean;
+  clickRate: HomeCtaClickRate;
 };
+
+/** Admin label for the day views and the click rate start, e.g. `ab 23.10.2026`. */
+export function homeViewCountingLabel(from: string = HOME_VIEW_COUNTING_FROM): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(from);
+  if (!match) return `ab ${from}`;
+  return `ab ${match[3]}.${match[2]}.${match[1]}`;
+}
+
+/** Percent in the admin table. A missing denominator is an en dash. */
+export function formatHomeCtaClickRate(rate: number | null): string {
+  if (rate == null || !Number.isFinite(rate)) return "\u2013";
+  const text = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format(rate * 100);
+  return `${text} %`;
+}
 
 const CTA_SET = new Set<string>(HOME_CTA_IDS);
 const MOBILE_UA = /Mobile|Android|iPhone|iPad|iPod|IEMobile|Opera Mini|BlackBerry|webOS/i;
@@ -184,14 +222,24 @@ function emptyCount(cta: HomeCtaId): HomeCtaCount {
   return { cta, mobile: 0, desktop: 0, total: 0 };
 }
 
+function rateOf(clicks: number, homeView: number): number | null {
+  if (homeView === 0) return null;
+  return clicks / homeView;
+}
+
 export function buildHomeCtaReport(rows: HomeCtaRow[], options: { now: Date }): HomeCtaReport {
   const dates = homeCtaWindowDates(options.now);
   const inWindow = new Set(dates);
   const byKey = new Map<string, HomeCtaCount>();
+  const rateClicksByCta = new Map<HomeCtaButtonId, number>();
   let hasRows = false;
+  let rateViews = 0;
+  let rateClicks = 0;
   for (const row of rows) {
-    // Ids outside the active whitelist, including home_view while it is disabled, are ignored.
+    // Ids outside the active whitelist are ignored. `home_view` before the
+    // reactivation day stays in the sheet and is left out of the counts.
     if (!inWindow.has(row.date) || !isHomeCtaId(row.cta)) continue;
+    if (row.cta === "home_view" && row.date < HOME_VIEW_COUNTING_FROM) continue;
     hasRows = true;
     const key = `${row.date}|${row.cta}`;
     const count = byKey.get(key) ?? emptyCount(row.cta);
@@ -199,6 +247,13 @@ export function buildHomeCtaReport(rows: HomeCtaRow[], options: { now: Date }): 
     else count.desktop += 1;
     count.total = count.mobile + count.desktop;
     byKey.set(key, count);
+    if (row.date < HOME_VIEW_COUNTING_FROM) continue;
+    if (row.cta === "home_view") {
+      rateViews += 1;
+      continue;
+    }
+    rateClicks += 1;
+    rateClicksByCta.set(row.cta, (rateClicksByCta.get(row.cta) ?? 0) + 1);
   }
   const days = dates.map((date) => ({
     date,
@@ -214,9 +269,20 @@ export function buildHomeCtaReport(rows: HomeCtaRow[], options: { now: Date }): 
     }
     return { cta, mobile, desktop, total: mobile + desktop };
   });
+  const byCta = HOME_CTA_BUTTON_IDS.map((cta) => {
+    const clicks = rateClicksByCta.get(cta) ?? 0;
+    return { cta, clicks, rate: rateOf(clicks, rateViews) };
+  });
   return {
     days,
     total: { date: "Summe", counts: totalCounts },
     hasRows,
+    clickRate: {
+      from: HOME_VIEW_COUNTING_FROM,
+      homeView: rateViews,
+      clicks: rateClicks,
+      rate: rateOf(rateClicks, rateViews),
+      byCta,
+    },
   };
 }
