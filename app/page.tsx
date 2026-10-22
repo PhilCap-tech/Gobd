@@ -217,9 +217,9 @@ export default function HomePage() {
               <CampaignLink className="btn" href={AMPEL_HERO_HREF}>
                 {HERO_PRIMARY}
               </CampaignLink>
-              <a className={`btn ${styles.btnSec}`} href="/checkout">
+              <CampaignLink className={`btn ${styles.btnSec}`} href="/checkout">
                 {CTA_CREATE}
-              </a>
+              </CampaignLink>
               <Link className={`btn ${styles.btnSec}`} href="#muster">
                 {CTA_MUSTER_HERO}
               </Link>
@@ -482,9 +482,9 @@ export default function HomePage() {
               </table>
               <div className={styles.ctas}>
                 <div className={styles.priceCta}>
-                  <a className={`btn ${styles.btnOnDark}`} href="/checkout">
+                  <CampaignLink className={`btn ${styles.btnOnDark}`} href="/checkout">
                     {CTA_CREATE}
-                  </a>
+                  </CampaignLink>
                   <p className={styles.fine}>{PRICE_CTA_SUFFIX}</p>
                 </div>
                 <Link className={styles.textLink} href="#muster">
@@ -574,9 +574,9 @@ export default function HomePage() {
             </p>
             <div className={styles.ctas}>
               <div className={styles.priceCta}>
-                <a className={`btn ${styles.btnOnDark}`} href="/checkout">
+                <CampaignLink className={`btn ${styles.btnOnDark}`} href="/checkout">
                   {CTA_CREATE_WITH_PRICE}
-                </a>
+                </CampaignLink>
                 <p className={styles.fine}>{PRICE_AFTER_MICRO}</p>
               </div>
               <CampaignLink className={`btn ${styles.btnSecOnDark}`} href={AMPEL_HREF}>
@@ -593,9 +593,9 @@ export default function HomePage() {
         </section>
       </main>
       <div className="sticky-cta">
-        <a className="btn" href="/checkout">
+        <CampaignLink className="btn" href="/checkout">
           {CTA_CREATE}
-        </a>
+        </CampaignLink>
       </div>
       <SiteFooter />
     </div>

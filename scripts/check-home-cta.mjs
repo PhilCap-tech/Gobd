@@ -1,6 +1,7 @@
 /**
- * Homepage checkout CTAs navigate without JavaScript, and the consent banner
- * does not take the sticky bar's pixels on the first tap.
+ * Homepage checkout CTAs are CampaignLinks. The server render is still an
+ * anchor with the plain href, and the consent banner does not take the
+ * sticky bar's pixels on the first tap.
  */
 import { readFileSync } from "node:fs";
 
@@ -16,18 +17,25 @@ const layout = readFileSync("app/layout.tsx", "utf8");
 const tracking = readFileSync("lib/tracking.ts", "utf8");
 const banner = readFileSync("components/consent-banner.tsx", "utf8");
 
-const checkoutAnchors = page.match(/<a\b[^>]*href="\/checkout"[^>]*>/g) ?? [];
-if (checkoutAnchors.length < 4) {
-  fail(`expected at least 4 native checkout anchors, found ${checkoutAnchors.length}`);
+const plainCheckout = page.match(/<a\b[^>]*href="\/checkout"[^>]*>/g) ?? [];
+if (plainCheckout.length !== 0) {
+  fail(`plain href="/checkout" remains on the homepage (${plainCheckout.length})`);
+}
+const checkoutLinks = page.match(/<CampaignLink\b[^>]*href="\/checkout"[^>]*>/g) ?? [];
+if (checkoutLinks.length < 4) {
+  fail(`expected at least 4 checkout CampaignLinks, found ${checkoutLinks.length}`);
 }
 if (/<Link\b[^>]*href="\/checkout"/.test(page)) {
-  fail("homepage checkout CTA still uses next/link");
+  fail("homepage checkout CTA uses next/link directly");
 }
 if (page.includes("preventDefault") || header.includes("preventDefault")) {
   fail("homepage header must not cancel CTA navigation");
 }
-if (!/<a className="btn hide-sm" href=\{ctaHref\}>/.test(header)) {
-  fail("header CTA is not a native anchor");
+if (!/<CampaignLink\b[^>]*className="btn hide-sm"[^>]*href=\{ctaHref\}>/.test(header)) {
+  fail("header CTA does not use CampaignLink");
+}
+if (/<a\b[^>]*className="btn hide-sm"/.test(header)) {
+  fail("header CTA is still a plain anchor");
 }
 if (/<Link\b[^>]*className="btn hide-sm"/.test(header)) {
   fail("header CTA still uses next/link");
@@ -58,4 +66,4 @@ if (!banner.includes('aria-labelledby="consent-title"') || !banner.includes('ari
   fail("consent dialog is missing aria-labelledby or aria-describedby");
 }
 
-console.log("home-cta: checkout anchors stay native and the banner does not cover them");
+console.log("home-cta: checkout links forward campaign params and the banner does not cover them");

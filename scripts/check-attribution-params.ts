@@ -313,7 +313,21 @@ ok(header.includes('{ href: "/readiness", label: "3-Minuten-Check" }'), "the def
 ok(home.includes('{ href: "/readiness", label: "3-Minuten-Check" }'), "the homepage nav still opens the readiness check");
 ok(home.includes('const AMPEL_HERO_HREF = "/ampel-check?src=hero&v=a"'), "the hero href keeps src and variant");
 ok(home.includes("<CampaignLink") && home.includes("href={AMPEL_HERO_HREF}"), "the hero link passes campaign params on the client");
-ok((home.match(/<CampaignLink\b/g) ?? []).length >= 3, "homepage funnel links pass campaign params");
+ok((home.match(/<CampaignLink\b/g) ?? []).length >= 7, "homepage funnel and checkout links pass campaign params");
+const checkoutCampaignLinks = home.match(/<CampaignLink\b[^>]*href="\/checkout"/g) ?? [];
+ok(checkoutCampaignLinks.length === 4, "the four homepage checkout links use CampaignLink");
+const homeWithoutCampaignLinks = home.replace(/<CampaignLink\b[\s\S]*?>/g, "");
+ok(!homeWithoutCampaignLinks.includes('href="/checkout"'), "no plain href=\"/checkout\" remains in app/page.tsx");
+ok(!/<a\b[^>]*href="\/checkout"/.test(home), "the homepage has no plain checkout anchor");
+ok(
+  /<CampaignLink\b[^>]*className="btn hide-sm"[^>]*href=\{ctaHref\}/.test(header),
+  "the header CTA uses CampaignLink",
+);
+ok(!/<a\b[^>]*className="btn hide-sm"/.test(header), "the header CTA is not a plain anchor");
+ok(!home.includes("localStorage") && !home.includes("sessionStorage") && !home.includes("document.cookie"), "the homepage writes nothing to storage");
+ok(!header.includes("localStorage") && !header.includes("sessionStorage") && !header.includes("document.cookie"), "the header writes nothing to storage");
+ok(!home.includes("gclid") && !header.includes("gclid"), "the homepage and header do not name a click id");
+ok(!campaignLink.includes("cta") && !home.includes("sendHomeCta") && !header.includes("sendHomeCta"), "checkout links do not count clicks");
 ok(campaignLink.includes("useState(href)") && campaignLink.includes("window.location.search"), "the link starts from the plain href and reads the page URL");
 ok(campaignLink.includes("hrefWithCampaignParams("), "the link reuses the campaign helper");
 ok(
