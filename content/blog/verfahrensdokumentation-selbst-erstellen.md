@@ -134,6 +134,7 @@ Nein. Wir versprechen keine Konformität und keine Rechtssicherheit. Nachvollzie
 - [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software)
 - [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren)
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung)
+- [Verfahrensdokumentation erstellen: Welche Informationen brauche ich vorher?](/blog/verfahrensdokumentation-erstellen-vorbereitung) — Systeme, Belegwege, Zuständigkeiten und vorhandene Unterlagen sammeln
 
 ## Disclaimer
 
