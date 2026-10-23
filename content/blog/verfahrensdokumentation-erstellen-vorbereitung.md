@@ -24,7 +24,7 @@ quellen:
 
 # Verfahrensdokumentation erstellen: Welche Informationen brauche ich vorher?
 
-[Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) erklärt, wie der Text aufgebaut wird und in welchen Schritten er entsteht. Dieser Artikel bleibt bei der Vorbereitung und ist eine Sammelliste, keine Schreibanleitung. Der spätere Text entsteht zügiger und bleibt am Ablauf, den Sie tatsächlich nutzen, wenn vorher vier Arten von Angaben beisammen sind: die Systeme, die Belegwege, die Zuständigkeiten samt Vertretung und die Unterlagen, die schon vorliegen.
+[Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) erklärt, wie der Text aufgebaut wird und in welchen Schritten er entsteht. Dieser Artikel bleibt bei der Vorbereitung und ist eine Sammelliste, keine Schreibanleitung. Der spätere Text entsteht zügiger und bleibt näher am tatsächlichen Ablauf, wenn vorher vier Arten von Angaben beisammen sind: die Systeme, die Belegwege, die Zuständigkeiten samt Vertretung und die Unterlagen, die schon vorliegen.
 
 **Kurz:** Systemübersicht, Belegwege vom Eingang bis zur Ablage, Personen und Vertretung, vorhandene Unterlagen. Was unklar bleibt, kommt auf eine Liste offener Punkte, nicht in einen unbestimmten Satz.
 
@@ -32,7 +32,7 @@ quellen:
 
 ## Warum die Vorbereitung zählt
 
-Für jedes DV-System ist eine übersichtlich gegliederte Verfahrensdokumentation vorgesehen, aus der Inhalt, Aufbau, Ablauf und Ergebnisse des DV-Verfahrens vollständig und schlüssig ersichtlich sind. Der Umfang richtet sich danach, was zum Verständnis notwendig ist. Sie muss verständlich und für einen sachverständigen Dritten in angemessener Zeit nachprüfbar sein. Die Ausgestaltung hängt von der Komplexität und Diversifikation der Geschäftstätigkeit, der Organisationsstruktur und des DV-Systems ab (GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 151).
+Für jedes DV-System muss eine übersichtlich gegliederte Verfahrensdokumentation vorhanden sein, aus der Inhalt, Aufbau, Ablauf und Ergebnisse des DV-Verfahrens vollständig und schlüssig ersichtlich sind. Der Umfang richtet sich danach, was zum Verständnis notwendig ist. Sie muss verständlich und für einen sachverständigen Dritten in angemessener Zeit nachprüfbar sein. Die Ausgestaltung hängt von der Komplexität und Diversifikation der Geschäftstätigkeit, der Organisationsstruktur und des DV-Systems ab (GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 151).
 
 Das beschriebene Verfahren muss dem in der Praxis eingesetzten Verfahren voll entsprechen, insbesondere bei den Programmversionen. Änderungen bleiben historisch nachvollziehbar, wenn sie versioniert sind und eine Änderungshistorie vorliegt (GoBD Rz. 154). Sammeln Sie deshalb den Zustand, der heute im Einsatz ist, nicht einen Ablauf, den Sie sich erst wünschen.
 
@@ -40,7 +40,7 @@ Die Buchführung muss so beschaffen sein, dass sie einem sachverständigen Dritt
 
 ## 1. Welche Systeme sind im Einsatz?
 
-Ein DV-System ist die Hard- und Software, die für Unternehmenszwecke eingesetzt wird und mit denen Daten und Dokumente erfasst, erzeugt, empfangen, übernommen, verarbeitet, gespeichert oder übermittelt werden. Dazu gehören das Hauptsystem sowie Vor- und Nebensysteme einschließlich der Schnittstellen. Auf die Bezeichnung oder die Größe kommt es nicht an, ebenso nicht darauf, ob eigene Hard- und Software oder eine Cloud genutzt wird (GoBD Rz. 20).
+Ein DV-System ist die Hard- und Software, die für Unternehmenszwecke eingesetzt wird und mit der Daten und Dokumente erfasst, erzeugt, empfangen, übernommen, verarbeitet, gespeichert oder übermittelt werden. Dazu gehören das Hauptsystem sowie Vor- und Nebensysteme einschließlich der Schnittstellen. Auf die Bezeichnung oder die Größe kommt es nicht an, ebenso nicht darauf, ob eigene Hard- und Software oder eine Cloud genutzt wird (GoBD Rz. 20).
 
 Nehmen Sie auf, was vorkommt, zum Beispiel Finanzbuchführung, Lohnbuchhaltung, ein Kassensystem, Warenwirtschaft, Zahlungsverkehr, Fakturierung, Zeiterfassung, ein Archivsystem oder ein Dokumenten-Management-System. Was Sie nicht einsetzen, kennzeichnen Sie als nicht vorhanden. Je System notieren Sie den Zweck, die Nutzer, den Datenort (auch eine Cloud), den Einsatzbeginn und die Version oder den Programmstand. Die Beschreibung muss die eingesetzten Programmversionen abbilden (Programmidentität, GoBD Rz. 154). Dazu kommt, wohin jede Schnittstelle führt und welche Daten übergehen, etwa Rechnungen, Zahlungen oder Stammdaten.
 
@@ -50,7 +50,7 @@ Steht gerade ein Wechsel an, halten Sie das bisherige und das künftige System g
 
 ## 2. Wie laufen Belege und Daten?
 
-Die Verfahrensdokumentation beschreibt den organisatorisch und technisch gewollten Prozess, bei elektronischen Dokumenten von der Entstehung der Informationen über Indizierung, Verarbeitung und Speicherung, das eindeutige Wiederfinden, die maschinelle Auswertbarkeit, die Absicherung gegen Verlust und Verfälschung bis zur Reproduktion (GoBD Rz. 152). Notieren Sie den Weg, den der Beleg bei Ihnen nimmt. Ein Soll-Weg aus einem Muster, den niemand so geht, entspricht dem eingesetzten Verfahren nicht (GoBD Rz. 154).
+Die Verfahrensdokumentation beschreibt den organisatorisch und technisch gewollten Prozess, bei elektronischen Dokumenten von der Entstehung der Informationen über Indizierung, Verarbeitung und Speicherung, das eindeutige Wiederfinden, die maschinelle Auswertbarkeit, die Absicherung gegen Verlust und Verfälschung bis zur Reproduktion (GoBD Rz. 152). Notieren Sie den Weg, den der Beleg bei Ihnen nimmt. Ein aus einem Muster übernommener Weg, der im Betrieb so nicht abläuft, entspricht dem eingesetzten Verfahren nicht (GoBD Rz. 154).
 
 Buchungen und die sonst erforderlichen Aufzeichnungen sind einzeln, vollständig, richtig, zeitgerecht und geordnet vorzunehmen (§ 146 Abs. 1 Satz 1 AO). Zu jeder vorkommenden Belegart gehören Eingang, Prüfung, Erfassung oder Buchung und Ablage, mit Ort und Person. Das sind Eingangsrechnungen über Post, E-Mail, Portal oder E-Rechnung, Ausgangsrechnungen, die Kasse falls vorhanden, Bank und Zahlungen sowie Lohn, falls Lohn anfällt. Ohne Kasse schreiben Sie, dass keine eingesetzt wird.
 
@@ -92,7 +92,7 @@ Die Aufbewahrungsfrist der Verfahrensdokumentation läuft nicht ab, solange die 
 
 Was unklar ist, kommt auf eine Liste mit Thema, wer klärt und bis wann, nicht in einen unbestimmten Satz. Beispiele sind ein unbekannter Programmstand, eine fehlende Vertretung für den Bankabruf oder ein offener Ablageort für Portalrechnungen. Das beschriebene Verfahren muss dem eingesetzten entsprechen (GoBD Rz. 154).
 
-Zum Sortieren der Sammlung: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF). Offene Punkte lassen sich an [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF) sortieren. Typische Fehler beim Erstellen beschreibt [Verfahrensdokumentation erstellen: häufige Fehler](/blog/verfahrensdokumentation-fehler).
+Zum Sortieren der Sammlung: [Inhalt einer Verfahrensdokumentation — Mini-Gliederung für KMU](/resources/inhalt-verfahrensdokumentation) (PDF). Zum Abgleichen der offenen Punkte: [10 Offene Punkte vor der Prüfung](/resources/10-offene-punkte) (PDF). Typische Fehler beim Erstellen beschreibt [Verfahrensdokumentation erstellen: häufige Fehler](/blog/verfahrensdokumentation-fehler).
 
 ## Kurze Sammelliste
 
@@ -130,7 +130,7 @@ Ja, wenn dort geschäftliche Daten oder Belege erfasst, empfangen oder gespeiche
 
 ### Welche Unterlagen kann die Steuerberatung beisteuern?
 
-Häufig liegen dort Absprachen zum Kontenrahmen, zu Buchungswegen und zur Übergabe von Belegen und Auswertungen, dazu die Programmstände der Schritte in der Kanzlei. Die Verantwortung bleibt beim Unternehmen, auch wenn Aufgaben ausgelagert sind (GoBD Rz. 21).
+Häufig liegen dort Absprachen zum Kontenrahmen, zu Buchungswegen und zur Übergabe von Belegen und Auswertungen, dazu Angaben, welche Schritte die Kanzlei mit welchem Programm erledigt. Die Verantwortung bleibt beim Unternehmen, auch wenn Aufgaben ausgelagert sind (GoBD Rz. 21).
 
 ### Was mache ich mit einer alten Verfahrensdokumentation?
 
