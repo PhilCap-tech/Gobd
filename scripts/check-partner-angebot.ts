@@ -1,6 +1,6 @@
 /**
- * Prebuild: /partner-angebot buy CTAs go to Digistore24, the incoming query
- * is appended encoded, and the page stays noindex and out of the sitemap.
+ * Prebuild: /partner-angebot buy CTAs go to Digistore24, only the allowlisted
+ * query is appended encoded, and the page stays noindex and out of the sitemap.
  *
  *   npx tsx scripts/check-partner-angebot.ts
  */
@@ -20,6 +20,7 @@ import {
   syncDigistorePromocode,
 } from "../lib/digistore-promocode";
 import {
+  DIGISTORE24_FORWARDED_PARAMS,
   DIGISTORE24_PRODUCT_ID,
   DIGISTORE24_PRODUCT_URL,
   PARTNER_ANGEBOT_LEGAL_NOTICE,
@@ -83,13 +84,13 @@ expectHref(
   "aff=test123 is passed through",
 );
 expectHref(
-  "?aff=test123&campaignkey=herbst",
-  `${DIGISTORE24_PRODUCT_URL}?aff=test123&campaignkey=herbst`,
-  "query string keeps aff and campaignkey",
+  "?aff=test123&cam=herbst",
+  `${DIGISTORE24_PRODUCT_URL}?aff=test123&cam=herbst`,
+  "query string keeps aff and cam",
 );
 expectHref(
-  { aff: "test123", campaignkey: "a&b=c d" },
-  `${DIGISTORE24_PRODUCT_URL}?aff=test123&campaignkey=a%26b%3Dc+d`,
+  { aff: "test123", cam: "a&b=c d" },
+  `${DIGISTORE24_PRODUCT_URL}?aff=test123&cam=a%26b%3Dc+d`,
   "reserved characters are encoded",
 );
 expectHref(
@@ -98,9 +99,79 @@ expectHref(
   "repeated aff values are kept",
 );
 expectHref(
-  `https://www.gobd-doku-erstellen.de${PARTNER_ANGEBOT_PATH}?aff=test123&campaignkey=x`,
-  `${DIGISTORE24_PRODUCT_URL}?aff=test123&campaignkey=x`,
+  `https://www.gobd-doku-erstellen.de${PARTNER_ANGEBOT_PATH}?aff=test123&cam=x`,
+  `${DIGISTORE24_PRODUCT_URL}?aff=test123&cam=x`,
   "a full page url contributes only its query",
+);
+
+ok(
+  DIGISTORE24_FORWARDED_PARAMS.join(",") === "aff,cam",
+  "the Digistore24 allowlist is only aff and cam",
+);
+const mixedQuery =
+  "?utm_source=google&gclid=CLICK123&gbraid=GB1&wbraid=WB1&email=buyer%40example.com&e=other%40example.com&token=sekret&a=ANSWERCODE&ref=Kanzlei&aff=test123&cam=herbst&t=abc&kanzlei=Muster&next=%2Fintake&utm_campaign=ads&campaignkey=not-a-ds24-key&foo=drop#email=hidden@example.com&token=in-fragment";
+const mixedHref = digistore24BuyHref(mixedQuery);
+const mixedUrl = new URL(mixedHref);
+ok(
+  mixedHref === `${DIGISTORE24_PRODUCT_URL}?aff=test123&cam=herbst`,
+  "utm, click ids, email, e, token, a, ref and the fragment stay off the Digistore24 link",
+);
+ok(mixedUrl.hash === "", "the Digistore24 link has no fragment");
+ok(
+  [...mixedUrl.searchParams.keys()].join(",") === "aff,cam",
+  "the mixed query leaves only aff and cam",
+);
+for (const dropped of [
+  "utm_source",
+  "utm_campaign",
+  "gclid",
+  "gbraid",
+  "wbraid",
+  "email",
+  "e",
+  "token",
+  "a",
+  "ref",
+  "t",
+  "kanzlei",
+  "next",
+  "campaignkey",
+  "foo",
+]) {
+  ok(!mixedUrl.searchParams.has(dropped), `the mixed query drops ${dropped}`);
+}
+ok(mixedUrl.searchParams.get("aff") === "test123" && mixedUrl.searchParams.get("cam") === "herbst", "the mixed query keeps aff and cam");
+ok(
+  !mixedHref.includes("google") &&
+    !mixedHref.includes("CLICK123") &&
+    !mixedHref.includes("GB1") &&
+    !mixedHref.includes("WB1") &&
+    !mixedHref.includes("sekret") &&
+    !mixedHref.includes("buyer") &&
+    !mixedHref.includes("other") &&
+    !mixedHref.includes("ANSWERCODE") &&
+    !mixedHref.includes("Kanzlei") &&
+    !mixedHref.includes("hidden") &&
+    !mixedHref.includes("utm_") &&
+    !mixedHref.includes("#"),
+  "dropped values and the fragment are absent from the Digistore24 link",
+);
+expectHref(
+  {
+    utm_source: "google",
+    gclid: "CLICK123",
+    gbraid: "GB1",
+    wbraid: "WB1",
+    email: "buyer@example.com",
+    e: "other@example.com",
+    token: "sekret",
+    a: "ANSWERCODE",
+    ref: "Kanzlei",
+    aff: "test123",
+    cam: "herbst",
+  },
+  `${DIGISTORE24_PRODUCT_URL}?aff=test123&cam=herbst`,
+  "a searchParams record forwards only aff and cam",
 );
 
 const page = source("app/partner-angebot/page.tsx");

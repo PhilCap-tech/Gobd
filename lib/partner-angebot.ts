@@ -28,15 +28,30 @@ type QueryRecord = Record<string, string | string[] | undefined>;
 
 export type PartnerAngebotQuery = string | URLSearchParams | QueryRecord | undefined | null;
 
+/**
+ * Query keys copied onto the Digistore24 product link.
+ * `aff` is the affiliate id (digistore.js `affiliate_key`; the promocode reads it).
+ * `cam` is the campaign key (digistore.js `campaignkey_key`; Digistore24 documents `cam=`).
+ * UTM parameters, click ids, and every other key stay off the link, as does any fragment.
+ */
+export const DIGISTORE24_FORWARDED_PARAMS = ["aff", "cam"] as const;
+
+const DIGISTORE24_FORWARDED_PARAM_SET = new Set<string>(DIGISTORE24_FORWARDED_PARAMS);
+
 function appendParams(target: URLSearchParams, source: URLSearchParams): void {
   source.forEach((value, key) => {
-    if (!key) return;
+    if (!DIGISTORE24_FORWARDED_PARAM_SET.has(key)) return;
     target.append(key, value);
   });
 }
 
+function withoutFragment(value: string): string {
+  const hashAt = value.indexOf("#");
+  return hashAt === -1 ? value : value.slice(0, hashAt);
+}
+
 function queryFromString(search: string): URLSearchParams {
-  const trimmed = search.trim();
+  const trimmed = withoutFragment(search.trim());
   if (!trimmed) return new URLSearchParams();
   if (/^https?:\/\//i.test(trimmed)) {
     try {
@@ -63,8 +78,10 @@ function queryFromRecord(search: QueryRecord): URLSearchParams {
 }
 
 /**
- * Product URL plus the incoming query, encoded by URLSearchParams.
- * An empty query stays the bare product URL. The host and path stay fixed.
+ * Product URL plus the allowlisted query, encoded by URLSearchParams.
+ * An empty or fully dropped query stays the bare product URL.
+ * The host, path, and encoding of kept values stay as before.
+ * The fragment is never copied.
  */
 export function digistore24BuyHref(search: PartnerAngebotQuery): string {
   const params = new URLSearchParams();
@@ -76,7 +93,7 @@ export function digistore24BuyHref(search: PartnerAngebotQuery): string {
     appendParams(params, queryFromRecord(search));
   }
   const url = new URL(DIGISTORE24_PRODUCT_URL);
-  const query = params.toString();
-  url.search = query;
+  url.search = params.toString();
+  url.hash = "";
   return url.toString();
 }
