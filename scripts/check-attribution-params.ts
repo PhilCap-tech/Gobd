@@ -461,7 +461,32 @@ ok(campaignLink.includes("cta?: HomeCtaId"), "the campaign link accepts an optio
 ok(campaignLink.includes("sendHomeCta("), "the campaign link can send the homepage beacon");
 ok(!home.includes("sendHomeCta") && !header.includes("sendHomeCta"), "the page and header leave the beacon call in the client link");
 ok(campaignLink.includes("useState(href)") && campaignLink.includes("window.location.search"), "the link starts from the plain href and reads the page URL");
-ok(campaignLink.includes("hrefWithCampaignParams("), "the link reuses the campaign helper");
+ok((campaignLink.match(/hrefWithCampaignParams\(/g) ?? []).length === 1, "campaign params are copied in one place");
+const pageHrefAt = campaignLink.indexOf("const pageHref");
+const effectAt = campaignLink.indexOf("useEffect(() => {");
+const pageHref = campaignLink.slice(pageHrefAt, effectAt);
+ok(pageHref.includes("hasMarketingConsent()"), "campaign params wait for marketing consent");
+ok(
+  pageHref.indexOf("hasMarketingConsent()") < pageHref.indexOf("hrefWithCampaignParams(") &&
+    pageHref.includes(": href"),
+  "without consent the link stays the plain href",
+);
+ok(campaignLink.includes("subscribeConsent("), "a consent change updates the href");
+ok(campaignLink.includes("return subscribeConsent(sync)"), "the consent subscription is cleaned up");
+const emitAt = campaignLink.indexOf("function emit");
+const effect = campaignLink.slice(effectAt, emitAt);
+ok(effect.includes("pageHref()") && effect.includes("subscribeConsent(sync)"), "hydration and consent changes use the gated href");
+ok(campaignLink.includes("function onMouseDown") && campaignLink.includes("function onClick"), "click and pointer paths exist");
+const pointerAt = campaignLink.indexOf("function onMouseDown");
+const clickAt = campaignLink.indexOf("function onClick");
+const pointer = campaignLink.slice(pointerAt, clickAt);
+const click = campaignLink.slice(clickAt, campaignLink.indexOf("return (", clickAt));
+ok(pointer.includes("pageHref()") && click.includes("pageHref()"), "pointer and click both use the gated href");
+const ampelCta = readFileSync("components/ampel-result.tsx", "utf8");
+const ampelCtaFn = ampelCta.slice(ampelCta.indexOf("export function AmpelCta"));
+ok(/<CampaignLink\b[^>]*href="\/checkout"/.test(ampelCtaFn), "Ampel checkout uses CampaignLink");
+ok(!/<Link\b[^>]*href="\/checkout"/.test(ampelCtaFn), "Ampel checkout is not a plain link");
+ok(ampelCtaFn.includes('href="/#ablauf"'), "the Ampel secondary link stays on the page");
 ok(
   !campaignLink.includes("localStorage") && !campaignLink.includes("sessionStorage") && !campaignLink.includes("document.cookie"),
   "the link stores nothing",
