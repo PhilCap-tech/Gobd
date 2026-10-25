@@ -7,6 +7,9 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { KanzleiUnsubscribePanel } from "@/app/steuerberater/merkblatt/abmelden/unsubscribe-panel";
 import { AMPEL_CONFIRM_WINDOW_MS } from "@/lib/ampel";
 import { AMPEL_PRIVACY_PARAGRAPHS } from "@/lib/ampel-questions";
 import {
@@ -20,6 +23,9 @@ import {
   KANZLEI_OPT_IN_SCOPE,
   KANZLEI_PRIVACY_PARAGRAPHS,
   KANZLEI_SUBMIT_LABEL,
+  KANZLEI_UNSUBSCRIBE_BUTTON,
+  KANZLEI_UNSUBSCRIBE_DONE,
+  KANZLEI_UNSUBSCRIBE_INTRO,
 } from "@/lib/kanzlei-copy";
 import { confirmKanzleiDoi } from "@/lib/kanzlei-confirm";
 import { redactKanzleiLead } from "@/lib/kanzlei-lead";
@@ -410,7 +416,30 @@ const routeToken = await createKanzleiUnsubscribeToken(allowedLiveRecipient, rou
 const scanned = await getKanzleiAbmelden(
   new Request(`https://www.gobd-doku-erstellen.de/api/kanzlei-merkblatt/abmelden?token=${encodeURIComponent(routeToken)}`),
 );
-assertOk(scanned.status === 303 && routeLeads.get(routeLead.leadId)?.marketingOptIn === "confirmed", "GET does not unsubscribe");
+const scannedLocation = scanned.headers.get("location") ?? "";
+assertOk(
+  scanned.status === 303 &&
+    scannedLocation.includes("/steuerberater/merkblatt/abmelden") &&
+    routeLeads.get(routeLead.leadId)?.marketingOptIn === "confirmed",
+  "GET does not unsubscribe",
+);
+const panelSource = readFileSync("app/steuerberater/merkblatt/abmelden/unsubscribe-panel.tsx", "utf8");
+const pageSource = readFileSync("app/steuerberater/merkblatt/abmelden/page.tsx", "utf8");
+assertOk(!panelSource.includes("useEffect") && !pageSource.includes("withdrawKanzleiMarketing"), "the confirmation page does not unsubscribe on load");
+assertOk(
+  panelSource.includes('type="submit"') &&
+    panelSource.indexOf("fetch(") > panelSource.indexOf("function withdraw"),
+  "the unsubscribe POST stays inside the confirmation handler",
+);
+const panelHtml = renderToStaticMarkup(createElement(KanzleiUnsubscribePanel, { token: routeToken }));
+assertOk(
+  panelHtml.includes(KANZLEI_UNSUBSCRIBE_BUTTON) &&
+    panelHtml.includes(KANZLEI_UNSUBSCRIBE_INTRO) &&
+    panelHtml.includes('type="submit"') &&
+    !panelHtml.includes(KANZLEI_UNSUBSCRIBE_DONE) &&
+    routeLeads.get(routeLead.leadId)?.marketingOptIn === "confirmed",
+  "loading the confirmation page shows the button and does not unsubscribe",
+);
 const oneClick = await postKanzleiAbmelden(
   new Request(`https://www.gobd-doku-erstellen.de/api/kanzlei-merkblatt/abmelden?token=${encodeURIComponent(routeToken)}`, {
     method: "POST",
