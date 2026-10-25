@@ -149,31 +149,31 @@ ok(Boolean(currentMail?.text.includes(KASSEN_RESULTS.gelb.headline)), "current-d
 ok(Boolean(mail?.text.includes(KASSEN_QUESTIONS[0].source)), "result mail includes the source");
 ok(Boolean(mail && !mail.text.includes("149")), "result mail has no price");
 
+async function main() {
 const consentAt = "2026-10-16T08:00:00.000Z";
-const kassenToken = createAmpelDoiToken({
+const kassenToken = await createAmpelDoiToken({
   email: "kassen@example.com",
   answers: "JJJJJJ",
   ref: "",
   consentAt,
   check: "kassen-check",
 });
-const kassenPayload = verifyAmpelDoiToken(kassenToken, Date.parse(consentAt));
+const kassenPayload = await verifyAmpelDoiToken(kassenToken, Date.parse(consentAt));
 ok(kassenPayload?.check === "kassen-check" && kassenPayload.answers === "JJJJJJ", "kassen DOI token verifies");
-ok(verifyAmpelDoiToken(createAmpelDoiToken({ email: "kassen@example.com", answers: "JJJJJJ", ref: "", consentAt })) === null, "six answers are not an Ampel token");
+ok(await verifyAmpelDoiToken(await createAmpelDoiToken({ email: "kassen@example.com", answers: "JJJJJJ", ref: "", consentAt })) === null, "six answers are not an Ampel token");
 
 const ampelMap: AmpelAnswerMap = {};
 for (const question of AMPEL_QUESTIONS) ampelMap[question.id] = "ja";
 const ampelCode = encodeAmpelAnswers(ampelMap);
-const ampelToken = createAmpelDoiToken({
+const ampelToken = await createAmpelDoiToken({
   email: "ampel@example.com",
   answers: ampelCode ?? "",
   ref: "",
   consentAt,
 });
-const ampelPayload = verifyAmpelDoiToken(ampelToken, Date.parse(consentAt));
+const ampelPayload = await verifyAmpelDoiToken(ampelToken, Date.parse(consentAt));
 ok(Boolean(ampelPayload) && ampelPayload?.check === undefined, "Ampel DOI token stays unchanged");
 
-async function main() {
 const sent = async () => ({ sent: true, stub: false });
 const store = createMemoryAmpelRateStore();
 const ip = "203.0.113.40";
@@ -298,7 +298,7 @@ const doi = await requestAmpelConfirmation(
 );
 ok(doi.ok === true && doiLeads[0]?.ampelLight === "gelb" && doiLeads[0]?.ampelScore === "87", "DOI stores current-data no as yellow");
 
-const tseToken = createAmpelDoiToken({
+const tseToken = await createAmpelDoiToken({
   email: "tse-doi@example.com",
   answers: "NJJJJJ",
   ref: "",

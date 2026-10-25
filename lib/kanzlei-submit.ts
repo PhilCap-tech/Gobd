@@ -120,7 +120,7 @@ export async function submitKanzleiMerkblatt(
 
   if (!recordOptIn) return { ok: true, downloadUrl, mailed: false };
 
-  const token = createKanzleiDoiToken(
+  const token = await createKanzleiDoiToken(
     { email, consentAt: downloadedAt, consentTextVersion: KANZLEI_CONSENT_TEXT_VERSION },
     now,
   );

@@ -22,7 +22,7 @@ export default async function KanzleiConfirmPage({
 }) {
   const params = await searchParams;
   const token = firstQueryValue(params.token) ?? "";
-  const payload = verifyKanzleiDoiToken(token);
+  const payload = await verifyKanzleiDoiToken(token);
 
   return (
     <div className={`${styles.page} kanzlei-home`}>

@@ -68,11 +68,11 @@ export function buildAmpelConfirmationMail(input: { confirmUrl: string }): {
   return { subject, text: wrapTransactionalText(lines.join("\n")), html };
 }
 
-export function buildAmpelResultMail(payload: AmpelDoiPayload): {
+export async function buildAmpelResultMail(payload: AmpelDoiPayload): Promise<{
   subject: string;
   text: string;
   html: string;
-} | null {
+} | null> {
   const answers = decodeAmpelAnswers(payload.answers);
   if (!answers) return null;
   const scored = scoreAmpelCheck(answers);
@@ -100,7 +100,7 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
   }
   lines.push("", "Hinweise:");
   for (const hint of band.hints) lines.push(`- ${hint}`);
-  const unsubscribeUrl = ampelUnsubscribeUrl(payload);
+  const unsubscribeUrl = await ampelUnsubscribeUrl(payload);
   lines.push(
     "",
     AMPEL_CTA.headline,
@@ -151,8 +151,8 @@ export function buildAmpelResultMail(payload: AmpelDoiPayload): {
   return { subject, text: wrapTransactionalText(lines.join("\n")), html };
 }
 
-function ampelUnsubscribeUrl(payload: AmpelDoiPayload): string {
-  const token = createAmpelUnsubscribeToken(payload.email, payload.consentAt);
+async function ampelUnsubscribeUrl(payload: AmpelDoiPayload): Promise<string> {
+  const token = await createAmpelUnsubscribeToken(payload.email, payload.consentAt);
   if (!token) return "";
   return `${getAppUrl()}/ampel-check/abmelden?token=${encodeURIComponent(token)}`;
 }
@@ -162,11 +162,11 @@ function ampelConfirmDedupeKey(email: string, consentAt: string): string {
 }
 
 /** One-click and mailto unsubscribe headers. The visible link stays on the confirm page. */
-export function ampelListUnsubscribeHeaders(
+export async function ampelListUnsubscribeHeaders(
   email: string,
   consentAt: string,
-): Record<string, string> | undefined {
-  const token = createAmpelUnsubscribeToken(email, consentAt);
+): Promise<Record<string, string> | undefined> {
+  const token = await createAmpelUnsubscribeToken(email, consentAt);
   if (!token) return undefined;
   const oneClickUrl = `${getAppUrl()}/api/ampel/abmelden?token=${encodeURIComponent(token)}`;
   const mailto = `mailto:${LEGAL_OPERATOR.email}?subject=Abmelden`;
@@ -184,7 +184,7 @@ export async function sendAmpelConfirmationMail(input: {
   email: string;
   token: string;
 }): Promise<MailResult> {
-  const confirmed = verifyAmpelDoiToken(input.token);
+  const confirmed = await verifyAmpelDoiToken(input.token);
   const consentAt = confirmed?.consentAt ?? "";
   if (await ampelConsentBlocked(input.email, consentAt)) {
     console.info("[ampel] Bestätigungsmail blockiert");
@@ -201,7 +201,8 @@ export async function sendAmpelConfirmationMail(input: {
     return { stub: true, sent: false };
   }
   const mail = buildAmpelConfirmationMail({ confirmUrl });
-  const headers = confirmed ? ampelListUnsubscribeHeaders(confirmed.email, confirmed.consentAt) : undefined;
+  const headers = confirmed ? await ampelListUnsubscribeHeaders(confirmed.email, confirmed.consentAt) : undefined;
+  if (confirmed && !headers) return { stub: false, sent: false };
   return sendDedupedEmail({
     dedupeKey: ampelConfirmDedupeKey(confirmed?.email || input.email, consentAt),
     windowMs: AMPEL_CONFIRM_WINDOW_MS,
@@ -214,7 +215,7 @@ export async function sendAmpelConfirmationMail(input: {
 }
 
 export async function sendAmpelResultMail(payload: AmpelDoiPayload): Promise<MailResult> {
-  const mail = buildAmpelResultMail(payload);
+  const mail = await buildAmpelResultMail(payload);
   if (!mail) return { stub: false, sent: false };
   if (!(await mayMarket(payload.email, { consentAt: payload.consentAt, answers: payload.answers }))) {
     console.info("[ampel] Ergebnismail blockiert");
@@ -229,7 +230,8 @@ export async function sendAmpelResultMail(payload: AmpelDoiPayload): Promise<Mai
     console.info(mail.text);
     return { stub: true, sent: false };
   }
-  const headers = ampelListUnsubscribeHeaders(payload.email, payload.consentAt);
+  const headers = await ampelListUnsubscribeHeaders(payload.email, payload.consentAt);
+  if (!headers) return { stub: false, sent: false };
   return sendDedupedEmail({
     dedupeKey: ampelResultDedupeKey(payload),
     to: payload.email,
