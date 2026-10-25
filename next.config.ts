@@ -24,11 +24,11 @@ const noStoreHeaders = [
  */
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://connect.facebook.net https://js.stripe.com",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://connect.facebook.net https://js.stripe.com https://www.digistore24-scripts.com https://www.checkout-ds24.com https://www.digistore24.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://www.google-analytics.com https://ssl.google-analytics.com https://www.googletagmanager.com https://www.google.com https://www.google.de https://googleads.g.doubleclick.net https://www.googleadservices.com https://stats.g.doubleclick.net https://www.facebook.com",
+  "img-src 'self' data: blob: https://www.google-analytics.com https://ssl.google-analytics.com https://www.googletagmanager.com https://www.google.com https://www.google.de https://googleads.g.doubleclick.net https://www.googleadservices.com https://stats.g.doubleclick.net https://www.facebook.com https://www.checkout-ds24.com https://www.digistore24.com",
   "font-src 'self'",
-  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.de https://www.googleadservices.com https://pagead2.googlesyndication.com https://ad.doubleclick.net https://www.facebook.com https://connect.facebook.net https://api.stripe.com",
+  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.de https://www.googleadservices.com https://pagead2.googlesyndication.com https://ad.doubleclick.net https://www.facebook.com https://connect.facebook.net https://api.stripe.com https://www.checkout-ds24.com https://www.digistore24.com",
   "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://td.doubleclick.net",
   "form-action 'self' https://checkout.stripe.com",
   "frame-ancestors 'none'",

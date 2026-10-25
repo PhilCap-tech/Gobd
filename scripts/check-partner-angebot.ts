@@ -12,6 +12,13 @@ import sitemap from "../app/sitemap";
 import { LegalMarkdown } from "../lib/legal-markdown";
 import { buildLlmsTxt } from "../lib/llms-txt";
 import {
+  DIGISTORE_PROMOCODE_SCRIPT_ID,
+  DIGISTORE_PROMOCODE_SCRIPT_SRC,
+  resetDigistorePromocodeForChecks,
+  syncDigistorePromocode,
+} from "../lib/digistore-promocode";
+import {
+  DIGISTORE24_PRODUCT_ID,
   DIGISTORE24_PRODUCT_URL,
   PARTNER_ANGEBOT_LEGAL_NOTICE,
   PARTNER_ANGEBOT_NOTICE_HREF,
@@ -20,6 +27,7 @@ import {
   PARTNER_ANGEBOT_ROBOTS_TAG,
   digistore24BuyHref,
 } from "../lib/partner-angebot";
+import { saveConsent } from "../lib/tracking";
 import { MONTHLY_EUR, SETUP_EUR, TODAY_EUR } from "../lib/pricing";
 import { INDEXABLE_STATIC_PATHS, canonicalUrl } from "../lib/seo";
 
@@ -33,6 +41,7 @@ function source(file: string): string {
 }
 
 ok(SETUP_EUR === 149 && MONTHLY_EUR === 49 && TODAY_EUR === 198, "homepage price constants are unchanged");
+ok(DIGISTORE24_PRODUCT_ID === 751404, "product id is 751404");
 ok(
   DIGISTORE24_PRODUCT_URL === "https://www.digistore24.com/product/751404",
   "product url is the Digistore24 offer",
@@ -195,6 +204,153 @@ ok(
 
 const llms = buildLlmsTxt();
 ok(!llms.includes(PARTNER_ANGEBOT_PATH), "llms.txt omits the partner page");
+
+ok(page.includes("<DigistorePromocode />"), "the sales page mounts the promocode");
+ok(!page.includes("digistore24-scripts.com"), "the server page does not embed the script url");
+ok(!source("app/success/page.tsx").includes("DigistorePromocode"), "the thank-you page has no promocode");
+ok(!source("app/layout.tsx").includes("DigistorePromocode"), "the promocode is not site-wide");
+const promocodeComponent = source("components/digistore-promocode.tsx");
+ok(promocodeComponent.includes("syncDigistorePromocode()"), "the component syncs on mount");
+ok(
+  promocodeComponent.includes("subscribeConsent(syncDigistorePromocode)"),
+  "the component follows the marketing consent event",
+);
+const promocodeLib = source("lib/digistore-promocode.ts");
+ok(promocodeLib.includes(DIGISTORE_PROMOCODE_SCRIPT_SRC), "the script url is the official digistore.js");
+ok(
+  promocodeLib.includes("adjust_domain: true") && promocodeLib.includes("DIGISTORE24_PRODUCT_ID"),
+  "the call matches the official promocode options",
+);
+ok(promocodeLib.includes("hasMarketingConsent()"), "the loader checks marketing consent");
+ok(
+  config.includes("https://www.digistore24-scripts.com") &&
+    config.includes("https://www.checkout-ds24.com") &&
+    config.includes("https://www.digistore24.com"),
+  "the report-only CSP allows the Digistore24 script, pixel and JSONP hosts",
+);
+
+type PromoOptions = { product_id: number; adjust_domain: boolean };
+type PromoTag = {
+  id: string;
+  src: string;
+  async: boolean;
+  onload: null | (() => void);
+};
+
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    clear() {
+      map.clear();
+    },
+    getItem(key: string) {
+      return map.has(key) ? map.get(key)! : null;
+    },
+    key(index: number) {
+      return [...map.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      map.delete(key);
+    },
+    setItem(key: string, value: string) {
+      map.set(key, String(value));
+    },
+  };
+}
+
+function installPromoDom() {
+  const scripts: PromoTag[] = [];
+  const calls: PromoOptions[] = [];
+  const listeners = new Map<string, Set<() => void>>();
+  const win = {
+    localStorage: memoryStorage(),
+    location: { protocol: "https:", search: "" },
+    dispatchEvent(event: Event) {
+      listeners.get(event.type)?.forEach((fn) => fn());
+      return true;
+    },
+    addEventListener(type: string, fn: () => void) {
+      const set = listeners.get(type) ?? new Set<() => void>();
+      set.add(fn);
+      listeners.set(type, set);
+    },
+    removeEventListener(type: string, fn: () => void) {
+      listeners.get(type)?.delete(fn);
+    },
+  };
+  const doc = {
+    cookie: "",
+    getElementById(id: string) {
+      return scripts.find((script) => script.id === id) ?? null;
+    },
+    createElement() {
+      return { id: "", src: "", async: false, onload: null } as PromoTag;
+    },
+    head: {
+      appendChild(el: PromoTag) {
+        scripts.push(el);
+      },
+    },
+  };
+  globalThis.window = win as unknown as Window & typeof globalThis;
+  globalThis.document = doc as unknown as Document;
+  resetDigistorePromocodeForChecks();
+  return {
+    scripts,
+    calls,
+    defineApi() {
+      window.digistorePromocode = (options: PromoOptions) => {
+        calls.push(options);
+      };
+    },
+  };
+}
+
+{
+  const denied = installPromoDom();
+  syncDigistorePromocode();
+  ok(denied.scripts.length === 0 && denied.calls.length === 0, "no promocode script without consent");
+  saveConsent(false);
+  syncDigistorePromocode();
+  ok(
+    denied.scripts.length === 0 && denied.calls.length === 0,
+    "essential-only consent still loads no promocode script",
+  );
+
+  const granted = installPromoDom();
+  saveConsent(true);
+  syncDigistorePromocode();
+  ok(granted.scripts.length === 1, "marketing consent inserts one script");
+  ok(
+    granted.scripts[0].id === DIGISTORE_PROMOCODE_SCRIPT_ID &&
+      granted.scripts[0].src === DIGISTORE_PROMOCODE_SCRIPT_SRC &&
+      granted.scripts[0].async === true,
+    "the inserted script is the official async digistore.js",
+  );
+  ok(granted.calls.length === 0, "digistorePromocode waits until the script has loaded");
+  granted.defineApi();
+  granted.scripts[0].onload?.();
+  ok(
+    granted.calls.length === 1 &&
+      granted.calls[0].product_id === 751404 &&
+      granted.calls[0].adjust_domain === true,
+    "onload calls digistorePromocode for product 751404",
+  );
+  syncDigistorePromocode();
+  granted.scripts[0].onload?.();
+  ok(granted.calls.length === 1 && granted.scripts.length === 1, "a second sync does not load the script again");
+
+  const late = installPromoDom();
+  saveConsent(true);
+  syncDigistorePromocode();
+  saveConsent(false);
+  late.defineApi();
+  late.scripts[0].onload?.();
+  ok(late.calls.length === 0, "revoked consent before load does not call digistorePromocode");
+}
 
 async function main() {
   const urls = (await sitemap()).map((entry) => entry.url);
