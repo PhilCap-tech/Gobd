@@ -24,9 +24,41 @@ declare global {
 }
 
 let promocodeCalled = false;
+let historyGuarded = false;
 
 export function resetDigistorePromocodeForChecks(): void {
   promocodeCalled = false;
+  historyGuarded = false;
+}
+
+/**
+ * digistore.js calls history.pushState("", document.title, url) while it
+ * strips affiliate parameters from the address. Next's patched pushState
+ * copies __NA onto that state. A string is not null, so the assignment throws
+ * "Cannot create property '__NA' on string ''" and the history update never
+ * runs. Null is the value Next already turns into a fresh object before it
+ * copies __NA and the router tree, so back/forward stays an app-router entry.
+ * Object state, including Next's own __NA payloads, is passed through.
+ */
+function normalizeHistoryState(state: unknown): unknown {
+  return state !== null && typeof state === "object" ? state : null;
+}
+
+function guardDigistoreHistoryState(): void {
+  if (historyGuarded || typeof window === "undefined") return;
+  const history = window.history;
+  if (typeof history?.pushState !== "function" || typeof history.replaceState !== "function") {
+    return;
+  }
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+  historyGuarded = true;
+  history.pushState = function pushState(data, unused, url) {
+    return originalPushState.call(this, normalizeHistoryState(data), unused, url);
+  };
+  history.replaceState = function replaceState(data, unused, url) {
+    return originalReplaceState.call(this, normalizeHistoryState(data), unused, url);
+  };
 }
 
 function callPromocode(): void {
@@ -43,6 +75,8 @@ function callPromocode(): void {
 export function syncDigistorePromocode(): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (!hasMarketingConsent() || promocodeCalled) return;
+
+  guardDigistoreHistoryState();
 
   let script = document.getElementById(DIGISTORE_PROMOCODE_SCRIPT_ID) as HTMLScriptElement | null;
   if (!script) {
