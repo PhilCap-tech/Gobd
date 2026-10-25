@@ -21,8 +21,14 @@ export function isAllowlistedTagQuery(key: string): boolean {
   return key.startsWith("utm_") || ALLOWED_EXACT.has(key);
 }
 
-/** Address-bar keys that decode to a mailbox. Other params stay, including `utm_*` and `a`. */
-const ADDRESS_BAR_DROP = new Set(["token", "t"]);
+/**
+ * Address-bar keys that carry a mail-link id. Confirm and unsubscribe links
+ * use `token` (opaque id since the signed tokens were replaced). `t` is the
+ * older key. Other params stay, including `utm_*`, `a`, and `next`.
+ */
+export const ADDRESS_BAR_SECRET_KEYS = ["token", "t"] as const;
+
+const ADDRESS_BAR_DROP = new Set<string>(ADDRESS_BAR_SECRET_KEYS);
 
 export function allowlistedSearch(search: string): string {
   const raw = search.startsWith("?") ? search.slice(1) : search;

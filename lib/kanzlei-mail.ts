@@ -39,8 +39,8 @@ export function kanzleiPrivacyUrl(): string {
 }
 
 /** Link for a later marketing mail. The DOI mail does not include it. */
-export function kanzleiUnsubscribeUrl(email: string, consentAt: string): string {
-  const token = createKanzleiUnsubscribeToken(email, consentAt);
+export async function kanzleiUnsubscribeUrl(email: string, consentAt: string): Promise<string> {
+  const token = await createKanzleiUnsubscribeToken(email, consentAt);
   if (!token) return "";
   return `${getAppUrl()}/steuerberater/merkblatt/abmelden?token=${encodeURIComponent(token)}`;
 }
@@ -50,11 +50,11 @@ export function kanzleiUnsubscribeFooterLine(url: string): string {
 }
 
 /** One-click and mailto headers for a Kanzlei marketing mail. The DOI mail does not use them. */
-export function kanzleiListUnsubscribeHeaders(
+export async function kanzleiListUnsubscribeHeaders(
   email: string,
   consentAt: string,
-): Record<string, string> | undefined {
-  const token = createKanzleiUnsubscribeToken(email, consentAt);
+): Promise<Record<string, string> | undefined> {
+  const token = await createKanzleiUnsubscribeToken(email, consentAt);
   if (!token) return undefined;
   const oneClickUrl = `${getAppUrl()}/api/kanzlei-merkblatt/abmelden?token=${encodeURIComponent(token)}`;
   const mailto = `mailto:${LEGAL_OPERATOR.email}?subject=Abmelden`;
@@ -100,7 +100,7 @@ export async function sendKanzleiMarketingMail(
     (lead) => lead.marketingOptIn === "confirmed" && Boolean(lead.doiConfirmedAt) && lead.consentAt === consentAt,
   );
   if (!confirmed) return { stub: false, sent: false, blocked: "no-confirmed-doi" };
-  const headers = kanzleiListUnsubscribeHeaders(email, consentAt);
+  const headers = await kanzleiListUnsubscribeHeaders(email, consentAt);
   if (!headers) return { stub: false, sent: false, blocked: "no-confirmed-doi" };
   return sendDedupedEmail({
     dedupeKey: `kanzlei-marketing:${email}:${consentAt}`,

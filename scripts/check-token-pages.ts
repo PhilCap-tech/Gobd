@@ -13,10 +13,16 @@ import path from "node:path";
 import nextConfig from "../next.config";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match.js";
 import { sanitizeAnalyticsUrl } from "../lib/analytics-url";
+import { ampelConfirmUrl } from "../lib/ampel-mail";
+import { kanzleiConfirmUrl } from "../lib/kanzlei-mail";
+import { kassenConfirmUrl } from "../lib/kassen-check-mail";
+import { isOpaqueMailLinkToken, newOpaqueMailLinkToken } from "../lib/mail-link-token-store";
 import {
+  ADDRESS_BAR_SECRET_KEYS,
   TAG_QUERY_ALLOWLIST,
   allowlistedSearch,
   isAllowlistedTagQuery,
+  searchWithoutSecrets,
   stripSensitiveQueryFromAddressBar,
   tagHitFields,
 } from "../lib/tag-page-url";
@@ -74,6 +80,36 @@ for (const prefix of REQUIRED_PREFIXES) {
   ok(isTokenLandingPath(prefix), `${prefix} is a token landing`);
 }
 
+const opaqueId = newOpaqueMailLinkToken();
+ok(isOpaqueMailLinkToken(opaqueId), "the mail-link sample is an opaque id");
+const mailLinkFiles = ["lib/ampel-mail.ts", "lib/kassen-check-mail.ts", "lib/kanzlei-mail.ts"];
+const mailLinkRe =
+  /\$\{getAppUrl\(\)\}(?:\$\{KASSEN_CHECK_PATH\})?(\/[a-z0-9\-/]+)\?([A-Za-z0-9_]+)=\$\{encodeURIComponent\(token\)\}/g;
+const mailLinks: Array<{ file: string; path: string; key: string }> = [];
+for (const file of mailLinkFiles) {
+  const source = readFileSync(file, "utf8");
+  for (const match of source.matchAll(mailLinkRe)) {
+    const route = match[1] === "/bestaetigen" ? `${KASSEN_CHECK_PATH}/bestaetigen` : match[1];
+    mailLinks.push({ file, path: route, key: match[2] });
+  }
+}
+ok(mailLinks.length >= 6, "confirm, unsubscribe, and one-click links were found");
+for (const link of mailLinks) {
+  ok(isTokenLandingPath(link.path), `${link.file} ${link.path} is a token landing`);
+  ok(
+    (ADDRESS_BAR_SECRET_KEYS as readonly string[]).includes(link.key),
+    `${link.file} query ${link.key} is stripped from the address bar`,
+  );
+  ok(!isAllowlistedTagQuery(link.key), `${link.key} is not sent as a tag query`);
+}
+for (const url of [ampelConfirmUrl(opaqueId), kassenConfirmUrl(opaqueId), kanzleiConfirmUrl(opaqueId)]) {
+  const parsed = new URL(url);
+  ok(isTokenLandingPath(parsed.pathname), `${parsed.pathname} confirm URL is a token landing`);
+  assert.deepEqual([...parsed.searchParams.keys()], ["token"]);
+  const stripped = searchWithoutSecrets(parsed.search);
+  ok(stripped.changed && stripped.search === "", `${parsed.pathname} drops the opaque id from the address bar`);
+  ok(!stripped.search.includes(opaqueId), `${parsed.pathname} does not keep the opaque id`);
+}
 ok(isTokenLandingPath(`${KASSEN_CHECK_PATH}/bestaetigen`), "Kassen confirm link is a token landing");
 ok(isTokenLandingPath("/api/ampel/abmelden"), "Ampel one-click unsubscribe is a token landing");
 ok(isTokenLandingPath("/ampel-check/abmelden"), "Ampel unsubscribe page is a token landing");
@@ -176,7 +212,10 @@ ok(layout.includes("<MarketingPixel />"), "the marketing pixel stays in the layo
 
 const urlLib = readFileSync("lib/tag-page-url.ts", "utf8");
 ok(urlLib.includes("History.prototype.replaceState"), "the address bar uses the native replaceState");
-ok(urlLib.includes('new Set(["token", "t"])'), "only token and t leave the address bar");
+ok(
+  urlLib.includes('export const ADDRESS_BAR_SECRET_KEYS = ["token", "t"]'),
+  "only token and t leave the address bar",
+);
 
 const analytics = readFileSync("components/vercel-analytics.tsx", "utf8");
 ok(analytics.includes("beforeSend={sanitizeAnalyticsEvent}"), "Vercel Analytics still uses beforeSend");

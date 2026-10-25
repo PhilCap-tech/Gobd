@@ -133,7 +133,7 @@ export async function sendKassenConfirmationMail(input: {
   email: string;
   token: string;
 }): Promise<MailResult> {
-  const confirmed = verifyAmpelDoiToken(input.token);
+  const confirmed = await verifyAmpelDoiToken(input.token);
   const consentAt = confirmed?.consentAt ?? "";
   if (await ampelConsentBlocked(input.email, consentAt)) {
     console.info("[kassen] Bestätigungsmail blockiert");
@@ -150,7 +150,8 @@ export async function sendKassenConfirmationMail(input: {
     return { stub: true, sent: false };
   }
   const mail = buildKassenConfirmationMail({ confirmUrl });
-  const headers = confirmed ? ampelListUnsubscribeHeaders(confirmed.email, confirmed.consentAt) : undefined;
+  const headers = confirmed ? await ampelListUnsubscribeHeaders(confirmed.email, confirmed.consentAt) : undefined;
+  if (confirmed && !headers) return { stub: false, sent: false };
   return sendDedupedEmail({
     dedupeKey: kassenConfirmDedupeKey(confirmed?.email || input.email, consentAt),
     windowMs: AMPEL_CONFIRM_WINDOW_MS,
@@ -195,7 +196,8 @@ export async function sendKassenDoiAckMail(payload: AmpelDoiPayload): Promise<Ma
     console.info("[kassen] dev fallback Einwilligungsmail — nur Server-Log, nicht in der Response");
     return { stub: true, sent: false };
   }
-  const headers = ampelListUnsubscribeHeaders(payload.email, payload.consentAt);
+  const headers = await ampelListUnsubscribeHeaders(payload.email, payload.consentAt);
+  if (!headers) return { stub: false, sent: false };
   return sendDedupedEmail({
     dedupeKey: kassenAckDedupeKey(payload),
     to: payload.email,

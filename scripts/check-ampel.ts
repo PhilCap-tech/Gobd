@@ -199,7 +199,7 @@ try {
     doiPending.ok === true && doiLeads[0]?.ampelLight === "gelb" && doiLeads[0]?.ampelScore === "95",
     "DOI stores another no as yellow",
   );
-  const coreToken = createAmpelDoiToken({
+  const coreToken = await createAmpelDoiToken({
     email: "aufbewahrung-nein@example.com",
     answers: encodeAmpelAnswers(all("ja", { aufbewahrung: "nein" })) ?? "",
     ref: "",
@@ -395,7 +395,7 @@ try {
   assertOk(sanitizeAmpelRef("x".repeat(120)).length === 80, "ref is capped");
 
   const now = 1_700_000_000_000;
-  const token = createAmpelDoiToken(
+  const token = await createAmpelDoiToken(
     {
       email: "Mandant@Kanzlei.example",
       answers: roundTrip ?? "",
@@ -405,16 +405,16 @@ try {
     now,
   );
   assertOk(token, "token is signed");
-  const verified = verifyAmpelDoiToken(token, now + AMPEL_DOI_TTL_MS);
+  const verified = await verifyAmpelDoiToken(token, now + AMPEL_DOI_TTL_MS);
   assertOk(verified?.email === "mandant@kanzlei.example", "token email is normalized");
   assertOk(verified?.answers === roundTrip, "token keeps answers");
   assertOk(verified?.ref === "Kanzlei Müller", "token keeps the ref");
   assertOk(verified?.consentAt === "2026-10-13T08:00:00.000Z", "token keeps the consent time");
-  assertOk(verifyAmpelDoiToken(token, now + AMPEL_DOI_TTL_MS + 1) === null, "expired token is rejected");
-  assertOk(verifyAmpelDoiToken(`${token}x`, now) === null, "tampered token is rejected");
-  assertOk(verifyAmpelDoiToken("not-a-token", now) === null, "garbage token is rejected");
+  assertOk(await verifyAmpelDoiToken(token, now + AMPEL_DOI_TTL_MS + 1) === null, "expired token is rejected");
+  assertOk(await verifyAmpelDoiToken(`${token}x`, now) === null, "tampered token is rejected");
+  assertOk(await verifyAmpelDoiToken("not-a-token", now) === null, "garbage token is rejected");
   const [body, sig] = (token ?? "").split(".");
-  assertOk(verifyAmpelDoiToken(`${body}.${sig?.slice(1)}`, now) === null, "short signature is rejected");
+  assertOk(await verifyAmpelDoiToken(`${body}.${sig?.slice(1)}`, now) === null, "short signature is rejected");
 
   const lead = toAmpelReadinessLead({
     email: "mandant@kanzlei.example",
@@ -437,10 +437,10 @@ try {
     "readiness sheet can store both timestamps",
   );
 
-  const payload = verifyAmpelDoiToken(token, now);
+  const payload = await verifyAmpelDoiToken(token, now);
   assertOk(payload, "payload for mail");
   const confirmation = buildAmpelConfirmationMail({ confirmUrl: "https://www.gobd-doku-erstellen.de/ampel-check/bestaetigen?token=abc" });
-  const resultMail = payload ? buildAmpelResultMail(payload) : null;
+  const resultMail = payload ? await buildAmpelResultMail(payload) : null;
   assertOk(resultMail, "result mail");
   assertOk(!confirmation.text.includes(reviewMarker) && !confirmation.html.includes(reviewMarker), "confirmation mail hides review notes");
   assertOk(!resultMail?.text.includes(reviewMarker) && !resultMail?.html.includes(reviewMarker), "result mail hides review notes");
@@ -604,7 +604,7 @@ try {
   const consentAt = "2026-10-13T08:00:00.000Z";
   const confirmNow = 1_700_000_000_000;
   const code = encodeAmpelAnswers(all("ja"));
-  const confirmToken = createAmpelDoiToken(
+  const confirmToken = await createAmpelDoiToken(
     { email: "Mandant@Kanzlei.example", answers: code ?? "", ref: "Kanzlei", consentAt },
     confirmNow,
   );
@@ -2403,7 +2403,7 @@ try {
   const proofLead = [...proofStore.values()][0];
   assertOk(proofRequested.ok && proofLead?.marketingOptIn === "pending" && proofLead.doiConfirmedAt === "", "signup does not mark the address for marketing");
   assertOk(proofLead?.consentTextVersion === "2026-10-14" && proofLead.consentIp === "203.0.113.50", "signup stores the version and the IP");
-  const proofToken = createAmpelDoiToken(
+  const proofToken = await createAmpelDoiToken(
     { email: proofInput.email, answers: jaCode, ref: "Kanzlei", consentAt: proofLead?.consentAt ?? signup, consentTextVersion: AMPEL_CONSENT_TEXT_VERSION },
     Date.parse(signup),
   );
@@ -2419,7 +2419,7 @@ try {
   const confirmedLead = [...proofStore.values()][0];
   assertOk(proofConfirmed.ok && confirmedLead?.marketingOptIn === "confirmed" && confirmedLead.doiConfirmedAt !== "", "the DOI click marks the address for marketing");
 
-  const unsubscribeToken = createAmpelUnsubscribeToken(confirmedLead?.email ?? "", confirmedLead?.consentAt ?? "");
+  const unsubscribeToken = await createAmpelUnsubscribeToken(confirmedLead?.email ?? "", confirmedLead?.consentAt ?? "");
   const withdrawn = await withdrawAmpelMarketing(unsubscribeToken ?? "", {
     now: () => Date.parse(signup) + 2000,
     list: async () => [...proofStore.values()],
@@ -2481,11 +2481,11 @@ try {
     // sendAmpelConfirmationMail verifies this DOI token with Date.now().
     // Create it at test time. A fixed past timestamp leaves the 48h window.
     const t0 = Date.now();
-    const bareToken = createAmpelDoiToken(
+    const bareToken = await createAmpelDoiToken(
       { email: guardEmail, answers: jaCode, ref: "", consentAt: new Date(t0).toISOString() },
       t0,
     );
-    const barePayload = verifyAmpelDoiToken(bareToken, t0);
+    const barePayload = await verifyAmpelDoiToken(bareToken, t0);
     const blockedBare = barePayload ? await sendAmpelResultMail(barePayload) : null;
     assertOk(
       blockedBare?.sent === false && blockedBare.blocked === "no-confirmed-doi" && providerSends === 0,
@@ -2544,7 +2544,7 @@ try {
     );
 
     const firstLead = [...guardLeads.values()][0];
-    const unsubscribeToken = createAmpelUnsubscribeToken(guardEmail, firstLead?.consentAt ?? "");
+    const unsubscribeToken = await createAmpelUnsubscribeToken(guardEmail, firstLead?.consentAt ?? "");
     const withdrawnGuard = await withdrawAmpelMarketing(unsubscribeToken ?? "", {
       now: () => t0 + 60_000,
       list: async () => [...guardLeads.values()],
@@ -2570,7 +2570,7 @@ try {
       saveLead: saveGuardLead,
       sendResult: (payload) => sendAmpelResultMail(payload),
     });
-    const oldPayload = verifyAmpelDoiToken(doiTokens[0], t0 + 1000);
+    const oldPayload = await verifyAmpelDoiToken(doiTokens[0], t0 + 1000);
     const oldSend = oldPayload ? await sendAmpelResultMail(oldPayload) : null;
     assertOk(
       oldAgain.ok === true && oldSend?.blocked === "no-confirmed-doi" && providerSends === sendsAfterWithdraw,
@@ -2586,7 +2586,7 @@ try {
       renewed.ok === true && renewed.blocked !== "suppressed" && doiTokens.length === 2 && providerSends === sendsAfterWithdraw + 1,
       "a new checkbox after withdrawal still receives the DOI mail",
     );
-    const pendingPayload = verifyAmpelDoiToken(doiTokens[1], tNew);
+    const pendingPayload = await verifyAmpelDoiToken(doiTokens[1], tNew);
     const pendingSend = pendingPayload ? await sendAmpelResultMail(pendingPayload) : null;
     assertOk(
       pendingSend?.blocked === "no-confirmed-doi" && providerSends === sendsAfterWithdraw + 1,
@@ -2689,7 +2689,7 @@ try {
       marketingOptIn: "confirmed",
     });
     routeLeads.set(routeLead.leadId, routeLead);
-    const routeToken = createAmpelUnsubscribeToken(guardEmail, routeConsent) ?? "";
+    const routeToken = await createAmpelUnsubscribeToken(guardEmail, routeConsent) ?? "";
     const scanned = await getAmpelAbmelden(
       new Request(`https://www.gobd-doku-erstellen.de/api/ampel/abmelden?token=${encodeURIComponent(routeToken)}`),
     );
@@ -2760,7 +2760,7 @@ try {
     });
     routeLeads.set(laterLead.leadId, laterLead);
     routeNow = Date.parse(laterConsent) + 1000;
-    const jsonToken = createAmpelUnsubscribeToken(guardEmail, laterConsent) ?? "";
+    const jsonToken = await createAmpelUnsubscribeToken(guardEmail, laterConsent) ?? "";
     const jsonPost = await postAmpelAbmelden(
       new Request("https://www.gobd-doku-erstellen.de/api/ampel/abmelden", {
         method: "POST",

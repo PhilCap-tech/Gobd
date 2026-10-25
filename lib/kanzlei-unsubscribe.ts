@@ -35,7 +35,7 @@ export async function withdrawKanzleiMarketing(
   token: string,
   deps: WithdrawKanzleiDeps = {},
 ): Promise<{ ok: true } | { ok: false }> {
-  const payload = verifyKanzleiUnsubscribeToken(token);
+  const payload = await verifyKanzleiUnsubscribeToken(token);
   if (!payload) return { ok: false };
   const merged: WithdrawKanzleiDeps = { ...testDeps, ...deps };
   const list = merged.list ?? ((email: string) => listKanzleiReadinessLeadsByEmail(email, { fresh: true }));
