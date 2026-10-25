@@ -73,13 +73,13 @@ export type ReadinessLead = {
    */
   tool: string;
   /**
-   * Kassen submit only. Ampel writes this column empty. Never a click id.
-   * Old rows are left as they are.
+   * Written empty on new Ampel and Kassen rows. Old rows are left as they are.
+   * Never a click id.
    */
   utmSource: string;
   /**
-   * Kassen submit only. Ampel writes this column empty. Never a click id.
-   * Old rows are left as they are.
+   * Written empty on new Ampel and Kassen rows. Old rows are left as they are.
+   * Never a click id.
    */
   utmCampaign: string;
   /** Funnel marker from the page URL, such as hero. Empty for test rows. Never a click id. */

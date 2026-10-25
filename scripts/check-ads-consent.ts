@@ -577,6 +577,7 @@ try {
   assert.ok(kassenFollow !== -1 && kassenAccepted > kassenFollow && kassenTrack > kassenAccepted, "the Kassen follow-up is judged before the conversion");
   assert.ok(kassen.includes("sent.mailed !== false"), "a Kassen follow-up that did not mail is not a conversion");
   assert.ok(kassen.includes("data.mailed === false"), "a direct Kassen submit that did not mail is not a conversion");
+  assert.equal(kassen.includes("submitUtmFields"), false, "Kassen does not send utm fields");
   assert.equal(kassen.includes("trackLeadSubmit"), false, "Kassen calls the shared helper instead of trackLeadSubmit directly");
   assert.equal(kassen.includes("KE_4CP3UoZwdENaBzZcC"), false, "Kassen does not embed the removed lead label");
   assert.equal(kassen.includes("gtag("), false, "the Kassen page does not call gtag itself");
