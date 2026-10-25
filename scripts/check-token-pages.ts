@@ -47,6 +47,9 @@ import {
   trackRoute,
 } from "../lib/tracking";
 
+/** Pixel id from the build environment, before this file's own test overrides. */
+const metaPixelIdFromEnvironment = process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() ?? "";
+
 const REQUIRED_PREFIXES = [
   "/ampel-check/bestaetigen",
   "/ampel-check/abmelden",
@@ -233,7 +236,46 @@ assert.equal(
   "?utm_term=gobd&wbraid=WB&utm_extra=kept",
 );
 
+function stripJsComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
+}
+
+/**
+ * True only when code, not a comment, keeps `?a=` off location.href before
+ * fbevents.js can load. The gtag page_location allowlist does not count:
+ * Meta reads the address bar itself.
+ */
+function metaAnswerQueryFilteredBeforePixel(): boolean {
+  const pixelFn = stripJsComments(readFileSync("lib/tracking.ts", "utf8"));
+  const start = pixelFn.indexOf("function enableMetaPixel");
+  const end = pixelFn.indexOf("function enableGoogleTag");
+  const body = start === -1 ? "" : pixelFn.slice(start, end === -1 ? undefined : end);
+  const loadAt = body.indexOf("fbevents.js");
+  const beforeLoad = loadAt === -1 ? "" : body.slice(0, loadAt);
+  if (
+    /["']a["']/.test(beforeLoad) ||
+    beforeLoad.includes("isAllowlistedTagQuery") ||
+    beforeLoad.includes("allowlistedSearch")
+  ) {
+    return true;
+  }
+  const urls = stripJsComments(readFileSync("lib/tag-page-url.ts", "utf8"));
+  const pixel = stripJsComments(readFileSync("components/marketing-pixel.tsx", "utf8"));
+  const dropsAnswer = /ADDRESS_BAR_SECRET_KEYS\s*=\s*\[[^\]]*["']a["']/.test(urls);
+  const stripAt = pixel.indexOf("stripSensitiveQueryFromAddressBar()");
+  const trackAt = pixel.indexOf("trackRoute(");
+  return dropsAnswer && stripAt !== -1 && trackAt !== -1 && stripAt < trackAt;
+}
+
 const tracking = readFileSync("lib/tracking.ts", "utf8");
+ok(
+  /location\.href[\s\S]{0,500}\?a=[\s\S]{0,400}NEXT_PUBLIC_META_PIXEL_ID/.test(tracking),
+  "tracking warns that Meta reads location.href, so ?a= must be filtered before the pixel id is set",
+);
+ok(
+  !metaPixelIdFromEnvironment || metaAnswerQueryFilteredBeforePixel(),
+  "NEXT_PUBLIC_META_PIXEL_ID stays unset until ?a= is filtered from location.href",
+);
 const fbqCalls = tracking.match(/fbq\?\.\(\s*"track(?:Custom)?"[\s\S]*?\)/g) ?? [];
 ok(fbqCalls.length > 0, "Meta events are still in tracking");
 for (const call of fbqCalls) {
