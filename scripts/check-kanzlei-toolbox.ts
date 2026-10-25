@@ -12,6 +12,7 @@ import { POST as postAmpelStep, setAmpelStepNowForTest } from "@/app/api/ampel/s
 import { POST as postKanzleiReport } from "@/app/api/steuerberater/toolbox/bericht/route";
 import { GET as getKanzleiCron } from "@/app/api/cron/kanzlei-toolbox/route";
 import { AMPEL_QUESTIONS } from "@/lib/ampel-questions";
+import { KASSEN_QUESTIONS } from "@/lib/kassen-check-questions";
 import { deliverAmpelResult } from "@/lib/ampel-result-send";
 import { encodeAmpelAnswers, type AmpelAnswerMap } from "@/lib/ampel-score";
 import { AMPEL_STEP_COLUMNS } from "@/lib/ampel-step-event";
@@ -43,7 +44,7 @@ import {
   reportValue,
   type KanzleiToolboxRecord,
 } from "@/lib/kanzlei-toolbox";
-import { kanzleiEntryPath, revokeKanzleiToolbox, submitKanzleiToolbox } from "@/lib/kanzlei-toolbox-flow";
+import { confirmKanzleiToolbox, kanzleiEntryPath, revokeKanzleiToolbox, submitKanzleiToolbox } from "@/lib/kanzlei-toolbox-flow";
 import {
   installKanzleiToolboxSheetClientForTest,
   kanzleiToolboxLiveSheetBlocked,
@@ -54,6 +55,7 @@ import {
 import {
   addKanzleiCount,
   issueKanzleiReportToken,
+  issueKanzleiRevokeToken,
   lookupPublicKanzlei,
   purgeKanzleiToolboxFile as purgeStore,
   readKanzleiToolbox,
@@ -62,7 +64,7 @@ import {
   setKanzleiToolboxFileForTest,
   updateKanzleiToolbox,
 } from "@/lib/kanzlei-toolbox-store";
-import { createKanzleiDoiToken, createKanzleiRevokeToken, hashKanzleiReportToken } from "@/lib/kanzlei-toolbox-token";
+import { hashKanzleiReportToken, kanzleiLinkSecretShape } from "@/lib/kanzlei-toolbox-token";
 import { analyticsPageLocation } from "@/lib/tracking";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import type { ReadinessLead } from "@/lib/readiness";
@@ -109,6 +111,10 @@ function record(input: Partial<KanzleiToolboxRecord> & Pick<KanzleiToolboxRecord
     termsAccepted: true,
     reportTokenHash: "",
     reportTokenExp: 0,
+    doiTokenHash: "",
+    doiTokenExp: 0,
+    revokeTokenHash: "",
+    revokeTokenExp: 0,
     verification: {
       ...emptyKanzleiVerification(),
       emailDomain: "example.org",
@@ -243,8 +249,10 @@ async function main(): Promise<void> {
   const page = source("app/ampel-check/ampel-check.tsx");
   ok(page.includes("AMPEL_SHARE_KANZLEI"), "the share card still uses the toolbox copy");
   ok(!page.includes('name="ref"') && !page.includes("Empfohlen von"), "free-text ref is not shown as a recommendation");
-  ok(page.includes("hint ? {} : submitUtmFields"), "a toolbox visit omits utm from the submit body");
+  ok(!page.includes("submitUtmFields"), "the Ampel submit does not send utm");
+  ok(!page.includes('htmlFor="ampel-ref"') && !page.includes(">Name der Kanzlei<") && !page.includes("setRefName"), "the Ampel name field does not write advisor_ref");
   ok(page.includes('ref: hint ? "" : refName'), "a toolbox visit submits an empty ref");
+  ok(!source("app/kassen-check/kassen-check.tsx").includes("Name der Kanzlei"), "Kassen has no free-text kanzlei name field");
   const beacon = source("lib/ampel-step-beacon.ts");
   ok(beacon.includes("setAmpelKanzleiStepId") && !beacon.includes("localStorage") && !beacon.includes("sessionStorage"), "the opaque id stays in memory");
   const stepRoute = source("app/api/ampel/step/route.ts");
@@ -263,6 +271,9 @@ async function main(): Promise<void> {
   ok(mailSource.includes("sendDedupedEmail(") && mailSource.includes("from \"@/lib/mail-dedupe\""), "toolbox mail uses the dedupe helper");
   ok(mailSource.includes("/steuerberater/toolbox/bericht#t=") && !mailSource.includes("bericht?token="), "the report link is a fragment, not a query token");
   ok(mailSource.includes("30 Tage gültig"), "the report mail says the link lasts 30 days");
+  ok(mailSource.includes("kann einmal verwendet werden"), "the removal mail says the link is single use");
+  ok(!mailSource.includes("createKanzleiRevokeToken") && !source("lib/kanzlei-toolbox-token.ts").includes("email"), "toolbox link secrets are not signed payloads and carry no email");
+  ok(!source("lib/kanzlei-toolbox-flow.ts").includes("createKanzleiDoiToken"), "DOI confirm does not pack the application into the URL");
   const doiKey = kanzleiToolboxDoiKey("k_0123456789abcdef");
   const kitKey = kanzleiToolboxKitKey("k_0123456789abcdef");
   ok(doiKey === "kanzlei-toolbox-doi:k_0123456789abcdef" && kitKey === "kanzlei-toolbox-kit:k_0123456789abcdef", "each toolbox mail has its own key");
@@ -270,22 +281,6 @@ async function main(): Promise<void> {
   ok(!kanzleiMailAllowed(KANZLEI_MAIL_SINK), "a check run does not mail the sink");
   ok(!kanzleiMailAllowed(KANZLEI_MAIL_BLOCKED), "the blocked address is never mailed");
   ok(!kanzleiMailAllowed("kanzlei@example.org"), "a check run does not mail an applicant");
-
-  const doi = createKanzleiDoiToken({
-    kanzleiId: "k_0123456789abcdef",
-    slug: "nordlicht-ab12",
-    displayName: "Nordlicht Steuerberatung",
-    website: "https://example.org",
-    email: "kanzlei@example.org",
-    city: "Hamburg",
-    consentAt: "2026-10-25T00:00:00.000Z",
-    consentText: "Einwilligung",
-    consentTextVersion: "2026-10-25-entwurf",
-    reportOptIn: false,
-  });
-  ok(doi, "a DOI token can be signed");
-  const doiPayload = JSON.parse(Buffer.from((doi ?? "").split(".")[0] ?? "", "base64url").toString("utf8")) as Record<string, unknown>;
-  ok(!Object.keys(doiPayload).some((key) => key.toLowerCase().includes("utm") || key === "ref"), "the DOI token has no utm and no ref");
 
   const dir = await mkdtemp(path.join(tmpdir(), "kanzlei-toolbox-"));
   const filePath = path.join(dir, "kanzlei-toolbox.json");
@@ -499,6 +494,81 @@ async function main(): Promise<void> {
       },
     );
     ok(saved[3]?.advisorRef === verifiedId, "a known kanzlei id is stored as advisor_ref");
+    await deliverAmpelResult(
+      "probe5@example.com",
+      answers,
+      code ?? "",
+      {
+        email: "probe5@example.com",
+        answers: code,
+        ref: "freie-eingabe-ab12",
+        marketing: false,
+        honeypot: "",
+        ip: "203.0.113.44",
+        utmSource: "",
+        utmCampaign: "",
+      },
+      {
+        now: () => Date.parse("2026-10-25T13:30:00.000Z"),
+        mail: async () => ({ sent: true, stub: false }),
+        saveLead: async (row) => {
+          saved.push(row);
+        },
+      },
+    );
+    ok(saved[4]?.advisorRef === "", "an unknown slug-shaped ref stays empty");
+    const kassenAnswers: AmpelAnswerMap = {};
+    for (const question of KASSEN_QUESTIONS) kassenAnswers[question.id] = "ja";
+    const kassenCode = encodeAmpelAnswers(kassenAnswers, KASSEN_QUESTIONS);
+    ok(kassenCode, "kassen fixture answers encode");
+    await deliverAmpelResult(
+      "kasse@nordlicht-probe.de",
+      kassenAnswers,
+      kassenCode ?? "",
+      {
+        email: "kasse@nordlicht-probe.de",
+        answers: kassenCode,
+        ref: "Name der Kanzlei",
+        marketing: false,
+        honeypot: "",
+        ip: "203.0.113.45",
+        utmSource: "",
+        utmCampaign: "",
+      },
+      {
+        now: () => Date.parse("2026-10-25T13:40:00.000Z"),
+        check: "kassen-check",
+        mail: async () => ({ sent: true, stub: false }),
+        saveLead: async (row) => {
+          saved.push(row);
+        },
+      },
+    );
+    ok(saved[5]?.advisorRef === "" && saved[5]?.tool === "kassen", "Kassen drops the free-text name field");
+    await deliverAmpelResult(
+      "kasse2@nordlicht-probe.de",
+      kassenAnswers,
+      kassenCode ?? "",
+      {
+        email: "kasse2@nordlicht-probe.de",
+        answers: kassenCode,
+        ref: "nordlicht-ab12",
+        marketing: false,
+        honeypot: "",
+        ip: "203.0.113.46",
+        utmSource: "",
+        utmCampaign: "",
+      },
+      {
+        now: () => Date.parse("2026-10-25T13:50:00.000Z"),
+        check: "kassen-check",
+        mail: async () => ({ sent: true, stub: false }),
+        saveLead: async (row) => {
+          saved.push(row);
+        },
+      },
+    );
+    ok(saved[6]?.advisorRef === "nordlicht-ab12", "Kassen stores an active slug");
     ok(!JSON.stringify(mail).includes("utm_"), "no toolbox mail body was built with utm");
 
     const cleanedLocation = analyticsPageLocation(
@@ -518,6 +588,7 @@ async function main(): Promise<void> {
         !JSON.stringify(storedReport).includes(issued ?? "missing-token"),
       "the register stores the report hash and not the secret",
     );
+    const removalSecret = "a".repeat(43);
     const reportMail = buildKanzleiToolboxMail({
       displayName: "Nordlicht Steuerberatung",
       slug: "nordlicht-ab12",
@@ -525,6 +596,7 @@ async function main(): Promise<void> {
       verified: true,
       reportOptIn: true,
       reportToken: issued ?? "",
+      revokeToken: removalSecret,
     });
     ok(
       reportMail?.text.includes(`#t=${encodeURIComponent(issued ?? "")}`) &&
@@ -558,14 +630,97 @@ async function main(): Promise<void> {
     const expired = await postKanzleiReport(reportRequest(rotated ?? ""));
     ok(expired.status === 404, "an expired report secret is refused");
 
-    const token = createKanzleiRevokeToken(verifiedId);
-    ok(token, "a revoke token can be signed");
+    const token = await issueKanzleiRevokeToken(verifiedId, Date.parse("2026-10-25T00:00:00.000Z"));
+    ok(kanzleiLinkSecretShape(token ?? ""), "a removal secret is a 256-bit id");
+    const storedRevoke = await readKanzleiToolbox();
+    ok(
+      storedRevoke.records.find((item) => item.kanzleiId === verifiedId)?.revokeTokenHash === hashKanzleiReportToken(token ?? "") &&
+        !JSON.stringify(storedRevoke).includes(token ?? "missing-token"),
+      "the register stores the removal hash and not the secret",
+    );
     const revoked = await revokeKanzleiToolbox(token ?? "");
     ok(revoked.ok, "revocation succeeds");
     ok((await lookupPublicKanzlei("nordlicht-ab12")) === null, "revocation removes the name immediately");
     const afterRevoke = await kanzleiEntryPath("nordlicht-ab12", "", "https://www.gobd-doku-erstellen.de/k/nordlicht-ab12");
     ok(!afterRevoke.includes("kanzlei="), "a revoked link no longer attributes the visit");
     ok((await resolveAdvisorRef("nordlicht-ab12")) === "" && (await resolveAdvisorRef("Kanzlei Mueller")) === "", "a removed code and free text stay empty");
+    const reused = await revokeKanzleiToolbox(token ?? "");
+    ok(!reused.ok, "a removal secret works once");
+
+    const applicant = "delivered@resend.dev";
+    const signed = await submitKanzleiToolbox(
+      {
+        name: "Nordlicht Steuerberatung",
+        website: "https://doi-probe.example",
+        email: applicant,
+        city: "Hamburg",
+        authority: true,
+        terms: true,
+        report: true,
+        honeypot: "",
+        ip: "203.0.113.90",
+      },
+      { now: () => Date.parse("2026-10-25T14:00:00.000Z") },
+    );
+    ok(signed.ok && signed.confirmUrl, "the DOI mail link is returned for the sink in this check");
+    const confirmUrl = signed.ok ? (signed.confirmUrl ?? "") : "";
+    const doiSecret = new URL(confirmUrl).searchParams.get("token") ?? "";
+    ok(kanzleiLinkSecretShape(doiSecret), "the DOI link is a 256-bit id");
+    ok(!confirmUrl.includes("@") && !confirmUrl.toLowerCase().includes(applicant), "the DOI link has no email address");
+    ok(!doiSecret.includes("."), "the DOI link is not a signed JSON payload");
+    const pendingFile = await readKanzleiToolbox();
+    ok(
+      pendingFile.records.some((item) => item.doiTokenHash === hashKanzleiReportToken(doiSecret)) &&
+        !JSON.stringify(pendingFile).includes(doiSecret),
+      "the register stores the DOI hash and not the secret",
+    );
+    const kitMails: { text: string; html: string }[] = [];
+    const confirmed = await confirmKanzleiToolbox(doiSecret, {
+      now: () => Date.parse("2026-10-25T14:05:00.000Z"),
+      fetchImpl: async () => new Response("missing", { status: 404 }),
+      send: async (input) => {
+        kitMails.push({ text: input.text, html: input.html });
+        return { stub: true, sent: false };
+      },
+    });
+    ok(confirmed.ok, "the DOI secret confirms once");
+    const second = await confirmKanzleiToolbox(doiSecret, { now: () => Date.parse("2026-10-25T14:06:00.000Z") });
+    ok(!second.ok, "the DOI secret cannot be used twice");
+    const kit = kitMails[0];
+    ok(kit, "the toolbox mail was built");
+    const mailBody = `${kit?.text ?? ""}\n${kit?.html ?? ""}`;
+    const links = (mailBody.match(/https?:\/\/[^\s"'<>]+/g) ?? []).map((item) => item.replace(/[),.;]+$/g, ""));
+    ok(links.length > 0 && links.every((item) => !item.includes("@") && !item.toLowerCase().includes(applicant)), "toolbox mail links carry no email");
+    const removalFromMail = (kit?.text ?? "").match(/entfernen\?token=([A-Za-z0-9_-]{43})/)?.[1] ?? "";
+    ok(kanzleiLinkSecretShape(removalFromMail), "the removal link in the mail is a 256-bit id");
+    ok(!mailBody.includes("bericht?token="), "the toolbox mail does not put the report secret in the query");
+    ok(!mailBody.includes(applicant), "the toolbox mail body does not repeat the address");
+    const removedByMail = await revokeKanzleiToolbox(removalFromMail ?? "");
+    ok(removedByMail.ok, "the mailed removal secret works");
+    ok(!(await revokeKanzleiToolbox(removalFromMail ?? "")).ok, "the mailed removal secret works once");
+
+    const expiredSignup = await submitKanzleiToolbox(
+      {
+        name: "Nordlicht Steuerberatung",
+        website: "https://doi-expired.example",
+        email: applicant,
+        city: "Hamburg",
+        authority: true,
+        terms: true,
+        report: false,
+        honeypot: "",
+        ip: "203.0.113.91",
+      },
+      { now: () => Date.parse("2026-10-25T15:00:00.000Z") },
+    );
+    ok(expiredSignup.ok && Boolean(expiredSignup.confirmUrl), "a second DOI link can be issued");
+    const expiredSecret = new URL(expiredSignup.ok && expiredSignup.confirmUrl ? expiredSignup.confirmUrl : "https://example.invalid/").searchParams.get("token") ?? "";
+    await updateKanzleiToolbox((file) => {
+      const row = file.records.find((item) => item.doiTokenHash === hashKanzleiReportToken(expiredSecret));
+      if (row) row.doiTokenExp = Date.parse("2020-01-01T00:00:00.000Z");
+    });
+    const expiredConfirm = await confirmKanzleiToolbox(expiredSecret, { now: () => Date.parse("2026-10-25T15:05:00.000Z") });
+    ok(!expiredConfirm.ok, "an expired DOI secret is refused");
 
     const savedVercel = process.env.VERCEL_ENV;
     process.env.VERCEL_ENV = "preview";

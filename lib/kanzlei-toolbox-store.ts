@@ -12,6 +12,7 @@ import {
   isKanzleiId,
   isKanzleiSlug,
   KANZLEI_REPORT_TTL_MS,
+  KANZLEI_REVOKE_TTL_MS,
   knownKanzleiAdvisorRef,
   kanzleiPreviewSeedEnabled,
   nameShown,
@@ -37,9 +38,10 @@ import {
   writeKanzleiToolboxSheet,
 } from "@/lib/kanzlei-toolbox-sheet";
 import {
-  createKanzleiReportSecret,
-  hashKanzleiReportToken,
-  kanzleiReportHashEquals,
+  createKanzleiLinkSecret,
+  hashKanzleiToken,
+  kanzleiLinkSecretShape,
+  kanzleiTokenHashEquals,
 } from "@/lib/kanzlei-toolbox-token";
 
 /**
@@ -295,10 +297,21 @@ export function purgeKanzleiToolboxFile(file: KanzleiToolboxFile, now = new Date
   file.purgeLog = log;
 
   for (const record of file.records) {
-    if (!record.reportTokenExp || record.reportTokenExp > nowMs) continue;
-    record.reportTokenHash = "";
-    record.reportTokenExp = 0;
-    changed = true;
+    if (record.reportTokenExp && record.reportTokenExp <= nowMs) {
+      record.reportTokenHash = "";
+      record.reportTokenExp = 0;
+      changed = true;
+    }
+    if (record.doiTokenExp && record.doiTokenExp <= nowMs) {
+      record.doiTokenHash = "";
+      record.doiTokenExp = 0;
+      changed = true;
+    }
+    if (record.revokeTokenExp && record.revokeTokenExp <= nowMs) {
+      record.revokeTokenHash = "";
+      record.revokeTokenExp = 0;
+      changed = true;
+    }
   }
   return { changed, deleted };
 }
@@ -367,8 +380,8 @@ function reportRecordOpen(record: KanzleiToolboxRecord): boolean {
  */
 export async function issueKanzleiReportToken(kanzleiId: string, now = Date.now()): Promise<string | null> {
   if (!isKanzleiId(kanzleiId)) return null;
-  const token = createKanzleiReportSecret();
-  const hash = hashKanzleiReportToken(token);
+  const token = createKanzleiLinkSecret();
+  const hash = hashKanzleiToken(token);
   const exp = now + KANZLEI_REPORT_TTL_MS;
   let issued = false;
   await updateKanzleiToolbox((file) => {
@@ -381,14 +394,76 @@ export async function issueKanzleiReportToken(kanzleiId: string, now = Date.now(
   return issued ? token : null;
 }
 
+/** One-time removal secret. Replaces any previous removal secret. */
+export async function issueKanzleiRevokeToken(kanzleiId: string, now = Date.now()): Promise<string | null> {
+  if (!isKanzleiId(kanzleiId)) return null;
+  const token = createKanzleiLinkSecret();
+  const hash = hashKanzleiToken(token);
+  const exp = now + KANZLEI_REVOKE_TTL_MS;
+  let issued = false;
+  await updateKanzleiToolbox((file) => {
+    const record = file.records.find((item) => item.kanzleiId === kanzleiId);
+    if (!record || record.test || record.status === "removed" || record.status === "blocked") return;
+    record.revokeTokenHash = hash;
+    record.revokeTokenExp = exp;
+    issued = true;
+  });
+  return issued ? token : null;
+}
+
+/**
+ * Consumes a DOI secret. Returns the kanzlei id once, when the hash matches,
+ * the link has not expired, and the address was not confirmed yet.
+ */
+export async function takeKanzleiDoiToken(token: string, now = Date.now()): Promise<string | null> {
+  if (!kanzleiLinkSecretShape(token)) return null;
+  const hash = hashKanzleiToken(token);
+  let id: string | null = null;
+  await updateKanzleiToolbox((file) => {
+    const record = file.records.find((item) => item.doiTokenHash && kanzleiTokenHashEquals(item.doiTokenHash, hash));
+    if (!record || record.test) return;
+    const expired = !record.doiTokenExp || record.doiTokenExp <= now;
+    record.doiTokenHash = "";
+    record.doiTokenExp = 0;
+    if (expired || record.doiConfirmedAt) return;
+    record.doiConfirmedAt = new Date(now).toISOString();
+    id = record.kanzleiId;
+  });
+  return id;
+}
+
+/** Consumes a removal secret and marks the record removed. One success only. */
+export async function takeKanzleiRevokeToken(token: string, now = Date.now()): Promise<string | null> {
+  if (!kanzleiLinkSecretShape(token)) return null;
+  const hash = hashKanzleiToken(token);
+  let id: string | null = null;
+  await updateKanzleiToolbox((file) => {
+    const record = file.records.find((item) => item.revokeTokenHash && kanzleiTokenHashEquals(item.revokeTokenHash, hash));
+    if (!record || record.test) return;
+    const expired = !record.revokeTokenExp || record.revokeTokenExp <= now;
+    record.revokeTokenHash = "";
+    record.revokeTokenExp = 0;
+    if (expired || record.status === "removed" || record.status === "blocked") return;
+    record.status = "removed";
+    record.removedAt = new Date(now).toISOString();
+    record.reportOptIn = false;
+    record.reportTokenHash = "";
+    record.reportTokenExp = 0;
+    record.doiTokenHash = "";
+    record.doiTokenExp = 0;
+    id = record.kanzleiId;
+  });
+  return id;
+}
+
 export async function readKanzleiReport(
   token: string,
   now = Date.now(),
 ): Promise<{ optedOut: boolean; months: KanzleiMonthReport[] } | null> {
   if (typeof token !== "string" || token.length < 32 || token.length > 128) return null;
-  const hash = hashKanzleiReportToken(token);
+  const hash = hashKanzleiToken(token);
   const file = await readKanzleiToolbox();
-  const record = file.records.find((item) => item.reportTokenHash && kanzleiReportHashEquals(item.reportTokenHash, hash));
+  const record = file.records.find((item) => item.reportTokenHash && kanzleiTokenHashEquals(item.reportTokenHash, hash));
   if (!record || record.test) return null;
   if (record.status === "removed" || record.status === "blocked") return null;
   if (!record.reportTokenExp || record.reportTokenExp <= now) return null;

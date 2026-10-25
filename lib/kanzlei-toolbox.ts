@@ -68,6 +68,14 @@ export type KanzleiToolboxRecord = {
   reportTokenHash: string;
   /** Unix ms. The hash is useless after this time. 0 means none. */
   reportTokenExp: number;
+  /** SHA-256 of the one-time DOI link. The secret itself is not stored. */
+  doiTokenHash: string;
+  /** Unix ms. 0 means none. */
+  doiTokenExp: number;
+  /** SHA-256 of the one-time removal link. The secret itself is not stored. */
+  revokeTokenHash: string;
+  /** Unix ms. 0 means none. */
+  revokeTokenExp: number;
 };
 
 export type KanzleiCountRow = {
@@ -146,6 +154,12 @@ export const KANZLEI_RETENTION = {
 
 /** Report link lifetime. A new issue replaces the stored hash immediately. */
 export const KANZLEI_REPORT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** DOI confirm link. One use. */
+export const KANZLEI_TOOLBOX_DOI_TTL_MS = 48 * 60 * 60 * 1000;
+
+/** Removal link. One use. */
+export const KANZLEI_REVOKE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const FREEMAIL = new Set([
   "gmail.com",
@@ -283,6 +297,10 @@ export const KANZLEI_PREVIEW_SEED: KanzleiToolboxRecord = {
   },
   reportTokenHash: "",
   reportTokenExp: 0,
+  doiTokenHash: "",
+  doiTokenExp: 0,
+  revokeTokenHash: "",
+  revokeTokenExp: 0,
 };
 
 export function kanzleiPreviewSeedEnabled(): boolean {

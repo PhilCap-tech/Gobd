@@ -3,6 +3,7 @@ import { ampelStepDevice } from "@/lib/ampel-step-event";
 import { getAppUrl } from "@/lib/env";
 import {
   KANZLEI_TOOLBOX_CONSENT_TEXT_VERSION,
+  KANZLEI_TOOLBOX_DOI_TTL_MS,
   consentStatement,
   domainsMatch,
   emailDomain,
@@ -34,11 +35,14 @@ import {
   findKanzleiById,
   findKanzleiBySlug,
   issueKanzleiReportToken,
+  issueKanzleiRevokeToken,
   publicKanzleiRecord,
   readKanzleiToolbox,
+  takeKanzleiDoiToken,
+  takeKanzleiRevokeToken,
   updateKanzleiToolbox,
 } from "@/lib/kanzlei-toolbox-store";
-import { createKanzleiDoiToken, verifyKanzleiDoiToken } from "@/lib/kanzlei-toolbox-token";
+import { createKanzleiLinkSecret, hashKanzleiToken } from "@/lib/kanzlei-toolbox-token";
 import { checkImpressum } from "@/lib/kanzlei-toolbox-verify";
 import type { MailResult } from "@/lib/mail";
 
@@ -132,7 +136,14 @@ export async function submitKanzleiToolbox(
     verification: emptyKanzleiVerification(),
     reportTokenHash: "",
     reportTokenExp: 0,
+    doiTokenHash: "",
+    doiTokenExp: 0,
+    revokeTokenHash: "",
+    revokeTokenExp: 0,
   };
+  const doiSecret = createKanzleiLinkSecret();
+  record.doiTokenHash = hashKanzleiToken(doiSecret);
+  record.doiTokenExp = now + KANZLEI_TOOLBOX_DOI_TTL_MS;
   let blocked = false;
   await updateKanzleiToolbox((file) => {
     if (domainBlocked(file, website) || domainTaken(file, email, website)) {
@@ -147,23 +158,7 @@ export async function submitKanzleiToolbox(
   if (blocked || !record.slug) {
     return { ok: false, error: "Für diese Website liegt bereits eine Anmeldung vor. Schreiben Sie uns, wenn Sie den Eintrag ändern möchten." };
   }
-  const token = createKanzleiDoiToken(
-    {
-      kanzleiId: record.kanzleiId,
-      slug: record.slug,
-      displayName: record.displayName,
-      website: record.website,
-      email: record.email,
-      city: record.city,
-      consentAt: record.consentAt,
-      consentText: record.consentText,
-      consentTextVersion: record.consentTextVersion,
-      reportOptIn: record.reportOptIn,
-    },
-    now,
-  );
-  if (!token) return { ok: false, error: "Die Anmeldung konnte nicht gespeichert werden." };
-  const confirmUrl = `${getAppUrl()}/steuerberater/toolbox/bestaetigen?token=${encodeURIComponent(token)}`;
+  const confirmUrl = `${getAppUrl()}/steuerberater/toolbox/bestaetigen?token=${encodeURIComponent(doiSecret)}`;
   const mail = buildKanzleiDoiMail(confirmUrl);
   const send = deps.send ?? sendKanzleiToolboxMail;
   const sent = await send({ to: email, ...mail, dedupeKey: kanzleiToolboxDoiKey(record.kanzleiId) });
@@ -213,68 +208,25 @@ export async function confirmKanzleiToolbox(
   | { ok: false; error: string }
 > {
   const now = deps.now?.() ?? Date.now();
-  const payload = verifyKanzleiDoiToken(token, now);
-  if (!payload) return { ok: false, error: "Der Bestätigungslink ist ungültig oder abgelaufen." };
+  const kanzleiId = await takeKanzleiDoiToken(token, now);
+  if (!kanzleiId) return { ok: false, error: "Der Bestätigungslink ist ungültig oder abgelaufen." };
   const nowIso = new Date(now).toISOString();
-  let created = false;
-  await updateKanzleiToolbox((file) => {
-    let record = file.records.find((item) => item.kanzleiId === payload.kanzleiId);
-    if (!record) {
-      record = {
-        kanzleiId: payload.kanzleiId,
-        slug: payload.slug,
-        displayName: payload.displayName,
-        website: payload.website,
-        email: payload.email,
-        city: payload.city,
-        status: "pending_doi",
-        test: false,
-        registeredAt: payload.consentAt,
-        doiConfirmedAt: "",
-        verifiedAt: "",
-        removedAt: "",
-        reportOptIn: payload.reportOptIn,
-        consentAt: payload.consentAt,
-        consentText: payload.consentText,
-        consentTextVersion: payload.consentTextVersion,
-        authorityConfirmed: true,
-        termsAccepted: true,
-        verification: emptyKanzleiVerification(),
-        reportTokenHash: "",
-        reportTokenExp: 0,
-      };
-      file.records.push(record);
-      if (!file.reservedSlugs.includes(record.slug)) file.reservedSlugs.push(record.slug);
-      created = true;
-    }
-    if (record.doiConfirmedAt) return;
-    record.displayName = payload.displayName;
-    record.website = payload.website;
-    record.email = payload.email;
-    record.city = payload.city;
-    record.reportOptIn = payload.reportOptIn;
-    record.consentText = payload.consentText || record.consentText;
-    record.consentTextVersion = payload.consentTextVersion || record.consentTextVersion;
-    record.doiConfirmedAt = nowIso;
-    created = true;
-  });
-  const current = findKanzleiById(await readKanzleiToolbox(), payload.kanzleiId);
+  const current = findKanzleiById(await readKanzleiToolbox(), kanzleiId);
   if (!current) return { ok: false, error: "Die Anmeldung wurde nicht gefunden." };
-  if (created) {
-    await applyVerification(current, deps.fetchImpl, nowIso);
-    const domain = websiteDomain(current.website);
-    await updateKanzleiToolbox((file) => {
-      const row = file.records.find((item) => item.kanzleiId === current.kanzleiId);
-      if (!row) return;
-      Object.assign(row, current);
-      if (domain && !file.domainLocks.includes(domain)) file.domainLocks.push(domain);
-    });
-  }
-  const saved = findKanzleiById(await readKanzleiToolbox(), payload.kanzleiId);
+  await applyVerification(current, deps.fetchImpl, nowIso);
+  const domain = websiteDomain(current.website);
+  await updateKanzleiToolbox((file) => {
+    const row = file.records.find((item) => item.kanzleiId === current.kanzleiId);
+    if (!row) return;
+    Object.assign(row, current);
+    if (domain && !file.domainLocks.includes(domain)) file.domainLocks.push(domain);
+  });
+  const saved = findKanzleiById(await readKanzleiToolbox(), kanzleiId);
   if (!saved) return { ok: false, error: "Die Anmeldung wurde nicht gefunden." };
   let mailed = false;
-  if (created) {
-    const reportToken = saved.reportOptIn ? await issueKanzleiReportToken(saved.kanzleiId) : null;
+  {
+    const reportToken = saved.reportOptIn ? await issueKanzleiReportToken(saved.kanzleiId, now) : null;
+    const revokeToken = await issueKanzleiRevokeToken(saved.kanzleiId, now);
     const built = buildKanzleiToolboxMail({
       displayName: saved.displayName,
       slug: saved.slug,
@@ -282,6 +234,7 @@ export async function confirmKanzleiToolbox(
       verified: nameShown(saved),
       reportOptIn: saved.reportOptIn,
       reportToken: reportToken ?? "",
+      revokeToken: revokeToken ?? "",
     });
     if (built) {
       const link = `${getAppUrl()}/k/${saved.slug}`;
@@ -306,22 +259,8 @@ export async function confirmKanzleiToolbox(
 }
 
 export async function revokeKanzleiToolbox(token: string, now = new Date()): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { verifyKanzleiRevokeToken } = await import("@/lib/kanzlei-toolbox-token");
-  const kanzleiId = verifyKanzleiRevokeToken(token);
-  if (!kanzleiId) return { ok: false, error: "Der Link ist ungültig." };
-  const iso = now.toISOString();
-  let found = false;
-  await updateKanzleiToolbox((file) => {
-    const record = file.records.find((item) => item.kanzleiId === kanzleiId);
-    if (!record || record.test) return;
-    found = true;
-    record.status = "removed";
-    record.removedAt = iso;
-    record.reportOptIn = false;
-    record.reportTokenHash = "";
-    record.reportTokenExp = 0;
-  });
-  if (!found) return { ok: false, error: "Der Eintrag wurde nicht gefunden." };
+  const kanzleiId = await takeKanzleiRevokeToken(token, now.getTime());
+  if (!kanzleiId) return { ok: false, error: "Der Link ist ungültig oder abgelaufen." };
   return { ok: true };
 }
 
@@ -374,6 +313,10 @@ export async function setKanzleiBlocked(kanzleiId: string, reason: string, now =
     record.reportOptIn = false;
     record.reportTokenHash = "";
     record.reportTokenExp = 0;
+    record.doiTokenHash = "";
+    record.doiTokenExp = 0;
+    record.revokeTokenHash = "";
+    record.revokeTokenExp = 0;
     const domain = websiteDomain(record.website);
     if (domain && !file.blocklist.some((entry) => entry.domain === domain && entry.kanzleiId === record.kanzleiId)) {
       file.blocklist.push({ domain, kanzleiId: record.kanzleiId, reason: reason.slice(0, 200), at: iso });

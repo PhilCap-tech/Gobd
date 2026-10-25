@@ -159,6 +159,15 @@ function verificationOf(value: unknown): KanzleiVerification {
   };
 }
 
+function hashField(value: unknown): string {
+  const hashed = text(value);
+  return /^[a-f0-9]{64}$/.test(hashed) ? hashed : "";
+}
+
+function expField(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
 function recordOf(body: string): KanzleiToolboxRecord | null {
   try {
     const row = asRecord(JSON.parse(body));
@@ -185,11 +194,12 @@ function recordOf(body: string): KanzleiToolboxRecord | null {
       authorityConfirmed: bool(row.authorityConfirmed),
       termsAccepted: bool(row.termsAccepted),
       verification: verificationOf(row.verification),
-      reportTokenHash: /^[a-f0-9]{64}$/.test(text(row.reportTokenHash)) ? text(row.reportTokenHash) : "",
-      reportTokenExp:
-        typeof row.reportTokenExp === "number" && Number.isFinite(row.reportTokenExp) && row.reportTokenExp > 0
-          ? row.reportTokenExp
-          : 0,
+      reportTokenHash: hashField(row.reportTokenHash),
+      reportTokenExp: expField(row.reportTokenExp),
+      doiTokenHash: hashField(row.doiTokenHash),
+      doiTokenExp: expField(row.doiTokenExp),
+      revokeTokenHash: hashField(row.revokeTokenHash),
+      revokeTokenExp: expField(row.revokeTokenExp),
     };
   } catch {
     return null;

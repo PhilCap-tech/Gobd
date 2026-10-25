@@ -17,7 +17,7 @@ import {
   kanzleiNewsletterLong,
   kanzleiNewsletterShort,
 } from "@/lib/kanzlei-toolbox-copy";
-import { createKanzleiRevokeToken } from "@/lib/kanzlei-toolbox-token";
+import { kanzleiLinkSecretShape } from "@/lib/kanzlei-toolbox-token";
 
 export const KANZLEI_MAIL_SINK = "delivered@resend.dev";
 export const KANZLEI_MAIL_BLOCKED = "philip.cappelletti@sdc-ventures.com";
@@ -102,12 +102,12 @@ export function buildKanzleiToolboxMail(input: {
   verified: boolean;
   reportOptIn: boolean;
   reportToken?: string;
+  revokeToken: string;
 }): { subject: string; text: string; html: string } | null {
-  const revoke = createKanzleiRevokeToken(input.kanzleiId);
-  if (!revoke) return null;
+  if (!kanzleiLinkSecretShape(input.revokeToken)) return null;
   const origin = getAppUrl();
   const link = `${origin}/k/${input.slug}`;
-  const removeUrl = `${origin}/steuerberater/toolbox/entfernen?token=${encodeURIComponent(revoke)}`;
+  const removeUrl = `${origin}/steuerberater/toolbox/entfernen?token=${encodeURIComponent(input.revokeToken)}`;
   const reportToken = input.reportOptIn ? (input.reportToken ?? "").trim() : "";
   const reportUrl = reportToken
     ? `${origin}/steuerberater/toolbox/bericht#t=${encodeURIComponent(reportToken)}`
@@ -139,7 +139,7 @@ export function buildKanzleiToolboxMail(input: {
     reportUrl ? `Bericht mit Zahlen: ${reportUrl}` : "",
     reportNote,
     `Eintrag entfernen: ${removeUrl}`,
-    "Der Widerruf ist kostenfrei und entfernt den Namen sofort.",
+    "Der Link zum Entfernen ist 30 Tage gültig und kann einmal verwendet werden. Der Widerruf ist kostenfrei und entfernt den Namen sofort.",
     "",
     "Die Toolbox ist kostenlos. Sie erhalten keine Provision, keine Vergütung und keine sonstige Gegenleistung.",
     `${LEGAL_OPERATOR.name}, ${LEGAL_OPERATOR.street}, ${LEGAL_OPERATOR.zipCity}`,
@@ -156,7 +156,7 @@ export function buildKanzleiToolboxMail(input: {
     <pre>${escapeHtml(kanzleiNewsletterLong(input.slug))}</pre>
     <p>${escapeHtml(KANZLEI_TOOLBOX_NEWSLETTER_NOTE)}</p>
     ${reportUrl ? `<p><a href="${escapeAttr(reportUrl)}">Bericht mit Zahlen</a></p><p>${escapeHtml(reportNote)}</p>` : ""}
-    <p><a href="${escapeAttr(removeUrl)}">Eintrag entfernen</a>. Der Widerruf ist kostenfrei und entfernt den Namen sofort.</p>
+    <p><a href="${escapeAttr(removeUrl)}">Eintrag entfernen</a>. Der Link zum Entfernen ist 30 Tage gültig und kann einmal verwendet werden. Der Widerruf ist kostenfrei und entfernt den Namen sofort.</p>
     <p>Die Toolbox ist kostenlos. Sie erhalten keine Provision, keine Vergütung und keine sonstige Gegenleistung.</p>
     <p>${escapeHtml(LEGAL_OPERATOR.name)}, ${escapeHtml(LEGAL_OPERATOR.street)}, ${escapeHtml(LEGAL_OPERATOR.zipCity)}</p>
   `);
