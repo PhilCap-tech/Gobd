@@ -9,6 +9,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { POST as postAmpelStep, setAmpelStepNowForTest } from "@/app/api/ampel/step/route";
+import { GET as getKanzleiCron } from "@/app/api/cron/kanzlei-toolbox/route";
 import { AMPEL_QUESTIONS } from "@/lib/ampel-questions";
 import { deliverAmpelResult } from "@/lib/ampel-result-send";
 import { encodeAmpelAnswers, type AmpelAnswerMap } from "@/lib/ampel-score";
@@ -42,10 +43,18 @@ import {
 } from "@/lib/kanzlei-toolbox";
 import { kanzleiEntryPath, revokeKanzleiToolbox, submitKanzleiToolbox } from "@/lib/kanzlei-toolbox-flow";
 import {
+  installKanzleiToolboxSheetClientForTest,
+  kanzleiToolboxLiveSheetBlocked,
+  kanzleiToolboxSheetIoAllowed,
+  setKanzleiToolboxSheetEnabledForTest,
+  type KanzleiToolboxSheetClient,
+} from "@/lib/kanzlei-toolbox-sheet";
+import {
   addKanzleiCount,
   lookupPublicKanzlei,
   purgeKanzleiToolboxFile as purgeStore,
   readKanzleiToolbox,
+  runKanzleiToolboxRetention,
   setKanzleiToolboxFileForTest,
   updateKanzleiToolbox,
 } from "@/lib/kanzlei-toolbox-store";
@@ -167,9 +176,16 @@ async function main(): Promise<void> {
   ok(slug === "nordlicht-cd34", "a reserved slug is not reused");
 
   const storeSource = source("lib/kanzlei-toolbox-store.ts");
-  ok(!storeSource.includes("@vercel/blob") && !storeSource.includes("createSheetsClient"), "the register does not import Blob or Sheets");
+  const sheetSource = source("lib/kanzlei-toolbox-sheet.ts");
+  const toolboxSource = source("lib/kanzlei-toolbox.ts");
+  ok(!storeSource.includes("@vercel/blob") && !storeSource.includes("createSheetsClient"), "the store file does not open Blob or Sheets itself");
+  ok(sheetSource.includes("createSheetsClient"), "the prepared register uses the existing Sheets client");
   ok(!storeSource.includes("upsertReadinessLead"), "the register does not write the lead sheet");
-  ok(storeSource.includes("kanzlei-toolbox.json"), "the register is the toolbox file");
+  ok(storeSource.includes("kanzlei-toolbox.json"), "the file remains the store while the sheet switch is off");
+  ok(toolboxSource.includes("export const KANZLEI_TOOLBOX_SHEET_ENABLED = false"), "the sheet switch stays off");
+  ok(sheetSource.includes('process.env.VERCEL_ENV === "preview"'), "preview does not open the live sheet");
+  ok(sheetSource.includes("kanzlei_toolbox") || source("lib/env.ts").includes('return "kanzlei_toolbox"'), "the prepared tab is kanzlei_toolbox");
+  ok(!sheetSource.includes("utm_") && !sheetSource.includes("advisor_ref"), "the sheet columns do not carry utm or ref");
 
   const stripe = source("lib/stripe.ts");
   const checkout = source("app/api/checkout/route.ts");
@@ -186,7 +202,21 @@ async function main(): Promise<void> {
     ok(!text.toLowerCase().includes("kanzlei"), `${name} has no kanzlei parameter`);
   }
   ok(cta.includes('href="/checkout"'), "the Ampel CTA stays a plain checkout link");
-  ok(!source("vercel.json").includes("crons"), "no cron is registered");
+  const vercel = source("vercel.json");
+  ok(vercel.includes('"/api/cron/kanzlei-toolbox"') && vercel.includes('"0 3 * * *"'), "the daily Kanzlei cron is registered");
+  ok(!vercel.includes("lifecycle"), "the removed lifecycle cron stays gone");
+  const cronSource = source("app/api/cron/kanzlei-toolbox/route.ts");
+  ok(cronSource.includes("CRON_SECRET") && cronSource.includes("authorization"), "the cron checks the CRON_SECRET bearer header");
+  ok(!cronSource.includes("console."), "the cron does not log the request");
+  const bericht = source("app/steuerberater/toolbox/bericht/page.tsx");
+  ok(bericht.includes("index: false") && bericht.includes('referrer: "no-referrer"'), "the report page is noindex and sends no referrer");
+  ok(!bericht.includes("console."), "the report page does not log the token");
+  const ampelPage = source("app/ampel-check/page.tsx");
+  ok(ampelPage.includes("generateMetadata") && ampelPage.includes("index: false"), "a kanzlei query noindexes the Ampel page");
+  const config = source("next.config.ts");
+  ok(config.includes('key: "kanzlei"') && config.includes('value: "noindex"'), "query kanzlei and /k send X-Robots-Tag noindex");
+  ok(config.includes('"/steuerberater/toolbox/bericht"') && config.includes('value: "no-referrer"'), "the report response sets Referrer-Policy no-referrer");
+  ok(source("app/k/[slug]/route.ts").includes('"X-Robots-Tag": "noindex"'), "the /k redirect stays noindex");
 
   const sendSource = source("lib/ampel-result-send.ts");
   ok(sendSource.includes('lead.utmSource = flow ? "" : attribution.utmSource'), "a toolbox lead stores no utm source");
@@ -303,7 +333,14 @@ async function main(): Promise<void> {
     old.attributions.push({ leadId: "lead-old", kanzleiId: verifiedId, at: "2024-01-01T00:00:00.000Z" });
     old.counts.push({ date: "2023-01-01", kanzleiId: verifiedId, device: "desktop", kind: "start", n: 2 });
     old.blocklist.push({ domain: "blocked.example", kanzleiId: verifiedId, reason: "missbrauch", at: "2020-01-01T00:00:00.000Z" });
-    ok(purgeStore(old, new Date("2026-10-25T00:00:00.000Z")), "retention changes the file");
+    const purged = purgeStore(old, new Date("2026-10-25T00:00:00.000Z"));
+    ok(purged.changed, "retention changes the file");
+    ok(
+      purged.deleted.length > 0 &&
+        purged.deleted.every((row) => row.date === "2026-10-25" && row.n > 0 && Object.keys(row).sort().join(",") === "date,kind,n"),
+      "the deletion log is count, kind and date",
+    );
+    ok(!JSON.stringify(purged.deleted).includes("lead-old") && !JSON.stringify(purged.deleted).includes("@"), "the deletion log has no personal data");
     ok(old.records.length === 0 && old.reservedSlugs.includes("alt-kanzlei-q7w8"), "an unconfirmed signup is deleted and the slug stays reserved");
     ok(old.attributions.length === 0, "attribution older than 12 months is deleted");
     ok(old.counts.length === 1 && old.counts[0]?.kanzleiId === "", "a count older than 24 months loses the Kanzlei id");
@@ -407,9 +444,84 @@ async function main(): Promise<void> {
     ok((await lookupPublicKanzlei("nordlicht-ab12")) === null, "revocation removes the name immediately");
     const afterRevoke = await kanzleiEntryPath("nordlicht-ab12", "", "https://www.gobd-doku-erstellen.de/k/nordlicht-ab12");
     ok(!afterRevoke.includes("kanzlei="), "a revoked link no longer attributes the visit");
+
+    const savedVercel = process.env.VERCEL_ENV;
+    process.env.VERCEL_ENV = "preview";
+    setKanzleiToolboxSheetEnabledForTest(true);
+    ok(kanzleiToolboxLiveSheetBlocked(), "preview blocks the live sheet");
+    ok(!kanzleiToolboxSheetIoAllowed(), "preview does not open the sheet even when the switch is on");
+    setKanzleiToolboxSheetEnabledForTest(null);
+    if (savedVercel === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = savedVercel;
+
+    const previousSecret = process.env.CRON_SECRET;
+    process.env.CRON_SECRET = "cron-check-secret";
+    try {
+      const denied = await getKanzleiCron(new Request("https://example.com/api/cron/kanzlei-toolbox"));
+      ok(denied.status === 401, "the cron rejects a missing secret");
+      const wrong = await getKanzleiCron(
+        new Request("https://example.com/api/cron/kanzlei-toolbox", { headers: { authorization: "Bearer nope" } }),
+      );
+      ok(wrong.status === 401, "the cron rejects a wrong secret");
+      const accepted = await getKanzleiCron(
+        new Request("https://example.com/api/cron/kanzlei-toolbox", {
+          headers: { authorization: "Bearer cron-check-secret" },
+        }),
+      );
+      const cronBody = (await accepted.json()) as { ok: boolean; active: boolean; skipped: string; deleted: unknown[] };
+      ok(accepted.status === 200 && cronBody.ok && cronBody.active === false && cronBody.skipped === "switch", "the cron stays idle while the switch is off");
+      ok(cronBody.deleted.length === 0 && !JSON.stringify(cronBody).includes("cron-check-secret"), "the idle cron returns no rows and no secret");
+    } finally {
+      if (previousSecret === undefined) delete process.env.CRON_SECRET;
+      else process.env.CRON_SECRET = previousSecret;
+    }
+
+    const grid: string[][] = [];
+    const sheetClient: KanzleiToolboxSheetClient = {
+      async get() {
+        return { data: { sheets: grid.length ? [{ properties: { title: "kanzlei_toolbox", sheetId: 1 } }] : [] } };
+      },
+      async batchUpdate() {
+        return { data: { replies: [{ addSheet: { properties: { sheetId: 1 } } }] } };
+      },
+      async valuesGet() {
+        return { data: { values: grid.map((row) => [...row]) } };
+      },
+      async valuesUpdate(args) {
+        grid.length = 0;
+        for (const row of args.requestBody.values) grid.push([...row]);
+        return { data: {} };
+      },
+    };
+    installKanzleiToolboxSheetClientForTest(sheetClient);
+    setKanzleiToolboxSheetEnabledForTest(true);
+    ok(kanzleiToolboxSheetIoAllowed(), "an installed test client may use the prepared sheet");
+    const retained = await runKanzleiToolboxRetention(new Date("2026-10-25T00:00:00.000Z"));
+    ok(retained.active && retained.skipped === "", "retention runs only through the installed sheet client");
+    await updateKanzleiToolbox((current) => {
+      current.records.push(
+        record({
+          kanzleiId: "k_bbbbbbbbbbbbbbbb",
+          slug: "alt-sheet-q7w8",
+          status: "pending_doi",
+          email: "secret@example.org",
+          displayName: "Geheimer Name",
+          registeredAt: "2020-01-01T00:00:00.000Z",
+          doiConfirmedAt: "",
+        }),
+      );
+      current.attributions.push({ leadId: "lead-secret", kanzleiId: "k_bbbbbbbbbbbbbbbb", at: "2024-01-01T00:00:00.000Z" });
+    });
+    const sheetText = grid.map((row) => row.join("\t")).join("\n");
+    ok(grid[0]?.join(",") === "row_kind,row_id,body,logged_on", "the sheet header is the prepared columns");
+    ok(sheetText.includes("pending_doi") && sheetText.includes("attribution"), "the sheet keeps the deletion log kinds");
+    ok(!sheetText.includes("secret@example.org") && !sheetText.includes("Geheimer Name") && !sheetText.includes("lead-secret"), "purged rows leave no personal data in the sheet");
+    ok(!sheetText.includes("utm_") && !sheetText.includes("gclid"), "the sheet has no campaign fields");
   } finally {
     setAmpelStepNowForTest(null);
     installAmpelStepSheetClientForTest(null);
+    setKanzleiToolboxSheetEnabledForTest(null);
+    installKanzleiToolboxSheetClientForTest(null);
     clearAmpelStepSheetCache();
     setKanzleiToolboxFileForTest(null);
     await rm(dir, { recursive: true, force: true });

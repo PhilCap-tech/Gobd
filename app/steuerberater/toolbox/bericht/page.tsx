@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Kanzlei-Bericht",
   robots: { index: false, follow: false },
+  referrer: "no-referrer",
 };
 
 function first(value: string | string[] | undefined): string {

@@ -291,7 +291,8 @@ function checkSources(): void {
   ok(webhook.indexOf("await appendRecord") < webhook.indexOf("Testfirma"), "the paid row is still stored");
   ok(webhook.includes("entityId: invoiceEntityId"), "payment-failed reads the firm id");
   ok(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "there is no cron mailer");
-  ok(!read("vercel.json").includes("crons"), "vercel.json has no cron");
+  ok(!read("vercel.json").includes("/api/cron/lifecycle"), "vercel.json has no lifecycle cron");
+  ok(read("vercel.json").includes('"/api/cron/kanzlei-toolbox"'), "vercel.json only adds the prepared Kanzlei cron");
 
   const intake = read("app/api/intake/route.ts");
   ok(intake.indexOf("skipTestDelivery") < intake.indexOf("io.generatePdf"), "intake checks the firm before the PDF");

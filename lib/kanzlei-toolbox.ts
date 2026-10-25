@@ -96,6 +96,28 @@ export type KanzleiBlockEntry = {
   at: string;
 };
 
+/** Deletion log. Count, kind and date only. No name, e-mail, slug or token. */
+export const KANZLEI_PURGE_KINDS = ["pending_doi", "contact", "consent_proof", "blocklist", "attribution", "count"] as const;
+
+export type KanzleiPurgeKind = (typeof KANZLEI_PURGE_KINDS)[number];
+
+export type KanzleiPurgeLogRow = {
+  date: string;
+  kind: KanzleiPurgeKind;
+  n: number;
+};
+
+export type KanzleiPurgeResult = {
+  changed: boolean;
+  deleted: KanzleiPurgeLogRow[];
+};
+
+/**
+ * Prepared Google Sheet tab `kanzlei_toolbox`. Stays off until this is set
+ * to true after approval. While false, no sheet call is made.
+ */
+export const KANZLEI_TOOLBOX_SHEET_ENABLED = false;
+
 export type KanzleiToolboxFile = {
   records: KanzleiToolboxRecord[];
   reservedSlugs: string[];
@@ -105,6 +127,7 @@ export type KanzleiToolboxFile = {
   attributions: KanzleiAttribution[];
   consentProofs: KanzleiConsentProof[];
   blocklist: KanzleiBlockEntry[];
+  purgeLog: KanzleiPurgeLogRow[];
 };
 
 export const KANZLEI_RETENTION = {
@@ -171,6 +194,7 @@ export function emptyKanzleiFile(): KanzleiToolboxFile {
     attributions: [],
     consentProofs: [],
     blocklist: [],
+    purgeLog: [],
   };
 }
 

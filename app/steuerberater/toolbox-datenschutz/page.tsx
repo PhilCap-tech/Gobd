@@ -31,10 +31,11 @@ export default function KanzleiToolboxPrivacyDraftPage() {
         </p>
         <p>
           E-Mails versendet Resend (Plus Five Five, Inc., USA). Einzelheiten zum Versand stehen in der veröffentlichten
-          Erklärung im Abschnitt zum E-Mail-Versand. Das Kanzlei-Register dieses Entwurfs liegt in einer eigenen Datei
-          auf dem Server der Anwendung, nicht in der Tabelle der Ampel-Anfragen und nicht im Dateispeicher für Dokumente.
-          Eine feste Region ist dafür nicht hinterlegt. Hosting-Logfiles des Anbieters bleiben der veröffentlichte
-          Abschnitt zu Server-Logfiles.
+          Erklärung im Abschnitt zum E-Mail-Versand. Das Kanzlei-Register ist für einen eigenen Tab vorbereitet
+          (`kanzlei_toolbox` in der vorhandenen Tabelle). Der Tab bleibt aus, bis er freigegeben wird. Bis dahin liegt
+          das Register in einer Datei der Anwendung. Es liegt nicht in der Tabelle der Ampel-Anfragen und nicht im
+          Dateispeicher für Dokumente. Eine Vorschau-Umgebung beschreibt den Tab nicht. Eine feste Region ist dafür
+          nicht hinterlegt. Hosting-Logfiles des Anbieters bleiben der veröffentlichte Abschnitt zu Server-Logfiles.
         </p>
         <h2>Aufruf über den Link einer Kanzlei</h2>
         <p>
@@ -58,6 +59,7 @@ export default function KanzleiToolboxPrivacyDraftPage() {
           <li>Zuordnung bei einer Anfrage: zusammen mit der Anfrage, spätestens nach 12 Monaten.</li>
           <li>Tageszahlen: 24 Monate, danach ohne Kanzlei-Kennung.</li>
           <li>Sperrliste: Domain, interne Kennung und Grund, 3 Jahre.</li>
+          <li>Löschprotokoll: nur Anzahl, Art und Datum, ohne Name, E-Mail oder Kennung.</li>
         </ul>
         <p>
           Soweit die Verarbeitung auf einem berechtigten Interesse beruht, können Sie widersprechen, zum Beispiel an

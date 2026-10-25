@@ -9,15 +9,25 @@ import { lookupPublicKanzlei } from "@/lib/kanzlei-toolbox-store";
 import { canonicalUrl } from "@/lib/seo";
 import { AmpelCheck, type AmpelKanzleiHint } from "./ampel-check";
 
-export const metadata: Metadata = {
-  title: { absolute: AMPEL_H1 },
-  description: AMPEL_INTRO,
-  alternates: { canonical: canonicalUrl("/ampel-check") },
-};
-
 type PageProps = {
   searchParams: Promise<{ kanzlei?: string | string[] }>;
 };
+
+function kanzleiQueryPresent(kanzlei: string | string[] | undefined): boolean {
+  if (Array.isArray(kanzlei)) return kanzlei.length > 0;
+  return typeof kanzlei === "string";
+}
+
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const hidden = kanzleiQueryPresent(params.kanzlei);
+  return {
+    title: { absolute: AMPEL_H1 },
+    description: AMPEL_INTRO,
+    alternates: { canonical: canonicalUrl("/ampel-check") },
+    ...(hidden ? { robots: { index: false, follow: false } } : {}),
+  };
+}
 
 export default async function AmpelCheckPage({ searchParams }: PageProps) {
   const params = await searchParams;

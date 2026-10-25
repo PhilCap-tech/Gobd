@@ -147,6 +147,11 @@ export function getHomeCtaSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_HOME_CTA_TAB || "home_cta";
 }
 
+/** Kanzlei toolbox register. Same spreadsheet, own tab. No extra env var. */
+export function getKanzleiToolboxSheetsTab(): string {
+  return "kanzlei_toolbox";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
