@@ -100,6 +100,18 @@ Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Für die Aufbewahrung von Abrech
 
 Nach Angaben von Digistore24 können Daten auch außerhalb der EU bzw. des EWR verarbeitet werden, dann nur auf Grundlage geeigneter Garantien, von Standardvertragsklauseln oder eines Angemessenheitsbeschlusses (Art. 45, 46 DSGVO). Für die Daten, die wir von Digistore24 erhalten und bei uns speichern, gelten die Abschnitte 8 und 20 sowie die Speicherfristen in den Abschnitten 17 und 21.
 
+**Affiliate-Zuordnung auf der Partnerseite (Digistore24-Promocode)**
+
+Auf der Seite https://www.gobd-doku-erstellen.de/partner-angebot binden wir nach Ihrer Einwilligung das Promocode-Skript von Digistore24 ein (`https://www.digistore24-scripts.com/service/digistore.js`, Aufruf `digistorePromocode` für das Produkt 751404). Es erkennt eine Affiliate-ID in der aufgerufenen Adresse, speichert sie in Ihrem Browser und gibt sie an das Bestellformular weiter. Außerdem zählt Digistore24 den Aufruf für die Affiliate-Zuordnung. Das Skript wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Ohne diese Einwilligung wird das Skript nicht geladen, und es wird nichts in Ihrem Browser gespeichert und nichts an Digistore24 übermittelt.
+
+Nach dem Laden setzt das Skript auf Ihrem Endgerät das Cookie `ds24c.v1`, den Local-Storage-Eintrag `ds24p.v1`, soweit Digistore24 die Speicherung erlaubt, und den Session-Storage-Eintrag `ds24s.v1`. Darin stehen die aus der Adresse gelesenen Zuordnungsdaten (Affiliate-ID, Kampagnenschlüssel, weitere Kampagnenparameter und UTM-Parameter). Eine E-Mail-Adresse schreiben wir nicht in die Adresse. Enthält die Adresse gleichwohl den Parameter `email` oder `e`, speichert das Skript diese Adresse mit und übermittelt einen SHA-256-Hash an Digistore24. Sind in Ihrem Browser bereits Cookies von Google Analytics vorhanden, kann das Skript die darin enthaltene Client- und Sitzungskennung auslesen und mitspeichern.
+
+Beim Laden sendet Ihr Browser eine Anfrage an Digistore24 (www.checkout-ds24.com, ersatzweise www.digistore24.com). Übermittelt werden insbesondere die Produkt-ID, die Affiliate-ID, Kampagnenparameter, die Adresse der zuvor aufgerufenen Seite (Referrer) und ein technischer Wert zur Erkennung automatisierter Aufrufe. Die IP-Adresse ist dabei für Digistore24 als Verbindungsdatum sichtbar. Digistore24 verarbeitet diese Daten als eigener Verantwortlicher. Weitere Hinweise stehen in der Datenschutzerklärung von Digistore24: https://www.digistore24.com/page/privacy/1/de
+
+Das Cookie `ds24c.v1` gilt 7 Tage, wenn Digistore24 die Speicherung erlaubt, sonst bis zum Ende der Browsersitzung. `ds24p.v1` wird nur bei erlaubter Speicherung gesetzt und bleibt bis zur Löschung in Ihrem Browser. `ds24s.v1` endet mit der Sitzung.
+
+Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Sie können die Einwilligung jederzeit mit Wirkung für die Zukunft über „Cookie-Einstellungen“ im Seitenfuß widerrufen. Danach wird das Skript nicht erneut geladen. Bereits gesetzte Speicher entfernen wir damit nicht; Sie können sie in Ihrem Browser löschen. Die Rechtmäßigkeit der Verarbeitung bis zum Widerruf bleibt unberührt.
+
 ## 13. Google Ads Conversion-Tracking und Google Analytics 4
 
 Wir nutzen das Google-Tag der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland („Google“), für das Conversion-Tracking von Google Ads (Konto-ID AW-586367190) und für Google Analytics 4 (Mess-ID G-RJ4KLBP1SF). Dabei setzen wir den Google Consent Mode v2 ein. Das Google-Tag wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Ohne Ihre Einwilligung werden keine Daten an Google übermittelt.
@@ -170,4 +182,4 @@ Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von 
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 
-**Stand:** 22.10.2026
+**Stand:** 25.10.2026
