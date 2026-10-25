@@ -8,7 +8,10 @@
 
 export const PARTNER_ANGEBOT_PATH = "/partner-angebot";
 
-export const DIGISTORE24_PRODUCT_URL = "https://www.digistore24.com/product/751404";
+/** Digistore24 product on this sales page. The promocode snippet uses this id. */
+export const DIGISTORE24_PRODUCT_ID = 751404;
+
+export const DIGISTORE24_PRODUCT_URL = `https://www.digistore24.com/product/${DIGISTORE24_PRODUCT_ID}`;
 
 /** Meta robots and the X-Robots-Tag header. */
 export const PARTNER_ANGEBOT_ROBOTS_TAG = "noindex, nofollow";

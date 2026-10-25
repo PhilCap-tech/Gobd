@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DigistorePromocode } from "@/components/digistore-promocode";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { CATALOG_STEPS } from "@/lib/intake-catalog";
@@ -211,6 +212,7 @@ export default async function PartnerAngebotPage({
 
   return (
     <div className={`${styles.page} kanzlei-home`}>
+      <DigistorePromocode />
       <SiteHeader
         ctaHref={buyHref}
         ctaLabel={CTA_CREATE}
