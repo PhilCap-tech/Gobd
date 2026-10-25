@@ -210,7 +210,7 @@ const cookiesHtml = renderToStaticMarkup(
 const impressumHtml = renderToStaticMarkup(
   createElement(LegalMarkdown, { source: source("content/legal/impressum.md") }),
 );
-for (const name of ["ds24c.v1", "ds24p.v1", "ds24s.v1", "gobd_consent", "gobd_utm_first"]) {
+for (const name of ["ds24c.v1", "ds24p.v1", "ds24s.v1", "gobd_consent"]) {
   ok(cookiesHtml.includes(`<code class="legal-code">${name}</code>`), `cookies renders ${name} as code`);
   ok(!cookiesHtml.includes(`\`${name}\``), `cookies does not show literal backticks around ${name}`);
 }

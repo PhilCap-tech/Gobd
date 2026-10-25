@@ -132,7 +132,7 @@ Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 
 
 Ihre Auswahl im Cookie-Banner speichern wir in einem Cookie (`gobd_consent`) und im lokalen Speicher Ihres Browsers für 180 Tage, damit wir Ihre Entscheidung respektieren. Rechtsgrundlage ist § 25 Abs. 2 Nr. 2 TDDDG in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nachweis der Einwilligung). Marketing-Dienste werden erst nach Einwilligung geladen.
 
-Außerdem speichern wir Kampagnenparameter aus der Aufrufadresse (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`) beim ersten Seitenaufruf in der Sitzung Ihres Browsers (`gobd_utm_first`, sessionStorage). Die Speicherung endet mit dem Schließen des Tabs. Die Werte verlassen Ihren Browser nicht und werden nicht an uns oder an Werbedienste übermittelt, solange Sie nicht in Marketing einwilligen. Nach der Einwilligung können sie mit den Marketing-Ereignissen an Google bzw. Meta gehen.
+Kampagnenparameter in der Aufrufadresse (z. B. utm_source oder utm_campaign) speichern wir nicht in Ihrem Browser.
 
 Details und die Cookie-Übersicht finden Sie unter /cookies.
 
