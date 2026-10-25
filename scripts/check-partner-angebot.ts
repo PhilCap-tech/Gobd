@@ -15,6 +15,8 @@ import {
   DIGISTORE_PROMOCODE_SCRIPT_ID,
   DIGISTORE_PROMOCODE_SCRIPT_SRC,
   resetDigistorePromocodeForChecks,
+  applyStoredAffiliateToBuyLinks,
+  buyHrefWithStoredAffiliate,
   syncDigistorePromocode,
 } from "../lib/digistore-promocode";
 import {
@@ -234,8 +236,11 @@ ok(!source("app/success/page.tsx").includes("DigistorePromocode"), "the thank-yo
 ok(!source("app/layout.tsx").includes("DigistorePromocode"), "the promocode is not site-wide");
 const promocodeComponent = source("components/digistore-promocode.tsx");
 ok(promocodeComponent.includes("syncDigistorePromocode()"), "the component syncs on mount");
+ok(promocodeComponent.includes("applyStoredAffiliateToBuyLinks()"), "the component restores the stored aff on each visit");
+ok(promocodeComponent.includes("useSearchParams()"), "a search change, including the aff strip, runs the sync again");
+ok(promocodeComponent.includes('addEventListener("popstate"'), "back navigation runs the sync again");
 ok(
-  promocodeComponent.includes("subscribeConsent(syncDigistorePromocode)"),
+  promocodeComponent.includes("subscribeConsent(sync)"),
   "the component follows the marketing consent event",
 );
 const promocodeLib = source("lib/digistore-promocode.ts");
@@ -420,26 +425,121 @@ function installPromoDom() {
   syncDigistorePromocode();
   ok(guarded.scripts.length === 1, "the history guard still allows the one promocode script");
   const wrappedPush = window.history.pushState;
+  Object.assign(window, {
+    location: {
+      protocol: "https:",
+      href: "https://www.gobd-doku-erstellen.de/partner-angebot?aff=test123",
+      origin: "https://www.gobd-doku-erstellen.de",
+      pathname: "/partner-angebot",
+      search: "?aff=test123",
+    },
+  });
   const routerState = { __NA: true, tree: "keep" };
-  window.history.pushState("", "", "/partner-angebot");
-  window.history.replaceState(false, "", "/partner-angebot");
-  window.history.pushState(routerState, "", "/faq");
-  window.history.pushState(null, "", "/partner-angebot");
+  const samePage = "https://www.gobd-doku-erstellen.de/partner-angebot";
+  window.history.pushState("", "title", samePage);
+  window.history.replaceState(false, "", samePage);
+  window.history.pushState(routerState, "", "https://www.gobd-doku-erstellen.de/faq");
+  window.history.pushState(null, "", samePage);
   syncDigistorePromocode();
-  window.history.pushState("again", "", "/partner-angebot");
+  window.history.pushState("", "", "https://www.gobd-doku-erstellen.de/faq");
   ok(window.history.pushState === wrappedPush, "a second sync does not wrap history again");
   ok(
-    guardedCalls[0]?.method === "pushState" && guardedCalls[0]?.data === null,
-    "pushState(\"\") is normalized to null before Next copies __NA",
+    guardedCalls[0]?.method === "replaceState" && guardedCalls[0]?.data === null,
+    "digistore pushState(\"\", same page) becomes replaceState so history.length stays put",
   );
   ok(
     guardedCalls[1]?.method === "replaceState" && guardedCalls[1]?.data === null,
     "replaceState with a non-object state is normalized to null",
   );
-  ok(guardedCalls[2]?.data === routerState, "Next router state objects pass through unchanged");
-  ok(guardedCalls[3]?.data === null, "null state stays null");
-  ok(guardedCalls[4]?.data === null, "a later string state is still normalized");
+  ok(guardedCalls[2]?.data === routerState && guardedCalls[2]?.method === "pushState", "Next router state objects still push");
+  ok(guardedCalls[3]?.method === "pushState" && guardedCalls[3]?.data === null, "null state stays a push");
+  ok(
+    guardedCalls[4]?.method === "pushState" && guardedCalls[4]?.data === null,
+    "an empty string for a different path still pushes",
+  );
   ok(guardedCalls.length === 5, "the Next-like history patch received every guarded call");
+
+  const product = "https://www.digistore24.com/product/751404";
+  const checkout = "https://www.checkout-ds24.com/product/751404";
+  function cookieJson(aff: string): string {
+    return `ds24c.v1=${encodeURIComponent(JSON.stringify({ parameter: { aff } }))}`;
+  }
+  function sessionJson(aff: string): string {
+    return JSON.stringify({ parameter: { aff }, can_store: true });
+  }
+  function installAnchors(hrefs: string[]) {
+    const anchors = hrefs.map((href) => ({ href }));
+    Object.assign(document, {
+      querySelectorAll(selector: string) {
+        return selector === "a[href]" ? anchors : [];
+      },
+    });
+    Object.assign(window, { sessionStorage: memoryStorage() });
+    return anchors;
+  }
+
+  installPromoDom();
+  const deniedLinks = installAnchors([product, checkout, "https://www.gobd-doku-erstellen.de/faq"]);
+  document.cookie = cookieJson("from-cookie");
+  window.sessionStorage.setItem("ds24s.v1", sessionJson("from-session"));
+  applyStoredAffiliateToBuyLinks();
+  ok(
+    deniedLinks.map((link) => link.href).join("|") === [product, checkout, "https://www.gobd-doku-erstellen.de/faq"].join("|"),
+    "without consent the buy links stay on the URL aff and storage is not applied",
+  );
+  ok(
+    buyHrefWithStoredAffiliate(`${product}?aff=from-url`) === `${product}?aff=from-url`,
+    "without consent a product href is returned unchanged",
+  );
+
+  installPromoDom();
+  saveConsent(true);
+  Object.assign(window, {
+    location: {
+      protocol: "https:",
+      href: "https://www.gobd-doku-erstellen.de/partner-angebot?aff=from-url",
+      origin: "https://www.gobd-doku-erstellen.de",
+      pathname: "/partner-angebot",
+      search: "?aff=from-url",
+    },
+  });
+  const urlWins = installAnchors([`${product}?aff=from-url`]);
+  document.cookie = cookieJson("from-cookie");
+  window.sessionStorage.setItem("ds24s.v1", sessionJson("from-session"));
+  applyStoredAffiliateToBuyLinks();
+  ok(urlWins[0].href === `${product}?aff=from-url`, "an aff still in the page address is left on the link");
+
+  installPromoDom();
+  saveConsent(true);
+  Object.assign(window, {
+    location: {
+      protocol: "https:",
+      href: "https://www.gobd-doku-erstellen.de/partner-angebot",
+      origin: "https://www.gobd-doku-erstellen.de",
+      pathname: "/partner-angebot",
+      search: "",
+    },
+  });
+  const cookieWins = installAnchors([product, `${checkout}?aff=old`, "https://www.gobd-doku-erstellen.de/agb"]);
+  document.cookie = cookieJson("from-cookie");
+  window.sessionStorage.setItem("ds24s.v1", sessionJson("from-session"));
+  applyStoredAffiliateToBuyLinks();
+  ok(cookieWins[0].href === `${product}?aff=from-cookie`, "ds24c.v1 aff is written onto digistore24.com");
+  ok(cookieWins[1].href === `${checkout}?aff=from-cookie`, "ds24c.v1 wins over an old aff and over ds24s.v1");
+  ok(cookieWins[2].href === "https://www.gobd-doku-erstellen.de/agb", "other links are left alone");
+  applyStoredAffiliateToBuyLinks();
+  ok(cookieWins[0].href === `${product}?aff=from-cookie`, "a second apply does not rewrite an aff that already matches");
+
+  installPromoDom();
+  saveConsent(true);
+  const sessionOnly = installAnchors([`${product}?utm_source=ad`]);
+  document.cookie = "";
+  window.sessionStorage.setItem("ds24s.v1", sessionJson("from-session"));
+  applyStoredAffiliateToBuyLinks();
+  ok(
+    sessionOnly[0].href.includes("aff=from-session") && sessionOnly[0].href.includes("utm_source=ad"),
+    "ds24s.v1 supplies aff when the cookie is absent, and other params stay",
+  );
 }
 
 async function main() {
