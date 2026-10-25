@@ -724,7 +724,7 @@ try {
   assertOk(!tracking.includes("NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO"), "Ampel does not read a lead send_to");
   assertOk(!tracking.includes("NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL"), "Readiness does not read a conversion label");
   assertOk(tracking.includes("/^AW-\\d+\\//"), "a purchase send_to may be AW-<digits>/<label>");
-  assertOk(enableBody.includes("getGaMeasurementId()") && enableBody.includes('window.gtag?.("config", gaId)'), "GA4 config runs when the measurement id is set");
+  assertOk(enableBody.includes("getGaMeasurementId()") && enableBody.includes('window.gtag?.("config", gaId,'), "GA4 config runs when the measurement id is set");
   assertOk(!enableBody.includes("getGoogleAdsLeadSendTo"), "GA4 init does not read the lead send_to");
 
   function confirmationStore() {

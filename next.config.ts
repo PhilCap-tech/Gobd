@@ -6,6 +6,7 @@ import {
   branchenPath,
   listBranchenRoutes,
 } from "./lib/branchen-routes";
+import { tokenLandingHeaderRules } from "./lib/token-pages";
 
 const noStoreHeaders = [
   {
@@ -158,6 +159,8 @@ const nextConfig: NextConfig = {
       ...branchenNoindexHeaders(),
       { source: "/api/stripe/portal", headers: noStoreHeaders },
       { source: "/:path*", headers: securityHeaders },
+      // After the catch-all so Referrer-Policy no-referrer replaces strict-origin on token landings.
+      ...tokenLandingHeaderRules(),
     ];
   },
   async redirects() {

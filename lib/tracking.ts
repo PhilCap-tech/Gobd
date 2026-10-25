@@ -9,10 +9,13 @@
  * NEXT_PUBLIC_GOOGLE_ADS_ID unset → no Ads config on pages.
  * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO unset → no purchase conversion.
  * Ampel, Kassen and Readiness do not send a Google Ads conversion.
- * After consent, gtag('config', AW-…) runs on every page so Ads sees the tag.
+ * After consent, gtag('config', AW-…) runs on marketing pages so Ads sees the tag.
+ * Token landings send nothing. config and page_view pass an allowlisted page_location.
  */
 
 import { isStubCheckoutSessionId } from "@/lib/checkout-stub";
+import { stripSensitiveQueryFromAddressBar, tagHitFields } from "@/lib/tag-page-url";
+import { isTokenLandingPath } from "@/lib/token-pages";
 
 export type ConsentChoice = {
   essential: true;
@@ -215,15 +218,17 @@ export function removeLegacyFirstTouchUtm(): void {
   }
 }
 
-export function enableMarketingScripts(): void {
+export function enableMarketingScripts(pathname = ""): void {
+  if (blockTokenLanding(pathname)) return;
   if (!hasMarketingConsent()) return;
   const pixelId = getMetaPixelId();
   if (pixelId) enableMetaPixel(pixelId);
-  enableGoogleTag();
+  enableGoogleTag("", pathname);
 }
 
 /** PageView on all consented routes; custom ReadinessStart only on `/readiness`. */
 export function trackRoute(pathname: string): void {
+  if (blockTokenLanding(pathname)) return;
   if (pathname !== "/readiness") {
     lastReadinessStartPath = "";
   }
@@ -232,7 +237,7 @@ export function trackRoute(pathname: string): void {
     applyConsentUpdate(false);
     return;
   }
-  enableMarketingScripts();
+  enableMarketingScripts(pathname);
   trackPageView(pathname);
   trackGooglePageView(pathname);
   if (pathname === "/readiness") {
@@ -247,6 +252,7 @@ export function trackRoute(pathname: string): void {
  * Value is 198 € net. Do not pass the gross total.
  */
 export function trackPurchaseConversion(sessionId: string): void {
+  if (blockTokenLanding()) return;
   const id = sessionId.trim();
   const sendTo = normalizeGoogleAdsSendTo(
     getGoogleAdsPurchaseSendTo(),
@@ -296,6 +302,10 @@ export function trackReadinessSubmit(onDone?: () => void): void {
   const finish = () => {
     onDone?.();
   };
+  if (blockTokenLanding()) {
+    finish();
+    return;
+  }
   if (!hasMarketingConsent()) {
     finish();
     return;
@@ -318,6 +328,7 @@ export function trackReadinessSubmit(onDone?: () => void): void {
  * Same consent gate as the other GA4 events. No Google Ads conversion.
  */
 export function trackAmpelCheckSubmit(): boolean {
+  if (blockTokenLanding()) return false;
   if (typeof window === "undefined" || !hasMarketingConsent() || ampelSubmitTracked) return false;
   const sent = trackConsentedGaEvent("ampel_check_submit");
   if (!sent) return false;
@@ -335,6 +346,7 @@ export const KASSEN_CHECK_SUBMIT_STORAGE_KEY = "gobd_kassen_check_submit";
  * count again.
  */
 export function trackKassenCheckSubmit(): void {
+  if (blockTokenLanding()) return;
   if (typeof window === "undefined" || !hasMarketingConsent()) return;
   if (kassenSubmitTracked || readStorageFlag(window.sessionStorage, KASSEN_CHECK_SUBMIT_STORAGE_KEY)) {
     return;
@@ -350,6 +362,7 @@ export function trackKassenCheckSubmit(): void {
  * No new Ads label.
  */
 export function trackAmpelStart(): void {
+  if (blockTokenLanding()) return;
   if (!hasMarketingConsent() || ampelStartTracked) return;
   ampelStartTracked = true;
   trackAmpelGaEvent("ampel_start");
@@ -361,6 +374,7 @@ export function trackAmpelStart(): void {
  * GA4 `ampel_result`. Meta `AmpelResult` only when a pixel id is set.
  */
 export function trackAmpelResult(): void {
+  if (blockTokenLanding()) return;
   if (!hasMarketingConsent() || ampelResultTracked) return;
   ampelResultTracked = true;
   trackAmpelGaEvent("ampel_result");
@@ -388,6 +402,7 @@ function trackAmpelPixel(name: "AmpelStart" | "AmpelResult"): void {
 
 function enableMetaPixel(pixelId: string): void {
   if (typeof window === "undefined" || !pixelId) return;
+  if (blockTokenLanding()) return;
   ensureFbq();
   loadScript("meta-pixel", "https://connect.facebook.net/en_US/fbevents.js");
   if (pixelInitialized) return;
@@ -396,8 +411,9 @@ function enableMetaPixel(pixelId: string): void {
 }
 
 /** Shared gtag/dataLayer. Loads only after marketing consent, and only when an id exists. */
-function enableGoogleTag(purchaseLoadId = ""): void {
+function enableGoogleTag(purchaseLoadId = "", pathname = ""): void {
   if (typeof window === "undefined") return;
+  if (blockTokenLanding(pathname)) return;
   if (!hasMarketingConsent()) {
     applyConsentUpdate(false);
     return;
@@ -413,12 +429,14 @@ function enableGoogleTag(purchaseLoadId = ""): void {
     `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(loadId)}`,
   );
   if (googleInitialized) return;
+  const path = pathname || currentPath();
+  const fields = tagHitFields(path);
   window.gtag?.("js", new Date());
   if (adsId) {
-    window.gtag?.("config", adsId);
-    lastAdsConfigPath = currentPath();
+    window.gtag?.("config", adsId, fields);
+    lastAdsConfigPath = path;
   }
-  if (gaId) window.gtag?.("config", gaId);
+  if (gaId) window.gtag?.("config", gaId, fields);
   googleInitialized = true;
 }
 
@@ -428,21 +446,17 @@ function currentPath(): string {
   return typeof path === "string" ? path : "";
 }
 
+function blockTokenLanding(pathname = ""): boolean {
+  stripSensitiveQueryFromAddressBar();
+  return isTokenLandingPath(pathname) || isTokenLandingPath(currentPath());
+}
+
 /** Ads config for this path. Skips a repeat on the same path. No GA4 config. */
 function ensureAdsConfigForPath(path: string): void {
   const adsId = getGoogleAdsId();
-  if (!adsId || !window.gtag) return;
-  if (lastAdsConfigPath === path) return;
-  if (path) {
-    const params: Record<string, string> = { page_path: path };
-    const origin = window.location?.origin;
-    if (typeof origin === "string" && origin) {
-      params.page_location = `${origin}${path}`;
-    }
-    window.gtag("config", adsId, params);
-  } else {
-    window.gtag("config", adsId);
-  }
+  if (!adsId || !window.gtag || !path) return;
+  if (lastAdsConfigPath === path || isTokenLandingPath(path)) return;
+  window.gtag("config", adsId, tagHitFields(path));
   lastAdsConfigPath = path;
 }
 
@@ -539,10 +553,11 @@ export function resetTrackingForChecks(): void {
 }
 
 function trackGooglePageView(pathname: string): void {
+  if (isTokenLandingPath(pathname)) return;
   const adsId = getGoogleAdsId();
   const gaId = getGaMeasurementId();
   if (!adsId && !gaId) return;
-  enableGoogleTag();
+  enableGoogleTag("", pathname);
   if (lastGooglePagePath === pathname) return;
   const first = lastGooglePagePath === "";
   lastGooglePagePath = pathname;
@@ -551,7 +566,7 @@ function trackGooglePageView(pathname: string): void {
   if (adsId) ensureAdsConfigForPath(pathname);
   if (gaId) {
     window.gtag?.("event", "page_view", {
-      page_path: pathname,
+      ...tagHitFields(pathname),
       send_to: gaId,
     });
   }

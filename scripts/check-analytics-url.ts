@@ -1,6 +1,6 @@
 /**
  * Prebuild: Vercel Web Analytics stays cookieless and consent-free.
- * Page URLs must not carry magic-link, unsubscribe, or email query values.
+ * Page URLs keep only utm_* and click ids. Answers, ref, tokens, and fragments are dropped.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -18,7 +18,13 @@ function cleaned(url: string) {
 
 assert.equal(
   cleaned("https://www.gobd-doku-erstellen.de/auth/verify?token=magic&next=%2Fintake"),
-  "https://www.gobd-doku-erstellen.de/auth/verify?next=%2Fintake",
+  "https://www.gobd-doku-erstellen.de/auth/verify",
+);
+assert.equal(
+  cleaned(
+    "/kassen-check?a=JJJJJJJJ&ref=Kanzlei&kanzlei=1&token=secret&t=1&src=partner&utm_source=google&utm_medium=cpc&gclid=CLICK&gbraid=GB&wbraid=WB&utm_id=99#frag",
+  ),
+  "/kassen-check?utm_source=google&utm_medium=cpc&gclid=CLICK&gbraid=GB&wbraid=WB&utm_id=99",
 );
 assert.equal(
   cleaned("/ampel-check/abmelden?token=unsubscribe-token"),
