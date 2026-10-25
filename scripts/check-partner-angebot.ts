@@ -202,6 +202,29 @@ ok(
   "FAQ partner URL keeps the comma outside the link",
 );
 
+const cookiesHtml = renderToStaticMarkup(
+  createElement(LegalMarkdown, { source: source("content/legal/cookies.md") }),
+);
+const impressumHtml = renderToStaticMarkup(
+  createElement(LegalMarkdown, { source: source("content/legal/impressum.md") }),
+);
+for (const name of ["ds24c.v1", "ds24p.v1", "ds24s.v1", "gobd_consent", "gobd_utm_first"]) {
+  ok(cookiesHtml.includes(`<code class="legal-code">${name}</code>`), `cookies renders ${name} as code`);
+  ok(!cookiesHtml.includes(`\`${name}\``), `cookies does not show literal backticks around ${name}`);
+}
+for (const name of ["ds24c.v1", "digistorePromocode", "gobd_session", "email"]) {
+  ok(privacyHtml.includes(`<code class="legal-code">${name}</code>`), `privacy renders ${name} as code`);
+}
+ok(!privacyHtml.includes("`") && !cookiesHtml.includes("`"), "privacy and cookies html have no literal backticks");
+ok(
+  privacyHtml.includes("https://www.digistore24-scripts.com/service/digistore.js</code>"),
+  "the script url stays inside the code element",
+);
+ok(!agbHtml.includes("<code") && !agbHtml.includes("`"), "AGB has no inline code");
+ok(!faqHtml.includes("<code") && !faqHtml.includes("`"), "FAQ has no inline code");
+ok(!impressumHtml.includes("<code") && !impressumHtml.includes("`"), "impressum has no inline code");
+ok(agbHtml.includes("§ 9a") && faqHtml.includes("Digistore24") && impressumHtml.includes("IKAT"), "other legal pages keep their wording");
+
 const llms = buildLlmsTxt();
 ok(!llms.includes(PARTNER_ANGEBOT_PATH), "llms.txt omits the partner page");
 
@@ -222,6 +245,12 @@ ok(
   "the call matches the official promocode options",
 );
 ok(promocodeLib.includes("hasMarketingConsent()"), "the loader checks marketing consent");
+const syncBody = promocodeLib.slice(promocodeLib.indexOf("export function syncDigistorePromocode"));
+ok(
+  syncBody.indexOf("guardDigistoreHistoryState()") !== -1 &&
+    syncBody.indexOf("guardDigistoreHistoryState()") < syncBody.indexOf("appendChild"),
+  "the history guard runs before the script node is inserted",
+);
 ok(
   config.includes("https://www.digistore24-scripts.com") &&
     config.includes("https://www.checkout-ds24.com") &&
@@ -350,6 +379,67 @@ function installPromoDom() {
   late.defineApi();
   late.scripts[0].onload?.();
   ok(late.calls.length === 0, "revoked consent before load does not call digistorePromocode");
+
+  type HistoryCall = { method: "pushState" | "replaceState"; data: unknown };
+  function installNextLikeHistory(): HistoryCall[] {
+    const calls: HistoryCall[] = [];
+    function make(method: HistoryCall["method"]) {
+      return function (data: unknown) {
+        if (data !== null && typeof data !== "object") {
+          throw new TypeError(`Cannot create property '__NA' on ${typeof data} '${String(data)}'`);
+        }
+        calls.push({ method, data });
+      };
+    }
+    Object.assign(window, {
+      history: {
+        state: { __NA: true },
+        pushState: make("pushState"),
+        replaceState: make("replaceState"),
+      },
+    });
+    return calls;
+  }
+
+  const untouched = installPromoDom();
+  const untouchedCalls = installNextLikeHistory();
+  const originalPush = window.history.pushState;
+  const originalReplace = window.history.replaceState;
+  syncDigistorePromocode();
+  saveConsent(false);
+  syncDigistorePromocode();
+  ok(
+    window.history.pushState === originalPush && window.history.replaceState === originalReplace,
+    "history stays untouched without marketing consent",
+  );
+  ok(untouched.scripts.length === 0 && untouchedCalls.length === 0, "declined consent still inserts no script");
+
+  const guarded = installPromoDom();
+  const guardedCalls = installNextLikeHistory();
+  saveConsent(true);
+  syncDigistorePromocode();
+  ok(guarded.scripts.length === 1, "the history guard still allows the one promocode script");
+  const wrappedPush = window.history.pushState;
+  const routerState = { __NA: true, tree: "keep" };
+  window.history.pushState("", "", "/partner-angebot");
+  window.history.replaceState(false, "", "/partner-angebot");
+  window.history.pushState(routerState, "", "/faq");
+  window.history.pushState(null, "", "/partner-angebot");
+  syncDigistorePromocode();
+  window.history.pushState("again", "", "/partner-angebot");
+  ok(window.history.pushState === wrappedPush, "a second sync does not wrap history again");
+  ok(
+    guardedCalls[0]?.method === "pushState" && guardedCalls[0]?.data === null,
+    "pushState(\"\") is normalized to null before Next copies __NA",
+  );
+  ok(
+    guardedCalls[1]?.method === "replaceState" && guardedCalls[1]?.data === null,
+    "replaceState with a non-object state is normalized to null",
+  );
+  ok(guardedCalls[2]?.data === routerState, "Next router state objects pass through unchanged");
+  ok(guardedCalls[3]?.data === null, "null state stays null");
+  ok(guardedCalls[4]?.data === null, "a later string state is still normalized");
+  ok(guardedCalls.length === 5, "the Next-like history patch received every guarded call");
 }
 
 async function main() {

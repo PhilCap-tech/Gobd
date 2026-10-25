@@ -36,7 +36,7 @@ function linkTarget(raw: string): { href: string; trailing: string } {
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   const token =
-    /(\*\*[^*]+?\*\*|\*[^*]+?\*|https?:\/\/[^\s<]+|\b[\w.+-]+@gobd-doku-erstellen\.de\b)/g;
+    /(`[^`]+`|\*\*[^*]+?\*\*|\*[^*]+?\*|https?:\/\/[^\s<]+|\b[\w.+-]+@gobd-doku-erstellen\.de\b)/g;
   let last = 0;
   let part = 0;
   let match: RegExpExecArray | null;
@@ -46,7 +46,13 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     }
     const raw = match[0];
     const key = `${keyPrefix}-${part++}`;
-    if (raw.startsWith("**") && raw.endsWith("**")) {
+    if (raw.startsWith("`") && raw.endsWith("`")) {
+      nodes.push(
+        <code key={key} className="legal-code">
+          {raw.slice(1, -1)}
+        </code>,
+      );
+    } else if (raw.startsWith("**") && raw.endsWith("**")) {
       const inner = raw.slice(2, -2);
       const href = INTERNAL_LINKS[inner];
       nodes.push(
