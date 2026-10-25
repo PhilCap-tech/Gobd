@@ -1,11 +1,6 @@
-import { createHash } from "node:crypto";
 import { normalizeAmpelEmail } from "@/lib/ampel-score";
 import { ampelConsentBlocked } from "@/lib/ampel-marketing-guard";
-import {
-  ampelRateIpKey,
-  ampelRateStore,
-  type AmpelRateStore,
-} from "@/lib/ampel-rate-limit";
+import { ampelRateStore, type AmpelRateStore } from "@/lib/ampel-rate-limit";
 import { recordAmpelSuppression, type AmpelSuppressionChannel } from "@/lib/ampel-suppression";
 import type { MailResult } from "@/lib/mail";
 import type { DedupedMailInput } from "@/lib/mail-dedupe";
@@ -21,6 +16,7 @@ import {
 } from "@/lib/vorlagen/copy";
 import { renderMagnetFile } from "@/lib/vorlagen/documents";
 import {
+  MAGNET_DOI_TTL_MS,
   MAGNET_DOWNLOAD_TTL_MS,
   MAGNET_FILENAMES,
   MAGNET_MAIL_DEDUPE_MS,
@@ -38,22 +34,20 @@ import {
   magnetDownloadUrl,
   magnetFileLink,
   magnetListUnsubscribeHeaders,
-  magnetMarketingLinks,
+  magnetMarketingUrls,
   magnetTitle,
 } from "@/lib/vorlagen/mail";
+import { magnetRateKeys, magnetRateLogPrefix } from "@/lib/vorlagen/rate-key";
 import { magnetLeadStore, type MagnetLeadStore } from "@/lib/vorlagen/store";
 import { recordMagnetStep } from "@/lib/vorlagen/step-store";
 import { magnetStepDate, magnetStepDevice } from "@/lib/vorlagen/step-event";
 import { berlinTimestamp } from "@/lib/vorlagen/time";
 import {
-  createMagnetDoiToken,
-  createMagnetDownloadToken,
-  readMagnetDoiToken,
-  readMagnetDownloadToken,
-  verifyMagnetDoiToken,
-  verifyMagnetMarketingToken,
-  verifyMagnetUnsubscribeToken,
-  type MagnetDownloadPayload,
+  hashMagnetToken,
+  issueMagnetLink,
+  matchMagnetLink,
+  type MagnetLinkMatch,
+  type MagnetLinkPurpose,
 } from "@/lib/vorlagen/token";
 
 export type MagnetDeps = {
@@ -96,18 +90,20 @@ function honeypotTripped(value: unknown): boolean {
 }
 
 function rateLine(slot: number, ip: string): string {
-  const hash = createHash("sha256").update(ip || "none").digest("hex").slice(0, 12);
+  const hash = magnetRateLogPrefix(ip);
   const safe = Number.isInteger(slot) && slot > 0 ? slot : 0;
   return `[magnet] rate slot=${safe} ip=${hash}`;
 }
 
 async function limited(ip: string, email: string, deps: ReturnType<typeof useDeps>): Promise<boolean> {
   const now = deps.now();
+  const keys = magnetRateKeys(ip, email, now);
   try {
     const decision = await deps.rate.take({
-      ipKey: ip ? `magnet:${ampelRateIpKey(ip)}` : `magnet:ip:none:${now}`,
-      emailKey: `magnet:em:${email}`,
+      ipKey: keys.ip,
+      emailKey: keys.email,
       now,
+      hmacReady: true,
     });
     console.info(rateLine(0, ip));
     return decision === "ip" || decision === "email";
@@ -133,12 +129,35 @@ function pdfCalc(lead: MagnetLead) {
   return magnetCalcFromJson(lead.calcJson) ?? emptyCalc();
 }
 
-async function sendDoi(lead: MagnetLead, deps: ReturnType<typeof useDeps>): Promise<boolean> {
-  const token = createMagnetDoiToken(
-    { leadId: lead.leadId, email: lead.email, magnet: lead.magnetId },
-    deps.now(),
-  );
-  if (!token) return false;
+function attachLink(
+  lead: MagnetLead,
+  purpose: MagnetLinkPurpose,
+  exp: number,
+): { lead: MagnetLead; token: string } | null {
+  const issued = issueMagnetLink(lead.linkJson, purpose, exp);
+  if (!issued) return null;
+  return { lead: { ...lead, linkJson: issued.linkJson }, token: issued.token };
+}
+
+async function lookupLink(
+  token: string,
+  now: number,
+  deps: ReturnType<typeof useDeps>,
+): Promise<{ lead: MagnetLead; match: MagnetLinkMatch } | null> {
+  let lead: MagnetLead | null = null;
+  try {
+    lead = await deps.store.findByLinkHash(hashMagnetToken(token));
+  } catch (error) {
+    console.error("[magnet] Lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return null;
+  }
+  if (!lead || lead.redactedAt) return null;
+  const match = matchMagnetLink(lead.linkJson, token, now);
+  if (!match) return null;
+  return { lead, match };
+}
+
+async function sendDoi(lead: MagnetLead, token: string, deps: ReturnType<typeof useDeps>): Promise<boolean> {
   const mail = buildMagnetDoiMail({ title: magnetTitle(lead.magnetId), confirmUrl: magnetConfirmUrl(token) });
   const result = await deps.send({
     dedupeKey: `magnet-doi:${lead.leadId}`,
@@ -151,13 +170,8 @@ async function sendDoi(lead: MagnetLead, deps: ReturnType<typeof useDeps>): Prom
   return delivered(result);
 }
 
-async function sendFile(lead: MagnetLead, exp: number, deps: ReturnType<typeof useDeps>): Promise<boolean> {
-  const url = magnetFileLink({
-    leadId: lead.leadId,
-    email: lead.email,
-    magnet: lead.magnetId,
-    exp,
-  });
+async function sendFile(lead: MagnetLead, token: string, exp: number, deps: ReturnType<typeof useDeps>): Promise<boolean> {
+  const url = magnetFileLink(token);
   if (!url) return false;
   const mail = buildMagnetFileMail({ title: magnetTitle(lead.magnetId), downloadUrl: url });
   const result = await deps.send({
@@ -171,14 +185,13 @@ async function sendFile(lead: MagnetLead, exp: number, deps: ReturnType<typeof u
   return delivered(result);
 }
 
-async function sendMarketing(lead: MagnetLead, deps: ReturnType<typeof useDeps>): Promise<boolean> {
-  const links = magnetMarketingLinks({
-    leadId: lead.leadId,
-    email: lead.email,
-    magnet: lead.magnetId,
-    consentAt: lead.timestamp,
-    consentTextVersion: lead.consentTextVersion,
-  });
+async function sendMarketing(
+  lead: MagnetLead,
+  confirmToken: string,
+  unsubscribeToken: string,
+  deps: ReturnType<typeof useDeps>,
+): Promise<boolean> {
+  const links = magnetMarketingUrls(confirmToken, unsubscribeToken);
   if (!links) return false;
   const mail = buildMagnetMarketingMail(links);
   const result = await deps.send({
@@ -245,18 +258,24 @@ export async function requestMagnet(
   const recent = pendingRecent(existing, magnet, now);
   if (recent && recent.mailStatus === "doi_sent") return { ok: true };
   if (recent) {
-    const next: MagnetLead = {
-      ...recent,
-      calcJson: magnet === "kostenrechner" ? magnetCalcJson(calc) : recent.calcJson,
-      doiSentAt: berlinTimestamp(new Date(now)),
-    };
+    const issued = attachLink(
+      {
+        ...recent,
+        calcJson: magnet === "kostenrechner" ? magnetCalcJson(calc) : recent.calcJson,
+        doiSentAt: berlinTimestamp(new Date(now)),
+      },
+      "doi",
+      now + MAGNET_DOI_TTL_MS,
+    );
+    if (!issued) return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
+    const next = issued.lead;
     try {
       await deps.store.update(next);
     } catch (error) {
       console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
       return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
     }
-    const sent = await sendDoi(next, deps);
+    const sent = await sendDoi(next, issued.token, deps);
     next.mailStatus = sent ? "doi_sent" : "doi_failed";
     try {
       await deps.store.update(next);
@@ -283,21 +302,37 @@ export async function requestMagnet(
     withdrawnAt: "",
     redactedAt: "",
     calcJson: magnet === "kostenrechner" ? magnetCalcJson(calc) : "",
+    linkJson: "",
   };
+  const doi = attachLink(lead, "doi", now + MAGNET_DOI_TTL_MS);
+  if (!doi) return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
+  let storedLead = doi.lead;
+  let marketingToken = "";
+  let unsubscribeToken = "";
+  if (storedLead.marketingOptIn === "pending") {
+    const marketing = attachLink(storedLead, "marketing", now + MAGNET_DOI_TTL_MS);
+    const unsubscribe = marketing ? attachLink(marketing.lead, "unsubscribe", 0) : null;
+    if (!marketing || !unsubscribe) storedLead.marketingOptIn = "no";
+    else {
+      storedLead = unsubscribe.lead;
+      marketingToken = marketing.token;
+      unsubscribeToken = unsubscribe.token;
+    }
+  }
   try {
-    await deps.store.insert(lead);
+    await deps.store.insert(storedLead);
   } catch (error) {
     console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
     return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
   }
-  const sent = await sendDoi(lead, deps);
-  lead.mailStatus = sent ? "doi_sent" : "doi_failed";
-  if (sent && lead.marketingOptIn === "pending") {
-    const marketed = await sendMarketing(lead, deps);
-    if (!marketed) lead.marketingOptIn = "no";
+  const sent = await sendDoi(storedLead, doi.token, deps);
+  storedLead.mailStatus = sent ? "doi_sent" : "doi_failed";
+  if (sent && storedLead.marketingOptIn === "pending") {
+    const marketed = await sendMarketing(storedLead, marketingToken, unsubscribeToken, deps);
+    if (!marketed) storedLead.marketingOptIn = "no";
   }
   try {
-    await deps.store.update(lead);
+    await deps.store.update(storedLead);
   } catch (error) {
     console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
   }
@@ -308,38 +343,13 @@ export type MagnetConfirmResult =
   | { ok: true; downloadToken: string; filename: string; magnet: MagnetId }
   | { ok: false; status: 400; reason: "invalid" | "expired"; magnet?: MagnetId };
 
-function downloadTokenFor(lead: MagnetLead, confirmedMs: number): string | null {
-  return createMagnetDownloadToken({
-    leadId: lead.leadId,
-    email: lead.email,
-    magnet: lead.magnetId,
-    exp: confirmedMs + MAGNET_DOWNLOAD_TTL_MS,
-  });
-}
-
 export async function confirmMagnet(token: string, extra: MagnetDeps = {}): Promise<MagnetConfirmResult> {
   const deps = useDeps(extra);
   const now = deps.now();
-  const payload = verifyMagnetDoiToken(token, now);
-  if (!payload) {
-    const read = readMagnetDoiToken(token, now);
-    return {
-      ok: false,
-      status: 400,
-      reason: read?.expired ? "expired" : "invalid",
-      magnet: read?.payload.magnet,
-    };
-  }
-  let lead: MagnetLead | null = null;
-  try {
-    lead = await deps.store.findById(payload.leadId);
-  } catch (error) {
-    console.error("[magnet] Lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return { ok: false, status: 400, reason: "invalid" };
-  }
-  if (!lead || lead.redactedAt || lead.email !== payload.email || lead.magnetId !== payload.magnet) {
-    return { ok: false, status: 400, reason: "invalid" };
-  }
+  const found = await lookupLink(token, now, deps);
+  if (!found || found.match.purpose !== "doi") return { ok: false, status: 400, reason: "invalid" };
+  if (found.match.expired) return { ok: false, status: 400, reason: "expired", magnet: found.lead.magnetId };
+  let lead = found.lead;
   if (lead.status === "expired" || lead.status === "withdrawn") {
     return { ok: false, status: 400, reason: "expired", magnet: lead.magnetId };
   }
@@ -347,11 +357,26 @@ export async function confirmMagnet(token: string, extra: MagnetDeps = {}): Prom
   const confirmedMs = already ? Date.parse(lead.doiConfirmedAt) : now;
   if (!Number.isFinite(confirmedMs)) return { ok: false, status: 400, reason: "invalid" };
   if (confirmedMs + MAGNET_DOWNLOAD_TTL_MS < now) return { ok: false, status: 400, reason: "expired", magnet: lead.magnetId };
+  const issued = attachLink(lead, "download", confirmedMs + MAGNET_DOWNLOAD_TTL_MS);
+  if (!issued) return { ok: false, status: 400, reason: "invalid" };
+  lead = issued.lead;
   if (!already) {
     lead.doiConfirmedAt = berlinTimestamp(new Date(confirmedMs));
     lead.status = "confirmed";
-    const sent = await sendFile(lead, confirmedMs + MAGNET_DOWNLOAD_TTL_MS, deps);
+    try {
+      await deps.store.update(lead);
+    } catch (error) {
+      console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
+      return { ok: false, status: 400, reason: "invalid" };
+    }
+    const sent = await sendFile(lead, issued.token, confirmedMs + MAGNET_DOWNLOAD_TTL_MS, deps);
     lead.mailStatus = sent ? "file_sent" : "file_failed";
+    try {
+      await deps.store.update(lead);
+    } catch (error) {
+      console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
+    }
+  } else {
     try {
       await deps.store.update(lead);
     } catch (error) {
@@ -359,37 +384,36 @@ export async function confirmMagnet(token: string, extra: MagnetDeps = {}): Prom
       return { ok: false, status: 400, reason: "invalid" };
     }
   }
-  const downloadToken = downloadTokenFor(lead, confirmedMs);
-  if (!downloadToken) return { ok: false, status: 400, reason: "invalid" };
-  return { ok: true, downloadToken, filename: MAGNET_FILENAMES[lead.magnetId], magnet: lead.magnetId };
+  return { ok: true, downloadToken: issued.token, filename: MAGNET_FILENAMES[lead.magnetId], magnet: lead.magnetId };
 }
 
 export async function renewMagnet(token: string, input: { ip?: string; fax_number?: unknown }, extra: MagnetDeps = {}): Promise<MagnetRequestResult> {
   if (honeypotTripped(input.fax_number)) return { ok: true };
   const deps = useDeps(extra);
   const now = deps.now();
-  const doi = readMagnetDoiToken(token, now);
-  const download = doi ? null : readMagnetDownloadToken(token, now);
-  const payload = doi?.payload ?? download?.payload ?? null;
-  if (!payload) return { ok: false, status: 400, error: MAGNET_LATER };
+  const found = await lookupLink(token, now, deps);
+  if (!found || (found.match.purpose !== "doi" && found.match.purpose !== "download")) {
+    return { ok: false, status: 400, error: MAGNET_LATER };
+  }
+  const lead = found.lead;
   const ip = (input.ip ?? "").trim();
   if (!ip || ip.toLowerCase() === "unknown") return { ok: false, status: 400, error: MAGNET_LATER };
-  if (await limited(ip, payload.email, deps)) return { ok: false, status: 429, error: MAGNET_RATE_LIMITED };
-  let lead: MagnetLead | null = null;
-  try {
-    lead = await deps.store.findById(payload.leadId);
-  } catch (error) {
-    console.error("[magnet] Lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
-  }
-  if (!lead || lead.redactedAt || lead.email !== payload.email) return { ok: true };
+  if (await limited(ip, lead.email, deps)) return { ok: false, status: 429, error: MAGNET_RATE_LIMITED };
   const confirmedMs = Date.parse(lead.doiConfirmedAt);
   const downloadOpen =
     (lead.status === "confirmed" || lead.status === "downloaded") &&
     Number.isFinite(confirmedMs) &&
     confirmedMs + MAGNET_DOWNLOAD_TTL_MS >= now;
   if (downloadOpen) {
-    const sent = await sendFile(lead, confirmedMs + MAGNET_DOWNLOAD_TTL_MS, deps);
+    const issued = attachLink(lead, "download", confirmedMs + MAGNET_DOWNLOAD_TTL_MS);
+    if (!issued) return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
+    try {
+      await deps.store.update(issued.lead);
+    } catch (error) {
+      console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
+      return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
+    }
+    const sent = await sendFile(issued.lead, issued.token, confirmedMs + MAGNET_DOWNLOAD_TTL_MS, deps);
     return sent ? { ok: true } : { ok: false, status: 500, error: MAGNET_SEND_FAILED };
   }
   if (lead.status === "confirmed" || lead.status === "downloaded") {
@@ -401,8 +425,8 @@ export async function renewMagnet(token: string, input: { ip?: string; fax_numbe
   }
   return requestMagnet(
     {
-      email: payload.email,
-      magnet: payload.magnet,
+      email: lead.email,
+      magnet: lead.magnetId,
       marketing: false,
       calc: lead.magnetId === "kostenrechner" ? (magnetCalcFromJson(lead.calcJson) ?? emptyCalc()) : undefined,
       ip,
@@ -416,21 +440,14 @@ export async function confirmMagnetMarketing(token: string, extra: MagnetDeps = 
   { ok: true; already?: boolean; withdrawn?: boolean } | { ok: false; status: 400; reason: "invalid" }
 > {
   const deps = useDeps(extra);
-  const payload = verifyMagnetMarketingToken(token, deps.now());
-  if (!payload) return { ok: false, status: 400, reason: "invalid" };
-  let lead: MagnetLead | null = null;
-  try {
-    lead = await deps.store.findById(payload.leadId);
-  } catch (error) {
-    console.error("[magnet] Lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
+  const found = await lookupLink(token, deps.now(), deps);
+  if (!found || found.match.purpose !== "marketing" || found.match.expired) {
     return { ok: false, status: 400, reason: "invalid" };
   }
-  if (!lead || lead.email !== payload.email || lead.timestamp !== payload.consentAt) {
-    return { ok: false, status: 400, reason: "invalid" };
-  }
+  const lead = found.lead;
   let blocked = false;
   try {
-    blocked = await deps.blocked(payload.email, payload.consentAt);
+    blocked = await deps.blocked(lead.email, lead.timestamp);
   } catch (error) {
     console.error("[magnet] Sperrliste fehlgeschlagen", error instanceof Error ? error.name : "error");
     blocked = true;
@@ -455,12 +472,12 @@ export async function withdrawMagnetMarketing(
   extra: MagnetDeps = {},
 ): Promise<{ ok: true } | { ok: false }> {
   const deps = useDeps(extra);
-  const payload = verifyMagnetUnsubscribeToken(token);
-  if (!payload) return { ok: false };
+  const found = await lookupLink(token, deps.now(), deps);
+  if (!found || found.match.purpose !== "unsubscribe" || found.match.expired || !found.lead.email) return { ok: false };
   const withdrawnAt = berlinTimestamp(new Date(deps.now()));
   let leads: MagnetLead[] = [];
   try {
-    leads = await deps.store.listByEmail(payload.email);
+    leads = await deps.store.listByEmail(found.lead.email);
   } catch (error) {
     console.error("[magnet] Lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
     return { ok: false };
@@ -474,7 +491,7 @@ export async function withdrawMagnetMarketing(
       return { ok: false };
     }
   }
-  await deps.suppress(payload.email, { withdrawnAt, consentAt: payload.consentAt, channel });
+  await deps.suppress(found.lead.email, { withdrawnAt, consentAt: found.lead.timestamp, channel });
   return { ok: true };
 }
 
@@ -489,27 +506,12 @@ export async function downloadMagnet(
 ): Promise<MagnetDownloadResult> {
   const deps = useDeps(extra);
   const now = deps.now();
-  const read = readMagnetDownloadToken(token, now);
-  if (!read) return { ok: false, status: 404, token };
-  if (read.expired) return { ok: false, status: 410, token };
-  const payload: MagnetDownloadPayload = read.payload;
-  let lead: MagnetLead | null = null;
-  try {
-    lead = await deps.store.findById(payload.leadId);
-  } catch (error) {
-    console.error("[magnet] Lesen fehlgeschlagen", error instanceof Error ? error.name : "error");
-    return { ok: false, status: 404, token };
-  }
-  if (
-    !lead ||
-    lead.redactedAt ||
-    lead.email !== payload.email ||
-    lead.magnetId !== payload.magnet ||
-    (lead.status !== "confirmed" && lead.status !== "downloaded")
-  ) {
-    return { ok: false, status: 404, token };
-  }
-  const file = await renderMagnetFile(payload.magnet, pdfCalc(lead));
+  const found = await lookupLink(token, now, deps);
+  if (!found || found.match.purpose !== "download") return { ok: false, status: 404, token };
+  if (found.match.expired) return { ok: false, status: 410, token };
+  const lead = found.lead;
+  if (lead.status !== "confirmed" && lead.status !== "downloaded") return { ok: false, status: 404, token };
+  const file = await renderMagnetFile(lead.magnetId, pdfCalc(lead));
   const count = Number(lead.downloadCount);
   const nextCount = Number.isFinite(count) && count >= 0 ? count + 1 : 1;
   const stamp = berlinTimestamp(new Date(now));
@@ -523,7 +525,7 @@ export async function downloadMagnet(
   } catch (error) {
     console.error("[magnet] Download zählen fehlgeschlagen", error instanceof Error ? error.name : "error");
   }
-  const n = Number(magnetStepNumber(payload.magnet));
+  const n = Number(magnetStepNumber(lead.magnetId));
   await recordMagnetStep({
     date: magnetStepDate(new Date(now)),
     event: "magnet_download",

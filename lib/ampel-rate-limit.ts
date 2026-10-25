@@ -34,7 +34,14 @@ export type AmpelRateOrigin = "sheets" | "file" | "memory" | "closed";
 export type AmpelRateStore = {
   /** Which counter actually ran. Missing means an injected test store. */
   origin?: AmpelRateOrigin;
-  take(input: { ipKey: string; emailKey: string; now: number; hold?: AmpelRateHold }): Promise<AmpelRateDecision>;
+  take(input: {
+    ipKey: string;
+    emailKey: string;
+    now: number;
+    hold?: AmpelRateHold;
+    /** Magnet keys are already HMAC-SHA256. Ampel omits this and stays on plain SHA-256. */
+    hmacReady?: boolean;
+  }): Promise<AmpelRateDecision>;
   /** Checks the position reserved by `take`. Does not append another row. */
   confirm(input: {
     ipKey: string;
@@ -238,6 +245,16 @@ const SHEETS_GET_OPTS = {
 /** sha256 of the logical key. The IP key is already a hash. No plaintext address or email. */
 export function ampelRateStoredHash(logicalKey: string): string {
   return createHash("sha256").update(logicalKey).digest("hex").slice(0, 32);
+}
+
+/**
+ * Sheet value for a rate key. Ampel (`hmacReady` omitted) keeps `ampelRateStoredHash`.
+ * Magnet passes a 64-hex HMAC and stores that HMAC itself.
+ */
+export function ampelRateStoredValue(logicalKey: string, hmacReady = false): string {
+  if (!hmacReady) return ampelRateStoredHash(logicalKey);
+  if (!/^[a-f0-9]{64}$/.test(logicalKey)) throw new Error("ampel-rate-hmac");
+  return logicalKey;
 }
 
 const REQUEST_ID_COLUMN = 3;
@@ -473,14 +490,14 @@ export function createSheetsAmpelRateStore(client: AmpelRateSheetClient = liveAm
   const tab = getAmpelRateSheetsTab();
   return {
     origin: "sheets",
-    async take({ ipKey, emailKey, now, hold }) {
+    async take({ ipKey, emailKey, now, hold, hmacReady }) {
       try {
         const id = spreadsheetId();
         const sheetId = await ensureAmpelRateSheet(client, id, tab);
         const ipWindow = ampelRateWindowId(now, AMPEL_IP_WINDOW_MS);
         const emailWindow = ampelRateWindowId(now, AMPEL_EMAIL_WINDOW_MS);
-        const ipHash = ampelRateStoredHash(ipKey);
-        const emailHash = ampelRateStoredHash(emailKey);
+        const ipHash = ampelRateStoredValue(ipKey, hmacReady);
+        const emailHash = ampelRateStoredValue(emailKey, hmacReady);
         const requestId = randomBytes(8).toString("hex");
         const written = await client.batchUpdate({
           spreadsheetId: id,

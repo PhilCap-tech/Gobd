@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { VorlagenShell } from "@/components/vorlagen-shell";
 import { MAGNET_LINK_EXPIRED, MAGNET_LINK_INVALID } from "@/lib/vorlagen/copy";
 import { firstQueryValue } from "@/lib/query";
-import { readMagnetDoiToken, readMagnetDownloadToken } from "@/lib/vorlagen/token";
+import { looksLikeMagnetToken } from "@/lib/vorlagen/token";
 import { MagnetRenewPanel } from "./renew-panel";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export default async function MagnetRenewPage({
 }) {
   const params = await searchParams;
   const token = firstQueryValue(params.token) ?? "";
-  const known = Boolean(readMagnetDoiToken(token) || readMagnetDownloadToken(token));
+  const known = looksLikeMagnetToken(token);
 
   return (
     <VorlagenShell>

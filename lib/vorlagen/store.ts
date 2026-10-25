@@ -8,12 +8,14 @@ import {
   magnetLeadFromCells,
   type MagnetLead,
 } from "@/lib/vorlagen/lead";
+import { magnetLinkHasHash } from "@/lib/vorlagen/token";
 
 export type MagnetLeadStore = {
   insert(lead: MagnetLead): Promise<void>;
   update(lead: MagnetLead): Promise<void>;
   listByEmail(email: string): Promise<MagnetLead[]>;
   findById(leadId: string): Promise<MagnetLead | null>;
+  findByLinkHash(hash: string): Promise<MagnetLead | null>;
 };
 
 export function createMemoryMagnetStore(): MagnetLeadStore & { rows(): MagnetLead[] } {
@@ -36,6 +38,10 @@ export function createMemoryMagnetStore(): MagnetLeadStore & { rows(): MagnetLea
     },
     async findById(leadId) {
       const found = rows.find((row) => row.leadId === leadId);
+      return found ? { ...found } : null;
+    },
+    async findByLinkHash(hash) {
+      const found = rows.find((row) => magnetLinkHasHash(row.linkJson, hash));
       return found ? { ...found } : null;
     },
   };
@@ -75,7 +81,7 @@ type SheetClient = {
   }): Promise<{ data: unknown }>;
 };
 
-const COLUMN_END = "P";
+const COLUMN_END = "Q";
 
 function refuseLive(): void {
   if (automatedRunForbidsLiveWrites()) throw new LiveWriteRefusedError("sheets");
@@ -197,6 +203,18 @@ function liveStore(): MagnetLeadStore {
       for (const row of rows.slice(1)) {
         const lead = magnetLeadFromCells(row);
         if (lead?.leadId === leadId) return lead;
+      }
+      return null;
+    },
+    async findByLinkHash(hash) {
+      if (automatedRunForbidsLiveWrites()) return null;
+      if (!isSheetsConfigured()) return null;
+      const client = sheetClient();
+      const id = process.env.GOOGLE_SHEETS_SPREADSHEET_ID?.trim() ?? "";
+      const rows = await readRows(client, id, getMagnetLeadsSheetsTab());
+      for (const row of rows.slice(1)) {
+        const lead = magnetLeadFromCells(row);
+        if (lead && magnetLinkHasHash(lead.linkJson, hash)) return lead;
       }
       return null;
     },

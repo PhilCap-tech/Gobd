@@ -7,7 +7,7 @@ import type { MagnetId } from "@/lib/vorlagen/ids";
 /**
  * Lead row for /vorlagen/.
  * Calculator inputs for Kostenrechner live in calc_json, keyed by lead_id.
- * The signed mail link carries that id and not the numbers.
+ * Mail links carry a random id. Only its SHA-256 hash is stored in link_json.
  * Retention clears calc_json when the link expires and deletes the row
  * on the clock in MAGNET_RETENTION.
  * Not stored, on purpose, until the privacy policy covers them:
@@ -31,6 +31,7 @@ export const MAGNET_LEAD_COLUMNS = [
   "withdrawn_at",
   "redacted_at",
   "calc_json",
+  "link_json",
 ] as const;
 
 export type MagnetLeadStatus = "requested" | "confirmed" | "downloaded" | "expired" | "withdrawn";
@@ -55,6 +56,8 @@ export type MagnetLead = {
   redactedAt: string;
   /** Compact calculator JSON, or empty. Never copied into a mail link. */
   calcJson: string;
+  /** SHA-256 hashes, purpose, and expiry for mail links. Never the raw id or the address. */
+  linkJson: string;
 };
 
 const STATUSES = new Set<string>(["requested", "confirmed", "downloaded", "expired", "withdrawn"]);
@@ -83,6 +86,7 @@ export function magnetLeadCells(lead: MagnetLead): string[] {
     lead.withdrawnAt,
     lead.redactedAt,
     lead.calcJson,
+    lead.linkJson,
   ];
 }
 
@@ -146,6 +150,7 @@ export function magnetLeadFromCells(raw: string[]): MagnetLead | null {
     withdrawnAt: cell(raw, 13),
     redactedAt: cell(raw, 14),
     calcJson: cell(raw, 15),
+    linkJson: cell(raw, 16),
   };
 }
 
@@ -166,6 +171,7 @@ export function redactMagnetLead(lead: MagnetLead, at: string): MagnetLead {
     marketingOptIn: lead.marketingOptIn === "withdrawn" ? "withdrawn" : "no",
     consentTextVersion: "",
     calcJson: "",
+    linkJson: "",
     redactedAt: at,
     status: lead.status === "withdrawn" ? "withdrawn" : "expired",
   };

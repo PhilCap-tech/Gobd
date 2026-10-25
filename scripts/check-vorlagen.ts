@@ -4,9 +4,10 @@
  *
  *   npm run check:vorlagen
  */
+import { createHmac } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { createMemoryAmpelRateStore } from "../lib/ampel-rate-limit";
+import { ampelRateStoredHash, ampelRateStoredValue, createMemoryAmpelRateStore } from "../lib/ampel-rate-limit";
 import { LiveWriteRefusedError, automatedRunForbidsLiveWrites } from "../lib/live-write-guard";
 import { installSheetsHandler } from "../lib/sheets-client";
 import { canonicalUrl, INDEXABLE_STATIC_PATHS } from "../lib/seo";
@@ -38,13 +39,13 @@ import { magnetLeadStore } from "../lib/vorlagen/store";
 import { clearMagnetStepRateForTest } from "../lib/vorlagen/step-rate";
 import { recordMagnetStep } from "../lib/vorlagen/step-store";
 import { parseMagnetStepBody } from "../lib/vorlagen/step-event";
+import { magnetRateHmac, magnetRateLogPrefix } from "../lib/vorlagen/rate-key";
 import {
-  createMagnetDoiToken,
-  createMagnetDownloadToken,
   downloadExpiry,
-  readMagnetDoiToken,
-  readMagnetDownloadToken,
-  verifyMagnetDoiToken,
+  hashMagnetToken,
+  issueMagnetLink,
+  matchMagnetLink,
+  opaqueMagnetToken,
 } from "../lib/vorlagen/token";
 import { runProductionMagnetRetention } from "../lib/vorlagen/retention-sheet";
 import {
@@ -111,13 +112,18 @@ function tokenFrom(mail: string): string {
 }
 
 function payloadOf(token: string): Record<string, unknown> | null {
-  const dot = token.indexOf(".");
-  if (dot <= 0) return null;
+  const body = token.includes(".") ? token.slice(0, token.indexOf(".")) : token;
   try {
-    return JSON.parse(Buffer.from(token.slice(0, dot), "base64url").toString("utf8")) as Record<string, unknown>;
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
   } catch {
     return null;
   }
+}
+
+function assertOpaque(token: string, label: string) {
+  ok(token.length >= 43 && !token.includes("@") && !token.includes(".") && !token.includes("%40"), `${label} is only an opaque id`);
+  ok(payloadOf(token) === null, `${label} is not decodable`);
 }
 
 const sampleLead: MagnetLead = {
@@ -137,6 +143,7 @@ const sampleLead: MagnetLead = {
   withdrawnAt: "",
   redactedAt: "",
   calcJson: "",
+  linkJson: "",
 };
 
 function harness() {
@@ -144,10 +151,18 @@ function harness() {
   const sent: DedupedMailInput[] = [];
   let clock = Date.parse("2026-06-01T08:00:00.000Z");
   let blocked = false;
+  const rateKeys: { ipKey: string; emailKey: string; hmacReady?: boolean }[] = [];
+  const innerRate = createMemoryAmpelRateStore();
   const deps: MagnetDeps = {
     now: () => clock,
     store,
-    rate: createMemoryAmpelRateStore(),
+    rate: {
+      async take(input) {
+        rateKeys.push({ ipKey: input.ipKey, emailKey: input.emailKey, hmacReady: input.hmacReady });
+        return innerRate.take(input);
+      },
+      confirm: (input) => innerRate.confirm(input),
+    },
     send: async (input) => {
       sent.push(input);
       return { sent: true, stub: false };
@@ -168,6 +183,7 @@ function harness() {
     setBlocked(value: boolean) {
       blocked = value;
     },
+    rateKeys,
   };
 }
 
@@ -192,6 +208,7 @@ async function main() {
   ok(refused, "default lead insert throws LiveWriteRefusedError");
   ok((await magnetLeadStore().listByEmail("kunde@example.com")).length === 0, "check does not list production leads");
   ok((await magnetLeadStore().findById(sampleLead.leadId)) === null, "check does not read a production lead");
+  ok((await magnetLeadStore().findByLinkHash("a".repeat(64))) === null, "check does not scan production links");
   await recordMagnetStep({
     date: "2026-06-01",
     event: "magnet_view",
@@ -205,26 +222,31 @@ async function main() {
   ok(!sheetsCalled, "the check never calls Google Sheets");
 
   const now = 1_700_000_000_000;
-  const doi = createMagnetDoiToken(
-    { leadId: sampleLead.leadId, email: sampleLead.email, magnet: "checkliste-kassen-nachschau" },
-    now,
-  );
-  ok(doi !== null && verifyMagnetDoiToken(doi, now + MAGNET_DOI_TTL_MS) !== null, "DOI token lasts 48 hours");
-  ok(verifyMagnetDoiToken(doi, now + MAGNET_DOI_TTL_MS + 1) === null, "DOI token ends after 48 hours");
-  ok(readMagnetDoiToken(doi, now + MAGNET_DOI_TTL_MS + 1)?.expired === true, "an expired DOI token is marked expired");
+  const doiIssued = issueMagnetLink("", "doi", now + MAGNET_DOI_TTL_MS);
+  ok(doiIssued !== null && matchMagnetLink(doiIssued!.linkJson, doiIssued!.token, now + MAGNET_DOI_TTL_MS)?.expired === false, "DOI token lasts 48 hours");
+  ok(matchMagnetLink(doiIssued!.linkJson, doiIssued!.token, now + MAGNET_DOI_TTL_MS + 1)?.expired === true, "DOI token ends after 48 hours");
+  ok(!doiIssued!.linkJson.includes("@") && !doiIssued!.linkJson.includes(doiIssued!.token), "the stored DOI record is a hash, not the id or an address");
+  ok(doiIssued!.linkJson.includes(hashMagnetToken(doiIssued!.token)), "the DOI record stores the SHA-256 of the id");
   const exp = downloadExpiry(now);
   ok(exp - now === MAGNET_DOWNLOAD_TTL_MS, "download expiry is 30 days after confirmation");
-  const downloadToken = createMagnetDownloadToken({
-    leadId: sampleLead.leadId,
-    email: sampleLead.email,
-    magnet: "checkliste-kassen-nachschau",
-    exp,
-  });
-  ok(readMagnetDownloadToken(downloadToken, exp)?.expired === false, "download token is valid through the 30th day");
-  ok(readMagnetDownloadToken(downloadToken, exp + 1)?.expired === true, "download token is expired after 30 days");
+  const downloadIssued = issueMagnetLink("", "download", exp);
+  ok(matchMagnetLink(downloadIssued!.linkJson, downloadIssued!.token, exp)?.expired === false, "download token is valid through the 30th day");
+  ok(matchMagnetLink(downloadIssued!.linkJson, downloadIssued!.token, exp + 1)?.expired === true, "download token is expired after 30 days");
+  assertOpaque(opaqueMagnetToken(), "a fresh mail id");
+  const hmacEmail = magnetRateHmac("email", "kunde@example.com");
+  ok(hmacEmail === magnetRateHmac("email", "kunde@example.com") && hmacEmail.length === 64, "the email rate key is HMAC-SHA256");
+  ok(!hmacEmail.includes("@") && hmacEmail !== hashMagnetToken("kunde@example.com"), "the email rate key is not SHA-256 and not the address");
+  ok(magnetRateLogPrefix("203.0.113.10") === magnetRateHmac("ip", "203.0.113.10").slice(0, 12), "the rate log line uses the IP HMAC");
+  ok(
+    hmacEmail === createHmac("sha256", process.env.MAGIC_LINK_SECRET ?? "").update("magnet-rate:email:kunde@example.com").digest("hex"),
+    "the email rate key uses the magic-link secret and a magnet-rate prefix",
+  );
+  ok(ampelRateStoredValue(hmacEmail, true) === hmacEmail, "the sheet stores the magnet HMAC itself");
+  ok(ampelRateStoredValue("ip:abc") === ampelRateStoredHash("ip:abc"), "Ampel sheet hashes stay plain SHA-256");
+  ok(!source("lib/ampel-result-send.ts").includes("hmacReady") && !source("lib/kanzlei-submit.ts").includes("hmacReady"), "Ampel callers do not opt into the magnet HMAC");
 
   const columns = MAGNET_LEAD_COLUMNS.join(",");
-  ok(columns.endsWith("calc_json"), "lead columns store calculator inputs in calc_json");
+  ok(columns.includes("calc_json") && columns.endsWith("link_json"), "lead columns store calculator inputs and link hashes");
   for (const key of ["utm", "gclid", "gbraid", "wbraid", "ref", "kanzlei", "src", "variant", "consent_ip", "has_click"]) {
     ok(!columns.includes(key), `lead columns omit ${key}`);
   }
@@ -301,17 +323,15 @@ async function main() {
   ok(utm.store.rows()[0]?.marketingOptIn === "no", "marketing stays off when the box is not checked");
   ok(utm.sent.length === 1 && utm.sent[0]?.subject === "Bitte bestätigen Sie Ihre Anforderung", "only the transactional confirmation mail is sent");
 
-  const early = createMagnetDownloadToken({
-    leadId: utm.store.rows()[0]!.leadId,
-    email: "kunde@example.com",
-    magnet: "checkliste-kassen-nachschau",
-    exp: utm.clock() + MAGNET_DOWNLOAD_TTL_MS,
-  });
-  const hidden = await download(early ?? "");
+  const hidden = await download(opaqueMagnetToken());
   const hiddenBody = await hidden.text();
   ok(hidden.status === 404 && !hiddenBody.startsWith("%PDF"), "an unconfirmed file URL is not a PDF");
 
   const doiToken = tokenFrom(utm.sent[0]?.text ?? "");
+  assertOpaque(doiToken, "the confirmation link");
+  ok(!utm.sent[0]?.text.includes("kunde@") && !utm.sent[0]?.html.includes("kunde@"), "the confirmation mail does not contain the address");
+  ok(utm.rateKeys[0]?.hmacReady === true && utm.rateKeys[0]?.emailKey === magnetRateHmac("email", "kunde@example.com"), "the request stores an HMAC of the address");
+  ok(!utm.rateKeys[0]?.ipKey.includes("203.0.113") && !utm.rateKeys[0]?.emailKey.includes("@"), "the rate keys are not the address or the IP");
   const firstConfirm = await confirmMagnet(doiToken);
   ok(firstConfirm.ok === true, "the confirmation link unlocks the file");
   const confirmedAt = utm.store.rows()[0]?.doiConfirmedAt ?? "";
@@ -324,17 +344,17 @@ async function main() {
   const bad = await download("not-a-token");
   const badBody = await bad.text();
   ok(bad.status === 404 && !badBody.startsWith("%PDF"), "a bad token is not a PDF");
-  const stale = createMagnetDownloadToken({
-    leadId: utm.store.rows()[0]!.leadId,
-    email: "kunde@example.com",
-    magnet: "checkliste-kassen-nachschau",
-    exp: utm.clock() - 1000,
-  });
-  const gone = await download(stale ?? "");
+  const current = utm.store.rows()[0]!;
+  const stale = issueMagnetLink(current.linkJson, "download", utm.clock() - 1000);
+  ok(stale !== null, "an expired download id can be stored");
+  await utm.store.update({ ...current, linkJson: stale!.linkJson });
+  const gone = await download(stale!.token);
   const goneBody = await gone.text();
   ok(gone.status === 410 && !goneBody.startsWith("%PDF"), "an expired download link is not a PDF");
 
   const fileToken = firstConfirm.ok ? firstConfirm.downloadToken : "";
+  assertOpaque(fileToken, "the download link");
+  ok(!utm.sent.find((mail) => mail.subject === "Ihre Vorlage")?.text.includes("kunde@"), "the file mail does not contain the address");
   const firstFile = await download(fileToken);
   const firstPdf = Buffer.from(await firstFile.arrayBuffer());
   ok(firstFile.status === 200 && firstPdf.subarray(0, 4).toString("latin1") === "%PDF", "the checklist download is a PDF");
@@ -355,14 +375,13 @@ async function main() {
   const kostenRow = JSON.stringify(kosten.store.rows());
   ok(kostenRow.includes("10000") && kosten.store.rows()[0]?.calcJson.includes("10000"), "calculator inputs are stored on the lead");
   const kostenToken = tokenFrom(kosten.sent[0]?.text ?? "");
-  const kostenPayload = payloadOf(kostenToken);
-  ok(!kostenPayload || !("calc" in kostenPayload), "the confirmation token has no calculator field");
-  ok(!JSON.stringify(kostenPayload).includes("10000") && !kosten.sent[0]?.text.includes("10000"), "calculator inputs stay out of the confirmation mail");
+  assertOpaque(kostenToken, "the calculator confirmation link");
+  ok(!kosten.sent[0]?.text.includes("10000") && !kosten.store.rows()[0]?.linkJson.includes("10000"), "calculator inputs stay out of the link and its hash");
+  ok(kosten.store.rows()[0]?.linkJson.includes(hashMagnetToken(kostenToken)), "the calculator link is stored as a SHA-256 hash");
   const kostenConfirmed = await confirmMagnet(kostenToken);
   ok(kostenConfirmed.ok === true, "the calculator confirmation succeeds");
-  const kostenDownload = kostenConfirmed.ok ? payloadOf(kostenConfirmed.downloadToken) : null;
-  ok(!kostenDownload || !("calc" in kostenDownload), "the download token has no calculator field");
-  ok(!JSON.stringify(kostenDownload).includes("10000"), "calculator inputs stay out of the download token");
+  const kostenDownload = kostenConfirmed.ok ? kostenConfirmed.downloadToken : "";
+  assertOpaque(kostenDownload, "the calculator download link");
   const storedPdf = await download(kostenConfirmed.ok ? kostenConfirmed.downloadToken : "");
   const storedPdfBytes = Buffer.from(await storedPdf.arrayBuffer());
   ok(storedPdf.status === 200 && pdfText(storedPdfBytes).includes("10.000,00"), "the download PDF is built from the stored inputs");

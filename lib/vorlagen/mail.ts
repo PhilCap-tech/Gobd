@@ -11,11 +11,6 @@ import {
 } from "@/lib/mail-layout";
 import { CUSTOMER_MAIL_SIGNATURE } from "@/lib/ops";
 import { MAGNET_MAIL_DEDUPE_MS, MAGNET_TITLES, type MagnetId } from "@/lib/vorlagen/ids";
-import {
-  createMagnetDownloadToken,
-  createMagnetMarketingToken,
-  createMagnetUnsubscribeToken,
-} from "@/lib/vorlagen/token";
 
 export const MAGNET_MAIL_FROM = "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
 
@@ -124,30 +119,18 @@ export function buildMagnetMarketingMail(input: { confirmUrl: string; unsubscrib
   return { subject, text: wrapTransactionalText(lines.filter((line) => line !== undefined).join("\n")), html };
 }
 
-export function magnetFileLink(input: {
-  leadId: string;
-  email: string;
-  magnet: MagnetId;
-  exp: number;
-}): string | null {
-  const token = createMagnetDownloadToken(input);
+export function magnetFileLink(token: string): string | null {
   return token ? magnetDownloadUrl(token) : null;
 }
 
-export function magnetMarketingLinks(input: {
-  leadId: string;
-  email: string;
-  magnet: MagnetId;
-  consentAt: string;
-  consentTextVersion: string;
-}): { confirmUrl: string; unsubscribeUrl: string; token: string } | null {
-  const token = createMagnetMarketingToken(input);
-  const unsubscribe = createMagnetUnsubscribeToken(input);
-  if (!token || !unsubscribe) return null;
+export function magnetMarketingUrls(
+  confirmToken: string,
+  unsubscribeToken: string,
+): { confirmUrl: string; unsubscribeUrl: string } | null {
+  if (!confirmToken || !unsubscribeToken) return null;
   return {
-    token,
-    confirmUrl: magnetMarketingConfirmUrl(token),
-    unsubscribeUrl: magnetUnsubscribePageUrl(unsubscribe),
+    confirmUrl: magnetMarketingConfirmUrl(confirmToken),
+    unsubscribeUrl: magnetUnsubscribePageUrl(unsubscribeToken),
   };
 }
 

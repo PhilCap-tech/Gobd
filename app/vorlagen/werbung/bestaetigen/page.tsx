@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { VorlagenShell } from "@/components/vorlagen-shell";
 import { MAGNET_LINK_INVALID } from "@/lib/vorlagen/copy";
 import { firstQueryValue } from "@/lib/query";
-import { verifyMagnetMarketingToken } from "@/lib/vorlagen/token";
+import { looksLikeMagnetToken } from "@/lib/vorlagen/token";
 import { MagnetMarketingPanel } from "./panel";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export default async function MagnetMarketingPage({
 }) {
   const params = await searchParams;
   const token = firstQueryValue(params.token) ?? "";
-  const valid = Boolean(verifyMagnetMarketingToken(token));
+  const valid = looksLikeMagnetToken(token);
 
   return (
     <VorlagenShell>

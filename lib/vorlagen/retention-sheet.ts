@@ -106,7 +106,7 @@ export async function runProductionMagnetRetention(now: number): Promise<MagnetR
     const stepSheet = sheetId(meta.data.sheets, stepTab);
     const leadValues = leadSheet == null
       ? []
-      : (await api.valuesGet({ spreadsheetId, range: `${leadTab}!A2:P` })).data?.values ?? [];
+      : (await api.valuesGet({ spreadsheetId, range: `${leadTab}!A2:Q` })).data?.values ?? [];
     const stepValues = stepSheet == null
       ? []
       : (await api.valuesGet({ spreadsheetId, range: `${stepTab}!A2:A` })).data?.values ?? [];
