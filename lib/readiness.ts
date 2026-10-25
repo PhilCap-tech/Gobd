@@ -72,9 +72,15 @@ export type ReadinessLead = {
    * Kanzlei rows, and for test addresses or listed firms.
    */
   tool: string;
-  /** Present only when the submit carried utm_source. Never a click id. */
+  /**
+   * Kassen submit only. Ampel writes this column empty. Never a click id.
+   * Old rows are left as they are.
+   */
   utmSource: string;
-  /** Present only when the submit carried utm_campaign. Never a click id. */
+  /**
+   * Kassen submit only. Ampel writes this column empty. Never a click id.
+   * Old rows are left as they are.
+   */
   utmCampaign: string;
   /** Funnel marker from the page URL, such as hero. Empty for test rows. Never a click id. */
   src: string;

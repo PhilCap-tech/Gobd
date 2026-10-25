@@ -185,12 +185,12 @@ try {
   );
 
   const tracking = readFileSync("lib/tracking.ts", "utf8");
-  const conversionAt = tracking.indexOf('gtag?.("event", "conversion"');
-  ok(conversionAt >= 0, "Google Ads conversion call exists");
+  const conversionAt = tracking.indexOf('gtag("event", "conversion"');
+  ok(conversionAt >= 0, "Google Ads purchase conversion call exists");
   const conversionCall = tracking.slice(conversionAt, tracking.indexOf("});", conversionAt));
-  ok(!/\bvalue\b/.test(conversionCall), "Google Ads conversion sends no value");
+  ok(conversionCall.includes("PURCHASE_CONVERSION_VALUE_EUR"), "purchase conversion uses the 198 net constant");
   ok(!conversionCall.includes("235"), "Google Ads conversion does not send the gross total");
-  ok(tracking.includes("198 € net"), "conversion comment keeps the 198 € net default");
+  ok((tracking.match(/event", "conversion"/g) ?? []).length === 1, "only the purchase conversion remains");
   ok(TODAY_EUR === 198, "list price today stays 198 net");
   ok(SETUP_GROSS_LABEL === "177,31", "setup gross is 177,31");
   ok(MONTHLY_GROSS_LABEL === "58,31", "monthly gross is 58,31");

@@ -41,8 +41,8 @@ import {
   sendAmpelQuestionView,
   sendAmpelStep,
 } from "@/lib/ampel-step-beacon";
-import { replaceCheckSearch, submitUtmFields, submitVariantFields } from "@/lib/campaign-params";
-import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
+import { replaceCheckSearch, submitVariantFields } from "@/lib/campaign-params";
+import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart } from "@/lib/tracking";
 
 function EmailPrivacyNote() {
   const label = "Datenschutzerklärung";
@@ -260,7 +260,6 @@ export function AmpelCheck() {
       ref: refName,
       marketing,
       fax_number: fax,
-      ...submitUtmFields(window.location.search),
       ...submitVariantFields(window.location.search),
     };
     const showResult = (notice: string) => {
@@ -397,7 +396,6 @@ export function AmpelCheck() {
       if (aborted) noteAmpelSubmitResult(0, false, true);
       showResult(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
-      if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" });
       if (leadAccepted) trackAmpelCheckSubmit();
       setPending(false);
     }
