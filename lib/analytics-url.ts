@@ -1,3 +1,4 @@
+import { isAllowlistedTagQuery } from "@/lib/tag-page-url";
 import { urlMentionsTestEntity } from "@/lib/test-entities";
 
 type AnalyticsEvent = {
@@ -44,7 +45,12 @@ function isSensitive(key: string, value: string): boolean {
   return EMAIL.test(value) || EMAIL.test(decoded) || NESTED_SECRET.test(decoded);
 }
 
-/** Page URL for Vercel Web Analytics, without query secrets or a fragment. */
+/**
+ * Page URL for Vercel Web Analytics.
+ * Same query allowlist as gtag page_location: utm_* , gclid, gbraid, wbraid.
+ * Answers (`a`), `ref`, tokens, and the fragment are dropped. An allowlisted
+ * value that is an email or a nested secret is dropped too.
+ */
 export function sanitizeAnalyticsUrl(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -57,7 +63,9 @@ export function sanitizeAnalyticsUrl(raw: string): string | null {
   }
   for (const key of [...url.searchParams.keys()]) {
     const values = url.searchParams.getAll(key);
-    if (values.some((value) => isSensitive(key, value))) url.searchParams.delete(key);
+    if (!isAllowlistedTagQuery(key) || values.some((value) => isSensitive(key, value))) {
+      url.searchParams.delete(key);
+    }
   }
   url.hash = "";
   const absolute = /^https?:\/\//i.test(trimmed);

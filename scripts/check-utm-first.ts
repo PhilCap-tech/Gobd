@@ -451,7 +451,16 @@ function assertNoUtmParams(label: string) {
     }
   }
   for (const event of gtagEvents()) {
-    const blob = JSON.stringify(event.params ?? null);
+    const params =
+      event.params && typeof event.params === "object"
+        ? { ...(event.params as Record<string, unknown>) }
+        : null;
+    // page_location may carry the live allowlisted utm query. That is not stored utm.
+    if (params) {
+      delete params.page_location;
+      delete params.page_referrer;
+    }
+    const blob = JSON.stringify(params);
     assert.equal(blob.includes("utm_"), false, `${label}: gtag ${String(event.name)} ${blob}`);
     if (event.params && typeof event.params === "object") {
       for (const key of Object.keys(event.params as object)) {

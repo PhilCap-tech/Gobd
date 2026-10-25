@@ -310,7 +310,10 @@ function checkMetrics(): void {
     type: "pageview",
     url: `https://www.gobd-doku-erstellen.de/intake?entity_id=${NORMAL}`,
   });
-  ok(kept !== null && kept.url.includes(NORMAL), "a pageview for a normal firm is kept");
+  ok(
+    kept !== null && kept.url === "https://www.gobd-doku-erstellen.de/intake",
+    "a pageview for a normal firm is kept without the entity id",
+  );
   const success = read("app/success/page.tsx");
   ok(success.includes('showSuccess && sessionId.startsWith("cs_")'), "purchase conversion still starts from a paid success view");
   ok(success.includes("countsInReporting(row.entityId)"), "purchase conversion skips the listed firm on the document");
