@@ -20,7 +20,13 @@ import {
   type AmpelStepSheetClient,
 } from "@/lib/ampel-step-store";
 import { kanzleiHinweisText } from "@/lib/kanzlei-toolbox-copy";
-import { kanzleiMailAllowed, KANZLEI_MAIL_BLOCKED, KANZLEI_MAIL_SINK } from "@/lib/kanzlei-toolbox-mail";
+import {
+  kanzleiMailAllowed,
+  kanzleiToolboxDoiKey,
+  kanzleiToolboxKitKey,
+  KANZLEI_MAIL_BLOCKED,
+  KANZLEI_MAIL_SINK,
+} from "@/lib/kanzlei-toolbox-mail";
 import {
   KANZLEI_ID_RE,
   KANZLEI_RETENTION,
@@ -207,6 +213,12 @@ async function main(): Promise<void> {
   ok(hint.body.includes("nicht erstellt und nicht geprüft von der Kanzlei"), "the check is not created or reviewed by the Kanzlei");
   ok(!hint.body.includes("Empfohlen"), "the line does not say Empfohlen");
 
+  const mailSource = source("lib/kanzlei-toolbox-mail.ts");
+  ok(mailSource.includes("sendDedupedEmail(") && mailSource.includes("from \"@/lib/mail-dedupe\""), "toolbox mail uses the dedupe helper");
+  const doiKey = kanzleiToolboxDoiKey("k_0123456789abcdef");
+  const kitKey = kanzleiToolboxKitKey("k_0123456789abcdef");
+  ok(doiKey === "kanzlei-toolbox-doi:k_0123456789abcdef" && kitKey === "kanzlei-toolbox-kit:k_0123456789abcdef", "each toolbox mail has its own key");
+  ok(!/utm|ref|gclid|gbraid|wbraid/i.test(`${doiKey} ${kitKey}`), "the dedupe keys carry no campaign value");
   ok(!kanzleiMailAllowed(KANZLEI_MAIL_SINK), "a check run does not mail the sink");
   ok(!kanzleiMailAllowed(KANZLEI_MAIL_BLOCKED), "the blocked address is never mailed");
   ok(!kanzleiMailAllowed("kanzlei@example.org"), "a check run does not mail an applicant");

@@ -1,6 +1,7 @@
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import type { MailResult } from "@/lib/mail";
-import { sendEmail } from "@/lib/mail";
+import { sendDedupedEmail } from "@/lib/mail-dedupe";
+import { isKanzleiId } from "@/lib/kanzlei-toolbox";
 import {
   escapeAttr,
   escapeHtml,
@@ -20,6 +21,24 @@ import { createKanzleiReportToken, createKanzleiRevokeToken } from "@/lib/kanzle
 
 export const KANZLEI_MAIL_SINK = "delivered@resend.dev";
 export const KANZLEI_MAIL_BLOCKED = "philip.cappelletti@sdc-ventures.com";
+export const KANZLEI_TOOLBOX_MAIL_FROM = "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
+
+/** One DOI mail per application. The id is opaque and carries no name, ref or campaign value. */
+export function kanzleiToolboxDoiKey(kanzleiId: string): string {
+  return `kanzlei-toolbox-doi:${kanzleiId}`;
+}
+
+/** One toolbox mail per confirmed application. */
+export function kanzleiToolboxKitKey(kanzleiId: string): string {
+  return `kanzlei-toolbox-kit:${kanzleiId}`;
+}
+
+function acceptedDedupeKey(value: string): string {
+  const key = value.trim();
+  const id = key.slice(key.lastIndexOf(":") + 1);
+  if ((key.startsWith("kanzlei-toolbox-doi:") || key.startsWith("kanzlei-toolbox-kit:")) && isKanzleiId(id)) return key;
+  return "";
+}
 
 /** Preview, checks and any non-production host may mail only the Resend sink. */
 export function kanzleiMailAllowed(to: string): boolean {
@@ -35,11 +54,15 @@ export async function sendKanzleiToolboxMail(input: {
   subject: string;
   text: string;
   html: string;
+  dedupeKey: string;
   attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }): Promise<MailResult> {
-  if (!kanzleiMailAllowed(input.to)) return { stub: true, sent: false };
-  return sendEmail({
+  const dedupeKey = acceptedDedupeKey(input.dedupeKey);
+  if (!dedupeKey || !kanzleiMailAllowed(input.to)) return { stub: true, sent: false };
+  return sendDedupedEmail({
+    dedupeKey,
     to: input.to,
+    from: KANZLEI_TOOLBOX_MAIL_FROM,
     subject: input.subject,
     text: input.text,
     html: input.html,

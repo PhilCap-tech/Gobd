@@ -81,7 +81,7 @@ const FAQ = [
   },
   {
     q: "Wie entferne ich den Eintrag?",
-    a: "Über den Link in der Toolbox-E-Mail oder per Nachricht an info@gobd-doku-erstellen.de. Kostenfrei und ohne Begründung. Der Name entfällt sofort. Der Link führt danach auf den Ampel-Check ohne Kanzleinamen.",
+    a: "Über den Link in der Toolbox-E-Mail oder per Nachricht an info@gobd-doku-erstellen.de. Kostenfrei und ohne Begründung. Der Name entfällt sofort. Der Link führt danach auf den Ampel-Check ohne diesen Namen.",
   },
   {
     q: "Warum erscheint unser Name nicht sofort?",

@@ -19,7 +19,13 @@ import {
   websiteDomain,
   type KanzleiToolboxRecord,
 } from "@/lib/kanzlei-toolbox";
-import { buildKanzleiDoiMail, buildKanzleiToolboxMail, sendKanzleiToolboxMail } from "@/lib/kanzlei-toolbox-mail";
+import {
+  buildKanzleiDoiMail,
+  buildKanzleiToolboxMail,
+  kanzleiToolboxDoiKey,
+  kanzleiToolboxKitKey,
+  sendKanzleiToolboxMail,
+} from "@/lib/kanzlei-toolbox-mail";
 import { buildKanzleiMerkblattPdf, kanzleiQrPng } from "@/lib/kanzlei-toolbox-pdf";
 import {
   addKanzleiCount,
@@ -157,7 +163,7 @@ export async function submitKanzleiToolbox(
   const confirmUrl = `${getAppUrl()}/steuerberater/toolbox/bestaetigen?token=${encodeURIComponent(token)}`;
   const mail = buildKanzleiDoiMail(confirmUrl);
   const send = deps.send ?? sendKanzleiToolboxMail;
-  const sent = await send({ to: email, ...mail });
+  const sent = await send({ to: email, ...mail, dedupeKey: kanzleiToolboxDoiKey(record.kanzleiId) });
   const confirmForTest = email === "delivered@resend.dev" && process.env.VERCEL_ENV !== "production" ? confirmUrl : undefined;
   return { ok: true, mailed: sent.sent || sent.stub, ...(confirmForTest ? { confirmUrl: confirmForTest } : {}) };
 }
@@ -280,6 +286,7 @@ export async function confirmKanzleiToolbox(
       const result: MailResult = await send({
         to: saved.email,
         ...built,
+        dedupeKey: kanzleiToolboxKitKey(saved.kanzleiId),
         attachments: [
           { filename: "qr-code.png", content: qr, contentType: "image/png" },
           { filename: "mandanten-merkblatt.pdf", content: pdf, contentType: "application/pdf" },
