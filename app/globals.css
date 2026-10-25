@@ -2732,6 +2732,62 @@ body.consent-open .sticky-cta {
   }
 }
 
+/* Shorter than 760px the hero actions start below the banner. Same clearance, a step tighter. */
+@media (max-width: 860px) and (max-height: 759px) {
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]),
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) {
+    box-sizing: border-box;
+    padding: 2px 0 8px;
+  }
+
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]) > div > p:first-child,
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) > div > p:first-child {
+    margin-bottom: 4px;
+  }
+
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1,
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 {
+    font-size: 1.28rem;
+    line-height: 1.08;
+    margin: 0 0 0.08em;
+  }
+
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p,
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p {
+    font-size: 13.5px;
+    line-height: 1.28;
+    margin-bottom: 6px;
+  }
+
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p + p,
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p + p {
+    padding: 4px 0;
+  }
+
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p + p strong,
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p + p strong {
+    font-size: 1.05rem;
+  }
+
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p + p span,
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p + p span {
+    margin-top: 1px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p + p + div,
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) h1 + p + p + div {
+    margin-top: 6px;
+    gap: 6px;
+  }
+
+  html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#muster"]) a.btn,
+  body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#muster"]) a.btn {
+    padding: 8px 12px;
+  }
+}
+
 @media (max-width: 800px) and (max-height: 720px) {
   html.consent-pending .kanzlei-home > main > section:first-child:has(a[href="#anfrage"]),
   body.consent-open .kanzlei-home > main > section:first-child:has(a[href="#anfrage"]) {
