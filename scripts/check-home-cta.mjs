@@ -51,10 +51,13 @@ if (!banner.includes('classList.toggle("consent-pending"')) {
   fail("consent banner does not clear consent-pending after a choice");
 }
 if (!/html\.consent-pending \.sticky-cta/.test(css) || !/body\.consent-open \.sticky-cta/.test(css)) {
-  fail("sticky CTA is not hidden while the banner owns the bottom of a tall screen");
+  fail("sticky CTA is not hidden while the consent banner is open");
 }
-if (!/max-height:\s*820px/.test(css) || !/bottom:\s*74px/.test(css)) {
-  fail("short screens do not keep the sticky CTA above the banner");
+if (/html\.consent-pending \.sticky-cta,\s*body\.consent-open \.sticky-cta\s*\{[^}]*display:\s*block/.test(css)) {
+  fail("sticky CTA is shown while the consent banner is open");
+}
+if (/bottom:\s*74px/.test(css)) {
+  fail("consent banner is still offset to sit above the sticky CTA");
 }
 if (banner.includes("<aside") || !banner.includes('role="dialog"')) {
   fail("consent dialog must be a div with role=dialog");
