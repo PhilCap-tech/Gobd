@@ -3,6 +3,8 @@
  * consent grant can still attribute the visit. Nothing here is stored.
  */
 
+import { isDigistoreBuyHost } from "@/lib/digistore-promocode";
+
 export const CLICK_ID_PARAMS = ["gclid", "gbraid", "wbraid"] as const;
 
 const UTM_VALUE_MAX = 100;
@@ -83,6 +85,15 @@ export function hrefWithCampaignParams(href: string, search: string): string {
   }
   const rendered = query.toString();
   return `${path}${rendered ? `?${rendered}` : ""}${hash}`;
+}
+
+/**
+ * Page utm_* and click ids, only after marketing consent.
+ * A Digistore24 host keeps `href` unchanged: aff and cam only.
+ */
+export function campaignTargetHref(href: string, search: string, marketing: boolean): string {
+  if (!marketing || isDigistoreBuyHost(href)) return href;
+  return hrefWithCampaignParams(href, search);
 }
 
 /** utm_source and utm_campaign from the current URL. Click ids are not read. */

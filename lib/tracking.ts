@@ -400,6 +400,13 @@ function trackAmpelPixel(name: "AmpelStart" | "AmpelResult"): void {
   window.fbq?.("trackCustom", name);
 }
 
+/**
+ * Meta's fbevents.js reads `location.href` itself. Unlike gtag, the pixel
+ * cannot be given an allowlisted page_location. `?a=` and every other
+ * disallowed query key must be intercepted before NEXT_PUBLIC_META_PIXEL_ID
+ * is set. Leave that id unset until the filter exists, or the pixel sends
+ * the raw address.
+ */
 function enableMetaPixel(pixelId: string): void {
   if (typeof window === "undefined" || !pixelId) return;
   if (blockTokenLanding()) return;

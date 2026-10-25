@@ -91,6 +91,15 @@ const BUY_HOSTS = new Set([
   "www.checkout-ds24.com",
 ]);
 
+/** Digistore24 checkout hosts. Relative links and other hosts are not. */
+export function isDigistoreBuyHost(href: string): boolean {
+  try {
+    return BUY_HOSTS.has(new URL(href, "https://www.gobd-doku-erstellen.de").hostname);
+  } catch {
+    return false;
+  }
+}
+
 function cleanAffiliate(value: unknown): string {
   if (typeof value !== "string" || value === "null") return "";
   const trimmed = value.trim();

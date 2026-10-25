@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from "react";
-import { hrefWithCampaignParams } from "@/lib/campaign-params";
+import { campaignTargetHref } from "@/lib/campaign-params";
 import { buyHrefWithStoredAffiliate } from "@/lib/digistore-promocode";
 import { createHomeCtaGesture, sendHomeCta } from "@/lib/home-cta-beacon";
 import type { HomeCtaId } from "@/lib/home-cta-event";
@@ -11,8 +11,8 @@ import { hasMarketingConsent, subscribeConsent } from "@/lib/tracking";
 /**
  * Server render keeps `href`. After hydration, and again on click, utm_* and
  * click ids from the current page are appended only when marketing consent
- * is granted. A later consent change updates the href. Nothing is written
- * to storage.
+ * is granted. Digistore24 hosts never receive those parameters. A later
+ * consent change updates the href. Nothing is written to storage.
  * An optional homepage CTA id is sent once per click and does not wait.
  */
 export function CampaignLink({
@@ -30,9 +30,7 @@ export function CampaignLink({
   const [gesture] = useState(() => createHomeCtaGesture());
 
   const pageHref = useCallback(() => {
-    const target = hasMarketingConsent()
-      ? hrefWithCampaignParams(href, window.location.search)
-      : href;
+    const target = campaignTargetHref(href, window.location.search, hasMarketingConsent());
     return buyHrefWithStoredAffiliate(target);
   }, [href]);
 
