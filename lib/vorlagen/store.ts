@@ -75,7 +75,7 @@ type SheetClient = {
   }): Promise<{ data: unknown }>;
 };
 
-const COLUMN_END = "O";
+const COLUMN_END = "P";
 
 function refuseLive(): void {
   if (automatedRunForbidsLiveWrites()) throw new LiveWriteRefusedError("sheets");

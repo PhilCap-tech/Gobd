@@ -1,13 +1,18 @@
 import { randomBytes } from "node:crypto";
 import { isAmpelTestEmail } from "@/lib/ampel-stats";
 import { normalizeAmpelEmail } from "@/lib/ampel-score";
+import { parseMagnetCalc, type CalcSnapshot } from "@/lib/vorlagen/calc";
 import type { MagnetId } from "@/lib/vorlagen/ids";
 
 /**
  * Lead row for /vorlagen/.
+ * Calculator inputs for Kostenrechner live in calc_json, keyed by lead_id.
+ * The signed mail link carries that id and not the numbers.
+ * Retention clears calc_json when the link expires and deletes the row
+ * on the clock in MAGNET_RETENTION.
  * Not stored, on purpose, until the privacy policy covers them:
  * utm_*, src, variant, ref, kanzlei_ref, gclid, gbraid, wbraid, has_click_id,
- * consent_ip, and the calculator inputs.
+ * consent_ip.
  */
 export const MAGNET_LEAD_COLUMNS = [
   "timestamp",
@@ -25,6 +30,7 @@ export const MAGNET_LEAD_COLUMNS = [
   "mail_status",
   "withdrawn_at",
   "redacted_at",
+  "calc_json",
 ] as const;
 
 export type MagnetLeadStatus = "requested" | "confirmed" | "downloaded" | "expired" | "withdrawn";
@@ -47,6 +53,8 @@ export type MagnetLead = {
   mailStatus: MagnetMailStatus;
   withdrawnAt: string;
   redactedAt: string;
+  /** Compact calculator JSON, or empty. Never copied into a mail link. */
+  calcJson: string;
 };
 
 const STATUSES = new Set<string>(["requested", "confirmed", "downloaded", "expired", "withdrawn"]);
@@ -74,7 +82,29 @@ export function magnetLeadCells(lead: MagnetLead): string[] {
     lead.mailStatus,
     lead.withdrawnAt,
     lead.redactedAt,
+    lead.calcJson,
   ];
+}
+
+/** Drops empty defaults so a later parse accepts the cell. */
+export function magnetCalcJson(calc: CalcSnapshot | null): string {
+  if (!calc) return "";
+  const compact: Record<string, number | boolean> = {};
+  for (const [key, value] of Object.entries(calc)) {
+    if (value == null || value === false) continue;
+    compact[key] = value;
+  }
+  return Object.keys(compact).length === 0 ? "" : JSON.stringify(compact);
+}
+
+export function magnetCalcFromJson(raw: string): CalcSnapshot | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    return parseMagnetCalc(JSON.parse(trimmed));
+  } catch {
+    return null;
+  }
 }
 
 function cell(raw: string[] | undefined, index: number): string {
@@ -115,6 +145,7 @@ export function magnetLeadFromCells(raw: string[]): MagnetLead | null {
     mailStatus: mail as MagnetMailStatus,
     withdrawnAt: cell(raw, 13),
     redactedAt: cell(raw, 14),
+    calcJson: cell(raw, 15),
   };
 }
 
@@ -134,6 +165,7 @@ export function redactMagnetLead(lead: MagnetLead, at: string): MagnetLead {
     email: "",
     marketingOptIn: lead.marketingOptIn === "withdrawn" ? "withdrawn" : "no",
     consentTextVersion: "",
+    calcJson: "",
     redactedAt: at,
     status: lead.status === "withdrawn" ? "withdrawn" : "expired",
   };

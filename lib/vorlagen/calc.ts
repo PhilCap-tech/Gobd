@@ -1,4 +1,4 @@
-/** Eingaben des Kostenrechners. Nicht in der Lead-Zeile, nur im signierten Link und im PDF. */
+/** Eingaben des Kostenrechners. In der Lead-Zeile unter calc_json, nicht im signierten Link. */
 
 export const CALC_BODY_MAX_BYTES = 512;
 

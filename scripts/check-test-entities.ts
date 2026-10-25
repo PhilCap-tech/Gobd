@@ -1,7 +1,8 @@
 /**
  * Listed test firms skip PDF delivery, post-purchase customer mail, and metrics.
  * A normal firm id is left alone. Nothing here sends mail or writes Sheets.
- * There is no cron sender; subscription follow-up mail is the webhook path.
+ * There is no lifecycle mail cron; subscription follow-up mail is the webhook path.
+ * vercel.json may schedule only /api/cron/magnet-retention.
  */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -290,8 +291,10 @@ function checkSources(): void {
   const webhook = read("app/api/stripe/webhook/route.ts");
   ok(webhook.indexOf("await appendRecord") < webhook.indexOf("Testfirma"), "the paid row is still stored");
   ok(webhook.includes("entityId: invoiceEntityId"), "payment-failed reads the firm id");
-  ok(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "there is no cron mailer");
-  ok(!read("vercel.json").includes("crons"), "vercel.json has no cron");
+  ok(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "there is no lifecycle cron mailer");
+  const vercelCron = JSON.parse(read("vercel.json")) as { crons?: Array<{ path?: string }> };
+  const cronPaths = (vercelCron.crons ?? []).map((cron) => cron.path);
+  ok(cronPaths.length <= 1 && cronPaths.every((cronPath) => cronPath === "/api/cron/magnet-retention"), "vercel.json has no mail cron");
 
   const intake = read("app/api/intake/route.ts");
   ok(intake.indexOf("skipTestDelivery") < intake.indexOf("io.generatePdf"), "intake checks the firm before the PDF");

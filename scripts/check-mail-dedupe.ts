@@ -120,7 +120,12 @@ function assertCallSites() {
   assert(webhook.includes("recordSubscriptionEvent"), "subscription events reach the cancellation mail");
   assert(!webhook.includes("invoice.paid"), "invoice.paid does not send a second order mail");
 
-  assert(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "the deletion cron is gone");
+  assert(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "the lifecycle deletion cron is gone");
+  const vercelCron = JSON.parse(read("vercel.json")) as { crons?: Array<{ path?: string }> };
+  assert(
+    (vercelCron.crons ?? []).every((cron) => cron.path === "/api/cron/magnet-retention"),
+    "vercel crons are only magnet retention",
+  );
   assert(!cancellation.includes("runLifecycleJob"), "cancellation does not run a deletion job");
   assert(!cancellation.includes("buildCancellationReminderMail"), "cancellation does not send a deletion reminder");
   assert(read("app/api/checkout/grant/route.ts").includes("notifyBuyerOfCheckout"), "grant sends the same welcome mail");

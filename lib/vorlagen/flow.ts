@@ -28,7 +28,7 @@ import {
   magnetStepNumber,
   type MagnetId,
 } from "@/lib/vorlagen/ids";
-import { createMagnetLeadId, type MagnetLead } from "@/lib/vorlagen/lead";
+import { createMagnetLeadId, magnetCalcFromJson, magnetCalcJson, type MagnetLead } from "@/lib/vorlagen/lead";
 import {
   buildMagnetDoiMail,
   buildMagnetFileMail,
@@ -128,9 +128,14 @@ function pendingRecent(leads: MagnetLead[], magnet: MagnetId, now: number): Magn
   return found;
 }
 
-async function sendDoi(lead: MagnetLead, calc: CalcSnapshot | null, deps: ReturnType<typeof useDeps>): Promise<boolean> {
+function pdfCalc(lead: MagnetLead) {
+  if (lead.magnetId !== "kostenrechner") return null;
+  return magnetCalcFromJson(lead.calcJson) ?? emptyCalc();
+}
+
+async function sendDoi(lead: MagnetLead, deps: ReturnType<typeof useDeps>): Promise<boolean> {
   const token = createMagnetDoiToken(
-    { leadId: lead.leadId, email: lead.email, magnet: lead.magnetId, calc },
+    { leadId: lead.leadId, email: lead.email, magnet: lead.magnetId },
     deps.now(),
   );
   if (!token) return false;
@@ -146,13 +151,12 @@ async function sendDoi(lead: MagnetLead, calc: CalcSnapshot | null, deps: Return
   return delivered(result);
 }
 
-async function sendFile(lead: MagnetLead, calc: CalcSnapshot | null, exp: number, deps: ReturnType<typeof useDeps>): Promise<boolean> {
+async function sendFile(lead: MagnetLead, exp: number, deps: ReturnType<typeof useDeps>): Promise<boolean> {
   const url = magnetFileLink({
     leadId: lead.leadId,
     email: lead.email,
     magnet: lead.magnetId,
     exp,
-    calc,
   });
   if (!url) return false;
   const mail = buildMagnetFileMail({ title: magnetTitle(lead.magnetId), downloadUrl: url });
@@ -241,9 +245,21 @@ export async function requestMagnet(
   const recent = pendingRecent(existing, magnet, now);
   if (recent && recent.mailStatus === "doi_sent") return { ok: true };
   if (recent) {
-    const sent = await sendDoi(recent, calc, deps);
+    const next: MagnetLead = {
+      ...recent,
+      calcJson: magnet === "kostenrechner" ? magnetCalcJson(calc) : recent.calcJson,
+      doiSentAt: berlinTimestamp(new Date(now)),
+    };
     try {
-      await deps.store.update({ ...recent, mailStatus: sent ? "doi_sent" : "doi_failed", doiSentAt: berlinTimestamp(new Date(now)) });
+      await deps.store.update(next);
+    } catch (error) {
+      console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
+      return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
+    }
+    const sent = await sendDoi(next, deps);
+    next.mailStatus = sent ? "doi_sent" : "doi_failed";
+    try {
+      await deps.store.update(next);
     } catch (error) {
       console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
     }
@@ -266,6 +282,7 @@ export async function requestMagnet(
     mailStatus: "doi_failed",
     withdrawnAt: "",
     redactedAt: "",
+    calcJson: magnet === "kostenrechner" ? magnetCalcJson(calc) : "",
   };
   try {
     await deps.store.insert(lead);
@@ -273,7 +290,7 @@ export async function requestMagnet(
     console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
     return { ok: false, status: 500, error: MAGNET_SEND_FAILED };
   }
-  const sent = await sendDoi(lead, calc, deps);
+  const sent = await sendDoi(lead, deps);
   lead.mailStatus = sent ? "doi_sent" : "doi_failed";
   if (sent && lead.marketingOptIn === "pending") {
     const marketed = await sendMarketing(lead, deps);
@@ -291,13 +308,12 @@ export type MagnetConfirmResult =
   | { ok: true; downloadToken: string; filename: string; magnet: MagnetId }
   | { ok: false; status: 400; reason: "invalid" | "expired"; magnet?: MagnetId };
 
-function downloadTokenFor(lead: MagnetLead, calc: CalcSnapshot | null, confirmedMs: number): string | null {
+function downloadTokenFor(lead: MagnetLead, confirmedMs: number): string | null {
   return createMagnetDownloadToken({
     leadId: lead.leadId,
     email: lead.email,
     magnet: lead.magnetId,
     exp: confirmedMs + MAGNET_DOWNLOAD_TTL_MS,
-    calc,
   });
 }
 
@@ -334,7 +350,7 @@ export async function confirmMagnet(token: string, extra: MagnetDeps = {}): Prom
   if (!already) {
     lead.doiConfirmedAt = berlinTimestamp(new Date(confirmedMs));
     lead.status = "confirmed";
-    const sent = await sendFile(lead, payload.calc, confirmedMs + MAGNET_DOWNLOAD_TTL_MS, deps);
+    const sent = await sendFile(lead, confirmedMs + MAGNET_DOWNLOAD_TTL_MS, deps);
     lead.mailStatus = sent ? "file_sent" : "file_failed";
     try {
       await deps.store.update(lead);
@@ -343,7 +359,7 @@ export async function confirmMagnet(token: string, extra: MagnetDeps = {}): Prom
       return { ok: false, status: 400, reason: "invalid" };
     }
   }
-  const downloadToken = downloadTokenFor(lead, payload.calc, confirmedMs);
+  const downloadToken = downloadTokenFor(lead, confirmedMs);
   if (!downloadToken) return { ok: false, status: 400, reason: "invalid" };
   return { ok: true, downloadToken, filename: MAGNET_FILENAMES[lead.magnetId], magnet: lead.magnetId };
 }
@@ -373,7 +389,7 @@ export async function renewMagnet(token: string, input: { ip?: string; fax_numbe
     Number.isFinite(confirmedMs) &&
     confirmedMs + MAGNET_DOWNLOAD_TTL_MS >= now;
   if (downloadOpen) {
-    const sent = await sendFile(lead, payload.calc, confirmedMs + MAGNET_DOWNLOAD_TTL_MS, deps);
+    const sent = await sendFile(lead, confirmedMs + MAGNET_DOWNLOAD_TTL_MS, deps);
     return sent ? { ok: true } : { ok: false, status: 500, error: MAGNET_SEND_FAILED };
   }
   if (lead.status === "confirmed" || lead.status === "downloaded") {
@@ -383,12 +399,12 @@ export async function renewMagnet(token: string, input: { ip?: string; fax_numbe
       console.error("[magnet] Speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
     }
   }
-    return requestMagnet(
+  return requestMagnet(
     {
       email: payload.email,
       magnet: payload.magnet,
       marketing: false,
-      calc: payload.calc ?? undefined,
+      calc: lead.magnetId === "kostenrechner" ? (magnetCalcFromJson(lead.calcJson) ?? emptyCalc()) : undefined,
       ip,
       skipRate: true,
     },
@@ -493,7 +509,7 @@ export async function downloadMagnet(
   ) {
     return { ok: false, status: 404, token };
   }
-  const file = await renderMagnetFile(payload.magnet, payload.calc);
+  const file = await renderMagnetFile(payload.magnet, pdfCalc(lead));
   const count = Number(lead.downloadCount);
   const nextCount = Number.isFinite(count) && count >= 0 ? count + 1 : 1;
   const stamp = berlinTimestamp(new Date(now));

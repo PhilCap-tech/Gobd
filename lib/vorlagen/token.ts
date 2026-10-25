@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getMagicLinkSecret } from "@/lib/env";
 import { normalizeAmpelEmail } from "@/lib/ampel-score";
-import { parseMagnetCalc, type CalcSnapshot } from "@/lib/vorlagen/calc";
 import { MAGNET_DOI_TTL_MS, MAGNET_DOWNLOAD_TTL_MS, isMagnetId, type MagnetId } from "@/lib/vorlagen/ids";
 
 export type MagnetDoiPayload = {
@@ -10,7 +9,6 @@ export type MagnetDoiPayload = {
   email: string;
   magnet: MagnetId;
   exp: number;
-  calc: CalcSnapshot | null;
 };
 
 export type MagnetDownloadPayload = {
@@ -19,7 +17,6 @@ export type MagnetDownloadPayload = {
   email: string;
   magnet: MagnetId;
   exp: number;
-  calc: CalcSnapshot | null;
 };
 
 export type MagnetMarketingPayload = {
@@ -77,13 +74,8 @@ function leadId(value: unknown): string {
   return typeof value === "string" && LEAD_ID.test(value) ? value : "";
 }
 
-function calcOf(value: unknown): CalcSnapshot | null | undefined {
-  if (value == null) return null;
-  return parseMagnetCalc(value);
-}
-
 export function createMagnetDoiToken(
-  input: { leadId: string; email: string; magnet: MagnetId; calc?: CalcSnapshot | null },
+  input: { leadId: string; email: string; magnet: MagnetId },
   now = Date.now(),
 ): string | null {
   const email = normalizeAmpelEmail(input.email);
@@ -94,7 +86,6 @@ export function createMagnetDoiToken(
     email,
     magnet: input.magnet,
     exp: now + MAGNET_DOI_TTL_MS,
-    calc: input.magnet === "kostenrechner" ? (input.calc ?? null) : null,
   };
   return encode(payload);
 }
@@ -110,8 +101,6 @@ export function readMagnetDoiToken(
   const email = normalizeAmpelEmail(parsed.email);
   const id = leadId(parsed.leadId);
   if (!email || !id || !isMagnetId(parsed.magnet)) return null;
-  const calc = calcOf(parsed.calc);
-  if (calc === undefined) return null;
   return {
     payload: {
       purpose: "magnet-doi",
@@ -119,7 +108,6 @@ export function readMagnetDoiToken(
       email,
       magnet: parsed.magnet,
       exp: parsed.exp,
-      calc,
     },
     expired: parsed.exp < now,
   };
@@ -132,7 +120,7 @@ export function verifyMagnetDoiToken(token: string | undefined | null, now = Dat
 }
 
 export function createMagnetDownloadToken(
-  input: { leadId: string; email: string; magnet: MagnetId; exp: number; calc?: CalcSnapshot | null },
+  input: { leadId: string; email: string; magnet: MagnetId; exp: number },
 ): string | null {
   const email = normalizeAmpelEmail(input.email);
   if (!email || !leadId(input.leadId) || !isMagnetId(input.magnet)) return null;
@@ -143,7 +131,6 @@ export function createMagnetDownloadToken(
     email,
     magnet: input.magnet,
     exp: input.exp,
-    calc: input.magnet === "kostenrechner" ? (input.calc ?? null) : null,
   };
   return encode(payload);
 }
@@ -159,8 +146,6 @@ export function readMagnetDownloadToken(
   const email = normalizeAmpelEmail(parsed.email);
   const id = leadId(parsed.leadId);
   if (!email || !id || !isMagnetId(parsed.magnet)) return null;
-  const calc = calcOf(parsed.calc);
-  if (calc === undefined) return null;
   return {
     payload: {
       purpose: "magnet-download",
@@ -168,7 +153,6 @@ export function readMagnetDownloadToken(
       email,
       magnet: parsed.magnet,
       exp: parsed.exp,
-      calc,
     },
     expired: parsed.exp < now,
   };

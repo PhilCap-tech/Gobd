@@ -16,7 +16,6 @@ import {
   createMagnetMarketingToken,
   createMagnetUnsubscribeToken,
 } from "@/lib/vorlagen/token";
-import type { CalcSnapshot } from "@/lib/vorlagen/calc";
 
 export const MAGNET_MAIL_FROM = "GoBD Verfahrensdoku <info@gobd-doku-erstellen.de>";
 
@@ -130,7 +129,6 @@ export function magnetFileLink(input: {
   email: string;
   magnet: MagnetId;
   exp: number;
-  calc: CalcSnapshot | null;
 }): string | null {
   const token = createMagnetDownloadToken(input);
   return token ? magnetDownloadUrl(token) : null;

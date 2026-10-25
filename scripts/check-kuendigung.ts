@@ -229,7 +229,13 @@ assert(!applySource.includes("runLifecycleJob"), "kein Lifecycle-Job");
 assert(!mailSource.includes("buildCancellationReminderMail"), "keine Erinnerungsmail");
 assert(!existsSync("app/api/cron/lifecycle/route.ts"), "Cron-Route entfernt");
 assert(!existsSync("lib/kuendigung-purge.ts"), "Löschmodul entfernt");
-assert(!vercel.includes("crons"), "vercel.json ohne Cron");
+const vercelCron = JSON.parse(vercel) as { crons?: Array<{ path?: string }> };
+const cronPaths = (vercelCron.crons ?? []).map((cron) => cron.path);
+assert(
+  cronPaths.length <= 1 && cronPaths.every((cronPath) => cronPath === "/api/cron/magnet-retention"),
+  "vercel.json ohne Lifecycle-Cron",
+);
+assert(!vercel.includes("lifecycle"), "vercel.json ohne Lifecycle-Cron");
 const warningPage = readFileSync("app/account/kuendigung/page.tsx", "utf8");
 assert(warningPage.includes("Downloads noch 30 Tage möglich"), "Warnseite nennt die Downloadfrist");
 assert(!/lösch/i.test(warningPage), "Warnseite verspricht keine Löschung");

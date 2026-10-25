@@ -29,6 +29,7 @@ import {
   MAGNET_FILENAMES,
 } from "../lib/vorlagen/ids";
 import { MAGNET_LEAD_COLUMNS, type MagnetLead } from "../lib/vorlagen/lead";
+import { handleMagnetRetentionRequest } from "../app/api/cron/magnet-retention/route";
 import { buildMagnetDoiMail, buildMagnetFileMail } from "../lib/vorlagen/mail";
 import { renderMagnetFile } from "../lib/vorlagen/documents";
 import { CHECKLISTE_MARKDOWN } from "../lib/vorlagen/text-checkliste";
@@ -45,6 +46,16 @@ import {
   readMagnetDownloadToken,
   verifyMagnetDoiToken,
 } from "../lib/vorlagen/token";
+import { runProductionMagnetRetention } from "../lib/vorlagen/retention-sheet";
+import {
+  MAGNET_RETENTION,
+  cronAuthorized,
+  magnetRetentionLog,
+  marketingProofDeleteAt,
+  planMagnetRetention,
+  retentionLeadMutations,
+  retentionStepDeleteIndexes,
+} from "../lib/vorlagen/retention";
 import { resetTrackingForChecks, trackMagnetConfirmed } from "../lib/tracking";
 import type { DedupedMailInput } from "../lib/mail-dedupe";
 
@@ -125,6 +136,7 @@ const sampleLead: MagnetLead = {
   mailStatus: "",
   withdrawnAt: "",
   redactedAt: "",
+  calcJson: "",
 };
 
 function harness() {
@@ -212,7 +224,8 @@ async function main() {
   ok(readMagnetDownloadToken(downloadToken, exp + 1)?.expired === true, "download token is expired after 30 days");
 
   const columns = MAGNET_LEAD_COLUMNS.join(",");
-  for (const key of ["utm", "gclid", "gbraid", "wbraid", "ref", "kanzlei", "src", "variant", "consent_ip", "has_click", "calc"]) {
+  ok(columns.endsWith("calc_json"), "lead columns store calculator inputs in calc_json");
+  for (const key of ["utm", "gclid", "gbraid", "wbraid", "ref", "kanzlei", "src", "variant", "consent_ip", "has_click"]) {
     ok(!columns.includes(key), `lead columns omit ${key}`);
   }
   const route = source("app/api/magnet/anfordern/route.ts");
@@ -340,14 +353,19 @@ async function main() {
   });
   ok(asked.ok === true, "the calculator request is accepted");
   const kostenRow = JSON.stringify(kosten.store.rows());
-  ok(!kostenRow.includes("stunden_eigen") && !kostenRow.includes("10000"), "calculator inputs are not stored on the lead");
+  ok(kostenRow.includes("10000") && kosten.store.rows()[0]?.calcJson.includes("10000"), "calculator inputs are stored on the lead");
   const kostenToken = tokenFrom(kosten.sent[0]?.text ?? "");
   const kostenPayload = payloadOf(kostenToken);
-  ok(JSON.stringify(kostenPayload?.calc ?? "").includes("10000"), "calculator inputs travel in the signed confirmation token");
+  ok(!kostenPayload || !("calc" in kostenPayload), "the confirmation token has no calculator field");
+  ok(!JSON.stringify(kostenPayload).includes("10000") && !kosten.sent[0]?.text.includes("10000"), "calculator inputs stay out of the confirmation mail");
   const kostenConfirmed = await confirmMagnet(kostenToken);
   ok(kostenConfirmed.ok === true, "the calculator confirmation succeeds");
   const kostenDownload = kostenConfirmed.ok ? payloadOf(kostenConfirmed.downloadToken) : null;
-  ok(JSON.stringify(kostenDownload?.calc ?? "").includes("10000"), "calculator inputs travel in the download token");
+  ok(!kostenDownload || !("calc" in kostenDownload), "the download token has no calculator field");
+  ok(!JSON.stringify(kostenDownload).includes("10000"), "calculator inputs stay out of the download token");
+  const storedPdf = await download(kostenConfirmed.ok ? kostenConfirmed.downloadToken : "");
+  const storedPdfBytes = Buffer.from(await storedPdf.arrayBuffer());
+  ok(storedPdf.status === 200 && pdfText(storedPdfBytes).includes("10.000,00"), "the download PDF is built from the stored inputs");
   const kostenPdf = (await renderMagnetFile("kostenrechner", calc)).pdf;
   const kostenText = pdfText(kostenPdf);
   ok(kostenText.includes("GoBD Rz. 155"), "the calculator PDF quotes GoBD Rz. 155");
@@ -538,6 +556,138 @@ async function main() {
   const entries = await sitemap();
   ok(entries.some((entry) => entry.url === canonicalUrl("/vorlagen")), "the sitemap emits /vorlagen");
   ok(!entries.some((entry) => entry.url === canonicalUrl("/vorlagen/bestaetigen")), "the sitemap omits the confirmation page");
+
+  ok(MAGNET_RETENTION.unconfirmedDays === 30, "unconfirmed requests last 30 days");
+  ok(MAGNET_RETENTION.confirmedWithoutMarketingDays === 90, "confirmed requests without marketing proof last 90 days");
+  ok(MAGNET_RETENTION.marketingProofYears === 3, "marketing proof lasts 3 years from the end of the year");
+  ok(MAGNET_RETENTION.stepsMonths === 24, "step rows last 24 months");
+  const proofAt = Date.parse("2026-06-01T10:00:00+02:00");
+  ok(marketingProofDeleteAt(proofAt) === Date.parse("2030-01-01T00:00:00+01:00"), "marketing proof ends on 1 January after three years");
+
+  function retained(partial: Partial<MagnetLead> & Pick<MagnetLead, "leadId" | "status" | "timestamp">): MagnetLead {
+    return {
+      ...sampleLead,
+      email: "kunde@example.com",
+      magnetId: "kostenrechner",
+      marketingOptIn: "no",
+      doiSentAt: partial.timestamp,
+      doiConfirmedAt: "",
+      marketingConfirmedAt: "",
+      withdrawnAt: "",
+      calcJson: "",
+      ...partial,
+    };
+  }
+  const stamp = "2026-06-01T10:00:00+02:00";
+  const memoryLeads = [
+    retained({ leadId: `mg_${"u".repeat(20)}`, status: "requested", timestamp: "2026-01-01T10:00:00+01:00", doiSentAt: "2026-01-01T10:00:00+01:00", calcJson: "{\"hinzuschaetzung_netto\":10000}" }),
+    retained({ leadId: `mg_${"c".repeat(20)}`, status: "confirmed", timestamp: stamp, doiConfirmedAt: stamp, calcJson: "{\"hinzuschaetzung_netto\":10000}" }),
+    retained({ leadId: `mg_${"m".repeat(20)}`, status: "confirmed", timestamp: stamp, doiConfirmedAt: stamp, marketingOptIn: "yes", marketingConfirmedAt: stamp, calcJson: "{\"hinzuschaetzung_netto\":10000}" }),
+    retained({ leadId: `mg_${"w".repeat(20)}`, status: "requested", timestamp: "2026-01-01T10:00:00+01:00", marketingOptIn: "withdrawn", withdrawnAt: stamp }),
+    retained({ leadId: `mg_${"p".repeat(20)}`, status: "confirmed", timestamp: stamp, doiConfirmedAt: stamp, marketingOptIn: "pending" }),
+  ];
+  const freshPlan = planMagnetRetention({
+    leads: memoryLeads,
+    stepDates: ["2024-06-01", "2024-06-02", "not-a-date"],
+    now: Date.parse("2026-01-03T10:00:00+01:00"),
+  });
+  ok(freshPlan.deletedUnconfirmed === 0 && freshPlan.deletedConfirmed === 0 && freshPlan.deletedMarketingProof === 0, "fresh and proved rows stay inside the short clocks");
+  ok(freshPlan.clearCalcLeadIds.length === 1 && freshPlan.clearCalcLeadIds[0] === memoryLeads[0]?.leadId, "an expired confirmation link drops the calculator values");
+  const agedSteps = planMagnetRetention({
+    leads: [],
+    stepDates: ["2024-06-01", "2024-06-02", "not-a-date"],
+    now: Date.parse("2026-06-01T10:00:00+02:00"),
+  });
+  ok(agedSteps.deletedSteps === 1 && agedSteps.deleteStepIndexes[0] === 0, "step rows older than 24 months are selected");
+  const later = planMagnetRetention({
+    leads: memoryLeads,
+    stepDates: [],
+    now: Date.parse("2026-09-01T08:00:00.000Z"),
+  });
+  ok(later.deleteLeadIds.includes(memoryLeads[0]!.leadId) && later.deletedUnconfirmed === 1, "an unconfirmed request is deleted after 30 days");
+  ok(later.deleteLeadIds.includes(memoryLeads[1]!.leadId) && later.deletedConfirmed === 2, "confirmed rows without marketing proof are deleted after 90 days");
+  ok(!later.deleteLeadIds.includes(memoryLeads[2]!.leadId) && later.clearCalcLeadIds.includes(memoryLeads[2]!.leadId), "marketing proof keeps the row and clears an expired calculator");
+  ok(!later.deleteLeadIds.includes(memoryLeads[3]!.leadId), "a withdrawal record is kept with the marketing proof");
+  const yearEnd = planMagnetRetention({
+    leads: [memoryLeads[2]!],
+    stepDates: [],
+    now: Date.parse("2029-12-31T22:30:00.000Z"),
+  });
+  ok(yearEnd.deletedMarketingProof === 0, "marketing proof is still kept on 31 December of the third year");
+  const afterYear = planMagnetRetention({
+    leads: [memoryLeads[2]!],
+    stepDates: [],
+    now: Date.parse("2029-12-31T23:30:00.000Z"),
+  });
+  ok(afterYear.deletedMarketingProof === 1, "marketing proof is deleted from 1 January after three years");
+  const appliedIds = new Set(later.deleteLeadIds);
+  const applied = memoryLeads.flatMap((lead) => {
+    if (appliedIds.has(lead.leadId)) return [];
+    if (later.clearCalcLeadIds.includes(lead.leadId)) return [{ ...lead, calcJson: "" }];
+    return [lead];
+  });
+  ok(applied.length === 2 && applied.every((lead) => lead.calcJson === ""), "the in-memory store deletes rows and clears expired calculator values");
+  const mutations = retentionLeadMutations(
+    [
+      { leadId: memoryLeads[2]!.leadId, sheetIndex: 1 },
+      { leadId: memoryLeads[0]!.leadId, sheetIndex: 4 },
+    ],
+    later,
+  );
+  ok(mutations.deleteIndexes[0] === 4 && mutations.clearRows[0] === 2, "sheet deletes run from the bottom and calc is cleared in place");
+  ok(retentionStepDeleteIndexes([0, 2]).join(",") === "3,1", "step deletes use sheet indexes from the bottom");
+  const logLine = magnetRetentionLog({ date: "2026-10-25", ...later, skipped: "" });
+  ok(logLine.startsWith("[magnet-retention] date=2026-10-25 type=counts"), "the retention log names the date and the type");
+  ok(!logLine.includes("@") && !logLine.includes("mg_") && !logLine.includes("10000"), "the retention log has no personal data");
+  ok(!cronAuthorized(null, "secret") && !cronAuthorized("Bearer secret", "") && cronAuthorized("Bearer secret", "secret"), "the cron bearer needs CRON_SECRET");
+  ok(!cronAuthorized("Bearer secret-extra", "secret"), "a wrong bearer is rejected");
+
+  let retentionRuns = 0;
+  const cronNow = Date.parse("2026-10-25T12:00:00+02:00");
+  const denied = await handleMagnetRetentionRequest(new Request("https://example.com/api/cron/magnet-retention"), {
+    authorization: null,
+    cronSecret: "secret",
+    vercelEnv: "production",
+    automated: false,
+    now: cronNow,
+  }, async () => {
+    retentionRuns += 1;
+    return { deletedUnconfirmed: 0, deletedConfirmed: 0, deletedMarketingProof: 0, clearedCalc: 0, deletedSteps: 0 };
+  });
+  ok(denied.status === 401 && retentionRuns === 0, "a missing bearer does not touch retention");
+  const previewCron = await handleMagnetRetentionRequest(new Request("https://example.com/api/cron/magnet-retention"), {
+    authorization: "Bearer secret",
+    cronSecret: "secret",
+    vercelEnv: "preview",
+    automated: false,
+    now: cronNow,
+  }, async () => {
+    retentionRuns += 1;
+    return { deletedUnconfirmed: 1, deletedConfirmed: 0, deletedMarketingProof: 0, clearedCalc: 0, deletedSteps: 0 };
+  });
+  const previewBody = await previewCron.json() as { skipped?: string };
+  ok(previewCron.status === 200 && previewBody.skipped === "preview" && retentionRuns === 0, "preview retention does not run the deletion");
+  const savedVercel = process.env.VERCEL_ENV;
+  const sheetsBefore = sheetsCalled;
+  process.env.VERCEL_ENV = "preview";
+  let retentionThrew = false;
+  try {
+    const previewLive = await runProductionMagnetRetention(cronNow);
+    ok(previewLive === null, "the live retention runner refuses preview");
+    process.env.VERCEL_ENV = "production";
+    const checkLive = await runProductionMagnetRetention(cronNow);
+    ok(checkLive === null, "the live retention runner refuses a check even if VERCEL_ENV is production");
+  } catch {
+    retentionThrew = true;
+  } finally {
+    if (savedVercel === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = savedVercel;
+  }
+  ok(!retentionThrew && sheetsCalled === sheetsBefore, "retention refusal does not call Google Sheets");
+  const vercel = JSON.parse(source("vercel.json")) as { crons?: Array<{ path?: string; schedule?: string }> };
+  ok(vercel.crons?.length === 1 && vercel.crons[0]?.path === "/api/cron/magnet-retention" && vercel.crons[0]?.schedule === "15 3 * * *", "vercel.json schedules only the magnet retention cron");
+  ok(source("app/api/cron/magnet-retention/route.ts").includes("CRON_SECRET"), "the cron route reads CRON_SECRET");
+  ok(!source("app/api/cron/magnet-retention/route.ts").includes("CRON_SECRET ="), "the cron route does not assign CRON_SECRET");
 
   setMagnetDepsForTest(null);
   if (failed > 0) {
