@@ -429,7 +429,7 @@ try {
   assertOk(lead.status === "ampel_doi_confirmed", "lead status marks the ampel");
   assertOk(lead.consentAt === "2026-10-13T08:00:00.000Z", "lead stores consent time");
   assertOk(lead.doiConfirmedAt === "2026-10-13T09:00:00.000Z", "lead stores DOI time");
-  assertOk(lead.advisorRef === "Kanzlei Müller", "lead stores the ref");
+  assertOk(lead.advisorRef === "", "a free-text ref is not stored on the lead");
   assertOk(lead.ampelAnswers === roundTrip && lead.ampelScore === "95" && lead.ampelLight === "gruen", "lead stores the result");
   assertOk(lead.leadId.startsWith("ampel-"), "lead id is stable and namespaced");
   assertOk(
@@ -725,7 +725,7 @@ try {
   assertOk(tracking.includes("process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID"), "GA4 reads NEXT_PUBLIC_GA_MEASUREMENT_ID");
   assertOk(tracking.includes("process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO"), "the lead conversion reads NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO");
   assertOk(tracking.includes("/^AW-\\d+\\//"), "a lead send_to may be AW-<digits>/<label>");
-  assertOk(enableBody.includes("getGaMeasurementId()") && enableBody.includes('window.gtag?.("config", gaId)'), "GA4 config runs when the measurement id is set");
+  assertOk(enableBody.includes("getGaMeasurementId()") && enableBody.includes('window.gtag?.("config", gaId, configFields)'), "GA4 config runs when the measurement id is set");
   assertOk(!enableBody.includes("getGoogleAdsLeadSendTo"), "GA4 init does not read the lead send_to");
 
   function confirmationStore() {

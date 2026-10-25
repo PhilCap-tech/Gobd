@@ -513,11 +513,14 @@ function enableGoogleTag(purchaseLoadId = ""): void {
   );
   if (googleInitialized) return;
   window.gtag?.("js", new Date());
+  const path = currentPath();
+  const fields = googlePageFields(path);
+  const configFields = Object.keys(fields).length > 0 ? fields : undefined;
   if (adsId) {
-    window.gtag?.("config", adsId);
-    lastAdsConfigPath = currentPath();
+    window.gtag?.("config", adsId, configFields);
+    lastAdsConfigPath = path;
   }
-  if (gaId) window.gtag?.("config", gaId);
+  if (gaId) window.gtag?.("config", gaId, configFields);
   googleInitialized = true;
 }
 
@@ -525,6 +528,49 @@ function currentPath(): string {
   if (typeof window === "undefined") return "";
   const path = window.location?.pathname;
   return typeof path === "string" ? path : "";
+}
+
+const ANALYTICS_QUERY_STRIP = new Set(["kanzlei", "token"]);
+
+/**
+ * page_location for gtag. Drops kanzlei and token query keys and the fragment.
+ * gtag's default is document.location.href, which includes both the query and the hash.
+ */
+export function analyticsPageLocation(href: string): string {
+  try {
+    const url = new URL(href);
+    for (const key of [...url.searchParams.keys()]) {
+      if (ANALYTICS_QUERY_STRIP.has(key.toLowerCase())) url.searchParams.delete(key);
+    }
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+function pageLocationFor(pathname: string): string {
+  if (typeof window === "undefined") return "";
+  const href = window.location?.href;
+  if (typeof href === "string" && href) {
+    const cleaned = analyticsPageLocation(href);
+    try {
+      if (cleaned && new URL(cleaned).pathname === pathname) return cleaned;
+    } catch {
+      /* use the path below */
+    }
+  }
+  const origin = window.location?.origin;
+  if (typeof origin === "string" && origin && pathname.startsWith("/")) return `${origin}${pathname}`;
+  return "";
+}
+
+function googlePageFields(pathname: string): Record<string, string> {
+  const fields: Record<string, string> = {};
+  if (pathname) fields.page_path = pathname;
+  const location = pageLocationFor(pathname);
+  if (location) fields.page_location = location;
+  return fields;
 }
 
 /** Ads config for this path. Skips a repeat on the same path. No GA4 config. */
@@ -650,8 +696,10 @@ function trackGooglePageView(pathname: string): void {
   // Ads config on every later page. GA4 keeps a single config plus page_view.
   if (adsId) ensureAdsConfigForPath(pathname);
   if (gaId) {
+    const fields = googlePageFields(pathname);
     window.gtag?.("event", "page_view", {
       page_path: pathname,
+      ...(fields.page_location ? { page_location: fields.page_location } : {}),
       send_to: gaId,
     });
   }

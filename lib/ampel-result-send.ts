@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { after } from "next/server";
-import { sanitizeAmpelRef, toAmpelReadinessLead } from "@/lib/ampel";
+import { toAmpelReadinessLead } from "@/lib/ampel";
 import { requestAmpelConfirmation, type AmpelConfirmationInput, type AmpelConfirmationResult } from "@/lib/ampel-confirm";
 import { ampelConsentBlocked } from "@/lib/ampel-marketing-guard";
 import { buildAmpelPdfMail, buildAmpelResultPdf } from "@/lib/ampel-pdf";
@@ -37,7 +37,7 @@ import { queueLeadNotice } from "@/lib/lead-notice";
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
 import { kanzleiFlowSlug } from "@/lib/kanzlei-toolbox";
-import { noteKanzleiLead, lookupPublicKanzlei } from "@/lib/kanzlei-toolbox-store";
+import { lookupPublicKanzlei, noteKanzleiLead, resolveAdvisorRef } from "@/lib/kanzlei-toolbox-store";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { findLatestAmpelReadinessLead, upsertReadinessLead } from "@/lib/store";
 import type { ReadinessLead } from "@/lib/readiness";
@@ -457,6 +457,7 @@ async function finishAmpelResult(
 ): Promise<"started" | "failed" | "skipped"> {
   const flow = Boolean(kanzleiFlowSlug(input.kanzlei));
   const hint = flow ? await kanzleiHint(input) : null;
+  const ref = flow ? "" : await resolveAdvisorRef(input.ref);
   const attribution = storedCheckAttribution({
     email,
     tool: deps.check === "kassen-check" ? "kassen" : "ampel",
@@ -472,7 +473,7 @@ async function finishAmpelResult(
       const lead = toAmpelReadinessLead({
         email,
         answers: code,
-        ref: flow ? "" : sanitizeAmpelRef(input.ref),
+        ref,
         consentAt,
         doiConfirmedAt: "",
         score: scored.score,
@@ -511,7 +512,7 @@ async function finishAmpelResult(
       confirm({
         email,
         answers: code,
-        ref: flow ? "" : sanitizeAmpelRef(input.ref),
+        ref,
         consentIp: input.ip,
         consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
         mailed: "ja",

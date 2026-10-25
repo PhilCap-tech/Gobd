@@ -175,6 +175,14 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" },
         ],
       },
+      {
+        source: "/api/steuerberater/toolbox/bericht",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" },
+        ],
+      },
     ];
   },
   async redirects() {

@@ -185,6 +185,11 @@ function recordOf(body: string): KanzleiToolboxRecord | null {
       authorityConfirmed: bool(row.authorityConfirmed),
       termsAccepted: bool(row.termsAccepted),
       verification: verificationOf(row.verification),
+      reportTokenHash: /^[a-f0-9]{64}$/.test(text(row.reportTokenHash)) ? text(row.reportTokenHash) : "",
+      reportTokenExp:
+        typeof row.reportTokenExp === "number" && Number.isFinite(row.reportTokenExp) && row.reportTokenExp > 0
+          ? row.reportTokenExp
+          : 0,
     };
   } catch {
     return null;

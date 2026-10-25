@@ -33,6 +33,7 @@ import {
   domainTaken,
   findKanzleiById,
   findKanzleiBySlug,
+  issueKanzleiReportToken,
   publicKanzleiRecord,
   readKanzleiToolbox,
   updateKanzleiToolbox,
@@ -129,6 +130,8 @@ export async function submitKanzleiToolbox(
     authorityConfirmed: true,
     termsAccepted: true,
     verification: emptyKanzleiVerification(),
+    reportTokenHash: "",
+    reportTokenExp: 0,
   };
   let blocked = false;
   await updateKanzleiToolbox((file) => {
@@ -237,6 +240,8 @@ export async function confirmKanzleiToolbox(
         authorityConfirmed: true,
         termsAccepted: true,
         verification: emptyKanzleiVerification(),
+        reportTokenHash: "",
+        reportTokenExp: 0,
       };
       file.records.push(record);
       if (!file.reservedSlugs.includes(record.slug)) file.reservedSlugs.push(record.slug);
@@ -269,12 +274,14 @@ export async function confirmKanzleiToolbox(
   if (!saved) return { ok: false, error: "Die Anmeldung wurde nicht gefunden." };
   let mailed = false;
   if (created) {
+    const reportToken = saved.reportOptIn ? await issueKanzleiReportToken(saved.kanzleiId) : null;
     const built = buildKanzleiToolboxMail({
       displayName: saved.displayName,
       slug: saved.slug,
       kanzleiId: saved.kanzleiId,
       verified: nameShown(saved),
       reportOptIn: saved.reportOptIn,
+      reportToken: reportToken ?? "",
     });
     if (built) {
       const link = `${getAppUrl()}/k/${saved.slug}`;
@@ -311,6 +318,8 @@ export async function revokeKanzleiToolbox(token: string, now = new Date()): Pro
     record.status = "removed";
     record.removedAt = iso;
     record.reportOptIn = false;
+    record.reportTokenHash = "";
+    record.reportTokenExp = 0;
   });
   if (!found) return { ok: false, error: "Der Eintrag wurde nicht gefunden." };
   return { ok: true };
@@ -363,6 +372,8 @@ export async function setKanzleiBlocked(kanzleiId: string, reason: string, now =
     record.status = "blocked";
     record.removedAt = iso;
     record.reportOptIn = false;
+    record.reportTokenHash = "";
+    record.reportTokenExp = 0;
     const domain = websiteDomain(record.website);
     if (domain && !file.blocklist.some((entry) => entry.domain === domain && entry.kanzleiId === record.kanzleiId)) {
       file.blocklist.push({ domain, kanzleiId: record.kanzleiId, reason: reason.slice(0, 200), at: iso });

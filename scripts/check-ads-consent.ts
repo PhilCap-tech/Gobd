@@ -751,6 +751,37 @@ try {
   }
   assert.deepEqual(hits, []);
 
+  {
+    fresh({ ads: adsId, ga: gaId });
+    Object.assign(window.location, {
+      href: "https://www.gobd-doku-erstellen.de/ampel-check?kanzlei=nordlicht-ab12&utm_source=brief&token=secret#t=fragment",
+      origin: "https://www.gobd-doku-erstellen.de",
+      pathname: "/ampel-check",
+      search: "?kanzlei=nordlicht-ab12&utm_source=brief&token=secret",
+      hash: "#t=fragment",
+      protocol: "https:",
+    });
+    saveConsent(true);
+    trackRoute("/ampel-check");
+    const gaConfig = commands().find((cmd) => cmd[0] === "config" && cmd[1] === gaId);
+    const configured = (gaConfig?.[2] as { page_location?: string } | undefined)?.page_location ?? "";
+    assert.equal(configured.includes("kanzlei="), false, "GA4 config drops kanzlei");
+    assert.equal(configured.includes("token="), false, "GA4 config drops token");
+    assert.equal(configured.includes("#"), false, "GA4 config drops the fragment");
+    assert.equal(configured.includes("utm_source=brief"), true, "GA4 config keeps other query keys");
+    Object.assign(window.location, {
+      href: "https://www.gobd-doku-erstellen.de/readiness?token=secret#t=fragment",
+      pathname: "/readiness",
+      search: "?token=secret",
+      hash: "#t=fragment",
+    });
+    trackRoute("/readiness");
+    const pageView = commands().find((cmd) => cmd[0] === "event" && cmd[1] === "page_view");
+    const viewed = (pageView?.[2] as { page_location?: string; page_path?: string } | undefined);
+    assert.equal(viewed?.page_path, "/readiness", "GA4 page_view keeps the path");
+    assert.equal(viewed?.page_location, "https://www.gobd-doku-erstellen.de/readiness", "GA4 page_view drops token and the fragment");
+  }
+
   console.log("check-ads-consent: ok");
 } finally {
   process.env.NEXT_PUBLIC_GOOGLE_ADS_ID = saved.ads;

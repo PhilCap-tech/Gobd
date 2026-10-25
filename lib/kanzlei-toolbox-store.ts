@@ -11,6 +11,8 @@ import {
   emptyKanzleiFile,
   isKanzleiId,
   isKanzleiSlug,
+  KANZLEI_REPORT_TTL_MS,
+  knownKanzleiAdvisorRef,
   kanzleiPreviewSeedEnabled,
   nameShown,
   websiteDomain,
@@ -34,6 +36,11 @@ import {
   readKanzleiToolboxSheet,
   writeKanzleiToolboxSheet,
 } from "@/lib/kanzlei-toolbox-sheet";
+import {
+  createKanzleiReportSecret,
+  hashKanzleiReportToken,
+  kanzleiReportHashEquals,
+} from "@/lib/kanzlei-toolbox-token";
 
 /**
  * Kanzlei register (consent, verification, revocation) and day counts.
@@ -286,6 +293,13 @@ export function purgeKanzleiToolboxFile(file: KanzleiToolboxFile, now = new Date
   const log = file.purgeLog.filter((row) => row.date >= cutoffDate);
   if (log.length !== file.purgeLog.length) changed = true;
   file.purgeLog = log;
+
+  for (const record of file.records) {
+    if (!record.reportTokenExp || record.reportTokenExp > nowMs) continue;
+    record.reportTokenHash = "";
+    record.reportTokenExp = 0;
+    changed = true;
+  }
   return { changed, deleted };
 }
 
@@ -335,6 +349,61 @@ export async function runKanzleiToolboxRetention(now = new Date()): Promise<{
 
 export async function readKanzleiToolbox(): Promise<KanzleiToolboxFile> {
   return withLock(load);
+}
+
+/** advisor_ref is a known register code, or empty. Free text is discarded. */
+export async function resolveAdvisorRef(raw: unknown): Promise<string> {
+  const file = await readKanzleiToolbox();
+  return knownKanzleiAdvisorRef(file, raw);
+}
+
+function reportRecordOpen(record: KanzleiToolboxRecord): boolean {
+  return !record.test && record.status !== "removed" && record.status !== "blocked" && record.status !== "declined";
+}
+
+/**
+ * Replaces any previous report secret. The returned value is shown once,
+ * in the fragment of the mail link. The file keeps only the hash.
+ */
+export async function issueKanzleiReportToken(kanzleiId: string, now = Date.now()): Promise<string | null> {
+  if (!isKanzleiId(kanzleiId)) return null;
+  const token = createKanzleiReportSecret();
+  const hash = hashKanzleiReportToken(token);
+  const exp = now + KANZLEI_REPORT_TTL_MS;
+  let issued = false;
+  await updateKanzleiToolbox((file) => {
+    const record = file.records.find((item) => item.kanzleiId === kanzleiId);
+    if (!record || !reportRecordOpen(record) || !record.reportOptIn) return;
+    record.reportTokenHash = hash;
+    record.reportTokenExp = exp;
+    issued = true;
+  });
+  return issued ? token : null;
+}
+
+export async function readKanzleiReport(
+  token: string,
+  now = Date.now(),
+): Promise<{ optedOut: boolean; months: KanzleiMonthReport[] } | null> {
+  if (typeof token !== "string" || token.length < 32 || token.length > 128) return null;
+  const hash = hashKanzleiReportToken(token);
+  const file = await readKanzleiToolbox();
+  const record = file.records.find((item) => item.reportTokenHash && kanzleiReportHashEquals(item.reportTokenHash, hash));
+  if (!record || record.test) return null;
+  if (record.status === "removed" || record.status === "blocked") return null;
+  if (!record.reportTokenExp || record.reportTokenExp <= now) return null;
+  if (!record.reportOptIn) return { optedOut: true, months: [] };
+  const current = new Date(now);
+  const previous = new Date(current);
+  previous.setUTCMonth(previous.getUTCMonth() - 1);
+  const monthOf = (date: Date) => ampelStepDate(date).slice(0, 7);
+  return {
+    optedOut: false,
+    months: [
+      kanzleiMonthReport(file, record.kanzleiId, monthOf(current)),
+      kanzleiMonthReport(file, record.kanzleiId, monthOf(previous)),
+    ],
+  };
 }
 
 export async function updateKanzleiToolbox(change: (file: KanzleiToolboxFile) => void): Promise<KanzleiToolboxFile> {

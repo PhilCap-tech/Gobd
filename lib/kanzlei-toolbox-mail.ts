@@ -17,7 +17,7 @@ import {
   kanzleiNewsletterLong,
   kanzleiNewsletterShort,
 } from "@/lib/kanzlei-toolbox-copy";
-import { createKanzleiReportToken, createKanzleiRevokeToken } from "@/lib/kanzlei-toolbox-token";
+import { createKanzleiRevokeToken } from "@/lib/kanzlei-toolbox-token";
 
 export const KANZLEI_MAIL_SINK = "delivered@resend.dev";
 export const KANZLEI_MAIL_BLOCKED = "philip.cappelletti@sdc-ventures.com";
@@ -101,14 +101,20 @@ export function buildKanzleiToolboxMail(input: {
   kanzleiId: string;
   verified: boolean;
   reportOptIn: boolean;
+  reportToken?: string;
 }): { subject: string; text: string; html: string } | null {
   const revoke = createKanzleiRevokeToken(input.kanzleiId);
   if (!revoke) return null;
   const origin = getAppUrl();
   const link = `${origin}/k/${input.slug}`;
   const removeUrl = `${origin}/steuerberater/toolbox/entfernen?token=${encodeURIComponent(revoke)}`;
-  const reportToken = input.reportOptIn ? createKanzleiReportToken(input.kanzleiId) : null;
-  const reportUrl = reportToken ? `${origin}/steuerberater/toolbox/bericht?token=${encodeURIComponent(reportToken)}` : "";
+  const reportToken = input.reportOptIn ? (input.reportToken ?? "").trim() : "";
+  const reportUrl = reportToken
+    ? `${origin}/steuerberater/toolbox/bericht#t=${encodeURIComponent(reportToken)}`
+    : "";
+  const reportNote = reportUrl
+    ? "Der Berichtslink ist 30 Tage gültig. Ein neuer Link setzt den bisherigen sofort außer Kraft. Wenn Sie den Eintrag entfernen, gilt der Link nicht mehr."
+    : "";
   const status = input.verified
     ? `Auf dem Ampel-Check steht die Zeile „${kanzleiHinweisText(input.displayName).title}“. ${input.displayName} hat den Check nicht erstellt und nicht geprüft.`
     : "Der Kanzleiname wird noch nicht angezeigt. Wir gleichen die Angaben mit dem Impressum und danach einzeln mit dem amtlichen Steuerberaterverzeichnis ab. Bis dahin führt Ihr Link auf den Ampel-Check ohne Namen, ohne Zählung und ohne Zuordnung.";
@@ -131,6 +137,7 @@ export function buildKanzleiToolboxMail(input: {
     KANZLEI_TOOLBOX_NEWSLETTER_NOTE,
     "",
     reportUrl ? `Bericht mit Zahlen: ${reportUrl}` : "",
+    reportNote,
     `Eintrag entfernen: ${removeUrl}`,
     "Der Widerruf ist kostenfrei und entfernt den Namen sofort.",
     "",
@@ -148,7 +155,7 @@ export function buildKanzleiToolboxMail(input: {
     <p><strong>Newsletter-Baustein, lang</strong></p>
     <pre>${escapeHtml(kanzleiNewsletterLong(input.slug))}</pre>
     <p>${escapeHtml(KANZLEI_TOOLBOX_NEWSLETTER_NOTE)}</p>
-    ${reportUrl ? `<p><a href="${escapeAttr(reportUrl)}">Bericht mit Zahlen</a></p>` : ""}
+    ${reportUrl ? `<p><a href="${escapeAttr(reportUrl)}">Bericht mit Zahlen</a></p><p>${escapeHtml(reportNote)}</p>` : ""}
     <p><a href="${escapeAttr(removeUrl)}">Eintrag entfernen</a>. Der Widerruf ist kostenfrei und entfernt den Namen sofort.</p>
     <p>Die Toolbox ist kostenlos. Sie erhalten keine Provision, keine Vergütung und keine sonstige Gegenleistung.</p>
     <p>${escapeHtml(LEGAL_OPERATOR.name)}, ${escapeHtml(LEGAL_OPERATOR.street)}, ${escapeHtml(LEGAL_OPERATOR.zipCity)}</p>

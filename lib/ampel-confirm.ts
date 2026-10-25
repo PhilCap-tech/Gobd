@@ -10,7 +10,6 @@ import {
   encodeAmpelAnswers,
   normalizeAmpelEmail,
   keepAmpelMailed,
-  sanitizeAmpelRef,
   scoreAmpel,
   toAmpelReadinessLead,
   verifyAmpelDoiToken,
@@ -23,6 +22,7 @@ import { KASSEN_QUESTIONS } from "@/lib/kassen-check-questions";
 import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
 import { sendKassenDoiAckMail } from "@/lib/kassen-check-mail";
+import { resolveAdvisorRef } from "@/lib/kanzlei-toolbox-store";
 import { keptCheckAttribution } from "@/lib/lead-attribution";
 
 /** Pauses between result-mail attempts. The first attempt does not wait. */
@@ -102,10 +102,11 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
 
   const confirmedAt = new Date(now).toISOString();
   const leadId = ampelLeadId(payload.email, payload.answers, payload.consentAt, leadPrefix);
+  const ref = await resolveAdvisorRef(payload.ref);
   const draft = toAmpelReadinessLead({
     email: payload.email,
     answers: payload.answers,
-    ref: payload.ref,
+    ref,
     consentAt: payload.consentAt,
     doiConfirmedAt: confirmedAt,
     score: scored.score,
@@ -288,7 +289,7 @@ async function runConfirmation(
   if (!email || !decoded || !code || !scored) {
     return { ok: false, status: 400, reason: "invalid" };
   }
-  const ref = sanitizeAmpelRef(input.ref);
+  const ref = await resolveAdvisorRef(input.ref);
   const existing = await readConfirmLead(deps, email, code);
   const withdrawnExisting = existing?.marketingOptIn === "withdrawn";
   const suppressedExisting = Boolean(existing) && (await ampelConsentBlocked(email, existing?.consentAt ?? ""));

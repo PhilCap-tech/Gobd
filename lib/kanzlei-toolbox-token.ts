@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { getMagicLinkSecret } from "@/lib/env";
 import {
   KANZLEI_TOOLBOX_CONSENT_TEXT_VERSION,
@@ -112,14 +112,16 @@ export function verifyKanzleiRevokeToken(token: string): string | null {
   return parsed.kanzleiId;
 }
 
-export function createKanzleiReportToken(kanzleiId: string): string | null {
-  if (!isKanzleiId(kanzleiId)) return null;
-  return pack({ purpose: "kanzlei-toolbox-report", kanzleiId });
+/** Fresh report secret. Only its hash is stored. */
+export function createKanzleiReportSecret(): string {
+  return randomBytes(32).toString("base64url");
 }
 
-export function verifyKanzleiReportToken(token: string): string | null {
-  const parsed = unpack(token) as { purpose?: string; kanzleiId?: string } | null;
-  if (!parsed || parsed.purpose !== "kanzlei-toolbox-report") return null;
-  if (typeof parsed.kanzleiId !== "string" || !isKanzleiId(parsed.kanzleiId)) return null;
-  return parsed.kanzleiId;
+export function hashKanzleiReportToken(token: string): string {
+  return createHash("sha256").update(token, "utf8").digest("hex");
+}
+
+export function kanzleiReportHashEquals(stored: string, actual: string): boolean {
+  if (!/^[a-f0-9]{64}$/.test(stored) || !/^[a-f0-9]{64}$/.test(actual)) return false;
+  return timingSafeEqual(Buffer.from(stored, "utf8"), Buffer.from(actual, "utf8"));
 }

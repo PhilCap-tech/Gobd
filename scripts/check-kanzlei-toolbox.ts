@@ -9,6 +9,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { POST as postAmpelStep, setAmpelStepNowForTest } from "@/app/api/ampel/step/route";
+import { POST as postKanzleiReport } from "@/app/api/steuerberater/toolbox/bericht/route";
 import { GET as getKanzleiCron } from "@/app/api/cron/kanzlei-toolbox/route";
 import { AMPEL_QUESTIONS } from "@/lib/ampel-questions";
 import { deliverAmpelResult } from "@/lib/ampel-result-send";
@@ -22,6 +23,7 @@ import {
 } from "@/lib/ampel-step-store";
 import { kanzleiHinweisText } from "@/lib/kanzlei-toolbox-copy";
 import {
+  buildKanzleiToolboxMail,
   kanzleiMailAllowed,
   kanzleiToolboxDoiKey,
   kanzleiToolboxKitKey,
@@ -51,14 +53,17 @@ import {
 } from "@/lib/kanzlei-toolbox-sheet";
 import {
   addKanzleiCount,
+  issueKanzleiReportToken,
   lookupPublicKanzlei,
   purgeKanzleiToolboxFile as purgeStore,
   readKanzleiToolbox,
+  resolveAdvisorRef,
   runKanzleiToolboxRetention,
   setKanzleiToolboxFileForTest,
   updateKanzleiToolbox,
 } from "@/lib/kanzlei-toolbox-store";
-import { createKanzleiDoiToken, createKanzleiRevokeToken } from "@/lib/kanzlei-toolbox-token";
+import { createKanzleiDoiToken, createKanzleiRevokeToken, hashKanzleiReportToken } from "@/lib/kanzlei-toolbox-token";
+import { analyticsPageLocation } from "@/lib/tracking";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import type { ReadinessLead } from "@/lib/readiness";
 
@@ -102,6 +107,8 @@ function record(input: Partial<KanzleiToolboxRecord> & Pick<KanzleiToolboxRecord
     consentTextVersion: "2026-10-25-entwurf",
     authorityConfirmed: true,
     termsAccepted: true,
+    reportTokenHash: "",
+    reportTokenExp: 0,
     verification: {
       ...emptyKanzleiVerification(),
       emailDomain: "example.org",
@@ -210,18 +217,27 @@ async function main(): Promise<void> {
   ok(!cronSource.includes("console."), "the cron does not log the request");
   const bericht = source("app/steuerberater/toolbox/bericht/page.tsx");
   ok(bericht.includes("index: false") && bericht.includes('referrer: "no-referrer"'), "the report page is noindex and sends no referrer");
-  ok(!bericht.includes("console."), "the report page does not log the token");
+  ok(!bericht.includes("console.") && !bericht.includes("searchParams") && !bericht.includes("?token="), "the report page does not read or log a query token");
+  const reportRoute = source("app/api/steuerberater/toolbox/bericht/route.ts");
+  ok(!reportRoute.includes("console."), "the report POST does not log the body");
+  const reportClient = source("app/steuerberater/toolbox/bericht/report-client.tsx");
+  ok(reportClient.includes('method: "POST"') && reportClient.includes("location.hash") && !reportClient.includes("console."), "the report client posts the fragment and does not log it");
   const ampelPage = source("app/ampel-check/page.tsx");
   ok(ampelPage.includes("generateMetadata") && ampelPage.includes("index: false"), "a kanzlei query noindexes the Ampel page");
   const config = source("next.config.ts");
   ok(config.includes('key: "kanzlei"') && config.includes('value: "noindex"'), "query kanzlei and /k send X-Robots-Tag noindex");
-  ok(config.includes('"/steuerberater/toolbox/bericht"') && config.includes('value: "no-referrer"'), "the report response sets Referrer-Policy no-referrer");
+  ok(
+    config.includes('"/steuerberater/toolbox/bericht"') &&
+      config.includes('"/api/steuerberater/toolbox/bericht"') &&
+      config.includes('value: "no-referrer"'),
+    "the report page and POST set Referrer-Policy no-referrer",
+  );
   ok(source("app/k/[slug]/route.ts").includes('"X-Robots-Tag": "noindex"'), "the /k redirect stays noindex");
 
   const sendSource = source("lib/ampel-result-send.ts");
   ok(sendSource.includes('lead.utmSource = flow ? "" : attribution.utmSource'), "a toolbox lead stores no utm source");
   ok(sendSource.includes('lead.utmCampaign = flow ? "" : attribution.utmCampaign'), "a toolbox lead stores no utm campaign");
-  ok(sendSource.includes('ref: flow ? "" : sanitizeAmpelRef(input.ref)'), "a toolbox lead stores no free-text ref");
+  ok(sendSource.includes("resolveAdvisorRef(input.ref)") && sendSource.includes('const ref = flow ? "" : await resolveAdvisorRef(input.ref)'), "a toolbox lead stores no free-text ref");
   ok(sendSource.includes('utmSource: flow ? "" : attribution.utmSource'), "a toolbox confirmation stores no utm source");
 
   const page = source("app/ampel-check/ampel-check.tsx");
@@ -245,6 +261,8 @@ async function main(): Promise<void> {
 
   const mailSource = source("lib/kanzlei-toolbox-mail.ts");
   ok(mailSource.includes("sendDedupedEmail(") && mailSource.includes("from \"@/lib/mail-dedupe\""), "toolbox mail uses the dedupe helper");
+  ok(mailSource.includes("/steuerberater/toolbox/bericht#t=") && !mailSource.includes("bericht?token="), "the report link is a fragment, not a query token");
+  ok(mailSource.includes("30 Tage gültig"), "the report mail says the link lasts 30 days");
   const doiKey = kanzleiToolboxDoiKey("k_0123456789abcdef");
   const kitKey = kanzleiToolboxKitKey("k_0123456789abcdef");
   ok(doiKey === "kanzlei-toolbox-doi:k_0123456789abcdef" && kitKey === "kanzlei-toolbox-kit:k_0123456789abcdef", "each toolbox mail has its own key");
@@ -434,8 +452,111 @@ async function main(): Promise<void> {
         },
       },
     );
-    ok(saved[1]?.advisorRef === "Kanzlei Mueller", "a visit without a toolbox slug still keeps ref");
+    ok(saved[1]?.advisorRef === "", "free text from ref stays empty");
+    await deliverAmpelResult(
+      "probe3@example.com",
+      answers,
+      code ?? "",
+      {
+        email: "probe3@example.com",
+        answers: code,
+        ref: "nordlicht-ab12",
+        marketing: false,
+        honeypot: "",
+        ip: "203.0.113.42",
+        utmSource: "",
+        utmCampaign: "",
+      },
+      {
+        now: () => Date.parse("2026-10-25T12:00:00.000Z"),
+        mail: async () => ({ sent: true, stub: false }),
+        saveLead: async (row) => {
+          saved.push(row);
+        },
+      },
+    );
+    ok(saved[2]?.advisorRef === "nordlicht-ab12", "a known kanzlei slug is stored as advisor_ref");
+    await deliverAmpelResult(
+      "probe4@example.com",
+      answers,
+      code ?? "",
+      {
+        email: "probe4@example.com",
+        answers: code,
+        ref: verifiedId,
+        marketing: false,
+        honeypot: "",
+        ip: "203.0.113.43",
+        utmSource: "",
+        utmCampaign: "",
+      },
+      {
+        now: () => Date.parse("2026-10-25T13:00:00.000Z"),
+        mail: async () => ({ sent: true, stub: false }),
+        saveLead: async (row) => {
+          saved.push(row);
+        },
+      },
+    );
+    ok(saved[3]?.advisorRef === verifiedId, "a known kanzlei id is stored as advisor_ref");
     ok(!JSON.stringify(mail).includes("utm_"), "no toolbox mail body was built with utm");
+
+    const cleanedLocation = analyticsPageLocation(
+      "https://www.gobd-doku-erstellen.de/ampel-check?kanzlei=nordlicht-ab12&utm_source=brief&token=secret#t=fragment",
+    );
+    ok(
+      cleanedLocation === "https://www.gobd-doku-erstellen.de/ampel-check?utm_source=brief",
+      "analytics page_location drops kanzlei, token, and the fragment",
+    );
+
+    const issued = await issueKanzleiReportToken(verifiedId, Date.parse("2026-10-25T00:00:00.000Z"));
+    ok(issued && issued.length >= 32 && !issued.includes(verifiedId), "a report secret is not the kanzlei id");
+    const storedReport = await readKanzleiToolbox();
+    const reportRow = storedReport.records.find((item) => item.kanzleiId === verifiedId);
+    ok(
+      reportRow?.reportTokenHash === hashKanzleiReportToken(issued ?? "") &&
+        !JSON.stringify(storedReport).includes(issued ?? "missing-token"),
+      "the register stores the report hash and not the secret",
+    );
+    const reportMail = buildKanzleiToolboxMail({
+      displayName: "Nordlicht Steuerberatung",
+      slug: "nordlicht-ab12",
+      kanzleiId: verifiedId,
+      verified: true,
+      reportOptIn: true,
+      reportToken: issued ?? "",
+    });
+    ok(
+      reportMail?.text.includes(`#t=${encodeURIComponent(issued ?? "")}`) &&
+        !reportMail.text.includes("bericht?token=") &&
+        !reportMail.html.includes("bericht?token=") &&
+        !reportMail.subject.includes(issued ?? "missing-token"),
+      "the report mail puts the secret in the fragment only",
+    );
+    const reportRequest = (secret: string) =>
+      new Request("https://example.com/api/steuerberater/toolbox/bericht", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: secret }),
+      });
+    const opened = await postKanzleiReport(reportRequest(issued ?? ""));
+    const openedBody = (await opened.json()) as { ok?: boolean; months?: { month: string }[] };
+    ok(opened.status === 200 && openedBody.ok === true && openedBody.months?.length === 2, "the report POST returns aggregates");
+    ok(!JSON.stringify(openedBody).includes(issued ?? "missing-token") && !JSON.stringify(openedBody).includes("@"), "the report response has no secret and no email");
+    const repeated = await postKanzleiReport(reportRequest(issued ?? ""));
+    ok(repeated.status === 200, "the report secret stays valid until it is replaced or expires");
+    const rotated = await issueKanzleiReportToken(verifiedId, Date.parse("2026-10-25T00:00:00.000Z"));
+    ok(rotated && rotated !== issued, "issuing again rotates the secret");
+    const stale = await postKanzleiReport(reportRequest(issued ?? ""));
+    ok(stale.status === 404, "the replaced secret stops working immediately");
+    const current = await postKanzleiReport(reportRequest(rotated ?? ""));
+    ok(current.status === 200, "the new secret opens the report");
+    await updateKanzleiToolbox((file) => {
+      const row = file.records.find((item) => item.kanzleiId === verifiedId);
+      if (row) row.reportTokenExp = Date.parse("2020-01-01T00:00:00.000Z");
+    });
+    const expired = await postKanzleiReport(reportRequest(rotated ?? ""));
+    ok(expired.status === 404, "an expired report secret is refused");
 
     const token = createKanzleiRevokeToken(verifiedId);
     ok(token, "a revoke token can be signed");
@@ -444,6 +565,7 @@ async function main(): Promise<void> {
     ok((await lookupPublicKanzlei("nordlicht-ab12")) === null, "revocation removes the name immediately");
     const afterRevoke = await kanzleiEntryPath("nordlicht-ab12", "", "https://www.gobd-doku-erstellen.de/k/nordlicht-ab12");
     ok(!afterRevoke.includes("kanzlei="), "a revoked link no longer attributes the visit");
+    ok((await resolveAdvisorRef("nordlicht-ab12")) === "" && (await resolveAdvisorRef("Kanzlei Mueller")) === "", "a removed code and free text stay empty");
 
     const savedVercel = process.env.VERCEL_ENV;
     process.env.VERCEL_ENV = "preview";

@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getMagicLinkSecret } from "@/lib/env";
+import { advisorRefCode } from "@/lib/kanzlei-toolbox";
 import { KASSEN_QUESTIONS } from "@/lib/kassen-check-questions";
 import { emptyReadinessLead, type ReadinessLead } from "@/lib/readiness";
 import {
@@ -219,7 +220,7 @@ export function toAmpelReadinessLead(input: {
     mailStatus: input.mailStatus,
     consentAt: input.consentAt,
     doiConfirmedAt: input.doiConfirmedAt,
-    advisorRef: sanitizeAmpelRef(input.ref),
+    advisorRef: advisorRefCode(input.ref),
     ampelAnswers: input.answers,
     ampelScore: String(input.score),
     ampelLight: input.light,

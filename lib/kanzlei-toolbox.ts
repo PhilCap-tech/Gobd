@@ -64,6 +64,10 @@ export type KanzleiToolboxRecord = {
   authorityConfirmed: boolean;
   termsAccepted: boolean;
   verification: KanzleiVerification;
+  /** SHA-256 of the report link secret. The secret itself is not stored. */
+  reportTokenHash: string;
+  /** Unix ms. The hash is useless after this time. 0 means none. */
+  reportTokenExp: number;
 };
 
 export type KanzleiCountRow = {
@@ -140,6 +144,9 @@ export const KANZLEI_RETENTION = {
   reportMinimum: 5,
 } as const;
 
+/** Report link lifetime. A new issue replaces the stored hash immediately. */
+export const KANZLEI_REPORT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
 const FREEMAIL = new Set([
   "gmail.com",
   "googlemail.com",
@@ -210,6 +217,30 @@ export function isKanzleiSlug(value: string): boolean {
   return KANZLEI_SLUG_RE.test(value);
 }
 
+const ADVISOR_REF_CLOSED = new Set<KanzleiToolboxStatus>(["removed", "blocked", "declined"]);
+
+/**
+ * A register code: the opaque id or the public slug. A display name is not a code.
+ * Empty when the value is free text.
+ */
+export function advisorRefCode(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const value = raw.trim().toLowerCase();
+  if (isKanzleiId(value) || isKanzleiSlug(value)) return value;
+  return "";
+}
+
+/** The code only when that id or slug is still in the register. Otherwise empty. */
+export function knownKanzleiAdvisorRef(file: KanzleiToolboxFile, raw: unknown): string {
+  const code = advisorRefCode(raw);
+  if (!code) return "";
+  for (const record of file.records) {
+    if (record.test || ADVISOR_REF_CLOSED.has(record.status)) continue;
+    if (code === record.kanzleiId || code === record.slug) return code;
+  }
+  return "";
+}
+
 /** Well-formed public slug from a request field. Empty when absent. */
 export function kanzleiFlowSlug(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -250,6 +281,8 @@ export const KANZLEI_PREVIEW_SEED: KanzleiToolboxRecord = {
     checkedAt: "2026-10-25T00:00:00.000Z",
     note: "Vorschau-Eintrag, keine echte Kanzlei",
   },
+  reportTokenHash: "",
+  reportTokenExp: 0,
 };
 
 export function kanzleiPreviewSeedEnabled(): boolean {
