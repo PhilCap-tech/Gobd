@@ -209,7 +209,7 @@ const structured = {
     { weg: "E-Mail", original: "empfangene PDF" },
     { weg: "E-Rechnung", original: "XML" },
   ],
-  postfach: "rechnung@beispiel.de",
+  postfach: "rechnung@beispiel.example",
   sichtungWer: "Ben Muster",
   sichtungTurnus: "arbeitstäglich",
   validierung: "unbekannt" as const,
@@ -254,7 +254,7 @@ expect(structuredIds.includes("op-a03"), "A03 unknown stays an open point");
 expect(structuredBody.includes("2024-03-01"), "A04 date is lived");
 expect(structuredBody.includes("Warenwirtschaft Nord"), "B01 repeatable system is lived");
 expect(structuredBody.includes("E-Mail: empfangene PDF"), "B04 original per path");
-expect(structuredBody.includes("rechnung@beispiel.de, Ben Muster, arbeitstäglich"), "C02 mailbox");
+expect(structuredBody.includes("rechnung@beispiel.example, Ben Muster, arbeitstäglich"), "C02 mailbox");
 expect(!structuredBody.includes("Technische Validierung: ja"), "unknown validation is not lived");
 expect(structuredIds.includes("op-e02"), "unknown validation stays an open point");
 expect(structuredBody.includes("Prüfen: Ben Muster. Freigeben: Anna Beispiel. Buchen: Kanzlei Meier."), "F01 roles");

@@ -14,6 +14,8 @@ import { GET as getKanzleiCron } from "@/app/api/cron/kanzlei-toolbox/route";
 import { AMPEL_QUESTIONS } from "@/lib/ampel-questions";
 import { KASSEN_QUESTIONS } from "@/lib/kassen-check-questions";
 import { deliverAmpelResult } from "@/lib/ampel-result-send";
+import { flushLeadNoticesForTests } from "@/lib/lead-notice";
+import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
 import { encodeAmpelAnswers, type AmpelAnswerMap } from "@/lib/ampel-score";
 import { AMPEL_STEP_COLUMNS } from "@/lib/ampel-step-event";
 import { clearAmpelStepRateForTest } from "@/lib/ampel-step-rate";
@@ -285,6 +287,14 @@ async function main(): Promise<void> {
   const dir = await mkdtemp(path.join(tmpdir(), "kanzlei-toolbox-"));
   const filePath = path.join(dir, "kanzlei-toolbox.json");
   setKanzleiToolboxFileForTest(filePath);
+  const noticeMails: { to: string; text: string; html: string }[] = [];
+  setMailDedupeTestHooks({
+    dir: path.join(dir, "mail-dedupe"),
+    send: async (input) => {
+      noticeMails.push({ to: input.to, text: input.text, html: input.html });
+      return { stub: true, sent: false };
+    },
+  });
   const verifiedId = "k_0123456789abcdef";
   const pendingId = "k_abcdef0123456789";
   try {
@@ -400,7 +410,8 @@ async function main(): Promise<void> {
     const code = encodeAmpelAnswers(answers);
     ok(code, "fixture answers encode");
     const saved: ReadinessLead[] = [];
-    const mail: string[] = [];
+    const kasse = "kasse@nordlicht.example";
+    const kasse2 = "kasse2@nordlicht.example";
     await deliverAmpelResult(
       "probe@example.com",
       answers,
@@ -522,11 +533,11 @@ async function main(): Promise<void> {
     const kassenCode = encodeAmpelAnswers(kassenAnswers, KASSEN_QUESTIONS);
     ok(kassenCode, "kassen fixture answers encode");
     await deliverAmpelResult(
-      "kasse@nordlicht-probe.de",
+      kasse,
       kassenAnswers,
       kassenCode ?? "",
       {
-        email: "kasse@nordlicht-probe.de",
+        email: kasse,
         answers: kassenCode,
         ref: "Name der Kanzlei",
         marketing: false,
@@ -546,11 +557,11 @@ async function main(): Promise<void> {
     );
     ok(saved[5]?.advisorRef === "" && saved[5]?.tool === "kassen", "Kassen drops the free-text name field");
     await deliverAmpelResult(
-      "kasse2@nordlicht-probe.de",
+      kasse2,
       kassenAnswers,
       kassenCode ?? "",
       {
-        email: "kasse2@nordlicht-probe.de",
+        email: kasse2,
         answers: kassenCode,
         ref: "nordlicht-ab12",
         marketing: false,
@@ -569,7 +580,18 @@ async function main(): Promise<void> {
       },
     );
     ok(saved[6]?.advisorRef === "nordlicht-ab12", "Kassen stores an active slug");
-    ok(!JSON.stringify(mail).includes("utm_"), "no toolbox mail body was built with utm");
+    await flushLeadNoticesForTests();
+    ok(noticeMails.length === 2, "Kassen lead notices stay in the test stub");
+    ok(
+      noticeMails.every((item) => item.to !== kasse && item.to !== kasse2) &&
+        noticeMails.some((item) => item.text.includes(kasse)) &&
+        noticeMails.some((item) => item.text.includes(kasse2)),
+      "the stub captured both Kassen notices and did not mail the lead",
+    );
+    ok(
+      noticeMails.every((item) => !item.text.includes("utm_") && !item.html.includes("utm_")),
+      "no toolbox mail body was built with utm",
+    );
 
     const cleanedLocation = analyticsPageLocation(
       "https://www.gobd-doku-erstellen.de/ampel-check?kanzlei=nordlicht-ab12&utm_source=brief&token=secret#t=fragment",
@@ -795,6 +817,8 @@ async function main(): Promise<void> {
     ok(!sheetText.includes("secret@example.org") && !sheetText.includes("Geheimer Name") && !sheetText.includes("lead-secret"), "purged rows leave no personal data in the sheet");
     ok(!sheetText.includes("utm_") && !sheetText.includes("gclid"), "the sheet has no campaign fields");
   } finally {
+    await flushLeadNoticesForTests();
+    setMailDedupeTestHooks(null);
     setAmpelStepNowForTest(null);
     installAmpelStepSheetClientForTest(null);
     setKanzleiToolboxSheetEnabledForTest(null);

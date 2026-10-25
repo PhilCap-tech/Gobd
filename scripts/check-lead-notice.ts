@@ -34,7 +34,7 @@ import { leadNoticeMailKey, resendIdempotencyKey, setMailDedupeTestHooks } from 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LISTED = "48c6805d-3d34-4a80-9747-38ce4edb3eed";
 const FIXED = Date.UTC(2026, 9, 16, 8, 0, 0);
-const REAL = "inhaber@firma.de";
+const REAL = "inhaber@firma.example";
 const REF = "utm_campaign_herbst";
 
 function fail(message: string): never {
@@ -203,7 +203,7 @@ async function main(): Promise<void> {
     const resultMailId = ampelPdfDedupeKey(REAL, ampelCode);
     const direct: LeadNoticeInput = {
       tool: "ampel",
-      email: "Inhaber@Firma.DE",
+      email: "Inhaber@Firma.EXAMPLE",
       light: ampelLight,
       marketingRequested: true,
       ref: REF,
@@ -219,9 +219,9 @@ async function main(): Promise<void> {
     const mail = notices(sends)[0];
     const time = formatLeadNoticeTime(FIXED);
     ok(mail?.to === CHECKOUT_NOTICE_TO && mail.to === "cappe@gmx.de", "the only recipient is cappe@gmx.de");
-    ok(mail.to !== REAL && mail.to !== "Inhaber@Firma.DE", "the lead is not the recipient");
+    ok(mail.to !== REAL && mail.to !== "Inhaber@Firma.EXAMPLE", "the lead is not the recipient");
     ok(mail.replyTo == null && mail.cc == null && mail.bcc == null, "the lead is not reply-to, cc, or bcc");
-    ok(mail.subject === `Neuer Ampel-Lead: ${ampelLabel} \u2013 firma.de`, "the Ampel subject names result and domain");
+    ok(mail.subject === `Neuer Ampel-Lead: ${ampelLabel} \u2013 firma.example`, "the Ampel subject names result and domain");
     ok(mail.text.includes("Tool: Ampel") && mail.html.includes("Tool: Ampel"), "the note names the Ampel tool");
     ok(mail.text.includes(`Ergebnis: ${ampelLabel}`) && mail.html.includes(`Ergebnis: ${ampelLabel}`), "the note names the result");
     ok(mail.text.includes(REAL) && mail.html.includes(REAL), "the note names the lead e-mail");
@@ -234,10 +234,10 @@ async function main(): Promise<void> {
     ok(mail.idempotencyKey === resendIdempotencyKey(dedupeKey), "Resend gets the Idempotency-Key from that dedupe key");
 
     const [left, right] = await Promise.all([
-      notifyLeadResult({ ...direct, email: "parallel@firma.de", resultMailId: ampelPdfDedupeKey("parallel@firma.de", ampelCode) }),
-      notifyLeadResult({ ...direct, email: "parallel@firma.de", resultMailId: ampelPdfDedupeKey("parallel@firma.de", ampelCode) }),
+      notifyLeadResult({ ...direct, email: "parallel@firma.example", resultMailId: ampelPdfDedupeKey("parallel@firma.example", ampelCode) }),
+      notifyLeadResult({ ...direct, email: "parallel@firma.example", resultMailId: ampelPdfDedupeKey("parallel@firma.example", ampelCode) }),
     ]);
-    const parallel = sends.filter((item) => item.text.includes("parallel@firma.de"));
+    const parallel = sends.filter((item) => item.text.includes("parallel@firma.example"));
     ok(
       parallel.length === 1 && [left, right].filter((item) => item.sent).length === 1 && [left, right].filter((item) => item.duplicate).length === 1,
       "parallel submits of one result mail send one note",
@@ -246,12 +246,12 @@ async function main(): Promise<void> {
     const leadId = "ampel-11111111111111111111111111111111";
     const byLead = await notifyLeadResult({
       ...direct,
-      email: "lead-id@firma.de",
+      email: "lead-id@firma.example",
       leadId,
       resultMailId: "",
     });
     ok(byLead.sent === true, "a known lead id can anchor the note");
-    const leadMail = sends.find((item) => item.text.includes("lead-id@firma.de"));
+    const leadMail = sends.find((item) => item.text.includes("lead-id@firma.example"));
     ok(
       leadMail?.idempotencyKey === resendIdempotencyKey(leadNoticeMailKey("ampel", leadId)),
       "a lead id is the dedupe anchor when it is present",
@@ -259,17 +259,17 @@ async function main(): Promise<void> {
 
     const quiet: LeadNoticeInput = {
       tool: "kassen",
-      email: "still@firma.de",
+      email: "still@firma.example",
       light: "gelb",
       marketingRequested: false,
       ref: "",
-      resultMailId: "kassen-result:still@firma.de:quiet",
+      resultMailId: "kassen-result:still@firma.example:quiet",
       at: FIXED,
     };
     const withoutRef = await notifyLeadResult(quiet);
     ok(withoutRef.sent === true, "a Kassen lead without a ref still sends");
-    const quietMail = sends.find((item) => item.text.includes("still@firma.de"));
-    ok(quietMail?.subject === "Neuer Kassen-Lead: Gelb \u2013 firma.de", "the Kassen subject names result and domain");
+    const quietMail = sends.find((item) => item.text.includes("still@firma.example"));
+    ok(quietMail?.subject === "Neuer Kassen-Lead: Gelb \u2013 firma.example", "the Kassen subject names result and domain");
     ok(quietMail?.text.includes("Tool: Kassen") && quietMail.text.includes("Marketing angefragt: nein"), "Kassen notes consent as no");
     ok(quietMail != null && !quietMail.text.includes("Ref/UTM"), "an empty ref is left out");
 
@@ -280,33 +280,33 @@ async function main(): Promise<void> {
     }
     const listed = await notifyLeadResult({
       ...direct,
-      email: "echt@firma.de",
+      email: "echt@firma.example",
       entityId: LISTED.toUpperCase(),
-      resultMailId: "ampel-pdf:echt@firma.de:listed",
+      resultMailId: "ampel-pdf:echt@firma.example:listed",
     });
     ok(listed.skipped === true && listed.sent === false, "a listed test firm is skipped");
     ok(sends.length === beforeSkip, "test addresses and listed firms do not call Resend");
 
     const beforeFlow = notices(sends).length;
-    const ampelFlow = await posted("ampel", "kanzlei@kanzlei-nord.de", ampelMap, {
+    const ampelFlow = await posted("ampel", "kanzlei@kanzlei-nord.example", ampelMap, {
       marketing: true,
       ref: REF,
       ip: "203.0.113.81",
     });
     ok(ampelFlow.pending && ampelFlow.mailed, "an Ampel submit sends the result mail");
     ok(notices(sends).length === beforeFlow + 1, "a real Ampel submit sends one operator note");
-    const ampelNote = sends.find((item) => item.text.includes("kanzlei@kanzlei-nord.de"));
+    const ampelNote = sends.find((item) => item.text.includes("kanzlei@kanzlei-nord.example"));
     ok(
       ampelNote?.to === CHECKOUT_NOTICE_TO &&
-        ampelNote.subject === `Neuer Ampel-Lead: ${ampelLabel} \u2013 kanzlei-nord.de` &&
+        ampelNote.subject === `Neuer Ampel-Lead: ${ampelLabel} \u2013 kanzlei-nord.example` &&
         ampelNote.text.includes("Marketing angefragt: ja") &&
         ampelNote.text.includes(`Ref/UTM: ${REF}`) &&
         ampelNote.text.includes(formatLeadNoticeTime(FIXED)),
       "the Ampel submit note has the operator, subject, and fields",
     );
-    ok(ampelNote?.to !== "kanzlei@kanzlei-nord.de", "the Ampel lead is not the note recipient");
+    ok(ampelNote?.to !== "kanzlei@kanzlei-nord.example", "the Ampel lead is not the note recipient");
 
-    const again = await posted("ampel", "kanzlei@kanzlei-nord.de", ampelMap, {
+    const again = await posted("ampel", "kanzlei@kanzlei-nord.example", ampelMap, {
       marketing: true,
       ref: REF,
       ip: "203.0.113.82",
@@ -318,7 +318,7 @@ async function main(): Promise<void> {
     const kassenMap = answered(KASSEN_QUESTIONS, { meldung_angaben: "nein" });
     const kassenLabel = ampelResultLabel(scoreKassen(kassenMap)?.light ?? "");
     ok(kassenLabel === "Gelb", "the Kassen fixture is yellow");
-    const kassenEmail = "kasse@kassen-nord.de";
+    const kassenEmail = "kasse@kassen-nord.example";
     const kassenFlow = await posted("kassen", kassenEmail, kassenMap, {
       marketing: false,
       ref: "utm_source_kasse",
@@ -329,7 +329,7 @@ async function main(): Promise<void> {
     const kassenCode = encodeAmpelAnswers(kassenMap, KASSEN_QUESTIONS) ?? "";
     ok(
       kassenNote?.to === CHECKOUT_NOTICE_TO &&
-        kassenNote.subject === `Neuer Kassen-Lead: ${kassenLabel} \u2013 kassen-nord.de` &&
+        kassenNote.subject === `Neuer Kassen-Lead: ${kassenLabel} \u2013 kassen-nord.example` &&
         kassenNote.text.includes("Tool: Kassen") &&
         kassenNote.text.includes("Marketing angefragt: nein") &&
         kassenNote.text.includes("Ref/UTM: utm_source_kasse") &&
@@ -362,10 +362,10 @@ async function main(): Promise<void> {
 
     const redAnswers = ampelMap;
     const failedMail = await deliverAmpelResult(
-      "fehler@firma.de",
+      "fehler@firma.example",
       redAnswers,
       ampelCode,
-      { email: "fehler@firma.de", answers: ampelCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.87" },
+      { email: "fehler@firma.example", answers: ampelCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.87" },
       { mail: async () => ({ stub: false, sent: false }), saveLead: async () => undefined },
       FIXED,
     );
@@ -376,10 +376,10 @@ async function main(): Promise<void> {
     );
 
     const stubMail = await deliverAmpelResult(
-      "stub@firma.de",
+      "stub@firma.example",
       redAnswers,
       ampelCode,
-      { email: "stub@firma.de", answers: ampelCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.88" },
+      { email: "stub@firma.example", answers: ampelCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.88" },
       { mail: async () => ({ stub: true, sent: false }), saveLead: async () => undefined },
       FIXED,
     );
@@ -413,10 +413,10 @@ async function main(): Promise<void> {
     const startedAt = Date.now();
     const quick = await Promise.race([
       deliverAmpelResult(
-        "schnell-echt@firma.de",
+        "schnell-echt@firma.example",
         redAnswers,
         ampelCode,
-        { email: "schnell-echt@firma.de", answers: ampelCode, ref: REF, marketing: true, honeypot: "", ip: "203.0.113.89" },
+        { email: "schnell-echt@firma.example", answers: ampelCode, ref: REF, marketing: true, honeypot: "", ip: "203.0.113.89" },
         {
           mail: async () => ({ stub: false, sent: true, id: "result-quick" }),
           saveLead: async () => {
@@ -440,7 +440,7 @@ async function main(): Promise<void> {
     );
     releaseGate();
     await flushLeadNoticesForTests();
-    ok(noteStarted && sends.some((item) => item.to === CHECKOUT_NOTICE_TO && item.text.includes("schnell-echt@firma.de")), "the held note is sent after the result returns");
+    ok(noteStarted && sends.some((item) => item.to === CHECKOUT_NOTICE_TO && item.text.includes("schnell-echt@firma.example")), "the held note is sent after the result returns");
 
     setMailDedupeTestHooks({
       dir,
@@ -451,10 +451,10 @@ async function main(): Promise<void> {
     let threw = false;
     try {
       const broken = await deliverAmpelResult(
-        "stoerung@firma.de",
+        "stoerung@firma.example",
         redAnswers,
         ampelCode,
-        { email: "stoerung@firma.de", answers: ampelCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.90" },
+        { email: "stoerung@firma.example", answers: ampelCode, ref: "", marketing: false, honeypot: "", ip: "203.0.113.90" },
         {
           mail: async () => ({ stub: false, sent: true, id: "result-broken" }),
           saveLead: async () => undefined,
@@ -465,10 +465,10 @@ async function main(): Promise<void> {
       ok(broken.ok === true && !("honeypot" in broken) && broken.mailed === true, "a note send error still reports the result mail");
       const failedNote = await notifyLeadResult({
         tool: "ampel",
-        email: "direkt-fehler@firma.de",
+        email: "direkt-fehler@firma.example",
         light: "rot",
         marketingRequested: false,
-        resultMailId: "ampel-pdf:direkt-fehler@firma.de:fail",
+        resultMailId: "ampel-pdf:direkt-fehler@firma.example:fail",
         at: FIXED,
       });
       ok(failedNote.sent === false, "a failed notification does not report a send");

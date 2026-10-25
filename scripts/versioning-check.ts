@@ -127,31 +127,31 @@ const backdated = normalizeVersionChange(
     changeSummary: "neue Buchhaltungskraft",
     changedBy: "",
   },
-  { version: 2, defaultChangedBy: "buchhaltung@firma.de" },
+  { version: 2, defaultChangedBy: "buchhaltung@firma.example" },
 );
 assert(!("error" in backdated), "backdated Gültig-ab is accepted");
 if (!("error" in backdated)) {
-  assert(backdated.changedBy === "buchhaltung@firma.de", "who defaults to email");
+  assert(backdated.changedBy === "buchhaltung@firma.example", "who defaults to email");
 }
 
 assert(
   "error" in
     normalizeVersionChange(
-      { validFrom: "", changeSummary: "x", changedBy: "a@b.de" },
-      { version: 2, defaultChangedBy: "a@b.de" },
+      { validFrom: "", changeSummary: "x", changedBy: "a@b.example" },
+      { version: 2, defaultChangedBy: "a@b.example" },
     ),
   "a later version requires Gültig-ab",
 );
 assert(
   "error" in
     normalizeVersionChange(
-      { validFrom: "2027-02-31", changeSummary: "x", changedBy: "a@b.de" },
+      { validFrom: "2027-02-31", changeSummary: "x", changedBy: "a@b.example" },
       { version: 2 },
     ),
   "invalid calendar dates are rejected",
 );
 
-const first = normalizeVersionChange({}, { version: 1, defaultChangedBy: "a@b.de" });
+const first = normalizeVersionChange({}, { version: 1, defaultChangedBy: "a@b.example" });
 assert(!("error" in first), "first version fills defaults");
 if (!("error" in first)) {
   assert(first.changeSummary === "Erstfassung", "first changelog defaults");
@@ -159,7 +159,7 @@ if (!("error" in first)) {
 }
 
 const header = ["document_id", "version", "email", "company"];
-const parsed = parseSheetRow(header, ["doc-1", "1", "a@b.de", "Alt GmbH"]);
+const parsed = parseSheetRow(header, ["doc-1", "1", "a@b.example", "Alt GmbH"]);
 assert(parsed.validFrom === "", "old sheet rows load with empty valid_from");
 assert(parsed.validTo === "", "old sheet rows load with empty valid_to");
 assert(parsed.changeSummary === "", "old sheet rows load with empty changelog");
@@ -168,7 +168,7 @@ assert(parsed.documentId === "doc-1", "existing columns still map");
 
 const stored = toSheetRow({
   identity: {
-    email: "a@b.de",
+    email: "a@b.example",
     company: "Neu GmbH",
     stripeSessionId: "s",
     stripeCustomerId: "",
@@ -181,14 +181,14 @@ const stored = toSheetRow({
   version: "2",
   validFrom: "2027-01-01",
   changeSummary: "neue Buchhaltungskraft",
-  changedBy: "a@b.de",
+  changedBy: "a@b.example",
 });
 assert(stored.validFrom === "2027-01-01", "toSheetRow keeps valid_from");
 assert(stored.changeSummary === "neue Buchhaltungskraft", "toSheetRow keeps changelog");
 
 const rendered = renderDeliveryDocument({
   identity: {
-    email: "a@b.de",
+    email: "a@b.example",
     company: "Neu GmbH",
     stripeSessionId: "s",
     stripeCustomerId: "",
@@ -201,7 +201,7 @@ const rendered = renderDeliveryDocument({
     validFrom: "01.01.2027",
     validTo: "",
     changeSummary: "neue Buchhaltungskraft",
-    changedBy: "a@b.de",
+    changedBy: "a@b.example",
   },
 });
 assert(rendered.cover.includes("01.01.2027"), "cover includes Gültig ab");

@@ -263,8 +263,8 @@ function assertMatcher() {
     ["Bitte bestätige, dass du als Unternehmer bestellst.", true],
     ["Ich bestätige: keine Steuerberatung.", false],
     ["Bitte bestätigen Sie, dass Sie als Unternehmer bestellen.", false],
-    ["du@firma.de", true],
-    ["name@firma.de", false],
+    ["du@firma.example", true],
+    ["name@firma.example", false],
     ["eure Belegwege und euch im Team", true],
     ["Ihre Belegwege", false],
     ["Beispiel öffnen", false],
@@ -446,7 +446,7 @@ function assertScan() {
     export function Demo() {
       const dir = "pdfs";
       // du in a comment is not customer copy
-      return <p>Entwurf für Sie und Ihren Steuerberater. placeholder name@firma.de</p>;
+      return <p>Entwurf für Sie und Ihren Steuerberater. placeholder name@firma.example</p>;
     }
   `;
   const cleanHits = scan(clean, "demo.tsx");
@@ -454,7 +454,7 @@ function assertScan() {
     console.error("check-sie-ansprache: scan self-test false positive", cleanHits);
     process.exit(1);
   }
-  const mail = 'placeholder="du@firma.de"';
+  const mail = 'placeholder="du@firma.example"';
   const mailHits = scan(mail, "demo.tsx");
   if (mailHits.length !== 1) {
     console.error("check-sie-ansprache: scan self-test missed placeholder", mailHits);
