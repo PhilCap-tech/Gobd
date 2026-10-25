@@ -106,7 +106,7 @@ async function capture(fn: () => Promise<void>): Promise<string> {
   return lines.join("\n");
 }
 
-function checkIssuedAt() {
+async function checkIssuedAt() {
   const email = "buyer@example.com";
   const current = createSessionToken(email);
   ok(verifySessionToken(current) === email, "session token with iat verifies");
@@ -127,7 +127,7 @@ function checkIssuedAt() {
     email,
     exp: Date.now() + 60_000,
   });
-  ok(verifyMagicToken(magic) === email, "magic token without iat still verifies");
+  ok((await verifyMagicToken(magic)) === email, "magic token without iat still verifies");
   ok(verifySessionToken(magic) === null, "magic token is not a session");
 
   setEnv({ SESSION_MIN_ISSUED_AT: String(Date.now()) });
@@ -371,7 +371,7 @@ async function main() {
     if (!process.env.MAGIC_LINK_SECRET?.trim()) {
       setEnv({ MAGIC_LINK_SECRET: "check-auth-session-offline-secret" });
     }
-    checkIssuedAt();
+    await checkIssuedAt();
     checkChannelsDoNotIssue();
     checkSources();
     await checkMagicLinkHttp();

@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token") ?? "";
   const next = safeNextPath(url.searchParams.get("next"));
-  const email = verifyMagicToken(token);
+  const email = await verifyMagicToken(token);
 
   if (email && mayIssueSessionCookie({ channel: "magic", targetEmail: email })) {
     const response = NextResponse.redirect(new URL(next ?? "/account", request.url));
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   // Korrekt signiert, aber abgelaufen: kein Cookie, Seite zum neuen Link.
   // Gilt für Login, Onboarding und erneutes Bearbeiten. Nur eine
   // ungültige Signatur fällt auf /login?error=invalid zurück.
-  const expiredEmail = readExpiredMagicToken(token);
+  const expiredEmail = await readExpiredMagicToken(token);
   if (expiredEmail) {
     const expired = new URL("/auth/abgelaufen", request.url);
     expired.searchParams.set("token", token);

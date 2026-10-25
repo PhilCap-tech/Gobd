@@ -2,6 +2,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { getAppUrl, getMagicLinkSecret } from "@/lib/env";
+import {
+  loadMailLinkToken,
+  newOpaqueMailLinkToken,
+  saveMailLinkToken,
+} from "@/lib/mail-link-token-store";
 import { isSessionRevoked } from "@/lib/session-revocation";
 
 export const SESSION_COOKIE = "gobd_session";
@@ -44,7 +49,7 @@ function sign(payload: TokenPayload): string {
 
 function verify(
   token: string | undefined | null,
-  options?: { allowExpired?: boolean },
+  options?: { allowExpired?: boolean; now?: number },
 ): TokenPayload | null {
   if (!token) return null;
   const [body, sig] = token.split(".");
@@ -64,7 +69,8 @@ function verify(
       Buffer.from(body, "base64url").toString("utf8"),
     ) as TokenPayload;
     if (!payload.email || !payload.exp) return null;
-    if (!options?.allowExpired && payload.exp < Date.now()) return null;
+    const now = options?.now ?? Date.now();
+    if (!options?.allowExpired && payload.exp < now) return null;
     if (payload.typ === "invite") {
       if (!payload.membershipId?.trim() || !payload.jti?.trim()) return null;
       return payload;
@@ -82,12 +88,33 @@ function verify(
   }
 }
 
-export function createMagicToken(email: string): string {
+/**
+ * Bereits versendeter Anmeldelink. Neue Mails nutzen `createMagicToken`.
+ * Die Adresse steht noch im signierten Körper. Nur die Prüfung bleibt.
+ */
+export function legacyMagicToken(email: string, now = Date.now()): string {
   return sign({
     typ: "magic",
     email: email.trim().toLowerCase(),
-    exp: Date.now() + MAGIC_TTL_MS,
+    exp: now + MAGIC_TTL_MS,
   });
+}
+
+/**
+ * Neue Anmeldelinks sind eine zufällige ID. Die Adresse liegt nur unter
+ * dem SHA-256 im privaten Speicher. Gültigkeit bleibt `MAGIC_TTL_MS`
+ * (20 Minuten). Bis dahin bleibt der Link mehrfach verwendbar.
+ */
+export async function createMagicToken(email: string, now = Date.now()): Promise<string | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return null;
+  const token = newOpaqueMailLinkToken();
+  const saved = await saveMailLinkToken(token, {
+    purpose: "magic",
+    email: normalized,
+    exp: now + MAGIC_TTL_MS,
+  });
+  return saved ? token : null;
 }
 
 export type InviteTokenClaims = {
@@ -98,34 +125,79 @@ export type InviteTokenClaims = {
 };
 
 /**
- * Einladung, dieselbe HMAC-Hülle wie der Magic Link, andere Art.
+ * Bereits versendete Einladung. Neue Mails nutzen `createInviteToken`.
  * `GET /auth/verify` nimmt nur `typ: "magic"` an und setzt dafür kein Cookie.
- * Gültigkeit ist `MAGIC_TTL_MS` (20 Minuten).
  */
-export function createInviteToken(input: {
+export function legacyInviteToken(input: {
   membershipId: string;
   email: string;
   jti: string;
-}): string {
+}, now = Date.now()): string {
   return sign({
     typ: "invite",
     email: input.email.trim().toLowerCase(),
     membershipId: input.membershipId.trim(),
     jti: input.jti.trim(),
-    exp: Date.now() + MAGIC_TTL_MS,
+    exp: now + MAGIC_TTL_MS,
   });
 }
 
-export function verifyInviteToken(
-  token: string | undefined | null,
-): InviteTokenClaims | null {
-  const payload = verify(token);
+/**
+ * Neue Einladung: zufällige ID. Adresse, Mitgliedschaft und Ablauf liegen
+ * nur im privaten Speicher. Gültigkeit bleibt `MAGIC_TTL_MS` (20 Minuten).
+ * Die Annahme verbraucht den Link weiterhin genau einmal.
+ */
+export async function createInviteToken(
+  input: { membershipId: string; email: string },
+  now = Date.now(),
+): Promise<string | null> {
+  const email = input.email.trim().toLowerCase();
+  const membershipId = input.membershipId.trim();
+  if (!email || !membershipId) return null;
+  const token = newOpaqueMailLinkToken();
+  const saved = await saveMailLinkToken(token, {
+    purpose: "invite",
+    email,
+    membershipId,
+    exp: now + MAGIC_TTL_MS,
+  });
+  return saved ? token : null;
+}
+
+function inviteClaimsFromLegacy(token: string, now: number): InviteTokenClaims | null {
+  const payload = verify(token, { now });
   if (!payload || payload.typ !== "invite") return null;
   const membershipId = payload.membershipId?.trim() ?? "";
   const jti = payload.jti?.trim() ?? "";
   const email = payload.email.trim().toLowerCase();
   if (!membershipId || !jti || !email) return null;
   return { membershipId, email, jti, exp: payload.exp };
+}
+
+function inviteClaimsFromRecord(
+  token: string,
+  record: Record<string, unknown>,
+  now: number,
+): InviteTokenClaims | null {
+  if (record.purpose !== "invite") return null;
+  const email = typeof record.email === "string" ? record.email.trim().toLowerCase() : "";
+  const membershipId = typeof record.membershipId === "string" ? record.membershipId.trim() : "";
+  const exp = record.exp;
+  if (!email || !membershipId || typeof exp !== "number" || !Number.isFinite(exp) || exp < now) {
+    return null;
+  }
+  return { membershipId, email, jti: token, exp };
+}
+
+export async function verifyInviteToken(
+  token: string | undefined | null,
+  now = Date.now(),
+): Promise<InviteTokenClaims | null> {
+  if (!token) return null;
+  if (token.includes(".")) return inviteClaimsFromLegacy(token, now);
+  const record = await loadMailLinkToken(token);
+  if (!record) return null;
+  return inviteClaimsFromRecord(token, record, now);
 }
 
 /**
@@ -155,21 +227,50 @@ export function createSessionToken(email: string): string {
   });
 }
 
-export function verifyMagicToken(token: string | undefined | null): string | null {
-  const payload = verify(token);
-  if (!payload || payload.typ !== "magic") return null;
-  return payload.email;
+function magicEmailFromRecord(
+  record: Record<string, unknown> | null,
+  now: number,
+  mode: "valid" | "expired",
+): string | null {
+  if (!record || record.purpose !== "magic") return null;
+  const email = typeof record.email === "string" ? record.email.trim().toLowerCase() : "";
+  const exp = record.exp;
+  if (!email || typeof exp !== "number" || !Number.isFinite(exp)) return null;
+  if (mode === "valid" && exp < now) return null;
+  if (mode === "expired" && exp >= now) return null;
+  return email;
+}
+
+export async function verifyMagicToken(
+  token: string | undefined | null,
+  now = Date.now(),
+): Promise<string | null> {
+  if (!token) return null;
+  if (token.includes(".")) {
+    const payload = verify(token, { now });
+    if (!payload || payload.typ !== "magic") return null;
+    return payload.email;
+  }
+  return magicEmailFromRecord(await loadMailLinkToken(token), now, "valid");
 }
 
 /**
  * Signatur gültig, aber abgelaufen. Kein Login.
  * Ein noch gültiger Token liefert null, damit er nicht auf der Ablaufseite landet.
+ * Neue IDs lesen die Adresse aus dem Speicher, bereits versendete Links aus der Signatur.
  */
-export function readExpiredMagicToken(token: string | undefined | null): string | null {
-  const payload = verify(token, { allowExpired: true });
-  if (!payload || payload.typ !== "magic") return null;
-  if (payload.exp >= Date.now()) return null;
-  return payload.email.trim().toLowerCase();
+export async function readExpiredMagicToken(
+  token: string | undefined | null,
+  now = Date.now(),
+): Promise<string | null> {
+  if (!token) return null;
+  if (token.includes(".")) {
+    const payload = verify(token, { allowExpired: true, now });
+    if (!payload || payload.typ !== "magic") return null;
+    if (payload.exp >= now) return null;
+    return payload.email.trim().toLowerCase();
+  }
+  return magicEmailFromRecord(await loadMailLinkToken(token), now, "expired");
 }
 
 function sessionClaims(
@@ -366,8 +467,13 @@ export function loginPath(next?: string | null): string {
     : "/login";
 }
 
-export function magicLinkUrl(email: string, next?: string | null): string {
-  const token = createMagicToken(email);
+export async function magicLinkUrl(
+  email: string,
+  next?: string | null,
+  now = Date.now(),
+): Promise<string | null> {
+  const token = await createMagicToken(email, now);
+  if (!token) return null;
   const params = new URLSearchParams({ token });
   const safe = safeNextPath(next);
   if (safe) params.set("next", safe);

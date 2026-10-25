@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { createInviteToken, verifyInviteToken, type InviteTokenClaims } from "@/lib/auth";
 import { getAppUrl, magicLinkDevFallbackAllowed } from "@/lib/env";
 import { formatEntityAddress, entityOwnedByEmail, type Entity } from "@/lib/entities";
@@ -91,7 +91,7 @@ function lock<T>(key: string, run: () => Promise<T>): Promise<T> {
   return current;
 }
 
-function inviteUrl(token: string): string {
+export function inviteLinkUrl(token: string): string {
   const params = new URLSearchParams({ token });
   return `${getAppUrl()}/auth/invite?${params.toString()}`;
 }
@@ -176,21 +176,20 @@ export async function acceptInvite(token: string, loadEntity: EntityLoader): Pro
 async function deliverInvite(row: Membership, entity: Entity): Promise<InviteOutcome> {
   const key = inviteMailKey(row.membershipId);
   const previousHash = row.tokenHash;
-  const jti = randomBytes(32).toString("base64url");
-  const token = createInviteToken({
+  const token = await createInviteToken({
     membershipId: row.membershipId,
     email: row.memberEmail,
-    jti,
   });
+  if (!token) return { ok: false, error: INVITE_MAIL_FAILED, code: "mail" };
   const stamped: Membership = {
     ...row,
-    tokenHash: hashInviteJti(jti),
+    tokenHash: hashInviteJti(token),
     updatedAt: new Date().toISOString(),
   };
   const stored = await replaceMembership(stamped);
   if (!stored) return { ok: false, error: INVITE_MAIL_FAILED, code: "mail" };
 
-  const url = inviteUrl(token);
+  const url = inviteLinkUrl(token);
   const mail = buildInviteMail({
     firmName: entity.name,
     street: entity.street,

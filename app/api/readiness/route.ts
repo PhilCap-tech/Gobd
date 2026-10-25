@@ -73,7 +73,7 @@ async function handleReadiness(request: Request) {
   const successPath = readinessSuccessPath(leadId, accessToken);
   const downloadUrl = `${appUrl}${downloadPath}`;
   const successUrl = `${appUrl}${successPath}`;
-  const magicUrl = magicLinkUrl(parsed.email);
+  const magicUrl = (await magicLinkUrl(parsed.email)) ?? undefined;
   const brancheLabel = readinessBrancheLabel(parsed.answers.branche);
 
   let pdfMailStatus = "stub";

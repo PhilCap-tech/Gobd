@@ -646,7 +646,7 @@ async function writeIntake(
     : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`;
   let loginMail: "sent" | "stub" | "failed" | "skipped" = "skipped";
   if (!resolved.compAccess && !skipTestDelivery) {
-    const magicUrl = identity.email ? magicLinkUrl(identity.email) : undefined;
+    const magicUrl = identity.email ? ((await magicLinkUrl(identity.email)) ?? undefined) : undefined;
     try {
       await io.sendDeliveryMail({
         email: identity.email,

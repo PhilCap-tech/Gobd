@@ -318,10 +318,6 @@ assert(
   "expired magic link falls back to login and keeps next=/intake",
 );
 assert(loginPath("https://evil.example") === "/login", "unsafe next is dropped on login");
-const issuedMagicLink = magicLinkUrl("philip@example.com", "/intake");
-assert(issuedMagicLink.includes("/auth/verify?"), "magic link uses /auth/verify");
-assert(issuedMagicLink.includes("token="), "magic link carries a token");
-assert(issuedMagicLink.includes("next=%2Fintake"), "magic link sets next=/intake");
 assert(
   pickOnboardingContactName({
     profileName: "Alex Profil",
@@ -595,6 +591,15 @@ for (const mail of customerMails) {
 }
 
 async function assertReferralIdempotency(): Promise<void> {
+  const issuedMagicLink = await magicLinkUrl("philip@example.com", "/intake");
+  assert(issuedMagicLink, "magic link was stored");
+  assert(issuedMagicLink.includes("/auth/verify?"), "magic link uses /auth/verify");
+  assert(issuedMagicLink.includes("token="), "magic link carries a token");
+  assert(issuedMagicLink.includes("next=%2Fintake"), "magic link sets next=/intake");
+  assert(!issuedMagicLink.toLowerCase().includes("philip@example.com"), "magic link has no email");
+  const issuedToken = new URL(issuedMagicLink).searchParams.get("token") ?? "";
+  assert(issuedToken.length > 20 && !issuedToken.includes("."), "magic link token is not a signed payload");
+
   const referralLedgerFile = path.join(outDir, "referral-ledger.json");
   try {
     unlinkSync(referralLedgerFile);
