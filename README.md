@@ -346,7 +346,7 @@ Erwartete Kampagnen-URL:
 
 `https://www.gobd-doku-erstellen.de/readiness?utm_source=google&utm_medium=paid&utm_campaign=readiness_pilot`
 
-`utm_source=meta` analog. First-touch landet in `sessionStorage` (`gobd_utm_first`) und wird als optionale Meta-Event-Params mitgeschickt. Der Ampel-Submit schreibt `utm_source` und `utm_campaign` nicht in `readiness_leads` (die Spalten bleiben, neue Ampel-Zeilen sind leer). Der Kassen-Check reicht dieselben zwei Felder weiterhin an die Zeile durch.
+`utm_source=meta` analog. First-touch landet in `sessionStorage` (`gobd_utm_first`) und wird als optionale Meta-Event-Params mitgeschickt. Ampel-Check und Kassen-Check schreiben `utm_source` und `utm_campaign` nicht in `readiness_leads` (die Spalten bleiben, neue Zeilen sind leer, bestehende Zeilen bleiben unverändert).
 
 ### Checkliste nach Deploy
 

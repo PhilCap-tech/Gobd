@@ -430,7 +430,7 @@ async function finishAmpelResult(
     src: input.src,
     variant: input.variant,
   });
-  const attribution = deps.check === "kassen-check" ? counted : withoutAmpelUtm(counted);
+  const attribution = withoutAmpelUtm(counted);
   try {
     const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
     if (scored) {
