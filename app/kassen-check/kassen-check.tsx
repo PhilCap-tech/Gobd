@@ -17,7 +17,7 @@ import {
   type AmpelAnswerMap,
 } from "@/lib/ampel-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
-import { replaceCheckSearch, submitUtmFields } from "@/lib/campaign-params";
+import { replaceCheckSearch } from "@/lib/campaign-params";
 import { trackKassenCheckSubmit } from "@/lib/tracking";
 import {
   KASSEN_CHECK_PATH,
@@ -116,7 +116,6 @@ export function KassenCheck() {
       ref: refName,
       marketing,
       fax_number: fax,
-      ...submitUtmFields(window.location.search),
     };
     let leadAccepted = false;
     setMailNotice(AMPEL_RESULT_MAIL.sending);
@@ -228,7 +227,7 @@ export function KassenCheck() {
       const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
       setMailNotice(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
-      if (leadAccepted) trackKassenCheckSubmit({ value: 1, currency: "EUR" });
+      if (leadAccepted) trackKassenCheckSubmit();
       setPending(false);
     }
   }

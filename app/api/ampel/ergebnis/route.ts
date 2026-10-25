@@ -31,8 +31,6 @@ export async function POST(request: Request) {
       ref: value.ref,
       marketing: value.marketing,
       honeypot: value.fax_number,
-      utmSource: value.utm_source,
-      utmCampaign: value.utm_campaign,
       src: value.src,
       variant: value.v,
       kanzlei: value.kanzlei,

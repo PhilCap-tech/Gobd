@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CampaignLink } from "@/components/campaign-link";
 import {
   AMPEL_CAP_NOTE,
   AMPEL_CTA,
@@ -55,9 +56,9 @@ export function AmpelCta() {
       <p>{AMPEL_CTA.text}</p>
       <p className="ampel-price">{AMPEL_CTA.price}</p>
       <p className="actions">
-        <Link className="btn" href="/checkout">
+        <CampaignLink className="btn" href="/checkout">
           {AMPEL_CTA.button}
-        </Link>
+        </CampaignLink>
         <Link className="btn ghost" href="/#ablauf">
           {AMPEL_CTA.secondary}
         </Link>

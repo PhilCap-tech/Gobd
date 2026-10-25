@@ -1,7 +1,8 @@
 /**
- * Tool, UTM, src and variant columns on the readiness lead row.
- * Test addresses and listed firms stay out, same predicates as the lead notice.
- * Click ids are not accepted and are not fields on the row.
+ * Tool, src and variant columns on the readiness lead row.
+ * utm_source and utm_campaign stay on the sheet and are written empty for a
+ * new row. Test addresses and listed firms stay out, same predicates as the
+ * lead notice. Click ids are not accepted and are not fields on the row.
  */
 import { isAmpelTestEmail } from "@/lib/ampel-stats";
 import { normalizeAmpelEmail } from "@/lib/ampel-score";
@@ -33,8 +34,20 @@ export function storedCheckAttribution(input: {
 }
 
 /**
+ * Ampel and Kassen rows keep the utm_source and utm_campaign columns and write
+ * them empty. This does not read or rewrite an existing sheet row.
+ */
+export function withoutAmpelUtm<T extends { utmSource: string; utmCampaign: string }>(
+  attribution: T,
+): T {
+  return { ...attribution, utmSource: "", utmCampaign: "" };
+}
+
+/**
  * Keep a previously stored source when this write does not carry one.
  * An explicit empty tool (test address or listed firm) stays empty.
+ * utm_source and utm_campaign are never taken from this write. A new row
+ * stores them empty. An existing row keeps the values already stored.
  */
 export function keptCheckAttribution(
   input: { tool?: string; utmSource?: string; utmCampaign?: string; src?: string; variant?: string },
@@ -43,9 +56,8 @@ export function keptCheckAttribution(
   const tool = input.tool ?? existing?.tool ?? "";
   return {
     tool: tool === "ampel" || tool === "kassen" ? tool : "",
-    utmSource: input.utmSource !== undefined ? sanitizeUtmValue(input.utmSource) : (existing?.utmSource ?? ""),
-    utmCampaign:
-      input.utmCampaign !== undefined ? sanitizeUtmValue(input.utmCampaign) : (existing?.utmCampaign ?? ""),
+    utmSource: existing?.utmSource ?? "",
+    utmCampaign: existing?.utmCampaign ?? "",
     src: input.src !== undefined ? sanitizeVariantValue(input.src) : (existing?.src ?? ""),
     variant: input.variant !== undefined ? sanitizeVariantValue(input.variant) : (existing?.variant ?? ""),
   };

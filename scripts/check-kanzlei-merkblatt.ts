@@ -313,7 +313,7 @@ assertOk(
 assertOk(privacy.includes("Eine automatische Löschung nach einer festen Frist findet nicht statt."), "privacy states there is no automatic deletion");
 assertOk(!privacy.includes("[") && !KANZLEI_EMAIL_HINT.includes("[") && !KANZLEI_OPT_IN.includes("["), "kanzlei copy has no bracket markers");
 assertOk(!AMPEL_PRIVACY_PARAGRAPHS.join("\n").includes("90 Tage"), "the ampel section no longer says 90 days");
-assertOk(readFileSync("content/legal/datenschutz.md", "utf8").includes("**Stand:** 22.10.2026"), "the privacy stand date is the PR date");
+assertOk(readFileSync("content/legal/datenschutz.md", "utf8").includes("**Stand:** 25.10.2026"), "the privacy stand date is the PR date");
 
 const pdfRoute = readFileSync("app/steuerberater/merkblatt/pdf/route.ts", "utf8");
 assertOk(pdfRoute.includes("X-Robots-Tag") && pdfRoute.includes("noindex"), "the PDF response is noindex");

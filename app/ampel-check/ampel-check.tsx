@@ -41,10 +41,10 @@ import {
   sendAmpelStep,
   setAmpelKanzleiStepId,
 } from "@/lib/ampel-step-beacon";
-import { replaceCheckSearch, submitUtmFields, submitVariantFields } from "@/lib/campaign-params";
+import { replaceCheckSearch, submitVariantFields } from "@/lib/campaign-params";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { kanzleiFormLine, kanzleiHinweisText } from "@/lib/kanzlei-toolbox-copy";
-import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
+import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart } from "@/lib/tracking";
 
 export type AmpelKanzleiHint = {
   name: string;
@@ -130,6 +130,7 @@ export function AmpelCheck({ hint = null }: { hint?: AmpelKanzleiHint | null }) 
   const [mode, setMode] = useState<"questions" | "email" | "result">(initial ? "email" : "questions");
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<AmpelAnswerMap>(initial ?? {});
+  // Query value only. The share field „Name der Kanzlei“ is not a lead input.
   const [refName] = useState(hint ? "" : sanitizeAmpelRef(searchParams.get("ref") ?? ""));
   const [email, setEmail] = useState("");
   const [marketing, setMarketing] = useState(false);
@@ -294,7 +295,6 @@ export function AmpelCheck({ hint = null }: { hint?: AmpelKanzleiHint | null }) 
       marketing,
       fax_number: fax,
       ...(hint ? { kanzlei: hint.slug } : {}),
-      ...(hint ? {} : submitUtmFields(window.location.search)),
       ...submitVariantFields(window.location.search),
     };
     const showResult = (notice: string) => {
@@ -431,7 +431,6 @@ export function AmpelCheck({ hint = null }: { hint?: AmpelKanzleiHint | null }) 
       if (aborted) noteAmpelSubmitResult(0, false, true);
       showResult(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
-      if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" });
       if (leadAccepted) trackAmpelCheckSubmit();
       setPending(false);
     }

@@ -1,17 +1,21 @@
 /**
- * Campaign params and src/v stay on the check URL. The lead row records
- * tool, utm_source, utm_campaign, src and variant. Click ids are not stored.
+ * Campaign params and src/v stay on the check URL. Ampel and Kassen rows
+ * keep the utm columns and write them empty. No lead path copies
+ * utm_source or utm_campaign onto readiness_leads. Click ids are not stored.
  * Usage: npx tsx scripts/check-attribution-params.ts
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { requestAmpelConfirmation } from "../lib/ampel-confirm";
 import { AMPEL_QUESTIONS } from "../lib/ampel-questions";
+import { createMemoryAmpelRateStore } from "../lib/ampel-rate-limit";
 import { deliverAmpelResult } from "../lib/ampel-result-send";
 import { createMemoryAmpelSuppressionStore, setAmpelSuppressionTestStore } from "../lib/ampel-suppression";
 import { encodeAmpelAnswers, type AmpelAnswerMap } from "../lib/ampel-score";
 import { hrefWithCampaignParams, replaceCheckSearch, submitUtmFields, submitVariantFields } from "../lib/campaign-params";
-import { keptCheckAttribution, storedCheckAttribution } from "../lib/lead-attribution";
+import { submitKassenResult } from "../lib/kassen-check-send";
+import { keptCheckAttribution, storedCheckAttribution, withoutAmpelUtm } from "../lib/lead-attribution";
 import { emptyReadinessLead, READINESS_SHEET_COLUMNS, type ReadinessLead } from "../lib/readiness";
 import { TEST_ENTITY_IDS } from "../lib/test-entities";
 
@@ -119,6 +123,20 @@ assert.deepEqual(marked, {
   src: "hero",
   variant: "a",
 });
+assert.deepEqual(withoutAmpelUtm(marked), {
+  tool: "ampel",
+  utmSource: "",
+  utmCampaign: "",
+  src: "hero",
+  variant: "a",
+});
+assert.deepEqual(marked, {
+  tool: "ampel",
+  utmSource: "testsrc",
+  utmCampaign: "testcamp",
+  src: "hero",
+  variant: "a",
+}, "blanking UTM does not change the counted object");
 const kassen = storedCheckAttribution({
   email: "person@kunde.example",
   tool: "kassen",
@@ -147,15 +165,28 @@ const listed = storedCheckAttribution({
   variant: "a",
 });
 assert.deepEqual(listed, { tool: "", utmSource: "", utmCampaign: "", src: "", variant: "" });
-ok(
-  keptCheckAttribution({ tool: "ampel", utmSource: "google", utmCampaign: "landing_pilot" }, null).tool === "ampel",
-  "an explicit source is kept",
+assert.deepEqual(
+  keptCheckAttribution({ tool: "ampel", utmSource: "google", utmCampaign: "landing_pilot" }, null),
+  { tool: "ampel", utmSource: "", utmCampaign: "", src: "", variant: "" },
+  "a new row keeps the tool and writes utm empty",
+);
+assert.deepEqual(
+  keptCheckAttribution(
+    { tool: "kassen", utmSource: "new", utmCampaign: "new" },
+    { tool: "kassen", utmSource: "google", utmCampaign: "pilot" },
+  ),
+  { tool: "kassen", utmSource: "google", utmCampaign: "pilot", src: "", variant: "" },
+  "an update keeps the utm already stored on the row",
 );
 ok(
   keptCheckAttribution({}, { tool: "kassen", utmSource: "google", utmCampaign: "pilot" }).tool === "kassen",
   "a missing source keeps the stored row",
 );
-ok(keptCheckAttribution({ tool: "", utmSource: "", utmCampaign: "" }, { tool: "ampel", utmSource: "google" }).tool === "", "an explicit empty source stays empty");
+ok(
+  keptCheckAttribution({ tool: "", utmSource: "", utmCampaign: "" }, { tool: "ampel", utmSource: "google", utmCampaign: "pilot" }).tool === "" &&
+    keptCheckAttribution({ tool: "", utmSource: "", utmCampaign: "" }, { tool: "ampel", utmSource: "google", utmCampaign: "pilot" }).utmSource === "google",
+  "an explicit empty tool stays empty and does not wipe stored utm",
+);
 ok(
   keptCheckAttribution({}, { tool: "ampel", utmSource: "google", utmCampaign: "pilot", src: "hero", variant: "a" }).src === "hero" &&
     keptCheckAttribution({}, { src: "hero", variant: "a" }).variant === "a",
@@ -199,11 +230,11 @@ async function main(): Promise<void> {
   ok(
     confirmed.ok &&
       row.tool === "ampel" &&
-      row.utmSource === "google" &&
-      row.utmCampaign === "landing_pilot" &&
+      row.utmSource === "" &&
+      row.utmCampaign === "" &&
       row.src === "hero" &&
       row.variant === "a",
-    "the confirmation write keeps the countable source",
+    "a new confirmation writes utm columns empty and keeps src and variant",
   );
   ok(!("gclid" in row) && !("gbraid" in row) && !("wbraid" in row), "the confirmation write has no click id");
 
@@ -234,8 +265,8 @@ async function main(): Promise<void> {
   );
   const lead = written.at(-1) ?? emptyReadinessLead();
   ok(
-    sent.ok && lead.tool === "ampel" && lead.utmSource === "testsrc" && lead.utmCampaign === "testcamp" && lead.src === "hero" && lead.variant === "a",
-    "the ampel row stores src and variant",
+    sent.ok && lead.tool === "ampel" && lead.utmSource === "" && lead.utmCampaign === "" && lead.src === "hero" && lead.variant === "a",
+    "the ampel row writes utm columns empty and keeps src and variant",
   );
   ok(!("gclid" in lead) && !("gbraid" in lead) && !("wbraid" in lead), "the ampel row has no click id");
 
@@ -266,17 +297,78 @@ async function main(): Promise<void> {
   );
   const hiddenLead = hiddenRows.at(-1) ?? emptyReadinessLead();
   ok(hiddenLead.tool === "" && hiddenLead.src === "" && hiddenLead.variant === "", "a test address stores empty src and variant");
+
+  const kassenRows: ReadinessLead[] = [];
+  const kassenSent = await submitKassenResult(
+    {
+      email: "kasse@kunde.example",
+      answers: "JJJJJJ",
+      ref: "",
+      marketing: false,
+      honeypot: "",
+      ip: "203.0.113.30",
+      utmSource: "google",
+      utmCampaign: "kassen_pilot",
+    },
+    {
+      store: createMemoryAmpelRateStore(),
+      handoff: false,
+      now: () => Date.parse("2026-10-14T12:00:00.000Z"),
+      mail: async () => ({ sent: false, stub: true }),
+      saveLead: async (row) => {
+        kassenRows.push({ ...row });
+      },
+    },
+  );
+  const kassenLead = kassenRows.at(-1) ?? emptyReadinessLead();
+  ok(
+    kassenSent.ok && kassenLead.tool === "kassen" && kassenLead.utmSource === "" && kassenLead.utmCampaign === "",
+    "the kassen row writes utm columns empty",
+  );
+
+  const preserved: ReadinessLead[] = [];
+  const existing = emptyReadinessLead();
+  existing.email = "person@kunde.example";
+  existing.consentAt = "2026-10-14T12:00:00.000Z";
+  existing.tool = "kassen";
+  existing.utmSource = "stored-source";
+  existing.utmCampaign = "stored-campaign";
+  const preservedConfirm = await requestAmpelConfirmation(
+    {
+      email: "person@kunde.example",
+      answers: code ?? "",
+      ref: "",
+      mailed: "ja",
+      tool: "kassen",
+      utmSource: "google",
+      utmCampaign: "landing_pilot",
+    },
+    {
+      findLead: async () => existing,
+      saveLead: async (row) => {
+        preserved.push({ ...row });
+      },
+      sendConfirmation: async () => ({ sent: true, stub: true }),
+      now: () => Date.parse("2026-10-14T12:00:00.000Z"),
+    },
+  );
+  const preservedRow = preserved.at(-1) ?? emptyReadinessLead();
+  ok(
+    preservedConfirm.ok && preservedRow.utmSource === "stored-source" && preservedRow.utmCampaign === "stored-campaign",
+    "a confirmation update leaves the utm already stored on the row",
+  );
 }
 
 const pages = ["app/ampel-check/ampel-check.tsx", "app/kassen-check/kassen-check.tsx"];
 for (const file of pages) {
   const text = readFileSync(file, "utf8");
   ok(text.includes("replaceCheckSearch("), `${file} keeps campaign params on replace`);
-  ok(text.includes("submitUtmFields("), `${file} passes utm fields with the submit`);
   ok(!text.includes("gclid") && !text.includes("gbraid") && !text.includes("wbraid"), `${file} does not read a click id`);
   ok(!text.includes("localStorage"), `${file} does not write localStorage`);
 }
 const ampelPage = readFileSync("app/ampel-check/ampel-check.tsx", "utf8");
+ok(!ampelPage.includes("submitUtmFields("), "Ampel does not send utm fields");
+ok(!readFileSync("app/kassen-check/kassen-check.tsx", "utf8").includes("submitUtmFields("), "Kassen does not send utm fields");
 ok(ampelPage.includes("sessionStorage") && ampelPage.includes("shownKey"), "Ampel still only uses sessionStorage for the shown result");
 ok(ampelPage.includes("submitVariantFields("), "Ampel sends src and variant from the URL");
 ok(!ampelPage.includes("gclid"), "Ampel does not persist a click id");
@@ -285,25 +377,63 @@ const sendSource = readFileSync("lib/ampel-result-send.ts", "utf8");
 ok(sendSource.includes("lead.src = attribution.src") && sendSource.includes("lead.variant = attribution.variant"), "the lead write stores src and variant");
 ok(!sendSource.includes("gclid") && !sendSource.includes("gbraid") && !sendSource.includes("wbraid"), "the lead write does not read a click id");
 
-const routes = [
+const ampelRoutes = [
   "app/api/ampel/ergebnis/route.ts",
   "app/api/ampel/ergebnis/senden/route.ts",
+];
+for (const file of ampelRoutes) {
+  const text = readFileSync(file, "utf8");
+  ok(!text.includes("utm_source") && !text.includes("utm_campaign") && !text.includes("utmSource"), `${file} does not forward utm fields`);
+  ok(!text.includes("gclid") && !text.includes("gbraid") && !text.includes("wbraid"), `${file} does not read a click id`);
+  ok(text.includes("src: value.src") && text.includes("variant: value.v"), `${file} forwards src and variant`);
+}
+const kassenRoutes = [
   "app/api/kassen-check/ergebnis/route.ts",
   "app/api/kassen-check/ergebnis/senden/route.ts",
 ];
-for (const file of routes) {
+for (const file of kassenRoutes) {
   const text = readFileSync(file, "utf8");
-  ok(text.includes("utmSource: value.utm_source") && text.includes("utmCampaign: value.utm_campaign"), `${file} forwards utm fields`);
+  ok(!text.includes("utm_source") && !text.includes("utm_campaign") && !text.includes("utmSource"), `${file} does not forward utm fields`);
   ok(!text.includes("gclid") && !text.includes("gbraid") && !text.includes("wbraid"), `${file} does not read a click id`);
-  if (file.includes("/ampel/")) {
-    ok(text.includes("src: value.src") && text.includes("variant: value.v"), `${file} forwards src and variant`);
-  }
 }
 
 const tracking = readFileSync("lib/tracking.ts", "utf8");
 ok(tracking.includes('trackConsentedGaEvent("ampel_check_submit")'), "GA4 ampel_check_submit exists");
 ok(tracking.includes('trackConsentedGaEvent("kassen_check_submit")'), "GA4 kassen_check_submit exists");
-ok(tracking.includes("export function trackLeadSubmit"), "the Ads lead conversion stays");
+ok(!tracking.includes("export function trackLeadSubmit"), "the Ads lead conversion stays removed");
+ok(sendSource.includes("const attribution = withoutAmpelUtm(counted);"), "every check lead write blanks utm columns");
+ok(!sendSource.includes('deps.check === "kassen-check" ? counted'), "kassen does not keep a separate utm write");
+const attributionSource = readFileSync("lib/lead-attribution.ts", "utf8");
+const keptStart = attributionSource.indexOf("export function keptCheckAttribution");
+const keptBody = attributionSource.slice(keptStart);
+ok(keptStart !== -1, "keptCheckAttribution is the confirmation attribution");
+ok(!keptBody.includes("input.utmSource") && !keptBody.includes("input.utmCampaign"), "confirmation does not copy utm from the caller");
+ok(
+  keptBody.includes('existing?.utmSource ?? ""') && keptBody.includes('existing?.utmCampaign ?? ""'),
+  "confirmation keeps stored utm and writes empty on a new row",
+);
+const utmWriteHits: string[] = [];
+const utmRoots = ["app", "components", "lib"];
+const utmStack = utmRoots.map((root) => path.join(process.cwd(), root));
+while (utmStack.length) {
+  const dir = utmStack.pop()!;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      utmStack.push(full);
+      continue;
+    }
+    if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+    const rel = path.relative(process.cwd(), full);
+    if (rel === "lib/campaign-params.ts") continue;
+    const text = readFileSync(full, "utf8");
+    if (text.includes("submitUtmFields")) utmWriteHits.push(`${rel}: submitUtmFields`);
+    if (text.includes("value.utm_source") || text.includes("value.utm_campaign")) {
+      utmWriteHits.push(`${rel}: request utm`);
+    }
+  }
+}
+assert.deepEqual(utmWriteHits, [], "no lead path sends or forwards utm into readiness_leads");
 ok(!tracking.includes("gclid"), "tracking does not store a click id");
 
 const header = readFileSync("components/site-header.tsx", "utf8");
@@ -331,7 +461,32 @@ ok(campaignLink.includes("cta?: HomeCtaId"), "the campaign link accepts an optio
 ok(campaignLink.includes("sendHomeCta("), "the campaign link can send the homepage beacon");
 ok(!home.includes("sendHomeCta") && !header.includes("sendHomeCta"), "the page and header leave the beacon call in the client link");
 ok(campaignLink.includes("useState(href)") && campaignLink.includes("window.location.search"), "the link starts from the plain href and reads the page URL");
-ok(campaignLink.includes("hrefWithCampaignParams("), "the link reuses the campaign helper");
+ok((campaignLink.match(/hrefWithCampaignParams\(/g) ?? []).length === 1, "campaign params are copied in one place");
+const pageHrefAt = campaignLink.indexOf("const pageHref");
+const effectAt = campaignLink.indexOf("useEffect(() => {");
+const pageHref = campaignLink.slice(pageHrefAt, effectAt);
+ok(pageHref.includes("hasMarketingConsent()"), "campaign params wait for marketing consent");
+ok(
+  pageHref.indexOf("hasMarketingConsent()") < pageHref.indexOf("hrefWithCampaignParams(") &&
+    pageHref.includes(": href"),
+  "without consent the link stays the plain href",
+);
+ok(campaignLink.includes("subscribeConsent("), "a consent change updates the href");
+ok(campaignLink.includes("return subscribeConsent(sync)"), "the consent subscription is cleaned up");
+const emitAt = campaignLink.indexOf("function emit");
+const effect = campaignLink.slice(effectAt, emitAt);
+ok(effect.includes("pageHref()") && effect.includes("subscribeConsent(sync)"), "hydration and consent changes use the gated href");
+ok(campaignLink.includes("function onMouseDown") && campaignLink.includes("function onClick"), "click and pointer paths exist");
+const pointerAt = campaignLink.indexOf("function onMouseDown");
+const clickAt = campaignLink.indexOf("function onClick");
+const pointer = campaignLink.slice(pointerAt, clickAt);
+const click = campaignLink.slice(clickAt, campaignLink.indexOf("return (", clickAt));
+ok(pointer.includes("pageHref()") && click.includes("pageHref()"), "pointer and click both use the gated href");
+const ampelCta = readFileSync("components/ampel-result.tsx", "utf8");
+const ampelCtaFn = ampelCta.slice(ampelCta.indexOf("export function AmpelCta"));
+ok(/<CampaignLink\b[^>]*href="\/checkout"/.test(ampelCtaFn), "Ampel checkout uses CampaignLink");
+ok(!/<Link\b[^>]*href="\/checkout"/.test(ampelCtaFn), "Ampel checkout is not a plain link");
+ok(ampelCtaFn.includes('href="/#ablauf"'), "the Ampel secondary link stays on the page");
 ok(
   !campaignLink.includes("localStorage") && !campaignLink.includes("sessionStorage") && !campaignLink.includes("document.cookie"),
   "the link stores nothing",
