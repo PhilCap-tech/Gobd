@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { hrefWithCampaignParams } from "@/lib/campaign-params";
+import { buyHrefWithStoredAffiliate } from "@/lib/digistore-promocode";
 import { createHomeCtaGesture, sendHomeCta } from "@/lib/home-cta-beacon";
 import type { HomeCtaId } from "@/lib/home-cta-event";
 
@@ -26,11 +27,11 @@ export function CampaignLink({
   const [gesture] = useState(() => createHomeCtaGesture());
 
   useEffect(() => {
-    setLiveHref(hrefWithCampaignParams(href, window.location.search));
+    setLiveHref(buyHrefWithStoredAffiliate(hrefWithCampaignParams(href, window.location.search)));
   }, [href]);
 
   function pageHref(): string {
-    return hrefWithCampaignParams(href, window.location.search);
+    return buyHrefWithStoredAffiliate(hrefWithCampaignParams(href, window.location.search));
   }
 
   function emit(): void {
