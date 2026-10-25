@@ -59,16 +59,8 @@ export const PURCHASE_CONVERSION_STORAGE_PREFIX = "gobd_ads_purchase:";
 export const CONSENT_STORAGE_KEY = "gobd_consent";
 export const CONSENT_COOKIE = "gobd_consent";
 export const CONSENT_EVENT = "gobd-consent";
-export const UTM_STORAGE_KEY = "gobd_utm_first";
 
 const CONSENT_MAX_AGE_SEC = 60 * 60 * 24 * 180;
-const UTM_KEYS = [
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_content",
-  "utm_term",
-] as const;
 
 let pixelInitialized = false;
 let googleInitialized = false;
@@ -210,37 +202,17 @@ export function openConsentBanner(): void {
   emitBanner();
 }
 
-export function captureFirstTouchUtms(): void {
+/**
+ * Drops a leftover first-touch UTM entry. No read, no write, no consent.
+ * Runs on page load so an older tab does not keep the value.
+ */
+export function removeLegacyFirstTouchUtm(): void {
   if (typeof window === "undefined") return;
   try {
-    if (sessionStorage.getItem(UTM_STORAGE_KEY)) return;
-    const params = new URLSearchParams(window.location.search);
-    const utm: Record<string, string> = {};
-    for (const key of UTM_KEYS) {
-      const value = params.get(key)?.trim();
-      if (value) utm[key] = value;
-    }
-    if (Object.keys(utm).length === 0) return;
-    sessionStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(utm));
+    sessionStorage.removeItem("gobd_utm_first");
   } catch {
-    /* ignore */
+    /* private mode */
   }
-}
-
-export function readFirstTouchUtms(): Record<string, string> | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(UTM_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Record<string, string>;
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function eventParams(): Record<string, string> | undefined {
-  return readFirstTouchUtms() || undefined;
 }
 
 export function enableMarketingScripts(): void {
@@ -299,7 +271,7 @@ function trackPageView(pathname: string): void {
   enableMetaPixel(pixelId);
   if (lastPageViewPath === pathname) return;
   lastPageViewPath = pathname;
-  window.fbq?.("track", "PageView", eventParams());
+  window.fbq?.("track", "PageView");
 }
 
 /** Custom event on `/readiness` (not `/readiness/success`). Standard PageView is fired separately. */
@@ -309,7 +281,7 @@ function trackReadinessStart(): void {
   enableMetaPixel(pixelId);
   if (lastReadinessStartPath === "/readiness") return;
   lastReadinessStartPath = "/readiness";
-  window.fbq?.("trackCustom", "ReadinessStart", eventParams());
+  window.fbq?.("trackCustom", "ReadinessStart");
 }
 
 /**
@@ -328,12 +300,11 @@ export function trackReadinessSubmit(onDone?: () => void): void {
     finish();
     return;
   }
-  const params = eventParams();
   const pixelId = getMetaPixelId();
   if (pixelId) {
     enableMetaPixel(pixelId);
-    window.fbq?.("track", "CompleteRegistration", params);
-    window.fbq?.("trackCustom", "ReadinessSubmit", params);
+    window.fbq?.("track", "CompleteRegistration");
+    window.fbq?.("trackCustom", "ReadinessSubmit");
   }
   const gaId = getGaMeasurementId();
   if (gaId && armGoogleTag() && window.gtag) {
@@ -412,7 +383,7 @@ function trackAmpelPixel(name: "AmpelStart" | "AmpelResult"): void {
   const pixelId = getMetaPixelId();
   if (!pixelId) return;
   enableMetaPixel(pixelId);
-  window.fbq?.("trackCustom", name, eventParams());
+  window.fbq?.("trackCustom", name);
 }
 
 function enableMetaPixel(pixelId: string): void {
