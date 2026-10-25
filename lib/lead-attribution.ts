@@ -33,6 +33,16 @@ export function storedCheckAttribution(input: {
 }
 
 /**
+ * Ampel rows keep the utm_source and utm_campaign columns and write them empty.
+ * This does not read or rewrite an existing sheet row.
+ */
+export function withoutAmpelUtm<T extends { utmSource: string; utmCampaign: string }>(
+  attribution: T,
+): T {
+  return { ...attribution, utmSource: "", utmCampaign: "" };
+}
+
+/**
  * Keep a previously stored source when this write does not carry one.
  * An explicit empty tool (test address or listed firm) stays empty.
  */

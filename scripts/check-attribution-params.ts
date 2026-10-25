@@ -1,6 +1,7 @@
 /**
- * Campaign params and src/v stay on the check URL. The lead row records
- * tool, utm_source, utm_campaign, src and variant. Click ids are not stored.
+ * Campaign params and src/v stay on the check URL. Ampel rows keep the
+ * utm columns and write them empty. Kassen still records utm_source and
+ * utm_campaign. Click ids are not stored.
  * Usage: npx tsx scripts/check-attribution-params.ts
  */
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import { deliverAmpelResult } from "../lib/ampel-result-send";
 import { createMemoryAmpelSuppressionStore, setAmpelSuppressionTestStore } from "../lib/ampel-suppression";
 import { encodeAmpelAnswers, type AmpelAnswerMap } from "../lib/ampel-score";
 import { hrefWithCampaignParams, replaceCheckSearch, submitUtmFields, submitVariantFields } from "../lib/campaign-params";
-import { keptCheckAttribution, storedCheckAttribution } from "../lib/lead-attribution";
+import { keptCheckAttribution, storedCheckAttribution, withoutAmpelUtm } from "../lib/lead-attribution";
 import { emptyReadinessLead, READINESS_SHEET_COLUMNS, type ReadinessLead } from "../lib/readiness";
 import { TEST_ENTITY_IDS } from "../lib/test-entities";
 
@@ -119,6 +120,20 @@ assert.deepEqual(marked, {
   src: "hero",
   variant: "a",
 });
+assert.deepEqual(withoutAmpelUtm(marked), {
+  tool: "ampel",
+  utmSource: "",
+  utmCampaign: "",
+  src: "hero",
+  variant: "a",
+});
+assert.deepEqual(marked, {
+  tool: "ampel",
+  utmSource: "testsrc",
+  utmCampaign: "testcamp",
+  src: "hero",
+  variant: "a",
+}, "blanking UTM does not change the counted object");
 const kassen = storedCheckAttribution({
   email: "person@kunde.example",
   tool: "kassen",
@@ -234,8 +249,8 @@ async function main(): Promise<void> {
   );
   const lead = written.at(-1) ?? emptyReadinessLead();
   ok(
-    sent.ok && lead.tool === "ampel" && lead.utmSource === "testsrc" && lead.utmCampaign === "testcamp" && lead.src === "hero" && lead.variant === "a",
-    "the ampel row stores src and variant",
+    sent.ok && lead.tool === "ampel" && lead.utmSource === "" && lead.utmCampaign === "" && lead.src === "hero" && lead.variant === "a",
+    "the ampel row writes utm columns empty and keeps src and variant",
   );
   ok(!("gclid" in lead) && !("gbraid" in lead) && !("wbraid" in lead), "the ampel row has no click id");
 
@@ -272,11 +287,12 @@ const pages = ["app/ampel-check/ampel-check.tsx", "app/kassen-check/kassen-check
 for (const file of pages) {
   const text = readFileSync(file, "utf8");
   ok(text.includes("replaceCheckSearch("), `${file} keeps campaign params on replace`);
-  ok(text.includes("submitUtmFields("), `${file} passes utm fields with the submit`);
   ok(!text.includes("gclid") && !text.includes("gbraid") && !text.includes("wbraid"), `${file} does not read a click id`);
   ok(!text.includes("localStorage"), `${file} does not write localStorage`);
 }
 const ampelPage = readFileSync("app/ampel-check/ampel-check.tsx", "utf8");
+ok(!ampelPage.includes("submitUtmFields("), "Ampel does not send utm fields");
+ok(readFileSync("app/kassen-check/kassen-check.tsx", "utf8").includes("submitUtmFields("), "Kassen still passes utm fields with the submit");
 ok(ampelPage.includes("sessionStorage") && ampelPage.includes("shownKey"), "Ampel still only uses sessionStorage for the shown result");
 ok(ampelPage.includes("submitVariantFields("), "Ampel sends src and variant from the URL");
 ok(!ampelPage.includes("gclid"), "Ampel does not persist a click id");
@@ -285,25 +301,31 @@ const sendSource = readFileSync("lib/ampel-result-send.ts", "utf8");
 ok(sendSource.includes("lead.src = attribution.src") && sendSource.includes("lead.variant = attribution.variant"), "the lead write stores src and variant");
 ok(!sendSource.includes("gclid") && !sendSource.includes("gbraid") && !sendSource.includes("wbraid"), "the lead write does not read a click id");
 
-const routes = [
+const ampelRoutes = [
   "app/api/ampel/ergebnis/route.ts",
   "app/api/ampel/ergebnis/senden/route.ts",
+];
+for (const file of ampelRoutes) {
+  const text = readFileSync(file, "utf8");
+  ok(!text.includes("utm_source") && !text.includes("utm_campaign") && !text.includes("utmSource"), `${file} does not forward utm fields`);
+  ok(!text.includes("gclid") && !text.includes("gbraid") && !text.includes("wbraid"), `${file} does not read a click id`);
+  ok(text.includes("src: value.src") && text.includes("variant: value.v"), `${file} forwards src and variant`);
+}
+const kassenRoutes = [
   "app/api/kassen-check/ergebnis/route.ts",
   "app/api/kassen-check/ergebnis/senden/route.ts",
 ];
-for (const file of routes) {
+for (const file of kassenRoutes) {
   const text = readFileSync(file, "utf8");
-  ok(text.includes("utmSource: value.utm_source") && text.includes("utmCampaign: value.utm_campaign"), `${file} forwards utm fields`);
+  ok(text.includes("utmSource: value.utm_source") && text.includes("utmCampaign: value.utm_campaign"), `${file} still forwards utm fields`);
   ok(!text.includes("gclid") && !text.includes("gbraid") && !text.includes("wbraid"), `${file} does not read a click id`);
-  if (file.includes("/ampel/")) {
-    ok(text.includes("src: value.src") && text.includes("variant: value.v"), `${file} forwards src and variant`);
-  }
 }
 
 const tracking = readFileSync("lib/tracking.ts", "utf8");
 ok(tracking.includes('trackConsentedGaEvent("ampel_check_submit")'), "GA4 ampel_check_submit exists");
 ok(tracking.includes('trackConsentedGaEvent("kassen_check_submit")'), "GA4 kassen_check_submit exists");
-ok(tracking.includes("export function trackLeadSubmit"), "the Ads lead conversion stays");
+ok(!tracking.includes("export function trackLeadSubmit"), "the Ads lead conversion stays removed");
+ok(sendSource.includes("withoutAmpelUtm("), "the ampel lead write blanks utm columns");
 ok(!tracking.includes("gclid"), "tracking does not store a click id");
 
 const header = readFileSync("components/site-header.tsx", "utf8");

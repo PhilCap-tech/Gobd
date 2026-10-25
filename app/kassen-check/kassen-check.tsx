@@ -228,7 +228,7 @@ export function KassenCheck() {
       const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
       setMailNotice(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
-      if (leadAccepted) trackKassenCheckSubmit({ value: 1, currency: "EUR" });
+      if (leadAccepted) trackKassenCheckSubmit();
       setPending(false);
     }
   }

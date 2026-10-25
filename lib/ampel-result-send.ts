@@ -32,7 +32,7 @@ import {
 import { decodeAmpelAnswers, encodeAmpelAnswers, normalizeAmpelEmail, scoreAmpel, type AmpelAnswerMap } from "@/lib/ampel-score";
 import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import { scoreKassen } from "@/lib/kassen-check-score";
-import { storedCheckAttribution } from "@/lib/lead-attribution";
+import { storedCheckAttribution, withoutAmpelUtm } from "@/lib/lead-attribution";
 import { queueLeadNotice } from "@/lib/lead-notice";
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
@@ -422,7 +422,7 @@ async function finishAmpelResult(
   now: number,
   timeoutMs: number,
 ): Promise<"started" | "failed" | "skipped"> {
-  const attribution = storedCheckAttribution({
+  const counted = storedCheckAttribution({
     email,
     tool: deps.check === "kassen-check" ? "kassen" : "ampel",
     utmSource: input.utmSource,
@@ -430,6 +430,7 @@ async function finishAmpelResult(
     src: input.src,
     variant: input.variant,
   });
+  const attribution = deps.check === "kassen-check" ? counted : withoutAmpelUtm(counted);
   try {
     const scored = deps.check === "kassen-check" ? scoreKassen(answers) : scoreAmpelCheck(answers);
     if (scored) {

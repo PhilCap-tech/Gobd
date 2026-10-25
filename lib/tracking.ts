@@ -8,8 +8,7 @@
  *
  * NEXT_PUBLIC_GOOGLE_ADS_ID unset → no Ads config on pages.
  * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO unset → no purchase conversion.
- * NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO unset → no Ampel or Kassen lead conversion.
- * The purchase conversion is not the Readiness submit conversion.
+ * Ampel, Kassen and Readiness do not send a Google Ads conversion.
  * After consent, gtag('config', AW-…) runs on every page so Ads sees the tag.
  */
 
@@ -77,7 +76,6 @@ let lastPageViewPath = "";
 let lastReadinessStartPath = "";
 let lastGooglePagePath = "";
 let lastAdsConfigPath: string | null = null;
-let leadConversionQueued = false;
 let kassenSubmitTracked = false;
 let ampelStartTracked = false;
 let ampelResultTracked = false;
@@ -94,26 +92,13 @@ export function getGoogleAdsId(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_ID?.trim() || "";
 }
 
-/** Conversion label for ReadinessSubmit only. Unset → traffic/config, no conversion. */
-export function getGoogleAdsReadinessLabel(): string {
-  return process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL?.trim() || "";
-}
-
 /**
  * Full Google Ads purchase send_to, e.g. AW-586367190/LABEL.
- * Unset → the purchase conversion is not sent. Not the Readiness label.
+ * Unset → the purchase conversion is not sent.
+ * Ampel, Kassen and Readiness do not use a conversion label.
  */
 export function getGoogleAdsPurchaseSendTo(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO?.trim() || "";
-}
-
-/**
- * Full Google Ads send_to for the Ampel and Kassen lead, e.g. AW-XXXXXXXXX/LABEL.
- * Used only after a successful email submit. Unset → no conversion.
- * The Steuerberater form does not use this label.
- */
-export function getGoogleAdsLeadSendTo(): string {
-  return process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO?.trim() || "";
 }
 
 /**
@@ -286,8 +271,8 @@ export function trackRoute(pathname: string): void {
 /**
  * Purchase conversion on the paid success page. Sends nothing unless
  * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO is set, marketing consent is
- * granted, and this checkout session was not sent before. Does not use
- * the Readiness conversion label.
+ * granted, and this checkout session was not sent before.
+ * Value is 198 € net. Do not pass the gross total.
  */
 export function trackPurchaseConversion(sessionId: string): void {
   const id = sessionId.trim();
@@ -330,14 +315,10 @@ function trackReadinessStart(): void {
 /**
  * After a successful readiness POST — before navigating to success.
  * Meta: CompleteRegistration + ReadinessSubmit.
- * Google Ads: conversion only if NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL is set.
- * The event sends no `value`. Google Ads keeps the conversion-action default
- * of 198 € net (setup + first month). Do not pass the gross total.
  * GA4: custom `readiness_submit` when NEXT_PUBLIC_GA_MEASUREMENT_ID is set.
- * This is not the purchase conversion and not the lead-form conversion.
- * `onDone` runs after the Ads hit is handed to gtag (callback or timeout) so
- * the following client navigation does not drop it. It runs immediately when
- * no Ads conversion is sent.
+ * No Google Ads conversion. The purchase conversion is separate.
+ * `onDone` runs after the GA4 event is queued, or immediately when no
+ * measurement id is set, so the following client navigation can proceed.
  */
 export function trackReadinessSubmit(onDone?: () => void): void {
   const finish = () => {
@@ -354,64 +335,16 @@ export function trackReadinessSubmit(onDone?: () => void): void {
     window.fbq?.("track", "CompleteRegistration", params);
     window.fbq?.("trackCustom", "ReadinessSubmit", params);
   }
-  const sendTo = normalizeGoogleAdsSendTo(
-    getGoogleAdsReadinessLabel(),
-    getGoogleAdsId(),
-  );
   const gaId = getGaMeasurementId();
-  const armed = Boolean((gaId || sendTo) && armGoogleTag(sendTo));
-  if (gaId && window.gtag) {
+  if (gaId && armGoogleTag() && window.gtag) {
     window.gtag("event", "readiness_submit", { send_to: gaId });
   }
-  if (!sendTo || !armed || !window.gtag) {
-    finish();
-    return;
-  }
-  let settled = false;
-  const done = () => {
-    if (settled) return;
-    settled = true;
-    finish();
-  };
-  window.gtag?.("event", "conversion", {
-    send_to: sendTo,
-    event_callback: done,
-    event_timeout: 2000,
-  });
-  const timer = setTimeout(done, 2000) as unknown;
-  if (typeof timer === "object" && timer !== null && "unref" in timer) {
-    (timer as { unref: () => void }).unref();
-  }
-}
-
-/**
- * Ampel or Kassen email step, only after the submit has succeeded.
- * Sends nothing when NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO is unset.
- * One conversion per page load. Value and currency are included only when passed.
- * Not the Readiness or purchase conversion, and not the Steuerberater form.
- * Returns whether the conversion was queued.
- */
-export function trackLeadSubmit(detail?: { value?: number; currency?: string }): boolean {
-  const sendTo = normalizeGoogleAdsSendTo(
-    getGoogleAdsLeadSendTo(),
-    getGoogleAdsId(),
-  );
-  if (!sendTo || !hasMarketingConsent() || leadConversionQueued) return false;
-  if (!armGoogleTag(sendTo)) return false;
-  leadConversionQueued = true;
-  window.gtag?.("event", "conversion", {
-    send_to: sendTo,
-    ...(detail?.value != null
-      ? { value: detail.value, currency: detail.currency ?? "EUR" }
-      : {}),
-  });
-  return true;
+  finish();
 }
 
 /**
  * GA4 `ampel_check_submit` after a successful Ampel email submit.
- * Same consent gate as the other GA4 events. Does not send or change the
- * Google Ads lead conversion; the page still calls {@link trackLeadSubmit}.
+ * Same consent gate as the other GA4 events. No Google Ads conversion.
  */
 export function trackAmpelCheckSubmit(): boolean {
   if (typeof window === "undefined" || !hasMarketingConsent() || ampelSubmitTracked) return false;
@@ -425,20 +358,17 @@ export function trackAmpelCheckSubmit(): boolean {
 export const KASSEN_CHECK_SUBMIT_STORAGE_KEY = "gobd_kassen_check_submit";
 
 /**
- * Successful Kassen email submit. Reuses {@link trackLeadSubmit} for the
- * Google Ads lead (`NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO`) and sends GA4
- * `kassen_check_submit` when a measurement id is set. Consent-gated.
+ * Successful Kassen email submit. GA4 `kassen_check_submit` when a
+ * measurement id is set. Consent-gated. No Google Ads conversion.
  * At most once per browser session, so a reload or a second submit does not
  * count again.
  */
-export function trackKassenCheckSubmit(detail?: { value?: number; currency?: string }): void {
+export function trackKassenCheckSubmit(): void {
   if (typeof window === "undefined" || !hasMarketingConsent()) return;
   if (kassenSubmitTracked || readStorageFlag(window.sessionStorage, KASSEN_CHECK_SUBMIT_STORAGE_KEY)) {
     return;
   }
-  const conversionSent = trackLeadSubmit(detail);
-  const gaSent = trackConsentedGaEvent("kassen_check_submit");
-  if (!conversionSent && !gaSent) return;
+  if (!trackConsentedGaEvent("kassen_check_submit")) return;
   kassenSubmitTracked = true;
   writeStorageFlag(window.sessionStorage, KASSEN_CHECK_SUBMIT_STORAGE_KEY);
 }
@@ -630,7 +560,6 @@ export function resetTrackingForChecks(): void {
   lastReadinessStartPath = "";
   lastGooglePagePath = "";
   lastAdsConfigPath = null;
-  leadConversionQueued = false;
   kassenSubmitTracked = false;
   ampelStartTracked = false;
   ampelResultTracked = false;

@@ -471,10 +471,10 @@ try {
   );
   const mailSource = readFileSync("lib/ampel-mail.ts", "utf8");
   assertOk(mailSource.includes("windowMs: AMPEL_CONFIRM_WINDOW_MS"), "confirmation send is throttled");
-  assertOk(!readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8").includes("trackLeadSubmit"), "DOI confirm does not fire the lead event");
+  assertOk(!readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8").includes("trackLeadSubmit"), "DOI confirm does not fire an Ads conversion");
   assertOk(
-    readFileSync("app/ampel-check/ampel-check.tsx", "utf8").includes('trackLeadSubmit({ value: 1, currency: "EUR" })'),
-    "the email step fires the lead event",
+    !readFileSync("app/ampel-check/ampel-check.tsx", "utf8").includes("trackLeadSubmit"),
+    "the email step does not fire an Ads conversion",
   );
   assertOk(INDEXABLE_STATIC_PATHS.includes("/ampel-check"), "sitemap source lists the page");
   assertOk(readFileSync("components/site-footer.tsx", "utf8").includes('href="/ampel-check"'), "footer links the page");
@@ -493,21 +493,18 @@ try {
   assertOk(doiRoute.includes("fresh: true"), "confirm reads the lead past the sheet cache");
   assertOk(doiRoute.includes("Das Ergebnis konnte gerade nicht gesendet werden."), "mail failure keeps the same error");
   const panel = readFileSync("app/ampel-check/bestaetigen/confirm-panel.tsx", "utf8");
-  assertOk(!panel.includes("trackLeadSubmit"), "DOI confirm does not fire the lead event");
+  assertOk(!panel.includes("trackLeadSubmit"), "DOI confirm does not fire an Ads conversion");
   const blockedAt = page.indexOf("response.status === 429");
   const duplicateAt = page.indexOf("data.duplicate");
-  const leadTrackAt = page.indexOf('trackLeadSubmit({ value: 1, currency: "EUR" })');
+  const leadTrackAt = page.indexOf("if (leadAccepted) trackAmpelCheckSubmit()");
   const sendingAt = page.indexOf("AMPEL_RESULT_MAIL.sending");
   const postAt = page.indexOf('fetch("/api/ampel/ergebnis"');
   assertOk(sendingAt >= 0 && postAt > sendingAt, "the result is shown before the mail request returns");
-  assertOk(blockedAt >= 0 && leadTrackAt > blockedAt, "a rate limit does not fire the lead event");
-  assertOk(duplicateAt >= 0 && leadTrackAt > duplicateAt, "a duplicate does not fire the lead event");
+  assertOk(blockedAt >= 0 && leadTrackAt > blockedAt, "a rate limit does not fire the GA4 submit");
+  assertOk(duplicateAt >= 0 && leadTrackAt > duplicateAt, "a duplicate does not fire the GA4 submit");
   const failedSubmitAt = page.indexOf("!response.ok || !data.ok");
-  assertOk(failedSubmitAt >= 0 && leadTrackAt > failedSubmitAt, "a failed submit does not fire the lead event");
-  assertOk(
-    page.includes('if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" })'),
-    "the lead event waits until the submit is accepted",
-  );
+  assertOk(failedSubmitAt >= 0 && leadTrackAt > failedSubmitAt, "a failed submit does not fire the GA4 submit");
+  assertOk(!page.includes("trackLeadSubmit"), "the email step does not fire an Ads conversion");
   assertOk(page.slice(blockedAt, blockedAt + 180).includes("showResult"), "a rate limit still shows the result");
   assertOk(page.includes('fetch("/api/ampel/ergebnis/senden"'), "the mail is sent in a second request");
   assertOk(page.includes("send_token: data.token"), "the follow-up send carries the one-time token");
@@ -554,7 +551,7 @@ try {
     AMPEL_RESULT_MAIL.alreadySent === "Das Ergebnis wurde bereits an diese Adresse gesendet.",
     "the duplicate message is the Sie sentence",
   );
-  assertOk(!page.includes("KE_4CP3UoZwdENaBzZcC"), "the lead label stays in the environment");
+  assertOk(!page.includes("KE_4CP3UoZwdENaBzZcC"), "the Ampel page does not embed the removed lead label");
   assertOk(page.includes("/api/ampel/ergebnis") && !page.includes("/api/ampel/confirm"), "the check posts the PDF request");
   assertOk(page.includes("noValidate") && page.includes("fax_number"), "the form validates in page and keeps a honeypot");
   assertOk(page.includes("AMPEL_EMAIL_PRIVACY_NOTE") && page.includes("AMPEL_MARKETING_CONSENT"), "privacy note and checkbox are rendered");
@@ -601,7 +598,8 @@ try {
   assertOk(tracking.includes("if (!hasMarketingConsent() || ampelResultTracked) return;"), "ampel result is consent-gated");
   assertOk(!tracking.includes("NEXT_PUBLIC_AMPEL"), "ampel tracking adds no env var");
   assertOk(page.includes("trackAmpelStart()") && page.includes("trackAmpelResult()"), "the check tracks the first answer and the result");
-  assertOk(page.includes('trackLeadSubmit({ value: 1, currency: "EUR" })'), "the email step fires the lead event");
+  assertOk(page.includes("if (leadAccepted) trackAmpelCheckSubmit()"), "the email step fires the GA4 submit");
+  assertOk(!page.includes("trackLeadSubmit"), "the email step does not fire an Ads conversion");
 
   const consentAt = "2026-10-13T08:00:00.000Z";
   const confirmNow = 1_700_000_000_000;
@@ -723,8 +721,9 @@ try {
   const enableStart = tracking.indexOf("function enableGoogleTag");
   const enableBody = tracking.slice(enableStart, tracking.indexOf("function currentPath"));
   assertOk(tracking.includes("process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID"), "GA4 reads NEXT_PUBLIC_GA_MEASUREMENT_ID");
-  assertOk(tracking.includes("process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO"), "the lead conversion reads NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO");
-  assertOk(tracking.includes("/^AW-\\d+\\//"), "a lead send_to may be AW-<digits>/<label>");
+  assertOk(!tracking.includes("NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO"), "Ampel does not read a lead send_to");
+  assertOk(!tracking.includes("NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL"), "Readiness does not read a conversion label");
+  assertOk(tracking.includes("/^AW-\\d+\\//"), "a purchase send_to may be AW-<digits>/<label>");
   assertOk(enableBody.includes("getGaMeasurementId()") && enableBody.includes('window.gtag?.("config", gaId)'), "GA4 config runs when the measurement id is set");
   assertOk(!enableBody.includes("getGoogleAdsLeadSendTo"), "GA4 init does not read the lead send_to");
 

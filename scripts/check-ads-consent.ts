@@ -5,13 +5,12 @@
  *
  * Runs the tracking module against a fake window. A script src or a gtag
  * config / event / js command counts as an Ads request. Consent Mode
- * default/update commands do not. Also checks the purchase conversion
- * fires once per paid session and never uses the Readiness label, that
- * Readiness and the Ampel lead each use their own send_to after config,
- * that the Ampel and Kassen conversions are queued only after a successful
- * submit, that Kassen also sends GA4 kassen_check_submit once per session,
- * that the Steuerberater form sends no Ads conversion, and that the Ads
- * tag is configured on every consented page.
+ * default/update commands do not. The only Ads conversion is the purchase
+ * conversion, once per paid session. Ampel, Kassen and Readiness send no
+ * Ads conversion (the lead and readiness labels stay out of app, components
+ * and lib). After consent they still send their GA4 events. Kassen sends
+ * kassen_check_submit once per session. The Steuerberater form sends no
+ * Ads conversion, and the Ads tag is configured on every consented page.
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -27,8 +26,8 @@ import {
   KASSEN_CHECK_SUBMIT_STORAGE_KEY,
   resetTrackingForChecks,
   saveConsent,
+  trackAmpelCheckSubmit,
   trackKassenCheckSubmit,
-  trackLeadSubmit,
   trackPurchaseConversion,
   trackReadinessSubmit,
   trackRoute,
@@ -43,8 +42,6 @@ type Command = unknown[];
 const adsId = "AW-586367190";
 const gaId = "G-RJ4KLBP1SF";
 const purchaseSendTo = "AW-586367190/PURCHASELABEL";
-const readinessLabel = "READINESS_OLD";
-const leadSendTo = "AW-586367190/LEADLABEL";
 const paidSession = "cs_test_paid_session_1";
 const secondSession = "cs_live_paid_session_2";
 
@@ -167,15 +164,11 @@ function fresh(env: {
   ads?: string;
   ga?: string;
   purchase?: string;
-  readiness?: string;
-  lead?: string;
   meta?: string;
 }) {
   process.env.NEXT_PUBLIC_GOOGLE_ADS_ID = env.ads ?? "";
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = env.ga ?? "";
   process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO = env.purchase ?? "";
-  process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL = env.readiness ?? "";
-  process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO = env.lead ?? "";
   process.env.NEXT_PUBLIC_META_PIXEL_ID = env.meta ?? "";
   const dom = installDom();
   resetTrackingForChecks();
@@ -190,8 +183,6 @@ const saved = {
   ads: process.env.NEXT_PUBLIC_GOOGLE_ADS_ID,
   ga: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
   purchase: process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO,
-  readiness: process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL,
-  lead: process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO,
   meta: process.env.NEXT_PUBLIC_META_PIXEL_ID,
 };
 
@@ -201,14 +192,12 @@ try {
       ads: adsId,
       ga: gaId,
       purchase: purchaseSendTo,
-      readiness: readinessLabel,
     });
     trackRoute("/");
     trackRoute("/checkout");
     trackPurchaseConversion(paidSession);
     trackReadinessSubmit();
-    trackLeadSubmit();
-    trackKassenCheckSubmit({ value: 1, currency: "EUR" });
+    trackKassenCheckSubmit();
     assertNoAdsRequest(dom.scripts, "without consent");
     assertDeniedDefaults("without consent");
     assert.equal(conversionCommands().length, 0, "without consent: conversion");
@@ -218,7 +207,7 @@ try {
   }
 
   {
-    const dom = fresh({ purchase: purchaseSendTo, readiness: readinessLabel });
+    const dom = fresh({ purchase: purchaseSendTo });
     saveConsent(true);
     trackRoute("/");
     assertNoAdsRequest(dom.scripts, "pages do not load Ads without NEXT_PUBLIC_GOOGLE_ADS_ID");
@@ -242,7 +231,7 @@ try {
   }
 
   {
-    const dom = fresh({ ads: adsId, ga: gaId, readiness: readinessLabel });
+    const dom = fresh({ ads: adsId, ga: gaId });
     saveConsent(true);
     trackRoute("/");
     trackPurchaseConversion(paidSession);
@@ -286,7 +275,6 @@ try {
       ads: adsId,
       ga: gaId,
       purchase: purchaseSendTo,
-      readiness: readinessLabel,
     });
     saveConsent(true);
     trackPurchaseConversion(paidSession);
@@ -304,7 +292,6 @@ try {
     assert.equal(payload.currency, PURCHASE_CONVERSION_CURRENCY);
     assert.equal(payload.currency, "EUR");
     assert.equal(payload.transaction_id, paidSession);
-    assert.notEqual(payload.send_to, `${adsId}/${readinessLabel}`);
     assert.equal(
       dom.local.getItem(`${PURCHASE_CONVERSION_STORAGE_PREFIX}${paidSession}`),
       "1",
@@ -362,8 +349,6 @@ try {
       ads: adsId,
       ga: gaId,
       purchase: purchaseSendTo,
-      readiness: readinessLabel,
-      lead: leadSendTo,
     });
     saveConsent(true);
     trackRoute("/");
@@ -382,94 +367,26 @@ try {
     assert.equal((pageViews[0]?.[2] as { send_to?: string }).send_to, gaId);
     assert.equal(dom.scripts.length, 1, "one shared gtag script");
 
-    const grantedAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "update");
-    const configAt = indexOfCommand((cmd) => cmd[0] === "config" && cmd[1] === adsId);
-    trackReadinessSubmit();
-    const readinessHits = conversionCommands();
-    assert.equal(readinessHits.length, 1, "readiness conversion");
-    const readinessPayload = readinessHits[0]?.[2] as {
-      send_to: string;
-      value?: number;
-      currency?: string;
-    };
-    assert.equal(readinessPayload.send_to, `${adsId}/${readinessLabel}`);
-    assert.equal(readinessPayload.value, undefined, "readiness sends no value");
-    assert.equal(readinessPayload.currency, undefined);
-    const readinessAt = commands().findIndex(
-      (cmd) => cmd[0] === "event" && cmd[1] === "conversion",
-    );
-    assert.ok(grantedAt !== -1 && configAt !== -1 && readinessAt !== -1);
-    assert.ok(grantedAt < configAt && configAt < readinessAt, "consent update and Ads config before the readiness event");
-    assert.ok(
-      commands().some((cmd) => cmd[0] === "event" && cmd[1] === "readiness_submit" && (cmd[2] as { send_to: string }).send_to === gaId),
-      "GA4 readiness_submit still uses the measurement id",
-    );
-  }
-
-  {
-    fresh({
-      ads: adsId,
-      ga: gaId,
-      readiness: `${adsId}/FULLLABEL`,
+    let finished = false;
+    trackReadinessSubmit(() => {
+      finished = true;
     });
-    saveConsent(true);
-    trackRoute("/readiness");
-    trackReadinessSubmit();
-    assert.equal(
-      (conversionCommands()[0]?.[2] as { send_to: string }).send_to,
-      `${adsId}/FULLLABEL`,
-      "a full readiness send_to is not prefixed again",
-    );
+    assert.equal(finished, true, "readiness navigation proceeds without an Ads callback");
+    assert.equal(conversionCommands().length, 0, "readiness sends no Ads conversion");
+    const readinessEvent = commands().find((cmd) => cmd[0] === "event" && cmd[1] === "readiness_submit");
+    assert.deepEqual(readinessEvent?.[2], { send_to: gaId }, "GA4 readiness_submit stays send_to only");
   }
 
   {
-    fresh({ ads: adsId, ga: gaId, purchase: purchaseSendTo, readiness: readinessLabel });
+    fresh({ ads: adsId, ga: gaId, purchase: purchaseSendTo });
     saveConsent(true);
     trackRoute("/ampel-check");
-    trackLeadSubmit();
-    assert.equal(conversionCommands().length, 0, "unset Ampel lead send_to sends nothing");
-  }
-
-  {
-    fresh({
-      ads: adsId,
-      ga: gaId,
-      purchase: purchaseSendTo,
-      readiness: readinessLabel,
-      lead: leadSendTo,
-    });
-    saveConsent(true);
-    trackRoute("/");
-    trackRoute("/ampel-check");
-    trackLeadSubmit();
-    trackLeadSubmit();
-    assert.equal(conversionCommands().length, 1, "Ampel lead sends one conversion");
-    const leadPayload = conversionCommands()[0]?.[2] as { send_to: string };
-    assert.equal(leadPayload.send_to, leadSendTo);
-    assert.equal("value" in leadPayload, false, "a lead call without a value omits it");
-    assert.notEqual(leadPayload.send_to, purchaseSendTo);
-    assert.notEqual(leadPayload.send_to, `${adsId}/${readinessLabel}`);
-    const leadAt = commands().findIndex((cmd) => cmd[0] === "event" && cmd[1] === "conversion");
-    const configAt = commands().findIndex((cmd) => cmd[0] === "config" && cmd[1] === adsId);
-    const grantedAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "update");
-    assert.ok(grantedAt < configAt && configAt < leadAt, "Ampel lead event follows consent update and Ads config");
-  }
-
-  {
-    fresh({
-      ads: adsId,
-      ga: gaId,
-      purchase: purchaseSendTo,
-      readiness: readinessLabel,
-      lead: leadSendTo,
-    });
-    saveConsent(true);
-    trackRoute("/ampel-check");
-    trackLeadSubmit({ value: 1, currency: "EUR" });
-    const valued = conversionCommands()[0]?.[2] as { send_to: string; value?: number; currency?: string };
-    assert.equal(valued.send_to, leadSendTo, "Ampel lead uses the env send_to");
-    assert.equal(valued.value, 1);
-    assert.equal(valued.currency, "EUR");
+    assert.equal(trackAmpelCheckSubmit(), true, "Ampel GA4 submit fires after consent");
+    assert.equal(trackAmpelCheckSubmit(), false, "Ampel GA4 submit is once per page load");
+    assert.equal(conversionCommands().length, 0, "Ampel sends no Ads conversion");
+    const gaEvents = commands().filter((cmd) => cmd[0] === "event" && cmd[1] === "ampel_check_submit");
+    assert.equal(gaEvents.length, 1);
+    assert.deepEqual(gaEvents[0]?.[2], { send_to: gaId });
   }
 
   {
@@ -477,12 +394,10 @@ try {
       ads: adsId,
       ga: gaId,
       purchase: purchaseSendTo,
-      readiness: readinessLabel,
-      lead: leadSendTo,
     });
     trackRoute("/kassen-check");
-    trackKassenCheckSubmit({ value: 1, currency: "EUR" });
-    assert.equal(conversionCommands().length, 0, "Kassen lead sends nothing without consent");
+    trackKassenCheckSubmit();
+    assert.equal(conversionCommands().length, 0, "Kassen sends nothing without consent");
     assert.equal(
       commands().some((cmd) => cmd[1] === "kassen_check_submit"),
       false,
@@ -491,27 +406,21 @@ try {
     assert.equal(dom.session.getItem(KASSEN_CHECK_SUBMIT_STORAGE_KEY), null);
     saveConsent(true);
     trackRoute("/kassen-check");
-    trackKassenCheckSubmit({ value: 1, currency: "EUR" });
-    trackKassenCheckSubmit({ value: 1, currency: "EUR" });
-    assert.equal(conversionCommands().length, 1, "Kassen lead sends one conversion");
-    const payload = conversionCommands()[0]?.[2] as { send_to: string; value?: number; currency?: string };
-    assert.equal(payload.send_to, leadSendTo, "Kassen lead uses the env send_to");
-    assert.equal(payload.value, 1);
-    assert.equal(payload.currency, "EUR");
-    assert.notEqual(payload.send_to, purchaseSendTo);
-    assert.notEqual(payload.send_to, `${adsId}/${readinessLabel}`);
+    trackKassenCheckSubmit();
+    trackKassenCheckSubmit();
+    assert.equal(conversionCommands().length, 0, "Kassen sends no Ads conversion");
     const gaEvents = commands().filter((cmd) => cmd[0] === "event" && cmd[1] === "kassen_check_submit");
     assert.equal(gaEvents.length, 1, "Kassen sends one kassen_check_submit");
-    assert.equal((gaEvents[0]?.[2] as { send_to: string }).send_to, gaId);
+    assert.deepEqual(gaEvents[0]?.[2], { send_to: gaId });
     assert.equal(dom.session.getItem(KASSEN_CHECK_SUBMIT_STORAGE_KEY), "1");
-    const leadAt = commands().findIndex((cmd) => cmd[0] === "event" && cmd[1] === "conversion");
+    const gaAt = commands().findIndex((cmd) => cmd[0] === "event" && cmd[1] === "kassen_check_submit");
     const configAt = commands().findIndex((cmd) => cmd[0] === "config" && cmd[1] === adsId);
     const grantedAt = indexOfCommand((cmd) => cmd[0] === "consent" && cmd[1] === "update");
-    assert.ok(grantedAt < configAt && configAt < leadAt, "Kassen lead event follows consent update and Ads config");
+    assert.ok(grantedAt < configAt && configAt < gaAt, "Kassen GA4 event follows consent update and Ads config");
     resetTrackingForChecks();
     window.dataLayer = [];
     delete window.gtag;
-    trackKassenCheckSubmit({ value: 1, currency: "EUR" });
+    trackKassenCheckSubmit();
     assert.equal(conversionCommands().length, 0, "session guard blocks a second Kassen send after reload");
     assert.equal(
       commands().some((cmd) => cmd[1] === "kassen_check_submit"),
@@ -522,24 +431,11 @@ try {
     resetTrackingForChecks();
     window.dataLayer = [];
     delete window.gtag;
-    trackKassenCheckSubmit({ value: 1, currency: "EUR" });
-    assert.equal(conversionCommands().length, 1, "a new session may send the Kassen lead once");
+    trackKassenCheckSubmit();
+    assert.equal(conversionCommands().length, 0, "a new session still sends no Ads conversion");
     assert.equal(
       commands().filter((cmd) => cmd[0] === "event" && cmd[1] === "kassen_check_submit").length,
       1,
-    );
-  }
-
-  {
-    fresh({ ads: adsId, ga: gaId, purchase: purchaseSendTo, readiness: readinessLabel });
-    saveConsent(true);
-    trackRoute("/kassen-check");
-    trackKassenCheckSubmit({ value: 1, currency: "EUR" });
-    assert.equal(conversionCommands().length, 0, "unset Kassen lead send_to sends no conversion");
-    assert.equal(
-      commands().filter((cmd) => cmd[0] === "event" && cmd[1] === "kassen_check_submit").length,
-      1,
-      "GA4 kassen_check_submit still fires when the lead send_to is unset",
     );
   }
 
@@ -548,7 +444,6 @@ try {
       ads: adsId,
       ga: gaId,
       purchase: `"${purchaseSendTo}"`,
-      readiness: readinessLabel,
     });
     saveConsent(true);
     trackPurchaseConversion(paidSession);
@@ -643,20 +538,18 @@ try {
 
   const ampel = readFileSync("app/ampel-check/ampel-check.tsx", "utf8");
   const ampelOk = ampel.indexOf("!response.ok || !data.ok");
-  const ampelTrack = ampel.indexOf('trackLeadSubmit({ value: 1, currency: "EUR" })');
+  const ampelTrack = ampel.indexOf("trackAmpelCheckSubmit(");
   const ampelFollow = ampel.indexOf('fetch("/api/ampel/ergebnis/senden"');
   const ampelAccepted = ampel.indexOf("leadAccepted =", ampelFollow);
-  assert.ok(ampelOk !== -1 && ampelTrack > ampelOk, "Ampel conversion only after the success check");
-  assert.equal(ampel.slice(0, ampelOk).includes("trackLeadSubmit("), false, "a failed Ampel submit does not convert");
-  assert.equal(ampel.indexOf("trackLeadSubmit(", ampelTrack + 1), -1, "Ampel queues one conversion call");
-  assert.ok(
-    ampel.includes('if (leadAccepted) trackLeadSubmit({ value: 1, currency: "EUR" })'),
-    "Ampel conversion is gated on an accepted submit",
-  );
-  assert.ok(ampelFollow !== -1 && ampelAccepted > ampelFollow && ampelTrack > ampelAccepted, "the follow-up is judged before the conversion");
-  assert.ok(ampel.includes("sent.mailed !== false"), "a follow-up that did not mail is not a conversion");
-  assert.ok(ampel.includes("data.mailed === false"), "a direct submit that did not mail is not a conversion");
-  assert.equal(ampel.includes("KE_4CP3UoZwdENaBzZcC"), false, "the Ampel label stays in the environment");
+  assert.equal(ampel.includes("trackLeadSubmit"), false, "Ampel does not fire an Ads lead conversion");
+  assert.ok(ampelOk !== -1 && ampelTrack > ampelOk, "Ampel GA4 submit only after the success check");
+  assert.equal(ampel.slice(0, ampelOk).includes("trackAmpelCheckSubmit("), false, "a failed Ampel submit does not send GA4");
+  assert.equal(ampel.indexOf("trackAmpelCheckSubmit(", ampelTrack + 1), -1, "Ampel queues one GA4 submit call");
+  assert.ok(ampel.includes("if (leadAccepted) trackAmpelCheckSubmit()"), "Ampel GA4 submit waits for an accepted submit");
+  assert.ok(ampelFollow !== -1 && ampelAccepted > ampelFollow && ampelTrack > ampelAccepted, "the follow-up is judged before the GA4 event");
+  assert.ok(ampel.includes("sent.mailed !== false"), "a follow-up that did not mail is not a submit");
+  assert.ok(ampel.includes("data.mailed === false"), "a direct submit that did not mail is not a submit");
+  assert.equal(ampel.includes("submitUtmFields"), false, "Ampel does not send utm fields");
   assert.ok(ampel.includes("trackAmpelCheckSubmit()"), "Ampel sends the GA4 submit event");
   const ampelGa = tracking.indexOf("export function trackAmpelCheckSubmit");
   const ampelGaEnd = tracking.indexOf("export const KASSEN_CHECK_SUBMIT_STORAGE_KEY");
@@ -669,7 +562,7 @@ try {
   const kassen = readFileSync("app/kassen-check/kassen-check.tsx", "utf8");
   const kassenSend = kassen.indexOf("async function sendResult");
   const kassenOk = kassen.indexOf("!response.ok || !data.ok");
-  const kassenTrack = kassen.indexOf('trackKassenCheckSubmit({ value: 1, currency: "EUR" })');
+  const kassenTrack = kassen.indexOf("trackKassenCheckSubmit(");
   const kassenFollow = kassen.indexOf('fetch("/api/kassen-check/ergebnis/senden"');
   const kassenAccepted = kassen.indexOf("leadAccepted =", kassenFollow);
   assert.ok(kassenSend !== -1 && kassen.indexOf("trackKassenCheckSubmit(") > kassenSend, "Kassen conversion is not on page load or an answer");
@@ -678,14 +571,14 @@ try {
   assert.equal(kassen.slice(0, kassenOk).includes("trackKassenCheckSubmit("), false, "a failed Kassen submit does not convert");
   assert.equal(kassen.indexOf("trackKassenCheckSubmit(", kassenTrack + 1), -1, "Kassen queues one conversion call");
   assert.ok(
-    kassen.includes('if (leadAccepted) trackKassenCheckSubmit({ value: 1, currency: "EUR" })'),
-    "Kassen conversion is gated on an accepted submit",
+    kassen.includes("if (leadAccepted) trackKassenCheckSubmit()"),
+    "Kassen GA4 submit is gated on an accepted submit",
   );
   assert.ok(kassenFollow !== -1 && kassenAccepted > kassenFollow && kassenTrack > kassenAccepted, "the Kassen follow-up is judged before the conversion");
   assert.ok(kassen.includes("sent.mailed !== false"), "a Kassen follow-up that did not mail is not a conversion");
   assert.ok(kassen.includes("data.mailed === false"), "a direct Kassen submit that did not mail is not a conversion");
   assert.equal(kassen.includes("trackLeadSubmit"), false, "Kassen calls the shared helper instead of trackLeadSubmit directly");
-  assert.equal(kassen.includes("KE_4CP3UoZwdENaBzZcC"), false, "the Kassen label stays in the environment");
+  assert.equal(kassen.includes("KE_4CP3UoZwdENaBzZcC"), false, "Kassen does not embed the removed lead label");
   assert.equal(kassen.includes("gtag("), false, "the Kassen page does not call gtag itself");
   assert.equal(
     readFileSync("app/kassen-check/bestaetigen/confirm-panel.tsx", "utf8").includes("trackKassenCheckSubmit"),
@@ -696,11 +589,10 @@ try {
   const kassenFnEnd = tracking.indexOf("export function trackAmpelStart");
   const kassenBody = tracking.slice(kassenFn, kassenFnEnd);
   assert.ok(kassenFn !== -1 && kassenFnEnd > kassenFn);
-  assert.ok(kassenBody.includes("trackLeadSubmit(detail)"), "Kassen reuses trackLeadSubmit");
-  assert.ok(kassenBody.includes("hasMarketingConsent()"), "Kassen lead is consent-gated");
-  assert.ok(kassenBody.includes("KASSEN_CHECK_SUBMIT_STORAGE_KEY"), "Kassen lead is deduped for the browser session");
+  assert.equal(kassenBody.includes("trackLeadSubmit"), false, "Kassen sends no Ads lead conversion");
+  assert.ok(kassenBody.includes("hasMarketingConsent()"), "Kassen GA4 submit is consent-gated");
+  assert.ok(kassenBody.includes("KASSEN_CHECK_SUBMIT_STORAGE_KEY"), "Kassen GA4 submit is deduped for the browser session");
   assert.ok(kassenBody.includes('trackConsentedGaEvent("kassen_check_submit")'), "Kassen sends the GA4 event");
-  assert.equal(kassenBody.includes("getGoogleAdsLeadSendTo"), false, "Kassen does not read send_to on its own");
   assert.equal(kassenBody.includes("gtag("), false, "Kassen does not build its own conversion");
 
   const steuerberaterHits: string[] = [];
@@ -729,7 +621,42 @@ try {
   assert.deepEqual(steuerberaterHits, [], "no Ads conversion in the Steuerberater form");
 
   const example = readFileSync(".env.example", "utf8");
-  assert.ok(example.includes("NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO="));
+  assert.equal(example.includes("NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO"), false);
+  assert.equal(example.includes("NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL"), false);
+  assert.ok(example.includes("NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO="));
+
+  const forbidden = [
+    "trackLeadSubmit",
+    "getGoogleAdsLeadSendTo",
+    "getGoogleAdsReadinessLabel",
+    "NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO",
+    "NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL",
+    "KE_4CP3UoZwdENaBzZcC",
+    "EPqPCJGV2v4cENaBzZcC",
+  ];
+  const forbiddenHits: string[] = [];
+  const forbiddenRoots = ["app", "components", "lib"];
+  const forbiddenStack = forbiddenRoots.map((root) => path.join(process.cwd(), root));
+  while (forbiddenStack.length) {
+    const dir = forbiddenStack.pop()!;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        forbiddenStack.push(full);
+        continue;
+      }
+      if (!/\.(ts|tsx|js|mjs)$/.test(entry.name)) continue;
+      const rel = path.relative(process.cwd(), full);
+      const text = readFileSync(full, "utf8");
+      for (const needle of forbidden) {
+        if (text.includes(needle)) forbiddenHits.push(`${rel}: ${needle}`);
+      }
+    }
+  }
+  assert.deepEqual(forbiddenHits, [], "removed Ads conversions stay out of the client and server");
+  const conversionCalls = tracking.match(/event", "conversion"/g) ?? [];
+  assert.equal(conversionCalls.length, 1, "the purchase conversion is the only Ads conversion");
+  assert.ok(tracking.includes('window.gtag("event", "readiness_submit", { send_to: gaId })'), "GA4 readiness_submit payload is unchanged");
 
   const hits: string[] = [];
   const roots = ["app", "components", "lib", "scripts"];
@@ -756,7 +683,5 @@ try {
   process.env.NEXT_PUBLIC_GOOGLE_ADS_ID = saved.ads;
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = saved.ga;
   process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO = saved.purchase;
-  process.env.NEXT_PUBLIC_GOOGLE_ADS_READINESS_LABEL = saved.readiness;
-  process.env.NEXT_PUBLIC_GOOGLE_ADS_LEAD_SEND_TO = saved.lead;
   process.env.NEXT_PUBLIC_META_PIXEL_ID = saved.meta;
 }
