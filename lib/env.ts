@@ -147,6 +147,19 @@ export function getHomeCtaSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_HOME_CTA_TAB || "home_cta";
 }
 
+/**
+ * Lead-Magnet-Zeilen. Eigener Tab, nicht `readiness_leads`.
+ * Ohne `GOOGLE_SHEETS_MAGNET_TAB` gilt `magnet_leads`. Die Variable ist optional.
+ */
+export function getMagnetLeadsSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_MAGNET_TAB?.trim() || "magnet_leads";
+}
+
+/** Cookieless Magnet-Schrittzähler. Fester Tab-Name, keine zusätzliche Variable. */
+export function getMagnetStepsSheetsTab(): string {
+  return "magnet_steps";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }

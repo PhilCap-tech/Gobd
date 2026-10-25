@@ -20,6 +20,7 @@ export function SiteFooter() {
             <Link href="/faq">FAQ</Link>
             <Link href="/blog">Blog</Link>
             <Link href="/ampel-check">GoBD-Ampel</Link>
+            <Link href="/vorlagen">Vorlagen</Link>
             {LEGAL_LINKS.map((link) => (
               <a key={link.href} href={link.href}>
                 {link.label}

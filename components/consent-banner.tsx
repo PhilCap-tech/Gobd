@@ -3,6 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { sendAmpelConsentChoice } from "@/lib/ampel-step-beacon";
+import { sendMagnetConsentChoice } from "@/lib/vorlagen/step-beacon";
 import {
   getBannerOpen,
   openConsentBanner,
@@ -82,6 +83,7 @@ export function ConsentBanner() {
             className="btn consent-choice"
             onClick={() => {
               sendAmpelConsentChoice("reject");
+              sendMagnetConsentChoice("reject");
               saveConsent(false);
             }}
           >
@@ -92,6 +94,7 @@ export function ConsentBanner() {
             className="btn consent-choice"
             onClick={() => {
               sendAmpelConsentChoice("accept");
+              sendMagnetConsentChoice("accept");
               saveConsent(true);
             }}
           >

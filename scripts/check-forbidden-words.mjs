@@ -49,8 +49,13 @@ const resourceDuPatterns = [
   "lib/lead-magnet-inhalt.ts",
   "lib/kassen-check-questions.ts",
   "lib/kassen-check-mail.ts",
+  "lib/vorlagen/**/*.ts",
   "app/resources/**/*.{ts,tsx}",
   "app/kassen-check/**/*.{ts,tsx}",
+  "app/vorlagen/**/*.{ts,tsx}",
+  "components/vorlagen-gate.tsx",
+  "components/vorlagen-shell.tsx",
+  "components/kostenrechner.tsx",
 ];
 
 const uiPatterns = ["app/**/*.tsx", "components/**/*.tsx"];

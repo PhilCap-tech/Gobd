@@ -145,6 +145,9 @@ const nextConfig: NextConfig = {
       { source: "/api/admin/ampel-stats", headers: ampelAdminHeaders },
       // `:path+` is one or more segments. `:path*` also matches /kassen-check and would noindex the page.
       { source: "/kassen-check/:path+", headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }] },
+      { source: "/vorlagen/bestaetigen", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/vorlagen/erneut", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/vorlagen/werbung/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
       {
         source: PARTNER_ANGEBOT_PATH,
         headers: [

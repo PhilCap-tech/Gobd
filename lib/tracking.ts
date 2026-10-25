@@ -408,6 +408,35 @@ export function trackLeadSubmit(detail?: { value?: number; currency?: string }):
   return true;
 }
 
+let magnetConversionQueued = false;
+
+/**
+ * Magnet-Download bestätigt. Eigene Conversion, nicht die Lead-Conversion.
+ * Feuert nur, wenn `NEXT_PUBLIC_MAGNET_ADS_CONVERSION` exakt `on` ist,
+ * ein eigenes Send-to gesetzt ist und Marketing-Consent vorliegt.
+ * Ohne diese Variablen passiert nichts. Kein `user_data`.
+ */
+export function magnetAdsConversionEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_MAGNET_ADS_CONVERSION === "on";
+}
+
+export function trackMagnetConfirmed(): boolean {
+  if (!magnetAdsConversionEnabled()) return false;
+  const sendTo = normalizeGoogleAdsSendTo(
+    process.env.NEXT_PUBLIC_MAGNET_ADS_SEND_TO?.trim() || "",
+    getGoogleAdsId(),
+  );
+  if (!sendTo || !hasMarketingConsent() || magnetConversionQueued) return false;
+  if (!armGoogleTag(sendTo)) return false;
+  magnetConversionQueued = true;
+  window.gtag?.("event", "conversion", {
+    send_to: sendTo,
+    value: 0,
+    currency: "EUR",
+  });
+  return true;
+}
+
 /**
  * GA4 `ampel_check_submit` after a successful Ampel email submit.
  * Same consent gate as the other GA4 events. Does not send or change the
@@ -631,6 +660,7 @@ export function resetTrackingForChecks(): void {
   lastGooglePagePath = "";
   lastAdsConfigPath = null;
   leadConversionQueued = false;
+  magnetConversionQueued = false;
   kassenSubmitTracked = false;
   ampelStartTracked = false;
   ampelResultTracked = false;

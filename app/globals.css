@@ -2688,3 +2688,32 @@ body.consent-open {
   width: auto;
   min-width: 8rem;
 }
+
+.vorlagen-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  margin: 16px 0 24px;
+}
+
+.vorlagen-callout {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 16px 0;
+}
+
+.vorlagen-quote {
+  margin: 16px 0;
+  padding: 4px 0 4px 16px;
+  border-left: 3px solid var(--accent);
+  font-weight: 650;
+}
+
+@media (max-width: 800px) {
+  .vorlagen-cols {
+    grid-template-columns: 1fr;
+  }
+}
