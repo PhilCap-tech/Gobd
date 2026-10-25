@@ -1002,6 +1002,14 @@ h3 {
   font-weight: 650;
 }
 
+.legal .prose a,
+.legal .prose-list a,
+.legal td a,
+.legal th a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .legal .prose a {
   color: var(--accent);
 }
