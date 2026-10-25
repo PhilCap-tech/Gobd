@@ -20,6 +20,7 @@ import {
   safeNextPath,
   verifyMagicToken,
 } from "@/lib/auth";
+import { isOpaqueMailLinkToken, loadMailLinkToken } from "@/lib/mail-link-token-store";
 import { getMagicLinkSecret } from "@/lib/env";
 import {
   EXPIRED_LINK_HEADING,
@@ -326,46 +327,47 @@ if (customerOnboardingDraftPath("https://evil.example") !== "/intake") {
   fail("unsafe session must not enter the draft path");
 }
 
-const purchaser = "kauf@example.com";
-const issuedContinue = magicLinkUrl(purchaser, customerOnboardingDraftPath(DRAFT_SESSION));
-const issued = new URL(issuedContinue);
-if (!issued.pathname.endsWith("/auth/verify")) fail("issued continue link is not /auth/verify");
-const issuedToken = issued.searchParams.get("token") ?? "";
-if (verifyMagicToken(issuedToken) !== purchaser) {
-  fail("issued continue token does not verify as the purchaser");
-}
-if (safeNextPath(issued.searchParams.get("next")) !== DRAFT_NEXT) {
-  fail("issued continue link does not redirect to the intake draft");
-}
-const tokenBody = issuedToken.split(".")[0] ?? "";
-const tokenPayload = JSON.parse(Buffer.from(tokenBody, "base64url").toString("utf8")) as {
-  typ?: string;
-  email?: string;
-  exp?: number;
-};
-if (tokenPayload.typ !== "magic" || tokenPayload.email !== purchaser) {
-  fail("issued continue token is not a magic token for the purchaser");
-}
-if (
-  typeof tokenPayload.exp !== "number" ||
-  Math.abs(tokenPayload.exp - (Date.now() + MAGIC_TTL_MS)) > 5000
-) {
-  fail("issued continue token does not use the verify expiry");
-}
-const issuedMail = buildOnboardingMail({
-  company: "Muster GmbH",
-  contactName: "Käufer",
-  magicLinkUrl: START,
-  continueUrl: issuedContinue,
-});
-const issuedHref = issuedContinue.replaceAll("&", "&amp;");
-if (
-  !issuedMail.html.includes(`>${CONTINUE_LABEL}</a>`) ||
-  !issuedMail.html.includes(`href="${issuedHref}"`) ||
-  !issuedMail.text.includes(CONTINUE_LABEL) ||
-  !issuedMail.text.includes(issuedContinue)
-) {
-  fail("issued magic link is missing from the button or the plaintext fallback");
+async function checkIssuedContinueLink(): Promise<void> {
+  const purchaser = "kauf@example.com";
+  const issuedContinue = await magicLinkUrl(purchaser, customerOnboardingDraftPath(DRAFT_SESSION));
+  if (!issuedContinue) fail("issued continue link was not stored");
+  const issued = new URL(issuedContinue);
+  if (!issued.pathname.endsWith("/auth/verify")) fail("issued continue link is not /auth/verify");
+  const issuedToken = issued.searchParams.get("token") ?? "";
+  if ((await verifyMagicToken(issuedToken)) !== purchaser) {
+    fail("issued continue token does not verify as the purchaser");
+  }
+  if (safeNextPath(issued.searchParams.get("next")) !== DRAFT_NEXT) {
+    fail("issued continue link does not redirect to the intake draft");
+  }
+  if (!isOpaqueMailLinkToken(issuedToken) || issuedToken.includes(".") || issuedContinue.toLowerCase().includes(purchaser)) {
+    fail("issued continue link still carries the email or a signed body");
+  }
+  const issuedRecord = await loadMailLinkToken(issuedToken);
+  if (!issuedRecord || issuedRecord.purpose !== "magic" || issuedRecord.email !== purchaser) {
+    fail("issued continue token is not a magic token for the purchaser");
+  }
+  if (
+    typeof issuedRecord.exp !== "number" ||
+    Math.abs(issuedRecord.exp - (Date.now() + MAGIC_TTL_MS)) > 5000
+  ) {
+    fail("issued continue token does not use the verify expiry");
+  }
+  const issuedMail = buildOnboardingMail({
+    company: "Muster GmbH",
+    contactName: "Käufer",
+    magicLinkUrl: START,
+    continueUrl: issuedContinue,
+  });
+  const issuedHref = issuedContinue.replaceAll("&", "&amp;");
+  if (
+    !issuedMail.html.includes(`>${CONTINUE_LABEL}</a>`) ||
+    !issuedMail.html.includes(`href="${issuedHref}"`) ||
+    !issuedMail.text.includes(CONTINUE_LABEL) ||
+    !issuedMail.text.includes(issuedContinue)
+  ) {
+    fail("issued magic link is missing from the button or the plaintext fallback");
+  }
 }
 
 const expected = readFileSync(snapshotPath, "utf8");
@@ -427,8 +429,8 @@ async function capture(fn: () => Promise<void>): Promise<string> {
 async function checkExpiredOnboardingLink(): Promise<void> {
   const email = "kauf@example.com";
   const expired = signMagic({ typ: "magic", email, exp: Date.now() - 60_000 });
-  if (verifyMagicToken(expired) !== null) fail("expired token must not verify as a login");
-  if (readExpiredMagicToken(expired) !== email) fail("expired token must still name the purchaser");
+  if ((await verifyMagicToken(expired)) !== null) fail("expired token must not verify as a login");
+  if ((await readExpiredMagicToken(expired)) !== email) fail("expired token must still name the purchaser");
   const masked = maskEmailAddress(email);
   if (renewExpiredLinkLabel(masked) !== "Neuen Link an k***@example.com senden") {
     fail(`renew label is ${renewExpiredLinkLabel(masked)}`);
@@ -456,8 +458,9 @@ async function checkExpiredOnboardingLink(): Promise<void> {
     fail("expired token set a session cookie");
   }
 
-  const fresh = createMagicToken(email);
-  if (readExpiredMagicToken(fresh) !== null) fail("fresh token must not use the expired page");
+  const fresh = await createMagicToken(email);
+  if (!fresh) fail("fresh token was not stored");
+  if ((await readExpiredMagicToken(fresh)) !== null) fail("fresh token must not use the expired page");
   const freshResponse = await verifyMagicLink(
     new Request(
       `http://localhost/auth/verify?token=${encodeURIComponent(fresh)}&next=${encodeURIComponent(DRAFT_NEXT)}`,
@@ -588,7 +591,8 @@ async function checkExpiredOnboardingLink(): Promise<void> {
   }
 }
 
-checkExpiredOnboardingLink()
+checkIssuedContinueLink()
+  .then(() => checkExpiredOnboardingLink())
   .then(() => {
     console.log("check-onboarding-mail: ok");
   })

@@ -5,9 +5,26 @@
  *   npx tsx scripts/check-mail-link-tokens.ts
  */
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { POST as postAmpelAbmelden } from "@/app/api/ampel/abmelden/route";
+import { GET as verifyMagicLink } from "@/app/auth/verify/route";
+import {
+  MAGIC_TTL_MS,
+  SESSION_COOKIE,
+  createInviteToken,
+  createSessionToken,
+  legacyInviteToken,
+  legacyMagicToken,
+  magicLinkUrl,
+  readExpiredMagicToken,
+  verifyInviteToken,
+  verifyMagicToken,
+  verifySessionToken,
+} from "@/lib/auth";
+import type { Entity } from "@/lib/entities";
+import { MAGIC_LINK_WINDOW_MS } from "@/lib/mail-dedupe";
 import { POST as postKanzleiAbmelden } from "@/app/api/kanzlei-merkblatt/abmelden/route";
 import {
   AMPEL_DOI_TTL_MS,
@@ -37,6 +54,14 @@ import {
   verifyKanzleiUnsubscribeToken,
 } from "@/lib/kanzlei-token";
 import { setKanzleiWithdrawTestDeps } from "@/lib/kanzlei-unsubscribe";
+import {
+  INVITE_RESEND_WINDOW_MS,
+  acceptInvite,
+  inviteLinkUrl,
+  previewInvite,
+} from "@/lib/membership-invite";
+import { getMembership, insertMembership, setMembershipStoreTestHooks } from "@/lib/membership-store";
+import { hashInviteJti, type Membership } from "@/lib/memberships";
 import { kassenConfirmUrl } from "@/lib/kassen-check-mail";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import {
@@ -288,7 +313,195 @@ async function main(): Promise<void> {
   assert.equal(storeSource.includes("postbuild"), true);
   assert.equal(storeSource.includes("createHash(\"sha256\")"), true);
 
+  await checkAuthLinks();
+
   console.log("check-mail-link-tokens: ok");
+}
+
+const OWNER = "owner.mail-link@example.com";
+
+function authFirm(entityId: string): Entity {
+  return {
+    entityId,
+    userEmail: OWNER,
+    name: "Mail Link GmbH",
+    street: "Hafenstraße 1",
+    zip: "20457",
+    city: "Hamburg",
+    stnr: "",
+    ustId: "",
+    createdAt: CONSENT_AT,
+    updatedAt: CONSENT_AT,
+    checkoutPrefill: "",
+  };
+}
+
+function pendingRow(input: { membershipId: string; entityId: string; tokenHash: string }): Membership {
+  return {
+    membershipId: input.membershipId,
+    ownerEmail: OWNER,
+    memberEmail: EMAIL,
+    entityId: input.entityId,
+    status: "pending",
+    moduleIds: "",
+    tokenHash: input.tokenHash,
+    invitedAt: CONSENT_AT,
+    acceptedAt: "",
+    revokedAt: "",
+    invitedBy: OWNER,
+    updatedAt: CONSENT_AT,
+  };
+}
+
+function storedPurpose(token: string): { purpose?: string; exp?: number; membershipId?: string } {
+  const file = mailLinkTokenFilePath(token);
+  assert.ok(file);
+  return JSON.parse(readFileSync(file, "utf8")) as { purpose?: string; exp?: number; membershipId?: string };
+}
+
+async function checkAuthLinks(): Promise<void> {
+  assert.equal(MAGIC_TTL_MS, 20 * 60 * 1000);
+  assert.equal(MAGIC_LINK_WINDOW_MS, 60_000);
+  assert.equal(INVITE_RESEND_WINDOW_MS, 60_000);
+
+  const session = createSessionToken(EMAIL);
+  assert.equal(session.includes("."), true);
+  assert.equal(isOpaqueMailLinkToken(session), false);
+  assert.equal(verifySessionToken(session), EMAIL);
+  const sessionBody = JSON.parse(Buffer.from(session.split(".")[0] ?? "", "base64url").toString("utf8")) as {
+    typ?: string;
+    email?: string;
+    iat?: number;
+  };
+  assert.equal(sessionBody.typ, "session");
+  assert.equal(sessionBody.email, EMAIL);
+  assert.equal(typeof sessionBody.iat, "number");
+
+  const magicUrl = await magicLinkUrl(EMAIL, "/account", NOW);
+  assert.ok(magicUrl);
+  const magicToken = assertOpaqueLink(magicUrl, [EMAIL]);
+  assert.deepEqual([...new URL(magicUrl).searchParams.keys()], ["token", "next"]);
+  assertHashOnly(magicToken, EMAIL, true);
+  const magicStored = storedPurpose(magicToken);
+  assert.equal(magicStored.purpose, "magic");
+  assert.equal(magicStored.exp, NOW + MAGIC_TTL_MS);
+  assert.equal(await verifyMagicToken(magicToken, NOW + MAGIC_TTL_MS), EMAIL);
+  assert.equal(await verifyMagicToken(magicToken, NOW + MAGIC_TTL_MS), EMAIL);
+  assert.equal(await readExpiredMagicToken(magicToken, NOW + MAGIC_TTL_MS), null);
+  assert.equal(await verifyMagicToken(magicToken, NOW + MAGIC_TTL_MS + 1), null);
+  assert.equal(await readExpiredMagicToken(magicToken, NOW + MAGIC_TTL_MS + 1), EMAIL);
+
+  const legacyMagic = legacyMagicToken(EMAIL, NOW);
+  assert.equal(legacyMagic.includes("."), true);
+  assert.equal(payloadDecodable(legacyMagic), true);
+  assert.equal(await verifyMagicToken(legacyMagic, NOW + MAGIC_TTL_MS), EMAIL);
+  assert.equal(await verifyMagicToken(legacyMagic, NOW + MAGIC_TTL_MS + 1), null);
+  assert.equal(await readExpiredMagicToken(legacyMagic, NOW + MAGIC_TTL_MS + 1), EMAIL);
+  assert.equal(await readMailLinkTokenBody(legacyMagic), null);
+
+  const inviteMembershipId = "mem-opaque-invite";
+  const inviteToken = await createInviteToken({ membershipId: inviteMembershipId, email: EMAIL }, NOW);
+  assert.ok(inviteToken);
+  const inviteUrl = inviteLinkUrl(inviteToken);
+  assert.equal(assertOpaqueLink(inviteUrl, [EMAIL, inviteMembershipId, OWNER]), inviteToken);
+  assert.deepEqual([...new URL(inviteUrl).searchParams.keys()], ["token"]);
+  assertHashOnly(inviteToken, EMAIL, true);
+  assert.equal(hashInviteJti(inviteToken), mailLinkTokenHash(inviteToken));
+  const inviteStored = storedPurpose(inviteToken);
+  assert.equal(inviteStored.purpose, "invite");
+  assert.equal(inviteStored.membershipId, inviteMembershipId);
+  assert.equal(inviteStored.exp, NOW + MAGIC_TTL_MS);
+  const inviteClaims = await verifyInviteToken(inviteToken, NOW + MAGIC_TTL_MS);
+  assert.equal(inviteClaims?.email, EMAIL);
+  assert.equal(inviteClaims?.membershipId, inviteMembershipId);
+  assert.equal(inviteClaims?.jti, inviteToken);
+  assert.equal(await verifyInviteToken(inviteToken, NOW + MAGIC_TTL_MS + 1), null);
+  assert.equal(await verifyMagicToken(inviteToken, NOW), null);
+
+  const legacyJti = "legacy-invite-jti";
+  const legacyInvite = legacyInviteToken(
+    { membershipId: "mem-legacy-invite", email: EMAIL, jti: legacyJti },
+    NOW,
+  );
+  assert.equal(legacyInvite.includes("."), true);
+  assert.equal(payloadDecodable(legacyInvite), true);
+  const legacyClaims = await verifyInviteToken(legacyInvite, NOW + MAGIC_TTL_MS);
+  assert.equal(legacyClaims?.email, EMAIL);
+  assert.equal(legacyClaims?.membershipId, "mem-legacy-invite");
+  assert.equal(legacyClaims?.jti, legacyJti);
+  assert.equal(await verifyInviteToken(legacyInvite, NOW + MAGIC_TTL_MS + 1), null);
+  assert.equal(await readMailLinkTokenBody(legacyInvite), null);
+
+  const dir = mkdtempSync(path.join(tmpdir(), "auth-mail-link-"));
+  setMembershipStoreTestHooks({ dir });
+  try {
+    const opaqueFirm = authFirm("ent-opaque-invite");
+    const liveInvite = await createInviteToken({
+      membershipId: "mem-live-invite",
+      email: EMAIL,
+    });
+    assert.ok(liveInvite);
+    await insertMembership(
+      pendingRow({
+        membershipId: "mem-live-invite",
+        entityId: opaqueFirm.entityId,
+        tokenHash: hashInviteJti(liveInvite),
+      }),
+    );
+    const loadOpaque = async () => opaqueFirm;
+    assert.equal((await previewInvite(liveInvite, loadOpaque)).ok, true);
+    assert.equal((await previewInvite(liveInvite, loadOpaque)).ok, true);
+    assert.equal((await getMembership("mem-live-invite"))?.tokenHash, hashInviteJti(liveInvite));
+    const inviteOnVerify = await verifyMagicLink(
+      new Request(`http://localhost/auth/verify?token=${encodeURIComponent(liveInvite)}`),
+    );
+    assert.equal(
+      inviteOnVerify.headers.getSetCookie().some((line) => line.startsWith(`${SESSION_COOKIE}=`)),
+      false,
+    );
+    assert.equal((await acceptInvite(liveInvite, loadOpaque)).ok, true);
+    const replay = await acceptInvite(liveInvite, loadOpaque);
+    assert.equal(replay.ok, false, "replay of a used invite token fails");
+    assert.equal((await previewInvite(liveInvite, loadOpaque)).ok, false);
+    assert.equal((await getMembership("mem-live-invite"))?.tokenHash, "");
+
+    const legacyFirm = authFirm("ent-legacy-invite");
+    const liveLegacy = legacyInviteToken({
+      membershipId: "mem-live-legacy",
+      email: EMAIL,
+      jti: "live-legacy-jti",
+    });
+    assert.ok(liveLegacy);
+    await insertMembership(
+      pendingRow({
+        membershipId: "mem-live-legacy",
+        entityId: legacyFirm.entityId,
+        tokenHash: hashInviteJti("live-legacy-jti"),
+      }),
+    );
+    assert.equal((await verifyInviteToken(liveLegacy))?.email, EMAIL);
+    assert.equal((await acceptInvite(liveLegacy, async () => legacyFirm)).ok, true);
+    assert.equal((await acceptInvite(liveLegacy, async () => legacyFirm)).ok, false);
+  } finally {
+    setMembershipStoreTestHooks(null);
+  }
+
+  for (const file of [
+    "lib/login-mail.ts",
+    "lib/membership-invite.ts",
+    "lib/ops.ts",
+    "app/api/intake/route.ts",
+    "app/api/readiness/route.ts",
+    "app/auth/verify/route.ts",
+  ]) {
+    const source = readFileSync(file, "utf8");
+    assert.equal(source.includes("legacyMagicToken"), false, file);
+    assert.equal(source.includes("legacyInviteToken"), false, file);
+  }
+  const opsSource = readFileSync("lib/ops.ts", "utf8");
+  assert.equal(opsSource.includes("windowMs: MAGIC_LINK_WINDOW_MS"), true);
+  const inviteSource = readFileSync("lib/membership-invite.ts", "utf8");
+  assert.equal(inviteSource.includes("new URLSearchParams({ token })"), true);
 }
 
 main()
@@ -300,4 +513,5 @@ main()
     setAmpelWithdrawTestDeps(null);
     setAmpelSuppressionTestStore(null);
     setKanzleiWithdrawTestDeps(null);
+    setMembershipStoreTestHooks(null);
   });

@@ -48,7 +48,8 @@ export async function deliverLoginLink(
       console.error("[auth] Anmeldelink nicht konfiguriert");
       return "failed";
     }
-    const url = magicLinkUrl(address, next);
+    const url = await magicLinkUrl(address, next);
+    if (!url) return "failed";
     console.info(
       "[auth] dev fallback Anmeldelink — nur Server-Log, nicht in der Response",
     );
@@ -57,7 +58,8 @@ export async function deliverLoginLink(
   }
 
   try {
-    const url = magicLinkUrl(address, next);
+    const url = await magicLinkUrl(address, next);
+    if (!url) return "failed";
     const mail = await sendMagicLinkMail({ email: address, magicLinkUrl: url });
     if (mail.sent) return "sent";
     console.error("[auth] Anmeldelink fehlgeschlagen", { stub: mail.stub });

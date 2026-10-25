@@ -233,8 +233,9 @@ async function main() {
     const intakePage = readFileSync("app/intake/page.tsx", "utf8");
     ok(intakePage.includes("loadOwnerSessionDraft"), "intake resumes the owner draft without a fresh checkout cookie");
 
-    const token = createMagicToken(BUYER);
-    ok(verifyMagicToken(token) === BUYER, "magic link uses the existing token");
+    const token = await createMagicToken(BUYER);
+    ok(Boolean(token) && (await verifyMagicToken(token)) === BUYER, "magic link uses the existing token");
+    if (!token) throw new Error("magic token");
     const expiredMagic = signRaw({
       typ: "magic",
       email: BUYER,

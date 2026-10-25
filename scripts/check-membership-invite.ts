@@ -16,7 +16,6 @@ import { downloadPdf } from "../app/api/docs/[id]/download/route";
 import { postInvite } from "../app/api/auth/invite/route";
 import {
   SESSION_COOKIE,
-  createInviteToken,
   createSessionToken,
   verifyInviteToken,
   verifyMagicToken,
@@ -219,7 +218,7 @@ async function main() {
     const byEntity = await listMembershipsByEntity(nordlicht.entityId);
     ok(byMember.some((item) => item.membershipId === row?.membershipId), "read by member email");
     ok(byEntity.some((item) => item.membershipId === row?.membershipId), "read by entity id");
-    ok(row?.tokenHash === hashInviteJti(verifyInviteToken(token)?.jti ?? ""), "only the jti hash is stored");
+    ok(row?.tokenHash === hashInviteJti((await verifyInviteToken(token))?.jti ?? ""), "only the jti hash is stored");
     ok(!readFileSync(path.join(storeDir, "memberships.json"), "utf8").includes(token), "file store has no raw token");
 
     const firstPreview = await previewInvite(token, async () => nordlicht);
@@ -234,7 +233,7 @@ async function main() {
     ok(hashAfterGet === row?.tokenHash && (await getMembership(payload.membershipId!))?.tokenHash === hashAfterGet, "GET leaves token_hash unchanged");
 
     const verify = await verifyGet(new Request(`http://localhost/auth/verify?token=${encodeURIComponent(token)}`));
-    ok(verifyMagicToken(token) === null, "invite token is not a magic link");
+    ok((await verifyMagicToken(token)) === null, "invite token is not a magic link");
     ok(!cookieValue(verify), "GET /auth/verify sets no session cookie");
     ok(!(verify.headers.get("location") ?? "").includes(token), "verify redirect does not echo the token");
 
@@ -247,7 +246,7 @@ async function main() {
     ok(again.ok && again.throttled, "immediate resend is throttled");
     ok(sent.length === 1, "throttled resend does not send a second mail");
     ok((await listMembershipsByEntity(nordlicht.entityId)).filter((item) => item.memberEmail === MEMBER && item.status !== "revoked").length === 1, "no second pending row");
-    ok(inviteHashMatches((await getMembership(payload.membershipId!))?.tokenHash ?? "", verifyInviteToken(token)?.jti ?? ""), "throttled resend keeps the mailed token");
+    ok(inviteHashMatches((await getMembership(payload.membershipId!))?.tokenHash ?? "", (await verifyInviteToken(token))?.jti ?? ""), "throttled resend keeps the mailed token");
 
     const other = await inviteMitwirkende({
       ownerEmail: OTHER_OWNER,

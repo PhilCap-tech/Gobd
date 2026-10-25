@@ -223,7 +223,7 @@ async function checkMatchingCheckout() {
 
   const verify = await verifyMagicLink(
     new Request(
-      `http://localhost/auth/verify?token=${encodeURIComponent(createMagicToken(BUYER))}&next=${encodeURIComponent("/account")}`,
+      `http://localhost/auth/verify?token=${encodeURIComponent((await createMagicToken(BUYER)) ?? "")}&next=${encodeURIComponent("/account")}`,
     ),
   );
   const verifyLine = sessionLine(verify);

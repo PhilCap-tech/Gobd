@@ -29,7 +29,7 @@ export default async function ExpiredOnboardingLinkPage({
   const params = await searchParams;
   const next = safeNextPath(firstQueryValue(params.next));
   const token = firstQueryValue(params.token) ?? "";
-  const email = readExpiredMagicToken(token);
+  const email = await readExpiredMagicToken(token);
 
   if (!email) {
     redirect(next ? `/login?error=invalid&next=${encodeURIComponent(next)}` : "/login?error=invalid");

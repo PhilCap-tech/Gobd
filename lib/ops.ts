@@ -635,8 +635,14 @@ export async function triggerOnboardingMail(input: {
       intakeContactNames,
       companyNames,
     });
-    startUrl = magicLinkUrl(input.email, CUSTOMER_ONBOARDING_NEXT_PATH);
-    continueUrl = magicLinkUrl(input.email, customerOnboardingDraftPath(input.sessionId));
+    const start = await magicLinkUrl(input.email, CUSTOMER_ONBOARDING_NEXT_PATH);
+    const draft = await magicLinkUrl(input.email, customerOnboardingDraftPath(input.sessionId));
+    if (!start || !draft) {
+      console.error("[ops] Anmeldelink nicht gespeichert", { sessionId: input.sessionId });
+      return { stub: false, sent: false, action: "onboarding" };
+    }
+    startUrl = start;
+    continueUrl = draft;
   }
 
   const mail = buildOnboardingMail({
