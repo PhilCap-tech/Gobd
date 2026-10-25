@@ -22,7 +22,7 @@ export default async function AmpelConfirmPage({
 }) {
   const params = await searchParams;
   const token = firstQueryValue(params.token) ?? "";
-  const payload = verifyAmpelDoiToken(token);
+  const payload = await verifyAmpelDoiToken(token);
   const answers = payload ? decodeAmpelAnswers(payload.answers) : null;
 
   return (

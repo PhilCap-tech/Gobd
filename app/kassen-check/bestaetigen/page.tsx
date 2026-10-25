@@ -20,7 +20,7 @@ export default async function KassenConfirmPage({
 }) {
   const params = await searchParams;
   const token = firstQueryValue(params.token) ?? "";
-  const payload = verifyAmpelDoiToken(token);
+  const payload = await verifyAmpelDoiToken(token);
   const valid = payload?.check === "kassen-check";
 
   return (

@@ -19,7 +19,7 @@ export async function confirmKanzleiDoi(
   deps: ConfirmKanzleiDeps = {},
 ): Promise<ConfirmKanzleiResult> {
   const now = deps.now?.() ?? Date.now();
-  const payload = verifyKanzleiDoiToken(token, now);
+  const payload = await verifyKanzleiDoiToken(token, now);
   if (!payload) return { ok: false, status: 400, reason: "invalid" };
   const leadId = kanzleiLeadId(payload.email, payload.consentAt);
   const list = deps.listLeads ?? ((email: string) => listKanzleiReadinessLeadsByEmail(email, { fresh: true }));

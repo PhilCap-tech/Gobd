@@ -118,13 +118,13 @@ const stillDownloads = await submitKanzleiMerkblatt(
 );
 assertOk(stillDownloads.ok && stillDownloads.mailed === false, "a failed save still returns the download");
 
-const token = createKanzleiDoiToken(
+const token = await createKanzleiDoiToken(
   { email: allowedLiveRecipient, consentAt: saved.consentAt, consentTextVersion: KANZLEI_CONSENT_TEXT_VERSION },
   now,
 );
 assertOk(token, "DOI token");
-assertOk(verifyKanzleiDoiToken(token, now + KANZLEI_DOI_TTL_MS + 1) == null, "an expired token is rejected");
-assertOk(verifyKanzleiDoiToken(`${token}x`, now) == null, "a tampered token is rejected");
+assertOk(await verifyKanzleiDoiToken(token, now + KANZLEI_DOI_TTL_MS + 1) == null, "an expired token is rejected");
+assertOk(await verifyKanzleiDoiToken(`${token}x`, now) == null, "a tampered token is rejected");
 assertOk(KANZLEI_DOI_TTL_MS === 48 * 60 * 60 * 1000, "the DOI link lasts 48 hours");
 
 const confirmed = await confirmKanzleiDoi(token ?? "", {
@@ -137,7 +137,7 @@ const confirmed = await confirmKanzleiDoi(token ?? "", {
 assertOk(confirmed.ok && box.leads.get(saved.leadId)?.marketingOptIn === "confirmed", "confirmation stores the opt-in");
 assertOk(box.leads.get(saved.leadId)?.doiConfirmedAt, "confirmation stores the time");
 
-const unsub = kanzleiUnsubscribeUrl(allowedLiveRecipient, saved.consentAt);
+const unsub = await kanzleiUnsubscribeUrl(allowedLiveRecipient, saved.consentAt);
 const unsubToken = new URL(unsub).searchParams.get("token") ?? "";
 const withdrawn = await withdrawKanzleiMarketing(unsubToken, {
   now: () => now,
@@ -207,7 +207,7 @@ assertOk(
     again.leads.get(saved.leadId)?.marketingOptIn === "withdrawn",
   "a new consent after withdrawal is confirmed only by its own DOI token",
 );
-const oldUnsubscribe = createKanzleiUnsubscribeToken(allowedLiveRecipient, saved.consentAt) ?? "";
+const oldUnsubscribe = await createKanzleiUnsubscribeToken(allowedLiveRecipient, saved.consentAt) ?? "";
 const repeatedWithdraw = await withdrawKanzleiMarketing(oldUnsubscribe, {
   now: () => now + 3_700_000,
   list: async () => [...again.leads.values()],
@@ -406,7 +406,7 @@ setKanzleiWithdrawTestDeps({
     routeLeads.set(lead.leadId, { ...lead });
   },
 });
-const routeToken = createKanzleiUnsubscribeToken(allowedLiveRecipient, routeConsent) ?? "";
+const routeToken = await createKanzleiUnsubscribeToken(allowedLiveRecipient, routeConsent) ?? "";
 const scanned = await getKanzleiAbmelden(
   new Request(`https://www.gobd-doku-erstellen.de/api/kanzlei-merkblatt/abmelden?token=${encodeURIComponent(routeToken)}`),
 );

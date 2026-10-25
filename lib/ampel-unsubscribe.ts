@@ -23,7 +23,7 @@ export async function withdrawAmpelMarketing(
   token: string,
   deps: WithdrawAmpelDeps = {},
 ): Promise<{ ok: true; email: string } | { ok: false }> {
-  const payload = verifyAmpelUnsubscribeToken(token);
+  const payload = await verifyAmpelUnsubscribeToken(token);
   if (!payload) return { ok: false };
   const merged: WithdrawAmpelDeps = { ...testDeps, ...deps };
   const list = merged.list ?? ((email: string) => listAmpelReadinessLeadsByEmail(email, { fresh: true }));

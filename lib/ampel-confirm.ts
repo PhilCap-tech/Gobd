@@ -91,7 +91,7 @@ async function writeLead(deps: AmpelConfirmDeps, lead: ReadinessLead): Promise<v
 
 async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelConfirmResult> {
   const now = deps.now?.() ?? Date.now();
-  const payload = verifyAmpelDoiToken(token, now);
+  const payload = await verifyAmpelDoiToken(token, now);
   if (!payload) return { ok: false, status: 400, reason: "invalid" };
   const questions = questionsForCheck(payload.check);
   const leadPrefix = payload.check === "kassen-check" ? "kassen" : "ampel";
@@ -181,11 +181,26 @@ async function runConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelC
   return { ok: false, status: 503, reason: "mail" };
 }
 
-/** One in-flight confirmation per lead. A joined click waits for that attempt. */
+const confirmByToken = new Map<string, Promise<AmpelConfirmResult>>();
+
+/**
+ * One in-flight confirmation per lead. A second click of the same link joins
+ * the attempt that is already verifying, before the store read yields.
+ */
 export function confirmAmpelDoi(token: string, deps: AmpelConfirmDeps): Promise<AmpelConfirmResult> {
+  const pending = confirmByToken.get(token);
+  if (pending) return pending;
+  const run = startAmpelConfirm(token, deps).finally(() => {
+    if (confirmByToken.get(token) === run) confirmByToken.delete(token);
+  });
+  confirmByToken.set(token, run);
+  return run;
+}
+
+async function startAmpelConfirm(token: string, deps: AmpelConfirmDeps): Promise<AmpelConfirmResult> {
   const now = deps.now?.() ?? Date.now();
-  const payload = verifyAmpelDoiToken(token, now);
-  if (!payload) return Promise.resolve({ ok: false, status: 400, reason: "invalid" });
+  const payload = await verifyAmpelDoiToken(token, now);
+  if (!payload) return { ok: false, status: 400, reason: "invalid" };
   const leadPrefix = payload.check === "kassen-check" ? "kassen" : "ampel";
   const leadId = ampelLeadId(payload.email, payload.answers, payload.consentAt, leadPrefix);
   const current = runs.get(leadId);
@@ -319,7 +334,7 @@ async function runConfirmation(
   }
   const consentTextVersion = input.consentTextVersion?.trim() || AMPEL_CONSENT_TEXT_VERSION;
   const consentIp = input.consentIp?.trim() || reuse?.consentIp || "";
-  const token = createAmpelDoiToken(
+  const token = await createAmpelDoiToken(
     { email, answers: code, ref, consentAt, consentTextVersion, check: input.check },
     nowMs,
   );
