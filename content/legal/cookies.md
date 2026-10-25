@@ -37,7 +37,7 @@ Vercel Web Analytics setzt keine Cookies und speichert nichts auf Ihrem Endgerä
 
 ## Kampagnenparameter (UTM)
 
-Kampagnenparameter in der Adresse (UTM) speichern wir beim ersten Seitenaufruf in der Sitzung Ihres Browsers (`gobd_utm_first`, Session Storage). Die Speicherung bleibt in Ihrem Browser und endet mit dem Schließen des Tabs.
+Kampagnenparameter in der Adresse (UTM) speichern wir nicht auf Ihrem Endgerät.
 
 ## Übersicht der eingesetzten Cookies und ähnlichen Technologien
 
@@ -45,7 +45,6 @@ Kampagnenparameter in der Adresse (UTM) speichern wir beim ersten Seitenaufruf i
 |---|---|---|---|---|
 | `gobd_consent` (Cookie und Local Storage) | IKAT GmbH | Speichert Ihre Cookie-Auswahl | Essenziell | 180 Tage |
 | `gobd_session` | IKAT GmbH | Hält Sie nach dem Magic-Link-Login angemeldet | Essenziell | 30 Tage |
-| `gobd_utm_first` (Session Storage) | IKAT GmbH | Merkt sich Kampagnenparameter der ersten Seite (UTM); bleibt im Browser, bis Sie Marketing erlauben | Sitzung, nur lokal | Ende der Browsersitzung |
 | Vercel Web Analytics | Vercel Inc. | Zusammengefasste Statistik zu Seitenaufrufen, Referrer, Gerätetyp und Land | Kein Cookie, keine Einwilligung | keine Speicherung auf dem Endgerät |
 | Stripe-Cookies bzw. -Speicher (z. B. `__stripe_mid`, `__stripe_sid`) | Stripe Payments Europe, Ltd. | Zahlungsabwicklung, Betrugsprävention; gesetzt auf der Domain von Stripe, nicht auf unserer Website | Essenziell für die Zahlung | typischerweise etwa 1 Jahr (`__stripe_mid`) bzw. 30 Minuten (`__stripe_sid`); genaue Laufzeit im Browser beim Checkout sichtbar |
 | `_ga` | Google Ireland Ltd. | GA4: Unterscheidung von Besuchern | Marketing (nur nach Einwilligung) | typischerweise 2 Jahre; genaue Laufzeit im Browser nach Einwilligung sichtbar |
