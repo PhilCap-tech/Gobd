@@ -36,6 +36,8 @@ import { storedCheckAttribution } from "@/lib/lead-attribution";
 import { queueLeadNotice } from "@/lib/lead-notice";
 import type { MailResult } from "@/lib/mail";
 import { lookupMailDedupe, sendDedupedEmail } from "@/lib/mail-dedupe";
+import { kanzleiFlowSlug } from "@/lib/kanzlei-toolbox";
+import { noteKanzleiLead, lookupPublicKanzlei } from "@/lib/kanzlei-toolbox-store";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { findLatestAmpelReadinessLead, upsertReadinessLead } from "@/lib/store";
 import type { ReadinessLead } from "@/lib/readiness";
@@ -62,6 +64,8 @@ export type SubmitAmpelInput = {
   src?: unknown;
   /** Whitelisted funnel variant from the page URL. Never a click id. */
   variant?: unknown;
+  /** Public Kanzlei slug. Never a free-text name and never a campaign parameter. */
+  kanzlei?: unknown;
 };
 
 export type SubmitAmpelDeps = {
@@ -69,7 +73,13 @@ export type SubmitAmpelDeps = {
   store?: AmpelRateStore;
   confirm?: (input: AmpelConfirmationInput) => Promise<AmpelConfirmationResult>;
   saveLead?: (lead: ReadinessLead) => Promise<void>;
-  mail?: (input: { email: string; answers: AmpelAnswerMap; code: string }) => Promise<MailResult>;
+  mail?: (input: {
+    email: string;
+    answers: AmpelAnswerMap;
+    code: string;
+    hinweisName?: string;
+    returnPath?: string;
+  }) => Promise<MailResult>;
   sendTimeoutMs?: number;
   /** Return after the limit check and let a second request send the mail. */
   handoff?: boolean;
@@ -250,10 +260,15 @@ export async function sendAmpelPdfMail(
     email: string;
     answers: AmpelAnswerMap;
     code: string;
+    hinweisName?: string;
+    returnPath?: string;
   },
   timeoutMs = AMPEL_SEND_TIMEOUT_MS,
 ): Promise<MailResult> {
-  const mail = buildAmpelPdfMail(input.answers);
+  const mail = buildAmpelPdfMail(input.answers, {
+    hinweisName: input.hinweisName,
+    returnPath: input.returnPath,
+  });
   if (!mail) return { stub: false, sent: false };
   const pdf = await withDeadline(buildAmpelResultPdf(input.answers), timeoutMs);
   return withDeadline(
@@ -365,6 +380,18 @@ async function runSubmit(
   return stamp(await deliverAmpelResult(email, answers, code, input, deps, now), trace, input, rateScope);
 }
 
+async function kanzleiHint(input: SubmitAmpelInput): Promise<{ name: string; slug: string; kanzleiId: string } | null> {
+  const slug = kanzleiFlowSlug(input.kanzlei);
+  if (!slug) return null;
+  try {
+    const record = await lookupPublicKanzlei(slug);
+    if (!record) return null;
+    return { name: record.displayName, slug: record.slug, kanzleiId: record.kanzleiId };
+  } catch {
+    return null;
+  }
+}
+
 export async function deliverAmpelResult(
   email: string,
   answers: AmpelAnswerMap,
@@ -374,10 +401,16 @@ export async function deliverAmpelResult(
   now = deps.now?.() ?? Date.now(),
 ): Promise<SubmitAmpelOutcome> {
   const timeoutMs = deps.sendTimeoutMs ?? AMPEL_SEND_TIMEOUT_MS;
+  const flow = Boolean(kanzleiFlowSlug(input.kanzlei));
+  const hint = await kanzleiHint(input);
+  const returnPath = hint ? `/ampel-check?kanzlei=${encodeURIComponent(hint.slug)}` : "";
   let mail: MailResult;
   try {
     const send = deps.mail ?? ((payload) => sendAmpelPdfMail(payload, timeoutMs));
-    mail = await withDeadline(send({ email, answers, code }), timeoutMs);
+    mail = await withDeadline(
+      send({ email, answers, code, hinweisName: hint?.name, returnPath }),
+      timeoutMs,
+    );
   } catch (error) {
     console.error("[ampel] Ergebnis-PDF fehlgeschlagen", error instanceof Error ? error.name : "error");
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
@@ -395,7 +428,7 @@ export async function deliverAmpelResult(
       email,
       light: scored?.light ?? "",
       marketingRequested: input.marketing === true,
-      ref: input.ref,
+      ref: flow ? "" : input.ref,
       resultMailId,
       at: now,
     });
@@ -422,6 +455,8 @@ async function finishAmpelResult(
   now: number,
   timeoutMs: number,
 ): Promise<"started" | "failed" | "skipped"> {
+  const flow = Boolean(kanzleiFlowSlug(input.kanzlei));
+  const hint = flow ? await kanzleiHint(input) : null;
   const attribution = storedCheckAttribution({
     email,
     tool: deps.check === "kassen-check" ? "kassen" : "ampel",
@@ -437,7 +472,7 @@ async function finishAmpelResult(
       const lead = toAmpelReadinessLead({
         email,
         answers: code,
-        ref: sanitizeAmpelRef(input.ref),
+        ref: flow ? "" : sanitizeAmpelRef(input.ref),
         consentAt,
         doiConfirmedAt: "",
         score: scored.score,
@@ -450,8 +485,11 @@ async function finishAmpelResult(
       lead.status = deps.leadStatus ?? "ampel_pdf";
       lead.timestamp = consentAt;
       lead.tool = attribution.tool;
-      lead.utmSource = attribution.utmSource;
-      lead.utmCampaign = attribution.utmCampaign;
+      lead.utmSource = flow ? "" : attribution.utmSource;
+      lead.utmCampaign = flow ? "" : attribution.utmCampaign;
+      if (hint && !automatedRunForbidsLiveWrites()) {
+        await noteKanzleiLead({ leadId: lead.leadId, kanzleiId: hint.kanzleiId, at: consentAt });
+      }
       lead.src = attribution.src;
       lead.variant = attribution.variant;
       const save = deps.saveLead ?? (async (row: ReadinessLead) => {
@@ -473,13 +511,13 @@ async function finishAmpelResult(
       confirm({
         email,
         answers: code,
-        ref: sanitizeAmpelRef(input.ref),
+        ref: flow ? "" : sanitizeAmpelRef(input.ref),
         consentIp: input.ip,
         consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
         mailed: "ja",
         tool: attribution.tool,
-        utmSource: attribution.utmSource,
-        utmCampaign: attribution.utmCampaign,
+        utmSource: flow ? "" : attribution.utmSource,
+        utmCampaign: flow ? "" : attribution.utmCampaign,
         src: attribution.src,
         variant: attribution.variant,
         ...(deps.check ? { check: deps.check } : {}),

@@ -2,6 +2,8 @@ import { ampelStepDate, ampelStepDevice, parseAmpelStepBody, AMPEL_STEP_BODY_MAX
 import { takeAmpelStepRate } from "@/lib/ampel-step-rate";
 import { readAmpelClientIp } from "@/lib/ampel-rate-limit";
 import { recordAmpelStep } from "@/lib/ampel-step-store";
+import { isKanzleiId, type KanzleiCountKind } from "@/lib/kanzlei-toolbox";
+import { addKanzleiCount } from "@/lib/kanzlei-toolbox-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,7 +56,8 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return empty(400);
   }
-  const fields = parseAmpelStepBody(parsed);
+  const { body, kanzleiId } = withoutKanzleiKey(parsed);
+  const fields = parseAmpelStepBody(body);
   if (!fields) return empty(400);
 
   const client = readAmpelClientIp(request);
@@ -63,5 +66,23 @@ export async function POST(request: Request): Promise<Response> {
   const device = ampelStepDevice(request.headers.get("user-agent") ?? "");
   const date = ampelStepDate(nowForTest ? nowForTest() : new Date());
   await recordAmpelStep({ ...fields, date, device });
+  const kind = kanzleiCountKind(fields);
+  if (kind && isKanzleiId(kanzleiId)) {
+    await addKanzleiCount({ kanzleiId, kind, device, now: nowForTest ? nowForTest() : new Date() }).catch(() => undefined);
+  }
   return empty(204);
+}
+
+function withoutKanzleiKey(parsed: unknown): { body: unknown; kanzleiId: string } {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { body: parsed, kanzleiId: "" };
+  const record = parsed as Record<string, unknown>;
+  const raw = record.k;
+  delete record.k;
+  return { body: record, kanzleiId: typeof raw === "string" ? raw : "" };
+}
+
+function kanzleiCountKind(fields: { event: string; n: string; status: string }): KanzleiCountKind | null {
+  if (fields.event === "ampel_q_view" && fields.n === "1") return "start";
+  if (fields.event === "ampel_submit_result" && (fields.status === "ok" || fields.status === "pending_ok")) return "complete";
+  return null;
 }

@@ -307,12 +307,11 @@ export const AMPEL_PRIVACY_PARAGRAPHS = [
 ] as const;
 
 export const AMPEL_SHARE_KANZLEI = {
-  button: "Mit Mandanten teilen",
+  button: "Kanzlei-Toolbox anfordern",
   headline: "Für Steuerkanzleien",
   intro:
-    "Teilen Sie die Ampel mit Ihren Mandanten. Sie sehen dann vor dem Gespräch, wo bei der Dokumentation Handlungsbedarf besteht.",
-  message:
-    "Erfüllt Ihr Unternehmen die GoBD-Anforderungen? Mit der kostenlosen GoBD-Ampel beantworten Sie in etwa zwei Minuten 10 Fragen und erhalten eine erste Einschätzung. Gerne besprechen wir das Ergebnis anschließend gemeinsam: {link}",
+    "Sie sind Steuerkanzlei? Holen Sie sich Ihren persönlichen Link mit der Zeile „Hinweis von Ihrer Kanzlei“, dazu ein Merkblatt und Newsletter-Texte. Kostenlos auf der Seite für Kanzleien.",
+  message: "Link, Merkblatt und Texte erhalten Sie über {link}",
   copied: "Link kopiert",
 };
 

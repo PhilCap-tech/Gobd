@@ -27,7 +27,6 @@ import {
 import {
   AMPEL_PATH,
   ampelNeinQuestions,
-  ampelSharePath,
   decodeAmpelAnswers,
   encodeAmpelAnswers,
   publicAmpelSource,
@@ -40,9 +39,18 @@ import {
   sendAmpelEmailView,
   sendAmpelQuestionView,
   sendAmpelStep,
+  setAmpelKanzleiStepId,
 } from "@/lib/ampel-step-beacon";
 import { replaceCheckSearch, submitUtmFields, submitVariantFields } from "@/lib/campaign-params";
+import { LEGAL_OPERATOR } from "@/lib/legal";
+import { kanzleiFormLine, kanzleiHinweisText } from "@/lib/kanzlei-toolbox-copy";
 import { trackAmpelCheckSubmit, trackAmpelResult, trackAmpelStart, trackLeadSubmit } from "@/lib/tracking";
+
+export type AmpelKanzleiHint = {
+  name: string;
+  slug: string;
+  kanzleiId: string;
+};
 
 function EmailPrivacyNote() {
   const label = "Datenschutzerklärung";
@@ -56,9 +64,23 @@ function EmailPrivacyNote() {
   );
 }
 
-function shareMessage(ref: string, origin = ""): string {
-  const link = `${origin}${ampelSharePath(ref)}`;
+function shareMessage(origin = ""): string {
+  const link = `${origin}/steuerberater#toolbox`;
   return AMPEL_SHARE_KANZLEI.message.replaceAll("{link}", link);
+}
+
+function KanzleiHinweis({ name }: { name: string }) {
+  const text = kanzleiHinweisText(name);
+  const report = `mailto:${LEGAL_OPERATOR.email}?subject=${encodeURIComponent("Missbrauch melden")}`;
+  return (
+    <aside className="ampel-hinweis" role="note">
+      <p className="ampel-hinweis-title">{text.title}</p>
+      <p>{text.body}</p>
+      <p className="hint">
+        <a href={report}>Missbrauch melden</a>
+      </p>
+    </aside>
+  );
 }
 
 function shownKey(code: string): string {
@@ -101,21 +123,20 @@ function scrollBlockClearOfBanner(block: HTMLElement, anchorSelector: string) {
   window.scrollTo({ top, behavior });
 }
 
-export function AmpelCheck() {
+export function AmpelCheck({ hint = null }: { hint?: AmpelKanzleiHint | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initial = decodeAmpelAnswers(searchParams.get("a") ?? "");
   const [mode, setMode] = useState<"questions" | "email" | "result">(initial ? "email" : "questions");
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<AmpelAnswerMap>(initial ?? {});
-  const [refName, setRefName] = useState(sanitizeAmpelRef(searchParams.get("ref") ?? ""));
+  const [refName] = useState(hint ? "" : sanitizeAmpelRef(searchParams.get("ref") ?? ""));
   const [email, setEmail] = useState("");
   const [marketing, setMarketing] = useState(false);
   const [fax, setFax] = useState("");
   const [pending, setPending] = useState(false);
   const [mailError, setMailError] = useState("");
   const [mailNotice, setMailNotice] = useState("");
-  const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState("");
   const startedRef = useRef(false);
   const resultTrackedRef = useRef(false);
@@ -127,6 +148,11 @@ export function AmpelCheck() {
   useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
+
+  useEffect(() => {
+    setAmpelKanzleiStepId(hint?.kanzleiId ?? "");
+    return () => setAmpelKanzleiStepId("");
+  }, [hint]);
 
   useEffect(() => {
     if (mode === "questions") sendAmpelQuestionView(step + 1);
@@ -180,8 +206,25 @@ export function AmpelCheck() {
     return () => window.clearTimeout(timer);
   }, [mode, step, searchKey]);
 
+  function kanzleiQuery(answersCode: string): string {
+    return replaceCheckSearch(searchParams, {
+      a: answersCode,
+      ref: hint ? "" : refName,
+      kanzlei: hint?.slug ?? "",
+    });
+  }
+
+  useEffect(() => {
+    const currentKanzlei = searchParams.get("kanzlei") ?? "";
+    const wanted = hint?.slug ?? "";
+    const currentRef = searchParams.get("ref") ?? "";
+    if (currentKanzlei === wanted && (!hint || currentRef === "")) return;
+    const query = kanzleiQuery(searchParams.get("a") ?? "");
+    router.replace(query ? `${AMPEL_PATH}?${query}` : AMPEL_PATH, { scroll: false });
+  }, [hint, searchParams, router]);
+
   function rememberAnswers(code: string) {
-    const query = replaceCheckSearch(searchParams, { a: code, ref: refName });
+    const query = kanzleiQuery(code);
     router.replace(query ? `${AMPEL_PATH}?${query}` : AMPEL_PATH);
   }
 
@@ -224,18 +267,8 @@ export function AmpelCheck() {
     setMailNotice("");
     setMailError("");
     setMarketing(false);
-    const query = replaceCheckSearch(searchParams, { a: "", ref: refName });
+    const query = kanzleiQuery("");
     router.replace(query ? `${AMPEL_PATH}?${query}` : AMPEL_PATH);
-  }
-
-  async function copyShare() {
-    const text = shareMessage(refName, window.location.origin);
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
   }
 
   async function sendResult(event: FormEvent<HTMLFormElement>) {
@@ -257,10 +290,11 @@ export function AmpelCheck() {
     const payload = {
       email,
       answers: encoded,
-      ref: refName,
+      ref: hint ? "" : refName,
       marketing,
       fax_number: fax,
-      ...submitUtmFields(window.location.search),
+      ...(hint ? { kanzlei: hint.slug } : {}),
+      ...(hint ? {} : submitUtmFields(window.location.search)),
       ...submitVariantFields(window.location.search),
     };
     const showResult = (notice: string) => {
@@ -411,6 +445,7 @@ export function AmpelCheck() {
 
       {mode === "questions" && question ? (
         <>
+          {hint && step === 0 ? <KanzleiHinweis name={hint.name} /> : null}
           <section ref={questionRef} className="card ampel-question" aria-labelledby="ampel-question-title">
             <p className="ampel-progress">
               Frage {step + 1} von {AMPEL_QUESTIONS.length}
@@ -519,6 +554,7 @@ export function AmpelCheck() {
             </button>
           </p>
           <p className="hint ampel-mail-note">{AMPEL_CHECK_MAIL.note}</p>
+          {hint ? <p className="hint">{kanzleiFormLine(hint.name)}</p> : null}
           <div className="field ampel-consent">
             <label className="check" htmlFor="ampel-marketing">
               <input
@@ -543,6 +579,7 @@ export function AmpelCheck() {
       {mode === "result" && encoded ? (
         <>
           {mailNotice ? <p className="card" role="status">{mailNotice}</p> : null}
+          {hint ? <KanzleiHinweis name={hint.name} /> : null}
           <AmpelResult answers={answers} />
           <p className="actions">
             <button type="button" className="btn ghost" onClick={restart}>
@@ -556,21 +593,11 @@ export function AmpelCheck() {
       <aside className="card ampel-share" id="teilen">
         <h2>{AMPEL_SHARE_KANZLEI.headline}</h2>
         <p>{AMPEL_SHARE_KANZLEI.intro}</p>
-        <div className="field">
-          <label htmlFor="ampel-ref">Name der Kanzlei</label>
-          <input
-            id="ampel-ref"
-            name="ref"
-            value={refName}
-            maxLength={80}
-            onChange={(event) => setRefName(sanitizeAmpelRef(event.target.value))}
-          />
-        </div>
-        <p className="ampel-share-message">{shareMessage(refName, origin)}</p>
+        <p className="ampel-share-message">{shareMessage(origin)}</p>
         <p className="actions">
-          <button type="button" className="btn ghost" onClick={copyShare}>
-            {copied ? AMPEL_SHARE_KANZLEI.copied : AMPEL_SHARE_KANZLEI.button}
-          </button>
+          <Link className="btn ghost" href="/steuerberater#toolbox">
+            {AMPEL_SHARE_KANZLEI.button}
+          </Link>
         </p>
       </aside>
       <AmpelDisclaimer />

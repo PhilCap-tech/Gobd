@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       utmCampaign: value.utm_campaign,
       src: value.src,
       variant: value.v,
+      kanzlei: value.kanzlei,
       ip: client.ip,
       ipSource: client.source,
       sendToken: value.send_token,

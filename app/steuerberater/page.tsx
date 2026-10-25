@@ -21,6 +21,12 @@ import {
 import styles from "../home.module.css";
 import { MerkblattForm } from "./merkblatt-form";
 import { PartnerInquiryForm } from "./partner-inquiry-form";
+import { ToolboxForm } from "./toolbox-form";
+import {
+  KANZLEI_TOOLBOX_HEADING,
+  KANZLEI_TOOLBOX_LEAD,
+  KANZLEI_TOOLBOX_POINTS,
+} from "@/lib/kanzlei-toolbox-copy";
 
 const PAGE_TITLE =
   "Für Steuerberater: Logo im Mandanten-PDF, auf Anfrage | GoBD Verfahrensdoku";
@@ -66,6 +72,22 @@ const FAQ = [
     a: "Nein. Sie füllen die Dokumentation nicht für den Mandanten aus. Der Mandant liefert die Betriebsdaten.",
   },
   {
+    q: "Was kostet die Toolbox?",
+    a: "Nichts. Die Kanzlei erhält keine Provision, keine Vergütung und keine sonstige Gegenleistung. Mandanten zahlen den Listenpreis.",
+  },
+  {
+    q: "Sieht die Kanzlei die Antworten ihrer Mandanten?",
+    a: "Nein. Antworten und E-Mail-Adressen gehen an die IKAT GmbH. Ein Bericht enthält auf Wunsch nur zusammengefasste Zahlen, und Werte unter 5 nur als „unter 5“. Käufe stehen darin nicht.",
+  },
+  {
+    q: "Wie entferne ich den Eintrag?",
+    a: "Über den Link in der Toolbox-E-Mail oder per Nachricht an info@gobd-doku-erstellen.de. Kostenfrei und ohne Begründung. Der Name entfällt sofort. Der Link führt danach auf den Ampel-Check ohne Kanzleinamen.",
+  },
+  {
+    q: "Warum erscheint unser Name nicht sofort?",
+    a: "Wir zeigen den Namen erst nach der Bestätigung Ihrer E-Mail-Adresse und nach dem Abgleich mit dem Impressum und dem amtlichen Steuerberaterverzeichnis. Vorher führt der Link auf den Check ohne Namen.",
+  },
+  {
     q: "Kann ich das Muster ohne Bestellung ansehen?",
     a: "Ja. Das Muster-PDF und die Fragen-Demo sind Beispiele. Sie speichern keine Eingaben und lösen keine Bestellung aus.",
   },
@@ -88,6 +110,7 @@ export default function SteuerberaterPage() {
         ctaHref="#anfrage"
         ctaLabel="Partneranfrage"
         links={[
+          { href: "#toolbox", label: "Toolbox" },
           { href: "#modell", label: "Modell" },
           { href: "#muster", label: "Muster" },
           { href: "#ablauf", label: "Ablauf" },
@@ -137,10 +160,27 @@ export default function SteuerberaterPage() {
           Muster-PDF ohne Anmeldung
         </p>
 
+        <section className={styles.section} id="toolbox">
+          <div className="shell">
+            <h2>{KANZLEI_TOOLBOX_HEADING}</h2>
+            <p className={styles.sub}>{KANZLEI_TOOLBOX_LEAD}</p>
+            <ul className={styles.cardList}>
+              {KANZLEI_TOOLBOX_POINTS.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <ToolboxForm />
+            <p className={styles.fine}>
+              Die Partnerschaft mit Logo im PDF bleibt auf Anfrage und kostet {euro(MONTHLY_EUR)} netto pro Monat.
+              Die Toolbox ist davon getrennt und enthält keine Mandantenübersicht.
+            </p>
+          </div>
+        </section>
+
         <section className={styles.section} id="modell">
           <div className="shell">
             <h2>Was die Partnerschaft umfasst</h2>
-            <p className={styles.sub}>Auf Anfrage. Kein Selbstbedienungsbereich.</p>
+            <p className={styles.sub}>Partnerschaft: auf Anfrage. Die Toolbox oben fordern Sie selbst an.</p>
             <div className={styles.grid3}>
               <article className={styles.card}>
                 <h3>Logo im PDF</h3>
@@ -249,7 +289,7 @@ export default function SteuerberaterPage() {
             <div>
               <h2>So läuft es ab</h2>
               <ol className={styles.steps} role="list">
-                <li>Sie senden eine Partneranfrage. Es gibt hier keine Selbstbedienung.</li>
+                <li>Toolbox: Sie melden die Kanzlei an und bestätigen Ihre E-Mail-Adresse. Partnerschaft: Sie senden eine Partneranfrage.</li>
                 <li>
                   Logo im PDF und die Übersicht der Mandanten, die zugestimmt haben,
                   richten wir danach auf Anfrage ein.

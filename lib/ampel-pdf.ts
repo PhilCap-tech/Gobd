@@ -27,7 +27,10 @@ const ANSWER_LABEL: Record<AmpelAnswer, string> = {
 
 const CONTENT_WIDTH = 483;
 
-export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
+export function buildAmpelPdfMail(
+  answers: AmpelAnswerMap,
+  extra?: { hinweisName?: string; returnPath?: string },
+): {
   subject: string;
   text: string;
   html: string;
@@ -36,9 +39,18 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
   if (!scored) return null;
   const band = AMPEL_RESULTS[scored.light];
   const subject = "Ihr Ergebnis der GoBD-Ampel";
+  const hinweisName = extra?.hinweisName?.trim() ?? "";
+  const returnPath = extra?.returnPath?.trim() ?? "";
   const lines = [
     "Guten Tag,",
     "",
+    ...(hinweisName
+      ? [
+          `Hinweis von ${hinweisName}`,
+          `Der Ampel-Check ist ein kostenloses Angebot der IKAT GmbH. ${hinweisName} hat ihn nicht erstellt und nicht geprüft. Der Check ist nicht erstellt und nicht geprüft von der Kanzlei. ${hinweisName} erhält Ihre Antworten, Ihr Ergebnis und Ihre E-Mail-Adresse nicht. Wir speichern, dass Sie über diesen Link gekommen sind.`,
+          "",
+        ]
+      : []),
     "anbei erhalten Sie das PDF mit Ihrem Ergebnis der GoBD-Ampel.",
     "",
     `Ergebnis: ${band.label}.`,
@@ -60,6 +72,9 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
   }
   lines.push("", "Hinweise:");
   for (const hint of band.hints) lines.push(`- ${hint}`);
+  if (returnPath.startsWith("/ampel-check")) {
+    lines.push("", `Ampel-Check erneut öffnen: https://www.gobd-doku-erstellen.de${returnPath}`);
+  }
   lines.push(
     "",
     "Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren.",
@@ -77,8 +92,14 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
     return `<li><strong>${escapeHtml(question.question)}</strong><br />Ihre Angabe: ${escapeHtml(ANSWER_LABEL[answer])}<br />${escapeHtml(question.explanation)}<br />Quelle: ${escapeHtml(publicAmpelSource(question.source))}</li>`;
   }).join("");
   const hints = band.hints.map((hint) => `<li>${escapeHtml(hint)}</li>`).join("");
+  const returnUrl = returnPath.startsWith("/ampel-check") ? `https://www.gobd-doku-erstellen.de${returnPath}` : "";
   const html = wrapTransactionalHtml(`
     <p>Guten Tag,</p>
+    ${
+      hinweisName
+        ? `<p><strong>Hinweis von ${escapeHtml(hinweisName)}</strong><br />Der Ampel-Check ist ein kostenloses Angebot der IKAT GmbH. ${escapeHtml(hinweisName)} hat ihn nicht erstellt und nicht geprüft. Der Check ist nicht erstellt und nicht geprüft von der Kanzlei. ${escapeHtml(hinweisName)} erhält Ihre Antworten, Ihr Ergebnis und Ihre E-Mail-Adresse nicht. Wir speichern, dass Sie über diesen Link gekommen sind.</p>`
+        : ""
+    }
     <p>anbei erhalten Sie das PDF mit Ihrem Ergebnis der GoBD-Ampel.</p>
     <p>Ergebnis: <strong>${escapeHtml(band.label)}</strong>.</p>
     <p><strong>${escapeHtml(band.headline)}</strong></p>
@@ -88,6 +109,7 @@ export function buildAmpelPdfMail(answers: AmpelAnswerMap): {
     <ul>${items}</ul>
     <p>Hinweise:</p>
     <ul>${hints}</ul>
+    ${returnUrl ? `<p><a href="${escapeAttr(returnUrl)}">Ampel-Check erneut öffnen</a></p>` : ""}
     <p>Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren.</p>
     <p>${escapeHtml(AMPEL_DISCLAIMER)}</p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}<br /><a href="${escapeAttr(MAIL_HOME_URL)}">gobd-doku-erstellen.de</a></p>

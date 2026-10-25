@@ -2581,9 +2581,22 @@ body.consent-open {
 .ampel-cta,
 .ampel-mail,
 .ampel-share,
-.ampel-question {
+.ampel-question,
+.ampel-hinweis {
   margin-top: 16px;
   scroll-margin-top: 12px;
+}
+
+.ampel-hinweis {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.ampel-hinweis-title {
+  margin: 0 0 6px;
+  font-weight: 650;
 }
 
 .ampel-price {
