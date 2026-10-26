@@ -13,6 +13,7 @@
  * Token landings send nothing. config and page_view pass an allowlisted page_location.
  */
 
+import { readAdsPurchaseFlag, writeAdsPurchaseFlag } from "@/lib/browser-storage-expiry";
 import { isStubCheckoutSessionId } from "@/lib/checkout-stub";
 import { stripSensitiveQueryFromAddressBar, tagHitFields } from "@/lib/tag-page-url";
 import { isTokenLandingPath } from "@/lib/token-pages";
@@ -541,18 +542,41 @@ function writeStorageFlag(storage: Storage, key: string): void {
   }
 }
 
+/**
+ * Kauf-Vermerk mit Zeitpunkt; nach 90 Tagen (ADS_PURCHASE_MAX_AGE_MS) beim
+ * Lesen entfernt. Altbestand "1" gilt als frisch und bekommt einen Zeitpunkt.
+ */
 function purchaseConversionAlreadySent(sessionId: string): boolean {
   const key = purchaseStorageKey(sessionId);
-  return (
-    readStorageFlag(window.localStorage, key) ||
-    readStorageFlag(window.sessionStorage, key)
-  );
+  const now = Date.now();
+  let local = false;
+  let session = false;
+  try {
+    local = readAdsPurchaseFlag(window.localStorage, key, now);
+  } catch {
+    local = false;
+  }
+  try {
+    session = readAdsPurchaseFlag(window.sessionStorage, key, now);
+  } catch {
+    session = false;
+  }
+  return local || session;
 }
 
 function markPurchaseConversionSent(sessionId: string): void {
   const key = purchaseStorageKey(sessionId);
-  writeStorageFlag(window.localStorage, key);
-  writeStorageFlag(window.sessionStorage, key);
+  const now = Date.now();
+  try {
+    writeAdsPurchaseFlag(window.localStorage, key, now);
+  } catch {
+    /* private mode */
+  }
+  try {
+    writeAdsPurchaseFlag(window.sessionStorage, key, now);
+  } catch {
+    /* private mode */
+  }
 }
 
 /** Clears in-memory guards so the prebuild check can replay consent cases. */

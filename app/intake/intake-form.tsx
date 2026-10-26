@@ -53,6 +53,7 @@ import {
   versionChangeDraftError,
   versionLabelFromRow,
 } from "@/lib/versioning";
+import { readIntakeDraftEntry, sweepIntakeDrafts } from "@/lib/browser-storage-expiry";
 
 type IntakeFormProps = {
   session: CheckoutIdentity;
@@ -387,7 +388,10 @@ export function IntakeForm({
     (async () => {
       let local: IntakeDraftSnapshot | null = null;
       try {
-        const raw = window.localStorage.getItem(localDraftKey);
+        // 30-Tage-Ablauf im Browser (lib/browser-storage-expiry.ts); nur lokal, Server-Entwurf unberührt.
+        const now = Date.now();
+        sweepIntakeDrafts(window.localStorage, now);
+        const raw = readIntakeDraftEntry(window.localStorage, localDraftKey, now);
         if (raw) {
           const parsed = JSON.parse(raw) as IntakeDraftSnapshot;
           if (parsed.answers && typeof parsed.answers === "object") {

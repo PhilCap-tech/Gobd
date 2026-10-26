@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { clearIntakeDrafts } from "@/lib/browser-storage-expiry";
 
 export function LogoutButton({ className }: { className?: string }) {
   const router = useRouter();
@@ -37,6 +38,14 @@ export function LogoutButton({ className }: { className?: string }) {
       );
       setPending(false);
       return;
+    }
+    // Fragebogen-Entwürfe aus dem Browser-Speicher entfernen (Server-Entwurf bleibt).
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      try {
+        clearIntakeDrafts(storage);
+      } catch {
+        /* Speicher gesperrt */
+      }
     }
     router.refresh();
     window.location.replace("/login");

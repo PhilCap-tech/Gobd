@@ -613,9 +613,8 @@ export async function triggerOnboardingMail(input: {
 
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   if (!isMailConfigured()) {
+    // Keine Adresse, keine Firma im Log.
     console.info("[ops] onboarding mail stub", {
-      email: input.email,
-      company: input.company,
       sessionId: input.sessionId,
       audience,
     });
@@ -642,7 +641,10 @@ export async function triggerOnboardingMail(input: {
       intakeContactNames = found.intakeContactNames;
       companyNames.push(...found.companyNames);
     } catch (error) {
-      console.warn("[ops] Ansprechperson nicht geladen — Fallback auf Checkout-Name", error);
+      console.warn(
+        "[ops] Ansprechperson nicht geladen — Fallback auf Checkout-Name",
+        error instanceof Error ? error.name : "error",
+      );
     }
     contactName = pickOnboardingContactName({
       profileName,
@@ -679,7 +681,6 @@ export async function triggerOnboardingMail(input: {
     html: mail.html,
   });
   console.info("[ops] onboarding mail", {
-    email: input.email,
     sessionId: input.sessionId,
     audience,
     sent: result.sent,
@@ -705,7 +706,7 @@ export async function handleFailedPayment(input: {
   }
   const email = input.email?.trim() ?? "";
   if (isPilotPaymentFailedExempt(email)) {
-    console.info(`[ops] payment-failed skipped: pilot exemption ${email}`);
+    console.info("[ops] payment-failed skipped: pilot exemption");
     return {
       stub: false,
       sent: false,
@@ -715,12 +716,15 @@ export async function handleFailedPayment(input: {
   }
 
   if (!isMailConfigured()) {
-    console.warn("[ops] failed payment stub", input);
+    // Nur Status und Fehlerart: keine Adresse, keine Kunden-/Rechnungs-IDs.
+    console.warn("[ops] failed payment stub", { hasReason: Boolean(input.reason?.trim()) });
     return { stub: true, sent: false, action: "failed_payment" };
   }
 
   if (!email) {
-    console.warn("[ops] failed payment übersprungen — keine E-Mail", input);
+    console.warn("[ops] failed payment übersprungen — keine E-Mail", {
+      hasReason: Boolean(input.reason?.trim()),
+    });
     return { stub: true, sent: false, action: "failed_payment" };
   }
 
@@ -738,15 +742,18 @@ export async function handleFailedPayment(input: {
     html: mail.html,
   });
   console.warn("[ops] failed payment mail", {
-    email,
-    sessionId: input.sessionId,
-    invoiceId: input.invoiceId,
-    customerId: input.customerId,
-    reason: input.reason,
+    hasReason: Boolean(input.reason?.trim()),
     sent: result.sent,
     stub: result.stub,
   });
   return claimedMail(result, "failed_payment");
+}
+
+/** Fehlerart für das Log: nur der Job-Typ (z. B. `stripe-webhook:invoice.paid`), nie Freitext mit Adresse. */
+function failedJobType(job: string | undefined): string {
+  const value = job?.trim() ?? "";
+  if (!value || value.includes("@")) return "job";
+  return value.replace(/[^A-Za-z0-9_.:-]/g, "").slice(0, 80) || "job";
 }
 
 export async function handleFailedJob(input: {
@@ -763,12 +770,12 @@ export async function handleFailedJob(input: {
   }
   const email = input.email?.trim() ?? "";
   if (!isMailConfigured()) {
-    console.warn("[ops] failed job stub", input);
+    console.warn("[ops] failed job stub", { job: failedJobType(input.job) });
     return { stub: true, sent: false, action: "failed_job" };
   }
 
   if (!email) {
-    console.warn("[ops] failed job übersprungen — keine E-Mail", input);
+    console.warn("[ops] failed job übersprungen — keine E-Mail", { job: failedJobType(input.job) });
     return { stub: true, sent: false, action: "failed_job" };
   }
 
@@ -784,10 +791,7 @@ export async function handleFailedJob(input: {
     html: mail.html,
   });
   console.warn("[ops] failed job mail", {
-    email,
-    sessionId: input.sessionId,
-    job: input.job,
-    reason: input.reason,
+    job: failedJobType(input.job),
     sent: result.sent,
     stub: result.stub,
   });
@@ -828,7 +832,10 @@ export async function sendDeliveryMail(input: {
       companyNames: [input.company ?? "", ...found.companyNames],
     });
   } catch (error) {
-    console.warn("[ops] Ansprechperson für die Liefermail nicht geladen", error);
+    console.warn(
+      "[ops] Ansprechperson für die Liefermail nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
   }
 
   const mail = buildDeliveryMail({ ...input, contactName });

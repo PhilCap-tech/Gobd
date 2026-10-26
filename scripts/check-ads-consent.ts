@@ -292,14 +292,14 @@ try {
     assert.equal(payload.currency, PURCHASE_CONVERSION_CURRENCY);
     assert.equal(payload.currency, "EUR");
     assert.equal(payload.transaction_id, paidSession);
-    assert.equal(
+    // Kauf-Vermerk mit Zeitpunkt (90-Tage-Ablauf, lib/browser-storage-expiry.ts).
+    for (const stored of [
       dom.local.getItem(`${PURCHASE_CONVERSION_STORAGE_PREFIX}${paidSession}`),
-      "1",
-    );
-    assert.equal(
       dom.session.getItem(`${PURCHASE_CONVERSION_STORAGE_PREFIX}${paidSession}`),
-      "1",
-    );
+    ]) {
+      const at = Date.parse((JSON.parse(stored ?? "null") as { at?: string } | null)?.at ?? "");
+      assert.ok(Number.isFinite(at) && Math.abs(Date.now() - at) < 60_000, "Kauf-Vermerk trägt den Meldezeitpunkt");
+    }
     resetTrackingForChecks();
     window.dataLayer = [];
     delete window.gtag;
