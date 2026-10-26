@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fetchRetrying503, SAVE_PENDING_LABEL } from "@/lib/fetch-retry";
+import { DraftAutosave } from "@/lib/draft-autosave";
 import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
@@ -79,6 +80,18 @@ type IntakeFormProps = {
    */
   stripeTestMode?: boolean;
 };
+
+/** Random id for this page and for each submit. */
+function newClientId(): string {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === "function") return cryptoApi.randomUUID();
+  const bytes = new Uint8Array(16);
+  cryptoApi.getRandomValues(bytes);
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 
 function checkoutBilling(firm: FirmFacts | undefined): Pick<
   FirmFacts,
@@ -213,6 +226,14 @@ export function IntakeForm({
   const [draftReady, setDraftReady] = useState(false);
   const [serverDraftAt, setServerDraftAt] = useState("");
   const revisionRef = useRef(0);
+  /** True from the submit click until the submit failed. No autosave meanwhile. */
+  const submittingRef = useRef(false);
+  /** This page. Sent with every save; the submit closes it on the server. */
+  const [formId] = useState(() => newClientId().replace(/-/g, ""));
+  /** Same submit id for every retry of the same payload. */
+  const submitIdRef = useRef<{ id: string; payload: string } | null>(null);
+  /** Last state the server confirmed; an equal save is not sent. */
+  const lastSavedRef = useRef("");
   const lastSnapshotRef = useRef("");
   const baselineRef = useRef("");
   const answersRef = useRef(answers);
@@ -282,15 +303,27 @@ export function IntakeForm({
     return snapshot;
   }, []);
 
-  const postServerDraft = useCallback((revision: number, keepalive = false) => {
+  const postServerDraft = useCallback((revision: number, keepalive = false, signal?: AbortSignal) => {
     const meta = draftMetaRef.current;
-    if (!meta.draftKey || revision <= 0) return;
+    if (!meta.draftKey || revision <= 0) return Promise.resolve();
+    if (submittingRef.current) return Promise.resolve();
+    const answersNow = stripEmptyIntakeCards(answersRef.current);
+    const saveKey = JSON.stringify({
+      draftKey: meta.draftKey,
+      answers: answersNow,
+      step: stepRef.current,
+      change: changeRef.current,
+    });
+    if (saveKey === lastSavedRef.current) return Promise.resolve();
     const savedAt = new Date().toISOString();
     setSaving(true);
-    void fetchRetrying503("/api/intake/draft", {
+    return fetchRetrying503(
+      "/api/intake/draft",
+      {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       keepalive,
+      signal,
       body: JSON.stringify({
         draftKey: meta.draftKey,
         sessionId: meta.sessionId,
@@ -300,13 +333,19 @@ export function IntakeForm({
         entityId: meta.entityId,
         modus: meta.modus,
         step: stepRef.current,
-        answers: stripEmptyIntakeCards(answersRef.current),
+        answers: answersNow,
         revision,
         change: { ...changeRef.current },
         clientUpdatedAt: serverDraftAtRef.current || savedAt,
+        formId,
       }),
-    })
+      },
+      // One retry with a growing wait: the next edit saves again anyway.
+      { retries: 1, backoff: true },
+    )
       .then(async (response) => {
+        // Submitted meanwhile: this answer is stale.
+        if (submittingRef.current || signal?.aborted) return;
         if (response.status === 401) {
           setNeedsLogin(true);
           setError("Bitte melden Sie sich an, um Ihre Angaben zu ändern.");
@@ -328,6 +367,7 @@ export function IntakeForm({
         }
         if (response.ok) {
           const data = (await response.json()) as { draft?: { updatedAt?: string } };
+          lastSavedRef.current = saveKey;
           if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
         }
       })
@@ -335,7 +375,11 @@ export function IntakeForm({
         // offline: localStorage reicht als Fallback
       })
       .finally(() => setSaving(false));
-  }, [writeLocalDraft]);
+  }, [formId, writeLocalDraft]);
+  const [autosave] = useState(() => new DraftAutosave());
+  useEffect(() => {
+    autosave.setSend((signal) => postServerDraft(revisionRef.current, false, signal));
+  }, [autosave, postServerDraft]);
 
   useEffect(() => {
     let cancelled = false;
@@ -445,13 +489,15 @@ export function IntakeForm({
       revisionRef.current = revision;
       writeLocalDraft(revision);
     }
-    if (!draftKey || revision <= 0) return;
-    const timer = window.setTimeout(() => postServerDraft(revisionRef.current), 400);
+    if (!draftKey || revision <= 0 || submittingRef.current) return;
+    // One PUT at a time; edits within 1.5 s go out together.
+    const timer = window.setTimeout(() => autosave.request(), 1500);
     return () => window.clearTimeout(timer);
-  }, [answers, step, change, draftKey, draftReady, postServerDraft, writeLocalDraft]);
+  }, [answers, step, change, draftKey, draftReady, autosave, writeLocalDraft]);
+  useEffect(() => () => autosave.stop(), [autosave]);
   useEffect(() => {
     function flush() {
-      if (!draftReadyRef.current) return;
+      if (!draftReadyRef.current || submittingRef.current) return;
       const revision = revisionRef.current;
       if (revision <= 0) return;
       const snapshot = JSON.stringify({
@@ -461,7 +507,7 @@ export function IntakeForm({
       });
       if (snapshot === baselineRef.current) return;
       writeLocalDraft(revision);
-      postServerDraft(revision, true);
+      void postServerDraft(revision, true);
     }
     window.addEventListener("pagehide", flush);
     return () => window.removeEventListener("pagehide", flush);
@@ -544,6 +590,8 @@ export function IntakeForm({
   }
 
   async function submit() {
+    // One submit at a time (a double click or a second tap while the first runs).
+    if (submittingRef.current) return;
     if (showFirmSelect && !entityId.trim()) {
       setError("Bitte eine Firma wählen.");
       return;
@@ -567,24 +615,41 @@ export function IntakeForm({
     setError("");
     setNeedsLogin(false);
     setPending(true);
+    submittingRef.current = true;
+    autosave.stop();
+    let submitted = false;
+    const payload = {
+      sessionId: session.stripeSessionId,
+      email: session.email,
+      company: session.company,
+      answers,
+      documentId: sourceDocumentId,
+      areaFromDocumentId: areaBaseDocumentId,
+      entityId: entityId.trim() || undefined,
+      validFrom: change.validFrom,
+      validTo: change.validTo,
+      changeSummary: change.changeSummary,
+      changedBy: change.changedBy,
+    };
+    const payloadKey = JSON.stringify(payload);
+    if (submitIdRef.current?.payload !== payloadKey) {
+      submitIdRef.current = { id: newClientId(), payload: payloadKey };
+    }
     try {
-      const response = await fetchRetrying503("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: session.stripeSessionId,
-          email: session.email,
-          company: session.company,
-          answers,
-          documentId: sourceDocumentId,
-          areaFromDocumentId: areaBaseDocumentId,
-          entityId: entityId.trim() || undefined,
-          validFrom: change.validFrom,
-          validTo: change.validTo,
-          changeSummary: change.changeSummary,
-          changedBy: change.changedBy,
-        }),
-      });
+      const response = await fetchRetrying503(
+        "/api/intake",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...payload,
+            submitId: submitIdRef.current.id,
+            formId,
+            draftKey: draftKey || undefined,
+          }),
+        },
+        { backoff: true },
+      );
       let data: {
         error?: string;
         questionId?: string;
@@ -619,6 +684,7 @@ export function IntakeForm({
         setError(data.error || "Speichern fehlgeschlagen.");
         return;
       }
+      submitted = true;
       clearDraft();
       const params = new URLSearchParams({ document_id: data.documentId });
       if (session.stripeSessionId) params.set("session_id", session.stripeSessionId);
@@ -630,7 +696,13 @@ export function IntakeForm({
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");
     } finally {
-      setPending(false);
+      if (!submitted) {
+        // Not stored: the form stays editable and saving goes on.
+        submittingRef.current = false;
+        autosave.resume();
+        autosave.request();
+        setPending(false);
+      }
     }
   }
 

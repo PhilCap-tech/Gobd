@@ -316,11 +316,25 @@ async function readSheetRows(): Promise<AuditEvent[]> {
       SHEETS_GET_OPTS,
     ),
   );
-  return (result.data.values ?? [])
-    .filter((row) => row.some((item) => String(item ?? "").trim()))
-    .map((row) => parseAudit(header, row.map((item) => String(item ?? ""))))
-    .filter((row): row is AuditEvent => Boolean(row));
+  const rowNumbers = new Map<string, number>();
+  const rows: AuditEvent[] = [];
+  (result.data.values ?? []).forEach((row, index) => {
+    if (!row.some((item) => String(item ?? "").trim())) return;
+    const parsed = parseAudit(header, row.map((item) => String(item ?? "")));
+    if (!parsed) return;
+    rows.push(parsed);
+    if (!rowNumbers.has(parsed.eventId)) rowNumbers.set(parsed.eventId, index + 2);
+  });
+  lastSheetRowNumbers = rowNumbers;
+  return rows;
 }
+
+/**
+ * Row numbers from the latest full read. recordAudit reads the sheet right
+ * before it replaces a row, so the replace can reuse that position instead of
+ * reading the whole tab a second time.
+ */
+let lastSheetRowNumbers = new Map<string, number>();
 
 async function appendSheetRow(row: AuditEvent): Promise<void> {
   const header = await ensureAuditSheet();
@@ -335,11 +349,23 @@ async function appendSheetRow(row: AuditEvent): Promise<void> {
   );
 }
 
-async function updateSheetRow(row: AuditEvent): Promise<boolean> {
+async function updateSheetRow(row: AuditEvent, rowNumber?: number): Promise<boolean> {
   const header = await ensureAuditSheet();
   const sheets = createSheetsClient();
   const tab = getAuditSheetsTab();
   const id = spreadsheetId();
+  if (rowNumber && rowNumber >= 2) {
+    await retrySheetsCall("audit.update", () =>
+      sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: id,
+        requestBody: {
+          valueInputOption: "RAW",
+          data: [{ range: `${tab}!A${rowNumber}`, values: [auditSheetValues(row, header)] }],
+        },
+      }),
+    );
+    return true;
+  }
   const result = await retrySheetsCall("audit.values", () =>
     sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${tab}!A2:AZ` }, SHEETS_GET_OPTS),
   );
@@ -361,6 +387,7 @@ async function updateSheetRow(row: AuditEvent): Promise<boolean> {
 }
 
 async function loadRows(): Promise<AuditEvent[]> {
+  lastSheetRowNumbers = new Map();
   if (fileRootOverride) return readAllFileRows();
   if (isSheetsConfigured()) {
     try {
@@ -382,7 +409,12 @@ async function loadRows(): Promise<AuditEvent[]> {
   return readAllFileRows();
 }
 
-async function persist(rows: AuditEvent[], changed: AuditEvent, mode: "insert" | "replace"): Promise<void> {
+async function persist(
+  rows: AuditEvent[],
+  changed: AuditEvent,
+  mode: "insert" | "replace",
+  rowNumber?: number,
+): Promise<void> {
   if (fileRootOverride) {
     await writeFileStore(rows);
     return;
@@ -391,7 +423,7 @@ async function persist(rows: AuditEvent[], changed: AuditEvent, mode: "insert" |
     try {
       if (mode === "insert") await appendSheetRow(changed);
       else {
-        const updated = await updateSheetRow(changed);
+        const updated = await updateSheetRow(changed, rowNumber);
         if (!updated) await appendSheetRow(changed);
       }
       if (!isVercelRuntime()) {
@@ -442,7 +474,7 @@ export async function recordAudit(input: AuditWrite): Promise<AuditEvent> {
           summary,
         };
         const next = rows.map((row) => (row.eventId === match.eventId ? updated : row));
-        await persist(next, updated, "replace");
+        await persist(next, updated, "replace", lastSheetRowNumbers.get(match.eventId));
         return updated;
       }
     }
