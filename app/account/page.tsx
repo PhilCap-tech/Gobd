@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AccountAboCard } from "@/components/account-abo";
+import { AccountPlanCard } from "@/components/account-plan";
+import { loadAccountPlanView } from "@/lib/plan-view";
 import { AccountCompanyCard } from "@/components/account-company-card";
 import { AccountResourcesCard } from "@/components/account-free";
 import { AccountProfileForm } from "@/components/account-profile-form";
@@ -52,7 +54,7 @@ export const metadata: Metadata = {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ portal?: string | string[] }>;
+  searchParams: Promise<{ portal?: string | string[]; kauf?: string | string[] }>;
 }) {
   const email = await getSessionEmail();
   if (!email) {
@@ -165,6 +167,8 @@ export default async function AccountPage({
     openPaidSession,
   } = loaded;
   const notice = lifecycleNotice(lifecycleRows);
+  const planView = compAccess ? null : await loadAccountPlanView(email, docs);
+  const purchaseNotice = firstQueryValue(params.kauf);
   const memberFirms = await loadMemberFirms(email);
   const writesOpen = notice.writesOpen;
   const downloadsOpen = notice.downloadsOpen;
@@ -352,7 +356,8 @@ export default async function AccountPage({
         </div>
 
         <div className="account-tiles">
-          {showAbo ? (
+          {planView ? <AccountPlanCard view={planView} purchase={purchaseNotice} /> : null}
+          {showAbo && !planView ? (
             <AccountAboCard
               stripeBound={stripeBound}
               notice={notice}

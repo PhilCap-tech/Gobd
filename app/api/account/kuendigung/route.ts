@@ -11,6 +11,7 @@ import {
 import { resolveStripeCustomerForEmail } from "@/lib/store";
 import { accountBillingPath } from "@/lib/stripe";
 import { isTestEntity } from "@/lib/test-entities";
+import { loadPlanAccess } from "@/lib/plan-access";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,15 @@ export async function POST(request: Request) {
   const preview = await loadCancellationPreview(resolved.customerId);
   if (preview.lookupFailed) return back("fehler");
   if (!preview.subscriptionId) return back("keins");
+  // Preismodell v2: Der Jahresplan hat einen Kündigungsstichtag und eine eigene Route.
+  try {
+    const plan = await loadPlanAccess(email);
+    if (plan && plan.row.memberSubscriptionId === preview.subscriptionId) {
+      return NextResponse.redirect(`${getAppUrl()}/account#frist`, 303);
+    }
+  } catch {
+    return back("fehler");
+  }
 
   const wantsPortal = new URL(request.url).pathname.endsWith("/portal");
   if (wantsPortal) {

@@ -47,7 +47,7 @@ export function planCheckoutKind(value: unknown): PlanCheckoutKind {
 function successUrl(kind: PlanCheckoutKind, entityId: string): string {
   const appUrl = getAppUrl();
   if (kind === "change") return `${appUrl}/account?kauf=aenderung`;
-  if (kind === "member") return `${appUrl}/account/billing?kauf=mitglied`;
+  if (kind === "member") return `${appUrl}/account?kauf=mitglied`;
   return entityId
     ? `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}&entity_id=${encodeURIComponent(entityId)}`
     : `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
@@ -56,7 +56,7 @@ function successUrl(kind: PlanCheckoutKind, entityId: string): string {
 function cancelUrl(kind: PlanCheckoutKind, audience: string): string {
   const appUrl = getAppUrl();
   if (kind === "change") return `${appUrl}/account`;
-  if (kind === "member") return `${appUrl}/account/billing`;
+  if (kind === "member") return `${appUrl}/account`;
   return audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/checkout`;
 }
 
