@@ -209,6 +209,14 @@ async function main(): Promise<void> {
     ok((await count(() => login(CUSTOMER))) === 0, "account: second login sends nothing");
     ok((await count(() => login(TEST_ADDRESS))) === 0, "account: test address sends nothing");
 
+    // Kein Ledger-Eintrag (Dateiname oder Inhalt) enthält eine Kundenadresse.
+    const { readdirSync } = await import("node:fs");
+    const ledgerDir = path.join(root, "mail");
+    const ledger = readdirSync(ledgerDir).map((f) => f + "\n" + readFileSync(path.join(ledgerDir, f), "utf8")).join("\n");
+    ok(ledger.includes(`owner-notice:account:${notice.ownerNoticeEmailHash(CUSTOMER)}`), "account key is the SHA-256 of the address");
+    ok(notice.ownerNoticeEmailHash("  Kunde@Firma.Example ") === notice.ownerNoticeEmailHash(CUSTOMER) && /^[0-9a-f]{64}$/.test(notice.ownerNoticeEmailHash(CUSTOMER)), "the hash is SHA-256 hex of the trimmed lowercased address");
+    ok(!ledger.toLowerCase().includes("@"), "no dedupe key or stored ledger entry contains an email address");
+
     ok(sent.every((m) => m.to === CHECKOUT_NOTICE_TO), "every notice goes to CHECKOUT_NOTICE_TO only");
     ok(!sent.some((m) => /sdc-ventures/i.test(m.text)), "no real customer address in the check");
 
@@ -223,6 +231,7 @@ async function main(): Promise<void> {
     ok(src("lib/kanzlei-confirm.ts").includes('kind: "kanzlei-optin"'), "kanzlei confirm queues its notice");
     ok(src("lib/kanzlei-unsubscribe.ts").includes('kind: "kanzlei-optout"'), "kanzlei unsubscribe queues its notice");
     ok(src("app/auth/verify/route.ts").includes('kind: "account"'), "verify queues the account notice");
+    ok(src("app/auth/verify/route.ts").includes("ownerNoticeEmailHash(email)"), "verify keys the account notice by the address hash");
     ok(!/await queueOwnerNotice/.test(webhook + src("app/api/intake/route.ts")), "callers do not await the notice");
   } finally {
     notice.setOwnerNoticeTestMode(false);

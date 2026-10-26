@@ -7,7 +7,7 @@ import {
   safeNextPath,
   verifyMagicToken,
 } from "@/lib/auth";
-import { queueOwnerNotice } from "@/lib/owner-notice";
+import { ownerNoticeEmailHash, queueOwnerNotice } from "@/lib/owner-notice";
 
 export const runtime = "nodejs";
 
@@ -20,10 +20,10 @@ export async function GET(request: Request) {
   if (email && mayIssueSessionCookie({ channel: "magic", targetEmail: email })) {
     const response = NextResponse.redirect(new URL(next ?? "/account", request.url));
     applySessionCookie(response, email);
-    // Ein Hinweis pro Mailadresse (Ledger ohne Ablauf), nicht pro Anmeldung.
+    // Ein Hinweis pro Mailadresse (Ledger ohne Ablauf, Schlüssel = SHA-256 der Adresse), nicht pro Anmeldung.
     queueOwnerNotice({
       kind: "account",
-      id: email.trim().toLowerCase(),
+      id: ownerNoticeEmailHash(email),
       title: "Neues Konto / erste Anmeldung",
       email,
     });

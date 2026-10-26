@@ -7,6 +7,7 @@
  * Prebuild und Checks senden nie, außer der Check hat den Versand gestubbt
  * und {@link setOwnerNoticeTestMode} gesetzt. Wirft nie in den Kundenfluss.
  */
+import { createHash } from "node:crypto";
 import { isAmpelTestEmail } from "@/lib/ampel-stats";
 import { CHECKOUT_NOTICE_TO } from "@/lib/checkout-notice";
 import { formatBerlinDateTime } from "@/lib/delivery-templates";
@@ -56,6 +57,14 @@ export function setOwnerNoticeTestMode(enabled: boolean): void {
 
 function oneLine(value: string | null | undefined): string {
   return (value ?? "").replace(/[\r\n\u0000]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * SHA-256 (hex) der getrimmten, kleingeschriebenen Adresse. Für Ledger-Schlüssel,
+ * damit weder Schlüssel noch gespeicherter Dedupe-Eintrag die Adresse enthalten.
+ */
+export function ownerNoticeEmailHash(email: string): string {
+  return createHash("sha256").update(email.trim().toLowerCase(), "utf8").digest("hex");
 }
 
 export function ownerNoticeMailKey(kind: OwnerNoticeKind, id: string): string {
