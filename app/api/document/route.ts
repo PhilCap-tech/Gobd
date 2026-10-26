@@ -34,6 +34,7 @@ import {
 } from "@/lib/types";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { normalizeVersionChange, toVersionPdfMeta } from "@/lib/versioning";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -277,7 +278,7 @@ async function handleDocumentEdit(request: Request) {
         entityId: identity.entityId,
       });
     } catch (error) {
-      console.error("[document] delivery mail fehlgeschlagen", error);
+      logError("[document] delivery mail fehlgeschlagen", error);
     }
   }
 
@@ -297,7 +298,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const outage = sheetsOutageResponse(error);
     if (outage) return outage;
-    console.error("[document] POST fehlgeschlagen", error);
+    logError("[document] POST fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }
 }

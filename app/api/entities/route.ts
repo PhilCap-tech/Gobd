@@ -9,6 +9,7 @@ import {
 } from "@/lib/entities";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { createEntity, updateEntity } from "@/lib/store";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
         count: error.count,
       });
     }
-    console.error("[entities] Anlegen fehlgeschlagen", error);
+    logError("[entities] Anlegen fehlgeschlagen", error);
     return jsonError(
       customerFacingSaveError(
         error,
@@ -130,7 +131,7 @@ export async function PATCH(request: Request) {
   } catch (error) {
     const outage = sheetsOutageResponse(error);
     if (outage) return outage;
-    console.error("[entities] Speichern fehlgeschlagen", error);
+    logError("[entities] Speichern fehlgeschlagen", error);
     return jsonError(
       customerFacingSaveError(
         error,

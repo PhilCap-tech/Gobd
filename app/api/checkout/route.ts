@@ -27,6 +27,7 @@ import {
   isPricingV2,
   memberPreselected,
 } from "@/lib/pricing-model";
+import { logError } from "@/lib/log-error";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
   if (!isStripeSecretConfigured()) return undefined;
@@ -38,7 +39,7 @@ async function reusableCustomerId(email: string): Promise<string | undefined> {
     if (!id) return undefined;
     return (await verifyStripeCustomerId(id)) === "valid" ? id : undefined;
   } catch (error) {
-    console.error("[checkout] bekannter Kunde nicht geladen", error);
+    logError("[checkout] bekannter Kunde nicht geladen", error);
     return undefined;
   }
 }
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(session);
   } catch (error) {
-    console.error("[checkout]", error);
+    logError("[checkout]", error);
     return NextResponse.json(
       { error: "Checkout konnte nicht gestartet werden." },
       { status: 500 },

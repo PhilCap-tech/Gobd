@@ -19,6 +19,7 @@ import {
 import { listDocumentsByEmail } from "@/lib/store";
 import { isTestEntity } from "@/lib/test-entities";
 import type { SheetRow } from "@/lib/types";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -98,7 +99,7 @@ export async function GET() {
                 wrotePdf = true;
               }
             } catch (error) {
-              console.error("[kuendigung] PDF fehlt im ZIP", row.documentId, error);
+              logError("[kuendigung] PDF fehlt im ZIP", error, { extra: { documentId: row.documentId } });
               lines.push(`${inhaltLine(row)}\tPDF nicht lesbar`);
             }
           }
@@ -126,7 +127,7 @@ export async function GET() {
               lines.push(`Upload\t${file.filename}\t\t${row.documentId}`);
             }
           } catch (error) {
-            console.error("[kuendigung] Upload nicht gelesen", row.documentId, error);
+            logError("[kuendigung] Upload nicht gelesen", error, { extra: { documentId: row.documentId } });
           }
         }
 
@@ -139,7 +140,7 @@ export async function GET() {
         controller.enqueue(new Uint8Array(zipCentralDirectory(metas, at)));
         controller.close();
       } catch (error) {
-        console.error("[kuendigung] ZIP-Strom fehlgeschlagen", error);
+        logError("[kuendigung] ZIP-Strom fehlgeschlagen", error);
         controller.error(error);
       }
     },

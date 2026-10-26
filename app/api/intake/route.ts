@@ -92,6 +92,7 @@ import {
   toVersionPdfMeta,
   versionHistoryEntries,
 } from "@/lib/versioning";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 /**
@@ -930,7 +931,7 @@ async function afterCommit(input: {
       entityId: identity.entityId,
     });
   } catch (error) {
-    console.error("[intake] delivery mail fehlgeschlagen", error);
+    logError("[intake] delivery mail fehlgeschlagen", error);
   }
   if (!input.sendLoginLink) return "skipped";
   if (input.ownerLoggedIn) return "loggedIn";
@@ -1193,7 +1194,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const outage = sheetsOutageResponse(error);
     if (outage) return outage;
-    console.error("[intake] POST fehlgeschlagen", error);
+    logError("[intake] POST fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }
 }

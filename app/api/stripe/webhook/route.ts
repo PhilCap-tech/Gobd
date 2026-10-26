@@ -42,6 +42,7 @@ import {
 } from "@/lib/plan-webhook";
 import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
   try {
     event = getStripe().webhooks.constructEvent(rawBody, signature, secret);
   } catch (error) {
-    console.error("[webhook] Signatur ungültig", error);
+    logError("[webhook] Signatur ungültig", error);
     return NextResponse.json({ error: "Ungültige Signatur" }, { status: 400 });
   }
 
@@ -446,7 +447,7 @@ export async function POST(request: Request) {
         break;
     }
   } catch (error) {
-    console.error("[webhook] Verarbeitung fehlgeschlagen", error);
+    logError("[webhook] Verarbeitung fehlgeschlagen", error);
     await handleFailedJob({
       job: `stripe-webhook:${event.type}`,
       reason: error instanceof Error ? error.message : "unknown",

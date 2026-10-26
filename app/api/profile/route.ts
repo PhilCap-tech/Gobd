@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import { normalizeProfileName, ProfileNameError } from "@/lib/profile";
 import { upsertAccountProfile } from "@/lib/store";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -47,7 +48,7 @@ export async function PATCH(request: Request) {
       },
     });
   } catch (error) {
-    console.error("[profile] Speichern fehlgeschlagen", error);
+    logError("[profile] Speichern fehlgeschlagen", error);
     return jsonError(
       error instanceof Error && error.message
         ? error.message

@@ -84,6 +84,7 @@ import {
   type SheetRow,
 } from "@/lib/types";
 import type { BlobIo } from "@/lib/blob";
+import { logError } from "@/lib/log-error";
 
 export type IntakeStoreOverrides = {
   appendSheet?: (row: SheetRow) => Promise<void>;
@@ -442,10 +443,7 @@ async function appendFileRow(row: SheetRow): Promise<string> {
   } catch (error) {
     const tmpFile = tmpFallbackPath();
     if (isFsUnavailable(error) && primaryFile !== tmpFile) {
-      console.warn(
-        "[store] Datei-Fallback nicht beschreibbar — weiche auf tmpdir aus",
-        error,
-      );
+      logError("[store] Datei-Fallback nicht beschreibbar — weiche auf tmpdir aus", error, { level: "warn" });
       const tmpDir = path.dirname(tmpFile);
       const rows = await readRows(tmpFile);
       rows.push(row);
@@ -842,10 +840,7 @@ export async function persistLinkedStripeCustomerId(
       }),
     );
   } catch (error) {
-    console.error(
-      "[store] stripe_customer_id aus Stripe-Lookup konnte nicht gespeichert werden",
-      error,
-    );
+    logError("[store] stripe_customer_id aus Stripe-Lookup konnte nicht gespeichert werden", error);
   }
 }
 
@@ -1139,10 +1134,7 @@ async function appendReadinessFileRow(lead: ReadinessLead): Promise<string> {
   } catch (error) {
     const tmpFile = tmpReadinessFallbackPath();
     if (isFsUnavailable(error) && primaryFile !== tmpFile) {
-      console.warn(
-        "[store] Readiness-Datei-Fallback nicht beschreibbar — weiche auf tmpdir aus",
-        error,
-      );
+      logError("[store] Readiness-Datei-Fallback nicht beschreibbar — weiche auf tmpdir aus", error, { level: "warn" });
       const tmpDir = path.dirname(tmpFile);
       const rows = await readReadinessFileRows(tmpFile);
       rows.push(lead);
@@ -1194,10 +1186,7 @@ export async function appendReadinessLead(
       return { backend: "sheets", lead: complete };
     } catch (error) {
       rethrowSheetsOnVercel(error, "readiness.append");
-      console.error(
-        "[store] Readiness Google Sheets append fehlgeschlagen — falle auf Datei zurück",
-        error,
-      );
+      logError("[store] Readiness Google Sheets append fehlgeschlagen — falle auf Datei zurück", error);
     }
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
@@ -1244,10 +1233,7 @@ export async function upsertReadinessLead(
       return { backend: "sheets", lead: complete };
     } catch (error) {
       rethrowSheetsOnVercel(error, "readiness.upsert");
-      console.error(
-        "[store] Readiness Google Sheets upsert fehlgeschlagen — falle auf Datei zurück",
-        error,
-      );
+      logError("[store] Readiness Google Sheets upsert fehlgeschlagen — falle auf Datei zurück", error);
     }
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
@@ -1269,10 +1255,7 @@ async function loadReadinessLeads(fresh = false): Promise<{
       return { backend: "sheets", rows: mergeReadinessLeads(sheetRows, fileRows) };
     } catch (error) {
       rethrowSheetsOnVercel(error, "readiness.read");
-      console.error(
-        "[store] Readiness Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
-        error,
-      );
+      logError("[store] Readiness Google Sheets lesen fehlgeschlagen — falle auf Datei zurück", error);
     }
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
@@ -1510,10 +1493,7 @@ async function appendEntityFileRow(entity: Entity): Promise<string> {
   } catch (error) {
     const tmpFile = tmpEntitiesFallbackPath();
     if (isFsUnavailable(error) && primaryFile !== tmpFile) {
-      console.warn(
-        "[store] Entities-Datei-Fallback nicht beschreibbar — weiche auf tmpdir aus",
-        error,
-      );
+      logError("[store] Entities-Datei-Fallback nicht beschreibbar — weiche auf tmpdir aus", error, { level: "warn" });
       const tmpDir = path.dirname(tmpFile);
       const rows = await readEntityFileRows(tmpFile);
       const next = upsertEntityRow(rows, entity);
@@ -1581,10 +1561,7 @@ async function loadEntities(): Promise<{
       return { backend: "sheets", rows: mergeEntities(sheetRows, fileRows) };
     } catch (error) {
       rethrowSheetsOnVercel(error, "entities.read");
-      console.error(
-        "[store] Entities Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
-        error,
-      );
+      logError("[store] Entities Google Sheets lesen fehlgeschlagen — falle auf Datei zurück", error);
     }
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
@@ -1630,10 +1607,7 @@ export async function createEntity(
       await appendEntitySheetRow(entity);
     } catch (error) {
       rethrowSheetsOnVercel(error, "entities.append");
-      console.error(
-        "[store] Entities Google Sheets append fehlgeschlagen — falle auf Datei zurück",
-        error,
-      );
+      logError("[store] Entities Google Sheets append fehlgeschlagen — falle auf Datei zurück", error);
       const filePath = await appendEntityFileRow(entity);
       await requireStoredEntity(email, entity.entityId);
       return { backend: "file", entity, filePath };
@@ -1691,7 +1665,7 @@ export async function updateEntity(
           try {
             await appendEntityFileRow(next);
           } catch (error) {
-            console.warn("[store] Entity-Datei nach Sheets-Update nicht geschrieben", error);
+            logError("[store] Entity-Datei nach Sheets-Update nicht geschrieben", error, { level: "warn" });
           }
         }
         return next;
@@ -1700,10 +1674,7 @@ export async function updateEntity(
       return next;
     } catch (error) {
       rethrowSheetsOnVercel(error, "entities.update");
-      console.error(
-        "[store] Entity-Update in Sheets fehlgeschlagen — falle auf Datei zurück",
-        error,
-      );
+      logError("[store] Entity-Update in Sheets fehlgeschlagen — falle auf Datei zurück", error);
     }
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
@@ -1789,7 +1760,7 @@ export async function setDocumentsEntityId(
     try {
       await updateSheetDocumentEntityIds(ids, bound);
     } catch (error) {
-      console.error("[store] entity_id-Backfill in Sheets fehlgeschlagen", error);
+      logError("[store] entity_id-Backfill in Sheets fehlgeschlagen", error);
     }
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
@@ -1803,7 +1774,7 @@ export async function setDocumentsEntityId(
     await updateFileDocumentEntityIds(primaryFile, primaryDir, ids, bound);
   } catch (error) {
     if (!isFsUnavailable(error)) {
-      console.error("[store] entity_id-Backfill in Datei fehlgeschlagen", error);
+      logError("[store] entity_id-Backfill in Datei fehlgeschlagen", error);
     }
   }
   const tmpFile = tmpFallbackPath();
@@ -1866,7 +1837,7 @@ export async function ensureAccountEntities(
       entities = [created.entity];
       createdDefault = true;
     } catch (error) {
-      console.error("[store] Standard-Firma konnte nicht angelegt werden", error);
+      logError("[store] Standard-Firma konnte nicht angelegt werden", error);
     }
   }
 
@@ -2044,10 +2015,7 @@ async function writeProfileFile(profile: AccountProfile): Promise<string> {
   } catch (error) {
     const tmpFile = tmpProfilesFallbackPath();
     if (isFsUnavailable(error) && primaryFile !== tmpFile) {
-      console.warn(
-        "[store] Profil-Datei nicht beschreibbar — weiche auf tmpdir aus",
-        error,
-      );
+      logError("[store] Profil-Datei nicht beschreibbar — weiche auf tmpdir aus", error, { level: "warn" });
       const tmpDir = path.dirname(tmpFile);
       const rows = await readProfileFileRows(tmpFile);
       await writeProfileFileRows(tmpDir, tmpFile, upsertProfileRow(rows, profile));
@@ -2102,10 +2070,7 @@ async function loadProfiles(): Promise<{
       return { backend: "sheets", rows: mergeProfiles(sheetRows, fileRows) };
     } catch (error) {
       rethrowSheetsOnVercel(error, "profiles.read");
-      console.error(
-        "[store] Profil Google Sheets lesen fehlgeschlagen — falle auf Datei zurück",
-        error,
-      );
+      logError("[store] Profil Google Sheets lesen fehlgeschlagen — falle auf Datei zurück", error);
     }
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);
@@ -2145,16 +2110,13 @@ export async function upsertAccountProfile(
         try {
           await writeProfileFile(profile);
         } catch (error) {
-          console.warn("[store] Profil-Datei nach Sheets-Update nicht geschrieben", error);
+          logError("[store] Profil-Datei nach Sheets-Update nicht geschrieben", error, { level: "warn" });
         }
       }
       return { backend: "sheets", profile };
     } catch (error) {
       rethrowSheetsOnVercel(error, "profiles.update");
-      console.error(
-        "[store] Profil-Update in Sheets fehlgeschlagen — falle auf Datei zurück",
-        error,
-      );
+      logError("[store] Profil-Update in Sheets fehlgeschlagen — falle auf Datei zurück", error);
     }
   } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
     throw new SheetsUnavailableError(0);

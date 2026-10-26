@@ -14,6 +14,7 @@ import {
   stripeCustomerIdFrom,
 } from "@/lib/stripe";
 import type Stripe from "stripe";
+import { logError } from "@/lib/log-error";
 
 const OPEN_STATUS = new Set(["active", "trialing", "past_due", "unpaid"]);
 
@@ -69,7 +70,7 @@ export async function loadCancellationPreview(customerId: string): Promise<Cance
       entityId: pending.metadata?.entity_id?.trim() ?? "",
     };
   } catch (error) {
-    console.error("[kuendigung] Abo lesen fehlgeschlagen", error);
+    logError("[kuendigung] Abo lesen fehlgeschlagen", error);
     return { ...empty, lookupFailed: true };
   }
 }
@@ -189,7 +190,7 @@ export async function recordCheckoutSubscription(input: {
     const subscription = await getStripe().subscriptions.retrieve(input.subscriptionId);
     periodEnd = periodEndIso(subscription);
   } catch (error) {
-    console.error("[kuendigung] Periodenende nicht gelesen", error);
+    logError("[kuendigung] Periodenende nicht gelesen", error);
   }
   await applyLifecycleEvent(
     {
@@ -230,6 +231,6 @@ export async function reopenIfActiveCheckout(email: string, sessionId: string): 
       entityId: session.metadata?.entity_id || subscription.metadata?.entity_id,
     });
   } catch (error) {
-    console.error("[kuendigung] Wiederherstellung aus Checkout fehlgeschlagen", error);
+    logError("[kuendigung] Wiederherstellung aus Checkout fehlgeschlagen", error);
   }
 }

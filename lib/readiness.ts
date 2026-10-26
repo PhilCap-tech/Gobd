@@ -11,6 +11,7 @@ import {
   type ReadinessBrancheId,
 } from "@/lib/readiness-options";
 import { emailsEqual } from "@/lib/types";
+import { logError } from "@/lib/log-error";
 
 export {
   isReadinessBelegweg,
@@ -242,7 +243,7 @@ export async function loadReadinessModuleMarkdown(
     return { id, body: stripFrontmatter(raw).trim() };
   } catch (error) {
     if (id !== "allgemein") {
-      console.warn("[readiness] Modul fehlt — falle auf allgemein zurück", file, error);
+      logError("[readiness] Modul fehlt — falle auf allgemein zurück", error, { level: "warn", extra: { file: file } });
       return loadReadinessModuleMarkdown("allgemein");
     }
     throw error;

@@ -4,6 +4,7 @@ import {
   handleFailedPayment,
   triggerOnboardingMail,
 } from "@/lib/ops";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
         );
     }
   } catch (error) {
-    console.error("[ops] POST fehlgeschlagen", error);
+    logError("[ops] POST fehlgeschlagen", error);
     return NextResponse.json(
       {
         error: "Ops-Stub fehlgeschlagen.",

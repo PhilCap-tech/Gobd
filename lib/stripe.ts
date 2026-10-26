@@ -16,6 +16,7 @@ import {
   missingPlanPriceIds,
   type PlanCheckoutKind,
 } from "@/lib/plan-checkout";
+import { logError } from "@/lib/log-error";
 
 const CUSTOMER_LIST_TTL_MS = 60_000;
 const CUSTOMER_LIST_EMPTY_TTL_MS = 5_000;
@@ -575,10 +576,10 @@ export async function resolveCheckoutSession(
   } catch (error) {
     const kind = checkoutLookupError(error);
     if (kind === "invalid") {
-      console.warn("[stripe] Checkout-Session ungültig", error);
+      logError("[stripe] Checkout-Session ungültig", error, { level: "warn" });
       return { error: "invalid" };
     }
-    console.error("[stripe] Session-Lookup fehlgeschlagen", error);
+    logError("[stripe] Session-Lookup fehlgeschlagen", error);
     return { error: "lookup_failed" };
   }
 }
@@ -630,7 +631,7 @@ export async function lookupStripeCustomerIdByEmail(
       });
       return lookup;
     } catch (error) {
-      console.error("[stripe] customers.list fehlgeschlagen", error);
+      logError("[stripe] customers.list fehlgeschlagen", error);
       return { id: null, lookupFailed: true };
     } finally {
       customerListInflight.delete(key);
@@ -695,7 +696,7 @@ export async function verifyStripeCustomerId(
       customerVerifyCache.set(id, { result: "invalid", at: Date.now() });
       return "invalid";
     }
-    console.error("[stripe] Customer-Verify fehlgeschlagen", error);
+    logError("[stripe] Customer-Verify fehlgeschlagen", error);
     return "error";
   }
 }
@@ -707,7 +708,7 @@ export async function retrieveCustomerEmail(customerId: string): Promise<string>
     if ("deleted" in customer && customer.deleted) return "";
     return customer.email || "";
   } catch (error) {
-    console.error("[stripe] Customer-Lookup fehlgeschlagen", error);
+    logError("[stripe] Customer-Lookup fehlgeschlagen", error);
     return "";
   }
 }
@@ -980,13 +981,10 @@ export async function loadCustomerBilling(
       };
     } catch (error) {
       if (isStripeCustomerMissingError(error)) {
-        console.error(
-          "[stripe] Billing-Lookup: Customer fehlt oder andere Mode",
-          error,
-        );
+        logError("[stripe] Billing-Lookup: Customer fehlt oder andere Mode", error);
         return emptyCustomerBilling({ customerMissing: true });
       }
-      console.error("[stripe] Billing-Lookup fehlgeschlagen", error);
+      logError("[stripe] Billing-Lookup fehlgeschlagen", error);
       return emptyCustomerBilling({ lookupFailed: true });
     }
   };

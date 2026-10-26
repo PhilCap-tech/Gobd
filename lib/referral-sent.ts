@@ -8,6 +8,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { logError } from "@/lib/log-error";
 
 const FILE_NAME = "referral-sent.json";
 
@@ -78,7 +79,7 @@ async function hydrate(): Promise<void> {
             ? (error as { code?: string }).code
             : undefined;
         if (code !== "ENOENT") {
-          console.error("[ops] referral ledger lesen fehlgeschlagen", error);
+          logError("[ops] referral ledger lesen fehlgeschlagen", error);
         }
       }
     })();
@@ -110,7 +111,7 @@ export async function completeReferralDelivery(key: string): Promise<void> {
   try {
     await persist();
   } catch (error) {
-    console.error("[ops] referral ledger schreiben fehlgeschlagen", error);
+    logError("[ops] referral ledger schreiben fehlgeschlagen", error);
   }
 }
 

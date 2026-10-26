@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { magicLinkDevFallbackAllowed } from "@/lib/env";
+import { logError } from "@/lib/log-error";
 
 export {
   wrapTransactionalHtml,
@@ -85,15 +85,8 @@ export async function sendEmail(input: {
   const from = input.from?.trim() || process.env.EMAIL_FROM?.trim() || "";
   const apiKey = process.env.RESEND_API_KEY?.trim() || "";
   if (!apiKey || !from) {
-    const text =
-      input.text.includes("/auth/verify?") && !magicLinkDevFallbackAllowed()
-        ? "[redacted]"
-        : input.text;
-    console.info("[mail] stub — RESEND_API_KEY oder EMAIL_FROM fehlt", {
-      to: input.to,
-      subject: input.subject,
-      text,
-    });
+    // Kein Empfänger, Betreff oder Inhalt im Log (Datenschutz); nur der Stub-Hinweis.
+    console.info("[mail] stub — RESEND_API_KEY oder EMAIL_FROM fehlt", { stub: true });
     return { stub: true, sent: false };
   }
 
@@ -118,12 +111,12 @@ export async function sendEmail(input: {
     try {
       const result = await resend.emails.send(payload, options);
       if (!result.error) return { stub: false, sent: true, id: result.data?.id };
-      console.error("[mail] Resend Fehler", result.error);
+      logError("[mail] Resend Fehler", result.error);
       if (!isTransientResendError(result.error) || attempt === attempts - 1) {
         return { stub: false, sent: false };
       }
     } catch (error) {
-      console.error("[mail] Versand fehlgeschlagen", error);
+      logError("[mail] Versand fehlgeschlagen", error);
       if (attempt === attempts - 1) return { stub: false, sent: false };
     }
   }

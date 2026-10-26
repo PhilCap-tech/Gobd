@@ -18,6 +18,7 @@ import {
 } from "@/lib/kuendigung";
 import { getFileFallbackDir } from "@/lib/store";
 import { emailsEqual } from "@/lib/types";
+import { logError } from "@/lib/log-error";
 
 const FILE_NAME = "subscription-lifecycle.json";
 
@@ -363,11 +364,11 @@ export async function saveLifecycleRow(row: LifecycleRow): Promise<void> {
       try {
         await writeFileRow(stored);
       } catch (error) {
-        console.warn("[kuendigung] Datei nach Sheet nicht geschrieben", error);
+        logError("[kuendigung] Datei nach Sheet nicht geschrieben", error, { level: "warn" });
       }
       return;
     } catch (error) {
-      console.error("[kuendigung] Sheet schreiben fehlgeschlagen — Datei", error);
+      logError("[kuendigung] Sheet schreiben fehlgeschlagen — Datei", error);
     }
   }
   await writeFileRow(stored);

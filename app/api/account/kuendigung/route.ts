@@ -12,6 +12,7 @@ import { resolveStripeCustomerForEmail } from "@/lib/store";
 import { accountBillingPath } from "@/lib/stripe";
 import { isTestEntity } from "@/lib/test-entities";
 import { loadPlanAccess } from "@/lib/plan-access";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
       });
       return NextResponse.redirect(url, 303);
     } catch (error) {
-      console.error("[kuendigung] Portal-Session fehlgeschlagen", error);
+      logError("[kuendigung] Portal-Session fehlgeschlagen", error);
       return back("portal");
     }
   }
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
       },
     );
   } catch (error) {
-    console.error("[kuendigung] Kündigung fehlgeschlagen", error);
+    logError("[kuendigung] Kündigung fehlgeschlagen", error);
     return back("fehler");
   }
   return back("vorgemerkt");

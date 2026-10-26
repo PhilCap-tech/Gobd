@@ -9,6 +9,7 @@ import {
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { listEntitiesByEmail } from "@/lib/store";
 import { FirmaForm } from "../firma-form";
+import { logError } from "@/lib/log-error";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function NewFirmaPage() {
     try {
       formDefaults = firstCompanyFormDefaults(0, await readCheckoutAccountFacts(email));
     } catch (error) {
-      console.error("[account] Checkout-Daten für die erste Firma fehlen", error);
+      logError("[account] Checkout-Daten für die erste Firma fehlen", error);
     }
   }
 

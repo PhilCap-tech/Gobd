@@ -11,6 +11,7 @@ import {
   createBillingPortalSession,
   type PortalStatus,
 } from "@/lib/stripe";
+import { logError } from "@/lib/log-error";
 
 export function accountPortalPath(status?: PortalStatus): string {
   return accountBillingPath(status);
@@ -54,20 +55,14 @@ export async function resolvePortalRedirect(
   } catch (error) {
     const kind = classifyBillingPortalError(error);
     if (kind === "missing_customer") {
-      console.error(
-        "[portal] Billing-Portal: Customer fehlt oder andere Stripe-Mode",
-        error,
-      );
+      logError("[portal] Billing-Portal: Customer fehlt oder andere Stripe-Mode", error);
       return { location: accountPortalPath("missing") };
     }
     if (kind === "portal_config") {
-      console.error(
-        "[portal] Billing-Portal: Konfiguration fehlt (Dashboard)",
-        error,
-      );
+      logError("[portal] Billing-Portal: Konfiguration fehlt (Dashboard)", error);
       return { location: accountPortalPath("config") };
     }
-    console.error("[portal] Billing-Portal-Session fehlgeschlagen", error);
+    logError("[portal] Billing-Portal-Session fehlgeschlagen", error);
     return { location: accountPortalPath("error") };
   }
 }
@@ -105,7 +100,7 @@ export async function redirectToKuendigungOrPortal(
       toCancellation = Boolean(preview.subscriptionId);
     }
   } catch (error) {
-    console.error("[portal] Kündigungsziel nicht geprüft", error);
+    logError("[portal] Kündigungsziel nicht geprüft", error);
   }
   if (toCancellation) {
     redirect("/account/kuendigung");

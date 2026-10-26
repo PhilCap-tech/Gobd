@@ -22,6 +22,7 @@ import {
 } from "@/lib/store";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import type { CheckoutIdentity } from "@/lib/types";
+import { logError } from "@/lib/log-error";
 
 export { CHECKOUT_PREFILL_NOTE, FIRMA_ADD_LABEL, FIRMA_EDIT_LABEL };
 
@@ -209,7 +210,7 @@ export async function prepareAccountCheckout(email: string): Promise<PreparedAcc
   try {
     facts = await readCheckoutAccountFacts(email);
   } catch (error) {
-    console.error("[account] Checkout-Vorausfüllung fehlgeschlagen", error);
+    logError("[account] Checkout-Vorausfüllung fehlgeschlagen", error);
     return { ...loaded, entities, profile };
   }
   if (!facts) return { ...loaded, entities, profile };
@@ -220,7 +221,7 @@ export async function prepareAccountCheckout(email: string): Promise<PreparedAcc
       try {
         profile = (await upsertAccountProfile(email, name)).profile;
       } catch (error) {
-        console.error("[account] Profilname aus Checkout nicht gespeichert", error);
+        logError("[account] Profilname aus Checkout nicht gespeichert", error);
       }
     }
   }
@@ -238,7 +239,7 @@ export async function prepareAccountCheckout(email: string): Promise<PreparedAcc
           );
         }
       } catch (error) {
-        console.error("[account] Firma aus Checkout nicht vorausgefüllt", error);
+        logError("[account] Firma aus Checkout nicht vorausgefüllt", error);
       }
     }
   }
