@@ -253,10 +253,10 @@ async function main(): Promise<void> {
     ok(src("app/api/module-upload/route.ts").includes("sheetsOutageResponse(error)"), "upload route answers an outage with 503");
     const form = src("app/intake/intake-form.tsx");
     ok(
-      form.includes('fetchRetrying503("/api/intake"') && form.includes("response.status === 503 ? SHEETS_RETRY_MESSAGE"),
+      /fetchRetrying503\(\s*"\/api\/intake"/.test(form) && form.includes("response.status === 503 ? SHEETS_RETRY_MESSAGE"),
       "the intake form retries a 503 and shows the retry copy",
     );
-    ok(form.includes('fetchRetrying503("/api/intake/draft"'), "the draft autosave retries a 503 and keeps the local copy");
+    ok(/fetchRetrying503\(\s*"\/api\/intake\/draft"/.test(form), "the draft autosave retries a 503 and keeps the local copy");
     ok(src("app/account/dokument/[id]/document-editor.tsx").includes("setError(data.error"), "the document editor shows the server copy");
     ok(src("components/betriebs-check.tsx").includes("data.error ||"), "the upload shows the server copy");
 

@@ -38,8 +38,15 @@ let chain: Promise<unknown> = Promise.resolve();
 const MEMBERSHIP_READ_TTL_MS = 10_000;
 const membershipRowsCache = createTtlSingleflight<Membership[]>(MEMBERSHIP_READ_TTL_MS);
 
+/**
+ * Header row per instance (tab check + A1:AZ1). Rows stay a fresh read where
+ * callers ask for it (findActiveMembership). Writes keep the header.
+ */
+let preparedHeader: { key: string; header: Promise<string[]> } | null = null;
+
 export function clearMembershipReadCache(): void {
   membershipRowsCache.clear();
+  preparedHeader = null;
 }
 
 /** Isoliertes Verzeichnis für die Prüfung. Kein Sheet, kein Produktionspfad. */
@@ -144,7 +151,21 @@ async function writeFileStore(rows: Membership[]): Promise<void> {
   }
 }
 
-async function ensureHeader(): Promise<string[]> {
+function ensureHeader(): Promise<string[]> {
+  const key = `${spreadsheetId()}:${getMembershipsSheetsTab()}`;
+  if (preparedHeader?.key === key) return preparedHeader.header;
+  const pending = openMembershipHeader().then(
+    (header) => header,
+    (error: unknown) => {
+      if (preparedHeader?.header === pending) preparedHeader = null;
+      throw error;
+    },
+  );
+  preparedHeader = { key, header: pending };
+  return pending;
+}
+
+async function openMembershipHeader(): Promise<string[]> {
   const tab = getMembershipsSheetsTab();
   const sheets = createSheetsClient();
   const id = spreadsheetId();
@@ -224,7 +245,7 @@ async function appendSheetRow(row: Membership): Promise<void> {
       requestBody: { values: [membershipSheetValues(row, header)] },
     }),
   );
-  clearMembershipReadCache();
+  membershipRowsCache.clear();
 }
 
 async function updateSheetRow(row: Membership): Promise<boolean> {
@@ -255,7 +276,7 @@ async function updateSheetRow(row: Membership): Promise<boolean> {
       requestBody: { valueInputOption: "RAW", data: updates },
     }),
   );
-  clearMembershipReadCache();
+  membershipRowsCache.clear();
   return true;
 }
 

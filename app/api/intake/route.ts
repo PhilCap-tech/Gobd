@@ -16,7 +16,17 @@ import {
 } from "@/lib/subscription-coverage";
 import { isCompAccessEmail } from "@/lib/comp-access";
 import { hasDs24Access } from "@/lib/digistore24-access";
-import { queueOwnerNotice } from "@/lib/owner-notice";
+import { queueOwnerNotice, type OwnerNoticeInput } from "@/lib/owner-notice";
+import { closeDraftForm, normalizeFormId } from "@/lib/draft-closed";
+import {
+  claimIntakeSubmit,
+  markSubmitUnsure,
+  normalizeSubmitId,
+  readSubmitPlan,
+  releaseIntakeSubmit,
+  submitDocumentId,
+  type SubmitPlan,
+} from "@/lib/intake-submit-claim";
 import {
   applyCheckoutOwnerSession,
   isStoredPaidEntitlementStatus,
@@ -63,6 +73,7 @@ import {
   prepareDurableIntakeRow,
 } from "@/lib/store";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
+import { SHEETS_RETRY_AFTER_SECONDS, SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { runWithSheetsRoute } from "@/lib/sheets-outage";
 import { intakeCheckoutStatus, resolveCheckoutSession } from "@/lib/stripe";
 import {
@@ -125,6 +136,11 @@ type IntakeBody = {
   validTo?: unknown;
   changeSummary?: unknown;
   changedBy?: unknown;
+  /** One id per submit, reused by every retry (UUID). */
+  submitId?: string;
+  /** Id of the open form page; closes its autosave after the commit. */
+  formId?: string;
+  draftKey?: string;
 };
 
 type ResolvedIntake = {
@@ -175,6 +191,13 @@ export type IntakeIo = {
   storePdf: typeof storePdf;
   sendDeliveryMail: typeof sendDeliveryMail;
   deliverLoginLink: typeof deliverLoginLink;
+  /** Optional for existing test doubles. Production wires lib/owner-notice. */
+  queueOwnerNotice?: (input: OwnerNoticeInput) => void;
+  claimSubmit?: typeof claimIntakeSubmit;
+  readSubmitPlan?: typeof readSubmitPlan;
+  releaseSubmit?: typeof releaseIntakeSubmit;
+  markSubmitUnsure?: typeof markSubmitUnsure;
+  closeDraftForm?: typeof closeDraftForm;
 };
 
 const defaultIntakeIo: IntakeIo = {
@@ -194,6 +217,12 @@ const defaultIntakeIo: IntakeIo = {
   storePdf,
   sendDeliveryMail,
   deliverLoginLink,
+  queueOwnerNotice,
+  claimSubmit: claimIntakeSubmit,
+  readSubmitPlan,
+  releaseSubmit: releaseIntakeSubmit,
+  markSubmitUnsure,
+  closeDraftForm,
 };
 
 function deliveryLookup(io: IntakeIo): DeliveryLookup {
@@ -480,6 +509,21 @@ async function writeIntake(
   const sessionEmail = await sessionEmailFromRequest(request);
   const grant = checkoutGrantFromRequest(request);
   const sessionId = body.sessionId?.trim() || grant?.sessionId || "";
+  const ctx = { checkedDocumentIds: new Set<string>() };
+  const submitId = normalizeSubmitId(body.submitId);
+  if (submitId) {
+    // Retry of a submit that was already stored (its answer got lost). Checked
+    // before the checkout gate: after the first delivery the gate would ask
+    // for a login the buyer does not have yet.
+    for (const email of submitCandidates(sessionEmail, grant)) {
+      const id = submitDocumentId(email, submitId);
+      ctx.checkedDocumentIds.add(id);
+      const earlier = await committedSubmit(id, io);
+      if (earlier && emailsEqual(earlier.row.email, email)) {
+        return replayCommitted(earlier, email, { io, sessionEmail, grant, body });
+      }
+    }
+  }
   const resolved = await resolveIdentity(body, { sessionEmail, grant, sessionId }, io);
   if ("response" in resolved) {
     return resolved.response;
@@ -550,194 +594,464 @@ async function writeIntake(
   const versionHistory = resolved.family
     ? versionHistoryEntries(resolved.family, { version, validFrom: change.validFrom })
     : [];
-  const documentId = randomUUID();
-  if (!parentDocumentId) {
-    parentDocumentId = documentId;
-  }
-
-  let rowForStore;
-  try {
-    rowForStore = await io.prepareDurableIntakeRow(
-      toSheetRow({
-        identity,
-        answers,
-        status,
-        deliveryStatus: "",
-        documentId,
-        parentDocumentId,
-        version: String(version),
-        entityId,
-        validFrom: change.validFrom,
-        validTo: change.validTo,
-        changeSummary: change.changeSummary,
-        changedBy: change.changedBy,
-      }),
-    );
-  } catch (error) {
-    const outage = sheetsOutageResponse(error);
-    if (outage) return outage;
-    console.error(
-      "[intake] dauerhafte Speicherung fehlgeschlagen",
-      error instanceof Error ? error.name : "error",
-    );
-    const persistence = intakePersistenceFailure(error);
-    if (persistence) return jsonError(persistence.error, persistence.status);
-    return jsonError(DURABLE_STORE_MESSAGE, 503);
-  }
-
-  let delivery: DeliveryPlan;
-  let pdfUrl = "";
-
-  if (skipTestDelivery) {
-    console.info("[intake] Testfirma: PDF und Liefermail übersprungen");
-    delivery = {
-      status: "ready",
-      chapters: [],
-      openItems: [],
-      pdf: null,
-    };
-  } else {
-    try {
-      const generated = await io.generatePdf({
-        answers,
-        identity,
-        documentId,
-        version,
-        versionMeta,
-        versionHistory,
-      });
-      const storedPdf = await io.storePdf({
-        familyId: parentDocumentId,
-        documentId,
-        version,
-        buffer: generated.buffer,
-      });
-      pdfUrl = storedPdf.url || storedPdf.pathname;
-      delivery = {
-        ...generated.plan,
-        status: "ready",
-        pdf: {
-          version,
-          documentId,
-          url: storedPdf.url,
-          pathname: storedPdf.pathname,
-          backend: storedPdf.backend,
-        },
+  const ownerNotice: SubmitPlan["notice"] = skipTestDelivery
+    ? null
+    : {
+        mode: identity.stub || identity.stripeSessionId.startsWith("cs_test_") ? "test" : "live",
+        access: resolved.ds24Access
+          ? "Digistore24"
+          : resolved.compAccess
+            ? "kostenfrei (Comp)"
+            : identity.stripeSessionId
+              ? "Stripe"
+              : "Abo",
       };
-    } catch (error) {
-      console.error("[intake] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
-      if (error instanceof BlobStorageError) {
-        return jsonError("PDF konnte nicht gespeichert werden.", 503);
+  const plan: SubmitPlan = {
+    // Comp-Allowlist: keine Liefer-Mail. DS24-Käufer bekommen sie wie Stripe-Käufer.
+    deliveryMail: (!resolved.compAccess || resolved.ds24Access === true) && !skipTestDelivery,
+    notice: ownerNotice,
+    firstDelivery: resolved.firstDelivery,
+    stub: identity.stub,
+  };
+
+  const documentId = submitId ? submitDocumentId(resolved.ownerEmail, submitId) : randomUUID();
+  const replayContext = { io, sessionEmail, grant, body };
+  let claimed = false;
+  if (submitId) {
+    if (!ctx.checkedDocumentIds.has(documentId)) {
+      const earlier = await committedSubmit(documentId, io);
+      if (earlier) return replayOrDeny(earlier, resolved.ownerEmail, replayContext);
+    }
+    const claim = await claimSubmitSafely(documentId, plan, io);
+    if (claim === "busy") {
+      // A parallel request with this submit is writing. Answer its row if it is there.
+      const row = await io.findDocumentById(documentId);
+      if (row) {
+        return replayOrDeny(
+          { row, plan: (await readPlanSafely(documentId, io)) ?? plan },
+          resolved.ownerEmail,
+          replayContext,
+        );
       }
-      return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
+      return retryLaterResponse();
+    }
+    claimed = claim === "claimed";
+  }
+  let committed = false;
+  /** Append threw but the row may exist: the id stays reserved. */
+  let keepClaim = false;
+  try {
+    if (!parentDocumentId) {
+      parentDocumentId = documentId;
+    }
+
+    let rowForStore;
+    try {
+      rowForStore = await io.prepareDurableIntakeRow(
+        toSheetRow({
+          identity,
+          answers,
+          status,
+          deliveryStatus: "",
+          documentId,
+          parentDocumentId,
+          version: String(version),
+          entityId,
+          validFrom: change.validFrom,
+          validTo: change.validTo,
+          changeSummary: change.changeSummary,
+          changedBy: change.changedBy,
+        }),
+      );
+    } catch (error) {
+      const outage = sheetsOutageResponse(error);
+      if (outage) return outage;
+      console.error(
+        "[intake] dauerhafte Speicherung fehlgeschlagen",
+        error instanceof Error ? error.name : "error",
+      );
+      const persistence = intakePersistenceFailure(error);
+      if (persistence) return jsonError(persistence.error, persistence.status);
+      return jsonError(DURABLE_STORE_MESSAGE, 503);
+    }
+
+    let delivery: DeliveryPlan;
+    let pdfUrl = "";
+
+    if (skipTestDelivery) {
+      console.info("[intake] Testfirma: PDF und Liefermail übersprungen");
+      delivery = {
+        status: "ready",
+        chapters: [],
+        openItems: [],
+        pdf: null,
+      };
+    } else {
+      try {
+        const generated = await io.generatePdf({
+          answers,
+          identity,
+          documentId,
+          version,
+          versionMeta,
+          versionHistory,
+        });
+        const storedPdf = await io.storePdf({
+          familyId: parentDocumentId,
+          documentId,
+          version,
+          buffer: generated.buffer,
+        });
+        pdfUrl = storedPdf.url || storedPdf.pathname;
+        delivery = {
+          ...generated.plan,
+          status: "ready",
+          pdf: {
+            version,
+            documentId,
+            url: storedPdf.url,
+            pathname: storedPdf.pathname,
+            backend: storedPdf.backend,
+          },
+        };
+      } catch (error) {
+        console.error("[intake] PDF-Erzeugung fehlgeschlagen", blobFailureClass(error));
+        if (error instanceof BlobStorageError) {
+          return jsonError("PDF konnte nicht gespeichert werden.", 503);
+        }
+        return jsonError("PDF konnte nicht erzeugt werden.", 500, errorDetail(error));
+      }
+    }
+
+    let storeBackend: string;
+    try {
+      const stored = await io.appendRecord({
+        ...rowForStore,
+        pdfUrl,
+        deliveryStatus: skipTestDelivery ? "" : delivery.status,
+      });
+      storeBackend = stored.backend;
+      committed = true;
+    } catch (error) {
+      // A timeout or retried append may still have stored the row.
+      const landed = submitId ? await rowAfterFailedAppend(documentId, io) : null;
+      if (landed === "unknown") {
+        keepClaim = true;
+        await (io.markSubmitUnsure ?? markSubmitUnsure)(documentId, plan).catch((markError: unknown) => {
+          logAfterCommit("Sperre markieren", markError);
+        });
+      }
+      if (landed && landed !== "unknown") {
+        committed = true;
+        storeBackend = "sheets";
+      } else {
+        const outage = sheetsOutageResponse(error);
+        if (outage) return outage;
+        console.error(
+          "[intake] appendRecord fehlgeschlagen",
+          error instanceof Error ? error.name : "error",
+        );
+        const persistence = intakePersistenceFailure(error);
+        if (persistence) return jsonError(persistence.error, persistence.status);
+        return jsonError(DURABLE_STORE_MESSAGE, 503);
+      }
+    }
+
+    // Stored. Nothing below may turn this into an error: the client would retry.
+    const loginMail = await afterCommit({
+      io,
+      plan,
+      identity,
+      documentId,
+      version,
+      sendLoginLink: true,
+      formId: body.formId,
+      draftKey: body.draftKey,
+    });
+    return await finishSubmitResponse({
+      payload: {
+        ok: true,
+        store: storeBackend,
+        delivery,
+        documentId,
+        pdfUrl: deliveryUrls(identity.stripeSessionId, documentId).downloadUrl,
+        version,
+        loginMail,
+      },
+      plan,
+      grant,
+      sessionEmail,
+      ownerEmail: identity.email,
+      stripeSessionId: identity.stripeSessionId,
+    });
+  } finally {
+    if (claimed && !committed && !keepClaim) {
+      await (io.releaseSubmit ?? releaseIntakeSubmit)(documentId).catch((error: unknown) => {
+        console.error("[intake] Sperre nicht freigegeben", error instanceof Error ? error.name : "error");
+      });
     }
   }
+}
 
-  let stored;
-  try {
-    stored = await io.appendRecord({
-      ...rowForStore,
-      pdfUrl,
-      deliveryStatus: skipTestDelivery ? "" : delivery.status,
-    });
-  } catch (error) {
-    const outage = sheetsOutageResponse(error);
-    if (outage) return outage;
-    console.error(
-      "[intake] appendRecord fehlgeschlagen",
-      error instanceof Error ? error.name : "error",
-    );
-    const persistence = intakePersistenceFailure(error);
-    if (persistence) return jsonError(persistence.error, persistence.status);
-    return jsonError(DURABLE_STORE_MESSAGE, 503);
+function deliveryUrls(stripeSessionId: string, documentId: string) {
+  const appUrl = getAppUrl();
+  return {
+    downloadUrl: stripeSessionId
+      ? `${appUrl}/api/docs/${documentId}/download?session_id=${encodeURIComponent(stripeSessionId)}`
+      : `${appUrl}/api/docs/${documentId}/download`,
+    successUrl: stripeSessionId
+      ? `${appUrl}/success?session_id=${encodeURIComponent(stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`
+      : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`,
+  };
+}
+
+function retryLaterResponse(): NextResponse {
+  return NextResponse.json(
+    { error: SHEETS_RETRY_MESSAGE },
+    {
+      status: 503,
+      headers: {
+        "Cache-Control": "private, no-store",
+        "Retry-After": SHEETS_RETRY_AFTER_SECONDS,
+      },
+    },
+  );
+}
+
+function logAfterCommit(step: string, error: unknown): void {
+  console.error(`[intake] ${step} fehlgeschlagen`, error instanceof Error ? error.name : "error");
+}
+
+/**
+ * Owner notice, delivery mail and login link after the row is stored. The
+ * notice and the delivery mail use the mail ledger keys (doc:<id>:<version>,
+ * delivery:<id>:<version>), so a replay of the same document sends neither twice.
+ */
+async function afterCommit(input: {
+  io: IntakeIo;
+  plan: SubmitPlan;
+  identity: Pick<CheckoutIdentity, "email" | "company" | "entityId" | "stripeSessionId">;
+  documentId: string;
+  version: number;
+  sendLoginLink: boolean;
+  formId?: string;
+  draftKey?: string;
+}): Promise<"sent" | "stub" | "failed" | "skipped"> {
+  const { io, plan, identity, documentId, version } = input;
+  const formId = normalizeFormId(input.formId);
+  const draftKey = input.draftKey?.trim() ?? "";
+  if (formId && draftKey) {
+    try {
+      await (io.closeDraftForm ?? closeDraftForm)(draftKey, formId);
+    } catch (error) {
+      logAfterCommit("Entwurf schließen", error);
+    }
   }
-
-  if (!skipTestDelivery) {
-    queueOwnerNotice({
+  if (plan.notice) {
+    (io.queueOwnerNotice ?? queueOwnerNotice)({
       kind: "doc",
       id: `${documentId}:${version}`,
       title: "Doku abgeschlossen",
       email: identity.email,
       company: identity.company,
       entityId: identity.entityId,
-      mode: identity.stub || identity.stripeSessionId.startsWith("cs_test_") ? "test" : "live",
+      mode: plan.notice.mode,
       facts: [
         ["Dokument", documentId],
         ["Version", String(version)],
-        [
-          "Zugang",
-          resolved.ds24Access
-            ? "Digistore24"
-            : resolved.compAccess
-              ? "kostenfrei (Comp)"
-              : identity.stripeSessionId
-                ? "Stripe"
-                : "Abo",
-        ],
+        ["Zugang", plan.notice.access],
       ],
     });
   }
-
-  const appUrl = getAppUrl();
-  const downloadUrl = identity.stripeSessionId
-    ? `${appUrl}/api/docs/${documentId}/download?session_id=${encodeURIComponent(identity.stripeSessionId)}`
-    : `${appUrl}/api/docs/${documentId}/download`;
-  const successUrl = identity.stripeSessionId
-    ? `${appUrl}/success?session_id=${encodeURIComponent(identity.stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`
-    : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`;
-  let loginMail: "sent" | "stub" | "failed" | "skipped" = "skipped";
-  // Comp-Allowlist: keine Liefer-Mail. DS24-Käufer bekommen sie wie Stripe-Käufer.
-  const deliveryMailDue = !resolved.compAccess || resolved.ds24Access === true;
-  if (deliveryMailDue && !skipTestDelivery) {
-    const magicUrl = identity.email ? ((await magicLinkUrl(identity.email)) ?? undefined) : undefined;
-    try {
-      await io.sendDeliveryMail({
-        email: identity.email,
-        company: identity.company,
-        downloadUrl,
-        magicLinkUrl: magicUrl,
-        successUrl,
-        documentId,
-        version,
-        entityId: identity.entityId,
-      });
-    } catch (error) {
-      console.error("[intake] delivery mail fehlgeschlagen", error);
-    }
-
-    loginMail = identity.email
-      ? await io.deliverLoginLink(identity.email, "/account")
-      : "failed";
+  if (!plan.deliveryMail) return "skipped";
+  const { downloadUrl, successUrl } = deliveryUrls(identity.stripeSessionId, documentId);
+  let magicUrl: string | undefined;
+  try {
+    magicUrl = identity.email ? ((await magicLinkUrl(identity.email)) ?? undefined) : undefined;
+  } catch (error) {
+    logAfterCommit("Anmeldelink", error);
   }
+  try {
+    await io.sendDeliveryMail({
+      email: identity.email,
+      company: identity.company,
+      downloadUrl,
+      magicLinkUrl: magicUrl,
+      successUrl,
+      documentId,
+      version,
+      entityId: identity.entityId,
+    });
+  } catch (error) {
+    console.error("[intake] delivery mail fehlgeschlagen", error);
+  }
+  if (!input.sendLoginLink) return "skipped";
+  if (!identity.email) return "failed";
+  try {
+    return await io.deliverLoginLink(identity.email, "/account");
+  } catch (error) {
+    logAfterCommit("Login-Mail", error);
+    return "failed";
+  }
+}
 
-  const response = NextResponse.json({
-    ok: true,
-    store: stored.backend,
-    delivery,
-    documentId,
-    pdfUrl: downloadUrl,
-    version,
-    loginMail,
-  });
-  const sessionOwner = resolved.firstDelivery
+async function finishSubmitResponse(input: {
+  payload: Record<string, unknown>;
+  plan: SubmitPlan;
+  grant: CheckoutGrant | null;
+  sessionEmail: string | null;
+  ownerEmail: string;
+  stripeSessionId: string;
+}): Promise<NextResponse> {
+  const response = NextResponse.json(input.payload);
+  const sessionOwner = input.plan.firstDelivery
     ? ownerEmailForFirstCompletion({
-        grant,
-        ownerEmail: identity.email,
-        stripeSessionId: identity.stripeSessionId,
-        stub: identity.stub,
+        grant: input.grant,
+        ownerEmail: input.ownerEmail,
+        stripeSessionId: input.stripeSessionId,
+        stub: input.plan.stub,
       })
     : null;
-  if (sessionOwner && !sessionEmail) applyCheckoutOwnerSession(response, sessionOwner);
-  if (sessionOwner && (!sessionEmail || emailsEqual(sessionEmail, sessionOwner))) {
-    await rememberCheckoutSessionGrant(identity.stripeSessionId, sessionOwner);
+  if (sessionOwner && !input.sessionEmail) applyCheckoutOwnerSession(response, sessionOwner);
+  if (sessionOwner && (!input.sessionEmail || emailsEqual(input.sessionEmail, sessionOwner))) {
+    try {
+      await rememberCheckoutSessionGrant(input.stripeSessionId, sessionOwner);
+    } catch (error) {
+      logAfterCommit("Checkout-Freigabe", error);
+    }
   }
   const checkoutGrant =
-    identity.email &&
-    identity.stripeSessionId &&
-    (!identity.stub || devCheckoutStubAllowed())
-      ? { sessionId: identity.stripeSessionId, email: identity.email }
+    input.ownerEmail &&
+    input.stripeSessionId &&
+    (!input.plan.stub || devCheckoutStubAllowed())
+      ? { sessionId: input.stripeSessionId, email: input.ownerEmail }
       : undefined;
   return withoutSessionCookie(response, checkoutGrant);
+}
+
+async function rowAfterFailedAppend(documentId: string, io: IntakeIo): Promise<SheetRow | null | "unknown"> {
+  try {
+    return await io.findDocumentById(documentId);
+  } catch {
+    return "unknown";
+  }
+}
+
+type CommittedSubmit = { row: SheetRow; plan: SubmitPlan | null };
+
+async function readPlanSafely(documentId: string, io: IntakeIo): Promise<SubmitPlan | null | undefined> {
+  try {
+    return await (io.readSubmitPlan ?? readSubmitPlan)(documentId);
+  } catch (error) {
+    console.error("[intake] Sperre nicht gelesen", error instanceof Error ? error.name : "error");
+    return undefined;
+  }
+}
+
+/**
+ * Row already stored for this submit. The claim marker is written before any
+ * row, so no marker means no row and the Sheets lookup is skipped.
+ */
+async function committedSubmit(documentId: string, io: IntakeIo): Promise<CommittedSubmit | null> {
+  const plan = await readPlanSafely(documentId, io);
+  if (plan === null) return null;
+  const row = await io.findDocumentById(documentId);
+  return row ? { row, plan: plan ?? null } : null;
+}
+
+async function claimSubmitSafely(
+  documentId: string,
+  plan: SubmitPlan,
+  io: IntakeIo,
+): Promise<"claimed" | "busy" | "unclaimed"> {
+  try {
+    return await (io.claimSubmit ?? claimIntakeSubmit)(documentId, plan);
+  } catch (error) {
+    // Blob down: the PDF step needs Blob too, so this request fails there.
+    console.error("[intake] Sperre nicht gesetzt", error instanceof Error ? error.name : "error");
+    return "unclaimed";
+  }
+}
+
+async function replayOrDeny(
+  earlier: CommittedSubmit,
+  ownerEmail: string,
+  context: { io: IntakeIo; sessionEmail: string | null; grant: CheckoutGrant | null; body: IntakeBody },
+): Promise<NextResponse> {
+  if (!emailsEqual(earlier.row.email, ownerEmail)) return jsonError("Kein Zugriff.", 403);
+  return replayCommitted(earlier, ownerEmail, context);
+}
+
+/**
+ * The same submit was stored before (the answer got lost). Same document,
+ * same version; mails go through the same ledger keys, so none is sent twice.
+ * No second login link.
+ */
+async function replayCommitted(
+  earlier: CommittedSubmit,
+  ownerEmail: string,
+  context: { io: IntakeIo; sessionEmail: string | null; grant: CheckoutGrant | null; body: IntakeBody },
+): Promise<NextResponse> {
+  const { row } = earlier;
+  const documentId = row.documentId.trim();
+  const version = Number.parseInt(row.version, 10) || 1;
+  const stripeSessionId = row.stripeSessionId.trim();
+  // Without the stored plan nothing is sent again: no second mail is the safe side.
+  const plan: SubmitPlan = earlier.plan ?? {
+    deliveryMail: false,
+    notice: null,
+    firstDelivery: false,
+    stub: false,
+  };
+  const identity = {
+    email: ownerEmail,
+    company: row.company,
+    entityId: row.entityId,
+    stripeSessionId,
+  };
+  const loginMail = await afterCommit({
+    io: context.io,
+    plan,
+    identity,
+    documentId,
+    version,
+    sendLoginLink: false,
+    formId: context.body.formId,
+    draftKey: context.body.draftKey,
+  });
+  console.info("[intake] Wiederholung beantwortet", JSON.stringify({ version }));
+  return finishSubmitResponse({
+    payload: {
+      ok: true,
+      store: "existing",
+      delivery: {
+        status: row.deliveryStatus.trim() || "ready",
+        chapters: [],
+        openItems: [],
+        pdf: null,
+      },
+      documentId,
+      pdfUrl: deliveryUrls(stripeSessionId, documentId).downloadUrl,
+      version,
+      loginMail,
+      replay: true,
+    },
+    plan,
+    grant: context.grant,
+    sessionEmail: context.sessionEmail,
+    ownerEmail,
+    stripeSessionId,
+  });
+}
+
+/** Addresses this request is signed in as (session cookie, checkout grant). */
+function submitCandidates(sessionEmail: string | null, grant: CheckoutGrant | null): string[] {
+  const out: string[] = [];
+  for (const email of [sessionEmail, grant?.email]) {
+    const value = email?.trim().toLowerCase() ?? "";
+    if (value.includes("@") && !out.includes(value)) out.push(value);
+  }
+  return out;
 }
 
 export async function submitIntake(

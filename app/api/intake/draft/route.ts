@@ -23,6 +23,7 @@ import {
   type IntakeDraft,
 } from "@/lib/intake-draft";
 import { forgetOpenDraft, rememberOpenDraft } from "@/lib/open-drafts";
+import { isDraftFormClosed, normalizeFormId } from "@/lib/draft-closed";
 import { normalizeIntakeAnswers, stripEmptyIntakeCards } from "@/lib/intake-present";
 import { noteDraftConflict, noteDraftSaved } from "@/lib/audit-record";
 import { MODULE_OUTSIDE_MESSAGE } from "@/lib/membership-copy";
@@ -109,6 +110,15 @@ async function resolveMemberDraft(
       throw error;
     }
   }
+  // Owner of the stored document (row from the store, session from the cookie):
+  // not a member grant, so no membership read. Everyone else keeps the fresh read.
+  if (
+    document &&
+    emailsEqual(document.email, input.sessionEmail) &&
+    (!input.entityId?.trim() || !document.entityId || input.entityId.trim() === document.entityId)
+  ) {
+    return { kind: "skip" };
+  }
   if (!entityId) return { kind: "skip" };
   let membership: Awaited<ReturnType<typeof findActiveMembership>>;
   try {
@@ -128,6 +138,38 @@ async function resolveMemberDraft(
   if (decision.kind === "deny") return { kind: "deny", response: jsonError("Kein Zugriff.", 403) };
   if (decision.kind === "skip") return { kind: "skip" };
   return { kind: "allow", grant: decision.grant };
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+/**
+ * Same content and links as stored: nothing to write (only timestamp and
+ * revision would move). Runs after the revision check, so a stale save is
+ * still a 409.
+ */
+function sameDraftContent(stored: IntakeDraft, next: IntakeDraft): boolean {
+  return (
+    stored.email === next.email &&
+    (stored.stripeSessionId ?? "") === (next.stripeSessionId ?? "") &&
+    (stored.documentId ?? "") === (next.documentId ?? "") &&
+    stableJson(normalizeIntakeAnswers(stored.answers)) === stableJson(next.answers) &&
+    Number(stored.step ?? 0) === Number(next.step ?? 0) &&
+    stableJson(stored.change ?? null) === stableJson(next.change ?? null) &&
+    (stored.entityId ?? "") === (next.entityId ?? "")
+  );
+}
+
+function unchangedResponse(stored: IntakeDraft) {
+  return NextResponse.json({ ok: true, draft: stored, unchanged: true });
 }
 
 function conflictResponse(stored: IntakeDraft, kind: "stale" | "other") {
@@ -158,6 +200,8 @@ export type DraftWriteIo = {
   resolveCheckout: CheckoutResolver;
   /** Frische Mitgliedschaft. Fehlt sie, bleibt der Entwurf beim Inhaber. */
   findActiveMembership?: typeof findActiveMembership;
+  /** Abgesendete Seite (draftKey + formId). Optional für bestehende Test-Doubles. */
+  isDraftFormClosed?: typeof isDraftFormClosed;
 };
 
 const defaultDraftIo: DraftWriteIo = {
@@ -166,6 +210,7 @@ const defaultDraftIo: DraftWriteIo = {
   clearIntakeDraft,
   rememberOpenDraft,
   forgetOpenDraft,
+  isDraftFormClosed,
   lookup: {
     findDocumentById,
     listDocumentFamily,
@@ -425,6 +470,7 @@ async function saveMemberDraft(
       updatedBy: sessionEmail,
       change: stored?.change,
     };
+    if (stored && sameDraftContent(stored, draft)) return unchangedResponse(stored);
     try {
       const { backend } = await io.saveIntakeDraft(draft);
       try {
@@ -466,6 +512,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     clientUpdatedAt?: string;
     revision?: number;
     change?: unknown;
+    formId?: string;
   };
   try {
     body = await request.json();
@@ -492,6 +539,11 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
   const fromKey = idsFromDraftKey(draftKey);
   if (!body.sessionId?.trim() && !fromKey.sessionId && !sessionEmail) {
     return jsonError("Kein Zugriff.", 401);
+  }
+  const formId = normalizeFormId(body.formId);
+  if (formId && (await (io.isDraftFormClosed ?? isDraftFormClosed)(draftKey, formId))) {
+    // This page already submitted. A late save must not restore the Entwurf.
+    return NextResponse.json({ ok: true, closed: true });
   }
   const closed = await subscriptionWriteDenial(sessionEmail);
   if (closed) return jsonError(closed, 403);
@@ -583,6 +635,12 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     updatedBy: sessionEmail || stored?.updatedBy || "",
     change: parseDraftVersionChange(body.change) ?? stored?.change,
   };
+  if (stored && sameDraftContent(stored, draft)) return unchangedResponse(stored);
+  // Checked again right before the write: the submit may have landed while
+  // this request waited for Sheets.
+  if (formId && (await (io.isDraftFormClosed ?? isDraftFormClosed)(draftKey, formId))) {
+    return NextResponse.json({ ok: true, closed: true });
+  }
 
   try {
     const { backend } = await io.saveIntakeDraft(draft);

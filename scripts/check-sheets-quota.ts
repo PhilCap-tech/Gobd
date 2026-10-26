@@ -5,10 +5,14 @@
  *   npx tsx scripts/check-sheets-quota.ts
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { downloadPdf } from "../app/api/docs/[id]/download/route";
+import { putIntakeDraft, type DraftWriteIo } from "../app/api/intake/draft/route";
+import { submitIntake, type IntakeIo } from "../app/api/intake/route";
 import { AccountCompanyCard } from "../components/account-company-card";
 import { accountCompanyCards, draftsNotOnCompanyCard } from "../lib/account-hub";
 import { SESSION_COOKIE, createSessionToken } from "../lib/auth";
@@ -16,17 +20,24 @@ import {
   clearDocumentIndexMemory,
   installDocumentIndex,
 } from "../lib/document-index";
+import { AUDIT_SHEET_COLUMNS } from "../lib/audit-log";
+import { setBlobMarkerTestDir } from "../lib/blob-marker";
 import { emptyEntity, ENTITY_SHEET_COLUMNS } from "../lib/entities";
+import { findActiveMembership } from "../lib/membership-store";
+import { MEMBERSHIP_SHEET_COLUMNS, membershipSheetValues, type Membership } from "../lib/memberships";
 import { fetchRetrying503, isPdfResponse } from "../lib/fetch-retry";
 import type { IntakeDraft } from "../lib/intake-draft-shared";
 import { clearLifecycleReadCache, listLifecycleByEmail } from "../lib/kuendigung-store";
 import { TODAY_EUR, TODAY_GROSS_LABEL } from "../lib/pricing";
 import { installSheetsHandler } from "../lib/sheets-client";
 import { beginSheetsMeasure, runWithSheetsMeasure, takeSheetsMeasure, type SheetsCall } from "../lib/sheets-meter";
+import { runWithSheetsRoute } from "../lib/sheets-outage";
 import { SheetsUnavailableError } from "../lib/sheets-unavailable";
 import {
   appendRecord,
   clearAllSheetReadCaches,
+  listDocumentFamily,
+  prepareDurableIntakeRow,
   findDocumentById,
   findLatestDocumentByStripeSessionId,
   findLatestStripeCustomerIdByEmail,
@@ -68,6 +79,8 @@ const BEFORE = {
 };
 
 const grids = new Map<string, string[][]>();
+/** Tabs whose appends land in the mock grid (draft PUT path). */
+const APPEND_TABS = new Set(["memberships", "audit_log"]);
 let failSheets = false;
 const seenRanges: string[] = [];
 
@@ -128,6 +141,238 @@ function resetGrids() {
   grids.set("readiness_leads", [["lead_id", "email"]]);
   grids.set("profiles", [["email", "name"]]);
   grids.set("subscription_lifecycle", [["email", "stripe_subscription_id"]]);
+  const member = emptySheetRow();
+  member.documentId = DOC_TEAM;
+  member.parentDocumentId = DOC_TEAM;
+  member.email = BUYER;
+  member.company = "Quota GmbH";
+  member.entityId = ENT_TEAM;
+  member.status = "intake_submitted";
+  member.version = "1";
+  member.timestamp = "2026-10-12T12:00:00.000Z";
+  grids.get("intakes")?.push(sheetRowValues(member, [...SHEET_COLUMNS]));
+  grids.set("memberships", [[...MEMBERSHIP_SHEET_COLUMNS]]);
+  grids.set("audit_log", [[...AUDIT_SHEET_COLUMNS]]);
+  grids.set("entities", [["entity_id", "user_email", "name"], [ENT_TEAM, BUYER, "Quota GmbH"]]);
+}
+
+function routeIntakeIo(appends: SheetRow[]): IntakeIo {
+  return {
+    findDocumentById,
+    findLatestDocumentByStripeSessionId,
+    listDocumentFamily,
+    listEntitiesByEmail,
+    getOwnedEntity,
+    findLatestStripeCustomerIdByEmail,
+    resolveCheckoutSession: async () => ({ error: "invalid" as const }),
+    prepareDurableIntakeRow,
+    appendRecord: async (row) => {
+      appends.push(row);
+      return appendRecord(row);
+    },
+    generatePdf: async (input) => ({
+      buffer: Buffer.from("%PDF-1.4\n"),
+      documentId: input.documentId || "pdf",
+      plan: { status: "ready", chapters: [], openItems: [], pdf: null },
+    }),
+    storePdf: async () => ({ url: "", pathname: "memory/a.pdf", backend: "file" as const }),
+    sendDeliveryMail: async () => ({ stub: true, sent: false, action: "delivery" }),
+    deliverLoginLink: async () => "stub" as const,
+    queueOwnerNotice: () => {},
+  };
+}
+
+function revisionPost(submitId?: string) {
+  return new Request("http://localhost/api/intake", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: `${SESSION_COOKIE}=${createSessionToken(BUYER)}`,
+    },
+    body: JSON.stringify({
+      email: BUYER,
+      company: "Quota GmbH",
+      documentId: DOC_TEAM,
+      entityId: ENT_TEAM,
+      answers: answers(),
+      validFrom: "2026-10-26",
+      changeSummary: "Quota-Check",
+      changedBy: BUYER,
+      ...(submitId ? { submitId } : {}),
+    }),
+  });
+}
+
+/** The real POST /api/intake against the mock grid (PDF and mail are stubs). */
+async function checkSubmitRoute(): Promise<{ cold: number; warm: number }> {
+  resetMemory();
+  resetGrids();
+  const appends: SheetRow[] = [];
+  const io = routeIntakeIo(appends);
+  const cold = await measure("POST /api/intake", async () => {
+    const response = await submitIntake(revisionPost("11111111-2222-4333-8444-555555555555"), io);
+    ok(response.status === 200, `a revision POST is 200 (got ${response.status} ${await response.clone().text()})`);
+  });
+  const warm = await measure("POST /api/intake", async () => {
+    const response = await submitIntake(revisionPost("11111111-2222-4333-8444-666666666666"), io);
+    ok(response.status === 200, `a second revision POST is 200 (got ${response.status})`);
+  });
+  console.log(
+    "intake POST (route):",
+    JSON.stringify({
+      cold: cold.map((call) => call.op),
+      warm: warm.map((call) => `${call.op} ${call.range ?? ""}`.trim()),
+    }),
+  );
+  return { cold: cold.length, warm: warm.length };
+}
+
+const DOC_TEAM = "doc-quota-team";
+const ENT_TEAM = "ent-quota-team";
+const MEMBER = "member-quota@example.com";
+
+function teamMembership(status: Membership["status"]): Membership {
+  return {
+    membershipId: "mem-quota-1",
+    ownerEmail: BUYER,
+    memberEmail: MEMBER,
+    entityId: ENT_TEAM,
+    status,
+    moduleIds: "",
+    tokenHash: "",
+    invitedAt: "2026-10-12T12:00:00.000Z",
+    acceptedAt: status === "active" ? "2026-10-12T12:05:00.000Z" : "",
+    revokedAt: status === "revoked" ? "2026-10-13T12:00:00.000Z" : "",
+    invitedBy: BUYER,
+    updatedAt: "2026-10-13T12:00:00.000Z",
+  };
+}
+
+function setMembership(status: Membership["status"] | null) {
+  const rows: string[][] = [[...MEMBERSHIP_SHEET_COLUMNS]];
+  if (status) rows.push(membershipSheetValues(teamMembership(status)));
+  grids.set("memberships", rows);
+}
+
+function memoryDraftIo(seed?: IntakeDraft): DraftWriteIo {
+  const drafts = new Map<string, IntakeDraft>();
+  if (seed) drafts.set(seed.draftKey, seed);
+  return {
+    loadIntakeDraft: async (key) => drafts.get(key) ?? null,
+    saveIntakeDraft: async (draft) => {
+      drafts.set(draft.draftKey, draft);
+      return { backend: "file" };
+    },
+    clearIntakeDraft: async (key) => {
+      drafts.delete(key);
+    },
+    rememberOpenDraft: async () => true,
+    forgetOpenDraft: async () => {},
+    lookup: { findDocumentById, listDocumentFamily, findLatestDocumentByStripeSessionId },
+    resolveCheckout: async () => ({ error: "invalid" as const }),
+    findActiveMembership,
+  };
+}
+
+function teamDraftPut(email: string, revision: number, text: string) {
+  const body = answers();
+  body.katalog = {
+    ...(body.katalog ?? {}),
+    A01: { status: "bestaetigt", values: { company: text } },
+  };
+  return new Request("http://localhost/api/intake/draft", {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+      cookie: `${SESSION_COOKIE}=${createSessionToken(email)}`,
+    },
+    body: JSON.stringify({
+      draftKey: `doc:${DOC_TEAM}`,
+      documentId: DOC_TEAM,
+      entityId: ENT_TEAM,
+      step: 2,
+      revision,
+      answers: body,
+    }),
+  });
+}
+
+function membershipReads(calls: SheetsCall[]): number {
+  return calls.filter((call) => (call.range ?? "").startsWith("memberships!A2")).length;
+}
+
+/**
+ * The real PUT /api/intake/draft route against the mock grid: membership,
+ * audit and lookups all run. Returns the measured counts.
+ */
+async function checkDraftPutRoute(): Promise<{ ownerCold: number; ownerWarm: number; ownerSame: number; member: number }> {
+  resetMemory();
+  resetGrids();
+  setMembership(null);
+  const io = memoryDraftIo();
+  const coldCalls: SheetsCall[] = [];
+  const cold = await runWithSheetsRoute("PUT /api/intake/draft", async () => {
+    beginSheetsMeasure();
+    const response = await putIntakeDraft(teamDraftPut(BUYER, 1, "Quota GmbH 1"), io);
+    coldCalls.push(...takeSheetsMeasure());
+    return response;
+  });
+  ok(cold.status === 200, `owner draft PUT is 200 (got ${cold.status})`);
+  const warm = await measure("PUT /api/intake/draft", async () => {
+    const response = await putIntakeDraft(teamDraftPut(BUYER, 2, "Quota GmbH 2"), io);
+    ok(response.status === 200, `a second owner draft PUT is 200 (got ${response.status})`);
+  });
+  const same = await measure("PUT /api/intake/draft", async () => {
+    const response = await putIntakeDraft(teamDraftPut(BUYER, 3, "Quota GmbH 2"), io);
+    ok(response.status === 200, `an unchanged owner draft PUT is 200 (got ${response.status})`);
+  });
+  ok(membershipReads(coldCalls) === 0 && membershipReads(warm) === 0, "the document owner (session = stored row) needs no membership read");
+  console.log(
+    "draft PUT (route):",
+    JSON.stringify({
+      ownerCold: coldCalls.map((call) => call.op),
+      ownerWarm: warm.map((call) => call.op),
+      ownerSame: same.map((call) => call.op),
+    }),
+  );
+
+  // Member: active membership is read fresh on every PUT, revocation applies at once.
+  setMembership("active");
+  const ownerDraft = (await (await putIntakeDraft(teamDraftPut(BUYER, 1, "Team"), memoryDraftIo())).json()) as {
+    draft: IntakeDraft;
+  };
+  const memberIo = memoryDraftIo({ ...ownerDraft.draft, revision: 1 });
+  const first = await measure("PUT /api/intake/draft", async () => {
+    const response = await putIntakeDraft(teamDraftPut(MEMBER, 2, "Team"), memberIo);
+    ok(response.status === 200, `an active member draft PUT is 200 (got ${response.status} ${await response.clone().text()})`);
+  });
+  ok(membershipReads(first) === 1, "a member PUT reads the membership rows");
+  const again = await measure("PUT /api/intake/draft", async () => {
+    const response = await putIntakeDraft(teamDraftPut(MEMBER, 3, "Team"), memberIo);
+    ok(response.status === 200, `a second member draft PUT is 200 (got ${response.status})`);
+  });
+  ok(membershipReads(again) === 1, "every member PUT reads the membership rows again (no cache)");
+  setMembership("revoked");
+  const revoked = await measure("PUT /api/intake/draft", async () => {
+    const response = await putIntakeDraft(teamDraftPut(MEMBER, 4, "Team"), memberIo);
+    ok(response.status === 403, `a revoked member is 403 on the very next PUT (got ${response.status})`);
+  });
+  ok(membershipReads(revoked) === 1, "the revoked PUT read the membership rows fresh");
+  // Revoked member keeps a fresh read on every PUT, too.
+  const revokedAgain = await measure("PUT /api/intake/draft", async () => {
+    const response = await putIntakeDraft(teamDraftPut(MEMBER, 5, "Team"), memberIo);
+    ok(response.status === 403, `a revoked member stays 403 (got ${response.status})`);
+  });
+  ok(membershipReads(revokedAgain) === 1, "a second revoked PUT reads the membership rows fresh again");
+  // Re-activated: allowed again on the very next PUT (no stale cache either way).
+  setMembership("active");
+  const reactivated = await putIntakeDraft(teamDraftPut(MEMBER, 6, "Team"), memberIo);
+  ok(reactivated.status === 200, `a re-activated member is allowed on the next PUT (got ${reactivated.status})`);
+  setMembership(null);
+  const stranger = await putIntakeDraft(teamDraftPut(OTHER, 1, "Fremd"), memoryDraftIo());
+  ok(stranger.status === 403, `a stranger without membership is 403 (got ${stranger.status})`);
+  console.log("draft PUT (member):", JSON.stringify(again.map((call) => call.op)));
+  return { ownerCold: coldCalls.length, ownerWarm: warm.length, ownerSame: same.length, member: again.length };
 }
 
 function quotaError(): Error {
@@ -146,14 +391,12 @@ function installClient() {
     if (op === "spreadsheets.get") {
       return {
         data: {
-          sheets: [
-            {
-              properties: {
-                title: "intakes",
-                gridProperties: { columnCount: SHEET_COLUMNS.length },
-              },
+          sheets: [...grids.keys()].map((title) => ({
+            properties: {
+              title,
+              gridProperties: { columnCount: title === "intakes" ? SHEET_COLUMNS.length : 26 },
             },
-          ],
+          })),
         },
       };
     }
@@ -161,7 +404,13 @@ function installClient() {
       return { data: { valueRanges: ranges.map((item) => ({ values: sliceRange(item) })) } };
     }
     if (op === "values.get") return { data: { values: sliceRange(range) } };
-    if (op === "values.append" || op === "values.update" || op === "values.batchUpdate") {
+    if (op === "values.append") {
+      const tab = range.split("!")[0] ?? "";
+      const body = args.requestBody as { values?: string[][] } | undefined;
+      if (APPEND_TABS.has(tab)) grids.get(tab)?.push(...(body?.values ?? []));
+      return { data: {} };
+    }
+    if (op === "values.update" || op === "values.batchUpdate") {
       return { data: {} };
     }
     if (op === "spreadsheets.batchUpdate") return { data: {} };
@@ -484,8 +733,33 @@ async function main() {
     console.log(
       "tax: with STRIPE_TAX_RATE_ID the exclusive 19% on 149 + 49 net is 235,62 gross, matching the page. Without the env var Stripe charges 198 net. No code change.",
     );
+    setBlobMarkerTestDir(mkdtempSync(path.join(tmpdir(), "sheets-quota-markers-")));
+    // Measured on main before this change with the same mock grid and routes.
+    const before = { ownerCold: 13, ownerWarm: 6, ownerSame: 6, member: 6, postCold: 6, postWarm: 3 };
+    const route = await checkDraftPutRoute();
+    console.log("draft PUT route counts:", JSON.stringify(route));
+    ok(route.ownerWarm <= 2, `a warm owner draft PUT is at most 2 Sheets calls (got ${route.ownerWarm}, before ${before.ownerWarm})`);
+    ok(route.ownerSame === 0, `an unchanged owner draft PUT makes no Sheets call (got ${route.ownerSame}, before ${before.ownerSame})`);
+    ok(route.ownerCold < before.ownerCold, `a cold owner draft PUT makes fewer Sheets calls (got ${route.ownerCold}, before ${before.ownerCold})`);
+    ok(route.member <= 3, `a member draft PUT is at most 3 Sheets calls incl. the fresh membership read (got ${route.member}, before ${before.member})`);
+    const submitRoute = await checkSubmitRoute();
+    console.log("intake POST route counts:", JSON.stringify(submitRoute));
+    ok(submitRoute.warm <= before.postWarm, `a warm intake POST stays within ${before.postWarm} Sheets calls (got ${submitRoute.warm})`);
+    ok(submitRoute.cold <= before.postCold, `a cold intake POST stays within ${before.postCold} Sheets calls (got ${submitRoute.cold})`);
+    console.log(
+      "Sheets calls before -> after:",
+      JSON.stringify({
+        putOwnerCold: [before.ownerCold, route.ownerCold],
+        putOwnerWarm: [before.ownerWarm, route.ownerWarm],
+        putOwnerUnchanged: [before.ownerSame, route.ownerSame],
+        putMember: [before.member, route.member],
+        postCold: [before.postCold, submitRoute.cold],
+        postWarm: [before.postWarm, submitRoute.warm],
+      }),
+    );
     console.log("sheets quota checks passed");
   } finally {
+    setBlobMarkerTestDir(null);
     installSheetsHandler(null);
     installDocumentIndex(null);
     const restore = (name: string, value: string | undefined) => {
