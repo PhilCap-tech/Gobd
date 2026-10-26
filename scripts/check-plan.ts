@@ -90,41 +90,48 @@ async function main() {
     assert.doesNotMatch(legal.agbMarkdown, /TODO-LEGAL|<!-- if:/);
   });
 
-  await check("Rechtstexte v2 (Legal 26.10.): Wortlaut, Löschtexte nur mit Lösch-Lauf, legacy unverändert", async () => {
+  await check("Rechtstexte v2 (Legal 26.10.): Wortlaut, Löschtexte sichtbar, § 12c neu nur mit Firmen-Schalter, legacy unverändert", async () => {
     const { readFileSync } = await import("node:fs");
     const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-    const render = (file: string, v2: boolean, del: boolean) => legal.applyLegalConditions(read(file), legal.legalFlagsFor(v2, del));
-    const deletionPromise = /(30|dreißig) (Tage|Tagen) und 7 Tage (vor der Löschung|vorher)|30 und 7 Tage vorher|löschen wir/;
+    const render = (file: string, v2: boolean, del: boolean, firms = false) =>
+      legal.applyLegalConditions(read(file), legal.legalFlagsFor(v2, del, firms));
     for (const file of ["content/legal/agb-v2.md", "content/faq-v2.md"]) {
-      const on = render(file, true, true);
-      const off = render(file, true, false);
-      assert.doesNotMatch(on, /<!--|TODO-LEGAL/, `${file}: mit Lösch-Lauf vollständiger Wortlaut`);
-      assert.doesNotMatch(off, /<!--/, `${file}: keine Marker`);
-      assert.match(off, /\[TODO-LEGAL\]/, `${file}: Platzhalter ohne Lösch-Lauf`);
-      // § 15 (Monatsabo, DS24/Bestand) bleibt wie bisher und ist nicht Teil der Schaltung.
-      for (const line of off.split("## § 15")[0].split("\n")) {
-        if (/§ 15|Monatsabo|Digistore24|DS24/.test(line)) continue;
-        assert.doesNotMatch(line, deletionPromise, `${file}: Löschzusage ohne Lösch-Lauf: ${line.slice(0, 80)}`);
+      for (const del of [true, false]) {
+        for (const firms of [true, false]) {
+          const text = render(file, true, del, firms);
+          assert.doesNotMatch(text, /<!--|TODO-LEGAL/, `${file}: vollständiger Wortlaut`);
+          assert.match(text, /30 (Tage|und 7 Tage)/, `${file}: Löschhinweis sichtbar (Builder-Hinweis 5 neu)`);
+        }
       }
     }
+    const agbOff = render("content/legal/agb-v2.md", true, false, false);
+    const agbOn = render("content/legal/agb-v2.md", true, false, true);
+    assert.match(agbOff, /Die \*\*zweite Firma\*\* ist ohne zusätzliches Entgelt enthalten/, "ohne Freigabe: § 12c Fassung 14:24");
+    assert.doesNotMatch(agbOff, /Abrechnung nach aktiven Firmen/);
+    assert.match(agbOn, /\(2\) \*\*Mit Mitgliedschaft: Abrechnung nach aktiven Firmen\.\*\*/);
+    for (const text of [agbOff, agbOn]) {
+      assert.match(text, /„Jahresmitgliedschaft“ → „Mitgliedschaft kündigen“/);
+    }
+    const faqOff = render("content/faq-v2.md", true, false, false);
+    assert.match(faqOff, /## 4\. Ist das Steuerberatung\?\n/);
+    assert.match(faqOff, /Nach erfolgreicher Zahlung und abgeschlossenem Intake/);
+    assert.doesNotMatch(faqOff, /abgerechnet nach der Zahl der aktiven Firmen/);
+    assert.match(render("content/faq-v2.md", true, false, true), /197,90 € zzgl\. USt pro Jahr/);
+    assert.match(render("content/legal/datenschutz.md", true, false), /\*\*Speicherdauer Ihrer Dokumentationsdaten\.\*\*/, "DSE nennt die Speicherdauer auch ohne Lösch-Lauf");
     const dseLegacy = render("content/legal/datenschutz.md", false, true);
     assert.doesNotMatch(dseLegacy, /<!--|30\.10\.2026|Speicherdauer Ihrer Dokumentationsdaten/);
     assert.match(dseLegacy, /\*\*Stand:\*\* 26\.10\.2026/);
     assert.match(dseLegacy, /Nach Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen; danach löschen wir sie/);
-    const dseOn = render("content/legal/datenschutz.md", true, true);
-    const dseOff = render("content/legal/datenschutz.md", true, false);
-    assert.match(dseOn, /\*\*Speicherdauer Ihrer Dokumentationsdaten\.\*\*/);
-    assert.match(dseOn, /\*\*Stand:\*\* 30\.10\.2026/);
-    assert.doesNotMatch(dseOff, /Speicherdauer Ihrer Dokumentationsdaten\.\*\*/);
-    assert.match(dseOff, /\[TODO-LEGAL\]/);
+    assert.match(render("content/legal/datenschutz.md", true, false), /\*\*Stand:\*\* 30\.10\.2026/);
     assert.match(render("content/legal/produkt-disclaimer.md", true, false), /Lohn\) je Firma; 24 Module, alle inklusive\./);
-    const texts = planCopy.planPackageTexts(false);
-    assert.doesNotMatch(`${texts.entry} ${texts.member}`, /löschen wir/);
-    assert.match(planCopy.planPackageTexts(true).member, /^beim Kauf 198,90 € netto \(236,69 € brutto\)/);
-    assert.ok(planCopy.planPackageTexts(true).member.includes(`${pricing.netWithGrossCents(9990)} pro Jahr`));
-    assert.ok(planCopy.planPackageTexts(true).entry.startsWith(`${pricing.netWithGrossCents(9900)} einmalig`));
+    const texts = planCopy.planPackageTexts();
+    assert.match(texts.member, /^beim Kauf 198,90 € netto \(236,69 € brutto\)/);
+    assert.match(texts.member, /Nach einer Kündigung löschen wir Ihre Dokumentation/);
+    assert.match(texts.entry, /Danach löschen wir sie nach Vorab-Hinweis/);
+    assert.ok(texts.member.includes(`${pricing.netWithGrossCents(9990)} pro Jahr`));
+    assert.ok(texts.entry.startsWith(`${pricing.netWithGrossCents(9900)} einmalig`));
     const { headingId } = await import("@/lib/legal-markdown");
-    const ids = render("content/faq-v2.md", true, true).split("\n").filter((l) => l.startsWith("## ")).map((l) => headingId(l.slice(3).trim())).filter(Boolean);
+    const ids = render("content/faq-v2.md", true, false).split("\n").filter((l) => l.startsWith("## ")).map((l) => headingId(l.slice(3).trim())).filter(Boolean);
     assert.deepEqual(ids, ["geld-zurueck", "mitgliedschaft", "loeschung", "aufbewahrung", "kuendigung", "mehrere-firmen"]);
     const legacyIds = read("content/faq.md").split("\n").filter((l) => l.startsWith("## ")).map((l) => headingId(l.slice(3).trim())).filter(Boolean);
     assert.deepEqual(legacyIds, ["geld-zurueck"]);
@@ -300,7 +307,8 @@ async function main() {
     const page = readFileSync(new URL("../app/checkout/page.tsx", import.meta.url), "utf8");
     const v2Branch = page.slice(page.indexOf("{v2 ? ("), page.indexOf(") : partner ? ("));
     assert.ok(v2Branch.length > 0, "v2-Zweig gefunden");
-    assert.ok(!v2Branch.includes("Listenpreis"), "kein alter Listenpreis");
+    assert.ok(!/149|MONTHLY_EUR|Einrichtung/.test(v2Branch), "kein alter Listenpreis");
+    assert.ok(v2Branch.includes("Listenpreis: Einstieg 99 € netto (117,81 € brutto) einmalig, optional Mitgliedschaft 99,90 € netto (118,88 € brutto) pro Jahr."), "Wortlaut Legal Z. 96–99");
     assert.ok(!v2Branch.includes("SETUP_EUR"), "keine Einrichtungsgebühr");
   });
 

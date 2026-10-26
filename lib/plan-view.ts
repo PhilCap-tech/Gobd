@@ -14,7 +14,6 @@ import {
   type RefundStatus,
 } from "@/lib/plan";
 import { loadPlanAccess } from "@/lib/plan-access";
-import { retentionDeleteEnabled } from "@/lib/pricing-model";
 
 export type AccountPlanView = {
   state: PlanAccess["state"];
@@ -32,7 +31,8 @@ export type AccountPlanView = {
 };
 
 const TITLES: Record<PlanAccess["state"], string> = {
-  member: "Jahresmitgliedschaft aktiv",
+  // Kündigungsweg laut AGB § 12 Abs. 3 / FAQ 10: „Jahresmitgliedschaft“ → „Mitgliedschaft kündigen“.
+  member: "Jahresmitgliedschaft",
   window: "Ohne Mitgliedschaft · Frist läuft",
   expired: "Frist abgelaufen",
   refunded: "Kauf erstattet",
@@ -44,8 +44,6 @@ export function accountPlanView(
   access: PlanAccess,
   documents: readonly { pdfUrl?: string; timestamp?: string }[],
   now: Date = new Date(),
-  /** Löschsätze nur mit aktivem Lösch-Lauf (Legal, Builder-Hinweis 5). */
-  retentionDelete: boolean = retentionDeleteEnabled(),
 ): AccountPlanView {
   const lines: string[] = [];
   const due = deletionDueAt(row, now);
@@ -53,16 +51,12 @@ export function accountPlanView(
     lines.push("Alle Änderungen sind inklusive.");
     if (row.memberCancelAt) {
       lines.push(`Gekündigt zum ${formatBerlinDate(row.memberCancelAt)}.`);
-      if (due && retentionDelete) lines.push(`Danach löschen wir die Dokumentation bei uns (${formatBerlinDate(due)}). Ihr PDF behalten Sie.`);
+      if (due) lines.push(`Danach löschen wir die Dokumentation bei uns (${formatBerlinDate(due)}). Ihr PDF behalten Sie.`);
     } else if (row.memberPeriodEnd) {
       lines.push(`Nächste Verlängerung am ${formatBerlinDate(row.memberPeriodEnd)}.`);
     }
   } else if (access.state === "window") {
-    lines.push(
-      retentionDelete
-        ? `Ihre Dokumentation liegt bei uns bis ${formatBerlinDate(row.retentionUntil)}. Danach löschen wir sie; Ihr PDF behalten Sie.`
-        : `Ihre Dokumentation liegt bei uns bis ${formatBerlinDate(row.retentionUntil)}. Ihr PDF behalten Sie.`,
-    );
+    lines.push(`Ihre Dokumentation liegt bei uns bis ${formatBerlinDate(row.retentionUntil)}. Danach löschen wir sie; Ihr PDF behalten Sie.`);
     lines.push(
       row.changeCredits > 0
         ? `Bezahlte Änderung verfügbar: ${row.changeCredits} neue Version.`

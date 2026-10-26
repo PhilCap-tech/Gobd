@@ -117,5 +117,13 @@ if (!faq.includes(INTAKE_EFFORT_LINE) || !faq.includes(INTAKE_EFFORT_RANGE)) {
 if (!faq.includes("fertig abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor")) {
   fail("FAQ delivery time after a finished intake was dropped");
 }
+// Preismodell v2: FAQ-Fassung von Legal, Abschnitt 2 sagt „abgeschlossenem Intake“ (ohne „fertig“).
+const faqV2 = readFileSync("content/faq-v2.md", "utf8");
+if (!faqV2.includes(INTAKE_EFFORT_LINE) || !faqV2.includes(INTAKE_EFFORT_RANGE)) {
+  fail("FAQ v2 must include the shared effort line and the QA range");
+}
+if (!faqV2.includes("Nach erfolgreicher Zahlung und abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor")) {
+  fail("FAQ v2 delivery time after a finished intake was dropped");
+}
 
 console.log(`check-effort-copy: ok (${blogFiles.length} blog files)`);

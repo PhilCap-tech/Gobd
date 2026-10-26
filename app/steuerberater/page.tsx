@@ -19,12 +19,8 @@ import {
   MONTHLY_GROSS_LABEL,
   SETUP_EUR,
   SETUP_GROSS_LABEL,
-  V2_ENTRY_CENTS,
-  V2_MEMBER_YEAR_CENTS,
-  netWithGrossCents,
 } from "@/lib/pricing";
 import { isPricingV2 } from "@/lib/pricing-model";
-import { CUSTOMER_PRICE_SHORT } from "@/lib/offer-copy";
 import styles from "../home.module.css";
 import { MerkblattForm } from "./merkblatt-form";
 import { PartnerInquiryForm } from "./partner-inquiry-form";
@@ -63,7 +59,8 @@ const FAQ = [
   {
     q: "Was zahlen Mandanten?",
     a: isPricingV2()
-      ? `Einstieg ${netWithGrossCents(V2_ENTRY_CENTS)}, optional Jahresmitgliedschaft ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft.`
+      ? // Wortlaut Legal (BUILDER-UEBERGABE 26.10., /steuerberater Z. 58).
+        "Einstieg 99 € netto (117,81 € brutto) einmalig, optional Mitgliedschaft 99,90 € netto (118,88 € brutto) pro Jahr. Jedes Paket gilt für 1 Firma. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft."
       : `${SETUP_EUR} € netto Einrichtung (${SETUP_GROSS_LABEL} € brutto) plus ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto). Ein Abo umfasst bis zu ${MAX_ENTITIES_PER_ACCOUNT} Firmen. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft.`,
   },
   {
@@ -120,7 +117,7 @@ export default function SteuerberaterPage() {
               <span>
                 Auf Anfrage · keine Provision · Mandanten:{" "}
                 {isPricingV2() ? (
-                  CUSTOMER_PRICE_SHORT
+                  "Einstieg 99 € einmalig, optional Mitgliedschaft 99,90 €/Jahr"
                 ) : (
                   <>
                     {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
@@ -244,8 +241,10 @@ export default function SteuerberaterPage() {
               <ul className={styles.checks} role="list">
                 {isPricingV2() ? (
                   <>
-                    <li>Einstieg {netWithGrossCents(V2_ENTRY_CENTS)}</li>
-                    <li>Optional Jahresmitgliedschaft {netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr</li>
+                    {/* Wortlaut Legal (Z. 230–236). */}
+                    <li>Einstieg 99 € netto (117,81 € brutto), einmalig</li>
+                    <li>optional Mitgliedschaft 99,90 € netto (118,88 € brutto) pro Jahr</li>
+                    <li>Jedes Paket gilt für 1 Firma; weitere Firmen dazubuchbar</li>
                   </>
                 ) : (
                   <>

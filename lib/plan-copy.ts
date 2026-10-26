@@ -39,15 +39,19 @@ export const PLAN_ENTRY_WITH_MEMBER_TOTAL = `${centsLabel(V2_ENTRY_WITH_MEMBER_C
 
 /**
  * Text je Paket, Wortlaut Legal (BUILDER-UEBERGABE 26.10., Abschnitt 4
- * „Checkout und Preisseite – Text je Paket“). Der Löschsatz erscheint nur mit
- * RETENTION_DELETE_ENABLED (Builder-Hinweis 5); sonst steht dort [TODO-LEGAL].
+ * „Checkout und Preisseite – Text je Paket“), vollständig. Löschsätze stehen
+ * immer da (Legal, Builder-Hinweis 5 neu: Ops löscht bis zum Lösch-Lauf manuell).
  */
 const PLAN_MEMBER_TEXT_BEFORE =
   "beim Kauf 198,90 € netto (236,69 € brutto) = 99 € Einstieg + 99,90 € erstes Mitgliedschaftsjahr, danach 99,90 € netto (118,88 € brutto) pro Jahr. Laufzeit 12 Monate ab Kauftag, verlängert sich automatisch um 12 Monate, wenn Sie nicht spätestens 3 Monate vor Ablauf kündigen. Alle Änderungen inklusive.";
 const PLAN_MEMBER_TEXT_DELETE =
   "Nach einer Kündigung löschen wir Ihre Dokumentation mit Ablauf der Mitgliedschaft, nach Vorab-Hinweis 30 und 7 Tage vorher.";
+/** Fassung 14:24 (freigegeben). */
 const PLAN_MEMBER_TEXT_AFTER =
   "Gilt für 1 Firma; 2. Firma ohne Aufpreis, ab der 3. je 49 € netto (58,31 € brutto) pro Jahr, ohne anteilige Berechnung.";
+/** Fassung 15:00 (Abrechnung nach aktiven Firmen, § 12c neu): wartet auf Philips Freigabe, nur mit PRICING_EXTRA_FIRMS_ENABLED. */
+const PLAN_MEMBER_TEXT_AFTER_ACTIVE_FIRMS =
+  "Gilt für 1 Firma; eine weitere Firma ohne Aufpreis, jede darüber hinaus 49 € netto (58,31 € brutto) pro Jahr, abgerechnet bei jeder Verlängerung nach der Zahl der aktiven Firmen, ohne anteilige Berechnung.";
 const PLAN_ENTRY_TEXT_BEFORE =
   "99 € netto (117,81 € brutto) einmalig. Ihre Dokumentation wird 12 Monate ab Kauftag vorgehalten; Änderungen in dieser Zeit je 49 € netto (58,31 € brutto), jede bezahlte Änderung verlängert die Vorhaltung auf 12 Monate ab Zahlung.";
 const PLAN_ENTRY_TEXT_DELETE = "Danach löschen wir sie nach Vorab-Hinweis (30 und 7 Tage vorher).";
@@ -56,11 +60,11 @@ const PLAN_ENTRY_TEXT_AFTER =
 
 export type PlanPackageTexts = { entry: string; member: string };
 
-export function planPackageTexts(retentionDelete: boolean): PlanPackageTexts {
-  const del = (text: string) => (retentionDelete ? text : TODO_LEGAL);
+export function planPackageTexts(activeFirmsBilling = false): PlanPackageTexts {
+  const firms = activeFirmsBilling ? PLAN_MEMBER_TEXT_AFTER_ACTIVE_FIRMS : PLAN_MEMBER_TEXT_AFTER;
   return {
-    member: `${PLAN_MEMBER_TEXT_BEFORE} ${del(PLAN_MEMBER_TEXT_DELETE)} ${PLAN_MEMBER_TEXT_AFTER}`,
-    entry: `${PLAN_ENTRY_TEXT_BEFORE} ${del(PLAN_ENTRY_TEXT_DELETE)} ${PLAN_ENTRY_TEXT_AFTER}`,
+    member: `${PLAN_MEMBER_TEXT_BEFORE} ${PLAN_MEMBER_TEXT_DELETE} ${firms}`,
+    entry: `${PLAN_ENTRY_TEXT_BEFORE} ${PLAN_ENTRY_TEXT_DELETE} ${PLAN_ENTRY_TEXT_AFTER}`,
   };
 }
 

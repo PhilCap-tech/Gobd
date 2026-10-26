@@ -33,7 +33,7 @@ Für Bestellungen über die Partnerseite https://www.gobd-doku-erstellen.de/part
 
 **Ausfüllen:** Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orientierend mit etwa 2–3 Stunden, in der Spanne von etwa 1,5 bis 5 Stunden — je nachdem, wie viele Module vorkommen und wie griffbereit die Angaben sind.
 
-**Bereitstellung:** Nach erfolgreicher Zahlung und fertig abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
+**Bereitstellung:** Nach erfolgreicher Zahlung und abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
 
 Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adresse.
 
@@ -42,7 +42,7 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 - **24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.** Bereits erstellte Bereichs-Dokumentationen bleiben im Konto lesbar, solange Ihre Dokumentation bei uns gespeichert ist.
 - **Einstieg: 99 € einmalig** für Ihre Verfahrensdokumentation als PDF mit Liste offener Punkte.
 - **Optional: Mitgliedschaft für 99,90 € pro Jahr.** Wir führen und versionieren Ihre Dokumentation bei uns, alle Änderungen sind inklusive. Im Paket mit Mitgliedschaft zahlen Sie beim Kauf 198,90 € (99 € Einstieg + 99,90 € erstes Jahr), danach 99,90 € pro Jahr.
-- Jedes Paket gilt für 1 Firma. Weitere Firmen: mit Mitgliedschaft ist die 2. Firma ohne Aufpreis, ab der 3. Firma je 49 € pro Jahr; ohne Mitgliedschaft je 99 € (alle Preise zzgl. USt; Abschnitt 11).
+<!-- if:extra-firms -->- Jedes Paket gilt für 1 Firma. Weitere Firmen: mit Mitgliedschaft ist eine weitere Firma ohne Aufpreis, jede darüber hinaus kostet 49 € pro Jahr (abgerechnet nach der Zahl der aktiven Firmen); ohne Mitgliedschaft je 99 € (alle Preise zzgl. USt; Abschnitt 11).<!-- endif --><!-- if:extra-firms-off -->- Jedes Paket gilt für 1 Firma. Weitere Firmen: mit Mitgliedschaft ist die 2. Firma ohne Aufpreis, ab der 3. Firma je 49 € pro Jahr; ohne Mitgliedschaft je 99 € (alle Preise zzgl. USt; Abschnitt 11).<!-- endif -->
 - **Ohne Mitgliedschaft:** Jede neue Version kostet 49 € je Firma und ist nur innerhalb der Speicherfrist möglich (siehe Abschnitt 8).
 - Alle Preise zzgl. 19 % USt. Maßgeblich sind die im Checkout angezeigten Beträge.
 - Im Checkout sehen Sie beide Pakete nebeneinander. Vorausgewählt ist das Paket mit Mitgliedschaft; Sie können das Paket ohne Mitgliedschaft wählen.
@@ -50,7 +50,7 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 - Ein Update ist sinnvoll, wenn sich Systeme, Abläufe, Hosting oder Verantwortliche ändern. Das Gesamtdokument hat eine gemeinsame Versionierung mit „Gültig ab“ und Änderungshistorie.
 - Bestellungen über unsere Partnerseite (Digistore24) laufen weiter im bisherigen Monatsmodell (198 € zum Start, danach 49 €/Monat, zzgl. USt; § 9a und § 15 AGB).
 
-## 4. Ist das Steuerberatung / rechtssicher?
+## 4. Ist das Steuerberatung?
 
 Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt Sie bei der Erstellung von Entwürfen einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche (zum Beispiel Belegfluss, Kasse oder Warenwirtschaft), je Firma. Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar. Es kommt kein Steuerberatungs- und kein Anwaltsvertrag zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 
@@ -105,10 +105,10 @@ Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 
 - Wir speichern Ihre Dokumentation zwölf Monate ab dem Kauftag.
 - In dieser Zeit können Sie Änderungen für 49 € zzgl. USt je Firma beauftragen. Jede neue Version Ihrer Dokumentation ist eine Änderung, auch wenn Sie nur Module nachtragen. Jede bezahlte Änderung verlängert die Speicherung auf zwölf Monate ab dem Tag der Zahlung.
-- <!-- if:retention-delete -->Nach Ablauf der Frist sind Änderungen nicht mehr möglich, und wir löschen Ihre Dokumentation und Ihre Angaben aus unserer Datenbank. Wir erinnern Sie vorher per E-Mail, 30 Tage und 7 Tage vor der Löschung.<!-- endif --><!-- if:retention-delete-off -->[TODO-LEGAL] (Löschtext, erst mit aktivem Lösch-Lauf)<!-- endif -->
+- Nach Ablauf der Frist sind Änderungen nicht mehr möglich, und wir löschen Ihre Dokumentation und Ihre Angaben aus unserer Datenbank. Wir erinnern Sie vorher per E-Mail, 30 Tage und 7 Tage vor der Löschung.
 - Bis zum Fristende können Sie die Mitgliedschaft im Konto dazubuchen oder eine Änderung beauftragen; dann bleibt Ihre Dokumentation gespeichert. Zu weiteren Firmen beim Dazubuchen siehe Abschnitt 11.
-- <!-- if:retention-delete -->Eine gelöschte Dokumentation können wir nicht wiederherstellen. Möchten Sie danach eine neue Fassung, starten Sie mit einem neuen Einstieg.<!-- endif --><!-- if:retention-delete-off -->[TODO-LEGAL] (Löschtext, erst mit aktivem Lösch-Lauf)<!-- endif -->
-- <!-- if:retention-delete -->Ihr heruntergeladenes PDF ist von der Löschung nicht betroffen.<!-- endif --><!-- if:retention-delete-off -->[TODO-LEGAL] (Löschtext, erst mit aktivem Lösch-Lauf)<!-- endif -->
+- Eine gelöschte Dokumentation können wir nicht wiederherstellen. Möchten Sie danach eine neue Fassung, starten Sie mit einem neuen Einstieg.
+- Ihr heruntergeladenes PDF ist von der Löschung nicht betroffen.
 
 ## 9. Ihr PDF und die Aufbewahrung
 
@@ -119,10 +119,10 @@ Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 
 ## 10. Wie kündige ich die Mitgliedschaft?
 
-- Online per Klick im Kontobereich („Konto → Abo → Kündigen“), in Textform (eine E-Mail an info@gobd-doku-erstellen.de genügt) oder schriftlich an die IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein.
+- Online per Klick im Kundenkonto („Jahresmitgliedschaft“ → „Mitgliedschaft kündigen“), in Textform (eine E-Mail an info@gobd-doku-erstellen.de genügt) oder schriftlich an die IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein.
 - Die Kündigung muss spätestens drei Monate vor Ablauf des laufenden Mitgliedschaftsjahres eingehen; sonst verlängert sich die Mitgliedschaft um zwölf Monate.
 - Wir erinnern Sie vor Beginn der Kündigungsfrist per E-Mail an den Verlängerungstermin.
-- <!-- if:retention-delete -->**Nach der Kündigung:** Ihre Dokumentation wird mit Ablauf der Mitgliedschaft gelöscht; eine neue Speicherfrist beginnt nicht. Wir erinnern Sie 30 Tage und 7 Tage vor der Löschung per E-Mail.<!-- endif --><!-- if:retention-delete-off -->[TODO-LEGAL] (Löschtext, erst mit aktivem Lösch-Lauf)<!-- endif -->
+- **Nach der Kündigung:** Ihre Dokumentation wird mit Ablauf der Mitgliedschaft gelöscht; eine neue Speicherfrist beginnt nicht. Wir erinnern Sie 30 Tage und 7 Tage vor der Löschung per E-Mail.
 - **Kündigung zurücknehmen:** Bis zum Ablauf können Sie Ihre Kündigung in derselben Form zurücknehmen: online im Konto, in Textform (eine E-Mail an info@gobd-doku-erstellen.de genügt) oder schriftlich an die IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein. Die Mitgliedschaft läuft dann weiter, und die Löschung entfällt.
 - **Bitte laden Sie Ihre PDFs bis zum Ablauf der Mitgliedschaft herunter.** Ihre heruntergeladenen PDFs bleiben bei Ihnen; die Aufbewahrung liegt bei Ihnen (siehe Abschnitt 9).
 - Bestellungen über Digistore24 kündigen Sie wie bisher über Digistore24 (§ 9a Abs. 8 AGB).
@@ -132,11 +132,11 @@ Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 - Jedes Paket gilt für 1 Firma. Jede Firma erhält ihre eigene Verfahrensdokumentation.
 - **Was ist eine Firma?** Ein eigener Rechtsträger mit eigener Steuernummer. Niederlassungen und Filialen gehören zur Dokumentation ihres Rechtsträgers.
 - Weitere Firmen fügen Sie nach dem Kauf im Konto hinzu.
-- **Mit Mitgliedschaft:** Die 2. Firma ist ohne Aufpreis enthalten. Ab der 3. Firma kostet jede weitere 49 € zzgl. USt pro Jahr. Diese Beträge verlängern sich mit der Mitgliedschaft und enden mit ihr. Buchen Sie eine Firma im laufenden Mitgliedschaftsjahr, berechnen wir die vollen 49 €; eine anteilige Berechnung gibt es nicht.
-- **Einzelne Firma kündigen:** Eine weitere Firma können Sie einzeln kündigen, mit derselben Frist wie die Mitgliedschaft: spätestens 3 Monate vor der Verlängerung, wirksam zum Ablauf des Mitgliedschaftsjahres. <!-- if:retention-delete -->Danach löschen wir die Dokumentation dieser Firma; wir erinnern Sie 30 und 7 Tage vorher.<!-- endif --><!-- if:retention-delete-off -->[TODO-LEGAL] (Löschtext, erst mit aktivem Lösch-Lauf)<!-- endif --> Bis zum Ablauf können Sie die Kündigung in derselben Form zurücknehmen (siehe Abschnitt 10).
-- **Mitgliedschaft später dazugebucht:** Ab dann gilt die Regel für Mitglieder, die 2. Firma ist ohne Aufpreis. Für Firmen, die Sie schon mit 99 € bezahlt haben, gibt es keine Gutschrift; ihre Speicherfrist geht in der Mitgliedschaft auf. Ab der 3. Firma berechnen wir für diese Firmen 49 € pro Jahr erst ab der nächsten Verlängerung.
-- **Ohne Mitgliedschaft:** Jede weitere Firma kostet 99 € zzgl. USt. Für jede Firma gilt eine eigene Speicherfrist von 12 Monaten ab Zahlung<!-- if:retention-delete --> mit eigener Löschung und eigenen Erinnerungen 30 und 7 Tage vorher<!-- endif --><!-- if:retention-delete-off --><!-- endif -->; jede neue Version kostet 49 € zzgl. USt je Firma, und jede bezahlte Änderung verlängert die Frist dieser Firma auf 12 Monate ab Zahlung.
-- <!-- if:retention-delete -->**Nach einer Kündigung der Mitgliedschaft** laufen alle Firmen zum Ende der Mitgliedschaft aus und werden gelöscht; wir erinnern Sie 30 und 7 Tage vorher.<!-- endif --><!-- if:retention-delete-off -->[TODO-LEGAL] (Löschtext, erst mit aktivem Lösch-Lauf)<!-- endif -->
+<!-- if:extra-firms -->- **Mit Mitgliedschaft:** Eine weitere Firma ist ohne Aufpreis enthalten, jede darüber hinaus kostet 49 € zzgl. USt pro Jahr. Abgerechnet wird bei jeder Verlängerung nach der Zahl Ihrer aktiven Firmen. Beispiel: Mitgliedschaft mit 4 Firmen = 99,90 € + 0 € + 49 € + 49 € = 197,90 € zzgl. USt pro Jahr. Diese Beträge verlängern sich mit der Mitgliedschaft und enden mit ihr. Fügen Sie im laufenden Mitgliedschaftsjahr eine Firma hinzu, die nicht mehr ohne Aufpreis ist, berechnen wir die vollen 49 €; eine anteilige Berechnung gibt es nicht.<!-- endif --><!-- if:extra-firms-off -->- **Mit Mitgliedschaft:** Die 2. Firma ist ohne Aufpreis enthalten. Ab der 3. Firma kostet jede weitere 49 € zzgl. USt pro Jahr. Diese Beträge verlängern sich mit der Mitgliedschaft und enden mit ihr. Buchen Sie eine Firma im laufenden Mitgliedschaftsjahr, berechnen wir die vollen 49 €; eine anteilige Berechnung gibt es nicht.<!-- endif -->
+<!-- if:extra-firms -->- **Einzelne Firma kündigen:** Eine weitere Firma können Sie einzeln kündigen, mit derselben Frist wie die Mitgliedschaft: spätestens 3 Monate vor der Verlängerung, wirksam zum Ablauf des Mitgliedschaftsjahres. Danach löschen wir die Dokumentation dieser Firma; wir erinnern Sie 30 und 7 Tage vorher. Bis zum Ablauf können Sie die Kündigung in derselben Form zurücknehmen (siehe Abschnitt 10). Bei der folgenden Verlängerung zählen wir neu: Kündigen Sie z. B. die 2. Firma, ist die nächste ab dann ohne Aufpreis. Für das laufende Jahr erstatten wir nichts.<!-- endif --><!-- if:extra-firms-off -->- **Einzelne Firma kündigen:** Eine weitere Firma können Sie einzeln kündigen, mit derselben Frist wie die Mitgliedschaft: spätestens 3 Monate vor der Verlängerung, wirksam zum Ablauf des Mitgliedschaftsjahres. Danach löschen wir die Dokumentation dieser Firma; wir erinnern Sie 30 und 7 Tage vorher. Bis zum Ablauf können Sie die Kündigung in derselben Form zurücknehmen (siehe Abschnitt 10).<!-- endif -->
+<!-- if:extra-firms -->- **Mitgliedschaft später dazugebucht:** Ab dann gilt die Regel für Mitglieder: Eine weitere Firma ist ohne Aufpreis. Für Firmen, die Sie schon mit 99 € bezahlt haben, gibt es keine Gutschrift; ihre Speicherfrist geht in der Mitgliedschaft auf. Für diese Firmen berechnen wir die 49 € pro Jahr erst ab der nächsten Verlängerung, dann nach der Zahl der aktiven Firmen.<!-- endif --><!-- if:extra-firms-off -->- **Mitgliedschaft später dazugebucht:** Ab dann gilt die Regel für Mitglieder, die 2. Firma ist ohne Aufpreis. Für Firmen, die Sie schon mit 99 € bezahlt haben, gibt es keine Gutschrift; ihre Speicherfrist geht in der Mitgliedschaft auf. Ab der 3. Firma berechnen wir für diese Firmen 49 € pro Jahr erst ab der nächsten Verlängerung.<!-- endif -->
+- **Ohne Mitgliedschaft:** Jede weitere Firma kostet 99 € zzgl. USt. Für jede Firma gilt eine eigene Speicherfrist von 12 Monaten ab Zahlung mit eigener Löschung und eigenen Erinnerungen 30 und 7 Tage vorher; jede neue Version kostet 49 € zzgl. USt je Firma, und jede bezahlte Änderung verlängert die Frist dieser Firma auf 12 Monate ab Zahlung.
+- **Nach einer Kündigung der Mitgliedschaft** laufen alle Firmen zum Ende der Mitgliedschaft aus und werden gelöscht; wir erinnern Sie 30 und 7 Tage vorher.
 - **Erstattung:** Auch für jede weitere Firma erstatten wir den vollen Betrag, solange deren PDF noch nicht erstellt ist, längstens 14 Tage ab ihrer Buchung.
 - Alle Preise zzgl. USt; das Angebot gilt nur für Unternehmen.
 - Bestellungen über Digistore24 und bestehende Monatsabos: weiterhin bis zu 5 Firmen je Abo.

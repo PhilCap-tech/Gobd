@@ -26,7 +26,7 @@ import {
   SETUP_EUR,
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
-import { isPricingV2, memberPreselected, retentionDeleteEnabled } from "@/lib/pricing-model";
+import { extraFirmsEnabled, isPricingV2, memberPreselected } from "@/lib/pricing-model";
 import { memberFromPackage } from "@/lib/plan-checkout";
 import {
   PLAN_ENTRY_PRICE_LINE,
@@ -106,10 +106,15 @@ export default async function CheckoutPage({
         <p className="lead">
           {v2 ? (
             <>
-              {PLAN_ENTRY_PRICE_LINE}, optional Jahresmitgliedschaft {PLAN_MEMBER_PRICE_LINE}.{" "}
-              {ALL_AREAS_LINE}
-              {/* Partner (Aktionscode): gleiches Modell und gleiche Preise wie der normale Checkout; Codes gelten weiter (R6). */}
-              {partner ? " Den Aktionscode lösen Sie im Checkout ein." : null}
+              {partner ? (
+                // Partner (Aktionscode): gleiches Modell, gleiche Listenpreise; Wortlaut Legal (Z. 96–99). Codes gelten weiter (R6).
+                "Listenpreis: Einstieg 99 € netto (117,81 € brutto) einmalig, optional Mitgliedschaft 99,90 € netto (118,88 € brutto) pro Jahr. Den Aktionscode lösen Sie im Checkout ein. Danach der Fragenkatalog."
+              ) : (
+                <>
+                  {PLAN_ENTRY_PRICE_LINE}, optional Jahresmitgliedschaft {PLAN_MEMBER_PRICE_LINE}.{" "}
+                  {ALL_AREAS_LINE}
+                </>
+              )}
             </>
           ) : partner ? (
             <>
@@ -141,7 +146,7 @@ export default async function CheckoutPage({
             ? {
                 planOffer: {
                   initialPackage: initialMember ? ("mitglied" as const) : ("einstieg" as const),
-                  packageTexts: planPackageTexts(retentionDeleteEnabled()),
+                  packageTexts: planPackageTexts(extraFirmsEnabled()),
                 },
               }
             : {})}
