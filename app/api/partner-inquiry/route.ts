@@ -36,7 +36,18 @@ export async function POST(request: Request) {
       mailStatus: mail.sent ? "sent" : "stub",
     });
   } catch (error) {
-    console.error("[partner-inquiry] Versand fehlgeschlagen", error);
+    // Nur Fehlername und HTTP-Status, nie das ganze Objekt (kann Anfrage-Daten enthalten).
+    const detail = (error && typeof error === "object" ? error : {}) as {
+      statusCode?: unknown;
+      status?: unknown;
+    };
+    const status = [detail.statusCode, detail.status].find(
+      (value): value is number => typeof value === "number" && Number.isInteger(value),
+    );
+    console.error("[partner-inquiry] Versand fehlgeschlagen", {
+      name: error instanceof Error ? error.name : typeof error,
+      status: status ?? null,
+    });
     return jsonError(
       "Die Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es erneut oder schreiben Sie an info@gobd-doku-erstellen.de.",
       502,

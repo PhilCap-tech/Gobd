@@ -29,7 +29,7 @@ import {
   notifyLeadResult,
   type LeadNoticeInput,
 } from "@/lib/lead-notice";
-import { leadNoticeMailKey, resendIdempotencyKey, setMailDedupeTestHooks } from "@/lib/mail-dedupe";
+import { leadNoticeMailKey, resendIdempotencyKey, setMailDedupeTestHooks, storedMailDedupeKey } from "@/lib/mail-dedupe";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LISTED = "48c6805d-3d34-4a80-9747-38ce4edb3eed";
@@ -231,7 +231,11 @@ async function main(): Promise<void> {
     ok(!/\b(Sie|Ihnen|Ihre|Ihr)\b/.test(mail.text), "the internal note does not address anyone with Sie");
     const dedupeKey = leadNoticeMailKey("ampel", leadNoticeDedupeAnchor({ email: REAL, resultMailId }));
     ok(dedupeKey === `lead-notice:ampel:${REAL}:${resultMailId}`, "the dedupe key is tool, address, and result-mail id");
-    ok(mail.idempotencyKey === resendIdempotencyKey(dedupeKey), "Resend gets the Idempotency-Key from that dedupe key");
+    ok(
+      mail.idempotencyKey === resendIdempotencyKey(storedMailDedupeKey(dedupeKey)),
+      "Resend gets the Idempotency-Key from the stored (HMAC) form of that dedupe key",
+    );
+    ok(!mail.idempotencyKey?.includes("@") && !mail.idempotencyKey?.includes(REAL.split("@")[0]), "no address in the Idempotency-Key");
 
     const [left, right] = await Promise.all([
       notifyLeadResult({ ...direct, email: "parallel@firma.de", resultMailId: ampelPdfDedupeKey("parallel@firma.de", ampelCode) }),
@@ -335,12 +339,14 @@ async function main(): Promise<void> {
         kassenNote.text.includes("Ref/UTM: utm_source_kasse") &&
         kassenNote.idempotencyKey ===
           resendIdempotencyKey(
-            leadNoticeMailKey(
-              "kassen",
-              leadNoticeDedupeAnchor({
-                email: kassenEmail,
-                resultMailId: kassenResultDedupeKey(kassenEmail, kassenCode),
-              }),
+            storedMailDedupeKey(
+              leadNoticeMailKey(
+                "kassen",
+                leadNoticeDedupeAnchor({
+                  email: kassenEmail,
+                  resultMailId: kassenResultDedupeKey(kassenEmail, kassenCode),
+                }),
+              ),
             ),
           ),
       "the Kassen submit note has the operator, subject, fields, and dedupe key",

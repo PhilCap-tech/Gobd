@@ -27,8 +27,10 @@ import { PartnerInquiryForm } from "./partner-inquiry-form";
 
 const PAGE_TITLE =
   "Für Steuerberater: Logo im Mandanten-PDF, auf Anfrage | GoBD Verfahrensdoku";
-const PAGE_DESCRIPTION =
-  "Kanzleien zahlen 49 € netto pro Monat auf Anfrage für das Logo im PDF der Mandanten und eine Übersicht der Mandanten, die zugestimmt haben. Keine Provision. Mandanten zahlen den Listenpreis direkt an die IKAT GmbH. Keine Steuerberatung.";
+// v2: ohne Zusage einer Mandantenübersicht (CoS 26.10. 15:52), nur Satzteile gestrichen.
+const PAGE_DESCRIPTION = isPricingV2()
+  ? "Kanzleien zahlen 49 € netto pro Monat auf Anfrage für das Logo im PDF der Mandanten. Keine Provision. Mandanten zahlen den Listenpreis direkt an die IKAT GmbH. Keine Steuerberatung."
+  : "Kanzleien zahlen 49 € netto pro Monat auf Anfrage für das Logo im PDF der Mandanten und eine Übersicht der Mandanten, die zugestimmt haben. Keine Provision. Mandanten zahlen den Listenpreis direkt an die IKAT GmbH. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -50,7 +52,9 @@ const PARTNER_MAIL = `mailto:${LEGAL_OPERATOR.email}?subject=${encodeURIComponen
 const FAQ = [
   {
     q: "Was zahlt die Kanzlei?",
-    a: `${KANZLEI_MONTHLY_EUR} € netto pro Monat (${KANZLEI_MONTHLY_GROSS_LABEL} € brutto, inkl. 19 % USt), auf Anfrage. Darin liegen das Logo der Kanzlei im PDF der Mandanten und eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben. Ein Bereich zum Hochladen des Logos oder zum Abruf der Übersicht ist hier nicht eingerichtet.`,
+    a: isPricingV2()
+      ? `${KANZLEI_MONTHLY_EUR} € netto pro Monat (${KANZLEI_MONTHLY_GROSS_LABEL} € brutto, inkl. 19 % USt), auf Anfrage. Darin liegt das Logo der Kanzlei im PDF der Mandanten. Ein Bereich zum Hochladen des Logos ist hier nicht eingerichtet.`
+      : `${KANZLEI_MONTHLY_EUR} € netto pro Monat (${KANZLEI_MONTHLY_GROSS_LABEL} € brutto, inkl. 19 % USt), auf Anfrage. Darin liegen das Logo der Kanzlei im PDF der Mandanten und eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben. Ein Bereich zum Hochladen des Logos oder zum Abruf der Übersicht ist hier nicht eingerichtet.`,
   },
   {
     q: "Erhält die Kanzlei eine Provision?",
@@ -106,9 +110,15 @@ export default function SteuerberaterPage() {
             <p className={styles.eyebrow}>Für Steuerberater und Kanzleien</p>
             <h1>Logo der Kanzlei im PDF der Mandanten</h1>
             <p className={styles.lead}>
-              Die Kanzlei zahlt {euro(KANZLEI_MONTHLY_EUR)} netto pro Monat, auf Anfrage.
-              Dafür erscheint das Logo im PDF der Mandanten, und die Kanzlei erhält
-              eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben.
+              Die Kanzlei zahlt {euro(KANZLEI_MONTHLY_EUR)} netto pro Monat, auf Anfrage.{" "}
+              {isPricingV2() ? (
+                "Dafür erscheint das Logo im PDF der Mandanten."
+              ) : (
+                <>
+                  Dafür erscheint das Logo im PDF der Mandanten, und die Kanzlei erhält
+                  eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben.
+                </>
+              )}{" "}
               Mandanten zahlen den Listenpreis direkt an die {LEGAL_OPERATOR.name}.
               Die Kanzlei erhält keine Provision.
             </p>
@@ -146,7 +156,7 @@ export default function SteuerberaterPage() {
         </section>
 
         <p className={`shell ${styles.factBar}`}>
-          Logo im Mandanten-PDF · Übersicht nur bei Zustimmung · keine Provision ·
+          Logo im Mandanten-PDF · {isPricingV2() ? null : "Übersicht nur bei Zustimmung · "}keine Provision ·
           Muster-PDF ohne Anmeldung
         </p>
 
@@ -163,14 +173,16 @@ export default function SteuerberaterPage() {
                   dieser Seite nicht.
                 </p>
               </article>
-              <article className={styles.card}>
-                <h3>Übersicht der Mandanten</h3>
-                <p>
-                  Die Übersicht zeigt nur Mandanten, die der Weitergabe zugestimmt
-                  haben. Sie sehen Mandantendaten nicht automatisch. Der Abruf ist
-                  auf Anfrage, nicht als Kontofunktion.
-                </p>
-              </article>
+              {isPricingV2() ? null : (
+                <article className={styles.card}>
+                  <h3>Übersicht der Mandanten</h3>
+                  <p>
+                    Die Übersicht zeigt nur Mandanten, die der Weitergabe zugestimmt
+                    haben. Sie sehen Mandantendaten nicht automatisch. Der Abruf ist
+                    auf Anfrage, nicht als Kontofunktion.
+                  </p>
+                </article>
+              )}
               <article className={styles.card} id="muster">
                 <h3>Muster ansehen</h3>
                 <p>
@@ -213,10 +225,12 @@ export default function SteuerberaterPage() {
                     <th scope="row">Logo im PDF</th>
                     <td>auf Anfrage</td>
                   </tr>
-                  <tr>
-                    <th scope="row">Mandantenübersicht</th>
-                    <td>nur bei Zustimmung, auf Anfrage</td>
-                  </tr>
+                  {isPricingV2() ? null : (
+                    <tr>
+                      <th scope="row">Mandantenübersicht</th>
+                      <td>nur bei Zustimmung, auf Anfrage</td>
+                    </tr>
+                  )}
                   <tr>
                     <th scope="row">Provision</th>
                     <td>keine</td>
@@ -275,8 +289,14 @@ export default function SteuerberaterPage() {
               <ol className={styles.steps} role="list">
                 <li>Sie senden eine Partneranfrage. Es gibt hier keine Selbstbedienung.</li>
                 <li>
-                  Logo im PDF und die Übersicht der Mandanten, die zugestimmt haben,
-                  richten wir danach auf Anfrage ein.
+                  {isPricingV2() ? (
+                    "Logo im PDF richten wir danach auf Anfrage ein."
+                  ) : (
+                    <>
+                      Logo im PDF und die Übersicht der Mandanten, die zugestimmt haben,
+                      richten wir danach auf Anfrage ein.
+                    </>
+                  )}
                 </li>
                 <li>
                   Mandanten bestellen selbst und zahlen den Listenpreis direkt an die{" "}
@@ -308,8 +328,15 @@ export default function SteuerberaterPage() {
             <div>
               <h2>Partneranfrage</h2>
               <p className={styles.prose}>
-                Schreiben Sie uns, wenn die Kanzlei das Logo im PDF und die
-                Übersicht eingewilligter Mandanten nutzen möchte. Die Anfrage ist
+                {isPricingV2() ? (
+                  "Schreiben Sie uns, wenn die Kanzlei das Logo im PDF nutzen möchte."
+                ) : (
+                  <>
+                    Schreiben Sie uns, wenn die Kanzlei das Logo im PDF und die
+                    Übersicht eingewilligter Mandanten nutzen möchte.
+                  </>
+                )}{" "}
+                Die Anfrage ist
                 unverbindlich. Eine Provision gibt es nicht.
               </p>
               <p className={styles.fine}>

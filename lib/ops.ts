@@ -907,10 +907,8 @@ export async function sendPartnerInquiryMail(
     text: mail.text,
     html: mail.html,
   });
+  // Keine personenbezogenen Daten im Log (Empfänger, Absender, Kanzlei).
   console.info("[ops] partner inquiry mail", {
-    to: MAIL_SUPPORT_EMAIL,
-    replyTo: input.email,
-    kanzlei: input.kanzlei,
     sent: result.sent,
     stub: result.stub,
   });

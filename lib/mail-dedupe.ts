@@ -10,9 +10,17 @@
  * webhook and the checkout grant cannot both pass the check. The same key is
  * sent as Resend `Idempotency-Key` (characters outside `[A-Za-z0-9_-]` become
  * `-`, because Resend rejects them).
+ *
+ * A logical key that carries an address (contains `@`, e.g.
+ * `magic-link:<email>`) is never stored or sent as is: it is replaced by
+ * `<prefix>:h1:<HMAC-SHA256>` ({@link storedMailDedupeKey}), keyed from the
+ * existing MAGIC_LINK_SECRET with a domain-separation label (no new env).
+ * Rows written under the old plain key are still honoured: when the new key
+ * has no row, the legacy key is read, read-only. Legacy rows are never
+ * written, renewed, deleted or migrated.
  */
 
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -22,7 +30,7 @@ import {
   get,
   put,
 } from "@vercel/blob";
-import { isBlobConfigured, isProductionRuntime } from "@/lib/env";
+import { getMagicLinkSecret, isBlobConfigured, isProductionRuntime } from "@/lib/env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { sendEmail, type MailResult } from "@/lib/mail";
 import { getFileFallbackDir } from "@/lib/store";
@@ -163,6 +171,33 @@ export function readinessDedupeKey(input: {
     answers: input.answers ?? null,
   });
   return readinessMailKey(createHash("sha256").update(payload).digest("hex").slice(0, 40));
+}
+
+/** Domain separation: this HMAC key is used for nothing but mail-dedupe keys. */
+const DEDUPE_KEY_HMAC_LABEL = "gobd/mail-dedupe/key/v1";
+
+function dedupeKeyHmacKey(): Buffer {
+  return createHmac("sha256", getMagicLinkSecret()).update(DEDUPE_KEY_HMAC_LABEL).digest();
+}
+
+/**
+ * Key under which a logical mail is stored, sent to Resend and logged.
+ * Keys without `@` stay unchanged (no migration needed); a key with an
+ * address becomes `<prefix>:h1:<hex>`, so no plain email reaches the ledger.
+ */
+export function storedMailDedupeKey(logicalKey: string): string {
+  const key = logicalKey.trim();
+  if (!key || !key.includes("@")) return key;
+  const head = key.split(":", 1)[0] ?? "";
+  const prefix = head !== key && /^[A-Za-z0-9_-]{1,40}$/.test(head) ? head : "mail";
+  const digest = createHmac("sha256", dedupeKeyHmacKey()).update(key).digest("hex");
+  return `${prefix}:h1:${digest}`;
+}
+
+/** Plain pre-HMAC key to read (only read) when the stored key has no row. */
+function legacyMailDedupeKey(logicalKey: string, storedKey: string): string | undefined {
+  const key = logicalKey.trim();
+  return key && key !== storedKey ? key : undefined;
 }
 
 /** Resend allows only letters, digits, hyphen and underscore, at most 256. */
@@ -341,8 +376,9 @@ async function removeRecord(key: string): Promise<void> {
 
 /** Exclusive insert used by the prebuild race check. */
 export async function tryClaimMailDedupeSlot(
-  key: string,
+  logicalKey: string,
 ): Promise<"created" | "exists"> {
+  const key = storedMailDedupeKey(logicalKey);
   const at = new Date(nowFn()).toISOString();
   return createRecord(key, {
     key,
@@ -375,7 +411,11 @@ type Acquire =
   | { role: "owner"; resendKey: string; at: string }
   | { role: "duplicate"; inflight: boolean };
 
-async function acquire(logicalKey: string, windowMs?: number): Promise<Acquire> {
+async function acquire(
+  logicalKey: string,
+  windowMs?: number,
+  legacyKey?: string,
+): Promise<Acquire> {
   const deadline = nowFn() + WAIT_MS;
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const existing = await readRecord(logicalKey);
@@ -387,6 +427,18 @@ async function acquire(logicalKey: string, windowMs?: number): Promise<Acquire> 
       if (nowFn() >= deadline) return { role: "duplicate", inflight: true };
       await sleep(100);
       continue;
+    }
+    if (!existing && legacyKey) {
+      // Read-only fallback to the pre-HMAC row; it is never written or removed.
+      const legacy = await readRecord(legacyKey);
+      if (legacy && blocks(legacy, now, windowMs)) {
+        return { role: "duplicate", inflight: false };
+      }
+      if (legacy && freshPending(legacy, now)) {
+        if (nowFn() >= deadline) return { role: "duplicate", inflight: true };
+        await sleep(100);
+        continue;
+      }
     }
     const at = new Date(now).toISOString();
     const resendKey = windowMs ? `${logicalKey}:${at}` : logicalKey;
@@ -463,9 +515,13 @@ function lock<T>(key: string, run: () => Promise<T>): Promise<T> {
 }
 
 async function sendDedupedEmailLocked(input: DedupedMailInput): Promise<MailResult> {
-  const dedupeKey = input.dedupeKey.trim();
+  const dedupeKey = storedMailDedupeKey(input.dedupeKey);
   if (!dedupeKey) return { stub: false, sent: false };
-  const claim = await acquire(dedupeKey, input.windowMs);
+  const claim = await acquire(
+    dedupeKey,
+    input.windowMs,
+    legacyMailDedupeKey(input.dedupeKey, dedupeKey),
+  );
   if (claim.role === "duplicate") {
     console.info("[mail] bereits beansprucht", { key: dedupeKey, inflight: claim.inflight });
     return {
@@ -501,10 +557,12 @@ async function sendDedupedEmailLocked(input: DedupedMailInput): Promise<MailResu
 
 /** Whether this logical mail was already claimed. Does not send and does not claim. */
 export async function lookupMailDedupe(key: string): Promise<"free" | "sent" | "inflight"> {
-  const dedupeKey = key.trim();
+  const dedupeKey = storedMailDedupeKey(key);
   if (!dedupeKey) return "free";
   try {
-    const row = await readRecord(dedupeKey);
+    const legacyKey = legacyMailDedupeKey(key, dedupeKey);
+    const row =
+      (await readRecord(dedupeKey)) ?? (legacyKey ? await readRecord(legacyKey) : null);
     if (!row) return "free";
     const now = nowFn();
     if (blocks(row, now)) return "sent";
@@ -518,7 +576,7 @@ export async function lookupMailDedupe(key: string): Promise<"free" | "sent" | "
 
 export async function sendDedupedEmail(input: DedupedMailInput): Promise<MailResult> {
   try {
-    return await lock(input.dedupeKey.trim(), () => sendDedupedEmailLocked(input));
+    return await lock(storedMailDedupeKey(input.dedupeKey), () => sendDedupedEmailLocked(input));
   } catch (error) {
     console.error(
       "[mail] Dedupe fehlgeschlagen",
