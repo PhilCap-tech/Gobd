@@ -43,7 +43,7 @@ import {
 } from "../lib/membership-store";
 import type { Membership } from "../lib/memberships";
 import { ensureGesamt, setCheckAntwort } from "../lib/module/status";
-import { emptyAnswers, emptySheetRow, type IntakeAnswers } from "../lib/types";
+import { emptyAnswers, type IntakeAnswers } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -489,7 +489,7 @@ async function auditSheetCases(): Promise<void> {
 
   let titles: string[] = [];
   let header: string[] | null = null;
-  let dataRows: string[][] = [];
+  const dataRows: string[][] = [];
   let addSheetCount = 0;
   let headerWrites = 0;
   let metaReads = 0;
