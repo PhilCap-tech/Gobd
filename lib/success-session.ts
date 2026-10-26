@@ -33,8 +33,14 @@ export function successPageTitle(body: SuccessPageBody): string {
 
 const probes = new Map<string, { at: number; value: SuccessCheckoutResult }>();
 
+/** A missing or unknown Checkout Session stays missing. Retried after this window. */
+export const SUCCESS_PURCHASE_MISS_TTL_MS = 10 * 60_000;
+
+const purchaseMisses = new Map<string, number>();
+
 export function clearSuccessCheckoutProbes(): void {
   probes.clear();
+  purchaseMisses.clear();
 }
 
 /**
@@ -119,4 +125,32 @@ export function successPendingHref(input: {
   if (input.checked) params.set(SUCCESS_CHECKOUT_CHECKED_PARAM, "1");
   const query = params.toString();
   return query ? `/success?${query}` : "/success";
+}
+
+/**
+ * Purchase lookup for a stored document on /success. Only `invalid` and
+ * `missing` are remembered (in memory, per instance): Stripe will not find
+ * that session on the next view either. Paid results and `lookup_failed`
+ * are not cached, so a real purchase and a transient outage behave as before.
+ */
+export async function lookupSuccessPurchase(
+  sessionId: string,
+  resolve: (sessionId: string) => Promise<SuccessCheckoutResult>,
+  now = Date.now(),
+): Promise<SuccessCheckoutResult> {
+  const key = sessionId.trim();
+  const missAt = purchaseMisses.get(key);
+  if (missAt !== undefined && now - missAt < SUCCESS_PURCHASE_MISS_TTL_MS) {
+    return { error: "invalid" };
+  }
+  const value = await resolve(key);
+  if ("error" in value && (value.error === "invalid" || value.error === "missing")) {
+    purchaseMisses.set(key, now);
+    if (purchaseMisses.size > 500) {
+      for (const [id, at] of purchaseMisses) {
+        if (now - at >= SUCCESS_PURCHASE_MISS_TTL_MS) purchaseMisses.delete(id);
+      }
+    }
+  }
+  return value;
 }

@@ -7,7 +7,12 @@ import {
   type LifecycleEvent,
 } from "@/lib/kuendigung";
 import { findLifecycleBySubscription } from "@/lib/kuendigung-store";
-import { getStripe, retrieveCustomerEmail, stripeCustomerIdFrom } from "@/lib/stripe";
+import {
+  getStripe,
+  isCheckoutSessionIdForKey,
+  retrieveCustomerEmail,
+  stripeCustomerIdFrom,
+} from "@/lib/stripe";
 import type Stripe from "stripe";
 
 const OPEN_STATUS = new Set(["active", "trialing", "past_due", "unpaid"]);
@@ -206,6 +211,8 @@ export async function recordCheckoutSubscription(input: {
  */
 export async function reopenIfActiveCheckout(email: string, sessionId: string): Promise<void> {
   if (!email.trim() || !sessionId.trim()) return;
+  // Made-up or other-mode ids: Stripe would only answer resource_missing.
+  if (!isCheckoutSessionIdForKey(sessionId)) return;
   try {
     const session = await getStripe().checkout.sessions.retrieve(sessionId, {
       expand: ["subscription"],

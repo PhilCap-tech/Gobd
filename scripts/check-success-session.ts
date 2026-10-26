@@ -262,8 +262,9 @@ function checkPageSource() {
   const source = readFileSync("app/success/page.tsx", "utf8");
   const pendingSource = readFileSync("components/success-status.tsx", "utf8");
   ok(
-    (source.match(/await resolveCheckoutSession\(/g) ?? []).length === 1,
-    "the success page still awaits Stripe once for the purchase conversion",
+    (source.match(/await lookupSuccessPurchase\(sessionId, resolveCheckoutSession\)/g) ?? []).length === 1 &&
+      !/await resolveCheckoutSession\(/.test(source),
+    "the success page still awaits Stripe once for the purchase conversion, behind the negative cache",
   );
   ok(
     source.includes('showSuccess && sessionId.startsWith("cs_")'),

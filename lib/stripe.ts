@@ -62,6 +62,67 @@ export function getStripe(): Stripe {
   return stripeClient;
 }
 
+/**
+ * Checks substitute the Stripe client so no request leaves the process.
+ * Production leaves this unset. `null` returns to the lazily built client.
+ */
+export function installStripeClientForChecks(next: Stripe | null): void {
+  stripeClient = next;
+}
+
+export type StripeKeyMode = "live" | "test" | "unknown";
+
+/**
+ * Mode of STRIPE_SECRET_KEY, read from its prefix only. The key itself is
+ * never returned or logged.
+ */
+export function stripeKeyMode(): StripeKeyMode {
+  const key = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
+  if (key.startsWith("sk_live_") || key.startsWith("rk_live_")) return "live";
+  if (key.startsWith("sk_test_") || key.startsWith("rk_test_")) return "test";
+  return "unknown";
+}
+
+/** Real Checkout Session ids are `cs_live_` / `cs_test_` plus 58 alphanumerics. */
+const CHECKOUT_SESSION_ID_PATTERN = /^cs_(live|test)_[A-Za-z0-9]{50,}$/;
+
+export type CheckoutSessionIdVerdict = "ok" | "format" | "mode";
+
+/**
+ * Whether Stripe could know this Checkout Session under the current key.
+ * Short or made-up ids fail on format. A `cs_test_` id under a live key (or
+ * the reverse) fails on mode: Stripe would only answer resource_missing.
+ */
+export function checkoutSessionIdVerdict(
+  sessionId: string,
+  mode: StripeKeyMode = stripeKeyMode(),
+): CheckoutSessionIdVerdict {
+  const match = CHECKOUT_SESSION_ID_PATTERN.exec(sessionId);
+  if (!match) return "format";
+  return match[1] === mode ? "ok" : "mode";
+}
+
+export function isCheckoutSessionIdForKey(
+  sessionId: string,
+  mode: StripeKeyMode = stripeKeyMode(),
+): boolean {
+  return checkoutSessionIdVerdict(sessionId, mode) === "ok";
+}
+
+/** Error fields safe for logs: no message, so no ids, e-mails, or keys. */
+export function stripeErrorLogFields(error: unknown): {
+  code: string;
+  statusCode: number | null;
+  type: string;
+} {
+  const e = stripeErrorFields(error);
+  return {
+    code: typeof e.code === "string" ? e.code : "",
+    statusCode: typeof e.statusCode === "number" ? e.statusCode : null,
+    type: typeof e.type === "string" ? e.type : "",
+  };
+}
+
 export function isCheckoutSessionFulfilled(
   session: Pick<Stripe.Checkout.Session, "status" | "payment_status">,
 ): boolean {
@@ -419,6 +480,17 @@ export async function resolveCheckoutSession(
     };
   }
 
+  // Only the real Stripe retriever is guarded. Injected retrievers never leave the process.
+  if (retrieve === retrieveCheckoutSession) {
+    const verdict = checkoutSessionIdVerdict(sessionId);
+    if (verdict !== "ok") {
+      console.warn("[stripe] Checkout-Session-ID ohne Stripe-Aufruf abgewiesen", {
+        reason: verdict,
+      });
+      return { error: "invalid" };
+    }
+  }
+
   try {
     const session = await retrieve(sessionId);
     if (!isCheckoutSessionFulfilled(session)) {
@@ -522,6 +594,16 @@ export async function listStripeCustomerIdByEmail(
 ): Promise<string | null> {
   const lookup = await lookupStripeCustomerIdByEmail(email);
   return lookup.id;
+}
+
+/** A recent customers.retrieve (or list) found this id missing in the current mode. */
+export function isCustomerKnownInvalid(customerId: string): boolean {
+  const cached = customerVerifyCache.get(customerId.trim());
+  return Boolean(
+    cached &&
+      cached.result === "invalid" &&
+      Date.now() - cached.at < CUSTOMER_VERIFY_TTL_MS,
+  );
 }
 
 /**
@@ -668,6 +750,8 @@ export async function listCustomerSubscriptionStatuses(
 ): Promise<{ ok: true; statuses: string[] } | { ok: false }> {
   const id = customerId.trim();
   if (!id) return { ok: false };
+  // Stripe already answered „Kunde fehlt“ for this id; a list would only fail again.
+  if (isCustomerKnownInvalid(id)) return { ok: false };
   if (subscriptionStatusHandler) return subscriptionStatusHandler(id);
   if (!isStripeSecretConfigured()) return { ok: false };
   try {
@@ -678,9 +762,12 @@ export async function listCustomerSubscriptionStatuses(
     });
     return { ok: true, statuses: list.data.map((item) => item.status) };
   } catch (error) {
+    if (isStripeCustomerMissingError(error)) {
+      customerVerifyCache.set(id, { result: "invalid", at: Date.now() });
+    }
     console.error(
       "[stripe] subscriptions.list für weitere Firmen fehlgeschlagen",
-      error instanceof Error ? error.name : "error",
+      stripeErrorLogFields(error),
     );
     return { ok: false };
   }
