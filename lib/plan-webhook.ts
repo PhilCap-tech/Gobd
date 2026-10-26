@@ -16,6 +16,7 @@ import {
   type PlanRow,
 } from "@/lib/plan";
 import {
+  PLAN_METADATA_AGB_ACCEPTED_AT,
   PLAN_METADATA_FIRM,
   PLAN_METADATA_KIND,
   PLAN_METADATA_PLAN,
@@ -65,6 +66,8 @@ export function planAfterCheckout(
     subscriptionId: string;
     /** Weitere Firma eines Mitglieds (49 €), sonst 99 € einmalig. */
     memberFirm?: boolean;
+    /** Einstieg: AGB-Bestätigung aus den Session-Metadaten. */
+    agbAcceptedAt?: string;
   },
 ): PlanRow | null {
   if (input.kind === "entry") {
@@ -192,6 +195,7 @@ export async function recordPlanCheckout(input: {
     customerId: input.customerId,
     subscriptionId,
     memberFirm,
+    agbAcceptedAt: input.session.metadata?.[PLAN_METADATA_AGB_ACCEPTED_AT] ?? "",
   });
   if (next && next !== previous && firmsOn && input.setMemberFirmQuantity) {
     const quantity = memberFirmQuantityAfter(next, firms, input.kind);

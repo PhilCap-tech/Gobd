@@ -52,6 +52,8 @@ export type PlanRow = {
   /** Kündigung bzw. Rücknahme: Kanal (`konto` | `email`) und Zeitpunkt des Eingangs. */
   memberCancelChannel: string;
   memberCancelReceivedAt: string;
+  /** AGB-Bestätigung im v2-Checkout (ISO, aus Stripe-Metadaten `agb_accepted_at`), leer bei Altzeilen. */
+  agbAcceptedAt: string;
   notice30At: string;
   notice7At: string;
   deletedAt: string;
@@ -89,6 +91,8 @@ export const PLAN_SHEET_COLUMNS = [
   "renewal_notice_for",
   "member_cancel_channel",
   "member_cancel_received_at",
+  // Neu 26.10.: nur ans Ende anhängen, Altzeilen bleiben leer.
+  "agb_accepted_at",
 ] as const;
 
 const MEMBER_LIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -113,6 +117,7 @@ export function emptyPlanRow(email: string, at: string): PlanRow {
     renewalNoticeFor: "",
     memberCancelChannel: "",
     memberCancelReceivedAt: "",
+    agbAcceptedAt: "",
     notice30At: "",
     notice7At: "",
     deletedAt: "",
@@ -359,6 +364,8 @@ export function applyEntryPurchase(
     customerId: string;
     member: boolean;
     subscriptionId: string;
+    /** AGB-Bestätigung aus dem Checkout (ISO), leer = unverändert. */
+    agbAcceptedAt?: string;
   },
 ): PlanRow {
   const base = previous && !previous.deletedAt ? previous : emptyPlanRow(input.email, input.at);
@@ -382,6 +389,7 @@ export function applyEntryPurchase(
     deletedAt: "",
     // Ein neuer Einstieg ist ein neuer Kauf (wie eine neue DS24-Bestellung).
     refundedAt: "",
+    agbAcceptedAt: input.agbAcceptedAt?.trim() || base.agbAcceptedAt,
     processedSessions: rememberSession(base, input.sessionId),
     lastEventId: input.eventId,
     updatedAt: input.at,

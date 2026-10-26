@@ -433,6 +433,29 @@ async function main() {
     assert.equal(checkout.buildPlanCheckoutParams({ kind: "entry", member: true, email: "k@example.com", company: "" }).metadata?.agb_accepted_at, undefined);
   });
 
+  await check("Plans-Zeile: agb_accepted_at als letzte Spalte, Altzeilen leer, Einstieg setzt den Zeitpunkt", () => {
+    const cols = [...plan.PLAN_SHEET_COLUMNS];
+    assert.equal(cols.at(-1), "agb_accepted_at", "neue Spalte nur am Ende");
+    assert.equal(cols.at(-2), "member_cancel_received_at", "bisherige Reihenfolge unverändert");
+    const oldHeader = cols.slice(0, -1);
+    const oldValues = oldHeader.map((c) => (c === "email" ? "alt@example.com" : c === "plan" ? "single" : ""));
+    const oldRow = store.planRowFromSheet(oldHeader, oldValues);
+    assert.ok(oldRow);
+    assert.equal(oldRow?.agbAcceptedAt, "", "Altzeile ohne Spalte: leer");
+    assert.equal(store.planRowFromSheet(cols, [...oldValues, ""])?.agbAcceptedAt, "", "leerer Wert toleriert");
+    assert.deepEqual(store.planSheetValues(oldRow!, oldHeader).length, oldHeader.length, "Schreiben mit altem Kopf: keine Zusatzzelle");
+    const at = "2026-11-02T10:00:00.000Z";
+    const entry = webhook.planAfterCheckout(null, { kind: "entry", member: true, email: "k@example.com", at, sessionId: "cs_1", eventId: "evt_1", customerId: "cus_1", subscriptionId: "sub_1", agbAcceptedAt: at });
+    assert.equal(entry?.agbAcceptedAt, at);
+    const values = store.planSheetValues(entry!);
+    assert.equal(values.at(-1), at, "Wert landet in der letzten Spalte");
+    assert.equal(store.planRowFromSheet(cols, values)?.agbAcceptedAt, at, "Rundlauf");
+    const change = webhook.planAfterCheckout(entry, { kind: "change", member: false, email: "k@example.com", at: "2026-12-01T10:00:00.000Z", sessionId: "cs_2", eventId: "evt_2", customerId: "cus_1", subscriptionId: "" });
+    assert.equal(change?.agbAcceptedAt, at, "Änderung behält den Zeitpunkt");
+    const webhookSrc = readFileSync("lib/plan-webhook.ts", "utf8");
+    assert.ok(webhookSrc.includes("agbAcceptedAt: input.session.metadata?.[PLAN_METADATA_AGB_ACCEPTED_AT]"), "Webhook übernimmt Metadaten");
+  });
+
   await check("Konto: Satz zur Kündigung/Rücknahme per E-Mail (Wortlaut Legal), ohne Platzhalter", () => {
     assert.equal(
       planCopy.PLAN_CANCEL_EMAIL_NOTE,

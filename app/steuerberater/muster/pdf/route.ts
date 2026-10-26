@@ -3,7 +3,7 @@ import { generatePdf } from "@/lib/delivery";
 import { isPricingV2 } from "@/lib/pricing-model";
 import {
   MUSTER_QUELLE_PARAM,
-  musterPdfShowsGuarantee,
+  musterPdfIsDs24,
   PARTNER_MUSTER_ANSWERS,
   PARTNER_MUSTER_DOCUMENT_ID,
   PARTNER_MUSTER_FILENAME,
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     version: 1,
     versionMeta: PARTNER_MUSTER_VERSION_META,
     variant: "muster",
-    upsellGuarantee: musterPdfShowsGuarantee(quelle, isPricingV2()),
+    upsellDs24: musterPdfIsDs24(quelle, isPricingV2()),
   });
 
   return new NextResponse(new Uint8Array(buffer), {
