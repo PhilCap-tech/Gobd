@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { getAppUrl, isStripeSecretConfigured } from "@/lib/env";
-import { memberCancelPlan } from "@/lib/plan";
+import { applyMemberCancelRecord, memberCancelPlan } from "@/lib/plan";
 import { loadPlanAccess } from "@/lib/plan-access";
 import { savePlanRow } from "@/lib/plan-store";
 import { getStripe } from "@/lib/stripe";
@@ -56,7 +56,9 @@ export async function POST(request: Request) {
     return back("kuendigung-fehler");
   }
   const at = new Date().toISOString();
-  await savePlanRow({ ...loaded.row, memberCancelAt: plan.effectiveAt, updatedAt: at }).catch(
+  await savePlanRow(
+    applyMemberCancelRecord(loaded.row, { effectiveAt: plan.effectiveAt, channel: "konto", receivedAt: at, at }),
+  ).catch(
     (error: unknown) => {
       // Der Webhook customer.subscription.updated trägt das Datum ebenfalls nach.
       console.error("[jahresplan] Kündigung nicht im Plan vermerkt", error instanceof Error ? error.name : "error");
@@ -93,13 +95,10 @@ async function withdraw(email: string): Promise<NextResponse> {
     console.error("[jahresplan] Widerruf fehlgeschlagen", error instanceof Error ? error.name : "error");
     return back("widerruf-fehler");
   }
-  await savePlanRow({
-    ...loaded.row,
-    memberCancelAt: "",
-    notice30At: "",
-    notice7At: "",
-    updatedAt: new Date().toISOString(),
-  }).catch((error: unknown) => {
+  const at = new Date().toISOString();
+  await savePlanRow(
+    applyMemberCancelRecord(loaded.row, { effectiveAt: "", channel: "konto", receivedAt: at, at }),
+  ).catch((error: unknown) => {
     console.error("[jahresplan] Widerruf nicht im Plan vermerkt", error instanceof Error ? error.name : "error");
   });
   return back("widerrufen");

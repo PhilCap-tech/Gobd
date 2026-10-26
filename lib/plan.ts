@@ -12,6 +12,7 @@
 import { formatBerlinDate } from "@/lib/kuendigung";
 import {
   memberCancelNoticeMonths,
+  renewalNoticeDaysBeforeCutoff,
   memberLateCancelEffect,
   PLAN_WINDOW_MONTHS,
   windowAfterMemberMonths,
@@ -46,6 +47,11 @@ export type PlanRow = {
    * Firma. Muster, Vorschau und kostenlose Checks zählen nicht.
    */
   firstPdfAt: string;
+  /** Verlängerungs-Erinnerung verschickt für dieses Laufzeitende (ISO), leer = keine. */
+  renewalNoticeFor: string;
+  /** Kündigung bzw. Rücknahme: Kanal (`konto` | `email`) und Zeitpunkt des Eingangs. */
+  memberCancelChannel: string;
+  memberCancelReceivedAt: string;
   notice30At: string;
   notice7At: string;
   deletedAt: string;
@@ -80,6 +86,9 @@ export const PLAN_SHEET_COLUMNS = [
   "member_extra_firms",
   "member_firm_item_id",
   "first_pdf_at",
+  "renewal_notice_for",
+  "member_cancel_channel",
+  "member_cancel_received_at",
 ] as const;
 
 const MEMBER_LIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -101,6 +110,9 @@ export function emptyPlanRow(email: string, at: string): PlanRow {
     memberExtraFirms: 0,
     memberFirmItemId: "",
     firstPdfAt: "",
+    renewalNoticeFor: "",
+    memberCancelChannel: "",
+    memberCancelReceivedAt: "",
     notice30At: "",
     notice7At: "",
     deletedAt: "",
@@ -623,6 +635,44 @@ export function applyRefund(previous: PlanRow, input: { at: string; eventId: str
     memberEndedAt: previous.plan === "member" ? input.at : previous.memberEndedAt,
     plan: "single",
     lastEventId: input.eventId,
+    updatedAt: input.at,
+  };
+}
+
+/* ---------- Erinnerung vor der Verlängerung (nur Auswahl, kein Versand) ---------- */
+
+/**
+ * Fällig, wenn eine laufende, nicht gekündigte Mitgliedschaft das Fenster
+ * „Stichtag − N Tage“ erreicht hat, der Stichtag noch nicht vorbei ist und
+ * für dieses Laufzeitende noch keine Erinnerung vermerkt ist.
+ */
+export function renewalNoticeDue(
+  row: PlanRow,
+  now: Date = new Date(),
+  options?: { daysBeforeCutoff?: number; noticeMonths?: number },
+): boolean {
+  if (planState(row, now) !== "member" || row.memberCancelAt) return false;
+  if (!Number.isFinite(Date.parse(row.memberPeriodEnd))) return false;
+  if (row.renewalNoticeFor === row.memberPeriodEnd) return false;
+  const cutoff = Date.parse(addMonthsIso(row.memberPeriodEnd, -(options?.noticeMonths ?? memberCancelNoticeMonths())));
+  const from = cutoff - (options?.daysBeforeCutoff ?? renewalNoticeDaysBeforeCutoff()) * DAY_MS;
+  return now.getTime() >= from && now.getTime() <= cutoff;
+}
+
+/**
+ * Kündigung bzw. Rücknahme vermerken (Konto-Klick oder per E-Mail im Admin).
+ * Gleiche Wirkung, nur Kanal und Eingang unterscheiden sich.
+ */
+export function applyMemberCancelRecord(
+  previous: PlanRow,
+  input: { effectiveAt: string; channel: "konto" | "email"; receivedAt: string; at: string },
+): PlanRow {
+  return {
+    ...previous,
+    memberCancelAt: input.effectiveAt,
+    memberCancelChannel: input.channel,
+    memberCancelReceivedAt: input.receivedAt,
+    ...(input.effectiveAt ? {} : { notice30At: "", notice7At: "" }),
     updatedAt: input.at,
   };
 }

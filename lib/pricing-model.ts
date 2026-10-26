@@ -127,3 +127,20 @@ export function v2FirmPriceIds(): { firm: string; memberFirmYear: string } {
     memberFirmYear: process.env.STRIPE_PRICE_MEMBER_FIRM_YEAR_ID?.trim() ?? "",
   };
 }
+
+/* ---------- Erinnerung vor jeder Verlängerung (CoS 26.10. 14:25) ---------- */
+
+/** Schalter für die Verlängerungs-Erinnerung. Default AUS; versendet wird in diesem Stand nie. */
+export function renewalNoticeEnabled(): boolean {
+  return boolEnv("RENEWAL_NOTICE_ENABLED", false);
+}
+
+/**
+ * Tage VOR dem Kündigungsstichtag (Ablauf − 3 Monate). AGB-Entwurf § 12
+ * Abs. 2: „rechtzeitig vor Beginn der Kündigungsfrist“. Default 30 Tage,
+ * also rund 4 Monate vor der Verlängerung. RENEWAL_NOTICE_DAYS_BEFORE_CUTOFF, 7–120.
+ */
+export function renewalNoticeDaysBeforeCutoff(): number {
+  const raw = Number(process.env.RENEWAL_NOTICE_DAYS_BEFORE_CUTOFF?.trim() || "30");
+  return Number.isInteger(raw) && raw >= 7 && raw <= 120 ? raw : 30;
+}

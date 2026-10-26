@@ -1,3 +1,5 @@
+import { LEGAL_OPERATOR } from "@/lib/legal";
+import { TODO_LEGAL } from "@/lib/plan-copy";
 import { PlanBuyButton } from "@/components/plan-buy-button";
 import type { AccountPlanView } from "@/lib/plan-view";
 import { PLAN_CHANGE_PRICE_LINE, PLAN_MEMBER_PRICE_LINE } from "@/lib/plan-copy";
@@ -47,6 +49,11 @@ export function AccountPlanCard({ view, purchase }: { view: AccountPlanView; pur
             Mitgliedschaft kündigen
           </button>
         </form>
+      ) : null}
+      {view.canCancel || view.canWithdrawCancel ? (
+        <p className="hint">
+          Kündigung und Rücknahme sind auch per E-Mail an {LEGAL_OPERATOR.email} möglich. {TODO_LEGAL}
+        </p>
       ) : null}
       {view.canWithdrawCancel ? (
         <form method="post" action="/api/account/jahresplan/kuendigung">
