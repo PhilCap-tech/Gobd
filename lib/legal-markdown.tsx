@@ -206,7 +206,7 @@ function renderMixedBlock(block: string, key: string): ReactNode[] {
 
 /** Anchor for the live FAQ refund section. No separate policy page. */
 function headingId(text: string): string | undefined {
-  if (/geld-zurück|zufriedenheitsgarantie/i.test(text)) return "geld-zurueck";
+  if (/geld[- ]zurück|zufriedenheitsgarantie/i.test(text)) return "geld-zurueck";
   return undefined;
 }
 

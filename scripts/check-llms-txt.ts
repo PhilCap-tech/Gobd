@@ -86,7 +86,7 @@ for (const page of [
 }
 
 const faq = readFaqMarkdown();
-const faqGuarantee = markdownH2Section(faq, "6. 14 Tage Zufriedenheitsgarantie");
+const faqGuarantee = markdownH2Section(faq, "6. 14 Tage Geld zurück: Garantie und Rückgaberecht");
 const agbWithdrawal = markdownH2Section(agbMarkdown, "§ 8 Kein Widerrufsrecht (B2B)");
 const agbGuarantee = markdownH2Section(agbMarkdown, "§ 9 Zufriedenheitsgarantie");
 const agbTerm = markdownH2Section(
@@ -222,7 +222,7 @@ ok(!/price_[A-Za-z0-9]|txr_|sk_live_|sk_test_/.test(product), "JSON-LD has no St
 
 const entries = faqEntries(faq);
 ok(entries.length >= 6, "FAQ JSON-LD uses the FAQ sections");
-ok(entries.some((entry) => entry.question.includes("Zufriedenheitsgarantie")), "guarantee question");
+ok(entries.some((entry) => entry.question.includes("Geld zurück")), "guarantee question");
 ok(
   entries.some((entry) =>
     entry.answer.includes("198 € zum Start (Einrichtung + 1. Monat), zzgl. USt."),
