@@ -66,7 +66,7 @@ Rechnungsfragen richten Sie bitte an Digistore24 (support@digistore24.com).
 
 ## 6. 14 Tage Zufriedenheitsgarantie
 
-Innerhalb von **14 Tagen** nach Bestellung erstatten wir die 198 € zum Start (Einrichtung + 1. Monat), zzgl. USt., solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
+**Bestellung über unsere Website (Stripe Checkout):** Innerhalb von **14 Tagen** nach Bestellung erstatten wir die 198 € zum Start (Einrichtung + 1. Monat), zzgl. USt., solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab. Für Bestellungen über unsere Partnerseite (Digistore24) gilt stattdessen das Rückgaberecht weiter unten.
 
 **So beantragen Sie die Erstattung**
 
@@ -95,7 +95,9 @@ Inhaltliche Unzufriedenheit allein wegen unvollständiger eigener Angaben im Fra
 
 Unser Angebot richtet sich ausschließlich an Unternehmer (§ 14 BGB). Verbraucher sind vom Vertragsschluss ausgeschlossen. Die 14-Tage-Zufriedenheitsgarantie ist eine vertragliche Zusage in den AGB, kein gesetzliches Widerrufsrecht.
 
-Bei Bestellungen über unsere Partnerseite (Digistore24) gelten dieselben Erstattungsregeln; die Erstattung beantragen Sie über Digistore24 (Soforthilfe-Link in der Bestellbestätigung) oder bei uns, abgewickelt wird sie über Digistore24 (§ 9a AGB).
+**Bestellung über unsere Partnerseite (Digistore24)**
+
+14 Tage Rückgaberecht über Digistore24: Innerhalb von 14 Tagen nach dem Kauf können Sie Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer Bestellbestätigung) und erhalten den vollen Kaufpreis zurück. Bei Käufen über Digistore24 Inc. (USA) bzw. Digistore24 LTD (UK) gilt die im Bestellformular angezeigte Frist von 60 Tagen. Das gilt auch, wenn Sie bereits ein PDF erzeugt oder heruntergeladen haben. Die Erstattung wickelt Digistore24 ab. Die Regeln für Bestellungen über unsere Website gelten hier nicht (§ 9a Abs. 9 AGB). Nach der Rückgabe sperren wir Ihren Zugang; bereits heruntergeladene PDFs dürfen Sie dann nicht mehr nutzen.
 
 Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 

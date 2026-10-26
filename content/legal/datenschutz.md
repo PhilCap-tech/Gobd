@@ -38,7 +38,7 @@ Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, 
 
 Diese Website wird bei Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA, gehostet. Beim Aufruf der Seite verarbeitet Vercel technisch notwendige Verbindungsdaten (z. B. IP-Adresse, Zeitpunkt, aufgerufene Seite). Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (sicherer und effizienter Betrieb). Mit Vercel besteht ein Auftragsverarbeitungsvertrag nach Art. 28 DSGVO.
 
-Eine feste Region der Datenhaltung ist in dieser Anwendung nicht hinterlegt. Soweit Vercel Daten in die USA übermittelt, stützt sich die Übermittlung auf Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO oder auf einen Angemessenheitsbeschluss, sofern Vercel danach zertifiziert ist.
+Die Server-Funktionen unserer Website laufen in einem Rechenzentrum von Vercel in Washington, D.C., USA. Angaben, die Sie über unsere Formulare an uns senden, und die technischen Verbindungsdaten werden deshalb in den USA verarbeitet. Statische Inhalte der Website kann Vercel aus einem Rechenzentrum in Ihrer Nähe ausliefern. Für die Übermittlung in die USA stützen wir uns auf die Zertifizierung von Vercel Inc. nach dem EU-U.S. Data Privacy Framework (Angemessenheitsbeschluss der EU-Kommission, Art. 45 DSGVO). Ergänzend sind im Vertrag mit Vercel Standardvertragsklauseln vereinbart (Art. 46 Abs. 2 lit. c DSGVO).
 
 Weitere Informationen: https://vercel.com/legal/privacy-policy
 
@@ -56,13 +56,13 @@ Weitere Informationen: https://vercel.com/legal/privacy-policy
 
 ## 7. Server-Logfiles
 
-Beim Aufruf unserer Website verarbeitet der Hosting-Anbieter technisch erforderliche Daten (IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Referrer-URL, Browser und Betriebssystem). Zweck ist der sichere und stabile Betrieb; Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO. Die Logdaten werden gelöscht, sobald sie für den sicheren Betrieb nicht mehr erforderlich sind, sofern sie nicht zur Aufklärung eines Sicherheitsvorfalls länger benötigt werden. Eine feste Löschfrist in Tagen ist in dieser Anwendung nicht hinterlegt.
+Beim Aufruf unserer Website verarbeitet der Hosting-Anbieter technisch erforderliche Daten (IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Referrer-URL, Browser und Betriebssystem). Zweck ist der sichere und stabile Betrieb; Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO. Die Logdaten werden gelöscht, sobald sie für den sicheren Betrieb nicht mehr erforderlich sind, sofern sie nicht zur Aufklärung eines Sicherheitsvorfalls länger benötigt werden. Unser Hosting-Anbieter speichert diese Logdaten bis zu 30 Tage und löscht sie danach automatisch. Die Logdaten werden in den USA verarbeitet (siehe Abschnitt 5).
 
 ## 8. Datenbank und Dateispeicher
 
 Kontodaten, Fragebogenangaben, Firmenstammdaten und die Zuordnung der Dokumente speichern wir in Google Sheets (Google Ireland Limited bzw. Google LLC). Die erzeugten PDFs, zugehörigen Kapiteltexte, Intake-Entwürfe sowie optional hochgeladene bestehende Dokumentationen (Status „durch bestehende Dokumentation abgedeckt“) speichern wir bei Vercel Blob (Vercel Inc.), sofern der Blob-Speicher konfiguriert ist. Ist er nicht konfiguriert, liegt nur ein nicht dauerhafter Datei-Fallback auf dem Server. Mit beiden Anbietern nutzen wir deren Auftragsverarbeitungsbedingungen nach Art. 28 DSGVO, soweit sie Daten in unserem Auftrag verarbeiten.
 
-Eine feste Region dieser Speicherung ist im Code nicht hinterlegt. Google und Vercel können Daten in den USA verarbeiten. Soweit das geschieht, stützt sich die Übermittlung auf Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO oder auf einen Angemessenheitsbeschluss, sofern der jeweilige Anbieter danach zertifiziert ist.
+Den Dateispeicher Vercel Blob betreiben wir in einem Rechenzentrum von Vercel in Washington, D.C., USA; für die Übermittlung gilt das in Abschnitt 5 Gesagte. Google und Vercel können Daten in den USA verarbeiten. Soweit das geschieht, stützt sich die Übermittlung auf Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO oder auf einen Angemessenheitsbeschluss, sofern der jeweilige Anbieter danach zertifiziert ist.
 
 ## 9. Kundenkonto und Anmeldung per Magic-Link
 
@@ -182,4 +182,4 @@ Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von 
 
 Wir passen diese Datenschutzerklärung an, wenn sich Rechtslage, Dienste oder Verarbeitungen ändern. Es gilt die jeweils auf der Website veröffentlichte Fassung.
 
-**Stand:** 25.10.2026
+**Stand:** 26.10.2026

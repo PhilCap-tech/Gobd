@@ -112,11 +112,11 @@ Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vo
 
 (8) **Laufzeit und Kündigung.** Das Abonnement läuft auf unbestimmte Zeit und ist **monatlich** zum Ende des jeweils laufenden Abrechnungsmonats kündbar. Die Kündigung erklären Sie **gegenüber Digistore24**: Öffnen Sie die Bestellbestätigung von Digistore24 (Absender support@digistore24.com, Betreff „Digistore24 - Bestellung erfolgreich / Zugang“), klicken Sie auf den Link zur Soforthilfe, wählen Sie „Frage zur Bezahlung“ → „Ich möchte die Zahlungen kündigen“ und senden Sie Ihr Anliegen über „Wenden Sie sich an uns“ an den Digistore24-Support. Alternativ kündigen Sie in Textform an support@digistore24.com unter Angabe Ihrer Bestell-ID. Die Kündigungsfunktion im Kundenkonto nach § 12 Abs. 2 steht für Bestellungen über Digistore24 nicht zur Verfügung. § 12 Abs. 1, 3 und 4 gelten entsprechend.
 
-(9) **14-Tage-Zufriedenheitsgarantie.** Auch für Bestellungen über Digistore24 gilt die **14-Tage-Zufriedenheitsgarantie** ab dem Kauf, und zwar ausschließlich nach den folgenden Regeln, die denen in § 9 entsprechen:
-- Haben Sie noch **kein PDF** der Dokumentation erzeugt oder heruntergeladen, erstatten wir **198 € zzgl. USt** (Einrichtung 149 € und 1. Monat 49 €).
-- Haben Sie bereits ein **PDF erzeugt oder heruntergeladen**, erstatten wir nur das **monatliche Nutzungsentgelt von 49 € zzgl. USt**. Die **Einrichtungsvergütung von 149 € zzgl. USt ist dann nicht erstattungsfähig**, da die Einrichtungsleistung erbracht ist.
+(9) **14 Tage Rückgaberecht über Digistore24.** Innerhalb von 14 Tagen nach dem Kauf können Sie Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer Bestellbestätigung) und erhalten den vollen Kaufpreis zurück. Bei Käufen über Digistore24 Inc. (USA) bzw. Digistore24 LTD (UK) gilt die im Bestellformular angezeigte Frist von 60 Tagen. Das Rückgaberecht gilt auch dann, wenn Sie bereits ein PDF der Dokumentation erzeugt oder heruntergeladen haben. **§ 9 Abs. 1 bis 3 gelten für Bestellungen über Digistore24 nicht.**
 
-**So beantragen Sie die Erstattung:** Wenden Sie sich innerhalb der 14 Tage an Digistore24 über den Link zur Soforthilfe in Ihrer Bestellbestätigung von Digistore24 und geben Sie Ihre Bestell-ID an. Zusätzlich erreichen Sie uns unter **info@gobd-doku-erstellen.de** (Betreff „Zufriedenheitsgarantie“, mit Bestell-ID). **Erstattungen werden über Digistore24 abgewickelt**, und zwar über das beim Kauf verwendete Zahlungsmittel. Mit der Erstattung endet das Abonnement; weitere Beträge werden nicht abgebucht. Eine darüber hinausgehende Erstattung gewähren wir nicht; § 9 Abs. 4 (gesetzliche Rechte) bleibt unberührt. Ein gesetzliches Widerrufsrecht besteht nicht (§ 8); die Garantie ist eine vertragliche Zusage.
+**So geben Sie Ihre Bestellung zurück:** Öffnen Sie die Bestellbestätigung von Digistore24, klicken Sie auf den Link zur Soforthilfe und geben Sie Ihre Bestell-ID an. **Die Erstattung wickelt Digistore24 ab**, und zwar über das beim Kauf verwendete Zahlungsmittel. Mit der Rückgabe endet das Abonnement; weitere Beträge werden nicht abgebucht. Bei Fragen erreichen Sie uns unter **info@gobd-doku-erstellen.de** (mit Bestell-ID). § 9 Abs. 4 (gesetzliche Rechte) bleibt unberührt. Ein gesetzliches Widerrufsrecht besteht nicht (§ 8); das Rückgaberecht ist eine vertragliche Zusage.
+
+**Nach der Rückgabe:** Mit der Rückgabe sperren wir Ihren Zugang zum Kundenkonto. Einen Download bereits erzeugter PDFs nach § 12 Abs. 4 Satz 2 gibt es dann nicht. Zugleich endet Ihr Nutzungsrecht nach § 6 Abs. 1 an der Dokumentation, auch an PDFs, die Sie bereits heruntergeladen haben. Bitte nutzen Sie diese PDFs danach nicht mehr.
 
 (10) **Leistungsumfang.** Ein Abonnement umfasst **bis zu fünf Firmen** und alle Module (§ 2 Abs. 1 und 2). Für jede weitere Firma ab der sechsten ist ein weiteres Abonnement erforderlich.
 
@@ -150,7 +150,7 @@ Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vo
 
 (3) Das Recht beider Parteien zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt.
 
-(4) Während der Vertragslaufzeit stehen dem Kunden Zugang zu früheren Fassungen und spätere Anpassungen der Dokumentation zur Verfügung. Nach Vertragsende kann der Kunde bereits erzeugte PDFs noch 30 Tage herunterladen. Danach löschen wir die gespeicherten Daten und Dokumente, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung.
+(4) Während der Vertragslaufzeit stehen dem Kunden Zugang zu früheren Fassungen und spätere Anpassungen der Dokumentation zur Verfügung. Nach Vertragsende kann der Kunde bereits erzeugte PDFs noch 30 Tage herunterladen. **Das gilt nicht, wenn der Vertrag durch eine Rückgabe nach § 9a Abs. 9 endet; dann sperren wir den Zugang mit der Rückgabe.** Danach löschen wir die gespeicherten Daten und Dokumente, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung.
 
 ## § 13 Datenschutz
 
@@ -164,4 +164,4 @@ Es gelten die gesonderte Datenschutzerklärung und die Cookie-Hinweise auf der W
 
 (3) Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
 
-**Stand:** 20.10.2026
+**Stand:** 26.10.2026
