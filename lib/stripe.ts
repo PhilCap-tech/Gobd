@@ -425,11 +425,14 @@ export async function createCheckoutSession(
 ): Promise<{ url: string; stub: boolean }> {
   const entityId = input.entityId?.trim() ?? "";
 
+  let planParams: Stripe.Checkout.SessionCreateParams | null = null;
   if (input.plan) {
-    return createPlanCheckoutSession(input, input.plan);
+    const prepared = preparePlanCheckout(input, input.plan);
+    if ("stub" in prepared) return prepared.stub;
+    planParams = prepared.params;
   }
 
-  if (!isStripeConfigured()) {
+  if (!planParams && !isStripeConfigured()) {
     if (!devCheckoutStubAllowed()) {
       throw new Error("STRIPE_SECRET_KEY fehlt");
     }
@@ -449,8 +452,9 @@ export async function createCheckoutSession(
   }
 
   const stripe = getStripe();
+  // Eine einzige Session-Erzeugung für altes Modell und v2 (Preismodell v2: planParams).
   const session = await stripe.checkout.sessions.create(
-    buildCheckoutSessionParams(input),
+    planParams ?? buildCheckoutSessionParams(input),
   );
 
   if (!session.url) {
@@ -460,10 +464,10 @@ export async function createCheckoutSession(
   return { url: session.url, stub: false };
 }
 
-async function createPlanCheckoutSession(
+function preparePlanCheckout(
   input: CheckoutSessionInput,
   plan: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean },
-): Promise<{ url: string; stub: boolean }> {
+): { stub: { url: string; stub: boolean } } | { params: Stripe.Checkout.SessionCreateParams } {
   const missing = missingPlanPriceIds(plan.kind, plan.member, plan.memberFirm === true);
   if (!isStripeSecretConfigured() || missing.length > 0) {
     if (plan.kind === "entry" && devCheckoutStubAllowed()) {
@@ -475,12 +479,12 @@ async function createPlanCheckoutSession(
       const entityId = input.entityId?.trim() ?? "";
       if (entityId) params.set("entity_id", entityId);
       console.warn("[stripe] v2-Preise fehlen — Stub-Checkout.", { missing });
-      return { url: `/intake?${params}`, stub: true };
+      return { stub: { url: `/intake?${params}`, stub: true } };
     }
     throw new Error(`Stripe v2 nicht konfiguriert: ${missing.join(", ") || "STRIPE_SECRET_KEY"}`);
   }
-  const session = await getStripe().checkout.sessions.create(
-    buildPlanCheckoutParams({
+  return {
+    params: buildPlanCheckoutParams({
       kind: plan.kind,
       member: plan.member,
       email: input.email,
@@ -490,9 +494,7 @@ async function createPlanCheckoutSession(
       customerId: input.customerId,
       memberFirm: plan.memberFirm,
     }),
-  );
-  if (!session.url) throw new Error("Stripe Session ohne URL");
-  return { url: session.url, stub: false };
+  };
 }
 
 /**

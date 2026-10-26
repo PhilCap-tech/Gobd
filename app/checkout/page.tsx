@@ -31,7 +31,6 @@ import { memberFromPackage } from "@/lib/plan-checkout";
 import {
   PLAN_ENTRY_PRICE_LINE,
   PLAN_MEMBER_PRICE_LINE,
-  TODO_GROWTH,
 } from "@/lib/plan-copy";
 import { CheckoutForm } from "./checkout-form";
 
@@ -107,7 +106,9 @@ export default async function CheckoutPage({
           {v2 ? (
             <>
               {PLAN_ENTRY_PRICE_LINE}, optional Jahresmitgliedschaft {PLAN_MEMBER_PRICE_LINE}.{" "}
-              {partner ? `Partner-Konditionen ${TODO_GROWTH}` : ALL_AREAS_LINE}
+              {ALL_AREAS_LINE}
+              {/* Partner (Aktionscode): gleiches Modell und gleiche Preise wie der normale Checkout; Codes gelten weiter (R6). */}
+              {partner ? " Den Aktionscode lösen Sie im Checkout ein." : null}
             </>
           ) : partner ? (
             <>

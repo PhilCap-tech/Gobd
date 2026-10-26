@@ -1,4 +1,3 @@
-import type Stripe from "stripe";
 import { NextResponse } from "next/server";
 import {
   getStripeTaxRateId,
@@ -357,24 +356,6 @@ export async function POST(request: Request) {
           const notice = ownerNoticeFromStripeEvent(event, { email: subscriberEmail });
           if (notice) queueOwnerNotice(notice);
         }
-        break;
-      }
-      // Preismodell v2: Verlängerung des Jahresplans. Alte Abos ignorieren dieses Ereignis.
-      case "invoice.paid": {
-        const invoice = event.data.object as Stripe.Invoice & {
-          parent?: { subscription_details?: { subscription?: string | { id?: string } | null; metadata?: Record<string, string> | null } | null } | null;
-        };
-        const details = invoice.parent?.subscription_details;
-        if (details?.metadata?.gobd_plan !== "member") break;
-        const subscriptionId = idFrom(details.subscription);
-        if (!subscriptionId) break;
-        const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
-        await recordPlanSubscriptionEvent({
-          subscription,
-          eventId: event.id,
-          at: eventTimeIso(event.created),
-          deleted: false,
-        });
         break;
       }
       case "invoice.payment_failed": {

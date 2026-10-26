@@ -257,7 +257,7 @@ export function memberFirmItem(
   return item ? { extraFirms: item.quantity ?? 0, firmItemId: item.id } : { extraFirms: 0, firmItemId: "" };
 }
 
-/** customer.subscription.updated / deleted / invoice.paid für Jahrespläne. */
+/** customer.subscription.updated / deleted für Jahrespläne (Verlängerung kommt als updated). */
 export async function recordPlanSubscriptionEvent(input: {
   subscription: Stripe.Subscription;
   eventId: string;
