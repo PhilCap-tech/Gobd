@@ -3,20 +3,40 @@ import {
   SETUP_EUR,
   TODAY_EUR,
   TODAY_GROSS_LABEL,
+  V2_ENTRY_GROSS_LABEL,
+  V2_ENTRY_LABEL,
+  V2_MEMBER_YEAR_LABEL,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
+
+/**
+ * Preismodell v2 (PRICING_MODEL=v2): Preissätze tauschen beim Laden des
+ * Moduls (Server, Build). Ohne Variable bleibt jeder Satz wörtlich wie
+ * bisher (LEGACY_*). Digistore24 nutzt immer LEGACY_* (lib/ds24-offer-copy.ts).
+ * v2-Formulierungen sind sachliche Platzhalter, bis Growth/Legal liefern.
+ */
+const V2 = isPricingV2();
+const TODO_GROWTH = "[TODO-GROWTH]";
+const TODO_LEGAL = "[TODO-LEGAL]";
 
 /** Owner Spec 29.09 — same sentence on hero, pricing, and checkout summary. */
 export const RESULT_PROMISE =
   "Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentation als PDF und eine Liste offener Punkte. Sie prüfen und ergänzen die Angaben vor der Verwendung.";
 
 /** Basistext 15.10.2026. Beträge bleiben in pricing.ts. */
-export const START_PRICE_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
+export const LEGACY_START_PRICE_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
+export const START_PRICE_LINE = V2
+  ? `${V2_ENTRY_LABEL} € einmalig, optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} €/Jahr, zzgl. USt. ${TODO_GROWTH}`
+  : LEGACY_START_PRICE_LINE;
 
 /** Checkout lead, branch-page close, and the fine print under paid CTAs. */
 export const PRICE_MICRO = START_PRICE_LINE;
 
 /** Homepage only: one line under the price table. Amounts follow pricing.ts. */
-export const PRICE_FRAME_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat) = individuelles PDF + Liste offener Punkte · danach ${MONTHLY_EUR} €/Monat für Versionen und Pflege, zzgl. USt.`;
+export const LEGACY_PRICE_FRAME_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat) = individuelles PDF + Liste offener Punkte · danach ${MONTHLY_EUR} €/Monat für Versionen und Pflege, zzgl. USt.`;
+export const PRICE_FRAME_LINE = V2
+  ? `${V2_ENTRY_LABEL} € einmalig = individuelles PDF + Liste offener Punkte · optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} €/Jahr für Versionen und alle Änderungen, zzgl. USt. ${TODO_GROWTH}`
+  : LEGACY_PRICE_FRAME_LINE;
 
 /** Homepage hero, directly under the H1. No social-proof counts. */
 export const HERO_OUTCOME_LINE =
@@ -36,8 +56,11 @@ export const HERO_FACTS_LINE = "24 Module, im PDF gegliedert in 14 Kapitel";
  * Price block inclusion line. The cancellation timing from the old
  * „Monatlich kündbar …“ hint is appended at the call site so it is not repeated.
  */
-export const PRICE_INCLUSION_LINE =
+export const LEGACY_PRICE_INCLUSION_LINE =
   "Alle 24 Module inklusive · keine Zusatzmodule · keine Jahresvorauszahlung · monatlich kündbar";
+export const PRICE_INCLUSION_LINE = V2
+  ? "Alle 24 Module inklusive · keine Zusatzmodule · bis zu 5 Firmen"
+  : LEGACY_PRICE_INCLUSION_LINE;
 
 /** Equal-weight secondary pair in the homepage hero (above the fold). */
 export const CTA_CHECK_HERO = "Kostenlosen 3-Minuten-Check";
@@ -46,13 +69,22 @@ export const CTA_MUSTER_HERO = "Muster ansehen";
 export const PRICE_CTA_SUFFIX = START_PRICE_LINE;
 
 /** Shown under the short paid button. The button itself stays CTA_CREATE_WITH_PRICE. */
-export const PRICE_AFTER_MICRO = `danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
+export const LEGACY_PRICE_AFTER_MICRO = `danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
+export const PRICE_AFTER_MICRO = V2
+  ? `Einmalig, zzgl. USt. Jahresmitgliedschaft optional (${V2_MEMBER_YEAR_LABEL} €/Jahr).`
+  : LEGACY_PRICE_AFTER_MICRO;
 
 export const CTA_CREATE = "Dokumentation erstellen";
-export const CTA_CREATE_WITH_PRICE = `Starten für ${TODAY_EUR} € (Einrichtung + 1. Monat)`;
+export const LEGACY_CTA_CREATE_WITH_PRICE = `Starten für ${TODAY_EUR} € (Einrichtung + 1. Monat)`;
+export const CTA_CREATE_WITH_PRICE = V2
+  ? `Starten für ${V2_ENTRY_LABEL} €`
+  : LEGACY_CTA_CREATE_WITH_PRICE;
 
 /** Account and the readiness mail use the short start line plus the monthly price. */
-export const ACCOUNT_PAID_CTA_LABEL = `Starten für ${TODAY_EUR} € (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
+export const LEGACY_ACCOUNT_PAID_CTA_LABEL = `Starten für ${TODAY_EUR} € (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
+export const ACCOUNT_PAID_CTA_LABEL = V2
+  ? `Starten für ${V2_ENTRY_LABEL} € einmalig, zzgl. USt. Jahresmitgliedschaft optional (${V2_MEMBER_YEAR_LABEL} €/Jahr).`
+  : LEGACY_ACCOUNT_PAID_CTA_LABEL;
 export const CTA_MUSTER = "Muster-Dokument ansehen";
 export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
 
@@ -60,7 +92,10 @@ export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
 export const GELD_ZURUECK_HREF = "/faq#geld-zurueck";
 
 /** Short form for hero, sticky bar, and closing CTA. Details stay in the FAQ. */
-export const GELD_ZURUECK_MICRO = `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`;
+export const LEGACY_GELD_ZURUECK_MICRO = `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`;
+export const GELD_ZURUECK_MICRO = V2
+  ? `14 Tage Geld zurück: volle Erstattung, solange noch kein PDF erzeugt wurde. ${TODO_LEGAL}`
+  : LEGACY_GELD_ZURUECK_MICRO;
 
 export const DISCLAIMER_ONCE =
   "Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.";
@@ -69,8 +104,11 @@ export const DISCLAIMER_ONCE =
 export const ALL_AREAS_LINE =
   "24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation.";
 
-export const ALL_AREAS_DETAIL =
+export const LEGACY_ALL_AREAS_DETAIL =
   "Ein Abo umfasst bis zu 5 Firmen. Darin enthalten ist das Gesamtdokument mit allen für den Betrieb relevanten Modulen (Unternehmen, Verkauf, Einkauf, Rechnungen, E-Rechnung, Papier, Zahlungsverkehr, Kasse, Buchführung, Warenwirtschaft, Anlagen, Personal, Onlineshop, Branche, Archiv, Fristen, Systeme, Rechte, Sicherung, Kontrollen, Auslagerung, Prüfungszugriff, Änderungen, Pflege). Module, die es bei Ihnen nicht gibt, werden als „nicht vorhanden“ begründet; vorhandene Bereiche werden nicht stillschweigend ausgelassen.";
+export const ALL_AREAS_DETAIL = V2
+  ? LEGACY_ALL_AREAS_DETAIL.replace("Ein Abo umfasst", "Ein Kauf umfasst")
+  : LEGACY_ALL_AREAS_DETAIL;
 
 /** Alias for pages that still say Bereiche. */
 export const ALL_MODULES_LINE = ALL_AREAS_LINE;
@@ -130,7 +168,10 @@ export const UPSELL_SECTION_2_TITLE = "Keine einmalige Sache";
 export const UPSELL_SECTION_2_TEXT =
   "Eine einmal erstellte Fassung bildet nur den heutigen Stand ab. Ändern sich Software, Abläufe oder Zuständigkeiten, ist die Verfahrensdokumentation nachzuziehen. Frühere Fassungen bleiben aufbewahrungspflichtig, Änderungen müssen nachvollziehbar versioniert sein.¹";
 
-export const UPSELL_SECTION_3_TITLE = "Darum ein Monatsabo";
+export const LEGACY_UPSELL_SECTION_3_TITLE = "Darum ein Monatsabo";
+export const UPSELL_SECTION_3_TITLE = V2
+  ? `Darum die Jahresmitgliedschaft ${TODO_GROWTH}`
+  : LEGACY_UPSELL_SECTION_3_TITLE;
 
 export const UPSELL_BULLETS = [
   "Versionierung: jede Fassung mit Änderungshistorie",
@@ -142,9 +183,15 @@ export const UPSELL_BULLETS = [
 export const UPSELL_EFFORT_NOTE =
   "Sie können in Etappen arbeiten, der Stand wird gespeichert.";
 
-export const UPSELL_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
+export const LEGACY_UPSELL_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
+export const UPSELL_PRICE = V2
+  ? `${V2_ENTRY_LABEL} € einmalig, zzgl. USt. · Jahresmitgliedschaft optional ${V2_MEMBER_YEAR_LABEL} €/Jahr · alle 24 Module inklusive ${TODO_GROWTH}`
+  : LEGACY_UPSELL_PRICE;
 
-export const UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
+export const LEGACY_UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
+export const UPSELL_PRICE_BREAKDOWN = V2
+  ? `${V2_ENTRY_LABEL} € einmalig zzgl. USt. (brutto ${V2_ENTRY_GROSS_LABEL} €)`
+  : LEGACY_UPSELL_PRICE_BREAKDOWN;
 
 export const UPSELL_CTA = "Eigene Dokumentation erstellen";
 
@@ -158,8 +205,11 @@ export const UPSELL_FOOTNOTE =
 
 export const PDF_UPSELL_HEADLINE = "Dieses Muster zeigt eine fiktive Firma.";
 
-export const PDF_UPSELL_BODY =
+export const LEGACY_PDF_UPSELL_BODY =
   "Ihre Verfahrensdokumentation beschreibt Ihre eigenen Abläufe, Systeme und Verantwortlichen – als Entwurf mit Liste offener Punkte. Ändern sich Software, Abläufe oder Zuständigkeiten, ist sie nachzuziehen; frühere Fassungen sind aufzubewahren.¹ Im Monatsabo werden Ihre Fassungen versioniert und gespeichert, Sie tragen Änderungen jederzeit nach, To-dos und Uploads liegen in Ihrem Konto. Sie können in Etappen arbeiten, der Stand wird gespeichert.";
+export const PDF_UPSELL_BODY = V2
+  ? LEGACY_PDF_UPSELL_BODY.replace("Im Monatsabo werden", "Mit der Jahresmitgliedschaft werden")
+  : LEGACY_PDF_UPSELL_BODY;
 
 export const PDF_UPSELL_PRICE = UPSELL_PRICE;
 
