@@ -12,8 +12,6 @@ import {
   CTA_CREATE,
   CTA_CREATE_WITH_PRICE,
   CTA_MUSTER,
-  GELD_ZURUECK_HREF,
-  GELD_ZURUECK_MICRO,
   HERO_FACTS_LINE,
   HERO_PRICE_BOX,
   HERO_SCOPE_LINE,
@@ -36,6 +34,7 @@ import {
   PARTNER_ANGEBOT_NOTICE_BEFORE,
   PARTNER_ANGEBOT_NOTICE_HREF,
   PARTNER_ANGEBOT_NOTICE_LINK,
+  PARTNER_ANGEBOT_RUECKGABE_MICRO,
 } from "@/lib/partner-angebot";
 import {
   PARTNER_DEMO_PATH,
@@ -250,7 +249,7 @@ export default async function PartnerAngebotPage({
               </BuyCta>
             </div>
             <p className={styles.guarantee}>
-              <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
+              {PARTNER_ANGEBOT_RUECKGABE_MICRO}
             </p>
             <ul className={styles.trust}>
               <li>Monatlich kündbar</li>

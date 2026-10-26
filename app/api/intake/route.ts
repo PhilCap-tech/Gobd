@@ -15,6 +15,7 @@ import {
   type IncludedFirmCoverage,
 } from "@/lib/subscription-coverage";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import { hasDs24Access } from "@/lib/digistore24-access";
 import { queueOwnerNotice } from "@/lib/owner-notice";
 import {
   applyCheckoutOwnerSession,
@@ -161,6 +162,8 @@ export type IntakeIo = {
    * status. Test doubles omit it and keep the checkout gate.
    */
   includedFirmCoverage?: (email: string) => Promise<IncludedFirmCoverage>;
+  /** Aktiver Digistore24-Zugang (wie Comp, ohne Stripe). */
+  ds24Access?: (email: string) => Promise<boolean>;
   prepareDurableIntakeRow: typeof prepareDurableIntakeRow;
   appendRecord: typeof appendRecord;
   generatePdf: typeof generatePdf;
@@ -179,6 +182,7 @@ const defaultIntakeIo: IntakeIo = {
   findRowByStripeSessionId,
   resolveCheckoutSession,
   includedFirmCoverage: loadIncludedFirmCoverage,
+  ds24Access: hasDs24Access,
   prepareDurableIntakeRow,
   appendRecord,
   generatePdf,
@@ -338,7 +342,11 @@ async function resolveIdentity(
   const entitled = await identityFromStoredEntitlement(body, sessionEmail, sessionId, io);
   if (entitled) return entitled;
 
-  if (!sessionId && sessionEmail && isCompAccessEmail(sessionEmail)) {
+  const ds24Entitled =
+    !sessionId && sessionEmail && !isCompAccessEmail(sessionEmail) && io.ds24Access
+      ? await io.ds24Access(sessionEmail)
+      : false;
+  if (!sessionId && sessionEmail && (isCompAccessEmail(sessionEmail) || ds24Entitled)) {
     return {
       identity: {
         email: sessionEmail,

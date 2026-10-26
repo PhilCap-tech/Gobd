@@ -95,13 +95,35 @@ export function AccountAboCard({
   stripeBound,
   notice = null,
   compAccess = false,
+  ds24Access = false,
 }: {
   stripeBound: boolean;
   notice?: LifecycleNotice | null;
   /** Allowlist mailbox: full product, no Stripe customer. */
   compAccess?: boolean;
+  /** Active Digistore24 purchase: full product, billed by Digistore24. */
+  ds24Access?: boolean;
 }) {
   const ended = notice?.phase === "restore" || notice?.phase === "purged";
+  if (ds24Access && !stripeBound && !ended) {
+    return (
+      <section className="card account-panel" aria-labelledby="abo-heading">
+        <h2 id="abo-heading">Zugang</h2>
+        <p className="prose">
+          <strong>Zugang über Digistore24.</strong> Sie können die Verfahrensdokumentation
+          ausfüllen, als PDF erzeugen und herunterladen. Rechnung und Kündigung finden Sie in
+          Ihrer Bestellbestätigung von Digistore24.
+        </p>
+        {notice?.downloadsOpen ? (
+          <div className="actions">
+            <a className="btn ghost" href="/api/account/export">
+              ZIP aller PDF-Versionen herunterladen
+            </a>
+          </div>
+        ) : null}
+      </section>
+    );
+  }
   if (compAccess && !stripeBound && !ended) {
     return (
       <section className="card account-panel" aria-labelledby="abo-heading">
@@ -150,6 +172,12 @@ export function AccountAboCard({
   return (
     <section className="card account-panel" aria-labelledby="abo-heading">
       <h2 id="abo-heading">Abo</h2>
+      {ds24Access ? (
+        <p className="prose">
+          <strong>Zusätzlich Zugang über Digistore24.</strong> Rechnung und Kündigung dazu finden
+          Sie in Ihrer Bestellbestätigung von Digistore24.
+        </p>
+      ) : null}
       {notice?.label || notice?.downloadsLabel ? (
         <p className="billing-status warn">
           {notice.label ? <span className="billing-status-label">{notice.label}</span> : null}
