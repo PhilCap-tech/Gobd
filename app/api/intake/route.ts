@@ -144,6 +144,11 @@ type ResolvedIntake = {
   fromStoredEntitlement?: boolean;
   /** Allowlist entitlement. No Stripe session and no customer id. */
   compAccess?: boolean;
+  /**
+   * Digistore24 purchase on the comp path (no Stripe session or customer id).
+   * Unlike the allowlist it is a paying customer and gets the delivery mail.
+   */
+  ds24Access?: boolean;
   family?: SheetRow[];
 };
 
@@ -362,6 +367,7 @@ async function resolveIdentity(
       ownerEmail: sessionEmail,
       firstDelivery: false,
       compAccess: true,
+      ds24Access: ds24Entitled === true,
     };
   }
 
@@ -658,7 +664,16 @@ async function writeIntake(
       facts: [
         ["Dokument", documentId],
         ["Version", String(version)],
-        ["Zugang", resolved.compAccess ? "kostenfrei (Comp)" : identity.stripeSessionId ? "Stripe" : "Abo"],
+        [
+          "Zugang",
+          resolved.ds24Access
+            ? "Digistore24"
+            : resolved.compAccess
+              ? "kostenfrei (Comp)"
+              : identity.stripeSessionId
+                ? "Stripe"
+                : "Abo",
+        ],
       ],
     });
   }
@@ -671,7 +686,9 @@ async function writeIntake(
     ? `${appUrl}/success?session_id=${encodeURIComponent(identity.stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`
     : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`;
   let loginMail: "sent" | "stub" | "failed" | "skipped" = "skipped";
-  if (!resolved.compAccess && !skipTestDelivery) {
+  // Comp-Allowlist: keine Liefer-Mail. DS24-Käufer bekommen sie wie Stripe-Käufer.
+  const deliveryMailDue = !resolved.compAccess || resolved.ds24Access === true;
+  if (deliveryMailDue && !skipTestDelivery) {
     const magicUrl = identity.email ? ((await magicLinkUrl(identity.email)) ?? undefined) : undefined;
     try {
       await io.sendDeliveryMail({
