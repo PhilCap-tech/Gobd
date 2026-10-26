@@ -15,6 +15,7 @@ import { accountCompanyCards, draftsNotOnCompanyCard } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import { hasDs24Access } from "@/lib/digistore24-access";
 import {
   coveredIntakePath,
   emptyIncludedFirmCoverage,
@@ -57,7 +58,9 @@ export default async function AccountPage({
   if (!email) {
     redirect("/login");
   }
-  const compAccess = isCompAccessEmail(email);
+  // Aktiver Digistore24-Zugang verhält sich wie Comp (ohne Stripe), nur die Abo-Kachel nennt Digistore24.
+  const ds24Access = !isCompAccessEmail(email) && (await hasDs24Access(email));
+  const compAccess = isCompAccessEmail(email) || ds24Access;
 
   const params = await searchParams;
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
@@ -348,7 +351,12 @@ export default async function AccountPage({
 
         <div className="account-tiles">
           {showAbo ? (
-            <AccountAboCard stripeBound={stripeBound} notice={notice} compAccess={compAccess} />
+            <AccountAboCard
+              stripeBound={stripeBound}
+              notice={notice}
+              compAccess={compAccess}
+              ds24Access={ds24Access}
+            />
           ) : null}
           <AccountProfileForm
             email={email}

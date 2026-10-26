@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import { hasDs24Access } from "@/lib/digistore24-access";
 import { isStripeSecretConfigured } from "@/lib/env";
 import {
   downloadsAvailableLabel,
@@ -60,7 +61,8 @@ export default async function KuendigungPage({
 }) {
   const email = await getSessionEmail();
   if (!email) redirect(loginPath("/account/kuendigung"));
-  const compAccess = isCompAccessEmail(email);
+  const ds24Access = !isCompAccessEmail(email) && (await hasDs24Access(email));
+  const compAccess = isCompAccessEmail(email) || ds24Access;
 
   const params = await searchParams;
   const status = firstQueryValue(params.status);
@@ -102,10 +104,17 @@ export default async function KuendigungPage({
           <h1>Zugang</h1>
           <p className="lead">{email}</p>
           <section className="card">
-            <p className="prose">
-              <strong>Kostenfreier Zugang.</strong> Sie nutzen die Verfahrensdokumentation
-              ohne Zahlung. Eine Kündigung ist nicht erforderlich.
-            </p>
+            {ds24Access ? (
+              <p className="prose">
+                <strong>Zugang über Digistore24.</strong> Sie können monatlich über Digistore24
+                kündigen. Den Link finden Sie in Ihrer Bestellbestätigung von Digistore24.
+              </p>
+            ) : (
+              <p className="prose">
+                <strong>Kostenfreier Zugang.</strong> Sie nutzen die Verfahrensdokumentation
+                ohne Zahlung. Eine Kündigung ist nicht erforderlich.
+              </p>
+            )}
             <div className="actions" style={{ marginTop: 16 }}>
               <Link className="btn" href="/account">
                 Zurück zum Konto
