@@ -15,6 +15,7 @@ import { accountCompanyCards, draftsNotOnCompanyCard } from "@/lib/account-hub";
 import { FIRMA_ADD_LABEL } from "@/lib/account-labels";
 import { getSessionEmail } from "@/lib/auth";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import { hasDs24Access } from "@/lib/digistore24-access";
 import {
   coveredIntakePath,
   emptyIncludedFirmCoverage,
@@ -57,7 +58,11 @@ export default async function AccountPage({
   if (!email) {
     redirect("/login");
   }
-  const compAccess = isCompAccessEmail(email);
+  // Aktiver Digistore24-Zugang öffnet das Produkt wie Comp. Stripe-Daten (Kunde,
+  // Abdeckung, Kündigung) werden aber nur für die Comp-Allowlist übersprungen.
+  const compEmail = isCompAccessEmail(email);
+  const ds24Access = !compEmail && (await hasDs24Access(email));
+  const compAccess = compEmail || ds24Access;
 
   const params = await searchParams;
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
@@ -104,7 +109,7 @@ export default async function AccountPage({
       );
       sheetsDown = isSheetsOutage(error);
     }
-    if (!loadFailed && !compAccess) {
+    if (!loadFailed && !compEmail) {
       try {
         customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
       } catch (error) {
@@ -181,7 +186,7 @@ export default async function AccountPage({
     lifecycleRows.some((row) => row.stripeCustomerId);
   const showAbo = !(memberFirms.length > 0 && entities.length === 0 && !stripeBound);
   const atCap = entityCapReached(entities.length);
-  const coverage = compAccess
+  const coverage = compEmail
     ? emptyIncludedFirmCoverage()
     : await loadIncludedFirmCoverage(email);
 
@@ -348,7 +353,12 @@ export default async function AccountPage({
 
         <div className="account-tiles">
           {showAbo ? (
-            <AccountAboCard stripeBound={stripeBound} notice={notice} compAccess={compAccess} />
+            <AccountAboCard
+              stripeBound={stripeBound}
+              notice={notice}
+              compAccess={compAccess}
+              ds24Access={ds24Access}
+            />
           ) : null}
           <AccountProfileForm
             email={email}

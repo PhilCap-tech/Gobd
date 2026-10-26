@@ -81,6 +81,17 @@ export function setMailDedupeTestHooks(
   tails.clear();
 }
 
+/** True while a check has replaced the provider send. */
+export function mailDedupeSendIsStubbed(): boolean {
+  return sendOverride !== null;
+}
+
+/** One internal note per Digistore24 order, event and payment. */
+export function ds24NoticeMailKey(orderId: string, event: string, paymentId = ""): string {
+  const payment = paymentId.trim();
+  return `ds24-notice:${orderId.trim()}:${event.trim()}${payment ? `:${payment}` : ""}`;
+}
+
 export function onboardingMailKey(sessionId: string): string {
   return `onboarding:${sessionId.trim()}`;
 }
@@ -113,6 +124,11 @@ export function deliveryMailKey(documentId: string, version: number): string {
 
 export function magicLinkMailKey(email: string): string {
   return `magic-link:${email.trim().toLowerCase()}`;
+}
+
+/** One login-link mail per Digistore24 order. No expiry: IPN retries do not send again. */
+export function ds24AccessMailKey(orderId: string): string {
+  return `ds24-access:${orderId.trim()}`;
 }
 
 /** One invitation mail per membership. A window on the send throttles resends. */

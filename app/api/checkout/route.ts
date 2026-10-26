@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
 import { compCheckoutRedirect, isCompAccessEmail } from "@/lib/comp-access";
+import { ds24CheckoutRedirect } from "@/lib/digistore24-access";
 import { boundCheckoutEntityId } from "@/lib/checkout-entity";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
@@ -56,7 +57,8 @@ export async function POST(request: Request) {
   const sessionEmail = await sessionEmailFromRequest(request);
   const compTarget =
     compCheckoutRedirect(sessionEmail, requestedEntityId) ||
-    compCheckoutRedirect(email, requestedEntityId);
+    compCheckoutRedirect(email, requestedEntityId) ||
+    (await ds24CheckoutRedirect(sessionEmail, requestedEntityId));
   if (compTarget) {
     return NextResponse.json({ url: compTarget });
   }

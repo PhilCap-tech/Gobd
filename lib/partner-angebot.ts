@@ -21,6 +21,14 @@ export const PARTNER_ANGEBOT_NOTICE_BEFORE = "Der Kauf läuft über Digistore24 
 export const PARTNER_ANGEBOT_NOTICE_LINK = "AGB (§ 9a)";
 export const PARTNER_ANGEBOT_NOTICE_AFTER = ". Das Angebot gilt ausschließlich für Unternehmer im Sinne von § 14 BGB; eine Bestellung ist nur als Unternehmen mit Angabe des Firmennamens möglich, Verbraucher sind ausgeschlossen. 198 € zum Start (Einrichtung 149 € + 1. Monat 49 €), danach 49 €/Monat, jeweils zzgl. USt, bis zu 5 Firmen, monatlich über Digistore24 kündbar, 14-Tage-Zufriedenheitsgarantie nach § 9a AGB mit Erstattung über Digistore24.";
 export const PARTNER_ANGEBOT_NOTICE_HREF = "/agb";
+/**
+ * Rückgabe-Mikrotext nur für /partner-angebot (Digistore24), ohne FAQ-Link.
+ * Erster Satz des freigegebenen Rückgabe-Wortlauts (Philip, 2026-10-26 08:48),
+ * wortgleich mit /partner-danke. GELD_ZURUECK_MICRO bleibt für Stripe.
+ */
+export const PARTNER_ANGEBOT_RUECKGABE_MICRO =
+  "14 Tage Rückgaberecht über Digistore24: Innerhalb von 14 Tagen nach dem Kauf können Sie Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer Bestellbestätigung) und erhalten den vollen Kaufpreis zurück.";
+
 export const PARTNER_ANGEBOT_LEGAL_NOTICE =
   PARTNER_ANGEBOT_NOTICE_BEFORE + PARTNER_ANGEBOT_NOTICE_LINK + PARTNER_ANGEBOT_NOTICE_AFTER;
 

@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import { compCheckoutRedirect, isCompAccessEmail } from "@/lib/comp-access";
+import { ds24CheckoutRedirect } from "@/lib/digistore24-access";
 import { entityChoices, MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
 import { firstQueryValue } from "@/lib/query";
@@ -45,7 +46,9 @@ export default async function CheckoutPage({
   const params = await searchParams;
   const requestedEntityId = firstQueryValue(params.entity_id) ?? "";
   const email = await getSessionEmail();
-  const compTarget = compCheckoutRedirect(email, requestedEntityId);
+  const compTarget =
+    compCheckoutRedirect(email, requestedEntityId) ??
+    (await ds24CheckoutRedirect(email, requestedEntityId));
   if (compTarget) redirect(compTarget);
   const partner = firstQueryValue(params.utm_campaign) === "steuerberater";
   const entities = email ? await listEntitiesByEmail(email) : [];

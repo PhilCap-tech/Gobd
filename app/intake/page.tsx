@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCheckoutGrant, getSessionEmail, loginPath } from "@/lib/auth";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import { hasDs24Access } from "@/lib/digistore24-access";
 import {
   firmPosition,
   firmStartDecision,
@@ -599,7 +600,12 @@ async function IntakePage({
   // Firm named in the URL, without a checkout session id. An active
   // subscription covers firms 1–5. A comp mailbox keeps the path below.
   // The grant cookie must not replace this firm with the original session.
-  if (!sessionIdQuery && requestedEntityId && !isCompAccessEmail(sessionEmail)) {
+  // Digistore24-Käufer: aktiver Zugang wie Comp, gesperrter Zugang nicht.
+  const ds24Access =
+    Boolean(sessionEmail) && !isCompAccessEmail(sessionEmail) && !sessionIdQuery
+      ? await hasDs24Access(sessionEmail)
+      : false;
+  if (!sessionIdQuery && requestedEntityId && !isCompAccessEmail(sessionEmail) && !ds24Access) {
     if (!sessionEmail) redirect(loginPath(returnPath));
     const accountEntities = await listEntitiesByEmail(sessionEmail);
     const ownedEntity = await getOwnedEntity(requestedEntityId, sessionEmail);
@@ -684,7 +690,12 @@ async function IntakePage({
 
   // Comp: the logged-in mailbox is the entitlement. No Checkout Session,
   // no Stripe lookup, and no order mail.
-  if ("error" in session && !sessionId && sessionEmail && isCompAccessEmail(sessionEmail)) {
+  if (
+    "error" in session &&
+    !sessionId &&
+    sessionEmail &&
+    (isCompAccessEmail(sessionEmail) || ds24Access)
+  ) {
     session = {
       email: sessionEmail,
       company: company || "",
