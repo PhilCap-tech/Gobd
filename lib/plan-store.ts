@@ -69,6 +69,7 @@ export function coercePlanRow(value: unknown): PlanRow | null {
     memberEndedAt: str(row.memberEndedAt),
     memberExtraFirms: Number.isInteger(extraFirms) && extraFirms > 0 ? extraFirms : 0,
     memberFirmItemId: str(row.memberFirmItemId),
+    firstPdfAt: str(row.firstPdfAt),
     notice30At: str(row.notice30At),
     notice7At: str(row.notice7At),
     deletedAt: str(row.deletedAt),
@@ -101,6 +102,7 @@ const FIELD_BY_COLUMN: Record<(typeof PLAN_SHEET_COLUMNS)[number], keyof PlanRow
   updated_at: "updatedAt",
   member_extra_firms: "memberExtraFirms",
   member_firm_item_id: "memberFirmItemId",
+  first_pdf_at: "firstPdfAt",
 };
 
 export function planRowFromSheet(header: string[], values: string[]): PlanRow | null {

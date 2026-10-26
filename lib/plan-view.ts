@@ -23,6 +23,7 @@ export type AccountPlanView = {
   canBecomeMember: boolean;
   /** Mitglied ohne geplante Kündigung: Kündigen-Formular zeigen. */
   canCancel: boolean;
+  canWithdrawCancel: boolean;
   cancelPreview: string;
   changeCredits: number;
   refund: RefundStatus;
@@ -75,6 +76,9 @@ export function accountPlanView(
     canBuyChange: access.canBuyChange,
     canBecomeMember: access.canBecomeMember,
     canCancel: Boolean(cancel),
+    // Rücknahme bis zum Ablauf (approvals 14:15, Punkt 3).
+    canWithdrawCancel:
+      access.state === "member" && Boolean(row.memberCancelAt) && Date.parse(row.memberCancelAt) > now.getTime(),
     cancelPreview: cancel ? memberCancelPreviewLine(cancel) : "",
     changeCredits: row.changeCredits,
     refund,

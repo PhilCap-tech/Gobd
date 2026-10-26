@@ -10,6 +10,10 @@ const PURCHASE_NOTICES: Record<string, string> = {
   "kuendigung-fehler": "Die Kündigung konnte gerade nicht gespeichert werden. Bitte versuchen Sie es später erneut.",
   "kuendigung-unverfuegbar": "Die Kündigung ist hier gerade nicht verfügbar. Sie können auch schriftlich kündigen.",
   "kuendigung-keins": "Für dieses Konto gibt es keine aktive Mitgliedschaft.",
+  widerrufen: "Ihre Kündigung ist zurückgenommen. Die Mitgliedschaft läuft weiter.",
+  "widerruf-fehler": "Die Rücknahme konnte gerade nicht gespeichert werden. Bitte versuchen Sie es später erneut.",
+  "widerruf-unverfuegbar": "Die Rücknahme ist hier gerade nicht verfügbar. Bitte schreiben Sie uns.",
+  "widerruf-zu-spaet": "Die Mitgliedschaft ist bereits beendet; eine Rücknahme ist nicht mehr möglich.",
 };
 
 /** Konto-Karte Preismodell v2. Nur sichtbar, wenn ein Plan existiert. */
@@ -41,6 +45,14 @@ export function AccountPlanCard({ view, purchase }: { view: AccountPlanView; pur
           </label>
           <button className="btn secondary" type="submit">
             Mitgliedschaft kündigen
+          </button>
+        </form>
+      ) : null}
+      {view.canWithdrawCancel ? (
+        <form method="post" action="/api/account/jahresplan/kuendigung">
+          <input type="hidden" name="action" value="widerruf" />
+          <button className="btn secondary" type="submit">
+            Kündigung zurücknehmen
           </button>
         </form>
       ) : null}

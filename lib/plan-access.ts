@@ -3,7 +3,7 @@
  * PRICING_MODEL=v2 wird der Tab nicht gelesen: das bisherige Verhalten
  * bleibt unverändert. Ohne Plan-Zeile (Bestand, DS24, Comp) ebenfalls.
  */
-import { planAccess, consumeChangeCredit, type PlanAccess, type PlanRow } from "@/lib/plan";
+import { planAccess, consumeChangeCredit, recordFirstPdf, type PlanAccess, type PlanRow } from "@/lib/plan";
 import { findPlanByEmailStrict, savePlanRow } from "@/lib/plan-store";
 import { applyFirmUse, firmDecision, type PlanFirmRow } from "@/lib/plan-firms";
 import { listPlanFirmsByEmailStrict, savePlanFirmRow } from "@/lib/plan-firm-store";
@@ -89,8 +89,11 @@ export async function consumePlanChangeCredit(email: string): Promise<void> {
 export type PlanFirmGate = {
   /** Text für 403, oder `null`. */
   denial: string | null;
-  /** Nach dem Speichern aufrufen: Platz binden / Guthaben verbrauchen. Wirft nie. */
-  commit: () => Promise<void>;
+  /**
+   * Nach dem Speichern aufrufen: Platz binden / Guthaben verbrauchen und,
+   * wenn ein PDF erzeugt wurde, die erste PDF der Firma vermerken. Wirft nie.
+   */
+  commit: (options?: { pdfCreated?: boolean }) => Promise<void>;
 };
 
 const OPEN_GATE: PlanFirmGate = { denial: null, commit: async () => {} };
@@ -117,6 +120,16 @@ export async function planFirmGate(
   }
   const account = loaded.row;
   const entity = (entityId ?? "").trim();
+  const notePdf = async (options?: { pdfCreated?: boolean }) => {
+    if (!options?.pdfCreated) return;
+    try {
+      const fresh = (await findPlanByEmailStrict(account.email)) ?? account;
+      const next = recordFirstPdf(fresh, entity, new Date().toISOString());
+      if (next !== fresh) await savePlanRow(next);
+    } catch (error) {
+      console.error("[plans] erste PDF nicht vermerkt", error instanceof Error ? error.name : "error");
+    }
+  };
   if (!entity || firms.length === 0) {
     if (!loaded.access.writesOpen) return { denial: loaded.access.writeMessage, commit: OPEN_GATE.commit };
     if (newVersion && !loaded.access.newVersionAllowed) {
@@ -124,8 +137,9 @@ export async function planFirmGate(
     }
     return {
       denial: null,
-      commit: async () => {
+      commit: async (options) => {
         if (newVersion) await consumePlanChangeCredit(account.email);
+        await notePdf(options);
       },
     };
   }
@@ -133,7 +147,8 @@ export async function planFirmGate(
   if (!decision.allowed) return { denial: decision.message, commit: OPEN_GATE.commit };
   return {
     denial: null,
-    commit: async () => {
+    commit: async (options) => {
+      await notePdf(options);
       try {
         const next = applyFirmUse(firms, decision, {
           email: account.email,

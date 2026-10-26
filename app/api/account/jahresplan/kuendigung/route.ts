@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.redirect(`${getAppUrl()}${loginPath("/account")}`, 303);
   }
   const form = await request.formData().catch(() => null);
+  if (form?.get("action") === "widerruf") return withdraw(email);
   if (form?.get("acknowledged") !== "yes") return back("kuendigung-hinweis");
   if (!isStripeSecretConfigured()) return back("kuendigung-unverfuegbar");
   let loaded;
@@ -62,4 +63,44 @@ export async function POST(request: Request) {
     },
   );
   return back("gekuendigt");
+}
+
+/**
+ * Kündigung zurücknehmen, bis zum Ablauf möglich (approvals 14:15, Punkt 3).
+ * Stripe ist maßgeblich: geplantes Ende am Abo wird entfernt.
+ */
+async function withdraw(email: string): Promise<NextResponse> {
+  if (!isStripeSecretConfigured()) return back("widerruf-unverfuegbar");
+  let loaded;
+  try {
+    loaded = await loadPlanAccess(email);
+  } catch {
+    return back("widerruf-fehler");
+  }
+  if (!loaded || loaded.access.state !== "member" || !loaded.row.memberSubscriptionId) {
+    return back("kuendigung-keins");
+  }
+  if (!loaded.row.memberCancelAt) return back("widerrufen");
+  if (Date.parse(loaded.row.memberCancelAt) <= Date.now()) return back("widerruf-zu-spaet");
+  try {
+    const stripe = getStripe();
+    const subscription = await stripe.subscriptions.retrieve(loaded.row.memberSubscriptionId);
+    await stripe.subscriptions.update(
+      loaded.row.memberSubscriptionId,
+      subscription.cancel_at_period_end ? { cancel_at_period_end: false } : { cancel_at: "" },
+    );
+  } catch (error) {
+    console.error("[jahresplan] Widerruf fehlgeschlagen", error instanceof Error ? error.name : "error");
+    return back("widerruf-fehler");
+  }
+  await savePlanRow({
+    ...loaded.row,
+    memberCancelAt: "",
+    notice30At: "",
+    notice7At: "",
+    updatedAt: new Date().toISOString(),
+  }).catch((error: unknown) => {
+    console.error("[jahresplan] Widerruf nicht im Plan vermerkt", error instanceof Error ? error.name : "error");
+  });
+  return back("widerrufen");
 }

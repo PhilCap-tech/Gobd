@@ -40,6 +40,12 @@ export type PlanRow = {
   memberExtraFirms: number;
   /** Stripe Subscription Item des Firmen-Postens, leer wenn keiner. */
   memberFirmItemId: string;
+  /**
+   * Erste PDF-Erzeugung im Konto je Firma (approvals 14:15, Punkt 1), Beleg
+   * für die Geld-zurück-Regel. JSON `{ "<entityId>": "<ISO>" }`, `"_"` ohne
+   * Firma. Muster, Vorschau und kostenlose Checks zählen nicht.
+   */
+  firstPdfAt: string;
   notice30At: string;
   notice7At: string;
   deletedAt: string;
@@ -73,6 +79,7 @@ export const PLAN_SHEET_COLUMNS = [
   "updated_at",
   "member_extra_firms",
   "member_firm_item_id",
+  "first_pdf_at",
 ] as const;
 
 const MEMBER_LIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -93,6 +100,7 @@ export function emptyPlanRow(email: string, at: string): PlanRow {
     memberEndedAt: "",
     memberExtraFirms: 0,
     memberFirmItemId: "",
+    firstPdfAt: "",
     notice30At: "",
     notice7At: "",
     deletedAt: "",
@@ -431,6 +439,8 @@ export function applyMemberSubscriptionUpdate(
     memberStatus: input.status,
     memberPeriodEnd: input.periodEnd || previous.memberPeriodEnd,
     memberCancelAt: input.cancelAt,
+    // Kündigung zurückgenommen: Erinnerungen gelten nicht mehr.
+    ...(previous.memberCancelAt && !input.cancelAt ? { notice30At: "", notice7At: "" } : {}),
     lastEventId: input.eventId,
     updatedAt: input.at,
   };
@@ -511,6 +521,40 @@ export function retentionCandidate(row: PlanRow, now: Date = new Date()): Retent
   return "none";
 }
 
+/* ---------- Erste PDF je Firma (Beleg, approvals 14:15 Punkt 1) ---------- */
+
+const NO_FIRM_KEY = "_";
+
+export function firstPdfMap(row: Pick<PlanRow, "firstPdfAt">): Record<string, string> {
+  if (!row.firstPdfAt) return {};
+  try {
+    const parsed = JSON.parse(row.firstPdfAt) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string" && Number.isFinite(Date.parse(entry[1])),
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+/** Erste PDF einer Firma vermerken. Ein späteres PDF ändert den Zeitpunkt nicht. */
+export function recordFirstPdf(previous: PlanRow, entityId: string, at: string): PlanRow {
+  const key = entityId.trim() || NO_FIRM_KEY;
+  const map = firstPdfMap(previous);
+  if (map[key]) return previous;
+  return { ...previous, firstPdfAt: JSON.stringify({ ...map, [key]: at }), updatedAt: at };
+}
+
+/** Erste PDF dieser Firma (oder irgendeiner, ohne entityId), ISO oder leer. */
+export function firstPdfFor(row: Pick<PlanRow, "firstPdfAt">, entityId?: string): string {
+  const map = firstPdfMap(row);
+  if (entityId !== undefined) return map[entityId.trim() || NO_FIRM_KEY] ?? "";
+  return Object.values(map).sort()[0] ?? "";
+}
+
 /* ---------- Geld-zurück v2 (R5, Philip 26.10. 13:59) ---------- */
 
 export const REFUND_WINDOW_DAYS = 14;
@@ -529,7 +573,7 @@ export type RefundStatus = {
  * Danach keine Erstattung. Nur Anzeige: Erstattungen bleiben manuell.
  */
 export function refundStatus(
-  row: Pick<PlanRow, "purchasedAt" | "refundedAt">,
+  row: Pick<PlanRow, "purchasedAt" | "refundedAt"> & Partial<Pick<PlanRow, "firstPdfAt">>,
   documents: readonly { pdfUrl?: string; timestamp?: string }[],
   now: Date = new Date(),
 ): RefundStatus {
@@ -543,7 +587,11 @@ export function refundStatus(
     // Ohne Zeitstempel zählt das PDF (fail closed: keine Erstattungszusage).
     return !Number.isFinite(at) || at >= purchased;
   });
-  if (pdfSincePurchase) return { refundable: false, reason: "pdf", deadline };
+  // Beleg aus dem Plan: erste PDF-Erzeugung je Firma seit dem Kauf.
+  const logged = Object.values(firstPdfMap({ firstPdfAt: row.firstPdfAt ?? "" })).some(
+    (at) => Date.parse(at) >= purchased,
+  );
+  if (pdfSincePurchase || logged) return { refundable: false, reason: "pdf", deadline };
   if (now.getTime() >= Date.parse(deadline)) return { refundable: false, reason: "frist", deadline };
   return { refundable: true, reason: "", deadline };
 }

@@ -242,7 +242,7 @@ async function handleDocumentEdit(request: Request) {
     if (persistence) return jsonError(persistence.error, persistence.status);
     return jsonError(DURABLE_STORE_MESSAGE, 503);
   }
-  await planGate.commit();
+  await planGate.commit({ pdfCreated: Boolean(pdfUrl) });
 
   if (!skipTestDelivery) {
     queueOwnerNotice({

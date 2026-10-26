@@ -768,7 +768,7 @@ async function writeIntake(
       });
       storeBackend = stored.backend;
       committed = true;
-      await planGate.commit();
+      await planGate.commit({ pdfCreated: Boolean(pdfUrl) });
     } catch (error) {
       // A timeout or retried append may still have stored the row.
       const landed = submitId ? await rowAfterFailedAppend(documentId, io) : null;
@@ -780,7 +780,7 @@ async function writeIntake(
       }
       if (landed && landed !== "unknown") {
         committed = true;
-        await planGate.commit();
+        await planGate.commit({ pdfCreated: Boolean(pdfUrl) });
         storeBackend = "sheets";
       } else {
         const outage = sheetsOutageResponse(error);
