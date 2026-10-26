@@ -19,7 +19,7 @@ import {
 } from "@/lib/pricing-model";
 
 export type PlanKind = "member" | "single";
-export type PlanState = "member" | "window" | "expired" | "deleted";
+export type PlanState = "member" | "window" | "expired" | "refunded" | "deleted";
 
 export type PlanRow = {
   email: string;
@@ -39,6 +39,8 @@ export type PlanRow = {
   notice30At: string;
   notice7At: string;
   deletedAt: string;
+  /** Kauf erstattet (R5): Zugang dauerhaft gesperrt wie bei der DS24-Rückgabe. */
+  refundedAt: string;
   /** Verarbeitete Checkout-Sessions (Idempotenz), kommagetrennt, die letzten 20. */
   processedSessions: string;
   lastEventId: string;
@@ -61,6 +63,7 @@ export const PLAN_SHEET_COLUMNS = [
   "notice30_at",
   "notice7_at",
   "deleted_at",
+  "refunded_at",
   "processed_sessions",
   "last_event_id",
   "updated_at",
@@ -85,6 +88,7 @@ export function emptyPlanRow(email: string, at: string): PlanRow {
     notice30At: "",
     notice7At: "",
     deletedAt: "",
+    refundedAt: "",
     processedSessions: "",
     lastEventId: "",
     updatedAt: at,
@@ -151,6 +155,7 @@ function isMemberLive(row: PlanRow): boolean {
 
 export function planState(row: PlanRow, now: Date = new Date()): PlanState {
   if (row.deletedAt) return "deleted";
+  if (row.refundedAt) return "refunded";
   if (isMemberLive(row)) return "member";
   const until = Date.parse(row.retentionUntil);
   if (Number.isFinite(until) && now.getTime() < until) return "window";
@@ -173,6 +178,8 @@ export const PLAN_EXPIRED_WRITE_MESSAGE =
   "Die Vorhaltefrist ist abgelaufen. Änderungen sind nicht mehr möglich; Ihr PDF haben Sie bereits erhalten.";
 export const PLAN_VERSION_NEEDS_CHANGE_MESSAGE =
   "Für eine neue Version beauftragen Sie bitte zuerst eine Änderung im Konto oder werden Mitglied.";
+export const PLAN_REFUNDED_MESSAGE =
+  "Der Kauf wurde erstattet. Der Zugang ist damit beendet.";
 export const PLAN_DELETED_MESSAGE =
   "Die Dokumentation wurde nach Ablauf der Vorhaltefrist bei uns gelöscht. Ihr PDF haben Sie bereits erhalten.";
 
@@ -215,6 +222,19 @@ export function planAccess(row: PlanRow, now: Date = new Date()): PlanAccess {
         writeMessage: PLAN_EXPIRED_WRITE_MESSAGE,
         versionMessage: PLAN_EXPIRED_WRITE_MESSAGE,
         downloadMessage: "",
+      };
+    case "refunded":
+      // Wie die Digistore24-Rückgabe (on_refund): dauerhaft gesperrt, auch Downloads.
+      return {
+        state,
+        writesOpen: false,
+        downloadsOpen: false,
+        newVersionAllowed: false,
+        canBuyChange: false,
+        canBecomeMember: false,
+        writeMessage: PLAN_REFUNDED_MESSAGE,
+        versionMessage: PLAN_REFUNDED_MESSAGE,
+        downloadMessage: PLAN_REFUNDED_MESSAGE,
       };
     case "deleted":
       return {
@@ -332,6 +352,8 @@ export function applyEntryPurchase(
     notice30At: "",
     notice7At: "",
     deletedAt: "",
+    // Ein neuer Einstieg ist ein neuer Kauf (wie eine neue DS24-Bestellung).
+    refundedAt: "",
     processedSessions: rememberSession(base, input.sessionId),
     lastEventId: input.eventId,
     updatedAt: input.at,
@@ -401,7 +423,11 @@ export function applyMemberSubscriptionUpdate(
   };
 }
 
-/** Mitgliedschaft beendet: zurück auf `single`, Frist nach R3 ab dem Ende. */
+/**
+ * Mitgliedschaft beendet: zurück auf `single`. Frist nach R3 ab dem Ende,
+ * Default 0: sofort abgelaufen, Löschung zum Ablauf (Philip 26.10. 13:57).
+ * Erinnerungen, die vor dem Ende schon liefen, bleiben stehen.
+ */
 export function applyMemberEnded(
   previous: PlanRow,
   input: { at: string; eventId: string; endedAt: string; afterMonths?: number },
@@ -414,8 +440,6 @@ export function applyMemberEnded(
     memberEndedAt: endedAt,
     memberCancelAt: "",
     retentionUntil: retentionAfterMemberEnd(endedAt, input.afterMonths),
-    notice30At: "",
-    notice7At: "",
     lastEventId: input.eventId,
     updatedAt: input.at,
   };
@@ -438,10 +462,28 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Was der Lauf für eine Zeile täte. Löschen erst, wenn die Frist vorbei ist
  * und beide Erinnerungen versandt wurden. Mitglieder und gelöschte Zeilen nie.
  */
+/**
+ * Löschdatum: ohne Mitgliedschaft das Fristende. Bei gekündigter, noch
+ * laufender Mitgliedschaft das geplante Ende (+ R3-Monate, Default 0).
+ * Laufende Mitgliedschaft ohne Kündigung: kein Löschdatum.
+ */
+export function deletionDueAt(row: PlanRow, now: Date = new Date()): string {
+  const state = planState(row, now);
+  if (state === "deleted" || state === "refunded") return "";
+  if (state === "member") {
+    return row.memberCancelAt ? retentionAfterMemberEnd(row.memberCancelAt) : "";
+  }
+  return row.retentionUntil;
+}
+
 export function retentionCandidate(row: PlanRow, now: Date = new Date()): RetentionCandidate {
   const state = planState(row, now);
-  if (state === "member" || state === "deleted") return "none";
-  const until = Date.parse(row.retentionUntil);
+  if (state === "deleted" || state === "refunded") return "none";
+  const due = deletionDueAt(row, now);
+  if (!due) return "none";
+  // Eine noch laufende Mitgliedschaft wird nie gelöscht, nur erinnert.
+  if (state === "member" && Date.parse(due) <= now.getTime()) return "none";
+  const until = Date.parse(due);
   if (!Number.isFinite(until)) return "none";
   const left = until - now.getTime();
   if (left <= 0) {
@@ -453,4 +495,72 @@ export function retentionCandidate(row: PlanRow, now: Date = new Date()): Retent
   if (left <= 7 * DAY_MS) return row.notice7At ? "none" : "notice7";
   if (left <= 30 * DAY_MS) return row.notice30At ? "none" : "notice30";
   return "none";
+}
+
+/* ---------- Geld-zurück v2 (R5, Philip 26.10. 13:59) ---------- */
+
+export const REFUND_WINDOW_DAYS = 14;
+
+export type RefundStatus = {
+  refundable: boolean;
+  /** `""` erstattbar, sonst der Grund. */
+  reason: "" | "pdf" | "frist" | "erstattet" | "kein_kauf";
+  /** Letzter Zeitpunkt (ISO), bis zu dem erstattet werden kann. */
+  deadline: string;
+};
+
+/**
+ * Volle Erstattung (Einstieg + erstes Mitgliedsjahr) nur, solange kein PDF
+ * erzeugt wurde UND weniger als 14 Tage seit dem Kauf vergangen sind.
+ * Danach keine Erstattung. Nur Anzeige: Erstattungen bleiben manuell.
+ */
+export function refundStatus(
+  row: Pick<PlanRow, "purchasedAt" | "refundedAt">,
+  documents: readonly { pdfUrl?: string; timestamp?: string }[],
+  now: Date = new Date(),
+): RefundStatus {
+  const purchased = Date.parse(row.purchasedAt);
+  if (!Number.isFinite(purchased)) return { refundable: false, reason: "kein_kauf", deadline: "" };
+  const deadline = new Date(purchased + REFUND_WINDOW_DAYS * DAY_MS).toISOString();
+  if (row.refundedAt) return { refundable: false, reason: "erstattet", deadline };
+  const pdfSincePurchase = documents.some((doc) => {
+    if (!doc.pdfUrl?.trim()) return false;
+    const at = Date.parse(doc.timestamp ?? "");
+    // Ohne Zeitstempel zählt das PDF (fail closed: keine Erstattungszusage).
+    return !Number.isFinite(at) || at >= purchased;
+  });
+  if (pdfSincePurchase) return { refundable: false, reason: "pdf", deadline };
+  if (now.getTime() >= Date.parse(deadline)) return { refundable: false, reason: "frist", deadline };
+  return { refundable: true, reason: "", deadline };
+}
+
+export function refundStatusLine(status: RefundStatus): string {
+  const until = formatBerlinDate(status.deadline);
+  switch (status.reason) {
+    case "":
+      return `Volle Erstattung möglich bis ${until}, solange kein PDF erzeugt wird.`;
+    case "pdf":
+      return "Keine Erstattung mehr: Es wurde bereits ein PDF erzeugt.";
+    case "frist":
+      return `Keine Erstattung mehr: Die 14 Tage sind seit ${until} vorbei.`;
+    case "erstattet":
+      return "Der Kauf wurde erstattet.";
+    case "kein_kauf":
+      return "";
+  }
+}
+
+/** Erstattung (charge.refunded): dauerhaft gesperrt, wie DS24 on_refund. */
+export function applyRefund(previous: PlanRow, input: { at: string; eventId: string }): PlanRow {
+  if (previous.refundedAt) return previous;
+  return {
+    ...previous,
+    refundedAt: input.at,
+    changeCredits: 0,
+    memberStatus: previous.plan === "member" ? "canceled" : previous.memberStatus,
+    memberEndedAt: previous.plan === "member" ? input.at : previous.memberEndedAt,
+    plan: "single",
+    lastEventId: input.eventId,
+    updatedAt: input.at,
+  };
 }

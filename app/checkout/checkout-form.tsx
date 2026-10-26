@@ -184,7 +184,7 @@ export function CheckoutForm({
           />
         )}
         <div className="field">
-          <label htmlFor="company">Firma / Name</label>
+          <label htmlFor="company">{planOffer ? "Firma" : "Firma / Name"}</label>
           <input
             id="company"
             name="company"

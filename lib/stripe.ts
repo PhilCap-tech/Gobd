@@ -10,6 +10,7 @@ import {
   isStripeSecretConfigured,
 } from "@/lib/env";
 import type { CheckoutBillingAddress, CheckoutIdentity } from "@/lib/types";
+import { assertDataEnvironment } from "@/lib/data-env-guard";
 import {
   buildPlanCheckoutParams,
   missingPlanPriceIds,
@@ -62,6 +63,8 @@ export function getStripe(): Stripe {
     throw new Error("STRIPE_SECRET_KEY fehlt");
   }
   if (!stripeClient) {
+    // Zweite Sicherung neben instrumentation.ts: kein Testkey gegen echte Daten.
+    assertDataEnvironment();
     stripeClient = new Stripe(key);
   }
   return stripeClient;

@@ -59,11 +59,12 @@ function intEnv(name: string, fallback: number, min: number, max: number): numbe
 export const PLAN_WINDOW_MONTHS = 12;
 
 /**
- * R3 (offen, Legal/Philip): Frist nach Ende der Mitgliedschaft, ab dem Ende.
- * Default 12 Monate. 0 = keine Frist (sofort abgelaufen).
+ * R3 (Philip 26.10. 13:57): Nach Kündigung der Mitgliedschaft wird die
+ * Dokumentation zum Ablauf der Mitgliedschaft gelöscht, ohne neue Frist.
+ * Default 0 Monate. Ein anderer Wert (1–36) gibt eine Frist ab dem Ende.
  */
 export function windowAfterMemberMonths(): number {
-  return intEnv("PLAN_WINDOW_AFTER_MEMBER_MONTHS", 12, 0, 36);
+  return intEnv("PLAN_WINDOW_AFTER_MEMBER_MONTHS", 0, 0, 36);
 }
 
 /** Kündigung der Mitgliedschaft bis so viele Monate vor Ablauf (Philip 26.10.: 3). */

@@ -43,9 +43,11 @@ export const PLAN_MEMBER_POINTS = [
   "Dokumentation wird bei uns geführt und versioniert",
   "Alle Änderungen inklusive",
   "Verlängert sich jährlich; Kündigung bis 3 Monate vor Ablauf im Konto oder schriftlich",
+  "Nach Ende der Mitgliedschaft Löschung bei uns; Ihr PDF behalten Sie",
 ] as const;
 
-export const PLAN_B2B_NOTICE = `Angebot nur für Unternehmen. ${TODO_GROWTH}`;
+/** Growth-Wortlaut 26.10. (exakt): Preisseite und Paketwahl. */
+export const PLAN_B2B_NOTICE = "Nur für Unternehmen · alle Preise zzgl. 19 % USt";
 export const PLAN_PACKAGE_INTRO = `Wählen Sie Ihr Paket. ${TODO_GROWTH}`;
 export const PLAN_TERMS_LABEL_BEFORE = "Ich habe die ";
 export const PLAN_TERMS_LINK = "AGB";

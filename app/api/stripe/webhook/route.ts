@@ -1,3 +1,4 @@
+import type Stripe from "stripe";
 import { NextResponse } from "next/server";
 import {
   getStripeWebhookSecret,
@@ -32,6 +33,14 @@ import {
   ustIdFromCustomerDetails,
 } from "@/lib/stripe";
 import { toSheetRow } from "@/lib/types";
+import {
+  isAnnualPlanSubscription,
+  planKindFromMetadata,
+  recordPlanCheckout,
+  recordPlanRefund,
+  recordPlanSubscriptionEvent,
+} from "@/lib/plan-webhook";
+import { planAccessEnabled } from "@/lib/pricing-model";
 
 export const runtime = "nodejs";
 
@@ -143,6 +152,39 @@ export async function POST(request: Request) {
           customerId = (await listStripeCustomerIdByEmail(email)) || "";
         }
 
+        // Preismodell v2: Änderung und nachträgliche Mitgliedschaft sind kein neuer Einstieg.
+        // Keine Kaufzeile, keine Onboarding-Mail, kein alter Lifecycle.
+        const planKind = planKindFromMetadata(session.metadata);
+        if (planKind === "change" || planKind === "member") {
+          await recordPlanCheckout({
+            session,
+            kind: planKind,
+            email,
+            customerId,
+            eventId: event.id,
+            at: eventTimeIso(event.created),
+          });
+          try {
+            await notifyCheckoutPaid({
+              livemode: session.livemode,
+              paymentStatus: session.payment_status,
+              entityId: session.metadata?.entity_id?.trim() ?? "",
+              sessionId: session.id,
+              company: company,
+              email,
+              amountTotal: session.amount_total,
+              currency: session.currency,
+              created: session.created,
+            });
+          } catch (error) {
+            console.error(
+              "[webhook] Kaufhinweis nicht gesendet",
+              error instanceof Error ? error.name : "error",
+            );
+          }
+          break;
+        }
+
         const existing = await findRowByStripeSessionId(session.id);
         const buyerEmail = (email || existing?.email || "").trim();
         if (existing) {
@@ -247,6 +289,18 @@ export async function POST(request: Request) {
         } else {
           console.info("[webhook] Onboarding übersprungen — Testfirma");
         }
+        if (planKind === "entry") {
+          // v2-Einstieg: Plan statt Abo-Lifecycle (ein Jahresplan-Abo darf nicht in die 30-Tage-Logik).
+          await recordPlanCheckout({
+            session,
+            kind: "entry",
+            email: buyerEmail,
+            customerId,
+            eventId: event.id,
+            at: eventTimeIso(event.created),
+          });
+          break;
+        }
         await recordCheckoutSubscription({
           eventId: event.id,
           at: eventTimeIso(event.created),
@@ -259,12 +313,21 @@ export async function POST(request: Request) {
       }
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
+        if (isAnnualPlanSubscription(event.data.object)) {
+          await recordPlanSubscriptionEvent({
+            subscription: event.data.object,
+            eventId: event.id,
+            at: eventTimeIso(event.created),
+            deleted: event.type === "customer.subscription.deleted",
+          });
+        } else {
         await recordSubscriptionEvent({
           eventId: event.id,
           at: eventTimeIso(event.created),
           subscription: event.data.object,
           deleted: event.type === "customer.subscription.deleted",
         });
+        }
         // Inhaber-Hinweis nur bei echter Änderung (previous_attributes), nicht bei Verlängerung.
         if (ownerNoticeFromStripeEvent(event)) {
           let subscriberEmail = "";
@@ -276,6 +339,24 @@ export async function POST(request: Request) {
           const notice = ownerNoticeFromStripeEvent(event, { email: subscriberEmail });
           if (notice) queueOwnerNotice(notice);
         }
+        break;
+      }
+      // Preismodell v2: Verlängerung des Jahresplans. Alte Abos ignorieren dieses Ereignis.
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice & {
+          parent?: { subscription_details?: { subscription?: string | { id?: string } | null; metadata?: Record<string, string> | null } | null } | null;
+        };
+        const details = invoice.parent?.subscription_details;
+        if (details?.metadata?.gobd_plan !== "member") break;
+        const subscriptionId = idFrom(details.subscription);
+        if (!subscriptionId) break;
+        const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
+        await recordPlanSubscriptionEvent({
+          subscription,
+          eventId: event.id,
+          at: eventTimeIso(event.created),
+          deleted: false,
+        });
         break;
       }
       case "invoice.payment_failed": {
@@ -300,7 +381,7 @@ export async function POST(request: Request) {
         if (failedNotice) queueOwnerNotice(failedNotice);
         break;
       }
-      // Nur Inhaber-Hinweis, keine Zugangsänderung. In Stripe noch zu aktivieren.
+      // Legacy: nur Inhaber-Hinweis, keine Zugangsänderung. In Stripe noch zu aktivieren.
       case "charge.refunded": {
         const charge = event.data.object;
         let email = charge.billing_details?.email || charge.receipt_email || "";
@@ -311,6 +392,22 @@ export async function POST(request: Request) {
           } catch {
             email = "";
           }
+        }
+        // Preismodell v2 (R5): Erstattung sperrt den Zugang und beendet den Jahresplan.
+        // Ohne v2-Metadaten und ohne PLAN_ACCESS_ENABLED bleibt es beim Inhaber-Hinweis.
+        if (planKindFromMetadata(charge.metadata) || planAccessEnabled()) {
+          await recordPlanRefund({
+            charge,
+            email,
+            eventId: event.id,
+            at: eventTimeIso(event.created),
+            cancelSubscription: async (subscriptionId) => {
+              await getStripe().subscriptions.cancel(subscriptionId, {
+                invoice_now: false,
+                prorate: false,
+              });
+            },
+          });
         }
         const notice = ownerNoticeFromStripeEvent(event, {
           email,
