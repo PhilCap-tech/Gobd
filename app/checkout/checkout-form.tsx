@@ -14,6 +14,11 @@ import {
   PLAN_TERMS_LABEL_AFTER,
   PLAN_TERMS_LABEL_BEFORE,
   PLAN_TERMS_LINK,
+  PARTNER_PROBE_CHECKOUT_NOTE_V2,
+  PLAN_PRIVACY_AFTER,
+  PLAN_PRIVACY_BEFORE,
+  PLAN_PRIVACY_HREF,
+  PLAN_PRIVACY_LINK,
   type PlanPackage,
   type PlanPackageTexts,
 } from "@/lib/plan-copy";
@@ -254,11 +259,21 @@ export function CheckoutForm({
             </span>
           </label>
         ) : null}
+        {planOffer ? (
+          <p className="hint">
+            {PLAN_PRIVACY_BEFORE}
+            <a href={PLAN_PRIVACY_HREF} target="_blank" rel="noopener">
+              {PLAN_PRIVACY_LINK}
+            </a>
+            {PLAN_PRIVACY_AFTER}
+          </p>
+        ) : null}
         {partner && !planOffer && (
           <p className="prose">
             <PilotKlartextSentence />
           </p>
         )}
+        {partner && planOffer && <p className="prose">{PARTNER_PROBE_CHECKOUT_NOTE_V2}</p>}
         {error && (
           <p className="error" role="alert">
             {error}

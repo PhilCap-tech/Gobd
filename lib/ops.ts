@@ -54,6 +54,7 @@ import {
   netWithGrossCents,
 } from "@/lib/pricing";
 import { isPricingV2 } from "@/lib/pricing-model";
+import { PARTNER_PROBE_MAIL_INTRO_V2, PARTNER_PROBE_MAIL_OFFER_V2 } from "@/lib/plan-copy";
 import { answersFromSheetRow } from "@/lib/types";
 
 export type OpsResult = {
@@ -390,18 +391,24 @@ function buildSteuerberaterOnboardingMail(input: {
 }): TransactionalMailContent {
   const company = input.company?.trim();
   const greeting = company ? `Guten Tag ${company},` : "Guten Tag,";
+  // v2: Umstellung auf Kanzlei-Probedurchlauf, Texte Legal Do 29.10. (TODO-LEGAL).
+  const v2 = isPricingV2();
+  const intro = v2 ? PARTNER_PROBE_MAIL_INTRO_V2 : "vielen Dank für Ihre Bestellung im Partner-Pilot.";
+  const offer = v2
+    ? PARTNER_PROBE_MAIL_OFFER_V2
+    : `Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${KANZLEI_PILOT_MONTHLY_EUR} €/Monat netto (${KANZLEI_PILOT_MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.`;
   const text = wrapTransactionalText(
     [
       greeting,
       "",
-      "vielen Dank für Ihre Bestellung im Partner-Pilot.",
+      intro,
       "",
       "Nächste Schritte:",
       "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.",
       "2. Das PDF herunterladen, sobald die Generierung fertig ist",
       `3. Konto: Anmeldung unter ${MAIL_LOGIN_URL}`,
       "",
-      `Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${KANZLEI_PILOT_MONTHLY_EUR} €/Monat netto (${KANZLEI_PILOT_MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.`,
+      offer,
       "",
       "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
       MAIL_FAQ_URL,
@@ -415,14 +422,14 @@ function buildSteuerberaterOnboardingMail(input: {
   );
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
-    <p>vielen Dank für Ihre Bestellung im Partner-Pilot.</p>
+    <p>${escapeHtml(intro)}</p>
     <p>Nächste Schritte:</p>
     <ol>
       <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.</li>
       <li>Das PDF herunterladen, sobald die Generierung fertig ist</li>
       <li>Konto: Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
     </ol>
-    <p>Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${KANZLEI_PILOT_MONTHLY_EUR} €/Monat netto (${KANZLEI_PILOT_MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.</p>
+    <p>${escapeHtml(offer)}</p>
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
     <p>Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus den Angaben. Sie füllen sie nicht für einen Mandanten aus.</p>

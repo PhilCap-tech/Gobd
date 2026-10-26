@@ -1,8 +1,10 @@
-import { LEGAL_OPERATOR } from "@/lib/legal";
-import { TODO_LEGAL } from "@/lib/plan-copy";
 import { PlanBuyButton } from "@/components/plan-buy-button";
 import type { AccountPlanView } from "@/lib/plan-view";
-import { PLAN_CHANGE_PRICE_LINE, PLAN_MEMBER_PRICE_LINE } from "@/lib/plan-copy";
+import {
+  PLAN_CANCEL_EMAIL_NOTE,
+  PLAN_CHANGE_PRICE_LINE,
+  PLAN_MEMBER_PRICE_LINE,
+} from "@/lib/plan-copy";
 
 const PURCHASE_NOTICES: Record<string, string> = {
   aenderung: "Danke. Die Änderung wird verbucht; das kann einen Moment dauern.",
@@ -52,7 +54,7 @@ export function AccountPlanCard({ view, purchase }: { view: AccountPlanView; pur
       ) : null}
       {view.canCancel || view.canWithdrawCancel ? (
         <p className="hint">
-          Kündigung und Rücknahme sind auch per E-Mail an {LEGAL_OPERATOR.email} möglich. {TODO_LEGAL}
+          {PLAN_CANCEL_EMAIL_NOTE}
         </p>
       ) : null}
       {view.canWithdrawCancel ? (

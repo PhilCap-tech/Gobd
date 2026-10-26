@@ -337,7 +337,7 @@ export type CheckoutSessionInput = {
   /** Für die Warnung, wenn STRIPE_TAX_RATE_ID fehlt. Default: CHECKOUT_SESSION_ROUTE. */
   route?: string;
   /** Preismodell v2 (nur bei PRICING_MODEL=v2 gesetzt). Ohne: bisheriger Checkout. */
-  plan?: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean };
+  plan?: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean; agbAcceptedAt?: string };
 };
 
 /**
@@ -466,7 +466,7 @@ export async function createCheckoutSession(
 
 function preparePlanCheckout(
   input: CheckoutSessionInput,
-  plan: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean },
+  plan: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean; agbAcceptedAt?: string },
 ): { stub: { url: string; stub: boolean } } | { params: Stripe.Checkout.SessionCreateParams } {
   const missing = missingPlanPriceIds(plan.kind, plan.member, plan.memberFirm === true);
   if (!isStripeSecretConfigured() || missing.length > 0) {
@@ -493,6 +493,7 @@ function preparePlanCheckout(
       audience: input.audience,
       customerId: input.customerId,
       memberFirm: plan.memberFirm,
+      agbAcceptedAt: plan.agbAcceptedAt,
     }),
   };
 }

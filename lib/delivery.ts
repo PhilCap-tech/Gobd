@@ -334,7 +334,7 @@ function drawWatermark(doc: PDFKit.PDFDocument) {
   });
 }
 
-function writeUpsellPage(doc: PDFKit.PDFDocument) {
+function writeUpsellPage(doc: PDFKit.PDFDocument, opts: { guarantee?: boolean } = {}) {
   doc.addPage();
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
@@ -345,8 +345,10 @@ function writeUpsellPage(doc: PDFKit.PDFDocument) {
   doc.font("Helvetica").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_BODY, { width });
   doc.moveDown(0.9);
   doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_PRICE, { width });
-  doc.moveDown(0.35);
-  doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(GELD_ZURUECK_MICRO, { width });
+  if (opts.guarantee !== false) {
+    doc.moveDown(0.35);
+    doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(GELD_ZURUECK_MICRO, { width });
+  }
   doc.moveDown(0.85);
   doc
     .font("Helvetica")
@@ -432,6 +434,7 @@ function writePdf(
     versionHistory?: VersionHistoryEntry[];
     onlyModul?: string;
     variant: PdfVariant;
+    upsellGuarantee?: boolean;
   },
 ) {
   const rendered = renderDeliveryDocument(input);
@@ -459,7 +462,7 @@ function writePdf(
     doc.moveDown(0.55);
   }
 
-  if (isMuster(input.variant)) writeUpsellPage(doc);
+  if (isMuster(input.variant)) writeUpsellPage(doc, { guarantee: input.upsellGuarantee });
 
   decoratePages(doc, {
     identity: input.identity,
@@ -484,6 +487,11 @@ export async function generatePdf(input: {
    * Alles andere, auch ein vergessenes Feld, bleibt eine Kundenfassung.
    */
   variant?: PdfVariant;
+  /**
+   * Nur Muster: Garantiezeile auf der Upsell-Seite. `false` für DS24-Besucher
+   * (`?quelle=ds24`, CoS 26.10.): DS24-Käufe haben die v2-Garantie nicht.
+   */
+  upsellGuarantee?: boolean;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const entityId = input.identity.entityId;
   if (!isMuster(input.variant) && entityId && isTestEntity(entityId)) {

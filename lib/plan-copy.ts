@@ -71,7 +71,25 @@ export function planPackageTexts(activeFirmsBilling = false): PlanPackageTexts {
 /** Growth-Wortlaut 26.10. (exakt): Preisseite und Paketwahl. */
 export const PLAN_B2B_NOTICE = "Nur für Unternehmen · alle Preise zzgl. 19 % USt";
 export const PLAN_PACKAGE_INTRO = `Wählen Sie Ihr Paket. ${TODO_GROWTH}`;
-export const PLAN_TERMS_LABEL_BEFORE = "Ich habe die ";
-export const PLAN_TERMS_LINK = "AGB";
-export const PLAN_TERMS_LABEL_AFTER = ` gelesen und akzeptiere sie. ${TODO_LEGAL}`;
+/** Wortlaut Legal (legal/checkout-konto-saetze.md, 26.10. 15:20), Pflicht-Checkbox, nicht vorangekreuzt. */
+export const PLAN_TERMS_LABEL_BEFORE = "Ich akzeptiere die ";
+export const PLAN_TERMS_LINK = "Allgemeinen Geschäftsbedingungen";
+export const PLAN_TERMS_LABEL_AFTER = " der IKAT GmbH.";
 export const PLAN_TERMS_HREF = "/agb";
+/** Darunter, ohne Checkbox (nur Link, keine Einwilligung). */
+export const PLAN_PRIVACY_BEFORE = "Informationen zur Verarbeitung Ihrer Daten finden Sie in der ";
+export const PLAN_PRIVACY_LINK = "Datenschutzerklärung";
+export const PLAN_PRIVACY_AFTER = ".";
+export const PLAN_PRIVACY_HREF = "/datenschutz";
+
+/** Konto, Karte „Jahresmitgliedschaft“ (Wortlaut Legal 15:20). */
+export const PLAN_CANCEL_EMAIL_NOTE =
+  "Sie können die Mitgliedschaft auch per E-Mail an info@gobd-doku-erstellen.de kündigen (bis 3 Monate vor Ablauf) und eine Kündigung bis zum Ablauf ebenso per E-Mail zurücknehmen.";
+
+/**
+ * Kanzlei-Probedurchlauf (Philip 15:06/15:15): Legal-Texte kommen Do 29.10.
+ * Nur unter v2 sichtbar; Legacy behält Partner-Pilot/KANZLEI-PILOT-Wortlaut.
+ */
+export const PARTNER_PROBE_MAIL_INTRO_V2 = `${TODO_LEGAL} Einleitung Partner-Mail zum Kanzlei-Probedurchlauf (Text folgt).`;
+export const PARTNER_PROBE_MAIL_OFFER_V2 = `${TODO_LEGAL} Satz zum Kanzlei-Probedurchlauf statt KANZLEI-PILOT-Konditionen (Text folgt).`;
+export const PARTNER_PROBE_CHECKOUT_NOTE_V2 = `${TODO_LEGAL} Hinweis zum Kanzlei-Probedurchlauf statt Pilot-Satz (Text folgt).`;

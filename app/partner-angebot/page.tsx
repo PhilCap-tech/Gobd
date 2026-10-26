@@ -45,7 +45,7 @@ import {
   PARTNER_MUSTER_DOCUMENT_ID,
   PARTNER_MUSTER_IDENTITY,
   PARTNER_MUSTER_PATH,
-  PARTNER_MUSTER_PDF_PATH,
+  PARTNER_MUSTER_PDF_DS24_PATH,
   PARTNER_MUSTER_VERSION_META,
 } from "@/lib/partner-muster";
 import {
@@ -280,7 +280,7 @@ export default async function PartnerAngebotPage({
                     <li key={title}>{title}</li>
                   ))}
                 </ol>
-                <a className={styles.cardLink} href={PARTNER_MUSTER_PDF_PATH}>
+                <a className={styles.cardLink} href={PARTNER_MUSTER_PDF_DS24_PATH}>
                   Muster-PDF öffnen
                 </a>
               </article>
@@ -415,7 +415,7 @@ export default async function PartnerAngebotPage({
                 ))}
                 <p className={styles.excerptHint}>
                   Beispiel GmbH (fiktiv), dieselbe Quelle wie das{" "}
-                  <a href={PARTNER_MUSTER_PDF_PATH}>Muster-PDF</a>.
+                  <a href={PARTNER_MUSTER_PDF_DS24_PATH}>Muster-PDF</a>.
                 </p>
               </figure>
             ) : null}

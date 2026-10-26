@@ -642,6 +642,23 @@ for (const file of files) {
       failed = true;
     });
 }
+// Interpolierte Marker (`${TODO_LEGAL}` / `${TODO_GROWTH}`) enthalten den
+// Klartext nicht und fielen sonst durch: mit PLAN_COPY_DRAFT = false sperren.
+const markerUse = /\$\{TODO_(?:GROWTH|LEGAL)\}/;
+for (const file of globSync("{app,components,lib}/**/*.{ts,tsx}")) {
+  readFileSync(file, "utf8")
+    .split("\n")
+    .forEach((line, index) => {
+      if (!markerUse.test(line)) return;
+      if (planCopyDraft) {
+        planMarkers += 1;
+        console.warn(`check-forbidden-words: v2-Marker (Merge-Sperre) ${file}:${index + 1}`);
+        return;
+      }
+      console.error(`${file}:${index + 1}: v2-Marker offen, PLAN_COPY_DRAFT = false: ${line.trim()}`);
+      failed = true;
+    });
+}
 if (planMarkers > 0) {
   console.warn(`check-forbidden-words: ${planMarkers} v2-Marker offen (PLAN_COPY_DRAFT = true, nicht mergen)`);
 }

@@ -160,6 +160,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  // Nachweis der AGB-Bestätigung (Legal 15:20): Zeitpunkt in den Stripe-Metadaten.
+  const agbAcceptedAt = v2 ? new Date().toISOString() : undefined;
 
   try {
     const session = await createCheckoutSession({
@@ -170,7 +172,13 @@ export async function POST(request: Request) {
       customerId: await reusableCustomerId(email),
       route: CHECKOUT_SESSION_ROUTE,
       ...(v2
-        ? { plan: { kind: "entry" as const, member: memberFromPackage(body.paket, memberPreselected()) } }
+        ? {
+            plan: {
+              kind: "entry" as const,
+              member: memberFromPackage(body.paket, memberPreselected()),
+              agbAcceptedAt,
+            },
+          }
         : {}),
     });
     return NextResponse.json(session);

@@ -20,6 +20,19 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export const PARTNER_MUSTER_PATH = "/steuerberater/muster";
 export const PARTNER_MUSTER_PDF_PATH = "/steuerberater/muster/pdf";
+/** Expliziter DS24-Marker (nicht Referrer): /partner-angebot verlinkt nur diese URL. */
+export const MUSTER_QUELLE_PARAM = "quelle";
+export const MUSTER_QUELLE_DS24 = "ds24";
+export const PARTNER_MUSTER_PDF_DS24_PATH = `${PARTNER_MUSTER_PDF_PATH}?${MUSTER_QUELLE_PARAM}=${MUSTER_QUELLE_DS24}`;
+
+/**
+ * v2-Garantiezeile im Muster-PDF? Nein für DS24-Besucher unter v2. Legacy bleibt
+ * unverändert (Zeile immer da, wie main 08e5269).
+ */
+export function musterPdfShowsGuarantee(quelle: string | null | undefined, v2: boolean): boolean {
+  if (!v2) return true;
+  return (quelle ?? "").trim().toLowerCase() !== MUSTER_QUELLE_DS24;
+}
 export const PARTNER_DEMO_PATH = "/steuerberater/demo";
 export const PARTNER_MUSTER_DOCUMENT_ID = "partner-muster-gmbh";
 export const PARTNER_MUSTER_FILENAME =

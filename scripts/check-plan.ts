@@ -5,6 +5,7 @@
  * und „ohne Variable = altes Verhalten“. Ohne Netz, ohne Stripe, ohne Sheets.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 for (const name of [
   "PRICING_MODEL", "PLAN_ACCESS_ENABLED", "PRICING_EXTRA_FIRMS_ENABLED", "RETENTION_DELETE_ENABLED",
   "RETENTION_NOTICE_ENABLED", "RENEWAL_NOTICE_ENABLED", "STRIPE_SECRET_KEY", "STRIPE_SECRET_KEY_NEW",
@@ -398,6 +399,70 @@ async function main() {
     store.setPlanStoreForTests(null);
     firmStore.setPlanFirmStoreForTests(null);
     delete process.env.PRICING_MODEL;
+  });
+
+  /* ---------- Legal 15:20: AGB-Checkbox, DSE-Link, Konto-Satz ---------- */
+  await check("Checkout v2: AGB-Pflichtbox (Wortlaut Legal), DSE nur Link, Zeitpunkt in Metadaten", async () => {
+    assert.equal(
+      `${planCopy.PLAN_TERMS_LABEL_BEFORE}${planCopy.PLAN_TERMS_LINK}${planCopy.PLAN_TERMS_LABEL_AFTER}`,
+      "Ich akzeptiere die Allgemeinen Geschäftsbedingungen der IKAT GmbH.",
+    );
+    assert.equal(planCopy.PLAN_TERMS_LINK, "Allgemeinen Geschäftsbedingungen");
+    assert.equal(planCopy.PLAN_TERMS_HREF, "/agb");
+    assert.equal(
+      `${planCopy.PLAN_PRIVACY_BEFORE}${planCopy.PLAN_PRIVACY_LINK}${planCopy.PLAN_PRIVACY_AFTER}`,
+      "Informationen zur Verarbeitung Ihrer Daten finden Sie in der Datenschutzerklärung.",
+    );
+    assert.equal(planCopy.PLAN_PRIVACY_HREF, "/datenschutz");
+    for (const route of ["app/agb/page.tsx", "app/datenschutz/page.tsx"]) assert.ok(readFileSync(route, "utf8").length > 0, route);
+    const form = readFileSync("app/checkout/checkout-form.tsx", "utf8");
+    assert.ok(form.includes("useState(false);") && /\[acceptedTerms, setAcceptedTerms\] = useState\(false\)/.test(form), "AGB-Box nicht vorangekreuzt");
+    assert.ok(form.includes("Ich bestelle als Unternehmer (§ 14 BGB)"), "Unternehmer-Box unverändert daneben");
+    const privacyBlock = form.slice(form.indexOf("{PLAN_PRIVACY_BEFORE}") - 200, form.indexOf("{PLAN_PRIVACY_AFTER}"));
+    assert.ok(!privacyBlock.includes("checkbox"), "Datenschutz: keine Checkbox");
+    const api = readFileSync("app/api/checkout/route.ts", "utf8");
+    assert.ok(api.includes("if (v2 && body.acceptedTerms !== true)"), "Server erzwingt AGB-Box");
+    assert.ok(api.indexOf("body.acceptedTerms !== true") < api.indexOf("const agbAcceptedAt"), "Zeitpunkt erst nach Prüfung");
+    const at = "2026-11-02T10:00:00.000Z";
+    const params = checkout.buildPlanCheckoutParams({ kind: "entry", member: true, email: "k@example.com", company: "Firma", agbAcceptedAt: at });
+    assert.equal(params.metadata?.agb_accepted_at, at);
+    assert.equal(params.subscription_data?.metadata?.agb_accepted_at, at);
+    const single = checkout.buildPlanCheckoutParams({ kind: "entry", member: false, email: "k@example.com", company: "Firma", agbAcceptedAt: at });
+    assert.equal(single.payment_intent_data?.metadata?.agb_accepted_at, at);
+    assert.equal(single.invoice_creation?.invoice_data?.metadata?.agb_accepted_at, at);
+    assert.equal(checkout.buildPlanCheckoutParams({ kind: "entry", member: true, email: "k@example.com", company: "" }).metadata?.agb_accepted_at, undefined);
+  });
+
+  await check("Konto: Satz zur Kündigung/Rücknahme per E-Mail (Wortlaut Legal), ohne Platzhalter", () => {
+    assert.equal(
+      planCopy.PLAN_CANCEL_EMAIL_NOTE,
+      "Sie können die Mitgliedschaft auch per E-Mail an info@gobd-doku-erstellen.de kündigen (bis 3 Monate vor Ablauf) und eine Kündigung bis zum Ablauf ebenso per E-Mail zurücknehmen.",
+    );
+    const card = readFileSync("components/account-plan.tsx", "utf8");
+    assert.ok(card.includes("{PLAN_CANCEL_EMAIL_NOTE}") && !card.includes("TODO_LEGAL"));
+    for (const t of [planCopy.PLAN_CANCEL_EMAIL_NOTE, planCopy.PLAN_TERMS_LABEL_AFTER, planCopy.PLAN_PRIVACY_BEFORE]) {
+      assert.ok(!t.includes("TODO"), "Legal-Wortlaut ohne TODO-Marker (besteht auch mit PLAN_COPY_DRAFT=false)");
+    }
+  });
+
+  await check("Kanzlei-Probedurchlauf: v2 nur Platzhalter (Mail + Checkout), Legacy unverändert", async () => {
+    const ops = await import("@/lib/ops");
+    process.env.PRICING_MODEL = "v2";
+    const v2Mail = ops.buildOnboardingMail({ company: "Kanzlei", audience: "steuerberater" });
+    assert.ok(v2Mail.text.includes(planCopy.PARTNER_PROBE_MAIL_INTRO_V2) && v2Mail.text.includes(planCopy.PARTNER_PROBE_MAIL_OFFER_V2));
+    assert.ok(!v2Mail.text.includes("Mit dem Code KANZLEI-PILOT sind") && !v2Mail.text.includes("Bestellung im Partner-Pilot"));
+    assert.ok(v2Mail.html.includes("[TODO-LEGAL]"));
+    delete process.env.PRICING_MODEL;
+    const legacyMail = ops.buildOnboardingMail({ company: "Kanzlei", audience: "steuerberater" });
+    assert.ok(legacyMail.text.includes("vielen Dank für Ihre Bestellung im Partner-Pilot."));
+    assert.ok(legacyMail.text.includes("Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €."));
+    assert.ok(!legacyMail.text.includes("TODO"));
+    const form = readFileSync("app/checkout/checkout-form.tsx", "utf8");
+    assert.ok(form.includes("{partner && !planOffer && ("), "Pilot-Satz nur Legacy");
+    assert.ok(form.includes("{partner && planOffer && <p className=\"prose\">{PARTNER_PROBE_CHECKOUT_NOTE_V2}</p>}"));
+    for (const t of [planCopy.PARTNER_PROBE_MAIL_INTRO_V2, planCopy.PARTNER_PROBE_MAIL_OFFER_V2, planCopy.PARTNER_PROBE_CHECKOUT_NOTE_V2]) {
+      assert.ok(t.startsWith("[TODO-LEGAL]"));
+    }
   });
 
   /* ---------- Start-Schutz Testmodus ---------- */

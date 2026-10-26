@@ -38,7 +38,11 @@ export type PlanCheckoutInput = {
   customerId?: string;
   /** Nur `firm`: Konto ist Mitglied (49 € laufendes Jahr statt 99 € einmalig). */
   memberFirm?: boolean;
+  /** Zeitpunkt der AGB-Bestätigung im Checkout (ISO). Landet in den Metadaten (Session, Abo, Zahlung, Rechnung). */
+  agbAcceptedAt?: string;
 };
+
+export const PLAN_METADATA_AGB_ACCEPTED_AT = "agb_accepted_at";
 
 export const PLAN_METADATA_FIRM = "gobd_firm";
 
@@ -96,6 +100,7 @@ export function buildPlanCheckoutParams(
     [PLAN_METADATA_PLAN]: member ? "member" : "single",
     ...(kind === "firm" ? { [PLAN_METADATA_FIRM]: input.memberFirm ? "member" : "single" } : {}),
     ...(entityId ? { entity_id: entityId } : {}),
+    ...(input.agbAcceptedAt ? { [PLAN_METADATA_AGB_ACCEPTED_AT]: input.agbAcceptedAt } : {}),
   };
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
