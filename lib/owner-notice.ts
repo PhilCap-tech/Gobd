@@ -71,10 +71,23 @@ export function ownerNoticeMailKey(kind: OwnerNoticeKind, id: string): string {
   return `owner-notice:${kind}:${id.trim()}`;
 }
 
+/** Mail-Testdomains, nur für Inhaber-Hinweise (inkl. Subdomains). */
+const OWNER_NOTICE_TEST_DOMAINS = ["example.invalid", "resend.dev"];
+
+/** Ampel-Testadressen plus example.invalid und resend.dev (z. B. delivered@resend.dev). */
+export function isOwnerNoticeTestEmail(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return false;
+  if (isAmpelTestEmail(normalized)) return true;
+  const at = normalized.lastIndexOf("@");
+  const domain = at >= 0 ? normalized.slice(at + 1) : "";
+  return OWNER_NOTICE_TEST_DOMAINS.some((test) => domain === test || domain.endsWith(`.${test}`));
+}
+
 export function ownerNoticeDue(input: OwnerNoticeInput): boolean {
   if (!oneLine(input.id)) return false;
   const email = oneLine(input.email).toLowerCase();
-  if (email && isAmpelTestEmail(email)) return false;
+  if (email && isOwnerNoticeTestEmail(email)) return false;
   if (email && email === CHECKOUT_NOTICE_TO.toLowerCase()) return false;
   if (isTestEntity(input.entityId)) return false;
   return true;
