@@ -19,7 +19,7 @@ export const PARTNER_ANGEBOT_ROBOTS_TAG = "noindex, nofollow";
 /** Partner-page notice, Fassung 3, next to the buy buttons. "AGB (§ 9a)" links to /agb. */
 export const PARTNER_ANGEBOT_NOTICE_BEFORE = "Der Kauf läuft über Digistore24 (die jeweils nach Ihrem Land zuständige Digistore24-Gesellschaft, für Käufer aus Deutschland die Digistore24 GmbH, Hildesheim): Digistore24 ist als Wiederverkäufer Ihr Vertragspartner für Kauf, Zahlung und Rechnung, es gelten die im Bestellformular verlinkten Käufer-AGB und die Datenschutzerklärung von Digistore24, die Leistung erbringt die IKAT GmbH nach unseren ";
 export const PARTNER_ANGEBOT_NOTICE_LINK = "AGB (§ 9a)";
-export const PARTNER_ANGEBOT_NOTICE_AFTER = ". Das Angebot gilt ausschließlich für Unternehmer im Sinne von § 14 BGB; eine Bestellung ist nur als Unternehmen mit Angabe des Firmennamens möglich, Verbraucher sind ausgeschlossen. 198 € zum Start (Einrichtung 149 € + 1. Monat 49 €), danach 49 €/Monat, jeweils zzgl. USt, bis zu 5 Firmen, monatlich über Digistore24 kündbar, 14-Tage-Zufriedenheitsgarantie nach § 9a AGB mit Erstattung über Digistore24.";
+export const PARTNER_ANGEBOT_NOTICE_AFTER = ". Das Angebot gilt ausschließlich für Unternehmer im Sinne von § 14 BGB; eine Bestellung ist nur als Unternehmen mit Angabe des Firmennamens möglich, Verbraucher sind ausgeschlossen. 198 € zum Start (Einrichtung 149 € + 1. Monat 49 €), danach 49 €/Monat, jeweils zzgl. USt, bis zu 5 Firmen, monatlich über Digistore24 kündbar, 14-Tage-Rückgaberecht über Digistore24 nach § 9a AGB mit Erstattung über Digistore24.";
 export const PARTNER_ANGEBOT_NOTICE_HREF = "/agb";
 /**
  * Rückgabe-Mikrotext nur für /partner-angebot (Digistore24), ohne FAQ-Link.

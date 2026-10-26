@@ -24,6 +24,7 @@ import {
   DIGISTORE24_PRODUCT_ID,
   DIGISTORE24_PRODUCT_URL,
   PARTNER_ANGEBOT_LEGAL_NOTICE,
+  PARTNER_ANGEBOT_NOTICE_AFTER,
   PARTNER_ANGEBOT_NOTICE_HREF,
   PARTNER_ANGEBOT_NOTICE_LINK,
   PARTNER_ANGEBOT_PATH,
@@ -251,9 +252,25 @@ ok(privacy.includes("Käufe über Digistore24 melden wir nicht an Google."), "Go
 const faq = source("content/faq.md");
 ok(
   faq.includes(
-    "Bei Bestellungen über unsere Partnerseite (Digistore24) gelten dieselben Erstattungsregeln; die Erstattung beantragen Sie über Digistore24 (Soforthilfe-Link in der Bestellbestätigung) oder bei uns, abgewickelt wird sie über Digistore24 (§ 9a AGB).",
+    "14 Tage Rückgaberecht über Digistore24: Innerhalb von 14 Tagen nach dem Kauf können Sie Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer Bestellbestätigung) und erhalten den vollen Kaufpreis zurück. Bei Käufen über Digistore24 Inc. (USA) bzw. Digistore24 LTD (UK) gilt die im Bestellformular angezeigte Frist von 60 Tagen. Das gilt auch, wenn Sie bereits ein PDF erzeugt oder heruntergeladen haben. Die Erstattung wickelt Digistore24 ab. Die Regeln für Bestellungen über unsere Website gelten hier nicht (§ 9a Abs. 9 AGB). Nach der Rückgabe sperren wir Ihren Zugang; bereits heruntergeladene PDFs dürfen Sie dann nicht mehr nutzen.",
   ),
-  "FAQ item 6 has the approved sentence",
+  "FAQ item 6 has the approved Digistore24 Rückgabe paragraph",
+);
+ok(!faq.includes("dieselben Erstattungsregeln"), "FAQ item 6 no longer says the same refund rules apply to Digistore24");
+ok(
+  agb.includes(
+    "(9) **14 Tage Rückgaberecht über Digistore24.** Innerhalb von 14 Tagen nach dem Kauf können Sie Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer Bestellbestätigung) und erhalten den vollen Kaufpreis zurück.",
+  ),
+  "AGB § 9a (9) has the approved Rückgabe wording",
+);
+ok(
+  agb.includes("**Das gilt nicht, wenn der Vertrag durch eine Rückgabe nach § 9a Abs. 9 endet; dann sperren wir den Zugang mit der Rückgabe.**"),
+  "AGB § 12 Abs. 4 has the approved Rückgabe exception",
+);
+ok(
+  PARTNER_ANGEBOT_NOTICE_AFTER.includes("14-Tage-Rückgaberecht über Digistore24 nach § 9a AGB") &&
+    !PARTNER_ANGEBOT_NOTICE_AFTER.includes("Zufriedenheitsgarantie"),
+  "partner notice names the Rückgaberecht, not the Zufriedenheitsgarantie",
 );
 
 function renderedHrefs(markdown: string): string[] {

@@ -344,7 +344,7 @@ async function main() {
     ok(privacySection.includes(homepageSentence), "section 6 states that the homepage count includes page views");
     ok(privacySection.includes(sentFields), "section 6 names the page-view id in the following sentence");
     ok(!privacySection.includes("nur den Namen des Schritts bzw. der Schaltfläche, im Ampel-Check"), "the old send sentence is not left in place");
-    ok(privacy.includes("**Stand:** 25.10.2026"), "the privacy stand date stays");
+    ok(privacy.includes("**Stand:** 26.10.2026"), "the privacy stand date stays");
     ok(!privacy.includes("home_cta") && !cookies.includes("home_cta"), "the legal texts do not name the sheet tab");
     ok(!cookies.includes("wie oft die Startseite aufgerufen wird"), "the cookie notice is unchanged");
     ok(readFileSync("package.json", "utf8").includes("npm run check:home-cta-counter"), "prebuild runs the CTA check");
