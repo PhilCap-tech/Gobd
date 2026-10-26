@@ -14,7 +14,7 @@ import {
 } from "@/lib/pricing";
 import { SITE_ORIGIN, canonicalUrl } from "@/lib/seo";
 
-const FAQ_GUARANTEE = "6. 14 Tage Zufriedenheitsgarantie";
+const FAQ_GUARANTEE = "6. 14 Tage Geld zurück: Garantie und Rückgaberecht";
 const AGB_NO_WITHDRAWAL = "§ 8 Kein Widerrufsrecht (B2B)";
 const AGB_GUARANTEE = "§ 9 Zufriedenheitsgarantie";
 const AGB_TERM = "§ 12 Laufzeit, Verlängerung und Kündigung";
@@ -90,7 +90,7 @@ export function buildLlmsTxt(): string {
     "",
     "## Seiten",
     "",
-    `- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Zufriedenheitsgarantie`,
+    `- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Geld-zurück-Garantie und Rückgaberecht`,
     `- [AGB](${canonicalUrl("/agb")}): Vertragsbedingungen`,
     `- [Muster](${canonicalUrl("/muster")}): fiktive Muster der Verfahrensdokumentation`,
     `- [Muster für Steuerberater](${canonicalUrl("/steuerberater/muster")}): Beispielergebnis`,
@@ -104,7 +104,7 @@ export function buildLlmsTxt(): string {
     "Erstattung und Kündigung stehen im Wortlaut der FAQ und der AGB. Unten steht dieser Wortlaut.",
     "",
     ...quote(
-      "FAQ: 14 Tage Zufriedenheitsgarantie",
+      "FAQ: 14 Tage Geld zurück: Garantie und Rückgaberecht",
       markdownH2Section(faq, FAQ_GUARANTEE),
     ),
     ...quote(

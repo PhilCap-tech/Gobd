@@ -305,6 +305,11 @@ const privacyHtml = renderToStaticMarkup(createElement(LegalMarkdown, { source: 
 const agbHtml = renderToStaticMarkup(createElement(LegalMarkdown, { source: agb }));
 const faqHtml = renderToStaticMarkup(createElement(LegalMarkdown, { source: faq }));
 ok(
+  faqHtml.includes('<h2 id="geld-zurueck">6. 14 Tage Geld zurück: Garantie und Rückgaberecht</h2>') &&
+    faqHtml.split('id="geld-zurueck"').length === 2,
+  "/faq guarantee heading has the single id geld-zurueck",
+);
+ok(
   privacyHtml.includes("https://www.digistore24.com/page/privacy/1/de</a>)."),
   "privacy URL keeps ').' outside the link",
 );

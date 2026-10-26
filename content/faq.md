@@ -64,7 +64,7 @@ Schreiben Sie uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Re
 
 Haben Sie über unsere Partnerseite bei Digistore24 bestellt, richten Sie Rechnungsfragen bitte an Digistore24 (support@digistore24.com). Bei Bestellungen über unsere Website erreichen Sie uns für Rechnungsfragen unter der oben genannten Adresse.
 
-## 6. 14 Tage Zufriedenheitsgarantie
+## 6. 14 Tage Geld zurück: Garantie und Rückgaberecht
 
 **Bestellung über unsere Website (Stripe Checkout):** Innerhalb von **14 Tagen** nach Bestellung erstatten wir die 198 € zum Start (Einrichtung + 1. Monat), zzgl. USt., solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab. Für Bestellungen über unsere Partnerseite (Digistore24) gilt stattdessen das Rückgaberecht weiter unten.
 
