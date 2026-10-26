@@ -26,6 +26,11 @@ export type Ds24Order = {
   event: string;
   /** payment_id bzw. transaction_id der letzten Zahlung. */
   paymentId: string;
+  /**
+   * Nach on_refund oder on_chargeback dauerhaft gesperrt. Eine spätere
+   * on_payment-IPN derselben Bestellung hebt die Sperre nie auf.
+   */
+  permanentBlock?: "on_refund" | "on_chargeback";
   createdAt: string;
   updatedAt: string;
 };
@@ -84,12 +89,18 @@ function parseRecord(raw: string, email: string): Ds24AccessRecord | null {
     const orders: Record<string, Ds24Order> = {};
     for (const [id, order] of Object.entries(parsed.orders ?? {})) {
       if (!order || typeof order !== "object") continue;
-      const status = order.status === "active" ? "active" : "blocked";
+      const permanentBlock =
+        order.permanentBlock === "on_refund" || order.permanentBlock === "on_chargeback"
+          ? order.permanentBlock
+          : undefined;
+      // Eine dauerhafte Sperre gilt auch dann, wenn der Status anders gespeichert wäre.
+      const status = order.status === "active" && !permanentBlock ? "active" : "blocked";
       orders[id] = {
         productId: String(order.productId ?? ""),
         status,
         event: String(order.event ?? ""),
         paymentId: String(order.paymentId ?? ""),
+        ...(permanentBlock ? { permanentBlock } : {}),
         createdAt: String(order.createdAt ?? ""),
         updatedAt: String(order.updatedAt ?? ""),
       };

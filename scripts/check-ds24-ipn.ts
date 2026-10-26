@@ -182,16 +182,48 @@ async function main(): Promise<void> {
     ok(res.status === 200 && !(await hasDs24Access(BUYER)), "a late retry of the refunded payment keeps the block");
     ok(sent.length === 5, "the late retry sends no mail");
 
+    // Fix 2: Nach Erstattung reaktiviert auch eine neue oder fehlende payment_id nichts.
+    res = await post(form({ ...payment, payment_id: "PAYID-NEW-AFTER-REFUND" }));
+    ok(res.status === 200 && res.text === "OK", "on_payment after refund with a new payment_id answers OK");
+    ok(!(await hasDs24Access(BUYER)), "on_payment after refund with a new payment_id keeps the block");
+    const { payment_id: _dropped, ...paymentNoId } = payment;
+    void _dropped;
+    res = await post(form(paymentNoId));
+    ok(res.status === 200 && !(await hasDs24Access(BUYER)), "on_payment after refund without payment_id keeps the block");
+    res = await post(form({ ...paymentNoId, transaction_id: "TX-OTHER" }));
+    ok(res.status === 200 && !(await hasDs24Access(BUYER)), "on_payment after refund with another transaction_id keeps the block");
+    ok(sent.filter((m) => m.to === BUYER).length === 1, "no login mail after refund");
+    const sentAfterRefundRetries = sent.length;
+    {
+      const { readdirSync } = await import("node:fs");
+      const raw = readdirSync(path.join(root, "access"))
+        .map((f) => readFileSync(path.join(root, "access", f), "utf8"))
+        .find((t) => t.includes("DS24ORDER1"));
+      ok(raw?.includes('"permanentBlock":"on_refund"'), "the refunded order stores a permanent refund flag");
+    }
+
     // Chargeback und Abo-Ende sperren ebenfalls.
     res = await post(form({ ...payment, product_id: "751419", order_id: "DS24ORDER2", payment_id: "PAYID-2", email: OTHER, event: "on_chargeback" }));
     ok(!(await hasDs24Access(OTHER)), "on_chargeback blocks access");
-    ok(sent.length === 6, "on_chargeback sends one owner notice");
+    ok(sent.length === sentAfterRefundRetries + 1, "on_chargeback sends one owner notice");
+    await post(form({ ...payment, product_id: "751419", order_id: "DS24ORDER2", payment_id: "PAYID-CB-NEW", email: OTHER }));
+    ok(!(await hasDs24Access(OTHER)), "on_payment after chargeback with a new payment_id keeps the block");
     const third = { ...payment, order_id: "DS24ORDER3", payment_id: "PAYID-3", email: "ds24-third@example.com" };
     await post(form(third));
     ok(await hasDs24Access(third.email), "a third order is active");
     await post(form({ ...third, event: "last_paid_day" }));
     ok(!(await hasDs24Access(third.email)), "last_paid_day blocks access");
-    ok(sent.length === 9, "payment (2 mails) and last_paid_day (1 notice) for the third order");
+    const beforeThird = sent.length;
+    ok(sent.filter((m) => m.to === third.email).length === 1, "the third order got one login mail");
+    // last_paid_day ist keine dauerhafte Sperre: eine neue Zahlung aktiviert wieder.
+    await post(form({ ...third, payment_id: "PAYID-3B" }));
+    ok(await hasDs24Access(third.email), "a new payment after last_paid_day reactivates access (unchanged)");
+    ok(sent.length > beforeThird, "the reactivation sends an owner notice");
+    // Erstattung nach Abo-Ende setzt die dauerhafte Sperre trotzdem.
+    await post(form({ ...third, payment_id: "PAYID-3B", event: "last_paid_day" }));
+    await post(form({ ...third, payment_id: "PAYID-3B", event: "on_refund" }));
+    await post(form({ ...third, payment_id: "PAYID-3C" }));
+    ok(!(await hasDs24Access(third.email)), "a refund after last_paid_day blocks permanently");
 
     // Eine Folgezahlung (neue payment_id) derselben aktiven Bestellung: nur Hinweis.
     const fourth = { ...payment, order_id: "DS24ORDER4", payment_id: "PAYID-4", email: "ds24-fourth@example.com" };
@@ -200,6 +232,40 @@ async function main(): Promise<void> {
     ok(await hasDs24Access(fourth.email), "a rebill keeps access");
     ok(sent.filter((m) => m.to === fourth.email).length === 1, "a rebill sends no second login mail");
     ok(sent.filter((m) => m.to === CHECKOUT_NOTICE_TO && m.text.includes("DS24ORDER4")).length === 2, "each payment of an order gets one notice");
+
+    // Fix 3: gültig signiert, aber ohne Mail oder Bestell-ID → OK + Inhaber-Hinweis, einmal.
+    const noticeCount = () => sent.filter((m) => m.to === CHECKOUT_NOTICE_TO).length;
+    let before = noticeCount();
+    const { email: _e, ...noEmail } = { ...payment, order_id: "DS24ORDER5", payment_id: "PAYID-5" };
+    void _e;
+    res = await post(form(noEmail));
+    ok(res.status === 200 && res.text === "OK", "IPN without email answers OK as before");
+    ok(noticeCount() === before + 1, "IPN without email sends one owner notice");
+    const incompleteMail = sent[sent.length - 1];
+    ok(
+      incompleteMail?.to === CHECKOUT_NOTICE_TO &&
+        /unvollständig/.test(incompleteMail.subject) &&
+        incompleteMail.text.includes("DS24ORDER5") &&
+        !incompleteMail.text.includes(FAKE_PASSPHRASE) &&
+        !/sha_sign/i.test(incompleteMail.text),
+      "the incomplete notice names the order and carries no secret or signature",
+    );
+    res = await post(form(noEmail));
+    ok(noticeCount() === before + 1, "a repeated IPN without email sends no second notice");
+    before = noticeCount();
+    const { order_id: _o, payment_id: _p, ...noOrder } = { ...payment, email: "ds24-noorder@example.com", invoice_url: "x" };
+    void _o;
+    void _p;
+    res = await post(form(noOrder));
+    ok(res.status === 200 && res.text === "OK", "IPN without order_id and payment_id answers OK");
+    ok(noticeCount() === before + 1, "IPN without order_id sends one owner notice (param hash dedupe)");
+    await post(form(noOrder));
+    ok(noticeCount() === before + 1, "a repeated IPN without order_id sends no second notice");
+    await post(form({ ...noOrder, invoice_url: "y" }));
+    ok(noticeCount() === before + 2, "a different incomplete IPN gets its own notice");
+    ok(!(await hasDs24Access("ds24-noorder@example.com")), "an incomplete IPN creates no access");
+    res = await post(form(noEmail, "wrong-passphrase"));
+    ok(res.status === 403 && noticeCount() === before + 2, "an unsigned incomplete IPN sends no notice");
 
     ok(!sent.some((m) => m.to.includes("sdc-ventures")), "no real customer mailbox in the check");
     ok(buildDs24NoticeMail({ event: "on_payment", email: BUYER, productId: "751404", orderId: "X", paymentId: "", apiMode: "test", at: 0 }).subject.includes("[Test]"), "test-mode notices are marked");
@@ -217,6 +283,23 @@ async function main(): Promise<void> {
     ok(src("app/checkout/page.tsx").includes("ds24CheckoutRedirect"), "checkout page sends DS24 buyers to their access");
     ok(src("app/api/checkout/route.ts").includes("ds24CheckoutRedirect"), "checkout API sends DS24 buyers to their access");
     ok(src("app/account/page.tsx").includes("hasDs24Access"), "account hub accepts DS24 access");
+
+    // Fix 1: nur die Comp-Allowlist überspringt Stripe, DS24-Zugang nicht.
+    const account = src("app/account/page.tsx");
+    ok(/if \(!loadFailed && !compEmail\)/.test(account), "account hub reads the Stripe customer unless comp allowlist");
+    ok(/const coverage = compEmail\s*\?/.test(account), "account hub loads Stripe coverage unless comp allowlist");
+    const kuend = src("app/account/kuendigung/page.tsx");
+    ok(/stripeReady && !compEmail \? await resolveStripeCustomerForEmail/.test(kuend), "Kündigung looks up Stripe unless comp allowlist");
+    ok(!/!compAccess \? await resolveStripeCustomerForEmail/.test(kuend), "DS24 access does not skip the Stripe lookup on Kündigung");
+    ok(/compAccess && !preview\?\.subscriptionId/.test(kuend), "the DS24-only page shows only without a Stripe subscription");
+    ok(/\{ds24Access && \(/.test(kuend), "Kündigung shows the DS24 status next to the Stripe subscription");
+    const { createElement } = await import("react");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { AccountAboCard } = await import("../components/account-abo");
+    const both = renderToStaticMarkup(createElement(AccountAboCard, { stripeBound: true, compAccess: true, ds24Access: true }));
+    ok(both.includes('href="/account/kuendigung"') && both.includes("Digistore24"), "Stripe + DS24: Abo card keeps Kündigen and names DS24");
+    const ds24Only = renderToStaticMarkup(createElement(AccountAboCard, { stripeBound: false, compAccess: true, ds24Access: true }));
+    ok(!ds24Only.includes('href="/account/kuendigung"') && ds24Only.includes("Digistore24"), "DS24 only: no Stripe Kündigen button");
   } finally {
     setMailDedupeTestHooks(null);
     setDs24AccessTestHooks(null);

@@ -61,15 +61,18 @@ export default async function KuendigungPage({
 }) {
   const email = await getSessionEmail();
   if (!email) redirect(loginPath("/account/kuendigung"));
-  const ds24Access = !isCompAccessEmail(email) && (await hasDs24Access(email));
-  const compAccess = isCompAccessEmail(email) || ds24Access;
+  // Nur die Comp-Allowlist überspringt Stripe. DS24-Käufer mit eigenem Stripe-Abo
+  // müssen dieses weiterhin kündigen können.
+  const compEmail = isCompAccessEmail(email);
+  const ds24Access = !compEmail && (await hasDs24Access(email));
+  const compAccess = compEmail || ds24Access;
 
   const params = await searchParams;
   const status = firstQueryValue(params.status);
   const banner = status ? STATUS_COPY[status] : undefined;
   const stripeReady = isStripeSecretConfigured();
   const resolved =
-    stripeReady && !compAccess ? await resolveStripeCustomerForEmail(email) : null;
+    stripeReady && !compEmail ? await resolveStripeCustomerForEmail(email) : null;
   const preview =
     resolved?.customerId && !resolved.lookupFailed
       ? await loadCancellationPreview(resolved.customerId)
@@ -149,6 +152,14 @@ export default async function KuendigungPage({
         {banner && (
           <p className={banner.tone === "ok" ? "banner ok" : "banner warn"} role="status">
             {banner.text}
+          </p>
+        )}
+
+        {ds24Access && (
+          <p className="banner warn" role="status">
+            Sie haben zusätzlich einen Zugang über Digistore24. Diese Seite kündigt nur das
+            Stripe-Abonnement. Den Digistore24-Kauf kündigen Sie über den Link in Ihrer
+            Bestellbestätigung von Digistore24.
           </p>
         )}
 

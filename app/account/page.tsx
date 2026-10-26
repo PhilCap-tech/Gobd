@@ -58,9 +58,11 @@ export default async function AccountPage({
   if (!email) {
     redirect("/login");
   }
-  // Aktiver Digistore24-Zugang verhält sich wie Comp (ohne Stripe), nur die Abo-Kachel nennt Digistore24.
-  const ds24Access = !isCompAccessEmail(email) && (await hasDs24Access(email));
-  const compAccess = isCompAccessEmail(email) || ds24Access;
+  // Aktiver Digistore24-Zugang öffnet das Produkt wie Comp. Stripe-Daten (Kunde,
+  // Abdeckung, Kündigung) werden aber nur für die Comp-Allowlist übersprungen.
+  const compEmail = isCompAccessEmail(email);
+  const ds24Access = !compEmail && (await hasDs24Access(email));
+  const compAccess = compEmail || ds24Access;
 
   const params = await searchParams;
   const portalStatus = portalStatusFromQuery(firstQueryValue(params.portal));
@@ -107,7 +109,7 @@ export default async function AccountPage({
       );
       sheetsDown = isSheetsOutage(error);
     }
-    if (!loadFailed && !compAccess) {
+    if (!loadFailed && !compEmail) {
       try {
         customerId = (await findLatestStripeCustomerIdByEmail(email)) ?? "";
       } catch (error) {
@@ -184,7 +186,7 @@ export default async function AccountPage({
     lifecycleRows.some((row) => row.stripeCustomerId);
   const showAbo = !(memberFirms.length > 0 && entities.length === 0 && !stripeBound);
   const atCap = entityCapReached(entities.length);
-  const coverage = compAccess
+  const coverage = compEmail
     ? emptyIncludedFirmCoverage()
     : await loadIncludedFirmCoverage(email);
 

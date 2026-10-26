@@ -41,6 +41,8 @@ export const DIGISTORE24_IPN_PRODUCT_IDS = ["751404", "751419"] as const;
 export const DIGISTORE24_IPN_PASSPHRASE_ENV = "DIGISTORE24_IPN_PASSPHRASE";
 
 const BLOCKING_EVENTS = new Set(["on_refund", "on_chargeback", "last_paid_day"]);
+/** Diese Ereignisse sperren die Bestellung dauerhaft. */
+const PERMANENT_BLOCK_EVENTS = new Set(["on_refund", "on_chargeback"]);
 
 export type Ds24MailOutcome = "sent" | "duplicate" | "failed";
 
@@ -52,6 +54,11 @@ export type Ds24NoticeInput = {
   paymentId: string;
   apiMode: string;
   at: number;
+  /**
+   * Gesetzt, wenn eine gültig signierte IPN ohne Mail oder Bestell-ID kam.
+   * Dient als Dedupe-Referenz (payment/transaction id oder Hash der Parameter).
+   */
+  incompleteRef?: string;
 };
 
 export type Ds24IpnDeps = {
@@ -116,6 +123,16 @@ export function verifyDs24Signature(passphrase: string, params: Map<string, stri
 
 const OK: Ds24IpnResult = { status: 200, body: "OK" };
 
+/** SHA-256 über die sortierten Parameter ohne Signatur, gekürzt. Nur als Dedupe-Referenz. */
+export function ds24ParamsHash(params: Map<string, string>): string {
+  const text = [...params.entries()]
+    .filter(([key]) => key !== "sha_sign" && key !== "SHASIGN")
+    .sort((a, b) => byteCompare(a[0], b[0]))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+  return createHash("sha256").update(text, "utf8").digest("hex").slice(0, 32);
+}
+
 function buyerEmail(params: Map<string, string>): string {
   return normalizeDs24Email(
     params.get("email") || params.get("address_email") || params.get("buyer_email"),
@@ -146,11 +163,21 @@ export async function handleDs24Ipn(
 
   const orderId = (params.get("order_id") ?? "").trim();
   const email = buyerEmail(params);
+  const paymentId = (params.get("payment_id") || params.get("transaction_id") || "").trim();
   if (!orderId || !email) {
     console.warn("[ds24] IPN ohne Bestell-ID oder Mail", { event });
+    await deps.sendOwnerNotice({
+      event,
+      email,
+      productId,
+      orderId,
+      paymentId,
+      apiMode: (params.get("api_mode") ?? "").trim(),
+      at: deps.now(),
+      incompleteRef: paymentId || ds24ParamsHash(params),
+    });
     return OK;
   }
-  const paymentId = (params.get("payment_id") || params.get("transaction_id") || "").trim();
   const at = new Date(deps.now()).toISOString();
 
   const record: Ds24AccessRecord = (await deps.store.read(email)) ?? { email, orders: {} };
@@ -166,9 +193,12 @@ export async function handleDs24Ipn(
   };
 
   if (isPayment) {
-    // Eine verspätete Wiederholung derselben Zahlung hebt eine Sperre nicht auf.
+    // Nach Erstattung/Rückbuchung bleibt die Bestellung dauerhaft gesperrt, egal
+    // mit welcher (oder ohne) payment_id. Eine verspätete Wiederholung derselben
+    // Zahlung hebt auch eine last_paid_day-Sperre nicht auf.
     const staleRetry =
-      previous?.status === "blocked" && Boolean(paymentId) && previous.paymentId === paymentId;
+      Boolean(previous?.permanentBlock) ||
+      (previous?.status === "blocked" && Boolean(paymentId) && previous.paymentId === paymentId);
     if (!staleRetry && previous?.status !== "active") {
       record.orders[orderId] = {
         productId,
@@ -193,12 +223,15 @@ export async function handleDs24Ipn(
     return OK;
   }
 
-  if (previous?.status !== "blocked") {
+  const permanent = PERMANENT_BLOCK_EVENTS.has(event) ? (event as "on_refund" | "on_chargeback") : undefined;
+  if (previous?.status !== "blocked" || (permanent && !previous.permanentBlock)) {
+    const permanentBlock = previous?.permanentBlock || permanent;
     record.orders[orderId] = {
       productId,
       status: "blocked",
       event,
       paymentId: previous?.paymentId || paymentId,
+      ...(permanentBlock ? { permanentBlock } : {}),
       createdAt: previous?.createdAt || at,
       updatedAt: at,
     };
@@ -226,18 +259,22 @@ export function buildDs24NoticeMail(input: Ds24NoticeInput): {
   html: string;
 } {
   const label = NOTICE_LABELS[input.event] ?? input.event;
+  const incomplete = input.incompleteRef !== undefined;
   const lines: [string, string][] = [
     ["Ereignis", `${label} (${input.event})`],
-    ["E-Mail", input.email],
+    ...(incomplete
+      ? ([["Achtung", "IPN ohne Mail oder Bestell-ID, kein Zugang angelegt oder gesperrt"]] as [string, string][])
+      : []),
+    ["E-Mail", input.email || "—"],
     ["Produkt", input.productId],
-    ["Bestell-ID", input.orderId],
+    ["Bestell-ID", input.orderId || "—"],
     ["Zahlungs-ID", input.paymentId || "—"],
     ["Modus", input.apiMode || "—"],
     ["Zeit (Europe/Berlin)", formatBerlinDateTime(new Date(input.at))],
   ];
   const test = input.apiMode === "test" ? " [Test]" : "";
   return {
-    subject: `Digistore24: ${label}${test} — ${input.orderId}`.replace(/[\r\n]+/g, " ").slice(0, 180),
+    subject: `Digistore24: ${label}${test}${incomplete ? " unvollständig" : ""} — ${input.orderId || "ohne Bestell-ID"}`.replace(/[\r\n]+/g, " ").slice(0, 180),
     text: ["Digistore24-Ereignis", "", ...lines.map(([k, v]) => `${k}: ${v}`)].join("\n"),
     html: `<p>Digistore24-Ereignis</p><p>${lines
       .map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(v)}`)
@@ -255,7 +292,10 @@ export async function notifyDs24Event(input: Ds24NoticeInput): Promise<void> {
   try {
     const mail = buildDs24NoticeMail(input);
     await sendDedupedEmail({
-      dedupeKey: ds24NoticeMailKey(input.orderId, input.event, input.paymentId),
+      dedupeKey:
+        input.incompleteRef !== undefined
+          ? ds24NoticeMailKey(`incomplete-${input.incompleteRef}`, input.event)
+          : ds24NoticeMailKey(input.orderId, input.event, input.paymentId),
       to: CHECKOUT_NOTICE_TO,
       subject: mail.subject,
       text: mail.text,

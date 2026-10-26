@@ -172,6 +172,12 @@ export function AccountAboCard({
   return (
     <section className="card account-panel" aria-labelledby="abo-heading">
       <h2 id="abo-heading">Abo</h2>
+      {ds24Access ? (
+        <p className="prose">
+          <strong>Zusätzlich Zugang über Digistore24.</strong> Rechnung und Kündigung dazu finden
+          Sie in Ihrer Bestellbestätigung von Digistore24.
+        </p>
+      ) : null}
       {notice?.label || notice?.downloadsLabel ? (
         <p className="billing-status warn">
           {notice.label ? <span className="billing-status-label">{notice.label}</span> : null}
