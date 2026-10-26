@@ -35,6 +35,7 @@ import {
 } from "@/lib/pricing";
 import {
   isUnresolvableCheckoutSession,
+  lookupSuccessPurchase,
   probeSuccessCheckout,
   shouldProbeSuccessCheckout,
   SUCCESS_CHECKOUT_CHECKED_PARAM,
@@ -124,7 +125,7 @@ const loadSuccessPage = cache(async function loadSuccessPage(
   // Live Stripe lookup only once the success view is stable (not the pending reload).
   const purchaseLookup =
     showSuccess && sessionId.startsWith("cs_") && row && countsInReporting(row.entityId)
-      ? await resolveCheckoutSession(sessionId)
+      ? await lookupSuccessPurchase(sessionId, resolveCheckoutSession)
       : null;
   const purchaseSessionId =
     purchaseLookup &&

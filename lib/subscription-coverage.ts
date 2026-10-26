@@ -3,7 +3,7 @@ import { EXTRA_FIRM_NOTE } from "@/lib/account-labels";
 import { isStoredPaidEntitlementStatus } from "@/lib/checkout-session";
 import { newDocumentPath } from "@/lib/documents";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
-import { findLatestPaidCheckoutByEmail, findLatestStripeCustomerIdByEmail } from "@/lib/store";
+import { findLatestPaidCheckoutByEmail, resolveStripeCustomerForEmail } from "@/lib/store";
 import {
   billingSubscriptionStatusFrom,
   listCustomerSubscriptionStatuses,
@@ -133,10 +133,10 @@ export async function loadIncludedFirmCoverage(email: string): Promise<IncludedF
   try {
     const paid = await findLatestPaidCheckoutByEmail(normalized);
     if (!storedPaidEntitlementRow(paid)) return emptyIncludedFirmCoverage();
+    // Verified id only: a stale or other-mode `cus_` from the Sheet is skipped
+    // instead of being sent to subscriptions.list.
     const customerId =
-      paid?.stripeCustomerId.trim() ||
-      (await findLatestStripeCustomerIdByEmail(normalized)) ||
-      "";
+      (await resolveStripeCustomerForEmail(normalized)).customerId ?? "";
     if (!customerId) {
       return {
         hasStoredPaidEntitlement: true,
