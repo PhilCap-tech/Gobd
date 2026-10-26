@@ -98,3 +98,32 @@ export function isStripeV2Configured(): boolean {
   const ids = v2PriceIds();
   return Boolean(process.env.STRIPE_SECRET_KEY?.trim() && ids.entry && ids.memberYear && ids.change);
 }
+
+/* ---------- Weitere Firmen (R1 neu, Philip 26.10. 14:04) ---------- */
+
+/**
+ * Eigener Schalter, Default AUS (CoS 26.10. 14:15): Firmen-Plätze, weitere
+ * Firma buchen, Fristen je Firma. Aus: v2 deckt Firmen auf Konto-Ebene wie
+ * bisher, weitere Firmen werden vorerst manuell berechnet.
+ */
+export function extraFirmsEnabled(): boolean {
+  return planAccessEnabled() && process.env.PRICING_EXTRA_FIRMS_ENABLED?.trim().toLowerCase() === "true";
+}
+
+/** Mitglieder: Firmen ohne Aufpreis (1. + 2. Firma). MEMBER_INCLUDED_FIRMS, Default 2. */
+export function memberIncludedFirms(): number {
+  const raw = Number(process.env.MEMBER_INCLUDED_FIRMS?.trim() || "2");
+  return Number.isInteger(raw) && raw >= 1 && raw <= 20 ? raw : 2;
+}
+
+/**
+ * Preis-IDs für weitere Firmen. STRIPE_PRICE_FIRM_ID: 99 € einmalig ohne
+ * Mitgliedschaft (leer: STRIPE_PRICE_ENTRY_ID). STRIPE_PRICE_MEMBER_FIRM_YEAR_ID:
+ * 49 €/Jahr als zusätzlicher Posten (Menge) am Mitgliedschafts-Abo.
+ */
+export function v2FirmPriceIds(): { firm: string; memberFirmYear: string } {
+  return {
+    firm: process.env.STRIPE_PRICE_FIRM_ID?.trim() || process.env.STRIPE_PRICE_ENTRY_ID?.trim() || "",
+    memberFirmYear: process.env.STRIPE_PRICE_MEMBER_FIRM_YEAR_ID?.trim() ?? "",
+  };
+}

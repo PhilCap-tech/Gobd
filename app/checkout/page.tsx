@@ -81,7 +81,9 @@ export default async function CheckoutPage({
     if (decision === "intake") {
       redirect(coveredIntakePath(owned.entityId));
     }
-    extraFirmNote = position > MAX_ENTITIES_PER_ACCOUNT;
+    // v2 (R1 neu): weitere Firma wird im Konto gebucht, kein neuer Einstieg.
+    if (decision === "add_firm") redirect("/account#firmen");
+    extraFirmNote = !coverage.planFirms && position > MAX_ENTITIES_PER_ACCOUNT;
   }
 
   return (

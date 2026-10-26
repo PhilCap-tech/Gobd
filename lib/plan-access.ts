@@ -5,7 +5,9 @@
  */
 import { planAccess, consumeChangeCredit, type PlanAccess, type PlanRow } from "@/lib/plan";
 import { findPlanByEmailStrict, savePlanRow } from "@/lib/plan-store";
-import { planAccessEnabled } from "@/lib/pricing-model";
+import { applyFirmUse, firmDecision, type PlanFirmRow } from "@/lib/plan-firms";
+import { listPlanFirmsByEmailStrict, savePlanFirmRow } from "@/lib/plan-firm-store";
+import { extraFirmsEnabled, planAccessEnabled } from "@/lib/pricing-model";
 import { SheetsUnavailableError, sheetsStatusCode } from "@/lib/sheets-unavailable";
 
 function logReadFailure(context: string, error: unknown): void {
@@ -80,4 +82,68 @@ export async function consumePlanChangeCredit(email: string): Promise<void> {
       error instanceof Error ? error.name : "error",
     );
   }
+}
+
+/* ---------- Je Firma (R1 neu, Philip 26.10. 14:04) ---------- */
+
+export type PlanFirmGate = {
+  /** Text für 403, oder `null`. */
+  denial: string | null;
+  /** Nach dem Speichern aufrufen: Platz binden / Guthaben verbrauchen. Wirft nie. */
+  commit: () => Promise<void>;
+};
+
+const OPEN_GATE: PlanFirmGate = { denial: null, commit: async () => {} };
+
+/**
+ * Prüft Schreiben bzw. neue Version für eine Firma. Ohne Schalter oder ohne
+ * Konto-Zeile: offen (altes Verhalten). Konto ohne Firmen-Zeilen oder ohne
+ * Firma (entityId leer): Konto-Ebene wie bisher. Lesefehler: 503.
+ */
+export async function planFirmGate(
+  email: string | null | undefined,
+  entityId: string | null | undefined,
+  newVersion: boolean,
+): Promise<PlanFirmGate> {
+  let loaded: Awaited<ReturnType<typeof loadPlanAccess>>;
+  let firms: PlanFirmRow[];
+  try {
+    loaded = await loadPlanAccess(email);
+    if (!loaded) return OPEN_GATE;
+    firms = extraFirmsEnabled() ? await listPlanFirmsByEmailStrict(loaded.row.email) : [];
+  } catch (error) {
+    logReadFailure("firm", error);
+    throw new SheetsUnavailableError(sheetsStatusCode(error));
+  }
+  const account = loaded.row;
+  const entity = (entityId ?? "").trim();
+  if (!entity || firms.length === 0) {
+    if (!loaded.access.writesOpen) return { denial: loaded.access.writeMessage, commit: OPEN_GATE.commit };
+    if (newVersion && !loaded.access.newVersionAllowed) {
+      return { denial: loaded.access.versionMessage, commit: OPEN_GATE.commit };
+    }
+    return {
+      denial: null,
+      commit: async () => {
+        if (newVersion) await consumePlanChangeCredit(account.email);
+      },
+    };
+  }
+  const decision = firmDecision({ account, firms, entityId: entity, newVersion });
+  if (!decision.allowed) return { denial: decision.message, commit: OPEN_GATE.commit };
+  return {
+    denial: null,
+    commit: async () => {
+      try {
+        const next = applyFirmUse(firms, decision, {
+          email: account.email,
+          entityId: entity,
+          at: new Date().toISOString(),
+        });
+        if (next) await savePlanFirmRow(next);
+      } catch (error) {
+        console.error("[plan_firms] Firma nicht verbucht", error instanceof Error ? error.name : "error");
+      }
+    },
+  };
 }

@@ -137,6 +137,11 @@ export function getPlansSheetsTab(): string {
   return process.env.GOOGLE_SHEETS_PLANS_TAB || "plans";
 }
 
+/** Preismodell v2: eine Zeile je Firma (R1 neu). */
+export function getPlanFirmsSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_PLAN_FIRMS_TAB || "plan_firms";
+}
+
 /** Ampel rate rows. Same spreadsheet as the leads. No extra env var. */
 export function getAmpelRateSheetsTab(): string {
   return "ampel_rate";

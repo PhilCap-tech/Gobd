@@ -631,6 +631,7 @@ async function IntakePage({
     if (decision === "checkout") {
       redirect(`/checkout?entity_id=${encodeURIComponent(requestedEntityId)}`);
     }
+    if (decision === "add_firm") redirect("/account#firmen");
     const coveredSession = {
       email: sessionEmail,
       company: ownedEntity?.name || company || "",

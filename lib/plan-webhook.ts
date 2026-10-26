@@ -5,6 +5,7 @@
  */
 import type Stripe from "stripe";
 import {
+  addMonthsIso,
   applyChangePurchase,
   applyEntryPurchase,
   applyMemberEnded,
@@ -14,16 +15,31 @@ import {
   emptyPlanRow,
   type PlanRow,
 } from "@/lib/plan";
-import { PLAN_METADATA_KIND, PLAN_METADATA_PLAN, type PlanCheckoutKind } from "@/lib/plan-checkout";
+import {
+  PLAN_METADATA_FIRM,
+  PLAN_METADATA_KIND,
+  PLAN_METADATA_PLAN,
+  type PlanCheckoutKind,
+} from "@/lib/plan-checkout";
 import { findPlanByEmailStrict, findPlanBySubscription, savePlanRow } from "@/lib/plan-store";
 import { periodEndIso } from "@/lib/kuendigung-stripe";
+import {
+  applyFirmChange,
+  applyFirmPurchase,
+  applyFirmRefund,
+  boundFirm,
+  boundFirmCount,
+  type PlanFirmRow,
+} from "@/lib/plan-firms";
+import { listPlanFirmsByEmailStrict, savePlanFirmRow } from "@/lib/plan-firm-store";
+import { extraFirmsEnabled, memberIncludedFirms, v2FirmPriceIds } from "@/lib/pricing-model";
 
 type Metadata = Record<string, string> | null | undefined;
 
 /** v2-Art aus Session-Metadaten, sonst `null` (alter Checkout). */
 export function planKindFromMetadata(metadata: Metadata): PlanCheckoutKind | null {
   const kind = metadata?.[PLAN_METADATA_KIND];
-  return kind === "entry" || kind === "change" || kind === "member" ? kind : null;
+  return kind === "entry" || kind === "change" || kind === "member" || kind === "firm" ? kind : null;
 }
 
 /** Jahresplan-Abo (v2). Alte Monatsabos haben dieses Merkmal nicht. */
@@ -47,15 +63,81 @@ export function planAfterCheckout(
     eventId: string;
     customerId: string;
     subscriptionId: string;
+    /** Weitere Firma eines Mitglieds (49 €), sonst 99 € einmalig. */
+    memberFirm?: boolean;
   },
 ): PlanRow | null {
   if (input.kind === "entry") {
     return applyEntryPurchase(previous, input);
   }
-  // Änderung und Mitgliedschaft nachträglich setzen einen bestehenden Plan voraus.
+  // Änderung, Mitgliedschaft und weitere Firma setzen einen bestehenden Plan voraus.
   if (!previous || previous.deletedAt) return null;
   if (input.kind === "change") return applyChangePurchase(previous, input);
+  if (input.kind === "firm" && input.memberFirm) {
+    // Mitglied: eine bezahlte Firma mehr im Kontingent (Menge am Abo folgt).
+    if (previous.processedSessions.split(",").includes(input.sessionId)) return previous;
+    return {
+      ...applyFirmAccountWindow(previous, input),
+      retentionUntil: previous.retentionUntil,
+      memberExtraFirms: Math.max(0, previous.memberExtraFirms) + 1,
+    };
+  }
+  if (input.kind === "firm") {
+    // Konto-Frist = späteste Firmen-Frist, damit Konto-Prüfungen offen bleiben.
+    return applyFirmAccountWindow(previous, input);
+  }
   return applyMemberPurchase(previous, input);
+}
+
+function applyFirmAccountWindow(
+  previous: PlanRow,
+  input: { at: string; sessionId: string; eventId: string },
+): PlanRow {
+  if (previous.processedSessions.split(",").includes(input.sessionId)) return previous;
+  const until = addMonthsIso(input.at, 12);
+  return {
+    ...previous,
+    retentionUntil: Date.parse(previous.retentionUntil) >= Date.parse(until) ? previous.retentionUntil : until,
+    processedSessions: [...previous.processedSessions.split(",").filter(Boolean), input.sessionId].slice(-20).join(","),
+    lastEventId: input.eventId,
+    updatedAt: input.at,
+  };
+}
+
+/**
+ * Firmen-Zeile zum Kauf (R1 neu). Einstieg: Platz `entry`. Ein Einstieg auf
+ * ein schon laufendes Konto ist wie eine weitere Firma (99 €). Weitere Firma:
+ * Platz `extra`. Änderung mit `entity_id`: Guthaben und Frist nur dieser Firma.
+ * Rückgabe `null`: keine Firmen-Zeile zu schreiben.
+ */
+export function firmAfterCheckout(
+  firms: readonly PlanFirmRow[],
+  input: {
+    kind: PlanCheckoutKind;
+    accountExisted: boolean;
+    memberFirm?: boolean;
+    email: string;
+    at: string;
+    sessionId: string;
+    entityId: string;
+  },
+): PlanFirmRow | null {
+  const existing = firms.find((firm) => firm.slotId === input.sessionId) ?? null;
+  if (input.kind === "firm" && input.memberFirm) return null; // Kontingent, kein eigener Platz
+  if (input.kind === "entry" || input.kind === "firm") {
+    if (existing) return null;
+    const source = input.kind === "firm" || input.accountExisted ? "extra" : "entry";
+    // Schon gebundene Firma nicht doppelt binden: neuer Platz bleibt dann frei.
+    const entityId = input.entityId && !boundFirm(firms, input.entityId) ? input.entityId : "";
+    return applyFirmPurchase(null, { email: input.email, sessionId: input.sessionId, source, at: input.at, entityId });
+  }
+  if (input.kind === "change" && input.entityId) {
+    const firm = boundFirm(firms, input.entityId);
+    if (!firm) return null;
+    const next = applyFirmChange(firm, { sessionId: input.sessionId, at: input.at });
+    return next === firm ? null : next;
+  }
+  return null;
 }
 
 export async function recordPlanCheckout(input: {
@@ -65,13 +147,41 @@ export async function recordPlanCheckout(input: {
   customerId: string;
   eventId: string;
   at: string;
+  /** Menge am Firmen-Posten setzen (ohne Anteilsrechnung). Nur mit PRICING_EXTRA_FIRMS_ENABLED. */
+  setMemberFirmQuantity?: (input: { subscriptionId: string; itemId: string; quantity: number }) => Promise<void>;
 }): Promise<void> {
   const email = input.email.trim().toLowerCase();
   if (!email) throw new Error("v2-Kauf ohne E-Mail");
+  const memberFirm = input.kind === "firm" && input.session.metadata?.[PLAN_METADATA_FIRM] === "member";
   const previous = await findPlanByEmailStrict(email);
   const subscription = input.session.subscription;
   const subscriptionId =
     typeof subscription === "string" ? subscription : subscription?.id ?? "";
+  const accountLive = Boolean(previous && !previous.deletedAt && !previous.refundedAt);
+  const entityId = input.session.metadata?.entity_id?.trim() ?? "";
+  const firmsOn = extraFirmsEnabled();
+  const firms = firmsOn ? await listPlanFirmsByEmailStrict(email) : [];
+  const firm = !firmsOn ? null : firmAfterCheckout(firms, {
+    kind: input.kind,
+    accountExisted: accountLive && firms.length > 0,
+    memberFirm,
+    email,
+    at: input.at,
+    sessionId: input.session.id,
+    entityId,
+  });
+  if (firm) await savePlanFirmRow(firm);
+  // Änderung für eine Firma: Konto-Guthaben nicht zusätzlich erhöhen.
+  if (input.kind === "change" && entityId && boundFirm(firms, entityId)) {
+    if (previous) {
+      const until = firm?.retentionUntil ?? "";
+      const later = Date.parse(until) > Date.parse(previous.retentionUntil || "0") ? until : previous.retentionUntil;
+      if (later !== previous.retentionUntil) {
+        await savePlanRow({ ...previous, retentionUntil: later, lastEventId: input.eventId, updatedAt: input.at });
+      }
+    }
+    return;
+  }
   const next = planAfterCheckout(previous, {
     kind: input.kind,
     member: input.session.metadata?.[PLAN_METADATA_PLAN] === "member",
@@ -81,7 +191,19 @@ export async function recordPlanCheckout(input: {
     eventId: input.eventId,
     customerId: input.customerId,
     subscriptionId,
+    memberFirm,
   });
+  if (next && next !== previous && firmsOn && input.setMemberFirmQuantity) {
+    const quantity = memberFirmQuantityAfter(next, firms, input.kind);
+    if (quantity !== null && next.memberSubscriptionId) {
+      await input.setMemberFirmQuantity({
+        subscriptionId: next.memberSubscriptionId,
+        itemId: next.memberFirmItemId,
+        quantity,
+      });
+      next.memberExtraFirms = quantity;
+    }
+  }
   if (!next) {
     // Bezahlte Änderung ohne Plan: nicht verlieren, sondern als Plan mit Guthaben anlegen.
     console.error("[plans] Kauf ohne bestehenden Plan", { kind: input.kind });
@@ -105,6 +227,34 @@ function cancelAtIso(subscription: Stripe.Subscription): string {
   if (subscription.cancel_at) return unixIso(subscription.cancel_at);
   if (subscription.cancel_at_period_end) return periodEndIso(subscription);
   return "";
+}
+
+/**
+ * Neue Menge am Firmen-Posten nach einem Kauf, oder `null` (nichts zu tun).
+ * Weitere Firma eines Mitglieds: Zähler wie gespeichert. Mitgliedschaft
+ * nachträglich: belegte Firmen über dem Kontingent, ab Verlängerung (Punkt 4).
+ */
+export function memberFirmQuantityAfter(
+  account: PlanRow,
+  firms: readonly PlanFirmRow[],
+  kind: PlanCheckoutKind,
+): number | null {
+  if (kind === "firm" && account.plan === "member") return account.memberExtraFirms;
+  if (kind === "member") {
+    const extra = Math.max(0, boundFirmCount(firms) - memberIncludedFirms());
+    return extra > 0 ? extra : null;
+  }
+  return null;
+}
+
+/** Menge des Firmen-Postens (49 €/Jahr) am Abo; ohne Preis-ID unverändert. */
+export function memberFirmItem(
+  subscription: Pick<Stripe.Subscription, "items">,
+): { extraFirms?: number; firmItemId?: string } {
+  const priceId = v2FirmPriceIds().memberFirmYear;
+  if (!priceId || !extraFirmsEnabled()) return {};
+  const item = subscription.items?.data?.find((entry) => entry.price?.id === priceId);
+  return item ? { extraFirms: item.quantity ?? 0, firmItemId: item.id } : { extraFirms: 0, firmItemId: "" };
 }
 
 /** customer.subscription.updated / deleted / invoice.paid für Jahrespläne. */
@@ -132,6 +282,7 @@ export async function recordPlanSubscriptionEvent(input: {
         status: input.subscription.status,
         periodEnd: periodEndIso(input.subscription),
         cancelAt: cancelAtIso(input.subscription),
+        ...memberFirmItem(input.subscription),
       });
   await savePlanRow(next);
 }
@@ -148,11 +299,26 @@ export async function recordPlanRefund(input: {
   eventId: string;
   at: string;
   cancelSubscription: (subscriptionId: string) => Promise<void>;
+  /** Checkout-Session der Zahlung (für weitere Firmen = Platz-ID). */
+  sessionId?: string;
 }): Promise<"locked" | "ignored"> {
   if (input.charge.refunded !== true) return "ignored"; // Teilerstattung: nur Inhaber-Hinweis.
   if (input.charge.metadata?.[PLAN_METADATA_KIND] === "change") return "ignored";
   const email = input.email.trim().toLowerCase();
   if (!email) return "ignored";
+  if (input.charge.metadata?.[PLAN_METADATA_KIND] === "firm" && extraFirmsEnabled()) {
+    // Weitere Firma (99 €) erstattet: nur dieser Platz wird gesperrt.
+    const sessionId = input.sessionId?.trim() ?? "";
+    const firms = await listPlanFirmsByEmailStrict(email);
+    const slot = firms.find((firm) => firm.slotId === sessionId);
+    if (!slot) {
+      console.error("[plans] Erstattung einer weiteren Firma ohne Platz");
+      return "ignored";
+    }
+    if (slot.refundedAt) return "ignored";
+    await savePlanFirmRow(applyFirmRefund(slot, input.at));
+    return "locked";
+  }
   const row = await findPlanByEmailStrict(email);
   if (!row || row.refundedAt) return "ignored";
   if (row.memberSubscriptionId && row.plan === "member" && row.memberStatus !== "canceled") {

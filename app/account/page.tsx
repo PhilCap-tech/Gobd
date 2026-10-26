@@ -189,10 +189,11 @@ export default async function AccountPage({
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId) ||
     lifecycleRows.some((row) => row.stripeCustomerId);
   const showAbo = !(memberFirms.length > 0 && entities.length === 0 && !stripeBound);
-  const atCap = entityCapReached(entities.length);
   const coverage = compEmail
     ? emptyIncludedFirmCoverage()
     : await loadIncludedFirmCoverage(email);
+  // v2 mit PRICING_EXTRA_FIRMS_ENABLED: kein Limit von 5 Firmen (R1 neu).
+  const atCap = !coverage.planFirms && entityCapReached(entities.length);
 
   return (
     <>
@@ -331,7 +332,9 @@ export default async function AccountPage({
                       paidIntakeHref={offerPaidIntake ? paidIntakeHref : ""}
                       compAccess={compAccess}
                       coveredIntakeHref={coveredIntakeHref}
-                      extraFirmNote={!compAccess && position > MAX_ENTITIES_PER_ACCOUNT}
+                      extraFirmNote={
+                        !compAccess && !coverage.planFirms && position > MAX_ENTITIES_PER_ACCOUNT
+                      }
                     />
                   );
                 })}

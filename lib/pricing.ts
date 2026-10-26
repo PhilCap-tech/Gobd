@@ -62,3 +62,9 @@ export const V2_MEMBER_YEAR_GROSS_LABEL = centsLabel(grossFromNetCents(V2_MEMBER
 export const V2_CHANGE_GROSS_LABEL = centsLabel(grossFromNetCents(V2_CHANGE_CENTS), { forceDecimals: true });
 /** Einstieg + erstes Mitgliedsjahr, beim Kauf fällig: 198,90 € netto. */
 export const V2_ENTRY_WITH_MEMBER_CENTS = V2_ENTRY_CENTS + V2_MEMBER_YEAR_CENTS;
+
+/** R1 neu (Philip 26.10. 14:04): weitere Firma ohne Mitgliedschaft 99 € einmalig, mit Mitgliedschaft ab der 3. Firma 49 €/Jahr. */
+export const V2_FIRM_CENTS = 9900;
+export const V2_MEMBER_FIRM_YEAR_CENTS = 4900;
+export const V2_FIRM_LABEL = centsLabel(V2_FIRM_CENTS);
+export const V2_MEMBER_FIRM_YEAR_LABEL = centsLabel(V2_MEMBER_FIRM_YEAR_CENTS);

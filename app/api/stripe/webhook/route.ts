@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { NextResponse } from "next/server";
 import {
+  getStripeTaxRateId,
   getStripeWebhookSecret,
   isProductionRuntime,
   isStripeSecretConfigured,
@@ -40,7 +41,8 @@ import {
   recordPlanRefund,
   recordPlanSubscriptionEvent,
 } from "@/lib/plan-webhook";
-import { planAccessEnabled } from "@/lib/pricing-model";
+import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
+import { memberFirmQuantityParams } from "@/lib/plan-checkout";
 
 export const runtime = "nodejs";
 
@@ -60,6 +62,21 @@ function idFrom(value: unknown): string {
     return typeof id === "string" ? id : "";
   }
   return "";
+}
+
+/** R1 neu: Menge am Firmen-Posten, ohne Anteilsrechnung, idempotent je Menge. */
+async function setMemberFirmQuantity(input: {
+  subscriptionId: string;
+  itemId: string;
+  quantity: number;
+}): Promise<void> {
+  const priceId = v2FirmPriceIds().memberFirmYear;
+  if (!priceId) throw new Error("STRIPE_PRICE_MEMBER_FIRM_YEAR_ID fehlt");
+  await getStripe().subscriptions.update(
+    input.subscriptionId,
+    memberFirmQuantityParams({ ...input, priceId, taxRateId: getStripeTaxRateId() }),
+    { idempotencyKey: `gobd-firmen:${input.subscriptionId}:${input.quantity}` },
+  );
 }
 
 function eventTimeIso(created: number): string {
@@ -155,7 +172,7 @@ export async function POST(request: Request) {
         // Preismodell v2: Änderung und nachträgliche Mitgliedschaft sind kein neuer Einstieg.
         // Keine Kaufzeile, keine Onboarding-Mail, kein alter Lifecycle.
         const planKind = planKindFromMetadata(session.metadata);
-        if (planKind === "change" || planKind === "member") {
+        if (planKind === "change" || planKind === "member" || planKind === "firm") {
           await recordPlanCheckout({
             session,
             kind: planKind,
@@ -163,6 +180,7 @@ export async function POST(request: Request) {
             customerId,
             eventId: event.id,
             at: eventTimeIso(event.created),
+            setMemberFirmQuantity,
           });
           try {
             await notifyCheckoutPaid({
@@ -396,9 +414,19 @@ export async function POST(request: Request) {
         // Preismodell v2 (R5): Erstattung sperrt den Zugang und beendet den Jahresplan.
         // Ohne v2-Metadaten und ohne PLAN_ACCESS_ENABLED bleibt es beim Inhaber-Hinweis.
         if (planKindFromMetadata(charge.metadata) || planAccessEnabled()) {
+          // Weitere Firma: Platz-ID = Checkout-Session der Zahlung.
+          let sessionId = "";
+          if (planKindFromMetadata(charge.metadata) === "firm" && idFrom(charge.payment_intent)) {
+            const sessions = await getStripe().checkout.sessions.list({
+              payment_intent: idFrom(charge.payment_intent),
+              limit: 1,
+            });
+            sessionId = sessions.data[0]?.id ?? "";
+          }
           await recordPlanRefund({
             charge,
             email,
+            sessionId,
             eventId: event.id,
             at: eventTimeIso(event.created),
             cancelSubscription: async (subscriptionId) => {

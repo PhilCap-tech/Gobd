@@ -3,7 +3,7 @@ import { queueOwnerNotice } from "@/lib/owner-notice";
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
-import { consumePlanChangeCredit, planVersionDenial } from "@/lib/plan-access";
+import { planFirmGate } from "@/lib/plan-access";
 import { BlobStorageError, blobFailureClass, persistChapterContent, storePdf } from "@/lib/blob";
 import { DURABLE_STORE_MESSAGE, intakePersistenceFailure } from "@/lib/intake-payload";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
@@ -54,9 +54,6 @@ async function handleDocumentEdit(request: Request) {
   }
   const closed = await subscriptionWriteDenial(sessionEmail);
   if (closed) return jsonError(closed, 403);
-  // Preismodell v2: jede Bearbeitung speichert eine neue Version.
-  const versionClosed = await planVersionDenial(sessionEmail);
-  if (versionClosed) return jsonError(versionClosed, 403);
 
   let body: {
     documentId?: string;
@@ -128,6 +125,9 @@ async function handleDocumentEdit(request: Request) {
     entityId: entityId || source.entityId || sourceIdentity.entityId || "",
   };
   const skipTestDelivery = isTestEntity(identity.entityId);
+  // Preismodell v2: jede Bearbeitung speichert eine neue Version dieser Firma.
+  const planGate = await planFirmGate(sourceIdentity.email, identity.entityId, true);
+  if (planGate.denial) return jsonError(planGate.denial, 403);
   const status = identity.stub ? "document_edited_stub" : "document_edited";
 
   let rowForStore;
@@ -242,7 +242,7 @@ async function handleDocumentEdit(request: Request) {
     if (persistence) return jsonError(persistence.error, persistence.status);
     return jsonError(DURABLE_STORE_MESSAGE, 503);
   }
-  await consumePlanChangeCredit(sessionEmail);
+  await planGate.commit();
 
   if (!skipTestDelivery) {
     queueOwnerNotice({

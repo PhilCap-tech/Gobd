@@ -7,6 +7,14 @@
  * - Einstieg ohne Mitgliedschaft: `mode: payment` mit Rechnung.
  * - Änderung (49 €): `mode: payment`, nur Konto, nur innerhalb der Frist.
  * - Mitgliedschaft nachträglich: `mode: subscription`, nur Jahrespreis (R7).
+ *   Schon gekaufte Firmen ab der 3. kommen ohne Gutschrift dazu und kosten
+ *   49 € erst ab der nächsten Verlängerung (approvals 14:15, Punkt 4): der
+ *   Webhook setzt danach die Menge am Firmen-Posten ohne Anteilsrechnung.
+ * - Weitere Firma (R1 neu, nur PRICING_EXTRA_FIRMS_ENABLED): `mode: payment`.
+ *   Ohne Mitgliedschaft 99 € einmalig (STRIPE_PRICE_FIRM_ID, leer:
+ *   STRIPE_PRICE_ENTRY_ID). Mitglied ab der 3. Firma: volle 49 € für das
+ *   laufende Jahr, keine Anteilsrechnung (bestätigt 14:15); nach Zahlung setzt
+ *   der Webhook die Menge am Firmen-Posten (49 €/Jahr) +1 ohne Anteilsrechnung.
  *
  * Preis-IDs kommen aus der Umgebung (STRIPE_PRICE_ENTRY_ID,
  * STRIPE_PRICE_MEMBER_YEAR_ID, STRIPE_PRICE_CHANGE_ID). Steuer wie bisher:
@@ -14,9 +22,10 @@
  */
 import type Stripe from "stripe";
 import { getAppUrl, getStripeTaxRateId } from "@/lib/env";
-import { v2PriceIds } from "@/lib/pricing-model";
+import { V2_MEMBER_FIRM_YEAR_CENTS } from "@/lib/pricing";
+import { v2FirmPriceIds, v2PriceIds } from "@/lib/pricing-model";
 
-export type PlanCheckoutKind = "entry" | "change" | "member";
+export type PlanCheckoutKind = "entry" | "change" | "member" | "firm";
 
 export type PlanCheckoutInput = {
   kind: PlanCheckoutKind;
@@ -27,7 +36,11 @@ export type PlanCheckoutInput = {
   entityId?: string;
   audience?: "kunde" | "steuerberater";
   customerId?: string;
+  /** Nur `firm`: Konto ist Mitglied (49 € laufendes Jahr statt 99 € einmalig). */
+  memberFirm?: boolean;
 };
+
+export const PLAN_METADATA_FIRM = "gobd_firm";
 
 export const PLAN_METADATA_KIND = "gobd_kind";
 export const PLAN_METADATA_PLAN = "gobd_plan";
@@ -41,13 +54,14 @@ export function memberFromPackage(value: unknown, preselected: boolean): boolean
 }
 
 export function planCheckoutKind(value: unknown): PlanCheckoutKind {
-  return value === "change" || value === "member" ? value : "entry";
+  return value === "change" || value === "member" || value === "firm" ? value : "entry";
 }
 
 function successUrl(kind: PlanCheckoutKind, entityId: string): string {
   const appUrl = getAppUrl();
   if (kind === "change") return `${appUrl}/account?kauf=aenderung`;
   if (kind === "member") return `${appUrl}/account?kauf=mitglied`;
+  if (kind === "firm") return `${appUrl}/account?kauf=firma#firmen`;
   return entityId
     ? `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}&entity_id=${encodeURIComponent(entityId)}`
     : `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
@@ -56,7 +70,7 @@ function successUrl(kind: PlanCheckoutKind, entityId: string): string {
 function cancelUrl(kind: PlanCheckoutKind, audience: string): string {
   const appUrl = getAppUrl();
   if (kind === "change") return `${appUrl}/account`;
-  if (kind === "member") return `${appUrl}/account`;
+  if (kind === "member" || kind === "firm") return `${appUrl}/account`;
   return audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/checkout`;
 }
 
@@ -80,12 +94,27 @@ export function buildPlanCheckoutParams(
     audience,
     [PLAN_METADATA_KIND]: kind,
     [PLAN_METADATA_PLAN]: member ? "member" : "single",
+    ...(kind === "firm" ? { [PLAN_METADATA_FIRM]: input.memberFirm ? "member" : "single" } : {}),
     ...(entityId ? { entity_id: entityId } : {}),
   };
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   if (kind === "entry") lineItems.push({ price: ids.entry, quantity: 1, ...taxRates });
   if (kind === "change") lineItems.push({ price: ids.change, quantity: 1, ...taxRates });
+  if (kind === "firm" && input.memberFirm) {
+    lineItems.push({
+      price_data: {
+        currency: "eur",
+        unit_amount: V2_MEMBER_FIRM_YEAR_CENTS,
+        tax_behavior: "exclusive",
+        product_data: { name: "Weitere Firma in der Jahresmitgliedschaft (laufendes Mitgliedsjahr)" },
+      },
+      quantity: 1,
+      ...taxRates,
+    });
+  } else if (kind === "firm") {
+    lineItems.push({ price: v2FirmPriceIds().firm, quantity: 1, ...taxRates });
+  }
   if (member) lineItems.push({ price: ids.memberYear, quantity: 1, ...taxRates });
 
   const base: Stripe.Checkout.SessionCreateParams = {
@@ -129,11 +158,39 @@ export function buildPlanCheckoutParams(
 }
 
 /** Fehlende Preis-IDs für diese Art. Leer = vollständig. */
-export function missingPlanPriceIds(kind: PlanCheckoutKind, member: boolean): string[] {
+export function missingPlanPriceIds(kind: PlanCheckoutKind, member: boolean, memberFirm = false): string[] {
   const ids = v2PriceIds();
   const missing: string[] = [];
   if (kind === "entry" && !ids.entry) missing.push("STRIPE_PRICE_ENTRY_ID");
   if (kind === "change" && !ids.change) missing.push("STRIPE_PRICE_CHANGE_ID");
   if ((kind === "member" || member) && !ids.memberYear) missing.push("STRIPE_PRICE_MEMBER_YEAR_ID");
+  if (kind === "firm" && !memberFirm && !v2FirmPriceIds().firm) missing.push("STRIPE_PRICE_FIRM_ID");
+  if (kind === "firm" && memberFirm && !v2FirmPriceIds().memberFirmYear) {
+    missing.push("STRIPE_PRICE_MEMBER_FIRM_YEAR_ID");
+  }
   return missing;
+}
+
+/**
+ * Menge am Firmen-Posten (49 €/Jahr) setzen, immer ohne Anteilsrechnung:
+ * der laufende Betrag ist schon bezahlt (weitere Firma) bzw. fällt erst ab
+ * der nächsten Verlängerung an (Mitgliedschaft nachträglich, Punkt 4).
+ */
+export function memberFirmQuantityParams(input: {
+  itemId: string;
+  quantity: number;
+  priceId: string;
+  taxRateId: string;
+}): Stripe.SubscriptionUpdateParams {
+  const quantity = Math.max(0, Math.trunc(input.quantity));
+  const item: Stripe.SubscriptionUpdateParams.Item = input.itemId
+    ? quantity > 0
+      ? { id: input.itemId, quantity }
+      : { id: input.itemId, deleted: true }
+    : {
+        price: input.priceId,
+        quantity,
+        ...(input.taxRateId ? { tax_rates: [input.taxRateId] } : {}),
+      };
+  return { items: [item], proration_behavior: "none" };
 }

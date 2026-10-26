@@ -53,6 +53,7 @@ export function coercePlanRow(value: unknown): PlanRow | null {
   if (!email) return null;
   const plan: PlanKind = row.plan === "member" ? "member" : "single";
   const credits = Number(row.changeCredits);
+  const extraFirms = Number(row.memberExtraFirms);
   return {
     email,
     plan,
@@ -66,6 +67,8 @@ export function coercePlanRow(value: unknown): PlanRow | null {
     memberPeriodEnd: str(row.memberPeriodEnd),
     memberCancelAt: str(row.memberCancelAt),
     memberEndedAt: str(row.memberEndedAt),
+    memberExtraFirms: Number.isInteger(extraFirms) && extraFirms > 0 ? extraFirms : 0,
+    memberFirmItemId: str(row.memberFirmItemId),
     notice30At: str(row.notice30At),
     notice7At: str(row.notice7At),
     deletedAt: str(row.deletedAt),
@@ -96,6 +99,8 @@ const FIELD_BY_COLUMN: Record<(typeof PLAN_SHEET_COLUMNS)[number], keyof PlanRow
   processed_sessions: "processedSessions",
   last_event_id: "lastEventId",
   updated_at: "updatedAt",
+  member_extra_firms: "memberExtraFirms",
+  member_firm_item_id: "memberFirmItemId",
 };
 
 export function planRowFromSheet(header: string[], values: string[]): PlanRow | null {
@@ -103,7 +108,8 @@ export function planRowFromSheet(header: string[], values: string[]): PlanRow | 
   for (const column of PLAN_SHEET_COLUMNS) {
     const index = header.indexOf(column);
     const raw = index < 0 ? "" : (values[index] ?? "");
-    record[FIELD_BY_COLUMN[column]] = column === "change_credits" ? Number(raw || 0) : raw;
+    record[FIELD_BY_COLUMN[column]] =
+      column === "change_credits" || column === "member_extra_firms" ? Number(raw || 0) : raw;
   }
   return coercePlanRow(record);
 }

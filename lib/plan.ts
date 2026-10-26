@@ -36,6 +36,10 @@ export type PlanRow = {
   /** Geplantes Ende der Mitgliedschaft (Kündigung), ISO oder leer. */
   memberCancelAt: string;
   memberEndedAt: string;
+  /** Bezahlte weitere Firmen am Abo (Menge des 49-€/Jahr-Postens). */
+  memberExtraFirms: number;
+  /** Stripe Subscription Item des Firmen-Postens, leer wenn keiner. */
+  memberFirmItemId: string;
   notice30At: string;
   notice7At: string;
   deletedAt: string;
@@ -67,6 +71,8 @@ export const PLAN_SHEET_COLUMNS = [
   "processed_sessions",
   "last_event_id",
   "updated_at",
+  "member_extra_firms",
+  "member_firm_item_id",
 ] as const;
 
 const MEMBER_LIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -85,6 +91,8 @@ export function emptyPlanRow(email: string, at: string): PlanRow {
     memberPeriodEnd: "",
     memberCancelAt: "",
     memberEndedAt: "",
+    memberExtraFirms: 0,
+    memberFirmItemId: "",
     notice30At: "",
     notice7At: "",
     deletedAt: "",
@@ -410,11 +418,16 @@ export function applyMemberSubscriptionUpdate(
     status: string;
     periodEnd: string;
     cancelAt: string;
+    /** Menge des Firmen-Postens, `undefined` = unverändert. */
+    extraFirms?: number;
+    firmItemId?: string;
   },
 ): PlanRow {
   return {
     ...previous,
     plan: "member",
+    memberExtraFirms: input.extraFirms ?? previous.memberExtraFirms,
+    memberFirmItemId: input.firmItemId ?? previous.memberFirmItemId,
     memberStatus: input.status,
     memberPeriodEnd: input.periodEnd || previous.memberPeriodEnd,
     memberCancelAt: input.cancelAt,
@@ -439,6 +452,7 @@ export function applyMemberEnded(
     memberStatus: "canceled",
     memberEndedAt: endedAt,
     memberCancelAt: "",
+    memberExtraFirms: 0,
     retentionUntil: retentionAfterMemberEnd(endedAt, input.afterMonths),
     lastEventId: input.eventId,
     updatedAt: input.at,

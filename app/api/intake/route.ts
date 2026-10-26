@@ -47,7 +47,8 @@ import { applyEntityToIdentity } from "@/lib/entities";
 import { devCheckoutStubAllowed, isStubCheckoutSessionId } from "@/lib/checkout-stub";
 import { getAppUrl } from "@/lib/env";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
-import { consumePlanChangeCredit, planVersionDenial } from "@/lib/plan-access";
+import { planFirmGate } from "@/lib/plan-access";
+import { FIRM_NEEDS_PURCHASE_MESSAGE } from "@/lib/plan-firms";
 import { reopenIfActiveCheckout } from "@/lib/kuendigung-stripe";
 import { deliverLoginLinkReportingDuplicate } from "@/lib/login-mail";
 import type { SubmitLoginMail } from "@/lib/login-mail-shared";
@@ -427,6 +428,9 @@ async function resolveIdentity(
     if (decision === "denied") {
       return { response: jsonError("Kein Zugriff.", 403) };
     }
+    if (decision === "add_firm") {
+      return { response: jsonError(FIRM_NEEDS_PURCHASE_MESSAGE, 403) };
+    }
     if (decision === "intake") {
       return {
         identity: {
@@ -551,12 +555,7 @@ async function writeIntake(
     closed = await subscriptionWriteDenial(identity.email);
   }
   if (closed) return jsonError(closed, 403);
-  // Preismodell v2: eine neue Version braucht Mitgliedschaft oder eine bezahlte Änderung.
   const newVersion = version > 1;
-  if (newVersion) {
-    const versionClosed = await planVersionDenial(identity.email);
-    if (versionClosed) return jsonError(versionClosed, 403);
-  }
   const loggedInAsBuyer = Boolean(
     sessionEmail && identity.email && emailsEqual(sessionEmail, identity.email),
   );
@@ -580,6 +579,10 @@ async function writeIntake(
     entityId: entityId || identity.entityId || "",
   };
   const skipTestDelivery = isTestEntity(identity.entityId);
+  // Preismodell v2 (nur mit PLAN_ACCESS_ENABLED): Platz der Firma und, für
+  // eine neue Version, Mitgliedschaft oder bezahlte Änderung dieser Firma.
+  const planGate = await planFirmGate(identity.email, identity.entityId, newVersion);
+  if (planGate.denial) return jsonError(planGate.denial, 403);
 
   if (!isAnswers(body.answers)) {
     return jsonError("Intake unvollständig.", 400);
@@ -765,7 +768,7 @@ async function writeIntake(
       });
       storeBackend = stored.backend;
       committed = true;
-      if (newVersion) await consumePlanChangeCredit(identity.email);
+      await planGate.commit();
     } catch (error) {
       // A timeout or retried append may still have stored the row.
       const landed = submitId ? await rowAfterFailedAppend(documentId, io) : null;
@@ -777,7 +780,7 @@ async function writeIntake(
       }
       if (landed && landed !== "unknown") {
         committed = true;
-        if (newVersion) await consumePlanChangeCredit(identity.email);
+        await planGate.commit();
         storeBackend = "sheets";
       } else {
         const outage = sheetsOutageResponse(error);

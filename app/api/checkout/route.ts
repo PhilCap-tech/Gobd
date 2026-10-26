@@ -19,8 +19,14 @@ import {
 } from "@/lib/stripe";
 import { emailsEqual } from "@/lib/types";
 import { loadPlanAccess } from "@/lib/plan-access";
+import { addFirmOffer, boundFirm, firmDecision, type PlanFirmRow } from "@/lib/plan-firms";
+import { listPlanFirmsByEmailStrict } from "@/lib/plan-firm-store";
 import { memberFromPackage, planCheckoutKind, type PlanCheckoutKind } from "@/lib/plan-checkout";
-import { isPricingV2, memberPreselected } from "@/lib/pricing-model";
+import {
+  extraFirmsEnabled,
+  isPricingV2,
+  memberPreselected,
+} from "@/lib/pricing-model";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
   if (!isStripeSecretConfigured()) return undefined;
@@ -49,7 +55,7 @@ export async function POST(request: Request) {
     audience?: "kunde" | "steuerberater";
     /** Preismodell v2: `mitglied` | `einstieg`. */
     paket?: string;
-    /** Preismodell v2: `entry` (Default) | `change` | `member`. Die letzten zwei nur im Konto. */
+    /** Preismodell v2: `entry` (Default) | `change` | `member` | `firm`. Die letzten drei nur im Konto. */
     kind?: string;
     /** Preismodell v2: AGB bestätigt. */
     acceptedTerms?: boolean;
@@ -67,7 +73,7 @@ export async function POST(request: Request) {
   const v2 = isPricingV2();
   const kind: PlanCheckoutKind = v2 ? planCheckoutKind(body.kind) : "entry";
   if (v2 && kind !== "entry") {
-    return accountPlanCheckout(kind, sessionEmail);
+    return accountPlanCheckout(kind, sessionEmail, requestedEntityId);
   }
   const compTarget =
     compCheckoutRedirect(sessionEmail, requestedEntityId) ||
@@ -184,6 +190,7 @@ export async function POST(request: Request) {
 async function accountPlanCheckout(
   kind: Exclude<PlanCheckoutKind, "entry">,
   sessionEmail: string | null,
+  entityId?: string,
 ): Promise<NextResponse> {
   if (!sessionEmail) {
     return NextResponse.json({ error: "Bitte melden Sie sich an." }, { status: 401 });
@@ -201,25 +208,49 @@ async function accountPlanCheckout(
   if (!loaded) {
     return NextResponse.json({ error: "Für dieses Konto gibt es keinen passenden Kauf." }, { status: 403 });
   }
-  const allowed = kind === "change" ? loaded.access.canBuyChange : loaded.access.canBecomeMember;
-  if (!allowed) {
+  if (kind === "firm" && !extraFirmsEnabled()) {
+    return NextResponse.json({ error: "Eine weitere Firma ist hier noch nicht buchbar." }, { status: 404 });
+  }
+  let firms: PlanFirmRow[] = [];
+  try {
+    firms = extraFirmsEnabled() ? await listPlanFirmsByEmailStrict(loaded.row.email) : [];
+  } catch (error) {
+    console.error("[checkout] Firmen nicht lesbar", error instanceof Error ? error.name : "error");
     return NextResponse.json(
-      {
-        error:
-          kind === "change"
-            ? "Eine Änderung ist für dieses Konto gerade nicht buchbar."
-            : "Die Mitgliedschaft ist für dieses Konto gerade nicht buchbar.",
-      },
-      { status: 409 },
+      { error: "Bitte versuchen Sie es in einem Moment erneut." },
+      { status: 503, headers: { "Retry-After": "3" } },
     );
   }
+  const target = (entityId ?? "").trim();
+  const targetFirm = target ? boundFirm(firms, target) : null;
+  let allowed: boolean;
+  if (kind === "firm") {
+    // Ohne Mitgliedschaft 99 € einmalig; Mitglied über dem Kontingent volle 49 € (laufendes Jahr).
+    const offer = addFirmOffer(loaded.row, firms).kind;
+    allowed = offer === "single_purchase" || offer === "member_paid";
+  } else if (kind === "change" && targetFirm) {
+    const decision = firmDecision({ account: loaded.row, firms, entityId: target, newVersion: true });
+    allowed = !decision.allowed && decision.reason === "needs_change";
+  } else {
+    allowed = kind === "change" ? loaded.access.canBuyChange : loaded.access.canBecomeMember;
+  }
+  if (!allowed) {
+    const messages: Record<typeof kind, string> = {
+      change: "Eine Änderung ist für dieses Konto gerade nicht buchbar.",
+      member: "Die Mitgliedschaft ist für dieses Konto gerade nicht buchbar.",
+      firm: "Eine weitere Firma ist für dieses Konto hier nicht buchbar.",
+    };
+    return NextResponse.json({ error: messages[kind] }, { status: 409 });
+  }
+  const memberFirm = kind === "firm" && loaded.access.state === "member";
   try {
     const session = await createCheckoutSession({
       email: sessionEmail,
       company: "",
       customerId: await reusableCustomerId(sessionEmail),
       route: CHECKOUT_SESSION_ROUTE,
-      plan: { kind, member: kind === "member" },
+      entityId: targetFirm ? target : undefined,
+      plan: { kind, member: kind === "member", memberFirm },
     });
     return NextResponse.json(session);
   } catch (error) {

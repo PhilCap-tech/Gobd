@@ -337,7 +337,7 @@ export type CheckoutSessionInput = {
   /** Für die Warnung, wenn STRIPE_TAX_RATE_ID fehlt. Default: CHECKOUT_SESSION_ROUTE. */
   route?: string;
   /** Preismodell v2 (nur bei PRICING_MODEL=v2 gesetzt). Ohne: bisheriger Checkout. */
-  plan?: { kind: PlanCheckoutKind; member: boolean };
+  plan?: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean };
 };
 
 /**
@@ -462,9 +462,9 @@ export async function createCheckoutSession(
 
 async function createPlanCheckoutSession(
   input: CheckoutSessionInput,
-  plan: { kind: PlanCheckoutKind; member: boolean },
+  plan: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean },
 ): Promise<{ url: string; stub: boolean }> {
-  const missing = missingPlanPriceIds(plan.kind, plan.member);
+  const missing = missingPlanPriceIds(plan.kind, plan.member, plan.memberFirm === true);
   if (!isStripeSecretConfigured() || missing.length > 0) {
     if (plan.kind === "entry" && devCheckoutStubAllowed()) {
       const params = new URLSearchParams({
@@ -488,6 +488,7 @@ async function createPlanCheckoutSession(
       entityId: input.entityId,
       audience: input.audience,
       customerId: input.customerId,
+      memberFirm: plan.memberFirm,
     }),
   );
   if (!session.url) throw new Error("Stripe Session ohne URL");

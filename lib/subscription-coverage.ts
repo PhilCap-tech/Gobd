@@ -2,7 +2,11 @@ import type Stripe from "stripe";
 import { EXTRA_FIRM_NOTE } from "@/lib/account-labels";
 import { isStoredPaidEntitlementStatus } from "@/lib/checkout-session";
 import { newDocumentPath } from "@/lib/documents";
+import type { PlanRow } from "@/lib/plan";
 import { loadPlanAccess } from "@/lib/plan-access";
+import { firmDecision, type PlanFirmRow } from "@/lib/plan-firms";
+import { listPlanFirmsByEmailStrict } from "@/lib/plan-firm-store";
+import { extraFirmsEnabled } from "@/lib/pricing-model";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { findLatestPaidCheckoutByEmail, resolveStripeCustomerForEmail } from "@/lib/store";
 import {
@@ -43,11 +47,17 @@ export type IncludedFirmCoverage = {
   /** Stripe could not be asked, or the paid row has no customer id. Fail closed. */
   lookupFailed: boolean;
   stripeCustomerId: string;
-  /** Preismodell v2: Mitglied oder Frist läuft. Deckt Firmen 1–5 wie ein aktives Abo (R1). */
+  /** Preismodell v2: Mitglied oder Frist läuft (Konto-Ebene). */
   planOpen?: boolean;
+  /**
+   * Preismodell v2 (R1 neu): Konto und Firmen. Wenn gesetzt, entscheidet
+   * der Firmen-Platz statt der Position 1–5; kein Limit von 5 Firmen.
+   */
+  planFirms?: { account: PlanRow; firms: PlanFirmRow[] };
 };
 
-export type FirmStart = "intake" | "checkout" | "denied";
+/** `add_firm`: v2, kein Platz frei — weitere Firma im Konto buchen. */
+export type FirmStart = "intake" | "checkout" | "denied" | "add_firm";
 
 export function emptyIncludedFirmCoverage(): IncludedFirmCoverage {
   return {
@@ -111,6 +121,12 @@ export function firmStartDecision(input: {
   const entityId = input.entityId.trim();
   if (!entityId || input.firmPosition < 1) return "denied";
   if (!emailsEqual(input.sessionEmail, input.entityOwnerEmail)) return "denied";
+  const plan = input.coverage.planFirms;
+  if (plan && plan.firms.length > 0) {
+    const decision = firmDecision({ account: plan.account, firms: plan.firms, entityId, newVersion: false });
+    if (decision.allowed) return "intake";
+    return decision.reason === "needs_purchase" || decision.reason === "needs_member_slot" ? "add_firm" : "denied";
+  }
   if (!includedFirmsOpen(input.coverage)) return "checkout";
   if (input.firmPosition <= MAX_ENTITIES_PER_ACCOUNT) return "intake";
   return "checkout";
@@ -128,6 +144,7 @@ export function coveredIntakePath(entityId: string): string {
 export function firmDocumentHref(decision: FirmStart, entityId: string): string {
   if (decision === "intake") return coveredIntakePath(entityId);
   if (decision === "checkout") return newDocumentPath(entityId);
+  if (decision === "add_firm") return "/account#firmen";
   return "";
 }
 
@@ -138,12 +155,14 @@ export async function loadIncludedFirmCoverage(email: string): Promise<IncludedF
     const plan = await loadPlanAccess(normalized);
     if (plan) {
       const open = plan.access.state === "member" || plan.access.state === "window";
+      const firms = extraFirmsEnabled() ? await listPlanFirmsByEmailStrict(plan.row.email) : [];
       return {
         hasStoredPaidEntitlement: true,
         subscriptionStatuses: [],
         lookupFailed: false,
         stripeCustomerId: plan.row.stripeCustomerId,
         planOpen: open,
+        ...(extraFirmsEnabled() ? { planFirms: { account: plan.row, firms } } : {}),
       };
     }
     const paid = await findLatestPaidCheckoutByEmail(normalized);
