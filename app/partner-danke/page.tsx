@@ -50,8 +50,14 @@ export default function PartnerDankePage() {
           Sie Ihre Bestell-ID.
         </p>
 
-        <h2>Rückgabe</h2>
-        <p>[PLATZHALTER – Wortlaut folgt nach Philips Freigabe]</p>
+        <h2 id="rueckgabe">Rückgabe</h2>
+        <p>
+          14 Tage Rückgaberecht über Digistore24: Innerhalb von 14 Tagen nach dem Kauf können Sie
+          Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer
+          Bestellbestätigung) und erhalten den vollen Kaufpreis zurück. Bei Käufen über
+          Digistore24 Inc. (USA) bzw. Digistore24 LTD (UK) gilt die im Bestellformular angezeigte
+          Frist von 60 Tagen.
+        </p>
       </main>
       <SiteFooter />
     </>

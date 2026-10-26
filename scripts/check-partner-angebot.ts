@@ -28,6 +28,7 @@ import {
   PARTNER_ANGEBOT_NOTICE_LINK,
   PARTNER_ANGEBOT_PATH,
   PARTNER_ANGEBOT_ROBOTS_TAG,
+  PARTNER_ANGEBOT_RUECKGABE_MICRO,
   digistore24BuyHref,
 } from "../lib/partner-angebot";
 import { saveConsent } from "../lib/tracking";
@@ -192,7 +193,24 @@ ok(
 );
 ok(page.includes("index: false") && page.includes("follow: false"), "metadata is noindex, nofollow");
 ok(page.includes("SETUP_EUR") && page.includes("MONTHLY_EUR") && page.includes("TODAY_EUR"), "prices come from pricing.ts");
-ok(page.includes("GELD_ZURUECK_MICRO") && page.includes("HERO_PRICE_BOX"), "guarantee and price box are the homepage constants");
+ok(page.includes("HERO_PRICE_BOX"), "price box is the homepage constant");
+ok(
+  page.includes("{PARTNER_ANGEBOT_RUECKGABE_MICRO}") && !page.includes("GELD_ZURUECK"),
+  "the DS24 page shows the approved Rückgabe micro text, not the Stripe guarantee or its FAQ link",
+);
+ok(
+  PARTNER_ANGEBOT_RUECKGABE_MICRO ===
+    "14 Tage Rückgaberecht über Digistore24: Innerhalb von 14 Tagen nach dem Kauf können Sie Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer Bestellbestätigung) und erhalten den vollen Kaufpreis zurück.",
+  "the Rückgabe micro text is the approved first sentence verbatim",
+);
+{
+  const danke = source("app/partner-danke/page.tsx").replace(/\s+/g, " ");
+  ok(danke.includes(PARTNER_ANGEBOT_RUECKGABE_MICRO), "/partner-danke carries the same Rückgabe sentence");
+  ok(danke.includes('<h2 id="rueckgabe">Rückgabe</h2>'), "/partner-danke Rückgabe heading has id rueckgabe");
+  ok(!danke.includes("PLATZHALTER"), "/partner-danke has no placeholder");
+  ok(!/href=[^>]*(checkout|stripe)/i.test(danke), "/partner-danke has no checkout or Stripe link");
+  ok(danke.includes("index: false"), "/partner-danke is noindex");
+}
 ok(!page.includes("/checkout"), "the page does not link to /checkout");
 ok(!/stripe/i.test(page), "the page does not mention Stripe");
 ok(!page.includes('"198') && !page.includes("198 €"), "198 is not hardcoded on the page");
