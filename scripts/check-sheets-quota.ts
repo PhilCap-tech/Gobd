@@ -40,6 +40,7 @@ import {
   prepareDurableIntakeRow,
   findDocumentById,
   findLatestDocumentByStripeSessionId,
+  findSuccessDocument,
   findLatestStripeCustomerIdByEmail,
   findUndocumentedPaidSessionId,
   getAccountProfile,
@@ -525,6 +526,61 @@ function renderContinue(entities: ReturnType<typeof firm>[], drafts: IntakeDraft
   return cards + box;
 }
 
+/**
+ * r276: /success?document_id=<v5> rendered on an instance whose 45 s intake
+ * snapshot predates the append on the POST instance. The "fresh" retries were
+ * rebuilt from that same values snapshot, so the page fell back to v4.
+ * Now one fresh lookup is exactly one values.get, and the version history
+ * reuses that snapshot.
+ */
+async function checkSuccessFreshRead(): Promise<number> {
+  resetMemory();
+  resetGrids();
+  await listDocumentsByEmail(BUYER);
+  const warm = await measure("GET /success", () => findSuccessDocument({ documentId: DOC, sessionId: SESSION }));
+  ok(warm.length === 0, `a document already in the snapshot costs no Sheets call (got ${warm.length})`);
+
+  const next = emptySheetRow();
+  next.documentId = "doc-quota-1-v2";
+  next.parentDocumentId = DOC;
+  next.email = BUYER;
+  next.company = "Quota GmbH";
+  next.stripeSessionId = SESSION;
+  next.status = "intake_submitted";
+  next.version = "2";
+  next.timestamp = "2026-10-26T10:49:25.000Z";
+  // Appended by POST /api/intake on another instance; this instance's caches do not know it.
+  grids.get("intakes")?.push(sheetRowValues(next, [...SHEET_COLUMNS]));
+
+  let shown: SheetRow | null = null;
+  const lookup = await measure("GET /success", async () => {
+    shown = await findSuccessDocument({ documentId: next.documentId, sessionId: SESSION });
+  });
+  const found = shown as SheetRow | null;
+  ok(found?.documentId === next.documentId, `/success shows the requested new version, not the session's older row (got ${found?.documentId})`);
+  ok(
+    lookup.length === 1 && lookup[0]?.op === "values.get" && fullGridRange(lookup[0]?.range ?? ""),
+    `the fresh lookup is one values.get on the grid (got ${JSON.stringify(lookup)})`,
+  );
+  let family: SheetRow[] = [];
+  const history = await measure("GET /success", async () => {
+    family = await listDocumentFamily(next.documentId);
+  });
+  ok(
+    family.some((row) => row.documentId === next.documentId) && family.some((row) => row.documentId === DOC),
+    "the version history lists the new version next to the old one",
+  );
+  ok(history.length === 0, `the version history reuses the fresh snapshot (got ${history.length})`);
+
+  let missing: SheetRow | null = null;
+  const absent = await measure("GET /success", async () => {
+    missing = await findSuccessDocument({ documentId: "doc-quota-missing", sessionId: SESSION });
+  });
+  ok((missing as SheetRow | null)?.documentId === next.documentId, "an unknown document_id still falls back to the session's latest row");
+  ok(absent.length <= 1, `an unknown document_id costs at most one Sheets read (got ${absent.length})`);
+  return lookup.length;
+}
+
 async function main() {
   const saved = {
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -794,6 +850,8 @@ async function main() {
       }),
     );
     await checkMembershipHeaderTtl();
+    const successReads = await checkSuccessFreshRead();
+    console.log("success page after a new version: Sheets calls", successReads);
     console.log("sheets quota checks passed");
   } finally {
     setBlobMarkerTestDir(null);

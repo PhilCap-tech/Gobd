@@ -389,7 +389,12 @@ async function readSheetValues(tab: string): Promise<string[][]> {
   return grid.values;
 }
 
-async function readSheetRows(): Promise<SheetRow[]> {
+/**
+ * `fresh` re-reads the values (one values.get with a cached header). Without it
+ * a fresh row snapshot was rebuilt from the 45 s values snapshot and still
+ * missed a version appended on another instance.
+ */
+async function readSheetRows(fresh = false): Promise<SheetRow[]> {
   const tab = getSheetsTab();
   const count = await intakeColumnCount(tab);
   const grid = await readCachedGrid({
@@ -400,6 +405,7 @@ async function readSheetRows(): Promise<SheetRow[]> {
     headerCache,
     valuesCache: intakeValuesCache,
     materializeHeader: (header) => materializeIntakeHeader(tab, header),
+    refreshValues: fresh,
   });
   return grid.values
     .filter((row) => row.some((cell) => cell.trim()))
@@ -576,6 +582,7 @@ export async function appendRecord(
 async function loadRowsUncached(
   overrides?: IntakeStoreOverrides,
   hydrate = true,
+  fresh = false,
 ): Promise<{ backend: "sheets" | "file"; rows: SheetRow[] }> {
   const finish = async (rows: SheetRow[]) => {
     const ready = hydrate ? await hydrateRows(rows, overrides?.blob) : rows;
@@ -585,7 +592,7 @@ async function loadRowsUncached(
     try {
       const sheetRows = overrides?.readSheets
         ? await overrides.readSheets()
-        : await readSheetRows();
+        : await readSheetRows(fresh);
       const fileRows =
         overrides?.readSheets || isVercelRuntime() ? [] : await readAllFileRows();
       return { backend: "sheets", rows: await finish(mergeRows(sheetRows, fileRows)) };
@@ -620,7 +627,10 @@ async function loadRows(
   if (overrides?.readSheets || !isSheetsConfigured()) {
     return loadRowsUncached(overrides, hydrate);
   }
-  const loaded = await rowsCache.read(() => loadRowsUncached(undefined, false), options?.fresh);
+  const loaded = await rowsCache.read(
+    () => loadRowsUncached(undefined, false, options?.fresh === true),
+    options?.fresh,
+  );
   if (!hydrate || !loaded.rows.some((row) => intakePayloadLocator(row.fragen))) return loaded;
   const rows = (await hydrateRows(loaded.rows)).map(recoverStoredDocumentId);
   const next = { backend: loaded.backend, rows };
@@ -938,7 +948,12 @@ export async function findLatestDocumentByStripeSessionId(
   return null;
 }
 
-const SUCCESS_LOOKUP_ATTEMPTS = 5;
+/**
+ * Instance snapshot first, then one fresh values read. The append finishes
+ * before POST /api/intake answers, so one re-read sees the new version; more
+ * retries only cost quota (the pending page polls on its own).
+ */
+const SUCCESS_LOOKUP_ATTEMPTS = 2;
 
 /**
  * Row for /success from one snapshot. A requested document_id wins. The
@@ -966,7 +981,7 @@ export async function findSuccessDocument(input: {
   const sessionId = normalizeQueryId(input.sessionId);
   if (!documentId && !sessionId) return null;
 
-  const attempts = sessionId ? SUCCESS_LOOKUP_ATTEMPTS : 2;
+  const attempts = SUCCESS_LOOKUP_ATTEMPTS;
   let found: SheetRow | null = null;
   for (let i = 0; i < attempts; i++) {
     if (i > 0) {
