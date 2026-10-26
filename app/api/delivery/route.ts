@@ -62,7 +62,15 @@ export async function postDelivery(
   }
 
   const sessionEmail = await sessionEmailFromRequest(request);
-  const closed = await subscriptionWriteDenial(sessionEmail);
+  let closed: string | null;
+  try {
+    closed = await subscriptionWriteDenial(sessionEmail);
+  } catch (error) {
+    // Lifecycle not readable: no write without a check (503 + Retry-After).
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
+    throw error;
+  }
   if (closed) {
     return NextResponse.json(
       { error: closed },
