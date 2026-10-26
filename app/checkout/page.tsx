@@ -26,6 +26,13 @@ import {
   SETUP_EUR,
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
+import { isPricingV2, memberPreselected } from "@/lib/pricing-model";
+import { memberFromPackage } from "@/lib/plan-checkout";
+import {
+  PLAN_ENTRY_PRICE_LINE,
+  PLAN_MEMBER_PRICE_LINE,
+  TODO_GROWTH,
+} from "@/lib/plan-copy";
 import { CheckoutForm } from "./checkout-form";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +48,12 @@ export default async function CheckoutPage({
   searchParams: Promise<{
     entity_id?: string | string[];
     utm_campaign?: string | string[];
+    paket?: string | string[];
   }>;
 }) {
   const params = await searchParams;
+  const v2 = isPricingV2();
+  const initialMember = memberFromPackage(firstQueryValue(params.paket), memberPreselected());
   const requestedEntityId = firstQueryValue(params.entity_id) ?? "";
   const email = await getSessionEmail();
   const compTarget =
@@ -92,7 +102,12 @@ export default async function CheckoutPage({
       <main className="wrap page">
         <h1>{partner ? "Partner-Pilot starten" : "Dokumentation starten"}</h1>
         <p className="lead">
-          {partner ? (
+          {v2 ? (
+            <>
+              {PLAN_ENTRY_PRICE_LINE}, optional Jahresmitgliedschaft {PLAN_MEMBER_PRICE_LINE}.{" "}
+              {partner ? `Partner-Konditionen ${TODO_GROWTH}` : ALL_AREAS_LINE}
+            </>
+          ) : partner ? (
             <>
               Listenpreis: {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}&nbsp;€
               brutto) Einrichtung plus {MONTHLY_EUR}&nbsp;€ netto (
@@ -118,6 +133,9 @@ export default async function CheckoutPage({
           initialEmail={email ?? ""}
           audience={partner ? "steuerberater" : "kunde"}
           showIncludedFirmNote={!extraFirmNote}
+          {...(v2
+            ? { planOffer: { initialPackage: initialMember ? ("mitglied" as const) : ("einstieg" as const) } }
+            : {})}
         />
       </main>
       <SiteFooter />

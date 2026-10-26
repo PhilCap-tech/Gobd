@@ -47,6 +47,7 @@ import { applyEntityToIdentity } from "@/lib/entities";
 import { devCheckoutStubAllowed, isStubCheckoutSessionId } from "@/lib/checkout-stub";
 import { getAppUrl } from "@/lib/env";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
+import { consumePlanChangeCredit, planVersionDenial } from "@/lib/plan-access";
 import { reopenIfActiveCheckout } from "@/lib/kuendigung-stripe";
 import { deliverLoginLinkReportingDuplicate } from "@/lib/login-mail";
 import type { SubmitLoginMail } from "@/lib/login-mail-shared";
@@ -550,6 +551,12 @@ async function writeIntake(
     closed = await subscriptionWriteDenial(identity.email);
   }
   if (closed) return jsonError(closed, 403);
+  // Preismodell v2: eine neue Version braucht Mitgliedschaft oder eine bezahlte Änderung.
+  const newVersion = version > 1;
+  if (newVersion) {
+    const versionClosed = await planVersionDenial(identity.email);
+    if (versionClosed) return jsonError(versionClosed, 403);
+  }
   const loggedInAsBuyer = Boolean(
     sessionEmail && identity.email && emailsEqual(sessionEmail, identity.email),
   );
@@ -758,6 +765,7 @@ async function writeIntake(
       });
       storeBackend = stored.backend;
       committed = true;
+      if (newVersion) await consumePlanChangeCredit(identity.email);
     } catch (error) {
       // A timeout or retried append may still have stored the row.
       const landed = submitId ? await rowAfterFailedAppend(documentId, io) : null;
@@ -769,6 +777,7 @@ async function writeIntake(
       }
       if (landed && landed !== "unknown") {
         committed = true;
+        if (newVersion) await consumePlanChangeCredit(identity.email);
         storeBackend = "sheets";
       } else {
         const outage = sheetsOutageResponse(error);

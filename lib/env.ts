@@ -132,6 +132,11 @@ export function getLifecycleSheetsTab(): string {
   return "subscription_lifecycle";
 }
 
+/** Preismodell v2: ein Plan je Konto. Eigener Tab, dieselbe Tabelle. */
+export function getPlansSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_PLANS_TAB || "plans";
+}
+
 /** Ampel rate rows. Same spreadsheet as the leads. No extra env var. */
 export function getAmpelRateSheetsTab(): string {
   return "ampel_rate";

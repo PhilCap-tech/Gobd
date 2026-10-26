@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { EXTRA_FIRM_NOTE } from "@/lib/account-labels";
 import { isStoredPaidEntitlementStatus } from "@/lib/checkout-session";
 import { newDocumentPath } from "@/lib/documents";
+import { loadPlanAccess } from "@/lib/plan-access";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { findLatestPaidCheckoutByEmail, resolveStripeCustomerForEmail } from "@/lib/store";
 import {
@@ -42,6 +43,8 @@ export type IncludedFirmCoverage = {
   /** Stripe could not be asked, or the paid row has no customer id. Fail closed. */
   lookupFailed: boolean;
   stripeCustomerId: string;
+  /** Preismodell v2: Mitglied oder Frist läuft. Deckt Firmen 1–5 wie ein aktives Abo (R1). */
+  planOpen?: boolean;
 };
 
 export type FirmStart = "intake" | "checkout" | "denied";
@@ -68,6 +71,7 @@ export function storedPaidEntitlementRow(
 }
 
 export function includedFirmsOpen(coverage: IncludedFirmCoverage): boolean {
+  if (coverage.planOpen === true) return true;
   if (!coverage.hasStoredPaidEntitlement || coverage.lookupFailed) return false;
   const status = billingSubscriptionStatusFrom(
     coverage.subscriptionStatuses.map((item) => ({
@@ -131,6 +135,17 @@ export async function loadIncludedFirmCoverage(email: string): Promise<IncludedF
   const normalized = email.trim();
   if (!normalized) return emptyIncludedFirmCoverage();
   try {
+    const plan = await loadPlanAccess(normalized);
+    if (plan) {
+      const open = plan.access.state === "member" || plan.access.state === "window";
+      return {
+        hasStoredPaidEntitlement: true,
+        subscriptionStatuses: [],
+        lookupFailed: false,
+        stripeCustomerId: plan.row.stripeCustomerId,
+        planOpen: open,
+      };
+    }
     const paid = await findLatestPaidCheckoutByEmail(normalized);
     if (!storedPaidEntitlementRow(paid)) return emptyIncludedFirmCoverage();
     // Verified id only: a stale or other-mode `cus_` from the Sheet is skipped

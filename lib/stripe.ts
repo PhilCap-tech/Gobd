@@ -10,6 +10,11 @@ import {
   isStripeSecretConfigured,
 } from "@/lib/env";
 import type { CheckoutBillingAddress, CheckoutIdentity } from "@/lib/types";
+import {
+  buildPlanCheckoutParams,
+  missingPlanPriceIds,
+  type PlanCheckoutKind,
+} from "@/lib/plan-checkout";
 
 const CUSTOMER_LIST_TTL_MS = 60_000;
 const CUSTOMER_LIST_EMPTY_TTL_MS = 5_000;
@@ -328,6 +333,8 @@ export type CheckoutSessionInput = {
   customerId?: string;
   /** Für die Warnung, wenn STRIPE_TAX_RATE_ID fehlt. Default: CHECKOUT_SESSION_ROUTE. */
   route?: string;
+  /** Preismodell v2 (nur bei PRICING_MODEL=v2 gesetzt). Ohne: bisheriger Checkout. */
+  plan?: { kind: PlanCheckoutKind; member: boolean };
 };
 
 /**
@@ -415,6 +422,10 @@ export async function createCheckoutSession(
 ): Promise<{ url: string; stub: boolean }> {
   const entityId = input.entityId?.trim() ?? "";
 
+  if (input.plan) {
+    return createPlanCheckoutSession(input, input.plan);
+  }
+
   if (!isStripeConfigured()) {
     if (!devCheckoutStubAllowed()) {
       throw new Error("STRIPE_SECRET_KEY fehlt");
@@ -443,6 +454,40 @@ export async function createCheckoutSession(
     throw new Error("Stripe Session ohne URL");
   }
 
+  return { url: session.url, stub: false };
+}
+
+async function createPlanCheckoutSession(
+  input: CheckoutSessionInput,
+  plan: { kind: PlanCheckoutKind; member: boolean },
+): Promise<{ url: string; stub: boolean }> {
+  const missing = missingPlanPriceIds(plan.kind, plan.member);
+  if (!isStripeSecretConfigured() || missing.length > 0) {
+    if (plan.kind === "entry" && devCheckoutStubAllowed()) {
+      const params = new URLSearchParams({
+        session_id: `mock_${Date.now()}`,
+        email: input.email,
+        company: input.company,
+      });
+      const entityId = input.entityId?.trim() ?? "";
+      if (entityId) params.set("entity_id", entityId);
+      console.warn("[stripe] v2-Preise fehlen — Stub-Checkout.", { missing });
+      return { url: `/intake?${params}`, stub: true };
+    }
+    throw new Error(`Stripe v2 nicht konfiguriert: ${missing.join(", ") || "STRIPE_SECRET_KEY"}`);
+  }
+  const session = await getStripe().checkout.sessions.create(
+    buildPlanCheckoutParams({
+      kind: plan.kind,
+      member: plan.member,
+      email: input.email,
+      company: input.company,
+      entityId: input.entityId,
+      audience: input.audience,
+      customerId: input.customerId,
+    }),
+  );
+  if (!session.url) throw new Error("Stripe Session ohne URL");
   return { url: session.url, stub: false };
 }
 

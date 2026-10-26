@@ -26,3 +26,39 @@ export const TODAY_GROSS_LABEL = grossEuroLabel(TODAY_EUR);
 export function netWithGross(netEur: number): string {
   return `${netEur} € netto (${grossEuroLabel(netEur)} € brutto)`;
 }
+
+/*
+ * Preismodell v2 (Philip 26.10.2026, netto zzgl. 19 % USt). Gilt nur bei
+ * PRICING_MODEL=v2. Die Werte oben bleiben für das alte Modell und für
+ * Digistore24 unverändert. Beträge in Cent, weil 99,90 € keine ganze Zahl ist.
+ */
+export const V2_ENTRY_CENTS = 9900;
+export const V2_MEMBER_YEAR_CENTS = 9990;
+export const V2_CHANGE_CENTS = 4900;
+
+/** Brutto in Cent aus Netto in Cent: 9990 → 11888. */
+export function grossFromNetCents(netCents: number): number {
+  return Math.round((netCents * (100 + VAT_PERCENT)) / 100);
+}
+
+/** Deutsches Format aus Cent: 9990 → „99,90“, 9900 → „99“. */
+export function centsLabel(cents: number, options?: { forceDecimals?: boolean }): string {
+  const euros = Math.trunc(cents / 100);
+  const frac = Math.abs(cents % 100);
+  if (frac === 0 && !options?.forceDecimals) return String(euros);
+  return `${euros},${String(frac).padStart(2, "0")}`;
+}
+
+/** „99 € netto (117,81 € brutto)“. */
+export function netWithGrossCents(netCents: number): string {
+  return `${centsLabel(netCents)} € netto (${centsLabel(grossFromNetCents(netCents), { forceDecimals: true })} € brutto)`;
+}
+
+export const V2_ENTRY_LABEL = centsLabel(V2_ENTRY_CENTS);
+export const V2_MEMBER_YEAR_LABEL = centsLabel(V2_MEMBER_YEAR_CENTS);
+export const V2_CHANGE_LABEL = centsLabel(V2_CHANGE_CENTS);
+export const V2_ENTRY_GROSS_LABEL = centsLabel(grossFromNetCents(V2_ENTRY_CENTS), { forceDecimals: true });
+export const V2_MEMBER_YEAR_GROSS_LABEL = centsLabel(grossFromNetCents(V2_MEMBER_YEAR_CENTS), { forceDecimals: true });
+export const V2_CHANGE_GROSS_LABEL = centsLabel(grossFromNetCents(V2_CHANGE_CENTS), { forceDecimals: true });
+/** Einstieg + erstes Mitgliedsjahr, beim Kauf fällig: 198,90 € netto. */
+export const V2_ENTRY_WITH_MEMBER_CENTS = V2_ENTRY_CENTS + V2_MEMBER_YEAR_CENTS;

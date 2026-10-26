@@ -18,6 +18,9 @@ import {
   verifyStripeCustomerId,
 } from "@/lib/stripe";
 import { emailsEqual } from "@/lib/types";
+import { loadPlanAccess } from "@/lib/plan-access";
+import { memberFromPackage, planCheckoutKind, type PlanCheckoutKind } from "@/lib/plan-checkout";
+import { isPricingV2, memberPreselected } from "@/lib/pricing-model";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
   if (!isStripeSecretConfigured()) return undefined;
@@ -44,6 +47,12 @@ export async function POST(request: Request) {
     entrepreneur?: boolean;
     entityId?: string;
     audience?: "kunde" | "steuerberater";
+    /** Preismodell v2: `mitglied` | `einstieg`. */
+    paket?: string;
+    /** Preismodell v2: `entry` (Default) | `change` | `member`. Die letzten zwei nur im Konto. */
+    kind?: string;
+    /** Preismodell v2: AGB bestätigt. */
+    acceptedTerms?: boolean;
   };
   try {
     body = await request.json();
@@ -55,6 +64,11 @@ export async function POST(request: Request) {
   const company = body.company?.trim() ?? "";
   const requestedEntityId = body.entityId?.trim() ?? "";
   const sessionEmail = await sessionEmailFromRequest(request);
+  const v2 = isPricingV2();
+  const kind: PlanCheckoutKind = v2 ? planCheckoutKind(body.kind) : "entry";
+  if (v2 && kind !== "entry") {
+    return accountPlanCheckout(kind, sessionEmail);
+  }
   const compTarget =
     compCheckoutRedirect(sessionEmail, requestedEntityId) ||
     compCheckoutRedirect(email, requestedEntityId) ||
@@ -134,6 +148,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (v2 && body.acceptedTerms !== true) {
+    return NextResponse.json(
+      { error: "Bitte bestätigen Sie die AGB." },
+      { status: 400 },
+    );
+  }
+
   try {
     const session = await createCheckoutSession({
       email,
@@ -142,6 +163,9 @@ export async function POST(request: Request) {
       audience: body.audience === "steuerberater" ? "steuerberater" : "kunde",
       customerId: await reusableCustomerId(email),
       route: CHECKOUT_SESSION_ROUTE,
+      ...(v2
+        ? { plan: { kind: "entry" as const, member: memberFromPackage(body.paket, memberPreselected()) } }
+        : {}),
     });
     return NextResponse.json(session);
   } catch (error) {
@@ -150,5 +174,56 @@ export async function POST(request: Request) {
       { error: "Checkout konnte nicht gestartet werden." },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * Preismodell v2, nur angemeldet aus dem Konto: Änderung (49 €) oder
+ * Mitgliedschaft nachträglich. Beides nur innerhalb der Frist (R7).
+ */
+async function accountPlanCheckout(
+  kind: Exclude<PlanCheckoutKind, "entry">,
+  sessionEmail: string | null,
+): Promise<NextResponse> {
+  if (!sessionEmail) {
+    return NextResponse.json({ error: "Bitte melden Sie sich an." }, { status: 401 });
+  }
+  let loaded;
+  try {
+    loaded = await loadPlanAccess(sessionEmail);
+  } catch (error) {
+    console.error("[checkout] Plan nicht lesbar", error instanceof Error ? error.name : "error");
+    return NextResponse.json(
+      { error: "Bitte versuchen Sie es in einem Moment erneut." },
+      { status: 503, headers: { "Retry-After": "3" } },
+    );
+  }
+  if (!loaded) {
+    return NextResponse.json({ error: "Für dieses Konto gibt es keinen passenden Kauf." }, { status: 403 });
+  }
+  const allowed = kind === "change" ? loaded.access.canBuyChange : loaded.access.canBecomeMember;
+  if (!allowed) {
+    return NextResponse.json(
+      {
+        error:
+          kind === "change"
+            ? "Eine Änderung ist für dieses Konto gerade nicht buchbar."
+            : "Die Mitgliedschaft ist für dieses Konto gerade nicht buchbar.",
+      },
+      { status: 409 },
+    );
+  }
+  try {
+    const session = await createCheckoutSession({
+      email: sessionEmail,
+      company: "",
+      customerId: await reusableCustomerId(sessionEmail),
+      route: CHECKOUT_SESSION_ROUTE,
+      plan: { kind, member: kind === "member" },
+    });
+    return NextResponse.json(session);
+  } catch (error) {
+    console.error("[checkout] v2-Konto-Kauf", error instanceof Error ? error.name : "error");
+    return NextResponse.json({ error: "Checkout konnte nicht gestartet werden." }, { status: 500 });
   }
 }
