@@ -171,6 +171,7 @@ Vor allem für KMU, Handwerk und Freiberufler mit überschaubaren Teams und gän
 - [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau und Vorgehen
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — Abgleich, bevor der Entwurf als fertig gilt
 - [Verfahrensdokumentation Belegablage](/blog/verfahrensdokumentation-belegablage) — ein Abschnitt, kein Gesamtdokument
+- [Verfahrensdokumentation Vorlage: Lohn und Gehalt](/blog/verfahrensdokumentation-vorlage-lohn-gehalt) — Abschnitt Lohnabrechnung: Datenwege, Rückläufer, Ablage
 
 ## Disclaimer
 
