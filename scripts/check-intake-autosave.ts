@@ -56,7 +56,9 @@ async function main(): Promise<void> {
   const { submitIntake } = await import("../app/api/intake/route");
   const { SESSION_COOKIE, createSessionToken } = await import("../lib/auth");
   const { setBlobMarkerTestDir } = await import("../lib/blob-marker");
-  const { clearDraftClosedMemory, closeDraftForm } = await import("../lib/draft-closed");
+  const { clearDraftClosedMemory, closeDraftForm, isDraftFormClosed, draftClosedMemorySize, CLOSED_MEMORY_LIMIT } =
+    await import("../lib/draft-closed");
+  const { MARKER_TTL_MS } = await import("../lib/blob-marker");
   const { setMailDedupeTestHooks } = await import("../lib/mail-dedupe");
   const { emptyAnswers, emptySheetRow } = await import("../lib/types");
   type IntakeDraft = import("../lib/intake-draft-shared").IntakeDraft;
@@ -180,6 +182,17 @@ async function main(): Promise<void> {
       ok(/autosave\.request\(\), 1500\)/.test(form), "autosave waits 1.5 s and goes through the single-flight saver");
       ok(form.includes("submitId: submitIdRef.current.id") && form.includes("formId,"), "the POST sends submitId and formId");
       ok(form.includes("{ retries: 1, backoff: true }"), "a draft PUT retries once with backoff");
+      const restoredAt = form.indexOf('addEventListener("pageshow"');
+      const handler = form.slice(form.indexOf("function restored(event: PageTransitionEvent)"), restoredAt);
+      ok(
+        restoredAt > 0 &&
+          handler.includes("if (!event.persisted) return;") &&
+          handler.includes("submittingRef.current = false;") &&
+          handler.includes("setPending(false);") &&
+          handler.includes("autosave.resume();"),
+        "browser Back (bfcache pageshow persisted) makes the submit button usable again",
+      );
+      ok(handler.includes("setFormId("), "after Back the page saves under a new formId");
     }
 
     // ---- Server: no resurrected draft ----
@@ -221,6 +234,21 @@ async function main(): Promise<void> {
         body: JSON.stringify({
           draftKey,
           sessionId: SESSION,
+          email: BUYER,
+          entityId: ENTITY,
+          step: 2,
+          revision,
+          answers: { ...answers, gf: text },
+          formId,
+        }),
+      });
+    }
+    function putAnon(formId: string, revision: number, text: string, key = draftKey) {
+      return new Request("http://localhost/api/intake/draft", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          draftKey: key,
           email: BUYER,
           entityId: ENTITY,
           step: 2,
@@ -315,6 +343,42 @@ async function main(): Promise<void> {
       ((await inflight.json()) as { closed?: boolean }).closed === true && !drafts.has(draftKey),
       "a PUT in flight while the submit lands writes nothing",
     );
+
+    // Unauthenticated: 401 even for a closed page (no hint that it was closed).
+    const anonKey = `email:${BUYER}:${ENTITY}:gesamt`;
+    await closeDraftForm(anonKey, FORM);
+    const anon = await putIntakeDraft(putAnon(FORM, 9, "fremd", anonKey), draftIo);
+    const anonBody = (await anon.json()) as { closed?: boolean };
+    ok(anon.status === 401 && anonBody.closed !== true, `an unauthenticated PUT for a closed page is 401 (got ${anon.status})`);
+    // A session draft without login is checked by the access gate before "closed".
+    const anonSession = await putIntakeDraft(putAnon(FORM, 9, "fremd"), draftIo);
+    ok(
+      anonSession.status === 401 && ((await anonSession.json()) as { closed?: boolean }).closed !== true,
+      `an unauthenticated PUT on a session draft is 401, not closed (got ${anonSession.status})`,
+    );
+
+    // Marker TTL (7 days) on read; nothing is deleted.
+    clearDraftClosedMemory();
+    const old = Date.now() - MARKER_TTL_MS - 60_000;
+    await closeDraftForm(draftKey, "formautosaveold1", old);
+    clearDraftClosedMemory();
+    ok(!(await isDraftFormClosed(draftKey, "formautosaveold1")), "a closed marker older than 7 days is ignored");
+    await closeDraftForm(draftKey, "formautosaveold2", Date.now() - MARKER_TTL_MS + 60_000);
+    clearDraftClosedMemory();
+    ok(await isDraftFormClosed(draftKey, "formautosaveold2"), "a closed marker just under 7 days still counts");
+    await closeDraftForm(draftKey, "formautosaveold3", old);
+    ok(!(await isDraftFormClosed(draftKey, "formautosaveold3")), "an expired entry in memory is ignored too");
+
+    // LRU bound for the in-memory copy.
+    clearDraftClosedMemory();
+    for (let i = 0; i < CLOSED_MEMORY_LIMIT + 50; i += 1) {
+      await closeDraftForm(draftKey, `formlru${String(i).padStart(6, "0")}`);
+    }
+    ok(draftClosedMemorySize() === CLOSED_MEMORY_LIMIT, `the in-memory list stays at ${CLOSED_MEMORY_LIMIT}`);
+    ok(await isDraftFormClosed(draftKey, "formlru000000"), "an evicted entry is still found in the stored marker");
+
+    const source = readFileSync("lib/blob-marker.ts", "utf8") + readFileSync("lib/draft-closed.ts", "utf8") + readFileSync("lib/intake-submit-claim.ts", "utf8");
+    ok(!/\bdel\(|\bunlink\(|\brm\(|\brmdir\(|removeMarker/.test(source), "marker code has no delete call");
 
     const fresh = await putIntakeDraft(put(NEW_FORM, 1, "Neue Seite"), draftIo);
     ok(fresh.status === 200 && drafts.has(draftKey), "a newly opened page saves normally");

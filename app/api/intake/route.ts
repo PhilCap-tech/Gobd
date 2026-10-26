@@ -91,6 +91,12 @@ import {
 } from "@/lib/versioning";
 
 export const runtime = "nodejs";
+/**
+ * Hard cap for one submit. A submit claim older than this plus a margin
+ * (CLAIM_STALE_MS) belongs to a request that can no longer run.
+ * Keep equal to INTAKE_ROUTE_MAX_DURATION_S (check:intake-idempotent).
+ */
+export const maxDuration = 60;
 
 function errorDetail(error: unknown): string {
   return error instanceof Error && error.message
@@ -509,7 +515,7 @@ async function writeIntake(
   const sessionEmail = await sessionEmailFromRequest(request);
   const grant = checkoutGrantFromRequest(request);
   const sessionId = body.sessionId?.trim() || grant?.sessionId || "";
-  const ctx = { checkedDocumentIds: new Set<string>() };
+  const ctx = { checkedDocumentIds: new Set<string>(), rowLookedUp: new Set<string>() };
   const submitId = normalizeSubmitId(body.submitId);
   if (submitId) {
     // Retry of a submit that was already stored (its answer got lost). Checked
@@ -518,7 +524,7 @@ async function writeIntake(
     for (const email of submitCandidates(sessionEmail, grant)) {
       const id = submitDocumentId(email, submitId);
       ctx.checkedDocumentIds.add(id);
-      const earlier = await committedSubmit(id, io);
+      const earlier = await committedSubmit(id, io, ctx.rowLookedUp);
       if (earlier && emailsEqual(earlier.row.email, email)) {
         return replayCommitted(earlier, email, { io, sessionEmail, grant, body });
       }
@@ -619,7 +625,7 @@ async function writeIntake(
   let claimed = false;
   if (submitId) {
     if (!ctx.checkedDocumentIds.has(documentId)) {
-      const earlier = await committedSubmit(documentId, io);
+      const earlier = await committedSubmit(documentId, io, ctx.rowLookedUp);
       if (earlier) return replayOrDeny(earlier, resolved.ownerEmail, replayContext);
     }
     const claim = await claimSubmitSafely(documentId, plan, io);
@@ -636,7 +642,26 @@ async function writeIntake(
       return retryLaterResponse();
     }
     claimed = claim === "claimed";
+    // Never a second row for one id, even when the claim marker was missing,
+    // expired, released or could not be written: look at the sheet first.
+    if (!ctx.rowLookedUp.has(documentId)) {
+      const row = await io.findDocumentById(documentId);
+      if (row) {
+        return replayOrDeny(
+          { row, plan: (await readPlanSafely(documentId, io)) ?? plan },
+          resolved.ownerEmail,
+          replayContext,
+        );
+      }
+    }
   }
+  const closeDraftKey = await boundDraftKey(body.draftKey, {
+    io,
+    ownerEmail: identity.email,
+    stripeSessionId: identity.stripeSessionId,
+    // resolveIdentity already proved these belong to the owner (404/403 otherwise).
+    verifiedDocumentIds: [body.documentId?.trim() || body.areaFromDocumentId?.trim() || ""],
+  });
   let committed = false;
   /** Append threw but the row may exist: the id stays reserved. */
   let keepClaim = false;
@@ -766,7 +791,7 @@ async function writeIntake(
       version,
       sendLoginLink: true,
       formId: body.formId,
-      draftKey: body.draftKey,
+      draftKey: closeDraftKey,
     });
     return await finishSubmitResponse({
       payload: {
@@ -952,11 +977,56 @@ async function readPlanSafely(documentId: string, io: IntakeIo): Promise<SubmitP
  * Row already stored for this submit. The claim marker is written before any
  * row, so no marker means no row and the Sheets lookup is skipped.
  */
-async function committedSubmit(documentId: string, io: IntakeIo): Promise<CommittedSubmit | null> {
+async function committedSubmit(
+  documentId: string,
+  io: IntakeIo,
+  lookedUp?: Set<string>,
+): Promise<CommittedSubmit | null> {
   const plan = await readPlanSafely(documentId, io);
   if (plan === null) return null;
   const row = await io.findDocumentById(documentId);
+  lookedUp?.add(documentId);
   return row ? { row, plan: plan ?? null } : null;
+}
+
+/**
+ * The Entwurf key from the body, only when it belongs to this owner:
+ * `session:` the owner's checkout session, `email:` the owner's address,
+ * `doc:` / `area:` a document of the owner. Anything else closes nothing.
+ */
+async function boundDraftKey(
+  raw: string | undefined,
+  input: {
+    io: IntakeIo;
+    ownerEmail: string;
+    stripeSessionId: string;
+    verifiedDocumentIds: string[];
+  },
+): Promise<string> {
+  const key = raw?.trim() ?? "";
+  if (!key || !input.ownerEmail.trim()) return "";
+  const parts = key.split(":");
+  const kind = parts[0] ?? "";
+  if (kind === "session") {
+    const sid = input.stripeSessionId.trim();
+    return sid && parts.length === 3 && parts[1] === sid ? key : "";
+  }
+  if (kind === "email") {
+    return parts.length === 4 && emailsEqual(parts[1] ?? "", input.ownerEmail) ? key : "";
+  }
+  if (kind === "doc" || kind === "area") {
+    const id = (parts[1] ?? "").trim();
+    if (!id || parts.length !== (kind === "doc" ? 2 : 3)) return "";
+    if (input.verifiedDocumentIds.includes(id)) return key;
+    try {
+      const row = await input.io.findDocumentById(id);
+      return row && emailsEqual(row.email, input.ownerEmail) ? key : "";
+    } catch (error) {
+      logAfterCommit("Entwurfsschlüssel prüfen", error);
+      return "";
+    }
+  }
+  return "";
 }
 
 async function claimSubmitSafely(
@@ -1017,7 +1087,12 @@ async function replayCommitted(
     version,
     sendLoginLink: false,
     formId: context.body.formId,
-    draftKey: context.body.draftKey,
+    draftKey: await boundDraftKey(context.body.draftKey, {
+      io: context.io,
+      ownerEmail,
+      stripeSessionId,
+      verifiedDocumentIds: [],
+    }),
   });
   console.info("[intake] Wiederholung beantwortet", JSON.stringify({ version }));
   return finishSubmitResponse({

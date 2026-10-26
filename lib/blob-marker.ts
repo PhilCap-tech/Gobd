@@ -2,17 +2,28 @@
  * Small JSON markers in the private Blob store, file fallback without a token.
  * Same pattern as the mail ledger: create is exclusive (`allowOverwrite: false`
  * on Blob, `wx` on disk), so two instances cannot both create one marker.
- * No new service and no new env.
+ * No new service and no new env. Nothing here deletes: an old marker is
+ * ignored by its reader (MARKER_TTL_MS), never removed.
  */
 import { createHash } from "node:crypto";
-import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { BlobNotFoundError, BlobPreconditionFailedError, del, get, put } from "@vercel/blob";
+import { BlobNotFoundError, BlobPreconditionFailedError, get, put } from "@vercel/blob";
 import { isBlobConfigured } from "@/lib/env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { getFileFallbackDir } from "@/lib/store";
 
 let dirOverride: string | null = null;
+
+/** Markers older than this are treated as absent when read. */
+export const MARKER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** True when the ISO time is missing, unreadable or older than MARKER_TTL_MS. */
+export function markerExpired(at: string | undefined, now = Date.now()): boolean {
+  const time = Date.parse(at ?? "");
+  if (!Number.isFinite(time)) return true;
+  return now - time >= MARKER_TTL_MS;
+}
 
 /** Isolated file root for prebuild checks. `null` restores the default. */
 export function setBlobMarkerTestDir(dir: string | null): void {
@@ -137,20 +148,4 @@ export async function writeMarker(prefix: string, key: string, body: string): Pr
   const tmp = `${file}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`;
   await writeFile(tmp, body, "utf8");
   await rename(tmp, file);
-}
-
-export async function removeMarker(prefix: string, key: string): Promise<void> {
-  if (blobEnabled()) {
-    try {
-      await del(blobPath(prefix, key), { token: blobToken() });
-    } catch (error) {
-      if (!isMissing(error)) throw error;
-    }
-    return;
-  }
-  try {
-    await unlink(filePath(prefix, key));
-  } catch (error) {
-    if (errorCode(error) !== "ENOENT") throw error;
-  }
 }

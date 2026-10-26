@@ -23,7 +23,7 @@ import {
 import { AUDIT_SHEET_COLUMNS } from "../lib/audit-log";
 import { setBlobMarkerTestDir } from "../lib/blob-marker";
 import { emptyEntity, ENTITY_SHEET_COLUMNS } from "../lib/entities";
-import { findActiveMembership } from "../lib/membership-store";
+import { findActiveMembership, MEMBERSHIP_HEADER_TTL_MS } from "../lib/membership-store";
 import { MEMBERSHIP_SHEET_COLUMNS, membershipSheetValues, type Membership } from "../lib/memberships";
 import { fetchRetrying503, isPdfResponse } from "../lib/fetch-retry";
 import type { IntakeDraft } from "../lib/intake-draft-shared";
@@ -274,7 +274,7 @@ function memoryDraftIo(seed?: IntakeDraft): DraftWriteIo {
   };
 }
 
-function teamDraftPut(email: string, revision: number, text: string) {
+function teamDraftPut(email: string, revision: number, text: string, entityId: string | null = ENT_TEAM) {
   const body = answers();
   body.katalog = {
     ...(body.katalog ?? {}),
@@ -289,7 +289,7 @@ function teamDraftPut(email: string, revision: number, text: string) {
     body: JSON.stringify({
       draftKey: `doc:${DOC_TEAM}`,
       documentId: DOC_TEAM,
-      entityId: ENT_TEAM,
+      ...(entityId === null ? {} : { entityId }),
       step: 2,
       revision,
       answers: body,
@@ -326,7 +326,18 @@ async function checkDraftPutRoute(): Promise<{ ownerCold: number; ownerWarm: num
     const response = await putIntakeDraft(teamDraftPut(BUYER, 3, "Quota GmbH 2"), io);
     ok(response.status === 200, `an unchanged owner draft PUT is 200 (got ${response.status})`);
   });
-  ok(membershipReads(coldCalls) === 0 && membershipReads(warm) === 0, "the document owner (session = stored row) needs no membership read");
+  ok(membershipReads(coldCalls) === 0 && membershipReads(warm) === 0, "the document owner (session = stored row, same company) needs no membership read");
+  // Shortcut only with a company on the row that equals the one sent.
+  const noEntity = await measure("PUT /api/intake/draft", async () => {
+    const response = await putIntakeDraft(teamDraftPut(BUYER, 4, "Quota GmbH 4", null), io);
+    ok(response.status === 200, `an owner PUT without entityId still saves (got ${response.status})`);
+  });
+  ok(membershipReads(noEntity) === 1, "an owner PUT without entityId takes the membership path (fresh read)");
+  const otherEntity = await measure("PUT /api/intake/draft", async () => {
+    const response = await putIntakeDraft(teamDraftPut(BUYER, 5, "Quota GmbH 5", "ent-quota-other"), io);
+    ok(response.status !== 500, `an owner PUT with another entityId is decided by the old path (got ${response.status})`);
+  });
+  ok(membershipReads(otherEntity) === 1, "an entityId mismatch takes the membership path (fresh read)");
   console.log(
     "draft PUT (route):",
     JSON.stringify({
@@ -373,6 +384,31 @@ async function checkDraftPutRoute(): Promise<{ ownerCold: number; ownerWarm: num
   ok(stranger.status === 403, `a stranger without membership is 403 (got ${stranger.status})`);
   console.log("draft PUT (member):", JSON.stringify(again.map((call) => call.op)));
   return { ownerCold: coldCalls.length, ownerWarm: warm.length, ownerSame: same.length, member: again.length };
+}
+
+/** Header cache expires after 5 minutes; rows are never cached for members. */
+async function checkMembershipHeaderTtl(): Promise<void> {
+  resetMemory();
+  resetGrids();
+  setMembership("active");
+  const realNow = Date.now;
+  let offset = 0;
+  Date.now = () => realNow() + offset;
+  try {
+    await measure("membership", () => findActiveMembership(MEMBER, ENT_TEAM));
+    const warm = await measure("membership", () => findActiveMembership(MEMBER, ENT_TEAM));
+    ok(!warm.some((call) => (call.range ?? "").startsWith("memberships!A1")), "the membership header is cached");
+    offset = MEMBERSHIP_HEADER_TTL_MS - 1000;
+    const before = await measure("membership", () => findActiveMembership(MEMBER, ENT_TEAM));
+    ok(!before.some((call) => (call.range ?? "").startsWith("memberships!A1")), "the header cache holds just under 5 minutes");
+    offset = MEMBERSHIP_HEADER_TTL_MS + 1000;
+    const after = await measure("membership", () => findActiveMembership(MEMBER, ENT_TEAM));
+    ok(after.some((call) => (call.range ?? "").startsWith("memberships!A1")), "after 5 minutes the header is read again");
+    ok(MEMBERSHIP_HEADER_TTL_MS === 5 * 60 * 1000, "the header TTL is 5 minutes");
+  } finally {
+    Date.now = realNow;
+    setMembership(null);
+  }
 }
 
 function quotaError(): Error {
@@ -757,6 +793,7 @@ async function main() {
         postWarm: [before.postWarm, submitRoute.warm],
       }),
     );
+    await checkMembershipHeaderTtl();
     console.log("sheets quota checks passed");
   } finally {
     setBlobMarkerTestDir(null);
