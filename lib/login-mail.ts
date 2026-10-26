@@ -40,6 +40,18 @@ export async function deliverLoginLink(
   email: string,
   next?: string | null,
 ): Promise<LoginMailStatus> {
+  const status = await deliverLoginLinkReportingDuplicate(email, next);
+  return status === "duplicate" ? "sent" : status;
+}
+
+/**
+ * Like deliverLoginLink, but a dedupe-window duplicate stays "duplicate":
+ * no new mail went out, so the intake submit must not claim one did.
+ */
+export async function deliverLoginLinkReportingDuplicate(
+  email: string,
+  next?: string | null,
+): Promise<LoginMailStatus | "duplicate"> {
   const address = email.trim().toLowerCase();
   if (!address || !address.includes("@")) return "failed";
 
@@ -61,6 +73,7 @@ export async function deliverLoginLink(
     const url = await magicLinkUrl(address, next);
     if (!url) return "failed";
     const mail = await sendMagicLinkMail({ email: address, magicLinkUrl: url });
+    if (mail.duplicate) return "duplicate";
     if (mail.sent) return "sent";
     console.error("[auth] Anmeldelink fehlgeschlagen", { stub: mail.stub });
     return "failed";

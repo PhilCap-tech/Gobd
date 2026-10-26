@@ -16,6 +16,7 @@ import { getSessionEmail, sessionIdForCheckoutProof } from "@/lib/auth";
 import { isCompAccessEmail } from "@/lib/comp-access";
 import { emailShownToViewer } from "@/lib/checkout-session";
 import { LOGIN_LINK_FAILED_NOTICE, loginLinkSentNotice } from "@/lib/login-mail";
+import { showsLoginLinkSent } from "@/lib/login-mail-shared";
 import { DELIVERY_DISCLAIMER } from "@/lib/delivery";
 import {
   canAccessDocument,
@@ -251,7 +252,7 @@ export default async function SuccessPage({
                 </p>
               ) : anmeldung === "fehler" ? (
                 <p className="error">{LOGIN_LINK_FAILED_NOTICE}</p>
-              ) : anmeldung === "gesendet" || (mailReady && anmeldung !== "stub") ? (
+              ) : showsLoginLinkSent(anmeldung) ? (
                 <p className="banner">{loginLinkSentNotice(visibleEmail)}</p>
               ) : null}
               {anmeldung === "keine" ? null : mailReady ? (

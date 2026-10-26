@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { anmeldungParam } from "@/lib/login-mail-shared";
 import { fetchRetrying503, SAVE_PENDING_LABEL } from "@/lib/fetch-retry";
 import { DraftAutosave } from "@/lib/draft-autosave";
 import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
@@ -703,10 +704,8 @@ export function IntakeForm({
       clearDraft();
       const params = new URLSearchParams({ document_id: data.documentId });
       if (session.stripeSessionId) params.set("session_id", session.stripeSessionId);
-      if (data.loginMail === "sent") params.set("anmeldung", "gesendet");
-      else if (data.loginMail === "failed") params.set("anmeldung", "fehler");
-      else if (data.loginMail === "stub") params.set("anmeldung", "stub");
-      else if (data.loginMail === "skipped") params.set("anmeldung", "keine");
+      const anmeldung = anmeldungParam(data.loginMail);
+      if (anmeldung) params.set("anmeldung", anmeldung);
       router.push(`/success?${params}`);
     } catch {
       setError("Netzwerkfehler. Bitte erneut versuchen.");
