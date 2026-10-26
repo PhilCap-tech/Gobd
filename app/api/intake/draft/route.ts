@@ -110,12 +110,16 @@ async function resolveMemberDraft(
       throw error;
     }
   }
-  // Owner of the stored document (row from the store, session from the cookie):
-  // not a member grant, so no membership read. Everyone else keeps the fresh read.
+  // Owner of the stored document (row from the store, session from the cookie)
+  // and the company the client names is the one on that row: not a member
+  // grant, so no membership read. Any doubt (no company on the row, none or
+  // another one in the request) keeps the fresh membership path below.
+  const requestedEntity = input.entityId?.trim() ?? "";
   if (
     document &&
     emailsEqual(document.email, input.sessionEmail) &&
-    (!input.entityId?.trim() || !document.entityId || input.entityId.trim() === document.entityId)
+    document.entityId.trim() !== "" &&
+    requestedEntity === document.entityId.trim()
   ) {
     return { kind: "skip" };
   }
@@ -419,6 +423,7 @@ async function saveMemberDraft(
   },
   grant: MemberDraftGrant,
   sessionEmail: string,
+  formId = "",
 ) {
   if (!isAnswers(body.answers)) return jsonError("answers fehlen.", 400);
   const incoming = body.answers;
@@ -433,6 +438,9 @@ async function saveMemberDraft(
     }
     const stored = existing && !draftIsEmpty(existing) ? existing : null;
     if (!storedDraftMatchesMember(stored, grant)) return jsonError("Kein Zugriff.", 403);
+    if (formId && (await (io.isDraftFormClosed ?? isDraftFormClosed)(grant.draftKey, formId))) {
+      return NextResponse.json({ ok: true, closed: true });
+    }
     const verdict = revisionDecision({
       sessionEmail,
       incomingRevision: body.revision,
@@ -541,10 +549,6 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     return jsonError("Kein Zugriff.", 401);
   }
   const formId = normalizeFormId(body.formId);
-  if (formId && (await (io.isDraftFormClosed ?? isDraftFormClosed)(draftKey, formId))) {
-    // This page already submitted. A late save must not restore the Entwurf.
-    return NextResponse.json({ ok: true, closed: true });
-  }
   const closed = await subscriptionWriteDenial(sessionEmail);
   if (closed) return jsonError(closed, 403);
   const member = await resolveMemberDraft(io, {
@@ -554,7 +558,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
   });
   if (member.kind === "deny") return member.response;
   if (member.kind === "allow") {
-    return saveMemberDraft(io, body, member.grant, sessionEmail ?? "");
+    return saveMemberDraft(io, body, member.grant, sessionEmail ?? "", formId);
   }
   const blocked = await deliveredDraftGate(
     request,
@@ -597,6 +601,11 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     io.resolveCheckout,
   );
   if (!access.ok) return deny(access);
+  // Only after the access check: an unauthenticated request gets 401/403, not "closed".
+  if (formId && (await (io.isDraftFormClosed ?? isDraftFormClosed)(draftKey, formId))) {
+    // This page already submitted. A late save must not restore the Entwurf.
+    return NextResponse.json({ ok: true, closed: true });
+  }
 
   const verdict = revisionDecision({
     sessionEmail: sessionEmail ?? "",

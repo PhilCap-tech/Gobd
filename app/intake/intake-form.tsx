@@ -229,7 +229,7 @@ export function IntakeForm({
   /** True from the submit click until the submit failed. No autosave meanwhile. */
   const submittingRef = useRef(false);
   /** This page. Sent with every save; the submit closes it on the server. */
-  const [formId] = useState(() => newClientId().replace(/-/g, ""));
+  const [formId, setFormId] = useState(() => newClientId().replace(/-/g, ""));
   /** Same submit id for every retry of the same payload. */
   const submitIdRef = useRef<{ id: string; payload: string } | null>(null);
   /** Last state the server confirmed; an equal save is not sent. */
@@ -495,6 +495,21 @@ export function IntakeForm({
     return () => window.clearTimeout(timer);
   }, [answers, step, change, draftKey, draftReady, autosave, writeLocalDraft]);
   useEffect(() => () => autosave.stop(), [autosave]);
+  useEffect(() => {
+    // Browser Back after a submit restores this page from the bfcache with the
+    // submit still "running". Make the form usable again; a repeated submit
+    // keeps its submitId and is answered with the stored document.
+    function restored(event: PageTransitionEvent) {
+      if (!event.persisted) return;
+      submittingRef.current = false;
+      setPending(false);
+      // The old page id was closed by the submit; edits from here on are a new page.
+      setFormId(newClientId().replace(/-/g, ""));
+      autosave.resume();
+    }
+    window.addEventListener("pageshow", restored);
+    return () => window.removeEventListener("pageshow", restored);
+  }, [autosave]);
   useEffect(() => {
     function flush() {
       if (!draftReadyRef.current || submittingRef.current) return;

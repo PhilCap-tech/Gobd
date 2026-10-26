@@ -57,7 +57,11 @@ async function main(): Promise<void> {
   const { SESSION_COOKIE, CHECKOUT_GRANT_COOKIE, createSessionToken, createCheckoutGrantToken } =
     await import("../lib/auth");
   const { setBlobMarkerTestDir } = await import("../lib/blob-marker");
-  const { claimIntakeSubmit, readSubmitPlan, submitDocumentId } = await import("../lib/intake-submit-claim");
+  const { claimIntakeSubmit, readSubmitPlan, submitDocumentId, CLAIM_STALE_MS, INTAKE_ROUTE_MAX_DURATION_S } =
+    await import("../lib/intake-submit-claim");
+  const { MARKER_TTL_MS } = await import("../lib/blob-marker");
+  const { isDraftFormClosed } = await import("../lib/draft-closed");
+  const { readdirSync, readFileSync } = await import("node:fs");
   const { setMailDedupeTestHooks } = await import("../lib/mail-dedupe");
   const { flushLeadNoticesForTests } = await import("../lib/lead-notice");
   const notice = await import("../lib/owner-notice");
@@ -176,7 +180,7 @@ async function main(): Promise<void> {
     };
   }
 
-  function post(submitId: string, cookie: string) {
+  function post(submitId: string, cookie: string, extra: Record<string, string> = {}) {
     return new Request("http://localhost/api/intake", {
       method: "POST",
       headers: { "content-type": "application/json", cookie },
@@ -189,6 +193,7 @@ async function main(): Promise<void> {
         validFrom: "2026-10-26",
         changeSummary: "Idempotenz-Check",
         submitId,
+        ...extra,
       }),
     });
   }
@@ -196,8 +201,8 @@ async function main(): Promise<void> {
   const login = `${SESSION_COOKIE}=${createSessionToken(BUYER)}`;
   const grantOnly = `${CHECKOUT_GRANT_COOKIE}=${createCheckoutGrantToken({ sessionId: SESSION, email: BUYER })}`;
 
-  async function send(w: World, submitId: string, cookie = login) {
-    const response = await submitIntake(post(submitId, cookie), io(w));
+  async function send(w: World, submitId: string, cookie = login, extra: Record<string, string> = {}) {
+    const response = await submitIntake(post(submitId, cookie, extra), io(w));
     const body = (await response.json()) as { documentId?: string; error?: string; version?: number };
     await flushLeadNoticesForTests();
     return { status: response.status, body, retryAfter: response.headers.get("Retry-After") };
@@ -334,6 +339,76 @@ async function main(): Promise<void> {
       });
       ok(landed.status === 200, `an append that threw but stored is answered 200 (got ${landed.status})`);
       ok(w.rows.length === 1, "and stored one row");
+    }
+
+    // 8) Claim missing (other Blob root = marker gone) but the row exists:
+    //    no second appendRecord, no second delivery mail, no second notice.
+    {
+      const w = world();
+      const submitId = "0f6b1c3e-1111-4a2b-8c3d-00000000000a";
+      const first = await send(w, submitId);
+      ok(first.status === 200 && w.appends === 1, "a stored submit");
+      const before = { mail: deliveryMails(), notice: ownerNotices() };
+      setBlobMarkerTestDir(mkdtempSync(path.join(tmpdir(), "intake-idem-markers-empty-")));
+      const retry = await send(w, submitId);
+      ok(retry.status === 200 && retry.body.documentId === first.body.documentId, "missing claim: the retry answers the stored document");
+      ok(w.appends === 1, "missing claim + existing row: no second appendRecord");
+      ok(deliveryMails() === before.mail, "missing claim + existing row: no second delivery mail");
+      ok(ownerNotices() === before.notice, "missing claim + existing row: no second owner notice");
+
+      // Expired claim marker (older than 7 days) with the row present: same result.
+      setBlobMarkerTestDir(mkdtempSync(path.join(tmpdir(), "intake-idem-markers-old-")));
+      const id = submitDocumentId(BUYER, submitId);
+      const plan = { deliveryMail: true, notice: null, firstDelivery: true, stub: false };
+      ok((await claimIntakeSubmit(id, plan, Date.now() - MARKER_TTL_MS - 60_000)) !== "busy", "an old claim is written");
+      ok((await readSubmitPlan(id)) === null, "a claim older than 7 days is ignored when read");
+      const again = await send(w, submitId);
+      ok(again.status === 200 && w.appends === 1, "expired claim + existing row: still one appendRecord");
+      ok(deliveryMails() === before.mail && ownerNotices() === before.notice, "expired claim: no second mail or notice");
+      setBlobMarkerTestDir(markerDir);
+    }
+
+    // 9) Takeover only after the route's maxDuration has run out.
+    {
+      const route = readFileSync("app/api/intake/route.ts", "utf8");
+      const declared = Number(/export const maxDuration = (\d+);/.exec(route)?.[1] ?? "0");
+      ok(declared === INTAKE_ROUTE_MAX_DURATION_S, `the intake route sets maxDuration = ${INTAKE_ROUTE_MAX_DURATION_S} (got ${declared})`);
+      ok(CLAIM_STALE_MS > declared * 1000, "the takeover threshold is above maxDuration");
+      const id = submitDocumentId(BUYER, "0f6b1c3e-1111-4a2b-8c3d-00000000000b");
+      const plan = { deliveryMail: true, notice: null, firstDelivery: true, stub: false };
+      const t0 = Date.now();
+      ok((await claimIntakeSubmit(id, plan, t0)) === "claimed", "a claim");
+      ok((await claimIntakeSubmit(id, plan, t0 + declared * 1000 + 1000)) === "busy", "no takeover while the holder may still run");
+      ok((await claimIntakeSubmit(id, plan, t0 + CLAIM_STALE_MS + 1000)) === "claimed", "takeover after the threshold");
+    }
+
+    // 10) Release does not delete: the marker stays, marked released.
+    {
+      const before = readdirSync(path.join(markerDir, "intake-submit")).length;
+      const w = world();
+      const submitId = "0f6b1c3e-1111-4a2b-8c3d-00000000000c";
+      w.failPdf = true;
+      await send(w, submitId);
+      const after = readdirSync(path.join(markerDir, "intake-submit")).length;
+      ok(after === before + 1, "a released claim stays on disk (nothing deleted)");
+      ok((await readSubmitPlan(submitDocumentId(BUYER, submitId))) === null, "a released claim reads as free");
+    }
+
+    // 11) The Entwurf key closed by the submit belongs to the owner.
+    {
+      const w = world();
+      const own = `session:${SESSION}:gesamt`;
+      const foreign = "email:fremd-idem@firma.example:ent_fremd:gesamt";
+      const foreignDoc = "doc:doc-fremd-idem";
+      await send(w, "0f6b1c3e-1111-4a2b-8c3d-00000000000d", login, { formId: "formidemown01", draftKey: own });
+      ok(await isDraftFormClosed(own, "formidemown01"), "the owner's session draft is closed after the submit");
+      await send(w, "0f6b1c3e-1111-4a2b-8c3d-00000000000e", login, { formId: "formidemfrd01", draftKey: foreign });
+      ok(!(await isDraftFormClosed(foreign, "formidemfrd01")), "another mailbox's draft key from the body is not closed");
+      await send(w, "0f6b1c3e-1111-4a2b-8c3d-00000000000f", login, { formId: "formidemfrd02", draftKey: foreignDoc });
+      ok(!(await isDraftFormClosed(foreignDoc, "formidemfrd02")), "an unknown document's draft key is not closed");
+      const otherSession = "session:cs_test_fremd:gesamt";
+      await send(w, "0f6b1c3e-1111-4a2b-8c3d-000000000010", login, { formId: "formidemfrd03", draftKey: otherSession });
+      ok(!(await isDraftFormClosed(otherSession, "formidemfrd03")), "another checkout session's draft key is not closed");
     }
 
     // 7) Another owner cannot hit someone's submit id.

@@ -42,7 +42,10 @@ const membershipRowsCache = createTtlSingleflight<Membership[]>(MEMBERSHIP_READ_
  * Header row per instance (tab check + A1:AZ1). Rows stay a fresh read where
  * callers ask for it (findActiveMembership). Writes keep the header.
  */
-let preparedHeader: { key: string; header: Promise<string[]> } | null = null;
+let preparedHeader: { key: string; header: Promise<string[]>; at: number } | null = null;
+
+/** The header is read again after this, so a new column shows up without a deploy. */
+export const MEMBERSHIP_HEADER_TTL_MS = 5 * 60 * 1000;
 
 export function clearMembershipReadCache(): void {
   membershipRowsCache.clear();
@@ -153,7 +156,9 @@ async function writeFileStore(rows: Membership[]): Promise<void> {
 
 function ensureHeader(): Promise<string[]> {
   const key = `${spreadsheetId()}:${getMembershipsSheetsTab()}`;
-  if (preparedHeader?.key === key) return preparedHeader.header;
+  if (preparedHeader?.key === key && Date.now() - preparedHeader.at < MEMBERSHIP_HEADER_TTL_MS) {
+    return preparedHeader.header;
+  }
   const pending = openMembershipHeader().then(
     (header) => header,
     (error: unknown) => {
@@ -161,7 +166,7 @@ function ensureHeader(): Promise<string[]> {
       throw error;
     },
   );
-  preparedHeader = { key, header: pending };
+  preparedHeader = { key, header: pending, at: Date.now() };
   return pending;
 }
 

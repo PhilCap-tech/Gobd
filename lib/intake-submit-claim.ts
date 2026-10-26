@@ -9,17 +9,23 @@
  * `doc:<doc>:<version>` stay the same, so the mail ledger sends each once.
  *
  * A Blob claim (`allowOverwrite: false`) keeps two parallel requests with the
- * same id from both writing. It is released when the request fails before
- * the row is stored and kept afterwards (it carries the mail plan for a
- * replay). A claim older than CLAIM_STALE_MS belongs to a request that died
- * and may be taken over (the row check runs first).
+ * same id from both writing. It is marked released (overwritten, never
+ * deleted) when the request fails before the row is stored, and kept
+ * afterwards (it carries the mail plan for a replay). A claim may be taken
+ * over only once CLAIM_STALE_MS has passed, which is longer than the route's
+ * maxDuration, so the request that held it can no longer be running. The
+ * route checks for an existing row before every appendRecord anyway.
+ * Markers older than MARKER_TTL_MS (7 days) are treated as absent.
  */
 import { createHmac } from "node:crypto";
 import { getMagicLinkSecret } from "@/lib/env";
-import { createMarker, readMarker, removeMarker, writeMarker } from "@/lib/blob-marker";
+import { createMarker, markerExpired, readMarker, writeMarker } from "@/lib/blob-marker";
 
 const PREFIX = "intake-submit";
-export const CLAIM_STALE_MS = 2 * 60 * 1000;
+/** Must match `export const maxDuration` in app/api/intake/route.ts (check:intake-idempotent). */
+export const INTAKE_ROUTE_MAX_DURATION_S = 60;
+/** Function runtime plus a minute of margin: the holder is gone by then. */
+export const CLAIM_STALE_MS = (INTAKE_ROUTE_MAX_DURATION_S + 60) * 1000;
 
 const SUBMIT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -65,13 +71,17 @@ type ClaimBody = {
   plan?: SubmitPlan;
   /** The append failed and nobody knows whether the row landed. */
   unsure?: boolean;
+  /** Failed before any row: free to claim again. */
+  released?: boolean;
 };
 
-function parseClaim(raw: string | null): ClaimBody | null {
+/** Parsed marker, or null when missing, unreadable or older than 7 days. */
+function parseClaim(raw: string | null, now = Date.now()): ClaimBody | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as ClaimBody;
-    return parsed && typeof parsed === "object" ? parsed : null;
+    if (!parsed || typeof parsed !== "object") return null;
+    return markerExpired(parsed.at, now) ? null : parsed;
   } catch {
     return null;
   }
@@ -79,7 +89,7 @@ function parseClaim(raw: string | null): ClaimBody | null {
 
 /**
  * Claim one document id. The marker stays after the row is stored, so a
- * replay can read the plan; it is removed only when the request fails first.
+ * replay can read the plan; it is marked released when the request fails first.
  */
 export async function claimIntakeSubmit(
   documentId: string,
@@ -88,11 +98,12 @@ export async function claimIntakeSubmit(
 ): Promise<SubmitClaim> {
   const body = JSON.stringify({ documentId, at: new Date(now).toISOString(), plan });
   if ((await createMarker(PREFIX, documentId, body)) === "created") return "claimed";
-  const existing = parseClaim(await readMarker(PREFIX, documentId));
+  const existing = parseClaim(await readMarker(PREFIX, documentId), now);
   const at = Date.parse(existing?.at ?? "");
-  // "unsure": no request holds it any more. The caller checked that no row
-  // exists for this id before claiming.
-  if (!existing?.unsure && Number.isFinite(at) && now - at < CLAIM_STALE_MS) return "busy";
+  // Released / unsure / expired: no request holds it any more. Otherwise only
+  // after the holder's maxDuration has certainly run out.
+  const free = !existing || existing.unsure || existing.released;
+  if (!free && Number.isFinite(at) && now - at < CLAIM_STALE_MS) return "busy";
   await writeMarker(PREFIX, documentId, body);
   return "claimed";
 }
@@ -106,10 +117,17 @@ export async function markSubmitUnsure(documentId: string, plan: SubmitPlan, now
   );
 }
 
-export async function readSubmitPlan(documentId: string): Promise<SubmitPlan | null> {
-  return parseClaim(await readMarker(PREFIX, documentId))?.plan ?? null;
+export async function readSubmitPlan(documentId: string, now = Date.now()): Promise<SubmitPlan | null> {
+  const claim = parseClaim(await readMarker(PREFIX, documentId), now);
+  if (!claim || claim.released) return null;
+  return claim.plan ?? null;
 }
 
-export async function releaseIntakeSubmit(documentId: string): Promise<void> {
-  await removeMarker(PREFIX, documentId);
+/** Failure before the row: mark free. The marker is overwritten, not deleted. */
+export async function releaseIntakeSubmit(documentId: string, now = Date.now()): Promise<void> {
+  await writeMarker(
+    PREFIX,
+    documentId,
+    JSON.stringify({ documentId, at: new Date(now).toISOString(), released: true }),
+  );
 }
