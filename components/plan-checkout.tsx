@@ -2,24 +2,26 @@
 
 import {
   PLAN_CHANGE_PRICE_LINE,
-  PLAN_ENTRY_POINTS,
   PLAN_ENTRY_PRICE_LINE,
   PLAN_ENTRY_WITH_MEMBER_TOTAL,
-  PLAN_MEMBER_POINTS,
   PLAN_MEMBER_PRICE_LINE,
   PLAN_PACKAGE_ENTRY_TITLE,
   PLAN_PACKAGE_INTRO,
   PLAN_PACKAGE_MEMBER_TITLE,
   type PlanPackage,
+  type PlanPackageTexts,
 } from "@/lib/plan-copy";
 
 /** Zwei Pakete nebeneinander (Preismodell v2). Vorauswahl kommt vom Server. */
 export function PlanPackageSelect({
   value,
   onChange,
+  texts,
 }: {
   value: PlanPackage;
   onChange: (next: PlanPackage) => void;
+  /** Wortlaut Legal je Paket, vom Server (Löschsatz hängt an RETENTION_DELETE_ENABLED). */
+  texts: PlanPackageTexts;
 }) {
   return (
     <fieldset className="field">
@@ -38,11 +40,8 @@ export function PlanPackageSelect({
             <strong>{PLAN_PACKAGE_ENTRY_TITLE}</strong>
             <br />
             {PLAN_ENTRY_PRICE_LINE}
-            <ul>
-              {PLAN_ENTRY_POINTS.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
+            <br />
+            <small>Paket „{PLAN_PACKAGE_ENTRY_TITLE}“: {texts.entry}</small>
           </span>
         </label>
         <label className="card check">
@@ -57,11 +56,8 @@ export function PlanPackageSelect({
             <strong>{PLAN_PACKAGE_MEMBER_TITLE}</strong>
             <br />
             {PLAN_ENTRY_PRICE_LINE} + {PLAN_MEMBER_PRICE_LINE}
-            <ul>
-              {PLAN_MEMBER_POINTS.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
+            <br />
+            <small>Paket „{PLAN_PACKAGE_MEMBER_TITLE}“: {texts.member}</small>
           </span>
         </label>
       </div>

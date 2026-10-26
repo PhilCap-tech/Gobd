@@ -7,7 +7,7 @@ import {
   V2_ENTRY_LABEL,
   V2_MEMBER_YEAR_LABEL,
 } from "@/lib/pricing";
-import { TODO_GROWTH, TODO_LEGAL } from "@/lib/plan-copy";
+import { TODO_GROWTH } from "@/lib/plan-copy";
 import { isPricingV2 } from "@/lib/pricing-model";
 
 /**
@@ -25,8 +25,9 @@ export const RESULT_PROMISE =
 
 /** Basistext 15.10.2026. Beträge bleiben in pricing.ts. */
 export const LEGACY_START_PRICE_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
+/** v2: Wortlaut Legal (BUILDER-UEBERGABE 26.10., Abschnitt 4, Z. 13). */
 export const START_PRICE_LINE = V2
-  ? `${V2_ENTRY_LABEL} € einmalig, optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} €/Jahr, zzgl. USt. ${TODO_GROWTH}`
+  ? "Einstieg 99 € einmalig · optional Mitgliedschaft 99,90 €/Jahr (verlängert sich automatisch, kündbar bis 3 Monate vor Ablauf) · Änderung ohne Mitgliedschaft 49 € · alle Preise zzgl. 19 % USt."
   : LEGACY_START_PRICE_LINE;
 
 /** Checkout lead, branch-page close, and the fine print under paid CTAs. */
@@ -98,8 +99,9 @@ export const GELD_ZURUECK_HREF = "/faq#geld-zurueck";
 
 /** Short form for hero, sticky bar, and closing CTA. Details stay in the FAQ. */
 export const LEGACY_GELD_ZURUECK_MICRO = `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`;
+/** v2: Wortlaut Legal (Abschnitt 4, Z. 63). */
 export const GELD_ZURUECK_MICRO = V2
-  ? `14 Tage Geld zurück: volle Erstattung, solange noch kein PDF erzeugt wurde. ${TODO_LEGAL}`
+  ? "Volle Erstattung, solange Ihr PDF noch nicht erstellt ist – bis 14 Tage nach Kauf."
   : LEGACY_GELD_ZURUECK_MICRO;
 
 export const DISCLAIMER_ONCE =
@@ -112,7 +114,10 @@ export const ALL_AREAS_LINE =
 export const LEGACY_ALL_AREAS_DETAIL =
   "Ein Abo umfasst bis zu 5 Firmen. Darin enthalten ist das Gesamtdokument mit allen für den Betrieb relevanten Modulen (Unternehmen, Verkauf, Einkauf, Rechnungen, E-Rechnung, Papier, Zahlungsverkehr, Kasse, Buchführung, Warenwirtschaft, Anlagen, Personal, Onlineshop, Branche, Archiv, Fristen, Systeme, Rechte, Sicherung, Kontrollen, Auslagerung, Prüfungszugriff, Änderungen, Pflege). Module, die es bei Ihnen nicht gibt, werden als „nicht vorhanden“ begründet; vorhandene Bereiche werden nicht stillschweigend ausgelassen.";
 export const ALL_AREAS_DETAIL = V2
-  ? LEGACY_ALL_AREAS_DETAIL.replace("Ein Abo umfasst bis zu 5 Firmen. ", "")
+  ? LEGACY_ALL_AREAS_DETAIL.replace(
+      "Ein Abo umfasst bis zu 5 Firmen. Darin enthalten ist",
+      "Jedes Paket gilt für 1 Firma; weitere Firmen können Sie dazubuchen. Je Firma enthalten ist",
+    )
   : LEGACY_ALL_AREAS_DETAIL;
 
 /** Alias for pages that still say Bereiche. */

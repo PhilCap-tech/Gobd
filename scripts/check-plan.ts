@@ -35,6 +35,7 @@ async function main() {
   const offer = await import("@/lib/offer-copy");
   const pricing = await import("@/lib/pricing");
   const tracking = await import("@/lib/tracking");
+  const planCopy = await import("@/lib/plan-copy");
 
   const row = (patch: Partial<import("@/lib/plan").PlanRow> = {}) => ({
     ...plan.emptyPlanRow("kunde@example.com", "2026-11-02T10:00:00.000Z"),
@@ -82,11 +83,51 @@ async function main() {
   });
   await check("Rechtstexte: legacy behält Text, Marker fallen weg", () => {
     const src = "A <!-- if:legacy -->für bis zu fünf Firmen je Abo; <!-- endif -->B<!-- if:v2 -->V2<!-- endif --><!-- if:retention-delete -->L<!-- endif -->";
-    assert.equal(legal.applyLegalConditions(src, { v2: false, legacy: true, "retention-delete": false }), "A für bis zu fünf Firmen je Abo; B");
-    assert.equal(legal.applyLegalConditions(src, { v2: true, legacy: false, "retention-delete": false }), "A BV2");
-    assert.equal(legal.applyLegalConditions(src, { v2: true, legacy: false, "retention-delete": true }), "A BV2L");
+    assert.equal(legal.applyLegalConditions(src, legal.legalFlagsFor(false, false)), "A für bis zu fünf Firmen je Abo; B");
+    assert.equal(legal.applyLegalConditions(src, legal.legalFlagsFor(true, false)), "A BV2");
+    assert.equal(legal.applyLegalConditions(src, legal.legalFlagsFor(true, true)), "A BV2L");
     assert.match(legal.produktDisclaimerMarkdown, /für bis zu fünf Firmen je Abo; 24 Module/);
     assert.doesNotMatch(legal.agbMarkdown, /TODO-LEGAL|<!-- if:/);
+  });
+
+  await check("Rechtstexte v2 (Legal 26.10.): Wortlaut, Löschtexte nur mit Lösch-Lauf, legacy unverändert", async () => {
+    const { readFileSync } = await import("node:fs");
+    const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    const render = (file: string, v2: boolean, del: boolean) => legal.applyLegalConditions(read(file), legal.legalFlagsFor(v2, del));
+    const deletionPromise = /(30|dreißig) (Tage|Tagen) und 7 Tage (vor der Löschung|vorher)|30 und 7 Tage vorher|löschen wir/;
+    for (const file of ["content/legal/agb-v2.md", "content/faq-v2.md"]) {
+      const on = render(file, true, true);
+      const off = render(file, true, false);
+      assert.doesNotMatch(on, /<!--|TODO-LEGAL/, `${file}: mit Lösch-Lauf vollständiger Wortlaut`);
+      assert.doesNotMatch(off, /<!--/, `${file}: keine Marker`);
+      assert.match(off, /\[TODO-LEGAL\]/, `${file}: Platzhalter ohne Lösch-Lauf`);
+      // § 15 (Monatsabo, DS24/Bestand) bleibt wie bisher und ist nicht Teil der Schaltung.
+      for (const line of off.split("## § 15")[0].split("\n")) {
+        if (/§ 15|Monatsabo|Digistore24|DS24/.test(line)) continue;
+        assert.doesNotMatch(line, deletionPromise, `${file}: Löschzusage ohne Lösch-Lauf: ${line.slice(0, 80)}`);
+      }
+    }
+    const dseLegacy = render("content/legal/datenschutz.md", false, true);
+    assert.doesNotMatch(dseLegacy, /<!--|30\.10\.2026|Speicherdauer Ihrer Dokumentationsdaten/);
+    assert.match(dseLegacy, /\*\*Stand:\*\* 26\.10\.2026/);
+    assert.match(dseLegacy, /Nach Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen; danach löschen wir sie/);
+    const dseOn = render("content/legal/datenschutz.md", true, true);
+    const dseOff = render("content/legal/datenschutz.md", true, false);
+    assert.match(dseOn, /\*\*Speicherdauer Ihrer Dokumentationsdaten\.\*\*/);
+    assert.match(dseOn, /\*\*Stand:\*\* 30\.10\.2026/);
+    assert.doesNotMatch(dseOff, /Speicherdauer Ihrer Dokumentationsdaten\.\*\*/);
+    assert.match(dseOff, /\[TODO-LEGAL\]/);
+    assert.match(render("content/legal/produkt-disclaimer.md", true, false), /Lohn\) je Firma; 24 Module, alle inklusive\./);
+    const texts = planCopy.planPackageTexts(false);
+    assert.doesNotMatch(`${texts.entry} ${texts.member}`, /löschen wir/);
+    assert.match(planCopy.planPackageTexts(true).member, /^beim Kauf 198,90 € netto \(236,69 € brutto\)/);
+    assert.ok(planCopy.planPackageTexts(true).member.includes(`${pricing.netWithGrossCents(9990)} pro Jahr`));
+    assert.ok(planCopy.planPackageTexts(true).entry.startsWith(`${pricing.netWithGrossCents(9900)} einmalig`));
+    const { headingId } = await import("@/lib/legal-markdown");
+    const ids = render("content/faq-v2.md", true, true).split("\n").filter((l) => l.startsWith("## ")).map((l) => headingId(l.slice(3).trim())).filter(Boolean);
+    assert.deepEqual(ids, ["geld-zurueck", "mitgliedschaft", "loeschung", "aufbewahrung", "kuendigung", "mehrere-firmen"]);
+    const legacyIds = read("content/faq.md").split("\n").filter((l) => l.startsWith("## ")).map((l) => headingId(l.slice(3).trim())).filter(Boolean);
+    assert.deepEqual(legacyIds, ["geld-zurueck"]);
   });
 
   /* ---------- Preise ---------- */

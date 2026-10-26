@@ -15,6 +15,7 @@ import {
   PLAN_TERMS_LABEL_BEFORE,
   PLAN_TERMS_LINK,
   type PlanPackage,
+  type PlanPackageTexts,
 } from "@/lib/plan-copy";
 import {
   MONTHLY_EUR,
@@ -38,7 +39,7 @@ type CheckoutFormProps = {
   /** False when the firm-6+ note already explains coverage. */
   showIncludedFirmNote?: boolean;
   /** Preismodell v2 (PRICING_MODEL=v2): Paketwahl und AGB-Bestätigung. */
-  planOffer?: { initialPackage: PlanPackage };
+  planOffer?: { initialPackage: PlanPackage; packageTexts: PlanPackageTexts };
 };
 
 export function CheckoutForm({
@@ -163,7 +164,7 @@ export function CheckoutForm({
         {planOffer ? (
           <>
             <p className="hint">{PLAN_B2B_NOTICE}</p>
-            <PlanPackageSelect value={paket} onChange={setPaket} />
+            <PlanPackageSelect value={paket} onChange={setPaket} texts={planOffer.packageTexts} />
           </>
         ) : null}
         <h2>Rechnungsdaten</h2>

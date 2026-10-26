@@ -21,8 +21,17 @@ import { SITE_ORIGIN, canonicalUrl } from "@/lib/seo";
 
 const FAQ_GUARANTEE = "6. 14 Tage Geld zurück: Garantie und Rückgaberecht";
 const AGB_NO_WITHDRAWAL = "§ 8 Kein Widerrufsrecht (B2B)";
-const AGB_GUARANTEE = "§ 9 Zufriedenheitsgarantie";
-const AGB_TERM = "§ 12 Laufzeit, Verlängerung und Kündigung";
+const V2 = isPricingV2();
+const AGB_GUARANTEE = V2 ? "§ 9 Erstattung vor dem ersten PDF" : "§ 9 Zufriedenheitsgarantie";
+const AGB_TERM = V2 ? "§ 12 Mitgliedschaft: Inhalt, Laufzeit und Kündigung" : "§ 12 Laufzeit, Verlängerung und Kündigung";
+/** Preismodell v2: neue FAQ-Abschnitte (Legal 26.10.) im Wortlaut. */
+const FAQ_V2_SECTIONS = [
+  "7. Was bietet die Mitgliedschaft?",
+  "8. Was passiert ohne Mitgliedschaft?",
+  "9. Ihr PDF und die Aufbewahrung",
+  "10. Wie kündige ich die Mitgliedschaft?",
+  "11. Ich habe mehrere Firmen – was kostet das?",
+] as const;
 
 const DELIVERY_NEEDLE = "innerhalb weniger Minuten";
 const B2B_NEEDLE = "ausschließlich an Unternehmer";
@@ -67,7 +76,7 @@ export function buildLlmsTxt(): string {
     "",
     "## Preis",
     "",
-    ...(isPricingV2()
+    ...(V2
       ? [
           `Einstieg: ${netWithGrossCents(V2_ENTRY_CENTS)}, einmalig.`,
           `Optional Jahresmitgliedschaft: ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr.`,
@@ -130,6 +139,7 @@ export function buildLlmsTxt(): string {
       markdownH2Section(agbMarkdown, AGB_GUARANTEE),
     ),
     ...quote(`AGB ${AGB_TERM}`, markdownH2Section(agbMarkdown, AGB_TERM)),
+    ...(V2 ? FAQ_V2_SECTIONS.flatMap((title) => quote(`FAQ: ${title}`, markdownH2Section(faq, title))) : []),
     `Kontakt: ${LEGAL_OPERATOR.email}`,
     "",
   ];

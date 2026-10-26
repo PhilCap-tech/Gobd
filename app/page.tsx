@@ -44,11 +44,18 @@ import {
   V2_MEMBER_YEAR_LABEL,
   netWithGrossCents,
 } from "@/lib/pricing";
-import { PLAN_B2B_NOTICE } from "@/lib/plan-copy";
-import { isPricingV2 } from "@/lib/pricing-model";
+import {
+  PLAN_B2B_NOTICE,
+  PLAN_PACKAGE_ENTRY_TITLE,
+  PLAN_PACKAGE_MEMBER_TITLE,
+  planPackageTexts,
+} from "@/lib/plan-copy";
+import { isPricingV2, retentionDeleteEnabled } from "@/lib/pricing-model";
 
 /** Preismodell v2 (PRICING_MODEL=v2). Ohne Variable bleibt die Seite wie bisher. */
 const V2 = isPricingV2();
+/** Wortlaut Legal je Paket (Preisseite). */
+const V2_PACKAGE_TEXTS = planPackageTexts(retentionDeleteEnabled());
 const V2_HEADLINE = `${V2_ENTRY_LABEL} € einmalig · Jahresmitgliedschaft optional ${V2_MEMBER_YEAR_LABEL} €/Jahr`;
 import { HOME_CRUMBS, HOME_FAQ } from "@/lib/home-faq";
 import { faqPageJsonLd, productOfferJsonLd } from "@/lib/jsonld";
@@ -501,6 +508,12 @@ export default function HomePage() {
                   </tr>
                 </tbody>
               </table>
+              <p>
+                Paket „{PLAN_PACKAGE_MEMBER_TITLE}“: {V2_PACKAGE_TEXTS.member}
+              </p>
+              <p>
+                Paket „{PLAN_PACKAGE_ENTRY_TITLE}“: {V2_PACKAGE_TEXTS.entry}
+              </p>
                 </>
               ) : (
                 <>

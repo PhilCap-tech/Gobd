@@ -205,8 +205,19 @@ function renderMixedBlock(block: string, key: string): ReactNode[] {
 }
 
 /** Anchor for the live FAQ refund section. No separate policy page. */
-function headingId(text: string): string | undefined {
+export const FAQ_V2_ANCHORS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^7\. Was bietet die Mitgliedschaft\?$/, "mitgliedschaft"],
+  [/^8\. Was passiert ohne Mitgliedschaft\?$/, "loeschung"],
+  [/^9\. Ihr PDF und die Aufbewahrung$/, "aufbewahrung"],
+  [/^10\. Wie kündige ich die Mitgliedschaft\?$/, "kuendigung"],
+  [/^11\. Ich habe mehrere Firmen – was kostet das\?$/, "mehrere-firmen"],
+];
+
+export function headingId(text: string): string | undefined {
   if (/geld[- ]zurück|zufriedenheitsgarantie/i.test(text)) return "geld-zurueck";
+  // FAQ Preismodell v2 (Legal 26.10.): feste Anker für Verweise aus Konto, Checkout und Mails.
+  const faqAnchor = FAQ_V2_ANCHORS.find(([pattern]) => pattern.test(text));
+  if (faqAnchor) return faqAnchor[1];
   return undefined;
 }
 

@@ -26,11 +26,12 @@ import {
   SETUP_EUR,
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
-import { isPricingV2, memberPreselected } from "@/lib/pricing-model";
+import { isPricingV2, memberPreselected, retentionDeleteEnabled } from "@/lib/pricing-model";
 import { memberFromPackage } from "@/lib/plan-checkout";
 import {
   PLAN_ENTRY_PRICE_LINE,
   PLAN_MEMBER_PRICE_LINE,
+  planPackageTexts,
 } from "@/lib/plan-copy";
 import { CheckoutForm } from "./checkout-form";
 
@@ -137,7 +138,12 @@ export default async function CheckoutPage({
           audience={partner ? "steuerberater" : "kunde"}
           showIncludedFirmNote={!extraFirmNote}
           {...(v2
-            ? { planOffer: { initialPackage: initialMember ? ("mitglied" as const) : ("einstieg" as const) } }
+            ? {
+                planOffer: {
+                  initialPackage: initialMember ? ("mitglied" as const) : ("einstieg" as const),
+                  packageTexts: planPackageTexts(retentionDeleteEnabled()),
+                },
+              }
             : {})}
         />
       </main>

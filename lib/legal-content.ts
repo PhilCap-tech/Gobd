@@ -6,14 +6,33 @@ import { isPricingV2, retentionDeleteEnabled } from "@/lib/pricing-model";
 
 /**
  * Bedingte Abschnitte (Preismodell v2): `<!-- if:NAME -->…<!-- endif -->`.
- * NAME: `v2`, `legacy`, `retention-delete` (RETENTION_DELETE_ENABLED).
+ * NAME: `v2`, `legacy`, `retention-delete` (RETENTION_DELETE_ENABLED),
+ * `retention-delete-off`, `v2-retention-delete`, `v2-retention-delete-off`.
+ * Nicht verschachteln: jeder Block steht für sich.
  * Ohne Schalter bleibt der bisherige Text wörtlich (nur die Marker fallen weg).
  */
-export type LegalFlags = { v2: boolean; legacy: boolean; "retention-delete": boolean };
+export type LegalFlags = {
+  v2: boolean;
+  legacy: boolean;
+  "retention-delete": boolean;
+  "retention-delete-off": boolean;
+  "v2-retention-delete": boolean;
+  "v2-retention-delete-off": boolean;
+};
+
+export function legalFlagsFor(v2: boolean, retentionDelete: boolean): LegalFlags {
+  return {
+    v2,
+    legacy: !v2,
+    "retention-delete": retentionDelete,
+    "retention-delete-off": !retentionDelete,
+    "v2-retention-delete": v2 && retentionDelete,
+    "v2-retention-delete-off": v2 && !retentionDelete,
+  };
+}
 
 export function legalFlags(): LegalFlags {
-  const v2 = isPricingV2();
-  return { v2, legacy: !v2, "retention-delete": retentionDeleteEnabled() };
+  return legalFlagsFor(isPricingV2(), retentionDeleteEnabled());
 }
 
 export function applyLegalConditions(markdown: string, flags: LegalFlags): string {
@@ -24,15 +43,20 @@ export function applyLegalConditions(markdown: string, flags: LegalFlags): strin
   );
 }
 
-function readLegal(filename: string): string {
+export function readContentWithConditions(...segments: string[]): string {
   return applyLegalConditions(
-    readFileSync(path.join(process.cwd(), "content", "legal", filename), "utf8"),
+    readFileSync(path.join(process.cwd(), "content", ...segments), "utf8"),
     legalFlags(),
   );
 }
 
+function readLegal(filename: string): string {
+  return readContentWithConditions("legal", filename);
+}
+
 export const impressumMarkdown = readLegal("impressum.md");
 export const datenschutzMarkdown = readLegal("datenschutz.md");
-export const agbMarkdown = readLegal("agb.md");
+/** Preismodell v2: AGB-Fassung von Legal (26.10., Stand 30.10.2026) als eigene Datei; die bisherige bleibt wörtlich. */
+export const agbMarkdown = readLegal(isPricingV2() ? "agb-v2.md" : "agb.md");
 export const cookiesMarkdown = readLegal("cookies.md");
 export const produktDisclaimerMarkdown = readLegal("produkt-disclaimer.md");

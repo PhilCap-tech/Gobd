@@ -151,13 +151,6 @@ Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vo
 (3) Das Recht beider Parteien zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt.
 
 (4) Während der Vertragslaufzeit stehen dem Kunden Zugang zu früheren Fassungen und spätere Anpassungen der Dokumentation zur Verfügung. Nach Vertragsende kann der Kunde bereits erzeugte PDFs noch 30 Tage herunterladen. **Das gilt nicht, wenn der Vertrag durch eine Rückgabe nach § 9a Abs. 9 endet; dann sperren wir den Zugang mit der Rückgabe.** Danach löschen wir die gespeicherten Daten und Dokumente, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ohne aktives Abonnement bleibt die gelieferte Fassung auf dem Stand zum Zeitpunkt der Erstellung.
-<!-- if:v2 -->
-
-**[TODO-LEGAL]** Preismodell v2: Einstiegspaket, Jahresmitgliedschaft, Änderung, weitere Firmen, Geld zurück (§ 4, § 9, § 12, § 12c) — Wortlaut nach Freigabe aus legal/agb-diff.md.
-<!-- endif --><!-- if:retention-delete -->
-
-**[TODO-LEGAL]** Vorhaltefrist und Löschung (§ 12 Abs. 5, § 12a) — Wortlaut nach Freigabe aus legal/agb-diff.md.
-<!-- endif -->
 
 ## § 13 Datenschutz
 

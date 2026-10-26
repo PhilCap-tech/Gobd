@@ -30,28 +30,39 @@ export const PLAN_COPY_DRAFT = true;
 export type PlanPackage = "einstieg" | "mitglied";
 
 export const PLAN_PACKAGE_ENTRY_TITLE = "Einstieg";
-export const PLAN_PACKAGE_MEMBER_TITLE = "Einstieg + Jahresmitgliedschaft";
+export const PLAN_PACKAGE_MEMBER_TITLE = "Einstieg mit Mitgliedschaft";
 
 export const PLAN_ENTRY_PRICE_LINE = `${V2_ENTRY_LABEL} € netto (${V2_ENTRY_GROSS_LABEL} € brutto) einmalig`;
 export const PLAN_MEMBER_PRICE_LINE = `${V2_MEMBER_YEAR_LABEL} € netto (${V2_MEMBER_YEAR_GROSS_LABEL} € brutto) pro Jahr`;
 export const PLAN_CHANGE_PRICE_LINE = `${V2_CHANGE_LABEL} € netto (${V2_CHANGE_GROSS_LABEL} € brutto) je Änderung`;
 export const PLAN_ENTRY_WITH_MEMBER_TOTAL = `${centsLabel(V2_ENTRY_WITH_MEMBER_CENTS)} € netto (${centsLabel(grossFromNetCents(V2_ENTRY_WITH_MEMBER_CENTS), { forceDecimals: true })} € brutto)`;
 
-/** Unterschiede je Paket, sachlich (entschieden). Werbetext folgt. */
-export const PLAN_ENTRY_POINTS = [
-  "Verfahrensdokumentation als PDF, bis zu 5 Firmen, alle 24 Module",
-  "Dokumentation 12 Monate ab Kauf bei uns gespeichert",
-  `Änderung in dieser Frist: ${V2_CHANGE_LABEL} € netto, verlängert die Frist um 12 Monate ab Zahlung`,
-  "Danach Löschung bei uns; Ihr PDF behalten Sie",
-] as const;
+/**
+ * Text je Paket, Wortlaut Legal (BUILDER-UEBERGABE 26.10., Abschnitt 4
+ * „Checkout und Preisseite – Text je Paket“). Der Löschsatz erscheint nur mit
+ * RETENTION_DELETE_ENABLED (Builder-Hinweis 5); sonst steht dort [TODO-LEGAL].
+ */
+const PLAN_MEMBER_TEXT_BEFORE =
+  "beim Kauf 198,90 € netto (236,69 € brutto) = 99 € Einstieg + 99,90 € erstes Mitgliedschaftsjahr, danach 99,90 € netto (118,88 € brutto) pro Jahr. Laufzeit 12 Monate ab Kauftag, verlängert sich automatisch um 12 Monate, wenn Sie nicht spätestens 3 Monate vor Ablauf kündigen. Alle Änderungen inklusive.";
+const PLAN_MEMBER_TEXT_DELETE =
+  "Nach einer Kündigung löschen wir Ihre Dokumentation mit Ablauf der Mitgliedschaft, nach Vorab-Hinweis 30 und 7 Tage vorher.";
+const PLAN_MEMBER_TEXT_AFTER =
+  "Gilt für 1 Firma; 2. Firma ohne Aufpreis, ab der 3. je 49 € netto (58,31 € brutto) pro Jahr, ohne anteilige Berechnung.";
+const PLAN_ENTRY_TEXT_BEFORE =
+  "99 € netto (117,81 € brutto) einmalig. Ihre Dokumentation wird 12 Monate ab Kauftag vorgehalten; Änderungen in dieser Zeit je 49 € netto (58,31 € brutto), jede bezahlte Änderung verlängert die Vorhaltung auf 12 Monate ab Zahlung.";
+const PLAN_ENTRY_TEXT_DELETE = "Danach löschen wir sie nach Vorab-Hinweis (30 und 7 Tage vorher).";
+const PLAN_ENTRY_TEXT_AFTER =
+  "Ihr PDF behalten Sie. Gilt für 1 Firma; jede weitere Firma 99 € netto (117,81 € brutto) mit eigener 12-Monatsfrist ab Zahlung.";
 
-export const PLAN_MEMBER_POINTS = [
-  "Verfahrensdokumentation als PDF, bis zu 5 Firmen, alle 24 Module",
-  "Dokumentation wird bei uns geführt und versioniert",
-  "Alle Änderungen inklusive",
-  "Verlängert sich jährlich; Kündigung bis 3 Monate vor Ablauf im Konto oder schriftlich",
-  "Nach Ende der Mitgliedschaft Löschung bei uns; Ihr PDF behalten Sie",
-] as const;
+export type PlanPackageTexts = { entry: string; member: string };
+
+export function planPackageTexts(retentionDelete: boolean): PlanPackageTexts {
+  const del = (text: string) => (retentionDelete ? text : TODO_LEGAL);
+  return {
+    member: `${PLAN_MEMBER_TEXT_BEFORE} ${del(PLAN_MEMBER_TEXT_DELETE)} ${PLAN_MEMBER_TEXT_AFTER}`,
+    entry: `${PLAN_ENTRY_TEXT_BEFORE} ${del(PLAN_ENTRY_TEXT_DELETE)} ${PLAN_ENTRY_TEXT_AFTER}`,
+  };
+}
 
 /** Growth-Wortlaut 26.10. (exakt): Preisseite und Paketwahl. */
 export const PLAN_B2B_NOTICE = "Nur für Unternehmen · alle Preise zzgl. 19 % USt";

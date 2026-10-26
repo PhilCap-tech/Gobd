@@ -25,6 +25,7 @@ const forbidden =
 const patterns = [
   "content/legal/**/*.{md,mdx}",
   "content/faq.md",
+  "content/faq-v2.md",
   "lib/legal-content.ts",
   "lib/legal-markdown.tsx",
   "lib/offer-copy.ts",

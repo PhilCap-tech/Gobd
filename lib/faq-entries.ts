@@ -1,14 +1,15 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { readContentWithConditions } from "@/lib/legal-content";
 import { markdownToPlain } from "@/lib/markdown-section";
+import { isPricingV2 } from "@/lib/pricing-model";
 
 export type FaqEntry = {
   question: string;
   answer: string;
 };
 
+/** Preismodell v2: FAQ-Fassung von Legal (`content/faq-v2.md`); Löschtexte nur mit RETENTION_DELETE_ENABLED. */
 export function readFaqMarkdown(): string {
-  return readFileSync(path.join(process.cwd(), "content", "faq.md"), "utf8");
+  return readContentWithConditions(isPricingV2() ? "faq-v2.md" : "faq.md");
 }
 
 /** H2 sections of `content/faq.md`, heading text included as written. */

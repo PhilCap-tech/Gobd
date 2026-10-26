@@ -97,6 +97,7 @@ const rawFiles = [
   ...walk("app").filter((file) => file.endsWith(".ts") || file.endsWith(".tsx")),
   ...walk("components").filter((file) => file.endsWith(".ts") || file.endsWith(".tsx")),
   "content/faq.md",
+  "content/faq-v2.md",
   "lib/ops.ts",
   "lib/lead-magnet.ts",
   "lib/lead-magnet-inhalt.ts",

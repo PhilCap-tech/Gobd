@@ -14,6 +14,7 @@ const COVERED = [
   "app/**/*.{ts,tsx}",
   "components/**/*.{ts,tsx}",
   "content/faq.md",
+  "content/faq-v2.md",
   "content/legal/**/*.md",
   "content/blog/**/*.md",
   "content/readiness/**/*.md",
