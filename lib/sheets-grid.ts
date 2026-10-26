@@ -75,8 +75,11 @@ export async function readCachedGrid(input: {
   valuesCache: Cache<string[][]>;
   materializeHeader?: (header: string[]) => Promise<string[]>;
   reuseValues?: boolean;
+  /** Skip the values snapshot for this read, then store the new one. */
+  refreshValues?: boolean;
 }): Promise<GridSnapshot> {
-  const key = [input.tab, input.op, input.headerRange, input.valuesRange, input.reuseValues === false ? "fresh" : "cached"].join("\n");
+  const mode = input.reuseValues === false ? "fresh" : input.refreshValues ? "refresh" : "cached";
+  const key = [input.tab, input.op, input.headerRange, input.valuesRange, mode].join("\n");
   const current = inflightGrids.get(key);
   if (current) return current;
   const run = loadCachedGrid(input).finally(() => {
@@ -95,10 +98,11 @@ async function loadCachedGrid(input: {
   valuesCache: Cache<string[][]>;
   materializeHeader?: (header: string[]) => Promise<string[]>;
   reuseValues?: boolean;
+  refreshValues?: boolean;
 }): Promise<GridSnapshot> {
   const reuseValues = input.reuseValues !== false;
   const cachedHeader = usableHeader(input.headerCache.peek());
-  const cachedValues = reuseValues ? input.valuesCache.peek() : null;
+  const cachedValues = reuseValues && !input.refreshValues ? input.valuesCache.peek() : null;
   if (cachedHeader && cachedValues) {
     return { header: cachedHeader, values: cachedValues };
   }
