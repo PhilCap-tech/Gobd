@@ -48,7 +48,8 @@ import { devCheckoutStubAllowed, isStubCheckoutSessionId } from "@/lib/checkout-
 import { getAppUrl } from "@/lib/env";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import { reopenIfActiveCheckout } from "@/lib/kuendigung-stripe";
-import { deliverLoginLink } from "@/lib/login-mail";
+import { deliverLoginLinkReportingDuplicate } from "@/lib/login-mail";
+import type { SubmitLoginMail } from "@/lib/login-mail-shared";
 import { normalizeIntakeAnswers } from "@/lib/intake-present";
 import { sendDeliveryMail } from "@/lib/ops";
 import { isTestEntity } from "@/lib/test-entities";
@@ -196,7 +197,7 @@ export type IntakeIo = {
   generatePdf: typeof generatePdf;
   storePdf: typeof storePdf;
   sendDeliveryMail: typeof sendDeliveryMail;
-  deliverLoginLink: typeof deliverLoginLink;
+  deliverLoginLink: typeof deliverLoginLinkReportingDuplicate;
   /** Optional for existing test doubles. Production wires lib/owner-notice. */
   queueOwnerNotice?: (input: OwnerNoticeInput) => void;
   claimSubmit?: typeof claimIntakeSubmit;
@@ -222,7 +223,7 @@ const defaultIntakeIo: IntakeIo = {
   generatePdf,
   storePdf,
   sendDeliveryMail,
-  deliverLoginLink,
+  deliverLoginLink: deliverLoginLinkReportingDuplicate,
   queueOwnerNotice,
   claimSubmit: claimIntakeSubmit,
   readSubmitPlan,
@@ -790,6 +791,13 @@ async function writeIntake(
       documentId,
       version,
       sendLoginLink: true,
+      // Every stored submit has the owner's session. The first delivery after
+      // a checkout (session from the checkout grant) and DS24 keep the link;
+      // a later submit by the signed-in owner (revision, area, firm) does not.
+      ownerLoggedIn:
+        !plan.firstDelivery &&
+        resolved.ds24Access !== true &&
+        Boolean(sessionEmail && identity.email && emailsEqual(sessionEmail, identity.email)),
       formId: body.formId,
       draftKey: closeDraftKey,
     });
@@ -859,9 +867,11 @@ async function afterCommit(input: {
   documentId: string;
   version: number;
   sendLoginLink: boolean;
+  /** Signed in as the owner: the delivery mail goes out, a login link does not. */
+  ownerLoggedIn?: boolean;
   formId?: string;
   draftKey?: string;
-}): Promise<"sent" | "stub" | "failed" | "skipped"> {
+}): Promise<SubmitLoginMail> {
   const { io, plan, identity, documentId, version } = input;
   const formId = normalizeFormId(input.formId);
   const draftKey = input.draftKey?.trim() ?? "";
@@ -911,6 +921,7 @@ async function afterCommit(input: {
     console.error("[intake] delivery mail fehlgeschlagen", error);
   }
   if (!input.sendLoginLink) return "skipped";
+  if (input.ownerLoggedIn) return "loggedIn";
   if (!identity.email) return "failed";
   try {
     return await io.deliverLoginLink(identity.email, "/account");
