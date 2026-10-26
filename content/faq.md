@@ -62,7 +62,7 @@ Ergänzend gelten AGB und Datenschutzerklärung.
 
 Schreiben Sie uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Rechnung oder technischen Problemen (Checkout, Download, Login) ebenfalls an dieselbe Adresse — wir kümmern uns darum.
 
-Rechnungsfragen richten Sie bitte an Digistore24 (support@digistore24.com).
+Haben Sie über unsere Partnerseite bei Digistore24 bestellt, richten Sie Rechnungsfragen bitte an Digistore24 (support@digistore24.com). Bei Bestellungen über unsere Website erreichen Sie uns für Rechnungsfragen unter der oben genannten Adresse.
 
 ## 6. 14 Tage Zufriedenheitsgarantie
 
