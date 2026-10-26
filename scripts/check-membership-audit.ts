@@ -573,7 +573,13 @@ async function auditSheetCases(): Promise<void> {
     console.error = (...args: unknown[]) => {
       logged.push(args.map((item) => (typeof item === "string" ? item : JSON.stringify(item))).join(" "));
     };
-    installSheetsHandler(async () => {
+    installSheetsHandler(async ({ args }) => {
+      // Only the audit sheet fails. The subscription check reads fine (empty):
+      // without a successful check no write would happen at all (fail closed).
+      const ranges = [typeof args.range === "string" ? args.range : "", ...(Array.isArray(args.ranges) ? (args.ranges as string[]) : [])];
+      if (ranges.some((range) => range.startsWith("subscription_lifecycle!"))) {
+        return { data: { values: [], valueRanges: ranges.map(() => ({ values: [] })) } };
+      }
       throw new Error("audit sheet timeout");
     });
     try {

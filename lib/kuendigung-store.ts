@@ -8,6 +8,7 @@ import {
   createTtlSingleflight,
   INTAKE_READ_TTL_MS,
   SHEETS_HEADER_TTL_MS,
+  sheetsStatusCode,
 } from "@/lib/sheets-outage";
 import {
   emptyLifecycleRow,
@@ -307,10 +308,31 @@ export async function listLifecycleRows(): Promise<LifecycleRow[]> {
     try {
       return mergeRows(await readSheetRows(), await readAllFiles());
     } catch (error) {
-      console.error("[kuendigung] Sheet lesen fehlgeschlagen — Datei", error);
+      console.error(
+        "[kuendigung] Sheet lesen fehlgeschlagen — Datei",
+        JSON.stringify({
+          error: error instanceof Error ? error.name || "Error" : typeof error,
+          status: sheetsStatusCode(error),
+        }),
+      );
     }
   }
   return readAllFiles();
+}
+
+/**
+ * Access check: rows for this mailbox, or an error. Unlike listLifecycleRows
+ * a failed Sheets read (after retrySheetsCall's short backoff) is not
+ * replaced by the local file, which on Vercel is empty and would read as
+ * "no cancellation".
+ */
+export async function listLifecycleByEmailStrict(email: string): Promise<LifecycleRow[]> {
+  const needle = email.trim().toLowerCase();
+  if (!needle) return [];
+  const rows = isSheetsConfigured()
+    ? mergeRows(await readSheetRows(), await readAllFiles())
+    : await readAllFiles();
+  return rows.filter((row) => emailsEqual(row.email, needle));
 }
 
 export async function listLifecycleByEmail(email: string): Promise<LifecycleRow[]> {
