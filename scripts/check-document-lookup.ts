@@ -12,7 +12,9 @@ import { sessionOwnerDenial } from "../lib/checkout-access";
 import { accountCompanyCards } from "../lib/account-hub";
 import { pickStoredDocument } from "../lib/documents";
 import { emptyEntity } from "../lib/entities";
-import { documentsOwnedByEmail, intakeValuesRange } from "../lib/store";
+import { documentsOwnedByEmail, intakeValuesRange, successRowFromRows } from "../lib/store";
+import { parseDocumentVersion } from "../lib/documents";
+import { versionLabelFromRow } from "../lib/versioning";
 import {
   SHEET_COLUMNS,
   emailsEqual,
@@ -202,5 +204,46 @@ ok(
 const store = readFileSync("lib/store.ts", "utf8");
 ok(store.includes("intakeColumnCount"), "intake reads ask the sheet for its column count");
 ok(!store.includes("getSheetsTab()}!A2:AZ"), "intake values are not requested as A2:AZ");
+
+// Tester r270: nach „Neue Version erzeugen“ zeigte /success?document_id=<v2>
+// „Version 1.0“. Der Zeilen-Snapshot dieser Instanz kannte v2 noch nicht, und
+// die Session-Rückfallsuche lieferte v1 derselben Checkout-Session.
+{
+  const SESSION = "cs_test_r270_version";
+  const V1 = "4ac80f73-934d-420a-8e3d-a14ced68c193";
+  const V2 = "04f440ec-d6a4-4308-9dda-1c9527f83923";
+  const base = { ...emptySheetRow(), email: EMAIL, stripeSessionId: SESSION, status: "intake_submitted", deliveryStatus: "ready" };
+  const v1: SheetRow = { ...base, documentId: V1, parentDocumentId: V1, pdfUrl: `gobd/${V1}/v1.pdf`, version: "1", timestamp: "2026-10-26T08:40:00Z" };
+  const v2: SheetRow = { ...base, documentId: V2, parentDocumentId: V1, pdfUrl: `gobd/${V1}/v2.pdf`, version: "2", timestamp: "2026-10-26T08:50:24Z" };
+  const stale = [v1];
+  const fresh = [v1, v2];
+  ok(
+    successRowFromRows(stale, { documentId: V2, sessionId: SESSION, sessionFallback: false }) === null,
+    "a stale snapshot without the requested version does not fall back to the older session row",
+  );
+  const shown = successRowFromRows(fresh, { documentId: V2, sessionId: SESSION, sessionFallback: false });
+  ok(shown?.documentId === V2, "the fresh read finds the requested new version");
+  ok(
+    shown !== null && versionLabelFromRow({ version: String(parseDocumentVersion(shown)) }) === "2.0",
+    "the success page label matches the mail version 2",
+  );
+  ok(
+    successRowFromRows(fresh, { documentId: V1, sessionId: SESSION, sessionFallback: true })?.documentId === V1,
+    "an explicit document_id of an older version still shows that version",
+  );
+  ok(
+    successRowFromRows(stale, { documentId: V2, sessionId: SESSION, sessionFallback: true })?.documentId === V1,
+    "only the last attempt falls back to the session row",
+  );
+  ok(
+    successRowFromRows(fresh, { documentId: "", sessionId: SESSION, sessionFallback: false })?.documentId === V2,
+    "without document_id the session shows its latest version",
+  );
+  ok(store.includes("sessionFallback: last"), "findSuccessDocument falls back to the session only on the last attempt");
+  ok(
+    /listDocumentFamily[\s\S]*?family\.length > 0 \|\| backend !== "sheets"[\s\S]*?fresh: true/.test(store),
+    "the version history re-reads fresh when the snapshot lacks the document",
+  );
+}
 
 console.log("document lookup checks passed");

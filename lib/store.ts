@@ -720,8 +720,12 @@ export async function listDocumentsByEmail(email: string): Promise<SheetRow[]> {
 
 export async function listDocumentFamily(documentId: string): Promise<SheetRow[]> {
   if (!documentId) return [];
-  const { rows } = await loadRows();
-  return rowsInFamily(rows, documentId);
+  const { backend, rows } = await loadRows();
+  const family = rowsInFamily(rows, documentId);
+  if (family.length > 0 || backend !== "sheets") return family;
+  // A new version written on another instance is not in this snapshot yet.
+  const fresh = await loadRows(undefined, { fresh: true });
+  return rowsInFamily(fresh.rows, documentId);
 }
 
 /**
@@ -936,6 +940,23 @@ export async function findLatestDocumentByStripeSessionId(
 
 const SUCCESS_LOOKUP_ATTEMPTS = 5;
 
+/**
+ * Row for /success from one snapshot. A requested document_id wins. The
+ * session's latest row is only a fallback once the fresh retries also missed the
+ * id: a stale snapshot without a new version must not show the older one.
+ */
+export function successRowFromRows(
+  rows: SheetRow[],
+  input: { documentId: string; sessionId: string; sessionFallback: boolean },
+): SheetRow | null {
+  if (input.documentId) {
+    const byId = pickStoredDocument(rows, input.documentId);
+    if (byId) return byId;
+    if (!input.sessionFallback) return null;
+  }
+  return input.sessionId ? latestRowForSession(rows, input.sessionId) : null;
+}
+
 /** Prefer document_id, then session_id, with retries for Sheets lag. */
 export async function findSuccessDocument(input: {
   documentId?: string;
@@ -945,7 +966,7 @@ export async function findSuccessDocument(input: {
   const sessionId = normalizeQueryId(input.sessionId);
   if (!documentId && !sessionId) return null;
 
-  const attempts = sessionId ? SUCCESS_LOOKUP_ATTEMPTS : 1;
+  const attempts = sessionId ? SUCCESS_LOOKUP_ATTEMPTS : 2;
   let found: SheetRow | null = null;
   for (let i = 0; i < attempts; i++) {
     if (i > 0) {
@@ -956,21 +977,13 @@ export async function findSuccessDocument(input: {
       await sleep(wait);
     }
     const { backend, rows } = await loadRows(undefined, { fresh: i > 0, hydrate: false });
-    if (documentId) {
-      const byId = pickStoredDocument(rows, documentId);
-      if (byId) {
-        found = byId;
-        break;
-      }
-    }
-    if (sessionId) {
-      const bySession = latestRowForSession(rows, sessionId);
-      if (bySession) {
-        found = bySession;
-        break;
-      }
-    }
-    if (backend !== "sheets") break;
+    const last = i === attempts - 1 || backend !== "sheets";
+    found = successRowFromRows(rows, {
+      documentId,
+      sessionId,
+      sessionFallback: last,
+    });
+    if (found || last) break;
   }
   return found ? rowWithPayload(found) : null;
 }
