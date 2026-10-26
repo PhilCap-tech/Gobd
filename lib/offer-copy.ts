@@ -32,6 +32,11 @@ export const START_PRICE_LINE = V2
 /** Checkout lead, branch-page close, and the fine print under paid CTAs. */
 export const PRICE_MICRO = START_PRICE_LINE;
 
+/** Kurzform des Kundenpreises (z. B. Steuerberater-Seite: „Mandanten: …“). */
+export const CUSTOMER_PRICE_SHORT = V2
+  ? `${V2_ENTRY_LABEL} € einmalig, optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} €/Jahr`
+  : `${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} €/Monat`;
+
 /** Homepage only: one line under the price table. Amounts follow pricing.ts. */
 export const LEGACY_PRICE_FRAME_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat) = individuelles PDF + Liste offener Punkte · danach ${MONTHLY_EUR} €/Monat für Versionen und Pflege, zzgl. USt.`;
 export const PRICE_FRAME_LINE = V2
@@ -59,7 +64,7 @@ export const HERO_FACTS_LINE = "24 Module, im PDF gegliedert in 14 Kapitel";
 export const LEGACY_PRICE_INCLUSION_LINE =
   "Alle 24 Module inklusive · keine Zusatzmodule · keine Jahresvorauszahlung · monatlich kündbar";
 export const PRICE_INCLUSION_LINE = V2
-  ? "Alle 24 Module inklusive · keine Zusatzmodule · bis zu 5 Firmen"
+  ? "Alle 24 Module inklusive · keine Zusatzmodule"
   : LEGACY_PRICE_INCLUSION_LINE;
 
 /** Equal-weight secondary pair in the homepage hero (above the fold). */
@@ -107,7 +112,7 @@ export const ALL_AREAS_LINE =
 export const LEGACY_ALL_AREAS_DETAIL =
   "Ein Abo umfasst bis zu 5 Firmen. Darin enthalten ist das Gesamtdokument mit allen für den Betrieb relevanten Modulen (Unternehmen, Verkauf, Einkauf, Rechnungen, E-Rechnung, Papier, Zahlungsverkehr, Kasse, Buchführung, Warenwirtschaft, Anlagen, Personal, Onlineshop, Branche, Archiv, Fristen, Systeme, Rechte, Sicherung, Kontrollen, Auslagerung, Prüfungszugriff, Änderungen, Pflege). Module, die es bei Ihnen nicht gibt, werden als „nicht vorhanden“ begründet; vorhandene Bereiche werden nicht stillschweigend ausgelassen.";
 export const ALL_AREAS_DETAIL = V2
-  ? LEGACY_ALL_AREAS_DETAIL.replace("Ein Abo umfasst", "Ein Kauf umfasst")
+  ? LEGACY_ALL_AREAS_DETAIL.replace("Ein Abo umfasst bis zu 5 Firmen. ", "")
   : LEGACY_ALL_AREAS_DETAIL;
 
 /** Alias for pages that still say Bereiche. */

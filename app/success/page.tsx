@@ -32,7 +32,11 @@ import {
   MONTHLY_GROSS_LABEL,
   SETUP_EUR,
   SETUP_GROSS_LABEL,
+  V2_ENTRY_CENTS,
+  V2_MEMBER_YEAR_CENTS,
+  netWithGrossCents,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
 import {
   isUnresolvableCheckoutSession,
   lookupSuccessPurchase,
@@ -56,6 +60,15 @@ export function SuccessAccessNote({ compAccess }: { compAccess: boolean }) {
     return (
       <p className="hint">
         Kostenfreier Zugang. Sie können den Entwurf ohne Zahlung herunterladen.
+      </p>
+    );
+  }
+  if (isPricingV2()) {
+    return (
+      <p className="hint">
+        Die Rechnung weist die Nettopreise zuzüglich 19&nbsp;% Umsatzsteuer aus:
+        Einstieg {netWithGrossCents(V2_ENTRY_CENTS)}, mit Jahresmitgliedschaft
+        zusätzlich {netWithGrossCents(V2_MEMBER_YEAR_CENTS)} für das erste Jahr.
       </p>
     );
   }

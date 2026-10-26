@@ -4,6 +4,10 @@ import { agbMarkdown } from "@/lib/legal-content";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { markdownH2Section, plainLineContaining } from "@/lib/markdown-section";
 import {
+  V2_CHANGE_CENTS,
+  V2_ENTRY_CENTS,
+  V2_MEMBER_YEAR_CENTS,
+  netWithGrossCents,
   MONTHLY_EUR,
   MONTHLY_GROSS_LABEL,
   SETUP_EUR,
@@ -12,6 +16,7 @@ import {
   VAT_PERCENT,
   netWithGross,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
 import { SITE_ORIGIN, canonicalUrl } from "@/lib/seo";
 
 const FAQ_GUARANTEE = "6. 14 Tage Geld zurück: Garantie und Rückgaberecht";
@@ -62,11 +67,20 @@ export function buildLlmsTxt(): string {
     "",
     "## Preis",
     "",
-    `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €).`,
-    "",
-    `Einrichtung: ${netWithGross(SETUP_EUR)}.`,
-    `Nutzungsentgelt: ${netWithGross(MONTHLY_EUR)} pro Monat.`,
-    `Der Startpreis setzt sich aus ${SETUP_EUR} € Einrichtung und ${MONTHLY_EUR} € für den ersten Monat zusammen. Danach ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto), inkl. ${VAT_PERCENT} % USt.`,
+    ...(isPricingV2()
+      ? [
+          `Einstieg: ${netWithGrossCents(V2_ENTRY_CENTS)}, einmalig.`,
+          `Optional Jahresmitgliedschaft: ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr.`,
+          `Änderung (neue Version) ohne Mitgliedschaft: ${netWithGrossCents(V2_CHANGE_CENTS)}.`,
+          `Alle Preise zzgl. ${VAT_PERCENT} % USt. Nur für Unternehmen.`,
+        ]
+      : [
+          `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €).`,
+          "",
+          `Einrichtung: ${netWithGross(SETUP_EUR)}.`,
+          `Nutzungsentgelt: ${netWithGross(MONTHLY_EUR)} pro Monat.`,
+          `Der Startpreis setzt sich aus ${SETUP_EUR} € Einrichtung und ${MONTHLY_EUR} € für den ersten Monat zusammen. Danach ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto), inkl. ${VAT_PERCENT} % USt.`,
+        ]),
     "",
     REVERSE_CHARGE,
     "",

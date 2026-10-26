@@ -43,11 +43,17 @@ import {
   listEntitiesByEmail,
 } from "@/lib/store";
 import {
+  KANZLEI_PILOT_MONTHLY_EUR,
+  KANZLEI_PILOT_MONTHLY_GROSS_LABEL,
   MONTHLY_EUR,
   MONTHLY_GROSS_LABEL,
   SETUP_EUR,
   SETUP_GROSS_LABEL,
+  V2_ENTRY_CENTS,
+  V2_MEMBER_YEAR_CENTS,
+  netWithGrossCents,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
 import { answersFromSheetRow } from "@/lib/types";
 
 export type OpsResult = {
@@ -90,7 +96,9 @@ const READINESS_MICRO =
 export const REFERRAL_AFTER_DELIVERY_URL =
   "https://www.gobd-doku-erstellen.de/?utm_source=referral&utm_medium=email&utm_campaign=post_delivery";
 /** One price line. The delivery mail includes this at most once. */
-export const REFERRAL_MICRO = `${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt · 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung`;
+export const REFERRAL_MICRO = isPricingV2()
+  ? `${netWithGrossCents(V2_ENTRY_CENTS)} einmalig, optional Jahresmitgliedschaft ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr, zzgl. 19 % USt · 14 Tage Geld zurück, solange noch kein PDF erzeugt wurde · Keine Steuerberatung`
+  : `${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt · 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung`;
 
 /** Closes every customer mail, including the partner pilot. */
 export const CUSTOMER_MAIL_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
@@ -393,7 +401,7 @@ function buildSteuerberaterOnboardingMail(input: {
       "2. Das PDF herunterladen, sobald die Generierung fertig ist",
       `3. Konto: Anmeldung unter ${MAIL_LOGIN_URL}`,
       "",
-      `Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.`,
+      `Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${KANZLEI_PILOT_MONTHLY_EUR} €/Monat netto (${KANZLEI_PILOT_MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.`,
       "",
       "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
       MAIL_FAQ_URL,
@@ -414,7 +422,7 @@ function buildSteuerberaterOnboardingMail(input: {
       <li>Das PDF herunterladen, sobald die Generierung fertig ist</li>
       <li>Konto: Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
     </ol>
-    <p>Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.</p>
+    <p>Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${KANZLEI_PILOT_MONTHLY_EUR} €/Monat netto (${KANZLEI_PILOT_MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.</p>
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
     <p>Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus den Angaben. Sie füllen sie nicht für einen Mandanten aus.</p>

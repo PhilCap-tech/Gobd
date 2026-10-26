@@ -101,7 +101,7 @@ function scrollBlockClearOfBanner(block: HTMLElement, anchorSelector: string) {
   window.scrollTo({ top, behavior });
 }
 
-export function AmpelCheck() {
+export function AmpelCheck({ ctaPrice }: { ctaPrice?: string } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initial = decodeAmpelAnswers(searchParams.get("a") ?? "");
@@ -547,7 +547,7 @@ export function AmpelCheck() {
               Antworten ändern
             </button>
           </p>
-          <AmpelCta />
+          <AmpelCta price={ctaPrice} />
         </>
       ) : null}
 

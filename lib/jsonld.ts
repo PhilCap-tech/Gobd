@@ -8,7 +8,14 @@ import {
   grossCents,
   grossEuroLabel,
   netWithGross,
+  V2_CHANGE_CENTS,
+  V2_CHANGE_LABEL,
+  V2_ENTRY_CENTS,
+  V2_ENTRY_LABEL,
+  V2_MEMBER_YEAR_CENTS,
+  V2_MEMBER_YEAR_LABEL,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
 import { SITE_ORIGIN, canonicalUrl } from "@/lib/seo";
 
 export type JsonLdNode = Record<string, unknown>;
@@ -69,7 +76,7 @@ function schemaPriceFromCents(cents: number): string {
 }
 
 function netSchemaPrice(netEur: number): string {
-  return schemaPriceFromCents(netEur * 100);
+  return schemaPriceFromCents(Math.round(netEur * 100));
 }
 
 function grossSchemaPrice(netEur: number): string {
@@ -119,6 +126,7 @@ function offer(name: string, netEur: number, extra: JsonLdNode): JsonLdNode {
 
 /** Product with net EUR offers. Gross amounts are the 19 % specifications. */
 export function productOfferJsonLd(): JsonLdNode {
+  if (isPricingV2()) return productOfferJsonLdV2();
   return {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -149,6 +157,32 @@ export function productOfferJsonLd(): JsonLdNode {
       offer("Start (Einrichtung + 1. Monat)", TODAY_EUR, {
         unitText: "Start",
       }),
+    ],
+  };
+}
+
+/** Preismodell v2: Einstieg, Jahresmitgliedschaft, Änderung (netto). */
+function productOfferJsonLdV2(): JsonLdNode {
+  const entry = V2_ENTRY_CENTS / 100;
+  const member = V2_MEMBER_YEAR_CENTS / 100;
+  const change = V2_CHANGE_CENTS / 100;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": PRODUCT_ID,
+    name: "GoBD-Verfahrensdokumentation",
+    url: canonicalUrl("/"),
+    description: [
+      "Strukturierte GoBD-Verfahrensdokumentation als PDF aus einem Fragebogen mit 24 Modulen.",
+      `Einstieg ${V2_ENTRY_LABEL} € netto einmalig, optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} € netto pro Jahr, Änderung ${V2_CHANGE_LABEL} € netto.`,
+      "Nur für Unternehmen. Hinweis: keine Steuerberatung.",
+    ].join(" "),
+    brand: { "@type": "Organization", name: LEGAL_OPERATOR.name },
+    audience: { "@type": "BusinessAudience", audienceType: "Unternehmen (§ 14 BGB)" },
+    offers: [
+      offer("Einstieg (einmalig)", entry, { unitText: "Einstieg" }),
+      offer("Jahresmitgliedschaft", member, { unitText: "Jahr", unitCode: "ANN", billingDuration: 1 }),
+      offer("Änderung (neue Version)", change, { unitText: "Änderung" }),
     ],
   };
 }

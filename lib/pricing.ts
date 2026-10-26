@@ -24,7 +24,9 @@ export const TODAY_GROSS_LABEL = grossEuroLabel(TODAY_EUR);
 
 /** „149 € netto (177,31 € brutto)“. */
 export function netWithGross(netEur: number): string {
-  return `${netEur} € netto (${grossEuroLabel(netEur)} € brutto)`;
+  // Ganze Beträge wie bisher („149“); v2 hat 99,90 €.
+  const net = Number.isInteger(netEur) ? String(netEur) : netEur.toFixed(2).replace(".", ",");
+  return `${net} € netto (${grossEuroLabel(netEur)} € brutto)`;
 }
 
 /*
@@ -68,3 +70,23 @@ export const V2_FIRM_CENTS = 9900;
 export const V2_MEMBER_FIRM_YEAR_CENTS = 4900;
 export const V2_FIRM_LABEL = centsLabel(V2_FIRM_CENTS);
 export const V2_MEMBER_FIRM_YEAR_LABEL = centsLabel(V2_MEMBER_FIRM_YEAR_CENTS);
+
+/*
+ * Feste Preise außerhalb von PRICING_MODEL (Inhalte-Liste 26.10.):
+ * Digistore24-Partner-Angebot (/partner-angebot, /partner-danke) und das
+ * Kanzlei-Angebot (/steuerberater, KANZLEI-PILOT) zeigen nie v2-Preise.
+ * Werte wie bisher; sie hängen nicht mehr an der Kunden-Monatskonstante.
+ */
+export const DS24_SETUP_EUR = 149;
+export const DS24_MONTHLY_EUR = 49;
+export const DS24_TODAY_EUR = DS24_SETUP_EUR + DS24_MONTHLY_EUR;
+export const DS24_SETUP_GROSS_LABEL = grossEuroLabel(DS24_SETUP_EUR);
+export const DS24_MONTHLY_GROSS_LABEL = grossEuroLabel(DS24_MONTHLY_EUR);
+export const DS24_TODAY_GROSS_LABEL = grossEuroLabel(DS24_TODAY_EUR);
+
+/** Kanzlei-Partnerschaft: 49 € netto pro Monat, auf Anfrage. */
+export const KANZLEI_MONTHLY_EUR = 49;
+export const KANZLEI_MONTHLY_GROSS_LABEL = grossEuroLabel(KANZLEI_MONTHLY_EUR);
+/** KANZLEI-PILOT: Monatsbeitrag des Mandanten-Abos nach den zwei freien Monaten (altes Modell). */
+export const KANZLEI_PILOT_MONTHLY_EUR = 49;
+export const KANZLEI_PILOT_MONTHLY_GROSS_LABEL = grossEuroLabel(KANZLEI_PILOT_MONTHLY_EUR);

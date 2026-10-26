@@ -54,8 +54,19 @@ export const GOOGLE_ADS_CONSENT_GRANTED = {
   analytics_storage: "granted",
 } as const;
 
-/** Agreed purchase conversion value. Not read from pricing. */
-export const PURCHASE_CONVERSION_VALUE_EUR = 198;
+/**
+ * Agreed purchase conversion value. Not read from pricing.
+ * Preismodell v2: Wert per NEXT_PUBLIC_PURCHASE_CONVERSION_VALUE_EUR (netto),
+ * bis Growth den Wert festlegt [TODO-GROWTH]; ohne Variable 198 wie bisher.
+ */
+export const PURCHASE_CONVERSION_VALUE_EUR = conversionValueFromEnv(
+  process.env.NEXT_PUBLIC_PURCHASE_CONVERSION_VALUE_EUR,
+);
+
+export function conversionValueFromEnv(raw: string | undefined): number {
+  const value = Number(raw?.trim().replace(",", "."));
+  return Number.isFinite(value) && value > 0 && value < 10000 ? value : 198;
+}
 export const PURCHASE_CONVERSION_CURRENCY = "EUR";
 export const PURCHASE_CONVERSION_STORAGE_PREFIX = "gobd_ads_purchase:";
 
@@ -249,7 +260,7 @@ export function trackRoute(pathname: string): void {
  * Purchase conversion on the paid success page. Sends nothing unless
  * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO is set, marketing consent is
  * granted, and this checkout session was not sent before.
- * Value is 198 € net. Do not pass the gross total.
+ * Value is PURCHASE_CONVERSION_VALUE_EUR net (198 € unless configured). Do not pass the gross total.
  */
 export function trackPurchaseConversion(sessionId: string): void {
   if (blockTokenLanding()) return;

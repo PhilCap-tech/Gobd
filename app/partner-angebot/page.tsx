@@ -7,26 +7,29 @@ import { CATALOG_STEPS } from "@/lib/intake-catalog";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { MUSTER_INDEX_PATH } from "@/lib/bereich-muster";
 import {
-  ALL_AREAS_DETAIL,
   ALL_AREAS_LINE,
   CTA_CREATE,
-  CTA_CREATE_WITH_PRICE,
   CTA_MUSTER,
   HERO_FACTS_LINE,
-  HERO_PRICE_BOX,
   HERO_SCOPE_LINE,
   INTAKE_EFFORT_LINE,
-  PRICE_AFTER_MICRO,
-  PRICE_CTA_SUFFIX,
-  PRICE_FRAME_LINE,
-  PRICE_INCLUSION_LINE,
   RESULT_PROMISE,
   UPSELL_BULLETS,
   UPSELL_EFFORT_NOTE,
   UPSELL_SECTION_2_TEXT,
   UPSELL_SECTION_2_TITLE,
-  UPSELL_SECTION_3_TITLE,
 } from "@/lib/offer-copy";
+// Partner-Angebot (Digistore24): immer altes Modell, nie v2-Preise.
+import {
+  ALL_AREAS_DETAIL,
+  CTA_CREATE_WITH_PRICE,
+  HERO_PRICE_BOX,
+  PRICE_AFTER_MICRO,
+  PRICE_CTA_SUFFIX,
+  PRICE_FRAME_LINE,
+  PRICE_INCLUSION_LINE,
+  UPSELL_SECTION_3_TITLE,
+} from "@/lib/ds24-offer-copy";
 import { HOME_FAQ } from "@/lib/home-faq";
 import {
   digistore24BuyHref,
@@ -46,12 +49,12 @@ import {
   PARTNER_MUSTER_VERSION_META,
 } from "@/lib/partner-muster";
 import {
-  MONTHLY_EUR,
-  MONTHLY_GROSS_LABEL,
-  SETUP_EUR,
-  SETUP_GROSS_LABEL,
-  TODAY_EUR,
-  TODAY_GROSS_LABEL,
+  DS24_MONTHLY_EUR as MONTHLY_EUR,
+  DS24_MONTHLY_GROSS_LABEL as MONTHLY_GROSS_LABEL,
+  DS24_SETUP_EUR as SETUP_EUR,
+  DS24_SETUP_GROSS_LABEL as SETUP_GROSS_LABEL,
+  DS24_TODAY_EUR as TODAY_EUR,
+  DS24_TODAY_GROSS_LABEL as TODAY_GROSS_LABEL,
 } from "@/lib/pricing";
 import { HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 import { TEIL_TITEL, moduleImTeil } from "@/lib/module/katalog";

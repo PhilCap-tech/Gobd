@@ -13,11 +13,18 @@ import {
   PARTNER_MUSTER_PDF_PATH,
 } from "@/lib/partner-muster";
 import {
+  KANZLEI_MONTHLY_EUR,
+  KANZLEI_MONTHLY_GROSS_LABEL,
   MONTHLY_EUR,
   MONTHLY_GROSS_LABEL,
   SETUP_EUR,
   SETUP_GROSS_LABEL,
+  V2_ENTRY_CENTS,
+  V2_MEMBER_YEAR_CENTS,
+  netWithGrossCents,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
+import { CUSTOMER_PRICE_SHORT } from "@/lib/offer-copy";
 import styles from "../home.module.css";
 import { MerkblattForm } from "./merkblatt-form";
 import { PartnerInquiryForm } from "./partner-inquiry-form";
@@ -47,7 +54,7 @@ const PARTNER_MAIL = `mailto:${LEGAL_OPERATOR.email}?subject=${encodeURIComponen
 const FAQ = [
   {
     q: "Was zahlt die Kanzlei?",
-    a: `49 € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto, inkl. 19 % USt), auf Anfrage. Darin liegen das Logo der Kanzlei im PDF der Mandanten und eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben. Ein Bereich zum Hochladen des Logos oder zum Abruf der Übersicht ist hier nicht eingerichtet.`,
+    a: `${KANZLEI_MONTHLY_EUR} € netto pro Monat (${KANZLEI_MONTHLY_GROSS_LABEL} € brutto, inkl. 19 % USt), auf Anfrage. Darin liegen das Logo der Kanzlei im PDF der Mandanten und eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben. Ein Bereich zum Hochladen des Logos oder zum Abruf der Übersicht ist hier nicht eingerichtet.`,
   },
   {
     q: "Erhält die Kanzlei eine Provision?",
@@ -55,7 +62,9 @@ const FAQ = [
   },
   {
     q: "Was zahlen Mandanten?",
-    a: `${SETUP_EUR} € netto Einrichtung (${SETUP_GROSS_LABEL} € brutto) plus ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto). Ein Abo umfasst bis zu ${MAX_ENTITIES_PER_ACCOUNT} Firmen. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft.`,
+    a: isPricingV2()
+      ? `Einstieg ${netWithGrossCents(V2_ENTRY_CENTS)}, optional Jahresmitgliedschaft ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft.`
+      : `${SETUP_EUR} € netto Einrichtung (${SETUP_GROSS_LABEL} € brutto) plus ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto). Ein Abo umfasst bis zu ${MAX_ENTITIES_PER_ACCOUNT} Firmen. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft.`,
   },
   {
     q: "Ist das Steuerberatung?",
@@ -100,17 +109,24 @@ export default function SteuerberaterPage() {
             <p className={styles.eyebrow}>Für Steuerberater und Kanzleien</p>
             <h1>Logo der Kanzlei im PDF der Mandanten</h1>
             <p className={styles.lead}>
-              Die Kanzlei zahlt {euro(MONTHLY_EUR)} netto pro Monat, auf Anfrage.
+              Die Kanzlei zahlt {euro(KANZLEI_MONTHLY_EUR)} netto pro Monat, auf Anfrage.
               Dafür erscheint das Logo im PDF der Mandanten, und die Kanzlei erhält
               eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben.
               Mandanten zahlen den Listenpreis direkt an die {LEGAL_OPERATOR.name}.
               Die Kanzlei erhält keine Provision.
             </p>
             <p className={styles.priceBanner}>
-              <strong>{euro(MONTHLY_EUR)} netto / Monat für die Kanzlei</strong>
+              <strong>{euro(KANZLEI_MONTHLY_EUR)} netto / Monat für die Kanzlei</strong>
               <span>
-                Auf Anfrage · keine Provision · Mandanten: {euro(SETUP_EUR)} Einrichtung +{" "}
-                {euro(MONTHLY_EUR)}/Monat direkt an die {LEGAL_OPERATOR.name}
+                Auf Anfrage · keine Provision · Mandanten:{" "}
+                {isPricingV2() ? (
+                  CUSTOMER_PRICE_SHORT
+                ) : (
+                  <>
+                    {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
+                  </>
+                )}{" "}
+                direkt an die {LEGAL_OPERATOR.name}
               </span>
             </p>
             <div className={styles.ctas}>
@@ -189,9 +205,9 @@ export default function SteuerberaterPage() {
           <div className={`shell ${styles.priceLayout}`}>
             <div className={styles.priceBox}>
               <p className={styles.eyebrow}>Kanzlei, auf Anfrage</p>
-              <h2>{euro(MONTHLY_EUR)} netto / Monat</h2>
+              <h2>{euro(KANZLEI_MONTHLY_EUR)} netto / Monat</h2>
               <p>
-                {MONTHLY_GROSS_LABEL}&nbsp;€ brutto, inkl. 19&nbsp;% USt. Keine
+                {KANZLEI_MONTHLY_GROSS_LABEL}&nbsp;€ brutto, inkl. 19&nbsp;% USt. Keine
                 Provision. Kein Bestellbutton.
               </p>
               <table className={styles.priceTable}>
@@ -226,13 +242,22 @@ export default function SteuerberaterPage() {
                 erhält keine Provision.
               </p>
               <ul className={styles.checks} role="list">
-                <li>
-                  {euro(SETUP_EUR)} netto Einrichtung ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
-                </li>
-                <li>
-                  {euro(MONTHLY_EUR)} netto pro Monat ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto)
-                </li>
-                <li>Ein Abo umfasst bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen</li>
+                {isPricingV2() ? (
+                  <>
+                    <li>Einstieg {netWithGrossCents(V2_ENTRY_CENTS)}</li>
+                    <li>Optional Jahresmitgliedschaft {netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr</li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      {euro(SETUP_EUR)} netto Einrichtung ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
+                    </li>
+                    <li>
+                      {euro(MONTHLY_EUR)} netto pro Monat ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto)
+                    </li>
+                    <li>Ein Abo umfasst bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen</li>
+                  </>
+                )}
                 <li>{ALL_AREAS_LINE}</li>
               </ul>
               <p className={styles.fine}>
@@ -318,7 +343,7 @@ export default function SteuerberaterPage() {
           <div className="shell">
             <h2>Partnerschaft auf Anfrage</h2>
             <p>
-              {euro(MONTHLY_EUR)} netto pro Monat für die Kanzlei · keine Provision ·
+              {euro(KANZLEI_MONTHLY_EUR)} netto pro Monat für die Kanzlei · keine Provision ·
               Mandanten zahlen den Listenpreis direkt an die {LEGAL_OPERATOR.name}.
               Keine Steuerberatung.
             </p>

@@ -145,6 +145,10 @@ Im kostenlosen Check geben Sie Name, E-Mail-Adresse, Firma und Antworten zu Ihre
 Für die Erstellung Ihrer Verfahrensdokumentation verarbeiten wir die Angaben, die Sie im Fragebogen machen (z. B. Unternehmensdaten, Prozessbeschreibungen, verwendete Software, Namen und Funktionen von Geschäftsführung und Buchhaltung) sowie die daraus erzeugten Dokumente und Versionen. Wenn Sie für ein Modul eine bestehende Dokumentation hochladen, speichern wir diese Datei (PDF, DOCX oder Bild) zusammen mit Ihrem Konto, damit sie in der Vollständigkeitsübersicht und im Gesamtdokument referenziert werden kann. Wir speichern die Angaben in Google Sheets und die PDF-Dateien bei Vercel Blob (siehe Abschnitt „Datenbank und Dateispeicher“), damit Sie sie abrufen und fortschreiben können. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
 
 Nach Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen; danach löschen wir sie, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
+<!-- if:retention-delete -->
+
+**[TODO-LEGAL]** Speicherdauer bei Vorhaltefrist und Mitgliedschaft, Hinweis-Mails 30 und 7 Tage vor der Löschung — Wortlaut nach Freigabe aus legal/dse-diff.md.
+<!-- endif -->
 
 Wenn Sie im Fragebogen personenbezogene Daten Dritter (z. B. Mitarbeitende) nennen, stellen Sie sicher, dass Sie dazu berechtigt sind. Die Angaben liegen in unseren Systemen und werden für die Erstellung Ihrer Dokumentation verarbeitet. Ein gesonderter Auftragsverarbeitungsvertrag mit Ihnen ist dafür nicht hinterlegt.
 

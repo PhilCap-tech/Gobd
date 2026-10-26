@@ -1,4 +1,7 @@
-import { MONTHLY_EUR, MONTHLY_GROSS_LABEL } from "@/lib/pricing";
+import {
+  KANZLEI_PILOT_MONTHLY_EUR as MONTHLY_EUR,
+  KANZLEI_PILOT_MONTHLY_GROSS_LABEL as MONTHLY_GROSS_LABEL,
+} from "@/lib/pricing";
 
 export const PROMO_CODE = "KANZLEI-PILOT";
 /**
