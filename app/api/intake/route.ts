@@ -15,6 +15,7 @@ import {
   type IncludedFirmCoverage,
 } from "@/lib/subscription-coverage";
 import { isCompAccessEmail } from "@/lib/comp-access";
+import { queueOwnerNotice } from "@/lib/owner-notice";
 import {
   applyCheckoutOwnerSession,
   isStoredPaidEntitlementStatus,
@@ -635,6 +636,23 @@ async function writeIntake(
     const persistence = intakePersistenceFailure(error);
     if (persistence) return jsonError(persistence.error, persistence.status);
     return jsonError(DURABLE_STORE_MESSAGE, 503);
+  }
+
+  if (!skipTestDelivery) {
+    queueOwnerNotice({
+      kind: "doc",
+      id: `${documentId}:${version}`,
+      title: "Doku abgeschlossen",
+      email: identity.email,
+      company: identity.company,
+      entityId: identity.entityId,
+      mode: identity.stub || identity.stripeSessionId.startsWith("cs_test_") ? "test" : "live",
+      facts: [
+        ["Dokument", documentId],
+        ["Version", String(version)],
+        ["Zugang", resolved.compAccess ? "kostenfrei (Comp)" : identity.stripeSessionId ? "Stripe" : "Abo"],
+      ],
+    });
   }
 
   const appUrl = getAppUrl();

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { queueOwnerNotice } from "@/lib/owner-notice";
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
@@ -236,6 +237,23 @@ async function handleDocumentEdit(request: Request) {
     const persistence = intakePersistenceFailure(error);
     if (persistence) return jsonError(persistence.error, persistence.status);
     return jsonError(DURABLE_STORE_MESSAGE, 503);
+  }
+
+  if (!skipTestDelivery) {
+    queueOwnerNotice({
+      kind: "doc",
+      id: `${documentId}:${version}`,
+      title: "Doku abgeschlossen",
+      email: identity.email,
+      company: identity.company,
+      entityId: identity.entityId,
+      mode: identity.stub ? "test" : "live",
+      facts: [
+        ["Dokument", documentId],
+        ["Version", String(version)],
+        ["Weg", "Bearbeitung im Konto"],
+      ],
+    });
   }
 
   const appUrl = getAppUrl();
