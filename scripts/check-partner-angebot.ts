@@ -268,9 +268,16 @@ ok(
   "AGB § 12 Abs. 4 has the approved Rückgabe exception",
 );
 ok(
-  PARTNER_ANGEBOT_NOTICE_AFTER.includes("14-Tage-Rückgaberecht über Digistore24 nach § 9a AGB") &&
-    !PARTNER_ANGEBOT_NOTICE_AFTER.includes("Zufriedenheitsgarantie"),
-  "partner notice names the Rückgaberecht, not the Zufriedenheitsgarantie",
+  PARTNER_ANGEBOT_NOTICE_AFTER.endsWith(
+    "monatlich kündbar, 14 Tage Rückgaberecht nach § 9a Abs. 9 AGB (bei Digistore24 USA/UK die im Bestellformular angezeigte Frist); Kündigung, Rückgabe und Erstattung laufen über Digistore24.",
+  ) && !PARTNER_ANGEBOT_NOTICE_AFTER.includes("Zufriedenheitsgarantie"),
+  "partner notice ends with the approved Rückgaberecht wording",
+);
+ok(
+  faq.includes(
+    "Haben Sie über unsere Partnerseite bei Digistore24 bestellt, richten Sie Rechnungsfragen bitte an Digistore24 (support@digistore24.com). Bei Bestellungen über unsere Website erreichen Sie uns für Rechnungsfragen unter der oben genannten Adresse.",
+  ) && !faq.includes("\nRechnungsfragen richten Sie bitte an Digistore24"),
+  "FAQ item 5 limits Rechnungsfragen an Digistore24 to partner orders",
 );
 
 function renderedHrefs(markdown: string): string[] {
