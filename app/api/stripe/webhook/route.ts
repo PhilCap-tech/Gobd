@@ -16,7 +16,12 @@ import {
   handleFailedJob,
   handleFailedPayment,
 } from "@/lib/ops";
-import { recordCheckoutSubscription, recordSubscriptionEvent } from "@/lib/kuendigung-stripe";
+import {
+  recordCheckoutSubscription,
+  recordSubscriptionEvent,
+  subscriptionEventEmail,
+} from "@/lib/kuendigung-stripe";
+import { ownerNoticeFromStripeEvent, queueOwnerNotice } from "@/lib/owner-notice";
 import { appendRecord, findRowByStripeSessionId } from "@/lib/store";
 import {
   billingAddressFromCustomerDetails,
@@ -260,6 +265,17 @@ export async function POST(request: Request) {
           subscription: event.data.object,
           deleted: event.type === "customer.subscription.deleted",
         });
+        // Inhaber-Hinweis nur bei echter Änderung (previous_attributes), nicht bei Verlängerung.
+        if (ownerNoticeFromStripeEvent(event)) {
+          let subscriberEmail = "";
+          try {
+            subscriberEmail = await subscriptionEventEmail(event.data.object);
+          } catch {
+            subscriberEmail = "";
+          }
+          const notice = ownerNoticeFromStripeEvent(event, { email: subscriberEmail });
+          if (notice) queueOwnerNotice(notice);
+        }
         break;
       }
       case "invoice.payment_failed": {
@@ -277,6 +293,47 @@ export async function POST(request: Request) {
           reason: invoice.last_finalization_error?.message,
           entityId: invoiceEntityId(invoice as Parameters<typeof invoiceEntityId>[0]),
         });
+        const failedNotice = ownerNoticeFromStripeEvent(event, {
+          email,
+          entityId: invoiceEntityId(invoice as Parameters<typeof invoiceEntityId>[0]),
+        });
+        if (failedNotice) queueOwnerNotice(failedNotice);
+        break;
+      }
+      // Nur Inhaber-Hinweis, keine Zugangsänderung. In Stripe noch zu aktivieren.
+      case "charge.refunded": {
+        const charge = event.data.object;
+        let email = charge.billing_details?.email || charge.receipt_email || "";
+        const customerId = stripeCustomerIdFrom(charge.customer);
+        if (!email && customerId) {
+          try {
+            email = await retrieveCustomerEmail(customerId);
+          } catch {
+            email = "";
+          }
+        }
+        const notice = ownerNoticeFromStripeEvent(event, {
+          email,
+          entityId: charge.metadata?.entity_id ?? "",
+        });
+        if (notice) queueOwnerNotice(notice);
+        break;
+      }
+      case "charge.dispute.created": {
+        const dispute = event.data.object;
+        let email = "";
+        let entityId = "";
+        try {
+          const charge = await getStripe().charges.retrieve(idFrom(dispute.charge));
+          email = charge.billing_details?.email || charge.receipt_email || "";
+          entityId = charge.metadata?.entity_id ?? "";
+          const customerId = stripeCustomerIdFrom(charge.customer);
+          if (!email && customerId) email = await retrieveCustomerEmail(customerId);
+        } catch {
+          email = email || "";
+        }
+        const notice = ownerNoticeFromStripeEvent(event, { email, entityId });
+        if (notice) queueOwnerNotice(notice);
         break;
       }
       default:

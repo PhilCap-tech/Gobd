@@ -1,5 +1,6 @@
 import { KANZLEI_CONSENT_TEXT_VERSION } from "@/lib/kanzlei-copy";
 import { kanzleiLeadId } from "@/lib/kanzlei-lead";
+import { queueOwnerNotice } from "@/lib/owner-notice";
 import { verifyKanzleiDoiToken } from "@/lib/kanzlei-token";
 import { emptyReadinessLead, type ReadinessLead } from "@/lib/readiness";
 import { listKanzleiReadinessLeadsByEmail, upsertReadinessLead } from "@/lib/store";
@@ -80,5 +81,14 @@ export async function confirmKanzleiDoi(
     console.error("[kanzlei] Bestätigung speichern fehlgeschlagen", error instanceof Error ? error.name : "error");
     return { ok: false, status: 400, reason: "invalid" };
   }
+  // Erst nach dem DOI-Klick: Anmeldung zum Kanzlei-Merkblatt bestätigt.
+  queueOwnerNotice({
+    kind: "kanzlei-optin",
+    id: leadId,
+    title: "Kanzlei-Merkblatt angemeldet",
+    email: payload.email,
+    facts: [["Einwilligung", payload.consentAt]],
+    at: now,
+  });
   return { ok: true };
 }

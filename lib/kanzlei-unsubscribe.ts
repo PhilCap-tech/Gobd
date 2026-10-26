@@ -1,4 +1,5 @@
 import { kanzleiLeadId } from "@/lib/kanzlei-lead";
+import { queueOwnerNotice } from "@/lib/owner-notice";
 import { verifyKanzleiUnsubscribeToken } from "@/lib/kanzlei-token";
 import { emptyReadinessLead, type ReadinessLead } from "@/lib/readiness";
 import { listKanzleiReadinessLeadsByEmail, upsertReadinessLead } from "@/lib/store";
@@ -60,6 +61,7 @@ export async function withdrawKanzleiMarketing(
       withdrawnAt,
       mailStatus: "doi_revoked",
     });
+    noticeWithdrawal(payload.email, payload.consentAt);
     return { ok: true };
   }
   for (const lead of pending) {
@@ -73,5 +75,17 @@ export async function withdrawKanzleiMarketing(
       mailStatus: "doi_revoked",
     });
   }
+  noticeWithdrawal(payload.email, payload.consentAt);
   return { ok: true };
+}
+
+/** Ein Hinweis pro Einwilligung. Eine bereits erfasste Abmeldung meldet nicht erneut. */
+function noticeWithdrawal(email: string, consentAt: string): void {
+  queueOwnerNotice({
+    kind: "kanzlei-optout",
+    id: kanzleiLeadId(email, consentAt),
+    title: "Kanzlei-Merkblatt abgemeldet",
+    email,
+    facts: [["Einwilligung vom", consentAt]],
+  });
 }

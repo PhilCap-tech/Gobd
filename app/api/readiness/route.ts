@@ -4,6 +4,7 @@ import { BlobStorageError, blobFailureClass, storePdf } from "@/lib/blob";
 import { getAppUrl } from "@/lib/env";
 import { deliverLoginLink, readinessMailStatus } from "@/lib/login-mail";
 import { readinessDedupeKey } from "@/lib/mail-dedupe";
+import { queueOwnerNotice } from "@/lib/owner-notice";
 import { sendReadinessMail } from "@/lib/ops";
 import {
   createReadinessAccessToken,
@@ -76,6 +77,12 @@ async function handleReadiness(request: Request) {
   const magicUrl = (await magicLinkUrl(parsed.email)) ?? undefined;
   const brancheLabel = readinessBrancheLabel(parsed.answers.branche);
 
+  const submissionKey = readinessDedupeKey({
+    email: parsed.email,
+    name: parsed.name,
+    company: parsed.company,
+    answers: parsed.answers,
+  });
   let pdfMailStatus = "stub";
   try {
     const mail = await sendReadinessMail({
@@ -86,12 +93,7 @@ async function handleReadiness(request: Request) {
       downloadUrl,
       successUrl,
       magicLinkUrl: magicUrl,
-      dedupeKey: readinessDedupeKey({
-        email: parsed.email,
-        name: parsed.name,
-        company: parsed.company,
-        answers: parsed.answers,
-      }),
+      dedupeKey: submissionKey,
     });
     pdfMailStatus = mail.sent ? "sent" : mail.stub ? "stub" : "failed";
   } catch (error) {
@@ -122,6 +124,19 @@ async function handleReadiness(request: Request) {
     console.error("[readiness] appendReadinessLead fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }
+
+  queueOwnerNotice({
+    kind: "readiness",
+    id: submissionKey,
+    title: "Neuer 3-Minuten-Check",
+    email: parsed.email,
+    company: parsed.company,
+    facts: [
+      ["Name", parsed.name ?? ""],
+      ["Branche", brancheLabel],
+      ["Lead-ID", leadId],
+    ],
+  });
 
   const response = NextResponse.json({
     ok: true,
