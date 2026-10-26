@@ -7,17 +7,17 @@ import {
   V2_ENTRY_LABEL,
   V2_MEMBER_YEAR_LABEL,
 } from "@/lib/pricing";
+import { TODO_GROWTH, TODO_LEGAL } from "@/lib/plan-copy";
 import { isPricingV2 } from "@/lib/pricing-model";
 
 /**
  * Preismodell v2 (PRICING_MODEL=v2): Preissätze tauschen beim Laden des
  * Moduls (Server, Build). Ohne Variable bleibt jeder Satz wörtlich wie
  * bisher (LEGACY_*). Digistore24 nutzt immer LEGACY_* (lib/ds24-offer-copy.ts).
- * v2-Formulierungen sind sachliche Platzhalter, bis Growth/Legal liefern.
+ * v2-Formulierungen sind vorläufig und sachlich, bis Growth/Legal liefern
+ * (Marker aus lib/plan-copy.ts, Merge-Sperre über PLAN_COPY_DRAFT).
  */
 const V2 = isPricingV2();
-const TODO_GROWTH = "[TODO-GROWTH]";
-const TODO_LEGAL = "[TODO-LEGAL]";
 
 /** Owner Spec 29.09 — same sentence on hero, pricing, and checkout summary. */
 export const RESULT_PROMISE =

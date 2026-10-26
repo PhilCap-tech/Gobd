@@ -1,0 +1,374 @@
+/**
+ * Preismodell v2: Fristen, Stichtag (R4), Löschung (R3), Erinnerungen,
+ * Geld zurück (R5), Erstattungssperre, Checkout-Parameter, Webhook-Übergänge,
+ * Firmen (R1 neu, Schalter), Start-Schutz Testmodus, Rechtstext-Schalter
+ * und „ohne Variable = altes Verhalten“. Ohne Netz, ohne Stripe, ohne Sheets.
+ */
+import assert from "node:assert/strict";
+for (const name of [
+  "PRICING_MODEL", "PLAN_ACCESS_ENABLED", "PRICING_EXTRA_FIRMS_ENABLED", "RETENTION_DELETE_ENABLED",
+  "RETENTION_NOTICE_ENABLED", "RENEWAL_NOTICE_ENABLED", "STRIPE_SECRET_KEY", "STRIPE_SECRET_KEY_NEW",
+  "GOOGLE_SHEETS_SPREADSHEET_ID", "BLOB_READ_WRITE_TOKEN", "VERCEL_ENV", "GOBD_DATA_ENV",
+  "PLAN_WINDOW_AFTER_MEMBER_MONTHS", "MEMBER_LATE_CANCEL_EFFECT", "STRIPE_TAX_RATE_ID",
+]) delete process.env[name];
+
+let passed = 0;
+async function check(name: string, run: () => void | Promise<void>) {
+  await run();
+  passed += 1;
+  console.log(`ok: ${name}`);
+}
+
+async function main() {
+  const plan = await import("@/lib/plan");
+  const model = await import("@/lib/pricing-model");
+  const firms = await import("@/lib/plan-firms");
+  const store = await import("@/lib/plan-store");
+  const firmStore = await import("@/lib/plan-firm-store");
+  const access = await import("@/lib/plan-access");
+  const webhook = await import("@/lib/plan-webhook");
+  const checkout = await import("@/lib/plan-checkout");
+  const guard = await import("@/lib/data-env-guard");
+  const admin = await import("@/lib/plan-admin");
+  const cancel = await import("@/lib/plan-cancel");
+  const legal = await import("@/lib/legal-content");
+  const offer = await import("@/lib/offer-copy");
+  const pricing = await import("@/lib/pricing");
+  const tracking = await import("@/lib/tracking");
+
+  const row = (patch: Partial<import("@/lib/plan").PlanRow> = {}) => ({
+    ...plan.emptyPlanRow("kunde@example.com", "2026-11-02T10:00:00.000Z"),
+    ...patch,
+  });
+
+  /* ---------- ohne Variable: altes Verhalten ---------- */
+  await check("Default ist legacy, Plan-Zugang und Firmen aus", () => {
+    assert.equal(model.pricingModel(), "legacy");
+    assert.equal(model.planAccessEnabled(), false);
+    assert.equal(model.extraFirmsEnabled(), false);
+    assert.equal(model.retentionDeleteEnabled(), false);
+    assert.equal(model.retentionNoticeEnabled(), false);
+    assert.equal(model.renewalNoticeEnabled(), false);
+    assert.equal(model.memberPreselected(), true);
+  });
+  await check("legacy: kein Lesen des Tabs plans (Zugang, Firmen-Prüfung)", async () => {
+    let reads = 0;
+    store.setPlanStoreForTests({ read: async () => { reads += 1; throw new Error("darf nicht lesen"); }, write: async () => {} });
+    assert.equal(await access.loadPlanAccess("kunde@example.com"), null);
+    assert.equal(await access.planWriteDenial("kunde@example.com"), null);
+    assert.equal(await access.planVersionDenial("kunde@example.com"), null);
+    const gate = await access.planFirmGate("kunde@example.com", "ent_1", true);
+    assert.equal(gate.denial, null);
+    assert.equal(reads, 0);
+    store.setPlanStoreForTests(null);
+  });
+  await check("legacy: Preissätze wörtlich wie bisher", () => {
+    assert.equal(offer.START_PRICE_LINE, offer.LEGACY_START_PRICE_LINE);
+    assert.equal(offer.PRICE_INCLUSION_LINE, offer.LEGACY_PRICE_INCLUSION_LINE);
+    assert.equal(offer.ALL_AREAS_DETAIL, offer.LEGACY_ALL_AREAS_DETAIL);
+    assert.equal(offer.GELD_ZURUECK_MICRO, offer.LEGACY_GELD_ZURUECK_MICRO);
+    assert.match(offer.START_PRICE_LINE, /198 € zum Start/);
+    assert.equal(pricing.SETUP_EUR, 149);
+    assert.equal(pricing.MONTHLY_EUR, 49);
+    assert.equal(pricing.netWithGross(149), "149 € netto (177,31 € brutto)");
+    assert.equal(tracking.PURCHASE_CONVERSION_VALUE_EUR, 198);
+    assert.equal(tracking.conversionValueFromEnv("198,90"), 198.9);
+  });
+  await check("DS24 und Kanzlei: feste Werte", () => {
+    assert.equal(pricing.DS24_SETUP_EUR, 149);
+    assert.equal(pricing.DS24_TODAY_EUR, 198);
+    assert.equal(pricing.KANZLEI_MONTHLY_EUR, 49);
+    assert.equal(pricing.KANZLEI_PILOT_MONTHLY_EUR, 49);
+  });
+  await check("Rechtstexte: legacy behält Text, Marker fallen weg", () => {
+    const src = "A <!-- if:legacy -->für bis zu fünf Firmen je Abo; <!-- endif -->B<!-- if:v2 -->V2<!-- endif --><!-- if:retention-delete -->L<!-- endif -->";
+    assert.equal(legal.applyLegalConditions(src, { v2: false, legacy: true, "retention-delete": false }), "A für bis zu fünf Firmen je Abo; B");
+    assert.equal(legal.applyLegalConditions(src, { v2: true, legacy: false, "retention-delete": false }), "A BV2");
+    assert.equal(legal.applyLegalConditions(src, { v2: true, legacy: false, "retention-delete": true }), "A BV2L");
+    assert.match(legal.produktDisclaimerMarkdown, /für bis zu fünf Firmen je Abo; 24 Module/);
+    assert.doesNotMatch(legal.agbMarkdown, /TODO-LEGAL|<!-- if:/);
+  });
+
+  /* ---------- Preise ---------- */
+  await check("v2-Preise netto mit brutto", () => {
+    assert.equal(pricing.netWithGrossCents(9900), "99 € netto (117,81 € brutto)");
+    assert.equal(pricing.netWithGrossCents(9990), "99,90 € netto (118,88 € brutto)");
+    assert.equal(pricing.netWithGrossCents(4900), "49 € netto (58,31 € brutto)");
+    assert.equal(pricing.V2_ENTRY_WITH_MEMBER_CENTS, 19890);
+    assert.equal(pricing.netWithGross(99.9), "99,90 € netto (118,88 € brutto)");
+  });
+
+  /* ---------- Fristen ---------- */
+  await check("Frist: Kauf + 12 Monate, Monatsende geklemmt", () => {
+    assert.equal(plan.retentionAfterPurchase("2026-11-02T10:00:00.000Z"), "2027-11-02T10:00:00.000Z");
+    assert.equal(plan.addMonthsIso("2027-01-31T00:00:00.000Z", 1), "2027-02-28T00:00:00.000Z");
+    assert.equal(plan.addMonthsIso("2028-02-29T00:00:00.000Z", 12), "2029-02-28T00:00:00.000Z");
+  });
+  await check("Änderung: Zahlung + 12 Monate, nie kürzer", () => {
+    assert.equal(plan.retentionAfterChange("2027-11-02T10:00:00.000Z", "2027-06-01T00:00:00.000Z"), "2028-06-01T00:00:00.000Z");
+    assert.equal(plan.retentionAfterChange("2029-01-01T00:00:00.000Z", "2027-06-01T00:00:00.000Z"), "2029-01-01T00:00:00.000Z");
+  });
+  await check("Zugang: Frist offen, neue Version nur mit Guthaben", () => {
+    const now = new Date("2027-03-01T00:00:00.000Z");
+    const open = row({ purchasedAt: "2026-11-02T10:00:00.000Z", retentionUntil: "2027-11-02T10:00:00.000Z" });
+    assert.equal(plan.planAccess(open, now).writesOpen, true);
+    assert.equal(plan.planAccess(open, now).newVersionAllowed, false);
+    assert.equal(plan.planAccess({ ...open, changeCredits: 1 }, now).newVersionAllowed, true);
+    const expired = plan.planAccess(open, new Date("2027-11-03T00:00:00.000Z"));
+    assert.equal(expired.state, "expired");
+    assert.equal(expired.writesOpen, false);
+    assert.equal(expired.downloadsOpen, true);
+  });
+
+  /* ---------- Stichtag R4 ---------- */
+  await check("Kündigung bis Stichtag (inkl.) zum Laufzeitende", () => {
+    const end = "2027-11-02T10:00:00.000Z";
+    const onDeadline = plan.memberCancelPlan(end, new Date("2027-08-02T10:00:00.000Z"), { noticeMonths: 3, lateEffect: "following_term" });
+    assert.ok(onDeadline?.atCurrentPeriodEnd);
+    assert.equal(onDeadline?.effectiveAt, end);
+    assert.equal(onDeadline?.deadline, "2027-08-02T10:00:00.000Z");
+  });
+  await check("Kündigung 1 Tag nach Stichtag: Ende der folgenden Laufzeit (R4)", () => {
+    const late = plan.memberCancelPlan("2027-11-02T10:00:00.000Z", new Date("2027-08-03T10:00:00.000Z"), { noticeMonths: 3, lateEffect: "following_term" });
+    assert.equal(late?.atCurrentPeriodEnd, false);
+    assert.equal(late?.effectiveAt, "2028-11-02T10:00:00.000Z");
+    assert.match(plan.memberCancelPreviewLine(late!), /verlängert sich die Mitgliedschaft noch einmal/);
+  });
+  await check("R4 konfigurierbar: current_term", () => {
+    const late = plan.memberCancelPlan("2027-11-02T10:00:00.000Z", new Date("2027-10-01T00:00:00.000Z"), { noticeMonths: 3, lateEffect: "current_term" });
+    assert.equal(late?.effectiveAt, "2027-11-02T10:00:00.000Z");
+  });
+
+  /* ---------- R3: Löschung zum Ablauf ---------- */
+  await check("R3 Default 0: nach Ende der Mitgliedschaft sofort abgelaufen", () => {
+    assert.equal(model.windowAfterMemberMonths(), 0);
+    const member = row({ plan: "member", memberStatus: "active", memberSubscriptionId: "sub_1", memberPeriodEnd: "2027-11-02T10:00:00.000Z" });
+    const ended = plan.applyMemberEnded(member, { at: "2027-11-02T10:00:00.000Z", eventId: "evt", endedAt: "2027-11-02T10:00:00.000Z" });
+    assert.equal(ended.retentionUntil, "2027-11-02T10:00:00.000Z");
+    assert.equal(plan.planState(ended, new Date("2027-11-02T10:00:01.000Z")), "expired");
+    assert.equal(plan.applyMemberEnded(member, { at: "x", eventId: "e", endedAt: "2027-11-02T10:00:00.000Z", afterMonths: 12 }).retentionUntil, "2028-11-02T10:00:00.000Z");
+  });
+  await check("Erinnerung 30/7 vor Löschung, auch nach Kündigung; Mitglied nie gelöscht", () => {
+    const cancelled = row({ plan: "member", memberStatus: "active", memberSubscriptionId: "sub_1", memberPeriodEnd: "2027-11-02T10:00:00.000Z", memberCancelAt: "2027-11-02T10:00:00.000Z" });
+    assert.equal(plan.deletionDueAt(cancelled), "2027-11-02T10:00:00.000Z");
+    assert.equal(plan.retentionCandidate(cancelled, new Date("2027-10-10T00:00:00.000Z")), "notice30");
+    assert.equal(plan.retentionCandidate({ ...cancelled, notice30At: "x" }, new Date("2027-10-30T00:00:00.000Z")), "notice7");
+    assert.equal(plan.retentionCandidate({ ...cancelled, notice30At: "x", notice7At: "y" }, new Date("2027-11-05T00:00:00.000Z")), "none");
+    const single = row({ retentionUntil: "2027-11-02T10:00:00.000Z", notice30At: "a", notice7At: "2027-10-27T00:00:00.000Z" });
+    assert.equal(plan.retentionCandidate(single, new Date("2027-11-03T00:00:00.000Z")), "delete");
+    assert.equal(plan.retentionCandidate({ ...single, notice7At: "" }, new Date("2027-11-03T00:00:00.000Z")), "notice7");
+  });
+  await check("Lösch-Lauf: immer Trockenlauf, 0 gelöscht, 0 Mails", async () => {
+    process.env.RETENTION_DELETE_ENABLED = "true";
+    process.env.RETENTION_NOTICE_ENABLED = "true";
+    const rows = [row({ retentionUntil: "2027-11-02T10:00:00.000Z", notice30At: "a", notice7At: "2027-10-01T00:00:00.000Z" })];
+    const report = admin.retentionRunReport(rows, new Date("2027-11-10T00:00:00.000Z"));
+    assert.equal(report.dryRun, true);
+    assert.equal(report.candidatesDelete, 1);
+    assert.equal(report.deleted, 0);
+    assert.equal(report.mailed, 0);
+    const res = await admin.handleRetentionRunRequest(new Request("http://x", { method: "POST", headers: { authorization: "Bearer t0ken-abcdefghijklmnop" } }), {
+      token: "t0ken-abcdefghijklmnop", listPlans: async () => rows, now: new Date("2027-11-10T00:00:00.000Z"),
+    });
+    assert.equal(res.status, 200);
+    const denied = await admin.handleRetentionRunRequest(new Request("http://x", { method: "POST" }), { token: "t0ken-abcdefghijklmnop", listPlans: async () => rows });
+    assert.equal(denied.status, 401);
+    delete process.env.RETENTION_DELETE_ENABLED;
+    delete process.env.RETENTION_NOTICE_ENABLED;
+  });
+  await check("Verlängerungs-Erinnerung: Fenster vor dem Stichtag, einmal je Laufzeit", () => {
+    const member = row({ plan: "member", memberStatus: "active", memberSubscriptionId: "sub_1", memberPeriodEnd: "2027-11-02T10:00:00.000Z" });
+    assert.equal(plan.renewalNoticeDue(member, new Date("2027-06-01T00:00:00.000Z")), false);
+    assert.equal(plan.renewalNoticeDue(member, new Date("2027-07-10T00:00:00.000Z")), true);
+    assert.equal(plan.renewalNoticeDue(member, new Date("2027-08-03T00:00:00.000Z")), false);
+    assert.equal(plan.renewalNoticeDue({ ...member, renewalNoticeFor: member.memberPeriodEnd }, new Date("2027-07-10T00:00:00.000Z")), false);
+    assert.equal(plan.renewalNoticeDue({ ...member, memberCancelAt: member.memberPeriodEnd }, new Date("2027-07-10T00:00:00.000Z")), false);
+  });
+
+  /* ---------- R5: Geld zurück ---------- */
+  await check("erstattbar: kein PDF und < 14 Tage", () => {
+    const bought = row({ purchasedAt: "2026-11-02T10:00:00.000Z" });
+    const ok = plan.refundStatus(bought, [], new Date("2026-11-10T00:00:00.000Z"));
+    assert.equal(ok.refundable, true);
+    assert.equal(ok.deadline, "2026-11-16T10:00:00.000Z");
+    assert.equal(plan.refundStatus(bought, [], new Date("2026-11-16T10:00:00.000Z")).reason, "frist");
+    assert.equal(plan.refundStatus(bought, [{ pdfUrl: "x", timestamp: "2026-11-03T00:00:00.000Z" }], new Date("2026-11-05T00:00:00.000Z")).reason, "pdf");
+    assert.equal(plan.refundStatus(bought, [{ pdfUrl: "x" }], new Date("2026-11-05T00:00:00.000Z")).reason, "pdf");
+    assert.equal(plan.refundStatus(bought, [{ pdfUrl: "x", timestamp: "2026-10-01T00:00:00.000Z" }], new Date("2026-11-05T00:00:00.000Z")).refundable, true);
+  });
+  await check("erste PDF je Firma vermerkt und sperrt die Erstattung", () => {
+    const bought = row({ purchasedAt: "2026-11-02T10:00:00.000Z" });
+    const logged = plan.recordFirstPdf(bought, "ent_1", "2026-11-03T00:00:00.000Z");
+    assert.equal(plan.firstPdfFor(logged, "ent_1"), "2026-11-03T00:00:00.000Z");
+    assert.equal(plan.recordFirstPdf(logged, "ent_1", "2026-11-04T00:00:00.000Z"), logged);
+    assert.equal(plan.refundStatus(logged, [], new Date("2026-11-05T00:00:00.000Z")).reason, "pdf");
+  });
+  await check("Erstattung sperrt Zugang und kündigt das Abo; Änderung und Teilerstattung nie", async () => {
+    const member = row({ plan: "member", memberStatus: "active", memberSubscriptionId: "sub_1", purchasedAt: "2026-11-02T10:00:00.000Z", retentionUntil: "2027-11-02T10:00:00.000Z" });
+    let saved: import("@/lib/plan").PlanRow | null = null;
+    const cancelled: string[] = [];
+    store.setPlanStoreForTests({ read: async () => [member], write: async (next) => { saved = next; } });
+    const base = { email: member.email, eventId: "evt_r", at: "2026-11-05T00:00:00.000Z", cancelSubscription: async (id: string) => { cancelled.push(id); } };
+    assert.equal(await webhook.recordPlanRefund({ ...base, charge: { refunded: true, metadata: { gobd_kind: "change" } } }), "ignored");
+    assert.equal(await webhook.recordPlanRefund({ ...base, charge: { refunded: false, metadata: { gobd_kind: "entry" } } }), "ignored");
+    assert.equal(await webhook.recordPlanRefund({ ...base, charge: { refunded: true, metadata: { gobd_kind: "entry" } } }), "locked");
+    assert.deepEqual(cancelled, ["sub_1"]);
+    assert.ok(saved);
+    const locked = plan.planAccess(saved!);
+    assert.equal(locked.state, "refunded");
+    assert.equal(locked.writesOpen, false);
+    assert.equal(locked.downloadsOpen, false);
+    store.setPlanStoreForTests(null);
+  });
+
+  /* ---------- Checkout ---------- */
+  await check("Checkout mit Mitgliedschaft: eine Session, subscription, Einstieg + Jahrespreis", () => {
+    process.env.STRIPE_PRICE_ENTRY_ID = "price_entry_test";
+    process.env.STRIPE_PRICE_MEMBER_YEAR_ID = "price_year_test";
+    process.env.STRIPE_PRICE_CHANGE_ID = "price_change_test";
+    const params = checkout.buildPlanCheckoutParams({ kind: "entry", member: true, email: "kunde@example.com", company: "Firma" });
+    assert.equal(params.mode, "subscription");
+    assert.deepEqual(params.line_items?.map((item) => item.price), ["price_entry_test", "price_year_test"]);
+    assert.equal(params.metadata?.gobd_kind, "entry");
+    assert.equal(params.metadata?.gobd_plan, "member");
+    assert.equal(params.allow_promotion_codes, true);
+    assert.equal(params.subscription_data?.metadata?.gobd_plan, "member");
+  });
+  await check("Checkout ohne Mitgliedschaft: payment mit Rechnung", () => {
+    const params = checkout.buildPlanCheckoutParams({ kind: "entry", member: false, email: "kunde@example.com", company: "Firma" });
+    assert.equal(params.mode, "payment");
+    assert.equal(params.invoice_creation?.enabled, true);
+    assert.equal(params.customer_creation, "always");
+    assert.deepEqual(params.line_items?.map((item) => item.price), ["price_entry_test"]);
+    assert.equal(checkout.buildPlanCheckoutParams({ kind: "change", email: "k@example.com", company: "" }).mode, "payment");
+    assert.equal(checkout.memberFromPackage(undefined, true), true);
+    assert.equal(checkout.memberFromPackage("einstieg", true), false);
+    assert.deepEqual(checkout.missingPlanPriceIds("entry", true), []);
+    delete process.env.STRIPE_PRICE_MEMBER_YEAR_ID;
+    assert.deepEqual(checkout.missingPlanPriceIds("entry", true), ["STRIPE_PRICE_MEMBER_YEAR_ID"]);
+  });
+
+  await check("Partner-Checkout v2: gleiche Preise wie normal, Aktionscodes erlaubt, kein alter Listenpreis", async () => {
+    process.env.STRIPE_PRICE_MEMBER_YEAR_ID = "price_year_test";
+    const base = { kind: "entry" as const, member: true, email: "k@kanzlei.example", company: "Firma" };
+    const kunde = checkout.buildPlanCheckoutParams({ ...base, audience: "kunde" });
+    const partner = checkout.buildPlanCheckoutParams({ ...base, audience: "steuerberater" });
+    assert.deepEqual(partner.line_items?.map((item) => item.price), kunde.line_items?.map((item) => item.price));
+    assert.equal(partner.allow_promotion_codes, true);
+    const { readFileSync } = await import("node:fs");
+    const page = readFileSync(new URL("../app/checkout/page.tsx", import.meta.url), "utf8");
+    const v2Branch = page.slice(page.indexOf("{v2 ? ("), page.indexOf(") : partner ? ("));
+    assert.ok(v2Branch.length > 0, "v2-Zweig gefunden");
+    assert.ok(!v2Branch.includes("Listenpreis"), "kein alter Listenpreis");
+    assert.ok(!v2Branch.includes("SETUP_EUR"), "keine Einrichtungsgebühr");
+  });
+
+  /* ---------- Webhook-Übergänge ---------- */
+  await check("Einstieg idempotent; Änderung braucht Plan; Mitgliedschaft nachträglich", () => {
+    const input = { kind: "entry" as const, member: false, email: "Kunde@Example.com", at: "2026-11-02T10:00:00.000Z", sessionId: "cs_1", eventId: "evt_1", customerId: "cus_1", subscriptionId: "" };
+    const first = webhook.planAfterCheckout(null, input)!;
+    assert.equal(first.email, "kunde@example.com");
+    assert.equal(first.retentionUntil, "2027-11-02T10:00:00.000Z");
+    assert.equal(webhook.planAfterCheckout(first, input), first);
+    assert.equal(webhook.planAfterCheckout(null, { ...input, kind: "change" }), null);
+    const changed = webhook.planAfterCheckout(first, { ...input, kind: "change", sessionId: "cs_2", at: "2027-10-01T00:00:00.000Z" })!;
+    assert.equal(changed.changeCredits, 1);
+    assert.equal(changed.retentionUntil, "2028-10-01T00:00:00.000Z");
+    const member = webhook.planAfterCheckout(changed, { ...input, kind: "member", sessionId: "cs_3", subscriptionId: "sub_9" })!;
+    assert.equal(member.plan, "member");
+    assert.equal(member.memberSubscriptionId, "sub_9");
+  });
+
+  /* ---------- Kündigung, Rücknahme, Admin per E-Mail ---------- */
+  await check("Kündigung per E-Mail: Stichtag ab Eingang, Kanal email, Rücknahme bis Ablauf", async () => {
+    const member = row({ plan: "member", memberStatus: "active", memberSubscriptionId: "sub_1", memberPeriodEnd: "2027-11-02T10:00:00.000Z" });
+    const calls: string[] = [];
+    const stripe = { scheduleCancel: async (id: string) => { calls.push(`cancel:${id}`); }, clearCancel: async (id: string) => { calls.push(`clear:${id}`); } };
+    const done = await cancel.cancelMembership(member, { channel: "email", receivedAt: "2027-08-01T08:00:00.000Z", stripe, now: new Date("2027-08-05T00:00:00.000Z") });
+    assert.ok(done.ok);
+    assert.equal(done.ok && done.effectiveAt, "2027-11-02T10:00:00.000Z");
+    assert.equal(done.ok && done.row.memberCancelChannel, "email");
+    const back = await cancel.withdrawMembershipCancel(done.ok ? done.row : member, { channel: "email", receivedAt: "2027-10-01T00:00:00.000Z", stripe, now: new Date("2027-10-01T00:00:00.000Z") });
+    assert.ok(back.ok && back.row.memberCancelAt === "");
+    assert.deepEqual(calls, ["cancel:sub_1", "clear:sub_1"]);
+    const tooLate = await cancel.withdrawMembershipCancel({ ...member, memberCancelAt: "2027-11-02T10:00:00.000Z" }, { channel: "email", receivedAt: "2027-11-03T00:00:00.000Z", stripe, now: new Date("2027-11-01T00:00:00.000Z") });
+    assert.equal(tooLate.ok, false);
+    const res = await admin.handlePlanAdminAction(
+      new Request("http://x", { method: "POST", headers: { authorization: "Bearer t0ken-abcdefghijklmnop" }, body: JSON.stringify({ action: "kuendigen", email: member.email, receivedAt: "2027-08-01T08:00:00.000Z" }) }),
+      { token: "t0ken-abcdefghijklmnop", findPlan: async () => member, savePlan: async () => {}, stripe, now: new Date("2027-08-05T00:00:00.000Z") },
+    );
+    assert.equal(res.status, 200);
+  });
+
+  /* ---------- Firmen (R1 neu) ---------- */
+  await check("Firmen: Mitglied 2 inklusive, dann weitere Firma nötig", () => {
+    const member = row({ plan: "member", memberStatus: "active", memberSubscriptionId: "sub_1", memberPeriodEnd: "2027-11-02T10:00:00.000Z" });
+    const f = (entityId: string, slot: string) => ({ ...firms.emptyFirmRow(member.email, slot, "member", "2026-11-02T10:00:00.000Z"), entityId });
+    const two = [f("e1", "m_e1"), f("e2", "m_e2")];
+    assert.equal(firms.firmDecision({ account: member, firms: [f("e1", "m_e1")], entityId: "e2", newVersion: false }).allowed, true);
+    const third = firms.firmDecision({ account: member, firms: two, entityId: "e3", newVersion: false });
+    assert.equal(third.allowed, false);
+    assert.equal(!third.allowed && third.reason, "needs_member_slot");
+    assert.equal(firms.firmDecision({ account: { ...member, memberExtraFirms: 1 }, firms: two, entityId: "e3", newVersion: false }).allowed, true);
+    assert.equal(firms.addFirmOffer(member, two).kind, "member_paid");
+  });
+  await check("Firmen ohne Mitgliedschaft: eigene Frist, Änderung je Firma", () => {
+    const single = row({ retentionUntil: "2027-11-02T10:00:00.000Z" });
+    const slot = firms.applyFirmPurchase(null, { email: single.email, sessionId: "cs_a", source: "entry", at: "2026-11-02T10:00:00.000Z" });
+    const bind = firms.firmDecision({ account: single, firms: [slot], entityId: "e1", newVersion: false, now: new Date("2027-01-01T00:00:00.000Z") });
+    assert.ok(bind.allowed && bind.bind?.slotId === "cs_a");
+    const bound = { ...slot, entityId: "e1" };
+    const v2 = firms.firmDecision({ account: single, firms: [bound], entityId: "e1", newVersion: true, now: new Date("2027-01-01T00:00:00.000Z") });
+    assert.equal(!v2.allowed && v2.reason, "needs_change");
+    const other = firms.firmDecision({ account: single, firms: [bound], entityId: "e2", newVersion: false, now: new Date("2027-01-01T00:00:00.000Z") });
+    assert.equal(!other.allowed && other.reason, "needs_purchase");
+    const changed = firms.applyFirmChange(bound, { sessionId: "cs_c", at: "2027-10-01T00:00:00.000Z" });
+    assert.equal(changed.retentionUntil, "2028-10-01T00:00:00.000Z");
+    assert.equal(changed.changeCredits, 1);
+  });
+  await check("Firmen enden mit der Mitgliedschaft; danach gekaufte behalten eigene Frist", () => {
+    const ended = row({ plan: "single", memberStatus: "canceled", memberEndedAt: "2027-11-02T10:00:00.000Z" });
+    const before = { ...firms.applyFirmPurchase(null, { email: ended.email, sessionId: "cs_old", source: "extra", at: "2027-06-01T00:00:00.000Z" }), entityId: "e1" };
+    const after = { ...firms.applyFirmPurchase(null, { email: ended.email, sessionId: "cs_new", source: "extra", at: "2027-12-01T00:00:00.000Z" }), entityId: "e2" };
+    assert.equal(firms.firmDeletionDueAt(ended, before), "2027-11-02T10:00:00.000Z");
+    assert.equal(firms.firmDeletionDueAt(ended, after), "2028-12-01T00:00:00.000Z");
+  });
+  await check("Firmen-Menge ohne Anteilsrechnung", () => {
+    const params = checkout.memberFirmQuantityParams({ itemId: "si_1", quantity: 2, priceId: "price_f", taxRateId: "" });
+    assert.equal(params.proration_behavior, "none");
+    assert.deepEqual(params.items, [{ id: "si_1", quantity: 2 }]);
+  });
+  await check("Firmen-Schalter aus: kein Lesen von plan_firms", async () => {
+    process.env.PRICING_MODEL = "v2";
+    let firmReads = 0;
+    firmStore.setPlanFirmStoreForTests({ read: async () => { firmReads += 1; return []; }, write: async () => {} });
+    store.setPlanStoreForTests({ read: async () => [row({ retentionUntil: "2099-01-01T00:00:00.000Z", purchasedAt: "2026-11-02T10:00:00.000Z" })], write: async () => {} });
+    const gate = await access.planFirmGate("kunde@example.com", "e1", false);
+    assert.equal(gate.denial, null);
+    assert.equal(firmReads, 0);
+    store.setPlanStoreForTests(null);
+    firmStore.setPlanFirmStoreForTests(null);
+    delete process.env.PRICING_MODEL;
+  });
+
+  /* ---------- Start-Schutz Testmodus ---------- */
+  await check("Start-Schutz: Testkey nur mit erklärten Testdaten, Livekey nie gegen Testdaten", () => {
+    const testKey = ["sk", "test", "x"].join("_");
+    const liveKey = ["sk", "live", "x"].join("_");
+    const blob = "vercel_blob_rw_STORE1_abc";
+    assert.equal(guard.dataEnvVerdict({}).ok, true);
+    assert.equal(guard.dataEnvVerdict({ STRIPE_SECRET_KEY: testKey, VERCEL_ENV: "preview" }).ok, false);
+    assert.equal(guard.dataEnvVerdict({ STRIPE_SECRET_KEY: testKey, VERCEL_ENV: "preview", GOBD_DATA_ENV: "test", GOOGLE_SHEETS_SPREADSHEET_ID: "s1", GOBD_TEST_SPREADSHEET_ID: "s1", BLOB_READ_WRITE_TOKEN: blob, GOBD_TEST_BLOB_STORE_ID: "STORE1" }).ok, true);
+    assert.equal(guard.dataEnvVerdict({ STRIPE_SECRET_KEY: testKey, VERCEL_ENV: "preview", GOBD_DATA_ENV: "test", GOOGLE_SHEETS_SPREADSHEET_ID: "prod", GOBD_TEST_SPREADSHEET_ID: "s1", BLOB_READ_WRITE_TOKEN: blob, GOBD_TEST_BLOB_STORE_ID: "STORE1" }).ok, false);
+    assert.equal(guard.dataEnvVerdict({ STRIPE_SECRET_KEY: liveKey, GOBD_DATA_ENV: "test" }).ok, false);
+    assert.equal(guard.dataEnvVerdict({ STRIPE_SECRET_KEY: liveKey, GOOGLE_SHEETS_SPREADSHEET_ID: "s1", GOBD_TEST_SPREADSHEET_ID: "s1" }).ok, false);
+    assert.equal(guard.blobStoreIdFromToken(blob), "STORE1");
+  });
+
+  console.log(`check-plan: ok (${passed} checks)`);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -20,6 +20,13 @@ import {
 export const TODO_GROWTH = "[TODO-GROWTH]";
 export const TODO_LEGAL = "[TODO-LEGAL]";
 
+/**
+ * Merge-Sperre: solange `true`, meldet check-forbidden-words die Marker
+ * [TODO-GROWTH] / [TODO-LEGAL] nur als Warnung (Draft-PR, Test-Preview).
+ * Vor dem Merge auf `false` setzen; dann bricht der Build bei jedem Marker ab.
+ */
+export const PLAN_COPY_DRAFT = true;
+
 export type PlanPackage = "einstieg" | "mitglied";
 
 export const PLAN_PACKAGE_ENTRY_TITLE = "Einstieg";
