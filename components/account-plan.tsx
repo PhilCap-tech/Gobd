@@ -22,6 +22,22 @@ const PURCHASE_NOTICES: Record<string, string> = {
 
 /** Konto-Karte Preismodell v2. Nur sichtbar, wenn ein Plan existiert. */
 export function AccountPlanCard({ view, purchase }: { view: AccountPlanView; purchase?: string }) {
+  if (view.simple) {
+    // PLAN_LIFECYCLE_ENABLED aus (Default): schlichter Hinweis, Kündigung über das Stripe-Portal.
+    return (
+      <section className="card" aria-labelledby="plan-heading" id="frist">
+        <h2 id="plan-heading">{view.title}</h2>
+        {view.portalCancel ? (
+          <form method="post" action="/api/account/kuendigung/portal">
+            <input type="hidden" name="acknowledged" value="yes" />
+            <button className="btn secondary" type="submit">
+              Mitgliedschaft kündigen
+            </button>
+          </form>
+        ) : null}
+      </section>
+    );
+  }
   return (
     <section className="card" aria-labelledby="plan-heading" id="frist">
       <h2 id="plan-heading">{view.title}</h2>

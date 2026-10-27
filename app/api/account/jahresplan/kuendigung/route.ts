@@ -4,6 +4,7 @@ import { getAppUrl, isStripeSecretConfigured } from "@/lib/env";
 import { applyMemberCancelRecord, memberCancelPlan } from "@/lib/plan";
 import { loadPlanAccess } from "@/lib/plan-access";
 import { savePlanRow } from "@/lib/plan-store";
+import { planLifecycleEnabled } from "@/lib/pricing-model";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
   if (!email) {
     return NextResponse.redirect(`${getAppUrl()}${loginPath("/account")}`, 303);
   }
+  // T8 zurückgestellt (CoS 27.10.): ohne PLAN_LIFECYCLE_ENABLED kein eigener
+  // Stichtag; gekündigt wird über das Stripe-Kundenportal.
+  if (!planLifecycleEnabled()) return back("kuendigung-unverfuegbar");
   const form = await request.formData().catch(() => null);
   if (form?.get("action") === "widerruf") return withdraw(email);
   if (form?.get("acknowledged") !== "yes") return back("kuendigung-hinweis");

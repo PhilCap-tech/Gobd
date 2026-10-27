@@ -14,6 +14,8 @@ import {
   type RefundStatus,
 } from "@/lib/plan";
 import { loadPlanAccess } from "@/lib/plan-access";
+import { PLAN_PACKAGE_ENTRY_TITLE } from "@/lib/plan-copy";
+import { planLifecycleEnabled } from "@/lib/pricing-model";
 
 export type AccountPlanView = {
   state: PlanAccess["state"];
@@ -28,6 +30,13 @@ export type AccountPlanView = {
   changeCredits: number;
   refund: RefundStatus;
   refundLine: string;
+  /**
+   * PLAN_LIFECYCLE_ENABLED aus (Default, CoS 27.10.): nur ein schlichter
+   * Hinweis (Paket), keine Fristen, Käufe oder eigener Kündigungsstichtag.
+   */
+  simple?: boolean;
+  /** Schlichter Hinweis, Mitglied mit Abo: Knopf zum Stripe-Kundenportal. */
+  portalCancel?: boolean;
 };
 
 const TITLES: Record<PlanAccess["state"], string> = {
@@ -87,6 +96,30 @@ export function accountPlanView(
   };
 }
 
+/**
+ * Schlichter Konto-Hinweis ohne Plan-Logik (T10 zurückgestellt): Paketname,
+ * bei laufender Mitgliedschaft der Weg ins Stripe-Kundenportal. Keine Daten,
+ * Fristen oder Kaufknöpfe; der Zugang hängt nicht vom Plan ab.
+ */
+export function simpleAccountPlanView(row: PlanRow, access: PlanAccess): AccountPlanView {
+  const member = row.plan === "member" || Boolean(row.memberSubscriptionId);
+  return {
+    state: access.state,
+    title: member ? TITLES.member : PLAN_PACKAGE_ENTRY_TITLE,
+    lines: [],
+    canBuyChange: false,
+    canBecomeMember: false,
+    canCancel: false,
+    canWithdrawCancel: false,
+    cancelPreview: "",
+    changeCredits: 0,
+    refund: { refundable: false, reason: "", deadline: "" },
+    refundLine: "",
+    simple: true,
+    portalCancel: Boolean(row.memberSubscriptionId) && !row.memberEndedAt,
+  };
+}
+
 export async function loadAccountPlanView(
   email: string,
   documents: readonly { pdfUrl?: string; timestamp?: string }[],
@@ -94,6 +127,7 @@ export async function loadAccountPlanView(
   try {
     const loaded = await loadPlanAccess(email);
     if (!loaded) return null;
+    if (!planLifecycleEnabled()) return simpleAccountPlanView(loaded.row, loaded.access);
     return accountPlanView(loaded.row, loaded.access, documents);
   } catch (error) {
     console.error("[account] Plan nicht gelesen", error instanceof Error ? error.name : "error");

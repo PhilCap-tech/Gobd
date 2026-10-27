@@ -22,7 +22,12 @@ import {
 } from "@/lib/plan";
 import { cancelMembership, withdrawMembershipCancel, type CancelStripe } from "@/lib/plan-cancel";
 import { findPlanByEmailStrict, listPlanRowsStrict, savePlanRow } from "@/lib/plan-store";
-import { renewalNoticeEnabled, retentionDeleteEnabled, retentionNoticeEnabled } from "@/lib/pricing-model";
+import {
+  planLifecycleEnabled,
+  renewalNoticeEnabled,
+  retentionDeleteEnabled,
+  retentionNoticeEnabled,
+} from "@/lib/pricing-model";
 import { emailsEqual } from "@/lib/types";
 
 export type HttpResult = { status: number; body: unknown };
@@ -178,6 +183,11 @@ export async function handlePlanAdminAction(
 ): Promise<HttpResult> {
   if (!authorized(request, deps.token ?? process.env.ADMIN_TOKEN)) {
     return { status: 401, body: { error: "unauthorized" } };
+  }
+  // T8 zurückgestellt (CoS 27.10.): ohne PLAN_LIFECYCLE_ENABLED kein Stichtag-Eintrag;
+  // E-Mail-Kündigungen werden in Stripe (Portal/Dashboard) umgesetzt.
+  if (!planLifecycleEnabled()) {
+    return { status: 409, body: { error: "zurückgestellt: PLAN_LIFECYCLE_ENABLED ist aus" } };
   }
   let body: { action?: unknown; email?: unknown; receivedAt?: unknown; target?: unknown };
   try {

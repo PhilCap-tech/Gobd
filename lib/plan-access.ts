@@ -7,7 +7,7 @@ import { planAccess, consumeChangeCredit, recordFirstPdf, type PlanAccess, type 
 import { findPlanByEmailStrict, savePlanRow } from "@/lib/plan-store";
 import { applyFirmUse, firmDecision, type PlanFirmRow } from "@/lib/plan-firms";
 import { listPlanFirmsByEmailStrict, savePlanFirmRow } from "@/lib/plan-firm-store";
-import { extraFirmsEnabled, planAccessEnabled } from "@/lib/pricing-model";
+import { extraFirmsEnabled, planAccessEnabled, planLifecycleEnabled } from "@/lib/pricing-model";
 import { SheetsUnavailableError, sheetsStatusCode } from "@/lib/sheets-unavailable";
 
 function logReadFailure(context: string, error: unknown): void {
@@ -30,7 +30,28 @@ export async function loadPlanAccess(
   if (!normalized || !planAccessEnabled()) return null;
   const row = await findPlanByEmailStrict(normalized);
   if (!row) return null;
-  return { row, access: planAccess(row, now) };
+  const access = planAccess(row, now);
+  return { row, access: planLifecycleEnabled() ? access : neutralPlanAccess(access) };
+}
+
+/**
+ * PLAN_LIFECYCLE_ENABLED aus (Default): der Plan sperrt nichts. Schreiben,
+ * Downloads und neue Versionen offen, egal ob Frist, Kündigung, Löschung
+ * oder Erstattung im Plan stehen; keine Käufe aus dem Konto. `state` bleibt
+ * als Merkwert (Einstieg vs. Mitglied) erhalten, steuert aber keinen Zugang.
+ */
+export function neutralPlanAccess(access: PlanAccess): PlanAccess {
+  return {
+    ...access,
+    writesOpen: true,
+    downloadsOpen: true,
+    newVersionAllowed: true,
+    canBuyChange: false,
+    canBecomeMember: false,
+    writeMessage: "",
+    versionMessage: "",
+    downloadMessage: "",
+  };
 }
 
 /** Schreibzugriff (Entwurf, Upload, Abgabe). Lesefehler: 503 wie beim Lifecycle. */
@@ -72,6 +93,7 @@ export async function planDownloadDenial(email: string): Promise<string | null> 
 /** Nach gespeicherter neuer Version. Fehler werden geloggt, die Version bleibt. */
 export async function consumePlanChangeCredit(email: string): Promise<void> {
   try {
+    if (!planLifecycleEnabled()) return;
     const loaded = await loadPlanAccess(email);
     if (!loaded || loaded.access.state !== "window") return;
     const next = consumeChangeCredit(loaded.row, new Date().toISOString());
@@ -113,7 +135,11 @@ export async function planFirmGate(
   try {
     loaded = await loadPlanAccess(email);
     if (!loaded) return OPEN_GATE;
-    firms = extraFirmsEnabled() ? await listPlanFirmsByEmailStrict(loaded.row.email) : [];
+    // Firmen-Plätze nur mit Firmen-Schalter UND Plan-Logik; sonst Konto-Ebene (offen).
+    firms =
+      extraFirmsEnabled() && planLifecycleEnabled()
+        ? await listPlanFirmsByEmailStrict(loaded.row.email)
+        : [];
   } catch (error) {
     logReadFailure("firm", error);
     throw new SheetsUnavailableError(sheetsStatusCode(error));

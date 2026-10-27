@@ -12,6 +12,7 @@ import { resolveStripeCustomerForEmail } from "@/lib/store";
 import { accountBillingPath } from "@/lib/stripe";
 import { isTestEntity } from "@/lib/test-entities";
 import { loadPlanAccess } from "@/lib/plan-access";
+import { planLifecycleEnabled } from "@/lib/pricing-model";
 import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
@@ -45,16 +46,22 @@ export async function POST(request: Request) {
   if (preview.lookupFailed) return back("fehler");
   if (!preview.subscriptionId) return back("keins");
   // Preismodell v2: Der Jahresplan hat einen Kündigungsstichtag und eine eigene Route.
+  // Ohne PLAN_LIFECYCLE_ENABLED (Default, CoS 27.10.) kündigt das Stripe-Portal;
+  // kein Lifecycle-Eintrag für das Jahres-Abo (keine 30-Tage-Logik, keine Sperre).
+  let annualPlan = false;
   try {
     const plan = await loadPlanAccess(email);
     if (plan && plan.row.memberSubscriptionId === preview.subscriptionId) {
-      return NextResponse.redirect(`${getAppUrl()}/account#frist`, 303);
+      if (planLifecycleEnabled()) {
+        return NextResponse.redirect(`${getAppUrl()}/account#frist`, 303);
+      }
+      annualPlan = true;
     }
   } catch {
     return back("fehler");
   }
 
-  const wantsPortal = new URL(request.url).pathname.endsWith("/portal");
+  const wantsPortal = annualPlan || new URL(request.url).pathname.endsWith("/portal");
   if (wantsPortal) {
     try {
       const url = await createCancellationPortalSession({

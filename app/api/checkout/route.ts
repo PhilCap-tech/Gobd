@@ -24,6 +24,7 @@ import { listPlanFirmsByEmailStrict } from "@/lib/plan-firm-store";
 import { memberFromPackage, planCheckoutKind, type PlanCheckoutKind } from "@/lib/plan-checkout";
 import {
   extraFirmsEnabled,
+  planLifecycleEnabled,
   isPricingV2,
   memberPreselected,
 } from "@/lib/pricing-model";
@@ -203,6 +204,10 @@ async function accountPlanCheckout(
 ): Promise<NextResponse> {
   if (!sessionEmail) {
     return NextResponse.json({ error: "Bitte melden Sie sich an." }, { status: 401 });
+  }
+  // T4 zurückgestellt (CoS 27.10.): ohne PLAN_LIFECYCLE_ENABLED keine Käufe aus dem Konto.
+  if (!planLifecycleEnabled()) {
+    return NextResponse.json({ error: "Das ist im Konto gerade nicht buchbar." }, { status: 404 });
   }
   let loaded;
   try {

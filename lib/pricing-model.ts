@@ -32,6 +32,18 @@ export function planAccessEnabled(): boolean {
   return boolEnv("PLAN_ACCESS_ENABLED", isPricingV2());
 }
 
+/**
+ * Zurückgestellte Plan-Logik (CoS 27.10., v2-Kern): Fristen-/Löschzugang
+ * (T5/T6), Änderung bzw. Mitgliedschaft im Konto kaufen (T4), eigener
+ * Kündigungsstichtag im Konto (T8) und Status-Anzeigen (T10). Default AUS.
+ * Aus: Käufe werden im Webhook weiter in `plans` verbucht, der Zugang hängt
+ * aber nicht davon ab (alle v2-Kunden voll offen), Kündigen läuft über das
+ * Stripe-Kundenportal. Der Code bleibt, er wird nur nicht ausgewertet.
+ */
+export function planLifecycleEnabled(): boolean {
+  return planAccessEnabled() && boolEnv("PLAN_LIFECYCLE_ENABLED", false);
+}
+
 /** Paket mit Jahresmitgliedschaft vorausgewählt (Philip 26.10.; Legal prüft). Default: ja. */
 export function memberPreselected(): boolean {
   return boolEnv("PRICING_MEMBER_PRESELECTED", true);

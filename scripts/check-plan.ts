@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 for (const name of [
-  "PRICING_MODEL", "PLAN_ACCESS_ENABLED", "PRICING_EXTRA_FIRMS_ENABLED", "RETENTION_DELETE_ENABLED",
+  "PRICING_MODEL", "PLAN_ACCESS_ENABLED", "PLAN_LIFECYCLE_ENABLED", "PRICING_EXTRA_FIRMS_ENABLED", "RETENTION_DELETE_ENABLED",
   "RETENTION_NOTICE_ENABLED", "RENEWAL_NOTICE_ENABLED", "STRIPE_SECRET_KEY", "STRIPE_SECRET_KEY_NEW",
   "GOOGLE_SHEETS_SPREADSHEET_ID", "BLOB_READ_WRITE_TOKEN", "VERCEL_ENV", "GOBD_DATA_ENV",
   "PLAN_WINDOW_AFTER_MEMBER_MONTHS", "MEMBER_LATE_CANCEL_EFFECT", "STRIPE_TAX_RATE_ID",
@@ -343,10 +343,18 @@ async function main() {
     assert.deepEqual(calls, ["cancel:sub_1", "clear:sub_1"]);
     const tooLate = await cancel.withdrawMembershipCancel({ ...member, memberCancelAt: "2027-11-02T10:00:00.000Z" }, { channel: "email", receivedAt: "2027-11-03T00:00:00.000Z", stripe, now: new Date("2027-11-01T00:00:00.000Z") });
     assert.equal(tooLate.ok, false);
-    const res = await admin.handlePlanAdminAction(
-      new Request("http://x", { method: "POST", headers: { authorization: "Bearer t0ken-abcdefghijklmnop" }, body: JSON.stringify({ action: "kuendigen", email: member.email, receivedAt: "2027-08-01T08:00:00.000Z" }) }),
-      { token: "t0ken-abcdefghijklmnop", findPlan: async () => member, savePlan: async () => {}, stripe, now: new Date("2027-08-05T00:00:00.000Z") },
-    );
+    const adminRequest = () =>
+      new Request("http://x", { method: "POST", headers: { authorization: "Bearer t0ken-abcdefghijklmnop" }, body: JSON.stringify({ action: "kuendigen", email: member.email, receivedAt: "2027-08-01T08:00:00.000Z" }) });
+    const adminDeps = { token: "t0ken-abcdefghijklmnop", findPlan: async () => member, savePlan: async () => {}, stripe, now: new Date("2027-08-05T00:00:00.000Z") };
+    // Zurückgestellt (CoS 27.10.): ohne PLAN_LIFECYCLE_ENABLED kein Stichtag-Eintrag per Admin.
+    process.env.PRICING_MODEL = "v2";
+    const before = calls.length;
+    assert.equal((await admin.handlePlanAdminAction(adminRequest(), adminDeps)).status, 409);
+    assert.equal(calls.length, before, "kein Stripe-Aufruf ohne Plan-Logik");
+    process.env.PLAN_LIFECYCLE_ENABLED = "true";
+    const res = await admin.handlePlanAdminAction(adminRequest(), adminDeps);
+    delete process.env.PLAN_LIFECYCLE_ENABLED;
+    delete process.env.PRICING_MODEL;
     assert.equal(res.status, 200);
   });
 

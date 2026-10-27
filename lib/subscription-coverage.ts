@@ -6,7 +6,7 @@ import type { PlanRow } from "@/lib/plan";
 import { loadPlanAccess } from "@/lib/plan-access";
 import { firmDecision, type PlanFirmRow } from "@/lib/plan-firms";
 import { listPlanFirmsByEmailStrict } from "@/lib/plan-firm-store";
-import { extraFirmsEnabled } from "@/lib/pricing-model";
+import { extraFirmsEnabled, planLifecycleEnabled } from "@/lib/pricing-model";
 import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { findLatestPaidCheckoutByEmail, resolveStripeCustomerForEmail } from "@/lib/store";
 import {
@@ -154,15 +154,18 @@ export async function loadIncludedFirmCoverage(email: string): Promise<IncludedF
   try {
     const plan = await loadPlanAccess(normalized);
     if (plan) {
-      const open = plan.access.state === "member" || plan.access.state === "window";
-      const firms = extraFirmsEnabled() ? await listPlanFirmsByEmailStrict(plan.row.email) : [];
+      // Ohne PLAN_LIFECYCLE_ENABLED: jeder v2-Kauf deckt die Firmen ab (keine Frist-Sperre).
+      const open =
+        !planLifecycleEnabled() || plan.access.state === "member" || plan.access.state === "window";
+      const seats = extraFirmsEnabled() && planLifecycleEnabled();
+      const firms = seats ? await listPlanFirmsByEmailStrict(plan.row.email) : [];
       return {
         hasStoredPaidEntitlement: true,
         subscriptionStatuses: [],
         lookupFailed: false,
         stripeCustomerId: plan.row.stripeCustomerId,
         planOpen: open,
-        ...(extraFirmsEnabled() ? { planFirms: { account: plan.row, firms } } : {}),
+        ...(seats ? { planFirms: { account: plan.row, firms } } : {}),
       };
     }
     const paid = await findLatestPaidCheckoutByEmail(normalized);
