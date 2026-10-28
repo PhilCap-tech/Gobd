@@ -15,6 +15,12 @@ import {
   V2_ENTRY_WITH_MEMBER_CENTS,
   centsLabel,
   grossFromNetCents,
+  V3_ENTRY_GROSS_LABEL,
+  V3_ENTRY_LABEL,
+  V3_ENTRY_WITH_YEAR_GROSS_LABEL,
+  V3_ENTRY_WITH_YEAR_LABEL,
+  V3_YEAR_GROSS_LABEL,
+  V3_YEAR_LABEL,
 } from "@/lib/pricing";
 
 export const TODO_GROWTH = "[TODO-GROWTH]";
@@ -29,13 +35,52 @@ export const PLAN_COPY_DRAFT = true;
 
 export type PlanPackage = "einstieg" | "mitglied";
 
-export const PLAN_PACKAGE_ENTRY_TITLE = "Einstieg";
-export const PLAN_PACKAGE_MEMBER_TITLE = "Einstieg mit Mitgliedschaft";
+/* Neues Modell (Philip 28.10.), Wortlaut Growth landing-v3.md (28.10.), 1:1. */
+export const PLAN_PACKAGE_ENTRY_TITLE = "30 Tage";
+export const PLAN_PACKAGE_MEMBER_TITLE = "Dauerhaft";
+/** Kennzeichnung Option 2 (Philip 28.10.; Growth MARKER 2 offen). */
+export const PLAN_BESTSELLER_LABEL = "Bestseller";
 
-export const PLAN_ENTRY_PRICE_LINE = `${V2_ENTRY_LABEL} € netto (${V2_ENTRY_GROSS_LABEL} € brutto) einmalig`;
-export const PLAN_MEMBER_PRICE_LINE = `${V2_MEMBER_YEAR_LABEL} € netto (${V2_MEMBER_YEAR_GROSS_LABEL} € brutto) pro Jahr`;
+export const PLAN_ENTRY_PRICE_LINE = `${V3_ENTRY_LABEL} € netto (${V3_ENTRY_GROSS_LABEL} € brutto) einmalig`;
+export const PLAN_MEMBER_PRICE_LINE = `${V3_YEAR_LABEL} € netto (${V3_YEAR_GROSS_LABEL} € brutto) pro Jahr`;
+export const PLAN_ENTRY_WITH_MEMBER_TOTAL = `${V3_ENTRY_WITH_YEAR_LABEL} € netto (${V3_ENTRY_WITH_YEAR_GROSS_LABEL} € brutto)`;
+/** v2 vom 26.10. (abgeschaltet): nur noch für Altbestand/Checks. */
+export const PLAN_V2_MEMBER_PRICE_LINE = `${V2_MEMBER_YEAR_LABEL} € netto (${V2_MEMBER_YEAR_GROSS_LABEL} € brutto) pro Jahr`;
 export const PLAN_CHANGE_PRICE_LINE = `${V2_CHANGE_LABEL} € netto (${V2_CHANGE_GROSS_LABEL} € brutto) je Änderung`;
-export const PLAN_ENTRY_WITH_MEMBER_TOTAL = `${centsLabel(V2_ENTRY_WITH_MEMBER_CENTS)} € netto (${centsLabel(grossFromNetCents(V2_ENTRY_WITH_MEMBER_CENTS), { forceDecimals: true })} € brutto)`;
+export const PLAN_V2_ENTRY_WITH_MEMBER_TOTAL = `${centsLabel(V2_ENTRY_WITH_MEMBER_CENTS)} € netto (${centsLabel(grossFromNetCents(V2_ENTRY_WITH_MEMBER_CENTS), { forceDecimals: true })} € brutto)`;
+void V2_ENTRY_LABEL;
+void V2_ENTRY_GROSS_LABEL;
+
+/** Jahrespaket nachbuchen (Option 1, innerhalb der 30 Tage). Growth Abschnitt 2/6. */
+export const PLAN_ADDON_TITLE = "Jahrespaket zubuchen";
+export const PLAN_ADDON_TEXT =
+  "Kann ich später auf „Dauerhaft“ wechseln? Ja, für 49 €/Jahr zzgl. USt, solange Ihr 30-Tage-Zugang läuft. Das Jahr zählt ab Ihrem ersten Kauf.";
+/** Growth Abschnitt 5 „Konto deaktiviert“. Button-Wortlaut: Philip 28.10. (PLAN_REACTIVATE_LABEL). */
+export const PLAN_REACTIVATE_TITLE = "Ihr Konto ist deaktiviert.";
+export function planReactivateText(input: { company: string; date: string }): string {
+  return `Ihr 30-Tage-Zugang für ${input.company || "Ihre Firma"} ist am ${input.date} abgelaufen. Dashboard und PDF-Download sind deshalb gesperrt. Ihre Angaben sind noch gespeichert.`;
+}
+export const PLAN_REACTIVATE_TEXT_2 =
+  "Mit dem Paket „Dauerhaft“ öffnen Sie Ihr Konto wieder, mit allem, was Sie bereits eingegeben haben.";
+export const PLAN_REACTIVATE_PRICE_LINE = "99 € + 49 €/Jahr zzgl. USt";
+export const PLAN_REACTIVATE_SMALL = "Zahlung über Stripe. Keine Steuer- oder Rechtsberatung.";
+/** Faktenzeile statt 14-Tage-Garantie (Growth MARKER 1, bis Philip entscheidet). */
+export const PLAN_FACT_LINE = "Kostenloser Fragebogen · Zahlung erst vor der Erstellung · ab 99 € je Firma zzgl. USt";
+/** Widerspruchshinweis § 7 Abs. 3 UWG im Checkout, vor dem Fragebogen und in der 7-Tage-Mail. Wortlaut Legal v3 (AGB § 12a Abs. 2), 1:1. */
+export const PLAN_OFFER_OBJECTION_NOTICE =
+  "Der Verwendung Ihrer E-Mail-Adresse für Angebote eigener ähnlicher Leistungen (z. B. das Jahrespaket) können Sie jederzeit widersprechen, z. B. per E-Mail an info@gobd-doku-erstellen.de, ohne dass hierfür andere als die Übermittlungskosten nach den Basistarifen entstehen.";
+/** Hinweis bei Auswahl Option 1 (Growth Abschnitt 3, inline). */
+export const PLAN_ENTRY_SELECTED_HINT =
+  "Gut zu wissen: Nach 30 Tagen haben Sie keinen Zugriff mehr auf Dashboard und PDFs. Speichern Sie Ihre PDFs rechtzeitig. Ein Wechsel auf „Dauerhaft“ ist während der 30 Tage für 49 €/Jahr möglich.";
+/** Zeile unter beiden Paketen (Growth Abschnitt 2). */
+export const PLAN_PACKAGES_FOOTER =
+  "Jede Firma wird einzeln gebucht. Alle Preise netto zzgl. USt. Keine Steuer- oder Rechtsberatung.";
+
+/** Growth Abschnitt 2, Paket-Texte (Stichpunkte als Satzfolge). */
+const PLAN_V3_ENTRY_TEXT =
+  "99 € einmalig je Firma, zzgl. USt. Verfahrensdokumentation als PDF · 30 Tage Zugang zum Dashboard · Angaben anpassen und PDF neu erstellen, solange der Zugang läuft · Personen einladen, die beim Ausfüllen helfen · Danach wird das Konto deaktiviert, auch der PDF-Download. Bitte speichern Sie Ihre PDFs innerhalb der 30 Tage.";
+const PLAN_V3_MEMBER_TEXT =
+  "99 € einmalig + 49 €/Jahr je Firma, zzgl. USt (im ersten Jahr 148 € zzgl. USt). Alles aus „30 Tage“ · Dauerhafter Zugang zum Dashboard und zu Ihren PDFs · Änderungen jederzeit: Angaben anpassen und neue Version erstellen, wenn sich in Ihrem Betrieb etwas ändert · Personen jederzeit einladen · Verlängert sich jährlich, kündbar laut AGB";
 
 /**
  * Text je Paket, Wortlaut Legal (BUILDER-UEBERGABE 26.10., Abschnitt 4
@@ -59,6 +104,11 @@ const PLAN_ENTRY_TEXT_AFTER =
   "Ihr PDF behalten Sie. Gilt für 1 Firma; jede weitere Firma 99 € netto (117,81 € brutto) mit eigener 12-Monatsfrist ab Zahlung.";
 
 export type PlanPackageTexts = { entry: string; member: string };
+
+/** Neues Modell (28.10.). */
+export function planPackageTextsV3(): PlanPackageTexts {
+  return { entry: PLAN_V3_ENTRY_TEXT, member: PLAN_V3_MEMBER_TEXT };
+}
 
 export function planPackageTexts(activeFirmsBilling = false): PlanPackageTexts {
   const firms = activeFirmsBilling ? PLAN_MEMBER_TEXT_AFTER_ACTIVE_FIRMS : PLAN_MEMBER_TEXT_AFTER;

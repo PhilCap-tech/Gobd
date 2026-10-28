@@ -36,7 +36,6 @@ import {
   SETUP_GROSS_LABEL,
   TODAY_EUR,
   TODAY_GROSS_LABEL,
-  V2_CHANGE_CENTS,
   V2_ENTRY_CENTS,
   V2_ENTRY_LABEL,
   V2_ENTRY_WITH_MEMBER_CENTS,
@@ -48,15 +47,15 @@ import {
   PLAN_B2B_NOTICE,
   PLAN_PACKAGE_ENTRY_TITLE,
   PLAN_PACKAGE_MEMBER_TITLE,
-  planPackageTexts,
+  planPackageTextsV3,
 } from "@/lib/plan-copy";
-import { extraFirmsEnabled, isPricingV2 } from "@/lib/pricing-model";
+import { isPricingV2 } from "@/lib/pricing-model";
 
 /** Preismodell v2 (PRICING_MODEL=v2). Ohne Variable bleibt die Seite wie bisher. */
 const V2 = isPricingV2();
 /** Wortlaut Legal je Paket (Preisseite). */
-const V2_PACKAGE_TEXTS = planPackageTexts(extraFirmsEnabled());
-const V2_HEADLINE = `${V2_ENTRY_LABEL} € einmalig · Jahresmitgliedschaft optional ${V2_MEMBER_YEAR_LABEL} €/Jahr`;
+const V2_PACKAGE_TEXTS = planPackageTextsV3();
+const V2_HEADLINE = `${V2_ENTRY_LABEL} € einmalig · Jahrespaket optional ${V2_MEMBER_YEAR_LABEL} €/Jahr`;
 import { HOME_CRUMBS, HOME_FAQ } from "@/lib/home-faq";
 import { faqPageJsonLd, productOfferJsonLd } from "@/lib/jsonld";
 import {
@@ -499,12 +498,8 @@ export default function HomePage() {
                     <td>{netWithGrossCents(V2_MEMBER_YEAR_CENTS)}</td>
                   </tr>
                   <tr className={styles.due}>
-                    <th scope="row">Einstieg + Mitgliedschaft im ersten Jahr</th>
+                    <th scope="row">Einstieg + Jahrespaket im ersten Jahr</th>
                     <td>{netWithGrossCents(V2_ENTRY_WITH_MEMBER_CENTS)}</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Änderung ohne Mitgliedschaft (je neue Version)</th>
-                    <td>{netWithGrossCents(V2_CHANGE_CENTS)}</td>
                   </tr>
                 </tbody>
               </table>

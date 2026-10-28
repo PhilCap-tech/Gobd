@@ -64,7 +64,7 @@ const FAQ = [
     q: "Was zahlen Mandanten?",
     a: isPricingV2()
       ? // Wortlaut Legal (BUILDER-UEBERGABE 26.10., /steuerberater Z. 58).
-        "Einstieg 99 € netto (117,81 € brutto) einmalig, optional Mitgliedschaft 99,90 € netto (118,88 € brutto) pro Jahr. Jedes Paket gilt für 1 Firma. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft."
+        "Einstieg 99 € netto (117,81 € brutto) einmalig, optional Jahrespaket 49 € netto (58,31 € brutto) pro Jahr. Jedes Paket gilt für 1 Firma. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft."
       : `${SETUP_EUR} € netto Einrichtung (${SETUP_GROSS_LABEL} € brutto) plus ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto). Ein Abo umfasst bis zu ${MAX_ENTITIES_PER_ACCOUNT} Firmen. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft.`,
   },
   {
@@ -127,7 +127,7 @@ export default function SteuerberaterPage() {
               <span>
                 Auf Anfrage · keine Provision · Mandanten:{" "}
                 {isPricingV2() ? (
-                  "Einstieg 99 € einmalig, optional Mitgliedschaft 99,90 €/Jahr"
+                  "Einstieg 99 € einmalig, optional Jahrespaket 49 €/Jahr"
                 ) : (
                   <>
                     {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
@@ -257,7 +257,7 @@ export default function SteuerberaterPage() {
                   <>
                     {/* Wortlaut Legal (Z. 230–236). */}
                     <li>Einstieg 99 € netto (117,81 € brutto), einmalig</li>
-                    <li>optional Mitgliedschaft 99,90 € netto (118,88 € brutto) pro Jahr</li>
+                    <li>optional Jahrespaket 49 € netto (58,31 € brutto) pro Jahr</li>
                     <li>Jedes Paket gilt für 1 Firma; weitere Firmen dazubuchbar</li>
                   </>
                 ) : (

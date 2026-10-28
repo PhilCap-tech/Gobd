@@ -8,8 +8,6 @@ import {
   grossCents,
   grossEuroLabel,
   netWithGross,
-  V2_CHANGE_CENTS,
-  V2_CHANGE_LABEL,
   V2_ENTRY_CENTS,
   V2_ENTRY_LABEL,
   V2_MEMBER_YEAR_CENTS,
@@ -165,7 +163,6 @@ export function productOfferJsonLd(): JsonLdNode {
 function productOfferJsonLdV2(): JsonLdNode {
   const entry = V2_ENTRY_CENTS / 100;
   const member = V2_MEMBER_YEAR_CENTS / 100;
-  const change = V2_CHANGE_CENTS / 100;
   return {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -174,15 +171,14 @@ function productOfferJsonLdV2(): JsonLdNode {
     url: canonicalUrl("/"),
     description: [
       "Strukturierte GoBD-Verfahrensdokumentation als PDF aus einem Fragebogen mit 24 Modulen.",
-      `Einstieg ${V2_ENTRY_LABEL} € netto einmalig, optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} € netto pro Jahr, Änderung ${V2_CHANGE_LABEL} € netto.`,
+      `Einstieg ${V2_ENTRY_LABEL} € netto einmalig, optional Jahrespaket ${V2_MEMBER_YEAR_LABEL} € netto pro Jahr; 30 Tage Zugang ohne Jahrespaket.`,
       "Nur für Unternehmen. Hinweis: keine Steuerberatung.",
     ].join(" "),
     brand: { "@type": "Organization", name: LEGAL_OPERATOR.name },
     audience: { "@type": "BusinessAudience", audienceType: "Unternehmen (§ 14 BGB)" },
     offers: [
       offer("Einstieg (einmalig)", entry, { unitText: "Einstieg" }),
-      offer("Jahresmitgliedschaft", member, { unitText: "Jahr", unitCode: "ANN", billingDuration: 1 }),
-      offer("Änderung (neue Version)", change, { unitText: "Änderung" }),
+      offer("Jahrespaket", member, { unitText: "Jahr", unitCode: "ANN", billingDuration: 1 }),
     ],
   };
 }

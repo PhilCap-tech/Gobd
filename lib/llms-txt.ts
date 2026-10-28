@@ -4,7 +4,6 @@ import { agbMarkdown } from "@/lib/legal-content";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { markdownH2Section, plainLineContaining } from "@/lib/markdown-section";
 import {
-  V2_CHANGE_CENTS,
   V2_ENTRY_CENTS,
   V2_MEMBER_YEAR_CENTS,
   netWithGrossCents,
@@ -79,8 +78,8 @@ export function buildLlmsTxt(): string {
     ...(V2
       ? [
           `Einstieg: ${netWithGrossCents(V2_ENTRY_CENTS)}, einmalig.`,
-          `Optional Jahresmitgliedschaft: ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr.`,
-          `Änderung (neue Version) ohne Mitgliedschaft: ${netWithGrossCents(V2_CHANGE_CENTS)}.`,
+          `Optional Jahrespaket: ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr.`,
+          "Ohne Jahrespaket: 30 Tage Zugang ab Kauf, danach ist das Konto deaktiviert.",
           `Alle Preise zzgl. ${VAT_PERCENT} % USt. Nur für Unternehmen.`,
         ]
       : [

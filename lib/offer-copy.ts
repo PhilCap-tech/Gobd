@@ -8,7 +8,8 @@ import {
   V2_MEMBER_YEAR_LABEL,
 } from "@/lib/pricing";
 import { TODO_GROWTH } from "@/lib/plan-copy";
-import { isPricingV2 } from "@/lib/pricing-model";
+import { intakeLoginFirstEnabled, isPricingV2 } from "@/lib/pricing-model";
+import { PLAN_FACT_LINE } from "@/lib/plan-copy";
 
 /**
  * Preismodell v2 (PRICING_MODEL=v2): Preissätze tauschen beim Laden des
@@ -27,7 +28,7 @@ export const RESULT_PROMISE =
 export const LEGACY_START_PRICE_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
 /** v2: Wortlaut Legal (BUILDER-UEBERGABE 26.10., Abschnitt 4, Z. 13). */
 export const START_PRICE_LINE = V2
-  ? "Einstieg 99 € einmalig · optional Mitgliedschaft 99,90 €/Jahr (verlängert sich automatisch, kündbar bis 3 Monate vor Ablauf) · Änderung ohne Mitgliedschaft 49 € · alle Preise zzgl. 19 % USt."
+  ? "30 Tage: 99 € einmalig je Firma · Dauerhaft: 99 € einmalig + 49 €/Jahr je Firma (verlängert sich jährlich, kündbar laut AGB) · alle Preise zzgl. 19 % USt."
   : LEGACY_START_PRICE_LINE;
 
 /** Checkout lead, branch-page close, and the fine print under paid CTAs. */
@@ -35,13 +36,13 @@ export const PRICE_MICRO = START_PRICE_LINE;
 
 /** Kurzform des Kundenpreises (z. B. Steuerberater-Seite: „Mandanten: …“). */
 export const CUSTOMER_PRICE_SHORT = V2
-  ? `${V2_ENTRY_LABEL} € einmalig, optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} €/Jahr`
+  ? `${V2_ENTRY_LABEL} € einmalig, optional Jahrespaket ${V2_MEMBER_YEAR_LABEL} €/Jahr`
   : `${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} €/Monat`;
 
 /** Homepage only: one line under the price table. Amounts follow pricing.ts. */
 export const LEGACY_PRICE_FRAME_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat) = individuelles PDF + Liste offener Punkte · danach ${MONTHLY_EUR} €/Monat für Versionen und Pflege, zzgl. USt.`;
 export const PRICE_FRAME_LINE = V2
-  ? `${V2_ENTRY_LABEL} € einmalig = individuelles PDF + Liste offener Punkte · optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} €/Jahr für Versionen und alle Änderungen, zzgl. USt. ${TODO_GROWTH}`
+  ? `${V2_ENTRY_LABEL} € einmalig = individuelles PDF + Liste offener Punkte · optional Jahrespaket ${V2_MEMBER_YEAR_LABEL} €/Jahr für Versionen und alle Änderungen, zzgl. USt. ${TODO_GROWTH}`
   : LEGACY_PRICE_FRAME_LINE;
 
 /** Homepage hero, directly under the H1. No social-proof counts. */
@@ -77,7 +78,7 @@ export const PRICE_CTA_SUFFIX = START_PRICE_LINE;
 /** Shown under the short paid button. The button itself stays CTA_CREATE_WITH_PRICE. */
 export const LEGACY_PRICE_AFTER_MICRO = `danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
 export const PRICE_AFTER_MICRO = V2
-  ? `Einmalig, zzgl. USt. Jahresmitgliedschaft optional (${V2_MEMBER_YEAR_LABEL} €/Jahr).`
+  ? `Einmalig, zzgl. USt. Jahrespaket optional (${V2_MEMBER_YEAR_LABEL} €/Jahr).`
   : LEGACY_PRICE_AFTER_MICRO;
 
 export const CTA_CREATE = "Dokumentation erstellen";
@@ -89,7 +90,7 @@ export const CTA_CREATE_WITH_PRICE = V2
 /** Account and the readiness mail use the short start line plus the monthly price. */
 export const LEGACY_ACCOUNT_PAID_CTA_LABEL = `Starten für ${TODAY_EUR} € (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt.`;
 export const ACCOUNT_PAID_CTA_LABEL = V2
-  ? `Starten für ${V2_ENTRY_LABEL} € einmalig, zzgl. USt. Jahresmitgliedschaft optional (${V2_MEMBER_YEAR_LABEL} €/Jahr).`
+  ? `Starten für ${V2_ENTRY_LABEL} € einmalig, zzgl. USt. Jahrespaket optional (${V2_MEMBER_YEAR_LABEL} €/Jahr).`
   : LEGACY_ACCOUNT_PAID_CTA_LABEL;
 export const CTA_MUSTER = "Muster-Dokument ansehen";
 export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
@@ -101,7 +102,7 @@ export const GELD_ZURUECK_HREF = "/faq#geld-zurueck";
 export const LEGACY_GELD_ZURUECK_MICRO = `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`;
 /** v2: Wortlaut Legal (Abschnitt 4, Z. 63). */
 export const GELD_ZURUECK_MICRO = V2
-  ? "Volle Erstattung, solange Ihr PDF noch nicht erstellt ist – bis 14 Tage nach Kauf."
+  ? (intakeLoginFirstEnabled() ? PLAN_FACT_LINE : "ab 99 € je Firma zzgl. USt")
   : LEGACY_GELD_ZURUECK_MICRO;
 
 export const DISCLAIMER_ONCE =
@@ -195,7 +196,7 @@ export const UPSELL_EFFORT_NOTE =
 
 export const LEGACY_UPSELL_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
 export const UPSELL_PRICE = V2
-  ? `${V2_ENTRY_LABEL} € einmalig, zzgl. USt. · Jahresmitgliedschaft optional ${V2_MEMBER_YEAR_LABEL} €/Jahr · alle 24 Module inklusive ${TODO_GROWTH}`
+  ? `${V2_ENTRY_LABEL} € einmalig, zzgl. USt. · Jahrespaket optional ${V2_MEMBER_YEAR_LABEL} €/Jahr · alle 24 Module inklusive ${TODO_GROWTH}`
   : LEGACY_UPSELL_PRICE;
 
 export const LEGACY_UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;

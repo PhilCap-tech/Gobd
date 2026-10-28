@@ -43,7 +43,8 @@ async function main() {
   assert.ok(!/referer|referrer/i.test(route), "Muster-PDF-Route wertet keinen Referrer aus");
 
   const micro = offer.GELD_ZURUECK_MICRO;
-  assert.ok(micro.startsWith("Volle Erstattung"), "v2-Garantiezeile aktiv im Check");
+  // Neues Modell (28.10.): keine 14-Tage-Garantie mehr, Faktenzeile (Growth MARKER 1).
+  assert.ok(micro.includes("ab 99 € je Firma"), "v2-Faktenzeile aktiv im Check");
   const { text: normal, raw: normalRaw } = await pdf("http://localhost/steuerberater/muster/pdf");
   assert.ok(normal.includes(offer.PDF_UPSELL_HEADLINE), "normales Muster hat Upsell-Seite");
   assert.ok(normal.includes(micro), "normales Muster (v2) hat die Garantiezeile");
