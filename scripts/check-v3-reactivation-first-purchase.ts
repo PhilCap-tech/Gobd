@@ -62,8 +62,8 @@ async function main() {
     const old = { ...single, notice30At: "2026-10-01T10:00:00.000Z" };
     assert.equal(decision.decideDoc(old, new Date(Date.parse(due) - 30 * DAY)).action, "notice30", "alter Hinweis zählt nicht");
     assert.notEqual(
-      mail.retentionNoticeMailKey("e30", single.email, plan.addMonthsIso(FIRST, 12)),
-      mail.retentionNoticeMailKey("e30", single.email, new Date(due).toISOString()),
+      mail.retentionNoticeMailKey("notice30", single.email, plan.addMonthsIso(FIRST, 12)),
+      mail.retentionNoticeMailKey("notice30", single.email, new Date(due).toISOString()),
     );
     // Beendetes Jahrespaket nach Reaktivierung: Frist ab Ende, nie früher als Reaktivierung + 12 Monate.
     const ended = { ...re, plan: "single", memberStatus: "canceled", memberEndedAt: "2026-11-30T00:00:00.000Z" } as typeof re;
