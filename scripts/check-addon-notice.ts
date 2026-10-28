@@ -58,7 +58,7 @@ async function main() {
     assert.equal(sends, 0);
   });
 
-  await check("Schalter an: Mail mit Angebot und Widerspruchshinweis; Widerspruch = kein Versand", async () => {
+  await check("Schalter an: Mail mit Angebot und Widerspruchshinweis; Widerspruch = neutraler Hinweis", async () => {
     process.env.PLAN_ADDON_NOTICE_ENABLED = "true";
     const sent: { dedupeKey: string; text: string; subject: string }[] = [];
     const rows = [bought(25, "a@example.com"), { ...bought(24, "b@example.com"), offerOptOutAt: now.toISOString() }];
@@ -67,15 +67,21 @@ async function main() {
       send: async (m) => { sent.push(m); return { stub: true, sent: true }; },
       company: async () => "Muster GmbH",
     });
-    // Philip 28.10.: abgemeldete Adressen (Widerspruch) werden übersprungen.
-    assert.equal(r.sent, 1);
-    assert.equal(sent.length, 1);
-    const [offer] = sent;
-    const neutral = notice.addonNoticeMail({ company: "Muster GmbH", accessUntil: rows[1].accessUntil, purchasedAt: rows[1].purchasedAt, offerOptOut: true });
-    assert.ok(offer.subject.startsWith("Ihr Zugang zu Muster GmbH endet am "));
-    assert.ok(offer.text.includes("Jahrespaket zubuchen") && offer.text.includes(plan.PLAN_ADDON_HREF));
+    // Legal e-7 (Angebot) / e-7N (neutral, nach Widerspruch), 1:1 aus loeschhinweis-mails.md.
+    const texts = await import("@/lib/retention-mail-texts");
+    assert.equal(r.sent, 2);
+    const [offer, neutral] = sent as unknown as { dedupeKey: string; text: string; html: string; subject: string; headers?: Record<string, string> }[];
+    assert.ok(offer.subject.startsWith("Ihr Zugang für Muster GmbH endet am "), offer.subject);
+    assert.ok(offer.text.startsWith(texts.LEGAL_MAILS.e7.body.split("\n")[0]), "e-7 Wortlaut");
+    assert.ok(offer.text.includes("Zum Jahrespaket: ") && offer.text.includes(plan.PLAN_ADDON_HREF) && offer.text.includes("49 € (58,31 € brutto)"));
     assert.ok(offer.text.includes("können Sie jederzeit widersprechen"), "Widerspruchshinweis");
-    assert.ok(!neutral.text.includes("Jahrespaket") && !neutral.text.includes("49 €"), "nach Widerspruch kein Angebot");
+    assert.ok(neutral.text.includes("Ihre Möglichkeiten nach § 12a unserer AGB"), "e-7N Wortlaut");
+    for (const part of [neutral.text, neutral.html]) {
+      assert.ok(!part.includes("€") && !part.includes(plan.PLAN_ADDON_HREF) && !part.includes("/angebote/abmelden"), "e-7N: kein Preis, kein Angebotslink");
+    }
+    assert.ok(!neutral.headers, "e-7N: kein Abmeldeblock");
+    assert.equal(neutral.dedupeKey, notice.addonNoticeMailKey(rows[1]), "gleicher Dedupe");
+    assert.ok(!/\{[^{}]+\}/.test(offer.text + neutral.text), "keine offenen Platzhalter");
     delete process.env.PLAN_ADDON_NOTICE_ENABLED;
     delete process.env.PRICING_MODEL;
   });

@@ -61,3 +61,27 @@ export async function v3FirmDenial(email: string, existingFirms: number): Promis
   if (!isPricingV2() || existingFirms < 1) return null;
   return v3FirmDenialFrom(await loadV3AccountFacts(email), existingFirms);
 }
+
+/** CoS 28.10.: im neuen Modell Einladungen erst nach Abschluss der Bestellung. */
+export const V3_INVITE_PREPAY_MESSAGE =
+  "Personen einladen können Sie nach dem Abschluss Ihrer Bestellung. Offene Punkte können Sie bis dahin als unbekannt markieren.";
+
+/** Reine Entscheidung: v3-Konto ohne bezahlten v3-Kauf darf nicht einladen. */
+export function v3InvitePrepayDenialFrom(facts: V3AccountFacts, paidV3: boolean): string | null {
+  return isV3AccountFrom(facts) && !paidV3 ? V3_INVITE_PREPAY_MESSAGE : null;
+}
+
+/** Meldung, wenn dieses v3-Konto noch nichts bezahlt hat; Legacy/DS24/Comp: null. */
+export async function v3InvitePrepayDenial(email: string): Promise<string | null> {
+  if (!isPricingV2() || !email.trim()) return null;
+  const facts = await loadV3AccountFacts(email);
+  if (!isV3AccountFrom(facts)) return null;
+  let paid = false;
+  try {
+    const row = await findPlanByEmail(email);
+    paid = Boolean(row && row.pricingModel === "v3" && row.purchasedAt && !row.deletedAt);
+  } catch (error) {
+    logError("[einladung] Plan nicht geladen", error, { level: "warn" });
+  }
+  return v3InvitePrepayDenialFrom(facts, paid);
+}

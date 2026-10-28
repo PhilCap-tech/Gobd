@@ -39,6 +39,9 @@ export type PlanPackage = "einstieg" | "mitglied";
 export const PLAN_PACKAGE_ENTRY_TITLE = "30 Tage";
 export const PLAN_PACKAGE_MEMBER_TITLE = "Dauerhaft";
 /** Kennzeichnung Option 2 (Philip 28.10.; Growth MARKER 2 offen). */
+/** Bezeichnungen wie in den AGB v3 (CoS 28.10.). */
+export const PLAN_OPTION_1_LABEL = "Option 1";
+export const PLAN_OPTION_2_LABEL = "Option 2 mit Jahrespaket";
 export const PLAN_BESTSELLER_LABEL = "Bestseller";
 
 export const PLAN_ENTRY_PRICE_LINE = `${V3_ENTRY_LABEL} € netto (${V3_ENTRY_GROSS_LABEL} € brutto) einmalig`;

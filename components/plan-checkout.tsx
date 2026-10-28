@@ -8,6 +8,8 @@ import {
   PLAN_ENTRY_PRICE_LINE,
   PLAN_ENTRY_WITH_MEMBER_TOTAL,
   PLAN_MEMBER_PRICE_LINE,
+  PLAN_OPTION_1_LABEL,
+  PLAN_OPTION_2_LABEL,
   PLAN_PACKAGE_ENTRY_TITLE,
   PLAN_PACKAGE_INTRO,
   PLAN_PACKAGE_MEMBER_TITLE,
@@ -40,7 +42,7 @@ export function PlanPackageSelect({
             onChange={() => onChange("einstieg")}
           />
           <span>
-            <strong>{PLAN_PACKAGE_ENTRY_TITLE}</strong>
+            <strong>{PLAN_PACKAGE_ENTRY_TITLE}</strong> <small>({PLAN_OPTION_1_LABEL})</small>
             <br />
             {PLAN_ENTRY_PRICE_LINE}
             <br />
@@ -56,7 +58,7 @@ export function PlanPackageSelect({
             onChange={() => onChange("mitglied")}
           />
           <span>
-            <strong>{PLAN_PACKAGE_MEMBER_TITLE}</strong>{" "}
+            <strong>{PLAN_PACKAGE_MEMBER_TITLE}</strong> <small>({PLAN_OPTION_2_LABEL})</small>{" "}
             <span className="badge">{PLAN_BESTSELLER_LABEL}</span>
             <br />
             {PLAN_ENTRY_PRICE_LINE} + {PLAN_MEMBER_PRICE_LINE}

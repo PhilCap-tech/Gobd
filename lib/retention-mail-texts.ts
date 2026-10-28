@@ -6,7 +6,7 @@
  */
 export const LEGAL_MAIL_FOOTER = "IKAT GmbH · Gartzenweg 1a · 40789 Monheim am Rhein · Amtsgericht Düsseldorf, HRB 81430 · Geschäftsführer: Philip Cappelletti · USt-IdNr. DE 313 803 988 · info@gobd-doku-erstellen.de · Tel. +49 231 580 456 06 · Datenschutz: {Link Datenschutzerklärung}";
 
-export type LegalMailId = "a7" | "b" | "bN" | "c" | "cN" | "d0";
+export type LegalMailId = "a7" | "b" | "bN" | "c" | "cN" | "d0" | "e7" | "e7N";
 
 export const LEGAL_MAILS: Record<LegalMailId, { subject: string; body: string }> = {
   "a7": {
@@ -32,5 +32,13 @@ export const LEGAL_MAILS: Record<LegalMailId, { subject: string; body: string }>
   "d0": {
     "subject": "Bestätigung Ihrer Erstattung für {Firma}",
     "body": "Guten Tag,\n\nwir bestätigen die Erstattung nach § 9 unserer AGB. Wir erstatten Ihnen den vollen gezahlten Betrag von {99 € (117,81 € brutto) | 148 € (176,12 € brutto)} netto zzgl. 19 % USt über das bei der Zahlung verwendete Zahlungsmittel. Mit der Erstattung enden Ihr Vertrag {und Ihr Jahrespaket}; weitere Beträge buchen wir nicht ab.\n\nIhr Zugang zum Kundenkonto ist ab sofort gesperrt. Ihre gesamte Dokumentation, also Entwürfe, erstellte PDFs, hochgeladene Dateien und Ihre Angaben aus dem Fragebogen, löschen wir unverzüglich, spätestens innerhalb von 24 Stunden. Ein Download ist nicht mehr möglich.\n\nDaten, die wir aufgrund gesetzlicher Pflichten aufbewahren müssen (z. B. Rechnungsdaten), sind von der Löschung ausgenommen; sie werden nach Ablauf dieser Pflichten gelöscht.\n\nBei Fragen erreichen Sie uns unter info@gobd-doku-erstellen.de.\n\nMit freundlichen Grüßen\nIKAT GmbH / gobd-doku-erstellen.de"
+  },
+  "e7": {
+    "subject": "Ihr Zugang für {Firma} endet am {Zugangsende}",
+    "body": "Guten Tag,\n\nIhr 30-Tage-Zugang zum Kundenkonto für {Firma} endet am **{Zugangsende}**.\n\nDanach ist Ihr Kundenkonto vollständig gesperrt: Anpassungen, Einladungen und auch der Download Ihrer PDFs sind nicht mehr möglich. Bei der Anmeldung sehen Sie dann den Hinweis „Konto deaktiviert“. **Bitte laden Sie jetzt alle PDFs herunter und speichern Sie sie selbst:** {Link Anmeldung}\n\nWird Ihre Dokumentation nicht vorher reaktiviert, löschen wir sie zwölf Monate nach dem Kauf, am {Löschdatum}.\n\nWenn Sie den Zugang behalten möchten, können Sie bis zum {Zugangsende} das Jahrespaket für 49 € (58,31 € brutto) pro Jahr hinzubuchen. Das erste Jahr läuft dann ab Ihrem ersten Kauf; das Jahrespaket verlängert sich automatisch um jeweils zwölf Monate, wenn Sie es nicht spätestens drei Monate vor Ablauf kündigen. Preise netto zzgl. 19 % USt.\nZum Jahrespaket: {Link Jahrespaket}\n\nBei Fragen erreichen Sie uns unter info@gobd-doku-erstellen.de.\n\nMit freundlichen Grüßen\nIKAT GmbH / gobd-doku-erstellen.de\n\n*Sie erhalten diese E-Mail als Kunde. Der Verwendung Ihrer E-Mail-Adresse für Angebote eigener ähnlicher Leistungen können Sie jederzeit widersprechen, z. B. per E-Mail an info@gobd-doku-erstellen.de; dafür entstehen nur Übermittlungskosten nach den Basistarifen. Hinweise zu Ihrem Vertrag erhalten Sie weiterhin, dann ohne Angebot.*"
+  },
+  "e7N": {
+    "subject": "Ihr Zugang für {Firma} endet am {Zugangsende}",
+    "body": "Guten Tag,\n\nIhr 30-Tage-Zugang zum Kundenkonto für {Firma} endet am **{Zugangsende}**.\n\nDanach ist Ihr Kundenkonto vollständig gesperrt: Anpassungen, Einladungen und auch der Download Ihrer PDFs sind nicht mehr möglich. Bei der Anmeldung sehen Sie dann den Hinweis „Konto deaktiviert“. **Bitte laden Sie jetzt alle PDFs herunter und speichern Sie sie selbst.**\n\nWird Ihre Dokumentation nicht vorher reaktiviert, löschen wir sie zwölf Monate nach dem Kauf, am {Löschdatum}.\n\nIhre Möglichkeiten nach § 12a unserer AGB sehen Sie nach der Anmeldung: {Link Anmeldung}\n\nBei Fragen erreichen Sie uns unter info@gobd-doku-erstellen.de.\n\nMit freundlichen Grüßen\nIKAT GmbH / gobd-doku-erstellen.de"
   }
 };

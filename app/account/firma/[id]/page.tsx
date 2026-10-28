@@ -16,6 +16,7 @@ import { moduleIdList } from "@/lib/memberships";
 import { Aenderungen } from "../aenderungen";
 import { FirmaForm } from "../firma-form";
 import { MitwirkendePanel, type MitwirkendeListItem } from "../mitwirkende-panel";
+import { v3InvitePrepayDenial } from "@/lib/v3-firm-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ export default async function EditFirmaPage({
     redirect(loginPath(`/account/firma/${id}`));
   }
 
+  const inviteBlocked = await v3InvitePrepayDenial(email);
   let entity: Awaited<ReturnType<typeof getOwnedEntity>> = null;
   let entityUnavailable = false;
   try {
@@ -143,6 +145,7 @@ export default async function EditFirmaPage({
               firmName={entity.name}
               members={members}
               unavailable={membersUnavailable}
+              inviteBlocked={inviteBlocked}
               modules={MODULE.map((modul) => ({
                 id: modul.id,
                 nr: modul.nr,

@@ -1,3 +1,4 @@
+import { faqAvailable } from "@/lib/faq-entries";
 import Link from "next/link";
 
 const RESOURCE_LINKS = [
@@ -13,7 +14,7 @@ const RESOURCE_LINKS = [
 function ResourceLinks() {
   return (
     <ul className="free-list">
-      {RESOURCE_LINKS.map((item) => (
+      {RESOURCE_LINKS.filter((item) => item.href !== "/faq" || faqAvailable()).map((item) => (
         <li key={item.href}>
           <Link href={item.href}>{item.label}</Link>
         </li>

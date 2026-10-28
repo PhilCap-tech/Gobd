@@ -93,7 +93,7 @@ async function main() {
     assert.ok(read("app/account/firma/neu/page.tsx").includes("v3FirmDenial"));
   });
 
-  await check("Abmeldung: Token ohne Klartext, Fälschung abgelehnt, Marker + Plan-Spalte, Cron überspringt", async () => {
+  await check("Abmeldung: Token ohne Klartext, Fälschung abgelehnt, Marker + Plan-Spalte, Cron sendet neutral", async () => {
     marker.setBlobMarkerTestDir(mkdtempSync(path.join(tmpdir(), "offer-optout-")));
     const email = "Max.Muster@Example.de";
     const token = optout.offerOptOutToken(email);
@@ -124,14 +124,40 @@ async function main() {
       optedOut: (x) => optout.hasOfferOptOut(x, io),
     });
     assert.equal(r.due, 2);
-    assert.deepEqual(sent.map((m) => m.to), ["b@example.com"], "abgemeldete Adresse übersprungen");
-    assert.ok(sent[0].text.includes("Keine Angebote mehr erhalten: ") && sent[0].text.includes("/angebote/abmelden?token="));
-    assert.equal(sent[0].headers?.["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
+    const byTo = new Map(sent.map((m) => [m.to, m]));
+    const neutral = byTo.get("max.muster@example.de")!;
+    assert.ok(neutral.text.includes("Ihre Möglichkeiten nach § 12a unserer AGB") && !neutral.text.includes("€"), "Widerspruch: e-7N, nie Angebot");
+    assert.ok(!neutral.headers, "Widerspruch: keine List-Unsubscribe-Header");
+    const offer = byTo.get("b@example.com")!;
+    assert.ok(offer.text.includes("Zum Jahrespaket: "), "e-7 mit Angebot");
+    assert.equal(offer.headers?.["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
     const route = read("app/api/angebote/abmelden/route.ts");
     assert.ok(/export async function GET[\s\S]*redirect/.test(route) && !/GET[\s\S]*recordOfferOptOut[\s\S]*export async function POST/.test(route), "GET meldet nicht ab");
     delete process.env.PRICING_MODEL;
     delete process.env.PLAN_ADDON_NOTICE_ENABLED;
     marker.setBlobMarkerTestDir(null);
+  });
+
+  await check("Einladen erst nach Zahlung (v3); Legacy/DS24/Comp unverändert; Route + UI", () => {
+    const base = { newModel: true, comp: false, ds24: false, planModel: "", paidCheckout: false };
+    assert.equal(firm.V3_INVITE_PREPAY_MESSAGE, "Personen einladen können Sie nach dem Abschluss Ihrer Bestellung. Offene Punkte können Sie bis dahin als unbekannt markieren.");
+    assert.equal(firm.v3InvitePrepayDenialFrom(base, false), firm.V3_INVITE_PREPAY_MESSAGE, "v3 unbezahlt: gesperrt");
+    assert.equal(firm.v3InvitePrepayDenialFrom({ ...base, planModel: "v3" }, true), null, "v3 bezahlt: frei");
+    assert.equal(firm.v3InvitePrepayDenialFrom({ ...base, paidCheckout: true }, false), null, "Legacy");
+    assert.equal(firm.v3InvitePrepayDenialFrom({ ...base, ds24: true }, false), null, "DS24");
+    assert.equal(firm.v3InvitePrepayDenialFrom({ ...base, comp: true }, false), null, "Comp");
+    assert.equal(firm.v3InvitePrepayDenialFrom({ ...base, newModel: false }, false), null, "PRICING_MODEL=legacy");
+    const route = read("app/api/auth/invite/route.ts");
+    assert.ok(route.includes("v3InvitePrepayDenial(email)") && route.includes("jsonError(planDenied, 403)"), "API 403 mit Text");
+    const panel = read("app/account/firma/mitwirkende-panel.tsx");
+    assert.ok(panel.includes("disabled={pending || Boolean(inviteBlocked)}") && panel.includes("{inviteBlocked}"), "Button deaktiviert + Hinweis");
+    assert.ok(read("app/account/firma/[id]/page.tsx").includes("inviteBlocked={inviteBlocked}"));
+  });
+
+  await check("FAQ v3 + Optionsbezeichnungen", () => {
+    assert.ok(read("content/faq-v3.md").includes("## 8. Bekomme ich mein Geld zurück?"));
+    const pc = read("components/plan-checkout.tsx");
+    assert.ok(pc.includes("PLAN_OPTION_1_LABEL") && pc.includes("PLAN_OPTION_2_LABEL"));
   });
 
   console.log(`check:v3-intake: ${passed} ok`);

@@ -38,12 +38,15 @@ export function MitwirkendePanel({
   members,
   modules,
   unavailable,
+  inviteBlocked = null,
 }: {
   entityId: string;
   firmName: string;
   members: MitwirkendeListItem[];
   modules: ModuleChoice[];
   unavailable: boolean;
+  /** Neues Modell vor der Zahlung: Einladen gesperrt, Hinweistext. */
+  inviteBlocked?: string | null;
 }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -204,7 +207,8 @@ export function MitwirkendePanel({
         </fieldset>
         {error ? <p className="error">{error}</p> : null}
         {notice ? <p className="hint">{notice}</p> : null}
-        <button className="btn" type="submit" disabled={pending}>
+        {inviteBlocked ? <p className="hint">{inviteBlocked}</p> : null}
+        <button className="btn" type="submit" disabled={pending || Boolean(inviteBlocked)}>
           {pending ? "Bitte warten…" : "Einladung senden"}
         </button>
       </form>

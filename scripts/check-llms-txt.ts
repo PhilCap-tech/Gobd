@@ -87,14 +87,19 @@ for (const page of [
 }
 
 const faq = readFaqMarkdown();
-const faqGuarantee = markdownH2Section(faq, "6. 14 Tage Geld zurück: Garantie und Rückgaberecht");
+const faqGuarantee = newModel ? "" : markdownH2Section(faq, "6. 14 Tage Geld zurück: Garantie und Rückgaberecht");
 const agbWithdrawal = markdownH2Section(agbMarkdown, "§ 8 Kein Widerrufsrecht (B2B)");
 const agbGuarantee = markdownH2Section(agbMarkdown, newModel ? "§ 9 Erstattung" : "§ 9 Zufriedenheitsgarantie");
 const agbTerm = markdownH2Section(
   agbMarkdown,
   newModel ? "§ 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung" : "§ 12 Laufzeit, Verlängerung und Kündigung",
 );
-ok(text.includes(faqGuarantee), "llms.txt quotes the FAQ guarantee");
+if (newModel) {
+  // CoS 28.10.: v3-FAQ (content/faq-v3.md, Legal 1:1); keine faq-v2-Inhalte, keine FAQ-Zitate in llms.txt.
+  ok(faq.includes("## 8. Bekomme ich mein Geld zurück?"), "v3: FAQ is faq-v3.md");
+  ok(!text.includes("FAQ:"), "v3: llms.txt quotes no FAQ section");
+  ok(!text.includes("Mitgliedschaft") && !text.includes("99,90"), "v3: no faq-v2 wording in llms.txt");
+} else ok(text.includes(faqGuarantee), "llms.txt quotes the FAQ guarantee");
 ok(text.includes(agbWithdrawal), "llms.txt quotes AGB § 8");
 ok(text.includes(agbGuarantee), "llms.txt quotes AGB § 9");
 ok(text.includes(agbTerm), "llms.txt quotes AGB § 12");
@@ -251,7 +256,7 @@ async function checkSitemap() {
   ok(!urls.includes(`${origin}/llms.txt`), "sitemap omits /llms.txt");
   ok(!urls.includes(`${origin}/partner-angebot`), "sitemap omits /partner-angebot");
   ok(!text.includes("/partner-angebot"), "llms.txt omits /partner-angebot");
-  ok(urls.includes(`${origin}/faq`), "sitemap still lists /faq");
+  ok(urls.includes(`${origin}/faq`), "sitemap lists /faq");
   const branchen = await listBranchenSeiten();
   ok(branchen.length >= 2, "branch pages are loaded");
   for (const slug of BRANCHEN_SLUGS) {

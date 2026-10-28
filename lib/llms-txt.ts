@@ -1,5 +1,5 @@
 import { BRANCHEN_SLUGS, branchenPath, listBranchenFooterLinks } from "@/lib/branchen";
-import { readFaqMarkdown } from "@/lib/faq-entries";
+import { faqAvailable, readFaqMarkdown } from "@/lib/faq-entries";
 import { agbMarkdown } from "@/lib/legal-content";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { markdownH2Section, plainLineContaining } from "@/lib/markdown-section";
@@ -23,14 +23,6 @@ const AGB_NO_WITHDRAWAL = "§ 8 Kein Widerrufsrecht (B2B)";
 const V2 = isPricingV2();
 const AGB_GUARANTEE = V2 ? "§ 9 Erstattung" : "§ 9 Zufriedenheitsgarantie";
 const AGB_TERM = V2 ? "§ 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung" : "§ 12 Laufzeit, Verlängerung und Kündigung";
-/** Preismodell v2: neue FAQ-Abschnitte (Legal 26.10.) im Wortlaut. */
-const FAQ_V2_SECTIONS = [
-  "7. Was bietet die Mitgliedschaft?",
-  "8. Was passiert ohne Mitgliedschaft?",
-  "9. Ihr PDF und die Aufbewahrung",
-  "10. Wie kündige ich die Mitgliedschaft?",
-  "11. Ich habe mehrere Firmen – was kostet das?",
-] as const;
 
 const DELIVERY_NEEDLE = "innerhalb weniger Minuten";
 const B2B_NEEDLE = "ausschließlich an Unternehmer";
@@ -60,8 +52,11 @@ function industryLines(): string[] {
  */
 export function buildLlmsTxt(): string {
   const faq = readFaqMarkdown();
-  const delivery = plainLineContaining(faq, DELIVERY_NEEDLE);
-  const b2b = plainLineContaining(faq, B2B_NEEDLE);
+  // Neues Modell ohne faq-v3.md: keine FAQ-Inhalte und kein FAQ-Link.
+  const withFaq = faqAvailable() && !V2;
+  const faqLink = faqAvailable();
+  const delivery = withFaq ? plainLineContaining(faq, DELIVERY_NEEDLE) : "";
+  const b2b = withFaq ? plainLineContaining(faq, B2B_NEEDLE) : "";
   const lines = [
     "# GoBD-Verfahrensdokumentation",
     "",
@@ -112,7 +107,7 @@ export function buildLlmsTxt(): string {
     "",
     "## Seiten",
     "",
-    `- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Geld-zurück-Garantie und Rückgaberecht`,
+    ...(faqLink ? [`- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Geld-zurück-Garantie und Rückgaberecht`] : []),
     `- [AGB](${canonicalUrl("/agb")}): Vertragsbedingungen`,
     `- [Muster](${canonicalUrl("/muster")}): fiktive Muster der Verfahrensdokumentation`,
     `- [Muster für Steuerberater](${canonicalUrl("/steuerberater/muster")}): Beispielergebnis`,
@@ -123,12 +118,11 @@ export function buildLlmsTxt(): string {
     "",
     "## Erstattung und Kündigung",
     "",
-    "Erstattung und Kündigung stehen im Wortlaut der FAQ und der AGB. Unten steht dieser Wortlaut.",
+    withFaq
+      ? "Erstattung und Kündigung stehen im Wortlaut der FAQ und der AGB. Unten steht dieser Wortlaut."
+      : "Erstattung und Kündigung stehen im Wortlaut der AGB. Unten steht dieser Wortlaut.",
     "",
-    ...quote(
-      "FAQ: 14 Tage Geld zurück: Garantie und Rückgaberecht",
-      markdownH2Section(faq, FAQ_GUARANTEE),
-    ),
+    ...(withFaq ? quote("FAQ: 14 Tage Geld zurück: Garantie und Rückgaberecht", markdownH2Section(faq, FAQ_GUARANTEE)) : []),
     ...quote(
       `AGB ${AGB_NO_WITHDRAWAL}`,
       markdownH2Section(agbMarkdown, AGB_NO_WITHDRAWAL),
@@ -138,7 +132,7 @@ export function buildLlmsTxt(): string {
       markdownH2Section(agbMarkdown, AGB_GUARANTEE),
     ),
     ...quote(`AGB ${AGB_TERM}`, markdownH2Section(agbMarkdown, AGB_TERM)),
-    ...(V2 ? FAQ_V2_SECTIONS.flatMap((title) => quote(`FAQ: ${title}`, markdownH2Section(faq, title))) : []),
+
     `Kontakt: ${LEGAL_OPERATOR.email}`,
     "",
   ];

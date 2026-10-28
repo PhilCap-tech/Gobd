@@ -3,21 +3,23 @@ import { CookieSettingsButton } from "@/components/consent-banner";
 import { listBranchenFooterLinks } from "@/lib/branchen";
 import { LEGAL_LINKS, LEGAL_OPERATOR } from "@/lib/legal";
 import { DISCLAIMER_ONCE } from "@/lib/offer-copy";
+import { faqAvailable } from "@/lib/faq-entries";
 
 export function SiteFooter() {
   const seiten = listBranchenFooterLinks();
+  const faq = faqAvailable();
   return (
     <footer className="site-footer">
       <div className="shell footer-layout">
         <div className="footer-main">
           <p className="footer-disclaimer">{DISCLAIMER_ONCE}</p>
           GoBD Verfahrensdoku ·{" "}
-          <Link href="/faq">kein Steuerberatungsersatz</Link>
+          {faq ? <Link href="/faq">kein Steuerberatungsersatz</Link> : "kein Steuerberatungsersatz"}
           <br />
           Kontakt:{" "}
           <a href={`mailto:${LEGAL_OPERATOR.email}`}>{LEGAL_OPERATOR.email}</a>
           <nav className="footer-links" aria-label="Weitere Seiten">
-            <Link href="/faq">FAQ</Link>
+            {faq ? <Link href="/faq">FAQ</Link> : null}
             <Link href="/blog">Blog</Link>
             <Link href="/ampel-check">GoBD-Ampel</Link>
             {LEGAL_LINKS.map((link) => (

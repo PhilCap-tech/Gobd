@@ -3,6 +3,7 @@ import { sessionEmailFromRequest } from "@/lib/auth";
 import type { Entity } from "@/lib/entities";
 import { inviteMitwirkende } from "@/lib/membership-invite";
 import { planInviteDenial } from "@/lib/plan-access";
+import { v3InvitePrepayDenial } from "@/lib/v3-firm-limit";
 import { parseModuleIds } from "@/lib/memberships";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { getOwnedEntity } from "@/lib/store";
@@ -22,7 +23,8 @@ const defaults: InviteIo = {
   sessionEmail: sessionEmailFromRequest,
   ownedEntity: getOwnedEntity,
   invite: inviteMitwirkende,
-  planDenial: planInviteDenial,
+  // Neues Modell (CoS 28.10.): erst nach bezahlter Bestellung, danach Sperre nach Tag 30 wie bisher.
+  planDenial: async (email) => (await v3InvitePrepayDenial(email)) ?? (await planInviteDenial(email)),
 };
 
 function jsonError(error: string, status: number) {

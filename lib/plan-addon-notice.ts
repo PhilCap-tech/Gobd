@@ -7,17 +7,16 @@
  *   gespeichert nur als HMAC (lib/mail-dedupe, Schlüssel mit `@`).
  * - Versand nur mit PLAN_ADDON_NOTICE_ENABLED=true (Default AUS): sonst zählt
  *   der Lauf nur die fälligen Käufe.
- * - Wortlaut: Growth landing-v3.md Abschnitt 6 (1:1). Widerspruchshinweis:
+ * - Wortlaut: Legal e-7 / e-7N (loeschhinweis-mails.md, 1:1). Früher:
  *   Platzhalter, Text kommt von Legal.
  */
 import { formatBerlinDate } from "@/lib/kuendigung";
 import { logError } from "@/lib/log-error";
-import { escapeHtml, wrapTransactionalHtml, wrapTransactionalText } from "@/lib/mail-layout";
 import { sendDedupedEmail } from "@/lib/mail-dedupe";
-import { PLAN_ADDON_HREF, planState, type PlanRow } from "@/lib/plan";
-import { PLAN_OFFER_OBJECTION_NOTICE } from "@/lib/plan-copy";
+import { addonYearEnd, PLAN_ADDON_HREF, planState, type PlanRow } from "@/lib/plan";
 import { listPlanRowsStrict } from "@/lib/plan-store";
-import { hasOfferOptOut, offerOptOutHeaders, offerOptOutUrls } from "@/lib/offer-optout";
+import { hasOfferOptOut, offerOptOutHeaders } from "@/lib/offer-optout";
+import { firmLabel, renderLegalMail } from "@/lib/retention-mail";
 import { getAppUrl } from "@/lib/env";
 import { listEntitiesByEmail } from "@/lib/store";
 import { addonNoticeEnabled, isPricingV2, PLAN_ADDON_NOTICE_DAYS_BEFORE } from "@/lib/pricing-model";
@@ -37,66 +36,32 @@ export function addonNoticeMailKey(row: Pick<PlanRow, "email" | "purchasedAt">):
   return `addon-notice:${row.email.trim().toLowerCase()}:${row.purchasedAt.trim()}`;
 }
 
+/**
+ * Tag 23 (7 Tage vor Ende des 30-Tage-Zugangs): Legal e-7 (mit Angebot) bzw.
+ * nach Widerspruch e-7N (neutral), Wortlaut 1:1 aus loeschhinweis-mails.md
+ * (lib/retention-mail-texts.ts, erzeugt mit scripts/gen-retention-mail-texts.py).
+ */
 export function addonNoticeMail(input: {
   company: string;
-  name?: string;
   accessUntil: string;
   purchasedAt: string;
-  /** Widerspruch gegen Angebote (AGB § 12a Abs. 2): Hinweis ohne Angebot. */
+  /** Widerspruch gegen Angebote: e-7N statt e-7. */
   offerOptOut?: boolean;
-  /** Ein-Klick-Abmeldung (Bestätigungsseite) für Angebots-Mails. */
-  unsubscribeUrl?: string;
+  siteUrl?: string;
 }): {
   subject: string;
   text: string;
   html: string;
 } {
-  const company = input.company.trim() || "Ihre Firma";
-  const date = formatBerlinDate(input.accessUntil);
-  const bought = formatBerlinDate(input.purchasedAt);
-  const greeting = input.name?.trim() ? `Guten Tag ${input.name.trim()},` : "Guten Tag,";
-  const addonUrl = `${getAppUrl()}${PLAN_ADDON_HREF}`;
-  const pdfUrl = `${getAppUrl()}/account`;
-  const subject = `Ihr Zugang zu ${company} endet am ${date}`;
-  const intro = `Ihr 30-Tage-Zugang für ${company} endet am ${date}. Danach wird Ihr Konto deaktiviert: Sie können Ihre Angaben nicht mehr anpassen, keine Personen mehr einladen und Ihre PDFs nicht mehr herunterladen.`;
-  const paragraphs = input.offerOptOut
-    ? [
-        greeting,
-        intro,
-        `Speichern Sie Ihre PDFs bis zum ${date} auf Ihrem Rechner.`,
-        `Zu meinen PDFs: ${pdfUrl}`,
-        "Bei Fragen antworten Sie einfach auf diese Mail.",
-        "Viele Grüße\nIhr Team von gobd-doku-erstellen.de",
-        "---\nSoftware-Hilfe zur Verfahrensdokumentation, keine Steuer- oder Rechtsberatung.",
-      ]
-    : [
-    greeting,
-    intro,
-    "Zwei Möglichkeiten:",
-    `1. Dauerhaft weitermachen: Buchen Sie das Jahrespaket für 49 €/Jahr zzgl. USt dazu. Sie behalten den Zugang, können Änderungen jederzeit einpflegen und neue Versionen erstellen. Das Jahr zählt ab Ihrem ersten Kauf am ${bought}.`,
-    `Jahrespaket zubuchen: ${addonUrl}`,
-    `2. Ohne Verlängerung: Speichern Sie Ihre PDFs bis zum ${date} auf Ihrem Rechner.`,
-    `Zu meinen PDFs: ${pdfUrl}`,
-    "Bei Fragen antworten Sie einfach auf diese Mail.",
-    "Viele Grüße\nIhr Team von gobd-doku-erstellen.de",
-    "---\nSoftware-Hilfe zur Verfahrensdokumentation, keine Steuer- oder Rechtsberatung.",
-    PLAN_OFFER_OBJECTION_NOTICE,
-    ...(input.unsubscribeUrl ? [`Keine Angebote mehr erhalten: ${input.unsubscribeUrl}`] : []),
-  ];
-  const html = paragraphs
-    .map((p) => {
-      if (p.startsWith("Jahrespaket zubuchen: ")) return `<p><a href="${escapeHtml(addonUrl)}">Jahrespaket zubuchen</a></p>`;
-      if (p.startsWith("Keine Angebote mehr erhalten: ") && input.unsubscribeUrl)
-        return `<p><a href="${escapeHtml(input.unsubscribeUrl)}">Keine Angebote mehr erhalten</a></p>`;
-      if (p.startsWith("Zu meinen PDFs: ")) return `<p><a href="${escapeHtml(pdfUrl)}">Zu meinen PDFs</a></p>`;
-      return `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`;
-    })
-    .join("");
-  return {
-    subject,
-    text: wrapTransactionalText(paragraphs.join("\n\n")),
-    html: wrapTransactionalHtml(html),
-  };
+  const base = (input.siteUrl || getAppUrl()).replace(/\/$/, "");
+  return renderLegalMail(input.offerOptOut ? "e7N" : "e7", {
+    Firma: firmLabel(input.company),
+    Zugangsende: formatBerlinDate(input.accessUntil),
+    "Löschdatum": formatBerlinDate(addonYearEnd(input.purchasedAt, input.purchasedAt)),
+    "Link Anmeldung": `${base}/login`,
+    "Link Jahrespaket": `${base}${PLAN_ADDON_HREF}`,
+    "Link Datenschutzerklärung": `${base}/datenschutz`,
+  });
 }
 
 export type AddonNoticeRunResult = { due: number; sent: number; failed: number; sending: boolean };
@@ -126,20 +91,20 @@ export async function runAddonNotice(
   if (!sending) return { due: due.length, sent, failed, sending };
   for (const row of due) {
     try {
-      // Widerspruch (Philip 28.10.): abgemeldete Adressen bekommen diese Mail nicht.
-      if (row.offerOptOutAt?.trim() || (io.optedOut && (await io.optedOut(row)))) continue;
+      // Widerspruch (CoS 28.10.): kein Angebot, sondern neutraler Hinweis zum Zugangsende (gleicher Dedupe).
+      const optedOut = Boolean(row.offerOptOutAt?.trim()) || Boolean(io.optedOut && (await io.optedOut(row)));
       const company = io.company ? await io.company(row) : "";
       const mail = addonNoticeMail({
         company,
         accessUntil: row.accessUntil,
         purchasedAt: row.purchasedAt,
-        unsubscribeUrl: offerOptOutUrls(row.email).page,
+        offerOptOut: optedOut,
       });
       const result = await io.send({
         dedupeKey: addonNoticeMailKey(row),
         to: row.email,
         ...mail,
-        headers: offerOptOutHeaders(row.email),
+        ...(optedOut ? {} : { headers: offerOptOutHeaders(row.email) }),
       });
       if (result.sent || result.duplicate) sent += 1;
       else failed += 1;
