@@ -17,6 +17,7 @@ import { sendDedupedEmail } from "@/lib/mail-dedupe";
 import { PLAN_ADDON_HREF, planState, type PlanRow } from "@/lib/plan";
 import { PLAN_OFFER_OBJECTION_NOTICE } from "@/lib/plan-copy";
 import { listPlanRowsStrict } from "@/lib/plan-store";
+import { hasOfferOptOut, offerOptOutHeaders, offerOptOutUrls } from "@/lib/offer-optout";
 import { getAppUrl } from "@/lib/env";
 import { listEntitiesByEmail } from "@/lib/store";
 import { addonNoticeEnabled, isPricingV2, PLAN_ADDON_NOTICE_DAYS_BEFORE } from "@/lib/pricing-model";
@@ -43,6 +44,8 @@ export function addonNoticeMail(input: {
   purchasedAt: string;
   /** Widerspruch gegen Angebote (AGB § 12a Abs. 2): Hinweis ohne Angebot. */
   offerOptOut?: boolean;
+  /** Ein-Klick-Abmeldung (Bestätigungsseite) für Angebots-Mails. */
+  unsubscribeUrl?: string;
 }): {
   subject: string;
   text: string;
@@ -78,10 +81,13 @@ export function addonNoticeMail(input: {
     "Viele Grüße\nIhr Team von gobd-doku-erstellen.de",
     "---\nSoftware-Hilfe zur Verfahrensdokumentation, keine Steuer- oder Rechtsberatung.",
     PLAN_OFFER_OBJECTION_NOTICE,
+    ...(input.unsubscribeUrl ? [`Keine Angebote mehr erhalten: ${input.unsubscribeUrl}`] : []),
   ];
   const html = paragraphs
     .map((p) => {
       if (p.startsWith("Jahrespaket zubuchen: ")) return `<p><a href="${escapeHtml(addonUrl)}">Jahrespaket zubuchen</a></p>`;
+      if (p.startsWith("Keine Angebote mehr erhalten: ") && input.unsubscribeUrl)
+        return `<p><a href="${escapeHtml(input.unsubscribeUrl)}">Keine Angebote mehr erhalten</a></p>`;
       if (p.startsWith("Zu meinen PDFs: ")) return `<p><a href="${escapeHtml(pdfUrl)}">Zu meinen PDFs</a></p>`;
       return `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`;
     })
@@ -99,6 +105,8 @@ type RunIo = {
   rows: () => Promise<PlanRow[]>;
   send: typeof sendDedupedEmail;
   company?: (row: PlanRow) => Promise<string>;
+  /** Widerspruch gegen Angebote (Marker je HMAC oder Plan-Spalte): dann kein Versand. */
+  optedOut?: (row: PlanRow) => Promise<boolean>;
 };
 
 async function firstCompany(row: PlanRow): Promise<string> {
@@ -109,7 +117,7 @@ async function firstCompany(row: PlanRow): Promise<string> {
 /** Ein Lauf. Ohne Schalter nur Zählung, nie Versand. Fehler je Zeile brechen den Lauf nicht ab. */
 export async function runAddonNotice(
   now: Date = new Date(),
-  io: RunIo = { rows: listPlanRowsStrict, send: sendDedupedEmail, company: firstCompany },
+  io: RunIo = { rows: listPlanRowsStrict, send: sendDedupedEmail, company: firstCompany, optedOut: (row) => hasOfferOptOut(row) },
 ): Promise<AddonNoticeRunResult> {
   const sending = isPricingV2() && addonNoticeEnabled();
   const due = (await io.rows()).filter((row) => addonNoticeDue(row, now));
@@ -118,14 +126,21 @@ export async function runAddonNotice(
   if (!sending) return { due: due.length, sent, failed, sending };
   for (const row of due) {
     try {
+      // Widerspruch (Philip 28.10.): abgemeldete Adressen bekommen diese Mail nicht.
+      if (row.offerOptOutAt?.trim() || (io.optedOut && (await io.optedOut(row)))) continue;
       const company = io.company ? await io.company(row) : "";
       const mail = addonNoticeMail({
         company,
         accessUntil: row.accessUntil,
         purchasedAt: row.purchasedAt,
-        offerOptOut: Boolean(row.offerOptOutAt),
+        unsubscribeUrl: offerOptOutUrls(row.email).page,
       });
-      const result = await io.send({ dedupeKey: addonNoticeMailKey(row), to: row.email, ...mail });
+      const result = await io.send({
+        dedupeKey: addonNoticeMailKey(row),
+        to: row.email,
+        ...mail,
+        headers: offerOptOutHeaders(row.email),
+      });
       if (result.sent || result.duplicate) sent += 1;
       else failed += 1;
     } catch (error) {

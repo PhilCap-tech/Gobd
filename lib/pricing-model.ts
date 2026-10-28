@@ -193,5 +193,6 @@ export function addonNoticeEnabled(): boolean {
 
 /** Phase 2: Login vor dem Fragebogen, Paketwahl und Zahlung danach. Default AUS. */
 export function intakeLoginFirstEnabled(): boolean {
-  return boolEnv("INTAKE_LOGIN_FIRST_ENABLED", false);
+  // Default AN im neuen Modell (Go-live), Legacy immer aus.
+  return isPricingV2() && boolEnv("INTAKE_LOGIN_FIRST_ENABLED", true);
 }

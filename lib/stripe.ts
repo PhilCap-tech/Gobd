@@ -357,6 +357,7 @@ type PlanInput = {
   /** Nur `addon`: erster Kauf (ISO). */
   firstPurchasedAt?: string;
   offerOptOut?: boolean;
+  draftKey?: string;
 };
 
 /**
@@ -552,7 +553,7 @@ async function preparePlanCheckout(
       customerId: input.customerId,
       memberFirm: plan.memberFirm,
       agbAcceptedAt: plan.agbAcceptedAt,
-      ...(resolved ? { prices: resolved.prices, firstPurchasedAt: plan.firstPurchasedAt, offerOptOut: plan.offerOptOut } : {}),
+      ...(resolved ? { prices: resolved.prices, firstPurchasedAt: plan.firstPurchasedAt, offerOptOut: plan.offerOptOut, draftKey: plan.draftKey } : {}),
     }),
   };
 }
@@ -626,6 +627,7 @@ export async function resolveCheckoutSession(
       stripeCustomerId: customerId,
       stub: false,
       entityId: session.metadata?.entity_id?.trim() || "",
+      ...(session.metadata?.gobd_draft_key ? { draftKey: session.metadata.gobd_draft_key.trim() } : {}),
       ...(billingAddress ? { billingAddress } : {}),
       ...(customerName ? { customerName } : {}),
       ...(businessName ? { businessName } : {}),

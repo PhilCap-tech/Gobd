@@ -58,7 +58,7 @@ async function main() {
     assert.equal(sends, 0);
   });
 
-  await check("Schalter an: Mail mit Angebot und Widerspruchshinweis; Widerspruch = ohne Angebot", async () => {
+  await check("Schalter an: Mail mit Angebot und Widerspruchshinweis; Widerspruch = kein Versand", async () => {
     process.env.PLAN_ADDON_NOTICE_ENABLED = "true";
     const sent: { dedupeKey: string; text: string; subject: string }[] = [];
     const rows = [bought(25, "a@example.com"), { ...bought(24, "b@example.com"), offerOptOutAt: now.toISOString() }];
@@ -67,8 +67,11 @@ async function main() {
       send: async (m) => { sent.push(m); return { stub: true, sent: true }; },
       company: async () => "Muster GmbH",
     });
-    assert.equal(r.sent, 2);
-    const [offer, neutral] = sent;
+    // Philip 28.10.: abgemeldete Adressen (Widerspruch) werden übersprungen.
+    assert.equal(r.sent, 1);
+    assert.equal(sent.length, 1);
+    const [offer] = sent;
+    const neutral = notice.addonNoticeMail({ company: "Muster GmbH", accessUntil: rows[1].accessUntil, purchasedAt: rows[1].purchasedAt, offerOptOut: true });
     assert.ok(offer.subject.startsWith("Ihr Zugang zu Muster GmbH endet am "));
     assert.ok(offer.text.includes("Jahrespaket zubuchen") && offer.text.includes(plan.PLAN_ADDON_HREF));
     assert.ok(offer.text.includes("können Sie jederzeit widersprechen"), "Widerspruchshinweis");

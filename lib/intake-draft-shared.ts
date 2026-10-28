@@ -34,6 +34,11 @@ export type IntakeDraft = {
   updatedBy?: string;
   /** Absent on drafts saved before version fields were part of the Entwurf. */
   change?: DraftVersionChange;
+  /**
+   * Modell-Marker: `v3` = gespeichert unter dem neuen Preismodell (28.10.).
+   * Nur solche Entwürfe fasst der Löschlauf an (30 Tage nach updatedAt, wenn unbezahlt).
+   */
+  pricingModel?: string;
 };
 
 /** Browser or server snapshot used to pick which Entwurf to restore. */

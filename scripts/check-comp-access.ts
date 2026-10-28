@@ -324,7 +324,12 @@ function checkAccountUi() {
     paidNote.includes("Die Rechnung weist die Nettopreise zuzüglich 19"),
     "a paid success page keeps the invoice line",
   );
-  ok(paidNote.includes("149"), "a paid success page still names the setup price");
+  ok(
+    ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase())
+      ? paidNote.includes("99") && !paidNote.includes("149")
+      : paidNote.includes("149"),
+    "a paid success page still names the setup price (new model: 99 €)",
+  );
   ok(!paidNote.includes("Kostenfreier Zugang"), "a paid success page does not show the comp note");
   const successSource = readFileSync("app/success/page.tsx", "utf8");
   ok(successSource.includes("isCompAccessEmail(row?.email)"), "success uses the document owner");

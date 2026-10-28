@@ -21,8 +21,8 @@ import { SITE_ORIGIN, canonicalUrl } from "@/lib/seo";
 const FAQ_GUARANTEE = "6. 14 Tage Geld zurück: Garantie und Rückgaberecht";
 const AGB_NO_WITHDRAWAL = "§ 8 Kein Widerrufsrecht (B2B)";
 const V2 = isPricingV2();
-const AGB_GUARANTEE = V2 ? "§ 9 Erstattung vor dem ersten PDF" : "§ 9 Zufriedenheitsgarantie";
-const AGB_TERM = V2 ? "§ 12 Mitgliedschaft: Inhalt, Laufzeit und Kündigung" : "§ 12 Laufzeit, Verlängerung und Kündigung";
+const AGB_GUARANTEE = V2 ? "§ 9 Erstattung" : "§ 9 Zufriedenheitsgarantie";
+const AGB_TERM = V2 ? "§ 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung" : "§ 12 Laufzeit, Verlängerung und Kündigung";
 /** Preismodell v2: neue FAQ-Abschnitte (Legal 26.10.) im Wortlaut. */
 const FAQ_V2_SECTIONS = [
   "7. Was bietet die Mitgliedschaft?",

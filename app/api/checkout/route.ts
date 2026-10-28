@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { v3FirmDenial } from "@/lib/v3-firm-limit";
 import { sessionEmailFromRequest } from "@/lib/auth";
 import { compCheckoutRedirect, isCompAccessEmail } from "@/lib/comp-access";
 import { ds24CheckoutRedirect } from "@/lib/digistore24-access";
@@ -21,6 +22,7 @@ import { emailsEqual } from "@/lib/types";
 import { loadPlanAccess } from "@/lib/plan-access";
 import { memberFromPackage, planCheckoutKind, type PlanCheckoutKind } from "@/lib/plan-checkout";
 import {
+  intakeLoginFirstEnabled,
   isPricingV2,
   memberPreselected,
 } from "@/lib/pricing-model";
@@ -59,6 +61,8 @@ export async function POST(request: Request) {
     acceptedTerms?: boolean;
     /** Neues Modell: Widerspruch gegen Angebots-Mails. */
     offerOptOut?: boolean;
+    /** Neues Modell, Login zuerst: Entwurf aus dem Fragebogen (email:<login>:…). */
+    draftKey?: string;
   };
   try {
     body = await request.json();
@@ -164,6 +168,17 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  // Neues Modell (Philip 28.10.): eine Firma je v3-Konto. Kauf für eine weitere Firma gesperrt.
+  if (v2) {
+    try {
+      const firms = await listEntitiesByEmail(email);
+      const known = Boolean(entityId) && firms.some((firm) => firm.entityId === entityId);
+      const denial = known ? null : await v3FirmDenial(email, firms.length);
+      if (denial) return NextResponse.json({ error: denial }, { status: 409 });
+    } catch (error) {
+      logError("[checkout] Firmenanzahl nicht geprüft", error, { level: "warn" });
+    }
+  }
   // Nachweis der AGB-Bestätigung (Legal 15:20): Zeitpunkt in den Stripe-Metadaten.
   const agbAcceptedAt = v2 ? new Date().toISOString() : undefined;
 
@@ -182,6 +197,7 @@ export async function POST(request: Request) {
               member: memberFromPackage(body.paket, memberPreselected()),
               agbAcceptedAt,
               offerOptOut: body.offerOptOut === true,
+              draftKey: ownLoginDraftKey(body.draftKey, sessionEmail),
             },
           }
         : {}),
@@ -194,6 +210,14 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+/** Nur ein eigener Login-Entwurf (email:<Sitzungs-Mail>:…) wird an den Checkout gebunden. */
+function ownLoginDraftKey(raw: unknown, sessionEmail: string | null): string | undefined {
+  if (typeof raw !== "string" || !sessionEmail || !intakeLoginFirstEnabled()) return undefined;
+  const key = raw.trim();
+  const prefix = `email:${sessionEmail.trim().toLowerCase()}:`;
+  return key.startsWith(prefix) && key.length <= 450 ? key : undefined;
 }
 
 /**

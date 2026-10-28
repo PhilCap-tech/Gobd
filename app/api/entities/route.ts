@@ -8,7 +8,9 @@ import {
   normalizeEntityInput,
 } from "@/lib/entities";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
-import { createEntity, updateEntity } from "@/lib/store";
+import { createEntity, listEntitiesByEmail, updateEntity } from "@/lib/store";
+import { isPricingV2 } from "@/lib/pricing-model";
+import { v3FirmDenial } from "@/lib/v3-firm-limit";
 import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
@@ -58,6 +60,16 @@ export async function POST(request: Request) {
   const input = parseEntityBody(body);
   if (!input.name) {
     return jsonError("Bitte einen Firmennamen angeben.", 400);
+  }
+
+  // Neues Modell (Philip 28.10.): eine Firma je v3-Konto.
+  if (isPricingV2()) {
+    try {
+      const denial = await v3FirmDenial(email, (await listEntitiesByEmail(email)).length);
+      if (denial) return jsonError(denial, 409);
+    } catch (error) {
+      logError("[firma] Firmenanzahl nicht geprüft", error, { level: "warn" });
+    }
   }
 
   try {

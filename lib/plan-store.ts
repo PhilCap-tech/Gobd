@@ -4,6 +4,7 @@
  * TTL), damit die Sheets-Quote (60 Reads/min) nicht steigt.
  * Ohne Sheets: Datei im Fallback-Verzeichnis (lokal, Checks).
  */
+import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -288,6 +289,10 @@ async function writeSheetRow(row: PlanRow): Promise<void> {
 /** Alle Pläne. Ein Lesefehler wird geworfen (fail closed), nicht durch die leere Datei ersetzt. */
 export async function listPlanRowsStrict(): Promise<PlanRow[]> {
   if (readerOverride) return readerOverride();
+  // Prebuild/Checks auf Vercel haben echte Sheets-Zugangsdaten, aber evtl. keinen
+  // Reiter `plans` (400). Automatische Läufe lesen keine Live-Plan-Zeilen: Checks,
+  // die Pläne brauchen, setzen setPlanStoreForTests.
+  if (isSheetsConfigured() && automatedRunForbidsLiveWrites()) return readAllFiles();
   return isSheetsConfigured() ? merge(await readSheetRows(), await readAllFiles()) : readAllFiles();
 }
 

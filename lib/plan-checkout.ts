@@ -57,7 +57,12 @@ export type PlanCheckoutInput = {
   firstPurchasedAt?: string;
   /** Widerspruch gegen Angebots-Mails. */
   offerOptOut?: boolean;
+  /** Login zuerst: Entwurf (email:-Schlüssel) aus dem Fragebogen. */
+  draftKey?: string;
 };
+
+/** Metadaten: Entwurf aus dem Fragebogen (Login zuerst), wird nach Zahlung übernommen. */
+export const PLAN_METADATA_DRAFT_KEY = "gobd_draft_key";
 
 export const PLAN_METADATA_AGB_ACCEPTED_AT = "agb_accepted_at";
 
@@ -142,6 +147,7 @@ export function buildPlanCheckoutParams(
     ...(entityId ? { entity_id: entityId } : {}),
     ...(input.agbAcceptedAt ? { [PLAN_METADATA_AGB_ACCEPTED_AT]: input.agbAcceptedAt } : {}),
     ...(input.offerOptOut ? { [PLAN_METADATA_OFFER_OPTOUT]: "1" } : {}),
+    ...(input.draftKey ? { [PLAN_METADATA_DRAFT_KEY]: input.draftKey.slice(0, 450) } : {}),
   };
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
@@ -200,7 +206,10 @@ export function buildPlanCheckoutParams(
     tax_id_collection: { enabled: true },
     allow_promotion_codes: true,
     line_items: lineItems,
-    success_url: successUrl(kind, entityId),
+    success_url:
+      kind === "entry" && input.draftKey
+        ? `${getAppUrl()}/fragebogen/bezahlt?session_id={CHECKOUT_SESSION_ID}`
+        : successUrl(kind, entityId),
     cancel_url: cancelUrl(kind, audience),
     metadata,
   };

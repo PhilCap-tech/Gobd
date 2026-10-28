@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { FRAGEBOGEN_PATH } from "@/lib/fragebogen";
 import { JsonLd } from "@/components/json-ld";
 import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
@@ -26,7 +27,7 @@ import {
   SETUP_EUR,
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
-import { isPricingV2, memberPreselected } from "@/lib/pricing-model";
+import { intakeLoginFirstEnabled, isPricingV2, memberPreselected } from "@/lib/pricing-model";
 import { memberFromPackage } from "@/lib/plan-checkout";
 import {
   PLAN_ENTRY_PRICE_LINE,
@@ -61,6 +62,8 @@ export default async function CheckoutPage({
     (await ds24CheckoutRedirect(email, requestedEntityId));
   if (compTarget) redirect(compTarget);
   const partner = firstQueryValue(params.utm_campaign) === "steuerberater";
+  // Neues Modell, Login zuerst: erst Fragebogen (kostenlos), Zahlung danach.
+  if (intakeLoginFirstEnabled() && !partner && !requestedEntityId) redirect(FRAGEBOGEN_PATH);
   const entities = email ? await listEntitiesByEmail(email) : [];
   const owned =
     email && requestedEntityId ? await getOwnedEntity(requestedEntityId, email) : null;

@@ -83,11 +83,11 @@ async function main() {
 
   process.env.PRICING_MODEL = "v2";
 
-  await check("Schalter: Defaults (Plan an, Firmen aus, Mail aus, Login-zuerst aus); v3 ist Alias", () => {
+  await check("Schalter: Defaults (Plan an, Firmen aus, Mail aus, Login-zuerst an); v3 ist Alias", () => {
     assert.equal(model.planAccessEnabled(), true);
     assert.equal(model.extraFirmsEnabled(), false);
     assert.equal(model.addonNoticeEnabled(), false);
-    assert.equal(model.intakeLoginFirstEnabled(), false);
+    assert.equal(model.intakeLoginFirstEnabled(), true, "Login zuerst im neuen Modell Default an");
     assert.equal(model.memberPreselected(), true, "Option 2 vorausgewählt");
     process.env.PRICING_MODEL = "v3";
     assert.equal(model.pricingModel(), "v2");

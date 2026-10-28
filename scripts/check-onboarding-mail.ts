@@ -215,7 +215,8 @@ for (const [label, mail] of [
   if (!mail.html.includes(`href="${REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;")}"`)) {
     fail(`${label}: share href missing`);
   }
-  if (occurrences(mail.text, "149 €") !== 1 || occurrences(mail.html, "149 €") !== 1) {
+  const priceToken = ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase()) ? "Jahrespaket" : "149 €";
+  if (occurrences(mail.text, priceToken) !== 1 || occurrences(mail.html, priceToken) !== 1) {
     fail(`${label}: price line must appear once`);
   }
   if (!mail.text.includes(REFERRAL_MICRO) || !mail.html.includes(REFERRAL_MICRO)) {

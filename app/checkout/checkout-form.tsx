@@ -45,6 +45,8 @@ type CheckoutFormProps = {
   showIncludedFirmNote?: boolean;
   /** Preismodell v2 (PRICING_MODEL=v2): Paketwahl und AGB-Bestätigung. */
   planOffer?: { initialPackage: PlanPackage; packageTexts: PlanPackageTexts };
+  /** Login zuerst: Entwurf aus dem Fragebogen, wird nach Zahlung übernommen. */
+  draftKey?: string;
 };
 
 export function CheckoutForm({
@@ -57,6 +59,7 @@ export function CheckoutForm({
   audience = "kunde",
   showIncludedFirmNote = true,
   planOffer,
+  draftKey = "",
 }: CheckoutFormProps) {
   const [paket, setPaket] = useState<PlanPackage>(planOffer?.initialPackage ?? "mitglied");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -145,6 +148,7 @@ export function CheckoutForm({
             }) || undefined,
           audience,
           ...(planOffer ? { paket, acceptedTerms } : {}),
+          ...(draftKey ? { draftKey } : {}),
         }),
       });
       const data = (await response.json()) as {

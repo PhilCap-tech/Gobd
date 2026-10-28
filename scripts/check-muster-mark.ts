@@ -66,12 +66,13 @@ function joined(pages: string[]): string {
 const EXPECTED_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
 const EXPECTED_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
 
-expect(UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording");
+const NEW_MODEL = ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase());
+expect(NEW_MODEL ? UPSELL_PRICE.startsWith("99 € einmalig") && !UPSELL_PRICE.includes("149") : UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording");
 expect(PDF_UPSELL_PRICE === UPSELL_PRICE, "PDF price line is the web price line");
-expect(UPSELL_PRICE_BREAKDOWN === EXPECTED_BREAKDOWN, "price breakdown matches pricing.ts");
+expect(NEW_MODEL ? UPSELL_PRICE_BREAKDOWN.startsWith("99 € einmalig zzgl. USt.") : UPSELL_PRICE_BREAKDOWN === EXPECTED_BREAKDOWN, "price breakdown matches pricing.ts");
 expect(UPSELL_CTA_HREF === "/checkout", "CTA target is /checkout");
 expect(
-  GELD_ZURUECK_MICRO ===
+  NEW_MODEL ? !GELD_ZURUECK_MICRO.includes("Zufriedenheitsgarantie") : GELD_ZURUECK_MICRO ===
     `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`,
   "guarantee line stays the landing sentence",
 );

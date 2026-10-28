@@ -56,8 +56,9 @@ function readLegal(filename: string): string {
 }
 
 export const impressumMarkdown = readLegal("impressum.md");
-export const datenschutzMarkdown = readLegal("datenschutz.md");
+/** Neues Preismodell (28.10.): Legal v3 (1:1); Legacy unverändert. */
+export const datenschutzMarkdown = readLegal(isPricingV2() ? "datenschutz-v3.md" : "datenschutz.md");
 /** Preismodell v2: AGB-Fassung von Legal (26.10., Stand 30.10.2026) als eigene Datei; die bisherige bleibt wörtlich. */
-export const agbMarkdown = readLegal(isPricingV2() ? "agb-v2.md" : "agb.md");
-export const cookiesMarkdown = readLegal("cookies.md");
+export const agbMarkdown = readLegal(isPricingV2() ? "agb-v3.md" : "agb.md");
+export const cookiesMarkdown = readLegal(isPricingV2() ? "cookies-v3.md" : "cookies.md");
 export const produktDisclaimerMarkdown = readLegal("produkt-disclaimer.md");
