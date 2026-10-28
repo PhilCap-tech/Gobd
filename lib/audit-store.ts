@@ -523,3 +523,22 @@ export async function readAuditPage(
     nextOffset: next < all.length ? next : null,
   };
 }
+
+/** Löschlauf v3: alle gespeicherten Zeilen (nur lesen). */
+export async function listAllAuditStored(): Promise<AuditEvent[]> {
+  return loadRows();
+}
+
+/**
+ * Löschlauf v3: eine Zeile schwärzen (Zeile bleibt, damit Zeilennummern
+ * stabil bleiben). Der Aufrufer liefert die geschwärzte Fassung.
+ */
+export async function replaceAuditEventForRetention(redacted: AuditEvent): Promise<boolean> {
+  return withLock(async () => {
+    const rows = await loadRows();
+    if (!rows.some((row) => row.eventId === redacted.eventId)) return false;
+    const next = rows.map((row) => (row.eventId === redacted.eventId ? redacted : row));
+    await persist(next, redacted, "replace", lastSheetRowNumbers.get(redacted.eventId));
+    return true;
+  });
+}

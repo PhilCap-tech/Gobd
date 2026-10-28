@@ -229,7 +229,11 @@ assert(!applySource.includes("runLifecycleJob"), "kein Lifecycle-Job");
 assert(!mailSource.includes("buildCancellationReminderMail"), "keine Erinnerungsmail");
 assert(!existsSync("app/api/cron/lifecycle/route.ts"), "Cron-Route entfernt");
 assert(!existsSync("lib/kuendigung-purge.ts"), "Löschmodul entfernt");
-assert(!vercel.includes("crons"), "vercel.json ohne Cron");
+// Einziger erlaubter Cron: Löschlauf v3 (/api/cron/loeschlauf, Schalter Default AUS). Kein Lifecycle-Cron.
+{
+  const crons = (JSON.parse(vercel) as { crons?: Array<{ path?: string }> }).crons ?? [];
+  assert(crons.every((cron) => cron.path === "/api/cron/loeschlauf"), "vercel.json ohne Lifecycle-Cron");
+}
 const warningPage = readFileSync("app/account/kuendigung/page.tsx", "utf8");
 assert(warningPage.includes("Downloads noch 30 Tage möglich"), "Warnseite nennt die Downloadfrist");
 assert(!/lösch/i.test(warningPage), "Warnseite verspricht keine Löschung");

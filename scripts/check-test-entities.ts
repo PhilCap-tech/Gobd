@@ -291,7 +291,10 @@ function checkSources(): void {
   ok(webhook.indexOf("await appendRecord") < webhook.indexOf("Testfirma"), "the paid row is still stored");
   ok(webhook.includes("entityId: invoiceEntityId"), "payment-failed reads the firm id");
   ok(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "there is no cron mailer");
-  ok(!read("vercel.json").includes("crons"), "vercel.json has no cron");
+  // Only cron: the v3 deletion run, which skips listed test firms (lib/retention-guards.ts).
+  const crons = (JSON.parse(read("vercel.json")) as { crons?: Array<{ path?: string }> }).crons ?? [];
+  ok(crons.every((cron) => cron.path === "/api/cron/loeschlauf"), "vercel.json has no mail cron besides the deletion run");
+  ok(read("lib/retention-guards.ts").includes("isTestEntity"), "the deletion run skips listed test firms");
 
   const intake = read("app/api/intake/route.ts");
   ok(intake.indexOf("skipTestDelivery") < intake.indexOf("io.generatePdf"), "intake checks the firm before the PDF");

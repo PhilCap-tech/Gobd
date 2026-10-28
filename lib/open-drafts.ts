@@ -204,6 +204,13 @@ export async function forgetOpenDraft(email: string, draftKey: string): Promise<
   }
 }
 
+/** Löschlauf v3: Übersichtsdatei (Draft-Index) dieser Mailbox entfernen. */
+export async function deleteDraftIndexForRetention(email: string): Promise<void> {
+  const owner = email.trim().toLowerCase();
+  if (!owner) return;
+  await writeIndex(owner, { entries: [] });
+}
+
 /** Open Entwürfe of this login. A draft whose stored email differs is dropped. */
 export async function listOpenDraftsForEmail(email: string): Promise<IntakeDraft[]> {
   const owner = email.trim().toLowerCase();
