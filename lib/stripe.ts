@@ -15,7 +15,15 @@ import {
   buildPlanCheckoutParams,
   missingPlanPriceIds,
   type PlanCheckoutKind,
+  type V3Prices,
 } from "@/lib/plan-checkout";
+import {
+  isPricingV2,
+  PLAN_LOOKUP_KEY_ADDON_YEAR,
+  PLAN_LOOKUP_KEY_ENTRY,
+  PLAN_LOOKUP_KEY_YEAR,
+  v3PriceIds,
+} from "@/lib/pricing-model";
 import { logError } from "@/lib/log-error";
 
 const CUSTOMER_LIST_TTL_MS = 60_000;
@@ -338,8 +346,54 @@ export type CheckoutSessionInput = {
   /** Für die Warnung, wenn STRIPE_TAX_RATE_ID fehlt. Default: CHECKOUT_SESSION_ROUTE. */
   route?: string;
   /** Preismodell v2 (nur bei PRICING_MODEL=v2 gesetzt). Ohne: bisheriger Checkout. */
-  plan?: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean; agbAcceptedAt?: string };
+  plan?: PlanInput;
 };
+
+type PlanInput = {
+  kind: PlanCheckoutKind;
+  member: boolean;
+  memberFirm?: boolean;
+  agbAcceptedAt?: string;
+  /** Nur `addon`: erster Kauf (ISO). */
+  firstPurchasedAt?: string;
+  offerOptOut?: boolean;
+};
+
+/**
+ * Neues Preismodell: Preis-IDs aus der Umgebung (STRIPE_PRICE_ENTRY_ID,
+ * STRIPE_PRICE_YEAR_ID, STRIPE_PRICE_ADDON_YEAR_ID). Fehlt eine, wird sie zur
+ * Laufzeit über den Lookup Key gelesen (entry_v3, year_v3, addon_year_v3;
+ * nur Lesen, legt nichts an). `addonYear` darf fehlen (Fallback price_data 49 €).
+ */
+export async function resolveV3Prices(): Promise<{ prices: V3Prices; missing: string[] }> {
+  const env = v3PriceIds();
+  const prices: V3Prices = {
+    entry: env.entry,
+    year: env.year,
+    addonYear: process.env.STRIPE_PRICE_ADDON_YEAR_ID?.trim() ?? "",
+  };
+  const wanted: Array<[keyof V3Prices, string]> = [
+    ["entry", PLAN_LOOKUP_KEY_ENTRY],
+    ["year", PLAN_LOOKUP_KEY_YEAR],
+    ["addonYear", PLAN_LOOKUP_KEY_ADDON_YEAR],
+  ];
+  const open = wanted.filter(([field]) => !prices[field]);
+  if (open.length > 0 && isStripeSecretConfigured()) {
+    try {
+      const list = await getStripe().prices.list({ lookup_keys: open.map(([, key]) => key), active: true, limit: 10 });
+      for (const [field, key] of open) {
+        const hit = list.data.find((price) => price.lookup_key === key);
+        if (hit) prices[field] = hit.id;
+      }
+    } catch (error) {
+      logError("[stripe] Lookup Keys nicht lesbar", error);
+    }
+  }
+  const missing: string[] = [];
+  if (!prices.entry) missing.push(`STRIPE_PRICE_ENTRY_ID/${PLAN_LOOKUP_KEY_ENTRY}`);
+  if (!prices.year) missing.push(`STRIPE_PRICE_YEAR_ID/${PLAN_LOOKUP_KEY_YEAR}`);
+  return { prices, missing };
+}
 
 /**
  * Inland (DE) only. The Tax Rate is exclusive 19 % and is applied even when
@@ -428,7 +482,7 @@ export async function createCheckoutSession(
 
   let planParams: Stripe.Checkout.SessionCreateParams | null = null;
   if (input.plan) {
-    const prepared = preparePlanCheckout(input, input.plan);
+    const prepared = await preparePlanCheckout(input, input.plan);
     if ("stub" in prepared) return prepared.stub;
     planParams = prepared.params;
   }
@@ -465,11 +519,14 @@ export async function createCheckoutSession(
   return { url: session.url, stub: false };
 }
 
-function preparePlanCheckout(
+async function preparePlanCheckout(
   input: CheckoutSessionInput,
-  plan: { kind: PlanCheckoutKind; member: boolean; memberFirm?: boolean; agbAcceptedAt?: string },
-): { stub: { url: string; stub: boolean } } | { params: Stripe.Checkout.SessionCreateParams } {
-  const missing = missingPlanPriceIds(plan.kind, plan.member, plan.memberFirm === true);
+  plan: PlanInput,
+): Promise<{ stub: { url: string; stub: boolean } } | { params: Stripe.Checkout.SessionCreateParams }> {
+  // Neues Modell (PRICING_MODEL=v2 seit 28.10.): nur entry / addon / reactivate.
+  const v3 = isPricingV2() && (plan.kind === "entry" || plan.kind === "addon" || plan.kind === "reactivate");
+  const resolved = v3 ? await resolveV3Prices() : null;
+  const missing = resolved ? resolved.missing : missingPlanPriceIds(plan.kind, plan.member, plan.memberFirm === true);
   if (!isStripeSecretConfigured() || missing.length > 0) {
     if (plan.kind === "entry" && devCheckoutStubAllowed()) {
       const params = new URLSearchParams({
@@ -495,6 +552,7 @@ function preparePlanCheckout(
       customerId: input.customerId,
       memberFirm: plan.memberFirm,
       agbAcceptedAt: plan.agbAcceptedAt,
+      ...(resolved ? { prices: resolved.prices, firstPurchasedAt: plan.firstPurchasedAt, offerOptOut: plan.offerOptOut } : {}),
     }),
   };
 }

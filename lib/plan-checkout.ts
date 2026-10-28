@@ -23,9 +23,20 @@
 import type Stripe from "stripe";
 import { getAppUrl, getStripeTaxRateId } from "@/lib/env";
 import { V2_MEMBER_FIRM_YEAR_CENTS } from "@/lib/pricing";
+import { V3_YEAR_CENTS } from "@/lib/pricing";
+import { addMonthsIso } from "@/lib/plan";
 import { v2FirmPriceIds, v2PriceIds } from "@/lib/pricing-model";
 
-export type PlanCheckoutKind = "entry" | "change" | "member" | "firm";
+/**
+ * Neues Modell (28.10.): `entry` (Option 1 bzw. mit `member` Option 2),
+ * `addon` (Jahrespaket 49 €/Jahr innerhalb der 30 Tage), `reactivate`
+ * (99 € + 49 €/Jahr nach Ablauf). `change` / `member` / `firm` sind die
+ * abgeschalteten v2-Arten vom 26.10.; der Code bleibt für Altbestand.
+ */
+export type PlanCheckoutKind = "entry" | "change" | "member" | "firm" | "addon" | "reactivate";
+
+/** Preis-IDs des neuen Modells (aus Env oder zur Laufzeit per Lookup Key aufgelöst). */
+export type V3Prices = { entry: string; year: string; addonYear: string };
 
 export type PlanCheckoutInput = {
   kind: PlanCheckoutKind;
@@ -40,11 +51,19 @@ export type PlanCheckoutInput = {
   memberFirm?: boolean;
   /** Zeitpunkt der AGB-Bestätigung im Checkout (ISO). Landet in den Metadaten (Session, Abo, Zahlung, Rechnung). */
   agbAcceptedAt?: string;
+  /** Neues Modell: aufgelöste Preise. */
+  prices?: V3Prices;
+  /** Nur `addon`: erster Kauf (ISO). Das Jahr endet bei Erstkauf + 12 Monate. */
+  firstPurchasedAt?: string;
+  /** Widerspruch gegen Angebots-Mails. */
+  offerOptOut?: boolean;
 };
 
 export const PLAN_METADATA_AGB_ACCEPTED_AT = "agb_accepted_at";
 
 export const PLAN_METADATA_FIRM = "gobd_firm";
+/** Widerspruch gegen Angebots-Mails (Checkout-Häkchen), Wert `1`. */
+export const PLAN_METADATA_OFFER_OPTOUT = "gobd_offer_optout";
 
 export const PLAN_METADATA_KIND = "gobd_kind";
 export const PLAN_METADATA_PLAN = "gobd_plan";
@@ -58,12 +77,31 @@ export function memberFromPackage(value: unknown, preselected: boolean): boolean
 }
 
 export function planCheckoutKind(value: unknown): PlanCheckoutKind {
-  return value === "change" || value === "member" || value === "firm" ? value : "entry";
+  return value === "change" || value === "member" || value === "firm" || value === "addon" || value === "reactivate"
+    ? value
+    : "entry";
+}
+
+/**
+ * Jahrespaket nachgebucht (Philip 28.10., c): das Jahr läuft ab dem ERSTEN
+ * Kauf. Umsetzung ohne Anteilsrechnung: die 49 € für das erste Jahr sind ein
+ * Einmalposten (`addon_year_v3`) auf der ersten Rechnung, das Jahres-Abo
+ * (`year_v3`) startet mit `trial_end` = Erstkauf + 12 Monate und berechnet
+ * erst ab dann 49 €/Jahr. Damit endet die erste Periode genau ein Jahr nach
+ * dem Erstkauf. Stripe verlangt trial_end ≥ 48 h in der Zukunft; innerhalb
+ * der 30 Tage ist das immer erfüllt (sonst: kein trial_end, Jahr ab Buchung).
+ */
+export function addonTrialEnd(firstPurchasedAt: string, now: Date = new Date()): number | null {
+  const end = Date.parse(addMonthsIso(firstPurchasedAt, 12));
+  if (!Number.isFinite(end) || end < now.getTime() + 48 * 60 * 60 * 1000) return null;
+  return Math.floor(end / 1000);
 }
 
 function successUrl(kind: PlanCheckoutKind, entityId: string): string {
   const appUrl = getAppUrl();
   if (kind === "change") return `${appUrl}/account?kauf=aenderung`;
+  if (kind === "addon") return `${appUrl}/account?kauf=jahrespaket`;
+  if (kind === "reactivate") return `${appUrl}/account?kauf=reaktiviert`;
   if (kind === "member") return `${appUrl}/account?kauf=mitglied`;
   if (kind === "firm") return `${appUrl}/account?kauf=firma#firmen`;
   return entityId
@@ -74,7 +112,7 @@ function successUrl(kind: PlanCheckoutKind, entityId: string): string {
 function cancelUrl(kind: PlanCheckoutKind, audience: string): string {
   const appUrl = getAppUrl();
   if (kind === "change") return `${appUrl}/account`;
-  if (kind === "member" || kind === "firm") return `${appUrl}/account`;
+  if (kind === "member" || kind === "firm" || kind === "addon" || kind === "reactivate") return `${appUrl}/account`;
   return audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/checkout`;
 }
 
@@ -83,7 +121,9 @@ export function buildPlanCheckoutParams(
 ): Stripe.Checkout.SessionCreateParams {
   const ids = v2PriceIds();
   const kind = input.kind;
-  const member = kind === "member" || (kind === "entry" && input.member === true);
+  const member =
+    kind === "member" || kind === "addon" || kind === "reactivate" || (kind === "entry" && input.member === true);
+  const v3 = input.prices;
   const entityId = input.entityId?.trim() ?? "";
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   const customerId = input.customerId?.trim() ?? "";
@@ -101,10 +141,34 @@ export function buildPlanCheckoutParams(
     ...(kind === "firm" ? { [PLAN_METADATA_FIRM]: input.memberFirm ? "member" : "single" } : {}),
     ...(entityId ? { entity_id: entityId } : {}),
     ...(input.agbAcceptedAt ? { [PLAN_METADATA_AGB_ACCEPTED_AT]: input.agbAcceptedAt } : {}),
+    ...(input.offerOptOut ? { [PLAN_METADATA_OFFER_OPTOUT]: "1" } : {}),
   };
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
-  if (kind === "entry") lineItems.push({ price: ids.entry, quantity: 1, ...taxRates });
+  let trialEnd: number | null = null;
+  if (v3) {
+    // Neues Modell: nur entry / addon / reactivate.
+    if (kind === "entry" || kind === "reactivate") lineItems.push({ price: v3.entry, quantity: 1, ...taxRates });
+    if (kind === "addon") {
+      lineItems.push(
+        v3.addonYear
+          ? { price: v3.addonYear, quantity: 1, ...taxRates }
+          : {
+              price_data: {
+                currency: "eur",
+                unit_amount: V3_YEAR_CENTS,
+                tax_behavior: "exclusive",
+                product_data: { name: "Jahrespaket, erstes Jahr ab Erstkauf" },
+              },
+              quantity: 1,
+              ...taxRates,
+            },
+      );
+      trialEnd = addonTrialEnd(input.firstPurchasedAt ?? "");
+    }
+    if (member) lineItems.push({ price: v3.year, quantity: 1, ...taxRates });
+  }
+  if (!v3 && kind === "entry") lineItems.push({ price: ids.entry, quantity: 1, ...taxRates });
   if (kind === "change") lineItems.push({ price: ids.change, quantity: 1, ...taxRates });
   if (kind === "firm" && input.memberFirm) {
     lineItems.push({
@@ -120,7 +184,7 @@ export function buildPlanCheckoutParams(
   } else if (kind === "firm") {
     lineItems.push({ price: v2FirmPriceIds().firm, quantity: 1, ...taxRates });
   }
-  if (member) lineItems.push({ price: ids.memberYear, quantity: 1, ...taxRates });
+  if (!v3 && member) lineItems.push({ price: ids.memberYear, quantity: 1, ...taxRates });
 
   const base: Stripe.Checkout.SessionCreateParams = {
     currency: "eur",
@@ -148,6 +212,7 @@ export function buildPlanCheckoutParams(
       payment_method_collection: "always",
       subscription_data: {
         ...(taxRateId ? { default_tax_rates: [taxRateId] } : {}),
+        ...(trialEnd ? { trial_end: trialEnd } : {}),
         metadata,
       },
     };

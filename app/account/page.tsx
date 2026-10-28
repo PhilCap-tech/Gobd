@@ -167,8 +167,20 @@ export default async function AccountPage({
     openPaidSession,
   } = loaded;
   const notice = lifecycleNotice(lifecycleRows);
-  const planView = compAccess ? null : await loadAccountPlanView(email, docs);
+  const planView = compAccess ? null : await loadAccountPlanView(email, docs, entities.length === 1 ? entities[0]?.name : "");
   const purchaseNotice = firstQueryValue(params.kauf);
+  if (planView?.deactivated) {
+    // Neues Modell (28.10.): Option 1 nach Tag 30 – kein Dashboard, nur „Konto deaktiviert“ mit Reaktivierung.
+    return (
+      <>
+        <SiteHeader backHref="/" backLabel="← Zur Landing" />
+        <main className="wrap account-wrap page">
+          <AccountPlanCard view={planView} purchase={purchaseNotice} />
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
   const memberFirms = await loadMemberFirms(email);
   const writesOpen = notice.writesOpen;
   const downloadsOpen = notice.downloadsOpen;

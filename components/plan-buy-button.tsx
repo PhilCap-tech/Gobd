@@ -8,7 +8,7 @@ export function PlanBuyButton({
   label,
   note,
 }: {
-  kind: "change" | "member";
+  kind: "change" | "member" | "addon" | "reactivate";
   label: string;
   note: string;
 }) {

@@ -19,12 +19,8 @@ import {
 } from "@/lib/stripe";
 import { emailsEqual } from "@/lib/types";
 import { loadPlanAccess } from "@/lib/plan-access";
-import { addFirmOffer, boundFirm, firmDecision, type PlanFirmRow } from "@/lib/plan-firms";
-import { listPlanFirmsByEmailStrict } from "@/lib/plan-firm-store";
 import { memberFromPackage, planCheckoutKind, type PlanCheckoutKind } from "@/lib/plan-checkout";
 import {
-  extraFirmsEnabled,
-  planLifecycleEnabled,
   isPricingV2,
   memberPreselected,
 } from "@/lib/pricing-model";
@@ -61,6 +57,8 @@ export async function POST(request: Request) {
     kind?: string;
     /** Preismodell v2: AGB bestätigt. */
     acceptedTerms?: boolean;
+    /** Neues Modell: Widerspruch gegen Angebots-Mails. */
+    offerOptOut?: boolean;
   };
   try {
     body = await request.json();
@@ -74,8 +72,12 @@ export async function POST(request: Request) {
   const sessionEmail = await sessionEmailFromRequest(request);
   const v2 = isPricingV2();
   const kind: PlanCheckoutKind = v2 ? planCheckoutKind(body.kind) : "entry";
+  if (v2 && (kind === "addon" || kind === "reactivate")) {
+    return accountV3Checkout(kind, sessionEmail);
+  }
   if (v2 && kind !== "entry") {
-    return accountPlanCheckout(kind, sessionEmail, requestedEntityId);
+    // Neues Modell (28.10.): 49-€-Änderung, 99,90-€-Mitgliedschaft und weitere Firmen sind abgeschaltet.
+    return NextResponse.json({ error: "Das ist im Konto gerade nicht buchbar." }, { status: 404 });
   }
   const compTarget =
     compCheckoutRedirect(sessionEmail, requestedEntityId) ||
@@ -179,6 +181,7 @@ export async function POST(request: Request) {
               kind: "entry" as const,
               member: memberFromPackage(body.paket, memberPreselected()),
               agbAcceptedAt,
+              offerOptOut: body.offerOptOut === true,
             },
           }
         : {}),
@@ -194,26 +197,22 @@ export async function POST(request: Request) {
 }
 
 /**
- * Preismodell v2, nur angemeldet aus dem Konto: Änderung (49 €) oder
- * Mitgliedschaft nachträglich. Beides nur innerhalb der Frist (R7).
+ * Neues Modell (28.10.), nur angemeldet: Jahrespaket nachbuchen (innerhalb
+ * der 30 Tage, Jahr ab Erstkauf) oder Konto reaktivieren (nach Ablauf,
+ * 99 € + 49 €/Jahr).
  */
-async function accountPlanCheckout(
-  kind: Exclude<PlanCheckoutKind, "entry">,
+async function accountV3Checkout(
+  kind: "addon" | "reactivate",
   sessionEmail: string | null,
-  entityId?: string,
 ): Promise<NextResponse> {
   if (!sessionEmail) {
     return NextResponse.json({ error: "Bitte melden Sie sich an." }, { status: 401 });
-  }
-  // T4 zurückgestellt (CoS 27.10.): ohne PLAN_LIFECYCLE_ENABLED keine Käufe aus dem Konto.
-  if (!planLifecycleEnabled()) {
-    return NextResponse.json({ error: "Das ist im Konto gerade nicht buchbar." }, { status: 404 });
   }
   let loaded;
   try {
     loaded = await loadPlanAccess(sessionEmail);
   } catch (error) {
-    console.error("[checkout] Plan nicht lesbar", error instanceof Error ? error.name : "error");
+    logError("[checkout] Plan nicht lesbar", error);
     return NextResponse.json(
       { error: "Bitte versuchen Sie es in einem Moment erneut." },
       { status: 503, headers: { "Retry-After": "3" } },
@@ -222,53 +221,29 @@ async function accountPlanCheckout(
   if (!loaded) {
     return NextResponse.json({ error: "Für dieses Konto gibt es keinen passenden Kauf." }, { status: 403 });
   }
-  if (kind === "firm" && !extraFirmsEnabled()) {
-    return NextResponse.json({ error: "Eine weitere Firma ist hier noch nicht buchbar." }, { status: 404 });
-  }
-  let firms: PlanFirmRow[] = [];
-  try {
-    firms = extraFirmsEnabled() ? await listPlanFirmsByEmailStrict(loaded.row.email) : [];
-  } catch (error) {
-    console.error("[checkout] Firmen nicht lesbar", error instanceof Error ? error.name : "error");
+  const allowed = kind === "addon" ? loaded.access.canBecomeMember : loaded.access.canReactivate;
+  if (!allowed) {
     return NextResponse.json(
-      { error: "Bitte versuchen Sie es in einem Moment erneut." },
-      { status: 503, headers: { "Retry-After": "3" } },
+      {
+        error:
+          kind === "addon"
+            ? "Das Jahrespaket ist für dieses Konto gerade nicht buchbar."
+            : "Eine Reaktivierung ist für dieses Konto gerade nicht nötig.",
+      },
+      { status: 409 },
     );
   }
-  const target = (entityId ?? "").trim();
-  const targetFirm = target ? boundFirm(firms, target) : null;
-  let allowed: boolean;
-  if (kind === "firm") {
-    // Ohne Mitgliedschaft 99 € einmalig; Mitglied über dem Kontingent volle 49 € (laufendes Jahr).
-    const offer = addFirmOffer(loaded.row, firms).kind;
-    allowed = offer === "single_purchase" || offer === "member_paid";
-  } else if (kind === "change" && targetFirm) {
-    const decision = firmDecision({ account: loaded.row, firms, entityId: target, newVersion: true });
-    allowed = !decision.allowed && decision.reason === "needs_change";
-  } else {
-    allowed = kind === "change" ? loaded.access.canBuyChange : loaded.access.canBecomeMember;
-  }
-  if (!allowed) {
-    const messages: Record<typeof kind, string> = {
-      change: "Eine Änderung ist für dieses Konto gerade nicht buchbar.",
-      member: "Die Mitgliedschaft ist für dieses Konto gerade nicht buchbar.",
-      firm: "Eine weitere Firma ist für dieses Konto hier nicht buchbar.",
-    };
-    return NextResponse.json({ error: messages[kind] }, { status: 409 });
-  }
-  const memberFirm = kind === "firm" && loaded.access.state === "member";
   try {
     const session = await createCheckoutSession({
       email: sessionEmail,
       company: "",
-      customerId: await reusableCustomerId(sessionEmail),
+      customerId: loaded.row.stripeCustomerId || (await reusableCustomerId(sessionEmail)),
       route: CHECKOUT_SESSION_ROUTE,
-      entityId: targetFirm ? target : undefined,
-      plan: { kind, member: kind === "member", memberFirm },
+      plan: { kind, member: true, firstPurchasedAt: loaded.row.purchasedAt },
     });
     return NextResponse.json(session);
   } catch (error) {
-    console.error("[checkout] v2-Konto-Kauf", error instanceof Error ? error.name : "error");
+    logError("[checkout] Konto-Kauf neues Modell", error);
     return NextResponse.json({ error: "Checkout konnte nicht gestartet werden." }, { status: 500 });
   }
 }

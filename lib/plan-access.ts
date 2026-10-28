@@ -30,8 +30,10 @@ export async function loadPlanAccess(
   if (!normalized || !planAccessEnabled()) return null;
   const row = await findPlanByEmailStrict(normalized);
   if (!row) return null;
-  const access = planAccess(row, now);
-  return { row, access: planLifecycleEnabled() ? access : neutralPlanAccess(access) };
+  // Neues Modell (28.10.): die 30-Tage-Sperre gilt immer, unabhängig von
+  // PLAN_LIFECYCLE_ENABLED (der Schalter steuert nur noch die zurückgestellte
+  // Fristen-/Löschlogik). Mitglied/Zugang offen, abgelaufen/erstattet gesperrt.
+  return { row, access: planAccess(row, now) };
 }
 
 /**
@@ -48,6 +50,7 @@ export function neutralPlanAccess(access: PlanAccess): PlanAccess {
     newVersionAllowed: true,
     canBuyChange: false,
     canBecomeMember: false,
+    canReactivate: false,
     writeMessage: "",
     versionMessage: "",
     downloadMessage: "",
@@ -64,6 +67,11 @@ export async function planWriteDenial(email: string | null | undefined): Promise
     logReadFailure("write", error);
     throw new SheetsUnavailableError(sheetsStatusCode(error));
   }
+}
+
+/** Einladungen (Mitwirkende): wie Schreiben, nach Tag 30 gesperrt. */
+export async function planInviteDenial(email: string | null | undefined): Promise<string | null> {
+  return planWriteDenial(email);
 }
 
 /** Neue Version einer bestehenden Doku: Mitglied oder bezahlte Änderung. */

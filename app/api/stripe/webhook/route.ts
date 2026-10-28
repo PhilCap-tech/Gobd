@@ -172,7 +172,13 @@ export async function POST(request: Request) {
         // Preismodell v2: Änderung und nachträgliche Mitgliedschaft sind kein neuer Einstieg.
         // Keine Kaufzeile, keine Onboarding-Mail, kein alter Lifecycle.
         const planKind = planKindFromMetadata(session.metadata);
-        if (planKind === "change" || planKind === "member" || planKind === "firm") {
+        if (
+          planKind === "change" ||
+          planKind === "member" ||
+          planKind === "firm" ||
+          planKind === "addon" ||
+          planKind === "reactivate"
+        ) {
           await recordPlanCheckout({
             session,
             kind: planKind,

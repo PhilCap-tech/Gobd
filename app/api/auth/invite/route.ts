@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
 import type { Entity } from "@/lib/entities";
 import { inviteMitwirkende } from "@/lib/membership-invite";
+import { planInviteDenial } from "@/lib/plan-access";
 import { parseModuleIds } from "@/lib/memberships";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { getOwnedEntity } from "@/lib/store";
@@ -13,12 +14,15 @@ type InviteIo = {
   sessionEmail: (request: Request) => Promise<string | null>;
   ownedEntity: (entityId: string, email: string) => Promise<Entity | null>;
   invite: typeof inviteMitwirkende;
+  /** Neues Preismodell: nach Tag 30 (Option 1) keine Einladungen. */
+  planDenial?: (email: string) => Promise<string | null>;
 };
 
 const defaults: InviteIo = {
   sessionEmail: sessionEmailFromRequest,
   ownedEntity: getOwnedEntity,
   invite: inviteMitwirkende,
+  planDenial: planInviteDenial,
 };
 
 function jsonError(error: string, status: number) {
@@ -59,6 +63,8 @@ export async function postInvite(request: Request, io: InviteIo = defaults) {
   if (!moduleIds) return jsonError("Bitte wählen Sie gültige Module.", 400);
 
   try {
+    const planDenied = io.planDenial ? await io.planDenial(email) : null;
+    if (planDenied) return jsonError(planDenied, 403);
     const entity = await io.ownedEntity(entityId, email);
     if (!entity) return jsonError("Kein Zugriff.", 403);
     const result = await io.invite({
