@@ -161,6 +161,22 @@ export function renewalNoticeDaysBeforeCutoff(): number {
   return Number.isInteger(raw) && raw >= 7 && raw <= 120 ? raw : 30;
 }
 
+/**
+ * Löschlauf v3 (Cron /api/cron/loeschlauf): täglicher Trockenlauf, zählt nur.
+ * Default AUS. Der Abruf mit `?modus=trockenlauf` zählt auch ohne Schalter.
+ */
+export function retentionDryRunEnabled(): boolean {
+  return boolEnv("RETENTION_DRY_RUN_ENABLED", false);
+}
+
+/**
+ * Löschlauf v3: echte Löschung und Löschhinweise (30/7 Tage). Default AUS.
+ * Erst nach Tester-PASS durch den CoS einschalten.
+ */
+export function retentionExecuteEnabled(): boolean {
+  return boolEnv("RETENTION_EXECUTE_ENABLED", false);
+}
+
 /* ---------- Neues Preismodell (Philip 28.10.), ersetzt v2 vom 26.10. ---------- */
 
 /** Option 1: Zugang ab Kauf in Tagen. Ab Kauf + 30 Tage (genau) ist alles gesperrt, auch der Download. */

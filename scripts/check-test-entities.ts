@@ -291,8 +291,9 @@ function checkSources(): void {
   ok(webhook.indexOf("await appendRecord") < webhook.indexOf("Testfirma"), "the paid row is still stored");
   ok(webhook.includes("entityId: invoiceEntityId"), "payment-failed reads the firm id");
   ok(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "there is no cron mailer");
-  // Neues Preismodell (28.10.): nur der 7-Tage-Hinweis-Cron, kein Lifecycle-Mailer.
-  ok(((JSON.parse(read("vercel.json")) as { crons?: { path: string }[] }).crons ?? []).every((c) => c.path === "/api/cron/addon-notice"), "vercel.json has no lifecycle cron");
+  // Erlaubte Crons: 7-Tage-Hinweis und Löschlauf v3 (überspringt gelistete Testfirmen, lib/retention-guards.ts).
+  ok(((JSON.parse(read("vercel.json")) as { crons?: { path: string }[] }).crons ?? []).every((c) => c.path === "/api/cron/addon-notice" || c.path === "/api/cron/loeschlauf"), "vercel.json has no lifecycle cron");
+  ok(read("lib/retention-guards.ts").includes("isTestEntity"), "the deletion run skips listed test firms");
 
   const intake = read("app/api/intake/route.ts");
   ok(intake.indexOf("skipTestDelivery") < intake.indexOf("io.generatePdf"), "intake checks the firm before the PDF");

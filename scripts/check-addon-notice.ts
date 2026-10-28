@@ -87,7 +87,11 @@ async function main() {
     assert.equal(cronAuthorized(req("Bearer nope"), "s3cret"), false);
     assert.equal(cronAuthorized(req("Bearer s3cret"), "s3cret"), true);
     const vercel = JSON.parse(readFileSync("vercel.json", "utf8")) as { crons: { path: string; schedule: string }[] };
-    assert.deepEqual(vercel.crons, [{ path: "/api/cron/addon-notice", schedule: "0 7 * * *" }]);
+    // Daneben nur der Löschlauf v3 (eigener Schalter, Default aus).
+    assert.deepEqual(
+      vercel.crons.filter((c) => c.path !== "/api/cron/loeschlauf"),
+      [{ path: "/api/cron/addon-notice", schedule: "0 7 * * *" }],
+    );
   });
 
   await check("Hinweis je Frage: eine Komponente unter jeder Frage, nur im neuen Modell", async () => {

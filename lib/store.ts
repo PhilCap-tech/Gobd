@@ -1728,6 +1728,85 @@ async function updateSheetDocumentEntityIds(
   return updates.length;
 }
 
+/**
+ * Löschlauf v3: Dokumentzeilen einer Mailbox schwärzen statt Zeilen zu
+ * entfernen (Zeilennummern anderer Läufe bleiben stabil). Behalten werden nur
+ * Zeitstempel, Stripe-Verweise (Buchhaltung, Stripe selbst bleibt unberührt),
+ * Dokument-/Firmen-IDs, Version und Gültigkeit. Alles andere (auch die Mail)
+ * wird vollständig geleert (keine Pseudonyme, Legal 28.10.), `status` =
+ * `geloescht`, `changeSummary` = `geloescht:<ISO>` als Löschmarker.
+ */
+export const RETENTION_DELETED_STATUS = "geloescht";
+
+export function redactedRetentionRow(row: SheetRow, deletedAt: string): SheetRow {
+  const blank = Object.fromEntries(Object.keys(row).map((key) => [key, ""])) as SheetRow;
+  return {
+    ...blank,
+    timestamp: row.timestamp,
+    stripeSessionId: row.stripeSessionId,
+    stripeCustomerId: row.stripeCustomerId,
+    documentId: row.documentId,
+    parentDocumentId: row.parentDocumentId,
+    version: row.version,
+    entityId: row.entityId,
+    validFrom: row.validFrom,
+    validTo: row.validTo,
+    email: "",
+    status: RETENTION_DELETED_STATUS,
+    changeSummary: `${RETENTION_DELETED_STATUS}:${deletedAt}`,
+  };
+}
+
+export async function redactDocumentRowsForRetention(
+  email: string,
+  deletedAt: string,
+): Promise<number> {
+  const owner = email.trim().toLowerCase();
+  if (!owner || !Number.isFinite(Date.parse(deletedAt))) return 0;
+  let changed = 0;
+  if (isSheetsConfigured()) {
+    const header = await ensureSheetHeader();
+    const tab = getSheetsTab();
+    const values = await readSheetValues(tab);
+    const updates: Array<{ range: string; values: string[][] }> = [];
+    const rows: SheetRow[] = [];
+    for (let i = 0; i < values.length; i++) {
+      const row = recoverStoredDocumentId(sheetRowFromValues(header, values[i] ?? []));
+      if (!emailsEqual(row.email, owner)) continue;
+      const next = redactedRetentionRow(row, deletedAt);
+      updates.push({ range: `${tab}!A${i + 2}`, values: [sheetRowValues(next, header)] });
+      rows.push(next);
+    }
+    if (updates.length > 0) {
+      const sheets = createSheetsClient();
+      await retrySheetsCall("intakes.retention", () =>
+        sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: spreadsheetId(),
+          requestBody: { valueInputOption: "RAW", data: updates },
+        }),
+      );
+      for (const row of rows) await writeThroughIntakeRow(row);
+      expireIntakeRowsCache();
+    }
+    changed += updates.length;
+  } else if (isVercelRuntime() && !previewSmokeUsesFiles()) {
+    throw new SheetsUnavailableError(0);
+  }
+  if (isVercelRuntime() && !previewSmokeUsesFiles()) return changed;
+  for (const file of [...new Set([path.join(getFileFallbackDir(), FILE_NAME), tmpFallbackPath()])]) {
+    const rows = await readRows(file);
+    let local = 0;
+    const next = rows.map((row) => {
+      if (!emailsEqual(row.email, owner)) return row;
+      local += 1;
+      return redactedRetentionRow(row, deletedAt);
+    });
+    if (local > 0) await writeRows(path.dirname(file), file, next);
+    changed += local;
+  }
+  return changed;
+}
+
 async function updateFileDocumentEntityIds(
   file: string,
   dir: string,

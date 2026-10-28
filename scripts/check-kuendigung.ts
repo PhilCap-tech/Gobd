@@ -230,9 +230,9 @@ assert(!mailSource.includes("buildCancellationReminderMail"), "keine Erinnerungs
 assert(!existsSync("app/api/cron/lifecycle/route.ts"), "Cron-Route entfernt");
 assert(!existsSync("lib/kuendigung-purge.ts"), "Löschmodul entfernt");
 {
-  // Neues Preismodell (28.10.): einziger Cron ist der 7-Tage-Hinweis; kein Lifecycle-/Lösch-Cron.
+  // Erlaubte Crons: 7-Tage-Hinweis (addon-notice) und Löschlauf v3 (loeschlauf, Schalter Default AUS). Kein Lifecycle-Cron.
   const crons = (JSON.parse(vercel) as { crons?: { path: string }[] }).crons ?? [];
-  assert(crons.every((c) => c.path === "/api/cron/addon-notice"), "vercel.json ohne Lifecycle-Cron");
+  assert(crons.every((c) => c.path === "/api/cron/addon-notice" || c.path === "/api/cron/loeschlauf"), "vercel.json ohne Lifecycle-Cron");
 }
 const warningPage = readFileSync("app/account/kuendigung/page.tsx", "utf8");
 assert(warningPage.includes("Downloads noch 30 Tage möglich"), "Warnseite nennt die Downloadfrist");

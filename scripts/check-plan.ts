@@ -255,7 +255,7 @@ async function main() {
     assert.equal(plan.refundStatus(logged, [], new Date("2026-11-05T00:00:00.000Z")).reason, "pdf");
   });
   await check("Erstattung sperrt Zugang und kündigt das Abo; Änderung und Teilerstattung nie", async () => {
-    const member = row({ plan: "member", memberStatus: "active", memberSubscriptionId: "sub_1", purchasedAt: "2026-11-02T10:00:00.000Z", retentionUntil: "2027-11-02T10:00:00.000Z" });
+    const member = row({ plan: "member", memberStatus: "active", memberSubscriptionId: "sub_1", purchasedAt: "2026-11-02T10:00:00.000Z", retentionUntil: "2027-11-02T10:00:00.000Z", pricingModel: "v3" });
     let saved: import("@/lib/plan").PlanRow | null = null;
     const cancelled: string[] = [];
     store.setPlanStoreForTests({ read: async () => [member], write: async (next) => { saved = next; } });
