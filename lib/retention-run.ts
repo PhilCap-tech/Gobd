@@ -47,7 +47,7 @@ export type RetentionIo = {
     email: string;
     dueAt: string;
     deleteAt: string;
-    category: "option1" | "annual";
+    category: "option1" | "annual" | "refunded";
   }): Promise<"sent" | "duplicate" | "failed">;
 };
 
@@ -62,6 +62,8 @@ export type RetentionReport = {
     drafts: number;
     docsOption1: number;
     docsAnnual: number;
+    /** Nach voller Erstattung, 30 Tage nach refundedAt (ohne Hinweis, RETENTION_REFUND_NOTICE). */
+    docsRefunded: number;
     memberships: number;
     audit: number;
     notice30: number;
@@ -97,6 +99,9 @@ export function planHasMarker(row: PlanRow): boolean {
 
 /** Zugangsende des Inhabers: beendetes Jahrespaket, sonst Ende der 30 Tage (Option 1, `accessUntil`). */
 export function ownerAccessEnd(row: PlanRow, now: Date): string {
+  // Erstattung sperrt sofort: der Zugang endet mit refundedAt.
+  const refunded = Date.parse(row.refundedAt);
+  if (row.refundedAt && Number.isFinite(refunded) && refunded <= now.getTime()) return new Date(refunded).toISOString();
   const annual = annualEndedAt(row, now);
   if (annual) return annual;
   if (row.plan !== "single" || row.deletedAt || row.refundedAt) return "";
@@ -128,7 +133,7 @@ export async function runRetention(
     mode: execute ? "execute" : "dry-run",
     at: now.toISOString(),
     seen: { plans: 0, drafts: 0, memberships: 0, audit: 0, draftsTruncated: false },
-    candidates: { drafts: 0, docsOption1: 0, docsAnnual: 0, memberships: 0, audit: 0, notice30: 0, notice7: 0 },
+    candidates: { drafts: 0, docsOption1: 0, docsAnnual: 0, docsRefunded: 0, memberships: 0, audit: 0, notice30: 0, notice7: 0 },
     excluded: emptyGroups(),
     done: {
       draftsDeleted: 0,
@@ -245,6 +250,7 @@ export async function runRetention(
     }
     // delete
     if (decision.category === "option1") report.candidates.docsOption1 += 1;
+    else if (decision.category === "refunded") report.candidates.docsRefunded += 1;
     else report.candidates.docsAnnual += 1;
     // Für Einladungen/Protokoll: Löschung gilt ab jetzt (auch im Trockenlauf für die Zählung).
     ownerAccess.set(email, { docsDeletedAt: now.toISOString(), accessEndedAt: ownerAccessEnd(plan, now) });

@@ -13,6 +13,7 @@ import {
   applyMemberSubscriptionUpdate,
   applyRefund,
   emptyPlanRow,
+  sessionAlreadyProcessed,
   type PlanRow,
 } from "@/lib/plan";
 import {
@@ -308,6 +309,28 @@ export async function recordPlanSubscriptionEvent(input: {
   await savePlanRow(next);
 }
 
+/** Kaufarten des neuen Modells, deren volle Erstattung den Zugang sperrt (AGB § 9 Abs. 5). */
+const V3_REFUND_KINDS = new Set<PlanCheckoutKind>(["entry", "member", "addon", "reactivate"]);
+
+/**
+ * Gehört die erstattete Zahlung zu einem Kauf des neuen Modells (v3)?
+ * Nur wenn die Plan-Zeile `pricingModel = v3` trägt UND die Zahlung belegbar
+ * dazugehört: Checkout-Session in `processedSessions`, Abo = Jahrespaket der
+ * Zeile, oder v3-Metadaten der Einmalzahlung. Sonst nein (Altkunden, DS24,
+ * v2-Altzeilen bleiben wie bisher).
+ */
+export function refundBelongsToV3Purchase(
+  row: PlanRow,
+  charge: { kind: PlanCheckoutKind | null; sessionId?: string; subscriptionId?: string },
+): boolean {
+  if (row.pricingModel.trim().toLowerCase() !== "v3") return false;
+  const sessionId = charge.sessionId?.trim() ?? "";
+  if (sessionId && sessionAlreadyProcessed(row, sessionId)) return true;
+  const subscriptionId = charge.subscriptionId?.trim() ?? "";
+  if (subscriptionId && subscriptionId === row.memberSubscriptionId.trim()) return true;
+  return Boolean(charge.kind && V3_REFUND_KINDS.has(charge.kind));
+}
+
 /**
  * charge.refunded unter v2 (R5): volle Erstattung eines Einstiegs beendet die
  * Mitgliedschaft (Abo sofort kündigen, ohne Anteilsrechnung) und sperrt den
@@ -322,6 +345,8 @@ export async function recordPlanRefund(input: {
   cancelSubscription: (subscriptionId: string) => Promise<void>;
   /** Checkout-Session der Zahlung (für weitere Firmen = Platz-ID). */
   sessionId?: string;
+  /** Abo der Rechnung zur Zahlung (Jahrespaket), leer wenn keins. */
+  subscriptionId?: string;
 }): Promise<"locked" | "ignored"> {
   if (input.charge.refunded !== true) return "ignored"; // Teilerstattung: nur Inhaber-Hinweis.
   if (input.charge.metadata?.[PLAN_METADATA_KIND] === "change") return "ignored";
@@ -342,6 +367,16 @@ export async function recordPlanRefund(input: {
   }
   const row = await findPlanByEmailStrict(email);
   if (!row || row.refundedAt) return "ignored";
+  // Nur Käufe des neuen Modells sperren (Philip 28.10., AGB § 9 Abs. 5).
+  if (
+    !refundBelongsToV3Purchase(row, {
+      kind: planKindFromMetadata(input.charge.metadata),
+      sessionId: input.sessionId,
+      subscriptionId: input.subscriptionId,
+    })
+  ) {
+    return "ignored";
+  }
   if (row.memberSubscriptionId && row.plan === "member" && row.memberStatus !== "canceled") {
     await input.cancelSubscription(row.memberSubscriptionId);
   }

@@ -129,7 +129,51 @@ async function main() {
       for (const days of [0, 400, 4000]) assert.equal(decision.decideDoc(row, at(END, days)).action, "keep");
     }
     assert.equal(decision.decideDoc(annual("x@firma-neu.de", { deletedAt: END }), at(END, 999)).action, "keep");
-    assert.equal(decision.decideDoc(single("x@firma-neu.de", { refundedAt: END }), at(END, 999)).action, "keep");
+    assert.equal(decision.decideDoc(single("x@firma-neu.de", { refundedAt: END, deletedAt: END }), at(END, 999)).action, "keep");
+  });
+
+  await check("Erstattet (v3): Löschung 30 Tage nach refundedAt (Tag 29/30/31), ohne Hinweis", () => {
+    assert.equal(decision.RETENTION_REFUND_NOTICE, false);
+    const refundedAt = "2026-11-20T12:00:00.000Z";
+    for (const make of [single, annual]) {
+      const row = make("erstattet@firma-neu.de", { refundedAt });
+      assert.equal(decision.decideDoc(row, at(refundedAt, 29)).action, "keep");
+      const due = decision.decideDoc(row, at(refundedAt, 30));
+      assert.equal(due.action, "delete");
+      assert.equal(due.category, "refunded");
+      assert.equal(decision.decideDoc(row, at(refundedAt, 31)).action, "delete");
+      // Mit Hinweis-Flag (Legal) gälten die 30/7-Tage-Hinweise.
+      assert.equal(decision.decideDoc(row, at(refundedAt, 30), { refundNotice: true }).action, "notice30");
+    }
+    assert.equal(decision.decideDoc(single("e@firma-neu.de", { refundedAt: "kaputt" }), at(refundedAt, 99)).action, "keep");
+  });
+
+  await check("Erstattet im Lauf: nur v3 gezählt, Test/Comp/DS24/Alt/Marker 0, keine Hinweis-Mail", async () => {
+    const refundedAt = "2026-11-20T12:00:00.000Z";
+    const r = (email: string, extra: Partial<PlanRow> = {}) => single(email, { refundedAt, ...extra });
+    const fake = fakeIo({
+      plans: [
+        r("weg@firma-neu.de"),
+        r("cappe@gmx.de"),
+        r("winkler@winkler-segtrop.de"),
+        r("ds24kunde@firma-alt.de"),
+        r("altkunde@firma-alt.de"),
+        r("v2zeile@firma-neu.de", { pricingModel: "" }),
+      ],
+      docs: [{ email: "altkunde@firma-alt.de", stripeSessionId: "cs_legacy_149", documentId: "d1", entityId: "" }],
+      ds24: ["ds24kunde@firma-alt.de"],
+    });
+    const dry = await run.runRetention(fake.io, { execute: false, now: at(refundedAt, 30) });
+    assert.equal(dry.candidates.docsRefunded, 1);
+    assert.equal(dry.candidates.notice30 + dry.candidates.notice7, 0);
+    for (const group of guards.EXCLUSION_GROUPS) assert.equal(dry.excluded[group].plans, 1);
+    assert.deepEqual(fake.writes, []);
+    const done = await run.runRetention(fake.io, { execute: true, now: at(refundedAt, 30) });
+    assert.equal(done.done.docsDeleted, 1);
+    assert.deepEqual(fake.sent, []);
+    assert.deepEqual(fake.writes, ["docs:weg@firma-neu.de", "plan:weg@firma-neu.de"]);
+    const before = await run.runRetention(fakeIo({ plans: [r("weg@firma-neu.de")] }).io, { execute: false, now: at(refundedAt, 29) });
+    assert.equal(before.candidates.docsRefunded, 0);
   });
 
   await check("Einladungen: Widerruf bzw. Löschung der Dokumentation; Protokoll 12 Monate danach", () => {
@@ -246,7 +290,7 @@ async function main() {
       const report = await run.runRetention(fake.io, { execute, now: at(DUE, 400) });
       assert.deepEqual(fake.writes, []);
       assert.deepEqual(fake.sent, []);
-      assert.deepEqual(report.candidates, { drafts: 0, docsOption1: 0, docsAnnual: 0, memberships: 0, audit: 0, notice30: 0, notice7: 0 });
+      assert.deepEqual(report.candidates, { drafts: 0, docsOption1: 0, docsAnnual: 0, docsRefunded: 0, memberships: 0, audit: 0, notice30: 0, notice7: 0 });
       assert.equal(report.excluded.test.plans, 2);
       assert.equal(report.excluded.comp.plans, 1);
       assert.equal(report.excluded.ds24.plans, 1);

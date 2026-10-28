@@ -21,6 +21,15 @@ export const DOC_RETENTION_MONTHS = 12;
 export const AUDIT_RETENTION_MONTHS = 12;
 export const NOTICE_FIRST_DAYS = 30;
 export const NOTICE_SECOND_DAYS = 7;
+/** Nach voller Erstattung (AGB § 9 Abs. 5, DSE 17): Löschung 30 Tage nach `refundedAt`. */
+export const REFUND_RETENTION_DAYS = 30;
+
+/**
+ * RETENTION_REFUND_NOTICE: Hinweis-Mails vor der Löschung nach Erstattung.
+ * Bewusst `false`: AGB § 9 Abs. 5 sieht keinen Hinweis vor. Legal entscheidet;
+ * bei `true` gelten dieselben 30/7-Tage-Hinweise wie bei Option 1.
+ */
+export const RETENTION_REFUND_NOTICE = false;
 
 /** Abo-Status, die als laufend gelten (wie lib/plan.ts). Leer zählt als laufend. */
 const LIVE_SUBSCRIPTION = new Set(["", "active", "trialing", "past_due", "incomplete", "unpaid", "paused"]);
@@ -65,7 +74,7 @@ export function decideDraft(draft: DraftFacts, now: Date): DraftAction {
 
 /* ---------------- Dokumentation (Option 1 / Jahrespaket) ---------------- */
 
-export type DocCategory = "option1" | "annual";
+export type DocCategory = "option1" | "annual" | "refunded";
 export type DocAction = "keep" | "notice30" | "notice7" | "delete";
 
 export type DocDecision = {
@@ -91,7 +100,12 @@ export function annualEndedAt(row: PlanRow, now: Date): string {
 
 /** Kategorie und Frist. Laufendes Abo, gelöscht, erstattet, unklar: keine Frist. */
 export function docDeadline(row: PlanRow, now: Date): { category: DocCategory; dueAt: string } | null {
-  if (row.deletedAt || row.refundedAt) return null;
+  if (row.deletedAt) return null;
+  if (row.refundedAt) {
+    const refunded = time(row.refundedAt);
+    if (refunded === null) return null;
+    return { category: "refunded", dueAt: new Date(refunded + REFUND_RETENTION_DAYS * DAY_MS).toISOString() };
+  }
   if (row.plan === "member") {
     const ended = annualEndedAt(row, now);
     if (!ended) return null;
@@ -117,12 +131,24 @@ function noticeTime(sentAt: string, notBefore: number | null): number | null {
   return t;
 }
 
-export function decideDoc(row: PlanRow, now: Date): DocDecision {
+export function decideDoc(
+  row: PlanRow,
+  now: Date,
+  options: { refundNotice?: boolean } = {},
+): DocDecision {
   const deadline = docDeadline(row, now);
   if (!deadline) return KEEP;
   const due = time(deadline.dueAt)!;
+  if (deadline.category === "refunded" && !(options.refundNotice ?? RETENTION_REFUND_NOTICE)) {
+    const action = now.getTime() >= due ? "delete" : "keep";
+    return { category: "refunded", action, dueAt: deadline.dueAt, effectiveAt: deadline.dueAt };
+  }
   const anchor =
-    deadline.category === "annual" ? time(annualEndedAt(row, now)) : time(latestIso(row.purchasedAt, row.reactivatedAt));
+    deadline.category === "annual"
+      ? time(annualEndedAt(row, now))
+      : deadline.category === "refunded"
+        ? time(row.refundedAt)
+        : time(latestIso(row.purchasedAt, row.reactivatedAt));
   const n30 = noticeTime(row.notice30At, anchor);
   const n7 = noticeTime(row.notice7At, anchor);
   const at = now.getTime();

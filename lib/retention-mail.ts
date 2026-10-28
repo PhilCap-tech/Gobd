@@ -18,7 +18,7 @@ export function retentionNoticeMailKey(stage: RetentionNoticeStage, email: strin
 export function buildRetentionNoticeMail(input: {
   stage: RetentionNoticeStage;
   deleteAt: string;
-  category: "option1" | "annual";
+  category: "option1" | "annual" | "refunded";
   siteUrl: string;
 }): { subject: string; text: string; html: string } {
   const days = input.stage === "notice30" ? 30 : 7;
@@ -26,7 +26,9 @@ export function buildRetentionNoticeMail(input: {
   const reason =
     input.category === "option1"
       ? "zwölf Monate nach Ihrem Kauf (Option 1)"
-      : "zwölf Monate nach dem Ende Ihres Jahrespakets";
+      : input.category === "refunded"
+        ? "30 Tage nach der Erstattung"
+        : "zwölf Monate nach dem Ende Ihres Jahrespakets";
   const account = `${input.siteUrl.replace(/\/$/, "")}/account`;
   const subject = `[PLATZHALTER] Hinweis: Löschung Ihrer GoBD-Dokumentation in ${days} Tagen`;
   const lines = [

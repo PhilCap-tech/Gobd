@@ -43,6 +43,7 @@ import {
 import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
 import { logError } from "@/lib/log-error";
+import type Stripe from "stripe";
 
 export const runtime = "nodejs";
 
@@ -402,19 +403,45 @@ export async function POST(request: Request) {
         // Preismodell v2 (R5): Erstattung sperrt den Zugang und beendet den Jahresplan.
         // Ohne v2-Metadaten und ohne PLAN_ACCESS_ENABLED bleibt es beim Inhaber-Hinweis.
         if (planKindFromMetadata(charge.metadata) || planAccessEnabled()) {
-          // Weitere Firma: Platz-ID = Checkout-Session der Zahlung.
+          // Checkout-Session (Einmalzahlung; weitere Firma = Platz-ID) bzw. Abo der
+          // Rechnung (Jahrespaket): belegt, ob die Zahlung zu einem v3-Kauf gehört.
           let sessionId = "";
-          if (planKindFromMetadata(charge.metadata) === "firm" && idFrom(charge.payment_intent)) {
-            const sessions = await getStripe().checkout.sessions.list({
-              payment_intent: idFrom(charge.payment_intent),
-              limit: 1,
-            });
-            sessionId = sessions.data[0]?.id ?? "";
+          let subscriptionId = "";
+          const paymentIntentId = idFrom(charge.payment_intent);
+          if (paymentIntentId) {
+            try {
+              const sessions = await getStripe().checkout.sessions.list({
+                payment_intent: paymentIntentId,
+                limit: 1,
+              });
+              sessionId = sessions.data[0]?.id ?? "";
+            } catch (error) {
+              logError("[stripe-webhook] Session zur Erstattung nicht lesbar", error);
+            }
+            if (!sessionId) {
+              try {
+                const payments = await getStripe().invoicePayments.list({
+                  payment: { type: "payment_intent", payment_intent: paymentIntentId },
+                  limit: 1,
+                  expand: ["data.invoice"],
+                });
+                const invoice = payments.data[0]?.invoice;
+                const sub =
+                  invoice && typeof invoice === "object"
+                    ? (invoice as Stripe.Invoice).parent?.subscription_details?.subscription
+                    : undefined;
+                subscriptionId = typeof sub === "string" ? sub : (sub?.id ?? "");
+              } catch (error) {
+                // Ohne Beleg keine Sperre (fail closed); Inhaber-Hinweis kommt trotzdem.
+                logError("[stripe-webhook] Rechnung zur Erstattung nicht lesbar", error);
+              }
+            }
           }
           await recordPlanRefund({
             charge,
             email,
             sessionId,
+            subscriptionId,
             eventId: event.id,
             at: eventTimeIso(event.created),
             cancelSubscription: async (subscriptionId) => {
