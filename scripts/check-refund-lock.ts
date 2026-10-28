@@ -187,6 +187,19 @@ async function main() {
     assert.ok(!/refunds\.create|charges\.update|invoices\.(update|void|del)/.test(block), "keine Änderung an Stripe-Belegen");
   });
 
+  await check("Reihenfolge: refunded_at wird gespeichert, bevor das Abo gekündigt wird (kein Überschreiben durch subscription.deleted)", async () => {
+    const order: string[] = [];
+    const row = base({ plan: "member", memberSubscriptionId: "sub_first", memberStatus: "active" });
+    store.setPlanStoreForTests({ read: async () => [row], write: async (next) => void order.push(`save:${next.refundedAt ? "refunded" : "plain"}`) });
+    const result = await webhook.recordPlanRefund({
+      charge: { refunded: true, metadata: {} }, email: EMAIL, eventId: "evt_o", at: AT,
+      subscriptionId: "sub_first", billingReason: "subscription_create",
+      cancelSubscription: async (id) => void order.push(`cancel:${id}`),
+    });
+    store.setPlanStoreForTests(null);
+    assert.equal(result, "locked");
+    assert.deepEqual(order, ["save:refunded", "cancel:sub_first"]);
+  });
   console.log(`check:refund-lock ${passed} Prüfungen ok`);
 }
 

@@ -413,18 +413,21 @@ export async function recordPlanRefund(input: {
     billingReason: input.billingReason,
   });
   if (kind === "none") return "ignored";
+  // Erst die Zeile speichern, dann das Abo kündigen: die Kündigung löst
+  // customer.subscription.deleted aus, das sonst die alte Zeile (ohne
+  // refunded_at) zurückschreiben kann (E2E Fall 6, 28.10.).
   if (kind === "renewal") {
+    await savePlanRow(applyMemberEnded(row, { at: input.at, eventId: input.eventId, endedAt: input.at }));
     if (row.memberSubscriptionId && row.memberStatus !== "canceled") {
       await input.cancelSubscription(row.memberSubscriptionId);
     }
-    await savePlanRow(applyMemberEnded(row, { at: input.at, eventId: input.eventId, endedAt: input.at }));
     return "deactivated";
-  }
-  if (row.memberSubscriptionId && row.plan === "member" && row.memberStatus !== "canceled") {
-    await input.cancelSubscription(row.memberSubscriptionId);
   }
   const refunded = applyRefund(row, { at: input.at, eventId: input.eventId });
   await savePlanRow(refunded);
+  if (row.memberSubscriptionId && row.plan === "member" && row.memberStatus !== "canceled") {
+    await input.cancelSubscription(row.memberSubscriptionId);
+  }
   await input.onFirstPurchaseRefunded?.(refunded, row);
   return "locked";
 }
