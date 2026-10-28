@@ -7,7 +7,7 @@ import { planAccess, consumeChangeCredit, recordFirstPdf, type PlanAccess, type 
 import { findPlanByEmailStrict, savePlanRow } from "@/lib/plan-store";
 import { applyFirmUse, firmDecision, type PlanFirmRow } from "@/lib/plan-firms";
 import { listPlanFirmsByEmailStrict, savePlanFirmRow } from "@/lib/plan-firm-store";
-import { extraFirmsEnabled, planAccessEnabled, planLifecycleEnabled } from "@/lib/pricing-model";
+import { extraFirmsEnabled, isPricingV2, planAccessEnabled, planLifecycleEnabled } from "@/lib/pricing-model";
 import { SheetsUnavailableError, sheetsStatusCode } from "@/lib/sheets-unavailable";
 
 function logReadFailure(context: string, error: unknown): void {
@@ -66,6 +66,25 @@ export async function planWriteDenial(email: string | null | undefined): Promise
   } catch (error) {
     logReadFailure("write", error);
     throw new SheetsUnavailableError(sheetsStatusCode(error));
+  }
+}
+
+/**
+ * Neues Modell (E2E 28.10., G1–G3): Sperre der Firma nach dem Plan des
+ * Firmen-INHABERS (entity.userEmail), wie der Download nach row.email.
+ * Gesperrt (Tag 30 / erstattet / gelöscht) → „Ihr Konto ist deaktiviert.“;
+ * Lesefehler wirft SheetsUnavailableError (503, fail closed). Legacy: null.
+ */
+export async function v3OwnerLockDenial(ownerEmail: string | null | undefined): Promise<string | null> {
+  if (!isPricingV2()) return null;
+  return planWriteDenial(ownerEmail);
+}
+
+/** Fehler aus einem Entity-Loader: Firma des Inhabers gesperrt (→ 403). */
+export class OwnerLockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "OwnerLockedError";
   }
 }
 

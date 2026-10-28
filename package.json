@@ -81,7 +81,8 @@
     "check:admin-wipe": "npx --yes tsx scripts/check-admin-wipe.ts",
     "check:test-bootstrap": "tsx scripts/check-test-bootstrap.ts",
     "check:v3-placeholders": "tsx scripts/check-v3-placeholders.ts",
-    "check:checkout-return-url": "tsx scripts/check-checkout-return-url.ts"
+    "check:checkout-return-url": "tsx scripts/check-checkout-return-url.ts",
+    "check:v3-lock-writes": "tsx scripts/check-v3-lock-writes.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
