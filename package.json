@@ -8,6 +8,7 @@
     "check:seo": "tsx scripts/check-seo.ts",
     "check:plan": "tsx scripts/check-plan.ts",
     "check:v2-no-lockout": "tsx scripts/check-v2-no-lockout.ts",
+    "check:addon-notice": "tsx scripts/check-addon-notice.ts",
     "check:muster-ds24": "tsx scripts/check-muster-ds24.ts",
     "check:partner-angebot": "tsx scripts/check-partner-angebot.ts",
     "check:ds24-ipn": "tsx scripts/check-ds24-ipn.ts",

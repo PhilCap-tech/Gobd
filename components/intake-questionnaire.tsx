@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { IntakeQuestionHint } from "@/components/intake-question-hint";
 import {
   applyDerivedStatus,
   BETRIEBS_CHECK_STEP_ID,
@@ -549,6 +550,7 @@ export function IntakeQuestionnaire({
                   {prompt}
                 </h2>
                 {question.hint ? <p className="hint">{question.hint}</p> : null}
+                <IntakeQuestionHint />
                 {question.id === "A04" ? (
                   <p className="hint">
                     Das Datum ist der Beginn des beschriebenen Ablaufs im Betrieb. Es ist nicht das

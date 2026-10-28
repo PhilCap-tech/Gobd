@@ -13,6 +13,9 @@ import type { TransactionalMailContent } from "@/lib/ops";
 /** Dieselbe info@-Adresse wie die übrigen Produktmails. Die Umgebung bleibt unverändert. */
 export const INVITE_MAIL_FROM = CANCELLATION_MAIL_FROM;
 
+/** Art. 14 DSGVO (Legal v3, Restpunkte): DSE-Link in der Einladung. */
+export const INVITE_PRIVACY_URL = "https://www.gobd-doku-erstellen.de/datenschutz";
+
 export function buildInviteMail(input: {
   firmName: string;
   street: string;
@@ -42,6 +45,8 @@ export function buildInviteMail(input: {
     "Der Link ist 20 Minuten gültig. Ein neuer Versand ersetzt ihn.",
     "Wenn Sie diese Einladung nicht erwarten, können Sie diese E-Mail ignorieren.",
     "",
+    `Informationen zur Verarbeitung Ihrer Daten: ${INVITE_PRIVACY_URL}`,
+    "",
     CUSTOMER_MAIL_SIGNATURE,
   );
   const text = wrapTransactionalText(lines.join("\n"));
@@ -52,6 +57,7 @@ export function buildInviteMail(input: {
     <p>Sie speichern Entwürfe. Die PDF-Fassung ist für Sie nicht lesbar. Sie bleibt beim Kontoinhaber.<br />Den Vertrag hält der Kontoinhaber.</p>
     <p>${transactionalPrimaryButton(input.inviteUrl, "Einladung annehmen")}</p>
     <p>Der Link ist 20 Minuten gültig. Ein neuer Versand ersetzt ihn.<br />Wenn Sie diese Einladung nicht erwarten, können Sie diese E-Mail ignorieren.</p>
+    <p>Informationen zur Verarbeitung Ihrer Daten: <a href="${escapeAttr(INVITE_PRIVACY_URL)}">Datenschutzerklärung</a></p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
   return {
