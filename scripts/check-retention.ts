@@ -188,6 +188,50 @@ async function main() {
     assert.equal(before.candidates.docsRefunded, 0);
   });
 
+  await check("Erstattung erster v3-Kauf (Webhook-Pfad): sofort fällig (REFUND_RETENTION_DAYS=0), geleert; Alt/DS24/Comp nie fällig", async () => {
+    assert.equal(decision.REFUND_RETENTION_DAYS, 0);
+    const bought = "2026-11-02T09:00:00.000Z";
+    const refundedAt = "2026-11-05T09:00:00.000Z";
+    const first = plan.applyEntryPurchase(null, {
+      email: "Erstkauf@Firma-Neu.de", at: bought, sessionId: "cs_v3_first", eventId: "evt_1", customerId: "cus_1", member: false, subscriptionId: "",
+    });
+    const row = plan.applyRefund({ ...first, pricingModel: "v3" }, { at: refundedAt, eventId: "evt_r" });
+    assert.equal(row.email, "erstkauf@firma-neu.de");
+    assert.equal(decision.docDeadline(row, new Date(refundedAt))?.category, "refunded");
+    assert.equal(decision.docDeadline(row, new Date(refundedAt))?.dueAt, refundedAt);
+    assert.equal(decision.decideDoc(row, new Date(Date.parse(refundedAt) - 1)).action, "keep");
+    assert.equal(decision.decideDoc(row, new Date(refundedAt)).action, "delete");
+    const planStore = await import("@/lib/plan-store");
+    const values = planStore.blankedPlanValues(row, refundedAt, plan.PLAN_SHEET_COLUMNS);
+    assert.ok(!values.join("|").toLowerCase().includes("erstkauf@"), "Adresse geleert");
+    assert.equal(planStore.planRowFromSheet([...plan.PLAN_SHEET_COLUMNS], values), null);
+    const storeMod = await import("@/lib/store");
+    const sheetRow = Object.fromEntries(Object.keys((await import("@/lib/types")).SHEET_COLUMNS).map((k) => [k, ""])) as unknown as import("@/lib/types").SheetRow;
+    const doc = storeMod.redactedRetentionRow({ ...sheetRow, email: row.email, company: "Erstkauf GmbH", documentId: "d1", stripeSessionId: "cs_v3_first" }, refundedAt);
+    assert.equal(doc.email, "");
+    assert.ok(!JSON.stringify(doc).includes("Erstkauf GmbH"));
+    const now = new Date(Date.parse(refundedAt) + 1000);
+    const fake = fakeIo({
+      plans: [
+        row,
+        { ...row, email: "altkunde@firma-alt.de" },
+        { ...row, email: "ds24kunde@firma-alt.de" },
+        { ...row, email: "winkler@winkler-segtrop.de" },
+      ],
+      docs: [{ email: "altkunde@firma-alt.de", stripeSessionId: "cs_legacy_149", documentId: "d2", entityId: "" }],
+      ds24: ["ds24kunde@firma-alt.de"],
+    });
+    const done = await run.runRetention(fake.io, { execute: true, now });
+    assert.equal(done.candidates.docsRefunded, 1);
+    assert.equal(done.excluded.legacy.plans + done.excluded.ds24.plans + done.excluded.comp.plans, 3);
+    assert.deepEqual(fake.writes, ["docs:erstkauf@firma-neu.de", "blank:erstkauf@firma-neu.de"]);
+    assert.deepEqual(fake.sent, []);
+    // Auch Jahre später: Alt/DS24/Comp nie fällig.
+    const later = await run.runRetention(fake.io, { execute: false, now: new Date("2036-01-01T00:00:00.000Z") });
+    assert.equal(later.excluded.legacy.candidates + later.excluded.ds24.candidates + later.excluded.comp.candidates, 0);
+    assert.equal(later.candidates.docsRefunded + later.candidates.docsOption1 + later.candidates.docsAnnual, 0);
+  });
+
   await check("Erstattete Verlängerung = beendetes Jahrespaket: 12 Monate ab Ende, Hinweise 30/7", () => {
     const endedAt = "2028-11-20T12:00:00.000Z";
     // So schreibt recordPlanRefund eine erstattete Verlängerung (applyMemberEnded, kein refundedAt).
