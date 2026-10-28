@@ -83,7 +83,11 @@ export function planAfterCheckout(
   // Neues Modell: Reaktivierung = neuer Kauf mit Jahrespaket, Zugang wieder offen (auch ohne Zeile).
   if (input.kind === "reactivate") {
     if (previous && previous.processedSessions.split(",").includes(input.sessionId)) return previous;
-    return { ...applyEntryPurchase(previous, { ...input, member: true }), reactivatedAt: input.at };
+    // purchased_at bleibt der ERSTE Kauf (Erstattungsfenster, Einmal-Hinweise, Refund-Mail hängen daran);
+    // Zugang, Jahr und Löschfrist rechnen ab reactivated_at.
+    const next = applyEntryPurchase(previous, { ...input, member: true });
+    const firstPurchase = previous && !previous.deletedAt && previous.purchasedAt ? previous.purchasedAt : input.at;
+    return { ...next, purchasedAt: firstPurchase, reactivatedAt: input.at };
   }
   // Jahrespaket nachgebucht: dauerhaft (solange das Abo läuft), Jahr ab Erstkauf.
   if (input.kind === "addon") {

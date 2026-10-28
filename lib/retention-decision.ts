@@ -129,8 +129,9 @@ export function docDeadline(row: PlanRow, now: Date): { category: DocCategory; d
   if (ended) {
     const fromEnd = addMonthsIso(ended, DOC_RETENTION_MONTHS);
     // Späterer Neukauf (Option 1) nach dem Ende: nie früher als dessen Frist.
-    const fromPurchase = time(row.purchasedAt) !== null && time(row.purchasedAt)! > time(ended)!
-      ? addMonthsIso(latestIso(row.purchasedAt, row.reactivatedAt), DOC_RETENTION_MONTHS)
+    const lastBuy = latestIso(row.purchasedAt, row.reactivatedAt);
+    const fromPurchase = time(lastBuy) !== null && time(lastBuy)! > time(ended)!
+      ? addMonthsIso(lastBuy, DOC_RETENTION_MONTHS)
       : "";
     const due = fromPurchase && time(fromPurchase)! > time(fromEnd)! ? fromPurchase : fromEnd;
     return due ? { category: "annual", dueAt: new Date(time(due)!).toISOString() } : null;

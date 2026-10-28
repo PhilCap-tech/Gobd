@@ -216,11 +216,15 @@ export function addonYearEnd(firstPurchasedAt: string, bookedAt: string): string
  * (Lauf NICHT gebaut). Reine Berechnung aus gespeicherten Daten, leer wenn
  * nicht bestimmbar oder erstattet.
  */
-export function reactivatableUntil(row: Pick<PlanRow, "purchasedAt" | "memberEndedAt" | "refundedAt" | "plan">): string {
+export function reactivatableUntil(
+  row: Pick<PlanRow, "purchasedAt" | "memberEndedAt" | "refundedAt" | "plan"> & Partial<Pick<PlanRow, "reactivatedAt">>,
+): string {
   if (row.refundedAt) return "";
-  const base = row.plan !== "member" && row.memberEndedAt && Date.parse(row.memberEndedAt) > Date.parse(row.purchasedAt || "0")
+  // Nach Reaktivierung zählt der letzte Kauf (reactivated_at), purchased_at bleibt der Erstkauf.
+  const lastBuy = [row.purchasedAt, row.reactivatedAt ?? ""].filter((v) => Number.isFinite(Date.parse(v))).sort().pop() ?? "";
+  const base = row.plan !== "member" && row.memberEndedAt && Date.parse(row.memberEndedAt) > Date.parse(lastBuy || "0")
     ? row.memberEndedAt
-    : row.purchasedAt;
+    : lastBuy;
   return base ? addMonthsIso(base, 12) : "";
 }
 
