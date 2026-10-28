@@ -11,8 +11,8 @@ import { findPlanByEmail } from "@/lib/plan-store";
 import { isPricingV2 } from "@/lib/pricing-model";
 import { findLatestPaidCheckoutByEmail } from "@/lib/store";
 
-export const V3_ONE_FIRM_MESSAGE =
-  "Für jede weitere Firma legen Sie bitte ein eigenes Konto mit einer eigenen E-Mail-Adresse an.";
+import { V3_ONE_FIRM_MESSAGE } from "@/lib/account-labels";
+export { V3_ONE_FIRM_MESSAGE };
 
 export type V3AccountFacts = {
   newModel: boolean;

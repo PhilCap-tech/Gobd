@@ -67,7 +67,7 @@ const EXPECTED_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), dan
 const EXPECTED_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
 
 const NEW_MODEL = ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase());
-expect(NEW_MODEL ? UPSELL_PRICE.startsWith("99 € einmalig") && !UPSELL_PRICE.includes("149") : UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording");
+expect(NEW_MODEL ? UPSELL_PRICE === "" : UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording");
 expect(PDF_UPSELL_PRICE === UPSELL_PRICE, "PDF price line is the web price line");
 expect(NEW_MODEL ? UPSELL_PRICE_BREAKDOWN.startsWith("99 € einmalig zzgl. USt.") : UPSELL_PRICE_BREAKDOWN === EXPECTED_BREAKDOWN, "price breakdown matches pricing.ts");
 expect(UPSELL_CTA_HREF === "/checkout", "CTA target is /checkout");
@@ -190,7 +190,7 @@ function assertKundePdf(label: string, pages: string[], buffer: Buffer) {
   expect(text.includes(KUNDE_COVER_LINE), `${label} keeps the customer cover line`);
   expect(!text.includes(PDF_UPSELL_HEADLINE), `${label} has no upsell headline`);
   expect(!text.includes(PDF_UPSELL_BODY.slice(0, 40)), `${label} has no upsell body`);
-  expect(!text.includes(PDF_UPSELL_PRICE), `${label} has no upsell price`);
+  expect(!PDF_UPSELL_PRICE || !text.includes(PDF_UPSELL_PRICE), `${label} has no upsell price`);
   expect(!text.includes(GELD_ZURUECK_MICRO), `${label} has no guarantee line`);
   expect(!text.includes(PDF_UPSELL_URL), `${label} has no checkout url`);
   expect(!text.includes(UPSELL_HEADLINE), `${label} has no web upsell headline`);

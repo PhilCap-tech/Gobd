@@ -264,7 +264,7 @@ export type PlanAccess = {
 };
 
 export const PLAN_EXPIRED_WRITE_MESSAGE =
-  "[TODO-LEGAL] Ihr Konto ist deaktiviert. Der Zugang von 30 Tagen ist abgelaufen; Änderungen, Einladungen und Downloads sind gesperrt. Sie können das Konto jederzeit wieder aktivieren.";
+  "Ihr Konto ist deaktiviert."; // growth/landing-v3.md § 5 (H1), 1:1; übriger Platzhaltertext entfernt
 /** Knopf zur Reaktivierung (Wortlaut Philip 28.10., exakt). */
 export const PLAN_REACTIVATE_LABEL = "Konto jetzt für 99 € netto + 49 €/Jahr wieder komplett aktivieren";
 export const PLAN_REACTIVATE_HREF = "/checkout/reaktivieren";

@@ -7,7 +7,6 @@ import {
   V2_ENTRY_LABEL,
   V2_MEMBER_YEAR_LABEL,
 } from "@/lib/pricing";
-import { TODO_GROWTH } from "@/lib/plan-copy";
 import { intakeLoginFirstEnabled, isPricingV2 } from "@/lib/pricing-model";
 import { PLAN_FACT_LINE } from "@/lib/plan-copy";
 
@@ -42,7 +41,7 @@ export const CUSTOMER_PRICE_SHORT = V2
 /** Homepage only: one line under the price table. Amounts follow pricing.ts. */
 export const LEGACY_PRICE_FRAME_LINE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat) = individuelles PDF + Liste offener Punkte · danach ${MONTHLY_EUR} €/Monat für Versionen und Pflege, zzgl. USt.`;
 export const PRICE_FRAME_LINE = V2
-  ? `${V2_ENTRY_LABEL} € einmalig = individuelles PDF + Liste offener Punkte · optional Jahrespaket ${V2_MEMBER_YEAR_LABEL} €/Jahr für Versionen und alle Änderungen, zzgl. USt. ${TODO_GROWTH}`
+  ? ""
   : LEGACY_PRICE_FRAME_LINE;
 
 /** Homepage hero, directly under the H1. No social-proof counts. */
@@ -181,7 +180,7 @@ export const UPSELL_SECTION_2_TEXT =
 
 export const LEGACY_UPSELL_SECTION_3_TITLE = "Darum ein Monatsabo";
 export const UPSELL_SECTION_3_TITLE = V2
-  ? `Darum die Jahresmitgliedschaft ${TODO_GROWTH}`
+  ? ""
   : LEGACY_UPSELL_SECTION_3_TITLE;
 
 export const UPSELL_BULLETS = [
@@ -196,7 +195,7 @@ export const UPSELL_EFFORT_NOTE =
 
 export const LEGACY_UPSELL_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
 export const UPSELL_PRICE = V2
-  ? `${V2_ENTRY_LABEL} € einmalig, zzgl. USt. · Jahrespaket optional ${V2_MEMBER_YEAR_LABEL} €/Jahr · alle 24 Module inklusive ${TODO_GROWTH}`
+  ? ""
   : LEGACY_UPSELL_PRICE;
 
 export const LEGACY_UPSELL_PRICE_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;

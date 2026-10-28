@@ -123,7 +123,13 @@ export function planPackageTexts(activeFirmsBilling = false): PlanPackageTexts {
 
 /** Growth-Wortlaut 26.10. (exakt): Preisseite und Paketwahl. */
 export const PLAN_B2B_NOTICE = "Nur für Unternehmen · alle Preise zzgl. 19 % USt";
-export const PLAN_PACKAGE_INTRO = `Wählen Sie Ihr Paket. ${TODO_GROWTH}`;
+/** Paketwahl-Seite, Karte Option 2 (growth/landing-v3.md § 3, 1:1). */
+export const PLAN_OPTION_2_SUMMARY_NOTE = "Im ersten Jahr 148 € zzgl. USt, danach 49 €/Jahr, kündbar laut AGB.";
+/** Paketwahl-Seite, Hinweis bei Auswahl Option 1 (growth/landing-v3.md § 3, 1:1). */
+export const PLAN_OPTION_1_SUMMARY_NOTE =
+  "Gut zu wissen: Nach 30 Tagen haben Sie keinen Zugriff mehr auf Dashboard und PDFs. Speichern Sie Ihre PDFs rechtzeitig. Ein Wechsel auf „Dauerhaft“ ist während der 30 Tage für 49 €/Jahr möglich.";
+/** Kein freigegebener Zusatztext (Platzhalter entfernt, CoS 28.10.): Zeile entfällt. */
+export const PLAN_PACKAGE_INTRO = "";
 /** Wortlaut Legal (legal/checkout-konto-saetze.md, 26.10. 15:20), Pflicht-Checkbox, nicht vorangekreuzt. */
 export const PLAN_TERMS_LABEL_BEFORE = "Ich akzeptiere die ";
 export const PLAN_TERMS_LINK = "Allgemeinen Geschäftsbedingungen";
@@ -143,6 +149,6 @@ export const PLAN_CANCEL_EMAIL_NOTE =
  * Kanzlei-Probedurchlauf (Philip 15:06/15:15): Legal-Texte kommen Do 29.10.
  * Nur unter v2 sichtbar; Legacy behält Partner-Pilot/KANZLEI-PILOT-Wortlaut.
  */
-export const PARTNER_PROBE_MAIL_INTRO_V2 = `${TODO_LEGAL} Einleitung Partner-Mail zum Kanzlei-Probedurchlauf (Text folgt).`;
-export const PARTNER_PROBE_MAIL_OFFER_V2 = `${TODO_LEGAL} Satz zum Kanzlei-Probedurchlauf statt KANZLEI-PILOT-Konditionen (Text folgt).`;
-export const PARTNER_PROBE_CHECKOUT_NOTE_V2 = `${TODO_LEGAL} Hinweis zum Kanzlei-Probedurchlauf statt Pilot-Satz (Text folgt).`;
+export const PARTNER_PROBE_MAIL_INTRO_V2 = ""; // kein freigegebener Text (Platzhalter entfernt)
+export const PARTNER_PROBE_MAIL_OFFER_V2 = ""; // kein freigegebener Text (Platzhalter entfernt)
+export const PARTNER_PROBE_CHECKOUT_NOTE_V2 = ""; // kein freigegebener Text (Platzhalter entfernt)

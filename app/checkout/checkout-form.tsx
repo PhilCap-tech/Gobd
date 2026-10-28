@@ -64,9 +64,8 @@ export function CheckoutForm({
   const [paket, setPaket] = useState<PlanPackage>(planOffer?.initialPackage ?? "mitglied");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const partner = audience === "steuerberater";
-  const includedFirmNote = showIncludedFirmNote ? (
-    <p className="hint">{INCLUDED_FIRM_NOTE}</p>
-  ) : null;
+  const includedFirmNote =
+    showIncludedFirmNote && INCLUDED_FIRM_NOTE ? <p className="hint">{INCLUDED_FIRM_NOTE}</p> : null;
   const [entityId, setEntityId] = useState(initialEntityId);
   const [company, setCompany] = useState(initialCompany);
   const [email, setEmail] = useState(initialEmail);
@@ -277,7 +276,7 @@ export function CheckoutForm({
             <PilotKlartextSentence />
           </p>
         )}
-        {partner && planOffer && <p className="prose">{PARTNER_PROBE_CHECKOUT_NOTE_V2}</p>}
+        {partner && planOffer && PARTNER_PROBE_CHECKOUT_NOTE_V2 && <p className="prose">{PARTNER_PROBE_CHECKOUT_NOTE_V2}</p>}
         {error && (
           <p className="error" role="alert">
             {error}

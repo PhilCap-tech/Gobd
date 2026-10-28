@@ -401,15 +401,13 @@ function buildSteuerberaterOnboardingMail(input: {
     [
       greeting,
       "",
-      intro,
-      "",
+      ...(intro ? [intro, ""] : []),
       "Nächste Schritte:",
       "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.",
       "2. Das PDF herunterladen, sobald die Generierung fertig ist",
       `3. Konto: Anmeldung unter ${MAIL_LOGIN_URL}`,
       "",
-      offer,
-      "",
+      ...(offer ? [offer, ""] : []),
       "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
       MAIL_FAQ_URL,
       "",
@@ -422,14 +420,14 @@ function buildSteuerberaterOnboardingMail(input: {
   );
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
-    <p>${escapeHtml(intro)}</p>
+    ${intro ? `<p>${escapeHtml(intro)}</p>` : ""}
     <p>Nächste Schritte:</p>
     <ol>
       <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.</li>
       <li>Das PDF herunterladen, sobald die Generierung fertig ist</li>
       <li>Konto: Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
     </ol>
-    <p>${escapeHtml(offer)}</p>
+    ${offer ? `<p>${escapeHtml(offer)}</p>` : ""}
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
     <p>Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus den Angaben. Sie füllen sie nicht für einen Mandanten aus.</p>

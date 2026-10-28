@@ -55,7 +55,7 @@ async function main() {
   assert.ok(ds24.includes(offer.PDF_UPSELL_HEADLINE), "DS24-Muster behält die Upsell-Seite");
   assert.ok(!ds24.includes(micro), "DS24-Muster (v2) ohne Garantiezeile");
   assert.ok(!ds24.includes(offer.LEGACY_GELD_ZURUECK_MICRO), "DS24-Muster (v2) auch ohne alte Garantiezeile");
-  assert.ok(!ds24.includes(offer.PDF_UPSELL_PRICE), "DS24-Muster (v2) ohne v2-Preiszeile");
+  assert.ok(!offer.PDF_UPSELL_PRICE || !ds24.includes(offer.PDF_UPSELL_PRICE), "DS24-Muster (v2) ohne v2-Preiszeile");
   assert.ok(!ds24.includes(offer.LEGACY_UPSELL_PRICE), "DS24-Muster (v2) ohne alte Preiszeile");
   assert.ok(!ds24.includes(offer.PDF_UPSELL_CTA) && !ds24.includes(offer.PDF_UPSELL_URL), "DS24-Muster ohne /checkout-Text");
   assert.ok(!ds24Raw.includes("/checkout"), "DS24-Muster ohne /checkout-Link (Link-Annotation)");

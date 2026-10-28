@@ -578,7 +578,7 @@ export default function HomePage() {
                 <li>Erneute Exporte bei Bedarf</li>
               </ul>
               <p className={styles.prose}>{RESULT_PROMISE}</p>
-              <p className={styles.fine}>{PRICE_FRAME_LINE}</p>
+              {PRICE_FRAME_LINE ? <p className={styles.fine}>{PRICE_FRAME_LINE}</p> : null}
               <p className={styles.fine}>
                 <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
               </p>

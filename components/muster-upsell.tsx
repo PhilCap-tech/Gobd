@@ -33,7 +33,7 @@ export function MusterUpsell() {
       <h3>{UPSELL_SECTION_2_TITLE}</h3>
       <p className="prose">{UPSELL_SECTION_2_TEXT}</p>
 
-      <h3>{UPSELL_SECTION_3_TITLE}</h3>
+      {UPSELL_SECTION_3_TITLE ? <h3>{UPSELL_SECTION_3_TITLE}</h3> : null}
       <ul className="prose-list">
         {UPSELL_BULLETS.map((bullet) => (
           <li key={bullet}>{bullet}</li>
@@ -41,7 +41,7 @@ export function MusterUpsell() {
       </ul>
       <p className="prose">{UPSELL_EFFORT_NOTE}</p>
 
-      <p className="upsell-price">{UPSELL_PRICE}</p>
+      {UPSELL_PRICE ? <p className="upsell-price">{UPSELL_PRICE}</p> : null}
       <p className="upsell-guarantee">
         <Link href={GELD_ZURUECK_HREF}>{GELD_ZURUECK_MICRO}</Link>
       </p>

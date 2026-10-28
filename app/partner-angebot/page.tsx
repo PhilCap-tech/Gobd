@@ -447,14 +447,14 @@ export default async function PartnerAngebotPage({
           <div className="shell">
             <h2>{UPSELL_SECTION_2_TITLE}</h2>
             <p className={styles.prose}>{UPSELL_SECTION_2_TEXT}</p>
-            <h3>{UPSELL_SECTION_3_TITLE}</h3>
+            {UPSELL_SECTION_3_TITLE ? <h3>{UPSELL_SECTION_3_TITLE}</h3> : null}
             <ul className={styles.checks} role="list">
               {UPSELL_BULLETS.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
             <p className={styles.fine}>{UPSELL_EFFORT_NOTE}</p>
-            <p className={styles.fine}>{PRICE_FRAME_LINE}</p>
+            {PRICE_FRAME_LINE ? <p className={styles.fine}>{PRICE_FRAME_LINE}</p> : null}
           </div>
         </section>
 

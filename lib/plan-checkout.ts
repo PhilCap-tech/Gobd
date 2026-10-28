@@ -21,7 +21,7 @@
  * manuelle Tax Rate 19 % exklusiv. Promotion-Codes bleiben technisch an (R6).
  */
 import type Stripe from "stripe";
-import { getAppUrl, getStripeTaxRateId } from "@/lib/env";
+import { checkoutReturnBaseUrl, getStripeTaxRateId } from "@/lib/env";
 import { V2_MEMBER_FIRM_YEAR_CENTS } from "@/lib/pricing";
 import { V3_YEAR_CENTS } from "@/lib/pricing";
 import { addMonthsIso } from "@/lib/plan";
@@ -103,7 +103,7 @@ export function addonTrialEnd(firstPurchasedAt: string, now: Date = new Date()):
 }
 
 function successUrl(kind: PlanCheckoutKind, entityId: string): string {
-  const appUrl = getAppUrl();
+  const appUrl = checkoutReturnBaseUrl();
   if (kind === "change") return `${appUrl}/account?kauf=aenderung`;
   if (kind === "addon") return `${appUrl}/account?kauf=jahrespaket`;
   if (kind === "reactivate") return `${appUrl}/account?kauf=reaktiviert`;
@@ -115,7 +115,7 @@ function successUrl(kind: PlanCheckoutKind, entityId: string): string {
 }
 
 function cancelUrl(kind: PlanCheckoutKind, audience: string): string {
-  const appUrl = getAppUrl();
+  const appUrl = checkoutReturnBaseUrl();
   if (kind === "change") return `${appUrl}/account`;
   if (kind === "member" || kind === "firm" || kind === "addon" || kind === "reactivate") return `${appUrl}/account`;
   return audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/checkout`;
@@ -208,7 +208,7 @@ export function buildPlanCheckoutParams(
     line_items: lineItems,
     success_url:
       kind === "entry" && input.draftKey
-        ? `${getAppUrl()}/fragebogen/bezahlt?session_id={CHECKOUT_SESSION_ID}`
+        ? `${checkoutReturnBaseUrl()}/fragebogen/bezahlt?session_id={CHECKOUT_SESSION_ID}`
         : successUrl(kind, entityId),
     cancel_url: cancelUrl(kind, audience),
     metadata,

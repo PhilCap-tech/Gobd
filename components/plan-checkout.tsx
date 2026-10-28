@@ -12,6 +12,8 @@ import {
   PLAN_OPTION_2_LABEL,
   PLAN_PACKAGE_ENTRY_TITLE,
   PLAN_PACKAGE_INTRO,
+  PLAN_OPTION_1_SUMMARY_NOTE,
+  PLAN_OPTION_2_SUMMARY_NOTE,
   PLAN_PACKAGE_MEMBER_TITLE,
   type PlanPackage,
   type PlanPackageTexts,
@@ -31,7 +33,7 @@ export function PlanPackageSelect({
   return (
     <fieldset className="field">
       <legend>Paket</legend>
-      <p className="hint">{PLAN_PACKAGE_INTRO}</p>
+      {PLAN_PACKAGE_INTRO ? <p className="hint">{PLAN_PACKAGE_INTRO}</p> : null}
       <div className="grid-2">
         <label className="card check">
           <input
@@ -94,8 +96,8 @@ export function PlanCheckoutSummary({ paket }: { paket: PlanPackage }) {
       </div>
       <p className="hint">
         {member
-          ? "[TODO-LEGAL] Das Jahrespaket verlängert sich jährlich (Kündigungsregel folgt)."
-          : "[TODO-LEGAL] 30 Tage Zugang ab Kauf. Innerhalb dieser Zeit können Sie das Jahrespaket nachbuchen."}
+          ? PLAN_OPTION_2_SUMMARY_NOTE
+          : PLAN_OPTION_1_SUMMARY_NOTE}
       </p>
     </>
   );

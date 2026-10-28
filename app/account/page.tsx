@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AccountAboCard } from "@/components/account-abo";
+import { isPricingV2 } from "@/lib/pricing-model";
 import { AccountPlanCard } from "@/components/account-plan";
 import { loadAccountPlanView } from "@/lib/plan-view";
 import { AccountCompanyCard } from "@/components/account-company-card";
@@ -372,7 +373,7 @@ export default async function AccountPage({
 
         <div className="account-tiles">
           {planView ? <AccountPlanCard view={planView} purchase={purchaseNotice} /> : null}
-          {showAbo && !planView ? (
+          {showAbo && !planView && (!isPricingV2() || compAccess || ds24Access || stripeBound) ? (
             <AccountAboCard
               stripeBound={stripeBound}
               notice={notice}

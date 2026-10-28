@@ -280,7 +280,10 @@ async function checkSession() {
 function checkWording() {
   ok(FIRMA_EDIT_LABEL === "Firmendaten bearbeiten", "Kartenbutton heißt Firmendaten bearbeiten");
   ok(
-    FIRMA_ADD_LABEL === `Weitere Firma hinzufügen (bis zu ${MAX_ENTITIES_PER_ACCOUNT} im Abo)`,
+    FIRMA_ADD_LABEL ===
+      (["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase())
+        ? "Weitere Firma hinzufügen"
+        : `Weitere Firma hinzufügen (bis zu ${MAX_ENTITIES_PER_ACCOUNT} im Abo)`),
     "unter der Karte steht Weitere Firma hinzufügen",
   );
   ok(CHECKOUT_PREFILL_NOTE.includes("Bitte prüfen"), "Prüfhinweis enthält Bitte prüfen");

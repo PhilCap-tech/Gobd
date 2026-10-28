@@ -4,7 +4,7 @@ import {
   isStubCheckoutSessionId,
 } from "@/lib/checkout-stub";
 import {
-  getAppUrl,
+  checkoutReturnBaseUrl,
   getStripeTaxRateId,
   isStripeConfigured,
   isStripeSecretConfigured,
@@ -408,7 +408,7 @@ export async function resolveV3Prices(): Promise<{ prices: V3Prices; missing: st
 export function buildCheckoutSessionParams(
   input: CheckoutSessionInput,
 ): Stripe.Checkout.SessionCreateParams {
-  const appUrl = getAppUrl();
+  const appUrl = checkoutReturnBaseUrl();
   const entityId = input.entityId?.trim() ?? "";
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   const successUrl = entityId
@@ -784,7 +784,7 @@ export async function createBillingPortalSession(
   const session = await getStripe().billingPortal.sessions.create({
     customer: id,
     locale: "de",
-    return_url: `${getAppUrl()}${accountBillingPath("returned")}`,
+    return_url: `${checkoutReturnBaseUrl()}${accountBillingPath("returned")}`,
   });
 
   if (!session.url) {
