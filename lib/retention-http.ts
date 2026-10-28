@@ -4,7 +4,7 @@
  * - sonst: RETENTION_EXECUTE_ENABLED -> ausführen; RETENTION_DRY_RUN_ENABLED -> zählen; beides aus -> nichts.
  * Antwort und Log: nur Zähler, keine IDs, keine Adressen.
  */
-import { adminTokensMatch, bearerTokenFromHeader } from "@/lib/admin-wipe";
+import { cronAuthorized } from "@/lib/cron-auth";
 import { logError } from "@/lib/log-error";
 import { retentionDryRunEnabled, retentionExecuteEnabled } from "@/lib/pricing-model";
 import { retentionLogLine, runRetention, type RetentionIo } from "@/lib/retention-run";
@@ -16,8 +16,7 @@ export async function handleRetentionCron(
   deps: { secret?: string; io?: () => RetentionIo | Promise<RetentionIo>; now?: Date } = {},
 ): Promise<{ status: number; body: unknown }> {
   const secret = (deps.secret ?? process.env.CRON_SECRET ?? "").trim();
-  const provided = bearerTokenFromHeader(request.headers.get("authorization"));
-  if (!secret || !provided || !adminTokensMatch(provided, secret)) {
+  if (!cronAuthorized(request, secret)) {
     return { status: 401, body: { error: "unauthorized" } };
   }
   const url = new URL(request.url);

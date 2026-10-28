@@ -14,6 +14,7 @@ import {
   memberCancelNoticeMonths,
   renewalNoticeDaysBeforeCutoff,
   memberLateCancelEffect,
+  PLAN_ACCESS_DAYS,
   PLAN_WINDOW_MONTHS,
   windowAfterMemberMonths,
   type LateCancelEffect,
@@ -57,6 +58,18 @@ export type PlanRow = {
   notice30At: string;
   notice7At: string;
   deletedAt: string;
+  /**
+   * Neues Modell (28.10.): Ende des Zugangs ohne Jahrespaket (Kauf + 30 Tage),
+   * ISO. Danach ist alles gesperrt (Konto, Einladungen, Änderungen, Download).
+   * Leer bei Altzeilen: dann gilt wie bisher `retentionUntil`.
+   */
+  accessUntil: string;
+  /** Modell-Marker: `v3` = neues Modell (28.10.). Leer = Altzeile (v2 26.10.). Legacy/DS24/Comp haben keine Plan-Zeile. */
+  pricingModel: string;
+  /** Letzte Reaktivierung (ISO), leer = nie. */
+  reactivatedAt: string;
+  /** Widerspruch gegen Angebots-Mails (ISO), leer = kein Widerspruch. Sperrt die 7-Tage-Mail. */
+  offerOptOutAt: string;
   /** Kauf erstattet (R5): Zugang dauerhaft gesperrt wie bei der DS24-Rückgabe. */
   refundedAt: string;
   /** Verarbeitete Checkout-Sessions (Idempotenz), kommagetrennt, die letzten 20. */
@@ -93,6 +106,11 @@ export const PLAN_SHEET_COLUMNS = [
   "member_cancel_received_at",
   // Neu 26.10.: nur ans Ende anhängen, Altzeilen bleiben leer.
   "agb_accepted_at",
+  // Neu 28.10. (neues Preismodell): nur ans Ende anhängen.
+  "access_until",
+  "pricing_model",
+  "reactivated_at",
+  "offer_opt_out_at",
 ] as const;
 
 const MEMBER_LIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -118,6 +136,10 @@ export function emptyPlanRow(email: string, at: string): PlanRow {
     memberCancelChannel: "",
     memberCancelReceivedAt: "",
     agbAcceptedAt: "",
+    accessUntil: "",
+    pricingModel: "",
+    reactivatedAt: "",
+    offerOptOutAt: "",
     notice30At: "",
     notice7At: "",
     deletedAt: "",
@@ -173,6 +195,35 @@ export function retentionAfterChange(previousUntil: string, paidAt: string): str
   return later(previousUntil, addMonthsIso(paidAt, PLAN_WINDOW_MONTHS));
 }
 
+/** Option 1 (28.10.): Zugang bis Kauf + 30 Tage; ab genau diesem Zeitpunkt gesperrt. */
+export function accessAfterPurchase(purchasedAt: string): string {
+  const time = Date.parse(purchasedAt);
+  if (!Number.isFinite(time)) return "";
+  return new Date(time + PLAN_ACCESS_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
+/**
+ * Jahrespaket nachgebucht innerhalb der 30 Tage (Philip 28.10., c): das Jahr
+ * läuft ab dem ERSTEN Kauf, endet also bei Erstkauf + 12 Monate.
+ */
+export function addonYearEnd(firstPurchasedAt: string, bookedAt: string): string {
+  return addMonthsIso(firstPurchasedAt || bookedAt, 12) || addMonthsIso(bookedAt, 12);
+}
+
+/**
+ * Philip 28.10. (3): deaktiviertes Konto ist reaktivierbar bis 12 Monate nach
+ * dem Kauf (Option 1) bzw. nach dem Ende des Jahrespakets; danach Löschung
+ * (Lauf NICHT gebaut). Reine Berechnung aus gespeicherten Daten, leer wenn
+ * nicht bestimmbar oder erstattet.
+ */
+export function reactivatableUntil(row: Pick<PlanRow, "purchasedAt" | "memberEndedAt" | "refundedAt" | "plan">): string {
+  if (row.refundedAt) return "";
+  const base = row.plan !== "member" && row.memberEndedAt && Date.parse(row.memberEndedAt) > Date.parse(row.purchasedAt || "0")
+    ? row.memberEndedAt
+    : row.purchasedAt;
+  return base ? addMonthsIso(base, 12) : "";
+}
+
 /** R3: Frist nach Ende der Mitgliedschaft, ab dem Ende (konfigurierbar). */
 export function retentionAfterMemberEnd(
   endedAt: string,
@@ -190,7 +241,10 @@ export function planState(row: PlanRow, now: Date = new Date()): PlanState {
   if (row.deletedAt) return "deleted";
   if (row.refundedAt) return "refunded";
   if (isMemberLive(row)) return "member";
-  const until = Date.parse(row.retentionUntil);
+  // Neues Modell: Zugangsende (Kauf + 30 Tage); Altzeilen ohne Wert: Frist wie bisher.
+  // Zeile ohne jedes Datum (nicht aus einem Kauf): nicht sperren, wie „keine Zeile“.
+  if (!row.accessUntil && !row.retentionUntil && !row.memberSubscriptionId) return "window";
+  const until = Date.parse(row.accessUntil || row.retentionUntil);
   if (Number.isFinite(until) && now.getTime() < until) return "window";
   return "expired";
 }
@@ -202,13 +256,19 @@ export type PlanAccess = {
   newVersionAllowed: boolean;
   canBuyChange: boolean;
   canBecomeMember: boolean;
+  /** Zugang abgelaufen (Option 1 nach 30 Tagen bzw. Abo beendet): Reaktivierung anbieten. */
+  canReactivate: boolean;
   writeMessage: string;
   versionMessage: string;
   downloadMessage: string;
 };
 
 export const PLAN_EXPIRED_WRITE_MESSAGE =
-  "Die Vorhaltefrist ist abgelaufen. Änderungen sind nicht mehr möglich; Ihr PDF haben Sie bereits erhalten.";
+  "[TODO-LEGAL] Ihr Konto ist deaktiviert. Der Zugang von 30 Tagen ist abgelaufen; Änderungen, Einladungen und Downloads sind gesperrt. Sie können das Konto jederzeit wieder aktivieren.";
+/** Knopf zur Reaktivierung (Wortlaut Philip 28.10., exakt). */
+export const PLAN_REACTIVATE_LABEL = "Konto jetzt für 99 € netto + 49 €/Jahr wieder komplett aktivieren";
+export const PLAN_REACTIVATE_HREF = "/checkout/reaktivieren";
+export const PLAN_ADDON_HREF = "/checkout/jahrespaket";
 export const PLAN_VERSION_NEEDS_CHANGE_MESSAGE =
   "Für eine neue Version beauftragen Sie bitte zuerst eine Änderung im Konto oder werden Mitglied.";
 export const PLAN_REFUNDED_MESSAGE =
@@ -218,7 +278,6 @@ export const PLAN_DELETED_MESSAGE =
 
 export function planAccess(row: PlanRow, now: Date = new Date()): PlanAccess {
   const state = planState(row, now);
-  const credits = Math.max(0, row.changeCredits || 0);
   switch (state) {
     case "member":
       return {
@@ -228,6 +287,7 @@ export function planAccess(row: PlanRow, now: Date = new Date()): PlanAccess {
         newVersionAllowed: true,
         canBuyChange: false,
         canBecomeMember: false,
+        canReactivate: false,
         writeMessage: "",
         versionMessage: "",
         downloadMessage: "",
@@ -237,24 +297,28 @@ export function planAccess(row: PlanRow, now: Date = new Date()): PlanAccess {
         state,
         writesOpen: true,
         downloadsOpen: true,
-        newVersionAllowed: credits > 0,
-        canBuyChange: credits === 0,
-        canBecomeMember: true,
+        // Neues Modell: keine 49-€-Einzeländerung; innerhalb der 30 Tage alles offen.
+        newVersionAllowed: true,
+        canBuyChange: false,
+        canBecomeMember: row.plan !== "member",
+        canReactivate: false,
         writeMessage: "",
-        versionMessage: credits > 0 ? "" : PLAN_VERSION_NEEDS_CHANGE_MESSAGE,
+        versionMessage: "",
         downloadMessage: "",
       };
     case "expired":
       return {
         state,
+        // Philip 28.10. (a): nach Tag 30 alles gesperrt, auch der PDF-Download.
         writesOpen: false,
-        downloadsOpen: true,
+        downloadsOpen: false,
         newVersionAllowed: false,
         canBuyChange: false,
         canBecomeMember: false,
+        canReactivate: true,
         writeMessage: PLAN_EXPIRED_WRITE_MESSAGE,
         versionMessage: PLAN_EXPIRED_WRITE_MESSAGE,
-        downloadMessage: "",
+        downloadMessage: PLAN_EXPIRED_WRITE_MESSAGE,
       };
     case "refunded":
       // Wie die Digistore24-Rückgabe (on_refund): dauerhaft gesperrt, auch Downloads.
@@ -265,6 +329,7 @@ export function planAccess(row: PlanRow, now: Date = new Date()): PlanAccess {
         newVersionAllowed: false,
         canBuyChange: false,
         canBecomeMember: false,
+        canReactivate: false,
         writeMessage: PLAN_REFUNDED_MESSAGE,
         versionMessage: PLAN_REFUNDED_MESSAGE,
         downloadMessage: PLAN_REFUNDED_MESSAGE,
@@ -277,6 +342,7 @@ export function planAccess(row: PlanRow, now: Date = new Date()): PlanAccess {
         newVersionAllowed: false,
         canBuyChange: false,
         canBecomeMember: false,
+        canReactivate: false,
         writeMessage: PLAN_DELETED_MESSAGE,
         versionMessage: PLAN_DELETED_MESSAGE,
         downloadMessage: PLAN_DELETED_MESSAGE,
@@ -366,6 +432,8 @@ export function applyEntryPurchase(
     subscriptionId: string;
     /** AGB-Bestätigung aus dem Checkout (ISO), leer = unverändert. */
     agbAcceptedAt?: string;
+    /** Widerspruch gegen Angebots-Mails im Checkout. */
+    offerOptOut?: boolean;
   },
 ): PlanRow {
   const base = previous && !previous.deletedAt ? previous : emptyPlanRow(input.email, input.at);
@@ -377,6 +445,11 @@ export function applyEntryPurchase(
     stripeCustomerId: input.customerId || base.stripeCustomerId,
     purchasedAt: input.at,
     retentionUntil: later(base.retentionUntil, retentionAfterPurchase(input.at)),
+    // Option 1: 30 Tage ab Kauf; ein weiterer Kauf (weitere Firma, Reaktivierung) verkürzt nie.
+    accessUntil:
+      base.accessUntil && Date.parse(base.accessUntil) > Date.parse(input.at)
+        ? later(base.accessUntil, accessAfterPurchase(input.at))
+        : accessAfterPurchase(input.at),
     memberSubscriptionId: input.member ? input.subscriptionId : base.memberSubscriptionId,
     memberStatus: input.member ? "active" : base.memberStatus,
     memberPeriodEnd: input.member
@@ -390,6 +463,8 @@ export function applyEntryPurchase(
     // Ein neuer Einstieg ist ein neuer Kauf (wie eine neue DS24-Bestellung).
     refundedAt: "",
     agbAcceptedAt: input.agbAcceptedAt?.trim() || base.agbAcceptedAt,
+    pricingModel: "v3",
+    offerOptOutAt: input.offerOptOut ? base.offerOptOutAt || input.at : base.offerOptOutAt,
     processedSessions: rememberSession(base, input.sessionId),
     lastEventId: input.eventId,
     updatedAt: input.at,
@@ -426,7 +501,8 @@ export function applyMemberPurchase(
     plan: "member",
     memberSubscriptionId: input.subscriptionId,
     memberStatus: "active",
-    memberPeriodEnd: addMonthsIso(input.at, 12),
+    // Jahrespaket nachgebucht: das Jahr läuft ab dem ersten Kauf (Philip 28.10., c).
+    memberPeriodEnd: addonYearEnd(previous.purchasedAt, input.at),
     memberCancelAt: "",
     memberEndedAt: "",
     notice30At: "",
@@ -484,6 +560,8 @@ export function applyMemberEnded(
     memberCancelAt: "",
     memberExtraFirms: 0,
     retentionUntil: retentionAfterMemberEnd(endedAt, input.afterMonths),
+    // Neues Modell: Zugang endet mit dem Abo (nie vor dem Ende der 30 Tage).
+    accessUntil: later(previous.accessUntil, endedAt),
     lastEventId: input.eventId,
     updatedAt: input.at,
   };

@@ -224,7 +224,7 @@ export const AMPEL_CTA = {
   text:
     "Mit gobd-doku-erstellen.de erstellen Sie Ihre Verfahrensdokumentation Schritt für Schritt in 24 Modulen, vom Belegfluss über Kasse und Archiv bis zum internen Kontrollsystem. Änderungen halten Sie laufend fest, frühere Versionen bleiben nachvollziehbar.",
   price: isPricingV2()
-    ? `${V2_ENTRY_LABEL} € einmalig, optional Jahresmitgliedschaft ${V2_MEMBER_YEAR_LABEL} €/Jahr, zzgl. USt.`
+    ? `${V2_ENTRY_LABEL} € einmalig, optional Jahrespaket ${V2_MEMBER_YEAR_LABEL} €/Jahr, zzgl. USt.`
     : "149 € einmalige Einrichtung + 49 € pro Monat, zzgl. USt. Monatlich kündbar.",
   button: "Verfahrensdokumentation starten",
   secondary: "So funktioniert es",

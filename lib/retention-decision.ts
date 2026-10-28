@@ -33,6 +33,14 @@ function time(iso: string | undefined | null): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
+function latestIso(a: string, b: string): string {
+  const ta = time(a);
+  const tb = time(b);
+  if (ta === null) return tb === null ? "" : b;
+  if (tb === null) return a;
+  return ta >= tb ? a : b;
+}
+
 /* ---------------- Entwürfe ---------------- */
 
 export type DraftFacts = {
@@ -92,8 +100,8 @@ export function docDeadline(row: PlanRow, now: Date): { category: DocCategory; d
   }
   if (row.plan !== "single") return null;
   if (time(row.purchasedAt) === null) return null;
-  // Reaktivierung = neuer Kauf (purchasedAt neu). Nie früher als eine längere gespeicherte Frist.
-  const fromPurchase = addMonthsIso(row.purchasedAt, DOC_RETENTION_MONTHS);
+  // Reaktivierung (neuer Kauf bzw. reactivatedAt) setzt die Frist neu. Nie früher als eine längere gespeicherte Frist.
+  const fromPurchase = addMonthsIso(latestIso(row.purchasedAt, row.reactivatedAt), DOC_RETENTION_MONTHS);
   const stored = time(row.retentionUntil);
   const purchase = time(fromPurchase);
   if (purchase === null) return null;
@@ -114,7 +122,7 @@ export function decideDoc(row: PlanRow, now: Date): DocDecision {
   if (!deadline) return KEEP;
   const due = time(deadline.dueAt)!;
   const anchor =
-    deadline.category === "annual" ? time(annualEndedAt(row, now)) : time(row.purchasedAt);
+    deadline.category === "annual" ? time(annualEndedAt(row, now)) : time(latestIso(row.purchasedAt, row.reactivatedAt));
   const n30 = noticeTime(row.notice30At, anchor);
   const n7 = noticeTime(row.notice7At, anchor);
   const at = now.getTime();

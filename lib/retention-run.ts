@@ -90,11 +90,18 @@ export function redactedEmailFor(email: string): string {
   return `r-${digest}@${RETENTION_REDACTED_DOMAIN}`;
 }
 
-/** Modell-Markierung einer Plans-Zeile: explizites Feld oder AGB-Bestätigung aus dem neuen Checkout. */
+/** Modell-Markierung einer Plans-Zeile: nur `pricingModel === "v3"` (leer = Altzeile v2 26.10. -> nie). */
 export function planHasMarker(row: PlanRow): boolean {
-  const explicit = (row as PlanRow & { pricingModel?: string }).pricingModel;
-  if (typeof explicit === "string" && explicit.trim()) return hasNewModelMarker(explicit);
-  return Boolean(row.agbAcceptedAt?.trim()) && Number.isFinite(Date.parse(row.agbAcceptedAt));
+  return hasNewModelMarker(row.pricingModel);
+}
+
+/** Zugangsende des Inhabers: beendetes Jahrespaket, sonst Ende der 30 Tage (Option 1, `accessUntil`). */
+export function ownerAccessEnd(row: PlanRow, now: Date): string {
+  const annual = annualEndedAt(row, now);
+  if (annual) return annual;
+  if (row.plan !== "single" || row.deletedAt || row.refundedAt) return "";
+  const until = Date.parse(row.accessUntil);
+  return Number.isFinite(until) && until <= now.getTime() ? new Date(until).toISOString() : "";
 }
 
 export function draftHasMarker(draft: IntakeDraft): boolean {
@@ -150,7 +157,7 @@ export async function runRetention(
   for (const row of plans) {
     const key = norm(row.email);
     // Doppelte Zeilen je Mailbox: unklar -> Marker-Ausschluss über leere Map-Einträge.
-    if (planByEmail.has(key)) planByEmail.set(key, { ...row, agbAcceptedAt: "", pricingModel: "unklar" } as PlanRow);
+    if (planByEmail.has(key)) planByEmail.set(key, { ...row, pricingModel: "unklar" });
     else planByEmail.set(key, row);
   }
   const docsByEmail = new Map<string, DocRowLite[]>();
@@ -208,7 +215,7 @@ export async function runRetention(
       report.excluded[excluded].plans += 1;
       continue;
     }
-    ownerAccess.set(email, { docsDeletedAt: plan.deletedAt, accessEndedAt: annualEndedAt(plan, now) });
+    ownerAccess.set(email, { docsDeletedAt: plan.deletedAt, accessEndedAt: ownerAccessEnd(plan, now) });
     const decision = decideDoc(plan, now);
     if (decision.action === "keep" || !decision.category) continue;
     if (decision.action === "notice30" || decision.action === "notice7") {
@@ -240,7 +247,7 @@ export async function runRetention(
     if (decision.category === "option1") report.candidates.docsOption1 += 1;
     else report.candidates.docsAnnual += 1;
     // Für Einladungen/Protokoll: Löschung gilt ab jetzt (auch im Trockenlauf für die Zählung).
-    ownerAccess.set(email, { docsDeletedAt: now.toISOString(), accessEndedAt: annualEndedAt(plan, now) });
+    ownerAccess.set(email, { docsDeletedAt: now.toISOString(), accessEndedAt: ownerAccessEnd(plan, now) });
     if (!execute) continue;
     try {
       await io.deleteDocs(plan, docsByEmail.get(email) ?? []);
@@ -248,7 +255,7 @@ export async function runRetention(
       report.done.docsDeleted += 1;
     } catch {
       report.done.errors += 1;
-      ownerAccess.set(email, { docsDeletedAt: plan.deletedAt, accessEndedAt: annualEndedAt(plan, now) });
+      ownerAccess.set(email, { docsDeletedAt: plan.deletedAt, accessEndedAt: ownerAccessEnd(plan, now) });
     }
   }
 

@@ -67,7 +67,7 @@ export function SuccessAccessNote({ compAccess }: { compAccess: boolean }) {
     return (
       <p className="hint">
         Die Rechnung weist die Nettopreise zuzüglich 19&nbsp;% Umsatzsteuer aus:
-        Einstieg {netWithGrossCents(V2_ENTRY_CENTS)}, mit Jahresmitgliedschaft
+        Einstieg {netWithGrossCents(V2_ENTRY_CENTS)}, mit Jahrespaket
         zusätzlich {netWithGrossCents(V2_MEMBER_YEAR_CENTS)} für das erste Jahr.
       </p>
     );

@@ -35,7 +35,8 @@ export function netWithGross(netEur: number): string {
  * Digistore24 unverändert. Beträge in Cent, weil 99,90 € keine ganze Zahl ist.
  */
 export const V2_ENTRY_CENTS = 9900;
-export const V2_MEMBER_YEAR_CENTS = 9990;
+/** Neues Modell (28.10.): Jahrespaket 49 €/Jahr (vorher 99,90 €). Gleicher Wert wie V3_YEAR_CENTS. */
+export const V2_MEMBER_YEAR_CENTS = 4900;
 export const V2_CHANGE_CENTS = 4900;
 
 /** Brutto in Cent aus Netto in Cent: 9990 → 11888. */
@@ -90,3 +91,20 @@ export const KANZLEI_MONTHLY_GROSS_LABEL = grossEuroLabel(KANZLEI_MONTHLY_EUR);
 /** KANZLEI-PILOT: Monatsbeitrag des Mandanten-Abos nach den zwei freien Monaten (altes Modell). */
 export const KANZLEI_PILOT_MONTHLY_EUR = 49;
 export const KANZLEI_PILOT_MONTHLY_GROSS_LABEL = grossEuroLabel(KANZLEI_PILOT_MONTHLY_EUR);
+
+/*
+ * Neues Preismodell (Philip 28.10.2026, netto zzgl. 19 % USt), ersetzt v2
+ * vom 26.10. unter PRICING_MODEL=v2. Option 1: 99 € einmalig je Firma, 30
+ * Tage Zugang. Option 2 („Bestseller“): 99 € + 49 €/Jahr. Kein 99,90-€-Jahr,
+ * keine 49-€-Einzeländerung, keine Firmen-Rabatte mehr (Konstanten oben
+ * bleiben nur für Altbestand/Checks).
+ */
+export const V3_ENTRY_CENTS = 9900;
+export const V3_YEAR_CENTS = 4900;
+export const V3_ENTRY_WITH_YEAR_CENTS = V3_ENTRY_CENTS + V3_YEAR_CENTS;
+export const V3_ENTRY_LABEL = centsLabel(V3_ENTRY_CENTS);
+export const V3_YEAR_LABEL = centsLabel(V3_YEAR_CENTS);
+export const V3_ENTRY_GROSS_LABEL = centsLabel(grossFromNetCents(V3_ENTRY_CENTS), { forceDecimals: true });
+export const V3_YEAR_GROSS_LABEL = centsLabel(grossFromNetCents(V3_YEAR_CENTS), { forceDecimals: true });
+export const V3_ENTRY_WITH_YEAR_LABEL = centsLabel(V3_ENTRY_WITH_YEAR_CENTS);
+export const V3_ENTRY_WITH_YEAR_GROSS_LABEL = centsLabel(grossFromNetCents(V3_ENTRY_WITH_YEAR_CENTS), { forceDecimals: true });

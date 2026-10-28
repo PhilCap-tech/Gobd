@@ -8,7 +8,9 @@ export type PricingModel = "legacy" | "v2";
 
 /** `v2` nur bei genau diesem Wert. Alles andere ist das bisherige Modell. */
 export function pricingModel(): PricingModel {
-  return process.env.PRICING_MODEL?.trim().toLowerCase() === "v2" ? "v2" : "legacy";
+  // Neues Modell (Philip 28.10.) ersetzt v2 vom 26.10. unter demselben Wert; `v3` ist ein Alias.
+  const raw = process.env.PRICING_MODEL?.trim().toLowerCase();
+  return raw === "v2" || raw === "v3" ? "v2" : "legacy";
 }
 
 export function isPricingV2(): boolean {
@@ -119,6 +121,8 @@ export function isStripeV2Configured(): boolean {
  * bisher, weitere Firmen werden vorerst manuell berechnet.
  */
 export function extraFirmsEnabled(): boolean {
+  // Neues Modell (28.10.): jede weitere Firma ist ein eigener voller Kauf; der Firmen-Pfad bleibt aus.
+  if (isPricingV2()) return false;
   return planAccessEnabled() && process.env.PRICING_EXTRA_FIRMS_ENABLED?.trim().toLowerCase() === "true";
 }
 
@@ -171,4 +175,39 @@ export function retentionDryRunEnabled(): boolean {
  */
 export function retentionExecuteEnabled(): boolean {
   return boolEnv("RETENTION_EXECUTE_ENABLED", false);
+}
+
+/* ---------- Neues Preismodell (Philip 28.10.), ersetzt v2 vom 26.10. ---------- */
+
+/** Option 1: Zugang ab Kauf in Tagen. Ab Kauf + 30 Tage (genau) ist alles gesperrt, auch der Download. */
+export const PLAN_ACCESS_DAYS = 30;
+/** Hinweis-Mail mit Angebot Jahrespaket: so viele Tage vor dem Zugangsende. */
+export const PLAN_ADDON_NOTICE_DAYS_BEFORE = 7;
+
+/** Stripe Lookup Keys (Platzhalter, es gibt noch keine Stripe-Objekte). */
+export const PLAN_LOOKUP_KEY_ENTRY = "entry_v3";
+export const PLAN_LOOKUP_KEY_YEAR = "year_v3";
+/** Einmalposten 49 € fürs erste Jahr beim nachgebuchten Jahrespaket (Jahr ab Erstkauf). */
+export const PLAN_LOOKUP_KEY_ADDON_YEAR = "addon_year_v3";
+
+/**
+ * Preis-IDs neues Modell aus der Umgebung. Einstieg 99 € einmalig:
+ * STRIPE_PRICE_ENTRY_ID. Jahrespaket 49 €/Jahr: STRIPE_PRICE_YEAR_ID (bewusst
+ * nicht STRIPE_PRICE_MEMBER_YEAR_ID, damit kein alter 99,90-€-Preis greift).
+ */
+export function v3PriceIds(): { entry: string; year: string } {
+  return {
+    entry: process.env.STRIPE_PRICE_ENTRY_ID?.trim() ?? "",
+    year: process.env.STRIPE_PRICE_YEAR_ID?.trim() ?? "",
+  };
+}
+
+/** 7-Tage-Hinweis-Mail (Cron) wirklich versenden. Default AUS: der Lauf wählt nur aus. */
+export function addonNoticeEnabled(): boolean {
+  return boolEnv("PLAN_ADDON_NOTICE_ENABLED", false);
+}
+
+/** Phase 2: Login vor dem Fragebogen, Paketwahl und Zahlung danach. Default AUS. */
+export function intakeLoginFirstEnabled(): boolean {
+  return boolEnv("INTAKE_LOGIN_FIRST_ENABLED", false);
 }

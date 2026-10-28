@@ -1,7 +1,10 @@
 "use client";
 
 import {
-  PLAN_CHANGE_PRICE_LINE,
+  PLAN_BESTSELLER_LABEL,
+  PLAN_ENTRY_SELECTED_HINT,
+  PLAN_PACKAGES_FOOTER,
+  PLAN_OFFER_OBJECTION_NOTICE,
   PLAN_ENTRY_PRICE_LINE,
   PLAN_ENTRY_WITH_MEMBER_TOTAL,
   PLAN_MEMBER_PRICE_LINE,
@@ -53,7 +56,8 @@ export function PlanPackageSelect({
             onChange={() => onChange("mitglied")}
           />
           <span>
-            <strong>{PLAN_PACKAGE_MEMBER_TITLE}</strong>
+            <strong>{PLAN_PACKAGE_MEMBER_TITLE}</strong>{" "}
+            <span className="badge">{PLAN_BESTSELLER_LABEL}</span>
             <br />
             {PLAN_ENTRY_PRICE_LINE} + {PLAN_MEMBER_PRICE_LINE}
             <br />
@@ -61,6 +65,9 @@ export function PlanPackageSelect({
           </span>
         </label>
       </div>
+      {value === "einstieg" ? <p className="hint">{PLAN_ENTRY_SELECTED_HINT}</p> : null}
+      <p className="hint">{PLAN_PACKAGES_FOOTER}</p>
+      <p className="hint">{PLAN_OFFER_OBJECTION_NOTICE}</p>
     </fieldset>
   );
 }
@@ -75,7 +82,7 @@ export function PlanCheckoutSummary({ paket }: { paket: PlanPackage }) {
       </div>
       {member ? (
         <div className="line">
-          <span>Jahresmitgliedschaft, 1. Jahr</span>
+          <span>Jahrespaket, 1. Jahr</span>
           <strong>{PLAN_MEMBER_PRICE_LINE}</strong>
         </div>
       ) : null}
@@ -85,8 +92,8 @@ export function PlanCheckoutSummary({ paket }: { paket: PlanPackage }) {
       </div>
       <p className="hint">
         {member
-          ? "Die Mitgliedschaft verlängert sich jährlich. Kündigung bis 3 Monate vor Ablauf."
-          : `Spätere Änderungen innerhalb der Frist: ${PLAN_CHANGE_PRICE_LINE}.`}
+          ? "[TODO-LEGAL] Das Jahrespaket verlängert sich jährlich (Kündigungsregel folgt)."
+          : "[TODO-LEGAL] 30 Tage Zugang ab Kauf. Innerhalb dieser Zeit können Sie das Jahrespaket nachbuchen."}
       </p>
     </>
   );

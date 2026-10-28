@@ -44,6 +44,8 @@ async function main() {
       purchasedAt: PURCHASE,
       retentionUntil: DUE,
       agbAcceptedAt: PURCHASE,
+      pricingModel: "v3",
+      accessUntil: "2026-12-10T10:00:00.000Z",
       processedSessions: "cs_new_1",
       ...extra,
     };
@@ -114,6 +116,9 @@ async function main() {
     });
     assert.equal(decision.decideDoc(reactivated, at(DUE, 1)).action, "keep");
     assert.equal(decision.docDeadline(reactivated, at(DUE, 1))?.dueAt, "2028-10-01T10:00:00.000Z");
+    const viaField = single("re3@firma-neu.de", { reactivatedAt: "2027-09-01T10:00:00.000Z" });
+    assert.equal(decision.decideDoc(viaField, at(DUE, 1)).action, "keep");
+    assert.equal(decision.docDeadline(viaField, at(DUE, 1))?.dueAt, "2028-09-01T10:00:00.000Z");
     const member = single("re2@firma-neu.de", { plan: "member", memberStatus: "active" });
     assert.equal(decision.decideDoc(member, at(DUE, 1000)).action, "keep");
   });
@@ -162,6 +167,8 @@ async function main() {
     assert.equal(guards.exclusionFor({ emails: ["k@firma-neu.de"], ds24: false, legacy: false, marker: true }), null);
     assert.equal(guards.hasNewModelMarker(""), false);
     assert.equal(guards.hasNewModelMarker("legacy"), false);
+    assert.equal(guards.hasNewModelMarker("v2"), false);
+    assert.equal(guards.hasNewModelMarker("v3"), true);
   });
 
   /* ---------- Lauf mit synthetischer IO ---------- */
@@ -221,7 +228,7 @@ async function main() {
     n7done(single("winkler@winkler-segtrop.de")),
     n7done(single("ds24kunde@firma-alt.de")),
     n7done(single("altkunde@firma-alt.de")),
-    n7done(single("ohnemarker@firma-neu.de", { agbAcceptedAt: "" })),
+    n7done(single("ohnemarker@firma-neu.de", { pricingModel: "" })),
   ];
   const excludedDocs = [{ email: "altkunde@firma-alt.de", stripeSessionId: "cs_legacy_149", documentId: "d1", entityId: "" }];
   const excludedDrafts = [

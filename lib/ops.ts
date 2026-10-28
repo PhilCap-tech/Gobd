@@ -98,7 +98,7 @@ export const REFERRAL_AFTER_DELIVERY_URL =
   "https://www.gobd-doku-erstellen.de/?utm_source=referral&utm_medium=email&utm_campaign=post_delivery";
 /** One price line. The delivery mail includes this at most once. */
 export const REFERRAL_MICRO = isPricingV2()
-  ? `${netWithGrossCents(V2_ENTRY_CENTS)} einmalig, optional Jahresmitgliedschaft ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr, zzgl. 19 % USt · 14 Tage Geld zurück, solange noch kein PDF erzeugt wurde · Keine Steuerberatung`
+  ? `${netWithGrossCents(V2_ENTRY_CENTS)} einmalig, optional Jahrespaket ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr, zzgl. 19 % USt · Keine Steuerberatung`
   : `${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt · 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung`;
 
 /** Closes every customer mail, including the partner pilot. */

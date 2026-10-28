@@ -143,7 +143,9 @@ async function main() {
     assert.equal(pricing.netWithGrossCents(9900), "99 € netto (117,81 € brutto)");
     assert.equal(pricing.netWithGrossCents(9990), "99,90 € netto (118,88 € brutto)");
     assert.equal(pricing.netWithGrossCents(4900), "49 € netto (58,31 € brutto)");
-    assert.equal(pricing.V2_ENTRY_WITH_MEMBER_CENTS, 19890);
+    // Neues Modell (28.10.): Jahrespaket 49 €, im ersten Jahr 148 €.
+    assert.equal(pricing.V2_ENTRY_WITH_MEMBER_CENTS, 14800);
+    assert.equal(pricing.V3_ENTRY_WITH_YEAR_CENTS, 14800);
     assert.equal(pricing.netWithGross(99.9), "99,90 € netto (118,88 € brutto)");
   });
 
@@ -157,16 +159,16 @@ async function main() {
     assert.equal(plan.retentionAfterChange("2027-11-02T10:00:00.000Z", "2027-06-01T00:00:00.000Z"), "2028-06-01T00:00:00.000Z");
     assert.equal(plan.retentionAfterChange("2029-01-01T00:00:00.000Z", "2027-06-01T00:00:00.000Z"), "2029-01-01T00:00:00.000Z");
   });
-  await check("Zugang: Frist offen, neue Version nur mit Guthaben", () => {
+  await check("Zugang (neues Modell): Altzeile nach Frist offen, danach alles gesperrt inkl. Download", () => {
     const now = new Date("2027-03-01T00:00:00.000Z");
     const open = row({ purchasedAt: "2026-11-02T10:00:00.000Z", retentionUntil: "2027-11-02T10:00:00.000Z" });
     assert.equal(plan.planAccess(open, now).writesOpen, true);
-    assert.equal(plan.planAccess(open, now).newVersionAllowed, false);
-    assert.equal(plan.planAccess({ ...open, changeCredits: 1 }, now).newVersionAllowed, true);
+    assert.equal(plan.planAccess(open, now).newVersionAllowed, true, "keine 49-€-Änderung mehr");
     const expired = plan.planAccess(open, new Date("2027-11-03T00:00:00.000Z"));
     assert.equal(expired.state, "expired");
     assert.equal(expired.writesOpen, false);
-    assert.equal(expired.downloadsOpen, true);
+    assert.equal(expired.downloadsOpen, false);
+    assert.equal(expired.canReactivate, true);
   });
 
   /* ---------- Stichtag R4 ---------- */
@@ -309,7 +311,9 @@ async function main() {
     const v2Branch = page.slice(page.indexOf("{v2 ? ("), page.indexOf(") : partner ? ("));
     assert.ok(v2Branch.length > 0, "v2-Zweig gefunden");
     assert.ok(!/149|MONTHLY_EUR|Einrichtung/.test(v2Branch), "kein alter Listenpreis");
-    assert.ok(v2Branch.includes("Listenpreis: Einstieg 99 € netto (117,81 € brutto) einmalig, optional Mitgliedschaft 99,90 € netto (118,88 € brutto) pro Jahr."), "Wortlaut Legal Z. 96–99");
+    // Neues Modell (28.10.): Listenpreis aus den Konstanten (99 € einmalig, optional Jahrespaket 49 €/Jahr).
+    assert.ok(v2Branch.includes("`Listenpreis: ${PLAN_ENTRY_PRICE_LINE}, optional Jahrespaket ${PLAN_MEMBER_PRICE_LINE}."), "Listenpreis neues Modell");
+    assert.ok(!v2Branch.includes("99,90"), "kein 99,90 € mehr");
     assert.ok(!v2Branch.includes("SETUP_EUR"), "keine Einrichtungsgebühr");
   });
 
@@ -442,7 +446,10 @@ async function main() {
   });
 
   await check("Plans-Zeile: agb_accepted_at als letzte Spalte, Altzeilen leer, Einstieg setzt den Zeitpunkt", () => {
-    const cols = [...plan.PLAN_SHEET_COLUMNS];
+    // Neues Modell (28.10.): vier weitere Spalten nur am Ende angehängt.
+    const all = [...plan.PLAN_SHEET_COLUMNS];
+    assert.deepEqual(all.slice(-4), ["access_until", "pricing_model", "reactivated_at", "offer_opt_out_at"]);
+    const cols = all.slice(0, -4);
     assert.equal(cols.at(-1), "agb_accepted_at", "neue Spalte nur am Ende");
     assert.equal(cols.at(-2), "member_cancel_received_at", "bisherige Reihenfolge unverändert");
     const oldHeader = cols.slice(0, -1);
@@ -455,8 +462,9 @@ async function main() {
     const at = "2026-11-02T10:00:00.000Z";
     const entry = webhook.planAfterCheckout(null, { kind: "entry", member: true, email: "k@example.com", at, sessionId: "cs_1", eventId: "evt_1", customerId: "cus_1", subscriptionId: "sub_1", agbAcceptedAt: at });
     assert.equal(entry?.agbAcceptedAt, at);
-    const values = store.planSheetValues(entry!);
-    assert.equal(values.at(-1), at, "Wert landet in der letzten Spalte");
+    const values = store.planSheetValues(entry!, cols);
+    assert.equal(values.at(-1), at, "Wert landet in der letzten (alten) Spalte");
+    assert.equal(entry?.pricingModel, "v3", "Modell-Marker neues Modell");
     assert.equal(store.planRowFromSheet(cols, values)?.agbAcceptedAt, at, "Rundlauf");
     const change = webhook.planAfterCheckout(entry, { kind: "change", member: false, email: "k@example.com", at: "2026-12-01T10:00:00.000Z", sessionId: "cs_2", eventId: "evt_2", customerId: "cus_1", subscriptionId: "" });
     assert.equal(change?.agbAcceptedAt, at, "Änderung behält den Zeitpunkt");

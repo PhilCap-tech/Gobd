@@ -74,6 +74,10 @@ export function coercePlanRow(value: unknown): PlanRow | null {
     memberCancelChannel: str(row.memberCancelChannel),
     memberCancelReceivedAt: str(row.memberCancelReceivedAt),
     agbAcceptedAt: str(row.agbAcceptedAt),
+    accessUntil: str(row.accessUntil),
+    pricingModel: str(row.pricingModel),
+    reactivatedAt: str(row.reactivatedAt),
+    offerOptOutAt: str(row.offerOptOutAt),
     notice30At: str(row.notice30At),
     notice7At: str(row.notice7At),
     deletedAt: str(row.deletedAt),
@@ -111,6 +115,10 @@ const FIELD_BY_COLUMN: Record<(typeof PLAN_SHEET_COLUMNS)[number], keyof PlanRow
   member_cancel_channel: "memberCancelChannel",
   member_cancel_received_at: "memberCancelReceivedAt",
   agb_accepted_at: "agbAcceptedAt",
+  access_until: "accessUntil",
+  pricing_model: "pricingModel",
+  reactivated_at: "reactivatedAt",
+  offer_opt_out_at: "offerOptOutAt",
 };
 
 export function planRowFromSheet(header: string[], values: string[]): PlanRow | null {

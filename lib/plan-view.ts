@@ -14,7 +14,14 @@ import {
   type RefundStatus,
 } from "@/lib/plan";
 import { loadPlanAccess } from "@/lib/plan-access";
-import { PLAN_PACKAGE_ENTRY_TITLE } from "@/lib/plan-copy";
+import {
+  PLAN_PACKAGE_ENTRY_TITLE,
+  PLAN_REACTIVATE_PRICE_LINE,
+  PLAN_REACTIVATE_SMALL,
+  PLAN_REACTIVATE_TEXT_2,
+  PLAN_REACTIVATE_TITLE,
+  planReactivateText,
+} from "@/lib/plan-copy";
 import { planLifecycleEnabled } from "@/lib/pricing-model";
 
 export type AccountPlanView = {
@@ -37,6 +44,12 @@ export type AccountPlanView = {
   simple?: boolean;
   /** Schlichter Hinweis, Mitglied mit Abo: Knopf zum Stripe-Kundenportal. */
   portalCancel?: boolean;
+  /** Neues Modell: Zugangsende (Option 1) als Datum, leer bei Jahrespaket. */
+  accessUntil?: string;
+  /** Neues Modell: Jahrespaket nachbuchen (innerhalb der 30 Tage). */
+  canAddon?: boolean;
+  /** Neues Modell: Konto deaktiviert (nach Tag 30), Reaktivierung anbieten. */
+  deactivated?: boolean;
 };
 
 const TITLES: Record<PlanAccess["state"], string> = {
@@ -101,12 +114,36 @@ export function accountPlanView(
  * bei laufender Mitgliedschaft der Weg ins Stripe-Kundenportal. Keine Daten,
  * Fristen oder Kaufknöpfe; der Zugang hängt nicht vom Plan ab.
  */
-export function simpleAccountPlanView(row: PlanRow, access: PlanAccess): AccountPlanView {
+export function simpleAccountPlanView(row: PlanRow, access: PlanAccess, company?: string): AccountPlanView {
   const member = row.plan === "member" || Boolean(row.memberSubscriptionId);
+  // Neues Modell (28.10.): Zugangsende sichtbar, nach Ablauf „Konto deaktiviert“.
+  const deactivated = access.canReactivate;
+  const accessUntil = access.state === "window" && row.accessUntil ? row.accessUntil : "";
+  const lines: string[] = [];
+  if (accessUntil) lines.push(`Zugang bis ${formatBerlinDate(accessUntil)}.`);
+  if (deactivated) {
+    const ended = row.memberEndedAt || row.accessUntil || row.retentionUntil;
+    lines.push(
+      planReactivateText({ company: company ?? "", date: ended ? formatBerlinDate(ended) : "" }),
+      PLAN_REACTIVATE_TEXT_2,
+      PLAN_REACTIVATE_PRICE_LINE,
+      PLAN_REACTIVATE_SMALL,
+    );
+  }
+  else if (access.state === "refunded" || access.state === "deleted") lines.push(access.writeMessage);
   return {
     state: access.state,
-    title: member ? TITLES.member : PLAN_PACKAGE_ENTRY_TITLE,
-    lines: [],
+    title: deactivated
+      ? PLAN_REACTIVATE_TITLE
+      : access.state === "member"
+        ? "Jahrespaket"
+        : member && access.state !== "window"
+          ? TITLES[access.state]
+          : `Paket „${PLAN_PACKAGE_ENTRY_TITLE}“`,
+    lines,
+    accessUntil,
+    canAddon: access.canBecomeMember,
+    deactivated,
     canBuyChange: false,
     canBecomeMember: false,
     canCancel: false,
@@ -123,11 +160,12 @@ export function simpleAccountPlanView(row: PlanRow, access: PlanAccess): Account
 export async function loadAccountPlanView(
   email: string,
   documents: readonly { pdfUrl?: string; timestamp?: string }[],
+  company?: string,
 ): Promise<AccountPlanView | null> {
   try {
     const loaded = await loadPlanAccess(email);
     if (!loaded) return null;
-    if (!planLifecycleEnabled()) return simpleAccountPlanView(loaded.row, loaded.access);
+    if (!planLifecycleEnabled()) return simpleAccountPlanView(loaded.row, loaded.access, company);
     return accountPlanView(loaded.row, loaded.access, documents);
   } catch (error) {
     console.error("[account] Plan nicht gelesen", error instanceof Error ? error.name : "error");

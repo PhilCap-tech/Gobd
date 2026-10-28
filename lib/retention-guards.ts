@@ -13,8 +13,8 @@ import { isOwnerNoticeTestEmail } from "@/lib/owner-notice";
 import { PILOT_PAYMENT_FAILED_EXEMPT_EMAILS } from "@/lib/pilot-exemptions";
 import { isTestEntity } from "@/lib/test-entities";
 
-/** Werte der Modell-Markierung, die der neue Flow schreibt (Code-Name `v2` = Angebot v3). */
-export const RETENTION_MODEL_MARKERS = ["v3", "v2"] as const;
+/** Wert der Modell-Markierung, den der neue Flow schreibt (`PlanRow.pricingModel`, Entwurf `pricingModel`). Nur exakt dieser. */
+export const RETENTION_MODEL_MARKERS = ["v3"] as const;
 
 /** Testdomains (exakt oder Subdomain). Ergänzt die Listen aus admin-wipe, ampel-stats, owner-notice. */
 export const RETENTION_TEST_DOMAINS = [

@@ -90,6 +90,10 @@ function branchenNoindexHeaders() {
 }
 
 const nextConfig: NextConfig = {
+  // Neues Preismodell: Client-Komponenten (Hinweis je Frage) sehen nur, ob es aktiv ist. Kein Secret.
+  env: {
+    GOBD_PRICING_NEW_MODEL: ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase()) ? "1" : "",
+  },
   // The black “N” badge is the Next.js dev route indicator (dev hot-reloader
   // only). Production builds do not ship it; this also hides it in `next dev`.
   devIndicators: false,

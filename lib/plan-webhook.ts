@@ -19,6 +19,7 @@ import {
   PLAN_METADATA_AGB_ACCEPTED_AT,
   PLAN_METADATA_FIRM,
   PLAN_METADATA_KIND,
+  PLAN_METADATA_OFFER_OPTOUT,
   PLAN_METADATA_PLAN,
   type PlanCheckoutKind,
 } from "@/lib/plan-checkout";
@@ -40,7 +41,10 @@ type Metadata = Record<string, string> | null | undefined;
 /** v2-Art aus Session-Metadaten, sonst `null` (alter Checkout). */
 export function planKindFromMetadata(metadata: Metadata): PlanCheckoutKind | null {
   const kind = metadata?.[PLAN_METADATA_KIND];
-  return kind === "entry" || kind === "change" || kind === "member" || kind === "firm" ? kind : null;
+  return kind === "entry" || kind === "change" || kind === "member" || kind === "firm" || kind === "addon" ||
+    kind === "reactivate"
+    ? kind
+    : null;
 }
 
 /** Jahresplan-Abo (v2). Alte Monatsabos haben dieses Merkmal nicht. */
@@ -68,10 +72,22 @@ export function planAfterCheckout(
     memberFirm?: boolean;
     /** Einstieg: AGB-Bestätigung aus den Session-Metadaten. */
     agbAcceptedAt?: string;
+    /** Widerspruch gegen Angebots-Mails (Checkout-Häkchen). */
+    offerOptOut?: boolean;
   },
 ): PlanRow | null {
   if (input.kind === "entry") {
     return applyEntryPurchase(previous, input);
+  }
+  // Neues Modell: Reaktivierung = neuer Kauf mit Jahrespaket, Zugang wieder offen (auch ohne Zeile).
+  if (input.kind === "reactivate") {
+    if (previous && previous.processedSessions.split(",").includes(input.sessionId)) return previous;
+    return { ...applyEntryPurchase(previous, { ...input, member: true }), reactivatedAt: input.at };
+  }
+  // Jahrespaket nachgebucht: dauerhaft (solange das Abo läuft), Jahr ab Erstkauf.
+  if (input.kind === "addon") {
+    if (!previous || previous.deletedAt) return null;
+    return applyMemberPurchase(previous, input);
   }
   // Änderung, Mitgliedschaft und weitere Firma setzen einen bestehenden Plan voraus.
   if (!previous || previous.deletedAt) return null;
@@ -196,6 +212,7 @@ export async function recordPlanCheckout(input: {
     subscriptionId,
     memberFirm,
     agbAcceptedAt: input.session.metadata?.[PLAN_METADATA_AGB_ACCEPTED_AT] ?? "",
+    offerOptOut: input.session.metadata?.[PLAN_METADATA_OFFER_OPTOUT] === "1",
   });
   if (next && next !== previous && firmsOn && input.setMemberFirmQuantity) {
     const quantity = memberFirmQuantityAfter(next, firms, input.kind);
