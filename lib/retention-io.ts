@@ -13,21 +13,19 @@ import {
 import { accountRecordFromUnknown, collectAccountScope, type AccountRecord } from "@/lib/admin-wipe";
 import { listAllAuditStored, replaceAuditEventForRetention } from "@/lib/audit-store";
 import { ds24AccessStore } from "@/lib/digistore24-access";
-import { clearIntakeDraft } from "@/lib/intake-draft";
+import { clearIntakeDraft, saveIntakeDraft } from "@/lib/intake-draft";
 import type { IntakeDraft } from "@/lib/intake-draft-shared";
 import { logError } from "@/lib/log-error";
 import { sendDedupedEmail } from "@/lib/mail-dedupe";
 import { listMemberships, replaceMembership } from "@/lib/membership-store";
 import { deleteDraftIndexForRetention, forgetOpenDraft } from "@/lib/open-drafts";
-import { listPlanRowsStrict, savePlanRow } from "@/lib/plan-store";
-import { buildRetentionNoticeMail, retentionNoticeMailKey } from "@/lib/retention-mail";
-import { redactedEmailFor, type DraftRecord, type RetentionIo } from "@/lib/retention-run";
+import { blankPlanRowForRetention, listPlanRowsStrict, savePlanRow } from "@/lib/plan-store";
+import { buildDraftNoticeMail, buildRetentionNoticeMail, retentionNoticeMailKey } from "@/lib/retention-mail";
+import type { DraftRecord, RetentionIo } from "@/lib/retention-run";
 import { readStoredIntakeRows, redactDocumentRowsForRetention } from "@/lib/store";
 
 /** Höchstens so viele Entwürfe je Lauf lesen (Laufzeit/Quote). Rest am nächsten Tag. */
 export const RETENTION_DRAFT_READ_LIMIT = 400;
-
-const SITE_URL = "https://gobd-doku-erstellen.de";
 
 function blobToken(): string {
   return process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? "";
@@ -54,6 +52,9 @@ export function defaultRetentionIo(): RetentionIo {
         stripeSessionId: row.stripeSessionId,
         documentId: row.documentId,
         entityId: row.entityId,
+        status: row.status,
+        company: row.company,
+        deletedAt: row.changeSummary.startsWith("geloescht:") ? row.changeSummary.slice("geloescht:".length) : "",
       }));
     },
     async listDrafts() {
@@ -107,9 +108,29 @@ export function defaultRetentionIo(): RetentionIo {
       await commitBlobWipe(blob.uploads);
       if (blob.drafts.error || blob.documents.error || blob.uploads.error) throw new Error("blob_delete_failed");
       await deleteDraftIndexForRetention(email);
-      await redactDocumentRowsForRetention(email, redactedEmailFor(email));
+      await redactDocumentRowsForRetention(email, new Date().toISOString());
+    },
+    async sendDraftNotice(input) {
+      try {
+        const result = await sendDedupedEmail({
+          dedupeKey: retentionNoticeMailKey("a7", input.email, `${input.draftKey}:${input.updatedAt}`),
+          to: input.email,
+          replyTo: "info@gobd-doku-erstellen.de",
+          ...buildDraftNoticeMail({ deleteAt: input.deleteAt, updatedAt: input.updatedAt, company: input.company }),
+        });
+        if (result.duplicate) return "duplicate";
+        return result.sent ? "sent" : "failed";
+      } catch (error) {
+        logError("[retention] Entwurfs-Hinweis fehlgeschlagen", error);
+        return "failed";
+      }
+    },
+    async markDraftNotice(record, at) {
+      if (!record.draft) return;
+      await saveIntakeDraft({ ...record.draft, retentionNotice7At: at } as typeof record.draft);
     },
     savePlan: (row) => savePlanRow(row),
+    blankPlan: (row, deletedAt) => blankPlanRowForRetention(row.email, deletedAt),
     async redactMembership(row) {
       const saved = await replaceMembership(row);
       if (!saved) throw new Error("membership_missing");
@@ -123,12 +144,15 @@ export function defaultRetentionIo(): RetentionIo {
         stage: input.stage,
         deleteAt: input.deleteAt,
         category: input.category,
-        siteUrl: SITE_URL,
+        company: input.company,
+        optedOut: input.optedOut,
+        annualEndedAt: input.annualEndedAt,
       });
       try {
         const result = await sendDedupedEmail({
           dedupeKey: retentionNoticeMailKey(input.stage, input.email, input.dueAt),
           to: input.email,
+          replyTo: "info@gobd-doku-erstellen.de",
           ...mail,
         });
         if (result.duplicate) return "duplicate";

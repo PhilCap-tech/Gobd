@@ -31,9 +31,6 @@ export const RETENTION_TEST_DOMAINS = [
 /** Philips Adressen (zusätzlich zu den Domains oben). */
 export const RETENTION_TEST_EMAILS = ["cappe@gmx.de", "philip.cappelletti@sdc-ventures.com"] as const;
 
-/** Platzhalter, mit dem der Löschlauf Sheet-Zeilen markiert (keine echte Domain). */
-export const RETENTION_REDACTED_DOMAIN = "loeschlauf.invalid";
-
 export type ExclusionGroup = "test" | "comp" | "ds24" | "legacy" | "marker";
 export const EXCLUSION_GROUPS: readonly ExclusionGroup[] = ["test", "comp", "ds24", "legacy", "marker"];
 
@@ -50,7 +47,6 @@ export function isRetentionTestEmail(email: string | null | undefined): boolean 
   if (WIPE_EMAIL_ALLOWLIST.some((item) => item.toLowerCase() === value)) return true;
   if (value === norm(CHECKOUT_NOTICE_TO)) return true;
   if (domain && RETENTION_TEST_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) return true;
-  if (domain === RETENTION_REDACTED_DOMAIN) return true;
   return isAmpelTestEmail(value) || isOwnerNoticeTestEmail(value);
 }
 

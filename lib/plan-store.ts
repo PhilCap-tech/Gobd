@@ -337,3 +337,55 @@ export async function savePlanRow(row: PlanRow): Promise<void> {
   }
   await writeFileRow(stored);
 }
+
+/**
+ * Löschlauf v3: Plan-Zeile in place leeren. Die E-Mail wird vollständig
+ * entfernt (Legal 28.10.); es bleiben nur technische IDs (Stripe-Kunde/-Abo,
+ * Sessions, Event), Modell, Status und Daten inkl. `deletedAt`. Leser verwerfen
+ * Zeilen ohne E-Mail (coercePlanRow), d. h. die Zeile ist danach für Zugang
+ * und Löschlauf unsichtbar (idempotent). Tests: Hook statt Store.
+ */
+let blankOverride: ((email: string, deletedAt: string) => Promise<void>) | null = null;
+export function setPlanBlankForTests(hook: ((email: string, deletedAt: string) => Promise<void>) | null): void {
+  blankOverride = hook;
+}
+
+export function blankedPlanValues(row: PlanRow, deletedAt: string, header: readonly string[]): string[] {
+  return planSheetValues({ ...row, email: "", deletedAt, updatedAt: deletedAt }, header);
+}
+
+export async function blankPlanRowForRetention(email: string, deletedAt: string): Promise<void> {
+  const needle = email.trim().toLowerCase();
+  if (!needle || !Number.isFinite(Date.parse(deletedAt))) throw new Error("Plan-Zeile: Angaben fehlen");
+  if (blankOverride) return blankOverride(needle, deletedAt);
+  if (isSheetsConfigured()) {
+    const header = await ensureHeader();
+    const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+    const id = spreadsheetId();
+    const tab = getPlansSheetsTab();
+    const result = await sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${tab}!A2:AZ` });
+    const values = result.data.values ?? [];
+    const data: Array<{ range: string; values: string[][] }> = [];
+    for (let index = 0; index < values.length; index += 1) {
+      const current = planRowFromSheet(header, (values[index] ?? []).map((value) => String(value ?? "")));
+      if (!current || !emailsEqual(current.email, needle)) continue;
+      data.push({ range: `${tab}!A${index + 2}`, values: [blankedPlanValues(current, deletedAt, header)] });
+    }
+    if (data.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: id,
+        requestBody: { valueInputOption: "RAW", data },
+      });
+    }
+    planValuesCache.clear();
+  }
+  for (const file of [...new Set([filePath(getFileFallbackDir()), tmpFilePath()])]) {
+    try {
+      const rows = await readJsonFile(file);
+      const next = rows.filter((row) => !emailsEqual(row.email, needle));
+      if (next.length !== rows.length) await writeFile(file, JSON.stringify(next, null, 2), "utf8");
+    } catch (error) {
+      if (!isFsUnavailable(error)) throw error;
+    }
+  }
+}

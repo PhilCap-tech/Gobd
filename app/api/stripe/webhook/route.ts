@@ -407,6 +407,7 @@ export async function POST(request: Request) {
           // Rechnung (Jahrespaket): belegt, ob die Zahlung zu einem v3-Kauf gehört.
           let sessionId = "";
           let subscriptionId = "";
+          let billingReason = "";
           const paymentIntentId = idFrom(charge.payment_intent);
           if (paymentIntentId) {
             try {
@@ -431,6 +432,8 @@ export async function POST(request: Request) {
                     ? (invoice as Stripe.Invoice).parent?.subscription_details?.subscription
                     : undefined;
                 subscriptionId = typeof sub === "string" ? sub : (sub?.id ?? "");
+                billingReason =
+                  invoice && typeof invoice === "object" ? ((invoice as Stripe.Invoice).billing_reason ?? "") : "";
               } catch (error) {
                 // Ohne Beleg keine Sperre (fail closed); Inhaber-Hinweis kommt trotzdem.
                 logError("[stripe-webhook] Rechnung zur Erstattung nicht lesbar", error);
@@ -442,6 +445,14 @@ export async function POST(request: Request) {
             email,
             sessionId,
             subscriptionId,
+            billingReason,
+            onFirstPurchaseRefunded: async (row, previous) => {
+              const { refundWasOption2, sendRefundMail } = await import("@/lib/refund-mail");
+              await sendRefundMail(row, {
+                option2: refundWasOption2(previous),
+                company: charge.metadata?.company ?? "",
+              });
+            },
             eventId: event.id,
             at: eventTimeIso(event.created),
             cancelSubscription: async (subscriptionId) => {

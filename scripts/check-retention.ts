@@ -5,7 +5,7 @@
  * Synthetisch: kein Netz, kein Blob, kein Sheet, kein Resend, kein Stripe.
  */
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 for (const name of [
@@ -33,6 +33,7 @@ async function main() {
   const http = await import("@/lib/retention-http");
   const mail = await import("@/lib/retention-mail");
   const dedupe = await import("@/lib/mail-dedupe");
+  const texts = await import("@/lib/retention-mail-texts");
 
   type PlanRow = import("@/lib/plan").PlanRow;
   const PURCHASE = "2026-11-10T10:00:00.000Z";
@@ -68,11 +69,22 @@ async function main() {
     assert.equal(model.retentionExecuteEnabled(), false);
   });
 
-  await check("Entwurf: Tag 29 behalten, Tag 30 und 31 löschen, bezahlt nie", () => {
+  await check("Fall a: Entwurf nur 7-Tage-Hinweis (kein 30), Löschung Tag 30 bzw. 7 Tage nach Hinweis", () => {
     const updatedAt = "2026-12-01T08:00:00.000Z";
-    assert.equal(decision.decideDraft({ updatedAt, paid: false }, at(updatedAt, 29)), "keep");
-    assert.equal(decision.decideDraft({ updatedAt, paid: false }, at(updatedAt, 30)), "delete");
-    assert.equal(decision.decideDraft({ updatedAt, paid: false }, at(updatedAt, 31)), "delete");
+    const seen = new Set<string>();
+    for (let day = 0; day <= 40; day += 1) seen.add(decision.decideDraft({ updatedAt, paid: false }, at(updatedAt, day)));
+    assert.deepEqual([...seen].sort(), ["keep", "notice7"], "ohne Hinweis nie löschen, nie 30-Tage-Hinweis");
+    assert.equal(decision.decideDraft({ updatedAt, paid: false }, at(updatedAt, 22)), "keep");
+    assert.equal(decision.decideDraft({ updatedAt, paid: false }, at(updatedAt, 23)), "notice7");
+    const noticed = { updatedAt, paid: false, notice7At: at(updatedAt, 23).toISOString() };
+    assert.equal(decision.decideDraft(noticed, at(updatedAt, 29)), "keep");
+    assert.equal(decision.decideDraft(noticed, at(updatedAt, 30)), "delete");
+    assert.equal(decision.decideDraft(noticed, at(updatedAt, 31)), "delete");
+    const late = { updatedAt, paid: false, notice7At: at(updatedAt, 28).toISOString() };
+    assert.equal(decision.decideDraft(late, at(updatedAt, 34)), "keep");
+    assert.equal(decision.decideDraft(late, at(updatedAt, 35)), "delete");
+    // Erneute Bearbeitung nach dem Hinweis: Hinweis ungültig, neu rechnen.
+    assert.equal(decision.decideDraft({ ...noticed, updatedAt: at(updatedAt, 25).toISOString() }, at(updatedAt, 30)), "keep");
     assert.equal(decision.decideDraft({ updatedAt, paid: true }, at(updatedAt, 400)), "keep");
     assert.equal(decision.decideDraft({ updatedAt: "", paid: false }, at(updatedAt, 400)), "keep");
   });
@@ -132,18 +144,17 @@ async function main() {
     assert.equal(decision.decideDoc(single("x@firma-neu.de", { refundedAt: END, deletedAt: END }), at(END, 999)).action, "keep");
   });
 
-  await check("Erstattet (v3): Löschung 30 Tage nach refundedAt (Tag 29/30/31), ohne Hinweis", () => {
+  await check("Fall d: Erstattung erster Kauf -> sofort fällig (nächster Lauf), keine 30/7-Hinweise", () => {
     assert.equal(decision.RETENTION_REFUND_NOTICE, false);
+    assert.equal(decision.REFUND_RETENTION_DAYS, 0);
     const refundedAt = "2026-11-20T12:00:00.000Z";
     for (const make of [single, annual]) {
       const row = make("erstattet@firma-neu.de", { refundedAt });
-      assert.equal(decision.decideDoc(row, at(refundedAt, 29)).action, "keep");
-      const due = decision.decideDoc(row, at(refundedAt, 30));
+      assert.equal(decision.decideDoc(row, new Date(Date.parse(refundedAt) - 1)).action, "keep");
+      const due = decision.decideDoc(row, new Date(refundedAt));
       assert.equal(due.action, "delete");
       assert.equal(due.category, "refunded");
-      assert.equal(decision.decideDoc(row, at(refundedAt, 31)).action, "delete");
-      // Mit Hinweis-Flag (Legal) gälten die 30/7-Tage-Hinweise.
-      assert.equal(decision.decideDoc(row, at(refundedAt, 30), { refundNotice: true }).action, "notice30");
+      assert.equal(decision.decideDoc(row, at(refundedAt, 1)).action, "delete");
     }
     assert.equal(decision.decideDoc(single("e@firma-neu.de", { refundedAt: "kaputt" }), at(refundedAt, 99)).action, "keep");
   });
@@ -163,17 +174,100 @@ async function main() {
       docs: [{ email: "altkunde@firma-alt.de", stripeSessionId: "cs_legacy_149", documentId: "d1", entityId: "" }],
       ds24: ["ds24kunde@firma-alt.de"],
     });
-    const dry = await run.runRetention(fake.io, { execute: false, now: at(refundedAt, 30) });
+    // Nächster täglicher Lauf (z. B. 15 Stunden nach der Erstattung).
+    const dry = await run.runRetention(fake.io, { execute: false, now: new Date(Date.parse(refundedAt) + 15 * 3600 * 1000) });
     assert.equal(dry.candidates.docsRefunded, 1);
     assert.equal(dry.candidates.notice30 + dry.candidates.notice7, 0);
     for (const group of guards.EXCLUSION_GROUPS) assert.equal(dry.excluded[group].plans, 1);
     assert.deepEqual(fake.writes, []);
-    const done = await run.runRetention(fake.io, { execute: true, now: at(refundedAt, 30) });
+    const done = await run.runRetention(fake.io, { execute: true, now: new Date(Date.parse(refundedAt) + 15 * 3600 * 1000) });
     assert.equal(done.done.docsDeleted, 1);
     assert.deepEqual(fake.sent, []);
-    assert.deepEqual(fake.writes, ["docs:weg@firma-neu.de", "plan:weg@firma-neu.de"]);
-    const before = await run.runRetention(fakeIo({ plans: [r("weg@firma-neu.de")] }).io, { execute: false, now: at(refundedAt, 29) });
+    assert.deepEqual(fake.writes, ["docs:weg@firma-neu.de", "blank:weg@firma-neu.de"]);
+    const before = await run.runRetention(fakeIo({ plans: [r("weg@firma-neu.de")] }).io, { execute: false, now: new Date(Date.parse(refundedAt) - 1000) });
     assert.equal(before.candidates.docsRefunded, 0);
+  });
+
+  await check("Erstattete Verlängerung = beendetes Jahrespaket: 12 Monate ab Ende, Hinweise 30/7", () => {
+    const endedAt = "2028-11-20T12:00:00.000Z";
+    // So schreibt recordPlanRefund eine erstattete Verlängerung (applyMemberEnded, kein refundedAt).
+    const row = plan.applyMemberEnded(single("verl@firma-neu.de", { plan: "member", memberStatus: "active", memberSubscriptionId: "sub_v3" }), { at: endedAt, eventId: "evt", endedAt });
+    assert.equal(row.refundedAt, "");
+    const due = "2029-11-20T12:00:00.000Z";
+    assert.equal(decision.docDeadline(row, at(due, -100))?.category, "annual");
+    assert.equal(decision.docDeadline(row, at(due, -100))?.dueAt, due);
+    assert.equal(decision.decideDoc(row, at(due, -31)).action, "keep");
+    assert.equal(decision.decideDoc(row, at(due, -30)).action, "notice30");
+    const n7 = { ...row, notice30At: at(due, -30).toISOString(), notice7At: at(due, -7).toISOString() };
+    assert.equal(decision.decideDoc(n7, at(due, -1)).action, "keep");
+    assert.equal(decision.decideDoc(n7, at(due, 0)).action, "delete");
+    assert.equal(decision.decideDoc(row, at(endedAt, 30)).action, "keep", "keine 30-Tage-Löschung");
+  });
+
+  await check("Leeren ohne Pseudonym: Intake- und Plan-Zeile behalten nur IDs/Status/Daten", async () => {
+    const storeMod = await import("@/lib/store");
+    const planStore = await import("@/lib/plan-store");
+    const sheetRow = { ...Object.fromEntries(Object.keys((await import("@/lib/types")).SHEET_COLUMNS).map((k) => [k, ""])) } as Record<string, string>;
+    const full = {
+      ...sheetRow, timestamp: "2026-11-02T10:00:00.000Z", stripeSessionId: "cs_1", stripeCustomerId: "cus_1", email: "kunde@firma-neu.de",
+      company: "Firma GmbH", gf: "Max Muster", buchhaltung: "Erika", documentId: "doc_1", entityId: "ent_1", version: "1",
+      changedBy: "kunde@firma-neu.de", changeSummary: "Ersteinreichung", status: "fertig", pdfUrl: "gobd/x.pdf",
+    } as unknown as import("@/lib/types").SheetRow;
+    const blank = storeMod.redactedRetentionRow(full, "2027-12-10T00:00:00.000Z");
+    const text = JSON.stringify(blank);
+    assert.ok(!text.includes("@") && !text.includes("Max") && !text.includes("Firma GmbH") && !text.includes("Erika"));
+    assert.equal(blank.documentId, "doc_1");
+    assert.equal(blank.stripeCustomerId, "cus_1");
+    assert.equal(blank.status, "geloescht");
+    assert.equal(blank.changeSummary, "geloescht:2027-12-10T00:00:00.000Z");
+    const values = planStore.blankedPlanValues(single("kunde@firma-neu.de", { memberSubscriptionId: "sub_1" }), "2027-12-10T00:00:00.000Z", plan.PLAN_SHEET_COLUMNS);
+    assert.ok(!values.join("|").includes("@"));
+    assert.ok(values.includes("sub_1") && values.includes("2027-12-10T00:00:00.000Z"));
+    assert.equal(planStore.planRowFromSheet([...plan.PLAN_SHEET_COLUMNS], values), null, "Leser verwerfen die geleerte Zeile");
+  });
+
+  await check("Nach Löschung (Plan geleert): Einladung/Protokoll über Firmen-Marker, ohne Marker nie", async () => {
+    const deletedAt = "2027-11-10T10:00:00.000Z";
+    const doc = (entityId: string) => ({ email: "", stripeSessionId: "cs_1", documentId: "d", entityId, status: "geloescht", deletedAt });
+    const ev = (eventId: string, entityId: string, actorEmail: string, ownerEmail: string, action = "draft.saved", atIso = "2027-01-01T00:00:00.000Z") => ({
+      eventId, at: atIso, actorEmail, actorRole: actorEmail === ownerEmail ? "owner" : "member", ownerEmail, entityId,
+      action, moduleIds: "", draftRevision: "", summary: "",
+    }) as import("@/lib/audit-log").AuditEvent;
+    const fake = fakeIo({
+      plans: [],
+      docs: [doc("ent_del")],
+      audit: [
+        ev("a1", "ent_del", "weg@firma-neu.de", "weg@firma-neu.de"),
+        ev("a2", "ent_alt", "alt@firma-alt.de", "alt@firma-alt.de"),
+        ev("a3", "ent_del", "cappe@gmx.de", "cappe@gmx.de"),
+      ],
+    });
+    let report = await run.runRetention(fake.io, { execute: true, now: new Date("2028-11-09T10:00:00.000Z") });
+    assert.equal(report.candidates.audit, 0);
+    report = await run.runRetention(fake.io, { execute: true, now: new Date("2028-11-10T10:00:00.000Z") });
+    assert.equal(report.done.auditRedacted, 1);
+    assert.equal(report.excluded.marker.audit, 1);
+    assert.equal(report.excluded.test.audit, 1);
+    assert.ok(!JSON.stringify(fake.redacted).includes("@"));
+  });
+
+  await check("Protokoll eines geleerten Mitwirkenden: letzter Widerruf der Firma + 12 Monate (nie früher)", async () => {
+    const owner = "inh@firma-neu.de";
+    const ev = (eventId: string, actorEmail: string, action: string, atIso: string) => ({
+      eventId, at: atIso, actorEmail, actorRole: actorEmail === owner ? "owner" : "member", ownerEmail: owner, entityId: "e1",
+      action, moduleIds: "", draftRevision: "", summary: "",
+    }) as import("@/lib/audit-log").AuditEvent;
+    const fake = fakeIo({
+      plans: [single(owner, { plan: "member", memberStatus: "active" })],
+      audit: [
+        ev("x1", "helfer@firma-neu.de", "draft.saved", "2027-01-01T00:00:00.000Z"),
+        ev("x2", owner, "invite.revoked", "2027-02-01T00:00:00.000Z"),
+      ],
+    });
+    let report = await run.runRetention(fake.io, { execute: false, now: new Date("2028-01-31T00:00:00.000Z") });
+    assert.equal(report.candidates.audit, 0);
+    report = await run.runRetention(fake.io, { execute: false, now: new Date("2028-02-01T00:00:00.000Z") });
+    assert.equal(report.candidates.audit, 1, "nur die Zeile des Mitwirkenden, nicht die des aktiven Inhabers");
   });
 
   await check("Einladungen: Widerruf bzw. Löschung der Dokumentation; Protokoll 12 Monate danach", () => {
@@ -227,6 +321,8 @@ async function main() {
   }) {
     const writes: string[] = [];
     const sent: string[] = [];
+    const redacted: unknown[] = [];
+    const notices: Array<{ stage: string; optedOut: boolean; category: string }> = [];
     const plans = input.plans.map((row) => ({ ...row }));
     const io: Io = {
       listPlans: async () => plans.map((row) => ({ ...row })),
@@ -242,16 +338,40 @@ async function main() {
         const index = plans.findIndex((item) => item.email === row.email);
         plans[index] = { ...row };
       },
-      redactMembership: async () => void writes.push("membership"),
-      redactAudit: async () => void writes.push("audit"),
+      blankPlan: async (row, deletedAt) => {
+        writes.push(`blank:${row.email}`);
+        const index = plans.findIndex((item) => item.email === row.email);
+        redacted.push({ ...plans[index], email: "", deletedAt });
+        plans.splice(index, 1);
+      },
+      redactMembership: async (row) => {
+        writes.push("membership");
+        redacted.push(row);
+      },
+      redactAudit: async (row) => {
+        writes.push("audit");
+        redacted.push(row);
+      },
       sendNotice: async (n) => {
         const key = mail.retentionNoticeMailKey(n.stage, n.email, n.dueAt);
         if (sent.includes(key)) return "duplicate";
         sent.push(key);
+        notices.push({ stage: n.stage, optedOut: n.optedOut, category: n.category });
         return "sent";
       },
+      sendDraftNotice: async (n) => {
+        const key = mail.retentionNoticeMailKey("a7", n.email, `${n.draftKey}:${n.updatedAt}`);
+        if (sent.includes(key)) return "duplicate";
+        sent.push(key);
+        notices.push({ stage: "a7", optedOut: false, category: "draft" });
+        return "sent";
+      },
+      markDraftNotice: async (record, atIso) => {
+        writes.push("draft-notice");
+        if (record.draft) (record.draft as unknown as Record<string, string>).retentionNotice7At = atIso;
+      },
     };
-    return { io, writes, sent, plans };
+    return { io, writes, sent, plans, redacted, notices };
   }
 
   const draftBase = {
@@ -290,7 +410,7 @@ async function main() {
       const report = await run.runRetention(fake.io, { execute, now: at(DUE, 400) });
       assert.deepEqual(fake.writes, []);
       assert.deepEqual(fake.sent, []);
-      assert.deepEqual(report.candidates, { drafts: 0, docsOption1: 0, docsAnnual: 0, docsRefunded: 0, memberships: 0, audit: 0, notice30: 0, notice7: 0 });
+      assert.deepEqual(report.candidates, { drafts: 0, docsOption1: 0, docsAnnual: 0, docsRefunded: 0, draftNotice7: 0, memberships: 0, audit: 0, notice30: 0, notice7: 0 });
       assert.equal(report.excluded.test.plans, 2);
       assert.equal(report.excluded.comp.plans, 1);
       assert.equal(report.excluded.ds24.plans, 1);
@@ -314,7 +434,8 @@ async function main() {
     assert.equal(report.mode, "dry-run");
     assert.equal(report.candidates.docsOption1, 1);
     assert.equal(report.candidates.notice30, 1);
-    assert.equal(report.candidates.drafts, 1);
+    assert.equal(report.candidates.drafts, 0);
+    assert.equal(report.candidates.draftNotice7, 1, "Entwurf: erst a-7, dann löschen");
     assert.deepEqual(fake.writes, []);
     assert.deepEqual(fake.sent, []);
     const line = run.retentionLogLine(report);
@@ -334,7 +455,9 @@ async function main() {
     assert.equal(fake.sent.length, 2);
     report = await run.runRetention(fake.io, { execute: true, now: at(DUE, 0) });
     assert.equal(report.done.docsDeleted, 1);
-    assert.ok(fake.plans[0]!.deletedAt);
+    assert.equal(fake.plans.length, 0, "Plan-Zeile geleert (ohne E-Mail für Leser unsichtbar)");
+    assert.ok(JSON.stringify(fake.redacted).includes('"email":""'));
+    assert.ok(!JSON.stringify(fake.redacted).includes("once@firma-neu.de"));
     report = await run.runRetention(fake.io, { execute: true, now: at(DUE, 1) });
     assert.equal(report.done.docsDeleted, 0);
     assert.equal(fake.sent.length, 2);
@@ -345,15 +468,61 @@ async function main() {
     const key = dedupe.storedMailDedupeKey(mail.retentionNoticeMailKey("notice30", "a@firma-neu.de", DUE));
     assert.ok(key.startsWith("retention-notice:h1:"));
     assert.ok(!key.includes("@"));
-    const text = mail.buildRetentionNoticeMail({ stage: "notice7", deleteAt: DUE, category: "option1", siteUrl: "https://x" });
-    assert.ok(text.subject.includes("PLATZHALTER"));
-    assert.ok(text.text.includes("Sie"));
+  });
+
+  await check("Wortlaut 1:1 wie Legal-Datei (a-7, b, bN, c, cN, d-0, Fußzeile)", () => {
+    const file = process.env.LEGAL_MAILS_FILE ?? "/workspace/gobd-ops/preismodell-2026-11/legal/v3/loeschhinweis-mails.md";
+    if (!existsSync(file)) {
+      console.log("  (Legal-Datei nicht vorhanden, Vergleich übersprungen)");
+      return;
+    }
+    const legal = readFileSync(file, "utf8");
+    for (const [id, item] of Object.entries(texts.LEGAL_MAILS)) {
+      assert.ok(legal.includes(`**Betreff:** ${item.subject}\n\n${item.body}\n`), `Wortlaut ${id}`);
+    }
+    assert.ok(legal.includes(`> ${texts.LEGAL_MAIL_FOOTER}\n`), "Fußzeile");
+    assert.ok(!texts.LEGAL_MAILS.d0.body.includes("{Löschdatum}"), "d-0 ohne Datum");
+    assert.ok(!JSON.stringify(texts).includes("PLATZHALTER"));
+  });
+
+  await check("Mails gerendert: Platzhalter gefüllt; nach Widerspruch neutrale Fassung (ohne Preis/Link)", () => {
+    const offer = mail.buildRetentionNoticeMail({ stage: "notice30", deleteAt: DUE, category: "option1", company: "Muster GmbH", siteUrl: "https://x.test" });
+    assert.ok(offer.subject.includes("Muster GmbH") && offer.subject.includes("10.11.2027"));
+    assert.ok(offer.text.includes("(in 30 Tagen)") && offer.text.includes("https://x.test/checkout/reaktivieren") && offer.text.includes("99 €"));
+    assert.ok(offer.text.includes("https://x.test/datenschutz") && !/\{[^}]+\}/.test(offer.text));
+    const neutral = mail.buildRetentionNoticeMail({ stage: "notice7", deleteAt: DUE, category: "option1", optedOut: true, siteUrl: "https://x.test" });
+    assert.ok(neutral.text.includes("nach § 12a Abs. 4 unserer AGB möglich") && neutral.text.includes("(in 7 Tagen)"));
+    assert.ok(!neutral.text.includes("99 €") && !neutral.text.includes("reaktivieren") && !neutral.text.includes("widersprechen"));
+    const annualN = mail.buildRetentionNoticeMail({ stage: "notice7", deleteAt: ANNUAL_DUE, category: "annual", optedOut: true, annualEndedAt: END, siteUrl: "https://x.test" });
+    assert.ok(annualN.text.includes("nach § 12 Abs. 5 unserer AGB möglich") && annualN.text.includes("01.12.2027"));
+    const draftMail = mail.buildDraftNoticeMail({ deleteAt: "2026-12-31T08:00:00.000Z", updatedAt: "2026-12-01T08:00:00.000Z", company: "Muster GmbH", siteUrl: "https://x.test" });
+    assert.ok(draftMail.subject.startsWith("Ihr unbezahlter Entwurf für Muster GmbH") && draftMail.text.includes("https://x.test/login"));
+    const d1 = mail.buildRefundNoticeMail({ refundedAt: DUE, option2: false, siteUrl: "https://x.test" });
+    assert.ok(d1.text.includes("99 € (117,81 € brutto)") && d1.text.includes("enden Ihr Vertrag; weitere"));
+    assert.ok(d1.text.includes("spätestens innerhalb von 24 Stunden"));
+    const d2 = mail.buildRefundNoticeMail({ refundedAt: DUE, option2: true, siteUrl: "https://x.test" });
+    assert.ok(d2.text.includes("148 € (176,12 € brutto)") && d2.text.includes("Ihr Vertrag und Ihr Jahrespaket;"));
+  });
+
+  await check("Lauf: Widerspruch -> neutrale Stufe; Entwurf bekommt genau einen a-7, dann Löschung", async () => {
+    const fake = fakeIo({ plans: [single("opt@firma-neu.de", { offerOptOutAt: PURCHASE })] });
+    await run.runRetention(fake.io, { execute: true, now: at(DUE, -30) });
+    assert.deepEqual(fake.notices, [{ stage: "notice30", optedOut: true, category: "option1" }]);
+    const draft = { ...draftBase, updatedAt: "2026-11-01T00:00:00.000Z" };
+    const d = fakeIo({ plans: [], drafts: [{ pathname: "gobd/drafts/q.json", draft: draft as never }] });
+    let report = await run.runRetention(d.io, { execute: true, now: at("2026-11-01T00:00:00.000Z", 23) });
+    assert.equal(report.done.draftNotice7Sent, 1);
+    report = await run.runRetention(d.io, { execute: true, now: at("2026-11-01T00:00:00.000Z", 24) });
+    assert.equal(report.done.draftNotice7Sent + report.candidates.draftNotice7, 0, "genau einmal");
+    report = await run.runRetention(d.io, { execute: true, now: at("2026-11-01T00:00:00.000Z", 30) });
+    assert.equal(report.done.draftsDeleted, 1);
+    assert.deepEqual(d.notices.map((n) => n.stage), ["a7"], "kein 30-Tage-Hinweis für Entwürfe");
   });
 
   await check("Einladungen/Protokoll im Lauf: geschwärzt mit Platzhalter, Test-Inhaber nie", async () => {
     const revokedAt = "2027-01-01T00:00:00.000Z";
     const m = (owner: string) => ({
-      membershipId: `m-${owner}`, ownerEmail: owner, memberEmail: "helfer@firma-neu.de", entityId: "e1",
+      membershipId: `m-${owner.length}-${owner.charCodeAt(0)}`, ownerEmail: owner, memberEmail: "helfer@firma-neu.de", entityId: "e1",
       status: "revoked" as const, moduleIds: "", tokenHash: "h", invitedAt: revokedAt, acceptedAt: "",
       revokedAt, invitedBy: owner, updatedAt: revokedAt,
     });
@@ -365,8 +534,10 @@ async function main() {
     assert.equal(report.done.membershipsRedacted, 1);
     assert.equal(report.excluded.test.memberships, 1);
     assert.equal(report.excluded.marker.memberships, 1);
-    assert.ok(run.redactedEmailFor("a@b.de").endsWith("@loeschlauf.invalid"));
-    assert.ok(guards.isRetentionTestEmail(run.redactedEmailFor("a@b.de")));
+    // Vollständig geleert: keine Adresse, kein Pseudonym/Hash (Legal 28.10.).
+    const text = JSON.stringify(fake.redacted);
+    assert.ok(!text.includes("@"), "keine Adresse");
+    assert.ok(!/[0-9a-f]{20,}/.test(text), "kein Hash");
   });
 
   await check("HTTP: ohne CRON_SECRET 401, Schalter aus = nichts, ?modus=trockenlauf zählt nur", async () => {

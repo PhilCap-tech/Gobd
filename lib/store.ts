@@ -1732,10 +1732,13 @@ async function updateSheetDocumentEntityIds(
  * Löschlauf v3: Dokumentzeilen einer Mailbox schwärzen statt Zeilen zu
  * entfernen (Zeilennummern anderer Läufe bleiben stabil). Behalten werden nur
  * Zeitstempel, Stripe-Verweise (Buchhaltung, Stripe selbst bleibt unberührt),
- * Dokument-/Firmen-IDs, Version und Gültigkeit. Alles andere wird geleert,
- * die Mail durch `placeholderEmail` ersetzt, `status` = `geloescht`.
+ * Dokument-/Firmen-IDs, Version und Gültigkeit. Alles andere (auch die Mail)
+ * wird vollständig geleert (keine Pseudonyme, Legal 28.10.), `status` =
+ * `geloescht`, `changeSummary` = `geloescht:<ISO>` als Löschmarker.
  */
-export function redactedRetentionRow(row: SheetRow, placeholderEmail: string): SheetRow {
+export const RETENTION_DELETED_STATUS = "geloescht";
+
+export function redactedRetentionRow(row: SheetRow, deletedAt: string): SheetRow {
   const blank = Object.fromEntries(Object.keys(row).map((key) => [key, ""])) as SheetRow;
   return {
     ...blank,
@@ -1748,17 +1751,18 @@ export function redactedRetentionRow(row: SheetRow, placeholderEmail: string): S
     entityId: row.entityId,
     validFrom: row.validFrom,
     validTo: row.validTo,
-    email: placeholderEmail,
-    status: "geloescht",
+    email: "",
+    status: RETENTION_DELETED_STATUS,
+    changeSummary: `${RETENTION_DELETED_STATUS}:${deletedAt}`,
   };
 }
 
 export async function redactDocumentRowsForRetention(
   email: string,
-  placeholderEmail: string,
+  deletedAt: string,
 ): Promise<number> {
   const owner = email.trim().toLowerCase();
-  if (!owner || !placeholderEmail.trim()) return 0;
+  if (!owner || !Number.isFinite(Date.parse(deletedAt))) return 0;
   let changed = 0;
   if (isSheetsConfigured()) {
     const header = await ensureSheetHeader();
@@ -1769,7 +1773,7 @@ export async function redactDocumentRowsForRetention(
     for (let i = 0; i < values.length; i++) {
       const row = recoverStoredDocumentId(sheetRowFromValues(header, values[i] ?? []));
       if (!emailsEqual(row.email, owner)) continue;
-      const next = redactedRetentionRow(row, placeholderEmail);
+      const next = redactedRetentionRow(row, deletedAt);
       updates.push({ range: `${tab}!A${i + 2}`, values: [sheetRowValues(next, header)] });
       rows.push(next);
     }
@@ -1795,7 +1799,7 @@ export async function redactDocumentRowsForRetention(
     const next = rows.map((row) => {
       if (!emailsEqual(row.email, owner)) return row;
       local += 1;
-      return redactedRetentionRow(row, placeholderEmail);
+      return redactedRetentionRow(row, deletedAt);
     });
     if (local > 0) await writeRows(path.dirname(file), file, next);
     changed += local;

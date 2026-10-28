@@ -13,7 +13,6 @@
  *   nachgeholtem Hinweis; 7-Tage-Hinweis frühestens 7 Tage vorher).
  */
 import { addMonthsIso, type PlanRow } from "@/lib/plan";
-import { RETENTION_REDACTED_DOMAIN } from "@/lib/retention-guards";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const DRAFT_RETENTION_DAYS = 30;
@@ -21,8 +20,13 @@ export const DOC_RETENTION_MONTHS = 12;
 export const AUDIT_RETENTION_MONTHS = 12;
 export const NOTICE_FIRST_DAYS = 30;
 export const NOTICE_SECOND_DAYS = 7;
-/** Nach voller Erstattung (AGB § 9 Abs. 5, DSE 17): Löschung 30 Tage nach `refundedAt`. */
-export const REFUND_RETENTION_DAYS = 30;
+/**
+ * Nach voller Erstattung des ersten v3-Kaufs: Löschung SOFORT (Philip 28.10.
+ * 13:34 EDT, ersetzt die 30 Tage aus AGB § 9 Abs. 5). `refundedAt` ist der
+ * Löschmarker; fällig ab diesem Zeitpunkt, gelöscht im nächsten täglichen Lauf
+ * (spätestens innerhalb von 24 Stunden).
+ */
+export const REFUND_RETENTION_DAYS = 0;
 
 /**
  * RETENTION_REFUND_NOTICE: Hinweis-Mails vor der Löschung nach Erstattung.
@@ -56,9 +60,12 @@ export type DraftFacts = {
   updatedAt: string;
   /** Bezahlt/gebunden: Session, Dokument oder lebender Plan der Mailbox. */
   paid: boolean;
+  /** a-7-Hinweis verschickt (ISO), am Entwurf vermerkt; gilt nur, wenn nach updatedAt. */
+  notice7At?: string;
 };
 
-export type DraftAction = "keep" | "delete";
+/** Fall a) (Legal): nur der 7-Tage-Hinweis, kein 30-Tage-Hinweis. */
+export type DraftAction = "keep" | "notice7" | "delete";
 
 export function draftDeleteAt(draft: Pick<DraftFacts, "updatedAt">): string {
   const t = time(draft.updatedAt);
@@ -69,7 +76,15 @@ export function decideDraft(draft: DraftFacts, now: Date): DraftAction {
   if (draft.paid) return "keep";
   const due = time(draftDeleteAt(draft));
   if (due === null) return "keep";
-  return now.getTime() >= due ? "delete" : "keep";
+  const edited = time(draft.updatedAt)!;
+  const notice = time(draft.notice7At);
+  const at = now.getTime();
+  // Erneute Bearbeitung macht einen alten Hinweis ungültig (neu berechnen).
+  if (notice === null || notice < edited) {
+    return at >= due - NOTICE_SECOND_DAYS * DAY_MS ? "notice7" : "keep";
+  }
+  // Verspäteter Hinweis: frühestens 7 Tage danach löschen.
+  return at >= Math.max(due, notice + NOTICE_SECOND_DAYS * DAY_MS) ? "delete" : "keep";
 }
 
 /* ---------------- Dokumentation (Option 1 / Jahrespaket) ---------------- */
@@ -106,13 +121,20 @@ export function docDeadline(row: PlanRow, now: Date): { category: DocCategory; d
     if (refunded === null) return null;
     return { category: "refunded", dueAt: new Date(refunded + REFUND_RETENTION_DAYS * DAY_MS).toISOString() };
   }
-  if (row.plan === "member") {
-    const ended = annualEndedAt(row, now);
-    if (!ended) return null;
-    const due = addMonthsIso(ended, DOC_RETENTION_MONTHS);
-    return due ? { category: "annual", dueAt: due } : null;
+  // Beendetes Jahrespaket (Kündigung oder erstattete Verlängerung): applyMemberEnded setzt
+  // plan=single + memberStatus=canceled + memberEndedAt. Frist 12 Monate ab Ende.
+  const ended = annualEndedAt(row, now);
+  if (row.plan === "member" && !ended) return null;
+  if (row.plan !== "member" && row.plan !== "single") return null;
+  if (ended) {
+    const fromEnd = addMonthsIso(ended, DOC_RETENTION_MONTHS);
+    // Späterer Neukauf (Option 1) nach dem Ende: nie früher als dessen Frist.
+    const fromPurchase = time(row.purchasedAt) !== null && time(row.purchasedAt)! > time(ended)!
+      ? addMonthsIso(latestIso(row.purchasedAt, row.reactivatedAt), DOC_RETENTION_MONTHS)
+      : "";
+    const due = fromPurchase && time(fromPurchase)! > time(fromEnd)! ? fromPurchase : fromEnd;
+    return due ? { category: "annual", dueAt: new Date(time(due)!).toISOString() } : null;
   }
-  if (row.plan !== "single") return null;
   if (time(row.purchasedAt) === null) return null;
   // Reaktivierung (neuer Kauf bzw. reactivatedAt) setzt die Frist neu. Nie früher als eine längere gespeicherte Frist.
   const fromPurchase = addMonthsIso(latestIso(row.purchasedAt, row.reactivatedAt), DOC_RETENTION_MONTHS);
@@ -183,8 +205,9 @@ export type MembershipFacts = {
   memberEmail: string;
 };
 
+/** Geleert (Löschlauf): keine Adresse mehr vorhanden. */
 export function isRedactedEmail(email: string): boolean {
-  return email.trim().toLowerCase().endsWith(`@${RETENTION_REDACTED_DOMAIN}`);
+  return !email.trim();
 }
 
 export function decideMembership(m: MembershipFacts, owner: OwnerAccess, now: Date): "keep" | "delete" {
@@ -225,7 +248,7 @@ export function auditDeleteAt(row: AuditFacts, owner: OwnerAccess): string {
 }
 
 export function decideAudit(row: AuditFacts, owner: OwnerAccess, now: Date): "keep" | "delete" {
-  if (isRedactedEmail(row.ownerEmail) && isRedactedEmail(row.actorEmail)) return "keep";
+  if (isRedactedEmail(row.ownerEmail) || isRedactedEmail(row.actorEmail)) return "keep";
   const due = time(auditDeleteAt(row, owner));
   if (due === null) return "keep";
   return now.getTime() >= due ? "delete" : "keep";

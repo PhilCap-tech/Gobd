@@ -3,7 +3,6 @@
  * Trockenlauf zählt nur (keine Mail, kein Schreiben). Ausführung nur mit
  * RETENTION_EXECUTE_ENABLED=true. Kein Stripe-Aufruf. Ins Log nur Zähler.
  */
-import { createHash } from "node:crypto";
 import type { AuditEvent } from "@/lib/audit-log";
 import type { IntakeDraft } from "@/lib/intake-draft-shared";
 import type { Membership } from "@/lib/memberships";
@@ -13,6 +12,7 @@ import {
   decideAudit,
   decideDoc,
   decideDraft,
+  draftDeleteAt,
   decideMembership,
   isRedactedEmail,
   type OwnerAccess,
@@ -21,12 +21,22 @@ import {
   EXCLUSION_GROUPS,
   exclusionFor,
   hasNewModelMarker,
-  RETENTION_REDACTED_DOMAIN,
   type ExclusionGroup,
 } from "@/lib/retention-guards";
 import type { RetentionNoticeStage } from "@/lib/retention-mail";
 
-export type DocRowLite = { email: string; stripeSessionId: string; documentId: string; entityId: string };
+export type DocRowLite = {
+  email: string;
+  stripeSessionId: string;
+  documentId: string;
+  entityId: string;
+  /** `geloescht` nach dem Löschlauf (Zeile geleert). */
+  status?: string;
+  /** Löschmarker der geleerten Zeile (ISO), sonst leer. */
+  deletedAt?: string;
+  /** Firmenname für {Firma} in den Hinweis-Mails. */
+  company?: string;
+};
 export type DraftRecord = { pathname: string; draft: IntakeDraft | null };
 
 export type RetentionIo = {
@@ -38,8 +48,14 @@ export type RetentionIo = {
   listMemberships(): Promise<Membership[]>;
   listAudit(): Promise<AuditEvent[]>;
   deleteDraft(record: DraftRecord): Promise<void>;
+  /** a-7 (Fall a): Hinweis 7 Tage vor der Löschung eines unbezahlten Entwurfs. */
+  sendDraftNotice(input: { email: string; draftKey: string; updatedAt: string; deleteAt: string; company: string }): Promise<"sent" | "duplicate" | "failed">;
+  /** Versand am Entwurf vermerken (retentionNotice7At), updatedAt bleibt. */
+  markDraftNotice(record: DraftRecord, at: string): Promise<void>;
   deleteDocs(row: PlanRow, docs: readonly DocRowLite[]): Promise<void>;
   savePlan(row: PlanRow): Promise<void>;
+  /** Plan-Zeile leeren (E-Mail vollständig entfernt), nur IDs/Status/Daten + deletedAt bleiben. */
+  blankPlan(row: PlanRow, deletedAt: string): Promise<void>;
   redactMembership(row: Membership): Promise<void>;
   redactAudit(row: AuditEvent): Promise<void>;
   sendNotice(input: {
@@ -47,7 +63,11 @@ export type RetentionIo = {
     email: string;
     dueAt: string;
     deleteAt: string;
-    category: "option1" | "annual" | "refunded";
+    category: "option1" | "annual";
+    company: string;
+    /** Widerspruch gegen Angebote (offerOptOutAt): neutrale Fassung bN/cN. */
+    optedOut: boolean;
+    annualEndedAt: string;
   }): Promise<"sent" | "duplicate" | "failed">;
 };
 
@@ -68,6 +88,8 @@ export type RetentionReport = {
     audit: number;
     notice30: number;
     notice7: number;
+    /** a-7 für unbezahlte Entwürfe (nur 7 Tage, Fall a). */
+    draftNotice7: number;
   };
   /** Ausgeschlossene Gruppen: gesehen je Art, Kandidaten immer 0. */
   excluded: Record<ExclusionGroup, GroupCount>;
@@ -78,19 +100,10 @@ export type RetentionReport = {
     auditRedacted: number;
     notice30Sent: number;
     notice7Sent: number;
+    draftNotice7Sent: number;
     errors: number;
   };
 };
-
-const LABEL = "gobd/retention/redact/v1";
-
-/** Stabiler Platzhalter statt Klartext-Adresse in geschwärzten Zeilen. */
-export function redactedEmailFor(email: string): string {
-  const value = email.trim().toLowerCase();
-  if (isRedactedEmail(value)) return value;
-  const digest = createHash("sha256").update(`${LABEL}:${value}`).digest("hex").slice(0, 24);
-  return `r-${digest}@${RETENTION_REDACTED_DOMAIN}`;
-}
 
 /** Modell-Markierung einer Plans-Zeile: nur `pricingModel === "v3"` (leer = Altzeile v2 26.10. -> nie). */
 export function planHasMarker(row: PlanRow): boolean {
@@ -133,7 +146,7 @@ export async function runRetention(
     mode: execute ? "execute" : "dry-run",
     at: now.toISOString(),
     seen: { plans: 0, drafts: 0, memberships: 0, audit: 0, draftsTruncated: false },
-    candidates: { drafts: 0, docsOption1: 0, docsAnnual: 0, docsRefunded: 0, memberships: 0, audit: 0, notice30: 0, notice7: 0 },
+    candidates: { drafts: 0, docsOption1: 0, docsAnnual: 0, docsRefunded: 0, memberships: 0, audit: 0, notice30: 0, notice7: 0, draftNotice7: 0 },
     excluded: emptyGroups(),
     done: {
       draftsDeleted: 0,
@@ -142,6 +155,7 @@ export async function runRetention(
       auditRedacted: 0,
       notice30Sent: 0,
       notice7Sent: 0,
+      draftNotice7Sent: 0,
       errors: 0,
     },
   };
@@ -170,6 +184,14 @@ export async function runRetention(
     const key = norm(doc.email);
     if (!key) continue;
     docsByEmail.set(key, [...(docsByEmail.get(key) ?? []), doc]);
+  }
+  /** Firmen, deren Dokumentation der Lauf gelöscht hat (geleerte Zeilen mit Marker): Zeitpunkt. */
+  const entityDeletedAt = new Map<string, string>();
+  for (const doc of docRows) {
+    const id = doc.entityId.trim();
+    if (!id || doc.status !== "geloescht" || !doc.deletedAt || !Number.isFinite(Date.parse(doc.deletedAt))) continue;
+    const prev = entityDeletedAt.get(id);
+    if (!prev || Date.parse(doc.deletedAt) > Date.parse(prev)) entityDeletedAt.set(id, doc.deletedAt);
   }
   const ds24Cache = new Map<string, boolean>();
   async function ds24(email: string): Promise<boolean> {
@@ -233,7 +255,11 @@ export async function runRetention(
           email,
           dueAt: decision.dueAt,
           deleteAt: laterIso(deleteAt, decision.action === "notice30" ? 30 : 7, now),
-          category: decision.category,
+          // Erstattung (Fall d) bekommt nie 30/7-Hinweise (decideDoc liefert dort nur keep/delete).
+          category: decision.category === "annual" ? "annual" : "option1",
+          company: (docsByEmail.get(email) ?? []).map((doc) => doc.company ?? "").find((name) => name.trim()) ?? "",
+          optedOut: Boolean(plan.offerOptOutAt?.trim()),
+          annualEndedAt: annualEndedAt(plan, now),
         });
         if (result === "failed") {
           report.done.errors += 1;
@@ -257,7 +283,7 @@ export async function runRetention(
     if (!execute) continue;
     try {
       await io.deleteDocs(plan, docsByEmail.get(email) ?? []);
-      await io.savePlan({ ...plan, deletedAt: now.toISOString(), updatedAt: now.toISOString() });
+      await io.blankPlan(plan, now.toISOString());
       report.done.docsDeleted += 1;
     } catch {
       report.done.errors += 1;
@@ -279,7 +305,31 @@ export async function runRetention(
     }
     const plan = planByEmail.get(norm(draft.email));
     const paid = Boolean(draft.stripeSessionId?.trim() || draft.documentId?.trim() || (plan && !plan.deletedAt));
-    if (decideDraft({ updatedAt: draft.updatedAt, paid }, now) !== "delete") continue;
+    const noticeAt = (draft as IntakeDraft & { retentionNotice7At?: string }).retentionNotice7At ?? "";
+    const action = decideDraft({ updatedAt: draft.updatedAt, paid, notice7At: noticeAt }, now);
+    if (action === "keep") continue;
+    if (action === "notice7") {
+      report.candidates.draftNotice7 += 1;
+      if (!execute) continue;
+      try {
+        const result = await io.sendDraftNotice({
+          email: norm(draft.email),
+          draftKey: draft.draftKey,
+          updatedAt: draft.updatedAt,
+          deleteAt: laterIso(draftDeleteAt(draft), 7, now),
+          company: String((draft.answers as { company?: unknown } | undefined)?.company ?? ""),
+        });
+        if (result === "failed") {
+          report.done.errors += 1;
+          continue;
+        }
+        await io.markDraftNotice(record, now.toISOString());
+        if (result === "sent") report.done.draftNotice7Sent += 1;
+      } catch {
+        report.done.errors += 1;
+      }
+      continue;
+    }
     report.candidates.drafts += 1;
     if (!execute) continue;
     try {
@@ -302,26 +352,51 @@ export async function runRetention(
     });
   }
 
+  /**
+   * Inhaber einer Einladung/Protokollzeile: mit Plan-Zeile wie oben; ohne (vom
+   * Lauf bereits gelöscht, Plan-Zeile geleert) über den Löschmarker der Firma.
+   * Nur der Lauf setzt diesen Marker, und nur bei v3-Inhabern; Test/Comp/DS24
+   * werden trotzdem erneut geprüft.
+   */
+  async function ownerContext(owner: string, others: string[], entityId: string) {
+    if (planByEmail.has(owner)) {
+      return {
+        excluded: await ownerExclusion(owner, others, [entityId]),
+        access: ownerAccess.get(owner) ?? { docsDeletedAt: "", accessEndedAt: "" },
+      };
+    }
+    const deletedAt = entityDeletedAt.get(entityId.trim()) ?? "";
+    if (!deletedAt) return { excluded: await ownerExclusion(owner, others, [entityId]), access: null };
+    const excluded = exclusionFor({
+      emails: [owner, ...others],
+      entityIds: [entityId],
+      ds24: await ds24(owner),
+      legacy: false,
+      marker: true,
+    });
+    return { excluded, access: { docsDeletedAt: deletedAt, accessEndedAt: "" } };
+  }
+
   /* ---------- Einladungen ---------- */
   for (const m of memberships) {
     const owner = norm(m.ownerEmail);
-    if (isRedactedEmail(m.memberEmail)) continue;
-    const excluded = await ownerExclusion(owner, [m.memberEmail], [m.entityId]);
-    if (excluded) {
-      report.excluded[excluded].memberships += 1;
+    if (isRedactedEmail(m.memberEmail) || isRedactedEmail(owner)) continue;
+    const context = await ownerContext(owner, [m.memberEmail], m.entityId);
+    if (context.excluded || !context.access) {
+      report.excluded[context.excluded ?? "marker"].memberships += 1;
       continue;
     }
-    const access = ownerAccess.get(owner) ?? { docsDeletedAt: "", accessEndedAt: "" };
+    const access = context.access;
     if (decideMembership(m, access, now) !== "delete") continue;
     report.candidates.memberships += 1;
     if (!execute) continue;
-    const ownerGone = Boolean(access.docsDeletedAt) && Date.parse(access.docsDeletedAt) <= now.getTime();
     try {
+      // Vollständig leeren (Legal 28.10.): keine Adresse, kein Pseudonym.
       await io.redactMembership({
         ...m,
-        ownerEmail: ownerGone ? redactedEmailFor(m.ownerEmail) : m.ownerEmail,
-        memberEmail: redactedEmailFor(m.memberEmail),
-        invitedBy: m.invitedBy ? redactedEmailFor(m.invitedBy) : "",
+        ownerEmail: "",
+        memberEmail: "",
+        invitedBy: "",
         status: "revoked",
         tokenHash: "",
         moduleIds: "",
@@ -336,27 +411,29 @@ export async function runRetention(
 
   /* ---------- Protokoll ---------- */
   for (const event of audit) {
-    if (isRedactedEmail(event.ownerEmail) && isRedactedEmail(event.actorEmail)) continue;
+    if (isRedactedEmail(event.ownerEmail) || isRedactedEmail(event.actorEmail)) continue;
     const owner = norm(event.ownerEmail);
-    const excluded = isRedactedEmail(owner)
-      ? "marker"
-      : await ownerExclusion(owner, isRedactedEmail(event.actorEmail) ? [] : [event.actorEmail], [event.entityId]);
-    if (excluded) {
-      report.excluded[excluded].audit += 1;
+    const actor = norm(event.actorEmail);
+    const context = await ownerContext(owner, actor === owner ? [] : [actor], event.entityId);
+    if (context.excluded || !context.access) {
+      report.excluded[context.excluded ?? "marker"].audit += 1;
       continue;
     }
-    const actor = norm(event.actorEmail);
-    const revoked = memberships.find(
-      (m) =>
-        m.entityId === event.entityId &&
-        m.status === "revoked" &&
-        (norm(m.memberEmail) === actor || m.memberEmail === redactedEmailFor(actor)),
-    );
-    const access = ownerAccess.get(owner) ?? { docsDeletedAt: "", accessEndedAt: "" };
+    const access = context.access;
+    const own = memberships.filter((m) => m.entityId === event.entityId && norm(m.memberEmail) === actor);
+    let actorRevokedAt = own.find((m) => m.status === "revoked")?.revokedAt ?? "";
+    if (!actorRevokedAt && own.length === 0 && actor !== owner) {
+      // Einladung bereits geleert (keine Adresse mehr): letzter Widerruf der Firma
+      // als Ersatz. Liegt nie vor dem eigenen Widerruf -> nie zu früh gelöscht.
+      for (const item of audit) {
+        if (item.entityId !== event.entityId || item.action !== "invite.revoked") continue;
+        if (!actorRevokedAt || Date.parse(item.at) > Date.parse(actorRevokedAt)) actorRevokedAt = item.at;
+      }
+    }
     const facts = {
       actorEmail: event.actorEmail,
       ownerEmail: event.ownerEmail,
-      actorRevokedAt: revoked?.revokedAt ?? "",
+      actorRevokedAt,
       actorIsOwner: actor === owner,
     };
     if (decideAudit(facts, access, now) !== "delete") continue;
@@ -365,8 +442,8 @@ export async function runRetention(
     try {
       await io.redactAudit({
         ...event,
-        actorEmail: redactedEmailFor(event.actorEmail),
-        ownerEmail: redactedEmailFor(event.ownerEmail),
+        actorEmail: "",
+        ownerEmail: "",
         moduleIds: "",
         summary: "gelöscht (Löschlauf)",
       });

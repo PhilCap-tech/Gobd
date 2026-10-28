@@ -331,6 +331,39 @@ export function refundBelongsToV3Purchase(
   return Boolean(charge.kind && V3_REFUND_KINDS.has(charge.kind));
 }
 
+export type V3RefundClass = "first" | "renewal" | "none";
+
+/**
+ * Art der erstatteten v3-Zahlung (Philip 28.10.):
+ * - `first`: erster Kauf der Plan-Zeile, d. h. Einmalzahlung des Einstiegs
+ *   (Option 1, Metadaten entry/member) oder die erste Rechnung des Jahrespakets
+ *   (billing_reason `subscription_create`, auch das nachgebuchte Jahrespaket in
+ *   seiner ersten Periode). Folge: AGB § 9 Abs. 5 (sofort sperren, Löschung 30 Tage).
+ * - `renewal`: Verlängerungsrechnung (`subscription_cycle`) oder sonstige spätere
+ *   Abo-Rechnung, sowie die Reaktivierung (eigener Zyklus, kein erster Kauf).
+ *   Folge: wie gekündigtes Jahrespaket (Konto deaktiviert, reaktivierbar,
+ *   Löschung 12 Monate nach Ende mit Hinweisen), kein refundedAt.
+ * - `none`: kein v3-Kauf belegbar (Alt/DS24/v2/fremd) -> unverändert.
+ * Abo-Zahlung ohne bekannten billing_reason: `none` (fail closed).
+ */
+export function classifyV3Refund(
+  row: PlanRow,
+  charge: { kind: PlanCheckoutKind | null; sessionId?: string; subscriptionId?: string; billingReason?: string },
+): V3RefundClass {
+  if (!refundBelongsToV3Purchase(row, charge)) return "none";
+  const reason = charge.billingReason?.trim() ?? "";
+  const subscriptionId = charge.subscriptionId?.trim() ?? "";
+  if (charge.kind === "reactivate") return "renewal";
+  if (subscriptionId) {
+    if (!reason) return "none";
+    if (reason !== "subscription_create") return "renewal";
+    // Erste Rechnung des aktuellen Abos nach einer Reaktivierung = Reaktivierungskauf.
+    if (row.reactivatedAt && subscriptionId === row.memberSubscriptionId.trim()) return "renewal";
+    return "first";
+  }
+  return "first";
+}
+
 /**
  * charge.refunded unter v2 (R5): volle Erstattung eines Einstiegs beendet die
  * Mitgliedschaft (Abo sofort kündigen, ohne Anteilsrechnung) und sperrt den
@@ -347,7 +380,11 @@ export async function recordPlanRefund(input: {
   sessionId?: string;
   /** Abo der Rechnung zur Zahlung (Jahrespaket), leer wenn keins. */
   subscriptionId?: string;
-}): Promise<"locked" | "ignored"> {
+  /** billing_reason der Rechnung (subscription_create / subscription_cycle …), leer bei Einmalzahlung. */
+  billingReason?: string;
+  /** Nur bei "locked" (erster v3-Kauf voll erstattet): Kundenmail (lib/refund-mail). */
+  onFirstPurchaseRefunded?: (row: PlanRow, previous: PlanRow) => Promise<unknown>;
+}): Promise<"locked" | "locked_firm" | "deactivated" | "ignored"> {
   if (input.charge.refunded !== true) return "ignored"; // Teilerstattung: nur Inhaber-Hinweis.
   if (input.charge.metadata?.[PLAN_METADATA_KIND] === "change") return "ignored";
   const email = input.email.trim().toLowerCase();
@@ -363,23 +400,31 @@ export async function recordPlanRefund(input: {
     }
     if (slot.refundedAt) return "ignored";
     await savePlanFirmRow(applyFirmRefund(slot, input.at));
-    return "locked";
+    return "locked_firm";
   }
   const row = await findPlanByEmailStrict(email);
   if (!row || row.refundedAt) return "ignored";
-  // Nur Käufe des neuen Modells sperren (Philip 28.10., AGB § 9 Abs. 5).
-  if (
-    !refundBelongsToV3Purchase(row, {
-      kind: planKindFromMetadata(input.charge.metadata),
-      sessionId: input.sessionId,
-      subscriptionId: input.subscriptionId,
-    })
-  ) {
-    return "ignored";
+  // Nur Käufe des neuen Modells (Philip 28.10.): erster Kauf -> AGB § 9 Abs. 5,
+  // Verlängerung/Reaktivierung -> wie gekündigtes Jahrespaket.
+  const kind = classifyV3Refund(row, {
+    kind: planKindFromMetadata(input.charge.metadata),
+    sessionId: input.sessionId,
+    subscriptionId: input.subscriptionId,
+    billingReason: input.billingReason,
+  });
+  if (kind === "none") return "ignored";
+  if (kind === "renewal") {
+    if (row.memberSubscriptionId && row.memberStatus !== "canceled") {
+      await input.cancelSubscription(row.memberSubscriptionId);
+    }
+    await savePlanRow(applyMemberEnded(row, { at: input.at, eventId: input.eventId, endedAt: input.at }));
+    return "deactivated";
   }
   if (row.memberSubscriptionId && row.plan === "member" && row.memberStatus !== "canceled") {
     await input.cancelSubscription(row.memberSubscriptionId);
   }
-  await savePlanRow(applyRefund(row, { at: input.at, eventId: input.eventId }));
+  const refunded = applyRefund(row, { at: input.at, eventId: input.eventId });
+  await savePlanRow(refunded);
+  await input.onFirstPurchaseRefunded?.(refunded, row);
   return "locked";
 }
