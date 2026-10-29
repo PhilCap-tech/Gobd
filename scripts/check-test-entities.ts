@@ -32,6 +32,12 @@ import {
 } from "../lib/test-entities";
 import { emptyAnswers, type CheckoutIdentity, type SheetRow } from "../lib/types";
 
+// Schalter-Isolation: echte Build-Umgebung (Prod) darf die Prüfungen nicht beeinflussen.
+for (const name of [
+  "RETENTION_EXECUTE_ENABLED", "RETENTION_DRY_RUN_ENABLED", "PLAN_ADDON_NOTICE_ENABLED",
+  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED",
+]) delete process.env[name];
+
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LISTED = "48c6805d-3d34-4a80-9747-38ce4edb3eed";
 const NORMAL = "11111111-1111-4111-8111-111111111111";
