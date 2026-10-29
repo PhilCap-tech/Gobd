@@ -524,3 +524,14 @@ main().catch((error) => {
   console.error(error);
   process.exit(1);
 });
+
+// Reiter `plans` fehlt (Prod 29.10., batchGet 400): Lesen legt ihn additiv an.
+{
+  const src = readFileSync("lib/plan-store.ts", "utf8");
+  assert.match(src, /export async function ensurePlansTab\(/, "ensurePlansTab fehlt");
+  assert.match(src, /sheetsStatusCode\(error\) !== 400\) throw error/, "nur 400 löst die Reparatur aus");
+  assert.match(src, /if \(!\(await ensurePlansTab\(\)\)\) throw error/, "ohne neu angelegten Reiter bleibt der Fehler");
+  const ensure = src.slice(src.indexOf("export async function ensurePlansTab("), src.indexOf("async function readSheetRows("));
+  assert.ok(ensure.indexOf("addSheet") < ensure.indexOf("values.update"), "Kopfzeile erst nach addSheet");
+  assert.doesNotMatch(ensure, /values\.(append|clear)|deleteSheet|deleteDimension/, "keine Änderung bestehender Daten");
+}
