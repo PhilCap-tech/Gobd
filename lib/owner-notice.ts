@@ -73,12 +73,15 @@ export function ownerNoticeMailKey(kind: OwnerNoticeKind, id: string): string {
 
 /** Mail-Testdomains, nur für Inhaber-Hinweise (inkl. Subdomains). */
 const OWNER_NOTICE_TEST_DOMAINS = ["example.invalid", "resend.dev"];
+/** Einzelne Testadressen, nur exakt (kein Tag, keine Domain). Tester-Postfach (CoS 28.10.). */
+export const OWNER_NOTICE_TEST_EMAILS = ["gobd-test@mail.grokbot.com"];
 
 /** Ampel-Testadressen plus example.invalid und resend.dev (z. B. delivered@resend.dev). */
 export function isOwnerNoticeTestEmail(email: string): boolean {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return false;
   if (isAmpelTestEmail(normalized)) return true;
+  if (OWNER_NOTICE_TEST_EMAILS.includes(normalized)) return true;
   const at = normalized.lastIndexOf("@");
   const domain = at >= 0 ? normalized.slice(at + 1) : "";
   return OWNER_NOTICE_TEST_DOMAINS.some((test) => domain === test || domain.endsWith(`.${test}`));

@@ -214,7 +214,7 @@ export const FAQ_V2_ANCHORS: ReadonlyArray<readonly [RegExp, string]> = [
 ];
 
 export function headingId(text: string): string | undefined {
-  if (/geld[- ]zurück|zufriedenheitsgarantie/i.test(text)) return "geld-zurueck";
+  if (/geld[- ]zurück|zufriedenheitsgarantie/i.test(text)) return "erstattung";
   // FAQ Preismodell v2 (Legal 26.10.): feste Anker für Verweise aus Konto, Checkout und Mails.
   const faqAnchor = FAQ_V2_ANCHORS.find(([pattern]) => pattern.test(text));
   if (faqAnchor) return faqAnchor[1];

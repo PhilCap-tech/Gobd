@@ -1,13 +1,12 @@
 ---
-title: "Verfahrensdokumentation Kosten: Jahreslizenz, Monatsabo oder Beratung"
+title: "Verfahrensdokumentation Kosten: Jahreslizenz oder Beratung"
 slug: "verfahrensdokumentation-kosten"
 metaTitle: "Verfahrensdokumentation Kosten: Lizenz, Abo, Beratung"
-metaDescription: "Verfahrensdokumentation Kosten: Umfang, Systeme, Eigenleistung, Pflege und Vertragsmodell — Jahreslizenz, Monatsabo oder Beratung. Keine Steuerberatung."
-h1: "Verfahrensdokumentation Kosten: Jahreslizenz, Monatsabo oder Beratung — was die Kosten treibt"
+metaDescription: "Verfahrensdokumentation Kosten: Umfang, Systeme, Eigenleistung, Pflege und Vertragsmodell — Jahreslizenz oder Beratung. Keine Steuerberatung."
+h1: "Verfahrensdokumentation Kosten: Jahreslizenz oder Beratung — was die Kosten treibt"
 primaryKeyword: "Verfahrensdokumentation Kosten"
 secondaryKeywords:
   - "Verfahrensdokumentation Jahreslizenz"
-  - "Verfahrensdokumentation Monatsabo"
   - "Verfahrensdokumentation Beratung Kosten"
 ctaSoft: "/readiness"
 ctaPrimary: "/"
@@ -15,7 +14,7 @@ status: "ready-for-publish"
 date: "2026-10-08"
 ---
 
-# Verfahrensdokumentation Kosten: Jahreslizenz, Monatsabo oder Beratung — was die Kosten treibt
+# Verfahrensdokumentation Kosten: Jahreslizenz oder Beratung — was die Kosten treibt
 
 Wer eine [Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) will, stößt schnell auf sehr unterschiedliche Angebote: eine Datei zum Selbstausfüllen, ein Programm mit Laufzeit, ein Projekt bei der Steuerberatung. Die **Verfahrensdokumentation Kosten** hängen daran, was beschrieben werden muss und wer die Arbeit trägt — nicht an einem einheitlichen Marktpreis. Diesen Marktpreis gibt es in diesem Text nicht. Erfinden lässt er sich nicht, und pauschale Spannen ohne Quelle würden Ihren Betrieb nicht treffen.
 
@@ -73,7 +72,7 @@ Die Verfahrensdokumentation gehört zu den Arbeitsanweisungen und sonstigen Orga
 
 Aufbewahrung über diese Dauer heißt: Lesbarkeit und Zugriff bleiben erhalten, auch wenn das Programm, mit dem Sie den Text geschrieben haben, gewechselt wird. Ein reiner Online-Zugang ohne exportierte Fassung ist deshalb eine Frage an den Vertrag: Bleibt die bisherige Fassung bei Ihnen, wenn die Nutzung endet?
 
-## Jahresvorauszahlung, Monatsabo und Zusatzmodule
+## Jahresvorauszahlung und Zusatzmodule
 
 Dieselben Inhalte lassen sich vertraglich verschieden schneiden. Der Schnitt ändert, wann Sie zahlen und was nach einer Kündigung noch da ist. Er ändert nicht, welche Prozesse Ihr Betrieb hat.
 
@@ -110,7 +109,7 @@ Unsicher, welche Themen bei Ihnen überhaupt anfallen, bevor Sie Aufwand schätz
 
 ## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Entwurf nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/). Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. 198 € zum Start (Einrichtung + 1. Monat), danach 49 €/Monat, zzgl. USt. (brutto 235,62 € bzw. 58,31 €/Monat). Alle 24 Module inklusive · keine Zusatzmodule · keine Jahresvorauszahlung · monatlich kündbar. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde. Keine Steuerberatung.
+Wenn Sie den Entwurf nicht in eine leere Datei schreiben möchten: [GoBD-Verfahrensdokumentation erstellen](/). Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. 99 € einmalig je Firma bzw. 99 € + 49 €/Jahr, netto zzgl. USt. Alle 24 Module inklusive · keine Zusatzmodule. Keine Steuerberatung.
 
 ## FAQ
 

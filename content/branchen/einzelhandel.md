@@ -95,7 +95,7 @@ Weitere typische Punkte: [Häufige Fehler in der Verfahrensdokumentation](/blog/
 
 Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentation als PDF und eine Liste offener Punkte. Sie prüfen und ergänzen die Angaben vor der Verwendung.
 
-Das Werkzeug umfasst 24 Module, im PDF gegliedert in 14 Kapitel — darunter Verkauf, Einkauf, Kasse, Zahlungsverkehr, Warenwirtschaft, Personal, Onlineshop und Branche. Ein Abo umfasst bis zu 5 Firmen. Module, die es bei Ihnen nicht gibt, werden als „nicht vorhanden“ begründet. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
+Das Werkzeug umfasst 24 Module, im PDF gegliedert in 14 Kapitel — darunter Verkauf, Einkauf, Kasse, Zahlungsverkehr, Warenwirtschaft, Personal, Onlineshop und Branche. Module, die es bei Ihnen nicht gibt, werden als „nicht vorhanden“ begründet. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
 Wie ein fertiges Dokument aussieht, zeigt das fiktive [Muster für den Handel](/muster/gesamt/handel); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
 

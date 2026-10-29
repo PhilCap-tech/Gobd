@@ -95,7 +95,7 @@ export const CTA_MUSTER = "Muster-Dokument ansehen";
 export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
 
 /** FAQ section „14 Tage Zufriedenheitsgarantie“. */
-export const GELD_ZURUECK_HREF = "/faq#geld-zurueck";
+export const GELD_ZURUECK_HREF = "/faq#erstattung";
 
 /** Short form for hero, sticky bar, and closing CTA. Details stay in the FAQ. */
 export const LEGACY_GELD_ZURUECK_MICRO = `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`;

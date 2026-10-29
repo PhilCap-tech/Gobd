@@ -179,6 +179,11 @@ const nextConfig: NextConfig = {
         destination: "/login?next=/account",
         permanent: false,
       },
+      // Neues Preismodell (CoS 28.10.): /partner-angebot leitet auf die Startseite (307).
+      // Seite und Code bleiben; unter legacy (Rollback) bleibt die Seite erreichbar.
+      ...(["v2", "v3"].includes(process.env.PRICING_MODEL?.trim().toLowerCase() ?? "")
+        ? [{ source: PARTNER_ANGEBOT_PATH, destination: "/", permanent: false }]
+        : []),
       ...branchenRedirects(),
     ];
   },

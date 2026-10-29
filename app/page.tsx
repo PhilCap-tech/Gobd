@@ -45,6 +45,7 @@ import {
 } from "@/lib/pricing";
 import {
   PLAN_B2B_NOTICE,
+  PLAN_BESTSELLER_LABEL,
   PLAN_PACKAGE_ENTRY_TITLE,
   PLAN_PACKAGE_MEMBER_TITLE,
   planPackageTextsV3,
@@ -504,6 +505,7 @@ export default function HomePage() {
                 </tbody>
               </table>
               <p>
+                <strong className="badge">{PLAN_BESTSELLER_LABEL}</strong>{" "}
                 Paket „{PLAN_PACKAGE_MEMBER_TITLE}“: {V2_PACKAGE_TEXTS.member}
               </p>
               <p>

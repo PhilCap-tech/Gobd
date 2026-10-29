@@ -107,7 +107,7 @@ export function buildLlmsTxt(): string {
     "",
     "## Seiten",
     "",
-    ...(faqLink ? [`- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Geld-zurück-Garantie und Rückgaberecht`] : []),
+    ...(faqLink ? [`- [FAQ](${canonicalUrl("/faq")}): ${V2 ? "Lieferumfang, Ablauf und Preise" : "Lieferumfang, Ablauf, Preise, Geld-zurück-Garantie und Rückgaberecht"}`] : []),
     `- [AGB](${canonicalUrl("/agb")}): Vertragsbedingungen`,
     `- [Muster](${canonicalUrl("/muster")}): fiktive Muster der Verfahrensdokumentation`,
     `- [Muster für Steuerberater](${canonicalUrl("/steuerberater/muster")}): Beispielergebnis`,

@@ -4,7 +4,6 @@ import {
   PLAN_BESTSELLER_LABEL,
   PLAN_ENTRY_SELECTED_HINT,
   PLAN_PACKAGES_FOOTER,
-  PLAN_OFFER_OBJECTION_NOTICE,
   PLAN_ENTRY_PRICE_LINE,
   PLAN_ENTRY_WITH_MEMBER_TOTAL,
   PLAN_MEMBER_PRICE_LINE,
@@ -71,7 +70,6 @@ export function PlanPackageSelect({
       </div>
       {value === "einstieg" ? <p className="hint">{PLAN_ENTRY_SELECTED_HINT}</p> : null}
       <p className="hint">{PLAN_PACKAGES_FOOTER}</p>
-      <p className="hint">{PLAN_OFFER_OBJECTION_NOTICE}</p>
     </fieldset>
   );
 }

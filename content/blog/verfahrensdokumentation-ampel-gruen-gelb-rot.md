@@ -102,7 +102,7 @@ Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orien
 
 ## Verfahrensdokumentation online erstellen
 
-Wenn Sie bei Gelb oder Rot nicht mit einer leeren Datei beginnen möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste als Entwurf für Sie und Ihre Steuerberatung. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. 24 Module, alle inklusive; ein Abo umfasst bis zu 5 Firmen. Keine Steuerberatung.
+Wenn Sie bei Gelb oder Rot nicht mit einer leeren Datei beginnen möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Offene-Punkte-Liste als Entwurf für Sie und Ihre Steuerberatung. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. 24 Module, alle inklusive. Keine Steuerberatung.
 
 ## Weiterlesen
 

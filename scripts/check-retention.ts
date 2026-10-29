@@ -334,6 +334,7 @@ async function main() {
     for (const email of [
       "cappe@gmx.de", "philip.cappelletti@sdc-ventures.com", "jemand@sdc-ventures.com", "a@example.com",
       "delivered@resend.dev", "x@ikat-gmbh.de", "info@gobd-doku-erstellen.de", "gobd16x-1@web.de",
+      "gobd-test@mail.grokbot.com", "GOBD-Test@Mail.GrokBot.com",
     ]) {
       assert.equal(guards.exclusionFor({ emails: [email], ds24: false, legacy: false, marker: true }), "test", email);
     }
@@ -347,6 +348,10 @@ async function main() {
       "test",
     );
     assert.equal(guards.exclusionFor({ emails: ["k@firma-neu.de"], ds24: false, legacy: false, marker: true }), null);
+    // Tester-Postfach nur exakt (CoS 28.10.): andere Adressen derselben Domain, Tags, Subdomains bleiben drin.
+    for (const email of ["other@mail.grokbot.com", "gobd-test+x@mail.grokbot.com", "gobd-test@grokbot.com", "gobd-test@x.mail.grokbot.com"]) {
+      assert.equal(guards.exclusionFor({ emails: [email], ds24: false, legacy: false, marker: true }), null, email);
+    }
     assert.equal(guards.hasNewModelMarker(""), false);
     assert.equal(guards.hasNewModelMarker("legacy"), false);
     assert.equal(guards.hasNewModelMarker("v2"), false);

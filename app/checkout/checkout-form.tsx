@@ -10,6 +10,7 @@ import { RESULT_PROMISE } from "@/lib/offer-copy";
 import { PlanCheckoutSummary, PlanPackageSelect } from "@/components/plan-checkout";
 import {
   PLAN_B2B_NOTICE,
+  PLAN_OFFER_OBJECTION_NOTICE,
   PLAN_TERMS_HREF,
   PLAN_TERMS_LABEL_AFTER,
   PLAN_TERMS_LABEL_BEFORE,
@@ -215,7 +216,13 @@ export function CheckoutForm({
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             required
+            aria-describedby={planOffer ? "email-objection" : undefined}
           />
+          {planOffer ? (
+            <p className="hint" id="email-objection">
+              {PLAN_OFFER_OBJECTION_NOTICE}
+            </p>
+          ) : null}
         </div>
         <label className="check">
           <input

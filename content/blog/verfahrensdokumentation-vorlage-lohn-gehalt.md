@@ -148,7 +148,7 @@ Der kostenlose [Readiness-Check](/readiness) zeigt Ihnen in kurzen Fragen zu Bra
 
 ## Verfahrensdokumentation online erstellen
 
-Auf [gobd-doku-erstellen.de](/) entsteht aus Ihren Antworten eine individuelle Verfahrensdokumentation als PDF mit einer Liste offener Punkte; der Bereich Personal und Lohnabrechnung ist eines der Module. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Auf [gobd-doku-erstellen.de](/) entsteht aus Ihren Antworten eine individuelle Verfahrensdokumentation als PDF mit einer Liste offener Punkte; der Bereich Personal und Lohnabrechnung ist eines der Module. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Keine Steuerberatung.
 
 ## Häufige Fragen
 

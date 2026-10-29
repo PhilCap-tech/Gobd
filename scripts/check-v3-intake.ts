@@ -51,6 +51,11 @@ async function main() {
     const page = read("app/fragebogen/page.tsx");
     assert.ok(page.includes("LoginForm") && page.includes("PLAN_OFFER_OBJECTION_NOTICE"), "Login + Widerspruch am E-Mail-Feld");
     assert.ok(page.includes("prepayHref"), "nach der letzten Frage: Paketwahl");
+    // Checkout/Paketwahl: Widerspruchshinweis direkt am E-Mail-Feld, nicht unter dem ganzen Formular (CoS 28.10.).
+    const form = read("app/checkout/checkout-form.tsx");
+    const emailField = form.slice(form.indexOf('htmlFor="email"'), form.indexOf('name="entrepreneur"'));
+    assert.ok(emailField.includes("{PLAN_OFFER_OBJECTION_NOTICE}") && emailField.includes('id="email-objection"'), "Checkout: Widerspruch am E-Mail-Feld");
+    assert.ok(!read("components/plan-checkout.tsx").includes("PLAN_OFFER_OBJECTION_NOTICE"), "Checkout: Widerspruch nicht doppelt unter den Paketen");
     const intake = read("app/api/intake/route.ts");
     assert.ok(intake.includes('"Checkout-Session fehlt.", 401'), "Erstellung nur mit bezahlter Session");
   });
