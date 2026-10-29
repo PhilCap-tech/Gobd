@@ -72,7 +72,7 @@ Pauschale Gesamtpreise lassen sich seriös kaum nennen, weil Umfang, Zahl der Sy
 | Weg | Kostenart | Orientierung |
 |-----|-----------|--------------|
 | **Vorlage / Muster** | kostenlos oder Einmalkauf; dazu Ihre eigene Zeit für Befüllen und Pflege | Für Teilbereiche gibt es kostenlose Muster von Kammern und Verbänden, etwa die [Muster-Verfahrensdokumentation zum ersetzenden Scannen von BStBK und DStV](https://www.bstbk.de/downloads/bstbk/steuerrecht-und-rechnungslegung/fachinfos/BStBK_Muster-VerfD-ersetzendes-Scannen_v2.0-2019-11-29.pdf). Kostenpflichtige Vorlagen unterscheiden sich in Umfang und Preis. |
-| **Software** | je nach Anbieter Einmalpreis, Jahreslizenz oder Monatsabo; dazu Ihre Zeit für die Angaben | Preismodelle und Leistungsumfang unterscheiden sich je nach Anbieter. Bei uns: 198 € zum Start (Einrichtung + 1. Monat), danach 49 €/Monat, zzgl. USt. — 198 € zum Start = 149 € Einrichtung + 49 € für den 1. Monat. Ein Abo umfasst bis zu 5 Firmen; alle 24 Module inklusive; monatlich kündbar. |
+| **Software** | je nach Anbieter Einmalpreis oder Jahreslizenz; dazu Ihre Zeit für die Angaben | Preismodelle und Leistungsumfang unterscheiden sich je nach Anbieter. Bei uns: 99 € einmalig je Firma bzw. 99 € + 49 €/Jahr, netto zzgl. USt. Alle 24 Module inklusive. |
 | **Steuerberatung** | Honorar der Kanzlei; dazu Ihre Zeit für Gespräche und Zuarbeit | Kanzleien rechnen individuell ab – fragen Sie Ihre Kanzlei nach dem Aufwand. |
 
 In allen drei Fällen zählt die Pflege mit: Jede Änderung im Betrieb kann eine neue Fassung auslösen. Was die Kosten im Einzelnen treibt — Umfang, Systeme, Eigenleistung, Vertragsmodell — erläutert [Verfahrensdokumentation Kosten](/blog/verfahrensdokumentation-kosten).
@@ -115,7 +115,7 @@ Nein. Weder eine Vorlage noch eine Software noch eine Beratung sichert ein besti
 
 Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentation als PDF und eine Liste offener Punkte. Sie prüfen und ergänzen die Angaben vor der Verwendung. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
-24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation. 198 € zum Start (Einrichtung + 1. Monat), danach 49 €/Monat, zzgl. USt. Wie ein fertiges Dokument aussieht, zeigen die fiktiven [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
+24 Module, alle inklusive – ein Preis für die komplette GoBD-Verfahrensdokumentation. 99 € einmalig je Firma bzw. 99 € + 49 €/Jahr, netto zzgl. USt. Wie ein fertiges Dokument aussieht, zeigen die fiktiven [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
 
 ## Weiterlesen
 - [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software)

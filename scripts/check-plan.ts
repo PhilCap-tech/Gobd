@@ -133,9 +133,9 @@ async function main() {
     assert.ok(texts.entry.startsWith(`${pricing.netWithGrossCents(9900)} einmalig`));
     const { headingId } = await import("@/lib/legal-markdown");
     const ids = render("content/faq-v2.md", true, false).split("\n").filter((l) => l.startsWith("## ")).map((l) => headingId(l.slice(3).trim())).filter(Boolean);
-    assert.deepEqual(ids, ["geld-zurueck", "mitgliedschaft", "loeschung", "aufbewahrung", "kuendigung", "mehrere-firmen"]);
+    assert.deepEqual(ids, ["erstattung", "mitgliedschaft", "loeschung", "aufbewahrung", "kuendigung", "mehrere-firmen"]);
     const legacyIds = read("content/faq.md").split("\n").filter((l) => l.startsWith("## ")).map((l) => headingId(l.slice(3).trim())).filter(Boolean);
-    assert.deepEqual(legacyIds, ["geld-zurueck"]);
+    assert.deepEqual(legacyIds, ["erstattung"]);
   });
 
   /* ---------- Preise ---------- */

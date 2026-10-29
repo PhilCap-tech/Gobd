@@ -125,7 +125,7 @@ Viele suchen nach einer „Vorlage Verfahrensdokumentation“ und landen bei ein
 
 Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
-Das ist kein Ersatz für Steuerberatung und keine Zusage, wie ein Finanzamt ein Dokument bewertet. Es ist ein greifbarer Start statt einzelner Fragmente in Ordnern. Wie sich Eigenarbeit, Software und Beratung im Aufwand unterscheiden, vergleicht der Artikel [Verfahrensdokumentation Kosten: Jahreslizenz, Monatsabo oder Beratung](/blog/verfahrensdokumentation-kosten).
+Das ist kein Ersatz für Steuerberatung und keine Zusage, wie ein Finanzamt ein Dokument bewertet. Es ist ein greifbarer Start statt einzelner Fragmente in Ordnern. Wie sich Eigenarbeit, Software und Beratung im Aufwand unterscheiden, vergleicht der Artikel [Verfahrensdokumentation Kosten: Jahreslizenz oder Beratung](/blog/verfahrensdokumentation-kosten).
 
 ## Checkliste: bevor Sie „fertig“ sagen
 
@@ -192,7 +192,7 @@ Vor allem für KMU, Handwerk und Freiberufler mit überschaubaren Teams (z. B. 1
 
 ## Verfahrensdokumentation online erstellen
 
-Wenn Sie den Entwurf nicht leer starten möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Liste offener Punkte als Entwurf zur Abstimmung. Keine Steuerberatung. 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde.
+Wenn Sie den Entwurf nicht leer starten möchten: [GoBD-Verfahrensdokumentation erstellen](/) — geführtes Intake, dann PDF und Liste offener Punkte als Entwurf zur Abstimmung. Keine Steuerberatung.
 
 ## Weiterlesen
 

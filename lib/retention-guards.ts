@@ -28,8 +28,8 @@ export const RETENTION_TEST_DOMAINS = [
   "mail.tm",
 ] as const;
 
-/** Philips Adressen (zusätzlich zu den Domains oben). */
-export const RETENTION_TEST_EMAILS = ["cappe@gmx.de", "philip.cappelletti@sdc-ventures.com"] as const;
+/** Philips Adressen und das Tester-Postfach (CoS 28.10., nur exakt), zusätzlich zu den Domains oben. */
+export const RETENTION_TEST_EMAILS = ["cappe@gmx.de", "philip.cappelletti@sdc-ventures.com", "gobd-test@mail.grokbot.com"] as const;
 
 export type ExclusionGroup = "test" | "comp" | "ds24" | "legacy" | "marker";
 export const EXCLUSION_GROUPS: readonly ExclusionGroup[] = ["test", "comp", "ds24", "legacy", "marker"];
