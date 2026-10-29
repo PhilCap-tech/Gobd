@@ -59,6 +59,18 @@ if (/html\.consent-pending \.sticky-cta,\s*body\.consent-open \.sticky-cta\s*\{[
 if (/bottom:\s*74px/.test(css)) {
   fail("consent banner is still offset to sit above the sticky CTA");
 }
+const bannerRule = css.match(/\n\.consent-banner\s*\{([^}]*)\}/);
+if (!bannerRule || /position:\s*(fixed|sticky|absolute)/.test(bannerRule[1])) {
+  fail("consent banner must sit in the document flow, never overlay buttons or links");
+}
+if (/\.consent-banner\s*\{[^}]*position:\s*(fixed|sticky)/.test(css)) {
+  fail("consent banner is fixed or sticky somewhere and can cover buttons");
+}
+const bannerAt = layout.indexOf("<ConsentBanner />");
+const childrenAt = layout.indexOf("{children}");
+if (bannerAt < 0 || childrenAt < 0 || bannerAt > childrenAt) {
+  fail("consent banner must render before the page content (in flow, above it)");
+}
 if (banner.includes("<aside") || !banner.includes('role="dialog"')) {
   fail("consent dialog must be a div with role=dialog");
 }

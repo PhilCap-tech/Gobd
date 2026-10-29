@@ -49,9 +49,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
         <SensitiveQueryStrip />
         <JsonLd data={organizationJsonLd()} />
+        {/* Im Fluss vor dem Inhalt: der Banner überdeckt nie Buttons oder Links. */}
+        <ConsentBanner />
         {children}
         <VercelAnalytics />
-        <ConsentBanner />
         <Suspense fallback={null}>
           <MarketingPixel />
         </Suspense>

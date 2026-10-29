@@ -1997,18 +1997,16 @@ code {
   }
 }
 
-body.consent-open {
-  padding-bottom: var(--consent-banner-height, 96px);
-}
-
+/*
+ * Der Banner steht im Dokumentfluss oben (vor Header und Inhalt), nicht fixiert.
+ * So überdeckt er nie einen Button oder Link, auf keiner Seite und keiner Breite.
+ */
 .consent-banner {
-  position: fixed;
+  position: relative;
   z-index: 80;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
   background: var(--surface);
-  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   padding: 6px 0;
 }
 
@@ -2069,10 +2067,6 @@ body.consent-open {
 }
 
 @media (max-width: 800px) {
-  body.consent-open {
-    padding-bottom: var(--consent-banner-height, 120px);
-  }
-
   .consent-banner {
     padding: 6px 0;
     max-height: 120px;
