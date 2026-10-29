@@ -911,3 +911,159 @@
     transition: none;
   }
 }
+
+/* Variante D2 (29.10.2026): Hero-Schritte und Preisbereich */
+.d2Steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.d2Step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.d2Num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: var(--forest);
+  color: #fff;
+  font-weight: 700;
+}
+
+.d2Prices {
+  background: #f2ece0;
+  border-top: 1px solid var(--line);
+}
+
+.d2Kick {
+  margin: 0 0 10px;
+  color: var(--forest);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.d2Intro {
+  max-width: 760px;
+  font-size: 18px;
+}
+
+.d2Decide {
+  margin: 20px 0;
+  padding: 14px 18px;
+  background: #e6f0ea;
+  border-left: 4px solid var(--forest);
+  border-radius: 8px;
+  font-size: 17px;
+}
+
+.d2Grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 28px;
+}
+
+.d2Card,
+.d2Diff {
+  min-width: 0;
+  padding: 28px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.d2Card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.d2Card ul,
+.d2Diff ul {
+  padding-left: 20px;
+}
+
+.d2Card ul {
+  flex: 1;
+}
+
+.d2Card li,
+.d2Diff li {
+  margin: 6px 0;
+}
+
+.d2Tag {
+  margin: 0;
+  color: var(--forest);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.d2Price {
+  margin: 6px 0 2px;
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #152e29;
+}
+
+.d2Small,
+.d2Foot {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.d2Small {
+  margin: 0;
+}
+
+.d2Diff {
+  margin-top: 28px;
+}
+
+.d2Diff h3 {
+  margin-top: 0;
+}
+
+.d2Foot {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 860px) {
+  .d2Steps,
+  .d2Grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .d2Card,
+  .d2Diff {
+    padding: 24px 20px;
+  }
+
+  .d2Card :global(.btn) {
+    width: 100%;
+  }
+
+  .d2Price {
+    font-size: 32px;
+  }
+}

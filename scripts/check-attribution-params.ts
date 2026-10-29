@@ -447,7 +447,7 @@ ok(home.includes('const AMPEL_HERO_HREF = "/ampel-check?src=hero&v=a"'), "the he
 ok(home.includes("<CampaignLink") && home.includes("href={AMPEL_HERO_HREF}"), "the hero link passes campaign params on the client");
 ok((home.match(/<CampaignLink\b/g) ?? []).length >= 7, "homepage funnel and checkout links pass campaign params");
 const checkoutCampaignLinks = home.match(/<CampaignLink\b[^>]*href="\/checkout"/g) ?? [];
-ok(checkoutCampaignLinks.length === 4, "the four homepage checkout links use CampaignLink");
+ok(checkoutCampaignLinks.length >= 4, "the homepage checkout links (legacy + Variante D2) use CampaignLink");
 const homeWithoutCampaignLinks = home.replace(/<CampaignLink\b[\s\S]*?>/g, "");
 ok(!homeWithoutCampaignLinks.includes('href="/checkout"'), "no plain href=\"/checkout\" remains in app/page.tsx");
 ok(!/<a\b[^>]*href="\/checkout"/.test(home), "the homepage has no plain checkout anchor");
