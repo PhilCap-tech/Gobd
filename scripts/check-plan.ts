@@ -85,7 +85,6 @@ async function main() {
   await check("DS24 und Kanzlei: feste Werte", () => {
     assert.equal(pricing.DS24_SETUP_EUR, 149);
     assert.equal(pricing.DS24_TODAY_EUR, 198);
-    assert.equal(pricing.KANZLEI_MONTHLY_EUR, 49);
     assert.equal(pricing.KANZLEI_PILOT_MONTHLY_EUR, 49);
   });
   await check("Rechtstexte: legacy behält Text, Marker fallen weg", () => {

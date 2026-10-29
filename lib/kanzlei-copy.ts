@@ -8,13 +8,13 @@ export const KANZLEI_DOI_HOURS = 48;
 export const KANZLEI_MERKBLATT_PDF_PATH = "/steuerberater/merkblatt/pdf";
 export const KANZLEI_MERKBLATT_FILENAME = "kanzlei-merkblatt-verfahrensdokumentation.pdf";
 
-export const KANZLEI_FORM_TITLE = "Kanzlei-Merkblatt: Verfahrensdokumentation nach GoBD";
+export const KANZLEI_FORM_TITLE = "Mandanten-Merkblatt: Verfahrensdokumentation nach GoBD";
 export const KANZLEI_FORM_LEAD =
-  "Checkliste für das Gespräch mit Ihren Mandanten, als PDF zum Ausdrucken (1–2 Seiten).";
+  "Merkblatt zum Weitergeben an Ihre Mandanten, als PDF zum Ausdrucken.";
 export const KANZLEI_FORM_BENEFITS = [
-  "Was die GoBD zur Verfahrensdokumentation verlangen",
-  "Welche Bausteine Mandanten typischerweise brauchen",
-  "Typische Lücken: Kasse, Scan, E-Rechnung, Archivierung, Zuständigkeiten",
+  "Was eine Verfahrensdokumentation ist",
+  "Warum Mandanten eine brauchen",
+  "Wie es funktioniert: Fragebogen, Zahlung, PDF, Personen einladen",
 ] as const;
 
 export const KANZLEI_EMAIL_LABEL = "E-Mail-Adresse";
