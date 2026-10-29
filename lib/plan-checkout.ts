@@ -182,7 +182,7 @@ export function buildPlanCheckoutParams(
         currency: "eur",
         unit_amount: V2_MEMBER_FIRM_YEAR_CENTS,
         tax_behavior: "exclusive",
-        product_data: { name: "Weitere Firma in der Jahresmitgliedschaft (laufendes Mitgliedsjahr)" },
+        product_data: { name: "Weitere Firma im Jahrespaket" },
       },
       quantity: 1,
       ...taxRates,
