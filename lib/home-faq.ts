@@ -17,9 +17,9 @@ export const HOME_FAQ: FaqEntry[] = [
       "Nein — Sie erhalten PDF und offene Punkte aus Ihren Angaben. Sie prüfen und ergänzen vor der Verwendung. Die fachliche Prüfung bleibt bei Ihnen bzw. Ihrem Steuerberater.",
   },
   {
-    question: "Reicht ein einmaliges PDF?",
+    question: "Muss ich ein Abo abschließen?",
     answer:
-      "Für den Moment vielleicht — bis sich Software, Belegwege oder Verantwortliche ändern. Das Abo hält Versionen und Updates verfügbar.",
+      "Nein. Mit dem Paket „Einmalig“ zahlen Sie 99 € je Firma und erhalten Ihre Dokumentation als PDF. Sie haben 30 Tage Zugang zum Dashboard, danach ist er gesperrt.",
   },
   {
     question: "Deckt das auch Kasse, Warenwirtschaft oder Lohn ab?",

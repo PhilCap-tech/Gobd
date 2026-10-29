@@ -36,26 +36,35 @@ import {
   SETUP_GROSS_LABEL,
   TODAY_EUR,
   TODAY_GROSS_LABEL,
-  V2_ENTRY_CENTS,
   V2_ENTRY_LABEL,
-  V2_ENTRY_WITH_MEMBER_CENTS,
-  V2_MEMBER_YEAR_CENTS,
   V2_MEMBER_YEAR_LABEL,
-  netWithGrossCents,
 } from "@/lib/pricing";
 import {
   PLAN_B2B_NOTICE,
-  PLAN_BESTSELLER_LABEL,
-  PLAN_PACKAGE_ENTRY_TITLE,
-  PLAN_PACKAGE_MEMBER_TITLE,
-  planPackageTextsV3,
 } from "@/lib/plan-copy";
 import { isPricingV2 } from "@/lib/pricing-model";
 
 /** Preismodell v2 (PRICING_MODEL=v2). Ohne Variable bleibt die Seite wie bisher. */
 const V2 = isPricingV2();
-/** Wortlaut Legal je Paket (Preisseite). */
-const V2_PACKAGE_TEXTS = planPackageTextsV3();
+/** Variante D2 (Philip 29.10.): Wortlaut Hero und #preise. */
+const D2_HERO_HEADLINE = "Erst ausfüllen. Dann einmalig 99 € zahlen.";
+const D2_HERO_SUBLINE =
+  "Sie melden sich an und beantworten den Fragebogen kostenlos. Erst nach der letzten Frage zahlen Sie 99 € je Firma, dann wird Ihre Verfahrensdokumentation als PDF erstellt.";
+const D2_HERO_STEPS = [
+  { title: "Anmelden", text: "Login-Link per E-Mail" },
+  { title: "Fragebogen", text: "kostenlos, in Etappen" },
+  { title: "Einmalig 99 €", text: "erst vor der Erstellung" },
+];
+const D2_HERO_MICRO = "zzgl. 19 % USt · nur für Unternehmen · Keine Steuer- oder Rechtsberatung.";
+const D2_FOOT =
+  "Alle Preise netto zzgl. 19 % USt, nur für Unternehmen. Jede weitere Firma buchen Sie gesondert zum vollen Preis. Erstattung nur, wenn die Erstellung Ihrer Dokumentation fehlschlägt (Einzelheiten in den AGB). Keine Steuer- oder Rechtsberatung.";
+/** Startseite: v3-Widerspruch „weitere Firmen dazubuchen“ durch D2-Wortlaut ersetzt. */
+const HOME_AREAS_DETAIL = V2
+  ? ALL_AREAS_DETAIL.replace(
+      "weitere Firmen können Sie dazubuchen",
+      "jede weitere Firma buchen Sie gesondert zum vollen Preis",
+    )
+  : ALL_AREAS_DETAIL;
 const V2_HEADLINE = `${V2_ENTRY_LABEL} € einmalig · Jahrespaket optional ${V2_MEMBER_YEAR_LABEL} €/Jahr`;
 import { HOME_CRUMBS, HOME_FAQ } from "@/lib/home-faq";
 import { faqPageJsonLd, productOfferJsonLd } from "@/lib/jsonld";
@@ -219,6 +228,40 @@ export default function HomePage() {
         ]}
       />
       <main>
+        {V2 ? (
+        <section className={styles.hero}>
+          <div className={`shell ${styles.heroInner}`}>
+            <h1>{D2_HERO_HEADLINE}</h1>
+            <p className={styles.lead}>{D2_HERO_SUBLINE}</p>
+          </div>
+          <div className={`shell ${styles.d2Steps}`}>
+            {D2_HERO_STEPS.map((step, index) => (
+              <div className={styles.d2Step} key={step.title}>
+                <span className={styles.d2Num}>{index + 1}</span>
+                <strong>{step.title}</strong>
+                <span>{step.text}</span>
+              </div>
+            ))}
+          </div>
+          <div className={`shell ${styles.heroInner}`}>
+            <div className={styles.ctas}>
+              <CampaignLink className="btn" cta="hero_checkout" href="/checkout">
+                Kostenlos anmelden und starten
+              </CampaignLink>
+              <HomeCtaLink className={`btn ${styles.btnSec}`} cta="hero_muster" href="#muster">
+                Muster ansehen
+              </HomeCtaLink>
+            </div>
+            <p className={styles.micro}>{D2_HERO_MICRO}</p>
+            <p className={styles.advisor}>
+              Steuerberater oder Kanzlei?{" "}
+              <Link className={styles.inlineLink} href="/steuerberater">
+                Seite für Berater
+              </Link>
+            </p>
+          </div>
+        </section>
+        ) : (
         <section className={styles.hero}>
           <div className={`shell ${styles.heroInner}`}>
             <p className={styles.eyebrow}>
@@ -271,6 +314,7 @@ export default function HomePage() {
             </p>
           </div>
         </section>
+        )}
 
         <p className={`shell ${styles.heroDisclaimer}`}>{HERO_DISCLAIMER}</p>
 
@@ -398,7 +442,7 @@ export default function HomePage() {
               .
             </p>
             <p className={styles.fine}>
-              <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
+              <strong>{ALL_AREAS_LINE}</strong> {HOME_AREAS_DETAIL}
             </p>
           </div>
         </section>
@@ -420,10 +464,12 @@ export default function HomePage() {
                   Sie prüfen und ergänzen vor der Verwendung; Abstimmung mit dem
                   Steuerberater bleibt bei Ihnen.
                 </li>
-                <li>
-                  Weitere Module können Sie später im Konto ergänzen, ohne neue
-                  Bestellung. Mit dem Abo bleiben Versionen und Anpassungen verfügbar.
-                </li>
+                {V2 ? null : (
+                  <li>
+                    Weitere Module können Sie später im Konto ergänzen, ohne neue
+                    Bestellung. Mit dem Abo bleiben Versionen und Anpassungen verfügbar.
+                  </li>
+                )}
               </ol>
               <p className={styles.fine}>{INTAKE_EFFORT_LINE}</p>
             </div>
@@ -465,8 +511,8 @@ export default function HomePage() {
               <li>Geführter Frageprozess statt leerer Vorlage</li>
               {V2 ? (
                 <li>
-                  Versionierung und Speicherung mit der Jahresmitgliedschaft (
-                  {netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr)
+                  Versionierung und Speicherung mit dem Paket „Dauerhaft“ ({V2_MEMBER_YEAR_LABEL} €/Jahr
+                  zzgl. USt)
                 </li>
               ) : (
                 <li>
@@ -479,40 +525,89 @@ export default function HomePage() {
           </div>
         </section>
 
+        {V2 ? (
+        <section className={`${styles.section} ${styles.d2Prices}`} id="preise">
+          <div className="shell">
+            <p className={styles.d2Kick}>Was Sie zahlen</p>
+            <h2>Einmalig 99 €. Mehr nur, wenn Sie es wollen.</h2>
+            <p className={styles.d2Intro}>
+              Jedes Paket gilt für eine Firma und enthält alle 24 Module. Der Fragebogen ist kostenlos,
+              Sie zahlen erst nach der letzten Frage.
+            </p>
+            <p className={styles.d2Decide}>
+              <strong>Sie müssen sich jetzt nicht entscheiden:</strong> Die Wahl treffen Sie erst nach der
+              letzten Frage, direkt vor der Erstellung. Keine Abo-Pflicht.
+            </p>
+            <div className={styles.d2Grid}>
+              <article className={styles.d2Card}>
+                <p className={styles.d2Tag}>Einmalig</p>
+                <p className={styles.d2Price}>99 €</p>
+                <p className={styles.d2Small}>einmalig je Firma · zzgl. USt (117,81 € brutto)</p>
+                <ul>
+                  <li>Ihre Verfahrensdokumentation als PDF mit Liste offener Punkte</li>
+                  <li>30 Tage Dashboard: Angaben anpassen, PDF neu erstellen, Personen einladen</li>
+                  <li>Keine Abo-Pflicht</li>
+                </ul>
+                <CampaignLink className="btn" cta="price_checkout" href="/checkout">
+                  Einmalig starten
+                </CampaignLink>
+              </article>
+              <article className={styles.d2Card}>
+                <p className={styles.d2Tag}>Dauerhaft</p>
+                <p className={styles.d2Price}>99 € + 49 €/Jahr</p>
+                <p className={styles.d2Small}>je Firma · zzgl. USt (im ersten Jahr 148 €, brutto 176,12 €)</p>
+                <ul>
+                  <li>
+                    <strong>
+                      Lückenlose Dokumentation aller Änderungen und Anpassungen Ihrer
+                      Verfahrensdokumentation, jede Version mit Datum
+                    </strong>
+                  </li>
+                  <li>Alles aus „Einmalig“</li>
+                  <li>Zugang zu Dashboard und PDFs, solange das Jahrespaket läuft</li>
+                  <li>Änderungen jederzeit einpflegen und neue Version erstellen</li>
+                  <li>Personen jederzeit einladen</li>
+                  <li>Verlängert sich jährlich, kündbar laut AGB</li>
+                </ul>
+                <CampaignLink className="btn" cta="price_checkout" href="/checkout">
+                  Dauerhaft starten
+                </CampaignLink>
+              </article>
+            </div>
+            <div className={styles.d2Diff}>
+              <h3>Was ist der Unterschied?</h3>
+              <p>
+                Beide Pakete liefern dieselbe Verfahrensdokumentation als PDF mit allen für Sie relevanten
+                Modulen. Der Unterschied ist, wie lange Sie danach Zugriff haben.
+              </p>
+              <ul>
+                <li>
+                  <strong>Einmalig:</strong> 30 Tage Zugang zum Dashboard. In dieser Zeit können Sie Angaben
+                  anpassen, das PDF neu erstellen und Personen einladen. Danach ist der Zugang gesperrt, auch
+                  der PDF-Download.
+                </li>
+                <li>
+                  <strong>Dauerhaft:</strong> Ihr Zugang bleibt bestehen, solange das Jahrespaket läuft. Sie
+                  können Angaben jederzeit ändern, neue Versionen erstellen und Personen einladen. Jede
+                  Version wird mit Datum gespeichert, so sind alle Änderungen lückenlos dokumentiert. Die
+                  Änderungen pflegen Sie selbst ein.
+                </li>
+              </ul>
+              <p>
+                <strong>Wann lohnt sich was?</strong> „Einmalig“ passt, wenn sich Ihre Abläufe selten ändern
+                und Sie das PDF selbst ablegen. „Dauerhaft“ lohnt sich, wenn sich Software, Belegwege oder
+                Zuständigkeiten in Ihrem Betrieb öfter ändern.
+              </p>
+            </div>
+            <p className={styles.d2Foot}>{D2_FOOT}</p>
+          </div>
+        </section>
+        ) : (
         <section className={styles.section} id="preise">
           <div className={`shell ${styles.priceLayout}`}>
             <div className={styles.priceBox}>
               <p className={styles.eyebrow}>Was Sie heute zahlen</p>
-              {V2 ? (
-                <>
-              <h2>{V2_HEADLINE}</h2>
-              <p>{PLAN_B2B_NOTICE}</p>
-              <p>{ALL_AREAS_LINE}</p>
-              <table className={styles.priceTable}>
-                <tbody>
-                  <tr>
-                    <th scope="row">Einstieg (einmalig)</th>
-                    <td>{netWithGrossCents(V2_ENTRY_CENTS)}</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Jahresmitgliedschaft (optional, pro Jahr)</th>
-                    <td>{netWithGrossCents(V2_MEMBER_YEAR_CENTS)}</td>
-                  </tr>
-                  <tr className={styles.due}>
-                    <th scope="row">Einstieg + Jahrespaket im ersten Jahr</th>
-                    <td>{netWithGrossCents(V2_ENTRY_WITH_MEMBER_CENTS)}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p>
-                <span className="badge">{PLAN_BESTSELLER_LABEL}</span>{" "}
-                Paket „{PLAN_PACKAGE_MEMBER_TITLE}“: {V2_PACKAGE_TEXTS.member}
-              </p>
-              <p>
-                Paket „{PLAN_PACKAGE_ENTRY_TITLE}“: {V2_PACKAGE_TEXTS.entry}
-              </p>
-                </>
-              ) : (
+              {
                 <>
               <h2>
                 {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
@@ -552,7 +647,7 @@ export default function HomePage() {
                 </tbody>
               </table>
                 </>
-              )}
+              }
               <div className={styles.ctas}>
                 <div className={styles.priceCta}>
                   <CampaignLink className={`btn ${styles.btnOnDark}`} cta="price_checkout" href="/checkout">
@@ -582,11 +677,12 @@ export default function HomePage() {
               <p className={styles.prose}>{RESULT_PROMISE}</p>
               {PRICE_FRAME_LINE ? <p className={styles.fine}>{PRICE_FRAME_LINE}</p> : null}
               <p className={styles.fine}>
-                <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
+                <strong>{ALL_AREAS_LINE}</strong> {HOME_AREAS_DETAIL}
               </p>
             </div>
           </div>
         </section>
+        )}
 
         <section className={`${styles.section} ${styles.alt}`} id="check">
           <div className={`shell ${styles.split}`}>

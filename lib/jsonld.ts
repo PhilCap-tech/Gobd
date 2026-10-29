@@ -171,13 +171,13 @@ function productOfferJsonLdV2(): JsonLdNode {
     url: canonicalUrl("/"),
     description: [
       "Strukturierte GoBD-Verfahrensdokumentation als PDF aus einem Fragebogen mit 24 Modulen.",
-      `Einstieg ${V2_ENTRY_LABEL} € netto einmalig, optional Jahrespaket ${V2_MEMBER_YEAR_LABEL} € netto pro Jahr; 30 Tage Zugang ohne Jahrespaket.`,
+      `Einmalig ${V2_ENTRY_LABEL} € netto je Firma, keine Abo-Pflicht; optional dauerhaft mit Jahrespaket ${V2_MEMBER_YEAR_LABEL} € netto pro Jahr; 30 Tage Zugang ohne Jahrespaket.`,
       "Nur für Unternehmen. Hinweis: keine Steuerberatung.",
     ].join(" "),
     brand: { "@type": "Organization", name: LEGAL_OPERATOR.name },
     audience: { "@type": "BusinessAudience", audienceType: "Unternehmen (§ 14 BGB)" },
     offers: [
-      offer("Einstieg (einmalig)", entry, { unitText: "Einstieg" }),
+      offer("Einmalig", entry, { unitText: "Einmalig" }),
       offer("Jahrespaket", member, { unitText: "Jahr", unitCode: "ANN", billingDuration: 1 }),
     ],
   };
