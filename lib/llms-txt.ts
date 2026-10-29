@@ -72,7 +72,7 @@ export function buildLlmsTxt(): string {
     "",
     ...(V2
       ? [
-          `Einstieg: ${netWithGrossCents(V2_ENTRY_CENTS)}, einmalig.`,
+          `Einmalig: ${netWithGrossCents(V2_ENTRY_CENTS)}, einmalig.`,
           `Optional Jahrespaket: ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr.`,
           "Ohne Jahrespaket: 30 Tage Zugang ab Kauf, danach ist das Konto deaktiviert.",
           `Alle Preise zzgl. ${VAT_PERCENT} % USt. Nur für Unternehmen.`,
