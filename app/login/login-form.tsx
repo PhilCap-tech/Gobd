@@ -7,12 +7,15 @@ export function LoginForm({
   maskedEmail = "",
   resolveOwner = false,
   initialSent = false,
+  emailNotice = "",
 }: {
   next?: string | null;
   maskedEmail?: string;
   /** Send to the checkout owner resolved from next. The address is not in the browser. */
   resolveOwner?: boolean;
   initialSent?: boolean;
+  /** Hinweis direkt am E-Mail-Feld (aria-describedby), z. B. Widerspruchshinweis. */
+  emailNotice?: string;
 }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -74,7 +77,13 @@ export function LoginForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            aria-describedby={emailNotice ? "email-objection" : undefined}
           />
+          {emailNotice ? (
+            <p className="hint" id="email-objection">
+              {emailNotice}
+            </p>
+          ) : null}
         </div>
       )}
       {error && <p className="error">{error}</p>}

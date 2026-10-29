@@ -50,6 +50,9 @@ async function main() {
     assert.ok(route.includes("(stored.pricingModel ?? \"\") === (next.pricingModel ?? \"\")"), "Marker auch bei unverändertem Inhalt");
     const page = read("app/fragebogen/page.tsx");
     assert.ok(page.includes("LoginForm") && page.includes("PLAN_OFFER_OBJECTION_NOTICE"), "Login + Widerspruch am E-Mail-Feld");
+    assert.ok(page.includes("emailNotice={PLAN_OFFER_OBJECTION_NOTICE}"), "Fragebogen-Login: Widerspruch per Prop am Feld, nicht darunter");
+    const login = read("app/login/login-form.tsx");
+    assert.ok(login.includes('aria-describedby={emailNotice ? "email-objection" : undefined}') && login.includes('id="email-objection"'), "Login: aria-describedby");
     assert.ok(page.includes("prepayHref"), "nach der letzten Frage: Paketwahl");
     // Checkout/Paketwahl: Widerspruchshinweis direkt am E-Mail-Feld, nicht unter dem ganzen Formular (CoS 28.10.).
     const form = read("app/checkout/checkout-form.tsx");
