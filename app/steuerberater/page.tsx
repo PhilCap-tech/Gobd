@@ -3,34 +3,23 @@ import Link from "next/link";
 import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { MAX_ENTITIES_PER_ACCOUNT } from "@/lib/entities";
 import { LEGAL_OPERATOR } from "@/lib/legal";
-import { ALL_AREAS_LINE, PARTNER_EFFORT_LINE } from "@/lib/offer-copy";
+import { PARTNER_EFFORT_LINE } from "@/lib/offer-copy";
 import { withOgImage } from "@/lib/seo";
 import {
   PARTNER_DEMO_PATH,
   PARTNER_MUSTER_PATH,
   PARTNER_MUSTER_PDF_PATH,
 } from "@/lib/partner-muster";
-import {
-  KANZLEI_MONTHLY_EUR,
-  KANZLEI_MONTHLY_GROSS_LABEL,
-  MONTHLY_EUR,
-  MONTHLY_GROSS_LABEL,
-  SETUP_EUR,
-  SETUP_GROSS_LABEL,
-} from "@/lib/pricing";
-import { isPricingV2 } from "@/lib/pricing-model";
 import styles from "../home.module.css";
 import { MerkblattForm } from "./merkblatt-form";
 import { PartnerInquiryForm } from "./partner-inquiry-form";
 
 const PAGE_TITLE =
-  "Für Steuerberater: Logo im Mandanten-PDF, auf Anfrage | GoBD Verfahrensdoku";
-// v2: ohne Zusage einer Mandantenübersicht (CoS 26.10. 15:52), nur Satzteile gestrichen.
-const PAGE_DESCRIPTION = isPricingV2()
-  ? "Kanzleien zahlen 49 € netto pro Monat auf Anfrage für das Logo im PDF der Mandanten. Keine Provision. Mandanten zahlen den Listenpreis direkt an die IKAT GmbH. Keine Steuerberatung."
-  : "Kanzleien zahlen 49 € netto pro Monat auf Anfrage für das Logo im PDF der Mandanten und eine Übersicht der Mandanten, die zugestimmt haben. Keine Provision. Mandanten zahlen den Listenpreis direkt an die IKAT GmbH. Keine Steuerberatung.";
+  "Für Steuerberater: kostenloser Kanzleizugang | GoBD Verfahrensdoku";
+// Neutral (Philip 29.10.): keine Kanzlei-Preise, keine Konditionen, keine Provision.
+const PAGE_DESCRIPTION =
+  "Kostenloser Kanzleizugang: Ihr Mandant lädt die Kanzlei als Mitwirkende ein. Die Kanzlei sieht die freigegebenen Module und füllt offene Angaben aus. Mit Mandanten-Merkblatt als PDF. Keine Steuerberatung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(LEGAL_OPERATOR.siteUrl),
@@ -47,25 +36,20 @@ export const metadata: Metadata = {
   }),
 };
 
-const PARTNER_MAIL = `mailto:${LEGAL_OPERATOR.email}?subject=${encodeURIComponent("Partneranfrage Kanzlei")}`;
+const PARTNER_MAIL = `mailto:${LEGAL_OPERATOR.email}?subject=${encodeURIComponent("Anfrage Kanzlei")}`;
 
 const FAQ = [
   {
-    q: "Was zahlt die Kanzlei?",
-    a: isPricingV2()
-      ? `${KANZLEI_MONTHLY_EUR} € netto pro Monat (${KANZLEI_MONTHLY_GROSS_LABEL} € brutto, inkl. 19 % USt), auf Anfrage. Darin liegt das Logo der Kanzlei im PDF der Mandanten. Ein Bereich zum Hochladen des Logos ist hier nicht eingerichtet.`
-      : `${KANZLEI_MONTHLY_EUR} € netto pro Monat (${KANZLEI_MONTHLY_GROSS_LABEL} € brutto, inkl. 19 % USt), auf Anfrage. Darin liegen das Logo der Kanzlei im PDF der Mandanten und eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben. Ein Bereich zum Hochladen des Logos oder zum Abruf der Übersicht ist hier nicht eingerichtet.`,
+    q: "Was kostet der Kanzleizugang?",
+    a: "Nichts. Der Mandant lädt die Kanzlei in seinem Konto als Mitwirkende ein. Für die Kanzlei entstehen dabei keine Kosten.",
   },
   {
-    q: "Erhält die Kanzlei eine Provision?",
-    a: "Nein. Die Kanzlei erhält keine Provision. Mandanten zahlen den Listenpreis direkt an die IKAT GmbH.",
+    q: "Was kann die Kanzlei als Mitwirkende tun?",
+    a: "Die Kanzlei sieht die Module, die der Mandant freigegeben hat, füllt dort offene Angaben aus und speichert Entwürfe. Die PDF-Fassung erzeugt der Mandant. Für Mitwirkende ist sie nicht lesbar.",
   },
   {
     q: "Was zahlen Mandanten?",
-    a: isPricingV2()
-      ? // Wortlaut Legal (BUILDER-UEBERGABE 26.10., /steuerberater Z. 58).
-        "Einstieg 99 € netto (117,81 € brutto) einmalig, optional Jahrespaket 49 € netto (58,31 € brutto) pro Jahr. Jedes Paket gilt für 1 Firma. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft."
-      : `${SETUP_EUR} € netto Einrichtung (${SETUP_GROSS_LABEL} € brutto) plus ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto). Ein Abo umfasst bis zu ${MAX_ENTITIES_PER_ACCOUNT} Firmen. Die Bestellung läuft über die öffentliche Seite, nicht über diese Partnerschaft.`,
+    a: "Mandanten bestellen eines der normalen Pakete über die öffentliche Seite. Die Pakete und Preise stehen auf der Startseite unter „Preise“.",
   },
   {
     q: "Ist das Steuerberatung?",
@@ -81,10 +65,6 @@ const FAQ = [
   },
 ] as const;
 
-function euro(amount: number): string {
-  return `${amount}\u00A0€`;
-}
-
 export default function SteuerberaterPage() {
   return (
     <div className={`${styles.page} kanzlei-home`}>
@@ -96,9 +76,9 @@ export default function SteuerberaterPage() {
       />
       <SiteHeader
         ctaHref="#anfrage"
-        ctaLabel="Partneranfrage"
+        ctaLabel="Anfrage"
         links={[
-          { href: "#modell", label: "Modell" },
+          { href: "#modell", label: "Kanzleizugang" },
           { href: "#muster", label: "Muster" },
           { href: "#ablauf", label: "Ablauf" },
           { href: "#anfrage", label: "Anfrage" },
@@ -108,37 +88,15 @@ export default function SteuerberaterPage() {
         <section className={styles.hero}>
           <div className={`shell ${styles.heroInner}`}>
             <p className={styles.eyebrow}>Für Steuerberater und Kanzleien</p>
-            <h1>Logo der Kanzlei im PDF der Mandanten</h1>
+            <h1>Kostenloser Kanzleizugang</h1>
             <p className={styles.lead}>
-              Die Kanzlei zahlt {euro(KANZLEI_MONTHLY_EUR)} netto pro Monat, auf Anfrage.{" "}
-              {isPricingV2() ? (
-                "Dafür erscheint das Logo im PDF der Mandanten."
-              ) : (
-                <>
-                  Dafür erscheint das Logo im PDF der Mandanten, und die Kanzlei erhält
-                  eine Übersicht der Mandanten, die der Weitergabe zugestimmt haben.
-                </>
-              )}{" "}
-              Mandanten zahlen den Listenpreis direkt an die {LEGAL_OPERATOR.name}.
-              Die Kanzlei erhält keine Provision.
-            </p>
-            <p className={styles.priceBanner}>
-              <strong>{euro(KANZLEI_MONTHLY_EUR)} netto / Monat für die Kanzlei</strong>
-              <span>
-                Auf Anfrage · keine Provision · Mandanten:{" "}
-                {isPricingV2() ? (
-                  "Einstieg 99 € einmalig, optional Jahrespaket 49 €/Jahr"
-                ) : (
-                  <>
-                    {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
-                  </>
-                )}{" "}
-                direkt an die {LEGAL_OPERATOR.name}
-              </span>
+              Ihr Mandant lädt die Kanzlei in seinem Konto als Mitwirkende ein. Die
+              Kanzlei sieht die freigegebenen Module und füllt dort offene Angaben aus.
+              Die PDF-Fassung erzeugt der Mandant.
             </p>
             <div className={styles.ctas}>
-              <a className="btn" href="#anfrage">
-                Partneranfrage
+              <a className="btn" href="#merkblatt">
+                Mandanten-Merkblatt
               </a>
               <a className={`btn ${styles.btnSec}`} href={PARTNER_MUSTER_PDF_PATH}>
                 Muster-PDF öffnen
@@ -149,40 +107,38 @@ export default function SteuerberaterPage() {
             </div>
             <ul className={styles.trust}>
               <li>Keine Steuerberatung</li>
-              <li>Keine Provision</li>
-              <li>Kein Bestellweg für die Kanzlei auf dieser Seite</li>
+              <li>Kanzleizugang ohne Kosten</li>
+              <li>Muster-PDF ohne Anmeldung</li>
             </ul>
           </div>
         </section>
 
         <p className={`shell ${styles.factBar}`}>
-          Logo im Mandanten-PDF · {isPricingV2() ? null : "Übersicht nur bei Zustimmung · "}keine Provision ·
-          Muster-PDF ohne Anmeldung
+          Einladung durch den Mandanten · freigegebene Module ausfüllen · Muster-PDF ohne
+          Anmeldung
         </p>
 
         <section className={styles.section} id="modell">
           <div className="shell">
-            <h2>Was die Partnerschaft umfasst</h2>
-            <p className={styles.sub}>Auf Anfrage. Kein Selbstbedienungsbereich.</p>
+            <h2>Was der Kanzleizugang umfasst</h2>
+            <p className={styles.sub}>Der Mandant lädt ein. Die Kanzlei braucht kein eigenes Paket.</p>
             <div className={styles.grid3}>
               <article className={styles.card}>
-                <h3>Logo im PDF</h3>
+                <h3>Einladung als Mitwirkende</h3>
                 <p>
-                  Das Logo der Kanzlei erscheint im PDF der Mandanten. Den Upload
-                  richten wir auf Anfrage ein. Ein Formular dafür gibt es auf
-                  dieser Seite nicht.
+                  Der Mandant lädt die Kanzlei im Konto unter „Mitwirkende“ per E-Mail
+                  ein und wählt alle aktiven Module oder einzelne Module. Höchstens fünf
+                  aktive Personen je Firma.
                 </p>
               </article>
-              {isPricingV2() ? null : (
-                <article className={styles.card}>
-                  <h3>Übersicht der Mandanten</h3>
-                  <p>
-                    Die Übersicht zeigt nur Mandanten, die der Weitergabe zugestimmt
-                    haben. Sie sehen Mandantendaten nicht automatisch. Der Abruf ist
-                    auf Anfrage, nicht als Kontofunktion.
-                  </p>
-                </article>
-              )}
+              <article className={styles.card}>
+                <h3>Offene Angaben ausfüllen</h3>
+                <p>
+                  Die Kanzlei sieht die freigegebenen Module, füllt offene Angaben aus
+                  und speichert Entwürfe. Die PDF-Fassung erzeugt der Mandant. Für
+                  Mitwirkende ist sie nicht lesbar.
+                </p>
+              </article>
               <article className={styles.card} id="muster">
                 <h3>Muster ansehen</h3>
                 <p>
@@ -211,74 +167,16 @@ export default function SteuerberaterPage() {
         </section>
 
         <section className={`${styles.section} ${styles.alt}`} id="preise">
-          <div className={`shell ${styles.priceLayout}`}>
-            <div className={styles.priceBox}>
-              <p className={styles.eyebrow}>Kanzlei, auf Anfrage</p>
-              <h2>{euro(KANZLEI_MONTHLY_EUR)} netto / Monat</h2>
-              <p>
-                {KANZLEI_MONTHLY_GROSS_LABEL}&nbsp;€ brutto, inkl. 19&nbsp;% USt. Keine
-                Provision. Kein Bestellbutton.
-              </p>
-              <table className={styles.priceTable}>
-                <tbody>
-                  <tr>
-                    <th scope="row">Logo im PDF</th>
-                    <td>auf Anfrage</td>
-                  </tr>
-                  {isPricingV2() ? null : (
-                    <tr>
-                      <th scope="row">Mandantenübersicht</th>
-                      <td>nur bei Zustimmung, auf Anfrage</td>
-                    </tr>
-                  )}
-                  <tr>
-                    <th scope="row">Provision</th>
-                    <td>keine</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div className={styles.ctas}>
-                <a className={`btn ${styles.btnOnDark}`} href={PARTNER_MAIL}>
-                  Partneranfrage per E-Mail
-                </a>
-                <a className={styles.textLink} href="#anfrage">
-                  Oder das Formular nutzen
-                </a>
-              </div>
-            </div>
-            <div className={styles.side}>
-              <h3>Was Mandanten zahlen</h3>
-              <p className={styles.prose}>
-                Den Listenpreis, direkt an die {LEGAL_OPERATOR.name}. Die Kanzlei
-                erhält keine Provision.
-              </p>
-              <ul className={styles.checks} role="list">
-                {isPricingV2() ? (
-                  <>
-                    {/* Wortlaut Legal (Z. 230–236). */}
-                    <li>Einstieg 99 € netto (117,81 € brutto), einmalig</li>
-                    <li>optional Jahrespaket 49 € netto (58,31 € brutto) pro Jahr</li>
-                    <li>Jedes Paket gilt für 1 Firma; weitere Firmen dazubuchbar</li>
-                  </>
-                ) : (
-                  <>
-                    <li>
-                      {euro(SETUP_EUR)} netto Einrichtung ({SETUP_GROSS_LABEL}&nbsp;€ brutto)
-                    </li>
-                    <li>
-                      {euro(MONTHLY_EUR)} netto pro Monat ({MONTHLY_GROSS_LABEL}&nbsp;€ brutto)
-                    </li>
-                    <li>Ein Abo umfasst bis zu {MAX_ENTITIES_PER_ACCOUNT} Firmen</li>
-                  </>
-                )}
-                <li>{ALL_AREAS_LINE}</li>
-              </ul>
-              <p className={styles.fine}>
-                Die Bestellung der Mandanten läuft über die{" "}
-                <Link href="/">öffentliche Seite</Link>. Diese Partnerschaft hat
-                keinen Bestellweg.
-              </p>
-            </div>
+          <div className="shell">
+            <h2>Was Mandanten zahlen</h2>
+            <p className={styles.prose}>
+              Mandanten bestellen eines der normalen Pakete über die öffentliche Seite.
+              Die Pakete und Preise finden Sie auf der{" "}
+              <Link className={styles.inlineLink} href="/#preise">
+                Startseite unter „Preise“
+              </Link>
+              .
+            </p>
           </div>
         </section>
 
@@ -287,30 +185,20 @@ export default function SteuerberaterPage() {
             <div>
               <h2>So läuft es ab</h2>
               <ol className={styles.steps} role="list">
-                <li>Sie senden eine Partneranfrage. Es gibt hier keine Selbstbedienung.</li>
+                <li>Der Mandant beantwortet die Fragen im Fragebogen.</li>
+                <li>Der Mandant wählt ein Paket und bezahlt.</li>
                 <li>
-                  {isPricingV2() ? (
-                    "Logo im PDF richten wir danach auf Anfrage ein."
-                  ) : (
-                    <>
-                      Logo im PDF und die Übersicht der Mandanten, die zugestimmt haben,
-                      richten wir danach auf Anfrage ein.
-                    </>
-                  )}
+                  Der Mandant lädt die Kanzlei im Konto unter „Mitwirkende“ ein. Die
+                  Kanzlei füllt offene Angaben in den freigegebenen Modulen aus.
                 </li>
-                <li>
-                  Mandanten bestellen selbst und zahlen den Listenpreis direkt an die{" "}
-                  {LEGAL_OPERATOR.name}.
-                </li>
-                <li>Sie füllen die Dokumentation nicht für den Mandanten aus.</li>
+                <li>Der Mandant erzeugt das PDF.</li>
               </ol>
               <p className={styles.fine}>{PARTNER_EFFORT_LINE}</p>
             </div>
             <div>
               <h2>Grenze</h2>
               <p className={styles.prose}>
-                Keine Steuerberatung und keine Rechtsberatung. Keine Zusage, dass
-                eine Dokumentation einer Prüfung standhält. Die Verantwortung für
+                Keine Steuerberatung und keine Rechtsberatung. Die Verantwortung für
                 die Angaben bleibt beim Mandanten.
               </p>
               <p className={styles.prose}>
@@ -326,22 +214,14 @@ export default function SteuerberaterPage() {
         <section className={`${styles.section} ${styles.alt}`} id="anfrage">
           <div className={`shell ${styles.split}`}>
             <div>
-              <h2>Partneranfrage</h2>
+              <h2>Anfrage</h2>
               <p className={styles.prose}>
-                {isPricingV2() ? (
-                  "Schreiben Sie uns, wenn die Kanzlei das Logo im PDF nutzen möchte."
-                ) : (
-                  <>
-                    Schreiben Sie uns, wenn die Kanzlei das Logo im PDF und die
-                    Übersicht eingewilligter Mandanten nutzen möchte.
-                  </>
-                )}{" "}
-                Die Anfrage ist
-                unverbindlich. Eine Provision gibt es nicht.
+                Schreiben Sie uns, wenn Sie Fragen zum Kanzleizugang haben. Die Anfrage
+                ist unverbindlich.
               </p>
               <p className={styles.fine}>
                 <a href={PARTNER_MAIL}>
-                  {LEGAL_OPERATOR.email} mit dem Betreff „Partneranfrage Kanzlei“
+                  {LEGAL_OPERATOR.email} mit dem Betreff „Anfrage Kanzlei“
                 </a>
               </p>
             </div>
@@ -367,15 +247,14 @@ export default function SteuerberaterPage() {
 
         <section className={styles.final} id="abschluss">
           <div className="shell">
-            <h2>Partnerschaft auf Anfrage</h2>
+            <h2>Kostenloser Kanzleizugang</h2>
             <p>
-              {euro(KANZLEI_MONTHLY_EUR)} netto pro Monat für die Kanzlei · keine Provision ·
-              Mandanten zahlen den Listenpreis direkt an die {LEGAL_OPERATOR.name}.
-              Keine Steuerberatung.
+              Der Mandant lädt die Kanzlei als Mitwirkende ein. Mandanten bestellen die
+              normalen Pakete. Keine Steuerberatung.
             </p>
             <div className={styles.ctas}>
-              <a className={`btn ${styles.btnOnDark}`} href={PARTNER_MAIL}>
-                Partneranfrage per E-Mail
+              <a className={`btn ${styles.btnOnDark}`} href="#merkblatt">
+                Mandanten-Merkblatt
               </a>
               <a className={`btn ${styles.btnSecOnDark}`} href="#anfrage">
                 Formular
@@ -389,7 +268,7 @@ export default function SteuerberaterPage() {
       </main>
       <div className="sticky-cta">
         <a className="btn" href="#anfrage">
-          Partneranfrage
+          Anfrage
         </a>
       </div>
       <SiteFooter />

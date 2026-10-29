@@ -35,7 +35,7 @@ export default function PartnerDemoPage() {
         <p className="kicker">Muster · Demo · anonymisiert</p>
         <DemoWalkthrough />
         <p className="hint back-links">
-          <Link href="/steuerberater">Zur Partnerseite</Link>
+          <Link href="/steuerberater">Zur Seite für Steuerberater</Link>
           {" · "}
           <Link href="/steuerberater/muster">Muster-PDF</Link>
         </p>

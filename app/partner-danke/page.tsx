@@ -37,9 +37,13 @@ export default function PartnerDankePage() {
           </li>
           <li>
             Nach der Anmeldung legen Sie Ihre Firma an, beantworten die Fragen der 24 Module und
-            erzeugen Ihr PDF. Die laufende Aktualisierung (49 € pro Monat zzgl. USt, ab dem zweiten
-            Monat) hält Ihre Dokumentation aktuell. Sie können sie monatlich über Digistore24
-            kündigen.
+            erzeugen Ihr PDF. Die Pakete und Preise finden Sie auf der{" "}
+            <Link href="/#preise">Startseite unter „Preise“</Link>.
+          </li>
+          <li>
+            Im Konto können Sie unter „Mitwirkende“ Personen per E-Mail einladen, zum Beispiel
+            Ihre Steuerkanzlei. Sie wählen, welche Module diese Personen ausfüllen. Die PDF-Fassung
+            erzeugen Sie selbst.
           </li>
         </ol>
 

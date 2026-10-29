@@ -329,7 +329,8 @@ const pdf = readFileSync("content/kanzlei-merkblatt.pdf");
 assertOk(pdf.subarray(0, 5).toString("utf8") === "%PDF-", "the merkblatt PDF exists");
 assertOk(!pdf.toString("latin1").includes("(Entwurf)"), "the PDF title is not marked as a draft");
 const merkblatt = readFileSync("content/kanzlei-merkblatt.md", "utf8");
-assertOk(merkblatt.startsWith("# Kanzlei-Merkblatt: Verfahrensdokumentation nach GoBD"), "merkblatt title");
+assertOk(merkblatt.startsWith("# Mandanten-Merkblatt: Verfahrensdokumentation nach GoBD"), "merkblatt title");
+assertOk(!/€|\/Monat|pro Monat|Provision|Rabatt|Konditionen/.test(merkblatt), "merkblatt names no prices or Kanzlei terms");
 assertOk(!merkblatt.includes("Webinar") && !merkblatt.includes("[klären"), "merkblatt has no draft marker and no webinar");
 
 const submitSource = readFileSync("lib/kanzlei-submit.ts", "utf8");

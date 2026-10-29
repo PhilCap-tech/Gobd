@@ -201,7 +201,7 @@ export default function PartnerMusterPage() {
             Diese Musterseite ist ein Beispiel und speichert keine Eingaben.
           </p>
           <p className="hint back-links">
-            <Link href="/steuerberater">Zur Partnerseite</Link>
+            <Link href="/steuerberater">Zur Seite für Steuerberater</Link>
             {" · "}
             <Link href={PARTNER_DEMO_PATH}>Fragenprozess testen</Link>
           </p>

@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import PDFDocument from "pdfkit";
 
-const TITLE = "Kanzlei-Merkblatt: Verfahrensdokumentation nach GoBD";
+const TITLE = "Mandanten-Merkblatt: Verfahrensdokumentation nach GoBD";
 const regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
 const bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
 
@@ -17,7 +17,7 @@ function render(markdown: string): Promise<Buffer> {
     info: {
       Title: TITLE,
       Author: "IKAT GmbH",
-      Subject: "Checkliste für das Mandantengespräch",
+      Subject: "Merkblatt zum Weitergeben an Mandanten",
     },
   });
   doc.registerFont("body", regular);
