@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { IntakeQuestionHint } from "@/components/intake-question-hint";
 import { prefillKnownFacts, prefillStammdatenInput, type CatalogIssue } from "@/lib/intake-catalog";
 import {
   applySoftwarePreset,
@@ -90,6 +91,7 @@ export function BetriebsCheckStep({
               </p>
             ) : null}
             <p className="hint">{frage.hilfe}</p>
+            <IntakeQuestionHint />
             <div className="chips">
               {ANTWORTEN.map((option) => (
                 <button
@@ -127,6 +129,7 @@ export function BetriebsCheckStep({
         <p className="hint">
           Tragen Sie hier die Namen (und Systeme) ein. Wir belegen passende Felder in den Modulen vor.
         </p>
+        <IntakeQuestionHint />
         {STAMMDATEN_FELDER.map((field) => {
           const value = stammdaten[field.key] ?? "";
           const gap = issues.find(
@@ -204,6 +207,7 @@ export function ModulUebersichtStep({
         </ul>
       </details>
       <div className="card">
+        <IntakeQuestionHint />
         <div className="intake-table-wrap">
         <table className="summary-table">
           <thead>

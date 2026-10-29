@@ -38,8 +38,7 @@ export default async function FragebogenPage() {
             Geben Sie Ihre E-Mail-Adresse ein. Sie erhalten einen Anmeldelink; damit speichern wir Ihre Angaben
             in Ihrem Konto. Bezahlt wird erst, wenn Sie die Dokumentation erstellen lassen.
           </p>
-          <LoginForm next={FRAGEBOGEN_PATH} />
-          <p className="hint">{PLAN_OFFER_OBJECTION_NOTICE}</p>
+          <LoginForm next={FRAGEBOGEN_PATH} emailNotice={PLAN_OFFER_OBJECTION_NOTICE} />
         </main>
         <SiteFooter />
       </>
