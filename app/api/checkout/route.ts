@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { v3FirmDenial } from "@/lib/v3-firm-limit";
 import { sessionEmailFromRequest } from "@/lib/auth";
 import { compCheckoutRedirect, isCompAccessEmail } from "@/lib/comp-access";
 import { ds24CheckoutRedirect } from "@/lib/digistore24-access";
@@ -18,6 +19,14 @@ import {
   verifyStripeCustomerId,
 } from "@/lib/stripe";
 import { emailsEqual } from "@/lib/types";
+import { loadPlanAccess } from "@/lib/plan-access";
+import { memberFromPackage, planCheckoutKind, type PlanCheckoutKind } from "@/lib/plan-checkout";
+import {
+  intakeLoginFirstEnabled,
+  isPricingV2,
+  memberPreselected,
+} from "@/lib/pricing-model";
+import { logError } from "@/lib/log-error";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
   if (!isStripeSecretConfigured()) return undefined;
@@ -29,7 +38,7 @@ async function reusableCustomerId(email: string): Promise<string | undefined> {
     if (!id) return undefined;
     return (await verifyStripeCustomerId(id)) === "valid" ? id : undefined;
   } catch (error) {
-    console.error("[checkout] bekannter Kunde nicht geladen", error);
+    logError("[checkout] bekannter Kunde nicht geladen", error);
     return undefined;
   }
 }
@@ -44,6 +53,16 @@ export async function POST(request: Request) {
     entrepreneur?: boolean;
     entityId?: string;
     audience?: "kunde" | "steuerberater";
+    /** Preismodell v2: `mitglied` | `einstieg`. */
+    paket?: string;
+    /** Preismodell v2: `entry` (Default) | `change` | `member` | `firm`. Die letzten drei nur im Konto. */
+    kind?: string;
+    /** Preismodell v2: AGB bestätigt. */
+    acceptedTerms?: boolean;
+    /** Neues Modell: Widerspruch gegen Angebots-Mails. */
+    offerOptOut?: boolean;
+    /** Neues Modell, Login zuerst: Entwurf aus dem Fragebogen (email:<login>:…). */
+    draftKey?: string;
   };
   try {
     body = await request.json();
@@ -55,6 +74,15 @@ export async function POST(request: Request) {
   const company = body.company?.trim() ?? "";
   const requestedEntityId = body.entityId?.trim() ?? "";
   const sessionEmail = await sessionEmailFromRequest(request);
+  const v2 = isPricingV2();
+  const kind: PlanCheckoutKind = v2 ? planCheckoutKind(body.kind) : "entry";
+  if (v2 && (kind === "addon" || kind === "reactivate")) {
+    return accountV3Checkout(kind, sessionEmail);
+  }
+  if (v2 && kind !== "entry") {
+    // Neues Modell (28.10.): 49-€-Änderung, 99,90-€-Mitgliedschaft und weitere Firmen sind abgeschaltet.
+    return NextResponse.json({ error: "Das ist im Konto gerade nicht buchbar." }, { status: 404 });
+  }
   const compTarget =
     compCheckoutRedirect(sessionEmail, requestedEntityId) ||
     compCheckoutRedirect(email, requestedEntityId) ||
@@ -134,6 +162,26 @@ export async function POST(request: Request) {
     );
   }
 
+  if (v2 && body.acceptedTerms !== true) {
+    return NextResponse.json(
+      { error: "Bitte bestätigen Sie die AGB." },
+      { status: 400 },
+    );
+  }
+  // Neues Modell (Philip 28.10.): eine Firma je v3-Konto. Kauf für eine weitere Firma gesperrt.
+  if (v2) {
+    try {
+      const firms = await listEntitiesByEmail(email);
+      const known = Boolean(entityId) && firms.some((firm) => firm.entityId === entityId);
+      const denial = known ? null : await v3FirmDenial(email, firms.length);
+      if (denial) return NextResponse.json({ error: denial }, { status: 409 });
+    } catch (error) {
+      logError("[checkout] Firmenanzahl nicht geprüft", error, { level: "warn" });
+    }
+  }
+  // Nachweis der AGB-Bestätigung (Legal 15:20): Zeitpunkt in den Stripe-Metadaten.
+  const agbAcceptedAt = v2 ? new Date().toISOString() : undefined;
+
   try {
     const session = await createCheckoutSession({
       email,
@@ -142,13 +190,84 @@ export async function POST(request: Request) {
       audience: body.audience === "steuerberater" ? "steuerberater" : "kunde",
       customerId: await reusableCustomerId(email),
       route: CHECKOUT_SESSION_ROUTE,
+      ...(v2
+        ? {
+            plan: {
+              kind: "entry" as const,
+              member: memberFromPackage(body.paket, memberPreselected()),
+              agbAcceptedAt,
+              offerOptOut: body.offerOptOut === true,
+              draftKey: ownLoginDraftKey(body.draftKey, sessionEmail),
+            },
+          }
+        : {}),
     });
     return NextResponse.json(session);
   } catch (error) {
-    console.error("[checkout]", error);
+    logError("[checkout]", error);
     return NextResponse.json(
       { error: "Checkout konnte nicht gestartet werden." },
       { status: 500 },
     );
+  }
+}
+
+/** Nur ein eigener Login-Entwurf (email:<Sitzungs-Mail>:…) wird an den Checkout gebunden. */
+function ownLoginDraftKey(raw: unknown, sessionEmail: string | null): string | undefined {
+  if (typeof raw !== "string" || !sessionEmail || !intakeLoginFirstEnabled()) return undefined;
+  const key = raw.trim();
+  const prefix = `email:${sessionEmail.trim().toLowerCase()}:`;
+  return key.startsWith(prefix) && key.length <= 450 ? key : undefined;
+}
+
+/**
+ * Neues Modell (28.10.), nur angemeldet: Jahrespaket nachbuchen (innerhalb
+ * der 30 Tage, Jahr ab Erstkauf) oder Konto reaktivieren (nach Ablauf,
+ * 99 € + 49 €/Jahr).
+ */
+async function accountV3Checkout(
+  kind: "addon" | "reactivate",
+  sessionEmail: string | null,
+): Promise<NextResponse> {
+  if (!sessionEmail) {
+    return NextResponse.json({ error: "Bitte melden Sie sich an." }, { status: 401 });
+  }
+  let loaded;
+  try {
+    loaded = await loadPlanAccess(sessionEmail);
+  } catch (error) {
+    logError("[checkout] Plan nicht lesbar", error);
+    return NextResponse.json(
+      { error: "Bitte versuchen Sie es in einem Moment erneut." },
+      { status: 503, headers: { "Retry-After": "3" } },
+    );
+  }
+  if (!loaded) {
+    return NextResponse.json({ error: "Für dieses Konto gibt es keinen passenden Kauf." }, { status: 403 });
+  }
+  const allowed = kind === "addon" ? loaded.access.canBecomeMember : loaded.access.canReactivate;
+  if (!allowed) {
+    return NextResponse.json(
+      {
+        error:
+          kind === "addon"
+            ? "Das Jahrespaket ist für dieses Konto gerade nicht buchbar."
+            : "Eine Reaktivierung ist für dieses Konto gerade nicht nötig.",
+      },
+      { status: 409 },
+    );
+  }
+  try {
+    const session = await createCheckoutSession({
+      email: sessionEmail,
+      company: "",
+      customerId: loaded.row.stripeCustomerId || (await reusableCustomerId(sessionEmail)),
+      route: CHECKOUT_SESSION_ROUTE,
+      plan: { kind, member: true, firstPurchasedAt: loaded.row.purchasedAt },
+    });
+    return NextResponse.json(session);
+  } catch (error) {
+    logError("[checkout] Konto-Kauf neues Modell", error);
+    return NextResponse.json({ error: "Checkout konnte nicht gestartet werden." }, { status: 500 });
   }
 }

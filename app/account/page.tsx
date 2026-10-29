@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AccountAboCard } from "@/components/account-abo";
+import { isPricingV2 } from "@/lib/pricing-model";
+import { AccountPlanCard } from "@/components/account-plan";
+import { loadAccountPlanView } from "@/lib/plan-view";
 import { AccountCompanyCard } from "@/components/account-company-card";
 import { AccountResourcesCard } from "@/components/account-free";
 import { AccountProfileForm } from "@/components/account-profile-form";
@@ -52,7 +55,7 @@ export const metadata: Metadata = {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ portal?: string | string[] }>;
+  searchParams: Promise<{ portal?: string | string[]; kauf?: string | string[] }>;
 }) {
   const email = await getSessionEmail();
   if (!email) {
@@ -165,6 +168,20 @@ export default async function AccountPage({
     openPaidSession,
   } = loaded;
   const notice = lifecycleNotice(lifecycleRows);
+  const planView = compAccess ? null : await loadAccountPlanView(email, docs, entities.length === 1 ? entities[0]?.name : "");
+  const purchaseNotice = firstQueryValue(params.kauf);
+  if (planView?.deactivated) {
+    // Neues Modell (28.10.): Option 1 nach Tag 30 – kein Dashboard, nur „Konto deaktiviert“ mit Reaktivierung.
+    return (
+      <>
+        <SiteHeader backHref="/" backLabel="← Zur Landing" />
+        <main className="wrap account-wrap page">
+          <AccountPlanCard view={planView} purchase={purchaseNotice} />
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
   const memberFirms = await loadMemberFirms(email);
   const writesOpen = notice.writesOpen;
   const downloadsOpen = notice.downloadsOpen;
@@ -185,10 +202,11 @@ export default async function AccountPage({
     docs.some((row) => row.stripeCustomerId || row.stripeSessionId) ||
     lifecycleRows.some((row) => row.stripeCustomerId);
   const showAbo = !(memberFirms.length > 0 && entities.length === 0 && !stripeBound);
-  const atCap = entityCapReached(entities.length);
   const coverage = compEmail
     ? emptyIncludedFirmCoverage()
     : await loadIncludedFirmCoverage(email);
+  // v2 mit PRICING_EXTRA_FIRMS_ENABLED: kein Limit von 5 Firmen (R1 neu).
+  const atCap = !coverage.planFirms && entityCapReached(entities.length);
 
   return (
     <>
@@ -327,7 +345,9 @@ export default async function AccountPage({
                       paidIntakeHref={offerPaidIntake ? paidIntakeHref : ""}
                       compAccess={compAccess}
                       coveredIntakeHref={coveredIntakeHref}
-                      extraFirmNote={!compAccess && position > MAX_ENTITIES_PER_ACCOUNT}
+                      extraFirmNote={
+                        !compAccess && !coverage.planFirms && position > MAX_ENTITIES_PER_ACCOUNT
+                      }
                     />
                   );
                 })}
@@ -352,7 +372,8 @@ export default async function AccountPage({
         </div>
 
         <div className="account-tiles">
-          {showAbo ? (
+          {planView ? <AccountPlanCard view={planView} purchase={purchaseNotice} /> : null}
+          {showAbo && !planView && (!isPricingV2() || compAccess || ds24Access || stripeBound) ? (
             <AccountAboCard
               stripeBound={stripeBound}
               notice={notice}

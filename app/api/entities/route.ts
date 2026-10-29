@@ -8,7 +8,11 @@ import {
   normalizeEntityInput,
 } from "@/lib/entities";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
-import { createEntity, updateEntity } from "@/lib/store";
+import { createEntity, getEntity, listEntitiesByEmail, updateEntity } from "@/lib/store";
+import { v3OwnerLockDenial } from "@/lib/plan-access";
+import { isPricingV2 } from "@/lib/pricing-model";
+import { v3FirmDenial } from "@/lib/v3-firm-limit";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -59,6 +63,26 @@ export async function POST(request: Request) {
     return jsonError("Bitte einen Firmennamen angeben.", 400);
   }
 
+  // Neues Modell: gesperrtes Konto (Tag 30 / erstattet) legt keine Firma an (vor dem Firmenlimit).
+  try {
+    const locked = await v3OwnerLockDenial(email);
+    if (locked) return jsonError(locked, 403);
+  } catch (error) {
+    const outage = sheetsOutageResponse(error);
+    if (outage) return outage;
+    throw error;
+  }
+
+  // Neues Modell (Philip 28.10.): eine Firma je v3-Konto.
+  if (isPricingV2()) {
+    try {
+      const denial = await v3FirmDenial(email, (await listEntitiesByEmail(email)).length);
+      if (denial) return jsonError(denial, 409);
+    } catch (error) {
+      logError("[firma] Firmenanzahl nicht geprüft", error, { level: "warn" });
+    }
+  }
+
   try {
     const stored = await createEntity(email, input, { checkoutPrefill: "done" });
     return NextResponse.json({
@@ -76,7 +100,7 @@ export async function POST(request: Request) {
         count: error.count,
       });
     }
-    console.error("[entities] Anlegen fehlgeschlagen", error);
+    logError("[entities] Anlegen fehlgeschlagen", error);
     return jsonError(
       customerFacingSaveError(
         error,
@@ -119,6 +143,14 @@ export async function PATCH(request: Request) {
   }
 
   try {
+    // Neues Modell: Stammdaten nur bei offenem Plan des Firmen-Inhabers.
+    if (isPricingV2()) {
+      const current = await getEntity(entityId);
+      if (current) {
+        const locked = await v3OwnerLockDenial(current.userEmail);
+        if (locked) return jsonError(locked, 403);
+      }
+    }
     const entity = await updateEntity(entityId, input, email, { checkoutPrefill: "done" });
     if (!entity) {
       return jsonError("Firma nicht gefunden.", 404);
@@ -130,7 +162,7 @@ export async function PATCH(request: Request) {
   } catch (error) {
     const outage = sheetsOutageResponse(error);
     if (outage) return outage;
-    console.error("[entities] Speichern fehlgeschlagen", error);
+    logError("[entities] Speichern fehlgeschlagen", error);
     return jsonError(
       customerFacingSaveError(
         error,

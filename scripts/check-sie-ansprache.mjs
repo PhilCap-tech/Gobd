@@ -29,6 +29,7 @@ const COVERED = [
   "lib/kanzlei-mail.ts",
   "app/faq/**/*.{ts,tsx}",
   "content/faq.md",
+  "content/faq-v2.md",
   "app/readiness/**/*.{ts,tsx}",
   "app/ampel-check/**/*.{ts,tsx}",
   "app/kassen-check/**/*.{ts,tsx}",

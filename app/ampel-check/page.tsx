@@ -1,3 +1,4 @@
+import { AMPEL_CTA } from "@/lib/ampel-questions";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CrumbJsonLd } from "@/components/json-ld";
@@ -25,7 +26,7 @@ export default function AmpelCheckPage() {
       <SiteHeader backHref="/" backLabel="← Zur Startseite" />
       <main className="wrap page">
         <Suspense fallback={<p className="hint">Die Ampel wird geladen.</p>}>
-          <AmpelCheck />
+          <AmpelCheck ctaPrice={AMPEL_CTA.price} />
         </Suspense>
       </main>
       <SiteFooter />

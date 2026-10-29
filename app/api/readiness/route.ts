@@ -18,6 +18,7 @@ import {
 } from "@/lib/readiness";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { appendReadinessLead } from "@/lib/store";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -121,7 +122,7 @@ async function handleReadiness(request: Request) {
   } catch (error) {
     const outage = sheetsOutageResponse(error);
     if (outage) return outage;
-    console.error("[readiness] appendReadinessLead fehlgeschlagen", error);
+    logError("[readiness] appendReadinessLead fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }
 
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
   try {
     return await handleReadiness(request);
   } catch (error) {
-    console.error("[readiness] POST fehlgeschlagen", error);
+    logError("[readiness] POST fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }
 }

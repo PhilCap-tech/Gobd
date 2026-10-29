@@ -3,7 +3,9 @@
  * browser session is signed in. Synthetic @example.com only. No Stripe, no Resend.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { completeCheckoutHandoff } from "../app/api/auth/checkout-handoff/route";
 import { completeCheckoutGrant } from "../app/api/checkout/grant/route";
 import {
@@ -18,7 +20,9 @@ import {
   buyerOnboardingStillDue,
   deliverBuyerOnboarding,
   forgetBuyerOnboarding,
+  setBuyerOnboardingTestHooks,
 } from "../lib/buyer-onboarding";
+import { setMailDedupeTestHooks } from "../lib/mail-dedupe";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -82,8 +86,8 @@ async function checkMailIgnoresSession() {
     });
     ok(again === "skipped", "a second call does not send another mail");
   });
-  ok(logs.includes(BUYER), "the order mail names the buyer");
-  ok(!logs.includes(OTHER), "the signed-in address is not the recipient");
+  // Logs tragen keine Adresse mehr (Datenschutz-Fix); den Empfänger prüft checkRecipientRouting.
+  ok(!logs.includes(BUYER) && !logs.includes(OTHER), "the onboarding log names no address");
 
   const stale = await deliverBuyerOnboarding({
     email: BUYER,
@@ -187,7 +191,55 @@ async function checkMailIgnoresSession() {
   await forgetBuyerOnboarding(SESSION);
 }
 
+/** Empfänger über einen abgefangenen Versand prüfen (kein Resend, kein Blob, Dateien im Temp-Ordner). */
+async function checkRecipientRouting() {
+  const env = process.env as Record<string, string | undefined>;
+  const saved = {
+    RESEND_API_KEY: env.RESEND_API_KEY,
+    EMAIL_FROM: env.EMAIL_FROM,
+    BLOB_READ_WRITE_TOKEN: env.BLOB_READ_WRITE_TOKEN,
+  };
+  const dir = mkdtempSync(path.join(tmpdir(), "buyer-onboarding-route-"));
+  const dedupeDir = mkdtempSync(path.join(tmpdir(), "buyer-onboarding-dedupe-"));
+  const recipients: string[] = [];
+  delete env.BLOB_READ_WRITE_TOKEN;
+  env.RESEND_API_KEY = "re_test_buyer_routing";
+  env.EMAIL_FROM = "buyer-routing@example.com";
+  setBuyerOnboardingTestHooks({ dir });
+  setMailDedupeTestHooks({
+    dir: dedupeDir,
+    send: async (input) => {
+      recipients.push(String(input.to));
+      return { stub: false, sent: true, id: "email_test" };
+    },
+  });
+  try {
+    const routed = "cs_test_buyer_routing_4242";
+    const first = await deliverBuyerOnboarding({
+      email: BUYER,
+      company: "Käufer GmbH",
+      sessionId: routed,
+      audience: "steuerberater",
+    });
+    ok(first === "sent", `routed onboarding is ${first}`);
+    const again = await deliverBuyerOnboarding({ email: OTHER, sessionId: routed, audience: "steuerberater" });
+    ok(again === "skipped", "a second call for the session does not send again");
+    ok(recipients.length === 1 && recipients[0] === BUYER, "the order mail goes to the buyer");
+    ok(!recipients.includes(OTHER), "the signed-in address is not the recipient");
+  } finally {
+    setBuyerOnboardingTestHooks(null);
+    setMailDedupeTestHooks(null);
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete env[key];
+      else env[key] = value;
+    }
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(dedupeDir, { recursive: true, force: true });
+  }
+}
+
 withoutMailEnv(checkMailIgnoresSession)
+  .then(() => withoutMailEnv(checkRecipientRouting))
   .then(() => {
     console.log("check-buyer-onboarding: ok");
   })

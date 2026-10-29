@@ -7,6 +7,21 @@ import { PilotKlartextSentence } from "@/components/pilot-klartext";
 import type { EntityChoice } from "@/lib/entities";
 import { INCLUDED_FIRM_NOTE } from "@/lib/account-labels";
 import { RESULT_PROMISE } from "@/lib/offer-copy";
+import { PlanCheckoutSummary, PlanPackageSelect } from "@/components/plan-checkout";
+import {
+  PLAN_B2B_NOTICE,
+  PLAN_TERMS_HREF,
+  PLAN_TERMS_LABEL_AFTER,
+  PLAN_TERMS_LABEL_BEFORE,
+  PLAN_TERMS_LINK,
+  PARTNER_PROBE_CHECKOUT_NOTE_V2,
+  PLAN_PRIVACY_AFTER,
+  PLAN_PRIVACY_BEFORE,
+  PLAN_PRIVACY_HREF,
+  PLAN_PRIVACY_LINK,
+  type PlanPackage,
+  type PlanPackageTexts,
+} from "@/lib/plan-copy";
 import {
   MONTHLY_EUR,
   MONTHLY_GROSS_LABEL,
@@ -28,6 +43,10 @@ type CheckoutFormProps = {
   audience?: CheckoutAudience;
   /** False when the firm-6+ note already explains coverage. */
   showIncludedFirmNote?: boolean;
+  /** Preismodell v2 (PRICING_MODEL=v2): Paketwahl und AGB-Bestätigung. */
+  planOffer?: { initialPackage: PlanPackage; packageTexts: PlanPackageTexts };
+  /** Login zuerst: Entwurf aus dem Fragebogen, wird nach Zahlung übernommen. */
+  draftKey?: string;
 };
 
 export function CheckoutForm({
@@ -39,11 +58,14 @@ export function CheckoutForm({
   initialEmail = "",
   audience = "kunde",
   showIncludedFirmNote = true,
+  planOffer,
+  draftKey = "",
 }: CheckoutFormProps) {
+  const [paket, setPaket] = useState<PlanPackage>(planOffer?.initialPackage ?? "mitglied");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const partner = audience === "steuerberater";
-  const includedFirmNote = showIncludedFirmNote ? (
-    <p className="hint">{INCLUDED_FIRM_NOTE}</p>
-  ) : null;
+  const includedFirmNote =
+    showIncludedFirmNote && INCLUDED_FIRM_NOTE ? <p className="hint">{INCLUDED_FIRM_NOTE}</p> : null;
   const [entityId, setEntityId] = useState(initialEntityId);
   const [company, setCompany] = useState(initialCompany);
   const [email, setEmail] = useState(initialEmail);
@@ -103,6 +125,10 @@ export function CheckoutForm({
       );
       return;
     }
+    if (planOffer && !acceptedTerms) {
+      setError("Bitte bestätigen Sie die AGB.");
+      return;
+    }
     setPending(true);
     try {
       const response = await fetch("/api/checkout", {
@@ -120,6 +146,8 @@ export function CheckoutForm({
               entityId,
             }) || undefined,
           audience,
+          ...(planOffer ? { paket, acceptedTerms } : {}),
+          ...(draftKey ? { draftKey } : {}),
         }),
       });
       const data = (await response.json()) as {
@@ -141,6 +169,12 @@ export function CheckoutForm({
   return (
     <div className="grid-2">
       <form className="card" onSubmit={onSubmit}>
+        {planOffer ? (
+          <>
+            <p className="hint">{PLAN_B2B_NOTICE}</p>
+            <PlanPackageSelect value={paket} onChange={setPaket} texts={planOffer.packageTexts} />
+          </>
+        ) : null}
         <h2>Rechnungsdaten</h2>
         {stripeTestMode ? (
           !stripeReady ? (
@@ -159,7 +193,7 @@ export function CheckoutForm({
           />
         )}
         <div className="field">
-          <label htmlFor="company">Firma / Name</label>
+          <label htmlFor="company">{planOffer ? "Firma" : "Firma / Name"}</label>
           <input
             id="company"
             name="company"
@@ -210,11 +244,39 @@ export function CheckoutForm({
               : "Ich bestätige: keine Steuerberatung und keine Rechtsberatung. Die Dokumentation ist ein Entwurf aus meinen Angaben, keine Freigabe."}
           </span>
         </label>
-        {partner && (
+        {planOffer ? (
+          <label className="check">
+            <input
+              type="checkbox"
+              name="acceptedTerms"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              required
+            />
+            <span>
+              {PLAN_TERMS_LABEL_BEFORE}
+              <a href={PLAN_TERMS_HREF} target="_blank" rel="noopener">
+                {PLAN_TERMS_LINK}
+              </a>
+              {PLAN_TERMS_LABEL_AFTER}
+            </span>
+          </label>
+        ) : null}
+        {planOffer ? (
+          <p className="hint">
+            {PLAN_PRIVACY_BEFORE}
+            <a href={PLAN_PRIVACY_HREF} target="_blank" rel="noopener">
+              {PLAN_PRIVACY_LINK}
+            </a>
+            {PLAN_PRIVACY_AFTER}
+          </p>
+        ) : null}
+        {partner && !planOffer && (
           <p className="prose">
             <PilotKlartextSentence />
           </p>
         )}
+        {partner && planOffer && PARTNER_PROBE_CHECKOUT_NOTE_V2 && <p className="prose">{PARTNER_PROBE_CHECKOUT_NOTE_V2}</p>}
         {error && (
           <p className="error" role="alert">
             {error}
@@ -244,7 +306,13 @@ export function CheckoutForm({
 
       <aside className="card">
         <h2>Bestellübersicht</h2>
-        {partner && (
+        {planOffer ? (
+          <>
+            <PlanCheckoutSummary paket={paket} />
+            <p className="prose">{RESULT_PROMISE}</p>
+          </>
+        ) : null}
+        {planOffer ? null : partner && (
           <p className="hint">
             Der Betrag „Zum Start“ ist der Listenpreis netto. Den Code lösen
             Sie erst im Stripe-Checkout ein. Ohne Code bleibt die Einrichtung{" "}
@@ -252,7 +320,7 @@ export function CheckoutForm({
             einmalig.
           </p>
         )}
-        {partner ? (
+        {planOffer ? null : partner ? (
           <>
             <div className="line">
               <span>Setup GoBD Verfahrensdoku</span>

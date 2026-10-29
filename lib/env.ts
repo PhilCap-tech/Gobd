@@ -41,6 +41,23 @@ export function getAppUrl(): string {
   return canonicalizeAppUrl(process.env.NEXT_PUBLIC_APP_URL || fallbackAppUrl());
 }
 
+/**
+ * Basis für Stripe success_url/cancel_url. Produktion (und lokal): kanonische
+ * Domain wie bisher. Vercel-Preview/Development: die Branch-URL dieser
+ * Deployment-Instanz, damit Testkäufe auf die Preview zurückkehren.
+ */
+export function checkoutReturnBaseUrl(): string {
+  const vercelEnv = process.env.VERCEL_ENV?.trim();
+  if (vercelEnv && vercelEnv !== "production") {
+    const host = (process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL || "")
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/+$/, "");
+    if (host && /^[a-z0-9.-]+$/i.test(host)) return `https://${host}`;
+  }
+  return getAppUrl();
+}
+
 export function isStripeConfigured(): boolean {
   return Boolean(
     process.env.STRIPE_SECRET_KEY &&
@@ -130,6 +147,16 @@ export function getAuditSheetsTab(): string {
 /** Abo-Lebenszyklus. Fester Tab-Name, keine zusätzliche Umgebungsvariable. */
 export function getLifecycleSheetsTab(): string {
   return "subscription_lifecycle";
+}
+
+/** Preismodell v2: ein Plan je Konto. Eigener Tab, dieselbe Tabelle. */
+export function getPlansSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_PLANS_TAB || "plans";
+}
+
+/** Preismodell v2: eine Zeile je Firma (R1 neu). */
+export function getPlanFirmsSheetsTab(): string {
+  return process.env.GOOGLE_SHEETS_PLAN_FIRMS_TAB || "plan_firms";
 }
 
 /** Ampel rate rows. Same spreadsheet as the leads. No extra env var. */

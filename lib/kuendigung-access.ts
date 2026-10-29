@@ -1,5 +1,6 @@
 import { accessForRows, type LifecycleAccess } from "@/lib/kuendigung";
 import { listLifecycleByEmail, listLifecycleByEmailStrict } from "@/lib/kuendigung-store";
+import { planDownloadDenial, planWriteDenial } from "@/lib/plan-access";
 import { SheetsUnavailableError, sheetsStatusCode } from "@/lib/sheets-unavailable";
 
 const OPEN: LifecycleAccess = {
@@ -68,10 +69,13 @@ export async function subscriptionWriteDenial(
   email: string | null | undefined,
 ): Promise<string | null> {
   const access = await writeAccessForEmail(email ?? "");
-  return access.writesOpen ? null : access.writeMessage;
+  if (!access.writesOpen) return access.writeMessage;
+  // Preismodell v2: liest den Plan nur bei PLAN_ACCESS_ENABLED (Default: PRICING_MODEL=v2).
+  return planWriteDenial(email);
 }
 
 export async function subscriptionDownloadDenial(email: string): Promise<string | null> {
   const access = await downloadAccessForEmail(email);
-  return access.downloadsOpen ? null : access.downloadMessage;
+  if (!access.downloadsOpen) return access.downloadMessage;
+  return planDownloadDenial(email);
 }

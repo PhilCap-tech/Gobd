@@ -334,7 +334,11 @@ function drawWatermark(doc: PDFKit.PDFDocument) {
   });
 }
 
-function writeUpsellPage(doc: PDFKit.PDFDocument) {
+/**
+ * `ds24: true` (Muster für DS24-Besucher unter v2, CoS 26.10. 15:32): ohne
+ * Garantiezeile, ohne v2-Preiszeile und ohne /checkout-Link.
+ */
+function writeUpsellPage(doc: PDFKit.PDFDocument, opts: { ds24?: boolean } = {}) {
   doc.addPage();
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
@@ -344,20 +348,22 @@ function writeUpsellPage(doc: PDFKit.PDFDocument) {
   doc.moveDown(0.8);
   doc.font("Helvetica").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_BODY, { width });
   doc.moveDown(0.9);
-  doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_PRICE, { width });
-  doc.moveDown(0.35);
-  doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(GELD_ZURUECK_MICRO, { width });
-  doc.moveDown(0.85);
-  doc
-    .font("Helvetica")
-    .fontSize(12)
-    .fillColor(BRAND_NAVY)
-    .text(PDF_UPSELL_CTA, {
-      width,
-      link: pdfCheckoutHref(),
-      underline: true,
-    });
-  doc.moveDown(0.9);
+  if (!opts.ds24) {
+    doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_PRICE, { width });
+    doc.moveDown(0.35);
+    doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(GELD_ZURUECK_MICRO, { width });
+    doc.moveDown(0.85);
+    doc
+      .font("Helvetica")
+      .fontSize(12)
+      .fillColor(BRAND_NAVY)
+      .text(PDF_UPSELL_CTA, {
+        width,
+        link: pdfCheckoutHref(),
+        underline: true,
+      });
+    doc.moveDown(0.9);
+  }
   doc.font("Helvetica").fontSize(9).fillColor(BRAND_MUTED).text(PDF_UPSELL_DISCLAIMER, { width });
   doc.moveDown(0.7);
   doc.font("Helvetica").fontSize(8).fillColor(BRAND_MUTED).text(PDF_UPSELL_FOOTNOTE, { width });
@@ -432,6 +438,7 @@ function writePdf(
     versionHistory?: VersionHistoryEntry[];
     onlyModul?: string;
     variant: PdfVariant;
+    upsellDs24?: boolean;
   },
 ) {
   const rendered = renderDeliveryDocument(input);
@@ -459,7 +466,7 @@ function writePdf(
     doc.moveDown(0.55);
   }
 
-  if (isMuster(input.variant)) writeUpsellPage(doc);
+  if (isMuster(input.variant)) writeUpsellPage(doc, { ds24: input.upsellDs24 });
 
   decoratePages(doc, {
     identity: input.identity,
@@ -484,6 +491,11 @@ export async function generatePdf(input: {
    * Alles andere, auch ein vergessenes Feld, bleibt eine Kundenfassung.
    */
   variant?: PdfVariant;
+  /**
+   * Nur Muster: Upsell-Seite für DS24-Besucher unter v2 (`?quelle=ds24`, CoS
+   * 26.10.) ohne Garantiezeile, Preiszeile und /checkout-Link.
+   */
+  upsellDs24?: boolean;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const entityId = input.identity.entityId;
   if (!isMuster(input.variant) && entityId && isTestEntity(entityId)) {

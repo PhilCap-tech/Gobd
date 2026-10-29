@@ -134,6 +134,8 @@ export type CheckoutIdentity = {
   businessName?: string;
   /** EU VAT id from `customer_details.tax_ids` (USt-IdNr.). */
   ustId?: string;
+  /** Neues Modell, Login zuerst: Entwurf aus dem Fragebogen (Metadaten `gobd_draft_key`). */
+  draftKey?: string;
 };
 
 export type SheetRow = {

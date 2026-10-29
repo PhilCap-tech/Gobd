@@ -42,7 +42,7 @@ export type BlobStoreIo = {
   } | null>;
 };
 
-const defaultBlobIo: BlobStoreIo = {
+export const defaultBlobIo: BlobStoreIo = {
   list,
   del,
   head,
@@ -103,7 +103,7 @@ async function mapPool<T>(
   await Promise.all(workers);
 }
 
-async function listBlobPrefix(
+export async function listBlobPrefix(
   prefix: string,
   io: BlobStoreIo,
   token: string,
@@ -123,7 +123,7 @@ async function listBlobPrefix(
   return pathnames;
 }
 
-async function readBlobText(
+export async function readBlobText(
   pathname: string,
   io: BlobStoreIo,
   token: string,

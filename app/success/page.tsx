@@ -32,7 +32,11 @@ import {
   MONTHLY_GROSS_LABEL,
   SETUP_EUR,
   SETUP_GROSS_LABEL,
+  V2_ENTRY_CENTS,
+  V2_MEMBER_YEAR_CENTS,
+  netWithGrossCents,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
 import {
   isUnresolvableCheckoutSession,
   lookupSuccessPurchase,
@@ -43,6 +47,7 @@ import {
   successPageTitle,
   successPendingHref,
 } from "@/lib/success-session";
+import { findPlanByEmail } from "@/lib/plan-store";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import { countsInReporting } from "@/lib/test-entities";
 import { purchaseSessionIdFromCheckout } from "@/lib/tracking";
@@ -51,11 +56,31 @@ import { versionLabelFromRow } from "@/lib/versioning";
 export const dynamic = "force-dynamic";
 
 /** Invoice line for a paid checkout. Comp accounts get no prices. */
-export function SuccessAccessNote({ compAccess }: { compAccess: boolean }) {
+export function SuccessAccessNote({
+  compAccess,
+  memberPlan = false,
+}: {
+  compAccess: boolean;
+  /** v3: Jahrespaket gebucht (Option 2 oder Add-on). Sonst kein Jahrespaket-Satz. */
+  memberPlan?: boolean;
+}) {
   if (compAccess) {
     return (
       <p className="hint">
         Kostenfreier Zugang. Sie können den Entwurf ohne Zahlung herunterladen.
+      </p>
+    );
+  }
+  if (isPricingV2()) {
+    return (
+      <p className="hint">
+        Die Rechnung weist die Nettopreise zuzüglich 19&nbsp;% Umsatzsteuer aus:
+        Einstieg {netWithGrossCents(V2_ENTRY_CENTS)}
+        {memberPlan ? (
+          <>, mit Jahrespaket zusätzlich {netWithGrossCents(V2_MEMBER_YEAR_CENTS)} für das erste Jahr.</>
+        ) : (
+          "."
+        )}
       </p>
     );
   }
@@ -121,6 +146,10 @@ const loadSuccessPage = cache(async function loadSuccessPage(
   const visibleEmail = row ? emailShownToViewer(row.email, sessionEmail) : "";
   const ownerView = Boolean(visibleEmail && sessionEmail && visibleEmail === row?.email.trim().toLowerCase());
   const compAccess = isCompAccessEmail(row?.email) || isCompAccessEmail(sessionEmail);
+  const memberPlan =
+    isPricingV2() && row && allowed
+      ? (await findPlanByEmail(row.email).catch(() => null))?.plan === "member"
+      : false;
   const showSuccess = Boolean(row && allowed);
   // Live Stripe lookup only once the success view is stable (not the pending reload).
   const purchaseLookup =
@@ -162,6 +191,7 @@ const loadSuccessPage = cache(async function loadSuccessPage(
     anmeldung,
     body,
     compAccess,
+    memberPlan,
     documentId,
     family,
     mailReady,
@@ -200,6 +230,7 @@ export default async function SuccessPage({
   const {
     body,
     compAccess,
+    memberPlan,
     family,
     mailReady,
     ownerView,
@@ -239,7 +270,7 @@ export default async function SuccessPage({
               PDF plus offene Punkte. Entwurf aus Ihren Angaben — keine
               Freigabe.
             </p>
-            <SuccessAccessNote compAccess={compAccess} />
+            <SuccessAccessNote compAccess={compAccess} memberPlan={memberPlan} />
             <div className="card">
               <p className="prose">
                 Kapitelgerüst aus Ihren Intake-Angaben. Keine erfundenen

@@ -53,6 +53,7 @@ import {
   versionChangeDraftError,
   versionLabelFromRow,
 } from "@/lib/versioning";
+import { readIntakeDraftEntry, sweepIntakeDrafts } from "@/lib/browser-storage-expiry";
 
 type IntakeFormProps = {
   session: CheckoutIdentity;
@@ -80,6 +81,12 @@ type IntakeFormProps = {
    * Hinweis aus.
    */
   stripeTestMode?: boolean;
+  /**
+   * Neues Preismodell, Login zuerst (INTAKE_LOGIN_FIRST_ENABLED): nach der
+   * letzten Frage nicht absenden, sondern Entwurf speichern und zur Paketwahl
+   * (Zahlung) wechseln. Erstellt wird erst nach bestätigter Zahlung.
+   */
+  prepayHref?: string;
 };
 
 /** Random id for this page and for each submit. */
@@ -177,6 +184,7 @@ export function IntakeForm({
   firm,
   loginHref = "",
   stripeTestMode = false,
+  prepayHref = "",
 }: IntakeFormProps) {
   const facts = firmFactsFor(initialEntityId, entities, firm, session.company);
   const companyLabel = customerHubTitle(session.company, "");
@@ -214,6 +222,7 @@ export function IntakeForm({
     changedBy: session.email,
   });
   const [draftRestored, setDraftRestored] = useState(false);
+  const saveBlockedRef = useRef(false);
   // Entwurf: localStorage (Fallback) + Server (gerätübergreifend).
   const draftKey = normalizeDraftKey({
     sessionId: session.stripeSessionId,
@@ -352,6 +361,14 @@ export function IntakeForm({
           setError("Bitte melden Sie sich an, um Ihre Angaben zu ändern.");
           return;
         }
+        if (response.status === 413 || response.status === 429) {
+          // Neues Modell: Entwurf zu groß bzw. zu viele offene Entwürfe.
+          const data = (await response.json().catch(() => ({}))) as { error?: string };
+          saveBlockedRef.current = true;
+          setError(data.error || "Speichern fehlgeschlagen. Bitte versuchen Sie es erneut.");
+          return;
+        }
+        saveBlockedRef.current = false;
         if (response.status === 409) {
           const data = (await response.json()) as {
             draft?: { answers: IntakeAnswers; step: number; updatedAt: string; revision?: number };
@@ -387,7 +404,10 @@ export function IntakeForm({
     (async () => {
       let local: IntakeDraftSnapshot | null = null;
       try {
-        const raw = window.localStorage.getItem(localDraftKey);
+        // 30-Tage-Ablauf im Browser (lib/browser-storage-expiry.ts); nur lokal, Server-Entwurf unberührt.
+        const now = Date.now();
+        sweepIntakeDrafts(window.localStorage, now);
+        const raw = readIntakeDraftEntry(window.localStorage, localDraftKey, now);
         if (raw) {
           const parsed = JSON.parse(raw) as IntakeDraftSnapshot;
           if (parsed.answers && typeof parsed.answers === "object") {
@@ -630,6 +650,24 @@ export function IntakeForm({
     }
     setError("");
     setNeedsLogin(false);
+    if (prepayHref) {
+      // Login zuerst: Entwurf sichern, dann Paketwahl. Kein Absenden, keine Erstellung.
+      setPending(true);
+      try {
+        await postServerDraft(revisionRef.current);
+        if (saveBlockedRef.current) {
+          setPending(false);
+          return;
+        }
+        const target = new URLSearchParams({ draftKey });
+        if (entityId.trim()) target.set("entity_id", entityId.trim());
+        window.location.href = new URL(`${prepayHref}?${target.toString()}`, window.location.origin).toString();
+      } catch {
+        setError("Speichern fehlgeschlagen. Bitte versuchen Sie es erneut.");
+        setPending(false);
+      }
+      return;
+    }
     setPending(true);
     submittingRef.current = true;
     autosave.stop();
@@ -915,7 +953,9 @@ export function IntakeForm({
                   : SAVE_PENDING_LABEL
                 : isEdit
                   ? "Neue Version erzeugen"
-                  : "Intake absenden"}
+                  : prepayHref
+                    ? "Weiter zur Paketwahl"
+                    : "Intake absenden"}
             </button>
           )}
         </div>

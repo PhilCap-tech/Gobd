@@ -229,7 +229,11 @@ assert(!applySource.includes("runLifecycleJob"), "kein Lifecycle-Job");
 assert(!mailSource.includes("buildCancellationReminderMail"), "keine Erinnerungsmail");
 assert(!existsSync("app/api/cron/lifecycle/route.ts"), "Cron-Route entfernt");
 assert(!existsSync("lib/kuendigung-purge.ts"), "Löschmodul entfernt");
-assert(!vercel.includes("crons"), "vercel.json ohne Cron");
+{
+  // Erlaubte Crons: 7-Tage-Hinweis (addon-notice) und Löschlauf v3 (loeschlauf, Schalter Default AUS). Kein Lifecycle-Cron.
+  const crons = (JSON.parse(vercel) as { crons?: { path: string }[] }).crons ?? [];
+  assert(crons.every((c) => c.path === "/api/cron/addon-notice" || c.path === "/api/cron/loeschlauf"), "vercel.json ohne Lifecycle-Cron");
+}
 const warningPage = readFileSync("app/account/kuendigung/page.tsx", "utf8");
 assert(warningPage.includes("Downloads noch 30 Tage möglich"), "Warnseite nennt die Downloadfrist");
 assert(!/lösch/i.test(warningPage), "Warnseite verspricht keine Löschung");
@@ -366,6 +370,18 @@ assert(
   agb.includes("Nach Vertragsende kann der Kunde bereits erzeugte PDFs noch 30 Tage herunterladen."),
   "AGB §12 Abs. 4 unverändert",
 );
+// Preismodell v2 (PRICING_MODEL=v2): AGB-Fassung von Legal, der Satz steht für das Monatsabo in § 15 Abs. 5 in Sie-Form.
+const agbV2 = readFileSync("content/legal/agb-v2.md", "utf8");
+const agbV2Section15 = agbV2.slice(agbV2.indexOf("## § 15 Monatsabonnement (bisheriges Modell)"));
+assert(agbV2Section15.startsWith("## § 15"), "AGB v2 hat § 15 Monatsabonnement");
+assert(
+  agbV2Section15.includes("(5) **Zugang und Löschung.**") &&
+    agbV2Section15.includes("Nach Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen."),
+  "AGB v2 § 15 Abs. 5: 30 Tage Download nach Vertragsende (Sie-Form)",
+);
+assert(!agbV2.includes("kann der Kunde bereits erzeugte PDFs"), "AGB v2 ohne den alten Satz");
+const faqV2 = readFileSync("content/faq-v2.md", "utf8");
+assert(faqV2.includes("Bestellungen über Digistore24 kündigen Sie wie bisher über Digistore24"), "FAQ v2: DS24-Kündigung unverändert über Digistore24");
 const faq = readFileSync("content/faq.md", "utf8");
 const datenschutz = readFileSync("content/legal/datenschutz.md", "utf8");
 assert(faq.includes("30"), "FAQ nicht geleert");

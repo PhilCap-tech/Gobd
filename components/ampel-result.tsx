@@ -49,12 +49,13 @@ export function AmpelResult({ answers }: { answers: AmpelAnswerMap }) {
   );
 }
 
-export function AmpelCta() {
+/** `price`: vom Server (Preismodell v2), weil der Client PRICING_MODEL nicht kennt. */
+export function AmpelCta({ price = AMPEL_CTA.price }: { price?: string } = {}) {
   return (
     <aside className="card ampel-cta">
       <h2>{AMPEL_CTA.headline}</h2>
       <p>{AMPEL_CTA.text}</p>
-      <p className="ampel-price">{AMPEL_CTA.price}</p>
+      <p className="ampel-price">{price}</p>
       <p className="actions">
         <CampaignLink className="btn" href="/checkout">
           {AMPEL_CTA.button}

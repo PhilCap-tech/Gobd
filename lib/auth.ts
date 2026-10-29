@@ -376,6 +376,8 @@ const ALLOWED_NEXT_PATHS = new Set([
   "/account/billing",
   "/account/kuendigung",
   "/account/firma/neu",
+  // Neues Preismodell: Login vor dem Fragebogen kehrt zum Fragebogen zurück (Entwurf bleibt).
+  "/fragebogen",
   CUSTOMER_ONBOARDING_NEXT_PATH,
 ]);
 const ACCOUNT_DOCUMENT_EDIT =

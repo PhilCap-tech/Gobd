@@ -20,6 +20,24 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export const PARTNER_MUSTER_PATH = "/steuerberater/muster";
 export const PARTNER_MUSTER_PDF_PATH = "/steuerberater/muster/pdf";
+/** Expliziter DS24-Marker (nicht Referrer): /partner-angebot verlinkt nur diese URL. */
+export const MUSTER_QUELLE_PARAM = "quelle";
+export const MUSTER_QUELLE_DS24 = "ds24";
+export const PARTNER_MUSTER_PDF_DS24_PATH = `${PARTNER_MUSTER_PDF_PATH}?${MUSTER_QUELLE_PARAM}=${MUSTER_QUELLE_DS24}`;
+
+/** Muster-Link auf /partner-angebot: unter v2 mit Marker, Legacy byte-gleich wie main. */
+export function ds24MusterPdfHref(v2: boolean): string {
+  return v2 ? PARTNER_MUSTER_PDF_DS24_PATH : PARTNER_MUSTER_PDF_PATH;
+}
+
+/**
+ * DS24-Fassung der Upsell-Seite (ohne Garantie, Preis, /checkout-Link)? Nur
+ * unter v2 mit Marker. Legacy bleibt unverändert wie main 08e5269.
+ */
+export function musterPdfIsDs24(quelle: string | null | undefined, v2: boolean): boolean {
+  if (!v2) return false;
+  return (quelle ?? "").trim().toLowerCase() === MUSTER_QUELLE_DS24;
+}
 export const PARTNER_DEMO_PATH = "/steuerberater/demo";
 export const PARTNER_MUSTER_DOCUMENT_ID = "partner-muster-gmbh";
 export const PARTNER_MUSTER_FILENAME =

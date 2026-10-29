@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { FRAGEBOGEN_PATH } from "@/lib/fragebogen";
 import { JsonLd } from "@/components/json-ld";
 import { RefreshStoredView } from "@/components/refresh-stored-view";
 import { SiteFooter } from "@/components/site-footer";
@@ -26,6 +27,13 @@ import {
   SETUP_EUR,
   SETUP_GROSS_LABEL,
 } from "@/lib/pricing";
+import { intakeLoginFirstEnabled, isPricingV2, memberPreselected } from "@/lib/pricing-model";
+import { memberFromPackage } from "@/lib/plan-checkout";
+import {
+  PLAN_ENTRY_PRICE_LINE,
+  PLAN_MEMBER_PRICE_LINE,
+  planPackageTextsV3,
+} from "@/lib/plan-copy";
 import { CheckoutForm } from "./checkout-form";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +49,12 @@ export default async function CheckoutPage({
   searchParams: Promise<{
     entity_id?: string | string[];
     utm_campaign?: string | string[];
+    paket?: string | string[];
   }>;
 }) {
   const params = await searchParams;
+  const v2 = isPricingV2();
+  const initialMember = memberFromPackage(firstQueryValue(params.paket), memberPreselected());
   const requestedEntityId = firstQueryValue(params.entity_id) ?? "";
   const email = await getSessionEmail();
   const compTarget =
@@ -51,6 +62,8 @@ export default async function CheckoutPage({
     (await ds24CheckoutRedirect(email, requestedEntityId));
   if (compTarget) redirect(compTarget);
   const partner = firstQueryValue(params.utm_campaign) === "steuerberater";
+  // Neues Modell, Login zuerst: erst Fragebogen (kostenlos), Zahlung danach.
+  if (intakeLoginFirstEnabled() && !partner && !requestedEntityId) redirect(FRAGEBOGEN_PATH);
   const entities = email ? await listEntitiesByEmail(email) : [];
   const owned =
     email && requestedEntityId ? await getOwnedEntity(requestedEntityId, email) : null;
@@ -71,7 +84,9 @@ export default async function CheckoutPage({
     if (decision === "intake") {
       redirect(coveredIntakePath(owned.entityId));
     }
-    extraFirmNote = position > MAX_ENTITIES_PER_ACCOUNT;
+    // v2 (R1 neu): weitere Firma wird im Konto gebucht, kein neuer Einstieg.
+    if (decision === "add_firm") redirect("/account#firmen");
+    extraFirmNote = !coverage.planFirms && position > MAX_ENTITIES_PER_ACCOUNT;
   }
 
   return (
@@ -92,7 +107,19 @@ export default async function CheckoutPage({
       <main className="wrap page">
         <h1>{partner ? "Partner-Pilot starten" : "Dokumentation starten"}</h1>
         <p className="lead">
-          {partner ? (
+          {v2 ? (
+            <>
+              {partner ? (
+                // Partner (Aktionscode): gleiches Modell, gleiche Listenpreise; Wortlaut Legal (Z. 96–99). Codes gelten weiter (R6).
+                `Listenpreis: ${PLAN_ENTRY_PRICE_LINE}, optional Jahrespaket ${PLAN_MEMBER_PRICE_LINE}. Den Aktionscode lösen Sie im Checkout ein. Danach der Fragenkatalog.`
+              ) : (
+                <>
+                  {PLAN_ENTRY_PRICE_LINE}, optional Jahrespaket {PLAN_MEMBER_PRICE_LINE}.{" "}
+                  {ALL_AREAS_LINE}
+                </>
+              )}
+            </>
+          ) : partner ? (
             <>
               Listenpreis: {SETUP_EUR}&nbsp;€ netto ({SETUP_GROSS_LABEL}&nbsp;€
               brutto) Einrichtung plus {MONTHLY_EUR}&nbsp;€ netto (
@@ -118,6 +145,14 @@ export default async function CheckoutPage({
           initialEmail={email ?? ""}
           audience={partner ? "steuerberater" : "kunde"}
           showIncludedFirmNote={!extraFirmNote}
+          {...(v2
+            ? {
+                planOffer: {
+                  initialPackage: initialMember ? ("mitglied" as const) : ("einstieg" as const),
+                  packageTexts: planPackageTextsV3(),
+                },
+              }
+            : {})}
         />
       </main>
       <SiteFooter />

@@ -4,7 +4,7 @@
  * Usage: npx tsx scripts/check-muster-mark.ts
  */
 import { readFileSync } from "node:fs";
-import zlib from "node:zlib";
+import { pageCount, pageTexts } from "./pdf-text";
 import { POST } from "../app/api/delivery/route";
 import {
   CHECKOUT_GRANT_COOKIE,
@@ -59,117 +59,6 @@ function expect(cond: boolean, message: string) {
   if (!cond) failures.push(message);
 }
 
-const WINANSI_EXTRA: Record<number, string> = {
-  0x80: "€",
-  0x91: "‘",
-  0x92: "’",
-  0x93: "“",
-  0x94: "”",
-  0x95: "•",
-  0x96: "–",
-  0x97: "—",
-  0x99: "™",
-};
-
-function winAnsiChar(code: number): string {
-  return WINANSI_EXTRA[code] ?? String.fromCharCode(code);
-}
-
-function decodePdfLiteral(body: string): string {
-  let out = "";
-  for (let i = 0; i < body.length; i += 1) {
-    const ch = body[i] ?? "";
-    if (ch !== "\\") {
-      out += winAnsiChar(ch.charCodeAt(0));
-      continue;
-    }
-    const next = body[i + 1] ?? "";
-    if (next === "n") {
-      out += "\n";
-      i += 1;
-      continue;
-    }
-    if (next === "r") {
-      out += "\r";
-      i += 1;
-      continue;
-    }
-    if (next === "t") {
-      out += "\t";
-      i += 1;
-      continue;
-    }
-    if (next === "(" || next === ")" || next === "\\") {
-      out += next;
-      i += 1;
-      continue;
-    }
-    if (/[0-7]/.test(next)) {
-      let oct = next;
-      let j = i + 2;
-      for (let k = 0; k < 2 && j < body.length && /[0-7]/.test(body[j] ?? ""); k += 1, j += 1) {
-        oct += body[j];
-      }
-      out += winAnsiChar(Number.parseInt(oct, 8));
-      i = j - 1;
-      continue;
-    }
-  }
-  return out;
-}
-
-function decodeHex(hex: string): string {
-  const bytes = hex.replace(/\s+/g, "");
-  let out = "";
-  for (let i = 0; i + 1 < bytes.length; i += 2) {
-    const code = Number.parseInt(bytes.slice(i, i + 2), 16);
-    if (Number.isNaN(code)) continue;
-    out += winAnsiChar(code);
-  }
-  return out;
-}
-
-function textFromContent(latin: string): string {
-  const parts: string[] = [];
-  const hex = /<([0-9A-Fa-f\s]+)>/g;
-  let match: RegExpExecArray | null;
-  while ((match = hex.exec(latin))) {
-    parts.push(decodeHex(match[1] ?? ""));
-  }
-  const literal = /\((?:\\.|[^\\)])*\)/g;
-  while ((match = literal.exec(latin))) {
-    parts.push(decodePdfLiteral((match[0] ?? "").slice(1, -1)));
-  }
-  return parts.join("");
-}
-
-function pageTexts(buffer: Buffer): string[] {
-  const raw = buffer.toString("latin1");
-  const texts: string[] = [];
-  // Length, not the next "endstream" bytes: Flate data can contain that sequence.
-  const re = /\/Length\s+(\d+)\b[^>]*>>\s*stream\r?\n/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(raw))) {
-    const length = Number(match[1]);
-    const start = match.index + match[0].length;
-    const data = Buffer.from(raw.slice(start, start + length), "latin1");
-    let inflated: Buffer;
-    try {
-      inflated = zlib.inflateSync(data);
-    } catch {
-      inflated = data;
-    }
-    const latin = inflated.toString("latin1");
-    if (!/\/F\d+ [\d.]+ Tf/.test(latin)) continue;
-    texts.push(textFromContent(latin));
-  }
-  return texts;
-}
-
-function pageCount(buffer: Buffer): number {
-  return (buffer.toString("latin1").match(/\/Type\s*\/Page(?!s)/g) || []).length;
-}
-
 function joined(pages: string[]): string {
   return pages.join("\n");
 }
@@ -177,12 +66,13 @@ function joined(pages: string[]): string {
 const EXPECTED_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
 const EXPECTED_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
 
-expect(UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording");
+const NEW_MODEL = ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase());
+expect(NEW_MODEL ? UPSELL_PRICE === "" : UPSELL_PRICE === EXPECTED_PRICE, "UPSELL_PRICE matches pricing.ts wording");
 expect(PDF_UPSELL_PRICE === UPSELL_PRICE, "PDF price line is the web price line");
-expect(UPSELL_PRICE_BREAKDOWN === EXPECTED_BREAKDOWN, "price breakdown matches pricing.ts");
+expect(NEW_MODEL ? UPSELL_PRICE_BREAKDOWN.startsWith("99 € einmalig zzgl. USt.") : UPSELL_PRICE_BREAKDOWN === EXPECTED_BREAKDOWN, "price breakdown matches pricing.ts");
 expect(UPSELL_CTA_HREF === "/checkout", "CTA target is /checkout");
 expect(
-  GELD_ZURUECK_MICRO ===
+  NEW_MODEL ? !GELD_ZURUECK_MICRO.includes("Zufriedenheitsgarantie") : GELD_ZURUECK_MICRO ===
     `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`,
   "guarantee line stays the landing sentence",
 );
@@ -300,7 +190,7 @@ function assertKundePdf(label: string, pages: string[], buffer: Buffer) {
   expect(text.includes(KUNDE_COVER_LINE), `${label} keeps the customer cover line`);
   expect(!text.includes(PDF_UPSELL_HEADLINE), `${label} has no upsell headline`);
   expect(!text.includes(PDF_UPSELL_BODY.slice(0, 40)), `${label} has no upsell body`);
-  expect(!text.includes(PDF_UPSELL_PRICE), `${label} has no upsell price`);
+  expect(!PDF_UPSELL_PRICE || !text.includes(PDF_UPSELL_PRICE), `${label} has no upsell price`);
   expect(!text.includes(GELD_ZURUECK_MICRO), `${label} has no guarantee line`);
   expect(!text.includes(PDF_UPSELL_URL), `${label} has no checkout url`);
   expect(!text.includes(UPSELL_HEADLINE), `${label} has no web upsell headline`);

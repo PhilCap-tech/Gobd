@@ -4,12 +4,27 @@ import {
   isStubCheckoutSessionId,
 } from "@/lib/checkout-stub";
 import {
-  getAppUrl,
+  checkoutReturnBaseUrl,
   getStripeTaxRateId,
   isStripeConfigured,
   isStripeSecretConfigured,
 } from "@/lib/env";
 import type { CheckoutBillingAddress, CheckoutIdentity } from "@/lib/types";
+import { assertDataEnvironment } from "@/lib/data-env-guard";
+import {
+  buildPlanCheckoutParams,
+  missingPlanPriceIds,
+  type PlanCheckoutKind,
+  type V3Prices,
+} from "@/lib/plan-checkout";
+import {
+  isPricingV2,
+  PLAN_LOOKUP_KEY_ADDON_YEAR,
+  PLAN_LOOKUP_KEY_ENTRY,
+  PLAN_LOOKUP_KEY_YEAR,
+  v3PriceIds,
+} from "@/lib/pricing-model";
+import { logError } from "@/lib/log-error";
 
 const CUSTOMER_LIST_TTL_MS = 60_000;
 const CUSTOMER_LIST_EMPTY_TTL_MS = 5_000;
@@ -57,6 +72,8 @@ export function getStripe(): Stripe {
     throw new Error("STRIPE_SECRET_KEY fehlt");
   }
   if (!stripeClient) {
+    // Zweite Sicherung neben instrumentation.ts: kein Testkey gegen echte Daten.
+    assertDataEnvironment();
     stripeClient = new Stripe(key);
   }
   return stripeClient;
@@ -328,7 +345,56 @@ export type CheckoutSessionInput = {
   customerId?: string;
   /** Für die Warnung, wenn STRIPE_TAX_RATE_ID fehlt. Default: CHECKOUT_SESSION_ROUTE. */
   route?: string;
+  /** Preismodell v2 (nur bei PRICING_MODEL=v2 gesetzt). Ohne: bisheriger Checkout. */
+  plan?: PlanInput;
 };
+
+type PlanInput = {
+  kind: PlanCheckoutKind;
+  member: boolean;
+  memberFirm?: boolean;
+  agbAcceptedAt?: string;
+  /** Nur `addon`: erster Kauf (ISO). */
+  firstPurchasedAt?: string;
+  offerOptOut?: boolean;
+  draftKey?: string;
+};
+
+/**
+ * Neues Preismodell: Preis-IDs aus der Umgebung (STRIPE_PRICE_ENTRY_ID,
+ * STRIPE_PRICE_YEAR_ID, STRIPE_PRICE_ADDON_YEAR_ID). Fehlt eine, wird sie zur
+ * Laufzeit über den Lookup Key gelesen (entry_v3, year_v3, addon_year_v3;
+ * nur Lesen, legt nichts an). `addonYear` darf fehlen (Fallback price_data 49 €).
+ */
+export async function resolveV3Prices(): Promise<{ prices: V3Prices; missing: string[] }> {
+  const env = v3PriceIds();
+  const prices: V3Prices = {
+    entry: env.entry,
+    year: env.year,
+    addonYear: process.env.STRIPE_PRICE_ADDON_YEAR_ID?.trim() ?? "",
+  };
+  const wanted: Array<[keyof V3Prices, string]> = [
+    ["entry", PLAN_LOOKUP_KEY_ENTRY],
+    ["year", PLAN_LOOKUP_KEY_YEAR],
+    ["addonYear", PLAN_LOOKUP_KEY_ADDON_YEAR],
+  ];
+  const open = wanted.filter(([field]) => !prices[field]);
+  if (open.length > 0 && isStripeSecretConfigured()) {
+    try {
+      const list = await getStripe().prices.list({ lookup_keys: open.map(([, key]) => key), active: true, limit: 10 });
+      for (const [field, key] of open) {
+        const hit = list.data.find((price) => price.lookup_key === key);
+        if (hit) prices[field] = hit.id;
+      }
+    } catch (error) {
+      logError("[stripe] Lookup Keys nicht lesbar", error);
+    }
+  }
+  const missing: string[] = [];
+  if (!prices.entry) missing.push(`STRIPE_PRICE_ENTRY_ID/${PLAN_LOOKUP_KEY_ENTRY}`);
+  if (!prices.year) missing.push(`STRIPE_PRICE_YEAR_ID/${PLAN_LOOKUP_KEY_YEAR}`);
+  return { prices, missing };
+}
 
 /**
  * Inland (DE) only. The Tax Rate is exclusive 19 % and is applied even when
@@ -342,7 +408,7 @@ export type CheckoutSessionInput = {
 export function buildCheckoutSessionParams(
   input: CheckoutSessionInput,
 ): Stripe.Checkout.SessionCreateParams {
-  const appUrl = getAppUrl();
+  const appUrl = checkoutReturnBaseUrl();
   const entityId = input.entityId?.trim() ?? "";
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   const successUrl = entityId
@@ -415,7 +481,14 @@ export async function createCheckoutSession(
 ): Promise<{ url: string; stub: boolean }> {
   const entityId = input.entityId?.trim() ?? "";
 
-  if (!isStripeConfigured()) {
+  let planParams: Stripe.Checkout.SessionCreateParams | null = null;
+  if (input.plan) {
+    const prepared = await preparePlanCheckout(input, input.plan);
+    if ("stub" in prepared) return prepared.stub;
+    planParams = prepared.params;
+  }
+
+  if (!planParams && !isStripeConfigured()) {
     if (!devCheckoutStubAllowed()) {
       throw new Error("STRIPE_SECRET_KEY fehlt");
     }
@@ -435,8 +508,9 @@ export async function createCheckoutSession(
   }
 
   const stripe = getStripe();
+  // Eine einzige Session-Erzeugung für altes Modell und v2 (Preismodell v2: planParams).
   const session = await stripe.checkout.sessions.create(
-    buildCheckoutSessionParams(input),
+    planParams ?? buildCheckoutSessionParams(input),
   );
 
   if (!session.url) {
@@ -444,6 +518,44 @@ export async function createCheckoutSession(
   }
 
   return { url: session.url, stub: false };
+}
+
+async function preparePlanCheckout(
+  input: CheckoutSessionInput,
+  plan: PlanInput,
+): Promise<{ stub: { url: string; stub: boolean } } | { params: Stripe.Checkout.SessionCreateParams }> {
+  // Neues Modell (PRICING_MODEL=v2 seit 28.10.): nur entry / addon / reactivate.
+  const v3 = isPricingV2() && (plan.kind === "entry" || plan.kind === "addon" || plan.kind === "reactivate");
+  const resolved = v3 ? await resolveV3Prices() : null;
+  const missing = resolved ? resolved.missing : missingPlanPriceIds(plan.kind, plan.member, plan.memberFirm === true);
+  if (!isStripeSecretConfigured() || missing.length > 0) {
+    if (plan.kind === "entry" && devCheckoutStubAllowed()) {
+      const params = new URLSearchParams({
+        session_id: `mock_${Date.now()}`,
+        email: input.email,
+        company: input.company,
+      });
+      const entityId = input.entityId?.trim() ?? "";
+      if (entityId) params.set("entity_id", entityId);
+      console.warn("[stripe] v2-Preise fehlen — Stub-Checkout.", { missing });
+      return { stub: { url: `/intake?${params}`, stub: true } };
+    }
+    throw new Error(`Stripe v2 nicht konfiguriert: ${missing.join(", ") || "STRIPE_SECRET_KEY"}`);
+  }
+  return {
+    params: buildPlanCheckoutParams({
+      kind: plan.kind,
+      member: plan.member,
+      email: input.email,
+      company: input.company,
+      entityId: input.entityId,
+      audience: input.audience,
+      customerId: input.customerId,
+      memberFirm: plan.memberFirm,
+      agbAcceptedAt: plan.agbAcceptedAt,
+      ...(resolved ? { prices: resolved.prices, firstPurchasedAt: plan.firstPurchasedAt, offerOptOut: plan.offerOptOut, draftKey: plan.draftKey } : {}),
+    }),
+  };
 }
 
 /**
@@ -515,6 +627,7 @@ export async function resolveCheckoutSession(
       stripeCustomerId: customerId,
       stub: false,
       entityId: session.metadata?.entity_id?.trim() || "",
+      ...(session.metadata?.gobd_draft_key ? { draftKey: session.metadata.gobd_draft_key.trim() } : {}),
       ...(billingAddress ? { billingAddress } : {}),
       ...(customerName ? { customerName } : {}),
       ...(businessName ? { businessName } : {}),
@@ -523,10 +636,10 @@ export async function resolveCheckoutSession(
   } catch (error) {
     const kind = checkoutLookupError(error);
     if (kind === "invalid") {
-      console.warn("[stripe] Checkout-Session ungültig", error);
+      logError("[stripe] Checkout-Session ungültig", error, { level: "warn" });
       return { error: "invalid" };
     }
-    console.error("[stripe] Session-Lookup fehlgeschlagen", error);
+    logError("[stripe] Session-Lookup fehlgeschlagen", error);
     return { error: "lookup_failed" };
   }
 }
@@ -578,7 +691,7 @@ export async function lookupStripeCustomerIdByEmail(
       });
       return lookup;
     } catch (error) {
-      console.error("[stripe] customers.list fehlgeschlagen", error);
+      logError("[stripe] customers.list fehlgeschlagen", error);
       return { id: null, lookupFailed: true };
     } finally {
       customerListInflight.delete(key);
@@ -643,7 +756,7 @@ export async function verifyStripeCustomerId(
       customerVerifyCache.set(id, { result: "invalid", at: Date.now() });
       return "invalid";
     }
-    console.error("[stripe] Customer-Verify fehlgeschlagen", error);
+    logError("[stripe] Customer-Verify fehlgeschlagen", error);
     return "error";
   }
 }
@@ -655,7 +768,7 @@ export async function retrieveCustomerEmail(customerId: string): Promise<string>
     if ("deleted" in customer && customer.deleted) return "";
     return customer.email || "";
   } catch (error) {
-    console.error("[stripe] Customer-Lookup fehlgeschlagen", error);
+    logError("[stripe] Customer-Lookup fehlgeschlagen", error);
     return "";
   }
 }
@@ -671,7 +784,7 @@ export async function createBillingPortalSession(
   const session = await getStripe().billingPortal.sessions.create({
     customer: id,
     locale: "de",
-    return_url: `${getAppUrl()}${accountBillingPath("returned")}`,
+    return_url: `${checkoutReturnBaseUrl()}${accountBillingPath("returned")}`,
   });
 
   if (!session.url) {
@@ -928,13 +1041,10 @@ export async function loadCustomerBilling(
       };
     } catch (error) {
       if (isStripeCustomerMissingError(error)) {
-        console.error(
-          "[stripe] Billing-Lookup: Customer fehlt oder andere Mode",
-          error,
-        );
+        logError("[stripe] Billing-Lookup: Customer fehlt oder andere Mode", error);
         return emptyCustomerBilling({ customerMissing: true });
       }
-      console.error("[stripe] Billing-Lookup fehlgeschlagen", error);
+      logError("[stripe] Billing-Lookup fehlgeschlagen", error);
       return emptyCustomerBilling({ lookupFailed: true });
     }
   };

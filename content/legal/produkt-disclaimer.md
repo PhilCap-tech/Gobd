@@ -5,7 +5,7 @@
 
 ## Keine Steuer- oder Rechtsberatung
 
-Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt Sie bei der Erstellung eines **Entwurfs einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche** (z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn) für bis zu fünf Firmen je Abo; 24 Module, alle inklusive. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar.
+Der Dienst unter **www.gobd-doku-erstellen.de** (Anbieter: **IKAT GmbH**) unterstützt Sie bei der Erstellung eines **Entwurfs einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche** (z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn) <!-- if:legacy -->für bis zu fünf Firmen je Abo; <!-- endif --><!-- if:v2 -->je Firma; <!-- endif -->24 Module, alle inklusive. Die bereitgestellten Texte, Vorlagen und Ausgaben sind allgemeine Arbeitshilfen und stellen **keine Steuerberatung, keine Rechtsberatung und keine verbindliche Auskunft** dar.
 
 Es kommt **kein Steuerberatungsvertrag** und **kein Anwaltsvertrag** zustande. Eine „GoBD-Konformität“ wird nicht zugesagt.
 

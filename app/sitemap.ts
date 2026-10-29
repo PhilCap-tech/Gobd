@@ -8,6 +8,7 @@ import {
   MUSTER_VORLAGEN,
 } from "@/lib/module-muster";
 import { INDEXABLE_STATIC_PATHS, canonicalUrl } from "@/lib/seo";
+import { faqAvailable } from "@/lib/faq-entries";
 import { isIsoDate, sourceLastmod } from "@/lib/source-date";
 
 /**
@@ -54,7 +55,7 @@ function blogIndexLastmod(posts: BlogPost[]): string {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await listPublishedPosts();
-  const staticPages: MetadataRoute.Sitemap = INDEXABLE_STATIC_PATHS.map((path) =>
+  const staticPages: MetadataRoute.Sitemap = INDEXABLE_STATIC_PATHS.filter((path) => path !== "/faq" || faqAvailable()).map((path) =>
     dated(
       canonicalUrl(path),
       path === "/blog" ? blogIndexLastmod(posts) : sourceLastmod(STATIC_SOURCES[path]),

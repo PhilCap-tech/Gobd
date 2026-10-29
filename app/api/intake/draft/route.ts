@@ -22,7 +22,8 @@ import {
   saveIntakeDraft,
   type IntakeDraft,
 } from "@/lib/intake-draft";
-import { forgetOpenDraft, rememberOpenDraft } from "@/lib/open-drafts";
+import { forgetOpenDraft, listOpenDraftsForEmail, rememberOpenDraft } from "@/lib/open-drafts";
+import { isPricingV2 } from "@/lib/pricing-model";
 import { isDraftFormClosed, normalizeFormId } from "@/lib/draft-closed";
 import { normalizeIntakeAnswers, stripEmptyIntakeCards } from "@/lib/intake-present";
 import { noteDraftConflict, noteDraftSaved } from "@/lib/audit-record";
@@ -168,7 +169,8 @@ function sameDraftContent(stored: IntakeDraft, next: IntakeDraft): boolean {
     stableJson(normalizeIntakeAnswers(stored.answers)) === stableJson(next.answers) &&
     Number(stored.step ?? 0) === Number(next.step ?? 0) &&
     stableJson(stored.change ?? null) === stableJson(next.change ?? null) &&
-    (stored.entityId ?? "") === (next.entityId ?? "")
+    (stored.entityId ?? "") === (next.entityId ?? "") &&
+    (stored.pricingModel ?? "") === (next.pricingModel ?? "")
   );
 }
 
@@ -206,7 +208,22 @@ export type DraftWriteIo = {
   findActiveMembership?: typeof findActiveMembership;
   /** Abgesendete Seite (draftKey + formId). Optional für bestehende Test-Doubles. */
   isDraftFormClosed?: typeof isDraftFormClosed;
+  /** Offene Entwürfe der Mail (Limit unbezahlter Entwürfe im neuen Modell). */
+  listOpenDrafts?: (email: string) => Promise<IntakeDraft[]>;
 };
+
+/** Neues Modell: Obergrenze je Entwurf (JSON der Antworten), sonst 413. */
+const MAX_DRAFT_ANSWER_BYTES = 512 * 1024;
+/** Neues Modell, Login zuerst: höchstens so viele offene unbezahlte Entwürfe je E-Mail. */
+const MAX_OPEN_UNPAID_DRAFTS = 3;
+const DRAFT_TOO_LARGE_MESSAGE = "Der Entwurf ist zu groß. Bitte kürzen Sie die Freitexte.";
+const DRAFT_LIMIT_MESSAGE =
+  "Sie haben bereits 3 offene Entwürfe. Bitte schließen Sie zuerst einen davon ab.";
+
+/** Unbezahlter Login-Entwurf (email:-Schlüssel, keine Checkout-Session). */
+function isUnpaidLoginDraft(draft: Pick<IntakeDraft, "draftKey" | "stripeSessionId">): boolean {
+  return draft.draftKey.startsWith("email:") && !draft.stripeSessionId?.trim();
+}
 
 const defaultDraftIo: DraftWriteIo = {
   loadIntakeDraft,
@@ -607,6 +624,17 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     return NextResponse.json({ ok: true, closed: true });
   }
 
+  // Neues Preismodell (28.10.): Größe je Entwurf und höchstens 3 offene unbezahlte Login-Entwürfe.
+  const newModel = isPricingV2();
+  if (newModel && Buffer.byteLength(JSON.stringify(body.answers), "utf8") > MAX_DRAFT_ANSWER_BYTES) {
+    return jsonError(DRAFT_TOO_LARGE_MESSAGE, 413);
+  }
+  if (newModel && !stored && draftKey.startsWith("email:") && sessionEmail) {
+    const open = await (io.listOpenDrafts ?? listOpenDraftsForEmail)(sessionEmail);
+    const unpaid = open.filter((d) => isUnpaidLoginDraft(d) && d.draftKey !== draftKey);
+    if (unpaid.length >= MAX_OPEN_UNPAID_DRAFTS) return jsonError(DRAFT_LIMIT_MESSAGE, 429);
+  }
+
   const verdict = revisionDecision({
     sessionEmail: sessionEmail ?? "",
     incomingRevision: body.revision,
@@ -643,6 +671,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     updatedAt: new Date().toISOString(),
     updatedBy: sessionEmail || stored?.updatedBy || "",
     change: parseDraftVersionChange(body.change) ?? stored?.change,
+    ...(newModel ? { pricingModel: "v3" } : stored?.pricingModel ? { pricingModel: stored.pricingModel } : {}),
   };
   if (stored && sameDraftContent(stored, draft)) return unchangedResponse(stored);
   // Checked again right before the write: the submit may have landed while

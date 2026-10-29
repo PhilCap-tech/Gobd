@@ -3,6 +3,7 @@ import { queueOwnerNotice } from "@/lib/owner-notice";
 import { NextResponse } from "next/server";
 import { getSessionEmail } from "@/lib/auth";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
+import { planFirmGate } from "@/lib/plan-access";
 import { BlobStorageError, blobFailureClass, persistChapterContent, storePdf } from "@/lib/blob";
 import { DURABLE_STORE_MESSAGE, intakePersistenceFailure } from "@/lib/intake-payload";
 import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
@@ -33,6 +34,7 @@ import {
 } from "@/lib/types";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { normalizeVersionChange, toVersionPdfMeta } from "@/lib/versioning";
+import { logError } from "@/lib/log-error";
 
 export const runtime = "nodejs";
 
@@ -124,6 +126,9 @@ async function handleDocumentEdit(request: Request) {
     entityId: entityId || source.entityId || sourceIdentity.entityId || "",
   };
   const skipTestDelivery = isTestEntity(identity.entityId);
+  // Preismodell v2: jede Bearbeitung speichert eine neue Version dieser Firma.
+  const planGate = await planFirmGate(sourceIdentity.email, identity.entityId, true);
+  if (planGate.denial) return jsonError(planGate.denial, 403);
   const status = identity.stub ? "document_edited_stub" : "document_edited";
 
   let rowForStore;
@@ -238,6 +243,7 @@ async function handleDocumentEdit(request: Request) {
     if (persistence) return jsonError(persistence.error, persistence.status);
     return jsonError(DURABLE_STORE_MESSAGE, 503);
   }
+  await planGate.commit({ pdfCreated: Boolean(pdfUrl) });
 
   if (!skipTestDelivery) {
     queueOwnerNotice({
@@ -272,7 +278,7 @@ async function handleDocumentEdit(request: Request) {
         entityId: identity.entityId,
       });
     } catch (error) {
-      console.error("[document] delivery mail fehlgeschlagen", error);
+      logError("[document] delivery mail fehlgeschlagen", error);
     }
   }
 
@@ -292,7 +298,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const outage = sheetsOutageResponse(error);
     if (outage) return outage;
-    console.error("[document] POST fehlgeschlagen", error);
+    logError("[document] POST fehlgeschlagen", error);
     return jsonError("Speichern fehlgeschlagen.", 500, errorDetail(error));
   }
 }

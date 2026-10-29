@@ -43,11 +43,18 @@ import {
   listEntitiesByEmail,
 } from "@/lib/store";
 import {
+  KANZLEI_PILOT_MONTHLY_EUR,
+  KANZLEI_PILOT_MONTHLY_GROSS_LABEL,
   MONTHLY_EUR,
   MONTHLY_GROSS_LABEL,
   SETUP_EUR,
   SETUP_GROSS_LABEL,
+  V2_ENTRY_CENTS,
+  V2_MEMBER_YEAR_CENTS,
+  netWithGrossCents,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
+import { PARTNER_PROBE_MAIL_INTRO_V2, PARTNER_PROBE_MAIL_OFFER_V2 } from "@/lib/plan-copy";
 import { answersFromSheetRow } from "@/lib/types";
 
 export type OpsResult = {
@@ -90,7 +97,9 @@ const READINESS_MICRO =
 export const REFERRAL_AFTER_DELIVERY_URL =
   "https://www.gobd-doku-erstellen.de/?utm_source=referral&utm_medium=email&utm_campaign=post_delivery";
 /** One price line. The delivery mail includes this at most once. */
-export const REFERRAL_MICRO = `${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt · 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung`;
+export const REFERRAL_MICRO = isPricingV2()
+  ? `${netWithGrossCents(V2_ENTRY_CENTS)} einmalig, optional Jahrespaket ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr, zzgl. 19 % USt · Keine Steuerberatung`
+  : `${SETUP_EUR} € netto (${SETUP_GROSS_LABEL} € brutto) + ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt · 14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung`;
 
 /** Closes every customer mail, including the partner pilot. */
 export const CUSTOMER_MAIL_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
@@ -382,19 +391,23 @@ function buildSteuerberaterOnboardingMail(input: {
 }): TransactionalMailContent {
   const company = input.company?.trim();
   const greeting = company ? `Guten Tag ${company},` : "Guten Tag,";
+  // v2: Umstellung auf Kanzlei-Probedurchlauf, Texte Legal Do 29.10. (TODO-LEGAL).
+  const v2 = isPricingV2();
+  const intro = v2 ? PARTNER_PROBE_MAIL_INTRO_V2 : "vielen Dank für Ihre Bestellung im Partner-Pilot.";
+  const offer = v2
+    ? PARTNER_PROBE_MAIL_OFFER_V2
+    : `Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${KANZLEI_PILOT_MONTHLY_EUR} €/Monat netto (${KANZLEI_PILOT_MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.`;
   const text = wrapTransactionalText(
     [
       greeting,
       "",
-      "vielen Dank für Ihre Bestellung im Partner-Pilot.",
-      "",
+      ...(intro ? [intro, ""] : []),
       "Nächste Schritte:",
       "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.",
       "2. Das PDF herunterladen, sobald die Generierung fertig ist",
       `3. Konto: Anmeldung unter ${MAIL_LOGIN_URL}`,
       "",
-      `Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.`,
-      "",
+      ...(offer ? [offer, ""] : []),
       "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
       MAIL_FAQ_URL,
       "",
@@ -407,14 +420,14 @@ function buildSteuerberaterOnboardingMail(input: {
   );
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
-    <p>vielen Dank für Ihre Bestellung im Partner-Pilot.</p>
+    ${intro ? `<p>${escapeHtml(intro)}</p>` : ""}
     <p>Nächste Schritte:</p>
     <ol>
       <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.</li>
       <li>Das PDF herunterladen, sobald die Generierung fertig ist</li>
       <li>Konto: Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
     </ol>
-    <p>Mit dem Code KANZLEI-PILOT sind Setup und die ersten zwei Monatsbeiträge 0 €. Danach ${MONTHLY_EUR} €/Monat netto (${MONTHLY_GROSS_LABEL} € brutto), inkl. 19 % USt, wenn Sie nicht kündigen.</p>
+    ${offer ? `<p>${escapeHtml(offer)}</p>` : ""}
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Support: ${escapeHtml(MAIL_SUPPORT_EMAIL)}</p>
     <p>Hinweis: Keine Steuer- oder Rechtsberatung. Die Dokumentation ist eine Arbeitshilfe aus den Angaben. Sie füllen sie nicht für einen Mandanten aus.</p>
@@ -598,9 +611,8 @@ export async function triggerOnboardingMail(input: {
 
   const audience = input.audience === "steuerberater" ? "steuerberater" : "kunde";
   if (!isMailConfigured()) {
+    // Keine Adresse, keine Firma im Log.
     console.info("[ops] onboarding mail stub", {
-      email: input.email,
-      company: input.company,
       sessionId: input.sessionId,
       audience,
     });
@@ -627,7 +639,10 @@ export async function triggerOnboardingMail(input: {
       intakeContactNames = found.intakeContactNames;
       companyNames.push(...found.companyNames);
     } catch (error) {
-      console.warn("[ops] Ansprechperson nicht geladen — Fallback auf Checkout-Name", error);
+      console.warn(
+        "[ops] Ansprechperson nicht geladen — Fallback auf Checkout-Name",
+        error instanceof Error ? error.name : "error",
+      );
     }
     contactName = pickOnboardingContactName({
       profileName,
@@ -664,7 +679,6 @@ export async function triggerOnboardingMail(input: {
     html: mail.html,
   });
   console.info("[ops] onboarding mail", {
-    email: input.email,
     sessionId: input.sessionId,
     audience,
     sent: result.sent,
@@ -690,7 +704,7 @@ export async function handleFailedPayment(input: {
   }
   const email = input.email?.trim() ?? "";
   if (isPilotPaymentFailedExempt(email)) {
-    console.info(`[ops] payment-failed skipped: pilot exemption ${email}`);
+    console.info("[ops] payment-failed skipped: pilot exemption");
     return {
       stub: false,
       sent: false,
@@ -700,12 +714,15 @@ export async function handleFailedPayment(input: {
   }
 
   if (!isMailConfigured()) {
-    console.warn("[ops] failed payment stub", input);
+    // Nur Status und Fehlerart: keine Adresse, keine Kunden-/Rechnungs-IDs.
+    console.warn("[ops] failed payment stub", { hasReason: Boolean(input.reason?.trim()) });
     return { stub: true, sent: false, action: "failed_payment" };
   }
 
   if (!email) {
-    console.warn("[ops] failed payment übersprungen — keine E-Mail", input);
+    console.warn("[ops] failed payment übersprungen — keine E-Mail", {
+      hasReason: Boolean(input.reason?.trim()),
+    });
     return { stub: true, sent: false, action: "failed_payment" };
   }
 
@@ -723,15 +740,18 @@ export async function handleFailedPayment(input: {
     html: mail.html,
   });
   console.warn("[ops] failed payment mail", {
-    email,
-    sessionId: input.sessionId,
-    invoiceId: input.invoiceId,
-    customerId: input.customerId,
-    reason: input.reason,
+    hasReason: Boolean(input.reason?.trim()),
     sent: result.sent,
     stub: result.stub,
   });
   return claimedMail(result, "failed_payment");
+}
+
+/** Fehlerart für das Log: nur der Job-Typ (z. B. `stripe-webhook:invoice.paid`), nie Freitext mit Adresse. */
+function failedJobType(job: string | undefined): string {
+  const value = job?.trim() ?? "";
+  if (!value || value.includes("@")) return "job";
+  return value.replace(/[^A-Za-z0-9_.:-]/g, "").slice(0, 80) || "job";
 }
 
 export async function handleFailedJob(input: {
@@ -748,12 +768,12 @@ export async function handleFailedJob(input: {
   }
   const email = input.email?.trim() ?? "";
   if (!isMailConfigured()) {
-    console.warn("[ops] failed job stub", input);
+    console.warn("[ops] failed job stub", { job: failedJobType(input.job) });
     return { stub: true, sent: false, action: "failed_job" };
   }
 
   if (!email) {
-    console.warn("[ops] failed job übersprungen — keine E-Mail", input);
+    console.warn("[ops] failed job übersprungen — keine E-Mail", { job: failedJobType(input.job) });
     return { stub: true, sent: false, action: "failed_job" };
   }
 
@@ -769,10 +789,7 @@ export async function handleFailedJob(input: {
     html: mail.html,
   });
   console.warn("[ops] failed job mail", {
-    email,
-    sessionId: input.sessionId,
-    job: input.job,
-    reason: input.reason,
+    job: failedJobType(input.job),
     sent: result.sent,
     stub: result.stub,
   });
@@ -813,7 +830,10 @@ export async function sendDeliveryMail(input: {
       companyNames: [input.company ?? "", ...found.companyNames],
     });
   } catch (error) {
-    console.warn("[ops] Ansprechperson für die Liefermail nicht geladen", error);
+    console.warn(
+      "[ops] Ansprechperson für die Liefermail nicht geladen",
+      error instanceof Error ? error.name : "error",
+    );
   }
 
   const mail = buildDeliveryMail({ ...input, contactName });
@@ -892,10 +912,8 @@ export async function sendPartnerInquiryMail(
     text: mail.text,
     html: mail.html,
   });
+  // Keine personenbezogenen Daten im Log (Empfänger, Absender, Kanzlei).
   console.info("[ops] partner inquiry mail", {
-    to: MAIL_SUPPORT_EMAIL,
-    replyTo: input.email,
-    kanzlei: input.kanzlei,
     sent: result.sent,
     stub: result.stub,
   });

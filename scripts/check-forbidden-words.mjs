@@ -25,6 +25,7 @@ const forbidden =
 const patterns = [
   "content/legal/**/*.{md,mdx}",
   "content/faq.md",
+  "content/faq-v2.md",
   "lib/legal-content.ts",
   "lib/legal-markdown.tsx",
   "lib/offer-copy.ts",
@@ -615,15 +616,51 @@ if (uiFiles.length === 0) {
   process.exit(1);
 }
 
+// Preismodell v2 (Draft-PR): [TODO-GROWTH] / [TODO-LEGAL] sind erlaubte
+// Marker, solange lib/plan-copy.ts PLAN_COPY_DRAFT = true setzt. Sie werden
+// gelistet. Mit false (vor dem Merge) gelten sie wie jedes andere TODO.
+const planCopyDraft = /export const PLAN_COPY_DRAFT = true;/.test(
+  readFileSync("lib/plan-copy.ts", "utf8"),
+);
+const planMarker = /\[TODO-(?:GROWTH|LEGAL)\]/g;
+let planMarkers = 0;
 for (const file of files) {
   readFileSync(file, "utf8")
     .split("\n")
     .forEach((line, index) => {
-      if (forbidden.test(line) && !line.includes("// allow-forbidden")) {
-        console.error(`${file}:${index + 1}: ${line.trim()}`);
-        failed = true;
+      if (!forbidden.test(line) || line.includes("// allow-forbidden")) return;
+      if (planCopyDraft && planMarker.test(line)) {
+        planMarker.lastIndex = 0;
+        if (!forbidden.test(line.replace(planMarker, ""))) {
+          planMarkers += 1;
+          console.warn(`check-forbidden-words: v2-Marker (Merge-Sperre) ${file}:${index + 1}`);
+          return;
+        }
       }
+      planMarker.lastIndex = 0;
+      console.error(`${file}:${index + 1}: ${line.trim()}`);
+      failed = true;
     });
+}
+// Interpolierte Marker (`${TODO_LEGAL}` / `${TODO_GROWTH}`) enthalten den
+// Klartext nicht und fielen sonst durch: mit PLAN_COPY_DRAFT = false sperren.
+const markerUse = /\$\{TODO_(?:GROWTH|LEGAL)\}/;
+for (const file of globSync("{app,components,lib}/**/*.{ts,tsx}")) {
+  readFileSync(file, "utf8")
+    .split("\n")
+    .forEach((line, index) => {
+      if (!markerUse.test(line)) return;
+      if (planCopyDraft) {
+        planMarkers += 1;
+        console.warn(`check-forbidden-words: v2-Marker (Merge-Sperre) ${file}:${index + 1}`);
+        return;
+      }
+      console.error(`${file}:${index + 1}: v2-Marker offen, PLAN_COPY_DRAFT = false: ${line.trim()}`);
+      failed = true;
+    });
+}
+if (planMarkers > 0) {
+  console.warn(`check-forbidden-words: ${planMarkers} v2-Marker offen (PLAN_COPY_DRAFT = true, nicht mergen)`);
 }
 
 // Legal pages must not carry the internal draft notice. A plain
@@ -715,6 +752,10 @@ function ustEndingConstants() {
     /export const ([A-Z0-9_]+) = ("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`);/g;
   for (const match of source.matchAll(literal)) {
     values.set(match[1], match[2].slice(1, -1));
+  }
+  // Preismodell v2: `export const X = V2\n  ? …\n  : LEGACY_X;` prüft die alte Fassung.
+  for (const match of source.matchAll(/export const ([A-Z0-9_]+) = V2\s*\?[\s\S]*?:\s*(LEGACY_[A-Z0-9_]+);/g)) {
+    if (!values.has(match[1]) && values.has(match[2])) values.set(match[1], values.get(match[2]));
   }
   let grew = true;
   while (grew) {

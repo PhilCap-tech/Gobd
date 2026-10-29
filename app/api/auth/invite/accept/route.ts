@@ -4,6 +4,7 @@ import type { Entity } from "@/lib/entities";
 import { acceptInvite, INVITE_LINK_INVALID } from "@/lib/membership-invite";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
 import { getEntity } from "@/lib/store";
+import { OwnerLockedError, v3OwnerLockDenial } from "@/lib/plan-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
 export async function postAccept(
   request: Request,
   loadEntity: (entityId: string) => Promise<Entity | null> = getEntity,
+  ownerDenial: (ownerEmail: string) => Promise<string | null> = v3OwnerLockDenial,
 ) {
   let body: { token?: string };
   try {
@@ -38,7 +40,14 @@ export async function postAccept(
   }
 
   try {
-    const result = await acceptInvite(token, loadEntity);
+    // Neues Modell: gesperrter Inhaber-Plan → keine Annahme (vor dem Verbrauch des Tokens).
+    const lockedLoader = async (entityId: string) => {
+      const entity = await loadEntity(entityId);
+      const denial = entity ? await ownerDenial(entity.userEmail) : null;
+      if (denial) throw new OwnerLockedError(denial);
+      return entity;
+    };
+    const result = await acceptInvite(token, lockedLoader);
     if (!result.ok) {
       return NextResponse.json(
         { ok: false, error: result.message },
@@ -52,6 +61,12 @@ export async function postAccept(
     applySessionCookie(response, result.email);
     return response;
   } catch (error) {
+    if (error instanceof OwnerLockedError) {
+      return NextResponse.json(
+        { ok: false, error: error.message },
+        { status: 403, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
     const outage = sheetsOutageResponse(error);
     if (outage) return outage;
     console.error("[invite] Annahme fehlgeschlagen", error instanceof Error ? error.name : "error");

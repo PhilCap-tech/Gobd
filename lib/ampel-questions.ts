@@ -1,3 +1,5 @@
+import { V2_ENTRY_LABEL, V2_MEMBER_YEAR_LABEL } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
 export type AmpelAnswer = "ja" | "nein" | "nicht_zutreffend";
 
 export interface AmpelQuestion {
@@ -221,7 +223,9 @@ export const AMPEL_CTA = {
   headline: "Verfahrensdokumentation strukturiert erstellen",
   text:
     "Mit gobd-doku-erstellen.de erstellen Sie Ihre Verfahrensdokumentation Schritt für Schritt in 24 Modulen, vom Belegfluss über Kasse und Archiv bis zum internen Kontrollsystem. Änderungen halten Sie laufend fest, frühere Versionen bleiben nachvollziehbar.",
-  price: "149 € einmalige Einrichtung + 49 € pro Monat, zzgl. USt. Monatlich kündbar.",
+  price: isPricingV2()
+    ? `${V2_ENTRY_LABEL} € einmalig, optional Jahrespaket ${V2_MEMBER_YEAR_LABEL} €/Jahr, zzgl. USt.`
+    : "149 € einmalige Einrichtung + 49 € pro Monat, zzgl. USt. Monatlich kündbar.",
   button: "Verfahrensdokumentation starten",
   secondary: "So funktioniert es",
 };

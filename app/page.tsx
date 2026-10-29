@@ -36,7 +36,26 @@ import {
   SETUP_GROSS_LABEL,
   TODAY_EUR,
   TODAY_GROSS_LABEL,
+  V2_ENTRY_CENTS,
+  V2_ENTRY_LABEL,
+  V2_ENTRY_WITH_MEMBER_CENTS,
+  V2_MEMBER_YEAR_CENTS,
+  V2_MEMBER_YEAR_LABEL,
+  netWithGrossCents,
 } from "@/lib/pricing";
+import {
+  PLAN_B2B_NOTICE,
+  PLAN_PACKAGE_ENTRY_TITLE,
+  PLAN_PACKAGE_MEMBER_TITLE,
+  planPackageTextsV3,
+} from "@/lib/plan-copy";
+import { isPricingV2 } from "@/lib/pricing-model";
+
+/** Preismodell v2 (PRICING_MODEL=v2). Ohne Variable bleibt die Seite wie bisher. */
+const V2 = isPricingV2();
+/** Wortlaut Legal je Paket (Preisseite). */
+const V2_PACKAGE_TEXTS = planPackageTextsV3();
+const V2_HEADLINE = `${V2_ENTRY_LABEL} € einmalig · Jahrespaket optional ${V2_MEMBER_YEAR_LABEL} €/Jahr`;
 import { HOME_CRUMBS, HOME_FAQ } from "@/lib/home-faq";
 import { faqPageJsonLd, productOfferJsonLd } from "@/lib/jsonld";
 import {
@@ -207,12 +226,21 @@ export default function HomePage() {
             <h1>{HERO_HEADLINE}</h1>
             <p className={styles.lead}>{HERO_SUBLINE}</p>
             <p className={styles.priceBanner}>
-              <strong>
-                {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
-              </strong>
-              <span>
-                Alle 24 Module inklusive · bis zu 5 Firmen · keine Jahresvorauszahlung · monatlich kündbar
-              </span>
+              {V2 ? (
+                <>
+                  <strong>{V2_HEADLINE}</strong>
+                  <span>Alle 24 Module inklusive · {PLAN_B2B_NOTICE}</span>
+                </>
+              ) : (
+                <>
+                  <strong>
+                    {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
+                  </strong>
+                  <span>
+                    Alle 24 Module inklusive · bis zu 5 Firmen · keine Jahresvorauszahlung · monatlich kündbar
+                  </span>
+                </>
+              )}
               <span>{HERO_PRICE_BOX}</span>
             </p>
             <div className={styles.ctas}>
@@ -232,7 +260,7 @@ export default function HomePage() {
             </p>
             <ul className={styles.trust}>
               <li>Sichere Zahlung über Stripe</li>
-              <li>Monatlich kündbar</li>
+              {V2 ? null : <li>Monatlich kündbar</li>}
             </ul>
             <p className={styles.advisor}>
               Steuerberater oder Kanzlei?{" "}
@@ -246,7 +274,9 @@ export default function HomePage() {
         <p className={`shell ${styles.heroDisclaimer}`}>{HERO_DISCLAIMER}</p>
 
         <p className={`shell ${styles.factBar}`}>
-          24 Module · bis zu 5 Firmen · Ampel-Check in ~2 Min · Muster-PDF ohne Anmeldung
+          {V2
+            ? "24 Module · Ampel-Check in ~2 Min · Muster-PDF ohne Anmeldung"
+            : "24 Module · bis zu 5 Firmen · Ampel-Check in ~2 Min · Muster-PDF ohne Anmeldung"}
         </p>
 
         <section className={styles.section} id="muster">
@@ -432,11 +462,18 @@ export default function HomePage() {
               </li>
               <li>Liste offener Punkte zum Prüfen und Ergänzen</li>
               <li>Geführter Frageprozess statt leerer Vorlage</li>
-              <li>
-                Versionierung und Speicherung über das Abo ({MONTHLY_EUR} € netto,{" "}
-                {MONTHLY_GROSS_LABEL} € brutto pro Monat nach dem ersten Monat,
-                inkl. 19 % USt)
-              </li>
+              {V2 ? (
+                <li>
+                  Versionierung und Speicherung mit der Jahresmitgliedschaft (
+                  {netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr)
+                </li>
+              ) : (
+                <li>
+                  Versionierung und Speicherung über das Abo ({MONTHLY_EUR} € netto,{" "}
+                  {MONTHLY_GROSS_LABEL} € brutto pro Monat nach dem ersten Monat,
+                  inkl. 19 % USt)
+                </li>
+              )}
             </ul>
           </div>
         </section>
@@ -445,6 +482,36 @@ export default function HomePage() {
           <div className={`shell ${styles.priceLayout}`}>
             <div className={styles.priceBox}>
               <p className={styles.eyebrow}>Was Sie heute zahlen</p>
+              {V2 ? (
+                <>
+              <h2>{V2_HEADLINE}</h2>
+              <p>{PLAN_B2B_NOTICE}</p>
+              <p>{ALL_AREAS_LINE}</p>
+              <table className={styles.priceTable}>
+                <tbody>
+                  <tr>
+                    <th scope="row">Einstieg (einmalig)</th>
+                    <td>{netWithGrossCents(V2_ENTRY_CENTS)}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Jahresmitgliedschaft (optional, pro Jahr)</th>
+                    <td>{netWithGrossCents(V2_MEMBER_YEAR_CENTS)}</td>
+                  </tr>
+                  <tr className={styles.due}>
+                    <th scope="row">Einstieg + Jahrespaket im ersten Jahr</th>
+                    <td>{netWithGrossCents(V2_ENTRY_WITH_MEMBER_CENTS)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                Paket „{PLAN_PACKAGE_MEMBER_TITLE}“: {V2_PACKAGE_TEXTS.member}
+              </p>
+              <p>
+                Paket „{PLAN_PACKAGE_ENTRY_TITLE}“: {V2_PACKAGE_TEXTS.entry}
+              </p>
+                </>
+              ) : (
+                <>
               <h2>
                 {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat
               </h2>
@@ -482,6 +549,8 @@ export default function HomePage() {
                   </tr>
                 </tbody>
               </table>
+                </>
+              )}
               <div className={styles.ctas}>
                 <div className={styles.priceCta}>
                   <CampaignLink className={`btn ${styles.btnOnDark}`} cta="price_checkout" href="/checkout">
@@ -494,7 +563,7 @@ export default function HomePage() {
                 </Link>
               </div>
               <p className={styles.fine}>
-                {PRICE_INCLUSION_LINE} zum Ende des laufenden Abrechnungsmonats.
+                {V2 ? `${PRICE_INCLUSION_LINE}.` : `${PRICE_INCLUSION_LINE} zum Ende des laufenden Abrechnungsmonats.`}
                 Alle Preise netto, zuzüglich 19 % Umsatzsteuer. Die Beträge in
                 Klammern sind brutto.
               </p>
@@ -509,7 +578,7 @@ export default function HomePage() {
                 <li>Erneute Exporte bei Bedarf</li>
               </ul>
               <p className={styles.prose}>{RESULT_PROMISE}</p>
-              <p className={styles.fine}>{PRICE_FRAME_LINE}</p>
+              {PRICE_FRAME_LINE ? <p className={styles.fine}>{PRICE_FRAME_LINE}</p> : null}
               <p className={styles.fine}>
                 <strong>{ALL_AREAS_LINE}</strong> {ALL_AREAS_DETAIL}
               </p>
@@ -572,7 +641,13 @@ export default function HomePage() {
           <div className="shell">
             <h2>Bereit, Ihre Abläufe nachvollziehbar zu dokumentieren?</h2>
             <p>
-              {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat · Ein Abo umfasst bis zu 5 Firmen.
+              {V2 ? (
+                `${V2_HEADLINE} · ${PLAN_B2B_NOTICE}`
+              ) : (
+                <>
+                  {euro(SETUP_EUR)} Einrichtung + {euro(MONTHLY_EUR)}/Monat · Ein Abo umfasst bis zu 5 Firmen.
+                </>
+              )}
             </p>
             <div className={styles.ctas}>
               <div className={styles.priceCta}>

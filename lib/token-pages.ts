@@ -5,6 +5,8 @@
 export const TOKEN_LANDING_PREFIXES = [
   "/ampel-check/bestaetigen",
   "/ampel-check/abmelden",
+  "/angebote/abmelden",
+  "/api/angebote/abmelden",
   "/kassen-check/bestaetigen",
   "/kassen-check/abmelden",
   "/steuerberater/merkblatt/bestaetigen",

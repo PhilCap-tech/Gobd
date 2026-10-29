@@ -48,8 +48,9 @@ const origin = CANONICAL_PRODUCTION_APP_URL;
 const text = buildLlmsTxt();
 ok(text.startsWith("# GoBD-Verfahrensdokumentation"), "llms.txt has a title");
 ok(text.includes("keine Steuerberatung"), "llms.txt contains keine Steuerberatung");
+const newModel = ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase());
 ok(
-  text.includes(
+  newModel ? text.includes("99 €") && text.includes("49 €") && !text.includes("149 €") : text.includes(
     `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €).`,
   ),
   "llms.txt contains the start price line",
@@ -86,18 +87,25 @@ for (const page of [
 }
 
 const faq = readFaqMarkdown();
-const faqGuarantee = markdownH2Section(faq, "6. 14 Tage Geld zurück: Garantie und Rückgaberecht");
+const faqGuarantee = newModel ? "" : markdownH2Section(faq, "6. 14 Tage Geld zurück: Garantie und Rückgaberecht");
 const agbWithdrawal = markdownH2Section(agbMarkdown, "§ 8 Kein Widerrufsrecht (B2B)");
-const agbGuarantee = markdownH2Section(agbMarkdown, "§ 9 Zufriedenheitsgarantie");
+const agbGuarantee = markdownH2Section(agbMarkdown, newModel ? "§ 9 Erstattung" : "§ 9 Zufriedenheitsgarantie");
 const agbTerm = markdownH2Section(
   agbMarkdown,
-  "§ 12 Laufzeit, Verlängerung und Kündigung",
+  newModel ? "§ 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung" : "§ 12 Laufzeit, Verlängerung und Kündigung",
 );
-ok(text.includes(faqGuarantee), "llms.txt quotes the FAQ guarantee");
+if (newModel) {
+  // CoS 28.10.: v3-FAQ (content/faq-v3.md, Legal 1:1); keine faq-v2-Inhalte, keine FAQ-Zitate in llms.txt.
+  ok(faq.includes("## 8. Bekomme ich mein Geld zurück?"), "v3: FAQ is faq-v3.md");
+  ok(!text.includes("FAQ:"), "v3: llms.txt quotes no FAQ section");
+  ok(!text.includes("Mitgliedschaft") && !text.includes("99,90"), "v3: no faq-v2 wording in llms.txt");
+} else ok(text.includes(faqGuarantee), "llms.txt quotes the FAQ guarantee");
 ok(text.includes(agbWithdrawal), "llms.txt quotes AGB § 8");
 ok(text.includes(agbGuarantee), "llms.txt quotes AGB § 9");
 ok(text.includes(agbTerm), "llms.txt quotes AGB § 12");
+// Neues Modell: FAQ-Fassung v3 steht noch aus (faq-v2.md ist der alte v2-Stand); der Legacy-Betrag gilt dort nicht.
 ok(
+  newModel ||
   faqGuarantee.includes("198 € zum Start (Einrichtung + 1. Monat), zzgl. USt.") &&
     text.includes("198 € zum Start (Einrichtung + 1. Monat), zzgl. USt."),
   "refund amount is the FAQ wording",
@@ -207,23 +215,25 @@ ok(
 
 const product = JSON.stringify(productOfferJsonLd());
 ok(product.includes('"priceCurrency":"EUR"'), "offers use EUR");
-ok(product.includes('"price":"149.00"'), "setup net price");
+if (!newModel) ok(product.includes('"price":"149.00"'), "setup net price");
 ok(product.includes('"price":"49.00"'), "monthly net price");
-ok(product.includes('"price":"198.00"'), "start net price");
-ok(product.includes('"price":"177.31"'), "setup gross price");
-ok(product.includes('"price":"58.31"'), "monthly gross price");
-ok(product.includes('"price":"235.62"'), "start gross price");
+if (newModel) ok(product.includes('"price":"99.00"'), "v3 entry net price 99.00");
+if (!newModel) ok(product.includes('"price":"198.00"'), "start net price");
+if (!newModel) ok(product.includes('"price":"177.31"'), "setup gross price");
+if (!newModel) ok(product.includes('"price":"58.31"'), "monthly gross price");
+if (!newModel) ok(product.includes('"price":"235.62"'), "start gross price");
 ok(product.includes('"valueAddedTaxIncluded":false'), "net prices exclude VAT");
 ok(product.includes('"valueAddedTaxIncluded":true'), "gross prices include VAT");
-ok(grossCents(TODAY_EUR) === 23562, "198 € net is 235,62 € gross at 19 %");
-ok(grossCents(SETUP_EUR) === 17731, "149 € net is 177,31 € gross at 19 %");
-ok(grossCents(MONTHLY_EUR) === 5831, "49 € net is 58,31 € gross at 19 %");
+if (!newModel) ok(grossCents(TODAY_EUR) === 23562, "198 € net is 235,62 € gross at 19 %");
+if (!newModel) ok(grossCents(SETUP_EUR) === 17731, "149 € net is 177,31 € gross at 19 %");
+if (!newModel) ok(grossCents(MONTHLY_EUR) === 5831, "49 € net is 58,31 € gross at 19 %");
 ok(!/price_[A-Za-z0-9]|txr_|sk_live_|sk_test_/.test(product), "JSON-LD has no Stripe ids");
 
 const entries = faqEntries(faq);
 ok(entries.length >= 6, "FAQ JSON-LD uses the FAQ sections");
-ok(entries.some((entry) => entry.question.includes("Geld zurück")), "guarantee question");
+if (!newModel) ok(entries.some((entry) => entry.question.includes("Geld zurück")), "guarantee question");
 ok(
+  newModel ||
   entries.some((entry) =>
     entry.answer.includes("198 € zum Start (Einrichtung + 1. Monat), zzgl. USt."),
   ),
@@ -246,7 +256,7 @@ async function checkSitemap() {
   ok(!urls.includes(`${origin}/llms.txt`), "sitemap omits /llms.txt");
   ok(!urls.includes(`${origin}/partner-angebot`), "sitemap omits /partner-angebot");
   ok(!text.includes("/partner-angebot"), "llms.txt omits /partner-angebot");
-  ok(urls.includes(`${origin}/faq`), "sitemap still lists /faq");
+  ok(urls.includes(`${origin}/faq`), "sitemap lists /faq");
   const branchen = await listBranchenSeiten();
   ok(branchen.length >= 2, "branch pages are loaded");
   for (const slug of BRANCHEN_SLUGS) {

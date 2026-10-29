@@ -124,6 +124,16 @@ function checkOffers() {
     priceCurrency: string;
     priceSpecification: Array<{ price: string; priceCurrency: string; valueAddedTaxIncluded: boolean }>;
   }>;
+  if (["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase())) {
+    // Neues Preismodell (28.10.): 99 € einmalig + 49 €/Jahr, netto.
+    const entry = offers.find((offer) => offer.price === "99.00");
+    const year = offers.find((offer) => offer.price === "49.00");
+    ok(entry?.["@type"] === "Offer" && entry.priceCurrency === "EUR", "v3 entry offer is 99.00 EUR");
+    ok(year?.["@type"] === "Offer" && year.priceCurrency === "EUR", "v3 annual offer is 49.00 EUR");
+    ok(!offers.some((offer) => offer.price === "149.00" || offer.price === "99.90"), "v3 no legacy/old-v2 price");
+    ok(source("components/branchen-page.tsx").includes("productOfferJsonLd()"), "branch pages render the product offers");
+    return;
+  }
   const setup = offers.find((offer) => offer.price === `${SETUP_EUR}.00`);
   const monthly = offers.find((offer) => offer.price === `${MONTHLY_EUR}.00`);
   ok(setup?.["@type"] === "Offer", "setup offer type");

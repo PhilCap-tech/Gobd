@@ -226,8 +226,8 @@ export async function sendAmpelResultMail(payload: AmpelDoiPayload): Promise<Mai
       console.error("[ampel] Ergebnismail nicht konfiguriert");
       return { stub: false, sent: false };
     }
-    console.info("[ampel] dev fallback Ergebnismail — nur Server-Log, nicht in der Response");
-    console.info(mail.text);
+    // Inhalt der Ergebnismail wird nicht protokolliert (Datenschutz).
+    console.info("[ampel] dev fallback Ergebnismail — nicht versendet, Inhalt nicht protokolliert");
     return { stub: true, sent: false };
   }
   const headers = await ampelListUnsubscribeHeaders(payload.email, payload.consentAt);

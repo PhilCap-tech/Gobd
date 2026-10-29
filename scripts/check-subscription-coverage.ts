@@ -268,7 +268,12 @@ const sixthCard = renderToStaticMarkup(
 ok(sixthCard.includes("/checkout?entity_id=ent-6"), "the sixth firm card stays on checkout");
 ok(sixthCard.includes(EXTRA_FIRM_NOTE), "the sixth firm card names the extra subscription");
 ok(EXTRA_FIRM_NOTE.includes("Sie") || EXTRA_FIRM_NOTE.includes("Ihr"), "the note uses Sie");
-ok(EXTRA_FIRM_NOTE.includes(String(MAX_ENTITIES_PER_ACCOUNT)), "the note names the included firm count");
+ok(
+  ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase())
+    ? EXTRA_FIRM_NOTE === "Für jede weitere Firma legen Sie bitte ein eigenes Konto mit einer eigenen E-Mail-Adresse an."
+    : EXTRA_FIRM_NOTE.includes(String(MAX_ENTITIES_PER_ACCOUNT)),
+  "the note names the included firm count (v3: one-firm text)",
+);
 
 const ordinaryCard = renderToStaticMarkup(
   createElement(AccountCompanyCard, {

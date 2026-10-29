@@ -9,6 +9,8 @@ import {
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { listEntitiesByEmail } from "@/lib/store";
 import { FirmaForm } from "../firma-form";
+import { logError } from "@/lib/log-error";
+import { v3FirmDenial } from "@/lib/v3-firm-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +39,26 @@ export default async function NewFirmaPage() {
     try {
       formDefaults = firstCompanyFormDefaults(0, await readCheckoutAccountFacts(email));
     } catch (error) {
-      console.error("[account] Checkout-Daten für die erste Firma fehlen", error);
+      logError("[account] Checkout-Daten für die erste Firma fehlen", error);
     }
+  }
+
+  const oneFirm = await v3FirmDenial(email, entities.length);
+  if (oneFirm) {
+    return (
+      <>
+        <SiteHeader backHref="/account" backLabel="← Zum Konto" />
+        <main className="wrap page">
+          <p className="kicker">Konto</p>
+          <h1>Weitere Firma</h1>
+          <p className="lead">{oneFirm}</p>
+          <p>
+            <a className="btn" href="/account">Zurück zum Konto</a>
+          </p>
+        </main>
+        <SiteFooter />
+      </>
+    );
   }
 
   return (

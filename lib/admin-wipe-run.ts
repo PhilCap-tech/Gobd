@@ -40,6 +40,7 @@ import {
 } from "@/lib/stripe";
 import { emailsEqual } from "@/lib/types";
 import type Stripe from "stripe";
+import { logError } from "@/lib/log-error";
 
 const SHEETS_GET_OPTS = {
   headers: {
@@ -569,7 +570,7 @@ async function planStripe(
     }
   } catch (error) {
     stripe.error = safeErrorMessage(error);
-    console.error("[admin-wipe] stripe", stripe.error);
+    logError("[admin-wipe] stripe", stripe.error);
   } finally {
     if (stripe.customersDeleted > 0 || stripe.subscriptionsCanceled > 0) {
       clearStripeLookupCache();
@@ -631,7 +632,7 @@ export async function wipeAccount(input: {
             rows: [],
             error: safeErrorMessage(error),
           };
-          console.error("[admin-wipe] sheet", tab.title, sheets[tab.title]?.error);
+          logError("[admin-wipe] sheet", sheets[tab.title]?.error, { extra: { tab: tab.title } });
         }
       }
     } catch (error) {
@@ -685,7 +686,7 @@ export async function wipeAccount(input: {
         item.wipe.deleted = item.rowNumbers.length;
       } catch (error) {
         item.wipe.error = safeErrorMessage(error);
-        console.error("[admin-wipe] sheet delete", item.tab.title, item.wipe.error);
+        logError("[admin-wipe] sheet delete", item.wipe.error, { extra: { tab: item.tab.title } });
       }
     }
     files.intakes = await commitJsonFile("intakes.json", email, fileIntakes.wipe);
@@ -722,7 +723,7 @@ export async function wipeAccount(input: {
         files.referral.deleted = referral.matched;
       } catch (error) {
         files.referral.error = safeErrorMessage(error);
-        console.error("[admin-wipe] referral", files.referral.error);
+        logError("[admin-wipe] referral", files.referral.error);
       }
     }
     if (!blob.skipped) {
@@ -732,7 +733,7 @@ export async function wipeAccount(input: {
         await commitBlobWipe(blob.uploads);
       } catch (error) {
         blob.error = blob.error ?? safeErrorMessage(error);
-        console.error("[admin-wipe] blob", blob.error);
+        logError("[admin-wipe] blob", blob.error);
       }
     }
   }
@@ -751,7 +752,6 @@ export async function wipeAccount(input: {
 
   console.info("[admin-wipe] fertig", {
     dryRun,
-    email,
     sheetTabs: tabsScanned.length,
     blobDrafts: blob.drafts.matched,
     blobDocuments: blob.documents.matched,

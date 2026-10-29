@@ -1,9 +1,12 @@
 import { BRANCHEN_SLUGS, branchenPath, listBranchenFooterLinks } from "@/lib/branchen";
-import { readFaqMarkdown } from "@/lib/faq-entries";
+import { faqAvailable, readFaqMarkdown } from "@/lib/faq-entries";
 import { agbMarkdown } from "@/lib/legal-content";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import { markdownH2Section, plainLineContaining } from "@/lib/markdown-section";
 import {
+  V2_ENTRY_CENTS,
+  V2_MEMBER_YEAR_CENTS,
+  netWithGrossCents,
   MONTHLY_EUR,
   MONTHLY_GROSS_LABEL,
   SETUP_EUR,
@@ -12,12 +15,14 @@ import {
   VAT_PERCENT,
   netWithGross,
 } from "@/lib/pricing";
+import { isPricingV2 } from "@/lib/pricing-model";
 import { SITE_ORIGIN, canonicalUrl } from "@/lib/seo";
 
 const FAQ_GUARANTEE = "6. 14 Tage Geld zurück: Garantie und Rückgaberecht";
 const AGB_NO_WITHDRAWAL = "§ 8 Kein Widerrufsrecht (B2B)";
-const AGB_GUARANTEE = "§ 9 Zufriedenheitsgarantie";
-const AGB_TERM = "§ 12 Laufzeit, Verlängerung und Kündigung";
+const V2 = isPricingV2();
+const AGB_GUARANTEE = V2 ? "§ 9 Erstattung" : "§ 9 Zufriedenheitsgarantie";
+const AGB_TERM = V2 ? "§ 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung" : "§ 12 Laufzeit, Verlängerung und Kündigung";
 
 const DELIVERY_NEEDLE = "innerhalb weniger Minuten";
 const B2B_NEEDLE = "ausschließlich an Unternehmer";
@@ -47,8 +52,11 @@ function industryLines(): string[] {
  */
 export function buildLlmsTxt(): string {
   const faq = readFaqMarkdown();
-  const delivery = plainLineContaining(faq, DELIVERY_NEEDLE);
-  const b2b = plainLineContaining(faq, B2B_NEEDLE);
+  // Neues Modell ohne faq-v3.md: keine FAQ-Inhalte und kein FAQ-Link.
+  const withFaq = faqAvailable() && !V2;
+  const faqLink = faqAvailable();
+  const delivery = withFaq ? plainLineContaining(faq, DELIVERY_NEEDLE) : "";
+  const b2b = withFaq ? plainLineContaining(faq, B2B_NEEDLE) : "";
   const lines = [
     "# GoBD-Verfahrensdokumentation",
     "",
@@ -62,11 +70,20 @@ export function buildLlmsTxt(): string {
     "",
     "## Preis",
     "",
-    `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €).`,
-    "",
-    `Einrichtung: ${netWithGross(SETUP_EUR)}.`,
-    `Nutzungsentgelt: ${netWithGross(MONTHLY_EUR)} pro Monat.`,
-    `Der Startpreis setzt sich aus ${SETUP_EUR} € Einrichtung und ${MONTHLY_EUR} € für den ersten Monat zusammen. Danach ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto), inkl. ${VAT_PERCENT} % USt.`,
+    ...(V2
+      ? [
+          `Einstieg: ${netWithGrossCents(V2_ENTRY_CENTS)}, einmalig.`,
+          `Optional Jahrespaket: ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr.`,
+          "Ohne Jahrespaket: 30 Tage Zugang ab Kauf, danach ist das Konto deaktiviert.",
+          `Alle Preise zzgl. ${VAT_PERCENT} % USt. Nur für Unternehmen.`,
+        ]
+      : [
+          `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €).`,
+          "",
+          `Einrichtung: ${netWithGross(SETUP_EUR)}.`,
+          `Nutzungsentgelt: ${netWithGross(MONTHLY_EUR)} pro Monat.`,
+          `Der Startpreis setzt sich aus ${SETUP_EUR} € Einrichtung und ${MONTHLY_EUR} € für den ersten Monat zusammen. Danach ${MONTHLY_EUR} € netto pro Monat (${MONTHLY_GROSS_LABEL} € brutto), inkl. ${VAT_PERCENT} % USt.`,
+        ]),
     "",
     REVERSE_CHARGE,
     "",
@@ -90,7 +107,7 @@ export function buildLlmsTxt(): string {
     "",
     "## Seiten",
     "",
-    `- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Geld-zurück-Garantie und Rückgaberecht`,
+    ...(faqLink ? [`- [FAQ](${canonicalUrl("/faq")}): Lieferumfang, Ablauf, Preise, Geld-zurück-Garantie und Rückgaberecht`] : []),
     `- [AGB](${canonicalUrl("/agb")}): Vertragsbedingungen`,
     `- [Muster](${canonicalUrl("/muster")}): fiktive Muster der Verfahrensdokumentation`,
     `- [Muster für Steuerberater](${canonicalUrl("/steuerberater/muster")}): Beispielergebnis`,
@@ -101,12 +118,11 @@ export function buildLlmsTxt(): string {
     "",
     "## Erstattung und Kündigung",
     "",
-    "Erstattung und Kündigung stehen im Wortlaut der FAQ und der AGB. Unten steht dieser Wortlaut.",
+    withFaq
+      ? "Erstattung und Kündigung stehen im Wortlaut der FAQ und der AGB. Unten steht dieser Wortlaut."
+      : "Erstattung und Kündigung stehen im Wortlaut der AGB. Unten steht dieser Wortlaut.",
     "",
-    ...quote(
-      "FAQ: 14 Tage Geld zurück: Garantie und Rückgaberecht",
-      markdownH2Section(faq, FAQ_GUARANTEE),
-    ),
+    ...(withFaq ? quote("FAQ: 14 Tage Geld zurück: Garantie und Rückgaberecht", markdownH2Section(faq, FAQ_GUARANTEE)) : []),
     ...quote(
       `AGB ${AGB_NO_WITHDRAWAL}`,
       markdownH2Section(agbMarkdown, AGB_NO_WITHDRAWAL),
@@ -116,6 +132,7 @@ export function buildLlmsTxt(): string {
       markdownH2Section(agbMarkdown, AGB_GUARANTEE),
     ),
     ...quote(`AGB ${AGB_TERM}`, markdownH2Section(agbMarkdown, AGB_TERM)),
+
     `Kontakt: ${LEGAL_OPERATOR.email}`,
     "",
   ];
