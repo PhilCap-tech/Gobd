@@ -8,6 +8,12 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
+// Schalter-Isolation: echte Build-Umgebung (Prod) darf die Prüfungen nicht beeinflussen.
+for (const name of [
+  "RETENTION_EXECUTE_ENABLED", "RETENTION_DRY_RUN_ENABLED", "PLAN_ADDON_NOTICE_ENABLED",
+  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED",
+]) delete process.env[name];
+
 for (const name of [
   "RETENTION_DRY_RUN_ENABLED", "RETENTION_EXECUTE_ENABLED", "CRON_SECRET", "BLOB_READ_WRITE_TOKEN",
   "RESEND_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_SECRET_KEY_NEW", "STRIPE_TEST_SECRET_KEY",

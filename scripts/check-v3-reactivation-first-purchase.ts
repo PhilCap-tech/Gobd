@@ -7,6 +7,12 @@
  */
 import assert from "node:assert/strict";
 
+// Schalter-Isolation: echte Build-Umgebung (Prod) darf die Prüfungen nicht beeinflussen.
+for (const name of [
+  "RETENTION_EXECUTE_ENABLED", "RETENTION_DRY_RUN_ENABLED", "PLAN_ADDON_NOTICE_ENABLED",
+  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED",
+]) delete process.env[name];
+
 for (const name of ["STRIPE_SECRET_KEY", "RESEND_API_KEY", "GOOGLE_SHEETS_SPREADSHEET_ID", "BLOB_READ_WRITE_TOKEN"]) delete process.env[name];
 let passed = 0;
 async function check(name: string, run: () => void | Promise<void>) {
