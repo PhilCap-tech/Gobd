@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { anmeldungParam } from "@/lib/login-mail-shared";
 import { fetchRetrying503, SAVE_PENDING_LABEL } from "@/lib/fetch-retry";
 import { DraftAutosave } from "@/lib/draft-autosave";
+import { IntakeHintProvider, intakeInviteHref } from "@/components/intake-question-hint";
 import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { BereichSelect } from "@/components/bereich-select";
 import { FirmaSelect } from "@/components/firma-select";
@@ -852,6 +853,13 @@ export function IntakeForm({
               Betriebs. Alle Module sind im Preis enthalten.
             </p>
           )}
+          <IntakeHintProvider
+            value={{
+              // Vor der Zahlung (Paketwahl offen) kein Einladen-Link.
+              paid: !prepayHref,
+              inviteHref: prepayHref ? "" : intakeInviteHref(entityId || initialEntityId),
+            }}
+          >
           <IntakeQuestionnaire
             step={step}
             answers={answers}
@@ -864,6 +872,7 @@ export function IntakeForm({
             scrollIssue={scrollIssue}
             firm={liveFacts}
           />
+          </IntakeHintProvider>
         </>
       )}
 

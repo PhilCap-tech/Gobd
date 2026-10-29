@@ -12,6 +12,7 @@ import { isPricingV2 } from "@/lib/pricing-model";
 import { findLatestPaidCheckoutByEmail } from "@/lib/store";
 
 import { V3_ONE_FIRM_MESSAGE } from "@/lib/account-labels";
+import { V3_INVITE_PREPAY_MESSAGE } from "@/lib/invite-copy";
 export { V3_ONE_FIRM_MESSAGE };
 
 export type V3AccountFacts = {
@@ -62,9 +63,8 @@ export async function v3FirmDenial(email: string, existingFirms: number): Promis
   return v3FirmDenialFrom(await loadV3AccountFacts(email), existingFirms);
 }
 
-/** CoS 28.10.: im neuen Modell Einladungen erst nach Abschluss der Bestellung. */
-export const V3_INVITE_PREPAY_MESSAGE =
-  "Personen einladen können Sie nach dem Abschluss Ihrer Bestellung. Offene Punkte können Sie bis dahin als unbekannt markieren.";
+/** CoS 28.10.: im neuen Modell Einladungen erst nach Abschluss der Bestellung (Wortlaut in lib/invite-copy). */
+export { V3_INVITE_PREPAY_MESSAGE };
 
 /** Reine Entscheidung: v3-Konto ohne bezahlten v3-Kauf darf nicht einladen. */
 export function v3InvitePrepayDenialFrom(facts: V3AccountFacts, paidV3: boolean): string | null {
