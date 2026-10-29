@@ -109,6 +109,14 @@ async function main() {
     const hint = await import("@/components/intake-question-hint");
     assert.equal(hint.intakeQuestionHintEnabled(), false, "Legacy: aus");
     assert.ok(hint.INTAKE_QUESTION_HINT.startsWith("Wissen Sie das nicht genau?"));
+    const hintSrc = readFileSync("components/intake-question-hint.tsx", "utf8");
+    assert.ok(!hintSrc.includes('"/account"'), "kein Link auf /account (dort kann man vor der Zahlung nicht einladen)");
+    assert.ok(hintSrc.includes("{INTAKE_QUESTION_HINT} {V3_INVITE_PREPAY_MESSAGE}"), "vor der Zahlung: freigegebener Satz, kein Link");
+    assert.equal(hint.intakeInviteHref("ent_1"), "/account/firma/ent_1#mitwirkende-heading", "nach der Zahlung: Mitwirkende der Firma");
+    assert.equal(hint.intakeInviteHref(""), "");
+    const form = readFileSync("app/intake/intake-form.tsx", "utf8");
+    assert.ok(form.includes("paid: !prepayHref"), "Link nur im bezahlten Zustand");
+    assert.ok(readFileSync("app/account/firma/mitwirkende-panel.tsx", "utf8").includes('id="mitwirkende-heading"'), "Anker existiert");
     assert.ok(readFileSync("next.config.ts", "utf8").includes("GOBD_PRICING_NEW_MODEL"));
   });
 
