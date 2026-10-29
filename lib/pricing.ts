@@ -85,9 +85,6 @@ export const DS24_SETUP_GROSS_LABEL = grossEuroLabel(DS24_SETUP_EUR);
 export const DS24_MONTHLY_GROSS_LABEL = grossEuroLabel(DS24_MONTHLY_EUR);
 export const DS24_TODAY_GROSS_LABEL = grossEuroLabel(DS24_TODAY_EUR);
 
-/** Kanzlei-Partnerschaft: 49 € netto pro Monat, auf Anfrage. */
-export const KANZLEI_MONTHLY_EUR = 49;
-export const KANZLEI_MONTHLY_GROSS_LABEL = grossEuroLabel(KANZLEI_MONTHLY_EUR);
 /** KANZLEI-PILOT: Monatsbeitrag des Mandanten-Abos nach den zwei freien Monaten (altes Modell). */
 export const KANZLEI_PILOT_MONTHLY_EUR = 49;
 export const KANZLEI_PILOT_MONTHLY_GROSS_LABEL = grossEuroLabel(KANZLEI_PILOT_MONTHLY_EUR);

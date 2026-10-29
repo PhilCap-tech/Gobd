@@ -37,8 +37,9 @@ export default function PartnerDankePage() {
           </li>
           <li>
             Nach der Anmeldung legen Sie Ihre Firma an, beantworten die Fragen der 24 Module und
-            erzeugen Ihr PDF. Die Pakete und Preise finden Sie auf der{" "}
-            <Link href="/#preise">Startseite unter „Preise“</Link>.
+            erzeugen Ihr PDF. Preis, Laufzeit und Kündigung Ihrer Bestellung richten sich nach Ihrer
+            Bestellung bei Digistore24 und unseren <Link href="/agb">AGB</Link> (§ 9a, § 15).
+            Kündigen können Sie jederzeit über Digistore24.
           </li>
           <li>
             Im Konto können Sie unter „Mitwirkende“ Personen per E-Mail einladen, zum Beispiel

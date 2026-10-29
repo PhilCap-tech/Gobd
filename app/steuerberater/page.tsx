@@ -198,7 +198,8 @@ export default function SteuerberaterPage() {
             <div>
               <h2>Grenze</h2>
               <p className={styles.prose}>
-                Keine Steuerberatung und keine Rechtsberatung. Die Verantwortung für
+                Keine Steuerberatung und keine Rechtsberatung. Keine Zusage, dass
+                eine Dokumentation einer Prüfung standhält. Die Verantwortung für
                 die Angaben bleibt beim Mandanten.
               </p>
               <p className={styles.prose}>

@@ -15,7 +15,7 @@ Typische Bausteine (GoBD Rz. 153):
 
 ## 2. Warum brauchen Sie eine?
 
-Die GoBD (BMF-Schreiben vom 28.11.2019, zuletzt geändert am 14.07.2025) verlangen für jedes DV-System eine übersichtlich gegliederte Verfahrensdokumentation (GoBD Rz. 151). Änderungen sollen mit Version und Datum nachvollziehbar sein (GoBD Rz. 154).
+Die GoBD (BMF-Schreiben vom 28.11.2019, zuletzt geändert am 14.07.2025) verlangen für jedes DV-System eine übersichtlich gegliederte Verfahrensdokumentation (GoBD Rz. 151). Änderungen sind mit Version und Datum nachvollziehbar zu dokumentieren (GoBD Rz. 154).
 
 ## 3. So funktioniert es mit gobd-doku-erstellen.de
 
