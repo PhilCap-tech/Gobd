@@ -171,7 +171,12 @@ async function main() {
   await check("FAQ v3 + Optionsbezeichnungen", () => {
     assert.ok(read("content/faq-v3.md").includes("## 8. Bekomme ich mein Geld zurück?"));
     const pc = read("components/plan-checkout.tsx");
-    assert.ok(pc.includes("PLAN_OPTION_1_LABEL") && pc.includes("PLAN_OPTION_2_LABEL"));
+    assert.ok(pc.includes("PLAN_ENTRY_SUBTITLE") && pc.includes("PLAN_MEMBER_SUBTITLE"), "Paketkarten mit D2-Untertiteln");
+    assert.ok(!pc.includes("PLAN_OPTION_1_LABEL") && !pc.includes("PLAN_OPTION_2_LABEL"), "keine Optionsnummern auf den Karten");
+    assert.ok(pc.includes("PLAN_BESTSELLER_LABEL"), "Bestseller-Badge bleibt");
+    const copy = read("lib/plan-copy.ts");
+    assert.ok(copy.includes('PLAN_PACKAGE_ENTRY_TITLE = "Einmalig"') && copy.includes('PLAN_PACKAGE_MEMBER_TITLE = "Dauerhaft"'), "D2-Paketnamen");
+    assert.ok(!/Dauerhafter Zugang|„30 Tage“/.test(copy), "keine alten Paketbezeichnungen");
   });
 
   console.log(`check:v3-intake: ${passed} ok`);
