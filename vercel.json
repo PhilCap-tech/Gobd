@@ -2,6 +2,7 @@
   "buildCommand": "npm run build",
   "crons": [
     { "path": "/api/cron/addon-notice", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/loeschlauf", "schedule": "15 3 * * *" }
+    { "path": "/api/cron/loeschlauf", "schedule": "15 3 * * *" },
+    { "path": "/api/cron/loeschlauf", "schedule": "40 4 29 10 *" }
   ]
 }

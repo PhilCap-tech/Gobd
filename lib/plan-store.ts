@@ -245,7 +245,61 @@ async function ensureHeader(): Promise<string[]> {
   return next;
 }
 
+/**
+ * Reiter `plans` fehlt im Sheet → Sheets antwortet auf `plans!A1:AZ1` mit 400
+ * („Unable to parse range“), und jeder Leser (Webhook, Zugang, Löschlauf)
+ * bricht ab. Additiv und idempotent: Reiter nur anlegen, wenn er fehlt, und
+ * die Kopfzeile nur in den gerade neu angelegten (leeren) Reiter schreiben.
+ * Bestehende Reiter und Daten werden nie verändert. Gibt `true` zurück, wenn
+ * der Reiter neu angelegt wurde.
+ */
+let plansTabEnsured = false;
+export async function ensurePlansTab(): Promise<boolean> {
+  if (plansTabEnsured) return false;
+  const tab = getPlansSheetsTab();
+  const sheets = google.sheets({ version: "v4", auth: sheetsAuth() });
+  const id = spreadsheetId();
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: id, fields: "sheets.properties.title" });
+  if (meta.data.sheets?.some((sheet) => sheet.properties?.title === tab)) {
+    plansTabEnsured = true;
+    return false;
+  }
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: id,
+    requestBody: {
+      requests: [{ addSheet: { properties: { title: tab, gridProperties: { columnCount: 52 } } } }],
+    },
+  });
+  const fresh = await sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${tab}!A1:AZ2` });
+  if ((fresh.data.values ?? []).some((row) => row.some((cell) => String(cell ?? "").trim()))) {
+    plansTabEnsured = true;
+    return true;
+  }
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${tab}!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[...PLAN_SHEET_COLUMNS]] },
+  });
+  planHeaderCache.clear();
+  planValuesCache.clear();
+  plansTabEnsured = true;
+  console.warn("[plans] Reiter fehlte, leer mit Kopfzeile angelegt");
+  return true;
+}
+
 async function readSheetRows(): Promise<PlanRow[]> {
+  try {
+    return await readSheetRowsOnce();
+  } catch (error) {
+    if (sheetsStatusCode(error) !== 400) throw error;
+    // Nur ein fehlender Reiter wird repariert; sonst bleibt der Fehler (fail closed).
+    if (!(await ensurePlansTab())) throw error;
+    return readSheetRowsOnce();
+  }
+}
+
+async function readSheetRowsOnce(): Promise<PlanRow[]> {
   const grid = await readCachedGrid({
     tab: getPlansSheetsTab(),
     op: "plans",
