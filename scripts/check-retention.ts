@@ -599,6 +599,21 @@ async function main() {
     assert.equal((dry.body as { candidates: { docsOption1: number } }).candidates.docsOption1, 1);
     assert.deepEqual(fake.writes, []);
     assert.ok(!JSON.stringify(dry.body).includes("@"));
+    // Cron ohne Parameter: DRY_RUN zählt nur und gewinnt gegen EXECUTE
+    for (const both of [false, true]) {
+      process.env.RETENTION_DRY_RUN_ENABLED = "true";
+      if (both) process.env.RETENTION_EXECUTE_ENABLED = "true";
+      else delete process.env.RETENTION_EXECUTE_ENABLED;
+      const fake = fakeIo({ plans: [n7done(single("weg@firma-neu.de"))] });
+      const res = await http.handleRetentionCron(req(""), { secret: "s3cret", io: () => fake.io, now: at(DUE, 1) });
+      assert.equal(res.status, 200);
+      assert.equal((res.body as { mode: string }).mode, "dry-run");
+      assert.equal((res.body as { candidates: { docsOption1: number } }).candidates.docsOption1, 1);
+      assert.deepEqual(fake.writes, []);
+      assert.ok(!JSON.stringify(res.body).includes("@"));
+    }
+    delete process.env.RETENTION_DRY_RUN_ENABLED;
+    delete process.env.RETENTION_EXECUTE_ENABLED;
     delete process.env.RETENTION_EXECUTE_ENABLED;
   });
 

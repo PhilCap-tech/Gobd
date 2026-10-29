@@ -1,7 +1,8 @@
 /**
  * GET /api/cron/loeschlauf (Vercel Cron, täglich). Bearer CRON_SECRET.
  * - `?modus=trockenlauf`: immer nur zählen (auf Abruf, unabhängig von Schaltern).
- * - sonst: RETENTION_EXECUTE_ENABLED -> ausführen; RETENTION_DRY_RUN_ENABLED -> zählen; beides aus -> nichts.
+ * - sonst: RETENTION_DRY_RUN_ENABLED -> nur zählen (gewinnt immer, auch wenn EXECUTE gesetzt ist);
+ *   nur RETENTION_EXECUTE_ENABLED -> ausführen; beides aus -> nichts.
  * Antwort und Log: nur Zähler, keine IDs, keine Adressen.
  */
 import { cronAuthorized } from "@/lib/cron-auth";
@@ -21,8 +22,9 @@ export async function handleRetentionCron(
   }
   const url = new URL(request.url);
   const forcedDry = url.searchParams.get("modus") === "trockenlauf";
-  const execute = !forcedDry && retentionExecuteEnabled();
   const switches = { dryRun: retentionDryRunEnabled(), execute: retentionExecuteEnabled() };
+  // Trockenlauf gewinnt immer: auch bei Fehlkonfiguration (beide Schalter an) wird nie gelöscht.
+  const execute = !forcedDry && !switches.dryRun && switches.execute;
   if (!forcedDry && !execute && !switches.dryRun) {
     return { status: 200, body: { mode: "off", switches } };
   }

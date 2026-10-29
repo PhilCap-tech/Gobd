@@ -209,7 +209,7 @@ Es gelten die gesonderte Datenschutzerklärung und die Cookie-Hinweise auf der W
 
 ## § 15 Monatsabonnement (bisheriges Modell)
 
-(1) **Anwendungsbereich und Leistung.** Dieser § 15 gilt für Bestellungen über Digistore24 (§ 9a) sowie für Abonnements, die über unsere Website bis zum [Zeitpunkt des Livegangs, nennt CoS] abgeschlossen wurden; diese laufen zu den bisherigen Bedingungen weiter. Ein Monatsabonnement umfasst **bis zu fünf Firmen** und alle 24 Module; für jede weitere Firma ab der sechsten ist ein zusätzliches Abonnement erforderlich. Solange es aktiv ist, besteht Zugang zu Versionen und späteren Anpassungen.
+(1) **Anwendungsbereich und Leistung.** Dieser § 15 gilt für Bestellungen über Digistore24 (§ 9a) sowie für Abonnements, die über unsere Website bis zum 29.10.2026, 03:09 Uhr abgeschlossen wurden; diese laufen zu den bisherigen Bedingungen weiter. Ein Monatsabonnement umfasst **bis zu fünf Firmen** und alle 24 Module; für jede weitere Firma ab der sechsten ist ein zusätzliches Abonnement erforderlich. Solange es aktiv ist, besteht Zugang zu Versionen und späteren Anpassungen.
 
 (2) **Preise, Laufzeit und Kündigung.** Einrichtung **149 €** einmalig und Nutzungsentgelt **49 € pro Monat**, zuzüglich der gesetzlichen Umsatzsteuer; der erste Monat ist im Einstiegspreis von **198 €** enthalten, ab dem zweiten Monat wird monatlich im Voraus berechnet. Das Abonnement läuft auf unbestimmte Zeit und kann jederzeit zum Ende des laufenden Abrechnungsmonats gekündigt werden, im Kundenkonto unter „Konto → Abo → Kündigen“ oder in Textform an **info@gobd-doku-erstellen.de**.
 
