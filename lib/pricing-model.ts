@@ -207,6 +207,11 @@ export function addonNoticeEnabled(): boolean {
   return boolEnv("PLAN_ADDON_NOTICE_ENABLED", false);
 }
 
+/** Testbetrieb 7-Tage-Hinweis: nur Testadressen anschreiben. An nur bei exakt `true`. */
+export function addonNoticeTestOnly(): boolean {
+  return process.env.ADDON_NOTICE_TEST_ONLY?.trim() === "true";
+}
+
 /** Phase 2: Login vor dem Fragebogen, Paketwahl und Zahlung danach. Default AUS. */
 export function intakeLoginFirstEnabled(): boolean {
   // Default AN im neuen Modell (Go-live), Legacy immer aus.

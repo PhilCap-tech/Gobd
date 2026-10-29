@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
 // Schalter-Isolation: echte Build-Umgebung (Prod) darf die Prüfungen nicht beeinflussen.
 for (const name of [
   "RETENTION_EXECUTE_ENABLED", "RETENTION_DRY_RUN_ENABLED", "PLAN_ADDON_NOTICE_ENABLED",
-  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED",
+  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED", "ADDON_NOTICE_TEST_ONLY",
 ]) delete process.env[name];
 
 for (const name of [

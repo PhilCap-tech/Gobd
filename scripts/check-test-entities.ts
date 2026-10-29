@@ -35,7 +35,7 @@ import { emptyAnswers, type CheckoutIdentity, type SheetRow } from "../lib/types
 // Schalter-Isolation: echte Build-Umgebung (Prod) darf die Prüfungen nicht beeinflussen.
 for (const name of [
   "RETENTION_EXECUTE_ENABLED", "RETENTION_DRY_RUN_ENABLED", "PLAN_ADDON_NOTICE_ENABLED",
-  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED",
+  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED", "ADDON_NOTICE_TEST_ONLY",
 ]) delete process.env[name];
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -298,7 +298,7 @@ function checkSources(): void {
   ok(webhook.includes("entityId: invoiceEntityId"), "payment-failed reads the firm id");
   ok(!existsSync(path.join(root, "app/api/cron/lifecycle/route.ts")), "there is no cron mailer");
   // Erlaubte Crons: 7-Tage-Hinweis und Löschlauf v3 (überspringt gelistete Testfirmen, lib/retention-guards.ts).
-  ok(((JSON.parse(read("vercel.json")) as { crons?: { path: string }[] }).crons ?? []).every((c) => c.path === "/api/cron/addon-notice" || c.path === "/api/cron/loeschlauf"), "vercel.json has no lifecycle cron");
+  ok(((JSON.parse(read("vercel.json")) as { crons?: { path: string }[] }).crons ?? []).every((c) => c.path === "/api/cron/addon-notice" || c.path === "/api/cron/loeschlauf" || c.path === "/api/cron/addon-test-seed"), "vercel.json has no lifecycle cron");
   ok(read("lib/retention-guards.ts").includes("isTestEntity"), "the deletion run skips listed test firms");
 
   const intake = read("app/api/intake/route.ts");

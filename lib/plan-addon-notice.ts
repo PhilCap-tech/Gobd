@@ -19,7 +19,8 @@ import { hasOfferOptOut, offerOptOutHeaders } from "@/lib/offer-optout";
 import { firmLabel, renderLegalMail } from "@/lib/retention-mail";
 import { getAppUrl } from "@/lib/env";
 import { listEntitiesByEmail } from "@/lib/store";
-import { addonNoticeEnabled, isPricingV2, PLAN_ADDON_NOTICE_DAYS_BEFORE } from "@/lib/pricing-model";
+import { isRetentionTestEmail } from "@/lib/retention-guards";
+import { addonNoticeEnabled, addonNoticeTestOnly, isPricingV2, PLAN_ADDON_NOTICE_DAYS_BEFORE } from "@/lib/pricing-model";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -64,7 +65,14 @@ export function addonNoticeMail(input: {
   });
 }
 
-export type AddonNoticeRunResult = { due: number; sent: number; failed: number; sending: boolean };
+export type AddonNoticeRunResult = {
+  due: number;
+  sent: number;
+  failed: number;
+  sending: boolean;
+  /** Mit ADDON_NOTICE_TEST_ONLY=true: fällige Nicht-Testzeilen, die übersprungen wurden. */
+  skippedNonTest: number;
+};
 
 type RunIo = {
   rows: () => Promise<PlanRow[]>;
@@ -88,8 +96,15 @@ export async function runAddonNotice(
   const due = (await io.rows()).filter((row) => addonNoticeDue(row, now));
   let sent = 0;
   let failed = 0;
-  if (!sending) return { due: due.length, sent, failed, sending };
+  let skippedNonTest = 0;
+  if (!sending) return { due: due.length, sent, failed, sending, skippedNonTest };
+  const testOnly = addonNoticeTestOnly();
   for (const row of due) {
+    // Testbetrieb (CoS 29.10.): nur Adressen aus isRetentionTestEmail, Rest nur zählen.
+    if (testOnly && !isRetentionTestEmail(row.email)) {
+      skippedNonTest += 1;
+      continue;
+    }
     try {
       // Widerspruch (CoS 28.10.): kein Angebot, sondern neutraler Hinweis zum Zugangsende (gleicher Dedupe).
       const optedOut = Boolean(row.offerOptOutAt?.trim()) || Boolean(io.optedOut && (await io.optedOut(row)));
@@ -113,5 +128,7 @@ export async function runAddonNotice(
       logError("[addon-notice] Versand fehlgeschlagen", error);
     }
   }
-  return { due: due.length, sent, failed, sending };
+  const result = { due: due.length, sent, failed, sending, skippedNonTest };
+  if (testOnly) console.log("[addon-notice] test-only", JSON.stringify(result));
+  return result;
 }
