@@ -75,7 +75,7 @@ export function SuccessAccessNote({
     return (
       <p className="hint">
         Die Rechnung weist die Nettopreise zuzüglich 19&nbsp;% Umsatzsteuer aus:
-        Einstieg {netWithGrossCents(V2_ENTRY_CENTS)}
+        Paket „Einmalig“ {netWithGrossCents(V2_ENTRY_CENTS)}
         {memberPlan ? (
           <>, mit Jahrespaket zusätzlich {netWithGrossCents(V2_MEMBER_YEAR_CENTS)} für das erste Jahr.</>
         ) : (

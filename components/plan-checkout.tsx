@@ -7,8 +7,8 @@ import {
   PLAN_ENTRY_PRICE_LINE,
   PLAN_ENTRY_WITH_MEMBER_TOTAL,
   PLAN_MEMBER_PRICE_LINE,
-  PLAN_OPTION_1_LABEL,
-  PLAN_OPTION_2_LABEL,
+  PLAN_ENTRY_SUBTITLE,
+  PLAN_MEMBER_SUBTITLE,
   PLAN_PACKAGE_ENTRY_TITLE,
   PLAN_PACKAGE_INTRO,
   PLAN_OPTION_1_SUMMARY_NOTE,
@@ -43,7 +43,7 @@ export function PlanPackageSelect({
             onChange={() => onChange("einstieg")}
           />
           <span>
-            <strong>{PLAN_PACKAGE_ENTRY_TITLE}</strong> <small>({PLAN_OPTION_1_LABEL})</small>
+            <strong>{PLAN_PACKAGE_ENTRY_TITLE}</strong> <small>({PLAN_ENTRY_SUBTITLE})</small>
             <br />
             {PLAN_ENTRY_PRICE_LINE}
             <br />
@@ -59,7 +59,7 @@ export function PlanPackageSelect({
             onChange={() => onChange("mitglied")}
           />
           <span>
-            <strong>{PLAN_PACKAGE_MEMBER_TITLE}</strong> <small>({PLAN_OPTION_2_LABEL})</small>{" "}
+            <strong>{PLAN_PACKAGE_MEMBER_TITLE}</strong> <small>({PLAN_MEMBER_SUBTITLE})</small>{" "}
             <span className="badge">{PLAN_BESTSELLER_LABEL}</span>
             <br />
             {PLAN_ENTRY_PRICE_LINE} + {PLAN_MEMBER_PRICE_LINE}
@@ -79,7 +79,7 @@ export function PlanCheckoutSummary({ paket }: { paket: PlanPackage }) {
   return (
     <>
       <div className="line">
-        <span>Verfahrensdokumentation (Einstieg)</span>
+        <span>Verfahrensdokumentation (einmalig)</span>
         <strong>{PLAN_ENTRY_PRICE_LINE}</strong>
       </div>
       {member ? (

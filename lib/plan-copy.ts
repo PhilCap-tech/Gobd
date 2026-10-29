@@ -36,12 +36,15 @@ export const PLAN_COPY_DRAFT = true;
 export type PlanPackage = "einstieg" | "mitglied";
 
 /* Neues Modell (Philip 28.10.), Wortlaut Growth landing-v3.md (28.10.), 1:1. */
-export const PLAN_PACKAGE_ENTRY_TITLE = "30 Tage";
+export const PLAN_PACKAGE_ENTRY_TITLE = "Einmalig";
 export const PLAN_PACKAGE_MEMBER_TITLE = "Dauerhaft";
 /** Kennzeichnung Option 2 (Philip 28.10.; Growth MARKER 2 offen). */
 /** Bezeichnungen wie in den AGB v3 (CoS 28.10.). */
 export const PLAN_OPTION_1_LABEL = "Option 1";
 export const PLAN_OPTION_2_LABEL = "Option 2 mit Jahrespaket";
+/** Untertitel der Paketkarten (Variante D2, CoS 29.10.): Leistung statt Optionsnummer. */
+export const PLAN_ENTRY_SUBTITLE = "30 Tage Zugang";
+export const PLAN_MEMBER_SUBTITLE = "mit Jahrespaket";
 export const PLAN_BESTSELLER_LABEL = "Bestseller";
 
 export const PLAN_ENTRY_PRICE_LINE = `${V3_ENTRY_LABEL} € netto (${V3_ENTRY_GROSS_LABEL} € brutto) einmalig`;
@@ -83,7 +86,7 @@ export const PLAN_PACKAGES_FOOTER =
 const PLAN_V3_ENTRY_TEXT =
   "99 € einmalig je Firma, zzgl. USt. Verfahrensdokumentation als PDF · 30 Tage Zugang zum Dashboard · Angaben anpassen und PDF neu erstellen, solange der Zugang läuft · Personen einladen, die beim Ausfüllen helfen · Danach wird das Konto deaktiviert, auch der PDF-Download. Bitte speichern Sie Ihre PDFs innerhalb der 30 Tage.";
 const PLAN_V3_MEMBER_TEXT =
-  "99 € einmalig + 49 €/Jahr je Firma, zzgl. USt (im ersten Jahr 148 € zzgl. USt). Alles aus „30 Tage“ · Dauerhafter Zugang zum Dashboard und zu Ihren PDFs · Änderungen jederzeit: Angaben anpassen und neue Version erstellen, wenn sich in Ihrem Betrieb etwas ändert · Personen jederzeit einladen · Verlängert sich jährlich, kündbar laut AGB";
+  "99 € einmalig + 49 €/Jahr je Firma, zzgl. USt (im ersten Jahr 148 € zzgl. USt). Alles aus „Einmalig“ · Zugang zum Dashboard und zu Ihren PDFs, solange das Jahrespaket läuft · Änderungen jederzeit: Angaben anpassen und neue Version erstellen, wenn sich in Ihrem Betrieb etwas ändert · Personen jederzeit einladen · Verlängert sich jährlich, kündbar laut AGB";
 
 /**
  * Text je Paket, Wortlaut Legal (BUILDER-UEBERGABE 26.10., Abschnitt 4
