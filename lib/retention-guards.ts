@@ -44,6 +44,8 @@ export function isRetentionTestEmail(email: string | null | undefined): boolean 
   const at = value.lastIndexOf("@");
   const domain = at >= 0 ? value.slice(at + 1) : "";
   if (RETENTION_TEST_EMAILS.some((item) => item === value)) return true;
+  // Plus-Adressen des Tester-Postfachs (CoS 29.10.): gobd-test+<tag>@mail.grokbot.com, Tag nur [a-z0-9-].
+  if (/^gobd-test\+[a-z0-9-]+@mail\.grokbot\.com$/.test(value)) return true;
   if (WIPE_EMAIL_ALLOWLIST.some((item) => item.toLowerCase() === value)) return true;
   if (value === norm(CHECKOUT_NOTICE_TO)) return true;
   if (domain && RETENTION_TEST_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) return true;

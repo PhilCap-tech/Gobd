@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 // Schalter-Isolation: echte Build-Umgebung (Prod) darf die Prüfungen nicht beeinflussen.
 for (const name of [
   "RETENTION_EXECUTE_ENABLED", "RETENTION_DRY_RUN_ENABLED", "PLAN_ADDON_NOTICE_ENABLED",
-  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED",
+  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED", "ADDON_NOTICE_TEST_ONLY",
 ]) delete process.env[name];
 
 for (const name of ["PRICING_MODEL", "PLAN_ADDON_NOTICE_ENABLED", "CRON_SECRET", "RESEND_API_KEY", "BLOB_READ_WRITE_TOKEN", "VERCEL_ENV"]) {
@@ -60,7 +60,7 @@ async function main() {
     let sends = 0;
     process.env.PRICING_MODEL = "v2";
     const r = await notice.runAddonNotice(now, { rows: async () => [bought(25)], send: async () => { sends += 1; return { stub: true, sent: true }; } });
-    assert.deepEqual(r, { due: 1, sent: 0, failed: 0, sending: false });
+    assert.deepEqual(r, { due: 1, sent: 0, failed: 0, sending: false, skippedNonTest: 0 });
     assert.equal(sends, 0);
   });
 
@@ -102,7 +102,11 @@ async function main() {
     // Daneben nur der Löschlauf v3 (eigener Schalter, Default aus).
     assert.deepEqual(
       vercel.crons.filter((c) => c.path !== "/api/cron/loeschlauf"),
-      [{ path: "/api/cron/addon-notice", schedule: "0 7 * * *" }],
+      [
+        { path: "/api/cron/addon-notice", schedule: "0 7 * * *" },
+        // Einmalig 30.10. 05:30 UTC, Entfernung per Folge-PR.
+        { path: "/api/cron/addon-test-seed", schedule: "30 5 30 10 *" },
+      ],
     );
   });
 
@@ -129,6 +133,75 @@ async function main() {
   await check("Einladungs-Mail mit DSE-Link", async () => {
     const mail = (await import("@/lib/membership-mail")).buildInviteMail({ firmName: "F", street: "", zip: "", city: "", ownerEmail: "o@example.com", inviteUrl: "https://x/i" });
     assert.ok(mail.text.includes("/datenschutz") && mail.html.includes("/datenschutz"));
+  });
+
+  await check("Testgrenze: Plus-Adressen gobd-test+<tag>@mail.grokbot.com, sonst nichts Neues", async () => {
+    const { isRetentionTestEmail } = await import("@/lib/retention-guards");
+    for (const e of ["gobd-test@mail.grokbot.com", "gobd-test+e7n@mail.grokbot.com", "GOBD-Test+E7N@Mail.Grokbot.com", "gobd-test+a-1@mail.grokbot.com", "cappe@gmx.de", "x@resend.dev"]) {
+      assert.equal(isRetentionTestEmail(e), true, e);
+    }
+    for (const e of ["gobd-test+@mail.grokbot.com", "gobd-test+a.b@mail.grokbot.com", "gobd-test+a_b@mail.grokbot.com", "gobd-test+e7n@mail.grokbot.com.evil.de", "gobd-test+e7n@x.mail.grokbot.com", "other+e7n@mail.grokbot.com", "kunde@firma-muster.de"]) {
+      assert.equal(isRetentionTestEmail(e), false, e);
+    }
+  });
+
+  await check("ADDON_NOTICE_TEST_ONLY: an nur bei exakt 'true'; dann nur Testadressen, Rest gezählt", async () => {
+    const pm = await import("@/lib/pricing-model");
+    process.env.PRICING_MODEL = "v2";
+    process.env.PLAN_ADDON_NOTICE_ENABLED = "true";
+    for (const v of [undefined, "", "false", "1", "on", "TRUE-ish"]) {
+      if (v === undefined) delete process.env.ADDON_NOTICE_TEST_ONLY; else process.env.ADDON_NOTICE_TEST_ONLY = v;
+      assert.equal(pm.addonNoticeTestOnly(), false, String(v));
+    }
+    const rows = [bought(25, "kunde@firma-muster.de"), bought(24, "gobd-test@mail.grokbot.com"), bought(23, "gobd-test+e7n@mail.grokbot.com")];
+    const run = async () => {
+      const to: string[] = [];
+      const r = await notice.runAddonNotice(now, { rows: async () => rows, send: async (m) => { to.push(m.to); return { stub: true, sent: true }; }, company: async () => "" });
+      return { r, to };
+    };
+    process.env.ADDON_NOTICE_TEST_ONLY = "true";
+    assert.equal(pm.addonNoticeTestOnly(), true);
+    const on = await run();
+    assert.deepEqual(on.r, { due: 3, sent: 2, failed: 0, sending: true, skippedNonTest: 1 });
+    assert.deepEqual(on.to, ["gobd-test@mail.grokbot.com", "gobd-test+e7n@mail.grokbot.com"], "echte Zeile nicht gesendet");
+    delete process.env.ADDON_NOTICE_TEST_ONLY;
+    const off = await run();
+    assert.deepEqual(off.r, { due: 3, sent: 3, failed: 0, sending: true, skippedNonTest: 0 }, "aus: unverändert");
+    assert.equal(off.to.length, 3);
+    delete process.env.PLAN_ADDON_NOTICE_ENABLED;
+    delete process.env.PRICING_MODEL;
+  });
+
+  await check("Test-Seed: nur anhängen, idempotent, Kontrollzahl ohne Testzeilen, Lesefehler wirft", async () => {
+    const seed = await import("@/lib/addon-test-seed");
+    const { isRetentionTestEmail } = await import("@/lib/retention-guards");
+    assert.deepEqual(seed.ADDON_TEST_SEEDS.map((s) => s.email), ["gobd-test@mail.grokbot.com", "gobd-test+e7n@mail.grokbot.com"]);
+    assert.ok(seed.ADDON_TEST_SEEDS.every((s) => isRetentionTestEmail(s.email)));
+    const real = { ...bought(25, "kunde@firma-muster.de"), accessUntil: "2026-11-10T00:00:00.000Z" };
+    const late = { ...bought(25, "spaet@firma-muster.de"), accessUntil: "2026-11-25T00:00:00.000Z" };
+    const testRow = { ...bought(25, "cappe@gmx.de"), accessUntil: "2026-11-10T00:00:00.000Z" };
+    const store = [real, late, testRow];
+    const before = JSON.stringify(store);
+    const appended: typeof store = [];
+    const io = { rows: async () => [...store, ...appended], append: async (row: (typeof store)[number]) => { appended.push(row); } };
+    const first = await seed.runAddonTestSeed(io);
+    assert.deepEqual(first, { controlCount: 1, created: ["e7", "e7n"], skippedExisting: [], errors: 0 });
+    assert.equal(JSON.stringify(store), before, "bestehende Zeilen unverändert");
+    const [e7, e7n] = appended;
+    assert.equal(e7.plan, "single");
+    assert.equal(e7.purchasedAt, "2026-10-07T07:00:00Z");
+    assert.equal(e7.accessUntil, "2026-11-05T07:00:00Z");
+    assert.equal(e7.retentionUntil, "2027-10-07T07:00:00Z");
+    assert.equal(e7.pricingModel, "v3");
+    assert.equal(e7.offerOptOutAt, "");
+    assert.equal(e7.stripeCustomerId, "");
+    assert.equal(e7n.offerOptOutAt, "2026-10-29T20:00:00Z");
+    assert.equal(e7n.email, "gobd-test+e7n@mail.grokbot.com");
+    const second = await seed.runAddonTestSeed(io);
+    assert.deepEqual(second, { controlCount: 1, created: [], skippedExisting: ["e7", "e7n"], errors: 0 });
+    assert.equal(appended.length, 2, "idempotent");
+    await assert.rejects(seed.runAddonTestSeed({ rows: async () => { throw new Error("sheets down"); }, append: async () => { throw new Error("nie"); } }));
+    assert.ok(!JSON.stringify(second).includes("@"), "Ergebnis ohne Adressen");
   });
 
   console.log(`check-addon-notice: ok (${passed} checks)`);

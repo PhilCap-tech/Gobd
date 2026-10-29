@@ -11,7 +11,7 @@ import path from "node:path";
 // Schalter-Isolation: echte Build-Umgebung (Prod) darf die Prüfungen nicht beeinflussen.
 for (const name of [
   "RETENTION_EXECUTE_ENABLED", "RETENTION_DRY_RUN_ENABLED", "PLAN_ADDON_NOTICE_ENABLED",
-  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED",
+  "RETENTION_NOTICE_ENABLED", "RETENTION_DELETE_ENABLED", "RENEWAL_NOTICE_ENABLED", "ADDON_NOTICE_TEST_ONLY",
 ]) delete process.env[name];
 
 for (const name of [
@@ -354,8 +354,11 @@ async function main() {
       "test",
     );
     assert.equal(guards.exclusionFor({ emails: ["k@firma-neu.de"], ds24: false, legacy: false, marker: true }), null);
-    // Tester-Postfach nur exakt (CoS 28.10.): andere Adressen derselben Domain, Tags, Subdomains bleiben drin.
-    for (const email of ["other@mail.grokbot.com", "gobd-test+x@mail.grokbot.com", "gobd-test@grokbot.com", "gobd-test@x.mail.grokbot.com"]) {
+    // Tester-Postfach exakt plus Tags gobd-test+<[a-z0-9-]+> (CoS 29.10.); andere Adressen derselben Domain, Subdomains bleiben drin.
+    for (const email of ["gobd-test+x@mail.grokbot.com", "GOBD-TEST+E7N@MAIL.GROKBOT.COM"]) {
+      assert.equal(guards.exclusionFor({ emails: [email], ds24: false, legacy: false, marker: true }), "test", email);
+    }
+    for (const email of ["other@mail.grokbot.com", "gobd-test+@mail.grokbot.com", "gobd-test+a.b@mail.grokbot.com", "other+x@mail.grokbot.com", "gobd-test@grokbot.com", "gobd-test@x.mail.grokbot.com", "gobd-test+x@x.mail.grokbot.com"]) {
       assert.equal(guards.exclusionFor({ emails: [email], ds24: false, legacy: false, marker: true }), null, email);
     }
     assert.equal(guards.hasNewModelMarker(""), false);
