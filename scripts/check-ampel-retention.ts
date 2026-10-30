@@ -186,13 +186,15 @@ async function main() {
   assert.equal((dryHttp.body as { mode: string }).mode, "dry");
   assert.equal(forced.saved.length + forced.backups.length, 0);
 
-  // Cron: Ampel-Löschlauf ergänzt, addon-test-seed-firm bleibt, Altdaten ohne Cron.
+  // Cron: Ampel-Löschlauf ergänzt, addon-test-seed-firm bleibt. Altdaten nur einmalig 31.10. 03:50 UTC
+  // (Trockenlauf, Freigabe Philip 30.10. 14:49 EDT); Eintrag nach CoS-Entscheidung per Folge-PR entfernen.
   const vercel = JSON.parse(readFileSync("vercel.json", "utf8")) as { crons: { path: string }[] };
   const paths = vercel.crons.map((cron) => cron.path);
   for (const p of ["/api/cron/addon-notice", "/api/cron/loeschlauf", "/api/cron/addon-test-seed-firm", "/api/cron/ampel-loeschlauf"]) {
     assert.ok(paths.includes(p), p);
   }
-  assert.ok(!paths.includes("/api/cron/ampel-altdaten"));
+  const altdaten = (vercel.crons as { path: string; schedule: string }[]).filter((cron) => cron.path === "/api/cron/ampel-altdaten");
+  assert.deepEqual(altdaten.map((cron) => cron.schedule), ["50 3 31 10 *"], "Altdaten: genau ein einmaliger Termin, nicht täglich");
 
   // Einwilligungsversion: 2026-10-30 nur im Bericht-Ablauf.
   assert.equal(ampelConsentTextVersion("bericht"), "2026-10-30");
