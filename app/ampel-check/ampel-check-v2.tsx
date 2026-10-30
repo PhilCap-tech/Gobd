@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent }
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AmpelCta, AmpelDisclaimer } from "@/components/ampel-result";
+import { CampaignLink } from "@/components/campaign-link";
 import { scoreAmpelCheck } from "@/lib/ampel-check-score";
 import {
   AMPEL_CAP_NOTE,
@@ -33,7 +34,15 @@ import {
   sendAmpelStep,
 } from "@/lib/ampel-step-beacon";
 import { submitVariantFields } from "@/lib/campaign-params";
-import { AMPEL_V2_COPY, AMPEL_V2_SHORT_LABELS, ampelV2Einordnung, ampelV2Explanation } from "@/lib/ampel-v2-copy";
+import {
+  AMPEL_V2_COPY,
+  AMPEL_V2_PRODUCT_OFFER,
+  AMPEL_V2_SHORT_LABELS,
+  ampelV2Einordnung,
+  ampelV2Explanation,
+  ampelV2NeinHeading,
+  ampelV2SentText,
+} from "@/lib/ampel-v2-copy";
 import { stripAnswerCodeFromSearch } from "@/lib/ampel-v2-flag";
 import { trackAmpelCheckSubmit, trackAmpelReportConversion, trackAmpelResult, trackAmpelStart } from "@/lib/tracking";
 
@@ -80,7 +89,8 @@ function AmpelResultNoEmail({ answers }: { answers: AmpelAnswerMap }) {
       {scored.capped ? <p className="ampel-cap">{AMPEL_CAP_NOTE}</p> : null}
       {nein.length > 0 ? (
         <div className="ampel-nein">
-          <h3>{AMPEL_V2_COPY.neinHeading}</h3>
+          <h3>{ampelV2NeinHeading(nein.length)}</h3>
+          <p className="hint">{AMPEL_V2_COPY.neinSubheading}</p>
           <ul>
             {nein.map((question) => (
               <li key={question.id}>
@@ -89,13 +99,38 @@ function AmpelResultNoEmail({ answers }: { answers: AmpelAnswerMap }) {
             ))}
           </ul>
         </div>
-      ) : null}
+      ) : (
+        <div className="ampel-nein ampel-nein-none">
+          <h3>{AMPEL_V2_COPY.neinNone}</h3>
+        </div>
+      )}
       <p className="hint">{AMPEL_V2_COPY.disclaimerShort}</p>
     </section>
   );
 }
 
-export function AmpelCheckV2({ ctaPrice }: { ctaPrice?: string } = {}) {
+/** 2a Produkt-Angebot. Wird nur gerendert, wenn pricingV3 (Server: isPricingV2()) wahr ist. */
+function AmpelProductOffer() {
+  return (
+    <aside className="card ampel-cta ampel-product-offer">
+      <h2>{AMPEL_V2_PRODUCT_OFFER.headline}</h2>
+      <p>{AMPEL_V2_PRODUCT_OFFER.intro}</p>
+      <ul>
+        {AMPEL_V2_PRODUCT_OFFER.bullets.map((bullet) => (
+          <li key={bullet}>{bullet}</li>
+        ))}
+      </ul>
+      <p className="actions">
+        <CampaignLink className="btn" href="/checkout">
+          {AMPEL_V2_PRODUCT_OFFER.button}
+        </CampaignLink>
+      </p>
+      <p className="hint">{AMPEL_V2_PRODUCT_OFFER.smallPrint}</p>
+    </aside>
+  );
+}
+
+export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: string; pricingV3?: boolean } = {}) {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"questions" | "result">("questions");
   const [sent, setSent] = useState(false);
@@ -438,7 +473,9 @@ export function AmpelCheckV2({ ctaPrice }: { ctaPrice?: string } = {}) {
             <section className="card ampel-mail" role="status">
               <h2>{AMPEL_V2_COPY.sentHeading}</h2>
               {mailNotice ? <p>{mailNotice}</p> : null}
-              <p>{AMPEL_V2_COPY.sentText}</p>
+              <p>{ampelV2SentText(email.trim())}</p>
+              {marketing ? <p>{AMPEL_V2_COPY.sentMarketing}</p> : null}
+              <p className="hint">{AMPEL_V2_COPY.sentFooter}</p>
             </section>
           ) : (
             <form ref={offerRef} className="card ampel-mail ampel-report-offer" noValidate onSubmit={sendResult}>
@@ -514,7 +551,7 @@ export function AmpelCheckV2({ ctaPrice }: { ctaPrice?: string } = {}) {
             </button>
           </p>
           <div onClickCapture={onProductClick}>
-            <AmpelCta price={ctaPrice} />
+            {pricingV3 ? <AmpelProductOffer /> : <AmpelCta price={ctaPrice} />}
           </div>
         </div>
       ) : null}

@@ -1,4 +1,5 @@
 import { AMPEL_CTA } from "@/lib/ampel-questions";
+import { isPricingV2 } from "@/lib/pricing-model";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CrumbJsonLd } from "@/components/json-ld";
@@ -49,7 +50,7 @@ export default async function AmpelCheckPage({ searchParams }: { searchParams: P
       <SiteHeader backHref="/" backLabel="← Zur Startseite" />
       <main className="wrap page">
         <Suspense fallback={<p className="hint">Die Ampel wird geladen.</p>}>
-          {noEmail ? <AmpelCheckV2 ctaPrice={AMPEL_CTA.price} /> : <AmpelCheck ctaPrice={AMPEL_CTA.price} />}
+          {noEmail ? <AmpelCheckV2 ctaPrice={AMPEL_CTA.price} pricingV3={isPricingV2()} /> : <AmpelCheck ctaPrice={AMPEL_CTA.price} />}
         </Suspense>
       </main>
       <SiteFooter />

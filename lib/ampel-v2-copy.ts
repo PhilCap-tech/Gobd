@@ -1,7 +1,7 @@
 /**
  * Alle Texte für die Ampel ohne E-Mail an einer Stelle (nur mit Flag sichtbar).
  * Quelle: gobd-ops/growth/ampel-inhalte-2026-10-30.md (1:1 übernommen).
- * Mit PLATZHALTER markiert: noch ohne freigegebenen Text, nur mit Flag erreichbar.
+ * Platzhalter-Texte von Growth am 30.10.2026 ersetzt (ampel-pr305-platzhalter-2026-10-30.md).
  * Legal-Nachträge bitte hier einpflegen.
  */
 
@@ -23,9 +23,37 @@ export function ampelV2Explanation(id: string, text: string): string {
   return replacement ? text.replace(replacement[0], replacement[1]) : text;
 }
 
+/** Früherer Platzhalter-Marker; check:ampel-v2 stellt sicher, dass er nirgends mehr vorkommt. */
 export const AMPEL_V2_PLACEHOLDER = "[PLATZHALTER – Growth]";
 
-const p = (what: string) => `${AMPEL_V2_PLACEHOLDER} ${what}`;
+/** Überschrift der „Nein“-Liste (Growth 30.10.2026, ampel-pr305-platzhalter, Abschnitt 1). */
+export function ampelV2NeinHeading(n: number): string {
+  return `Hier setzen Sie am besten an: ${n} ${n === 1 ? "Thema" : "Themen"} mit „Nein“`;
+}
+
+/** Hinweis „Bericht unterwegs“ mit der E-Mail-Adresse (nur im Browser angezeigt, nie in URL oder Events). */
+export function ampelV2SentText(email: string): string {
+  return `Wir haben Ihnen den Ampel-Bericht als PDF an ${email} gesendet. Falls er nicht ankommt, sehen Sie bitte im Spam-Ordner nach. Ihr Ergebnis bleibt auf dieser Seite sichtbar.`;
+}
+
+/**
+ * 2a Produkt-Angebot (99 €). Nur sichtbar, wenn das Preismodell 2026-11 live ist
+ * (isPricingV2(), PRICING_MODEL=v3 bzw. v2). Sonst bleibt der bisherige AmpelCta.
+ */
+export const AMPEL_V2_PRODUCT_OFFER = {
+  headline: "Die fehlenden Punkte in Ihrer eigenen Verfahrensdokumentation festhalten, einmalig 99 €",
+  intro:
+    "Mit gobd-doku-erstellen.de beantworten Sie einen Fragebogen zu Ihrem Betrieb. Daraus wird Ihre Verfahrensdokumentation als PDF erstellt. Der Fragebogen ist kostenlos. Sie zahlen erst nach der letzten Frage, direkt vor der Erstellung.",
+  bullets: [
+    "Einmalig 99 € netto je Firma, keine Abo-Pflicht",
+    "Fragebogen kostenlos, in Etappen ausfüllbar",
+    "PDF mit allen für Sie relevanten Modulen und einer Liste offener Punkte",
+    "30 Tage Dashboard zum Anpassen und neu Erstellen",
+    "Optional dauerhaft: 99 € plus 49 € netto pro Jahr",
+  ],
+  button: "Fragebogen kostenlos starten",
+  smallPrint: "Alle Preise netto zzgl. 19 % USt, nur für Unternehmen. Keine Steuer- oder Rechtsberatung.",
+} as const;
 
 /** Grundlagen, deren „Nein“ Rot erzwingt (Inhalte Abschnitt 2, Rot Variante A). */
 export const AMPEL_V2_BASICS = ["vd_vorhanden", "aufbewahrung", "kasse_tse"] as const;
@@ -71,10 +99,17 @@ export const AMPEL_V2_COPY = {
   disclaimerShort: "Ersteinschätzung auf Grundlage Ihrer Angaben, keine Prüfung. Keine Steuer- oder Rechtsberatung.",
   disclaimerLong:
     "Die GoBD-Ampel ist eine Ersteinschätzung zur Orientierung. Sie beruht allein auf Ihren Angaben und ist keine Prüfung Ihrer Buchführung oder Ihrer Unterlagen. Sie bestätigt nicht, dass Ihre Buchführung ordnungsmäßig ist. Die Empfehlungen sind allgemeine Hinweise und ersetzen nicht die Beratung durch eine Steuerberaterin oder einen Steuerberater im Einzelfall. Keine Steuer- oder Rechtsberatung. Stand der Quellen: Oktober 2026.",
-  neinHeading: p("Überschrift Liste der Nein-Themen"),
+  neinSubheading: "Ihr Ergebnis, ohne E-Mail-Adresse. Die Reihenfolge und Empfehlungen zu jedem Punkt stehen im Bericht.",
+  neinNone: "Sie haben keine Frage mit „Nein“ beantwortet.",
   offerHeading: "Ihr ausführlicher Ampel-Bericht als PDF",
-  offerIntro: p("Einleitung Bericht-Angebot"),
-  offerBullets: [p("Gegenwert-Bullet 1"), p("Gegenwert-Bullet 2"), p("Gegenwert-Bullet 3")],
+  offerIntro:
+    "Auf Wunsch senden wir Ihnen die vollständige Auswertung Ihrer Antworten als PDF, zum Ablegen oder zur Besprechung mit Ihrer Steuerkanzlei.",
+  offerBullets: [
+    "Einzelauswertung aller 10 Bereiche",
+    "Eine Empfehlung zu jedem „Nein“",
+    "Eine Reihenfolge, womit Sie sinnvollerweise beginnen",
+    "Quellenangaben je Bereich (GoBD-Randziffern, AO, HGB)",
+  ],
   offerButton: "Bericht per E-Mail erhalten",
   offerEmptyEmail: "Bitte geben Sie Ihre E-Mail-Adresse ein, damit wir Ihnen den Bericht senden können.",
   /** Legal 30.10.2026 (ampel-dse-final-builder), Version AMPEL_REPORT_CONSENT_TEXT_VERSION. „Datenschutzerklärung“ wird verlinkt. */
@@ -83,6 +118,8 @@ export const AMPEL_V2_COPY = {
   /** Hinweiszeile unter dem E-Mail-Feld. „Datenschutzerklärung“ wird verlinkt. */
   emailPrivacyNote:
     "Wir verwenden Ihre E-Mail-Adresse nur, um Ihnen diesen Bericht zu senden (Art. 6 Abs. 1 lit. b DSGVO). Werbung erhalten Sie nur, wenn Sie unten gesondert zustimmen. Mehr dazu in unserer Datenschutzerklärung. Keine Steuer- oder Rechtsberatung.",
-  sentHeading: p("Überschrift Bestätigung Bericht unterwegs"),
-  sentText: p("Text Bestätigung Bericht unterwegs"),
+  sentHeading: "Ihr Bericht ist unterwegs",
+  sentMarketing:
+    "Zusätzlich haben wir Ihnen eine E-Mail mit einem Bestätigungslink gesendet. Erst nach Ihrer Bestätigung erhalten Sie Informationen von uns. Die Einwilligung können Sie jederzeit widerrufen.",
+  sentFooter: "Keine Steuer- oder Rechtsberatung.",
 } as const;

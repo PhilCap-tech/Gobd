@@ -15,7 +15,16 @@ import {
   stripAnswerCodeFromSearch,
 } from "@/lib/ampel-v2-flag";
 import { AMPEL_STEP_EVENTS, parseAmpelStepBody } from "@/lib/ampel-step-event";
-import { AMPEL_V2_COPY, AMPEL_V2_PLACEHOLDER, AMPEL_V2_SHORT_LABELS, ampelV2Einordnung } from "@/lib/ampel-v2-copy";
+import {
+  AMPEL_V2_COPY,
+  AMPEL_V2_PLACEHOLDER,
+  AMPEL_V2_PRODUCT_OFFER,
+  AMPEL_V2_SHORT_LABELS,
+  ampelV2Einordnung,
+  ampelV2NeinHeading,
+  ampelV2SentText,
+} from "@/lib/ampel-v2-copy";
+import { isPricingV2 } from "@/lib/pricing-model";
 import { AMPEL_QUESTIONS } from "@/lib/ampel-questions";
 import { replaceCheckSearch } from "@/lib/campaign-params";
 
@@ -48,7 +57,7 @@ assert.equal(isAmpelNoEmailEnabled(on, {}), true, "local dev may use the overrid
 // The page must not read search params in production and must pick the old flow when OFF.
 const page = read("app/ampel-check/page.tsx");
 assert.match(page, /const query = ampelV2OverrideAllowed\(\) \? await searchParams : undefined;/);
-assert.match(page, /noEmail \? <AmpelCheckV2 ctaPrice=\{AMPEL_CTA\.price\} \/> : <AmpelCheck ctaPrice=\{AMPEL_CTA\.price\} \/>/);
+assert.match(page, /noEmail \? <AmpelCheckV2 ctaPrice=\{AMPEL_CTA\.price\} pricingV3=\{isPricingV2\(\)\} \/> : <AmpelCheck ctaPrice=\{AMPEL_CTA\.price\} \/>/);
 assert.doesNotMatch(page, /"ampel_v2"/, "page leaves the override to lib/ampel-v2-flag");
 
 // --- Flag OFF: unchanged ---------------------------------------------------
@@ -157,8 +166,39 @@ assert.ok(!v1.includes("trackAmpelReportConversion"), "flag-off flow sends no Ad
 assert.ok(/if \(leadAccepted\) \{\n\s+trackAmpelCheckSubmit\(\);\n(?:\s+\/\/.*\n)?\s+trackAmpelReportConversion\(/.test(v2), "Ads conversion only after an accepted send");
 assert.equal((v2.match(/trackAmpelReportConversion\(/g) ?? []).length, 1);
 assert.ok(v2.includes('flow: "bericht"'), "flag-on submit asks for consent version 2026-10-30");
-for (const key of ["neinHeading", "offerIntro", "sentHeading", "sentText"] as const) {
-  assert.ok(String(AMPEL_V2_COPY[key]).startsWith(AMPEL_V2_PLACEHOLDER), `${key} is a placeholder`);
+// Growth texts 30.10.2026 (ampel-pr305-platzhalter): no placeholder left anywhere in the flag path.
+const copySrc = read("lib/ampel-v2-copy.ts");
+for (const [name, src] of [["copy", copySrc.replace(/export const AMPEL_V2_PLACEHOLDER = .*\n/, "")], ["v2", v2], ["page", page]] as const) {
+  assert.ok(!src.includes("PLATZHALTER"), `${name}: no PLATZHALTER left`);
+}
+assert.ok(!JSON.stringify({ AMPEL_V2_COPY, AMPEL_V2_PRODUCT_OFFER }).includes(AMPEL_V2_PLACEHOLDER), "no placeholder in exported copy");
+assert.equal(ampelV2NeinHeading(1), "Hier setzen Sie am besten an: 1 Thema mit „Nein“");
+assert.equal(ampelV2NeinHeading(3), "Hier setzen Sie am besten an: 3 Themen mit „Nein“");
+assert.equal(AMPEL_V2_COPY.neinNone, "Sie haben keine Frage mit „Nein“ beantwortet.");
+assert.equal(AMPEL_V2_COPY.offerBullets.length, 4);
+assert.equal(AMPEL_V2_COPY.sentHeading, "Ihr Bericht ist unterwegs");
+assert.ok(ampelV2SentText("a@b.de").includes(" an a@b.de gesendet."));
+assert.ok(/\{marketing \? <p>\{AMPEL_V2_COPY\.sentMarketing\}<\/p> : null\}/.test(v2), "marketing addition only with checkbox");
+// Price guard: 99 € only in the 2a block, which renders only with pricingV3 (= isPricingV2() on the server).
+const copyNo2a = JSON.stringify(AMPEL_V2_COPY);
+assert.ok(!copyNo2a.includes("99"), "no 99 € outside the 2a product offer");
+assert.ok(AMPEL_V2_PRODUCT_OFFER.headline.includes("99 €"));
+assert.ok(!v2.includes("99 €"), "no hard-coded price in v2 component");
+assert.equal((v2.match(/<AmpelProductOffer \/>/g) ?? []).length, 1, "2a rendered at exactly one place");
+assert.ok(v2.includes("{pricingV3 ? <AmpelProductOffer /> : <AmpelCta price={ctaPrice} />}"), "2a only with pricingV3");
+assert.ok(v2.includes("pricingV3 = false"), "pricingV3 defaults to off");
+assert.ok(page.includes("pricingV3={isPricingV2()}"), "page derives pricingV3 from the pricing model");
+{
+  const saved = process.env.PRICING_MODEL;
+  for (const value of [undefined, "", "legacy", "v1", "V4"]) {
+    if (value === undefined) delete process.env.PRICING_MODEL;
+    else process.env.PRICING_MODEL = value;
+    assert.equal(isPricingV2(), false, `PRICING_MODEL=${value} hides the 99 € offer`);
+  }
+  process.env.PRICING_MODEL = "v3";
+  assert.equal(isPricingV2(), true, "PRICING_MODEL=v3 shows the 99 € offer");
+  if (saved === undefined) delete process.env.PRICING_MODEL;
+  else process.env.PRICING_MODEL = saved;
 }
 // Title/meta switch only with the flag: v1 metadata object stays the old one.
 assert.match(page, /const metadataV1: Metadata = \{\n  title: \{ absolute: AMPEL_TITLE \},\n  description: AMPEL_INTRO,/);
