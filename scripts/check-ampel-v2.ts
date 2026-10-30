@@ -161,7 +161,7 @@ for (const key of ["neinHeading", "offerIntro", "sentHeading", "sentText"] as co
   assert.ok(String(AMPEL_V2_COPY[key]).startsWith(AMPEL_V2_PLACEHOLDER), `${key} is a placeholder`);
 }
 // Title/meta switch only with the flag: v1 metadata object stays the old one.
-assert.match(page, /const metadataV1: Metadata = \{\n  title: \{ absolute: AMPEL_H1 \},\n  description: AMPEL_INTRO,/);
+assert.match(page, /const metadataV1: Metadata = \{\n  title: \{ absolute: AMPEL_TITLE \},\n  description: AMPEL_INTRO,/);
 assert.match(page, /if \(!isAmpelNoEmailEnabled\(query\)\) return metadataV1;/);
 
 console.log("check-ampel-v2: ok");
