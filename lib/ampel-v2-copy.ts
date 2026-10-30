@@ -111,6 +111,7 @@ export const AMPEL_V2_COPY = {
     "Quellenangaben je Bereich (GoBD-Randziffern, AO, HGB)",
   ],
   offerButton: "Bericht per E-Mail erhalten",
+  offerRetry: "Erneut versuchen",
   offerEmptyEmail: "Bitte geben Sie Ihre E-Mail-Adresse ein, damit wir Ihnen den Bericht senden können.",
   /** Legal 30.10.2026 (ampel-dse-final-builder), Version AMPEL_REPORT_CONSENT_TEXT_VERSION. „Datenschutzerklärung“ wird verlinkt. */
   marketingConsent:

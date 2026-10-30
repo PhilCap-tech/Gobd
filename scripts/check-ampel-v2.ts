@@ -25,6 +25,8 @@ import {
   ampelV2SentText,
 } from "@/lib/ampel-v2-copy";
 import { isPricingV2 } from "@/lib/pricing-model";
+import { deliverAmpelResult } from "@/lib/ampel-result-send";
+import { campaignTargetHref } from "@/lib/campaign-params";
 import { AMPEL_QUESTIONS } from "@/lib/ampel-questions";
 import { replaceCheckSearch } from "@/lib/campaign-params";
 
@@ -203,5 +205,32 @@ assert.ok(page.includes("pricingV3={isPricingV2()}"), "page derives pricingV3 fr
 // Title/meta switch only with the flag: v1 metadata object stays the old one.
 assert.match(page, /const metadataV1: Metadata = \{\n  title: \{ absolute: AMPEL_TITLE \},\n  description: AMPEL_INTRO,/);
 assert.match(page, /if \(!isAmpelNoEmailEnabled\(query\)\) return metadataV1;/);
+
+// #305 Tester-FAIL A: „unterwegs“ only after a confirmed send; stub is never a send in the flag path.
+assert.equal((v2.match(/showResult\(/g) ?? []).length, 1, "only one unconditional showResult (inline mailed=true)");
+assert.ok(v2.includes("(leadAccepted ? showResult : showError)("), "/senden result shows unterwegs only when accepted");
+assert.ok(v2.includes("sendFailed ? AMPEL_V2_COPY.offerRetry"), "retry label after a failed send");
+assert.equal(AMPEL_V2_COPY.offerRetry, "Erneut versuchen");
+void (async () => {
+  const stubbed = await deliverAmpelResult(
+    "t@example.com",
+    {},
+    "JJJJJJJJJJ",
+    { email: "t@example.com", answers: "JJJJJJJJJJ", ref: "", marketing: false, honeypot: "", ip: "1.2.3.4", flow: "bericht" },
+    { mail: async () => ({ stub: true, sent: false }) },
+  );
+  assert.equal("mailed" in stubbed && stubbed.mailed, false, "stub mail is not reported as sent in the bericht flow");
+  console.log("check-ampel-v2: stub ok");
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+const sendSrc = read("lib/ampel-result-send.ts");
+assert.ok(sendSrc.includes('deps.handoff && input.flow === "bericht" && trace.kind === "failopen"'), "fail-open still hands off to /senden");
+// Tester-FAIL B: product CTA keeps gclid/utm via CampaignLink, consent-gated like every CTA on the site.
+assert.ok(/<CampaignLink className="btn" href="\/checkout">\s*\{AMPEL_V2_PRODUCT_OFFER\.button\}/.test(v2), "2a CTA uses CampaignLink");
+assert.ok(read("components/ampel-result.tsx").includes('<CampaignLink className="btn" href="/checkout">'), "fallback CTA uses CampaignLink");
+assert.equal(campaignTargetHref("/checkout", "?ampel_v2=1&gclid=TEST&utm_source=t", true), "/checkout?gclid=TEST&utm_source=t");
+assert.equal(campaignTargetHref("/checkout", "?ampel_v2=1&gclid=TEST&utm_source=t", false), "/checkout", "no params without marketing consent");
 
 console.log("check-ampel-v2: ok");

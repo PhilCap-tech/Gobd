@@ -139,6 +139,7 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
   const [refName, setRefName] = useState(sanitizeAmpelRef(searchParams.get("ref") ?? ""));
   const [email, setEmail] = useState("");
   const [marketing, setMarketing] = useState(false);
+  const [sendFailed, setSendFailed] = useState(false);
   const [fax, setFax] = useState("");
   const [pending, setPending] = useState(false);
   const [mailError, setMailError] = useState("");
@@ -229,6 +230,7 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
     setMailNotice("");
     setMailError("");
     setMarketing(false);
+    setSendFailed(false);
   }
 
   function onProductClick(event: MouseEvent<HTMLDivElement>) {
@@ -278,6 +280,13 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
       setMailNotice(notice);
       setSent(true);
     };
+    // „Unterwegs“ nur nach bestätigtem Versand; sonst Fehlertext und „Erneut versuchen“.
+    const showError = (message: string) => {
+      setMailNotice("");
+      setSent(false);
+      setSendFailed(true);
+      setMailError(message === AMPEL_RESULT_MAIL.sending ? AMPEL_RESULT_MAIL.shownWithoutMail : message);
+    };
     const hideResult = () => {
       setMailNotice("");
       setSent(false);
@@ -315,23 +324,23 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
       }
       if (response.status === 429) {
         noteAmpelReportSent(response.status);
-        showResult(data.notice || AMPEL_RESULT_MAIL.rateLimitedEmail);
+        showError(data.notice || AMPEL_RESULT_MAIL.rateLimitedEmail);
         return;
       }
       if (data.duplicate) {
         noteAmpelReportSent(response.status);
-        showResult(data.notice || AMPEL_RESULT_MAIL.alreadySent);
+        showError(data.notice || AMPEL_RESULT_MAIL.alreadySent);
         return;
       }
       if (!response.ok || !data.ok) {
         noteAmpelReportSent(response.status);
-        showResult(data.error || data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
+        showError(data.error || data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
         return;
       }
       if (data.pending) {
         if (!data.token) {
           noteAmpelReportSent(response.status, true);
-          showResult(AMPEL_RESULT_MAIL.shownWithoutMail);
+          showError(AMPEL_RESULT_MAIL.shownWithoutMail);
           return;
         }
         const controller = new AbortController();
@@ -364,7 +373,7 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
             sent.duplicate !== true &&
             sent.mailed !== false;
           noteAmpelReportSent(follow.status, true);
-          showResult(
+          (leadAccepted ? showResult : showError)(
             ampelSendStatusNotice({
               email,
               status: follow.status,
@@ -379,7 +388,7 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
         } catch (error) {
           const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
           if (aborted) noteAmpelReportSent(0, false, true);
-          showResult(ampelSendStatusNotice({ email, aborted, status: 0, ok: false }));
+          showError(ampelSendStatusNotice({ email, aborted, status: 0, ok: false }));
         } finally {
           clearTimeout(timer);
         }
@@ -387,7 +396,7 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
       }
       if (data.mailed === false) {
         noteAmpelReportSent(response.status);
-        showResult(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
+        showError(data.notice || AMPEL_RESULT_MAIL.shownWithoutMail);
         return;
       }
       leadAccepted = true;
@@ -396,7 +405,7 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
     } catch (error) {
       const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
       if (aborted) noteAmpelReportSent(0, false, true);
-      showResult(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
+      showError(aborted ? AMPEL_RESULT_MAIL.sendInterrupted : AMPEL_RESULT_MAIL.offline);
     } finally {
       if (leadAccepted) {
         trackAmpelCheckSubmit();
@@ -540,7 +549,7 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
               </div>
               <p className="actions">
                 <button className="btn ampel-submit" type="submit" disabled={pending}>
-                  {pending ? "Wird gesendet …" : AMPEL_V2_COPY.offerButton}
+                  {pending ? "Wird gesendet …" : sendFailed ? AMPEL_V2_COPY.offerRetry : AMPEL_V2_COPY.offerButton}
                 </button>
               </p>
             </form>

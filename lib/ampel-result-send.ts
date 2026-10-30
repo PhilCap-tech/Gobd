@@ -319,6 +319,12 @@ async function runSubmit(
   console.info(ampelRateLogLine(source, decision === "ok" ? hold.ipSlot : 0, clientIp));
   if (decision !== "ok") return stamp(limited(decision), trace, input, rateScope);
 
+  // Flag-Pfad „bericht“: der Client ruft immer /senden auf. Fällt der Rate-Store aus (fail open,
+  // Slots 0), bekommt der Token Slot 1, statt still im /ergebnis-Aufruf zu versenden.
+  if (deps.handoff && input.flow === "bericht" && trace.kind === "failopen") {
+    hold.ipSlot = Math.max(1, hold.ipSlot);
+    hold.emailSlot = Math.max(1, hold.emailSlot);
+  }
   if (deps.handoff && hold.ipSlot >= 1 && hold.emailSlot >= 1) {
     let token: string | null = null;
     try {
@@ -386,6 +392,11 @@ export async function deliverAmpelResult(
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
   if (mail.duplicate) return alreadySent();
+  // Flag-Pfad: ein Stub (RESEND_API_KEY/EMAIL_FROM fehlt) ist kein Versand, kein „unterwegs“.
+  if (mail.stub && input.flow === "bericht") {
+    console.error("[ampel] Bericht nicht gesendet: Mailversand nicht konfiguriert");
+    return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
+  }
   if (mail.inflight || !delivered(mail)) {
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
