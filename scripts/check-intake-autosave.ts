@@ -462,6 +462,42 @@ async function main(): Promise<void> {
       );
     }
 
+    // Final save pauses autosave + retry timer; resume only after a failed final save.
+    {
+      const { shouldResumeAutosave, autosaveHintVisible, savingLabelVisible } = await import("../lib/fetch-retry");
+      let sends = 0;
+      const paused = new DraftAutosave(async () => {
+        sends += 1;
+      });
+      paused.stop();
+      await paused.idle();
+      paused.request(); // debounced edit or retry timer during the final save
+      paused.request();
+      await paused.idle();
+      ok(sends === 0, "no autosave PUT while the final save runs");
+      ok(!shouldResumeAutosave(true), "a confirmed final save keeps autosave paused (redirect)");
+      ok(shouldResumeAutosave(false), "a failed final save resumes autosave");
+      paused.resume();
+      paused.request();
+      await paused.idle();
+      ok(sends === 1, "after resume the retry sends again");
+      const form = readFileSync("app/intake/intake-form.tsx", "utf8");
+      const prepayAt = form.indexOf("if (prepayHref) {");
+      const stopAt = form.indexOf("autosave.stop();", prepayAt);
+      const finalAt = form.indexOf("FINAL_SAVE_RETRIES", prepayAt);
+      ok(prepayAt > 0 && stopAt > prepayAt && stopAt < finalAt, "the form pauses autosave before the final save");
+      ok(form.includes("if (shouldResumeAutosave(finalSaved)) autosave.resume();"), "the form resumes only on failure");
+
+      // Hint: visible through every retry (saving or not), hidden only after success.
+      for (const saving of [false, true, false, true]) {
+        ok(autosaveHintVisible({ failures: 2, finalSaveFailed: false }), `hint stays while saving=${saving}`);
+        ok(!savingLabelVisible({ saving, pending: false, failures: 2 }), "no label swap with the hint");
+      }
+      ok(!autosaveHintVisible({ failures: 0, finalSaveFailed: false }), "hint hidden after a confirmed save");
+      ok(savingLabelVisible({ saving: true, pending: false, failures: 0 }), "normal saving label without failures");
+      ok(form.includes("autosaveHintVisible({ failures: saveFailures, finalSaveFailed })"), "the form renders the hint via autosaveHintVisible");
+    }
+
     console.log("intake autosave checks passed");
   } finally {
     setMailDedupeTestHooks(null);
