@@ -6,9 +6,14 @@ type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respo
 function retryAfterMs(response: Response): number {
   const raw = response.headers.get("Retry-After")?.trim() ?? "";
   const seconds = Number(raw);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds, 10) * 1000;
-  return 3000;
+  // Missing, empty, invalid or <= 0 (Number("") is 0): default base, so the
+  // backoff still grows instead of retrying at once.
+  if (raw !== "" && Number.isFinite(seconds) && seconds > 0) return Math.min(seconds, 10) * 1000;
+  return DEFAULT_RETRY_MS;
 }
+
+/** Base wait when a 503 carries no usable Retry-After. */
+export const DEFAULT_RETRY_MS = 3000;
 
 /** Longest single wait with `backoff`. */
 export const BACKOFF_CAP_MS = 15_000;
@@ -86,4 +91,17 @@ export const SERVER_SAVE_FAILED_HINT =
  */
 export function prepayRedirectAllowed(serverConfirmed: boolean, saveBlocked: boolean): boolean {
   return serverConfirmed && !saveBlocked;
+}
+
+/** Autosave retry while the server hint shows: 5 s, doubled, capped at 60 s. */
+export const AUTOSAVE_RETRY_BASE_MS = 5000;
+export const AUTOSAVE_RETRY_CAP_MS = 60_000;
+export function autosaveRetryDelayMs(failures: number): number {
+  const attempt = Math.max(0, failures - 1);
+  return Math.min(AUTOSAVE_RETRY_CAP_MS, AUTOSAVE_RETRY_BASE_MS * 2 ** attempt);
+}
+
+/** Consecutive autosave failures; a confirmed save resets to 0 (hint hidden). */
+export function nextSaveFailures(previous: number, saved: boolean): number {
+  return saved ? 0 : previous + 1;
 }
