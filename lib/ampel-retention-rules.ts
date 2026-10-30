@@ -4,10 +4,11 @@
  * - Bericht-Leads ohne Werbe-Einwilligung: 6 Monate nach Versand schwärzen.
  * - Unbestätigte Opt-ins: Einwilligungsangaben nach 30 Tagen entfernen
  *   (Zeile bleibt als Bericht-Lead und fällt dann unter die 6 Monate).
- * - Nachweis von Einwilligung und Widerruf: 3 Jahre nach Ende des Jahres des Widerrufs.
+ * - Nachweis von Einwilligung und Widerruf: 3 Jahre nach dem Widerruf (Freigabe Philip 30.10.2026 18:57 MEZ).
+ * - Sperrliste (gobd/ampel-suppression): Eintrag 3 Jahre nach dem Widerruf löschen, zusammen mit dem Nachweis (Freigabe 18:57).
  * - Bestätigte, nicht widerrufene Einwilligung: bleibt bis zum Widerruf (Freigabe 17:38).
  * - ampel_rate (Missbrauchsschutz): 30 Tage (Freigabe 17:38).
- * - Kanzlei-Merkblatt: Nachweis von Einwilligung/Widerruf 3 Jahre nach Ende des Jahres des Widerrufs (Freigabe 17:43).
+ * - Kanzlei-Merkblatt: Nachweis von Einwilligung/Widerruf 3 Jahre nach dem Widerruf (Freigabe 17:43, Formulierung 18:57).
  * - Opt-in- und Sperrlisten-/Widerrufszeilen werden nie vorzeitig gelöscht.
  * - Nur Ampel-Zeilen (lead_id `ampel-`, status `ampel_*`). Nie: Readiness, Kanzlei, Kassen,
  *   Test-, Comp-, Digistore24-, Bestands-/Altkunden- oder Kundenzeilen. Unklar = nicht anfassen.
@@ -71,9 +72,23 @@ function addMonths(ms: number, months: number): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes());
 }
 
-/** Erstes Datum, ab dem der Nachweis gelöscht werden darf: 1.1. des Jahres Widerruf + 4. */
+/** Erster Zeitpunkt, ab dem Nachweis bzw. Sperrlisten-Eintrag gelöscht werden darf: Widerruf + 3 Jahre (UTC). */
 export function proofDeleteFrom(withdrawnAtMs: number): number {
-  return Date.UTC(new Date(withdrawnAtMs).getUTCFullYear() + AMPEL_PROOF_KEEP_YEARS + 1, 0, 1);
+  const d = new Date(withdrawnAtMs);
+  d.setUTCFullYear(d.getUTCFullYear() + AMPEL_PROOF_KEEP_YEARS);
+  return d.getTime();
+}
+
+/** Sperrlisten-Eintrag: löschen erst ab Widerruf + 3 Jahre. Unlesbar/ohne Datum = behalten. */
+export function decideSuppressionEntry(
+  row: { withdrawnAt?: unknown } | null,
+  now: number,
+): BlobAction {
+  if (!row) return { kind: "skip", reason: "unreadable" };
+  const withdrawn = typeof row.withdrawnAt === "string" ? Date.parse(row.withdrawnAt) : NaN;
+  if (!Number.isFinite(withdrawn)) return { kind: "skip", reason: "no_date" };
+  if (now >= proofDeleteFrom(withdrawn)) return { kind: "delete", reason: "proof_expired" };
+  return { kind: "keep", reason: "proof_period" };
 }
 
 export type AmpelRowAction =

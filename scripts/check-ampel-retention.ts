@@ -11,6 +11,7 @@ import {
   decideAmpelRow,
   decideKanzleiRow,
   decideMailLinkBlob,
+  decideSuppressionEntry,
   leadingExpiredRateRows,
   proofDeleteFrom,
   resolveRunMode,
@@ -59,7 +60,16 @@ assert.ok(redacted.kind === "redact_report" && redacted.next.email === "" && red
 assert.equal(decideAmpelRow(row({ marketingOptIn: "pending", consentAt: "2026-10-01T00:00:00Z" }), clean, NOW).kind, "drop_unconfirmed", "30 Tage");
 assert.equal(decideAmpelRow(row({ marketingOptIn: "pending", consentAt: "2026-11-01T00:00:00Z" }), clean, NOW).kind, "keep");
 assert.equal(decideAmpelRow(row({ marketingOptIn: "confirmed" }), clean, NOW).kind, "keep", "aktive Einwilligung bleibt");
-assert.equal(proofDeleteFrom(Date.parse("2026-03-01T00:00:00Z")), Date.UTC(2030, 0, 1), "3 Jahre nach Jahresende");
+assert.equal(proofDeleteFrom(Date.parse("2026-03-01T00:00:00Z")), Date.parse("2029-03-01T00:00:00Z"), "3 Jahre nach dem Widerruf");
+assert.equal(proofDeleteFrom(Date.parse("2023-11-15T12:00:01Z")), NOW + 1000, "Stichtag ist Widerruf + 3 Jahre auf die Sekunde");
+// Neue Regel: Widerruf 2023-06-01 -> ab 2026-06-01 löschen (alte Jahresende-Regel hätte bis 2027 behalten).
+assert.equal(decideAmpelRow(row({ marketingOptIn: "withdrawn", withdrawnAt: "2023-06-01T00:00:00Z" }), clean, NOW).kind, "redact_proof");
+assert.equal(decideAmpelRow(row({ marketingOptIn: "withdrawn", withdrawnAt: "2023-11-16T00:00:00Z" }), clean, NOW).kind, "keep", "einen Tag vor Ablauf");
+// Sperrliste: gleiche Frist.
+assert.equal(decideSuppressionEntry({ withdrawnAt: "2023-06-01T00:00:00Z" }, NOW).kind, "delete");
+assert.equal(decideSuppressionEntry({ withdrawnAt: "2023-11-16T00:00:00Z" }, NOW).kind, "keep");
+assert.equal(decideSuppressionEntry({ withdrawnAt: "kaputt" }, NOW).kind, "skip", "ohne Datum nicht anfassen");
+assert.equal(decideSuppressionEntry(null, NOW).kind, "skip", "unlesbar nicht anfassen");
 assert.equal(decideAmpelRow(row({ marketingOptIn: "withdrawn", withdrawnAt: "2026-03-01T00:00:00Z" }), clean, NOW).kind, "keep");
 assert.equal(
   decideAmpelRow(row({ marketingOptIn: "withdrawn", withdrawnAt: "2022-12-31T00:00:00Z" }), clean, NOW).kind,
@@ -88,6 +98,12 @@ function fakeIo(rows: ReadinessLead[]) {
   const rateDeleted: number[] = [];
   const deleted: string[] = [];
   const backups: string[] = [];
+  const suppressionDeleted: string[] = [];
+  const suppressions: Record<string, { withdrawnAt?: unknown } | null> = {
+    "gobd/ampel-suppression/aaaa.json": { withdrawnAt: "2023-01-10T00:00:00Z" },
+    "gobd/ampel-suppression/bbbb.json": { withdrawnAt: "2025-01-10T00:00:00Z" },
+    "gobd/ampel-suppression/cccc.json": null,
+  };
   const io: AmpelRetentionIo = {
     listRows: async () => rows,
     saveRow: async (r) => void saved.push(r),
@@ -95,11 +111,14 @@ function fakeIo(rows: ReadinessLead[]) {
     listMailLinks: async () => [{ pathname: "gobd/mail-link/a" }],
     readMailLink: async () => doi,
     deleteMailLink: async (p) => void deleted.push(p),
+    listSuppressions: async () => Object.keys(suppressions).map((pathname) => ({ pathname })),
+    readSuppression: async (p) => suppressions[p] ?? null,
+    deleteSuppression: async (p) => void suppressionDeleted.push(p),
     listRateAts: async () => rateAts,
     deleteLeadingRateRows: async (n) => void rateDeleted.push(n),
     writeBackup: async (name) => void backups.push(name),
   };
-  return { io, saved, deleted, backups, rateDeleted };
+  return { io, saved, deleted, backups, rateDeleted, suppressionDeleted };
 }
 
 async function main() {
@@ -107,11 +126,13 @@ async function main() {
   const dry = fakeIo(rows);
   const dryReport = await runAmpelRetention(dry.io, { execute: false, now: NOW });
   assert.equal(dryReport.rows.redactReport, 1);
-  assert.equal(dry.saved.length + dry.deleted.length, 0, "Trockenlauf schreibt nichts");
+  assert.equal(dry.saved.length + dry.deleted.length + dry.suppressionDeleted.length, 0, "Trockenlauf schreibt nichts");
+  assert.deepEqual(dryReport.suppression, { seen: 3, delete: 1, kept: 1, skipped: 1 }, "Trockenlauf zählt die Sperrliste");
   const run = fakeIo(rows);
   await runAmpelRetention(run.io, { execute: true, now: NOW });
   assert.deepEqual(run.saved.map((r) => r.leadId), ["ampel-abc"], "nur die Ampel-Zeile");
   assert.deepEqual(run.deleted, ["gobd/mail-link/a"]);
+  assert.deepEqual(run.suppressionDeleted, ["gobd/ampel-suppression/aaaa.json"], "nur der abgelaufene Sperrlisten-Eintrag");
   assert.deepEqual(run.rateDeleted, [2], "ampel_rate: nur die führenden Zeilen älter als 30 Tage");
   assert.equal(dry.rateDeleted.length, 0);
   assert.equal(leadingExpiredRateRows(["x", String(NOW - 40 * 86400000)], NOW), 0, "unklare Zeile stoppt");
@@ -121,6 +142,8 @@ async function main() {
   assert.equal(decideKanzleiRow(k({ marketingOptIn: "confirmed" }), NOW).kind, "keep");
   assert.equal(decideKanzleiRow(k({ marketingOptIn: "withdrawn", withdrawnAt: "2026-01-05T00:00:00Z" }), NOW).kind, "keep");
   assert.equal(decideKanzleiRow(k({ marketingOptIn: "withdrawn", withdrawnAt: "2022-06-05T00:00:00Z" }), NOW).kind, "redact_proof");
+  assert.equal(decideKanzleiRow(k({ marketingOptIn: "withdrawn", withdrawnAt: "2023-06-05T00:00:00Z" }), NOW).kind, "redact_proof", "Kanzlei: 3 Jahre nach Widerruf, nicht Jahresende");
+  assert.equal(decideKanzleiRow(k({ marketingOptIn: "withdrawn", withdrawnAt: "2023-11-16T00:00:00Z" }), NOW).kind, "keep");
   assert.equal(decideKanzleiRow(k({ marketingOptIn: "withdrawn", withdrawnAt: "2022-06-05T00:00:00Z", email: "gobd-test+k@mail.grokbot.com" }), NOW).kind, "skip");
   assert.equal(decideKanzleiRow(row({}), NOW).kind, "skip", "Ampel-Zeile ist keine Kanzlei-Zeile");
   // Opt-in- und Sperrlisten-Zeilen nie vorzeitig.
@@ -178,6 +201,23 @@ async function main() {
   // consent_at: unverändert (lead_id/Opt-in-Logik hängen daran).
   const send = readFileSync("lib/ampel-result-send.ts", "utf8");
   assert.ok(!send.includes('lead.consentAt = ""'), "consent_at wird für neue Zeilen nicht geleert");
+  // Cookie-Zeile gobd_ampel_shown: nur solange der alte Ablauf live ist (Flag aus).
+  const { applyLegalConditions, legalFlagsFor } = await import("@/lib/legal-content");
+  const cookies = readFileSync("content/legal/cookies-v3.md", "utf8");
+  const oldFlow = applyLegalConditions(cookies, legalFlagsFor(true, false, false, false));
+  const newFlow = applyLegalConditions(cookies, legalFlagsFor(true, false, false, true));
+  assert.ok(oldFlow.includes("| `gobd_ampel_shown:<Antworten>`"), "Flag aus: Zeile bleibt");
+  assert.ok(!newFlow.includes("gobd_ampel_shown"), "Flag an: Zeile entfällt");
+  assert.ok(/Session Storage\) \| IKAT GmbH \| Merkt sich nach der Bezahlung[^\n]*\n\| Vercel Web Analytics/.test(newFlow), "Tabelle ohne Leerzeile");
+  // Rechtstexte 30.10. 18:57 (1:1).
+  const q = readFileSync("lib/ampel-questions.ts", "utf8");
+  assert.ok(q.includes("drei Jahre nach Ihrem Widerruf auf und löschen ihn danach."));
+  assert.ok(q.includes("drei Jahre lang in einer Sperrliste"));
+  assert.ok(q.includes("Versand- und Einwilligungsstatus). Haben Sie"));
+  assert.ok(!q.includes("Ende des Jahres") && !readFileSync("lib/kanzlei-copy.ts", "utf8").includes("Ende des Jahres"));
+  for (const f of ["content/legal/datenschutz.md", "content/legal/datenschutz-v3.md"]) {
+    assert.ok(!readFileSync(f, "utf8").includes("mit der angezeigten Ampelfarbe und der Anzahl"), f);
+  }
   console.log("check-ampel-retention: ok");
 }
 

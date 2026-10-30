@@ -16,6 +16,7 @@ import {
   decideKanzleiRow,
   leadingExpiredRateRows,
   decideMailLinkBlob,
+  decideSuppressionEntry,
   isAmpelRetentionRow,
   type AmpelCustomerFacts,
   type MailLinkBody,
@@ -23,6 +24,7 @@ import {
 import { listAllReadinessLeadsStrict, listDocumentsByEmail, upsertReadinessLead } from "@/lib/store";
 
 export const AMPEL_MAIL_LINK_PREFIX = "gobd/mail-link/";
+export const AMPEL_SUPPRESSION_PREFIX = "gobd/ampel-suppression/";
 export const AMPEL_CLEANUP_BACKUP_PREFIX = "gobd/backup/ampel-cleanup/";
 
 export type AmpelRetentionIo = {
@@ -32,6 +34,10 @@ export type AmpelRetentionIo = {
   listMailLinks(): Promise<Array<{ pathname: string }>>;
   readMailLink(pathname: string): Promise<MailLinkBody | null>;
   deleteMailLink(pathname: string): Promise<void>;
+  /** Sperrliste (Ampel): Einträge (Schlüssel = Hash, keine Adresse). */
+  listSuppressions(): Promise<Array<{ pathname: string }>>;
+  readSuppression(pathname: string): Promise<{ withdrawnAt?: unknown } | null>;
+  deleteSuppression(pathname: string): Promise<void>;
   /** ampel_rate: Zeit (`at`, ms) der Datenzeilen in Tabellenreihenfolge. */
   listRateAts(): Promise<string[]>;
   /** Löscht die ersten `count` Datenzeilen (unter der Kopfzeile). */
@@ -45,6 +51,7 @@ export type AmpelRetentionReport = {
   kanzlei: { seen: number; redactProof: number; kept: number };
   skipped: Record<string, number>;
   blobs: { seen: number; ampel: number; delete: number; kept: number; skipped: number };
+  suppression: { seen: number; delete: number; kept: number; skipped: number };
   rate: { rows: number | null; expired: number };
   errors: number;
 };
@@ -60,6 +67,7 @@ export async function runAmpelRetention(io: AmpelRetentionIo, opts: { execute: b
     rows: { seen: 0, ampel: 0, redactReport: 0, dropUnconfirmed: 0, redactProof: 0, kept: 0 },
     skipped: {},
     blobs: { seen: 0, ampel: 0, delete: 0, kept: 0, skipped: 0 },
+    suppression: { seen: 0, delete: 0, kept: 0, skipped: 0 },
     kanzlei: { seen: 0, redactProof: 0, kept: 0 },
     rate: { rows: null, expired: 0 },
     errors: 0,
@@ -148,6 +156,32 @@ export async function runAmpelRetention(io: AmpelRetentionIo, opts: { execute: b
         report.errors += 1;
       }
     }
+  }
+  // Sperrliste: Eintrag 3 Jahre nach dem Widerruf löschen (gleiche Frist wie der Nachweis). Trockenlauf zählt nur.
+  try {
+    for (const entry of await io.listSuppressions()) {
+      report.suppression.seen += 1;
+      const body = await io.readSuppression(entry.pathname).catch(() => null);
+      const action = decideSuppressionEntry(body, now);
+      if (action.kind === "skip") {
+        report.suppression.skipped += 1;
+        continue;
+      }
+      if (action.kind === "keep") {
+        report.suppression.kept += 1;
+        continue;
+      }
+      report.suppression.delete += 1;
+      if (opts.execute) {
+        try {
+          await io.deleteSuppression(entry.pathname);
+        } catch {
+          report.errors += 1;
+        }
+      }
+    }
+  } catch {
+    report.errors += 1;
   }
   try {
     const ats = await io.listRateAts();
@@ -247,6 +281,32 @@ export function defaultAmpelRetentionIo(blobIo: BlobStoreIo = defaultBlobIo): Am
     },
     async deleteMailLink(pathname) {
       if (!pathname.startsWith(AMPEL_MAIL_LINK_PREFIX)) throw new Error("prefix");
+      assertLiveWriteAllowed("blob");
+      await blobIo.del(pathname, { token });
+    },
+    async listSuppressions() {
+      const out: Array<{ pathname: string }> = [];
+      if (!token) return out;
+      let cursor: string | undefined;
+      for (let page = 0; page < 50; page += 1) {
+        const result = await blobIo.list({ prefix: AMPEL_SUPPRESSION_PREFIX, cursor, limit: 1000, token });
+        for (const blob of result.blobs) if (blob.pathname) out.push({ pathname: blob.pathname });
+        if (!result.hasMore || !result.cursor) break;
+        cursor = result.cursor;
+      }
+      return out;
+    },
+    async readSuppression(pathname) {
+      const text = await readBlobText(pathname, blobIo, token);
+      if (!text) return null;
+      try {
+        return JSON.parse(text) as { withdrawnAt?: unknown };
+      } catch {
+        return null;
+      }
+    },
+    async deleteSuppression(pathname) {
+      if (!pathname.startsWith(AMPEL_SUPPRESSION_PREFIX)) throw new Error("prefix");
       assertLiveWriteAllowed("blob");
       await blobIo.del(pathname, { token });
     },
