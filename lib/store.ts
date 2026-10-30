@@ -1333,6 +1333,25 @@ export async function listAmpelLeads(): Promise<ReadinessLead[]> {
   return ampelRows(await readAllReadinessFileRows());
 }
 
+/**
+ * All readiness rows for the Ampel deletion job and one-off cleanup.
+ * A Sheets error throws (never falls back to the local file on Vercel).
+ */
+export async function listAllReadinessLeadsStrict(): Promise<ReadinessLead[]> {
+  if (isSheetsConfigured()) {
+    try {
+      return await readReadinessSheetRows(true);
+    } catch (error) {
+      if (isSheetsOutage(error)) throw error;
+      throw new SheetsUnavailableError(sheetsStatusCode(error));
+    }
+  }
+  if (isVercelRuntime() && !previewSmokeUsesFiles()) {
+    throw new SheetsUnavailableError(0);
+  }
+  return readAllReadinessFileRows();
+}
+
 export type EntityStoreResult = {
   backend: "sheets" | "file";
   entity: Entity;

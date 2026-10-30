@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       honeypot: value.fax_number,
       src: value.src,
       variant: value.v,
+      flow: value.flow,
       ip: client.ip,
       ipSource: client.source,
     },

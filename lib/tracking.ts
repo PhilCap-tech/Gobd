@@ -8,7 +8,7 @@
  *
  * NEXT_PUBLIC_GOOGLE_ADS_ID unset → no Ads config on pages.
  * NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO unset → no purchase conversion.
- * Ampel, Kassen and Readiness do not send a Google Ads conversion.
+ * Ampel (flag-off), Kassen and Readiness do not send a Google Ads conversion. Flag-on Ampel: trackAmpelReportConversion.
  * After consent, gtag('config', AW-…) runs on marketing pages so Ads sees the tag.
  * Token landings send nothing. config and page_view pass an allowlisted page_location.
  */
@@ -106,6 +106,14 @@ export function getGoogleAdsId(): string {
  */
 export function getGoogleAdsPurchaseSendTo(): string {
   return process.env.NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_SEND_TO?.trim() || "";
+}
+
+/**
+ * Ampel ohne E-Mail (Flag-Pfad): Google Ads send_to für `ampel_report_sent`, z. B. AW-586367190/LABEL.
+ * Unset → keine Conversion. Freigabe DSE § 13 Fassung 2 (Philip 30.10.2026 17:28 MEZ).
+ */
+export function getGoogleAdsAmpelReportSendTo(): string {
+  return process.env.NEXT_PUBLIC_GOOGLE_ADS_AMPEL_REPORT_SEND_TO?.trim() || "";
 }
 
 /**
@@ -281,6 +289,28 @@ export function trackPurchaseConversion(sessionId: string): void {
     transaction_id: id,
   });
   markPurchaseConversionSent(id);
+}
+
+let ampelReportConversionSent = false;
+
+/**
+ * Flag-on Ampel only: Google Ads conversion `ampel_report_sent` after the server accepted the
+ * report send (2xx). Marketing consent required; once per page load. Parameters: event type and
+ * Ampel colour only, never the email address or the answers. Unset send_to → nothing.
+ */
+export function trackAmpelReportConversion(light: "gruen" | "gelb" | "rot" | ""): boolean {
+  if (blockTokenLanding()) return false;
+  if (typeof window === "undefined" || !hasMarketingConsent() || ampelReportConversionSent) return false;
+  const sendTo = normalizeGoogleAdsSendTo(getGoogleAdsAmpelReportSendTo(), getGoogleAdsId());
+  if (!sendTo) return false;
+  if (!armGoogleTag(sendTo) || !window.gtag) return false;
+  window.gtag("event", "conversion", {
+    send_to: sendTo,
+    event_type: "ampel_report_sent",
+    ...(light ? { ampel_farbe: light } : {}),
+  });
+  ampelReportConversionSent = true;
+  return true;
 }
 
 function trackPageView(pathname: string): void {
