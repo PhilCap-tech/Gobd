@@ -4,7 +4,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { anmeldungParam } from "@/lib/login-mail-shared";
-import { fetchRetrying503, SAVE_PENDING_LABEL } from "@/lib/fetch-retry";
+import {
+  fetchRetrying503,
+  FINAL_SAVE_FAILED_MESSAGE,
+  FINAL_SAVE_RETRIES,
+  prepayRedirectAllowed,
+  SAVE_PENDING_LABEL,
+  SERVER_SAVE_FAILED_HINT,
+} from "@/lib/fetch-retry";
 import { DraftAutosave } from "@/lib/draft-autosave";
 import { IntakeHintProvider, intakeInviteHref } from "@/components/intake-question-hint";
 import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
@@ -224,6 +231,10 @@ export function IntakeForm({
   });
   const [draftRestored, setDraftRestored] = useState(false);
   const saveBlockedRef = useRef(false);
+  /** Autosave reached the server but was not stored (e.g. 503 after retries). */
+  const [serverSaveFailed, setServerSaveFailed] = useState(false);
+  /** Final save before the package choice failed: no redirect, retry button. */
+  const [finalSaveFailed, setFinalSaveFailed] = useState(false);
   // Entwurf: localStorage (Fallback) + Server (gerätübergreifend).
   const draftKey = normalizeDraftKey({
     sessionId: session.stripeSessionId,
@@ -314,10 +325,16 @@ export function IntakeForm({
     return snapshot;
   }, []);
 
-  const postServerDraft = useCallback((revision: number, keepalive = false, signal?: AbortSignal) => {
+  /** Resolves true only when the server holds this state (saved now or before). */
+  const postServerDraft = useCallback((
+    revision: number,
+    keepalive = false,
+    signal?: AbortSignal,
+    retries = 1,
+  ): Promise<boolean> => {
     const meta = draftMetaRef.current;
-    if (!meta.draftKey || revision <= 0) return Promise.resolve();
-    if (submittingRef.current) return Promise.resolve();
+    if (!meta.draftKey || revision <= 0) return Promise.resolve(false);
+    if (submittingRef.current) return Promise.resolve(false);
     const answersNow = stripEmptyIntakeCards(answersRef.current);
     const saveKey = JSON.stringify({
       draftKey: meta.draftKey,
@@ -325,7 +342,7 @@ export function IntakeForm({
       step: stepRef.current,
       change: changeRef.current,
     });
-    if (saveKey === lastSavedRef.current) return Promise.resolve();
+    if (saveKey === lastSavedRef.current) return Promise.resolve(true);
     const savedAt = new Date().toISOString();
     setSaving(true);
     return fetchRetrying503(
@@ -352,22 +369,22 @@ export function IntakeForm({
       }),
       },
       // One retry with a growing wait: the next edit saves again anyway.
-      { retries: 1, backoff: true },
+      { retries, backoff: true },
     )
-      .then(async (response) => {
+      .then(async (response): Promise<boolean> => {
         // Submitted meanwhile: this answer is stale.
-        if (submittingRef.current || signal?.aborted) return;
+        if (submittingRef.current || signal?.aborted) return false;
         if (response.status === 401) {
           setNeedsLogin(true);
           setError("Bitte melden Sie sich an, um Ihre Angaben zu ändern.");
-          return;
+          return false;
         }
         if (response.status === 413 || response.status === 429) {
           // Neues Modell: Entwurf zu groß bzw. zu viele offene Entwürfe.
           const data = (await response.json().catch(() => ({}))) as { error?: string };
           saveBlockedRef.current = true;
           setError(data.error || "Speichern fehlgeschlagen. Bitte versuchen Sie es erneut.");
-          return;
+          return false;
         }
         saveBlockedRef.current = false;
         if (response.status === 409) {
@@ -382,22 +399,31 @@ export function IntakeForm({
             writeLocalDraft(serverRev);
           }
           if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
-          return;
+          return false;
         }
         if (response.ok) {
           const data = (await response.json()) as { draft?: { updatedAt?: string } };
           lastSavedRef.current = saveKey;
           if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
+          setServerSaveFailed(false);
+          return true;
         }
+        // 503 after the retries (or another server error): kept locally only.
+        setServerSaveFailed(true);
+        return false;
       })
       .catch(() => {
         // offline: localStorage reicht als Fallback
+        if (!signal?.aborted) setServerSaveFailed(true);
+        return false;
       })
       .finally(() => setSaving(false));
   }, [formId, writeLocalDraft]);
   const [autosave] = useState(() => new DraftAutosave());
   useEffect(() => {
-    autosave.setSend((signal) => postServerDraft(revisionRef.current, false, signal));
+    autosave.setSend((signal) =>
+      postServerDraft(revisionRef.current, false, signal).then(() => undefined),
+    );
   }, [autosave, postServerDraft]);
 
   useEffect(() => {
@@ -654,9 +680,20 @@ export function IntakeForm({
     if (prepayHref) {
       // Login zuerst: Entwurf sichern, dann Paketwahl. Kein Absenden, keine Erstellung.
       setPending(true);
+      setFinalSaveFailed(false);
       try {
-        await postServerDraft(revisionRef.current);
-        if (saveBlockedRef.current) {
+        // Only redirect once the server confirmed the draft: after payment the
+        // draft is taken over from the server (lib/prepay-draft.ts, no_draft).
+        let saved = await postServerDraft(revisionRef.current, false, undefined, FINAL_SAVE_RETRIES);
+        // 409 raised the revision floor: one more attempt with the new revision.
+        if (!saved && !saveBlockedRef.current) {
+          saved = await postServerDraft(revisionRef.current, false, undefined, FINAL_SAVE_RETRIES);
+        }
+        if (!prepayRedirectAllowed(saved, saveBlockedRef.current)) {
+          if (!saveBlockedRef.current) {
+            setFinalSaveFailed(true);
+            setError(FINAL_SAVE_FAILED_MESSAGE);
+          }
           setPending(false);
           return;
         }
@@ -664,7 +701,8 @@ export function IntakeForm({
         if (entityId.trim()) target.set("entity_id", entityId.trim());
         window.location.href = new URL(`${prepayHref}?${target.toString()}`, window.location.origin).toString();
       } catch {
-        setError("Speichern fehlgeschlagen. Bitte versuchen Sie es erneut.");
+        setFinalSaveFailed(true);
+        setError(FINAL_SAVE_FAILED_MESSAGE);
         setPending(false);
       }
       return;
@@ -817,6 +855,11 @@ export function IntakeForm({
           {SAVE_PENDING_LABEL}
         </p>
       ) : null}
+      {serverSaveFailed && !saving && !finalSaveFailed ? (
+        <p className="hint" role="status">
+          {SERVER_SAVE_FAILED_HINT}
+        </p>
+      ) : null}
 
       {session.email && step === firstStep && (
         <p className="hint">
@@ -918,6 +961,13 @@ export function IntakeForm({
             </>
           ) : null}
         </p>
+      ) : null}
+      {finalSaveFailed && !pending && !firmMissing && !stepIssues.length ? (
+        <div className="actions" style={{ marginTop: 8 }}>
+          <button type="button" className="btn" onClick={submit}>
+            Erneut versuchen
+          </button>
+        </div>
       ) : null}
 
       {step < INTAKE_STEPS.length + 1 && (

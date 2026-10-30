@@ -69,3 +69,21 @@ export function isPdfResponse(response: Pick<Response, "ok" | "headers">): boole
   const type = response.headers.get("content-type") ?? "";
   return type.toLowerCase().includes("application/pdf");
 }
+
+/** Final save before the package choice: more attempts than the autosave. */
+export const FINAL_SAVE_RETRIES = 4;
+
+export const FINAL_SAVE_FAILED_MESSAGE =
+  "Ihre Angaben konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.";
+
+/** Inline hint (no overlay) after an autosave did not reach the server. */
+export const SERVER_SAVE_FAILED_HINT =
+  "Lokal gesichert – Speichern auf dem Server fehlgeschlagen. Wir versuchen es erneut.";
+
+/**
+ * Redirect to the package choice only when the server confirmed the draft.
+ * After payment the draft is read from the server; a 503 must not redirect.
+ */
+export function prepayRedirectAllowed(serverConfirmed: boolean, saveBlocked: boolean): boolean {
+  return serverConfirmed && !saveBlocked;
+}

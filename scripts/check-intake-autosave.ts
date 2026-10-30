@@ -181,7 +181,7 @@ async function main(): Promise<void> {
       ok(form.includes("if (submittingRef.current) return;"), "a second click while submitting does nothing");
       ok(/autosave\.request\(\), 1500\)/.test(form), "autosave waits 1.5 s and goes through the single-flight saver");
       ok(form.includes("submitId: submitIdRef.current.id") && form.includes("formId,"), "the POST sends submitId and formId");
-      ok(form.includes("{ retries: 1, backoff: true }"), "a draft PUT retries once with backoff");
+      ok(form.includes("{ retries, backoff: true }") && form.includes("retries = 1,"), "a draft PUT retries once with backoff (autosave default)");
       const restoredAt = form.indexOf('addEventListener("pageshow"');
       const handler = form.slice(form.indexOf("function restored(event: PageTransitionEvent)"), restoredAt);
       ok(
@@ -382,6 +382,41 @@ async function main(): Promise<void> {
 
     const fresh = await putIntakeDraft(put(NEW_FORM, 1, "Neue Seite"), draftIo);
     ok(fresh.status === 200 && drafts.has(draftKey), "a newly opened page saves normally");
+
+    // Final save before the package choice (Paketwahl): a persistent 503
+    // must block the redirect; a confirmed save allows it.
+    {
+      const { fetchRetrying503, FINAL_SAVE_RETRIES, prepayRedirectAllowed } = await import(
+        "../lib/fetch-retry"
+      );
+      let calls = 0;
+      const always503 = async () => {
+        calls += 1;
+        return new Response("{}", { status: 503, headers: { "Retry-After": "1" } });
+      };
+      const waits: number[] = [];
+      const final = await fetchRetrying503("/api/intake/draft", { method: "PUT" }, {
+        fetch: always503,
+        wait: async (ms) => void waits.push(ms),
+        retries: FINAL_SAVE_RETRIES,
+        backoff: true,
+        random: () => 0,
+      });
+      ok(final.status === 503 && calls === FINAL_SAVE_RETRIES + 1, "final save retries the 503");
+      ok(waits.every((ms, i) => i === 0 || ms > waits[i - 1]), "final save waits grow (backoff)");
+      ok(!prepayRedirectAllowed(final.ok, false), "503 after retries blocks the redirect");
+      ok(!prepayRedirectAllowed(true, true), "413/429 block keeps the redirect blocked");
+      ok(prepayRedirectAllowed(true, false), "confirmed save redirects");
+      let n = 0;
+      const recovers = async () => new Response("{}", { status: (n += 1) < 3 ? 503 : 200 });
+      const later = await fetchRetrying503("/x", {}, {
+        fetch: recovers,
+        wait: async () => {},
+        retries: FINAL_SAVE_RETRIES,
+        backoff: true,
+      });
+      ok(later.ok && prepayRedirectAllowed(later.ok, false), "save confirmed after transient 503s redirects");
+    }
 
     console.log("intake autosave checks passed");
   } finally {
