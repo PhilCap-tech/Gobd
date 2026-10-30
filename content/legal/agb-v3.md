@@ -51,9 +51,9 @@ und dem Kunden („Kunde“, „Sie“).
 
 (2) Wir bieten je Firma zwei Optionen an, die im Bestellvorgang nebeneinander mit ihren Unterschieden dargestellt werden:
 
-a) **Option 1:** einmalig **99 € (117,81 € brutto)** je Firma für die Erstellung der Verfahrensdokumentation, deren Bereitstellung als PDF (§ 5) und **30 Tage Zugang** zum Kundenkonto mit Anpassungen und Einladungen (§ 12a).
+a) **Option 1 („Einmalig (30 Tage Zugang)“):** einmalig **99 € (117,81 € brutto)** je Firma für die Erstellung der Verfahrensdokumentation, deren Bereitstellung als PDF (§ 5) und **30 Tage Zugang** zum Kundenkonto mit Anpassungen und Einladungen (§ 12a).
 
-b) **Option 2:** **99 € (117,81 € brutto)** für die Erstellung und zusätzlich das **Jahrespaket** nach § 12 zu **49 € (58,31 € brutto) pro Jahr**, jährlich im Voraus fällig, erstmals mit dem Kauf. Mit dem Kauf werden damit **148 € (176,12 € brutto)** fällig, danach 49 € (58,31 € brutto) pro Jahr.
+b) **Option 2 („Dauerhaft (mit Jahrespaket)“):** **99 € (117,81 € brutto)** für die Erstellung und zusätzlich das **Jahrespaket** nach § 12 zu **49 € (58,31 € brutto) pro Jahr**, jährlich im Voraus fällig, erstmals mit dem Kauf. Mit dem Kauf werden damit **148 € (176,12 € brutto)** fällig, danach 49 € (58,31 € brutto) pro Jahr.
 
 c) **Jahrespaket zu Option 1 hinzubuchen:** Während der 30 Tage Zugang können Sie das Jahrespaket für **49 € (58,31 € brutto) pro Jahr** im Kundenkonto hinzubuchen (§ 12a Abs. 3); das erste Jahr läuft dann ab dem ersten Kauf.
 
@@ -155,7 +155,7 @@ Da unser Angebot ausschließlich an Unternehmer gerichtet ist und Verbraucher vo
 
 ## § 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung
 
-(1) **Inhalt.** Während des Jahrespakets führen und versionieren wir Ihre Verfahrensdokumentation bei uns. Sie haben dauerhaft Zugang zum Kundenkonto und zu allen gespeicherten Fassungen, können Änderungen ohne zusätzliches Entgelt erstellen und weitere Personen einladen. Jede Fassung wird mit Versionsnummer und Änderungshistorie gespeichert. Buchen Sie das Jahrespaket zu Option 1 hinzu, tritt es an die Stelle der Regeln in § 12a.
+(1) **Inhalt.** Während des Jahrespakets führen und versionieren wir Ihre Verfahrensdokumentation bei uns. Sie haben für die Dauer des Jahrespakets Zugang zum Kundenkonto und zu allen gespeicherten Fassungen, können Änderungen ohne zusätzliches Entgelt erstellen und weitere Personen einladen. Jede Fassung wird mit Versionsnummer und Änderungshistorie gespeichert. Buchen Sie das Jahrespaket zu Option 1 hinzu, tritt es an die Stelle der Regeln in § 12a.
 
 (2) **Laufzeit und Verlängerung.** Das Jahrespaket beginnt mit dem Kauftag und läuft zunächst zwölf Monate. Buchen Sie es innerhalb der 30 Tage zu Option 1 hinzu, läuft das erste Jahr ebenfalls ab dem ersten Kauf; bei einer Reaktivierung beginnt es mit dem Tag der Reaktivierung. Es verlängert sich automatisch um jeweils weitere zwölf Monate, wenn Sie es nicht **spätestens drei Monate vor Ablauf** des laufenden Jahres kündigen. Wir erinnern Sie rechtzeitig vor Beginn der Kündigungsfrist in Textform an den Verlängerungstermin und das letzte Kündigungsdatum.
 
