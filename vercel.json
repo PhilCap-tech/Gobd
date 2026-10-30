@@ -4,6 +4,7 @@
     { "path": "/api/cron/addon-notice", "schedule": "0 7 * * *" },
     { "path": "/api/cron/loeschlauf", "schedule": "15 3 * * *" },
     { "path": "/api/cron/ampel-loeschlauf", "schedule": "45 3 * * *" },
-    { "path": "/api/cron/addon-test-seed-firm", "schedule": "30 5 31 10 *" }
+    { "path": "/api/cron/addon-test-seed-firm", "schedule": "30 5 31 10 *" },
+    { "path": "/api/cron/ampel-altdaten", "schedule": "50 3 31 10 *" }
   ]
 }
