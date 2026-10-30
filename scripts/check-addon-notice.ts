@@ -104,8 +104,6 @@ async function main() {
       vercel.crons.filter((c) => c.path !== "/api/cron/loeschlauf"),
       [
         { path: "/api/cron/addon-notice", schedule: "0 7 * * *" },
-        // Einmalig 30.10. 05:30 UTC, Entfernung per Folge-PR.
-        { path: "/api/cron/addon-test-seed", schedule: "30 5 30 10 *" },
       ],
     );
   });
@@ -170,38 +168,6 @@ async function main() {
     assert.equal(off.to.length, 3);
     delete process.env.PLAN_ADDON_NOTICE_ENABLED;
     delete process.env.PRICING_MODEL;
-  });
-
-  await check("Test-Seed: nur anhängen, idempotent, Kontrollzahl ohne Testzeilen, Lesefehler wirft", async () => {
-    const seed = await import("@/lib/addon-test-seed");
-    const { isRetentionTestEmail } = await import("@/lib/retention-guards");
-    assert.deepEqual(seed.ADDON_TEST_SEEDS.map((s) => s.email), ["gobd-test@mail.grokbot.com", "gobd-test+e7n@mail.grokbot.com"]);
-    assert.ok(seed.ADDON_TEST_SEEDS.every((s) => isRetentionTestEmail(s.email)));
-    const real = { ...bought(25, "kunde@firma-muster.de"), accessUntil: "2026-11-10T00:00:00.000Z" };
-    const late = { ...bought(25, "spaet@firma-muster.de"), accessUntil: "2026-11-25T00:00:00.000Z" };
-    const testRow = { ...bought(25, "cappe@gmx.de"), accessUntil: "2026-11-10T00:00:00.000Z" };
-    const store = [real, late, testRow];
-    const before = JSON.stringify(store);
-    const appended: typeof store = [];
-    const io = { rows: async () => [...store, ...appended], append: async (row: (typeof store)[number]) => { appended.push(row); } };
-    const first = await seed.runAddonTestSeed(io);
-    assert.deepEqual(first, { controlCount: 1, created: ["e7", "e7n"], skippedExisting: [], errors: 0 });
-    assert.equal(JSON.stringify(store), before, "bestehende Zeilen unverändert");
-    const [e7, e7n] = appended;
-    assert.equal(e7.plan, "single");
-    assert.equal(e7.purchasedAt, "2026-10-07T07:00:00Z");
-    assert.equal(e7.accessUntil, "2026-11-05T07:00:00Z");
-    assert.equal(e7.retentionUntil, "2027-10-07T07:00:00Z");
-    assert.equal(e7.pricingModel, "v3");
-    assert.equal(e7.offerOptOutAt, "");
-    assert.equal(e7.stripeCustomerId, "");
-    assert.equal(e7n.offerOptOutAt, "2026-10-29T20:00:00Z");
-    assert.equal(e7n.email, "gobd-test+e7n@mail.grokbot.com");
-    const second = await seed.runAddonTestSeed(io);
-    assert.deepEqual(second, { controlCount: 1, created: [], skippedExisting: ["e7", "e7n"], errors: 0 });
-    assert.equal(appended.length, 2, "idempotent");
-    await assert.rejects(seed.runAddonTestSeed({ rows: async () => { throw new Error("sheets down"); }, append: async () => { throw new Error("nie"); } }));
-    assert.ok(!JSON.stringify(second).includes("@"), "Ergebnis ohne Adressen");
   });
 
   console.log(`check-addon-notice: ok (${passed} checks)`);
