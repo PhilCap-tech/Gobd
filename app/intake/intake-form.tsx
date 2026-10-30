@@ -11,8 +11,11 @@ import {
   prepayRedirectAllowed,
   SAVE_PENDING_LABEL,
   SERVER_SAVE_FAILED_HINT,
+  autosaveHintVisible,
   autosaveRetryDelayMs,
   nextSaveFailures,
+  savingLabelVisible,
+  shouldResumeAutosave,
 } from "@/lib/fetch-retry";
 import { DraftAutosave } from "@/lib/draft-autosave";
 import { IntakeHintProvider, intakeInviteHref } from "@/components/intake-question-hint";
@@ -235,7 +238,6 @@ export function IntakeForm({
   const saveBlockedRef = useRef(false);
   /** Autosave reached the server but was not stored (e.g. 503 after retries). */
   const [saveFailures, setSaveFailures] = useState(0);
-  const serverSaveFailed = saveFailures > 0;
   /** Final save before the package choice failed: no redirect, retry button. */
   const [finalSaveFailed, setFinalSaveFailed] = useState(false);
   // Entwurf: localStorage (Fallback) + Server (gerätübergreifend).
@@ -693,6 +695,10 @@ export function IntakeForm({
       // Login zuerst: Entwurf sichern, dann Paketwahl. Kein Absenden, keine Erstellung.
       setPending(true);
       setFinalSaveFailed(false);
+      // Pause autosave and its retry timer: only the final save sends PUTs now.
+      autosave.stop();
+      await autosave.idle();
+      let finalSaved = false;
       try {
         // Only redirect once the server confirmed the draft: after payment the
         // draft is taken over from the server (lib/prepay-draft.ts, no_draft).
@@ -711,11 +717,14 @@ export function IntakeForm({
         }
         const target = new URLSearchParams({ draftKey });
         if (entityId.trim()) target.set("entity_id", entityId.trim());
+        finalSaved = true;
         window.location.href = new URL(`${prepayHref}?${target.toString()}`, window.location.origin).toString();
       } catch {
         setFinalSaveFailed(true);
         setError(FINAL_SAVE_FAILED_MESSAGE);
         setPending(false);
+      } finally {
+        if (shouldResumeAutosave(finalSaved)) autosave.resume();
       }
       return;
     }
@@ -862,12 +871,12 @@ export function IntakeForm({
       ) : null}
 
       {notice ? <p className="banner ok">{notice}</p> : null}
-      {saving && !pending ? (
+      {savingLabelVisible({ saving, pending, failures: saveFailures }) ? (
         <p className="hint" role="status">
           {SAVE_PENDING_LABEL}
         </p>
       ) : null}
-      {serverSaveFailed && !saving && !finalSaveFailed ? (
+      {autosaveHintVisible({ failures: saveFailures, finalSaveFailed }) ? (
         <p className="hint" role="status">
           {SERVER_SAVE_FAILED_HINT}
         </p>

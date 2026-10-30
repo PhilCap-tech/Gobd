@@ -105,3 +105,18 @@ export function autosaveRetryDelayMs(failures: number): number {
 export function nextSaveFailures(previous: number, saved: boolean): number {
   return saved ? 0 : previous + 1;
 }
+
+/** The hint stays through retries (no flicker); only a confirmed save (failures 0) hides it. */
+export function autosaveHintVisible(state: { failures: number; finalSaveFailed: boolean }): boolean {
+  return state.failures > 0 && !state.finalSaveFailed;
+}
+
+/** „Wird gespeichert…“ only while no hint shows, so the two never alternate. */
+export function savingLabelVisible(state: { saving: boolean; pending: boolean; failures: number }): boolean {
+  return state.saving && !state.pending && state.failures === 0;
+}
+
+/** Autosave paused for the final save resumes only when that save failed. */
+export function shouldResumeAutosave(finalSaved: boolean): boolean {
+  return !finalSaved;
+}
