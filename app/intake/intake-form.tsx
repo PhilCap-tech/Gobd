@@ -11,6 +11,8 @@ import {
   prepayRedirectAllowed,
   SAVE_PENDING_LABEL,
   SERVER_SAVE_FAILED_HINT,
+  autosaveRetryDelayMs,
+  nextSaveFailures,
 } from "@/lib/fetch-retry";
 import { DraftAutosave } from "@/lib/draft-autosave";
 import { IntakeHintProvider, intakeInviteHref } from "@/components/intake-question-hint";
@@ -232,7 +234,8 @@ export function IntakeForm({
   const [draftRestored, setDraftRestored] = useState(false);
   const saveBlockedRef = useRef(false);
   /** Autosave reached the server but was not stored (e.g. 503 after retries). */
-  const [serverSaveFailed, setServerSaveFailed] = useState(false);
+  const [saveFailures, setSaveFailures] = useState(0);
+  const serverSaveFailed = saveFailures > 0;
   /** Final save before the package choice failed: no redirect, retry button. */
   const [finalSaveFailed, setFinalSaveFailed] = useState(false);
   // Entwurf: localStorage (Fallback) + Server (gerätübergreifend).
@@ -342,7 +345,10 @@ export function IntakeForm({
       step: stepRef.current,
       change: changeRef.current,
     });
-    if (saveKey === lastSavedRef.current) return Promise.resolve(true);
+    if (saveKey === lastSavedRef.current) {
+      setSaveFailures(0);
+      return Promise.resolve(true);
+    }
     const savedAt = new Date().toISOString();
     setSaving(true);
     return fetchRetrying503(
@@ -405,16 +411,16 @@ export function IntakeForm({
           const data = (await response.json()) as { draft?: { updatedAt?: string } };
           lastSavedRef.current = saveKey;
           if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
-          setServerSaveFailed(false);
+          setSaveFailures((n) => nextSaveFailures(n, true));
           return true;
         }
         // 503 after the retries (or another server error): kept locally only.
-        setServerSaveFailed(true);
+        setSaveFailures((n) => nextSaveFailures(n, false));
         return false;
       })
       .catch(() => {
         // offline: localStorage reicht als Fallback
-        if (!signal?.aborted) setServerSaveFailed(true);
+        if (!signal?.aborted) setSaveFailures((n) => nextSaveFailures(n, false));
         return false;
       })
       .finally(() => setSaving(false));
@@ -425,6 +431,12 @@ export function IntakeForm({
       postServerDraft(revisionRef.current, false, signal).then(() => undefined),
     );
   }, [autosave, postServerDraft]);
+  // Hint „… Wir versuchen es erneut.“: retry on its own (5 s, doubled, max 60 s).
+  useEffect(() => {
+    if (saveFailures === 0) return;
+    const timer = window.setTimeout(() => autosave.request(), autosaveRetryDelayMs(saveFailures));
+    return () => window.clearTimeout(timer);
+  }, [autosave, saveFailures]);
 
   useEffect(() => {
     let cancelled = false;

@@ -97,7 +97,7 @@ export function AccountProfileForm({
 
       <h3 className="account-subhead">Firma</h3>
       <p className="prose">
-        Stammdaten legen Sie unabhängig vom Abo an.
+        Stammdaten legen Sie unabhängig vom gewählten Paket an.
       </p>
       <div className="actions">
         <Link className="btn ghost" href="/account/firma/neu">

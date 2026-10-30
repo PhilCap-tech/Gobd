@@ -52,6 +52,7 @@ import {
   listDocumentFamily,
 } from "@/lib/store";
 import { sheetsOutageResponse } from "@/lib/sheets-http";
+import { SHEETS_RETRY_AFTER_SECONDS } from "@/lib/sheets-unavailable";
 import { isSheetsOutage, runWithSheetsRoute } from "@/lib/sheets-outage";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import { emailsEqual, emptyAnswers, type IntakeAnswers } from "@/lib/types";
@@ -64,7 +65,13 @@ function jsonError(error: string, status: number) {
 
 function blobStorageResponse(error: unknown, message: string): NextResponse | null {
   if (!(error instanceof IntakeDraftStorageError)) return null;
-  return NextResponse.json({ error: message, backend: "blob" }, { status: 503 });
+  return NextResponse.json(
+    { error: message, backend: "blob" },
+    {
+      status: 503,
+      headers: { "Cache-Control": "private, no-store", "Retry-After": SHEETS_RETRY_AFTER_SECONDS },
+    },
+  );
 }
 
 function isAnswers(value: unknown): value is IntakeAnswers {

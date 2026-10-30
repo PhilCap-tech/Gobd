@@ -418,6 +418,50 @@ async function main(): Promise<void> {
       ok(later.ok && prepayRedirectAllowed(later.ok, false), "save confirmed after transient 503s redirects");
     }
 
+    // 503 without a usable Retry-After: default base, growing waits (no burst).
+    {
+      const { fetchRetrying503, FINAL_SAVE_RETRIES, DEFAULT_RETRY_MS } = await import("../lib/fetch-retry");
+      for (const header of [null, "", "abc", "0", "-5"]) {
+        const waits: number[] = [];
+        await fetchRetrying503("/api/intake/draft", {}, {
+          fetch: async () =>
+            new Response("{}", { status: 503, headers: header === null ? {} : { "Retry-After": header } }),
+          wait: async (ms) => void waits.push(ms),
+          retries: FINAL_SAVE_RETRIES,
+          backoff: true,
+          random: () => 0,
+        });
+        ok(
+          waits.length === FINAL_SAVE_RETRIES && waits[0] === DEFAULT_RETRY_MS &&
+            waits.every((ms, i) => ms > 0 && (i === 0 || ms >= waits[i - 1])) && waits[1] > waits[0],
+          `Retry-After ${JSON.stringify(header)}: non-zero growing waits ${waits.join("/")}`,
+        );
+      }
+      const route = readFileSync("app/api/intake/draft/route.ts", "utf8");
+      ok(/backend: "blob"[\s\S]{0,200}"Retry-After": SHEETS_RETRY_AFTER_SECONDS/.test(route), "the blob 503 sends Retry-After");
+    }
+
+    // Autosave retry while the hint shows: delays grow to 60 s, a success hides it.
+    {
+      const { autosaveRetryDelayMs, nextSaveFailures, AUTOSAVE_RETRY_CAP_MS } = await import("../lib/fetch-retry");
+      let failures = 0;
+      const delays: number[] = [];
+      for (let i = 0; i < 6; i += 1) {
+        failures = nextSaveFailures(failures, false);
+        delays.push(autosaveRetryDelayMs(failures));
+      }
+      ok(failures > 0, "failed autosaves show the hint");
+      ok(delays[0] === 5000 && delays[1] === 10000 && delays.at(-1) === AUTOSAVE_RETRY_CAP_MS, `retry delays ${delays.join("/")}`);
+      failures = nextSaveFailures(failures, true);
+      ok(failures === 0, "a successful retry hides the hint");
+      const form = readFileSync("app/intake/intake-form.tsx", "utf8");
+      ok(
+        /setTimeout\(\(\) => autosave\.request\(\), autosaveRetryDelayMs\(saveFailures\)\)/.test(form) &&
+          form.includes("return () => window.clearTimeout(timer);"),
+        "the form schedules the retry and clears the timer on unmount",
+      );
+    }
+
     console.log("intake autosave checks passed");
   } finally {
     setMailDedupeTestHooks(null);
