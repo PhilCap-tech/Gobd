@@ -4,12 +4,12 @@ import { Suspense } from "react";
 import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { AMPEL_H1, AMPEL_INTRO } from "@/lib/ampel-questions";
+import { AMPEL_INTRO, AMPEL_TITLE } from "@/lib/ampel-questions";
 import { canonicalUrl } from "@/lib/seo";
 import { AmpelCheck } from "./ampel-check";
 
 export const metadata: Metadata = {
-  title: { absolute: AMPEL_H1 },
+  title: { absolute: AMPEL_TITLE },
   description: AMPEL_INTRO,
   alternates: { canonical: canonicalUrl("/ampel-check") },
 };

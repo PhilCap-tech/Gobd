@@ -342,7 +342,7 @@ try {
   );
   assertOk(
     questionFile.includes(
-      "§ 147 Abs. 1 und Abs. 3 AO i. d. F. des Vierten Bürokratieentlastungsgesetzes (BGBl. 2024 I Nr. 323); Übergangsregel Art. 97 § 19a Abs. 2 und 3 EGAO; GoBD Rz. 113 ff.",
+      "§ 147 Abs. 1 und Abs. 3 AO i. d. F. des Vierten Bürokratieentlastungsgesetzes (BGBl. 2024 I Nr. 323); Übergangsregel Art. 97 § 19a Abs. 2 und 3 EGAO; § 257 Abs. 4 HGB; GoBD Rz. 116, 117, 119",
     ),
     "retention citation is verified",
   );
@@ -358,7 +358,7 @@ try {
   );
   assertOk(
     questionFile.includes(
-      "BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320) und vom 15.10.2025 zur E-Rechnung; GoBD Rz. 118, 119 und 131 i. d. F. vom 14.07.2025",
+      "BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320) und vom 15.10.2025 zur E-Rechnung; GoBD Rz. 118, 119, 125 (Beispiel 10) und 131 i. d. F. vom 14.07.2025",
     ),
     "e-invoice citation is verified",
   );
@@ -375,7 +375,7 @@ try {
     "data access question names Datenüberlassung",
   );
   assertOk(
-    questionFile.includes("Den Bildteil einer hybriden Rechnung bewahren Sie zusätzlich auf"),
+    questionFile.includes("Den menschenlesbaren Teil einer hybriden Rechnung bewahren Sie nur zusätzlich auf"),
     "e-invoice explanation keeps the image part when it carries further tax details",
   );
   const quellenPage = readFileSync("app/ampel-check/quellen/page.tsx", "utf8");
