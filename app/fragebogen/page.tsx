@@ -38,7 +38,11 @@ export default async function FragebogenPage() {
             Geben Sie Ihre E-Mail-Adresse ein. Sie erhalten einen Anmeldelink; damit speichern wir Ihre Angaben
             in Ihrem Konto. Bezahlt wird erst, wenn Sie die Dokumentation erstellen lassen.
           </p>
-          <LoginForm next={FRAGEBOGEN_PATH} emailNotice={PLAN_OFFER_OBJECTION_NOTICE} />
+          <LoginForm
+            next={FRAGEBOGEN_PATH}
+            emailHint="Wir benötigen Ihre E-Mail-Adresse, damit wir Ihren Fortschritt speichern können und keine Eingaben verloren gehen. Sie erhalten einen Anmeldelink, ein Passwort brauchen Sie nicht."
+            emailNotice={PLAN_OFFER_OBJECTION_NOTICE}
+          />
         </main>
         <SiteFooter />
       </>

@@ -8,6 +8,7 @@ export function LoginForm({
   resolveOwner = false,
   initialSent = false,
   emailNotice = "",
+  emailHint = "",
 }: {
   next?: string | null;
   maskedEmail?: string;
@@ -16,6 +17,8 @@ export function LoginForm({
   initialSent?: boolean;
   /** Hinweis direkt am E-Mail-Feld (aria-describedby), z. B. Widerspruchshinweis. */
   emailNotice?: string;
+  /** Kurzer Hilfetext am E-Mail-Feld (aria-describedby), nur wo explizit gesetzt. */
+  emailHint?: string;
 }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -77,8 +80,17 @@ export function LoginForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            aria-describedby={emailNotice ? "email-objection" : undefined}
+            aria-describedby={
+              [emailHint ? "login-email-hint" : "", emailNotice ? "email-objection" : ""]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
           />
+          {emailHint ? (
+            <p className="hint" id="login-email-hint">
+              {emailHint}
+            </p>
+          ) : null}
           {emailNotice ? (
             <p className="hint" id="email-objection">
               {emailNotice}
