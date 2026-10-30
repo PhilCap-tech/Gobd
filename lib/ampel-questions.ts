@@ -12,8 +12,10 @@ export interface AmpelQuestion {
   hint?: string;
 }
 
-export const AMPEL_H1 =
-  "GoBD-Ampel: Erfüllt Ihr Unternehmen die GoBD-Anforderungen?";
+export const AMPEL_H1 = "GoBD-Ampel: Ihre Ersteinschätzung zur Verfahrensdokumentation";
+
+/** <title> von /ampel-check (Growth 30.10.2026). */
+export const AMPEL_TITLE = "GoBD-Ampel: kostenlose Ersteinschätzung in 10 Fragen";
 
 export const AMPEL_INTRO =
   "Beantworten Sie 10 Fragen mit Ja oder Nein und sehen Sie nach etwa zwei Minuten, wie gut Ihre Buchführungsprozesse für eine Betriebsprüfung dokumentiert sind. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.";
@@ -69,7 +71,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     question:
       "Wird Ihre Verfahrensdokumentation bei Änderungen an Software, Abläufen oder Zuständigkeiten aktualisiert und versioniert?",
     explanation:
-      "Änderungen an der Verfahrensdokumentation müssen historisch nachvollziehbar sein, frühere Fassungen sind aufzubewahren. Ein festes Prüfintervall schreibt das Gesetz nicht vor. Eine jährliche Durchsicht ist eine verbreitete Praxisempfehlung.",
+      "Änderungen an der Verfahrensdokumentation müssen historisch nachvollziehbar sein, frühere Fassungen sind aufzubewahren. Einen festen Turnus für die Überprüfung schreiben die GoBD nicht vor. Maßgeblich ist, dass die Dokumentation über die gesamte Aufbewahrungsfrist dem tatsächlich eingesetzten Verfahren entspricht. Eine regelmäßige, etwa jährliche Durchsicht kann dabei helfen.",
     weight: 2,
     applicable: "required",
     source: "GoBD Rz. 154; § 147 Abs. 1 Nr. 1 AO (Arbeitsanweisungen und sonstige Organisationsunterlagen)",
@@ -79,7 +81,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     question:
       "Falls Sie eine elektronische Kasse nutzen: Ist sie mit einer zertifizierten technischen Sicherheitseinrichtung (TSE) ausgestattet und beim Finanzamt gemeldet?",
     explanation:
-      "Elektronische Aufzeichnungssysteme mit Kassenfunktion müssen durch eine zertifizierte TSE geschützt sein. Seit dem 01.01.2025 steht für die Mitteilung an das Finanzamt das Verfahren über „Mein ELSTER“ zur Verfügung. Neu angeschaffte Systeme sind innerhalb eines Monats zu melden, ebenso ihre Außerbetriebnahme. Antworten Sie nur mit „Ja“, wenn beides zutrifft.",
+      "Elektronische Aufzeichnungssysteme mit Kassenfunktion müssen durch eine zertifizierte TSE geschützt sein. Seit dem 01.01.2025 steht für die Mitteilung an das Finanzamt das Verfahren über „Mein ELSTER“ zur Verfügung. Die Mitteilung erfolgt elektronisch je Betriebsstätte für alle Kassen. Neue oder außer Betrieb genommene Kassen sind innerhalb eines Monats mitzuteilen. Antworten Sie nur mit „Ja“, wenn beides zutrifft.",
     weight: 3,
     applicable: "optional",
     source:
@@ -94,7 +96,7 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     weight: 3,
     applicable: "required",
     source:
-      "§ 147 Abs. 1 und Abs. 3 AO i. d. F. des Vierten Bürokratieentlastungsgesetzes (BGBl. 2024 I Nr. 323); Übergangsregel Art. 97 § 19a Abs. 2 und 3 EGAO; GoBD Rz. 113 ff.",
+      "§ 147 Abs. 1 und Abs. 3 AO i. d. F. des Vierten Bürokratieentlastungsgesetzes (BGBl. 2024 I Nr. 323); Übergangsregel Art. 97 § 19a Abs. 2 und 3 EGAO; § 257 Abs. 4 HGB; GoBD Rz. 116, 117, 119",
   },
   {
     id: "unveraenderbarkeit",
@@ -122,10 +124,10 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     question:
       "Sind Zuständigkeiten, Zugriffsrechte und Kontrollen in Ihrer Buchhaltung festgelegt, also wer was erfasst, freigibt und prüft?",
     explanation:
-      "Die GoBD erwarten ein internes Kontrollsystem (IKS), zum Beispiel mit Zugangs- und Zugriffsberechtigungen, Funktionstrennung und Abstimmungskontrollen. Wie umfangreich es sein muss, hängt von Größe und Komplexität des Unternehmens ab.",
+      "Die GoBD erwarten ein internes Kontrollsystem (IKS), zum Beispiel mit Zugangs- und Zugriffsberechtigungen, Funktionstrennung und Abstimmungskontrollen. Wie es konkret ausgestaltet sein muss, hängt von der Komplexität Ihrer Geschäftstätigkeit, Ihrer Organisation und der eingesetzten Software ab.",
     weight: 2,
     applicable: "required",
-    source: "GoBD Rz. 100–102",
+    source: "GoBD Rz. 60, Rz. 100–102",
   },
   {
     id: "scannen",
@@ -142,11 +144,11 @@ export const AMPEL_QUESTIONS: AmpelQuestion[] = [
     question:
       "Können Sie E-Rechnungen (z. B. XRechnung oder ZUGFeRD) empfangen, verarbeiten und im strukturierten Originalformat aufbewahren?",
     explanation:
-      "Seit dem 01.01.2025 müssen alle inländischen Unternehmen E-Rechnungen im B2B-Bereich empfangen können. Für die Aufbewahrung ist der strukturierte Teil der E-Rechnung (z. B. die XML-Datei) maßgeblich. Den Bildteil einer hybriden Rechnung bewahren Sie zusätzlich auf, wenn er weitere steuerlich wichtige Angaben enthält, etwa Buchungsvermerke.",
+      "Seit dem 01.01.2025 müssen alle inländischen Unternehmen E-Rechnungen im B2B-Bereich empfangen können. Für die Aufbewahrung ist der strukturierte Teil der E-Rechnung (z. B. die XML-Datei) maßgeblich. Den menschenlesbaren Teil einer hybriden Rechnung bewahren Sie nur zusätzlich auf, wenn er zusätzliche oder abweichende, für die Besteuerung bedeutsame Angaben enthält, etwa Buchungsvermerke.",
     weight: 2,
     applicable: "required",
     source:
-      "§ 14 Abs. 1 und Abs. 2 UStG i. d. F. des Wachstumschancengesetzes; § 27 Abs. 38 UStG; BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320) und vom 15.10.2025 zur E-Rechnung; GoBD Rz. 118, 119 und 131 i. d. F. vom 14.07.2025",
+      "§ 14 Abs. 1 und Abs. 2 UStG i. d. F. des Wachstumschancengesetzes; § 27 Abs. 38 UStG (Übergangsregeln Ausstellung); BMF-Schreiben vom 15.10.2024 (BStBl I S. 1320) und vom 15.10.2025 zur E-Rechnung; GoBD Rz. 118, 119, 125 (Beispiel 10) und 131 i. d. F. vom 14.07.2025",
   },
   {
     id: "belegfluss",
@@ -206,7 +208,7 @@ export const AMPEL_RESULTS = {
     label: "Rot",
     headline: "Deutlicher Nachholbedarf: Mindestens eine wichtige Grundlage ist noch nicht dokumentiert.",
     text:
-      "Laut Ihren Angaben fehlt mindestens ein grundlegender Baustein. Das kommt häufig vor und lässt sich Schritt für Schritt angehen. Wichtig ist, mit einer klaren Reihenfolge zu beginnen.",
+      "Laut Ihren Angaben fehlt mindestens ein grundlegender Baustein. Das lässt sich Schritt für Schritt angehen. Wichtig ist, mit einer klaren Reihenfolge zu beginnen.",
     hints: [
       "Erstellen Sie zuerst eine Übersicht: Welche Systeme (Buchhaltung, Kasse, Warenwirtschaft, Archiv) nutzen Sie und wer ist jeweils zuständig?",
       "Prüfen Sie, ob Ihre Kasse mit einer TSE ausgestattet und über ELSTER gemeldet ist, und ob Sie E-Rechnungen empfangen können.",
@@ -316,7 +318,7 @@ export const AMPEL_SHARE_KANZLEI = {
   intro:
     "Teilen Sie die Ampel mit Ihren Mandanten. Sie sehen dann vor dem Gespräch, wo bei der Dokumentation Handlungsbedarf besteht.",
   message:
-    "Erfüllt Ihr Unternehmen die GoBD-Anforderungen? Mit der kostenlosen GoBD-Ampel beantworten Sie in etwa zwei Minuten 10 Fragen und erhalten eine erste Einschätzung. Gerne besprechen wir das Ergebnis anschließend gemeinsam: {link}",
+    "Wie steht es um die Verfahrensdokumentation in Ihrem Unternehmen? Mit der kostenlosen GoBD-Ampel beantworten Sie 10 Ja/Nein-Fragen und erhalten eine Ersteinschätzung (keine Steuer- oder Rechtsberatung durch den Anbieter des Tools). Gerne besprechen wir das Ergebnis anschließend gemeinsam: {link}",
   copied: "Link kopiert",
 };
 
@@ -371,7 +373,7 @@ export const AMPEL_SOURCE_ROWS: readonly AmpelSourceRow[] = [
   {
     source: "BMF-Schreiben vom 28.06.2024 (IV D 2 – S 0316-a/19/10011 :009)",
     content:
-      "Mitteilungspflicht § 146a Abs. 4 AO über ELSTER ab 01.01.2025; Altbestand bis 31.07.2025; danach Monatsfrist",
+      "Mitteilungspflicht § 146a Abs. 4 AO über ELSTER ab 01.01.2025; Frist für den Altbestand (31.07.2025) abgelaufen; neue oder außer Betrieb genommene Kassen innerhalb eines Monats",
     status: "gesichert",
   },
   {
