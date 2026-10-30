@@ -102,6 +102,43 @@ function StepsTable({ report }: { report: AmpelStepReport }) {
       </div>
       <div className="ampel-admin-table-wrap">
         <table className="ampel-admin-table">
+          <caption>Ampel ohne E-Mail (nur mit Flag)</caption>
+          <thead>
+            <tr>
+              <th>Tag</th>
+              <th>Gerät</th>
+              <th>Ergebnis angezeigt</th>
+              <th>Bericht-Angebot angezeigt</th>
+              <th>Bericht angefordert gültig</th>
+              <th>Bericht angefordert ungültig</th>
+              {AMPEL_STEP_RESULT_STATUSES.map((status) => (
+                <th key={status}>Bericht {status === "timeout" ? "Timeout" : status}</th>
+              ))}
+              <th>Produktklick</th>
+            </tr>
+          </thead>
+          <tbody>
+            {days.map((day) =>
+              day.devices.map((device) => (
+                <tr key={`v2:${day.date}:${device.device}`}>
+                  <td>{device.device === "gesamt" ? formatAmpelStepDay(day.date) : ""}</td>
+                  <td>{ampelStepDeviceLabel(device.device)}</td>
+                  <td>{device.resultView}</td>
+                  <td>{device.reportOfferView}</td>
+                  <td>{device.reportSubmitValid}</td>
+                  <td>{device.reportSubmitInvalid}</td>
+                  {AMPEL_STEP_RESULT_STATUSES.map((status) => (
+                    <td key={status}>{device.reportSent[status]}</td>
+                  ))}
+                  <td>{device.productClick}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="ampel-admin-table-wrap">
+        <table className="ampel-admin-table">
           <caption>Abbruch je Frage gegenüber der vorherigen Anzeige</caption>
           <thead>
             <tr>

@@ -11,7 +11,13 @@ export type AmpelStepClientEvent =
   | { event: "ampel_email_view" }
   | { event: "ampel_submit_click"; valid: boolean }
   | { event: "ampel_submit_result"; status: AmpelStepResultStatus }
-  | { event: "consent_choice"; choice: "accept" | "reject" };
+  | { event: "consent_choice"; choice: "accept" | "reject" }
+  // Flag-on path only (Ampel ohne E-Mail).
+  | { event: "ampel_result_view" }
+  | { event: "ampel_report_offer_view" }
+  | { event: "ampel_report_submit"; valid: boolean }
+  | { event: "ampel_report_sent"; status: AmpelStepResultStatus }
+  | { event: "ampel_product_click" };
 
 const seenQuestionViews = new Set<number>();
 let emailViewArmed = true;
@@ -71,4 +77,11 @@ export function sendAmpelConsentChoice(choice: "accept" | "reject"): void {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   if (path !== "/ampel-check") return;
   sendAmpelStep({ event: "consent_choice", choice });
+}
+
+/** Flag-on path: server answer for the report request, same status mapping as ampel_submit_result. */
+export function noteAmpelReportSent(status: number, pending = false, timedOut = false): void {
+  const mapped = ampelSubmitResultStatus({ status, pending, timedOut });
+  if (!mapped) return;
+  sendAmpelStep({ event: "ampel_report_sent", status: mapped });
 }

@@ -5,7 +5,7 @@
  *
  * Runs the tracking module against a fake window. A script src or a gtag
  * config / event / js command counts as an Ads request. Consent Mode
- * default/update commands do not. The only Ads conversion is the purchase
+ * default/update commands do not. Ads conversions: the purchase and (flag-on Ampel) ampel_report_sent; otherwise the purchase
  * conversion, once per paid session. Ampel, Kassen and Readiness send no
  * Ads conversion (the lead and readiness labels stay out of app, components
  * and lib). After consent they still send their GA4 events. Kassen sends
@@ -656,7 +656,12 @@ try {
   }
   assert.deepEqual(forbiddenHits, [], "removed Ads conversions stay out of the client and server");
   const conversionCalls = tracking.match(/event", "conversion"/g) ?? [];
-  assert.equal(conversionCalls.length, 1, "the purchase conversion is the only Ads conversion");
+  assert.equal(conversionCalls.length, 2, "purchase + Ampel report (flag-on, DSE § 13 Fassung 2) are the only Ads conversions");
+  const reportFn = tracking.slice(tracking.indexOf("export function trackAmpelReportConversion"));
+  const reportBody = reportFn.slice(0, reportFn.indexOf("\n}\n"));
+  assert.ok(reportBody.includes("!hasMarketingConsent()"), "Ampel report conversion is consent-gated");
+  assert.ok(reportBody.includes('event", "conversion"'), "the second conversion lives in trackAmpelReportConversion");
+  assert.ok(!reportBody.includes("email") && !reportBody.includes("answers"), "no email or answers in the Ampel conversion");
   assert.ok(tracking.includes('window.gtag("event", "readiness_submit", { send_to: gaId })'), "GA4 readiness_submit payload is unchanged");
 
   const hits: string[] = [];

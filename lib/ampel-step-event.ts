@@ -18,7 +18,16 @@ export const AMPEL_STEP_EVENTS = [
   "ampel_submit_click",
   "ampel_submit_result",
   "consent_choice",
+  // Ampel ohne E-Mail (nur mit Flag AMPEL_NO_EMAIL_ENABLED / Preview-Override)
+  "ampel_result_view",
+  "ampel_report_offer_view",
+  "ampel_report_submit",
+  "ampel_report_sent",
+  "ampel_product_click",
 ] as const;
+
+/** Flag-on events without extra fields. */
+const V2_PLAIN_EVENTS = new Set<string>(["ampel_result_view", "ampel_report_offer_view", "ampel_product_click"]);
 
 export const AMPEL_STEP_RESULT_STATUSES = ["ok", "pending_ok", "400", "429", "5xx", "timeout"] as const;
 
@@ -137,12 +146,16 @@ export function parseAmpelStepBody(input: unknown): AmpelStepFields | null {
     if (rejectedKeys(record, ["event", "v"])) return null;
     return { ...base, event };
   }
-  if (event === "ampel_submit_click") {
+  if (V2_PLAIN_EVENTS.has(event)) {
+    if (rejectedKeys(record, ["event", "v"])) return null;
+    return { ...base, event: event as AmpelStepEvent };
+  }
+  if (event === "ampel_submit_click" || event === "ampel_report_submit") {
     if (rejectedKeys(record, ["event", "valid", "v"])) return null;
     if (typeof record.valid !== "boolean") return null;
     return { ...base, event, valid: record.valid ? "true" : "false" };
   }
-  if (event === "ampel_submit_result") {
+  if (event === "ampel_submit_result" || event === "ampel_report_sent") {
     if (rejectedKeys(record, ["event", "status", "v"])) return null;
     if (typeof record.status !== "string" || !STATUS_SET.has(record.status)) return null;
     return { ...base, event, status: record.status };
@@ -200,7 +213,7 @@ function parseStoredRow(raw: string[]): AmpelStepRow | null {
   } else if (n) {
     return null;
   }
-  if (event === "ampel_submit_result") {
+  if (event === "ampel_submit_result" || event === "ampel_report_sent") {
     if (!STATUS_SET.has(status) || choice || valid) return null;
     fields.status = status;
   } else if (status) {
@@ -212,7 +225,7 @@ function parseStoredRow(raw: string[]): AmpelStepRow | null {
   } else if (choice) {
     return null;
   }
-  if (event === "ampel_submit_click") {
+  if (event === "ampel_submit_click" || event === "ampel_report_submit") {
     if (valid !== "true" && valid !== "false") return null;
     fields.valid = valid;
   } else if (valid) {
@@ -268,6 +281,12 @@ export type AmpelStepDeviceStat = {
   results: AmpelStepResultCounts;
   consentAccept: number;
   consentReject: number;
+  resultView: number;
+  reportOfferView: number;
+  reportSubmitValid: number;
+  reportSubmitInvalid: number;
+  reportSent: AmpelStepResultCounts;
+  productClick: number;
 };
 
 export type AmpelStepQuestionStat = {
@@ -305,6 +324,12 @@ type Bucket = {
   results: AmpelStepResultCounts;
   consentAccept: number;
   consentReject: number;
+  resultView: number;
+  reportOfferView: number;
+  reportSubmitValid: number;
+  reportSubmitInvalid: number;
+  reportSent: AmpelStepResultCounts;
+  productClick: number;
   viewed: number[];
   answered: number[];
 };
@@ -322,6 +347,12 @@ function emptyBucket(): Bucket {
     results: emptyResults(),
     consentAccept: 0,
     consentReject: 0,
+    resultView: 0,
+    reportOfferView: 0,
+    reportSubmitValid: 0,
+    reportSubmitInvalid: 0,
+    reportSent: emptyResults(),
+    productClick: 0,
     viewed: Array.from({ length: AMPEL_STEP_QUESTION_MAX + 1 }, () => 0),
     answered: Array.from({ length: AMPEL_STEP_QUESTION_MAX + 1 }, () => 0),
   };
@@ -331,7 +362,11 @@ function addBucket(left: Bucket, right: Bucket): Bucket {
   const viewed = left.viewed.map((value, index) => value + right.viewed[index]);
   const answered = left.answered.map((value, index) => value + right.answered[index]);
   const results = emptyResults();
-  for (const status of AMPEL_STEP_RESULT_STATUSES) results[status] = left.results[status] + right.results[status];
+  const reportSent = emptyResults();
+  for (const status of AMPEL_STEP_RESULT_STATUSES) {
+    results[status] = left.results[status] + right.results[status];
+    reportSent[status] = left.reportSent[status] + right.reportSent[status];
+  }
   return {
     pageview: left.pageview + right.pageview,
     emailView: left.emailView + right.emailView,
@@ -340,6 +375,12 @@ function addBucket(left: Bucket, right: Bucket): Bucket {
     results,
     consentAccept: left.consentAccept + right.consentAccept,
     consentReject: left.consentReject + right.consentReject,
+    resultView: left.resultView + right.resultView,
+    reportOfferView: left.reportOfferView + right.reportOfferView,
+    reportSubmitValid: left.reportSubmitValid + right.reportSubmitValid,
+    reportSubmitInvalid: left.reportSubmitInvalid + right.reportSubmitInvalid,
+    reportSent,
+    productClick: left.productClick + right.productClick,
     viewed,
     answered,
   };
@@ -363,6 +404,16 @@ function countRow(bucket: Bucket, row: AmpelStepRow): void {
   }
   if (row.event === "ampel_submit_result" && STATUS_SET.has(row.status)) {
     bucket.results[row.status as AmpelStepResultStatus] += 1;
+  }
+  if (row.event === "ampel_result_view") bucket.resultView += 1;
+  if (row.event === "ampel_report_offer_view") bucket.reportOfferView += 1;
+  if (row.event === "ampel_product_click") bucket.productClick += 1;
+  if (row.event === "ampel_report_submit") {
+    if (row.valid === "true") bucket.reportSubmitValid += 1;
+    else bucket.reportSubmitInvalid += 1;
+  }
+  if (row.event === "ampel_report_sent" && STATUS_SET.has(row.status)) {
+    bucket.reportSent[row.status as AmpelStepResultStatus] += 1;
   }
   if (row.event === "consent_choice") {
     if (row.choice === "accept") bucket.consentAccept += 1;
@@ -411,6 +462,12 @@ function deviceStat(device: AmpelStepDeviceLabel, bucket: Bucket): AmpelStepDevi
     results: bucket.results,
     consentAccept: bucket.consentAccept,
     consentReject: bucket.consentReject,
+    resultView: bucket.resultView,
+    reportOfferView: bucket.reportOfferView,
+    reportSubmitValid: bucket.reportSubmitValid,
+    reportSubmitInvalid: bucket.reportSubmitInvalid,
+    reportSent: bucket.reportSent,
+    productClick: bucket.productClick,
   };
 }
 
@@ -477,6 +534,12 @@ function bucketFromStat(day: AmpelStepDayStat, device: AmpelStepDevice): Bucket 
   bucket.results = { ...stat.results };
   bucket.consentAccept = stat.consentAccept;
   bucket.consentReject = stat.consentReject;
+  bucket.resultView = stat.resultView;
+  bucket.reportOfferView = stat.reportOfferView;
+  bucket.reportSubmitValid = stat.reportSubmitValid;
+  bucket.reportSubmitInvalid = stat.reportSubmitInvalid;
+  bucket.reportSent = { ...stat.reportSent };
+  bucket.productClick = stat.productClick;
   for (const question of day.questions) {
     if (device === "mobile") {
       bucket.viewed[question.n] = question.viewedMobile;

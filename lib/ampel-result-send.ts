@@ -10,6 +10,7 @@ import {
   type AmpelMailStatusStore,
 } from "@/lib/ampel-mail-status";
 import { AMPEL_CONSENT_TEXT_VERSION, AMPEL_RESULT_MAIL, type AmpelQuestion } from "@/lib/ampel-questions";
+import { AMPEL_REPORT_CONSENT_TEXT_VERSION } from "@/lib/ampel-v2-copy";
 import {
   AMPEL_IP_WINDOW_MS,
   ampelRateIpKey,
@@ -62,6 +63,8 @@ export type SubmitAmpelInput = {
   src?: unknown;
   /** Whitelisted funnel variant from the page URL. Never a click id. */
   variant?: unknown;
+  /** `bericht` from the flag-on flow (Ampel ohne E-Mail). Anything else is the old flow. */
+  flow?: unknown;
 };
 
 export type SubmitAmpelDeps = {
@@ -316,6 +319,12 @@ async function runSubmit(
   console.info(ampelRateLogLine(source, decision === "ok" ? hold.ipSlot : 0, clientIp));
   if (decision !== "ok") return stamp(limited(decision), trace, input, rateScope);
 
+  // Flag-Pfad „bericht“: der Client ruft immer /senden auf. Fällt der Rate-Store aus (fail open,
+  // Slots 0), bekommt der Token Slot 1, statt still im /ergebnis-Aufruf zu versenden.
+  if (deps.handoff && input.flow === "bericht" && trace.kind === "failopen") {
+    hold.ipSlot = Math.max(1, hold.ipSlot);
+    hold.emailSlot = Math.max(1, hold.emailSlot);
+  }
   if (deps.handoff && hold.ipSlot >= 1 && hold.emailSlot >= 1) {
     let token: string | null = null;
     try {
@@ -383,6 +392,11 @@ export async function deliverAmpelResult(
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
   if (mail.duplicate) return alreadySent();
+  // Flag-Pfad: ein Stub (RESEND_API_KEY/EMAIL_FROM fehlt) ist kein Versand, kein „unterwegs“.
+  if (mail.stub && input.flow === "bericht") {
+    console.error("[ampel] Bericht nicht gesendet: Mailversand nicht konfiguriert");
+    return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
+  }
   if (mail.inflight || !delivered(mail)) {
     return withheld(AMPEL_RESULT_MAIL.shownWithoutMail);
   }
@@ -476,7 +490,7 @@ async function finishAmpelResult(
         answers: code,
         ref: sanitizeAmpelRef(input.ref),
         consentIp: input.ip,
-        consentTextVersion: AMPEL_CONSENT_TEXT_VERSION,
+        consentTextVersion: ampelConsentTextVersion(input.flow, deps.check),
         mailed: "ja",
         tool: attribution.tool,
         utmSource: attribution.utmSource,
@@ -634,4 +648,10 @@ export function submitAmpelResult(
   });
   runs.set(key, run);
   return run;
+}
+
+/** Neue Einwilligungsversion 2026-10-30 nur für den Bericht-Ablauf (Flag an). Alter Ablauf und Kassen unverändert. */
+export function ampelConsentTextVersion(flow: unknown, check?: string): string {
+  if (check === "kassen-check") return AMPEL_CONSENT_TEXT_VERSION;
+  return flow === "bericht" ? AMPEL_REPORT_CONSENT_TEXT_VERSION : AMPEL_CONSENT_TEXT_VERSION;
 }

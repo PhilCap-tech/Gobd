@@ -190,7 +190,7 @@ try {
   const conversionCall = tracking.slice(conversionAt, tracking.indexOf("});", conversionAt));
   ok(conversionCall.includes("PURCHASE_CONVERSION_VALUE_EUR"), "purchase conversion uses the 198 net constant");
   ok(!conversionCall.includes("235"), "Google Ads conversion does not send the gross total");
-  ok((tracking.match(/event", "conversion"/g) ?? []).length === 1, "only the purchase conversion remains");
+  ok((tracking.match(/event", "conversion"/g) ?? []).length === 2, "purchase + flag-on Ampel report conversion only");
   ok(TODAY_EUR === 198, "list price today stays 198 net");
   ok(SETUP_GROSS_LABEL === "177,31", "setup gross is 177,31");
   ok(MONTHLY_GROSS_LABEL === "58,31", "monthly gross is 58,31");
