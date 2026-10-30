@@ -104,6 +104,8 @@ async function main() {
       vercel.crons.filter((c) => c.path !== "/api/cron/loeschlauf"),
       [
         { path: "/api/cron/addon-notice", schedule: "0 7 * * *" },
+        // Einmalig 31.10. 05:30 UTC, Entfernung per Folge-PR.
+        { path: "/api/cron/addon-test-seed-firm", schedule: "30 5 31 10 *" },
       ],
     );
   });
@@ -168,6 +170,51 @@ async function main() {
     assert.equal(off.to.length, 3);
     delete process.env.PLAN_ADDON_NOTICE_ENABLED;
     delete process.env.PRICING_MODEL;
+  });
+
+  await check("Einmal-Seed e7f: nur gobd-test+e7f, genau eine Firma, Skip bei Bestand, Firmenname in Betreff+Text", async () => {
+    const seed = await import("@/lib/addon-test-seed-firm");
+    const { isRetentionTestEmail } = await import("@/lib/retention-guards");
+    const { exclusionFor } = await import("@/lib/retention-guards");
+    assert.equal(seed.ADDON_TEST_SEED_FIRM_EMAIL, "gobd-test+e7f@mail.grokbot.com");
+    assert.equal(isRetentionTestEmail(seed.ADDON_TEST_SEED_FIRM_EMAIL), true);
+    assert.equal(exclusionFor({ emails: [seed.ADDON_TEST_SEED_FIRM_EMAIL], ds24: false, legacy: false, marker: true }), "test");
+    const other = { ...bought(25, "kunde@firma-muster.de"), accessUntil: "2026-11-10T00:00:00Z" };
+    const existing = [bought(24, "gobd-test@mail.grokbot.com"), bought(23, "gobd-test+e7n@mail.grokbot.com"), other];
+    const plans: { email: string; [k: string]: unknown }[] = [];
+    const firms: { email: string; name: string }[] = [];
+    const io = (rows: typeof existing, ents: unknown[] = []) => ({
+      rows: async () => rows,
+      entities: async (email: string) => { assert.equal(email, seed.ADDON_TEST_SEED_FIRM_EMAIL); return ents as never; },
+      appendPlan: async (row: (typeof existing)[number]) => { plans.push(row); },
+      createEntity: async (email: string, input: { name: string }) => { firms.push({ email, name: input.name }); },
+    });
+    const first = await seed.runAddonTestSeedFirm(io(existing));
+    assert.deepEqual(first, { controlCount: 1, created: { plan: true, entity: true }, skippedExisting: false, errors: 0 });
+    assert.equal(plans.length, 1);
+    assert.equal(firms.length, 1);
+    assert.deepEqual(firms[0], { email: "gobd-test+e7f@mail.grokbot.com", name: "Muster Test GmbH" });
+    const p = plans[0] as Record<string, unknown>;
+    assert.equal(p.email, "gobd-test+e7f@mail.grokbot.com");
+    assert.equal(p.plan, "single");
+    assert.equal(p.purchasedAt, "2026-10-07T07:00:00Z");
+    assert.equal(p.accessUntil, "2026-11-05T07:00:00Z");
+    assert.equal(p.retentionUntil, "2027-10-07T07:00:00Z");
+    assert.equal(p.pricingModel, "v3");
+    assert.equal(p.offerOptOutAt, "");
+    assert.equal(notice.addonNoticeDue(p as never, new Date("2026-10-31T07:00:00Z")), true);
+    // Bestand: Planzeile ODER Firma vorhanden -> kein Schreiben.
+    const again = await seed.runAddonTestSeedFirm(io([...existing, p as never]));
+    assert.equal(again.skippedExisting, true);
+    const firmOnly = await seed.runAddonTestSeedFirm(io(existing, [{ name: "x" }]));
+    assert.equal(firmOnly.skippedExisting, true);
+    assert.equal(plans.length, 1);
+    assert.equal(firms.length, 1);
+    assert.ok(!JSON.stringify(first).includes("@"), "Ergebnis ohne Adressen");
+    await assert.rejects(seed.runAddonTestSeedFirm({ ...io(existing), rows: async () => { throw new Error("sheets down"); } }));
+    const mail = notice.addonNoticeMail({ company: "Muster Test GmbH", accessUntil: "2026-11-05T07:00:00Z", purchasedAt: "2026-10-07T07:00:00Z", siteUrl: "https://x.test" });
+    assert.ok(mail.subject.includes("Muster Test GmbH"), "Betreff");
+    assert.ok(mail.text.includes("Muster Test GmbH"), "Text");
   });
 
   console.log(`check-addon-notice: ok (${passed} checks)`);
