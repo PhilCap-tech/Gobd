@@ -910,6 +910,7 @@ h3 {
 }
 
 .footer-chev {
+  color: var(--brass, #7a5528);
   transition: transform 0.2s;
 }
 
@@ -2164,6 +2165,18 @@ code {
   color: var(--muted);
   cursor: pointer;
   font: inherit;
+  text-decoration: underline;
+}
+
+.consent-banner:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-chev {
+    transition: none;
+  }
 }
 
 .footer-text-btn:hover {

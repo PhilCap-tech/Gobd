@@ -225,6 +225,12 @@ export function openConsentBanner(): void {
   emitBanner();
 }
 
+/** Schließt nur einen erneut geöffneten Banner (Esc). Ändert keine Einwilligung; ohne Entscheidung bleibt er offen. */
+export function closeReopenedConsentBanner(): void {
+  bannerForceOpen = false;
+  emitBanner();
+}
+
 /**
  * Drops a leftover first-touch UTM entry. No read, no write, no consent.
  * Runs on page load so an older tab does not keep the value.

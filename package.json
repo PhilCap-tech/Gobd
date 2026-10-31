@@ -86,7 +86,8 @@
     "check:v3-placeholders": "tsx scripts/check-v3-placeholders.ts",
     "check:checkout-return-url": "tsx scripts/check-checkout-return-url.ts",
     "check:v3-lock-writes": "tsx scripts/check-v3-lock-writes.ts",
-    "check:v3-reactivation-first-purchase": "tsx scripts/check-v3-reactivation-first-purchase.ts"
+    "check:v3-reactivation-first-purchase": "tsx scripts/check-v3-reactivation-first-purchase.ts",
+    "check:cookie-reopen": "tsx scripts/check-cookie-reopen.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
