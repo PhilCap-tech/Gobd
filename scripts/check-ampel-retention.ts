@@ -16,7 +16,7 @@ import {
   proofDeleteFrom,
   resolveRunMode,
 } from "@/lib/ampel-retention-rules";
-import { runAmpelCleanup, runAmpelRetention, type AmpelRetentionIo } from "@/lib/ampel-retention-job";
+import { ampelUnclearLogLine, runAmpelCleanup, runAmpelRetention, type AmpelRetentionIo } from "@/lib/ampel-retention-job";
 import { handleAmpelJob } from "@/lib/ampel-retention-http";
 import { ampelConsentTextVersion } from "@/lib/ampel-result-send";
 
@@ -122,6 +122,38 @@ function fakeIo(rows: ReadinessLead[]) {
 }
 
 async function main() {
+  // "unclear"-Logzeilen (CoS 31.10.): Grund + maskierte ID, kein '@'; weiterhin fail closed.
+  {
+    const unclearRows = [row({ leadId: "ampel-leer", email: "" }), row({ leadId: "ampel-fehl", email: "kunde@firma-beispiel.de" })];
+    for (const execute of [false, true]) {
+      const u = fakeIo(unclearRows);
+      u.io.customerFacts = async () => {
+        throw new Error("lookup kunde@firma-beispiel.de");
+      };
+      const lines: string[] = [];
+      const orig = console.info;
+      console.info = (...args: unknown[]) => void lines.push(args.map(String).join(" "));
+      let rep;
+      try {
+        rep = await runAmpelRetention(u.io, { execute, now: NOW });
+      } finally {
+        console.info = orig;
+      }
+      assert.equal(rep.skipped.unclear, 2, "unclear-Zähler unverändert");
+      assert.equal(rep.skipped.unclear_email_leer, 1);
+      assert.equal(rep.skipped.unclear_abfrage_fehler, 1);
+      assert.equal(rep.rows.redactReport + rep.rows.dropUnconfirmed + rep.rows.redactProof, 0, "unclear: keine Aktion");
+      assert.equal(u.saved.length, 0, "unclear: nichts gespeichert (fail closed)");
+      const unclear = lines.filter((l) => l.startsWith("[ampel-loeschlauf] unclear"));
+      assert.equal(unclear.length, 2, "je unclear-Zeile eine Logzeile");
+      for (const l of unclear) {
+        assert.ok(!l.includes("@"), "keine Adresse im Log");
+        assert.ok(!l.includes("ampel-leer") && !l.includes("ampel-fehl") && !l.includes("lookup"), "nur maskierte ID, kein Fehlertext");
+      }
+      assert.ok(unclear.some((l) => l.includes('"email_leer"')) && unclear.some((l) => l.includes('"abfrage_fehler"')));
+    }
+    assert.match(ampelUnclearLogLine(row({})).row, /^[0-9a-f]{10}$/);
+  }
   const rows = [row({}), row({ leadId: "kanzlei-x", status: "kanzlei", utmSource: "g" }), row({ leadId: "ampel-t", email: "gobd-test+a@mail.grokbot.com" })];
   const dry = fakeIo(rows);
   const dryReport = await runAmpelRetention(dry.io, { execute: false, now: NOW });
