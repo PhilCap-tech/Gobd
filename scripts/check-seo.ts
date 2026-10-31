@@ -403,7 +403,7 @@ async function main() {
     "BRANCHEN_SLUGS includes verein, apotheke, automaten, hotel, hofladen, kosmetikstudio, marktstand, reisebuero, kfz-werkstatt and fitnessstudio",
   );
   ok(footer.includes("listBranchenFooterLinks"), "footer reads content/branchen");
-  ok(footer.includes(">Branchen<"), "footer column is titled Branchen");
+  ok(footer.includes("Verfahrensdokumentation nach Branche (") && footer.includes("<details"), "footer row is titled Branche, native <details>");
   ok(!footer.includes("BRANCHEN_LINKS"), "footer branch list is not hardcoded");
   const footerLinks = listBranchenFooterLinks();
   const bySlug = [...seiten]
