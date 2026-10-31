@@ -846,11 +846,7 @@ h3 {
   color: var(--muted);
 }
 
-.footer-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
-  gap: 28px 48px;
-  align-items: start;
+.site-footer .shell {
   text-align: left;
 }
 
@@ -872,13 +868,66 @@ h3 {
   color: var(--text);
 }
 
+.footer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px 32px;
+}
+
+.footer-links-top {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.footer-branchen {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.footer-branchen summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.footer-branchen summary::-webkit-details-marker {
+  display: none;
+}
+
+.footer-branchen summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.footer-branchen summary .footer-col-title {
+  margin: 0;
+}
+
+.footer-chev {
+  transition: transform 0.2s;
+}
+
+.footer-branchen[open] .footer-chev {
+  transform: rotate(180deg);
+}
+
 .footer-branchen ul {
   list-style: none;
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  padding: 4px 0 14px;
+  columns: 3;
+  column-gap: 32px;
+}
+
+.footer-branchen li {
+  break-inside: avoid;
+  margin-bottom: 8px;
 }
 
 .footer-branchen a {
@@ -887,6 +936,20 @@ h3 {
 
 .footer-branchen a:hover {
   color: var(--text);
+}
+
+.footer-legal {
+  margin-top: 16px;
+}
+
+@media (max-width: 800px) {
+  .footer-top {
+    flex-direction: column;
+  }
+
+  .footer-branchen ul {
+    columns: 1;
+  }
 }
 
 .legal h2 {
@@ -1904,11 +1967,6 @@ code {
 }
 
 @media (max-width: 800px) {
-  .footer-layout {
-    grid-template-columns: 1fr;
-    gap: 22px;
-  }
-
   .grid-2,
   .price-grid,
   .proof-grid,
