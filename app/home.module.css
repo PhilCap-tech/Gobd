@@ -802,6 +802,10 @@
   text-wrap: wrap;
 }
 
+.page :global(.footer-chev) {
+  color: var(--brass-btn);
+}
+
 .page :global(.footer-branchen a:hover) {
   color: var(--brass-btn);
 }
