@@ -65,6 +65,25 @@ export function addonNoticeMail(input: {
   });
 }
 
+/**
+ * Logzeile je Versand (CoS 31.10.): nur Variante, ob List-Unsubscribe im an Resend
+ * übergebenen Payload steht, und die Resend-ID. Nie Adresse, Firma, Token oder URL.
+ */
+export function addonNoticeSendLogLine(
+  optedOut: boolean,
+  headers: Record<string, string> | undefined,
+  result: { sent?: boolean; duplicate?: boolean; id?: string | null },
+): { variant: "e-7" | "e-7N"; listUnsubscribe: "yes" | "no"; id: string; sent: boolean; duplicate: boolean } {
+  const has = Boolean(headers && Object.keys(headers).length > 0 && headers["List-Unsubscribe"]);
+  return {
+    variant: optedOut ? "e-7N" : "e-7",
+    listUnsubscribe: has ? "yes" : "no",
+    id: typeof result.id === "string" && /^[A-Za-z0-9-]{1,64}$/.test(result.id) ? result.id : "",
+    sent: Boolean(result.sent),
+    duplicate: Boolean(result.duplicate),
+  };
+}
+
 export type AddonNoticeRunResult = {
   due: number;
   sent: number;
@@ -115,12 +134,14 @@ export async function runAddonNotice(
         purchasedAt: row.purchasedAt,
         offerOptOut: optedOut,
       });
+      const headers = optedOut ? undefined : offerOptOutHeaders(row.email);
       const result = await io.send({
         dedupeKey: addonNoticeMailKey(row),
         to: row.email,
         ...mail,
-        ...(optedOut ? {} : { headers: offerOptOutHeaders(row.email) }),
+        ...(headers ? { headers } : {}),
       });
+      console.info("[addon-notice] versand", JSON.stringify(addonNoticeSendLogLine(optedOut, headers, result)));
       if (result.sent || result.duplicate) sent += 1;
       else failed += 1;
     } catch (error) {

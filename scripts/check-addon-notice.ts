@@ -88,6 +88,28 @@ async function main() {
     assert.ok(!neutral.headers, "e-7N: kein Abmeldeblock");
     assert.equal(neutral.dedupeKey, notice.addonNoticeMailKey(rows[1]), "gleicher Dedupe");
     assert.ok(!/\{[^{}]+\}/.test(offer.text + neutral.text), "keine offenen Platzhalter");
+    // Versand-Logzeile (CoS 31.10.): Variante, List-Unsubscribe laut Payload, Resend-ID; nie '@'.
+    {
+      const lines: string[] = [];
+      const orig = console.info;
+      console.info = (...args: unknown[]) => void lines.push(args.map(String).join(" "));
+      const payloads: { headers?: Record<string, string> }[] = [];
+      try {
+        await notice.runAddonNotice(now, {
+          rows: async () => rows,
+          send: async (m) => { payloads.push(m); return { stub: false, sent: true, id: `re-${payloads.length}` }; },
+          company: async () => "Muster GmbH",
+        });
+      } finally {
+        console.info = orig;
+      }
+      const log = lines.filter((l) => l.startsWith("[addon-notice] versand"));
+      assert.equal(log.length, 2, "eine Logzeile je Mail");
+      for (const l of log) assert.ok(!l.includes("@") && !l.includes("Muster") && !l.includes("token") && !l.includes("http"), "keine Adresse/Firma/URL im Log");
+      assert.ok(log[0].includes('"variant":"e-7"') && log[0].includes('"listUnsubscribe":"yes"') && log[0].includes('"id":"re-1"'), log[0]);
+      assert.ok(log[1].includes('"variant":"e-7N"') && log[1].includes('"listUnsubscribe":"no"') && log[1].includes('"id":"re-2"'), log[1]);
+      assert.ok(payloads[0].headers?.["List-Unsubscribe"] && !payloads[1].headers, "Log entspricht Payload");
+    }
     delete process.env.PLAN_ADDON_NOTICE_ENABLED;
     delete process.env.PRICING_MODEL;
   });

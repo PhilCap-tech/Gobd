@@ -2,6 +2,7 @@
  * Ampel-Löschjob und einmalige Altdaten-Bereinigung (IO + Ablauf).
  * Antworten und Logs enthalten nur Zähler, nie Adressen, IDs oder Werte.
  */
+import { createHash } from "node:crypto";
 import { put } from "@vercel/blob";
 import { defaultBlobIo, readBlobText, type BlobStoreIo } from "@/lib/admin-wipe-blobs";
 import { ds24AccessStore } from "@/lib/digistore24-access";
@@ -22,6 +23,19 @@ import {
   type MailLinkBody,
 } from "@/lib/ampel-retention-rules";
 import { listAllReadinessLeadsStrict, listDocumentsByEmail, upsertReadinessLead } from "@/lib/store";
+
+/**
+ * Logzeile je "unclear"-Zeile (CoS 31.10.): nur Grund + maskierte Zeilen-ID
+ * (SHA-256-Präfix der lead_id), nie Adresse, Name oder Fehlertext.
+ * email_leer = Zeile ohne E-Mail; abfrage_fehler = Kundenstatus-Abfrage warf Fehler/null.
+ */
+export function ampelUnclearLogLine(row: Pick<ReadinessLead, "leadId" | "email">): {
+  reason: "email_leer" | "abfrage_fehler";
+  row: string;
+} {
+  const reason = row.email.trim() ? "abfrage_fehler" : "email_leer";
+  return { reason, row: createHash("sha256").update(row.leadId.trim()).digest("hex").slice(0, 10) };
+}
 
 export const AMPEL_MAIL_LINK_PREFIX = "gobd/mail-link/";
 export const AMPEL_SUPPRESSION_PREFIX = "gobd/ampel-suppression/";
@@ -113,6 +127,11 @@ export async function runAmpelRetention(io: AmpelRetentionIo, opts: { execute: b
     const action = decideAmpelRow(row, row.email ? await facts(row.email) : null, now);
     if (action.kind === "skip") {
       bump(report.skipped, action.reason);
+      if (action.reason === "unclear") {
+        const line = ampelUnclearLogLine(row);
+        bump(report.skipped, `unclear_${line.reason}`);
+        console.info("[ampel-loeschlauf] unclear", JSON.stringify(line));
+      }
       continue;
     }
     if (action.kind === "keep") {
