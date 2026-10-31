@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const HEADERS = { "Cache-Control": "private, no-store" };
 
-/** Einmalig (31.10. 05:30 UTC): Testzeile + eine Firma für den 7-Tage-Hinweis. Entfernung per Folge-PR. */
+/** Einmalig (01.11. 05:30 UTC): Testzeilen +lu7/+lu7n mit Firma für den 7-Tage-Hinweis. Entfernung per Folge-PR. */
 export async function GET(request: Request) {
   if (!cronAuthorized(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: HEADERS });

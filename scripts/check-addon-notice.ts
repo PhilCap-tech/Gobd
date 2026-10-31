@@ -126,8 +126,8 @@ async function main() {
       vercel.crons.filter((c) => c.path !== "/api/cron/loeschlauf"),
       [
         { path: "/api/cron/addon-notice", schedule: "0 7 * * *" },
-        // Einmalig 31.10. 05:30 UTC, Entfernung per Folge-PR.
-        { path: "/api/cron/addon-test-seed-firm", schedule: "30 5 31 10 *" },
+        // Einmalig 01.11. 05:30 UTC (+lu7/+lu7n), Entfernung per Folge-PR.
+        { path: "/api/cron/addon-test-seed-firm", schedule: "30 5 1 11 *" },
       ],
     );
   });
@@ -194,49 +194,68 @@ async function main() {
     delete process.env.PRICING_MODEL;
   });
 
-  await check("Einmal-Seed e7f: nur gobd-test+e7f, genau eine Firma, Skip bei Bestand, Firmenname in Betreff+Text", async () => {
+  await check("Einmal-Seed lu7/lu7n: nur Testadressen, je eine Firma, Skip bei Bestand, fällig 01.11., e-7 vs e-7N", async () => {
     const seed = await import("@/lib/addon-test-seed-firm");
-    const { isRetentionTestEmail } = await import("@/lib/retention-guards");
-    const { exclusionFor } = await import("@/lib/retention-guards");
-    assert.equal(seed.ADDON_TEST_SEED_FIRM_EMAIL, "gobd-test+e7f@mail.grokbot.com");
-    assert.equal(isRetentionTestEmail(seed.ADDON_TEST_SEED_FIRM_EMAIL), true);
-    assert.equal(exclusionFor({ emails: [seed.ADDON_TEST_SEED_FIRM_EMAIL], ds24: false, legacy: false, marker: true }), "test");
+    const { isRetentionTestEmail, exclusionFor } = await import("@/lib/retention-guards");
+    const { ampelExclusion } = await import("@/lib/ampel-retention-rules");
+    const emails = seed.ADDON_TEST_SEEDS.map((x) => x.email);
+    assert.deepEqual(emails, ["gobd-test+lu7@mail.grokbot.com", "gobd-test+lu7n@mail.grokbot.com"]);
+    for (const e of emails) {
+      assert.equal(isRetentionTestEmail(e), true, "TEST_ONLY lässt durch");
+      assert.equal(exclusionFor({ emails: [e], ds24: false, legacy: false, marker: true }), "test", "Löschlauf: Test");
+      assert.equal(ampelExclusion({ leadId: "ampel-x", status: "ampel_pdf", tool: "ampel", email: e }, null), "test", "Ampel-Löschlauf: Test");
+    }
     const other = { ...bought(25, "kunde@firma-muster.de"), accessUntil: "2026-11-10T00:00:00Z" };
     const existing = [bought(24, "gobd-test@mail.grokbot.com"), bought(23, "gobd-test+e7n@mail.grokbot.com"), other];
-    const plans: { email: string; [k: string]: unknown }[] = [];
+    const plans: Record<string, unknown>[] = [];
     const firms: { email: string; name: string }[] = [];
-    const io = (rows: typeof existing, ents: unknown[] = []) => ({
+    const io = (rows: typeof existing, ents: Record<string, unknown[]> = {}) => ({
       rows: async () => rows,
-      entities: async (email: string) => { assert.equal(email, seed.ADDON_TEST_SEED_FIRM_EMAIL); return ents as never; },
-      appendPlan: async (row: (typeof existing)[number]) => { plans.push(row); },
+      entities: async (email: string) => (ents[email] ?? []) as never,
+      appendPlan: async (row: unknown) => { plans.push(row as Record<string, unknown>); },
       createEntity: async (email: string, input: { name: string }) => { firms.push({ email, name: input.name }); },
     });
     const first = await seed.runAddonTestSeedFirm(io(existing));
-    assert.deepEqual(first, { controlCount: 1, created: { plan: true, entity: true }, skippedExisting: false, errors: 0 });
-    assert.equal(plans.length, 1);
-    assert.equal(firms.length, 1);
-    assert.deepEqual(firms[0], { email: "gobd-test+e7f@mail.grokbot.com", name: "Muster Test GmbH" });
-    const p = plans[0] as Record<string, unknown>;
-    assert.equal(p.email, "gobd-test+e7f@mail.grokbot.com");
-    assert.equal(p.plan, "single");
-    assert.equal(p.purchasedAt, "2026-10-07T07:00:00Z");
-    assert.equal(p.accessUntil, "2026-11-05T07:00:00Z");
-    assert.equal(p.retentionUntil, "2027-10-07T07:00:00Z");
-    assert.equal(p.pricingModel, "v3");
-    assert.equal(p.offerOptOutAt, "");
-    assert.equal(notice.addonNoticeDue(p as never, new Date("2026-10-31T07:00:00Z")), true);
-    // Bestand: Planzeile ODER Firma vorhanden -> kein Schreiben.
-    const again = await seed.runAddonTestSeedFirm(io([...existing, p as never]));
-    assert.equal(again.skippedExisting, true);
-    const firmOnly = await seed.runAddonTestSeedFirm(io(existing, [{ name: "x" }]));
-    assert.equal(firmOnly.skippedExisting, true);
-    assert.equal(plans.length, 1);
-    assert.equal(firms.length, 1);
+    assert.equal(first.controlCount, 1);
+    assert.equal(first.errors, 0);
+    assert.deepEqual(first.seeds, { lu7: { plan: true, entity: true, skippedExisting: false }, lu7n: { plan: true, entity: true, skippedExisting: false } });
+    assert.deepEqual(firms, emails.map((email) => ({ email, name: "Muster Test GmbH" })));
+    assert.equal(plans.length, 2);
+    const due = new Date("2026-11-01T07:00:00Z");
+    for (const [i, p] of plans.entries()) {
+      assert.equal(p.email, emails[i]);
+      assert.equal(p.plan, "single");
+      assert.equal(p.purchasedAt, "2026-10-08T07:00:00Z");
+      assert.equal(p.accessUntil, "2026-11-07T07:00:00Z");
+      assert.equal(p.retentionUntil, "2027-10-08T07:00:00Z");
+      assert.equal(p.pricingModel, "v3");
+      for (const [k, v] of Object.entries(p)) if (/stripe|ds24|session|member/i.test(k)) assert.ok(!v, `kein Kauf/Stripe/DS24: ${k}`);
+      assert.equal(notice.addonNoticeDue(p as never, due), true, "fällig 01.11. 07:00 UTC");
+      assert.equal(notice.addonNoticeDue(p as never, new Date("2026-10-31T06:59:00Z")), false, "nicht schon 31.10.");
+    }
+    assert.equal(plans[0].offerOptOutAt, "", "lu7: kein Widerspruch -> e-7");
+    assert.equal(plans[1].offerOptOutAt, "2026-10-31T12:00:00Z", "lu7n: Widerspruch -> e-7N");
+    // Neue Dedupe-Schlüssel (anderes purchasedAt als 30./31.10.).
+    assert.notEqual(notice.addonNoticeMailKey(plans[0] as never), notice.addonNoticeMailKey({ email: emails[0], purchasedAt: "2026-10-07T07:00:00Z" }));
+    // e-7 mit, e-7N ohne List-Unsubscribe im Versand.
+    process.env.PRICING_MODEL = "v3";
+    process.env.PLAN_ADDON_NOTICE_ENABLED = "true";
+    const sent: { to: string; headers?: Record<string, string> }[] = [];
+    await notice.runAddonNotice(due, { rows: async () => plans as never, send: async (m) => { sent.push(m); return { stub: true, sent: true }; }, company: async () => "Muster Test GmbH", optedOut: async () => false });
+    assert.equal(sent.length, 2);
+    assert.ok(sent[0].headers?.["List-Unsubscribe"], "lu7: e-7 mit Header");
+    assert.ok(!sent[1].headers, "lu7n: e-7N ohne Header");
+    delete process.env.PLAN_ADDON_NOTICE_ENABLED;
+    delete process.env.PRICING_MODEL;
+    // Bestand: Planzeile ODER Firma vorhanden -> kein Schreiben (idempotent).
+    const again = await seed.runAddonTestSeedFirm(io([...existing, ...(plans as never[])]));
+    assert.ok(again.seeds.lu7.skippedExisting && again.seeds.lu7n.skippedExisting);
+    const firmOnly = await seed.runAddonTestSeedFirm(io(existing, { [emails[0]]: [{ name: "x" }], [emails[1]]: [{ name: "x" }] }));
+    assert.ok(firmOnly.seeds.lu7.skippedExisting && firmOnly.seeds.lu7n.skippedExisting);
+    assert.equal(plans.length, 2);
+    assert.equal(firms.length, 2);
     assert.ok(!JSON.stringify(first).includes("@"), "Ergebnis ohne Adressen");
     await assert.rejects(seed.runAddonTestSeedFirm({ ...io(existing), rows: async () => { throw new Error("sheets down"); } }));
-    const mail = notice.addonNoticeMail({ company: "Muster Test GmbH", accessUntil: "2026-11-05T07:00:00Z", purchasedAt: "2026-10-07T07:00:00Z", siteUrl: "https://x.test" });
-    assert.ok(mail.subject.includes("Muster Test GmbH"), "Betreff");
-    assert.ok(mail.text.includes("Muster Test GmbH"), "Text");
   });
 
   console.log(`check-addon-notice: ok (${passed} checks)`);
