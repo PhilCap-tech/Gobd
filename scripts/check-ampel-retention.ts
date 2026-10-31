@@ -194,7 +194,8 @@ async function main() {
     assert.ok(paths.includes(p), p);
   }
   const altdaten = (vercel.crons as { path: string; schedule: string }[]).filter((cron) => cron.path === "/api/cron/ampel-altdaten");
-  assert.deepEqual(altdaten.map((cron) => cron.schedule), ["50 3 31 10 *"], "Altdaten: genau ein einmaliger Termin, nicht täglich");
+  // Einmaliger Altdaten-Lauf 31.10. erledigt (CoS 31.10.): kein Cron mehr, Route bleibt (nur manuell mit CRON_SECRET).
+  assert.deepEqual(altdaten, [], "Altdaten: kein Cron mehr");
 
   // Einwilligungsversion: 2026-10-30 nur im Bericht-Ablauf.
   assert.equal(ampelConsentTextVersion("bericht"), "2026-10-30");
