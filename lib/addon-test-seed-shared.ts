@@ -13,14 +13,16 @@ const BASE = {
   pricingModel: "v3",
 } as const;
 
-export function seedRow(email: string, offerOptOutAt: string): PlanRow {
+export type SeedDates = { purchasedAt: string; accessUntil: string; retentionUntil: string };
+
+export function seedRow(email: string, offerOptOutAt: string, dates: SeedDates = BASE): PlanRow {
   const row = coercePlanRow({ email, plan: BASE.plan });
   if (!row) throw new Error("seed row invalid");
   return {
     ...row,
-    purchasedAt: BASE.purchasedAt,
-    accessUntil: BASE.accessUntil,
-    retentionUntil: BASE.retentionUntil,
+    purchasedAt: dates.purchasedAt,
+    accessUntil: dates.accessUntil,
+    retentionUntil: dates.retentionUntil,
     pricingModel: BASE.pricingModel,
     offerOptOutAt,
   };
