@@ -123,6 +123,7 @@ Das hängt davon ab, ob Sie nur eine Arbeitskopie erzeugen oder ersetzend scanne
 - [Verfahrensdokumentation Muster: Ausgangsrechnungen](/blog/verfahrensdokumentation-muster-ausgangsrechnungen) — Ausstellung und Korrekturen, nicht der Eingang
 - [Ersetzendes Scannen in der Verfahrensdokumentation](/blog/ersetzendes-scannen-verfahrensdokumentation) — wenn Papier nach dem Scan vernichtet wird
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — Abgleich, bevor der Entwurf als fertig gilt
+- [Verfahrensdokumentation Checkliste: E-Mail-Postfach und Portalrechnungen](/blog/verfahrensdokumentation-checkliste-e-mail-portalrechnungen) — Eingang per E-Mail und Download aus Portalen festhalten
 
 ## Disclaimer
 
