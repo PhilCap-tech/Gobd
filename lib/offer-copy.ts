@@ -92,6 +92,11 @@ export const ACCOUNT_PAID_CTA_LABEL = V2
   ? `Starten für ${V2_ENTRY_LABEL} € einmalig, zzgl. USt. Jahrespaket optional (${V2_MEMBER_YEAR_LABEL} €/Jahr).`
   : LEGACY_ACCOUNT_PAID_CTA_LABEL;
 export const CTA_MUSTER = "Muster-Dokument ansehen";
+/** Einheitliche CTA-Namen (Philip 02.11.2026) für / und /steuerberater. */
+export const CTA_START = "Fragebogen kostenlos starten";
+export const CTA_START_MICRO = `${V2_ENTRY_LABEL} € zzgl. USt erst vor der PDF-Erstellung.`;
+export const CTA_SAMPLE = "Muster ansehen";
+export const CTA_DEMO = "Fragebogen testen";
 export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
 
 /** FAQ section „14 Tage Zufriedenheitsgarantie“. */

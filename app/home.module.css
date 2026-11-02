@@ -1433,3 +1433,152 @@
     width: 80px;
   }
 }
+
+/* Phase 2 (Philip 02.11.2026) */
+.startMicro {
+  margin: 10px auto 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--forest);
+}
+
+.d2Card .startMicro,
+.final .startMicro {
+  margin-left: 0;
+}
+
+.moreExamples {
+  margin-top: 4px;
+}
+
+.moreExamples > summary {
+  display: inline-block;
+  padding: 8px 0;
+  color: var(--brass);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.moreExamples > .cardList {
+  margin-top: 0;
+}
+
+.d2Compare {
+  flex: 1;
+  width: 100%;
+  margin: 18px 0 12px;
+}
+
+.d2Compare > div {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 4px 14px;
+  padding: 10px 0;
+  border-top: var(--card-border);
+}
+
+.d2Compare dt {
+  font-weight: 700;
+  color: var(--forest);
+}
+
+.d2Compare dd {
+  margin: 0;
+}
+
+.d2Terms {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.d2Diff > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.d2Diff > summary::-webkit-details-marker {
+  display: none;
+}
+
+.d2Diff > summary :global(h3) {
+  display: inline;
+  margin: 0;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.d2Diff[open] > summary {
+  margin-bottom: 12px;
+}
+
+.page .ampelBlock {
+  margin-top: 0;
+  padding: var(--card-padding);
+  border: var(--card-border);
+  border-top: 4px solid var(--forest);
+}
+
+.ampelBlock :global(h3) {
+  margin-top: 4px;
+}
+
+.betriebsCheck {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: var(--card-border);
+}
+
+.reviewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.reviewGrid .cardLink + .cardLink {
+  margin-top: 0;
+  padding-top: 8px;
+}
+
+.scopeBox {
+  margin-top: 24px;
+  padding: 18px 22px;
+  background: #fff;
+  border: var(--card-border);
+  border-left: 4px solid var(--brass);
+  border-radius: var(--card-radius);
+  font-size: 14px;
+}
+
+.page .scopeBox :global(h3) {
+  margin: 0 0 8px;
+  font-family: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.scopeBox p {
+  margin: 0;
+}
+
+.page .inquiry {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  max-width: calc(960px + 2 * var(--gutter));
+}
+
+@media (max-width: 860px) {
+  .reviewGrid,
+  .page .inquiry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .d2Compare > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}

@@ -15,8 +15,11 @@ import {
   CTA_CHECK,
   CTA_CREATE,
   CTA_CREATE_WITH_PRICE,
-  CTA_MUSTER,
+  CTA_DEMO,
   CTA_MUSTER_HERO,
+  CTA_SAMPLE,
+  CTA_START,
+  CTA_START_MICRO,
   GELD_ZURUECK_HREF,
   GELD_ZURUECK_MICRO,
   HERO_FACTS_LINE,
@@ -65,6 +68,44 @@ const HOME_AREAS_DETAIL = V2
       "jede weitere Firma buchen Sie gesondert zum vollen Preis",
     )
   : ALL_AREAS_DETAIL;
+const COMPARE_POINTS = ["PDF", "Zugangsdauer", "Änderungen", "Versionen", "Einladungen"] as const;
+type ComparePoint = (typeof COMPARE_POINTS)[number];
+/** Inhalte aus dem bisherigen Kartentext und „Was ist der Unterschied?“ (Stand 02.11.2026). */
+const PRICE_CARDS: {
+  tag: string;
+  price: string;
+  small: string;
+  points: Record<ComparePoint, string>;
+  terms: string;
+}[] = [
+  {
+    tag: "Einmalig",
+    price: "99 €",
+    small: "einmalig je Firma · zzgl. USt (117,81 € brutto)",
+    points: {
+      PDF: "Ihre Verfahrensdokumentation als PDF mit Liste offener Punkte",
+      Zugangsdauer: "30 Tage Dashboard. Danach ist der Zugang gesperrt, auch der PDF-Download.",
+      Änderungen: "Angaben anpassen, in den 30 Tagen",
+      Versionen: "PDF neu erstellen, in den 30 Tagen",
+      Einladungen: "Personen einladen, in den 30 Tagen",
+    },
+    terms: "Keine Abo-Pflicht",
+  },
+  {
+    tag: "Dauerhaft",
+    price: "99 € + 49 €/Jahr",
+    small: "je Firma · zzgl. USt (im ersten Jahr 148 €, brutto 176,12 €)",
+    points: {
+      PDF: "Dieselbe Verfahrensdokumentation als PDF mit Liste offener Punkte",
+      Zugangsdauer: "Zugang zu Dashboard und PDFs, solange das Jahrespaket läuft",
+      Änderungen: "Änderungen jederzeit einpflegen und neue Version erstellen",
+      Versionen:
+        "Lückenlose Dokumentation aller Änderungen und Anpassungen Ihrer Verfahrensdokumentation, jede Version mit Datum",
+      Einladungen: "Personen jederzeit einladen",
+    },
+    terms: "Verlängert sich jährlich, kündbar laut AGB",
+  },
+];
 const V2_HEADLINE = `${V2_ENTRY_LABEL} € einmalig · Jahrespaket optional ${V2_MEMBER_YEAR_LABEL} €/Jahr`;
 import { HOME_CRUMBS, HOME_FAQ } from "@/lib/home-faq";
 import { faqPageJsonLd, productOfferJsonLd } from "@/lib/jsonld";
@@ -109,6 +150,10 @@ const HERO_MICRO =
   "Selbsteinschätzung auf Basis Ihrer Angaben · Ergebnis mit Quellen, zusätzlich als PDF per E-Mail · Keine Steuer- oder Rechtsberatung.";
 const HERO_DISCLAIMER =
   "Der Ampel-Check ist eine Selbsteinschätzung zur Orientierung. Er ersetzt keine Steuer- oder Rechtsberatung und bestätigt nicht, dass Ihre Buchführung ordnungsgemäß ist.";
+
+/** Neu (Philip 02.11.): Betriebs-Check als erster Schritt des Fragebogens; zweiter Satz aus #bereiche. */
+const BETRIEBS_CHECK_NOTE =
+  "Der Betriebs-Check ist kein eigener Test, sondern der erste Schritt des Fragebogens. Er ermittelt zu Beginn, welche Module bei Ihnen vorkommen.";
 
 const MUSTER_STRUCTURE = [
   "Dokumentenlenkung",
@@ -186,6 +231,34 @@ function excerptSections(markdown: string): { title: string; sections: { heading
   };
 }
 
+/** Musterkarten (Philip 02.11.): 2–3 Beispiele sichtbar, der Rest per <details>, bleibt im HTML. */
+const EXAMPLES_VISIBLE = 2;
+
+function ExampleList({ items, ordered = false }: { items: readonly string[]; ordered?: boolean }) {
+  const visible = items.slice(0, EXAMPLES_VISIBLE);
+  const rest = items.slice(EXAMPLES_VISIBLE);
+  const List = ordered ? "ol" : "ul";
+  return (
+    <>
+      <List className={styles.cardList}>
+        {visible.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </List>
+      {rest.length > 0 ? (
+        <details className={styles.moreExamples}>
+          <summary>Beispiel ansehen</summary>
+          <List className={styles.cardList} {...(ordered ? { start: EXAMPLES_VISIBLE + 1 } : {})}>
+            {rest.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </List>
+        </details>
+      ) : null}
+    </>
+  );
+}
+
 function modulAnzahl(count: number): string {
   return count === 1 ? "1 Modul" : `${count} Module`;
 }
@@ -218,7 +291,7 @@ export default function HomePage() {
       <JsonLd data={productOfferJsonLd()} />
       <SiteHeader
         ctaHref="/checkout"
-        ctaLabel={CTA_CREATE}
+        ctaLabel={V2 ? CTA_START : CTA_CREATE}
         links={[
           { href: "#muster", label: "Muster" },
           { href: "#bereiche", label: "Module" },
@@ -246,12 +319,13 @@ export default function HomePage() {
           <div className={`shell ${styles.heroInner}`}>
             <div className={styles.ctas}>
               <CampaignLink className="btn" cta="hero_checkout" href="/checkout">
-                Kostenlos anmelden und starten
+                {CTA_START}
               </CampaignLink>
               <HomeCtaLink className={`btn ${styles.btnSec}`} cta="hero_muster" href="#muster">
-                Muster ansehen
+                {CTA_SAMPLE}
               </HomeCtaLink>
             </div>
+            <p className={styles.startMicro}>{CTA_START_MICRO}</p>
             <p className={styles.micro}>{D2_HERO_MICRO}</p>
             <p className={styles.advisor}>
               Steuerberater oder Kanzlei?{" "}
@@ -327,13 +401,9 @@ export default function HomePage() {
                   Ausschnitt einer Verfahrensdokumentation als PDF — Struktur,
                   Abschnitte, Versionierungshinweis.
                 </p>
-                <ol className={styles.cardList}>
-                  {MUSTER_STRUCTURE.map((title) => (
-                    <li key={title}>{title}</li>
-                  ))}
-                </ol>
+                <ExampleList items={MUSTER_STRUCTURE} ordered />
                 <a className={styles.cardLink} href={PARTNER_MUSTER_PDF_PATH}>
-                  Muster-PDF öffnen
+                  {CTA_SAMPLE}
                 </a>
               </article>
 
@@ -343,13 +413,9 @@ export default function HomePage() {
                   Typische geführte Fragen zu Belegwegen, Systemen und
                   Verantwortlichen. Die Demo speichert keine Eingaben.
                 </p>
-                <ul className={styles.cardList}>
-                  {questions.map((prompt) => (
-                    <li key={prompt}>{prompt}</li>
-                  ))}
-                </ul>
+                <ExampleList items={questions} />
                 <Link className={styles.cardLink} href={PARTNER_DEMO_PATH}>
-                  Beispielfragen ansehen
+                  {CTA_DEMO}
                 </Link>
               </article>
 
@@ -359,13 +425,9 @@ export default function HomePage() {
                   So können Hinweise nach dem Durchlauf aussehen — was Sie noch
                   prüfen oder ergänzen sollten.
                 </p>
-                <ol className={styles.cardList}>
-                  {EXAMPLE_OPEN_POINTS.map((point) => (
-                    <li key={point}>{point}</li>
-                  ))}
-                </ol>
+                <ExampleList items={EXAMPLE_OPEN_POINTS} ordered />
                 <Link className={styles.cardLink} href={`${PARTNER_MUSTER_PATH}#offene-punkte`}>
-                  Beispiel öffnen
+                  {CTA_SAMPLE}
                 </Link>
               </article>
             </div>
@@ -535,44 +597,33 @@ export default function HomePage() {
               <strong>Sie müssen sich jetzt nicht entscheiden:</strong> Die Wahl treffen Sie erst nach der
               letzten Frage, direkt vor der Erstellung. Keine Abo-Pflicht.
             </p>
+            {/* Gleiche Vergleichspunkte in derselben Reihenfolge (Philip 02.11.); nur Fakten, die schon auf der Seite stehen. */}
             <div className={styles.d2Grid}>
-              <article className={styles.d2Card}>
-                <p className={styles.d2Tag}>Einmalig</p>
-                <p className={styles.d2Price}>99 €</p>
-                <p className={styles.d2Small}>einmalig je Firma · zzgl. USt (117,81 € brutto)</p>
-                <ul>
-                  <li>Ihre Verfahrensdokumentation als PDF mit Liste offener Punkte</li>
-                  <li>30 Tage Dashboard: Angaben anpassen, PDF neu erstellen, Personen einladen</li>
-                  <li>Keine Abo-Pflicht</li>
-                </ul>
-                <CampaignLink className="btn" cta="price_checkout" href="/checkout">
-                  Einmalig starten
-                </CampaignLink>
-              </article>
-              <article className={styles.d2Card}>
-                <p className={styles.d2Tag}>Dauerhaft</p>
-                <p className={styles.d2Price}>99 € + 49 €/Jahr</p>
-                <p className={styles.d2Small}>je Firma · zzgl. USt (im ersten Jahr 148 €, brutto 176,12 €)</p>
-                <ul>
-                  <li>
-                    <strong>
-                      Lückenlose Dokumentation aller Änderungen und Anpassungen Ihrer
-                      Verfahrensdokumentation, jede Version mit Datum
-                    </strong>
-                  </li>
-                  <li>Alles aus „Einmalig“</li>
-                  <li>Zugang zu Dashboard und PDFs, solange das Jahrespaket läuft</li>
-                  <li>Änderungen jederzeit einpflegen und neue Version erstellen</li>
-                  <li>Personen jederzeit einladen</li>
-                  <li>Verlängert sich jährlich, kündbar laut AGB</li>
-                </ul>
-                <CampaignLink className="btn" cta="price_checkout" href="/checkout">
-                  Dauerhaft starten
-                </CampaignLink>
-              </article>
+              {PRICE_CARDS.map((card) => (
+                <article className={styles.d2Card} key={card.tag}>
+                  <p className={styles.d2Tag}>{card.tag}</p>
+                  <p className={styles.d2Price}>{card.price}</p>
+                  <p className={styles.d2Small}>{card.small}</p>
+                  <dl className={styles.d2Compare}>
+                    {COMPARE_POINTS.map((point) => (
+                      <div key={point}>
+                        <dt>{point}</dt>
+                        <dd>{card.points[point]}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className={styles.d2Terms}>{card.terms}</p>
+                  <CampaignLink className="btn" cta="price_checkout" href="/checkout">
+                    {CTA_START}
+                  </CampaignLink>
+                  <p className={styles.startMicro}>{CTA_START_MICRO}</p>
+                </article>
+              ))}
             </div>
-            <div className={styles.d2Diff}>
-              <h3>Was ist der Unterschied?</h3>
+            <details className={styles.d2Diff}>
+              <summary>
+                <h3>Was ist der Unterschied?</h3>
+              </summary>
               <p>
                 Beide Pakete liefern dieselbe Verfahrensdokumentation als PDF mit allen für Sie relevanten
                 Modulen. Der Unterschied ist, wie lange Sie danach Zugriff haben.
@@ -595,7 +646,7 @@ export default function HomePage() {
                 und Sie das PDF selbst ablegen. „Dauerhaft“ lohnt sich, wenn sich Software, Belegwege oder
                 Zuständigkeiten in Ihrem Betrieb öfter ändern.
               </p>
-            </div>
+            </details>
             <p className={styles.d2Foot}>{D2_FOOT}</p>
           </div>
         </section>
@@ -653,7 +704,7 @@ export default function HomePage() {
                   <p className={styles.fine}>{PRICE_CTA_SUFFIX}</p>
                 </div>
                 <Link className={styles.textLink} href="#muster">
-                  {CTA_MUSTER}
+                  {CTA_SAMPLE}
                 </Link>
               </div>
               <p className={styles.fine}>
@@ -683,15 +734,24 @@ export default function HomePage() {
 
         <section className={`${styles.section} ${styles.alt}`} id="check">
           <div className={`shell ${styles.split}`}>
-            <div>
+            {/* Ampel-Check als der öffentliche Orientierungscheck hervorgehoben (Philip 02.11.). */}
+            <div className={`${styles.uCard} ${styles.ampelBlock}`}>
               <h2>Noch unsicher, ob Sie starten wollen?</h2>
+              <h3>{AMPEL_LABEL}</h3>
+              <p className={styles.prose}>{AMPEL_INTRO}</p>
+              <p className={styles.fine}>{HERO_DISCLAIMER}</p>
+              <div className={styles.ctas}>
+                <CampaignLink className="btn" cta="unsure_ampel" href={AMPEL_HREF}>
+                  {AMPEL_LABEL}
+                </CampaignLink>
+              </div>
+            </div>
+            <div>
               <p className={styles.prose}>
                 Machen Sie den kostenlosen 3-Minuten-Check. Sie sehen, welche Themen
                 Ihre Dokumentation typischerweise abdecken sollte — und wo bei Ihnen
                 noch Klärungsbedarf liegen kann. Kein Kaufzwang.
               </p>
-            </div>
-            <div>
               <p className={styles.prose}>
                 Was Sie erhalten: kurze Einschätzung zu relevanten Themenfeldern und
                 ein Hinweis auf nächste Schritte (Muster ansehen oder Dokumentation
@@ -699,20 +759,11 @@ export default function HomePage() {
               </p>
               <p className={styles.fine}>{READINESS_EFFORT_NOTE}</p>
               <div className={styles.ctas}>
-                <HomeCtaLink className="btn" cta="unsure_readiness" href="/readiness">
+                <HomeCtaLink className={`btn ${styles.btnSec}`} cta="unsure_readiness" href="/readiness">
                   {CTA_CHECK}
                 </HomeCtaLink>
               </div>
-              <div className={styles.ampelBlock}>
-                <h3>{AMPEL_LABEL}</h3>
-                <p className={styles.prose}>{AMPEL_INTRO}</p>
-                <p className={styles.fine}>{HERO_DISCLAIMER}</p>
-                <div className={styles.ctas}>
-                  <CampaignLink className={`btn ${styles.btnSec}`} cta="unsure_ampel" href={AMPEL_HREF}>
-                    {AMPEL_LABEL}
-                  </CampaignLink>
-                </div>
-              </div>
+              <p className={`${styles.fine} ${styles.betriebsCheck}`}>{BETRIEBS_CHECK_NOTE}</p>
             </div>
           </div>
         </section>
@@ -748,15 +799,15 @@ export default function HomePage() {
             <div className={styles.ctas}>
               <div className={styles.priceCta}>
                 <CampaignLink className={`btn ${styles.btnOnDark}`} cta="final_checkout" href="/checkout">
-                  {CTA_CREATE_WITH_PRICE}
+                  {V2 ? CTA_START : CTA_CREATE_WITH_PRICE}
                 </CampaignLink>
-                <p className={styles.fine}>{PRICE_AFTER_MICRO}</p>
+                <p className={styles.fine}>{V2 ? CTA_START_MICRO : PRICE_AFTER_MICRO}</p>
               </div>
               <CampaignLink className={`btn ${styles.btnSecOnDark}`} cta="final_ampel" href={AMPEL_HREF}>
                 {AMPEL_LABEL}
               </CampaignLink>
               <Link className={styles.textLink} href="#muster">
-                {CTA_MUSTER}
+                {CTA_SAMPLE}
               </Link>
               <Link className={styles.textLink} href="/readiness">
                 {CTA_CHECK}
@@ -767,7 +818,7 @@ export default function HomePage() {
       </main>
       <div className="sticky-cta">
         <CampaignLink className="btn" cta="sticky_checkout" href="/checkout">
-          {CTA_CREATE}
+          {V2 ? CTA_START : CTA_CREATE}
         </CampaignLink>
       </div>
       <SiteFooter />

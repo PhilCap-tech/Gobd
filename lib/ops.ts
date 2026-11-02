@@ -873,7 +873,7 @@ export function buildPartnerInquiryMail(
     `Name: ${input.name}`,
     `Kanzlei: ${input.kanzlei}`,
     `E-Mail: ${input.email}`,
-    `Grobe Mandanten-Zahl: ${input.mandantenZahl}`,
+    `Grobe Mandanten-Zahl: ${input.mandantenZahl || "keine Angabe"}`,
     "",
     "Nachricht:",
     input.message,
@@ -884,7 +884,7 @@ export function buildPartnerInquiryMail(
       <strong>Name:</strong> ${escapeHtml(input.name)}<br />
       <strong>Kanzlei:</strong> ${escapeHtml(input.kanzlei)}<br />
       <strong>E-Mail:</strong> <a href="mailto:${escapeAttr(input.email)}">${escapeHtml(input.email)}</a><br />
-      <strong>Grobe Mandanten-Zahl:</strong> ${escapeHtml(input.mandantenZahl)}
+      <strong>Grobe Mandanten-Zahl:</strong> ${escapeHtml(input.mandantenZahl || "keine Angabe")}
     </p>
     <p><strong>Nachricht:</strong><br />${escapeHtml(input.message).replaceAll("\n", "<br />")}</p>
   `);
