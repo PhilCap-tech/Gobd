@@ -89,15 +89,29 @@ export function MerkblattForm() {
     }
   }
 
+  // Layout (Philip 02.11.): links Merkblattvorschau mit drei Nutzenpunkten,
+  // rechts ein kompaktes Downloadformular. Texte unverändert aus kanzlei-copy.
   return (
-    <div>
-      <h2>{KANZLEI_FORM_TITLE}</h2>
-      <p className={styles.sub}>{KANZLEI_FORM_LEAD}</p>
-      <ul className={styles.cardList}>
-        {KANZLEI_FORM_BENEFITS.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
+    <div className={styles.mbGrid}>
+      <div className={`${styles.uCard} ${styles.mbPreview}`}>
+        <div className={styles.mbPaper} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className={styles.mbPreviewText}>
+          <h2>{KANZLEI_FORM_TITLE}</h2>
+          <p className={styles.sub}>{KANZLEI_FORM_LEAD}</p>
+          <ul className={styles.checks} role="list">
+            {KANZLEI_FORM_BENEFITS.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div className={`${styles.uCard} ${styles.mbFormCard}`}>
       {done ? (
         <p className={styles.prose} role="status">
           <strong>{KANZLEI_SUCCESS_TITLE}</strong>
@@ -116,7 +130,7 @@ export function MerkblattForm() {
           ) : null}
         </p>
       ) : (
-        <form noValidate onSubmit={onSubmit}>
+        <form className={styles.mbForm} noValidate onSubmit={onSubmit}>
           <div className="ampel-honeypot" aria-hidden="true">
             <label htmlFor="merkblatt-fax">Fax</label>
             <input
@@ -141,9 +155,10 @@ export function MerkblattForm() {
               autoComplete="email"
               placeholder="name@kanzlei.de"
               value={email}
+              aria-describedby="merkblatt-email-hint"
               onChange={(event) => setEmail(event.target.value)}
             />
-            <p className="hint">
+            <p className={`hint ${styles.mbHint}`} id="merkblatt-email-hint">
               <EmailHint />
             </p>
             {error ? (
@@ -152,7 +167,7 @@ export function MerkblattForm() {
               </p>
             ) : null}
           </div>
-          <label className={styles.prose} htmlFor="merkblatt-optin">
+          <label className={styles.mbOptin} htmlFor="merkblatt-optin">
             <input
               id="merkblatt-optin"
               name="optin"
@@ -161,26 +176,29 @@ export function MerkblattForm() {
               data-consent-version={KANZLEI_CONSENT_TEXT_VERSION}
               checked={optin}
               onChange={(event) => setOptin(event.target.checked)}
-            />{" "}
-            {KANZLEI_OPT_IN}
+            />
+            <span>{KANZLEI_OPT_IN}</span>
           </label>
           <div className="actions">
             <button className="btn" type="submit" disabled={pending}>
               {KANZLEI_SUBMIT_LABEL}
             </button>
           </div>
-          <p className="hint">
+          <p className={`hint ${styles.mbHint}`}>
             Hinweise zur Verarbeitung Ihrer Daten, einschließlich Ihres Widerspruchsrechts, finden Sie in unserer{" "}
             <Link href="/datenschutz#kanzlei-merkblatt">Datenschutzerklärung</Link>.
           </p>
         </form>
       )}
-      <p className={styles.fine}>
-        {KANZLEI_DISCLAIMER}
-        <br />
-        {LEGAL_OPERATOR.name} · {LEGAL_OPERATOR.street} · {LEGAL_OPERATOR.zipCity} ·{" "}
-        <Link href="/impressum">Impressum</Link>
-      </p>
+      <div className={styles.mbLegal}>
+        <p className={styles.fine}>
+          {KANZLEI_DISCLAIMER}
+          <br />
+          {LEGAL_OPERATOR.name} · {LEGAL_OPERATOR.street} · {LEGAL_OPERATOR.zipCity} ·{" "}
+          <Link href="/impressum">Impressum</Link>
+        </p>
+      </div>
+      </div>
     </div>
   );
 }
