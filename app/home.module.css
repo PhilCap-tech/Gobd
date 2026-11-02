@@ -17,6 +17,19 @@
   --line: #e3dccd;
   --muted: #3c4448;
   --on-dark: #f3e2bc;
+  /* Gemeinsames Gestaltungsraster (Philip 02.11.) für / und /steuerberater. */
+  --layout-content: 1120px;
+  --layout-text: 720px;
+  --space-section: clamp(64px, 8vw, 80px);
+  --space-paragraph: 14px;
+  --space-heading: 22px;
+  --card-padding: 28px;
+  --card-radius: 10px;
+  --card-border: 1px solid var(--line);
+  --btn-height: 48px;
+  --btn-radius: 6px;
+  --btn-font-size: 15px;
+  --shell: calc(var(--layout-content) + 2 * var(--gutter));
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-inter), "Segoe UI", system-ui, sans-serif;
@@ -1069,5 +1082,354 @@
 
   .d2Price {
     font-size: 32px;
+  }
+}
+
+/*
+ * Gemeinsames Gestaltungsraster, Phase 1 (Philip 02.11.2026).
+ * Tokens stehen oben in .page; diese Regeln setzen sie auf beiden Seiten um.
+ */
+
+/* Abschnitte: 64–80 px; bei gleichem Hintergrund kein doppelter Abstand. */
+.section {
+  padding: var(--space-section) 0;
+}
+
+.final {
+  padding: var(--space-section) 0;
+}
+
+.section:not(.alt):not(.d2Prices) + .section:not(.alt):not(.d2Prices),
+.alt + .alt,
+.alt + .d2Prices,
+.d2Prices + .alt {
+  padding-top: 0;
+}
+
+.page :global(h2) {
+  margin-bottom: var(--space-heading);
+}
+
+.page :global(h3) {
+  margin-bottom: calc(var(--space-heading) * 0.55);
+}
+
+/* Fließtext auf etwa 65–75 Zeichen begrenzen. */
+.prose,
+.fine,
+.note,
+.intro p,
+.d2Intro,
+.d2Foot,
+.lead,
+.micro {
+  max-width: var(--layout-text);
+}
+
+.lead,
+.micro {
+  margin-inline: auto;
+}
+
+.prose,
+.card p {
+  margin-bottom: var(--space-paragraph);
+}
+
+/* Karten: einheitlicher Innenabstand, Radius und Rahmen. */
+.card,
+.uCard,
+.d2Card,
+.d2Diff,
+.excerpt,
+.priceBox,
+.d2Step {
+  border-radius: var(--card-radius);
+}
+
+.card,
+.uCard,
+.d2Card,
+.d2Diff,
+.excerpt {
+  padding: var(--card-padding);
+  border: var(--card-border);
+}
+
+.uCard {
+  min-width: 0;
+  background: #fff;
+}
+
+/* Buttons: gleiche Höhe, Rundung, Schrift. Grün = Hauptaktion, Umrandung = zweite Aktion. */
+.page main :global(a.btn),
+.page main :global(button.btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--btn-height);
+  padding: 10px 22px;
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font-size);
+  font-weight: 600;
+}
+
+/* Drei Listenvarianten: Schritte (Nummern), Vorteile (Häkchen), sonst Punkte. */
+.steps li {
+  padding-bottom: 16px;
+}
+
+.bullets {
+  margin: 0 0 var(--space-paragraph);
+  padding-left: 20px;
+  list-style: disc;
+}
+
+.bullets li {
+  margin: 6px 0;
+}
+
+.d2Card ul,
+.d2Diff ul {
+  list-style: disc;
+}
+
+/* 24 Module: vier aufklappbare Gruppen untereinander. */
+.modGroups {
+  display: grid;
+  gap: 12px;
+  max-width: var(--layout-content);
+}
+
+.modGroup {
+  background: #fff;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+}
+
+.modGroup > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  padding: 20px var(--card-padding);
+  cursor: pointer;
+  list-style: none;
+}
+
+.modGroup > summary::-webkit-details-marker {
+  display: none;
+}
+
+.modGroup > summary::marker {
+  content: "";
+}
+
+.modGroup > summary::after {
+  content: "";
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-right: 2px solid var(--forest);
+  border-bottom: 2px solid var(--forest);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.modGroup[open] > summary::after {
+  transform: rotate(-135deg);
+}
+
+.modGroupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.page .modGroupHead :global(h3) {
+  margin: 0;
+}
+
+.modGroupHead small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.modGroupKurz {
+  grid-column: 1;
+  max-width: var(--layout-text);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.modGroup .mods {
+  padding: 0 var(--card-padding) 12px;
+}
+
+.modGroup .mods li:first-child {
+  border-top: var(--card-border);
+}
+
+/* /steuerberater Merkblatt: links Vorschau, rechts kompaktes Formular. */
+.mbGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.mbPreview {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  background: var(--paper-alt);
+}
+
+.page .mbPreview :global(h2) {
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+}
+
+.mbPreview .sub {
+  margin: 0 0 16px;
+}
+
+.mbPaper {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 104px;
+  aspect-ratio: 1 / 1.414;
+  padding: 16px 12px;
+  background: #fff;
+  border: var(--card-border);
+  border-top: 6px solid var(--forest);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(29, 58, 52, 0.12);
+}
+
+.mbPaper span {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+.mbPaper span:first-child {
+  width: 70%;
+  height: 8px;
+  background: var(--forest);
+  opacity: 0.6;
+}
+
+.mbPaper span:nth-child(3) {
+  width: 85%;
+}
+
+.mbPaper span:last-child {
+  width: 55%;
+}
+
+.mbPreviewText {
+  min-width: 0;
+}
+
+.mbFormCard {
+  display: flex;
+  flex-direction: column;
+}
+
+.mbForm :global(.field) {
+  margin-bottom: 14px;
+}
+
+.mbForm :global(.actions) {
+  margin: 16px 0 12px;
+}
+
+.mbForm :global(.btn) {
+  width: 100%;
+}
+
+.mbHint {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.mbHint a,
+.mbOptin a {
+  color: var(--brass);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.mbOptin {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.mbOptin input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+}
+
+.mbLegal {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: var(--card-border);
+}
+
+.mbLegal .fine {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+@media (max-width: 860px) {
+  .page {
+    --card-padding: 24px;
+  }
+
+  .mbGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card,
+  .uCard,
+  .d2Card,
+  .d2Diff {
+    padding: var(--card-padding) 20px;
+  }
+
+  .modGroup > summary {
+    padding: 18px 20px;
+  }
+
+  .modGroup .mods {
+    padding: 0 20px 8px;
+  }
+}
+
+@media (max-width: 520px) {
+  .mbPreview {
+    flex-direction: column;
+  }
+
+  .mbPaper {
+    width: 80px;
   }
 }

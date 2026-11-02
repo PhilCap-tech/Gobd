@@ -2017,7 +2017,7 @@ code {
     bottom: 0;
     background: var(--surface);
     border-top: 1px solid var(--line);
-    padding: 10px 16px 12px;
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
   .sticky-cta .btn {
@@ -2037,12 +2037,27 @@ code {
     margin-top: 8px;
   }
 
-  body {
-    padding-bottom: 84px;
+  /*
+   * Platz für die feste Leiste (ca. 73 px + Safe Area), nur wenn sie angezeigt
+   * wird: Leisten dürfen keine Buttons oder Links verdecken (Philip).
+   */
+  html:has(body .sticky-cta) {
+    --sticky-cta-space: calc(84px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: var(--sticky-cta-space);
   }
 
-  body:has(.sticky-cta.tall) {
-    padding-bottom: 220px;
+  html:has(body .sticky-cta.tall) {
+    --sticky-cta-space: calc(220px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(.sticky-cta) {
+    padding-bottom: var(--sticky-cta-space);
+  }
+
+  /* Anker und Formular-Buttons landen nicht unter der Leiste. */
+  body:has(.sticky-cta) main [id],
+  body:has(.sticky-cta) main button[type="submit"] {
+    scroll-margin-bottom: var(--sticky-cta-space);
   }
 
   /*

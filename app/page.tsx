@@ -75,7 +75,7 @@ import {
   HOME_TWITTER,
   canonicalUrl,
 } from "@/lib/seo";
-import { TEIL_TITEL, moduleImTeil } from "@/lib/module/katalog";
+import { TEIL_KURZ, TEIL_TITEL, moduleImTeil } from "@/lib/module/katalog";
 import type { ModulTeil } from "@/lib/module/typen";
 import {
   PARTNER_DEMO_PATH,
@@ -316,14 +316,6 @@ export default function HomePage() {
         </section>
         )}
 
-        <p className={`shell ${styles.heroDisclaimer}`}>{HERO_DISCLAIMER}</p>
-
-        <p className={`shell ${styles.factBar}`}>
-          {V2
-            ? "24 Module · Ampel-Check in ~2 Min · Muster-PDF ohne Anmeldung"
-            : "24 Module · bis zu 5 Firmen · Ampel-Check in ~2 Min · Muster-PDF ohne Anmeldung"}
-        </p>
-
         <section className={styles.section} id="muster">
           <div className="shell">
             <h2>So sieht das Ergebnis aus</h2>
@@ -398,14 +390,19 @@ export default function HomePage() {
                 bestehende Dokumentation abgedeckt oder haben den Status „Später ausfüllen“.
               </p>
             </div>
-            <div className={styles.modgrid}>
+            {/* Vier aufklappbare Gruppen (Philip 02.11.): natives <details>, Inhalte bleiben im DOM. */}
+            <div className={styles.modGroups}>
               {TEILE.map((teil) => {
                 const eintraege = moduleImTeil(teil);
                 return (
-                  <div className={styles.part} key={teil}>
-                    <h3>
-                      {TEIL_TITEL[teil]} <small>{modulAnzahl(eintraege.length)}</small>
-                    </h3>
+                  <details className={styles.modGroup} key={teil} id={`${HOME_MODULE_PREFIX}-teil-${teil}`}>
+                    <summary>
+                      <span className={styles.modGroupHead}>
+                        <h3>{TEIL_TITEL[teil]}</h3>
+                        <small>{modulAnzahl(eintraege.length)}</small>
+                      </span>
+                      <span className={styles.modGroupKurz}>{TEIL_KURZ[teil]}</span>
+                    </summary>
                     <ol className={styles.mods}>
                       {eintraege.map((modul) => (
                         <li key={modul.id} id={`${HOME_MODULE_PREFIX}-${modul.id}`}>
@@ -419,7 +416,7 @@ export default function HomePage() {
                         </li>
                       ))}
                     </ol>
-                  </div>
+                  </details>
                 );
               })}
             </div>
@@ -709,6 +706,7 @@ export default function HomePage() {
               <div className={styles.ampelBlock}>
                 <h3>{AMPEL_LABEL}</h3>
                 <p className={styles.prose}>{AMPEL_INTRO}</p>
+                <p className={styles.fine}>{HERO_DISCLAIMER}</p>
                 <div className={styles.ctas}>
                   <CampaignLink className={`btn ${styles.btnSec}`} cta="unsure_ampel" href={AMPEL_HREF}>
                     {AMPEL_LABEL}
