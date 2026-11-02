@@ -4,7 +4,8 @@ import { CrumbJsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { LEGAL_OPERATOR } from "@/lib/legal";
-import { PARTNER_EFFORT_LINE } from "@/lib/offer-copy";
+import { CTA_DEMO, CTA_SAMPLE, PARTNER_EFFORT_LINE } from "@/lib/offer-copy";
+import { V2_ENTRY_LABEL, V2_MEMBER_YEAR_LABEL } from "@/lib/pricing";
 import { withOgImage } from "@/lib/seo";
 import {
   PARTNER_DEMO_PATH,
@@ -78,10 +79,9 @@ export default function SteuerberaterPage() {
         ctaHref="#anfrage"
         ctaLabel="Anfrage"
         links={[
-          { href: "#modell", label: "Kanzleizugang" },
           { href: "#muster", label: "Muster" },
+          { href: "#modell", label: "Kanzleizugang" },
           { href: "#ablauf", label: "Ablauf" },
-          { href: "#anfrage", label: "Anfrage" },
         ]}
       />
       <main>
@@ -95,16 +95,18 @@ export default function SteuerberaterPage() {
               Die PDF-Fassung erzeugt der Mandant.
             </p>
             <div className={styles.ctas}>
-              <a className="btn" href="#merkblatt">
-                Mandanten-Merkblatt
-              </a>
-              <a className={`btn ${styles.btnSec}`} href={PARTNER_MUSTER_PDF_PATH}>
-                Muster-PDF öffnen
+              <a className="btn" href={PARTNER_MUSTER_PDF_PATH}>
+                {CTA_SAMPLE}
               </a>
               <Link className={`btn ${styles.btnSec}`} href={PARTNER_DEMO_PATH}>
-                Fragen ansehen
+                {CTA_DEMO}
               </Link>
             </div>
+            <p className={styles.advisor}>
+              <a className={styles.inlineLink} href="#merkblatt">
+                Mandanten-Merkblatt
+              </a>
+            </p>
             <ul className={styles.trust}>
               <li>Keine Steuerberatung</li>
               <li>Kanzleizugang ohne Kosten</li>
@@ -118,71 +120,57 @@ export default function SteuerberaterPage() {
           Anmeldung
         </p>
 
-        <section className={styles.section} id="modell">
+        {/* Reihenfolge (Philip 02.11.): Ergebnis ansehen → Fragenprozess prüfen → Zusammenarbeit verstehen → Merkblatt/Kontakt. */}
+        <section className={styles.section} id="muster">
           <div className="shell">
-            <h2>Was der Kanzleizugang umfasst</h2>
-            <p className={styles.sub}>Der Mandant lädt ein. Die Kanzlei braucht kein eigenes Paket.</p>
-            <div className={styles.grid3}>
+            <div className={styles.reviewGrid}>
               <article className={styles.card}>
-                <h3>Einladung als Mitwirkende</h3>
-                <p>
-                  Der Mandant lädt die Kanzlei im Konto unter „Mitwirkende“ per E-Mail
-                  ein und wählt alle aktiven Module oder einzelne Module. Höchstens fünf
-                  aktive Personen je Firma.
-                </p>
-              </article>
-              <article className={styles.card}>
-                <h3>Offene Angaben ausfüllen</h3>
-                <p>
-                  Die Kanzlei sieht die freigegebenen Module, füllt offene Angaben aus
-                  und speichert Entwürfe. Die PDF-Fassung erzeugt der Mandant. Für
-                  Mitwirkende ist sie nicht lesbar.
-                </p>
-              </article>
-              <article className={styles.card} id="muster">
                 <h3>Muster ansehen</h3>
                 <p>
                   Das Muster-PDF stammt aus festen Beispieldaten einer fiktiven
                   GmbH. Es speichert nichts und ist keine Freigabe.
                 </p>
                 <a className={styles.cardLink} href={PARTNER_MUSTER_PDF_PATH}>
-                  Muster-PDF herunterladen
+                  {CTA_SAMPLE}
                 </a>
                 <Link className={styles.cardLink} href={PARTNER_MUSTER_PATH}>
                   Musterseite mit den Beispieldaten
                 </Link>
               </article>
+              <article className={styles.card} id="demo">
+                <h3>Fragenprozess prüfen</h3>
+                <p>Die Demo speichert keine Eingaben.</p>
+                <Link className={styles.cardLink} href={PARTNER_DEMO_PATH}>
+                  {CTA_DEMO}
+                </Link>
+              </article>
             </div>
-            <p className={styles.note}>
-              Keine Steuerberatung. Das Produkt ersetzt keine steuerliche Beratung.
-              Sie füllen die Dokumentation nicht für den Mandanten aus.
-            </p>
           </div>
         </section>
 
-        <section className={styles.section} id="merkblatt">
-          <div className="shell">
-            <MerkblattForm />
-          </div>
-        </section>
-
-        <section className={`${styles.section} ${styles.alt}`} id="preise">
-          <div className="shell">
-            <h2>Was Mandanten zahlen</h2>
-            <p className={styles.prose}>
-              Mandanten bestellen eines der normalen Pakete über die öffentliche Seite.
-              Die Pakete und Preise finden Sie auf der{" "}
-              <Link className={styles.inlineLink} href="/#preise">
-                Startseite unter „Preise“
-              </Link>
-              .
-            </p>
-          </div>
-        </section>
-
-        <section className={styles.section} id="ablauf">
+        <section className={`${styles.section} ${styles.alt}`} id="modell">
           <div className={`shell ${styles.split}`}>
             <div>
+              <h2>Was der Kanzleizugang umfasst</h2>
+              <p className={styles.sub}>Der Mandant lädt ein. Die Kanzlei braucht kein eigenes Paket.</p>
+              <ol className={styles.steps} role="list">
+                <li>
+                  <strong>Einladung als Mitwirkende.</strong> Der Mandant lädt die Kanzlei im Konto unter „Mitwirkende“ per E-Mail
+                  ein und wählt alle aktiven Module oder einzelne Module. Höchstens fünf
+                  aktive Personen je Firma.
+                </li>
+                <li>
+                  <strong>Offene Angaben ausfüllen.</strong> Die Kanzlei sieht die freigegebenen Module, füllt offene Angaben aus
+                  und speichert Entwürfe. Die PDF-Fassung erzeugt der Mandant. Für
+                  Mitwirkende ist sie nicht lesbar.
+                </li>
+              </ol>
+              <p className={styles.note}>
+                Keine Steuerberatung. Das Produkt ersetzt keine steuerliche Beratung.
+                Sie füllen die Dokumentation nicht für den Mandanten aus.
+              </p>
+            </div>
+            <div id="ablauf">
               <h2>So läuft es ab</h2>
               <ol className={styles.steps} role="list">
                 <li>Der Mandant beantwortet die Fragen im Fragebogen.</li>
@@ -194,26 +182,33 @@ export default function SteuerberaterPage() {
                 <li>Der Mandant erzeugt das PDF.</li>
               </ol>
               <p className={styles.fine}>{PARTNER_EFFORT_LINE}</p>
-            </div>
-            <div>
-              <h2>Grenze</h2>
-              <p className={styles.prose}>
-                Keine Steuerberatung und keine Rechtsberatung. Keine Zusage, dass
-                eine Dokumentation einer Prüfung standhält. Die Verantwortung für
-                die Angaben bleibt beim Mandanten.
-              </p>
-              <p className={styles.prose}>
-                <Link className={styles.inlineLink} href={PARTNER_DEMO_PATH}>
-                  Fragenprozess ansehen
+              <p className={styles.prose} id="preise">
+                <strong>Was Mandanten zahlen:</strong> {V2_ENTRY_LABEL}&nbsp;€ einmalig bzw.{" "}
+                {V2_ENTRY_LABEL}&nbsp;€ + {V2_MEMBER_YEAR_LABEL}&nbsp;€/Jahr zzgl. USt.{" "}
+                <Link className={styles.inlineLink} href="/#preise">
+                  Vergleich der Pakete
                 </Link>
-                . Die Demo speichert keine Eingaben.
               </p>
+              <aside className={styles.scopeBox} aria-labelledby="leistungsumfang">
+                <h3 id="leistungsumfang">Leistungsumfang und Verantwortung</h3>
+                <p>
+                  Keine Steuerberatung und keine Rechtsberatung. Keine Zusage, dass
+                  eine Dokumentation einer Prüfung standhält. Die Verantwortung für
+                  die Angaben bleibt beim Mandanten.
+                </p>
+              </aside>
             </div>
           </div>
         </section>
 
+        <section className={styles.section} id="merkblatt">
+          <div className="shell">
+            <MerkblattForm />
+          </div>
+        </section>
+
         <section className={`${styles.section} ${styles.alt}`} id="anfrage">
-          <div className={`shell ${styles.split}`}>
+          <div className={`shell ${styles.split} ${styles.inquiry}`}>
             <div>
               <h2>Anfrage</h2>
               <p className={styles.prose}>
@@ -258,10 +253,10 @@ export default function SteuerberaterPage() {
                 Mandanten-Merkblatt
               </a>
               <a className={`btn ${styles.btnSecOnDark}`} href="#anfrage">
-                Formular
+                Anfrage
               </a>
               <a className={styles.textLink} href={PARTNER_MUSTER_PDF_PATH}>
-                Muster-PDF
+                {CTA_SAMPLE}
               </a>
             </div>
           </div>

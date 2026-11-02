@@ -125,12 +125,11 @@ export function PartnerInquiryForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="partner-mandanten">Grobe Mandanten-Zahl</label>
+        <label htmlFor="partner-mandanten">Grobe Mandanten-Zahl (optional)</label>
         <input
           id="partner-mandanten"
           name="mandantenZahl"
           inputMode="numeric"
-          required
           min={1}
           max={100000}
           step={1}

@@ -64,7 +64,8 @@ export function parsePartnerInquiry(body: unknown): PartnerInquiryParse {
   if (!email || email.length > 254 || !EMAIL_RE.test(email)) {
     return { ok: false, error: "Bitte geben Sie eine gültige E-Mail-Adresse an." };
   }
-  if (!/^[1-9]\d{0,5}$/.test(mandantenRaw) || Number(mandantenRaw) > 100000) {
+  // Optional (Philip 02.11.): leer ist erlaubt; wenn angegeben, eine ganze Zahl ab 1.
+  if (mandantenRaw && (!/^[1-9]\d{0,5}$/.test(mandantenRaw) || Number(mandantenRaw) > 100000)) {
     return {
       ok: false,
       error: "Bitte geben Sie eine grobe Mandanten-Zahl als ganze Zahl ab 1 an.",
@@ -82,7 +83,7 @@ export function parsePartnerInquiry(body: unknown): PartnerInquiryParse {
       name,
       kanzlei,
       email,
-      mandantenZahl: String(Number(mandantenRaw)),
+      mandantenZahl: mandantenRaw ? String(Number(mandantenRaw)) : "",
       message,
     },
   };
