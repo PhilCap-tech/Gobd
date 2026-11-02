@@ -33,7 +33,7 @@ Die vollständige [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumenta
 
 Viele Unterlagen kommen nicht mit der Post, sondern als Nachricht, als Geschäftsbrief im Text oder als Abrechnung aus einem Portal. Oft sieht nur eine Person das Postfach oder das Konto. Fällt sie aus oder ist der Abruf nicht fest eingeplant, fehlt der Beleg.
 
-Für jedes DV-System ist eine übersichtlich gegliederte Verfahrensdokumentation erforderlich. Der Umfang richtet sich danach, was zum Verständnis notwendig ist. Sie muss verständlich und für einen sachverständigen Dritten in angemessener Zeit nachprüfbar sein (GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 151). Postfach und Portal gehören dazu, soweit dort Unterlagen empfangen oder gespeichert werden.
+Für jedes DV-System ist eine übersichtlich gegliederte Verfahrensdokumentation erforderlich. Der Umfang richtet sich danach, was zum Verständnis notwendig ist. Sie muss verständlich und für einen sachverständigen Dritten in angemessener Zeit nachprüfbar sein (GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 151). Werden über ein Postfach oder ein Portal Unterlagen empfangen oder gespeichert, gehört dieser Weg deshalb in die Beschreibung.
 
 Ob eine Nachricht aufzubewahren ist, richtet sich nach Inhalt und Funktion, nicht nach der Bezeichnung (GoBD Rz. 121). Hat sie die Funktion eines Handels- oder Geschäftsbriefs oder eines Buchungsbelegs, ist sie aufzubewahren. Dient sie nur als Transportmittel für eine angehängte Rechnung und enthält sie keine weitere aufbewahrungspflichtige Information, ist sie es nicht; sie entspricht dem früheren Papierumschlag. Im Zweifel klärt das die Steuerberatung.
 
@@ -58,7 +58,7 @@ Person, Rhythmus und Vertretung stehen in der [Checkliste zu Zuständigkeiten un
 
 Eingehende elektronische Handels- und Geschäftsbriefe sowie Buchungsbelege bewahren Sie im empfangenen Format auf (GoBD Rz. 131). Eine Umwandlung, etwa von MSG nach PDF, kommt nur in Betracht, wenn die maschinelle Auswertbarkeit nicht eingeschränkt und der Inhalt nicht verändert wird. Wird die Nachricht nur als PDF gespeichert, gehen Kopfzeilen verloren, etwa der Absender, und der Eingang lässt sich nicht mehr nachvollziehen. Solche Einschränkungen können sich zulasten des Steuerpflichtigen auswirken (GoBD Rz. 129).
 
-Der Index ist nachvollziehbar und eindeutig; der Verweis bleibt über die Aufbewahrungsfrist erhalten (GoBD Rz. 122). Elektronisch empfangene Unterlagen bleiben in dieser Form erhalten, nicht ausschließlich ausgedruckt, und für die Dauer der Frist unveränderbar (GoBD Rz. 119). Die Staffel steht in [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd); welche Gruppe eine Nachricht trifft, klärt die Steuerberatung. Die Sicherung von Postfach oder Archiv beschreiben Sie im Kapitel [Verfahrensdokumentation Vorlage: Kapitel Datensicherung und Archivierung](/blog/verfahrensdokumentation-vorlage-datensicherung-archivierung).
+Der Index ist nachvollziehbar und eindeutig; der Verweis bleibt über die Aufbewahrungsfrist erhalten (GoBD Rz. 122). Elektronisch empfangene Unterlagen bleiben in dieser Form erhalten, nicht ausschließlich ausgedruckt, und für die Dauer der Frist unveränderbar (GoBD Rz. 119). Die Fristen im Überblick stehen in [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd); welche Gruppe eine Nachricht trifft, klärt die Steuerberatung. Die Sicherung von Postfach oder Archiv beschreiben Sie im Kapitel [Verfahrensdokumentation Vorlage: Kapitel Datensicherung und Archivierung](/blog/verfahrensdokumentation-vorlage-datensicherung-archivierung).
 
 Kommt eine E-Rechnung an, bleibt der strukturierte Teil im empfangenen Format erhalten; die Einzelheiten stehen im Artikel [Verfahrensdokumentation Muster zur Belegablage](/blog/verfahrensdokumentation-belegablage).
 
@@ -75,11 +75,11 @@ Portale und Online-Konten, aus denen Sie Rechnungen oder Abrechnungen holen, sin
 - [ ] Person benannt, die am Monatsende und am Jahresende die Vollständigkeit prüft
 - [ ] Festgehalten, wer die abgelegten Dateien öffnen kann, wenn die bisherige Person fehlt
 
-Ein privates Kennwort, das mehrere Personen kennen, erschwert Vertretung und Entzug. Die Vertretung öffnet den Zugang, ohne dieses Kennwort zu kennen. Eine fehlende Rechnung fällt beim Abgleich mit dem Kontoauszug auf. Monatlich ist ein Beispiel, keine Vorgabe.
+Ein Kennwort, das mehrere Personen kennen, erschwert Vertretung und Entzug. Besser ist ein eigener Zugang für die Vertretung, soweit das Portal das zulässt. Eine fehlende Rechnung fällt zum Beispiel beim Abgleich mit dem Kontoauszug auf. Ein monatlicher Abruf ist ein Beispiel, keine Vorgabe.
 
-Eine elektronische Rechnung wird in einem strukturierten elektronischen Format ausgestellt, übermittelt und empfangen und ermöglicht eine elektronische Verarbeitung. Eine sonstige Rechnung liegt in einem anderen elektronischen Format oder auf Papier (§ 14 Abs. 1 UStG). Bietet das Portal eine strukturierte Datei, beschreibt der Artikel [Verfahrensdokumentation Muster zur Belegablage](/blog/verfahrensdokumentation-belegablage) die Aufbewahrung. Ablageort und Benennung bilden den Index (GoBD Rz. 122).
+Eine elektronische Rechnung wird in einem strukturierten elektronischen Format ausgestellt, übermittelt und empfangen und ermöglicht eine elektronische Verarbeitung. Eine sonstige Rechnung liegt in einem anderen elektronischen Format oder auf Papier (§ 14 Abs. 1 UStG). Bietet das Portal eine strukturierte Datei, beschreibt der Artikel [Verfahrensdokumentation Muster zur Belegablage](/blog/verfahrensdokumentation-belegablage) die Aufbewahrung. Beschreiben Sie auch, wie die Datei wiedergefunden wird, etwa über Ablageort und Benennung; der Index muss nachvollziehbar und eindeutig sein (GoBD Rz. 122).
 
-Vor dem Schließen eines Kontos oder vor einem Anbieterwechsel holen Sie die noch nicht abgelegten Rechnungen. Das ist ein praktischer Hinweis; ein Anspruch, dass das Portal die Dateien bereithält, folgt daraus nicht.
+Vor dem Schließen eines Kontos oder vor einem Anbieterwechsel holen Sie die noch nicht abgelegten Rechnungen. Verlassen Sie sich nicht darauf, dass ein Portal ältere Rechnungen dauerhaft bereithält.
 
 ## Typische Lücken
 
@@ -92,7 +92,7 @@ Vor dem Schließen eines Kontos oder vor einem Anbieterwechsel holen Sie die noc
 
 ## So kommt es in die Verfahrensdokumentation
 
-Im Abschnitt zum Belegeingang genügen je Kanal drei bis fünf Sätze: welches Postfach oder Portal, wer sichtet oder holt, in welchem Rhythmus, wer vertritt, welches Format, welcher Ablageort und wie die Datei wiedergefunden wird. Was unklar ist, bleibt ein offener Punkt mit Thema, Person und Termin.
+Im Abschnitt zum Belegeingang beschreiben Sie je Kanal in wenigen Sätzen: welches Postfach oder Portal, wer sichtet oder holt, in welchem Rhythmus, wer vertritt, welches Format, welcher Ablageort und wie die Datei wiedergefunden wird. Was unklar ist, bleibt ein offener Punkt mit Thema, Person und Termin.
 
 Felder in eckigen Klammern ersetzen Sie, oder Sie streichen den Satz.
 
@@ -116,25 +116,25 @@ Wo Sie heute stehen, zeigt der kostenlose [Readiness-Check](/readiness).
 
 ### Muss ich jede E-Mail aufbewahren?
 
-Nein. Aufzubewahren ist eine Nachricht mit der Funktion eines Handels- oder Geschäftsbriefs oder eines Buchungsbelegs, nicht eine reine Transportnachricht ohne weitere aufbewahrungspflichtige Information (GoBD Rz. 121). Sie entspricht dem früheren Umschlag. Im Zweifel klärt das die Steuerberatung.
+Nein. Aufzubewahren ist eine Nachricht mit der Funktion eines Handels- oder Geschäftsbriefs oder eines Buchungsbelegs, nicht eine reine Transportnachricht ohne weitere aufbewahrungspflichtige Information (GoBD Rz. 121). Eine solche Transportnachricht entspricht dem früheren Briefumschlag. Im Zweifel klärt das die Steuerberatung.
 
 ### Darf ich E-Mails als PDF speichern?
 
 Eine Umwandlung der E-Mail oder des Anhangs kommt nur in Betracht, wenn die maschinelle Auswertbarkeit nicht eingeschränkt und der Inhalt nicht verändert wird (GoBD Rz. 131). Wird die E-Mail nur als PDF gespeichert, gehen Kopfzeilen verloren, etwa der Absender, und der Eingang lässt sich nicht mehr nachvollziehen. Das kann sich zulasten des Steuerpflichtigen auswirken (GoBD Rz. 129). Beschreiben Sie die gewählte Form.
 
-### Reicht es, Portalrechnungen im Portal zu lassen?
+### Können Portalrechnungen im Portal bleiben?
 
-Beschreiben Sie, wo die Rechnungen während der Aufbewahrungsfrist liegen und wie sie verfügbar bleiben. Werden sie auf Datenträgern aufbewahrt, müssen sie jederzeit verfügbar sein, unverzüglich lesbar gemacht und maschinell ausgewertet werden können (§ 147 Abs. 2 Nr. 2 AO). Praktisch holen Sie die Datei und legen sie ab. Ob ein fremdes Portal diese Verfügbarkeit im Einzelfall bietet, klärt die Steuerberatung. Ein Anspruch auf Bereithaltung durch das Portal folgt daraus nicht.
+Beschreiben Sie, wo die Rechnungen während der Aufbewahrungsfrist liegen und wie sie verfügbar bleiben. Werden sie auf Datenträgern aufbewahrt, müssen sie jederzeit verfügbar sein, unverzüglich lesbar gemacht und maschinell ausgewertet werden können (§ 147 Abs. 2 Nr. 2 AO). Praktisch holen Sie die Datei und legen sie ab. Ob ein Portal diese Anforderungen im Einzelfall erfüllt, klären Sie mit Ihrer Steuerberatung.
 
 ### Wie lange müssen E-Mail-Rechnungen aufbewahrt werden?
 
-Buchungsbelege sind acht Jahre aufzubewahren, empfangene Handels- und Geschäftsbriefe sechs Jahre, Bücher, Aufzeichnungen und die zu ihrem Verständnis erforderlichen Organisationsunterlagen zehn Jahre, sofern nicht andere Steuergesetze kürzere Fristen zulassen (§ 147 Abs. 1 Nr. 1, Nr. 2 und Nr. 4, Abs. 3 Satz 1 AO). Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem der Brief empfangen oder der Buchungsbeleg entstanden ist (§ 147 Abs. 4 AO). Die Staffel erläutert [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd). Welche Gruppe eine Nachricht trifft, klärt die Steuerberatung.
+Buchungsbelege sind acht Jahre aufzubewahren, empfangene Handels- und Geschäftsbriefe sechs Jahre, Bücher, Aufzeichnungen und die zu ihrem Verständnis erforderlichen Organisationsunterlagen zehn Jahre, sofern nicht andere Steuergesetze kürzere Fristen zulassen (§ 147 Abs. 1 Nr. 1, Nr. 2 und Nr. 4, Abs. 3 Satz 1 AO). Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem der Brief empfangen oder der Buchungsbeleg entstanden ist (§ 147 Abs. 4 AO). Einen Überblick gibt [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd). Welche Gruppe eine Nachricht trifft, klärt die Steuerberatung.
 
 > Keine Steuer-, Rechts- oder Prüfungsberatung. Dieser Artikel ist eine allgemeine Arbeitshilfe und ersetzt keine Prüfung durch Ihre Steuerberatung. Keine Zusicherung zu Prüfungsergebnissen.
 
 ## Weiterlesen
 
-- [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste)
-- [Verfahrensdokumentation Muster zur Belegablage](/blog/verfahrensdokumentation-belegablage)
-- [Verfahrensdokumentation für Homeoffice und Cloud-Belege](/blog/verfahrensdokumentation-homeoffice-cloud)
-- [Verfahrensdokumentation Checkliste: Zugriffsrechte und Rollen festhalten](/blog/verfahrensdokumentation-checkliste-zugriffsrechte-rollen)
+- [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) — die vollständige Checkliste für die gesamte Dokumentation
+- [Verfahrensdokumentation Muster zur Belegablage](/blog/verfahrensdokumentation-belegablage) — Belegfluss der Eingangsrechnungen und E-Rechnung
+- [Verfahrensdokumentation für Homeoffice und Cloud-Belege](/blog/verfahrensdokumentation-homeoffice-cloud) — private Postfächer und Cloud-Ablage
+- [Verfahrensdokumentation Checkliste: Zugriffsrechte und Rollen festhalten](/blog/verfahrensdokumentation-checkliste-zugriffsrechte-rollen) — wer Postfach, Portal und Ablage öffnen darf
