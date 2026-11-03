@@ -50,7 +50,9 @@ import { isPricingV2 } from "@/lib/pricing-model";
 /** Preismodell v2 (PRICING_MODEL=v2). Ohne Variable bleibt die Seite wie bisher. */
 const V2 = isPricingV2();
 /** Variante D2 (Philip 29.10.): Wortlaut Hero und #preise. */
-const D2_HERO_HEADLINE = "Erst ausfüllen. Dann einmalig 99 € zahlen.";
+/** Phase 3 (Philip 02.11.): H1 und Unterzeile wörtlich. */
+const D2_HERO_HEADLINE = "Dokumentieren Sie Ihre steuerrelevanten Abläufe – geführt statt von Grund auf allein.";
+const D2_HERO_TAGLINE = "Fragebogen kostenlos ausfüllen. 99 € zzgl. USt erst vor der PDF-Erstellung.";
 const D2_HERO_SUBLINE =
   "Sie melden sich an und beantworten den Fragebogen kostenlos. Erst nach der letzten Frage zahlen Sie 99 € je Firma, dann wird Ihre Verfahrensdokumentation als PDF erstellt.";
 const D2_HERO_STEPS = [
@@ -68,6 +70,8 @@ const HOME_AREAS_DETAIL = V2
       "jede weitere Firma buchen Sie gesondert zum vollen Preis",
     )
   : ALL_AREAS_DETAIL;
+/** Phase 3: Kurzfassung unter den Modulgruppen, nur der erste Satz von HOME_AREAS_DETAIL (v3). */
+const HOME_AREAS_SHORT = HOME_AREAS_DETAIL.slice(0, HOME_AREAS_DETAIL.indexOf(". ") + 1);
 const COMPARE_POINTS = ["PDF", "Zugangsdauer", "Änderungen", "Versionen", "Einladungen"] as const;
 type ComparePoint = (typeof COMPARE_POINTS)[number];
 /** Inhalte aus dem bisherigen Kartentext und „Was ist der Unterschied?“ (Stand 02.11.2026). */
@@ -305,6 +309,7 @@ export default function HomePage() {
         <section className={styles.hero}>
           <div className={`shell ${styles.heroInner}`}>
             <h1>{D2_HERO_HEADLINE}</h1>
+            <p className={styles.tagline}>{D2_HERO_TAGLINE}</p>
             <p className={styles.lead}>{D2_HERO_SUBLINE}</p>
           </div>
           <div className={`shell ${styles.d2Steps}`}>
@@ -482,11 +487,17 @@ export default function HomePage() {
                 );
               })}
             </div>
-            <p className={styles.note}>
+            <p className={styles.fine}>
+              <strong>{ALL_AREAS_LINE}</strong> {V2 ? HOME_AREAS_SHORT : HOME_AREAS_DETAIL}
+            </p>
+            <p className={`${styles.note} ${styles.branchenLine}`}>
               Muster-Gesamtdokumente (Dienstleister, Handel, E-Commerce, Gastronomie, Handwerk/Bau) und Fragebögen:{" "}
               <Link href={MUSTER_INDEX_PATH}>alle Muster im Überblick</Link>.
-              {" "}
-              Branchenseiten:{" "}
+            </p>
+            {/* Branchenseiten (Philip 02.11.): eigene Zeile, natives <details>, echte Links im Server-HTML. */}
+            <details className={styles.branchen}>
+              <summary>Muster nach Branche ansehen</summary>
+              <p>
               <Link href="/verfahrensdokumentation-friseure">Verfahrensdokumentation für Friseure</Link>
               {" · "}
               <Link href="/verfahrensdokumentation-einzelhandel">Verfahrensdokumentation im Einzelhandel</Link>
@@ -498,11 +509,8 @@ export default function HomePage() {
               <Link href="/verfahrensdokumentation-verein">Verein</Link>
               {" · "}
               <Link href="/verfahrensdokumentation-apotheke">Apotheke</Link>
-              .
-            </p>
-            <p className={styles.fine}>
-              <strong>{ALL_AREAS_LINE}</strong> {HOME_AREAS_DETAIL}
-            </p>
+              </p>
+            </details>
           </div>
         </section>
 
@@ -803,14 +811,8 @@ export default function HomePage() {
                 </CampaignLink>
                 <p className={styles.fine}>{V2 ? CTA_START_MICRO : PRICE_AFTER_MICRO}</p>
               </div>
-              <CampaignLink className={`btn ${styles.btnSecOnDark}`} cta="final_ampel" href={AMPEL_HREF}>
-                {AMPEL_LABEL}
-              </CampaignLink>
               <Link className={styles.textLink} href="#muster">
                 {CTA_SAMPLE}
-              </Link>
-              <Link className={styles.textLink} href="/readiness">
-                {CTA_CHECK}
               </Link>
             </div>
           </div>
