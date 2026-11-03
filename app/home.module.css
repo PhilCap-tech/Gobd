@@ -1626,3 +1626,29 @@
 .modGroups + .fine {
   margin-top: 20px;
 }
+
+/* Mobil: Hero-Schritte kompakt, damit beide Hero-Buttons über der fixierten Leiste liegen. */
+@media (max-width: 860px) {
+  .d2Steps {
+    gap: 8px;
+  }
+
+  .d2Step {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 0;
+    align-items: center;
+    padding: 10px 14px;
+  }
+
+  .d2Num {
+    grid-row: span 2;
+    margin-bottom: 0;
+  }
+
+  .d2Step span:last-child {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+}

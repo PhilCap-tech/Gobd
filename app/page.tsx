@@ -53,8 +53,6 @@ const V2 = isPricingV2();
 /** Phase 3 (Philip 02.11.): H1 und Unterzeile wörtlich. */
 const D2_HERO_HEADLINE = "Dokumentieren Sie Ihre steuerrelevanten Abläufe – geführt statt von Grund auf allein.";
 const D2_HERO_TAGLINE = "Fragebogen kostenlos ausfüllen. 99 € zzgl. USt erst vor der PDF-Erstellung.";
-const D2_HERO_SUBLINE =
-  "Sie melden sich an und beantworten den Fragebogen kostenlos. Erst nach der letzten Frage zahlen Sie 99 € je Firma, dann wird Ihre Verfahrensdokumentation als PDF erstellt.";
 const D2_HERO_STEPS = [
   { title: "Anmelden", text: "Login-Link per E-Mail" },
   { title: "Fragebogen", text: "kostenlos, in Etappen" },
@@ -310,7 +308,6 @@ export default function HomePage() {
           <div className={`shell ${styles.heroInner}`}>
             <h1>{D2_HERO_HEADLINE}</h1>
             <p className={styles.tagline}>{D2_HERO_TAGLINE}</p>
-            <p className={styles.lead}>{D2_HERO_SUBLINE}</p>
           </div>
           <div className={`shell ${styles.d2Steps}`}>
             {D2_HERO_STEPS.map((step, index) => (
