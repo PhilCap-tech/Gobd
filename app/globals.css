@@ -3012,3 +3012,48 @@ body.consent-open .sticky-cta {
     margin: 6px 0;
   }
 }
+
+/*
+ * „Cookie-Einstellungen“ im Footer (nach getroffener Wahl): Panel im Dokumentfluss direkt beim
+ * Button, kein Overlay und kein Sprung an den Seitenanfang. Gleicher Text wie der Banner oben.
+ */
+.footer-links .consent-banner-inline {
+  flex-basis: 100%;
+  width: 100%;
+  margin: 12px 0 4px;
+  padding: 12px 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text, #1c2124);
+  text-align: left;
+}
+
+.footer-links .consent-banner-inline .consent-banner-inner {
+  width: 100%;
+  padding-inline: 14px;
+}
+
+.site-footer .footer-links .consent-banner-inline p {
+  color: var(--text, #1c2124);
+}
+
+.site-footer .footer-links .consent-banner-inline a {
+  color: var(--accent, #1d3a34);
+}
+
+.footer-links .consent-banner-inline {
+  max-height: none;
+}
+
+.site-footer .footer-links .consent-banner-inline .consent-choice,
+.site-footer .footer-links .consent-banner-inline .consent-choice:hover {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid #8b958f;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+  min-height: 0;
+}

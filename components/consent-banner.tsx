@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore, type Ref } from "react";
 import Link from "next/link";
 import { sendAmpelConsentChoice } from "@/lib/ampel-step-beacon";
 import {
@@ -13,10 +13,16 @@ import {
 
 /** Footer-Button, der den Banner erneut geöffnet hat (Fokus-Rückgabe nach Esc/Auswahl). */
 let reopenTrigger: HTMLElement | null = null;
+/**
+ * Erneut geöffnet über den Footer, nachdem bereits entschieden wurde: Das Panel erscheint im
+ * Dokumentfluss direkt beim Footer-Button (kein Sprung nach oben, kein Overlay).
+ */
+let reopenInline = false;
 
 function returnFocusToTrigger() {
   const trigger = reopenTrigger;
   reopenTrigger = null;
+  reopenInline = false;
   if (trigger && trigger.isConnected) trigger.focus();
 }
 
@@ -29,6 +35,15 @@ export function revealConsentBanner(): boolean {
   if (!node) return false;
   const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   node.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  node.focus({ preventScroll: true });
+  return true;
+}
+
+/** Inline-Panel beim Footer-Button fokussieren; nur scrollen, wenn es teilweise außerhalb liegt. */
+export function revealInlineConsentPanel(): boolean {
+  const node = document.querySelector<HTMLElement>(".consent-banner-inline");
+  if (!node) return false;
+  node.scrollIntoView({ block: "nearest", behavior: "auto" });
   node.focus({ preventScroll: true });
   return true;
 }
@@ -48,7 +63,8 @@ export function ConsentBanner() {
     getBannerOpen,
     () => false,
   );
-  const visible = ready && open;
+  // Inline beim Footer geöffnet: oben nichts rendern (keine Verschiebung des Seiteninhalts).
+  const visible = ready && open && !reopenInline;
   const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,10 +99,20 @@ export function ConsentBanner() {
 
   if (!visible) return null;
 
+  return <ConsentPanel panelRef={bannerRef} />;
+}
+
+function ConsentPanel({
+  panelRef,
+  inline = false,
+}: {
+  panelRef?: Ref<HTMLDivElement>;
+  inline?: boolean;
+}) {
   return (
     <div
-      ref={bannerRef}
-      className="consent-banner"
+      ref={panelRef}
+      className={inline ? "consent-banner consent-banner-inline" : "consent-banner"}
       role="dialog"
       aria-labelledby="consent-title"
       aria-describedby="consent-text"
@@ -137,20 +163,33 @@ export function ConsentBanner() {
 }
 
 export function CookieSettingsButton() {
+  const ready = useClientReady();
+  const open = useSyncExternalStore(subscribeBanner, getBannerOpen, () => false);
+  const showInline = ready && open && reopenInline;
   return (
-    <button
-      type="button"
-      className="footer-text-btn"
-      onClick={(event) => {
-        reopenTrigger = event.currentTarget;
-        openConsentBanner();
-        // Nach dem Rendern: in den Blick scrollen und fokussieren.
-        requestAnimationFrame(() => {
-          if (!revealConsentBanner()) requestAnimationFrame(() => void revealConsentBanner());
-        });
-      }}
-    >
-      Cookie-Einstellungen
-    </button>
+    <>
+      <button
+        type="button"
+        className="footer-text-btn"
+        aria-expanded={showInline}
+        onClick={(event) => {
+          reopenTrigger = event.currentTarget;
+          if (getBannerOpen()) {
+            // Erstbesuch-Banner ist noch offen: wie bisher dorthin scrollen und fokussieren.
+            requestAnimationFrame(() => void revealConsentBanner());
+            return;
+          }
+          reopenInline = true;
+          openConsentBanner();
+          // Nach dem Rendern: Panel beim Button fokussieren, ohne Sprung nach oben.
+          requestAnimationFrame(() => {
+            if (!revealInlineConsentPanel()) requestAnimationFrame(() => void revealInlineConsentPanel());
+          });
+        }}
+      >
+        Cookie-Einstellungen
+      </button>
+      {showInline ? <ConsentPanel inline /> : null}
+    </>
   );
 }
