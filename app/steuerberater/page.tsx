@@ -249,14 +249,11 @@ export default function SteuerberaterPage() {
               normalen Pakete. Keine Steuerberatung.
             </p>
             <div className={styles.ctas}>
-              <a className={`btn ${styles.btnOnDark}`} href="#merkblatt">
-                Mandanten-Merkblatt
-              </a>
-              <a className={`btn ${styles.btnSecOnDark}`} href="#anfrage">
-                Anfrage
-              </a>
-              <a className={styles.textLink} href={PARTNER_MUSTER_PDF_PATH}>
+              <a className={`btn ${styles.btnOnDark}`} href={PARTNER_MUSTER_PDF_PATH}>
                 {CTA_SAMPLE}
+              </a>
+              <a className={styles.textLink} href="#anfrage">
+                Anfrage
               </a>
             </div>
           </div>

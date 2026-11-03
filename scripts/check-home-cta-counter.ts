@@ -299,6 +299,12 @@ async function main() {
         ok(header.includes(`cta="${id}"`), "the header CTA is header_checkout");
         continue;
       }
+      // Phase 3 (Philip 02.11.2026): Abschluss nur noch „Fragebogen kostenlos starten“ + „Muster ansehen“.
+      // final_ampel bleibt in der Whitelist (Admin-Zählung alter Klicks), rendert aber nicht mehr.
+      if (id === "final_ampel") {
+        ok(!home.includes(`cta="${id}"`), "final_ampel no longer renders in the closing section");
+        continue;
+      }
       ok(home.includes(`cta="${id}"`), `${id} is on the homepage`);
     }
     ok(/<HomeCtaLink\b[^>]*cta="hero_muster"/.test(home), "Muster stays off CampaignLink and still counts");

@@ -1582,3 +1582,73 @@
     gap: 2px;
   }
 }
+
+/* Phase 3 (Philip 02.11.2026) */
+.tagline {
+  max-width: var(--layout-text);
+  margin: 0 auto 14px;
+  color: var(--forest);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.branchenLine {
+  margin-top: 20px;
+}
+
+.branchen {
+  margin-top: 8px;
+  max-width: var(--layout-text);
+}
+
+.branchen > summary {
+  display: inline-block;
+  padding: 6px 0;
+  color: var(--brass);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.branchen p {
+  margin: 6px 0 0;
+  line-height: 1.8;
+}
+
+.branchen a {
+  color: var(--brass);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.modGroups + .fine {
+  margin-top: 20px;
+}
+
+/* Mobil: Hero-Schritte kompakt, damit beide Hero-Buttons über der fixierten Leiste liegen. */
+@media (max-width: 860px) {
+  .d2Steps {
+    gap: 8px;
+  }
+
+  .d2Step {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 0;
+    align-items: center;
+    padding: 10px 14px;
+  }
+
+  .d2Num {
+    grid-row: span 2;
+    margin-bottom: 0;
+  }
+
+  .d2Step span:last-child {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+}
