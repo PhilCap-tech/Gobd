@@ -32,13 +32,13 @@ Wenn die Verfahrensdokumentation fehlt oder eine vorhandene Fassung einen frühe
 
 Drei Ausgangslagen kommen vor.
 
-Liegt nichts Schriftliches vor, beginnt die Beschreibung bei dem, was heute geschieht: bei der Gewohnheit, dem Programm und den Personen, die den Ablauf ausführen.
+Liegt nichts Schriftliches vor, beginnt die Beschreibung bei dem, was heute geschieht: bei den Abläufen, den eingesetzten Programmen und den Personen, die die Abläufe ausführen.
 
 Liegt eine Datei vor, die einen früheren Zustand beschreibt, etwa ein anderes Programm, eine andere Person oder einen anderen Belegweg, ist die Verfahrensdokumentation veraltet. Diese Datei bleibt als vorige Fassung liegen. Der heutige Ablauf kommt in eine neue Fassung mit neuem Datum.
 
-Liegen nur Bruchstücke vor, etwa Arbeitsanweisungen, Unterlagen der Kanzlei, eine Anweisung zum Scannen oder Notizen zu Programmen und Ablageorten, können sie bereits Teile der Verfahrensdokumentation sein. Sie besteht in der Regel aus einer allgemeinen Beschreibung, einer Anwenderdokumentation, einer technischen Systemdokumentation und einer Betriebsdokumentation (GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 153). Ordnen Sie die Bruchstücke dem passenden Teil zu. Füllen Sie sie nicht zu einem vollständigen Text auf und verwerfen Sie sie nicht, nur weil die Überschrift fehlt.
+Liegen nur Bruchstücke vor, etwa Arbeitsanweisungen, Unterlagen der Kanzlei, eine Anweisung zum Scannen oder Notizen zu Programmen und Ablageorten, können sie bereits Teile der Verfahrensdokumentation sein. Eine Verfahrensdokumentation besteht in der Regel aus einer allgemeinen Beschreibung, einer Anwenderdokumentation, einer technischen Systemdokumentation und einer Betriebsdokumentation (GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 153). Ordnen Sie die Bruchstücke dem passenden Teil zu und verwerfen Sie sie nicht, nur weil eine Überschrift fehlt. Fehlende Teile ergänzen Sie anhand des tatsächlichen Ablaufs.
 
-Der Umfang richtet sich danach, was zum Verständnis nötig ist, und nach der Komplexität des Betriebs. Die Beschreibung muss verständlich sein und einem sachverständigen Dritten die Nachprüfung in angemessener Zeit ermöglichen (GoBD Rz. 151). Ein kleiner Betrieb braucht keinen dicken Ordner.
+Der Umfang richtet sich danach, was zum Verständnis nötig ist, und nach der Komplexität des Betriebs. Die Beschreibung muss verständlich sein und einem sachverständigen Dritten die Nachprüfung in angemessener Zeit ermöglichen (GoBD Rz. 151). Ein kleiner Betrieb benötigt keine umfangreiche Dokumentation.
 
 ## Schritt 1: Bestand sichten
 
@@ -84,7 +84,7 @@ Der Text muss vollständig mit der Praxis übereinstimmen, nicht mit einer glatt
 
 ## Wenn eine Betriebsprüfung schon angekündigt ist
 
-Dieselben Schritte gelten, wenn die Prüfung schon angekündigt ist. Zuerst informieren Sie die Steuerberatung und stimmen das Vorgehen ab. Danach beschreiben Sie den heutigen Ablauf ehrlich und setzen als Stand-Datum den Tag, an dem Sie schreiben. Ein neu geschriebenes Dokument wird nicht rückdatiert. Ob und wie diese Beschreibung im laufenden Verfahren verwendet wird, entscheiden Sie mit der Steuerberatung. Den Gang der Prüfung und die Unterlagen beschreibt [Verfahrensdokumentation Betriebsprüfung](/blog/betriebspruefung-ablauf-unterlagen), die ersten Tage nach der Ankündigung beschreibt [Betriebsprüfung angekündigt: Was Sie in den ersten Tagen prüfen](/blog/betriebspruefung-angekuendigt-pruefungsanordnung), und die Vorbereitung beschreibt [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung). Nach Randziffer 155 ist eine fehlende oder ungenügende Verfahrensdokumentation kein formeller Mangel mit sachlichem Gewicht, der zur Verwerfung der Buchführung führen kann, soweit Nachvollziehbarkeit und Nachprüfbarkeit nicht beeinträchtigt sind; die Einzelheiten stehen in [Verfahrensdokumentation GoBD Pflicht](/blog/verfahrensdokumentation-pflicht).
+Dieselben Schritte gelten, wenn die Prüfung schon angekündigt ist. Zuerst informieren Sie die Steuerberatung und stimmen das Vorgehen ab. Danach beschreiben Sie den heutigen Ablauf ehrlich und setzen als Stand-Datum den Tag, an dem Sie schreiben. Ob und wie diese Beschreibung im laufenden Verfahren verwendet wird, entscheiden Sie mit der Steuerberatung. Ablauf und angeforderte Unterlagen erläutert [Verfahrensdokumentation Betriebsprüfung](/blog/betriebspruefung-ablauf-unterlagen). Was in den ersten Tagen nach der Ankündigung zu prüfen ist, steht in [Betriebsprüfung angekündigt: Was Sie in den ersten Tagen prüfen](/blog/betriebspruefung-angekuendigt-pruefungsanordnung). Was Sie vorab sinnvoll vorbereiten, zeigt [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung). Nach Randziffer 155 ist eine fehlende oder ungenügende Verfahrensdokumentation kein formeller Mangel mit sachlichem Gewicht, der zur Verwerfung der Buchführung führen kann, soweit Nachvollziehbarkeit und Nachprüfbarkeit nicht beeinträchtigt sind; die Einzelheiten stehen in [Verfahrensdokumentation GoBD Pflicht](/blog/verfahrensdokumentation-pflicht).
 
 > Beispiel, fiktiv: Ein kleiner Dienstleister findet eine Verfahrensdokumentation aus einem früheren Jahr. Sie beschreibt die Ablage auf Papier und ein Programm, das nicht mehr im Einsatz ist. Heute werden Belege gescannt und in einem anderen Programm erfasst. Der Betrieb behält die alte Datei, schreibt eine neue Fassung mit dem heutigen Datum als Stand und als Gültig-ab und setzt eine kurze, nachträglich gekennzeichnete Chronologie daneben. Zwei Punkte bleiben offen für die Kanzlei: ab wann der Scanweg galt und wo die Daten des früheren Programms liegen.
 
@@ -106,7 +106,7 @@ Ja. Sie beschreiben den Ablauf, der heute gilt, und setzen als Stand-Datum den T
 
 ### Was mache ich mit der alten, veralteten Fassung?
 
-Sie bleibt als vorige Version liegen und wird nicht überschrieben. Nach Randziffer 154 sind Änderungen nachvollziehbar, wenn jede Fassung versioniert ist und die Historie den Anlass zeigt. Dieselbe Randziffer hält fest, dass die Frist für die Verfahrensdokumentation nicht endet, solange die Frist der Unterlagen noch läuft, für deren Verständnis sie gebraucht wird.
+Sie bleibt als vorige Version liegen und wird nicht überschrieben. Nach Randziffer 154 sind Änderungen historisch nachvollziehbar, wenn sie versioniert sind und eine nachvollziehbare Änderungshistorie vorgehalten wird. Dieselbe Randziffer hält fest, dass die Frist für die Verfahrensdokumentation nicht endet, solange die Frist der Unterlagen noch läuft, für deren Verständnis sie gebraucht wird.
 
 ### Ist eine fehlende Verfahrensdokumentation automatisch ein Mangel?
 
@@ -114,7 +114,7 @@ Nein. Soweit eine fehlende oder ungenügende Verfahrensdokumentation die Nachvol
 
 ### Wie ausführlich muss die Verfahrensdokumentation im kleinen Betrieb sein?
 
-Der Umfang folgt dem, was zum Verständnis nötig ist, und der Komplexität des Betriebs (GoBD Rz. 151). Der Text muss verständlich sein, sodass ein sachverständiger Dritter ihn in angemessener Zeit nachprüfen kann. Ein umfangreicher Ordner ist dafür nicht vorausgesetzt.
+Der Umfang folgt dem, was zum Verständnis nötig ist, und der Komplexität des Betriebs (GoBD Rz. 151). Der Text muss verständlich sein, sodass ein sachverständiger Dritter ihn in angemessener Zeit nachprüfen kann. Eine bestimmte Seitenzahl ist dafür nicht vorgegeben.
 
 > Keine Steuer-, Rechts- oder Prüfungsberatung. Dieser Artikel ist eine allgemeine Arbeitshilfe und ersetzt keine Prüfung durch Ihre Steuerberatung. Keine Zusicherung zu Prüfungsergebnissen.
 
