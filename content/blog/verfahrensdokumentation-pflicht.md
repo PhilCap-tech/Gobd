@@ -125,7 +125,7 @@ Ja. Die Pflicht liegt beim Steuerpflichtigen, auch wenn die Buchhaltung ausgelag
 
 ### Was droht, wenn die Datei fehlt, die Buchführung aber nachvollziehbar ist?
 
-Nach Randziffer 155 liegt dann kein formeller Mangel mit sachlichem Gewicht vor, der zum Verwerfen der Buchführung führen kann. Sobald die Nachvollziehbarkeit leidet, kann sich das ändern — bis hin zu formellen Mängeln und Hinzuschätzungen. Eine feste Folge lässt sich daraus nicht ableiten.
+Nach Randziffer 155 liegt dann kein formeller Mangel mit sachlichem Gewicht vor, der zum Verwerfen der Buchführung führen kann. Sobald die Nachvollziehbarkeit leidet, kann sich das ändern — bis hin zu formellen Mängeln und Hinzuschätzungen. Eine feste Folge lässt sich daraus nicht ableiten. Was Sie konkret tun, wenn die Verfahrensdokumentation fehlt oder veraltet ist, steht in [Verfahrensdokumentation fehlt oder ist veraltet](/blog/verfahrensdokumentation-fehlt-veraltet).
 
 ### Reicht im kleinen Betrieb eine Seite?
 
