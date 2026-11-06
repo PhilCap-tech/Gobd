@@ -46,6 +46,7 @@ import {
   PLAN_B2B_NOTICE,
 } from "@/lib/plan-copy";
 import { isPricingV2 } from "@/lib/pricing-model";
+import { BUCH_TRUST } from "@/lib/buch-trust-copy";
 
 /** Preismodell v2 (PRICING_MODEL=v2). Ohne Variable bleibt die Seite wie bisher. */
 const V2 = isPricingV2();
@@ -559,6 +560,42 @@ export default function HomePage() {
                 </p>
               </figure>
             ) : null}
+          </div>
+        </section>
+
+        <section className={`${styles.section} ${styles.bookTrust}`} id="buch" aria-labelledby="buch-trust-heading">
+          <div className="shell">
+            <div className={styles.bookTrustInner}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- lokal optimiertes Cover; Repo nutzt next/image nicht für Content */}
+              <img
+                className={styles.bookTrustCover}
+                src={BUCH_TRUST.coverSrc}
+                width={BUCH_TRUST.coverWidth}
+                height={BUCH_TRUST.coverHeight}
+                alt={BUCH_TRUST.coverAlt}
+                loading="lazy"
+                decoding="async"
+              />
+              <div className={styles.bookTrustCopy}>
+                <span className={styles.bookTrustBadge}>{BUCH_TRUST.badge}</span>
+                <h2 id="buch-trust-heading">{BUCH_TRUST.heading}</h2>
+                <p>
+                  {BUCH_TRUST.bodyBefore}
+                  <em>{BUCH_TRUST.bodyTitle}</em>
+                  {BUCH_TRUST.bodyAfter}
+                </p>
+                <p className={styles.bookTrustLink}>
+                  <a
+                    href={BUCH_TRUST.amazonHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {BUCH_TRUST.linkText}
+                  </a>
+                </p>
+                <p className={styles.bookTrustNote}>{BUCH_TRUST.disclaimer}</p>
+              </div>
+            </div>
           </div>
         </section>
 
