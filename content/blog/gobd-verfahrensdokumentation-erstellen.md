@@ -204,6 +204,7 @@ Wenn Sie den Entwurf nicht leer starten möchten: [GoBD-Verfahrensdokumentation 
 - [Checkliste: Zuständigkeiten und Vertretung festhalten](/blog/verfahrensdokumentation-checkliste-zustaendigkeiten-vertretung)
 - [Vorlage: Kapitel Datensicherung und Archivierung](/blog/verfahrensdokumentation-vorlage-datensicherung-archivierung)
 - [Verfahrensdokumentation erstellen bei der Gründung](/blog/verfahrensdokumentation-erstellen-gruendung) — vom ersten Beleg an
+- [Verfahrensdokumentation erstellen im Friseursalon](/blog/verfahrensdokumentation-erstellen-friseur)
 
 ## Disclaimer
 

@@ -144,3 +144,4 @@ Behalten Sie sie als vorige Fassung. Änderungen müssen historisch nachvollzieh
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste)
 - [Verfahrensdokumentation Checkliste: Zuständigkeiten und Vertretung festhalten](/blog/verfahrensdokumentation-checkliste-zustaendigkeiten-vertretung)
 - [Verfahrensdokumentation Muster zur Belegablage](/blog/verfahrensdokumentation-belegablage)
+- [Verfahrensdokumentation erstellen im Friseursalon](/blog/verfahrensdokumentation-erstellen-friseur)
