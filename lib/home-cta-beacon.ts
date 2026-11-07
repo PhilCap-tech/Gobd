@@ -1,4 +1,5 @@
 import { HOME_VIEW_ENABLED, isHomeCtaId, type HomeCtaId } from "@/lib/home-cta-event";
+import { measurePageHints } from "@/lib/measure-client";
 
 const HOME_CTA_URL = "/api/home/cta";
 const POINTER_CLICK_GAP_MS = 700;
@@ -46,7 +47,8 @@ function isHomePath(): boolean {
 export function sendHomeCta(cta: HomeCtaId): void {
   try {
     if (!isHomeCtaId(cta) || !isHomePath()) return;
-    const payload = JSON.stringify({ cta });
+    const marked = measurePageHints().gobd_test === "1";
+    const payload = JSON.stringify(marked ? { cta, gobd_test: "1" } : { cta });
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
       const blob = new Blob([payload], { type: "application/json" });
       if (navigator.sendBeacon(HOME_CTA_URL, blob)) return;

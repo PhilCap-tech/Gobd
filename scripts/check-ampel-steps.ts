@@ -26,6 +26,7 @@ import {
   type AmpelStepSheetClient,
 } from "@/lib/ampel-step-store";
 import { POST as postAmpelStep, setAmpelStepNowForTest } from "@/app/api/ampel/step/route";
+import { setMeasureVercelEnvForTest } from "@/lib/measure-test";
 
 if (!automatedRunForbidsLiveWrites()) {
   process.env.npm_lifecycle_event = "check:ampel-steps";
@@ -97,6 +98,7 @@ function createMock() {
 }
 
 async function main() {
+  setMeasureVercelEnvForTest("production");
   ok(automatedRunForbidsLiveWrites(), "check:ampel-steps keeps live writes closed");
   ok(getAmpelStepsSheetsTab() === "ampel_steps", "the step tab is ampel_steps");
   ok(RATE_LIMIT === 60, "the in-memory limit is 60 per minute");
@@ -335,6 +337,7 @@ async function main() {
   ok(readFileSync("package.json", "utf8").includes("npm run check:ampel-steps"), "prebuild runs the step check");
 
   setAmpelStepNowForTest(null);
+  setMeasureVercelEnvForTest(null);
   installAmpelStepSheetClientForTest(null);
   clearAmpelStepRateForTest();
   clearAmpelStepSheetCache();

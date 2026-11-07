@@ -155,14 +155,27 @@ export function homeCtaDevice(userAgent: string): HomeCtaDevice {
   return MOBILE_UA.test(userAgent) ? "mobile" : "desktop";
 }
 
-/** The only accepted body is `{ cta }` with a whitelisted id. */
+/**
+ * `{ cta }` with a whitelisted id. Optional `gobd_test: "1"` marks a test
+ * and is not stored on the row.
+ */
 export function parseHomeCtaBody(input: unknown): HomeCtaFields | null {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const record = input as Record<string, unknown>;
-  const keys = Object.keys(record);
-  if (keys.length !== 1 || keys[0] !== "cta") return null;
+  for (const key of Object.keys(record)) {
+    if (key !== "cta" && key !== "gobd_test") return null;
+  }
   if (!isHomeCtaId(record.cta)) return null;
+  if ("gobd_test" in record && record.gobd_test !== "1" && record.gobd_test !== 1 && record.gobd_test !== true) {
+    return null;
+  }
   return { cta: record.cta };
+}
+
+export function homeCtaTestFlag(input: unknown): boolean {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
+  const value = (input as { gobd_test?: unknown }).gobd_test;
+  return value === "1" || value === 1 || value === true;
 }
 
 export function homeCtaCells(row: HomeCtaRow): string[] {

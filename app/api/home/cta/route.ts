@@ -1,7 +1,8 @@
-import { HOME_CTA_BODY_MAX_BYTES, homeCtaDate, homeCtaDevice, parseHomeCtaBody } from "@/lib/home-cta-event";
+import { HOME_CTA_BODY_MAX_BYTES, homeCtaDate, homeCtaDevice, homeCtaTestFlag, parseHomeCtaBody } from "@/lib/home-cta-event";
 import { recordHomeCta } from "@/lib/home-cta-store";
 import { readAmpelClientIp } from "@/lib/ampel-rate-limit";
 import { takeAmpelStepRate } from "@/lib/ampel-step-rate";
+import { suppressesOldStat } from "@/lib/measure-test";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const device = homeCtaDevice(request.headers.get("user-agent") ?? "");
   const date = homeCtaDate(nowForTest ? nowForTest() : new Date());
+  const test = suppressesOldStat({
+    referrer: request.headers.get("referer"),
+    gobdTest: homeCtaTestFlag(parsed),
+  });
+  if (test) return empty(204);
   try {
     await recordHomeCta({ ...fields, date, device });
   } catch {
