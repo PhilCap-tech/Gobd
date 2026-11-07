@@ -18,6 +18,7 @@ import {
   shouldResumeAutosave,
 } from "@/lib/fetch-retry";
 import { DraftAutosave } from "@/lib/draft-autosave";
+import { measurePageHints } from "@/lib/measure-client";
 import { IntakeHintProvider, intakeInviteHref } from "@/components/intake-question-hint";
 import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
 import { BereichSelect } from "@/components/bereich-select";
@@ -374,6 +375,7 @@ export function IntakeForm({
         change: { ...changeRef.current },
         clientUpdatedAt: serverDraftAtRef.current || savedAt,
         formId,
+        ...measurePageHints(),
       }),
       },
       // One retry with a growing wait: the next edit saves again anyway.

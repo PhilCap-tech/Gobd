@@ -8,6 +8,7 @@ import {
   verifyMagicToken,
 } from "@/lib/auth";
 import { ownerNoticeEmailHash, queueOwnerNotice } from "@/lib/owner-notice";
+import { recordNewAccount, scheduleMeasureWrite } from "@/lib/measure-record";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,12 @@ export async function GET(request: Request) {
       title: "Neues Konto / erste Anmeldung",
       email,
     });
+    scheduleMeasureWrite(() =>
+      recordNewAccount({
+        email,
+        referrerHeader: request.headers.get("referer"),
+      }),
+    );
     return response;
   }
 

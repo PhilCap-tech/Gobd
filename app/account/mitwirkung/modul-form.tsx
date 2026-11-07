@@ -11,6 +11,7 @@ import {
 } from "@/lib/membership-copy";
 import { setModulEintrag } from "@/lib/module/status";
 import type { IntakeAnswers } from "@/lib/types";
+import { measurePageHints } from "@/lib/measure-client";
 
 export function MitwirkungModulForm({
   draftKey,
@@ -65,6 +66,7 @@ export function MitwirkungModulForm({
           answers,
           revision: nextRevision,
           clientUpdatedAt: updatedAt,
+          ...measurePageHints(),
         }),
       });
       const data = (await response.json()) as {

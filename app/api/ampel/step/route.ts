@@ -2,6 +2,8 @@ import { ampelStepDate, ampelStepDevice, parseAmpelStepBody, AMPEL_STEP_BODY_MAX
 import { takeAmpelStepRate } from "@/lib/ampel-step-rate";
 import { readAmpelClientIp } from "@/lib/ampel-rate-limit";
 import { recordAmpelStep } from "@/lib/ampel-step-store";
+import { measureMetricFromAmpelStep } from "@/lib/measure-event";
+import { recordAmpelMeasure } from "@/lib/measure-record";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,5 +65,21 @@ export async function POST(request: Request): Promise<Response> {
   const device = ampelStepDevice(request.headers.get("user-agent") ?? "");
   const date = ampelStepDate(nowForTest ? nowForTest() : new Date());
   await recordAmpelStep({ ...fields, date, device });
+  const metric = measureMetricFromAmpelStep(fields);
+  if (metric && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const hints = parsed as { channel?: unknown; signal?: unknown; gobd_test?: unknown };
+    try {
+      await recordAmpelMeasure({
+        metric: metric.metric,
+        n: metric.n,
+        referrerHeader: request.headers.get("referer"),
+        clientChannel: hints.channel,
+        clientSignal: hints.signal,
+        gobdTest: hints.gobd_test,
+      });
+    } catch {
+      // The step sheet already holds the event. The aggregate must not fail the beacon.
+    }
+  }
   return empty(204);
 }

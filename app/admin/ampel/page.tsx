@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { HomeCtaSection } from "@/components/home-cta-admin";
+import { MesslueckenSection } from "@/components/messluecken-admin";
 import { getSessionEmail } from "@/lib/auth";
 import { isAmpelAdminEmail } from "@/lib/ampel-admin";
 import { ampelStatsError } from "@/lib/ampel-admin-http";
@@ -16,6 +17,9 @@ import {
 import { readAmpelStepRows } from "@/lib/ampel-step-store";
 import { buildHomeCtaReport, type HomeCtaReport } from "@/lib/home-cta-event";
 import { readHomeCtaRows } from "@/lib/home-cta-store";
+import { readProductionStarts } from "@/lib/measure-claim";
+import { buildMeasureReport, type MeasureReport } from "@/lib/measure-event";
+import { readMeasureRows } from "@/lib/measure-store";
 import { buildAmpelStats, type AmpelCount, type AmpelStatsReport } from "@/lib/ampel-stats";
 import { listAmpelLeads } from "@/lib/store";
 
@@ -326,6 +330,20 @@ export default async function AmpelAdminPage({
     homeCtaFailed = true;
   }
 
+  let messluecken: MeasureReport | null = null;
+  let messlueckenConfigured = false;
+  let messlueckenFailed = false;
+  try {
+    const loaded = await readMeasureRows();
+    messlueckenConfigured = loaded.configured;
+    if (loaded.configured) {
+      const starts = await readProductionStarts();
+      messluecken = buildMeasureReport(loaded.rows, { now: new Date(), starts });
+    }
+  } catch {
+    messlueckenFailed = true;
+  }
+
   return (
     <main className="wrap page ampel-admin">
       <h1>Ampel-Check Auswertung</h1>
@@ -335,6 +353,7 @@ export default async function AmpelAdminPage({
       {failure ? <p className="error">{failure}</p> : report ? <Report report={report} /> : null}
       <StepsSection report={steps} configured={stepsConfigured} failed={stepsFailed} testsOn={tests === "1"} />
       <HomeCtaSection report={homeCta} configured={homeCtaConfigured} failed={homeCtaFailed} />
+      <MesslueckenSection report={messluecken} configured={messlueckenConfigured} failed={messlueckenFailed} />
     </main>
   );
 }

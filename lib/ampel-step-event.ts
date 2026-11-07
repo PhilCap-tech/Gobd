@@ -64,7 +64,25 @@ const EVENT_SET = new Set<string>(AMPEL_STEP_EVENTS);
 const STATUS_SET = new Set<string>(AMPEL_STEP_RESULT_STATUSES);
 const CHOICE_SET = new Set<string>(AMPEL_STEP_CHOICES);
 const KNOWN_VARIANT_SET = new Set<string>(AMPEL_STEP_KNOWN_VARIANTS);
-const ALLOWED_KEYS = new Set(["event", "n", "status", "choice", "valid", "v"]);
+const ALLOWED_KEYS = new Set(["event", "n", "status", "choice", "valid", "v", "channel", "signal", "gobd_test"]);
+
+const MEASURE_CHANNEL_HINTS = new Set(["search_unklar", "paid", "direct", "unknown"]);
+
+function withMeasureHints(keys: readonly string[]): string[] {
+  return [...keys, "channel", "signal", "gobd_test"];
+}
+
+/** Optional beacon hints. Invalid values reject the body. Absence is fine. */
+function measureHintsOk(record: Record<string, unknown>): boolean {
+  if ("channel" in record && (typeof record.channel !== "string" || !MEASURE_CHANNEL_HINTS.has(record.channel))) {
+    return false;
+  }
+  if ("signal" in record && record.signal !== "grokbot") return false;
+  if ("gobd_test" in record && record.gobd_test !== "1" && record.gobd_test !== 1 && record.gobd_test !== true) {
+    return false;
+  }
+  return true;
+}
 
 const MOBILE_UA = /Mobile|Android|iPhone|iPad|iPod|IEMobile|Opera Mini|BlackBerry|webOS/i;
 
@@ -133,34 +151,35 @@ export function parseAmpelStepBody(input: unknown): AmpelStepFields | null {
   }
   const event = record.event;
   if (typeof event !== "string" || !EVENT_SET.has(event)) return null;
+  if (!measureHintsOk(record)) return null;
   const variant = resolveAmpelStepVariant("v" in record, record.v);
   if (!variant) return null;
   const base = { v: variant, n: "", status: "", choice: "", valid: "" };
 
   if (event === "ampel_q_view" || event === "ampel_q_answer") {
-    if (rejectedKeys(record, ["event", "n", "v"])) return null;
+    if (rejectedKeys(record, withMeasureHints(["event", "n", "v"]))) return null;
     if (!isQuestionNumber(record.n)) return null;
     return { ...base, event, n: String(record.n) };
   }
   if (event === "ampel_email_view") {
-    if (rejectedKeys(record, ["event", "v"])) return null;
+    if (rejectedKeys(record, withMeasureHints(["event", "v"]))) return null;
     return { ...base, event };
   }
   if (V2_PLAIN_EVENTS.has(event)) {
-    if (rejectedKeys(record, ["event", "v"])) return null;
+    if (rejectedKeys(record, withMeasureHints(["event", "v"]))) return null;
     return { ...base, event: event as AmpelStepEvent };
   }
   if (event === "ampel_submit_click" || event === "ampel_report_submit") {
-    if (rejectedKeys(record, ["event", "valid", "v"])) return null;
+    if (rejectedKeys(record, withMeasureHints(["event", "valid", "v"]))) return null;
     if (typeof record.valid !== "boolean") return null;
     return { ...base, event, valid: record.valid ? "true" : "false" };
   }
   if (event === "ampel_submit_result" || event === "ampel_report_sent") {
-    if (rejectedKeys(record, ["event", "status", "v"])) return null;
+    if (rejectedKeys(record, withMeasureHints(["event", "status", "v"]))) return null;
     if (typeof record.status !== "string" || !STATUS_SET.has(record.status)) return null;
     return { ...base, event, status: record.status };
   }
-  if (rejectedKeys(record, ["event", "choice", "v"])) return null;
+  if (rejectedKeys(record, withMeasureHints(["event", "choice", "v"]))) return null;
   if (typeof record.choice !== "string" || !CHOICE_SET.has(record.choice)) return null;
   return { ...base, event: "consent_choice", choice: record.choice };
 }
