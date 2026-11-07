@@ -65,6 +65,13 @@ function jsonError(error: string, status: number) {
   return NextResponse.json({ error }, { status });
 }
 
+/** A draft read is per login and changes on every save. Browsers must not reuse an earlier `{ draft: null }`. */
+const DRAFT_GET_HEADERS = { "Cache-Control": "private, no-store" };
+
+function draftGetJson(body: unknown): NextResponse {
+  return NextResponse.json(body, { headers: DRAFT_GET_HEADERS });
+}
+
 function blobStorageResponse(error: unknown, message: string): NextResponse | null {
   if (!(error instanceof IntakeDraftStorageError)) return null;
   return NextResponse.json(
@@ -394,8 +401,8 @@ async function readIntakeDraftBody(request: Request, io: DraftWriteIo = defaultD
   }
   if (member.kind === "allow") {
     if (!storedDraftMatchesMember(draft, member.grant)) return jsonError("Kein Zugriff.", 403);
-    if (!draft || draftIsEmpty(draft)) return NextResponse.json({ draft: null });
-    return NextResponse.json({
+    if (!draft || draftIsEmpty(draft)) return draftGetJson({ draft: null });
+    return draftGetJson({
       draft: { ...draft, answers: stripEmptyIntakeCards(draft.answers) },
     });
   }
@@ -412,7 +419,7 @@ async function readIntakeDraftBody(request: Request, io: DraftWriteIo = defaultD
   );
   if (owned) return owned;
   if (!draft || draftIsEmpty(draft)) {
-    return NextResponse.json({ draft: null });
+    return draftGetJson({ draft: null });
   }
   const blocked = await deliveredDraftGate(
     request,
@@ -434,7 +441,7 @@ async function readIntakeDraftBody(request: Request, io: DraftWriteIo = defaultD
     io.resolveCheckout,
   );
   if (!access.ok) return deny(access);
-  return NextResponse.json({
+  return draftGetJson({
     draft: { ...draft, answers: stripEmptyIntakeCards(draft.answers) },
   });
 }
@@ -709,7 +716,26 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     change: parseDraftVersionChange(body.change) ?? stored?.change,
     ...(newModel ? { pricingModel: "v3" } : stored?.pricingModel ? { pricingModel: stored.pricingModel } : {}),
   };
-  if (stored && sameDraftContent(stored, draft)) return unchangedResponse(stored);
+  // A slower request may still be writing. Read again so an older body cannot
+  // replace a newer revision that landed after the first read.
+  let current = stored;
+  try {
+    const again = await io.loadIntakeDraft(draftKey);
+    current = again && !draftIsEmpty(again) ? again : null;
+  } catch (error) {
+    const failure = blobStorageResponse(error, "Entwurf konnte nicht geladen werden.");
+    if (failure) return failure;
+    throw error;
+  }
+  const latestVerdict = revisionDecision({
+    sessionEmail: sessionEmail ?? "",
+    incomingRevision: body.revision,
+    clientUpdatedAt: body.clientUpdatedAt,
+    stored: current,
+  });
+  if (latestVerdict !== "ok" && current) return conflictResponse(current, latestVerdict);
+  draft.revision = Math.max(draftRevision({ revision: body.revision }), draftRevision(current));
+  if (current && sameDraftContent(current, draft)) return unchangedResponse(current);
   // Checked again right before the write: the submit may have landed while
   // this request waited for Sheets.
   if (formId && (await (io.isDraftFormClosed ?? isDraftFormClosed)(draftKey, formId))) {
@@ -728,7 +754,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     }
     const auditEntity = (draft.entityId || entityIdFromDraftKey(draftKey)).trim();
     if (sessionEmail && auditEntity) {
-      const before = stored ? normalizeIntakeAnswers(stored.answers) : ensureGesamt(emptyAnswers());
+      const before = current ? normalizeIntakeAnswers(current.answers) : ensureGesamt(emptyAnswers());
       await noteDraftSaved({
         actorEmail: sessionEmail,
         actorRole: "owner",
@@ -738,7 +764,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
         draftRevision: draftRevision(draft),
       });
     }
-    noteIntakeStart(request, stored, draft, body);
+    noteIntakeStart(request, current, draft, body);
     return NextResponse.json({ ok: true, draft, backend });
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht gespeichert werden.");

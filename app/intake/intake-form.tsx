@@ -472,7 +472,7 @@ export function IntakeForm({
         try {
           const params = new URLSearchParams({ draftKey });
           if (session.stripeSessionId) params.set("sessionId", session.stripeSessionId);
-          const response = await fetch(`/api/intake/draft?${params}`);
+          const response = await fetch(`/api/intake/draft?${params}`, { cache: "no-store" });
           if (response.ok) {
             const data = (await response.json()) as {
               draft?: {
@@ -501,9 +501,16 @@ export function IntakeForm({
       }
       if (cancelled) return;
       const chosen = preferIntakeSnapshot(server, local);
+      const initial = initialFormRef.current;
+      // Only text typed on this page view blocks a restore. A dirty flag or a
+      // revision floor from an earlier save must not keep the empty start form.
+      const untouched =
+        initial != null &&
+        stepRef.current === initial.step &&
+        JSON.stringify(answersRef.current) === JSON.stringify(initial.answers);
       const decision = resolveDraftAfterLoad({
         saved: chosen,
-        localEdited: formDirtyRef.current || revisionRef.current > 0,
+        localEdited: !untouched,
         localRevision: revisionRef.current,
         current: {
           answers: answersRef.current,
