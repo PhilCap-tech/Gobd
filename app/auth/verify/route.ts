@@ -32,6 +32,7 @@ export async function GET(request: Request) {
       recordNewAccount({
         email,
         referrerHeader: request.headers.get("referer"),
+        gobdTest: url.searchParams.get("gobd_test"),
       }),
     );
     return response;

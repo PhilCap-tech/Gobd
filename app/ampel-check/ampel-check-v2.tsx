@@ -44,6 +44,7 @@ import {
   ampelV2SentText,
 } from "@/lib/ampel-v2-copy";
 import { stripAnswerCodeFromSearch } from "@/lib/ampel-v2-flag";
+import { measurePageHints } from "@/lib/measure-client";
 import { trackAmpelCheckSubmit, trackAmpelReportConversion, trackAmpelResult, trackAmpelStart } from "@/lib/tracking";
 
 /*
@@ -275,6 +276,7 @@ export function AmpelCheckV2({ ctaPrice, pricingV3 = false }: { ctaPrice?: strin
       fax_number: fax,
       flow: "bericht",
       ...submitVariantFields(window.location.search),
+      ...(measurePageHints().gobd_test === "1" ? { gobd_test: "1" } : {}),
     };
     const showResult = (notice: string) => {
       setMailNotice(notice);

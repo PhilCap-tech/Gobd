@@ -13,6 +13,7 @@ import { readAmpelClientIp } from "@/lib/ampel-rate-limit";
 import { ampelStepDate, ampelStepDevice, ampelStepWindowDates, AMPEL_STEP_WINDOW_DAYS } from "@/lib/ampel-step-event";
 import { AMPEL_STEP_RATE_LIMIT as RATE_LIMIT, AMPEL_STEP_RATE_WINDOW_MS, clearAmpelStepRateForTest, takeAmpelStepRate } from "@/lib/ampel-step-rate";
 import { getHomeCtaSheetsTab } from "@/lib/env";
+import { setMeasureVercelEnvForTest } from "@/lib/measure-test";
 import { createHomeCtaGesture, releaseHomeView, resetHomeViewForTest, sendHomeCta, sendHomeView } from "@/lib/home-cta-beacon";
 import {
   HOME_CTA_COLUMNS,
@@ -209,6 +210,7 @@ async function withHome(
 async function main() {
   const saved = savedEnv();
   if (!automatedRunForbidsLiveWrites()) process.env.npm_lifecycle_event = "check:home-cta-counter";
+  setMeasureVercelEnvForTest("production");
   try {
     ok(automatedRunForbidsLiveWrites(), "check:home-cta-counter keeps live writes closed");
     ok(getHomeCtaSheetsTab() === "home_cta", "the CTA tab defaults to home_cta");
@@ -785,6 +787,7 @@ async function main() {
     ok(id === "hero_ampel", "the id type stays on the whitelist");
     console.log("check-home-cta-counter: ok");
   } finally {
+    setMeasureVercelEnvForTest(null);
     restoreEnv(saved);
     if (!automatedRunForbidsLiveWrites()) process.env.npm_lifecycle_event = "check:home-cta-counter";
     setHomeCtaNowForTest(null);

@@ -4,6 +4,7 @@ import { readAmpelClientIp } from "@/lib/ampel-rate-limit";
 import { recordAmpelStep } from "@/lib/ampel-step-store";
 import { measureMetricFromAmpelStep } from "@/lib/measure-event";
 import { recordAmpelMeasure } from "@/lib/measure-record";
+import { suppressesOldStat } from "@/lib/measure-test";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,21 +65,30 @@ export async function POST(request: Request): Promise<Response> {
 
   const device = ampelStepDevice(request.headers.get("user-agent") ?? "");
   const date = ampelStepDate(nowForTest ? nowForTest() : new Date());
-  await recordAmpelStep({ ...fields, date, device });
+  const hints =
+    parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as { channel?: unknown; signal?: unknown; gobd_test?: unknown })
+      : {};
+  const referrerHeader = request.headers.get("referer");
+  const test = suppressesOldStat({
+    referrer: referrerHeader,
+    gobdTest: hints.gobd_test,
+    signal: hints.signal,
+  });
+  if (!test) await recordAmpelStep({ ...fields, date, device });
   const metric = measureMetricFromAmpelStep(fields);
-  if (metric && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const hints = parsed as { channel?: unknown; signal?: unknown; gobd_test?: unknown };
+  if (metric) {
     try {
       await recordAmpelMeasure({
         metric: metric.metric,
         n: metric.n,
-        referrerHeader: request.headers.get("referer"),
+        referrerHeader,
         clientChannel: hints.channel,
         clientSignal: hints.signal,
         gobdTest: hints.gobd_test,
       });
     } catch {
-      // The step sheet already holds the event. The aggregate must not fail the beacon.
+      // The aggregate must not fail the beacon.
     }
   }
   return empty(204);

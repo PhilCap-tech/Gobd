@@ -11,6 +11,11 @@ import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { POST as postAmpelStep } from "@/app/api/ampel/step/route";
+import { POST as postHomeCta } from "@/app/api/home/cta/route";
+import { AMPEL_STEP_COLUMNS } from "@/lib/ampel-step-event";
+import { installAmpelStepSheetClientForTest } from "@/lib/ampel-step-store";
+import { HOME_CTA_COLUMNS } from "@/lib/home-cta-event";
+import { installHomeCtaSheetClientForTest } from "@/lib/home-cta-store";
 import { handleAmpelStatsRequest } from "@/lib/ampel-admin-http";
 import { clearAmpelStepRateForTest } from "@/lib/ampel-step-rate";
 import { parseAmpelStepBody } from "@/lib/ampel-step-event";
@@ -93,6 +98,38 @@ function mockSheet() {
     },
   };
   return { client, written, titles };
+}
+
+function mockOldStat(columnCount: number, wide: "H" | "C") {
+  const titles: string[] = [];
+  const written: string[][] = [];
+  const client = {
+    async get() {
+      return {
+        data: { sheets: titles.map((title, index) => ({ properties: { title, sheetId: index + 1 } })) },
+      };
+    },
+    async batchUpdate(args: { requestBody: { requests: Array<{ addSheet?: { properties: { title: string } } }> } }) {
+      const title = args.requestBody.requests[0]?.addSheet?.properties.title ?? "";
+      if (!title || titles.includes(title)) throw new Error("Sheet already exists");
+      titles.push(title);
+      return { data: { replies: [{ addSheet: { properties: { sheetId: titles.length } } }] } };
+    },
+    async valuesGet(args: { range: string }) {
+      const range = String(args.range);
+      if (range.endsWith(`!A:${wide}`)) return { data: { values: written.map((row) => [...row]) } };
+      if (!range.endsWith(`!A1:${wide}1`)) throw new Error("bad-range");
+      const header = written[0];
+      return { data: { values: header ? [[...header]] : [] } };
+    },
+    async valuesAppend(args: { requestBody: { values: string[][] } }) {
+      const row = args.requestBody.values[0] ?? [];
+      assert.equal(row.length, columnCount);
+      written.push([...row]);
+      return { data: {} };
+    },
+  };
+  return { client, written };
 }
 
 function post(body: unknown, headers: Record<string, string> = {}): Request {
@@ -405,6 +442,97 @@ async function main() {
     "the funnel keeps start, the question, the result, and drops client-only paid",
   );
   ok(!funnel.flat().join(" ").includes(CLICK), "the funnel row does not keep the click id");
+
+  const oldSteps = mockOldStat(AMPEL_STEP_COLUMNS.length, "H");
+  installAmpelStepSheetClientForTest({ client: oldSteps.client, configured: true });
+  clearAmpelStepRateForTest();
+  const markedStep = await postAmpelStep(
+    post(
+      { event: "ampel_q_view", n: 1, gobd_test: "1", channel: "direct" },
+      { referer: "https://www.gobd-doku-erstellen.de/ampel-check?gobd_test=1", "x-real-ip": "203.0.113.80" },
+    ),
+  );
+  ok(markedStep.status === 204 && oldSteps.written.length === 0, "a marked test does not write the old step sheet");
+  const grokStep = await postAmpelStep(
+    post(
+      { event: "ampel_q_answer", n: 1, channel: "direct" },
+      { referer: "https://grokbot.com/run", "x-real-ip": "203.0.113.81" },
+    ),
+  );
+  ok(grokStep.status === 204 && oldSteps.written.length === 0, "a grokbot referrer does not write the old step sheet");
+  const plainStep = await postAmpelStep(
+    post(
+      { event: "ampel_q_view", n: 1, channel: "direct" },
+      { referer: "https://www.gobd-doku-erstellen.de/ampel-check", "x-real-ip": "203.0.113.82" },
+    ),
+  );
+  ok(
+    plainStep.status === 204 && oldSteps.written.some((row) => row[1] === "ampel_q_view"),
+    "an unmarked view still writes the old step sheet",
+  );
+  setMeasureVercelEnvForTest("preview");
+  const previewStep = await postAmpelStep(
+    post(
+      { event: "ampel_q_view", n: 2 },
+      { referer: "https://www.gobd-doku-erstellen.de/ampel-check", "x-real-ip": "203.0.113.83" },
+    ),
+  );
+  ok(previewStep.status === 204 && !oldSteps.written.some((row) => row[2] === "2"), "a non-production request does not write the old step sheet");
+  setMeasureVercelEnvForTest("production");
+  installAmpelStepSheetClientForTest(null);
+
+  const oldHome = mockOldStat(HOME_CTA_COLUMNS.length, "C");
+  installHomeCtaSheetClientForTest({ client: oldHome.client, configured: true });
+  clearAmpelStepRateForTest();
+  const markedHome = await postHomeCta(
+    new Request("http://localhost/api/home/cta", {
+      method: "POST",
+      headers: { "content-type": "application/json", referer: "https://www.gobd-doku-erstellen.de/?gobd_test=1", "x-real-ip": "203.0.113.84" },
+      body: JSON.stringify({ cta: "home_view", gobd_test: "1" }),
+    }),
+  );
+  ok(markedHome.status === 204 && oldHome.written.length === 0, "a marked test does not write the homepage counter");
+  const plainHome = await postHomeCta(
+    new Request("http://localhost/api/home/cta", {
+      method: "POST",
+      headers: { "content-type": "application/json", referer: "https://www.gobd-doku-erstellen.de/", "x-real-ip": "203.0.113.85" },
+      body: JSON.stringify({ cta: "home_view" }),
+    }),
+  );
+  ok(plainHome.status === 204 && oldHome.written.some((row) => row[1] === "home_view"), "an unmarked homepage view still writes");
+  const grokHome = await postHomeCta(
+    new Request("http://localhost/api/home/cta", {
+      method: "POST",
+      headers: { "content-type": "application/json", referer: "https://grokbot.com/run", "x-real-ip": "203.0.113.86" },
+      body: JSON.stringify({ cta: "hero_ampel" }),
+    }),
+  );
+  ok(grokHome.status === 204 && !oldHome.written.some((row) => row[1] === "hero_ampel"), "a grokbot referrer does not write the homepage counter");
+  setMeasureVercelEnvForTest("preview");
+  const previewHome = await postHomeCta(
+    new Request("http://localhost/api/home/cta", {
+      method: "POST",
+      headers: { "content-type": "application/json", referer: "https://www.gobd-doku-erstellen.de/", "x-real-ip": "203.0.113.87" },
+      body: JSON.stringify({ cta: "header_checkout" }),
+    }),
+  );
+  ok(previewHome.status === 204 && !oldHome.written.some((row) => row[1] === "header_checkout"), "a non-production request does not write the homepage counter");
+  setMeasureVercelEnvForTest("production");
+  installHomeCtaSheetClientForTest(null);
+
+  const intakeRoute = readFileSync("app/api/intake/draft/route.ts", "utf8");
+  const verifyRoute = readFileSync("app/auth/verify/route.ts", "utf8");
+  const ergebnis = readFileSync("app/api/ampel/ergebnis/route.ts", "utf8");
+  ok(!intakeRoute.includes("recordAmpelStep") && !intakeRoute.includes("recordHomeCta"), "a draft save does not write the old counters");
+  ok(intakeRoute.includes("recordIntakeStart"), "a draft save still records the messluecken start");
+  ok(!verifyRoute.includes("recordAmpelStep") && !verifyRoute.includes("recordHomeCta"), "magic-link verify does not write the old counters");
+  ok(verifyRoute.includes("queueOwnerNotice"), "magic-link verify still queues the owner notice");
+  ok(verifyRoute.includes("gobdTest: url.searchParams.get(\"gobd_test\")"), "verify forwards a test flag on its own URL into the account count");
+  ok(!ergebnis.includes("recordAmpelStep") && !ergebnis.includes("recordHomeCta"), "the result submit is not an old counter");
+  ok(readFileSync("app/ampel-check/ampel-check-v2.tsx", "utf8").includes("gobd_test: \"1\""), "the no-email result form forwards the test flag");
+  ok(readFileSync("lib/ampel-step-beacon.ts", "utf8").includes("measurePageHints()"), "every step beacon, including submit, forwards the in-memory flag");
+  ok(readFileSync("lib/home-cta-beacon.ts", "utf8").includes("gobd_test"), "the homepage beacon can forward the test flag");
+  ok(!readFileSync("lib/home-cta-beacon.ts", "utf8").includes("localStorage"), "the homepage beacon still does not store the flag");
 
   const now = new Date("2026-11-14T12:00:00.000Z");
   ok(measureDate(now) === "2026-11-14", "14.11. is the Berlin report day");

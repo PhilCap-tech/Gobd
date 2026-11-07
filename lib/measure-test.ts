@@ -111,3 +111,23 @@ export function measureCohort(input: {
   if (measureTestFromAgent({ ip: input.ip, userAgent: input.userAgent })) return "test";
   return "standard";
 }
+
+/**
+ * Old aggregate sheets have no test column. A test request must not append
+ * there. The messluecken cohort already keeps the test count.
+ */
+export function suppressesOldStat(input: {
+  referrer?: string | null;
+  gobdTest?: unknown;
+  email?: string | null;
+  signal?: unknown;
+}): boolean {
+  return (
+    measureCohort({
+      email: input.email,
+      referrer: input.referrer,
+      signal: input.signal,
+      gobdTest: input.gobdTest,
+    }) === "test"
+  );
+}
