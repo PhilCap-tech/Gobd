@@ -6,11 +6,18 @@ import { isMeasureChannel, type MeasureChannel } from "@/lib/measure-channel";
  * Cells are the Berlin day, the metric, the question number (answers only),
  * the channel class and the cohort. No email, IP, click id or draft key.
  *
- * Messbeginn is the Berlin day of the first production write for that
- * metric, stored once and never moved earlier. Days before it, and every
- * day while that marker is missing, stay out of the counts. Nothing is
- * backfilled. The sheet itself is not trimmed; the admin window is 14 days,
- * same as the Ampel step and homepage counters.
+ * Activation is a fixed instant per metric. The merge of #321 (5544016)
+ * was about 20:23 Europe/Berlin and is not production readiness. Production
+ * readiness is Vercel deployment dpl_9dpatXxsU8aHFReXoPuhzq96zvCx READY at
+ * 07.11.2026 20:26:04 Europe/Berlin, and the GitHub deployment success at
+ * 20:26:05. The alias switch to that second is not proven, so the constant
+ * uses 20:26:04. It is not derived from events, test runs, or VERCEL_GIT_*
+ * (a later deploy would move that). Days before the activation calendar day
+ * are unmeasured. From that day on, a missing standard row is a real zero.
+ * The activation day is partial. Rows store only the Berlin date, so the
+ * 07.11. total is not filtered to the second. The first standard event is
+ * informational and is the earliest standard row on or after activation.
+ * Nothing is backfilled. The sheet is not trimmed; the admin window is 14 days.
  *
  * Every channel is the class of that event's own request, not of an
  * earlier landing.
@@ -35,6 +42,23 @@ export const MEASURE_COLUMNS = ["date", "metric", "n", "channel", "cohort"] as c
 export const MEASURE_WINDOW_DAYS = 14;
 
 export const MEASURE_NOT_MEASURED_LABEL = "nicht gemessen";
+
+/**
+ * When standard counting was ready in production. Same instant for every
+ * metric, because #321 switched them on together. Not an environment variable.
+ * 20:23 was the merge. This instant is the Vercel READY time; GitHub reported
+ * success one second later, and the alias switch to that second is not proven.
+ */
+export const MEASURE_ACTIVE_SINCE: Record<MeasureMetric, string> = {
+  intake_start: "2026-11-07T20:26:04+01:00",
+  magic_link_first_login: "2026-11-07T20:26:04+01:00",
+  ampel_start: "2026-11-07T20:26:04+01:00",
+  ampel_answer: "2026-11-07T20:26:04+01:00",
+  ampel_result: "2026-11-07T20:26:04+01:00",
+};
+
+/** Coarser than the second, because a stored row has only the Berlin date. */
+export const MEASURE_ACTIVE_NOTE = "ab ca. 20:26 Uhr (Berlin)";
 
 export const MEASURE_LABELS: Record<MeasureMetric, string> = {
   intake_start: "Fragebogen-Start",
@@ -72,19 +96,26 @@ export type MeasureAnswerStat = {
 
 export type MeasureDayStat = {
   date: string;
+  /** False before the activation calendar day. */
   measured: boolean;
+  /** True only on the activation calendar day. */
+  partial: boolean;
   standard: MeasureChannelCounts;
   test: MeasureChannelCounts;
   answers: MeasureAnswerStat[];
 };
 
-export type MeasureStarts = Partial<Record<MeasureMetric, string | null>>;
-
 export type MeasureMetricReport = {
   metric: MeasureMetric;
   label: string;
-  /** Berlin day of the first production write, or null when none exists yet. */
-  from: string | null;
+  /** Activation calendar day. Not the first event and not a marker file. */
+  from: string;
+  /** Full activation instant, Europe/Berlin offset included. */
+  activeSince: string;
+  /** Clock note for the partial activation day. Not a per-second filter. */
+  partialNote: string;
+  /** Earliest standard row on or after activation. Null when there is none. */
+  firstStandardEvent: string | null;
   channelBasis: "ereignis-request";
   channelBasisLabel: string;
   days: MeasureDayStat[];
@@ -121,6 +152,20 @@ export function measureDate(now: Date): string {
   const month = String(part(parts, "month")).padStart(2, "0");
   const day = String(part(parts, "day")).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+export function measureActiveAt(metric: MeasureMetric): Date {
+  return new Date(MEASURE_ACTIVE_SINCE[metric]);
+}
+
+export function measureActiveDay(metric: MeasureMetric): string {
+  return measureDate(measureActiveAt(metric));
+}
+
+/** Display note for the partial activation day. The same text for every metric. */
+export function measureActiveNote(metric: MeasureMetric): string {
+  if (!MEASURE_ACTIVE_SINCE[metric]) return MEASURE_ACTIVE_NOTE;
+  return MEASURE_ACTIVE_NOTE;
 }
 
 export function emptyChannelCounts(): MeasureChannelCounts {
@@ -239,50 +284,56 @@ function bump(counts: MeasureChannelCounts, channel: MeasureChannel): void {
   counts[channel] += 1;
 }
 
-function startDate(starts: MeasureStarts | undefined, metric: MeasureMetric): string | null {
-  const value = starts?.[metric];
-  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+function firstStandardEvent(rows: MeasureRow[], metric: MeasureMetric, activeDay: string): string | null {
+  let earliest: string | null = null;
+  for (const row of rows) {
+    if (row.metric !== metric || row.cohort !== "standard" || row.date < activeDay) continue;
+    if (!earliest || row.date < earliest) earliest = row.date;
+  }
+  return earliest;
 }
 
-export function buildMeasureReport(rows: MeasureRow[], options: { now: Date; starts?: MeasureStarts }): MeasureReport {
+export function buildMeasureReport(rows: MeasureRow[], options: { now: Date }): MeasureReport {
   const dates = measureWindowDates(options.now);
   const inWindow = new Set(dates);
   let hasRows = false;
   const metrics = MEASURE_METRICS.map((metric) => {
-    const from = startDate(options.starts, metric);
+    const from = measureActiveDay(metric);
     const days: MeasureDayStat[] = dates.map((date) => ({
       date,
-      measured: from != null && date >= from,
+      measured: date >= from,
+      partial: date === from,
       standard: emptyChannelCounts(),
       test: emptyChannelCounts(),
       answers: metric === "ampel_answer" ? emptyAnswers() : [],
     }));
     const byDate = new Map(days.map((day) => [day.date, day]));
     for (const row of rows) {
-      if (row.metric !== metric || !inWindow.has(row.date) || from == null || row.date < from) continue;
+      if (row.metric !== metric || !inWindow.has(row.date) || row.date < from) continue;
       const day = byDate.get(row.date);
-      if (!day || !day.measured) continue;
+      if (!day?.measured) continue;
       hasRows = true;
-      bump(row.cohort === "test" ? day.test : day.standard, row.channel);
+      const testRow = row.cohort === "test";
+      bump(testRow ? day.test : day.standard, row.channel);
       if (metric === "ampel_answer") {
         const answer = day.answers.find((item) => item.n === Number(row.n));
-        if (answer) bump(row.cohort === "test" ? answer.test : answer.standard, row.channel);
+        if (answer) bump(testRow ? answer.test : answer.standard, row.channel);
       }
     }
     const total = days.reduce(
-      (sum, day) => {
-        if (!day.measured) return sum;
-        return {
-          standard: addChannelCounts(sum.standard, day.standard),
-          test: addChannelCounts(sum.test, day.test),
-        };
-      },
+      (sum, day) => ({
+        standard: day.measured ? addChannelCounts(sum.standard, day.standard) : sum.standard,
+        test: day.measured ? addChannelCounts(sum.test, day.test) : sum.test,
+      }),
       { standard: emptyChannelCounts(), test: emptyChannelCounts() },
     );
     return {
       metric,
       label: MEASURE_LABELS[metric],
       from,
+      activeSince: MEASURE_ACTIVE_SINCE[metric],
+      partialNote: measureActiveNote(metric),
+      firstStandardEvent: firstStandardEvent(rows, metric, from),
       channelBasis: "ereignis-request" as const,
       channelBasisLabel: MEASURE_CHANNEL_BASIS_LABEL,
       days,
@@ -304,7 +355,11 @@ export function formatMeasureDay(iso: string): string {
   return `${match[3]}.${match[2]}.${match[1]}`;
 }
 
-export function formatMeasureFrom(iso: string | null): string {
-  if (!iso) return "Messbeginn: noch kein Produktiv-Ereignis";
+export function formatMeasureFrom(iso: string): string {
   return `Messbeginn ${formatMeasureDay(iso)}`;
+}
+
+export function formatFirstStandardEvent(iso: string | null): string {
+  if (!iso) return "Erstes Standard-Ereignis: noch keins";
+  return `Erstes Standard-Ereignis: ${formatMeasureDay(iso)}`;
 }

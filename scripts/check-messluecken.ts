@@ -5,7 +5,7 @@
  *   npm run check:messluecken
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createElement } from "react";
@@ -17,16 +17,20 @@ import { parseAmpelStepBody } from "@/lib/ampel-step-event";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { getMeasureSheetsTab } from "@/lib/env";
 import { MesslueckenSection } from "@/components/messluecken-admin";
-import { rememberProductionStart, setMeasureClaimRootForTest } from "@/lib/measure-claim";
+import { readMeasureStarts, setMeasureClaimRootForTest } from "@/lib/measure-claim";
 import {
   classifyMeasureChannel,
   resolveMeasureChannel,
   type MeasureChannel,
 } from "@/lib/measure-channel";
 import {
+  MEASURE_ACTIVE_SINCE,
   MEASURE_COLUMNS,
+  MEASURE_METRICS,
   MEASURE_LABELS,
   MEASURE_NOT_MEASURED_LABEL,
+  measureActiveDay,
+  measureActiveNote,
   MEASURE_WINDOW_DAYS,
   buildMeasureReport,
   channelTotal,
@@ -36,7 +40,7 @@ import {
   shouldCountIntakeStart,
   type MeasureRow,
 } from "@/lib/measure-event";
-import { recordIntakeStart, recordNewAccount, setMeasureNowForTest } from "@/lib/measure-record";
+import { recordAmpelMeasure, recordIntakeStart, recordNewAccount, setMeasureNowForTest } from "@/lib/measure-record";
 import {
   installMeasureSheetClientForTest,
   liveMeasureWriteAllowed,
@@ -413,29 +417,33 @@ async function main() {
     { date: "2026-11-08", metric: "ampel_answer", n: "1", channel: "paid", cohort: "test" },
     { date: "2026-10-01", metric: "magic_link_first_login", n: "", channel: "direct", cohort: "standard" },
   ];
-  const open = buildMeasureReport(rows, { now });
-  ok(open.metrics.every((item) => item.from == null && item.days.every((day) => !day.measured)), "without a production start every day is unmeasured");
-  ok(open.metrics.every((item) => channelTotal(item.total.standard) === 0), "rows before a start are not backdated");
-  const report = buildMeasureReport(rows, {
-    now,
-    starts: {
-      intake_start: "2026-11-08",
-      magic_link_first_login: "2026-11-08",
-      ampel_start: "2026-11-08",
-      ampel_answer: "2026-11-08",
-      ampel_result: "2026-11-08",
-    },
-  });
+  ok(measureActiveDay("intake_start") === "2026-11-07", "activation is the Berlin day of the fixed instant");
+  ok(measureActiveNote("ampel_start") === "ab ca. 20:26 Uhr (Berlin)", "the activation day is partial from about 20:26");
+  ok(
+    MEASURE_METRICS.every((metric) => MEASURE_ACTIVE_SINCE[metric] === "2026-11-07T20:26:04+01:00"),
+    "every metric shares the production-ready instant and does not read a deploy env var",
+  );
+  const report = buildMeasureReport(rows, { now });
   ok(report.windowDays === MEASURE_WINDOW_DAYS && report.timezone === "Europe/Berlin", "the report is the Berlin window");
   ok(report.metrics.length === 5, "every metric is present");
   const intake = report.metrics.find((item) => item.metric === "intake_start");
-  ok(intake && intake.from === "2026-11-08" && intake.label === "Fragebogen-Start" && intake.days.length === 14, "intake covers 14 Berlin days from the stored start");
+  ok(intake && intake.from === "2026-11-07" && intake.activeSince === MEASURE_ACTIVE_SINCE.intake_start && intake.days.length === 14, "intake is measured from the activation day");
+  ok(intake?.firstStandardEvent === "2026-11-07", "the first standard row on or after activation is informational");
   ok(intake?.channelBasisLabel === "Kanal des Ereignis-Requests", "the channel is the event request, not the landing");
-  const before = intake?.days.find((day) => day.date === "2026-11-07");
+  const before = intake?.days.find((day) => day.date === "2026-11-06");
+  const activationDay = intake?.days.find((day) => day.date === "2026-11-07");
   const on = intake?.days.find((day) => day.date === "2026-11-08");
-  ok(before && before.measured === false && channelTotal(before.standard) === 0, "the day before the start is not measured");
-  ok(on && on.measured && on.standard.search_unklar === 1 && on.standard.paid === 0 && channelTotal(on.test) === 1, "tests stay out of the standard cells");
-  ok(intake && channelTotal(intake.total.standard) === 1 && channelTotal(intake.total.test) === 1, "the sum skips the day before the start");
+  const emptyDay = intake?.days.find((day) => day.date === "2026-11-12");
+  ok(before && before.measured === false && !before.partial, "a day before activation is not measured");
+  ok(
+    activationDay?.measured === true && activationDay.partial && channelTotal(activationDay.standard) === 1,
+    "the activation day counts the standard row that already exists",
+  );
+  ok(on && on.measured && !on.partial && on.standard.search_unklar === 1 && channelTotal(on.test) === 1, "tests stay out of the standard cells");
+  ok(emptyDay?.measured === true && channelTotal(emptyDay.standard) === 0 && channelTotal(emptyDay.test) === 0, "a later day without rows is a real zero");
+  ok(intake && channelTotal(intake.total.standard) === 2 && channelTotal(intake.total.test) === 1, "standard rows on and after activation are counted");
+  const login = report.metrics.find((item) => item.metric === "magic_link_first_login");
+  ok(login?.firstStandardEvent == null && login?.days.find((day) => day.date === "2026-11-08")?.measured === true, "no standard event leaves a measured zero and does not invent a first event");
   const answerReport = report.metrics.find((item) => item.metric === "ampel_answer");
   const answerDay = answerReport?.days.find((day) => day.date === "2026-11-08");
   ok(answerDay?.answers.find((item) => item.n === 1)?.standard.direct === 1, "question 1 is its own answer count");
@@ -445,7 +453,8 @@ async function main() {
 
   const html = renderToStaticMarkup(createElement(MesslueckenSection, { report, configured: true, failed: false }));
   ok(html.includes(MEASURE_NOT_MEASURED_LABEL), "the admin view says nicht gemessen");
-  ok(html.includes("Sie sehen") && html.includes("Messbeginn 08.11.2026"), "the admin view uses Sie and the stored start date");
+  ok(html.includes("Sie sehen") && html.includes("Messbeginn 07.11.2026") && html.includes("ab ca. 20:26 Uhr (Berlin)"), "the admin view uses Sie, the activation day and the partial clock");
+  ok(html.includes("nicht sekundengenau"), "the admin view says the 07.11. count is not filtered to the second");
   ok(html.includes("Suche, unklar") && html.includes("Kanal des Ereignis-Requests"), "the admin view shows the uncertain search class and the event-request channel");
   ok(html.includes(MEASURE_LABELS.magic_link_first_login), "the admin view names the magic-link login");
   ok(!html.includes(">Organisch<") && !html.includes("zählen als organisch"), "the admin view does not call a search referrer organic");
@@ -486,9 +495,82 @@ async function main() {
   const cells = measureCells({ date: "2026-11-08", metric: "intake_start", n: "", channel: "paid", cohort: "standard" });
   assert.deepEqual(cells, ["2026-11-08", "intake_start", "", "paid", "standard"]);
 
-  const laterStart = await rememberProductionStart("ampel_start", "2026-11-20");
-  const earlierStart = await rememberProductionStart("ampel_start", "2026-11-01");
-  ok(laterStart === "2026-11-08" && earlierStart === "2026-11-08", "the first production day stays; a later or earlier date does not move it");
+  installMeasureSheetClientForTest({ client: sheet.client, configured: true });
+  const afterTestsFirst = await readMeasureStarts();
+  ok(afterTestsFirst.standard.ampel_result == null, "a first test result does not write a standard marker");
+  ok(afterTestsFirst.test.ampel_result === "2026-11-08", "the test start stays on its own key");
+  const testOnlyReport = buildMeasureReport(
+    dataRows(sheet.written).map((row) => ({
+      date: row[0] ?? "",
+      metric: row[1] as MeasureRow["metric"],
+      n: row[2] ?? "",
+      channel: row[3] as MeasureRow["channel"],
+      cohort: row[4] as MeasureRow["cohort"],
+    })),
+    { now },
+  );
+  const testOnlyResult = testOnlyReport.metrics.find((item) => item.metric === "ampel_result");
+  ok(
+    testOnlyResult?.activeSince === MEASURE_ACTIVE_SINCE.ampel_result &&
+      testOnlyResult.firstStandardEvent == null &&
+      testOnlyResult.days.find((day) => day.date === "2026-11-08")?.measured === true &&
+      channelTotal(testOnlyResult.days.find((day) => day.date === "2026-11-08")?.standard ?? { search_unklar: 0, paid: 0, direct: 0, unknown: 0 }) === 0,
+    "after only a test result the standard day is a measured zero and activation is unchanged",
+  );
+  mkdirSync(path.join(root, "starts"), { recursive: true });
+  writeFileSync(path.join(root, "starts", "ampel_result.json"), JSON.stringify({ date: "2026-11-02" }));
+  const ignoredLegacy = await readMeasureStarts();
+  ok(ignoredLegacy.standard.ampel_result == null, "the old shared start file is not adopted");
+  setMeasureNowForTest(() => new Date("2026-11-10T12:00:00.000Z"));
+  await recordAmpelMeasure({
+    metric: "ampel_result",
+    n: "",
+    referrerHeader: "https://www.gobd-doku-erstellen.de/ampel-check",
+    clientChannel: "direct",
+  });
+  const afterStandard = await readMeasureStarts();
+  ok(afterStandard.standard.ampel_result == null, "a standard event does not write a standard marker");
+  ok(afterStandard.test.ampel_result === "2026-11-08", "the standard event does not move the test marker");
+  const withStandard = buildMeasureReport(
+    dataRows(sheet.written).map((row) => ({
+      date: row[0] ?? "",
+      metric: row[1] as MeasureRow["metric"],
+      n: row[2] ?? "",
+      channel: row[3] as MeasureRow["channel"],
+      cohort: row[4] as MeasureRow["cohort"],
+    })),
+    { now: new Date("2026-11-14T12:00:00.000Z") },
+  );
+  ok(
+    withStandard.metrics.find((item) => item.metric === "ampel_result")?.firstStandardEvent === "2026-11-10",
+    "the first standard event is the earliest standard row, not the old marker",
+  );
+  setMeasureNowForTest(() => new Date("2026-11-11T12:00:00.000Z"));
+  await recordAmpelMeasure({
+    metric: "ampel_result",
+    n: "",
+    gobdTest: "1",
+    referrerHeader: "https://www.gobd-doku-erstellen.de/ampel-check?gobd_test=1",
+    clientChannel: "direct",
+  });
+  const afterLaterTest = await readMeasureStarts();
+  const afterLaterReport = buildMeasureReport(
+    dataRows(sheet.written).map((row) => ({
+      date: row[0] ?? "",
+      metric: row[1] as MeasureRow["metric"],
+      n: row[2] ?? "",
+      channel: row[3] as MeasureRow["channel"],
+      cohort: row[4] as MeasureRow["cohort"],
+    })),
+    { now: new Date("2026-11-14T12:00:00.000Z") },
+  );
+  ok(afterLaterTest.standard.ampel_result == null && afterLaterTest.test.ampel_result === "2026-11-08", "a later test does not write or move markers");
+  ok(
+    afterLaterReport.metrics.find((item) => item.metric === "ampel_result")?.firstStandardEvent === "2026-11-10" &&
+      afterLaterReport.metrics.find((item) => item.metric === "ampel_result")?.activeSince === MEASURE_ACTIVE_SINCE.ampel_result,
+    "a later test does not move activation or the first standard event",
+  );
+  ok(readFileSync(path.join(root, "starts", "ampel_result.json"), "utf8").includes("2026-11-02"), "the old start file is left untouched");
   setMeasureVercelEnvForTest("preview");
   installMeasureSheetClientForTest({ client: sheet.client, configured: true });
   const previewBefore = dataRows(sheet.written).length;
