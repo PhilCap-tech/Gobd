@@ -100,11 +100,11 @@ async function main(): Promise<void> {
     ok((await count(() => notice.queueOwnerNotice({ ...doc, id: "doc-1:2" }))) === 1, "doc: next version sends one");
     ok((await count(() => notice.queueOwnerNotice({ ...doc, id: "doc-t:1", email: TEST_ADDRESS }))) === 0, "doc: test address sends nothing");
     ok((await count(() => notice.queueOwnerNotice({ ...doc, id: "doc-e:1", entityId: LISTED }))) === 0, "doc: listed test firm sends nothing");
-    for (const address of ["delivered@resend.dev", "Bounced@Resend.Dev", "x@mail.resend.dev", "kunde@example.invalid", "a@sub.example.invalid", "gobd-test@mail.grokbot.com", " GOBD-Test@Mail.GrokBot.com "]) {
+    for (const address of ["delivered@resend.dev", "Bounced@Resend.Dev", "x@mail.resend.dev", "kunde@example.invalid", "a@sub.example.invalid", "gobd-test@mail.grokbot.com", " GOBD-Test@Mail.GrokBot.com ", "gobd-test+x@mail.grokbot.com", "GOBD-TEST+R321@MAIL.GROKBOT.COM"]) {
       ok(!notice.ownerNoticeDue({ ...doc, id: `doc-td:${address}`, email: address }), `test domain ${address} is skipped`);
     }
     ok((await count(() => notice.queueOwnerNotice({ ...doc, id: "doc-rd:1", email: "delivered@resend.dev" }))) === 0, "doc: delivered@resend.dev sends nothing");
-    for (const address of ["kunde@resend.dev.example", "kunde@notresend.dev", "kunde@example.invalid.example", "other@mail.grokbot.com", "gobd-test+x@mail.grokbot.com", "gobd-test@grokbot.com", "gobd-test@x.mail.grokbot.com", CUSTOMER]) {
+    for (const address of ["kunde@resend.dev.example", "kunde@notresend.dev", "kunde@example.invalid.example", "other@mail.grokbot.com", "gobd-test@grokbot.com", "gobd-test@x.mail.grokbot.com", "gobd-test+x@mail.grokbot.com.evil.com", "xgobd-test@mail.grokbot.com", "gobd-testx@mail.grokbot.com", CUSTOMER]) {
       ok(notice.ownerNoticeDue({ ...doc, id: `doc-lk:${address}`, email: address }), `lookalike ${address} still gets a notice`);
     }
     ok((await count(() => notice.queueOwnerNotice({ ...doc, id: "doc-o:1", email: CHECKOUT_NOTICE_TO }))) === 0, "doc: the owner address itself is skipped");
@@ -215,6 +215,7 @@ async function main(): Promise<void> {
     ok(sent.at(-1)!.subject === `[GoBD] Neues Konto / erste Anmeldung: ${CUSTOMER}`, "account: subject");
     ok((await count(() => login(CUSTOMER))) === 0, "account: second login sends nothing");
     ok((await count(() => login(TEST_ADDRESS))) === 0, "account: test address sends nothing");
+    ok((await count(() => login("gobd-test+r321@mail.grokbot.com"))) === 0, "account: plus-tag test address sends nothing");
 
     // Kein Ledger-Eintrag (Dateiname oder Inhalt) enthält eine Kundenadresse.
     const { readdirSync } = await import("node:fs");

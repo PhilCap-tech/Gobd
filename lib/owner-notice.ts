@@ -3,13 +3,15 @@
  * (Freigabe Philip, 2026-10-26 08:58). Gleicher Empfänger wie der
  * Kaufhinweis ({@link CHECKOUT_NOTICE_TO}), eine Mail pro Ereignis über den
  * Mail-Ledger (`owner-notice:<art>:<id>`), versendet nach der Antwort.
- * Testadressen (Ampel-Regel) und gelistete Testfirmen werden übersprungen.
+ * Testadressen (Ampel-Regel und dieselbe Adressliste wie die Messlücken-Kohorte)
+ * und gelistete Testfirmen werden übersprungen.
  * Prebuild und Checks senden nie, außer der Check hat den Versand gestubbt
  * und {@link setOwnerNoticeTestMode} gesetzt. Wirft nie in den Kundenfluss.
  */
 import { createHash } from "node:crypto";
 import { isAmpelTestEmail } from "@/lib/ampel-stats";
 import { CHECKOUT_NOTICE_TO } from "@/lib/checkout-notice";
+import { isMeasureTestEmail } from "@/lib/measure-test";
 import { formatBerlinDateTime } from "@/lib/delivery-templates";
 import { scheduleLeadNoticeAfterResponse } from "@/lib/lead-notice";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
@@ -76,10 +78,15 @@ const OWNER_NOTICE_TEST_DOMAINS = ["example.invalid", "resend.dev"];
 /** Einzelne Testadressen, nur exakt (kein Tag, keine Domain). Tester-Postfach (CoS 28.10.). */
 export const OWNER_NOTICE_TEST_EMAILS = ["gobd-test@mail.grokbot.com"];
 
-/** Ampel-Testadressen plus example.invalid und resend.dev (z. B. delivered@resend.dev). */
+/**
+ * Ampel-Testadressen, example.invalid, resend.dev inklusive Subdomains,
+ * und dieselbe Adressliste wie die Messlücken-Kohorte
+ * ({@link isMeasureTestEmail}: gobd-test, gobd-test+tag, *@resend.dev, cappe@gmx.de).
+ */
 export function isOwnerNoticeTestEmail(email: string): boolean {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return false;
+  if (isMeasureTestEmail(normalized)) return true;
   if (isAmpelTestEmail(normalized)) return true;
   if (OWNER_NOTICE_TEST_EMAILS.includes(normalized)) return true;
   const at = normalized.lastIndexOf("@");
