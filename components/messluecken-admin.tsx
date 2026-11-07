@@ -7,6 +7,7 @@ import {
   channelTotal,
   formatMeasureDay,
   formatMeasureFrom,
+  formatTestFrom,
   type MeasureChannelCounts,
   type MeasureMetric,
   type MeasureMetricReport,
@@ -17,14 +18,22 @@ function Cells({
   counts,
   test,
   measured,
+  testMeasured,
 }: {
   counts: MeasureChannelCounts;
   test: MeasureChannelCounts;
   measured: boolean;
+  testMeasured: boolean;
 }) {
+  if (!measured && !testMeasured) {
+    return <td colSpan={6}>{MEASURE_NOT_MEASURED_LABEL}</td>;
+  }
   if (!measured) {
     return (
-      <td colSpan={6}>{MEASURE_NOT_MEASURED_LABEL}</td>
+      <>
+        <td colSpan={5}>{MEASURE_NOT_MEASURED_LABEL}</td>
+        <td>{channelTotal(test)}</td>
+      </>
     );
   }
   return (
@@ -33,7 +42,7 @@ function Cells({
         <td key={channel}>{counts[channel]}</td>
       ))}
       <td>{channelTotal(counts)}</td>
-      <td>{channelTotal(test)}</td>
+      <td>{testMeasured ? channelTotal(test) : MEASURE_NOT_MEASURED_LABEL}</td>
     </>
   );
 }
@@ -44,7 +53,8 @@ function DayTable({ metric }: { metric: MeasureMetricReport }) {
     <div className="ampel-admin-table-wrap">
       <table className="ampel-admin-table">
         <caption>
-          {MEASURE_LABELS[metric.metric]}. {formatMeasureFrom(metric.from)}. {MEASURE_CHANNEL_BASIS_LABEL}. Standard ohne Tests.
+          {MEASURE_LABELS[metric.metric]}. {formatMeasureFrom(metric.from)}.
+          {metric.testFrom ? ` ${formatTestFrom(metric.testFrom)}.` : ""} {MEASURE_CHANNEL_BASIS_LABEL}. Standard ohne Tests.
         </caption>
         <thead>
           <tr>
@@ -60,16 +70,22 @@ function DayTable({ metric }: { metric: MeasureMetricReport }) {
           {days.map((day) => (
             <tr key={day.date}>
               <td>{formatMeasureDay(day.date)}</td>
-              <Cells counts={day.standard} test={day.test} measured={day.measured} />
+              <Cells counts={day.standard} test={day.test} measured={day.measured} testMeasured={day.testMeasured} />
             </tr>
           ))}
           <tr>
             <td>Summe</td>
-            {MEASURE_CHANNELS.map((channel) => (
-              <td key={channel}>{metric.total.standard[channel]}</td>
-            ))}
-            <td>{channelTotal(metric.total.standard)}</td>
-            <td>{channelTotal(metric.total.test)}</td>
+            {metric.from ? (
+              <>
+                {MEASURE_CHANNELS.map((channel) => (
+                  <td key={channel}>{metric.total.standard[channel]}</td>
+                ))}
+                <td>{channelTotal(metric.total.standard)}</td>
+              </>
+            ) : (
+              <td colSpan={5}>{MEASURE_NOT_MEASURED_LABEL}</td>
+            )}
+            <td>{metric.testFrom ? channelTotal(metric.total.test) : MEASURE_NOT_MEASURED_LABEL}</td>
           </tr>
         </tbody>
       </table>
@@ -165,9 +181,10 @@ export function MesslueckenSection({
       ) : report && intake && accounts && start && answers && result ? (
         <>
           <p>
-            Sie sehen Zählungen ab dem Messbeginn je Kennzahl, nach dem Kalendertag in Europe/Berlin. Der
-            Messbeginn ist der Tag des ersten Produktiv-Ereignisses dieser Kennzahl. Davor, und solange noch kein
-            Produktiv-Ereignis vorliegt, steht {MEASURE_NOT_MEASURED_LABEL}. Es wird nichts nachgetragen. Suche,
+            Sie sehen Zählungen ab dem Messbeginn je Kennzahl, nach dem Kalendertag in Europe/Berlin.             Der
+            Messbeginn ist der Tag des ersten Standard-Ereignisses in der Produktion. Ein Testlauf setzt ihn nicht.
+            Davor, und solange noch kein Standard-Ereignis vorliegt, steht {MEASURE_NOT_MEASURED_LABEL}. Es wird
+            nichts nachgetragen. Suche,
             unklar, Bezahlt, Direkt und Unbekannt sind die Standardzählung. Testläufe stehen nur in der Spalte
             Tests.
           </p>

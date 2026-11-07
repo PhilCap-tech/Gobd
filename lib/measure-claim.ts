@@ -102,8 +102,20 @@ export async function claimMeasureOnce(scope: "intake" | "magic-link", material:
 
 const START_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function startFile(root: string, metric: MeasureMetric): string {
-  return path.join(root, "starts", `${metric}.json`);
+/**
+ * Standard and test starts are different files.
+ * `starts/<metric>.json` is the old shared key. A test event on production
+ * may already have written it. This code does not read, move or delete that
+ * file. The standard start is `starts/standard/<metric>.json`.
+ */
+export type MeasureStartCohort = "standard" | "test";
+
+function startFile(root: string, cohort: MeasureStartCohort, metric: MeasureMetric): string {
+  return path.join(root, "starts", cohort, `${metric}.json`);
+}
+
+function startBlobPath(cohort: MeasureStartCohort, metric: MeasureMetric): string {
+  return `gobd/measure-claim/starts/${cohort}/${metric}.json`;
 }
 
 function parseStart(raw: string): string | null {
@@ -115,26 +127,31 @@ function parseStart(raw: string): string | null {
   }
 }
 
-async function readStartFile(root: string, metric: MeasureMetric): Promise<string | null> {
+async function readStartFile(root: string, cohort: MeasureStartCohort, metric: MeasureMetric): Promise<string | null> {
   try {
-    return parseStart(await readFile(startFile(root, metric), "utf8"));
+    return parseStart(await readFile(startFile(root, cohort, metric), "utf8"));
   } catch (error) {
     if (errorCode(error) === "ENOENT") return null;
     throw error;
   }
 }
 
-/** First production day for this metric. An existing marker is never moved. */
-async function createStartFile(root: string, metric: MeasureMetric, date: string): Promise<string | null> {
-  const existing = await readStartFile(root, metric);
+/** First day for this cohort. An existing marker is never moved or deleted. */
+async function createStartFile(
+  root: string,
+  cohort: MeasureStartCohort,
+  metric: MeasureMetric,
+  date: string,
+): Promise<string | null> {
+  const existing = await readStartFile(root, cohort, metric);
   if (existing) return existing;
-  const file = startFile(root, metric);
+  const file = startFile(root, cohort, metric);
   await mkdir(path.dirname(file), { recursive: true });
   let handle;
   try {
     handle = await open(file, "wx");
   } catch (error) {
-    if (errorCode(error) === "EEXIST") return readStartFile(root, metric);
+    if (errorCode(error) === "EEXIST") return readStartFile(root, cohort, metric);
     throw error;
   }
   try {
@@ -145,9 +162,9 @@ async function createStartFile(root: string, metric: MeasureMetric, date: string
   return date;
 }
 
-async function readStartBlob(metric: MeasureMetric): Promise<string | null> {
+async function readStartBlob(cohort: MeasureStartCohort, metric: MeasureMetric): Promise<string | null> {
   try {
-    const result = await get(`gobd/measure-claim/starts/${metric}.json`, {
+    const result = await get(startBlobPath(cohort, metric), {
       access: "private",
       useCache: false,
       token: process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? "",
@@ -161,11 +178,11 @@ async function readStartBlob(metric: MeasureMetric): Promise<string | null> {
   }
 }
 
-async function createStartBlob(metric: MeasureMetric, date: string): Promise<string | null> {
-  const existing = await readStartBlob(metric);
+async function createStartBlob(cohort: MeasureStartCohort, metric: MeasureMetric, date: string): Promise<string | null> {
+  const existing = await readStartBlob(cohort, metric);
   if (existing) return existing;
   try {
-    await put(`gobd/measure-claim/starts/${metric}.json`, JSON.stringify({ date }), {
+    await put(startBlobPath(cohort, metric), JSON.stringify({ date }), {
       access: "private",
       addRandomSuffix: false,
       allowOverwrite: false,
@@ -175,38 +192,51 @@ async function createStartBlob(metric: MeasureMetric, date: string): Promise<str
     return date;
   } catch (error) {
     if (!isBlobConflict(error)) throw error;
-    return readStartBlob(metric);
+    return readStartBlob(cohort, metric);
   }
 }
 
-/**
- * Stores the Berlin day of the first production event for this metric.
- * Later calls keep that day, including a call with an earlier date.
- * Non-production does not write the marker.
- */
-export async function rememberProductionStart(metric: MeasureMetric, date: string): Promise<string | null> {
+async function rememberStart(cohort: MeasureStartCohort, metric: MeasureMetric, date: string): Promise<string | null> {
   if (!START_DATE.test(date)) return null;
   if (!isProductionMeasureEnv()) return null;
   if (!testRoot && automatedRunForbidsLiveWrites()) return null;
   try {
-    if (testRoot) return await createStartFile(testRoot, metric, date);
-    if (blobEnabled()) return await createStartBlob(metric, date);
-    return await createStartFile(path.join(getFileFallbackDir(), "measure-claim"), metric, date);
+    if (testRoot) return await createStartFile(testRoot, cohort, metric, date);
+    if (blobEnabled()) return await createStartBlob(cohort, metric, date);
+    return await createStartFile(path.join(getFileFallbackDir(), "measure-claim"), cohort, metric, date);
   } catch (error) {
     console.error("[messluecken]", error instanceof Error ? error.name : "error");
     return null;
   }
 }
 
-export async function readProductionStarts(): Promise<Partial<Record<MeasureMetric, string>>> {
-  if (!testRoot && automatedRunForbidsLiveWrites()) return {};
-  const starts: Partial<Record<MeasureMetric, string>> = {};
-  for (const metric of MEASURE_METRICS) {
-    let date: string | null = null;
-    if (testRoot) date = await readStartFile(testRoot, metric);
-    else if (blobEnabled()) date = await readStartBlob(metric);
-    else date = await readStartFile(path.join(getFileFallbackDir(), "measure-claim"), metric);
-    if (date) starts[metric] = date;
+/** Berlin day of the first standard production event. Test events must not call this. */
+export function rememberStandardStart(metric: MeasureMetric, date: string): Promise<string | null> {
+  return rememberStart("standard", metric, date);
+}
+
+/** Berlin day of the first test production event. Never the standard start. */
+export function rememberTestStart(metric: MeasureMetric, date: string): Promise<string | null> {
+  return rememberStart("test", metric, date);
+}
+
+export type MeasureStartMaps = {
+  standard: Partial<Record<MeasureMetric, string>>;
+  test: Partial<Record<MeasureMetric, string>>;
+};
+
+export async function readMeasureStarts(): Promise<MeasureStartMaps> {
+  const empty = (): MeasureStartMaps => ({ standard: {}, test: {} });
+  if (!testRoot && automatedRunForbidsLiveWrites()) return empty();
+  const starts = empty();
+  for (const cohort of ["standard", "test"] as const) {
+    for (const metric of MEASURE_METRICS) {
+      let date: string | null = null;
+      if (testRoot) date = await readStartFile(testRoot, cohort, metric);
+      else if (blobEnabled()) date = await readStartBlob(cohort, metric);
+      else date = await readStartFile(path.join(getFileFallbackDir(), "measure-claim"), cohort, metric);
+      if (date) starts[cohort][metric] = date;
+    }
   }
   return starts;
 }

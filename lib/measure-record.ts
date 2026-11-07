@@ -6,7 +6,7 @@
 import { after } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { resolveMeasureChannel } from "@/lib/measure-channel";
-import { claimMeasureOnce, rememberProductionStart } from "@/lib/measure-claim";
+import { claimMeasureOnce, rememberStandardStart, rememberTestStart } from "@/lib/measure-claim";
 import { measureDate, type MeasureCohort, type MeasureMetric } from "@/lib/measure-event";
 import { recordMeasureRow } from "@/lib/measure-store";
 import { isProductionMeasureEnv, measureCohort } from "@/lib/measure-test";
@@ -57,8 +57,12 @@ async function writeMeasure(input: {
 }): Promise<void> {
   const date = measureDate(now());
   if (isProductionMeasureEnv()) {
-    const start = await rememberProductionStart(input.metric, date);
-    if (!start) return;
+    if (input.cohort === "standard") {
+      const start = await rememberStandardStart(input.metric, date);
+      if (!start) return;
+    } else {
+      await rememberTestStart(input.metric, date);
+    }
   }
   await recordMeasureRow({ date, ...input });
 }

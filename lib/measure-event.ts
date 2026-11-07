@@ -72,7 +72,10 @@ export type MeasureAnswerStat = {
 
 export type MeasureDayStat = {
   date: string;
+  /** Standard measurement is open on this day. */
   measured: boolean;
+  /** Test counts are open on this day. Independent of `measured`. */
+  testMeasured: boolean;
   standard: MeasureChannelCounts;
   test: MeasureChannelCounts;
   answers: MeasureAnswerStat[];
@@ -83,8 +86,10 @@ export type MeasureStarts = Partial<Record<MeasureMetric, string | null>>;
 export type MeasureMetricReport = {
   metric: MeasureMetric;
   label: string;
-  /** Berlin day of the first production write, or null when none exists yet. */
+  /** Berlin day of the first standard production event, or null when none exists yet. */
   from: string | null;
+  /** Berlin day of the first test production event. Never used as `from`. */
+  testFrom: string | null;
   channelBasis: "ereignis-request";
   channelBasisLabel: string;
   days: MeasureDayStat[];
@@ -244,45 +249,52 @@ function startDate(starts: MeasureStarts | undefined, metric: MeasureMetric): st
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
 
-export function buildMeasureReport(rows: MeasureRow[], options: { now: Date; starts?: MeasureStarts }): MeasureReport {
+export function buildMeasureReport(
+  rows: MeasureRow[],
+  options: { now: Date; starts?: MeasureStarts; testStarts?: MeasureStarts },
+): MeasureReport {
   const dates = measureWindowDates(options.now);
   const inWindow = new Set(dates);
   let hasRows = false;
   const metrics = MEASURE_METRICS.map((metric) => {
     const from = startDate(options.starts, metric);
+    const testFrom = startDate(options.testStarts, metric);
     const days: MeasureDayStat[] = dates.map((date) => ({
       date,
       measured: from != null && date >= from,
+      testMeasured: testFrom != null && date >= testFrom,
       standard: emptyChannelCounts(),
       test: emptyChannelCounts(),
       answers: metric === "ampel_answer" ? emptyAnswers() : [],
     }));
     const byDate = new Map(days.map((day) => [day.date, day]));
     for (const row of rows) {
-      if (row.metric !== metric || !inWindow.has(row.date) || from == null || row.date < from) continue;
+      if (row.metric !== metric || !inWindow.has(row.date)) continue;
       const day = byDate.get(row.date);
-      if (!day || !day.measured) continue;
+      if (!day) continue;
+      const testRow = row.cohort === "test";
+      if (testRow ? !day.testMeasured || row.date < (testFrom ?? "") : !day.measured || from == null || row.date < from) {
+        continue;
+      }
       hasRows = true;
-      bump(row.cohort === "test" ? day.test : day.standard, row.channel);
+      bump(testRow ? day.test : day.standard, row.channel);
       if (metric === "ampel_answer") {
         const answer = day.answers.find((item) => item.n === Number(row.n));
-        if (answer) bump(row.cohort === "test" ? answer.test : answer.standard, row.channel);
+        if (answer) bump(testRow ? answer.test : answer.standard, row.channel);
       }
     }
     const total = days.reduce(
-      (sum, day) => {
-        if (!day.measured) return sum;
-        return {
-          standard: addChannelCounts(sum.standard, day.standard),
-          test: addChannelCounts(sum.test, day.test),
-        };
-      },
+      (sum, day) => ({
+        standard: day.measured ? addChannelCounts(sum.standard, day.standard) : sum.standard,
+        test: day.testMeasured ? addChannelCounts(sum.test, day.test) : sum.test,
+      }),
       { standard: emptyChannelCounts(), test: emptyChannelCounts() },
     );
     return {
       metric,
       label: MEASURE_LABELS[metric],
       from,
+      testFrom,
       channelBasis: "ereignis-request" as const,
       channelBasisLabel: MEASURE_CHANNEL_BASIS_LABEL,
       days,
@@ -305,6 +317,11 @@ export function formatMeasureDay(iso: string): string {
 }
 
 export function formatMeasureFrom(iso: string | null): string {
-  if (!iso) return "Messbeginn: noch kein Produktiv-Ereignis";
+  if (!iso) return "Messbeginn: noch kein Standard-Ereignis";
   return `Messbeginn ${formatMeasureDay(iso)}`;
+}
+
+export function formatTestFrom(iso: string | null): string {
+  if (!iso) return "";
+  return `Testbeginn ${formatMeasureDay(iso)}`;
 }
