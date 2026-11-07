@@ -175,9 +175,10 @@ export function MesslueckenSection({
         <>
           <p>
             Sie sehen Zählungen ab dem Messbeginn je Kennzahl, nach dem Kalendertag in Europe/Berlin. Der
-            Messbeginn ist der Zeitpunkt, zu dem die Standardzählung in der Produktion live war. Ein Testlauf
+            Messbeginn ist der Zeitpunkt, zu dem die Standardzählung in der Produktion bereit war. Ein Testlauf
             verschiebt ihn nicht. Tage davor sind {MEASURE_NOT_MEASURED_LABEL}. Ab dem Messbeginn ist eine fehlende
-            Standardzeile eine echte 0. Der Aktivierungstag gilt erst ab der angezeigten Uhrzeit. Das erste
+            Standardzeile eine echte 0. Die Zahl für den 07.11.2026 umfasst den Kalendertag ab etwa 20:26 Uhr
+            (Berlin). Die Zeilen tragen nur das Datum, die Zählung ist nicht sekundengenau. Das erste
             Standard-Ereignis steht nur zur Information daneben. Es wird nichts nachgetragen. Suche,
             unklar, Bezahlt, Direkt und Unbekannt sind die Standardzählung. Testläufe stehen nur in der Spalte
             Tests.

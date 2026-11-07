@@ -418,10 +418,10 @@ async function main() {
     { date: "2026-10-01", metric: "magic_link_first_login", n: "", channel: "direct", cohort: "standard" },
   ];
   ok(measureActiveDay("intake_start") === "2026-11-07", "activation is the Berlin day of the fixed instant");
-  ok(measureActiveNote("ampel_start") === "ab 20:23", "the activation day is partial from 20:23");
+  ok(measureActiveNote("ampel_start") === "ab ca. 20:26 Uhr (Berlin)", "the activation day is partial from about 20:26");
   ok(
-    MEASURE_METRICS.every((metric) => MEASURE_ACTIVE_SINCE[metric] === "2026-11-07T20:23:00+01:00"),
-    "every metric shares the #321 production activation and does not read a deploy env var",
+    MEASURE_METRICS.every((metric) => MEASURE_ACTIVE_SINCE[metric] === "2026-11-07T20:26:04+01:00"),
+    "every metric shares the production-ready instant and does not read a deploy env var",
   );
   const report = buildMeasureReport(rows, { now });
   ok(report.windowDays === MEASURE_WINDOW_DAYS && report.timezone === "Europe/Berlin", "the report is the Berlin window");
@@ -453,7 +453,8 @@ async function main() {
 
   const html = renderToStaticMarkup(createElement(MesslueckenSection, { report, configured: true, failed: false }));
   ok(html.includes(MEASURE_NOT_MEASURED_LABEL), "the admin view says nicht gemessen");
-  ok(html.includes("Sie sehen") && html.includes("Messbeginn 07.11.2026") && html.includes("ab 20:23"), "the admin view uses Sie, the activation day and the partial clock");
+  ok(html.includes("Sie sehen") && html.includes("Messbeginn 07.11.2026") && html.includes("ab ca. 20:26 Uhr (Berlin)"), "the admin view uses Sie, the activation day and the partial clock");
+  ok(html.includes("nicht sekundengenau"), "the admin view says the 07.11. count is not filtered to the second");
   ok(html.includes("Suche, unklar") && html.includes("Kanal des Ereignis-Requests"), "the admin view shows the uncertain search class and the event-request channel");
   ok(html.includes(MEASURE_LABELS.magic_link_first_login), "the admin view names the magic-link login");
   ok(!html.includes(">Organisch<") && !html.includes("zählen als organisch"), "the admin view does not call a search referrer organic");

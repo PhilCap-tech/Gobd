@@ -6,14 +6,18 @@ import { isMeasureChannel, type MeasureChannel } from "@/lib/measure-channel";
  * Cells are the Berlin day, the metric, the question number (answers only),
  * the channel class and the cohort. No email, IP, click id or draft key.
  *
- * Activation is a fixed instant per metric: the production deploy of the
- * counting (#321, merge 5544016, about 20:23 Europe/Berlin on 07.11.2026).
- * It is not derived from events, test runs, or VERCEL_GIT_* (a later deploy
- * would move that). Days before the activation calendar day are unmeasured.
- * From that day on, a missing standard row is a real zero. The activation
- * day is partial. The first standard event is informational and is the
- * earliest standard row on or after activation. Nothing is backfilled.
- * The sheet is not trimmed; the admin window is 14 days.
+ * Activation is a fixed instant per metric. The merge of #321 (5544016)
+ * was about 20:23 Europe/Berlin and is not production readiness. Production
+ * readiness is Vercel deployment dpl_9dpatXxsU8aHFReXoPuhzq96zvCx READY at
+ * 07.11.2026 20:26:04 Europe/Berlin, and the GitHub deployment success at
+ * 20:26:05. The alias switch to that second is not proven, so the constant
+ * uses 20:26:04. It is not derived from events, test runs, or VERCEL_GIT_*
+ * (a later deploy would move that). Days before the activation calendar day
+ * are unmeasured. From that day on, a missing standard row is a real zero.
+ * The activation day is partial. Rows store only the Berlin date, so the
+ * 07.11. total is not filtered to the second. The first standard event is
+ * informational and is the earliest standard row on or after activation.
+ * Nothing is backfilled. The sheet is not trimmed; the admin window is 14 days.
  *
  * Every channel is the class of that event's own request, not of an
  * earlier landing.
@@ -40,16 +44,21 @@ export const MEASURE_WINDOW_DAYS = 14;
 export const MEASURE_NOT_MEASURED_LABEL = "nicht gemessen";
 
 /**
- * When standard counting went live in production. Same instant for every
+ * When standard counting was ready in production. Same instant for every
  * metric, because #321 switched them on together. Not an environment variable.
+ * 20:23 was the merge. This instant is the Vercel READY time; GitHub reported
+ * success one second later, and the alias switch to that second is not proven.
  */
 export const MEASURE_ACTIVE_SINCE: Record<MeasureMetric, string> = {
-  intake_start: "2026-11-07T20:23:00+01:00",
-  magic_link_first_login: "2026-11-07T20:23:00+01:00",
-  ampel_start: "2026-11-07T20:23:00+01:00",
-  ampel_answer: "2026-11-07T20:23:00+01:00",
-  ampel_result: "2026-11-07T20:23:00+01:00",
+  intake_start: "2026-11-07T20:26:04+01:00",
+  magic_link_first_login: "2026-11-07T20:26:04+01:00",
+  ampel_start: "2026-11-07T20:26:04+01:00",
+  ampel_answer: "2026-11-07T20:26:04+01:00",
+  ampel_result: "2026-11-07T20:26:04+01:00",
 };
+
+/** Coarser than the second, because a stored row has only the Berlin date. */
+export const MEASURE_ACTIVE_NOTE = "ab ca. 20:26 Uhr (Berlin)";
 
 export const MEASURE_LABELS: Record<MeasureMetric, string> = {
   intake_start: "Fragebogen-Start",
@@ -103,7 +112,7 @@ export type MeasureMetricReport = {
   from: string;
   /** Full activation instant, Europe/Berlin offset included. */
   activeSince: string;
-  /** Clock note for the partial activation day, e.g. `ab 20:23`. */
+  /** Clock note for the partial activation day. Not a per-second filter. */
   partialNote: string;
   /** Earliest standard row on or after activation. Null when there is none. */
   firstStandardEvent: string | null;
@@ -136,13 +145,6 @@ function part(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTyp
   return Number(parts.find((item) => item.type === type)?.value ?? "0");
 }
 
-const BERLIN_CLOCK = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Europe/Berlin",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-
 /** Calendar day in Europe/Berlin, `YYYY-MM-DD`. */
 export function measureDate(now: Date): string {
   const parts = BERLIN_DAY.formatToParts(now);
@@ -160,10 +162,10 @@ export function measureActiveDay(metric: MeasureMetric): string {
   return measureDate(measureActiveAt(metric));
 }
 
-/** `ab HH:MM` in Europe/Berlin for the partial activation day. */
+/** Display note for the partial activation day. The same text for every metric. */
 export function measureActiveNote(metric: MeasureMetric): string {
-  const clock = BERLIN_CLOCK.format(measureActiveAt(metric)).replace(/[\u00a0\u202f]/g, "");
-  return `ab ${clock}`;
+  if (!MEASURE_ACTIVE_SINCE[metric]) return MEASURE_ACTIVE_NOTE;
+  return MEASURE_ACTIVE_NOTE;
 }
 
 export function emptyChannelCounts(): MeasureChannelCounts {
