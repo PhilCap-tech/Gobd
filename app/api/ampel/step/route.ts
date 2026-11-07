@@ -67,7 +67,7 @@ export async function POST(request: Request): Promise<Response> {
   await recordAmpelStep({ ...fields, date, device });
   const metric = measureMetricFromAmpelStep(fields);
   if (metric && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const hints = parsed as { channel?: unknown; signal?: unknown };
+    const hints = parsed as { channel?: unknown; signal?: unknown; gobd_test?: unknown };
     try {
       await recordAmpelMeasure({
         metric: metric.metric,
@@ -75,6 +75,7 @@ export async function POST(request: Request): Promise<Response> {
         referrerHeader: request.headers.get("referer"),
         clientChannel: hints.channel,
         clientSignal: hints.signal,
+        gobdTest: hints.gobd_test,
       });
     } catch {
       // The step sheet already holds the event. The aggregate must not fail the beacon.

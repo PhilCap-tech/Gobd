@@ -17,7 +17,7 @@ import { parseAmpelStepBody } from "@/lib/ampel-step-event";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { getMeasureSheetsTab } from "@/lib/env";
 import { MesslueckenSection } from "@/components/messluecken-admin";
-import { setMeasureClaimRootForTest } from "@/lib/measure-claim";
+import { rememberProductionStart, setMeasureClaimRootForTest } from "@/lib/measure-claim";
 import {
   classifyMeasureChannel,
   resolveMeasureChannel,
@@ -25,7 +25,7 @@ import {
 } from "@/lib/measure-channel";
 import {
   MEASURE_COLUMNS,
-  MEASURE_COUNTING_FROM,
+  MEASURE_LABELS,
   MEASURE_NOT_MEASURED_LABEL,
   MEASURE_WINDOW_DAYS,
   buildMeasureReport,
@@ -39,7 +39,9 @@ import {
 import { recordIntakeStart, recordNewAccount, setMeasureNowForTest } from "@/lib/measure-record";
 import {
   installMeasureSheetClientForTest,
+  liveMeasureWriteAllowed,
   readMeasureRows,
+  recordMeasureRow,
   type MeasureSheetClient,
 } from "@/lib/measure-store";
 import {
@@ -47,6 +49,7 @@ import {
   isMeasureTestReferrer,
   measureCohort,
   measureTestFromAgent,
+  setMeasureVercelEnvForTest,
 } from "@/lib/measure-test";
 
 function ok(condition: unknown, message: string): asserts condition {
@@ -102,6 +105,7 @@ function dataRows(written: string[][]): string[][] {
 
 async function main() {
   process.env.MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET || "messluecken-check-secret";
+  setMeasureVercelEnvForTest("production");
   ok(automatedRunForbidsLiveWrites(), "npm run check:messluecken keeps live writes closed");
   ok(getMeasureSheetsTab() === "messluecken", "the tab is messluecken and not an env var");
   ok(!readFileSync("lib/env.ts", "utf8").includes("GOOGLE_SHEETS_MESSLUECKEN"), "no new sheets env var");
@@ -113,16 +117,16 @@ async function main() {
   ok(!measureDate(new Date("2026-11-07T23:30:00.000Z")).includes("T"), "the bucket is a date");
 
   const channelCases: Array<{ referrer: string; search: string; channel: MeasureChannel; label: string }> = [
-    { referrer: "https://www.google.de/search?q=gobd", search: "", channel: "organic", label: "google search" },
-    { referrer: "https://www.google.com/", search: "", channel: "organic", label: "google referrer alone is organic" },
-    { referrer: "https://www.bing.com/search?q=a", search: "", channel: "organic", label: "bing" },
-    { referrer: "https://duckduckgo.com/", search: "", channel: "organic", label: "duckduckgo" },
+    { referrer: "https://www.google.de/search?q=gobd", search: "", channel: "search_unklar", label: "google search is not certain organic" },
+    { referrer: "https://www.google.com/", search: "", channel: "search_unklar", label: "google referrer alone is search_unklar" },
+    { referrer: "https://www.bing.com/search?q=a", search: "", channel: "search_unklar", label: "bing is not certain organic" },
+    { referrer: "https://duckduckgo.com/", search: "", channel: "search_unklar", label: "duckduckgo is not certain organic" },
     { referrer: "https://www.google.com/", search: `?gclid=${CLICK}`, channel: "paid", label: "gclid" },
     { referrer: "https://www.google.com/", search: "?gbraid=GB", channel: "paid", label: "gbraid" },
     { referrer: "https://www.google.com/", search: "?wbraid=WB", channel: "paid", label: "wbraid" },
     { referrer: "https://www.google.com/", search: "?utm_medium=cpc", channel: "paid", label: "utm_medium cpc" },
     { referrer: "https://www.google.com/", search: "?utm_medium=PAID", channel: "paid", label: "utm_medium paid" },
-    { referrer: "https://www.google.com/", search: "?utm_medium=email", channel: "organic", label: "google plus non-paid medium stays organic" },
+    { referrer: "https://www.google.com/", search: "?utm_medium=email", channel: "search_unklar", label: "google plus a non-paid medium stays search_unklar" },
     { referrer: "", search: "?utm_medium=cpc", channel: "paid", label: "paid medium without referrer" },
     { referrer: "", search: "", channel: "direct", label: "no referrer and no utm" },
     { referrer: "   ", search: "", channel: "direct", label: "blank referrer is direct" },
@@ -141,7 +145,7 @@ async function main() {
   assert.equal(
     resolveMeasureChannel({
       referrerHeader: `https://www.gobd-doku-erstellen.de/ampel-check?gclid=${CLICK}`,
-      clientChannel: "organic",
+      clientChannel: "search_unklar",
     }),
     "paid",
     "a click id on the request wins",
@@ -149,10 +153,10 @@ async function main() {
   assert.equal(
     resolveMeasureChannel({
       referrerHeader: "https://www.gobd-doku-erstellen.de/intake",
-      clientChannel: "organic",
+      clientChannel: "search_unklar",
     }),
-    "organic",
-    "an in-memory class fills a first-party request",
+    "search_unklar",
+    "an in-memory search class fills a first-party request",
   );
   assert.equal(
     resolveMeasureChannel({
@@ -165,21 +169,20 @@ async function main() {
   assert.equal(
     resolveMeasureChannel({
       referrerHeader: "https://news.example/a",
-      clientChannel: "organic",
+      clientChannel: "search_unklar",
     }),
     "unknown",
     "an external non-search referrer stays unknown",
   );
-  assert.equal(resolveMeasureChannel({ referrerHeader: null, clientChannel: "organic" }), "direct", "no referrer is direct");
+  assert.equal(resolveMeasureChannel({ referrerHeader: null, clientChannel: "search_unklar" }), "direct", "no referrer is direct");
   assert.equal(
     resolveMeasureChannel({
       referrerHeader: "https://www.google.de/search?q=gobd",
       clientChannel: "direct",
     }),
-    "organic",
-    "the server keeps a search referrer",
+    "search_unklar",
+    "the server keeps a search referrer as uncertain",
   );
-
   for (const email of [
     "gobd-test@mail.grokbot.com",
     " GOBD-Test@Mail.GrokBot.com ",
@@ -212,7 +215,34 @@ async function main() {
   ok(measureCohort({ email: "delivered@resend.dev" }) === "test", "a resend.dev address is the test cohort");
   ok(measureCohort({ email: MAIL, referrer: "https://www.grokbot.com/" }) === "test", "a grokbot referrer is the test cohort");
   ok(measureCohort({ email: MAIL, signal: "grokbot" }) === "test", "the in-memory grokbot signal is the test cohort");
-  ok(measureCohort({ email: MAIL }) === "standard", "a normal address is standard");
+  ok(measureCohort({ email: MAIL }) === "standard", "a normal address on production is standard");
+  ok(measureCohort({ vercelEnv: "preview", email: MAIL }) === "test", "preview is never standard");
+  ok(measureCohort({ vercelEnv: "development", email: MAIL }) === "test", "development is never standard");
+  ok(measureCohort({ vercelEnv: undefined, email: MAIL }) === "test", "a missing VERCEL_ENV is never standard");
+  ok(measureCohort({ vercelEnv: "production", gobdTest: "1", email: MAIL }) === "test", "gobd_test=1 moves a production event into test");
+  ok(measureCohort({ vercelEnv: "production", gobdTest: "0", email: MAIL }) === "standard", "gobd_test=0 does not mark a test and does not change standard");
+  ok(
+    measureCohort({ vercelEnv: "production", gobdTest: "0", email: "delivered@resend.dev" }) === "test",
+    "a false test flag cannot pull a test address back into standard",
+  );
+  ok(
+    measureCohort({ vercelEnv: "production", referrer: "https://www.gobd-doku-erstellen.de/ampel-check?gobd_test=1" }) === "test",
+    "the query on the event request is enough",
+  );
+  for (const vercelEnv of ["preview", "development", undefined, ""]) {
+    ok(
+      !liveMeasureWriteAllowed({ installed: false, automated: false, vercelEnv, configured: true }),
+      `${vercelEnv || "empty"} does not write the live sheet`,
+    );
+  }
+  ok(
+    liveMeasureWriteAllowed({ installed: false, automated: false, vercelEnv: "production", configured: true }),
+    "production may write the live sheet",
+  );
+  ok(
+    !liveMeasureWriteAllowed({ installed: false, automated: true, vercelEnv: "production", configured: true }),
+    "a check run does not write the live sheet",
+  );
 
   ok(shouldCountIntakeStart(null) && shouldCountIntakeStart(undefined), "a missing draft is a start");
   ok(!shouldCountIntakeStart({ draftKey: "email:a:default:gesamt" }), "an existing draft is an autosave, not a start");
@@ -240,7 +270,10 @@ async function main() {
   const adminPage = readFileSync("app/admin/ampel/page.tsx", "utf8");
   ok(adminPage.includes("MesslueckenSection") && !adminPage.includes("utm") && !adminPage.includes("gclid"), "the admin page keeps campaign words out of its source");
 
-  ok(parseAmpelStepBody({ event: "ampel_q_view", n: 1, channel: "organic" })?.event === "ampel_q_view", "a channel hint is accepted");
+  ok(parseAmpelStepBody({ event: "ampel_q_view", n: 1, channel: "search_unklar" })?.event === "ampel_q_view", "a search_unklar hint is accepted");
+  ok(parseAmpelStepBody({ event: "ampel_q_view", n: 1, channel: "organic" }) === null, "organic is not a stored class");
+  ok(parseAmpelStepBody({ event: "ampel_q_view", n: 1, gobd_test: "1" })?.event === "ampel_q_view", "gobd_test=1 is accepted");
+  ok(parseAmpelStepBody({ event: "ampel_q_view", n: 1, gobd_test: "yes" }) === null, "a free-form test flag is rejected");
   ok(parseAmpelStepBody({ event: "ampel_q_view", n: 1, channel: "ppc" }) === null, "an unknown channel is rejected");
   ok(parseAmpelStepBody({ event: "ampel_q_view", n: 1, signal: "bot" }) === null, "an unknown signal is rejected");
   ok(parseAmpelStepBody({ event: "ampel_q_answer", n: 1, answer: "ja" }) === null, "an answer value is still rejected");
@@ -296,7 +329,7 @@ async function main() {
   ok(intakeRows[1]?.[4] === "test" && intakeRows[0]?.[4] === "standard", "the test address is a separate cohort");
   const flat = intakeRows.flat().join(" ");
   ok(!flat.includes(CLICK) && !flat.includes(MAIL) && !flat.includes("203.0.113"), "the row has no click id, email or address");
-  const claimFiles = readdirSync(root);
+  const claimFiles = readdirSync(root).filter((name) => name.endsWith(".json"));
   ok(claimFiles.length === 2 && claimFiles.every((name) => /^[0-9a-f]{64}\.json$/.test(name)), "claim names are hashes");
   for (const name of claimFiles) {
     const body = readFileSync(path.join(root, name), "utf8");
@@ -311,14 +344,14 @@ async function main() {
   setMeasureClaimRootForTest(root);
   await recordNewAccount({ email: "Neu@Kunde.example", referrerHeader: null });
   await recordNewAccount({ email: "neu@kunde.example", referrerHeader: "https://www.google.de/" });
-  const accounts = dataRows(sheet.written).filter((row) => row[1] === "account_new");
+  const accounts = dataRows(sheet.written).filter((row) => row[1] === "magic_link_first_login");
   ok(accounts.length === 1 && accounts[0]?.[3] === "direct" && accounts[0]?.[4] === "standard", "the first magic-link account counts once as direct");
   ok(!accounts.flat().join(" ").includes("neu@kunde.example"), "the account row has no email");
 
   clearAmpelStepRateForTest();
   const paidView = await postAmpelStep(
     post(
-      { event: "ampel_q_view", n: 1, channel: "organic" },
+      { event: "ampel_q_view", n: 1, channel: "search_unklar" },
       { referer: `https://www.gobd-doku-erstellen.de/ampel-check?gclid=${CLICK}`, "x-real-ip": "203.0.113.20" },
     ),
   );
@@ -361,7 +394,7 @@ async function main() {
     funnel.map((row) => [row[1], row[2], row[3], row[4]]),
     [
       ["ampel_start", "", "paid", "standard"],
-      ["ampel_answer", "3", "organic", "standard"],
+      ["ampel_answer", "3", "search_unklar", "standard"],
       ["ampel_result", "", "unknown", "test"],
       ["ampel_start", "", "unknown", "standard"],
     ],
@@ -372,23 +405,36 @@ async function main() {
   const now = new Date("2026-11-14T12:00:00.000Z");
   ok(measureDate(now) === "2026-11-14", "14.11. is the Berlin report day");
   const rows: MeasureRow[] = [
-    { date: "2026-11-07", metric: "intake_start", n: "", channel: "organic", cohort: "standard" },
-    { date: "2026-11-08", metric: "intake_start", n: "", channel: "organic", cohort: "standard" },
+    { date: "2026-11-07", metric: "intake_start", n: "", channel: "search_unklar", cohort: "standard" },
+    { date: "2026-11-08", metric: "intake_start", n: "", channel: "search_unklar", cohort: "standard" },
     { date: "2026-11-08", metric: "intake_start", n: "", channel: "paid", cohort: "test" },
     { date: "2026-11-08", metric: "ampel_answer", n: "1", channel: "direct", cohort: "standard" },
     { date: "2026-11-08", metric: "ampel_answer", n: "3", channel: "unknown", cohort: "standard" },
     { date: "2026-11-08", metric: "ampel_answer", n: "1", channel: "paid", cohort: "test" },
-    { date: "2026-10-01", metric: "account_new", n: "", channel: "direct", cohort: "standard" },
+    { date: "2026-10-01", metric: "magic_link_first_login", n: "", channel: "direct", cohort: "standard" },
   ];
-  const report = buildMeasureReport(rows, { now });
+  const open = buildMeasureReport(rows, { now });
+  ok(open.metrics.every((item) => item.from == null && item.days.every((day) => !day.measured)), "without a production start every day is unmeasured");
+  ok(open.metrics.every((item) => channelTotal(item.total.standard) === 0), "rows before a start are not backdated");
+  const report = buildMeasureReport(rows, {
+    now,
+    starts: {
+      intake_start: "2026-11-08",
+      magic_link_first_login: "2026-11-08",
+      ampel_start: "2026-11-08",
+      ampel_answer: "2026-11-08",
+      ampel_result: "2026-11-08",
+    },
+  });
   ok(report.windowDays === MEASURE_WINDOW_DAYS && report.timezone === "Europe/Berlin", "the report is the Berlin window");
   ok(report.metrics.length === 5, "every metric is present");
   const intake = report.metrics.find((item) => item.metric === "intake_start");
-  ok(intake && intake.from === MEASURE_COUNTING_FROM.intake_start && intake.days.length === 14, "intake covers 14 Berlin days");
+  ok(intake && intake.from === "2026-11-08" && intake.label === "Fragebogen-Start" && intake.days.length === 14, "intake covers 14 Berlin days from the stored start");
+  ok(intake?.channelBasisLabel === "Kanal des Ereignis-Requests", "the channel is the event request, not the landing");
   const before = intake?.days.find((day) => day.date === "2026-11-07");
   const on = intake?.days.find((day) => day.date === "2026-11-08");
   ok(before && before.measured === false && channelTotal(before.standard) === 0, "the day before the start is not measured");
-  ok(on && on.measured && on.standard.organic === 1 && on.standard.paid === 0 && channelTotal(on.test) === 1, "tests stay out of the standard cells");
+  ok(on && on.measured && on.standard.search_unklar === 1 && on.standard.paid === 0 && channelTotal(on.test) === 1, "tests stay out of the standard cells");
   ok(intake && channelTotal(intake.total.standard) === 1 && channelTotal(intake.total.test) === 1, "the sum skips the day before the start");
   const answerReport = report.metrics.find((item) => item.metric === "ampel_answer");
   const answerDay = answerReport?.days.find((day) => day.date === "2026-11-08");
@@ -399,8 +445,10 @@ async function main() {
 
   const html = renderToStaticMarkup(createElement(MesslueckenSection, { report, configured: true, failed: false }));
   ok(html.includes(MEASURE_NOT_MEASURED_LABEL), "the admin view says nicht gemessen");
-  ok(html.includes("Sie sehen") && html.includes("Messbeginn 08.11.2026"), "the admin view uses Sie and the start date");
-  ok(html.includes("Google-Referrer") && html.includes("utm_medium"), "the admin view documents the Google gap");
+  ok(html.includes("Sie sehen") && html.includes("Messbeginn 08.11.2026"), "the admin view uses Sie and the stored start date");
+  ok(html.includes("Suche, unklar") && html.includes("Kanal des Ereignis-Requests"), "the admin view shows the uncertain search class and the event-request channel");
+  ok(html.includes(MEASURE_LABELS.magic_link_first_login), "the admin view names the magic-link login");
+  ok(!html.includes(">Organisch<") && !html.includes("zählen als organisch"), "the admin view does not call a search referrer organic");
   ok(!html.includes(MAIL) && !html.includes(CLICK) && !html.includes("203.0.113"), "the admin view has no visitor identifier");
 
   const loaded = await readMeasureRows();
@@ -438,8 +486,27 @@ async function main() {
   const cells = measureCells({ date: "2026-11-08", metric: "intake_start", n: "", channel: "paid", cohort: "standard" });
   assert.deepEqual(cells, ["2026-11-08", "intake_start", "", "paid", "standard"]);
 
+  const laterStart = await rememberProductionStart("ampel_start", "2026-11-20");
+  const earlierStart = await rememberProductionStart("ampel_start", "2026-11-01");
+  ok(laterStart === "2026-11-08" && earlierStart === "2026-11-08", "the first production day stays; a later or earlier date does not move it");
+  setMeasureVercelEnvForTest("preview");
+  installMeasureSheetClientForTest({ client: sheet.client, configured: true });
+  const previewBefore = dataRows(sheet.written).length;
+  await recordMeasureRow({ date: "2026-11-14", metric: "ampel_start", n: "", channel: "paid", cohort: "standard" });
+  const previewRow = dataRows(sheet.written).at(-1);
+  ok(dataRows(sheet.written).length === previewBefore + 1 && previewRow?.[4] === "test", "a non-production write that a test client accepts is stored as test");
+  installMeasureSheetClientForTest(null);
+  const skippedPreview = dataRows(sheet.written).length;
+  await recordMeasureRow({ date: "2026-11-14", metric: "ampel_start", n: "", channel: "direct", cohort: "standard" });
+  ok(dataRows(sheet.written).length === skippedPreview, "preview does not append to the live sheet");
+  setMeasureVercelEnvForTest("production");
+  installMeasureSheetClientForTest(null);
+  await recordMeasureRow({ date: "2026-11-14", metric: "ampel_start", n: "", channel: "direct", cohort: "standard" });
+  ok(dataRows(sheet.written).length === skippedPreview, "a check run does not append even when the override says production");
+
   setMeasureNowForTest(null);
   setMeasureClaimRootForTest(null);
+  setMeasureVercelEnvForTest(null);
   installMeasureSheetClientForTest(null);
   clearAmpelStepRateForTest();
   console.log("check-messluecken: ok");

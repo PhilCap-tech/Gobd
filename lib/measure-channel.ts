@@ -1,21 +1,19 @@
 /**
- * Aggregate channel class for Messlücken. Only the class is kept.
+ * Aggregate channel class for one event request. Only the class is kept.
  * Click ids and the raw referrer are not returned and must not be stored.
  *
- * Paid is only utm_medium cpc/paid or a non-empty gclid, gbraid or wbraid.
- * Organic is a search-engine referrer without that paid signal. A Google
- * referrer alone cannot separate organic from paid when no click id and no
- * paid utm_medium are present; those visits still count as organic.
+ * Paid is only utm_medium cpc/paid or a non-empty gclid, gbraid or wbraid
+ * on that same request. A search-engine referrer without that paid signal
+ * is `search_unklar`: organic or paid both remain possible, including for
+ * Google and for other engines. There is no certain organic class.
  * Direct is no referrer and no utm_* parameter. Everything else is unknown.
  *
- * The class is not written to a cookie, localStorage or sessionStorage.
- * A later page that no longer carries the landing signals stays unknown,
- * except for the in-memory class of that same page view (organic, direct
- * or unknown). A client-supplied "paid" is ignored: paid has to be visible
- * on the request URL.
+ * This is the channel of the event request, not of an earlier landing.
+ * The class is not written on the device. A client-supplied "paid" is
+ * ignored: paid has to be visible on the request URL.
  */
 
-export const MEASURE_CHANNELS = ["organic", "paid", "direct", "unknown"] as const;
+export const MEASURE_CHANNELS = ["search_unklar", "paid", "direct", "unknown"] as const;
 
 export type MeasureChannel = (typeof MEASURE_CHANNELS)[number];
 
@@ -141,7 +139,7 @@ export function classifyMeasureChannel(input: { referrer?: string | null; search
   const referrer = (input.referrer ?? "").trim();
   const search = input.search ?? "";
   if (hasPaidSignal(search)) return "paid";
-  if (referrer && isSearchEngineReferrer(referrer)) return "organic";
+  if (referrer && isSearchEngineReferrer(referrer)) return "search_unklar";
   if (!referrer && !hasUtmParameter(search)) return "direct";
   return "unknown";
 }

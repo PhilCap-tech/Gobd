@@ -6,14 +6,19 @@ import { isMeasureChannel, type MeasureChannel } from "@/lib/measure-channel";
  * Cells are the Berlin day, the metric, the question number (answers only),
  * the channel class and the cohort. No email, IP, click id or draft key.
  *
- * Days before `MEASURE_COUNTING_FROM` stay out of the counts. Nothing is
+ * Messbeginn is the Berlin day of the first production write for that
+ * metric, stored once and never moved earlier. Days before it, and every
+ * day while that marker is missing, stay out of the counts. Nothing is
  * backfilled. The sheet itself is not trimmed; the admin window is 14 days,
  * same as the Ampel step and homepage counters.
+ *
+ * Every channel is the class of that event's own request, not of an
+ * earlier landing.
  */
 
 export const MEASURE_METRICS = [
   "intake_start",
-  "account_new",
+  "magic_link_first_login",
   "ampel_start",
   "ampel_answer",
   "ampel_result",
@@ -31,29 +36,19 @@ export const MEASURE_WINDOW_DAYS = 14;
 
 export const MEASURE_NOT_MEASURED_LABEL = "nicht gemessen";
 
-/**
- * First Berlin day that counts. Earlier rows are ignored, not rewritten.
- * Move a date later if production starts after this day, so the gap stays
- * "nicht gemessen" instead of a zero.
- */
-export const MEASURE_COUNTING_FROM: Record<MeasureMetric, string> = {
-  intake_start: "2026-11-08",
-  account_new: "2026-11-08",
-  ampel_start: "2026-11-08",
-  ampel_answer: "2026-11-08",
-  ampel_result: "2026-11-08",
-};
-
 export const MEASURE_LABELS: Record<MeasureMetric, string> = {
   intake_start: "Fragebogen-Start",
-  account_new: "Neue Konten",
+  magic_link_first_login: "Erster erfolgreicher Magic-Link-Login (neues Konto)",
   ampel_start: "Ampel-Start",
   ampel_answer: "Ampel-Antworten",
   ampel_result: "Ampel-Ergebnis",
 };
 
+/** Shown on every metric. This is not the channel of an earlier visit. */
+export const MEASURE_CHANNEL_BASIS_LABEL = "Kanal des Ereignis-Requests";
+
 export const MEASURE_CHANNEL_LABELS: Record<MeasureChannel, string> = {
-  organic: "Organisch",
+  search_unklar: "Suche, unklar",
   paid: "Bezahlt",
   direct: "Direkt",
   unknown: "Unbekannt",
@@ -83,9 +78,15 @@ export type MeasureDayStat = {
   answers: MeasureAnswerStat[];
 };
 
+export type MeasureStarts = Partial<Record<MeasureMetric, string | null>>;
+
 export type MeasureMetricReport = {
   metric: MeasureMetric;
-  from: string;
+  label: string;
+  /** Berlin day of the first production write, or null when none exists yet. */
+  from: string | null;
+  channelBasis: "ereignis-request";
+  channelBasisLabel: string;
   days: MeasureDayStat[];
   total: { standard: MeasureChannelCounts; test: MeasureChannelCounts };
 };
@@ -123,16 +124,16 @@ export function measureDate(now: Date): string {
 }
 
 export function emptyChannelCounts(): MeasureChannelCounts {
-  return { organic: 0, paid: 0, direct: 0, unknown: 0 };
+  return { search_unklar: 0, paid: 0, direct: 0, unknown: 0 };
 }
 
 export function channelTotal(counts: MeasureChannelCounts): number {
-  return counts.organic + counts.paid + counts.direct + counts.unknown;
+  return counts.search_unklar + counts.paid + counts.direct + counts.unknown;
 }
 
 export function addChannelCounts(left: MeasureChannelCounts, right: MeasureChannelCounts): MeasureChannelCounts {
   return {
-    organic: left.organic + right.organic,
+    search_unklar: left.search_unklar + right.search_unklar,
     paid: left.paid + right.paid,
     direct: left.direct + right.direct,
     unknown: left.unknown + right.unknown,
@@ -238,22 +239,27 @@ function bump(counts: MeasureChannelCounts, channel: MeasureChannel): void {
   counts[channel] += 1;
 }
 
-export function buildMeasureReport(rows: MeasureRow[], options: { now: Date }): MeasureReport {
+function startDate(starts: MeasureStarts | undefined, metric: MeasureMetric): string | null {
+  const value = starts?.[metric];
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
+export function buildMeasureReport(rows: MeasureRow[], options: { now: Date; starts?: MeasureStarts }): MeasureReport {
   const dates = measureWindowDates(options.now);
   const inWindow = new Set(dates);
   let hasRows = false;
   const metrics = MEASURE_METRICS.map((metric) => {
-    const from = MEASURE_COUNTING_FROM[metric];
+    const from = startDate(options.starts, metric);
     const days: MeasureDayStat[] = dates.map((date) => ({
       date,
-      measured: date >= from,
+      measured: from != null && date >= from,
       standard: emptyChannelCounts(),
       test: emptyChannelCounts(),
       answers: metric === "ampel_answer" ? emptyAnswers() : [],
     }));
     const byDate = new Map(days.map((day) => [day.date, day]));
     for (const row of rows) {
-      if (row.metric !== metric || !inWindow.has(row.date) || row.date < from) continue;
+      if (row.metric !== metric || !inWindow.has(row.date) || from == null || row.date < from) continue;
       const day = byDate.get(row.date);
       if (!day || !day.measured) continue;
       hasRows = true;
@@ -273,7 +279,15 @@ export function buildMeasureReport(rows: MeasureRow[], options: { now: Date }): 
       },
       { standard: emptyChannelCounts(), test: emptyChannelCounts() },
     );
-    return { metric, from, days, total };
+    return {
+      metric,
+      label: MEASURE_LABELS[metric],
+      from,
+      channelBasis: "ereignis-request" as const,
+      channelBasisLabel: MEASURE_CHANNEL_BASIS_LABEL,
+      days,
+      total,
+    };
   });
   return {
     timezone: "Europe/Berlin",
@@ -290,6 +304,7 @@ export function formatMeasureDay(iso: string): string {
   return `${match[3]}.${match[2]}.${match[1]}`;
 }
 
-export function formatMeasureFrom(iso: string): string {
+export function formatMeasureFrom(iso: string | null): string {
+  if (!iso) return "Messbeginn: noch kein Produktiv-Ereignis";
   return `Messbeginn ${formatMeasureDay(iso)}`;
 }

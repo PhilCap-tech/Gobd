@@ -17,6 +17,7 @@ import {
 import { readAmpelStepRows } from "@/lib/ampel-step-store";
 import { buildHomeCtaReport, type HomeCtaReport } from "@/lib/home-cta-event";
 import { readHomeCtaRows } from "@/lib/home-cta-store";
+import { readProductionStarts } from "@/lib/measure-claim";
 import { buildMeasureReport, type MeasureReport } from "@/lib/measure-event";
 import { readMeasureRows } from "@/lib/measure-store";
 import { buildAmpelStats, type AmpelCount, type AmpelStatsReport } from "@/lib/ampel-stats";
@@ -336,7 +337,8 @@ export default async function AmpelAdminPage({
     const loaded = await readMeasureRows();
     messlueckenConfigured = loaded.configured;
     if (loaded.configured) {
-      messluecken = buildMeasureReport(loaded.rows, { now: new Date() });
+      const starts = await readProductionStarts();
+      messluecken = buildMeasureReport(loaded.rows, { now: new Date(), starts });
     }
   } catch {
     messlueckenFailed = true;

@@ -64,12 +64,12 @@ const EVENT_SET = new Set<string>(AMPEL_STEP_EVENTS);
 const STATUS_SET = new Set<string>(AMPEL_STEP_RESULT_STATUSES);
 const CHOICE_SET = new Set<string>(AMPEL_STEP_CHOICES);
 const KNOWN_VARIANT_SET = new Set<string>(AMPEL_STEP_KNOWN_VARIANTS);
-const ALLOWED_KEYS = new Set(["event", "n", "status", "choice", "valid", "v", "channel", "signal"]);
+const ALLOWED_KEYS = new Set(["event", "n", "status", "choice", "valid", "v", "channel", "signal", "gobd_test"]);
 
-const MEASURE_CHANNEL_HINTS = new Set(["organic", "paid", "direct", "unknown"]);
+const MEASURE_CHANNEL_HINTS = new Set(["search_unklar", "paid", "direct", "unknown"]);
 
 function withMeasureHints(keys: readonly string[]): string[] {
-  return [...keys, "channel", "signal"];
+  return [...keys, "channel", "signal", "gobd_test"];
 }
 
 /** Optional beacon hints. Invalid values reject the body. Absence is fine. */
@@ -78,6 +78,9 @@ function measureHintsOk(record: Record<string, unknown>): boolean {
     return false;
   }
   if ("signal" in record && record.signal !== "grokbot") return false;
+  if ("gobd_test" in record && record.gobd_test !== "1" && record.gobd_test !== 1 && record.gobd_test !== true) {
+    return false;
+  }
   return true;
 }
 

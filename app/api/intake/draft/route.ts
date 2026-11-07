@@ -443,7 +443,7 @@ function noteIntakeStart(
   request: Request,
   stored: IntakeDraft | null,
   draft: IntakeDraft,
-  hints: { channel?: unknown; signal?: unknown },
+  hints: { channel?: unknown; signal?: unknown; gobd_test?: unknown },
 ): void {
   if (!shouldCountIntakeStart(stored)) return;
   scheduleMeasureWrite(() =>
@@ -453,6 +453,7 @@ function noteIntakeStart(
       referrerHeader: request.headers.get("referer"),
       clientChannel: hints.channel,
       clientSignal: hints.signal,
+      gobdTest: hints.gobd_test,
     }),
   );
 }
@@ -467,6 +468,7 @@ async function saveMemberDraft(
     revision?: number;
     channel?: unknown;
     signal?: unknown;
+    gobd_test?: unknown;
   },
   grant: MemberDraftGrant,
   sessionEmail: string,
@@ -571,6 +573,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     formId?: string;
     channel?: unknown;
     signal?: unknown;
+    gobd_test?: unknown;
   };
   try {
     body = await request.json();

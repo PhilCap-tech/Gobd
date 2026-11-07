@@ -1,5 +1,6 @@
 import { MEASURE_CHANNELS } from "@/lib/measure-channel";
 import {
+  MEASURE_CHANNEL_BASIS_LABEL,
   MEASURE_CHANNEL_LABELS,
   MEASURE_LABELS,
   MEASURE_NOT_MEASURED_LABEL,
@@ -7,6 +8,7 @@ import {
   formatMeasureDay,
   formatMeasureFrom,
   type MeasureChannelCounts,
+  type MeasureMetric,
   type MeasureMetricReport,
   type MeasureReport,
 } from "@/lib/measure-event";
@@ -42,7 +44,7 @@ function DayTable({ metric }: { metric: MeasureMetricReport }) {
     <div className="ampel-admin-table-wrap">
       <table className="ampel-admin-table">
         <caption>
-          {MEASURE_LABELS[metric.metric]}. {formatMeasureFrom(metric.from)}. Standard ohne Tests.
+          {MEASURE_LABELS[metric.metric]}. {formatMeasureFrom(metric.from)}. {MEASURE_CHANNEL_BASIS_LABEL}. Standard ohne Tests.
         </caption>
         <thead>
           <tr>
@@ -120,8 +122,21 @@ function AnswerTable({ metric }: { metric: MeasureMetricReport }) {
   );
 }
 
-function metricByName(report: MeasureReport, name: MeasureMetricReport["metric"]): MeasureMetricReport | undefined {
+function metricByName(report: MeasureReport, name: MeasureMetric): MeasureMetricReport | undefined {
   return report.metrics.find((item) => item.metric === name);
+}
+
+function RequestChannelNote({ metric }: { metric: MeasureMetric }) {
+  if (metric === "intake_start" || metric === "magic_link_first_login") {
+    return (
+      <p>
+        {MEASURE_CHANNEL_BASIS_LABEL}. Das ist nicht die Herkunft des ursprünglichen Besuchs. Fragebogen-Start und
+        der Magic-Link-Login tragen die Landing-Parameter meist nicht mehr. Ohne Signal auf dieser Anfrage bleibt
+        der Kanal unbekannt.
+      </p>
+    );
+  }
+  return null;
 }
 
 export function MesslueckenSection({
@@ -134,7 +149,7 @@ export function MesslueckenSection({
   failed: boolean;
 }) {
   const intake = report ? metricByName(report, "intake_start") : undefined;
-  const accounts = report ? metricByName(report, "account_new") : undefined;
+  const accounts = report ? metricByName(report, "magic_link_first_login") : undefined;
   const start = report ? metricByName(report, "ampel_start") : undefined;
   const answers = report ? metricByName(report, "ampel_answer") : undefined;
   const result = report ? metricByName(report, "ampel_result") : undefined;
@@ -150,33 +165,41 @@ export function MesslueckenSection({
       ) : report && intake && accounts && start && answers && result ? (
         <>
           <p>
-            Sie sehen Zählungen ab dem Messbeginn je Kennzahl, nach dem Kalendertag in Europe/Berlin. Tage davor
-            sind {MEASURE_NOT_MEASURED_LABEL}. Es wird nichts nachgetragen. Organisch, Bezahlt, Direkt und Unbekannt
-            sind die Standardzählung. Testläufe stehen nur in der Spalte Tests.
+            Sie sehen Zählungen ab dem Messbeginn je Kennzahl, nach dem Kalendertag in Europe/Berlin. Der
+            Messbeginn ist der Tag des ersten Produktiv-Ereignisses dieser Kennzahl. Davor, und solange noch kein
+            Produktiv-Ereignis vorliegt, steht {MEASURE_NOT_MEASURED_LABEL}. Es wird nichts nachgetragen. Suche,
+            unklar, Bezahlt, Direkt und Unbekannt sind die Standardzählung. Testläufe stehen nur in der Spalte
+            Tests.
           </p>
           <p>
             Ein Fragebogen-Start ist das erste erfolgreiche Anlegen eines Entwurfs je Entwurfsschlüssel. Weitere
-            automatische Speicherungen desselben Entwurfs zählen nicht. Ein neues Konto ist die erste erfolgreiche
-            Anmeldung über den Anmeldelink. Ein Stripe-Kunde ohne diese Anmeldung zählt nicht. Der Ampel-Start ist
-            die Anzeige von Frage 1. Antworten zählen je Frage. Das Ergebnis zählt, wenn es angezeigt wird oder der
-            Versand mit ok oder pending_ok bestätigt wird. Ein Neuladen kann den Ampel-Start erneut zählen, weil
-            dafür kein Cookie gesetzt wird.
+            automatische Speicherungen desselben Entwurfs zählen nicht. „Erster erfolgreicher Magic-Link-Login
+            (neues Konto)“ ist die erste erfolgreiche Anmeldung über den Anmeldelink, nicht eine gesonderte
+            Registrierung. Ein Stripe-Kunde ohne diese Anmeldung zählt nicht. Der Ampel-Start ist die Anzeige von
+            Frage 1. Antworten zählen je Frage. Das Ergebnis zählt, wenn es angezeigt wird oder der Versand mit ok
+            oder pending_ok bestätigt wird. Ein Neuladen kann den Ampel-Start erneut zählen, weil dafür kein Cookie
+            gesetzt wird.
           </p>
           <p>
-            Bezahlt gilt nur, wenn die Anfrage utm_medium cpc oder paid trägt oder eine Klickkennung (gclid, gbraid,
-            wbraid) enthält. Der Wert der Klickkennung wird nicht gespeichert. Organisch ist ein
-            Suchmaschinen-Referrer ohne bezahltes Signal. Ein Google-Referrer allein trennt organisch und bezahlt
-            nicht, wenn kein Klick-Signal vorliegt; solche Aufrufe zählen als organisch. Direkt ist kein Referrer
-            und kein utm-Parameter. Alles andere ist unbekannt. Die Klasse wird nicht im Browser gespeichert. Fehlt
-            das Signal auf einer späteren Seite, bleibt der Vorgang unbekannt.
+            Jede Klasse ist der {MEASURE_CHANNEL_BASIS_LABEL}, nicht die Herkunft eines früheren Besuchs. Bezahlt
+            gilt nur, wenn dieselbe Anfrage utm_medium cpc oder paid trägt oder eine Klickkennung (gclid, gbraid,
+            wbraid) enthält. Der Wert der Klickkennung wird nicht gespeichert. Ein Suchmaschinen-Referrer ohne
+            dieses Signal ist „Suche, unklar“: organisch oder bezahlt ist daran nicht unterscheidbar, auch nicht
+            bei Google und auch nicht bei anderen Suchmaschinen. Eine sichere organische Klasse gibt es nicht.
+            Direkt ist kein Referrer und kein utm-Parameter. Alles andere ist unbekannt. Die Klasse wird nicht im
+            Browser gespeichert.
           </p>
           <p>
             Testläufe sind die Adressen gobd-test@mail.grokbot.com, gobd-test+…@mail.grokbot.com, Adressen
-            @resend.dev und cappe@gmx.de sowie ein Referrer von grokbot.com. Eine IP- oder Browser-Allowlist ist
-            nicht hinterlegt. Ein allgemeiner Bot-Hinweis zählt nicht als Test.
+            @resend.dev und cappe@gmx.de, ein Referrer von grokbot.com und der Zusatz ?gobd_test=1 auf der Seite
+            des Ereignisses. Der Zusatz kann einen Vorgang nur in die Testzählung schieben. Eine IP- oder
+            Browser-Allowlist ist nicht hinterlegt. Ein allgemeiner Bot-Hinweis zählt nicht als Test. Außerhalb
+            der Produktion wird nichts in die Produktiv-Tabelle geschrieben.
           </p>
           {report.hasRows ? null : <p>Im gemessenen Zeitraum ist noch kein Vorgang gespeichert.</p>}
+          <RequestChannelNote metric="intake_start" />
           <DayTable metric={intake} />
+          <RequestChannelNote metric="magic_link_first_login" />
           <DayTable metric={accounts} />
           <DayTable metric={start} />
           <DayTable metric={answers} />

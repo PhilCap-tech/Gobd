@@ -7,6 +7,7 @@ import {
   measureRowsFromValues,
   type MeasureRow,
 } from "@/lib/measure-event";
+import { isProductionMeasureEnv, measureVercelEnv } from "@/lib/measure-test";
 
 export type MeasureSheetClient = {
   get(args: { spreadsheetId: string }): Promise<{
@@ -163,8 +164,22 @@ function ensureReady(client: MeasureSheetClient, id: string, tab: string): Promi
   return pending;
 }
 
-function previewSkipsWrites(): boolean {
-  return process.env.VERCEL_ENV === "preview";
+/**
+ * Live sheet writes happen only in production. Preview, development and a
+ * missing VERCEL_ENV write nothing, so they cannot change standard numbers.
+ * An installed test client may still append; the row is then forced to `test`
+ * unless this process is production.
+ */
+export function liveMeasureWriteAllowed(input: {
+  installed: boolean;
+  automated: boolean;
+  vercelEnv: string | undefined;
+  configured: boolean;
+}): boolean {
+  if (!input.configured) return false;
+  if (input.installed) return true;
+  if (input.automated) return false;
+  return input.vercelEnv === "production";
 }
 
 async function appendMeasure(client: MeasureSheetClient, row: MeasureRow): Promise<void> {
@@ -180,14 +195,24 @@ async function appendMeasure(client: MeasureSheetClient, row: MeasureRow): Promi
   });
 }
 
-/** Skips the live sheet during checks, on preview, and when Sheets is not configured. */
+/** Skips the live sheet during checks and outside production. Non-production rows that a test client still accepts are stored as `test`. */
 export async function recordMeasureRow(row: MeasureRow): Promise<void> {
   const configured = installed ? installed.configured : isSheetsConfigured();
-  if (!configured) return;
-  if (!installed && (automatedRunForbidsLiveWrites() || previewSkipsWrites())) return;
+  const production = isProductionMeasureEnv();
+  if (
+    !liveMeasureWriteAllowed({
+      installed: installed != null,
+      automated: automatedRunForbidsLiveWrites(),
+      vercelEnv: measureVercelEnv(),
+      configured,
+    })
+  ) {
+    return;
+  }
+  const stored = production ? row : { ...row, cohort: "test" as const };
   const client = installed?.client ?? liveMeasureSheetClient();
   try {
-    await appendMeasure(client, row);
+    await appendMeasure(client, stored);
   } catch (error) {
     logMeasureError(error);
   }

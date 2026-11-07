@@ -6,10 +6,10 @@
 import { after } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { resolveMeasureChannel } from "@/lib/measure-channel";
-import { claimMeasureOnce } from "@/lib/measure-claim";
-import { measureDate, type MeasureMetric } from "@/lib/measure-event";
+import { claimMeasureOnce, rememberProductionStart } from "@/lib/measure-claim";
+import { measureDate, type MeasureCohort, type MeasureMetric } from "@/lib/measure-event";
 import { recordMeasureRow } from "@/lib/measure-store";
-import { measureCohort } from "@/lib/measure-test";
+import { isProductionMeasureEnv, measureCohort } from "@/lib/measure-test";
 
 let nowForTest: (() => Date) | null = null;
 
@@ -49,30 +49,52 @@ export function scheduleMeasureWrite(work: () => Promise<void>): void {
   if (!scheduled) void run();
 }
 
+async function writeMeasure(input: {
+  metric: MeasureMetric;
+  n: string;
+  channel: ReturnType<typeof resolveMeasureChannel>;
+  cohort: MeasureCohort;
+}): Promise<void> {
+  const date = measureDate(now());
+  if (isProductionMeasureEnv()) {
+    const start = await rememberProductionStart(input.metric, date);
+    if (!start) return;
+  }
+  await recordMeasureRow({ date, ...input });
+}
+
+function cohortFor(input: {
+  email?: string | null;
+  referrerHeader?: string | null;
+  clientSignal?: unknown;
+  gobdTest?: unknown;
+}): MeasureCohort {
+  return measureCohort({
+    email: input.email,
+    referrer: input.referrerHeader,
+    signal: input.clientSignal,
+    gobdTest: input.gobdTest,
+  });
+}
+
 export async function recordIntakeStart(input: {
   draftKey: string;
   email?: string | null;
   referrerHeader?: string | null;
   clientChannel?: unknown;
   clientSignal?: unknown;
+  gobdTest?: unknown;
 }): Promise<void> {
   const claim = await claimMeasureOnce("intake", input.draftKey);
   if (claim !== "created") return;
-  const channel = resolveMeasureChannel({
-    referrerHeader: input.referrerHeader,
-    clientChannel: input.clientChannel,
-  });
-  const cohort = measureCohort({
-    email: input.email,
-    referrer: input.referrerHeader,
-    signal: input.clientSignal,
-  });
-  await recordMeasureRow({
-    date: measureDate(now()),
+  await writeMeasure({
     metric: "intake_start",
     n: "",
-    channel,
-    cohort,
+    channel: resolveMeasureChannel({
+      referrerHeader: input.referrerHeader,
+      clientChannel: input.clientChannel,
+    }),
+    cohort: cohortFor(input),
   });
 }
 
@@ -81,24 +103,18 @@ export async function recordNewAccount(input: {
   referrerHeader?: string | null;
   clientChannel?: unknown;
   clientSignal?: unknown;
+  gobdTest?: unknown;
 }): Promise<void> {
-  const claim = await claimMeasureOnce("account", input.email);
+  const claim = await claimMeasureOnce("magic-link", input.email);
   if (claim !== "created") return;
-  const channel = resolveMeasureChannel({
-    referrerHeader: input.referrerHeader,
-    clientChannel: input.clientChannel,
-  });
-  const cohort = measureCohort({
-    email: input.email,
-    referrer: input.referrerHeader,
-    signal: input.clientSignal,
-  });
-  await recordMeasureRow({
-    date: measureDate(now()),
-    metric: "account_new",
+  await writeMeasure({
+    metric: "magic_link_first_login",
     n: "",
-    channel,
-    cohort,
+    channel: resolveMeasureChannel({
+      referrerHeader: input.referrerHeader,
+      clientChannel: input.clientChannel,
+    }),
+    cohort: cohortFor(input),
   });
 }
 
@@ -108,20 +124,15 @@ export async function recordAmpelMeasure(input: {
   referrerHeader?: string | null;
   clientChannel?: unknown;
   clientSignal?: unknown;
+  gobdTest?: unknown;
 }): Promise<void> {
-  const channel = resolveMeasureChannel({
-    referrerHeader: input.referrerHeader,
-    clientChannel: input.clientChannel,
-  });
-  const cohort = measureCohort({
-    referrer: input.referrerHeader,
-    signal: input.clientSignal,
-  });
-  await recordMeasureRow({
-    date: measureDate(now()),
+  await writeMeasure({
     metric: input.metric,
     n: input.n,
-    channel,
-    cohort,
+    channel: resolveMeasureChannel({
+      referrerHeader: input.referrerHeader,
+      clientChannel: input.clientChannel,
+    }),
+    cohort: cohortFor(input),
   });
 }

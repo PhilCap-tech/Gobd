@@ -51,13 +51,60 @@ export function isMeasureTestSignal(signal: unknown): boolean {
   return signal === "grokbot";
 }
 
+/**
+ * `?gobd_test=1` on the event request, or the same flag forwarded in that
+ * request body. Any other value is ignored. The flag can only mark a test.
+ */
+export function isExplicitTestMarker(value: unknown): boolean {
+  return value === "1" || value === 1 || value === true;
+}
+
+export function searchHasExplicitTest(search: string | null | undefined): boolean {
+  const raw = search ?? "";
+  const params = new URLSearchParams(raw.startsWith("?") ? raw.slice(1) : raw);
+  return params.get("gobd_test") === "1";
+}
+
+export function referrerHasExplicitTest(referrer: string | null | undefined): boolean {
+  const raw = (referrer ?? "").trim();
+  if (!raw) return false;
+  try {
+    return searchHasExplicitTest(new URL(raw).search);
+  } catch {
+    return false;
+  }
+}
+
+const UNSET_ENV = Symbol("measure-vercel-env");
+let vercelEnvOverride: string | undefined | typeof UNSET_ENV = UNSET_ENV;
+
+/** Checks pass `null` to read `VERCEL_ENV` again. No new environment variable. */
+export function setMeasureVercelEnvForTest(value: string | undefined | null): void {
+  vercelEnvOverride = value === null ? UNSET_ENV : value;
+}
+
+export function measureVercelEnv(): string | undefined {
+  if (vercelEnvOverride !== UNSET_ENV) return vercelEnvOverride || undefined;
+  const env = process.env.VERCEL_ENV?.trim();
+  return env || undefined;
+}
+
+export function isProductionMeasureEnv(vercelEnv: string | undefined = measureVercelEnv()): boolean {
+  return vercelEnv === "production";
+}
+
 export function measureCohort(input: {
+  vercelEnv?: string | undefined;
   email?: string | null;
   referrer?: string | null;
   signal?: unknown;
+  gobdTest?: unknown;
   ip?: string | null;
   userAgent?: string | null;
 }): "standard" | "test" {
+  const env = "vercelEnv" in input ? input.vercelEnv : measureVercelEnv();
+  if (env !== "production") return "test";
+  if (isExplicitTestMarker(input.gobdTest) || referrerHasExplicitTest(input.referrer)) return "test";
   if (isMeasureTestEmail(input.email)) return "test";
   if (isMeasureTestReferrer(input.referrer)) return "test";
   if (isMeasureTestSignal(input.signal)) return "test";
