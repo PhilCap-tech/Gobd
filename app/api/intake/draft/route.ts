@@ -56,6 +56,8 @@ import { SHEETS_RETRY_AFTER_SECONDS } from "@/lib/sheets-unavailable";
 import { isSheetsOutage, runWithSheetsRoute } from "@/lib/sheets-outage";
 import { resolveCheckoutSession } from "@/lib/stripe";
 import { emailsEqual, emptyAnswers, type IntakeAnswers } from "@/lib/types";
+import { shouldCountIntakeStart } from "@/lib/measure-event";
+import { recordIntakeStart, scheduleMeasureWrite } from "@/lib/measure-record";
 
 export const runtime = "nodejs";
 
@@ -437,13 +439,34 @@ async function readIntakeDraftBody(request: Request, io: DraftWriteIo = defaultD
   });
 }
 
+function noteIntakeStart(
+  request: Request,
+  stored: IntakeDraft | null,
+  draft: IntakeDraft,
+  hints: { channel?: unknown; signal?: unknown },
+): void {
+  if (!shouldCountIntakeStart(stored)) return;
+  scheduleMeasureWrite(() =>
+    recordIntakeStart({
+      draftKey: draft.draftKey,
+      email: draft.email,
+      referrerHeader: request.headers.get("referer"),
+      clientChannel: hints.channel,
+      clientSignal: hints.signal,
+    }),
+  );
+}
+
 async function saveMemberDraft(
   io: DraftWriteIo,
+  request: Request,
   body: {
     step?: number;
     answers?: unknown;
     clientUpdatedAt?: string;
     revision?: number;
+    channel?: unknown;
+    signal?: unknown;
   },
   grant: MemberDraftGrant,
   sessionEmail: string,
@@ -521,6 +544,7 @@ async function saveMemberDraft(
         moduleIds: changedCatalogModuleIds(before, after),
         draftRevision: draftRevision(draft),
       });
+      noteIntakeStart(request, stored, draft, body);
       return NextResponse.json({ ok: true, draft, backend });
     } catch (error) {
       const failure = blobStorageResponse(error, "Entwurf konnte nicht gespeichert werden.");
@@ -545,6 +569,8 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     revision?: number;
     change?: unknown;
     formId?: string;
+    channel?: unknown;
+    signal?: unknown;
   };
   try {
     body = await request.json();
@@ -582,7 +608,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
   });
   if (member.kind === "deny") return member.response;
   if (member.kind === "allow") {
-    return saveMemberDraft(io, body, member.grant, sessionEmail ?? "", formId);
+    return saveMemberDraft(io, request, body, member.grant, sessionEmail ?? "", formId);
   }
   const blocked = await deliveredDraftGate(
     request,
@@ -709,6 +735,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
         draftRevision: draftRevision(draft),
       });
     }
+    noteIntakeStart(request, stored, draft, body);
     return NextResponse.json({ ok: true, draft, backend });
   } catch (error) {
     const failure = blobStorageResponse(error, "Entwurf konnte nicht gespeichert werden.");

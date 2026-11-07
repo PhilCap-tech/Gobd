@@ -16,6 +16,8 @@ import {
   type HomeCtaRow,
 } from "@/lib/home-cta-event";
 import { readHomeCtaRows } from "@/lib/home-cta-store";
+import { buildMeasureReport, MEASURE_WINDOW_DAYS, type MeasureReport, type MeasureRow } from "@/lib/measure-event";
+import { readMeasureRows } from "@/lib/measure-store";
 import type { ReadinessLead } from "@/lib/readiness";
 import { listAmpelLeads } from "@/lib/store";
 import {
@@ -131,6 +133,40 @@ async function loadHomeCtaStats(now: Date): Promise<HomeCtaStats> {
   }
 }
 
+/**
+ * Messlücken for the last 14 Berlin days. Standard counts exclude tests.
+ * Days before each metric's measurement start are `measured: false`.
+ * A read failure stays inside `messluecken` and does not replace the lead report.
+ */
+export type MeasureStats =
+  | { configured: false }
+  | { error: true }
+  | {
+      configured: true;
+      timezone: typeof AMPEL_STATS_TIMEZONE;
+      windowDays: typeof MEASURE_WINDOW_DAYS;
+      report: MeasureReport;
+    };
+
+function measureFromRows(rows: MeasureRow[], now: Date): Extract<MeasureStats, { configured: true }> {
+  return {
+    configured: true,
+    timezone: AMPEL_STATS_TIMEZONE,
+    windowDays: MEASURE_WINDOW_DAYS,
+    report: buildMeasureReport(rows, { now }),
+  };
+}
+
+async function loadMeasureStats(now: Date): Promise<MeasureStats> {
+  try {
+    const loaded = await readMeasureRows();
+    if (!loaded.configured) return { configured: false };
+    return measureFromRows(loaded.rows, now);
+  } catch {
+    return { error: true };
+  }
+}
+
 /** Sheet failures stay inside `steps`. The lead report still returns. */
 async function loadAmpelStatsSteps(now: Date): Promise<AmpelStatsSteps> {
   try {
@@ -168,7 +204,8 @@ export async function handleAmpelStatsRequest(
     });
     const steps = await loadAmpelStatsSteps(now);
     const homeCta = await loadHomeCtaStats(now);
-    return { status: 200, body: { ...report, steps, homeCta }, headers: headers() };
+    const messluecken = await loadMeasureStats(now);
+    return { status: 200, body: { ...report, steps, homeCta, messluecken }, headers: headers() };
   } catch (error) {
     const failure = ampelStatsError(error);
     const retry = failure.status === 503 ? { "Retry-After": SHEETS_RETRY_AFTER_SECONDS } : undefined;

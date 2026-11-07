@@ -4,6 +4,7 @@ import {
   type AmpelStepResultStatus,
 } from "@/lib/ampel-step-event";
 import { sanitizeVariantValue } from "@/lib/campaign-params";
+import { measurePageHints } from "@/lib/measure-client";
 
 export type AmpelStepClientEvent =
   | { event: "ampel_q_view"; n: number }
@@ -32,7 +33,7 @@ function variantField(): { v: string } | Record<string, never> {
 /** Beacon first. fetch keepalive covers browsers that refuse the beacon. */
 export function sendAmpelStep(event: AmpelStepClientEvent): void {
   try {
-    const payload = JSON.stringify({ ...event, ...variantField() });
+    const payload = JSON.stringify({ ...event, ...variantField(), ...measurePageHints() });
     const url = "/api/ampel/step";
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
       const blob = new Blob([payload], { type: "application/json" });

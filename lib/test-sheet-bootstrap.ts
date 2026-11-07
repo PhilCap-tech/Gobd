@@ -27,6 +27,7 @@ import {
   getEntitiesSheetsTab,
   getHomeCtaSheetsTab,
   getLifecycleSheetsTab,
+  getMeasureSheetsTab,
   getMembershipsSheetsTab,
   getPlanFirmsSheetsTab,
   getPlansSheetsTab,
@@ -35,6 +36,7 @@ import {
   getSheetsTab,
 } from "@/lib/env";
 import { HOME_CTA_COLUMNS } from "@/lib/home-cta-event";
+import { MEASURE_COLUMNS } from "@/lib/measure-event";
 import { LIFECYCLE_SHEET_COLUMNS } from "@/lib/kuendigung-store";
 import { MEMBERSHIP_SHEET_COLUMNS } from "@/lib/memberships";
 import { PLAN_SHEET_COLUMNS } from "@/lib/plan";
@@ -63,6 +65,7 @@ export function testSheetTabs(): TestSheetTab[] {
     { title: getAmpelRateSheetsTab(), header: AMPEL_RATE_SHEET_COLUMNS, source: "lib/ampel-rate-limit.ts AMPEL_RATE_SHEET_COLUMNS" },
     { title: getAmpelStepsSheetsTab(), header: AMPEL_STEP_COLUMNS, source: "lib/ampel-step-event.ts AMPEL_STEP_COLUMNS" },
     { title: getHomeCtaSheetsTab(), header: HOME_CTA_COLUMNS, source: "lib/home-cta-event.ts HOME_CTA_COLUMNS" },
+    { title: getMeasureSheetsTab(), header: MEASURE_COLUMNS, source: "lib/measure-event.ts MEASURE_COLUMNS" },
   ];
 }
 

@@ -77,7 +77,7 @@ async function main(): Promise<void> {
   assert.equal(first.ran, true);
   const expected = testSheetTabs();
   const titles = expected.map((t) => t.title);
-  for (const name of ["intakes", "readiness_leads", "entities", "profiles", "memberships", "audit_log", "subscription_lifecycle", "plans", "plan_firms", "ampel_rate", "ampel_steps", "home_cta"]) {
+  for (const name of ["intakes", "readiness_leads", "entities", "profiles", "memberships", "audit_log", "subscription_lifecycle", "plans", "plan_firms", "ampel_rate", "ampel_steps", "home_cta", "messluecken"]) {
     assert.ok(titles.includes(name), `Tab ${name} vorgesehen`);
   }
   for (const tab of expected) {
