@@ -18,6 +18,7 @@ import {
   shouldResumeAutosave,
 } from "@/lib/fetch-retry";
 import { DraftAutosave } from "@/lib/draft-autosave";
+import { runDraftConflictRetries, type DraftConflictAttempt } from "@/lib/draft-conflict-retry";
 import { measurePageHints } from "@/lib/measure-client";
 import { IntakeHintProvider, intakeInviteHref } from "@/components/intake-question-hint";
 import { SHEETS_RETRY_MESSAGE } from "@/lib/sheets-unavailable";
@@ -262,6 +263,8 @@ export function IntakeForm({
   const submitIdRef = useRef<{ id: string; payload: string } | null>(null);
   /** Last state the server confirmed; an equal save is not sent. */
   const lastSavedRef = useRef("");
+  /** True when the bounded 409 retries gave up. The final save must not start another tight series. */
+  const conflictGaveUpRef = useRef(false);
   const lastSnapshotRef = useRef("");
   const baselineRef = useRef("");
   const answersRef = useRef(answers);
@@ -341,60 +344,67 @@ export function IntakeForm({
     const meta = draftMetaRef.current;
     if (!meta.draftKey || revision <= 0) return Promise.resolve(false);
     if (submittingRef.current) return Promise.resolve(false);
-    const answersNow = stripEmptyIntakeCards(answersRef.current);
-    const saveKey = JSON.stringify({
-      draftKey: meta.draftKey,
-      answers: answersNow,
-      step: stepRef.current,
-      change: changeRef.current,
-    });
-    if (saveKey === lastSavedRef.current) {
-      setSaveFailures(0);
-      return Promise.resolve(true);
-    }
-    const savedAt = new Date().toISOString();
-    setSaving(true);
-    return fetchRetrying503(
-      "/api/intake/draft",
-      {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      keepalive,
-      signal,
-      body: JSON.stringify({
+    conflictGaveUpRef.current = false;
+
+    const attempt = async (): Promise<DraftConflictAttempt> => {
+      if (submittingRef.current || signal?.aborted) return "aborted";
+      const revisionNow = revisionRef.current;
+      if (revisionNow <= 0) return "stopped";
+      // Read refs at this attempt. A retry must not reuse the body that just conflicted.
+      const answersNow = stripEmptyIntakeCards(answersRef.current);
+      const stepNow = stepRef.current;
+      const changeNow = { ...changeRef.current };
+      const saveKey = JSON.stringify({
         draftKey: meta.draftKey,
-        sessionId: meta.sessionId,
-        documentId: meta.documentId,
-        areaFromDocumentId: meta.areaFromDocumentId,
-        email: meta.email,
-        entityId: meta.entityId,
-        modus: meta.modus,
-        step: stepRef.current,
         answers: answersNow,
-        revision,
-        change: { ...changeRef.current },
-        clientUpdatedAt: serverDraftAtRef.current || savedAt,
-        formId,
-        ...measurePageHints(),
-      }),
-      },
-      // One retry with a growing wait: the next edit saves again anyway.
-      { retries, backoff: true },
-    )
-      .then(async (response): Promise<boolean> => {
-        // Submitted meanwhile: this answer is stale.
-        if (submittingRef.current || signal?.aborted) return false;
+        step: stepNow,
+        change: changeNow,
+      });
+      if (saveKey === lastSavedRef.current) {
+        setSaveFailures(0);
+        return "saved";
+      }
+      const savedAt = new Date().toISOString();
+      try {
+        const response = await fetchRetrying503(
+          "/api/intake/draft",
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            keepalive,
+            signal,
+            body: JSON.stringify({
+              draftKey: meta.draftKey,
+              sessionId: meta.sessionId,
+              documentId: meta.documentId,
+              areaFromDocumentId: meta.areaFromDocumentId,
+              email: meta.email,
+              entityId: meta.entityId,
+              modus: meta.modus,
+              step: stepNow,
+              answers: answersNow,
+              revision: revisionNow,
+              change: changeNow,
+              clientUpdatedAt: serverDraftAtRef.current || savedAt,
+              formId,
+              ...measurePageHints(),
+            }),
+          },
+          // One retry with a growing wait: the next edit saves again anyway.
+          { retries, backoff: true },
+        );
+        if (submittingRef.current || signal?.aborted) return "aborted";
         if (response.status === 401) {
           setNeedsLogin(true);
           setError("Bitte melden Sie sich an, um Ihre Angaben zu ändern.");
-          return false;
+          return "stopped";
         }
         if (response.status === 413 || response.status === 429) {
           // Neues Modell: Entwurf zu groß bzw. zu viele offene Entwürfe.
           const data = (await response.json().catch(() => ({}))) as { error?: string };
           saveBlockedRef.current = true;
           setError(data.error || "Speichern fehlgeschlagen. Bitte versuchen Sie es erneut.");
-          return false;
+          return "stopped";
         }
         saveBlockedRef.current = false;
         if (response.status === 409) {
@@ -402,29 +412,41 @@ export function IntakeForm({
             draft?: { answers: IntakeAnswers; step: number; updatedAt: string; revision?: number };
           };
           const serverRev = draftRevision(data.draft);
-          // Keep what is on screen. Raise the revision floor and write it locally
-          // so the next edit is stored instead of being dropped.
-          if (serverRev > revisionRef.current) {
-            revisionRef.current = serverRev;
-            writeLocalDraft(serverRev);
-          }
+          // This view's latest answers stay. Only the revision floor moves up,
+          // never down, so the retry is not an older body.
+          if (serverRev > revisionRef.current) revisionRef.current = serverRev;
+          writeLocalDraft(revisionRef.current);
           if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
-          return false;
+          return "conflict";
         }
         if (response.ok) {
           const data = (await response.json()) as { draft?: { updatedAt?: string } };
           lastSavedRef.current = saveKey;
           if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
           setSaveFailures((n) => nextSaveFailures(n, true));
-          return true;
+          return "saved";
         }
         // 503 after the retries (or another server error): kept locally only.
         setSaveFailures((n) => nextSaveFailures(n, false));
-        return false;
-      })
-      .catch(() => {
+        return "failed";
+      } catch {
         // offline: localStorage reicht als Fallback
         if (!signal?.aborted) setSaveFailures((n) => nextSaveFailures(n, false));
+        return signal?.aborted ? "aborted" : "failed";
+      }
+    };
+
+    setSaving(true);
+    return runDraftConflictRetries({
+      attempt,
+      aborted: () => Boolean(signal?.aborted || submittingRef.current),
+    })
+      .then((outcome) => {
+        if (outcome === "saved") return true;
+        if (outcome === "conflict") {
+          conflictGaveUpRef.current = true;
+          setSaveFailures((n) => nextSaveFailures(n, false));
+        }
         return false;
       })
       .finally(() => setSaving(false));
@@ -712,8 +734,8 @@ export function IntakeForm({
         // Only redirect once the server confirmed the draft: after payment the
         // draft is taken over from the server (lib/prepay-draft.ts, no_draft).
         let saved = await postServerDraft(revisionRef.current, false, undefined, FINAL_SAVE_RETRIES);
-        // 409 raised the revision floor: one more attempt with the new revision.
-        if (!saved && !saveBlockedRef.current) {
+        // A 409 series already retried inside postServerDraft. Do not start a second tight series.
+        if (!saved && !saveBlockedRef.current && !conflictGaveUpRef.current) {
           saved = await postServerDraft(revisionRef.current, false, undefined, FINAL_SAVE_RETRIES);
         }
         if (!prepayRedirectAllowed(saved, saveBlockedRef.current)) {

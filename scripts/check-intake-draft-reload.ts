@@ -19,6 +19,12 @@ import {
   type IntakeDraftSnapshot,
 } from "../lib/intake-draft-shared";
 import { shouldCountIntakeStart } from "../lib/measure-event";
+import {
+  DRAFT_CONFLICT_RETRIES,
+  draftConflictBackoffMs,
+  runDraftConflictRetries,
+} from "../lib/draft-conflict-retry";
+import { SERVER_SAVE_FAILED_HINT, autosaveHintVisible } from "../lib/fetch-retry";
 import { ensureGesamt } from "../lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "../lib/types";
 
@@ -179,6 +185,48 @@ async function main(): Promise<void> {
   const stale = await putIntakeDraft(put(cookie, 2, withGf(start, "A")), raceIo);
   ok(stale.status === 409, `an older autosave does not overwrite a newer one (got ${stale.status})`);
   ok(gfOf(raced.get(KEY)?.answers) === "C", "the last saved Geschäftsführung stays C");
+
+  ok(DRAFT_CONFLICT_RETRIES === 3, "a 409 is retried three times");
+  ok(
+    draftConflictBackoffMs(0) === 200 && draftConflictBackoffMs(1) === 400 && draftConflictBackoffMs(2) === 800,
+    "conflict backoff stays short",
+  );
+  ok(
+    SERVER_SAVE_FAILED_HINT === "Lokal gesichert – Speichern auf dem Server fehlgeschlagen. Wir versuchen es erneut.",
+    "the unsaved notice keeps the existing sentence",
+  );
+  ok(form.includes("runDraftConflictRetries"), "the form retries a 409 through the bounded helper");
+  ok(form.includes("answersRef.current"), "each attempt reads the latest answers ref");
+  ok(form.includes('outcome === "conflict"'), "exhausted conflicts surface the unsaved hint");
+  ok(autosaveHintVisible({ failures: 1, finalSaveFailed: false }), "the existing hint shows after the bound");
+
+  {
+    let latest = "A";
+    const sent: string[] = [];
+    const saved = await runDraftConflictRetries({
+      attempt: async () => {
+        sent.push(latest);
+        if (sent.length === 1) return "conflict";
+        return "saved";
+      },
+      wait: async () => {
+        latest = "C";
+      },
+    });
+    ok(saved === "saved" && sent.join(",") === "A,C", "after one 409 the retry stores the value edited during the wait");
+  }
+  {
+    let n = 0;
+    const stopped = await runDraftConflictRetries({
+      attempt: async () => {
+        n += 1;
+        return "conflict";
+      },
+      wait: async () => {},
+    });
+    ok(stopped === "conflict" && n === 1 + DRAFT_CONFLICT_RETRIES, "repeated 409 stops after the bound");
+  }
+  ok(shouldCountIntakeStart(previous) === false, "a 409 retry against an existing draft does not count intake_start again");
 
   console.log("check-intake-draft-reload: ok");
 }
