@@ -210,12 +210,7 @@ async function rememberStart(cohort: MeasureStartCohort, metric: MeasureMetric, 
   }
 }
 
-/** Berlin day of the first standard production event. Test events must not call this. */
-export function rememberStandardStart(metric: MeasureMetric, date: string): Promise<string | null> {
-  return rememberStart("standard", metric, date);
-}
-
-/** Berlin day of the first test production event. Never the standard start. */
+/** Berlin day of the first test production event. Never the activation and never a standard marker. */
 export function rememberTestStart(metric: MeasureMetric, date: string): Promise<string | null> {
   return rememberStart("test", metric, date);
 }

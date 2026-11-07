@@ -17,7 +17,6 @@ import {
 } from "@/lib/home-cta-event";
 import { readHomeCtaRows } from "@/lib/home-cta-store";
 import { buildMeasureReport, MEASURE_WINDOW_DAYS, type MeasureReport, type MeasureRow } from "@/lib/measure-event";
-import { readMeasureStarts } from "@/lib/measure-claim";
 import { readMeasureRows } from "@/lib/measure-store";
 import type { ReadinessLead } from "@/lib/readiness";
 import { listAmpelLeads } from "@/lib/store";
@@ -149,17 +148,12 @@ export type MeasureStats =
       report: MeasureReport;
     };
 
-function measureFromRows(
-  rows: MeasureRow[],
-  now: Date,
-  starts: Parameters<typeof buildMeasureReport>[1]["starts"],
-  testStarts: Parameters<typeof buildMeasureReport>[1]["testStarts"],
-): Extract<MeasureStats, { configured: true }> {
+function measureFromRows(rows: MeasureRow[], now: Date): Extract<MeasureStats, { configured: true }> {
   return {
     configured: true,
     timezone: AMPEL_STATS_TIMEZONE,
     windowDays: MEASURE_WINDOW_DAYS,
-    report: buildMeasureReport(rows, { now, starts, testStarts }),
+    report: buildMeasureReport(rows, { now }),
   };
 }
 
@@ -167,8 +161,7 @@ async function loadMeasureStats(now: Date): Promise<MeasureStats> {
   try {
     const loaded = await readMeasureRows();
     if (!loaded.configured) return { configured: false };
-    const markers = await readMeasureStarts();
-    return measureFromRows(loaded.rows, now, markers.standard, markers.test);
+    return measureFromRows(loaded.rows, now);
   } catch {
     return { error: true };
   }

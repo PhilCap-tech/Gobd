@@ -5,9 +5,9 @@ import {
   MEASURE_LABELS,
   MEASURE_NOT_MEASURED_LABEL,
   channelTotal,
+  formatFirstStandardEvent,
   formatMeasureDay,
   formatMeasureFrom,
-  formatTestFrom,
   type MeasureChannelCounts,
   type MeasureMetric,
   type MeasureMetricReport,
@@ -18,23 +18,13 @@ function Cells({
   counts,
   test,
   measured,
-  testMeasured,
 }: {
   counts: MeasureChannelCounts;
   test: MeasureChannelCounts;
   measured: boolean;
-  testMeasured: boolean;
 }) {
-  if (!measured && !testMeasured) {
-    return <td colSpan={6}>{MEASURE_NOT_MEASURED_LABEL}</td>;
-  }
   if (!measured) {
-    return (
-      <>
-        <td colSpan={5}>{MEASURE_NOT_MEASURED_LABEL}</td>
-        <td>{channelTotal(test)}</td>
-      </>
-    );
+    return <td colSpan={6}>{MEASURE_NOT_MEASURED_LABEL}</td>;
   }
   return (
     <>
@@ -42,7 +32,7 @@ function Cells({
         <td key={channel}>{counts[channel]}</td>
       ))}
       <td>{channelTotal(counts)}</td>
-      <td>{testMeasured ? channelTotal(test) : MEASURE_NOT_MEASURED_LABEL}</td>
+      <td>{channelTotal(test)}</td>
     </>
   );
 }
@@ -53,8 +43,8 @@ function DayTable({ metric }: { metric: MeasureMetricReport }) {
     <div className="ampel-admin-table-wrap">
       <table className="ampel-admin-table">
         <caption>
-          {MEASURE_LABELS[metric.metric]}. {formatMeasureFrom(metric.from)}.
-          {metric.testFrom ? ` ${formatTestFrom(metric.testFrom)}.` : ""} {MEASURE_CHANNEL_BASIS_LABEL}. Standard ohne Tests.
+          {MEASURE_LABELS[metric.metric]}. {formatMeasureFrom(metric.from)}, {metric.partialNote}.{" "}
+          {formatFirstStandardEvent(metric.firstStandardEvent)}. {MEASURE_CHANNEL_BASIS_LABEL}. Standard ohne Tests.
         </caption>
         <thead>
           <tr>
@@ -69,23 +59,26 @@ function DayTable({ metric }: { metric: MeasureMetricReport }) {
         <tbody>
           {days.map((day) => (
             <tr key={day.date}>
-              <td>{formatMeasureDay(day.date)}</td>
-              <Cells counts={day.standard} test={day.test} measured={day.measured} testMeasured={day.testMeasured} />
+              <td>
+                {formatMeasureDay(day.date)}
+                {day.partial ? ` ${metric.partialNote}` : ""}
+              </td>
+              <Cells counts={day.standard} test={day.test} measured={day.measured} />
             </tr>
           ))}
           <tr>
             <td>Summe</td>
-            {metric.from ? (
+            {metric.days.some((day) => day.measured) ? (
               <>
                 {MEASURE_CHANNELS.map((channel) => (
                   <td key={channel}>{metric.total.standard[channel]}</td>
                 ))}
                 <td>{channelTotal(metric.total.standard)}</td>
+                <td>{channelTotal(metric.total.test)}</td>
               </>
             ) : (
-              <td colSpan={5}>{MEASURE_NOT_MEASURED_LABEL}</td>
+              <td colSpan={6}>{MEASURE_NOT_MEASURED_LABEL}</td>
             )}
-            <td>{metric.testFrom ? channelTotal(metric.total.test) : MEASURE_NOT_MEASURED_LABEL}</td>
           </tr>
         </tbody>
       </table>
@@ -181,10 +174,11 @@ export function MesslueckenSection({
       ) : report && intake && accounts && start && answers && result ? (
         <>
           <p>
-            Sie sehen Zählungen ab dem Messbeginn je Kennzahl, nach dem Kalendertag in Europe/Berlin.             Der
-            Messbeginn ist der Tag des ersten Standard-Ereignisses in der Produktion. Ein Testlauf setzt ihn nicht.
-            Davor, und solange noch kein Standard-Ereignis vorliegt, steht {MEASURE_NOT_MEASURED_LABEL}. Es wird
-            nichts nachgetragen. Suche,
+            Sie sehen Zählungen ab dem Messbeginn je Kennzahl, nach dem Kalendertag in Europe/Berlin. Der
+            Messbeginn ist der Zeitpunkt, zu dem die Standardzählung in der Produktion live war. Ein Testlauf
+            verschiebt ihn nicht. Tage davor sind {MEASURE_NOT_MEASURED_LABEL}. Ab dem Messbeginn ist eine fehlende
+            Standardzeile eine echte 0. Der Aktivierungstag gilt erst ab der angezeigten Uhrzeit. Das erste
+            Standard-Ereignis steht nur zur Information daneben. Es wird nichts nachgetragen. Suche,
             unklar, Bezahlt, Direkt und Unbekannt sind die Standardzählung. Testläufe stehen nur in der Spalte
             Tests.
           </p>
