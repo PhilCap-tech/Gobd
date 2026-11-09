@@ -142,6 +142,7 @@ Ein PDF ist ein Format, keine Freigabe durch die Finanzverwaltung. Wir leisten k
 - [Verfahrensdokumentation für die Kasse](/blog/verfahrensdokumentation-kasse) — TSE, offene Ladenkasse, Kassenbuch
 - [Verfahrensdokumentation für GmbH und UG](/blog/verfahrensdokumentation-gmbh) — Buchführungspflicht und Verantwortung der Geschäftsführung
 - [Verfahrensdokumentation für Kleinunternehmer](/blog/verfahrensdokumentation-kleinunternehmer)
+- [Verfahrensdokumentation für Bäckereien](/blog/verfahrensdokumentation-baeckerei)
 
 ## Disclaimer
 
