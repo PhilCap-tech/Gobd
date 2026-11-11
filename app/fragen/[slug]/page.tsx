@@ -8,10 +8,12 @@ import { BlogMarkdown } from "@/lib/blog-markdown";
 import { formatBlogDate } from "@/lib/blog";
 import {
   FRAGEN_INDEX_PATH,
+  bodyShowsKurzantwort,
   exactMetaDescription,
   fragenBodyForMarkdown,
   getFragenSeite,
   listFragenSeiten,
+  splitFragenDisclaimer,
 } from "@/lib/fragen";
 import { fragenFaqJsonLd } from "@/lib/jsonld";
 import { canonicalUrl } from "@/lib/seo";
@@ -45,6 +47,8 @@ export default async function FragenSeitePage({
   const { slug } = await params;
   const seite = await getFragenSeite(slug);
   if (!seite) notFound();
+  const { lead, rest } = splitFragenDisclaimer(seite.body);
+  const showKurzantwort = !bodyShowsKurzantwort(seite.body, seite.kurzantwort);
 
   return (
     <>
@@ -67,7 +71,9 @@ export default async function FragenSeitePage({
       <main className="wrap page blog">
         <p className="kicker">Fragen</p>
         <h1>{seite.frage}</h1>
-        <BlogMarkdown source={fragenBodyForMarkdown(seite.body)} />
+        <BlogMarkdown source={fragenBodyForMarkdown(lead)} />
+        {showKurzantwort ? <p className="prose">{seite.kurzantwort}</p> : null}
+        {rest ? <BlogMarkdown source={fragenBodyForMarkdown(rest)} /> : null}
         <p className="doc-meta">Stand: {formatBlogDate(seite.stand)}</p>
         <p className="hint back-links">
           <Link href={FRAGEN_INDEX_PATH}>Alle Fragen</Link>

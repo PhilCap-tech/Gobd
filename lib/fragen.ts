@@ -221,6 +221,36 @@ export function fragenBodyForMarkdown(body: string): string {
   return body.replace(/^(#{1,6}[ \t]+.+)\n(?!\n)/gm, "$1\n\n");
 }
 
+/** Disclaimer block, then the remainder of the article. */
+export function splitFragenDisclaimer(body: string): { lead: string; rest: string } {
+  const at = body.indexOf(FRAGEN_DISCLAIMER);
+  if (at < 0) fail("Disclaimer fehlt im Text");
+  const end = at + FRAGEN_DISCLAIMER.length;
+  return {
+    lead: body.slice(0, end).trim(),
+    rest: body.slice(end).trim(),
+  };
+}
+
+function plainProse(markdown: string): string {
+  return markdown
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*_`>#]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * True when the article text already contains the kurzantwort unchanged.
+ * The template then does not print it a second time.
+ */
+export function bodyShowsKurzantwort(body: string, kurzantwort: string): boolean {
+  const answer = kurzantwort.replace(/\s+/g, " ").trim();
+  if (!answer) return false;
+  return plainProse(body).includes(answer);
+}
+
 const STATIC_ZIEL_LABELS: Record<string, string> = {
   "/kassen-check": "Kassen- und TSE-Meldecheck",
   "/steuerberater": "Kostenloser Kanzleizugang",

@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, type Dirent } from "node:fs";
 import path from "node:path";
+import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import sitemap from "../app/sitemap";
 import { BlogMarkdown } from "../lib/blog-markdown";
@@ -15,10 +16,12 @@ import {
   FRAGEN_DISCLAIMER,
   FRAGEN_INDEX_H1,
   FRAGEN_INDEX_INTRO,
+  bodyShowsKurzantwort,
   exactMetaDescription,
   fragenBodyForMarkdown,
   fragenZielLabel,
   groupFragenIndex,
+  splitFragenDisclaimer,
   latestFragenStand,
   listFragenIndex,
   listFragenSeiten,
@@ -92,6 +95,15 @@ async function main() {
 
   const seiten = await listFragenSeiten();
   ok(seiten.length === 24, "loader returns 24 pages");
+  const repeated = `# Frage\n\n${FRAGEN_DISCLAIMER}\n\nDie Kurzantwort steht hier wortgleich.\n`;
+  ok(
+    bodyShowsKurzantwort(repeated, "Die Kurzantwort steht hier wortgleich."),
+    "an identical body sentence counts as already shown",
+  );
+  ok(
+    !bodyShowsKurzantwort(repeated, "Die Kurzantwort steht hier wortgleich. Ein zweiter Satz nicht."),
+    "a longer kurzantwort is not treated as already shown",
+  );
   ok(latestFragenStand(seiten) === "2026-11-11", "stand is 2026-11-11");
 
   const published = new Set((await listPublishedPosts()).map((post) => post.slug));
@@ -105,6 +117,8 @@ async function main() {
   ok(!index.includes("fragenFaqJsonLd") && !index.includes("faqPageJsonLd"), "index does not emit FAQPage");
   ok(article.includes("fragenFaqJsonLd"), "article emits one FAQPage");
   ok(article.includes("Stand: {formatBlogDate(seite.stand)}"), "article shows the stand line");
+  ok(article.includes("{seite.kurzantwort}"), "article prints the frontmatter kurzantwort");
+  ok(article.includes("bodyShowsKurzantwort"), "article does not repeat a kurzantwort already in the body");
   ok(!article.includes("seite.quellen") && !article.includes(".quellen"), "article does not add a sources block");
   ok(!source("app/faq/page.tsx").includes("/fragen"), "/faq is unchanged");
 
@@ -126,11 +140,31 @@ async function main() {
       ok(description === seite.kurzantwort, `${seite.slug} short kurzantwort is not shortened`);
     }
 
+    const { lead, rest } = splitFragenDisclaimer(seite.body);
+    const showKurzantwort = !bodyShowsKurzantwort(seite.body, seite.kurzantwort);
     const html = renderToStaticMarkup(
-      BlogMarkdown({ source: fragenBodyForMarkdown(seite.body) }),
+      createElement(
+        Fragment,
+        null,
+        createElement(BlogMarkdown, { source: fragenBodyForMarkdown(lead) }),
+        showKurzantwort ? createElement("p", { className: "prose" }, seite.kurzantwort) : null,
+        rest ? createElement(BlogMarkdown, { source: fragenBodyForMarkdown(rest) }) : null,
+      ),
     );
     ok(html.includes("Keine Steuerberatung."), `${seite.slug} renders the disclaimer`);
     ok(!html.includes("# intern") && !html.includes("Intent „"), `${seite.slug} hides the internal note`);
+    ok(html.split(seite.kurzantwort).length - 1 === 1, `${seite.slug} shows the kurzantwort once`);
+    if (showKurzantwort) {
+      ok(
+        html.includes(`</blockquote><p class="prose">${seite.kurzantwort}</p>`),
+        `${seite.slug} prints the frontmatter kurzantwort directly under the disclaimer`,
+      );
+    } else {
+      ok(
+        !html.includes(`</blockquote><p class="prose">${seite.kurzantwort}</p>`),
+        `${seite.slug} does not repeat a kurzantwort the body already shows`,
+      );
+    }
     for (const line of seite.body.split("\n")) {
       if (!line.startsWith("## ")) continue;
       ok(html.includes(line.slice(3).trim()), `${seite.slug} renders heading ${line.slice(3).trim()}`);
