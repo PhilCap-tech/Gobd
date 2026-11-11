@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { listPublishedPosts, type BlogPost } from "@/lib/blog";
+import { latestFragenStand, listFragenSeiten, type FragenSeite } from "@/lib/fragen";
 import { branchenPath, listBranchenSeiten } from "@/lib/branchen";
 import { MODULE } from "@/lib/module/katalog";
 import {
@@ -19,6 +20,7 @@ import { isIsoDate, sourceLastmod } from "@/lib/source-date";
 const STATIC_SOURCES: Record<(typeof INDEXABLE_STATIC_PATHS)[number], string> = {
   "/": "app/page.tsx",
   "/blog": "app/blog/page.tsx",
+  "/fragen": "app/fragen/page.tsx",
   "/faq": "content/faq.md",
   "/ampel-check": "app/ampel-check/page.tsx",
   "/ampel-check/quellen": "lib/ampel-questions.ts",
@@ -53,14 +55,25 @@ function blogIndexLastmod(posts: BlogPost[]): string {
   );
 }
 
+function fragenIndexLastmod(seiten: FragenSeite[]): string {
+  return laterDate(sourceLastmod(STATIC_SOURCES["/fragen"]), latestFragenStand(seiten));
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await listPublishedPosts();
-  const staticPages: MetadataRoute.Sitemap = INDEXABLE_STATIC_PATHS.filter((path) => path !== "/faq" || faqAvailable()).map((path) =>
+  const fragenSeiten = await listFragenSeiten();
+  const staticPages: MetadataRoute.Sitemap = INDEXABLE_STATIC_PATHS.filter(
+    (path) => (path !== "/faq" || faqAvailable()) && path !== "/fragen",
+  ).map((path) =>
     dated(
       canonicalUrl(path),
       path === "/blog" ? blogIndexLastmod(posts) : sourceLastmod(STATIC_SOURCES[path]),
     ),
   );
+  const fragenPages: MetadataRoute.Sitemap = [
+    dated(canonicalUrl("/fragen"), fragenIndexLastmod(fragenSeiten)),
+    ...fragenSeiten.map((seite) => dated(canonicalUrl(seite.route), seite.stand)),
+  ];
   const blogPosts: MetadataRoute.Sitemap = posts.map((post) =>
     dated(
       canonicalUrl(`/blog/${post.slug}`),
@@ -87,6 +100,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
   return [
     ...staticPages,
+    ...fragenPages,
     ...gesamt,
     ...moduleFragebogen,
     ...blogPosts,

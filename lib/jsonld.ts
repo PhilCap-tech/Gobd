@@ -232,6 +232,67 @@ export function articleJsonLd(article: ArticleJsonLdInput): JsonLdNode {
   };
 }
 
+/** One question page under /fragen. The answer is the plain kurzantwort. */
+export function fragenFaqJsonLd(input: {
+  frage: string;
+  antwort: string;
+  dateModified: string;
+  url: string;
+}): JsonLdNode {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    dateModified: input.dateModified,
+    url: input.url,
+    publisher: {
+      "@type": "Organization",
+      "@id": ORGANIZATION_ID,
+      name: LEGAL_OPERATOR.name,
+    },
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: input.frage,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: input.antwort,
+        },
+      },
+    ],
+  };
+}
+
+/** Index under /fragen. ItemList of the question URLs, not a second FAQPage. */
+export function fragenCollectionJsonLd(input: {
+  name: string;
+  dateModified: string;
+  url: string;
+  items: { name: string; path: string }[];
+}): JsonLdNode {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: input.name,
+    dateModified: input.dateModified,
+    url: input.url,
+    publisher: {
+      "@type": "Organization",
+      "@id": ORGANIZATION_ID,
+      name: LEGAL_OPERATOR.name,
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: input.items.length,
+      itemListElement: input.items.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.name,
+        url: canonicalUrl(item.path),
+      })),
+    },
+  };
+}
+
 export function breadcrumbJsonLd(items: Crumb[]): JsonLdNode {
   return {
     "@context": "https://schema.org",

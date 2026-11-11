@@ -107,6 +107,8 @@ const COVERED = [
   "lib/sheets-outage.ts",
   "lib/sheets-unavailable.ts",
   "lib/fetch-retry.ts",
+  "app/fragen/**/*.{ts,tsx}",
+  "lib/fragen.ts",
 ];
 
 const PRONOUNS =
@@ -185,6 +187,7 @@ const COLLOQUIAL = [
 const COLLOQUIAL_EXTRA = [
   "lib/home-faq.ts",
   "content/blog/**/*.{md,mdx}",
+  "content/fragen/**/*.{md,mdx}",
   "lib/lead-magnet.ts",
   "lib/lead-magnet-inhalt.ts",
 ];

@@ -6,7 +6,7 @@ import { DISCLAIMER_ONCE } from "@/lib/offer-copy";
 import { faqAvailable } from "@/lib/faq-entries";
 
 /**
- * Footer Variante B (Prototyper 31.10., Freigabe Philip): oben Hinweis + Kontakt | FAQ/Blog/Ampel,
+ * Footer Variante B (Prototyper 31.10., Freigabe Philip): oben Hinweis + Kontakt | FAQ/Blog/Fragen/Ampel,
  * darunter einklappbare Branchen-Zeile (natives <details>, Links im Server-HTML), unten Rechtliches.
  */
 export function SiteFooter() {
@@ -27,6 +27,7 @@ export function SiteFooter() {
           <nav className="footer-links footer-links-top" aria-label="Weitere Seiten">
             {faq ? <Link href="/faq">FAQ</Link> : null}
             <Link href="/blog">Blog</Link>
+            <Link href="/fragen">Fragen</Link>
             <Link href="/ampel-check">GoBD-Ampel</Link>
           </nav>
         </div>

@@ -68,7 +68,7 @@ export const HOME_TWITTER: NonNullable<Metadata["twitter"]> = {
 
 /**
  * HTML routes that are index, follow.
- * Blog posts are appended in `app/sitemap.ts`.
+ * Blog posts and the /fragen section are appended in `app/sitemap.ts`.
  * Branch pages (`/verfahrensdokumentation-<slug>`) are not listed here.
  * `app/sitemap.ts` adds one only when its frontmatter `noindex` is false.
  * Left out on purpose: /partner-angebot (Digistore24, noindex),
@@ -79,6 +79,7 @@ export const HOME_TWITTER: NonNullable<Metadata["twitter"]> = {
 export const INDEXABLE_STATIC_PATHS = [
   "/",
   "/blog",
+  "/fragen",
   "/faq",
   "/ampel-check",
   "/ampel-check/quellen",
