@@ -25,9 +25,9 @@ quellen:
 
 Belege, Rechnungen und Geschäftsbriefe liegen in vielen kleinen und mittleren Betrieben in einem Dokumentenmanagementsystem (DMS) oder in einem Archivsystem. Die Verfahrensdokumentation für das DMS hält fest, wie diese Unterlagen dort ankommen, einen Index erhalten und über die Aufbewahrungsfrist auffindbar bleiben. Den übrigen Aufbau beschreibt die [GoBD Verfahrensdokumentation](/blog/gobd-verfahrensdokumentation-erstellen); dieser Text bleibt beim Abschnitt zum DMS.
 
-Der Text gilt für Betriebe, die ein DMS nutzen oder einführen wollen. Produktnamen bleiben außen vor.
+Der Beitrag richtet sich an Betriebe, die ein DMS bereits nutzen oder einführen wollen, und nennt bewusst keine Produktnamen.
 
-**Kurz:** Dokumentarten, Kanäle, Index, Buchung, Vermerke, Unveränderbarkeit, Rechte, Aufbewahrung und das Datum des Textes. Zu jedem offenen Punkt gehören eine Person und ein Termin. Die steuerliche Einordnung klärt Ihre Steuerberatung.
+**Kurz:** Der DMS-Abschnitt nennt Dokumentarten, Eingangskanäle, Index, Verbindung zur Buchung, Bearbeitungsvermerke, Unveränderbarkeit, Zugriffsrechte und Aufbewahrung und trägt ein Stand-Datum. Zu jedem offenen Punkt gehören eine verantwortliche Person und ein Termin. Die steuerliche Einordnung klärt Ihre Steuerberatung.
 
 > **Keine Steuerberatung.** Dieser Text ist eine allgemeine Arbeitshilfe. Was in Ihrem Betrieb gilt, klären Sie mit Ihrer Steuerberatung.
 
@@ -41,7 +41,7 @@ Auch wenn ein Anbieter das DMS betreibt, bleibt die Verantwortung beim Steuerpfl
 
 ## Was die DMS-Beschreibung abdecken sollte
 
-Sie schreiben den Ablauf am Tag des Schreibens, in Kategorien.
+Beschreiben Sie den Ablauf so, wie er heute tatsächlich läuft, und nennen Sie die Systeme nur als Kategorie.
 
 | Gegenstand | Was der Absatz festhält |
 | --- | --- |
@@ -54,13 +54,13 @@ Sie schreiben den Ablauf am Tag des Schreibens, in Kategorien.
 
 Prüfung und Ablage der Eingangsrechnungen stehen in der [Verfahrensdokumentation zur Belegablage](/blog/verfahrensdokumentation-belegablage). Hier nennen Sie die Dokumente im DMS und den Kanal. E-Mails mit Belegfunktion und Portalrechnungen gehören dazu, sobald sie vorkommen; die Angaben dazu stehen in der [Checkliste zu E-Mail-Postfach und Portalrechnungen](/blog/verfahrensdokumentation-checkliste-e-mail-portalrechnungen).
 
-Der Index muss nachvollziehbar und eindeutig sein, und die Verbindung zum Dokument muss über die gesamte Aufbewahrungsfrist bestehen bleiben (GoBD Rz. 122). Pflichtmerkmale sind etwa Belegart, Datum, Aussteller oder Empfänger, Belegnummer und Geschäftsjahr. Ein freies Textfeld ohne feste Merkmale ist eine Lücke. Für die Buchung nennen Sie das Merkmal, das im DMS und in der Buchhaltung übereinstimmt, wer die Verbindung setzt und wo sie nachgelesen wird.
+Der Index muss nachvollziehbar und eindeutig sein, und die Verbindung zum Dokument muss über die gesamte Aufbewahrungsfrist bestehen bleiben (GoBD Rz. 122). Pflichtmerkmale sind etwa Belegart, Datum, Aussteller oder Empfänger, Belegnummer und Geschäftsjahr. Wird nur ein freies Textfeld ohne feste Merkmale genutzt, notieren Sie das als offenen Punkt. Für die Buchung nennen Sie das Merkmal, das im DMS und in der Buchhaltung übereinstimmt, wer die Verbindung setzt und wo sie nachgelesen wird.
 
 Bearbeitungsvermerke, etwa ein Freigabevermerk, dürfen den Originalzustand nicht verändern. Die Schritte sind zu protokollieren (GoBD Rz. 123). Schreiben Sie, ob der Vermerk neben dem Dokument liegt und wo das Protokoll liegt. Wer nach Fristablauf prüft und löscht, steht im selben Abschnitt. Fehlt das Löschkonzept, bleibt es ein offener Punkt. Zum Fragenkatalog eignet sich [Modul 15 Archivierung und Wiederauffindbarkeit](/muster/modul/m15/fragebogen).
 
 ## Unveränderbarkeit und Protokollierung im DMS
 
-Eine Buchung oder Aufzeichnung darf nicht so verändert werden, dass der ursprüngliche Inhalt nicht mehr feststellbar ist. Dasselbe gilt für Veränderungen, bei denen ungewiss bleibt, ob sie von Anfang an oder erst später erfolgt sind (§ 146 Abs. 4 AO; GoBD Rz. 107). Änderungen und Löschungen an den gespeicherten Dokumenten sind so zu protokollieren, dass diese Voraussetzung erfüllt bleibt (GoBD Rz. 108).
+Eine Buchung oder Aufzeichnung darf nicht so verändert werden, dass der ursprüngliche Inhalt nicht mehr feststellbar ist. Dasselbe gilt für Veränderungen, bei denen ungewiss bleibt, ob sie von Anfang an oder erst später erfolgt sind (§ 146 Abs. 4 AO; GoBD Rz. 107). Das eingesetzte Verfahren muss gewährleisten, dass einmal erfasste Belege, Grundaufzeichnungen und Buchungen nicht unterdrückt und nicht ohne Kenntlichmachung überschrieben, gelöscht, geändert oder verfälscht werden können (GoBD Rz. 108).
 
 Unveränderbarkeit kann auf der Hardware, in der Software oder organisatorisch umgesetzt werden. Beispiele sind Sperren, Festschreibung, Protokollierung, Versionierung und ein Zugriffskonzept (GoBD Rz. 110). Die Ablage in einem Dateisystem erfüllt das regelmäßig nicht, solange keine weiteren Maßnahmen hinzukommen (GoBD Rz. 110).
 
@@ -82,7 +82,7 @@ Betreibt ein Anbieter das DMS oder nutzt die Kanzlei einen Zugang, nennen Sie de
 
 ## Aufbewahrung, Lesbarkeit und Systemwechsel
 
-Unterlagen dürfen auf einem Bildträger oder auf anderen Datenträgern aufbewahrt werden, wenn das den Grundsätzen ordnungsmäßiger Buchführung entspricht, die Daten während der gesamten Frist verfügbar sind, unverzüglich lesbar gemacht und maschinell ausgewertet werden können. Empfangene Handels- oder Geschäftsbriefe und Buchungsbelege müssen bildlich übereinstimmen (§ 147 Abs. 2 AO). Schreiben Sie das Format und die Person, die die Dokumente lesbar und auswertbar macht.
+Mit wenigen Ausnahmen, etwa Jahresabschlüssen und der Eröffnungsbilanz, dürfen aufbewahrungspflichtige Unterlagen auch als Wiedergabe auf einem Bildträger oder auf anderen Datenträgern aufbewahrt werden. Voraussetzung ist, dass dies den Grundsätzen ordnungsmäßiger Buchführung entspricht und die Daten während der gesamten Frist verfügbar sind, unverzüglich lesbar gemacht und maschinell ausgewertet werden können. Empfangene Handels- oder Geschäftsbriefe und Buchungsbelege müssen dabei bildlich, die übrigen Unterlagen inhaltlich übereinstimmen, wenn sie lesbar gemacht werden (§ 147 Abs. 2 AO). Schreiben Sie das Format und die Person, die die Dokumente lesbar und auswertbar macht.
 
 Nach § 147 Abs. 3 AO in der Fassung nach dem Vierten Bürokratieentlastungsgesetz gelten zehn Jahre für Bücher und Organisationsunterlagen, acht Jahre für Buchungsbelege und sechs Jahre für Handels- und Geschäftsbriefe sowie die sonstigen Unterlagen. Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO). Die Zuordnung klärt Ihre Steuerberatung. Die Staffel erläutert [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd).
 
@@ -94,7 +94,7 @@ In der Regel besteht die Verfahrensdokumentation aus vier Teilen (GoBD Rz. 153):
 
 Unterlagen des Anbieters sind ein Baustein. Sie erläutern das System, ersetzen aber nicht die Beschreibung Ihrer Abläufe. Nennen Sie den Fundort.
 
-Stand ist das Datum des Schreibens. Ein neuer Eingangskanal, geänderte Rechte oder ein neuer Programmstand ergeben eine neue Fassung; ältere Fassungen bleiben erhalten. Datum und Vermerk machen die Änderung nachvollziehbar, und der Text nennt den Ablauf, der im Einsatz ist (GoBD Rz. 154). Wie eine spätere Fassung anschließt, beschreibt [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren).
+Als Stand gilt das Datum, an dem Sie den Text schreiben. Ein neuer Eingangskanal, geänderte Rechte oder ein neuer Programmstand ergeben eine neue Fassung; ältere Fassungen bleiben erhalten. Datum und Vermerk machen die Änderung nachvollziehbar, und der Text nennt den Ablauf, der im Einsatz ist (GoBD Rz. 154). Wie eine spätere Fassung anschließt, beschreibt [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren).
 
 Dieser Beitrag beschreibt das DMS als Gegenstand der Verfahrensdokumentation. Die [digitale Verfahrensdokumentation](/blog/digitale-verfahrensdokumentation) behandelt, wie die Verfahrensdokumentation selbst abgelegt und wiedergefunden wird.
 
