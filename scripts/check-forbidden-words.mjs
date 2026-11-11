@@ -40,6 +40,7 @@ const patterns = [
 const blogPatterns = [
   "content/blog/**/*.{md,mdx}",
   "content/branchen/**/*.{md,mdx}",
+  "content/fragen/**/*.{md,mdx}",
 ];
 
 const BRANCHEN_SPERRE =
@@ -64,6 +65,8 @@ const visibleFrontmatter = new Set([
   "description",
   "metaTitle",
   "metaDescription",
+  "frage",
+  "kurzantwort",
 ]);
 
 // Token markers use a word boundary so they do not fire inside ordinary words
@@ -82,11 +85,12 @@ const blogToken = new RegExp(
 // 2nd-person-plural verb (könnt, solltet, müsst, habt, seid, wollt, dürft),
 // and after wo/wie/ob/wenn/dass/bevor/falls/sobald when the next word is
 // lowercase ("wo ihr steht"). Possessive "wo ihr Steuerberater" and
-// "Aus ihr müssen" stay clean.
+// "Aus ihr müssen" stay clean. First person stays clean in both orders:
+// "ich starte" and "Wie dokumentiere ich".
 const DU_PRONOUN_RE =
   /(?<![\p{L}\p{N}_])(?:[Dd]u|[Dd]ich|[Dd]ir|[Dd]ein(?:en|em|er|es|e|s)?|[Ee]uch|[Ee]u(?:ren|rem|rer|res|er|re))(?![\p{L}\p{N}_])/u;
 const DU_IMPERATIVE_RE =
-  /(?<![\p{L}\p{N}_])(?<!ich )(?<!Ich )(?:Mach|mach|Schau|schau|Starte|starte|Lies|lies|Prüfe|prüfe|Prüf|prüf|Dokumentiere|dokumentiere|Schreibe|schreibe|Nenne|nenne|Aktualisiere|aktualisiere|Nutze|nutze|Kopiere|kopiere|Halte|halte|Übernimm|übernimm|Orientiere|orientiere|Vermeide|vermeide|Beschreibe|beschreibe|Drucke|drucke|Notiere|notiere)(?![\p{L}\p{N}_])/u;
+  /(?<![\p{L}\p{N}_])(?<!ich )(?<!Ich )(?:Mach|mach|Schau|schau|Starte|starte|Lies|lies|Prüfe|prüfe|Prüf|prüf|Dokumentiere|dokumentiere|Schreibe|schreibe|Nenne|nenne|Aktualisiere|aktualisiere|Nutze|nutze|Kopiere|kopiere|Halte|halte|Übernimm|übernimm|Orientiere|orientiere|Vermeide|vermeide|Beschreibe|beschreibe|Drucke|drucke|Notiere|notiere)(?![\p{L}\p{N}_])(?! ich(?![\p{L}\p{N}_]))/u;
 const IHR_2PL_RE =
   /(?<![\p{L}\p{N}_])(?:ihr(?![\p{L}\p{N}_])(?:\s+[^\s]+){0,8}?\s+(?:könnt|solltet|müsst|habt|seid|wollt|dürft)(?![\p{L}\p{N}_])|(?:könnt|solltet|müsst|habt|seid|wollt|dürft)(?![\p{L}\p{N}_])\s+ihr(?![\p{L}\p{N}_])|(?:wo|wie|ob|wenn|dass|bevor|falls|sobald)\s+ihr(?![\p{L}\p{N}_])\s+\p{Ll})/u
 
@@ -448,6 +452,8 @@ function assertSelfTest() {
     ["machen sie", "Machen Sie den kostenlosen Readiness-Check.\n", false],
     ["pruefung", "bei der Prüfung und beim Prüfer.\n", false],
     ["ich starte", "ich starte nicht mit einer leeren Datei.\n", false],
+    ["wie dokumentiere ich", "Wie dokumentiere ich die Belegablage?\n", false],
+    ["dokumentiere command", "Dokumentiere die Belegablage vollständig.\n", true],
     ["du in url", "Siehe [Artikel](https://example.com/du-form).\n", false],
     ["du in comment", "<!-- du intern -->\n\nAbsatz in der Sie-Form.\n", false],
     [

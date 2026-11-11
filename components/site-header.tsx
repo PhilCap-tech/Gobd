@@ -60,6 +60,8 @@ export function SiteHeader({
                 </CampaignLink>
               </>
             )}
+            <Link className="hide-sm" href="/blog">Blog</Link>
+            <Link className="hide-sm" href="/fragen">Fragen</Link>
             <Link href="/account">Konto</Link>
           </nav>
         </div>

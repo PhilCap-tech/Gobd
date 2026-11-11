@@ -82,7 +82,7 @@ function walk(dir: string): string[] {
   return found;
 }
 
-const blogFiles = walk("content/blog").filter(
+const blogFiles = [...walk("content/blog"), ...walk("content/fragen")].filter(
   (file) => file.endsWith(".md") || file.endsWith(".mdx"),
 );
 if (blogFiles.length === 0) fail("no blog files");
