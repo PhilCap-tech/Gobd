@@ -24,7 +24,7 @@ quellen:
 
 # Verfahrensdokumentation Kleinbetrieb: Muster-Gliederung für kleine Teams
 
-Eine Verfahrensdokumentation für den Kleinbetrieb hält fest, wie ein kleines Team Belege annimmt, prüft und weitergibt und wie die Vertretung geregelt ist. Gemeint sind Betriebe im Handwerk, in der Dienstleistung, im Laden oder im Büro, unabhängig von der Rechtsform. Als Gerüst dient die [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage); daraus entsteht die Muster-Gliederung für die Arbeitsteilung.
+Eine Verfahrensdokumentation für den Kleinbetrieb hält fest, wie ein kleines Team Belege annimmt, prüft und weitergibt und wie die Vertretung geregelt ist. Gemeint sind Betriebe im Handwerk, in der Dienstleistung, im Laden oder im Büro, unabhängig von der Rechtsform. Als Gerüst dient die [Verfahrensdokumentation Vorlage](/blog/verfahrensdokumentation-vorlage); die Muster-Gliederung unten ergänzt sie um die Arbeitsteilung im Team.
 
 Der Text beschreibt den Ablauf am Tag des Schreibens. Er ist für Betriebe mit etwa zwei bis zehn Personen gedacht; eine gesetzliche Grenze ist das nicht. Was offen ist, bleibt ein Punkt mit Person und Termin.
 
@@ -58,7 +58,7 @@ Die Beispielsätze sind erfunden: Werkstatt Feldweg, vier Personen, Buchhaltung 
 
 ### Allgemeine Beschreibung und Systemübersicht
 
-Zum DV-System gehören die Geräte und Programme, mit denen Daten und Dokumente erfasst, erzeugt, empfangen, übernommen, verarbeitet, gespeichert oder übermittelt werden, samt Vor- und Nebensystemen und Schnittstellen. Bezeichnung und Größe sind unerheblich, ebenso ob eigene Geräte oder eine Cloud genutzt wird (GoBD Rz. 20). Nennen Sie die Kategorien, die vorkommen, etwa Finanzbuchführung, Lohnbuchhaltung, Kassensystem, Warenwirtschaft, Zahlungsverkehr, Fakturierung, Zeiterfassung, Archivsystem oder Dokumenten-Management-System. Was fehlt, gilt als nicht vorhanden. Die Fragen zu Betrieb und Rollen führt [Modul 1 Unternehmen und Organisation](/muster/modul/m01/fragebogen).
+Zum DV-System gehören die Geräte und Programme, mit denen Daten und Dokumente erfasst, erzeugt, empfangen, übernommen, verarbeitet, gespeichert oder übermittelt werden, samt Vor- und Nebensystemen und Schnittstellen. Bezeichnung und Größe sind unerheblich, ebenso ob eigene Geräte oder eine Cloud genutzt wird (GoBD Rz. 20). Nennen Sie die Kategorien, die vorkommen, etwa Finanzbuchführung, Lohnbuchhaltung, Kassensystem, Warenwirtschaft, Zahlungsverkehr, Fakturierung, Zeiterfassung, Archivsystem oder Dokumenten-Management-System. Kategorien, die es im Betrieb nicht gibt, kennzeichnen Sie als nicht vorhanden. Die Fragen zu Betrieb und Rollen führt [Modul 1 Unternehmen und Organisation](/muster/modul/m01/fragebogen).
 
 > Beispiel, fiktiv. Im Einsatz sind Rechnungsprogramm, Bankkonto, E-Mail-Postfach, Büroordner und eine Kasse; Warenwirtschaft und ein eigenes Lohnprogramm fehlen.
 
@@ -111,7 +111,7 @@ Jede Zeile nennt Aufgabe, zuständige Person und Vertretung. Eine leere Zelle bl
 
 § 147 Abs. 1 AO zählt die aufzubewahrenden Unterlagen auf. § 147 Abs. 3 AO in der Fassung nach dem Vierten Bürokratieentlastungsgesetz setzt die Fristen: zehn Jahre für Bücher und für die zum Verständnis der Bücher und Aufzeichnungen erforderlichen Organisationsunterlagen, acht Jahre für Buchungsbelege und sechs Jahre für Handels- und Geschäftsbriefe sowie die sonstigen Unterlagen. Die Zuordnung klärt Ihre Steuerberatung. Die Staffel steht in [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd).
 
-> Beispiel, fiktiv. Organisationsunterlagen liegen im Ordner Organisation, Buchungsbelege im Ordner Belege; die Gruppe stimmt die Werkstatt mit der Steuerberatung ab.
+> Beispiel, fiktiv. Organisationsunterlagen liegen im Ordner Organisation, Buchungsbelege im Ordner Belege; die Zuordnung der übrigen Unterlagen stimmt die Werkstatt mit der Steuerberatung ab.
 
 ### Pflege und Versionen
 
