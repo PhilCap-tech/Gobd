@@ -4,7 +4,7 @@ import { cache } from "react";
 import {
   FRAGEN_GRUPPEN,
   FRAGEN_KURZLINKS,
-  FRAGEN_WELLE1_NR,
+  FRAGEN_SEITEN_NR,
   type FragenGruppeKey,
 } from "@/lib/fragen-katalog";
 
@@ -13,7 +13,7 @@ export const FRAGEN_INDEX_H1 = "Fragen zu GoBD und Verfahrensdokumentation";
 export const FRAGEN_INDEX_INTRO =
   "Hier beantworten wir häufige Fragen zu den GoBD und zur Verfahrensdokumentation, kurz und mit Verweisen auf ausführliche Beiträge. Die Antworten sind allgemeine Arbeitshilfen und ersetzen keine Steuerberatung.";
 
-/** Friseur-Fassung, verbatim, directly under the H1 in every Welle-1 body. */
+/** Friseur-Fassung, verbatim, directly under the H1 in every published body. */
 export const FRAGEN_DISCLAIMER =
   "> **Keine Steuerberatung.** Dieser Text ist eine allgemeine Arbeitshilfe. Welche Pflichten in Ihrem Fall gelten, klären Sie bitte mit Ihrer Steuerberatung.";
 
@@ -31,7 +31,7 @@ export type FragenSeite = {
   frage: string;
   route: string;
   gruppe: FragenGruppeKey;
-  welle: 1;
+  welle: number;
   stand: string;
   kurzantwort: string;
   interneLinks: string[];
@@ -132,6 +132,12 @@ function asStringList(fields: Record<string, FieldValue>, key: string, file: str
   return value;
 }
 
+function asPositiveInteger(fields: Record<string, FieldValue>, key: string, file: string): number {
+  const raw = asString(fields, key, file);
+  if (!/^[1-9]\d*$/.test(raw)) fail(`${file}: ${key} muss eine positive ganze Zahl sein`);
+  return Number(raw);
+}
+
 function parseQuelle(raw: string, file: string): FragenQuelle {
   const parts = raw.split(" — ");
   if (parts.length !== 2) fail(`${file}: Quelle ohne Kurzform und URL: ${raw}`);
@@ -147,7 +153,7 @@ function toSeite(fileName: string, raw: string): FragenSeite {
   const stem = fileName.replace(/\.mdx?$/, "");
   if (!SLUG.test(slug)) fail(`${fileName}: slug „${slug}“ ist ungültig`);
   if (slug !== stem) fail(`${fileName}: slug „${slug}“ weicht vom Dateinamen ab`);
-  if (!(slug in FRAGEN_WELLE1_NR)) fail(`${fileName}: slug gehört nicht zur ersten Welle`);
+  if (!(slug in FRAGEN_SEITEN_NR)) fail(`${fileName}: slug ist keine veröffentlichte Seite`);
 
   const frage = asString(fields, "frage", fileName);
   const route = fragenPath(slug);
@@ -157,7 +163,7 @@ function toSeite(fileName: string, raw: string): FragenSeite {
   const gruppe = asString(fields, "gruppe", fileName);
   if (!GRUPPE_KEYS.has(gruppe)) fail(`${fileName}: gruppe „${gruppe}“ ist unbekannt`);
 
-  if (asString(fields, "welle", fileName) !== "1") fail(`${fileName}: nur Welle 1 wird veröffentlicht`);
+  const welle = asPositiveInteger(fields, "welle", fileName);
   const stand = asString(fields, "stand", fileName);
   if (!STAND.test(stand)) fail(`${fileName}: stand muss ein ISO-Datum sein`);
 
@@ -173,7 +179,7 @@ function toSeite(fileName: string, raw: string): FragenSeite {
     frage,
     route,
     gruppe: gruppe as FragenGruppeKey,
-    welle: 1,
+    welle,
     stand,
     kurzantwort,
     interneLinks: asStringList(fields, "interneLinks", fileName),
@@ -288,13 +294,14 @@ export const listFragenSeiten = cache(async (): Promise<FragenSeite[]> => {
     seiten.push(toSeite(file, raw));
   }
 
-  const expected = Object.keys(FRAGEN_WELLE1_NR);
+  const expected = Object.keys(FRAGEN_SEITEN_NR);
   if (seiten.length !== expected.length) {
     fail(`erwartet ${expected.length} Seiten, gefunden ${seiten.length}`);
   }
   for (const slug of expected) {
     if (!seiten.some((seite) => seite.slug === slug)) fail(`content/fragen/${slug}.md fehlt`);
   }
+  const published = new Set(seiten.map((seite) => seite.slug));
   const slugs = new Set<string>();
   for (const seite of seiten) {
     if (slugs.has(seite.slug)) fail(`slug doppelt: ${seite.slug}`);
@@ -302,13 +309,13 @@ export const listFragenSeiten = cache(async (): Promise<FragenSeite[]> => {
     for (const link of seite.interneLinks) {
       if (!link.startsWith("/fragen/")) continue;
       const target = link.slice("/fragen/".length);
-      if (!(target in FRAGEN_WELLE1_NR)) {
-        fail(`${seite.slug}: verlinkt eine Seite außerhalb der ersten Welle (${link})`);
+      if (!published.has(target)) {
+        fail(`${seite.slug}: verlinkt eine unveröffentlichte Seite (${link})`);
       }
     }
   }
 
-  seiten.sort((a, b) => FRAGEN_WELLE1_NR[a.slug] - FRAGEN_WELLE1_NR[b.slug]);
+  seiten.sort((a, b) => FRAGEN_SEITEN_NR[a.slug] - FRAGEN_SEITEN_NR[b.slug]);
   return seiten;
 });
 
@@ -323,8 +330,12 @@ export function latestFragenStand(seiten: FragenSeite[]): string {
 
 export async function listFragenIndex(): Promise<FragenIndexEintrag[]> {
   const seiten = await listFragenSeiten();
+  const pageSlugs = new Set(seiten.map((seite) => seite.slug));
+  for (const row of FRAGEN_KURZLINKS) {
+    if (pageSlugs.has(row.slug)) fail(`${row.slug}: slug ist zugleich Seite und kurz+link`);
+  }
   const fromSeiten: FragenIndexEintrag[] = seiten.map((seite) => ({
-    nr: FRAGEN_WELLE1_NR[seite.slug],
+    nr: FRAGEN_SEITEN_NR[seite.slug],
     gruppe: seite.gruppe,
     frage: seite.frage,
     slug: seite.slug,
