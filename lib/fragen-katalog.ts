@@ -1,6 +1,6 @@
 /**
  * Index data for /fragen.
- * Welle-1 pages live in content/fragen. Later-wave rows marked kurz+link in the
+ * Published pages live in content/fragen. Rows still marked kurz+link in the
  * content catalog are listed here as question plus existing article paths.
  * Those rows have no kurzantwort in the source, so none is stored.
  */
@@ -32,7 +32,6 @@ export type FragenKurzlink = {
 };
 
 export const FRAGEN_KURZLINKS: readonly FragenKurzlink[] = [
-  { nr: 14, gruppe: "pflicht-adressaten", frage: "Ab wann ist eine Verfahrensdokumentation nötig, etwa bei der Gründung?", slug: "verfahrensdokumentation-ab-wann", hrefs: ["/blog/verfahrensdokumentation-erstellen-gruendung"] },
   { nr: 15, gruppe: "pflicht-adressaten", frage: "Brauchen Freiberufler eine Verfahrensdokumentation?", slug: "verfahrensdokumentation-freiberufler-pflicht", hrefs: ["/blog/gobd-verfahrensdokumentation-dienstleister-freiberufler"] },
   { nr: 17, gruppe: "pflicht-adressaten", frage: "Braucht eine GmbH oder UG eine Verfahrensdokumentation?", slug: "verfahrensdokumentation-gmbh-ug-pflicht", hrefs: ["/blog/verfahrensdokumentation-gmbh"] },
   { nr: 28, gruppe: "verfahrensdokumentation-begriff-inhalt", frage: "Was hat das interne Kontrollsystem mit der Verfahrensdokumentation zu tun?", slug: "internes-kontrollsystem", hrefs: ["/blog/internes-kontrollsystem-verfahrensdokumentation"] },
@@ -85,8 +84,8 @@ export const FRAGEN_KURZLINKS: readonly FragenKurzlink[] = [
   { nr: 103, gruppe: "verantwortung-auslagerung", frage: "Wie halte ich Zuständigkeiten und Vertretungen fest?", slug: "zustaendigkeiten-vertretung", hrefs: ["/blog/verfahrensdokumentation-checkliste-zustaendigkeiten-vertretung"] },
 ];
 
-/** Catalog number of each Welle-1 slug, for index order. */
-export const FRAGEN_WELLE1_NR: Record<string, number> = {
+/** Catalog number of each published /fragen page, for index order. */
+export const FRAGEN_SEITEN_NR: Record<string, number> = {
   "was-ist-gobd": 1,
   "gobd-erfuellen": 2,
   "unterschied-gobd-verfahrensdokumentation": 3,
@@ -94,6 +93,7 @@ export const FRAGEN_WELLE1_NR: Record<string, number> = {
   "wer-muss-verfahrensdokumentation": 11,
   "gobd-kleine-unternehmen": 12,
   "verfahrensdokumentation-kleinunternehmer-einzelunternehmen": 13,
+  "verfahrensdokumentation-ab-wann": 14,
   "was-ist-eine-verfahrensdokumentation": 19,
   "was-gehoert-in-verfahrensdokumentation": 20,
   "wie-sieht-verfahrensdokumentation-aus": 21,

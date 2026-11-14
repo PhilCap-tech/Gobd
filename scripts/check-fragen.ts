@@ -1,5 +1,6 @@
 /**
- * /fragen: 24 Welle-1 pages, index, sitemap section, FAQPage and breadcrumbs.
+ * /fragen: published pages, index, sitemap section, FAQPage and breadcrumbs.
+ * Counts follow the content files and the catalog, not a fixed wave size.
  *   npx tsx scripts/check-fragen.ts
  */
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import sitemap from "../app/sitemap";
 import { BlogMarkdown } from "../lib/blog-markdown";
 import { formatBlogDate, listPublishedPosts } from "../lib/blog";
 import { listBranchenFooterLinks } from "../lib/branchen";
-import { FRAGEN_GRUPPEN, FRAGEN_KURZLINKS } from "../lib/fragen-katalog";
+import { FRAGEN_GRUPPEN, FRAGEN_KURZLINKS, FRAGEN_SEITEN_NR } from "../lib/fragen-katalog";
 import {
   FRAGEN_DISCLAIMER,
   FRAGEN_INDEX_H1,
@@ -88,13 +89,16 @@ async function main() {
   ok(formatBlogDate("2026-11-11") === "11. November 2026", "stand renders as 11. November 2026");
 
   const files = readdirSync("content/fragen").filter((file) => file.endsWith(".md") || file.endsWith(".mdx"));
-  ok(files.length === 24, "content/fragen has the 24 Welle-1 files");
   ok(findNamed(process.cwd(), "01-katalog.md").length === 0, "the internal catalog is not in the repo");
   ok(findNamed(process.cwd(), "02-erste-welle.md").length === 0, "the internal wave brief is not in the repo");
   ok(findNamed(process.cwd(), "_build").length === 0, "the draft build scripts are not in the repo");
 
   const seiten = await listFragenSeiten();
-  ok(seiten.length === 24, "loader returns 24 pages");
+  ok(
+    files.length === seiten.length && seiten.length === Object.keys(FRAGEN_SEITEN_NR).length,
+    `page count is the number of content/fragen files (${files.length})`,
+  );
+  ok(files.length === 25, "content/fragen has 25 pages");
   const repeated = `# Frage\n\n${FRAGEN_DISCLAIMER}\n\nDie Kurzantwort steht hier wortgleich.\n`;
   ok(
     bodyShowsKurzantwort(repeated, "Die Kurzantwort steht hier wortgleich."),
@@ -104,7 +108,9 @@ async function main() {
     !bodyShowsKurzantwort(repeated, "Die Kurzantwort steht hier wortgleich. Ein zweiter Satz nicht."),
     "a longer kurzantwort is not treated as already shown",
   );
-  ok(latestFragenStand(seiten) === "2026-11-11", "stand is 2026-11-11");
+  const maxStand = seiten.reduce((latest, seite) => (seite.stand > latest ? seite.stand : latest), "");
+  ok(latestFragenStand(seiten) === maxStand, "latest stand is the max stand");
+  ok(maxStand === "2026-11-14", "latest stand is 2026-11-14");
 
   const published = new Set((await listPublishedPosts()).map((post) => post.slug));
   const index = source("app/fragen/page.tsx");
@@ -123,8 +129,8 @@ async function main() {
   ok(!source("app/faq/page.tsx").includes("/fragen"), "/faq is unchanged");
 
   for (const seite of seiten) {
-    ok(seite.welle === 1, `${seite.slug} is wave 1`);
-    ok(seite.stand === "2026-11-11", `${seite.slug} stand`);
+    ok(Number.isInteger(seite.welle) && seite.welle >= 1, `${seite.slug} welle is at least 1`);
+    if (seite.welle === 1) ok(seite.stand === "2026-11-11", `${seite.slug} stand`);
     ok(seite.route === `/fragen/${seite.slug}`, `${seite.slug} route`);
     ok(seite.body.startsWith(`# ${seite.frage}\n`), `${seite.slug} H1 is the question`);
     ok(seite.body.includes(FRAGEN_DISCLAIMER), `${seite.slug} has the Friseur disclaimer`);
@@ -193,7 +199,7 @@ async function main() {
     ok(questions[0].name === seite.frage, `${seite.slug} question name is the frage`);
     const answer = questions[0].acceptedAnswer as JsonLdNode;
     ok(answer.text === seite.kurzantwort, `${seite.slug} acceptedAnswer is the kurzantwort`);
-    ok(faq.dateModified === "2026-11-11", `${seite.slug} dateModified is stand`);
+    ok(faq.dateModified === seite.stand, `${seite.slug} dateModified is stand`);
     const publisher = faq.publisher as JsonLdNode;
     ok(
       publisher["@type"] === "Organization" && publisher["@id"] === ORGANIZATION_ID && publisher.name === "IKAT GmbH",
@@ -221,8 +227,8 @@ async function main() {
   ok(FRAGEN_INDEX_INTRO.startsWith(introMeta) && introMeta.length <= 160, "index meta description is a prefix of the intro");
 
   const entries = await listFragenIndex();
-  ok(entries.length === 24 + FRAGEN_KURZLINKS.length, "index lists wave 1 and kurz+link rows");
-  ok(FRAGEN_KURZLINKS.length === 51, "51 kurz+link rows");
+  ok(entries.length === seiten.length + FRAGEN_KURZLINKS.length, "index entries are pages plus kurz+link rows");
+  ok(FRAGEN_KURZLINKS.length === 50, "50 kurz+link rows");
   const slugs = new Set(seiten.map((seite) => seite.slug));
   for (const row of FRAGEN_KURZLINKS) {
     ok(!slugs.has(row.slug), `${row.slug} is not a thin /fragen page`);
@@ -274,7 +280,8 @@ async function main() {
   const sitemapEntries = await sitemap();
   const urls = sitemapEntries.map((entry) => entry.url);
   const fragenUrls = urls.filter((url) => url === canonicalUrl("/fragen") || url.includes("/fragen/"));
-  ok(fragenUrls.length === 25, "sitemap section has the index and 24 articles");
+  ok(fragenUrls.length === 1 + seiten.length, `sitemap /fragen section is the index plus ${seiten.length} pages`);
+  ok(fragenUrls.length === 26, "sitemap /fragen section has 26 urls");
   ok(urls.filter((url) => url === canonicalUrl("/fragen")).length === 1, "sitemap lists /fragen once");
   for (const seite of seiten) {
     const entry = sitemapEntries.find((item) => item.url === canonicalUrl(seite.route));
@@ -283,6 +290,56 @@ async function main() {
   for (const row of FRAGEN_KURZLINKS) {
     ok(!urls.includes(canonicalUrl(`/fragen/${row.slug}`)), `sitemap omits later slug ${row.slug}`);
   }
+
+  const neuSlug = "verfahrensdokumentation-ab-wann";
+  const neu = seiten.find((seite) => seite.slug === neuSlug);
+  ok(neu, `${neuSlug} is a published page`);
+  const neuFrage = neu?.frage ?? "";
+  const neuKurz = neu?.kurzantwort ?? "";
+  ok(neu?.gruppe === "pflicht-adressaten", `${neuSlug} group is pflicht-adressaten`);
+  ok(neu?.stand === "2026-11-14", `${neuSlug} stand is 2026-11-14`);
+  const neuFaq = parseJsonLd(
+    fragenFaqJsonLd({
+      frage: neuFrage,
+      antwort: neuKurz,
+      dateModified: neu?.stand ?? "",
+      url: canonicalUrl(`/fragen/${neuSlug}`),
+    }),
+  );
+  const neuQuestions = neuFaq.mainEntity as JsonLdNode[];
+  ok(neuFaq["@type"] === "FAQPage" && neuQuestions.length === 1, `${neuSlug} FAQPage has exactly one Question`);
+  ok(neuQuestions[0]?.name === neuFrage, `${neuSlug} Question name is the frage`);
+  ok((neuQuestions[0]?.acceptedAnswer as JsonLdNode).text === neuKurz, `${neuSlug} acceptedAnswer.text is the kurzantwort`);
+  ok(neuFaq.dateModified === "2026-11-14", `${neuSlug} dateModified is 2026-11-14`);
+  const neuPublisher = neuFaq.publisher as JsonLdNode;
+  ok(
+    neuPublisher["@type"] === "Organization" &&
+      neuPublisher["@id"] === ORGANIZATION_ID &&
+      neuPublisher.name === "IKAT GmbH" &&
+      ORGANIZATION_ID.endsWith("/#organization"),
+    `${neuSlug} publisher is Organization IKAT GmbH (/#organization)`,
+  );
+  const neuCrumbs = parseJsonLd(
+    breadcrumbJsonLd([
+      { name: "Startseite", path: "/" },
+      { name: "Fragen", path: "/fragen" },
+      { name: neuFrage, path: `/fragen/${neuSlug}` },
+    ]),
+  );
+  const neuCrumbItems = neuCrumbs.itemListElement as JsonLdNode[];
+  ok(
+    neuCrumbs["@type"] === "BreadcrumbList" &&
+      neuCrumbItems.length === 3 &&
+      neuCrumbItems[0]?.name === "Startseite" &&
+      neuCrumbItems[1]?.name === "Fragen" &&
+      neuCrumbItems[2]?.name === neuFrage,
+    `${neuSlug} BreadcrumbList is Startseite → Fragen → Frage`,
+  );
+  const pflicht = groups.find((group) => group.key === "pflicht-adressaten");
+  const neuIndex = pflicht?.entries.find((entry) => entry.slug === neuSlug);
+  ok(neuIndex?.kurzantwort === neuKurz && neuKurz.length > 0, `${neuSlug} is on the index in pflicht-adressaten with its kurzantwort`);
+  ok(!FRAGEN_KURZLINKS.some((row) => row.nr === 14 || row.slug === neuSlug), `${neuSlug} is not in FRAGEN_KURZLINKS`);
+  ok(urls.includes(canonicalUrl(`/fragen/${neuSlug}`)), `${neuSlug} is in the sitemap`);
 
   const header = source("components/site-header.tsx");
   const footer = source("components/site-footer.tsx");
