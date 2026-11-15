@@ -98,7 +98,7 @@ async function main() {
     files.length === seiten.length && seiten.length === Object.keys(FRAGEN_SEITEN_NR).length,
     `page count is the number of content/fragen files (${files.length})`,
   );
-  ok(files.length === 25, "content/fragen has 25 pages");
+  ok(files.length === 26, "content/fragen has 26 pages");
   const repeated = `# Frage\n\n${FRAGEN_DISCLAIMER}\n\nDie Kurzantwort steht hier wortgleich.\n`;
   ok(
     bodyShowsKurzantwort(repeated, "Die Kurzantwort steht hier wortgleich."),
@@ -110,7 +110,7 @@ async function main() {
   );
   const maxStand = seiten.reduce((latest, seite) => (seite.stand > latest ? seite.stand : latest), "");
   ok(latestFragenStand(seiten) === maxStand, "latest stand is the max stand");
-  ok(maxStand === "2026-11-14", "latest stand is 2026-11-14");
+  ok(maxStand === "2026-11-15", "latest stand is 2026-11-15");
 
   const published = new Set((await listPublishedPosts()).map((post) => post.slug));
   const index = source("app/fragen/page.tsx");
@@ -228,7 +228,7 @@ async function main() {
 
   const entries = await listFragenIndex();
   ok(entries.length === seiten.length + FRAGEN_KURZLINKS.length, "index entries are pages plus kurz+link rows");
-  ok(FRAGEN_KURZLINKS.length === 50, "50 kurz+link rows");
+  ok(FRAGEN_KURZLINKS.length === 49, "49 kurz+link rows");
   const slugs = new Set(seiten.map((seite) => seite.slug));
   for (const row of FRAGEN_KURZLINKS) {
     ok(!slugs.has(row.slug), `${row.slug} is not a thin /fragen page`);
@@ -281,7 +281,7 @@ async function main() {
   const urls = sitemapEntries.map((entry) => entry.url);
   const fragenUrls = urls.filter((url) => url === canonicalUrl("/fragen") || url.includes("/fragen/"));
   ok(fragenUrls.length === 1 + seiten.length, `sitemap /fragen section is the index plus ${seiten.length} pages`);
-  ok(fragenUrls.length === 26, "sitemap /fragen section has 26 urls");
+  ok(fragenUrls.length === 27, "sitemap /fragen section has 27 urls");
   ok(urls.filter((url) => url === canonicalUrl("/fragen")).length === 1, "sitemap lists /fragen once");
   for (const seite of seiten) {
     const entry = sitemapEntries.find((item) => item.url === canonicalUrl(seite.route));
@@ -291,55 +291,66 @@ async function main() {
     ok(!urls.includes(canonicalUrl(`/fragen/${row.slug}`)), `sitemap omits later slug ${row.slug}`);
   }
 
-  const neuSlug = "verfahrensdokumentation-ab-wann";
-  const neu = seiten.find((seite) => seite.slug === neuSlug);
-  ok(neu, `${neuSlug} is a published page`);
-  const neuFrage = neu?.frage ?? "";
-  const neuKurz = neu?.kurzantwort ?? "";
-  ok(neu?.gruppe === "pflicht-adressaten", `${neuSlug} group is pflicht-adressaten`);
-  ok(neu?.stand === "2026-11-14", `${neuSlug} stand is 2026-11-14`);
-  const neuFaq = parseJsonLd(
-    fragenFaqJsonLd({
-      frage: neuFrage,
-      antwort: neuKurz,
-      dateModified: neu?.stand ?? "",
-      url: canonicalUrl(`/fragen/${neuSlug}`),
-    }),
-  );
-  const neuQuestions = neuFaq.mainEntity as JsonLdNode[];
-  ok(neuFaq["@type"] === "FAQPage" && neuQuestions.length === 1, `${neuSlug} FAQPage has exactly one Question`);
-  ok(neuQuestions[0]?.name === neuFrage, `${neuSlug} Question name is the frage`);
-  ok((neuQuestions[0]?.acceptedAnswer as JsonLdNode).text === neuKurz, `${neuSlug} acceptedAnswer.text is the kurzantwort`);
-  ok(neuFaq.dateModified === "2026-11-14", `${neuSlug} dateModified is 2026-11-14`);
-  const neuPublisher = neuFaq.publisher as JsonLdNode;
-  ok(
-    neuPublisher["@type"] === "Organization" &&
-      neuPublisher["@id"] === ORGANIZATION_ID &&
-      neuPublisher.name === "IKAT GmbH" &&
-      ORGANIZATION_ID.endsWith("/#organization"),
-    `${neuSlug} publisher is Organization IKAT GmbH (/#organization)`,
-  );
-  const neuCrumbs = parseJsonLd(
-    breadcrumbJsonLd([
-      { name: "Startseite", path: "/" },
-      { name: "Fragen", path: "/fragen" },
-      { name: neuFrage, path: `/fragen/${neuSlug}` },
-    ]),
-  );
-  const neuCrumbItems = neuCrumbs.itemListElement as JsonLdNode[];
-  ok(
-    neuCrumbs["@type"] === "BreadcrumbList" &&
-      neuCrumbItems.length === 3 &&
-      neuCrumbItems[0]?.name === "Startseite" &&
-      neuCrumbItems[1]?.name === "Fragen" &&
-      neuCrumbItems[2]?.name === neuFrage,
-    `${neuSlug} BreadcrumbList is Startseite → Fragen → Frage`,
-  );
-  const pflicht = groups.find((group) => group.key === "pflicht-adressaten");
-  const neuIndex = pflicht?.entries.find((entry) => entry.slug === neuSlug);
-  ok(neuIndex?.kurzantwort === neuKurz && neuKurz.length > 0, `${neuSlug} is on the index in pflicht-adressaten with its kurzantwort`);
-  ok(!FRAGEN_KURZLINKS.some((row) => row.nr === 14 || row.slug === neuSlug), `${neuSlug} is not in FRAGEN_KURZLINKS`);
-  ok(urls.includes(canonicalUrl(`/fragen/${neuSlug}`)), `${neuSlug} is in the sitemap`);
+  const explicitSeiten: { slug: string; stand: string; gruppe: string }[] = [
+    { slug: "verfahrensdokumentation-ab-wann", stand: "2026-11-14", gruppe: "pflicht-adressaten" },
+    { slug: "verfahrensdokumentation-freiberufler-pflicht", stand: "2026-11-15", gruppe: "pflicht-adressaten" },
+  ];
+  for (const spec of explicitSeiten) {
+    const seite = seiten.find((item) => item.slug === spec.slug);
+    ok(seite, `${spec.slug} is a published page`);
+    const frage = seite?.frage ?? "";
+    const kurz = seite?.kurzantwort ?? "";
+    ok(seite?.gruppe === spec.gruppe, `${spec.slug} group is ${spec.gruppe}`);
+    ok(seite?.stand === spec.stand, `${spec.slug} stand is ${spec.stand}`);
+    const faq = parseJsonLd(
+      fragenFaqJsonLd({
+        frage,
+        antwort: kurz,
+        dateModified: seite?.stand ?? "",
+        url: canonicalUrl(`/fragen/${spec.slug}`),
+      }),
+    );
+    const questions = faq.mainEntity as JsonLdNode[];
+    ok(faq["@type"] === "FAQPage" && questions.length === 1, `${spec.slug} FAQPage has exactly one Question`);
+    ok(questions[0]?.name === frage, `${spec.slug} Question name is the frage`);
+    ok((questions[0]?.acceptedAnswer as JsonLdNode).text === kurz, `${spec.slug} acceptedAnswer.text is the kurzantwort`);
+    ok(faq.dateModified === spec.stand, `${spec.slug} dateModified is ${spec.stand}`);
+    const publisher = faq.publisher as JsonLdNode;
+    ok(
+      publisher["@type"] === "Organization" &&
+        publisher["@id"] === ORGANIZATION_ID &&
+        publisher.name === "IKAT GmbH" &&
+        ORGANIZATION_ID.endsWith("/#organization"),
+      `${spec.slug} publisher is Organization IKAT GmbH (/#organization)`,
+    );
+    const crumbs = parseJsonLd(
+      breadcrumbJsonLd([
+        { name: "Startseite", path: "/" },
+        { name: "Fragen", path: "/fragen" },
+        { name: frage, path: `/fragen/${spec.slug}` },
+      ]),
+    );
+    const crumbItems = crumbs.itemListElement as JsonLdNode[];
+    ok(
+      crumbs["@type"] === "BreadcrumbList" &&
+        crumbItems.length === 3 &&
+        crumbItems[0]?.name === "Startseite" &&
+        crumbItems[1]?.name === "Fragen" &&
+        crumbItems[2]?.name === frage,
+      `${spec.slug} BreadcrumbList is Startseite → Fragen → Frage`,
+    );
+    const group = groups.find((item) => item.key === spec.gruppe);
+    const indexEntry = group?.entries.find((entry) => entry.slug === spec.slug);
+    ok(
+      indexEntry?.kurzantwort === kurz && kurz.length > 0,
+      `${spec.slug} is on the index in ${spec.gruppe} with its kurzantwort`,
+    );
+    ok(
+      !FRAGEN_KURZLINKS.some((row) => row.nr === 14 || row.slug === spec.slug),
+      `${spec.slug} is not in FRAGEN_KURZLINKS`,
+    );
+    ok(urls.includes(canonicalUrl(`/fragen/${spec.slug}`)), `${spec.slug} is in the sitemap`);
+  }
 
   const header = source("components/site-header.tsx");
   const footer = source("components/site-footer.tsx");

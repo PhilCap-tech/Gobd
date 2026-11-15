@@ -32,7 +32,6 @@ export type FragenKurzlink = {
 };
 
 export const FRAGEN_KURZLINKS: readonly FragenKurzlink[] = [
-  { nr: 15, gruppe: "pflicht-adressaten", frage: "Brauchen Freiberufler eine Verfahrensdokumentation?", slug: "verfahrensdokumentation-freiberufler-pflicht", hrefs: ["/blog/gobd-verfahrensdokumentation-dienstleister-freiberufler"] },
   { nr: 17, gruppe: "pflicht-adressaten", frage: "Braucht eine GmbH oder UG eine Verfahrensdokumentation?", slug: "verfahrensdokumentation-gmbh-ug-pflicht", hrefs: ["/blog/verfahrensdokumentation-gmbh"] },
   { nr: 28, gruppe: "verfahrensdokumentation-begriff-inhalt", frage: "Was hat das interne Kontrollsystem mit der Verfahrensdokumentation zu tun?", slug: "internes-kontrollsystem", hrefs: ["/blog/internes-kontrollsystem-verfahrensdokumentation"] },
   { nr: 36, gruppe: "erstellen-vorlage-muster", frage: "Wie erstelle ich eine Verfahrensdokumentation Schritt für Schritt?", slug: "verfahrensdokumentation-schritt-fuer-schritt", hrefs: ["/blog/gobd-verfahrensdokumentation-erstellen"] },
@@ -94,6 +93,7 @@ export const FRAGEN_SEITEN_NR: Record<string, number> = {
   "gobd-kleine-unternehmen": 12,
   "verfahrensdokumentation-kleinunternehmer-einzelunternehmen": 13,
   "verfahrensdokumentation-ab-wann": 14,
+  "verfahrensdokumentation-freiberufler-pflicht": 15,
   "was-ist-eine-verfahrensdokumentation": 19,
   "was-gehoert-in-verfahrensdokumentation": 20,
   "wie-sieht-verfahrensdokumentation-aus": 21,
