@@ -98,7 +98,7 @@ async function main() {
     files.length === seiten.length && seiten.length === Object.keys(FRAGEN_SEITEN_NR).length,
     `page count is the number of content/fragen files (${files.length})`,
   );
-  ok(files.length === 26, "content/fragen has 26 pages");
+  ok(files.length === 27, "content/fragen has 27 pages");
   const repeated = `# Frage\n\n${FRAGEN_DISCLAIMER}\n\nDie Kurzantwort steht hier wortgleich.\n`;
   ok(
     bodyShowsKurzantwort(repeated, "Die Kurzantwort steht hier wortgleich."),
@@ -110,7 +110,7 @@ async function main() {
   );
   const maxStand = seiten.reduce((latest, seite) => (seite.stand > latest ? seite.stand : latest), "");
   ok(latestFragenStand(seiten) === maxStand, "latest stand is the max stand");
-  ok(maxStand === "2026-11-15", "latest stand is 2026-11-15");
+  ok(maxStand === "2026-11-16", "latest stand is 2026-11-16");
 
   const published = new Set((await listPublishedPosts()).map((post) => post.slug));
   const index = source("app/fragen/page.tsx");
@@ -228,7 +228,7 @@ async function main() {
 
   const entries = await listFragenIndex();
   ok(entries.length === seiten.length + FRAGEN_KURZLINKS.length, "index entries are pages plus kurz+link rows");
-  ok(FRAGEN_KURZLINKS.length === 49, "49 kurz+link rows");
+  ok(FRAGEN_KURZLINKS.length === 48, "48 kurz+link rows");
   const slugs = new Set(seiten.map((seite) => seite.slug));
   for (const row of FRAGEN_KURZLINKS) {
     ok(!slugs.has(row.slug), `${row.slug} is not a thin /fragen page`);
@@ -281,7 +281,7 @@ async function main() {
   const urls = sitemapEntries.map((entry) => entry.url);
   const fragenUrls = urls.filter((url) => url === canonicalUrl("/fragen") || url.includes("/fragen/"));
   ok(fragenUrls.length === 1 + seiten.length, `sitemap /fragen section is the index plus ${seiten.length} pages`);
-  ok(fragenUrls.length === 27, "sitemap /fragen section has 27 urls");
+  ok(fragenUrls.length === 28, "sitemap /fragen section has 28 urls");
   ok(urls.filter((url) => url === canonicalUrl("/fragen")).length === 1, "sitemap lists /fragen once");
   for (const seite of seiten) {
     const entry = sitemapEntries.find((item) => item.url === canonicalUrl(seite.route));
@@ -294,6 +294,7 @@ async function main() {
   const explicitSeiten: { slug: string; stand: string; gruppe: string }[] = [
     { slug: "verfahrensdokumentation-ab-wann", stand: "2026-11-14", gruppe: "pflicht-adressaten" },
     { slug: "verfahrensdokumentation-freiberufler-pflicht", stand: "2026-11-15", gruppe: "pflicht-adressaten" },
+    { slug: "kasse-beim-finanzamt-melden", stand: "2026-11-16", gruppe: "kasse-tse-kassennachschau" },
   ];
   for (const spec of explicitSeiten) {
     const seite = seiten.find((item) => item.slug === spec.slug);
