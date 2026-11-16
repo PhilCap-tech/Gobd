@@ -393,7 +393,7 @@ export default function HomePage() {
         </section>
         )}
 
-        <section className={styles.section} id="muster">
+        <section className={`${styles.section} ${styles.alt}`} id="muster">
           <div className="shell">
             <h2>So sieht das Ergebnis aus</h2>
             <p className={styles.sub}>{HERO_FACTS_LINE}</p>
@@ -441,7 +441,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className={`${styles.section} ${styles.alt}`} id="bereiche">
+        <section className={styles.section} id="bereiche">
           <div className="shell">
             <div className={styles.intro}>
               <h2>24 Module für die komplette Verfahrensdokumentation</h2>
@@ -512,7 +512,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className={styles.section} id="ablauf">
+        <section className={`${styles.section} ${styles.alt}`} id="ablauf">
           <div className={`shell ${styles.split}`}>
             <div>
               <h2>So läuft es ab</h2>
@@ -630,7 +630,9 @@ export default function HomePage() {
         <section className={`${styles.section} ${styles.d2Prices}`} id="preise">
           <div className="shell">
             <p className={styles.d2Kick}>Was Sie zahlen</p>
-            <h2>Einmalig 99 €. Mehr nur, wenn Sie es wollen.</h2>
+            <h2>
+              Einmalig <span className={styles.d2Amount}>99 €</span>. Mehr nur, wenn Sie es wollen.
+            </h2>
             <p className={styles.d2Intro}>
               Jedes Paket gilt für eine Firma und enthält alle 24 Module. Der Fragebogen ist kostenlos,
               Sie zahlen erst nach der letzten Frage.
