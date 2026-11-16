@@ -3,6 +3,7 @@
  * and prefill only fills fields that are still empty afterwards.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   catalogStepIssues,
   CATALOG_STEPS,
@@ -21,8 +22,14 @@ import {
   resolveDraftAfterLoad,
   type IntakeDraftSnapshot,
 } from "../lib/intake-draft-shared";
-import { ensureGesamt, setCheckAntwort, setModulEintrag } from "../lib/module/status";
-import { emptyAnswers, emptySheetRow, type SheetRow } from "../lib/types";
+import {
+  ensureGesamt,
+  setCheckAntwort,
+  setModulEintrag,
+  SOFTWARE_PRESETS,
+  toggleSoftwarePreset,
+} from "../lib/module/status";
+import { emptyAnswers, emptySheetRow, type IntakeAnswers, type SheetRow } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
@@ -111,6 +118,170 @@ export function checkIntakeDraftRestore(): void {
   );
 
   console.log("check-intake-draft: green");
+}
+
+function systemNames(answers: IntakeAnswers): string[] {
+  const value = answers.katalog?.B01?.values?.systeme;
+  if (!Array.isArray(value)) return [];
+  return value.map((row) => String((row as { name?: unknown }).name ?? ""));
+}
+
+/** Wie der Chip: Vorlage umschalten und danach die bekannten Stammdaten verteilen. */
+function clickPreset(answers: IntakeAnswers, id: string): IntakeAnswers {
+  return prefillKnownFacts(toggleSoftwarePreset(answers, id));
+}
+
+/** Software-Vorlagen: wählen, abwählen, alle fünf, Entwurf nach dem Abwählen. */
+export function checkSoftwarePresetToggle(): void {
+  const ids = SOFTWARE_PRESETS.map((preset) => preset.id);
+  ok(ids.length === 5 && new Set(ids).size === 5, "five distinct software templates");
+  ok(
+    readFileSync("components/betriebs-check.tsx", "utf8").includes("aria-pressed={software.includes(preset.id)}"),
+    "software chips expose aria-pressed",
+  );
+
+  let single = ensureGesamt(emptyAnswers());
+  single = clickPreset(single, "datev");
+  ok(single.module?.software?.join() === "datev", "first click selects DATEV");
+  ok(single.module?.stammdaten?.fibu === "DATEV", "selecting DATEV still suggests the system name");
+  ok(systemNames(single).includes("DATEV"), "selecting DATEV adds the B01 system");
+  ok(single.katalog?.BU01?.values?.kontenrahmen === "SKR 03", "selecting DATEV suggests the chart of accounts");
+  single = clickPreset(single, "datev");
+  ok((single.module?.software ?? []).length === 0, "second click deselects DATEV");
+  ok(!single.module?.stammdaten?.fibu, "deselect removes the untouched FiBu suggestion");
+  ok(!systemNames(single).includes("DATEV"), "deselect removes the untouched B01 system");
+  ok(!single.katalog?.BU01?.values?.kontenrahmen, "deselect removes the untouched chart of accounts");
+
+  let below = ensureGesamt(emptyAnswers());
+  below = toggleSoftwarePreset(below, "lexoffice");
+  below = toggleSoftwarePreset(below, "sevdesk");
+  below = toggleSoftwarePreset(below, "lexoffice");
+  ok(below.module?.software?.join() === "sevdesk", "one of two selected templates can be removed");
+  below = toggleSoftwarePreset(below, "shopify");
+  ok(below.module?.software?.join() === "sevdesk,shopify", "another template can be added after a removal");
+
+  let full = ensureGesamt(emptyAnswers());
+  for (const id of ids) full = toggleSoftwarePreset(full, id);
+  ok(full.module?.software?.join() === ids.join(), "all five templates can be selected");
+  const blocked = toggleSoftwarePreset(full, "nicht-vorhanden");
+  ok(blocked.module?.software?.join() === ids.join(), "an unknown option is not added at the limit");
+  full = toggleSoftwarePreset(full, ids[0]!);
+  ok(full.module?.software?.join() === ids.slice(1).join(), "a selected template can be removed when all five are on");
+  full = toggleSoftwarePreset(full, "noch-eine");
+  ok(full.module?.software?.length === 4, "an unknown option is not added after one removal");
+  full = toggleSoftwarePreset(full, ids[0]!);
+  ok(full.module?.software?.join() === [...ids.slice(1), ids[0]].join(), "the removed template can be selected again");
+
+  const step = 0;
+  const stored = JSON.parse(
+    JSON.stringify({
+      answers: full,
+      step,
+      savedAt: "2026-11-16T12:00:00.000Z",
+      revision: 3,
+    }),
+  ) as IntakeDraftSnapshot;
+  ok(
+    stored.answers.module?.software?.join() === [...ids.slice(1), ids[0]].join(),
+    "the selection after deselect and reselect survives draft JSON",
+  );
+  const reloaded = prefillKnownFacts(stored.answers);
+  ok(
+    reloaded.module?.software?.join() === stored.answers.module?.software?.join(),
+    "hydration keeps the deselected template off and the selected ones on",
+  );
+
+  let dropped = ensureGesamt(emptyAnswers());
+  dropped = clickPreset(dropped, "pos");
+  dropped = clickPreset(dropped, "pos");
+  const emptyStored = JSON.parse(
+    JSON.stringify({ answers: dropped, step, savedAt: "2026-11-16T12:01:00.000Z", revision: 2 }),
+  ) as IntakeDraftSnapshot;
+  const emptyReloaded = prefillKnownFacts(emptyStored.answers);
+  ok((emptyReloaded.module?.software ?? []).length === 0, "a full deselect survives draft reload");
+  ok(!emptyReloaded.module?.stammdaten?.kasse, "reload keeps the removed POS name out of Stammdaten");
+  ok(!emptyReloaded.katalog?.KA01?.values?.art, "reload keeps the removed POS kind out of the catalog");
+  ok(!emptyReloaded.katalog?.KA01?.values?.system, "reload does not restore the POS name from Stammdaten");
+  ok(!emptyReloaded.katalog?.A01?.values?.gastroKasse, "reload does not restore the POS copy");
+
+  let edited = clickPreset(ensureGesamt(emptyAnswers()), "datev");
+  edited = {
+    ...edited,
+    module: {
+      ...edited.module!,
+      stammdaten: { ...edited.module?.stammdaten, fibu: "DATEV Unternehmen online" },
+    },
+  };
+  edited = setCatalogValue(edited, "BU01", "kontenrahmen", "SKR 03 geändert");
+  edited = clickPreset(edited, "datev");
+  ok(edited.module?.stammdaten?.fibu === "DATEV Unternehmen online", "an edited FiBu value stays");
+  ok(edited.katalog?.BU01?.values?.kontenrahmen === "SKR 03 geändert", "an edited chart of accounts stays");
+  ok(!systemNames(edited).includes("DATEV"), "the untouched B01 card is still removed");
+
+  let beside = clickPreset(ensureGesamt(emptyAnswers()), "lexoffice");
+  beside = setCatalogValue(beside, "E05", "systeme", "lexoffice, Eigenes Programm");
+  const withOwnCard = systemNames(beside).includes("lexoffice")
+    ? [
+        ...(beside.katalog?.B01?.values?.systeme as Record<string, unknown>[]),
+        { name: "Eigenes Archiv", funktion: "Ablage", typ: "archiv" },
+      ]
+    : [{ name: "Eigenes Archiv", funktion: "Ablage", typ: "archiv" }];
+  beside = setCatalogValue(beside, "B01", "systeme", withOwnCard);
+  beside = {
+    ...beside,
+    module: {
+      ...beside.module!,
+      stammdaten: { ...beside.module?.stammdaten, fibu: "lexoffice, Kanzlei" },
+    },
+  };
+  beside = clickPreset(beside, "lexoffice");
+  ok(beside.katalog?.E05?.values?.systeme === "Eigenes Programm", "a user token beside the template token stays");
+  ok(beside.module?.stammdaten?.fibu === "Kanzlei", "a user FiBu note beside the template name stays");
+  ok(!systemNames(beside).includes("lexoffice"), "the untouched lexoffice card is removed");
+  ok(systemNames(beside).includes("Eigenes Archiv"), "a user system card beside the template card stays");
+
+  const probe = {
+    id: "probe-gleich",
+    label: "Probe",
+    values: {
+      B01: { systeme: [{ name: "DATEV", funktion: "Finanzbuchhaltung", typ: "fibu" }] },
+      BU01: { kontenrahmen: "SKR 03" },
+    },
+    stammdaten: { fibu: "DATEV" },
+  };
+  SOFTWARE_PRESETS.push(probe);
+  try {
+    let shared = clickPreset(ensureGesamt(emptyAnswers()), "datev");
+    shared = clickPreset(shared, "probe-gleich");
+    shared = clickPreset(shared, "datev");
+    ok(shared.module?.software?.join() === "probe-gleich", "the other template stays selected");
+    ok(shared.module?.stammdaten?.fibu === "DATEV", "a shared FiBu value stays while the other template provides it");
+    ok(shared.katalog?.BU01?.values?.kontenrahmen === "SKR 03", "a shared chart of accounts stays");
+    ok(systemNames(shared).includes("DATEV"), "a shared system card stays");
+    shared = clickPreset(shared, "probe-gleich");
+    ok(!shared.module?.stammdaten?.fibu, "the shared FiBu value goes away with the last template");
+    ok(!shared.katalog?.BU01?.values?.kontenrahmen, "the shared chart of accounts goes away with the last template");
+    ok(!systemNames(shared).includes("DATEV"), "the shared system card goes away with the last template");
+  } finally {
+    const index = SOFTWARE_PRESETS.findIndex((item) => item.id === "probe-gleich");
+    if (index >= 0) SOFTWARE_PRESETS.splice(index, 1);
+  }
+
+  let owned = ensureGesamt(emptyAnswers());
+  owned = {
+    ...owned,
+    module: { ...owned.module!, stammdaten: { fibu: "DATEV" } },
+  };
+  owned = setCatalogValue(owned, "B01", "systeme", [{ name: "DATEV", funktion: "Finanzbuchhaltung", typ: "fibu" }]);
+  owned = setCatalogValue(owned, "BU01", "kontenrahmen", "SKR 03");
+  owned = clickPreset(owned, "datev");
+  const reloadedOwned = JSON.parse(JSON.stringify(owned)) as IntakeAnswers;
+  const kept = clickPreset(reloadedOwned, "datev");
+  ok(kept.module?.stammdaten?.fibu === "DATEV", "a value the user already had stays after deselect and reload");
+  ok(kept.katalog?.BU01?.values?.kontenrahmen === "SKR 03", "a chart of accounts the user already had stays");
+  ok(systemNames(kept).includes("DATEV"), "a system card the user already had stays");
+
+  console.log("check-software-preset-toggle: green");
 }
 
 export function checkDraftMerge(): void {
@@ -246,6 +417,7 @@ export function checkDocumentOwnership(): void {
 const entry = process.argv[1] ?? "";
 if (entry.endsWith("check-intake-draft.ts") || entry.endsWith("check-intake-draft.js")) {
   checkIntakeDraftRestore();
+  checkSoftwarePresetToggle();
   checkDraftMerge();
   checkDocumentOwnership();
 }

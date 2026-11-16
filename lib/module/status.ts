@@ -9,6 +9,7 @@ import type {
   ModulEintrag,
   ModulStatus,
   ModulZustand,
+  SoftwareBeitrag,
   Stammdaten,
 } from "@/lib/module/typen";
 import { CHECK_KEYS, MODUL_STATUSES } from "@/lib/module/typen";
@@ -324,15 +325,263 @@ function presetValueEmpty(value: unknown): boolean {
   return false;
 }
 
+/**
+ * Kopien, die der Klick danach über die Stammdaten in den Katalog schreibt.
+ * Steht der Text noch genauso da, geht er mit dem Stammdatenwert wieder weg.
+ */
+const STAMM_KATALOG_KOPIEN: Partial<Record<keyof Stammdaten, Array<[string, string]>>> = {
+  shop: [["A01", "onlineShop"]],
+  kasse: [
+    ["KA01", "system"],
+    ["A01", "gastroKasse"],
+  ],
+};
+
+function stableValue(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableValue).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([key, item]) => `${key}:${stableValue(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+function sameToken(left: unknown, right: unknown): boolean {
+  if (typeof left === "string" && typeof right === "string") return left.trim() === right.trim();
+  if (left && right && typeof left === "object" && typeof right === "object" && !Array.isArray(left) && !Array.isArray(right)) {
+    const preset = right as Record<string, unknown>;
+    const row = left as Record<string, unknown>;
+    for (const key of Object.keys(preset)) {
+      if (!sameToken(row[key], preset[key])) return false;
+    }
+    for (const [key, item] of Object.entries(row)) {
+      if (key in preset) continue;
+      if (item == null || item === "" || (Array.isArray(item) && item.length === 0)) continue;
+      return false;
+    }
+    return true;
+  }
+  return stableValue(left) === stableValue(right);
+}
+
+function insertedTokens(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [value];
+}
+
+function blankValue(value: unknown): boolean {
+  if (value == null) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+/** Nimmt ein unverändertes Vorlagen-Token aus einem Text, einer Liste oder einer Kommaliste. */
+function withoutToken(stored: unknown, token: unknown): unknown {
+  if (Array.isArray(stored)) return stored.filter((item) => !sameToken(item, token));
+  if (typeof stored === "string" && typeof token === "string") {
+    const parts = stored.split(",");
+    if (parts.length > 1) {
+      const kept = parts.map((part) => part.trim()).filter((part) => part && part !== token.trim());
+      if (!parts.some((part) => part.trim() === token.trim())) return stored;
+      return kept.join(", ");
+    }
+    if (stored.trim() === token.trim()) return "";
+    return stored;
+  }
+  if (sameToken(stored, token)) return "";
+  return stored;
+}
+
+function beitragFromPreset(preset: SoftwarePreset): SoftwareBeitrag {
+  return {
+    stammdaten: { ...(preset.stammdaten ?? {}) },
+    katalog: Object.fromEntries(
+      Object.entries(preset.values).map(([qid, fields]) => [qid, { ...fields }]),
+    ),
+  };
+}
+
+function fieldTokens(value: unknown): unknown[] {
+  return insertedTokens(value).filter((token) => !blankValue(token));
+}
+
+function otherPresetProvides(
+  remaining: SoftwarePreset[],
+  qid: string | null,
+  key: string,
+  token: unknown,
+): boolean {
+  for (const preset of remaining) {
+    if (!qid) {
+      const value = preset.stammdaten?.[key as keyof Stammdaten];
+      if (typeof value === "string" && sameToken(value, token)) return true;
+      continue;
+    }
+    const field = preset.values[qid]?.[key];
+    if (field == null) continue;
+    if (fieldTokens(field).some((item) => sameToken(item, token))) return true;
+  }
+  return false;
+}
+
+function rememberToken(
+  map: Record<string, SoftwareBeitrag>,
+  presetId: string,
+  qid: string | null,
+  key: string,
+  token: unknown,
+): void {
+  const current = map[presetId] ?? {};
+  if (!qid) {
+    const stamm = { ...(current.stammdaten ?? {}) };
+    const stammKey = key as keyof Stammdaten;
+    if (!stamm[stammKey]) stamm[stammKey] = String(token);
+    map[presetId] = { ...current, stammdaten: stamm };
+    return;
+  }
+  const katalog = { ...(current.katalog ?? {}) };
+  const fields = { ...(katalog[qid] ?? {}) };
+  fields[key] = storeToken(fields[key], token);
+  katalog[qid] = fields;
+  map[presetId] = { ...current, katalog };
+}
+
+function storeToken(current: unknown, token: unknown): unknown {
+  if (blankValue(current)) return typeof token === "object" && token ? [token] : token;
+  if (Array.isArray(current)) {
+    if (current.some((item) => sameToken(item, token))) return current;
+    return [...current, token];
+  }
+  if (sameToken(current, token)) return current;
+  return current;
+}
+
+function readKatalogField(katalog: IntakeAnswers["katalog"], qid: string, key: string): unknown {
+  return katalog?.[qid]?.values?.[key];
+}
+
+function writeKatalogField(
+  katalog: NonNullable<IntakeAnswers["katalog"]>,
+  qid: string,
+  key: string,
+  value: unknown,
+): void {
+  const entry = katalog[qid] ?? {};
+  const values = { ...(entry.values ?? {}) };
+  if (blankValue(value)) delete values[key];
+  else values[key] = value;
+  katalog[qid] = { ...entry, values };
+}
+
+function stripTokenFromField(stored: unknown, token: unknown): unknown {
+  return withoutToken(stored, token);
+}
+
+/**
+ * Vorlage wählen oder, wenn sie schon gewählt ist, wieder abwählen.
+ * Abwählen entfernt nur, was diese Vorlage selbst eingetragen hat und
+ * was noch unverändert dasteht. Ein bearbeiteter Text und fremde Einträge
+ * in derselben Liste bleiben. Liefert eine andere noch gewählte Vorlage
+ * denselben Wert, bleibt er stehen.
+ */
+export function toggleSoftwarePreset(answers: IntakeAnswers, presetId: string): IntakeAnswers {
+  const preset = SOFTWARE_PRESETS.find((item) => item.id === presetId);
+  if (!preset) return answers;
+  const zustand = modulZustand(answers);
+  const current = zustand.software ?? [];
+  if (current.includes(preset.id)) return removeSoftwarePreset(answers, preset);
+  return applySoftwarePreset(answers, preset.id);
+}
+
+function removeSoftwarePreset(answers: IntakeAnswers, preset: SoftwarePreset): IntakeAnswers {
+  const zustand = modulZustand(answers);
+  const remainingIds = (zustand.software ?? []).filter((id) => id !== preset.id);
+  const remaining = SOFTWARE_PRESETS.filter((item) => remainingIds.includes(item.id));
+  const beitraege: Record<string, SoftwareBeitrag> = { ...(zustand.softwareBeitraege ?? {}) };
+  const known = Object.prototype.hasOwnProperty.call(beitraege, preset.id);
+  const contribution = known ? (beitraege[preset.id] ?? {}) : beitragFromPreset(preset);
+  const stamm = { ...(zustand.stammdaten ?? {}) };
+  const katalog = { ...(answers.katalog ?? {}) };
+
+  const dropOrKeep = (qid: string | null, key: string, token: unknown, read: () => unknown, write: (value: unknown) => void) => {
+    const stored = read();
+    if (blankValue(stored) || blankValue(token)) return;
+    const next = stripTokenFromField(stored, token);
+    if (stableValue(next) === stableValue(stored)) return;
+    if (otherPresetProvides(remaining, qid, key, token)) {
+      const owner = remaining[0];
+      if (owner) rememberToken(beitraege, owner.id, qid, key, token);
+      return;
+    }
+    write(next);
+  };
+
+  for (const [key, value] of Object.entries(contribution.stammdaten ?? {})) {
+    if (typeof value !== "string") continue;
+    dropOrKeep(
+      null,
+      key,
+      value,
+      () => stamm[key as keyof Stammdaten],
+      (next) => {
+        const stammKey = key as keyof Stammdaten;
+        if (blankValue(next)) delete stamm[stammKey];
+        else stamm[stammKey] = String(next);
+        if (blankValue(next)) {
+          for (const [qid, field] of STAMM_KATALOG_KOPIEN[stammKey] ?? []) {
+            dropOrKeep(
+              qid,
+              field,
+              value,
+              () => readKatalogField(katalog, qid, field),
+              (copied) => writeKatalogField(katalog, qid, field, copied),
+            );
+          }
+        }
+      },
+    );
+  }
+
+  for (const [qid, fields] of Object.entries(contribution.katalog ?? {})) {
+    for (const [key, value] of Object.entries(fields)) {
+      for (const token of fieldTokens(value)) {
+        dropOrKeep(
+          qid,
+          key,
+          token,
+          () => readKatalogField(katalog, qid, key),
+          (next) => writeKatalogField(katalog, qid, key, next),
+        );
+      }
+    }
+  }
+
+  delete beitraege[preset.id];
+  return {
+    ...answers,
+    katalog,
+    module: {
+      ...zustand,
+      software: remainingIds,
+      stammdaten: stamm,
+      softwareBeitraege: Object.keys(beitraege).length ? beitraege : undefined,
+    },
+  };
+}
+
 export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): IntakeAnswers {
   const preset = SOFTWARE_PRESETS.find((item) => item.id === presetId);
   if (!preset) return answers;
   const zustand = modulZustand(answers);
   const software = Array.from(new Set([...(zustand.software ?? []), preset.id]));
   const stamm = { ...(zustand.stammdaten ?? {}) };
+  const written: SoftwareBeitrag = { stammdaten: {}, katalog: {} };
   for (const [key, value] of Object.entries(preset.stammdaten ?? {})) {
     const current = stamm[key as keyof Stammdaten];
-    if (!String(current ?? "").trim() && value) stamm[key as keyof Stammdaten] = value;
+    if (!String(current ?? "").trim() && value) {
+      stamm[key as keyof Stammdaten] = value;
+      written.stammdaten![key as keyof Stammdaten] = value;
+    }
   }
   let next: IntakeAnswers = {
     ...answers,
@@ -353,15 +602,28 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
           const name = String(row.name ?? "").trim();
           return name && !names.has(name);
         });
-        if (!named.length) merged.systeme = value;
-        else if (additions.length) merged.systeme = [...named, ...additions];
+        if (!named.length) {
+          merged.systeme = value;
+          written.katalog![qid] = { ...(written.katalog![qid] ?? {}), systeme: value };
+        } else if (additions.length) {
+          merged.systeme = [...named, ...additions];
+          written.katalog![qid] = { ...(written.katalog![qid] ?? {}), systeme: additions };
+        }
         continue;
       }
-      if (presetValueEmpty(merged[key])) merged[key] = value;
+      if (presetValueEmpty(merged[key])) {
+        merged[key] = value;
+        written.katalog![qid] = { ...(written.katalog![qid] ?? {}), [key]: value };
+      }
     }
     katalog[qid] = { ...current, values: merged };
   }
-  next = { ...next, katalog };
+  const beitraege = { ...(zustand.softwareBeitraege ?? {}), [preset.id]: written };
+  next = {
+    ...next,
+    katalog,
+    module: { ...next.module!, softwareBeitraege: beitraege },
+  };
   return next;
 }
 

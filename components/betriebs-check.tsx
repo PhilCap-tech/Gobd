@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { IntakeQuestionHint } from "@/components/intake-question-hint";
 import { prefillKnownFacts, prefillStammdatenInput, type CatalogIssue } from "@/lib/intake-catalog";
 import {
-  applySoftwarePreset,
+  toggleSoftwarePreset,
   BRANCHEN_VORLAGEN,
   CHECK_FRAGEN,
   modulFortschritt,
@@ -117,7 +117,8 @@ export function BetriebsCheckStep({
               key={preset.id}
               type="button"
               className={software.includes(preset.id) ? "chip on" : "chip"}
-              onClick={() => onChange(prefillKnownFacts(applySoftwarePreset(answers, preset.id)))}
+              aria-pressed={software.includes(preset.id)}
+              onClick={() => onChange(prefillKnownFacts(toggleSoftwarePreset(answers, preset.id)))}
             >
               {preset.label}
             </button>
