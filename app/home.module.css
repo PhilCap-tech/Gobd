@@ -976,6 +976,11 @@
   text-transform: uppercase;
 }
 
+/* Bestehendes Messing, nur der Betrag in der Preis-Überschrift. */
+.d2Amount {
+  color: var(--brass);
+}
+
 .d2Intro {
   max-width: 760px;
   font-size: 18px;
@@ -1101,9 +1106,14 @@
 
 .section:not(.alt):not(.d2Prices) + .section:not(.alt):not(.d2Prices),
 .alt + .alt,
-.alt + .d2Prices,
 .d2Prices + .alt {
   padding-top: 0;
+}
+
+/* #outcome und #preise teilen sich --paper-alt. Der Strich bleibt,
+   der Kicker „Was Sie zahlen“ braucht Luft darunter. */
+.alt + .d2Prices {
+  padding-top: clamp(32px, 4vw, 44px);
 }
 
 .page :global(h2) {
@@ -1733,9 +1743,10 @@
 }
 
 
-/* Buch-Trust Variante B (nach #ablauf). Soft-Link, kein Kauf-Button. */
+/* Buch-Trust Variante B (nach #ablauf). Soft-Link, kein Kauf-Button.
+   #ablauf ist eine eigene Fläche; der Abstand bleibt das normale Abschnitts-Padding. */
 .bookTrust {
-  padding-top: 0;
+  background: var(--paper);
 }
 
 .bookTrustInner {
