@@ -74,6 +74,13 @@ export type SoftwareBeitrag = {
   katalog?: Record<string, Record<string, unknown>>;
 };
 
+/**
+ * Letzter Katalogtext, den ein Stammdatenfeld selbst geschrieben hat.
+ * Schlüssel ist „KA01.system“. Fehlt der Eintrag, hat das Feld noch nichts
+ * geschrieben; bestehende Entwürfe bleiben dann unangetastet.
+ */
+export type FeldSync = Partial<Record<"kasse" | "shop" | "lohn" | "warenwirtschaft" | "bank", Record<string, string>>>;
+
 /** Gesamtdokument-Zustand. Vorhanden = Dokument im 24-Module-Format. */
 export type ModulZustand = {
   version: 1;
@@ -90,6 +97,8 @@ export type ModulZustand = {
    * mit dem Vorlagenwert.
    */
   softwareBeitraege?: Record<string, SoftwareBeitrag>;
+  /** Herkunft der Katalogtexte aus Kasse, Shop, Lohn, Warenwirtschaft und Bank. */
+  feldSync?: FeldSync;
   stammdaten?: Stammdaten;
   /** Ausdrücklich gesetzter Status je Modul; sonst gilt der abgeleitete Status. */
   status: Record<string, ModulEintrag>;

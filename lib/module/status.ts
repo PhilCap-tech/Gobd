@@ -8,6 +8,7 @@ import type {
   CheckKey,
   ModulEintrag,
   ModulStatus,
+  FeldSync,
   ModulZustand,
   SoftwareBeitrag,
   Stammdaten,
@@ -525,18 +526,22 @@ function removeSoftwarePreset(answers: IntakeAnswers, preset: SoftwarePreset): I
       () => stamm[key as keyof Stammdaten],
       (next) => {
         const stammKey = key as keyof Stammdaten;
-        if (blankValue(next)) delete stamm[stammKey];
-        else stamm[stammKey] = String(next);
         if (blankValue(next)) {
-          for (const [qid, field] of STAMM_KATALOG_KOPIEN[stammKey] ?? []) {
-            dropOrKeep(
-              qid,
-              field,
-              value,
-              () => readKatalogField(katalog, qid, field),
-              (copied) => writeKatalogField(katalog, qid, field, copied),
-            );
+          const successor = remaining.find((item) => item.stammdaten?.[stammKey]?.trim());
+          const replacement = successor?.stammdaten?.[stammKey]?.trim() ?? "";
+          if (replacement && successor) {
+            stamm[stammKey] = replacement;
+            rememberToken(beitraege, successor.id, null, stammKey, replacement);
+          } else {
+            delete stamm[stammKey];
           }
+          for (const [copyId, field] of STAMM_KATALOG_KOPIEN[stammKey] ?? []) {
+            const stored = readKatalogField(katalog, copyId, field);
+            if (!sameToken(stored, value)) continue;
+            writeKatalogField(katalog, copyId, field, replacement);
+          }
+        } else {
+          stamm[stammKey] = String(next);
         }
       },
     );
@@ -593,14 +598,35 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
     const merged = { ...(current.values ?? {}) };
     for (const [key, value] of Object.entries(values)) {
       if (key === "systeme" && Array.isArray(value)) {
+        if (value.every((item) => typeof item === "string")) {
+          const wanted = value.map((item) => item.trim()).filter(Boolean);
+          const existing = merged.systeme;
+          const currentTokens = Array.isArray(existing)
+            ? existing.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+            : typeof existing === "string"
+              ? existing.split(",").map((item) => item.trim()).filter(Boolean)
+              : [];
+          const additions = wanted.filter((item) => !currentTokens.includes(item));
+          if (!currentTokens.length) {
+            if (wanted.length) {
+              merged.systeme = wanted;
+              written.katalog![qid] = { ...(written.katalog![qid] ?? {}), systeme: wanted };
+            }
+          } else if (additions.length) {
+            const combined = [...currentTokens, ...additions];
+            merged.systeme = typeof existing === "string" ? combined.join(", ") : combined;
+            written.katalog![qid] = { ...(written.katalog![qid] ?? {}), systeme: additions };
+          }
+          continue;
+        }
         const existing = Array.isArray(merged.systeme)
           ? (merged.systeme as Record<string, unknown>[])
           : [];
         const named = existing.filter((row) => String(row.name ?? "").trim());
         const names = new Set(named.map((row) => String(row.name ?? "").trim()));
         const additions = (value as Record<string, unknown>[]).filter((row) => {
-          const name = String(row.name ?? "").trim();
-          return name && !names.has(name);
+          const rowName = String(row.name ?? "").trim();
+          return rowName && !names.has(rowName);
         });
         if (!named.length) {
           merged.systeme = value;
@@ -641,6 +667,108 @@ function untouchedPrefill(current: unknown, prior: string | undefined): boolean 
   return Boolean(before) && text === before;
 }
 
+/** Markierung der B01-Karte, die das FiBu-Feld selbst angelegt hat. */
+const FIBU_FELD_KARTE = "fibu";
+
+const STAMM_TEXT_FELDER: Array<{ key: keyof FeldSync; fields: Array<[string, string]> }> = [
+  { key: "kasse", fields: [["KA01", "system"], ["A01", "gastroKasse"]] },
+  { key: "shop", fields: [["EC02", "system"], ["A01", "onlineShop"]] },
+  { key: "lohn", fields: [["LO01", "system"]] },
+  { key: "warenwirtschaft", fields: [["WW01", "system"], ["A01", "onlineWawi"]] },
+  { key: "bank", fields: [["BA01", "konten"]] },
+];
+
+/**
+ * Die Karte des FiBu-Felds anlegen, umbenennen oder entfernen.
+ * Vorlagen- und Handkarten (ohne Markierung) bleiben stehen.
+ * Trifft der Text den Namen einer solchen Karte, entfällt die eigene Karte,
+ * damit nichts doppelt steht. Gibt null zurück, wenn nichts zu ändern ist.
+ */
+export function syncFibuSystems(
+  systems: Record<string, unknown>[],
+  name: string,
+  defaults: { funktion: string; typ: string } = { funktion: "Finanzbuchhaltung", typ: "fibu" },
+): Record<string, unknown>[] | null {
+  const trimmed = name.trim();
+  const owned = systems.filter((row) => row.vonFeld === FIBU_FELD_KARTE);
+  const nameTaken = (target: string) =>
+    systems.some((row) => row.vonFeld !== FIBU_FELD_KARTE && String(row.name ?? "").trim() === target);
+
+  if (!trimmed) {
+    if (!owned.length) return null;
+    return systems.filter((row) => row.vonFeld !== FIBU_FELD_KARTE);
+  }
+  if (nameTaken(trimmed)) {
+    if (!owned.length) return null;
+    return systems.filter((row) => row.vonFeld !== FIBU_FELD_KARTE);
+  }
+  const last = owned.length ? owned[owned.length - 1] : undefined;
+  if (last) {
+    if (String(last.name ?? "").trim() === trimmed && owned.length === 1) return null;
+    return systems.flatMap((row) => {
+      if (row.vonFeld !== FIBU_FELD_KARTE) return [row];
+      if (row !== last) return [];
+      return [{ ...row, name: trimmed, vonFeld: FIBU_FELD_KARTE }];
+    });
+  }
+  return [...systems, { name: trimmed, funktion: defaults.funktion, typ: defaults.typ, vonFeld: FIBU_FELD_KARTE }];
+}
+
+function catalogText(katalog: IntakeAnswers["katalog"], qid: string, key: string): string {
+  const value = katalog?.[qid]?.values?.[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function writeCatalogText(
+  katalog: NonNullable<IntakeAnswers["katalog"]>,
+  qid: string,
+  key: string,
+  value: string,
+): void {
+  const entry = katalog[qid] ?? {};
+  const values = { ...(entry.values ?? {}) };
+  if (!value) delete values[key];
+  else values[key] = value;
+  katalog[qid] = { ...entry, values };
+}
+
+/** Kasse, Shop, Lohn, Warenwirtschaft und Bank in ihre Textfelder spiegeln. */
+function syncStammTexts(
+  katalog: NonNullable<IntakeAnswers["katalog"]>,
+  stamm: Partial<Stammdaten>,
+  previous: FeldSync | undefined,
+): FeldSync {
+  const sync: FeldSync = {};
+  for (const { key, fields } of STAMM_TEXT_FELDER) {
+    const trimmed = stamm[key]?.trim() ?? "";
+    const recorded = previous?.[key] ?? {};
+    const nextRecord: Record<string, string> = {};
+    for (const [qid, field] of fields) {
+      const id = `${qid}.${field}`;
+      const entry = katalog[qid];
+      const current = catalogText(katalog, qid, field);
+      const written = recorded[id];
+      if (current === trimmed && trimmed) {
+        nextRecord[id] = trimmed;
+        continue;
+      }
+      if (written === undefined) {
+        if (!trimmed || current) continue;
+        if (entry?.cleared?.includes(field)) continue;
+        writeCatalogText(katalog, qid, field, trimmed);
+        nextRecord[id] = trimmed;
+        continue;
+      }
+      if (current && current !== written) continue;
+      if (!current && entry?.cleared?.includes(field) && written === trimmed) continue;
+      writeCatalogText(katalog, qid, field, trimmed);
+      if (trimmed) nextRecord[id] = trimmed;
+    }
+    if (Object.keys(nextRecord).length) sync[key] = nextRecord;
+  }
+  return sync;
+}
+
 /** Stammdaten in leere oder noch unveränderte Katalogfelder schreiben. */
 export function applyStammdatenPrefill(
   answers: IntakeAnswers,
@@ -665,16 +793,23 @@ export function applyStammdatenPrefill(
   fill("B01", "it", s.it, previous?.it);
   fill("F05", "kanzleiName", s.kanzlei, previous?.kanzlei);
   fill("G01", "ablage", s.archiv, previous?.archiv);
-  if (s.fibu) {
-    const entry = katalog.B01 ?? {};
-    const values = { ...(entry.values ?? {}) };
-    const systems = Array.isArray(values.systeme) ? (values.systeme as Record<string, unknown>[]) : [];
-    if (!systems.some((row) => String(row.name ?? "") === s.fibu)) {
-      values.systeme = [...systems, { name: s.fibu, funktion: "Finanzbuchhaltung", typ: "fibu" }];
-      katalog.B01 = { ...entry, values };
-    }
+  const entry = katalog.B01 ?? {};
+  const values = { ...(entry.values ?? {}) };
+  const systems = Array.isArray(values.systeme) ? (values.systeme as Record<string, unknown>[]) : [];
+  const nextSystems = syncFibuSystems(systems, s.fibu ?? "");
+  if (nextSystems) {
+    values.systeme = nextSystems;
+    katalog.B01 = { ...entry, values };
   }
-  return { ...answers, katalog };
+  const feldSync = syncStammTexts(katalog, s, modulZustand(answers).feldSync);
+  return {
+    ...answers,
+    katalog,
+    module: {
+      ...modulZustand(answers),
+      feldSync: Object.keys(feldSync).length ? feldSync : undefined,
+    },
+  };
 }
 
 export function ensureGesamt(answers: IntakeAnswers): IntakeAnswers {

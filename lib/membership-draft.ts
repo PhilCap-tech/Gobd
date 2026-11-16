@@ -222,6 +222,7 @@ function moduleControls(answers: IntakeAnswers | null | undefined): unknown {
     vorlage: state.vorlage ?? "",
     software: state.software ?? [],
     softwareBeitraege: state.softwareBeitraege ?? {},
+    feldSync: state.feldSync ?? {},
     branchenArt: state.branchenArt ?? [],
   };
 }
