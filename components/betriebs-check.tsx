@@ -117,6 +117,7 @@ export function BetriebsCheckStep({
               key={preset.id}
               type="button"
               className={software.includes(preset.id) ? "chip on" : "chip"}
+              aria-pressed={software.includes(preset.id)}
               onClick={() => onChange(prefillKnownFacts(toggleSoftwarePreset(answers, preset.id)))}
             >
               {preset.label}

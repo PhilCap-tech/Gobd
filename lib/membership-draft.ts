@@ -221,6 +221,7 @@ function moduleControls(answers: IntakeAnswers | null | undefined): unknown {
     stammdaten: state.stammdaten ?? {},
     vorlage: state.vorlage ?? "",
     software: state.software ?? [],
+    softwareBeitraege: state.softwareBeitraege ?? {},
     branchenArt: state.branchenArt ?? [],
   };
 }

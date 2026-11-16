@@ -68,6 +68,12 @@ export type Stammdaten = {
   bank?: string;
 };
 
+/** Werte, die eine Software-Vorlage selbst eingetragen hat. */
+export type SoftwareBeitrag = {
+  stammdaten?: Partial<Stammdaten>;
+  katalog?: Record<string, Record<string, unknown>>;
+};
+
 /** Gesamtdokument-Zustand. Vorhanden = Dokument im 24-Module-Format. */
 export type ModulZustand = {
   version: 1;
@@ -78,6 +84,12 @@ export type ModulZustand = {
   vorlage?: string;
   /** Gewählte Software-Vorlagen. */
   software?: string[];
+  /**
+   * Was eine gewählte Vorlage tatsächlich in leere Felder geschrieben hat.
+   * Fehlt bei Entwürfen vor dieser Unterscheidung; dann zählt der Vergleich
+   * mit dem Vorlagenwert.
+   */
+  softwareBeitraege?: Record<string, SoftwareBeitrag>;
   stammdaten?: Stammdaten;
   /** Ausdrücklich gesetzter Status je Modul; sonst gilt der abgeleitete Status. */
   status: Record<string, ModulEintrag>;
