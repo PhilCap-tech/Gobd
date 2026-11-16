@@ -128,7 +128,7 @@ Die kostenlose [GoBD-Ampel](/ampel-check) zeigt Ihnen in wenigen Fragen, ob Ihr 
 
 ## Verfahrensdokumentation online erstellen
 
-Auf [gobd-doku-erstellen.de](/) entsteht aus Ihren Antworten eine individuelle Verfahrensdokumentation als PDF und eine Liste offener Punkte, mit Stand-Datum. Die Fragen folgen den Teilen der Verfahrensdokumentation. Die Abläufe Ihrer Anwenderdokumentation tragen Sie dort ein. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
+Auf [gobd-doku-erstellen.de](/) entsteht aus Ihren Antworten eine individuelle Verfahrensdokumentation als PDF und eine Liste offener Punkte, mit Stand-Datum. Ihre Abläufe beschreiben Sie dort Modul für Modul. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
 Wo Sie heute stehen, zeigt der kostenlose [Readiness-Check](/readiness).
 
