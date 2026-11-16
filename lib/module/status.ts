@@ -324,6 +324,26 @@ function presetValueEmpty(value: unknown): boolean {
   return false;
 }
 
+/**
+ * Vorlage wählen oder, wenn sie schon gewählt ist, wieder abwählen.
+ * Abwählen wird zuerst geprüft, damit bei allen fünf Vorlagen jede
+ * einzelne entfernt werden kann. Eine unbekannte Id ändert nichts.
+ * Bereits eingetragene Vorschlagsnamen bleiben stehen.
+ */
+export function toggleSoftwarePreset(answers: IntakeAnswers, presetId: string): IntakeAnswers {
+  const preset = SOFTWARE_PRESETS.find((item) => item.id === presetId);
+  if (!preset) return answers;
+  const zustand = modulZustand(answers);
+  const current = zustand.software ?? [];
+  if (current.includes(preset.id)) {
+    return {
+      ...answers,
+      module: { ...zustand, software: current.filter((id) => id !== preset.id) },
+    };
+  }
+  return applySoftwarePreset(answers, preset.id);
+}
+
 export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): IntakeAnswers {
   const preset = SOFTWARE_PRESETS.find((item) => item.id === presetId);
   if (!preset) return answers;

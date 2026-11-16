@@ -26,6 +26,7 @@ import {
 } from "../lib/draft-conflict-retry";
 import { SERVER_SAVE_FAILED_HINT, autosaveHintVisible } from "../lib/fetch-retry";
 import { ensureGesamt } from "../lib/module/status";
+import { checkSoftwarePresetToggle } from "./check-intake-draft";
 import { emptyAnswers, type IntakeAnswers } from "../lib/types";
 
 for (const key of [
@@ -109,6 +110,7 @@ function put(cookie: string, revision: number, answers: IntakeAnswers) {
 }
 
 async function main(): Promise<void> {
+  checkSoftwarePresetToggle();
   ok(KEY === `email:${PLUS}:default:gesamt`, "a plus-tag login uses one email draft key");
   ok(!KEY.includes("gobd_test"), "gobd_test is not part of the draft key");
 

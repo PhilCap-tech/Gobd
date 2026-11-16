@@ -21,7 +21,13 @@ import {
   resolveDraftAfterLoad,
   type IntakeDraftSnapshot,
 } from "../lib/intake-draft-shared";
-import { ensureGesamt, setCheckAntwort, setModulEintrag } from "../lib/module/status";
+import {
+  ensureGesamt,
+  setCheckAntwort,
+  setModulEintrag,
+  SOFTWARE_PRESETS,
+  toggleSoftwarePreset,
+} from "../lib/module/status";
 import { emptyAnswers, emptySheetRow, type SheetRow } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
@@ -111,6 +117,70 @@ export function checkIntakeDraftRestore(): void {
   );
 
   console.log("check-intake-draft: green");
+}
+
+/** Software-Vorlagen: wählen, abwählen, alle fünf, Entwurf nach dem Abwählen. */
+export function checkSoftwarePresetToggle(): void {
+  const ids = SOFTWARE_PRESETS.map((preset) => preset.id);
+  ok(ids.length === 5 && new Set(ids).size === 5, "five distinct software templates");
+
+  let single = ensureGesamt(emptyAnswers());
+  single = toggleSoftwarePreset(single, "datev");
+  ok(single.module?.software?.join() === "datev", "first click selects DATEV");
+  ok(single.module?.stammdaten?.fibu === "DATEV", "selecting DATEV still suggests the system name");
+  single = toggleSoftwarePreset(single, "datev");
+  ok((single.module?.software ?? []).length === 0, "second click deselects DATEV");
+  ok(single.module?.stammdaten?.fibu === "DATEV", "deselect keeps a suggestion already written");
+
+  let below = ensureGesamt(emptyAnswers());
+  below = toggleSoftwarePreset(below, "lexoffice");
+  below = toggleSoftwarePreset(below, "sevdesk");
+  below = toggleSoftwarePreset(below, "lexoffice");
+  ok(below.module?.software?.join() === "sevdesk", "one of two selected templates can be removed");
+  below = toggleSoftwarePreset(below, "shopify");
+  ok(below.module?.software?.join() === "sevdesk,shopify", "another template can be added after a removal");
+
+  let full = ensureGesamt(emptyAnswers());
+  for (const id of ids) full = toggleSoftwarePreset(full, id);
+  ok(full.module?.software?.join() === ids.join(), "all five templates can be selected");
+  const blocked = toggleSoftwarePreset(full, "nicht-vorhanden");
+  ok(blocked.module?.software?.join() === ids.join(), "an unknown option is not added at the limit");
+  full = toggleSoftwarePreset(full, ids[0]!);
+  ok(full.module?.software?.join() === ids.slice(1).join(), "a selected template can be removed when all five are on");
+  full = toggleSoftwarePreset(full, "noch-eine");
+  ok(full.module?.software?.length === 4, "an unknown option is not added after one removal");
+  full = toggleSoftwarePreset(full, ids[0]!);
+  ok(full.module?.software?.join() === [...ids.slice(1), ids[0]].join(), "the removed template can be selected again");
+
+  const step = 0;
+  const stored = JSON.parse(
+    JSON.stringify({
+      answers: full,
+      step,
+      savedAt: "2026-11-16T12:00:00.000Z",
+      revision: 3,
+    }),
+  ) as IntakeDraftSnapshot;
+  ok(
+    stored.answers.module?.software?.join() === [...ids.slice(1), ids[0]].join(),
+    "the selection after deselect and reselect survives draft JSON",
+  );
+  const reloaded = prefillKnownFacts(stored.answers);
+  ok(
+    reloaded.module?.software?.join() === stored.answers.module?.software?.join(),
+    "hydration keeps the deselected template off and the selected ones on",
+  );
+
+  let dropped = ensureGesamt(emptyAnswers());
+  dropped = toggleSoftwarePreset(dropped, "pos");
+  dropped = toggleSoftwarePreset(dropped, "pos");
+  const emptyStored = JSON.parse(
+    JSON.stringify({ answers: dropped, step, savedAt: "2026-11-16T12:01:00.000Z", revision: 2 }),
+  ) as IntakeDraftSnapshot;
+  const emptyReloaded = prefillKnownFacts(emptyStored.answers);
+  ok((emptyReloaded.module?.software ?? []).length === 0, "a full deselect survives draft reload");
+
+  console.log("check-software-preset-toggle: green");
 }
 
 export function checkDraftMerge(): void {
@@ -246,6 +316,7 @@ export function checkDocumentOwnership(): void {
 const entry = process.argv[1] ?? "";
 if (entry.endsWith("check-intake-draft.ts") || entry.endsWith("check-intake-draft.js")) {
   checkIntakeDraftRestore();
+  checkSoftwarePresetToggle();
   checkDraftMerge();
   checkDocumentOwnership();
 }
