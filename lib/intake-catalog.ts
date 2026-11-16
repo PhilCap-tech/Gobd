@@ -41,6 +41,7 @@ import {
 } from "@/lib/module/katalog";
 import {
   applyStammdatenPrefill,
+  syncFibuSystems,
   CHECK_FRAGEN,
   setStammdaten,
   effectiveModulStatus,
@@ -1991,15 +1992,15 @@ function ensureSystem(
   name: string,
   funktion: string,
   typ: string,
+  previousName?: string,
 ): void {
   const trimmed = name.trim();
   if (!trimmed) return;
   const entry = katalog.B01 ?? {};
   const values = { ...(entry.values ?? {}) };
-  const systems = asRows(values.systeme);
-  const named = systems.filter((row) => asText(row.name));
-  if (named.some((row) => asText(row.name) === trimmed)) return;
-  values.systeme = [...named, { name: trimmed, funktion, typ }];
+  const next = syncFibuSystems(asRows(values.systeme), trimmed, previousName, { funktion, typ });
+  if (!next) return;
+  values.systeme = next;
   katalog.B01 = { ...entry, values };
 }
 
@@ -2106,7 +2107,7 @@ export function prefillKnownFacts(
     prior(preferName(previousAnswers?.it, previousStamm?.it)),
   );
   for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
-  if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
+  if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu", previousStamm?.fibu);
   fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege));
   fillRaw(katalog, "E01", "formate", answers.formate);
   fillRaw(katalog, "E05", "systeme", answers.ausgangsrechnungen);
@@ -2137,14 +2138,14 @@ export function prefillKnownFacts(
   fillText(katalog, "G02", "zugriffKurz", answers.zugriff);
   if (answers.backup.length) fillText(katalog, "G06", "backupArten", answers.backup.join(", "));
 
-  fillText(katalog, "KA01", "system", stamm.kasse);
-  fillText(katalog, "A01", "gastroKasse", stamm.kasse);
-  fillText(katalog, "EC02", "system", stamm.shop);
-  fillText(katalog, "A01", "onlineShop", stamm.shop);
-  fillText(katalog, "LO01", "system", stamm.lohn);
-  fillText(katalog, "WW01", "system", stamm.warenwirtschaft);
-  fillText(katalog, "A01", "onlineWawi", stamm.warenwirtschaft);
-  fillText(katalog, "BA01", "konten", stamm.bank);
+  fillText(katalog, "KA01", "system", stamm.kasse, undefined, previousStamm?.kasse);
+  fillText(katalog, "A01", "gastroKasse", stamm.kasse, undefined, previousStamm?.kasse);
+  fillText(katalog, "EC02", "system", stamm.shop, undefined, previousStamm?.shop);
+  fillText(katalog, "A01", "onlineShop", stamm.shop, undefined, previousStamm?.shop);
+  fillText(katalog, "LO01", "system", stamm.lohn, undefined, previousStamm?.lohn);
+  fillText(katalog, "WW01", "system", stamm.warenwirtschaft, undefined, previousStamm?.warenwirtschaft);
+  fillText(katalog, "A01", "onlineWawi", stamm.warenwirtschaft, undefined, previousStamm?.warenwirtschaft);
+  fillText(katalog, "BA01", "konten", stamm.bank, undefined, previousStamm?.bank);
 
   const company = asText(a01().company);
   const rechtsform = asText(a01().rechtsform);

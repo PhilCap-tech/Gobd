@@ -9,6 +9,7 @@ import {
   CATALOG_STEPS,
   clearCatalogStatus,
   prefillKnownFacts,
+  prefillStammdatenInput,
   setCatalogMeta,
   setCatalogStatus,
   setCatalogValue,
@@ -280,6 +281,96 @@ export function checkSoftwarePresetToggle(): void {
   ok(kept.module?.stammdaten?.fibu === "DATEV", "a value the user already had stays after deselect and reload");
   ok(kept.katalog?.BU01?.values?.kontenrahmen === "SKR 03", "a chart of accounts the user already had stays");
   ok(systemNames(kept).includes("DATEV"), "a system card the user already had stays");
+
+  let typed = ensureGesamt(emptyAnswers());
+  for (const text of ["M", "Me", "Mei", "Mein", "Meine", "Meine ", "Meine F", "Meine Fi", "Meine FiB", "Meine FiBu"]) {
+    typed = prefillStammdatenInput(typed, { fibu: text });
+  }
+  ok(systemNames(typed).join("|") === "Meine FiBu", "typing FiBu creates exactly one B01 card");
+  ok(typed.module?.stammdaten?.fibu === "Meine FiBu", "the FiBu field keeps the full text");
+
+  let stale = setCatalogValue(ensureGesamt(emptyAnswers()), "B01", "systeme", [
+    { name: "M", funktion: "Finanzbuchhaltung", typ: "fibu" },
+    { name: "Me", funktion: "Finanzbuchhaltung", typ: "fibu" },
+    { name: "Meine FiBu", funktion: "Finanzbuchhaltung", typ: "fibu" },
+  ]);
+  stale = {
+    ...stale,
+    module: { ...stale.module!, stammdaten: { fibu: "Meine FiBu" } },
+  };
+  stale = prefillStammdatenInput(stale, { fibu: "Meine FiBu X" });
+  ok(systemNames(stale).join("|") === "M|Me|Meine FiBu X", "existing intermediate FiBu cards are not deleted");
+
+  let kasseTyped = ensureGesamt(emptyAnswers());
+  for (const text of ["K", "Ka", "Kas", "Kasse"]) kasseTyped = prefillStammdatenInput(kasseTyped, { kasse: text });
+  ok(kasseTyped.katalog?.KA01?.values?.system === "Kasse", "typing Kasse updates the one catalog field");
+  ok(kasseTyped.katalog?.A01?.values?.gastroKasse === "Kasse", "typing Kasse updates the copied field");
+  ok(systemNames(kasseTyped).length === 0, "Kasse does not create B01 cards");
+
+  const e05 = (answers: IntakeAnswers): string[] => {
+    const value = answers.katalog?.E05?.values?.systeme;
+    if (Array.isArray(value)) return value.map((item) => String(item));
+    if (typeof value === "string" && value.trim()) return value.split(",").map((item) => item.trim());
+    return [];
+  };
+  let templates = clickPreset(ensureGesamt(emptyAnswers()), "lexoffice");
+  templates = clickPreset(templates, "sevdesk");
+  ok(e05(templates).join("|") === "lexoffice|sevDesk", "sevDesk appends its E05 token");
+  templates = clickPreset(templates, "sevdesk");
+  ok(templates.module?.software?.join() === "lexoffice", "lexoffice stays selected");
+  ok(e05(templates).join("|") === "lexoffice", "deselecting sevDesk keeps the lexoffice token");
+
+  let order = clickPreset(ensureGesamt(emptyAnswers()), "datev");
+  order = clickPreset(order, "lexoffice");
+  ok(order.module?.stammdaten?.fibu === "DATEV", "the first template still owns FiBu");
+  order = clickPreset(order, "datev");
+  ok(order.module?.software?.join() === "lexoffice", "lexoffice remains after DATEV is removed");
+  ok(order.module?.stammdaten?.fibu === "lexoffice", "FiBu shows the remaining template");
+  ok(!systemNames(order).includes("DATEV") && systemNames(order).includes("lexoffice"), "only the remaining system card stays");
+  const orderReloaded = prefillKnownFacts(JSON.parse(JSON.stringify(order)) as IntakeAnswers);
+  ok(orderReloaded.module?.stammdaten?.fibu === "lexoffice", "the remaining FiBu value survives draft reload");
+
+  let editedOrder = clickPreset(ensureGesamt(emptyAnswers()), "datev");
+  editedOrder = clickPreset(editedOrder, "lexoffice");
+  editedOrder = {
+    ...editedOrder,
+    module: {
+      ...editedOrder.module!,
+      stammdaten: { ...editedOrder.module?.stammdaten, fibu: "DATEV Unternehmen online" },
+    },
+  };
+  editedOrder = clickPreset(editedOrder, "datev");
+  ok(editedOrder.module?.stammdaten?.fibu === "DATEV Unternehmen online", "an edited FiBu value is not replaced");
+
+  const kasseProbe = {
+    id: "probe-kasse",
+    label: "Probe Kasse",
+    values: { KA01: { art: "Andere Kasse" } },
+    stammdaten: { kasse: "Andere Kasse" },
+  };
+  SOFTWARE_PRESETS.push(kasseProbe);
+  try {
+    let bothKasse = clickPreset(ensureGesamt(emptyAnswers()), "pos");
+    bothKasse = clickPreset(bothKasse, "probe-kasse");
+    ok(bothKasse.module?.stammdaten?.kasse === "POS-System", "the first Kasse template keeps the field");
+    bothKasse = clickPreset(bothKasse, "pos");
+    ok(bothKasse.module?.stammdaten?.kasse === "Andere Kasse", "Kasse shows the remaining template");
+    ok(bothKasse.katalog?.KA01?.values?.system === "Andere Kasse", "the Kasse copy follows the remaining template");
+    let editedKasse = clickPreset(ensureGesamt(emptyAnswers()), "pos");
+    editedKasse = clickPreset(editedKasse, "probe-kasse");
+    editedKasse = {
+      ...editedKasse,
+      module: {
+        ...editedKasse.module!,
+        stammdaten: { ...editedKasse.module?.stammdaten, kasse: "Meine Kasse" },
+      },
+    };
+    editedKasse = clickPreset(editedKasse, "pos");
+    ok(editedKasse.module?.stammdaten?.kasse === "Meine Kasse", "an edited Kasse value is not replaced");
+  } finally {
+    const index = SOFTWARE_PRESETS.findIndex((item) => item.id === "probe-kasse");
+    if (index >= 0) SOFTWARE_PRESETS.splice(index, 1);
+  }
 
   console.log("check-software-preset-toggle: green");
 }

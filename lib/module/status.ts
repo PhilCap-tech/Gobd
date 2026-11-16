@@ -525,18 +525,22 @@ function removeSoftwarePreset(answers: IntakeAnswers, preset: SoftwarePreset): I
       () => stamm[key as keyof Stammdaten],
       (next) => {
         const stammKey = key as keyof Stammdaten;
-        if (blankValue(next)) delete stamm[stammKey];
-        else stamm[stammKey] = String(next);
         if (blankValue(next)) {
-          for (const [qid, field] of STAMM_KATALOG_KOPIEN[stammKey] ?? []) {
-            dropOrKeep(
-              qid,
-              field,
-              value,
-              () => readKatalogField(katalog, qid, field),
-              (copied) => writeKatalogField(katalog, qid, field, copied),
-            );
+          const successor = remaining.find((item) => item.stammdaten?.[stammKey]?.trim());
+          const replacement = successor?.stammdaten?.[stammKey]?.trim() ?? "";
+          if (replacement && successor) {
+            stamm[stammKey] = replacement;
+            rememberToken(beitraege, successor.id, null, stammKey, replacement);
+          } else {
+            delete stamm[stammKey];
           }
+          for (const [copyId, field] of STAMM_KATALOG_KOPIEN[stammKey] ?? []) {
+            const stored = readKatalogField(katalog, copyId, field);
+            if (!sameToken(stored, value)) continue;
+            writeKatalogField(katalog, copyId, field, replacement);
+          }
+        } else {
+          stamm[stammKey] = String(next);
         }
       },
     );
@@ -593,14 +597,35 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
     const merged = { ...(current.values ?? {}) };
     for (const [key, value] of Object.entries(values)) {
       if (key === "systeme" && Array.isArray(value)) {
+        if (value.every((item) => typeof item === "string")) {
+          const wanted = value.map((item) => item.trim()).filter(Boolean);
+          const existing = merged.systeme;
+          const currentTokens = Array.isArray(existing)
+            ? existing.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+            : typeof existing === "string"
+              ? existing.split(",").map((item) => item.trim()).filter(Boolean)
+              : [];
+          const additions = wanted.filter((item) => !currentTokens.includes(item));
+          if (!currentTokens.length) {
+            if (wanted.length) {
+              merged.systeme = wanted;
+              written.katalog![qid] = { ...(written.katalog![qid] ?? {}), systeme: wanted };
+            }
+          } else if (additions.length) {
+            const combined = [...currentTokens, ...additions];
+            merged.systeme = typeof existing === "string" ? combined.join(", ") : combined;
+            written.katalog![qid] = { ...(written.katalog![qid] ?? {}), systeme: additions };
+          }
+          continue;
+        }
         const existing = Array.isArray(merged.systeme)
           ? (merged.systeme as Record<string, unknown>[])
           : [];
         const named = existing.filter((row) => String(row.name ?? "").trim());
         const names = new Set(named.map((row) => String(row.name ?? "").trim()));
         const additions = (value as Record<string, unknown>[]).filter((row) => {
-          const name = String(row.name ?? "").trim();
-          return name && !names.has(name);
+          const rowName = String(row.name ?? "").trim();
+          return rowName && !names.has(rowName);
         });
         if (!named.length) {
           merged.systeme = value;
@@ -641,6 +666,40 @@ function untouchedPrefill(current: unknown, prior: string | undefined): boolean 
   return Boolean(before) && text === before;
 }
 
+/**
+ * FiBu-Text in die passende B01-Karte schreiben.
+ * Eine Karte, deren Name noch der vorherige FiBu-Text ist, wird umbenannt.
+ * Andere Karten, auch stehen gebliebene Zwischenstände, bleiben.
+ * Gibt null zurück, wenn nichts zu ändern ist.
+ */
+export function syncFibuSystems(
+  systems: Record<string, unknown>[],
+  name: string,
+  previousName: string | undefined,
+  defaults: { funktion: string; typ: string },
+): Record<string, unknown>[] | null {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  if (systems.some((row) => String(row.name ?? "").trim() === trimmed)) return null;
+  const prior = previousName?.trim() ?? "";
+  if (prior && prior !== trimmed) {
+    let index = -1;
+    for (let i = systems.length - 1; i >= 0; i -= 1) {
+      if (String(systems[i]?.name ?? "").trim() === prior) {
+        index = i;
+        break;
+      }
+    }
+    if (index >= 0) {
+      const copy = systems.map((row) => ({ ...row }));
+      copy[index] = { ...copy[index], name: trimmed };
+      return copy;
+    }
+  }
+  const named = systems.filter((row) => String(row.name ?? "").trim());
+  return [...named, { name: trimmed, funktion: defaults.funktion, typ: defaults.typ }];
+}
+
 /** Stammdaten in leere oder noch unveränderte Katalogfelder schreiben. */
 export function applyStammdatenPrefill(
   answers: IntakeAnswers,
@@ -665,12 +724,16 @@ export function applyStammdatenPrefill(
   fill("B01", "it", s.it, previous?.it);
   fill("F05", "kanzleiName", s.kanzlei, previous?.kanzlei);
   fill("G01", "ablage", s.archiv, previous?.archiv);
-  if (s.fibu) {
+  if (s.fibu?.trim()) {
     const entry = katalog.B01 ?? {};
     const values = { ...(entry.values ?? {}) };
     const systems = Array.isArray(values.systeme) ? (values.systeme as Record<string, unknown>[]) : [];
-    if (!systems.some((row) => String(row.name ?? "") === s.fibu)) {
-      values.systeme = [...systems, { name: s.fibu, funktion: "Finanzbuchhaltung", typ: "fibu" }];
+    const nextSystems = syncFibuSystems(systems, s.fibu, previous?.fibu, {
+      funktion: "Finanzbuchhaltung",
+      typ: "fibu",
+    });
+    if (nextSystems) {
+      values.systeme = nextSystems;
       katalog.B01 = { ...entry, values };
     }
   }
