@@ -41,7 +41,6 @@ import {
 } from "@/lib/module/katalog";
 import {
   applyStammdatenPrefill,
-  syncFibuSystems,
   CHECK_FRAGEN,
   setStammdaten,
   effectiveModulStatus,
@@ -1987,20 +1986,14 @@ function fillRaw(
   katalog[id] = { ...entry, values };
 }
 
-function ensureSystem(
-  katalog: CatalogState,
-  name: string,
-  funktion: string,
-  typ: string,
-  previousName?: string,
-): void {
+function ensureSystem(katalog: CatalogState, name: string, funktion: string, typ: string): void {
   const trimmed = name.trim();
   if (!trimmed) return;
   const entry = katalog.B01 ?? {};
   const values = { ...(entry.values ?? {}) };
-  const next = syncFibuSystems(asRows(values.systeme), trimmed, previousName, { funktion, typ });
-  if (!next) return;
-  values.systeme = next;
+  const systems = asRows(values.systeme);
+  if (systems.some((row) => asText(row.name) === trimmed)) return;
+  values.systeme = [...systems.filter((row) => asText(row.name)), { name: trimmed, funktion, typ }];
   katalog.B01 = { ...entry, values };
 }
 
@@ -2107,7 +2100,7 @@ export function prefillKnownFacts(
     prior(preferName(previousAnswers?.it, previousStamm?.it)),
   );
   for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
-  if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu", previousStamm?.fibu);
+  if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
   fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege));
   fillRaw(katalog, "E01", "formate", answers.formate);
   fillRaw(katalog, "E05", "systeme", answers.ausgangsrechnungen);

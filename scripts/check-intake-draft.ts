@@ -299,7 +299,10 @@ export function checkSoftwarePresetToggle(): void {
     module: { ...stale.module!, stammdaten: { fibu: "Meine FiBu" } },
   };
   stale = prefillStammdatenInput(stale, { fibu: "Meine FiBu X" });
-  ok(systemNames(stale).join("|") === "M|Me|Meine FiBu X", "existing intermediate FiBu cards are not deleted");
+  ok(
+    systemNames(stale).join("|") === "M|Me|Meine FiBu|Meine FiBu X",
+    "legacy cards without a field marker stay and the new text gets its own card",
+  );
 
   let kasseTyped = ensureGesamt(emptyAnswers());
   for (const text of ["K", "Ka", "Kas", "Kasse"]) kasseTyped = prefillStammdatenInput(kasseTyped, { kasse: text });
@@ -371,6 +374,68 @@ export function checkSoftwarePresetToggle(): void {
     const index = SOFTWARE_PRESETS.findIndex((item) => item.id === "probe-kasse");
     if (index >= 0) SOFTWARE_PRESETS.splice(index, 1);
   }
+
+  const typeFibu = (answers: IntakeAnswers, text: string) => prefillStammdatenInput(answers, { fibu: text });
+  const prefixes = (text: string) => Array.from({ length: text.length }, (_, index) => text.slice(0, index + 1));
+  const backspaces = (text: string) => Array.from({ length: text.length }, (_, index) => text.slice(0, text.length - index - 1));
+  let reproA = ensureGesamt(emptyAnswers());
+  for (const text of prefixes("Meine FiBu")) reproA = typeFibu(reproA, text);
+  ok(systemNames(reproA).join("|") === "Meine FiBu", "repro A types one FiBu card");
+  for (const text of backspaces("Meine FiBu")) reproA = typeFibu(reproA, text);
+  ok(systemNames(reproA).length === 0, "repro A clears the field-owned card");
+  for (const text of prefixes("Lexware")) reproA = typeFibu(reproA, text);
+  ok(systemNames(reproA).join("|") === "Lexware", "repro A retypes one card");
+  reproA = typeFibu(reproA, "Agenda");
+  ok(systemNames(reproA).join("|") === "Agenda", "repro A replaces the selection with one card");
+
+  let reproB = clickPreset(ensureGesamt(emptyAnswers()), "datev");
+  for (const text of ["DATE", "DAT", "DA", "D", "", "D", "DA", "DAT", "DATE", "DATEV", "DATEV ", "DATEV P", "DATEV Pr", "DATEV Pro"]) {
+    reproB = typeFibu(reproB, text);
+  }
+  ok(systemNames(reproB).join("|") === "DATEV|DATEV Pro", "repro B keeps the DATEV template card and one field card");
+  ok(
+    (reproB.katalog?.B01?.values?.systeme as Array<{ vonFeld?: string }> | undefined)?.some(
+      (row) => row.vonFeld === "fibu" && systemNames(reproB).includes("DATEV Pro"),
+    ) === true,
+    "repro B marks only the field card",
+  );
+
+  let lex = clickPreset(ensureGesamt(emptyAnswers()), "lexoffice");
+  for (const text of ["lexoffic", "lexoffice, Kanzlei"]) lex = typeFibu(lex, text);
+  ok(systemNames(lex).join("|") === "lexoffice|lexoffice, Kanzlei", "lexoffice template card stays and the field card is the final text");
+  ok(!systemNames(lex).includes("lexoffic"), "the intermediate lexoffic card is not left behind");
+
+  const typeKasse = (answers: IntakeAnswers, text: string) => prefillStammdatenInput(answers, { kasse: text });
+  let kasseClear = ensureGesamt(emptyAnswers());
+  for (const text of prefixes("Meine Kasse")) kasseClear = typeKasse(kasseClear, text);
+  for (const text of backspaces("Meine Kasse")) kasseClear = typeKasse(kasseClear, text);
+  ok(!kasseClear.katalog?.KA01?.values?.system && !kasseClear.katalog?.A01?.values?.gastroKasse, "clearing Kasse removes both copies");
+  for (const text of prefixes("Neu")) kasseClear = typeKasse(kasseClear, text);
+  ok(kasseClear.katalog?.KA01?.values?.system === "Neu" && kasseClear.katalog?.A01?.values?.gastroKasse === "Neu", "retyping Kasse writes the final text once");
+
+  const mirrors: Array<{ key: "shop" | "lohn" | "warenwirtschaft" | "bank"; read: (answers: IntakeAnswers) => Array<string | undefined> }> = [
+    { key: "shop", read: (answers) => [answers.katalog?.EC02?.values?.system as string | undefined, answers.katalog?.A01?.values?.onlineShop as string | undefined] },
+    { key: "lohn", read: (answers) => [answers.katalog?.LO01?.values?.system as string | undefined] },
+    { key: "warenwirtschaft", read: (answers) => [answers.katalog?.WW01?.values?.system as string | undefined, answers.katalog?.A01?.values?.onlineWawi as string | undefined] },
+    { key: "bank", read: (answers) => [answers.katalog?.BA01?.values?.konten as string | undefined] },
+  ];
+  for (const mirror of mirrors) {
+    let typedMirror = ensureGesamt(emptyAnswers());
+    typedMirror = prefillStammdatenInput(typedMirror, { [mirror.key]: "Alt" });
+    typedMirror = prefillStammdatenInput(typedMirror, { [mirror.key]: "" });
+    typedMirror = prefillStammdatenInput(typedMirror, { [mirror.key]: "Neu" });
+    ok(mirror.read(typedMirror).every((value) => value === "Neu"), `${mirror.key} clear and retype keeps one final value`);
+  }
+
+  let keptCards = clickPreset(ensureGesamt(emptyAnswers()), "datev");
+  keptCards = setCatalogValue(keptCards, "B01", "systeme", [
+    ...(keptCards.katalog?.B01?.values?.systeme as Record<string, unknown>[]),
+    { name: "Handkarte", funktion: "Ablage", typ: "archiv" },
+  ]);
+  for (const text of ["Z", "Zu", ""]) keptCards = typeFibu(keptCards, text);
+  ok(systemNames(keptCards).join("|") === "DATEV|Handkarte", "clearing FiBu keeps the template card and the manual card");
+  keptCards = typeFibu(keptCards, "Zusatz");
+  ok(systemNames(keptCards).join("|") === "DATEV|Handkarte|Zusatz", "a new FiBu text adds one field card beside template and manual cards");
 
   console.log("check-software-preset-toggle: green");
 }
