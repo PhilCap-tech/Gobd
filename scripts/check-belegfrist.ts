@@ -22,6 +22,36 @@ import path from "node:path";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { AF } from "@/lib/module/fragen";
 
+/**
+ * Lesbare Ersetzungsquellen. Der Altsatz steht im Quelltext, damit die
+ * Ersetzung nachvollziehbar bleibt, und wird nicht ins PDF übernommen.
+ * Jeder Eintrag nennt Datei, exakten Text und die Begründung.
+ * Dieselbe Zeichenfolge in einer anderen Datei bleibt ein Treffer.
+ */
+export const BELEGFRIST_ALLOWLIST: ReadonlyArray<{ file: string; text: string; reason: string }> = [
+  {
+    file: "lib/schnellversion-neutral.ts",
+    text: "Buchungsbelege 10 Jahre",
+    reason:
+      "Migrationsquelle in neutralizeStandardText: ältere Vorlagen werden auf „Buchungsbelege 8 Jahre“ umgeschrieben. Der Altsatz erscheint nicht im PDF.",
+  },
+];
+
+function allowlistedLine(rel: string, line: string): boolean {
+  return BELEGFRIST_ALLOWLIST.some(
+    (entry) => entry.file === rel && entry.reason.trim().length > 0 && line.includes(entry.text),
+  );
+}
+
+/** Treffer nach Allowlist. Zeilen der Liste zählen in dieser Datei nicht. */
+export function belegfristFileHits(rel: string, source: string): string[] {
+  const cleaned = source
+    .split("\n")
+    .map((line) => (allowlistedLine(rel, line) ? "" : line))
+    .join("\n");
+  return locatedHits(cleaned).map((item) => item.hit);
+}
+
 const TEN = /(?<![\p{L}\d])(?:(?:10|zehn)[\s-]*jährig\w*|(?:10|zehn)\s+Jahren?)(?![\p{L}])/iu;
 const EIGHT = /(?<![\p{L}\d])(?:(?:8|acht)[\s-]*jährig\w*|(?:8|acht)\s+Jahren?)(?![\p{L}])/iu;
 const BELEG = /Buchungsbeleg\w*/u;
@@ -305,14 +335,36 @@ export function belegfristScanPath(rel: string): boolean {
   return false;
 }
 
+const migrationLine = 'next = next.replaceAll("Buchungsbelege 10 Jahre", "Buchungsbelege 8 Jahre");';
+if (BELEGFRIST_ALLOWLIST.some((entry) => !entry.file.trim() || !entry.text.trim() || !entry.reason.trim())) {
+  console.error("check-belegfrist: Allowlist-Eintrag ohne Datei, Text oder Begründung");
+  process.exit(1);
+}
+if (belegfristFileHits("lib/schnellversion-neutral.ts", migrationLine).length !== 0) {
+  console.error("check-belegfrist: die dokumentierte Ersetzungsquelle wird nicht ausgenommen");
+  process.exit(1);
+}
+if (belegfristFileHits("lib/bereiche.ts", migrationLine).length === 0) {
+  console.error("check-belegfrist: dieselbe Zeichenfolge außerhalb der Allowlist muss rot bleiben");
+  process.exit(1);
+}
+const neutralSource = readFileSync(path.join(repoRoot, "lib/schnellversion-neutral.ts"), "utf8");
+const altSatz = (neutralSource.match(/Buchungsbelege 10 Jahre/g) ?? []).length;
+if (altSatz !== 1 || neutralSource.includes('["Buchungsbelege", "10", "Jahre"].join')) {
+  console.error("check-belegfrist: die Ersetzungsquelle muss einmal, lesbar und ohne String-Zerlegung stehen");
+  process.exit(1);
+}
+console.log("check-belegfrist: Allowlist mit Begründung, Negativfall außerhalb der Datei bleibt rot");
+
 const failures: string[] = [];
 for (const dir of ["lib", "app", "components", "content", "public"]) {
   const root = path.join(repoRoot, dir);
   if (!existsSync(root)) continue;
   for (const file of files(root)) {
+    const rel = path.relative(repoRoot, file);
     const source = readFileSync(file, "utf8");
-    for (const item of locatedHits(source)) {
-      failures.push(`${path.relative(repoRoot, file)}:${item.line}: ${item.hit}`);
+    for (const hit of belegfristFileHits(rel, source)) {
+      failures.push(`${rel}: ${hit}`);
     }
   }
 }

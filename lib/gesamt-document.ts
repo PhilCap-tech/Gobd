@@ -42,6 +42,7 @@ import {
 import type { ModulStatus } from "@/lib/module/typen";
 import type { IntakeAnswers } from "@/lib/types";
 import type { RenderedChapter } from "@/lib/delivery-templates";
+import { capitalizeSentenceStart } from "@/lib/satzanfang";
 
 type State = NonNullable<IntakeAnswers["katalog"]>;
 
@@ -214,7 +215,7 @@ function prepareVorlage(raw: string, answers: IntakeAnswers, facts: BetriebFacts
       return true;
     })
     .join("\n");
-  return stripFalseFallbacks(rendered, facts);
+  return capitalizeSentenceStart(stripFalseFallbacks(rendered, facts));
 }
 
 function renumberTemplate(body: string, modulNr: number, subStart: number): { text: string; nextSub: number } {

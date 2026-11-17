@@ -446,9 +446,9 @@ const KASSE = defineBereich({
     FRIST_AUFZEICHNUNG("Einzelaufzeichnungen des Kassensystems einschließlich TSE-Daten, maschinell auswertbar"),
     FRIST_AUFZEICHNUNG("Kassenbuch"),
     {
-      unterlage: "Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle",
-      frist: "8 Jahre als Buchungsbeleg; als Aufzeichnung 10 Jahre, im Zweifel die längere Frist",
-      grundlage: "§ 147 Abs. 1 Nr. 1, 4, Abs. 3 AO",
+      unterlage: "Tagesabschlüsse (Z-Bons) und, soweit geführt, Kassenberichte und Zählprotokolle",
+      frist: "10 Jahre",
+      grundlage: "§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO",
     },
     FRIST_AUFZEICHNUNG("Bedienungsanleitungen, Programmier- und Änderungsprotokolle des Kassensystems"),
     FRIST_BELEG("Einzahlungsquittungen, Einlage- und Entnahmebelege"),
@@ -1465,9 +1465,9 @@ const ECOMMERCE = defineBereich({
   ],
   aufbewahrung: [
     {
-      unterlage: "Einzelaufzeichnungen der Bestellungen und Zahlungen",
-      frist: "10 Jahre als Aufzeichnung; als Buchungsbeleg 8 Jahre, im Zweifel die längere Frist",
-      grundlage: "§ 147 Abs. 1 Nr. 1, 4, Abs. 3 AO",
+      unterlage: "Einzelaufzeichnungen der Bestellungen und Zahlungen (Shop- und Zahlungsdienst-Exporte)",
+      frist: "10 Jahre (§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO); zugehörige Rechnungen und Abrechnungen siehe 8 Jahre",
+      grundlage: "§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO",
     },
     FRIST_BELEG("Ausgangsrechnungen sowie Gebühren- und Auszahlungsabrechnungen"),
     FRIST_BRIEF("Schriftverkehr mit Plattformen und Kundinnen und Kunden, soweit Geschäftsbriefe"),

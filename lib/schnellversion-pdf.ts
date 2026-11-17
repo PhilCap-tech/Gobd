@@ -33,6 +33,7 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
   const fall = standardFall(input);
   const frame: StandardPdfFrame = {
     header: svHeaderLine(input.firma, datum),
+    freiberuf: input.branche === "freiberuf",
     coverBox: svCoverBox(label, datum),
     closing: svClosingPage({
       self: !kanzleiBuchtAntwort(input.bucht),

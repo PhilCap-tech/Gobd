@@ -5,6 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { renderGesamtChapters } from "@/lib/gesamt-document";
+import { capitalizeSentenceStart } from "@/lib/satzanfang";
 import { NEUE_GRUPPEN } from "@/lib/module/fragen";
 import { AF01_ZUORDNUNG } from "@/lib/module/status";
 import { getGesamtMuster, MUSTER_VORLAGEN } from "@/lib/module-muster";
@@ -170,6 +171,27 @@ for (const vorlage of MUSTER_VORLAGEN) {
     }
   }
 
+  if (vorlage === "gastro" || vorlage === "handel") {
+    const kasse = chapters.find((chapter) => chapter.id === "modul-m08")?.body ?? "";
+    if (!kasse.includes("Tagesabschlüsse (Z-Bons) und, soweit geführt, Kassenberichte und Zählprotokolle")) {
+      fail(`${vorlage}: Kassenzeile ohne den Wortlaut aus F44`);
+    }
+    if (!kasse.includes("| 10 Jahre | § 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO |")) {
+      fail(`${vorlage}: Kassenzeile ohne 10 Jahre und § 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO`);
+    }
+    if (kasse.includes("im Zweifel die längere Frist")) {
+      fail(`${vorlage}: alte Kassenzeile mit „im Zweifel“`);
+    }
+  }
+
+  if (vorlage === "ecommerce") {
+    const shop = chapters.find((chapter) => chapter.id === "modul-m13")?.body ?? "";
+    const zeile =
+      "Einzelaufzeichnungen der Bestellungen und Zahlungen (Shop- und Zahlungsdienst-Exporte) | 10 Jahre (§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO); zugehörige Rechnungen und Abrechnungen siehe 8 Jahre";
+    if (!shop.includes(zeile)) fail("ecommerce: Onlinehandel 13.4 ohne den Wortlaut aus F48");
+    if (shop.includes("im Zweifel die längere Frist")) fail("ecommerce: alte Zeile mit „im Zweifel“");
+  }
+
   const points = evaluateOpenPoints({ answers: muster.answers, identity: muster.identity });
   const liste = points.find((point) => point.id === "op-af01-liste");
   if (!liste || liste.text !== LISTE || liste.priority !== "mittel") {
@@ -201,4 +223,22 @@ for (const vorlage of MUSTER_VORLAGEN) {
   console.log(`ok: ${vorlage}`);
 }
 
+const ohnePflege = getGesamtMuster("dienstleister");
+if (!ohnePflege) fail("Dienstleister-Muster fehlt");
+const pflege = structuredClone(ohnePflege.answers);
+pflege.gf = "die Geschäftsführung";
+pflege.buchhaltung = "die Buchhaltung";
+for (const id of ["I01", "I02", "I04", "I05", "PF01", "PF02", "PF03", "PF04", "PF05", "PF06"]) {
+  delete pflege.katalog?.[id];
+}
+const kapitel24 = renderGesamtChapters(pflege, "OFFEN").find((chapter) => chapter.id === "modul-m24")?.body ?? "";
+if (!kapitel24.includes("Wirksamkeitsdatum. Die Geschäftsführung prüft")) {
+  fail("Kap. 24: Satzanfang der Rolle bleibt klein");
+}
+if (!kapitel24.includes("Die Buchhaltung erfasst Anlass")) {
+  fail("Kap. 24: Absatzanfang der Rolle bleibt klein");
+}
+if (capitalizeSentenceStart("z. B. die Kasse") !== "z. B. die Kasse") {
+  fail("Abkürzung z. B. wird großgeschrieben");
+}
 console.log("check-muster-felder: ok");

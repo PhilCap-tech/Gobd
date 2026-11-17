@@ -25,6 +25,7 @@ import {
   versionMetaSentence as buildVersionMetaSentence,
   type VersionHistoryEntry,
 } from "@/lib/versioning";
+import { capitalizeSentenceStart } from "@/lib/satzanfang";
 
 export type { DeliveryOpenPoint, OpenPointSeverity } from "@/lib/open-points";
 export { evaluateOpenPoints, isEmptyIntakeValue } from "@/lib/open-points";
@@ -382,7 +383,7 @@ function stripInternalMarkers(text: string): string {
 }
 
 export function renderTemplate(template: string, context: TemplateContext): string {
-  return stripInternalMarkers(renderValues(renderBlocks(template, context), context));
+  return capitalizeSentenceStart(stripInternalMarkers(renderValues(renderBlocks(template, context), context)));
 }
 
 function openPointsTable(points: DeliveryOpenPoint[]): string {

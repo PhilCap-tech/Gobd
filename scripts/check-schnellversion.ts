@@ -8,7 +8,7 @@ import { effectiveModulStatus } from "../lib/module/status";
 import { pageTexts } from "./pdf-text";
 import { decideSvArm } from "../lib/schnellversion-assign";
 import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
-import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
+import { SV_BASIS_SATZ, SV_SOLO_MITARBEITENDE } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
 import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, findSvPurchaseBySession, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata, schnellversionSessionParams } from "../lib/schnellversion-checkout";
@@ -37,6 +37,7 @@ import { runSvPurge } from "../lib/schnellversion-purge";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
+import { renderGesamtChapters } from "../lib/gesamt-document";
 import { getGesamtMuster } from "../lib/module-muster";
 import { MUSTER_FIRMEN } from "../lib/module-muster-dense";
 import { generateStandardPdf } from "../lib/schnellversion-pdf";
@@ -803,11 +804,17 @@ async function main() {
   ok(allein.includes("keine Beschäftigten laut Angabe"), "Modul 12 entfällt");
   ok(!allein.includes("Andere Beschäftigte"), "keine Beschäftigtenzeile");
   ok(!allein.includes("Geschäftsführung"), "Einzelunternehmen ohne Geschäftsführung");
+  ok(!allein.includes("1 (nur ich)") && allein.includes(SV_SOLO_MITARBEITENDE), "Ich-Form wird dritte Person");
   ok(allein.includes("Gibt es Beschäftigte"), "Lohnfrage bei einer Person");
   const unsichereKasse = standardPlainText(sample({ kasse: "Unsicher", branche: "handel", software: "sevdesk", bucht: "Unsere Steuerkanzlei" }), when);
   ok(unsichereKasse.includes("Kassenbuch (elektronisches System) oder Kassenbericht (offene Ladenkasse)"), "unsichere Kassenform");
   ok(!unsichereKasse.includes("TSE-Art"), "unsicher ohne TSE-Art");
   ok(unsichereKasse.includes("Bei offener Ladenkasse zusätzlich aufbewahren"), "unsicher nennt beide Aufbewahrungen");
+  const aufbewahrung = unsichereKasse.indexOf("Aufbewahrung");
+  const liste = unsichereKasse.indexOf("Bei offener Ladenkasse zusätzlich aufbewahren");
+  const notverfahren = unsichereKasse.indexOf("Notverfahren");
+  ok(aufbewahrung >= 0 && liste > aufbewahrung && (notverfahren < 0 || liste < notverfahren), "Fristliste steht nicht unter Notverfahren");
+  ok(unsichereKasse.includes("Bei elektronischem System:"), "elektronische Angaben mit Bedingung");
   ok(
     unsichereKasse.replaceAll("*", "").includes("Belegausgabe: Bei elektronischem System:"),
     "unsichere Belegausgabe ohne doppeltes Label",
