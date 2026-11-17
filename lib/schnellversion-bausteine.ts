@@ -70,14 +70,14 @@ function ohneMarker(pack: BausteinPack): BausteinPack {
 }
 
 function buildPack(fall: StandardFall): BausteinPack {
-  const lohnKanzlei = "Lohn über das Lohnbüro oder die Kanzlei. [bitte prüfen]";
-  const lohnSelbst = "Lohn über ein Lohnbüro. [bitte prüfen]";
-  const lohnProgramm = fall.self ? "Lohnprogramm: laut Betrieb. [bitte prüfen]" : "Lohnprogramm: das Lohnprogramm der Kanzlei. [bitte prüfen]";
+  const lohnProgramm = fall.self
+    ? "Die Lohnabrechnung erfolgt extern (z. B. über ein Lohnbüro)."
+    : "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei).";
   const kanzleiFrei = "Die Buchhaltung liegt im Unternehmen. [bitte prüfen]";
   if (fall.datev && !fall.self) {
     return {
       ablage: `Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online. ${AUFBEWAHRUNG}`,
-      lohnProgramm: "Lohnprogramm: DATEV Lohn und Gehalt oder LODAS bei der Kanzlei. [bitte prüfen]",
+      lohnProgramm,
       lohnProtokoll: "Übermittlungsprotokolle legt die Kanzlei ab. [bitte prüfen]",
       lohnAblage: "Ablageort der Lohnunterlagen: bei der Kanzlei.",
       lohnFibu: "Die Kanzlei übernimmt die Lohnbuchungen in die Finanzbuchhaltung.",
@@ -95,7 +95,7 @@ function buildPack(fall: StandardFall): BausteinPack {
   if (fall.datev && fall.self) {
     return {
       ablage: `Nachweis und Ablage unter Beleg-ID in DATEV. ${AUFBEWAHRUNG}`,
-      lohnProgramm: lohnSelbst,
+      lohnProgramm,
       lohnProtokoll: "Übermittlungsprotokolle werden im Unternehmen abgelegt. [bitte prüfen]",
       lohnAblage: "Ablageort der Lohnunterlagen: im Unternehmen. [bitte prüfen]",
       lohnFibu: "Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen.",
@@ -113,7 +113,7 @@ function buildPack(fall: StandardFall): BausteinPack {
   if (fall.excel) {
     return {
       ablage: `Nachweis und Ablage in Excel-Listen bzw. manuellen Aufzeichnungen. Die Buchhaltung nutzt Excel-Listen bzw. manuelle Aufzeichnungen. ${AUFBEWAHRUNG}`,
-      lohnProgramm: fall.self ? lohnSelbst : lohnKanzlei,
+      lohnProgramm,
       lohnProtokoll: "Übermittlungsprotokolle werden abgelegt. [bitte prüfen]",
       lohnAblage: fall.self
         ? "Ablageort der Lohnunterlagen: im Unternehmen. [bitte prüfen]"
@@ -135,7 +135,7 @@ function buildPack(fall: StandardFall): BausteinPack {
   if (fall.kind === "unbekannt" && fall.self) {
     return {
       ablage: `Nachweis und Ablage in der eingesetzten Buchhaltungssoftware. ${AUFBEWAHRUNG}`,
-      lohnProgramm: lohnSelbst,
+      lohnProgramm,
       lohnProtokoll: "Übermittlungsprotokolle werden im Unternehmen abgelegt. [bitte prüfen]",
       lohnAblage: "Ablageort der Lohnunterlagen: im Unternehmen. [bitte prüfen]",
       lohnFibu: "Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen.",

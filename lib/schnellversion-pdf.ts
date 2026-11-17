@@ -18,24 +18,21 @@ import { limitIdenticalSentences, standardFall, standardSystemSection } from "@/
 import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
 import {
   SV_KASSE_UNSICHER_HILFE,
-  addSvDays,
   formatSvDate,
   svClosingPage,
   svCoverBox,
   svHeaderLine,
-  SV_DOWNLOAD_DAYS,
 } from "@/lib/schnellversion-copy";
 
 export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date): StandardPdfFrame {
   const built = buildStandardAnswers(input);
   const label = vorlageLabel(built.vorlage);
-  const bis = formatSvDate(addSvDays(erstelltAm, SV_DOWNLOAD_DAYS));
   const datum = formatSvDate(erstelltAm);
   const fall = standardFall(input);
   const frame: StandardPdfFrame = {
     header: svHeaderLine(input.firma, datum),
     coverBox: svCoverBox(label, datum),
-    closing: svClosingPage(bis),
+    closing: svClosingPage(!kanzleiBuchtAntwort(input.bucht)),
     erstelltAm: datum,
     selfBooking: !kanzleiBuchtAntwort(input.bucht),
     software: softwareProse(input),

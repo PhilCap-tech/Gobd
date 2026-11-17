@@ -72,15 +72,12 @@ export const SV_PRUEF_PUNKTE: ReadonlyArray<readonly [string, string]> = [
   ["Übergabe an die Kanzlei", "Welche Unterlagen übergeben Sie an die Kanzlei, und wer bleibt wofür zuständig?"],
 ];
 
-export function svClosingPage(anrechnungBis: string): string {
-  const points = SV_PRUEF_PUNKTE.map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
-  return [
-    "# Diese Punkte sollten Sie für Ihren Betrieb ergänzen",
-    "",
-    points,
-    "",
-    `Ihre individuelle Verfahrensdokumentation mit Liste offener Punkte erstellen Sie unter gobd-doku-erstellen.de. Bis zum ${anrechnungBis} rechnen wir die 49 € an.`,
-  ].join("\n");
+export function svClosingPage(self = false): string {
+  const lohn: readonly [string, string] = self
+    ? ["Lohn", "Die Lohnabrechnung erfolgt extern (z. B. über ein Lohnbüro). Trifft das auf Ihren Betrieb zu?"]
+    : ["Lohn", "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei). Trifft das auf Ihren Betrieb zu?"];
+  const points = [...SV_PRUEF_PUNKTE, lohn].map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
+  return ["# Diese Punkte sollten Sie für Ihren Betrieb ergänzen", "", points].join("\n");
 }
 
 export function svDankeText(anrechnungBis: string): string {

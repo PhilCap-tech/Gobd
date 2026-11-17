@@ -640,6 +640,11 @@ async function main() {
           }
           const marker = (plain.match(/bitte prüfen/gi) ?? []).length - (plain.match(/Standardfassung, bitte prüfen/gi) ?? []).length;
           if (marker > 25) ok(false, `${branche.id} ${software} hat ${marker} Markierungen`);
+          if (/€/.test(plain) || /Anrechn/i.test(plain)) ok(false, `${branche.id} ${software} enthält Preis oder Anrechnung`);
+          const lohnSatz = fall.self
+            ? "Die Lohnabrechnung erfolgt extern (z. B. über ein Lohnbüro)."
+            : "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei).";
+          if (!plain.includes(lohnSatz)) ok(false, `${branche.id} ${software} ohne neutralen Lohnsatz`);
           const repeats = repeatedSentences(plain);
           if (repeats.length) ok(false, `${branche.id} ${software} wiederholt ${repeats[0]}`);
         }
