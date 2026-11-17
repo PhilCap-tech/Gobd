@@ -11,7 +11,7 @@ import { planPackageTextsV3 } from "@/lib/plan-copy";
 import { intakeLoginFirstEnabled, memberPreselected } from "@/lib/pricing-model";
 import { firstQueryValue } from "@/lib/query";
 import { listEntitiesByEmail } from "@/lib/store";
-import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { schnellversionOffered } from "@/lib/schnellversion-flag";
 import { anrechnungBis, downloadStillOpen, listSvPurchases } from "@/lib/schnellversion-record";
 import { formatSvDate } from "@/lib/schnellversion-copy";
 
@@ -38,7 +38,7 @@ export default async function PaketPage({
   const entities = await listEntitiesByEmail(email);
   const requested = firstQueryValue(params.entity_id) ?? "";
   const bound = entities.find((e) => e.entityId === requested) ?? entities[0];
-  const credit = schnellversion49Enabled()
+  const credit = schnellversionOffered()
     ? (await listSvPurchases(email)).find((row) => !row.creditUsedAt.trim() && downloadStillOpen(row, new Date()))
     : undefined;
   return (

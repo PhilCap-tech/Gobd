@@ -35,7 +35,7 @@ import {
   planPackageTextsV3,
 } from "@/lib/plan-copy";
 import { CheckoutForm } from "./checkout-form";
-import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { schnellversionOffered } from "@/lib/schnellversion-flag";
 import { anrechnungBis, downloadStillOpen, listSvPurchases } from "@/lib/schnellversion-record";
 import { formatSvDate } from "@/lib/schnellversion-copy";
 
@@ -92,7 +92,7 @@ export default async function CheckoutPage({
     extraFirmNote = !coverage.planFirms && position > MAX_ENTITIES_PER_ACCOUNT;
   }
 
-  const credit = email && schnellversion49Enabled()
+  const credit = email && schnellversionOffered()
     ? (await listSvPurchases(email)).find((row) => !row.creditUsedAt.trim() && downloadStillOpen(row, new Date()))
     : undefined;
 

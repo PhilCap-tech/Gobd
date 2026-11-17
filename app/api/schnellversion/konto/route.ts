@@ -1,8 +1,13 @@
+import { schnellversionOffered } from "@/lib/schnellversion-flag";
+
 /** Käufe legt nur die bezahlte Session an. Dieser Endpunkt schreibt nichts. */
-export async function POST(): Promise<Response> {
+function closed(): Response {
+  if (!schnellversionOffered()) return new Response(null, { status: 404 });
   return new Response(null, { status: 405 });
 }
 
-export async function GET(): Promise<Response> {
-  return new Response(null, { status: 405 });
-}
+export const POST = closed;
+export const GET = closed;
+export const PUT = closed;
+export const PATCH = closed;
+export const DELETE = closed;

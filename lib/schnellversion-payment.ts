@@ -1,6 +1,6 @@
 /**
  * Kauf erst nach payment_status=paid. Das Zuteilungs-Cookie berechtigt nicht.
- * Der Stub spricht Stripe nicht an: die Session-ID trägt paid oder unpaid.
+ * Ein Präfix in der Session-ID ist kein Beweis. Es zählt die gespeicherte ID.
  */
 
 import { randomUUID } from "node:crypto";
@@ -12,13 +12,14 @@ import {
   type SchnellversionAnswers,
 } from "@/lib/schnellversion-answers";
 import { schnellversionCheckoutPlan, schnellversionStripeStub } from "@/lib/schnellversion-flag";
-import { saveIntakeDraft } from "@/lib/intake-draft";
+import { loadIntakeDraft, saveIntakeDraft } from "@/lib/intake-draft";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { generateStandardPdf } from "@/lib/schnellversion-pdf";
-import { draftFromSchnellversion } from "@/lib/schnellversion-draft";
+import { draftFromSchnellversion, mergeEmptyDraftFields } from "@/lib/schnellversion-draft";
 import { createSchnellversionTestSession } from "@/lib/schnellversion-checkout";
-import { getSvJson, putSvJson, svBlobEnabled, svPendingBlobPath } from "@/lib/schnellversion-persist";
-import { findSvPurchaseBySession, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
+import { getSvJson, putSvJson, svBlobEnabled, svPendingBlobPath, svPendingSessionBlobPath } from "@/lib/schnellversion-persist";
+import { findSvPurchaseBySession, newDownloadToken, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
+import { rememberSvEvent } from "@/lib/schnellversion-store";
 
 export type SvPending = {
   id: string;
@@ -27,6 +28,10 @@ export type SvPending = {
   email: string;
   createdAt: string;
   sessionId: string;
+  /** Gesetzt beim Anlegen. Ein späteres Umschreiben der ID ändert das nicht. */
+  paid: boolean;
+  downloadTokenHash: string;
+  arm: "" | "control" | "test";
 };
 
 const pendingMemory = new Map<string, SvPending>();
@@ -65,7 +70,24 @@ export async function saveSvPending(row: SvPending): Promise<void> {
   const all = (await readPendingFile()).filter((item) => item.id !== row.id);
   all.push(row);
   await writePendingFile(all);
-  if (svBlobEnabled()) await putSvJson(svPendingBlobPath(row.id), row, true);
+  if (svBlobEnabled()) {
+    await putSvJson(svPendingBlobPath(row.id), row, true);
+    if (row.sessionId.trim()) await putSvJson(svPendingSessionBlobPath(row.sessionId), row.id, true);
+  }
+}
+
+export async function findPendingBySession(sessionId: string): Promise<SvPending | null> {
+  const id = sessionId.trim();
+  if (!id) return null;
+  for (const row of pendingMemory.values()) {
+    if (row.sessionId === id) return row;
+  }
+  const fromFile = (await readPendingFile()).find((row) => row.sessionId === id);
+  if (fromFile) return fromFile;
+  if (!svBlobEnabled()) return null;
+  const pendingId = await getSvJson<string>(svPendingSessionBlobPath(id));
+  if (!pendingId) return null;
+  return loadSvPending(pendingId);
 }
 
 export async function loadSvPending(id: string): Promise<SvPending | null> {
@@ -116,6 +138,7 @@ export async function openSchnellversionCheckout(input: {
   unternehmer: boolean;
   bewusst: boolean;
   email: string;
+  arm?: "" | "control" | "test";
   /** Nur der Check übergibt eine eigene Umgebung. Die Route lässt sie weg. */
   env?: Record<string, string | undefined>;
 }): Promise<{ ok: false; status: number } | { ok: true; sessionId: string; url: string }> {
@@ -124,6 +147,7 @@ export async function openSchnellversionCheckout(input: {
   if (!answers) return { ok: false, status: 400 };
   const env = input.env ?? process.env;
   const id = randomUUID();
+  const download = newDownloadToken();
   const pending: SvPending = {
     id,
     answers,
@@ -131,15 +155,21 @@ export async function openSchnellversionCheckout(input: {
     email: input.email.trim().toLowerCase(),
     createdAt: new Date().toISOString(),
     sessionId: "",
+    paid: false,
+    downloadTokenHash: download.hash,
+    arm: input.arm === "control" || input.arm === "test" ? input.arm : "",
   };
   const plan = schnellversionCheckoutPlan(env);
   if (plan === "refuse") return { ok: false, status: 403 };
+  const thanks = (sessionId: string) =>
+    `/schnellversion/danke?session_id=${encodeURIComponent(sessionId)}&dl=${encodeURIComponent(download.token)}`;
   if (plan === "test") {
     const created = await createSchnellversionTestSession(
       {
         pendingId: id,
         consentAt: pending.consentAt,
         company: answers.firma,
+        downloadToken: download.token,
       },
       env,
     );
@@ -148,13 +178,37 @@ export async function openSchnellversionCheckout(input: {
     await saveSvPending(pending);
     return { ok: true, sessionId: created.sessionId, url: created.url };
   }
-  const sessionId = stubSessionId(id, schnellversionStripeStub(env) ? stubMarksPaid(env) : false);
+  const paid = schnellversionStripeStub(env) && stubMarksPaid(env);
+  const sessionId = stubSessionId(id, paid);
+  pending.paid = paid;
   pending.sessionId = sessionId;
   await saveSvPending(pending);
-  return { ok: true, sessionId, url: `/schnellversion/danke?session_id=${encodeURIComponent(sessionId)}` };
+  return { ok: true, sessionId, url: thanks(sessionId) };
 }
 
-export type PaidProof = { status: "paid"; pendingId?: string };
+/**
+ * Bezahlt nur, wenn die angeforderte ID exakt die gespeicherte ist.
+ * `stub_sv_paid_` ohne diesen Datensatz zählt nicht. Der Stub gilt nicht auf Vercel und nicht in Produktion.
+ */
+export function paidFromStoredSession(input: {
+  requestedId: string;
+  storedId: string;
+  storedPaid: boolean;
+  env: Record<string, string | undefined>;
+  stripePaid?: boolean;
+}): boolean {
+  const requested = input.requestedId.trim();
+  if (!requested || requested !== input.storedId) return false;
+  if (requested.startsWith("stub_sv_")) return schnellversionStripeStub(input.env) && input.storedPaid;
+  return input.stripePaid === true;
+}
+
+export type PaidProof = {
+  status?: "paid";
+  pendingId?: string;
+  /** Nur der Check. Die Route lässt das weg und nutzt die Prozess-Umgebung. */
+  env?: Record<string, string | undefined>;
+};
 
 /**
  * Bezahlte Stub-Session oder, außerhalb von Check und Stub, eine
@@ -182,36 +236,43 @@ async function retrieveTestSession(
 }
 
 export async function resolvePaymentStatus(sessionId: string): Promise<"paid" | "unpaid"> {
-  const stub = stubSessionPayment(sessionId);
-  if (stub) return stub;
   const remote = await retrieveTestSession(sessionId);
   return remote?.status ?? "unpaid";
 }
 
-/** Legt den Kauf erst an, wenn die Session bezahlt ist. Unbezahlt bleibt ohne Zeile und ohne PDF. */
+/** Legt den Kauf erst an, wenn die gespeicherte Session bezahlt ist. Unbezahlt bleibt ohne Zeile und ohne PDF. */
 export async function confirmPaidSession(
   sessionId: string,
   proof?: PaidProof,
 ): Promise<{ paid: false } | { paid: true; purchase: SvPurchase }> {
-  let status: "paid" | "unpaid" | undefined = proof?.status;
-  let pendingId = proof?.pendingId?.trim() ?? "";
-  if (!status || (!pendingId && sessionId.startsWith("cs_"))) {
-    const stub = stubSessionPayment(sessionId);
-    if (stub) {
-      status = status ?? stub;
-      pendingId = pendingId || pendingIdFromSession(sessionId);
-    } else {
-      const remote = await retrieveTestSession(sessionId);
-      status = status ?? remote?.status ?? "unpaid";
-      pendingId = pendingId || remote?.pendingId || "";
+  const requested = sessionId.trim();
+  if (!requested) return { paid: false };
+  const env = proof?.env ?? process.env;
+  if (requested.startsWith("stub_sv_") && !schnellversionStripeStub(env)) return { paid: false };
+  const existing = await findSvPurchaseBySession(requested);
+  if (existing) return { paid: true, purchase: existing };
+  const pending = await findPendingBySession(requested);
+  if (!pending) return { paid: false };
+  if (proof?.pendingId && proof.pendingId !== pending.id) return { paid: false };
+  let stripePaid = false;
+  if (!requested.startsWith("stub_sv_")) {
+    if (proof?.status === "paid") stripePaid = true;
+    else {
+      const remote = await retrieveTestSession(requested);
+      stripePaid = remote?.status === "paid" && (!remote.pendingId || remote.pendingId === pending.id);
     }
   }
-  if (paymentFromStatus(status) !== "paid") return { paid: false };
-  const existing = await findSvPurchaseBySession(sessionId);
-  if (existing) return { paid: true, purchase: existing };
-  if (!pendingId) pendingId = pendingIdFromSession(sessionId);
-  const pending = await loadSvPending(pendingId);
-  if (!pending) return { paid: false };
+  if (
+    !paidFromStoredSession({
+      requestedId: requested,
+      storedId: pending.sessionId,
+      storedPaid: pending.paid === true,
+      env,
+      stripePaid,
+    })
+  ) {
+    return { paid: false };
+  }
   const pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
   const purchase = await saveSvPurchase({
     email: pending.email,
@@ -219,11 +280,25 @@ export async function confirmPaidSession(
     purchasedAt: pending.createdAt,
     pdf,
     consentAt: pending.consentAt,
-    sessionId,
+    sessionId: pending.sessionId,
     answersJson: JSON.stringify(pending.answers),
+    downloadTokenHash: pending.downloadTokenHash,
   });
+  if (pending.arm === "control" || pending.arm === "test") {
+    rememberSvEvent({
+      name: "sv_purchase",
+      arm: pending.arm,
+      variante: "b",
+      branche_vorlage: "",
+      value: 49,
+      step: 0,
+      ziel: "",
+    });
+  }
   if (pending.email && !automatedRunForbidsLiveWrites()) {
-    await saveIntakeDraft(draftFromSchnellversion(pending.email, pending.answers));
+    const incoming = draftFromSchnellversion(pending.email, pending.answers);
+    const stored = await loadIntakeDraft(incoming.draftKey);
+    await saveIntakeDraft(stored ? mergeEmptyDraftFields(stored, incoming) : incoming);
   }
   return { paid: true, purchase };
 }

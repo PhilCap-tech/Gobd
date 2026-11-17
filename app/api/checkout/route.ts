@@ -193,7 +193,8 @@ export async function POST(request: Request) {
   let svPurchaseId = "";
   if (v2 && schnellversion49Enabled()) {
     try {
-      const credit = openCredit(await listSvPurchases(email), company, new Date());
+      const creditEmail = (sessionEmail ?? "").trim().toLowerCase();
+      const credit = creditEmail ? openCredit(await listSvPurchases(creditEmail), company, new Date()) : null;
       const coupon = credit ? schnellversionCouponId() : "";
       const reserved = credit ? await reserveSvCredit(credit.id, randomUUID(), new Date()) : false;
       if (credit && coupon && reserved) {

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { SchnellversionKonto } from "@/components/schnellversion-konto";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
-import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { schnellversionOffered } from "@/lib/schnellversion-flag";
 import { listSvPurchases } from "@/lib/schnellversion-record";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SchnellversionKontoPage() {
-  if (!schnellversion49Enabled()) redirect("/account");
+  if (!schnellversionOffered()) notFound();
   const email = await getSessionEmail();
   if (!email) redirect("/login");
   const rows = await listSvPurchases(email);

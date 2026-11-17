@@ -5,7 +5,7 @@
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { storePdf } from "@/lib/blob";
@@ -36,6 +36,8 @@ export type SvPurchase = {
   creditReservedAt: string;
   creditReservationId: string;
   answersJson: string;
+  /** SHA-256 des Download-Tokens. Die Session-ID allein reicht nicht. */
+  downloadTokenHash: string;
 };
 
 const memory = new Map<string, SvPurchase[]>();
@@ -117,6 +119,7 @@ export async function saveSvPurchase(input: {
   consentAt: string;
   sessionId: string;
   answersJson: string;
+  downloadTokenHash: string;
 }): Promise<SvPurchase> {
   const id = randomUUID();
   const pdfPath = await storePurchasePdf(id, input.pdf);
@@ -133,6 +136,7 @@ export async function saveSvPurchase(input: {
     creditReservedAt: "",
     creditReservationId: "",
     answersJson: input.answersJson,
+    downloadTokenHash: input.downloadTokenHash,
   };
   const key = row.email;
   const next = [...(memory.get(key) ?? []), row];
@@ -238,17 +242,38 @@ export async function reserveSvCredit(purchaseId: string, token: string, now: Da
   return next.creditReservationId === token;
 }
 
+export function hashDownloadToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export function newDownloadToken(): { token: string; hash: string } {
+  const token = randomBytes(24).toString("base64url");
+  return { token, hash: hashDownloadToken(token) };
+}
+
+export function downloadTokenMatches(token: string, hash: string): boolean {
+  if (!token.trim() || !/^[a-f0-9]{64}$/.test(hash)) return false;
+  const digest = hashDownloadToken(token.trim());
+  return timingSafeEqual(Buffer.from(digest), Buffer.from(hash));
+}
+
+/** Login des Käufers oder das am Kauf gespeicherte Token. Zusätzlich die 30 Tage. */
+export function svDownloadAllowed(
+  row: SvPurchase,
+  input: { email: string; token: string; now: Date },
+): boolean {
+  if (!downloadStillOpen(row, input.now)) return false;
+  const mail = emailKey(input.email);
+  if (mail && mail === emailKey(row.email)) return true;
+  return downloadTokenMatches(input.token, row.downloadTokenHash);
+}
+
 export async function markSvCreditUsed(email: string, purchaseId: string, at: string): Promise<boolean> {
   const key = emailKey(email);
   const rows = await listSvPurchases(key);
   const row = rows.find((item) => item.id === purchaseId);
   if (!row || row.creditUsedAt.trim()) return false;
-  row.creditUsedAt = at;
-  memory.set(key, rows.filter((item) => emailKey(item.email) === key));
-  const all = await readFileRows();
-  const index = all.findIndex((item) => item.id === purchaseId);
-  if (index >= 0) all[index] = { ...all[index], creditUsedAt: at };
-  await writeFileRows(all);
+  await replaceSvPurchase({ ...row, creditUsedAt: at });
   return true;
 }
 

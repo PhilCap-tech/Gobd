@@ -7,10 +7,14 @@
 import { generatePdf, type StandardPdfFrame } from "@/lib/delivery";
 import {
   buildStandardAnswers,
+  kanzleiBuchtAntwort,
   kasseHatKapitel,
+  softwareLabel,
   vorlageLabel,
   type SchnellversionAnswers,
 } from "@/lib/schnellversion-answers";
+import { renderDeliveryDocument } from "@/lib/delivery-templates";
+import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
 import {
   SV_KASSE_UNSICHER_HILFE,
   addSvDays,
@@ -31,6 +35,8 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
     coverBox: svCoverBox(label, datum),
     closing: svClosingPage(bis),
     erstelltAm: datum,
+    selfBooking: !kanzleiBuchtAntwort(input.bucht),
+    software: softwareLabel(input),
   };
   if (input.kasse === "Unsicher") {
     frame.kasseHinweis = `[bitte prüfen] ${SV_KASSE_UNSICHER_HILFE}`;
@@ -48,6 +54,28 @@ export async function generateStandardPdf(input: SchnellversionAnswers, erstellt
     standard: standardFrameFor(input, erstelltAm),
   });
   return buffer;
+}
+
+/** Derselbe Text wie im PDF, ohne PDFKit. Der Build prüft daran alle Kombinationen. */
+export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date): string {
+  const built = buildStandardAnswers(input);
+  const frame = standardFrameFor(input, erstelltAm);
+  const rendered = renderDeliveryDocument({
+    identity: built.identity,
+    answers: built.answers,
+    documentId: `standard-${built.vorlage}`,
+    version: 1,
+  });
+  const options = { selfBooking: frame.selfBooking, software: frame.software };
+  const datum = frame.erstelltAm ?? "";
+  const chapters = rendered.chapters
+    .filter((chapter) => chapter.id !== "anhang-a")
+    .map((chapter) => neutralizeStandardText(chapter.body, datum, options));
+  return [
+    neutralizeStandardText(`${frame.coverBox}\n\n${rendered.cover}`, datum, options),
+    ...chapters,
+    neutralizeStandardText(frame.closing, datum, options),
+  ].join("\n");
 }
 
 export function standardNeedsKasseChapter(input: SchnellversionAnswers): boolean {

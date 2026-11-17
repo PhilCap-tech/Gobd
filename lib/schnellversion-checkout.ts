@@ -4,6 +4,7 @@
  */
 
 import { getAppUrl, getStripeTaxRateId } from "@/lib/env";
+import { CREDIT_RESERVE_MS } from "@/lib/schnellversion-credit";
 import {
   schnellversionCheckoutPlan,
   schnellversionPriceId,
@@ -29,12 +30,13 @@ export function schnellversionCheckoutMetadata(input: {
  * die ID zurück. Der Kauf entsteht erst, wenn die Session `paid` ist.
  */
 export async function createSchnellversionTestSession(
-  input: { pendingId: string; consentAt: string; company: string },
+  input: { pendingId: string; consentAt: string; company: string; downloadToken: string },
   env: Record<string, string | undefined> = process.env,
 ): Promise<{ sessionId: string; url: string } | null> {
   if (schnellversionCheckoutPlan(env) !== "test") return null;
   const origin = getAppUrl().replace(/\/$/, "");
   const thanks = `${origin}/schnellversion/danke`;
+  const expiresAt = Math.floor(Date.now() / 1000) + Math.floor(CREDIT_RESERVE_MS / 1000);
   const price = schnellversionPriceId(env);
   const secret = (env.STRIPE_SECRET_KEY ?? "").trim();
   if (!secret.startsWith("sk_test_") || !price) return null;
@@ -53,7 +55,8 @@ export async function createSchnellversionTestSession(
     ],
     metadata,
     payment_intent_data: { metadata },
-    success_url: `${thanks}?session_id={CHECKOUT_SESSION_ID}`,
+    expires_at: expiresAt,
+    success_url: `${thanks}?session_id={CHECKOUT_SESSION_ID}&dl=${encodeURIComponent(input.downloadToken)}`,
     cancel_url: `${origin}/schnellversion/kauf`,
   });
   if (!session.id || !session.url) return null;

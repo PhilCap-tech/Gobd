@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
 import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
-import { schnellversion49Enabled, schnellversionCheckoutPlan } from "@/lib/schnellversion-flag";
+import { schnellversionCheckoutPlan, schnellversionOffered } from "@/lib/schnellversion-flag";
 import { openSchnellversionCheckout } from "@/lib/schnellversion-payment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest): Promise<Response> {
-  if (!schnellversion49Enabled()) return new Response(null, { status: 404 });
+  if (!schnellversionOffered()) return new Response(null, { status: 404 });
   if (schnellversionCheckoutPlan() === "refuse") return Response.json({ ready: false });
   if (parseSvArm(request.cookies.get(SV_ARM_COOKIE)?.value) !== "test") {
     return Response.json({ ready: false });
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     unternehmer: record.unternehmer === true,
     bewusst: record.bewusst === true,
     email,
+    arm: "test",
   });
   if (!opened.ok) return new Response(null, { status: opened.status });
   return Response.json({ ready: true, url: opened.url, consentAt: true });

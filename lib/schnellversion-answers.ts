@@ -130,6 +130,13 @@ export function kasseHatKapitel(kasse: SchnellversionAnswers["kasse"]): boolean 
   return kasse !== "Nein, keine Bargeldeinnahmen";
 }
 
+/** Unsicher bleibt offen. Nur eine genannte Kasse ist Ja. */
+export function kasseCheckAntwort(kasse: SchnellversionAnswers["kasse"]): "ja" | "nein" | "unbekannt" {
+  if (kasse === "Nein, keine Bargeldeinnahmen") return "nein";
+  if (kasse === "Unsicher") return "unbekannt";
+  return "ja";
+}
+
 export function kanzleiBuchtAntwort(bucht: SchnellversionAnswers["bucht"]): boolean {
   return bucht !== "Wir selbst im Unternehmen";
 }
@@ -211,7 +218,7 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
   answers.it = "[bitte prüfen]";
   answers.steuerberater = kanzleiBuchtAntwort(input.bucht) ? "[bitte prüfen]" : "";
   if (kasseHatKapitel(input.kasse)) {
-    answers = setCheckAntwort(answers, "bargeld", "ja");
+    answers = setCheckAntwort(answers, "bargeld", kasseCheckAntwort(input.kasse));
     answers = setModulEintrag(answers, "m08", { status: "tool" });
   } else {
     answers = setCheckAntwort(answers, "bargeld", "nein");

@@ -7,7 +7,18 @@ const FIXED_DATES = ["01.07.2026", "1.07.2026", "2026-07-01"];
 
 export const SV_BASIS_SATZ = "Standardfassung auf Basis Ihrer Angaben zu Branche und Größe.";
 
-export function neutralizeStandardText(text: string, erstelltAm: string): string {
+export type StandardNeutralOptions = {
+  /** Buchführung im Unternehmen, nicht durch die Kanzlei. */
+  selfBooking?: boolean;
+  /** Programm aus der Antwort. DATEV und Kanzlei bleiben, wenn der Kunde sie genannt hat. */
+  software?: string;
+};
+
+export function neutralizeStandardText(
+  text: string,
+  erstelltAm: string,
+  options: StandardNeutralOptions = {},
+): string {
   let next = text;
   next = next.replaceAll(
     "Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend",
@@ -31,6 +42,34 @@ export function neutralizeStandardText(text: string, erstelltAm: string): string
   next = next.replaceAll("Angabe im Intake", "Angabe in der Standardfassung");
   next = next.replaceAll("aus dem Intake", "aus der Standardfassung");
   next = next.replaceAll("Musterbetrieb ", "");
+  next = next.replaceAll(
+    "Keine Bereiche ausgenommen; ältere Fassungen bleiben im Kundenkonto abrufbar.",
+    "Keine Bereiche ausgenommen.",
+  );
+  next = next.replaceAll(
+    "Keine Bereiche ausgenommen; Der Download dieser Standardfassung ist 30 Tage möglich.",
+    "Keine Bereiche ausgenommen.",
+  );
+  next = next.replaceAll("Kundenkonto gobd-doku-erstellen.de, Fassungen downloadbar", "Ablage laut Betrieb");
+  next = next.replaceAll("Kundenkonto gobd-doku-erstellen.de, Fassungen 1.0 und 2.0", "Ablage laut Betrieb");
+  next = next.replaceAll("Kundenkonto gobd-doku-erstellen.de", "Ablage laut Betrieb");
+  next = next.replaceAll("Kundenkonto", "Ablage laut Betrieb");
+  next = next.replaceAll(
+    "Präsens-Aussagen gelten nur, soweit die jeweilige Angabe bestätigt ist.",
+    "Die beschriebenen Abläufe sind typische Abläufe der Branche.",
+  );
+  next = next.replaceAll(
+    "Bei einem realen Betrieb bestätigt die Geschäftsleitung an dieser Stelle, dass die beschriebenen Abläufe der tatsächlichen Praxis entsprechen. Automatische Erzeugung und fachliche Hinweise ersetzen diese betriebliche Prüfung nicht.",
+    "Bitte prüfen Sie, ob die beschriebenen Abläufe zu Ihrem Betrieb passen.",
+  );
+  next = next.replaceAll("Robert Funke", "[bitte prüfen]");
+  next = next.replaceAll("Ines Wolf", "[bitte prüfen]");
+  next = next.replaceAll("KassaPro", "Kassensystem laut Betrieb");
+  next = next.replaceAll("ERP Fertigplan", "Einkaufssystem laut Betrieb");
+  next = next.replaceAll("Faktura+", "Rechnungssystem laut Betrieb");
+  next = next.replaceAll("Faktura", "Rechnungssystem laut Betrieb");
+  next = next.replaceAll("Kanzlei (Muster, fiktiv)", "Buchhaltung laut Betrieb");
+  next = next.replaceAll("(Muster, fiktiv)", "");
   next = next.replaceAll("Kassensystem mit Cloud-TSE (fiktiv)", "Kassensystem laut Betrieb");
   next = next.replaceAll("Warenwirtschaft (fiktiv)", "Warenwirtschaft laut Betrieb");
   next = next.replaceAll("Shopify (fiktiv)", "Onlineshop laut Betrieb");
@@ -53,5 +92,24 @@ export function neutralizeStandardText(text: string, erstelltAm: string): string
   );
   for (const date of FIXED_DATES) next = next.replaceAll(date, erstelltAm);
   next = next.replaceAll("..", ".");
+  if (options.selfBooking) next = stripUnstatedBookkeeping(next, options.software ?? "");
+  return next;
+}
+
+function namesBookkeeping(software: string, word: "datev" | "kanzlei"): boolean {
+  return software.toLowerCase().includes(word);
+}
+
+/** Bei Eigenbuchhaltung nur stehen lassen, was der Kunde selbst genannt hat. */
+function stripUnstatedBookkeeping(text: string, software: string): string {
+  let next = text;
+  if (!namesBookkeeping(software, "datev")) {
+    next = next.replaceAll("DATEV", "Buchhaltung laut Betrieb");
+  }
+  if (!namesBookkeeping(software, "kanzlei")) {
+    next = next.replace(/Steuerkanzlei/gi, "Buchhaltung");
+    next = next.replace(/Kanzlei/g, "Buchhaltung");
+    next = next.replace(/kanzlei/g, "Buchhaltung");
+  }
   return next;
 }

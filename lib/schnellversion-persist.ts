@@ -17,6 +17,11 @@ export function svPendingBlobPath(id: string): string {
   return `${PREFIX}/pending/${id}.json`;
 }
 
+export function svPendingSessionBlobPath(sessionId: string): string {
+  const safe = sessionId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180);
+  return `${PREFIX}/pending-session/${safe}.json`;
+}
+
 export function svSessionBlobPath(sessionId: string): string {
   const safe = sessionId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180);
   return `${PREFIX}/session/${safe}.json`;

@@ -2,16 +2,17 @@
  * Die 6 Angaben der Schnellversion werden in den bestehenden Fragebogen-Entwurf geschrieben.
  */
 
-import { normalizeDraftKey, type IntakeDraft } from "@/lib/intake-draft-shared";
+import { draftRevision, normalizeDraftKey, type IntakeDraft } from "@/lib/intake-draft-shared";
 import {
   brancheLabel,
   kanzleiBuchtAntwort,
-  kasseHatKapitel,
+  kasseCheckAntwort,
   softwareLabel,
   vorlageForBranche,
   type SchnellversionAnswers,
 } from "@/lib/schnellversion-answers";
 import { setCheckAntwort, setVorlage } from "@/lib/module/status";
+import type { CheckAntwort, ModulZustand } from "@/lib/module/typen";
 import { emptyAnswers } from "@/lib/types";
 
 export function draftFromSchnellversion(email: string, input: SchnellversionAnswers): IntakeDraft {
@@ -22,7 +23,7 @@ export function draftFromSchnellversion(email: string, input: SchnellversionAnsw
   answers.mitarbeitende = input.mitarbeitende;
   answers.fibu = [softwareLabel(input)];
   answers.steuerberater = kanzleiBuchtAntwort(input.bucht) ? "Steuerkanzlei" : "";
-  answers = setCheckAntwort(answers, "bargeld", kasseHatKapitel(input.kasse) ? "ja" : "nein");
+  answers = setCheckAntwort(answers, "bargeld", kasseCheckAntwort(input.kasse));
   answers = setCheckAntwort(answers, "kanzlei", kanzleiBuchtAntwort(input.bucht) ? "ja" : "nein");
   const moduleState = answers.module;
   if (moduleState) {
@@ -73,5 +74,63 @@ export function draftFromSchnellversion(email: string, input: SchnellversionAnsw
     revision: 1,
     updatedBy: mail,
     pricingModel: "v3",
+  };
+}
+
+function blank(value: unknown): boolean {
+  if (value == null) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+/** Bestehende Angaben bleiben. Die Schnellversion füllt nur leere Felder. */
+export function mergeEmptyDraftFields(existing: IntakeDraft, incoming: IntakeDraft): IntakeDraft {
+  const answers = structuredClone(existing.answers);
+  const add = incoming.answers;
+  if (blank(answers.branchen)) answers.branchen = add.branchen;
+  if (blank(answers.rechtsform)) answers.rechtsform = add.rechtsform;
+  if (blank(answers.mitarbeitende)) answers.mitarbeitende = add.mitarbeitende;
+  if (blank(answers.fibu)) answers.fibu = add.fibu;
+  if (blank(answers.steuerberater)) answers.steuerberater = add.steuerberater;
+  const currentModule: ModulZustand = answers.module
+    ? {
+        ...answers.module,
+        check: { ...answers.module.check },
+        stammdaten: { ...answers.module.stammdaten },
+      }
+    : { version: 1, check: {}, status: {} };
+  const incomingModule = add.module;
+  if (blank(currentModule.vorlage) && incomingModule?.vorlage) currentModule.vorlage = incomingModule.vorlage;
+  for (const [key, value] of Object.entries(incomingModule?.check ?? {})) {
+    const name = key as keyof ModulZustand["check"];
+    if (blank(currentModule.check[name])) currentModule.check[name] = value as CheckAntwort;
+  }
+  if (blank(currentModule.stammdaten?.fibu) && incomingModule?.stammdaten?.fibu) {
+    currentModule.stammdaten = { ...currentModule.stammdaten, fibu: incomingModule.stammdaten.fibu };
+  }
+  answers.module = currentModule;
+  const katalog = { ...(answers.katalog ?? {}) };
+  for (const [id, question] of Object.entries(add.katalog ?? {})) {
+    const current = katalog[id];
+    if (!current) {
+      katalog[id] = question;
+      continue;
+    }
+    const values = { ...(current.values ?? {}) };
+    let filled = false;
+    for (const [field, value] of Object.entries(question.values ?? {})) {
+      if (!blank(values[field])) continue;
+      values[field] = value;
+      filled = true;
+    }
+    if (filled) katalog[id] = { ...current, values };
+  }
+  answers.katalog = katalog;
+  return {
+    ...existing,
+    answers,
+    updatedAt: new Date().toISOString(),
+    revision: Math.max(draftRevision(existing), 1),
   };
 }

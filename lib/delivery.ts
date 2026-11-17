@@ -60,6 +60,9 @@ export type StandardPdfFrame = {
   kasseHinweis?: string;
   /** Anzeigedatum der Erstellung, nur für die Standardfassung. */
   erstelltAm?: string;
+  /** Eigenbuchhaltung: Kanzlei und DATEV nur, wenn die Antwort sie nennt. */
+  selfBooking?: boolean;
+  software?: string;
 };
 
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
@@ -494,8 +497,9 @@ function writePdf(
       ? input.content.chapters
       : rendered.chapters;
   const erstelltAm = input.standard?.erstelltAm?.trim() || "";
+  const neutral = { selfBooking: input.standard?.selfBooking, software: input.standard?.software };
   const plain = (value: string) =>
-    input.standard ? neutralizeStandardText(value, erstelltAm) : value;
+    input.standard ? neutralizeStandardText(value, erstelltAm, neutral) : value;
   if (input.standard) {
     chapters = chapters
       .filter((chapter) => chapter.id !== "anhang-a")
@@ -527,7 +531,7 @@ function writePdf(
     doc.addPage();
     doc.x = doc.page.margins.left;
     doc.y = doc.page.margins.top;
-    writeMarkdownish(doc, input.standard.closing, width);
+    writeMarkdownish(doc, plain(input.standard.closing), width);
   } else if (isMuster(input.variant)) {
     writeUpsellPage(doc, { ds24: input.upsellDs24 });
   }

@@ -10,18 +10,26 @@ import { decideSvArm } from "../lib/schnellversion-assign";
 import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { creditStillOpen, downloadStillOpen, findSvPurchaseBySession, reserveSvCredit, type SvPurchase } from "../lib/schnellversion-record";
+import { creditStillOpen, downloadStillOpen, findSvPurchaseBySession, reserveSvCredit, svDownloadAllowed, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
+  kasseCheckAntwort,
+  softwareLabel,
+  SV_BRANCHEN,
+  SV_BUCHT,
+  SV_KASSE,
+  SV_SOFTWARE,
   vorlageForBranche,
   type SchnellversionAnswers,
 } from "../lib/schnellversion-answers";
-import { schnellversionCheckoutPlan, schnellversion49Enabled } from "../lib/schnellversion-flag";
+import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
 import { svDownloadStillOpen, SV_COVER_TITLE } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
-import { confirmPaidSession, openSchnellversionCheckout } from "../lib/schnellversion-payment";
-import { draftFromSchnellversion } from "../lib/schnellversion-draft";
+import { confirmPaidSession, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
+import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
+import { standardPlainText } from "../lib/schnellversion-pdf";
+import { readSvEvents } from "../lib/schnellversion-store";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
@@ -123,6 +131,7 @@ function purchase(patch: Partial<SvPurchase> = {}): SvPurchase {
     creditReservedAt: "",
     creditReservationId: "",
     answersJson: "{}",
+    downloadTokenHash: "",
     ...patch,
   };
 }
@@ -249,15 +258,36 @@ async function main() {
     env: stubPaid,
   });
   ok(!paidOpen.ok, "Zustimmung fehlt serverseitig");
+  const flipped = unpaid.ok ? unpaid.sessionId.replace("stub_sv_unpaid_", "stub_sv_paid_") : "stub_sv_paid_fremd";
+  ok((await confirmPaidSession(flipped, { env: stubUnpaid })).paid === false, "umgeschriebene Session bleibt unbezahlt");
+  ok(paidFromStoredSession({
+    requestedId: flipped,
+    storedId: unpaid.ok ? unpaid.sessionId : "",
+    storedPaid: false,
+    env: { ...stubUnpaid, VERCEL: "1" },
+  }) === false, "Präfix ist auf Vercel kein Beweis");
+  ok(schnellversionStubBlocked({ VERCEL: "1", SCHNELLVERSION_49_STRIPE_STUB: "paid" }), "Stub auf Vercel gesperrt");
+  ok(schnellversionStubBlocked({ NODE_ENV: "production", SCHNELLVERSION_49_STRIPE_STUB: "paid" }), "Stub in Produktion gesperrt");
+  ok(schnellversionCheckoutPlan({
+    SCHNELLVERSION_49_ENABLED: "1",
+    STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+    SCHNELLVERSION_49_STRIPE_STUB: "paid",
+    VERCEL: "1",
+  }) !== "stub", "Vercel legt keine Stub-Session an");
   const paid = await openSchnellversionCheckout({
     answers: sample(),
     unternehmer: true,
     bewusst: true,
     email: "inhaber@example.com",
+    arm: "test",
     env: stubPaid,
   });
   ok(paid.ok, "bezahlte Stub-Session");
-  const confirmed = await confirmPaidSession(paid.ok ? paid.sessionId : "");
+  const beforePurchases = (await readSvEvents()).filter((row) => row.name === "sv_purchase" && row.value === 49).length;
+  const confirmed = await confirmPaidSession(paid.ok ? paid.sessionId : "", { env: stubPaid });
+  ok((await confirmPaidSession(paid.ok ? paid.sessionId : "", { env: stubPaid })).paid === confirmed.paid, "zweite Bestätigung");
+  const afterPurchases = (await readSvEvents()).filter((row) => row.name === "sv_purchase" && row.value === 49).length;
+  ok(afterPurchases === beforePurchases + 1, "49-€-Kauf wird einmal gezählt");
   ok(confirmed.paid && confirmed.purchase.consentAt.length > 0, "Zustimmung am Kauf gespeichert");
   const meta = schnellversionCheckoutMetadata({
     pendingId: "p",
@@ -274,19 +304,107 @@ async function main() {
   ok(draft.answers.mitarbeitende === "2–5", "Mitarbeitende im Fragebogen");
   ok(draft.answers.fibu?.[0] === "DATEV", "FiBu im Fragebogen");
   ok(draft.answers.module?.vorlage === "handwerk", "Branche als Vorlage im Fragebogen");
-  ok(draft.answers.module?.check?.bargeld === "ja", "Kasse im Betriebs-Check");
+  ok(draft.answers.module?.check?.bargeld === "unbekannt", "Kasse Unsicher bleibt offen");
   ok(draft.answers.module?.stammdaten?.fibu === "DATEV", "FiBu-Programm im Betriebs-Check");
   const held = reserveDecision(confirmed.paid ? confirmed.purchase : purchase(), "eins", reserveNow);
   ok(held, "erste Coupon-Reservierung");
   ok(reserveDecision(held!, "zwei", reserveNow) === null, "zweite Reservierung blockiert");
   ok((await confirmPaidSession("")).paid === false, "ohne Session kein Kauf");
-  ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "stub_sv_unpaid_x")).paid === false, "unbezahlte Session ergibt kein PDF");
+  ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "stub_sv_unpaid_x", { env: stubUnpaid })).paid === false, "unbezahlte Session ergibt kein PDF");
   ok((await confirmPaidSession("cs_test_unpaid")).paid === false, "fremde Session ohne paid ergibt kein PDF");
   const hook = readFileSync("app/api/stripe/webhook/route.ts", "utf8");
   ok(hook.includes('metadata?.sv49 === "1"') && hook.includes("paymentFromStatus"), "Webhook nur bei bezahlter Schnellversion");
   ok(!text.includes("Shopify"), "kein fiktiver Shopname");
+  const savedModel = process.env.PRICING_MODEL;
+  const savedFlag = process.env.SCHNELLVERSION_49_ENABLED;
+  process.env.PRICING_MODEL = "v2";
+  process.env.SCHNELLVERSION_49_ENABLED = "1";
   ok((await pdfPost()).status === 405, "PDF-POST legt nichts an");
   ok((await kontoPost()).status === 405, "Konto-API legt keinen Kauf an");
+  process.env.PRICING_MODEL = "legacy";
+  ok((await pdfPost()).status === 404, "Legacy mit Flag: PDF-Route 404");
+  ok((await kontoPost()).status === 404, "Legacy mit Flag: Konto-Route 404");
+  process.env.SCHNELLVERSION_49_ENABLED = "";
+  ok((await kontoPost()).status === 404, "Flag aus: Konto-Route 404");
+  if (savedModel === undefined) delete process.env.PRICING_MODEL;
+  else process.env.PRICING_MODEL = savedModel;
+  if (savedFlag === undefined) delete process.env.SCHNELLVERSION_49_ENABLED;
+  else process.env.SCHNELLVERSION_49_ENABLED = savedFlag;
+  ok(!schnellversionOffered({ SCHNELLVERSION_49_ENABLED: "1", PRICING_MODEL: "legacy" }), "Legacy bietet die Schnellversion nicht an");
+  ok(schnellversionOffered({ SCHNELLVERSION_49_ENABLED: "1", PRICING_MODEL: "v3" }), "v3 bietet die Schnellversion an");
+  ok(readFileSync("app/account/schnellversion/page.tsx", "utf8").includes("if (!schnellversionOffered()) notFound()"), "Konto-Seite ohne Angebot 404");
+  ok(readFileSync("lib/schnellversion-gate.ts", "utf8").includes("schnellversionOffered()"), "Seiten prüfen das Preismodell");
+  ok(readFileSync("app/api/checkout/route.ts", "utf8").includes("creditEmail"), "Anrechnung hängt an der Login-Mail");
+  ok(readFileSync("lib/plan-checkout.ts", "utf8").includes("expires_at:"), "Upgrade-Session läuft mit der Reservierung ab");
+  ok(readFileSync("components/schnellversion-browser.ts", "utf8").includes("sv49_visit"), "Aufruf wird nur einmal gesendet");
+  ok(kasseCheckAntwort("Unsicher") === "unbekannt", "Unsicher ist keine Ja-Antwort");
+  const kept = draftFromSchnellversion("inhaber@example.com", sample({ firma: "Bleibt GmbH" }));
+  kept.revision = 4;
+  if (kept.answers.module?.check) kept.answers.module.check.bargeld = "nein";
+  if (kept.answers.katalog?.A01?.values) kept.answers.katalog.A01.values.company = "Bleibt GmbH";
+  const merged = mergeEmptyDraftFields(kept, draftFromSchnellversion("inhaber@example.com", sample()));
+  ok(merged.answers.katalog?.A01?.values?.company === "Bleibt GmbH", "laufende Firma bleibt");
+  ok(merged.answers.module?.check?.bargeld === "nein", "gesetzte Kasse bleibt");
+  ok(merged.revision === 4, "Revision des Fragebogens bleibt");
+  if (confirmed.paid && paid.ok) {
+    const link = new URL(paid.url, "http://local");
+    const dl = link.searchParams.get("dl") ?? "";
+    const row = confirmed.purchase;
+    ok(!svDownloadAllowed(row, { email: "fremd@example.com", token: "", now: reserveNow }), "fremde Session ohne Token bleibt zu");
+    ok(svDownloadAllowed(row, { email: "inhaber@example.com", token: "", now: reserveNow }), "Käufer darf laden");
+    ok(svDownloadAllowed(row, { email: "", token: dl, now: reserveNow }), "Download-Token darf laden");
+    const later = new Date(reserveNow.getTime() + 31 * 24 * 60 * 60 * 1000);
+    ok(!svDownloadAllowed(row, { email: "inhaber@example.com", token: dl, now: later }), "Session-Link endet nach 30 Tagen");
+  }
+  const alwaysForbidden = [
+    "Robert Funke",
+    "Ines Wolf",
+    "KassaPro",
+    "Faktura",
+    "ERP Fertigplan",
+    "Bei einem realen Betrieb",
+    "Präsens-Aussagen",
+    "Kundenkonto",
+    "Muster, fiktiv",
+    "(fiktiv)",
+    "Angabe im Intake",
+    "Musterbetrieb",
+    "Diese Fassung gilt ab",
+    "ältere Fassungen",
+    "Keine Bereiche ausgenommen; Der Download",
+  ];
+  const when = new Date("2026-11-17T10:00:00Z");
+  for (const branche of SV_BRANCHEN) {
+    for (const kasse of SV_KASSE) {
+      for (const bucht of SV_BUCHT) {
+        for (const software of SV_SOFTWARE) {
+          if (software === "Sonstiges") continue;
+          const answers = sample({ branche: branche.id, kasse, bucht, software, softwareFrei: "" });
+          const plain = standardPlainText(answers, when);
+          const label = softwareLabel(answers);
+          for (const forbidden of alwaysForbidden) {
+            if (plain.includes(forbidden)) ok(false, `${branche.id} ${software} enthält ${forbidden}`);
+          }
+          if (bucht === "Wir selbst im Unternehmen" && !/datev/i.test(label) && /DATEV/i.test(plain)) {
+            ok(false, `${branche.id} ${software} enthält DATEV`);
+          }
+          if (bucht === "Wir selbst im Unternehmen" && !/kanzlei/i.test(label) && /kanzlei/i.test(plain)) {
+            ok(false, `${branche.id} ${software} enthält Kanzlei`);
+          }
+        }
+      }
+    }
+  }
+  ok(true, "alle Branchen- und Antwortkombinationen ohne Musterreste");
+  const selfNamed = sample({
+    bucht: "Wir selbst im Unternehmen",
+    software: "Sonstiges",
+    softwareFrei: "Buchhalter Pro",
+    kasse: "Nein, keine Bargeldeinnahmen",
+  });
+  const selfPlain = standardPlainText(selfNamed, when);
+  ok(selfPlain.includes("Buchhalter Pro"), "genanntes Programm bleibt im Text");
+  ok(!/DATEV|kanzlei/i.test(selfPlain), "Eigenbuchhaltung ohne Kanzlei und DATEV");
   ok(readFileSync("lib/schnellversion-copy.ts", "utf8").includes("Sie bestellen als Unternehmer"), "Checkbox in Sie-Form");
   ok(!readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("SV_ARM_COOKIE"), "PDF-Route liest das Zuteilungs-Cookie nicht");
   ok(!readFileSync("app/schnellversion/danke/page.tsx", "utf8").includes("gekauftAm"), "Danke-Seite legt keinen Kauf an");

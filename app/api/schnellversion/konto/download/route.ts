@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
-import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { schnellversionOffered } from "@/lib/schnellversion-flag";
 import { downloadStillOpen, listSvPurchases, readSvPdf } from "@/lib/schnellversion-record";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<Response> {
-  if (!schnellversion49Enabled()) return new Response(null, { status: 404 });
+  if (!schnellversionOffered()) return new Response(null, { status: 404 });
   const email = await sessionEmailFromRequest(request);
   if (!email) return new Response("Kein Zugriff.", { status: 401 });
   const id = new URL(request.url).searchParams.get("id")?.trim() ?? "";
