@@ -10,7 +10,7 @@ import { decideSvArm } from "../lib/schnellversion-assign";
 import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { claimSvSession, creditStillOpen, downloadStillOpen, findSvPurchaseBySession, listAllSvPurchases, reserveSvCredit, svDownloadAllowed, type SvPurchase } from "../lib/schnellversion-record";
+import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, findSvPurchaseBySession, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
@@ -442,6 +442,33 @@ async function main() {
   const repaired = await confirmPaidSession(broken.ok ? broken.sessionId : "", { env: stubPaid });
   const repairedRows = (await listAllSvPurchases()).filter((row) => row.sessionId === (broken.ok ? broken.sessionId : "x"));
   ok(repaired.paid && repairedRows.length === 1, "erneute Zustellung legt genau einen Kauf an");
+  for (const step of ["purchase", "index", "event"] as const satisfies readonly SvCommitStep[]) {
+    const opened = await openSchnellversionCheckout({
+      answers: sample(),
+      unternehmer: true,
+      bewusst: true,
+      email: `${step}@example.com`,
+      arm: "test",
+      env: stubPaid,
+    });
+    ok(opened.ok, `Session für fehlendes ${step}`);
+    failSvCommitStepForTest(step);
+    let threw = false;
+    try {
+      await confirmPaidSession(opened.ok ? opened.sessionId : "", { env: stubPaid });
+    } catch {
+      threw = true;
+    }
+    ok(threw, `${step} antwortet nicht mit einem fertigen Kauf`);
+    failSvCommitStepForTest(null);
+    const before = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    const again = await confirmPaidSession(opened.ok ? opened.sessionId : "", { env: stubPaid });
+    const rows = (await listAllSvPurchases()).filter((row) => row.sessionId === (opened.ok ? opened.sessionId : "x"));
+    const after = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    ok(again.paid && rows.length === 1 && rows[0]?.id === purchaseIdForSession(opened.ok ? opened.sessionId : ""), `${step}: Retry ergibt eine Kaufzeile`);
+    ok(new Set(rows.map((row) => row.pdfPath)).size === 1, `${step}: ein PDF-Pfad`);
+    ok(after === before + 1, `${step}: die Zählung wird nachgeholt`);
+  }
   const race = await openSchnellversionCheckout({
     answers: sample(),
     unternehmer: true,
@@ -488,6 +515,9 @@ async function main() {
     "Diese Fassung gilt ab",
     "ältere Fassungen",
     "Keine Bereiche ausgenommen; Der Download",
+    "in die von der Kanzlei eingesetzte Software",
+    "in Excel-Listen bzw. manuelle Aufzeichnungen",
+    "täglich über Excel-Listen",
   ];
   const when = new Date("2026-11-17T10:00:00Z");
   for (const branche of SV_BRANCHEN) {
@@ -521,6 +551,12 @@ async function main() {
           }
           if (answers.software === "Excel / manuell" && plain.includes("Excel / manuell")) {
             ok(false, `${branche.id} lässt Excel / manuell im Fließtext`);
+          }
+          if (answers.software === "Excel / manuell" && !plain.includes("manuellen Aufzeichnungen")) {
+            ok(false, `${branche.id} ohne Dativ bei den Aufzeichnungen`);
+          }
+          if (answers.software === "Weiß ich nicht, macht die Kanzlei" && !plain.includes("eingesetzten Software")) {
+            ok(false, `${branche.id} ohne Dativ bei der Kanzlei-Software`);
           }
           if (bucht === "Unsere Steuerkanzlei" && !/datev/i.test(label)) {
             const chosen = countText(plain, label);

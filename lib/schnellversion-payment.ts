@@ -18,8 +18,7 @@ import { generateStandardPdf } from "@/lib/schnellversion-pdf";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "@/lib/schnellversion-draft";
 import { createSchnellversionTestSession } from "@/lib/schnellversion-checkout";
 import { getSvJson, putSvJson, svBlobEnabled, svPendingBlobPath, svPendingSessionBlobPath } from "@/lib/schnellversion-persist";
-import { claimSvSession, findSvPurchaseBySession, newDownloadToken, releaseSvSession, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
-import { rememberSvEvent } from "@/lib/schnellversion-store";
+import { claimSvSession, completeSvPurchase, newDownloadToken, releaseSvSession, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
 
 export type SvPending = {
   id: string;
@@ -257,7 +256,7 @@ function queueSession<T>(sessionId: string, run: () => Promise<T>): Promise<T> {
 
 async function waitForPurchase(sessionId: string): Promise<SvPurchase | null> {
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const found = await findSvPurchaseBySession(sessionId);
+    const found = await completeSvPurchase(sessionId);
     if (found) return found;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
@@ -287,7 +286,7 @@ async function confirmPaidSessionOnce(
 ): Promise<{ paid: false; confirming?: boolean } | { paid: true; purchase: SvPurchase }> {
   const env = proof?.env ?? process.env;
   if (requested.startsWith("stub_sv_") && !schnellversionStripeStub(env)) return { paid: false };
-  const existing = await findSvPurchaseBySession(requested);
+  const existing = await completeSvPurchase(requested);
   if (existing) return { paid: true, purchase: existing };
   const pending = await findPendingBySession(requested);
   if (!pending) return { paid: false };
@@ -322,7 +321,7 @@ async function confirmPaidSessionOnce(
       throw new Error("Kauf nicht gespeichert");
     }
     const pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
-    const purchase = await saveSvPurchase({
+    await saveSvPurchase({
       email: pending.email,
       company: pending.answers.firma,
       purchasedAt: pending.createdAt,
@@ -331,18 +330,9 @@ async function confirmPaidSessionOnce(
       sessionId: pending.sessionId,
       answersJson: JSON.stringify(pending.answers),
       downloadTokenHash: pending.downloadTokenHash,
-    });
-    if (pending.arm === "control" || pending.arm === "test") {
-      rememberSvEvent({
-        name: "sv_purchase",
-        arm: pending.arm,
-        variante: "b",
-        branche_vorlage: "",
-        value: 49,
-        step: 0,
-        ziel: "",
-      });
-    }
+    }, pending.arm);
+    const purchase = await completeSvPurchase(pending.sessionId);
+    if (!purchase) throw new Error("Kauf nicht vollständig gespeichert");
     if (pending.email && !automatedRunForbidsLiveWrites()) {
       const incoming = draftFromSchnellversion(pending.email, pending.answers);
       const stored = await loadIntakeDraft(incoming.draftKey);

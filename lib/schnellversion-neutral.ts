@@ -20,7 +20,10 @@ export function neutralizeStandardText(
   options: StandardNeutralOptions = {},
 ): string {
   let next = text;
+  next = next.replaceAll("in die Weiß ich nicht, macht die Kanzlei", "in der von der Kanzlei eingesetzten Software");
+  next = next.replaceAll("in Weiß ich nicht, macht die Kanzlei", "in der von der Kanzlei eingesetzten Software");
   next = next.replaceAll("Weiß ich nicht, macht die Kanzlei", "die von der Kanzlei eingesetzte Software");
+  next = next.replaceAll("in Excel / manuell", "in Excel-Listen bzw. manuellen Aufzeichnungen");
   next = next.replaceAll("Excel / manuell", "Excel-Listen bzw. manuelle Aufzeichnungen");
   next = next.replaceAll(
     "Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend",
@@ -103,9 +106,33 @@ export function neutralizeStandardText(
  * Die Buchhaltung im Text ist das gewählte Programm.
  * DATEV bleibt nur in Export- und Übergabeformeln an die Kanzlei.
  */
-export function applyChosenFibu(text: string, software: string): string {
+function fibuForms(software: string): { nom: string; inside: string; bank: string } | null {
   const name = software.trim();
-  if (!name || /datev/i.test(name)) return text;
+  if (!name || /datev/i.test(name)) return null;
+  if (name.startsWith("die von der Kanzlei")) {
+    return {
+      nom: "die von der Kanzlei eingesetzte Software",
+      inside: "in der von der Kanzlei eingesetzten Software",
+      bank: "Kontoumsätze werden aus den Kontoauszügen in die Buchhaltung der Kanzlei übernommen",
+    };
+  }
+  if (name.startsWith("Excel-Listen")) {
+    return {
+      nom: "Excel-Listen bzw. manuelle Aufzeichnungen",
+      inside: "in Excel-Listen bzw. manuellen Aufzeichnungen",
+      bank: "Kontoumsätze werden aus Kontoauszügen in die Buchhaltung übernommen",
+    };
+  }
+  return {
+    nom: name,
+    inside: `in ${name}`,
+    bank: `Kontoumsätze werden über ${name} in die Buchhaltung übernommen`,
+  };
+}
+
+export function applyChosenFibu(text: string, software: string): string {
+  const forms = fibuForms(software);
+  if (!forms) return text;
   const kept: string[] = [];
   const protect = /DATEV-(?:Export|Schnittstelle|Format|Upload)|DATEV Upload|per DATEV|an DATEV/g;
   let next = text.replace(protect, (match) => {
@@ -113,8 +140,18 @@ export function applyChosenFibu(text: string, software: string): string {
     kept.push(match);
     return token;
   });
-  next = next.replaceAll("DATEV Unternehmen online", name);
-  next = next.replaceAll("DATEV", name);
+  next = next.replaceAll("Kontoumsätze werden täglich über DATEV Bankdaten abgerufen", forms.bank);
+  next = next.replaceAll("unter Beleg-ID in DATEV Unternehmen online", `unter Beleg-ID ${forms.inside}`);
+  next = next.replaceAll("in DATEV Unternehmen online", forms.inside);
+  next = next.replaceAll("DATEV Lohn und Gehalt (Kanzlei)", "das Lohnprogramm der Kanzlei");
+  next = next.replaceAll("DATEV-intern", forms.nom.startsWith("Excel") ? "in den Aufzeichnungen" : "in der Software der Kanzlei");
+  next = next.replaceAll("DATEV-Rechenzentrum", "beim Betrieb");
+  next = next.replaceAll("in DATEV", forms.inside);
+  next = next.replaceAll("DATEV Unternehmen online", forms.nom);
+  next = next.replaceAll("DATEV", forms.nom);
+  next = next.replaceAll("in die die von der Kanzlei eingesetzte Software", "in der von der Kanzlei eingesetzten Software");
+  next = next.replaceAll("in die von der Kanzlei eingesetzte Software", "in der von der Kanzlei eingesetzten Software");
+  next = next.replaceAll("in Excel-Listen bzw. manuelle Aufzeichnungen", "in Excel-Listen bzw. manuellen Aufzeichnungen");
   for (let i = 0; i < kept.length; i += 1) next = next.replaceAll(`§§D${i}§§`, kept[i] ?? "");
   return next;
 }

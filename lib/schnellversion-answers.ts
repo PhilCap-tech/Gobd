@@ -259,10 +259,6 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
     answers = setCheckAntwort(answers, "kanzlei", "nein");
     answers = replaceToken(answers, "FiBu der Kanzlei und Belegablage", "Buchhaltung im Unternehmen");
     answers = replaceToken(answers, "Abrechnung durch: Kanzlei", "Abrechnung im Unternehmen");
-    if (!/datev/i.test(softwareProse(input))) {
-      answers = replaceToken(answers, "DATEV Unternehmen online", softwareProse(input));
-      answers = replaceToken(answers, "DATEV Lohn und Gehalt (Kanzlei)", "Lohn laut Betrieb");
-    }
   }
   const identity: CheckoutIdentity = {
     ...muster.identity,

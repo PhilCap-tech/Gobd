@@ -13,7 +13,12 @@ export async function GET(request: NextRequest): Promise<Response> {
   const url = new URL(request.url);
   const sessionId = url.searchParams.get("session_id")?.trim() ?? "";
   if (!sessionId) return Response.json({ state: "unpaid" });
-  const confirmed = await confirmPaidSession(sessionId);
+  let confirmed: Awaited<ReturnType<typeof confirmPaidSession>>;
+  try {
+    confirmed = await confirmPaidSession(sessionId);
+  } catch {
+    return Response.json({ state: "confirming" });
+  }
   if (!confirmed.paid) {
     return Response.json({ state: confirmed.confirming ? "confirming" : "unpaid" });
   }

@@ -5,7 +5,7 @@
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { storePdf } from "@/lib/blob";
@@ -42,6 +42,25 @@ export type SvPurchase = {
 
 const memory = new Map<string, SvPurchase[]>();
 const sessionClaims = new Set<string>();
+const committedPurchases = new Map<string, SvPurchase>();
+const committedIndex = new Map<string, string>();
+const committedEvents = new Set<string>();
+const commitFailures = new Set<"purchase" | "index" | "event">();
+
+export type SvCommitStep = "purchase" | "index" | "event";
+
+/** Nur der Check. Der nächste Schreibschritt wirft, ohne zu speichern. */
+export function failSvCommitStepForTest(step: SvCommitStep | null): void {
+  if (!step) {
+    commitFailures.clear();
+    return;
+  }
+  commitFailures.add(step);
+}
+
+export function purchaseIdForSession(sessionId: string): string {
+  return createHash("sha256").update(`sv49-purchase:${sessionId.trim()}`).digest("hex").slice(0, 32);
+}
 
 function emailKey(email: string): string {
   return email.trim().toLowerCase();
@@ -169,8 +188,8 @@ export async function saveSvPurchase(input: {
   sessionId: string;
   answersJson: string;
   downloadTokenHash: string;
-}): Promise<SvPurchase> {
-  const id = randomUUID();
+}, arm: "" | "control" | "test" = ""): Promise<SvPurchase> {
+  const id = purchaseIdForSession(input.sessionId);
   const pdfPath = await storePurchasePdf(id, input.pdf);
   const row: SvPurchase = {
     id,
@@ -187,14 +206,157 @@ export async function saveSvPurchase(input: {
     answersJson: input.answersJson,
     downloadTokenHash: input.downloadTokenHash,
   };
-  const key = row.email;
-  const next = [...(memory.get(key) ?? []), row];
-  memory.set(key, next);
-  const all = await readFileRows();
-  all.push(row);
-  await writeFileRows(all);
-  await persistPurchase(row);
+  await commitSvPurchase(row, arm);
   return row;
+}
+
+function rememberPurchase(row: SvPurchase): void {
+  const key = row.email;
+  const current = memory.get(key) ?? [];
+  memory.set(key, current.some((item) => item.id === row.id) ? current.map((item) => (item.id === row.id ? row : item)) : [...current, row]);
+}
+
+function fileWritesAllowed(): boolean {
+  return !automatedRunForbidsLiveWrites() && (process.env.VERCEL_ENV ?? "").trim() !== "production";
+}
+
+async function upsertFilePurchase(row: SvPurchase): Promise<void> {
+  if (!fileWritesAllowed()) {
+    committedPurchases.set(row.sessionId, row);
+    return;
+  }
+  const all = await readFileRows();
+  const index = all.findIndex((item) => item.id === row.id || item.sessionId === row.sessionId);
+  if (index >= 0) all[index] = row;
+  else all.push(row);
+  await writeFileRows(all);
+  committedPurchases.set(row.sessionId, row);
+}
+
+async function readDurablePurchase(sessionId: string): Promise<SvPurchase | null> {
+  const id = purchaseIdForSession(sessionId);
+  if (svBlobEnabled()) {
+    const { getSvJson, svPurchaseBlobPath } = await import("@/lib/schnellversion-persist");
+    const row = await getSvJson<SvPurchase>(svPurchaseBlobPath(id));
+    return row?.sessionId === sessionId ? row : null;
+  }
+  if (fileWritesAllowed()) {
+    return (await readFileRows()).find((item) => item.sessionId === sessionId) ?? null;
+  }
+  return committedPurchases.get(sessionId) ?? null;
+}
+
+function sessionIndexFile(): string {
+  return path.join(tmpdir(), "gobd-sv49-session-index.json");
+}
+
+function countedFile(): string {
+  return path.join(tmpdir(), "gobd-sv49-counted-49.json");
+}
+
+async function readJsonObject(file: string): Promise<Record<string, string>> {
+  try {
+    const parsed = JSON.parse(await readFile(file, "utf8")) as Record<string, string>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function writeJsonObject(file: string, value: Record<string, string>): Promise<void> {
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(value), "utf8");
+}
+
+async function writeSessionIndex(sessionId: string, purchaseId: string): Promise<void> {
+  if (commitFailures.has("index")) throw new Error("Session-Index nicht gespeichert");
+  if (svBlobEnabled()) {
+    const { putSvJson, svSessionBlobPath } = await import("@/lib/schnellversion-persist");
+    await putSvJson(svSessionBlobPath(sessionId), purchaseId, true);
+  } else if (fileWritesAllowed()) {
+    const all = await readJsonObject(sessionIndexFile());
+    all[sessionId] = purchaseId;
+    await writeJsonObject(sessionIndexFile(), all);
+  }
+  committedIndex.set(sessionId, purchaseId);
+}
+
+async function readSessionIndex(sessionId: string): Promise<string | null> {
+  if (svBlobEnabled()) {
+    const { getSvJson, svSessionBlobPath } = await import("@/lib/schnellversion-persist");
+    return (await getSvJson<string>(svSessionBlobPath(sessionId))) ?? null;
+  }
+  if (fileWritesAllowed()) return (await readJsonObject(sessionIndexFile()))[sessionId] ?? null;
+  return committedIndex.get(sessionId) ?? null;
+}
+
+async function eventIsDurable(sessionId: string): Promise<boolean> {
+  if (svBlobEnabled()) {
+    const { getSvJson } = await import("@/lib/schnellversion-persist");
+    return Boolean(await getSvJson(svCounted49Path(sessionId)));
+  }
+  if (fileWritesAllowed()) return Boolean((await readJsonObject(countedFile()))[sessionId]);
+  return committedEvents.has(sessionId);
+}
+
+async function markPurchaseCounted(sessionId: string, arm: "" | "control" | "test"): Promise<void> {
+  if (commitFailures.has("event")) throw new Error("Kaufzählung nicht gespeichert");
+  if (await eventIsDurable(sessionId)) {
+    committedEvents.add(sessionId);
+    return;
+  }
+  if (svBlobEnabled()) {
+    const { claimSvJson } = await import("@/lib/schnellversion-persist");
+    const claim = await claimSvJson(svCounted49Path(sessionId), { sessionId });
+    if (claim === "exists") {
+      committedEvents.add(sessionId);
+      return;
+    }
+  } else if (fileWritesAllowed()) {
+    const all = await readJsonObject(countedFile());
+    all[sessionId] = "1";
+    await writeJsonObject(countedFile(), all);
+  }
+  committedEvents.add(sessionId);
+  if (arm === "control" || arm === "test") {
+    const { rememberSvEvent } = await import("@/lib/schnellversion-store");
+    rememberSvEvent({
+      name: "sv_purchase",
+      arm,
+      variante: "b",
+      branche_vorlage: "",
+      value: 49,
+      step: 0,
+      ziel: "",
+    });
+  }
+}
+
+/** Zeile, Session-Index und Zählung. Erst danach gilt der Kauf. Der Speicher allein reicht nicht. */
+export async function commitSvPurchase(row: SvPurchase, arm: "" | "control" | "test"): Promise<void> {
+  if (commitFailures.has("purchase")) throw new Error("Kaufzeile nicht gespeichert");
+  if (svBlobEnabled()) {
+    const { putSvJson, svPurchaseBlobPath } = await import("@/lib/schnellversion-persist");
+    await putSvJson(svPurchaseBlobPath(row.id), row, true);
+  }
+  await upsertFilePurchase(row);
+  await writeSessionIndex(row.sessionId, row.id);
+  await markPurchaseCounted(row.sessionId, arm);
+  rememberPurchase(row);
+}
+
+/** Alle drei dauerhaften Teile, sonst null. */
+export async function completeSvPurchase(sessionId: string): Promise<SvPurchase | null> {
+  const row = await readDurablePurchase(sessionId);
+  if (!row) return null;
+  if ((await readSessionIndex(sessionId)) !== row.id) return null;
+  if (!(await eventIsDurable(sessionId))) return null;
+  committedEvents.add(sessionId);
+  return row;
+}
+
+function svCounted49Path(sessionId: string): string {
+  return `gobd/sv49/counted-49/${purchaseIdForSession(sessionId)}.json`;
 }
 
 /** Blob, wenn ein Token da ist. Sonst eine lokale Datei, auch im Check, nie der Produktions-Blob. */

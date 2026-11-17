@@ -24,7 +24,16 @@ export default async function SchnellversionDankePage({
   const params = await searchParams;
   const sessionId = (Array.isArray(params.session_id) ? params.session_id[0] : params.session_id)?.trim() ?? "";
   const token = (Array.isArray(params.dl) ? params.dl[0] : params.dl)?.trim() ?? "";
-  const confirmed = sessionId ? await confirmPaidSession(sessionId) : { paid: false as const };
+  let confirmed: Awaited<ReturnType<typeof confirmPaidSession>> | { paid: false; confirming: true } = {
+    paid: false,
+  };
+  if (sessionId) {
+    try {
+      confirmed = await confirmPaidSession(sessionId);
+    } catch {
+      confirmed = { paid: false, confirming: true };
+    }
+  }
   const email = (await getSessionEmail()) ?? "";
   const open = confirmed.paid && downloadStillOpen(confirmed.purchase, new Date());
   const allowed = confirmed.paid && svDownloadAllowed(confirmed.purchase, { email, token, now: new Date() });
