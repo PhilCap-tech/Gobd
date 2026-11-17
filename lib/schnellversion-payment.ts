@@ -18,7 +18,7 @@ import { generateStandardPdf } from "@/lib/schnellversion-pdf";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "@/lib/schnellversion-draft";
 import { createSchnellversionTestSession } from "@/lib/schnellversion-checkout";
 import { getSvJson, putSvJson, svBlobEnabled, svPendingBlobPath, svPendingSessionBlobPath } from "@/lib/schnellversion-persist";
-import { claimSvSession, findSvPurchaseBySession, newDownloadToken, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
+import { claimSvSession, findSvPurchaseBySession, newDownloadToken, releaseSvSession, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
 import { rememberSvEvent } from "@/lib/schnellversion-store";
 
 export type SvPending = {
@@ -265,10 +265,17 @@ async function waitForPurchase(sessionId: string): Promise<SvPurchase | null> {
 }
 
 /** Legt den Kauf erst an, wenn die gespeicherte Session bezahlt ist. Unbezahlt bleibt ohne Zeile und ohne PDF. */
+let failNextClaimedPurchase = false;
+
+/** Nur der Check. Der nächste bezahlte Claim wirft, bevor die Kaufzeile entsteht. */
+export function failNextClaimedPurchaseForTest(): void {
+  failNextClaimedPurchase = true;
+}
+
 export async function confirmPaidSession(
   sessionId: string,
   proof?: PaidProof,
-): Promise<{ paid: false } | { paid: true; purchase: SvPurchase }> {
+): Promise<{ paid: false; confirming?: boolean } | { paid: true; purchase: SvPurchase }> {
   const requested = sessionId.trim();
   if (!requested) return { paid: false };
   return queueSession(requested, () => confirmPaidSessionOnce(requested, proof));
@@ -277,7 +284,7 @@ export async function confirmPaidSession(
 async function confirmPaidSessionOnce(
   requested: string,
   proof?: PaidProof,
-): Promise<{ paid: false } | { paid: true; purchase: SvPurchase }> {
+): Promise<{ paid: false; confirming?: boolean } | { paid: true; purchase: SvPurchase }> {
   const env = proof?.env ?? process.env;
   if (requested.startsWith("stub_sv_") && !schnellversionStripeStub(env)) return { paid: false };
   const existing = await findSvPurchaseBySession(requested);
@@ -307,36 +314,45 @@ async function confirmPaidSessionOnce(
   const claim = await claimSvSession(requested);
   if (claim === "exists") {
     const winner = await waitForPurchase(requested);
-    return winner ? { paid: true, purchase: winner } : { paid: false };
+    return winner ? { paid: true, purchase: winner } : { paid: false, confirming: true };
   }
-  const pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
-  const purchase = await saveSvPurchase({
-    email: pending.email,
-    company: pending.answers.firma,
-    purchasedAt: pending.createdAt,
-    pdf,
-    consentAt: pending.consentAt,
-    sessionId: pending.sessionId,
-    answersJson: JSON.stringify(pending.answers),
-    downloadTokenHash: pending.downloadTokenHash,
-  });
-  if (pending.arm === "control" || pending.arm === "test") {
-    rememberSvEvent({
-      name: "sv_purchase",
-      arm: pending.arm,
-      variante: "b",
-      branche_vorlage: "",
-      value: 49,
-      step: 0,
-      ziel: "",
+  try {
+    if (failNextClaimedPurchase) {
+      failNextClaimedPurchase = false;
+      throw new Error("Kauf nicht gespeichert");
+    }
+    const pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
+    const purchase = await saveSvPurchase({
+      email: pending.email,
+      company: pending.answers.firma,
+      purchasedAt: pending.createdAt,
+      pdf,
+      consentAt: pending.consentAt,
+      sessionId: pending.sessionId,
+      answersJson: JSON.stringify(pending.answers),
+      downloadTokenHash: pending.downloadTokenHash,
     });
+    if (pending.arm === "control" || pending.arm === "test") {
+      rememberSvEvent({
+        name: "sv_purchase",
+        arm: pending.arm,
+        variante: "b",
+        branche_vorlage: "",
+        value: 49,
+        step: 0,
+        ziel: "",
+      });
+    }
+    if (pending.email && !automatedRunForbidsLiveWrites()) {
+      const incoming = draftFromSchnellversion(pending.email, pending.answers);
+      const stored = await loadIntakeDraft(incoming.draftKey);
+      await saveIntakeDraft(stored ? mergeEmptyDraftFields(stored, incoming) : incoming);
+    }
+    return { paid: true, purchase };
+  } catch (error) {
+    await releaseSvSession(requested);
+    throw error;
   }
-  if (pending.email && !automatedRunForbidsLiveWrites()) {
-    const incoming = draftFromSchnellversion(pending.email, pending.answers);
-    const stored = await loadIntakeDraft(incoming.draftKey);
-    await saveIntakeDraft(stored ? mergeEmptyDraftFields(stored, incoming) : incoming);
-  }
-  return { paid: true, purchase };
 }
 
 export function consentStamp(pending: SvPending): string {

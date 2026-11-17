@@ -20,6 +20,8 @@ export function neutralizeStandardText(
   options: StandardNeutralOptions = {},
 ): string {
   let next = text;
+  next = next.replaceAll("Weiß ich nicht, macht die Kanzlei", "die von der Kanzlei eingesetzte Software");
+  next = next.replaceAll("Excel / manuell", "Excel-Listen bzw. manuelle Aufzeichnungen");
   next = next.replaceAll(
     "Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend",
     `${SV_BASIS_SATZ} Erstellt am ${erstelltAm}.`,

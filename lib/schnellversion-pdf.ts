@@ -9,7 +9,7 @@ import {
   buildStandardAnswers,
   kanzleiBuchtAntwort,
   kasseHatKapitel,
-  softwareLabel,
+  softwareProse,
   vorlageLabel,
   type SchnellversionAnswers,
 } from "@/lib/schnellversion-answers";
@@ -36,7 +36,7 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
     closing: svClosingPage(bis),
     erstelltAm: datum,
     selfBooking: !kanzleiBuchtAntwort(input.bucht),
-    software: softwareLabel(input),
+    software: softwareProse(input),
   };
   if (input.kasse === "Unsicher") {
     frame.kasseHinweis = `[bitte prüfen] ${SV_KASSE_UNSICHER_HILFE}`;

@@ -188,7 +188,15 @@ export async function POST(request: Request) {
         if (session.metadata?.sv49 === "1") {
           if (paymentFromStatus(session.payment_status) === "paid") {
             const pendingId = session.metadata.sv_pending?.trim() ?? "";
-            await confirmPaidSession(session.id, { status: "paid", ...(pendingId ? { pendingId } : {}) });
+            try {
+              const stored = await confirmPaidSession(session.id, { status: "paid", ...(pendingId ? { pendingId } : {}) });
+              if (!stored.paid) {
+                return NextResponse.json({ error: "Kauf nicht gespeichert" }, { status: 503 });
+              }
+            } catch (error) {
+              console.error("[webhook] Schnellversion", error instanceof Error ? error.name : "error");
+              return NextResponse.json({ error: "Kauf nicht gespeichert" }, { status: 503 });
+            }
           }
           return NextResponse.json({ received: true });
         }

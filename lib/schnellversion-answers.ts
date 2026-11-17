@@ -126,6 +126,19 @@ export function softwareLabel(answers: Pick<SchnellversionAnswers, "software" | 
   return answers.software;
 }
 
+/** Kein Programmname: die Antwort nennt kein konkretes System. */
+export function statedFibu(answers: Pick<SchnellversionAnswers, "software" | "softwareFrei">): string | null {
+  if (answers.software === "Weiß ich nicht, macht die Kanzlei") return null;
+  return softwareLabel(answers);
+}
+
+/** Fließtext. Die Rohantwort „Weiß ich nicht …“ und „Excel / manuell“ stehen so nicht im PDF. */
+export function softwareProse(answers: Pick<SchnellversionAnswers, "software" | "softwareFrei">): string {
+  if (answers.software === "Weiß ich nicht, macht die Kanzlei") return "die von der Kanzlei eingesetzte Software";
+  if (answers.software === "Excel / manuell") return "Excel-Listen bzw. manuelle Aufzeichnungen";
+  return softwareLabel(answers);
+}
+
 export function kasseHatKapitel(kasse: SchnellversionAnswers["kasse"]): boolean {
   return kasse !== "Nein, keine Bargeldeinnahmen";
 }
@@ -174,7 +187,8 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
   answers.rechtsform = input.rechtsform;
   answers.mitarbeitende = input.mitarbeitende;
   answers.branchen = [brancheLabel(input.branche)];
-  answers.fibu = [softwareLabel(input)];
+  const program = statedFibu(input);
+  answers.fibu = program ? [program] : [];
   const a01 = answers.katalog?.A01;
   if (a01) {
     answers.katalog = {
@@ -202,9 +216,9 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
       first && typeof first === "object"
         ? {
             ...(first as Record<string, unknown>),
-            name: softwareLabel(input),
+            name: program ?? "die von der Kanzlei eingesetzte Software",
             funktion: self ? "Buchhaltung im Unternehmen" : "Buchhaltung der Kanzlei",
-            originalOrt: softwareLabel(input),
+            originalOrt: program ?? "die von der Kanzlei eingesetzte Software",
             nutzer: "[bitte prüfen]",
           }
         : first;
@@ -245,8 +259,8 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
     answers = setCheckAntwort(answers, "kanzlei", "nein");
     answers = replaceToken(answers, "FiBu der Kanzlei und Belegablage", "Buchhaltung im Unternehmen");
     answers = replaceToken(answers, "Abrechnung durch: Kanzlei", "Abrechnung im Unternehmen");
-    if (softwareLabel(input) !== "DATEV") {
-      answers = replaceToken(answers, "DATEV Unternehmen online", softwareLabel(input));
+    if (!/datev/i.test(softwareProse(input))) {
+      answers = replaceToken(answers, "DATEV Unternehmen online", softwareProse(input));
       answers = replaceToken(answers, "DATEV Lohn und Gehalt (Kanzlei)", "Lohn laut Betrieb");
     }
   }

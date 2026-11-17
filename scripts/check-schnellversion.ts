@@ -15,7 +15,8 @@ import { schnellversionCheckoutMetadata } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
   kasseCheckAntwort,
-  softwareLabel,
+  softwareProse,
+  statedFibu,
   SV_BRANCHEN,
   SV_BUCHT,
   SV_KASSE,
@@ -26,7 +27,7 @@ import {
 import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
 import { svDownloadStillOpen, SV_COVER_TITLE } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
-import { confirmPaidSession, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
+import { confirmPaidSession, failNextClaimedPurchaseForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
 import { readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
@@ -393,6 +394,54 @@ async function main() {
   ok(contradictory.answers.katalog?.F05?.values?.kanzleiBeteiligt !== "ja", "Kanzlei Nein bleibt ohne Beteiligung");
   ok(!contradictory.answers.fibu?.includes("DATEV"), "Lexware Eigen setzt FiBu nicht auf DATEV");
   ok(contradictory.answers.katalog?.A01?.values?.company !== "Kauf GmbH", "ohne Firma bleibt das Feld leer");
+  const unclear = draftFromSchnellversion("unklar@example.com", sample());
+  if (unclear.answers.module) {
+    unclear.answers.module = {
+      ...unclear.answers.module,
+      check: { ...unclear.answers.module.check, kanzlei: "unbekannt" },
+    };
+  }
+  unclear.answers.steuerberater = "";
+  if (unclear.answers.katalog?.F05) {
+    const katalog = { ...unclear.answers.katalog };
+    delete katalog.F05;
+    unclear.answers.katalog = katalog;
+  }
+  const unclearMerged = mergeEmptyDraftFields(
+    unclear,
+    draftFromSchnellversion("unklar@example.com", sample({
+      software: "Weiß ich nicht, macht die Kanzlei",
+      bucht: "Unsere Steuerkanzlei",
+      kasse: "Unsicher",
+    })),
+  );
+  ok(unclearMerged.answers.module?.check?.kanzlei === "unbekannt", "Kanzlei unbekannt bleibt unbekannt");
+  ok(unclearMerged.answers.steuerberater !== "Steuerkanzlei", "unbekannt setzt keinen Steuerberater");
+  ok(unclearMerged.answers.katalog?.F05?.values?.kanzleiBeteiligt !== "ja", "unbekannt setzt keine Kanzlei-Beteiligung");
+  ok(!unclearMerged.answers.fibu?.includes("Weiß ich nicht, macht die Kanzlei"), "Unklarheit landet nicht in der FiBu");
+  ok(!JSON.stringify(unclearMerged.answers.katalog?.B01 ?? {}).includes("Weiß ich nicht, macht die Kanzlei"), "Unklarheit landet nicht in B01");
+  ok(statedFibu(sample({ software: "Weiß ich nicht, macht die Kanzlei" })) === null, "Unklarheit ist kein Programm");
+  const broken = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    email: "abbruch@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(broken.ok, "Session für den Abbruch nach der Sperre");
+  failNextClaimedPurchaseForTest();
+  let failed = false;
+  try {
+    await confirmPaidSession(broken.ok ? broken.sessionId : "", { env: stubPaid });
+  } catch {
+    failed = true;
+  }
+  ok(failed, "Fehler nach der Sperre bricht den Kauf ab");
+  ok((await listAllSvPurchases()).filter((row) => row.sessionId === (broken.ok ? broken.sessionId : "x")).length === 0, "nach dem Fehler liegt kein Kauf");
+  const repaired = await confirmPaidSession(broken.ok ? broken.sessionId : "", { env: stubPaid });
+  const repairedRows = (await listAllSvPurchases()).filter((row) => row.sessionId === (broken.ok ? broken.sessionId : "x"));
+  ok(repaired.paid && repairedRows.length === 1, "erneute Zustellung legt genau einen Kauf an");
   const race = await openSchnellversionCheckout({
     answers: sample(),
     unternehmer: true,
@@ -448,7 +497,7 @@ async function main() {
           if (software === "Sonstiges") continue;
           const answers = sample({ branche: branche.id, kasse, bucht, software, softwareFrei: "" });
           const plain = standardPlainText(answers, when);
-          const label = softwareLabel(answers);
+          const label = softwareProse(answers);
           const ausgeschlossen = coverField(plain, "Ausgeschlossen");
           const geltung = coverField(plain, "Geltungsbereich");
           if (ausgeschlossen !== "Keine Bereiche ausgenommen.") {
@@ -459,6 +508,19 @@ async function main() {
           }
           for (const forbidden of alwaysForbidden) {
             if (plain.includes(forbidden)) ok(false, `${branche.id} ${software} enthält ${forbidden}`);
+          }
+          if (answers.software === "Weiß ich nicht, macht die Kanzlei") {
+            if (plain.includes("Weiß ich nicht, macht die Kanzlei")) {
+              ok(false, `${branche.id} nennt die Unklarheit als Programm`);
+            }
+            const built = buildStandardAnswers(answers);
+            if (built.answers.fibu?.length) ok(false, `${branche.id} schreibt die Unklarheit in die FiBu`);
+            if (JSON.stringify(built.answers.katalog?.B01 ?? {}).includes("Weiß ich nicht, macht die Kanzlei")) {
+              ok(false, `${branche.id} schreibt die Unklarheit in B01`);
+            }
+          }
+          if (answers.software === "Excel / manuell" && plain.includes("Excel / manuell")) {
+            ok(false, `${branche.id} lässt Excel / manuell im Fließtext`);
           }
           if (bucht === "Unsere Steuerkanzlei" && !/datev/i.test(label)) {
             const chosen = countText(plain, label);

@@ -7,7 +7,7 @@ import {
   brancheLabel,
   kanzleiBuchtAntwort,
   kasseCheckAntwort,
-  softwareLabel,
+  statedFibu,
   vorlageForBranche,
   type SchnellversionAnswers,
 } from "@/lib/schnellversion-answers";
@@ -21,7 +21,8 @@ export function draftFromSchnellversion(email: string, input: SchnellversionAnsw
   answers.branchen = [brancheLabel(input.branche)];
   answers.rechtsform = input.rechtsform;
   answers.mitarbeitende = input.mitarbeitende;
-  answers.fibu = [softwareLabel(input)];
+  const program = statedFibu(input);
+  answers.fibu = program ? [program] : [];
   answers.steuerberater = kanzleiBuchtAntwort(input.bucht) ? "Steuerkanzlei" : "";
   answers = setCheckAntwort(answers, "bargeld", kasseCheckAntwort(input.kasse));
   answers = setCheckAntwort(answers, "kanzlei", kanzleiBuchtAntwort(input.bucht) ? "ja" : "nein");
@@ -31,7 +32,7 @@ export function draftFromSchnellversion(email: string, input: SchnellversionAnsw
       ...answers,
       module: {
         ...moduleState,
-        stammdaten: { ...moduleState.stammdaten, fibu: softwareLabel(input) },
+        stammdaten: { ...moduleState.stammdaten, fibu: program ?? "" },
       },
     };
   }
@@ -48,13 +49,15 @@ export function draftFromSchnellversion(email: string, input: SchnellversionAnsw
     B01: {
       status: "bestaetigt",
       values: {
-        systeme: [
-          {
-            name: softwareLabel(input),
-            funktion: kanzleiBuchtAntwort(input.bucht) ? "Buchhaltung der Kanzlei" : "Buchhaltung im Unternehmen",
-            typ: "fibu",
-          },
-        ],
+        systeme: program
+          ? [
+              {
+                name: program,
+                funktion: kanzleiBuchtAntwort(input.bucht) ? "Buchhaltung der Kanzlei" : "Buchhaltung im Unternehmen",
+                typ: "fibu",
+              },
+            ]
+          : [],
       },
     },
     F05: {
@@ -99,7 +102,8 @@ export function mergeEmptyDraftFields(existing: IntakeDraft, incoming: IntakeDra
   if (blank(answers.mitarbeitende)) answers.mitarbeitende = add.mitarbeitende;
   const knownFibu = knownFibuValue(answers);
   if (!knownFibu && blank(answers.fibu)) answers.fibu = add.fibu;
-  if (answers.module?.check?.kanzlei !== "nein" && blank(answers.steuerberater)) {
+  const kanzleiStand = answers.module?.check?.kanzlei;
+  if (kanzleiStand !== "nein" && kanzleiStand !== "unbekannt" && blank(answers.steuerberater)) {
     answers.steuerberater = add.steuerberater;
   }
   const currentModule: ModulZustand = answers.module
@@ -123,7 +127,7 @@ export function mergeEmptyDraftFields(existing: IntakeDraft, incoming: IntakeDra
   for (const [id, question] of Object.entries(add.katalog ?? {})) {
     const current = katalog[id];
     if (!current) {
-      if (id === "F05" && existing.answers.module?.check?.kanzlei === "nein") continue;
+      if (id === "F05" && (existing.answers.module?.check?.kanzlei === "nein" || existing.answers.module?.check?.kanzlei === "unbekannt")) continue;
       if (id === "A01" && !blank(existing.answers.gf) && blank(existing.answers.katalog?.A01?.values?.company)) continue;
       katalog[id] = question;
       continue;
@@ -138,7 +142,7 @@ export function mergeEmptyDraftFields(existing: IntakeDraft, incoming: IntakeDra
     if (id === "A01" && blank(existing.answers.katalog?.A01?.values?.company) && !blank(existing.answers.gf)) {
       continue;
     }
-    if (id === "F05" && existing.answers.module?.check?.kanzlei === "nein") continue;
+    if (id === "F05" && (existing.answers.module?.check?.kanzlei === "nein" || existing.answers.module?.check?.kanzlei === "unbekannt")) continue;
     if (filled) katalog[id] = { ...current, values };
   }
   answers.katalog = katalog;

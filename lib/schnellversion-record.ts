@@ -112,6 +112,11 @@ export async function listSvPurchases(email: string): Promise<SvPurchase[]> {
   return [...byId.values()];
 }
 
+function sessionClaimFile(sessionId: string): string {
+  const safe = sessionId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180);
+  return path.join(tmpdir(), "gobd-sv49-claims", `${safe}.lock`);
+}
+
 /** Eine Session darf nur eine Kaufzeile anlegen. Blob: Create-only. Lokal: exklusive Datei. */
 export async function claimSvSession(sessionId: string): Promise<"created" | "exists"> {
   const id = sessionId.trim();
@@ -121,17 +126,37 @@ export async function claimSvSession(sessionId: string): Promise<"created" | "ex
     return claimSvJson(svSessionClaimPath(id), { sessionId: id });
   }
   if (sessionClaims.has(id)) return "exists";
-  sessionClaims.add(id);
-  if (automatedRunForbidsLiveWrites() || (process.env.VERCEL_ENV ?? "").trim() === "production") return "created";
-  const file = path.join(tmpdir(), "gobd-sv49-claims", `${id.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180)}.lock`);
+  if (automatedRunForbidsLiveWrites() || (process.env.VERCEL_ENV ?? "").trim() === "production") {
+    sessionClaims.add(id);
+    return "created";
+  }
   try {
-    await mkdir(path.dirname(file), { recursive: true });
-    await writeFile(file, id, { flag: "wx" });
+    await mkdir(path.dirname(sessionClaimFile(id)), { recursive: true });
+    await writeFile(sessionClaimFile(id), id, { flag: "wx" });
+    sessionClaims.add(id);
     return "created";
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "EEXIST") return "exists";
+    sessionClaims.add(id);
     return "created";
+  }
+}
+
+/** Nach einem Fehler zwischen Claim und Kauf, damit die nächste Zustellung neu anlegen kann. */
+export async function releaseSvSession(sessionId: string): Promise<void> {
+  const id = sessionId.trim();
+  if (!id) return;
+  sessionClaims.delete(id);
+  if (svBlobEnabled()) {
+    const { deleteSvJson, svSessionClaimPath } = await import("@/lib/schnellversion-persist");
+    await deleteSvJson(svSessionClaimPath(id));
+  }
+  try {
+    const { unlink } = await import("node:fs/promises");
+    await unlink(sessionClaimFile(id));
+  } catch {
+    /* Datei fehlte bereits */
   }
 }
 

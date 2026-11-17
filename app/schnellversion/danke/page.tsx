@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SchnellversionDankeWarten } from "@/components/schnellversion-danke-warten";
 import { SchnellversionShell } from "@/components/schnellversion-shell";
 import { notFound } from "next/navigation";
 import { getSessionEmail } from "@/lib/auth";
@@ -34,7 +35,9 @@ export default async function SchnellversionDankePage({
   return (
     <SchnellversionShell>
       <main className="shell" style={{ maxWidth: 720, margin: "28px auto 48px" }}>
-        {allowed && pdfHref ? (
+        {!confirmed.paid && confirmed.confirming ? (
+          <SchnellversionDankeWarten sessionId={sessionId} token={token} />
+        ) : allowed && pdfHref ? (
           <>
             <h1>Ihre Standardfassung steht zum Download bereit.</h1>
             <p>
