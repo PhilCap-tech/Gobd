@@ -4,12 +4,15 @@
  * Usage: npx tsx scripts/check-muster-felder.ts
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { prefixFieldLabel } from "@/lib/bereich-chapter";
 import { renderGesamtChapters } from "@/lib/gesamt-document";
 import { capitalizeSentenceStart } from "@/lib/satzanfang";
 import { NEUE_GRUPPEN } from "@/lib/module/fragen";
+import { MODULE, modulFragen } from "@/lib/module/katalog";
 import { AF01_ZUORDNUNG } from "@/lib/module/status";
 import { getGesamtMuster, MUSTER_VORLAGEN } from "@/lib/module-muster";
+import { MUSTER_FIRMEN } from "@/lib/module-muster-dense";
 import { evaluateOpenPoints } from "@/lib/open-points";
 import type { IntakeAnswers } from "@/lib/types";
 
@@ -125,7 +128,12 @@ export const MUSTER_INHALT: ReadonlyArray<{ id: string; frage: RegExp; antwort: 
   { id: "SN05", frage: /Notfall/i, antwort: /Kontakt|Rolle|Stelle/i },
   { id: "AE05", frage: /geänderte Arbeitsweise/i, antwort: /Ablaufänderung/i },
   { id: "PZ02", frage: /Auswertungen nach Vorgabe/i, antwort: /Auswertung/i },
+  { id: "BS06", frage: /steuerlich/i, antwort: /steuerlich|§ 13b|Steuersätz|umsatzsteuerlichen Pflichten/i },
   { id: "BS07", frage: /Buchhaltung/i, antwort: /Export|DATEV/i },
+  { id: "ZR05", frage: /protokolliert/i, antwort: /bei Bedarf/i },
+  { id: "BU05", frage: /Umsatzsteuer-Voranmeldung/i, antwort: /Umsatzsteuer-Voranmeldung/i },
+  { id: "BU07", frage: /Kanzlei übergeben/i, antwort: /DATEV Unternehmen online/i },
+  { id: "KF02", frage: /Richtigkeit/i, antwort: /Vier-Augen-Freigabe/i },
 ];
 
 export function musterInhaltPasst(id: string, prompt: string, antwort: string): string | null {
@@ -142,7 +150,110 @@ const falschZugeordnet = musterInhaltPasst(
   "Korrektur über Storno oder Neubuchung mit Beleg.",
 );
 if (!falschZugeordnet) fail("Negativtest: falsch zugeordnete Kontrollantwort wurde nicht erkannt");
+const falschBs06 = musterInhaltPasst(
+  "BS06",
+  "Gibt es besondere steuerliche Regeln, die im Ablauf beachtet werden?",
+  "Summen des Vorsystems gegen FiBu-Erlöse bzw. Bestände durch die Buchhaltung.",
+);
+if (!falschBs06) fail("Negativtest: Abstimmungstext auf BS06 wurde nicht erkannt");
 console.log("negativ Musterinhalt: rot — Antwort passt nicht zur Frage");
+
+/** „Entfällt im Muster“ ist keine sachliche Begründung. */
+export function entfaelltImMuster(text: string): boolean {
+  return text.includes("Entfällt im Muster");
+}
+
+if (!entfaelltImMuster("Umsatzsteuer-Voranmeldung: entfällt. Grund: Entfällt im Muster.")) {
+  fail("Negativtest: „Entfällt im Muster“ wurde nicht erkannt");
+}
+if (entfaelltImMuster("Keine Kasse und kein Bargeldverkehr.")) {
+  fail("Negativtest: sachlicher Entfällt-Grund wurde als Musterplatzhalter gemeldet");
+}
+console.log("negativ Entfällt im Muster: rot");
+
+type Zuordnungszeile = { vorlage: string; id: string; antwort: string; urteil: string };
+
+/** Prüfer-Tabelle: eine Zeile je bestätigter Frage des Stands 508e364. */
+export function parseZuordnung(markdown: string): Zuordnungszeile[] {
+  const zeilen: Zuordnungszeile[] = [];
+  for (const line of markdown.split("\n")) {
+    if (!line.startsWith("| ")) continue;
+    const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
+    if (cells.length < 5 || cells[0] === "Muster" || cells[0] === "---") continue;
+    zeilen.push({ vorlage: cells[0] ?? "", id: cells[1] ?? "", antwort: cells[3] ?? "", urteil: cells[4] ?? "" });
+  }
+  return zeilen;
+}
+
+const ZUORDNUNG = parseZuordnung(readFileSync("scripts/fixtures/muster-zuordnung.md", "utf8"));
+const ZUORDNUNG_IDS = new Set(ZUORDNUNG.map((zeile) => zeile.id));
+if (ZUORDNUNG.length < 1000 || ZUORDNUNG_IDS.size < 200) {
+  fail(`Zuordnungstabelle deckt zu wenig ab (${ZUORDNUNG.length} Zeilen, ${ZUORDNUNG_IDS.size} IDs)`);
+}
+
+const PERSONEN = [
+  ...Object.values(MUSTER_FIRMEN).flatMap((firma) => [firma.gf, firma.buchhaltung]),
+  "Nora Klar", "Felix Hahn", "Murat Aydin", "Eva Lindner", "Thomas Brück", "Martin Eichenblatt", "Sabine Krämer",
+  "Tobias Lang", "Kai Laufer", "Miriam Ost", "Sandra Linde", "Oliver Pfeiffer", "Ute Sommer", "Robert Funke",
+  "Ines Wolf", "Lea Bohn", "Jana Hellweg", "Paul Richter", "Lukas Berger", "Hannes Papke", "Birgit Kranz",
+  "Clara Sonnenkorn", "Jonas Weber", "Mia Kern", "Tim Kern",
+];
+
+const TOKEN_STOP = new Set([
+  "Geschäftsführung", "Buchhaltung", "Partnerin", "Partner", "Teamleitung", "Produktionsleitung",
+  "Schichtleitung", "Einkaufsleitung", "Projektleitung", "Geschäftsführerin", "Verantwortlich", "Vertretung",
+]);
+
+function kerntoken(antwort: string): string | null {
+  let text = antwort.split(" / ").map((part) => part.split("=").slice(1).join("=")).join(" ");
+  for (const name of [...PERSONEN].sort((a, b) => b.length - a.length)) text = text.replaceAll(name, " ");
+  const words = text.split(/[^A-Za-zÄÖÜäöüß0-9-]+/u).filter((word) => word.length >= 10 && !TOKEN_STOP.has(word));
+  return words.sort((a, b) => b.length - a.length)[0] ?? null;
+}
+
+/** IDs, deren Inhalt in dieser Runde bewusst vom Prüferstand abweicht. */
+const NEU_ERWARTUNG: Record<string, RegExp> = {
+  BS06: /steuerlich|§ 13b|Steuersätz|umsatzsteuerlichen Pflichten/i,
+  ZR05: /bei Bedarf/i,
+  BU05: /Umsatzsteuer-Voranmeldung/i,
+  BU07: /Belege laufend über DATEV Unternehmen online/i,
+  ZR02: /technische Einrichtung durch/i,
+  KF02: /Vier-Augen-Freigabe von Zahlungen und Storni/i,
+  LE04: /Wiederkehrende Leistungen/i,
+  ER05: /PDF-Rechnungen/i,
+  ER06: /Original bleibt unverändert/i,
+  PB06: /Smartphone/i,
+  AW06: /E-Mails mit Rechnung/i,
+  SY01: /Kassensystem|Onlineshop|Projektsoftware|Zeiterfassung|Rechnungssoftware/i,
+  SY05: /Programmstände/i,
+  SY06: /Systemliste/i,
+  SN02: /Systemausfall/i,
+  AU06: /Aufbewahrungsfrist/i,
+  PZ05: /Export wurde geöffnet/i,
+  PZ07: /Summen- und Saldenliste/i,
+  AE04: /gibt frei/i,
+  PF02: /meldet geänderte Abläufe/i,
+  EK01: /gemeldeten Bedarfen/i,
+  EC90: /Keine weiteren Verkaufswege/i,
+  AN09: /Leasing für Fahrzeuge/i,
+  KA90: /Alle Kassen am Standort/i,
+  SV00: /[A-ZÄÖÜ][a-zäöüß]+ [A-ZÄÖÜ]/,
+  SV01: /Kassensystem|Projektsoftware/i,
+  SV02: /Schichtleitung|Projektleitung/i,
+  SV03: /Umsätze, Zahlarten|Aufmaß, Stunden/i,
+  SV04: /Tagesabschluss|Aufmaß/i,
+  SV05: /Artikel und Preise|Leistungsverzeichnis/i,
+  SV06: /DATEV/i,
+  SV07: /Z-Bon|Projektauswertung/i,
+  SV08: /DATEV|NAS/i,
+  SV09: /ja/i,
+  SV10: /Systemwechsel ist nicht vorgesehen/i,
+  SV91: /DATEV Unternehmen online/i,
+  SV92: /gleicht/i,
+  BS05: /Z-Bon|Schlussrechnungen/i,
+  BS08: /Z-Bons|Projektunterlagen|Branchensoftware/i,
+  PZ03: /DATEV-Export/i,
+};
 
 const ZD04_ABLAUF =
   "Zahlungseingänge und -ausgänge werden über den Bankabruf den offenen Posten zugeordnet; nicht zuordenbare Zahlungen und Differenzen klärt ";
@@ -179,6 +290,42 @@ for (const vorlage of MUSTER_VORLAGEN) {
   if (mustertext.includes("Intake")) fail(`${vorlage}: „Intake“ im Kunden-PDF`);
   if (mustertext.includes("Muss ich klären") || mustertext.includes("So läuft es heute")) {
     fail(`${vorlage}: Fragebogen-Status statt PDF-Label`);
+  }
+  if (entfaelltImMuster(mustertext)) fail(`${vorlage}: „Entfällt im Muster“ im Text`);
+  const nochFestzulegen = (mustertext.match(/Noch festzulegen/g) ?? []).length;
+  if (nochFestzulegen > 5) fail(`${vorlage}: „Noch festzulegen“ steht ${nochFestzulegen} Mal`);
+  for (const fremd of ["Sichtbeispiel", "Betriebs-Check", "Nora Klar", "Jana Hellweg", "Clara Sonnenkorn", "Robert Funke", "Digitaldruckmaschine", "Wochenmärkten", "Produktionsleitung", "Partnerin"]) {
+    if (mustertext.includes(fremd)) fail(`${vorlage}: „${fremd}“ im Muster`);
+  }
+  const firma = MUSTER_FIRMEN[vorlage];
+  const auswertung = String(muster.answers.katalog?.ZR05?.values?.auswertung ?? "");
+  if (!auswertung.includes(firma.gf)) fail(`${vorlage}: ZR05 nennt ${firma.gf} nicht`);
+  if (muster.answers.katalog?.BU05?.status !== "bestaetigt") fail(`${vorlage}: BU05 ist nicht bestätigt`);
+  const gesehen = new Set<string>();
+  for (const modul of MODULE) {
+    if (muster.answers.module?.status?.[modul.id]?.status !== "tool") continue;
+    for (const question of modulFragen(modul)) {
+      const entry = muster.answers.katalog?.[question.id];
+      if (entry?.status !== "bestaetigt") continue;
+      gesehen.add(question.id);
+      const text = Object.values(entry.values ?? {}).map((item) => String(item)).join(" ");
+      const neu = NEU_ERWARTUNG[question.id];
+      if (neu) {
+        if (!neu.test(text)) fail(`${vorlage}: ${question.id} trifft die neue Erwartung nicht`);
+        continue;
+      }
+      if (!ZUORDNUNG_IDS.has(question.id)) fail(`${vorlage}: ${question.id} ohne Erwartung in der Zuordnungstabelle`);
+      const zeile =
+        ZUORDNUNG.find((item) => item.vorlage === vorlage && item.id === question.id && item.urteil === "ok") ??
+        ZUORDNUNG.find((item) => item.id === question.id && item.urteil === "ok");
+      const token = zeile ? kerntoken(zeile.antwort) : null;
+      if (token && !text.toLocaleLowerCase("de").includes(token.toLocaleLowerCase("de"))) {
+        fail(`${vorlage}: ${question.id} enthält „${token}“ aus der Zuordnung nicht`);
+      }
+    }
+  }
+  if (gesehen.size < ZUORDNUNG_IDS.size / 5) {
+    fail(`${vorlage}: nur ${gesehen.size} bestätigte Fragen, die Prüfliste hat ${ZUORDNUNG_IDS.size} IDs`);
   }
   for (const rule of MUSTER_INHALT) {
     const question = NEUE_GRUPPEN.flatMap((gruppe) => gruppe.questions).find((item) => item.id === rule.id);

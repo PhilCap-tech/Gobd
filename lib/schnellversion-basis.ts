@@ -111,7 +111,8 @@ export function mitKassenNotverfahren(body: string, chapterId: string, kasse: st
         "| Bedienungsanleitungen, Programmier- und Änderungsprotokolle des Kassensystems |",
         "| Bei elektronischem System: Bedienungsanleitungen, Programmier- und Änderungsprotokolle des Kassensystems |",
       )
-      .replaceAll("**TSE und Mitteilung:**", "Bei elektronischem System: **TSE und Mitteilung:**");
+      .replaceAll("**TSE und Mitteilung:**", "Bei elektronischem System: **TSE und Mitteilung:**")
+      .replaceAll("| TSE und Mitteilung |", "| Bei elektronischem System: TSE und Mitteilung |");
     next = next.replace(/\n+Bei offener Ladenkasse zusätzlich aufbewahren:[\s\S]*?(?=\n## |\n# |$)/g, "\n");
     if (!next.includes("Bei offener Ladenkasse zusätzlich aufbewahren:")) {
       next = nachAufbewahrung(next, OFFENE_KASSE_FRIST);

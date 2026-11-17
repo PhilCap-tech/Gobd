@@ -1355,7 +1355,7 @@ const LOHN = defineBereich({
     { unterlage: "Lohnjournale und Lohnbuchungslisten (Aufzeichnungen der Lohnbuchhaltung)", frist: "10 Jahre", grundlage: "§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO" },
     { unterlage: "Lohn- und Gehaltsabrechnungen sowie Zahlungslisten und weitere Belege zur Lohnbuchung", frist: "8 Jahre", grundlage: "§ 147 Abs. 1 Nr. 4, Abs. 3 Satz 1 AO" },
     { unterlage: "Entgeltunterlagen für die Sozialversicherung", frist: "bis zum Ablauf des Kalenderjahres, das auf die letzte Prüfung durch den Rentenversicherungsträger folgt", grundlage: "§ 28f Abs. 1 Satz 1 SGB IV" },
-    FRIST_BELEG("Belege zu Reisekosten und steuerfreien Erstattungen"),
+    { unterlage: "Belege zu Reisekosten und steuerfreien Erstattungen", frist: "8 Jahre", grundlage: "§ 147 Abs. 1 Nr. 4, Abs. 3 Satz 1 AO" },
   ],
   begriffe: [
     ["Lohnkonto", "Für jeden Arbeitnehmer zu führende Aufzeichnung der Lohnzahlungen und Abzüge (§ 41 EStG)"],

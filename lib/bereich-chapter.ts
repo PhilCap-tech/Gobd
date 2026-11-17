@@ -193,11 +193,15 @@ export function bereichQuestionLines(
   const title = options.title ?? question.title;
   const head = `**${title}:**`;
   if (status === "bestaetigt") {
-    const parts = question.fields
-      .filter((field) => !options.skip?.includes(field.key))
+    const visible = question.fields.filter((field) => !options.skip?.includes(field.key));
+    const parts = visible
       .map((field) => {
         const value = inline(shown(field, entry?.values?.[field.key]));
-        return value ? prefixFieldLabel(field.label, value, title) : "";
+        if (!value) return "";
+        const name = sentenceLabel(field.label);
+        const head = sentenceLabel(title);
+        if (visible.length === 1 && name && head.endsWith(` ${name}`)) return value;
+        return prefixFieldLabel(field.label, value, title);
       })
       .filter(Boolean);
     if (!parts.length) return [`${head} bestätigt, ohne nähere Angabe.`];

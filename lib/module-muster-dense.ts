@@ -4,7 +4,7 @@
  * GoBD-Rz. nur wo im Produkt bereits sicher verwendet (151–154).
  */
 import { bereichMuster } from "@/lib/bereich-muster";
-import { MODULE, modulFragen } from "@/lib/module/katalog";
+import { MODULE } from "@/lib/module/katalog";
 import {
   AF01_ZUORDNUNG,
   ensureGesamt,
@@ -102,12 +102,12 @@ export const MUSTER_FIRMEN: Record<MusterDenseId, DenseFirma> = {
 export const VORLAGE_BEREICHE: Record<MusterDenseId, string[]> = {
   // Dienstleister: kein Bargeld/Lager/Shop — dafür Personal, Projekte, E-Rechnung, Kanzlei.
   dienstleister: ["verkauf", "einkauf", "bank", "anlagen", "lohn", "zeiterfassung"],
-  handel: ["kasse", "warenwirtschaft", "einkauf", "verkauf", "bank", "retouren", "lohn"],
-  ecommerce: ["ecommerce", "retouren", "warenwirtschaft", "bank", "verkauf"],
+  handel: ["kasse", "warenwirtschaft", "einkauf", "verkauf", "bank", "retouren", "lohn", "zeiterfassung"],
+  ecommerce: ["ecommerce", "retouren", "warenwirtschaft", "bank", "verkauf", "einkauf"],
   // Gastro: Kasse/TSE, Wareneinkauf/Lager, Personal, Zahlungsdienstleister.
   gastro: ["kasse", "warenwirtschaft", "einkauf", "verkauf", "bank", "lohn", "zeiterfassung"],
   // Handwerk/Bau: Projekte, Abschläge, Material, Anlagen, Personal — ohne Ladenkasse.
-  handwerk: ["verkauf", "einkauf", "bank", "anlagen", "lohn", "zeiterfassung"],
+  handwerk: ["verkauf", "einkauf", "bank", "anlagen", "lohn", "zeiterfassung", "warenwirtschaft"],
 };
 
 /** Betriebs-Check für Muster: klar ja/nein, damit das PDF keine „unbekannt“-Löcher hat. */
@@ -197,6 +197,7 @@ const OWN_TEMPLATES: Record<string, Record<string, unknown>> = {
   LE01: { ablauf: "Auftragsänderungen nur schriftlich (E-Mail) und mit neuer Auftragsversion. Storno vor Lieferung durch {gf}.", wer: "{gf}" },
   LE02: { nachweis: "Leistung wird durch Lieferschein, Abnahmeprotokoll oder Leistungsnachweis (Stunden/Projekt) dokumentiert.", ablage: "Ablage im DMS bzw. DATEV Unternehmen online. {buchhaltung} prüft die Vollständigkeit vor der Rechnung." },
   LE03: { ablauf: "Bei Projekten Abnahme per E-Mail oder Protokoll; bei Waren Lieferschein mit Empfangsbestätigung. Ablage in DATEV Unternehmen online und im Projektordner auf dem NAS.", protokoll: "ja" },
+  LE04: { ablauf: "Wiederkehrende Leistungen aus Wartung, Miete oder Rahmenvertrag rechnet {buchhaltung} zum vereinbarten Termin ab." },
   LE05: { ablauf: "Nach Leistungserbringung bzw. Lieferung erstellt {buchhaltung} die Rechnung. Laufend, spätestens 14 Tage nach Leistung. {buchhaltung} gleicht erbrachte Leistungen mit den Rechnungen ab.", wer: "{buchhaltung}" },
   LE92: { kontrollen: ["Abstimmung offene Aufträge mit Rechnungen", "Stichprobe Leistungsnachweis vor Rechnung"], details: "Monatlich prüft {buchhaltung} offene Aufträge ohne Rechnung. Stichprobe Leistungsnachweise vor Rechnungsversand durch {gf}." },
   AR00: { verantwortlich: "{buchhaltung}", vertretung: "{gf}" },
@@ -209,7 +210,9 @@ const OWN_TEMPLATES: Record<string, Record<string, unknown>> = {
   ER01: { postfach: "E-Rechnungen und elektronische PDFs gehen am Funktionspostfach ein; XRechnungen über den vorgesehenen Eingangskanal der Rechnungssoftware. Formate: PDF, ZUGFeRD, XRechnung." },
   ER02: { viewer: "Technische Prüfung (Schema/Validierung) in der Rechnungssoftware; fachliche Prüfung durch {buchhaltung}.", validierung: "ja" },
   ER03: { format: ["XRechnung", "ZUGFeRD"], system: "Ausgangs-E-Rechnungen erzeugt die Rechnungssoftware; Versand als PDF per E-Mail und zusätzlich als E-Rechnung, soweit vom Kunden gefordert." },
-  ER04: { ablauf: "Strukturierte Daten und Sichtbeispiel PDF im Archiv (DATEV / DMS) mit Beleg-ID. Das Original bleibt unverändert.", unveraendert: "ja" },
+  ER04: { ablauf: "Strukturierte Daten und Sichtbeleg (PDF) im Archiv (DATEV / DMS) mit Beleg-ID. Das Original bleibt unverändert.", unveraendert: "ja" },
+  ER05: { ablauf: "PDF-Rechnungen, E-Mails mit Belegfunktion und heruntergeladene Belege werden mit Beleg-ID im Archiv abgelegt." },
+  ER06: { konvertierung: "nein", original: "Das empfangene Original bleibt unverändert gespeichert." },
   ER92: { kontrollen: ["Validierung E-Rechnung", "Vollständigkeit Eingangsjournal"], details: "Tägliche Sichtung Eingangsjournal; monatliche Stichprobe Validierungsprotokolle durch {buchhaltung}." },
   PB00: { verantwortlich: "{buchhaltung}", vertretung: "{gf}" },
   PB01: { geraet: "Büroscanner (fiktiv)", ablauf: "Papierpost wird zentral geöffnet, mit Eingangsstempel versehen und noch am selben Tag gescannt. Zuständig: {buchhaltung}." },
@@ -217,6 +220,7 @@ const OWN_TEMPLATES: Record<string, Record<string, unknown>> = {
   PB03: { ablauf: "Scan wird mit Beleg-ID in DATEV Unternehmen online abgelegt und der Kanzlei bereitgestellt. Laufend." },
   PB04: { ort: "Solange Papier aufbewahrt wird: Ordner Eingangsbelege im Büro, geordnet nach Monat.", dauer: "bis zur Freigabe der Vernichtung, längstens bis Fristende nach § 147 AO" },
   PB05: { vernichtung: "ja", regel: "Vernichtung nach Checkliste (Frist, keine Betriebsprüfung angekündigt, digitale Lesbarkeit geprüft) durch {buchhaltung} mit Protokoll. Freigabe: {gf}." },
+  PB06: { ablauf: "Belege unterwegs werden mit dem Smartphone erfasst. Das Papier bleibt, bis die Aufnahme geprüft und im Archiv abgelegt ist." },
   PB92: { kontrollen: ["Scan-Qualitätskontrolle", "Eingangsstempel und Vollständigkeit"], details: "Jeder Scan wird vor Archivierung geprüft; monatliche Stichprobe Papier zu Digital durch {gf}." },
   ZD01: { anbieter: "Kreditkarte / Online-Zahlungsdienstleister (fiktiv) und SEPA-Lastschrift über die Hausbank. Kundenzahlungen und ggf. Marktplatz-Auszahlungen." },
   ZD02: { ablauf: "Täglicher oder wöchentlicher Abgleich Auszahlungsreport gegen Bank und offene Posten durch {buchhaltung}. Gebühren werden anhand des Reports kontiert." },
@@ -231,45 +235,58 @@ const OWN_TEMPLATES: Record<string, Record<string, unknown>> = {
   BU03: { ablauf: "Korrekturen über Stornobuchung mit Begründung und Verweis; keine Überschreibung festgeschriebener Sätze. Protokoll wird geführt.", freigabe: "{buchhaltung}" },
   BU04: { abstimmungen: ["Bank", "Offene Posten Debitoren", "Offene Posten Kreditoren", "Umsatzsteuer"], turnus: "Monatlich: Bank, Debitoren, Kreditoren, Steuern. Quartalsweise Anlagen und Rückstellungen mit der Kanzlei. {buchhaltung} und {kanzlei}." },
   BU06: { arbeiten: "Jahresabschluss erstellt die Kanzlei; Unterlagenübergabe nach Checkliste bis Ende Februar für das Vorjahr. Übergabe über DATEV und ergänzende Excel/PDF-Listen." },
-  BU07: { ablauf: "Kanzlei: {kanzlei}. Laufende FiBu, USt-Voranmeldung, Jahresabschluss, Lohn (soweit beauftragt)." },
+  BU05: {
+    erstellt: "Die Kanzlei erstellt die Umsatzsteuer-Voranmeldung monatlich",
+    prueft: "{buchhaltung} prüft die Auswertung vor Übermittlung, {gf} gibt frei",
+    rhythmus: "monatlich",
+  },
+  BU07: {
+    ablauf: "Belege laufend über DATEV Unternehmen online, Bankdaten automatisch; Monatsunterlagen bis zum 10. des Folgemonats; Nachweis über das Upload-Protokoll in DATEV",
+    nachweis: "Upload-Protokoll in DATEV",
+  },
   BU92: { kontrollen: ["Monatsabschluss-Abstimmung", "Belegvollständigkeit"], details: "Checkliste Monatsabschluss durch {buchhaltung}; Freigabe durch {gf}." },
   BS00: { verantwortlich: "{gf}", vertretung: "{buchhaltung}" },
   BS01: { art: "__BRANCHE_ART__", vorgaenge: "Branchentypische Vorgänge mit steuerlicher Bedeutung werden im Vorsystem erfasst und an die FiBu übergeben." },
   BS02: { systeme: "Branchensoftware bzw. Gerät laut Modul Vorsystem (fiktiv); Schnittstelle zu DATEV." },
   BS03: { ablauf: "Grunddaten erfasst fachlich geschultes Personal; Änderungen an Preisen/Stammdaten nur mit Freigabe {gf}." },
   BS04: { nachweise: "Je Vorgang die branchentypischen Nachweise (z. B. Projektnachweis, Leistungsdokumentation) werden mit dem Beleg verknüpft." },
-  BS06: { regeln: "Summen des Vorsystems gegen FiBu-Erlöse bzw. Bestände durch {buchhaltung}." },
+  BS06: { regeln: "Keine besonderen Regeln über die allgemeinen umsatzsteuerlichen Pflichten hinaus." },
   BS07: { weg: "Periodischer Export an DATEV Unternehmen online.", turnus: "Monatlich." },
-  BS92: { kontrollen: ["Summenabstimmung Vorsystem/FiBu", "Rechteprüfung"], details: "Monatliche Abstimmung; jährliche Rechteprüfung." },
+  BS08: { ablage: "Daten und Nachweise der Branchensoftware liegen im System und als Export auf dem NAS.", auswertbar: "ja" },
+  BS92: { kontrollen: ["Summenabstimmung Vorsystem/FiBu", "Rechteprüfung"], details: "Summen des Vorsystems gegen FiBu-Erlöse bzw. Bestände durch {buchhaltung}. Monatliche Abstimmung; jährliche Rechteprüfung." },
   AW01: { elektronisch: "DATEV Unternehmen online (Belege und Buchungen); NAS im Büro (ergänzende Unterlagen und Exports); ggf. Anbieter-Cloud der Vorsysteme. Je Belegweg ist festgelegt, welche Datei als Original gilt (siehe Modul 5/6 und Systemdokumentation)." },
   AW02: { merkmale: "Beleg-ID, Rechnungsnummer, Datum, Kreditor/Debitor, Betrag, Periodenbezug. Über die Suche in DATEV und Dateinamenkonvention JJJJ-MM_BelegID auf dem NAS." },
   AW03: { ablauf: "Buchungssatz, Beleg-ID und ggf. Vorgangsnummer im Vorsystem sind verbunden. Zuständig: {buchhaltung}." },
   AW04: { ablauf: "PDF/A bzw. Originalformat der E-Rechnung; jährliche Stichprobe der Lesbarkeit durch {buchhaltung}. Formate: PDF/A, XML (XRechnung), CSV-Exporte." },
   AW05: { massnahmen: ["Schreibschutz / Unveränderbarkeit im Archiv", "Versionierung mit Protokoll"], details: "Keine Überschreibung archivierter Belege; Änderungen nur durch neue Version mit Protokoll." },
+  AW06: { ablauf: "E-Mails mit Rechnung, Bestellung oder Auftragsänderung werden mit Anhang im Archiv abgelegt." },
   AW92: { kontrollen: ["Stichprobe Wiederauffindbarkeit", "Lesbarkeitsprüfung"], details: "Quartalsweise zehn Belege stichprobenartig suchen und öffnen." },
   AF01: { ablauf: AF01_ZUORDNUNG },
   AF02: { pruefung: "Hemmung bei laufender Betriebsprüfung oder Rechtsbehelfsverfahren; Hinweis der Kanzlei wird beachtet. {kanzlei} / {gf}." },
   AF03: { wer: "Löschung erst nach Fristende und schriftlicher Freigabe durch {gf}, Abstimmung mit {kanzlei}. Löschprotokoll mit Datum und Umfang." },
   AF04: { ablauf: "Technische Löschung durch {it} bzw. Anbieter nach Freigabe; Bestätigung wird abgelegt. Systeme: DATEV / NAS / Vorsysteme." },
   AF05: { ablauf: "Personenbezogene Daten mit kürzeren Fristen (z. B. Bewerbungen) nach eigener Liste; steuerliche Fristen haben Vorrang, soweit einschlägig." },
-  SY01: { umgebung: "Rechnungssoftware, DATEV Unternehmen online, E-Mail, NAS, ggf. Kasse/Shop/WaWi laut Betriebs-Check. IT: {it}.", betrieb: "Gemischt" },
+  SY01: { umgebung: "Rechnungssoftware, DATEV Unternehmen online, E-Mail und NAS. IT: {it}.", betrieb: "Gemischt" },
+  SY05: { ablauf: "Eingeführte Programmstände werden mit Datum in der Systemliste festgehalten. {it} trägt den Stand nach einem Update ein." },
+  SY06: { vorhanden: "ja", ort: "Systemliste im Ordner IT" },
   SY02: { schnittstellen: "Vorsystem → DATEV (Export/Upload). Bank → DATEV (MT940/API). E-Rechnungsein- und -ausgang über Rechnungssoftware. Dokumentiert: ja." },
   SY03: { ablauf: "Importe nur über definierte Formate; Konvertierungen werden protokolliert (Datum, Datei, Ziel). {buchhaltung} / {it}." },
   SY04: { vorhanden: "ja", beschreibung: "Wiederkehrende Exporte und Erinnerungen; keine unprotokollierte Änderung von Buchungsdaten durch Skripte. Freigabe: {gf}." },
   SY92: { kontrollen: ["Schnittstellenprotokoll", "Systemliste aktuell"], details: "Nach jedem Periodenexport Stichprobe; Systemliste jährlich." },
   ZR01: { rollen: "Geschäftsführung (voll), Buchhaltung (Belege, Exporte), Mitarbeitende (eingeschränkt), Kanzlei (lesen im Mandatsumfang), IT-Admin (technisch). {gf} beauftragt, {it} richtet ein." },
-  ZR02: { antrag: "{gf} beantragt neue Zugänge", genehmigung: "{it} richtet sie ein" },
+  ZR02: { antrag: "{gf} beantragt neue Zugänge", genehmigung: "{gf}; technische Einrichtung durch {it}" },
   ZR03: { ablauf: "Bei Austritt oder Rollenwechsel Entzug am letzten Arbeitstag; Checkliste Offboarding." },
   ZR04: { massnahmen: ["Persönliche Zugänge (keine Sammelkonten)", "Zwei-Faktor-Anmeldung", "Passwortregeln", "Bildschirmsperre"] },
-  ZR05: { protokoll: "ja", auswertung: "Anbieterprotokolle zu Logins und kritischen Änderungen werden bei Bedarf gesichert." },
+  ZR05: { protokoll: "ja", auswertung: "{gf} bei Bedarf (z. B. Verdacht, Prüfung); Anbieterprotokolle zu Logins und kritischen Änderungen werden gesichert." },
   ZR92: { kontrollen: ["Jährliche Rechteprüfung", "Offboarding-Checkliste"], details: "Protokoll der Rechteprüfung im Ordner IT." },
   SN01: { konzept: "Anbieter-Backups der Cloud-Systeme; NAS mit täglicher Sicherung der lokalen Daten. Täglich (NAS), Anbieter gemäß Vertrag." },
+  SN02: { szenarien: ["Systemausfall", "Internetausfall", "Stromausfall", "Ausfall oder Insolvenz eines Anbieters"] },
   SN03: { ablauf: "Bei Ausfall eines Vorsystems Noterfassung auf Papier/Liste und Nacherfassung nach Wiederanlauf am selben oder nächsten Werktag. Zuständig: {buchhaltung}." },
   SN04: { ablauf: "Nach Wiederanlauf Abgleich der nacherfassten Vorgänge mit den Systemnummernkreisen. Zuständig: {buchhaltung}." },
   SN05: { kontakte: "Kontakt: {gf} und {it}" },
   SN92: { kontrollen: ["Backup-Erfolgskontrolle", "Jährlicher Restore-Test"], details: "Wöchentlich Backup-Journal prüfen; Restore-Test mit Protokoll." },
   KF01: { kontrollen: "Vollständigkeit und Richtigkeit der Belege, Abstimmungen Bank/OP, Nummernkreise, Schnittstellen. {buchhaltung}." },
-  KF02: { kontrollen: "Erkennung über Abstimmungen und Systemhinweise." },
+  KF02: { kontrollen: "Vier-Augen-Freigabe von Zahlungen und Storni, monatliche Plausibilitätsprüfung der Erlöse gegen den Vormonat, quartalsweise Stichprobe von zehn Buchungen gegen Beleg." },
   KF03: { ablauf: "Abweichungen werden in einer offenen Liste geführt (Datum, Sachverhalt, Maßnahme, erledigt am). Korrektur über Storno oder Neubuchung mit Beleg. Eskalation an {gf} bei Beträgen über 500 Euro oder wiederholten Fehlern.", wer: "{buchhaltung}" },
   KF04: { nachweis: "Abstimmungsprotokolle, Checklisten zum Monatsabschluss und Stichprobenlisten. Ablage im Ordner Kontrollen auf dem NAS / DATEV." },
   KF05: { wer: "{gf}", turnus: "Jährliche Durchsicht der Kontrollliste; Anpassung bei Prozessänderungen." },
@@ -278,20 +295,25 @@ const OWN_TEMPLATES: Record<string, Record<string, unknown>> = {
   AU03: { ablauf: "Belege und Auswertungen über DATEV Unternehmen online; ergänzende Listen per sicherer Übertragung. Laufend / monatlich." },
   AU04: { kontrolle: "Rücklauf der gebuchten Perioden prüfen; offene Klärungspunkte mit der Kanzlei abarbeiten. {buchhaltung}." },
   AU05: { grenzen: "Leistungsabgrenzung und Ansprechpartner in diesem Modul und in Modul 1 festgehalten. Fachliche Verantwortung bleibt beim Unternehmen ({gf}).", vertrag: "ja" },
+  AU06: { zugriff: "Exporte und das Archiv bleiben im Unternehmen. Der Zugriff beim Dienstleister ist für die Aufbewahrungsfrist vorgesehen." },
   PZ00: { ansprechpartner: "{gf}", vertretung: "{buchhaltung}" },
   PZ01: { moeglich: "ja", systeme: "Nur-Lesezugriff in DATEV bzw. Vorsystemen nach Einrichtung durch {it} und {kanzlei}." },
   PZ02: { wer: "{buchhaltung} erstellt Auswertungen nach Vorgabe der Prüfer." },
   PZ03: { exporte: "DATEV-Export, CSV, PDF-Belege, ggf. DSFinV-K bei Kasse." },
   PZ04: { ablauf: "Ankündigung, Benennung der Ansprechperson ({gf}), Bereitstellung von Leserecht oder Export, Protokoll der übergebenen Daten. Im Rahmen der gesetzlichen Mitwirkung." },
+  PZ05: { datum: "2026-03-15", ergebnis: "Ein Export wurde geöffnet und mit der Buchungsliste abgeglichen." },
   PZ06: { ablauf: "Frühere Fassungen der Verfahrensdokumentation und ältere Exporte bleiben auffindbar. Ablage: Kundenkonto und NAS-Archiv." },
+  PZ07: { auswertungen: "Journal, Kontenblätter und Summen- und Saldenliste aus DATEV." },
   AE00: { verantwortlich: "{gf}", vertretung: "{it}" },
   AE01: { ablauf: "Neue Systeme nur nach Freigabe {gf}, mit Eintrag in der Systemliste und Anpassung dieser Dokumentation." },
   AE02: { ablauf: "Updates der Cloud-Anbieter nach deren Release; kritische FiBu-/Kassen-Updates werden vorher getestet und freigegeben. Die Freigabe wird protokolliert." },
   AE03: { ablauf: "Datenmigrationen mit Abgleich vorher/nachher und Archivierung der Altdaten bis Fristende. {it} / {buchhaltung}." },
+  AE04: { wer: "{buchhaltung} ändert, {gf} gibt frei", protokoll: "ja" },
   AE05: { ablauf: "Ablaufänderungen werden in der nächsten Fassung der Verfahrensdokumentation nachgezogen (Änderungsverzeichnis), innerhalb von 4 Wochen nach Wirksamkeit." },
   AE06: { ablauf: "Frühere Fassungen bleiben versioniert im Kundenkonto downloadbar. Ort: gobd-doku-erstellen.de Konto." },
   AE92: { kontrollen: ["Änderungsverzeichnis gepflegt", "Systemliste nach Änderung aktualisiert"], details: "Prüfung bei jeder neuen Fassung." },
   PF01: { turnus: "jährlich", wer: "{gf} mit {buchhaltung}. Jährliche Durchsicht aller aktiven Module und nach wesentlichen Prozess- oder Systemänderungen." },
+  PF02: { ablauf: "{buchhaltung} meldet geänderte Abläufe an {gf}. {it} meldet Systemänderungen." },
   PF03: { ablauf: "Inhaltliche Freigabe der geänderten Kapitel durch {gf} vor Inkrafttreten, mit dem Gültig-ab der Fassung. Betriebliche Bestätigung der Ist-Beschreibung durch {gf}." },
   C01: { kanaele: ["E-Mail-PDF", "E-Rechnung"], postfach: "rechnungen@{company_domain}" },
   C02: { ablauf: "Tägliche Sichtung des Funktionspostfachs durch {buchhaltung}; Weiterleitung an Prüfung.", wer: "{buchhaltung}", turnus: "täglich" },
@@ -452,19 +474,60 @@ function ownKatalog(f: DenseFirma, vorlage: string): Record<string, Entry> {
   }
   // Bewusst offene Punkte für das Kapitel „Offene Punkte“
   out.I04 = u({});
-  out.PZ03 = u({ ...(out.PZ03?.values ?? {}) });
   return out;
 }
 
+const BEREICH_PERSONEN: Record<string, { namen: string[]; standort: string; kassen?: string }> = {
+  kasse: { namen: ["Clara Sonnenkorn", "Jonas Weber"], standort: "Musterstadt", kassen: "Beide Filialen (Hauptstraße und Bahnhof) mit allen drei Kassen" },
+  warenwirtschaft: { namen: ["Martin Eichenblatt", "Sabine Krämer", "Tobias Lang"], standort: "Musterhausen" },
+  einkauf: { namen: ["Eva Lindner", "Thomas Brück", "Murat Aydin"], standort: "Musterbach" },
+  verkauf: { namen: ["Nora Klar", "Felix Hahn"], standort: "Musterfeld" },
+  retouren: { namen: ["Kai Laufer", "Miriam Ost"], standort: "Musterlingen" },
+  zeiterfassung: { namen: ["Sandra Linde", "Oliver Pfeiffer", "Ute Sommer"], standort: "Musterdorf" },
+  lohn: { namen: ["Robert Funke", "Ines Wolf"], standort: "Musterberg" },
+  ecommerce: { namen: ["Lea Bohn"], standort: "Musterau" },
+  bank: { namen: ["Jana Hellweg", "Paul Richter", "Lukas Berger"], standort: "Musterstein" },
+  anlagen: { namen: ["Hannes Papke", "Birgit Kranz"], standort: "Mustertal" },
+  vorsystem: { namen: ["Dr. Mia Kern", "Mia Kern", "Tim Kern"], standort: "Musterhain" },
+};
+
+function angleichen(value: unknown, bereich: string, firma: DenseFirma): unknown {
+  const alt = BEREICH_PERSONEN[bereich];
+  if (!alt || typeof value !== "string") {
+    if (Array.isArray(value)) return value.map((item) => angleichen(item, bereich, firma));
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, angleichen(item, bereich, firma)]));
+    }
+    return value;
+  }
+  let text = value;
+  if (alt.kassen) text = text.replaceAll(alt.kassen, `Alle Kassen am Standort ${firma.standort}`);
+  text = text.replaceAll(alt.standort, firma.standort);
+  text = text.replaceAll(`${alt.namen[0]} (Partnerin)`, firma.gf);
+  text = text.replaceAll(`${alt.namen[0]} (Geschäftsführung)`, firma.gf);
+  for (const [index, name] of alt.namen.entries()) {
+    text = text.replaceAll(name, index === 0 ? firma.gf : firma.buchhaltung);
+  }
+  text = text.replaceAll(" (Partnerin)", "").replaceAll(" (Partner)", "");
+  text = text.replaceAll("Partner: Einzelvollmacht", "Geschäftsführung: Einzelvollmacht");
+  text = text.replaceAll("durch einen Partner", "durch die Geschäftsführung");
+  text = text.replaceAll("Ein Partner, über 10.000 Euro beide Partner", "Die Geschäftsführung, über 10.000 Euro gemeinsam");
+  return text;
+}
+
 function bereicheKatalog(vorlage: keyof typeof VORLAGE_BEREICHE): Record<string, Entry> {
+  const firma = MUSTER_FIRMEN[vorlage];
   const out: Record<string, Entry> = {};
   for (const bereich of VORLAGE_BEREICHE[vorlage]) {
     const muster = bereichMuster(bereich);
     if (!muster) continue;
-    // Nur bereichsspezifische Fragen übernehmen (nicht den allgemeinen Teil der anderen Firma).
     for (const [id, entry] of Object.entries(muster.answers.katalog ?? {})) {
       if (/^(A|B|G|H|I)\d/.test(id)) continue;
-      out[id] = entry;
+      out[id] = {
+        ...entry,
+        values: entry.values ? (angleichen(entry.values, bereich, firma) as Record<string, unknown>) : entry.values,
+        reason: entry.reason ? String(angleichen(entry.reason, bereich, firma)) : entry.reason,
+      };
     }
   }
   return out;
@@ -573,6 +636,10 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
 
   if (vorlage === "gastro") {
     return {
+      SY01: b({
+        umgebung: `Kassensystem mit TSE, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
+        betrieb: "Gemischt",
+      }),
       BS00: b({ verantwortlich: f.gf, vertretung: f.buchhaltung }),
       BS01: b({
         art: ["Gastronomie / Hotel"],
@@ -587,12 +654,27 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       BS04: b({
         nachweise: "Z-Bons und Zählprotokolle, TSE-Signaturen, Wareneingangsscheine, Inventurlisten, Schichtpläne/Zeiten, Kartenzahlungsabrechnungen — jeweils mit Datum und Belegbezug.",
       }),
-      BS06: b({ regeln: `Summen Z-Bons und Kartenzahlungen gegen Bank und FiBu-Erlöse durch ${f.buchhaltung}; Wareneinsatz gegen Einkaufsrechnungen.` }),
+      BS05: b({ ablauf: "Der Tagesumsatz wird über den Z-Bon abgerechnet. Speisen und Getränke tragen die in der Kasse hinterlegten Steuersätze." }),
+      BS06: b({ regeln: "Speisen vor Ort und Getränke werden in der Kasse mit den jeweils zutreffenden Steuersätzen erfasst; Kassenpflichten nach § 146a AO." }),
       BS07: b({ weg: "Monatlicher DATEV-Export aus dem Kassensystem sowie Wareneinsatzlisten; Upload in DATEV Unternehmen online.", turnus: "Monatlich bis zum 5." }),
+      BS08: b({ ablage: "Z-Bons, Zählprotokolle und Exporte liegen im Kassensystem und werden monatlich nach DATEV übernommen.", auswertbar: "ja" }),
       BS92: b({
         kontrollen: ["Kassensturz", "Abgleich Z-Bon/Bank", "Wareneinsatz"],
-        details: `Täglicher Kassensturz durch die Schichtleitung. Wöchentlicher Abgleich Z-Bon und Einzahlungen durch ${f.buchhaltung}. Monatliche Inventur Kühlung durch die Küchenleitung.`,
+        details: `Summen der Z-Bons und Kartenzahlungen gegen Bank und FiBu-Erlöse durch ${f.buchhaltung}. Täglicher Kassensturz durch die Schichtleitung.`,
       }),
+      SV00: b({ verantwortlich: f.gf, vertretung: f.buchhaltung }),
+      SV01: b({ name: "Kassensystem", zweck: "Verkauf, Tagesabschluss und Zahlarten", anbieter: "Kassenanbieter" }),
+      SV02: b({ rollen: `${f.gf} und die Schichtleitung` }),
+      SV03: b({ daten: "Umsätze, Zahlarten, Stornos und Tagesabschlüsse" }),
+      SV04: b({ ablauf: "Der Verkauf wird an der Kasse erfasst.", pruefung: "Die Schichtleitung prüft den Tagesabschluss." }),
+      SV05: b({ stammdaten: "Artikel und Preise", wer: f.gf }),
+      SV06: b({ uebergabe: "Monatlicher Export nach DATEV", turnus: "monatlich" }),
+      SV07: b({ ablauf: "Die Exportsumme wird mit dem Z-Bon abgeglichen.", wer: f.buchhaltung }),
+      SV08: b({ ablage: "Kassensystem und DATEV", auswertbar: "ja" }),
+      SV09: b({ wer: f.gf, protokolliert: "ja" }),
+      SV10: b({ ablauf: "Ein Systemwechsel ist nicht vorgesehen. Die vorhandenen Exporte bleiben im Archiv lesbar." }),
+      SV91: b({ systeme: "Kassensystem und DATEV Unternehmen online", schnittstellen: "Monatlicher Export nach DATEV", betrieb: "Gemischt" }),
+      SV92: b({ kontrollen: ["Abstimmung der übergebenen Summen mit der FiBu"], details: `${f.buchhaltung} gleicht die Exportsumme mit dem Z-Bon ab.` }),
       KA01: b({
         kassenart: "Elektronisches Kassensystem mit TSE",
         system: "KassaPro Gastro (fiktiv) auf Stationen Theke und Service",
@@ -607,6 +689,10 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
   if (vorlage === "handwerk") {
     return {
       ...baseDienst,
+      SY01: b({
+        umgebung: `Projektsoftware, Rechnungssoftware, DATEV Unternehmen online, Zeiterfassung, E-Mail und NAS. IT: ${f.it}.`,
+        betrieb: "Gemischt",
+      }),
       BS00: b({ verantwortlich: f.gf, vertretung: f.buchhaltung }),
       BS01: b({
         art: ["Handwerk / Bau"],
@@ -621,16 +707,30 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       BS04: b({
         nachweise: "Aufmaß, Bautagebuch bzw. Stundenzettel, Lieferscheine Material, Nachunternehmerrechnungen, Abnahmeprotokolle, Abschlags- und Schlussrechnungen mit Bezug zur Auftragsnummer.",
       }),
-      BS06: b({ regeln: `Projektumsätze und Materialaufwand gegen FiBu durch ${f.buchhaltung}; offene Abschläge gegen OP-Liste.` }),
       BS05: b({ ablauf: "Abschlags- und Schlussrechnungen mit Bezug zur Auftragsnummer." }),
+      BS06: b({ regeln: "Bei Bauleistungen an andere Bauunternehmer wird die Steuerschuldnerschaft des Leistungsempfängers geprüft (§ 13b Abs. 2 Nr. 4 UStG); die Rechnung enthält dann den Hinweis „Steuerschuldnerschaft des Leistungsempfängers“ (§ 14a Abs. 5 UStG)." }),
       BS07: b({ weg: "Periodischer DATEV-Export der Ausgangsrechnungen und Eingangsbelege; Projektauswertung als PDF/CSV an die Kanzlei.", turnus: "Monatlich." }),
+      BS08: b({ ablage: "Aufmaß, Stundenzettel und Projektunterlagen liegen in der Projektsoftware und als PDF auf dem NAS.", auswertbar: "ja" }),
       BS92: b({
         kontrollen: ["Abschläge gegen Aufmaß", "Material gegen Lieferschein", "Stunden gegen Lohn"],
-        details: `Vor jeder Abschlagsrechnung prüft ${f.buchhaltung} Aufmaß und bisherige Abschläge. Materialdifferenzen klärt die Projektleitung. Stunden gegen Lohnlauf monatlich.`,
+        details: `Projektumsätze und Materialaufwand gegen FiBu durch ${f.buchhaltung}. Vor jeder Abschlagsrechnung prüft ${f.buchhaltung} Aufmaß und bisherige Abschläge.`,
       }),
       AR01: b({
         ablauf: "Abschlagsrechnungen nach Baufortschritt bzw. Aufmaß; Schlussrechnung mit Auflistung aller Abschläge und Einbehalten. Nummernkreis fortlaufend, Verweis auf Auftrags-/Projektnummer.",
       }),
+      SV00: b({ verantwortlich: f.gf, vertretung: f.buchhaltung }),
+      SV01: b({ name: "Projektsoftware", zweck: "Aufmaß, Stunden und Abschläge", anbieter: "Anbieter der Projektsoftware" }),
+      SV02: b({ rollen: `${f.gf}, die Projektleitung und ${f.buchhaltung}` }),
+      SV03: b({ daten: "Aufmaß, Stunden, Material und Abschläge" }),
+      SV04: b({ ablauf: "Die Projektleitung erfasst Aufmaß und Stunden in der Projektsoftware.", pruefung: f.gf }),
+      SV05: b({ stammdaten: "Projekte, Preise und Leistungsverzeichnis", wer: f.gf }),
+      SV06: b({ uebergabe: "Monatlicher DATEV-Export", turnus: "monatlich" }),
+      SV07: b({ ablauf: "Die Projektauswertung wird mit der FiBu abgeglichen.", wer: f.buchhaltung }),
+      SV08: b({ ablage: "Projektsoftware und NAS", auswertbar: "ja" }),
+      SV09: b({ wer: f.gf, protokolliert: "ja" }),
+      SV10: b({ ablauf: "Ein Systemwechsel ist nicht vorgesehen. Exporte bleiben auf dem NAS lesbar." }),
+      SV91: b({ systeme: "Projektsoftware und DATEV Unternehmen online", schnittstellen: "Monatlicher DATEV-Export", betrieb: "Gemischt" }),
+      SV92: b({ kontrollen: ["Abstimmung der übergebenen Summen mit der FiBu"], details: `${f.buchhaltung} gleicht die Projektauswertung mit der FiBu ab.` }),
       WW01: b({
         system: "Einfache Materialliste je Projekt (fiktiv), kein Voll-WaWi-Filialbetrieb",
         vorgaenge: "Materialeinkauf auf Projekt, Wareneingang gegen Lieferschein, Verbrauch auf Baustelle, Restmaterialrücknahme",
@@ -638,6 +738,22 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
     };
   }
 
+  if (vorlage === "handel") {
+    return {
+      SY01: b({
+        umgebung: `Kassensystem, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
+        betrieb: "Gemischt",
+      }),
+    };
+  }
+  if (vorlage === "ecommerce") {
+    return {
+      SY01: b({
+        umgebung: `Onlineshop, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
+        betrieb: "Gemischt",
+      }),
+    };
+  }
   return {};
 }
 
@@ -715,9 +831,22 @@ export function buildDenseGesamtAnswers(vorlage: MusterDenseId): IntakeAnswers {
     const trigger = modul.trigger;
     const antwort = trigger ? check[trigger] : undefined;
     if (modul.typ === "betrieb" && antwort === "nein") {
+      const grund: Partial<Record<string, string>> = {
+        bargeld: "Keine Kasse und kein Bargeldverkehr.",
+        lager: "Kein Warenlager.",
+        personal: "Keine angestellten Mitarbeitenden.",
+        zeiterfassung: "Keine Zeiterfassung.",
+        online: "Kein Onlineshop.",
+        retouren: "Keine Warenretouren.",
+        papier: "Keine Papierbelege.",
+        erechnung: "Keine E-Rechnungen.",
+        anlagen: "Keine eigene Anlagenbuchhaltung.",
+        branche: "Keine Branchensoftware.",
+        zahlungsdienstleister: "Kein Zahlungsdienstleister.",
+      };
       answers = setModulEintrag(answers, modul.id, {
         status: "nicht_vorhanden",
-        reason: `Laut Betriebs-Check nicht vorhanden (${modul.kurz}).`,
+        reason: grund[trigger ?? ""] ?? `${modul.kurz} kommt in diesem Betrieb nicht vor.`,
       });
     } else if (modul.id === "m11" && (vorlage === "dienstleister" || vorlage === "handwerk")) {
       answers = setModulEintrag(answers, modul.id, {
@@ -753,20 +882,6 @@ export function buildDenseGesamtAnswers(vorlage: MusterDenseId): IntakeAnswers {
             : answers.module!.branchenArt,
     },
   };
-
-  // Sicherstellen, dass jede tool-Frage mindestens einen Status hat.
-  for (const modul of MODULE) {
-    if (answers.module!.status[modul.id]?.status !== "tool") continue;
-    for (const question of modulFragen(modul)) {
-      if (!answers.katalog![question.id]?.status) {
-        answers.katalog![question.id] = {
-          status: "nicht_zutreffend",
-          reason: "Entfällt im Muster",
-          values: {},
-        };
-      }
-    }
-  }
 
   return answers;
 }

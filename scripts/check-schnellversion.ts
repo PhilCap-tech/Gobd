@@ -816,6 +816,7 @@ async function main() {
   const notverfahren = unsichereKasse.indexOf("Notverfahren");
   ok(aufbewahrung >= 0 && liste > aufbewahrung && (notverfahren < 0 || liste < notverfahren), "Fristliste steht nicht unter Notverfahren");
   ok(unsichereKasse.includes("Bei elektronischem System:"), "elektronische Angaben mit Bedingung");
+  ok(unsichereKasse.includes("Bei elektronischem System: TSE und Mitteilung"), "Prozessschritt TSE mit Bedingung");
   ok(
     unsichereKasse.replaceAll("*", "").includes("Belegausgabe: Bei elektronischem System:"),
     "unsichere Belegausgabe ohne doppeltes Label",
