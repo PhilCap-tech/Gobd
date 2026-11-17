@@ -55,11 +55,6 @@ function statedAsPastOrException(sentence: string): boolean {
   return false;
 }
 
-/** Die Admin-Zählung nennt die Suchbegriffe in Anführungszeichen, sie setzt keine Frist. */
-function quotesTheSearch(sentence: string): boolean {
-  return /zusammen mit\s+[„"](?:10|zehn)\s+Jahren?[“"]/iu.test(sentence);
-}
-
 /** „nicht mehr 10, sondern 8“ und „8 statt 10“ behaupten keine Zehnjahresfrist. */
 function belegTenIsNegated(sentence: string): boolean {
   if (/nicht mehr\s+(?:10|zehn)\s+Jahren?\s*,\s*sondern\s+(?:8|acht)\s+Jahren?/iu.test(sentence)) return true;
@@ -78,7 +73,7 @@ export function belegfristHit(sentence: string): string | null {
     return `Buchungsbeleg im selben Satz wie 10/zehn Jahre: ${sentence.trim()}`;
   }
   if (!TEN.test(sentence)) return null;
-  if (belegTenIsNegated(sentence) || statedAsPastOrException(sentence) || quotesTheSearch(sentence)) return null;
+  if (belegTenIsNegated(sentence) || statedAsPastOrException(sentence)) return null;
   const clauses = clausesOf(sentence);
   for (let index = 0; index < clauses.length; index += 1) {
     const clause = clauses[index];
@@ -213,10 +208,6 @@ const POSITIV: Array<[string, string]> = [
   [
     "demselben Kreis HGB",
     "Handelsrechtlich sind Buchungsbelege bei demselben Kreis nach § 257 Abs. 4 Satz 2 HGB zehn Jahre aufzubewahren.",
-  ],
-  [
-    "Suchbegriff in Anführungszeichen",
-    "Gezählt wird, wo „Buchungsbelege“ zusammen mit „10 Jahre“ oder „zehn Jahre“ im selben Satz oder Feld steht.",
   ],
 ];
 
