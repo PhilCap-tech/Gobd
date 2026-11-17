@@ -10,7 +10,7 @@ import { decideSvArm } from "../lib/schnellversion-assign";
 import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { creditStillOpen, downloadStillOpen, findSvPurchaseBySession, reserveSvCredit, svDownloadAllowed, type SvPurchase } from "../lib/schnellversion-record";
+import { claimSvSession, creditStillOpen, downloadStillOpen, findSvPurchaseBySession, listAllSvPurchases, reserveSvCredit, svDownloadAllowed, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
@@ -29,7 +29,7 @@ import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } f
 import { confirmPaidSession, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
-import { readSvEvents } from "../lib/schnellversion-store";
+import { readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
@@ -39,6 +39,24 @@ import { generateStandardPdf } from "../lib/schnellversion-pdf";
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
   console.log("ok:", msg);
+}
+
+function coverField(text: string, label: string): string {
+  const match = text.match(new RegExp(`\\| ${label} \\| ([^\\n|]+)`));
+  return (match?.[1] ?? "").replace(/\s+/g, " ").trim();
+}
+
+function countText(text: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let from = 0;
+  while (from <= text.length) {
+    const at = text.indexOf(needle, from);
+    if (at < 0) return count;
+    count += 1;
+    from = at + needle.length;
+  }
+  return count;
 }
 
 const sample = (patch: Partial<SchnellversionAnswers> = {}): SchnellversionAnswers => ({
@@ -356,6 +374,55 @@ async function main() {
     const later = new Date(reserveNow.getTime() + 31 * 24 * 60 * 60 * 1000);
     ok(!svDownloadAllowed(row, { email: "inhaber@example.com", token: dl, now: later }), "Session-Link endet nach 30 Tagen");
   }
+  const keptFibu = draftFromSchnellversion("lex@example.com", sample({ software: "lexoffice", firma: "Lex GmbH" }));
+  keptFibu.answers.fibu = ["Lexware Eigen"];
+  if (keptFibu.answers.module) {
+    keptFibu.answers.module = {
+      ...keptFibu.answers.module,
+      check: { ...keptFibu.answers.module.check, kanzlei: "nein" },
+      stammdaten: { ...keptFibu.answers.module.stammdaten, fibu: "Lexware Eigen", gf: "Erika Eigen" },
+    };
+  }
+  keptFibu.answers.gf = "Erika Eigen";
+  if (keptFibu.answers.katalog?.A01?.values) keptFibu.answers.katalog.A01.values.company = "";
+  const contradictory = mergeEmptyDraftFields(
+    keptFibu,
+    draftFromSchnellversion("lex@example.com", sample({ software: "DATEV", bucht: "Unsere Steuerkanzlei", firma: "Kauf GmbH" })),
+  );
+  ok(contradictory.answers.steuerberater !== "Steuerkanzlei", "Kanzlei Nein setzt keinen Steuerberater");
+  ok(contradictory.answers.katalog?.F05?.values?.kanzleiBeteiligt !== "ja", "Kanzlei Nein bleibt ohne Beteiligung");
+  ok(!contradictory.answers.fibu?.includes("DATEV"), "Lexware Eigen setzt FiBu nicht auf DATEV");
+  ok(contradictory.answers.katalog?.A01?.values?.company !== "Kauf GmbH", "ohne Firma bleibt das Feld leer");
+  const race = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    email: "rennen@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(race.ok, "Session für die parallele Bestätigung");
+  const beforeRace = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  const parallel = await Promise.all(
+    Array.from({ length: 5 }, () => confirmPaidSession(race.ok ? race.sessionId : "", { env: stubPaid })),
+  );
+  const raceRows = (await listAllSvPurchases()).filter((row) => row.sessionId === (race.ok ? race.sessionId : "x"));
+  const afterRace = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  ok(parallel.filter((item) => item.paid).length === 5, "alle parallelen Bestätigungen sehen den Kauf");
+  ok(raceRows.length === 1, "parallele Bestätigung legt eine Kaufzeile an");
+  ok(new Set(raceRows.map((row) => row.pdfPath)).size === 1, "parallele Bestätigung legt ein PDF an");
+  ok(afterRace === beforeRace + 1, "parallele Bestätigung zählt einen 49-€-Kauf");
+  const before99 = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
+  const counted99 = await Promise.all(
+    Array.from({ length: 5 }, (_, index) =>
+      rememberPurchase99Once({ sessionId: "cs_race_99", eventId: `evt_${index}`, arm: "test" }),
+    ),
+  );
+  ok(counted99.filter(Boolean).length === 1, "fünf 99-€-Zustellungen zählen einmal");
+  ok((await rememberPurchase99Once({ sessionId: "cs_race_99", eventId: "evt_neu", arm: "test" })) === false, "dieselbe Session zählt nicht erneut");
+  const after99 = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
+  ok(after99 === before99 + 1, "purchase_99 steigt um eins");
+  ok(await claimSvSession(race.ok ? race.sessionId : "x") === "exists", "zweite Sperre der Session schlägt fehl");
   const alwaysForbidden = [
     "Robert Funke",
     "Ines Wolf",
@@ -382,8 +449,22 @@ async function main() {
           const answers = sample({ branche: branche.id, kasse, bucht, software, softwareFrei: "" });
           const plain = standardPlainText(answers, when);
           const label = softwareLabel(answers);
+          const ausgeschlossen = coverField(plain, "Ausgeschlossen");
+          const geltung = coverField(plain, "Geltungsbereich");
+          if (ausgeschlossen !== "Keine Bereiche ausgenommen.") {
+            ok(false, `Ausgeschlossen ${branche.id}: ${ausgeschlossen}`);
+          }
+          if (!geltung || /Nachweis und Ablage|Beleg-ID|§ 147/.test(geltung)) {
+            ok(false, `Geltungsbereich ${branche.id}: ${geltung}`);
+          }
           for (const forbidden of alwaysForbidden) {
             if (plain.includes(forbidden)) ok(false, `${branche.id} ${software} enthält ${forbidden}`);
+          }
+          if (bucht === "Unsere Steuerkanzlei" && !/datev/i.test(label)) {
+            const chosen = countText(plain, label);
+            const datev = plain.match(/DATEV/g)?.length ?? 0;
+            if (chosen < 5) ok(false, `${branche.id} ${label} nur ${chosen} mal, DATEV ${datev}`);
+            if (datev >= chosen) ok(false, `${branche.id} DATEV ${datev} nicht unter ${label} ${chosen}`);
           }
           if (bucht === "Wir selbst im Unternehmen" && !/datev/i.test(label) && /DATEV/i.test(plain)) {
             ok(false, `${branche.id} ${software} enthält DATEV`);

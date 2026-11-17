@@ -77,6 +77,12 @@ export function draftFromSchnellversion(email: string, input: SchnellversionAnsw
   };
 }
 
+function knownFibuValue(answers: IntakeDraft["answers"]): string {
+  const listed = answers.fibu?.find((item) => item.trim());
+  if (listed) return listed;
+  return answers.module?.stammdaten?.fibu?.trim() ?? "";
+}
+
 function blank(value: unknown): boolean {
   if (value == null) return true;
   if (typeof value === "string") return value.trim() === "";
@@ -91,8 +97,11 @@ export function mergeEmptyDraftFields(existing: IntakeDraft, incoming: IntakeDra
   if (blank(answers.branchen)) answers.branchen = add.branchen;
   if (blank(answers.rechtsform)) answers.rechtsform = add.rechtsform;
   if (blank(answers.mitarbeitende)) answers.mitarbeitende = add.mitarbeitende;
-  if (blank(answers.fibu)) answers.fibu = add.fibu;
-  if (blank(answers.steuerberater)) answers.steuerberater = add.steuerberater;
+  const knownFibu = knownFibuValue(answers);
+  if (!knownFibu && blank(answers.fibu)) answers.fibu = add.fibu;
+  if (answers.module?.check?.kanzlei !== "nein" && blank(answers.steuerberater)) {
+    answers.steuerberater = add.steuerberater;
+  }
   const currentModule: ModulZustand = answers.module
     ? {
         ...answers.module,
@@ -106,7 +115,7 @@ export function mergeEmptyDraftFields(existing: IntakeDraft, incoming: IntakeDra
     const name = key as keyof ModulZustand["check"];
     if (blank(currentModule.check[name])) currentModule.check[name] = value as CheckAntwort;
   }
-  if (blank(currentModule.stammdaten?.fibu) && incomingModule?.stammdaten?.fibu) {
+  if (!knownFibuValue(answers) && blank(currentModule.stammdaten?.fibu) && incomingModule?.stammdaten?.fibu) {
     currentModule.stammdaten = { ...currentModule.stammdaten, fibu: incomingModule.stammdaten.fibu };
   }
   answers.module = currentModule;
@@ -114,6 +123,8 @@ export function mergeEmptyDraftFields(existing: IntakeDraft, incoming: IntakeDra
   for (const [id, question] of Object.entries(add.katalog ?? {})) {
     const current = katalog[id];
     if (!current) {
+      if (id === "F05" && existing.answers.module?.check?.kanzlei === "nein") continue;
+      if (id === "A01" && !blank(existing.answers.gf) && blank(existing.answers.katalog?.A01?.values?.company)) continue;
       katalog[id] = question;
       continue;
     }
@@ -124,9 +135,33 @@ export function mergeEmptyDraftFields(existing: IntakeDraft, incoming: IntakeDra
       values[field] = value;
       filled = true;
     }
+    if (id === "A01" && blank(existing.answers.katalog?.A01?.values?.company) && !blank(existing.answers.gf)) {
+      continue;
+    }
+    if (id === "F05" && existing.answers.module?.check?.kanzlei === "nein") continue;
     if (filled) katalog[id] = { ...current, values };
   }
   answers.katalog = katalog;
+  if (answers.module?.check?.kanzlei === "nein") {
+    answers.steuerberater = "";
+    const f05 = answers.katalog?.F05;
+    if (f05) {
+      answers.katalog = {
+        ...answers.katalog,
+        F05: { ...f05, values: { ...(f05.values ?? {}), kanzleiBeteiligt: "nein" } },
+      };
+    }
+  }
+  const fibu = knownFibuValue(existing.answers);
+  if (fibu) {
+    answers.fibu = [fibu];
+    if (answers.module) {
+      answers.module = {
+        ...answers.module,
+        stammdaten: { ...answers.module.stammdaten, fibu },
+      };
+    }
+  }
   return {
     ...existing,
     answers,

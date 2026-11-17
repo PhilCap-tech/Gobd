@@ -18,7 +18,7 @@ import { generateStandardPdf } from "@/lib/schnellversion-pdf";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "@/lib/schnellversion-draft";
 import { createSchnellversionTestSession } from "@/lib/schnellversion-checkout";
 import { getSvJson, putSvJson, svBlobEnabled, svPendingBlobPath, svPendingSessionBlobPath } from "@/lib/schnellversion-persist";
-import { findSvPurchaseBySession, newDownloadToken, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
+import { claimSvSession, findSvPurchaseBySession, newDownloadToken, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
 import { rememberSvEvent } from "@/lib/schnellversion-store";
 
 export type SvPending = {
@@ -240,6 +240,30 @@ export async function resolvePaymentStatus(sessionId: string): Promise<"paid" | 
   return remote?.status ?? "unpaid";
 }
 
+const sessionQueues = new Map<string, Promise<unknown>>();
+
+function queueSession<T>(sessionId: string, run: () => Promise<T>): Promise<T> {
+  const previous = sessionQueues.get(sessionId) ?? Promise.resolve();
+  const current = previous.then(run, run);
+  sessionQueues.set(
+    sessionId,
+    current.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return current;
+}
+
+async function waitForPurchase(sessionId: string): Promise<SvPurchase | null> {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const found = await findSvPurchaseBySession(sessionId);
+    if (found) return found;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return null;
+}
+
 /** Legt den Kauf erst an, wenn die gespeicherte Session bezahlt ist. Unbezahlt bleibt ohne Zeile und ohne PDF. */
 export async function confirmPaidSession(
   sessionId: string,
@@ -247,6 +271,13 @@ export async function confirmPaidSession(
 ): Promise<{ paid: false } | { paid: true; purchase: SvPurchase }> {
   const requested = sessionId.trim();
   if (!requested) return { paid: false };
+  return queueSession(requested, () => confirmPaidSessionOnce(requested, proof));
+}
+
+async function confirmPaidSessionOnce(
+  requested: string,
+  proof?: PaidProof,
+): Promise<{ paid: false } | { paid: true; purchase: SvPurchase }> {
   const env = proof?.env ?? process.env;
   if (requested.startsWith("stub_sv_") && !schnellversionStripeStub(env)) return { paid: false };
   const existing = await findSvPurchaseBySession(requested);
@@ -272,6 +303,11 @@ export async function confirmPaidSession(
     })
   ) {
     return { paid: false };
+  }
+  const claim = await claimSvSession(requested);
+  if (claim === "exists") {
+    const winner = await waitForPurchase(requested);
+    return winner ? { paid: true, purchase: winner } : { paid: false };
   }
   const pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
   const purchase = await saveSvPurchase({

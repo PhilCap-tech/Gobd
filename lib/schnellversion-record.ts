@@ -41,6 +41,7 @@ export type SvPurchase = {
 };
 
 const memory = new Map<string, SvPurchase[]>();
+const sessionClaims = new Set<string>();
 
 function emailKey(email: string): string {
   return email.trim().toLowerCase();
@@ -109,6 +110,29 @@ export async function listSvPurchases(email: string): Promise<SvPurchase[]> {
   const byId = new Map<string, SvPurchase>();
   for (const row of [...fromBlob, ...fromFile, ...fromMemory]) byId.set(row.id, row);
   return [...byId.values()];
+}
+
+/** Eine Session darf nur eine Kaufzeile anlegen. Blob: Create-only. Lokal: exklusive Datei. */
+export async function claimSvSession(sessionId: string): Promise<"created" | "exists"> {
+  const id = sessionId.trim();
+  if (!id) return "exists";
+  if (svBlobEnabled()) {
+    const { claimSvJson, svSessionClaimPath } = await import("@/lib/schnellversion-persist");
+    return claimSvJson(svSessionClaimPath(id), { sessionId: id });
+  }
+  if (sessionClaims.has(id)) return "exists";
+  sessionClaims.add(id);
+  if (automatedRunForbidsLiveWrites() || (process.env.VERCEL_ENV ?? "").trim() === "production") return "created";
+  const file = path.join(tmpdir(), "gobd-sv49-claims", `${id.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180)}.lock`);
+  try {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, id, { flag: "wx" });
+    return "created";
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST") return "exists";
+    return "created";
+  }
 }
 
 export async function saveSvPurchase(input: {

@@ -22,6 +22,16 @@ export function svPendingSessionBlobPath(sessionId: string): string {
   return `${PREFIX}/pending-session/${safe}.json`;
 }
 
+export function svSessionClaimPath(sessionId: string): string {
+  const safe = sessionId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180);
+  return `${PREFIX}/claim/${safe}.json`;
+}
+
+export function svCounted99Path(sessionId: string): string {
+  const safe = sessionId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180);
+  return `${PREFIX}/counted-99/${safe}.json`;
+}
+
 export function svSessionBlobPath(sessionId: string): string {
   const safe = sessionId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180);
   return `${PREFIX}/session/${safe}.json`;

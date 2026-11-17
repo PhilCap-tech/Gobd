@@ -50,6 +50,7 @@ export function SchnellversionKauf() {
       });
       const payload = (await response.json()) as { ready?: boolean; url?: string };
       if (!payload.ready || !payload.url) {
+        setError("Der Kauf ist gerade nicht möglich. Bitte versuchen Sie es später erneut.");
         setPending(false);
         return;
       }

@@ -217,6 +217,20 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
   answers.buchhaltung = "[bitte prüfen]";
   answers.it = "[bitte prüfen]";
   answers.steuerberater = kanzleiBuchtAntwort(input.bucht) ? "[bitte prüfen]" : "";
+  answers.geltung = "Der gesamte Betrieb im beschriebenen Umfang.";
+  answers.geltungAusschluss = "Keine Bereiche ausgenommen.";
+  const uo = answers.katalog?.UO06;
+  answers.katalog = {
+    ...answers.katalog,
+    UO06: {
+      status: "bestaetigt",
+      values: {
+        ...(uo?.values ?? {}),
+        geltung: "Der gesamte Betrieb im beschriebenen Umfang.",
+        ausgenommen: "Keine Bereiche ausgenommen.",
+      },
+    },
+  };
   if (kasseHatKapitel(input.kasse)) {
     answers = setCheckAntwort(answers, "bargeld", kasseCheckAntwort(input.kasse));
     answers = setModulEintrag(answers, "m08", { status: "tool" });

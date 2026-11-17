@@ -92,7 +92,28 @@ export function neutralizeStandardText(
   );
   for (const date of FIXED_DATES) next = next.replaceAll(date, erstelltAm);
   next = next.replaceAll("..", ".");
+  if (options.software) next = applyChosenFibu(next, options.software);
   if (options.selfBooking) next = stripUnstatedBookkeeping(next, options.software ?? "");
+  return next;
+}
+
+/**
+ * Die Buchhaltung im Text ist das gewählte Programm.
+ * DATEV bleibt nur in Export- und Übergabeformeln an die Kanzlei.
+ */
+export function applyChosenFibu(text: string, software: string): string {
+  const name = software.trim();
+  if (!name || /datev/i.test(name)) return text;
+  const kept: string[] = [];
+  const protect = /DATEV-(?:Export|Schnittstelle|Format|Upload)|DATEV Upload|per DATEV|an DATEV/g;
+  let next = text.replace(protect, (match) => {
+    const token = `§§D${kept.length}§§`;
+    kept.push(match);
+    return token;
+  });
+  next = next.replaceAll("DATEV Unternehmen online", name);
+  next = next.replaceAll("DATEV", name);
+  for (let i = 0; i < kept.length; i += 1) next = next.replaceAll(`§§D${i}§§`, kept[i] ?? "");
   return next;
 }
 
