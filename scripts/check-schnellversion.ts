@@ -25,9 +25,9 @@ import {
   type SchnellversionAnswers,
 } from "../lib/schnellversion-answers";
 import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
-import { svDownloadStillOpen, SV_COVER_TITLE } from "../lib/schnellversion-copy";
+import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
-import { BRANCHEN_FREMDE, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
+import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
 import { confirmPaidSession, failNextClaimedPurchaseForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
@@ -72,6 +72,8 @@ function befundTreffer(plain: string, fall: ReturnType<typeof standardFall>): st
     "Buchhalter Pro Lohn",
     "Excel-Listen bzw. manuelle Aufzeichnungen Lohn",
     "die von der Kanzlei eingesetzte Software Lohn",
+    "Die Lohnabrechnung erfolgt extern",
+    "Weg: Import-Datei",
   ];
   for (const item of always) if (plain.includes(item)) hits.push(item);
   if (!fall.datev && plain.includes("DATEV")) hits.push("DATEV");
@@ -249,6 +251,29 @@ async function main() {
   const pdf = await generateStandardPdf(sample(), new Date("2026-11-17T10:00:00Z"));
   const text = pageTexts(pdf).join("\n");
   ok(text.includes(SV_COVER_TITLE), "Deckblatt nennt Standardfassung, bitte prüfen");
+  ok(!svHeaderLine("Firma", "01.01.2026").includes("bitte prüfen"), "Kopfzeile ohne Marker");
+  ok(
+    svHeaderLine("Firma", "01.01.2026") === "Verfahrensdokumentation · Firma · Standardfassung vom 01.01.2026",
+    "Kopfzeile im Wortlaut",
+  );
+  ok(text.includes("Verfahrensdokumentation · Malerbetrieb Adler · Standardfassung vom"), "PDF-Kopfzeile ohne Marker");
+  ok(!text.includes("Standardfassung, bitte prüfen ·"), "PDF-Kopfzeile trägt den Marker nicht");
+  ok(text.includes(SV_FOOTER), "Fußzeile mit Hinweis");
+  ok(text.includes("Seite 1 von"), "Fußzeile mit Seitenzahl");
+  ok(!text.includes("Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."), "alter Fußtext ist weg");
+  ok(!text.includes("Dieses Dokument beschreibt"), "Deckblatt ohne zusätzlichen Absatz");
+  ok(!text.includes("Intake"), "kein Intake im Beispiel-PDF");
+  ok(!text.includes("Anhang A"), "kein Anhang A im Beispiel-PDF");
+  ok(text.includes("§ 13b"), "Handwerk-PDF nennt § 13b");
+  ok(text.includes(LOHN_SATZ), "Lohnsatz im Beispiel-PDF");
+  const bzwProbe = limitIdenticalSentences(
+    [
+      "Zuständig ist die Bauleitung bzw. der Meister.",
+      "Wareneingang wird geprüft. Bauleitung bzw. die Geschäftsführung.",
+    ].join("\n"),
+    1,
+  );
+  ok(bzwProbe.includes("Bauleitung bzw. die Geschäftsführung"), "kein Satzbruch nach bzw.");
   ok(text.includes(SV_BASIS_SATZ), "Standardfassung nennt Branche und Größe");
   ok(!text.includes("Kunden-Intake"), "Standardfassung ohne Kunden-Intake");
   ok(!text.includes("bestätigten Angaben"), "Standardfassung ohne bestätigte Angaben");
@@ -644,6 +669,35 @@ async function main() {
           if (/€/.test(plain) || /Anrechn/i.test(plain)) ok(false, `${branche.id} ${software} enthält Preis oder Anrechnung`);
           if (/Buchungsbelege\s+(10|zehn)\s+Jahre/i.test(plain)) ok(false, `${branche.id} Buchungsbelege mit 10 Jahren`);
           if (/: ja\b/.test(plain)) ok(false, `${branche.id} ${software} enthält : ja`);
+          if (plain.includes("Intake")) ok(false, `${branche.id} ${software} enthält Intake`);
+          if (plain.includes("Anhang A")) ok(false, `${branche.id} ${software} enthält Anhang A`);
+          if (
+            plain.includes("Küchen- bzw. der Inhaber") ||
+            plain.includes("bzw. Wer bestätigt") ||
+            plain.includes("Über die Kanzlei. im eigenen Archiv")
+          ) {
+            ok(false, `${branche.id} ${software} bricht den Satz nach bzw.`);
+          }
+          if (!plain.includes(LOHN_SATZ)) ok(false, `${branche.id} ${software} ohne Lohnsatz`);
+          if (plain.includes("Die Lohnabrechnung erfolgt extern")) ok(false, `${branche.id} alter Lohnsatz`);
+          if (plain.includes("| Rolle | Lesen |") && !plain.includes("Vorschlag – vom Betrieb zu bestätigen")) {
+            ok(false, `${branche.id} Rechtetabelle ohne Vorschlag`);
+          }
+          if (!plain.includes("strukturierte Datensatz") || !plain.includes("maßgeblich")) {
+            ok(false, `${branche.id} ohne E-Rechnungs-Original`);
+          }
+          if (kasse === "Ja, offene Ladenkasse (ohne elektronisches System)") {
+            if (/\bTSE\b/.test(plain)) ok(false, `${branche.id} ${software} offene Ladenkasse nennt TSE`);
+            if (!plain.includes("Kassenbericht") || !plain.includes("Zählprotokoll")) {
+              ok(false, `${branche.id} offene Ladenkasse ohne Kassenbericht`);
+            }
+          }
+          if (kasse !== "Nein, keine Bargeldeinnahmen" && !plain.includes("Ersatzaufzeichnung")) {
+            ok(false, `${branche.id} ${software} ohne Notverfahren`);
+          }
+          if (branche.id === "handwerk" && (!plain.includes("§ 13b") || !plain.includes("§ 14 UStG"))) {
+            ok(false, `${branche.id} ${software} ohne § 13b oder § 14 UStG`);
+          }
           const bodyStart = plain.indexOf("# ");
           const listAt = plain.indexOf("# Vom Betrieb zu ergänzende Punkte");
           const body = plain.slice(bodyStart < 0 ? 0 : bodyStart, listAt < 0 ? plain.length : listAt);
@@ -653,10 +707,7 @@ async function main() {
               if (name && plain.includes(name)) ok(false, `${branche.id} enthält Musterangabe ${name}`);
             }
           }
-          const lohnSatz = fall.self
-            ? "Die Lohnabrechnung erfolgt extern (z. B. über ein Lohnbüro)."
-            : "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei).";
-          if (!plain.includes(lohnSatz)) ok(false, `${branche.id} ${software} ohne neutralen Lohnsatz`);
+          if (!plain.includes(LOHN_SATZ)) ok(false, `${branche.id} ${software} ohne neutralen Lohnsatz`);
           const repeats = repeatedSentences(plain);
           if (repeats.length) ok(false, `${branche.id} ${software} wiederholt ${repeats[0]}`);
         }

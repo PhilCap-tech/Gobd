@@ -15,7 +15,8 @@ import {
 } from "@/lib/schnellversion-answers";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { limitIdenticalSentences, standardFall, standardSystemSection } from "@/lib/schnellversion-bausteine";
-import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
+import { mitKassenNotverfahren } from "@/lib/schnellversion-basis";
+import { neutralizeStandardText, ohneTseAussage } from "@/lib/schnellversion-neutral";
 import {
   SV_KASSE_UNSICHER_HILFE,
   formatSvDate,
@@ -36,6 +37,7 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
       self: !kanzleiBuchtAntwort(input.bucht),
       kasse: kasseHatKapitel(input.kasse),
       gastro: input.branche === "gastro",
+      kasseArt: input.kasse,
     }),
     erstelltAm: datum,
     selfBooking: !kanzleiBuchtAntwort(input.bucht),
@@ -43,6 +45,7 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
     bausteinKind: fall.kind,
     bausteinName: fall.name,
     brancheId: input.branche,
+    kasseArt: input.kasse,
   };
   if (input.kasse === "Unsicher") {
     frame.kasseHinweis = SV_KASSE_UNSICHER_HILFE;
@@ -76,13 +79,19 @@ export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date
   const datum = frame.erstelltAm ?? "";
   const chapters = rendered.chapters
     .filter((chapter) => chapter.id !== "anhang-a")
-    .map((chapter) => neutralizeStandardText(chapter.body, datum, options));
-  return limitIdenticalSentences([
+    .map((chapter) => {
+      let body = chapter.body;
+      if (frame.kasseHinweis && chapter.id === "modul-m08") body = `${frame.kasseHinweis}\n\n${body}`;
+      body = mitKassenNotverfahren(body, chapter.id, input.kasse);
+      return neutralizeStandardText(body, datum, options);
+    });
+  const joined = limitIdenticalSentences([
     neutralizeStandardText(`${frame.coverBox}\n\n${rendered.cover}`, datum, options),
     ...chapters,
     standardSystemSection(standardFall(input)),
     neutralizeStandardText(frame.closing, datum, options),
   ].join("\n"), 1);
+  return input.kasse === "Ja, offene Ladenkasse (ohne elektronisches System)" ? ohneTseAussage(joined) : joined;
 }
 
 export function standardNeedsKasseChapter(input: SchnellversionAnswers): boolean {

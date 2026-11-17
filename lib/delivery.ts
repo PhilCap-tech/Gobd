@@ -31,7 +31,9 @@ import {
   PDF_UPSELL_PRICE,
 } from "@/lib/offer-copy";
 import { limitIdenticalSentences, standardSystemSection } from "@/lib/schnellversion-bausteine";
-import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
+import { mitKassenNotverfahren } from "@/lib/schnellversion-basis";
+import { SV_FOOTER } from "@/lib/schnellversion-copy";
+import { neutralizeStandardText, ohneTseAussage } from "@/lib/schnellversion-neutral";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
 
@@ -68,6 +70,8 @@ export type StandardPdfFrame = {
   bausteinKind?: "datev" | "lexoffice" | "sevdesk" | "excel" | "unbekannt" | "named";
   bausteinName?: string;
   brancheId?: string;
+  /** Angabe zur Kasse, nur für die Standardfassung. */
+  kasseArt?: string;
 };
 
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
@@ -313,6 +317,8 @@ function drawFooter(
     versionLabel: string;
     validFrom?: string;
     chrome: string;
+    /** Zweite Zeile mit Marke und Fassung. Die Standardfassung hat nur eine Zeile. */
+    brandLine?: boolean;
   },
 ) {
   withOpenMargins(doc, () => {
@@ -341,16 +347,18 @@ function drawFooter(
         align: "right",
         lineBreak: false,
       });
-    doc
-      .font("Helvetica")
-      .fontSize(7)
-      .fillColor(BRAND_MUTED)
-      .text(
-        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}`,
-        left,
-        ruleY + 18,
-        { width, lineBreak: false },
-      );
+    if (input.brandLine !== false) {
+      doc
+        .font("Helvetica")
+        .fontSize(7)
+        .fillColor(BRAND_MUTED)
+        .text(
+          `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}`,
+          left,
+          ruleY + 18,
+          { width, lineBreak: false },
+        );
+    }
   });
 }
 
@@ -456,9 +464,7 @@ function decoratePages(
   },
 ) {
   const range = doc.bufferedPageRange();
-  const chrome = input.standard
-    ? "Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."
-    : footerChrome(input.variant);
+  const chrome = input.standard ? SV_FOOTER : footerChrome(input.variant);
   for (let i = 0; i < range.count; i += 1) {
     doc.switchToPage(range.start + i);
     if (input.standard && i === 0) drawTopLine(doc, input.standard.header);
@@ -472,6 +478,7 @@ function decoratePages(
       versionLabel: input.rendered.versionLabel,
       validFrom: input.rendered.validFromDisplay,
       chrome,
+      brandLine: !input.standard,
     });
   }
 }
@@ -517,16 +524,22 @@ function writePdf(
     branche: input.standard?.brancheId,
   };
   const sentenceCounts = new Map<string, number>();
-  const plain = (value: string) =>
-    input.standard ? limitIdenticalSentences(neutralizeStandardText(value, erstelltAm, neutral), 1, sentenceCounts) : value;
+  const offen = input.standard?.kasseArt === "Ja, offene Ladenkasse (ohne elektronisches System)";
+  const plain = (value: string) => {
+    if (!input.standard) return value;
+    const cleaned = limitIdenticalSentences(neutralizeStandardText(value, erstelltAm, neutral), 1, sentenceCounts);
+    return offen ? ohneTseAussage(cleaned) : cleaned;
+  };
   if (input.standard) {
     chapters = chapters
       .filter((chapter) => chapter.id !== "anhang-a")
       .map((chapter) => {
-        const body = plain(chapter.body);
-        return input.standard?.kasseHinweis && chapter.id === "modul-m08"
-          ? { ...chapter, body: `${input.standard.kasseHinweis}\n\n${body}` }
-          : { ...chapter, body };
+        let body = chapter.body;
+        if (input.standard?.kasseHinweis && chapter.id === "modul-m08") {
+          body = `${input.standard.kasseHinweis}\n\n${body}`;
+        }
+        body = mitKassenNotverfahren(body, chapter.id, input.standard?.kasseArt);
+        return { ...chapter, body: plain(body) };
       });
   }
 
@@ -615,7 +628,7 @@ export async function generatePdf(input: {
         Title: `${isGesamt(input.answers) ? gesamtDocTitle() : isBelegfluss(input.answers) ? BRAND_DOC_TITLE : bereichDocTitle(bereichIdOf(input.answers))} — ${input.identity.company || (variant === "muster" ? "Muster" : "Arbeitsfassung")}`,
         Author: BRAND_NAME,
         Subject: input.standard
-          ? "Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."
+          ? SV_FOOTER
           : variant === "muster"
             ? "Muster mit fiktiven Angaben — kein Steuerberatungsersatz"
             : `Arbeitsfassung ${isGesamt(input.answers) ? "Gesamtdokument" : isBelegfluss(input.answers) ? "Belegablage" : bereichLabel(bereichIdOf(input.answers))} — kein Steuerberatungsersatz`,

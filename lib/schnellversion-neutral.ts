@@ -34,7 +34,7 @@ export function neutralizeStandardText(
   );
   next = next.replaceAll(
     "auf Grundlage der im Intake bestätigten Angaben",
-    "als Standardfassung auf Basis Ihrer Angaben zu Branche und Größe",
+    "auf Grundlage der Angaben zu Branche und Größe",
   );
   next = next.replaceAll(
     "aus bestätigten Angaben des Kunden-Intakes erzeugt",
@@ -93,7 +93,8 @@ export function neutralizeStandardText(
   next = next.replaceAll("mit die Geschäftsführung", "mit der Geschäftsführung");
   next = next.replaceAll("mit die Buchhaltung", "mit der Buchhaltung");
   next = next.replaceAll(" .", ".");
-  next = next.replace(/Dieses Dokument beschreibt[\s\S]*?Geschäftsleitung\.\s*/g, "");
+  next = next.replace(/Dieses Dokument beschreibt[\s\S]*?(?:\n{2,}|$)/g, "\n");
+  next = next.replace(/Die automatische Generierung ersetzt[\s\S]*?Geschäftsleitung\.\s*/g, "");
   next = next.replaceAll(
     "Sätze im Präsens beschreiben nur bestätigte Abläufe",
     "Die beschriebenen Abläufe sind typische Abläufe der Branche",
@@ -113,5 +114,64 @@ export function neutralizeStandardText(
     bucht: options.selfBooking ? "Wir selbst im Unternehmen" : "Unsere Steuerkanzlei",
   });
   const withBlocks = applyStandardBausteine(next, fall);
-  return options.branche ? dropFremdeProzesse(withBlocks, options.branche) : withBlocks;
+  const dropped = options.branche ? dropFremdeProzesse(withBlocks, options.branche) : withBlocks;
+  return ohneInterneVerweise(dropped);
+}
+
+const RECHTE_TABELLE = "| Rolle | Lesen | Bearbeiten | Freigeben | Rechte verwalten |";
+
+/** Interne Arbeitsbegriffe der Standardfassung. Die Vollversion bleibt unverändert. */
+function ohneInterneVerweise(text: string): string {
+  let next = text;
+  next = next.replaceAll("im Intake zu bestätigen", "vom Betrieb zu bestätigen");
+  next = next.replaceAll("im Intake nicht angegeben", "in dieser Dokumentation nicht angegeben");
+  next = next.replaceAll("im Intake spezifiziert", "vom Betrieb festgelegt");
+  next = next.replaceAll("im Intake als heutige Praxis bestätigt", "vom Betrieb bestätigt");
+  next = next.replaceAll("im Intake bestätigte", "vom Betrieb bestätigte");
+  next = next.replaceAll("aus dem Intake", "in dieser Dokumentation");
+  next = next.replaceAll("aus Intake", "vom Betrieb");
+  next = next.replaceAll("laut Intake", "laut Betrieb");
+  next = next.replaceAll("Stand im Intake", "Stand");
+  next = next.replaceAll("im Intake", "vom Betrieb");
+  next = next.replaceAll("Intake", "");
+  next = next.replaceAll("siehe Anhang A", "siehe Ergänzungsliste am Ende");
+  next = next.replaceAll("sonst siehe Anhang A", "sonst siehe Ergänzungsliste am Ende");
+  next = next.replaceAll("Anhang A", "");
+  next = next.replace(/[ \t]{2,}/g, " ");
+  next = next.replace(/ +\./g, ".");
+  next = next.replace(/\(\s*\)/g, "");
+  next = next.replace(/\s+—\s+—/g, " —");
+  if (next.includes(RECHTE_TABELLE) && !next.includes("Vorschlag – vom Betrieb zu bestätigen")) {
+    next = next.replaceAll(RECHTE_TABELLE, `Vorschlag – vom Betrieb zu bestätigen\n\n${RECHTE_TABELLE}`);
+  }
+  return next;
+}
+
+/** Offene Ladenkasse: keine Aussage zur TSE. Nur die Standardfassung. */
+export function ohneTseAussage(text: string): string {
+  return text
+    .split("\n")
+    .flatMap((line) => {
+      if (!line.includes("TSE")) return [line];
+      if (line.startsWith("|")) return [];
+      const next = line
+        .replaceAll("TSE-Daten", "Kassendaten")
+        .replaceAll("TSE-Seriennummer", "Seriennummer")
+        .replaceAll("TSE-Art", "Art")
+        .replaceAll("TSE und Mitteilung", "Mitteilung zum Kassensystem")
+        .replaceAll("Kassenart und TSE", "Kassenart")
+        .replaceAll("Kassensystem und TSE", "Kassensystem")
+        .replaceAll("von Kasse oder TSE", "der Kasse")
+        .replaceAll("Kasse oder TSE", "Kasse")
+        .replace(/\bTSE\b/g, "")
+        .replace(/\s{2,}/g, " ")
+        .replace(/\s+([,.;:])/g, "$1")
+        .replace(/\(\s*\)/g, "")
+        .replace(/,\s*,/g, ",")
+        .replace(/\s+\./g, ".")
+        .trim();
+      if (!next || /^\*\*[^*]{0,4}:\*\*\.?$/.test(next)) return [];
+      return [next];
+    })
+    .join("\n");
 }

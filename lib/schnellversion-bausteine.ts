@@ -23,6 +23,50 @@ export type BausteinInput = {
 
 const AUFBEWAHRUNG = "Aufbewahrung: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 3 AO). Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO).";
 
+export const LOHN_SATZ =
+  "Lohnabrechnung intern oder extern – ist im Betrieb festzulegen und hier einzutragen.";
+
+/** Abkürzungen, an deren Punkt der Satzteiler nicht trennen darf. */
+const ABBREV: ReadonlyArray<readonly [string, string]> = [
+  ["i. d. R.", "i§d§R"],
+  ["z. B.", "z§B"],
+  ["u. a.", "u§a"],
+  ["z. T.", "z§T"],
+  ["u. U.", "u§U"],
+  ["d. h.", "d§h"],
+  ["o. ä.", "o§ä"],
+  ["bzw.", "bzw§"],
+  ["ggf.", "ggf§"],
+  ["vgl.", "vgl§"],
+  ["Abs.", "Abs§"],
+  ["Nr.", "Nr§"],
+];
+
+function maskAbbrev(line: string): string {
+  let next = line;
+  for (const [from, to] of ABBREV) next = next.replaceAll(from, to);
+  return next;
+}
+
+function unmaskAbbrev(line: string): string {
+  let next = line;
+  for (const [from, to] of [...ABBREV].reverse()) next = next.replaceAll(to, from);
+  return next;
+}
+
+function splitSentences(line: string): string[] {
+  const masked = maskAbbrev(line);
+  const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
+  return parts.map((part) => unmaskAbbrev(part));
+}
+
+function bankOffen(name: string, self: boolean): string {
+  const wer = self
+    ? "wer sie erfasst, ist festzulegen"
+    : "wer sie erfasst (Betrieb oder Kanzlei), ist festzulegen";
+  return `Kontoumsätze gelangen per Bankabruf oder nach Kontoauszug in ${name}; ${wer} (bitte prüfen).`;
+}
+
 export function standardFall(input: BausteinInput): StandardFall {
   const self = input.bucht === "Wir selbst im Unternehmen";
   const frei = (input.softwareFrei ?? "").trim();
@@ -72,9 +116,7 @@ function ohneMarker(pack: BausteinPack): BausteinPack {
 }
 
 function buildPack(fall: StandardFall): BausteinPack {
-  const lohnProgramm = fall.self
-    ? "Die Lohnabrechnung erfolgt extern (z. B. über ein Lohnbüro)."
-    : "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei).";
+  const lohnProgramm = LOHN_SATZ;
   const kanzleiFrei = "Die Buchhaltung liegt im Unternehmen. [bitte prüfen]";
   if (fall.datev && !fall.self) {
     return {
@@ -103,7 +145,7 @@ function buildPack(fall: StandardFall): BausteinPack {
       lohnFibu: "Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen.",
       lohnMeldung: "Personaländerungen erfasst der Betrieb. [bitte prüfen]",
       lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
-      bank: "Kontoumsätze werden aus Kontoauszügen in DATEV übernommen. [bitte prüfen]",
+      bank: bankOffen("DATEV", true),
       zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
       kasse: "Monatlicher Export aus dem Kassensystem in die Buchhaltung. [bitte prüfen]",
       schnittstelle: "Übergabe an DATEV laut Betrieb. [bitte prüfen]",
@@ -125,7 +167,7 @@ function buildPack(fall: StandardFall): BausteinPack {
         ? "Personaländerungen erfasst der Betrieb. [bitte prüfen]"
         : "Personaländerungen gehen an die Kanzlei. [bitte prüfen]",
       lohnZugriff: "Lohnlisten nur für [bitte prüfen] zugänglich.",
-      bank: "Kontoauszüge der Bank liegen als PDF oder auf Papier in der Belegablage.",
+      bank: "Kontoauszüge der Bank liegen als PDF oder auf Papier in der Belegablage (bitte prüfen).",
       zahlung: "Zahlungen erfasst der Betrieb manuell im Onlinebanking. [bitte prüfen]",
       kasse: "Kassenberichte gehen als Liste an die Buchhaltung. [bitte prüfen]",
       schnittstelle: "Keine technische Schnittstelle. Die Erfassung erfolgt manuell. [bitte prüfen]",
@@ -143,7 +185,7 @@ function buildPack(fall: StandardFall): BausteinPack {
       lohnFibu: "Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen.",
       lohnMeldung: "Personaländerungen erfasst der Betrieb. [bitte prüfen]",
       lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
-      bank: "Kontoumsätze werden aus Kontoauszügen in die Buchhaltung übernommen. [bitte prüfen]",
+      bank: bankOffen("die Buchhaltung", true),
       zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
       kasse: "Monatlicher Export aus dem Kassensystem in die Buchhaltung. [bitte prüfen]",
       schnittstelle: "Übergabe an die Buchhaltung laut Betrieb. [bitte prüfen]",
@@ -161,7 +203,7 @@ function buildPack(fall: StandardFall): BausteinPack {
       lohnFibu: "Die Kanzlei übernimmt die Lohnbuchungen in die Finanzbuchhaltung.",
       lohnMeldung: "Personaländerungen gehen an die Kanzlei. [bitte prüfen]",
       lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
-      bank: "Kontoumsätze stellt die Bank als Kontoauszug bereit. Die Kanzlei übernimmt sie in die Buchhaltung. [bitte prüfen]",
+      bank: bankOffen("die Buchhaltung", false),
       zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
       kasse: "Monatlicher Export aus dem Kassensystem an die Kanzlei. [bitte prüfen]",
       schnittstelle: "Übergabe an die Kanzlei laut Betrieb. [bitte prüfen]",
@@ -220,7 +262,7 @@ function buildPack(fall: StandardFall): BausteinPack {
       ? "Personaländerungen erfasst der Betrieb. [bitte prüfen]"
       : "Personaländerungen gehen an die Kanzlei. [bitte prüfen]",
     lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
-    bank: `Kontoumsätze werden aus Kontoauszügen in ${name} übernommen. [bitte prüfen]`,
+    bank: bankOffen(name, fall.self),
     zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
     kasse: fall.self
       ? "Monatlicher Export aus dem Kassensystem in die Buchhaltung. [bitte prüfen]"
@@ -249,12 +291,12 @@ export function pflichtBausteine(fall: StandardFall): string[] {
 /** Prozessbegriffe, die in dieser Branche nicht vorkommen. */
 export const BRANCHEN_FREMDE: Record<string, readonly string[]> = {
   gastro: ["ERP", "Fertigung", "Mindestbestand", "Feinmechanik", "Handscanner", "WaWi Lagerplus", "Baustelle", "Aufmaß", "Bautagebuch", "Nachunternehmer", "Shopify", "Marktplatz", "Praxissoftware", "Taxameter"],
-  handwerk: ["ERP", "Fertigung", "Mindestbestand", "Feinmechanik", "Handscanner", "TSE", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Trinkgeld", "Kassensturz", "WaWi Lagerplus"],
-  handel: ["Fertigung", "Mindestbestand", "Feinmechanik", "Theke", "TSE", "Z-Bon", "Baustelle", "Aufmaß", "Bautagebuch", "Shopify", "Praxissoftware", "Taxameter"],
-  ecommerce: ["Fertigung", "Mindestbestand", "Feinmechanik", "Theke", "TSE", "Z-Bon", "Baustelle", "Aufmaß", "Kassensturz", "Handscanner", "Praxissoftware", "Taxameter"],
-  dienstleistung: ["ERP", "Fertigung", "Mindestbestand", "TSE", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
-  freiberuf: ["ERP", "Fertigung", "Mindestbestand", "TSE", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
-  sonstiges: ["ERP", "Fertigung", "Mindestbestand", "TSE", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+  handwerk: ["ERP", "Fertigung", "Mindestbestand", "Feinmechanik", "Handscanner", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Trinkgeld", "Kassensturz", "WaWi Lagerplus"],
+  handel: ["Fertigung", "Mindestbestand", "Feinmechanik", "Theke", "Z-Bon", "Baustelle", "Aufmaß", "Bautagebuch", "Shopify", "Praxissoftware", "Taxameter"],
+  ecommerce: ["Fertigung", "Mindestbestand", "Feinmechanik", "Theke", "Z-Bon", "Baustelle", "Aufmaß", "Kassensturz", "Handscanner", "Praxissoftware", "Taxameter"],
+  dienstleistung: ["ERP", "Fertigung", "Mindestbestand", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+  freiberuf: ["ERP", "Fertigung", "Mindestbestand", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+  sonstiges: ["ERP", "Fertigung", "Mindestbestand", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
 };
 
 export function dropFremdeProzesse(text: string, branche: string): string {
@@ -263,11 +305,7 @@ export function dropFremdeProzesse(text: string, branche: string): string {
   const hit = (part: string) => terms.some((term) => part.includes(term));
   return text
     .split("\n")
-    .map((line) => {
-      const masked = line.replaceAll("z. B.", "z§B");
-      const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
-      return parts.filter((part) => !hit(part)).join(" ").replaceAll("z§B", "z. B.");
-    })
+    .map((line) => splitSentences(line).filter((part) => !hit(part)).join(" "))
     .join("\n");
 }
 
@@ -275,10 +313,8 @@ export function dropFremdeProzesse(text: string, branche: string): string {
 export function repeatedSentences(text: string, max = 3): string[] {
   const counts = new Map<string, number>();
   for (const line of text.split("\n")) {
-    const masked = line.replaceAll("z. B.", "z§B");
-    const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
-    for (const part of parts) {
-      const key = part.replaceAll("z§B", "z. B.").replace(/\s+/g, " ").trim();
+    for (const part of splitSentences(line)) {
+      const key = part.replace(/\s+/g, " ").trim();
       if (key.length < 28) continue;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
@@ -290,16 +326,15 @@ export function limitIdenticalSentences(text: string, max = 1, counts = new Map<
   return text
     .split("\n")
     .map((line) => {
-      const masked = line.replaceAll("z. B.", "z§B");
-      const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
-      const kept = parts.filter((part) => {
-        const key = part.replaceAll("z§B", "z. B.").replace(/\s+/g, " ").trim();
+      const kept = splitSentences(line).filter((part) => {
+        const key = part.replace(/\s+/g, " ").trim();
+        if (key === LOHN_SATZ) return true;
         if (key.length < 28) return true;
         const next = (counts.get(key) ?? 0) + 1;
         counts.set(key, next);
         return next <= max;
       });
-      return kept.join(" ").replaceAll("z§B", "z. B.");
+      return kept.join(" ");
     })
     .join("\n");
 }
@@ -330,11 +365,7 @@ export function applyStandardBausteine(text: string, fall: StandardFall): string
   next = next.replace(SUFFIX, "");
   next = next
     .split("\n")
-    .map((line) => {
-      const masked = line.replaceAll("z. B.", "z§B");
-      const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
-      return parts.map((part) => rewriteChunk(part, fall)).join(" ").replaceAll("z§B", "z. B.");
-    })
+    .map((line) => splitSentences(line).map((part) => rewriteChunk(part, fall)).join(" "))
     .join("\n");
   return limitIdenticalSentences(next, 1);
 }

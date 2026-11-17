@@ -3,6 +3,7 @@
  * (Abschnitt 2 und 3), formelles Sie. Keine eigenen Preise oder Disclaimer.
  */
 
+import { LOHN_SATZ } from "@/lib/schnellversion-bausteine";
 import { SV_BASIS_SATZ } from "@/lib/schnellversion-neutral";
 
 export const SV_BUY_LABEL = "Direkt kaufen: Standard-PDF 49 €";
@@ -63,8 +64,11 @@ export function svCoverBox(vorlage: string, erstelltAm = ""): string {
   ].join("\n");
 }
 
+export const SV_FOOTER =
+  "Standardfassung – vor Freigabe durch die Geschäftsführung prüfen · Keine Steuer- oder Rechtsberatung";
+
 export function svHeaderLine(firma: string, datum: string): string {
-  return `${SV_COVER_TITLE} · ${firma} · erstellt am ${datum}`;
+  return `Verfahrensdokumentation · ${firma} · Standardfassung vom ${datum}`;
 }
 
 /** Eine Prüffrage je Punkt aus Konzept 2.4. */
@@ -77,14 +81,21 @@ export const SV_PRUEF_PUNKTE: ReadonlyArray<readonly [string, string]> = [
   ["Übergabe an die Kanzlei", "Welche Unterlagen übergeben Sie an die Kanzlei, und wer bleibt wofür zuständig?"],
 ];
 
-export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro?: boolean } = {}): string {
+export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro?: boolean; kasseArt?: string } = {}): string {
   const self = options.self === true;
   const kasse = options.kasse === true;
   const gastro = options.gastro === true;
   const punkte: Array<readonly [string, string]> = [
     ["Prüfung und Freigabe", "Die Geschäftsführung prüft das Dokument, ersetzt offene Angaben durch eigene Angaben, unterschreibt und trägt „gültig ab“ ein."],
   ];
-  const kassenPunkt: readonly [string, string] = ["Kasse", "Kassenart (elektronisch mit TSE oder offene Ladenkasse), Kassen- und TSE-Seriennummer, Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO, Tagesabschluss bzw. Kassenbericht."];
+  const art = options.kasseArt ?? "";
+  const kassenText =
+    art === "Ja, offene Ladenkasse (ohne elektronisches System)"
+      ? "Offene Ladenkasse: täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll. Wer zählt und den Bericht führt, ist einzutragen."
+      : art === "Unsicher"
+        ? "Kassenart (elektronisch mit TSE oder offene Ladenkasse) ist festzulegen. Bei elektronischer Kasse: Kassen- und TSE-Seriennummer und das Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO. Bei offener Ladenkasse: Kassenbericht und Zählprotokoll."
+        : "Kassenart (elektronisches Aufzeichnungssystem mit TSE), Kassen- und TSE-Seriennummer, Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO, Tagesabschluss.";
+  const kassenPunkt: readonly [string, string] = ["Kasse", kassenText];
   if (kasse && gastro) punkte.push(kassenPunkt);
   punkte.push(
     ["Zuständigkeiten und Vertretung", "Wer ist wofür zuständig, wer vertritt, wer gibt Zahlungen frei?"],
@@ -95,12 +106,10 @@ export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro
     ["Systeme", "Welche Programme werden eingesetzt (Name, Anbieter, Cloud oder lokal), stimmt die Systemübersicht?"],
     ["Archiv, Unveränderbarkeit und Sicherung", "Wo liegen die Unterlagen, wie sind sie gegen Änderung geschützt, wer sichert wie oft? Fristen: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Geschäftsbriefe 6 Jahre."],
   );
-  if (!self) {
-    punkte.push([
-      "Übergabe an Kanzlei bzw. Lohnbüro",
-      "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei). Welche Unterlagen gehen wann an wen, wer bleibt verantwortlich?",
-    ]);
-  }
+  punkte.push([
+    self ? "Lohnabrechnung" : "Übergabe an Kanzlei bzw. Lohnbüro",
+    LOHN_SATZ,
+  ]);
   const points = punkte.map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
   return ["# Vom Betrieb zu ergänzende Punkte", "", points].join("\n");
 }
