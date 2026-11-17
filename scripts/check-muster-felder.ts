@@ -118,7 +118,7 @@ console.log("ok: Vertretung bleibt als Feldlabel");
 /** Stichwort der Frage und erwartetes Stichwort der Musterantwort. */
 export const MUSTER_INHALT: ReadonlyArray<{ id: string; frage: RegExp; antwort: RegExp }> = [
   { id: "LE01", frage: /Änderungen eines Auftrags/i, antwort: /änderung/i },
-  { id: "AR01", frage: /Abschlags-/i, antwort: /Abschlag/i },
+  { id: "AR01", frage: /Abschlags-/i, antwort: /Abschlag|einzeln berechnet|Veranstaltung|Bestellung/i },
   { id: "AR02", frage: /Gutschrift/i, antwort: /Gutschrift/i },
   { id: "KF03", frage: /Abweichungen/i, antwort: /Abweichung/i },
   { id: "KF04", frage: /nachgewiesen/i, antwort: /Protokoll|Abhakliste|Nachweis|Checkliste/i },
@@ -204,6 +204,20 @@ export function bs06WidersprichtOss(oss: string, regeln: string): boolean {
   return oss.trim().toLowerCase() === "ja" && regeln.includes("Keine besonderen Regeln");
 }
 
+/** Vorlagenwort nur, wenn SY01 oder UO03 derselben Firma es nennt. */
+export const VORLAGEN_BEGRIFFE = ["Projektleitung", "Agentur", "Abschlagsrechnung", "Schlussrechnung", "Faktura+", "Abnahme"] as const;
+
+export function vorlagenbegriffOhneStamm(begriff: string, stamm: string, text: string): boolean {
+  return text.includes(begriff) && !stamm.includes(begriff);
+}
+
+const KONTROLL_ROLLEN = ["Projektleitung", "Verkaufsleitung", "Schichtleitung", "Lagerleitung", "Lagerpersonal", "Filialleitung", "Küchenchef"] as const;
+
+/** Rolle in einer Kontrolle, die UO03 der Firma nicht nennt. */
+export function rolleOhneStamm(rolle: string, stamm: string, kontrolle: string): boolean {
+  return kontrolle.includes(rolle) && !stamm.includes(rolle);
+}
+
 if (fremdeMusterreste("Lagerleitung (Peter Holm) im ERP Fertigplan").length < 2) {
   fail("Negativtest: fremder Name oder fremdes System wurde nicht erkannt");
 }
@@ -215,6 +229,25 @@ if (!bs06WidersprichtOss("ja", "Keine besonderen Regeln über die allgemeinen um
 }
 if (bs06WidersprichtOss("nein", "Keine besonderen Regeln über die allgemeinen umsatzsteuerlichen Pflichten hinaus.")) {
   fail("Negativtest: ohne OSS wurde eine Sonderregel verlangt");
+}
+if (!vorlagenbegriffOhneStamm("Projektleitung", "Buchhaltung", "Abgleich durch die Projektleitung")) {
+  fail("Negativtest: Projektleitung ohne Stamm wurde nicht erkannt");
+}
+if (vorlagenbegriffOhneStamm("Projektleitung", "Projektleitung für Aufträge", "Abgleich durch die Projektleitung")) {
+  fail("Negativtest: Projektleitung im Stamm wurde gemeldet");
+}
+if (!rolleOhneStamm("Küchenchef", "Schichtleitung", "Freigabe durch den Küchenchef")) {
+  fail("Negativtest: Rolle ohne UO03 wurde nicht erkannt");
+}
+const OSS_SATZ = "Fernverkäufe an Privatpersonen in Österreich werden mit dem österreichischen Steuersatz berechnet und über das OSS-Verfahren erklärt (§ 3c, § 18j UStG)";
+export function ossSatzSichtbar(text: string): boolean {
+  return text.includes(OSS_SATZ);
+}
+if (ossSatzSichtbar("OSS-Verfahren wird genutzt: ja.")) {
+  fail("Negativtest: der kurze OSS-Hinweis gilt als der BS06-Satz");
+}
+if (!ossSatzSichtbar(`${OSS_SATZ}; Steuersätze je Land pflegt die Geschäftsführung im Shop.`)) {
+  fail("Negativtest: der volle OSS-Satz wurde nicht erkannt");
 }
 console.log("negativ fremde Musterreste: rot");
 
@@ -257,11 +290,11 @@ const NEU_ERWARTUNG: Record<string, RegExp> = {
   BA05: /2\.000 Euro/,
   LO04: /Zeiterfassungs-App/,
   WW00: /Lagerverantwortliche Person|Henrik Bauwerk|Jonas Marktwege|Mira Paketpfad|Paula Speicherblick/,
-  WW02: /Projektleitung|Lagerverantwortliche Person|Einkauf/,
+  WW02: /Projektleitung|Lagerverantwortliche Person|Einkauf|Küchenchef|Schichtleitung/,
   WW03: /Lieferschein/,
   WW04: /Warenausgang|Baustelle|Verbrauch/,
   WW05: /Bestand|Projekt|Durchschnitt/,
-  WW07: /freigabe|500 Euro|Projektleitung|Lagerleitung/i,
+  WW07: /500 Euro|Projektleitung|Lagerleitung|Lagerverantwortliche|Küchenchef|Schichtleitung/i,
   WW09: /Differenz/,
   WW10: /DATEV|monatlich/,
   WW92: /FiBu|Wareneingang/,
@@ -289,6 +322,19 @@ const NEU_ERWARTUNG: Record<string, RegExp> = {
   AE04: /gibt frei/i,
   PF02: /meldet geänderte Abläufe/i,
   EK01: /gemeldeten Bedarfen|Onlineshop/i,
+  VK01: /Angebot|Auftrag|Bestellung|Veranstaltung|WaWi|Shop/i,
+  VK02: /Rechnungssoftware|WaWi|Onlineshop|Veranstaltung|Faktura/i,
+  VK05: /fortlaufend|Nummernkreis/i,
+  VK08: /storniert|Storno/i,
+  VK10: /DATEV/i,
+  VK06: /Pflichtangaben|Rechnungsvorlage/i,
+  VK90: /Geschäftskunden|Veranstaltung|Ladengeschäft|Shop|Privatpersonen|Betrieb/i,
+  VK91: /DATEV/i,
+  VK92: /OP-Liste|Verrechnungskonten/i,
+  LE02: /Lieferschein|Versand|Veranstaltung|Stunden/i,
+  LE03: /Lieferschein|Veranstaltung|Shop|Abnahme|Empfangsbestätigung|Bestellung/i,
+  AR01: /Abschlag|einzeln|Veranstaltung|Bestellung/i,
+  WW01: /WaWi|Warenwirtschaft|Materialliste/i,
   EK03: /Lieferantenportal|WaWi Lagerplus|Rechnungssoftware|Projektsoftware|Warenwirtschaft/i,
   EK04: /Abweichungen/i,
   EK05: /Wareneingang/i,
@@ -363,6 +409,26 @@ for (const vorlage of MUSTER_VORLAGEN) {
   const regeln = String(muster.answers.katalog?.BS06?.values?.regeln ?? "");
   if (bs06WidersprichtOss(oss, regeln)) fail(`${vorlage}: BS06 verneint besondere Regeln trotz OSS`);
   if (vorlage === "ecommerce" && !regeln.includes("OSS-Verfahren")) fail("ecommerce: BS06 ohne OSS-Satz");
+  if (vorlage === "ecommerce" && !mustertext.includes(OSS_SATZ)) {
+    fail("ecommerce: der OSS-Satz steht nicht im gerenderten PDF");
+  }
+  const stamm = `${String(muster.answers.katalog?.SY01?.values?.umgebung ?? "")} ${String(muster.answers.katalog?.UO03?.values?.zustaendigkeiten ?? "")}`;
+  const antworten = Object.values(muster.answers.katalog ?? {})
+    .filter((entry) => entry?.status === "bestaetigt")
+    .map((entry) => JSON.stringify(entry?.values ?? {}))
+    .join("\n");
+  for (const begriff of VORLAGEN_BEGRIFFE) {
+    if (vorlagenbegriffOhneStamm(begriff, stamm, antworten)) {
+      fail(`${vorlage}: „${begriff}“ in einer Antwort, aber nicht in SY01/UO03`);
+    }
+  }
+  const kontrollen = Object.entries(muster.answers.katalog ?? {})
+    .filter(([id]) => id.endsWith("92"))
+    .map(([, entry]) => Object.values(entry?.values ?? {}).map((item) => String(item)).join(" "))
+    .join(" ");
+  for (const rolle of KONTROLL_ROLLEN) {
+    if (rolleOhneStamm(rolle, stamm, kontrollen)) fail(`${vorlage}: Rolle „${rolle}“ in einer Kontrolle fehlt in UO03`);
+  }
   const nochFestzulegen = (mustertext.match(/Noch festzulegen/g) ?? []).length;
   if (nochFestzulegen > 5) fail(`${vorlage}: „Noch festzulegen“ steht ${nochFestzulegen} Mal`);
   for (const fremd of ["Sichtbeispiel", "Betriebs-Check", "Nora Klar", "Jana Hellweg", "Clara Sonnenkorn", "Robert Funke", "Digitaldruckmaschine", "Wochenmärkten", "Produktionsleitung", "Partnerin"]) {

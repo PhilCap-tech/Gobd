@@ -564,8 +564,13 @@ export function vorlageVorschlaege(vorlageId: string): Record<string, Record<str
 function firmaKorrektur(f: DenseFirma): Record<string, Entry> {
   return {
     BA02: b({
-      vollmachten: `Geschäftsführung: Einzelvollmacht bis 2.000 Euro; darüber gibt ${f.buchhaltung} mit frei. Büro: Erfassungsrecht ohne Freigabe.`,
+      vollmachten: `${f.gf}: Einzelvollmacht. ${f.buchhaltung}: Freigabe bis 2.000 Euro; darüber nur mit ${f.gf} (Vier-Augen).`,
       sperre: `Zugang wird am letzten Arbeitstag durch die Bank gesperrt, Auftrag durch ${f.gf}.`,
+    }),
+    EK02: b({
+      wer: f.buchhaltung,
+      grenzen: "Bestellungen bis 2.000 Euro durch die Buchhaltung; darüber Freigabe der Geschäftsführung",
+      freigabe: f.gf,
     }),
     BA05: b({
       wer: `${f.buchhaltung} bis 2.000 Euro; darüber Vier-Augen mit ${f.gf}`,
@@ -597,7 +602,28 @@ function bereinigeText(text: string, vorlage: MusterDenseId, f: DenseFirma): str
     .replaceAll("Anja Berg", "Kundenservice")
     .replaceAll("ERP Fertigplan (fiktiv)", system)
     .replaceAll("ERP Fertigplan", system)
-    .replaceAll("Rohmaterial", vorlage === "ecommerce" ? "Handelsware" : "Material");
+    .replaceAll("Rohmaterial", vorlage === "ecommerce" ? "Handelsware" : "Material")
+    .replaceAll("Faktura+", "Rechnungssoftware")
+    .replaceAll("der Agentur", "des Betriebs");
+  if (vorlage === "gastro" || vorlage === "handel" || vorlage === "ecommerce") {
+    next = next
+      .replaceAll("Projektleitung", "Buchhaltung")
+      .replaceAll("Bei Projekten Abnahme per E-Mail oder Protokoll; ", "")
+      .replaceAll("Abnahmeprotokoll oder ", "")
+      .replaceAll("Abschlags- und Schlussrechnungen bei Projekten; ", "Rechnungen zu jeder Leistung; ")
+      .replaceAll("im ERP", "im System")
+      .replaceAll("ERP an DATEV", `${system} an DATEV`)
+      .replaceAll("ERP-Ticketsystem", "Änderungsliste in der WaWi")
+      .replaceAll("Lagerleitung", "Lagerverantwortliche Person")
+      .replaceAll("Lagerpersonal", "Lagerverantwortliche Person");
+  }
+  if (vorlage === "ecommerce") {
+    next = next
+      .replaceAll("Halle A, Halle B, Freilager", "Ein Lager am Standort Leipzig")
+      .replaceAll("Handscanner im Lager; ", "")
+      .replaceAll("Handscanner an WaWi: Funk, sofort. ", "")
+      .replaceAll("auf dem Firmenserver", "in der Cloud");
+  }
   if (vorlage === "gastro") {
     next = next
       .replaceAll("Filialleitungs-", "Schichtleitungs-")
@@ -690,6 +716,14 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
         gesellschaften: `${f.company}, einzige Gesellschaft ohne Tochterunternehmen.`,
         standorte: `Hauptsitz ${f.standort}. Homeoffice der Mitarbeitenden ohne eigene Betriebsstätte; keine Filialen.`,
       }),
+      UO03: b({
+        zustaendigkeiten: `Geschäftsführung und Gesamtverantwortung: ${f.gf}. Interne Buchhaltung und Belegwesen: ${f.buchhaltung}. IT und Benutzerrechte: ${f.it}. Steuerliche Beratung und Abschluss: ${f.kanzlei}. Projektleitung für Auftragsänderungen, Abnahme, Abschlagsrechnung und Schlussrechnung. Diese Verfahrensdokumentation: ${f.gf}.`,
+        organigramm: "ja",
+      }),
+      VK92: b({
+        kontrollen: ["Lückenprüfung der Rechnungsnummern", "Abgleich Projektzeiten mit Rechnungen", "OP-Liste"],
+        details: `Lückenprüfung monatlich durch ${f.buchhaltung}. Abgleich erfasster Projektzeiten mit Rechnungen monatlich durch die Projektleitung. Vorlage mit Pflichtangaben laufend. OP-Liste gegen Debitorenkonten monatlich durch ${f.buchhaltung}. Storni nur mit Freigabe durch ${f.gf}.`,
+      }),
       UO02: b({
         taetigkeiten: `${f.branche}. Typische Vorfälle: Projektaufträge, Zeit- und Leistungsnachweise, Eingangsrechnungen (Software, Reise, Freelancer), Ausgangsrechnungen inkl. Abschläge/Schluss, SEPA-Zahlungen, Lohn für angestellte Beraterinnen und Berater. Keine Ladenkasse, kein Warenlager, kein Onlineshop.`,
         kunden: ["Geschäftskunden (B2B)"],
@@ -767,13 +801,42 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
         protokolliert: "ja",
       }),
       SV10: b({ ablauf: "Ein Systemwechsel ist nicht vorgesehen. Die vorhandenen Exporte bleiben im Archiv lesbar." }),
+      UO03: b({
+        zustaendigkeiten: `Geschäftsführung und Gesamtverantwortung: ${f.gf}. Interne Buchhaltung und Belegwesen: ${f.buchhaltung}. IT und Benutzerrechte: ${f.it}. Steuerliche Beratung und Abschluss: ${f.kanzlei}. Schichtleitung im Tagesgeschäft. Küchenchef für den Wareneingang. Diese Verfahrensdokumentation: ${f.gf}.`,
+        organigramm: "ja",
+      }),
+      VK01: b({ ablauf: "Angebot für die Veranstaltung, Anzahlungsrechnung, Rechnung nach der Veranstaltung.", system: "Kassensystem und Rechnungssoftware" }),
+      VK02: b({ system: "Rechnungssoftware", ablage: "Beim Veranstaltungsauftrag" }),
+      VK05: b({ vergabe: "Automatisch fortlaufend in der Rechnungssoftware", kreise: "Ein Nummernkreis für Rechnungen, einer für Stornorechnungen" }),
+      VK06: b({ ablauf: "Die Rechnungsvorlage enthält die Pflichtangaben; der Leistungszeitraum kommt aus der Veranstaltung.", wer: f.buchhaltung }),
+      VK08: b({ ablauf: "Fehlerhafte Rechnungen werden storniert (Stornorechnung mit Bezug) und neu ausgestellt; kein Überschreiben.", freigabe: f.gf }),
+      VK10: b({ uebergabe: "Rechnungen und Debitoren gehen per DATEV-Schnittstelle an DATEV Unternehmen online.", turnus: "monatlich" }),
+      VK90: b({ umfang: "Tagesgeschäft an der Kasse und Veranstaltungen.", ausgenommen: "Kein Projektgeschäft." }),
+      VK91: b({ systeme: "Kassensystem und DATEV Unternehmen online.", schnittstellen: "Monatlicher Export nach DATEV", betrieb: "Gemischt" }),
+      VK92: b({
+        kontrollen: ["Abgleich Veranstaltungsrechnungen", "OP-Liste"],
+        details: `Abgleich der Veranstaltungs- und Catering-Rechnungen mit den Bankettbestellungen monatlich durch ${f.buchhaltung}; Freigabe Storni durch ${f.gf}. OP-Liste gegen Debitorenkonten monatlich durch ${f.buchhaltung}.`,
+      }),
+      LE02: b({ nachweis: "Lieferschein oder Auftragsbestätigung zur Veranstaltung.", ablage: `Ablage in DATEV Unternehmen online. ${f.buchhaltung} prüft die Vollständigkeit vor der Rechnung.` }),
+      LE03: b({ ablauf: "Die Veranstaltung gilt mit der erbrachten Leistung und der Rechnung. Ablage in DATEV Unternehmen online.", protokoll: "ja" }),
+      AR01: b({ ablauf: "Anzahlungsrechnung zur Veranstaltung; die Rechnung danach stellt den Gesamtbezug her." }),
       WW00: b({ verantwortlich: "Lagerverantwortliche Person", vertretung: f.buchhaltung }),
-      WW02: b({ wer: "Lagerverantwortliche Person", freigabe: f.gf, protokolliert: "ja" }),
-      WW03: b({ ablauf: "Wareneingang wird gegen den Lieferschein geprüft und in der Warenwirtschaft gebucht.", wer: "Lagerverantwortliche Person" }),
+      WW01: b({ system: "Warenwirtschaft der Küche (fiktiv)", vorgaenge: "Wareneingang, Verbrauch, Inventur" }),
+      WW02: b({ wer: "Küchenchef bzw. Schichtleitung", freigabe: f.gf, protokolliert: "ja" }),
+      WW03: b({ ablauf: "Wareneingang wird gegen den Lieferschein geprüft und in der Warenwirtschaft gebucht.", wer: "Küchenchef bzw. Schichtleitung" }),
+      WW04: b({ ablauf: "Verbrauch ergibt sich aus Kassenverkäufen und Inventurdifferenz; Personal- und Eigenverbrauch auf eigener Liste.", wer: "Schichtleitung" }),
+      WW05: b({ fuehrung: "Bestand aus der Monatsinventur", bewertung: "bewertet zu Einkaufspreisen laut Rechnung." }),
       WW06: b({ lagerorte: "Kühlhaus, Trockenlager und Getränkelager am Standort Bremen", umlagerung: "Umlagerungen zwischen diesen Lagern werden in der Warenwirtschaft gebucht." }),
-      WW08: b({ verfahren: "Inventur monatlich", wer: f.gf, stichtag: "monatlich", zaehllisten: "Zählliste als PDF auf dem NAS" }),
+      WW07: b({ wer: "Küchenchef bzw. Schichtleitung", freigabe: f.gf, grund: "ja" }),
+      WW08: b({ verfahren: "Inventur monatlich", wer: `Zählung Schichtleitung, Prüfung ${f.gf}`, stichtag: "monatlich", zaehllisten: "Zählliste als PDF auf dem NAS" }),
+      WW09: b({ ablauf: "Differenzen klärt die Schichtleitung; Freigabe durch die Geschäftsführung.", freigabe: f.gf }),
       WW90: b({ umfang: "Kühlhaus, Trockenlager und Getränkelager am Standort Bremen; Inventur monatlich.", ausgenommen: "Keine Waren auf Kommission." }),
       WW91: b({ systeme: "Warenwirtschaft und DATEV Unternehmen online", schnittstellen: "Monatliche Bestandsliste an DATEV", betrieb: "Gemischt" }),
+      WW92: b({
+        kontrollen: ["Wareneingang gegen Lieferschein", "Bestand gegen FiBu"],
+        details: `Wareneingang gegen Lieferschein durch die Schichtleitung. Bestand gegen FiBu durch ${f.buchhaltung}.`,
+      }),
+      WW95: b({ notbetrieb: "Bei Ausfall Zählliste auf Papier, Nacherfassung", nacherfassung: "Nacherfassung in der Warenwirtschaft." }),
       SV91: b({ systeme: "Kassensystem und DATEV Unternehmen online", schnittstellen: "Monatlicher Export nach DATEV", betrieb: "Gemischt" }),
       SV92: b({ kontrollen: ["Abstimmung der übergebenen Summen mit der FiBu"], details: `${f.buchhaltung} gleicht die Exportsumme mit dem Z-Bon ab.` }),
       KA01: b({
@@ -794,6 +857,14 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       SY01: b({
         umgebung: `Projektsoftware, Rechnungssoftware, DATEV Unternehmen online, Zeiterfassung, E-Mail und NAS. IT: ${f.it}.`,
         betrieb: "Gemischt",
+      }),
+      UO03: b({
+        zustaendigkeiten: `Geschäftsführung und Gesamtverantwortung: ${f.gf}. Interne Buchhaltung und Belegwesen: ${f.buchhaltung}. IT und Benutzerrechte: ${f.it}. Steuerliche Beratung und Abschluss: ${f.kanzlei}. Projektleitung für Auftragsänderungen, Abnahme, Abschlagsrechnung und Schlussrechnung. Diese Verfahrensdokumentation: ${f.gf}.`,
+        organigramm: "ja",
+      }),
+      VK92: b({
+        kontrollen: ["Lückenprüfung der Rechnungsnummern", "Abgleich Projektzeiten mit Rechnungen", "OP-Liste"],
+        details: `Lückenprüfung monatlich durch ${f.buchhaltung}. Abgleich erfasster Projektzeiten mit Rechnungen monatlich durch die Projektleitung. OP-Liste gegen Debitorenkonten monatlich durch ${f.buchhaltung}. Storni nur mit Freigabe durch ${f.gf}.`,
       }),
       BS00: b({ verantwortlich: f.gf, vertretung: f.buchhaltung }),
       BS01: b({
@@ -857,8 +928,37 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
     return {
       ...firmaKorrektur(f),
       SY01: b({
-        umgebung: `Kassensystem, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
+        umgebung: `Kassensystem, Warenwirtschaft, Handscanner im Lager, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
         betrieb: "Gemischt",
+      }),
+      UO03: b({
+        zustaendigkeiten: `Geschäftsführung und Gesamtverantwortung: ${f.gf}. Interne Buchhaltung und Belegwesen: ${f.buchhaltung}. IT und Benutzerrechte: ${f.it}. Steuerliche Beratung und Abschluss: ${f.kanzlei}. Verkaufsleitung an der Kasse. Lagerverantwortliche Person für das Lager. Diese Verfahrensdokumentation: ${f.gf}.`,
+        organigramm: "ja",
+      }),
+      VK01: b({ ablauf: "Auftrag in der WaWi Lagerplus, Lieferschein, Rechnung an den Geschäftskunden.", system: "WaWi Lagerplus (fiktiv)" }),
+      VK02: b({ system: "WaWi Lagerplus (fiktiv)", ablage: "Am Auftrag in der WaWi" }),
+      VK05: b({ vergabe: "Automatisch fortlaufend in der WaWi Lagerplus", kreise: "Ein Nummernkreis für Rechnungen, einer für Stornorechnungen" }),
+      VK06: b({ ablauf: "Die Rechnungsvorlage in der WaWi enthält die Pflichtangaben; der Leistungszeitraum kommt aus dem Lieferschein.", wer: f.buchhaltung }),
+      VK08: b({ ablauf: "Fehlerhafte Rechnungen werden in der WaWi storniert (Stornorechnung mit Bezug) und neu ausgestellt; kein Überschreiben.", freigabe: f.gf }),
+      VK10: b({ uebergabe: "Die WaWi Lagerplus übergibt Rechnungen und Debitoren an DATEV Unternehmen online.", turnus: "täglich" }),
+      VK90: b({ umfang: "Verkauf im Ladengeschäft und an Geschäftskunden.", ausgenommen: "Keine weiteren Verkaufswege." }),
+      VK91: b({ systeme: "WaWi Lagerplus (fiktiv): Aufträge, Lieferscheine, Rechnungen. DATEV Unternehmen online.", schnittstellen: "WaWi an DATEV: Rechnungen und Debitoren.", betrieb: "Cloud / Anbieter" }),
+      VK92: b({
+        kontrollen: ["Abgleich Lieferscheine mit Rechnungen", "OP-Liste"],
+        details: `Abgleich der Lieferscheine aus WaWi Lagerplus mit den Rechnungen an Geschäftskunden monatlich durch ${f.buchhaltung}. OP-Liste gegen Debitorenkonten monatlich durch ${f.buchhaltung}.`,
+      }),
+      LE02: b({ nachweis: "Lieferschein mit Empfangsbestätigung.", ablage: `Ablage in DATEV Unternehmen online. ${f.buchhaltung} prüft die Vollständigkeit vor der Rechnung.` }),
+      LE03: b({ ablauf: "Lieferschein mit Empfangsbestätigung. Ablage in DATEV Unternehmen online.", protokoll: "ja" }),
+      AR01: b({ ablauf: "Jede Lieferung wird einzeln berechnet." }),
+      WW06: b({
+        lagerorte: "Lager (Halle A, Halle B) und Verkaufsfläche im Ladengeschäft am Standort Hannover",
+        umlagerung: "Umlagerungen Lager → Laden als Umbuchung in WaWi Lagerplus.",
+      }),
+      WW90: b({ umfang: "Lager und Verkaufsfläche am Standort Hannover.", ausgenommen: "Keine Waren auf Kommission." }),
+      WW91: b({
+        systeme: "WaWi Lagerplus (fiktiv), Cloud; Kassensystem KassaPro übergibt Verkäufe an die WaWi; Handscanner im Lager",
+        schnittstellen: "KassaPro an WaWi: Verkäufe laufend. Handscanner an WaWi. WaWi an DATEV: monatliche Bestandsliste.",
+        betrieb: "Cloud / Anbieter",
       }),
       KA01: b({
         kassenart: "Elektronisches Kassensystem mit TSE",
@@ -874,23 +974,66 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
         umgebung: `Onlineshop, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
         betrieb: "Gemischt",
       }),
+      UO03: b({
+        zustaendigkeiten: `Geschäftsführung und Gesamtverantwortung: ${f.gf}. Interne Buchhaltung und Belegwesen: ${f.buchhaltung}. IT und Benutzerrechte: ${f.it}. Steuerliche Beratung und Abschluss: ${f.kanzlei}. Lagerverantwortliche Person für das Lager. Diese Verfahrensdokumentation: ${f.gf}.`,
+        organigramm: "ja",
+      }),
       BS06: b({
         regeln: `Fernverkäufe an Privatpersonen in Österreich werden mit dem österreichischen Steuersatz berechnet und über das OSS-Verfahren erklärt (§ 3c, § 18j UStG); Steuersätze je Land pflegt ${f.gf} im Shop.`,
       }),
+      EC05: b({
+        pflege: `Fernverkäufe an Privatpersonen in Österreich werden mit dem österreichischen Steuersatz berechnet und über das OSS-Verfahren erklärt (§ 3c, § 18j UStG); Steuersätze je Land pflegt ${f.gf} im Shop.`,
+        oss: "ja",
+      }),
+      VK01: b({ ablauf: "Bestellung im Shop oder auf dem Marktplatz, Versand, Rechnung aus der Bestellung.", system: "Onlineshop" }),
+      VK02: b({ system: "Onlineshop", ablage: "An der Bestellung" }),
+      VK05: b({ vergabe: "Automatisch fortlaufend im Shop", kreise: "Ein Nummernkreis für Rechnungen, einer für Stornorechnungen" }),
+      VK06: b({ ablauf: "Die Rechnungsvorlage im Shop enthält die Pflichtangaben; der Leistungszeitraum ist das Versanddatum.", wer: f.buchhaltung }),
+      VK08: b({ ablauf: "Fehlerhafte Rechnungen werden im Shop storniert (Stornorechnung mit Bezug) und neu ausgestellt; kein Überschreiben.", freigabe: f.gf }),
+      VK10: b({ uebergabe: "Der Shop übergibt Rechnungen an DATEV Unternehmen online.", turnus: "täglich" }),
+      VK90: b({ umfang: "Verkauf ausschließlich über Shop und Marktplatz an Privatpersonen, siehe Bereich E-Commerce", ausgenommen: "Kein Projektgeschäft." }),
+      VK91: b({ systeme: "Onlineshop und Marktplatz; DATEV Unternehmen online.", schnittstellen: "Shop an DATEV: Rechnungen.", betrieb: "Cloud / Anbieter" }),
+      VK92: b({
+        kontrollen: ["Abgleich Bestellungen mit Rechnungen", "Verrechnungskonten"],
+        details: `Abgleich versendeter Bestellungen aus Shop und Marktplatz mit den erstellten Rechnungen monatlich durch ${f.buchhaltung}. OP-Liste bzw. Verrechnungskonten je Zahlungsdienstleister monatlich durch ${f.buchhaltung}.`,
+      }),
+      LE02: b({ nachweis: "Versandbestätigung und Rechnung zur Bestellung.", ablage: `Ablage in DATEV Unternehmen online. ${f.buchhaltung} prüft die Vollständigkeit vor der Rechnung.` }),
+      LE03: b({ ablauf: "Kein Projektgeschäft; der Verkauf läuft über Shop und Marktplatz. Der Versandbeleg liegt bei der Bestellung.", protokoll: "ja" }),
+      AR01: b({ ablauf: "Jede Bestellung wird einzeln berechnet." }),
       EK00: b({ verantwortlich: `${f.gf} (Einkauf)`, vertretung: f.buchhaltung }),
       EK01: b({ ablauf: "Bedarf entsteht aus dem Bestand im Onlineshop und aus Nachbestellungen in der WaWi Lagerplus.", wer: f.buchhaltung }),
-      EK02: b({ wer: "Einkauf", grenzen: "bis 5.000 Euro Einkauf allein; darüber Freigabe", freigabe: f.gf }),
+      EK02: b({
+        wer: f.buchhaltung,
+        grenzen: "Bestellungen bis 2.000 Euro durch die Buchhaltung; darüber Freigabe der Geschäftsführung",
+        freigabe: f.gf,
+      }),
       EK03: b({ wege: ["Warenwirtschaft", "Lieferantenportal", "E-Mail"], system: "Bestellungen über WaWi Lagerplus (fiktiv) und Lieferantenportale" }),
       EK04: b({ wer: "Einkauf", abweichungen: "Abweichungen bei Preis oder Termin werden in der WaWi vermerkt und mit dem Lieferanten geklärt." }),
       EK05: b({ ablauf: "Wareneingang in der WaWi Lagerplus gegen die Bestellung.", wer: "Lagerverantwortliche Person" }),
       EK06: b({ ablauf: "Die Rechnung wird in der WaWi der Bestellung und dem Wareneingang zugeordnet.", wer: f.buchhaltung }),
-      EK08: b({ vertraege: "Rahmenverträge mit Lieferanten und Fulfillment-Dienstleister, Liste in der WaWi", wer: f.gf }),
+      EK08: b({ vertraege: "Rahmenverträge mit Lieferanten und Versanddienstleister, Liste in der WaWi.", wer: f.gf }),
       EK10: b({ ablage: "WaWi Lagerplus (fiktiv), Dokumente am Bestellvorgang", ordnung: "Bestellnummer" }),
       EK90: b({ umfang: "Einkauf von Handelsware für den Onlineshop am Standort Leipzig.", ausgenommen: "Nur Handelsware für den Onlineshop." }),
       EK91: b({ systeme: "WaWi Lagerplus (fiktiv) und DATEV Unternehmen online.", schnittstellen: "WaWi an DATEV: Kreditoren und Rechnungsbuchungen.", betrieb: "Cloud / Anbieter" }),
       EK95: b({ notbetrieb: "Bei Ausfall der WaWi Bestellungen per E-Mail, Nacherfassung in der WaWi.", nacherfassung: "Nacherfassung innerhalb von zwei Arbeitstagen." }),
       EK96: b({ ort: "WaWi Lagerplus (fiktiv) mit jährlichem Export", form: "Originaldokumente in der WaWi, Export als CSV und PDF", loeschung: f.buchhaltung }),
       WW00: b({ verantwortlich: "Lagerverantwortliche Person", vertretung: f.buchhaltung }),
+      WW06: b({
+        lagerorte: "Ein Lager am Standort Leipzig mit Regal- und Versandbereich",
+        umlagerung: "Keine Umlagerungen zwischen Lagerorten; Lagerplatzwechsel ohne Buchung.",
+      }),
+      WW08: b({
+        verfahren: "Inventur zum Geschäftsjahresende",
+        wer: `${f.buchhaltung} zählt mit einer zweiten Person, Prüfung ${f.gf}`,
+        stichtag: "Geschäftsjahresende",
+        zaehllisten: "Zählliste in der WaWi",
+      }),
+      WW90: b({ umfang: "Lager am Standort Leipzig.", ausgenommen: "Keine Kommissionsware." }),
+      WW91: b({
+        systeme: "WaWi Lagerplus (fiktiv), Cloud; Shopsystem und Marktplatz übergeben Bestellungen an die WaWi; DATEV Unternehmen online.",
+        schnittstellen: "Shop an WaWi: Bestellungen laufend; WaWi an DATEV: monatliche Bestandsliste.",
+        betrieb: "Cloud / Anbieter",
+      }),
       RT00: b({ verantwortlich: "Kundenservice", vertretung: f.buchhaltung }),
     };
   }
