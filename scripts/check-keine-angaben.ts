@@ -292,7 +292,7 @@ const belegfluss = render({
 });
 expect(belegfluss.includes(KEINE_KONTROLLE_SATZ), "Belegfluss nennt die Keine-Aussage");
 expect(!belegfluss.includes("Typische Kandidaten"), "Belegfluss nutzt die Beispielkontrollen nicht");
-expect(!belegfluss.includes("nur bestätigte Kontrollen aus Intake"), "Belegfluss behält die Platzhalterzeile nicht");
+expect(!belegfluss.includes("nur bestätigte Kontrollen aus Fragebogen"), "Belegfluss behält die Platzhalterzeile nicht");
 
 const saved = {
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,

@@ -41,12 +41,20 @@ export function neutralizeStandardText(
 ): string {
   let next = text;
   next = next.replaceAll(
+    "Entwurf aus dem Fragebogen — betriebliche Bestätigung ausstehend",
+    `${SV_BASIS_SATZ} Erstellt am ${erstelltAm}.`,
+  );
+  next = next.replaceAll(
     "Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend",
     `Standardfassung, erstellt am ${erstelltAm}`,
   );
   next = next.replaceAll(
     "Entwurf aus Kunden-Intake - betriebliche Bestätigung ausstehend",
     `Standardfassung, erstellt am ${erstelltAm}`,
+  );
+  next = next.replaceAll(
+    "auf Grundlage der im Fragebogen bestätigten Angaben",
+    "als Standardfassung auf Basis Ihrer Angaben zu Branche und Größe",
   );
   next = next.replaceAll(
     "auf Grundlage der im Intake bestätigten Angaben",

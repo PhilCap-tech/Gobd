@@ -2215,6 +2215,14 @@ export function statusLabel(status: CatalogStatus): string {
   return STATUS_LABEL[status];
 }
 
+/** Status im PDF. Der Fragebogen behält STATUS_LABEL, einschließlich „Muss ich klären“. */
+export const PDF_STATUS_LABEL: Record<CatalogStatus, string> = {
+  bestaetigt: "Gelebte Praxis",
+  geplant: "Geplant, noch nicht umgesetzt",
+  unbekannt: "Noch festzulegen",
+  nicht_zutreffend: "Entfällt",
+};
+
 /** Beispiel GmbH: only facts already in the short partner fixture are bestätigt. */
 export function beispielGmbHKatalog(answers: IntakeAnswers, company: string): CatalogState {
   const draft = draftCatalogFromLegacy(answers, company);
@@ -2417,7 +2425,7 @@ export function catalogAnswerLine(
   const entry = catalogState(answers)[id];
   return {
     prompt: customerPrompt(question.id, question.prompt),
-    status: entry?.status ? STATUS_LABEL[entry.status] : "offen",
+    status: entry?.status ? PDF_STATUS_LABEL[entry.status] : "offen",
     details: summaryBits(question, entry, answers),
     reason: entry?.status === "nicht_zutreffend" ? asText(entry.reason) : "",
   };

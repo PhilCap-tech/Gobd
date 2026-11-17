@@ -322,7 +322,8 @@ async function main() {
     versionMeta: muster!.versionMeta,
   });
   const fullText = pageTexts(full.buffer).join("\n");
-  ok(fullText.includes("Kunden-Intake"), "Vollversion behält Kunden-Intake");
+  ok(fullText.includes("Fragebogen"), "Vollversion sagt Fragebogen");
+  ok(!fullText.includes("Intake"), "Vollversion ohne Intake");
   ok(fullText.includes("01.07.2026"), "Vollversion behält das Geltungsdatum");
   ok(text.includes("Malerbetrieb Adler"), "Firmenname auf dem PDF");
   ok(text.includes("Mitarbeitende: 2–5"), "Mitarbeitendenzahl aus den 6 Angaben");

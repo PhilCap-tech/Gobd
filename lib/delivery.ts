@@ -43,7 +43,7 @@ import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
  */
 
 const FOOTER_CHROME =
-  "Kein Steuerberatungsersatz. Arbeitsfassung aus Kunden-Intake — vollständiger Hinweis auf dem Deckblatt.";
+  "Kein Steuerberatungsersatz. Arbeitsfassung aus dem Fragebogen — vollständiger Hinweis auf dem Deckblatt.";
 
 /** Nur Muster-PDFs. Kunden-PDFs bleiben ohne diesen Zusatz. */
 export type PdfVariant = "muster" | "kunde";
@@ -82,7 +82,7 @@ export type StandardPdfFrame = {
 
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
 export const MUSTER_COVER_LINE = "Muster mit fiktiven Angaben";
-export const KUNDE_COVER_LINE = "Arbeitsfassung aus Kunden-Intake";
+export const KUNDE_COVER_LINE = "Arbeitsfassung aus dem Fragebogen";
 
 const MUSTER_WATERMARK_COLOR = "#b5b5b5";
 const MUSTER_WATERMARK_OPACITY = 0.18;

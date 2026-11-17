@@ -25,7 +25,7 @@ import {
   versionMetaSentence as buildVersionMetaSentence,
   type VersionHistoryEntry,
 } from "@/lib/versioning";
-import { capitalizeSentenceStart } from "@/lib/satzanfang";
+import { capitalizeSentenceStart, fragebogenStattIntake } from "@/lib/satzanfang";
 
 export type { DeliveryOpenPoint, OpenPointSeverity } from "@/lib/open-points";
 export { evaluateOpenPoints, isEmptyIntakeValue } from "@/lib/open-points";
@@ -383,7 +383,7 @@ function stripInternalMarkers(text: string): string {
 }
 
 export function renderTemplate(template: string, context: TemplateContext): string {
-  return capitalizeSentenceStart(stripInternalMarkers(renderValues(renderBlocks(template, context), context)));
+  return capitalizeSentenceStart(fragebogenStattIntake(stripInternalMarkers(renderValues(renderBlocks(template, context), context))));
 }
 
 function openPointsTable(points: DeliveryOpenPoint[]): string {
@@ -391,14 +391,16 @@ function openPointsTable(points: DeliveryOpenPoint[]): string {
     return "Keine offenen Punkte. Das ist keine Freigabe durch die Geschäftsführung und kein Nachweis, dass der Prozess vollständig beschrieben ist.";
   }
   const rows = points
-    .map((point) => {
+    .map((point, index) => {
       const title = point.title.replaceAll("|", "\\|");
       const who = (point.responsibility || "—").replaceAll("|", "\\|");
       const due = (point.dueDate || "nicht festgelegt").replaceAll("|", "\\|");
-      return `| ${point.id} | ${point.priority} | ${title} | ${who} | ${due} |`;
+      return `| OP-${index + 1} | ${point.priority} | ${title} | ${who} | ${due} |`;
     })
     .join("\n");
-  return `| Kennung | Priorität | Zu klären | Verantwortung | Zieltermin |\n| --- | --- | --- | --- | --- |\n${rows}`;
+  return fragebogenStattIntake(
+    `| Kennung | Priorität | Zu klären | Verantwortung | Zieltermin |\n| --- | --- | --- | --- | --- |\n${rows}`,
+  );
 }
 
 function historyCell(value: string, fallback: string): string {
@@ -411,7 +413,7 @@ function historyRows(entries: VersionHistoryEntry[]): string {
   return entries
     .map(
       (entry) =>
-        `| ${historyCell(entry.version, "—")} | ${historyCell(entry.validFrom, "—")} | ${historyCell(entry.validTo, "—")} | ${historyCell(entry.changeSummary, "Fassung aus Kunden-Intake")} | ${historyCell(entry.changedBy, "—")} |\n`,
+        `| ${historyCell(entry.version, "—")} | ${historyCell(entry.validFrom, "—")} | ${historyCell(entry.validTo, "—")} | ${historyCell(entry.changeSummary, "Fassung aus dem Fragebogen")} | ${historyCell(entry.changedBy, "—")} |\n`,
     )
     .join("");
 }
@@ -424,7 +426,7 @@ function historyContext(entries: VersionHistoryEntry[], changeSummary: string): 
     .join(" ");
   return {
     vorversion: `Version ${previous.version}${range ? ` (${range})` : ""}`,
-    anlass: changeSummary || "Neue Fassung aus Kunden-Intake",
+    anlass: changeSummary || "Neue Fassung aus dem Fragebogen",
   };
 }
 

@@ -544,7 +544,7 @@ export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSc
       .filter((part) => part && `${schritt} ${beschreibung}`.toLowerCase().includes(part.toLowerCase()))
       .join(", ");
     seen.add(step.frage);
-    out.push({ ...step, schritt, beschreibung, nachweis: nachweis || "Angabe im Intake" });
+    out.push({ ...step, schritt, beschreibung, nachweis: nachweis || "Angabe im Fragebogen" });
   }
   return out;
 }

@@ -29,6 +29,19 @@ function afterAbbreviation(before: string): boolean {
   return word.length < 4 || ABKUERZUNG.has(word.toLowerCase());
 }
 
+/** Kundentext: „Intake“ wird „Fragebogen“. Der Fragebogen selbst bleibt unverändert. */
+export function fragebogenStattIntake(text: string): string {
+  return text
+    .replaceAll("Kunden-Intake", "dem Fragebogen")
+    .replaceAll("im Intake bestätigten", "im Fragebogen bestätigten")
+    .replaceAll("im Intake bestätigte", "im Fragebogen bestätigte")
+    .replaceAll("aus dem Intake", "aus dem Fragebogen")
+    .replaceAll("aus Intake", "aus dem Fragebogen")
+    .replaceAll("laut Intake", "laut Fragebogen")
+    .replaceAll("im Intake", "im Fragebogen")
+    .replaceAll("Intake", "Fragebogen");
+}
+
 export function capitalizeSentenceStart(text: string): string {
   const afterPunct = text.replace(/([.!?])(\s+)(\p{Ll})/gu, (match, punct: string, space: string, letter: string, offset: number, full: string) => {
     if (afterAbbreviation(full.slice(0, offset))) return match;

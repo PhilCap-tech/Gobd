@@ -103,7 +103,7 @@ export const CTA_CHECK = "Kostenlose GoBD-Ampel mit PDF-Bericht";
 export const GELD_ZURUECK_HREF = "/faq#erstattung";
 
 /** Short form for hero, sticky bar, and closing CTA. Details stay in the FAQ. */
-export const LEGACY_GELD_ZURUECK_MICRO = `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`;
+export const LEGACY_GELD_ZURUECK_MICRO = `Erstattung der ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde (14 Tage).`;
 /** v2: Wortlaut Legal (Abschnitt 4, Z. 63). */
 export const GELD_ZURUECK_MICRO = V2
   ? (intakeLoginFirstEnabled() ? PLAN_FACT_LINE : "ab 99 € je Firma zzgl. USt")

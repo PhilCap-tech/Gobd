@@ -60,6 +60,22 @@ export type BereichKontrolle = { name: string; zweck: string };
 
 export type BereichFrist = { unterlage: string; frist: string; grundlage: string };
 
+/** Satz unter der Lohn- und Zeitnachweistabelle. Wortlaut aus dem Prüferbericht. */
+export const LOHN_FRIST_SATZ =
+  "Die Frist für die Entgeltunterlagen ergibt sich aus dem Sozialversicherungsrecht und gilt neben den steuerlichen Fristen dieser Tabelle; sie ändert diese nicht. Die kürzeren Mindestfristen nach § 16 Abs. 2 ArbZG und § 17 Abs. 1 MiLoG lassen die steuerlichen Fristen unberührt (§ 147 Abs. 3 Satz 2 AO). Ist eine Unterlage mehreren Zwecken zugeordnet, wird sie bis zum Ende der zuletzt ablaufenden Frist aufbewahrt.";
+
+const LOHN_FRIST_UNTERLAGEN = [
+  "Lohnkonto",
+  "Lohnjournale und Lohnbuchungslisten (Aufzeichnungen der Lohnbuchhaltung)",
+  "Lohn- und Gehaltsabrechnungen sowie Zahlungslisten und weitere Belege zur Lohnbuchung",
+  "Zeitnachweise, die Grundlage der Lohnabrechnung sind (z. B. Stundenzettel, Exporte der Zeiterfassung)",
+  "Entgeltunterlagen für die Sozialversicherung",
+];
+
+export function lohnFristSatz(unterlagen: string[]): string {
+  return unterlagen.some((item) => LOHN_FRIST_UNTERLAGEN.includes(item)) ? LOHN_FRIST_SATZ : "";
+}
+
 export type Bereich = {
   id: string;
   label: string;
@@ -1169,9 +1185,9 @@ const ZEITERFASSUNG = defineBereich({
     { unterlage: "Aufzeichnungen der über acht Stunden werktäglich hinausgehenden Arbeitszeit", frist: "mindestens 2 Jahre", grundlage: "§ 16 Abs. 2 ArbZG" },
     { unterlage: "Aufzeichnungen über Beginn, Ende und Dauer der Arbeitszeit nach MiLoG", frist: "mindestens 2 Jahre", grundlage: "§ 17 Abs. 1 MiLoG" },
     {
-      unterlage: "Zeitnachweise, die Grundlage der Lohnabrechnung sind",
-      frist: "wie die zugehörigen Lohnunterlagen; als Buchungsbeleg 8 Jahre, im Zweifel die längere Frist",
-      grundlage: "§ 41 Abs. 1 EStG; § 147 Abs. 1 Nr. 4, Abs. 3 AO",
+      unterlage: "Zeitnachweise, die Grundlage der Lohnabrechnung sind (z. B. Stundenzettel, Exporte der Zeiterfassung)",
+      frist: "8 Jahre",
+      grundlage: "§ 147 Abs. 1 Nr. 4, Abs. 3 Satz 1 AO",
     },
   ],
   begriffe: [
@@ -1335,9 +1351,10 @@ const LOHN = defineBereich({
     { name: "Durchsicht der Zugriffsrechte auf Lohndaten", zweck: "Vertraulichkeit sichern" },
   ],
   aufbewahrung: [
-    { unterlage: "Lohnkonto", frist: "bis zum Ablauf des sechsten Kalenderjahres nach der zuletzt eingetragenen Lohnzahlung", grundlage: "§ 41 Abs. 1 EStG" },
-    { unterlage: "Entgeltunterlagen für die Sozialversicherung", frist: "bis zum Ablauf des auf die letzte Prüfung folgenden Kalenderjahres", grundlage: "§ 28f Abs. 1 SGB IV" },
-    FRIST_BELEG("Lohnjournale, Buchungslisten und Zahlungslisten, soweit Buchungsbelege"),
+    { unterlage: "Lohnkonto", frist: "bis zum Ablauf des sechsten Kalenderjahres, das auf die zuletzt eingetragene Lohnzahlung folgt", grundlage: "§ 41 Abs. 1 Satz 9 EStG" },
+    { unterlage: "Lohnjournale und Lohnbuchungslisten (Aufzeichnungen der Lohnbuchhaltung)", frist: "10 Jahre", grundlage: "§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO" },
+    { unterlage: "Lohn- und Gehaltsabrechnungen sowie Zahlungslisten und weitere Belege zur Lohnbuchung", frist: "8 Jahre", grundlage: "§ 147 Abs. 1 Nr. 4, Abs. 3 Satz 1 AO" },
+    { unterlage: "Entgeltunterlagen für die Sozialversicherung", frist: "bis zum Ablauf des Kalenderjahres, das auf die letzte Prüfung durch den Rentenversicherungsträger folgt", grundlage: "§ 28f Abs. 1 Satz 1 SGB IV" },
     FRIST_BELEG("Belege zu Reisekosten und steuerfreien Erstattungen"),
   ],
   begriffe: [
@@ -1466,7 +1483,7 @@ const ECOMMERCE = defineBereich({
   aufbewahrung: [
     {
       unterlage: "Einzelaufzeichnungen der Bestellungen und Zahlungen (Shop- und Zahlungsdienst-Exporte)",
-      frist: "10 Jahre (§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO); zugehörige Rechnungen und Abrechnungen siehe 8 Jahre",
+      frist: "10 Jahre",
       grundlage: "§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO",
     },
     FRIST_BELEG("Ausgangsrechnungen sowie Gebühren- und Auszahlungsabrechnungen"),

@@ -250,10 +250,10 @@ expect(leerRechte.claims.includes("Buchhaltung (zu benennen)"), "Leere Rechtevor
 expect(leerRechte.claims.includes("Andere Beschäftigte"), "Leere Rechtevorlage löscht die übrigen Zeilen");
 const leerSicherung = render(ensureGesamt(emptyAnswers()), { onlyModul: "m19" });
 expect(
-  leerSicherung.claims.includes("Backup-Verfahren ist im Intake nicht angegeben"),
+  leerSicherung.claims.includes("Backup-Verfahren ist im Fragebogen nicht angegeben"),
   "Fehlendes Backup wird nicht mehr gesagt",
 );
-expect(!leerSicherung.claims.includes("erfolgt laut Intake über"), "Leere Sicherung behauptet ein Verfahren");
+expect(!leerSicherung.claims.includes("erfolgt laut Fragebogen über"), "Leere Sicherung behauptet ein Verfahren");
 expect(leerSicherung.claims.includes("Bei Ausfall des Eingangskanals"), "Leere Notfallvorlage löscht den Absatz");
 const leerKontrollen = render(ensureGesamt(emptyAnswers()), { onlyModul: "m20" });
 expect(!/Kap(?:itel)?\.?\s*14\b/i.test(leerKontrollen.claims), "Leere Kontrollvorlage verweist auf Kapitel 14");
@@ -599,8 +599,8 @@ expect((block174.match(/BetaSystem/g) ?? []).length === 1, "17.4 nennt BetaSyste
 expect(block174.includes("AlphaSystem, FiBu, Art Buchhaltung"), "17.4 zeigt die Systemkarte strukturiert");
 expect(!block174.includes("AlphaSystem FiBu"), "17.4 wiederholt die Systemkarte nicht als Fließtext");
 expect(
-  !kartenDoc.body.split("\n").some((line) => /— So läuft es heute\.\s*$/.test(line)),
-  "keine leere Zeile „— So läuft es heute.“",
+  !kartenDoc.body.split("\n").some((line) => /— Gelebte Praxis\.\s*$/.test(line)),
+  "keine leere Zeile „— Gelebte Praxis.“",
 );
 
 const luecke = {
@@ -617,7 +617,7 @@ expect(
 );
 expect(!lueckeDoc.body.includes("nicht bestätigt"), "PDF sagt bei fehlender Angabe nicht „nicht bestätigt“");
 expect(
-  !lueckeDoc.body.split("\n").some((line) => /— So läuft es heute\.\s*$/.test(line)),
+  !lueckeDoc.body.split("\n").some((line) => /— Gelebte Praxis\.\s*$/.test(line)),
   "bestätigt ohne Inhalt erzeugt keine leere Statuszeile",
 );
 

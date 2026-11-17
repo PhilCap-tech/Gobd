@@ -4,6 +4,7 @@
  * Usage: npx tsx scripts/check-muster-felder.ts
  */
 import assert from "node:assert/strict";
+import { prefixFieldLabel } from "@/lib/bereich-chapter";
 import { renderGesamtChapters } from "@/lib/gesamt-document";
 import { capitalizeSentenceStart } from "@/lib/satzanfang";
 import { NEUE_GRUPPEN } from "@/lib/module/fragen";
@@ -100,6 +101,49 @@ if (doppeltesFeldlabel("Steuerrelevante Daten: Daten: Angabe zum Musterbetrieb")
 }
 console.log("negativ doppeltes Label: rot — Wort: Wort:");
 
+if (prefixFieldLabel("Vertretung", "Lea Nordlicht", "Verantwortung und Vertretung") !== "Vertretung: Lea Nordlicht") {
+  fail("Überschrift „Verantwortung und Vertretung“ darf das Feldlabel Vertretung nicht schlucken");
+}
+if (prefixFieldLabel("Vertretung", "Vertretung: Lea Nordlicht", "Verantwortung und Vertretung") !== "Vertretung: Lea Nordlicht") {
+  fail("Ein Wert, der schon mit dem Label beginnt, wird nicht verdoppelt");
+}
+if (prefixFieldLabel("System", "KassaPro", "System") !== "KassaPro") {
+  fail("Gleiche Überschrift und gleiches Label bleiben ohne zweites Label");
+}
+console.log("ok: Vertretung bleibt als Feldlabel");
+
+/** Stichwort der Frage und erwartetes Stichwort der Musterantwort. */
+export const MUSTER_INHALT: ReadonlyArray<{ id: string; frage: RegExp; antwort: RegExp }> = [
+  { id: "LE01", frage: /Änderungen eines Auftrags/i, antwort: /änderung/i },
+  { id: "AR01", frage: /Abschlags-/i, antwort: /Abschlag/i },
+  { id: "AR02", frage: /Gutschrift/i, antwort: /Gutschrift/i },
+  { id: "KF03", frage: /Abweichungen/i, antwort: /Abweichung/i },
+  { id: "KF04", frage: /nachgewiesen/i, antwort: /Protokoll|Abhakliste|Nachweis|Checkliste/i },
+  { id: "ZR02", frage: /beantragt/i, antwort: /Antrag|beantragt/i },
+  { id: "ZR03", frage: /entzogen/i, antwort: /Entzug|Austritt/i },
+  { id: "SN04", frage: /Wiederanlauf/i, antwort: /Wiederanlauf|nacherfasst/i },
+  { id: "SN05", frage: /Notfall/i, antwort: /Kontakt|Rolle|Stelle/i },
+  { id: "AE05", frage: /geänderte Arbeitsweise/i, antwort: /Ablaufänderung/i },
+  { id: "PZ02", frage: /Auswertungen nach Vorgabe/i, antwort: /Auswertung/i },
+  { id: "BS07", frage: /Buchhaltung/i, antwort: /Export|DATEV/i },
+];
+
+export function musterInhaltPasst(id: string, prompt: string, antwort: string): string | null {
+  const rule = MUSTER_INHALT.find((item) => item.id === id);
+  if (!rule) return null;
+  if (!rule.frage.test(prompt)) return `${id}: Fragetext passt nicht zur Prüfliste`;
+  if (!rule.antwort.test(antwort)) return `${id}: Antwort passt nicht zur Frage`;
+  return null;
+}
+
+const falschZugeordnet = musterInhaltPasst(
+  "KF04",
+  "Wie werden durchgeführte Kontrollen nachgewiesen und wie lange aufbewahrt?",
+  "Korrektur über Storno oder Neubuchung mit Beleg.",
+);
+if (!falschZugeordnet) fail("Negativtest: falsch zugeordnete Kontrollantwort wurde nicht erkannt");
+console.log("negativ Musterinhalt: rot — Antwort passt nicht zur Frage");
+
 const ZD04_ABLAUF =
   "Zahlungseingänge und -ausgänge werden über den Bankabruf den offenen Posten zugeordnet; nicht zuordenbare Zahlungen und Differenzen klärt ";
 const ZD04_TURNUS = "wöchentlich, zusätzlich zum Monatsabschluss";
@@ -128,6 +172,32 @@ for (const vorlage of MUSTER_VORLAGEN) {
 
   const chapters = renderGesamtChapters(muster.answers, "OFFEN");
   const mustertext = chapters.map((chapter) => chapter.body).join("\n");
+  if (mustertext.includes("Angabe zum Musterbetrieb") || /siehe Modul \d+\b/.test(mustertext.replaceAll("siehe Modul 5/6", ""))) {
+    fail(`${vorlage}: Selbstverweis „siehe Modul“ im eigenen Modul`);
+  }
+  if (/\bop-[a-z0-9-]+/.test(mustertext)) fail(`${vorlage}: Roh-ID eines offenen Punkts im Text`);
+  if (mustertext.includes("Intake")) fail(`${vorlage}: „Intake“ im Kunden-PDF`);
+  if (mustertext.includes("Muss ich klären") || mustertext.includes("So läuft es heute")) {
+    fail(`${vorlage}: Fragebogen-Status statt PDF-Label`);
+  }
+  for (const rule of MUSTER_INHALT) {
+    const question = NEUE_GRUPPEN.flatMap((gruppe) => gruppe.questions).find((item) => item.id === rule.id);
+    const prompt = question?.prompt ?? "";
+    const values = muster.answers.katalog?.[rule.id];
+    if (values?.status !== "bestaetigt") {
+      fail(`${vorlage}: ${rule.id} ist nicht bestätigt`);
+      continue;
+    }
+    const antwort = Object.values(values.values ?? {}).map((item) => String(item)).join(" ");
+    const problem = musterInhaltPasst(rule.id, prompt, antwort);
+    if (problem) fail(`${vorlage}: ${problem}`);
+  }
+  if (vorlage === "dienstleister" && mustertext.includes("Pflegedienstleitung")) {
+    fail("dienstleister: Pflegedienstleitung im Beratungsmuster");
+  }
+  if ((vorlage === "dienstleister" || vorlage === "gastro") && !mustertext.includes("Die Frist für die Entgeltunterlagen ergibt sich aus dem Sozialversicherungsrecht")) {
+    fail(`${vorlage}: Satz unter der Lohn- und Zeittabelle fehlt`);
+  }
   const label = doppeltesFeldlabel(mustertext);
   if (label) fail(`${vorlage}: doppeltes Feldlabel „${label}“`);
   const modul7 = chapters.find((chapter) => chapter.id === "modul-m07")?.body ?? "";
@@ -165,9 +235,9 @@ for (const vorlage of MUSTER_VORLAGEN) {
 
   if (vorlage === "dienstleister" || vorlage === "ecommerce") {
     const modul15 = chapters.find((chapter) => chapter.id === "modul-m15")?.body ?? "";
-    const sichtbar = (modul15.match(/Aufbewahrung der Buchungsbelege 8 Jahre \(§ 147 Abs\. 3 AO\)/g) ?? []).length;
-    if (sichtbar < 3) {
-      fail(`${vorlage}: DATEV-Zusatz steht ${sichtbar} Mal in Modul 15, erwartet in den sichtbaren Feldern`);
+    const sichtbar = (modul15.match(/Aufbewahrung der Buchungsbelege 8 Jahre \(§ 147 Abs\. 1 Nr\. 4, Abs\. 3 Satz 1 AO\)/g) ?? []).length;
+    if (sichtbar !== 1) {
+      fail(`${vorlage}: DATEV-Zusatz steht ${sichtbar} Mal in Modul 15, erwartet einmal an den Suchmerkmalen`);
     }
   }
 
@@ -187,8 +257,8 @@ for (const vorlage of MUSTER_VORLAGEN) {
   if (vorlage === "ecommerce") {
     const shop = chapters.find((chapter) => chapter.id === "modul-m13")?.body ?? "";
     const zeile =
-      "Einzelaufzeichnungen der Bestellungen und Zahlungen (Shop- und Zahlungsdienst-Exporte) | 10 Jahre (§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO); zugehörige Rechnungen und Abrechnungen siehe 8 Jahre";
-    if (!shop.includes(zeile)) fail("ecommerce: Onlinehandel 13.4 ohne den Wortlaut aus F48");
+      "Einzelaufzeichnungen der Bestellungen und Zahlungen (Shop- und Zahlungsdienst-Exporte) | 10 Jahre | § 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO |";
+    if (!shop.includes(zeile)) fail("ecommerce: Onlinehandel 13.4 ohne Frist 10 Jahre und die Grundlage");
     if (shop.includes("im Zweifel die längere Frist")) fail("ecommerce: alte Zeile mit „im Zweifel“");
   }
 

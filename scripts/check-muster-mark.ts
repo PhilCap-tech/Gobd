@@ -73,7 +73,7 @@ expect(NEW_MODEL ? UPSELL_PRICE_BREAKDOWN.startsWith("99 € einmalig zzgl. USt.
 expect(UPSELL_CTA_HREF === "/checkout", "CTA target is /checkout");
 expect(
   NEW_MODEL ? !GELD_ZURUECK_MICRO.includes("Zufriedenheitsgarantie") : GELD_ZURUECK_MICRO ===
-    `14 Tage Zufriedenheitsgarantie: Wir erstatten die ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde.`,
+    `Erstattung der ${TODAY_EUR} € zum Start, solange noch kein PDF erzeugt oder heruntergeladen wurde (14 Tage).`,
   "guarantee line stays the landing sentence",
 );
 expect(

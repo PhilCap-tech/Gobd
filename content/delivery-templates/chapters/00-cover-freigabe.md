@@ -25,7 +25,7 @@ Dieses Dokument beschreibt {{#if bereich.belegfluss}}den Belegweg{{/if}}{{#if be
 | Bereichsverantwortung | {{bereich.verantwortlich | or "zu bestätigen"}} |
 | Geltungsbereich | {{bereich.kurz}} Allgemeiner Teil (Unternehmen, Systeme, Aufbewahrung, Berechtigungen, Kontrollen) im beschriebenen Umfang |
 {{/if}}| Ausgeschlossen | {{answers.geltungAusschluss | or "nichts ausdrücklich ausgenommen; nicht beschriebene Abläufe gelten nicht als vorhanden"}} |
-| Status | Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend |
+| Status | Entwurf aus dem Fragebogen — betriebliche Bestätigung ausstehend |
 
 ## Freigabevermerk
 
