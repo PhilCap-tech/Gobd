@@ -145,6 +145,7 @@ function ohneInterneVerweise(text: string): string {
   next = next.replaceAll("sonst siehe Anhang A", "sonst siehe Ergänzungsliste am Ende");
   next = next.replaceAll("Anhang A", "");
   next = next.replaceAll("**Kassenart:** Art:", "**Kassenart:**");
+  next = next.replaceAll("**Belegausgabe:** Belegausgabe:", "**Belegausgabe:**");
   next = next.replaceAll("**System:** System:", "**System:**");
   next = next.replaceAll("**Bestellweg:** Bestellwege:", "**Bestellwege:**");
   next = next.replace(/[ \t]{2,}/g, " ");

@@ -46,6 +46,12 @@ function ok(cond: unknown, msg: string) {
   console.log("ok:", msg);
 }
 
+/** „X: X:“, auch wenn das erste Label in Markdown fett steht. */
+function doppeltesLabel(text: string): string {
+  const plain = text.replaceAll("*", "");
+  return plain.match(/([A-ZÄÖÜa-zäöü][^:\n]{1,80}?): \1:/)?.[0] ?? "";
+}
+
 function coverField(text: string, label: string): string {
   const match = text.match(new RegExp(`\\| ${label} \\| ([^\\n|]+)`));
   return (match?.[1] ?? "").replace(/\s+/g, " ").trim();
@@ -802,6 +808,26 @@ async function main() {
   ok(unsichereKasse.includes("Kassenbuch (elektronisches System) oder Kassenbericht (offene Ladenkasse)"), "unsichere Kassenform");
   ok(!unsichereKasse.includes("TSE-Art"), "unsicher ohne TSE-Art");
   ok(unsichereKasse.includes("Bei offener Ladenkasse zusätzlich aufbewahren"), "unsicher nennt beide Aufbewahrungen");
+  ok(
+    unsichereKasse.replaceAll("*", "").includes("Belegausgabe: Bei elektronischem System:"),
+    "unsichere Belegausgabe ohne doppeltes Label",
+  );
+  ok(doppeltesLabel("Belegausgabe: Belegausgabe: ist festzulegen") === "Belegausgabe: Belegausgabe:", "Negativtest doppeltes Label");
+  const beispiele: SchnellversionAnswers[] = [
+    { firma: "Beispiel Holz GmbH", branche: "handwerk", software: "DATEV", bucht: "Unsere Steuerkanzlei", kasse: "Nein, keine Bargeldeinnahmen", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Shop GmbH", branche: "ecommerce", software: "Lexware Office", bucht: "Unsere Steuerkanzlei", kasse: "Nein, keine Bargeldeinnahmen", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Küche GmbH", branche: "gastro", software: "Excel / manuell", bucht: "Wir selbst im Unternehmen", kasse: "Ja, elektronische Kasse", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Laden GmbH", branche: "handel", software: "sevdesk", bucht: "Unsere Steuerkanzlei", kasse: "Ja, elektronische Kasse", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Beratung GmbH", branche: "dienstleistung", software: "DATEV", bucht: "Wir selbst im Unternehmen", kasse: "Ja, elektronische Kasse", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Küche GmbH", branche: "gastro", software: "Excel / manuell", bucht: "Wir selbst im Unternehmen", kasse: "Ja, offene Ladenkasse (ohne elektronisches System)", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Allein GmbH", branche: "dienstleistung", software: "DATEV", bucht: "Wir selbst im Unternehmen", kasse: "Nein, keine Bargeldeinnahmen", rechtsform: "Einzelunternehmen", mitarbeitende: "1 (nur ich)", softwareFrei: "" },
+    { firma: "Beispiel Unsicher GmbH", branche: "handel", software: "sevdesk", bucht: "Unsere Steuerkanzlei", kasse: "Unsicher", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Freiberuf", branche: "freiberuf", software: "DATEV", bucht: "Wir selbst im Unternehmen", kasse: "Nein, keine Bargeldeinnahmen", rechtsform: "Einzelunternehmen", mitarbeitende: "1 (nur ich)", softwareFrei: "" },
+  ];
+  for (const beispiel of beispiele) {
+    const hit = doppeltesLabel(standardPlainText(beispiel, when));
+    ok(!hit, `${beispiel.firma} ohne doppeltes Label${hit ? `: ${hit}` : ""}`);
+  }
   const faelle63: Array<Partial<SchnellversionAnswers>> = [
     { software: "Sonstiges", softwareFrei: "Buchhalter Pro", bucht: "Wir selbst im Unternehmen" },
     { software: "Excel / manuell", softwareFrei: "", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
