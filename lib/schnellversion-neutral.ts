@@ -5,10 +5,21 @@
 
 import { applyStandardBausteine, dropFremdeProzesse, standardFall, type StandardFall } from "@/lib/schnellversion-bausteine";
 import { OFFENE_KASSE_FRIST } from "@/lib/schnellversion-basis";
+import { capitalizeSentenceStart } from "@/lib/satzanfang";
 
 const FIXED_DATES = ["01.07.2026", "1.07.2026", "2026-07-01"];
 
 export const SV_BASIS_SATZ = "Standardfassung auf Basis der Angaben zu Branche und Größe.";
+
+/** Anzeige im PDF. Die Bestellseite behält das Auswahllabel. */
+export const SV_SOLO_MITARBEITENDE = "keine (nur die Inhaberin bzw. der Inhaber)";
+
+/** Freiberuf 16.5, Wortlaut aus R340-F47. */
+export const FREIBERUF_BUECHER =
+  "Bücher, Aufzeichnungen und Inventare; Jahresabschlüsse, Lageberichte und Eröffnungsbilanz, soweit vorhanden; Arbeitsanweisungen und Organisationsunterlagen";
+
+const FREIBERUF_BUECHER_ALT =
+  "Bücher, Aufzeichnungen, Inventare, Jahresabschlüsse, Lageberichte, Eröffnungsbilanz sowie Arbeitsanweisungen und Organisationsunterlagen";
 
 export type StandardNeutralOptions = {
   /** Buchführung im Unternehmen, nicht durch die Kanzlei. */
@@ -30,12 +41,20 @@ export function neutralizeStandardText(
 ): string {
   let next = text;
   next = next.replaceAll(
+    "Entwurf aus dem Fragebogen — betriebliche Bestätigung ausstehend",
+    `${SV_BASIS_SATZ} Erstellt am ${erstelltAm}.`,
+  );
+  next = next.replaceAll(
     "Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend",
     `Standardfassung, erstellt am ${erstelltAm}`,
   );
   next = next.replaceAll(
     "Entwurf aus Kunden-Intake - betriebliche Bestätigung ausstehend",
     `Standardfassung, erstellt am ${erstelltAm}`,
+  );
+  next = next.replaceAll(
+    "auf Grundlage der im Fragebogen bestätigten Angaben",
+    "als Standardfassung auf Basis Ihrer Angaben zu Branche und Größe",
   );
   next = next.replaceAll(
     "auf Grundlage der im Intake bestätigten Angaben",
@@ -91,9 +110,9 @@ export function neutralizeStandardText(
   next = next.replaceAll("Siehe offene Punkte", "Siehe Ergänzungsliste am Ende");
   next = next.replaceAll("Laut Betriebs-Check nicht vorhanden", "im Betrieb zu klären");
   next = next.replaceAll("laut Betriebs-Check", "im Betrieb");
-  const alteBelegfrist = ["Buchungsbelege", "10", "Jahre"].join(" ");
-  const neueBelegfrist = ["Buchungsbelege", "8", "Jahre"].join(" ");
-  next = next.replaceAll(alteBelegfrist, neueBelegfrist);
+  // Ersetzungsquelle, kein Kundentext. Ausnahme: BELEGFRIST_ALLOWLIST in scripts/check-belegfrist.ts
+  next = next.replaceAll("Buchungsbelege 10 Jahre", "Buchungsbelege 8 Jahre");
+  next = next.replaceAll("1 (nur ich)", SV_SOLO_MITARBEITENDE);
   next = next.replaceAll("von die Geschäftsführung", "der Geschäftsführung");
   next = next.replaceAll("bei die Geschäftsführung", "bei der Geschäftsführung");
   next = next.replaceAll("bei die Buchhaltung", "bei der Buchhaltung");
@@ -186,6 +205,7 @@ function anpassenFall(text: string, options: StandardNeutralOptions): string {
     next = next.replace(/; § 257 Abs\. 1[^|\n]*HGB/g, "");
     next = next.replaceAll(" (§ 240 HGB)", "");
     next = next.replaceAll(" (§ 241 Abs. 2 HGB)", "");
+    next = next.replaceAll(`| ${FREIBERUF_BUECHER_ALT} |`, `| ${FREIBERUF_BUECHER} |`);
     next = next.replaceAll(
       "Jahresabschlüsse, Lageberichte, Eröffnungsbilanz",
       "Jahresabschlüsse, Lageberichte und Eröffnungsbilanz, soweit vorhanden",
@@ -222,7 +242,7 @@ function anpassenFall(text: string, options: StandardNeutralOptions): string {
     next = next.replaceAll(". die Inhaberin bzw. der Inhaber", ". Die Inhaberin bzw. der Inhaber");
     next = next.replaceAll("\ndie Inhaberin bzw. der Inhaber", "\nDie Inhaberin bzw. der Inhaber");
   }
-  return next;
+  return capitalizeSentenceStart(next);
 }
 
 /** Offene Ladenkasse: keine TSE, Kassensystem-Zeilen in Aufbewahrung angepasst. */
@@ -234,7 +254,10 @@ export function offeneKasseText(text: string): string {
         return [line.replaceAll("Programmierung und Organisationsunterlagen", "Organisationsunterlagen")];
       }
       if (line.includes("Programmier- und Änderungsprotokolle des Kassensystems")) return [];
-      if (line.includes("Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle")) {
+      if (
+        line.includes("Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle") ||
+        line.includes("Tagesabschlüsse (Z-Bons) und, soweit geführt, Kassenberichte und Zählprotokolle")
+      ) {
         return OFFENE_KASSE_FRIST.split("\n");
       }
       if (line.includes("| Einzahlungsquittungen, Einlage- und Entnahmebelege |")) return [];

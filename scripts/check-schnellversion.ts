@@ -8,7 +8,7 @@ import { effectiveModulStatus } from "../lib/module/status";
 import { pageTexts } from "./pdf-text";
 import { decideSvArm } from "../lib/schnellversion-assign";
 import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
-import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
+import { SV_BASIS_SATZ, SV_SOLO_MITARBEITENDE } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
 import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, findSvPurchaseBySession, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata, schnellversionSessionParams } from "../lib/schnellversion-checkout";
@@ -37,6 +37,7 @@ import { runSvPurge } from "../lib/schnellversion-purge";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
+import { renderGesamtChapters } from "../lib/gesamt-document";
 import { getGesamtMuster } from "../lib/module-muster";
 import { MUSTER_FIRMEN } from "../lib/module-muster-dense";
 import { generateStandardPdf } from "../lib/schnellversion-pdf";
@@ -295,6 +296,7 @@ async function main() {
   ok(!text.includes("Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."), "alter Fußtext ist weg");
   ok(!text.includes("Dieses Dokument beschreibt"), "Deckblatt ohne zusätzlichen Absatz");
   ok(!text.includes("Intake"), "kein Intake im Beispiel-PDF");
+  ok(!text.includes("Eine eigene Verfahrensdokumentation können Sie auf gobd-doku-erstellen.de"), "Schnellversion ohne den Muster-Schlusssatz");
   ok(!text.includes("Anhang A"), "kein Anhang A im Beispiel-PDF");
   ok(text.includes("§ 13b"), "Handwerk-PDF nennt § 13b");
   ok(text.includes(LOHN_SATZ), "Lohnsatz im Beispiel-PDF");
@@ -321,7 +323,8 @@ async function main() {
     versionMeta: muster!.versionMeta,
   });
   const fullText = pageTexts(full.buffer).join("\n");
-  ok(fullText.includes("Kunden-Intake"), "Vollversion behält Kunden-Intake");
+  ok(fullText.includes("Fragebogen"), "Vollversion sagt Fragebogen");
+  ok(!fullText.includes("Intake"), "Vollversion ohne Intake");
   ok(fullText.includes("01.07.2026"), "Vollversion behält das Geltungsdatum");
   ok(text.includes("Malerbetrieb Adler"), "Firmenname auf dem PDF");
   ok(text.includes("Mitarbeitende: 2–5"), "Mitarbeitendenzahl aus den 6 Angaben");
@@ -803,11 +806,18 @@ async function main() {
   ok(allein.includes("keine Beschäftigten laut Angabe"), "Modul 12 entfällt");
   ok(!allein.includes("Andere Beschäftigte"), "keine Beschäftigtenzeile");
   ok(!allein.includes("Geschäftsführung"), "Einzelunternehmen ohne Geschäftsführung");
+  ok(!allein.includes("1 (nur ich)") && allein.includes(SV_SOLO_MITARBEITENDE), "Ich-Form wird dritte Person");
   ok(allein.includes("Gibt es Beschäftigte"), "Lohnfrage bei einer Person");
   const unsichereKasse = standardPlainText(sample({ kasse: "Unsicher", branche: "handel", software: "sevdesk", bucht: "Unsere Steuerkanzlei" }), when);
   ok(unsichereKasse.includes("Kassenbuch (elektronisches System) oder Kassenbericht (offene Ladenkasse)"), "unsichere Kassenform");
   ok(!unsichereKasse.includes("TSE-Art"), "unsicher ohne TSE-Art");
   ok(unsichereKasse.includes("Bei offener Ladenkasse zusätzlich aufbewahren"), "unsicher nennt beide Aufbewahrungen");
+  const aufbewahrung = unsichereKasse.indexOf("Aufbewahrung");
+  const liste = unsichereKasse.indexOf("Bei offener Ladenkasse zusätzlich aufbewahren");
+  const notverfahren = unsichereKasse.indexOf("Notverfahren");
+  ok(aufbewahrung >= 0 && liste > aufbewahrung && (notverfahren < 0 || liste < notverfahren), "Fristliste steht nicht unter Notverfahren");
+  ok(unsichereKasse.includes("Bei elektronischem System:"), "elektronische Angaben mit Bedingung");
+  ok(unsichereKasse.includes("Bei elektronischem System: TSE und Mitteilung"), "Prozessschritt TSE mit Bedingung");
   ok(
     unsichereKasse.replaceAll("*", "").includes("Belegausgabe: Bei elektronischem System:"),
     "unsichere Belegausgabe ohne doppeltes Label",

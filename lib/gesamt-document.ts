@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { isKeineKontrolleValues } from "@/lib/keine-angaben";
-import { catalogAnswerLine, statusLabel as catalogStatusLabel } from "@/lib/intake-catalog";
+import { catalogAnswerLine, PDF_STATUS_LABEL } from "@/lib/intake-catalog";
 import {
   collapseRepeatedTokens,
   betriebFacts,
@@ -42,6 +42,8 @@ import {
 import type { ModulStatus } from "@/lib/module/typen";
 import type { IntakeAnswers } from "@/lib/types";
 import type { RenderedChapter } from "@/lib/delivery-templates";
+import { lohnFristSatz } from "@/lib/bereiche";
+import { capitalizeSentenceStart, fragebogenStattIntake } from "@/lib/satzanfang";
 
 type State = NonNullable<IntakeAnswers["katalog"]>;
 
@@ -214,7 +216,7 @@ function prepareVorlage(raw: string, answers: IntakeAnswers, facts: BetriebFacts
       return true;
     })
     .join("\n");
-  return stripFalseFallbacks(rendered, facts);
+  return capitalizeSentenceStart(fragebogenStattIntake(stripFalseFallbacks(rendered, facts)));
 }
 
 function renumberTemplate(body: string, modulNr: number, subStart: number): { text: string; nextSub: number } {
@@ -376,7 +378,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
       const details = shown.length ? ` ${shown.map((bit) => cell(bit)).join(" · ")}` : "";
       const reason = line.reason ? ` Begründung: ${cell(line.reason)}` : "";
       // „— So läuft es heute.“ ohne Angabe danach ist eine leere Zeile.
-      if (!details && !reason && line.status === catalogStatusLabel("bestaetigt")) continue;
+      if (!details && !reason && line.status === PDF_STATUS_LABEL.bestaetigt) continue;
       catalogLines.push(collapseRepeatedTokens(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`));
     }
     if (catalogLines.length) {
@@ -407,6 +409,8 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
       ...fristen.map((item) => `| ${cell(item.unterlage)} | ${cell(item.frist)} | ${cell(item.grundlage)} |`),
       "",
     );
+    const fristSatz = lohnFristSatz(fristen.map((item) => item.unterlage));
+    if (fristSatz) lines.push(fristSatz, "");
   }
 
   const begriffe = livedBegriffe(modul, answers);
@@ -423,7 +427,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
   return {
     id: `modul-${modul.id}`,
     title: `${modul.nr} ${modul.titel}`,
-    body: redactDenied(lines.join("\n"), facts),
+    body: fragebogenStattIntake(redactDenied(lines.join("\n"), facts)),
   };
 }
 
@@ -553,15 +557,15 @@ export function renderGesamtChapters(
     body: [
       "# Anhang B — Mitgeltende Unterlagen und bestehende Dokumentationen",
       "",
-      "Verweise auf bestehende Dokumentationen (Status „durch bestehende Dokumentation abgedeckt“) und sonstige Anlagen aus dem Intake:",
+      "Verweise auf bestehende Dokumentationen (Status „durch bestehende Dokumentation abgedeckt“) und sonstige Anlagen aus dem Fragebogen:",
       "",
       ...vollstaendigkeitsZeilen(answers)
         .filter((row) => row.status === "extern")
         .map((row) => `- Modul ${row.nr} ${row.titel}: ${row.detail || "—"}`),
       "",
       answers.katalog?.I02?.status === "bestaetigt"
-        ? "Weitere Anlagen siehe Frage I02 im Modul 24."
-        : "Die Liste mitgeltender Unterlagen ist im Intake zu bestätigen (Modul 24).",
+        ? "Weitere Anlagen siehe „Welche Anlagen belegen Systemstand, Rechte, Verträge und Kontrollen?“ in Modul 24."
+        : "Die Liste mitgeltender Unterlagen ist im Fragebogen zu bestätigen (Modul 24).",
     ].join("\n"),
   });
   out.push(anhangProzessmatrix(answers));

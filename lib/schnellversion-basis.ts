@@ -82,13 +82,43 @@ export function mitEinzelaufzeichnung(body: string, chapterId: string, kasse: st
   return `${body.slice(0, cut)}\n\n${block}${body.slice(cut)}`;
 }
 
+function nachAufbewahrung(body: string, block: string): string {
+  const lines = body.split("\n");
+  const head = lines.findIndex((line) => /^## \S+ Aufbewahrung\s*$/u.test(line));
+  if (head < 0) return `${body.trim()}\n\n${block}\n`;
+  let index = head + 1;
+  let lastTable = -1;
+  while (index < lines.length && !/^## /u.test(lines[index] ?? "")) {
+    if ((lines[index] ?? "").startsWith("|")) lastTable = index;
+    index += 1;
+  }
+  const at = lastTable >= 0 ? lastTable + 1 : head + 1;
+  lines.splice(at, 0, "", block, "");
+  return lines.join("\n");
+}
+
+/** Unsicher: Fristliste unter die Tabelle 8.4, elektronische Angaben an die Bedingung binden. */
 export function mitKassenNotverfahren(body: string, chapterId: string, kasse: string | undefined): string {
   if (chapterId !== "modul-m08" || !kasse || kasse === "Nein, keine Bargeldeinnahmen") return body;
-  const unsicher =
-    kasse === "Unsicher"
-      ? `\n\n${OFFENE_KASSE_FRIST}`
-      : "";
-  return `${body}\n\n## Notverfahren bei Kassenausfall\n\n${kassenNotverfahren(kasse)}${unsicher}`;
+  let next = body;
+  if (kasse === "Unsicher") {
+    next = next
+      .replaceAll(
+        "| Einzelaufzeichnungen des Kassensystems einschließlich TSE-Daten, maschinell auswertbar |",
+        "| Bei elektronischem System: Einzelaufzeichnungen des Kassensystems einschließlich TSE-Daten, maschinell auswertbar |",
+      )
+      .replaceAll(
+        "| Bedienungsanleitungen, Programmier- und Änderungsprotokolle des Kassensystems |",
+        "| Bei elektronischem System: Bedienungsanleitungen, Programmier- und Änderungsprotokolle des Kassensystems |",
+      )
+      .replaceAll("**TSE und Mitteilung:**", "Bei elektronischem System: **TSE und Mitteilung:**")
+      .replaceAll("| TSE und Mitteilung |", "| Bei elektronischem System: TSE und Mitteilung |");
+    next = next.replace(/\n+Bei offener Ladenkasse zusätzlich aufbewahren:[\s\S]*?(?=\n## |\n# |$)/g, "\n");
+    if (!next.includes("Bei offener Ladenkasse zusätzlich aufbewahren:")) {
+      next = nachAufbewahrung(next, OFFENE_KASSE_FRIST);
+    }
+  }
+  return `${next}\n\n## Notverfahren bei Kassenausfall\n\n${kassenNotverfahren(kasse)}`;
 }
 
 export function mitFreiberuf(body: string, chapterId: string, branche: string | undefined): string {

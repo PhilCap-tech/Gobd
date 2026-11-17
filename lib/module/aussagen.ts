@@ -533,8 +533,10 @@ export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSc
     const item = entry(answers, step.frage);
     if (item?.status !== "bestaetigt") continue;
     const question = questionOf(step.frage);
-    const beschreibung = processBeschreibung(step.frage, item.values ?? {});
-    if (!beschreibung) continue;
+    const volltext = processBeschreibung(step.frage, item.values ?? {});
+    if (!volltext) continue;
+    // AF01: Kurzbeschreibung in der Prozessübersicht, Volltext nur bei der Frage.
+    const beschreibung = step.frage === "AF01" && step.beschreibung.trim() ? step.beschreibung : volltext;
     const schritt = question?.title || step.schritt;
     const nachweis = step.nachweis
       .split(",")
@@ -542,7 +544,7 @@ export function livedProzess(modul: ModulDef, answers: IntakeAnswers): BereichSc
       .filter((part) => part && `${schritt} ${beschreibung}`.toLowerCase().includes(part.toLowerCase()))
       .join(", ");
     seen.add(step.frage);
-    out.push({ ...step, schritt, beschreibung, nachweis: nachweis || "Angabe im Intake" });
+    out.push({ ...step, schritt, beschreibung, nachweis: nachweis || "Angabe im Fragebogen" });
   }
   return out;
 }

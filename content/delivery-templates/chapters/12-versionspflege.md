@@ -21,7 +21,7 @@ Der beschriebene Ablauf ist seit {{answers.seitWann}} so bestätigt. Dieses Datu
 
 | Version | Gültig ab | Gültig bis | Änderung | Bestätigt durch |
 | --- | --- | --- | --- | --- |
-{{historyRows}}| {{version}} | {{validFrom | or "*(von GF festzulegen)*"}} | offen | {{changeSummary | or "Erstfassung aus Kunden-Intake"}} | ausstehend |
+{{historyRows}}| {{version}} | {{validFrom | or "*(von GF festzulegen)*"}} | offen | {{changeSummary | or "Erstfassung aus dem Fragebogen"}} | ausstehend |
 
 ## 12.4 Keine Rückdatierung
 

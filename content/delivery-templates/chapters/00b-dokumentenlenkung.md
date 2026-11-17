@@ -8,7 +8,7 @@
 | Nächste planmäßige Prüfung | *(zu planen, z. B. ein Jahr nach Gültig-ab)* |
 | Speicherort | {{answers.archiv | or "zu bestätigen"}} / Organisationsablage Verfahrensdokumentation |
 | Vorversion | {{history.vorversion | or "Keine; Erstfassung — sofern eine Vorfassung existiert, ist sie hier zu benennen"}} |
-| Änderungsanlass | {{history.anlass | or "Erstmalige Beschreibung aus Kunden-Intake bzw. angegebener Anlass"}} |
+| Änderungsanlass | {{history.anlass | or "Erstmalige Beschreibung aus dem Fragebogen bzw. angegebener Anlass"}} |
 
 ## Inhaltsübersicht
 

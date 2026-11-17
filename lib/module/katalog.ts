@@ -358,7 +358,7 @@ export const MODULE: ModulDef[] = [
     catalogIds: ["G05"],
     vorlagen: ["09.2", "09.5"],
     gruppen: [own("Fristen und Löschung", AF)],
-    hinweis: "Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die Unterlage entstanden ist (§ 147 Abs. 4 AO), und läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch nicht abgelaufen ist (§ 147 Abs. 3 AO).",
+    hinweis: "Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die Unterlage entstanden ist (§ 147 Abs. 4 AO), und läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch nicht abgelaufen ist (§ 147 Abs. 3 Satz 5 AO).",
     prozess: [
       { schritt: "Frist zuordnen", beschreibung: "Jeder Unterlagenart wird ihre Frist zugeordnet.", frage: "AF01", nachweis: "Fristenliste" },
       { schritt: "Weitere Gründe prüfen", beschreibung: "Vor Löschung: offene Festsetzung, Prüfung, Rechtsstreit.", frage: "AF02", nachweis: "Prüfvermerk" },

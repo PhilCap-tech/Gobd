@@ -91,7 +91,7 @@ for (const present of [
   "Leistungsumfang zu bestätigen",
   "Mandatsumfang zu bestätigen",
   "soweit die jeweilige Angabe bestätigt ist",
-  "Papierweg laut Intake nicht genannt",
+  "Papierweg laut Fragebogen nicht genannt",
   "E-Mail- und PDF-Eingang",
   "Sichtungsturnus",
   "DATEV",
@@ -184,7 +184,7 @@ const withStatus = {
 const statusBody = bodyFor(withStatus);
 const statusIds = ids(withStatus);
 expect(
-  statusBody.includes("FiBu-/Buchhaltungssystem ist im Intake nicht angegeben"),
+  statusBody.includes("FiBu-/Buchhaltungssystem ist im Fragebogen nicht angegeben"),
   "geplant system is not lived",
 );
 expect(!statusBody.includes("Kanzlei Meier"), "geplant kanzlei is not lived");

@@ -1,4 +1,5 @@
 import {
+  lohnFristSatz,
   bereichById,
   bereichChapterId,
   bereichIdOf,
@@ -92,6 +93,36 @@ function sentenceLabel(label: string): string {
   return label.trim().replace(/\?+$/u, "").trim();
 }
 
+function lastLabelWord(label: string): string {
+  return sentenceLabel(label).split(/\s+/u).filter(Boolean).at(-1) ?? "";
+}
+
+/** Der Text beginnt schon mit dem Label oder mit dessen letztem Wort plus Doppelpunkt. */
+export function textStartsWithLabel(label: string, text: string): boolean {
+  const clean = sentenceLabel(label);
+  const start = text.trim();
+  if (!clean || !start) return false;
+  if (start === clean || start.startsWith(`${clean}:`)) return true;
+  const last = lastLabelWord(clean);
+  if (!last || last === clean) return false;
+  return start === last || start.startsWith(`${last}:`);
+}
+
+/**
+ * Feldlabel nur weglassen, wenn der Wert selbst damit beginnt.
+ * Die Überschrift zählt nur, wenn sie dem Label genau entspricht.
+ */
+export function prefixFieldLabel(label: string, value: string, heading = ""): string {
+  const text = value.trim();
+  if (!text) return "";
+  const name = sentenceLabel(label);
+  if (!name) return text;
+  if (textStartsWithLabel(name, text)) return text;
+  const head = sentenceLabel(heading);
+  if (head && head === name) return text;
+  return `${name}: ${text}`;
+}
+
 /** Drop a repeated software name inside one card (`lexoffice, lexoffice`). */
 function uniqueBits(bits: string[]): string[] {
   const out: string[] = [];
@@ -138,9 +169,7 @@ export function confirmedFieldSentence(fields: PhraseField[], values: Record<str
   for (const field of fields) {
     const value = inline(formatIntakeValue(field, values?.[field.key]));
     if (!value) continue;
-    const label = sentenceLabel(field.label);
-    const prefix = `${label}:`;
-    const phrase = !label || sameText(value, label) || value.startsWith(prefix) ? value : `${label}: ${value}`;
+    const phrase = prefixFieldLabel(field.label, value);
     if (parts.some((kept) => sameText(kept, phrase))) continue;
     parts.push(phrase);
   }
@@ -161,13 +190,18 @@ export function bereichQuestionLines(
       return [`${head} vorgesehen, aber noch nicht gelebte Praxis. Siehe offene Punkte.`];
     }
   }
-  const head = `**${options.title ?? question.title}:**`;
+  const title = options.title ?? question.title;
+  const head = `**${title}:**`;
   if (status === "bestaetigt") {
-    const parts = question.fields
-      .filter((field) => !options.skip?.includes(field.key))
+    const visible = question.fields.filter((field) => !options.skip?.includes(field.key));
+    const parts = visible
       .map((field) => {
         const value = inline(shown(field, entry?.values?.[field.key]));
-        return value ? `${field.label}: ${value}` : "";
+        if (!value) return "";
+        const name = sentenceLabel(field.label);
+        const head = sentenceLabel(title);
+        if (visible.length === 1 && name && head.endsWith(` ${name}`)) return value;
+        return prefixFieldLabel(field.label, value, title);
       })
       .filter(Boolean);
     if (!parts.length) return [`${head} bestätigt, ohne nähere Angabe.`];
@@ -276,7 +310,7 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
 
   lines.push(`# ${number} ${bereich.titel}: Abläufe`, "");
   lines.push(
-    `Dieses Kapitel beschreibt den Bereich ${bereich.label}: ${bereich.kurz} Aussagen im Präsens stehen nur dort, wo die Angabe im Intake als heutige Praxis bestätigt ist. Vorgesehene oder ungeklärte Angaben sind als solche gekennzeichnet und stehen zusätzlich in Kapitel ${offen}. Allgemeine Hinweise beschreiben die Rechtslage und bestätigen nicht die betriebliche Umsetzung.`,
+    `Dieses Kapitel beschreibt den Bereich ${bereich.label}: ${bereich.kurz} Aussagen im Präsens stehen nur dort, wo die Angabe im Fragebogen als heutige Praxis bestätigt ist. Vorgesehene oder ungeklärte Angaben sind als solche gekennzeichnet und stehen zusätzlich in Kapitel ${offen}. Allgemeine Hinweise beschreiben die Rechtslage und bestätigen nicht die betriebliche Umsetzung.`,
     "",
   );
 
@@ -287,7 +321,7 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
   heading("Verantwortung und Rollen");
   question(bereich.questions[0]);
   lines.push(
-    "Die folgende Übersicht nennt die Personen oder Rollen je Prozessschritt. „zu benennen“ bedeutet, dass die Angabe im Intake nicht als heutige Praxis bestätigt ist.",
+    "Die folgende Übersicht nennt die Personen oder Rollen je Prozessschritt. „zu benennen“ bedeutet, dass die Angabe im Fragebogen nicht als heutige Praxis bestätigt ist.",
     "",
     ...roleRows(bereich, state, lead),
     "",
@@ -328,7 +362,7 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
     hinweis(
       keineKontrolle
         ? `Das interne Kontrollsystem soll Vollständigkeit, Richtigkeit und Zeitgerechtheit der Aufzeichnungen sichern. Das übergreifende Kontrollsystem beschreibt Kapitel ${iks}.`
-        : `Das interne Kontrollsystem soll Vollständigkeit, Richtigkeit und Zeitgerechtheit der Aufzeichnungen sichern. Die Tabelle nennt typische Kontrollen dieses Bereichs. Als durchgeführt gilt eine Kontrolle nur, wenn sie im Intake als heutige Praxis bestätigt ist. Das übergreifende Kontrollsystem beschreibt Kapitel ${iks}.`,
+        : `Das interne Kontrollsystem soll Vollständigkeit, Richtigkeit und Zeitgerechtheit der Aufzeichnungen sichern. Die Tabelle nennt typische Kontrollen dieses Bereichs. Als durchgeführt gilt eine Kontrolle nur, wenn sie im Fragebogen als heutige Praxis bestätigt ist. Das übergreifende Kontrollsystem beschreibt Kapitel ${iks}.`,
     ),
     "",
   );
@@ -347,7 +381,7 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
       return "zu klären";
     };
     lines.push(
-      "| Kontrolle | Zweck | Stand im Intake |",
+      "| Kontrolle | Zweck | Stand im Fragebogen |",
       "| --- | --- | --- |",
       ...bereich.kontrollen.map((item) => `| ${cell(item.name)} | ${cell(item.zweck)} | ${stand(item.name)} |`),
       "",
@@ -394,6 +428,8 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
     ...bereich.aufbewahrung.map((item) => `| ${cell(item.unterlage)} | ${cell(item.frist)} | ${cell(item.grundlage)} |`),
     "",
   );
+  const fristSatz = lohnFristSatz(bereich.aufbewahrung.map((item) => item.unterlage));
+  if (fristSatz) lines.push(fristSatz, "");
   question(rahmen(bereich, "96"));
 
   if (bereich.begriffe.length) {
@@ -436,9 +472,9 @@ export function bereichMatrixChapter(answers: IntakeAnswers): { id: string; titl
   const body = [
     `# ${title}`,
     "",
-    "Die Matrix ordnet jedem Prozessschritt die verantwortliche Person oder Rolle und den erwarteten Nachweis zu. „Stand“ zeigt, ob die zugehörige Angabe im Intake als heutige Praxis bestätigt ist. Ohne bestätigte Einzelangabe steht die Bereichsverantwortung.",
+    "Die Matrix ordnet jedem Prozessschritt die verantwortliche Person oder Rolle und den erwarteten Nachweis zu. „Stand“ zeigt, ob die zugehörige Angabe im Fragebogen als heutige Praxis bestätigt ist. Ohne bestätigte Einzelangabe steht die Bereichsverantwortung.",
     "",
-    "| Nr. | Schritt | Verantwortlich | Nachweis | Stand im Intake |",
+    "| Nr. | Schritt | Verantwortlich | Nachweis | Stand im Fragebogen |",
     "| --- | --- | --- | --- | --- |",
     ...rows,
   ].join("\n");
