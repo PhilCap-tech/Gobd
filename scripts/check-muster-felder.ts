@@ -238,7 +238,12 @@ export function ekFremdsystem(sy01: string, ekText: string): string[] {
   return treffer;
 }
 
-const KONTROLL_ROLLEN = ["Projektleitung", "Verkaufsleitung", "Schichtleitung", "Lagerleitung", "Lagerpersonal", "Filialleitung", "Küchenchef"] as const;
+const KONTROLL_ROLLEN = ["Projektleitung", "Verkaufsleitung", "Schichtleitung", "Lagerleitung", "Lagerpersonal", "Filialleitung", "Küchenchef", "Teamleitung", "Einkaufsleitung"] as const;
+
+function stammFuerRolle(katalog: Katalog, id: string): string {
+  const prefix = id.slice(0, 2);
+  return `${JSON.stringify(katalog.UO03?.values ?? {})} ${JSON.stringify(katalog[`${prefix}00`]?.values ?? {})}`;
+}
 
 /** Rolle in einer Kontrolle, die UO03 der Firma nicht nennt. */
 export function rolleOhneStamm(rolle: string, stamm: string, kontrolle: string): boolean {
@@ -265,6 +270,12 @@ if (vorlagenbegriffOhneStamm("Projektleitung", "Projektleitung für Aufträge", 
 }
 if (!rolleOhneStamm("Küchenchef", "Schichtleitung", "Freigabe durch den Küchenchef")) {
   fail("Negativtest: Rolle ohne UO03 wurde nicht erkannt");
+}
+if (!rolleOhneStamm("Teamleitung", "Projektleitung Tim Harms", "Plausibilitätsprüfung durch die Teamleitung")) {
+  fail("Negativtest: Teamleitung ohne ZE00 wurde nicht erkannt");
+}
+if (rolleOhneStamm("Teamleitung", "Teamleitung (Sara Linden)", "durch die Teamleitung")) {
+  fail("Negativtest: Teamleitung aus ZE00 wurde gemeldet");
 }
 const OSS_SATZ = "Fernverkäufe an Privatpersonen in Österreich werden mit dem österreichischen Steuersatz berechnet und über das OSS-Verfahren erklärt (§ 3c, § 18j UStG)";
 export function ossSatzSichtbar(text: string): boolean {
@@ -329,7 +340,7 @@ const NEU_ERWARTUNG: Record<string, RegExp> = {
   BA05: /2\.000 Euro/,
   LO04: /Zeiterfassungs-App/,
   WW00: /Lagerverantwortliche Person|Henrik Bauwerk|Jonas Marktwege|Mira Paketpfad|Paula Speicherblick/,
-  WW02: /Projektleitung|Lagerverantwortliche Person|Einkauf|Küchenchef|Schichtleitung/,
+  WW02: /Projektleitung|Lagerverantwortliche Person|Einkauf|Küchenchef|Schichtleitung|Preisänderungen/,
   WW03: /Lieferschein/,
   WW04: /Warenausgang|Baustelle|Verbrauch/,
   WW05: /Bestand|Projekt|Durchschnitt/,
@@ -373,6 +384,12 @@ const NEU_ERWARTUNG: Record<string, RegExp> = {
   LE02: /Lieferschein|Versand|Veranstaltung|Stunden/i,
   LE03: /Lieferschein|Veranstaltung|Shop|Abnahme|Empfangsbestätigung|Bestellung/i,
   AR01: /Abschlag|einzeln|Veranstaltung|Bestellung/i,
+  AR04: /DATEV|Archiv|WaWi|Shop|Rechnungssoftware/i,
+  ER01: /E-Rechnung|PDF|Postfach/i,
+  ER02: /Validierung|Viewer|Prüfung/i,
+  ER03: /XRechnung|ZUGFeRD|WaWi|Shop|Rechnungssoftware/i,
+  SY02: /DATEV/i,
+  RT91: /DATEV|Storno|Kasse|Shop/i,
   WW01: /WaWi|Warenwirtschaft|Materialliste/i,
   EK03: /Lieferantenportal|WaWi Lagerplus|Rechnungssoftware|Projektsoftware|Warenwirtschaft/i,
   EK04: /Abweichungen/i,
@@ -463,12 +480,21 @@ for (const vorlage of MUSTER_VORLAGEN) {
       fail(`${vorlage}: „${begriff}“ in einer Antwort, aber nicht in SY01/UO03`);
     }
   }
-  const kontrollen = Object.entries(muster.answers.katalog ?? {})
-    .filter(([id]) => id.endsWith("92"))
-    .map(([, entry]) => Object.values(entry?.values ?? {}).map((item) => String(item)).join(" "))
-    .join(" ");
-  for (const rolle of KONTROLL_ROLLEN) {
-    if (rolleOhneStamm(rolle, stamm, kontrollen)) fail(`${vorlage}: Rolle „${rolle}“ in einer Kontrolle fehlt in UO03`);
+  for (const [id, entry] of Object.entries(muster.answers.katalog ?? {})) {
+    if (entry?.status !== "bestaetigt") continue;
+    const istKontrolltext = id.endsWith("92") || /^ZE0[4-7]$/u.test(id) || id === "ZE95";
+    const texte = istKontrolltext
+      ? [Object.values(entry.values ?? {}).map((item) => String(item)).join(" ")]
+      : [String(entry.values?.freigabe ?? "")];
+    const rollenstamm = stammFuerRolle(muster.answers.katalog ?? {}, id);
+    for (const text of texte) {
+      if (!text) continue;
+      for (const rolle of KONTROLL_ROLLEN) {
+        if (rolleOhneStamm(rolle, rollenstamm, text)) {
+          fail(`${vorlage}: Rolle „${rolle}“ in ${id} fehlt in UO03 und ${id.slice(0, 2)}00`);
+        }
+      }
+    }
   }
   const ekText = Object.entries(muster.answers.katalog ?? {})
     .filter(([id, entry]) => id.startsWith("EK") && entry?.status === "bestaetigt")

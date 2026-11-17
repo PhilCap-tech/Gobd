@@ -613,6 +613,32 @@ function bereinigeText(text: string, vorlage: MusterDenseId, f: DenseFirma): str
     .replaceAll("Rohmaterial", vorlage === "ecommerce" ? "Handelsware" : "Material")
     .replaceAll("Faktura+", "Rechnungssoftware")
     .replaceAll("der Agentur", "des Betriebs");
+  if (vorlage === "dienstleister" || vorlage === "handwerk") {
+    next = next.replaceAll("Teamleitung", "Projektleitung");
+  }
+  if (vorlage === "handwerk") {
+    next = next.replaceAll("im Projektsoftware", "in der Projektsoftware");
+  }
+  if (vorlage === "handel") {
+    next = next
+      .replaceAll("Rechnungssoftware (fiktiv)", "WaWi Lagerplus (fiktiv)")
+      .replaceAll("Rechnungssoftware-Archiv", "WaWi Lagerplus")
+      .replaceAll("in der Rechnungssoftware", "in der WaWi Lagerplus")
+      .replaceAll("der Rechnungssoftware", "der WaWi Lagerplus")
+      .replaceAll("die Rechnungssoftware", "die WaWi Lagerplus")
+      .replaceAll("über Rechnungssoftware", "über WaWi Lagerplus")
+      .replaceAll("Rechnungssoftware", "WaWi Lagerplus (fiktiv)");
+  }
+  if (vorlage === "ecommerce") {
+    next = next
+      .replaceAll("Rechnungssoftware (fiktiv)", "Onlineshop")
+      .replaceAll("Rechnungssoftware-Archiv", "Shop")
+      .replaceAll("in der Rechnungssoftware", "im Shop")
+      .replaceAll("der Rechnungssoftware", "des Shops")
+      .replaceAll("die Rechnungssoftware", "der Shop")
+      .replaceAll("über Rechnungssoftware", "über den Shop")
+      .replaceAll("Rechnungssoftware", "Onlineshop");
+  }
   if (vorlage === "gastro" || vorlage === "handel" || vorlage === "ecommerce") {
     next = next
       .replaceAll("Projektleitung", "Buchhaltung")
@@ -661,7 +687,9 @@ function bereinigeText(text: string, vorlage: MusterDenseId, f: DenseFirma): str
       .replaceAll("Handscanner", "Projektsoftware")
       .replaceAll("ERP-Ticketsystem", "Änderungsblatt")
       .replaceAll("Bei ERP-Ausfall", "Bei Ausfall der Projektsoftware")
-      .replaceAll(/\bERP\b/g, "Projektsoftware");
+      .replaceAll("im ERP", "in der Projektsoftware")
+      .replaceAll(/\bERP\b/g, "Projektsoftware")
+      .replaceAll("im Projektsoftware", "in der Projektsoftware");
   }
   return next;
 }
@@ -984,7 +1012,7 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       LE03: b({ ablauf: "Lieferschein mit Empfangsbestätigung. Ablage in DATEV Unternehmen online.", protokoll: "ja" }),
       WW03: b({
         ablauf: "Die lagerverantwortliche Person prüft Menge und Zustand gegen Lieferschein und Bestellung, scannt den Lieferschein und bucht den Wareneingang.",
-        wer: `Kontrolle durch ${f.buchhaltung} beim Drei-Wege-Abgleich`,
+        wer: `Lagerverantwortliche Person; Kontrolle durch ${f.buchhaltung} beim Drei-Wege-Abgleich`,
       }),
       EK05: b({ ablauf: "Die lagerverantwortliche Person bestätigt die Lieferung gegen den Lieferschein.", wer: "Lagerverantwortliche Person" }),
       EK08: b({ vertraege: "Rahmenverträge für Handelsware, Liste in der WaWi mit Laufzeit und Kündigungsfrist.", wer: f.buchhaltung }),
@@ -1062,9 +1090,10 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       EK95: b({ notbetrieb: "Bei Ausfall der WaWi Bestellungen per E-Mail, Nacherfassung in der WaWi.", nacherfassung: "Nacherfassung innerhalb von zwei Arbeitstagen." }),
       EK96: b({ ort: "WaWi Lagerplus (fiktiv) mit jährlichem Export", form: "Originaldokumente in der WaWi, Export als CSV und PDF", loeschung: f.buchhaltung }),
       WW00: b({ verantwortlich: "Lagerverantwortliche Person", vertretung: f.buchhaltung }),
+      WW02: b({ wer: f.buchhaltung, freigabe: `${f.gf} bei Preisänderungen über 10 Prozent`, protokolliert: "ja" }),
       WW03: b({
         ablauf: "Die lagerverantwortliche Person prüft Menge und Zustand gegen Lieferschein und Bestellung und bucht den Wareneingang.",
-        wer: `Kontrolle durch ${f.buchhaltung} beim Rechnungsabgleich (EK06)`,
+        wer: `Lagerverantwortliche Person; Kontrolle durch ${f.buchhaltung} beim Rechnungsabgleich (EK06)`,
       }),
       WW06: b({
         lagerorte: "Ein Lager am Standort Leipzig mit Regal- und Versandbereich",
@@ -1083,6 +1112,11 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
         betrieb: "Cloud / Anbieter",
       }),
       RT00: b({ verantwortlich: "Kundenservice", vertretung: f.buchhaltung }),
+      RT91: b({
+        systeme: "Onlineshop und Marktplatz; WaWi Lagerplus (fiktiv); DATEV Unternehmen online.",
+        schnittstellen: "Shop an WaWi: Retourenanmeldung laufend. Stornorechnungen mit dem monatlichen Rechnungsexport bis zum 5. Zahlungsdienstleister an DATEV: Erstattungen über den monatlichen Auszahlungsreport.",
+        betrieb: "Cloud / Anbieter",
+      }),
     };
   }
   return {};
