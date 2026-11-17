@@ -70,6 +70,7 @@ export type FrageOpenPoint = {
   chapter: string;
   /** Legacy rule ids to skip once this question has any status. */
   suppress: string[];
+  responsibility?: string;
 };
 
 const FRAGE_OPEN: Record<FrageId, FrageOpenPoint> = {

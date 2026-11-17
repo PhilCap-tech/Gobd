@@ -461,6 +461,8 @@ export type CatalogOpenPoint = {
   text: string;
   chapter: string;
   suppress: string[];
+  /** Rolle aus G05 oder AF03, soweit bestätigt. */
+  responsibility?: string;
 };
 
 export function catalogState(answers: IntakeAnswers): CatalogState {
@@ -1430,6 +1432,24 @@ function modulOpenText(id: string): { priority: "hoch" | "mittel" | "niedrig"; t
   };
 }
 
+/** Fristenliste fehlt oder ist verneint: offener Punkt, Rolle aus G05, sonst AF03. */
+function fristenlistePunkt(state: CatalogState): CatalogOpenPoint | null {
+  if (state.AF01?.status !== "bestaetigt") return null;
+  const liste = asText(valuesOf(state, "AF01").liste).trim().toLowerCase();
+  if (liste === "ja") return null;
+  const g05 =
+    state.G05?.status === "bestaetigt" ? asText(valuesOf(state, "G05").rolleFristen).trim() : "";
+  const af03 = state.AF03?.status === "bestaetigt" ? asText(valuesOf(state, "AF03").wer).trim() : "";
+  return {
+    id: "op-af01-liste",
+    priority: "mittel",
+    text: "Fristenliste je Unterlagenart anlegen und im Archiv kennzeichnen (Modul 16).",
+    chapter: "modul-m16",
+    suppress: [],
+    responsibility: g05 || af03 || undefined,
+  };
+}
+
 function pointFor(id: string): CatalogOpenPoint {
   const meta = OPEN_TEXT[id] ?? modulOpenText(id) ?? bereichOpenText(id) ?? {
     priority: "mittel" as const,
@@ -1548,6 +1568,10 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
         cardQuestionLacksFacts(question.id, valuesOf(state, question.id), suggestionChannels, suggestionScope)
       ) {
         points.push(pointFor(question.id));
+      }
+      if (question.id === "AF01" && !points.some((point) => point.id === "op-af01-liste")) {
+        const liste = fristenlistePunkt(state);
+        if (liste) points.push(liste);
       }
       if (question.id === "G02" && status === "bestaetigt" && asText(valuesOf(state, "G02").berechtigungslisteVorhanden) !== "ja") {
         points.push({

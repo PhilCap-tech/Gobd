@@ -313,7 +313,7 @@ export function evaluateOpenPoints(input: {
       id: extra.id,
       priority: extra.priority,
       text: extra.text,
-      responsibility: "zu benennen",
+      responsibility: extra.responsibility?.trim() || "zu benennen",
       title: extra.text,
       severity,
       status: "open",

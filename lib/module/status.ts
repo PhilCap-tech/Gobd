@@ -239,6 +239,13 @@ export function setStammdaten(answers: IntakeAnswers, patch: Partial<Stammdaten>
   };
 }
 
+/**
+ * Einheitlicher AF01-Wortlaut für Vorlage und Muster.
+ * Wortlaut des Prüfers zu § 147 Abs. 1, 3, 4 AO.
+ */
+export const AF01_ZUORDNUNG =
+  "Jeder Unterlagenart wird ihre Frist nach § 147 Abs. 1, 3 AO zugeordnet: Bücher, Aufzeichnungen, Inventare, Jahresabschlüsse, Lageberichte, Eröffnungsbilanz sowie Arbeitsanweisungen und Organisationsunterlagen 10 Jahre; Buchungsbelege 8 Jahre, auch wenn sie zugleich Handels- oder Geschäftsbrief sind; übrige empfangene Handels- und Geschäftsbriefe, Kopien abgesandter und sonstige steuerlich bedeutsame Unterlagen 6 Jahre; Lieferscheine ohne Belegfunktion bis zum Erhalt bzw. Versand der Rechnung (§ 147 Abs. 3 Satz 3, 4 AO). Die Frist beginnt mit dem Schluss des Kalenderjahres, in dem die Unterlage entstanden ist (§ 147 Abs. 4 AO); vor einer Löschung wird die Ablaufhemmung nach § 147 Abs. 3 Satz 5 AO geprüft.";
+
 /** Schlanke Branchenvorlagen-Vorschläge für das Intake (ohne Muster-PDF-Volumen). */
 const VORLAGE_VALUES: Record<string, Record<string, Record<string, unknown>>> = {
   dienstleister: {
@@ -248,34 +255,34 @@ const VORLAGE_VALUES: Record<string, Record<string, Record<string, unknown>>> = 
     AR04: { abschlaege: "Abschläge bei Projekten, Schlussrechnung mit Bezug" },
     ER01: { formate: ["PDF", "ZUGFeRD", "XRechnung"] },
     BU07: { umfang: "FiBu, USt-Voranmeldung, Jahresabschluss, Lohn" },
-    AF01: { ablauf: "Bücher und Abschlüsse 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
+    AF01: { ablauf: AF01_ZUORDNUNG },
   },
   handel: {
     UO02: { kunden: ["Privatkunden (B2C)", "Geschäftskunden (B2B)"], taetigkeiten: "Einzel-/Großhandel mit Kasse und Lager" },
     KA01: { kassenart: "Elektronisches Kassensystem mit TSE" },
     WW01: { system: "Warenwirtschaft (fiktiv)" },
-    AF01: { ablauf: "Bücher und Abschlüsse 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
+    AF01: { ablauf: AF01_ZUORDNUNG },
   },
   ecommerce: {
     UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Onlineshop und Marktplätze" },
     EC01: { kanaele: ["Eigener Onlineshop", "Marktplatz"] },
     EC02: { system: "Shopify (fiktiv)" },
     ZD01: { anbieter: "Zahlungsdienstleister / Kreditkarte (fiktiv)" },
-    AF01: { ablauf: "Bücher und Abschlüsse 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
+    AF01: { ablauf: AF01_ZUORDNUNG },
   },
   gastro: {
     UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Gastronomie / Hotel mit Tagesgeschäft und Veranstaltungen" },
     KA01: { kassenart: "Elektronisches Kassensystem mit TSE", system: "Kassensystem mit Cloud-TSE (fiktiv)" },
     BS01: { art: ["Gastronomie / Hotel"], vorgaenge: "Kasse/TSE, Wareneinkauf Küche, Personalzeiten, Kartenzahlung" },
     ZD01: { anbieter: "Kartenterminal / Zahlungsdienstleister (fiktiv)" },
-    AF01: { ablauf: "Bücher und Abschlüsse 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
+    AF01: { ablauf: AF01_ZUORDNUNG },
   },
   handwerk: {
     UO02: { kunden: ["Geschäftskunden (B2B)", "Privatkunden (B2C)"], taetigkeiten: "Handwerk / Bau mit Projekten, Abschlägen und Material" },
     BS01: { art: ["Handwerk / Bau"], vorgaenge: "Bauprojekte, Aufmaß, Abschläge/Schluss, Material, Nachunternehmer" },
     AR04: { abschlaege: "Abschläge nach Fortschritt, Schlussrechnung mit Bezug" },
     AN01: { system: "Anlagenverzeichnis (fiktiv)" },
-    AF01: { ablauf: "Bücher und Abschlüsse 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO)" },
+    AF01: { ablauf: AF01_ZUORDNUNG },
   },
 };
 
