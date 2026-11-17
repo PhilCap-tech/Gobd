@@ -117,7 +117,7 @@ export const KASSEN_OPT_IN = {
 } as const;
 
 export const KASSEN_WEITER =
-  "Die Meldung ist ein Baustein. Wie Ihre Kasse im Alltag läuft — wer kassiert, zählt, storniert und Belege weitergibt —, beschreibt die Verfahrensdokumentation. Die GoBD-Ampel zeigt in drei Schritten, welche Bereiche bei Ihnen vorkommen. Für einen breiteren Blick auf Ihre Buchführung gibt es den Ampel-Check mit 10 Fragen.";
+  "Die Meldung ist ein Baustein. Wie Ihre Kasse im Alltag läuft — wer kassiert, zählt, storniert und Belege weitergibt —, beschreibt die Verfahrensdokumentation. Die GoBD-Ampel mit PDF-Bericht zeigt in drei Schritten, welche Bereiche bei Ihnen vorkommen. Für einen breiteren Blick auf Ihre Buchführung gibt es die GoBD-Ampel mit 10 Fragen.";
 
 export const KASSEN_SENT_NOTICE =
   "Das Ergebnis mit den Erläuterungen und Quellen ist unterwegs. Die Auswertung sehen Sie auch auf dieser Seite.";

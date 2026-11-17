@@ -23,7 +23,7 @@ import { findReadinessLeadById } from "@/lib/store";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "GoBD-Ampel",
+  title: "GoBD-Ampel mit PDF-Bericht",
   robots: { index: false, follow: false },
 };
 
@@ -60,11 +60,11 @@ export default async function ReadinessSuccessPage({
             <h1>PDF nicht gefunden</h1>
             <p className="prose">
               Der Download-Link ist ungültig oder abgelaufen. Starten Sie die
-              GoBD-Ampel erneut oder öffnen Sie den Link aus der E-Mail.
+              GoBD-Ampel mit PDF-Bericht erneut oder öffnen Sie den Link aus der E-Mail.
             </p>
             <div className="actions" style={{ marginTop: 16 }}>
               <Link className="btn" href="/readiness">
-                GoBD-Ampel starten
+                GoBD-Ampel mit PDF-Bericht starten
               </Link>
               <Link className="btn ghost" href="/login">
                 Anmelden
@@ -119,7 +119,7 @@ export default async function ReadinessSuccessPage({
               <p className="hint" style={{ marginTop: 14 }}>
                 Nächster Schritt: Dokumentation erstellen, dann PDF und Liste
                 offener Punkte aus Ihren Angaben. {READINESS_EFFORT_NOTE} In der
-                GoBD-Ampel selbst wird nichts berechnet.
+                GoBD-Ampel mit PDF-Bericht selbst wird nichts berechnet.
               </p>
               <p className="disclaimer" role="note">
                 {DISCLAIMER_ONCE} Dieses PDF ist eine kurze Einschätzung, keine

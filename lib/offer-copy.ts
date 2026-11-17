@@ -69,7 +69,7 @@ export const PRICE_INCLUSION_LINE = V2
   : LEGACY_PRICE_INCLUSION_LINE;
 
 /** Equal-weight secondary pair in the homepage hero (above the fold). */
-export const CTA_CHECK_HERO = "Kostenlose GoBD-Ampel";
+export const CTA_CHECK_HERO = "Kostenlose GoBD-Ampel mit PDF-Bericht";
 export const CTA_MUSTER_HERO = "Muster ansehen";
 
 export const PRICE_CTA_SUFFIX = START_PRICE_LINE;
@@ -97,7 +97,7 @@ export const CTA_START = "Fragebogen kostenlos starten";
 export const CTA_START_MICRO = `${V2_ENTRY_LABEL} € zzgl. USt erst vor der PDF-Erstellung.`;
 export const CTA_SAMPLE = "Muster ansehen";
 export const CTA_DEMO = "Fragebogen testen";
-export const CTA_CHECK = "Kostenlose GoBD-Ampel machen";
+export const CTA_CHECK = "Kostenlose GoBD-Ampel mit PDF-Bericht";
 
 /** FAQ section „14 Tage Zufriedenheitsgarantie“. */
 export const GELD_ZURUECK_HREF = "/faq#erstattung";

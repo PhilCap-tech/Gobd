@@ -101,7 +101,7 @@ Wie ein vollständiges Musterdokument aussieht, zeigt das fiktive [Muster für d
 
 ## Wo steht Ihr Geschäft?
 
-Für eine erste Einordnung gibt der kostenlose [Ampel-Check](/ampel-check) eine Einschätzung in Grün, Gelb oder Rot, mit Quellen zu jeder Frage. Die [GoBD-Ampel](/readiness) zeigt in drei Schritten, welche Bereiche bei Ihnen vorkommen und welche Angaben Sie bereitlegen sollten.
+Für eine erste Einordnung gibt die kostenlose [GoBD-Ampel](/ampel-check) eine Einschätzung in Grün, Gelb oder Rot, mit Quellen zu jeder Frage. Die [GoBD-Ampel mit PDF-Bericht](/readiness) zeigt in drei Schritten, welche Bereiche bei Ihnen vorkommen und welche Angaben Sie bereitlegen sollten.
 
 ## Häufige Fragen
 
