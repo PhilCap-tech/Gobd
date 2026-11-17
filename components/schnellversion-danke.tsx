@@ -28,41 +28,15 @@ export function SchnellversionDanke() {
   const [downloadNote, setDownloadNote] = useState("");
 
   useEffect(() => {
-    if (bought && answers && sessionStorage.getItem("sv49_saved") !== "1") {
-      sessionStorage.setItem("sv49_saved", "1");
-      void fetch("/api/schnellversion/konto", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...answers, gekauftAm: bought }),
-      });
-    }
     if (bought && sessionStorage.getItem("sv49_counted") !== "1") {
       sessionStorage.setItem("sv49_counted", "1");
-      void postSvEvent({ name: "sv_purchase", arm: "test", value: 49 });
     }
     void postSvEvent({ name: "sv_upgrade_view", arm: "test" });
-  }, [bought, answers]);
+  }, [bought]);
 
-  async function download() {
+  function download() {
     if (!answers || !bought) return;
-    setDownloadNote("");
-    const response = await fetch("/api/schnellversion/pdf", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...answers, gekauftAm: bought }),
-    });
-    if (!response.ok) {
-      setDownloadNote("Der PDF-Download ist 30 Tage ab Kauf abrufbar.");
-      return;
-    }
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "standardfassung.pdf";
-    link.click();
-    URL.revokeObjectURL(url);
-    void postSvEvent({ name: "sv_pdf_download", arm: "test" });
+    setDownloadNote("Der Download folgt der bezahlten Session.");
   }
 
   const bis = bought ? formatSvDate(addSvDays(new Date(bought), SV_DOWNLOAD_DAYS)) : "";

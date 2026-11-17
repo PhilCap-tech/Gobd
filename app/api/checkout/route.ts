@@ -31,7 +31,8 @@ import { cookies } from "next/headers";
 import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
 import { openCredit, schnellversionCouponId } from "@/lib/schnellversion-credit";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
-import { listSvPurchases } from "@/lib/schnellversion-record";
+import { listSvPurchases, reserveSvCredit } from "@/lib/schnellversion-record";
+import { randomUUID } from "node:crypto";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
   if (!isStripeSecretConfigured()) return undefined;
@@ -194,7 +195,8 @@ export async function POST(request: Request) {
     try {
       const credit = openCredit(await listSvPurchases(email), company, new Date());
       const coupon = credit ? schnellversionCouponId() : "";
-      if (credit && coupon) {
+      const reserved = credit ? await reserveSvCredit(credit.id, randomUUID(), new Date()) : false;
+      if (credit && coupon && reserved) {
         svCoupon = coupon;
         svPurchaseId = credit.id;
       }

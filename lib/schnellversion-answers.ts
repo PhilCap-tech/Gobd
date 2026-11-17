@@ -190,9 +190,16 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
   const systeme = b01?.values?.systeme;
   if (b01 && Array.isArray(systeme) && systeme.length > 0) {
     const [first, ...rest] = systeme;
+    const self = !kanzleiBuchtAntwort(input.bucht);
     const renamed =
       first && typeof first === "object"
-        ? { ...(first as Record<string, unknown>), name: softwareLabel(input) }
+        ? {
+            ...(first as Record<string, unknown>),
+            name: softwareLabel(input),
+            funktion: self ? "Buchhaltung im Unternehmen" : "Buchhaltung der Kanzlei",
+            originalOrt: softwareLabel(input),
+            nutzer: "[bitte prüfen]",
+          }
         : first;
     answers.katalog = {
       ...answers.katalog,
@@ -215,6 +222,12 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
   }
   if (!kanzleiBuchtAntwort(input.bucht)) {
     answers = setCheckAntwort(answers, "kanzlei", "nein");
+    answers = replaceToken(answers, "FiBu der Kanzlei und Belegablage", "Buchhaltung im Unternehmen");
+    answers = replaceToken(answers, "Abrechnung durch: Kanzlei", "Abrechnung im Unternehmen");
+    if (softwareLabel(input) !== "DATEV") {
+      answers = replaceToken(answers, "DATEV Unternehmen online", softwareLabel(input));
+      answers = replaceToken(answers, "DATEV Lohn und Gehalt (Kanzlei)", "Lohn laut Betrieb");
+    }
   }
   const identity: CheckoutIdentity = {
     ...muster.identity,

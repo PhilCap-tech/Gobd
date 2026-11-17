@@ -43,6 +43,13 @@ const EVENT_KEYS = ["name", "arm", "variante", "branche_vorlage", "value", "step
 const NAME_SET = new Set<string>(SV_EVENT_NAMES);
 const VORLAGE_SET = new Set<string>(MUSTER_VORLAGEN);
 
+const CLIENT_REVENUE = new Set<SvEventName>(["purchase_99", "sv_purchase", "sv_upgrade_purchase"]);
+
+/** Umsatz kommt nur aus dem Webhook, nie aus dem Browser. */
+export function clientEventAllowed(name: string): boolean {
+  return !CLIENT_REVENUE.has(name as SvEventName);
+}
+
 export function parseSvEvent(input: unknown): SvEventRow | null {
   if (!input || typeof input !== "object") return null;
   const raw = input as Record<string, unknown>;

@@ -26,10 +26,10 @@ export const SV_KAUF_BUTTON = "Standardfassung für 49 € kaufen";
 export const SV_KAUF_PREIS =
   "49 € zzgl. 19 % USt (58,31 € brutto), einmalig je Firma. Keine Abo-Pflicht.";
 
-export const SV_KAUF_UNTERNEHMER = "Ich bestelle als Unternehmer im Sinne von § 14 BGB.";
+export const SV_KAUF_UNTERNEHMER = "Sie bestellen als Unternehmer im Sinne von § 14 BGB.";
 
 export const SV_KAUF_BEWUSST =
-  "Mir ist bewusst, dass die Schnellversion eine Standardfassung aus einer Branchenvorlage ist. Sie beschreibt nicht meine tatsächlichen Abläufe und muss vor der Verwendung von mir geprüft und angepasst werden.";
+  "Ihnen ist bewusst, dass die Schnellversion eine Standardfassung aus einer Branchenvorlage ist. Sie beschreibt nicht Ihre tatsächlichen Abläufe und muss vor der Verwendung von Ihnen geprüft und angepasst werden.";
 
 export const SV_KAUF_PFLICHT =
   "Preise netto zzgl. 19 % USt, nur für Unternehmen. Jede weitere Firma buchen Sie gesondert. Erstattung nur, wenn die Erstellung Ihres PDFs fehlschlägt (Einzelheiten in den AGB). Keine Steuer- oder Rechtsberatung.";

@@ -44,6 +44,7 @@ import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import { rememberSvEvent } from "@/lib/schnellversion-store";
 import { markSvCreditUsed } from "@/lib/schnellversion-record";
+import { confirmPaidSession, paymentFromStatus } from "@/lib/schnellversion-payment";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
 import { logError } from "@/lib/log-error";
 import type Stripe from "stripe";
@@ -187,6 +188,13 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
+        if (session.metadata?.sv49 === "1") {
+          if (paymentFromStatus(session.payment_status) === "paid") {
+            const pendingId = session.metadata.sv_pending?.trim() ?? "";
+            await confirmPaidSession(session.id, { status: "paid", ...(pendingId ? { pendingId } : {}) });
+          }
+          return NextResponse.json({ received: true });
+        }
         let email =
           session.customer_details?.email || session.customer_email || "";
         const company = session.metadata?.company || "";

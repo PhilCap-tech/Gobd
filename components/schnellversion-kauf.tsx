@@ -6,7 +6,6 @@ import styles from "@/components/schnellversion-ui.module.css";
 import {
   postSvEvent,
   readSvAnswersSnapshot,
-  saveSvBought,
   subscribeSvStorage,
 } from "@/components/schnellversion-browser";
 import {
@@ -44,13 +43,16 @@ export function SchnellversionKauf() {
     setError("");
     setPending(true);
     try {
-      const response = await fetch("/api/schnellversion/checkout", { method: "POST" });
+      const response = await fetch("/api/schnellversion/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ answers, unternehmer: true, bewusst: true }),
+      });
       const payload = (await response.json()) as { ready?: boolean; url?: string };
       if (!payload.ready || !payload.url) {
         setPending(false);
         return;
       }
-      saveSvBought(new Date().toISOString());
       const vorlage = answers ? vorlageForBranche(answers.branche) : "";
       void postSvEvent({
         name: "sv_checkout_start",

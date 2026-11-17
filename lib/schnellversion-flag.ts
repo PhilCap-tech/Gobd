@@ -20,7 +20,7 @@ export function schnellversionPriceId(env: FlagEnv = process.env): string {
 
 export function schnellversionStripeStub(env: FlagEnv = process.env): boolean {
   const raw = (env.SCHNELLVERSION_49_STRIPE_STUB ?? "").trim().toLowerCase();
-  return raw === "1" || raw === "true";
+  return raw === "1" || raw === "true" || raw === "paid" || raw === "unpaid";
 }
 
 /**

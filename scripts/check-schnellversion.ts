@@ -7,10 +7,11 @@ import { readFileSync } from "node:fs";
 import { effectiveModulStatus } from "../lib/module/status";
 import { pageTexts } from "./pdf-text";
 import { decideSvArm } from "../lib/schnellversion-assign";
-import { openCredit } from "../lib/schnellversion-credit";
+import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { creditStillOpen, downloadStillOpen, type SvPurchase } from "../lib/schnellversion-record";
+import { creditStillOpen, downloadStillOpen, reserveSvCredit, type SvPurchase } from "../lib/schnellversion-record";
+import { schnellversionCheckoutMetadata } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
   vorlageForBranche,
@@ -18,7 +19,11 @@ import {
 } from "../lib/schnellversion-answers";
 import { schnellversionCheckoutPlan, schnellversion49Enabled } from "../lib/schnellversion-flag";
 import { svDownloadStillOpen, SV_COVER_TITLE } from "../lib/schnellversion-copy";
-import { evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
+import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
+import { confirmPaidSession, openSchnellversionCheckout } from "../lib/schnellversion-payment";
+import { draftFromSchnellversion } from "../lib/schnellversion-draft";
+import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
+import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
 import { getGesamtMuster } from "../lib/module-muster";
 import { generateStandardPdf } from "../lib/schnellversion-pdf";
@@ -113,6 +118,11 @@ function purchase(patch: Partial<SvPurchase> = {}): SvPurchase {
     documentId: "p1",
     pdfPath: "",
     creditUsedAt: "",
+    consentAt: now.toISOString(),
+    sessionId: "stub_sv_paid_p1",
+    creditReservedAt: "",
+    creditReservationId: "",
+    answersJson: "{}",
     ...patch,
   };
 }
@@ -197,6 +207,86 @@ async function main() {
   ok(text.includes("Was Sie in der Standardfassung prüfen sollten"), "Prüfhinweise im PDF");
   ok(text.includes("Prüfhinweis aufgenommen"), "Kasse Unsicher im PDF");
   ok(!text.includes("Anhang A — Offene Punkte"), "keine Liste offener Punkte aus eigenen Antworten");
+  ok(!text.includes("Angabe im Intake"), "kein Angabe im Intake");
+  ok(!text.includes("Musterbetrieb"), "kein Musterbetrieb");
+  ok(!text.includes("(fiktiv)"), "keine fiktiven Produktnamen");
+  ok(!text.includes("bestätigt, ohne nähere Angabe"), "kein bestätigt ohne Angabe");
+  ok(!text.includes("Diese Fassung gilt ab"), "keine Geltungsformel");
+  ok(!text.includes(".07.2026"), "kein abgeschnittenes Geltungsdatum");
+  ok(!text.includes("ältere Fassungen bleiben"), "keine Versionszeile");
+  const selfPdf = await generateStandardPdf(
+    sample({ bucht: "Wir selbst im Unternehmen", software: "Sonstiges", softwareFrei: "Buchhalter Pro", kasse: "Nein, keine Bargeldeinnahmen" }),
+    new Date("2026-11-17T10:00:00Z"),
+  );
+  const selfText = pageTexts(selfPdf).join("\n");
+  ok(!selfText.includes("FiBu der Kanzlei"), "Eigenbuchhaltung ohne Kanzlei-FiBu");
+  ok(selfText.includes("Buchhalter Pro"), "Programm aus der Antwort");
+  ok(fullText.includes("Angabe im Intake") || fullText.includes("(fiktiv)"), "Vollversion behält Vorlagentext");
+
+  ok(!clientEventAllowed("purchase_99") && !clientEventAllowed("sv_purchase"), "Umsatz nicht vom Browser");
+  ok(clientEventAllowed("sv_visit"), "Aufruf ohne Einwilligung ist erlaubt");
+  const savedStub = process.env.SCHNELLVERSION_49_STRIPE_STUB;
+  process.env.SCHNELLVERSION_49_ENABLED = "1";
+  process.env.STRIPE_PRICE_SCHNELL_49 = "price_test_schnell";
+  process.env.SCHNELLVERSION_49_STRIPE_STUB = "unpaid";
+  const unpaid = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    email: "inhaber@example.com",
+  });
+  ok(unpaid.ok && unpaid.sessionId.includes("unpaid"), "unbezahlte Stub-Session");
+  ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "")).paid === false, "unbezahlt erzeugt kein PDF");
+  process.env.SCHNELLVERSION_49_STRIPE_STUB = "paid";
+  const paidOpen = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: false,
+    bewusst: true,
+    email: "inhaber@example.com",
+  });
+  ok(!paidOpen.ok, "Zustimmung fehlt serverseitig");
+  const paid = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    email: "inhaber@example.com",
+  });
+  ok(paid.ok, "bezahlte Stub-Session");
+  const confirmed = await confirmPaidSession(paid.ok ? paid.sessionId : "");
+  ok(confirmed.paid && confirmed.purchase.consentAt.length > 0, "Zustimmung am Kauf gespeichert");
+  const meta = schnellversionCheckoutMetadata({
+    pendingId: "p",
+    consentAt: confirmed.paid ? confirmed.purchase.consentAt : "",
+    company: "Malerbetrieb Adler",
+  });
+  ok(meta.sv49 === "1" && meta.sv_consent_at === (confirmed.paid ? confirmed.purchase.consentAt : ""), "Zustimmung in den Stripe-Metadaten");
+  const purchaseId = confirmed.paid ? confirmed.purchase.id : "";
+  const reserveNow = new Date();
+  ok(await reserveSvCredit(purchaseId, "eins", reserveNow), "Reservierung am Kauf");
+  ok(!(await reserveSvCredit(purchaseId, "zwei", reserveNow)), "zweite Reservierung am selben Kauf");
+  const draft = draftFromSchnellversion("inhaber@example.com", sample());
+  ok(draft.answers.katalog?.A01?.values?.company === "Malerbetrieb Adler", "Firma im Fragebogen");
+  ok(draft.answers.mitarbeitende === "2–5", "Mitarbeitende im Fragebogen");
+  ok(draft.answers.fibu?.[0] === "DATEV", "FiBu im Fragebogen");
+  ok(draft.answers.module?.vorlage === "handwerk", "Branche als Vorlage im Fragebogen");
+  ok(draft.answers.module?.check?.bargeld === "ja", "Kasse im Betriebs-Check");
+  ok(draft.answers.module?.stammdaten?.fibu === "DATEV", "FiBu-Programm im Betriebs-Check");
+  const held = reserveDecision(confirmed.paid ? confirmed.purchase : purchase(), "eins", reserveNow);
+  ok(held, "erste Coupon-Reservierung");
+  ok(reserveDecision(held!, "zwei", reserveNow) === null, "zweite Reservierung blockiert");
+  ok((await confirmPaidSession("")).paid === false, "ohne Session kein Kauf");
+  ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "stub_sv_unpaid_x")).paid === false, "unbezahlte Session ergibt kein PDF");
+  ok((await confirmPaidSession("cs_test_unpaid")).paid === false, "fremde Session ohne paid ergibt kein PDF");
+  const hook = readFileSync("app/api/stripe/webhook/route.ts", "utf8");
+  ok(hook.includes('metadata?.sv49 === "1"') && hook.includes("paymentFromStatus"), "Webhook nur bei bezahlter Schnellversion");
+  ok(!text.includes("Shopify"), "kein fiktiver Shopname");
+  ok((await pdfPost()).status === 405, "PDF-POST legt nichts an");
+  ok((await kontoPost()).status === 405, "Konto-API legt keinen Kauf an");
+  ok(readFileSync("lib/schnellversion-copy.ts", "utf8").includes("Sie bestellen als Unternehmer"), "Checkbox in Sie-Form");
+  ok(!readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("SV_ARM_COOKIE"), "PDF-Route liest das Zuteilungs-Cookie nicht");
+  ok(!readFileSync("app/schnellversion/danke/page.tsx", "utf8").includes("gekauftAm"), "Danke-Seite legt keinen Kauf an");
+  ok(!readFileSync("components/schnellversion-danke.tsx", "utf8").includes("gekauftAm"), "Browser legt keinen Kauf an");
+  process.env.SCHNELLVERSION_49_STRIPE_STUB = savedStub;
 
   const page = readFileSync("app/page.tsx", "utf8");
   ok(page.includes("SCHNELLVERSION ?"), "Startseite blendet den Button nur mit Flag ein");
