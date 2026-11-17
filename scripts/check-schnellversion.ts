@@ -27,7 +27,7 @@ import {
 import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
 import { svDownloadStillOpen, SV_COVER_TITLE } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
-import { pflichtBausteine, standardFall } from "../lib/schnellversion-bausteine";
+import { BRANCHEN_FREMDE, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
 import { confirmPaidSession, failNextClaimedPurchaseForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
@@ -268,7 +268,7 @@ async function main() {
   ok(text.includes("Mitarbeitende: 2–5"), "Mitarbeitendenzahl aus den 6 Angaben");
   ok(text.includes("Handwerk / Bau"), "Branche aus den 6 Angaben");
   ok(!text.includes("Bauwerk Nord"), "Musterfirma steht nicht im PDF");
-  ok(text.includes("Was Sie in der Standardfassung prüfen sollten"), "Prüfhinweise im PDF");
+  ok(text.includes("Diese Punkte sollten Sie für Ihren Betrieb ergänzen"), "Prüfhinweise im PDF");
   ok(text.includes("Prüfhinweis aufgenommen"), "Kasse Unsicher im PDF");
   ok(!text.includes("Anhang A — Offene Punkte"), "keine Liste offener Punkte aus eigenen Antworten");
   ok(!text.includes("Angabe im Intake"), "kein Angabe im Intake");
@@ -585,8 +585,13 @@ async function main() {
     for (const kasse of SV_KASSE) {
       for (const bucht of SV_BUCHT) {
         for (const software of SV_SOFTWARE) {
-          if (software === "Sonstiges") continue;
-          const answers = sample({ branche: branche.id, kasse, bucht, software, softwareFrei: "" });
+          const answers = sample({
+            branche: branche.id,
+            kasse,
+            bucht,
+            software,
+            softwareFrei: software === "Sonstiges" ? "Buchhalter Pro" : "",
+          });
           const plain = standardPlainText(answers, when);
           const label = softwareProse(answers);
           const ausgeschlossen = coverField(plain, "Ausgeschlossen");
@@ -628,8 +633,15 @@ async function main() {
           }
           if (bucht === "Unsere Steuerkanzlei" && !fall.datev) {
             const chosen = countText(plain, label);
-            if (chosen < 5) ok(false, `${branche.id} ${label} nur ${chosen} mal`);
+            if (chosen < 1) ok(false, `${branche.id} ${label} fehlt`);
           }
+          for (const fremd of BRANCHEN_FREMDE[branche.id] ?? []) {
+            if (plain.includes(fremd)) ok(false, `${branche.id} ${software} enthält ${fremd}`);
+          }
+          const marker = (plain.match(/bitte prüfen/gi) ?? []).length - (plain.match(/Standardfassung, bitte prüfen/gi) ?? []).length;
+          if (marker > 25) ok(false, `${branche.id} ${software} hat ${marker} Markierungen`);
+          const repeats = repeatedSentences(plain);
+          if (repeats.length) ok(false, `${branche.id} ${software} wiederholt ${repeats[0]}`);
         }
       }
     }

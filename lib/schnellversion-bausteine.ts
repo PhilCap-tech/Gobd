@@ -61,7 +61,15 @@ export type BausteinPack = {
   kanzleiFrei: string;
 };
 
-export function bausteinPack(fall: StandardFall): BausteinPack {
+function ohneMarker(pack: BausteinPack): BausteinPack {
+  const out = { ...pack };
+  for (const key of Object.keys(out) as Array<keyof BausteinPack>) {
+    out[key] = out[key].replaceAll(" [bitte prüfen]", "").replaceAll("[bitte prüfen]", "").replace(/\s{2,}/g, " ").trim();
+  }
+  return out;
+}
+
+function buildPack(fall: StandardFall): BausteinPack {
   const lohnKanzlei = "Lohn über das Lohnbüro oder die Kanzlei. [bitte prüfen]";
   const lohnSelbst = "Lohn über ein Lohnbüro. [bitte prüfen]";
   const lohnProgramm = fall.self ? "Lohnprogramm: laut Betrieb. [bitte prüfen]" : "Lohnprogramm: das Lohnprogramm der Kanzlei. [bitte prüfen]";
@@ -193,10 +201,72 @@ export function bausteinPack(fall: StandardFall): BausteinPack {
   };
 }
 
+export function bausteinPack(fall: StandardFall): BausteinPack {
+  return ohneMarker(buildPack(fall));
+}
+
 /** Sätze, die in jedem PDF dieses Falls vorkommen. */
 export function pflichtBausteine(fall: StandardFall): string[] {
   const pack = bausteinPack(fall);
   return [pack.ablage, pack.bank, pack.lohnProgramm, pack.schnittstelle];
+}
+
+/** Prozessbegriffe, die in dieser Branche nicht vorkommen. */
+export const BRANCHEN_FREMDE: Record<string, readonly string[]> = {
+  gastro: ["ERP", "Fertigung", "Mindestbestand", "Feinmechanik", "Handscanner", "WaWi Lagerplus", "Baustelle", "Aufmaß", "Bautagebuch", "Nachunternehmer", "Shopify", "Marktplatz", "Praxissoftware", "Taxameter"],
+  handwerk: ["ERP", "Fertigung", "Mindestbestand", "Feinmechanik", "Handscanner", "TSE", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Trinkgeld", "Kassensturz", "WaWi Lagerplus"],
+  handel: ["Fertigung", "Mindestbestand", "Feinmechanik", "Theke", "TSE", "Z-Bon", "Baustelle", "Aufmaß", "Bautagebuch", "Shopify", "Praxissoftware", "Taxameter"],
+  ecommerce: ["Fertigung", "Mindestbestand", "Feinmechanik", "Theke", "TSE", "Z-Bon", "Baustelle", "Aufmaß", "Kassensturz", "Handscanner", "Praxissoftware", "Taxameter"],
+  dienstleistung: ["ERP", "Fertigung", "Mindestbestand", "TSE", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+  freiberuf: ["ERP", "Fertigung", "Mindestbestand", "TSE", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+  sonstiges: ["ERP", "Fertigung", "Mindestbestand", "TSE", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+};
+
+export function dropFremdeProzesse(text: string, branche: string): string {
+  const terms = BRANCHEN_FREMDE[branche] ?? [];
+  if (!terms.length) return text;
+  const hit = (part: string) => terms.some((term) => part.includes(term));
+  return text
+    .split("\n")
+    .map((line) => {
+      const masked = line.replaceAll("z. B.", "z§B");
+      const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
+      return parts.filter((part) => !hit(part)).join(" ").replaceAll("z§B", "z. B.");
+    })
+    .join("\n");
+}
+
+/** Gleiche Sätze ab dieser Länge. Kürzere Tabellenzellen zählen nicht. */
+export function repeatedSentences(text: string, max = 3): string[] {
+  const counts = new Map<string, number>();
+  for (const line of text.split("\n")) {
+    const masked = line.replaceAll("z. B.", "z§B");
+    const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
+    for (const part of parts) {
+      const key = part.replaceAll("z§B", "z. B.").replace(/\s+/g, " ").trim();
+      if (key.length < 28) continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].filter(([, count]) => count > max).map(([sentence, count]) => `${count}× ${sentence.slice(0, 80)}`);
+}
+
+export function limitIdenticalSentences(text: string, max = 1, counts = new Map<string, number>()): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const masked = line.replaceAll("z. B.", "z§B");
+      const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
+      const kept = parts.filter((part) => {
+        const key = part.replaceAll("z§B", "z. B.").replace(/\s+/g, " ").trim();
+        if (key.length < 28) return true;
+        const next = (counts.get(key) ?? 0) + 1;
+        counts.set(key, next);
+        return next <= max;
+      });
+      return kept.join(" ").replaceAll("z§B", "z. B.");
+    })
+    .join("\n");
 }
 
 const SUFFIX = /Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online;[\s\S]*?§ 147 Abs\. 3 AO\)\./g;
@@ -214,43 +284,29 @@ function needsRewrite(chunk: string, fall: StandardFall): boolean {
   return false;
 }
 
-function topicOf(chunk: string): keyof BausteinPack {
-  if (/Lohnprogramm|LODAS|Lohn und Gehalt/.test(chunk)) return "lohnProgramm";
-  if (/Übermittlungsprotokoll/.test(chunk)) return "lohnProtokoll";
-  if (/Lohnkonto|Lohnunterlagen|Lohnauswertungen|Rechenzentrum/.test(chunk)) return "lohnAblage";
-  if (/Lohnbuchungen|Lohn an FiBu|Buchungsdatensatz|DATEV-intern|Lohn an DATEV/.test(chunk)) return "lohnFibu";
-  if (/Personalfragebogen|Änderungsmeldung|DATEV Upload|Upload in /.test(chunk)) return "lohnMeldung";
-  if (/Eigene Rolle|Zugriff auf Lohndaten|Zugriffsberechtigte/.test(chunk)) return "lohnZugriff";
-  if (/Kontoumsätze|Bank an DATEV|MT940|Umsatzabruf|DATEV Bankdaten|Bank -> DATEV|Bank → DATEV/.test(chunk)) return "bank";
-  if (/Zahlungsvorschlag|SEPA/.test(chunk)) return "zahlung";
-  if (/Kassensystem|DATEV-Export/.test(chunk)) return "kasse";
-  if (/Schnittstelle/.test(chunk)) return "schnittstelle";
-  if (/im Archiv|E-Rechnung/.test(chunk)) return "archiv";
-  if (/Beleg-ID|Ablage im DMS|unter Projektnummer/.test(chunk)) return "ablage";
-  if (/DATEV|Cloud-Anbieter|Hosting Anbieter-Cloud|Original /.test(chunk)) return "system";
-  if (/Kanzlei|Steuerkanzlei/.test(chunk)) return "kanzleiFrei";
-  return "system";
-}
-
-function rewriteChunk(chunk: string, fall: StandardFall, pack: BausteinPack): string {
+function rewriteChunk(chunk: string, fall: StandardFall): string {
   if (!needsRewrite(chunk, fall)) return chunk;
-  return pack[topicOf(chunk)];
+  return "";
 }
 
 /** Ersetzt Software-, Kanzlei-, Lohn- und Bank-Passagen durch den Baustein des Falls. */
 export function applyStandardBausteine(text: string, fall: StandardFall): string {
-  const pack = bausteinPack(fall);
   let next = text.replaceAll("Schnittstellen: Schnittstellen:", "Schnittstellen: ");
-  next = next.replace(SUFFIX, pack.ablage);
+  next = next.replace(SUFFIX, "");
   next = next
     .split("\n")
     .map((line) => {
       const masked = line.replaceAll("z. B.", "z§B");
       const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
-      return parts.map((part) => rewriteChunk(part, fall, pack)).join(" ").replaceAll("z§B", "z. B.");
+      return parts.map((part) => rewriteChunk(part, fall)).join(" ").replaceAll("z§B", "z. B.");
     })
     .join("\n");
-  const kern = [pack.ablage, pack.bank, pack.lohnProgramm, pack.schnittstelle].filter((satz) => !next.includes(satz));
-  if (kern.length > 0) next = `${next}\n\n${kern.join(" ")}`;
-  return next;
+  return limitIdenticalSentences(next, 1);
+}
+
+/** Einmal im Systemteil, nicht in jedem Prozess. */
+export function standardSystemSection(fall: StandardFall): string {
+  const pack = bausteinPack(fall);
+  const lines = [pack.system, pack.ablage, pack.bank, pack.lohnProgramm, pack.schnittstelle].filter(Boolean);
+  return `# Systeme und Buchhaltung\n\n${lines.join("\n\n")}`;
 }

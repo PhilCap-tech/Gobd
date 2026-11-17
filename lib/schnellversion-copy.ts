@@ -54,7 +54,7 @@ export function svCoverBox(vorlage: string, erstelltAm = ""): string {
     "",
     `Standardfassung auf Basis Ihrer Angaben zu Branche und Größe.${datum}`,
     "",
-    `Dieses Dokument ist eine Standardfassung aus der Branchenvorlage „${vorlage}“. Es enthält Ihre Firmendaten und 6 Eckdaten. Die beschriebenen Abläufe sind typische Abläufe der Branche, nicht Ihre tatsächlichen. Bitte prüfen Sie jeden Abschnitt, passen Sie ihn an Ihren Betrieb an und stimmen Sie ihn bei Bedarf mit Ihrer Steuerkanzlei ab. Mit [bitte prüfen] markierte Stellen brauchen Ihre Angaben. Keine Steuer- oder Rechtsberatung.`,
+    `Dieses Dokument ist eine Standardfassung aus der Branchenvorlage „${vorlage}“. Es enthält Ihre Firmendaten und 6 Eckdaten. Die beschriebenen Abläufe sind typische Abläufe der Branche, nicht Ihre tatsächlichen. Am Ende steht eine kurze Liste der Punkte, die Sie für Ihren Betrieb ergänzen. Keine Steuer- oder Rechtsberatung.`,
   ].join("\n");
 }
 
@@ -75,7 +75,7 @@ export const SV_PRUEF_PUNKTE: ReadonlyArray<readonly [string, string]> = [
 export function svClosingPage(anrechnungBis: string): string {
   const points = SV_PRUEF_PUNKTE.map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
   return [
-    "# Was Sie in der Standardfassung prüfen sollten",
+    "# Diese Punkte sollten Sie für Ihren Betrieb ergänzen",
     "",
     points,
     "",

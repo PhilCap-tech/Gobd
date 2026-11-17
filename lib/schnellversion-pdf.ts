@@ -14,7 +14,7 @@ import {
   type SchnellversionAnswers,
 } from "@/lib/schnellversion-answers";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
-import { standardFall } from "@/lib/schnellversion-bausteine";
+import { limitIdenticalSentences, standardFall, standardSystemSection } from "@/lib/schnellversion-bausteine";
 import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
 import {
   SV_KASSE_UNSICHER_HILFE,
@@ -41,9 +41,10 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
     software: softwareProse(input),
     bausteinKind: fall.kind,
     bausteinName: fall.name,
+    brancheId: input.branche,
   };
   if (input.kasse === "Unsicher") {
-    frame.kasseHinweis = `[bitte prüfen] ${SV_KASSE_UNSICHER_HILFE}`;
+    frame.kasseHinweis = SV_KASSE_UNSICHER_HILFE;
   }
   return frame;
 }
@@ -70,16 +71,17 @@ export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date
     documentId: `standard-${built.vorlage}`,
     version: 1,
   });
-  const options = { selfBooking: frame.selfBooking, software: frame.software, fall: standardFall(input) };
+  const options = { selfBooking: frame.selfBooking, software: frame.software, fall: standardFall(input), branche: input.branche };
   const datum = frame.erstelltAm ?? "";
   const chapters = rendered.chapters
     .filter((chapter) => chapter.id !== "anhang-a")
     .map((chapter) => neutralizeStandardText(chapter.body, datum, options));
-  return [
+  return limitIdenticalSentences([
     neutralizeStandardText(`${frame.coverBox}\n\n${rendered.cover}`, datum, options),
     ...chapters,
     neutralizeStandardText(frame.closing, datum, options),
-  ].join("\n");
+    standardSystemSection(standardFall(input)),
+  ].join("\n"), 1);
 }
 
 export function standardNeedsKasseChapter(input: SchnellversionAnswers): boolean {

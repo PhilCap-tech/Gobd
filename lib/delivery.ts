@@ -30,6 +30,7 @@ import {
   PDF_UPSELL_HEADLINE,
   PDF_UPSELL_PRICE,
 } from "@/lib/offer-copy";
+import { limitIdenticalSentences, standardSystemSection } from "@/lib/schnellversion-bausteine";
 import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
@@ -66,6 +67,7 @@ export type StandardPdfFrame = {
   /** Baustein der Standardfassung. Die Vollversion lässt die Felder leer. */
   bausteinKind?: "datev" | "lexoffice" | "sevdesk" | "excel" | "unbekannt" | "named";
   bausteinName?: string;
+  brancheId?: string;
 };
 
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
@@ -512,9 +514,11 @@ function writePdf(
           excel: input.standard.bausteinKind === "excel",
         }
       : undefined,
+    branche: input.standard?.brancheId,
   };
+  const sentenceCounts = new Map<string, number>();
   const plain = (value: string) =>
-    input.standard ? neutralizeStandardText(value, erstelltAm, neutral) : value;
+    input.standard ? limitIdenticalSentences(neutralizeStandardText(value, erstelltAm, neutral), 1, sentenceCounts) : value;
   if (input.standard) {
     chapters = chapters
       .filter((chapter) => chapter.id !== "anhang-a")
@@ -546,7 +550,16 @@ function writePdf(
     doc.addPage();
     doc.x = doc.page.margins.left;
     doc.y = doc.page.margins.top;
-    writeMarkdownish(doc, plain(input.standard.closing), width);
+    const systemSection = input.standard?.bausteinKind && input.standard.bausteinName
+      ? `\n\n${standardSystemSection({
+          kind: input.standard.bausteinKind,
+          name: input.standard.bausteinName,
+          self: input.standard.selfBooking === true,
+          datev: input.standard.bausteinKind === "datev",
+          excel: input.standard.bausteinKind === "excel",
+        })}`
+      : "";
+    writeMarkdownish(doc, `${plain(input.standard.closing)}${systemSection}`, width);
   } else if (isMuster(input.variant)) {
     writeUpsellPage(doc, { ds24: input.upsellDs24 });
   }

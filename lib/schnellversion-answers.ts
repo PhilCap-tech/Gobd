@@ -178,13 +178,14 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
   }
   const firma = MUSTER_FIRMEN[vorlage];
   let answers = structuredClone(muster.answers);
+  const self = !kanzleiBuchtAntwort(input.bucht);
   const tokens: Array<[string, string]> = [
     [firma.company, input.firma],
-    [firma.gf, "[bitte prüfen]"],
-    [firma.buchhaltung, "[bitte prüfen]"],
-    [firma.it, "[bitte prüfen]"],
-    [firma.kanzlei, "[bitte prüfen]"],
-    [firma.standort, "[bitte prüfen]"],
+    [firma.gf, "die Geschäftsführung"],
+    [firma.buchhaltung, "die Buchhaltung"],
+    [firma.it, "die IT-Betreuung"],
+    [firma.kanzlei, self ? "die Buchhaltung" : "die Kanzlei"],
+    [firma.standort, "der Betriebssitz"],
     [firma.domain, "bitte-pruefen.invalid"],
   ];
   tokens.sort((a, b) => b[0].length - a[0].length);
@@ -207,8 +208,8 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
           branchen: [brancheLabel(input.branche)],
           rechtsform: input.rechtsform,
           mitarbeitende: input.mitarbeitende,
-          gf: "[bitte prüfen]",
-          standort: "[bitte prüfen]",
+          gf: "die Geschäftsführung",
+          standort: "der Betriebssitz",
         },
       },
     };
@@ -225,7 +226,7 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
             name: fall.name,
             funktion: self ? "Buchhaltung im Unternehmen" : "Buchhaltung der Kanzlei",
             originalOrt: fall.excel ? "Belegablage im Betrieb" : fall.kind === "unbekannt" && fall.self ? "im Unternehmen" : fall.kind === "unbekannt" ? "bei der Kanzlei" : fall.name,
-            nutzer: "[bitte prüfen]",
+            nutzer: "der Betrieb",
           }
         : first;
     answers.katalog = {
@@ -233,10 +234,10 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
       B01: { ...b01, values: { ...(b01.values ?? {}), systeme: [renamed, ...rest] } },
     };
   }
-  answers.gf = "[bitte prüfen]";
-  answers.buchhaltung = "[bitte prüfen]";
-  answers.it = "[bitte prüfen]";
-  answers.steuerberater = kanzleiBuchtAntwort(input.bucht) ? "[bitte prüfen]" : "";
+  answers.gf = "die Geschäftsführung";
+  answers.buchhaltung = "die Buchhaltung";
+  answers.it = "die IT-Betreuung";
+  answers.steuerberater = self ? "" : "die Kanzlei";
   answers.geltung = "Der gesamte Betrieb im beschriebenen Umfang.";
   answers.geltungAusschluss = "Keine Bereiche ausgenommen.";
   const uo = answers.katalog?.UO06;

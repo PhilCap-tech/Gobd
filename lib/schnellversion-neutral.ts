@@ -3,7 +3,7 @@
  * ihr Text bleibt unverändert.
  */
 
-import { applyStandardBausteine, standardFall, type StandardFall } from "@/lib/schnellversion-bausteine";
+import { applyStandardBausteine, dropFremdeProzesse, standardFall, type StandardFall } from "@/lib/schnellversion-bausteine";
 
 const FIXED_DATES = ["01.07.2026", "1.07.2026", "2026-07-01"];
 
@@ -15,6 +15,7 @@ export type StandardNeutralOptions = {
   /** Programm aus der Antwort. DATEV und Kanzlei bleiben, wenn der Kunde sie genannt hat. */
   software?: string;
   fall?: StandardFall;
+  branche?: string;
 };
 
 export function neutralizeStandardText(
@@ -65,8 +66,8 @@ export function neutralizeStandardText(
     "Bei einem realen Betrieb bestätigt die Geschäftsleitung an dieser Stelle, dass die beschriebenen Abläufe der tatsächlichen Praxis entsprechen. Automatische Erzeugung und fachliche Hinweise ersetzen diese betriebliche Prüfung nicht.",
     "Bitte prüfen Sie, ob die beschriebenen Abläufe zu Ihrem Betrieb passen.",
   );
-  next = next.replaceAll("Robert Funke", "[bitte prüfen]");
-  next = next.replaceAll("Ines Wolf", "[bitte prüfen]");
+  next = next.replaceAll("Robert Funke", "die Geschäftsführung");
+  next = next.replaceAll("Ines Wolf", "die Buchhaltung");
   next = next.replaceAll("KassaPro", "Kassensystem laut Betrieb");
   next = next.replaceAll("ERP Fertigplan", "Einkaufssystem laut Betrieb");
   next = next.replaceAll("Faktura+", "Rechnungssystem laut Betrieb");
@@ -80,7 +81,7 @@ export function neutralizeStandardText(
   next = next.replaceAll("Kartenterminal / Zahlungsdienstleister (fiktiv)", "Kartenterminal laut Betrieb");
   next = next.replaceAll("Anlagenverzeichnis (fiktiv)", "Anlagenverzeichnis laut Betrieb");
   next = next.replaceAll("(fiktiv)", "");
-  next = next.replaceAll("bestätigt, ohne nähere Angabe", "[bitte prüfen]");
+  next = next.replaceAll("bestätigt, ohne nähere Angabe", "Angabe des Betriebs");
   next = next.replaceAll(
     "Sätze im Präsens beschreiben nur bestätigte Abläufe",
     "Die beschriebenen Abläufe sind typische Abläufe der Branche",
@@ -99,5 +100,6 @@ export function neutralizeStandardText(
     software: options.software ?? "",
     bucht: options.selfBooking ? "Wir selbst im Unternehmen" : "Unsere Steuerkanzlei",
   });
-  return applyStandardBausteine(next, fall);
+  const withBlocks = applyStandardBausteine(next, fall);
+  return options.branche ? dropFremdeProzesse(withBlocks, options.branche) : withBlocks;
 }
