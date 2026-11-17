@@ -176,9 +176,10 @@ export default async function KuendigungPage({
             Abschluss wiederherstellen.
           </p>
           <p className="prose">
-            Die Aufbewahrung Ihrer Verfahrensdokumentation und der zugehörigen Unterlagen
-            bleibt Ihre Pflicht. Für Bücher und Aufzeichnungen gelten in der Regel zehn
-            Jahre (§ 147 AO). Wir führen kein Archiv für Sie. Eine Fassung liegt dort, wo
+            Die Aufbewahrung Ihrer Unterlagen bleibt Ihre Pflicht. Bücher, Jahresabschlüsse
+            und Organisationsunterlagen sind in der Regel zehn Jahre aufzubewahren,
+            Buchungsbelege acht Jahre, Handels- und Geschäftsbriefe sechs Jahre (§ 147 Abs. 3 AO).
+            Wir führen kein Archiv für Sie. Eine Fassung liegt dort, wo
             Sie sie gespeichert haben.
           </p>
           <p className="prose">

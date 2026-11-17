@@ -353,7 +353,7 @@ assertMail("Bestätigung", confirm, [
   "info@gobd-doku-erstellen.de",
   "12.11.2026",
   "Downloads verfügbar bis 12.12.2026",
-  "§ 147 AO",
+  "§ 147 Abs. 3 AO",
 ]);
 assert(confirm.subject.includes("12.11.2026"), "Betreff mit Datum");
 assert(!/lösch/i.test(confirm.text), "Bestätigung nennt keine Löschung");
