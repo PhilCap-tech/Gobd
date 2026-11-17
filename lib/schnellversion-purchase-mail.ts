@@ -30,9 +30,8 @@ export function purchaseMail(input: {
   const body = [
     `Guten Tag,`,
     ``,
-    `Ihre Bestellung der Schnellversion für ${company} ist eingegangen. Der Vertrag kommt mit der erfolgreichen Zahlungsbestätigung zustande.`,
-    `Standardfassung aus Branchenvorlage, beschreibt nicht Ihre tatsächlichen Abläufe, vor Verwendung prüfen, anpassen, ergänzen und freigeben.`,
-    `Keine Steuer- oder Rechtsberatung.`,
+    `Ihre Zahlung ist bestätigt. Ihre Bestellung der Schnellversion für ${company} ist damit abgeschlossen. Der Vertrag kommt mit der erfolgreichen Zahlungsbestätigung zustande.`,
+    `Ihre Verfahrensdokumentation (Standardfassung, PDF) steht zum Download bereit. Sie wurde aus einer Branchenvorlage und Ihren 6 Angaben erzeugt und beschreibt nicht Ihre tatsächlichen Abläufe. Bitte prüfen, ergänzen und geben Sie sie vor der Verwendung frei. Keine Steuer- oder Rechtsberatung.`,
     ``,
     `Download: ${download}`,
     `Melden Sie sich dazu mit der E-Mail-Adresse dieser Bestellung an. Den Link aus der Zahlungsseite geben Sie bitte nicht weiter.`,

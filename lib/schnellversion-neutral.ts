@@ -4,6 +4,7 @@
  */
 
 import { applyStandardBausteine, dropFremdeProzesse, standardFall, type StandardFall } from "@/lib/schnellversion-bausteine";
+import { OFFENE_KASSE_FRIST } from "@/lib/schnellversion-basis";
 
 const FIXED_DATES = ["01.07.2026", "1.07.2026", "2026-07-01"];
 
@@ -183,8 +184,8 @@ function anpassenFall(text: string, options: StandardNeutralOptions): string {
     next = next.replaceAll(" (§ 240 HGB)", "");
     next = next.replaceAll(" (§ 241 Abs. 2 HGB)", "");
     next = next.replaceAll(
-      "Inventare, Jahresabschlüsse, Lageberichte",
-      "Inventare, Jahresabschlüsse und Lageberichte, soweit vorhanden",
+      "Jahresabschlüsse, Lageberichte, Eröffnungsbilanz",
+      "Jahresabschlüsse, Lageberichte und Eröffnungsbilanz, soweit vorhanden",
     );
   }
   if (options.einzelunternehmen) {
@@ -197,12 +198,16 @@ function anpassenFall(text: string, options: StandardNeutralOptions): string {
   }
   if (options.solo) {
     next = next.replaceAll(
-      "informiert die Buchhaltung die Inhaberin bzw. der Inhaber",
-      "informiert die Inhaberin bzw. der Inhaber",
+      "Bei Ausfall des Eingangskanals informiert die Buchhaltung die Inhaberin bzw. der Inhaber und dokumentiert Beginn und Ende.",
+      "Bei Ausfall des Eingangskanals dokumentiert die Inhaberin bzw. der Inhaber Beginn und Ende.",
     );
     next = next.replaceAll(
-      "informiert die Buchhaltung die Geschäftsführung",
-      "informiert die Inhaberin bzw. der Inhaber",
+      "Bei Ausfall des Eingangskanals informiert die Buchhaltung die Geschäftsführung und dokumentiert Beginn und Ende.",
+      "Bei Ausfall des Eingangskanals dokumentiert die Inhaberin bzw. der Inhaber Beginn und Ende.",
+    );
+    next = next.replaceAll(
+      "Bei Ausfall des Eingangskanals informiert die Inhaberin bzw. der Inhaber und dokumentiert Beginn und Ende.",
+      "Bei Ausfall des Eingangskanals dokumentiert die Inhaberin bzw. der Inhaber Beginn und Ende.",
     );
     next = next.replaceAll("die Buchhaltung erfasst Anlass", "die Inhaberin bzw. der Inhaber erfasst Anlass");
     next = next.replaceAll(
@@ -210,6 +215,9 @@ function anpassenFall(text: string, options: StandardNeutralOptions): string {
       "| externe Steuerberatung (soweit beauftragt) | im Mandatsumfang | nein | nein | nein |",
     );
     next = next.replace(/\| Andere Beschäftigte \|[^\n]*\n/g, "");
+    next = next.replace(/\* Sofern die Buchhaltung sachlich freigibt[^\n]*\n?/g, "");
+    next = next.replaceAll(". die Inhaberin bzw. der Inhaber", ". Die Inhaberin bzw. der Inhaber");
+    next = next.replaceAll("\ndie Inhaberin bzw. der Inhaber", "\nDie Inhaberin bzw. der Inhaber");
   }
   return next;
 }
@@ -224,13 +232,9 @@ export function offeneKasseText(text: string): string {
       }
       if (line.includes("Programmier- und Änderungsprotokolle des Kassensystems")) return [];
       if (line.includes("Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle")) {
-        return [
-          line.replace(
-            "Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle",
-            "Kassenberichte, Zählprotokolle, Einzelaufzeichnungen soweit geführt",
-          ),
-        ];
+        return OFFENE_KASSE_FRIST.split("\n");
       }
+      if (line.includes("| Einzahlungsquittungen, Einlage- und Entnahmebelege |")) return [];
       return [line];
     })
     .join("\n");

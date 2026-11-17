@@ -864,7 +864,14 @@ async function main() {
   ok(sessionParams?.tax_id_collection?.enabled === true, "49-€-Session fragt die USt-IdNr. ab");
   ok(line && "tax_rates" in line && line.tax_rates?.[0] === "txr_existing", "49-€-Session nutzt die vorhandene Tax Rate");
   const kaufmail = purchaseMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString(), sessionId: "cs_test" });
-  ok(kaufmail.text.includes("Standardfassung aus Branchenvorlage"), "Kaufmail nennt die Standardfassung");
+  ok(kaufmail.text.includes("Ihre Zahlung ist bestätigt"), "Kaufmail bestätigt die Zahlung");
+  ok(kaufmail.text.includes("ist damit abgeschlossen"), "Kaufmail schließt die Bestellung ab");
+  ok(kaufmail.text.includes("Der Vertrag kommt mit der erfolgreichen Zahlungsbestätigung zustande."), "Kaufmail entspricht § 12d Abs. 3");
+  ok(kaufmail.text.includes("Ihre Verfahrensdokumentation (Standardfassung, PDF)"), "Kaufmail nennt den Lieferumfang");
+  ok(
+    !/Minute|fertig|garantiert|Garantie|rechtssicher|gobd-konform|prüfungssicher|anerkannt|ersetzt/i.test(kaufmail.text + kaufmail.subject),
+    "Kaufmail ohne Sperrwörter",
+  );
   ok(kaufmail.text.includes("/agb") && kaufmail.text.includes("Download-Ende"), "Kaufmail verlinkt die AGB und nennt das Datum");
   ok((await maybeSendSchnellversionPurchaseMail({
     to: "inhaber@example.com",

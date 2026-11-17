@@ -58,6 +58,14 @@ export function kassenNotverfahren(kasse: string): string {
   return "Bei Ausfall von Kasse oder TSE: Ersatzaufzeichnung (Notbon oder Liste), Ausfallzeit und Grund dokumentieren, Belege kennzeichnen, Nacherfassung festhalten (bitte prüfen).";
 }
 
+export const OFFENE_KASSE_FRIST = [
+  "Bei offener Ladenkasse zusätzlich aufbewahren:",
+  "– Kassenberichte (Grundaufzeichnung der Bareinnahmen) und, soweit erstellt, die zugehörigen Zählprotokolle: 10 Jahre (§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO).",
+  "– Einzelaufzeichnungen, soweit geführt (z. B. Bonblock, Strichliste): 10 Jahre (§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO). Werden sie durch die geordnete Sammlung der Barbelege ersetzt, gilt für diese Sammlung ebenfalls 10 Jahre (bitte prüfen).",
+  "– Einzahlungsquittungen, Einlage- und Entnahmebelege: 8 Jahre als Buchungsbelege (§ 147 Abs. 1 Nr. 4, Abs. 3 Satz 1 AO).",
+  "Ein Zählprotokoll ist nicht vorgeschrieben, erleichtert aber den Nachweis des Auszählens.",
+].join("\n");
+
 export const FREIBERUF_EUR =
   "Gewinnermittlung in der Regel durch Einnahmenüberschussrechnung nach § 4 Abs. 3 EStG (Zufluss/Abfluss, § 11 EStG); keine Buchführungspflicht nach HGB oder § 141 AO (bitte prüfen).";
 
@@ -78,7 +86,7 @@ export function mitKassenNotverfahren(body: string, chapterId: string, kasse: st
   if (chapterId !== "modul-m08" || !kasse || kasse === "Nein, keine Bargeldeinnahmen") return body;
   const unsicher =
     kasse === "Unsicher"
-      ? "\n\nBei offener Ladenkasse zusätzlich aufbewahren: Kassenberichte, Zählprotokolle und Einzelaufzeichnungen, soweit geführt. Frist 8 Jahre als Buchungsbeleg, 10 Jahre als Aufzeichnung, im Zweifel die längere Frist."
+      ? `\n\n${OFFENE_KASSE_FRIST}`
       : "";
   return `${body}\n\n## Notverfahren bei Kassenausfall\n\n${kassenNotverfahren(kasse)}${unsicher}`;
 }
@@ -97,16 +105,18 @@ function kasseAntworten(kasse: SchnellversionAnswers["kasse"]): Record<string, E
       ? "elektronisch mit TSE oder offene Ladenkasse – ist im Betrieb festzulegen"
       : "Elektronisches Aufzeichnungssystem mit TSE";
   const ablauf = offen
-    ? "Täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll."
+    ? "Täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll (nicht vorgeschrieben, aber empfohlen als Nachweis des Auszählens)."
     : unsicher
-      ? "Bei offener Ladenkasse: täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll. Beim Kassensystem: Tagesabschluss und Abgleich mit dem gezählten Bestand."
+      ? "Bei offener Ladenkasse: täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll (nicht vorgeschrieben, aber empfohlen als Nachweis des Auszählens). Beim Kassensystem: Tagesabschluss und Abgleich mit dem gezählten Bestand."
       : "Tagesabschluss des Kassensystems und Abgleich mit dem gezählten Bestand.";
   const out: Record<string, Entry> = {
     KA01: ja({
       kassenart,
       system: offen
         ? "entfällt (offene Ladenkasse)"
-        : "Hersteller, Modell und Seriennummer sind im Betrieb festzulegen und hier einzutragen",
+        : unsicher
+          ? "Bei elektronischem System: Hersteller, Modell und Seriennummer sind im Betrieb festzulegen und hier einzutragen"
+          : "Hersteller, Modell und Seriennummer sind im Betrieb festzulegen und hier einzutragen",
       anzahl: offen
         ? "entfällt (offene Ladenkasse)"
         : "Anzahl der Kassen ist im Betrieb festzulegen und hier einzutragen",
@@ -142,6 +152,13 @@ function kasseAntworten(kasse: SchnellversionAnswers["kasse"]): Record<string, E
     out.KA02 = ja({
       zertifikat: "unbekannt",
       mitteilung: "unbekannt",
+    });
+    out.KA03 = ja({
+      beleg: "Bei elektronischem System: ist im Betrieb festzulegen und hier einzutragen",
+    });
+    out.KA09 = ja({
+      wer: "Bei elektronischem System: ist im Betrieb festzulegen und hier einzutragen",
+      ablage: "Bei elektronischem System: ist im Betrieb festzulegen und hier einzutragen",
     });
   } else {
     out.KA02 = ja({

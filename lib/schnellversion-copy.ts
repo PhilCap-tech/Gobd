@@ -106,9 +106,9 @@ export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro
   const art = options.kasseArt ?? "";
   const kassenText =
     art === "Ja, offene Ladenkasse (ohne elektronisches System)"
-      ? "Offene Ladenkasse: täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll. Wer zählt und den Bericht führt, ist einzutragen. Werden Einzelaufzeichnungen geführt oder wird die Ausnahme genutzt?"
+      ? "Offene Ladenkasse: täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll (nicht vorgeschrieben, aber empfohlen als Nachweis des Auszählens). Wer zählt und den Bericht führt, ist einzutragen. Werden Einzelaufzeichnungen geführt oder wird die Ausnahme genutzt?"
       : art === "Unsicher"
-        ? "Kassenart (elektronisch mit TSE oder offene Ladenkasse) ist festzulegen. Bei elektronischer Kasse: Kassen- und TSE-Seriennummer und das Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO. Bei offener Ladenkasse: Kassenbericht und Zählprotokoll."
+        ? "Kassenart (elektronisch mit TSE oder offene Ladenkasse) ist festzulegen. Bei elektronischer Kasse: Kassen- und TSE-Seriennummer und das Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO. Bei offener Ladenkasse: Kassenbericht und Zählprotokoll (nicht vorgeschrieben, aber empfohlen als Nachweis des Auszählens)."
         : "Kassenart (elektronisches Aufzeichnungssystem mit TSE), Kassen- und TSE-Seriennummer, Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO, Tagesabschluss.";
   const kassenPunkt: readonly [string, string] = ["Kasse", kassenText];
   if (kasse && gastro) punkte.push(kassenPunkt);
