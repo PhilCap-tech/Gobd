@@ -10,7 +10,7 @@ import { decideSvArm } from "../lib/schnellversion-assign";
 import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { creditStillOpen, downloadStillOpen, reserveSvCredit, type SvPurchase } from "../lib/schnellversion-record";
+import { creditStillOpen, downloadStillOpen, findSvPurchaseBySession, reserveSvCredit, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
@@ -225,24 +225,28 @@ async function main() {
 
   ok(!clientEventAllowed("purchase_99") && !clientEventAllowed("sv_purchase"), "Umsatz nicht vom Browser");
   ok(clientEventAllowed("sv_visit"), "Aufruf ohne Einwilligung ist erlaubt");
-  const savedStub = process.env.SCHNELLVERSION_49_STRIPE_STUB;
-  process.env.SCHNELLVERSION_49_ENABLED = "1";
-  process.env.STRIPE_PRICE_SCHNELL_49 = "price_test_schnell";
-  process.env.SCHNELLVERSION_49_STRIPE_STUB = "unpaid";
+  const stubUnpaid = {
+    SCHNELLVERSION_49_ENABLED: "1",
+    STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+    SCHNELLVERSION_49_STRIPE_STUB: "unpaid",
+  };
+  const stubPaid = { ...stubUnpaid, SCHNELLVERSION_49_STRIPE_STUB: "paid" };
   const unpaid = await openSchnellversionCheckout({
     answers: sample(),
     unternehmer: true,
     bewusst: true,
     email: "inhaber@example.com",
+    env: stubUnpaid,
   });
   ok(unpaid.ok && unpaid.sessionId.includes("unpaid"), "unbezahlte Stub-Session");
   ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "")).paid === false, "unbezahlt erzeugt kein PDF");
-  process.env.SCHNELLVERSION_49_STRIPE_STUB = "paid";
+  ok((await findSvPurchaseBySession(unpaid.ok ? unpaid.sessionId : "stub_sv_unpaid_x")) === null, "unbezahlt speichert keinen Kauf");
   const paidOpen = await openSchnellversionCheckout({
     answers: sample(),
     unternehmer: false,
     bewusst: true,
     email: "inhaber@example.com",
+    env: stubPaid,
   });
   ok(!paidOpen.ok, "Zustimmung fehlt serverseitig");
   const paid = await openSchnellversionCheckout({
@@ -250,6 +254,7 @@ async function main() {
     unternehmer: true,
     bewusst: true,
     email: "inhaber@example.com",
+    env: stubPaid,
   });
   ok(paid.ok, "bezahlte Stub-Session");
   const confirmed = await confirmPaidSession(paid.ok ? paid.sessionId : "");
@@ -286,7 +291,6 @@ async function main() {
   ok(!readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("SV_ARM_COOKIE"), "PDF-Route liest das Zuteilungs-Cookie nicht");
   ok(!readFileSync("app/schnellversion/danke/page.tsx", "utf8").includes("gekauftAm"), "Danke-Seite legt keinen Kauf an");
   ok(!readFileSync("components/schnellversion-danke.tsx", "utf8").includes("gekauftAm"), "Browser legt keinen Kauf an");
-  process.env.SCHNELLVERSION_49_STRIPE_STUB = savedStub;
 
   const page = readFileSync("app/page.tsx", "utf8");
   ok(page.includes("SCHNELLVERSION ?"), "Startseite blendet den Button nur mit Flag ein");

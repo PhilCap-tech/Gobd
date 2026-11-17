@@ -116,10 +116,13 @@ export async function openSchnellversionCheckout(input: {
   unternehmer: boolean;
   bewusst: boolean;
   email: string;
+  /** Nur der Check übergibt eine eigene Umgebung. Die Route lässt sie weg. */
+  env?: Record<string, string | undefined>;
 }): Promise<{ ok: false; status: number } | { ok: true; sessionId: string; url: string }> {
   if (input.unternehmer !== true || input.bewusst !== true) return { ok: false, status: 400 };
   const answers = parseSchnellversionAnswers(input.answers);
   if (!answers) return { ok: false, status: 400 };
+  const env = input.env ?? process.env;
   const id = randomUUID();
   const pending: SvPending = {
     id,
@@ -129,20 +132,23 @@ export async function openSchnellversionCheckout(input: {
     createdAt: new Date().toISOString(),
     sessionId: "",
   };
-  const plan = schnellversionCheckoutPlan();
+  const plan = schnellversionCheckoutPlan(env);
   if (plan === "refuse") return { ok: false, status: 403 };
   if (plan === "test") {
-    const created = await createSchnellversionTestSession({
-      pendingId: id,
-      consentAt: pending.consentAt,
-      company: answers.firma,
-    });
+    const created = await createSchnellversionTestSession(
+      {
+        pendingId: id,
+        consentAt: pending.consentAt,
+        company: answers.firma,
+      },
+      env,
+    );
     if (!created) return { ok: false, status: 502 };
     pending.sessionId = created.sessionId;
     await saveSvPending(pending);
     return { ok: true, sessionId: created.sessionId, url: created.url };
   }
-  const sessionId = stubSessionId(id, schnellversionStripeStub() ? stubMarksPaid() : false);
+  const sessionId = stubSessionId(id, schnellversionStripeStub(env) ? stubMarksPaid(env) : false);
   pending.sessionId = sessionId;
   await saveSvPending(pending);
   return { ok: true, sessionId, url: `/schnellversion/danke?session_id=${encodeURIComponent(sessionId)}` };
