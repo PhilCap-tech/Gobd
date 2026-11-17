@@ -29,8 +29,6 @@ export const SV_KAUF_BUTTON = "Standardfassung für 49 € kaufen";
 export const SV_KAUF_PREIS =
   "49 € zzgl. 19 % USt (58,31 € brutto), einmalig je Firma. Keine Abo-Pflicht.";
 
-export const SV_KAUF_UNTERNEHMER = "Sie bestellen als Unternehmer im Sinne von § 14 BGB.";
-
 export const SV_KAUF_BEWUSST =
   "Ihnen ist bewusst, dass die Schnellversion eine Standardfassung aus einer Branchenvorlage ist. Sie beschreibt nicht Ihre tatsächlichen Abläufe und muss vor der Verwendung von Ihnen geprüft und angepasst werden.";
 
@@ -47,6 +45,15 @@ export const SV_DANKE_TITEL = "Ihre Standardfassung steht zum Download bereit.";
 export const SV_DANKE_MICRO = "Download 30 Tage im Konto. Bitte speichern Sie das PDF selbst.";
 
 export const SV_DOWNLOAD_DAYS = 30;
+
+/** Tage nach dem Kauf, nach denen PDF und Token-Link gelöscht werden. Philip legt die Dauer fest. */
+export const SV_PURGE_AFTER_DAYS = 30;
+
+export const SV_KAUF_UNTERNEHMER =
+  "Ich bestelle als Unternehmer (§ 14 BGB) für meine gewerbliche oder selbstständige berufliche Tätigkeit.";
+
+export const SV_PDF_FAILED =
+  "Die Erstellung Ihrer Standardfassung ist fehlgeschlagen. Es liegt kein PDF zum Download bereit. Einzelheiten zur Erstattung stehen in den AGB (§ 9).";
 
 export const SV_COVER_TITLE = "Standardfassung, bitte prüfen";
 

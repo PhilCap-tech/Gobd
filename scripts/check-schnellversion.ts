@@ -11,7 +11,7 @@ import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
 import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, findSvPurchaseBySession, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
-import { schnellversionCheckoutMetadata } from "../lib/schnellversion-checkout";
+import { schnellversionCheckoutMetadata, schnellversionSessionParams } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
   kasseCheckAntwort,
@@ -25,13 +25,15 @@ import {
   type SchnellversionAnswers,
 } from "../lib/schnellversion-answers";
 import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
-import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER } from "../lib/schnellversion-copy";
+import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PURGE_AFTER_DAYS } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
 import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
 import { confirmPaidSession, failNextClaimedPurchaseForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
 import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
+import { maybeSendSchnellversionPurchaseMail, purchaseMail } from "../lib/schnellversion-purchase-mail";
+import { runSvPurge } from "../lib/schnellversion-purge";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
@@ -215,8 +217,32 @@ ok(
     SCHNELLVERSION_49_ENABLED: "1",
     STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
     STRIPE_SECRET_KEY: "sk_live_x",
+  }) === "live",
+  "live mit Flag und Preis ist erlaubt",
+);
+ok(
+  schnellversionCheckoutPlan({
+    STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+    STRIPE_SECRET_KEY: "sk_live_x",
   }) === "refuse",
-  "Live-Key legt keine Session an",
+  "live ohne Flag bleibt zu",
+);
+ok(
+  schnellversionCheckoutPlan({
+    SCHNELLVERSION_49_ENABLED: "1",
+    STRIPE_SECRET_KEY: "sk_live_x",
+  }) === "refuse",
+  "live ohne Preis bleibt zu",
+);
+ok(
+  schnellversionCheckoutPlan({
+    SCHNELLVERSION_49_ENABLED: "1",
+    STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+    SCHNELLVERSION_49_STRIPE_STUB: "paid",
+    STRIPE_SECRET_KEY: "sk_test_x",
+    NODE_ENV: "production",
+  }) !== "stub",
+  "Stub in Produktion bleibt aus",
 );
 ok(
   schnellversionCheckoutPlan({
@@ -326,6 +352,7 @@ async function main() {
     answers: sample(),
     unternehmer: true,
     bewusst: true,
+    agb: true,
     email: "inhaber@example.com",
     env: stubUnpaid,
   });
@@ -336,6 +363,7 @@ async function main() {
     answers: sample(),
     unternehmer: false,
     bewusst: true,
+    agb: true,
     email: "inhaber@example.com",
     env: stubPaid,
   });
@@ -360,6 +388,7 @@ async function main() {
     answers: sample(),
     unternehmer: true,
     bewusst: true,
+    agb: true,
     email: "inhaber@example.com",
     arm: "test",
     env: stubPaid,
@@ -488,6 +517,7 @@ async function main() {
     answers: sample(),
     unternehmer: true,
     bewusst: true,
+    agb: true,
     email: "abbruch@example.com",
     arm: "test",
     env: stubPaid,
@@ -510,6 +540,7 @@ async function main() {
       answers: sample(),
       unternehmer: true,
       bewusst: true,
+    agb: true,
       email: `${step}@example.com`,
       arm: "test",
       env: stubPaid,
@@ -537,6 +568,7 @@ async function main() {
       answers: sample(),
       unternehmer: true,
       bewusst: true,
+    agb: true,
       email: "sink@example.com",
       arm: "test",
       env: stubPaid,
@@ -561,6 +593,7 @@ async function main() {
     answers: sample(),
     unternehmer: true,
     bewusst: true,
+    agb: true,
     email: "rennen@example.com",
     arm: "test",
     env: stubPaid,
@@ -803,7 +836,12 @@ async function main() {
   const selfPlain = standardPlainText(selfNamed, when);
   ok(selfPlain.includes("Buchhalter Pro"), "genanntes Programm bleibt im Text");
   ok(!/DATEV|kanzlei/i.test(selfPlain), "Eigenbuchhaltung ohne Kanzlei und DATEV");
-  ok(readFileSync("lib/schnellversion-copy.ts", "utf8").includes("Sie bestellen als Unternehmer"), "Checkbox in Sie-Form");
+  ok(
+  readFileSync("lib/schnellversion-copy.ts", "utf8").includes(
+    "Ich bestelle als Unternehmer (§ 14 BGB) für meine gewerbliche oder selbstständige berufliche Tätigkeit.",
+  ),
+  "Unternehmer-Checkbox wie § 1 Abs. 2",
+);
   ok(!readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("SV_ARM_COOKIE"), "PDF-Route liest das Zuteilungs-Cookie nicht");
   ok(!readFileSync("app/schnellversion/danke/page.tsx", "utf8").includes("gekauftAm"), "Danke-Seite legt keinen Kauf an");
   ok(!readFileSync("components/schnellversion-danke.tsx", "utf8").includes("gekauftAm"), "Browser legt keinen Kauf an");
@@ -811,6 +849,38 @@ async function main() {
   const page = readFileSync("app/page.tsx", "utf8");
   ok(page.includes("SCHNELLVERSION ?"), "Startseite blendet den Button nur mit Flag ein");
   ok(!readFileSync("content/legal/agb.md", "utf8").includes("Schnellversion 49"), "AGB unverändert von diesem Begriff");
+  const sessionParams = schnellversionSessionParams(
+    { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
+    {
+      SCHNELLVERSION_49_ENABLED: "1",
+      STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+      STRIPE_SECRET_KEY: "sk_test_x",
+      STRIPE_TAX_RATE_ID: "txr_existing",
+    },
+  );
+  const line = sessionParams?.line_items?.[0];
+  ok(sessionParams?.invoice_creation?.enabled === true, "49-€-Session erzeugt eine Rechnung");
+  ok(sessionParams?.billing_address_collection === "required", "49-€-Session verlangt die Rechnungsadresse");
+  ok(sessionParams?.tax_id_collection?.enabled === true, "49-€-Session fragt die USt-IdNr. ab");
+  ok(line && "tax_rates" in line && line.tax_rates?.[0] === "txr_existing", "49-€-Session nutzt die vorhandene Tax Rate");
+  const kaufmail = purchaseMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString(), sessionId: "cs_test" });
+  ok(kaufmail.text.includes("Standardfassung aus Branchenvorlage"), "Kaufmail nennt die Standardfassung");
+  ok(kaufmail.text.includes("/agb") && kaufmail.text.includes("Download-Ende"), "Kaufmail verlinkt die AGB und nennt das Datum");
+  ok((await maybeSendSchnellversionPurchaseMail({
+    to: "inhaber@example.com",
+    company: "Malerbetrieb Adler",
+    purchasedAt: now.toISOString(),
+    sessionId: "cs_test",
+    env: {},
+  })) === false, "Kaufmail bleibt aus");
+  const alt = purchase();
+  alt.purchasedAt = new Date(now.getTime() - (SV_PURGE_AFTER_DAYS + 1) * 24 * 60 * 60 * 1000).toISOString();
+  alt.pdfPath = "/tmp/gobd-sv49-nicht-loeschen.pdf";
+  alt.downloadTokenHash = "ab".repeat(32);
+  const purge = await runSvPurge([alt], now, {});
+  ok(purge.dryRun && purge.deleted === 0 && purge.due === 1, "Löschlauf bleibt Dry-Run");
+  ok(SV_PURGE_AFTER_DAYS === 30, "Löschfrist steht auf 30 Tage");
+  ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("PLAN_TERMS_LABEL_BEFORE"), "Checkout bestätigt die AGB");
 
   console.log("check-schnellversion: ok");
 }

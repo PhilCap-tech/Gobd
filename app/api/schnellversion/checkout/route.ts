@@ -25,6 +25,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     answers: record.answers,
     unternehmer: record.unternehmer === true,
     bewusst: record.bewusst === true,
+    agb: record.agb === true,
     email,
     arm: "test",
   });

@@ -26,26 +26,35 @@ export function schnellversionCheckoutMetadata(input: {
 }
 
 /**
- * Nur bei Plan `test` (`sk_test_`). Legt eine Checkout-Session an und gibt
- * die ID zurück. Der Kauf entsteht erst, wenn die Session `paid` ist.
+ * Dieselben Rechnungsfelder wie der 99-€-Checkout (`buildPlanCheckoutParams`).
+ * Die Tax Rate kommt aus `STRIPE_TAX_RATE_ID`. `tax_behavior: exclusive` steht
+ * am Preis, nicht hier.
  */
-export async function createSchnellversionTestSession(
-  input: { pendingId: string; consentAt: string; company: string; downloadToken: string },
+export function schnellversionSessionParams(
+  input: { pendingId: string; consentAt: string; company: string; downloadToken: string; email: string },
   env: Record<string, string | undefined> = process.env,
-): Promise<{ sessionId: string; url: string } | null> {
-  if (schnellversionCheckoutPlan(env) !== "test") return null;
+): import("stripe").Stripe.Checkout.SessionCreateParams | null {
+  const plan = schnellversionCheckoutPlan(env);
+  if (plan !== "test" && plan !== "live") return null;
   const origin = getAppUrl().replace(/\/$/, "");
   const thanks = `${origin}/schnellversion/danke`;
   const expiresAt = Math.floor(Date.now() / 1000) + Math.floor(CREDIT_RESERVE_MS / 1000);
   const price = schnellversionPriceId(env);
   const secret = (env.STRIPE_SECRET_KEY ?? "").trim();
-  if (!secret.startsWith("sk_test_") || !price) return null;
-  const Stripe = (await import("stripe")).default;
-  const stripe = new Stripe(secret);
-  const tax = getStripeTaxRateId();
+  if (!price) return null;
+  if (plan === "test" && !secret.startsWith("sk_test_")) return null;
+  if (plan === "live" && !secret.startsWith("sk_live_")) return null;
+  const tax = (env.STRIPE_TAX_RATE_ID ?? getStripeTaxRateId()).trim();
   const metadata = schnellversionCheckoutMetadata(input);
-  const session = await stripe.checkout.sessions.create({
+  return {
     mode: "payment",
+    currency: "eur",
+    locale: "de",
+    adaptive_pricing: { enabled: false },
+    customer_email: input.email,
+    customer_creation: "always",
+    billing_address_collection: "required",
+    tax_id_collection: { enabled: true },
     line_items: [
       {
         price,
@@ -53,12 +62,29 @@ export async function createSchnellversionTestSession(
         ...(tax ? { tax_rates: [tax] } : {}),
       },
     ],
+    invoice_creation: { enabled: true, invoice_data: { metadata } },
     metadata,
     payment_intent_data: { metadata },
     expires_at: expiresAt,
     success_url: `${thanks}?session_id={CHECKOUT_SESSION_ID}&dl=${encodeURIComponent(input.downloadToken)}`,
     cancel_url: `${origin}/schnellversion/kauf`,
-  });
+  };
+}
+
+/**
+ * Plan `test` (`sk_test_`) oder `live` (`sk_live_`), jeweils nur mit Flag und Preis.
+ * Der Kauf entsteht erst, wenn die Session `paid` ist.
+ */
+export async function createSchnellversionTestSession(
+  input: { pendingId: string; consentAt: string; company: string; downloadToken: string; email: string },
+  env: Record<string, string | undefined> = process.env,
+): Promise<{ sessionId: string; url: string } | null> {
+  const params = schnellversionSessionParams(input, env);
+  const secret = (env.STRIPE_SECRET_KEY ?? "").trim();
+  if (!params || !secret) return null;
+  const Stripe = (await import("stripe")).default;
+  const stripe = new Stripe(secret);
+  const session = await stripe.checkout.sessions.create(params);
   if (!session.id || !session.url) return null;
   return { sessionId: session.id, url: session.url };
 }

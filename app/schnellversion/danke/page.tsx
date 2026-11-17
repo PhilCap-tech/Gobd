@@ -5,7 +5,8 @@ import { SchnellversionShell } from "@/components/schnellversion-shell";
 import { notFound } from "next/navigation";
 import { getSessionEmail } from "@/lib/auth";
 import { schnellversionOffered } from "@/lib/schnellversion-flag";
-import { confirmPaidSession } from "@/lib/schnellversion-payment";
+import { confirmPaidSession, isSvPdfFailed } from "@/lib/schnellversion-payment";
+import { SV_PDF_FAILED } from "@/lib/schnellversion-copy";
 import { downloadStillOpen, svDownloadAllowed } from "@/lib/schnellversion-record";
 
 export const dynamic = "force-dynamic";
@@ -24,14 +25,14 @@ export default async function SchnellversionDankePage({
   const params = await searchParams;
   const sessionId = (Array.isArray(params.session_id) ? params.session_id[0] : params.session_id)?.trim() ?? "";
   const token = (Array.isArray(params.dl) ? params.dl[0] : params.dl)?.trim() ?? "";
-  let confirmed: Awaited<ReturnType<typeof confirmPaidSession>> | { paid: false; confirming: true } = {
+  let confirmed: Awaited<ReturnType<typeof confirmPaidSession>> | { paid: false; confirming?: boolean; failed?: boolean } = {
     paid: false,
   };
   if (sessionId) {
     try {
       confirmed = await confirmPaidSession(sessionId);
-    } catch {
-      confirmed = { paid: false, confirming: true };
+    } catch (error) {
+      confirmed = isSvPdfFailed(error) ? { paid: false, failed: true } : { paid: false, confirming: true };
     }
   }
   const email = (await getSessionEmail()) ?? "";
@@ -44,7 +45,12 @@ export default async function SchnellversionDankePage({
   return (
     <SchnellversionShell>
       <main className="shell" style={{ maxWidth: 720, margin: "28px auto 48px" }}>
-        {!confirmed.paid && confirmed.confirming ? (
+        {!confirmed.paid && "failed" in confirmed && confirmed.failed ? (
+          <>
+            <h1>Die Erstellung ist fehlgeschlagen.</h1>
+            <p>{SV_PDF_FAILED}</p>
+          </>
+        ) : !confirmed.paid && confirmed.confirming ? (
           <SchnellversionDankeWarten sessionId={sessionId} token={token} />
         ) : allowed && pdfHref ? (
           <>

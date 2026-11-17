@@ -136,12 +136,14 @@ export async function openSchnellversionCheckout(input: {
   answers: unknown;
   unternehmer: boolean;
   bewusst: boolean;
+  /** AGB-Bestätigung vor der Zahlung, wie § 3 Abs. 2. */
+  agb: boolean;
   email: string;
   arm?: "" | "control" | "test";
   /** Nur der Check übergibt eine eigene Umgebung. Die Route lässt sie weg. */
   env?: Record<string, string | undefined>;
 }): Promise<{ ok: false; status: number } | { ok: true; sessionId: string; url: string }> {
-  if (input.unternehmer !== true || input.bewusst !== true) return { ok: false, status: 400 };
+  if (input.unternehmer !== true || input.bewusst !== true || input.agb !== true) return { ok: false, status: 400 };
   const answers = parseSchnellversionAnswers(input.answers);
   if (!answers) return { ok: false, status: 400 };
   const env = input.env ?? process.env;
@@ -162,13 +164,14 @@ export async function openSchnellversionCheckout(input: {
   if (plan === "refuse") return { ok: false, status: 403 };
   const thanks = (sessionId: string) =>
     `/schnellversion/danke?session_id=${encodeURIComponent(sessionId)}&dl=${encodeURIComponent(download.token)}`;
-  if (plan === "test") {
+  if (plan === "test" || plan === "live") {
     const created = await createSchnellversionTestSession(
       {
         pendingId: id,
         consentAt: pending.consentAt,
         company: answers.firma,
         downloadToken: download.token,
+        email: pending.email,
       },
       env,
     );
@@ -211,7 +214,7 @@ export type PaidProof = {
 
 /**
  * Bezahlte Stub-Session oder, außerhalb von Check und Stub, eine
- * `sk_test_`-Session mit payment_status=paid. Der Webhook übergibt den Status.
+ * `sk_test_`- oder `sk_live_`-Session mit payment_status=paid. Der Webhook übergibt den Status.
  */
 async function retrieveTestSession(
   sessionId: string,
@@ -219,7 +222,7 @@ async function retrieveTestSession(
   if (!sessionId.startsWith("cs_")) return null;
   if (automatedRunForbidsLiveWrites() || schnellversionStripeStub()) return null;
   const secret = (process.env.STRIPE_SECRET_KEY ?? "").trim();
-  if (!secret.startsWith("sk_test_")) return null;
+  if (!secret.startsWith("sk_test_") && !secret.startsWith("sk_live_")) return null;
   try {
     const Stripe = (await import("stripe")).default;
     const stripe = new Stripe(secret);
@@ -320,7 +323,22 @@ async function confirmPaidSessionOnce(
       failNextClaimedPurchase = false;
       throw new Error("Kauf nicht gespeichert");
     }
-    const pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
+    let pdf: Buffer;
+    try {
+      pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
+    } catch {
+      await releaseSvSession(requested);
+      const { notifyOwner } = await import("@/lib/owner-notice");
+      await notifyOwner({
+        kind: "doc",
+        id: `sv49-pdf:${requested}`,
+        title: "Schnellversion: Erstellung nach Zahlung fehlgeschlagen",
+        email: pending.email,
+        company: pending.answers.firma,
+        facts: [["Session", requested], ["Hinweis", "§ 9"]],
+      });
+      throw new SvPdfFailed();
+    }
     await saveSvPurchase({
       email: pending.email,
       company: pending.answers.firma,
@@ -333,6 +351,14 @@ async function confirmPaidSessionOnce(
     }, pending.arm);
     const purchase = await completeSvPurchase(pending.sessionId);
     if (!purchase) throw new Error("Kauf nicht vollständig gespeichert");
+    const { maybeSendSchnellversionPurchaseMail } = await import("@/lib/schnellversion-purchase-mail");
+    await maybeSendSchnellversionPurchaseMail({
+      to: pending.email,
+      company: pending.answers.firma,
+      purchasedAt: pending.createdAt,
+      sessionId: pending.sessionId,
+      env,
+    });
     if (pending.email && !automatedRunForbidsLiveWrites()) {
       const incoming = draftFromSchnellversion(pending.email, pending.answers);
       const stored = await loadIntakeDraft(incoming.draftKey);
@@ -343,6 +369,17 @@ async function confirmPaidSessionOnce(
     await releaseSvSession(requested);
     throw error;
   }
+}
+
+export class SvPdfFailed extends Error {
+  constructor() {
+    super("Standardfassung nicht erstellt");
+    this.name = "SvPdfFailed";
+  }
+}
+
+export function isSvPdfFailed(error: unknown): boolean {
+  return error instanceof SvPdfFailed;
 }
 
 export function consentStamp(pending: SvPending): string {

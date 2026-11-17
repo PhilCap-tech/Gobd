@@ -38,20 +38,22 @@ export function schnellversionOffered(env: FlagEnv = process.env): boolean {
 }
 
 /**
- * `refuse`: kein Checkout (Flag aus, Price-ID fehlt, oder Live-Key).
- * `stub`: lokale Danke-Seite, kein Stripe-Aufruf.
- * `test`: nur ein `sk_test_`-Key darf später eine Session anlegen.
+ * `refuse`: kein Checkout (Flag aus oder Price-ID fehlt).
+ * `stub`: lokale Danke-Seite, kein Stripe-Aufruf. Auf Vercel und in Produktion nie.
+ * `test`: `sk_test_` darf eine Session anlegen.
+ * `live`: `sk_live_` darf eine Session anlegen, nur mit Flag und Preis.
  */
-export type SchnellversionCheckoutPlan = "refuse" | "stub" | "test";
+export type SchnellversionCheckoutPlan = "refuse" | "stub" | "test" | "live";
 
 export function schnellversionCheckoutPlan(env: FlagEnv = process.env): SchnellversionCheckoutPlan {
   if (!schnellversion49Enabled(env) || !schnellversionPriceId(env)) return "refuse";
   const secret = (env.STRIPE_SECRET_KEY ?? "").trim();
-  if (secret.startsWith("sk_live_")) return "refuse";
   if (schnellversionStubBlocked(env)) {
+    if (secret.startsWith("sk_live_")) return "live";
     return secret.startsWith("sk_test_") ? "test" : "refuse";
   }
   if (schnellversionStripeStub(env) || !secret) return "stub";
   if (secret.startsWith("sk_test_")) return "test";
+  if (secret.startsWith("sk_live_")) return "live";
   return "refuse";
 }

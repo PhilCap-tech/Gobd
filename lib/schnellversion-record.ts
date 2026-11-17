@@ -462,6 +462,19 @@ export function newDownloadToken(): { token: string; hash: string } {
   return { token, hash: hashDownloadToken(token) };
 }
 
+/** Entfernt PDF und Token-Link eines Schnellversion-Kaufs. Andere Käufe bleiben. */
+export async function clearSvPurchaseDelivery(row: SvPurchase): Promise<void> {
+  if (row.pdfPath && !pdfPathIsBlob(row.pdfPath)) {
+    try {
+      const { unlink } = await import("node:fs/promises");
+      await unlink(row.pdfPath);
+    } catch {
+      /* Datei fehlte bereits */
+    }
+  }
+  await replaceSvPurchase({ ...row, pdfPath: "", downloadTokenHash: "" });
+}
+
 export function downloadTokenMatches(token: string, hash: string): boolean {
   if (!token.trim() || !/^[a-f0-9]{64}$/.test(hash)) return false;
   const digest = hashDownloadToken(token.trim());
