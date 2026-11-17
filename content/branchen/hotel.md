@@ -90,7 +90,7 @@ Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentatio
 
 Das Werkzeug umfasst 24 Module, im PDF gegliedert in 14 Kapitel — darunter Verkauf, Kasse, Zahlungsverkehr, Warenwirtschaft, Personal und Branche. Module, die es in Ihrem Haus nicht gibt, werden als „nicht vorhanden“ begründet. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
-Wie ein fertiges Dokument aussieht, zeigt das fiktive [Muster für Dienstleister](/muster/gesamt/dienstleister); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
+Wie ein Beispieldokument aussieht, zeigt das fiktive [Muster für Dienstleister](/muster/gesamt/dienstleister); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
 
 ## Wo steht Ihr Haus?
 
@@ -104,7 +104,7 @@ Nach den FAQ des Bundesfinanzministeriums betrifft das den Teil der Software, de
 ### Braucht eine kleine Pension eine Verfahrensdokumentation?
 Die GoBD sehen für jedes DV-System eine Verfahrensdokumentation vor; der Umfang richtet sich nach der Komplexität (Rz. 151). Für eine kleine Pension kann sie entsprechend kurz sein. Ob und in welchem Umfang sie bei Ihnen erwartet wird, klären Sie mit Ihrer Steuerberatung. Hintergrund: [Verfahrensdokumentation Pflicht](/blog/verfahrensdokumentation-pflicht).
 
-### Reicht die Dokumentation des Softwareherstellers?
+### Genügt die Dokumentation des Softwareherstellers?
 Herstellerunterlagen beschreiben das System, nicht Ihre Abläufe. Sie werden als mitgeltende Unterlage referenziert. Wer bucht, kassiert, storniert, abschließt und Belege weitergibt, beschreiben Sie selbst.
 
 ### Wie lange dauert das Ausfüllen?

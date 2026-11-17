@@ -176,7 +176,7 @@ export function ReadinessForm() {
 
       {step === 0 && (
         <section>
-          <p className="step-label">Schritt 1 von 3 · ca. 1 Minute</p>
+          <p className="step-label">Schritt 1 von 3</p>
           <h2>Branche und Größe</h2>
           <div className="card">
             <div className="field">

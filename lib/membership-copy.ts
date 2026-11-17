@@ -20,7 +20,7 @@ export const INVITE_MAIL_FAILED =
   "Die Einladung konnte nicht gesendet werden. Bitte versuchen Sie es erneut.";
 
 export const INVITE_SENT_MESSAGE =
-  "Die Einladung ist unterwegs. Der Link ist 20 Minuten gültig.";
+  "Die Einladung ist unterwegs. Der Link ist nur kurze Zeit gültig.";
 
 export const INVITE_THROTTLED_MESSAGE =
   "Die Einladung ist bereits unterwegs. Bitte warten Sie einen Moment, bevor Sie erneut senden.";

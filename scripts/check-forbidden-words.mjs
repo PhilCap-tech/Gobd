@@ -14,6 +14,13 @@
 // Rendered UI (app and components TSX): the word Legacy must not appear in
 // customer-visible text or prose strings. Comments and lowercase machine
 // tokens (ids, paths, slugs) are ignored. A line marked allow-legacy is skipped.
+// Customer copy (app, components, lib string literals and JSX text, plus
+// content/branchen): Minute/Minuten, fertig (with inflections) and reicht
+// (stem reich in the sense of genügen: reicht, reichen, reiche). Legal texts
+// use the same path exception as the colloquial scan (content/legal, the
+// legal routes, lib/legal*, components/legal-page) plus the FAQ that restates
+// them and Widerruf/Nutzungsbedingungen. A line marked allow-forbidden is
+// skipped. Comments, code identifiers and internal admin files are not scanned.
 import { spawnSync } from "node:child_process";
 import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -388,6 +395,251 @@ function uiLegacyHits(source) {
   return hits;
 }
 
+// Minute/Minuten, fertig (+ inflection), reicht as "genügen" (reicht, reichen,
+// reiche, …). Not Fertigung, ausreichend, Bereich, erreichen, einreichen.
+const COPY_WORD =
+  /(?<![\p{L}\p{N}_])(?:minuten?|fertig(?:en|em|er|es|e|st)?|reich(?:test|ten|en|st|t|e))(?![\p{L}\p{N}_])/giu;
+
+function copyWordMatches(text) {
+  const hits = [];
+  const re = new RegExp(COPY_WORD.source, COPY_WORD.flags);
+  for (const match of text.matchAll(re)) hits.push(match);
+  return hits;
+}
+
+function lineAllowsForbidden(source, index) {
+  const start = source.lastIndexOf("\n", Math.max(0, index - 1)) + 1;
+  const end = source.indexOf("\n", index);
+  const line = source.slice(start, end === -1 ? source.length : end);
+  return line.includes("allow-forbidden");
+}
+
+function isLegalCopy(file) {
+  const normalized = file.replaceAll("\\", "/");
+  return (
+    normalized.includes("content/legal/") ||
+    normalized.endsWith("content/faq.md") ||
+    normalized.endsWith("content/faq-v2.md") ||
+    /(?:^|\/)app\/(?:datenschutz|agb|cookies|impressum|widerruf|nutzungsbedingungen|faq)\//.test(
+      normalized,
+    ) ||
+    /(?:^|\/)lib\/legal(?:-content|-markdown)?\.tsx?$/.test(normalized) ||
+    normalized.endsWith("components/legal-page.tsx")
+  );
+}
+
+function isInternalAdmin(file) {
+  const normalized = file.replaceAll("\\", "/");
+  return /(?:^|\/)app\/admin\//.test(normalized) || /(?:^|\/)lib\/admin-/.test(normalized);
+}
+
+function previousNonSpace(source, i) {
+  let j = i - 1;
+  while (j >= 0 && /\s/.test(source[j])) j -= 1;
+  return j;
+}
+
+function canStartRegex(source, i) {
+  const j = previousNonSpace(source, i);
+  if (j < 0) return true;
+  const ch = source[j];
+  if ("([{:;,=!?&|~^%*+<>".includes(ch)) return true;
+  const tail = source.slice(Math.max(0, j - 8), j + 1);
+  return /(?:return|case|throw|typeof|void|delete|in|of|yield|await|else)$/.test(tail);
+}
+
+function skipRegex(source, i) {
+  i += 1;
+  let inClass = false;
+  while (i < source.length) {
+    if (source[i] === "\\") {
+      i += 2;
+      continue;
+    }
+    if (source[i] === "\n") return i;
+    if (source[i] === "[") inClass = true;
+    else if (source[i] === "]") inClass = false;
+    else if (source[i] === "/" && !inClass) {
+      i += 1;
+      while (i < source.length && /[a-z]/i.test(source[i])) i += 1;
+      return i;
+    }
+    i += 1;
+  }
+  return i;
+}
+
+function readQuoted(source, i, quote) {
+  const parts = [];
+  let buf = "";
+  let bufStart = i + 1;
+  i += 1;
+  const flush = () => {
+    if (buf) parts.push({ start: bufStart, text: buf });
+    buf = "";
+  };
+  while (i < source.length) {
+    if (source[i] === "\\") {
+      buf += source[i + 1] ?? "";
+      i += 2;
+      continue;
+    }
+    if (quote === "`" && source[i] === "$" && source[i + 1] === "{") {
+      flush();
+      i += 2;
+      let depth = 1;
+      while (i < source.length && depth > 0) {
+        if (source[i] === "/" && source[i + 1] === "/") {
+          while (i < source.length && source[i] !== "\n") i += 1;
+          continue;
+        }
+        if (source[i] === "/" && source[i + 1] === "*") {
+          i += 2;
+          while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
+          i += 2;
+          continue;
+        }
+        if (
+          source[i] === "/" &&
+          source[i + 1] !== "/" &&
+          source[i + 1] !== "*" &&
+          canStartRegex(source, i)
+        ) {
+          i = skipRegex(source, i);
+          continue;
+        }
+        const nested = source[i];
+        if (nested === '"' || nested === "'" || nested === "`") {
+          const skipped = readQuoted(source, i, nested);
+          i = skipped.end;
+          continue;
+        }
+        if (source[i] === "{") {
+          depth += 1;
+          i += 1;
+          continue;
+        }
+        if (source[i] === "}") {
+          depth -= 1;
+          i += 1;
+          if (depth === 0) break;
+          continue;
+        }
+        i += 1;
+      }
+      bufStart = i;
+      continue;
+    }
+    if (source[i] === quote) {
+      flush();
+      return { end: i + 1, parts };
+    }
+    buf += source[i];
+    i += 1;
+  }
+  flush();
+  return { end: i, parts };
+}
+
+function isCustomerJsxClose(source, gtIndex) {
+  let lt = gtIndex - 1;
+  while (lt >= 0 && source[lt] !== "<" && source[lt] !== ">") lt -= 1;
+  if (lt < 0 || source[lt] !== "<") return false;
+  if (lt > 0 && /[\p{L}\p{N}_$]/u.test(source[lt - 1])) return false;
+  const tag = source.slice(lt + 1, gtIndex);
+  if (/[|,;]/.test(tag)) return false;
+  return /^\/?[A-Za-z][\w.-]*(\s[^<>]*)?\s*\/?$/.test(tag.trim());
+}
+
+/** String literals and JSX text. Comments and ${...} interpolations are skipped. */
+function copyRegions(source) {
+  const regions = [];
+  let i = 0;
+  while (i < source.length) {
+    if (source[i] === "/" && source[i + 1] === "/") {
+      while (i < source.length && source[i] !== "\n") i += 1;
+      continue;
+    }
+    if (source[i] === "/" && source[i + 1] === "*") {
+      i += 2;
+      while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
+      i += 2;
+      continue;
+    }
+    if (
+      source[i] === "/" &&
+      source[i + 1] !== "/" &&
+      source[i + 1] !== "*" &&
+      canStartRegex(source, i)
+    ) {
+      i = skipRegex(source, i);
+      continue;
+    }
+    const quote = source[i];
+    if (quote === '"' || quote === "'" || quote === "`") {
+      const quoted = readQuoted(source, i, quote);
+      const visible = quoted.parts.map((part) => part.text).join("");
+      if (visible.trim() && !isMachineToken(visible)) {
+        for (const part of quoted.parts) regions.push(part);
+      }
+      i = quoted.end;
+      continue;
+    }
+    if (source[i] === ">" && source[i - 1] !== "=" && isCustomerJsxClose(source, i)) {
+      const start = i + 1;
+      i += 1;
+      let text = "";
+      while (i < source.length && source[i] !== "<") {
+        text += source[i];
+        i += 1;
+      }
+      if (text.trim() && !isMachineToken(text)) regions.push({ start, text });
+      continue;
+    }
+    i += 1;
+  }
+  return regions;
+}
+
+function copyWordHits(source) {
+  const hits = [];
+  for (const region of copyRegions(source)) {
+    for (const match of copyWordMatches(region.text)) {
+      const at = region.start + (match.index ?? 0);
+      if (lineAllowsForbidden(source, at)) continue;
+      hits.push({
+        line: lineAt(source, at),
+        match: match[0],
+        text: region.text.replace(/\s+/g, " ").trim().slice(0, 180),
+      });
+    }
+  }
+  return hits;
+}
+
+function markdownCopyWordHits(raw) {
+  const hits = [];
+  const lines = raw.split("\n");
+  let fence = null;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].replace(/\r$/, "");
+    const opened = fenceChar(line);
+    if (!fence && opened) {
+      fence = opened;
+      continue;
+    }
+    if (fence) {
+      if (opened === fence) fence = null;
+      continue;
+    }
+    if (line.includes("allow-forbidden")) continue;
+    for (const match of copyWordMatches(stripUrls(line))) {
+      hits.push({ line: index + 1, match: match[0], text: line.trim().slice(0, 180) });
+    }
+  }
+  return hits;
+}
+
 function assertSelfTest() {
   const cases = [
     ["soft heading", "## Soft-CTA: Readiness-Check\n\nAbsatz.\n", true],
@@ -590,6 +842,91 @@ function assertSelfTest() {
 
 assertSelfTest();
 
+function assertCopyWordSelfTest() {
+  const cases = [
+    ["jsx minute", "export function A(){ return <p>in rund 2 Minuten</p> }\n", true],
+    ["hyphen", 'const label = "3-Minuten-Check";\n', true],
+    ["fertig", 'const q = "Ist das fertig?";\n', true],
+    ["fertige", 'const q = "keine fertige Fassung";\n', true],
+    ["reicht", 'const q = "reicht das für die Prüfung?";\n', true],
+    ["reichen", 'const q = "Die Angaben reichen aus.";\n', true],
+    ["fertigung", 'const q = "Produktion und Fertigung";\n', false],
+    ["ausreichend", 'const q = "ausreichend dokumentiert";\n', false],
+    ["bereich", 'const q = "im Bereich Kasse";\n', false],
+    ["erreichen", 'const q = "Sie erreichen uns";\n', false],
+    ["eingereicht", 'const q = "digital eingereicht";\n', false],
+    ["einreichen", 'const q = "Auslagen einreichen";\n', false],
+    ["comment", '// rund 2 Minuten intern\nexport const x = "Check";\n', false],
+    ["allow", 'const label = "3-Minuten-Check"; // allow-forbidden\n', false],
+    ["identifier", 'const minute = "2-digit";\n', false],
+    ["intl token", 'part(parts, "minute");\n', false],
+    ["template code", "const line = `${hour}:${minute}`;\n", false],
+    ["regex quotes", "const re = /[\"']Minuten[\"']/; const label = \"Check\";\n", false],
+    ["clean", "export function A(){ return <p>Kostenloser Check</p> }\n", false],
+  ];
+  for (const [name, source, expectHit] of cases) {
+    const hit = copyWordHits(source).length > 0;
+    if (hit !== expectHit) {
+      console.error(
+        `check-forbidden-words: copy-word self-test failed (${name}, expected ${expectHit ? "hit" : "clean"})`,
+      );
+      process.exit(1);
+    }
+  }
+  const markdownCases = [
+    ["md minute", "nach etwa zwei Minuten.\n", true],
+    ["md fence", "```\nMinuten\n```\n", false],
+    ["md allow", "3-Minuten-Check <!-- allow-forbidden -->\n", false],
+  ];
+  for (const [name, source, expectHit] of markdownCases) {
+    const hit = markdownCopyWordHits(source).length > 0;
+    if (hit !== expectHit) {
+      console.error(
+        `check-forbidden-words: copy-word markdown self-test failed (${name}, expected ${expectHit ? "hit" : "clean"})`,
+      );
+      process.exit(1);
+    }
+  }
+  const legalSamples = [
+    ["content/legal/agb.md", true],
+    ["app/datenschutz/page.tsx", true],
+    ["app/agb/page.tsx", true],
+    ["app/cookies/page.tsx", true],
+    ["app/impressum/page.tsx", true],
+    ["app/widerruf/page.tsx", true],
+    ["app/nutzungsbedingungen/page.tsx", true],
+    ["app/faq/page.tsx", true],
+    ["content/faq.md", true],
+    ["content/faq-v2.md", true],
+    ["lib/legal.ts", true],
+    ["lib/legal-content.ts", true],
+    ["lib/legal-markdown.tsx", true],
+    ["components/legal-page.tsx", true],
+    ["app/page.tsx", false],
+    ["lib/offer-copy.ts", false],
+    ["lib/home-faq.ts", false],
+    ["lib/ops.ts", false],
+  ];
+  for (const [file, expectLegal] of legalSamples) {
+    if (isLegalCopy(file) !== expectLegal) {
+      console.error(
+        `check-forbidden-words: legal exception self-test failed (${file}, expected ${expectLegal ? "legal" : "scanned"})`,
+      );
+      process.exit(1);
+    }
+  }
+  if (!isInternalAdmin("app/admin/ampel/page.tsx") || !isInternalAdmin("lib/admin-wipe-run.ts")) {
+    console.error("check-forbidden-words: admin exception self-test missed an admin file");
+    process.exit(1);
+  }
+  if (isInternalAdmin("app/page.tsx") || isInternalAdmin("lib/ops.ts")) {
+    console.error("check-forbidden-words: admin exception self-test false positive");
+    process.exit(1);
+  }
+}
+
+assertCopyWordSelfTest();
+
 const files = patterns.flatMap((pattern) => globSync(pattern));
 const blogFiles = blogPatterns.flatMap((pattern) => globSync(pattern));
 const resourceFiles = resourceDuPatterns.flatMap((pattern) => globSync(pattern));
@@ -749,6 +1086,40 @@ for (const file of uiFiles) {
   }
 }
 
+const copyWordFiles = [
+  ...new Set([
+    ...globSync("app/**/*.{ts,tsx}"),
+    ...globSync("components/**/*.{ts,tsx}"),
+    ...globSync("lib/**/*.{ts,tsx}"),
+  ]),
+]
+  .filter((file) => !isLegalCopy(file) && !isInternalAdmin(file))
+  .sort();
+const branchenCopyFiles = globSync("content/branchen/**/*.{md,mdx}")
+  .filter((file) => !isLegalCopy(file))
+  .sort();
+if (copyWordFiles.length === 0) {
+  console.error("check-forbidden-words: no customer-copy files matched");
+  failed = true;
+}
+if (branchenCopyFiles.length === 0) {
+  console.error("check-forbidden-words: no branchen files for the copy-word check");
+  failed = true;
+}
+for (const file of copyWordFiles) {
+  const source = readFileSync(file, "utf8");
+  for (const hit of copyWordHits(source)) {
+    console.error(`${file}:${hit.line}: gesperrt „${hit.match}“ in ${hit.text}`);
+    failed = true;
+  }
+}
+for (const file of branchenCopyFiles) {
+  for (const hit of markdownCopyWordHits(readFileSync(file, "utf8"))) {
+    console.error(`${file}:${hit.line}: gesperrt „${hit.match}“ in ${hit.text}`);
+    failed = true;
+  }
+}
+
 // Price lines that already end with "USt." must not gain another "."
 // ({PRICE_MICRO}. renders as USt.<!-- -->.).
 function ustEndingConstants() {
@@ -844,5 +1215,5 @@ if (effort.status !== 0) {
 }
 
 console.log(
-  `check-forbidden-words: ok (${files.length + blogFiles.length + resourceFiles.length + uiFiles.length} files)`,
+  `check-forbidden-words: ok (${files.length + blogFiles.length + resourceFiles.length + uiFiles.length} files, copy-words ${copyWordFiles.length + branchenCopyFiles.length})`,
 );

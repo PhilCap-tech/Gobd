@@ -12,7 +12,7 @@ export const HOME_FAQ: FaqEntry[] = [
       "Die GoBD erwarten eine nachvollziehbare Verfahrensdokumentation. Viele Betriebe schieben sie auf, weil Vorlagen leer bleiben. Ein geführter Entwurf schafft einen greifbaren Stand.",
   },
   {
-    question: "Ist das fertig / reicht das für die Prüfung?",
+    question: "Ist das für die Prüfung verwendbar?",
     answer:
       "Nein — Sie erhalten PDF und offene Punkte aus Ihren Angaben. Sie prüfen und ergänzen vor der Verwendung. Die fachliche Prüfung bleibt bei Ihnen bzw. Ihrem Steuerberater.",
   },

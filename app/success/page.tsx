@@ -264,7 +264,7 @@ export default async function SuccessPage({
             <p className="kicker">
               Version {versionLabelFromRow({ version: String(version) })}
             </p>
-            <h1>Ihr Entwurf ist fertig</h1>
+            <h1>Ihr Entwurf liegt vor</h1>
             <p className="lead">
               {row.company || "Ihr Unternehmen"} — Verfahrensdokumentation als
               PDF plus offene Punkte. Entwurf aus Ihren Angaben — keine

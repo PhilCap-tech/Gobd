@@ -47,7 +47,7 @@ export const FRAGEN_KURZLINKS: readonly FragenKurzlink[] = [
   { nr: 50, gruppe: "aufbewahrung-archiv", frage: "Wie lange muss die Verfahrensdokumentation aufbewahrt werden?", slug: "aufbewahrungsfrist-verfahrensdokumentation", hrefs: ["/blog/aufbewahrungsfristen-gobd"] },
   { nr: 51, gruppe: "aufbewahrung-archiv", frage: "Gilt die Frist von acht Jahren auch für ältere Buchungsbelege?", slug: "acht-jahre-aeltere-belege", hrefs: ["/blog/aufbewahrungsfristen-gobd"] },
   { nr: 53, gruppe: "aufbewahrung-archiv", frage: "Was ist ersetzendes Scannen?", slug: "ersetzendes-scannen", hrefs: ["/blog/ersetzendes-scannen-verfahrensdokumentation"] },
-  { nr: 55, gruppe: "aufbewahrung-archiv", frage: "Reicht ein Cloud-Ordner als Archiv?", slug: "cloud-ordner-archiv", hrefs: ["/blog/verfahrensdokumentation-homeoffice-cloud"] },
+  { nr: 55, gruppe: "aufbewahrung-archiv", frage: "Genügt ein Cloud-Ordner als Archiv?", slug: "cloud-ordner-archiv", hrefs: ["/blog/verfahrensdokumentation-homeoffice-cloud"] },
   { nr: 58, gruppe: "belege-e-rechnung", frage: "Wie bewahre ich E-Rechnungen auf?", slug: "e-rechnung-aufbewahren", hrefs: ["/blog/verfahrensdokumentation-belegablage"] },
   { nr: 60, gruppe: "belege-e-rechnung", frage: "Wie dokumentiere ich Rechnungen aus E-Mail-Postfach und Portalen?", slug: "e-mail-portalrechnungen", hrefs: ["/blog/verfahrensdokumentation-checkliste-e-mail-portalrechnungen"] },
   { nr: 61, gruppe: "belege-e-rechnung", frage: "Wie dokumentiere ich Ausgangsrechnungen und Korrekturen?", slug: "ausgangsrechnungen-dokumentieren", hrefs: ["/blog/verfahrensdokumentation-muster-ausgangsrechnungen"] },

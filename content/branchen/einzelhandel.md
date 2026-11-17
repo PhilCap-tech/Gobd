@@ -97,7 +97,7 @@ Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentatio
 
 Das Werkzeug umfasst 24 Module, im PDF gegliedert in 14 Kapitel — darunter Verkauf, Einkauf, Kasse, Zahlungsverkehr, Warenwirtschaft, Personal, Onlineshop und Branche. Module, die es bei Ihnen nicht gibt, werden als „nicht vorhanden“ begründet. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
-Wie ein fertiges Dokument aussieht, zeigt das fiktive [Muster für den Handel](/muster/gesamt/handel); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
+Wie ein Beispieldokument aussieht, zeigt das fiktive [Muster für den Handel](/muster/gesamt/handel); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
 
 ## Wo steht Ihr Geschäft?
 
@@ -114,7 +114,7 @@ Nicht zwingend ein eigenes Dokument, aber die Unterschiede müssen erkennbar sei
 ### Gehört die Warenwirtschaft dazu?
 Wenn dort steuerlich relevante Daten entstehen oder sie Daten an Kasse oder Buchhaltung liefert, ja. Beschreiben Sie den Datenfluss zwischen den Systemen.
 
-### Wir verkaufen auch online — reicht eine Dokumentation?
+### Wir verkaufen auch online — genügt eine Dokumentation?
 Ja, ein Gesamtdokument kann beide Kanäle abdecken. Onlineshop und Marktplätze sind eigene Module. Details: [GoBD Verfahrensdokumentation im Onlinehandel](/blog/gobd-verfahrensdokumentation-onlinehandel).
 
 ### Wie lange dauert das Ausfüllen?

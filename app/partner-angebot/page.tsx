@@ -262,7 +262,7 @@ export default async function PartnerAngebotPage({
         </section>
 
         <p className={`shell ${styles.factBar}`}>
-          24 Module · bis zu 5 Firmen · Ampel-Check in ~2 Min · Muster-PDF ohne Anmeldung
+          24 Module · bis zu 5 Firmen · Ampel-Check · Muster-PDF ohne Anmeldung
         </p>
 
         <section className={styles.section} id="muster">

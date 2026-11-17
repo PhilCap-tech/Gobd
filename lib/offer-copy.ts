@@ -69,7 +69,7 @@ export const PRICE_INCLUSION_LINE = V2
   : LEGACY_PRICE_INCLUSION_LINE;
 
 /** Equal-weight secondary pair in the homepage hero (above the fold). */
-export const CTA_CHECK_HERO = "Kostenlosen 3-Minuten-Check";
+export const CTA_CHECK_HERO = "Kostenlosen Readiness-Check";
 export const CTA_MUSTER_HERO = "Muster ansehen";
 
 export const PRICE_CTA_SUFFIX = START_PRICE_LINE;
@@ -97,7 +97,7 @@ export const CTA_START = "Fragebogen kostenlos starten";
 export const CTA_START_MICRO = `${V2_ENTRY_LABEL} € zzgl. USt erst vor der PDF-Erstellung.`;
 export const CTA_SAMPLE = "Muster ansehen";
 export const CTA_DEMO = "Fragebogen testen";
-export const CTA_CHECK = "Kostenlosen 3-Minuten-Check machen";
+export const CTA_CHECK = "Kostenlosen Readiness-Check machen";
 
 /** FAQ section „14 Tage Zufriedenheitsgarantie“. */
 export const GELD_ZURUECK_HREF = "/faq#erstattung";
@@ -239,11 +239,11 @@ export const PDF_UPSELL_FOOTNOTE = "¹ Vgl. GoBD Rz. 150, 154; § 147 AO.";
 
 export function rewriteLegacyEffortClaims(source: string): string {
   const withEinstieg = new RegExp(
-    "(?:Ca\\.\\s*)?5\\s*[–-]\\s*8\\s*Minuten(?:\\s+für\\s+den)?\\s*Einstieg\\.?",
+    "(?:Ca\\.\\s*)?5\\s*[–-]\\s*8\\s*Minuten(?:\\s+für\\s+den)?\\s*Einstieg\\.?", // allow-forbidden
     "g",
   );
   const bare = new RegExp(
-    "(?:Ca\\.\\s*)?(?<!\\d)5\\s*[–-]\\s*8\\s*Minuten\\.?",
+    "(?:Ca\\.\\s*)?(?<!\\d)5\\s*[–-]\\s*8\\s*Minuten\\.?", // allow-forbidden
     "g",
   );
   return source

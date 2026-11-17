@@ -147,7 +147,7 @@ const AMPEL_HERO_HREF = "/ampel-check?src=hero&v=a";
 const AMPEL_LABEL = "GoBD-Ampel";
 const HERO_HEADLINE = "GoBD-Verfahrensdokumentation Schritt für Schritt online erstellen";
 const HERO_SUBLINE =
-  "Geführte Fragen statt leerer Vorlage: Sie erhalten einen PDF-Entwurf Ihrer Verfahrensdokumentation und eine Liste offener Punkte. Erst prüfen? Der kostenlose Ampel-Check zeigt in rund 2 Minuten mit 10 Ja/Nein-Fragen, ob die GoBD-Anforderungen bei Ihnen erfüllt sind und wo Sie nachbessern sollten.";
+  "Geführte Fragen statt leerer Vorlage: Sie erhalten einen PDF-Entwurf Ihrer Verfahrensdokumentation und eine Liste offener Punkte. Erst prüfen? Der kostenlose Ampel-Check zeigt mit 10 Ja/Nein-Fragen, ob die GoBD-Anforderungen bei Ihnen erfüllt sind und wo Sie nachbessern sollten.";
 const HERO_PRIMARY = "Kostenlosen Ampel-Check starten";
 const HERO_MICRO =
   "Selbsteinschätzung auf Basis Ihrer Angaben · Ergebnis mit Quellen, zusätzlich als PDF per E-Mail · Keine Steuer- oder Rechtsberatung.";
@@ -300,7 +300,7 @@ export default function HomePage() {
           { href: "#bereiche", label: "Module" },
           { href: "#ablauf", label: "Ablauf" },
           { href: "#preise", label: "Preise" },
-          { href: "/readiness", label: "3-Minuten-Check" },
+          { href: "/readiness", label: "Readiness-Check" },
         ]}
       />
       <main>
@@ -792,7 +792,7 @@ export default function HomePage() {
             </div>
             <div>
               <p className={styles.prose}>
-                Machen Sie den kostenlosen 3-Minuten-Check. Sie sehen, welche Themen
+                Machen Sie den kostenlosen Readiness-Check. Sie sehen, welche Themen
                 Ihre Dokumentation typischerweise abdecken sollte — und wo bei Ihnen
                 noch Klärungsbedarf liegen kann. Kein Kaufzwang.
               </p>

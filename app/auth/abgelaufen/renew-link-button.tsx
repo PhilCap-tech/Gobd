@@ -54,7 +54,7 @@ export function RenewExpiredLinkButton({
       {error && <p className="error">{error}</p>}
       {sent && (
         <p className="banner">
-          Wenn ein Konto existiert, ist ein Link unterwegs. Er ist 20 Minuten gültig.
+          Wenn ein Konto existiert, ist ein Link unterwegs. Er ist nur kurze Zeit gültig.
         </p>
       )}
       <button className="btn" type="submit" disabled={pending}>

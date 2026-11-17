@@ -57,7 +57,7 @@ export const LEAD_MAGNET_POINTS = [
   },
   {
     title: "Offene Punkte sichtbar?",
-    body: "Unklares steht auf einer Liste — nicht „wegoptimiert“, damit es fertig wirkt.",
+    body: "Unklares steht auf einer Liste — nicht „wegoptimiert“, damit es abgeschlossen wirkt.",
   },
   {
     title: "Berater eingebunden?",

@@ -91,7 +91,7 @@ Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentatio
 
 Das Werkzeug umfasst 24 Module, im PDF gegliedert in 14 Kapitel — darunter Verkauf, Kasse, Zahlungsverkehr, Warenwirtschaft, Personal und Branche. Module, die es in Ihrem Betrieb nicht gibt, werden als „nicht vorhanden“ begründet. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
-Wie ein fertiges Dokument aussieht, zeigt das fiktive [Muster für den Handel](/muster/gesamt/handel); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
+Wie ein Beispieldokument aussieht, zeigt das fiktive [Muster für den Handel](/muster/gesamt/handel); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
 
 ## Wo steht Ihr Marktstand?
 

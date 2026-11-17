@@ -79,7 +79,7 @@ export function MitwirkendePanel({
       setNotice(
         data.throttled
           ? "Die Einladung ist bereits unterwegs. Bitte warten Sie einen Moment, bevor Sie erneut senden."
-          : "Die Einladung ist unterwegs. Der Link ist 20 Minuten gültig.",
+          : "Die Einladung ist unterwegs. Der Link ist nur kurze Zeit gültig.",
       );
       setEmail("");
       router.refresh();
@@ -229,7 +229,7 @@ export function MitwirkendePanel({
         </ul>
       )}
 
-      <h3>Eingeladen, Link 20 Minuten gültig</h3>
+      <h3>Eingeladen, Link nur kurze Zeit gültig</h3>
       {invited.length === 0 ? (
         <p className="hint">Keine offene Einladung.</p>
       ) : (

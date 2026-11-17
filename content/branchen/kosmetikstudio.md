@@ -91,7 +91,7 @@ Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentatio
 
 Das Werkzeug umfasst 24 Module, im PDF gegliedert in 14 Kapitel — darunter Verkauf, Kasse, Zahlungsverkehr, Warenwirtschaft, Personal und Branche. Module, die es in Ihrem Studio nicht gibt, werden als „nicht vorhanden“ begründet. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
-Wie ein fertiges Dokument aussieht, zeigt das fiktive [Muster für Dienstleister](/muster/gesamt/dienstleister); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
+Wie ein Beispieldokument aussieht, zeigt das fiktive [Muster für Dienstleister](/muster/gesamt/dienstleister); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
 
 ## Wo steht Ihr Studio?
 
@@ -105,7 +105,7 @@ Diese Seite beschreibt die Abläufe, nicht die Frage, welche Kassenform für Ihr
 ### Gehört die Kundenkartei in die Verfahrensdokumentation?
 Beschrieben werden die Systeme und Abläufe, aus denen steuerlich relevante Daten entstehen, etwa Termine, Leistungen und Zahlungen. Wie Sie mit weiteren Kundendaten umgehen, regeln Sie gesondert.
 
-### Reicht die Dokumentation des Kassenherstellers?
+### Genügt die Dokumentation des Kassenherstellers?
 Herstellerunterlagen beschreiben das System, nicht Ihre Abläufe. Sie werden als mitgeltende Unterlage referenziert. Wer kassiert, storniert, zählt und Belege weitergibt, beschreiben Sie selbst.
 
 ### Wie lange dauert das Ausfüllen?

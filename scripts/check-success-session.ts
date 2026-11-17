@@ -270,7 +270,7 @@ function checkPageSource() {
     source.includes('showSuccess && sessionId.startsWith("cs_")'),
     "purchase conversion still starts from a paid success view",
   );
-  ok(source.includes("Ihr Entwurf ist fertig"), "the paid success heading is unchanged");
+  ok(source.includes("Ihr Entwurf liegt vor"), "the paid success heading is unchanged");
   ok(source.includes('body === "invalid"'), "the page has an invalid branch");
   ok(source.includes("<SuccessSessionInvalid"), "the invalid branch renders the notice");
   ok(source.includes('body === "pending"'), "a payable session still reaches the pending view");

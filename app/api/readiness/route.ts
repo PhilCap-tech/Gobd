@@ -129,7 +129,7 @@ async function handleReadiness(request: Request) {
   queueOwnerNotice({
     kind: "readiness",
     id: submissionKey,
-    title: "Neuer 3-Minuten-Check",
+    title: "Neuer 3-Minuten-Check", // allow-forbidden
     email: parsed.email,
     company: parsed.company,
     facts: [
