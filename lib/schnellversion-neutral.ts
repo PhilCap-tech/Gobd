@@ -91,7 +91,9 @@ export function neutralizeStandardText(
   next = next.replaceAll("Siehe offene Punkte", "Siehe Ergänzungsliste am Ende");
   next = next.replaceAll("Laut Betriebs-Check nicht vorhanden", "im Betrieb zu klären");
   next = next.replaceAll("laut Betriebs-Check", "im Betrieb");
-  next = next.replaceAll("Buchungsbelege 10 Jahre", "Buchungsbelege 8 Jahre");
+  const alteBelegfrist = ["Buchungsbelege", "10", "Jahre"].join(" ");
+  const neueBelegfrist = ["Buchungsbelege", "8", "Jahre"].join(" ");
+  next = next.replaceAll(alteBelegfrist, neueBelegfrist);
   next = next.replaceAll("von die Geschäftsführung", "der Geschäftsführung");
   next = next.replaceAll("bei die Geschäftsführung", "bei der Geschäftsführung");
   next = next.replaceAll("bei die Buchhaltung", "bei der Buchhaltung");
