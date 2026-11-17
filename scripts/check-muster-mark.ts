@@ -215,7 +215,39 @@ function assertKundePdf(label: string, pages: string[], buffer: Buffer) {
   expect(!text.includes(UPSELL_HEADLINE), `${label} has no web upsell headline`);
 }
 
+async function assertKundenRegression(label: string, vorlage: "handwerk" | "gastro", answer: string) {
+  const muster = getGesamtMuster(vorlage);
+  expect(Boolean(muster), `${label} fixture exists`);
+  if (!muster) return;
+  const idsBefore = Object.keys(muster.answers.katalog ?? {}).sort();
+  const { buffer } = await generatePdf({
+    answers: muster.answers,
+    identity: {
+      email: "fixture@example.com",
+      company: `Fixture ${label} GmbH`,
+      stripeSessionId: "cs_test_fixture",
+      stripeCustomerId: "cus_fixture",
+      stub: true,
+    },
+    documentId: `fixture-${vorlage}`,
+    version: 1,
+    variant: "kunde",
+  });
+  const idsAfter = Object.keys(muster.answers.katalog ?? {}).sort();
+  expect(idsBefore.join("|") === idsAfter.join("|"), `${label} keeps every catalog id`);
+  expect(idsAfter.includes("LE03") && idsAfter.includes("AR01"), `${label} still has LE03 and AR01`);
+  const text = joined(pageTexts(buffer));
+  expect(text.includes("Abnahmen (soweit vorhanden)"), `${label} shows the Abnahme heading`);
+  expect(text.includes("Abschlags- und Schlussrechnungen (soweit vorhanden)"), `${label} shows the Abschlag heading`);
+  expect(text.includes("Lieferung, Leistung und Abnahme (soweit vorhanden)"), `${label} shows the section heading`);
+  expect(text.includes(answer), `${label} still renders the existing answer`);
+  expect(!text.includes(MUSTER_PDF_HINWEIS), `${label} customer PDF has no muster closing sentence`);
+}
+
 async function main() {
+  await assertKundenRegression("Handwerk", "handwerk", "Abschlagsrechnungen nach Baufortschritt");
+  await assertKundenRegression("Gastro", "gastro", "Nach der Veranstaltung bestätigt der Auftraggeber");
+
   const muster = getGesamtMuster("dienstleister");
   expect(Boolean(muster), "dienstleister muster exists");
   if (!muster) return;

@@ -20,6 +20,7 @@ import { generatePdf } from "../lib/delivery";
 import { createFristSatzIo, pdfKitPlainText } from "../lib/frist-satz-sources";
 import { pageTexts } from "./pdf-text";
 import { TEST_ENTITY_IDS } from "../lib/test-entities";
+import { intakeHeaderProblem } from "../lib/intake-header";
 import { emptyAnswers, emptySheetRow, type SheetRow } from "../lib/types";
 
 delete process.env.BLOB_READ_WRITE_TOKEN;
@@ -118,7 +119,18 @@ function checkMatcher() {
     "the written triad does not count",
   );
   ok(!textHasOutdatedBuchungsfrist("Buchungsbelege 8 Jahre"), "8 Jahre does not match");
-  ok(!textHasOutdatedBuchungsfrist("Buchungsbelege 10 Jahren"), "Jahren is not the phrase");
+  ok(textHasOutdatedBuchungsfrist("Buchungsbelege 10 Jahren"), "Jahren matches the source check");
+  ok(textHasOutdatedBuchungsfrist("Buchungsbelege werden nach 10 Jahren gelöscht."), "nach 10 Jahren matches");
+  ok(textHasOutdatedBuchungsfrist("Für Buchungsbelege gilt eine zehnjährige Frist."), "zehnjährige matches");
+  ok(
+    !textHasOutdatedBuchungsfrist("Buchungsbelege werden nicht mehr 10 Jahre, sondern 8 Jahre aufbewahrt."),
+    "a negation is not the old phrase",
+  );
+  ok(!textHasOutdatedBuchungsfrist("Für Buchungsbelege gelten 8 statt 10 Jahre."), "8 statt 10 is not the old phrase");
+  ok(
+    !textHasOutdatedBuchungsfrist("Aufbewahrungsdauer (Buchungsbelege ≠ pauschal 10 Jahre)"),
+    "a denied flat ten years is not the old phrase",
+  );
   ok(!textHasOutdatedBuchungsfrist("Aufbewahrung 110 Jahre für Buchungsbelege"), "110 Jahre is not 10 Jahre");
   ok(
     !textHasOutdatedBuchungsfrist("Buchungsbelege sind zugeordnet. Die Frist beträgt 10 Jahre."),
@@ -126,7 +138,7 @@ function checkMatcher() {
   );
   ok(!textHasOutdatedBuchungsfrist("Buchungsbelege.\n10 Jahre"), "a period ends the sentence");
   const far = `Buchungsbelege ${"wort ".repeat(80)}10 Jahre`;
-  ok(!textHasOutdatedBuchungsfrist(far), "a long gap inside one sentence does not match");
+  ok(textHasOutdatedBuchungsfrist(far), "the same sentence counts, like the source check");
   ok(
     jsonTextHasOutdatedBuchungsfrist(
       JSON.stringify({
@@ -532,6 +544,117 @@ function functionSource(file: string, signature: string): string {
   return text.slice(start, next < 0 ? text.length : next);
 }
 
+const WRITE_ORIGINALS = ["put", "del", "appendRecord", "generatePdf", "writeFile", "saveIntakeDraft", "loadDocumentPdf", "materializeIntakeHeader"];
+
+/** Schreibt der Text über einen Alias oder über values.update/append? */
+export function fristWriteCall(source: string): string | null {
+  const names = new Set(WRITE_ORIGINALS);
+  for (const match of source.matchAll(/import\s*\{([^}]+)\}/g)) {
+    for (const part of match[1].split(",")) {
+      const bits = part.trim().split(/\s+as\s+/);
+      const original = bits[0]?.replace(/^type\s+/, "").trim();
+      const local = (bits[1] ?? original)?.trim();
+      if (original && local && WRITE_ORIGINALS.includes(original)) names.add(local);
+    }
+  }
+  for (const name of names) {
+    if (new RegExp(`\\b${name}\\s*\\(`).test(source)) return name;
+  }
+  if (/\.\s*(?:update|append)\s*\(/.test(source)) return "update";
+  return null;
+}
+
+function sliceFunction(source: string, signature: string): string {
+  const start = source.indexOf(signature);
+  if (start < 0) return "";
+  const brace = source.indexOf("{", start);
+  if (brace < 0) return "";
+  let depth = 0;
+  for (let index = brace; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  return "";
+}
+
+/** Snapshot plus lokale Helfer, die er aufruft. Ein Write darin lässt den Check fehlschlagen. */
+export function snapshotWriteBypass(fileSource: string): string | null {
+  const own = sliceFunction(fileSource, "export async function readIntakeRowsSnapshot");
+  if (!own) return fristWriteCall(fileSource);
+  let combined = own;
+  const seen = new Set<string>(["readIntakeRowsSnapshot"]);
+  for (const match of own.matchAll(/\b([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)) {
+    const name = match[1];
+    if (seen.has(name)) continue;
+    seen.add(name);
+    for (const signature of [`async function ${name}`, `function ${name}`, `export async function ${name}`, `export function ${name}`]) {
+      const body = sliceFunction(fileSource, signature);
+      if (!body) continue;
+      combined += `\n${body}`;
+      break;
+    }
+  }
+  return fristWriteCall(combined);
+}
+
+function checkHeaderAndBypass() {
+  if (intakeHeaderProblem(["", " "]) !== "leer") fail("Negativtest: leerer Kopf wurde nicht erkannt");
+  if (intakeHeaderProblem(["timestamp", "email"]) !== "unvollstaendig") fail("Negativtest: fehlende Spalte fragen wurde nicht erkannt");
+  if (intakeHeaderProblem(["timestamp", "fragen"]) !== null) fail("Negativtest: vollständiger Kopf wurde gemeldet");
+  const alias = 'import { put as save } from "@vercel/blob";\nawait save("a");';
+  if (fristWriteCall(alias) !== "save") fail("Negativtest: Alias save() wurde nicht erkannt");
+  if (fristWriteCall('import { readFile } from "node:fs";\nreadFile("a");') !== null) fail("Negativtest: harmloser Import gilt als Write");
+  const update = `export async function readIntakeRowsSnapshot() {
+    const v = createSheetsClient().spreadsheets.values;
+    await v.update({});
+  }`;
+  if (snapshotWriteBypass(update) !== "update") fail("Negativtest: values.update über eine Variable wurde nicht erkannt");
+  const helper = `export async function readIntakeRowsSnapshot() {
+    return ensureHeader();
+  }
+  async function ensureHeader() {
+    await materializeIntakeHeader(tab, []);
+  }`;
+  if (snapshotWriteBypass(helper) !== "materializeIntakeHeader") fail("Negativtest: Header-Write in einem Helfer wurde nicht erkannt");
+  if (snapshotWriteBypass(readFileSync("lib/store.ts", "utf8")) !== null) fail("der echte Zeilenleser schreibt");
+  if (fristWriteCall(readFileSync("lib/frist-satz.ts", "utf8")) !== null) fail("der Zählkern schreibt");
+  if (fristWriteCall(readFileSync("lib/frist-satz-sources.ts", "utf8")) !== null) fail("die Quellen schreiben");
+  if (fristWriteCall(readFileSync("app/admin/ampel/frist-satz-action.ts", "utf8")) !== null) fail("die Action schreibt");
+}
+
+async function checkHeaderNote() {
+  const io = {
+    async listDrafts() {
+      return { pathnames: [] as string[] };
+    },
+    async readDraft() {
+      return null;
+    },
+  };
+  const empty = await scanFristSatzForAdmin(WIPE_EMAIL_ALLOWLIST[0], { mode: "start", cursor: "" }, {
+    ...io,
+    async loadVersions() {
+      return { header: "leer" as const };
+    },
+  }, NOW);
+  ok(empty.done && empty.cursor === "", "ein leerer Kopf bietet kein Fortsetzen");
+  ok(empty.note.includes("Tabellenkopf ist leer"), "ein leerer Kopf wird benannt");
+  ok(!empty.note.includes("nicht erreichbar"), "ein leerer Kopf ist kein Ausfall");
+  const partial = await scanFristSatzForAdmin(WIPE_EMAIL_ALLOWLIST[0], { mode: "start", cursor: "" }, {
+    ...io,
+    async loadVersions() {
+      return { header: "unvollstaendig" as const };
+    },
+  }, NOW);
+  ok(partial.done && partial.cursor === "", "ein unvollständiger Kopf bietet kein Fortsetzen");
+  ok(partial.note.includes("unvollständiger Kopf"), "die fehlende Spalte wird benannt");
+  ok(!partial.note.includes("nicht erreichbar"), "eine fehlende Spalte ist kein Ausfall");
+}
+
 function checkSourcesAreReadOnly() {
   const action = readFileSync("app/admin/ampel/frist-satz-action.ts", "utf8");
   const sources = readFileSync("lib/frist-satz-sources.ts", "utf8");
@@ -572,6 +695,8 @@ async function main() {
   await checkSources();
   await checkPauseAndAuth();
   checkSourcesAreReadOnly();
+  checkHeaderAndBypass();
+  await checkHeaderNote();
   console.log("check-frist-satz: ok");
 }
 

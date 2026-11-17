@@ -13,6 +13,7 @@ import { intakePayloadLocator } from "@/lib/intake-payload";
 import { logError } from "@/lib/log-error";
 import { orderedPageTexts, pageTexts } from "@/scripts/pdf-text";
 import { runWithSheetsRoute } from "@/lib/sheets-outage";
+import { IntakeHeaderError } from "@/lib/intake-header";
 import { readIntakeRowsSnapshot } from "@/lib/store";
 import type { SheetRow } from "@/lib/types";
 import type { DraftListResult, FristSatzIo, VersionListResult, VersionRef } from "@/lib/frist-satz";
@@ -168,6 +169,7 @@ export function createFristSatzIo(deps: FristSatzSourceDeps = {}): FristSatzIo {
       rows = await rowsPromise;
     } catch (error) {
       rowsPromise = null;
+      if (error instanceof IntakeHeaderError) return { header: error.kind };
       logError("[frist-satz] Zeilen", error);
       return { paused: true };
     }

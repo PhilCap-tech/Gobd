@@ -716,14 +716,14 @@ function setFeld(katalog: Record<string, Entry>, id: string, values: Record<stri
   katalog[id] = { ...entry, values: { ...entry.values, ...values } };
 }
 
-function systemKarte(name: string, funktion: string, nutzer: string, originalOrt: string) {
+function systemKarte(name: string, funktion: string, nutzer: string, originalOrt: string, hostingArt = "Anbieter-Cloud") {
   return {
     name,
     funktion,
     typ: "sonstiges",
     nutzer,
     originalOrt,
-    hostingArt: "Anbieter-Cloud",
+    hostingArt,
     belegeRein: [] as unknown[],
     uebergabe: "",
   };
@@ -742,25 +742,56 @@ function feldgenau(katalog: Record<string, Entry>, vorlage: MusterDenseId, f: De
   if (vorlage !== "ecommerce") {
     setFeld(out, "EK07", { wer: EK07_BANK });
   }
+  const ek92 = String(out.EK92?.values?.details ?? "");
+  const bankAlt = "Rückruf über bekannte Nummer und Bestätigung durch die Buchhaltung.";
+  const bankNeu = "Rückruf über bekannte Nummer und Bestätigung durch die Buchhaltung, Freigabe durch die Geschäftsführung (EK07).";
+  if (ek92.includes(bankAlt)) setFeld(out, "EK92", { details: ek92.replace(bankAlt, bankNeu) });
   if (vorlage === "dienstleister") {
-    ergaenzeSysteme(out, [systemKarte("Zeiterfassung (fiktiv)", "Arbeitszeiten", f.buchhaltung, "Zeiterfassungssystem")]);
+    ergaenzeSysteme(out, [systemKarte("Zeiterfassungs-App Takt (fiktiv)", "Zeiterfassung", f.buchhaltung, "Cloud des App-Anbieters")]);
   }
   if (vorlage === "gastro") {
+    const er01 = String(out.ER01?.values?.postfach ?? "");
+    setFeld(out, "ER01", {
+      postfach: er01.replace(
+        "XRechnungen über den vorgesehenen Eingangskanal der Rechnungssoftware",
+        "XRechnungen über den Eingangskanal von DATEV Unternehmen online",
+      ),
+    });
+    setFeld(out, "ER02", {
+      viewer: `Technische Prüfung (Schema/Validierung) in DATEV Unternehmen online; fachliche Prüfung durch ${f.buchhaltung}.`,
+    });
+    const sy02 = String(out.SY02?.values?.schnittstellen ?? "");
+    setFeld(out, "SY02", {
+      schnittstellen: sy02.replace(
+        "E-Rechnungsein- und -ausgang über Rechnungssoftware.",
+        "E-Rechnungseingang über DATEV Unternehmen online, Ausgang über die Rechnungssoftware.",
+      ),
+    });
+    const wege = out.B04?.values?.originalJeWeg;
+    if (Array.isArray(wege)) {
+      setFeld(out, "B04", {
+        originalJeWeg: wege.map((row) => {
+          const weg = row as { belegweg?: string };
+          if (weg.belegweg !== "E-Mail-PDF / E-Rechnung") return row;
+          return { ...weg, originalBeschreibung: "Datei in DATEV Unternehmen online" };
+        }),
+      });
+    }
     ergaenzeSysteme(out, [
-      systemKarte("Kassensystem mit TSE", "Tagesgeschäft", f.buchhaltung, "Kassensystem"),
+      systemKarte("KassaPro Gastro (fiktiv)", "Kassensystem mit TSE", "Schichtleitung", "Kassensystem", "Gemischt"),
       systemKarte("Warenwirtschaft", "Wareneingang, Verbrauch und Inventur", f.buchhaltung, "Warenwirtschaft"),
     ]);
   }
   if (vorlage === "handwerk") {
     ergaenzeSysteme(out, [
       systemKarte("Projektsoftware", "Aufmaß, Stunden und Materialliste", f.buchhaltung, "Projektsoftware"),
-      systemKarte("Zeiterfassung", "Arbeitszeiten", f.buchhaltung, "Zeiterfassung"),
+      systemKarte("Zeiterfassungs-App Takt (fiktiv)", "Zeiterfassung", f.buchhaltung, "Cloud des App-Anbieters"),
     ]);
   }
   if (vorlage === "handel") {
     ergaenzeSysteme(out, [
-      systemKarte("Kassensystem mit TSE", "Verkauf im Ladengeschäft", f.buchhaltung, "Kassensystem"),
-      systemKarte("Handscanner", "Wareneingang im Lager", f.buchhaltung, "WaWi Lagerplus"),
+      systemKarte("KassaPro (fiktiv)", "Kassensystem mit TSE", "Verkaufsleitung", "Kassensystem", "Gemischt"),
+      systemKarte("Handscanner", "Wareneingang im Lager", f.buchhaltung, "WaWi Lagerplus", "Lokal"),
     ]);
   }
   if (vorlage === "ecommerce") {
@@ -794,11 +825,17 @@ function feldgenau(katalog: Record<string, Entry>, vorlage: MusterDenseId, f: De
     const ec91 = String(out.EC91?.values?.schnittstellen ?? "");
     setFeld(out, "EC91", { schnittstellen: `${ec91} ${MP_ABRUF}` });
     const ar04 = String(out.AR04?.values?.ort ?? "").replace(/[.\s]+$/u, "");
-    setFeld(out, "AR04", { ort: `${ar04}. ${MP_ABRUF}` });
+    setFeld(out, "AR04", {
+      ort: `${ar04}. Marktplatzrechnungen: DATEV Unternehmen online (Abruf monatlich bis zum 5. durch Nils Strom).`,
+    });
+    setFeld(out, "EK06", {
+      ablauf: "Nils Strom ordnet die in DATEV eingegangene Rechnung in der WaWi der Bestellung zu.",
+    });
     ergaenzeSysteme(out, [
       systemKarte("WaWi Lagerplus (fiktiv)", "Warenwirtschaft, Bestellungen und Eingangsrechnungen", f.buchhaltung, "WaWi Lagerplus"),
     ]);
   }
+  ergaenzeSysteme(out, [systemKarte("E-Mail", "Belegeingang am Funktionspostfach", f.buchhaltung, "Funktionspostfach")]);
   return out;
 }
 

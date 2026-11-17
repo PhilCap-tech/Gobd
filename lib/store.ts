@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { writeDocumentIndex, readDocumentIndex, peekDocumentIndex } from "@/lib/document-index";
+import { IntakeHeaderError, intakeHeaderProblem } from "@/lib/intake-header";
 import { createSheetsClient } from "@/lib/sheets-client";
 import { readCachedGrid, sheetsBatchGet, sheetsValuesGet } from "@/lib/sheets-grid";
 import { undocumentedPaidSessionId } from "@/lib/account-paid-intake";
@@ -748,7 +749,11 @@ export async function readIntakeRowsSnapshot(): Promise<SheetRow[]> {
     valuesRange: intakeValuesRange(count),
     headerCache: fristHeaderCache,
     valuesCache: fristValuesCache,
+    missingHeader: "return",
   });
+  const hasRows = grid.values.some((row) => row.some((cell) => cell.trim()));
+  const problem = hasRows ? intakeHeaderProblem(grid.header) : null;
+  if (problem) throw new IntakeHeaderError(problem);
   return grid.values
     .filter((row) => row.some((cell) => cell.trim()))
     .map((row) => recoverStoredDocumentId(sheetRowFromValues(grid.header, row)));

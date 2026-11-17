@@ -95,7 +95,7 @@ export const LE = gruppe("LE", "Verkauf und Leistungserbringung", [
     many("nachweis", "Nachweisarten", ["Lieferschein", "Leistungsnachweis / Stundenzettel", "Abnahmeprotokoll", "Versandnachweis", "Digitaler Nachweis im System"]),
     text("ablage", "Wo liegt der Nachweis", false),
   ], "Der Nachweis von Lieferung oder Leistung ist nicht angegeben.", { priority: "hoch" }),
-  q("LE03", "Abnahmen", "Gibt es Abnahmen durch den Kunden, und wie werden sie dokumentiert?", [
+  q("LE03", "Abnahmen (soweit vorhanden)", "Gibt es Abnahmen durch den Kunden, und wie werden sie dokumentiert?", [
     area("ablauf", "Ablauf der Abnahme"),
     pick("protokoll", "Abnahmeprotokoll wird erstellt", JNU),
   ], "Ablauf und Dokumentation von Abnahmen sind nicht angegeben.", { priority: "niedrig" }),
@@ -116,7 +116,7 @@ export const LE = gruppe("LE", "Verkauf und Leistungserbringung", [
 // ---------------------------------------------------------------- Modul 4
 export const AR = gruppe("AR", "Ausgangsrechnungen und Korrekturen", [
   lead("AR", "Ausgangsrechnungen und Korrekturen"),
-  q("AR01", "Abschlags- und Schlussrechnungen", "Werden Abschlags-, Teil- oder Anzahlungsrechnungen gestellt, und wie werden sie in der Schlussrechnung verrechnet?", [
+  q("AR01", "Abschlags- und Schlussrechnungen (soweit vorhanden)", "Werden Abschlags-, Teil- oder Anzahlungsrechnungen gestellt, und wie werden sie in der Schlussrechnung verrechnet?", [
     area("ablauf", "Ablauf und Verrechnung"),
   ], "Abschlags- und Schlussrechnungen sind nicht angegeben.", { hint: "In der Schlussrechnung werden vereinnahmte Anzahlungen und die darauf entfallende Umsatzsteuer abgezogen." }),
   q("AR02", "Gutschriften", "Werden Gutschriften erstellt – als Abrechnung durch den Leistungsempfänger oder als Korrektur einer Rechnung?", [
