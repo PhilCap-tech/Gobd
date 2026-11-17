@@ -59,6 +59,12 @@ export type PlanCheckoutInput = {
   offerOptOut?: boolean;
   /** Login zuerst: Entwurf (email:-Schlüssel) aus dem Fragebogen. */
   draftKey?: string;
+  /** Schnellversion: Arm der Zuteilung, nur wenn das Flag an ist. */
+  svArm?: "control" | "test";
+  /** Coupon-ID aus STRIPE_COUPON_SCHNELL_49_ANRECHNUNG, nur bei offener Anrechnung. */
+  svCoupon?: string;
+  /** Kaufzeile der Schnellversion, einmal einlösbar. */
+  svPurchaseId?: string;
 };
 
 /** Metadaten: Entwurf aus dem Fragebogen (Login zuerst), wird nach Zahlung übernommen. */
@@ -148,6 +154,8 @@ export function buildPlanCheckoutParams(
     ...(input.agbAcceptedAt ? { [PLAN_METADATA_AGB_ACCEPTED_AT]: input.agbAcceptedAt } : {}),
     ...(input.offerOptOut ? { [PLAN_METADATA_OFFER_OPTOUT]: "1" } : {}),
     ...(input.draftKey ? { [PLAN_METADATA_DRAFT_KEY]: input.draftKey.slice(0, 450) } : {}),
+    ...(input.svArm ? { sv_arm: input.svArm } : {}),
+    ...(input.svPurchaseId ? { sv_purchase_id: input.svPurchaseId } : {}),
   };
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
@@ -204,7 +212,9 @@ export function buildPlanCheckoutParams(
       : { customer_email: input.email }),
     billing_address_collection: "required",
     tax_id_collection: { enabled: true },
-    allow_promotion_codes: true,
+    ...(input.svCoupon
+      ? { discounts: [{ coupon: input.svCoupon }] }
+      : { allow_promotion_codes: true }),
     line_items: lineItems,
     success_url:
       kind === "entry" && input.draftKey

@@ -47,9 +47,12 @@ export const SV_DOWNLOAD_DAYS = 30;
 
 export const SV_COVER_TITLE = "Standardfassung, bitte prüfen";
 
-export function svCoverBox(vorlage: string): string {
+export function svCoverBox(vorlage: string, erstelltAm = ""): string {
+  const datum = erstelltAm ? ` Erstellt am ${erstelltAm}.` : "";
   return [
     `**${SV_COVER_TITLE}**`,
+    "",
+    `Standardfassung auf Basis Ihrer Angaben zu Branche und Größe.${datum}`,
     "",
     `Dieses Dokument ist eine Standardfassung aus der Branchenvorlage „${vorlage}“. Es enthält Ihre Firmendaten und 6 Eckdaten. Die beschriebenen Abläufe sind typische Abläufe der Branche, nicht Ihre tatsächlichen. Bitte prüfen Sie jeden Abschnitt, passen Sie ihn an Ihren Betrieb an und stimmen Sie ihn bei Bedarf mit Ihrer Steuerkanzlei ab. Mit [bitte prüfen] markierte Stellen brauchen Ihre Angaben. Keine Steuer- oder Rechtsberatung.`,
   ].join("\n");

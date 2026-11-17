@@ -84,6 +84,20 @@ export function onConsentChange(listener: () => void): () => void {
   return subscribeConsent(listener);
 }
 
+/** Aufruf ohne Einwilligung und ohne Arm. Nur eine Zählung, keine Personenbezogenen Daten. */
+export async function postSvVisit(): Promise<void> {
+  try {
+    await fetch("/api/schnellversion/event", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "sv_visit" }),
+      keepalive: true,
+    });
+  } catch {
+    /* Die Messung hält die Seite nicht auf. */
+  }
+}
+
 export async function postSvEvent(
   row: Pick<SvEventRow, "name" | "arm"> & Partial<Pick<SvEventRow, "branche_vorlage" | "value" | "step" | "ziel">>,
 ): Promise<void> {

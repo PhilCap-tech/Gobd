@@ -28,12 +28,20 @@ export function SchnellversionDanke() {
   const [downloadNote, setDownloadNote] = useState("");
 
   useEffect(() => {
+    if (bought && answers && sessionStorage.getItem("sv49_saved") !== "1") {
+      sessionStorage.setItem("sv49_saved", "1");
+      void fetch("/api/schnellversion/konto", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...answers, gekauftAm: bought }),
+      });
+    }
     if (bought && sessionStorage.getItem("sv49_counted") !== "1") {
       sessionStorage.setItem("sv49_counted", "1");
       void postSvEvent({ name: "sv_purchase", arm: "test", value: 49 });
     }
     void postSvEvent({ name: "sv_upgrade_view", arm: "test" });
-  }, [bought]);
+  }, [bought, answers]);
 
   async function download() {
     if (!answers || !bought) return;

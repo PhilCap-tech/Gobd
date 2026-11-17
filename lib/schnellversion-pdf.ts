@@ -25,10 +25,12 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
   const built = buildStandardAnswers(input);
   const label = vorlageLabel(built.vorlage);
   const bis = formatSvDate(addSvDays(erstelltAm, SV_DOWNLOAD_DAYS));
+  const datum = formatSvDate(erstelltAm);
   const frame: StandardPdfFrame = {
-    header: svHeaderLine(input.firma, formatSvDate(erstelltAm)),
-    coverBox: svCoverBox(label),
+    header: svHeaderLine(input.firma, datum),
+    coverBox: svCoverBox(label, datum),
     closing: svClosingPage(bis),
+    erstelltAm: datum,
   };
   if (input.kasse === "Unsicher") {
     frame.kasseHinweis = `[bitte prüfen] ${SV_KASSE_UNSICHER_HILFE}`;

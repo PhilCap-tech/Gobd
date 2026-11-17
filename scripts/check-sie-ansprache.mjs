@@ -112,6 +112,8 @@ const COVERED = [
   "app/schnellversion/**/*.{ts,tsx}",
   "components/schnellversion-*.tsx",
   "lib/schnellversion-copy.ts",
+  "lib/schnellversion-reminder.ts",
+  "lib/schnellversion-neutral.ts",
 ];
 
 const PRONOUNS =

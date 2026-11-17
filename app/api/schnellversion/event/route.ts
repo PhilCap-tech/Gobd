@@ -26,7 +26,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response(null, { status: 400 });
   }
   const event = parseSvEvent(parsed);
-  if (!event || event.arm !== arm) return new Response(null, { status: 400 });
+  if (!event) return new Response(null, { status: 400 });
+  if (event.name !== "sv_visit" && (!arm || event.arm !== arm)) return new Response(null, { status: 400 });
   const client = readAmpelClientIp(request);
   if (!takeAmpelStepRate(client.ip)) return new Response(null, { status: 429 });
   rememberSvEvent(event);

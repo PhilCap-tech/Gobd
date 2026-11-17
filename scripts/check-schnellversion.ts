@@ -7,6 +7,10 @@ import { readFileSync } from "node:fs";
 import { effectiveModulStatus } from "../lib/module/status";
 import { pageTexts } from "./pdf-text";
 import { decideSvArm } from "../lib/schnellversion-assign";
+import { openCredit } from "../lib/schnellversion-credit";
+import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
+import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
+import { creditStillOpen, downloadStillOpen, type SvPurchase } from "../lib/schnellversion-record";
 import {
   buildStandardAnswers,
   vorlageForBranche,
@@ -15,6 +19,8 @@ import {
 import { schnellversionCheckoutPlan, schnellversion49Enabled } from "../lib/schnellversion-flag";
 import { svDownloadStillOpen, SV_COVER_TITLE } from "../lib/schnellversion-copy";
 import { evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
+import { generatePdf } from "../lib/delivery";
+import { getGesamtMuster } from "../lib/module-muster";
 import { generateStandardPdf } from "../lib/schnellversion-pdf";
 
 function ok(cond: unknown, msg: string) {
@@ -98,6 +104,30 @@ const now = new Date("2026-11-17T12:00:00Z");
 ok(svDownloadStillOpen(now.toISOString(), now), "Download am Kauftag");
 ok(!svDownloadStillOpen(new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000).toISOString(), now), "nach 30 Tagen zu");
 
+function purchase(patch: Partial<SvPurchase> = {}): SvPurchase {
+  return {
+    id: "p1",
+    email: "inhaber@example.com",
+    company: "Malerbetrieb Adler",
+    purchasedAt: now.toISOString(),
+    documentId: "p1",
+    pdfPath: "",
+    creditUsedAt: "",
+    ...patch,
+  };
+}
+const fresh = purchase();
+ok(downloadStillOpen(fresh, now), "Konto-Download am Kauftag");
+ok(!downloadStillOpen(purchase({ purchasedAt: new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000).toISOString() }), now), "Konto-Download nach 30 Tagen zu");
+ok(creditStillOpen(fresh, "Malerbetrieb Adler", now), "Anrechnung für dieselbe Firma");
+ok(!creditStillOpen(fresh, "Andere Firma GmbH", now), "Anrechnung nicht für eine andere Firma");
+ok(!creditStillOpen(purchase({ creditUsedAt: now.toISOString() }), "Malerbetrieb Adler", now), "Anrechnung nur einmal");
+ok(openCredit([fresh], "Malerbetrieb Adler", now)?.id === "p1", "offene Anrechnung wird gefunden");
+ok(reminderDue(now.toISOString(), new Date(now.getTime() + 24 * 24 * 60 * 60 * 1000)), "Erinnerung 7 Tage vor Ende");
+ok(!reminderDue(now.toISOString(), now), "Erinnerung nicht am Kauftag");
+const mail = reminderMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString() });
+ok(mail.text.includes("Sie") && !/Minute|fertig|garantiert|Garantie|rechtssicher/i.test(mail.text), "Erinnerung formell und ohne Sperrwörter");
+
 ok(schnellversionCheckoutPlan({}) === "refuse", "ohne Flag kein Checkout");
 ok(
   schnellversionCheckoutPlan({ SCHNELLVERSION_49_ENABLED: "1", STRIPE_SECRET_KEY: "sk_live_x" }) === "refuse",
@@ -122,9 +152,44 @@ ok(
 );
 
 async function main() {
+  let sent = 0;
+  const quiet = await runSchnellversionReminder(
+    [purchase()],
+    new Date(now.getTime() + 24 * 24 * 60 * 60 * 1000),
+    async () => {
+      sent += 1;
+    },
+    {},
+  );
+  ok(quiet.sending === false && sent === 0, "Erinnerung ohne Schalter versendet nichts");
+  const loud = await runSchnellversionReminder(
+    [purchase()],
+    new Date(now.getTime() + 24 * 24 * 60 * 60 * 1000),
+    async () => {
+      sent += 1;
+    },
+    { SCHNELLVERSION_49_REMINDER_SEND: "1" },
+  );
+  ok(loud.sending && loud.sent === 1 && sent === 1, "Erinnerung mit Schalter nutzt nur den Mock");
   const pdf = await generateStandardPdf(sample(), new Date("2026-11-17T10:00:00Z"));
   const text = pageTexts(pdf).join("\n");
   ok(text.includes(SV_COVER_TITLE), "Deckblatt nennt Standardfassung, bitte prüfen");
+  ok(text.includes(SV_BASIS_SATZ), "Standardfassung nennt Branche und Größe");
+  ok(!text.includes("Kunden-Intake"), "Standardfassung ohne Kunden-Intake");
+  ok(!text.includes("bestätigten Angaben"), "Standardfassung ohne bestätigte Angaben");
+  ok(!text.includes("01.07.2026"), "Standardfassung ohne festes Geltungsdatum");
+  const muster = getGesamtMuster("handwerk");
+  ok(muster, "Handwerk-Vorlage liegt");
+  const full = await generatePdf({
+    answers: muster!.answers,
+    identity: muster!.identity,
+    documentId: "vollversion-handwerk",
+    version: 1,
+    versionMeta: muster!.versionMeta,
+  });
+  const fullText = pageTexts(full.buffer).join("\n");
+  ok(fullText.includes("Kunden-Intake"), "Vollversion behält Kunden-Intake");
+  ok(fullText.includes("01.07.2026"), "Vollversion behält das Geltungsdatum");
   ok(text.includes("Malerbetrieb Adler"), "Firmenname auf dem PDF");
   ok(text.includes("Mitarbeitende: 2–5"), "Mitarbeitendenzahl aus den 6 Angaben");
   ok(text.includes("Handwerk / Bau"), "Branche aus den 6 Angaben");

@@ -41,6 +41,9 @@ import {
   recordPlanSubscriptionEvent,
 } from "@/lib/plan-webhook";
 import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
+import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { rememberSvEvent } from "@/lib/schnellversion-store";
+import { markSvCreditUsed } from "@/lib/schnellversion-record";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
 import { logError } from "@/lib/log-error";
 import type Stripe from "stripe";
@@ -101,6 +104,31 @@ function invoiceEntityId(invoice: {
     metadataEntityId(invoice.parent?.subscription_details?.metadata) ||
     metadataEntityId(invoice.subscription_details?.metadata)
   );
+}
+
+/** Nur das Ereignis. Die bestehende Kaufverbuchung bleibt davor unverändert. */
+async function noteSchnellversionPurchase(
+  session: { metadata?: { sv_arm?: string | null; sv_purchase_id?: string | null } | null },
+  email: string,
+): Promise<void> {
+  if (!schnellversion49Enabled()) return;
+  const arm = session.metadata?.sv_arm;
+  if (arm !== "control" && arm !== "test") return;
+  try {
+    rememberSvEvent({
+      name: "purchase_99",
+      arm,
+      variante: "b",
+      branche_vorlage: "",
+      value: 99,
+      step: 0,
+      ziel: "",
+    });
+    const purchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
+    if (purchaseId && email.trim()) await markSvCreditUsed(email, purchaseId, new Date().toISOString());
+  } catch (error) {
+    console.error("[webhook] Schnellversion", error instanceof Error ? error.name : "error");
+  }
 }
 
 function missingSecretResponse() {
@@ -324,6 +352,7 @@ export async function POST(request: Request) {
             eventId: event.id,
             at: eventTimeIso(event.created),
           });
+          await noteSchnellversionPurchase(session, buyerEmail);
           break;
         }
         await recordCheckoutSubscription({

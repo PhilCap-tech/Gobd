@@ -19,6 +19,7 @@ export const SV_EVENT_NAMES = [
   "sv_upgrade_view",
   "sv_upgrade_purchase",
   "sv_home_view",
+  "sv_visit",
   "fragebogen_start",
   "checkout_99",
   "purchase_99",
@@ -28,7 +29,8 @@ export type SvEventName = (typeof SV_EVENT_NAMES)[number];
 
 export type SvEventRow = {
   name: SvEventName;
-  arm: "control" | "test";
+  /** Leer nur bei sv_visit (Aufruf ohne Einwilligung, ohne Arm). */
+  arm: "control" | "test" | "";
   variante: "b";
   branche_vorlage: MusterVorlageId | "";
   value: number;
@@ -48,8 +50,12 @@ export function parseSvEvent(input: unknown): SvEventRow | null {
     if (!(EVENT_KEYS as readonly string[]).includes(key)) return null;
   }
   if (typeof raw.name !== "string" || !NAME_SET.has(raw.name)) return null;
-  if (raw.arm !== "control" && raw.arm !== "test") return null;
-  if (raw.variante !== "b") return null;
+  const visit = raw.name === "sv_visit";
+  if (visit) {
+    if (raw.arm !== undefined && raw.arm !== "") return null;
+  } else if (raw.arm !== "control" && raw.arm !== "test") return null;
+  if (!visit && raw.variante !== "b") return null;
+  if (visit && raw.variante !== undefined && raw.variante !== "b") return null;
   let branche: SvEventRow["branche_vorlage"] = "";
   if (raw.branche_vorlage !== undefined && raw.branche_vorlage !== "") {
     if (typeof raw.branche_vorlage !== "string" || !VORLAGE_SET.has(raw.branche_vorlage)) return null;
@@ -74,7 +80,7 @@ export function parseSvEvent(input: unknown): SvEventRow | null {
   }
   return {
     name: raw.name as SvEventName,
-    arm: raw.arm,
+    arm: visit ? "" : raw.arm === "test" ? "test" : "control",
     variante: "b",
     branche_vorlage: branche,
     value,
@@ -107,6 +113,12 @@ export type SvEvaluation = {
   control: SvArmStat;
   test: SvArmStat;
   purchasesTotal: number;
+  /** Aufrufe der Startseite, auch ohne Einwilligung. */
+  visits: number;
+  /** Aufrufe mit Einwilligung und Arm. */
+  consented: number;
+  /** consented / visits, oder null wenn keine Aufrufe gezählt sind. */
+  consentShare: number | null;
   minReached: boolean;
   /** Test-RPV mehr als 15 % unter der Kontrolle. */
   rpvAbort: boolean;
@@ -152,6 +164,8 @@ function statFor(rows: SvEventRow[], arm: "control" | "test"): SvArmStat {
 export function evaluateSvEvents(rows: SvEventRow[]): SvEvaluation {
   const control = statFor(rows, "control");
   const test = statFor(rows, "test");
+  const visits = rows.filter((row) => row.name === "sv_visit").length;
+  const consented = rows.filter((row) => row.name === "sv_home_view").length;
   const purchasesTotal = control.purchases49 + control.purchases99 + test.purchases49 + test.purchases99;
   const minReached =
     control.visitors >= SV_MIN_VISITORS_PER_ARM &&
@@ -175,6 +189,9 @@ export function evaluateSvEvents(rows: SvEventRow[]): SvEvaluation {
     control,
     test,
     purchasesTotal,
+    visits,
+    consented,
+    consentShare: visits > 0 ? consented / visits : null,
     minReached,
     rpvAbort,
     conv99Abort,

@@ -30,6 +30,7 @@ import {
   PDF_UPSELL_HEADLINE,
   PDF_UPSELL_PRICE,
 } from "@/lib/offer-copy";
+import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
 
@@ -57,6 +58,8 @@ export type StandardPdfFrame = {
   closing: string;
   /** Nur bei Kasse „Unsicher“, vor dem Kassenkapitel. */
   kasseHinweis?: string;
+  /** Anzeigedatum der Erstellung, nur für die Standardfassung. */
+  erstelltAm?: string;
 };
 
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
@@ -490,18 +493,22 @@ function writePdf(
     input.content?.chapters && input.content.chapters.length > 0
       ? input.content.chapters
       : rendered.chapters;
+  const erstelltAm = input.standard?.erstelltAm?.trim() || "";
+  const plain = (value: string) =>
+    input.standard ? neutralizeStandardText(value, erstelltAm) : value;
   if (input.standard) {
     chapters = chapters
       .filter((chapter) => chapter.id !== "anhang-a")
-      .map((chapter) =>
-        input.standard?.kasseHinweis && chapter.id === "modul-m08"
-          ? { ...chapter, body: `${input.standard.kasseHinweis}\n\n${chapter.body}` }
-          : chapter,
-      );
+      .map((chapter) => {
+        const body = plain(chapter.body);
+        return input.standard?.kasseHinweis && chapter.id === "modul-m08"
+          ? { ...chapter, body: `${input.standard.kasseHinweis}\n\n${body}` }
+          : { ...chapter, body };
+      });
   }
 
   const customCover = Boolean(input.content?.cover?.trim());
-  const coverBody = input.standard ? `${input.standard.coverBox.trim()}\n\n${cover}` : cover;
+  const coverBody = input.standard ? plain(`${input.standard.coverBox.trim()}\n\n${cover}`) : cover;
   writeTitlePage(
     doc,
     rendered,

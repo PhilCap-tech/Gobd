@@ -12,8 +12,8 @@ function percent(value: number | null): string {
 }
 
 /** Auswertung der Schwellen. Schaltet das Angebot nicht ab. */
-export function SchnellversionAdminSection() {
-  const report = evaluateSvEvents(readSvEvents());
+export async function SchnellversionAdminSection() {
+  const report = evaluateSvEvents(await readSvEvents());
   return (
     <section className="card ampel-admin-count">
       <h2>Schnellversion 49 €</h2>
@@ -26,6 +26,13 @@ export function SchnellversionAdminSection() {
         Käufe (49 € und 99 €). Ab dann: Umsatz je Aufruf im Test mehr als {Math.round(SV_RPV_ABORT_SHARE * 100)} % unter
         der Kontrolle, oder 99-€-Käufe je Aufruf mehr als {Math.round(SV_CONV99_ABORT_SHARE * 100)} % unter der Kontrolle,
         ohne dass der Umsatz je Aufruf steigt.
+      </p>
+      <p>
+        Einwilligung:{" "}
+        {report.consentShare === null
+          ? "noch keine Aufrufe"
+          : `${report.consented.toLocaleString("de-DE")} von ${report.visits.toLocaleString("de-DE")} Aufrufen (${(report.consentShare * 100).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %)`}
+        . Gezählt wird nur die Zahl der Aufrufe, ohne Personenbezogene Daten.
       </p>
       <p>{report.minReached ? "Die Mindestmenge liegt vor." : "Die Mindestmenge liegt noch nicht vor."}</p>
       <div className="ampel-admin-table-wrap">

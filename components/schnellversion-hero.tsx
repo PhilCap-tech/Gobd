@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import home from "@/app/home.module.css";
 import { HomeCtaLink } from "@/components/home-cta-link";
 import { CampaignLink } from "@/components/campaign-link";
-import { onConsentChange, postSvEvent, syncSvArm } from "@/components/schnellversion-browser";
+import { onConsentChange, postSvEvent, postSvVisit, syncSvArm } from "@/components/schnellversion-browser";
 import { CTA_SAMPLE, CTA_START, CTA_START_MICRO } from "@/lib/offer-copy";
 import { SV_BUY_LABEL, SV_HERO_NOTE } from "@/lib/schnellversion-copy";
 import type { SvArm } from "@/lib/schnellversion-assign";
@@ -31,6 +31,7 @@ export function SchnellversionHeroCtas() {
       if (next === "test") void postSvEvent({ name: "sv_block_view", arm: next });
     }
     sync();
+    void postSvVisit();
     return onConsentChange(sync);
   }, []);
 
