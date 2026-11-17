@@ -647,7 +647,7 @@ async function main() {
           const bodyStart = plain.indexOf("# ");
           const listAt = plain.indexOf("# Vom Betrieb zu ergänzende Punkte");
           const body = plain.slice(bodyStart < 0 ? 0 : bodyStart, listAt < 0 ? plain.length : listAt);
-          if (/\b(Sie|Ihre|Ihnen)\b/.test(body)) ok(false, `${branche.id} ${software} spricht den Leser im Text an`);
+          if (/\b(Sie|Ihre|Ihrer|Ihnen)\b/.test(body)) ok(false, `${branche.id} ${software} spricht den Leser im Text an`);
           for (const firma of Object.values(MUSTER_FIRMEN)) {
             for (const name of [firma.company, firma.gf, firma.buchhaltung, firma.kanzlei, firma.standort]) {
               if (name && plain.includes(name)) ok(false, `${branche.id} enthält Musterangabe ${name}`);

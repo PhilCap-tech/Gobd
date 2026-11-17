@@ -93,6 +93,7 @@ export function neutralizeStandardText(
   next = next.replaceAll("mit die Geschäftsführung", "mit der Geschäftsführung");
   next = next.replaceAll("mit die Buchhaltung", "mit der Buchhaltung");
   next = next.replaceAll(" .", ".");
+  next = next.replace(/Dieses Dokument beschreibt[\s\S]*?Geschäftsleitung\.\s*/g, "");
   next = next.replaceAll(
     "Sätze im Präsens beschreiben nur bestätigte Abläufe",
     "Die beschriebenen Abläufe sind typische Abläufe der Branche",
