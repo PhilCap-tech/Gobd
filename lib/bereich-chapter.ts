@@ -92,6 +92,37 @@ function sentenceLabel(label: string): string {
   return label.trim().replace(/\?+$/u, "").trim();
 }
 
+function lastLabelWord(label: string): string {
+  return sentenceLabel(label).split(/\s+/u).filter(Boolean).at(-1) ?? "";
+}
+
+/** Der Text beginnt schon mit dem Label oder mit dessen letztem Wort plus Doppelpunkt. */
+export function textStartsWithLabel(label: string, text: string): boolean {
+  const clean = sentenceLabel(label);
+  const start = text.trim();
+  if (!clean || !start) return false;
+  if (start === clean || start.startsWith(`${clean}:`)) return true;
+  const last = lastLabelWord(clean);
+  if (!last || last === clean) return false;
+  return start === last || start.startsWith(`${last}:`);
+}
+
+/** Feldlabel nur voranstellen, wenn es nicht schon im Text oder in der Überschrift steht. */
+export function prefixFieldLabel(label: string, value: string, heading = ""): string {
+  const text = value.trim();
+  if (!text) return "";
+  const name = sentenceLabel(label);
+  if (!name) return text;
+  const head = sentenceLabel(heading);
+  if (
+    textStartsWithLabel(name, text) ||
+    (head && (textStartsWithLabel(head, `${name}:`) || textStartsWithLabel(name, `${head}:`)))
+  ) {
+    return text;
+  }
+  return `${name}: ${text}`;
+}
+
 /** Drop a repeated software name inside one card (`lexoffice, lexoffice`). */
 function uniqueBits(bits: string[]): string[] {
   const out: string[] = [];
@@ -138,9 +169,7 @@ export function confirmedFieldSentence(fields: PhraseField[], values: Record<str
   for (const field of fields) {
     const value = inline(formatIntakeValue(field, values?.[field.key]));
     if (!value) continue;
-    const label = sentenceLabel(field.label);
-    const prefix = `${label}:`;
-    const phrase = !label || sameText(value, label) || value.startsWith(prefix) ? value : `${label}: ${value}`;
+    const phrase = prefixFieldLabel(field.label, value);
     if (parts.some((kept) => sameText(kept, phrase))) continue;
     parts.push(phrase);
   }
@@ -161,13 +190,14 @@ export function bereichQuestionLines(
       return [`${head} vorgesehen, aber noch nicht gelebte Praxis. Siehe offene Punkte.`];
     }
   }
-  const head = `**${options.title ?? question.title}:**`;
+  const title = options.title ?? question.title;
+  const head = `**${title}:**`;
   if (status === "bestaetigt") {
     const parts = question.fields
       .filter((field) => !options.skip?.includes(field.key))
       .map((field) => {
         const value = inline(shown(field, entry?.values?.[field.key]));
-        return value ? `${field.label}: ${value}` : "";
+        return value ? prefixFieldLabel(field.label, value, title) : "";
       })
       .filter(Boolean);
     if (!parts.length) return [`${head} bestätigt, ohne nähere Angabe.`];

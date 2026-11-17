@@ -26,6 +26,14 @@ for (const gruppe of NEUE_GRUPPEN) {
 
 type Katalog = NonNullable<IntakeAnswers["katalog"]>;
 
+const DOPPELTES_LABEL = /(\b[A-ZÄÖÜ][a-zäöüß-]+): \1:/u;
+
+/** Erstes doppeltes Feldlabel in einem generierten Mustertext, sonst null. */
+export function doppeltesFeldlabel(text: string): string | null {
+  const plain = text.replaceAll("**", "");
+  return DOPPELTES_LABEL.exec(plain)?.[0] ?? null;
+}
+
 /** Bestätigte Einträge, deren Schlüssel kein Feld der Frage in fragen.ts sind. */
 export function musterFelderOhneFrage(katalog: Katalog | undefined, vorlage: string): MusterFeldBefund[] {
   const out: MusterFeldBefund[] = [];
@@ -79,6 +87,18 @@ const offen = musterFelderOhneFrage(
 );
 if (offen.length !== 0) fail("nur bestätigte Einträge werden geprüft");
 
+const doppelt = doppeltesFeldlabel("Vertretungsregelung: Vertretungsregelung: Bei Abwesenheit");
+if (doppelt !== "Vertretungsregelung: Vertretungsregelung:") {
+  fail(`Negativtest doppeltes Label hat nicht getroffen: ${doppelt ?? "kein Treffer"}`);
+}
+if (doppeltesFeldlabel("Vertretungsregelung: Bei Abwesenheit von der Geschäftsführung") !== null) {
+  fail("Negativtest: ein einfaches Label wurde als doppelt gemeldet");
+}
+if (doppeltesFeldlabel("Steuerrelevante Daten: Daten: Angabe zum Musterbetrieb") !== "Daten: Daten:") {
+  fail("Negativtest: letztes Wort des Labels wurde nicht als doppelt gemeldet");
+}
+console.log("negativ doppeltes Label: rot — Wort: Wort:");
+
 const ZD04_ABLAUF =
   "Zahlungseingänge und -ausgänge werden über den Bankabruf den offenen Posten zugeordnet; nicht zuordenbare Zahlungen und Differenzen klärt ";
 const ZD04_TURNUS = "wöchentlich, zusätzlich zum Monatsabschluss";
@@ -106,6 +126,9 @@ for (const vorlage of MUSTER_VORLAGEN) {
   assert.equal(muster.answers.katalog?.AF01?.values?.ablauf, AF01_ZUORDNUNG);
 
   const chapters = renderGesamtChapters(muster.answers, "OFFEN");
+  const mustertext = chapters.map((chapter) => chapter.body).join("\n");
+  const label = doppeltesFeldlabel(mustertext);
+  if (label) fail(`${vorlage}: doppeltes Feldlabel „${label}“`);
   const modul7 = chapters.find((chapter) => chapter.id === "modul-m07")?.body ?? "";
   const modul16 = chapters.find((chapter) => chapter.id === "modul-m16")?.body ?? "";
   if (!modul7.includes("## 7.5 ")) fail(`${vorlage}: Abschnitt 7.5 fehlt`);
