@@ -31,9 +31,9 @@ import {
   PDF_UPSELL_PRICE,
 } from "@/lib/offer-copy";
 import { limitIdenticalSentences, standardSystemSection } from "@/lib/schnellversion-bausteine";
-import { mitKassenNotverfahren } from "@/lib/schnellversion-basis";
+import { mitEinzelaufzeichnung, mitKassenNotverfahren } from "@/lib/schnellversion-basis";
 import { SV_FOOTER } from "@/lib/schnellversion-copy";
-import { neutralizeStandardText, ohneTseAussage } from "@/lib/schnellversion-neutral";
+import { neutralizeStandardText, offeneKasseText } from "@/lib/schnellversion-neutral";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
 
@@ -528,7 +528,7 @@ function writePdf(
   const plain = (value: string) => {
     if (!input.standard) return value;
     const cleaned = limitIdenticalSentences(neutralizeStandardText(value, erstelltAm, neutral), 1, sentenceCounts);
-    return offen ? ohneTseAussage(cleaned) : cleaned;
+    return offen ? offeneKasseText(cleaned) : cleaned;
   };
   if (input.standard) {
     chapters = chapters
@@ -538,6 +538,7 @@ function writePdf(
         if (input.standard?.kasseHinweis && chapter.id === "modul-m08") {
           body = `${input.standard.kasseHinweis}\n\n${body}`;
         }
+        body = mitEinzelaufzeichnung(body, chapter.id, input.standard?.kasseArt);
         body = mitKassenNotverfahren(body, chapter.id, input.standard?.kasseArt);
         return { ...chapter, body: plain(body) };
       });

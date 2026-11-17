@@ -55,6 +55,7 @@ function unmaskAbbrev(line: string): string {
 }
 
 function splitSentences(line: string): string[] {
+  if (line.trimStart().startsWith("|")) return [line];
   const masked = maskAbbrev(line);
   const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
   return parts.map((part) => unmaskAbbrev(part));
@@ -342,6 +343,7 @@ export function limitIdenticalSentences(text: string, max = 1, counts = new Map<
 const SUFFIX = /Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online;[\s\S]*?§ 147 Abs\. 3 AO\)\./g;
 
 function needsRewrite(chunk: string, fall: StandardFall): boolean {
+  if (/Teil III|Systeme, Schnittstellen, Archiv, Fristen/.test(chunk)) return false;
   if (/Kontoumsätze werden täglich|Bank an DATEV|MT940|per DATEV Upload|DATEV Upload|täglich über DATEV/.test(chunk)) return true;
   if (fall.datev && !fall.self) return false;
   if (fall.self && /Kanzlei|Steuerkanzlei/.test(chunk)) return true;

@@ -15,8 +15,8 @@ import {
 } from "@/lib/schnellversion-answers";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { limitIdenticalSentences, standardFall, standardSystemSection } from "@/lib/schnellversion-bausteine";
-import { mitKassenNotverfahren } from "@/lib/schnellversion-basis";
-import { neutralizeStandardText, ohneTseAussage } from "@/lib/schnellversion-neutral";
+import { mitEinzelaufzeichnung, mitKassenNotverfahren } from "@/lib/schnellversion-basis";
+import { neutralizeStandardText, offeneKasseText } from "@/lib/schnellversion-neutral";
 import {
   SV_KASSE_UNSICHER_HILFE,
   formatSvDate,
@@ -82,6 +82,7 @@ export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date
     .map((chapter) => {
       let body = chapter.body;
       if (frame.kasseHinweis && chapter.id === "modul-m08") body = `${frame.kasseHinweis}\n\n${body}`;
+      body = mitEinzelaufzeichnung(body, chapter.id, input.kasse);
       body = mitKassenNotverfahren(body, chapter.id, input.kasse);
       return neutralizeStandardText(body, datum, options);
     });
@@ -91,7 +92,7 @@ export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date
     standardSystemSection(standardFall(input)),
     neutralizeStandardText(frame.closing, datum, options),
   ].join("\n"), 1);
-  return input.kasse === "Ja, offene Ladenkasse (ohne elektronisches System)" ? ohneTseAussage(joined) : joined;
+  return input.kasse === "Ja, offene Ladenkasse (ohne elektronisches System)" ? offeneKasseText(joined) : joined;
 }
 
 export function standardNeedsKasseChapter(input: SchnellversionAnswers): boolean {

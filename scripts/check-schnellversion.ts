@@ -668,7 +668,7 @@ async function main() {
           if (marker > 25) ok(false, `${branche.id} ${software} hat ${marker} Markierungen`);
           if (/€/.test(plain) || /Anrechn/i.test(plain)) ok(false, `${branche.id} ${software} enthält Preis oder Anrechnung`);
           if (/Buchungsbelege\s+(10|zehn)\s+Jahre/i.test(plain)) ok(false, `${branche.id} Buchungsbelege mit 10 Jahren`);
-          if (/: ja\b/.test(plain)) ok(false, `${branche.id} ${software} enthält : ja`);
+          if (/: ja(?!\/nein)\b/.test(plain)) ok(false, `${branche.id} ${software} enthält : ja`);
           if (plain.includes("Intake")) ok(false, `${branche.id} ${software} enthält Intake`);
           if (plain.includes("Anhang A")) ok(false, `${branche.id} ${software} enthält Anhang A`);
           if (
@@ -686,17 +686,43 @@ async function main() {
           if (!plain.includes("strukturierte Datensatz") || !plain.includes("maßgeblich")) {
             ok(false, `${branche.id} ohne E-Rechnungs-Original`);
           }
+          if (plain.includes("Hinweis: Diese Verfahrensdokumentation")) {
+            ok(false, `${branche.id} Deckblatt-Absatz noch da`);
+          }
+          if (plain.includes("**Kassenart:** Art:") || plain.includes("**System:** System:")) {
+            ok(false, `${branche.id} doppeltes Label`);
+          }
           if (kasse === "Ja, offene Ladenkasse (ohne elektronisches System)") {
             if (/\bTSE\b/.test(plain)) ok(false, `${branche.id} ${software} offene Ladenkasse nennt TSE`);
             if (!plain.includes("Kassenbericht") || !plain.includes("Zählprotokoll")) {
               ok(false, `${branche.id} offene Ladenkasse ohne Kassenbericht`);
             }
+            if (!plain.includes("Einzelaufzeichnung") || !plain.includes("§ 146 Abs. 1 Satz 1 AO")) {
+              ok(false, `${branche.id} ohne Einzelaufzeichnung`);
+            }
+            if (!plain.includes("Werden Einzelaufzeichnungen geführt oder wird die Ausnahme genutzt?")) {
+              ok(false, `${branche.id} Checkliste ohne Einzelaufzeichnung`);
+            }
+            if (plain.includes("Bewirtung über das Kassensystem") || plain.includes("aus dem Kassensystem")) {
+              ok(false, `${branche.id} offene Kasse nennt ein Kassensystem`);
+            }
+            if (!plain.includes("entfällt (offene Ladenkasse)")) ok(false, `${branche.id} ohne entfällt offene Ladenkasse`);
+            if (!plain.includes("nachträgliche Ermittlung dokumentieren")) ok(false, `${branche.id} Notverfahren offene Kasse`);
+            if (plain.includes("Z-Bons") || plain.includes("Programmier- und Änderungsprotokolle des Kassensystems")) {
+              ok(false, `${branche.id} Kassensystem-Zeile in der Aufbewahrung`);
+            }
           }
-          if (kasse !== "Nein, keine Bargeldeinnahmen" && !plain.includes("Ersatzaufzeichnung")) {
+          if (kasse !== "Nein, keine Bargeldeinnahmen" && kasse !== "Ja, offene Ladenkasse (ohne elektronisches System)" && !plain.includes("Ersatzaufzeichnung")) {
             ok(false, `${branche.id} ${software} ohne Notverfahren`);
           }
-          if (branche.id === "handwerk" && (!plain.includes("§ 13b") || !plain.includes("§ 14 UStG"))) {
-            ok(false, `${branche.id} ${software} ohne § 13b oder § 14 UStG`);
+          if (branche.id === "handwerk" && (!plain.includes("§ 13b") || !plain.includes("§ 14 Abs. 4 Satz 1 Nr. 9 UStG") || !plain.includes("Aufmaß"))) {
+            ok(false, `${branche.id} ${software} ohne § 14 Abs. 4 Satz 1 Nr. 9 oder Aufmaß`);
+          }
+          if (branche.id === "gastro" && (plain.includes("Bestellwege: E-Mail.") || plain.includes("**Bestellweg:** Bestellwege:"))) {
+            ok(false, "Gastro setzt E-Mail als Bestellweg");
+          }
+          if ((software === "Excel / manuell" || branche.id === "gastro") && !plain.includes("Teil III: Technische Systemdokumentation")) {
+            ok(false, `${branche.id} ${software} ohne Teil III`);
           }
           const bodyStart = plain.indexOf("# ");
           const listAt = plain.indexOf("# Vom Betrieb zu ergänzende Punkte");

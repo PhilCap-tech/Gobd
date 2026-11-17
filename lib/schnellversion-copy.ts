@@ -91,7 +91,7 @@ export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro
   const art = options.kasseArt ?? "";
   const kassenText =
     art === "Ja, offene Ladenkasse (ohne elektronisches System)"
-      ? "Offene Ladenkasse: täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll. Wer zählt und den Bericht führt, ist einzutragen."
+      ? "Offene Ladenkasse: täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll. Wer zählt und den Bericht führt, ist einzutragen. Werden Einzelaufzeichnungen geführt oder wird die Ausnahme genutzt?"
       : art === "Unsicher"
         ? "Kassenart (elektronisch mit TSE oder offene Ladenkasse) ist festzulegen. Bei elektronischer Kasse: Kassen- und TSE-Seriennummer und das Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO. Bei offener Ladenkasse: Kassenbericht und Zählprotokoll."
         : "Kassenart (elektronisches Aufzeichnungssystem mit TSE), Kassen- und TSE-Seriennummer, Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO, Tagesabschluss.";
@@ -107,7 +107,7 @@ export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro
     ["Archiv, Unveränderbarkeit und Sicherung", "Wo liegen die Unterlagen, wie sind sie gegen Änderung geschützt, wer sichert wie oft? Fristen: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Geschäftsbriefe 6 Jahre."],
   );
   punkte.push([
-    self ? "Lohnabrechnung" : "Übergabe an Kanzlei bzw. Lohnbüro",
+    self ? "Lohn" : "Übergabe an Kanzlei bzw. Lohnbüro",
     LOHN_SATZ,
   ]);
   const points = punkte.map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");

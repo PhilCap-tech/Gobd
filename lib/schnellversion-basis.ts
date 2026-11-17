@@ -18,7 +18,11 @@ const VORLAGE: Record<string, string> = {
   sonstiges: "dienstleister",
 };
 
-type Entry = { status: "bestaetigt"; values: Record<string, unknown> };
+type Entry = {
+  status: "bestaetigt" | "nicht_zutreffend";
+  values: Record<string, unknown>;
+  reason?: string;
+};
 
 const FEST = "ist im Betrieb festzulegen und hier einzutragen";
 const GF = "die Geschäftsführung";
@@ -28,6 +32,19 @@ function ja(values: Record<string, unknown>): Entry {
   return { status: "bestaetigt", values };
 }
 
+function entfaelltOffeneKasse(): Entry {
+  return { status: "nicht_zutreffend", values: {}, reason: "offene Ladenkasse" };
+}
+
+export const EINZELAUFZEICHNUNG_SATZ =
+  "Grundsätzlich wird jeder Geschäftsvorfall einzeln aufgezeichnet (§ 146 Abs. 1 Satz 1 AO). Die Ausnahme nach § 146 Abs. 1 Satz 3 AO (Verkauf an eine Vielzahl nicht bekannter Personen gegen Barzahlung, bei Dienstleistungen nur mit kurzem Bestell- und Bezahlkontakt, AEAO zu § 146 Nr. 2.2.5, 2.2.6) wird genutzt: ja/nein – ist im Betrieb festzulegen. Soweit tatsächlich Einzelaufzeichnungen geführt werden (z. B. Bonblock, Bewirtungsrechnung), sind diese aufzubewahren (bitte prüfen).";
+
+const HANDWERK_RECHNUNG =
+  "Rechnungen über Bauleistungen an Privatpersonen enthalten den Hinweis auf deren zweijährige Aufbewahrungspflicht nach § 14 Abs. 4 Satz 1 Nr. 9 UStG (i. V. m. § 14b Abs. 1 Satz 5 UStG) (bitte prüfen). Bei Bauleistungen an andere Bauunternehmen wird geprüft, ob die Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG greift.";
+
+const HANDWERK_NACHWEIS =
+  "Leistungsnachweise: Aufmaß, Stundenzettel, Abnahmeprotokoll – Form und Ablage sind festzulegen.";
+
 function aufbewahrung(): string {
   return "Aufbewahrung: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 3 AO). Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO).";
 }
@@ -36,9 +53,21 @@ const OFFENE_KASSE = "Ja, offene Ladenkasse (ohne elektronisches System)";
 
 export function kassenNotverfahren(kasse: string): string {
   if (kasse === OFFENE_KASSE) {
-    return "Bei Ausfall der Kasse: Ersatzaufzeichnung (Notbon oder Liste), Ausfallzeit und Grund dokumentieren, Belege kennzeichnen, Nacherfassung festhalten (bitte prüfen).";
+    return "Bei Verlust oder fehlendem Kassenbericht: nachträgliche Ermittlung dokumentieren (bitte prüfen).";
   }
   return "Bei Ausfall von Kasse oder TSE: Ersatzaufzeichnung (Notbon oder Liste), Ausfallzeit und Grund dokumentieren, Belege kennzeichnen, Nacherfassung festhalten (bitte prüfen).";
+}
+
+export function mitEinzelaufzeichnung(body: string, chapterId: string, kasse: string | undefined): string {
+  if (chapterId !== "modul-m08" || kasse !== OFFENE_KASSE) return body;
+  const block = `**Einzelaufzeichnung:** ${EINZELAUFZEICHNUNG_SATZ}`;
+  if (body.includes(block)) return body;
+  const mark = "**Kassenart:**";
+  const at = body.indexOf(mark);
+  if (at < 0) return `${body}\n\n${block}`;
+  const lineEnd = body.indexOf("\n", at);
+  const cut = lineEnd < 0 ? body.length : lineEnd;
+  return `${body.slice(0, cut)}\n\n${block}${body.slice(cut)}`;
 }
 
 export function mitKassenNotverfahren(body: string, chapterId: string, kasse: string | undefined): string {
@@ -62,8 +91,12 @@ function kasseAntworten(kasse: SchnellversionAnswers["kasse"]): Record<string, E
   const out: Record<string, Entry> = {
     KA01: ja({
       kassenart,
-      system: "Hersteller, Modell und Seriennummer sind im Betrieb festzulegen und hier einzutragen",
-      anzahl: "Anzahl der Kassen ist im Betrieb festzulegen und hier einzutragen",
+      system: offen
+        ? "entfällt (offene Ladenkasse)"
+        : "Hersteller, Modell und Seriennummer sind im Betrieb festzulegen und hier einzutragen",
+      anzahl: offen
+        ? "entfällt (offene Ladenkasse)"
+        : "Anzahl der Kassen ist im Betrieb festzulegen und hier einzutragen",
     }),
     KA05: ja({
       ablauf,
@@ -81,7 +114,10 @@ function kasseAntworten(kasse: SchnellversionAnswers["kasse"]): Record<string, E
       nacherfassung: FEST,
     }),
   };
-  if (!offen) {
+  if (offen) {
+    out.KA02 = entfaelltOffeneKasse();
+    out.KA03 = entfaelltOffeneKasse();
+  } else {
     out.KA02 = ja({
       tse: unsicher
         ? "elektronisch mit TSE oder offene Ladenkasse – ist im Betrieb festzulegen. TSE-Art, TSE-Seriennummer, Zertifikat und ELSTER-Mitteilung sind im Betrieb festzulegen und hier einzutragen"
@@ -169,15 +205,16 @@ function gastro(): Record<string, Entry> {
       wer: "Küchenleitung bzw. Inhaberin oder Inhaber",
     }),
     EK03: ja({
-      wege: ["E-Mail"],
-      system: "Bestellung bei Stammlieferanten bzw. im Großhandel. Das konkrete System ist im Betrieb festzulegen und hier einzutragen.",
+      wege: "(z. B. E-Mail, Telefon, Portal des Großhändlers): ist im Betrieb festzulegen",
+      system: "Das Bestellsystem ist im Betrieb festzulegen und hier einzutragen.",
     }),
     EK05: ja({
       ablauf: "Küchen- bzw. Schichtleitung oder die Inhaberin bzw. der Inhaber prüft die Lieferung bei Annahme gegen den Lieferschein (Menge, Qualität, Kühlkette) und zeichnet den Lieferschein ab. Abweichungen werden auf dem Lieferschein vermerkt.",
       wer: "Küchen- bzw. Schichtleitung oder die Inhaberin bzw. der Inhaber",
     }),
     WW01: ja({
-      system: "Lagerorte: Kühlraum bzw. Kühlzellen, Tiefkühlung, Trockenlager, Getränkelager.",
+      system: "Name und Version sind im Betrieb festzulegen und hier einzutragen",
+      vorgaenge: "Lagerorte: Kühlraum bzw. Kühlzellen, Tiefkühlung, Trockenlager, Getränkelager.",
     }),
     WW08: ja({
       verfahren: "Stichtagsinventur",
@@ -203,7 +240,7 @@ function gastro(): Record<string, Entry> {
 function handwerk(): Record<string, Entry> {
   return {
     VK01: ja({
-      ablauf: "Aufträge entstehen aus Angebot bzw. Kostenvoranschlag und schriftlicher Auftragsbestätigung. Nachträge werden vor Ausführung schriftlich angeboten und beauftragt.",
+      ablauf: `Aufträge entstehen aus Angebot bzw. Kostenvoranschlag und schriftlicher Auftragsbestätigung. Nachträge werden vor Ausführung schriftlich angeboten und beauftragt. ${HANDWERK_NACHWEIS}`,
       system: FEST,
     }),
     VK05: ja({
@@ -211,14 +248,14 @@ function handwerk(): Record<string, Entry> {
       kreise: FEST,
     }),
     VK06: ja({
-      ablauf: "Rechnungen über Bauleistungen an Privatpersonen enthalten den Hinweis auf deren zweijährige Aufbewahrungspflicht nach § 14 UStG (bitte prüfen). Bei Bauleistungen an andere Bauunternehmen wird geprüft, ob die Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG greift.",
+      ablauf: HANDWERK_RECHNUNG,
     }),
     AR04: ja({
       ort: FEST,
       format: FEST,
     }),
     BS06: ja({
-      regeln: "Rechnungen über Bauleistungen an Privatpersonen enthalten den Hinweis auf deren zweijährige Aufbewahrungspflicht nach § 14 UStG (bitte prüfen). Bei Bauleistungen an andere Bauunternehmen wird geprüft, ob die Steuerschuldnerschaft des Leistungsempfängers nach § 13b UStG greift.",
+      regeln: HANDWERK_RECHNUNG,
     }),
     EK05: ja({
       ablauf: "Wareneingang von Material wird gegen Lieferschein geprüft. Abweichungen werden auf dem Lieferschein vermerkt.",
@@ -230,7 +267,7 @@ function handwerk(): Record<string, Entry> {
     }),
     BS01: ja({
       art: ["Handwerk / Bau"],
-      vorgaenge: "Bauprojekte mit Material, Abschlags- und Schlussrechnung. Leistungsnachweise (Stundenberichte, Materiallisten, Abnahmeprotokoll) liegen unter der Auftragsnummer.",
+      vorgaenge: `Bauprojekte mit Material, Abschlags- und Schlussrechnung. ${HANDWERK_NACHWEIS}`,
     }),
   };
 }
@@ -328,6 +365,16 @@ export function standardBasis(input: SchnellversionAnswers): { answers: IntakeAn
       ...gemein(input),
     },
   };
+  if (vorlage === "gastro" && input.kasse === OFFENE_KASSE && answers.katalog) {
+    answers.katalog.VK01 = ja({
+      ablauf: "Bewirtung mit Barzahlung über die offene Ladenkasse; Veranstaltungen und Catering mit Angebot bzw. Auftrag und gesonderter Rechnung.",
+      system: FEST,
+    });
+    answers.katalog.BS01 = ja({
+      art: ["Gastronomie / Hotel"],
+      vorgaenge: "Speisen und Getränke bzw. Verzehr im Haus und Außer-Haus werden mit dem jeweils zutreffenden Steuersatz erfasst (bitte prüfen). Bewirtungsrechnungen werden manuell erstellt (Vordruck oder Rechnungsprogramm – festzulegen). Trinkgeld wird getrennt erfasst.",
+    });
+  }
   const status: Record<string, { status: "tool" | "offen" | "nicht_vorhanden"; reason?: string }> = {
     m05: { status: "tool" },
     m08: kasse

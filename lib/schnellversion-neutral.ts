@@ -26,11 +26,11 @@ export function neutralizeStandardText(
   let next = text;
   next = next.replaceAll(
     "Entwurf aus Kunden-Intake — betriebliche Bestätigung ausstehend",
-    `${SV_BASIS_SATZ} Erstellt am ${erstelltAm}.`,
+    `Standardfassung, erstellt am ${erstelltAm}`,
   );
   next = next.replaceAll(
     "Entwurf aus Kunden-Intake - betriebliche Bestätigung ausstehend",
-    `${SV_BASIS_SATZ} Erstellt am ${erstelltAm}.`,
+    `Standardfassung, erstellt am ${erstelltAm}`,
   );
   next = next.replaceAll(
     "auf Grundlage der im Intake bestätigten Angaben",
@@ -108,6 +108,8 @@ export function neutralizeStandardText(
     `Erstellt am ${erstelltAm}. ${SV_BASIS_SATZ}`,
   );
   for (const date of FIXED_DATES) next = next.replaceAll(date, erstelltAm);
+  next = next.replace(/Hinweis: Diese Verfahrensdokumentation[\s\S]*?hinzuzuziehen\.\s*/g, "");
+  next = next.replaceAll("entfällt. Grund: offene Ladenkasse.", "entfällt (offene Ladenkasse).");
   next = next.replaceAll("..", ".");
   const fall = options.fall ?? standardFall({
     software: options.software ?? "",
@@ -137,6 +139,9 @@ function ohneInterneVerweise(text: string): string {
   next = next.replaceAll("siehe Anhang A", "siehe Ergänzungsliste am Ende");
   next = next.replaceAll("sonst siehe Anhang A", "sonst siehe Ergänzungsliste am Ende");
   next = next.replaceAll("Anhang A", "");
+  next = next.replaceAll("**Kassenart:** Art:", "**Kassenart:**");
+  next = next.replaceAll("**System:** System:", "**System:**");
+  next = next.replaceAll("**Bestellweg:** Bestellwege:", "**Bestellwege:**");
   next = next.replace(/[ \t]{2,}/g, " ");
   next = next.replace(/ +\./g, ".");
   next = next.replace(/\(\s*\)/g, "");
@@ -145,6 +150,25 @@ function ohneInterneVerweise(text: string): string {
     next = next.replaceAll(RECHTE_TABELLE, `Vorschlag – vom Betrieb zu bestätigen\n\n${RECHTE_TABELLE}`);
   }
   return next;
+}
+
+/** Offene Ladenkasse: keine TSE, Kassensystem-Zeilen in Aufbewahrung angepasst. */
+export function offeneKasseText(text: string): string {
+  return ohneTseAussage(text)
+    .split("\n")
+    .flatMap((line) => {
+      if (line.includes("Programmier- und Änderungsprotokolle des Kassensystems")) return [];
+      if (line.includes("Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle")) {
+        return [
+          line.replace(
+            "Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle",
+            "Kassenberichte, Zählprotokolle, Einzelaufzeichnungen soweit geführt",
+          ),
+        ];
+      }
+      return [line];
+    })
+    .join("\n");
 }
 
 /** Offene Ladenkasse: keine Aussage zur TSE. Nur die Standardfassung. */
