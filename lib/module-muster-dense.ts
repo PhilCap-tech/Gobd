@@ -663,13 +663,13 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
 }
 
 
-const DATEV_FELDER = new Set(["AW02.merkmale"]);
+const DATEV_FELDER = new Set(["AW01.elektronisch", "AW02.merkmale", "AW03.ablauf"]);
 
 function istRollenfeld(key: string): boolean {
   return key === "wer" || key.startsWith("rolle") || key === "freigabe" || key === "verantwortlich" || key === "vertretung";
 }
 
-/** Hängt den DATEV-Zusatz nur an AW02.merkmale, nicht an Rollenfelder. */
+/** Hängt den DATEV-Zusatz an die sichtbaren Archivfelder, nicht an Rollenfelder. */
 function deepenPass(katalog: Record<string, Entry>, f: DenseFirma): Record<string, Entry> {
   const suffix = ` Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online; fachlich ${f.buchhaltung}, Freigabe ${f.gf}. Aufbewahrung der Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO).`;
   const out: Record<string, Entry> = { ...katalog };

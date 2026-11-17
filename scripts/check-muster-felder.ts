@@ -115,8 +115,12 @@ for (const vorlage of MUSTER_VORLAGEN) {
   }
   if (abschnitt75.includes("siehe Modul 7")) fail(`${vorlage}: Selbstverweis in Abschnitt 7.5`);
 
-  if (!modul16.includes("## 16.3 ") || !modul16.includes("## 16.4 ")) {
-    fail(`${vorlage}: Modul 16.3 oder 16.4 fehlt`);
+  if (!modul16.includes("## 16.2 ") || !modul16.includes("## 16.3 ") || !modul16.includes("## 16.4 ")) {
+    fail(`${vorlage}: Modul 16.2, 16.3 oder 16.4 fehlt`);
+  }
+  const rahmen = modul16.split("## 16.2 ")[1]?.split("\n## ")[0] ?? "";
+  if (!rahmen.includes("§ 147 Abs. 3 Satz 5 AO")) {
+    fail(`${vorlage}: Ablaufhemmung in 16.2 ohne Satz 5`);
   }
   const uebersicht = modul16.split("## 16.4 ")[0] ?? "";
   const frage = modul16.split("## 16.4 ")[1] ?? "";
@@ -133,6 +137,14 @@ for (const vorlage of MUSTER_VORLAGEN) {
   const briefInFrage = (frage.match(/Buchungsbelege 8 Jahre, auch wenn sie zugleich Handels- oder Geschäftsbrief sind/g) ?? []).length;
   if (briefInUebersicht !== 0 || briefInFrage !== 1) {
     fail(`${vorlage}: Brief-Satz steht ${briefInUebersicht + briefInFrage} Mal in Modul 16`);
+  }
+
+  if (vorlage === "dienstleister" || vorlage === "ecommerce") {
+    const modul15 = chapters.find((chapter) => chapter.id === "modul-m15")?.body ?? "";
+    const sichtbar = (modul15.match(/Aufbewahrung der Buchungsbelege 8 Jahre \(§ 147 Abs\. 3 AO\)/g) ?? []).length;
+    if (sichtbar < 3) {
+      fail(`${vorlage}: DATEV-Zusatz steht ${sichtbar} Mal in Modul 15, erwartet in den sichtbaren Feldern`);
+    }
   }
 
   const points = evaluateOpenPoints({ answers: muster.answers, identity: muster.identity });
