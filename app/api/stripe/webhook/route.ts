@@ -42,8 +42,9 @@ import {
 } from "@/lib/plan-webhook";
 import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
-import { rememberSvEvent } from "@/lib/schnellversion-store";
+import { rememberPurchase99Once } from "@/lib/schnellversion-store";
 import { markSvCreditUsed } from "@/lib/schnellversion-record";
+import { confirmPaidSession, paymentFromStatus } from "@/lib/schnellversion-payment";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
 import { logError } from "@/lib/log-error";
 import type Stripe from "stripe";
@@ -108,21 +109,18 @@ function invoiceEntityId(invoice: {
 
 /** Nur das Ereignis. Die bestehende Kaufverbuchung bleibt davor unverändert. */
 async function noteSchnellversionPurchase(
-  session: { metadata?: { sv_arm?: string | null; sv_purchase_id?: string | null } | null },
+  session: { id?: string | null; metadata?: { sv_arm?: string | null; sv_purchase_id?: string | null } | null },
   email: string,
+  eventId: string,
 ): Promise<void> {
   if (!schnellversion49Enabled()) return;
   const arm = session.metadata?.sv_arm;
   if (arm !== "control" && arm !== "test") return;
   try {
-    rememberSvEvent({
-      name: "purchase_99",
+    await rememberPurchase99Once({
+      sessionId: session.id?.trim() ?? "",
+      eventId,
       arm,
-      variante: "b",
-      branche_vorlage: "",
-      value: 99,
-      step: 0,
-      ziel: "",
     });
     const purchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
     if (purchaseId && email.trim()) await markSvCreditUsed(email, purchaseId, new Date().toISOString());
@@ -187,6 +185,21 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
+        if (session.metadata?.sv49 === "1") {
+          if (paymentFromStatus(session.payment_status) === "paid") {
+            const pendingId = session.metadata.sv_pending?.trim() ?? "";
+            try {
+              const stored = await confirmPaidSession(session.id, { status: "paid", ...(pendingId ? { pendingId } : {}) });
+              if (!stored.paid) {
+                return NextResponse.json({ error: "Kauf nicht gespeichert" }, { status: 503 });
+              }
+            } catch (error) {
+              console.error("[webhook] Schnellversion", error instanceof Error ? error.name : "error");
+              return NextResponse.json({ error: "Kauf nicht gespeichert" }, { status: 503 });
+            }
+          }
+          return NextResponse.json({ received: true });
+        }
         let email =
           session.customer_details?.email || session.customer_email || "";
         const company = session.metadata?.company || "";
@@ -352,7 +365,7 @@ export async function POST(request: Request) {
             eventId: event.id,
             at: eventTimeIso(event.created),
           });
-          await noteSchnellversionPurchase(session, buyerEmail);
+          await noteSchnellversionPurchase(session, buyerEmail, event.id);
           break;
         }
         await recordCheckoutSubscription({

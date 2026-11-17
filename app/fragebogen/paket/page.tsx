@@ -11,6 +11,9 @@ import { planPackageTextsV3 } from "@/lib/plan-copy";
 import { intakeLoginFirstEnabled, memberPreselected } from "@/lib/pricing-model";
 import { firstQueryValue } from "@/lib/query";
 import { listEntitiesByEmail } from "@/lib/store";
+import { schnellversionOffered } from "@/lib/schnellversion-flag";
+import { anrechnungBis, downloadStillOpen, listSvPurchases } from "@/lib/schnellversion-record";
+import { formatSvDate } from "@/lib/schnellversion-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -35,12 +38,21 @@ export default async function PaketPage({
   const entities = await listEntitiesByEmail(email);
   const requested = firstQueryValue(params.entity_id) ?? "";
   const bound = entities.find((e) => e.entityId === requested) ?? entities[0];
+  const credit = schnellversionOffered()
+    ? (await listSvPurchases(email)).find((row) => !row.creditUsedAt.trim() && downloadStillOpen(row, new Date()))
+    : undefined;
   return (
     <>
       <SiteHeader backHref={FRAGEBOGEN_PATH} backLabel="← Zurück zum Fragebogen" />
       <main className="wrap page">
         <h1>{PAKET_H1}</h1>
         <p className="lead">{PAKET_INTRO}</p>
+        {credit ? (
+          <p className="hint">
+            Anrechnung der 49 € für {credit.company} bis zum {formatSvDate(anrechnungBis(credit.purchasedAt))}. Die
+            Anrechnung gilt einmal für dieselbe Firma.
+          </p>
+        ) : null}
         <CheckoutForm
           key={email}
           stripeReady={isStripeConfigured()}

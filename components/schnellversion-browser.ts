@@ -87,6 +87,8 @@ export function onConsentChange(listener: () => void): () => void {
 /** Aufruf ohne Einwilligung und ohne Arm. Nur eine Zählung, keine Personenbezogenen Daten. */
 export async function postSvVisit(): Promise<void> {
   try {
+    if (sessionStorage.getItem("sv49_visit") === "1") return;
+    sessionStorage.setItem("sv49_visit", "1");
     await fetch("/api/schnellversion/event", {
       method: "POST",
       headers: { "content-type": "application/json" },

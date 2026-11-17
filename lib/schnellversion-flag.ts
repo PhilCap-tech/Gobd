@@ -18,23 +18,42 @@ export function schnellversionPriceId(env: FlagEnv = process.env): string {
   return /^price_[A-Za-z0-9_]+$/.test(raw) ? raw : "";
 }
 
+/** Vercel und jeder Produktionslauf ignorieren den Stub, auch wenn die Variable gesetzt ist. */
+export function schnellversionStubBlocked(env: FlagEnv = process.env): boolean {
+  if ((env.VERCEL ?? "").trim()) return true;
+  return (env.NODE_ENV ?? "").trim() === "production";
+}
+
 export function schnellversionStripeStub(env: FlagEnv = process.env): boolean {
+  if (schnellversionStubBlocked(env)) return false;
   const raw = (env.SCHNELLVERSION_49_STRIPE_STUB ?? "").trim().toLowerCase();
-  return raw === "1" || raw === "true";
+  return raw === "1" || raw === "true" || raw === "paid" || raw === "unpaid";
+}
+
+/** Flag allein reicht nicht: im bisherigen Preismodell bleiben die Routen zu. */
+export function schnellversionOffered(env: FlagEnv = process.env): boolean {
+  if (!schnellversion49Enabled(env)) return false;
+  const model = (env.PRICING_MODEL ?? "").trim().toLowerCase();
+  return model === "v2" || model === "v3";
 }
 
 /**
- * `refuse`: kein Checkout (Flag aus, Price-ID fehlt, oder Live-Key).
- * `stub`: lokale Danke-Seite, kein Stripe-Aufruf.
- * `test`: nur ein `sk_test_`-Key darf später eine Session anlegen.
+ * `refuse`: kein Checkout (Flag aus oder Price-ID fehlt).
+ * `stub`: lokale Danke-Seite, kein Stripe-Aufruf. Auf Vercel und in Produktion nie.
+ * `test`: `sk_test_` darf eine Session anlegen.
+ * `live`: `sk_live_` darf eine Session anlegen, nur mit Flag und Preis.
  */
-export type SchnellversionCheckoutPlan = "refuse" | "stub" | "test";
+export type SchnellversionCheckoutPlan = "refuse" | "stub" | "test" | "live";
 
 export function schnellversionCheckoutPlan(env: FlagEnv = process.env): SchnellversionCheckoutPlan {
   if (!schnellversion49Enabled(env) || !schnellversionPriceId(env)) return "refuse";
   const secret = (env.STRIPE_SECRET_KEY ?? "").trim();
-  if (secret.startsWith("sk_live_")) return "refuse";
+  if (schnellversionStubBlocked(env)) {
+    if (secret.startsWith("sk_live_")) return "live";
+    return secret.startsWith("sk_test_") ? "test" : "refuse";
+  }
   if (schnellversionStripeStub(env) || !secret) return "stub";
   if (secret.startsWith("sk_test_")) return "test";
+  if (secret.startsWith("sk_live_")) return "live";
   return "refuse";
 }

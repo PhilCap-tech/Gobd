@@ -1,0 +1,387 @@
+/**
+ * Textbausteine der Standardfassung.
+ * Software, Kanzlei, Lohn und Bank werden nicht mehr per Ersetzung in den
+ * Vollversionstext eingesetzt. Jeder Fall hat eigene Sätze.
+ * Die Vollversion ruft diese Datei nicht auf.
+ */
+
+export type BausteinKind = "datev" | "lexoffice" | "sevdesk" | "excel" | "unbekannt" | "named";
+
+export type StandardFall = {
+  kind: BausteinKind;
+  name: string;
+  self: boolean;
+  datev: boolean;
+  excel: boolean;
+  solo?: boolean;
+};
+
+export type BausteinInput = {
+  software: string;
+  softwareFrei?: string;
+  bucht: string;
+  mitarbeitende?: string;
+};
+
+const AUFBEWAHRUNG = "Aufbewahrung: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 3 AO). Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO).";
+
+export const LOHN_SATZ =
+  "Lohnabrechnung intern oder extern – ist im Betrieb festzulegen und hier einzutragen.";
+
+export const LOHN_SOLO =
+  "Lohnabrechnung: entfällt, soweit keine Beschäftigten (bitte prüfen).";
+
+/** Abkürzungen, an deren Punkt der Satzteiler nicht trennen darf. */
+const ABBREV: ReadonlyArray<readonly [string, string]> = [
+  ["i. d. R.", "i§d§R"],
+  ["z. B.", "z§B"],
+  ["u. a.", "u§a"],
+  ["z. T.", "z§T"],
+  ["u. U.", "u§U"],
+  ["d. h.", "d§h"],
+  ["o. ä.", "o§ä"],
+  ["bzw.", "bzw§"],
+  ["ggf.", "ggf§"],
+  ["vgl.", "vgl§"],
+  ["Abs.", "Abs§"],
+  ["Nr.", "Nr§"],
+];
+
+function maskAbbrev(line: string): string {
+  let next = line;
+  for (const [from, to] of ABBREV) next = next.replaceAll(from, to);
+  return next;
+}
+
+function unmaskAbbrev(line: string): string {
+  let next = line;
+  for (const [from, to] of [...ABBREV].reverse()) next = next.replaceAll(to, from);
+  return next;
+}
+
+function splitSentences(line: string): string[] {
+  if (line.trimStart().startsWith("|")) return [line];
+  const masked = maskAbbrev(line);
+  const parts = masked.includes(". ") ? masked.split(/(?<=\.)\s+/) : [masked];
+  return parts.map((part) => unmaskAbbrev(part));
+}
+
+function bankOffen(name: string, self: boolean): string {
+  const wer = self
+    ? "wer sie erfasst, ist festzulegen"
+    : "wer sie erfasst (Betrieb oder Kanzlei), ist festzulegen";
+  return `Kontoumsätze gelangen per Bankabruf oder nach Kontoauszug in ${name}; ${wer} (bitte prüfen).`;
+}
+
+export function standardFall(input: BausteinInput): StandardFall {
+  const self = input.bucht === "Wir selbst im Unternehmen";
+  const solo = input.mitarbeitende === "1 (nur ich)";
+  const frei = (input.softwareFrei ?? "").trim();
+  if (input.software === "DATEV") return { kind: "datev", name: "DATEV", self, datev: true, excel: false, solo };
+  if (input.software === "lexoffice" || input.software === "Lexware Office") {
+    return { kind: "lexoffice", name: "Lexware Office", self, datev: false, excel: false, solo };
+  }
+  if (input.software === "sevdesk") return { kind: "sevdesk", name: "sevdesk", self, datev: false, excel: false, solo };
+  if (input.software === "Excel / manuell") {
+    return { kind: "excel", name: "Excel-Listen bzw. manuelle Aufzeichnungen", self, datev: false, excel: true, solo };
+  }
+  if (input.software === "Weiß ich nicht, macht die Kanzlei") {
+    return {
+      kind: "unbekannt",
+      name: self ? "die eingesetzte Buchhaltungssoftware" : "die von der Kanzlei eingesetzte Software",
+      self,
+      datev: false,
+      excel: false,
+      solo,
+    };
+  }
+  return { kind: "named", name: frei || "die eingesetzte Buchhaltungssoftware", self, datev: false, excel: false, solo };
+}
+
+export type BausteinPack = {
+  ablage: string;
+  lohnProgramm: string;
+  lohnProtokoll: string;
+  lohnAblage: string;
+  lohnFibu: string;
+  lohnMeldung: string;
+  lohnZugriff: string;
+  bank: string;
+  zahlung: string;
+  kasse: string;
+  schnittstelle: string;
+  archiv: string;
+  system: string;
+  kanzleiFrei: string;
+};
+
+function ohneMarker(pack: BausteinPack): BausteinPack {
+  const out = { ...pack };
+  for (const key of Object.keys(out) as Array<keyof BausteinPack>) {
+    out[key] = out[key].replaceAll(" [bitte prüfen]", "").replaceAll("[bitte prüfen]", "").replace(/\s{2,}/g, " ").trim();
+  }
+  return out;
+}
+
+function buildPack(fall: StandardFall): BausteinPack {
+  const lohnProgramm = fall.solo ? LOHN_SOLO : LOHN_SATZ;
+  const kanzleiFrei = "Die Buchhaltung liegt im Unternehmen. [bitte prüfen]";
+  if (fall.datev && !fall.self) {
+    return {
+      ablage: `Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online. ${AUFBEWAHRUNG}`,
+      lohnProgramm,
+      lohnProtokoll: "Übermittlungsprotokolle legt die Kanzlei ab. [bitte prüfen]",
+      lohnAblage: "Ablageort der Lohnunterlagen: bei der Kanzlei.",
+      lohnFibu: "Die Kanzlei übernimmt die Lohnbuchungen in die Finanzbuchhaltung.",
+      lohnMeldung: "Personaländerungen gehen an die Kanzlei. [bitte prüfen]",
+      lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
+      bank: "Kontoumsätze werden elektronisch über den Bankdatenabruf in DATEV übernommen und von der Kanzlei gebucht (bitte prüfen). Die elektronischen Kontoauszüge (PDF) werden vom Betrieb in DATEV Unternehmen online bzw. im eigenen Archiv abgelegt, nicht nur im Bankportal.",
+      zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
+      kasse: "Monatlicher Export aus dem Kassensystem an die Kanzlei. [bitte prüfen]",
+      schnittstelle: "Übergabe an DATEV laut Betrieb. [bitte prüfen]",
+      archiv: "Belege liegen in DATEV Unternehmen online. [bitte prüfen]",
+      system: "Buchhaltung in DATEV Unternehmen online bei der Kanzlei.",
+      kanzleiFrei,
+    };
+  }
+  if (fall.datev && fall.self) {
+    return {
+      ablage: `Nachweis und Ablage unter Beleg-ID in DATEV. ${AUFBEWAHRUNG}`,
+      lohnProgramm,
+      lohnProtokoll: "Übermittlungsprotokolle werden im Unternehmen abgelegt. [bitte prüfen]",
+      lohnAblage: "Ablageort der Lohnunterlagen: im Unternehmen. [bitte prüfen]",
+      lohnFibu: "Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen.",
+      lohnMeldung: "Personaländerungen erfasst der Betrieb. [bitte prüfen]",
+      lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
+      bank: bankOffen("DATEV", true),
+      zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
+      kasse: "Monatlicher Export aus dem Kassensystem in die Buchhaltung. [bitte prüfen]",
+      schnittstelle: "Übergabe an DATEV laut Betrieb. [bitte prüfen]",
+      archiv: "Belege liegen in DATEV. [bitte prüfen]",
+      system: "Buchhaltung in DATEV im Unternehmen.",
+      kanzleiFrei,
+    };
+  }
+  if (fall.excel) {
+    return {
+      ablage: `Nachweis und Ablage in Excel-Listen bzw. manuellen Aufzeichnungen. Die Buchhaltung nutzt Excel-Listen bzw. manuelle Aufzeichnungen. ${AUFBEWAHRUNG}`,
+      lohnProgramm,
+      lohnProtokoll: "Übermittlungsprotokolle werden abgelegt. [bitte prüfen]",
+      lohnAblage: fall.self
+        ? "Ablageort der Lohnunterlagen: im Unternehmen. [bitte prüfen]"
+        : "Ablageort der Lohnunterlagen: bei der Kanzlei. [bitte prüfen]",
+      lohnFibu: "Lohn an die Finanzbuchhaltung: manuelle Übernahme der Lohnliste.",
+      lohnMeldung: fall.self
+        ? "Personaländerungen erfasst der Betrieb. [bitte prüfen]"
+        : "Personaländerungen gehen an die Kanzlei. [bitte prüfen]",
+      lohnZugriff: "Lohnlisten nur für [bitte prüfen] zugänglich.",
+      bank: "Kontoauszüge der Bank liegen als PDF oder auf Papier in der Belegablage (bitte prüfen).",
+      zahlung: "Zahlungen erfasst der Betrieb manuell im Onlinebanking. [bitte prüfen]",
+      kasse: "Kassenberichte gehen als Liste an die Buchhaltung. [bitte prüfen]",
+      schnittstelle: "Keine technische Schnittstelle. Die Erfassung erfolgt manuell. [bitte prüfen]",
+      archiv: "Belege liegen in der Belegablage. [bitte prüfen]",
+      system: "Aufzeichnungen werden in Excel-Listen bzw. manuell geführt (bitte prüfen). Tabellenkalkulationen sind frei änderbar. Der Betrieb beschreibt daher, wie die Unveränderbarkeit gesichert wird: monatlicher Abschluss jeder Liste, Ablage als schreibgeschützte, versionierte Datei in einem Archiv mit Änderungsprotokoll, keine nachträgliche Bearbeitung abgeschlossener Monate. Korrekturen nur als neue Zeile mit Datum und Grund. Ein Kassenbuch in Excel ohne solche Sicherung genügt nicht.",
+      kanzleiFrei,
+    };
+  }
+  if (fall.kind === "unbekannt" && fall.self) {
+    return {
+      ablage: `Nachweis und Ablage in der eingesetzten Buchhaltungssoftware. ${AUFBEWAHRUNG}`,
+      lohnProgramm,
+      lohnProtokoll: "Übermittlungsprotokolle werden im Unternehmen abgelegt. [bitte prüfen]",
+      lohnAblage: "Ablageort der Lohnunterlagen: im Unternehmen. [bitte prüfen]",
+      lohnFibu: "Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen.",
+      lohnMeldung: "Personaländerungen erfasst der Betrieb. [bitte prüfen]",
+      lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
+      bank: bankOffen("die Buchhaltung", true),
+      zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
+      kasse: "Monatlicher Export aus dem Kassensystem in die Buchhaltung. [bitte prüfen]",
+      schnittstelle: "Übergabe an die Buchhaltung laut Betrieb. [bitte prüfen]",
+      archiv: "Belege liegen in der Belegablage des Betriebs. [bitte prüfen]",
+      system: "Buchhaltung in der eingesetzten Buchhaltungssoftware im Unternehmen.",
+      kanzleiFrei,
+    };
+  }
+  if (fall.kind === "unbekannt") {
+    return {
+      ablage: `Nachweis und Ablage in der von der Kanzlei eingesetzten Software. Die Buchhaltung nutzt die von der Kanzlei eingesetzte Software. ${AUFBEWAHRUNG}`,
+      lohnProgramm,
+      lohnProtokoll: "Übermittlungsprotokolle legt die Kanzlei ab. [bitte prüfen]",
+      lohnAblage: "Ablageort der Lohnunterlagen: bei der Kanzlei.",
+      lohnFibu: "Die Kanzlei übernimmt die Lohnbuchungen in die Finanzbuchhaltung.",
+      lohnMeldung: "Personaländerungen gehen an die Kanzlei. [bitte prüfen]",
+      lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
+      bank: bankOffen("die Buchhaltung", false),
+      zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
+      kasse: "Monatlicher Export aus dem Kassensystem an die Kanzlei. [bitte prüfen]",
+      schnittstelle: "Übergabe an die Kanzlei laut Betrieb. [bitte prüfen]",
+      archiv: "Belege liegen bei der Kanzlei. [bitte prüfen]",
+      system: "Buchhaltung in der von der Kanzlei eingesetzten Software.",
+      kanzleiFrei,
+    };
+  }
+  if (fall.kind === "lexoffice") {
+    const name = "Lexware Office";
+    return {
+      ablage: `Nachweis und Ablage in ${name}. ${AUFBEWAHRUNG}`,
+      lohnProgramm,
+      lohnProtokoll: fall.self
+        ? "Übermittlungsprotokolle werden im Unternehmen abgelegt."
+        : "Übermittlungsprotokolle legt die Kanzlei ab.",
+      lohnAblage: fall.self
+        ? "Ablageort der Lohnunterlagen: im Unternehmen."
+        : "Ablageort der Lohnunterlagen: bei der Kanzlei.",
+      lohnFibu: fall.self
+        ? "Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen."
+        : "Die Kanzlei übernimmt die Lohnbuchungen in die Finanzbuchhaltung.",
+      lohnMeldung: fall.self
+        ? "Personaländerungen erfasst der Betrieb."
+        : "Personaländerungen gehen an die Kanzlei.",
+      lohnZugriff: "Zugriff auf Lohnlisten ist im Betrieb festzulegen und hier einzutragen.",
+      bank: "Kontoumsätze werden über die Bankanbindung in Lexware Office abgerufen, und die Kontoauszüge (PDF) werden zusätzlich als Beleg abgelegt (bitte prüfen).",
+      zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei der Geschäftsführung.",
+      kasse: fall.self
+        ? "Kassenberichte gehen als Liste an die Buchhaltung."
+        : "Kassenberichte gehen als Liste an die Kanzlei.",
+      schnittstelle: fall.self
+        ? `Übergabe an ${name} laut Betrieb.`
+        : "Übergabe an die Kanzlei laut Betrieb.",
+      archiv: `Belege liegen in ${name}.`,
+      system: fall.self
+        ? "Buchhaltung in Lexware Office, Cloud-Software des Anbieters, im Unternehmen (bitte prüfen)."
+        : "Buchhaltung in Lexware Office, Cloud-Software des Anbieters. Die Kanzlei bucht (bitte prüfen).",
+      kanzleiFrei,
+    };
+  }
+  const name = fall.name;
+  return {
+    ablage: `Nachweis und Ablage in ${name}. ${AUFBEWAHRUNG}`,
+    lohnProgramm,
+    lohnProtokoll: fall.self
+      ? "Übermittlungsprotokolle werden im Unternehmen abgelegt. [bitte prüfen]"
+      : "Übermittlungsprotokolle legt die Kanzlei ab. [bitte prüfen]",
+    lohnAblage: fall.self
+      ? "Ablageort der Lohnunterlagen: im Unternehmen. [bitte prüfen]"
+      : "Ablageort der Lohnunterlagen: bei der Kanzlei.",
+    lohnFibu: fall.self
+      ? `Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen in ${name}.`
+      : "Die Kanzlei übernimmt die Lohnbuchungen in die Finanzbuchhaltung.",
+    lohnMeldung: fall.self
+      ? "Personaländerungen erfasst der Betrieb. [bitte prüfen]"
+      : "Personaländerungen gehen an die Kanzlei. [bitte prüfen]",
+    lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
+    bank: bankOffen(name, fall.self),
+    zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
+    kasse: fall.self
+      ? "Monatlicher Export aus dem Kassensystem in die Buchhaltung. [bitte prüfen]"
+      : "Monatlicher Export aus dem Kassensystem an die Kanzlei. [bitte prüfen]",
+    schnittstelle: fall.self
+      ? `Übergabe an ${name} laut Betrieb. [bitte prüfen]`
+      : `Übergabe an die Kanzlei laut Betrieb. [bitte prüfen]`,
+    archiv: `Belege liegen in ${name}. [bitte prüfen]`,
+    system: fall.self
+      ? `Buchhaltung in ${name} im Unternehmen.`
+      : `Buchhaltung in ${name}. Die Kanzlei bucht.`,
+    kanzleiFrei,
+  };
+}
+
+export function bausteinPack(fall: StandardFall): BausteinPack {
+  return ohneMarker(buildPack(fall));
+}
+
+/** Sätze, die in jedem PDF dieses Falls vorkommen. */
+export function pflichtBausteine(fall: StandardFall): string[] {
+  const pack = bausteinPack(fall);
+  return [pack.ablage, pack.bank, pack.lohnProgramm, pack.schnittstelle];
+}
+
+/** Prozessbegriffe, die in dieser Branche nicht vorkommen. */
+export const BRANCHEN_FREMDE: Record<string, readonly string[]> = {
+  gastro: ["ERP", "Fertigung", "Mindestbestand", "Feinmechanik", "Handscanner", "WaWi Lagerplus", "Baustelle", "Aufmaß", "Bautagebuch", "Nachunternehmer", "Shopify", "Marktplatz", "Praxissoftware", "Taxameter"],
+  handwerk: ["ERP", "Fertigung", "Mindestbestand", "Feinmechanik", "Handscanner", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Trinkgeld", "Kassensturz", "WaWi Lagerplus"],
+  handel: ["Fertigung", "Mindestbestand", "Feinmechanik", "Theke", "Z-Bon", "Baustelle", "Aufmaß", "Bautagebuch", "Shopify", "Praxissoftware", "Taxameter"],
+  ecommerce: ["Fertigung", "Mindestbestand", "Feinmechanik", "Theke", "Z-Bon", "Baustelle", "Aufmaß", "Kassensturz", "Handscanner", "Praxissoftware", "Taxameter"],
+  dienstleistung: ["ERP", "Fertigung", "Mindestbestand", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+  freiberuf: ["ERP", "Fertigung", "Mindestbestand", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+  sonstiges: ["ERP", "Fertigung", "Mindestbestand", "Z-Bon", "Theke", "Shopify", "Marktplatz", "Baustelle", "Aufmaß", "Handscanner", "Kassensturz"],
+};
+
+export function dropFremdeProzesse(text: string, branche: string): string {
+  const terms = BRANCHEN_FREMDE[branche] ?? [];
+  if (!terms.length) return text;
+  const hit = (part: string) => terms.some((term) => part.includes(term));
+  return text
+    .split("\n")
+    .map((line) => splitSentences(line).filter((part) => !hit(part)).join(" "))
+    .join("\n");
+}
+
+/** Gleiche Sätze ab dieser Länge. Kürzere Tabellenzellen zählen nicht. */
+export function repeatedSentences(text: string, max = 3): string[] {
+  const counts = new Map<string, number>();
+  for (const line of text.split("\n")) {
+    for (const part of splitSentences(line)) {
+      const key = part.replace(/\s+/g, " ").trim();
+      if (key.length < 28) continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].filter(([, count]) => count > max).map(([sentence, count]) => `${count}× ${sentence.slice(0, 80)}`);
+}
+
+export function limitIdenticalSentences(text: string, max = 1, counts = new Map<string, number>()): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const kept = splitSentences(line).filter((part) => {
+        const key = part.replace(/\s+/g, " ").trim();
+        if (key === LOHN_SATZ) return true;
+        if (key.length < 28) return true;
+        const next = (counts.get(key) ?? 0) + 1;
+        counts.set(key, next);
+        return next <= max;
+      });
+      return kept.join(" ");
+    })
+    .join("\n");
+}
+
+const SUFFIX = /Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online;[\s\S]*?§ 147 Abs\. 3 AO\)\./g;
+
+function needsRewrite(chunk: string, fall: StandardFall): boolean {
+  if (/Teil III|Systeme, Schnittstellen, Archiv, Fristen|Keine technische Schnittstelle/.test(chunk)) return false;
+  if (/Kontoumsätze werden täglich|Bank an DATEV|MT940|per DATEV Upload|DATEV Upload|täglich über DATEV/.test(chunk)) return true;
+  if (fall.datev && !fall.self) return false;
+  if (fall.self && /Kanzlei|Steuerkanzlei/.test(chunk)) return true;
+  if (!fall.datev && /DATEV|LODAS/.test(chunk)) return true;
+  if (/Lohn und Gehalt/.test(chunk) && !(fall.datev && !fall.self)) return true;
+  if (fall.excel && /SEPA|MT940|Schnittstelle|Cloud-Anbieter|Hosting Anbieter-Cloud|Eigene Rolle|Upload|Zahlungsvorschlag|Export\/Upload/.test(chunk)) {
+    return true;
+  }
+  if ((fall.excel || fall.kind === "unbekannt") && /Hosting Anbieter-Cloud|Cloud-Anbieter/.test(chunk)) return true;
+  return false;
+}
+
+function rewriteChunk(chunk: string, fall: StandardFall): string {
+  if (!needsRewrite(chunk, fall)) return chunk;
+  return "";
+}
+
+/** Ersetzt Software-, Kanzlei-, Lohn- und Bank-Passagen durch den Baustein des Falls. */
+export function applyStandardBausteine(text: string, fall: StandardFall): string {
+  let next = text.replaceAll("Schnittstellen: Schnittstellen:", "Schnittstellen: ");
+  next = next.replace(SUFFIX, "");
+  next = next
+    .split("\n")
+    .map((line) => splitSentences(line).map((part) => rewriteChunk(part, fall)).join(" "))
+    .join("\n");
+  return limitIdenticalSentences(next, 1);
+}
+
+/** Einmal im Systemteil, nicht in jedem Prozess. */
+export function standardSystemSection(fall: StandardFall): string {
+  const pack = bausteinPack(fall);
+  const lines = [pack.system, pack.ablage, pack.bank, pack.lohnProgramm, pack.schnittstelle].filter(Boolean);
+  return `# Systeme und Buchhaltung\n\n${lines.join("\n\n")}`;
+}

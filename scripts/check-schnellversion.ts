@@ -7,25 +7,104 @@ import { readFileSync } from "node:fs";
 import { effectiveModulStatus } from "../lib/module/status";
 import { pageTexts } from "./pdf-text";
 import { decideSvArm } from "../lib/schnellversion-assign";
-import { openCredit } from "../lib/schnellversion-credit";
+import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { creditStillOpen, downloadStillOpen, type SvPurchase } from "../lib/schnellversion-record";
+import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, findSvPurchaseBySession, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
+import { schnellversionCheckoutMetadata, schnellversionSessionParams } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
+  kasseCheckAntwort,
+  softwareProse,
+  statedFibu,
+  SV_BRANCHEN,
+  SV_BUCHT,
+  SV_KASSE,
+  SV_SOFTWARE,
   vorlageForBranche,
   type SchnellversionAnswers,
 } from "../lib/schnellversion-answers";
-import { schnellversionCheckoutPlan, schnellversion49Enabled } from "../lib/schnellversion-flag";
-import { svDownloadStillOpen, SV_COVER_TITLE } from "../lib/schnellversion-copy";
-import { evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
+import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
+import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PURGE_AFTER_DAYS } from "../lib/schnellversion-copy";
+import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
+import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
+import { confirmPaidSession, failNextClaimedPurchaseForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
+import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
+import { standardPlainText } from "../lib/schnellversion-pdf";
+import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
+import { maybeSendSchnellversionPurchaseMail, purchaseMail } from "../lib/schnellversion-purchase-mail";
+import { runSvPurge } from "../lib/schnellversion-purge";
+import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
+import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
 import { getGesamtMuster } from "../lib/module-muster";
+import { MUSTER_FIRMEN } from "../lib/module-muster-dense";
 import { generateStandardPdf } from "../lib/schnellversion-pdf";
 
 function ok(cond: unknown, msg: string) {
   assert.ok(cond, msg);
   console.log("ok:", msg);
+}
+
+/** „X: X:“, auch wenn das erste Label in Markdown fett steht. */
+function doppeltesLabel(text: string): string {
+  const plain = text.replaceAll("*", "");
+  return plain.match(/([A-ZÄÖÜa-zäöü][^:\n]{1,80}?): \1:/)?.[0] ?? "";
+}
+
+function coverField(text: string, label: string): string {
+  const match = text.match(new RegExp(`\\| ${label} \\| ([^\\n|]+)`));
+  return (match?.[1] ?? "").replace(/\s+/g, " ").trim();
+}
+
+function befundTreffer(plain: string, fall: ReturnType<typeof standardFall>): string[] {
+  const hits: string[] = [];
+  const always = [
+    "Schnittstellen: Schnittstellen:",
+    "Buchhaltung laut Betrieb-Export",
+    "per Buchhaltung laut Betrieb Upload",
+    "Bank an Buchhaltung laut Betrieb",
+    "Lohn an Buchhaltung laut Betrieb",
+    "in den Aufzeichnungen automatisch",
+    "Lohnabrechnung der Buchhaltung",
+    "im DMS bzw. die von der Kanzlei",
+    ". die von der Kanzlei",
+    "Original die von der Kanzlei",
+    "in die von der Kanzlei eingesetzte Software",
+    "in Excel-Listen bzw. manuelle Aufzeichnungen",
+    "täglich über Excel",
+    "täglich über DATEV",
+    "sevdesk Lohn",
+    "lexoffice Lohn",
+    "Lexware Lohn",
+    "Buchhalter Pro Lohn",
+    "Excel-Listen bzw. manuelle Aufzeichnungen Lohn",
+    "die von der Kanzlei eingesetzte Software Lohn",
+    "Die Lohnabrechnung erfolgt extern",
+    "Weg: Import-Datei",
+  ];
+  for (const item of always) if (plain.includes(item)) hits.push(item);
+  if (!fall.datev && plain.includes("DATEV")) hits.push("DATEV");
+  if (!(fall.datev && !fall.self) && plain.includes("LODAS")) hits.push("LODAS");
+  if (!(fall.datev && !fall.self) && plain.includes("Lohn und Gehalt")) hits.push("Lohn und Gehalt");
+  if (fall.self && /Kanzlei|Steuerkanzlei/.test(plain)) hits.push("Kanzlei");
+  if (fall.excel && /SEPA|MT940|Hosting Anbieter-Cloud|Eigene Rolle in |PDF-Export in Excel|Upload in Excel|Export\/Upload|Zahlungsvorschlag aus den offenen Posten/.test(plain)) {
+    hits.push("Excel-Schnittstelle");
+  }
+  return hits;
+}
+
+function countText(text: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let from = 0;
+  while (from <= text.length) {
+    const at = text.indexOf(needle, from);
+    if (at < 0) return count;
+    count += 1;
+    from = at + needle.length;
+  }
+  return count;
 }
 
 const sample = (patch: Partial<SchnellversionAnswers> = {}): SchnellversionAnswers => ({
@@ -113,6 +192,12 @@ function purchase(patch: Partial<SvPurchase> = {}): SvPurchase {
     documentId: "p1",
     pdfPath: "",
     creditUsedAt: "",
+    consentAt: now.toISOString(),
+    sessionId: "stub_sv_paid_p1",
+    creditReservedAt: "",
+    creditReservationId: "",
+    answersJson: "{}",
+    downloadTokenHash: "",
     ...patch,
   };
 }
@@ -138,8 +223,32 @@ ok(
     SCHNELLVERSION_49_ENABLED: "1",
     STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
     STRIPE_SECRET_KEY: "sk_live_x",
+  }) === "live",
+  "live mit Flag und Preis ist erlaubt",
+);
+ok(
+  schnellversionCheckoutPlan({
+    STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+    STRIPE_SECRET_KEY: "sk_live_x",
   }) === "refuse",
-  "Live-Key legt keine Session an",
+  "live ohne Flag bleibt zu",
+);
+ok(
+  schnellversionCheckoutPlan({
+    SCHNELLVERSION_49_ENABLED: "1",
+    STRIPE_SECRET_KEY: "sk_live_x",
+  }) === "refuse",
+  "live ohne Preis bleibt zu",
+);
+ok(
+  schnellversionCheckoutPlan({
+    SCHNELLVERSION_49_ENABLED: "1",
+    STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+    SCHNELLVERSION_49_STRIPE_STUB: "paid",
+    STRIPE_SECRET_KEY: "sk_test_x",
+    NODE_ENV: "production",
+  }) !== "stub",
+  "Stub in Produktion bleibt aus",
 );
 ok(
   schnellversionCheckoutPlan({
@@ -174,7 +283,31 @@ async function main() {
   const pdf = await generateStandardPdf(sample(), new Date("2026-11-17T10:00:00Z"));
   const text = pageTexts(pdf).join("\n");
   ok(text.includes(SV_COVER_TITLE), "Deckblatt nennt Standardfassung, bitte prüfen");
-  ok(text.includes(SV_BASIS_SATZ), "Standardfassung nennt Branche und Größe");
+  ok(!svHeaderLine("Firma", "01.01.2026").includes("bitte prüfen"), "Kopfzeile ohne Marker");
+  ok(
+    svHeaderLine("Firma", "01.01.2026") === "Verfahrensdokumentation · Firma · Standardfassung vom 01.01.2026",
+    "Kopfzeile im Wortlaut",
+  );
+  ok(text.includes("Verfahrensdokumentation · Malerbetrieb Adler · Standardfassung vom"), "PDF-Kopfzeile ohne Marker");
+  ok(!text.includes("Standardfassung, bitte prüfen ·"), "PDF-Kopfzeile trägt den Marker nicht");
+  ok(text.includes(SV_FOOTER), "Fußzeile mit Hinweis");
+  ok(text.includes("Seite 1 von"), "Fußzeile mit Seitenzahl");
+  ok(!text.includes("Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."), "alter Fußtext ist weg");
+  ok(!text.includes("Dieses Dokument beschreibt"), "Deckblatt ohne zusätzlichen Absatz");
+  ok(!text.includes("Intake"), "kein Intake im Beispiel-PDF");
+  ok(!text.includes("Anhang A"), "kein Anhang A im Beispiel-PDF");
+  ok(text.includes("§ 13b"), "Handwerk-PDF nennt § 13b");
+  ok(text.includes(LOHN_SATZ), "Lohnsatz im Beispiel-PDF");
+  const bzwProbe = limitIdenticalSentences(
+    [
+      "Zuständig ist die Bauleitung bzw. der Meister.",
+      "Wareneingang wird geprüft. Bauleitung bzw. die Geschäftsführung.",
+    ].join("\n"),
+    1,
+  );
+  ok(bzwProbe.includes("Bauleitung bzw. die Geschäftsführung"), "kein Satzbruch nach bzw.");
+  ok(text.includes("auf Basis der Angaben zu Branche und Größe"), "Standardfassung nennt Branche und Größe");
+  ok(text.includes("wurde am"), "Deckblattzeile ist ein Satz");
   ok(!text.includes("Kunden-Intake"), "Standardfassung ohne Kunden-Intake");
   ok(!text.includes("bestätigten Angaben"), "Standardfassung ohne bestätigte Angaben");
   ok(!text.includes("01.07.2026"), "Standardfassung ohne festes Geltungsdatum");
@@ -194,13 +327,593 @@ async function main() {
   ok(text.includes("Mitarbeitende: 2–5"), "Mitarbeitendenzahl aus den 6 Angaben");
   ok(text.includes("Handwerk / Bau"), "Branche aus den 6 Angaben");
   ok(!text.includes("Bauwerk Nord"), "Musterfirma steht nicht im PDF");
-  ok(text.includes("Was Sie in der Standardfassung prüfen sollten"), "Prüfhinweise im PDF");
+  ok(text.includes("Vom Betrieb zu ergänzende Punkte"), "Prüfhinweise im PDF");
   ok(text.includes("Prüfhinweis aufgenommen"), "Kasse Unsicher im PDF");
   ok(!text.includes("Anhang A — Offene Punkte"), "keine Liste offener Punkte aus eigenen Antworten");
+  ok(!text.includes("Angabe im Intake"), "kein Angabe im Intake");
+  ok(!text.includes("Musterbetrieb"), "kein Musterbetrieb");
+  ok(!text.includes("(fiktiv)"), "keine fiktiven Produktnamen");
+  ok(!text.includes("bestätigt, ohne nähere Angabe"), "kein bestätigt ohne Angabe");
+  ok(!text.includes("Diese Fassung gilt ab"), "keine Geltungsformel");
+  ok(!text.includes(".07.2026"), "kein abgeschnittenes Geltungsdatum");
+  ok(!text.includes("ältere Fassungen bleiben"), "keine Versionszeile");
+  const selfPdf = await generateStandardPdf(
+    sample({ bucht: "Wir selbst im Unternehmen", software: "Sonstiges", softwareFrei: "Buchhalter Pro", kasse: "Nein, keine Bargeldeinnahmen" }),
+    new Date("2026-11-17T10:00:00Z"),
+  );
+  const selfText = pageTexts(selfPdf).join("\n");
+  ok(!selfText.includes("FiBu der Kanzlei"), "Eigenbuchhaltung ohne Kanzlei-FiBu");
+  ok(selfText.includes("Buchhalter Pro"), "Programm aus der Antwort");
+  ok(fullText.includes("Angabe im Intake") || fullText.includes("(fiktiv)"), "Vollversion behält Vorlagentext");
+
+  ok(!clientEventAllowed("purchase_99") && !clientEventAllowed("sv_purchase"), "Umsatz nicht vom Browser");
+  ok(clientEventAllowed("sv_visit"), "Aufruf ohne Einwilligung ist erlaubt");
+  const stubUnpaid = {
+    SCHNELLVERSION_49_ENABLED: "1",
+    STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+    SCHNELLVERSION_49_STRIPE_STUB: "unpaid",
+  };
+  const stubPaid = { ...stubUnpaid, SCHNELLVERSION_49_STRIPE_STUB: "paid" };
+  const unpaid = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "inhaber@example.com",
+    env: stubUnpaid,
+  });
+  ok(unpaid.ok && unpaid.sessionId.includes("unpaid"), "unbezahlte Stub-Session");
+  ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "")).paid === false, "unbezahlt erzeugt kein PDF");
+  ok((await findSvPurchaseBySession(unpaid.ok ? unpaid.sessionId : "stub_sv_unpaid_x")) === null, "unbezahlt speichert keinen Kauf");
+  const paidOpen = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: false,
+    bewusst: true,
+    agb: true,
+    email: "inhaber@example.com",
+    env: stubPaid,
+  });
+  ok(!paidOpen.ok, "Zustimmung fehlt serverseitig");
+  const flipped = unpaid.ok ? unpaid.sessionId.replace("stub_sv_unpaid_", "stub_sv_paid_") : "stub_sv_paid_fremd";
+  ok((await confirmPaidSession(flipped, { env: stubUnpaid })).paid === false, "umgeschriebene Session bleibt unbezahlt");
+  ok(paidFromStoredSession({
+    requestedId: flipped,
+    storedId: unpaid.ok ? unpaid.sessionId : "",
+    storedPaid: false,
+    env: { ...stubUnpaid, VERCEL: "1" },
+  }) === false, "Präfix ist auf Vercel kein Beweis");
+  ok(schnellversionStubBlocked({ VERCEL: "1", SCHNELLVERSION_49_STRIPE_STUB: "paid" }), "Stub auf Vercel gesperrt");
+  ok(schnellversionStubBlocked({ NODE_ENV: "production", SCHNELLVERSION_49_STRIPE_STUB: "paid" }), "Stub in Produktion gesperrt");
+  ok(schnellversionCheckoutPlan({
+    SCHNELLVERSION_49_ENABLED: "1",
+    STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+    SCHNELLVERSION_49_STRIPE_STUB: "paid",
+    VERCEL: "1",
+  }) !== "stub", "Vercel legt keine Stub-Session an");
+  const paid = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "inhaber@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(paid.ok, "bezahlte Stub-Session");
+  const beforePurchases = (await readSvEvents()).filter((row) => row.name === "sv_purchase" && row.value === 49).length;
+  const confirmed = await confirmPaidSession(paid.ok ? paid.sessionId : "", { env: stubPaid });
+  ok((await confirmPaidSession(paid.ok ? paid.sessionId : "", { env: stubPaid })).paid === confirmed.paid, "zweite Bestätigung");
+  const afterPurchases = (await readSvEvents()).filter((row) => row.name === "sv_purchase" && row.value === 49).length;
+  ok(afterPurchases === beforePurchases + 1, "49-€-Kauf wird einmal gezählt");
+  ok(confirmed.paid && confirmed.purchase.consentAt.length > 0, "Zustimmung am Kauf gespeichert");
+  const meta = schnellversionCheckoutMetadata({
+    pendingId: "p",
+    consentAt: confirmed.paid ? confirmed.purchase.consentAt : "",
+    company: "Malerbetrieb Adler",
+  });
+  ok(meta.sv49 === "1" && meta.sv_consent_at === (confirmed.paid ? confirmed.purchase.consentAt : ""), "Zustimmung in den Stripe-Metadaten");
+  const purchaseId = confirmed.paid ? confirmed.purchase.id : "";
+  const reserveNow = new Date();
+  ok(await reserveSvCredit(purchaseId, "eins", reserveNow), "Reservierung am Kauf");
+  ok(!(await reserveSvCredit(purchaseId, "zwei", reserveNow)), "zweite Reservierung am selben Kauf");
+  const draft = draftFromSchnellversion("inhaber@example.com", sample());
+  ok(draft.answers.katalog?.A01?.values?.company === "Malerbetrieb Adler", "Firma im Fragebogen");
+  ok(draft.answers.mitarbeitende === "2–5", "Mitarbeitende im Fragebogen");
+  ok(draft.answers.fibu?.[0] === "DATEV", "FiBu im Fragebogen");
+  ok(draft.answers.module?.vorlage === "handwerk", "Branche als Vorlage im Fragebogen");
+  ok(draft.answers.module?.check?.bargeld === "unbekannt", "Kasse Unsicher bleibt offen");
+  ok(draft.answers.module?.stammdaten?.fibu === "DATEV", "FiBu-Programm im Betriebs-Check");
+  const held = reserveDecision(confirmed.paid ? confirmed.purchase : purchase(), "eins", reserveNow);
+  ok(held, "erste Coupon-Reservierung");
+  ok(reserveDecision(held!, "zwei", reserveNow) === null, "zweite Reservierung blockiert");
+  ok((await confirmPaidSession("")).paid === false, "ohne Session kein Kauf");
+  ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "stub_sv_unpaid_x", { env: stubUnpaid })).paid === false, "unbezahlte Session ergibt kein PDF");
+  ok((await confirmPaidSession("cs_test_unpaid")).paid === false, "fremde Session ohne paid ergibt kein PDF");
+  const hook = readFileSync("app/api/stripe/webhook/route.ts", "utf8");
+  ok(hook.includes('metadata?.sv49 === "1"') && hook.includes("paymentFromStatus"), "Webhook nur bei bezahlter Schnellversion");
+  ok(!text.includes("Shopify"), "kein fiktiver Shopname");
+  const savedModel = process.env.PRICING_MODEL;
+  const savedFlag = process.env.SCHNELLVERSION_49_ENABLED;
+  process.env.PRICING_MODEL = "v2";
+  process.env.SCHNELLVERSION_49_ENABLED = "1";
+  ok((await pdfPost()).status === 405, "PDF-POST legt nichts an");
+  ok((await kontoPost()).status === 405, "Konto-API legt keinen Kauf an");
+  process.env.PRICING_MODEL = "legacy";
+  ok((await pdfPost()).status === 404, "Legacy mit Flag: PDF-Route 404");
+  ok((await kontoPost()).status === 404, "Legacy mit Flag: Konto-Route 404");
+  process.env.SCHNELLVERSION_49_ENABLED = "";
+  ok((await kontoPost()).status === 404, "Flag aus: Konto-Route 404");
+  if (savedModel === undefined) delete process.env.PRICING_MODEL;
+  else process.env.PRICING_MODEL = savedModel;
+  if (savedFlag === undefined) delete process.env.SCHNELLVERSION_49_ENABLED;
+  else process.env.SCHNELLVERSION_49_ENABLED = savedFlag;
+  ok(!schnellversionOffered({ SCHNELLVERSION_49_ENABLED: "1", PRICING_MODEL: "legacy" }), "Legacy bietet die Schnellversion nicht an");
+  ok(schnellversionOffered({ SCHNELLVERSION_49_ENABLED: "1", PRICING_MODEL: "v3" }), "v3 bietet die Schnellversion an");
+  ok(readFileSync("app/account/schnellversion/page.tsx", "utf8").includes("if (!schnellversionOffered()) notFound()"), "Konto-Seite ohne Angebot 404");
+  ok(readFileSync("lib/schnellversion-gate.ts", "utf8").includes("schnellversionOffered()"), "Seiten prüfen das Preismodell");
+  ok(readFileSync("app/api/checkout/route.ts", "utf8").includes("creditEmail"), "Anrechnung hängt an der Login-Mail");
+  ok(readFileSync("lib/plan-checkout.ts", "utf8").includes("expires_at:"), "Upgrade-Session läuft mit der Reservierung ab");
+  ok(readFileSync("components/schnellversion-browser.ts", "utf8").includes("sv49_visit"), "Aufruf wird nur einmal gesendet");
+  ok(kasseCheckAntwort("Unsicher") === "unbekannt", "Unsicher ist keine Ja-Antwort");
+  const kept = draftFromSchnellversion("inhaber@example.com", sample({ firma: "Bleibt GmbH" }));
+  kept.revision = 4;
+  if (kept.answers.module?.check) kept.answers.module.check.bargeld = "nein";
+  if (kept.answers.katalog?.A01?.values) kept.answers.katalog.A01.values.company = "Bleibt GmbH";
+  const merged = mergeEmptyDraftFields(kept, draftFromSchnellversion("inhaber@example.com", sample()));
+  ok(merged.answers.katalog?.A01?.values?.company === "Bleibt GmbH", "laufende Firma bleibt");
+  ok(merged.answers.module?.check?.bargeld === "nein", "gesetzte Kasse bleibt");
+  ok(merged.revision === 4, "Revision des Fragebogens bleibt");
+  if (confirmed.paid && paid.ok) {
+    const link = new URL(paid.url, "http://local");
+    const dl = link.searchParams.get("dl") ?? "";
+    const row = confirmed.purchase;
+    ok(!svDownloadAllowed(row, { email: "fremd@example.com", token: "", now: reserveNow }), "fremde Session ohne Token bleibt zu");
+    ok(svDownloadAllowed(row, { email: "inhaber@example.com", token: "", now: reserveNow }), "Käufer darf laden");
+    ok(svDownloadAllowed(row, { email: "", token: dl, now: reserveNow }), "Download-Token darf laden");
+    const later = new Date(reserveNow.getTime() + 31 * 24 * 60 * 60 * 1000);
+    ok(!svDownloadAllowed(row, { email: "inhaber@example.com", token: dl, now: later }), "Session-Link endet nach 30 Tagen");
+  }
+  const keptFibu = draftFromSchnellversion("lex@example.com", sample({ software: "Lexware Office", firma: "Lex GmbH" }));
+  keptFibu.answers.fibu = ["Lexware Eigen"];
+  if (keptFibu.answers.module) {
+    keptFibu.answers.module = {
+      ...keptFibu.answers.module,
+      check: { ...keptFibu.answers.module.check, kanzlei: "nein" },
+      stammdaten: { ...keptFibu.answers.module.stammdaten, fibu: "Lexware Eigen", gf: "Erika Eigen" },
+    };
+  }
+  keptFibu.answers.gf = "Erika Eigen";
+  if (keptFibu.answers.katalog?.A01?.values) keptFibu.answers.katalog.A01.values.company = "";
+  const contradictory = mergeEmptyDraftFields(
+    keptFibu,
+    draftFromSchnellversion("lex@example.com", sample({ software: "DATEV", bucht: "Unsere Steuerkanzlei", firma: "Kauf GmbH" })),
+  );
+  ok(contradictory.answers.steuerberater !== "Steuerkanzlei", "Kanzlei Nein setzt keinen Steuerberater");
+  ok(contradictory.answers.katalog?.F05?.values?.kanzleiBeteiligt !== "ja", "Kanzlei Nein bleibt ohne Beteiligung");
+  ok(!contradictory.answers.fibu?.includes("DATEV"), "Lexware Eigen setzt FiBu nicht auf DATEV");
+  ok(contradictory.answers.katalog?.A01?.values?.company !== "Kauf GmbH", "ohne Firma bleibt das Feld leer");
+  const unclear = draftFromSchnellversion("unklar@example.com", sample());
+  if (unclear.answers.module) {
+    unclear.answers.module = {
+      ...unclear.answers.module,
+      check: { ...unclear.answers.module.check, kanzlei: "unbekannt" },
+    };
+  }
+  unclear.answers.steuerberater = "";
+  if (unclear.answers.katalog?.F05) {
+    const katalog = { ...unclear.answers.katalog };
+    delete katalog.F05;
+    unclear.answers.katalog = katalog;
+  }
+  const unclearMerged = mergeEmptyDraftFields(
+    unclear,
+    draftFromSchnellversion("unklar@example.com", sample({
+      software: "Weiß ich nicht, macht die Kanzlei",
+      bucht: "Unsere Steuerkanzlei",
+      kasse: "Unsicher",
+    })),
+  );
+  ok(unclearMerged.answers.module?.check?.kanzlei === "unbekannt", "Kanzlei unbekannt bleibt unbekannt");
+  ok(unclearMerged.answers.steuerberater !== "Steuerkanzlei", "unbekannt setzt keinen Steuerberater");
+  ok(unclearMerged.answers.katalog?.F05?.values?.kanzleiBeteiligt !== "ja", "unbekannt setzt keine Kanzlei-Beteiligung");
+  ok(!unclearMerged.answers.fibu?.includes("Weiß ich nicht, macht die Kanzlei"), "Unklarheit landet nicht in der FiBu");
+  ok(!JSON.stringify(unclearMerged.answers.katalog?.B01 ?? {}).includes("Weiß ich nicht, macht die Kanzlei"), "Unklarheit landet nicht in B01");
+  ok(statedFibu(sample({ software: "Weiß ich nicht, macht die Kanzlei" })) === null, "Unklarheit ist kein Programm");
+  const broken = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "abbruch@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(broken.ok, "Session für den Abbruch nach der Sperre");
+  failNextClaimedPurchaseForTest();
+  let failed = false;
+  try {
+    await confirmPaidSession(broken.ok ? broken.sessionId : "", { env: stubPaid });
+  } catch {
+    failed = true;
+  }
+  ok(failed, "Fehler nach der Sperre bricht den Kauf ab");
+  ok((await listAllSvPurchases()).filter((row) => row.sessionId === (broken.ok ? broken.sessionId : "x")).length === 0, "nach dem Fehler liegt kein Kauf");
+  const repaired = await confirmPaidSession(broken.ok ? broken.sessionId : "", { env: stubPaid });
+  const repairedRows = (await listAllSvPurchases()).filter((row) => row.sessionId === (broken.ok ? broken.sessionId : "x"));
+  ok(repaired.paid && repairedRows.length === 1, "erneute Zustellung legt genau einen Kauf an");
+  for (const step of ["purchase", "index", "event"] as const satisfies readonly SvCommitStep[]) {
+    const opened = await openSchnellversionCheckout({
+      answers: sample(),
+      unternehmer: true,
+      bewusst: true,
+    agb: true,
+      email: `${step}@example.com`,
+      arm: "test",
+      env: stubPaid,
+    });
+    ok(opened.ok, `Session für fehlendes ${step}`);
+    failSvCommitStepForTest(step);
+    let threw = false;
+    try {
+      await confirmPaidSession(opened.ok ? opened.sessionId : "", { env: stubPaid });
+    } catch {
+      threw = true;
+    }
+    ok(threw, `${step} antwortet nicht mit einem fertigen Kauf`);
+    failSvCommitStepForTest(null);
+    const before = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    const again = await confirmPaidSession(opened.ok ? opened.sessionId : "", { env: stubPaid });
+    const rows = (await listAllSvPurchases()).filter((row) => row.sessionId === (opened.ok ? opened.sessionId : "x"));
+    const after = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    ok(again.paid && rows.length === 1 && rows[0]?.id === purchaseIdForSession(opened.ok ? opened.sessionId : ""), `${step}: Retry ergibt eine Kaufzeile`);
+    ok(new Set(rows.map((row) => row.pdfPath)).size === 1, `${step}: ein PDF-Pfad`);
+    ok(after === before + 1, `${step}: die Zählung wird nachgeholt`);
+  }
+  {
+    const opened = await openSchnellversionCheckout({
+      answers: sample(),
+      unternehmer: true,
+      bewusst: true,
+    agb: true,
+      email: "sink@example.com",
+      arm: "test",
+      env: stubPaid,
+    });
+    ok(opened.ok, "Session für die fehlende Eventsenke");
+    failSvPurchaseSinkForTest(true);
+    const before = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    let threw = false;
+    try {
+      await confirmPaidSession(opened.ok ? opened.sessionId : "", { env: stubPaid });
+    } catch {
+      threw = true;
+    }
+    const mid = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    ok(threw && mid === before, "fehlende Eventsenke setzt keinen Marker und zählt nicht");
+    failSvPurchaseSinkForTest(false);
+    const again = await confirmPaidSession(opened.ok ? opened.sessionId : "", { env: stubPaid });
+    const after = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    ok(again.paid && after === before + 1, "Retry schreibt das Event genau einmal");
+  }
+  const race = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "rennen@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(race.ok, "Session für die parallele Bestätigung");
+  const beforeRace = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  const parallel = await Promise.all(
+    Array.from({ length: 5 }, () => confirmPaidSession(race.ok ? race.sessionId : "", { env: stubPaid })),
+  );
+  const raceRows = (await listAllSvPurchases()).filter((row) => row.sessionId === (race.ok ? race.sessionId : "x"));
+  const afterRace = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  ok(parallel.filter((item) => item.paid).length === 5, "alle parallelen Bestätigungen sehen den Kauf");
+  ok(raceRows.length === 1, "parallele Bestätigung legt eine Kaufzeile an");
+  ok(new Set(raceRows.map((row) => row.pdfPath)).size === 1, "parallele Bestätigung legt ein PDF an");
+  ok(afterRace === beforeRace + 1, "parallele Bestätigung zählt einen 49-€-Kauf");
+  const before99 = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
+  const counted99 = await Promise.all(
+    Array.from({ length: 5 }, (_, index) =>
+      rememberPurchase99Once({ sessionId: "cs_race_99", eventId: `evt_${index}`, arm: "test" }),
+    ),
+  );
+  ok(counted99.filter(Boolean).length === 1, "fünf 99-€-Zustellungen zählen einmal");
+  ok((await rememberPurchase99Once({ sessionId: "cs_race_99", eventId: "evt_neu", arm: "test" })) === false, "dieselbe Session zählt nicht erneut");
+  const after99 = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
+  ok(after99 === before99 + 1, "purchase_99 steigt um eins");
+  ok(await claimSvSession(race.ok ? race.sessionId : "x") === "exists", "zweite Sperre der Session schlägt fehl");
+  const alwaysForbidden = [
+    "Robert Funke",
+    "Ines Wolf",
+    "KassaPro",
+    "Faktura",
+    "ERP Fertigplan",
+    "Bei einem realen Betrieb",
+    "Präsens-Aussagen",
+    "Kundenkonto",
+    "Muster, fiktiv",
+    "(fiktiv)",
+    "Angabe im Intake",
+    "Musterbetrieb",
+    "Diese Fassung gilt ab",
+    "ältere Fassungen",
+    "Keine Bereiche ausgenommen; Der Download",
+    "in die von der Kanzlei eingesetzte Software",
+    "in Excel-Listen bzw. manuelle Aufzeichnungen",
+    "täglich über Excel-Listen",
+  ];
+  const when = new Date("2026-11-17T10:00:00Z");
+  for (const branche of SV_BRANCHEN) {
+    for (const kasse of SV_KASSE) {
+      for (const bucht of SV_BUCHT) {
+        for (const software of SV_SOFTWARE) {
+          const answers = sample({
+            branche: branche.id,
+            kasse,
+            bucht,
+            software,
+            softwareFrei: software === "Sonstiges" ? "Buchhalter Pro" : "",
+          });
+          const plain = standardPlainText(answers, when);
+          const label = softwareProse(answers);
+          const ausgeschlossen = coverField(plain, "Ausgeschlossen");
+          const geltung = coverField(plain, "Geltungsbereich");
+          if (ausgeschlossen !== "Keine Bereiche ausgenommen.") {
+            ok(false, `Ausgeschlossen ${branche.id}: ${ausgeschlossen}`);
+          }
+          if (!geltung || /Nachweis und Ablage|Beleg-ID|§ 147/.test(geltung)) {
+            ok(false, `Geltungsbereich ${branche.id}: ${geltung}`);
+          }
+          for (const forbidden of alwaysForbidden) {
+            if (plain.includes(forbidden)) ok(false, `${branche.id} ${software} enthält ${forbidden}`);
+          }
+          if (answers.software === "Weiß ich nicht, macht die Kanzlei") {
+            if (plain.includes("Weiß ich nicht, macht die Kanzlei")) {
+              ok(false, `${branche.id} nennt die Unklarheit als Programm`);
+            }
+            const built = buildStandardAnswers(answers);
+            if (built.answers.fibu?.length) ok(false, `${branche.id} schreibt die Unklarheit in die FiBu`);
+            if (JSON.stringify(built.answers.katalog?.B01 ?? {}).includes("Weiß ich nicht, macht die Kanzlei")) {
+              ok(false, `${branche.id} schreibt die Unklarheit in B01`);
+            }
+          }
+          if (answers.software === "Excel / manuell" && plain.includes("Excel / manuell")) {
+            ok(false, `${branche.id} lässt Excel / manuell im Fließtext`);
+          }
+          if (answers.software === "Excel / manuell" && !plain.includes("manuellen Aufzeichnungen")) {
+            ok(false, `${branche.id} ohne Dativ bei den Aufzeichnungen`);
+          }
+          if (answers.software === "Weiß ich nicht, macht die Kanzlei" && bucht !== "Wir selbst im Unternehmen" && !plain.includes("eingesetzten Software")) {
+            ok(false, `${branche.id} ohne Dativ bei der Kanzlei-Software`);
+          }
+          if (answers.software === "Weiß ich nicht, macht die Kanzlei" && bucht === "Wir selbst im Unternehmen" && !plain.includes("Buchhaltungssoftware")) {
+            ok(false, `${branche.id} ohne neutrale Software bei Eigenbuchhaltung`);
+          }
+          const fall = standardFall(answers);
+          for (const treffer of befundTreffer(plain, fall)) {
+            ok(false, `${branche.id} ${software} ${bucht} enthält ${treffer}`);
+          }
+          if (bucht === "Unsere Steuerkanzlei" && !fall.datev) {
+            const chosen = countText(plain, label);
+            if (chosen < 1) ok(false, `${branche.id} ${label} fehlt`);
+          }
+          for (const fremd of BRANCHEN_FREMDE[branche.id] ?? []) {
+            if (plain.includes(fremd)) ok(false, `${branche.id} ${software} enthält ${fremd}`);
+          }
+          const marker = (plain.match(/bitte prüfen/gi) ?? []).length - (plain.match(/Standardfassung, bitte prüfen/gi) ?? []).length;
+          if (marker > 25) ok(false, `${branche.id} ${software} hat ${marker} Markierungen`);
+          if (/€/.test(plain) || /Anrechn/i.test(plain)) ok(false, `${branche.id} ${software} enthält Preis oder Anrechnung`);
+          if (/Buchungsbelege\s+(10|zehn)\s+Jahre/i.test(plain)) ok(false, `${branche.id} Buchungsbelege mit 10 Jahren`);
+          if (/: ja(?!\/nein)\b/.test(plain)) ok(false, `${branche.id} ${software} enthält : ja`);
+          if (plain.includes("Intake")) ok(false, `${branche.id} ${software} enthält Intake`);
+          if (plain.includes("Anhang A")) ok(false, `${branche.id} ${software} enthält Anhang A`);
+          if (
+            plain.includes("Küchen- bzw. der Inhaber") ||
+            plain.includes("bzw. Wer bestätigt") ||
+            plain.includes("Über die Kanzlei. im eigenen Archiv")
+          ) {
+            ok(false, `${branche.id} ${software} bricht den Satz nach bzw.`);
+          }
+          if (!plain.includes(LOHN_SATZ)) ok(false, `${branche.id} ${software} ohne Lohnsatz`);
+          if (plain.includes("Die Lohnabrechnung erfolgt extern")) ok(false, `${branche.id} alter Lohnsatz`);
+          if (plain.includes("| Rolle | Lesen |") && !plain.includes("Vorschlag – vom Betrieb zu bestätigen")) {
+            ok(false, `${branche.id} Rechtetabelle ohne Vorschlag`);
+          }
+          if (!plain.includes("strukturierte Datensatz") || !plain.includes("maßgeblich")) {
+            ok(false, `${branche.id} ohne E-Rechnungs-Original`);
+          }
+          if (plain.includes("Hinweis: Diese Verfahrensdokumentation")) {
+            ok(false, `${branche.id} Deckblatt-Absatz noch da`);
+          }
+          if (plain.includes("**Kassenart:** Art:") || plain.includes("**System:** System:")) {
+            ok(false, `${branche.id} doppeltes Label`);
+          }
+          if (kasse === "Ja, offene Ladenkasse (ohne elektronisches System)") {
+            if (/\bTSE\b/.test(plain)) ok(false, `${branche.id} ${software} offene Ladenkasse nennt TSE`);
+            if (!plain.includes("Kassenbericht") || !plain.includes("Zählprotokoll")) {
+              ok(false, `${branche.id} offene Ladenkasse ohne Kassenbericht`);
+            }
+            if (!plain.includes("Einzelaufzeichnung") || !plain.includes("§ 146 Abs. 1 Satz 1 AO")) {
+              ok(false, `${branche.id} ohne Einzelaufzeichnung`);
+            }
+            if (!plain.includes("Werden Einzelaufzeichnungen geführt oder wird die Ausnahme genutzt?")) {
+              ok(false, `${branche.id} Checkliste ohne Einzelaufzeichnung`);
+            }
+            if (plain.includes("Bewirtung über das Kassensystem") || plain.includes("aus dem Kassensystem")) {
+              ok(false, `${branche.id} offene Kasse nennt ein Kassensystem`);
+            }
+            if (!plain.includes("entfällt (offene Ladenkasse)")) ok(false, `${branche.id} ohne entfällt offene Ladenkasse`);
+            if (!plain.includes("nachträgliche Ermittlung dokumentieren")) ok(false, `${branche.id} Notverfahren offene Kasse`);
+            if (plain.includes("Z-Bons") || plain.includes("Programmier- und Änderungsprotokolle des Kassensystems")) {
+              ok(false, `${branche.id} Kassensystem-Zeile in der Aufbewahrung`);
+            }
+          }
+          if (kasse !== "Nein, keine Bargeldeinnahmen" && kasse !== "Ja, offene Ladenkasse (ohne elektronisches System)" && !plain.includes("Ersatzaufzeichnung")) {
+            ok(false, `${branche.id} ${software} ohne Notverfahren`);
+          }
+          if (!plain.includes("§ 147 Abs. 3 Satz 3 AO") || !plain.includes("§ 147 Abs. 3 Satz 5 AO")) {
+            ok(false, `${branche.id} ohne Satzangabe zu § 147 Abs. 3 AO`);
+          }
+          if (branche.id === "freiberuf" && (plain.includes("§ 257") || !plain.includes("§ 4 Abs. 3 EStG") || !plain.includes("soweit vorhanden"))) {
+            ok(false, "Freiberuf ohne EÜR oder mit HGB");
+          }
+          if (kasse === "Unsicher" && plain.includes("Kassenbuch im Kassensystem")) {
+            ok(false, `${branche.id} unsichere Kasse setzt das Kassenbuch`);
+          }
+          if (branche.id === "handwerk" && (!plain.includes("§ 13b") || !plain.includes("§ 14 Abs. 4 Satz 1 Nr. 9 UStG") || !plain.includes("Aufmaß"))) {
+            ok(false, `${branche.id} ${software} ohne § 14 Abs. 4 Satz 1 Nr. 9 oder Aufmaß`);
+          }
+          if (branche.id === "gastro" && (plain.includes("Bestellwege: E-Mail.") || plain.includes("**Bestellweg:** Bestellwege:"))) {
+            ok(false, "Gastro setzt E-Mail als Bestellweg");
+          }
+          if ((software === "Excel / manuell" || branche.id === "gastro") && !plain.includes("Teil III: Technische Systemdokumentation")) {
+            ok(false, `${branche.id} ${software} ohne Teil III`);
+          }
+          const bodyStart = plain.indexOf("# ");
+          const listAt = plain.indexOf("# Vom Betrieb zu ergänzende Punkte");
+          const body = plain.slice(bodyStart < 0 ? 0 : bodyStart, listAt < 0 ? plain.length : listAt);
+          if (/\b(Sie|Ihre|Ihrer|Ihnen)\b/.test(body)) ok(false, `${branche.id} ${software} spricht den Leser im Text an`);
+          for (const firma of Object.values(MUSTER_FIRMEN)) {
+            for (const name of [firma.company, firma.gf, firma.buchhaltung, firma.kanzlei, firma.standort]) {
+              if (name && plain.includes(name)) ok(false, `${branche.id} enthält Musterangabe ${name}`);
+            }
+          }
+          if (!plain.includes(LOHN_SATZ)) ok(false, `${branche.id} ${software} ohne neutralen Lohnsatz`);
+          const repeats = repeatedSentences(plain);
+          if (repeats.length) ok(false, `${branche.id} ${software} wiederholt ${repeats[0]}`);
+        }
+      }
+    }
+  }
+  ok(true, "alle Branchen- und Antwortkombinationen ohne Musterreste");
+  const allein = standardPlainText(sample({
+    mitarbeitende: "1 (nur ich)",
+    rechtsform: "Einzelunternehmen",
+    bucht: "Wir selbst im Unternehmen",
+    kasse: "Nein, keine Bargeldeinnahmen",
+    software: "DATEV",
+    branche: "dienstleistung",
+  }), when);
+  ok(!allein.includes("zweite Person"), "Ein-Personen ohne zweite Person");
+  ok(allein.includes("Selbstkontrolle"), "Ein-Personen mit Selbstkontrolle");
+  ok(allein.includes("keine Beschäftigten laut Angabe"), "Modul 12 entfällt");
+  ok(!allein.includes("Andere Beschäftigte"), "keine Beschäftigtenzeile");
+  ok(!allein.includes("Geschäftsführung"), "Einzelunternehmen ohne Geschäftsführung");
+  ok(allein.includes("Gibt es Beschäftigte"), "Lohnfrage bei einer Person");
+  const unsichereKasse = standardPlainText(sample({ kasse: "Unsicher", branche: "handel", software: "sevdesk", bucht: "Unsere Steuerkanzlei" }), when);
+  ok(unsichereKasse.includes("Kassenbuch (elektronisches System) oder Kassenbericht (offene Ladenkasse)"), "unsichere Kassenform");
+  ok(!unsichereKasse.includes("TSE-Art"), "unsicher ohne TSE-Art");
+  ok(unsichereKasse.includes("Bei offener Ladenkasse zusätzlich aufbewahren"), "unsicher nennt beide Aufbewahrungen");
+  ok(
+    unsichereKasse.replaceAll("*", "").includes("Belegausgabe: Bei elektronischem System:"),
+    "unsichere Belegausgabe ohne doppeltes Label",
+  );
+  ok(doppeltesLabel("Belegausgabe: Belegausgabe: ist festzulegen") === "Belegausgabe: Belegausgabe:", "Negativtest doppeltes Label");
+  const beispiele: SchnellversionAnswers[] = [
+    { firma: "Beispiel Holz GmbH", branche: "handwerk", software: "DATEV", bucht: "Unsere Steuerkanzlei", kasse: "Nein, keine Bargeldeinnahmen", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Shop GmbH", branche: "ecommerce", software: "Lexware Office", bucht: "Unsere Steuerkanzlei", kasse: "Nein, keine Bargeldeinnahmen", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Küche GmbH", branche: "gastro", software: "Excel / manuell", bucht: "Wir selbst im Unternehmen", kasse: "Ja, elektronische Kasse", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Laden GmbH", branche: "handel", software: "sevdesk", bucht: "Unsere Steuerkanzlei", kasse: "Ja, elektronische Kasse", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Beratung GmbH", branche: "dienstleistung", software: "DATEV", bucht: "Wir selbst im Unternehmen", kasse: "Ja, elektronische Kasse", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Küche GmbH", branche: "gastro", software: "Excel / manuell", bucht: "Wir selbst im Unternehmen", kasse: "Ja, offene Ladenkasse (ohne elektronisches System)", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Allein GmbH", branche: "dienstleistung", software: "DATEV", bucht: "Wir selbst im Unternehmen", kasse: "Nein, keine Bargeldeinnahmen", rechtsform: "Einzelunternehmen", mitarbeitende: "1 (nur ich)", softwareFrei: "" },
+    { firma: "Beispiel Unsicher GmbH", branche: "handel", software: "sevdesk", bucht: "Unsere Steuerkanzlei", kasse: "Unsicher", rechtsform: "GmbH", mitarbeitende: "2–5", softwareFrei: "" },
+    { firma: "Beispiel Freiberuf", branche: "freiberuf", software: "DATEV", bucht: "Wir selbst im Unternehmen", kasse: "Nein, keine Bargeldeinnahmen", rechtsform: "Einzelunternehmen", mitarbeitende: "1 (nur ich)", softwareFrei: "" },
+  ];
+  for (const beispiel of beispiele) {
+    const hit = doppeltesLabel(standardPlainText(beispiel, when));
+    ok(!hit, `${beispiel.firma} ohne doppeltes Label${hit ? `: ${hit}` : ""}`);
+  }
+  const faelle63: Array<Partial<SchnellversionAnswers>> = [
+    { software: "Sonstiges", softwareFrei: "Buchhalter Pro", bucht: "Wir selbst im Unternehmen" },
+    { software: "Excel / manuell", softwareFrei: "", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
+    { software: "Excel / manuell", softwareFrei: "", bucht: "Wir selbst im Unternehmen" },
+    { software: "Lexware Office", softwareFrei: "", bucht: "Unsere Steuerkanzlei" },
+    { software: "Sonstiges", softwareFrei: "Lexware", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
+    { software: "sevdesk", softwareFrei: "", bucht: "Wir selbst im Unternehmen" },
+    { software: "Weiß ich nicht, macht die Kanzlei", softwareFrei: "", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
+    { software: "Weiß ich nicht, macht die Kanzlei", softwareFrei: "", bucht: "Unsere Steuerkanzlei" },
+    { software: "Weiß ich nicht, macht die Kanzlei", softwareFrei: "", bucht: "Wir selbst im Unternehmen" },
+  ];
+  for (const branche of SV_BRANCHEN) {
+    for (const fallPatch of faelle63) {
+      const answers = sample({ ...fallPatch, branche: branche.id, kasse: "Ja, elektronische Kasse" });
+      const plain = standardPlainText(answers, when);
+      const fall = standardFall(answers);
+      for (const satz of pflichtBausteine(fall)) {
+        if (!plain.includes(satz)) ok(false, `${branche.id} ohne Baustein ${satz.slice(0, 48)}`);
+      }
+      for (const treffer of befundTreffer(plain, fall)) {
+        ok(false, `${branche.id} Befund ${treffer}`);
+      }
+    }
+  }
+  ok(true, "63 Fälle mit Bausteinen und ohne die Befundmuster");
+  const selfNamed = sample({
+    bucht: "Wir selbst im Unternehmen",
+    software: "Sonstiges",
+    softwareFrei: "Buchhalter Pro",
+    kasse: "Nein, keine Bargeldeinnahmen",
+  });
+  const selfPlain = standardPlainText(selfNamed, when);
+  ok(selfPlain.includes("Buchhalter Pro"), "genanntes Programm bleibt im Text");
+  ok(!/DATEV|kanzlei/i.test(selfPlain), "Eigenbuchhaltung ohne Kanzlei und DATEV");
+  ok(
+  readFileSync("lib/schnellversion-copy.ts", "utf8").includes(
+    "Ich bestelle als Unternehmer (§ 14 BGB) für meine gewerbliche oder selbstständige berufliche Tätigkeit.",
+  ),
+  "Unternehmer-Checkbox wie § 1 Abs. 2",
+);
+  ok(!readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("SV_ARM_COOKIE"), "PDF-Route liest das Zuteilungs-Cookie nicht");
+  ok(!readFileSync("app/schnellversion/danke/page.tsx", "utf8").includes("gekauftAm"), "Danke-Seite legt keinen Kauf an");
+  ok(!readFileSync("components/schnellversion-danke.tsx", "utf8").includes("gekauftAm"), "Browser legt keinen Kauf an");
 
   const page = readFileSync("app/page.tsx", "utf8");
   ok(page.includes("SCHNELLVERSION ?"), "Startseite blendet den Button nur mit Flag ein");
   ok(!readFileSync("content/legal/agb.md", "utf8").includes("Schnellversion 49"), "AGB unverändert von diesem Begriff");
+  const sessionParams = schnellversionSessionParams(
+    { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
+    {
+      SCHNELLVERSION_49_ENABLED: "1",
+      STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+      STRIPE_SECRET_KEY: "sk_test_x",
+      STRIPE_TAX_RATE_ID: "txr_existing",
+    },
+  );
+  const line = sessionParams?.line_items?.[0];
+  ok(sessionParams?.invoice_creation?.enabled === true, "49-€-Session erzeugt eine Rechnung");
+  ok(sessionParams?.billing_address_collection === "required", "49-€-Session verlangt die Rechnungsadresse");
+  ok(sessionParams?.tax_id_collection?.enabled === true, "49-€-Session fragt die USt-IdNr. ab");
+  ok(line && "tax_rates" in line && line.tax_rates?.[0] === "txr_existing", "49-€-Session nutzt die vorhandene Tax Rate");
+  const kaufmail = purchaseMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString(), sessionId: "cs_test" });
+  ok(kaufmail.text.includes("Ihre Zahlung ist bestätigt"), "Kaufmail bestätigt die Zahlung");
+  ok(kaufmail.text.includes("ist damit abgeschlossen"), "Kaufmail schließt die Bestellung ab");
+  ok(kaufmail.text.includes("Der Vertrag kommt mit der erfolgreichen Zahlungsbestätigung zustande."), "Kaufmail entspricht § 12d Abs. 3");
+  ok(kaufmail.text.includes("Ihre Verfahrensdokumentation (Standardfassung, PDF)"), "Kaufmail nennt den Lieferumfang");
+  ok(
+    !/Minute|fertig|garantiert|Garantie|rechtssicher|gobd-konform|prüfungssicher|anerkannt|ersetzt/i.test(kaufmail.text + kaufmail.subject),
+    "Kaufmail ohne Sperrwörter",
+  );
+  ok(kaufmail.text.includes("/agb") && kaufmail.text.includes("Download-Ende"), "Kaufmail verlinkt die AGB und nennt das Datum");
+  ok((await maybeSendSchnellversionPurchaseMail({
+    to: "inhaber@example.com",
+    company: "Malerbetrieb Adler",
+    purchasedAt: now.toISOString(),
+    sessionId: "cs_test",
+    env: {},
+  })) === false, "Kaufmail bleibt aus");
+  const alt = purchase();
+  alt.purchasedAt = new Date(now.getTime() - (SV_PURGE_AFTER_DAYS + 1) * 24 * 60 * 60 * 1000).toISOString();
+  alt.pdfPath = "/tmp/gobd-sv49-nicht-loeschen.pdf";
+  alt.downloadTokenHash = "ab".repeat(32);
+  const purge = await runSvPurge([alt], now, {});
+  ok(purge.dryRun && purge.deleted === 0 && purge.due === 1, "Löschlauf bleibt Dry-Run");
+  ok(SV_PURGE_AFTER_DAYS === 30, "Löschfrist steht auf 30 Tage");
+  ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("PLAN_TERMS_LABEL_BEFORE"), "Checkout bestätigt die AGB");
 
   console.log("check-schnellversion: ok");
 }

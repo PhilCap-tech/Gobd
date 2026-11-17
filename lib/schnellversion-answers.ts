@@ -3,9 +3,10 @@
  * (MUSTER_VORLAGEN). Freiberuf und Sonstiges nutzen dienstleister.
  */
 
-import { MUSTER_FIRMEN } from "@/lib/module-muster-dense";
-import { getGesamtMuster, type MusterVorlageId } from "@/lib/module-muster";
-import { BRANCHEN_VORLAGEN, setCheckAntwort, setModulEintrag } from "@/lib/module/status";
+import type { MusterVorlageId } from "@/lib/module-muster";
+import { BRANCHEN_VORLAGEN, setCheckAntwort } from "@/lib/module/status";
+import { standardFall } from "@/lib/schnellversion-bausteine";
+import { standardBasis } from "@/lib/schnellversion-basis";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export const SV_RECHTSFORMEN = [
@@ -34,7 +35,7 @@ export const SV_MITARBEITENDE = ["1 (nur ich)", "2–5", "6–10", "11–20", "�
 export const SV_SOFTWARE = [
   "DATEV",
   "sevdesk",
-  "lexoffice",
+  "Lexware Office",
   "Excel / manuell",
   "Sonstiges",
   "Weiß ich nicht, macht die Kanzlei",
@@ -126,19 +127,36 @@ export function softwareLabel(answers: Pick<SchnellversionAnswers, "software" | 
   return answers.software;
 }
 
+/** Kein Programmname: die Antwort nennt kein konkretes System. */
+export function statedFibu(answers: Pick<SchnellversionAnswers, "software" | "softwareFrei">): string | null {
+  if (answers.software === "Weiß ich nicht, macht die Kanzlei") return null;
+  return softwareLabel(answers);
+}
+
+/** Fließtext. Die Rohantwort „Weiß ich nicht …“ und „Excel / manuell“ stehen so nicht im PDF. */
+export function softwareProse(
+  answers: Pick<SchnellversionAnswers, "software" | "softwareFrei"> & { bucht?: SchnellversionAnswers["bucht"] },
+): string {
+  return standardFall({
+    software: answers.software,
+    softwareFrei: answers.softwareFrei,
+    bucht: answers.bucht ?? "Unsere Steuerkanzlei",
+  }).name;
+}
+
 export function kasseHatKapitel(kasse: SchnellversionAnswers["kasse"]): boolean {
   return kasse !== "Nein, keine Bargeldeinnahmen";
 }
 
-export function kanzleiBuchtAntwort(bucht: SchnellversionAnswers["bucht"]): boolean {
-  return bucht !== "Wir selbst im Unternehmen";
+/** Unsicher bleibt offen. Nur eine genannte Kasse ist Ja. */
+export function kasseCheckAntwort(kasse: SchnellversionAnswers["kasse"]): "ja" | "nein" | "unbekannt" {
+  if (kasse === "Nein, keine Bargeldeinnahmen") return "nein";
+  if (kasse === "Unsicher") return "unbekannt";
+  return "ja";
 }
 
-function replaceToken(answers: IntakeAnswers, from: string, to: string): IntakeAnswers {
-  if (!from || from === to) return answers;
-  const encodedFrom = JSON.stringify(from).slice(1, -1);
-  const encodedTo = JSON.stringify(to).slice(1, -1);
-  return JSON.parse(JSON.stringify(answers).split(encodedFrom).join(encodedTo)) as IntakeAnswers;
+export function kanzleiBuchtAntwort(bucht: SchnellversionAnswers["bucht"]): boolean {
+  return bucht !== "Wir selbst im Unternehmen";
 }
 
 export function buildStandardAnswers(input: SchnellversionAnswers): {
@@ -147,83 +165,15 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
   vorlage: MusterVorlageId;
 } {
   const vorlage = vorlageForBranche(input.branche);
-  const muster = getGesamtMuster(vorlage);
-  if (!muster) {
-    throw new Error("Branchenvorlage fehlt");
-  }
-  const firma = MUSTER_FIRMEN[vorlage];
-  let answers = structuredClone(muster.answers);
-  const tokens: Array<[string, string]> = [
-    [firma.company, input.firma],
-    [firma.gf, "[bitte prüfen]"],
-    [firma.buchhaltung, "[bitte prüfen]"],
-    [firma.it, "[bitte prüfen]"],
-    [firma.kanzlei, "[bitte prüfen]"],
-    [firma.standort, "[bitte prüfen]"],
-    [firma.domain, "bitte-pruefen.invalid"],
-  ];
-  tokens.sort((a, b) => b[0].length - a[0].length);
-  for (const [from, to] of tokens) answers = replaceToken(answers, from, to);
-  answers.rechtsform = input.rechtsform;
-  answers.mitarbeitende = input.mitarbeitende;
+  const fall = standardFall(input);
+  const basis = standardBasis(input);
+  const answers = basis.answers;
   answers.branchen = [brancheLabel(input.branche)];
-  answers.fibu = [softwareLabel(input)];
-  const a01 = answers.katalog?.A01;
-  if (a01) {
-    answers.katalog = {
-      ...answers.katalog,
-      A01: {
-        ...a01,
-        values: {
-          ...(a01.values ?? {}),
-          company: input.firma,
-          branchen: [brancheLabel(input.branche)],
-          rechtsform: input.rechtsform,
-          mitarbeitende: input.mitarbeitende,
-          gf: "[bitte prüfen]",
-          standort: "[bitte prüfen]",
-        },
-      },
-    };
-  }
-  const b01 = answers.katalog?.B01;
-  const systeme = b01?.values?.systeme;
-  if (b01 && Array.isArray(systeme) && systeme.length > 0) {
-    const [first, ...rest] = systeme;
-    const renamed =
-      first && typeof first === "object"
-        ? { ...(first as Record<string, unknown>), name: softwareLabel(input) }
-        : first;
-    answers.katalog = {
-      ...answers.katalog,
-      B01: { ...b01, values: { ...(b01.values ?? {}), systeme: [renamed, ...rest] } },
-    };
-  }
-  answers.gf = "[bitte prüfen]";
-  answers.buchhaltung = "[bitte prüfen]";
-  answers.it = "[bitte prüfen]";
-  answers.steuerberater = kanzleiBuchtAntwort(input.bucht) ? "[bitte prüfen]" : "";
+  answers.fibu = statedFibu(input) ? [fall.name] : [];
   if (kasseHatKapitel(input.kasse)) {
-    answers = setCheckAntwort(answers, "bargeld", "ja");
-    answers = setModulEintrag(answers, "m08", { status: "tool" });
-  } else {
-    answers = setCheckAntwort(answers, "bargeld", "nein");
-    answers = setModulEintrag(answers, "m08", {
-      status: "nicht_vorhanden",
-      reason: "Keine Bargeldeinnahmen in den 6 Angaben.",
-    });
+    const next = setCheckAntwort(answers, "bargeld", kasseCheckAntwort(input.kasse));
+    return { answers: next, identity: { ...basis.identity, company: input.firma }, vorlage };
   }
-  if (!kanzleiBuchtAntwort(input.bucht)) {
-    answers = setCheckAntwort(answers, "kanzlei", "nein");
-  }
-  const identity: CheckoutIdentity = {
-    ...muster.identity,
-    company: input.firma,
-    email: "",
-    stripeSessionId: "",
-    stripeCustomerId: "",
-    stub: true,
-  };
-  delete identity.entityId;
-  return { answers, identity, vorlage };
+  const next = setCheckAntwort(answers, "bargeld", "nein");
+  return { answers: next, identity: { ...basis.identity, company: input.firma }, vorlage };
 }

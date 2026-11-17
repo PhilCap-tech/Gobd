@@ -30,7 +30,10 @@ import {
   PDF_UPSELL_HEADLINE,
   PDF_UPSELL_PRICE,
 } from "@/lib/offer-copy";
-import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
+import { limitIdenticalSentences, standardSystemSection } from "@/lib/schnellversion-bausteine";
+import { mitEinzelaufzeichnung, mitFreiberuf, mitKassenNotverfahren } from "@/lib/schnellversion-basis";
+import { SV_FOOTER } from "@/lib/schnellversion-copy";
+import { neutralizeStandardText, offeneKasseText } from "@/lib/schnellversion-neutral";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 import type { VersionHistoryEntry, VersionPdfMeta } from "@/lib/versioning";
 
@@ -60,6 +63,21 @@ export type StandardPdfFrame = {
   kasseHinweis?: string;
   /** Anzeigedatum der Erstellung, nur für die Standardfassung. */
   erstelltAm?: string;
+  /** Eigenbuchhaltung: Kanzlei und DATEV nur, wenn die Antwort sie nennt. */
+  selfBooking?: boolean;
+  software?: string;
+  /** Baustein der Standardfassung. Die Vollversion lässt die Felder leer. */
+  bausteinKind?: "datev" | "lexoffice" | "sevdesk" | "excel" | "unbekannt" | "named";
+  bausteinName?: string;
+  brancheId?: string;
+  /** Angabe zur Kasse, nur für die Standardfassung. */
+  kasseArt?: string;
+  /** Mitarbeitende „1 (nur ich)“. */
+  solo?: boolean;
+  /** Rechtsform Einzelunternehmen. */
+  einzelunternehmen?: boolean;
+  /** Fußzeile. Ohne Angabe gilt der Standardhinweis. */
+  footer?: string;
 };
 
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
@@ -305,6 +323,8 @@ function drawFooter(
     versionLabel: string;
     validFrom?: string;
     chrome: string;
+    /** Zweite Zeile mit Marke und Fassung. Die Standardfassung hat nur eine Zeile. */
+    brandLine?: boolean;
   },
 ) {
   withOpenMargins(doc, () => {
@@ -333,16 +353,18 @@ function drawFooter(
         align: "right",
         lineBreak: false,
       });
-    doc
-      .font("Helvetica")
-      .fontSize(7)
-      .fillColor(BRAND_MUTED)
-      .text(
-        `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}`,
-        left,
-        ruleY + 18,
-        { width, lineBreak: false },
-      );
+    if (input.brandLine !== false) {
+      doc
+        .font("Helvetica")
+        .fontSize(7)
+        .fillColor(BRAND_MUTED)
+        .text(
+          `${BRAND_NAME} · ${input.versionLabel}${input.validFrom ? ` · ab ${input.validFrom}` : ""}`,
+          left,
+          ruleY + 18,
+          { width, lineBreak: false },
+        );
+    }
   });
 }
 
@@ -448,9 +470,7 @@ function decoratePages(
   },
 ) {
   const range = doc.bufferedPageRange();
-  const chrome = input.standard
-    ? "Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."
-    : footerChrome(input.variant);
+  const chrome = input.standard ? (input.standard.footer || SV_FOOTER) : footerChrome(input.variant);
   for (let i = 0; i < range.count; i += 1) {
     doc.switchToPage(range.start + i);
     if (input.standard && i === 0) drawTopLine(doc, input.standard.header);
@@ -464,6 +484,7 @@ function decoratePages(
       versionLabel: input.rendered.versionLabel,
       validFrom: input.rendered.validFromDisplay,
       chrome,
+      brandLine: !input.standard,
     });
   }
 }
@@ -494,16 +515,51 @@ function writePdf(
       ? input.content.chapters
       : rendered.chapters;
   const erstelltAm = input.standard?.erstelltAm?.trim() || "";
-  const plain = (value: string) =>
-    input.standard ? neutralizeStandardText(value, erstelltAm) : value;
+  const neutral = {
+    selfBooking: input.standard?.selfBooking,
+    software: input.standard?.software,
+    fall: input.standard?.bausteinKind && input.standard.bausteinName
+      ? {
+          kind: input.standard.bausteinKind,
+          name: input.standard.bausteinName,
+          self: input.standard.selfBooking === true,
+          datev: input.standard.bausteinKind === "datev",
+          excel: input.standard.bausteinKind === "excel",
+        }
+      : undefined,
+    branche: input.standard?.brancheId,
+    solo: input.standard?.solo,
+    einzelunternehmen: input.standard?.einzelunternehmen,
+  };
+  const sentenceCounts = new Map<string, number>();
+  const offen = input.standard?.kasseArt === "Ja, offene Ladenkasse (ohne elektronisches System)";
+  const plain = (value: string) => {
+    if (!input.standard) return value;
+    const cleaned = limitIdenticalSentences(neutralizeStandardText(value, erstelltAm, neutral), 1, sentenceCounts);
+    return offen ? offeneKasseText(cleaned) : cleaned;
+  };
   if (input.standard) {
     chapters = chapters
       .filter((chapter) => chapter.id !== "anhang-a")
       .map((chapter) => {
-        const body = plain(chapter.body);
-        return input.standard?.kasseHinweis && chapter.id === "modul-m08"
-          ? { ...chapter, body: `${input.standard.kasseHinweis}\n\n${body}` }
-          : { ...chapter, body };
+        let body = chapter.body;
+        if (input.standard?.kasseHinweis && chapter.id === "modul-m08") {
+          body = `${input.standard.kasseHinweis}\n\n${body}`;
+        }
+        body = mitEinzelaufzeichnung(body, chapter.id, input.standard?.kasseArt);
+        body = mitKassenNotverfahren(body, chapter.id, input.standard?.kasseArt);
+        body = mitFreiberuf(body, chapter.id, input.standard?.brancheId);
+        if (chapter.id === "modul-m17" && input.standard?.bausteinKind && input.standard.bausteinName) {
+          body = `${body}\n\n${standardSystemSection({
+            kind: input.standard.bausteinKind,
+            name: input.standard.bausteinName,
+            self: input.standard.selfBooking === true,
+            datev: input.standard.bausteinKind === "datev",
+            excel: input.standard.bausteinKind === "excel",
+            solo: input.standard.solo,
+          })}`;
+        }
+        return { ...chapter, body: plain(body) };
       });
   }
 
@@ -527,7 +583,7 @@ function writePdf(
     doc.addPage();
     doc.x = doc.page.margins.left;
     doc.y = doc.page.margins.top;
-    writeMarkdownish(doc, input.standard.closing, width);
+    writeMarkdownish(doc, plain(input.standard.closing), width);
   } else if (isMuster(input.variant)) {
     writeUpsellPage(doc, { ds24: input.upsellDs24 });
   }
@@ -583,7 +639,7 @@ export async function generatePdf(input: {
         Title: `${isGesamt(input.answers) ? gesamtDocTitle() : isBelegfluss(input.answers) ? BRAND_DOC_TITLE : bereichDocTitle(bereichIdOf(input.answers))} — ${input.identity.company || (variant === "muster" ? "Muster" : "Arbeitsfassung")}`,
         Author: BRAND_NAME,
         Subject: input.standard
-          ? "Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."
+          ? SV_FOOTER
           : variant === "muster"
             ? "Muster mit fiktiven Angaben — kein Steuerberatungsersatz"
             : `Arbeitsfassung ${isGesamt(input.answers) ? "Gesamtdokument" : isBelegfluss(input.answers) ? "Belegablage" : bereichLabel(bereichIdOf(input.answers))} — kein Steuerberatungsersatz`,

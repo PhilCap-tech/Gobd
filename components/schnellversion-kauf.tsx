@@ -6,7 +6,6 @@ import styles from "@/components/schnellversion-ui.module.css";
 import {
   postSvEvent,
   readSvAnswersSnapshot,
-  saveSvBought,
   subscribeSvStorage,
 } from "@/components/schnellversion-browser";
 import {
@@ -24,11 +23,13 @@ import {
   SV_KAUF_WECHSEL,
   SV_WECHSEL_LINK,
 } from "@/lib/schnellversion-copy";
+import { PLAN_TERMS_HREF, PLAN_TERMS_LABEL_AFTER, PLAN_TERMS_LABEL_BEFORE, PLAN_TERMS_LINK } from "@/lib/plan-copy";
 
 export function SchnellversionKauf() {
   const answers = useSyncExternalStore(subscribeSvStorage, readSvAnswersSnapshot, () => null);
   const [unternehmer, setUnternehmer] = useState(false);
   const [bewusst, setBewusst] = useState(false);
+  const [agb, setAgb] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -37,20 +38,24 @@ export function SchnellversionKauf() {
   }, []);
 
   async function buy() {
-    if (!unternehmer || !bewusst) {
-      setError("Bitte bestätigen Sie beide Hinweise.");
+    if (!unternehmer || !bewusst || !agb) {
+      setError("Bitte bestätigen Sie die Hinweise und die AGB.");
       return;
     }
     setError("");
     setPending(true);
     try {
-      const response = await fetch("/api/schnellversion/checkout", { method: "POST" });
+      const response = await fetch("/api/schnellversion/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ answers, unternehmer: true, bewusst: true, agb: true }),
+      });
       const payload = (await response.json()) as { ready?: boolean; url?: string };
       if (!payload.ready || !payload.url) {
+        setError("Der Kauf ist gerade nicht möglich. Bitte versuchen Sie es später erneut.");
         setPending(false);
         return;
       }
-      saveSvBought(new Date().toISOString());
       const vorlage = answers ? vorlageForBranche(answers.branche) : "";
       void postSvEvent({
         name: "sv_checkout_start",
@@ -198,6 +203,14 @@ export function SchnellversionKauf() {
           <label>
             <input type="checkbox" checked={bewusst} onChange={(event) => setBewusst(event.target.checked)} />
             <span>{SV_KAUF_BEWUSST}</span>
+          </label>
+          <label>
+            <input type="checkbox" checked={agb} onChange={(event) => setAgb(event.target.checked)} />
+            <span>
+              {PLAN_TERMS_LABEL_BEFORE}
+              <Link href={PLAN_TERMS_HREF}>{PLAN_TERMS_LINK}</Link>
+              {PLAN_TERMS_LABEL_AFTER}
+            </span>
           </label>
         </div>
         <p className={styles.err} role="alert">

@@ -10,6 +10,7 @@ import { isSheetsConfigured } from "@/lib/env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { createSheetsClient } from "@/lib/sheets-client";
 import { SV_EVENT_NAMES, type SvEventName, type SvEventRow } from "@/lib/schnellversion-events";
+import { claimSvJson, svBlobEnabled, svCounted99Path } from "@/lib/schnellversion-persist";
 
 export const SV_EVENT_TAB = "schnellversion_49";
 export const SV_EVENT_COLUMNS = ["name", "arm", "variante", "branche_vorlage", "value", "step", "ziel"] as const;
@@ -19,6 +20,12 @@ const NAME_SET = new Set<string>(SV_EVENT_NAMES);
 
 let memory: SvEventRow[] = [];
 let prepared: Promise<void> | null = null;
+let failPurchaseSink = false;
+
+/** Nur der Check. Der nächste sv_purchase-Eintrag scheitert, bevor ein Marker entsteht. */
+export function failSvPurchaseSinkForTest(next: boolean): void {
+  failPurchaseSink = next;
+}
 
 type SheetClient = {
   get(args: { spreadsheetId: string }): Promise<{
@@ -132,6 +139,63 @@ async function appendSheet(row: SvEventRow): Promise<void> {
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [cells(row)] },
   });
+}
+
+const counted99 = new Set<string>();
+const countedQueues = new Map<string, Promise<unknown>>();
+
+function queueCounted<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const previous = countedQueues.get(key) ?? Promise.resolve();
+  const current = previous.then(run, run);
+  countedQueues.set(
+    key,
+    current.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return current;
+}
+
+/** Ein 99-€-Kauf je Stripe-Session, auch bei wiederholter oder paralleler Zustellung. */
+export function rememberPurchase99Once(input: {
+  sessionId: string;
+  eventId: string;
+  arm: "control" | "test";
+}): Promise<boolean> {
+  const key = input.sessionId.trim() || input.eventId.trim();
+  if (!key) return Promise.resolve(false);
+  return queueCounted(key, async () => {
+    if (counted99.has(key)) return false;
+    if (svBlobEnabled()) {
+      const claim = await claimSvJson(svCounted99Path(key), { sessionId: key, eventId: input.eventId });
+      if (claim === "exists") {
+        counted99.add(key);
+        return false;
+      }
+    }
+    counted99.add(key);
+    rememberSvEvent({
+      name: "purchase_99",
+      arm: input.arm,
+      variante: "b",
+      branche_vorlage: "",
+      value: 99,
+      step: 0,
+      ziel: "",
+    });
+    return true;
+  });
+}
+
+/** Schreibt sv_purchase dauerhaft. Wirft, bevor ein Zähl-Marker gesetzt werden darf. */
+export async function persistSvPurchaseEvent(row: SvEventRow): Promise<void> {
+  if (failPurchaseSink) throw new Error("Event nicht gespeichert");
+  const production = (process.env.VERCEL_ENV ?? "").trim() === "production";
+  const writeFile = !production && !automatedRunForbidsLiveWrites();
+  if (writeFile) appendFileSync(FILE, `${JSON.stringify(row)}\n`, "utf8");
+  if (sheetWritesAllowed()) await appendSheet(row);
+  memory.push(row);
 }
 
 export function rememberSvEvent(row: SvEventRow): void {

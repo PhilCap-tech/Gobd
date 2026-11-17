@@ -45,7 +45,7 @@ import {
 import { firstQueryValue } from "@/lib/query";
 import { findLatestStripeCustomerIdByEmail, findUndocumentedPaidSessionId } from "@/lib/store";
 import { portalStatusCopy, portalStatusFromQuery } from "@/lib/stripe";
-import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { schnellversionOffered } from "@/lib/schnellversion-flag";
 import { listSvPurchases } from "@/lib/schnellversion-record";
 
 export const dynamic = "force-dynamic";
@@ -171,7 +171,7 @@ export default async function AccountPage({
     openPaidSession,
   } = loaded;
   const notice = lifecycleNotice(lifecycleRows);
-  const svRows = schnellversion49Enabled() ? await listSvPurchases(email) : [];
+  const svRows = schnellversionOffered() ? await listSvPurchases(email) : [];
   const planView = compAccess ? null : await loadAccountPlanView(email, docs, entities.length === 1 ? entities[0]?.name : "");
   const purchaseNotice = firstQueryValue(params.kauf);
   if (planView?.deactivated) {

@@ -213,7 +213,10 @@ export function buildPlanCheckoutParams(
     billing_address_collection: "required",
     tax_id_collection: { enabled: true },
     ...(input.svCoupon
-      ? { discounts: [{ coupon: input.svCoupon }] }
+      ? {
+          discounts: [{ coupon: input.svCoupon }],
+          expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+        }
       : { allow_promotion_codes: true }),
     line_items: lineItems,
     success_url:

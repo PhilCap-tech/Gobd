@@ -3,6 +3,9 @@
  * (Abschnitt 2 und 3), formelles Sie. Keine eigenen Preise oder Disclaimer.
  */
 
+import { LOHN_SATZ } from "@/lib/schnellversion-bausteine";
+import { SV_BASIS_SATZ } from "@/lib/schnellversion-neutral";
+
 export const SV_BUY_LABEL = "Direkt kaufen: Standard-PDF 49 €";
 
 export const SV_HERO_NOTE =
@@ -26,10 +29,8 @@ export const SV_KAUF_BUTTON = "Standardfassung für 49 € kaufen";
 export const SV_KAUF_PREIS =
   "49 € zzgl. 19 % USt (58,31 € brutto), einmalig je Firma. Keine Abo-Pflicht.";
 
-export const SV_KAUF_UNTERNEHMER = "Ich bestelle als Unternehmer im Sinne von § 14 BGB.";
-
 export const SV_KAUF_BEWUSST =
-  "Mir ist bewusst, dass die Schnellversion eine Standardfassung aus einer Branchenvorlage ist. Sie beschreibt nicht meine tatsächlichen Abläufe und muss vor der Verwendung von mir geprüft und angepasst werden.";
+  "Ihnen ist bewusst, dass die Schnellversion eine Standardfassung aus einer Branchenvorlage ist. Sie beschreibt nicht Ihre tatsächlichen Abläufe und muss vor der Verwendung von Ihnen geprüft und angepasst werden.";
 
 export const SV_KAUF_PFLICHT =
   "Preise netto zzgl. 19 % USt, nur für Unternehmen. Jede weitere Firma buchen Sie gesondert. Erstattung nur, wenn die Erstellung Ihres PDFs fehlschlägt (Einzelheiten in den AGB). Keine Steuer- oder Rechtsberatung.";
@@ -45,21 +46,43 @@ export const SV_DANKE_MICRO = "Download 30 Tage im Konto. Bitte speichern Sie da
 
 export const SV_DOWNLOAD_DAYS = 30;
 
+/** Tage nach dem Kauf, nach denen PDF und Token-Link gelöscht werden. Philip legt die Dauer fest. */
+export const SV_PURGE_AFTER_DAYS = 30;
+
+export const SV_KAUF_UNTERNEHMER =
+  "Ich bestelle als Unternehmer (§ 14 BGB) für meine gewerbliche oder selbstständige berufliche Tätigkeit.";
+
+export const SV_PDF_FAILED =
+  "Die Erstellung Ihrer Standardfassung ist fehlgeschlagen. Es liegt kein PDF zum Download bereit. Einzelheiten zur Erstattung stehen in den AGB (§ 9).";
+
 export const SV_COVER_TITLE = "Standardfassung, bitte prüfen";
 
 export function svCoverBox(vorlage: string, erstelltAm = ""): string {
-  const datum = erstelltAm ? ` Erstellt am ${erstelltAm}.` : "";
+  const satz = erstelltAm
+    ? `Diese Verfahrensdokumentation wurde am ${erstelltAm} als Standardfassung auf Basis der Angaben zu Branche und Größe erstellt.`
+    : SV_BASIS_SATZ;
   return [
     `**${SV_COVER_TITLE}**`,
     "",
-    `Standardfassung auf Basis Ihrer Angaben zu Branche und Größe.${datum}`,
+    satz,
     "",
-    `Dieses Dokument ist eine Standardfassung aus der Branchenvorlage „${vorlage}“. Es enthält Ihre Firmendaten und 6 Eckdaten. Die beschriebenen Abläufe sind typische Abläufe der Branche, nicht Ihre tatsächlichen. Bitte prüfen Sie jeden Abschnitt, passen Sie ihn an Ihren Betrieb an und stimmen Sie ihn bei Bedarf mit Ihrer Steuerkanzlei ab. Mit [bitte prüfen] markierte Stellen brauchen Ihre Angaben. Keine Steuer- oder Rechtsberatung.`,
+    `Anschrift: ________`,
+    `gültig ab: ________ (nach Prüfung und Freigabe durch die Geschäftsführung eintragen)`,
+    "",
+    `Dieses Dokument wurde aus der Branchenvorlage „${vorlage}“ und 6 Eckdaten des Betriebs erzeugt. Die beschriebenen Abläufe sind branchentypische Annahmen, keine festgestellten Abläufe des Betriebs. Stellen mit „(bitte prüfen)“ und Lücken „____“ sind vom Betrieb zu ergänzen. Erst nach Prüfung, Ergänzung und Freigabe durch die Geschäftsführung gibt das Dokument die Verfahren des Betriebs wieder. Keine steuerliche oder rechtliche Beratung.`,
   ].join("\n");
 }
 
+export const SV_FOOTER =
+  "Standardfassung – vor Freigabe durch die Geschäftsführung prüfen · Keine Steuer- oder Rechtsberatung";
+
+export function svFooterLine(einzelunternehmen = false): string {
+  const wer = einzelunternehmen ? "die Inhaberin bzw. den Inhaber" : "die Geschäftsführung";
+  return `Standardfassung – vor Freigabe durch ${wer} prüfen · Keine Steuer- oder Rechtsberatung`;
+}
+
 export function svHeaderLine(firma: string, datum: string): string {
-  return `${SV_COVER_TITLE} · ${firma} · erstellt am ${datum}`;
+  return `Verfahrensdokumentation · ${firma} · Standardfassung vom ${datum}`;
 }
 
 /** Eine Prüffrage je Punkt aus Konzept 2.4. */
@@ -72,15 +95,41 @@ export const SV_PRUEF_PUNKTE: ReadonlyArray<readonly [string, string]> = [
   ["Übergabe an die Kanzlei", "Welche Unterlagen übergeben Sie an die Kanzlei, und wer bleibt wofür zuständig?"],
 ];
 
-export function svClosingPage(anrechnungBis: string): string {
-  const points = SV_PRUEF_PUNKTE.map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
-  return [
-    "# Was Sie in der Standardfassung prüfen sollten",
-    "",
-    points,
-    "",
-    `Ihre individuelle Verfahrensdokumentation mit Liste offener Punkte erstellen Sie unter gobd-doku-erstellen.de. Bis zum ${anrechnungBis} rechnen wir die 49 € an.`,
-  ].join("\n");
+export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro?: boolean; kasseArt?: string; solo?: boolean } = {}): string {
+  const self = options.self === true;
+  const solo = options.solo === true;
+  const kasse = options.kasse === true;
+  const gastro = options.gastro === true;
+  const punkte: Array<readonly [string, string]> = [
+    ["Prüfung und Freigabe", "Die Geschäftsführung prüft das Dokument, ersetzt offene Angaben durch eigene Angaben, unterschreibt und trägt „gültig ab“ ein."],
+  ];
+  const art = options.kasseArt ?? "";
+  const kassenText =
+    art === "Ja, offene Ladenkasse (ohne elektronisches System)"
+      ? "Offene Ladenkasse: täglicher Kassenbericht, retrograd ab gezähltem Endbestand, mit Zählprotokoll (nicht vorgeschrieben, aber empfohlen als Nachweis des Auszählens). Wer zählt und den Bericht führt, ist einzutragen. Werden Einzelaufzeichnungen geführt oder wird die Ausnahme genutzt?"
+      : art === "Unsicher"
+        ? "Kassenart (elektronisch mit TSE oder offene Ladenkasse) ist festzulegen. Bei elektronischer Kasse: Kassen- und TSE-Seriennummer und das Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO. Bei offener Ladenkasse: Kassenbericht und Zählprotokoll (nicht vorgeschrieben, aber empfohlen als Nachweis des Auszählens)."
+        : "Kassenart (elektronisches Aufzeichnungssystem mit TSE), Kassen- und TSE-Seriennummer, Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO, Tagesabschluss.";
+  const kassenPunkt: readonly [string, string] = ["Kasse", kassenText];
+  if (kasse && gastro) punkte.push(kassenPunkt);
+  punkte.push(
+    ["Zuständigkeiten und Vertretung", solo
+      ? "Wer handelt bei Krankheit oder Urlaub (z. B. Vollmacht für Steuerberatung, Bank)?"
+      : "Wer ist wofür zuständig, wer vertritt, wer gibt Zahlungen frei?"],
+    ["Belegeingang und E-Rechnung", "Über welche Wege gehen Belege ein, wer erfasst sie, wo wird die E-Rechnung (XML) aufbewahrt?"],
+  );
+  if (kasse && !gastro) punkte.splice(1, 0, kassenPunkt);
+  punkte.push(
+    ["Systeme", "Welche Programme werden eingesetzt (Name, Anbieter, Cloud oder lokal), stimmt die Systemübersicht?"],
+    ["Archiv, Unveränderbarkeit und Sicherung", "Wo liegen die Unterlagen, wie sind sie gegen Änderung geschützt, wer sichert wie oft? Fristen: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Geschäftsbriefe 6 Jahre."],
+  );
+  punkte.push(
+    solo
+      ? ["Lohn", "Gibt es Beschäftigte (auch Minijob, Aushilfe)? Falls ja: Lohnabrechnung intern oder extern."]
+      : [self ? "Lohn" : "Übergabe an Kanzlei bzw. Lohnbüro", LOHN_SATZ],
+  );
+  const points = punkte.map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
+  return ["# Vom Betrieb zu ergänzende Punkte", "", points].join("\n");
 }
 
 export function svDankeText(anrechnungBis: string): string {

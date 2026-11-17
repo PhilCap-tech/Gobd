@@ -109,6 +109,11 @@ export function checkoutNoticeMailKey(sessionId: string): string {
   return `checkout-notice:${sessionId.trim()}`;
 }
 
+/** Eine Kaufmail der Schnellversion je Stripe-Session. */
+export function svPurchaseMailKey(sessionId: string): string {
+  return `sv-purchase-mail:${sessionId.trim()}`;
+}
+
 /**
  * One internal lead note per result mail. No expiry.
  * `anchor` is the lead id, or the normalized lead address plus the result-mail id.
