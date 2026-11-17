@@ -57,7 +57,13 @@ export async function maybeSendSchnellversionPurchaseMail(input: {
   const env = input.env ?? process.env;
   if (!schnellversionPurchaseMailEnabled(env) || automatedRunForbidsLiveWrites()) return false;
   const mail = purchaseMail(input);
-  const { sendEmail } = await import("@/lib/mail");
-  await sendEmail({ to: input.to, subject: mail.subject, text: mail.text, html: mail.html });
+  const { sendDedupedEmail, svPurchaseMailKey } = await import("@/lib/mail-dedupe");
+  await sendDedupedEmail({
+    dedupeKey: svPurchaseMailKey(input.sessionId),
+    to: input.to,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+  });
   return true;
 }
