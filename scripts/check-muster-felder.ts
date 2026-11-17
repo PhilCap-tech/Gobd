@@ -208,7 +208,34 @@ export function bs06WidersprichtOss(oss: string, regeln: string): boolean {
 export const VORLAGEN_BEGRIFFE = ["Projektleitung", "Agentur", "Abschlagsrechnung", "Schlussrechnung", "Faktura+", "Abnahme"] as const;
 
 export function vorlagenbegriffOhneStamm(begriff: string, stamm: string, text: string): boolean {
-  return text.includes(begriff) && !stamm.includes(begriff);
+  const bereinigt = begriff === "Abnahme" ? text.replace(/[Kk]eine Abnahme/g, "").replace(/kein Abnahmeprotokoll/gi, "") : text;
+  return bereinigt.includes(begriff) && !stamm.includes(begriff);
+}
+
+/** Dieselbe Person oder Rolle erfasst und kontrolliert. */
+export function istSelbstkontrolle(text: string): boolean {
+  const match = /Kontrolle durch (?:die |den |der )?([^.;]+)/iu.exec(text);
+  if (!match || match.index === undefined) return false;
+  const kontrolleur = match[1].replace(/\s+beim\b[\s\S]*$/iu, "").trim();
+  const davor = text.slice(0, match.index).trim();
+  const teile = davor.split(/[,;]/u).map((teil) => teil.trim()).filter(Boolean);
+  const akteur = (teile.pop() ?? "").replace(/^(Wer erfasst:\s*)/iu, "").trim();
+  const norm = (value: string) => value.toLowerCase().replace(/^(die|der|den)\s+/u, "").replace(/\s+/gu, " ").trim();
+  const links = norm(akteur);
+  const rechts = norm(kontrolleur);
+  if (links.length < 4 || rechts.length < 4) return false;
+  return links === rechts || links.includes(rechts) || rechts.includes(links);
+}
+
+/** EK-Text nennt ein System, das SY01 nicht hat. */
+export function ekFremdsystem(sy01: string, ekText: string): string[] {
+  const treffer: string[] = [];
+  if (!/\bERP\b/u.test(sy01) && /\bERP\b/u.test(ekText)) treffer.push("ERP");
+  if (/keine Warenwirtschaft/iu.test(sy01)) {
+    if (/\bLager\b/u.test(ekText)) treffer.push("Lager");
+    if (/Wareneingang/u.test(ekText)) treffer.push("Wareneingang");
+  }
+  return treffer;
 }
 
 const KONTROLL_ROLLEN = ["Projektleitung", "Verkaufsleitung", "Schichtleitung", "Lagerleitung", "Lagerpersonal", "Filialleitung", "Küchenchef"] as const;
@@ -248,6 +275,18 @@ if (ossSatzSichtbar("OSS-Verfahren wird genutzt: ja.")) {
 }
 if (!ossSatzSichtbar(`${OSS_SATZ}; Steuersätze je Land pflegt die Geschäftsführung im Shop.`)) {
   fail("Negativtest: der volle OSS-Satz wurde nicht erkannt");
+}
+if (!istSelbstkontrolle("Lagerverantwortliche Person, Kontrolle durch die Lagerverantwortliche Person")) {
+  fail("Negativtest: Selbstkontrolle wurde nicht erkannt");
+}
+if (istSelbstkontrolle("Die lagerverantwortliche Person bucht den Wareneingang. Kontrolle durch Sara Linden beim Drei-Wege-Abgleich")) {
+  fail("Negativtest: getrennte Kontrolle wurde als Selbstkontrolle gemeldet");
+}
+if (ekFremdsystem("Keine Warenwirtschaft.", "Wareneingang im ERP und im Lager").join(",") !== "ERP,Lager,Wareneingang") {
+  fail("Negativtest: ERP, Lager oder Wareneingang ohne Warenwirtschaft wurde nicht erkannt");
+}
+if (ekFremdsystem("Projektsoftware und Lager", "Wareneingang im Lager").length !== 0) {
+  fail("Negativtest: Lager bei vorhandener Warenbeschreibung wurde gemeldet");
 }
 console.log("negativ fremde Musterreste: rot");
 
@@ -321,7 +360,7 @@ const NEU_ERWARTUNG: Record<string, RegExp> = {
   PZ07: /Summen- und Saldenliste/i,
   AE04: /gibt frei/i,
   PF02: /meldet geänderte Abläufe/i,
-  EK01: /gemeldeten Bedarfen|Onlineshop/i,
+  EK01: /gemeldeten Bedarfen|Onlineshop|Software-Abos/i,
   VK01: /Angebot|Auftrag|Bestellung|Veranstaltung|WaWi|Shop/i,
   VK02: /Rechnungssoftware|WaWi|Onlineshop|Veranstaltung|Faktura/i,
   VK05: /fortlaufend|Nummernkreis/i,
@@ -337,14 +376,16 @@ const NEU_ERWARTUNG: Record<string, RegExp> = {
   WW01: /WaWi|Warenwirtschaft|Materialliste/i,
   EK03: /Lieferantenportal|WaWi Lagerplus|Rechnungssoftware|Projektsoftware|Warenwirtschaft/i,
   EK04: /Abweichungen/i,
-  EK05: /Wareneingang/i,
+  EK05: /Wareneingang|Fremdleistungen|Lieferschein/i,
   EK06: /Rechnung/i,
-  EK08: /Rahmenverträge/i,
+  EK08: /Rahmenverträge|Software-Abos|Lebensmittel/i,
   EK10: /Bestellnummer/i,
   EK90: /Einkauf/i,
   EK91: /DATEV/i,
-  EK95: /Nacherfassung/i,
-  EK96: /Export/i,
+  EK92: /2\.000 Euro/,
+  BA92: /2\.000 Euro/,
+  EK95: /Nacherfassung|Ausfall/i,
+  EK96: /Export|DATEV|Originaldokumente/i,
   EC90: /Keine weiteren Verkaufswege/i,
   AN09: /Leasing für Fahrzeuge/i,
   KA90: /Alle Kassen am Standort/i,
@@ -428,6 +469,17 @@ for (const vorlage of MUSTER_VORLAGEN) {
     .join(" ");
   for (const rolle of KONTROLL_ROLLEN) {
     if (rolleOhneStamm(rolle, stamm, kontrollen)) fail(`${vorlage}: Rolle „${rolle}“ in einer Kontrolle fehlt in UO03`);
+  }
+  const ekText = Object.entries(muster.answers.katalog ?? {})
+    .filter(([id, entry]) => id.startsWith("EK") && entry?.status === "bestaetigt")
+    .map(([, entry]) => JSON.stringify(entry?.values ?? {}))
+    .join("\n");
+  const fremdEk = ekFremdsystem(String(muster.answers.katalog?.SY01?.values?.umgebung ?? ""), ekText);
+  if (fremdEk.length) fail(`${vorlage}: Einkauf nennt ${fremdEk.join(", ")} ohne das System in SY01`);
+  for (const [id, entry] of Object.entries(muster.answers.katalog ?? {})) {
+    if (entry?.status !== "bestaetigt") continue;
+    const text = Object.values(entry.values ?? {}).map((item) => String(item)).join(". ");
+    if (istSelbstkontrolle(text)) fail(`${vorlage}: ${id} ist eine Selbstkontrolle`);
   }
   const nochFestzulegen = (mustertext.match(/Noch festzulegen/g) ?? []).length;
   if (nochFestzulegen > 5) fail(`${vorlage}: „Noch festzulegen“ steht ${nochFestzulegen} Mal`);

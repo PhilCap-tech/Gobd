@@ -572,6 +572,14 @@ function firmaKorrektur(f: DenseFirma): Record<string, Entry> {
       grenzen: "Bestellungen bis 2.000 Euro durch die Buchhaltung; darüber Freigabe der Geschäftsführung",
       freigabe: f.gf,
     }),
+    EK92: b({
+      kontrollen: ["Freigabe nach Wertgrenzen", "Rechnung gegen Bestellung"],
+      details: `Freigabe über 2.000 Euro im System durch ${f.gf}. Drei-Wege-Abgleich bei jeder Rechnung durch ${f.buchhaltung}. Bankdatenänderung: Rückruf über bekannte Nummer und Bestätigung durch die Buchhaltung. Offene Bestellungen wöchentlich durch die Buchhaltung.`,
+    }),
+    BA92: b({
+      kontrollen: ["Vier-Augen-Freigabe von Zahlungen", "Monatliche Abstimmung Saldo Bank und FiBu"],
+      details: `Vier-Augen-Freigabe über 2.000 Euro in der Banking-Software (${f.buchhaltung} erfasst, ${f.gf} gibt frei). Bankabstimmung monatlich durch ${f.buchhaltung}. Daueraufträge und Lastschriften jährlich. Bankvollmachten jährlich durch ${f.gf}. Ungeklärte Posten wöchentlich.`,
+    }),
     BA05: b({
       wer: `${f.buchhaltung} bis 2.000 Euro; darüber Vier-Augen mit ${f.gf}`,
       vierAugen: "ja",
@@ -611,9 +619,11 @@ function bereinigeText(text: string, vorlage: MusterDenseId, f: DenseFirma): str
       .replaceAll("Bei Projekten Abnahme per E-Mail oder Protokoll; ", "")
       .replaceAll("Abnahmeprotokoll oder ", "")
       .replaceAll("Abschlags- und Schlussrechnungen bei Projekten; ", "Rechnungen zu jeder Leistung; ")
-      .replaceAll("im ERP", "im System")
+      .replaceAll("ERP-Ticketsystem", "Änderungsblatt")
+      .replaceAll("Bei ERP-Ausfall", "Bei Ausfall der Warenwirtschaft")
       .replaceAll("ERP an DATEV", `${system} an DATEV`)
-      .replaceAll("ERP-Ticketsystem", "Änderungsliste in der WaWi")
+      .replaceAll("im ERP", "im System")
+      .replaceAll(/\bERP\b/g, system)
       .replaceAll("Lagerleitung", "Lagerverantwortliche Person")
       .replaceAll("Lagerpersonal", "Lagerverantwortliche Person");
   }
@@ -648,7 +658,10 @@ function bereinigeText(text: string, vorlage: MusterDenseId, f: DenseFirma): str
       .replaceAll("WaWi Lagerplus", "Materialliste")
       .replaceAll("Handscanner im Lager; ", "")
       .replaceAll("Handscanner an WaWi: Funk, sofort. ", "")
-      .replaceAll("Handscanner", "Projektsoftware");
+      .replaceAll("Handscanner", "Projektsoftware")
+      .replaceAll("ERP-Ticketsystem", "Änderungsblatt")
+      .replaceAll("Bei ERP-Ausfall", "Bei Ausfall der Projektsoftware")
+      .replaceAll(/\bERP\b/g, "Projektsoftware");
   }
   return next;
 }
@@ -724,6 +737,21 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
         kontrollen: ["Lückenprüfung der Rechnungsnummern", "Abgleich Projektzeiten mit Rechnungen", "OP-Liste"],
         details: `Lückenprüfung monatlich durch ${f.buchhaltung}. Abgleich erfasster Projektzeiten mit Rechnungen monatlich durch die Projektleitung. Vorlage mit Pflichtangaben laufend. OP-Liste gegen Debitorenkonten monatlich durch ${f.buchhaltung}. Storni nur mit Freigabe durch ${f.gf}.`,
       }),
+      EK01: b({ ablauf: `Bedarf an Software-Abos, Fremdleistungen und Büromaterial meldet die Projektleitung bzw. ${f.buchhaltung}.`, wer: `Projektleitung bzw. ${f.buchhaltung}` }),
+      EK03: b({ wege: ["E-Mail", "Lieferantenportal"], system: "Rechnungssoftware (fiktiv)" }),
+      EK04: b({ wer: f.buchhaltung, abweichungen: "Abweichungen bei Preis oder Termin werden in der Rechnungssoftware vermerkt und mit dem Lieferanten geklärt." }),
+      EK05: b({ ablauf: `Fremdleistungen bestätigt die Projektleitung per E-Mail; Lieferungen (Büromaterial, Hardware) bestätigt ${f.buchhaltung}.`, wer: `Projektleitung bzw. ${f.buchhaltung}` }),
+      EK06: b({ ablauf: "Rechnung wird in DATEV der Bestellung bzw. dem Auftrag zugeordnet.", wer: f.buchhaltung }),
+      EK08: b({ vertraege: `Software-Abos, Wartung und Fremdleistungsverträge, Liste auf dem NAS mit Laufzeit und Kündigungsfrist.`, wer: f.buchhaltung }),
+      EK90: b({ umfang: `Einkauf von Dienstleistungen, Software und Büromaterial am Standort ${f.standort}.`, ausgenommen: "Keine Warenwirtschaft." }),
+      EK91: b({ systeme: "Rechnungssoftware (fiktiv), DATEV Unternehmen online.", schnittstellen: "Eingangsrechnungen per Upload an DATEV.", betrieb: "Gemischt" }),
+      EK92: b({
+        kontrollen: ["Freigabe nach Wertgrenzen", "Rechnung gegen Bestellung"],
+        details: `Freigabe über 2.000 Euro im System durch ${f.gf}. Rechnung gegen Bestellung oder Auftrag durch ${f.buchhaltung}. Offene Bestellungen wöchentlich durch die Buchhaltung.`,
+      }),
+      EK94: b({ freigabe: f.gf, doku: "Änderungen an Freigabegrenzen und Rollen im Änderungsblatt.", protokoll: "ja" }),
+      EK95: b({ notbetrieb: "Bei Ausfall Bestellung per E-Mail.", nacherfassung: "Nacherfassung in der Rechnungssoftware." }),
+      EK96: b({ ort: "DATEV Unternehmen online und NAS", form: "Originaldokumente in DATEV", loeschung: f.gf }),
       UO02: b({
         taetigkeiten: `${f.branche}. Typische Vorfälle: Projektaufträge, Zeit- und Leistungsnachweise, Eingangsrechnungen (Software, Reise, Freelancer), Ausgangsrechnungen inkl. Abschläge/Schluss, SEPA-Zahlungen, Lohn für angestellte Beraterinnen und Berater. Keine Ladenkasse, kein Warenlager, kein Onlineshop.`,
         kunden: ["Geschäftskunden (B2B)"],
@@ -762,7 +790,7 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
     return {
       ...firmaKorrektur(f),
       SY01: b({
-        umgebung: `Kassensystem mit TSE, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
+        umgebung: `Kassensystem mit TSE, Warenwirtschaft, Rechnungssoftware (fiktiv) für Veranstaltungsrechnungen, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
         betrieb: "Gemischt",
       }),
       BS00: b({ verantwortlich: f.gf, vertretung: f.buchhaltung }),
@@ -812,13 +840,18 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       VK08: b({ ablauf: "Fehlerhafte Rechnungen werden storniert (Stornorechnung mit Bezug) und neu ausgestellt; kein Überschreiben.", freigabe: f.gf }),
       VK10: b({ uebergabe: "Rechnungen und Debitoren gehen per DATEV-Schnittstelle an DATEV Unternehmen online.", turnus: "monatlich" }),
       VK90: b({ umfang: "Tagesgeschäft an der Kasse und Veranstaltungen.", ausgenommen: "Kein Projektgeschäft." }),
-      VK91: b({ systeme: "Kassensystem und DATEV Unternehmen online.", schnittstellen: "Monatlicher Export nach DATEV", betrieb: "Gemischt" }),
+      VK91: b({ systeme: "Kassensystem, Rechnungssoftware (fiktiv) für Veranstaltungsrechnungen und DATEV Unternehmen online.", schnittstellen: "Monatlicher Export nach DATEV", betrieb: "Gemischt" }),
       VK92: b({
         kontrollen: ["Abgleich Veranstaltungsrechnungen", "OP-Liste"],
         details: `Abgleich der Veranstaltungs- und Catering-Rechnungen mit den Bankettbestellungen monatlich durch ${f.buchhaltung}; Freigabe Storni durch ${f.gf}. OP-Liste gegen Debitorenkonten monatlich durch ${f.buchhaltung}.`,
       }),
       LE02: b({ nachweis: "Lieferschein oder Auftragsbestätigung zur Veranstaltung.", ablage: `Ablage in DATEV Unternehmen online. ${f.buchhaltung} prüft die Vollständigkeit vor der Rechnung.` }),
-      LE03: b({ ablauf: "Die Veranstaltung gilt mit der erbrachten Leistung und der Rechnung. Ablage in DATEV Unternehmen online.", protokoll: "ja" }),
+      LE03: b({
+        ablauf: "Nach der Veranstaltung bestätigt der Auftraggeber Personenzahl und Zusatzleistungen auf dem Bankettauftrag (Unterschrift oder E-Mail); Ablage beim Veranstaltungsauftrag.",
+        protokoll: "ja",
+      }),
+      EK05: b({ ablauf: "Die Küche bestätigt die Lieferung gegen den Lieferschein.", wer: "Küchenchef" }),
+      EK08: b({ vertraege: "Rahmenverträge für Lebensmittel und Getränke, Liste in der Warenwirtschaft mit Laufzeit und Kündigungsfrist.", wer: f.buchhaltung }),
       AR01: b({ ablauf: "Anzahlungsrechnung zur Veranstaltung; die Rechnung danach stellt den Gesamtbezug her." }),
       WW00: b({ verantwortlich: "Lagerverantwortliche Person", vertretung: f.buchhaltung }),
       WW01: b({ system: "Warenwirtschaft der Küche (fiktiv)", vorgaenge: "Wareneingang, Verbrauch, Inventur" }),
@@ -949,6 +982,17 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       }),
       LE02: b({ nachweis: "Lieferschein mit Empfangsbestätigung.", ablage: `Ablage in DATEV Unternehmen online. ${f.buchhaltung} prüft die Vollständigkeit vor der Rechnung.` }),
       LE03: b({ ablauf: "Lieferschein mit Empfangsbestätigung. Ablage in DATEV Unternehmen online.", protokoll: "ja" }),
+      WW03: b({
+        ablauf: "Die lagerverantwortliche Person prüft Menge und Zustand gegen Lieferschein und Bestellung, scannt den Lieferschein und bucht den Wareneingang.",
+        wer: `Kontrolle durch ${f.buchhaltung} beim Drei-Wege-Abgleich`,
+      }),
+      EK05: b({ ablauf: "Die lagerverantwortliche Person bestätigt die Lieferung gegen den Lieferschein.", wer: "Lagerverantwortliche Person" }),
+      EK08: b({ vertraege: "Rahmenverträge für Handelsware, Liste in der WaWi mit Laufzeit und Kündigungsfrist.", wer: f.buchhaltung }),
+      RT01: b({ kanaele: "Umtausch und Reklamation im Laden über die Kasse (Bon).", system: "Kassensystem" }),
+      RT02: b({ regeln: "Kein gesetzliches Widerrufsrecht im Ladengeschäft, freiwilliger Umtausch 14 Tage laut Aushang. Gewährleistung nach Prüfung.", quelle: "Aushang im Laden" }),
+      RT90: b({ umfang: "Umtausch und Reklamation im Ladengeschäft.", ausgenommen: "Kein Fernabsatz." }),
+      RT91: b({ systeme: "Kassensystem und WaWi Lagerplus (fiktiv); DATEV Unternehmen online.", schnittstellen: "Kasse an WaWi: Umtausch als Storno. WaWi an DATEV: Stornorechnungen.", betrieb: "Cloud / Anbieter" }),
+      RT95: b({ notbetrieb: "Bei Kassenausfall Umtausch auf einem Beleg, Nacherfassung an der Kasse.", nacherfassung: "Der Beleg wird nach der Nacherfassung abgelegt." }),
       AR01: b({ ablauf: "Jede Lieferung wird einzeln berechnet." }),
       WW06: b({
         lagerorte: "Lager (Halle A, Halle B) und Verkaufsfläche im Ladengeschäft am Standort Hannover",
@@ -987,10 +1031,10 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       }),
       VK01: b({ ablauf: "Bestellung im Shop oder auf dem Marktplatz, Versand, Rechnung aus der Bestellung.", system: "Onlineshop" }),
       VK02: b({ system: "Onlineshop", ablage: "An der Bestellung" }),
-      VK05: b({ vergabe: "Automatisch fortlaufend im Shop", kreise: "Ein Nummernkreis für Rechnungen, einer für Stornorechnungen" }),
+      VK05: b({ vergabe: "Je Kanal ein Nummernkreis (Shop RS-…, Marktplatz MP-…), Stornos eigener Kreis.", kreise: "Shop: RS-…, Marktplatz: MP-…, Stornos eigener Kreis." }),
       VK06: b({ ablauf: "Die Rechnungsvorlage im Shop enthält die Pflichtangaben; der Leistungszeitraum ist das Versanddatum.", wer: f.buchhaltung }),
       VK08: b({ ablauf: "Fehlerhafte Rechnungen werden im Shop storniert (Stornorechnung mit Bezug) und neu ausgestellt; kein Überschreiben.", freigabe: f.gf }),
-      VK10: b({ uebergabe: "Der Shop übergibt Rechnungen an DATEV Unternehmen online.", turnus: "täglich" }),
+      VK10: b({ uebergabe: "Der Shop übergibt Rechnungen an DATEV Unternehmen online.", turnus: "monatlich bis zum 5." }),
       VK90: b({ umfang: "Verkauf ausschließlich über Shop und Marktplatz an Privatpersonen, siehe Bereich E-Commerce", ausgenommen: "Kein Projektgeschäft." }),
       VK91: b({ systeme: "Onlineshop und Marktplatz; DATEV Unternehmen online.", schnittstellen: "Shop an DATEV: Rechnungen.", betrieb: "Cloud / Anbieter" }),
       VK92: b({
@@ -998,7 +1042,7 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
         details: `Abgleich versendeter Bestellungen aus Shop und Marktplatz mit den erstellten Rechnungen monatlich durch ${f.buchhaltung}. OP-Liste bzw. Verrechnungskonten je Zahlungsdienstleister monatlich durch ${f.buchhaltung}.`,
       }),
       LE02: b({ nachweis: "Versandbestätigung und Rechnung zur Bestellung.", ablage: `Ablage in DATEV Unternehmen online. ${f.buchhaltung} prüft die Vollständigkeit vor der Rechnung.` }),
-      LE03: b({ ablauf: "Kein Projektgeschäft; der Verkauf läuft über Shop und Marktplatz. Der Versandbeleg liegt bei der Bestellung.", protokoll: "ja" }),
+      LE03: b({ ablauf: "Keine Abnahme; Nachweis ist der Versandbeleg an der Bestellung.", protokoll: "nein" }),
       AR01: b({ ablauf: "Jede Bestellung wird einzeln berechnet." }),
       EK00: b({ verantwortlich: `${f.gf} (Einkauf)`, vertretung: f.buchhaltung }),
       EK01: b({ ablauf: "Bedarf entsteht aus dem Bestand im Onlineshop und aus Nachbestellungen in der WaWi Lagerplus.", wer: f.buchhaltung }),
@@ -1018,6 +1062,10 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       EK95: b({ notbetrieb: "Bei Ausfall der WaWi Bestellungen per E-Mail, Nacherfassung in der WaWi.", nacherfassung: "Nacherfassung innerhalb von zwei Arbeitstagen." }),
       EK96: b({ ort: "WaWi Lagerplus (fiktiv) mit jährlichem Export", form: "Originaldokumente in der WaWi, Export als CSV und PDF", loeschung: f.buchhaltung }),
       WW00: b({ verantwortlich: "Lagerverantwortliche Person", vertretung: f.buchhaltung }),
+      WW03: b({
+        ablauf: "Die lagerverantwortliche Person prüft Menge und Zustand gegen Lieferschein und Bestellung und bucht den Wareneingang.",
+        wer: `Kontrolle durch ${f.buchhaltung} beim Rechnungsabgleich (EK06)`,
+      }),
       WW06: b({
         lagerorte: "Ein Lager am Standort Leipzig mit Regal- und Versandbereich",
         umlagerung: "Keine Umlagerungen zwischen Lagerorten; Lagerplatzwechsel ohne Buchung.",
