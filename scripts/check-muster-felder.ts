@@ -185,6 +185,39 @@ export function parseZuordnung(markdown: string): Zuordnungszeile[] {
   return zeilen;
 }
 
+/** Reste fremder Vorlagen. Ein Treffer lässt den Build fehlschlagen. */
+export const MUSTER_FREMD_ALLE = ["Peter Holm", "Lena Brandt", "Anja Berg", "Fertigplan", "Rohmaterial"] as const;
+
+const MUSTER_FREMD_FIRMA: Record<string, readonly string[]> = {
+  gastro: ["Halle A", "Halle B", "Kommissionsware", "Handscanner", "Filialleitung"],
+  handwerk: ["Halle A", "Halle B", "Handscanner", "WaWi Lagerplus", "Filialleitung"],
+  handel: ["2 Standorten", "Filialleitung", "mit Filiale"],
+  ecommerce: ["ERP Fertigplan"],
+};
+
+export function fremdeMusterreste(text: string, extra: readonly string[] = []): string[] {
+  return [...MUSTER_FREMD_ALLE, ...extra].filter((wort) => text.includes(wort));
+}
+
+/** Ist OSS genutzt, darf BS06 die besonderen Regeln nicht verneinen. */
+export function bs06WidersprichtOss(oss: string, regeln: string): boolean {
+  return oss.trim().toLowerCase() === "ja" && regeln.includes("Keine besonderen Regeln");
+}
+
+if (fremdeMusterreste("Lagerleitung (Peter Holm) im ERP Fertigplan").length < 2) {
+  fail("Negativtest: fremder Name oder fremdes System wurde nicht erkannt");
+}
+if (fremdeMusterreste("Mira Paketpfad, WaWi Lagerplus, Standort Leipzig").length !== 0) {
+  fail("Negativtest: die eigene Musterfirma wurde als fremd gemeldet");
+}
+if (!bs06WidersprichtOss("ja", "Keine besonderen Regeln über die allgemeinen umsatzsteuerlichen Pflichten hinaus.")) {
+  fail("Negativtest: OSS und verneinte Sonderregel wurden nicht erkannt");
+}
+if (bs06WidersprichtOss("nein", "Keine besonderen Regeln über die allgemeinen umsatzsteuerlichen Pflichten hinaus.")) {
+  fail("Negativtest: ohne OSS wurde eine Sonderregel verlangt");
+}
+console.log("negativ fremde Musterreste: rot");
+
 const ZUORDNUNG = parseZuordnung(readFileSync("scripts/fixtures/muster-zuordnung.md", "utf8"));
 const ZUORDNUNG_IDS = new Set(ZUORDNUNG.map((zeile) => zeile.id));
 if (ZUORDNUNG.length < 1000 || ZUORDNUNG_IDS.size < 200) {
@@ -201,19 +234,41 @@ const PERSONEN = [
 
 const TOKEN_STOP = new Set([
   "Geschäftsführung", "Buchhaltung", "Partnerin", "Partner", "Teamleitung", "Produktionsleitung",
+  "Filialleitung", "Standorten",
   "Schichtleitung", "Einkaufsleitung", "Projektleitung", "Geschäftsführerin", "Verantwortlich", "Vertretung",
 ]);
 
 function kerntoken(antwort: string): string | null {
   let text = antwort.split(" / ").map((part) => part.split("=").slice(1).join("=")).join(" ");
   for (const name of [...PERSONEN].sort((a, b) => b.length - a.length)) text = text.replaceAll(name, " ");
-  const words = text.split(/[^A-Za-zÄÖÜäöüß0-9-]+/u).filter((word) => word.length >= 10 && !TOKEN_STOP.has(word));
+  const fremd = new Set<string>(MUSTER_FREMD_ALLE);
+  const words = text.split(/[^A-Za-zÄÖÜäöüß0-9-]+/u).filter((word) => {
+    if (word.length < 10 || TOKEN_STOP.has(word) || fremd.has(word)) return false;
+    if (word.includes("Filialleitung") || word.includes("Fertigplan") || word.includes("Rohmaterial")) return false;
+    return true;
+  });
   return words.sort((a, b) => b.length - a.length)[0] ?? null;
 }
 
 /** IDs, deren Inhalt in dieser Runde bewusst vom Prüferstand abweicht. */
 const NEU_ERWARTUNG: Record<string, RegExp> = {
-  BS06: /steuerlich|§ 13b|Steuersätz|umsatzsteuerlichen Pflichten/i,
+  BS06: /steuerlich|§ 13b|Steuersätz|umsatzsteuerlichen Pflichten|OSS-Verfahren/i,
+  BA02: /2\.000 Euro/,
+  BA05: /2\.000 Euro/,
+  LO04: /Zeiterfassungs-App/,
+  WW00: /Lagerverantwortliche Person|Henrik Bauwerk|Jonas Marktwege|Mira Paketpfad|Paula Speicherblick/,
+  WW02: /Projektleitung|Lagerverantwortliche Person|Einkauf/,
+  WW03: /Lieferschein/,
+  WW04: /Warenausgang|Baustelle|Verbrauch/,
+  WW05: /Bestand|Projekt|Durchschnitt/,
+  WW07: /freigabe|500 Euro|Projektleitung|Lagerleitung/i,
+  WW09: /Differenz/,
+  WW10: /DATEV|monatlich/,
+  WW92: /FiBu|Wareneingang/,
+  WW06: /Lager|lager|Halle/,
+  WW08: /Inventur|Geschäftsjahresende|NAS/,
+  WW90: /Standort|Lager/,
+  WW91: /DATEV/,
   ZR05: /bei Bedarf/i,
   BU05: /Umsatzsteuer-Voranmeldung/i,
   BU07: /Belege laufend über DATEV Unternehmen online/i,
@@ -233,7 +288,17 @@ const NEU_ERWARTUNG: Record<string, RegExp> = {
   PZ07: /Summen- und Saldenliste/i,
   AE04: /gibt frei/i,
   PF02: /meldet geänderte Abläufe/i,
-  EK01: /gemeldeten Bedarfen/i,
+  EK01: /gemeldeten Bedarfen|Onlineshop/i,
+  EK03: /Lieferantenportal|WaWi Lagerplus|Rechnungssoftware|Projektsoftware|Warenwirtschaft/i,
+  EK04: /Abweichungen/i,
+  EK05: /Wareneingang/i,
+  EK06: /Rechnung/i,
+  EK08: /Rahmenverträge/i,
+  EK10: /Bestellnummer/i,
+  EK90: /Einkauf/i,
+  EK91: /DATEV/i,
+  EK95: /Nacherfassung/i,
+  EK96: /Export/i,
   EC90: /Keine weiteren Verkaufswege/i,
   AN09: /Leasing für Fahrzeuge/i,
   KA90: /Alle Kassen am Standort/i,
@@ -292,6 +357,12 @@ for (const vorlage of MUSTER_VORLAGEN) {
     fail(`${vorlage}: Fragebogen-Status statt PDF-Label`);
   }
   if (entfaelltImMuster(mustertext)) fail(`${vorlage}: „Entfällt im Muster“ im Text`);
+  const reste = fremdeMusterreste(mustertext, MUSTER_FREMD_FIRMA[vorlage] ?? []);
+  if (reste.length) fail(`${vorlage}: fremde Reste ${reste.join(", ")}`);
+  const oss = String(muster.answers.katalog?.EC05?.values?.oss ?? "");
+  const regeln = String(muster.answers.katalog?.BS06?.values?.regeln ?? "");
+  if (bs06WidersprichtOss(oss, regeln)) fail(`${vorlage}: BS06 verneint besondere Regeln trotz OSS`);
+  if (vorlage === "ecommerce" && !regeln.includes("OSS-Verfahren")) fail("ecommerce: BS06 ohne OSS-Satz");
   const nochFestzulegen = (mustertext.match(/Noch festzulegen/g) ?? []).length;
   if (nochFestzulegen > 5) fail(`${vorlage}: „Noch festzulegen“ steht ${nochFestzulegen} Mal`);
   for (const fremd of ["Sichtbeispiel", "Betriebs-Check", "Nora Klar", "Jana Hellweg", "Clara Sonnenkorn", "Robert Funke", "Digitaldruckmaschine", "Wochenmärkten", "Produktionsleitung", "Partnerin"]) {

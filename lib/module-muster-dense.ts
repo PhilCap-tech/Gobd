@@ -51,7 +51,7 @@ export const MUSTER_FIRMEN: Record<MusterDenseId, DenseFirma> = {
   handel: {
     company: "Marktwege Handel GmbH (Muster, fiktiv)",
     standort: "Hannover",
-    branche: "Einzel- und Großhandel mit Filiale und Lager",
+    branche: "Einzel- und Großhandel mit Ladengeschäft und Lager",
     rechtsform: "GmbH",
     mitarbeitende: "11–25",
     gf: "Jonas Marktwege",
@@ -561,6 +561,95 @@ export function vorlageVorschlaege(vorlageId: string): Record<string, Record<str
 
 
 /** Zusätzliche, längere Ist-Beschreibungen je Vorlage (Worttiefe). */
+function firmaKorrektur(f: DenseFirma): Record<string, Entry> {
+  return {
+    BA02: b({
+      vollmachten: `Geschäftsführung: Einzelvollmacht bis 2.000 Euro; darüber gibt ${f.buchhaltung} mit frei. Büro: Erfassungsrecht ohne Freigabe.`,
+      sperre: `Zugang wird am letzten Arbeitstag durch die Bank gesperrt, Auftrag durch ${f.gf}.`,
+    }),
+    BA05: b({
+      wer: `${f.buchhaltung} bis 2.000 Euro; darüber Vier-Augen mit ${f.gf}`,
+      vierAugen: "ja",
+      limit: "bis 2.000 Euro",
+    }),
+    LO04: b({
+      weg: "Stunden und Zuschläge als Monatsexport aus der Zeiterfassungs-App, Abwesenheiten in derselben Liste, per DATEV Upload an die Kanzlei.",
+      frist: "bis zum 18. des Monats",
+    }),
+  };
+}
+
+function einkaufSystem(vorlage: MusterDenseId): string {
+  if (vorlage === "ecommerce" || vorlage === "handel") return "WaWi Lagerplus (fiktiv)";
+  if (vorlage === "handwerk") return "Projektsoftware";
+  if (vorlage === "gastro") return "Warenwirtschaft";
+  return "Rechnungssoftware";
+}
+
+function bereinigeText(text: string, vorlage: MusterDenseId, f: DenseFirma): string {
+  const system = einkaufSystem(vorlage);
+  let next = text
+    .replaceAll("Lagerleitung (Peter Holm)", "Lagerverantwortliche Person")
+    .replaceAll("Einkauf (Lena Brandt)", "Einkauf")
+    .replaceAll("Leitung Kundenservice (Anja Berg)", "Kundenservice")
+    .replaceAll("Peter Holm", f.gf)
+    .replaceAll("Lena Brandt", "Einkauf")
+    .replaceAll("Anja Berg", "Kundenservice")
+    .replaceAll("ERP Fertigplan (fiktiv)", system)
+    .replaceAll("ERP Fertigplan", system)
+    .replaceAll("Rohmaterial", vorlage === "ecommerce" ? "Handelsware" : "Material");
+  if (vorlage === "gastro") {
+    next = next
+      .replaceAll("Filialleitungs-", "Schichtleitungs-")
+      .replaceAll("Filialleitung je Standort", "Schichtleitung")
+      .replaceAll("Filialleitung", "Schichtleitung")
+      .replaceAll("Halle A, Halle B, Freilager", "Kühlhaus, Trockenlager und Getränkelager")
+      .replaceAll("Kommissionsware von Lieferanten (eigene Liste)", "Keine Kommissionsware.")
+      .replaceAll("Handscanner im Lager; ", "")
+      .replaceAll("Handscanner an WaWi: Funk, sofort. ", "");
+  }
+  if (vorlage === "handel") {
+    next = next
+      .replaceAll("Filialleitungs-", "Verkaufsleitungs-")
+      .replaceAll("Filialleitung je Standort", "Verkaufsleitung")
+      .replaceAll("Filialleitung", "Verkaufsleitung")
+      .replaceAll("3 Kassen an 2 Standorten", "3 Kassen am Standort Hannover");
+  }
+  if (vorlage === "handwerk") {
+    next = next
+      .replaceAll("Halle A, Halle B, Freilager", "Ein Materiallager am Standort Oldenburg")
+      .replaceAll("WaWi Lagerplus (fiktiv)", "Materialliste in der Projektsoftware")
+      .replaceAll("WaWi Lagerplus", "Materialliste")
+      .replaceAll("Handscanner im Lager; ", "")
+      .replaceAll("Handscanner an WaWi: Funk, sofort. ", "")
+      .replaceAll("Handscanner", "Projektsoftware");
+  }
+  return next;
+}
+
+function bereinigeWert(value: unknown, vorlage: MusterDenseId, f: DenseFirma): unknown {
+  if (typeof value === "string") return bereinigeText(value, vorlage, f);
+  if (Array.isArray(value)) return value.map((item) => bereinigeWert(item, vorlage, f));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, bereinigeWert(item, vorlage, f)]),
+    );
+  }
+  return value;
+}
+
+function bereinigeKatalog(katalog: Record<string, Entry>, vorlage: MusterDenseId, f: DenseFirma): Record<string, Entry> {
+  const out: Record<string, Entry> = {};
+  for (const [id, entry] of Object.entries(katalog)) {
+    out[id] = {
+      ...entry,
+      values: entry.values ? (bereinigeWert(entry.values, vorlage, f) as Record<string, unknown>) : entry.values,
+      reason: entry.reason ? bereinigeText(entry.reason, vorlage, f) : entry.reason,
+    };
+  }
+  return out;
+}
+
 function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, Entry> {
   const baseDienst: Record<string, Entry> = {
     LE01: b({
@@ -595,6 +684,7 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
 
   if (vorlage === "dienstleister") {
     return {
+      ...firmaKorrektur(f),
       ...baseDienst,
       UO01: b({
         gesellschaften: `${f.company}, einzige Gesellschaft ohne Tochterunternehmen.`,
@@ -636,6 +726,7 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
 
   if (vorlage === "gastro") {
     return {
+      ...firmaKorrektur(f),
       SY01: b({
         umgebung: `Kassensystem mit TSE, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
         betrieb: "Gemischt",
@@ -671,8 +762,18 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       SV06: b({ uebergabe: "Monatlicher Export nach DATEV", turnus: "monatlich" }),
       SV07: b({ ablauf: "Die Exportsumme wird mit dem Z-Bon abgeglichen.", wer: f.buchhaltung }),
       SV08: b({ ablage: "Kassensystem und DATEV", auswertbar: "ja" }),
-      SV09: b({ wer: f.gf, protokolliert: "ja" }),
+      SV09: b({
+        wer: "Abgeschlossene Tagesabschlüsse und Einzelaufzeichnungen können nicht geändert werden; Korrekturen nur als Storno mit Begründung, protokolliert in Kasse und TSE.",
+        protokolliert: "ja",
+      }),
       SV10: b({ ablauf: "Ein Systemwechsel ist nicht vorgesehen. Die vorhandenen Exporte bleiben im Archiv lesbar." }),
+      WW00: b({ verantwortlich: "Lagerverantwortliche Person", vertretung: f.buchhaltung }),
+      WW02: b({ wer: "Lagerverantwortliche Person", freigabe: f.gf, protokolliert: "ja" }),
+      WW03: b({ ablauf: "Wareneingang wird gegen den Lieferschein geprüft und in der Warenwirtschaft gebucht.", wer: "Lagerverantwortliche Person" }),
+      WW06: b({ lagerorte: "Kühlhaus, Trockenlager und Getränkelager am Standort Bremen", umlagerung: "Umlagerungen zwischen diesen Lagern werden in der Warenwirtschaft gebucht." }),
+      WW08: b({ verfahren: "Inventur monatlich", wer: f.gf, stichtag: "monatlich", zaehllisten: "Zählliste als PDF auf dem NAS" }),
+      WW90: b({ umfang: "Kühlhaus, Trockenlager und Getränkelager am Standort Bremen; Inventur monatlich.", ausgenommen: "Keine Waren auf Kommission." }),
+      WW91: b({ systeme: "Warenwirtschaft und DATEV Unternehmen online", schnittstellen: "Monatliche Bestandsliste an DATEV", betrieb: "Gemischt" }),
       SV91: b({ systeme: "Kassensystem und DATEV Unternehmen online", schnittstellen: "Monatlicher Export nach DATEV", betrieb: "Gemischt" }),
       SV92: b({ kontrollen: ["Abstimmung der übergebenen Summen mit der FiBu"], details: `${f.buchhaltung} gleicht die Exportsumme mit dem Z-Bon ab.` }),
       KA01: b({
@@ -688,6 +789,7 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
 
   if (vorlage === "handwerk") {
     return {
+      ...firmaKorrektur(f),
       ...baseDienst,
       SY01: b({
         umgebung: `Projektsoftware, Rechnungssoftware, DATEV Unternehmen online, Zeiterfassung, E-Mail und NAS. IT: ${f.it}.`,
@@ -731,27 +833,65 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       SV10: b({ ablauf: "Ein Systemwechsel ist nicht vorgesehen. Exporte bleiben auf dem NAS lesbar." }),
       SV91: b({ systeme: "Projektsoftware und DATEV Unternehmen online", schnittstellen: "Monatlicher DATEV-Export", betrieb: "Gemischt" }),
       SV92: b({ kontrollen: ["Abstimmung der übergebenen Summen mit der FiBu"], details: `${f.buchhaltung} gleicht die Projektauswertung mit der FiBu ab.` }),
+      WW00: b({ verantwortlich: f.gf, vertretung: "Projektleitung" }),
       WW01: b({
         system: "Einfache Materialliste je Projekt (fiktiv), kein Voll-WaWi-Filialbetrieb",
         vorgaenge: "Materialeinkauf auf Projekt, Wareneingang gegen Lieferschein, Verbrauch auf Baustelle, Restmaterialrücknahme",
       }),
+      WW02: b({ wer: "Projektleitung", freigabe: f.gf, protokolliert: "ja" }),
+      WW03: b({ ablauf: "Material wird auf der Baustelle oder im Lager gegen Lieferschein geprüft und dem Projekt zugeordnet.", wer: "Projektleitung" }),
+      WW04: b({ ablauf: "Verbrauch auf der Baustelle wird dem Projekt zugeordnet.", wer: "Projektleitung" }),
+      WW05: b({ fuehrung: "Liste je Projekt", bewertung: "Einkaufspreis laut Rechnung" }),
+      WW06: b({ lagerorte: "Ein Materiallager am Standort Oldenburg; Baustellenbestände werden nicht geführt.", umlagerung: "Umlagerungen werden nicht geführt." }),
+      WW07: b({ wer: "Projektleitung", freigabe: f.gf, grund: "ja" }),
+      WW08: b({ verfahren: "Stichtagsinventur des Lagers zum Geschäftsjahresende; Zählliste als PDF auf dem NAS.", wer: f.gf, stichtag: "Geschäftsjahresende", zaehllisten: "PDF auf dem NAS" }),
+      WW09: b({ ablauf: "Differenzen werden nachgezählt und mit Grund dem Projekt zugeordnet.", freigabe: f.gf }),
+      WW10: b({ uebergabe: "Bestand der Materialliste mit der Projektauswertung an DATEV.", turnus: "monatlich" }),
+      WW90: b({ umfang: "Materiallager am Standort Oldenburg.", ausgenommen: "Kein Voll-WaWi." }),
+      WW91: b({ systeme: "Materialliste in der Projektsoftware; Übergabe an DATEV mit der Projektauswertung.", schnittstellen: "Monatlicher DATEV-Export mit der Projektauswertung", betrieb: "Gemischt" }),
+      WW92: b({ kontrollen: ["Wareneingang gegen Lieferschein", "Bestand gegen FiBu"], details: `Wareneingang gegen Lieferschein und Projekt. Bestand gegen FiBu durch ${f.buchhaltung}.` }),
     };
   }
 
   if (vorlage === "handel") {
     return {
+      ...firmaKorrektur(f),
       SY01: b({
         umgebung: `Kassensystem, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
         betrieb: "Gemischt",
+      }),
+      KA01: b({
+        kassenart: "Elektronisches Kassensystem mit TSE",
+        system: "KassaPro (fiktiv) auf Tablet-Kassen",
+        anzahl: "3 Kassen am Standort Hannover",
       }),
     };
   }
   if (vorlage === "ecommerce") {
     return {
+      ...firmaKorrektur(f),
       SY01: b({
         umgebung: `Onlineshop, Warenwirtschaft, DATEV Unternehmen online, E-Mail und NAS. IT: ${f.it}.`,
         betrieb: "Gemischt",
       }),
+      BS06: b({
+        regeln: `Fernverkäufe an Privatpersonen in Österreich werden mit dem österreichischen Steuersatz berechnet und über das OSS-Verfahren erklärt (§ 3c, § 18j UStG); Steuersätze je Land pflegt ${f.gf} im Shop.`,
+      }),
+      EK00: b({ verantwortlich: `${f.gf} (Einkauf)`, vertretung: f.buchhaltung }),
+      EK01: b({ ablauf: "Bedarf entsteht aus dem Bestand im Onlineshop und aus Nachbestellungen in der WaWi Lagerplus.", wer: f.buchhaltung }),
+      EK02: b({ wer: "Einkauf", grenzen: "bis 5.000 Euro Einkauf allein; darüber Freigabe", freigabe: f.gf }),
+      EK03: b({ wege: ["Warenwirtschaft", "Lieferantenportal", "E-Mail"], system: "Bestellungen über WaWi Lagerplus (fiktiv) und Lieferantenportale" }),
+      EK04: b({ wer: "Einkauf", abweichungen: "Abweichungen bei Preis oder Termin werden in der WaWi vermerkt und mit dem Lieferanten geklärt." }),
+      EK05: b({ ablauf: "Wareneingang in der WaWi Lagerplus gegen die Bestellung.", wer: "Lagerverantwortliche Person" }),
+      EK06: b({ ablauf: "Die Rechnung wird in der WaWi der Bestellung und dem Wareneingang zugeordnet.", wer: f.buchhaltung }),
+      EK08: b({ vertraege: "Rahmenverträge mit Lieferanten und Fulfillment-Dienstleister, Liste in der WaWi", wer: f.gf }),
+      EK10: b({ ablage: "WaWi Lagerplus (fiktiv), Dokumente am Bestellvorgang", ordnung: "Bestellnummer" }),
+      EK90: b({ umfang: "Einkauf von Handelsware für den Onlineshop am Standort Leipzig.", ausgenommen: "Nur Handelsware für den Onlineshop." }),
+      EK91: b({ systeme: "WaWi Lagerplus (fiktiv) und DATEV Unternehmen online.", schnittstellen: "WaWi an DATEV: Kreditoren und Rechnungsbuchungen.", betrieb: "Cloud / Anbieter" }),
+      EK95: b({ notbetrieb: "Bei Ausfall der WaWi Bestellungen per E-Mail, Nacherfassung in der WaWi.", nacherfassung: "Nacherfassung innerhalb von zwei Arbeitstagen." }),
+      EK96: b({ ort: "WaWi Lagerplus (fiktiv) mit jährlichem Export", form: "Originaldokumente in der WaWi, Export als CSV und PDF", loeschung: f.buchhaltung }),
+      WW00: b({ verantwortlich: "Lagerverantwortliche Person", vertretung: f.buchhaltung }),
+      RT00: b({ verantwortlich: "Kundenservice", vertretung: f.buchhaltung }),
     };
   }
   return {};
@@ -870,7 +1010,7 @@ export function buildDenseGesamtAnswers(vorlage: MusterDenseId): IntakeAnswers {
       if (vorlage === "dienstleister" || vorlage === "ecommerce") {
         katalog = deepenPass(katalog, firma);
       }
-      return katalog;
+      return bereinigeKatalog(katalog, vorlage, firma);
     })(),
     module: {
       ...answers.module!,
