@@ -13,8 +13,8 @@ export function FristSatzSection() {
       <h2 id="frist-satz-heading">Aufbewahrungsfrist im Bestand</h2>
       <p>
         Hier sehen Sie zwei Zahlen: gespeicherte Kunden-Entwürfe und bereits erzeugte PDFs. Eine PDF ist
-        eine Dokumentfassung. Gezählt wird, wo „Buchungsbelege“ zusammen mit „10 Jahre“ oder „zehn Jahre“
-        im selben Satz oder Feld steht. Die Zählung startet erst mit dem Knopf. Es wird nur gelesen, nichts
+        eine Dokumentfassung. Gezählt werden Stellen mit der alten Formulierung, die für Buchungsbelege eine
+        falsche Aufbewahrungsfrist nennt. Die Zählung startet erst mit dem Knopf. Es wird nur gelesen, nichts
         gespeichert, gelöscht oder verändert.
       </p>
       <p>
