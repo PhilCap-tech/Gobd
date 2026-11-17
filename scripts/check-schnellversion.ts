@@ -27,10 +27,11 @@ import {
 import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
 import { svDownloadStillOpen, SV_COVER_TITLE } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
+import { pflichtBausteine, standardFall } from "../lib/schnellversion-bausteine";
 import { confirmPaidSession, failNextClaimedPurchaseForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
-import { readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
+import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
@@ -45,6 +46,41 @@ function ok(cond: unknown, msg: string) {
 function coverField(text: string, label: string): string {
   const match = text.match(new RegExp(`\\| ${label} \\| ([^\\n|]+)`));
   return (match?.[1] ?? "").replace(/\s+/g, " ").trim();
+}
+
+function befundTreffer(plain: string, fall: ReturnType<typeof standardFall>): string[] {
+  const hits: string[] = [];
+  const always = [
+    "Schnittstellen: Schnittstellen:",
+    "Buchhaltung laut Betrieb-Export",
+    "per Buchhaltung laut Betrieb Upload",
+    "Bank an Buchhaltung laut Betrieb",
+    "Lohn an Buchhaltung laut Betrieb",
+    "in den Aufzeichnungen automatisch",
+    "Lohnabrechnung der Buchhaltung",
+    "im DMS bzw. die von der Kanzlei",
+    ". die von der Kanzlei",
+    "Original die von der Kanzlei",
+    "in die von der Kanzlei eingesetzte Software",
+    "in Excel-Listen bzw. manuelle Aufzeichnungen",
+    "täglich über Excel",
+    "täglich über DATEV",
+    "sevdesk Lohn",
+    "lexoffice Lohn",
+    "Lexware Lohn",
+    "Buchhalter Pro Lohn",
+    "Excel-Listen bzw. manuelle Aufzeichnungen Lohn",
+    "die von der Kanzlei eingesetzte Software Lohn",
+  ];
+  for (const item of always) if (plain.includes(item)) hits.push(item);
+  if (!fall.datev && plain.includes("DATEV")) hits.push("DATEV");
+  if (!(fall.datev && !fall.self) && plain.includes("LODAS")) hits.push("LODAS");
+  if (!(fall.datev && !fall.self) && plain.includes("Lohn und Gehalt")) hits.push("Lohn und Gehalt");
+  if (fall.self && /Kanzlei|Steuerkanzlei/.test(plain)) hits.push("Kanzlei");
+  if (fall.excel && /SEPA|MT940|Hosting Anbieter-Cloud|Eigene Rolle in |PDF-Export in Excel|Upload in Excel|Export\/Upload|Zahlungsvorschlag aus den offenen Posten/.test(plain)) {
+    hits.push("Excel-Schnittstelle");
+  }
+  return hits;
 }
 
 function countText(text: string, needle: string): number {
@@ -469,6 +505,31 @@ async function main() {
     ok(new Set(rows.map((row) => row.pdfPath)).size === 1, `${step}: ein PDF-Pfad`);
     ok(after === before + 1, `${step}: die Zählung wird nachgeholt`);
   }
+  {
+    const opened = await openSchnellversionCheckout({
+      answers: sample(),
+      unternehmer: true,
+      bewusst: true,
+      email: "sink@example.com",
+      arm: "test",
+      env: stubPaid,
+    });
+    ok(opened.ok, "Session für die fehlende Eventsenke");
+    failSvPurchaseSinkForTest(true);
+    const before = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    let threw = false;
+    try {
+      await confirmPaidSession(opened.ok ? opened.sessionId : "", { env: stubPaid });
+    } catch {
+      threw = true;
+    }
+    const mid = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    ok(threw && mid === before, "fehlende Eventsenke setzt keinen Marker und zählt nicht");
+    failSvPurchaseSinkForTest(false);
+    const again = await confirmPaidSession(opened.ok ? opened.sessionId : "", { env: stubPaid });
+    const after = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+    ok(again.paid && after === before + 1, "Retry schreibt das Event genau einmal");
+  }
   const race = await openSchnellversionCheckout({
     answers: sample(),
     unternehmer: true,
@@ -555,26 +616,50 @@ async function main() {
           if (answers.software === "Excel / manuell" && !plain.includes("manuellen Aufzeichnungen")) {
             ok(false, `${branche.id} ohne Dativ bei den Aufzeichnungen`);
           }
-          if (answers.software === "Weiß ich nicht, macht die Kanzlei" && !plain.includes("eingesetzten Software")) {
+          if (answers.software === "Weiß ich nicht, macht die Kanzlei" && bucht !== "Wir selbst im Unternehmen" && !plain.includes("eingesetzten Software")) {
             ok(false, `${branche.id} ohne Dativ bei der Kanzlei-Software`);
           }
-          if (bucht === "Unsere Steuerkanzlei" && !/datev/i.test(label)) {
+          if (answers.software === "Weiß ich nicht, macht die Kanzlei" && bucht === "Wir selbst im Unternehmen" && !plain.includes("Buchhaltungssoftware")) {
+            ok(false, `${branche.id} ohne neutrale Software bei Eigenbuchhaltung`);
+          }
+          const fall = standardFall(answers);
+          for (const treffer of befundTreffer(plain, fall)) {
+            ok(false, `${branche.id} ${software} ${bucht} enthält ${treffer}`);
+          }
+          if (bucht === "Unsere Steuerkanzlei" && !fall.datev) {
             const chosen = countText(plain, label);
-            const datev = plain.match(/DATEV/g)?.length ?? 0;
-            if (chosen < 5) ok(false, `${branche.id} ${label} nur ${chosen} mal, DATEV ${datev}`);
-            if (datev >= chosen) ok(false, `${branche.id} DATEV ${datev} nicht unter ${label} ${chosen}`);
-          }
-          if (bucht === "Wir selbst im Unternehmen" && !/datev/i.test(label) && /DATEV/i.test(plain)) {
-            ok(false, `${branche.id} ${software} enthält DATEV`);
-          }
-          if (bucht === "Wir selbst im Unternehmen" && !/kanzlei/i.test(label) && /kanzlei/i.test(plain)) {
-            ok(false, `${branche.id} ${software} enthält Kanzlei`);
+            if (chosen < 5) ok(false, `${branche.id} ${label} nur ${chosen} mal`);
           }
         }
       }
     }
   }
   ok(true, "alle Branchen- und Antwortkombinationen ohne Musterreste");
+  const faelle63: Array<Partial<SchnellversionAnswers>> = [
+    { software: "Sonstiges", softwareFrei: "Buchhalter Pro", bucht: "Wir selbst im Unternehmen" },
+    { software: "Excel / manuell", softwareFrei: "", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
+    { software: "Excel / manuell", softwareFrei: "", bucht: "Wir selbst im Unternehmen" },
+    { software: "lexoffice", softwareFrei: "", bucht: "Unsere Steuerkanzlei" },
+    { software: "Sonstiges", softwareFrei: "Lexware", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
+    { software: "sevdesk", softwareFrei: "", bucht: "Wir selbst im Unternehmen" },
+    { software: "Weiß ich nicht, macht die Kanzlei", softwareFrei: "", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
+    { software: "Weiß ich nicht, macht die Kanzlei", softwareFrei: "", bucht: "Unsere Steuerkanzlei" },
+    { software: "Weiß ich nicht, macht die Kanzlei", softwareFrei: "", bucht: "Wir selbst im Unternehmen" },
+  ];
+  for (const branche of SV_BRANCHEN) {
+    for (const fallPatch of faelle63) {
+      const answers = sample({ ...fallPatch, branche: branche.id, kasse: "Ja, elektronische Kasse" });
+      const plain = standardPlainText(answers, when);
+      const fall = standardFall(answers);
+      for (const satz of pflichtBausteine(fall)) {
+        if (!plain.includes(satz)) ok(false, `${branche.id} ohne Baustein ${satz.slice(0, 48)}`);
+      }
+      for (const treffer of befundTreffer(plain, fall)) {
+        ok(false, `${branche.id} Befund ${treffer}`);
+      }
+    }
+  }
+  ok(true, "63 Fälle mit Bausteinen und ohne die Befundmuster");
   const selfNamed = sample({
     bucht: "Wir selbst im Unternehmen",
     software: "Sonstiges",

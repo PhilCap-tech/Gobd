@@ -6,6 +6,7 @@
 import { MUSTER_FIRMEN } from "@/lib/module-muster-dense";
 import { getGesamtMuster, type MusterVorlageId } from "@/lib/module-muster";
 import { BRANCHEN_VORLAGEN, setCheckAntwort, setModulEintrag } from "@/lib/module/status";
+import { standardFall } from "@/lib/schnellversion-bausteine";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export const SV_RECHTSFORMEN = [
@@ -133,10 +134,14 @@ export function statedFibu(answers: Pick<SchnellversionAnswers, "software" | "so
 }
 
 /** Fließtext. Die Rohantwort „Weiß ich nicht …“ und „Excel / manuell“ stehen so nicht im PDF. */
-export function softwareProse(answers: Pick<SchnellversionAnswers, "software" | "softwareFrei">): string {
-  if (answers.software === "Weiß ich nicht, macht die Kanzlei") return "die von der Kanzlei eingesetzte Software";
-  if (answers.software === "Excel / manuell") return "Excel-Listen bzw. manuelle Aufzeichnungen";
-  return softwareLabel(answers);
+export function softwareProse(
+  answers: Pick<SchnellversionAnswers, "software" | "softwareFrei"> & { bucht?: SchnellversionAnswers["bucht"] },
+): string {
+  return standardFall({
+    software: answers.software,
+    softwareFrei: answers.softwareFrei,
+    bucht: answers.bucht ?? "Unsere Steuerkanzlei",
+  }).name;
 }
 
 export function kasseHatKapitel(kasse: SchnellversionAnswers["kasse"]): boolean {
@@ -188,7 +193,8 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
   answers.mitarbeitende = input.mitarbeitende;
   answers.branchen = [brancheLabel(input.branche)];
   const program = statedFibu(input);
-  answers.fibu = program ? [program] : [];
+  const fall = standardFall(input);
+  answers.fibu = program ? [fall.name] : [];
   const a01 = answers.katalog?.A01;
   if (a01) {
     answers.katalog = {
@@ -216,9 +222,9 @@ export function buildStandardAnswers(input: SchnellversionAnswers): {
       first && typeof first === "object"
         ? {
             ...(first as Record<string, unknown>),
-            name: program ?? "die von der Kanzlei eingesetzte Software",
+            name: fall.name,
             funktion: self ? "Buchhaltung im Unternehmen" : "Buchhaltung der Kanzlei",
-            originalOrt: program ?? "die von der Kanzlei eingesetzte Software",
+            originalOrt: fall.excel ? "Belegablage im Betrieb" : fall.kind === "unbekannt" && fall.self ? "im Unternehmen" : fall.kind === "unbekannt" ? "bei der Kanzlei" : fall.name,
             nutzer: "[bitte prüfen]",
           }
         : first;

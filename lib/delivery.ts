@@ -63,6 +63,9 @@ export type StandardPdfFrame = {
   /** Eigenbuchhaltung: Kanzlei und DATEV nur, wenn die Antwort sie nennt. */
   selfBooking?: boolean;
   software?: string;
+  /** Baustein der Standardfassung. Die Vollversion lässt die Felder leer. */
+  bausteinKind?: "datev" | "lexoffice" | "sevdesk" | "excel" | "unbekannt" | "named";
+  bausteinName?: string;
 };
 
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
@@ -497,7 +500,19 @@ function writePdf(
       ? input.content.chapters
       : rendered.chapters;
   const erstelltAm = input.standard?.erstelltAm?.trim() || "";
-  const neutral = { selfBooking: input.standard?.selfBooking, software: input.standard?.software };
+  const neutral = {
+    selfBooking: input.standard?.selfBooking,
+    software: input.standard?.software,
+    fall: input.standard?.bausteinKind && input.standard.bausteinName
+      ? {
+          kind: input.standard.bausteinKind,
+          name: input.standard.bausteinName,
+          self: input.standard.selfBooking === true,
+          datev: input.standard.bausteinKind === "datev",
+          excel: input.standard.bausteinKind === "excel",
+        }
+      : undefined,
+  };
   const plain = (value: string) =>
     input.standard ? neutralizeStandardText(value, erstelltAm, neutral) : value;
   if (input.standard) {

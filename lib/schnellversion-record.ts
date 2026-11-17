@@ -305,6 +305,18 @@ async function markPurchaseCounted(sessionId: string, arm: "" | "control" | "tes
     committedEvents.add(sessionId);
     return;
   }
+  if (arm === "control" || arm === "test") {
+    const { persistSvPurchaseEvent } = await import("@/lib/schnellversion-store");
+    await persistSvPurchaseEvent({
+      name: "sv_purchase",
+      arm,
+      variante: "b",
+      branche_vorlage: "",
+      value: 49,
+      step: 0,
+      ziel: "",
+    });
+  }
   if (svBlobEnabled()) {
     const { claimSvJson } = await import("@/lib/schnellversion-persist");
     const claim = await claimSvJson(svCounted49Path(sessionId), { sessionId });
@@ -318,18 +330,6 @@ async function markPurchaseCounted(sessionId: string, arm: "" | "control" | "tes
     await writeJsonObject(countedFile(), all);
   }
   committedEvents.add(sessionId);
-  if (arm === "control" || arm === "test") {
-    const { rememberSvEvent } = await import("@/lib/schnellversion-store");
-    rememberSvEvent({
-      name: "sv_purchase",
-      arm,
-      variante: "b",
-      branche_vorlage: "",
-      value: 49,
-      step: 0,
-      ziel: "",
-    });
-  }
 }
 
 /** Zeile, Session-Index und Zählung. Erst danach gilt der Kauf. Der Speicher allein reicht nicht. */

@@ -14,6 +14,7 @@ import {
   type SchnellversionAnswers,
 } from "@/lib/schnellversion-answers";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
+import { standardFall } from "@/lib/schnellversion-bausteine";
 import { neutralizeStandardText } from "@/lib/schnellversion-neutral";
 import {
   SV_KASSE_UNSICHER_HILFE,
@@ -30,6 +31,7 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
   const label = vorlageLabel(built.vorlage);
   const bis = formatSvDate(addSvDays(erstelltAm, SV_DOWNLOAD_DAYS));
   const datum = formatSvDate(erstelltAm);
+  const fall = standardFall(input);
   const frame: StandardPdfFrame = {
     header: svHeaderLine(input.firma, datum),
     coverBox: svCoverBox(label, datum),
@@ -37,6 +39,8 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
     erstelltAm: datum,
     selfBooking: !kanzleiBuchtAntwort(input.bucht),
     software: softwareProse(input),
+    bausteinKind: fall.kind,
+    bausteinName: fall.name,
   };
   if (input.kasse === "Unsicher") {
     frame.kasseHinweis = `[bitte prüfen] ${SV_KASSE_UNSICHER_HILFE}`;
@@ -66,7 +70,7 @@ export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date
     documentId: `standard-${built.vorlage}`,
     version: 1,
   });
-  const options = { selfBooking: frame.selfBooking, software: frame.software };
+  const options = { selfBooking: frame.selfBooking, software: frame.software, fall: standardFall(input) };
   const datum = frame.erstelltAm ?? "";
   const chapters = rendered.chapters
     .filter((chapter) => chapter.id !== "anhang-a")

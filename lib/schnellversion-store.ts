@@ -20,6 +20,12 @@ const NAME_SET = new Set<string>(SV_EVENT_NAMES);
 
 let memory: SvEventRow[] = [];
 let prepared: Promise<void> | null = null;
+let failPurchaseSink = false;
+
+/** Nur der Check. Der nächste sv_purchase-Eintrag scheitert, bevor ein Marker entsteht. */
+export function failSvPurchaseSinkForTest(next: boolean): void {
+  failPurchaseSink = next;
+}
 
 type SheetClient = {
   get(args: { spreadsheetId: string }): Promise<{
@@ -180,6 +186,16 @@ export function rememberPurchase99Once(input: {
     });
     return true;
   });
+}
+
+/** Schreibt sv_purchase dauerhaft. Wirft, bevor ein Zähl-Marker gesetzt werden darf. */
+export async function persistSvPurchaseEvent(row: SvEventRow): Promise<void> {
+  if (failPurchaseSink) throw new Error("Event nicht gespeichert");
+  const production = (process.env.VERCEL_ENV ?? "").trim() === "production";
+  const writeFile = !production && !automatedRunForbidsLiveWrites();
+  if (writeFile) appendFileSync(FILE, `${JSON.stringify(row)}\n`, "utf8");
+  if (sheetWritesAllowed()) await appendSheet(row);
+  memory.push(row);
 }
 
 export function rememberSvEvent(row: SvEventRow): void {
