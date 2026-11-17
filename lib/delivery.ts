@@ -44,6 +44,21 @@ const FOOTER_CHROME =
 /** Nur Muster-PDFs. Kunden-PDFs bleiben ohne diesen Zusatz. */
 export type PdfVariant = "muster" | "kunde";
 
+/**
+ * Schnellversion: Zusatzrahmen um dieselbe Generator-Pipeline.
+ * Ohne dieses Feld bleiben Muster- und Kunden-PDFs unverändert.
+ */
+export type StandardPdfFrame = {
+  /** Kopfzeile, Konzept 2.4. */
+  header: string;
+  /** Kasten auf dem Deckblatt, Markdown. */
+  coverBox: string;
+  /** Schlussseite, Markdown. */
+  closing: string;
+  /** Nur bei Kasse „Unsicher“, vor dem Kassenkapitel. */
+  kasseHinweis?: string;
+};
+
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
 export const MUSTER_COVER_LINE = "Muster mit fiktiven Angaben";
 export const KUNDE_COVER_LINE = "Arbeitsfassung aus Kunden-Intake";
@@ -232,22 +247,41 @@ function withOpenMargins(doc: PDFKit.PDFDocument, write: () => void) {
   doc.page.margins = saved;
 }
 
-function drawHeader(doc: PDFKit.PDFDocument, company: string) {
+function drawTopLine(doc: PDFKit.PDFDocument, line: string) {
+  withOpenMargins(doc, () => {
+    const left = doc.page.margins.left;
+    const width = contentWidth(doc);
+    doc.font("Helvetica").fontSize(8).fillColor(BRAND_MUTED).text(line, left, 16, {
+      width,
+      lineBreak: false,
+    });
+  });
+}
+
+function drawHeader(doc: PDFKit.PDFDocument, company: string, headerLine?: string) {
   withOpenMargins(doc, () => {
     const left = doc.page.margins.left;
     const width = contentWidth(doc);
     const top = 24;
     const lockupHeight = 26;
-    drawBrandLockup(doc, left, top, lockupHeight);
-    doc
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor(BRAND_MUTED)
-      .text(company || BRAND_DOC_TITLE, left, top + 6, {
+    if (headerLine) {
+      doc.font("Helvetica").fontSize(8).fillColor(BRAND_MUTED).text(headerLine, left, 12, {
         width,
-        align: "right",
         lineBreak: false,
       });
+    }
+    drawBrandLockup(doc, left, top, lockupHeight);
+    if (!headerLine) {
+      doc
+        .font("Helvetica")
+        .fontSize(8)
+        .fillColor(BRAND_MUTED)
+        .text(company || BRAND_DOC_TITLE, left, top + 6, {
+          width,
+          align: "right",
+          lineBreak: false,
+        });
+    }
     const ruleY = top + lockupHeight + 6;
     doc
       .save()
@@ -407,13 +441,18 @@ function decoratePages(
     identity: CheckoutIdentity;
     rendered: RenderedDocument;
     variant: PdfVariant;
+    standard?: StandardPdfFrame;
   },
 ) {
   const range = doc.bufferedPageRange();
+  const chrome = input.standard
+    ? "Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."
+    : footerChrome(input.variant);
   for (let i = 0; i < range.count; i += 1) {
     doc.switchToPage(range.start + i);
+    if (input.standard && i === 0) drawTopLine(doc, input.standard.header);
     if (i > 0) {
-      drawHeader(doc, input.identity.company);
+      drawHeader(doc, input.identity.company, input.standard?.header);
     }
     if (isMuster(input.variant)) drawWatermark(doc);
     drawFooter(doc, {
@@ -421,7 +460,7 @@ function decoratePages(
       pages: range.count,
       versionLabel: input.rendered.versionLabel,
       validFrom: input.rendered.validFromDisplay,
-      chrome: footerChrome(input.variant),
+      chrome,
     });
   }
 }
@@ -439,6 +478,7 @@ function writePdf(
     onlyModul?: string;
     variant: PdfVariant;
     upsellDs24?: boolean;
+    standard?: StandardPdfFrame;
   },
 ) {
   const rendered = renderDeliveryDocument(input);
@@ -446,17 +486,27 @@ function writePdf(
   const cover = input.content?.cover?.trim()
     ? input.content.cover
     : rendered.cover;
-  const chapters =
+  let chapters =
     input.content?.chapters && input.content.chapters.length > 0
       ? input.content.chapters
       : rendered.chapters;
+  if (input.standard) {
+    chapters = chapters
+      .filter((chapter) => chapter.id !== "anhang-a")
+      .map((chapter) =>
+        input.standard?.kasseHinweis && chapter.id === "modul-m08"
+          ? { ...chapter, body: `${input.standard.kasseHinweis}\n\n${chapter.body}` }
+          : chapter,
+      );
+  }
 
   const customCover = Boolean(input.content?.cover?.trim());
+  const coverBody = input.standard ? `${input.standard.coverBox.trim()}\n\n${cover}` : cover;
   writeTitlePage(
     doc,
     rendered,
-    coverLine(input.variant),
-    cover,
+    input.standard ? input.standard.header : coverLine(input.variant),
+    coverBody,
     customCover ? rendered.versionMetaSentence : "",
   );
   doc.addPage();
@@ -466,12 +516,20 @@ function writePdf(
     doc.moveDown(0.55);
   }
 
-  if (isMuster(input.variant)) writeUpsellPage(doc, { ds24: input.upsellDs24 });
+  if (input.standard) {
+    doc.addPage();
+    doc.x = doc.page.margins.left;
+    doc.y = doc.page.margins.top;
+    writeMarkdownish(doc, input.standard.closing, width);
+  } else if (isMuster(input.variant)) {
+    writeUpsellPage(doc, { ds24: input.upsellDs24 });
+  }
 
   decoratePages(doc, {
     identity: input.identity,
     rendered,
     variant: input.variant,
+    standard: input.standard,
   });
 }
 
@@ -496,14 +554,16 @@ export async function generatePdf(input: {
    * 26.10.) ohne Garantiezeile, Preiszeile und /checkout-Link.
    */
   upsellDs24?: boolean;
+  /** Gesetzt nur für die Schnellversion. Muster und Kunde bleiben sonst gleich. */
+  standard?: StandardPdfFrame;
 }): Promise<{ buffer: Buffer; plan: DeliveryPlan; documentId: string }> {
   const entityId = input.identity.entityId;
-  if (!isMuster(input.variant) && entityId && isTestEntity(entityId)) {
+  if (!input.standard && !isMuster(input.variant) && entityId && isTestEntity(entityId)) {
     throw new TestEntityDeliverySkipped(entityId.trim());
   }
   const documentId = input.documentId || randomUUID();
   const version = input.version && input.version > 0 ? input.version : 1;
-  const variant: PdfVariant = isMuster(input.variant) ? "muster" : "kunde";
+  const variant: PdfVariant = !input.standard && isMuster(input.variant) ? "muster" : "kunde";
   const plan = planDelivery(input.answers, input.identity, version);
 
   const buffer = await new Promise<Buffer>((resolve, reject) => {
@@ -515,8 +575,9 @@ export async function generatePdf(input: {
       info: {
         Title: `${isGesamt(input.answers) ? gesamtDocTitle() : isBelegfluss(input.answers) ? BRAND_DOC_TITLE : bereichDocTitle(bereichIdOf(input.answers))} — ${input.identity.company || (variant === "muster" ? "Muster" : "Arbeitsfassung")}`,
         Author: BRAND_NAME,
-        Subject:
-          variant === "muster"
+        Subject: input.standard
+          ? "Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."
+          : variant === "muster"
             ? "Muster mit fiktiven Angaben — kein Steuerberatungsersatz"
             : `Arbeitsfassung ${isGesamt(input.answers) ? "Gesamtdokument" : isBelegfluss(input.answers) ? "Belegablage" : bereichLabel(bereichIdOf(input.answers))} — kein Steuerberatungsersatz`,
       },
@@ -526,7 +587,7 @@ export async function generatePdf(input: {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
     doc.lineGap(1.6);
-    writePdf(doc, { ...input, documentId, version, variant });
+    writePdf(doc, { ...input, documentId, version, variant, standard: input.standard });
     doc.end();
   });
 

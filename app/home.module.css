@@ -171,13 +171,15 @@
   font-size: 14px;
 }
 
-.page :global(a.btn).btnSec {
+.page :global(a.btn).btnSec,
+.page :global(button.btn).btnSec {
   background: transparent;
   color: var(--forest);
   border-color: var(--forest);
 }
 
-.page :global(a.btn).btnSec:hover {
+.page :global(a.btn).btnSec:hover,
+.page :global(button.btn).btnSec:hover {
   background: var(--paper-alt);
   color: var(--forest);
   border-color: var(--forest);
@@ -1451,6 +1453,15 @@
   font-weight: 600;
   line-height: 1.45;
   color: var(--forest);
+}
+
+.svNote {
+  max-width: 640px;
+  margin: 12px auto 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
 }
 
 .d2Card .startMicro,

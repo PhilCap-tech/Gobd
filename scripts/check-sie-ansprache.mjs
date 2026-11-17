@@ -109,6 +109,9 @@ const COVERED = [
   "lib/fetch-retry.ts",
   "app/fragen/**/*.{ts,tsx}",
   "lib/fragen.ts",
+  "app/schnellversion/**/*.{ts,tsx}",
+  "components/schnellversion-*.tsx",
+  "lib/schnellversion-copy.ts",
 ];
 
 const PRONOUNS =
