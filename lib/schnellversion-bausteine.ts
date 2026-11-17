@@ -13,18 +13,23 @@ export type StandardFall = {
   self: boolean;
   datev: boolean;
   excel: boolean;
+  solo?: boolean;
 };
 
 export type BausteinInput = {
   software: string;
   softwareFrei?: string;
   bucht: string;
+  mitarbeitende?: string;
 };
 
 const AUFBEWAHRUNG = "Aufbewahrung: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 3 AO). Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO).";
 
 export const LOHN_SATZ =
   "Lohnabrechnung intern oder extern – ist im Betrieb festzulegen und hier einzutragen.";
+
+export const LOHN_SOLO =
+  "Lohnabrechnung: entfällt, soweit keine Beschäftigten (bitte prüfen).";
 
 /** Abkürzungen, an deren Punkt der Satzteiler nicht trennen darf. */
 const ABBREV: ReadonlyArray<readonly [string, string]> = [
@@ -70,14 +75,15 @@ function bankOffen(name: string, self: boolean): string {
 
 export function standardFall(input: BausteinInput): StandardFall {
   const self = input.bucht === "Wir selbst im Unternehmen";
+  const solo = input.mitarbeitende === "1 (nur ich)";
   const frei = (input.softwareFrei ?? "").trim();
-  if (input.software === "DATEV") return { kind: "datev", name: "DATEV", self, datev: true, excel: false };
+  if (input.software === "DATEV") return { kind: "datev", name: "DATEV", self, datev: true, excel: false, solo };
   if (input.software === "lexoffice" || input.software === "Lexware Office") {
-    return { kind: "lexoffice", name: "Lexware Office", self, datev: false, excel: false };
+    return { kind: "lexoffice", name: "Lexware Office", self, datev: false, excel: false, solo };
   }
-  if (input.software === "sevdesk") return { kind: "sevdesk", name: "sevdesk", self, datev: false, excel: false };
+  if (input.software === "sevdesk") return { kind: "sevdesk", name: "sevdesk", self, datev: false, excel: false, solo };
   if (input.software === "Excel / manuell") {
-    return { kind: "excel", name: "Excel-Listen bzw. manuelle Aufzeichnungen", self, datev: false, excel: true };
+    return { kind: "excel", name: "Excel-Listen bzw. manuelle Aufzeichnungen", self, datev: false, excel: true, solo };
   }
   if (input.software === "Weiß ich nicht, macht die Kanzlei") {
     return {
@@ -86,9 +92,10 @@ export function standardFall(input: BausteinInput): StandardFall {
       self,
       datev: false,
       excel: false,
+      solo,
     };
   }
-  return { kind: "named", name: frei || "die eingesetzte Buchhaltungssoftware", self, datev: false, excel: false };
+  return { kind: "named", name: frei || "die eingesetzte Buchhaltungssoftware", self, datev: false, excel: false, solo };
 }
 
 export type BausteinPack = {
@@ -117,7 +124,7 @@ function ohneMarker(pack: BausteinPack): BausteinPack {
 }
 
 function buildPack(fall: StandardFall): BausteinPack {
-  const lohnProgramm = LOHN_SATZ;
+  const lohnProgramm = fall.solo ? LOHN_SOLO : LOHN_SATZ;
   const kanzleiFrei = "Die Buchhaltung liegt im Unternehmen. [bitte prüfen]";
   if (fall.datev && !fall.self) {
     return {
@@ -343,7 +350,7 @@ export function limitIdenticalSentences(text: string, max = 1, counts = new Map<
 const SUFFIX = /Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online;[\s\S]*?§ 147 Abs\. 3 AO\)\./g;
 
 function needsRewrite(chunk: string, fall: StandardFall): boolean {
-  if (/Teil III|Systeme, Schnittstellen, Archiv, Fristen/.test(chunk)) return false;
+  if (/Teil III|Systeme, Schnittstellen, Archiv, Fristen|Keine technische Schnittstelle/.test(chunk)) return false;
   if (/Kontoumsätze werden täglich|Bank an DATEV|MT940|per DATEV Upload|DATEV Upload|täglich über DATEV/.test(chunk)) return true;
   if (fall.datev && !fall.self) return false;
   if (fall.self && /Kanzlei|Steuerkanzlei/.test(chunk)) return true;

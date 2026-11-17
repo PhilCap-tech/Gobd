@@ -31,7 +31,7 @@ import {
   PDF_UPSELL_PRICE,
 } from "@/lib/offer-copy";
 import { limitIdenticalSentences, standardSystemSection } from "@/lib/schnellversion-bausteine";
-import { mitEinzelaufzeichnung, mitKassenNotverfahren } from "@/lib/schnellversion-basis";
+import { mitEinzelaufzeichnung, mitFreiberuf, mitKassenNotverfahren } from "@/lib/schnellversion-basis";
 import { SV_FOOTER } from "@/lib/schnellversion-copy";
 import { neutralizeStandardText, offeneKasseText } from "@/lib/schnellversion-neutral";
 import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
@@ -72,6 +72,12 @@ export type StandardPdfFrame = {
   brancheId?: string;
   /** Angabe zur Kasse, nur für die Standardfassung. */
   kasseArt?: string;
+  /** Mitarbeitende „1 (nur ich)“. */
+  solo?: boolean;
+  /** Rechtsform Einzelunternehmen. */
+  einzelunternehmen?: boolean;
+  /** Fußzeile. Ohne Angabe gilt der Standardhinweis. */
+  footer?: string;
 };
 
 export const MUSTER_WATERMARK = "MUSTER – fiktive Firma";
@@ -464,7 +470,7 @@ function decoratePages(
   },
 ) {
   const range = doc.bufferedPageRange();
-  const chrome = input.standard ? SV_FOOTER : footerChrome(input.variant);
+  const chrome = input.standard ? (input.standard.footer || SV_FOOTER) : footerChrome(input.variant);
   for (let i = 0; i < range.count; i += 1) {
     doc.switchToPage(range.start + i);
     if (input.standard && i === 0) drawTopLine(doc, input.standard.header);
@@ -522,6 +528,8 @@ function writePdf(
         }
       : undefined,
     branche: input.standard?.brancheId,
+    solo: input.standard?.solo,
+    einzelunternehmen: input.standard?.einzelunternehmen,
   };
   const sentenceCounts = new Map<string, number>();
   const offen = input.standard?.kasseArt === "Ja, offene Ladenkasse (ohne elektronisches System)";
@@ -540,6 +548,17 @@ function writePdf(
         }
         body = mitEinzelaufzeichnung(body, chapter.id, input.standard?.kasseArt);
         body = mitKassenNotverfahren(body, chapter.id, input.standard?.kasseArt);
+        body = mitFreiberuf(body, chapter.id, input.standard?.brancheId);
+        if (chapter.id === "modul-m17" && input.standard?.bausteinKind && input.standard.bausteinName) {
+          body = `${body}\n\n${standardSystemSection({
+            kind: input.standard.bausteinKind,
+            name: input.standard.bausteinName,
+            self: input.standard.selfBooking === true,
+            datev: input.standard.bausteinKind === "datev",
+            excel: input.standard.bausteinKind === "excel",
+            solo: input.standard.solo,
+          })}`;
+        }
         return { ...chapter, body: plain(body) };
       });
   }
@@ -564,16 +583,7 @@ function writePdf(
     doc.addPage();
     doc.x = doc.page.margins.left;
     doc.y = doc.page.margins.top;
-    const systemSection = input.standard?.bausteinKind && input.standard.bausteinName
-      ? `\n\n${standardSystemSection({
-          kind: input.standard.bausteinKind,
-          name: input.standard.bausteinName,
-          self: input.standard.selfBooking === true,
-          datev: input.standard.bausteinKind === "datev",
-          excel: input.standard.bausteinKind === "excel",
-        })}`
-      : "";
-    writeMarkdownish(doc, `${systemSection}\n\n${plain(input.standard.closing)}`, width);
+    writeMarkdownish(doc, plain(input.standard.closing), width);
   } else if (isMuster(input.variant)) {
     writeUpsellPage(doc, { ds24: input.upsellDs24 });
   }

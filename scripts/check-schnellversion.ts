@@ -274,7 +274,8 @@ async function main() {
     1,
   );
   ok(bzwProbe.includes("Bauleitung bzw. die Geschäftsführung"), "kein Satzbruch nach bzw.");
-  ok(text.includes(SV_BASIS_SATZ), "Standardfassung nennt Branche und Größe");
+  ok(text.includes("auf Basis der Angaben zu Branche und Größe"), "Standardfassung nennt Branche und Größe");
+  ok(text.includes("wurde am"), "Deckblattzeile ist ein Satz");
   ok(!text.includes("Kunden-Intake"), "Standardfassung ohne Kunden-Intake");
   ok(!text.includes("bestätigten Angaben"), "Standardfassung ohne bestätigte Angaben");
   ok(!text.includes("01.07.2026"), "Standardfassung ohne festes Geltungsdatum");
@@ -715,6 +716,15 @@ async function main() {
           if (kasse !== "Nein, keine Bargeldeinnahmen" && kasse !== "Ja, offene Ladenkasse (ohne elektronisches System)" && !plain.includes("Ersatzaufzeichnung")) {
             ok(false, `${branche.id} ${software} ohne Notverfahren`);
           }
+          if (!plain.includes("§ 147 Abs. 3 Satz 3 AO") || !plain.includes("§ 147 Abs. 3 Satz 5 AO")) {
+            ok(false, `${branche.id} ohne Satzangabe zu § 147 Abs. 3 AO`);
+          }
+          if (branche.id === "freiberuf" && (plain.includes("§ 257") || !plain.includes("§ 4 Abs. 3 EStG") || !plain.includes("soweit vorhanden"))) {
+            ok(false, "Freiberuf ohne EÜR oder mit HGB");
+          }
+          if (kasse === "Unsicher" && plain.includes("Kassenbuch im Kassensystem")) {
+            ok(false, `${branche.id} unsichere Kasse setzt das Kassenbuch`);
+          }
           if (branche.id === "handwerk" && (!plain.includes("§ 13b") || !plain.includes("§ 14 Abs. 4 Satz 1 Nr. 9 UStG") || !plain.includes("Aufmaß"))) {
             ok(false, `${branche.id} ${software} ohne § 14 Abs. 4 Satz 1 Nr. 9 oder Aufmaß`);
           }
@@ -741,6 +751,24 @@ async function main() {
     }
   }
   ok(true, "alle Branchen- und Antwortkombinationen ohne Musterreste");
+  const allein = standardPlainText(sample({
+    mitarbeitende: "1 (nur ich)",
+    rechtsform: "Einzelunternehmen",
+    bucht: "Wir selbst im Unternehmen",
+    kasse: "Nein, keine Bargeldeinnahmen",
+    software: "DATEV",
+    branche: "dienstleistung",
+  }), when);
+  ok(!allein.includes("zweite Person"), "Ein-Personen ohne zweite Person");
+  ok(allein.includes("Selbstkontrolle"), "Ein-Personen mit Selbstkontrolle");
+  ok(allein.includes("keine Beschäftigten laut Angabe"), "Modul 12 entfällt");
+  ok(!allein.includes("Andere Beschäftigte"), "keine Beschäftigtenzeile");
+  ok(!allein.includes("Geschäftsführung"), "Einzelunternehmen ohne Geschäftsführung");
+  ok(allein.includes("Gibt es Beschäftigte"), "Lohnfrage bei einer Person");
+  const unsichereKasse = standardPlainText(sample({ kasse: "Unsicher", branche: "handel", software: "sevdesk", bucht: "Unsere Steuerkanzlei" }), when);
+  ok(unsichereKasse.includes("Kassenbuch (elektronisches System) oder Kassenbericht (offene Ladenkasse)"), "unsichere Kassenform");
+  ok(!unsichereKasse.includes("TSE-Art"), "unsicher ohne TSE-Art");
+  ok(unsichereKasse.includes("Bei offener Ladenkasse zusätzlich aufbewahren"), "unsicher nennt beide Aufbewahrungen");
   const faelle63: Array<Partial<SchnellversionAnswers>> = [
     { software: "Sonstiges", softwareFrei: "Buchhalter Pro", bucht: "Wir selbst im Unternehmen" },
     { software: "Excel / manuell", softwareFrei: "", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },

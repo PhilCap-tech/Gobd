@@ -16,6 +16,10 @@ export type StandardNeutralOptions = {
   software?: string;
   fall?: StandardFall;
   branche?: string;
+  /** Mitarbeitende „1 (nur ich)“. */
+  solo?: boolean;
+  /** Rechtsform Einzelunternehmen. */
+  einzelunternehmen?: boolean;
 };
 
 export function neutralizeStandardText(
@@ -117,7 +121,7 @@ export function neutralizeStandardText(
   });
   const withBlocks = applyStandardBausteine(next, fall);
   const dropped = options.branche ? dropFremdeProzesse(withBlocks, options.branche) : withBlocks;
-  return ohneInterneVerweise(dropped);
+  return anpassenFall(ohneInterneVerweise(dropped), options);
 }
 
 const RECHTE_TABELLE = "| Rolle | Lesen | Bearbeiten | Freigeben | Rechte verwalten |";
@@ -152,11 +156,72 @@ function ohneInterneVerweise(text: string): string {
   return next;
 }
 
+function anpassenFall(text: string, options: StandardNeutralOptions): string {
+  let next = text;
+  next = next.replaceAll(
+    "| Lieferscheine, die keine Buchungsbelege sind | bis Erhalt der Rechnung | § 147 Abs. 3 AO |",
+    "| Empfangene Lieferscheine, soweit kein Buchungsbeleg | bis zum Erhalt der Rechnung | § 147 Abs. 3 Satz 3 AO |",
+  );
+  next = next.replaceAll(
+    "| Abgesandte Lieferscheine, die keine Buchungsbelege sind | bis Versand der Rechnung | § 147 Abs. 3 AO |",
+    "| Abgesandte Lieferscheine, soweit kein Buchungsbeleg | bis zum Versand der Rechnung | § 147 Abs. 3 Satz 4 AO |",
+  );
+  next = next.replaceAll(
+    "| Lieferscheine, die keine Buchungsbelege sind | bis Erhalt bzw. Versand der Rechnung | § 147 Abs. 3 AO |",
+    "| Lieferscheine, soweit kein Buchungsbeleg | bis Erhalt bzw. Versand der Rechnung | § 147 Abs. 3 Satz 3, 4 AO |",
+  );
+  next = next.replaceAll(
+    "deren Festsetzungsfrist noch nicht abgelaufen ist (§ 147 Abs. 3 AO)",
+    "deren Festsetzungsfrist noch nicht abgelaufen ist (§ 147 Abs. 3 Satz 5 AO)",
+  );
+  if (options.branche === "freiberuf") {
+    next = next.replaceAll(
+      "§ 147 Abs. 1 Nr. 2, 3, Abs. 3 AO; § 257 Abs. 1 Nr. 2, 3, Abs. 4 HGB",
+      "§ 147 Abs. 1 Nr. 2, 3, Abs. 3 AO (Geschäftsbriefe)",
+    );
+    next = next.replace(/; § 257 Abs\. 1[^|\n]*HGB/g, "");
+    next = next.replaceAll(" (§ 240 HGB)", "");
+    next = next.replaceAll(" (§ 241 Abs. 2 HGB)", "");
+    next = next.replaceAll(
+      "Inventare, Jahresabschlüsse, Lageberichte",
+      "Inventare, Jahresabschlüsse und Lageberichte, soweit vorhanden",
+    );
+  }
+  if (options.einzelunternehmen) {
+    next = next.replaceAll("durch die Geschäftsführung", "durch die Inhaberin bzw. den Inhaber");
+    next = next.replaceAll("bei der Geschäftsführung", "bei der Inhaberin bzw. dem Inhaber");
+    next = next.replaceAll("der Geschäftsführung", "der Inhaberin bzw. dem Inhaber");
+    next = next.replaceAll("Die Geschäftsführung", "Die Inhaberin bzw. der Inhaber");
+    next = next.replaceAll("die Geschäftsführung", "die Inhaberin bzw. der Inhaber");
+    next = next.replaceAll("Geschäftsführung", "Inhaberin bzw. Inhaber");
+  }
+  if (options.solo) {
+    next = next.replaceAll(
+      "informiert die Buchhaltung die Inhaberin bzw. der Inhaber",
+      "informiert die Inhaberin bzw. der Inhaber",
+    );
+    next = next.replaceAll(
+      "informiert die Buchhaltung die Geschäftsführung",
+      "informiert die Inhaberin bzw. der Inhaber",
+    );
+    next = next.replaceAll("die Buchhaltung erfasst Anlass", "die Inhaberin bzw. der Inhaber erfasst Anlass");
+    next = next.replaceAll(
+      "| die Buchhaltung | ja | ja | nein* | nein |",
+      "| externe Steuerberatung (soweit beauftragt) | im Mandatsumfang | nein | nein | nein |",
+    );
+    next = next.replace(/\| Andere Beschäftigte \|[^\n]*\n/g, "");
+  }
+  return next;
+}
+
 /** Offene Ladenkasse: keine TSE, Kassensystem-Zeilen in Aufbewahrung angepasst. */
 export function offeneKasseText(text: string): string {
   return ohneTseAussage(text)
     .split("\n")
     .flatMap((line) => {
+      if (line.includes("Programmierung und Organisationsunterlagen")) {
+        return [line.replaceAll("Programmierung und Organisationsunterlagen", "Organisationsunterlagen")];
+      }
       if (line.includes("Programmier- und Änderungsprotokolle des Kassensystems")) return [];
       if (line.includes("Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle")) {
         return [

@@ -15,13 +15,14 @@ import {
 } from "@/lib/schnellversion-answers";
 import { renderDeliveryDocument } from "@/lib/delivery-templates";
 import { limitIdenticalSentences, standardFall, standardSystemSection } from "@/lib/schnellversion-bausteine";
-import { mitEinzelaufzeichnung, mitKassenNotverfahren } from "@/lib/schnellversion-basis";
+import { mitEinzelaufzeichnung, mitFreiberuf, mitKassenNotverfahren } from "@/lib/schnellversion-basis";
 import { neutralizeStandardText, offeneKasseText } from "@/lib/schnellversion-neutral";
 import {
   SV_KASSE_UNSICHER_HILFE,
   formatSvDate,
   svClosingPage,
   svCoverBox,
+  svFooterLine,
   svHeaderLine,
 } from "@/lib/schnellversion-copy";
 
@@ -38,6 +39,7 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
       kasse: kasseHatKapitel(input.kasse),
       gastro: input.branche === "gastro",
       kasseArt: input.kasse,
+      solo: input.mitarbeitende === "1 (nur ich)",
     }),
     erstelltAm: datum,
     selfBooking: !kanzleiBuchtAntwort(input.bucht),
@@ -46,6 +48,9 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
     bausteinName: fall.name,
     brancheId: input.branche,
     kasseArt: input.kasse,
+    solo: input.mitarbeitende === "1 (nur ich)",
+    einzelunternehmen: input.rechtsform === "Einzelunternehmen",
+    footer: svFooterLine(input.rechtsform === "Einzelunternehmen"),
   };
   if (input.kasse === "Unsicher") {
     frame.kasseHinweis = SV_KASSE_UNSICHER_HILFE;
@@ -75,7 +80,14 @@ export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date
     documentId: `standard-${built.vorlage}`,
     version: 1,
   });
-  const options = { selfBooking: frame.selfBooking, software: frame.software, fall: standardFall(input), branche: input.branche };
+  const options = {
+    selfBooking: frame.selfBooking,
+    software: frame.software,
+    fall: standardFall(input),
+    branche: input.branche,
+    solo: frame.solo,
+    einzelunternehmen: frame.einzelunternehmen,
+  };
   const datum = frame.erstelltAm ?? "";
   const chapters = rendered.chapters
     .filter((chapter) => chapter.id !== "anhang-a")
@@ -84,12 +96,13 @@ export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date
       if (frame.kasseHinweis && chapter.id === "modul-m08") body = `${frame.kasseHinweis}\n\n${body}`;
       body = mitEinzelaufzeichnung(body, chapter.id, input.kasse);
       body = mitKassenNotverfahren(body, chapter.id, input.kasse);
+      body = mitFreiberuf(body, chapter.id, input.branche);
+      if (chapter.id === "modul-m17") body = `${body}\n\n${standardSystemSection(standardFall(input))}`;
       return neutralizeStandardText(body, datum, options);
     });
   const joined = limitIdenticalSentences([
     neutralizeStandardText(`${frame.coverBox}\n\n${rendered.cover}`, datum, options),
     ...chapters,
-    standardSystemSection(standardFall(input)),
     neutralizeStandardText(frame.closing, datum, options),
   ].join("\n"), 1);
   return input.kasse === "Ja, offene Ladenkasse (ohne elektronisches System)" ? offeneKasseText(joined) : joined;

@@ -51,11 +51,13 @@ export const SV_DOWNLOAD_DAYS = 30;
 export const SV_COVER_TITLE = "Standardfassung, bitte prüfen";
 
 export function svCoverBox(vorlage: string, erstelltAm = ""): string {
-  const datum = erstelltAm ? ` Erstellt am ${erstelltAm}.` : "";
+  const satz = erstelltAm
+    ? `Diese Verfahrensdokumentation wurde am ${erstelltAm} als Standardfassung auf Basis der Angaben zu Branche und Größe erstellt.`
+    : SV_BASIS_SATZ;
   return [
     `**${SV_COVER_TITLE}**`,
     "",
-    `${SV_BASIS_SATZ}${datum}`,
+    satz,
     "",
     `Anschrift: ________`,
     `gültig ab: ________ (nach Prüfung und Freigabe durch die Geschäftsführung eintragen)`,
@@ -66,6 +68,11 @@ export function svCoverBox(vorlage: string, erstelltAm = ""): string {
 
 export const SV_FOOTER =
   "Standardfassung – vor Freigabe durch die Geschäftsführung prüfen · Keine Steuer- oder Rechtsberatung";
+
+export function svFooterLine(einzelunternehmen = false): string {
+  const wer = einzelunternehmen ? "die Inhaberin bzw. den Inhaber" : "die Geschäftsführung";
+  return `Standardfassung – vor Freigabe durch ${wer} prüfen · Keine Steuer- oder Rechtsberatung`;
+}
 
 export function svHeaderLine(firma: string, datum: string): string {
   return `Verfahrensdokumentation · ${firma} · Standardfassung vom ${datum}`;
@@ -81,8 +88,9 @@ export const SV_PRUEF_PUNKTE: ReadonlyArray<readonly [string, string]> = [
   ["Übergabe an die Kanzlei", "Welche Unterlagen übergeben Sie an die Kanzlei, und wer bleibt wofür zuständig?"],
 ];
 
-export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro?: boolean; kasseArt?: string } = {}): string {
+export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro?: boolean; kasseArt?: string; solo?: boolean } = {}): string {
   const self = options.self === true;
+  const solo = options.solo === true;
   const kasse = options.kasse === true;
   const gastro = options.gastro === true;
   const punkte: Array<readonly [string, string]> = [
@@ -98,7 +106,9 @@ export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro
   const kassenPunkt: readonly [string, string] = ["Kasse", kassenText];
   if (kasse && gastro) punkte.push(kassenPunkt);
   punkte.push(
-    ["Zuständigkeiten und Vertretung", "Wer ist wofür zuständig, wer vertritt, wer gibt Zahlungen frei?"],
+    ["Zuständigkeiten und Vertretung", solo
+      ? "Wer handelt bei Krankheit oder Urlaub (z. B. Vollmacht für Steuerberatung, Bank)?"
+      : "Wer ist wofür zuständig, wer vertritt, wer gibt Zahlungen frei?"],
     ["Belegeingang und E-Rechnung", "Über welche Wege gehen Belege ein, wer erfasst sie, wo wird die E-Rechnung (XML) aufbewahrt?"],
   );
   if (kasse && !gastro) punkte.splice(1, 0, kassenPunkt);
@@ -106,10 +116,11 @@ export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro
     ["Systeme", "Welche Programme werden eingesetzt (Name, Anbieter, Cloud oder lokal), stimmt die Systemübersicht?"],
     ["Archiv, Unveränderbarkeit und Sicherung", "Wo liegen die Unterlagen, wie sind sie gegen Änderung geschützt, wer sichert wie oft? Fristen: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Geschäftsbriefe 6 Jahre."],
   );
-  punkte.push([
-    self ? "Lohn" : "Übergabe an Kanzlei bzw. Lohnbüro",
-    LOHN_SATZ,
-  ]);
+  punkte.push(
+    solo
+      ? ["Lohn", "Gibt es Beschäftigte (auch Minijob, Aushilfe)? Falls ja: Lohnabrechnung intern oder extern."]
+      : [self ? "Lohn" : "Übergabe an Kanzlei bzw. Lohnbüro", LOHN_SATZ],
+  );
   const points = punkte.map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
   return ["# Vom Betrieb zu ergänzende Punkte", "", points].join("\n");
 }

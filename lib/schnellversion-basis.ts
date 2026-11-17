@@ -58,9 +58,13 @@ export function kassenNotverfahren(kasse: string): string {
   return "Bei Ausfall von Kasse oder TSE: Ersatzaufzeichnung (Notbon oder Liste), Ausfallzeit und Grund dokumentieren, Belege kennzeichnen, Nacherfassung festhalten (bitte prüfen).";
 }
 
+export const FREIBERUF_EUR =
+  "Gewinnermittlung in der Regel durch Einnahmenüberschussrechnung nach § 4 Abs. 3 EStG (Zufluss/Abfluss, § 11 EStG); keine Buchführungspflicht nach HGB oder § 141 AO (bitte prüfen).";
+
 export function mitEinzelaufzeichnung(body: string, chapterId: string, kasse: string | undefined): string {
-  if (chapterId !== "modul-m08" || kasse !== OFFENE_KASSE) return body;
-  const block = `**Einzelaufzeichnung:** ${EINZELAUFZEICHNUNG_SATZ}`;
+  if (chapterId !== "modul-m08" || (kasse !== OFFENE_KASSE && kasse !== "Unsicher")) return body;
+  const satz = kasse === "Unsicher" ? `Bei offener Ladenkasse: ${EINZELAUFZEICHNUNG_SATZ}` : EINZELAUFZEICHNUNG_SATZ;
+  const block = `**Einzelaufzeichnung:** ${satz}`;
   if (body.includes(block)) return body;
   const mark = "**Kassenart:**";
   const at = body.indexOf(mark);
@@ -72,7 +76,16 @@ export function mitEinzelaufzeichnung(body: string, chapterId: string, kasse: st
 
 export function mitKassenNotverfahren(body: string, chapterId: string, kasse: string | undefined): string {
   if (chapterId !== "modul-m08" || !kasse || kasse === "Nein, keine Bargeldeinnahmen") return body;
-  return `${body}\n\n## Notverfahren bei Kassenausfall\n\n${kassenNotverfahren(kasse)}`;
+  const unsicher =
+    kasse === "Unsicher"
+      ? "\n\nBei offener Ladenkasse zusätzlich aufbewahren: Kassenberichte, Zählprotokolle und Einzelaufzeichnungen, soweit geführt. Frist 8 Jahre als Buchungsbeleg, 10 Jahre als Aufzeichnung, im Zweifel die längere Frist."
+      : "";
+  return `${body}\n\n## Notverfahren bei Kassenausfall\n\n${kassenNotverfahren(kasse)}${unsicher}`;
+}
+
+export function mitFreiberuf(body: string, chapterId: string, branche: string | undefined): string {
+  if (chapterId !== "modul-m09" || branche !== "freiberuf" || body.includes(FREIBERUF_EUR)) return body;
+  return `${body}\n\n**Gewinnermittlung:** ${FREIBERUF_EUR}`;
 }
 
 function kasseAntworten(kasse: SchnellversionAnswers["kasse"]): Record<string, Entry> {
@@ -103,7 +116,11 @@ function kasseAntworten(kasse: SchnellversionAnswers["kasse"]): Record<string, E
       wer: "die Geschäftsführung oder eine benannte Person im Betrieb",
     }),
     KA06: ja({
-      art: offen ? "Kassenbericht (offene Ladenkasse)" : "Kassenbuch im Kassensystem",
+      art: offen
+        ? "Kassenbericht (offene Ladenkasse)"
+        : unsicher
+          ? "Kassenbuch (elektronisches System) oder Kassenbericht (offene Ladenkasse) – ist im Betrieb festzulegen"
+          : "Kassenbuch im Kassensystem",
       wer: "die Geschäftsführung oder eine benannte Person im Betrieb",
     }),
     KA08: ja({
@@ -117,11 +134,18 @@ function kasseAntworten(kasse: SchnellversionAnswers["kasse"]): Record<string, E
   if (offen) {
     out.KA02 = entfaelltOffeneKasse();
     out.KA03 = entfaelltOffeneKasse();
+    out.KA09 = ja({
+      wer: "entfällt (offene Ladenkasse)",
+      ablage: "z. B. Kassenbericht-Vordruck und Zählanweisung – ist im Betrieb festzulegen und hier einzutragen",
+    });
+  } else if (unsicher) {
+    out.KA02 = ja({
+      zertifikat: "unbekannt",
+      mitteilung: "unbekannt",
+    });
   } else {
     out.KA02 = ja({
-      tse: unsicher
-        ? "elektronisch mit TSE oder offene Ladenkasse – ist im Betrieb festzulegen. TSE-Art, TSE-Seriennummer, Zertifikat und ELSTER-Mitteilung sind im Betrieb festzulegen und hier einzutragen"
-        : "Zertifizierte TSE. TSE-Art und TSE-Seriennummer sind im Betrieb festzulegen und hier einzutragen",
+      tse: "Zertifizierte TSE. TSE-Art und TSE-Seriennummer sind im Betrieb festzulegen und hier einzutragen",
       zertifikat: "unbekannt",
       mitteilung: "unbekannt",
     });
@@ -150,11 +174,18 @@ function bankAntworten(input: SchnellversionAnswers): Record<string, Entry> {
       format: "Gemischt",
       ablage: "Elektronische Kontoauszüge werden im empfangenen Format aufbewahrt, nicht nur im Bankportal.",
     }),
-    BA05: ja({
-      wer: `${GF}; ab einer im Betrieb festzulegenden Wertgrenze zusätzlich eine zweite Person, soweit personell möglich`,
-      vierAugen: "unbekannt",
-      limit: FEST,
-    }),
+    BA05: ja(
+      input.mitarbeitende === "1 (nur ich)"
+        ? {
+            wer: "Freigabe durch die Inhaberin bzw. den Inhaber. Ein Vier-Augen-Prinzip ist personell nicht möglich; Ausgleich durch nachgelagerte Selbstkontrolle (z. B. monatlicher Abgleich Bank–Buchhaltung–Belege) und, soweit beauftragt, durch die Steuerberatung (bitte prüfen).",
+            limit: FEST,
+          }
+        : {
+            wer: `${GF}; ab einer im Betrieb festzulegenden Wertgrenze zusätzlich eine zweite Person, soweit personell möglich`,
+            vierAugen: "unbekannt",
+            limit: FEST,
+          },
+    ),
     BA08: ja(weg ? { weg, uebergabe } : { uebergabe }),
   };
 }
@@ -205,7 +236,7 @@ function gastro(): Record<string, Entry> {
       wer: "Küchenleitung bzw. Inhaberin oder Inhaber",
     }),
     EK03: ja({
-      wege: "(z. B. E-Mail, Telefon, Portal des Großhändlers): ist im Betrieb festzulegen",
+      wege: "z. B. E-Mail, Telefon oder Portal des Großhändlers – ist im Betrieb festzulegen",
       system: "Das Bestellsystem ist im Betrieb festzulegen und hier einzutragen.",
     }),
     EK05: ja({
@@ -380,9 +411,17 @@ export function standardBasis(input: SchnellversionAnswers): { answers: IntakeAn
     m08: kasse
       ? { status: "tool" }
       : { status: "nicht_vorhanden", reason: "Keine Bargeldeinnahmen in den 6 Angaben." },
-    m10: vorlage === "dienstleister" ? { status: "offen" } : { status: "tool" },
+    m10:
+      input.branche === "freiberuf"
+        ? { status: "nicht_vorhanden", reason: "bitte prüfen" }
+        : vorlage === "dienstleister"
+          ? { status: "offen" }
+          : { status: "tool" },
     m11: { status: "offen" },
-    m12: { status: "offen" },
+    m12:
+      input.mitarbeitende === "1 (nur ich)"
+        ? { status: "nicht_vorhanden", reason: "keine Beschäftigten laut Angabe (bitte prüfen)" }
+        : { status: "offen" },
     m13: vorlage === "ecommerce" ? { status: "tool" } : { status: "offen" },
     m14: { status: "tool" },
   };
