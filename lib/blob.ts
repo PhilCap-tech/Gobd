@@ -340,6 +340,14 @@ async function loadPdfFromStoredUrl(
   return null;
 }
 
+/** Stored PDF bytes only. Does not generate or write a file. */
+export async function readStoredPdfBytes(
+  pdfUrl: string,
+  io: BlobIo = defaultBlobIo,
+): Promise<Buffer | null> {
+  return loadPdfFromStoredUrl(pdfUrl, io);
+}
+
 function isVercelRuntime(): boolean {
   return process.env.VERCEL === "1" || process.env.VERCEL === "true";
 }
