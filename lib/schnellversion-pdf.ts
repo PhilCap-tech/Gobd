@@ -32,7 +32,11 @@ export function standardFrameFor(input: SchnellversionAnswers, erstelltAm: Date)
   const frame: StandardPdfFrame = {
     header: svHeaderLine(input.firma, datum),
     coverBox: svCoverBox(label, datum),
-    closing: svClosingPage(!kanzleiBuchtAntwort(input.bucht)),
+    closing: svClosingPage({
+      self: !kanzleiBuchtAntwort(input.bucht),
+      kasse: kasseHatKapitel(input.kasse),
+      gastro: input.branche === "gastro",
+    }),
     erstelltAm: datum,
     selfBooking: !kanzleiBuchtAntwort(input.bucht),
     software: softwareProse(input),
@@ -76,8 +80,8 @@ export function standardPlainText(input: SchnellversionAnswers, erstelltAm: Date
   return limitIdenticalSentences([
     neutralizeStandardText(`${frame.coverBox}\n\n${rendered.cover}`, datum, options),
     ...chapters,
-    neutralizeStandardText(frame.closing, datum, options),
     standardSystemSection(standardFall(input)),
+    neutralizeStandardText(frame.closing, datum, options),
   ].join("\n"), 1);
 }
 

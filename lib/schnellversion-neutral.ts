@@ -7,7 +7,7 @@ import { applyStandardBausteine, dropFremdeProzesse, standardFall, type Standard
 
 const FIXED_DATES = ["01.07.2026", "1.07.2026", "2026-07-01"];
 
-export const SV_BASIS_SATZ = "Standardfassung auf Basis Ihrer Angaben zu Branche und Größe.";
+export const SV_BASIS_SATZ = "Standardfassung auf Basis der Angaben zu Branche und Größe.";
 
 export type StandardNeutralOptions = {
   /** Buchführung im Unternehmen, nicht durch die Kanzlei. */
@@ -64,7 +64,7 @@ export function neutralizeStandardText(
   );
   next = next.replaceAll(
     "Bei einem realen Betrieb bestätigt die Geschäftsleitung an dieser Stelle, dass die beschriebenen Abläufe der tatsächlichen Praxis entsprechen. Automatische Erzeugung und fachliche Hinweise ersetzen diese betriebliche Prüfung nicht.",
-    "Bitte prüfen Sie, ob die beschriebenen Abläufe zu Ihrem Betrieb passen.",
+    "Die Geschäftsführung prüft, ob die beschriebenen Abläufe zum Betrieb passen.",
   );
   next = next.replaceAll("Robert Funke", "die Geschäftsführung");
   next = next.replaceAll("Ines Wolf", "die Buchhaltung");
@@ -82,6 +82,17 @@ export function neutralizeStandardText(
   next = next.replaceAll("Anlagenverzeichnis (fiktiv)", "Anlagenverzeichnis laut Betrieb");
   next = next.replaceAll("(fiktiv)", "");
   next = next.replaceAll("bestätigt, ohne nähere Angabe", "Angabe des Betriebs");
+  next = next.replaceAll("noch zu klären. Siehe offene Punkte.", "ist im Betrieb festzulegen und hier einzutragen.");
+  next = next.replaceAll("Siehe offene Punkte", "Siehe Ergänzungsliste am Ende");
+  next = next.replaceAll("Laut Betriebs-Check nicht vorhanden", "im Betrieb zu klären");
+  next = next.replaceAll("laut Betriebs-Check", "im Betrieb");
+  next = next.replaceAll("Buchungsbelege 10 Jahre", "Buchungsbelege 8 Jahre");
+  next = next.replaceAll("von die Geschäftsführung", "der Geschäftsführung");
+  next = next.replaceAll("bei die Geschäftsführung", "bei der Geschäftsführung");
+  next = next.replaceAll("bei die Buchhaltung", "bei der Buchhaltung");
+  next = next.replaceAll("mit die Geschäftsführung", "mit der Geschäftsführung");
+  next = next.replaceAll("mit die Buchhaltung", "mit der Buchhaltung");
+  next = next.replaceAll(" .", ".");
   next = next.replaceAll(
     "Sätze im Präsens beschreiben nur bestätigte Abläufe",
     "Die beschriebenen Abläufe sind typische Abläufe der Branche",

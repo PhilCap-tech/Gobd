@@ -36,6 +36,7 @@ import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { generatePdf } from "../lib/delivery";
 import { getGesamtMuster } from "../lib/module-muster";
+import { MUSTER_FIRMEN } from "../lib/module-muster-dense";
 import { generateStandardPdf } from "../lib/schnellversion-pdf";
 
 function ok(cond: unknown, msg: string) {
@@ -268,7 +269,7 @@ async function main() {
   ok(text.includes("Mitarbeitende: 2–5"), "Mitarbeitendenzahl aus den 6 Angaben");
   ok(text.includes("Handwerk / Bau"), "Branche aus den 6 Angaben");
   ok(!text.includes("Bauwerk Nord"), "Musterfirma steht nicht im PDF");
-  ok(text.includes("Diese Punkte sollten Sie für Ihren Betrieb ergänzen"), "Prüfhinweise im PDF");
+  ok(text.includes("Vom Betrieb zu ergänzende Punkte"), "Prüfhinweise im PDF");
   ok(text.includes("Prüfhinweis aufgenommen"), "Kasse Unsicher im PDF");
   ok(!text.includes("Anhang A — Offene Punkte"), "keine Liste offener Punkte aus eigenen Antworten");
   ok(!text.includes("Angabe im Intake"), "kein Angabe im Intake");
@@ -411,7 +412,7 @@ async function main() {
     const later = new Date(reserveNow.getTime() + 31 * 24 * 60 * 60 * 1000);
     ok(!svDownloadAllowed(row, { email: "inhaber@example.com", token: dl, now: later }), "Session-Link endet nach 30 Tagen");
   }
-  const keptFibu = draftFromSchnellversion("lex@example.com", sample({ software: "lexoffice", firma: "Lex GmbH" }));
+  const keptFibu = draftFromSchnellversion("lex@example.com", sample({ software: "Lexware Office", firma: "Lex GmbH" }));
   keptFibu.answers.fibu = ["Lexware Eigen"];
   if (keptFibu.answers.module) {
     keptFibu.answers.module = {
@@ -641,6 +642,17 @@ async function main() {
           const marker = (plain.match(/bitte prüfen/gi) ?? []).length - (plain.match(/Standardfassung, bitte prüfen/gi) ?? []).length;
           if (marker > 25) ok(false, `${branche.id} ${software} hat ${marker} Markierungen`);
           if (/€/.test(plain) || /Anrechn/i.test(plain)) ok(false, `${branche.id} ${software} enthält Preis oder Anrechnung`);
+          if (/Buchungsbelege\s+(10|zehn)\s+Jahre/i.test(plain)) ok(false, `${branche.id} Buchungsbelege mit 10 Jahren`);
+          if (/: ja\b/.test(plain)) ok(false, `${branche.id} ${software} enthält : ja`);
+          const bodyStart = plain.indexOf("# ");
+          const listAt = plain.indexOf("# Vom Betrieb zu ergänzende Punkte");
+          const body = plain.slice(bodyStart < 0 ? 0 : bodyStart, listAt < 0 ? plain.length : listAt);
+          if (/\b(Sie|Ihre|Ihnen)\b/.test(body)) ok(false, `${branche.id} ${software} spricht den Leser im Text an`);
+          for (const firma of Object.values(MUSTER_FIRMEN)) {
+            for (const name of [firma.company, firma.gf, firma.buchhaltung, firma.kanzlei, firma.standort]) {
+              if (name && plain.includes(name)) ok(false, `${branche.id} enthält Musterangabe ${name}`);
+            }
+          }
           const lohnSatz = fall.self
             ? "Die Lohnabrechnung erfolgt extern (z. B. über ein Lohnbüro)."
             : "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei).";
@@ -656,7 +668,7 @@ async function main() {
     { software: "Sonstiges", softwareFrei: "Buchhalter Pro", bucht: "Wir selbst im Unternehmen" },
     { software: "Excel / manuell", softwareFrei: "", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
     { software: "Excel / manuell", softwareFrei: "", bucht: "Wir selbst im Unternehmen" },
-    { software: "lexoffice", softwareFrei: "", bucht: "Unsere Steuerkanzlei" },
+    { software: "Lexware Office", softwareFrei: "", bucht: "Unsere Steuerkanzlei" },
     { software: "Sonstiges", softwareFrei: "Lexware", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },
     { software: "sevdesk", softwareFrei: "", bucht: "Wir selbst im Unternehmen" },
     { software: "Weiß ich nicht, macht die Kanzlei", softwareFrei: "", bucht: "Beides: Belege sammeln wir, die Kanzlei bucht" },

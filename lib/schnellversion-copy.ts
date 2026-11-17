@@ -3,6 +3,8 @@
  * (Abschnitt 2 und 3), formelles Sie. Keine eigenen Preise oder Disclaimer.
  */
 
+import { SV_BASIS_SATZ } from "@/lib/schnellversion-neutral";
+
 export const SV_BUY_LABEL = "Direkt kaufen: Standard-PDF 49 €";
 
 export const SV_HERO_NOTE =
@@ -52,9 +54,12 @@ export function svCoverBox(vorlage: string, erstelltAm = ""): string {
   return [
     `**${SV_COVER_TITLE}**`,
     "",
-    `Standardfassung auf Basis Ihrer Angaben zu Branche und Größe.${datum}`,
+    `${SV_BASIS_SATZ}${datum}`,
     "",
-    `Dieses Dokument ist eine Standardfassung aus der Branchenvorlage „${vorlage}“. Es enthält Ihre Firmendaten und 6 Eckdaten. Die beschriebenen Abläufe sind typische Abläufe der Branche, nicht Ihre tatsächlichen. Am Ende steht eine kurze Liste der Punkte, die Sie für Ihren Betrieb ergänzen. Keine Steuer- oder Rechtsberatung.`,
+    `Anschrift: ________`,
+    `gültig ab: ________ (nach Prüfung und Freigabe durch die Geschäftsführung eintragen)`,
+    "",
+    `Dieses Dokument wurde aus der Branchenvorlage „${vorlage}“ und 6 Eckdaten des Betriebs erzeugt. Die beschriebenen Abläufe sind branchentypische Annahmen, keine festgestellten Abläufe des Betriebs. Stellen mit „(bitte prüfen)“ und Lücken „____“ sind vom Betrieb zu ergänzen. Erst nach Prüfung, Ergänzung und Freigabe durch die Geschäftsführung gibt das Dokument die Verfahren des Betriebs wieder. Keine steuerliche oder rechtliche Beratung.`,
   ].join("\n");
 }
 
@@ -72,12 +77,32 @@ export const SV_PRUEF_PUNKTE: ReadonlyArray<readonly [string, string]> = [
   ["Übergabe an die Kanzlei", "Welche Unterlagen übergeben Sie an die Kanzlei, und wer bleibt wofür zuständig?"],
 ];
 
-export function svClosingPage(self = false): string {
-  const lohn: readonly [string, string] = self
-    ? ["Lohn", "Die Lohnabrechnung erfolgt extern (z. B. über ein Lohnbüro). Trifft das auf Ihren Betrieb zu?"]
-    : ["Lohn", "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei). Trifft das auf Ihren Betrieb zu?"];
-  const points = [...SV_PRUEF_PUNKTE, lohn].map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
-  return ["# Diese Punkte sollten Sie für Ihren Betrieb ergänzen", "", points].join("\n");
+export function svClosingPage(options: { self?: boolean; kasse?: boolean; gastro?: boolean } = {}): string {
+  const self = options.self === true;
+  const kasse = options.kasse === true;
+  const gastro = options.gastro === true;
+  const punkte: Array<readonly [string, string]> = [
+    ["Prüfung und Freigabe", "Die Geschäftsführung prüft das Dokument, ersetzt offene Angaben durch eigene Angaben, unterschreibt und trägt „gültig ab“ ein."],
+  ];
+  const kassenPunkt: readonly [string, string] = ["Kasse", "Kassenart (elektronisch mit TSE oder offene Ladenkasse), Kassen- und TSE-Seriennummer, Datum der ELSTER-Mitteilung nach § 146a Abs. 4 AO, Tagesabschluss bzw. Kassenbericht."];
+  if (kasse && gastro) punkte.push(kassenPunkt);
+  punkte.push(
+    ["Zuständigkeiten und Vertretung", "Wer ist wofür zuständig, wer vertritt, wer gibt Zahlungen frei?"],
+    ["Belegeingang und E-Rechnung", "Über welche Wege gehen Belege ein, wer erfasst sie, wo wird die E-Rechnung (XML) aufbewahrt?"],
+  );
+  if (kasse && !gastro) punkte.splice(1, 0, kassenPunkt);
+  punkte.push(
+    ["Systeme", "Welche Programme werden eingesetzt (Name, Anbieter, Cloud oder lokal), stimmt die Systemübersicht?"],
+    ["Archiv, Unveränderbarkeit und Sicherung", "Wo liegen die Unterlagen, wie sind sie gegen Änderung geschützt, wer sichert wie oft? Fristen: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Geschäftsbriefe 6 Jahre."],
+  );
+  if (!self) {
+    punkte.push([
+      "Übergabe an Kanzlei bzw. Lohnbüro",
+      "Die Lohnabrechnung erfolgt extern (z. B. Lohnbüro oder Steuerkanzlei). Welche Unterlagen gehen wann an wen, wer bleibt verantwortlich?",
+    ]);
+  }
+  const points = punkte.map(([titel, frage]) => `**${titel}.** ${frage}`).join("\n\n");
+  return ["# Vom Betrieb zu ergänzende Punkte", "", points].join("\n");
 }
 
 export function svDankeText(anrechnungBis: string): string {

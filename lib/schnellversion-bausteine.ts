@@ -21,13 +21,15 @@ export type BausteinInput = {
   bucht: string;
 };
 
-const AUFBEWAHRUNG = "Aufbewahrung der Buchungsbelege 10 Jahre (§ 147 Abs. 3 AO).";
+const AUFBEWAHRUNG = "Aufbewahrung: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 3 AO). Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO).";
 
 export function standardFall(input: BausteinInput): StandardFall {
   const self = input.bucht === "Wir selbst im Unternehmen";
   const frei = (input.softwareFrei ?? "").trim();
   if (input.software === "DATEV") return { kind: "datev", name: "DATEV", self, datev: true, excel: false };
-  if (input.software === "lexoffice") return { kind: "lexoffice", name: "lexoffice", self, datev: false, excel: false };
+  if (input.software === "lexoffice" || input.software === "Lexware Office") {
+    return { kind: "lexoffice", name: "Lexware Office", self, datev: false, excel: false };
+  }
   if (input.software === "sevdesk") return { kind: "sevdesk", name: "sevdesk", self, datev: false, excel: false };
   if (input.software === "Excel / manuell") {
     return { kind: "excel", name: "Excel-Listen bzw. manuelle Aufzeichnungen", self, datev: false, excel: true };
@@ -83,12 +85,12 @@ function buildPack(fall: StandardFall): BausteinPack {
       lohnFibu: "Die Kanzlei übernimmt die Lohnbuchungen in die Finanzbuchhaltung.",
       lohnMeldung: "Personaländerungen gehen an die Kanzlei. [bitte prüfen]",
       lohnZugriff: "Zugriff auf Lohnlisten nur für [bitte prüfen].",
-      bank: "Kontoumsätze stellt die Bank als Kontoauszug bereit. Die Kanzlei übernimmt sie in DATEV. [bitte prüfen]",
+      bank: "Kontoumsätze werden elektronisch über den Bankdatenabruf in DATEV übernommen und von der Kanzlei gebucht (bitte prüfen). Die elektronischen Kontoauszüge (PDF) werden vom Betrieb in DATEV Unternehmen online bzw. im eigenen Archiv abgelegt, nicht nur im Bankportal.",
       zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei [bitte prüfen].",
       kasse: "Monatlicher Export aus dem Kassensystem an die Kanzlei. [bitte prüfen]",
       schnittstelle: "Übergabe an DATEV laut Betrieb. [bitte prüfen]",
       archiv: "Belege liegen in DATEV Unternehmen online. [bitte prüfen]",
-      system: "Buchhaltung in DATEV Unternehmen online bei der Kanzlei. Hosting [bitte prüfen].",
+      system: "Buchhaltung in DATEV Unternehmen online bei der Kanzlei.",
       kanzleiFrei,
     };
   }
@@ -106,7 +108,7 @@ function buildPack(fall: StandardFall): BausteinPack {
       kasse: "Monatlicher Export aus dem Kassensystem in die Buchhaltung. [bitte prüfen]",
       schnittstelle: "Übergabe an DATEV laut Betrieb. [bitte prüfen]",
       archiv: "Belege liegen in DATEV. [bitte prüfen]",
-      system: "Buchhaltung in DATEV im Unternehmen. Hosting [bitte prüfen].",
+      system: "Buchhaltung in DATEV im Unternehmen.",
       kanzleiFrei,
     };
   }
@@ -128,7 +130,7 @@ function buildPack(fall: StandardFall): BausteinPack {
       kasse: "Kassenberichte gehen als Liste an die Buchhaltung. [bitte prüfen]",
       schnittstelle: "Keine technische Schnittstelle. Die Erfassung erfolgt manuell. [bitte prüfen]",
       archiv: "Belege liegen in der Belegablage. [bitte prüfen]",
-      system: "Buchhaltung über Excel-Listen bzw. manuelle Aufzeichnungen. Ablage lokal. [bitte prüfen]",
+      system: "Aufzeichnungen werden in Excel-Listen bzw. manuell geführt (bitte prüfen). Tabellenkalkulationen sind frei änderbar. Der Betrieb beschreibt daher, wie die Unveränderbarkeit gesichert wird: monatlicher Abschluss jeder Liste, Ablage als schreibgeschützte, versionierte Datei in einem Archiv mit Änderungsprotokoll, keine nachträgliche Bearbeitung abgeschlossener Monate. Korrekturen nur als neue Zeile mit Datum und Grund. Ein Kassenbuch in Excel ohne solche Sicherung genügt nicht.",
       kanzleiFrei,
     };
   }
@@ -146,7 +148,7 @@ function buildPack(fall: StandardFall): BausteinPack {
       kasse: "Monatlicher Export aus dem Kassensystem in die Buchhaltung. [bitte prüfen]",
       schnittstelle: "Übergabe an die Buchhaltung laut Betrieb. [bitte prüfen]",
       archiv: "Belege liegen in der Belegablage des Betriebs. [bitte prüfen]",
-      system: "Buchhaltung in der eingesetzten Buchhaltungssoftware im Unternehmen. Hosting [bitte prüfen].",
+      system: "Buchhaltung in der eingesetzten Buchhaltungssoftware im Unternehmen.",
       kanzleiFrei,
     };
   }
@@ -164,7 +166,40 @@ function buildPack(fall: StandardFall): BausteinPack {
       kasse: "Monatlicher Export aus dem Kassensystem an die Kanzlei. [bitte prüfen]",
       schnittstelle: "Übergabe an die Kanzlei laut Betrieb. [bitte prüfen]",
       archiv: "Belege liegen bei der Kanzlei. [bitte prüfen]",
-      system: "Buchhaltung in der von der Kanzlei eingesetzten Software. Hosting [bitte prüfen].",
+      system: "Buchhaltung in der von der Kanzlei eingesetzten Software.",
+      kanzleiFrei,
+    };
+  }
+  if (fall.kind === "lexoffice") {
+    const name = "Lexware Office";
+    return {
+      ablage: `Nachweis und Ablage in ${name}. ${AUFBEWAHRUNG}`,
+      lohnProgramm,
+      lohnProtokoll: fall.self
+        ? "Übermittlungsprotokolle werden im Unternehmen abgelegt."
+        : "Übermittlungsprotokolle legt die Kanzlei ab.",
+      lohnAblage: fall.self
+        ? "Ablageort der Lohnunterlagen: im Unternehmen."
+        : "Ablageort der Lohnunterlagen: bei der Kanzlei.",
+      lohnFibu: fall.self
+        ? "Die Lohnbuchungen übernimmt die Buchhaltung im Unternehmen."
+        : "Die Kanzlei übernimmt die Lohnbuchungen in die Finanzbuchhaltung.",
+      lohnMeldung: fall.self
+        ? "Personaländerungen erfasst der Betrieb."
+        : "Personaländerungen gehen an die Kanzlei.",
+      lohnZugriff: "Zugriff auf Lohnlisten ist im Betrieb festzulegen und hier einzutragen.",
+      bank: "Kontoumsätze werden über die Bankanbindung in Lexware Office abgerufen, und die Kontoauszüge (PDF) werden zusätzlich als Beleg abgelegt (bitte prüfen).",
+      zahlung: "Zahlungen laufen über das Onlinebanking. Die Freigabe liegt bei der Geschäftsführung.",
+      kasse: fall.self
+        ? "Kassenberichte gehen als Liste an die Buchhaltung."
+        : "Kassenberichte gehen als Liste an die Kanzlei.",
+      schnittstelle: fall.self
+        ? `Übergabe an ${name} laut Betrieb.`
+        : "Übergabe an die Kanzlei laut Betrieb.",
+      archiv: `Belege liegen in ${name}.`,
+      system: fall.self
+        ? "Buchhaltung in Lexware Office, Cloud-Software des Anbieters, im Unternehmen (bitte prüfen)."
+        : "Buchhaltung in Lexware Office, Cloud-Software des Anbieters. Die Kanzlei bucht (bitte prüfen).",
       kanzleiFrei,
     };
   }
@@ -195,8 +230,8 @@ function buildPack(fall: StandardFall): BausteinPack {
       : `Übergabe an die Kanzlei laut Betrieb. [bitte prüfen]`,
     archiv: `Belege liegen in ${name}. [bitte prüfen]`,
     system: fall.self
-      ? `Buchhaltung in ${name} im Unternehmen. Hosting [bitte prüfen].`
-      : `Buchhaltung in ${name}. Die Kanzlei bucht. Hosting [bitte prüfen].`,
+      ? `Buchhaltung in ${name} im Unternehmen.`
+      : `Buchhaltung in ${name}. Die Kanzlei bucht.`,
     kanzleiFrei,
   };
 }

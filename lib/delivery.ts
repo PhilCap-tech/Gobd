@@ -559,7 +559,7 @@ function writePdf(
           excel: input.standard.bausteinKind === "excel",
         })}`
       : "";
-    writeMarkdownish(doc, `${plain(input.standard.closing)}${systemSection}`, width);
+    writeMarkdownish(doc, `${systemSection}\n\n${plain(input.standard.closing)}`, width);
   } else if (isMuster(input.variant)) {
     writeUpsellPage(doc, { ds24: input.upsellDs24 });
   }
