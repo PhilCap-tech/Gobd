@@ -55,8 +55,8 @@ export const INHALT_GLIEDERUNG_POINTS = [
 ] as const;
 
 export const INHALT_GLIEDERUNG_CTA_TITLE = "Unsicher, wo Sie stehen?";
-export const INHALT_GLIEDERUNG_CTA_BEFORE = "Kostenloser ";
-export const INHALT_GLIEDERUNG_CTA_LINK_LABEL = "Readiness-Check";
+export const INHALT_GLIEDERUNG_CTA_BEFORE = "Kostenlose ";
+export const INHALT_GLIEDERUNG_CTA_LINK_LABEL = "GoBD-Ampel";
 export const INHALT_GLIEDERUNG_CTA_AFTER =
   " — kurze Fragen zu Branche, Software, Belegwegen und IT. Ohne Kreditkarte. Keine Steuerberatung.";
 

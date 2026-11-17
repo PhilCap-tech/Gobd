@@ -70,8 +70,8 @@ export const LEAD_MAGNET_POINTS = [
 ] as const;
 
 export const LEAD_MAGNET_CTA_TITLE = "Unsicher, wo Sie stehen?";
-export const LEAD_MAGNET_CTA_BEFORE = "Kostenloser ";
-export const LEAD_MAGNET_CTA_LINK_LABEL = "Readiness-Check";
+export const LEAD_MAGNET_CTA_BEFORE = "Kostenlose ";
+export const LEAD_MAGNET_CTA_LINK_LABEL = "GoBD-Ampel";
 export const LEAD_MAGNET_CTA_AFTER =
   " — kurze Fragen zu Branche, Software, Belegwegen und IT. Ohne Kreditkarte. Keine Steuerberatung.";
 

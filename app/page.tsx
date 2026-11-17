@@ -300,7 +300,7 @@ export default function HomePage() {
           { href: "#bereiche", label: "Module" },
           { href: "#ablauf", label: "Ablauf" },
           { href: "#preise", label: "Preise" },
-          { href: "/readiness", label: "Readiness-Check" },
+          { href: "/readiness", label: "GoBD-Ampel" },
         ]}
       />
       <main>
@@ -792,7 +792,7 @@ export default function HomePage() {
             </div>
             <div>
               <p className={styles.prose}>
-                Machen Sie den kostenlosen Readiness-Check. Sie sehen, welche Themen
+                Machen Sie die kostenlose GoBD-Ampel. Sie sehen, welche Themen
                 Ihre Dokumentation typischerweise abdecken sollte — und wo bei Ihnen
                 noch Klärungsbedarf liegen kann. Kein Kaufzwang.
               </p>

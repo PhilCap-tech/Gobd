@@ -50,7 +50,7 @@ Bucht die Steuerberatung, bleibt die Verantwortung trotzdem beim Unternehmen (Go
 
 ## Welche Bereiche bei Ihnen vorkommen
 
-Welche Themen Ihre Dokumentation typischerweise abdecken sollte, zeigt der kostenlose [Readiness-Check](/readiness) nach Branche, Rechtsform, Software und Belegwegen. Ob in Ihrem Fall besondere Pflichten gelten, klären Sie mit Ihrer Steuerberatung.
+Welche Themen Ihre Dokumentation typischerweise abdecken sollte, zeigt die kostenlose [GoBD-Ampel](/readiness) nach Branche, Rechtsform, Software und Belegwegen. Ob in Ihrem Fall besondere Pflichten gelten, klären Sie mit Ihrer Steuerberatung.
 
 Die kostenlose [GoBD-Ampel](/ampel-check) zeigt Ihnen in wenigen Fragen, ob Ihr Unternehmen die GoBD-Anforderungen erfüllt und wo noch offene Punkte liegen. Sie ist eine Orientierung und keine Steuerberatung.
 

@@ -11,7 +11,7 @@ import {
 import { ReadinessForm } from "./readiness-form";
 
 export const metadata: Metadata = {
-  title: "Readiness-Check",
+  title: "GoBD-Ampel",
   robots: { index: false, follow: false },
 };
 
@@ -21,7 +21,7 @@ export default function ReadinessPage() {
       <SiteHeader backHref="/" backLabel="← Zurück zur Landing" />
       <main className="wrap page">
         <p className="kicker">Kostenlos · kein Kaufzwang</p>
-        <h1>Kostenloser Readiness-Check</h1>
+        <h1>Kostenlose GoBD-Ampel</h1>
         <p className="lead">
           Sie sehen, welche Themen Ihre Dokumentation typischerweise abdecken
           sollte — und wo bei Ihnen noch Klärungsbedarf liegen kann. Kein

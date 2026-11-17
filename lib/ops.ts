@@ -111,7 +111,7 @@ export function buildMagicLinkMail(input: {
     [
       "Guten Tag,",
       "",
-      "hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (nur kurze Zeit gültig):",
+      "hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):",
       input.magicLinkUrl,
       "",
       "Wenn Sie das nicht angefordert haben, können Sie diese Mail ignorieren.",
@@ -121,7 +121,7 @@ export function buildMagicLinkMail(input: {
   );
   const html = wrapTransactionalHtml(`
     <p>Guten Tag,</p>
-    <p>hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (nur kurze Zeit gültig):</p>
+    <p>hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):</p>
     <p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden</a></p>
     <p>Wenn Sie das nicht angefordert haben, können Sie diese Mail ignorieren.</p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
@@ -151,7 +151,7 @@ export function buildReadinessMail(input: {
   ];
   if (input.magicLinkUrl) {
     lines.push(
-      `Späterer Zugang (Magic Link, nur kurze Zeit gültig): ${input.magicLinkUrl}`,
+      `Späterer Zugang (Magic Link, 20 Minuten gültig): ${input.magicLinkUrl}`,
     );
   }
   lines.push(
@@ -167,7 +167,7 @@ export function buildReadinessMail(input: {
     <p>${escapeHtml(greeting)}</p>
     <p>Ihr Readiness-Ergebnis für ${escapeHtml(input.brancheLabel)} ist da — der Leitfaden zeigt Lücken. Die volle Verfahrensdokumentation fehlt noch.</p>
     <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a> (Arbeitshilfe, keine Verfahrensdokumentation)</p>
-    ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, nur kurze Zeit gültig)</a></p>` : ""}
+    ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
     <p><a href="${escapeAttr(MAIL_CHECKOUT_URL)}">${escapeHtml(CHECKOUT_CTA)}</a></p>
     <p>${escapeHtml(READINESS_MICRO)}</p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
@@ -330,7 +330,7 @@ function buildCustomerOnboardingMail(input: {
       CUSTOMER_ONBOARDING_CTA,
       startUrl,
       "",
-      "Der Button meldet Sie direkt an (Link nur kurze Zeit gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.",
+      "Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.",
       "",
       CUSTOMER_ONBOARDING_CONTINUE_CTA,
       continueUrl,
@@ -358,7 +358,7 @@ function buildCustomerOnboardingMail(input: {
       <li><strong>Gesamt-PDF erstellen</strong> – mit Vollständigkeitsübersicht, welche Module beschrieben, anderweitig dokumentiert oder noch offen sind.</li>
     </ol>
     <p>${transactionalPrimaryButton(startUrl, CUSTOMER_ONBOARDING_CTA)}</p>
-    <p>Der Button meldet Sie direkt an (Link nur kurze Zeit gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.</p>
+    <p>Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.</p>
     <p>${transactionalPrimaryButton(continueUrl, CUSTOMER_ONBOARDING_CONTINUE_CTA)}</p>
     <p>Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.</p>
     <p>Ihr Konto: <a href="${escapeAttr(MAIL_ACCOUNT_URL)}">${escapeHtml(MAIL_ACCOUNT_URL)}</a></p>
@@ -521,7 +521,7 @@ export function buildDeliveryMail(input: {
     lines.push(`Übersicht: ${input.successUrl}`);
   }
   if (input.magicLinkUrl) {
-    lines.push(`Konto (Magic Link, nur kurze Zeit gültig): ${input.magicLinkUrl}`);
+    lines.push(`Konto (Magic Link, 20 Minuten gültig): ${input.magicLinkUrl}`);
   }
   lines.push(
     "",
@@ -544,7 +544,7 @@ export function buildDeliveryMail(input: {
     <p>Ihr Entwurf der Verfahrensdokumentation (Version ${version}) liegt vor.</p>
     <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a></p>
     ${input.successUrl ? `<p><a href="${escapeAttr(input.successUrl)}">Zur Übersicht</a></p>` : ""}
-    ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, nur kurze Zeit gültig)</a></p>` : ""}
+    ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
     <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
     <p>Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit Ihrem Steuerberater.</p>
     <p><strong>Gern weitergeben</strong></p>

@@ -3,11 +3,11 @@
 export const EXPIRED_LINK_HEADING = "Dieser Anmeldelink ist abgelaufen";
 
 export const EXPIRED_LINK_LEAD =
-  "Der Link gilt nur kurze Zeit. Mit dem Button senden Sie sich einen neuen Link. Danach öffnet er wieder dieselbe Seite.";
+  "Der Link gilt 20 Minuten. Mit dem Button senden Sie sich einen neuen Link. Danach öffnet er wieder dieselbe Seite.";
 
 /** Onboarding behält den Hinweis auf den Entwurf. */
 export const EXPIRED_LINK_DRAFT_LEAD =
-  "Der Link gilt nur kurze Zeit. Mit dem Button senden Sie sich einen neuen Link. Danach öffnet er wieder Ihren Entwurf.";
+  "Der Link gilt 20 Minuten. Mit dem Button senden Sie sich einen neuen Link. Danach öffnet er wieder Ihren Entwurf.";
 
 /** Sichtbare Adresse: erstes Zeichen, Rest der Local-Part maskiert. */
 export function maskEmailAddress(email: string): string {

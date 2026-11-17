@@ -99,11 +99,11 @@ Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentatio
 
 Das Werkzeug umfasst 24 Module, im PDF gegliedert in 14 Kapitel — darunter Verkauf, Kasse, Zahlungsverkehr, Warenwirtschaft, Personal und Branche. Module, die es in Ihrem Hofladen nicht gibt, werden als „nicht vorhanden“ begründet. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
-Wie ein Beispieldokument aussieht, zeigt das fiktive [Muster für den Handel](/muster/gesamt/handel); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
+Wie ein vollständiges Musterdokument aussieht, zeigt das fiktive [Muster für den Handel](/muster/gesamt/handel); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
 
 ## Wo steht Ihr Hofladen?
 
-Wenn Sie zunächst einordnen möchten, wie weit Ihre Unterlagen sind, gibt der kostenlose [Ampel-Check](/ampel-check) eine erste Einschätzung in Grün, Gelb oder Rot — mit Quellen zu jeder Frage. Der [Readiness-Check](/readiness) zeigt in drei Schritten, welche Bereiche bei Ihnen vorkommen und welche Angaben Sie bereitlegen sollten.
+Wenn Sie zunächst einordnen möchten, wie weit Ihre Unterlagen sind, gibt der kostenlose [Ampel-Check](/ampel-check) eine erste Einschätzung in Grün, Gelb oder Rot — mit Quellen zu jeder Frage. Die [GoBD-Ampel](/readiness) zeigt in drei Schritten, welche Bereiche bei Ihnen vorkommen und welche Angaben Sie bereitlegen sollten.
 
 ## Häufige Fragen
 

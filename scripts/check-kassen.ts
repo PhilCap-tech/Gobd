@@ -87,7 +87,7 @@ ok(
 );
 ok(KASSEN_OPT_IN.heading === "Ergebnis mit Quellen per E-Mail erhalten", "opt-in heading");
 ok(KASSEN_OPT_IN.button === "Ergebnis senden", "opt-in button");
-ok(KASSEN_WEITER.includes("Readiness-Check") && KASSEN_WEITER.includes("Ampel-Check"), "weiter text");
+ok(KASSEN_WEITER.includes("GoBD-Ampel") && KASSEN_WEITER.includes("Ampel-Check"), "weiter text");
 ok(KASSEN_TEASER.link === "Zum Kassen- und TSE-Meldecheck", "teaser link");
 ok(KASSEN_QUESTIONS.length === 6, "six questions");
 ok(KASSEN_QUESTIONS[0].weight === 3 && KASSEN_QUESTIONS[0].applicable === "required", "first question required weight 3");

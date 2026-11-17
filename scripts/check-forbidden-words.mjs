@@ -16,11 +16,14 @@
 // tokens (ids, paths, slugs) are ignored. A line marked allow-legacy is skipped.
 // Customer copy (app, components, lib string literals and JSX text, plus
 // content/branchen): Minute/Minuten, fertig (with inflections) and reicht
-// (stem reich in the sense of genügen: reicht, reichen, reiche). Legal texts
-// use the same path exception as the colloquial scan (content/legal, the
-// legal routes, lib/legal*, components/legal-page) plus the FAQ that restates
-// them and Widerruf/Nutzungsbedingungen. A line marked allow-forbidden is
-// skipped. Comments, code identifiers and internal admin files are not scanned.
+// (stem reich in the sense of genügen: reicht, reichen, reiche). A factual
+// link lifetime ("20 Minuten gültig", "gilt 20 Minuten") is allowed. Effort
+// and duration promises ("in 2 Minuten", "3-Minuten-Check", "ca. 1 Minute")
+// stay forbidden. Legal texts use the same path exception as the colloquial
+// scan (content/legal, the legal routes, lib/legal*, components/legal-page)
+// plus the FAQ that restates them and Widerruf/Nutzungsbedingungen. A line
+// marked allow-forbidden is skipped. Comments, code identifiers and internal
+// admin files are not scanned.
 import { spawnSync } from "node:child_process";
 import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -601,12 +604,19 @@ function copyRegions(source) {
   return regions;
 }
 
+/** Link lifetime ("20 Minuten gültig", "gilt 20 Minuten"), not an effort promise. */
+function isFactualValidity(text, index, length) {
+  const window = text.slice(Math.max(0, index - 48), Math.min(text.length, index + length + 24));
+  return /minuten?\s+gültig/i.test(window) || /gilt\s+\d+\s+minuten?/i.test(window);
+}
+
 function copyWordHits(source) {
   const hits = [];
   for (const region of copyRegions(source)) {
     for (const match of copyWordMatches(region.text)) {
       const at = region.start + (match.index ?? 0);
       if (lineAllowsForbidden(source, at)) continue;
+      if (isFactualValidity(region.text, match.index ?? 0, match[0].length)) continue;
       hits.push({
         line: lineAt(source, at),
         match: match[0],
@@ -633,7 +643,9 @@ function markdownCopyWordHits(raw) {
       continue;
     }
     if (line.includes("allow-forbidden")) continue;
-    for (const match of copyWordMatches(stripUrls(line))) {
+    const visible = stripUrls(line);
+    for (const match of copyWordMatches(visible)) {
+      if (isFactualValidity(visible, match.index ?? 0, match[0].length)) continue;
       hits.push({ line: index + 1, match: match[0], text: line.trim().slice(0, 180) });
     }
   }
@@ -862,6 +874,10 @@ function assertCopyWordSelfTest() {
     ["intl token", 'part(parts, "minute");\n', false],
     ["template code", "const line = `${hour}:${minute}`;\n", false],
     ["regex quotes", "const re = /[\"']Minuten[\"']/; const label = \"Check\";\n", false],
+    ["validity gültig", 'const t = "Der Link ist 20 Minuten gültig.";\n', false],
+    ["validity gilt", 'const t = "Der Link gilt 20 Minuten.";\n', false],
+    ["effort minutes", 'const t = "in rund 2 Minuten";\n', true],
+    ["one minute", 'const t = "ca. 1 Minute";\n', true],
     ["clean", "export function A(){ return <p>Kostenloser Check</p> }\n", false],
   ];
   for (const [name, source, expectHit] of cases) {

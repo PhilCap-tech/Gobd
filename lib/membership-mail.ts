@@ -42,7 +42,7 @@ export function buildInviteMail(input: {
     "Einladung annehmen:",
     input.inviteUrl,
     "",
-    "Der Link ist nur kurze Zeit gültig. Ein neuer Versand ersetzt ihn.",
+    "Der Link ist 20 Minuten gültig. Ein neuer Versand ersetzt ihn.",
     "Wenn Sie diese Einladung nicht erwarten, können Sie diese E-Mail ignorieren.",
     "",
     `Informationen zur Verarbeitung Ihrer Daten: ${INVITE_PRIVACY_URL}`,
@@ -56,7 +56,7 @@ export function buildInviteMail(input: {
     ${place ? `<p>Anschrift: ${escapeHtml(place)}</p>` : ""}
     <p>Sie speichern Entwürfe. Die PDF-Fassung ist für Sie nicht lesbar. Sie bleibt beim Kontoinhaber.<br />Den Vertrag hält der Kontoinhaber.</p>
     <p>${transactionalPrimaryButton(input.inviteUrl, "Einladung annehmen")}</p>
-    <p>Der Link ist nur kurze Zeit gültig. Ein neuer Versand ersetzt ihn.<br />Wenn Sie diese Einladung nicht erwarten, können Sie diese E-Mail ignorieren.</p>
+    <p>Der Link ist 20 Minuten gültig. Ein neuer Versand ersetzt ihn.<br />Wenn Sie diese Einladung nicht erwarten, können Sie diese E-Mail ignorieren.</p>
     <p>Informationen zur Verarbeitung Ihrer Daten: <a href="${escapeAttr(INVITE_PRIVACY_URL)}">Datenschutzerklärung</a></p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
