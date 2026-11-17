@@ -20,16 +20,9 @@ import {
   drawBrandLockup,
 } from "@/lib/pdf-brand";
 import { writeMarkdownish } from "@/lib/pdf-markdown";
-import { CANONICAL_PRODUCTION_APP_URL } from "@/lib/env";
-import {
-  GELD_ZURUECK_MICRO,
-  PDF_UPSELL_BODY,
-  PDF_UPSELL_CTA,
-  PDF_UPSELL_DISCLAIMER,
-  PDF_UPSELL_FOOTNOTE,
-  PDF_UPSELL_HEADLINE,
-  PDF_UPSELL_PRICE,
-} from "@/lib/offer-copy";
+/** Letzte Seite der Muster-PDFs: ein Hinweis, ohne Preis, Frist oder Erstattung. */
+export const MUSTER_PDF_HINWEIS =
+  "Eine eigene Verfahrensdokumentation können Sie auf gobd-doku-erstellen.de mit dem Fragebogen erstellen.";
 import { limitIdenticalSentences, standardSystemSection } from "@/lib/schnellversion-bausteine";
 import { mitEinzelaufzeichnung, mitFreiberuf, mitKassenNotverfahren } from "@/lib/schnellversion-basis";
 import { SV_FOOTER } from "@/lib/schnellversion-copy";
@@ -100,10 +93,6 @@ function footerChrome(variant: PdfVariant): string {
     return "Kein Steuerberatungsersatz. Muster mit fiktiven Angaben.";
   }
   return FOOTER_CHROME;
-}
-
-function pdfCheckoutHref(): string {
-  return `${CANONICAL_PRODUCTION_APP_URL}/checkout`;
 }
 
 export const DELIVERY_DISCLAIMER = deliveryBundle.disclaimer;
@@ -394,38 +383,16 @@ function drawWatermark(doc: PDFKit.PDFDocument) {
 }
 
 /**
- * `ds24: true` (Muster für DS24-Besucher unter v2, CoS 26.10. 15:32): ohne
- * Garantiezeile, ohne v2-Preiszeile und ohne /checkout-Link.
+ * Letzte Seite jedes Muster-PDFs. `ds24` ändert den Satz nicht: weder die
+ * normale noch die DS24-Fassung nennt einen Preis.
  */
-function writeUpsellPage(doc: PDFKit.PDFDocument, opts: { ds24?: boolean } = {}) {
+function writeUpsellPage(doc: PDFKit.PDFDocument, _opts: { ds24?: boolean } = {}) {
   doc.addPage();
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
   doc.x = left;
   doc.y = doc.page.margins.top;
-  doc.font("Helvetica-Bold").fontSize(16).fillColor(BRAND_NAVY).text(PDF_UPSELL_HEADLINE, { width });
-  doc.moveDown(0.8);
-  doc.font("Helvetica").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_BODY, { width });
-  doc.moveDown(0.9);
-  if (!opts.ds24) {
-    doc.font("Helvetica-Bold").fontSize(11).fillColor(BRAND_INK).text(PDF_UPSELL_PRICE, { width });
-    doc.moveDown(0.35);
-    doc.font("Helvetica").fontSize(10).fillColor(BRAND_INK).text(GELD_ZURUECK_MICRO, { width });
-    doc.moveDown(0.85);
-    doc
-      .font("Helvetica")
-      .fontSize(12)
-      .fillColor(BRAND_NAVY)
-      .text(PDF_UPSELL_CTA, {
-        width,
-        link: pdfCheckoutHref(),
-        underline: true,
-      });
-    doc.moveDown(0.9);
-  }
-  doc.font("Helvetica").fontSize(9).fillColor(BRAND_MUTED).text(PDF_UPSELL_DISCLAIMER, { width });
-  doc.moveDown(0.7);
-  doc.font("Helvetica").fontSize(8).fillColor(BRAND_MUTED).text(PDF_UPSELL_FOOTNOTE, { width });
+  doc.font("Helvetica").fontSize(11).fillColor(BRAND_INK).text(MUSTER_PDF_HINWEIS, { width });
 }
 
 function writeTitlePage(

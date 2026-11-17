@@ -296,6 +296,7 @@ async function main() {
   ok(!text.includes("Standardfassung, bitte prüfen. Keine Steuer- oder Rechtsberatung."), "alter Fußtext ist weg");
   ok(!text.includes("Dieses Dokument beschreibt"), "Deckblatt ohne zusätzlichen Absatz");
   ok(!text.includes("Intake"), "kein Intake im Beispiel-PDF");
+  ok(!text.includes("Eine eigene Verfahrensdokumentation können Sie auf gobd-doku-erstellen.de"), "Schnellversion ohne den Muster-Schlusssatz");
   ok(!text.includes("Anhang A"), "kein Anhang A im Beispiel-PDF");
   ok(text.includes("§ 13b"), "Handwerk-PDF nennt § 13b");
   ok(text.includes(LOHN_SATZ), "Lohnsatz im Beispiel-PDF");

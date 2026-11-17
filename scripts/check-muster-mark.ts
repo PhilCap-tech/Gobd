@@ -17,10 +17,11 @@ import {
   generatePdf,
   KUNDE_COVER_LINE,
   MUSTER_COVER_LINE,
+  MUSTER_PDF_HINWEIS,
   MUSTER_WATERMARK,
 } from "../lib/delivery";
 import { MODULE } from "../lib/module/katalog";
-import { getGesamtMuster } from "../lib/module-muster";
+import { getGesamtMuster, MUSTER_VORLAGEN } from "../lib/module-muster";
 import {
   GELD_ZURUECK_MICRO,
   PDF_UPSELL_BODY,
@@ -63,6 +64,19 @@ function joined(pages: string[]): string {
   return pages.join("\n");
 }
 
+/** „€“ im extrahierten Muster-PDF. Der Build verlangt 0 Treffer. */
+export function musterPdfHatEuro(text: string): boolean {
+  return text.includes("€");
+}
+
+if (!musterPdfHatEuro("198 € zum Start")) {
+  throw new Error("Negativtest: Eurozeichen im Mustertext nicht erkannt");
+}
+if (musterPdfHatEuro(MUSTER_PDF_HINWEIS)) {
+  throw new Error("Negativtest: der Hinweissatz wurde als Preis gemeldet");
+}
+console.log("negativ Euro im Muster-PDF: rot");
+
 const EXPECTED_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
 const EXPECTED_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
 
@@ -81,8 +95,12 @@ expect(
   "web upsell reuses the guarantee constant",
 );
 expect(
-  readFileSync("lib/delivery.ts", "utf8").includes("GELD_ZURUECK_MICRO"),
-  "pdf upsell reuses the guarantee constant",
+  readFileSync("lib/delivery.ts", "utf8").includes(MUSTER_PDF_HINWEIS),
+  "muster PDF names the one closing sentence",
+);
+expect(
+  !readFileSync("lib/delivery.ts", "utf8").includes("GELD_ZURUECK_MICRO"),
+  "muster PDF no longer draws the refund line",
 );
 expect(UPSELL_CTA === "Eigene Dokumentation erstellen", "CTA label");
 expect(UPSELL_HEADLINE.startsWith("Das Muster zeigt eine fiktive Firma"), "web headline");
@@ -158,17 +176,17 @@ function assertMusterPdf(label: string, pages: string[], buffer: Buffer, require
   expect(Boolean(pages[0]?.includes(MUSTER_COVER_LINE)), `${label} cover says ${MUSTER_COVER_LINE}`);
   expect(!pages[0]?.includes(KUNDE_COVER_LINE), `${label} cover is not the customer line`);
   const last = pages.at(-1) ?? "";
-  expect(last.includes(PDF_UPSELL_HEADLINE), `${label} last page is the upsell`);
-  expect(last.includes(PDF_UPSELL_PRICE), `${label} last page has the price line`);
-  expect(
-    last.indexOf(GELD_ZURUECK_MICRO) > last.indexOf(PDF_UPSELL_PRICE),
-    `${label} guarantee sits under the price line`,
-  );
-  expect(last.includes(PDF_UPSELL_CTA), `${label} last page has the checkout link text`);
-  expect(last.includes(PDF_UPSELL_DISCLAIMER), `${label} last page has the disclaimer`);
-  expect(last.includes(PDF_UPSELL_FOOTNOTE), `${label} last page has the footnote`);
-  expect(!pages[0]?.includes(PDF_UPSELL_HEADLINE), `${label} upsell is not the cover`);
+  expect(last.includes(MUSTER_PDF_HINWEIS), `${label} last page is the one sentence`);
+  expect(!last.includes(PDF_UPSELL_HEADLINE), `${label} last page has no old headline`);
+  expect(!PDF_UPSELL_PRICE || !last.includes(PDF_UPSELL_PRICE), `${label} last page has no price line`);
+  expect(!last.includes(GELD_ZURUECK_MICRO), `${label} last page has no refund`);
+  expect(!last.includes(PDF_UPSELL_CTA), `${label} last page has no checkout link text`);
+  expect(!last.includes(PDF_UPSELL_DISCLAIMER), `${label} last page has no disclaimer`);
+  expect(!last.includes(PDF_UPSELL_FOOTNOTE), `${label} last page has no footnote`);
+  expect(!last.includes("€"), `${label} last page has no euro sign`);
+  expect(!pages[0]?.includes(MUSTER_PDF_HINWEIS), `${label} sentence is not the cover`);
   const text = joined(pages);
+  expect(!musterPdfHatEuro(text), `${label} has no euro sign`);
   expect(!text.includes(KUNDE_COVER_LINE), `${label} does not say it is a customer working copy`);
   if (requireModules) {
     for (const modul of MODULE) {
@@ -193,6 +211,7 @@ function assertKundePdf(label: string, pages: string[], buffer: Buffer) {
   expect(!PDF_UPSELL_PRICE || !text.includes(PDF_UPSELL_PRICE), `${label} has no upsell price`);
   expect(!text.includes(GELD_ZURUECK_MICRO), `${label} has no guarantee line`);
   expect(!text.includes(PDF_UPSELL_URL), `${label} has no checkout url`);
+  expect(!text.includes(MUSTER_PDF_HINWEIS), `${label} has no muster closing sentence`);
   expect(!text.includes(UPSELL_HEADLINE), `${label} has no web upsell headline`);
 }
 
@@ -210,6 +229,23 @@ async function main() {
     variant: "muster",
   });
   assertMusterPdf("Gesamt-Muster", pageTexts(generatedMuster.buffer), generatedMuster.buffer, true);
+  for (const vorlage of MUSTER_VORLAGEN) {
+    if (vorlage === "dienstleister") continue;
+    const weitere = getGesamtMuster(vorlage);
+    expect(Boolean(weitere), `${vorlage} muster exists`);
+    if (!weitere) continue;
+    const pdf = await generatePdf({
+      answers: weitere.answers,
+      identity: weitere.identity,
+      documentId: weitere.documentId,
+      version: weitere.version,
+      versionMeta: weitere.versionMeta,
+      variant: "muster",
+    });
+    const seiten = pageTexts(pdf.buffer);
+    expect(Boolean(seiten.at(-1)?.includes(MUSTER_PDF_HINWEIS)), `${vorlage} last page is the one sentence`);
+    expect(!musterPdfHatEuro(joined(seiten)), `${vorlage} has no euro sign`);
+  }
 
   const omitted = await generatePdf({
     answers: pixelwerkAnswers(),
@@ -263,13 +299,14 @@ async function main() {
     expect(page.includes(MUSTER_WATERMARK), `Fragebogen page ${index + 1} has the watermark`);
   });
   expect(
-    Boolean(fragePages.at(-1)?.includes(PDF_UPSELL_HEADLINE)),
-    "Fragebogen last page is the upsell",
+    Boolean(fragePages.at(-1)?.includes(MUSTER_PDF_HINWEIS)),
+    "Fragebogen last page is the one sentence",
   );
   expect(
-    Boolean(fragePages.at(-1)?.includes(GELD_ZURUECK_MICRO)),
-    "Fragebogen last page has the guarantee",
+    !fragePages.at(-1)?.includes(GELD_ZURUECK_MICRO),
+    "Fragebogen last page has no refund",
   );
+  expect(!musterPdfHatEuro(joined(fragePages)), "Fragebogen has no euro sign");
   expect(!joined(fragePages).includes(KUNDE_COVER_LINE), "Fragebogen is not a customer working copy");
 
   const plain = await generateMarkdownPdf({

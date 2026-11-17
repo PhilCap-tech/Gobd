@@ -150,13 +150,13 @@ async function main(): Promise<void> {
   setMailDedupeTestHooks(null);
   rmSync(noticeDir, { recursive: true, force: true });
 
-  // PDF: Die bedingte Garantie (GELD_ZURUECK_MICRO) steht nur auf der Muster-Upsell-Seite,
-  // nie im ausgelieferten Kunden-PDF. Daher keine DS24-Abzweigung im PDF.
+  // Die Muster-Schlussseite nennt keinen Preis und keine Erstattung, auch nicht für DS24.
   const delivery = readFileSync("lib/delivery.ts", "utf8");
   const uses = delivery.split("GELD_ZURUECK_MICRO").length - 1;
-  ok(uses === 2, "GELD_ZURUECK_MICRO is imported once and drawn once in lib/delivery.ts");
+  ok(uses === 0, "GELD_ZURUECK_MICRO is not drawn in lib/delivery.ts");
   const upsell = delivery.slice(delivery.indexOf("function writeUpsellPage"), delivery.indexOf("function writeUpsellPage") + 1200);
-  ok(upsell.includes("GELD_ZURUECK_MICRO"), "the guarantee line lives in writeUpsellPage");
+  ok(upsell.includes("MUSTER_PDF_HINWEIS"), "the muster page draws the one sentence");
+  ok(!upsell.includes("GELD_ZURUECK_MICRO") && !upsell.includes("€"), "the muster page has no price");
   const calls = delivery.match(/writeUpsellPage\(doc\)/g) ?? [];
   const guarded = delivery.match(/if \(isMuster\([^)]*\)\) writeUpsellPage\(doc\)/g) ?? [];
   ok(calls.length > 0 && calls.length === guarded.length, "writeUpsellPage only runs for Muster PDFs");
