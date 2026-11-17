@@ -198,7 +198,7 @@ export const PB = gruppe("PB", "Papierbelege und Digitalisierung", [
   ], "Mobiles Erfassen von Belegen ist nicht angegeben.", { priority: "niedrig" }),
 ], [
   { name: "Vollständigkeitsprüfung nach dem Scannen", zweck: "Jede Seite ist erfasst." },
-  { name: "Lesbarkeitsprüfung", zweck: "Bildqualität reicht für die Aufbewahrungsfrist." },
+  { name: "Lesbarkeitsprüfung", zweck: "Bildqualität ist für die Aufbewahrungsfrist geeignet." },
   { name: "Freigabe vor Vernichtung", zweck: "Kein Original wird ohne Prüfung vernichtet." },
   { name: "Abgleich Posteingang mit Scans", zweck: "Kein Papierbeleg bleibt unbearbeitet." },
 ]);

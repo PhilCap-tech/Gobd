@@ -24,7 +24,7 @@ const V2 = isPricingV2();
 const AGB_GUARANTEE = V2 ? "§ 9 Erstattung" : "§ 9 Zufriedenheitsgarantie";
 const AGB_TERM = V2 ? "§ 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung" : "§ 12 Laufzeit, Verlängerung und Kündigung";
 
-const DELIVERY_NEEDLE = "innerhalb weniger Minuten";
+const DELIVERY_NEEDLE = "innerhalb weniger Minuten"; // allow-forbidden
 const B2B_NEEDLE = "ausschließlich an Unternehmer";
 
 /** Checkout hint, rendered text (the source uses a non-breaking space before %). */

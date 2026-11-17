@@ -11,7 +11,7 @@ const DEFAULT_LINKS: HeaderLink[] = [
   { href: "#muster", label: "Muster" },
   { href: "#ablauf", label: "Ablauf" },
   { href: "#preise", label: "Preise" },
-  { href: "/readiness", label: "3-Minuten-Check" },
+  { href: "/readiness", label: "GoBD-Ampel mit PDF-Bericht" },
 ];
 
 type SiteHeaderProps = {

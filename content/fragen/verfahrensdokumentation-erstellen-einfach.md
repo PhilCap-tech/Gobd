@@ -58,7 +58,7 @@ Häufig ist eine Kombination sinnvoll: Sie erstellen den Entwurf selbst oder mit
 
 Am meisten Zeit spart, wer vorher sammelt: eine Liste der Systeme, die Wege der Belege vom Eingang bis zur Ablage, die zuständigen Personen mit Vertretung und vorhandene Unterlagen. Welche Angaben Sie brauchen, beschreibt der Beitrag [Welche Informationen brauche ich vorher?](/blog/verfahrensdokumentation-erstellen-vorbereitung).
 
-Wenn Sie zuerst sehen möchten, welche Themen bei Ihnen anfallen, hilft der kostenlose [Readiness-Check](/readiness). Er zeigt, welche Bereiche Ihre Dokumentation typischerweise abdecken sollte.
+Wenn Sie zuerst sehen möchten, welche Themen bei Ihnen anfallen, hilft die kostenlose [GoBD-Ampel mit PDF-Bericht](/readiness). Sie zeigt, welche Bereiche Ihre Dokumentation typischerweise abdecken sollte.
 
 ## Weiterlesen
 

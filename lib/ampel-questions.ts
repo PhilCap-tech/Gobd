@@ -18,10 +18,10 @@ export const AMPEL_H1 = "GoBD-Ampel: Ihre Ersteinschätzung zur Verfahrensdokume
 export const AMPEL_TITLE = "GoBD-Ampel: kostenlose Ersteinschätzung in 10 Fragen";
 
 export const AMPEL_INTRO =
-  "Beantworten Sie 10 Fragen mit Ja oder Nein und sehen Sie nach etwa zwei Minuten, wie gut Ihre Buchführungsprozesse für eine Betriebsprüfung dokumentiert sind. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.";
+  "Beantworten Sie 10 Fragen mit Ja oder Nein und sehen Sie, wie gut Ihre Buchführungsprozesse für eine Betriebsprüfung dokumentiert sind. Die Ampel dient der Orientierung und ersetzt keine Steuerberatung.";
 
 /** Visible funnel copy on /ampel-check. Homepage and the page description keep AMPEL_INTRO. */
-export const AMPEL_CHECK_KICKER = "Kostenlos · 10 Fragen · rund 2 Minuten";
+export const AMPEL_CHECK_KICKER = "Kostenlos · 10 Fragen";
 
 export const AMPEL_CHECK_INTRO =
   "Beantworten Sie 10 kurze Ja/Nein-Fragen – Sie erhalten eine Ampel-Einschätzung mit Quellen.";

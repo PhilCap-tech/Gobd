@@ -59,7 +59,7 @@ Alle Preise verstehen sich netto zuzüglich Umsatzsteuer. Beide Pakete enthalten
 
 ## Bevor Sie sich entscheiden
 
-Welche Bereiche bei Ihnen überhaupt anfallen, zeigt der kostenlose [Readiness-Check](/readiness). Weitere Wege zur eigenen Verfahrensdokumentation vergleicht [Wo kann ich am einfachsten eine Verfahrensdokumentation erstellen?](/fragen/verfahrensdokumentation-erstellen-einfach).
+Welche Bereiche bei Ihnen überhaupt anfallen, zeigt die kostenlose [GoBD-Ampel mit PDF-Bericht](/readiness). Weitere Wege zur eigenen Verfahrensdokumentation vergleicht [Wo kann ich am einfachsten eine Verfahrensdokumentation erstellen?](/fragen/verfahrensdokumentation-erstellen-einfach).
 
 ## Weiterlesen
 

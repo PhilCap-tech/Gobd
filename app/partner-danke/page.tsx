@@ -27,7 +27,7 @@ export default function PartnerDankePage() {
         <ol>
           <li>Digistore24 sendet Ihnen eine Bestellbestätigung mit Rechnung und Bestell-ID.</li>
           <li>
-            In wenigen Minuten erhalten Sie von info@gobd-doku-erstellen.de eine E-Mail mit Ihrem
+            Sie erhalten von info@gobd-doku-erstellen.de eine E-Mail mit Ihrem
             persönlichen Anmeldelink. Ihr Zugang gilt für die E-Mail-Adresse aus dem Bestellformular.
           </li>
           <li>

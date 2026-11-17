@@ -40,8 +40,8 @@ function emailLooksValid(value: string): boolean {
 }
 
 function WeiterHinweis() {
-  const readiness = "Readiness-Check";
-  const ampel = "Ampel-Check";
+  const readiness = "GoBD-Ampel mit PDF-Bericht";
+  const ampel = "GoBD-Ampel";
   const [before, rest] = KASSEN_WEITER.split(readiness);
   const [middle, after] = (rest ?? "").split(ampel);
   return (

@@ -46,7 +46,7 @@ export const HOME_CTA_LABELS: Record<HomeCtaId, string> = {
   hero_muster: "Hero: Muster",
   price_checkout: "Preise: Dokumentation erstellen",
   unsure_ampel: "Unsicher: Ampel-Check",
-  unsure_readiness: "Unsicher: 3-Minuten-Check",
+  unsure_readiness: "Unsicher: 3-Minuten-Check", // allow-forbidden
   final_checkout: "Abschluss: Dokumentation erstellen",
   final_ampel: "Abschluss: Ampel-Check",
   sticky_checkout: "Fixierte Leiste: Dokumentation erstellen",

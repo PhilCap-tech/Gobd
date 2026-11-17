@@ -57,7 +57,7 @@ export const LEAD_MAGNET_POINTS = [
   },
   {
     title: "Offene Punkte sichtbar?",
-    body: "Unklares steht auf einer Liste — nicht „wegoptimiert“, damit es fertig wirkt.",
+    body: "Unklares steht auf einer Liste — nicht „wegoptimiert“, damit es abgeschlossen wirkt.",
   },
   {
     title: "Berater eingebunden?",
@@ -70,8 +70,8 @@ export const LEAD_MAGNET_POINTS = [
 ] as const;
 
 export const LEAD_MAGNET_CTA_TITLE = "Unsicher, wo Sie stehen?";
-export const LEAD_MAGNET_CTA_BEFORE = "Kostenloser ";
-export const LEAD_MAGNET_CTA_LINK_LABEL = "Readiness-Check";
+export const LEAD_MAGNET_CTA_BEFORE = "Kostenlose ";
+export const LEAD_MAGNET_CTA_LINK_LABEL = "GoBD-Ampel mit PDF-Bericht";
 export const LEAD_MAGNET_CTA_AFTER =
   " — kurze Fragen zu Branche, Software, Belegwegen und IT. Ohne Kreditkarte. Keine Steuerberatung.";
 

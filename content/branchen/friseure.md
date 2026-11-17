@@ -96,18 +96,18 @@ Sie erhalten eine individuell aus Ihren Angaben erstellte Verfahrensdokumentatio
 
 Das Werkzeug umfasst 24 Module, im PDF gegliedert in 14 Kapitel — darunter Verkauf, Kasse, Zahlungsverkehr, Warenwirtschaft, Personal und Branche. Module, die es in Ihrem Salon nicht gibt, werden als „nicht vorhanden“ begründet. Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich.
 
-Wie ein fertiges Dokument aussieht, zeigt das fiktive [Muster für Dienstleister](/muster/gesamt/dienstleister); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
+Wie ein vollständiges Musterdokument aussieht, zeigt das fiktive [Muster für Dienstleister](/muster/gesamt/dienstleister); alle Beispiele finden Sie unter [Muster](/muster). Wir leisten keine Steuerberatung. Die fachliche Prüfung bleibt bei Ihnen bzw. bei Ihrem Steuerberater.
 
 ## Wo steht Ihr Salon?
 
-Wenn Sie zunächst einordnen möchten, wie weit Ihre Unterlagen sind, gibt der kostenlose [Ampel-Check](/ampel-check) eine erste Einschätzung in Grün, Gelb oder Rot — mit Quellen zu jeder Frage. Der [Readiness-Check](/readiness) zeigt in drei Schritten, welche Bereiche bei Ihnen vorkommen und welche Angaben Sie bereitlegen sollten.
+Wenn Sie zunächst einordnen möchten, wie weit Ihre Unterlagen sind, gibt die kostenlose [GoBD-Ampel](/ampel-check) eine erste Einschätzung in Grün, Gelb oder Rot — mit Quellen zu jeder Frage. Die [GoBD-Ampel mit PDF-Bericht](/readiness) zeigt in drei Schritten, welche Bereiche bei Ihnen vorkommen und welche Angaben Sie bereitlegen sollten.
 
 ## Häufige Fragen
 
 ### Braucht ein kleiner Salon mit einer Kasse überhaupt eine Verfahrensdokumentation?
 Die GoBD sehen für jedes DV-System eine Verfahrensdokumentation vor; der Umfang richtet sich nach der Komplexität (Rz. 151). Für einen kleinen Salon kann sie entsprechend kurz sein. Ob und in welchem Umfang sie bei Ihnen erwartet wird, klären Sie mit Ihrer Steuerberatung. Hintergrund: [Verfahrensdokumentation Pflicht](/blog/verfahrensdokumentation-pflicht).
 
-### Reicht die Dokumentation des Kassenherstellers?
+### Genügt die Dokumentation des Kassenherstellers?
 Herstellerunterlagen beschreiben das System, nicht Ihre Abläufe. Sie sind ein Baustein (technische Systemdokumentation) und werden als mitgeltende Unterlage referenziert. Wer im Salon kassiert, storniert, den Tagesabschluss macht und Belege weitergibt, beschreiben Sie selbst.
 
 ### Wie wird Trinkgeld dokumentiert?

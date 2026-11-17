@@ -404,7 +404,7 @@ function buildSteuerberaterOnboardingMail(input: {
       ...(intro ? [intro, ""] : []),
       "Nächste Schritte:",
       "1. Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.",
-      "2. Das PDF herunterladen, sobald die Generierung fertig ist",
+      "2. Das PDF herunterladen, sobald die Generierung abgeschlossen ist",
       `3. Konto: Anmeldung unter ${MAIL_LOGIN_URL}`,
       "",
       ...(offer ? [offer, ""] : []),
@@ -424,7 +424,7 @@ function buildSteuerberaterOnboardingMail(input: {
     <p>Nächste Schritte:</p>
     <ol>
       <li>Den Fragenkatalog im Intake ausfüllen (falls noch offen). Der Zwischenstand wird gespeichert; offene Module erscheinen als To-dos im Konto, „Später ausfüllen“ ist möglich.</li>
-      <li>Das PDF herunterladen, sobald die Generierung fertig ist</li>
+      <li>Das PDF herunterladen, sobald die Generierung abgeschlossen ist</li>
       <li>Konto: Anmeldung unter <a href="${escapeAttr(MAIL_LOGIN_URL)}">${escapeHtml(MAIL_LOGIN_URL)}</a></li>
     </ol>
     ${offer ? `<p>${escapeHtml(offer)}</p>` : ""}
@@ -513,7 +513,7 @@ export function buildDeliveryMail(input: {
   const lines = [
     greeting,
     "",
-    `Ihr Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.`,
+    `Ihr Entwurf der Verfahrensdokumentation (Version ${version}) liegt vor.`,
     "",
     `Download: ${input.downloadUrl}`,
   ];
@@ -541,7 +541,7 @@ export function buildDeliveryMail(input: {
   );
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
-    <p>Ihr Entwurf der Verfahrensdokumentation (Version ${version}) ist fertig.</p>
+    <p>Ihr Entwurf der Verfahrensdokumentation (Version ${version}) liegt vor.</p>
     <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a></p>
     ${input.successUrl ? `<p><a href="${escapeAttr(input.successUrl)}">Zur Übersicht</a></p>` : ""}
     ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
