@@ -299,6 +299,39 @@ if (ekFremdsystem("Keine Warenwirtschaft.", "Wareneingang im ERP und im Lager").
 if (ekFremdsystem("Projektsoftware und Lager", "Wareneingang im Lager").length !== 0) {
   fail("Negativtest: Lager bei vorhandener Warenbeschreibung wurde gemeldet");
 }
+
+/** Systeme, die eine SY01-Nennung in B01 wiederfinden muss. E-Mail ist ein Kanal, kein System. */
+const B01_SYSTEME: Array<{ name: string; sy: RegExp; b01: RegExp }> = [
+  { name: "DATEV Unternehmen online", sy: /DATEV Unternehmen online/iu, b01: /DATEV Unternehmen online/iu },
+  { name: "Rechnungssoftware", sy: /Rechnungssoftware/iu, b01: /Rechnungssoftware/iu },
+  { name: "Zeiterfassung", sy: /Zeiterfassung/iu, b01: /Zeiterfassung/iu },
+  { name: "Kassensystem", sy: /Kassensystem/iu, b01: /Kassensystem/iu },
+  { name: "Warenwirtschaft", sy: /Warenwirtschaft|\bWaWi\b/iu, b01: /Warenwirtschaft|\bWaWi\b/iu },
+  { name: "Handscanner", sy: /Handscanner/iu, b01: /Handscanner/iu },
+  { name: "Projektsoftware", sy: /Projektsoftware/iu, b01: /Projektsoftware/iu },
+  { name: "Onlineshop", sy: /Onlineshop/iu, b01: /Onlineshop/iu },
+  { name: "NAS", sy: /\bNAS\b/iu, b01: /\bNAS\b/iu },
+];
+
+export function ohneVerneinteSysteme(text: string): string {
+  return text.replace(/\bkein(?:e|en|er)?\s+(?:eigene\s+|weitere\s+)?[A-Za-zÄÖÜäöüß][\wÄÖÜäöüß-]*/giu, " ");
+}
+
+/** Systeme aus SY01, die B01 nicht nennt. Verneinungen wie „keine Warenwirtschaft“ zählen nicht. */
+export function b01FehltSystem(sy01: string, b01: string): string[] {
+  const stamm = ohneVerneinteSysteme(sy01);
+  return B01_SYSTEME.filter((item) => item.sy.test(stamm) && !item.b01.test(b01)).map((item) => item.name);
+}
+
+if (b01FehltSystem("Kassensystem, Handscanner, DATEV Unternehmen online", "DATEV Unternehmen online und NAS").join(",") !== "Kassensystem,Handscanner") {
+  fail("Negativtest: Kassensystem oder Handscanner ohne B01 wurde nicht erkannt");
+}
+if (b01FehltSystem("Warenwirtschaft, DATEV Unternehmen online", "WaWi Lagerplus und DATEV Unternehmen online").length !== 0) {
+  fail("Negativtest: WaWi in B01 wurde trotz Warenwirtschaft in SY01 gemeldet");
+}
+if (b01FehltSystem("Kein Kassensystem, keine Warenwirtschaft. Rechnungssoftware und NAS", "Rechnungssoftware und NAS").length !== 0) {
+  fail("Negativtest: verneintes System wurde als fehlend gemeldet");
+}
 console.log("negativ fremde Musterreste: rot");
 
 const ZUORDNUNG = parseZuordnung(readFileSync("scripts/fixtures/muster-zuordnung.md", "utf8"));
@@ -502,6 +535,36 @@ for (const vorlage of MUSTER_VORLAGEN) {
     .join("\n");
   const fremdEk = ekFremdsystem(String(muster.answers.katalog?.SY01?.values?.umgebung ?? ""), ekText);
   if (fremdEk.length) fail(`${vorlage}: Einkauf nennt ${fremdEk.join(", ")} ohne das System in SY01`);
+  const sy01Text = String(muster.answers.katalog?.SY01?.values?.umgebung ?? "");
+  const b01Text = JSON.stringify(muster.answers.katalog?.B01?.values ?? {});
+  const fehltB01 = b01FehltSystem(sy01Text, b01Text);
+  if (fehltB01.length) fail(`${vorlage}: B01 nennt nicht alle Systeme aus SY01 (${fehltB01.join(", ")})`);
+  const ek07 = String(muster.answers.katalog?.EK07?.values?.wer ?? "");
+  if (vorlage === "ecommerce") {
+    if (ek07 !== "Einkauf legt an, Buchhaltung bestätigt Bankdaten") fail("ecommerce: EK07 wurde mitgezogen");
+    const er01 = String(muster.answers.katalog?.ER01?.values?.postfach ?? "");
+    const er02 = String(muster.answers.katalog?.ER02?.values?.viewer ?? "");
+    const sy02 = String(muster.answers.katalog?.SY02?.values?.schnittstellen ?? "");
+    const b04 = JSON.stringify(muster.answers.katalog?.B04?.values ?? {});
+    const ec91 = String(muster.answers.katalog?.EC91?.values?.schnittstellen ?? "");
+    const ar04 = String(muster.answers.katalog?.AR04?.values?.ort ?? "");
+    if (!er01.includes("XRechnungen über den Eingangskanal von DATEV Unternehmen online") || er01.includes("Eingangskanal des Shops")) {
+      fail("ecommerce: ER01 empfängt Lieferanten-XRechnungen nicht über DATEV");
+    }
+    if (er02 !== "Technische Prüfung (Schema/Validierung) in DATEV Unternehmen online; fachliche Prüfung durch Nils Strom.") {
+      fail("ecommerce: ER02 validiert nicht in DATEV");
+    }
+    if (!sy02.includes("E-Rechnungseingang über DATEV Unternehmen online, Ausgang über den Shop.")) {
+      fail("ecommerce: SY02 trennt Eingang und Ausgang nicht");
+    }
+    if (!b04.includes("Datei in DATEV Unternehmen online") || b04.includes("DATEV / Onlineshop")) {
+      fail("ecommerce: B04 legt die Eingangs-E-Rechnung nicht in DATEV ab");
+    }
+    const mp = "Marktplatzrechnungen (MP-…) monatlich bis zum 5. als PDF/CSV aus dem Verkäuferkonto abrufen und in DATEV Unternehmen online ablegen, durch Nils Strom.";
+    if (!ec91.includes(mp) || !ar04.includes(mp)) fail("ecommerce: Abruf der Marktplatzrechnungen fehlt");
+  } else if (ek07 !== "Neuanlage und Änderung von Bankdaten durch die Buchhaltung, Freigabe durch die Geschäftsführung") {
+    fail(`${vorlage}: EK07 ohne Freigabe der Geschäftsführung`);
+  }
   for (const [id, entry] of Object.entries(muster.answers.katalog ?? {})) {
     if (entry?.status !== "bestaetigt") continue;
     const text = Object.values(entry.values ?? {}).map((item) => String(item)).join(". ");
