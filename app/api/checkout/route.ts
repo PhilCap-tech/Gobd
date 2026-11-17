@@ -27,6 +27,11 @@ import {
   memberPreselected,
 } from "@/lib/pricing-model";
 import { logError } from "@/lib/log-error";
+import { cookies } from "next/headers";
+import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
+import { openCredit, schnellversionCouponId } from "@/lib/schnellversion-credit";
+import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { listSvPurchases } from "@/lib/schnellversion-record";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
   if (!isStripeSecretConfigured()) return undefined;
@@ -182,6 +187,24 @@ export async function POST(request: Request) {
   // Nachweis der AGB-Bestätigung (Legal 15:20): Zeitpunkt in den Stripe-Metadaten.
   const agbAcceptedAt = v2 ? new Date().toISOString() : undefined;
 
+  let svArm: "control" | "test" | undefined;
+  let svCoupon = "";
+  let svPurchaseId = "";
+  if (v2 && schnellversion49Enabled()) {
+    try {
+      const credit = openCredit(await listSvPurchases(email), company, new Date());
+      const coupon = credit ? schnellversionCouponId() : "";
+      if (credit && coupon) {
+        svCoupon = coupon;
+        svPurchaseId = credit.id;
+      }
+      const arm = parseSvArm((await cookies()).get(SV_ARM_COOKIE)?.value);
+      if (arm) svArm = arm;
+    } catch (error) {
+      logError("[checkout] Anrechnung nicht gelesen", error, { level: "warn" });
+    }
+  }
+
   try {
     const session = await createCheckoutSession({
       email,
@@ -198,6 +221,8 @@ export async function POST(request: Request) {
               agbAcceptedAt,
               offerOptOut: body.offerOptOut === true,
               draftKey: ownLoginDraftKey(body.draftKey, sessionEmail),
+              ...(svArm ? { svArm } : {}),
+              ...(svCoupon ? { svCoupon, svPurchaseId } : {}),
             },
           }
         : {}),

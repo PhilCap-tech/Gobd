@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { HomeCtaSection } from "@/components/home-cta-admin";
 import { MesslueckenSection } from "@/components/messluecken-admin";
+import { SchnellversionAdminSection } from "@/components/schnellversion-admin";
 import { getSessionEmail } from "@/lib/auth";
 import { isAmpelAdminEmail } from "@/lib/ampel-admin";
 import { ampelStatsError } from "@/lib/ampel-admin-http";
@@ -21,6 +22,7 @@ import { buildMeasureReport, type MeasureReport } from "@/lib/measure-event";
 import { readMeasureRows } from "@/lib/measure-store";
 import { buildAmpelStats, type AmpelCount, type AmpelStatsReport } from "@/lib/ampel-stats";
 import { listAmpelLeads } from "@/lib/store";
+import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 
 export const dynamic = "force-dynamic";
 
@@ -352,6 +354,7 @@ export default async function AmpelAdminPage({
       <StepsSection report={steps} configured={stepsConfigured} failed={stepsFailed} testsOn={tests === "1"} />
       <HomeCtaSection report={homeCta} configured={homeCtaConfigured} failed={homeCtaFailed} />
       <MesslueckenSection report={messluecken} configured={messlueckenConfigured} failed={messlueckenFailed} />
+      {schnellversion49Enabled() ? <SchnellversionAdminSection /> : null}
     </main>
   );
 }

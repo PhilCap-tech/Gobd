@@ -35,6 +35,9 @@ import {
   planPackageTextsV3,
 } from "@/lib/plan-copy";
 import { CheckoutForm } from "./checkout-form";
+import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { anrechnungBis, downloadStillOpen, listSvPurchases } from "@/lib/schnellversion-record";
+import { formatSvDate } from "@/lib/schnellversion-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +92,10 @@ export default async function CheckoutPage({
     extraFirmNote = !coverage.planFirms && position > MAX_ENTITIES_PER_ACCOUNT;
   }
 
+  const credit = email && schnellversion49Enabled()
+    ? (await listSvPurchases(email)).find((row) => !row.creditUsedAt.trim() && downloadStillOpen(row, new Date()))
+    : undefined;
+
   return (
     <>
       <JsonLd data={productOfferJsonLd()} />
@@ -134,6 +141,12 @@ export default async function CheckoutPage({
         </p>
         <p className="prose">{INTAKE_EFFORT_LINE}</p>
         {extraFirmNote ? <p className="hint">{EXTRA_FIRM_NOTE}</p> : null}
+        {credit ? (
+          <p className="hint">
+            Anrechnung der 49 € für {credit.company} bis zum {formatSvDate(anrechnungBis(credit.purchasedAt))}. Die
+            Anrechnung gilt einmal für dieselbe Firma.
+          </p>
+        ) : null}
         <RefreshStoredView />
         <CheckoutForm
           key={email ?? "signed-out"}

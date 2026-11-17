@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CampaignLink } from "@/components/campaign-link";
 import { HomeCtaLink, HomeViewBeacon } from "@/components/home-cta-link";
+import { SchnellversionHeroCtas } from "@/components/schnellversion-hero";
 import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -46,10 +47,13 @@ import {
   PLAN_B2B_NOTICE,
 } from "@/lib/plan-copy";
 import { isPricingV2 } from "@/lib/pricing-model";
+import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import { BUCH_TRUST } from "@/lib/buch-trust-copy";
 
 /** Preismodell v2 (PRICING_MODEL=v2). Ohne Variable bleibt die Seite wie bisher. */
 const V2 = isPricingV2();
+/** Schnellversion 49 €. Ohne Variable kein zusätzlicher Button. */
+const SCHNELLVERSION = schnellversion49Enabled();
 /** Variante D2 (Philip 29.10.): Wortlaut Hero und #preise. */
 /** Phase 3 (Philip 02.11.): H1 und Unterzeile wörtlich. */
 const D2_HERO_HEADLINE = "Dokumentieren Sie Ihre steuerrelevanten Abläufe – geführt statt von Grund auf allein.";
@@ -320,16 +324,22 @@ export default function HomePage() {
             ))}
           </div>
           <div className={`shell ${styles.heroInner}`}>
-            <div className={styles.ctas}>
-              <CampaignLink className="btn" cta="hero_checkout" href="/checkout">
-                {CTA_START}
-              </CampaignLink>
-              <HomeCtaLink className={`btn ${styles.btnSec}`} cta="hero_muster" href="#muster">
-                {CTA_SAMPLE}
-              </HomeCtaLink>
-            </div>
-            <p className={styles.startMicro}>{CTA_START_MICRO}</p>
-            <p className={styles.micro}>{D2_HERO_MICRO}</p>
+            {SCHNELLVERSION ? (
+              <SchnellversionHeroCtas />
+            ) : (
+              <>
+                <div className={styles.ctas}>
+                  <CampaignLink className="btn" cta="hero_checkout" href="/checkout">
+                    {CTA_START}
+                  </CampaignLink>
+                  <HomeCtaLink className={`btn ${styles.btnSec}`} cta="hero_muster" href="#muster">
+                    {CTA_SAMPLE}
+                  </HomeCtaLink>
+                </div>
+                <p className={styles.startMicro}>{CTA_START_MICRO}</p>
+                <p className={styles.micro}>{D2_HERO_MICRO}</p>
+              </>
+            )}
             <p className={styles.advisor}>
               Steuerberater oder Kanzlei?{" "}
               <Link className={styles.inlineLink} href="/steuerberater">
