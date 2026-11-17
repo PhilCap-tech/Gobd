@@ -224,7 +224,7 @@ const OWN_TEMPLATES: Record<string, Record<string, unknown>> = {
   ZD01: { anbieter: "Kreditkarte / Online-Zahlungsdienstleister (fiktiv) und SEPA-Lastschrift über die Hausbank.", zwecke: "Kundenzahlungen und ggf. Marktplatz-Auszahlungen" },
   ZD02: { abgleich: "Täglicher oder wöchentlicher Abgleich Auszahlungsreport gegen Bank und offene Posten durch {buchhaltung}.", gebuehren: "Gebühren werden anhand des Reports kontiert" },
   ZD03: { rueckbelastungen: "Chargebacks und Rückgaben werden mit Ursprungsbeleg verknüpft und der Forderung nachgeführt.", wer: "{buchhaltung}" },
-  ZD04: { ablage: "Auszahlungsreports und Gebührenaufstellungen im Archiv unter Zahlungsdienstleister / Monat.", aufbewahrung: "8 Jahre (§ 147 Abs. 3 AO), soweit Buchungsbeleg" },
+  ZD04: { ablage: "Auszahlungsreports und Gebührenaufstellungen im Archiv unter Zahlungsdienstleister / Monat.", aufbewahrung: "8 Jahre, soweit Buchungsbeleg; soweit Aufzeichnung (z. B. Transaktionsliste) 10 Jahre; im Zweifel die längere Frist (§ 147 Abs. 1 Nr. 1, 4, Abs. 3 AO)" },
   BU00: { verantwortlich: "{buchhaltung}", vertretung: "{gf}" },
   BU01: { kontierung: "Interne Vorkontierung in DATEV Unternehmen online; endgültige Buchung durch {kanzlei}.", plan: "DATEV-Kontenrahmen" },
   BU02: { belegzuordnung: "Jeder Buchungssatz ist mit Beleg-ID verknüpft; fehlende Belege werden als offener Punkt geführt.", wer: "{buchhaltung}" },
@@ -251,7 +251,7 @@ const OWN_TEMPLATES: Record<string, Record<string, unknown>> = {
   AW05: { schutz: "Keine Überschreibung archivierter Belege; Änderungen nur durch neue Version mit Protokoll.", protokoll: "ja" },
   AW06: { auslagerung: "Soweit Cloud-Anbieter: AV-Vertrag und Speicherort EU/DE soweit vertraglich zugesichert.", wer: "{gf}" },
   AW92: { kontrollen: ["Stichprobe Wiederauffindbarkeit", "Lesbarkeitsprüfung"], details: "Quartalsweise zehn Belege stichprobenartig suchen und öffnen." },
-  AF01: { zuordnung: "Bücher und Abschlussunterlagen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO). Empfangene und abgesandte Handelsbriefe 6 Jahre; soweit Buchungsbeleg 8 Jahre.", wer: "{buchhaltung}" },
+  AF01: { zuordnung: "Bücher und Abschlussunterlagen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre (§ 147 Abs. 1, 3 AO). Ein Handels- oder Geschäftsbrief, der zugleich Buchungsbeleg ist (z. B. eine Rechnung), wird 8 Jahre aufbewahrt.", wer: "{buchhaltung}" },
   AF02: { weitere: "Hemmung bei laufender Betriebsprüfung oder Rechtsbehelfsverfahren; Hinweis der Kanzlei wird beachtet.", wer: "{kanzlei} / {gf}" },
   AF03: { loeschfreigabe: "Löschung erst nach Fristende und schriftlicher Freigabe durch {gf}, Abstimmung mit {kanzlei}.", nachweis: "Löschprotokoll mit Datum und Umfang" },
   AF04: { durchfuehrung: "Technische Löschung durch {it} bzw. Anbieter nach Freigabe; Bestätigung wird abgelegt.", system: "DATEV / NAS / Vorsysteme" },
@@ -670,11 +670,12 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
 }
 
 
-/** Verlängert kurze Textantworten für Vorlagen ohne Kasse/WaWi (Worttiefe). */
+/** Verlängert kurze Textantworten zu AF, AW und G05 (Worttiefe, DATEV-Zusatz). */
 function deepenPass(katalog: Record<string, Entry>, f: DenseFirma): Record<string, Entry> {
   const suffix = ` Nachweis und Ablage unter Beleg-ID in DATEV Unternehmen online; fachlich ${f.buchhaltung}, Freigabe ${f.gf}. Aufbewahrung der Buchungsbelege 8 Jahre (§ 147 Abs. 3 AO).`;
   const out: Record<string, Entry> = { ...katalog };
   for (const [id, entry] of Object.entries(katalog)) {
+    if (!id.startsWith("AF") && !id.startsWith("AW") && id !== "G05") continue;
     if (entry.status !== "bestaetigt" || !entry.values) continue;
     const values: Record<string, unknown> = { ...entry.values };
     let changed = false;

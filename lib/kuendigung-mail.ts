@@ -57,7 +57,7 @@ export function buildCancellationConfirmMail(row: LifecycleRow): TransactionalMa
     `Mit diesem Datum entfallen Online-Pflege und Versionierung. Bereits erzeugte PDFs und Ihre hochgeladenen Dateien können Sie noch 30 Tage nach diesem Datum herunterladen. In Ihrem Konto laden Sie alle PDF-Versionen als ZIP herunter:`,
     CANCELLATION_PAGE_URL,
     "",
-    "Die Aufbewahrung steuerlich relevanter Unterlagen ist Ihre Pflicht. Für Bücher und Aufzeichnungen gelten in der Regel zehn Jahre (§ 147 AO). Wir führen kein Archiv für Sie.",
+    "Die Aufbewahrung Ihrer Unterlagen bleibt Ihre Pflicht. Bücher, Jahresabschlüsse und Organisationsunterlagen sind in der Regel zehn Jahre aufzubewahren, Buchungsbelege acht Jahre, Handels- und Geschäftsbriefe sechs Jahre (§ 147 Abs. 3 AO). Wir führen kein Archiv für Sie.",
     "",
     `Nach dem ${end} sind Downloads noch 30 Tage möglich. In dieser Frist können Sie die Dokumente herunterladen oder den Zugang wiederherstellen, indem Sie ein neues Abonnement abschließen.`,
     "",
@@ -101,7 +101,7 @@ export function buildCancellationEndedMail(row: LifecycleRow): TransactionalMail
     `Bereits erzeugte PDFs und hochgeladene Dateien können Sie bis zum ${purge} herunterladen. Bis dahin stellen Sie den Zugang mit einem neuen Abonnement wieder her:`,
     MAIL_CHECKOUT_URL,
     "",
-    "Die Aufbewahrung Ihrer Unterlagen bleibt Ihre Pflicht, in der Regel zehn Jahre (§ 147 AO). Wir führen kein Archiv für Sie.",
+    "Die Aufbewahrung Ihrer Unterlagen bleibt Ihre Pflicht. Bücher, Jahresabschlüsse und Organisationsunterlagen sind in der Regel zehn Jahre aufzubewahren, Buchungsbelege acht Jahre, Handels- und Geschäftsbriefe sechs Jahre (§ 147 Abs. 3 AO). Wir führen kein Archiv für Sie.",
     "",
     SIGNATURE,
   ].join("\n");
