@@ -85,9 +85,9 @@ function textFromContent(latin: string): string {
   return parts.join("");
 }
 
-export function pageTexts(buffer: Buffer): string[] {
+function pageStreams(buffer: Buffer): string[] {
   const raw = buffer.toString("latin1");
-  const texts: string[] = [];
+  const streams: string[] = [];
   // Length, not the next "endstream" bytes: Flate data can contain that sequence.
   const re = /\/Length\s+(\d+)\b[^>]*>>\s*stream\r?\n/g;
   let match: RegExpExecArray | null;
@@ -103,9 +103,38 @@ export function pageTexts(buffer: Buffer): string[] {
     }
     const latin = inflated.toString("latin1");
     if (!/\/F\d+ [\d.]+ Tf/.test(latin)) continue;
-    texts.push(textFromContent(latin));
+    streams.push(latin);
   }
-  return texts;
+  return streams;
+}
+
+export function pageTexts(buffer: Buffer): string[] {
+  return pageStreams(buffer).map((latin) => textFromContent(latin));
+}
+
+function piecesInOrder(latin: string): string[] {
+  const pieces: string[] = [];
+  const re = /<([0-9A-Fa-f\s]+)>|\((?:\\.|[^\\)])*\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(latin))) {
+    if (match[1] != null) pieces.push(decodeHex(match[1]));
+    else pieces.push(decodePdfLiteral((match[0] ?? "").slice(1, -1)));
+  }
+  return pieces;
+}
+
+/**
+ * Text operators in stream order, joined with a space.
+ * pdfkit often emits one string per text call; a scan needs the words of one
+ * sentence even when they sit in neighbouring operators.
+ */
+export function orderedPageTexts(buffer: Buffer): string[] {
+  return pageStreams(buffer).map((latin) =>
+    piecesInOrder(latin)
+      .map((piece) => piece.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .join(" "),
+  );
 }
 
 export function pageCount(buffer: Buffer): number {

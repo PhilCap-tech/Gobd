@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { HomeCtaSection } from "@/components/home-cta-admin";
 import { MesslueckenSection } from "@/components/messluecken-admin";
 import { SchnellversionAdminSection } from "@/components/schnellversion-admin";
+import { FristSatzSection } from "./frist-satz-section";
 import { getSessionEmail } from "@/lib/auth";
 import { isAmpelAdminEmail } from "@/lib/ampel-admin";
 import { ampelStatsError } from "@/lib/ampel-admin-http";
@@ -355,6 +356,7 @@ export default async function AmpelAdminPage({
       <HomeCtaSection report={homeCta} configured={homeCtaConfigured} failed={homeCtaFailed} />
       <MesslueckenSection report={messluecken} configured={messlueckenConfigured} failed={messlueckenFailed} />
       {schnellversion49Enabled() ? <SchnellversionAdminSection /> : null}
+      <FristSatzSection />
     </main>
   );
 }

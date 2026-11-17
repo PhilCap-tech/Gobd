@@ -726,6 +726,15 @@ export async function listDocumentsByEmail(email: string): Promise<SheetRow[]> {
   return documentsOwnedByEmail(rows, email);
 }
 
+/**
+ * Read-only intake snapshot. Answer blobs stay put; callers that need one
+ * payload load it themselves. Does not append a row or download every payload.
+ */
+export async function readIntakeRowsSnapshot(): Promise<SheetRow[]> {
+  const { rows } = await loadRows(undefined, { hydrate: false });
+  return rows;
+}
+
 export async function listDocumentFamily(documentId: string): Promise<SheetRow[]> {
   if (!documentId) return [];
   const { backend, rows } = await loadRows();
