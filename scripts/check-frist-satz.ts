@@ -16,10 +16,11 @@ import {
   type FristSatzIo,
   type VersionRef,
 } from "../lib/frist-satz";
+import { generatePdf } from "../lib/delivery";
 import { createFristSatzIo, pdfKitPlainText } from "../lib/frist-satz-sources";
-import { orderedPageTexts, pageTexts } from "./pdf-text";
+import { pageTexts } from "./pdf-text";
 import { TEST_ENTITY_IDS } from "../lib/test-entities";
-import { emptySheetRow, type SheetRow } from "../lib/types";
+import { emptyAnswers, emptySheetRow, type SheetRow } from "../lib/types";
 
 delete process.env.BLOB_READ_WRITE_TOKEN;
 delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -105,7 +106,17 @@ function checkMatcher() {
     "words between Buchungsbelege and the years still match",
   );
   ok(textHasOutdatedBuchungsfrist("Für Buchungsbelege gelten zehn Jahre."), "zehn Jahre matches");
+  ok(textHasOutdatedBuchungsfrist("Die Buchungsbelege werden 10 Jahre aufbewahrt."), "a direct sentence matches");
+  ok(textHasOutdatedBuchungsfrist("Der Buchungsbeleg gilt 10 Jahre."), "the singular form matches");
   ok(textHasOutdatedBuchungsfrist("Buchungsbelege\n10 Jahre"), "a wrapped line is still one sentence");
+  ok(
+    !textHasOutdatedBuchungsfrist("Buchungsbelege 8 Jahre, Bücher 10 Jahre."),
+    "books at ten years do not make the eight-year belege a hit",
+  );
+  ok(
+    !textHasOutdatedBuchungsfrist("Buchungsbelege acht Jahre, Bücher und Aufzeichnungen zehn Jahre."),
+    "the written triad does not count",
+  );
   ok(!textHasOutdatedBuchungsfrist("Buchungsbelege 8 Jahre"), "8 Jahre does not match");
   ok(!textHasOutdatedBuchungsfrist("Buchungsbelege 10 Jahren"), "Jahren is not the phrase");
   ok(!textHasOutdatedBuchungsfrist("Aufbewahrung 110 Jahre für Buchungsbelege"), "110 Jahre is not 10 Jahre");
@@ -138,13 +149,49 @@ function checkMatcher() {
 }
 
 function checkPdfText() {
-  const one = miniPdf("(Buchungsbelege 10 Jahre) Tj");
-  ok(pageTexts(one).join("").includes("Buchungsbelege 10 Jahre"), "the existing extractor still reads one string");
-  const split = miniPdf("(Buchungsbelege) Tj (10 Jahre) Tj");
-  ok(orderedPageTexts(split).join(" ").includes("Buchungsbelege 10 Jahre"), "neighbouring text calls stay in order");
-  ok(textHasOutdatedBuchungsfrist(pdfKitPlainText(split)), "a PDF without structured data can match");
-  const ended = miniPdf("(Buchungsbelege.) Tj (10 Jahre) Tj");
+  const one = miniPdf("(Buchungsbelege werden 10 Jahre aufbewahrt.) Tj");
+  ok(pageTexts(one).join("").includes("10 Jahre"), "the existing extractor still reads one string");
+  const kerned = miniPdf("(Die Buchungsbelege w) Tj (erden 10 J) Tj (ahre aufbewahrt.) Tj");
+  const kernedText = pdfKitPlainText(kerned);
+  ok(kernedText.includes("werden 10 Jahre"), "kerning fragments keep the stored word space");
+  ok(!kernedText.includes("J ahre"), "kerning does not split Jahre");
+  ok(textHasOutdatedBuchungsfrist(kernedText), "a kerned sentence matches");
+  const ended = miniPdf("(Buchungsbelege. ) Tj (10 Jahre bleiben bei den Büchern.) Tj");
   ok(!textHasOutdatedBuchungsfrist(pdfKitPlainText(ended)), "a period between PDF text calls does not match");
+}
+
+async function appPdf(body: string): Promise<Buffer> {
+  const { buffer } = await generatePdf({
+    answers: emptyAnswers(),
+    identity: {
+      email: BUYER,
+      company: COMPANY,
+      stripeSessionId: "",
+      stripeCustomerId: "",
+      stub: true,
+      entityId: NORMAL,
+    },
+    documentId: "frist-satz-probe",
+    version: 1,
+    content: { chapters: [{ id: "af", title: "Fristen", body }] },
+  });
+  return buffer;
+}
+
+async function checkAppPdf() {
+  const directText = pdfKitPlainText(await appPdf("Die Buchungsbelege werden 10 Jahre aufbewahrt."));
+  ok(directText.includes("werden 10 Jahre"), "an app PDF keeps 10 Jahre");
+  ok(directText.includes("aufbewahrt"), "an app PDF keeps the rest of the word");
+  ok(!directText.includes("J ahre"), "an app PDF does not kern Jahre apart");
+  ok(textHasOutdatedBuchungsfrist(directText), "an app PDF with the old sentence counts");
+  const triadText = pdfKitPlainText(
+    await appPdf(
+      "Buchungsbelege 8 Jahre, Bücher 10 Jahre. Buchungsbelege acht Jahre, Bücher und Aufzeichnungen zehn Jahre.",
+    ),
+  );
+  ok(triadText.includes("Bücher 10 Jahre"), "the app PDF still contains the books clause");
+  ok(triadText.includes("zehn Jahre"), "the app PDF still contains the written ten years");
+  ok(!textHasOutdatedBuchungsfrist(triadText), "the legal triad in an app PDF does not count");
 }
 
 function version(input: {
@@ -266,6 +313,8 @@ async function checkCount() {
   ok(view.note.includes("Testfirmen und Testadressen"), "the note names the exclusion");
   ok(view.note.includes("PDF"), "a PDF-only version is explained");
   ok(view.note.includes("nicht lesen"), "unreadable objects are explained");
+  ok(view.note.includes("1 Fassung") && !view.note.includes("1 Fassungen"), "one version uses the singular");
+  ok(view.note.includes("1 Entwurf") && !view.note.includes("1 Entwürfe"), "one draft uses the singular");
   ok(!leaked(view), "the result has no name, address, id, or sentence text");
   ok(pdfCalls.n === 3, "PDF text is read only when the version has no structured payload");
   ok(structuredCalls.n === 4, "the listed test firm is not opened");
@@ -404,7 +453,7 @@ async function checkSources() {
     },
     readPdf: async (pdfUrl) => {
       pdfUrls.push(pdfUrl);
-      return miniPdf("(Buchungsbelege) Tj (10 Jahre) Tj");
+      return miniPdf("(Die Buchungsbelege w) Tj (erden 10 J) Tj (ahre aufbewahrt.) Tj");
     },
   });
   const view = await scanFristSatzForAdmin(WIPE_EMAIL_ALLOWLIST[0], { mode: "start", cursor: "" }, io, NOW, {
@@ -475,19 +524,37 @@ async function checkPauseAndAuth() {
   ok(!isExcludedCustomer(BUYER, ""), "a company name is not an allowlist");
 }
 
+function functionSource(file: string, signature: string): string {
+  const text = readFileSync(file, "utf8");
+  const start = text.indexOf(signature);
+  ok(start >= 0, `missing ${signature}`);
+  const next = text.indexOf("\nexport ", start + signature.length);
+  return text.slice(start, next < 0 ? text.length : next);
+}
+
 function checkSourcesAreReadOnly() {
   const action = readFileSync("app/admin/ampel/frist-satz-action.ts", "utf8");
   const sources = readFileSync("lib/frist-satz-sources.ts", "utf8");
+  const core = readFileSync("lib/frist-satz.ts", "utf8");
   const section = readFileSync("app/admin/ampel/frist-satz-section.tsx", "utf8");
   const page = readFileSync("app/admin/ampel/page.tsx", "utf8");
+  const writeCall =
+    /\b(put|del|appendRecord|generatePdf|writeFile|saveIntakeDraft|loadDocumentPdf|materializeIntakeHeader)\s*\(/;
   ok(action.includes("use server"), "the count is a server action");
   ok(action.includes("isAmpelAdminEmail") && action.includes("getSessionEmail"), "the action reuses the admin allowlist");
   ok(action.indexOf("isAmpelAdminEmail") < action.indexOf("createFristSatzIo"), "the allowlist is checked before the stores are opened");
-  ok(!/\b(put|del|appendRecord|generatePdf|writeFile|saveIntakeDraft|loadDocumentPdf)\s*\(/.test(action), "the action does not write");
+  ok(!writeCall.test(action), "the action does not write");
+  ok(!writeCall.test(core), "the count core does not write");
   ok(!sources.includes("generatePdf") && !sources.includes("loadDocumentPdf"), "PDFs are not generated");
   ok(!sources.includes("appendRecord") && !sources.includes("saveIntakeDraft"), "drafts and rows are not written");
   ok(!sources.includes("writeFile") && !/\b(put|del)\s*\(/.test(sources), "blob writes are not called");
+  ok(!sources.includes("materializeIntakeHeader"), "sources do not build the sheet header");
   ok(!sources.includes("console."), "sources do not log on their own");
+  const snapshot = functionSource("lib/store.ts", "export async function readIntakeRowsSnapshot");
+  ok(!snapshot.includes("materializeIntakeHeader"), "the row read does not build the header");
+  ok(!snapshot.includes("appendRecord"), "the row read does not append");
+  ok(!/spreadsheets\.values\.(update|append)/.test(snapshot), "the row read does not write cells");
+  ok(!snapshot.includes("loadRows(") && !snapshot.includes("readSheetRows("), "the row read stays off the writing grid path");
   ok(section.includes("useActionState") && section.includes('name="mode"'), "the section counts from a form");
   ok(!section.includes("useEffect"), "opening the page does not start the count");
   ok(!section.includes("/api/"), "there is no public count route");
@@ -499,6 +566,7 @@ function checkSourcesAreReadOnly() {
 async function main() {
   checkMatcher();
   checkPdfText();
+  await checkAppPdf();
   await checkCount();
   await checkContinue();
   await checkSources();

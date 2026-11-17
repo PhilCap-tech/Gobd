@@ -1,7 +1,7 @@
 /**
- * Read-only count of the outdated sentence
- * „Buchungsbelege … 10 Jahre“ / „zehn Jahre“ in stored customer drafts and
- * generated document versions. No writes, no names, no addresses, no ids.
+ * Read-only count of stored customer drafts and generated document versions
+ * that still tie Buchungsbelege to the old ten-year figure.
+ * No writes, no names, no addresses, no ids.
  */
 import { isRetentionTestEmail } from "@/lib/retention-guards";
 import { isTestEntity } from "@/lib/test-entities";
@@ -111,9 +111,13 @@ export function deniedFristSatzView(now: Date): FristSatzView {
   };
 }
 
+const DURATION =
+  /\b(\d+|acht|sechs|sieben|fuenf|fünf|drei|vier|zwei|elf|zwölf|zwoelf|zehn)\s+jahre\b/i;
+
 /**
- * „Buchungsbelege“ followed by „10 Jahre“ or „zehn Jahre“ in the same sentence.
- * A single line break is a wrap, not a new sentence. A field is checked on its own.
+ * Buchungsbeleg(e) directly tied to ten years in the same comma/semicolon clause.
+ * A later clause may still give books or records ten years. A single line break
+ * is a wrap, not a new sentence. Each field value is checked on its own.
  */
 export function textHasOutdatedBuchungsfrist(text: string): boolean {
   const prepared = text.replace(/\u00a0/g, " ").replace(/\r\n/g, "\n");
@@ -121,11 +125,21 @@ export function textHasOutdatedBuchungsfrist(text: string): boolean {
   return chunks.some((chunk) => {
     const sentence = chunk.replace(/\s+/g, " ").trim();
     if (!sentence) return false;
-    return new RegExp(
-      `\\bbuchungsbelege\\b.{0,${PHRASE_GAP}}?\\b(?:10|zehn)\\s+jahre\\b`,
-      "i",
-    ).test(sentence);
+    return sentence.split(/[,;]/).some((clause) => clauseLinksTenYears(clause));
   });
+}
+
+function clauseLinksTenYears(clause: string): boolean {
+  const subject = /\bbuchungsbelege?\b/gi;
+  let match: RegExpExecArray | null;
+  while ((match = subject.exec(clause))) {
+    const after = clause.slice(match.index + match[0].length);
+    const duration = DURATION.exec(after);
+    if (!duration || duration.index > PHRASE_GAP) continue;
+    const token = duration[1].toLowerCase();
+    if (token === "10" || token === "zehn") return true;
+  }
+  return false;
 }
 
 /** Walk string leaves. Identity fields are not part of the sentence. */
@@ -319,23 +333,27 @@ function buildNote(progress: FristProgress, done: boolean): string {
     parts.push("Zwischenstand. Fortsetzen liest den nächsten Abschnitt.");
   }
   if (progress.pdfRead > 0) {
+    const one = progress.pdfRead === 1;
     parts.push(
-      `${progress.pdfRead} Fassungen hatten keinen Antwort- oder Kapiteltext. Der Wortlaut wurde aus der PDF gelesen.`,
+      `${progress.pdfRead} ${one ? "Fassung hatte" : "Fassungen hatten"} keinen Antwort- oder Kapiteltext. Der Wortlaut wurde aus der PDF gelesen.`,
     );
   }
   if (progress.pdfUnreadable > 0) {
+    const one = progress.pdfUnreadable === 1;
     parts.push(
-      `${progress.pdfUnreadable} Fassungen lagen nur als PDF vor, der Text ließ sich nicht lesen. Sie zählen nicht als Treffer.`,
+      `${progress.pdfUnreadable} ${one ? "Fassung lag" : "Fassungen lagen"} nur als PDF vor, der Text ließ sich nicht lesen. ${one ? "Sie zählt" : "Sie zählen"} nicht als Treffer.`,
     );
   }
   if (progress.structuredUnread > 0) {
+    const one = progress.structuredUnread === 1;
     parts.push(
-      `${progress.structuredUnread} Fassungen hatten gespeicherten Text, der sich nicht lesen ließ. Sie zählen nicht als Treffer.`,
+      `${progress.structuredUnread} ${one ? "Fassung hatte" : "Fassungen hatten"} gespeicherten Text, der sich nicht lesen ließ. ${one ? "Sie zählt" : "Sie zählen"} nicht als Treffer.`,
     );
   }
   if (progress.draftUnread > 0) {
+    const one = progress.draftUnread === 1;
     parts.push(
-      `${progress.draftUnread} Entwürfe ließen sich nicht lesen. Sie zählen nicht als Treffer.`,
+      `${progress.draftUnread} ${one ? "Entwurf ließ" : "Entwürfe ließen"} sich nicht lesen. ${one ? "Er zählt" : "Sie zählen"} nicht als Treffer.`,
     );
   }
   if (done && !progress.paused && !progress.draftsUnavailable && !progress.docsUnavailable) {

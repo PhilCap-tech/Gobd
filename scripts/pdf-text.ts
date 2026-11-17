@@ -124,17 +124,13 @@ function piecesInOrder(latin: string): string[] {
 }
 
 /**
- * Text operators in stream order, joined with a space.
- * pdfkit often emits one string per text call; a scan needs the words of one
- * sentence even when they sit in neighbouring operators.
+ * Text operators in stream order, concatenated.
+ * pdfkit splits a word around kerning (`J` + `ahre`, `w` + `erden`) and keeps
+ * the real word space inside an operator. Inserting a space between operators
+ * turns that into „J ahre“.
  */
 export function orderedPageTexts(buffer: Buffer): string[] {
-  return pageStreams(buffer).map((latin) =>
-    piecesInOrder(latin)
-      .map((piece) => piece.replace(/\s+/g, " ").trim())
-      .filter(Boolean)
-      .join(" "),
-  );
+  return pageStreams(buffer).map((latin) => piecesInOrder(latin).join(""));
 }
 
 export function pageCount(buffer: Buffer): number {

@@ -226,6 +226,9 @@ async function ensureSpreadsheetTab(tab: string): Promise<void> {
 const columnCountCache = createTtlSingleflight<number>(SHEETS_HEADER_TTL_MS);
 const headerCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
 const intakeValuesCache = createTtlSingleflight<string[][]>(INTAKE_READ_TTL_MS);
+/** Header and rows for the sentence count. Never the header the write path extends. */
+const fristHeaderCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
+const fristValuesCache = createTtlSingleflight<string[][]>(INTAKE_READ_TTL_MS);
 const entityHeaderCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
 const entityValuesCache = createTtlSingleflight<string[][]>(INTAKE_READ_TTL_MS);
 const readinessHeaderCache = createTtlSingleflight<string[]>(SHEETS_HEADER_TTL_MS);
@@ -244,6 +247,8 @@ export function clearIntakeSheetCache(): void {
   columnCountCache.clear();
   headerCache.clear();
   intakeValuesCache.clear();
+  fristHeaderCache.clear();
+  fristValuesCache.clear();
   rowsCache.clear();
 }
 
@@ -260,6 +265,7 @@ export function clearAllSheetReadCaches(): void {
 /** Forget only the row snapshot so the next read still uses the cached header. */
 export function expireIntakeRowsCache(): void {
   intakeValuesCache.clear();
+  fristValuesCache.clear();
   rowsCache.clear();
 }
 
@@ -278,6 +284,7 @@ async function writeThroughIntakeRow(row: SheetRow): Promise<void> {
   }
   rowsCache.remember({ backend: cached.backend, rows });
   intakeValuesCache.clear();
+  fristValuesCache.clear();
 }
 
 async function readIntakeColumnCount(tab: string): Promise<number> {
@@ -727,12 +734,24 @@ export async function listDocumentsByEmail(email: string): Promise<SheetRow[]> {
 }
 
 /**
- * Read-only intake snapshot. Answer blobs stay put; callers that need one
- * payload load it themselves. Does not append a row or download every payload.
+ * Intake rows for the sentence count. Uses the header as it is stored.
+ * Answer blobs stay put; callers that need one payload load it themselves.
  */
 export async function readIntakeRowsSnapshot(): Promise<SheetRow[]> {
-  const { rows } = await loadRows(undefined, { hydrate: false });
-  return rows;
+  if (!isSheetsConfigured()) return readAllFileRows();
+  const tab = getSheetsTab();
+  const count = await intakeColumnCount(tab);
+  const grid = await readCachedGrid({
+    tab,
+    op: "intakes-readonly",
+    headerRange: intakeHeaderRange(count),
+    valuesRange: intakeValuesRange(count),
+    headerCache: fristHeaderCache,
+    valuesCache: fristValuesCache,
+  });
+  return grid.values
+    .filter((row) => row.some((cell) => cell.trim()))
+    .map((row) => recoverStoredDocumentId(sheetRowFromValues(grid.header, row)));
 }
 
 export async function listDocumentFamily(documentId: string): Promise<SheetRow[]> {
