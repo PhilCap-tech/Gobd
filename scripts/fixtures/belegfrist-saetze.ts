@@ -63,6 +63,11 @@ export const BELEGFRIST_SAETZE: ReadonlyArray<{ name: string; text: string; hit:
     hit: false,
   },
   {
+    name: "Kein Buchungsbeleg darf 10 Jahre",
+    text: "Kein Buchungsbeleg darf vor Ablauf von 10 Jahren vernichtet werden.",
+    hit: true,
+  },
+  {
     name: "nicht nur 8 sondern 10",
     text: "Buchungsbelege werden nicht nur 8, sondern 10 Jahre aufbewahrt.",
     hit: true,

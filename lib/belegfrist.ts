@@ -75,6 +75,14 @@ function clausesOf(sentence: string): { text: string; before: string }[] {
   return clauses;
 }
 
+/** „ist kein Buchungsbeleg“ verneint den Beleg. „Kein Buchungsbeleg darf … 10 Jahre“ bleibt die Frist. */
+function deniesBeleg(clause: string): boolean {
+  return (
+    /\b(?:ist|sind|war|waren)\s+kein(?:e|en|er)?\s+Buchungsbeleg/iu.test(clause) ||
+    /\bkein(?:e|en|er)?\s+Buchungsbelege?\s+(?:ist|sind|war|waren)\b/iu.test(clause)
+  );
+}
+
 function statesTenInsteadOfEight(text: string): boolean {
   return /(?:10|zehn)\s+statt\s+(?:8|acht)\s+Jahren?/iu.test(text);
 }
@@ -82,7 +90,7 @@ function statesTenInsteadOfEight(text: string): boolean {
 /** Die Verneinung gilt nur für die Klausel, in der der Buchungsbeleg steht. */
 function clauseStatesOldBelegPeriod(clause: string, previous: string, next: string, nextSep: string): boolean {
   if (!mentionsBeleg(clause)) return false;
-  if (/\bkein(?:e|en|er)?\s+Buchungsbeleg/iu.test(clause)) return false;
+  if (deniesBeleg(clause)) return false;
   if (statesTenInsteadOfEight(clause)) return true;
   if (belegTenIsNegated(clause) || statedAsPastOrException(clause)) return false;
   if (EIGHT.test(clause)) return false;

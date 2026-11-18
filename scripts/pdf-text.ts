@@ -135,17 +135,42 @@ export function orderedPageTexts(buffer: Buffer): string[] {
 
 /**
  * Tabellenzeile = eine Einheit, Zellen der Zeile mit Leerzeichen.
- * Eine neue Zeile (andere Grundlinie) wird ein Absatz, damit die
- * Aufbewahrungstabelle nicht ein einziger Satz wird.
+ * Eine neue Tabellenzeile (deutlich tiefere Grundlinie) wird ein Absatz.
+ * Ein Umbruch in derselben Zelle (gleiche x-Position, nächste Grundlinie) bleibt im Absatz.
  * Kerning bleibt zusammen: pdfkit setzt dort nur eine Zahl zwischen den Fragmenten.
  */
 export function separatedPageTexts(buffer: Buffer): string[] {
   return pageStreams(buffer).map(separateCells);
 }
 
+type Piece = { text: string; x: number | null; y: number | null };
+type VisualLine = { cells: Piece[]; y: number | null; table: boolean };
+
+function lineXs(line: VisualLine): number[] {
+  return [
+    ...new Set(
+      line.cells
+        .map((cell) => cell.x)
+        .filter((value): value is number => value != null)
+        .map((value) => Math.round(value)),
+    ),
+  ];
+}
+
+/** Gleiche Spalte, nur eine Schriftzeile tiefer: der Zelleninhalt bricht um, die Tabellenzeile nicht. */
+function continuesCell(previous: VisualLine, line: VisualLine): boolean {
+  if (previous.y == null || line.y == null) return false;
+  const drop = previous.y - line.y;
+  if (drop <= 0.8 || drop > 14) return false;
+  const previousXs = lineXs(previous);
+  const xs = lineXs(line);
+  if (previousXs.length === 0 || xs.length === 0) return false;
+  return xs.every((value) => previousXs.some((earlier) => Math.abs(earlier - value) <= 2));
+}
+
 function separateCells(latin: string): string {
   const token = /<([0-9A-Fa-f\s]+)>|\((?:\\.|[^\\)])*\)/g;
-  const pieces: { text: string; x: number | null; y: number | null }[] = [];
+  const pieces: Piece[] = [];
   let prevEnd = 0;
   let x: number | null = null;
   let y: number | null = null;
@@ -163,28 +188,33 @@ function separateCells(latin: string): string {
     else pieces.push({ text, x: moved ? x : pieces.at(-1)?.x ?? x, y: moved ? y : pieces.at(-1)?.y ?? y });
     prevEnd = match.index + match[0].length;
   }
-  const lines: { cells: typeof pieces; table: boolean }[] = [];
+  const lines: VisualLine[] = [];
   for (const piece of pieces) {
     const last = lines.at(-1);
-    const sameLine = last && piece.y != null && last.cells[0]?.y != null && Math.abs(piece.y - (last.cells[0]?.y ?? 0)) <= 0.8;
+    const sameLine = last && piece.y != null && last.y != null && Math.abs(piece.y - last.y) <= 0.8;
     if (last && sameLine) last.cells.push(piece);
-    else lines.push({ cells: [piece], table: false });
+    else lines.push({ cells: [piece], y: piece.y, table: false });
   }
-  for (const line of lines) {
-    const xs = line.cells.map((cell) => cell.x).filter((value): value is number => value != null);
-    line.table = new Set(xs.map((value) => Math.round(value))).size >= 2;
-  }
+  for (const line of lines) line.table = lineXs(line).length >= 2;
   let out = "";
+  let previous: VisualLine | null = null;
   let prevTable = false;
   for (const line of lines) {
     const text = line.cells.map((cell) => cell.text).join(" ").replace(/[^\S\n]+/g, " ").trim();
     if (!text) continue;
+    if (previous && continuesCell(previous, line)) {
+      out += ` ${text}`;
+      previous = line;
+      continue;
+    }
     if (!out) {
       out = text;
+      previous = line;
       prevTable = line.table;
       continue;
     }
     out += prevTable || line.table ? `\n\n${text}` : `\n${text}`;
+    previous = line;
     prevTable = line.table;
   }
   return out;

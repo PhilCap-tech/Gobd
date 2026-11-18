@@ -805,7 +805,27 @@ async function checkTableFixtures() {
   // Die Zeile nennt für den Beleg 8 Jahre und 10 Jahre nur für die Aufzeichnung.
   // In der Admin-Mock-Zählung waren 6 echte Treffer andere Seed-PDFs; dieses PDF war der falsche siebte.
   ok(!textHasOutdatedBuchungsfrist(zText), "Z-Bon-Tabelle hat 0 echte Treffer");
-  ok(/\n\n/.test(zText), "Tabellenzeilen bleiben eigene Absätze");
+  const zeilen = await appPdf(
+    ["| Unterlage | Frist |", "| --- | --- |", "| Bücher und Aufzeichnungen | 10 Jahre |", "| Buchungsbelege | offen |"].join("\n"),
+  );
+  const zeilenText = pdfKitPlainText(zeilen);
+  const getrennt = "Bücher und Aufzeichnungen 10 Jahre\n\nBuchungsbelege offen";
+  ok(zeilenText.includes(getrennt), "zwei Tabellenzeilen auf derselben Seite sind getrennt");
+  ok(!textHasOutdatedBuchungsfrist(zeilenText), "zwei Tabellenzeilen auf einer Seite zählen nicht");
+  ok(
+    textHasOutdatedBuchungsfrist("Bücher und Aufzeichnungen 10 Jahre Buchungsbelege offen"),
+    "ohne Zeilentrennung entsteht der Treffer",
+  );
+  const umbruch = await appPdf(
+    [
+      "| Feld | Inhalt |",
+      "| --- | --- |",
+      "| Fristzuordnung | Verfahren der Zuordnung: Bücher und Abschlussunterlagen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre. |",
+    ].join("\n"),
+  );
+  const umbruchText = pdfKitPlainText(umbruch);
+  ok(umbruchText.includes("Buchungsbelege 8 Jahre"), "umbrochene Zelle bleibt ein Satz");
+  ok(!textHasOutdatedBuchungsfrist(umbruchText), "umbrochene Tabellenzelle zählt nicht");
   const glued =
     "Bücher und Organisationsunterlagen 10 Jahre § 147 Abs. 1 Nr. 1, Abs. 3 AO Buchungsbelege (z. B. Eingangs- und Ausgangsrechnungen, Kontoauszüge) 8 Jahre § 147 Abs. 1 Nr. 4, Abs. 3 AO";
   ok(!textHasOutdatedBuchungsfrist(glued), "geklammerte 8-Jahres-Zeile zählt nicht");
