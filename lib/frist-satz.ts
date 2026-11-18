@@ -49,6 +49,7 @@ export type FristProgress = {
   paused: boolean;
   /** Leer oder ohne die Spalte fragen. Die Zählung endet, Fortsetzen läuft nicht weiter. */
   headerProblem: "leer" | "unvollstaendig" | null;
+  headerColumns: string[];
 };
 
 export type DraftListResult =
@@ -74,7 +75,7 @@ export type VersionRef = {
 export type VersionListResult =
   | { paused: true }
   | { unavailable: true }
-  | { header: "leer" | "unvollstaendig" }
+  | { header: "leer" | "unvollstaendig"; columns?: string[] }
   | { items: VersionRef[]; done: boolean };
 
 export type FristSatzIo = {
@@ -166,6 +167,7 @@ function freshProgress(): FristProgress {
     docsUnavailable: false,
     paused: false,
     headerProblem: null,
+    headerColumns: [],
   };
 }
 
@@ -256,6 +258,7 @@ export function decodeFristProgress(raw: string): FristProgress | null {
     docsUnavailable: record.docsUnavailable,
     paused: false,
     headerProblem: null,
+    headerColumns: [],
   };
 }
 
@@ -313,8 +316,10 @@ function buildNote(progress: FristProgress, done: boolean): string {
       "Der Tabellenkopf ist leer. Die Zählung endet, ohne Zeilen zu lesen. Es wird nichts geschrieben.",
     );
   } else if (progress.headerProblem === "unvollstaendig") {
+    const namen = progress.headerColumns.length ? progress.headerColumns.join(", ") : "fragen";
+    const fehlt = progress.headerColumns.length > 1 ? `Es fehlen die Spalten ${namen}.` : `Es fehlt die Spalte ${namen}.`;
     parts.push(
-      "Hinweis: unvollständiger Kopf. Die Zählung endet, ohne Zeilen über den PDF-Weg zu lesen. Es wird nichts geschrieben.",
+      `Hinweis: unvollständiger Kopf. ${fehlt} Die Zählung endet, ohne Zeilen über den PDF-Weg zu lesen. Es wird nichts geschrieben.`,
     );
   } else if (progress.paused) {
     parts.push(
@@ -422,6 +427,7 @@ export async function runFristSatzScan(options: {
     const page = await options.io.loadVersions(progress.offset, versionLimit);
     if ("header" in page) {
       progress.headerProblem = page.header;
+      progress.headerColumns = page.columns ?? [];
       progress.phase = "done";
       break;
     }

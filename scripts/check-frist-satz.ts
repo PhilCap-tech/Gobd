@@ -21,6 +21,7 @@ import { createFristSatzIo, pdfKitPlainText } from "../lib/frist-satz-sources";
 import { pageTexts } from "./pdf-text";
 import { TEST_ENTITY_IDS } from "../lib/test-entities";
 import { intakeHeaderProblem } from "../lib/intake-header";
+import { BELEGFRIST_SAETZE } from "./fixtures/belegfrist-saetze";
 import { emptyAnswers, emptySheetRow, type SheetRow } from "../lib/types";
 
 delete process.env.BLOB_READ_WRITE_TOKEN;
@@ -158,6 +159,9 @@ function checkMatcher() {
     ) === false,
     "an identity field is not searched",
   );
+  for (const satz of BELEGFRIST_SAETZE) {
+    ok(textHasOutdatedBuchungsfrist(satz.text) === satz.hit, `Fixture ${satz.name}`);
+  }
 }
 
 function checkPdfText() {
@@ -170,6 +174,13 @@ function checkPdfText() {
   ok(textHasOutdatedBuchungsfrist(kernedText), "a kerned sentence matches");
   const ended = miniPdf("(Buchungsbelege. ) Tj (10 Jahre bleiben bei den Büchern.) Tj");
   ok(!textHasOutdatedBuchungsfrist(pdfKitPlainText(ended)), "a period between PDF text calls does not match");
+  const cells = miniPdf(
+    "(Zaehlprotokolle) Tj 1 0 0 1 188 723 Tm (8 Jahre als Buchungsbeleg; als Aufzeichnung 10 Jahre) Tj",
+  );
+  const separated = pdfKitPlainText(cells);
+  ok(separated.includes("Zaehlprotokolle 8 Jahre"), "a new text position separates table cells");
+  ok(!separated.includes("Zaehlprotokolle8"), "glued table cells are split");
+  ok(!textHasOutdatedBuchungsfrist(separated), "the neighbour ten-year clause does not count");
 }
 
 async function appPdf(body: string): Promise<Buffer> {
@@ -560,8 +571,34 @@ export function fristWriteCall(source: string): string | null {
   for (const name of names) {
     if (new RegExp(`\\b${name}\\s*\\(`).test(source)) return name;
   }
-  if (/\.\s*(?:update|append)\s*\(/.test(source)) return "update";
+  if (/\.\s*(?:update|append|batchUpdate)\s*\(/.test(source)) {
+    return /\bbatchUpdate\s*\(/.test(source) ? "batchUpdate" : "update";
+  }
+  if (/\[\s*["'](?:update|append|batchUpdate)["']\s*\]\s*\(/.test(source)) return "update";
+  if (/\bbatchUpdate\s*\(/.test(source)) return "batchUpdate";
   return null;
+}
+
+function sliceAssignedArrow(source: string, name: string): string {
+  const re = new RegExp(
+    `(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s*)?(?:\\([^)]*\\)|[A-Za-z_]\\w*)\\s*=>\\s*\\{`,
+  );
+  const match = re.exec(source);
+  if (!match || match.index === undefined) return "";
+  return sliceFunctionAt(source, match.index, match.index + match[0].length - 1);
+}
+
+function sliceFunctionAt(source: string, start: number, brace: number): string {
+  let depth = 0;
+  for (let index = brace; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  return "";
 }
 
 function sliceFunction(source: string, signature: string): string {
@@ -597,13 +634,20 @@ export function snapshotWriteBypass(fileSource: string): string | null {
       combined += `\n${body}`;
       break;
     }
+    if (!combined.includes(`function ${name}`)) {
+      const arrow = sliceAssignedArrow(fileSource, name);
+      if (arrow) combined += `\n${arrow}`;
+    }
   }
   return fristWriteCall(combined);
 }
 
 function checkHeaderAndBypass() {
-  if (intakeHeaderProblem(["", " "]) !== "leer") fail("Negativtest: leerer Kopf wurde nicht erkannt");
-  if (intakeHeaderProblem(["timestamp", "email"]) !== "unvollstaendig") fail("Negativtest: fehlende Spalte fragen wurde nicht erkannt");
+  if (intakeHeaderProblem(["", " "])?.kind !== "leer") fail("Negativtest: leerer Kopf wurde nicht erkannt");
+  const missing = intakeHeaderProblem(["timestamp", "email"]);
+  if (missing?.kind !== "unvollstaendig" || missing.columns.join(",") !== "fragen") {
+    fail("Negativtest: fehlende Spalte fragen wurde nicht erkannt");
+  }
   if (intakeHeaderProblem(["timestamp", "fragen"]) !== null) fail("Negativtest: vollständiger Kopf wurde gemeldet");
   const alias = 'import { put as save } from "@vercel/blob";\nawait save("a");';
   if (fristWriteCall(alias) !== "save") fail("Negativtest: Alias save() wurde nicht erkannt");
@@ -613,6 +657,22 @@ function checkHeaderAndBypass() {
     await v.update({});
   }`;
   if (snapshotWriteBypass(update) !== "update") fail("Negativtest: values.update über eine Variable wurde nicht erkannt");
+  const bracket = `export async function readIntakeRowsSnapshot() {
+    const v = createSheetsClient().spreadsheets.values;
+    await v["update"]({});
+  }`;
+  if (snapshotWriteBypass(bracket) !== "update") fail("Negativtest: v[\"update\"] wurde nicht erkannt");
+  const batch = `export async function readIntakeRowsSnapshot() {
+    await s.batchUpdate({});
+  }`;
+  if (snapshotWriteBypass(batch) !== "batchUpdate") fail("Negativtest: batchUpdate wurde nicht erkannt");
+  const arrow = `export async function readIntakeRowsSnapshot() {
+    return ensureHeader();
+  }
+  const ensureHeader = async () => {
+    await materializeIntakeHeader(tab, []);
+  };`;
+  if (snapshotWriteBypass(arrow) !== "materializeIntakeHeader") fail("Negativtest: Arrow-Helfer wurde nicht erkannt");
   const helper = `export async function readIntakeRowsSnapshot() {
     return ensureHeader();
   }
@@ -647,11 +707,11 @@ async function checkHeaderNote() {
   const partial = await scanFristSatzForAdmin(WIPE_EMAIL_ALLOWLIST[0], { mode: "start", cursor: "" }, {
     ...io,
     async loadVersions() {
-      return { header: "unvollstaendig" as const };
+      return { header: "unvollstaendig" as const, columns: ["fragen"] };
     },
   }, NOW);
   ok(partial.done && partial.cursor === "", "ein unvollständiger Kopf bietet kein Fortsetzen");
-  ok(partial.note.includes("unvollständiger Kopf"), "die fehlende Spalte wird benannt");
+  ok(partial.note.includes("unvollständiger Kopf") && partial.note.includes("Spalte fragen"), "die fehlende Spalte wird benannt");
   ok(!partial.note.includes("nicht erreichbar"), "eine fehlende Spalte ist kein Ausfall");
 }
 

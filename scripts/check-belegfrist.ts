@@ -20,6 +20,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { hitsIn, locatedHits } from "@/lib/belegfrist";
+import { BELEGFRIST_SAETZE } from "./fixtures/belegfrist-saetze";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { AF } from "@/lib/module/fragen";
 
@@ -144,6 +145,19 @@ for (const [name, text] of POSITIV) {
     process.exit(1);
   }
   console.log(`positiv ${name}: grün`);
+}
+
+console.log("check-belegfrist: 21 Testsätze");
+for (const satz of BELEGFRIST_SAETZE) {
+  const found = hitsIn(satz.text);
+  const hit = found.length > 0;
+  if (hit !== satz.hit) {
+    console.error(
+      `Fixture ${satz.name}: erwartet ${satz.hit ? "Treffer" : "keinen Treffer"}, ist ${hit ? "Treffer" : "kein Treffer"}: ${satz.text}`,
+    );
+    process.exit(1);
+  }
+  console.log(`fixture ${satz.name}: ${satz.hit ? "zählt" : "zählt nicht"}`);
 }
 
 if (!belegfristScanPath("components/site-header.tsx") || !belegfristScanPath("public/llms.txt")) {

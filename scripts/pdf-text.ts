@@ -133,6 +133,32 @@ export function orderedPageTexts(buffer: Buffer): string[] {
   return pageStreams(buffer).map((latin) => piecesInOrder(latin).join(""));
 }
 
+/**
+ * Wie orderedPageTexts, aber eine neue Textposition (Tm/Td) trennt Tabellenzellen.
+ * Kerning bleibt zusammen: pdfkit setzt dort nur eine Zahl zwischen den Fragmenten.
+ * Eine neue Textposition wird ein Leerzeichen, Kerning bleibt zusammen.
+ */
+export function separatedPageTexts(buffer: Buffer): string[] {
+  return pageStreams(buffer).map(separateCells);
+}
+
+function separateCells(latin: string): string {
+  const token = /<([0-9A-Fa-f\s]+)>|\((?:\\.|[^\\)])*\)/g;
+  let out = "";
+  let prevEnd = 0;
+  let match: RegExpExecArray | null;
+  while ((match = token.exec(latin))) {
+    const between = latin.slice(prevEnd, match.index);
+    const text = match[1] != null ? decodeHex(match[1]) : decodePdfLiteral((match[0] ?? "").slice(1, -1));
+    if (out && /(?:\bTm\b|\bTd\b|\bTD\b|\bT\*)/.test(between) && !/\s$/u.test(out) && !/^\s/u.test(text)) {
+      out += " ";
+    }
+    out += text;
+    prevEnd = match.index + match[0].length;
+  }
+  return out;
+}
+
 export function pageCount(buffer: Buffer): number {
   return (buffer.toString("latin1").match(/\/Type\s*\/Page(?!s)/g) || []).length;
 }

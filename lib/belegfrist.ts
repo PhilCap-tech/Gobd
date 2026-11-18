@@ -38,10 +38,20 @@ function statedAsPastOrException(sentence: string): boolean {
   return false;
 }
 
-/** „nicht mehr 10, sondern 8“ und „8 statt 10“ behaupten keine Zehnjahresfrist. */
+/**
+ * Einfache Verneinung, auch ohne „sondern“:
+ * „nicht/keine (mehr/länger) 10 Jahre“. „8 statt 10“ ebenfalls.
+ * „10 statt 8“ bleibt ein Treffer und wird davor geprüft.
+ */
 function belegTenIsNegated(sentence: string): boolean {
-  if (/nicht mehr\s+(?:10|zehn)\s+Jahren?\s*,\s*sondern\s+(?:8|acht)\s+Jahren?/iu.test(sentence)) return true;
   if (/(?:8|acht)\s+statt\s+(?:10|zehn)\s+Jahren?/iu.test(sentence)) return true;
+  if (
+    /\b(?:nicht|keine)\s+(?:(?:mehr|länger|laenger)\s+)?(?:(?:10|zehn)[\s-]*jährig\w*|(?:10|zehn)\s+Jahren?)/iu.test(
+      sentence,
+    )
+  ) {
+    return true;
+  }
   return false;
 }
 

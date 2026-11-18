@@ -753,7 +753,7 @@ export async function readIntakeRowsSnapshot(): Promise<SheetRow[]> {
   });
   const hasRows = grid.values.some((row) => row.some((cell) => cell.trim()));
   const problem = hasRows ? intakeHeaderProblem(grid.header) : null;
-  if (problem) throw new IntakeHeaderError(problem);
+  if (problem) throw new IntakeHeaderError(problem.kind, problem.columns);
   return grid.values
     .filter((row) => row.some((cell) => cell.trim()))
     .map((row) => recoverStoredDocumentId(sheetRowFromValues(grid.header, row)));
