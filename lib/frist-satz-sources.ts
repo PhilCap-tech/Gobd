@@ -11,8 +11,9 @@ import { isBlobConfigured, isSheetsConfigured } from "@/lib/env";
 import { readStoredPdfBytes, resolveChapterContent, resolveIntakePayload } from "@/lib/blob";
 import { intakePayloadLocator } from "@/lib/intake-payload";
 import { logError } from "@/lib/log-error";
-import { orderedPageTexts, pageTexts } from "@/scripts/pdf-text";
+import { pageTexts, separatedPageTexts } from "@/scripts/pdf-text";
 import { runWithSheetsRoute } from "@/lib/sheets-outage";
+import { IntakeHeaderError } from "@/lib/intake-header";
 import { readIntakeRowsSnapshot } from "@/lib/store";
 import type { SheetRow } from "@/lib/types";
 import type { DraftListResult, FristSatzIo, VersionListResult, VersionRef } from "@/lib/frist-satz";
@@ -52,7 +53,7 @@ export type FristSatzSourceDeps = {
 };
 
 export function pdfKitPlainText(buffer: Buffer): string {
-  const ordered = orderedPageTexts(buffer).filter((part) => part.trim());
+  const ordered = separatedPageTexts(buffer).filter((part) => part.trim());
   if (ordered.length > 0) return ordered.join("\n\n");
   return pageTexts(buffer)
     .filter((part) => part.trim())
@@ -168,6 +169,7 @@ export function createFristSatzIo(deps: FristSatzSourceDeps = {}): FristSatzIo {
       rows = await rowsPromise;
     } catch (error) {
       rowsPromise = null;
+      if (error instanceof IntakeHeaderError) return { header: error.kind, columns: [...error.columns] };
       logError("[frist-satz] Zeilen", error);
       return { paused: true };
     }

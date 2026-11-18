@@ -311,6 +311,7 @@ const B01_SYSTEME: Array<{ name: string; sy: RegExp; b01: RegExp }> = [
   { name: "Projektsoftware", sy: /Projektsoftware/iu, b01: /Projektsoftware/iu },
   { name: "Onlineshop", sy: /Onlineshop/iu, b01: /Onlineshop/iu },
   { name: "NAS", sy: /\bNAS\b/iu, b01: /\bNAS\b/iu },
+  { name: "E-Mail", sy: /E-Mail/u, b01: /E-Mail/u },
 ];
 
 export function ohneVerneinteSysteme(text: string): string {
@@ -331,6 +332,12 @@ if (b01FehltSystem("Warenwirtschaft, DATEV Unternehmen online", "WaWi Lagerplus 
 }
 if (b01FehltSystem("Kein Kassensystem, keine Warenwirtschaft. Rechnungssoftware und NAS", "Rechnungssoftware und NAS").length !== 0) {
   fail("Negativtest: verneintes System wurde als fehlend gemeldet");
+}
+if (b01FehltSystem("E-Mail und NAS", "NAS").join(",") !== "E-Mail") {
+  fail("Negativtest: E-Mail ohne Karte wurde nicht erkannt");
+}
+if (b01FehltSystem("Keine E-Mail. NAS", "NAS").length !== 0) {
+  fail("Negativtest: verneinte E-Mail wurde als fehlend gemeldet");
 }
 console.log("negativ fremde Musterreste: rot");
 
@@ -539,6 +546,26 @@ for (const vorlage of MUSTER_VORLAGEN) {
   const b01Text = JSON.stringify(muster.answers.katalog?.B01?.values ?? {});
   const fehltB01 = b01FehltSystem(sy01Text, b01Text);
   if (fehltB01.length) fail(`${vorlage}: B01 nennt nicht alle Systeme aus SY01 (${fehltB01.join(", ")})`);
+  const karten = (muster.answers.katalog?.B01?.values?.systeme ?? []) as Array<Record<string, string>>;
+  const karte = (name: string) => karten.find((item) => item.name === name);
+  if (!karte("E-Mail")) fail(`${vorlage}: B01 ohne E-Mail-Karte`);
+  if (vorlage === "handel") {
+    const kasse = karte("KassaPro (fiktiv)");
+    const scanner = karte("Handscanner");
+    if (!kasse || kasse.hostingArt !== "Gemischt" || kasse.nutzer !== "Verkaufsleitung") fail("handel: Kassenkarte passt nicht zu KA91");
+    if (!scanner || scanner.hostingArt !== "Lokal") fail("handel: Handscanner ist als Cloud-System geführt");
+  }
+  if (vorlage === "gastro") {
+    const kasse = karte("KassaPro Gastro (fiktiv)");
+    if (!kasse || kasse.hostingArt !== "Gemischt" || kasse.nutzer !== "Schichtleitung") fail("gastro: Kassenkarte passt nicht zu KA91");
+  }
+  if ((vorlage === "dienstleister" || vorlage === "handwerk") && !karte("Zeiterfassungs-App Takt (fiktiv)")) {
+    fail(`${vorlage}: Zeiterfassung heißt nicht wie in ZE91`);
+  }
+  if (vorlage !== "dienstleister") {
+    const details = String(muster.answers.katalog?.EK92?.values?.details ?? "");
+    if (!details.includes("Freigabe durch die Geschäftsführung.")) fail(`${vorlage}: EK92 ohne Freigabe der Geschäftsführung`);
+  }
   const ek07 = String(muster.answers.katalog?.EK07?.values?.wer ?? "");
   if (vorlage === "ecommerce") {
     if (ek07 !== "Einkauf legt an, Buchhaltung bestätigt Bankdaten") fail("ecommerce: EK07 wurde mitgezogen");
@@ -561,7 +588,31 @@ for (const vorlage of MUSTER_VORLAGEN) {
       fail("ecommerce: B04 legt die Eingangs-E-Rechnung nicht in DATEV ab");
     }
     const mp = "Marktplatzrechnungen (MP-…) monatlich bis zum 5. als PDF/CSV aus dem Verkäuferkonto abrufen und in DATEV Unternehmen online ablegen, durch Nils Strom.";
-    if (!ec91.includes(mp) || !ar04.includes(mp)) fail("ecommerce: Abruf der Marktplatzrechnungen fehlt");
+    if (!ec91.includes(mp)) fail("ecommerce: Abruf der Marktplatzrechnungen fehlt");
+    if (!ar04.includes("Marktplatzrechnungen: DATEV Unternehmen online (Abruf monatlich bis zum 5. durch Nils Strom).")) {
+      fail("ecommerce: AR04 formuliert den Marktplatzabruf nicht als Ablageort");
+    }
+    if (String(muster.answers.katalog?.EK06?.values?.ablauf ?? "") !== "Nils Strom ordnet die in DATEV eingegangene Rechnung in der WaWi der Bestellung zu.") {
+      fail("ecommerce: EK06 beschreibt die Übergabe von DATEV in die WaWi nicht");
+    }
+  } else if (vorlage === "gastro") {
+    if (ek07 !== "Neuanlage und Änderung von Bankdaten durch die Buchhaltung, Freigabe durch die Geschäftsführung") {
+      fail("gastro: EK07 ohne Freigabe der Geschäftsführung");
+    }
+    const er01 = String(muster.answers.katalog?.ER01?.values?.postfach ?? "");
+    const er02 = String(muster.answers.katalog?.ER02?.values?.viewer ?? "");
+    const sy02 = String(muster.answers.katalog?.SY02?.values?.schnittstellen ?? "");
+    const b04 = JSON.stringify(muster.answers.katalog?.B04?.values ?? {});
+    if (!er01.includes("XRechnungen über den Eingangskanal von DATEV Unternehmen online") || er01.includes("Eingangskanal der Rechnungssoftware")) {
+      fail("gastro: ER01 empfängt Lieferanten-XRechnungen nicht über DATEV");
+    }
+    if (er02 !== "Technische Prüfung (Schema/Validierung) in DATEV Unternehmen online; fachliche Prüfung durch Keno Bruns.") {
+      fail("gastro: ER02 validiert nicht in DATEV");
+    }
+    if (!sy02.includes("E-Rechnungseingang über DATEV Unternehmen online, Ausgang über die Rechnungssoftware.")) {
+      fail("gastro: SY02 trennt Eingang und Ausgang nicht");
+    }
+    if (!b04.includes("Datei in DATEV Unternehmen online")) fail("gastro: B04 legt die Eingangs-E-Rechnung nicht in DATEV ab");
   } else if (ek07 !== "Neuanlage und Änderung von Bankdaten durch die Buchhaltung, Freigabe durch die Geschäftsführung") {
     fail(`${vorlage}: EK07 ohne Freigabe der Geschäftsführung`);
   }

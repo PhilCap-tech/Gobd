@@ -17,9 +17,14 @@ import {
   type VersionRef,
 } from "../lib/frist-satz";
 import { generatePdf } from "../lib/delivery";
+import { getGesamtMuster } from "../lib/module-muster";
+import { SV_BRANCHEN } from "../lib/schnellversion-answers";
+import { generateStandardPdf } from "../lib/schnellversion-pdf";
 import { createFristSatzIo, pdfKitPlainText } from "../lib/frist-satz-sources";
 import { pageTexts } from "./pdf-text";
 import { TEST_ENTITY_IDS } from "../lib/test-entities";
+import { intakeHeaderProblem } from "../lib/intake-header";
+import { BELEGFRIST_SAETZE } from "./fixtures/belegfrist-saetze";
 import { emptyAnswers, emptySheetRow, type SheetRow } from "../lib/types";
 
 delete process.env.BLOB_READ_WRITE_TOKEN;
@@ -118,7 +123,18 @@ function checkMatcher() {
     "the written triad does not count",
   );
   ok(!textHasOutdatedBuchungsfrist("Buchungsbelege 8 Jahre"), "8 Jahre does not match");
-  ok(!textHasOutdatedBuchungsfrist("Buchungsbelege 10 Jahren"), "Jahren is not the phrase");
+  ok(textHasOutdatedBuchungsfrist("Buchungsbelege 10 Jahren"), "Jahren matches the source check");
+  ok(textHasOutdatedBuchungsfrist("Buchungsbelege werden nach 10 Jahren gelöscht."), "nach 10 Jahren matches");
+  ok(textHasOutdatedBuchungsfrist("Für Buchungsbelege gilt eine zehnjährige Frist."), "zehnjährige matches");
+  ok(
+    !textHasOutdatedBuchungsfrist("Buchungsbelege werden nicht mehr 10 Jahre, sondern 8 Jahre aufbewahrt."),
+    "a negation is not the old phrase",
+  );
+  ok(!textHasOutdatedBuchungsfrist("Für Buchungsbelege gelten 8 statt 10 Jahre."), "8 statt 10 is not the old phrase");
+  ok(
+    !textHasOutdatedBuchungsfrist("Aufbewahrungsdauer (Buchungsbelege ≠ pauschal 10 Jahre)"),
+    "a denied flat ten years is not the old phrase",
+  );
   ok(!textHasOutdatedBuchungsfrist("Aufbewahrung 110 Jahre für Buchungsbelege"), "110 Jahre is not 10 Jahre");
   ok(
     !textHasOutdatedBuchungsfrist("Buchungsbelege sind zugeordnet. Die Frist beträgt 10 Jahre."),
@@ -126,7 +142,7 @@ function checkMatcher() {
   );
   ok(!textHasOutdatedBuchungsfrist("Buchungsbelege.\n10 Jahre"), "a period ends the sentence");
   const far = `Buchungsbelege ${"wort ".repeat(80)}10 Jahre`;
-  ok(!textHasOutdatedBuchungsfrist(far), "a long gap inside one sentence does not match");
+  ok(textHasOutdatedBuchungsfrist(far), "the same sentence counts, like the source check");
   ok(
     jsonTextHasOutdatedBuchungsfrist(
       JSON.stringify({
@@ -146,6 +162,9 @@ function checkMatcher() {
     ) === false,
     "an identity field is not searched",
   );
+  for (const satz of BELEGFRIST_SAETZE) {
+    ok(textHasOutdatedBuchungsfrist(satz.text) === satz.hit, `Fixture ${satz.name}`);
+  }
 }
 
 function checkPdfText() {
@@ -158,6 +177,13 @@ function checkPdfText() {
   ok(textHasOutdatedBuchungsfrist(kernedText), "a kerned sentence matches");
   const ended = miniPdf("(Buchungsbelege. ) Tj (10 Jahre bleiben bei den Büchern.) Tj");
   ok(!textHasOutdatedBuchungsfrist(pdfKitPlainText(ended)), "a period between PDF text calls does not match");
+  const cells = miniPdf(
+    "1 0 0 1 61 723 Tm (Zaehlprotokolle) Tj 1 0 0 1 188 723 Tm (8 Jahre als Buchungsbeleg; als Aufzeichnung 10 Jahre) Tj",
+  );
+  const separated = pdfKitPlainText(cells);
+  ok(separated.includes("Zaehlprotokolle 8 Jahre"), "a new text position separates table cells");
+  ok(!separated.includes("Zaehlprotokolle8"), "glued table cells are split");
+  ok(!textHasOutdatedBuchungsfrist(separated), "the neighbour ten-year clause does not count");
 }
 
 async function appPdf(body: string): Promise<Buffer> {
@@ -190,7 +216,7 @@ async function checkAppPdf() {
     ),
   );
   ok(triadText.includes("Bücher 10 Jahre"), "the app PDF still contains the books clause");
-  ok(triadText.includes("zehn Jahre"), "the app PDF still contains the written ten years");
+  ok(/zehn\s+Jahre/u.test(triadText), "the app PDF still contains the written ten years");
   ok(!textHasOutdatedBuchungsfrist(triadText), "the legal triad in an app PDF does not count");
 }
 
@@ -532,6 +558,180 @@ function functionSource(file: string, signature: string): string {
   return text.slice(start, next < 0 ? text.length : next);
 }
 
+const WRITE_ORIGINALS = ["put", "del", "appendRecord", "generatePdf", "writeFile", "saveIntakeDraft", "loadDocumentPdf", "materializeIntakeHeader"];
+
+/** Schreibt der Text über einen Alias oder über values.update/append? */
+export function fristWriteCall(source: string): string | null {
+  const names = new Set(WRITE_ORIGINALS);
+  for (const match of source.matchAll(/import\s*\{([^}]+)\}/g)) {
+    for (const part of match[1].split(",")) {
+      const bits = part.trim().split(/\s+as\s+/);
+      const original = bits[0]?.replace(/^type\s+/, "").trim();
+      const local = (bits[1] ?? original)?.trim();
+      if (original && local && WRITE_ORIGINALS.includes(original)) names.add(local);
+    }
+  }
+  for (const name of names) {
+    if (new RegExp(`\\b${name}\\s*\\(`).test(source)) return name;
+  }
+  if (/\.\s*(?:update|append|batchUpdate)\s*\(/.test(source)) {
+    return /\bbatchUpdate\s*\(/.test(source) ? "batchUpdate" : "update";
+  }
+  if (/\[\s*["'](?:update|append|batchUpdate)["']\s*\]\s*\(/.test(source)) return "update";
+  if (/\bbatchUpdate\s*\(/.test(source)) return "batchUpdate";
+  return null;
+}
+
+function sliceAssignedArrow(source: string, name: string): string {
+  const re = new RegExp(
+    `(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s*)?(?:\\([^)]*\\)|[A-Za-z_]\\w*)\\s*=>\\s*\\{`,
+  );
+  const match = re.exec(source);
+  if (!match || match.index === undefined) return "";
+  return sliceFunctionAt(source, match.index, match.index + match[0].length - 1);
+}
+
+function sliceFunctionAt(source: string, start: number, brace: number): string {
+  let depth = 0;
+  for (let index = brace; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  return "";
+}
+
+function sliceFunction(source: string, signature: string): string {
+  let from = 0;
+  let start = source.indexOf(signature, from);
+  while (start >= 0) {
+    const after = source[start + signature.length] ?? "";
+    if (!/[A-Za-z0-9_]/u.test(after)) break;
+    from = start + signature.length;
+    start = source.indexOf(signature, from);
+  }
+  if (start < 0) return "";
+  const brace = source.indexOf("{", start);
+  if (brace < 0) return "";
+  let depth = 0;
+  for (let index = brace; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  return "";
+}
+
+/** Snapshot plus lokale Helfer, die er aufruft. Ein Write darin lässt den Check fehlschlagen. */
+export function snapshotWriteBypass(fileSource: string): string | null {
+  const own = sliceFunction(fileSource, "export async function readIntakeRowsSnapshot");
+  if (!own) return fristWriteCall(fileSource);
+  let combined = own;
+  const seen = new Set<string>(["readIntakeRowsSnapshot"]);
+  for (const match of own.matchAll(/\b([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)) {
+    const name = match[1];
+    if (seen.has(name)) continue;
+    seen.add(name);
+    for (const signature of [`async function ${name}`, `function ${name}`, `export async function ${name}`, `export function ${name}`]) {
+      const body = sliceFunction(fileSource, signature);
+      if (!body) continue;
+      combined += `\n${body}`;
+      break;
+    }
+    if (!combined.includes(`function ${name}`)) {
+      const arrow = sliceAssignedArrow(fileSource, name);
+      if (arrow) combined += `\n${arrow}`;
+    }
+  }
+  return fristWriteCall(combined);
+}
+
+function checkHeaderAndBypass() {
+  if (intakeHeaderProblem(["", " "])?.kind !== "leer") fail("Negativtest: leerer Kopf wurde nicht erkannt");
+  const missing = intakeHeaderProblem(["timestamp", "email"]);
+  if (missing?.kind !== "unvollstaendig" || missing.columns.join(",") !== "fragen") {
+    fail("Negativtest: fehlende Spalte fragen wurde nicht erkannt");
+  }
+  if (intakeHeaderProblem(["timestamp", "fragen"]) !== null) fail("Negativtest: vollständiger Kopf wurde gemeldet");
+  const alias = 'import { put as save } from "@vercel/blob";\nawait save("a");';
+  if (fristWriteCall(alias) !== "save") fail("Negativtest: Alias save() wurde nicht erkannt");
+  if (fristWriteCall('import { readFile } from "node:fs";\nreadFile("a");') !== null) fail("Negativtest: harmloser Import gilt als Write");
+  const update = `export async function readIntakeRowsSnapshot() {
+    const v = createSheetsClient().spreadsheets.values;
+    await v.update({});
+  }`;
+  if (snapshotWriteBypass(update) !== "update") fail("Negativtest: values.update über eine Variable wurde nicht erkannt");
+  const decoy = `export async function readIntakeRowsSnapshot() {
+    await v.update({});
+  }
+  async function updateEntitySheetRow() {
+    await s.batchUpdate({});
+  }`;
+  if (snapshotWriteBypass(decoy) !== "update") fail("Negativtest: v.update wurde als batchUpdate gemeldet");
+  const bracket = `export async function readIntakeRowsSnapshot() {
+    const v = createSheetsClient().spreadsheets.values;
+    await v["update"]({});
+  }`;
+  if (snapshotWriteBypass(bracket) !== "update") fail("Negativtest: v[\"update\"] wurde nicht erkannt");
+  const batch = `export async function readIntakeRowsSnapshot() {
+    await s.batchUpdate({});
+  }`;
+  if (snapshotWriteBypass(batch) !== "batchUpdate") fail("Negativtest: batchUpdate wurde nicht erkannt");
+  const arrow = `export async function readIntakeRowsSnapshot() {
+    return ensureHeader();
+  }
+  const ensureHeader = async () => {
+    await materializeIntakeHeader(tab, []);
+  };`;
+  if (snapshotWriteBypass(arrow) !== "materializeIntakeHeader") fail("Negativtest: Arrow-Helfer wurde nicht erkannt");
+  const helper = `export async function readIntakeRowsSnapshot() {
+    return ensureHeader();
+  }
+  async function ensureHeader() {
+    await materializeIntakeHeader(tab, []);
+  }`;
+  if (snapshotWriteBypass(helper) !== "materializeIntakeHeader") fail("Negativtest: Header-Write in einem Helfer wurde nicht erkannt");
+  if (snapshotWriteBypass(readFileSync("lib/store.ts", "utf8")) !== null) fail("der echte Zeilenleser schreibt");
+  if (fristWriteCall(readFileSync("lib/frist-satz.ts", "utf8")) !== null) fail("der Zählkern schreibt");
+  if (fristWriteCall(readFileSync("lib/frist-satz-sources.ts", "utf8")) !== null) fail("die Quellen schreiben");
+  if (fristWriteCall(readFileSync("app/admin/ampel/frist-satz-action.ts", "utf8")) !== null) fail("die Action schreibt");
+}
+
+async function checkHeaderNote() {
+  const io = {
+    async listDrafts() {
+      return { pathnames: [] as string[] };
+    },
+    async readDraft() {
+      return null;
+    },
+  };
+  const empty = await scanFristSatzForAdmin(WIPE_EMAIL_ALLOWLIST[0], { mode: "start", cursor: "" }, {
+    ...io,
+    async loadVersions() {
+      return { header: "leer" as const };
+    },
+  }, NOW);
+  ok(empty.done && empty.cursor === "", "ein leerer Kopf bietet kein Fortsetzen");
+  ok(empty.note.includes("Tabellenkopf ist leer"), "ein leerer Kopf wird benannt");
+  ok(!empty.note.includes("nicht erreichbar"), "ein leerer Kopf ist kein Ausfall");
+  const partial = await scanFristSatzForAdmin(WIPE_EMAIL_ALLOWLIST[0], { mode: "start", cursor: "" }, {
+    ...io,
+    async loadVersions() {
+      return { header: "unvollstaendig" as const, columns: ["fragen"] };
+    },
+  }, NOW);
+  ok(partial.done && partial.cursor === "", "ein unvollständiger Kopf bietet kein Fortsetzen");
+  ok(partial.note.includes("unvollständiger Kopf") && partial.note.includes("Spalte fragen"), "die fehlende Spalte wird benannt");
+  ok(!partial.note.includes("nicht erreichbar"), "eine fehlende Spalte ist kein Ausfall");
+}
+
 function checkSourcesAreReadOnly() {
   const action = readFileSync("app/admin/ampel/frist-satz-action.ts", "utf8");
   const sources = readFileSync("lib/frist-satz-sources.ts", "utf8");
@@ -563,15 +763,91 @@ function checkSourcesAreReadOnly() {
   ok(page.includes("isAmpelAdminEmail") && page.includes("notFound("), "the page still refuses other sessions");
 }
 
+async function checkTableFixtures() {
+  const when = new Date("2026-11-17T10:00:00Z");
+  for (const branche of SV_BRANCHEN) {
+    const pdf = await generateStandardPdf(
+      {
+        firma: "Fixture GmbH",
+        branche: branche.id,
+        software: "DATEV",
+        bucht: "Unsere Steuerkanzlei",
+        kasse: branche.id === "gastro" || branche.id === "handel" ? "Ja, elektronische Kasse" : "Nein, keine Bargeldeinnahmen",
+        rechtsform: "GmbH",
+        mitarbeitende: "2–5",
+        softwareFrei: "",
+      },
+      when,
+    );
+    ok(!textHasOutdatedBuchungsfrist(pdfKitPlainText(pdf)), `${branche.id}: aktuelles Kunden-PDF zählt nicht`);
+  }
+  const voll = getGesamtMuster("handel");
+  ok(Boolean(voll), "kunde-voll fixture exists");
+  if (!voll) return;
+  const generated = await generatePdf({
+    answers: voll.answers,
+    identity: { ...voll.identity, entityId: undefined },
+    documentId: "kunde-voll-handel",
+    version: 1,
+    variant: "kunde",
+  });
+  ok(!textHasOutdatedBuchungsfrist(pdfKitPlainText(generated.buffer)), "kunde-voll Handel zählt nicht");
+  const zbon = await appPdf(
+    [
+      "| Unterlage | Frist |",
+      "| --- | --- |",
+      "| Bücher, Aufzeichnungen und Organisationsunterlagen | 10 Jahre |",
+      "| Buchungsbelege (z. B. Eingangs- und Ausgangsrechnungen, Kontoauszüge) | 8 Jahre |",
+      "| Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle | 8 Jahre als Buchungsbeleg; als Aufzeichnung 10 Jahre |",
+    ].join("\n"),
+  );
+  const zText = pdfKitPlainText(zbon);
+  // Die Zeile nennt für den Beleg 8 Jahre und 10 Jahre nur für die Aufzeichnung.
+  // In der Admin-Mock-Zählung waren 6 echte Treffer andere Seed-PDFs; dieses PDF war der falsche siebte.
+  ok(!textHasOutdatedBuchungsfrist(zText), "Z-Bon-Tabelle hat 0 echte Treffer");
+  const zeilen = await appPdf(
+    ["| Unterlage | Frist |", "| --- | --- |", "| Bücher und Aufzeichnungen | 10 Jahre |", "| Buchungsbelege | offen |"].join("\n"),
+  );
+  const zeilenText = pdfKitPlainText(zeilen);
+  const getrennt = "Bücher und Aufzeichnungen 10 Jahre\n\nBuchungsbelege offen";
+  ok(zeilenText.includes(getrennt), "zwei Tabellenzeilen auf derselben Seite sind getrennt");
+  ok(!textHasOutdatedBuchungsfrist(zeilenText), "zwei Tabellenzeilen auf einer Seite zählen nicht");
+  ok(
+    textHasOutdatedBuchungsfrist("Bücher und Aufzeichnungen 10 Jahre Buchungsbelege offen"),
+    "ohne Zeilentrennung entsteht der Treffer",
+  );
+  const umbruch = await appPdf(
+    [
+      "| Feld | Inhalt |",
+      "| --- | --- |",
+      "| Fristzuordnung | Verfahren der Zuordnung: Bücher und Abschlussunterlagen 10 Jahre, Buchungsbelege 8 Jahre, Handels- und Geschäftsbriefe 6 Jahre. |",
+    ].join("\n"),
+  );
+  const umbruchText = pdfKitPlainText(umbruch);
+  ok(umbruchText.includes("Buchungsbelege 8 Jahre"), "umbrochene Zelle bleibt ein Satz");
+  ok(!textHasOutdatedBuchungsfrist(umbruchText), "umbrochene Tabellenzelle zählt nicht");
+  const glued =
+    "Bücher und Organisationsunterlagen 10 Jahre § 147 Abs. 1 Nr. 1, Abs. 3 AO Buchungsbelege (z. B. Eingangs- und Ausgangsrechnungen, Kontoauszüge) 8 Jahre § 147 Abs. 1 Nr. 4, Abs. 3 AO";
+  ok(!textHasOutdatedBuchungsfrist(glued), "geklammerte 8-Jahres-Zeile zählt nicht");
+  const oldClauses = glued.split(/[,;]|\sund\s/u);
+  const oldHit = oldClauses.some((clause) => /Buchungsbeleg/u.test(clause) && !/\b8\s+Jahre/u.test(clause));
+  ok(oldHit, "ohne Klammer-Schutz zählt die Zeile falsch");
+  const echt = await appPdf("Die Buchungsbelege werden 10 Jahre aufbewahrt.");
+  ok(textHasOutdatedBuchungsfrist(pdfKitPlainText(echt)), "ein echter Altsatz im PDF zählt einmal");
+}
+
 async function main() {
   checkMatcher();
   checkPdfText();
   await checkAppPdf();
+  await checkTableFixtures();
   await checkCount();
   await checkContinue();
   await checkSources();
   await checkPauseAndAuth();
   checkSourcesAreReadOnly();
+  checkHeaderAndBypass();
+  await checkHeaderNote();
   console.log("check-frist-satz: ok");
 }
 

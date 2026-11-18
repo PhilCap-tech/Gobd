@@ -3,6 +3,7 @@
  * that still tie Buchungsbelege to the old ten-year figure.
  * No writes, no names, no addresses, no ids.
  */
+import { hitsIn } from "@/lib/belegfrist";
 import { isRetentionTestEmail } from "@/lib/retention-guards";
 import { isTestEntity } from "@/lib/test-entities";
 import { isAmpelAdminEmail } from "@/lib/ampel-admin";
@@ -16,7 +17,6 @@ export const FRIST_VERSION_PAGE = 8;
 export const FRIST_BUDGET_MS = 7_000;
 const MAX_DRAFT_PAGES = 4;
 const MAX_VERSION_PAGES = 3;
-const PHRASE_GAP = 240;
 
 const SKIP_KEYS = new Set([
   "email",
@@ -47,6 +47,9 @@ export type FristProgress = {
   draftsUnavailable: boolean;
   docsUnavailable: boolean;
   paused: boolean;
+  /** Leer oder ohne die Spalte fragen. Die Zählung endet, Fortsetzen läuft nicht weiter. */
+  headerProblem: "leer" | "unvollstaendig" | null;
+  headerColumns: string[];
 };
 
 export type DraftListResult =
@@ -72,6 +75,7 @@ export type VersionRef = {
 export type VersionListResult =
   | { paused: true }
   | { unavailable: true }
+  | { header: "leer" | "unvollstaendig"; columns?: string[] }
   | { items: VersionRef[]; done: boolean };
 
 export type FristSatzIo = {
@@ -111,35 +115,13 @@ export function deniedFristSatzView(now: Date): FristSatzView {
   };
 }
 
-const DURATION =
-  /\b(\d+|acht|sechs|sieben|fuenf|fünf|drei|vier|zwei|elf|zwölf|zwoelf|zehn)\s+jahre\b/i;
-
 /**
- * Buchungsbeleg(e) directly tied to ten years in the same comma/semicolon clause.
- * A later clause may still give books or records ten years. A single line break
- * is a wrap, not a new sentence. Each field value is checked on its own.
+ * Dieselbe Satzregel wie check:belegfrist. Verneinungen zählen nicht.
+ * „nach 10 Jahren“ und „zehnjährig“ zählen. Ein Zeilenumbruch ist ein Umbruch.
  */
 export function textHasOutdatedBuchungsfrist(text: string): boolean {
   const prepared = text.replace(/\u00a0/g, " ").replace(/\r\n/g, "\n");
-  const chunks = prepared.split(/\n{2,}|(?<=[.!?])(?:[ \t]+|\n+)/);
-  return chunks.some((chunk) => {
-    const sentence = chunk.replace(/\s+/g, " ").trim();
-    if (!sentence) return false;
-    return sentence.split(/[,;]/).some((clause) => clauseLinksTenYears(clause));
-  });
-}
-
-function clauseLinksTenYears(clause: string): boolean {
-  const subject = /\bbuchungsbelege?\b/gi;
-  let match: RegExpExecArray | null;
-  while ((match = subject.exec(clause))) {
-    const after = clause.slice(match.index + match[0].length);
-    const duration = DURATION.exec(after);
-    if (!duration || duration.index > PHRASE_GAP) continue;
-    const token = duration[1].toLowerCase();
-    if (token === "10" || token === "zehn") return true;
-  }
-  return false;
+  return hitsIn(prepared).length > 0;
 }
 
 /** Walk string leaves. Identity fields are not part of the sentence. */
@@ -184,6 +166,8 @@ function freshProgress(): FristProgress {
     draftsUnavailable: false,
     docsUnavailable: false,
     paused: false,
+    headerProblem: null,
+    headerColumns: [],
   };
 }
 
@@ -273,6 +257,8 @@ export function decodeFristProgress(raw: string): FristProgress | null {
     draftsUnavailable: record.draftsUnavailable,
     docsUnavailable: record.docsUnavailable,
     paused: false,
+    headerProblem: null,
+    headerColumns: [],
   };
 }
 
@@ -325,7 +311,17 @@ function buildNote(progress: FristProgress, done: boolean): string {
   if (progress.docsUnavailable) {
     parts.push("Die Tabelle ist nicht eingerichtet. Dokumentfassungen wurden nicht gelesen.");
   }
-  if (progress.paused) {
+  if (progress.headerProblem === "leer") {
+    parts.push(
+      "Der Tabellenkopf ist leer. Die Zählung endet, ohne Zeilen zu lesen. Es wird nichts geschrieben.",
+    );
+  } else if (progress.headerProblem === "unvollstaendig") {
+    const namen = progress.headerColumns.length ? progress.headerColumns.join(", ") : "fragen";
+    const fehlt = progress.headerColumns.length > 1 ? `Es fehlen die Spalten ${namen}.` : `Es fehlt die Spalte ${namen}.`;
+    parts.push(
+      `Hinweis: unvollständiger Kopf. ${fehlt} Die Zählung endet, ohne Zeilen über den PDF-Weg zu lesen. Es wird nichts geschrieben.`,
+    );
+  } else if (progress.paused) {
     parts.push(
       "Die Zählung pausiert, weil der Speicher oder die Tabelle kurz nicht erreichbar war. Fortsetzen liest weiter. Es wird nichts geschrieben.",
     );
@@ -429,6 +425,12 @@ export async function runFristSatzScan(options: {
   while (progress.phase === "docs" && !progress.paused && !expired() && versionPages < MAX_VERSION_PAGES) {
     versionPages += 1;
     const page = await options.io.loadVersions(progress.offset, versionLimit);
+    if ("header" in page) {
+      progress.headerProblem = page.header;
+      progress.headerColumns = page.columns ?? [];
+      progress.phase = "done";
+      break;
+    }
     if ("paused" in page) {
       progress.paused = true;
       break;

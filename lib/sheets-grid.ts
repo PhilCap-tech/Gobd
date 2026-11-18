@@ -77,6 +77,8 @@ export async function readCachedGrid(input: {
   reuseValues?: boolean;
   /** Skip the values snapshot for this read, then store the new one. */
   refreshValues?: boolean;
+  /** The sentence count reports an empty header itself and must not look like an outage. */
+  missingHeader?: "unavailable" | "return";
 }): Promise<GridSnapshot> {
   const mode = input.reuseValues === false ? "fresh" : input.refreshValues ? "refresh" : "cached";
   const key = [input.tab, input.op, input.headerRange, input.valuesRange, mode].join("\n");
@@ -99,6 +101,7 @@ async function loadCachedGrid(input: {
   materializeHeader?: (header: string[]) => Promise<string[]>;
   reuseValues?: boolean;
   refreshValues?: boolean;
+  missingHeader?: "unavailable" | "return";
 }): Promise<GridSnapshot> {
   const reuseValues = input.reuseValues !== false;
   const cachedHeader = usableHeader(input.headerCache.peek());
@@ -120,7 +123,7 @@ async function loadCachedGrid(input: {
     values = again.values;
   }
   const header = input.materializeHeader ? await input.materializeHeader(raw) : raw;
-  if (!usableHeader(header) && rowsHaveCells(values)) {
+  if (!usableHeader(header) && rowsHaveCells(values) && input.missingHeader !== "return") {
     throw new SheetsUnavailableError(0);
   }
   const filled = usableHeader(header);
