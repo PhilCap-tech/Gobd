@@ -113,6 +113,7 @@ Das kann sie. § 147 Abs. 3 Satz 5 AO hält die Frist offen, solange die Festset
 - [Verfahrensdokumentation GoBD Pflicht](/blog/verfahrensdokumentation-pflicht) — für wen die Dokumentation gilt
 - [Verfahrensdokumentation aktualisieren](/blog/verfahrensdokumentation-aktualisieren) — Versionen und Anlässe
 - [GoBD Verfahrensdokumentation erstellen](/blog/gobd-verfahrensdokumentation-erstellen) — Aufbau der gesamten Dokumentation
+- [Verfahrensdokumentation und DSGVO](/blog/verfahrensdokumentation-dsgvo) — Löschung, Aufbewahrung und Verarbeitungsverzeichnis
 
 ## Disclaimer
 
