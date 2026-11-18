@@ -52,4 +52,34 @@ export const BELEGFRIST_SAETZE: ReadonlyArray<{ name: string; text: string; hit:
   },
   { name: "Dreiklang und", text: "Buchungsbelege acht Jahre und Bücher zehn Jahre.", hit: false },
   { name: "10 statt 8", text: "Buchungsbelege werden 10 statt 8 Jahre aufbewahrt.", hit: true },
+  {
+    name: "Negation in anderer Klausel",
+    text: "Handelsbriefe müssen nicht 10 Jahre aufbewahrt werden, Buchungsbelege dagegen 10 Jahre.",
+    hit: true,
+  },
+  {
+    name: "kein Buchungsbeleg",
+    text: "Das Kassenbuch ist kein Buchungsbeleg, wird aber 10 Jahre aufbewahrt.",
+    hit: false,
+  },
+  {
+    name: "nicht nur 8 sondern 10",
+    text: "Buchungsbelege werden nicht nur 8, sondern 10 Jahre aufbewahrt.",
+    hit: true,
+  },
+  {
+    name: "nicht vor Ablauf von 10 Jahren",
+    text: "Buchungsbelege dürfen nicht vor Ablauf von 10 Jahren vernichtet werden.",
+    hit: true,
+  },
+  {
+    name: "10 Jahre, nicht 8",
+    text: "Buchungsbelege werden 10 Jahre aufbewahrt, nicht 8 Jahre.",
+    hit: true,
+  },
+  {
+    name: "keine zehnjährige sondern achtjährige",
+    text: "Für Buchungsbelege gilt keine zehnjährige, sondern eine achtjährige Frist.",
+    hit: false,
+  },
 ];

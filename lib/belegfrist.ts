@@ -55,26 +55,68 @@ function belegTenIsNegated(sentence: string): boolean {
   return false;
 }
 
-function clausesOf(sentence: string): string[] {
-  return sentence.split(/[,;]|\sund\s/u);
+/** Kommas und „und“ in Klammern bleiben in derselben Klausel. „(z. B. Eingangs- und …)“ zerreißt die Frist nicht. */
+function clausesOf(sentence: string): { text: string; before: string }[] {
+  const masked = sentence.replace(/(?<![\p{L}\d])\([^)]*\)/gu, (paren) =>
+    paren.replace(/[,;]/g, "\u0001").replace(/\sund\s/giu, " \u0002 "),
+  );
+  const parts = masked.split(/([,;]|\sund\s)/u);
+  const clauses: { text: string; before: string }[] = [];
+  let before = "";
+  for (const part of parts) {
+    if (part === "," || part === ";" || /^\sund\s$/u.test(part)) {
+      before = part.trim();
+      continue;
+    }
+    const text = part.replaceAll("\u0001", ",").replaceAll("\u0002", "und").trim();
+    if (text) clauses.push({ text, before });
+    before = "";
+  }
+  return clauses;
 }
 
-/** Treffer, wenn der Beleg-Begriff im selben Satz an der alten Zehn-Jahres-Form hängt. */
+function statesTenInsteadOfEight(text: string): boolean {
+  return /(?:10|zehn)\s+statt\s+(?:8|acht)\s+Jahren?/iu.test(text);
+}
+
+/** Die Verneinung gilt nur für die Klausel, in der der Buchungsbeleg steht. */
+function clauseStatesOldBelegPeriod(clause: string, previous: string, next: string, nextSep: string): boolean {
+  if (!mentionsBeleg(clause)) return false;
+  if (/\bkein(?:e|en|er)?\s+Buchungsbeleg/iu.test(clause)) return false;
+  if (statesTenInsteadOfEight(clause)) return true;
+  if (belegTenIsNegated(clause) || statedAsPastOrException(clause)) return false;
+  if (EIGHT.test(clause)) return false;
+  if (TEN.test(clause)) return true;
+  if (nextSep === "und" && TEN.test(next) && !EIGHT.test(next) && !belegTenIsNegated(next)) return true;
+  if (statesTenInsteadOfEight(previous)) return true;
+  if (belegTenIsNegated(previous) || statedAsPastOrException(previous)) return false;
+  if (EIGHT.test(previous) && !TEN.test(previous)) return false;
+  return TEN.test(previous);
+}
+
+/** Treffer, wenn der Buchungsbeleg in seiner Klausel an der alten Zehnjahresfrist hängt. */
 export function belegfristHit(sentence: string): string | null {
   if (!mentionsBeleg(sentence)) return null;
-  if (/(?:10|zehn)\s+statt\s+(?:8|acht)\s+Jahren?/iu.test(sentence)) {
-    return `alte Frist bei Buchungsbeleg: ${sentence.trim()}`;
-  }
-  if (!TEN.test(sentence)) return null;
-  if (belegTenIsNegated(sentence) || statedAsPastOrException(sentence)) return null;
+  if (!TEN.test(sentence) && !statesTenInsteadOfEight(sentence)) return null;
   const clauses = clausesOf(sentence);
   for (let index = 0; index < clauses.length; index += 1) {
-    const clause = clauses[index];
-    if (!mentionsBeleg(clause)) continue;
-    if (EIGHT.test(clause)) continue;
-    const previous = index > 0 ? clauses[index - 1] : "";
-    if (EIGHT.test(previous) && !TEN.test(previous)) continue;
-    return `alte Frist bei Buchungsbeleg: ${sentence.trim()}`;
+    const clause = clauses[index]?.text ?? "";
+    const previous = index > 0 ? clauses[index - 1]?.text ?? "" : "";
+    const next = clauses[index + 1]?.text ?? "";
+    const nextSep = clauses[index + 1]?.before ?? "";
+    if (clauseStatesOldBelegPeriod(clause, previous, next, nextSep)) {
+      return `alte Frist bei Buchungsbeleg: ${sentence.trim()}`;
+    }
+    if (
+      !mentionsBeleg(clause) &&
+      mentionsBeleg(clauses[index - 1]?.text ?? "") &&
+      /\bsondern\b/iu.test(clause) &&
+      TEN.test(clause) &&
+      !EIGHT.test(clause) &&
+      !belegTenIsNegated(previous)
+    ) {
+      return `alte Frist bei Buchungsbeleg: ${sentence.trim()}`;
+    }
   }
   return null;
 }

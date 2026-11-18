@@ -134,9 +134,10 @@ export function orderedPageTexts(buffer: Buffer): string[] {
 }
 
 /**
- * Wie orderedPageTexts, aber eine neue Textposition (Tm/Td) trennt Tabellenzellen.
+ * Tabellenzeile = eine Einheit, Zellen der Zeile mit Leerzeichen.
+ * Eine neue Zeile (andere Grundlinie) wird ein Absatz, damit die
+ * Aufbewahrungstabelle nicht ein einziger Satz wird.
  * Kerning bleibt zusammen: pdfkit setzt dort nur eine Zahl zwischen den Fragmenten.
- * Eine neue Textposition wird ein Leerzeichen, Kerning bleibt zusammen.
  */
 export function separatedPageTexts(buffer: Buffer): string[] {
   return pageStreams(buffer).map(separateCells);
@@ -144,17 +145,47 @@ export function separatedPageTexts(buffer: Buffer): string[] {
 
 function separateCells(latin: string): string {
   const token = /<([0-9A-Fa-f\s]+)>|\((?:\\.|[^\\)])*\)/g;
-  let out = "";
+  const pieces: { text: string; x: number | null; y: number | null }[] = [];
   let prevEnd = 0;
+  let x: number | null = null;
+  let y: number | null = null;
   let match: RegExpExecArray | null;
   while ((match = token.exec(latin))) {
     const between = latin.slice(prevEnd, match.index);
     const text = match[1] != null ? decodeHex(match[1]) : decodePdfLiteral((match[0] ?? "").slice(1, -1));
-    if (out && /(?:\bTm\b|\bTd\b|\bTD\b|\bT\*)/.test(between) && !/\s$/u.test(out) && !/^\s/u.test(text)) {
-      out += " ";
+    const tms = [...between.matchAll(/([+-]?(?:\d+\.?\d*|\.\d+))\s+([+-]?(?:\d+\.?\d*|\.\d+))\s+Tm/g)];
+    const moved = /(?:\bTm\b|\bTd\b|\bTD\b|\bT\*)/.test(between);
+    if (tms.length > 0) {
+      x = Number(tms.at(-1)?.[1]);
+      y = Number(tms.at(-1)?.[2]);
     }
-    out += text;
+    if (!moved && pieces.length > 0) pieces[pieces.length - 1]!.text += text;
+    else pieces.push({ text, x: moved ? x : pieces.at(-1)?.x ?? x, y: moved ? y : pieces.at(-1)?.y ?? y });
     prevEnd = match.index + match[0].length;
+  }
+  const lines: { cells: typeof pieces; table: boolean }[] = [];
+  for (const piece of pieces) {
+    const last = lines.at(-1);
+    const sameLine = last && piece.y != null && last.cells[0]?.y != null && Math.abs(piece.y - (last.cells[0]?.y ?? 0)) <= 0.8;
+    if (last && sameLine) last.cells.push(piece);
+    else lines.push({ cells: [piece], table: false });
+  }
+  for (const line of lines) {
+    const xs = line.cells.map((cell) => cell.x).filter((value): value is number => value != null);
+    line.table = new Set(xs.map((value) => Math.round(value))).size >= 2;
+  }
+  let out = "";
+  let prevTable = false;
+  for (const line of lines) {
+    const text = line.cells.map((cell) => cell.text).join(" ").replace(/[^\S\n]+/g, " ").trim();
+    if (!text) continue;
+    if (!out) {
+      out = text;
+      prevTable = line.table;
+      continue;
+    }
+    out += prevTable || line.table ? `\n\n${text}` : `\n${text}`;
+    prevTable = line.table;
   }
   return out;
 }

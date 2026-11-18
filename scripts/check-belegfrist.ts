@@ -147,7 +147,7 @@ for (const [name, text] of POSITIV) {
   console.log(`positiv ${name}: grün`);
 }
 
-console.log("check-belegfrist: 21 Testsätze");
+console.log("check-belegfrist: Testsätze aus dem Bericht");
 for (const satz of BELEGFRIST_SAETZE) {
   const found = hitsIn(satz.text);
   const hit = found.length > 0;

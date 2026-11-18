@@ -17,6 +17,9 @@ import {
   type VersionRef,
 } from "../lib/frist-satz";
 import { generatePdf } from "../lib/delivery";
+import { getGesamtMuster } from "../lib/module-muster";
+import { SV_BRANCHEN } from "../lib/schnellversion-answers";
+import { generateStandardPdf } from "../lib/schnellversion-pdf";
 import { createFristSatzIo, pdfKitPlainText } from "../lib/frist-satz-sources";
 import { pageTexts } from "./pdf-text";
 import { TEST_ENTITY_IDS } from "../lib/test-entities";
@@ -175,7 +178,7 @@ function checkPdfText() {
   const ended = miniPdf("(Buchungsbelege. ) Tj (10 Jahre bleiben bei den Büchern.) Tj");
   ok(!textHasOutdatedBuchungsfrist(pdfKitPlainText(ended)), "a period between PDF text calls does not match");
   const cells = miniPdf(
-    "(Zaehlprotokolle) Tj 1 0 0 1 188 723 Tm (8 Jahre als Buchungsbeleg; als Aufzeichnung 10 Jahre) Tj",
+    "1 0 0 1 61 723 Tm (Zaehlprotokolle) Tj 1 0 0 1 188 723 Tm (8 Jahre als Buchungsbeleg; als Aufzeichnung 10 Jahre) Tj",
   );
   const separated = pdfKitPlainText(cells);
   ok(separated.includes("Zaehlprotokolle 8 Jahre"), "a new text position separates table cells");
@@ -213,7 +216,7 @@ async function checkAppPdf() {
     ),
   );
   ok(triadText.includes("Bücher 10 Jahre"), "the app PDF still contains the books clause");
-  ok(triadText.includes("zehn Jahre"), "the app PDF still contains the written ten years");
+  ok(/zehn\s+Jahre/u.test(triadText), "the app PDF still contains the written ten years");
   ok(!textHasOutdatedBuchungsfrist(triadText), "the legal triad in an app PDF does not count");
 }
 
@@ -602,7 +605,14 @@ function sliceFunctionAt(source: string, start: number, brace: number): string {
 }
 
 function sliceFunction(source: string, signature: string): string {
-  const start = source.indexOf(signature);
+  let from = 0;
+  let start = source.indexOf(signature, from);
+  while (start >= 0) {
+    const after = source[start + signature.length] ?? "";
+    if (!/[A-Za-z0-9_]/u.test(after)) break;
+    from = start + signature.length;
+    start = source.indexOf(signature, from);
+  }
   if (start < 0) return "";
   const brace = source.indexOf("{", start);
   if (brace < 0) return "";
@@ -657,6 +667,13 @@ function checkHeaderAndBypass() {
     await v.update({});
   }`;
   if (snapshotWriteBypass(update) !== "update") fail("Negativtest: values.update über eine Variable wurde nicht erkannt");
+  const decoy = `export async function readIntakeRowsSnapshot() {
+    await v.update({});
+  }
+  async function updateEntitySheetRow() {
+    await s.batchUpdate({});
+  }`;
+  if (snapshotWriteBypass(decoy) !== "update") fail("Negativtest: v.update wurde als batchUpdate gemeldet");
   const bracket = `export async function readIntakeRowsSnapshot() {
     const v = createSheetsClient().spreadsheets.values;
     await v["update"]({});
@@ -746,10 +763,64 @@ function checkSourcesAreReadOnly() {
   ok(page.includes("isAmpelAdminEmail") && page.includes("notFound("), "the page still refuses other sessions");
 }
 
+async function checkTableFixtures() {
+  const when = new Date("2026-11-17T10:00:00Z");
+  for (const branche of SV_BRANCHEN) {
+    const pdf = await generateStandardPdf(
+      {
+        firma: "Fixture GmbH",
+        branche: branche.id,
+        software: "DATEV",
+        bucht: "Unsere Steuerkanzlei",
+        kasse: branche.id === "gastro" || branche.id === "handel" ? "Ja, elektronische Kasse" : "Nein, keine Bargeldeinnahmen",
+        rechtsform: "GmbH",
+        mitarbeitende: "2–5",
+        softwareFrei: "",
+      },
+      when,
+    );
+    ok(!textHasOutdatedBuchungsfrist(pdfKitPlainText(pdf)), `${branche.id}: aktuelles Kunden-PDF zählt nicht`);
+  }
+  const voll = getGesamtMuster("handel");
+  ok(Boolean(voll), "kunde-voll fixture exists");
+  if (!voll) return;
+  const generated = await generatePdf({
+    answers: voll.answers,
+    identity: { ...voll.identity, entityId: undefined },
+    documentId: "kunde-voll-handel",
+    version: 1,
+    variant: "kunde",
+  });
+  ok(!textHasOutdatedBuchungsfrist(pdfKitPlainText(generated.buffer)), "kunde-voll Handel zählt nicht");
+  const zbon = await appPdf(
+    [
+      "| Unterlage | Frist |",
+      "| --- | --- |",
+      "| Bücher, Aufzeichnungen und Organisationsunterlagen | 10 Jahre |",
+      "| Buchungsbelege (z. B. Eingangs- und Ausgangsrechnungen, Kontoauszüge) | 8 Jahre |",
+      "| Tagesabschlüsse (Z-Bons), Kassenberichte und Zählprotokolle | 8 Jahre als Buchungsbeleg; als Aufzeichnung 10 Jahre |",
+    ].join("\n"),
+  );
+  const zText = pdfKitPlainText(zbon);
+  // Die Zeile nennt für den Beleg 8 Jahre und 10 Jahre nur für die Aufzeichnung.
+  // In der Admin-Mock-Zählung waren 6 echte Treffer andere Seed-PDFs; dieses PDF war der falsche siebte.
+  ok(!textHasOutdatedBuchungsfrist(zText), "Z-Bon-Tabelle hat 0 echte Treffer");
+  ok(/\n\n/.test(zText), "Tabellenzeilen bleiben eigene Absätze");
+  const glued =
+    "Bücher und Organisationsunterlagen 10 Jahre § 147 Abs. 1 Nr. 1, Abs. 3 AO Buchungsbelege (z. B. Eingangs- und Ausgangsrechnungen, Kontoauszüge) 8 Jahre § 147 Abs. 1 Nr. 4, Abs. 3 AO";
+  ok(!textHasOutdatedBuchungsfrist(glued), "geklammerte 8-Jahres-Zeile zählt nicht");
+  const oldClauses = glued.split(/[,;]|\sund\s/u);
+  const oldHit = oldClauses.some((clause) => /Buchungsbeleg/u.test(clause) && !/\b8\s+Jahre/u.test(clause));
+  ok(oldHit, "ohne Klammer-Schutz zählt die Zeile falsch");
+  const echt = await appPdf("Die Buchungsbelege werden 10 Jahre aufbewahrt.");
+  ok(textHasOutdatedBuchungsfrist(pdfKitPlainText(echt)), "ein echter Altsatz im PDF zählt einmal");
+}
+
 async function main() {
   checkMatcher();
   checkPdfText();
   await checkAppPdf();
+  await checkTableFixtures();
   await checkCount();
   await checkContinue();
   await checkSources();
