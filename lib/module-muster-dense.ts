@@ -744,7 +744,7 @@ function feldgenau(katalog: Record<string, Entry>, vorlage: MusterDenseId, f: De
   }
   const ek92 = String(out.EK92?.values?.details ?? "");
   const bankAlt = "Rückruf über bekannte Nummer und Bestätigung durch die Buchhaltung.";
-  const bankNeu = "Rückruf über bekannte Nummer und Bestätigung durch die Buchhaltung, Freigabe durch die Geschäftsführung (EK07).";
+  const bankNeu = "Rückruf über bekannte Nummer und Bestätigung durch die Buchhaltung, Freigabe durch die Geschäftsführung.";
   if (ek92.includes(bankAlt)) setFeld(out, "EK92", { details: ek92.replace(bankAlt, bankNeu) });
   if (vorlage === "dienstleister") {
     ergaenzeSysteme(out, [systemKarte("Zeiterfassungs-App Takt (fiktiv)", "Zeiterfassung", f.buchhaltung, "Cloud des App-Anbieters")]);
@@ -1227,7 +1227,7 @@ function vorlageExtras(f: DenseFirma, vorlage: MusterDenseId): Record<string, En
       WW02: b({ wer: f.buchhaltung, freigabe: `${f.gf} bei Preisänderungen über 10 Prozent`, protokolliert: "ja" }),
       WW03: b({
         ablauf: "Die lagerverantwortliche Person prüft Menge und Zustand gegen Lieferschein und Bestellung und bucht den Wareneingang.",
-        wer: `Lagerverantwortliche Person; Kontrolle durch ${f.buchhaltung} beim Rechnungsabgleich (EK06)`,
+        wer: `Lagerverantwortliche Person; Kontrolle durch ${f.buchhaltung} beim Rechnungsabgleich`,
       }),
       WW06: b({
         lagerorte: "Ein Lager am Standort Leipzig mit Regal- und Versandbereich",

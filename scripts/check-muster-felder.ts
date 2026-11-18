@@ -564,7 +564,7 @@ for (const vorlage of MUSTER_VORLAGEN) {
   }
   if (vorlage !== "dienstleister") {
     const details = String(muster.answers.katalog?.EK92?.values?.details ?? "");
-    if (!details.includes("Freigabe durch die Geschäftsführung (EK07)")) fail(`${vorlage}: EK92 ohne Freigabe der Geschäftsführung`);
+    if (!details.includes("Freigabe durch die Geschäftsführung.")) fail(`${vorlage}: EK92 ohne Freigabe der Geschäftsführung`);
   }
   const ek07 = String(muster.answers.katalog?.EK07?.values?.wer ?? "");
   if (vorlage === "ecommerce") {

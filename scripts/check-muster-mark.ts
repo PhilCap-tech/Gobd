@@ -77,6 +77,30 @@ if (musterPdfHatEuro(MUSTER_PDF_HINWEIS)) {
 }
 console.log("negativ Euro im Muster-PDF: rot");
 
+/**
+ * Interne Frage-ID im extrahierten Muster-PDF. Der Build verlangt 0 Treffer.
+ * „AO“ plus Kapitelnummer entsteht, weil der Extraktor „AO“ an die nächste
+ * Überschrift klebt. Das ist die Abgabenordnung, keine Frage-ID.
+ */
+export function musterPdfHatFrageId(text: string): string | null {
+  for (const match of text.matchAll(/\b[A-Z]{2}\d{2}\b/gu)) {
+    if (match[0].startsWith("AO")) continue;
+    return match[0];
+  }
+  return null;
+}
+
+if (musterPdfHatFrageId("Freigabe durch die Geschäftsführung (EK07)") !== "EK07") {
+  throw new Error("Negativtest: Frage-ID im Mustertext nicht erkannt");
+}
+if (musterPdfHatFrageId("Freigabe durch die Geschäftsführung.")) {
+  throw new Error("Negativtest: Satz ohne Frage-ID wurde gemeldet");
+}
+if (musterPdfHatFrageId("§ 147 Abs. 3 Satz 4 AO17 Systeme")) {
+  throw new Error("Negativtest: AO an der Kapitelnummer gilt als Frage-ID");
+}
+console.log("negativ Frage-ID im Muster-PDF: rot");
+
 const EXPECTED_PRICE = `${TODAY_EUR} € zum Start (Einrichtung + 1. Monat), danach ${MONTHLY_EUR} €/Monat, zzgl. USt. · monatlich kündbar · alle 24 Module inklusive`;
 const EXPECTED_BREAKDOWN = `${TODAY_EUR} € zum Start = ${SETUP_EUR} € Einrichtung + ${MONTHLY_EUR} € für den 1. Monat, zzgl. USt. (brutto ${TODAY_GROSS_LABEL} €)`;
 
@@ -187,6 +211,8 @@ function assertMusterPdf(label: string, pages: string[], buffer: Buffer, require
   expect(!pages[0]?.includes(MUSTER_PDF_HINWEIS), `${label} sentence is not the cover`);
   const text = joined(pages);
   expect(!musterPdfHatEuro(text), `${label} has no euro sign`);
+  const frageId = musterPdfHatFrageId(text);
+  expect(!frageId, `${label} has no question id${frageId ? ` (${frageId})` : ""}`);
   expect(!text.includes(KUNDE_COVER_LINE), `${label} does not say it is a customer working copy`);
   if (requireModules) {
     for (const modul of MODULE) {
@@ -277,6 +303,8 @@ async function main() {
     const seiten = pageTexts(pdf.buffer);
     expect(Boolean(seiten.at(-1)?.includes(MUSTER_PDF_HINWEIS)), `${vorlage} last page is the one sentence`);
     expect(!musterPdfHatEuro(joined(seiten)), `${vorlage} has no euro sign`);
+    const frageId = musterPdfHatFrageId(joined(seiten));
+    expect(!frageId, `${vorlage} has no question id${frageId ? ` (${frageId})` : ""}`);
   }
 
   const omitted = await generatePdf({
