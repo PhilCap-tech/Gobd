@@ -94,11 +94,29 @@ async function main() {
   ok(findNamed(process.cwd(), "_build").length === 0, "the draft build scripts are not in the repo");
 
   const seiten = await listFragenSeiten();
+  const explicitSeiten: { slug: string; stand: string; gruppe: string }[] = [
+    { slug: "verfahrensdokumentation-ab-wann", stand: "2026-11-14", gruppe: "pflicht-adressaten" },
+    { slug: "verfahrensdokumentation-freiberufler-pflicht", stand: "2026-11-15", gruppe: "pflicht-adressaten" },
+    { slug: "kasse-beim-finanzamt-melden", stand: "2026-11-16", gruppe: "kasse-tse-kassennachschau" },
+    { slug: "ihk-awv-muster-verbindlich", stand: "2026-11-17", gruppe: "erstellen-vorlage-muster" },
+    { slug: "ersetzendes-scannen", stand: "2026-11-18", gruppe: "aufbewahrung-archiv" },
+  ];
+  const wave1Pages = seiten.filter((seite) => seite.welle === 1).length;
+  const expectedLatestStand = explicitSeiten.reduce(
+    (latest, spec) => (spec.stand > latest ? spec.stand : latest),
+    "2026-11-11",
+  );
   ok(
     files.length === seiten.length && seiten.length === Object.keys(FRAGEN_SEITEN_NR).length,
     `page count is the number of content/fragen files (${files.length})`,
   );
-  ok(files.length === 28, "content/fragen has 28 pages");
+  ok(
+    files.length === wave1Pages + explicitSeiten.length &&
+      seiten
+        .filter((seite) => seite.welle !== 1)
+        .every((seite) => explicitSeiten.some((spec) => spec.slug === seite.slug)),
+    `content/fragen has ${files.length} pages`,
+  );
   const repeated = `# Frage\n\n${FRAGEN_DISCLAIMER}\n\nDie Kurzantwort steht hier wortgleich.\n`;
   ok(
     bodyShowsKurzantwort(repeated, "Die Kurzantwort steht hier wortgleich."),
@@ -110,7 +128,7 @@ async function main() {
   );
   const maxStand = seiten.reduce((latest, seite) => (seite.stand > latest ? seite.stand : latest), "");
   ok(latestFragenStand(seiten) === maxStand, "latest stand is the max stand");
-  ok(maxStand === "2026-11-17", "latest stand is 2026-11-17");
+  ok(maxStand === expectedLatestStand, `latest stand is ${expectedLatestStand}`);
 
   const published = new Set((await listPublishedPosts()).map((post) => post.slug));
   const index = source("app/fragen/page.tsx");
@@ -228,7 +246,10 @@ async function main() {
 
   const entries = await listFragenIndex();
   ok(entries.length === seiten.length + FRAGEN_KURZLINKS.length, "index entries are pages plus kurz+link rows");
-  ok(FRAGEN_KURZLINKS.length === 47, "47 kurz+link rows");
+  ok(
+    FRAGEN_KURZLINKS.length === entries.length - seiten.length,
+    `${FRAGEN_KURZLINKS.length} kurz+link rows`,
+  );
   const slugs = new Set(seiten.map((seite) => seite.slug));
   for (const row of FRAGEN_KURZLINKS) {
     ok(!slugs.has(row.slug), `${row.slug} is not a thin /fragen page`);
@@ -281,7 +302,7 @@ async function main() {
   const urls = sitemapEntries.map((entry) => entry.url);
   const fragenUrls = urls.filter((url) => url === canonicalUrl("/fragen") || url.includes("/fragen/"));
   ok(fragenUrls.length === 1 + seiten.length, `sitemap /fragen section is the index plus ${seiten.length} pages`);
-  ok(fragenUrls.length === 29, "sitemap /fragen section has 29 urls");
+  ok(fragenUrls.length === 1 + files.length, `sitemap /fragen section has ${fragenUrls.length} urls`);
   ok(urls.filter((url) => url === canonicalUrl("/fragen")).length === 1, "sitemap lists /fragen once");
   for (const seite of seiten) {
     const entry = sitemapEntries.find((item) => item.url === canonicalUrl(seite.route));
@@ -291,12 +312,6 @@ async function main() {
     ok(!urls.includes(canonicalUrl(`/fragen/${row.slug}`)), `sitemap omits later slug ${row.slug}`);
   }
 
-  const explicitSeiten: { slug: string; stand: string; gruppe: string }[] = [
-    { slug: "verfahrensdokumentation-ab-wann", stand: "2026-11-14", gruppe: "pflicht-adressaten" },
-    { slug: "verfahrensdokumentation-freiberufler-pflicht", stand: "2026-11-15", gruppe: "pflicht-adressaten" },
-    { slug: "kasse-beim-finanzamt-melden", stand: "2026-11-16", gruppe: "kasse-tse-kassennachschau" },
-    { slug: "ihk-awv-muster-verbindlich", stand: "2026-11-17", gruppe: "erstellen-vorlage-muster" },
-  ];
   for (const spec of explicitSeiten) {
     const seite = seiten.find((item) => item.slug === spec.slug);
     ok(seite, `${spec.slug} is a published page`);
