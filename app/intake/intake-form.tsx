@@ -171,14 +171,22 @@ function firmFactsFor(
 }
 
 function resolveInitialStep(answers: IntakeAnswers, stepId?: string, modulId?: string): number {
-  const fallback = nextApplicableStep(-1, answers);
+  return applicableRequestedStep(answers, stepId, modulId) ?? nextApplicableStep(-1, answers);
+}
+
+/** Angefragter Schritt, nur wenn er für diese Angaben gilt. Sonst null, damit der gespeicherte Stand bleibt. */
+function applicableRequestedStep(
+  answers: IntakeAnswers,
+  stepId?: string,
+  modulId?: string,
+): number | null {
   const moduleStep = modulId ? `step-M${modulId.slice(1)}` : "";
   for (const id of [moduleStep, stepId ?? ""]) {
     if (!id) continue;
     const index = CATALOG_STEPS.findIndex((step) => step.id === id);
     if (index >= 0 && catalogStepApplies(CATALOG_STEPS[index], answers)) return index;
   }
-  return fallback;
+  return null;
 }
 
 function startAnswers(
@@ -565,11 +573,13 @@ export function IntakeForm({
         const stripped = stripEmptyIntakeCards(decision.answers);
         const scoped = gesamtMode || isGesamt(stripped) ? ensureGesamt(stripped) : stripped;
         const restoredAnswers = prefillKnownFacts(scoped, liveFactsRef.current);
-        const restoredStep = resumeIntakeStep({
-          step: decision.step,
-          stepId: chosen?.stepId,
-          answers: restoredAnswers,
-        });
+        const restoredStep =
+          applicableRequestedStep(restoredAnswers, initialStepId, focusModulId) ??
+          resumeIntakeStep({
+            step: decision.step,
+            stepId: chosen?.stepId,
+            answers: restoredAnswers,
+          });
         const plan = restoreSavePlan(server, chosen);
         if (plan.savedAt) {
           setServerDraftAt(plan.savedAt);
@@ -603,7 +613,7 @@ export function IntakeForm({
     return () => {
       cancelled = true;
     };
-  }, [draftKey, localDraftKey, session.stripeSessionId]);
+  }, [draftKey, focusModulId, initialStepId, localDraftKey, session.stripeSessionId]);
   useEffect(() => {
     if (!draftReady) return;
     const snapshot = JSON.stringify({ answers, step, change });
