@@ -35,6 +35,14 @@ function quote(title: string, body: string): string[] {
   return [`### ${title}`, "", body, ""];
 }
 
+const AGB_SCHNELLVERSION = "§ 12d Schnellversion (Standard-PDF)";
+
+/** § 12d steht nur in den AGB, wenn das Flag an ist. Dann steht er auch hier. */
+function quoteSchnellversion(): string[] {
+  if (!agbMarkdown.includes(`## ${AGB_SCHNELLVERSION}`)) return [];
+  return quote(`AGB ${AGB_SCHNELLVERSION}`, markdownH2Section(agbMarkdown, AGB_SCHNELLVERSION));
+}
+
 /** One line per `BRANCHEN_SLUGS` entry, so a new slug shows up here too. */
 function industryLines(): string[] {
   const labels = new Map(
@@ -132,6 +140,7 @@ export function buildLlmsTxt(): string {
       markdownH2Section(agbMarkdown, AGB_GUARANTEE),
     ),
     ...quote(`AGB ${AGB_TERM}`, markdownH2Section(agbMarkdown, AGB_TERM)),
+    ...quoteSchnellversion(),
 
     `Kontakt: ${LEGAL_OPERATOR.email}`,
     "",

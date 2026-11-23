@@ -1282,7 +1282,7 @@ async function main() {
     "Eine Anrechnung nach § 12d Abs. 6 findet bei der Reaktivierung nicht statt.",
     "Geben Sie den Firmennamen beim Upgrade so an wie bei der Schnellversion.",
     "Der Preis beträgt einmalig 49 € (58,31 € brutto) je Firma. Ein Abonnement entsteht nicht.",
-    "im Kundenkonto (Anmeldung per Magic-Link mit der E-Mail-Adresse der Bestellung).",
+    "im Kundenkonto (Anmeldung per Magic-Link mit der E-Mail-Adresse der Bestellung). Zusätzlich können Sie das PDF über den persönlichen Download-Link in Ihrer Kaufbestätigung per E-Mail ohne Anmeldung herunterladen; bitte geben Sie diesen Link nicht weiter.",
     "Eine Standardfassung, die Ihre tatsächlichen Abläufe nicht wiedergibt, ist keine fehlgeschlagene Erstellung im Sinne von § 9 Abs. 2 (Abs. 2).",
   ];
   const agbAn = applyLegalConditions(agb, legalFlagsFor(true, false, false, false, true));
@@ -1319,8 +1319,17 @@ async function main() {
   const agbOn = applyLegalConditions(agb, on);
   const mainAgb = agbAufMain();
   ok(agbOff === mainAgb, "AGB ohne Flag wie main");
-  const verborgen = ["Schnellversion", "§ 12d", "Standardfassung"];
+  const downloadOhneAnmeldung =
+    "Zusätzlich können Sie das PDF über den persönlichen Download-Link in Ihrer Kaufbestätigung per E-Mail ohne Anmeldung herunterladen; bitte geben Sie diesen Link nicht weiter.";
+  ok(agbOn.includes(downloadOhneAnmeldung), "AGB mit Flag nennt den Download-Link ohne Anmeldung");
+  ok(!agbOff.includes(downloadOhneAnmeldung), "AGB ohne Flag ohne den Download-Link-Satz");
+  const verborgen = ["Schnellversion", "§ 12d", "Standardfassung", downloadOhneAnmeldung];
   const llms = llmsOhneSchnellversion(agbOff);
+  if (agbMarkdown.includes("## § 12d Schnellversion (Standard-PDF)")) {
+    ok(buildLlmsTxt().includes(downloadOhneAnmeldung), "llms.txt mit Flag enthält den Download-Link-Satz");
+  } else {
+    ok(!buildLlmsTxt().includes(downloadOhneAnmeldung), "llms.txt ohne gesetztes Flag ohne den Download-Link-Satz");
+  }
   for (const fund of verborgen) {
     ok(!agbOff.includes(fund), `AGB ohne Flag ohne ${fund}`);
     ok(!applyLegalConditions(dse, off).includes(fund), `Datenschutz ohne Flag ohne ${fund}`);
@@ -1497,15 +1506,26 @@ async function checkSandboxCheckout(): Promise<void> {
 }
 
 const MAIN_AGB_SHA = "2f44180b707c2fdc865ec081a6876448894f7b04";
+const MAIN_AGB_FIXTURE = "scripts/fixtures/agb-v3-main-2f44180.md";
 
-/** AGB von main. Ein flacher Clone holt genau diesen Commit nach. */
+/**
+ * AGB von main 2f44180. Vercel klont zu flach und darf diesen Commit nicht nachladen.
+ * Liegt der Commit lokal, muss die Fixture damit übereinstimmen.
+ */
 function agbAufMain(): string {
+  const fixture = readFileSync(MAIN_AGB_FIXTURE, "utf8");
   try {
-    execSync(`git cat-file -e ${MAIN_AGB_SHA}^{commit}`, { stdio: "ignore" });
-  } catch {
-    execSync(`git fetch --depth=1 origin ${MAIN_AGB_SHA}`, { stdio: "ignore" });
+    const fromGit = execSync(`git show ${MAIN_AGB_SHA}:content/legal/agb-v3.md`, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    if (fromGit !== fixture) {
+      throw new Error(`AGB-Fixture weicht von ${MAIN_AGB_SHA} ab`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("AGB-Fixture weicht")) throw error;
   }
-  return execSync(`git show ${MAIN_AGB_SHA}:content/legal/agb-v3.md`, { encoding: "utf8" });
+  return fixture;
 }
 
 /** buildLlmsTxt liest die AGB beim Import aus process.env. Hier gilt das explizit ausgeschaltete Flag. */
@@ -1520,7 +1540,7 @@ function llmsOhneSchnellversion(agbQuiet: string): string {
   for (const heading of headings) {
     text = text.replace(markdownH2Section(agbMarkdown, heading), markdownH2Section(agbQuiet, heading));
   }
-  return text;
+  return text.replace(/\n### AGB § 12d Schnellversion \(Standard-PDF\)\n\n[\s\S]*?\n(?=Kontakt: )/, "\n");
 }
 
 function checkPreviewDataGate(): void {
