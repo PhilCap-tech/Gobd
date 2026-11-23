@@ -86,6 +86,7 @@ function clampApplicable(index: number, answers: IntakeAnswers): number {
  * Seite ohne Stand fort.
  */
 export function resumeIntakeStep(input: { step: number; stepId?: string; answers: IntakeAnswers }): number {
+  // Unbekannte oder fehlende Schritt-Id: die gespeicherte Nummer bleibt der Fallback.
   const explicit = input.stepId && indexOfStep(input.stepId) >= 0 ? input.stepId : "";
   if (explicit) return clampApplicable(indexOfStep(explicit), input.answers);
   if (!Number.isFinite(input.step) || input.step >= LEGACY_INTAKE_STEP_IDS.length) {

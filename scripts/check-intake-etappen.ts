@@ -15,10 +15,12 @@ import {
   catalogStepIssues,
   intakeStepLabel,
   nextApplicableStep,
+  prefillKnownFacts,
   previousApplicableStep,
   setCatalogStatus,
   setCatalogValue,
 } from "../lib/intake-catalog";
+import { stripEmptyIntakeCards } from "../lib/intake-present";
 import { LEGACY_INTAKE_STEP_IDS, resumeIntakeStep } from "../lib/intake-draft-step";
 import { preferIntakeSnapshot, serverSaveCoversRestore, type IntakeDraftSnapshot } from "../lib/intake-draft-shared";
 import {
@@ -31,7 +33,7 @@ import {
 } from "../lib/intake-m01";
 import { RECHTSFORM_FREITEXT } from "../lib/intake-present";
 import { getGesamtMuster, MUSTER_VORLAGEN } from "../lib/module-muster";
-import { ensureGesamt, setCheckAntwort, setModulEintrag } from "../lib/module/status";
+import { ensureGesamt, isGesamt, setCheckAntwort, setModulEintrag } from "../lib/module/status";
 import { emptyAnswers } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
@@ -147,6 +149,33 @@ ok(LEGACY_INTAKE_STEP_IDS[6] === "step-M01", "alte Nummer 6 war die eine Modul-1
 ok(LEGACY_INTAKE_STEP_IDS[7] === "step-M02", "alte Nummer 7 war Modul 2");
 ok(LEGACY_INTAKE_STEP_IDS[26] === "step-M21", "alte Nummer 26 war Modul 21");
 ok(CATALOG_STEPS[resumeIntakeStep({ step: 6, answers: gesamt })].id === "step-M01", "alter Modul-1-Entwurf ohne Stand startet auf der ersten Seite");
+const partialA01 = {
+  katalog: {
+    A01: { status: "bestaetigt" as const, values: { company: "Nordlicht GmbH", gf: "Ada Beispiel" } },
+  },
+} as unknown as ReturnType<typeof emptyAnswers>;
+const restoredPartial = prefillKnownFacts(stripEmptyIntakeCards(ensureGesamt(partialA01)), { name: "Andere Firma" });
+ok(isGesamt(restoredPartial), "unvollständiger Entwurf wird im Gesamtdokument weitergeführt");
+ok(restoredPartial.katalog?.A01?.values?.company === "Nordlicht GmbH", "A01-Wert bleibt bei unvollständigen Antworten erhalten");
+ok(restoredPartial.katalog?.A01?.values?.gf === "Ada Beispiel", "Geschäftsleitung aus dem alten Entwurf bleibt erhalten");
+const partialStep = resumeIntakeStep({ step: 6, answers: restoredPartial });
+ok(CATALOG_STEPS[partialStep]?.id === "step-M01b", "Entwurf ohne stepId landet auf der nächsten gültigen Modul-1-Seite");
+const valuesOnly = {
+  katalog: { A01: { values: { company: "Nordlicht GmbH" } } },
+} as unknown as ReturnType<typeof emptyAnswers>;
+const restoredValues = prefillKnownFacts(stripEmptyIntakeCards(ensureGesamt(valuesOnly)), { name: "Andere Firma" });
+ok(
+  CATALOG_STEPS[resumeIntakeStep({ step: 6, answers: restoredValues })]?.id === "step-M01",
+  "A01 ohne Stand bleibt auf der Seite, die den Wert zeigt",
+);
+ok(
+  resumeIntakeStep({ step: 6, stepId: "step-UNBEKANNT", answers: restoredPartial }) === partialStep,
+  "unbekannte stepId fällt auf die numerische Schrittnummer zurück",
+);
+ok(
+  CATALOG_STEPS[resumeIntakeStep({ step: 6, stepId: "step-M09", answers: restoredPartial })]?.id === "step-M09",
+  "bekannte stepId bleibt gültig",
+);
 const partial = setCatalogStatus(setCatalogStatus(gesamt, "A01", "bestaetigt"), "A04", "unbekannt");
 ok(
   CATALOG_STEPS[resumeIntakeStep({ step: 6, answers: partial })].id === "step-M01c",

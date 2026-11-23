@@ -2272,9 +2272,9 @@ export function prefillKnownFacts(
     protect,
     prior(preferName(previousAnswers?.it, previousStamm?.it)),
   );
-  for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
+  for (const name of answers.fibu ?? []) ensureSystem(katalog, name, "FiBu", "fibu");
   if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
-  fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege));
+  fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege ?? []));
   fillRaw(katalog, "E01", "formate", answers.formate);
   fillRaw(katalog, "E05", "systeme", answers.ausgangsrechnungen);
   fillText(
@@ -2302,7 +2302,7 @@ export function prefillKnownFacts(
     prior(textOr(previousAnswers?.archiv, previousStamm?.archiv)),
   );
   fillText(katalog, "G02", "zugriffKurz", answers.zugriff);
-  if (answers.backup.length) fillText(katalog, "G06", "backupArten", answers.backup.join(", "));
+  if ((answers.backup ?? []).length) fillText(katalog, "G06", "backupArten", (answers.backup ?? []).join(", "));
 
   fillText(katalog, "KA01", "system", stamm.kasse, undefined, previousStamm?.kasse);
   fillText(katalog, "A01", "gastroKasse", stamm.kasse, undefined, previousStamm?.kasse);

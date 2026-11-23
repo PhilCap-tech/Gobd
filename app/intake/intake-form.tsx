@@ -561,10 +561,9 @@ export function IntakeForm({
       });
       revisionRef.current = decision.revision;
       if (decision.restored) {
-        const restoredAnswers = prefillKnownFacts(
-          stripEmptyIntakeCards(decision.answers),
-          liveFactsRef.current,
-        );
+        const stripped = stripEmptyIntakeCards(decision.answers);
+        const scoped = gesamtMode || isGesamt(stripped) ? ensureGesamt(stripped) : stripped;
+        const restoredAnswers = prefillKnownFacts(scoped, liveFactsRef.current);
         const restoredStep = resumeIntakeStep({
           step: decision.step,
           stepId: chosen?.stepId,
