@@ -12,34 +12,49 @@ const CHILD = "__COOKIES_RENDER_CHILD";
 async function child() {
   const { renderToStaticMarkup } = await import("react-dom/server");
   const { default: CookiesPage } = await import("@/app/cookies/page");
+  const { default: DatenschutzPage } = await import("@/app/datenschutz/page");
   const html = renderToStaticMarkup(CookiesPage());
-  process.stdout.write(JSON.stringify({ html }));
+  const privacy = renderToStaticMarkup(DatenschutzPage());
+  process.stdout.write(JSON.stringify({ html, privacy }));
 }
 
-function render(env: Record<string, string>): string {
+function render(env: Record<string, string>): { html: string; privacy: string } {
   const out = execFileSync(process.execPath, [...process.execArgv, __filename], {
     env: { ...process.env, ...env, [CHILD]: "1" },
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
   });
-  return (JSON.parse(out.slice(out.indexOf('{"html"'))) as { html: string }).html;
+  return JSON.parse(out.slice(out.indexOf('{"html"'))) as { html: string; privacy: string };
 }
 
 function main() {
   const base = { PRICING_MODEL: "v3" };
   const off = render({ ...base, AMPEL_NO_EMAIL_ENABLED: "" });
   const on = render({ ...base, AMPEL_NO_EMAIL_ENABLED: "true" });
-  for (const [name, html] of [["off", off], ["on", on]] as const) {
+  for (const [name, page] of [["off", off], ["on", on]] as const) {
+    const { html, privacy } = page;
     assert.ok(html.includes("gobd_consent") && html.includes("gobd_checkout"), `${name}: v3-Cookie-Tabelle gerendert`);
     assert.ok(!html.includes("if:ampel") && !html.includes("endif") && !html.includes("&lt;!--"), `${name}: keine Marker sichtbar`);
     assert.ok((html.match(/<table/g) ?? []).length >= 1, `${name}: Tabelle`);
+    assert.ok(
+      html.includes('<a href="/datenschutz#messung">Abschnitt 6</a>'),
+      `${name}: Abschnitt 6 verlinkt den Anker`,
+    );
+    assert.ok(
+      html.includes("Einzelheiten stehen in der Datenschutzerklärung, <a href=\"/datenschutz#messung\">Abschnitt 6</a>."),
+      `${name}: der Satz bleibt, nur der Link kommt dazu`,
+    );
+    assert.ok(
+      privacy.includes('<h2 id="messung">6. Reichweitenmessung und eigene Nutzungsstatistik</h2>'),
+      `${name}: die Überschrift von § 6 trägt die id`,
+    );
   }
-  assert.ok(off.includes("gobd_ampel_shown:&lt;Antworten&gt;") || off.includes("gobd_ampel_shown:<Antworten>"), "Flag aus: Zeile gobd_ampel_shown sichtbar");
-  assert.ok(/<tr>(?:(?!<\/tr>)[^])*gobd_ampel_shown(?:(?!<\/tr>)[^])*<\/tr>/.test(off), "Flag aus: Zeile ist eine Tabellenzeile");
-  assert.ok(!on.includes("gobd_ampel_shown"), "Flag an: Zeile entfällt");
+  assert.ok(off.html.includes("gobd_ampel_shown:&lt;Antworten&gt;") || off.html.includes("gobd_ampel_shown:<Antworten>"), "Flag aus: Zeile gobd_ampel_shown sichtbar");
+  assert.ok(/<tr>(?:(?!<\/tr>)[^])*gobd_ampel_shown(?:(?!<\/tr>)[^])*<\/tr>/.test(off.html), "Flag aus: Zeile ist eine Tabellenzeile");
+  assert.ok(!on.html.includes("gobd_ampel_shown"), "Flag an: Zeile entfällt");
   const rows = (html: string) => (html.match(/<tr>/g) ?? []).length;
-  assert.equal(rows(off), rows(on) + 1, "Flag an: genau eine Zeile weniger, Tabelle sonst gleich");
-  console.log(`check-cookies-render: ok (v3, Zeilen aus=${rows(off)} an=${rows(on)})`);
+  assert.equal(rows(off.html), rows(on.html) + 1, "Flag an: genau eine Zeile weniger, Tabelle sonst gleich");
+  console.log(`check-cookies-render: ok (v3, Zeilen aus=${rows(off.html)} an=${rows(on.html)})`);
 }
 
 if (process.env[CHILD]) {

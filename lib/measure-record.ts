@@ -6,10 +6,10 @@
 import { after } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { resolveMeasureChannel } from "@/lib/measure-channel";
-import { claimMeasureOnce, rememberTestStart } from "@/lib/measure-claim";
+import { claimMeasureOnce } from "@/lib/measure-claim";
 import { measureDate, type MeasureCohort, type MeasureMetric } from "@/lib/measure-event";
 import { recordMeasureRow } from "@/lib/measure-store";
-import { isProductionMeasureEnv, measureCohort } from "@/lib/measure-test";
+import { measureCohort } from "@/lib/measure-test";
 
 let nowForTest: (() => Date) | null = null;
 
@@ -56,9 +56,6 @@ async function writeMeasure(input: {
   cohort: MeasureCohort;
 }): Promise<void> {
   const date = measureDate(now());
-  if (isProductionMeasureEnv() && input.cohort === "test") {
-    await rememberTestStart(input.metric, date);
-  }
   await recordMeasureRow({ date, ...input });
 }
 
@@ -84,8 +81,11 @@ export async function recordIntakeStart(input: {
   clientSignal?: unknown;
   gobdTest?: unknown;
 }): Promise<void> {
-  const claim = await claimMeasureOnce("intake", input.draftKey);
-  if (claim !== "created") return;
+  const cohort = cohortFor(input);
+  if (cohort !== "test") {
+    const claim = await claimMeasureOnce("intake", input.draftKey);
+    if (claim === "exists" || claim === "skipped") return;
+  }
   await writeMeasure({
     metric: "intake_start",
     n: "",
@@ -93,7 +93,7 @@ export async function recordIntakeStart(input: {
       referrerHeader: input.referrerHeader,
       clientChannel: input.clientChannel,
     }),
-    cohort: cohortFor(input),
+    cohort,
   });
 }
 
@@ -104,8 +104,11 @@ export async function recordNewAccount(input: {
   clientSignal?: unknown;
   gobdTest?: unknown;
 }): Promise<void> {
-  const claim = await claimMeasureOnce("magic-link", input.email);
-  if (claim !== "created") return;
+  const cohort = cohortFor(input);
+  if (cohort !== "test") {
+    const claim = await claimMeasureOnce("magic-link", input.email);
+    if (claim === "exists" || claim === "skipped") return;
+  }
   await writeMeasure({
     metric: "magic_link_first_login",
     n: "",
@@ -113,7 +116,7 @@ export async function recordNewAccount(input: {
       referrerHeader: input.referrerHeader,
       clientChannel: input.clientChannel,
     }),
-    cohort: cohortFor(input),
+    cohort,
   });
 }
 

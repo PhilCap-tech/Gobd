@@ -146,6 +146,7 @@ function dataRows(written: string[][]): string[][] {
 
 async function main() {
   process.env.MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET || "messluecken-check-secret";
+  process.env.MEASURE_HMAC_SECRET = process.env.MEASURE_HMAC_SECRET || "messluecken-check-hmac";
   setMeasureVercelEnvForTest("production");
   ok(automatedRunForbidsLiveWrites(), "npm run check:messluecken keeps live writes closed");
   ok(getMeasureSheetsTab() === "messluecken", "the tab is messluecken and not an env var");
@@ -371,11 +372,12 @@ async function main() {
   const flat = intakeRows.flat().join(" ");
   ok(!flat.includes(CLICK) && !flat.includes(MAIL) && !flat.includes("203.0.113"), "the row has no click id, email or address");
   const claimFiles = readdirSync(root).filter((name) => name.endsWith(".json"));
-  ok(claimFiles.length === 2 && claimFiles.every((name) => /^[0-9a-f]{64}\.json$/.test(name)), "claim names are hashes");
+  ok(claimFiles.length === 1 && claimFiles.every((name) => /^[0-9a-f]{64}\.json$/.test(name)), "only the standard start is claimed");
   for (const name of claimFiles) {
     const body = readFileSync(path.join(root, name), "utf8");
     ok(!body.includes(MAIL) && !body.includes("resend.dev") && !body.includes(CLICK), "a claim file has no identifier");
-    assert.equal(typeof JSON.parse(body).at, "string");
+    assert.match(JSON.parse(body).at, /^\d{4}-\d{2}-\d{2}$/);
+    ok(!body.includes("T"), "the marker timestamp is a Berlin date");
   }
 
   setMeasureClaimRootForTest(null);
@@ -626,7 +628,7 @@ async function main() {
   installMeasureSheetClientForTest({ client: sheet.client, configured: true });
   const afterTestsFirst = await readMeasureStarts();
   ok(afterTestsFirst.standard.ampel_result == null, "a first test result does not write a standard marker");
-  ok(afterTestsFirst.test.ampel_result === "2026-11-08", "the test start stays on its own key");
+  ok(afterTestsFirst.test.ampel_result == null, "a test event does not write a marker");
   const testOnlyReport = buildMeasureReport(
     dataRows(sheet.written).map((row) => ({
       date: row[0] ?? "",
@@ -658,7 +660,7 @@ async function main() {
   });
   const afterStandard = await readMeasureStarts();
   ok(afterStandard.standard.ampel_result == null, "a standard event does not write a standard marker");
-  ok(afterStandard.test.ampel_result === "2026-11-08", "the standard event does not move the test marker");
+  ok(afterStandard.test.ampel_result == null, "a standard event does not create a test marker");
   const withStandard = buildMeasureReport(
     dataRows(sheet.written).map((row) => ({
       date: row[0] ?? "",
@@ -692,7 +694,7 @@ async function main() {
     })),
     { now: new Date("2026-11-14T12:00:00.000Z") },
   );
-  ok(afterLaterTest.standard.ampel_result == null && afterLaterTest.test.ampel_result === "2026-11-08", "a later test does not write or move markers");
+  ok(afterLaterTest.standard.ampel_result == null && afterLaterTest.test.ampel_result == null, "a later test does not write a marker");
   ok(
     afterLaterReport.metrics.find((item) => item.metric === "ampel_result")?.firstStandardEvent === "2026-11-10" &&
       afterLaterReport.metrics.find((item) => item.metric === "ampel_result")?.activeSince === MEASURE_ACTIVE_SINCE.ampel_result,
