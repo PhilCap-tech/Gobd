@@ -18,6 +18,7 @@ import {
 } from "@/lib/documents";
 import type { IntakeDraft } from "@/lib/intake-draft-shared";
 import {
+  openDraftContinueEntityId,
   openDraftContinuePath,
   openDraftLabel,
 } from "@/lib/open-drafts";
@@ -103,6 +104,7 @@ import {
  * handler, so the click never loads. Opening the href directly still works.
  * „Neues Dokument“ uses the same anchor: /intake for a comp mailbox, /intake
  * for a firm an active subscription already covers, and /checkout otherwise.
+ * An unpaid login draft opens /fragebogen instead, unless that firm is covered.
  */
 export const ACCOUNT_CONTINUE_LABEL = "Weiter ausfüllen";
 
@@ -238,7 +240,16 @@ export function AccountCompanyCard({
             <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
               <span className="doc-meta">{openDraftLabel(draft)}</span>
               {writesOpen ? (
-                <a className="btn" href={openDraftContinuePath(draft)}>
+                <a
+                  className="btn"
+                  href={openDraftContinuePath(draft, {
+                    covered: Boolean(
+                      entity &&
+                        openDraftContinueEntityId(draft) === entity.entityId &&
+                        (compAccess || coveredIntakeHref),
+                    ),
+                  })}
+                >
                   {ACCOUNT_CONTINUE_LABEL}
                 </a>
               ) : (

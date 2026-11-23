@@ -39,6 +39,7 @@ import { loadMemberFirms } from "@/lib/membership-view";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
 import {
   listOpenDraftsForEmail,
+  openDraftContinueEntityId,
   openDraftContinuePath,
   openDraftLabel,
 } from "@/lib/open-drafts";
@@ -212,6 +213,24 @@ export default async function AccountPage({
     : await loadIncludedFirmCoverage(email);
   // v2 mit PRICING_EXTRA_FIRMS_ENABLED: kein Limit von 5 Firmen (R1 neu).
   const atCap = !coverage.planFirms && entityCapReached(entities.length);
+  const coveredEntityIds = new Set(
+    entities
+      .filter((entity) => {
+        if (compAccess) return true;
+        return (
+          firmStartDecision({
+            sessionEmail: email,
+            entityOwnerEmail: entity.userEmail,
+            entityId: entity.entityId,
+            firmPosition: firmPosition(entities, entity.entityId),
+            coverage,
+          }) === "intake"
+        );
+      })
+      .map((entity) => entity.entityId),
+  );
+  const looseDraftCovered = (draft: (typeof looseDrafts)[number]) =>
+    coveredEntityIds.has(openDraftContinueEntityId(draft));
 
   return (
     <>
@@ -251,7 +270,7 @@ export default async function AccountPage({
               <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
                 <span className="doc-meta">{openDraftLabel(draft)}</span>
                 {writesOpen ? (
-                  <a className="btn" href={openDraftContinuePath(draft)}>
+                  <a className="btn" href={openDraftContinuePath(draft, { covered: looseDraftCovered(draft) })}>
                     Weiter ausfüllen
                   </a>
                 ) : (

@@ -3,12 +3,16 @@ import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { del, get, put, type GetCommandOptions, type PutCommandOptions } from "@vercel/blob";
 import { isBlobConfigured } from "@/lib/env";
+import { fragebogenHref, FRAGEBOGEN_DEFAULT_ENTITY } from "@/lib/fragebogen";
 import {
   draftIsEmpty,
+  emailDraftEntityId,
+  isUnpaidLoginDraft,
   loadIntakeDraft,
   normalizeDraftKey,
   type IntakeDraft,
 } from "@/lib/intake-draft";
+import { intakeLoginFirstEnabled } from "@/lib/pricing-model";
 import { getFileFallbackDir } from "@/lib/store";
 import { emailsEqual } from "@/lib/types";
 
@@ -143,8 +147,39 @@ function draftText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+export type OpenDraftContinueOptions = {
+  /**
+   * The draft's firm is already covered (comp, Digistore, or subscription).
+   * An unpaid login draft for that firm stays on /intake.
+   * Ignored when the draft names no firm (the `default` key).
+   */
+  covered?: boolean;
+};
+
+/**
+ * Firm id this continue link should open.
+ * An `email:` key wins over `entityId`, so `email:…:default:…` stays unbound
+ * even when a company card shows the draft.
+ */
+export function openDraftContinueEntityId(
+  draft: Pick<IntakeDraft, "draftKey" | "entityId">,
+): string {
+  const fromKey = emailDraftEntityId(draftText(draft.draftKey));
+  if (fromKey !== null) return fromKey;
+  return draftText(draft.entityId);
+}
+
+/**
+ * Where „Weiter ausfüllen“ goes.
+ * Paid drafts and document drafts stay on /intake.
+ * An unpaid login draft (`email:` key, no checkout session) opens /fragebogen
+ * when login-first is on — `?entity_id=<id>` for a firm, `?entity_id=default`
+ * for the unbound key. A covered firm stays on /intake. Bereich drafts stay
+ * on /intake; /fragebogen only restores a Gesamtdokument.
+ */
 export function openDraftContinuePath(
-  draft: Pick<IntakeDraft, "documentId" | "stripeSessionId" | "entityId">,
+  draft: Pick<IntakeDraft, "documentId" | "stripeSessionId" | "entityId" | "draftKey">,
+  options?: OpenDraftContinueOptions,
 ): string {
   const documentId = draftText(draft.documentId);
   const sessionId = draftText(draft.stripeSessionId);
@@ -154,7 +189,14 @@ export function openDraftContinuePath(
     return `/intake?${params.toString()}`;
   }
   if (sessionId) return `/intake?session_id=${encodeURIComponent(sessionId)}`;
-  const entityId = draftText(draft.entityId);
+  const entityId = openDraftContinueEntityId(draft);
+  const unpaidLogin =
+    intakeLoginFirstEnabled() &&
+    isUnpaidLoginDraft({ draftKey: draftText(draft.draftKey), stripeSessionId: sessionId }) &&
+    !draftText(draft.draftKey).endsWith(":bereich");
+  if (unpaidLogin && !(options?.covered && entityId)) {
+    return fragebogenHref(entityId || FRAGEBOGEN_DEFAULT_ENTITY);
+  }
   if (entityId) return `/intake?entity_id=${encodeURIComponent(entityId)}`;
   return "/intake";
 }
