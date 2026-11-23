@@ -43,7 +43,7 @@ import {
 import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import { rememberPurchase99Once } from "@/lib/schnellversion-store";
-import { markSvCreditUsed } from "@/lib/schnellversion-record";
+import { markSvCreditUsed, releaseSvCreditHold } from "@/lib/schnellversion-record";
 import { confirmPaidSession, paymentFromStatus } from "@/lib/schnellversion-payment";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
 import { logError } from "@/lib/log-error";
@@ -112,6 +112,15 @@ function invoiceEntityId(invoice: {
  * die Session die Kauf-ID trägt (Coupon war im Checkout gesetzt), auch ohne
  * sv_arm. Die Zählung des Testarms bleibt daran gebunden.
  */
+/** Abgelaufene Upgrade-Session gibt die Anrechnung frei. Eine bezahlte Anrechnung bleibt. */
+export async function releaseCreditForExpiredCheckout(session: {
+  metadata?: { sv_purchase_id?: string | null } | null;
+}): Promise<boolean> {
+  const id = session.metadata?.sv_purchase_id?.trim() ?? "";
+  if (!id) return false;
+  return releaseSvCreditHold(id);
+}
+
 export async function noteSchnellversionPurchase(
   session: { id?: string | null; metadata?: { sv_arm?: string | null; sv_purchase_id?: string | null } | null },
   email: string,
@@ -187,6 +196,11 @@ export async function POST(request: Request) {
 
   try {
     switch (event.type) {
+      case "checkout.session.expired": {
+        const session = event.data.object;
+        await releaseCreditForExpiredCheckout(session);
+        return NextResponse.json({ received: true });
+      }
       case "checkout.session.completed": {
         const session = event.data.object;
         if (session.metadata?.sv49 === "1") {

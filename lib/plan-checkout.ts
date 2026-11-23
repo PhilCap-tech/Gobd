@@ -120,8 +120,11 @@ function successUrl(kind: PlanCheckoutKind, entityId: string): string {
     : `${appUrl}/intake?session_id={CHECKOUT_SESSION_ID}`;
 }
 
-function cancelUrl(kind: PlanCheckoutKind, audience: string): string {
+function cancelUrl(kind: PlanCheckoutKind, audience: string, purchaseId = ""): string {
   const appUrl = checkoutReturnBaseUrl();
+  if (purchaseId) {
+    return `${appUrl}/api/schnellversion/anrechnung-frei?purchase=${encodeURIComponent(purchaseId)}`;
+  }
   if (kind === "change") return `${appUrl}/account`;
   if (kind === "member" || kind === "firm" || kind === "addon" || kind === "reactivate") return `${appUrl}/account`;
   return audience === "steuerberater" ? `${appUrl}/steuerberater` : `${appUrl}/checkout`;
@@ -223,7 +226,7 @@ export function buildPlanCheckoutParams(
       kind === "entry" && input.draftKey
         ? `${checkoutReturnBaseUrl()}/fragebogen/bezahlt?session_id={CHECKOUT_SESSION_ID}`
         : successUrl(kind, entityId),
-    cancel_url: cancelUrl(kind, audience),
+    cancel_url: cancelUrl(kind, audience, input.svPurchaseId ?? ""),
     metadata,
   };
 

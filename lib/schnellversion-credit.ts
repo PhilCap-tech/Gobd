@@ -26,15 +26,10 @@ export function creditHintVisible(row: SvPurchase, company: string, now: Date, e
   return Boolean(schnellversionCouponId(env)) && creditStillOpen(row, company, now);
 }
 
-/** Zweite Reservierung innerhalb von 30 Minuten schlägt fehl. Abgelaufene Reservierung wird frei. */
+/** Offene Reservierung wird ersetzt. Eine bezahlte oder abgelaufene Anrechnung bleibt zu. */
 export function reserveDecision(row: SvPurchase, token: string, now: Date): SvPurchase | null {
   if (!token.trim() || row.creditUsedAt.trim()) return null;
   if (!svDownloadStillOpen(row.purchasedAt, now)) return null;
-  const held = row.creditReservationId.trim();
-  if (held && held !== token) {
-    const at = Date.parse(row.creditReservedAt);
-    if (Number.isFinite(at) && now.getTime() - at < CREDIT_RESERVE_MS) return null;
-  }
   return {
     ...row,
     creditReservedAt: now.toISOString(),
