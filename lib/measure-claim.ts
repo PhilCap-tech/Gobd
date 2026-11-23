@@ -9,15 +9,25 @@ import { createHmac } from "node:crypto";
 import { mkdir, open, readFile } from "node:fs/promises";
 import path from "node:path";
 import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
-import { getMagicLinkSecret, isBlobConfigured } from "@/lib/env";
+import { isBlobConfigured } from "@/lib/env";
+import { measureDate } from "@/lib/measure-event";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { MEASURE_METRICS, type MeasureMetric } from "@/lib/measure-event";
 import { isProductionMeasureEnv } from "@/lib/measure-test";
 import { getFileFallbackDir } from "@/lib/store";
 
-export type MeasureClaimResult = "created" | "exists" | "skipped";
+export type MeasureClaimResult = "created" | "exists" | "skipped" | "unkeyed";
 
 const HMAC_LABEL = "gobd/measure-claim/v1";
+
+/**
+ * Own key for these markers. The magic-link secret is not used.
+ * Unset: no marker (`unkeyed`). The count is still written, without dedupe.
+ * A repeat does not rewrite `at`, so the 30-day life is not extended.
+ */
+export function measureHmacSecret(): string {
+  return process.env.MEASURE_HMAC_SECRET?.trim() ?? "";
+}
 
 let testRoot: string | null = null;
 
@@ -25,9 +35,14 @@ export function setMeasureClaimRootForTest(dir: string | null): void {
   testRoot = dir;
 }
 
-function claimId(scope: string, material: string): string {
-  const key = createHmac("sha256", getMagicLinkSecret()).update(HMAC_LABEL).digest();
+function claimId(scope: string, material: string, secret: string): string {
+  const key = createHmac("sha256", secret).update(HMAC_LABEL).digest();
   return createHmac("sha256", key).update(`${scope}\n${material}`).digest("hex");
+}
+
+/** Berlin day only. No clock time. */
+export function measureClaimBody(now = new Date()): string {
+  return JSON.stringify({ at: measureDate(now) });
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -55,7 +70,7 @@ async function claimFile(root: string, id: string): Promise<MeasureClaimResult> 
     throw error;
   }
   try {
-    await handle.writeFile(JSON.stringify({ at: new Date().toISOString() }), "utf8");
+    await handle.writeFile(measureClaimBody(), "utf8");
   } finally {
     await handle.close();
   }
@@ -70,7 +85,7 @@ function blobEnabled(): boolean {
 
 async function claimBlob(id: string): Promise<MeasureClaimResult> {
   try {
-    await put(`gobd/measure-claim/${id}.json`, JSON.stringify({ at: new Date().toISOString() }), {
+    await put(`gobd/measure-claim/${id}.json`, measureClaimBody(), {
       access: "private",
       addRandomSuffix: false,
       allowOverwrite: false,
@@ -89,7 +104,9 @@ export async function claimMeasureOnce(scope: "intake" | "magic-link", material:
   if (!value) return "skipped";
   if (!testRoot && !isProductionMeasureEnv()) return "skipped";
   if (!testRoot && automatedRunForbidsLiveWrites()) return "skipped";
-  const id = claimId(scope, value);
+  const secret = measureHmacSecret();
+  if (!secret) return "unkeyed";
+  const id = claimId(scope, value, secret);
   if (testRoot) return claimFile(testRoot, id);
   try {
     if (blobEnabled()) return await claimBlob(id);
@@ -210,9 +227,9 @@ async function rememberStart(cohort: MeasureStartCohort, metric: MeasureMetric, 
   }
 }
 
-/** Berlin day of the first test production event. Never the activation and never a standard marker. */
-export function rememberTestStart(metric: MeasureMetric, date: string): Promise<string | null> {
-  return rememberStart("test", metric, date);
+/** Test events do not create markers. The call stays so older callers compile. */
+export function rememberTestStart(_metric: MeasureMetric, _date: string): Promise<string | null> {
+  return Promise.resolve(null);
 }
 
 export type MeasureStartMaps = {

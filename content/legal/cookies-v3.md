@@ -18,7 +18,7 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. f bzw. lit. b DSGVO und § 25 Abs. 2 Nr. 2 T
 
 Marketing-Dienste von Google und Meta laden wir erst, nachdem Sie im Cookie-Banner Marketing erlauben. Dabei können Daten an Google bzw. Meta und in Drittländer (insbesondere die USA) übermittelt werden. Einzelheiten finden Sie in unserer Datenschutzerklärung. Ihre Einwilligung können Sie jederzeit über „Cookie-Einstellungen“ im Seitenfuß widerrufen.
 
-Wir setzen den Google Consent Mode v2 ein. Das Google-Tag wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Danach messen wir, ob eine Anzeige zu einem Kauf oder zur Anforderung des Ampel-Berichts geführt hat (Google Ads Conversion-Tracking, AW-586367190). Dazu übermitteln wir nach einem erfolgreichen Kauf den Bestellwert und die Stripe-Checkout-Session-ID als Transaktions-ID an Google. Zahlungsdaten übermitteln wir nicht. Außerdem werten wir die Nutzung der Website statistisch aus (Google Analytics 4, Aufbewahrung 14 Monate). Ohne Einwilligung findet keine Übertragung an Google statt. Ihre Einwilligung können Sie jederzeit über „Cookie-Einstellungen“ im Seitenfuß widerrufen.
+Wir setzen den Google Consent Mode v2 ein. Das Google-Tag wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Danach messen wir, ob eine Anzeige zu einem Kauf oder zur Anforderung des Ampel-Berichts geführt hat (Google Ads Conversion-Tracking, AW-586367190). Dazu übermitteln wir nach einem erfolgreichen Kauf den Bestellwert und die Stripe-Checkout-Session-ID als Transaktions-ID an Google. Zahlungsdaten übermitteln wir nicht. Außerdem werten wir die Nutzung der Website statistisch aus (Google Analytics 4, Aufbewahrung 14 Monate). Ohne Einwilligung übermitteln wir über diese Marketing-Dienste keine Daten an Google. Die davon getrennte Speicherung in Google Sheets beschreiben wir in der Datenschutzerklärung, Abschnitt 8. Ihre Einwilligung können Sie jederzeit über „Cookie-Einstellungen“ im Seitenfuß widerrufen.
 
 Auf der Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot laden wir nach „Marketing erlauben“ zusätzlich das Promocode-Skript von Digistore24. Es setzt das Cookie `ds24c.v1` sowie den Session-Storage-Eintrag `ds24s.v1` und, wenn Digistore24 die Speicherung erlaubt, den Local-Storage-Eintrag `ds24p.v1`. Zweck ist die Zuordnung eines Affiliate-Links und die Zählung des Aufrufs bei Digistore24. Dabei kann Ihr Browser Daten an Digistore24 übermitteln (Produkt-ID, Affiliate-ID, Kampagnenparameter, Referrer). Ohne Einwilligung wird das Skript nicht geladen. Einzelheiten stehen in der Datenschutzerklärung, Abschnitt „Bestellungen über Digistore24“.
 
@@ -33,6 +33,10 @@ Das Hosting kann technisch bedingte Verbindungsdaten umfassen. Siehe Datenschutz
 ## Vercel Web Analytics
 
 Vercel Web Analytics setzt keine Cookies und speichert nichts auf Ihrem Endgerät. Eine Einwilligung ist nicht erforderlich. Einzelheiten stehen in der Datenschutzerklärung, Abschnitt „Vercel Web Analytics“.
+
+## Eigene Schrittzählung
+
+Unsere eigene Schrittzählung (z. B. Klicks auf Schaltflächen, Schritte im Ampel-Check und im Fragebogen) setzt keine Cookies und speichert nichts auf Ihrem Endgerät. Die zur Vermeidung von Mehrfachzählungen gebildeten pseudonymen Messmarker liegen nur auf unserem Server, nicht in Ihrem Browser, und werden nach 30 Tagen gelöscht. Einzelheiten zu Daten, Rechtsgrundlage, Speicherdauer und Widerspruch stehen in der Datenschutzerklärung, Abschnitte 6 und 21.
 
 ## Kampagnenparameter (UTM)
 
