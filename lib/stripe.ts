@@ -505,7 +505,7 @@ export function buildCheckoutSessionParams(
 
 export async function createCheckoutSession(
   input: CheckoutSessionInput,
-): Promise<{ url: string; stub: boolean }> {
+): Promise<{ url: string; stub: boolean; id?: string }> {
   const entityId = input.entityId?.trim() ?? "";
 
   let planParams: Stripe.Checkout.SessionCreateParams | null = null;
@@ -531,7 +531,7 @@ export async function createCheckoutSession(
     );
     // Stay on the host that rendered checkout. The fallback app URL is
     // localhost:3000 and can be a different process than this server.
-    return { url: `/intake?${params}`, stub: true };
+    return { url: `/intake?${params}`, stub: true, id: sessionId };
   }
 
   const stripe = getStripe();
@@ -544,7 +544,7 @@ export async function createCheckoutSession(
     throw new Error("Stripe Session ohne URL");
   }
 
-  return { url: session.url, stub: false };
+  return { url: session.url, stub: false, id: session.id };
 }
 
 async function preparePlanCheckout(

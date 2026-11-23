@@ -40,6 +40,10 @@ export type SvPurchase = {
   sessionId: string;
   creditReservedAt: string;
   creditReservationId: string;
+  /** Stripe-Checkout-Sessions dieser Anrechnung, JSON-Liste. Leer bei älteren Käufen. */
+  creditCheckoutIds?: string;
+  /** Session, die die Anrechnung verbraucht hat. */
+  creditUsedSessionId?: string;
   answersJson: string;
   /** SHA-256 des Download-Tokens. Die Session-ID allein reicht nicht. */
   downloadTokenHash: string;
@@ -611,12 +615,52 @@ export function svDownloadAllowed(
   return downloadTokenMatches(input.token, row.downloadTokenHash);
 }
 
-export async function markSvCreditUsed(email: string, purchaseId: string, at: string): Promise<boolean> {
+export function creditCheckoutSessionIds(row: Pick<SvPurchase, "creditCheckoutIds">): string[] {
+  const raw = row.creditCheckoutIds?.trim() ?? "";
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((item) => item.trim());
+  } catch {
+    return [];
+  }
+}
+
+export async function rememberCreditCheckoutSession(purchaseId: string, sessionId: string): Promise<void> {
+  const id = sessionId.trim();
+  if (!purchaseId.trim() || !id) return;
+  const row = (await listAllSvPurchases()).find((item) => item.id === purchaseId);
+  if (!row) return;
+  const ids = creditCheckoutSessionIds(row);
+  if (ids.includes(id)) return;
+  ids.push(id);
+  await replaceSvPurchase({ ...row, creditCheckoutIds: JSON.stringify(ids) });
+}
+
+export async function replaceCreditCheckoutSessions(purchaseId: string, ids: string[]): Promise<void> {
+  const row = (await listAllSvPurchases()).find((item) => item.id === purchaseId);
+  if (!row) return;
+  await replaceSvPurchase({ ...row, creditCheckoutIds: JSON.stringify(ids) });
+}
+
+export async function markSvCreditUsed(
+  email: string,
+  purchaseId: string,
+  at: string,
+  sessionId = "",
+): Promise<boolean> {
   const key = emailKey(email);
   const rows = await listSvPurchases(key);
   const row = rows.find((item) => item.id === purchaseId);
   if (!row || row.creditUsedAt.trim()) return false;
-  await replaceSvPurchase({ ...row, creditUsedAt: at });
+  await replaceSvPurchase({
+    ...row,
+    creditUsedAt: at,
+    creditUsedSessionId: sessionId.trim() || row.creditUsedSessionId || "",
+  });
   return true;
 }
 

@@ -31,6 +31,7 @@ import { cookies } from "next/headers";
 import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
 import { openCredit, schnellversionCouponId } from "@/lib/schnellversion-credit";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
+import { expireStoredCreditSessions, rememberUpgradeCheckout } from "@/lib/schnellversion-credit-sessions";
 import { creditStillOpen, listSvPurchases, releaseSvCreditHold, reserveSvCredit } from "@/lib/schnellversion-record";
 import { randomUUID } from "node:crypto";
 
@@ -221,6 +222,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (svPurchaseId) await expireStoredCreditSessions(svPurchaseId);
     const session = await createCheckoutSession({
       email,
       company,
@@ -242,6 +244,7 @@ export async function POST(request: Request) {
           }
         : {}),
     });
+    if (svPurchaseId && session.id) await rememberUpgradeCheckout(svPurchaseId, session.id);
     return NextResponse.json(session);
   } catch (error) {
     if (svPurchaseId) await releaseSvCreditHold(svPurchaseId);
