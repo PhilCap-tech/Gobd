@@ -12,10 +12,19 @@ export const FRAGEBOGEN_BEZAHLT_PATH = "/fragebogen/bezahlt";
 export const FRAGEBOGEN_DEFAULT_ENTITY = DRAFT_DEFAULT_ENTITY;
 
 /** Fragebogen-URL. Leer bleibt /fragebogen; eine Id (auch `default`) wird als entity_id gesetzt. */
-export function fragebogenHref(entityId?: string): string {
+export function fragebogenHref(
+  entityId?: string,
+  extra?: { schritt?: string; modul?: string },
+): string {
+  const params = new URLSearchParams();
   const id = entityId?.trim() ?? "";
-  if (!id) return FRAGEBOGEN_PATH;
-  return `${FRAGEBOGEN_PATH}?${new URLSearchParams({ entity_id: id }).toString()}`;
+  if (id) params.set("entity_id", id);
+  const schritt = extra?.schritt?.trim() ?? "";
+  const modul = extra?.modul?.trim() ?? "";
+  if (schritt) params.set("schritt", schritt);
+  if (modul) params.set("modul", modul);
+  const query = params.toString();
+  return query ? `${FRAGEBOGEN_PATH}?${query}` : FRAGEBOGEN_PATH;
 }
 
 export type FragebogenEntitySelection<T extends { entityId: string }> = {
