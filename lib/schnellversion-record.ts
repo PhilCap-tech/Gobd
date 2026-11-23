@@ -505,7 +505,8 @@ export async function reserveSvCredit(purchaseId: string, token: string, now: Da
     const claim = await claimSvJson(pathName, { token, at: now.toISOString() });
     if (claim === "exists") {
       const held = await getSvJson<{ token: string; at: string }>(pathName);
-      if (!held || held.token !== token) {
+      if (held && held.token !== token) return false;
+      if (!held) {
         await deleteSvJson(pathName);
         const retry = await claimSvJson(pathName, { token, at: now.toISOString() });
         if (retry !== "created") return false;
@@ -631,13 +632,17 @@ export function creditCheckoutSessionIds(row: Pick<SvPurchase, "creditCheckoutId
 
 export async function rememberCreditCheckoutSession(purchaseId: string, sessionId: string): Promise<void> {
   const id = sessionId.trim();
-  if (!purchaseId.trim() || !id) return;
-  const row = (await listAllSvPurchases()).find((item) => item.id === purchaseId);
-  if (!row) return;
-  const ids = creditCheckoutSessionIds(row);
-  if (ids.includes(id)) return;
-  ids.push(id);
-  await replaceSvPurchase({ ...row, creditCheckoutIds: JSON.stringify(ids) });
+  const purchase = purchaseId.trim();
+  if (!purchase || !id) return;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const row = (await listAllSvPurchases()).find((item) => item.id === purchase);
+    if (!row) return;
+    const ids = creditCheckoutSessionIds(row);
+    if (ids.includes(id)) return;
+    await replaceSvPurchase({ ...row, creditCheckoutIds: JSON.stringify([...ids, id]) });
+    const again = (await listAllSvPurchases()).find((item) => item.id === purchase);
+    if (again && creditCheckoutSessionIds(again).includes(id)) return;
+  }
 }
 
 export async function replaceCreditCheckoutSessions(purchaseId: string, ids: string[]): Promise<void> {

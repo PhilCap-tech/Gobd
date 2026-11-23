@@ -136,6 +136,10 @@ export type CheckoutIdentity = {
   ustId?: string;
   /** Neues Modell, Login zuerst: Entwurf aus dem Fragebogen (Metadaten `gobd_draft_key`). */
   draftKey?: string;
+  /** Schnellversion: Kauf, auf den diese Zahlung angerechnet wird. */
+  svPurchaseId?: string;
+  /** Stripe `livemode` der Session. Steuert den Test-Zusatz der Inhaber-Notiz. */
+  livemode?: boolean;
 };
 
 export type SheetRow = {
