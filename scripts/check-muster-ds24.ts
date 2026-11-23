@@ -1,10 +1,10 @@
 /**
- * Muster-PDF für DS24-Besucher (CoS 26.10.): unter v2 ohne Garantiezeile
- * GELD_ZURUECK_MICRO, wenn /partner-angebot mit ?quelle=ds24 verlinkt.
+ * Muster-PDF mit ?quelle=ds24 (CoS 26.10.): unter v2 ohne Garantiezeile
+ * GELD_ZURUECK_MICRO. Die Verkaufsseite, die den Marker gesetzt hat, ist entfernt.
  * Legacy unverändert. Kein Referrer.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { pageTexts } from "./pdf-text";
 
 for (const name of ["PRICING_EXTRA_FIRMS_ENABLED", "PLAN_ACCESS_ENABLED"]) delete process.env[name];
@@ -30,9 +30,7 @@ async function main() {
   assert.equal(muster.musterPdfIsDs24("steuerberater", true), false, "fremder Marker: normale Fassung");
   assert.equal(muster.PARTNER_MUSTER_PDF_DS24_PATH, "/steuerberater/muster/pdf?quelle=ds24");
 
-  const page = readFileSync("app/partner-angebot/page.tsx", "utf8");
-  assert.ok(!page.includes("href={PARTNER_MUSTER_PDF_PATH}"), "/partner-angebot verlinkt das Muster nur über ds24MusterPdfHref");
-  assert.equal(page.split("href={ds24MusterPdfHref(isPricingV2())}").length - 1, 2, "/partner-angebot: beide Muster-Links über ds24MusterPdfHref");
+  assert.equal(existsSync("app/partner-angebot/page.tsx"), false, "/partner-angebot-Seite ist entfernt");
   assert.equal(muster.ds24MusterPdfHref(true), "/steuerberater/muster/pdf?quelle=ds24", "v2: mit Marker");
   assert.equal(muster.ds24MusterPdfHref(false), "/steuerberater/muster/pdf", "Legacy: Link wie main");
   for (const file of ["app/page.tsx", "app/steuerberater/page.tsx", "app/steuerberater/muster/page.tsx"]) {

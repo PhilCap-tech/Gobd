@@ -37,10 +37,10 @@ import { MEMBER_PDF_HINT } from "@/lib/membership-copy";
 import { memberAddressLine } from "@/lib/membership-draft";
 import { loadMemberFirms } from "@/lib/membership-view";
 import { listLifecycleByEmail } from "@/lib/kuendigung-store";
+import { accountDraftContinueHref, accountDraftProgressFromDraft } from "@/lib/account-progress";
 import {
   listOpenDraftsForEmail,
   openDraftContinueEntityId,
-  openDraftContinuePath,
   openDraftLabel,
 } from "@/lib/open-drafts";
 import { firstQueryValue } from "@/lib/query";
@@ -266,18 +266,25 @@ export default async function AccountPage({
             <p className="prose">
               Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
             </p>
-            {looseDrafts.map((draft) => (
-              <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
-                <span className="doc-meta">{openDraftLabel(draft)}</span>
-                {writesOpen ? (
-                  <a className="btn" href={openDraftContinuePath(draft, { covered: looseDraftCovered(draft) })}>
-                    Weiter ausfüllen
-                  </a>
-                ) : (
-                  <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
-                )}
-              </div>
-            ))}
+            {looseDrafts.map((draft) => {
+              const progress = accountDraftProgressFromDraft(draft);
+              return (
+                <div className="draft-progress" key={draft.draftKey}>
+                  <p className="doc-meta">{openDraftLabel(draft)}</p>
+                  <p className="draft-progress-summary">{progress.summary}</p>
+                  {progress.openPointsText ? <p className="doc-meta">{progress.openPointsText}</p> : null}
+                  {writesOpen ? (
+                    <div className="actions">
+                      <a className="btn" href={accountDraftContinueHref(draft, { covered: looseDraftCovered(draft) })}>
+                        Weiter ausfüllen
+                      </a>
+                    </div>
+                  ) : (
+                    <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
+                  )}
+                </div>
+              );
+            })}
           </section>
         )}
 

@@ -416,13 +416,16 @@ export function safeNextPath(
   }
 }
 
-/** Login return for /fragebogen. Only a safe entity_id is kept (including `default`). */
+/** Login return for /fragebogen. entity_id, schritt and modul stay; other keys are dropped. */
 function fragebogenNextPath(params: URLSearchParams): string {
-  const entityId = params.get("entity_id")?.trim() ?? "";
-  if (!entityId || entityId.length > 200 || !/^[A-Za-z0-9_-]+$/.test(entityId)) {
-    return "/fragebogen";
+  const kept = new URLSearchParams();
+  for (const key of ["entity_id", "schritt", "modul"] as const) {
+    const value = params.get(key)?.trim() ?? "";
+    if (!value || value.length > 200 || !/^[A-Za-z0-9_-]+$/.test(value)) continue;
+    kept.set(key, value);
   }
-  return `/fragebogen?entity_id=${encodeURIComponent(entityId)}`;
+  const query = kept.toString();
+  return query ? `/fragebogen?${query}` : "/fragebogen";
 }
 
 function intakeNextPath(params: URLSearchParams): string {

@@ -1,6 +1,5 @@
 import type { NextConfig } from "next";
 import { AMPEL_ADMIN_CACHE_CONTROL, AMPEL_ADMIN_ROBOTS_TAG } from "./lib/ampel-admin-headers";
-import { PARTNER_ANGEBOT_PATH, PARTNER_ANGEBOT_ROBOTS_TAG } from "./lib/partner-angebot";
 import {
   branchenInternalPath,
   branchenPath,
@@ -26,11 +25,11 @@ const noStoreHeaders = [
  */
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://connect.facebook.net https://js.stripe.com https://www.digistore24-scripts.com https://www.checkout-ds24.com https://www.digistore24.com",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://ssl.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://connect.facebook.net https://js.stripe.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://www.google-analytics.com https://ssl.google-analytics.com https://www.googletagmanager.com https://www.google.com https://www.google.de https://googleads.g.doubleclick.net https://www.googleadservices.com https://stats.g.doubleclick.net https://www.facebook.com https://www.checkout-ds24.com https://www.digistore24.com",
+  "img-src 'self' data: blob: https://www.google-analytics.com https://ssl.google-analytics.com https://www.googletagmanager.com https://www.google.com https://www.google.de https://googleads.g.doubleclick.net https://www.googleadservices.com https://stats.g.doubleclick.net https://www.facebook.com",
   "font-src 'self'",
-  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.de https://www.googleadservices.com https://pagead2.googlesyndication.com https://ad.doubleclick.net https://www.facebook.com https://connect.facebook.net https://api.stripe.com https://www.checkout-ds24.com https://www.digistore24.com",
+  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.de https://www.googleadservices.com https://pagead2.googlesyndication.com https://ad.doubleclick.net https://www.facebook.com https://connect.facebook.net https://api.stripe.com",
   "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://td.doubleclick.net",
   "form-action 'self' https://checkout.stripe.com",
   "frame-ancestors 'none'",
@@ -143,7 +142,6 @@ const nextConfig: NextConfig = {
     "/resources/10-offene-punkte/download": ["./public/brand/**/*"],
     "/resources/inhalt-verfahrensdokumentation/download": ["./public/brand/**/*"],
     "/llms.txt": ["./content/faq.md", "./content/legal/**/*"],
-    "/partner-angebot": ["./content/delivery-templates/**/*", "./public/brand/**/*"],
     "/branchen/[slug]": [
       "./content/branchen/**/*",
       "./content/blog/**/*",
@@ -162,16 +160,6 @@ const nextConfig: NextConfig = {
       { source: "/api/admin/ampel-stats", headers: ampelAdminHeaders },
       // `:path+` is one or more segments. `:path*` also matches /kassen-check and would noindex the page.
       { source: "/kassen-check/:path+", headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }] },
-      {
-        source: PARTNER_ANGEBOT_PATH,
-        headers: [
-          { key: "X-Robots-Tag", value: PARTNER_ANGEBOT_ROBOTS_TAG },
-          {
-            key: "Cache-Control",
-            value: "private, no-store, max-age=0, must-revalidate",
-          },
-        ],
-      },
       ...branchenNoindexHeaders(),
       { source: "/api/stripe/portal", headers: noStoreHeaders },
       { source: "/:path*", headers: securityHeaders },
@@ -194,11 +182,9 @@ const nextConfig: NextConfig = {
         destination: "/login?next=/account",
         permanent: false,
       },
-      // Neues Preismodell (CoS 28.10.): /partner-angebot leitet auf die Startseite (307).
-      // Seite und Code bleiben; unter legacy (Rollback) bleibt die Seite erreichbar.
-      ...(["v2", "v3"].includes(process.env.PRICING_MODEL?.trim().toLowerCase() ?? "")
-        ? [{ source: PARTNER_ANGEBOT_PATH, destination: "/", permanent: false }]
-        : []),
+      // Dauerhafte Weiterleitung, Status 301.
+      { source: "/partner-angebot", destination: "/steuerberater", statusCode: 301 },
+      { source: "/partner-danke", destination: "/steuerberater", statusCode: 301 },
       ...branchenRedirects(),
     ];
   },

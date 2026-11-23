@@ -4,7 +4,6 @@
  */
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
@@ -1287,9 +1286,7 @@ async function main() {
   process.stdout.write = stdout;
   ok(!captured.join("").includes(token) && captured.join("").includes("dl=[redacted]"), "Server-stdout schwärzt dl-Tokens");
   const agb = readFileSync("content/legal/agb-v3.md", "utf8");
-  const agbSection = (start: string, end: string) => agb.slice(agb.indexOf(start), agb.indexOf(end, agb.indexOf(start)));
-  ok(createHash("sha256").update(agbSection("## § 9a ", "## § 10 ")).digest("hex") === "e20dec0e400b806781786247891ee5d6fccba9129538179ace33040dee528511", "Digistore-Abschnitt unverändert");
-  ok(createHash("sha256").update(agbSection("## § 15 ", "**Stand:**")).digest("hex") === "77c1058b3757abe18b5f321a1f6fc1182ef904cfa5cdb01f78d3e217844c2f7d", "Altvertrags-Abschnitt unverändert");
+  ok(!agb.includes("## § 9a ") && !agb.includes("## § 15 "), "AGB ohne § 9a und ohne § 15");
   ok(agb.includes("## § 12d Schnellversion (Standard-PDF)"), "AGB enthalten § 12d");
   ok(!readFileSync("content/legal/agb.md", "utf8").includes("§ 12d"), "Legacy-AGB ohne § 12d");
   const agbWoerter = [
@@ -1341,7 +1338,7 @@ async function main() {
   const agbOff = applyLegalConditions(agb, off);
   const agbOn = applyLegalConditions(agb, on);
   const mainAgb = agbAufMain();
-  ok(agbOff === mainAgb, "AGB ohne Flag wie main");
+  ok(agbOff === agbOhneGestricheneAbschnitte(mainAgb), "AGB ohne Flag wie main, ohne die gestrichenen Abschnitte");
   const downloadOhneAnmeldung =
     "Zusätzlich können Sie das PDF über den persönlichen Download-Link in Ihrer Kaufbestätigung per E-Mail ohne Anmeldung herunterladen; bitte geben Sie diesen Link nicht weiter.";
   ok(agbOn.includes(downloadOhneAnmeldung), "AGB mit Flag nennt den Download-Link ohne Anmeldung");
@@ -1767,6 +1764,36 @@ async function checkSandboxCheckout(): Promise<void> {
 
 const MAIN_AGB_SHA = "2f44180b707c2fdc865ec081a6876448894f7b04";
 const MAIN_AGB_FIXTURE = "scripts/fixtures/agb-v3-main-2f44180.md";
+
+/** Fixture von main, nach derselben Streichung wie agb-v3.md (Schnellversion aus). */
+function agbOhneGestricheneAbschnitte(text: string): string {
+  let next = text;
+  const drop = (old: string, replacement = "") => {
+    if (!next.includes(old)) throw new Error(`Streichvorlage fehlt: ${old.slice(0, 80)}`);
+    next = next.replace(old, replacement);
+  };
+  drop(
+    "\n\n(4) Für Bestellungen über die Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot, die über Digistore24 abgewickelt werden, gelten ergänzend und vorrangig die Regelungen in § 9a.\n",
+    "\n",
+  );
+  drop(" Für Monatsabonnements nach § 15 gilt § 15 Abs. 4; für Bestellungen über Digistore24 gilt § 9a Abs. 9.");
+  const nineA = next.indexOf("\n## § 9a Bestellungen über Digistore24 (Partner-Angebot)\n");
+  const ten = next.indexOf("\n## § 10 Gewährleistung\n", nineA);
+  if (nineA < 0 || ten < 0) throw new Error("§ 9a in der Fixture nicht abgegrenzt");
+  next = next.slice(0, nineA) + next.slice(ten);
+  drop("\n\n(6) Für Monatsabonnements nach § 15 gilt statt der Absätze 1 bis 5 die Regelung in § 15 Abs. 5.\n", "\n");
+  drop(" (Ausnahme: Rückgabe nach § 9a Abs. 9)");
+  drop(
+    "(3) Für Monatsabonnements nach § 15 und Bestellungen über Digistore24 bleibt es bei **bis zu fünf Firmen** je Abonnement (§ 15 Abs. 1, § 9a Abs. 10).",
+    "(3) (weggefallen)",
+  );
+  const fifteen = next.indexOf("\n## § 15 Monatsabonnement (bisheriges Modell)\n");
+  const stand = next.indexOf("\n**Stand:**", fifteen);
+  if (fifteen < 0 || stand < 0) throw new Error("§ 15 in der Fixture nicht abgegrenzt");
+  next = next.slice(0, fifteen) + next.slice(stand);
+  drop("**Stand:** Oktober 2026", "**Stand:** November 2026");
+  return next;
+}
 
 /**
  * AGB von main 2f44180. Vercel klont zu flach und darf diesen Commit nicht nachladen.
