@@ -1753,6 +1753,31 @@ form.card > .checkout-note {
   margin-top: 16px;
 }
 
+.draft-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.draft-progress-summary {
+  margin: 0;
+  font-weight: 650;
+}
+
+.draft-progress .actions {
+  margin: 0;
+}
+
+@media (max-width: 800px) {
+  .draft-progress .btn {
+    position: static;
+    width: auto;
+    max-width: 100%;
+  }
+}
+
 .entity-doc {
   border-top: 1px solid var(--line);
   padding-top: 16px;

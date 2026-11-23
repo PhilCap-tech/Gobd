@@ -29,8 +29,6 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 3. Automatische Erstellung der Dokumentation aus dem Intake.
 4. Digitale Lieferung (Download / Zugangslink / Ergebnis per E-Mail).
 
-Für Bestellungen über die Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot, die über Digistore24 abgewickelt werden, gelten ergänzend und vorrangig die Regelungen in § 9a.
-
 **Ausfüllen:** Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orientierend mit etwa 2–3 Stunden, in der Spanne von etwa 1,5 bis 5 Stunden — je nachdem, wie viele Module vorkommen und wie griffbereit die Angaben sind.
 
 **Bereitstellung:** Nach erfolgreicher Zahlung und abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
@@ -48,7 +46,6 @@ Bitte wahrheitsgemäße, vollständige Angaben und eine erreichbare E-Mail-Adres
 - Im Checkout sehen Sie beide Pakete nebeneinander. Vorausgewählt ist das Paket mit Mitgliedschaft; Sie können das Paket ohne Mitgliedschaft wählen.
 - Unser Angebot richtet sich ausschließlich an Unternehmer (§ 14 BGB), also Unternehmen, Selbstständige und Freiberufler; Verbraucher können nicht bestellen.
 - Ein Update ist sinnvoll, wenn sich Systeme, Abläufe, Hosting oder Verantwortliche ändern. Das Gesamtdokument hat eine gemeinsame Versionierung mit „Gültig ab“ und Änderungshistorie.
-- Bestellungen über unsere Partnerseite (Digistore24) laufen weiter im bisherigen Monatsmodell (198 € zum Start, danach 49 €/Monat, zzgl. USt; § 9a und § 15 AGB).
 
 ## 4. Ist das Steuerberatung?
 
@@ -67,11 +64,11 @@ Ergänzend gelten AGB und Datenschutzerklärung.
 
 Schreiben Sie uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Rechnung oder technischen Problemen (Checkout, Download, Login) ebenfalls an dieselbe Adresse — wir kümmern uns darum.
 
-Haben Sie über unsere Partnerseite bei Digistore24 bestellt, richten Sie Rechnungsfragen bitte an Digistore24 (support@digistore24.com). Bei Bestellungen über unsere Website erreichen Sie uns für Rechnungsfragen unter der oben genannten Adresse.
+Bei Bestellungen über unsere Website erreichen Sie uns für Rechnungsfragen unter der oben genannten Adresse.
 
 ## 6. 14 Tage Geld zurück: Garantie und Rückgaberecht
 
-**Bestellung über unsere Website (Stripe Checkout):** Solange Ihr PDF noch nicht erstellt ist, erstatten wir Ihnen auf Antrag den vollen Betrag, höchstens bis 14 Tage nach dem Kauf: 99 € für den Einstieg und, falls mitgebucht, 99,90 € für das erste Jahr der Mitgliedschaft, jeweils zzgl. USt. Mit der Erstattung enden Einstieg und Mitgliedschaft; weitere Beträge buchen wir nicht ab. Für Bestellungen über unsere Partnerseite (Digistore24) gilt stattdessen das Rückgaberecht weiter unten.
+**Bestellung über unsere Website (Stripe Checkout):** Solange Ihr PDF noch nicht erstellt ist, erstatten wir Ihnen auf Antrag den vollen Betrag, höchstens bis 14 Tage nach dem Kauf: 99 € für den Einstieg und, falls mitgebucht, 99,90 € für das erste Jahr der Mitgliedschaft, jeweils zzgl. USt. Mit der Erstattung enden Einstieg und Mitgliedschaft; weitere Beträge buchen wir nicht ab.
 
 **Wann keine Erstattung mehr möglich ist:** sobald Ihr PDF erstellt ist, auch wenn die 14 Tage noch nicht vorbei sind, und in jedem Fall nach Ablauf von 14 Tagen ab Kauf. Verlängerungsjahre der Mitgliedschaft werden nicht erstattet. Bezahlte Änderungen (49 €) sind nicht erstattungsfähig, sobald die geänderte Fassung erstellt ist.
 
@@ -86,10 +83,6 @@ Haben Sie über unsere Partnerseite bei Digistore24 bestellt, richten Sie Rechnu
 **Technische Lieferfehler** (kein Download, defekte Datei) melden Sie bitte sofort; wir liefern nach. Ihre gesetzlichen Rechte bleiben unberührt.
 
 **Hinweis B2B:** Unser Angebot richtet sich ausschließlich an Unternehmer (§ 14 BGB), also an Unternehmen, Selbstständige und Freiberufler, die in Ausübung ihrer gewerblichen oder selbstständigen beruflichen Tätigkeit bestellen. Verbraucher sind vom Vertragsschluss ausgeschlossen. Diese Erstattung ist eine vertragliche Zusage in unseren AGB (§ 9), kein gesetzliches Widerrufsrecht.
-
-**Bestellung über unsere Partnerseite (Digistore24)**
-
-14 Tage Rückgaberecht über Digistore24: Innerhalb von 14 Tagen nach dem Kauf können Sie Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer Bestellbestätigung) und erhalten den vollen Kaufpreis zurück. Bei Käufen über Digistore24 Inc. (USA) bzw. Digistore24 LTD (UK) gilt die im Bestellformular angezeigte Frist von 60 Tagen. Das gilt auch, wenn Sie bereits ein PDF erzeugt oder heruntergeladen haben. Die Erstattung wickelt Digistore24 ab. Die Regeln für Bestellungen über unsere Website gelten hier nicht (§ 9a Abs. 9 AGB). Nach der Rückgabe sperren wir Ihren Zugang; bereits heruntergeladene PDFs dürfen Sie dann nicht mehr nutzen.
 
 Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 
@@ -125,7 +118,6 @@ Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 - **Nach der Kündigung:** Ihre Dokumentation wird mit Ablauf der Mitgliedschaft gelöscht; eine neue Speicherfrist beginnt nicht. Wir erinnern Sie 30 Tage und 7 Tage vor der Löschung per E-Mail.
 - **Kündigung zurücknehmen:** Bis zum Ablauf können Sie Ihre Kündigung in derselben Form zurücknehmen: online im Konto, in Textform (eine E-Mail an info@gobd-doku-erstellen.de genügt) oder schriftlich an die IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein. Die Mitgliedschaft läuft dann weiter, und die Löschung entfällt.
 - **Bitte laden Sie Ihre PDFs bis zum Ablauf der Mitgliedschaft herunter.** Ihre heruntergeladenen PDFs bleiben bei Ihnen; die Aufbewahrung liegt bei Ihnen (siehe Abschnitt 9).
-- Bestellungen über Digistore24 kündigen Sie wie bisher über Digistore24 (§ 9a Abs. 8 AGB).
 
 ## 11. Ich habe mehrere Firmen – was kostet das?
 
@@ -139,7 +131,6 @@ Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 - **Nach einer Kündigung der Mitgliedschaft** laufen alle Firmen zum Ende der Mitgliedschaft aus und werden gelöscht; wir erinnern Sie 30 und 7 Tage vorher.
 - **Erstattung:** Auch für jede weitere Firma erstatten wir den vollen Betrag, solange deren PDF noch nicht erstellt ist, längstens 14 Tage ab ihrer Buchung.
 - Alle Preise zzgl. USt; das Angebot gilt nur für Unternehmen.
-- Bestellungen über Digistore24 und bestehende Monatsabos: weiterhin bis zu 5 Firmen je Abo.
 
 ---
 
