@@ -1227,7 +1227,9 @@ async function main() {
   ok(
     welcome.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/auth/verify") &&
       welcome.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/account") &&
-      welcome.text.includes("next=%2Fintake%3Fsession_id%3Dcs_test_full_session"),
+      welcome.text.includes("next=%2Fintake") &&
+      !welcome.text.includes("session_id=cs_") &&
+      !welcome.text.includes("session_id%3Dcs_"),
     "Willkommens-Mail und Magic-Link bleiben auf der Preview",
   );
   const loggedId = "cs_test_full_session_identifier";

@@ -6,7 +6,7 @@ import {
   listBranchenRoutes,
 } from "./lib/branchen-routes";
 import { DL_REQUEST_LOG_IGNORE } from "./lib/log-redaction";
-import { tokenLandingHeaderRules } from "./lib/token-pages";
+import { authVerifyReferrerHeaderRule, tokenLandingHeaderRules } from "./lib/token-pages";
 
 const noStoreHeaders = [
   {
@@ -48,13 +48,18 @@ const securityHeaders = [
   },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
     value:
       'camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com")',
   },
 ];
+
+/** Sitewide referrer policy. `/auth/verify` is excluded so it is not a second value. */
+const siteReferrerHeaders = [
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+];
+const siteReferrerSource = "/:path((?!auth/verify$).*)";
 
 const ampelAdminHeaders = [
   { key: "Cache-Control", value: AMPEL_ADMIN_CACHE_CONTROL },
@@ -158,8 +163,11 @@ const nextConfig: NextConfig = {
       ...branchenNoindexHeaders(),
       { source: "/api/stripe/portal", headers: noStoreHeaders },
       { source: "/:path*", headers: securityHeaders },
-      // After the catch-all so Referrer-Policy no-referrer replaces strict-origin on token landings.
+      // After the other site headers. Does not match /auth/verify.
+      { source: siteReferrerSource, headers: siteReferrerHeaders },
+      // After the site referrer so no-referrer replaces it on the other token landings.
       ...tokenLandingHeaderRules(),
+      authVerifyReferrerHeaderRule(),
     ];
   },
   async redirects() {

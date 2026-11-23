@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, open, readFile } from "node:fs/promises";
+import { mkdir, open, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { get, put } from "@vercel/blob";
 import { blobAlreadyExists, blobMissing } from "@/lib/ampel-blob-slot";
@@ -16,6 +16,8 @@ const CACHE_MAX_AGE = 60;
 export type MailLinkTokenStore = {
   write(hash: string, body: string): Promise<"created" | "exists">;
   read(hash: string): Promise<string | null>;
+  /** Überschreibt nur einen vorhandenen Datensatz. Legt keinen neuen an. */
+  replace(hash: string, body: string): Promise<boolean>;
 };
 
 function hashKey(hash: string): boolean {
@@ -88,6 +90,18 @@ function fileStore(): MailLinkTokenStore {
         throw error;
       }
     },
+    async replace(hash, body) {
+      if (!hashKey(hash)) return false;
+      const file = path.join(dir, hash);
+      try {
+        await readFile(file, "utf8");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+        throw error;
+      }
+      await writeFile(file, body, "utf8");
+      return true;
+    },
   };
 }
 
@@ -124,6 +138,21 @@ function blobStore(): MailLinkTokenStore {
         throw error;
       }
     },
+    async replace(hash, body) {
+      if (!hashKey(hash)) return false;
+      const current = await this.read(hash);
+      if (current == null) return false;
+      assertLiveWriteAllowed("blob");
+      await put(pathname(hash), body, {
+        access: "private",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        cacheControlMaxAge: CACHE_MAX_AGE,
+        contentType: "application/json; charset=utf-8",
+        token,
+      });
+      return true;
+    },
   };
 }
 
@@ -138,8 +167,20 @@ export function mailLinkTokenStore(): MailLinkTokenStore {
  * Stores the payload under the SHA-256 of `token`. The raw token is refused
  * if it would land in the body. Unsubscribe records omit `exp`.
  */
+function finiteExp(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/** New magic and invite rows must carry `exp`. Other purposes are unchanged. */
+export function mailLinkWriteKeepsExpiry(payload: object): boolean {
+  const record = payload as { purpose?: unknown; exp?: unknown };
+  if (record.purpose !== "magic" && record.purpose !== "invite") return true;
+  return finiteExp(record.exp);
+}
+
 export async function saveMailLinkToken(token: string, payload: object): Promise<boolean> {
   if (!isOpaqueMailLinkToken(token)) return false;
+  if (!mailLinkWriteKeepsExpiry(payload)) return false;
   const hash = mailLinkTokenHash(token);
   const body = JSON.stringify({ ...payload, hash });
   if (body.includes(token)) return false;
@@ -150,6 +191,34 @@ export async function saveMailLinkToken(token: string, payload: object): Promise
 export async function readMailLinkTokenBody(token: string): Promise<string | null> {
   if (!isOpaqueMailLinkToken(token)) return null;
   return mailLinkTokenStore().read(mailLinkTokenHash(token));
+}
+
+const RESEND_ID = /^[A-Za-z0-9._-]{6,200}$/;
+
+/**
+ * Versandkennung der Anmeldemail (Resend `data.id`), am bestehenden Datensatz.
+ * Legt keinen neuen Speicher an. Die Kennung der späteren Hinweismail kommt hier nicht hin.
+ */
+export async function rememberMailLinkResendId(token: string, resendId: string): Promise<boolean> {
+  const id = resendId.trim();
+  if (!isOpaqueMailLinkToken(token) || !RESEND_ID.test(id) || id === token) return false;
+  const existing = await loadMailLinkToken(token);
+  if (!existing || existing.purpose !== "magic") return false;
+  if (typeof existing.resendId === "string" && existing.resendId.trim()) return true;
+  const next = { ...existing, resendId: id };
+  if (!mailLinkWriteKeepsExpiry(next)) return false;
+  const body = JSON.stringify(next);
+  if (body.includes(token)) return false;
+  return mailLinkTokenStore().replace(existing.hash, body);
+}
+
+/** Versandkennung der Anmeldemail, oder null. Steht nicht im Protokoll. */
+export async function readMailLinkResendId(token: string): Promise<string | null> {
+  if (!isOpaqueMailLinkToken(token)) return null;
+  const record = await loadMailLinkToken(token);
+  const id = typeof record?.resendId === "string" ? record.resendId.trim() : "";
+  if (!id || !RESEND_ID.test(id) || id === token) return null;
+  return id;
 }
 
 export async function loadMailLinkToken(
