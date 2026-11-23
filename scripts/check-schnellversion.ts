@@ -55,12 +55,18 @@ import { checkoutReturnBaseUrl } from "../lib/env";
 import { planParamsFromCheckoutInput } from "../lib/stripe";
 import { releaseCreditForExpiredCheckout } from "../app/api/stripe/webhook/route";
 import {
+  claimOpenCreditCheckout,
   expireStoredCreditSessions,
   flagDuplicateCreditPayment,
   isDuplicateCreditSession,
+  publishOpenCreditCheckout,
+  releaseOpenCreditCheckout,
   setCreditReviewSheetForTest,
   setCreditSessionExpireForTest,
+  settlePaidCreditSession,
 } from "../lib/schnellversion-credit-sessions";
+import { setBlobMarkerTestDir } from "../lib/blob-marker";
+import { deliverBuyerOnboarding } from "../lib/buyer-onboarding";
 import { rememberCreditCheckoutSession } from "../lib/schnellversion-record";
 import { setOwnerNoticeTestMode } from "../lib/owner-notice";
 import { setMailDedupeTestHooks } from "../lib/mail-dedupe";
@@ -1552,14 +1558,116 @@ async function checkSandboxCheckout(): Promise<void> {
     ok(await isDuplicateCreditSession(first.purchase.id, "cs_zweite_anrechnung"), "zweite Session ist eine doppelte Anrechnung");
     ok(!(await isDuplicateCreditSession(first.purchase.id, "cs_upgrade_bezahlt")), "die bezahlte Session bleibt die eine Anrechnung");
     ok(
-      webhookSource.indexOf("await isDuplicateCreditSession") < webhookSource.indexOf("await recordPlanCheckout"),
-      "der Webhook prüft die Anrechnung vor dem Upgrade",
+      webhookSource.indexOf("await settlePaidCreditSession") < webhookSource.indexOf("await deliverBuyerOnboarding") &&
+        webhookSource.indexOf("await settlePaidCreditSession") < webhookSource.indexOf("await recordPlanCheckout"),
+      "der Webhook beansprucht die Anrechnung vor Upgrade und Mails",
     );
     ok(stillOne?.creditUsedSessionId === "cs_upgrade_bezahlt", "keine zweite Freischaltung");
     ok(review.length === 1 && review[0]?.status === "anrechnung_pruefen", "zweite Zahlung ist im Sheet zur Prüfung markiert");
     ok(notices.length === 1 && notices[0]?.to === CHECKOUT_NOTICE_TO, "Hinweis geht einmal an CHECKOUT_NOTICE_TO");
     ok(!creditFiles.includes("refunds"), "keine Erstattung");
     setCreditSessionExpireForTest(null);
+    setCreditReviewSheetForTest(null);
+    setOwnerNoticeTestMode(false);
+    setMailDedupeTestHooks(null);
+    const raceDir = mkdtempSync(path.join(tmpdir(), "gobd-credit-race-"));
+    setBlobMarkerTestDir(raceDir);
+    const createdSessions: string[] = [];
+    const opens = await Promise.all(
+      [0, 1].map(() =>
+        (async () => {
+          const slot = await claimOpenCreditCheckout("race-kauf");
+          if (slot.state === "busy") return { status: 409 as const };
+          if (slot.state === "same") {
+            return { status: 200 as const, id: slot.session.sessionId };
+          }
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          const id = `cs_race_${createdSessions.length + 1}`;
+          createdSessions.push(id);
+          if (slot.state !== "won") return { status: 409 as const };
+          await publishOpenCreditCheckout(slot.key, {
+            sessionId: id,
+            url: `https://checkout.example/${id}`,
+            stub: false,
+          });
+          return { status: 200 as const, id };
+        })(),
+      ),
+    );
+    ok(
+      createdSessions.length === 1 &&
+        opens.filter((item) => item.status === 200).length === 1 &&
+        opens.filter((item) => item.status === 409).length === 1,
+      "parallele Checkouts: eine Session, der zweite Request 409",
+    );
+    await releaseOpenCreditCheckout("race-kauf");
+    const raceReview: { sessionId: string; status: string }[] = [];
+    const raceNotices: { to?: string; subject?: string }[] = [];
+    const raceCustomer: { subject?: string }[] = [];
+    setCreditReviewSheetForTest({
+      find: async (sessionId) => raceReview.find((row) => row.sessionId === sessionId) ?? null,
+      append: async (row) => {
+        raceReview.push({ sessionId: row.sessionId, status: row.status });
+      },
+    });
+    setOwnerNoticeTestMode(true);
+    const savedResend = process.env.RESEND_API_KEY;
+    const savedFrom = process.env.EMAIL_FROM;
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "test@firma.example";
+    setMailDedupeTestHooks({
+      dir: mkdtempSync(path.join(tmpdir(), "gobd-credit-race-mail-")),
+      send: async (mail) => {
+        if (mail.to === CHECKOUT_NOTICE_TO) raceNotices.push(mail);
+        else raceCustomer.push(mail);
+        return { sent: true, stub: true };
+      },
+    });
+    let raceUpgrades = 0;
+    const racePurchase = `race-anrechnung-${Date.now()}`;
+    const outcomes = await Promise.all(
+      ["cs_race_winner", "cs_race_loser"].map(async (sessionId) => {
+        const outcome = await settlePaidCreditSession({
+          sessionId,
+          purchaseId: racePurchase,
+          email: "kunde@firma.example",
+          company: "Sandbox GmbH",
+          livemode: false,
+        });
+        if (outcome === "review") return outcome;
+        raceUpgrades += 1;
+        await deliverBuyerOnboarding({
+          email: "kunde@firma.example",
+          company: "Sandbox GmbH",
+          sessionId,
+          onceKey: `sv-credit:${racePurchase}`,
+        });
+        await deliverBuyerOnboarding({
+          email: "kunde@firma.example",
+          company: "Sandbox GmbH",
+          sessionId,
+          onceKey: `sv-credit:${racePurchase}`,
+        });
+        return outcome;
+      }),
+    );
+    ok(
+      outcomes.filter((item) => item === "proceed").length === 1 &&
+        outcomes.filter((item) => item === "review").length === 1 &&
+        raceUpgrades === 1 &&
+        raceCustomer.length === 1 &&
+        raceCustomer[0]?.subject?.startsWith("Willkommen") &&
+        raceReview.length === 1 &&
+        raceReview[0]?.status === "anrechnung_pruefen" &&
+        raceNotices.length === 1 &&
+        raceNotices[0]?.to === CHECKOUT_NOTICE_TO,
+      "parallele Webhooks: ein Upgrade, eine Willkommensmail, eine Prüfung, eine Notiz",
+    );
+    if (savedResend === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = savedResend;
+    if (savedFrom === undefined) delete process.env.EMAIL_FROM;
+    else process.env.EMAIL_FROM = savedFrom;
+    setBlobMarkerTestDir(null);
     setCreditReviewSheetForTest(null);
     setOwnerNoticeTestMode(false);
     setMailDedupeTestHooks(null);
