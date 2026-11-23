@@ -32,7 +32,7 @@ Das Hosting kann technisch bedingte Verbindungsdaten umfassen. Siehe Datenschutz
 
 ## Vercel Web Analytics
 
-Vercel Web Analytics setzt keine Cookies und speichert nichts auf Ihrem Endgerät. Eine Einwilligung ist nicht erforderlich. Einzelheiten stehen in der Datenschutzerklärung, Abschnitt 6.
+Vercel Web Analytics setzt keine Cookies und speichert nichts auf Ihrem Endgerät. Eine Einwilligung ist nicht erforderlich. Einzelheiten stehen in der Datenschutzerklärung, **Abschnitt 6**.
 
 ## Eigene Schrittzählung
 
