@@ -218,11 +218,19 @@ ok(
   serverSaveCoversRestore(serverSame, serverSame) === serverSame.savedAt,
   "ein gewählter Server-Stand trägt seine Speicherzeit",
 );
-const localNewer = snap(5, "2026-11-23T12:00:09.000Z");
+const localNewer = {
+  ...snap(5, "2026-11-23T12:00:09.000Z"),
+  answers: { ...emptyAnswers(), gf: "noch nicht auf dem Server" },
+};
 ok(preferIntakeSnapshot(serverSame, localNewer) === localNewer, "eine höhere lokale Revision gewinnt");
 ok(
   serverSaveCoversRestore(serverSame, localNewer) === "",
   "ein neuerer lokaler Stand behauptet kein Speichern",
+);
+const localSameBody = { ...snap(5, "2026-11-23T12:00:09.000Z"), answers: serverSame.answers, step: serverSame.step };
+ok(
+  serverSaveCoversRestore(serverSame, localSameBody) === serverSame.savedAt,
+  "serverSaved nach Restore: gleiche Angaben bleiben der Server-Zeitpunkt",
 );
 ok(serverSaveCoversRestore(null, localSame) === "", "ohne Server-Stand keine Speicherzeile");
 const legacyServer = snap(0, "2026-11-23T11:00:00.000Z");
