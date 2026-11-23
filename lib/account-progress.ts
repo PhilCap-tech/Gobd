@@ -41,6 +41,8 @@ export type AccountDraftProgress = {
   summary: string;
   /** Leer bei 0. */
   openPointsText: string;
+  /** Alle anwendbaren Module erledigt: Fortschrittsblock ausblenden, „Weiter ausfüllen“ bleibt. */
+  complete: boolean;
 };
 
 export function accountProgressSummary(done: number, total: number): string {
@@ -90,6 +92,7 @@ function pack(done: number, total: number, openPoints: number, stepId: string, m
     modulId,
     summary: accountProgressSummary(done, total),
     openPointsText: accountOpenPointsText(openPoints),
+    complete: total > 0 && done >= total && !stepId,
   };
 }
 

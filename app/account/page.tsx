@@ -271,8 +271,12 @@ export default async function AccountPage({
               return (
                 <div className="draft-progress" key={draft.draftKey}>
                   <p className="doc-meta">{openDraftLabel(draft)}</p>
-                  <p className="draft-progress-summary">{progress.summary}</p>
-                  {progress.openPointsText ? <p className="doc-meta">{progress.openPointsText}</p> : null}
+                  {progress.complete ? null : (
+                    <>
+                      <p className="draft-progress-summary">{progress.summary}</p>
+                      {progress.openPointsText ? <p className="doc-meta">{progress.openPointsText}</p> : null}
+                    </>
+                  )}
                   {writesOpen ? (
                     <div className="actions">
                       <a className="btn" href={accountDraftContinueHref(draft, { covered: looseDraftCovered(draft) })}>
