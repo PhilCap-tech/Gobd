@@ -27,6 +27,7 @@ export {
   draftRevision,
   incomingDraftWins,
   normalizeDraftKey,
+  parseDraftStepId,
   parseDraftVersionChange,
   preferIntakeSnapshot,
   resolveDraftAfterLoad,

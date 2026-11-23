@@ -9,10 +9,12 @@ import {
   FINAL_SAVE_FAILED_MESSAGE,
   FINAL_SAVE_RETRIES,
   prepayRedirectAllowed,
+  DRAFT_SAVED_LINE,
   SAVE_PENDING_LABEL,
   SERVER_SAVE_FAILED_HINT,
   autosaveHintVisible,
   autosaveRetryDelayMs,
+  draftSavedLineVisible,
   nextSaveFailures,
   savingLabelVisible,
   shouldResumeAutosave,
@@ -34,7 +36,9 @@ import {
 import type { EntityChoice } from "@/lib/entities";
 import { intakeSummary } from "@/lib/frage-intake";
 import {
+  BETRIEBS_CHECK_STEP_ID,
   CATALOG_STEPS,
+  MODUL_UEBERSICHT_STEP_ID,
   catalogStepApplies,
   catalogStepIssues,
   firstFreitextIssue,
@@ -47,10 +51,12 @@ import {
   type CatalogIssue,
   type FirmFacts,
 } from "@/lib/intake-catalog";
+import { resumeIntakeStep } from "@/lib/intake-draft-step";
 import { ensureGesamt, isGesamt } from "@/lib/module/status";
 import {
   draftRevision,
   normalizeDraftKey,
+  parseDraftStepId,
   parseDraftVersionChange,
   preferIntakeSnapshot,
   resolveDraftAfterLoad,
@@ -240,6 +246,9 @@ export function IntakeForm({
   const saveBlockedRef = useRef(false);
   /** Autosave reached the server but was not stored (e.g. 503 after retries). */
   const [saveFailures, setSaveFailures] = useState(0);
+  /** True after the server has stored this draft. The saved line uses only this. */
+  const [serverSaved, setServerSaved] = useState(false);
+  const [overviewReturn, setOverviewReturn] = useState<number | null>(null);
   /** Final save before the package choice failed: no redirect, retry button. */
   const [finalSaveFailed, setFinalSaveFailed] = useState(false);
   // Entwurf: localStorage (Fallback) + Server (gerätübergreifend).
@@ -322,6 +331,7 @@ export function IntakeForm({
     const snapshot: IntakeDraftSnapshot = {
       answers: stripEmptyIntakeCards(answersRef.current),
       step: stepRef.current,
+      stepId: CATALOG_STEPS[stepRef.current]?.id,
       savedAt,
       revision,
       change: { ...changeRef.current },
@@ -354,14 +364,17 @@ export function IntakeForm({
       const answersNow = stripEmptyIntakeCards(answersRef.current);
       const stepNow = stepRef.current;
       const changeNow = { ...changeRef.current };
+      const stepIdNow = CATALOG_STEPS[stepNow]?.id;
       const saveKey = JSON.stringify({
         draftKey: meta.draftKey,
         answers: answersNow,
         step: stepNow,
+        stepId: stepIdNow,
         change: changeNow,
       });
       if (saveKey === lastSavedRef.current) {
         setSaveFailures(0);
+        setServerSaved(true);
         return "saved";
       }
       const savedAt = new Date().toISOString();
@@ -382,6 +395,7 @@ export function IntakeForm({
               entityId: meta.entityId,
               modus: meta.modus,
               step: stepNow,
+              stepId: stepIdNow,
               answers: answersNow,
               revision: revisionNow,
               change: changeNow,
@@ -424,6 +438,7 @@ export function IntakeForm({
           lastSavedRef.current = saveKey;
           if (data.draft?.updatedAt) setServerDraftAt(data.draft.updatedAt);
           setSaveFailures((n) => nextSaveFailures(n, true));
+          setServerSaved(true);
           return "saved";
         }
         // 503 after the retries (or another server error): kept locally only.
@@ -480,6 +495,7 @@ export function IntakeForm({
             local = {
               answers: parsed.answers,
               step: Number(parsed.step) || 0,
+              stepId: parseDraftStepId(parsed.stepId),
               savedAt: parsed.savedAt ?? "",
               revision: draftRevision(parsed),
               ...(change ? { change } : {}),
@@ -500,6 +516,7 @@ export function IntakeForm({
               draft?: {
                 answers: IntakeAnswers;
                 step: number;
+                stepId?: string;
                 updatedAt: string;
                 revision?: number;
                 change?: DraftVersionChange;
@@ -510,6 +527,7 @@ export function IntakeForm({
               server = {
                 answers: data.draft.answers,
                 step: Number(data.draft.step) || 0,
+                stepId: parseDraftStepId(data.draft.stepId),
                 savedAt: data.draft.updatedAt,
                 revision: draftRevision(data.draft),
                 ...(change ? { change } : {}),
@@ -546,10 +564,12 @@ export function IntakeForm({
           stripEmptyIntakeCards(decision.answers),
           liveFactsRef.current,
         );
-        const restoredStep = Math.max(
-          nextApplicableStep(-1, restoredAnswers),
-          Math.min(decision.step, INTAKE_STEPS.length),
-        );
+        const restoredStep = resumeIntakeStep({
+          step: decision.step,
+          stepId: chosen?.stepId,
+          answers: restoredAnswers,
+        });
+        if (server && chosen === server) setServerSaved(true);
         const restoredChange = decision.change;
         baselineRef.current = JSON.stringify({
           answers: restoredAnswers,
@@ -587,7 +607,12 @@ export function IntakeForm({
     const timer = window.setTimeout(() => autosave.request(), 1500);
     return () => window.clearTimeout(timer);
   }, [answers, step, change, draftKey, draftReady, autosave, writeLocalDraft]);
-  useEffect(() => () => autosave.stop(), [autosave]);
+  useEffect(() => {
+    // Strict Mode ruft das Aufräumen einmal vorweg auf. stop() darf den
+    // laufenden Fragebogen nicht stumm lassen; resume() hebt genau das auf.
+    autosave.resume();
+    return () => autosave.stop();
+  }, [autosave]);
   useEffect(() => {
     // Browser Back after a submit restores this page from the bfcache with the
     // submit still "running". Make the form usable again; a repeated submit
@@ -654,6 +679,7 @@ export function IntakeForm({
     setStep(fresh.step);
     setChange({ ...fresh.change });
     setDraftRestored(false);
+    setServerSaved(false);
     setNotice("");
     setError("");
   }
@@ -850,10 +876,47 @@ export function IntakeForm({
   }
 
   const summary = useMemo(() => intakeSummary(answers), [answers]);
+  const onOverview = CATALOG_STEPS[step]?.id === MODUL_UEBERSICHT_STEP_ID;
+  const showModuleLink = isGesamt(answers) && !onOverview && step <= INTAKE_STEPS.length;
+
+  function openModules() {
+    setOverviewReturn(step);
+    const index = CATALOG_STEPS.findIndex((item) => item.id === MODUL_UEBERSICHT_STEP_ID);
+    if (index >= 0) setStep(index);
+  }
+
+  function leaveOverview() {
+    const back = overviewReturn;
+    setOverviewReturn(null);
+    if (back != null && CATALOG_STEPS[back]?.id !== MODUL_UEBERSICHT_STEP_ID) {
+      setStep(back);
+      return;
+    }
+    const betriebsCheck = CATALOG_STEPS.findIndex((item) => item.id === BETRIEBS_CHECK_STEP_ID);
+    setStep(nextApplicableStep(betriebsCheck, answers));
+  }
 
   return (
     <>
       {step < INTAKE_STEPS.length + 1 && <IntakeProgress step={step} answers={answers} />}
+
+      {draftSavedLineVisible({
+        confirmed: serverSaved,
+        failures: saveFailures,
+        finalSaveFailed,
+      }) ? (
+        <p className="save-stand" role="status">
+          {DRAFT_SAVED_LINE}
+        </p>
+      ) : null}
+
+      {showModuleLink ? (
+        <p className="hint">
+          <button type="button" className="btn linkish" onClick={openModules}>
+            Zur Modulübersicht
+          </button>
+        </p>
+      ) : null}
 
       {stripeTestMode ? (
         session.stub && step <= INTAKE_STEPS.length && !isEdit ? (
@@ -942,12 +1005,6 @@ export function IntakeForm({
               />
             </div>
           )}
-          {step === firstStep && isGesamt(answers) && (
-            <p className="banner">
-              Gesamtdokument mit 24 Modulen. Zuerst der Betriebs-Check, danach die Module Ihres
-              Betriebs. Alle Module sind im Preis enthalten.
-            </p>
-          )}
           <IntakeHintProvider
             value={{
               // Vor der Zahlung (Paketwahl offen) kein Einladen-Link.
@@ -1023,8 +1080,22 @@ export function IntakeForm({
       ) : null}
 
       {step < INTAKE_STEPS.length + 1 && (
-        <div className="actions" style={{ marginTop: 18 }}>
-          {step > firstStep && (
+        <div className="actions intake-actions" style={{ marginTop: 18 }}>
+          {onOverview ? (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                if (!validate(step)) return;
+                setError("");
+                setShowGaps(false);
+                leaveOverview();
+              }}
+            >
+              Weiter im Fragebogen
+            </button>
+          ) : null}
+          {!onOverview && step > firstStep && (
             <button
               type="button"
               className="btn ghost"
@@ -1038,7 +1109,7 @@ export function IntakeForm({
               Zurück
             </button>
           )}
-          {step < INTAKE_STEPS.length && (
+          {!onOverview && step < INTAKE_STEPS.length && (
             <button
               type="button"
               className="btn"

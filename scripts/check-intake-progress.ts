@@ -47,25 +47,45 @@ function assertBarMatchesLabel(step: number, answers: ReturnType<typeof emptyAns
   ok(true, `${message}: ${label}`);
 }
 
+function assertEtappe(step: number, answers: ReturnType<typeof emptyAnswers>, message: string) {
+  const label = intakeStepLabel(step, answers);
+  const segments = intakeProgressSegments(step, answers);
+  const match = /^Etappe (\d+) von (\d+) · .+ · Abschnitt (\d+) von (\d+)$/.exec(label);
+  assert.ok(match, `${message}: Bezeichnung ${label}`);
+  const etappe = Number(match[1]);
+  const etappen = Number(match[2]);
+  assert.equal(segments.length, etappen, `${message}: Balken hat ${segments.length}, Bezeichnung ${label}`);
+  assert.equal(segments.filter((state) => state === "on").length, 1, `${message}: genau eine aktive Etappe`);
+  assert.equal(segments.indexOf("on"), etappe - 1, `${message}: aktive Etappe ist ${etappe}`);
+  assert.ok(!label.includes("von 26"), `${message}: keine 26-Schritte-Zählung`);
+  ok(true, `${message}: ${label}`);
+}
+
 const gesamt = ensureGesamt(emptyAnswers());
 const modul21 = stepId("step-M21");
-assertBarMatchesLabel(modul21, gesamt, "Gesamt, Modul 21");
-ok(intakeStepLabel(modul21, gesamt) === "Schritt 23 von 26", "Modul 21 ist Schritt 23 von 26");
+assertEtappe(modul21, gesamt, "Gesamt, Modul 21");
 ok(
-  intakeProgressSegments(modul21, gesamt).length !== CATALOG_STEPS.length + 1,
-  "der Balken zählt nicht jeden Katalogindex",
+  intakeStepLabel(modul21, gesamt) === "Etappe 5 von 5 · Kontrollen und Pflege · Abschnitt 2 von 5",
+  "Modul 21 ist Etappe 5, Abschnitt 2",
 );
+ok(intakeProgressSegments(modul21, gesamt).length === 5, "Gesamt zählt fünf Etappen");
 ok(intakeProgressSegments(modul21, gesamt).indexOf("on") !== modul21, "aktiv ist nicht der rohe Katalogindex");
 
-assertBarMatchesLabel(stepId("step-BC"), gesamt, "Gesamt, Betriebs-Check");
-assertBarMatchesLabel(stepId("step-MO"), gesamt, "Gesamt, Modulübersicht");
-assertBarMatchesLabel(stepId("step-M01"), gesamt, "Gesamt, Modul 1");
-assertBarMatchesLabel(stepId("step-M17"), gesamt, "Gesamt, Modul 17");
+assertEtappe(stepId("step-BC"), gesamt, "Gesamt, Betriebs-Check");
+ok(intakeStepLabel(stepId("step-BC"), gesamt) === "Etappe 1 von 5 · Ihr Betrieb · Abschnitt 1 von 1", "Betriebs-Check ist Etappe 1");
+ok(intakeStepLabel(stepId("step-MO"), gesamt) === "Übersicht", "Modulübersicht ohne Schrittzählung");
+ok(intakeProgressSegments(stepId("step-MO"), gesamt).every((state) => state === ""), "Übersicht markiert keine Etappe");
+assertEtappe(stepId("step-M01"), gesamt, "Gesamt, Modul 1");
+ok(
+  intakeStepLabel(stepId("step-M01"), gesamt) === "Etappe 2 von 5 · Unternehmen · Abschnitt 1 von 5",
+  "Modul 1 beginnt mit Abschnitt 1 von 5",
+);
+assertEtappe(stepId("step-M17"), gesamt, "Gesamt, Modul 17");
 
 const withKasse = setCheckAntwort(gesamt, "bargeld", "ja");
-assertBarMatchesLabel(stepId("step-M08"), withKasse, "Gesamt, Kasse an");
+assertEtappe(stepId("step-M08"), withKasse, "Gesamt, Kasse an");
 ok(catalogStepApplies(CATALOG_STEPS[stepId("step-M08")], withKasse), "Kasse wird gefragt");
-ok(intakeProgressSegments(stepId("step-M08"), withKasse).length === 26, "Kasse ändert die Segmentzahl nicht");
+ok(intakeProgressSegments(stepId("step-M08"), withKasse).length === 5, "Kasse ändert die Etappenzahl nicht");
 
 const kasseSkipped = setModulEintrag(withKasse, "m08", {
   status: "nicht_vorhanden",
@@ -74,11 +94,15 @@ const kasseSkipped = setModulEintrag(withKasse, "m08", {
   link: "",
 });
 ok(!catalogStepApplies(CATALOG_STEPS[stepId("step-M08")], kasseSkipped), "abgewähltes Modul wird übersprungen");
-assertBarMatchesLabel(stepId("step-M09"), kasseSkipped, "Gesamt, Kasse übersprungen");
+assertEtappe(stepId("step-M09"), kasseSkipped, "Gesamt, Kasse übersprungen");
 ok(
   intakeProgressSegments(stepId("step-M09"), kasseSkipped).length ===
     intakeProgressSegments(stepId("step-M09"), withKasse).length,
-  "übersprungenes Modul bleibt in derselben Zählung wie die Bezeichnung",
+  "übersprungenes Modul bleibt in denselben fünf Etappen",
+);
+ok(
+  intakeStepLabel(stepId("step-M09"), kasseSkipped) !== intakeStepLabel(stepId("step-M09"), withKasse),
+  "ein übersprungenes Modul verkürzt den Abschnitt in der Etappe",
 );
 
 const legacy = emptyAnswers();
@@ -104,8 +128,13 @@ ok(
 );
 
 const review = CATALOG_STEPS.length;
+{
+  const segments = intakeProgressSegments(review, gesamt);
+  ok(segments.length === 5, "Gesamt: Prüfen zeigt fünf Etappen");
+  ok(segments.every((state) => state === "done"), "Gesamt: auf der Prüfung sind alle Etappen erledigt");
+  ok(!intakeStepLabel(review, gesamt).includes("von 26"), "Gesamt: Prüfung ohne 26-Schritte-Zählung");
+}
 for (const [name, answers] of [
-  ["Gesamt", gesamt],
   ["Bereich", legacy],
   ["Demo", demoBlankAnswers()],
 ] as const) {
