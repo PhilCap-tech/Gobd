@@ -74,4 +74,4 @@ Ausführliche Informationen: **Datenschutzerklärung**.
 Verantwortlicher: IKAT GmbH, Gartzenweg 1a, 40789 Monheim am Rhein  
 Kontakt: **info@gobd-doku-erstellen.de**
 
-**Stand:** Oktober 2026
+**Stand:** November 2026
