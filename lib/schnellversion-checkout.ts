@@ -1,6 +1,7 @@
 /**
- * Checkout der Schnellversion. Live-Keys und fehlende Price-ID erzeugen
- * keinen Stripe-Aufruf. Der Stub spricht Stripe nicht an.
+ * Checkout der Schnellversion. Ohne Flag oder ohne gültige Price-ID kein
+ * Stripe-Aufruf. Plan `test` braucht `sk_test_`, Plan `live` braucht `sk_live_`.
+ * Der Stub spricht Stripe nicht an.
  */
 
 import { getAppUrl, getStripeTaxRateId } from "@/lib/env";

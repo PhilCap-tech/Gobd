@@ -8,7 +8,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import { storePdf } from "@/lib/blob";
+import { deleteStoredBlob, storePdf } from "@/lib/blob";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { SV_DOWNLOAD_DAYS, svDownloadStillOpen } from "@/lib/schnellversion-copy";
 import {
@@ -18,6 +18,7 @@ import {
   listSvJson,
   putSvJson,
   svBlobEnabled,
+  svEventSentPath,
   svPurchaseBlobPath,
   svReserveBlobPath,
   svSessionBlobPath,
@@ -46,6 +47,8 @@ const committedPurchases = new Map<string, SvPurchase>();
 const committedIndex = new Map<string, string>();
 const committedEvents = new Set<string>();
 const commitFailures = new Set<"purchase" | "index" | "event">();
+const purchaseEventsSent = new Set<string>();
+let failCountedMarker = false;
 
 export type SvCommitStep = "purchase" | "index" | "event";
 
@@ -56,6 +59,11 @@ export function failSvCommitStepForTest(step: SvCommitStep | null): void {
     return;
   }
   commitFailures.add(step);
+}
+
+/** Nur der Check. Der Zählmarker scheitert, nachdem sv_purchase geschrieben wurde. */
+export function failSvCountedMarkerForTest(next: boolean): void {
+  failCountedMarker = next;
 }
 
 export function purchaseIdForSession(sessionId: string): string {
@@ -254,6 +262,24 @@ function countedFile(): string {
   return path.join(tmpdir(), "gobd-sv49-counted-49.json");
 }
 
+function eventSentFile(): string {
+  return path.join(tmpdir(), "gobd-sv49-event-sent.json");
+}
+
+export function svLocalPdfDir(): string {
+  return path.join(tmpdir(), "gobd-sv49-pdf");
+}
+
+/** PDF der Schnellversion, lokal oder als Blob `gobd/sv49-…`. Andere Pfade nicht. */
+export function isSvPdfPath(pdfPath: string): boolean {
+  const value = pdfPath.trim();
+  if (!value || value.includes("..") || value.includes("\\")) return false;
+  if (value.startsWith("gobd/sv49-")) return true;
+  const dir = path.resolve(svLocalPdfDir());
+  const resolved = path.resolve(value);
+  return resolved.startsWith(`${dir}${path.sep}`);
+}
+
 async function readJsonObject(file: string): Promise<Record<string, string>> {
   try {
     const parsed = JSON.parse(await readFile(file, "utf8")) as Record<string, string>;
@@ -292,16 +318,52 @@ async function readSessionIndex(sessionId: string): Promise<string | null> {
 
 async function eventIsDurable(sessionId: string): Promise<boolean> {
   if (svBlobEnabled()) {
-    const { getSvJson } = await import("@/lib/schnellversion-persist");
     return Boolean(await getSvJson(svCounted49Path(sessionId)));
   }
   if (fileWritesAllowed()) return Boolean((await readJsonObject(countedFile()))[sessionId]);
   return committedEvents.has(sessionId);
 }
 
+async function eventWasSent(sessionId: string): Promise<boolean> {
+  if (purchaseEventsSent.has(sessionId) || committedEvents.has(sessionId)) return true;
+  if (svBlobEnabled()) return Boolean(await getSvJson(svEventSentPath(sessionId)));
+  if (fileWritesAllowed()) return Boolean((await readJsonObject(eventSentFile()))[sessionId]);
+  return false;
+}
+
+async function rememberEventSent(sessionId: string): Promise<void> {
+  purchaseEventsSent.add(sessionId);
+  try {
+    if (svBlobEnabled()) {
+      await claimSvJson(svEventSentPath(sessionId), { sessionId });
+    } else if (fileWritesAllowed()) {
+      const all = await readJsonObject(eventSentFile());
+      all[sessionId] = "1";
+      await writeJsonObject(eventSentFile(), all);
+    }
+  } catch {
+    /* Der Prozess merkt sich die Zeile. Der Zählmarker wird erneut versucht. */
+  }
+}
+
+async function writeCountedMarker(sessionId: string): Promise<void> {
+  if (failCountedMarker) throw new Error("Zählmarker nicht gespeichert");
+  if (svBlobEnabled()) {
+    const claim = await claimSvJson(svCounted49Path(sessionId), { sessionId });
+    if (claim === "exists") return;
+    return;
+  }
+  if (fileWritesAllowed()) {
+    const all = await readJsonObject(countedFile());
+    all[sessionId] = "1";
+    await writeJsonObject(countedFile(), all);
+  }
+}
+
 async function markPurchaseCounted(sessionId: string, arm: "" | "control" | "test"): Promise<void> {
   if (commitFailures.has("event")) throw new Error("Kaufzählung nicht gespeichert");
-  if (await eventIsDurable(sessionId)) {
+  if ((await eventIsDurable(sessionId)) || (await eventWasSent(sessionId))) {
+    await writeCountedMarker(sessionId);
     committedEvents.add(sessionId);
     return;
   }
@@ -316,19 +378,9 @@ async function markPurchaseCounted(sessionId: string, arm: "" | "control" | "tes
       step: 0,
       ziel: "",
     });
+    await rememberEventSent(sessionId);
   }
-  if (svBlobEnabled()) {
-    const { claimSvJson } = await import("@/lib/schnellversion-persist");
-    const claim = await claimSvJson(svCounted49Path(sessionId), { sessionId });
-    if (claim === "exists") {
-      committedEvents.add(sessionId);
-      return;
-    }
-  } else if (fileWritesAllowed()) {
-    const all = await readJsonObject(countedFile());
-    all[sessionId] = "1";
-    await writeJsonObject(countedFile(), all);
-  }
+  await writeCountedMarker(sessionId);
   committedEvents.add(sessionId);
 }
 
@@ -370,7 +422,7 @@ async function storePurchasePdf(id: string, pdf: Buffer): Promise<string> {
     });
     return stored.pathname;
   }
-  const dir = path.join(tmpdir(), "gobd-sv49-pdf");
+  const dir = svLocalPdfDir();
   await mkdir(dir, { recursive: true });
   const pathname = path.join(dir, `${id}.pdf`);
   if (!automatedRunForbidsLiveWrites()) await writeFile(pathname, pdf);
@@ -462,17 +514,26 @@ export function newDownloadToken(): { token: string; hash: string } {
   return { token, hash: hashDownloadToken(token) };
 }
 
-/** Entfernt PDF und Token-Link eines Schnellversion-Kaufs. Andere Käufe bleiben. */
-export async function clearSvPurchaseDelivery(row: SvPurchase): Promise<void> {
-  if (row.pdfPath && !pdfPathIsBlob(row.pdfPath)) {
+/**
+ * Entfernt PDF und Token-Link eines Schnellversion-Kaufs.
+ * Blob nur unter `gobd/sv49-`, lokal nur im Schnellversion-Verzeichnis.
+ * Ein fremder Pfad bleibt stehen. Andere Käufe bleiben.
+ */
+export async function clearSvPurchaseDelivery(row: SvPurchase): Promise<boolean> {
+  const pdfPath = row.pdfPath.trim();
+  if (pdfPath && !isSvPdfPath(pdfPath)) return false;
+  if (pdfPath.startsWith("gobd/sv49-")) {
+    await deleteStoredBlob(pdfPath);
+  } else if (pdfPath) {
     try {
       const { unlink } = await import("node:fs/promises");
-      await unlink(row.pdfPath);
+      await unlink(pdfPath);
     } catch {
       /* Datei fehlte bereits */
     }
   }
   await replaceSvPurchase({ ...row, pdfPath: "", downloadTokenHash: "" });
+  return true;
 }
 
 export function downloadTokenMatches(token: string, hash: string): boolean {

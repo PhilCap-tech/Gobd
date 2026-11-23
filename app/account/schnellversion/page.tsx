@@ -5,14 +5,14 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSessionEmail } from "@/lib/auth";
 import { schnellversionOffered } from "@/lib/schnellversion-flag";
+import { schnellversionPageMetadata } from "@/lib/schnellversion-meta";
 import { listSvPurchases } from "@/lib/schnellversion-record";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Standardfassung",
-  robots: { index: false, follow: false },
-};
+export function generateMetadata(): Metadata {
+  return schnellversionPageMetadata("Standardfassung");
+}
 
 export default async function SchnellversionKontoPage() {
   if (!schnellversionOffered()) notFound();

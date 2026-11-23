@@ -274,6 +274,13 @@ export function failNextClaimedPurchaseForTest(): void {
   failNextClaimedPurchase = true;
 }
 
+let failNextPdf = false;
+
+/** Nur der Check. Die nächste PDF-Erzeugung schlägt fehl. */
+export function failNextSvPdfForTest(): void {
+  failNextPdf = true;
+}
+
 export async function confirmPaidSession(
   sessionId: string,
   proof?: PaidProof,
@@ -325,6 +332,10 @@ async function confirmPaidSessionOnce(
     }
     let pdf: Buffer;
     try {
+      if (failNextPdf) {
+        failNextPdf = false;
+        throw new Error("pdf");
+      }
       pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
     } catch {
       await releaseSvSession(requested);
