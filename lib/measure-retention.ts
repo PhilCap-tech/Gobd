@@ -113,6 +113,13 @@ export function markerDay(body: string): string | null {
  * Test claim files have no cohort, so they follow the 30-day marker rule.
  * starts/… is kept. An unreadable body is kept. Anything else is skipped.
  */
+/** A marker path whose date or body cannot be read. Those files stay. `starts/…` is not counted. */
+export function markerUnreadable(pathname: string, body: string): boolean {
+  if (!pathname.startsWith(MEASURE_MARKER_PREFIX) || pathname.includes("..")) return false;
+  if (pathname.startsWith(`${MEASURE_MARKER_PREFIX}starts/`) || pathname.includes("/starts/")) return false;
+  return markerDay(body) == null;
+}
+
 export function markerAction(pathname: string, body: string, today: string): "keep" | "delete" | "skip" {
   if (!pathname.startsWith(MEASURE_MARKER_PREFIX) || pathname.includes("..")) return "skip";
   if (pathname.startsWith(`${MEASURE_MARKER_PREFIX}starts/`) || pathname.includes("/starts/")) return "skip";

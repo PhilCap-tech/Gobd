@@ -11,6 +11,7 @@ import {
   countRowsToDelete,
   isMeasureCountTab,
   markerAction,
+  markerUnreadable,
   measureRetentionMode,
   type MeasureCountTab,
   type MeasureRetentionMode,
@@ -23,6 +24,8 @@ export type MeasureRetentionReport = {
   markers: number;
   rows: number;
   testRows: number;
+  /** Marker under the prefix whose date or body cannot be read. They stay. */
+  unreadable: number;
   deleted: boolean;
 };
 
@@ -36,7 +39,7 @@ export type MeasureRetentionIo = {
 };
 
 export function measureRetentionLogLine(report: MeasureRetentionReport): string {
-  return `date=${report.date} mode=${report.mode} markers=${report.markers} rows=${report.rows} test_rows=${report.testRows} deleted=${report.deleted ? 1 : 0}`;
+  return `date=${report.date} mode=${report.mode} markers=${report.markers} rows=${report.rows} test_rows=${report.testRows} unreadable=${report.unreadable} deleted=${report.deleted ? 1 : 0}`;
 }
 
 function tabsToRead(): MeasureCountTab[] {
@@ -61,6 +64,7 @@ export async function runMeasureRetention(input: {
     markers: 0,
     rows: 0,
     testRows: 0,
+    unreadable: 0,
     deleted: false,
   };
   if (mode === "off") return report;
@@ -79,7 +83,13 @@ export async function runMeasureRetention(input: {
   }
   const drop: string[] = [];
   for (const marker of await io.markers()) {
-    if (markerAction(marker.pathname, marker.body, report.date) !== "delete") continue;
+    const action = markerAction(marker.pathname, marker.body, report.date);
+    if (action === "skip") continue;
+    if (action === "keep" && markerUnreadable(marker.pathname, marker.body)) {
+      report.unreadable += 1;
+      continue;
+    }
+    if (action !== "delete") continue;
     if (!marker.pathname.startsWith(MEASURE_MARKER_PREFIX) || marker.pathname.includes("/starts/")) continue;
     drop.push(marker.pathname);
   }

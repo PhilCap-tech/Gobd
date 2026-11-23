@@ -15,6 +15,7 @@ import { setMeasureVercelEnvForTest } from "@/lib/measure-test";
 import {
   countRowsToDelete,
   markerAction,
+  markerUnreadable,
   measureRetentionMode,
   shiftDays,
   shiftMonths,
@@ -71,6 +72,8 @@ const hmac = "gobd/measure-claim/" + "a".repeat(64) + ".json";
 assert.equal(markerAction(hmac, JSON.stringify({ at: "2026-10-23" }), TODAY), "delete");
 assert.equal(markerAction(hmac, JSON.stringify({ at: "2026-11-01" }), TODAY), "keep");
 assert.equal(markerAction(hmac, "{", TODAY), "keep");
+assert.equal(markerUnreadable(hmac, "{"), true);
+assert.equal(markerUnreadable("gobd/measure-claim/starts/test/ampel_result.json", "{"), false);
 assert.equal(markerAction("gobd/measure-claim/starts/standard/intake_start.json", JSON.stringify({ date: "2026-11-07" }), TODAY), "skip");
 assert.equal(markerAction("gobd/measure-claim/starts/test/ampel_result.json", JSON.stringify({ date: "2026-11-01" }), TODAY), "skip");
 assert.equal(markerAction("gobd/intakes/row.json", "{}", TODAY), "skip");
@@ -107,6 +110,7 @@ const io: MeasureRetentionIo = {
     return [
       { pathname: hmac, body: JSON.stringify({ at: "2026-10-01" }) },
       { pathname: "gobd/measure-claim/starts/standard/intake_start.json", body: JSON.stringify({ date: "2026-11-07" }) },
+      { pathname: "gobd/measure-claim/broken.json", body: "{" },
     ];
   },
   async deleteMarkers() {
@@ -117,6 +121,7 @@ const io: MeasureRetentionIo = {
 async function main() {
 const off = await runMeasureRetention({ now: new Date("2026-11-23T12:00:00.000Z"), mode: "off", io });
 assert.equal(off.mode, "off");
+assert.equal(off.unreadable, 0);
 assert.equal(reads, 0);
 assert.equal(deletes, 0);
 
@@ -124,10 +129,11 @@ const dry = await runMeasureRetention({ now: new Date("2026-11-23T12:00:00.000Z"
 assert.equal(dry.rows, 2);
 assert.equal(dry.testRows, 1);
 assert.equal(dry.markers, 1);
+assert.equal(dry.unreadable, 1);
 assert.equal(dry.deleted, false);
 assert.equal(deletes, 0);
 const line = measureRetentionLogLine(dry);
-assert.match(line, /^date=2026-11-23 mode=dry-run markers=1 rows=2 test_rows=1 deleted=0$/);
+assert.match(line, /^date=2026-11-23 mode=dry-run markers=1 rows=2 test_rows=1 unreadable=1 deleted=0$/);
 assert.equal(line.includes(hmac), false);
 assert.equal(/[0-9a-f]{16,}/.test(line), false);
 
