@@ -37,7 +37,14 @@ export default async function SchnellversionDankePage({
   }
   const email = (await getSessionEmail()) ?? "";
   const open = confirmed.paid && downloadStillOpen(confirmed.purchase, new Date());
-  const allowed = confirmed.paid && svDownloadAllowed(confirmed.purchase, { email, token, now: new Date() });
+  const allowed =
+    confirmed.paid &&
+    svDownloadAllowed(confirmed.purchase, {
+      email,
+      token,
+      now: new Date(),
+      paidSession: confirmed.purchase.sessionId === sessionId,
+    });
   const draftHref = confirmed.paid && confirmed.purchase.email ? "/fragebogen" : "";
   const pdfHref = allowed
     ? `/api/schnellversion/pdf?session_id=${encodeURIComponent(sessionId)}${token ? `&dl=${encodeURIComponent(token)}` : ""}`

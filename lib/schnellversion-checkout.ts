@@ -67,7 +67,7 @@ export function schnellversionSessionParams(
     metadata,
     payment_intent_data: { metadata },
     expires_at: expiresAt,
-    success_url: `${thanks}?session_id={CHECKOUT_SESSION_ID}&dl=${encodeURIComponent(input.downloadToken)}`,
+    success_url: `${thanks}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/schnellversion/kauf`,
   };
 }

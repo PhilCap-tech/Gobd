@@ -22,6 +22,7 @@ import {
   svPurchaseBlobPath,
   svReserveBlobPath,
   svSessionBlobPath,
+  svSessionClaimPath,
 } from "@/lib/schnellversion-persist";
 
 export type SvPurchase = {
@@ -536,18 +537,51 @@ export async function clearSvPurchaseDelivery(row: SvPurchase): Promise<boolean>
   return true;
 }
 
+/** Entfernt den Kaufdatensatz und die zugehörigen Index- und Markerdateien unter gobd/sv49/. Kein Stripe. */
+export async function deleteSvPurchaseRecord(row: SvPurchase): Promise<void> {
+  if (row.pdfPath.trim() || row.downloadTokenHash.trim()) {
+    await clearSvPurchaseDelivery(row);
+  }
+  const key = emailKey(row.email);
+  const current = memory.get(key) ?? [];
+  const next = current.filter((item) => item.id !== row.id);
+  if (next.length) memory.set(key, next);
+  else memory.delete(key);
+  committedPurchases.delete(row.sessionId);
+  committedEvents.delete(row.sessionId);
+  purchaseEventsSent.delete(row.sessionId);
+  const all = (await readFileRows()).filter((item) => item.id !== row.id);
+  await writeFileRows(all);
+  if (!svBlobEnabled() || !row.id.trim()) return;
+  const paths = [
+    svPurchaseBlobPath(row.id),
+    svReserveBlobPath(row.id),
+    svEventSentPath(row.sessionId),
+    svCounted49Path(row.sessionId),
+    svSessionClaimPath(row.sessionId),
+  ];
+  if (row.sessionId.trim()) paths.push(svSessionBlobPath(row.sessionId));
+  for (const pathname of paths) {
+    await deleteSvJson(pathname);
+  }
+}
+
 export function downloadTokenMatches(token: string, hash: string): boolean {
   if (!token.trim() || !/^[a-f0-9]{64}$/.test(hash)) return false;
   const digest = hashDownloadToken(token.trim());
   return timingSafeEqual(Buffer.from(digest), Buffer.from(hash));
 }
 
-/** Login des Käufers oder das am Kauf gespeicherte Token. Zusätzlich die 30 Tage. */
+/**
+ * Login des Käufers, das Token oder die bereits geprüfte bezahlte Session.
+ * Zusätzlich die 30 Tage.
+ */
 export function svDownloadAllowed(
   row: SvPurchase,
-  input: { email: string; token: string; now: Date },
+  input: { email: string; token: string; now: Date; paidSession?: boolean },
 ): boolean {
   if (!downloadStillOpen(row, input.now)) return false;
+  if (input.paidSession) return true;
   const mail = emailKey(input.email);
   if (mail && mail === emailKey(row.email)) return true;
   return downloadTokenMatches(input.token, row.downloadTokenHash);
