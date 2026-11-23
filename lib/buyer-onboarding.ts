@@ -527,6 +527,7 @@ export async function notifyBuyerOfCheckout(input: {
   checkoutNames?: string[];
   extraCompanyNames?: string[];
   entityId?: string | null;
+  onceKey?: string;
 }): Promise<BuyerOnboardingStatus> {
   let paidAt: string | null = null;
   let rowEntityId = "";
@@ -545,5 +546,6 @@ export async function notifyBuyerOfCheckout(input: {
     entityId: input.entityId || rowEntityId,
     paidAt,
     enforceWindow: true,
+    onceKey: input.onceKey,
   });
 }

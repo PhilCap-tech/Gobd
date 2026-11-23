@@ -642,6 +642,10 @@ export async function resolveCheckoutSession(
       stub: false,
       entityId: session.metadata?.entity_id?.trim() || "",
       ...(session.metadata?.gobd_draft_key ? { draftKey: session.metadata.gobd_draft_key.trim() } : {}),
+      ...(session.metadata?.sv_purchase_id?.trim()
+        ? { svPurchaseId: session.metadata.sv_purchase_id.trim() }
+        : {}),
+      livemode: session.livemode,
       ...(billingAddress ? { billingAddress } : {}),
       ...(customerName ? { customerName } : {}),
       ...(businessName ? { businessName } : {}),

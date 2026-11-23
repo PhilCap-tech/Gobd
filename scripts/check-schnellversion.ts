@@ -55,7 +55,10 @@ import { checkoutReturnBaseUrl } from "../lib/env";
 import { planParamsFromCheckoutInput } from "../lib/stripe";
 import { releaseCreditForExpiredCheckout } from "../app/api/stripe/webhook/route";
 import {
+  abandonCreditCheckout,
   claimOpenCreditCheckout,
+  CREDIT_CHECKOUT_BUSY_MESSAGE,
+  creditPricePath,
   expireStoredCreditSessions,
   flagDuplicateCreditPayment,
   isDuplicateCreditSession,
@@ -67,7 +70,7 @@ import {
 } from "../lib/schnellversion-credit-sessions";
 import { setBlobMarkerTestDir } from "../lib/blob-marker";
 import { deliverBuyerOnboarding } from "../lib/buyer-onboarding";
-import { rememberCreditCheckoutSession } from "../lib/schnellversion-record";
+import { creditCheckoutSessionIds, rememberCreditCheckoutSession } from "../lib/schnellversion-record";
 import { setOwnerNoticeTestMode } from "../lib/owner-notice";
 import { setMailDedupeTestHooks } from "../lib/mail-dedupe";
 import { CHECKOUT_NOTICE_TO } from "../lib/checkout-notice";
@@ -1518,6 +1521,11 @@ async function checkSandboxCheckout(): Promise<void> {
       expiredSessions.includes("cs_offen_anrechnung") && !expiredSessions.includes("cs_upgrade_bezahlt"),
       "bezahlte Anrechnung beendet die übrigen offenen Sessions",
     );
+    const afterPay = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    ok(
+      afterPay ? !creditCheckoutSessionIds(afterPay).includes("cs_offen_anrechnung") : false,
+      "nach der Anrechnung bleibt keine offene Session übrig",
+    );
     const review: { sessionId: string; status: string }[] = [];
     const notices: { to?: string }[] = [];
     setCreditReviewSheetForTest({
@@ -1600,6 +1608,20 @@ async function checkSandboxCheckout(): Promise<void> {
         opens.filter((item) => item.status === 409).length === 1,
       "parallele Checkouts: eine Session, der zweite Request 409",
     );
+    ok(creditPricePath({ credit: false, coupon: false, reserved: false }) === "full", "ohne Anspruch bleibt der Vollpreis");
+    ok(creditPricePath({ credit: true, coupon: true, reserved: false }) === "blocked", "besetzte Reservierung ist kein Vollpreis");
+    ok(creditPricePath({ credit: true, coupon: false, reserved: false }) === "blocked", "Anspruch ohne Coupon ist kein Vollpreis");
+    const checkoutSrc = readFileSync("app/api/checkout/route.ts", "utf8");
+    const checkoutForm = readFileSync("app/checkout/checkout-form.tsx", "utf8");
+    ok(
+      CREDIT_CHECKOUT_BUSY_MESSAGE ===
+        "Ihr Checkout wird bereits geöffnet. Bitte warten Sie kurz und versuchen Sie es erneut." &&
+        checkoutSrc.includes("CREDIT_CHECKOUT_BUSY_MESSAGE") &&
+        checkoutSrc.indexOf("Anrechnung nicht angewendet: Reservierung") < checkoutSrc.indexOf("await createCheckoutSession") &&
+        checkoutForm.includes("setError(data.error") &&
+        checkoutForm.includes('role="alert"'),
+      "besetzter Claim liefert den Hinweis, das Formular zeigt ihn",
+    );
     await releaseOpenCreditCheckout("race-kauf");
     const raceReview: { sessionId: string; status: string }[] = [];
     const raceNotices: { to?: string; subject?: string }[] = [];
@@ -1663,6 +1685,57 @@ async function checkSandboxCheckout(): Promise<void> {
         raceNotices[0]?.to === CHECKOUT_NOTICE_TO,
       "parallele Webhooks: ein Upgrade, eine Willkommensmail, eine Prüfung, eine Notiz",
     );
+    const loserPurchase = `loser-mail-${Date.now()}`;
+    await settlePaidCreditSession({
+      sessionId: "cs_loser_mail_winner",
+      purchaseId: loserPurchase,
+      email: "kunde@firma.example",
+      company: "Sandbox GmbH",
+    });
+    const loserMails: { subject?: string }[] = [];
+    const savedLoserFrom = process.env.EMAIL_FROM;
+    const savedLoserResend = process.env.RESEND_API_KEY;
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "test@firma.example";
+    setMailDedupeTestHooks({
+      dir: mkdtempSync(path.join(tmpdir(), "gobd-loser-mail-")),
+      send: async (mail) => {
+        if (mail.to !== CHECKOUT_NOTICE_TO) loserMails.push(mail);
+        return { sent: true, stub: true };
+      },
+    });
+    const loserGrant = await settlePaidCreditSession({
+      sessionId: "cs_loser_mail",
+      purchaseId: loserPurchase,
+      email: "kunde@firma.example",
+      company: "Sandbox GmbH",
+    });
+    if (loserGrant !== "review") {
+      await deliverBuyerOnboarding({
+        email: "kunde@firma.example",
+        company: "Sandbox GmbH",
+        sessionId: "cs_loser_mail",
+        onceKey: `sv-credit:${loserPurchase}`,
+      });
+    }
+    ok(loserGrant === "review" && loserMails.length === 0, "Grant und Webhook der Verlierer-Session schicken keine Kundenmail");
+    if (savedLoserResend === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = savedLoserResend;
+    if (savedLoserFrom === undefined) delete process.env.EMAIL_FROM;
+    else process.env.EMAIL_FROM = savedLoserFrom;
+    await rememberCreditCheckoutSession(first.purchase.id, "cs_abbruch_expire");
+    const cancelled: string[] = [];
+    setCreditSessionExpireForTest(async (id) => {
+      cancelled.push(id);
+    });
+    await abandonCreditCheckout(first.purchase.id);
+    const afterCancelSessions = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    ok(
+      cancelled.includes("cs_abbruch_expire") &&
+        (afterCancelSessions ? !creditCheckoutSessionIds(afterCancelSessions).includes("cs_abbruch_expire") : false),
+      "Abbruch beendet die gemerkte Session",
+    );
+    setCreditSessionExpireForTest(null);
     if (savedResend === undefined) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = savedResend;
     if (savedFrom === undefined) delete process.env.EMAIL_FROM;

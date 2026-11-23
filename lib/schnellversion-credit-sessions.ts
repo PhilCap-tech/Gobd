@@ -19,6 +19,24 @@ import { toSheetRow } from "@/lib/types";
 
 export const CREDIT_REVIEW_STATUS = "anrechnung_pruefen";
 
+/** Besetzter Claim. Der Checkout zeigt diesen Satz, nicht einen generischen Fehler. */
+export const CREDIT_CHECKOUT_BUSY_MESSAGE =
+  "Ihr Checkout wird bereits geöffnet. Bitte warten Sie kurz und versuchen Sie es erneut.";
+
+/**
+ * Vollpreis nur ohne Anrechnungsanspruch. Anspruch ohne Coupon oder ohne
+ * freie Reservierung bleibt zu.
+ */
+export function creditPricePath(input: {
+  credit: boolean;
+  coupon: boolean;
+  reserved: boolean;
+}): "full" | "coupon" | "blocked" {
+  if (!input.credit) return "full";
+  if (!input.coupon || !input.reserved) return "blocked";
+  return "coupon";
+}
+
 const OPEN_CHECKOUT = "sv49-credit-open";
 const OPEN_GENERATION = "sv49-credit-open-gen";
 const USED_CREDIT = "sv49-credit-used";
@@ -268,4 +286,26 @@ export async function flagDuplicateCreditPayment(input: {
 
 export async function rememberUpgradeCheckout(purchaseId: string, sessionId: string): Promise<void> {
   await rememberCreditCheckoutSession(purchaseId, sessionId);
+}
+
+/** Abbruch: die gemerkte Session und die veröffentlichte Session beenden, dann den Slot freigeben. */
+export async function abandonCreditCheckout(purchaseId: string): Promise<void> {
+  const id = purchaseId.trim();
+  if (!id) return;
+  const key = openKey(id, await openGeneration(id));
+  const open = parseOpen(await readMarker(OPEN_CHECKOUT, key));
+  if (open?.sessionId) {
+    try {
+      await expireOne(open.sessionId);
+    } catch (error) {
+      if (!alreadySettled(error)) {
+        console.warn("[schnellversion] Checkout nicht beendet", {
+          sessionRef: sessionRef(open.sessionId),
+          name: error instanceof Error ? error.name : "error",
+        });
+      }
+    }
+  }
+  await expireStoredCreditSessions(id);
+  await releaseOpenCreditCheckout(id);
 }
