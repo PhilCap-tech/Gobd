@@ -136,15 +136,20 @@ export function preferIntakeSnapshot<T extends IntakeDraftSnapshot>(
  * The same revision counts as that save, even if the local clock is later.
  * Without a revision, a later local clock is not treated as already stored.
  */
+function snapshotBody(value: { step?: number; answers?: unknown } | null | undefined): string {
+  return JSON.stringify({ step: value?.step ?? null, answers: value?.answers ?? null });
+}
+
 export function serverSaveCoversRestore(
-  server: { revision?: number; savedAt?: string } | null | undefined,
-  chosen: { revision?: number; savedAt?: string } | null | undefined,
+  server: { revision?: number; savedAt?: string; step?: number; answers?: unknown } | null | undefined,
+  chosen: { revision?: number; savedAt?: string; step?: number; answers?: unknown } | null | undefined,
 ): string {
   const savedAt = server?.savedAt ?? "";
   if (!savedAt || !chosen) return "";
   const serverRev = draftRevision(server);
   const chosenRev = draftRevision(chosen);
-  if (chosenRev > serverRev) return "";
+  const sameBody = snapshotBody(server) === snapshotBody(chosen);
+  if (chosenRev > serverRev && !(sameBody && chosenRev > 0)) return "";
   if (chosenRev === serverRev && chosenRev === 0 && (chosen.savedAt ?? "") > savedAt) return "";
   return savedAt;
 }

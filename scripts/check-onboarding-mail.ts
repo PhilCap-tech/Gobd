@@ -32,6 +32,7 @@ import { MAIL_ACCOUNT_URL, MAIL_SUPPORT_EMAIL, mailLinkBase } from "@/lib/mail-l
 import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import {
   buildDeliveryMail,
+  deliveryDocumentLinks,
   buildFailedJobMail,
   buildFailedPaymentMail,
   buildMagicLinkMail,
@@ -607,6 +608,60 @@ async function checkExpiredOnboardingLink(): Promise<void> {
     restoreEnv();
   }
 }
+
+function checkDeliveryLinkBase(): void {
+  const keys = ["VERCEL_ENV", "VERCEL_BRANCH_URL", "VERCEL_URL", "NEXT_PUBLIC_APP_URL"] as const;
+  const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<
+    (typeof keys)[number],
+    string | undefined
+  >;
+  const restore = () => {
+    for (const key of keys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  };
+  try {
+    process.env.VERCEL_ENV = "production";
+    process.env.NEXT_PUBLIC_APP_URL = "https://gobd-doku-erstellen.de";
+    delete process.env.VERCEL_BRANCH_URL;
+    delete process.env.VERCEL_URL;
+    const prod = deliveryDocumentLinks({ documentId: "doc-1", stripeSessionId: "cs_1" });
+    if (!prod.downloadUrl.startsWith(`${CANONICAL}/api/docs/doc-1/download`)) {
+      fail(`production download stays on www, got ${prod.downloadUrl}`);
+    }
+    if (!prod.successUrl.startsWith(`${CANONICAL}/success?`)) {
+      fail(`production overview stays on www, got ${prod.successUrl}`);
+    }
+    process.env.VERCEL_ENV = "preview";
+    process.env.VERCEL_BRANCH_URL = "gobd-git-preview.vercel.app";
+    process.env.NEXT_PUBLIC_APP_URL = CANONICAL;
+    const preview = deliveryDocumentLinks({ documentId: "doc-1", stripeSessionId: "cs_1" });
+    const previewOrigin = "https://gobd-git-preview.vercel.app";
+    if (!preview.downloadUrl.startsWith(`${previewOrigin}/api/docs/doc-1/download`)) {
+      fail(`preview download uses the branch host, got ${preview.downloadUrl}`);
+    }
+    if (!preview.successUrl.startsWith(`${previewOrigin}/success?`)) {
+      fail(`preview overview uses the branch host, got ${preview.successUrl}`);
+    }
+    const mail = buildDeliveryMail({
+      contactName: "Anna Berg",
+      downloadUrl: preview.downloadUrl,
+      successUrl: preview.successUrl,
+      version: 1,
+    });
+    if (!mail.html.includes(">PDF herunterladen<") || !mail.html.includes(preview.downloadUrl)) {
+      fail("delivery mail download link misses the preview URL");
+    }
+    if (!mail.html.includes(">Zur Übersicht<") || !mail.html.includes(`${previewOrigin}/success?`)) {
+      fail("delivery mail overview link misses the preview URL");
+    }
+  } finally {
+    restore();
+  }
+}
+
+checkDeliveryLinkBase();
 
 checkIssuedContinueLink()
   .then(() => checkExpiredOnboardingLink())
