@@ -14,7 +14,6 @@ import { deliverAmpelResult } from "../lib/ampel-result-send";
 import { createMemoryAmpelSuppressionStore, setAmpelSuppressionTestStore } from "../lib/ampel-suppression";
 import { encodeAmpelAnswers, type AmpelAnswerMap } from "../lib/ampel-score";
 import { campaignTargetHref, hrefWithCampaignParams, replaceCheckSearch, submitUtmFields, submitVariantFields } from "../lib/campaign-params";
-import { buyHrefWithStoredAffiliate } from "../lib/digistore-promocode";
 import { hasMarketingConsent, saveConsent } from "../lib/tracking";
 import { submitKassenResult } from "../lib/kassen-check-send";
 import { keptCheckAttribution, storedCheckAttribution, withoutAmpelUtm } from "../lib/lead-attribution";
@@ -471,20 +470,20 @@ const pageHref = campaignLink.slice(pageHrefAt, effectAt);
 ok(pageHref.includes("hasMarketingConsent()"), "campaign params wait for marketing consent");
 ok(
   pageHref.includes("campaignTargetHref(") &&
-    pageHref.includes("buyHrefWithStoredAffiliate(") &&
-    pageHref.indexOf("hasMarketingConsent()") < pageHref.indexOf("buyHrefWithStoredAffiliate("),
-  "consent is read before the stored affiliate is applied",
+    pageHref.includes("hasMarketingConsent()") &&
+    !pageHref.includes("buyHrefWithStoredAffiliate("),
+  "consent gates the href and no stored affiliate is applied",
 );
 const campaignParams = readFileSync("lib/campaign-params.ts", "utf8");
 const targetAt = campaignParams.indexOf("export function campaignTargetHref");
 const targetFn = campaignParams.slice(targetAt, campaignParams.indexOf("export function submitUtmFields"));
 ok(
-  targetFn.includes("if (!marketing || isDigistoreBuyHost(href)) return href;") &&
+  targetFn.includes("if (!marketing) return href;") &&
     targetFn.indexOf("return href;") < targetFn.indexOf("hrefWithCampaignParams("),
   "without consent the link stays the plain href",
 );
 ok((targetFn.match(/hrefWithCampaignParams\(/g) ?? []).length === 1, "campaign params are copied in one place");
-ok(targetFn.includes("isDigistoreBuyHost("), "Digistore24 hosts skip campaign params");
+ok(!targetFn.includes("isDigistoreBuyHost("), "campaign params have no separate buy host");
 ok(campaignLink.includes("subscribeConsent("), "a consent change updates the href");
 ok(campaignLink.includes("return subscribeConsent(sync)"), "the consent subscription is cleaned up");
 const emitAt = campaignLink.indexOf("function emit");
@@ -508,9 +507,7 @@ ok(
 ok(!campaignLink.includes("gclid") && !campaignLink.includes("gbraid") && !campaignLink.includes("wbraid"), "the link does not name a click id");
 
 {
-  const pageSearch = "?aff=test123&cam=herbst&utm_source=google&gclid=X1&gbraid=GB1&wbraid=WB1";
-  const digistore = "https://www.digistore24.com/product/751404?aff=test123&cam=herbst";
-  const checkout = "https://www.checkout-ds24.com/product/751404?aff=test123&cam=herbst";
+  const pageSearch = "?utm_source=google&gclid=X1&gbraid=GB1&wbraid=WB1";
   const listeners = new Map<string, Set<() => void>>();
   const store = new Map<string, string>();
   const storage = {
@@ -540,9 +537,9 @@ ok(!campaignLink.includes("gclid") && !campaignLink.includes("gbraid") && !campa
     sessionStorage: storage,
     location: {
       protocol: "https:",
-      href: `https://www.gobd-doku-erstellen.de/partner-angebot${pageSearch}`,
+      href: `https://www.gobd-doku-erstellen.de/${pageSearch}`,
       origin: "https://www.gobd-doku-erstellen.de",
-      pathname: "/partner-angebot",
+      pathname: "/",
       search: pageSearch,
     },
     dispatchEvent(event: Event) {
@@ -561,24 +558,12 @@ ok(!campaignLink.includes("gclid") && !campaignLink.includes("gbraid") && !campa
   globalThis.document = { cookie: "" } as Document;
   try {
     saveConsent(true);
-    const resolved = (href: string) =>
-      buyHrefWithStoredAffiliate(campaignTargetHref(href, window.location.search, hasMarketingConsent()));
-    assert.equal(resolved(digistore), digistore);
-    assert.equal(resolved(checkout), checkout);
-    for (const host of [
-      "https://digistore24.com/product/751404?aff=test123&cam=herbst",
-      "https://www.checkout-ds24.com/product/751404?aff=test123&cam=herbst",
-    ]) {
-      assert.equal(resolved(host), host);
-      ok(!/utm_|gclid|gbraid|wbraid/.test(resolved(host)), `${host} stays free of campaign params`);
-    }
-    ok(!/utm_|gclid|gbraid|wbraid/.test(resolved(digistore)), "the Digistore24 link has no utm or click id");
+    const resolved = (href: string) => campaignTargetHref(href, window.location.search, hasMarketingConsent());
     assert.equal(resolved("/start"), "/start?utm_source=google&gclid=X1&gbraid=GB1&wbraid=WB1");
     ok(resolved("/start").includes("utm_source=google"), "an internal target still receives utm_*");
     saveConsent(false);
-    assert.equal(resolved(digistore), digistore);
     assert.equal(resolved("/start"), "/start");
-    console.log("ok: Digistore24 hosts keep aff and cam; internal links still take utm_* after consent");
+    console.log("ok: internal links take utm_* after consent and stay plain without it");
   } finally {
     if (previousWindow === undefined) {
       delete (globalThis as { window?: unknown }).window;

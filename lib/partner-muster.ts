@@ -20,12 +20,12 @@ import type { CheckoutIdentity, IntakeAnswers } from "@/lib/types";
 
 export const PARTNER_MUSTER_PATH = "/steuerberater/muster";
 export const PARTNER_MUSTER_PDF_PATH = "/steuerberater/muster/pdf";
-/** Expliziter DS24-Marker (nicht Referrer): /partner-angebot verlinkt nur diese URL. */
+/** Expliziter Marker in der Adresse (nicht Referrer). Die Verkaufsseite verlinkt ihn nicht mehr. */
 export const MUSTER_QUELLE_PARAM = "quelle";
 export const MUSTER_QUELLE_DS24 = "ds24";
 export const PARTNER_MUSTER_PDF_DS24_PATH = `${PARTNER_MUSTER_PDF_PATH}?${MUSTER_QUELLE_PARAM}=${MUSTER_QUELLE_DS24}`;
 
-/** Muster-Link auf /partner-angebot: unter v2 mit Marker, Legacy byte-gleich wie main. */
+/** Muster-Adresse: unter v2 mit Marker, Legacy ohne Marker. */
 export function ds24MusterPdfHref(v2: boolean): string {
   return v2 ? PARTNER_MUSTER_PDF_DS24_PATH : PARTNER_MUSTER_PDF_PATH;
 }

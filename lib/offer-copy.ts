@@ -13,7 +13,7 @@ import { PLAN_FACT_LINE } from "@/lib/plan-copy";
 /**
  * Preismodell v2 (PRICING_MODEL=v2): Preissätze tauschen beim Laden des
  * Moduls (Server, Build). Ohne Variable bleibt jeder Satz wörtlich wie
- * bisher (LEGACY_*). Digistore24 nutzt immer LEGACY_* (lib/ds24-offer-copy.ts).
+ * bisher (LEGACY_*).
  * v2-Formulierungen sind vorläufig und sachlich, bis Growth/Legal liefern
  * (Marker aus lib/plan-copy.ts, Merge-Sperre über PLAN_COPY_DRAFT).
  */

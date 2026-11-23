@@ -1,4 +1,4 @@
-> Owner-Defaults: reines B2B · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Garantie: voll nur vor erstem PDF, danach nur Monatsbeitrag (Setup 149 € nicht).
+> Owner-Defaults: reines B2B · Preise netto zzgl. USt · Kontakt `info@gobd-doku-erstellen.de` · kein Datenschutzbeauftragter · Erstattung nur, wenn die Erstellung fehlschlägt (AGB § 9 Abs. 2).
 
 ---
 # Produkt-Disclaimer

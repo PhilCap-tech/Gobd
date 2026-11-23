@@ -20,7 +20,7 @@ Wir haben keinen Datenschutzbeauftragten benannt, weil wir gesetzlich nicht dazu
 
 ## 3. Überblick und Rechtsgrundlagen
 
-Wir verarbeiten personenbezogene Daten, soweit dies für den Betrieb der Website, für Marketing nach Ihrer Einwilligung, für die Vertragsanbahnung und -durchführung (Erstellung einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche, z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn; 24 Module, alle inklusive; Option 1 mit 30 Tagen Zugang zum Kundenkonto oder Option 2 mit Jahrespaket und dauerhaftem Zugang;<!-- if:schnellversion --> außerdem die Schnellversion, eine Standardfassung aus einer Branchenvorlage mit 30 Tagen Download;<!-- endif --> je Option eine Firma, weitere Firmen gesondert; für Bestellungen über Digistore24 und bestehende Verträge das bisherige Monatsabonnement) sowie zur Erfüllung gesetzlicher Pflichten erforderlich ist.
+Wir verarbeiten personenbezogene Daten, soweit dies für den Betrieb der Website, für Marketing nach Ihrer Einwilligung, für die Vertragsanbahnung und -durchführung (Erstellung einer Verfahrensdokumentation für die von Ihnen gewählten Module/Bereiche, z. B. Belegfluss, Kasse, Warenwirtschaft, Lohn; 24 Module, alle inklusive; Option 1 mit 30 Tagen Zugang zum Kundenkonto oder Option 2 mit Jahrespaket und dauerhaftem Zugang;<!-- if:schnellversion --> außerdem die Schnellversion, eine Standardfassung aus einer Branchenvorlage mit 30 Tagen Download;<!-- endif --> je Option eine Firma, weitere Firmen gesondert) sowie zur Erfüllung gesetzlicher Pflichten erforderlich ist.
 
 Soweit nicht anders angegeben, stützen wir uns insbesondere auf:
 - Art. 6 Abs. 1 lit. b DSGVO (Vertrag / vorvertragliche Maßnahmen)
@@ -31,7 +31,7 @@ Soweit nicht anders angegeben, stützen wir uns insbesondere auf:
 
 ## 4. Auftragsverarbeiter
 
-Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten. Für den E-Mail-Versand setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein. Die Einzelheiten stehen in Abschnitt 10. Digistore24 ist nicht unser Auftragsverarbeiter, sondern bei Bestellungen über die Partnerseite als Wiederverkäufer eigener Verantwortlicher (Abschnitt 12).
+Soweit wir Dienstleister als Auftragsverarbeiter einsetzen (Hosting, Datenbank, E-Mail-Versand, Zahlungsabwicklung), haben wir mit ihnen Verträge nach Art. 28 DSGVO geschlossen bzw. nutzen deren Auftragsverarbeitungsbedingungen. Die einzelnen Dienstleister nennen wir in den folgenden Abschnitten. Für den E-Mail-Versand setzen wir Resend (Plus Five Five, Inc., USA) als Auftragsverarbeiter ein. Die Einzelheiten stehen in Abschnitt 10.
 
 ## 5. Hosting über Vercel
 
@@ -108,37 +108,13 @@ Die Schnellversion und das Upgrade aus der Schnellversion bezahlen Sie ebenfalls
 
 Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO und Art. 6 Abs. 1 lit. c DSGVO. Stripe verarbeitet Daten teilweise auch als eigener Verantwortlicher (z. B. Betrugsprävention); siehe https://stripe.com/de/privacy. Für Übermittlungen in die USA gelten Standardvertragsklauseln oder ein Angemessenheitsbeschluss, sofern Stripe danach zertifiziert ist.
 
-## 12. Bestellungen über Digistore24 (Partner-Angebot)
-
-Wenn Sie über unsere Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot bestellen, führt Sie ein Link zum Bestellformular von Digistore24. „Digistore24“ ist die jeweils nach Ihrem Land zuständige Digistore24-Gesellschaft (für Käufer aus Deutschland: Digistore24 GmbH, St.-Godehard-Straße 32, 31139 Hildesheim, Deutschland). Digistore24 verkauft unsere Leistung als Wiederverkäufer im eigenen Namen und ist Ihr Vertragspartner für Kauf, Zahlung und Rechnung.
-
-Digistore24 verarbeitet die Daten aus dem Bestellformular und zur Zahlungsabwicklung als **eigener Verantwortlicher**, nicht in unserem Auftrag. Einzelheiten und Ihre Rechte gegenüber Digistore24 finden Sie in der Datenschutzerklärung der zuständigen Digistore24-Gesellschaft, die im Bestellformular verlinkt ist (für Käufer aus Deutschland: https://www.digistore24.com/page/privacy/1/de).
-
-Von Digistore24 erhalten wir die Daten, die für die Durchführung Ihrer Bestellung erforderlich sind: Angaben zu Ihrer Person und Ihrem Unternehmen aus dem Bestellformular sowie Angaben zur Bestellung und zu deren Status (z. B. Zahlung, Kündigung, Erstattung). Außerdem erhalten wir von Digistore24 Abrechnungen über die verkauften Leistungen. Wir verwenden diese Daten, um Ihre Bestellung Ihrem Kundenkonto zuzuordnen, die gebuchte Leistung zu erbringen, mit Ihnen zur Bestellung zu kommunizieren und Kündigungen und Erstattungen umzusetzen. Soweit dafür erforderlich, tauschen wir mit Digistore24 Angaben zu Ihrer Bestellung aus.
-
-Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Für die Aufbewahrung von Abrechnungen und Buchungsbelegen ist es Art. 6 Abs. 1 lit. c DSGVO in Verbindung mit § 147 AO und § 257 HGB.
-
-**Käufe über Digistore24 geben wir nicht an Werbedienste weiter, insbesondere nicht an Google Ads oder Meta.**
-
-Nach Angaben von Digistore24 können Daten auch außerhalb der EU bzw. des EWR verarbeitet werden, dann nur auf Grundlage geeigneter Garantien, von Standardvertragsklauseln oder eines Angemessenheitsbeschlusses (Art. 45, 46 DSGVO). Für die Daten, die wir von Digistore24 erhalten und bei uns speichern, gelten die Abschnitte 8 und 20 sowie die Speicherfristen in den Abschnitten 17 und 21.
-
-**Affiliate-Zuordnung auf der Partnerseite (Digistore24-Promocode)**
-
-Auf der Seite https://www.gobd-doku-erstellen.de/partner-angebot binden wir nach Ihrer Einwilligung das Promocode-Skript von Digistore24 ein (`https://www.digistore24-scripts.com/service/digistore.js`, Aufruf `digistorePromocode` für das Produkt 751404). Es erkennt eine Affiliate-ID in der aufgerufenen Adresse, speichert sie in Ihrem Browser und gibt sie an das Bestellformular weiter. Außerdem zählt Digistore24 den Aufruf für die Affiliate-Zuordnung. Das Skript wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Ohne diese Einwilligung wird das Skript nicht geladen, und es wird nichts in Ihrem Browser gespeichert und nichts an Digistore24 übermittelt.
-
-Nach dem Laden setzt das Skript auf Ihrem Endgerät das Cookie `ds24c.v1`, den Local-Storage-Eintrag `ds24p.v1`, soweit Digistore24 die Speicherung erlaubt, und den Session-Storage-Eintrag `ds24s.v1`. Darin stehen die aus der Adresse gelesenen Zuordnungsdaten (Affiliate-ID, Kampagnenschlüssel, weitere Kampagnenparameter und UTM-Parameter). Eine E-Mail-Adresse schreiben wir nicht in die Adresse. Enthält die Adresse gleichwohl den Parameter `email` oder `e`, speichert das Skript diese Adresse mit und übermittelt einen SHA-256-Hash an Digistore24. Sind in Ihrem Browser bereits Cookies von Google Analytics vorhanden, kann das Skript die darin enthaltene Client- und Sitzungskennung auslesen und mitspeichern.
-
-Beim Laden sendet Ihr Browser eine Anfrage an Digistore24 (www.checkout-ds24.com, ersatzweise www.digistore24.com). Übermittelt werden insbesondere die Produkt-ID, die Affiliate-ID, Kampagnenparameter, die Adresse der zuvor aufgerufenen Seite (Referrer) und ein technischer Wert zur Erkennung automatisierter Aufrufe. Die IP-Adresse ist dabei für Digistore24 als Verbindungsdatum sichtbar. Digistore24 verarbeitet diese Daten als eigener Verantwortlicher. Weitere Hinweise stehen in der Datenschutzerklärung von Digistore24: https://www.digistore24.com/page/privacy/1/de
-
-Das Cookie `ds24c.v1` gilt 7 Tage, wenn Digistore24 die Speicherung erlaubt, sonst bis zum Ende der Browsersitzung. `ds24p.v1` wird nur bei erlaubter Speicherung gesetzt und bleibt bis zur Löschung in Ihrem Browser. `ds24s.v1` endet mit der Sitzung.
-
-Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Sie können die Einwilligung jederzeit mit Wirkung für die Zukunft über „Cookie-Einstellungen“ im Seitenfuß widerrufen. Danach wird das Skript nicht erneut geladen. Bereits gesetzte Speicher entfernen wir damit nicht; Sie können sie in Ihrem Browser löschen. Die Rechtmäßigkeit der Verarbeitung bis zum Widerruf bleibt unberührt.
+## 12. (weggefallen)
 
 ## 13. Google Ads Conversion-Tracking und Google Analytics 4
 
 Wir nutzen das Google-Tag der Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland („Google“), für das Conversion-Tracking von Google Ads (Konto-ID AW-586367190) und für Google Analytics 4 (Mess-ID G-RJ4KLBP1SF). Dabei setzen wir den Google Consent Mode v2 ein. Das Google-Tag wird erst geladen, nachdem Sie im Cookie-Banner „Marketing erlauben“ gewählt haben. Ohne Ihre Einwilligung übermitteln wir über das Google-Tag keine Daten an Google. Die davon getrennte Nutzung von Google Sheets als Auftragsverarbeiter für Konto-, Fragebogen- und Statistikdaten ist in Abschnitt 8 beschrieben.
 
-Zwecke sind die Messung, ob eine Anzeige zu einem Kaufabschluss oder zur Anforderung des Ampel-Berichts geführt hat, sowie die statistische Auswertung der Nutzung unserer Website. Nach einem erfolgreichen Kauf übermitteln wir an Google Ads eine Conversion mit dem Bestellwert und der Stripe-Checkout-Session-ID als Transaktions-ID. Die Transaktions-ID dient dazu, doppelte Zählungen zu vermeiden. Dazu speichern wir in Ihrem Browser für 90 Tage einen Vermerk, dass dieser Kauf bereits gemeldet wurde. Zahlungsdaten wie Kartennummern übermitteln wir nicht. Außerdem werden Cookies bzw. ähnliche Technologien gesetzt und Daten wie IP-Adresse, Geräte- und Browserinformationen, aufgerufene Seiten und Klicks auf Anzeigen an Google übermittelt. Außerdem melden wir an Google Ads eine Conversion, wenn Sie im Ampel-Check den PDF-Bericht angefordert haben und unser Server den Versand angenommen hat. Diese Meldung erfolgt nur, wenn Sie „Marketing erlauben“ gewählt haben. Sie enthält nur die Art des Ereignisses und die Ampelfarbe, weder Ihre E-Mail-Adresse noch Ihre Antworten. Wird lediglich das Ergebnis ohne E-Mail angezeigt, melden wir an Google Ads keine Conversion. Im Ampel-Check erfassen wir in Google Analytics 4 zusätzlich, welche Schritte aufgerufen werden (z. B. Ergebnis angezeigt, Bericht angefordert). Dabei übermitteln wir weder die Ampelfarbe noch die Anzahl der „Nein“-Antworten, Ihre Antworten oder Ihre E-Mail-Adresse. Weitere Conversions melden wir nicht. Käufe über Digistore24 melden wir nicht an Google. Enhanced Conversions (Übermittlung gehashter E-Mail-Adressen o. Ä.) nutzen wir nicht. Diese Daten können an Konzerngesellschaften von Google in den USA übermittelt werden.
+Zwecke sind die Messung, ob eine Anzeige zu einem Kaufabschluss oder zur Anforderung des Ampel-Berichts geführt hat, sowie die statistische Auswertung der Nutzung unserer Website. Nach einem erfolgreichen Kauf übermitteln wir an Google Ads eine Conversion mit dem Bestellwert und der Stripe-Checkout-Session-ID als Transaktions-ID. Die Transaktions-ID dient dazu, doppelte Zählungen zu vermeiden. Dazu speichern wir in Ihrem Browser für 90 Tage einen Vermerk, dass dieser Kauf bereits gemeldet wurde. Zahlungsdaten wie Kartennummern übermitteln wir nicht. Außerdem werden Cookies bzw. ähnliche Technologien gesetzt und Daten wie IP-Adresse, Geräte- und Browserinformationen, aufgerufene Seiten und Klicks auf Anzeigen an Google übermittelt. Außerdem melden wir an Google Ads eine Conversion, wenn Sie im Ampel-Check den PDF-Bericht angefordert haben und unser Server den Versand angenommen hat. Diese Meldung erfolgt nur, wenn Sie „Marketing erlauben“ gewählt haben. Sie enthält nur die Art des Ereignisses und die Ampelfarbe, weder Ihre E-Mail-Adresse noch Ihre Antworten. Wird lediglich das Ergebnis ohne E-Mail angezeigt, melden wir an Google Ads keine Conversion. Im Ampel-Check erfassen wir in Google Analytics 4 zusätzlich, welche Schritte aufgerufen werden (z. B. Ergebnis angezeigt, Bericht angefordert). Dabei übermitteln wir weder die Ampelfarbe noch die Anzahl der „Nein“-Antworten, Ihre Antworten oder Ihre E-Mail-Adresse. Weitere Conversions melden wir nicht. Enhanced Conversions (Übermittlung gehashter E-Mail-Adressen o. Ä.) nutzen wir nicht. Diese Daten können an Konzerngesellschaften von Google in den USA übermittelt werden.
 
 Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Für die Übermittlung in die USA stützen wir uns auf Standardvertragsklauseln oder auf einen Angemessenheitsbeschluss, sofern Google danach zertifiziert ist. Die Aufbewahrungsdauer in GA4 richtet sich nach der Einstellung im GA4-Konto; eingestellt sind 14 Monate.
 
@@ -182,7 +158,6 @@ Hinweis-E-Mail vor Ende des Downloads (Schnellversion). 7 Tage vor Ablauf der 30
 - **Nach Ende eines Jahrespakets:** Mit Ablauf des Jahrespakets wird das Konto deaktiviert (wie bei Option 1, auch für den Download). Wir speichern die Dokumentationsdaten noch zwölf Monate ab Ende des Jahrespakets, damit Sie reaktivieren können, und löschen sie danach.
 - **Löschung:** Nach Ablauf der jeweiligen Frist löschen wir die Dokumentationsdaten und Ihre Kontodaten aus unserer Datenbank und unserem Dateispeicher. **Vor der Löschung informieren wir Sie per E-Mail** an die im Konto hinterlegte Adresse, **30 Tage und 7 Tage vorher** (gilt nicht für unbezahlte Entwürfe und nicht nach einer Erstattung, siehe oben bzw. AGB § 9 Abs. 5). Bis zum Fristende können Sie die Dokumentation reaktivieren; dann speichern wir weiter.
 - **Nach einer Erstattung** (AGB § 9 Abs. 5): Wir sperren den Zugang und löschen unverzüglich, spätestens innerhalb von 24 Stunden, Ihre gesamte Dokumentation mit Entwürfen, erstellten PDFs, hochgeladenen Dateien und Ihren Angaben aus dem Fragebogen. Rechnungsdaten bewahren wir nach den gesetzlichen Pflichten auf und löschen sie danach.
-- **Monatsabonnement (Bestellungen über Digistore24 und bestehende Verträge):** Nach Vertragsende können Sie bereits erzeugte PDFs noch 30 Tage herunterladen; danach löschen wir sie. Nach einer Rückgabe über Digistore24 sperren wir den Zugang sofort (entspricht AGB § 9a Abs. 9).
 - **Mehrere Firmen:** Die Fristen gelten je Firma.
 - **Sicherungskopien:** Eigene Sicherungskopien Ihrer Dokumentationsdaten erstellen wir nicht. Dateien in unserem Dateispeicher bei Vercel (Abschnitt 8) werden beim Löschen endgültig entfernt. Zahlungsdaten bewahrt Stripe nach seinen eigenen gesetzlichen Pflichten auf (Abschnitt 11).
 
@@ -204,7 +179,7 @@ Wenn Sie uns per E-Mail an info@gobd-doku-erstellen.de kontaktieren, verarbeiten
 
 ## 20. Weitergabe von Daten
 
-Eine Weitergabe erfolgt nur, soweit erforderlich (Hosting, Zahlungsdienstleister, bei Bestellungen über die Partnerseite unser Vertriebspartner Digistore24 als eigener Verantwortlicher (Abschnitt 12), gesetzliche Verpflichtung) oder mit Einwilligung. Eine Weitergabe zu Werbezwecken an Dritte findet nicht statt, soweit nicht ausdrücklich in den Marketing-Abschnitten beschrieben.
+Eine Weitergabe erfolgt nur, soweit erforderlich (Hosting, Zahlungsdienstleister, gesetzliche Verpflichtung) oder mit Einwilligung. Eine Weitergabe zu Werbezwecken an Dritte findet nicht statt, soweit nicht ausdrücklich in den Marketing-Abschnitten beschrieben.
 
 ## 21. Speicherdauer
 
@@ -218,11 +193,11 @@ Zur Ausübung Ihrer Rechte genügt eine Nachricht an **info@gobd-doku-erstellen.
 
 ## 23. Pflicht zur Bereitstellung
 
-Für einen Vertragsabschluss sind die zur Zahlung und Lieferung erforderlichen Daten notwendig. Ohne diese Daten kann der Vertrag nicht durchgeführt werden. Bei Bestellungen über Digistore24 erhebt Digistore24 die für Kauf und Zahlung erforderlichen Daten.
+Für einen Vertragsabschluss sind die zur Zahlung und Lieferung erforderlichen Daten notwendig. Ohne diese Daten kann der Vertrag nicht durchgeführt werden.
 
 ## 24. Automatisierte Entscheidungsfindung
 
-Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von Art. 22 DSGVO, die Ihnen gegenüber rechtliche Wirkung entfaltet, führen wir nicht durch. Stripe kann zur Betrugsprävention eigene Prüfungen vornehmen; das ist im Abschnitt zur Zahlungsabwicklung beschrieben. Bei Bestellungen über Digistore24 kann Digistore24 eigene automatisierte Prüfungen vornehmen; siehe die Datenschutzerklärung von Digistore24.
+Eine automatisierte Entscheidungsfindung einschließlich Profiling im Sinne von Art. 22 DSGVO, die Ihnen gegenüber rechtliche Wirkung entfaltet, führen wir nicht durch. Stripe kann zur Betrugsprävention eigene Prüfungen vornehmen; das ist im Abschnitt zur Zahlungsabwicklung beschrieben.
 
 ## 25. Änderungen
 

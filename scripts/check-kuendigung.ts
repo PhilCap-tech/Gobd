@@ -381,7 +381,7 @@ assert(
 );
 assert(!agbV2.includes("kann der Kunde bereits erzeugte PDFs"), "AGB v2 ohne den alten Satz");
 const faqV2 = readFileSync("content/faq-v2.md", "utf8");
-assert(faqV2.includes("Bestellungen über Digistore24 kündigen Sie wie bisher über Digistore24"), "FAQ v2: DS24-Kündigung unverändert über Digistore24");
+assert(!/Digistore|§ ?9a/.test(faqV2), "FAQ v2: keine Digistore- und § 9a-Erwähnung mehr");
 const faq = readFileSync("content/faq.md", "utf8");
 const datenschutz = readFileSync("content/legal/datenschutz.md", "utf8");
 assert(faq.includes("30"), "FAQ nicht geleert");
