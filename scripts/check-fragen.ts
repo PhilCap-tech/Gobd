@@ -101,6 +101,7 @@ async function main() {
     { slug: "ihk-awv-muster-verbindlich", stand: "2026-11-17", gruppe: "erstellen-vorlage-muster" },
     { slug: "ersetzendes-scannen", stand: "2026-11-18", gruppe: "aufbewahrung-archiv" },
     { slug: "e-rechnung-aufbewahren", stand: "2026-11-22", gruppe: "belege-e-rechnung" },
+    { slug: "cloud-ordner-archiv", stand: "2026-11-23", gruppe: "aufbewahrung-archiv" },
   ];
   const wave1Pages = seiten.filter((seite) => seite.welle === 1).length;
   const expectedLatestStand = explicitSeiten.reduce(
