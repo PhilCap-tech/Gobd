@@ -23,7 +23,13 @@ import {
   SV_KAUF_WECHSEL,
   SV_WECHSEL_LINK,
 } from "@/lib/schnellversion-copy";
-import { PLAN_TERMS_HREF, PLAN_TERMS_LABEL_AFTER, PLAN_TERMS_LABEL_BEFORE, PLAN_TERMS_LINK } from "@/lib/plan-copy";
+import {
+  PLAN_OFFER_OBJECTION_NOTICE,
+  PLAN_TERMS_HREF,
+  PLAN_TERMS_LABEL_AFTER,
+  PLAN_TERMS_LABEL_BEFORE,
+  PLAN_TERMS_LINK,
+} from "@/lib/plan-copy";
 
 export function SchnellversionKauf() {
   const answers = useSyncExternalStore(subscribeSvStorage, readSvAnswersSnapshot, () => null);
@@ -191,6 +197,9 @@ export function SchnellversionKauf() {
         </p>
       </section>
       <section className={styles.buy}>
+        <p className={styles.objection} id="email-objection">
+          {PLAN_OFFER_OBJECTION_NOTICE}
+        </p>
         <button className="btn" type="button" onClick={() => void buy()} disabled={pending}>
           {SV_KAUF_BUTTON}
         </button>

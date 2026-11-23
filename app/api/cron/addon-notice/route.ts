@@ -3,6 +3,7 @@ import { logError } from "@/lib/log-error";
 import { cronAuthorized } from "@/lib/cron-auth";
 import { runAddonNotice } from "@/lib/plan-addon-notice";
 import { sendDedupedEmail } from "@/lib/mail-dedupe";
+import { hasOfferOptOut } from "@/lib/offer-optout";
 import { runSchnellversionReminder, schnellversionReminderSendEnabled } from "@/lib/schnellversion-reminder";
 import { listAllSvPurchases } from "@/lib/schnellversion-record";
 
@@ -21,15 +22,28 @@ export async function GET(request: Request) {
     // Dieselbe tägliche Route. Versand nur mit SCHNELLVERSION_49_REMINDER_SEND=1|true.
     if (schnellversionReminderSendEnabled()) {
       try {
-        await runSchnellversionReminder(await listAllSvPurchases(), new Date(), async (mail) => {
-          await sendDedupedEmail({
-            dedupeKey: `sv49-reminder:${mail.to}`,
-            to: mail.to,
-            subject: mail.subject,
-            text: mail.text,
-            html: mail.html,
-          });
-        });
+        await runSchnellversionReminder(
+          await listAllSvPurchases(),
+          new Date(),
+          async (mail) => {
+            await sendDedupedEmail({
+              dedupeKey: `sv49-reminder:${mail.purchaseId}`,
+              to: mail.to,
+              subject: mail.subject,
+              text: mail.text,
+              html: mail.html,
+            });
+          },
+          process.env,
+          async (row) => {
+            try {
+              return await hasOfferOptOut({ email: row.email, offerOptOutAt: "" });
+            } catch (error) {
+              logError("[addon-notice] Widerspruch", error);
+              return false;
+            }
+          },
+        );
       } catch (error) {
         logError("[addon-notice] Schnellversion", error);
       }

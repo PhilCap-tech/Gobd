@@ -34,9 +34,13 @@ import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, 
 import { confirmPaidSession, failNextClaimedPurchaseForTest, failNextSvPdfForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
-import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
+import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once, rememberSvEvent, SV_EVENT_COLUMNS } from "../lib/schnellversion-store";
 import { maybeSendSchnellversionPurchaseMail, purchaseMail } from "../lib/schnellversion-purchase-mail";
-import { runScheduledSvPurge, runSvPurge } from "../lib/schnellversion-purge";
+import { runScheduledSvPurge, runSvPurge, svRecordPurgeDue } from "../lib/schnellversion-purge";
+import { addMonthsIso } from "../lib/plan";
+import { DOC_RETENTION_MONTHS } from "../lib/retention-decision";
+import { PLAN_OFFER_OBJECTION_NOTICE } from "../lib/plan-copy";
+import { applyLegalConditions, legalFlagsFor } from "../lib/legal-content";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { GET as pdfGet, POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { SV_HIDDEN_TITLE, schnellversionPageMetadata } from "../lib/schnellversion-meta";
@@ -465,7 +469,8 @@ async function main() {
   ok(readFileSync("lib/schnellversion-gate.ts", "utf8").includes("schnellversionOffered()"), "Seiten prüfen das Preismodell");
   ok(readFileSync("app/api/checkout/route.ts", "utf8").includes("creditEmail"), "Anrechnung hängt an der Login-Mail");
   ok(readFileSync("lib/plan-checkout.ts", "utf8").includes("expires_at:"), "Upgrade-Session läuft mit der Reservierung ab");
-  ok(readFileSync("components/schnellversion-browser.ts", "utf8").includes("sv49_visit"), "Aufruf wird nur einmal gesendet");
+  const browserSource = readFileSync("components/schnellversion-browser.ts", "utf8");
+  ok(!browserSource.includes("sv49_visit") && browserSource.includes('name: "sv_visit"'), "Aufruf ohne Sitzungsspeicher");
   ok(kasseCheckAntwort("Unsicher") === "unbekannt", "Unsicher ist keine Ja-Antwort");
   const kept = draftFromSchnellversion("inhaber@example.com", sample({ firma: "Bleibt GmbH" }));
   kept.revision = 4;
@@ -960,12 +965,46 @@ async function main() {
   ok(sharp.dryRun === false && sharp.deleted === 1 && sharp.due === 2, "Löschlauf löscht nur den fälligen Schnellversion-Kauf");
   const cleared = (await listAllSvPurchases()).find((row) => row.id === "faellig");
   ok(cleared?.pdfPath === "" && cleared.downloadTokenHash === "", "PDF und Token der fälligen Zeile sind leer");
+  ok(
+    cleared?.email === "inhaber@example.com" && cleared.company === "Malerbetrieb Adler" && !creditStillOpen(cleared, cleared.company, now),
+    "nach 31 Tagen bleibt der Datensatz, die Anrechnung ist zu",
+  );
   ok(freshRow.downloadTokenHash === "cd".repeat(32) && freshRow.pdfPath === "", "nicht fällige Zeile bleibt");
   ok(foreignRow.pdfPath === foreign && foreignRow.downloadTokenHash === "ef".repeat(32), "fremder Pfad bleibt");
   await assert.rejects(unlink(dueFile), "lokale Schnellversion-Datei ist weg");
   ok((await readFileSync(foreign, "utf8")) === "fremd", "fremde Datei bleibt");
   await unlink(foreign);
   ok(readFileSync("app/api/cron/loeschlauf/route.ts", "utf8").includes("schnellversionPurgeEnabled()"), "Cron löscht nur mit dem Schalter");
+  const yearStart = "2025-01-15T12:00:00.000Z";
+  const yearLater = new Date(Date.parse(addMonthsIso(yearStart, DOC_RETENTION_MONTHS)) + 24 * 60 * 60 * 1000);
+  const yearRow = purchase({
+    id: "altjahr",
+    email: "altjahr@example.com",
+    company: "Altjahr GmbH",
+    purchasedAt: yearStart,
+    pdfPath: "",
+    downloadTokenHash: "",
+    answersJson: "{\"firma\":\"Altjahr\"}",
+    sessionId: "cs_altjahr",
+    consentAt: yearStart,
+  });
+  ok(svRecordPurgeDue(yearStart, yearLater) && !svRecordPurgeDue(now.toISOString(), now), "12 Monate sind die Dokumentenfrist");
+  const openedYear = await openSchnellversionCheckout({
+    answers: sample({ firma: "Altjahr GmbH" }),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "altjahr@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  const paidYear = await confirmPaidSession(openedYear.ok ? openedYear.sessionId : "", { env: stubPaid });
+  ok(paidYear.paid, "Kauf für die 12-Monats-Löschung");
+  const aged = paidYear.paid ? { ...paidYear.purchase, purchasedAt: yearStart } : yearRow;
+  const yearPurge = await runSvPurge([aged], yearLater, { SCHNELLVERSION_49_PURGE: "1" });
+  ok(yearPurge.recordsDeleted === 1 && yearPurge.dryRun === false, "Kaufdatensatz nach 12 Monaten und einem Tag gelöscht");
+  ok(!(await listAllSvPurchases()).some((row) => row.id === aged.id), "gelöschter Datensatz ist weg");
+  ok(!(await reserveSvCredit(aged.id, "danach", yearLater)), "nach der Löschung keine Anrechnung");
   const reminderText = reminderMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString() });
   ok(
     reminderText.subject.startsWith("Ihr Download und die Anrechnung enden am ") &&
@@ -973,6 +1012,19 @@ async function main() {
       reminderText.text.includes("Danach ist der Download gesperrt.") &&
       reminderText.text.includes("Keine Steuer- oder Rechtsberatung."),
     "Erinnerung behält den bestehenden Text",
+  );
+  ok(reminderText.text.includes(PLAN_OFFER_OBJECTION_NOTICE), "Erinnerung nutzt PLAN_OFFER_OBJECTION_NOTICE");
+  const quietReminder = reminderMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString(), optedOut: true });
+  ok(
+    quietReminder.subject.startsWith("Ihr Download endet am ") &&
+      !quietReminder.text.includes("Anrechnung") &&
+      !quietReminder.text.includes("Fragebogen") &&
+      !quietReminder.text.includes(PLAN_OFFER_OBJECTION_NOTICE),
+    "nach Widerspruch nur der Download-Hinweis",
+  );
+  ok(
+    readFileSync("app/api/cron/addon-notice/route.ts", "utf8").includes("sv49-reminder:${mail.purchaseId}"),
+    "Erinnerung wird je Kauf gezählt",
   );
   ok(
     readFileSync("app/api/cron/addon-notice/route.ts", "utf8").includes("schnellversionReminderSendEnabled()"),
@@ -1080,6 +1132,7 @@ async function main() {
     },
   );
   ok(liveParams?.line_items?.[0] && "price" in liveParams.line_items[0] && liveParams.line_items[0].price === "price_test_schnell", "Live-Session nutzt die Price-ID aus der Umgebung");
+  ok(typeof liveParams?.success_url === "string" && !liveParams.success_url.includes("dl="), "Stripe-Rücksprung ohne Download-Token");
   ok(
     schnellversionSessionParams(
       { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
@@ -1140,6 +1193,24 @@ async function main() {
     "§ 9 Abs. 4 Satz 2 zur Anrechnung bleibt weg",
   );
   ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("PLAN_TERMS_LABEL_BEFORE"), "Checkout bestätigt die AGB");
+  ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("{PLAN_OFFER_OBJECTION_NOTICE}"), "Kaufseite zeigt den Widerspruchshinweis");
+  ok(readFileSync("components/schnellversion-ui.module.css", "utf8").includes("position: static"), "Hinweis liegt im Textfluss");
+  rememberSvEvent({ name: "sv_visit", arm: "", variante: "b", branche_vorlage: "", value: 0, step: 0, ziel: "" });
+  const stamped = (await readSvEvents()).find((row) => row.name === "sv_visit" && row.day);
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(stamped?.day ?? ""), "Zählzeile trägt einen Tag");
+  ok(
+    SV_EVENT_COLUMNS.join(",") === "name,arm,variante,branche_vorlage,value,step,ziel,day",
+    "Zählspalten ohne Personen-, Kauf- oder Session-Kennung",
+  );
+  const dse = readFileSync("content/legal/datenschutz-v3.md", "utf8");
+  const cookies = readFileSync("content/legal/cookies-v3.md", "utf8");
+  const off = legalFlagsFor(true, false);
+  const on = legalFlagsFor(true, false, false, false, true);
+  ok(!applyLegalConditions(dse, off).includes("Speicherdauer Schnellversion"), "DSE ohne Flag ohne Schnellversion");
+  ok(applyLegalConditions(dse, on).includes("löschen wir 12 Monate nach dem Kauf automatisch"), "DSE mit Flag nennt 12 Monate");
+  ok(!dse.includes("Rücksprungadresse") && !dse.includes("Zu den Systemnachrichten gehören auch Hinweise zu einem gespeicherten"), "kein Token-Satz und kein Abschnitt-10-Satz");
+  ok(applyLegalConditions(cookies, off).includes("laden wir erst") && !applyLegalConditions(cookies, off).includes("sv49_arm"), "Cookies ohne Flag wie bisher");
+  ok(applyLegalConditions(cookies, on).includes("sv49_arm") && applyLegalConditions(cookies, on).includes("sv49_answers"), "Cookies mit Flag nennen die Schnellversion");
   const ohneArm = await openSchnellversionCheckout({
     answers: sample({ firma: "Anrechnung Ohne Arm GmbH" }),
     unternehmer: true,
