@@ -186,7 +186,7 @@ const privacy = await import("node:fs").then((fs) => fs.readFileSync("content/le
 assert.ok(privacy.includes("löschen ihn 30 Tage nach seiner Anlage."));
 assert.ok(privacy.includes("Die Zählwerte löschen wir 24 Monate nach dem jeweiligen Zähltag"));
 assert.ok(privacy.includes("spätestens nach 7 Tagen"));
-assert.ok(privacy.includes("einen Ihnen zuordenbaren Messmarker löschen wir."));
+assert.ok(privacy.includes("Ihren Widerspruch prüfen wir und teilen Ihnen das Ergebnis mit. Unabhängig davon löschen wir jeden Messmarker 30 Tage nach seiner Anlage."));
 assert.equal(privacy.includes("zählen Ihre weiteren Schritte nicht mehr personenbezogen"), false);
 const cookies = await import("node:fs").then((fs) => fs.readFileSync("content/legal/cookies-v3.md", "utf8"));
 assert.ok(cookies.includes("## Eigene Schrittzählung"));
