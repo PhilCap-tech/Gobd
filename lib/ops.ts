@@ -9,6 +9,7 @@
 
 import { createHash } from "node:crypto";
 import { CUSTOMER_ONBOARDING_NEXT_PATH, magicLinkUrl } from "@/lib/auth";
+import { mailLinkBase } from "@/lib/mail-layout";
 import { isMailConfigured } from "@/lib/env";
 import type { MailResult } from "@/lib/mail";
 import {
@@ -196,6 +197,13 @@ export const CUSTOMER_ONBOARDING_CONTINUE_CTA = "Verfahrensdokumentation weiter 
  * (`session:<id>:gesamt`). Ohne gültige Session bleibt `/intake`; die Seite
  * hängt dann die letzte bezahlte Session der angemeldeten Adresse an.
  */
+/** Kurzhash für Logs. Die volle Checkout-Session-ID bleibt aus dem Log. */
+export function logSessionRef(sessionId: string | undefined): string {
+  const id = sessionId?.trim() ?? "";
+  if (!id) return "";
+  return createHash("sha256").update(id).digest("hex").slice(0, 12);
+}
+
 export function customerOnboardingDraftPath(sessionId?: string | null): string {
   const id = sessionId?.trim() ?? "";
   if (!id || !/^[A-Za-z0-9_-]+$/.test(id)) return CUSTOMER_ONBOARDING_NEXT_PATH;
@@ -304,7 +312,7 @@ export function checkoutContactFromCustomerDetails(
 function customerOnboardingStartUrl(magicLinkUrlValue?: string): string {
   const direct = magicLinkUrlValue?.trim() ?? "";
   if (direct) return direct;
-  return `${MAIL_LOGIN_URL}?next=${encodeURIComponent(CUSTOMER_ONBOARDING_NEXT_PATH)}`;
+  return `${mailLinkBase()}/login?next=${encodeURIComponent(CUSTOMER_ONBOARDING_NEXT_PATH)}`;
 }
 
 function buildCustomerOnboardingMail(input: {
@@ -337,10 +345,10 @@ function buildCustomerOnboardingMail(input: {
       "",
       "Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.",
       "",
-      `Ihr Konto: ${MAIL_ACCOUNT_URL}`,
+      `Ihr Konto: ${mailLinkBase()}/account`,
       "",
       "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
-      MAIL_FAQ_URL,
+      `${mailLinkBase()}/faq`,
       "",
       `Ihr Ansprechpartner: ${MAIL_SUPPORT_EMAIL}. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.`,
       "",
@@ -361,8 +369,8 @@ function buildCustomerOnboardingMail(input: {
     <p>Der Button meldet Sie direkt an (Link 20 Minuten gültig). Ist er abgelaufen, senden Sie sich auf der nächsten Seite einen neuen Link – Sie landen danach wieder bei Ihrem Entwurf.</p>
     <p>${transactionalPrimaryButton(continueUrl, CUSTOMER_ONBOARDING_CONTINUE_CTA)}</p>
     <p>Der Link meldet Sie an und öffnet Ihren gespeicherten Entwurf im Fragebogen.</p>
-    <p>Ihr Konto: <a href="${escapeAttr(MAIL_ACCOUNT_URL)}">${escapeHtml(MAIL_ACCOUNT_URL)}</a></p>
-    <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
+    <p>Ihr Konto: <a href="${escapeAttr(`${mailLinkBase()}/account`)}">${escapeHtml(`${mailLinkBase()}/account`)}</a></p>
+    <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(`${mailLinkBase()}/faq`)}">${escapeHtml(`${mailLinkBase()}/faq`)}</a></p>
     <p>Ihr Ansprechpartner: <a href="${escapeAttr(`mailto:${MAIL_SUPPORT_EMAIL}`)}">${escapeHtml(MAIL_SUPPORT_EMAIL)}</a>. Antworten auf diese E-Mail erreichen uns unter dieser Adresse.</p>
     <p>${escapeHtml(CUSTOMER_ONBOARDING_DISCLAIMER)}</p>
     <p>${escapeHtml(CUSTOMER_ONBOARDING_SIGNATURE)}</p>
@@ -598,13 +606,13 @@ export async function triggerOnboardingMail(input: {
 }): Promise<OpsResult & MailResult> {
   if (isTestEntity(input.entityId)) {
     console.info("[ops] onboarding mail übersprungen — Testfirma", {
-      sessionId: input.sessionId,
+      sessionRef: logSessionRef(input.sessionId),
     });
     return { stub: false, sent: false, skipped: true, action: "onboarding" };
   }
   if (isCompAccessEmail(input.email)) {
     console.info("[ops] onboarding mail übersprungen — kostenfreier Zugang", {
-      sessionId: input.sessionId,
+      sessionRef: logSessionRef(input.sessionId),
     });
     return { stub: false, sent: false, skipped: true, action: "onboarding" };
   }
@@ -613,7 +621,7 @@ export async function triggerOnboardingMail(input: {
   if (!isMailConfigured()) {
     // Keine Adresse, keine Firma im Log.
     console.info("[ops] onboarding mail stub", {
-      sessionId: input.sessionId,
+      sessionRef: logSessionRef(input.sessionId),
       audience,
     });
     return { stub: true, sent: false, action: "onboarding" };
@@ -621,7 +629,7 @@ export async function triggerOnboardingMail(input: {
 
   if (!input.email.trim()) {
     console.info("[ops] onboarding mail übersprungen — keine E-Mail", {
-      sessionId: input.sessionId,
+      sessionRef: logSessionRef(input.sessionId),
     });
     return { stub: true, sent: false, action: "onboarding" };
   }
@@ -653,7 +661,7 @@ export async function triggerOnboardingMail(input: {
     const start = await magicLinkUrl(input.email, CUSTOMER_ONBOARDING_NEXT_PATH);
     const draft = await magicLinkUrl(input.email, customerOnboardingDraftPath(input.sessionId));
     if (!start || !draft) {
-      console.error("[ops] Anmeldelink nicht gespeichert", { sessionId: input.sessionId });
+      console.error("[ops] Anmeldelink nicht gespeichert", { sessionRef: logSessionRef(input.sessionId) });
       return { stub: false, sent: false, action: "onboarding" };
     }
     startUrl = start;
@@ -679,7 +687,7 @@ export async function triggerOnboardingMail(input: {
     html: mail.html,
   });
   console.info("[ops] onboarding mail", {
-    sessionId: input.sessionId,
+    sessionRef: logSessionRef(input.sessionId),
     audience,
     sent: result.sent,
     stub: result.stub,

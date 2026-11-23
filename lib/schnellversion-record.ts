@@ -490,7 +490,7 @@ async function replaceSvPurchase(row: SvPurchase): Promise<void> {
 }
 
 export async function reserveSvCredit(purchaseId: string, token: string, now: Date): Promise<boolean> {
-  const { reserveDecision, CREDIT_RESERVE_MS } = await import("@/lib/schnellversion-credit");
+  const { reserveDecision } = await import("@/lib/schnellversion-credit");
   const all = await listAllSvPurchases();
   const row = all.find((item) => item.id === purchaseId);
   if (!row) return false;
@@ -501,10 +501,7 @@ export async function reserveSvCredit(purchaseId: string, token: string, now: Da
     const claim = await claimSvJson(pathName, { token, at: now.toISOString() });
     if (claim === "exists") {
       const held = await getSvJson<{ token: string; at: string }>(pathName);
-      const at = Date.parse(held?.at ?? "");
-      const fresh = held && Number.isFinite(at) && now.getTime() - at < CREDIT_RESERVE_MS;
       if (!held || held.token !== token) {
-        if (fresh) return false;
         await deleteSvJson(pathName);
         const retry = await claimSvJson(pathName, { token, at: now.toISOString() });
         if (retry !== "created") return false;
@@ -513,6 +510,18 @@ export async function reserveSvCredit(purchaseId: string, token: string, now: Da
   }
   await replaceSvPurchase(next);
   return next.creditReservationId === token;
+}
+
+/** Gibt eine offene Reservierung frei. Eine bereits bezahlte Anrechnung bleibt. */
+export async function releaseSvCreditHold(purchaseId: string): Promise<boolean> {
+  const id = purchaseId.trim();
+  if (!id) return false;
+  const row = (await listAllSvPurchases()).find((item) => item.id === id);
+  if (!row || row.creditUsedAt.trim()) return false;
+  if (svBlobEnabled()) await deleteSvJson(svReserveBlobPath(row.id));
+  if (!row.creditReservationId.trim() && !row.creditReservedAt.trim()) return true;
+  await replaceSvPurchase({ ...row, creditReservationId: "", creditReservedAt: "" });
+  return true;
 }
 
 export function hashDownloadToken(token: string): string {

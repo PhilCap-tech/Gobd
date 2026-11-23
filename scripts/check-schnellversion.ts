@@ -51,6 +51,11 @@ import { GET as pdfGet, POST as pdfPost } from "../app/api/schnellversion/pdf/ro
 import { GET as statusGet } from "../app/api/schnellversion/status/route";
 import { buildPlanCheckoutParams } from "../lib/plan-checkout";
 import { checkoutReturnBaseUrl } from "../lib/env";
+import { planParamsFromCheckoutInput } from "../lib/stripe";
+import { releaseCreditForExpiredCheckout } from "../app/api/stripe/webhook/route";
+import { GET as anrechnungFrei } from "../app/api/schnellversion/anrechnung-frei/route";
+import { buildOnboardingMail, customerOnboardingDraftPath, logSessionRef } from "../lib/ops";
+import { magicLinkUrl } from "../lib/auth";
 import { SV_HIDDEN_TITLE, schnellversionPageMetadata } from "../lib/schnellversion-meta";
 import { DL_REQUEST_LOG_IGNORE, installDlLogRedaction, redactDlTokenText } from "../lib/log-redaction";
 import { ignoreLoggingIncomingRequests } from "next/dist/server/dev/log-requests.js";
@@ -448,7 +453,7 @@ async function main() {
   const purchaseId = confirmed.paid ? confirmed.purchase.id : "";
   const reserveNow = new Date();
   ok(await reserveSvCredit(purchaseId, "eins", reserveNow), "Reservierung am Kauf");
-  ok(!(await reserveSvCredit(purchaseId, "zwei", reserveNow)), "zweite Reservierung am selben Kauf");
+  ok(await reserveSvCredit(purchaseId, "zwei", reserveNow), "neue Reservierung ersetzt die vorherige");
   const draft = draftFromSchnellversion("inhaber@example.com", sample());
   ok(draft.answers.katalog?.A01?.values?.company === "Malerbetrieb Adler", "Firma im Fragebogen");
   ok(draft.answers.mitarbeitende === "2–5", "Mitarbeitende im Fragebogen");
@@ -458,7 +463,7 @@ async function main() {
   ok(draft.answers.module?.stammdaten?.fibu === "DATEV", "FiBu-Programm im Betriebs-Check");
   const held = reserveDecision(confirmed.paid ? confirmed.purchase : purchase(), "eins", reserveNow);
   ok(held, "erste Coupon-Reservierung");
-  ok(reserveDecision(held!, "zwei", reserveNow) === null, "zweite Reservierung blockiert");
+  ok(reserveDecision(held!, "zwei", reserveNow)?.creditReservationId === "zwei", "neue Reservierung ersetzt die gehaltene");
   ok((await confirmPaidSession("")).paid === false, "ohne Session kein Kauf");
   ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "stub_sv_unpaid_x", { env: stubUnpaid })).paid === false, "unbezahlte Session ergibt kein PDF");
   ok((await confirmPaidSession("cs_test_unpaid")).paid === false, "fremde Session ohne paid ergibt kein PDF");
@@ -1187,8 +1192,32 @@ async function main() {
     "Preview-Rücksprung bleibt auf der Preview",
   );
   ok(
-    previewMail.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/api/schnellversion/pdf?dl=tok-mail"),
-    "Kaufmail-Link bleibt auf der Preview und trägt das Token",
+    previewMail.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/api/schnellversion/pdf?dl=tok-mail") &&
+      previewMail.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/impressum"),
+    "Kaufmail-Link und Fuß bleiben auf der Preview",
+  );
+  const startLink = (await magicLinkUrl("buyer@example.com", "/intake")) ?? "";
+  const continueLink = (await magicLinkUrl("buyer@example.com", customerOnboardingDraftPath("cs_test_full_session"))) ?? "";
+  const welcome = buildOnboardingMail({
+    audience: "kunde",
+    company: "Sandbox GmbH",
+    magicLinkUrl: startLink,
+    continueUrl: continueLink,
+  });
+  ok(
+    welcome.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/auth/verify") &&
+      welcome.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/account") &&
+      welcome.text.includes("next=%2Fintake%3Fsession_id%3Dcs_test_full_session"),
+    "Willkommens-Mail und Magic-Link bleiben auf der Preview",
+  );
+  const loggedId = "cs_test_full_session_identifier";
+  const ref = logSessionRef(loggedId);
+  const opsSource = readFileSync(path.join(process.cwd(), "lib/ops.ts"), "utf8");
+  ok(
+    ref.length === 12 &&
+      !ref.includes("cs_test") &&
+      !/\[ops\] onboarding mail[\s\S]{0,160}sessionId:/.test(opsSource),
+    "Onboarding-Log hash die Session-ID",
   );
   process.env.VERCEL_ENV = "production";
   delete process.env.VERCEL_BRANCH_URL;
@@ -1415,7 +1444,46 @@ async function checkSandboxCheckout(): Promise<void> {
     svPurchaseId: first.paid ? first.purchase.id : "",
     prices: { entry: "price_test_entry", year: "price_test_year", addonYear: "price_test_addon" },
   });
+  const forwarded = planParamsFromCheckoutInput(
+    { email: "buyer@example.com", company: "Sandbox GmbH", plan: {
+      kind: "entry",
+      member: false,
+      svArm: "test",
+      svCoupon: "schnell_49_anrechnung",
+      svPurchaseId: first.paid ? first.purchase.id : "kauf",
+    } },
+    { kind: "entry", member: false, svArm: "test", svCoupon: "schnell_49_anrechnung", svPurchaseId: first.paid ? first.purchase.id : "kauf" },
+    { entry: "price_test_entry", year: "price_test_year", addonYear: "price_test_addon" },
+  );
+  ok(
+    forwarded.discounts?.[0]?.coupon === "schnell_49_anrechnung" &&
+      !("allow_promotion_codes" in forwarded) &&
+      forwarded.metadata?.sv_purchase_id === (first.paid ? first.purchase.id : "kauf") &&
+      forwarded.metadata?.sv_arm === "test" &&
+      forwarded.payment_intent_data?.metadata?.sv_purchase_id === forwarded.metadata?.sv_purchase_id,
+    "Finale Stripe-Params tragen Coupon und Anrechnungs-Metadaten",
+  );
   ok(upgraded.discounts?.[0]?.coupon === "schnell_49_anrechnung", "Upgrade-Checkout setzt den Anrechnungs-Coupon");
+  if (first.paid) {
+    ok(await reserveSvCredit(first.purchase.id, "offen", now), "Reservierung vor dem Abbruch");
+    ok(await releaseCreditForExpiredCheckout({ metadata: { sv_purchase_id: first.purchase.id } }), "abgelaufene Session gibt die Reservierung frei");
+    ok(await reserveSvCredit(first.purchase.id, "erneut", now), "nach Ablauf ist ein neuer Checkout nicht blockiert");
+    const cancel = await anrechnungFrei(new NextRequest(`http://local/api/schnellversion/anrechnung-frei?purchase=${first.purchase.id}`));
+    const afterCancel = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    ok(cancel.status === 303 && afterCancel?.creditReservationId === "", "Abbruch gibt die Reservierung frei");
+    ok(await reserveSvCredit(first.purchase.id, "danach", now), "nach dem Abbruch kein Block für denselben Kauf");
+    await noteSchnellversionPurchase(
+      { id: "cs_upgrade_bezahlt", metadata: { sv_purchase_id: first.purchase.id } },
+      "buyer@example.com",
+      "evt_upgrade_bezahlt",
+    );
+    const paidUpgrade = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    ok(
+      Boolean(paidUpgrade?.creditUsedAt.trim()) &&
+        !creditHintVisible(paidUpgrade!, paidUpgrade!.company, now, { STRIPE_COUPON_SCHNELL_49_ANRECHNUNG: "schnell_49_anrechnung" }),
+      "bezahltes Upgrade setzt creditUsedAt und nimmt den Hinweis weg",
+    );
+  }
   const hintRow = first.paid ? first.purchase : null;
   ok(hintRow ? !creditHintVisible(hintRow, hintRow.company, now, {}) : false, "ohne Coupon-ID kein Anrechnungs-Hinweis");
   ok(

@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
-import { getAppUrl, getMagicLinkSecret } from "@/lib/env";
+import { checkoutReturnBaseUrl, getMagicLinkSecret } from "@/lib/env";
 import {
   loadMailLinkToken,
   newOpaqueMailLinkToken,
@@ -479,7 +479,7 @@ export async function magicLinkUrl(
   const params = new URLSearchParams({ token });
   const safe = safeNextPath(next);
   if (safe) params.set("next", safe);
-  return `${getAppUrl()}/auth/verify?${params.toString()}`;
+  return `${checkoutReturnBaseUrl()}/auth/verify?${params.toString()}`;
 }
 
 export function applySessionCookie(response: NextResponse, email: string): void {

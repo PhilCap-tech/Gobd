@@ -31,7 +31,7 @@ import { cookies } from "next/headers";
 import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
 import { openCredit, schnellversionCouponId } from "@/lib/schnellversion-credit";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
-import { creditStillOpen, listSvPurchases, reserveSvCredit } from "@/lib/schnellversion-record";
+import { creditStillOpen, listSvPurchases, releaseSvCreditHold, reserveSvCredit } from "@/lib/schnellversion-record";
 import { randomUUID } from "node:crypto";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
@@ -244,6 +244,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(session);
   } catch (error) {
+    if (svPurchaseId) await releaseSvCreditHold(svPurchaseId);
     logError("[checkout]", error);
     return NextResponse.json(
       { error: "Checkout konnte nicht gestartet werden." },

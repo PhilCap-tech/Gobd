@@ -358,7 +358,34 @@ type PlanInput = {
   firstPurchasedAt?: string;
   offerOptOut?: boolean;
   draftKey?: string;
+  svArm?: "control" | "test";
+  svCoupon?: string;
+  svPurchaseId?: string;
 };
+
+/** Dieselben Felder, die preparePlanCheckout an buildPlanCheckoutParams übergibt. */
+export function planParamsFromCheckoutInput(
+  input: CheckoutSessionInput,
+  plan: PlanInput,
+  prices?: V3Prices,
+): Stripe.Checkout.SessionCreateParams {
+  return buildPlanCheckoutParams({
+    kind: plan.kind,
+    member: plan.member,
+    email: input.email,
+    company: input.company,
+    entityId: input.entityId,
+    audience: input.audience,
+    customerId: input.customerId,
+    memberFirm: plan.memberFirm,
+    agbAcceptedAt: plan.agbAcceptedAt,
+    ...(prices
+      ? { prices, firstPurchasedAt: plan.firstPurchasedAt, offerOptOut: plan.offerOptOut, draftKey: plan.draftKey }
+      : {}),
+    ...(plan.svArm ? { svArm: plan.svArm } : {}),
+    ...(plan.svCoupon ? { svCoupon: plan.svCoupon, svPurchaseId: plan.svPurchaseId } : {}),
+  });
+}
 
 /**
  * Neues Preismodell: Preis-IDs aus der Umgebung (STRIPE_PRICE_ENTRY_ID,
@@ -542,20 +569,7 @@ async function preparePlanCheckout(
     }
     throw new Error(`Stripe v2 nicht konfiguriert: ${missing.join(", ") || "STRIPE_SECRET_KEY"}`);
   }
-  return {
-    params: buildPlanCheckoutParams({
-      kind: plan.kind,
-      member: plan.member,
-      email: input.email,
-      company: input.company,
-      entityId: input.entityId,
-      audience: input.audience,
-      customerId: input.customerId,
-      memberFirm: plan.memberFirm,
-      agbAcceptedAt: plan.agbAcceptedAt,
-      ...(resolved ? { prices: resolved.prices, firstPurchasedAt: plan.firstPurchasedAt, offerOptOut: plan.offerOptOut, draftKey: plan.draftKey } : {}),
-    }),
-  };
+  return { params: planParamsFromCheckoutInput(input, plan, resolved?.prices) };
 }
 
 /**
