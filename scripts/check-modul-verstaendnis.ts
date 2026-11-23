@@ -16,6 +16,7 @@ import {
   visibleCatalogQuestions,
   nextApplicableStep,
 } from "@/lib/intake-catalog";
+import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { renderGesamtChapters } from "@/lib/gesamt-document";
 import { getGesamtMuster } from "@/lib/module-muster";
 import {
@@ -57,6 +58,8 @@ import {
   WW01_SYSTEM_PLACEHOLDER,
   WW01_VORGAENGE_PLACEHOLDER,
   af01StatutoryHint,
+  entfaelltChipShown,
+  storedEntfaelltStatus,
   valueContainsFiktiv,
 } from "@/lib/modul-verstaendnis";
 
@@ -83,7 +86,11 @@ function stepIndex(id: string): number {
 }
 
 function question(id: string) {
-  for (const step of CATALOG_STEPS) {
+  const steps = [
+    ...CATALOG_STEPS.filter((step) => step.id.startsWith("step-M")),
+    ...CATALOG_STEPS,
+  ];
+  for (const step of steps) {
     const hit = step.questions.find((item) => item.id === id);
     if (hit) return hit;
   }
@@ -265,6 +272,15 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   const issues = catalogStepIssues(stepIndex("step-M02"), empty);
   const statusErrors = issues.filter((issue) => issue.message.includes("ob das heute so läuft"));
   assert.equal(statusErrors.length, 0, "keine wiederholten Statusfehler");
+  for (const id of ["LE01", "LE03", "LE04", "EK08", "ER06", "PB06", "WW06", "BS06", "SY04"]) {
+    assert.equal(question(id).allowEntfaellt, true, `${id} behält den Chip`);
+  }
+  for (const id of ["SN05", "PZ07", "AF05", "AW06", "SY06"]) {
+    assert.equal(question(id).allowEntfaellt, undefined, `${id} ohne Chip`);
+    assert.equal(entfaelltChipShown(id, question(id).prompt, "niedrig", undefined), false);
+    assert.equal(entfaelltChipShown(id, question(id).prompt, "niedrig", "nicht_zutreffend"), true);
+    assert.equal(entfaelltChipShown(id, question(id).prompt, "niedrig", "nicht_vorhanden"), true);
+  }
   assert.equal(question("LE01").allowEntfaellt, true);
   assert.equal(question("LE03").allowEntfaellt, true);
   assert.equal(question("LE04").allowEntfaellt, true);
@@ -277,9 +293,49 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   assert.equal(catalogStepIssues(stepIndex("step-M02"), marked).some((issue) => issue.questionId === "LE03"), false);
   assert.ok(modulFortschritt(marked, "m02").beantwortet >= 1);
   const pdf = bodyOf(setModulEintrag(marked, "m02", { status: "tool" }), "m02");
-  assert.ok(pdf.includes("entfällt"));
-  assert.ok(pdf.includes(ENTFAELLT_GRUND));
+  assert.ok(pdf.includes("entfällt. Grund: Kommt in unserem Betrieb nicht vor."));
+  assert.ok(!pdf.includes(".."), "kein doppelter Punkt nach der Standardbegründung");
   assert.ok(!/\bLE03\b/.test(pdf), "keine Fragen-ID im PDF");
+  const entfaelltZeile = (reason: string) =>
+    bereichQuestionLines(
+      { id: "LE03", title: "Abnahmen", prompt: "Gibt es Abnahmen?", fields: [], open: "offen" },
+      { status: "nicht_zutreffend", reason },
+    ).join("\n");
+  assert.equal(entfaelltZeile(ENTFAELLT_GRUND), "**Abnahmen:** entfällt. Grund: Kommt in unserem Betrieb nicht vor.");
+  assert.equal(entfaelltZeile("Eigene Begründung"), "**Abnahmen:** entfällt. Grund: Eigene Begründung.");
+  assert.equal(entfaelltZeile("Eigene Begründung."), "**Abnahmen:** entfällt. Grund: Eigene Begründung.");
+  assert.equal(entfaelltZeile(""), "**Abnahmen:** entfällt.");
+  let kept = ensureGesamt(emptyAnswers());
+  kept = setCatalogStatus(kept, "SN05", "nicht_zutreffend");
+  kept = {
+    ...kept,
+    katalog: {
+      ...kept.katalog,
+      SN05: { ...kept.katalog?.SN05, status: "nicht_zutreffend", reason: ENTFAELLT_GRUND },
+    },
+  };
+  const draft = JSON.parse(JSON.stringify(kept)) as IntakeAnswers;
+  draft.katalog = {
+    ...(draft.katalog ?? {}),
+    PZ07: { status: "nicht_vorhanden", reason: "Bleibt gespeichert.", values: {} } as unknown as NonNullable<
+      IntakeAnswers["katalog"]
+    >[string],
+  };
+  const reloadedKept = prefillKnownFacts(draft);
+  assert.equal(reloadedKept.katalog?.SN05?.status, "nicht_zutreffend");
+  assert.equal(reloadedKept.katalog?.SN05?.reason, ENTFAELLT_GRUND);
+  assert.equal(reloadedKept.katalog?.PZ07?.status as string, "nicht_vorhanden");
+  assert.equal(reloadedKept.katalog?.PZ07?.reason, "Bleibt gespeichert.");
+  assert.equal(storedEntfaelltStatus(reloadedKept.katalog?.SN05?.status), true);
+  assert.equal(storedEntfaelltStatus(reloadedKept.katalog?.PZ07?.status), true);
+  assert.equal(catalogStepIssues(stepIndex("step-M19"), reloadedKept).some((issue) => issue.questionId === "SN05"), false);
+  assert.ok(modulFortschritt(reloadedKept, "m19").beantwortet >= 1);
+  const keptPdf = bodyOf(reloadedKept, "m19");
+  assert.ok(keptPdf.includes("**Notfallkontakte:** entfällt. Grund: Kommt in unserem Betrieb nicht vor."));
+  assert.ok(!keptPdf.includes(".."));
+  const pz = bodyOf(reloadedKept, "m22");
+  assert.ok(pz.includes("**Auswertungen und Journale:** entfällt. Grund: Bleibt gespeichert."));
+  assert.ok(!pz.includes("Bleibt gespeichert.."));
   const later = setModulEintrag(empty, "m02", { status: "offen" });
   assert.equal(effectiveModulStatus(later, "m02").status, "offen");
   const next = nextApplicableStep(stepIndex("step-M02"), later);

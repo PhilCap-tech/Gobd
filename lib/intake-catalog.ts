@@ -67,6 +67,8 @@ import {
   VORSCHLAG_RUECKFRAGE,
   activitySelected,
   entfaelltChipVisible,
+  entfaelltReasonOptional,
+  storedEntfaelltStatus,
   isMusterSample,
   kanzleiWiderspruch,
   narrowedModuleTitle,
@@ -1049,7 +1051,11 @@ function questionIssues(
       ),
     ];
   }
-  if (entry.status === "nicht_zutreffend" && !asText(entry.reason) && !question.allowEntfaellt) {
+  if (
+    storedEntfaelltStatus(entry.status) &&
+    !asText(entry.reason) &&
+    !entfaelltReasonOptional(question.id, question.allowEntfaellt)
+  ) {
     return [catalogIssue(question.id, "block", "Bitte kurz sagen, warum das entfällt.")];
   }
   const issues: CatalogIssue[] = [];

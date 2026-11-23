@@ -85,6 +85,12 @@ export const ENTFAELLT_GRUND = "Kommt in unserem Betrieb nicht vor.";
 /** Kernfragen ohne den vierten Chip, auch wenn die allgemeine Regel zuträfe. */
 const ENTFAELLT_HIDDEN = new Set(["VK01", "LE02", "LE05"]);
 
+/**
+ * Dauerhaft vorhandene Themen. Priorität niedrig oder „Gibt es“ reicht hier nicht
+ * für den Chip „Gibt es bei uns nicht“.
+ */
+const ENTFAELLT_PERMANENT = new Set(["SN05", "PZ07", "AF05", "AW06", "SY06"]);
+
 /** Ausdrücklich mit Chip, auch ohne niedrige Priorität und ohne „Gibt es“. */
 const ENTFAELLT_FORCE = new Set(["LE01", "LE03", "LE04"]);
 
@@ -199,10 +205,35 @@ function valueFilled(value: unknown): boolean {
 }
 
 export function entfaelltChipVisible(id: string, prompt: string, priority?: string): boolean {
+  if (ENTFAELLT_PERMANENT.has(id)) return false;
   if (ENTFAELLT_HIDDEN.has(id)) return false;
   if (ENTFAELLT_FORCE.has(id)) return true;
   if (priority === "niedrig") return true;
   return /^Gibt es\b/.test(prompt.trim());
+}
+
+/** Gespeicherter Stand „gibt es bei uns nicht“, auch aus älteren Entwürfen. */
+export function storedEntfaelltStatus(status: string | undefined): boolean {
+  return status === "nicht_zutreffend" || status === "nicht_vorhanden";
+}
+
+/**
+ * Der Chip bleibt sichtbar, wenn ein Entwurf ihn schon gespeichert hat.
+ * Sonst gilt die Ausschlussliste.
+ */
+export function entfaelltChipShown(
+  id: string,
+  prompt: string,
+  priority: string | undefined,
+  storedStatus: string | undefined,
+): boolean {
+  if (storedEntfaelltStatus(storedStatus)) return true;
+  return entfaelltChipVisible(id, prompt, priority);
+}
+
+/** Begründung bleibt freiwillig, auch wenn der Chip für neue Antworten fehlt. */
+export function entfaelltReasonOptional(id: string, allowEntfaellt: boolean | undefined): boolean {
+  return allowEntfaellt === true || ENTFAELLT_PERMANENT.has(id);
 }
 
 export function questionCheckTeil(

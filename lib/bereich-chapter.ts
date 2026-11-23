@@ -10,7 +10,7 @@ import {
   type BereichQuestion,
 } from "@/lib/bereiche";
 import { M01_OFFEN_SATZ } from "@/lib/intake-m01";
-import { isMusterSample, unconfirmedSuggestionKeys, valueContainsFiktiv } from "@/lib/modul-verstaendnis";
+import { isMusterSample, storedEntfaelltStatus, unconfirmedSuggestionKeys, valueContainsFiktiv } from "@/lib/modul-verstaendnis";
 import { columnLabel, optionLabel } from "@/lib/intake-present";
 import { FREITEXT_MAX_CHARS } from "@/lib/intake-payload";
 import { isControlQuestionId, isKeineKontrolleValues, KEINE_KONTROLLE_SATZ } from "@/lib/keine-angaben";
@@ -313,8 +313,8 @@ export function bereichQuestionLines(
   if (status === "geplant") {
     return [`${head} vorgesehen, aber noch nicht gelebte Praxis. Siehe offene Punkte.`];
   }
-  if (status === "nicht_zutreffend") {
-    const reason = clean(printable?.reason ?? "");
+  if (storedEntfaelltStatus(status)) {
+    const reason = clean(printable?.reason ?? "").replace(/\.+$/u, "");
     return [`${head} entfällt${reason ? `. Grund: ${reason}` : ""}.`];
   }
   const note = status === "unbekannt" ? klaerNotizSuffix(klaerNotizText(question.fields, printable?.values)) : "";

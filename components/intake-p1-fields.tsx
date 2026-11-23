@@ -18,6 +18,7 @@ import {
 import {
   ENTFAELLT_CHIP,
   ENTFAELLT_GRUND,
+  storedEntfaelltStatus,
   unconfirmedSuggestionKeys,
   VORSCHLAG_ANPASSEN,
   VORSCHLAG_JA,
@@ -1333,7 +1334,7 @@ export function ProcessStatus({
   const chips: CatalogStatus[] = allowEntfaellt
     ? [...PROCESS_STATUSES, "nicht_zutreffend"]
     : [...PROCESS_STATUSES];
-  if (!showChoice && !showMeta && !(allowEntfaellt && entry?.status === "nicht_zutreffend")) return null;
+  if (!showChoice && !showMeta && !(allowEntfaellt && storedEntfaelltStatus(entry?.status))) return null;
   return (
     <div className={issue ? "field field-invalid" : "field"} id={`angabe-${questionId}-status`}>
       {showChoice ? (
@@ -1346,7 +1347,10 @@ export function ProcessStatus({
             aria-label={`Stand: ${prompt}`}
           >
             {chips.map((status) => {
-              const active = entry?.status === status;
+              const active =
+                status === "nicht_zutreffend"
+                  ? storedEntfaelltStatus(entry?.status)
+                  : entry?.status === status;
               return (
                 <button
                   key={status}
@@ -1389,12 +1393,12 @@ export function ProcessStatus({
               </div>
             </div>
           ) : null}
-          {allowEntfaellt && entry?.status === "nicht_zutreffend" ? (
+          {allowEntfaellt && storedEntfaelltStatus(entry?.status) ? (
             <>
               <label htmlFor={`${questionId}-grund`}>Begründung (optional)</label>
               <textarea
                 id={`${questionId}-grund`}
-                value={entry.reason ?? ""}
+                value={entry?.reason ?? ""}
                 onChange={(event) => onChange(setCatalogReason(answers, questionId, event.target.value))}
               />
             </>

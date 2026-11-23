@@ -5,6 +5,7 @@ import { IntakeQuestionHint } from "@/components/intake-question-hint";
 import {
   af01StatutoryHint,
   hasSuggestionMark,
+  storedEntfaelltStatus,
   suggestionConfirmed,
   VORSCHLAG_CHECKBOX,
   VORSCHLAG_MARKE,
@@ -621,7 +622,9 @@ export function IntakeQuestionnaire({
                   answers={answers}
                   onChange={onChange}
                   issue={statusIssue?.message}
-                  allowEntfaellt={question.allowEntfaellt === true}
+                  allowEntfaellt={
+                    question.allowEntfaellt === true || storedEntfaelltStatus(entry?.status)
+                  }
                 />
                 {isControlQuestionId(question.id) && /^KF0[1-5]$/.test(question.id) ? (
                   <div className="chips">
