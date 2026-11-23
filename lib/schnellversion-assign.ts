@@ -15,6 +15,14 @@
  */
 
 export const SV_ARM_COOKIE = "sv49_arm";
+/** Kurzlebig, nur derselbe Browser nach dem Checkout. Kein Token in der Danke-URL. */
+export const SV_DOWNLOAD_COOKIE = "sv49_dl";
+export const SV_DOWNLOAD_COOKIE_MAX_AGE = 60 * 60 * 2;
+
+export function svDownloadCookieHeader(token: string): string {
+  const secure = process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview" ? "; Secure" : "";
+  return `${SV_DOWNLOAD_COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${SV_DOWNLOAD_COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
+}
 export const SV_ARM_MAX_AGE_SEC = 60 * 60 * 24 * 28;
 
 export type SvArm = "control" | "test";

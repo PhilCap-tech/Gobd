@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sessionEmailFromRequest } from "@/lib/auth";
-import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
+import { parseSvArm, SV_ARM_COOKIE, svDownloadCookieHeader } from "@/lib/schnellversion-assign";
 import { schnellversionCheckoutPlan, schnellversionOffered } from "@/lib/schnellversion-flag";
 import { openSchnellversionCheckout } from "@/lib/schnellversion-payment";
 
@@ -30,5 +30,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     arm: "test",
   });
   if (!opened.ok) return new Response(null, { status: opened.status });
-  return Response.json({ ready: true, url: opened.url, consentAt: true });
+  return Response.json(
+    { ready: true, url: opened.url, consentAt: true },
+    { headers: { "set-cookie": svDownloadCookieHeader(opened.downloadToken) } },
+  );
 }

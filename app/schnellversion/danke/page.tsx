@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { SchnellversionDankeWarten } from "@/components/schnellversion-danke-warten";
 import { SchnellversionShell } from "@/components/schnellversion-shell";
 import { notFound } from "next/navigation";
 import { getSessionEmail } from "@/lib/auth";
+import { SV_DOWNLOAD_COOKIE } from "@/lib/schnellversion-assign";
 import { schnellversionOffered } from "@/lib/schnellversion-flag";
-import { confirmPaidSession, isSvPdfFailed } from "@/lib/schnellversion-payment";
-import { SV_PDF_FAILED } from "@/lib/schnellversion-copy";
+import { readSchnellversionCheckout } from "@/lib/schnellversion-payment";
 import { schnellversionPageMetadata } from "@/lib/schnellversion-meta";
-import { downloadStillOpen, svDownloadAllowed } from "@/lib/schnellversion-record";
+import { svDownloadAllowed } from "@/lib/schnellversion-record";
 
 export const dynamic = "force-dynamic";
 
@@ -19,46 +20,25 @@ export function generateMetadata(): Metadata {
 export default async function SchnellversionDankePage({
   searchParams,
 }: {
-  searchParams: Promise<{ session_id?: string | string[]; dl?: string | string[] }>;
+  searchParams: Promise<{ session_id?: string | string[] }>;
 }) {
   if (!schnellversionOffered()) notFound();
   const params = await searchParams;
   const sessionId = (Array.isArray(params.session_id) ? params.session_id[0] : params.session_id)?.trim() ?? "";
-  const token = (Array.isArray(params.dl) ? params.dl[0] : params.dl)?.trim() ?? "";
-  let confirmed: Awaited<ReturnType<typeof confirmPaidSession>> | { paid: false; confirming?: boolean; failed?: boolean } = {
-    paid: false,
-  };
-  if (sessionId) {
-    try {
-      confirmed = await confirmPaidSession(sessionId);
-    } catch (error) {
-      confirmed = isSvPdfFailed(error) ? { paid: false, failed: true } : { paid: false, confirming: true };
-    }
-  }
+  const looked = sessionId ? await readSchnellversionCheckout(sessionId) : { state: "unpaid" as const };
   const email = (await getSessionEmail()) ?? "";
-  const open = confirmed.paid && downloadStillOpen(confirmed.purchase, new Date());
-  const allowed =
-    confirmed.paid &&
-    svDownloadAllowed(confirmed.purchase, {
-      email,
-      token,
-      now: new Date(),
-      paidSession: confirmed.purchase.sessionId === sessionId,
-    });
-  const draftHref = confirmed.paid && confirmed.purchase.email ? "/fragebogen" : "";
-  const pdfHref = allowed
-    ? `/api/schnellversion/pdf?session_id=${encodeURIComponent(sessionId)}${token ? `&dl=${encodeURIComponent(token)}` : ""}`
-    : "";
+  const cookie = decodeURIComponent((await cookies()).get(SV_DOWNLOAD_COOKIE)?.value ?? "");
+  const purchase = looked.state === "paid" || looked.state === "ended" ? looked.purchase : null;
+  const allowed = purchase
+    ? svDownloadAllowed(purchase, { email, token: cookie, now: new Date() })
+    : false;
+  const draftHref = purchase?.email ? "/fragebogen" : "";
+  const pdfHref = allowed ? `/api/schnellversion/pdf?session_id=${encodeURIComponent(sessionId)}` : "";
   return (
     <SchnellversionShell>
       <main className="shell" style={{ maxWidth: 720, margin: "28px auto 48px" }}>
-        {!confirmed.paid && "failed" in confirmed && confirmed.failed ? (
-          <>
-            <h1>Die Erstellung ist fehlgeschlagen.</h1>
-            <p>{SV_PDF_FAILED}</p>
-          </>
-        ) : !confirmed.paid && confirmed.confirming ? (
-          <SchnellversionDankeWarten sessionId={sessionId} token={token} />
+        {looked.state === "confirming" ? (
+          <SchnellversionDankeWarten sessionId={sessionId} />
         ) : allowed && pdfHref ? (
           <>
             <h1>Ihre Standardfassung steht zum Download bereit.</h1>
@@ -74,12 +54,12 @@ export default async function SchnellversionDankePage({
               </p>
             ) : null}
           </>
-        ) : confirmed.paid && !open ? (
+        ) : looked.state === "ended" ? (
           <>
             <h1>Der Download ist beendet.</h1>
             <p>Die 30 Tage sind abgelaufen.</p>
           </>
-        ) : confirmed.paid ? (
+        ) : looked.state === "paid" ? (
           <>
             <h1>Die Standardfassung gehört zu einem anderen Konto.</h1>
             <p>Melden Sie sich mit der E-Mail-Adresse des Kaufs an.</p>

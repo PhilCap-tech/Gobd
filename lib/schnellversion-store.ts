@@ -50,6 +50,25 @@ type SheetClient = {
 
 let installed: { client: SheetClient; configured: boolean } | null = null;
 
+/** Der Google-Client hat spreadsheets.get, nicht get. Der Aufruf client.get wirft „get is not a function“. */
+export function adaptSvSheetClient(api: {
+  spreadsheets: {
+    get: SheetClient["get"];
+    batchUpdate: SheetClient["batchUpdate"];
+    values: {
+      get: SheetClient["valuesGet"];
+      append: SheetClient["valuesAppend"];
+    };
+  };
+}): SheetClient {
+  return {
+    get: (args) => api.spreadsheets.get(args),
+    batchUpdate: (args) => api.spreadsheets.batchUpdate(args),
+    valuesGet: (args) => api.spreadsheets.values.get(args),
+    valuesAppend: (args) => api.spreadsheets.values.append(args),
+  };
+}
+
 export function installSvEventSheetForTest(next: { client: SheetClient; configured: boolean } | null): void {
   installed = next;
   prepared = null;
@@ -142,7 +161,7 @@ function rowFromCells(cellsIn: string[]): SvEventRow | null {
 }
 
 async function appendSheet(row: SvEventRow): Promise<void> {
-  const client = installed?.client ?? (createSheetsClient() as unknown as SheetClient);
+  const client = installed?.client ?? adaptSvSheetClient(createSheetsClient());
   if (!prepared) prepared = ensureSheet(client);
   await prepared;
   await client.valuesAppend({
@@ -252,7 +271,7 @@ function fileRows(): SvEventRow[] {
 export async function readSvEvents(): Promise<SvEventRow[]> {
   if (sheetWritesAllowed()) {
     try {
-      const client = installed?.client ?? (createSheetsClient() as unknown as SheetClient);
+      const client = installed?.client ?? adaptSvSheetClient(createSheetsClient());
       const result = await client.valuesGet({
         spreadsheetId: spreadsheetId(),
         range: `${SV_EVENT_TAB}!A:H`,

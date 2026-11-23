@@ -4,7 +4,7 @@
  * Der Stub spricht Stripe nicht an.
  */
 
-import { getAppUrl, getStripeTaxRateId } from "@/lib/env";
+import { checkoutReturnBaseUrl, getStripeTaxRateId } from "@/lib/env";
 import { CREDIT_RESERVE_MS } from "@/lib/schnellversion-credit";
 import {
   schnellversionCheckoutPlan,
@@ -37,7 +37,7 @@ export function schnellversionSessionParams(
 ): import("stripe").Stripe.Checkout.SessionCreateParams | null {
   const plan = schnellversionCheckoutPlan(env);
   if (plan !== "test" && plan !== "live") return null;
-  const origin = getAppUrl().replace(/\/$/, "");
+  const origin = checkoutReturnBaseUrl().replace(/\/$/, "");
   const thanks = `${origin}/schnellversion/danke`;
   const expiresAt = Math.floor(Date.now() / 1000) + Math.floor(CREDIT_RESERVE_MS / 1000);
   const price = schnellversionPriceId(env);
