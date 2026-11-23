@@ -28,7 +28,7 @@ import {
   maskEmailAddress,
   renewExpiredLinkLabel,
 } from "@/lib/expired-onboarding-link";
-import { MAIL_ACCOUNT_URL, MAIL_SUPPORT_EMAIL } from "@/lib/mail-layout";
+import { MAIL_ACCOUNT_URL, MAIL_SUPPORT_EMAIL, mailLinkBase } from "@/lib/mail-layout";
 import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import {
   buildDeliveryMail,
@@ -48,7 +48,11 @@ import {
 
 const SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 const REPLY = "info@gobd-doku-erstellen.de";
-const ACCOUNT = "https://www.gobd-doku-erstellen.de/account";
+const CANONICAL = "https://www.gobd-doku-erstellen.de";
+const ACCOUNT = `${CANONICAL}/account`;
+/** Auf einer Vercel-Preview wechselt nur die Link-Basis. Lokal und in der Produktion bleibt die kanonische Adresse. */
+const LINK_BASE = mailLinkBase();
+const ACCOUNT_IN_MAIL = `${LINK_BASE}/account`;
 const START =
   "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-onboarding&next=%2Fintake";
 const DRAFT_SESSION = "cs_owner_draft";
@@ -90,10 +94,10 @@ function assertMail(label: string, mail: { text: string; html: string }): void {
   ) {
     fail(`${label}: Entwurf wird gespeichert missing`);
   }
-  if (!mail.text.includes(`Ihr Konto: ${ACCOUNT}`)) {
+  if (!mail.text.includes(`Ihr Konto: ${ACCOUNT_IN_MAIL}`)) {
     fail(`${label}: Konto line missing`);
   }
-  if (!mail.html.includes(`href="${ACCOUNT}"`)) {
+  if (!mail.html.includes(`href="${ACCOUNT_IN_MAIL}"`)) {
     fail(`${label}: Konto href missing`);
   }
   if (
@@ -371,8 +375,20 @@ async function checkIssuedContinueLink(): Promise<void> {
   }
 }
 
+const vercelEnv = process.env.VERCEL_ENV?.trim() ?? "";
+if (!vercelEnv || vercelEnv === "production") {
+  if (LINK_BASE !== CANONICAL) fail(`production mail base is ${LINK_BASE}`);
+}
 const expected = readFileSync(snapshotPath, "utf8");
-if (named.text !== expected) {
+const expectedHere =
+  !vercelEnv || vercelEnv === "production"
+    ? expected
+    : expected
+        .replaceAll(`${CANONICAL}/account`, `${LINK_BASE}/account`)
+        .replaceAll(`${CANONICAL}/faq`, `${LINK_BASE}/faq`)
+        .replaceAll(`${CANONICAL}/impressum`, `${LINK_BASE}/impressum`)
+        .replaceAll(`${CANONICAL}/datenschutz`, `${LINK_BASE}/datenschutz`);
+if (named.text !== expectedHere) {
   fail(
     `snapshot mismatch (${snapshotPath}). Rendered text does not match scripts/fixtures/customer-onboarding.txt`,
   );
