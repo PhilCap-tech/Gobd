@@ -59,6 +59,7 @@ import {
   parseDraftStepId,
   parseDraftVersionChange,
   preferIntakeSnapshot,
+  serverSaveCoversRestore,
   resolveDraftAfterLoad,
   type DraftVersionChange,
   type IntakeDraftSnapshot,
@@ -569,7 +570,11 @@ export function IntakeForm({
           stepId: chosen?.stepId,
           answers: restoredAnswers,
         });
-        if (server && chosen === server) setServerSaved(true);
+        const coveredAt = serverSaveCoversRestore(server, chosen);
+        if (coveredAt) {
+          setServerDraftAt(coveredAt);
+          setServerSaved(true);
+        }
         const restoredChange = decision.change;
         baselineRef.current = JSON.stringify({
           answers: restoredAnswers,

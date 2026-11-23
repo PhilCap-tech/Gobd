@@ -130,6 +130,25 @@ export function preferIntakeSnapshot<T extends IntakeDraftSnapshot>(
   return left.savedAt.localeCompare(right.savedAt) >= 0 ? left : right;
 }
 
+/**
+ * Server time of the save the restored Entwurf may claim.
+ * Empty when the chosen snapshot is a newer unsaved edit than the server copy.
+ * The same revision counts as that save, even if the local clock is later.
+ * Without a revision, a later local clock is not treated as already stored.
+ */
+export function serverSaveCoversRestore(
+  server: { revision?: number; savedAt?: string } | null | undefined,
+  chosen: { revision?: number; savedAt?: string } | null | undefined,
+): string {
+  const savedAt = server?.savedAt ?? "";
+  if (!savedAt || !chosen) return "";
+  const serverRev = draftRevision(server);
+  const chosenRev = draftRevision(chosen);
+  if (chosenRev > serverRev) return "";
+  if (chosenRev === serverRev && chosenRev === 0 && (chosen.savedAt ?? "") > savedAt) return "";
+  return savedAt;
+}
+
 export function parseDraftVersionChange(value: unknown): DraftVersionChange | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;

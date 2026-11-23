@@ -20,6 +20,7 @@ import {
   setCatalogValue,
 } from "../lib/intake-catalog";
 import { LEGACY_INTAKE_STEP_IDS, resumeIntakeStep } from "../lib/intake-draft-step";
+import { preferIntakeSnapshot, serverSaveCoversRestore, type IntakeDraftSnapshot } from "../lib/intake-draft-shared";
 import {
   M01_BEGINN_SATZ,
   M01_NOW_OPTIONAL,
@@ -172,11 +173,43 @@ ok(draftSavedLineVisible({ confirmed: true, failures: 0, finalSaveFailed: false 
 ok(!draftSavedLineVisible({ confirmed: true, failures: 1, finalSaveFailed: false }), "bei Speicherfehler keine Erfolgszeile");
 ok(!draftSavedLineVisible({ confirmed: true, failures: 0, finalSaveFailed: true }), "bei fehlgeschlagenem letzten Speichern keine Erfolgszeile");
 
+function snap(revision: number, savedAt: string): IntakeDraftSnapshot {
+  return { answers: emptyAnswers(), step: 0, revision, savedAt };
+}
+
+const serverSame = snap(4, "2026-11-23T12:00:02.000Z");
+const localSame = snap(4, "2026-11-23T12:00:05.000Z");
+const chosenLocal = preferIntakeSnapshot(serverSame, localSame);
+ok(chosenLocal === localSame, "bei gleicher Revision gewinnt die spätere lokale Uhr");
+ok(
+  serverSaveCoversRestore(serverSame, chosenLocal) === serverSame.savedAt,
+  "dieselbe Revision bleibt der Server-Speicherzeitpunkt, auch wenn lokal gewählt wird",
+);
+ok(
+  serverSaveCoversRestore(serverSame, serverSame) === serverSame.savedAt,
+  "ein gewählter Server-Stand trägt seine Speicherzeit",
+);
+const localNewer = snap(5, "2026-11-23T12:00:09.000Z");
+ok(preferIntakeSnapshot(serverSame, localNewer) === localNewer, "eine höhere lokale Revision gewinnt");
+ok(
+  serverSaveCoversRestore(serverSame, localNewer) === "",
+  "ein neuerer lokaler Stand behauptet kein Speichern",
+);
+ok(serverSaveCoversRestore(null, localSame) === "", "ohne Server-Stand keine Speicherzeile");
+const legacyServer = snap(0, "2026-11-23T11:00:00.000Z");
+const legacyLocal = snap(0, "2026-11-23T11:05:00.000Z");
+ok(
+  serverSaveCoversRestore(legacyServer, legacyLocal) === "",
+  "ohne Revision ist eine spätere lokale Uhr kein gespeicherter Stand",
+);
+
 const form = readFileSync("app/intake/intake-form.tsx", "utf8");
 const progress = readFileSync("components/intake-progress.tsx", "utf8");
 const css = readFileSync("app/globals.css", "utf8");
 ok(!form.includes("Gesamtdokument mit 24 Modulen"), "das 24-Modul-Banner ist entfernt");
 ok(form.includes("DRAFT_SAVED_LINE"), "der Fragebogen zeigt die Speicherzeile");
+ok(form.includes("serverSaveCoversRestore(server, chosen)"), "nach dem Laden entscheidet der Server-Stand, nicht die Snapshot-Identität");
+ok(!form.includes("chosen === server"), "die Speicherzeile hängt nicht daran, dass der lokale Snapshot verliert");
 ok(form.includes("Zur Modulübersicht"), "die Übersicht bleibt verlinkt");
 ok(form.includes("Weiter im Fragebogen"), "aus der Übersicht geht es in den Fragebogen zurück");
 ok(progress.includes('className="etappen"'), "die Etappen sind die Fortschrittsanzeige");
