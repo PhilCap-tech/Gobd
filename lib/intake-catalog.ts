@@ -52,6 +52,13 @@ import {
   toolModules,
 } from "@/lib/module/status";
 import type { CheckKey, Stammdaten } from "@/lib/module/typen";
+import { etappeIndexForStepId, INTAKE_ETAPPEN } from "@/lib/intake-etappen";
+import {
+  M01_PAGES,
+  m01FieldNowOptional,
+  m01NeedsOpenPoint,
+  m01StatusOptional,
+} from "@/lib/intake-m01";
 import {
   FREITEXT_LIMIT_MESSAGE,
   freitextOverflows,
@@ -106,6 +113,8 @@ export type CatalogQuestion = {
   prompt: string;
   fields: CatalogField[];
   statusRequired?: boolean;
+  /** Modul 1: fehlender Stand blockiert nicht. Die Lücke wird ein offener Punkt. */
+  statusOptional?: boolean;
   when?: CatalogWhen;
   note?: string;
   /** Customer-facing hint under the prompt (area questions). `note` stays internal. */
@@ -202,39 +211,98 @@ function areaQuestionToCatalog(question: {
   };
 }
 
+function relaxM01Question(question: CatalogQuestion): CatalogQuestion {
+  if (!m01StatusOptional(question.id)) return question;
+  return {
+    ...question,
+    statusOptional: true,
+    fields: question.fields.map((field) =>
+      m01FieldNowOptional(question.id, field.key) ? { ...field, required: false } : { ...field },
+    ),
+  };
+}
+
+function questionForModule(modul: (typeof MODULE)[number], id: string): CatalogQuestion | null {
+  if (modul.catalogIds.includes(id)) {
+    const source = catalog.steps.flatMap((step) => step.questions).find((question) => question.id === id);
+    if (!source) {
+      return relaxM01Question({
+        id,
+        prompt: id,
+        fields: [],
+        when: { gesamtOnly: true, modul: [modul.id] },
+      });
+    }
+    return relaxM01Question({
+      ...source,
+      fields: source.fields.map((field) => ({ ...field })),
+      when: { ...(source.when ?? {}), gesamtOnly: true, modul: [modul.id] },
+    });
+  }
+  for (const gruppe of modul.gruppen) {
+    const question = gruppenFragen(gruppe).find((item) => item.id === id);
+    if (!question) continue;
+    return relaxM01Question({
+      ...areaQuestionToCatalog(question),
+      when: {
+        gesamtOnly: true,
+        modul: [modul.id],
+        ...(gruppe.teil ? { teil: gruppe.teil } : {}),
+      },
+    });
+  }
+  return null;
+}
+
 function moduleSteps(): CatalogStep[] {
-  return MODULE.map((modul) => ({
-    id: `step-M${String(modul.nr).padStart(2, "0")}`,
-    title: `Modul ${modul.nr}: ${modul.titel}`,
-    when: { gesamtOnly: true, modul: [modul.id] },
-    questions: [
-      ...modul.catalogIds.map((id) => {
-        const source = catalog.steps.flatMap((step) => step.questions).find((q) => q.id === id);
-        if (!source) {
-          return {
-            id,
-            prompt: id,
-            fields: [],
-            when: { gesamtOnly: true, modul: [modul.id] },
-          } satisfies CatalogQuestion;
-        }
-        return {
-          ...source,
-          when: { ...(source.when ?? {}), gesamtOnly: true as const, modul: [modul.id] },
-        };
-      }),
-      ...modul.gruppen.flatMap((gruppe) =>
-        gruppenFragen(gruppe).map((question) => ({
-          ...areaQuestionToCatalog(question),
-          when: {
-            gesamtOnly: true as const,
-            modul: [modul.id],
-            ...(gruppe.teil ? { teil: gruppe.teil } : {}),
-          },
-        })),
-      ),
-    ],
-  }));
+  return MODULE.flatMap((modul): CatalogStep[] => {
+    if (modul.id === "m01") {
+      return M01_PAGES.map((page) => ({
+        id: page.id,
+        title: page.title,
+        when: { gesamtOnly: true as const, modul: [modul.id] },
+        questions: page.questionIds.map((id) => {
+          const question = questionForModule(modul, id);
+          if (!question) throw new Error(`Modul 1: Frage ${id} fehlt`);
+          return question;
+        }),
+      }));
+    }
+    return [
+      {
+        id: `step-M${String(modul.nr).padStart(2, "0")}`,
+        title: `Modul ${modul.nr}: ${modul.titel}`,
+        when: { gesamtOnly: true as const, modul: [modul.id] },
+        questions: [
+          ...modul.catalogIds.map((id) => {
+            const source = catalog.steps.flatMap((step) => step.questions).find((question) => question.id === id);
+            if (!source) {
+              return {
+                id,
+                prompt: id,
+                fields: [],
+                when: { gesamtOnly: true as const, modul: [modul.id] },
+              } satisfies CatalogQuestion;
+            }
+            return {
+              ...source,
+              when: { ...(source.when ?? {}), gesamtOnly: true as const, modul: [modul.id] },
+            };
+          }),
+          ...modul.gruppen.flatMap((gruppe) =>
+            gruppenFragen(gruppe).map((question) => ({
+              ...areaQuestionToCatalog(question),
+              when: {
+                gesamtOnly: true as const,
+                modul: [modul.id],
+                ...(gruppe.teil ? { teil: gruppe.teil } : {}),
+              },
+            })),
+          ),
+        ],
+      },
+    ];
+  });
 }
 
 function buildSteps(steps: CatalogStep[]): CatalogStep[] {
@@ -602,18 +670,90 @@ export function visibleCatalogQuestions(stepIndex: number, answers: IntakeAnswer
   return step.questions.filter((question) => catalogQuestionApplies(question, answers));
 }
 
+/** Die Modulübersicht bleibt erreichbar, liegt aber nicht mehr auf dem Weg vor Modul 1. */
+function inLinearFlow(step: CatalogStep): boolean {
+  return step.id !== MODUL_UEBERSICHT_STEP_ID;
+}
+
 export function nextApplicableStep(from: number, answers: IntakeAnswers): number {
   for (let index = from + 1; index < CATALOG_STEPS.length; index += 1) {
-    if (catalogStepApplies(CATALOG_STEPS[index], answers)) return index;
+    const step = CATALOG_STEPS[index];
+    if (!inLinearFlow(step)) continue;
+    if (catalogStepApplies(step, answers)) return index;
   }
   return CATALOG_STEPS.length;
 }
 
 export function previousApplicableStep(from: number, answers: IntakeAnswers): number {
   for (let index = from - 1; index >= 0; index -= 1) {
-    if (catalogStepApplies(CATALOG_STEPS[index], answers)) return index;
+    const step = CATALOG_STEPS[index];
+    if (!inLinearFlow(step)) continue;
+    if (catalogStepApplies(step, answers)) return index;
   }
   return 0;
+}
+
+export type IntakeEtappeState = "done" | "on" | "";
+
+export type IntakeEtappeView = {
+  label: string;
+  etappen: Array<{ id: string; label: string; state: IntakeEtappeState; progress: number }>;
+  abschnitt: { index: number; total: number } | null;
+};
+
+/**
+ * Gesamtdokument: fünf Etappen. Bereichs-Dokumentationen behalten „Schritt k von n“
+ * und liefern hier null.
+ */
+export function intakeEtappeView(stepIndex: number, answers: IntakeAnswers): IntakeEtappeView | null {
+  if (!isGesamt(answers)) return null;
+  const onReview = stepIndex >= CATALOG_STEPS.length;
+  const stepId = onReview ? "" : (CATALOG_STEPS[stepIndex]?.id ?? "");
+  const overview = stepId === MODUL_UEBERSICHT_STEP_ID;
+  const currentEtappe = !stepId || overview ? -1 : etappeIndexForStepId(stepId);
+  const applicable = CATALOG_STEPS.filter(
+    (step) => catalogStepApplies(step, answers) && etappeIndexForStepId(step.id) >= 0,
+  );
+  const sectionOf = (etappe: number, id: string) => {
+    const pages = applicable.filter((step) => etappeIndexForStepId(step.id) === etappe);
+    const index = pages.findIndex((step) => step.id === id);
+    if (index < 0 || pages.length === 0) return null;
+    return { index: index + 1, total: pages.length };
+  };
+  const etappen = INTAKE_ETAPPEN.map((etappe, index) => {
+    let state: IntakeEtappeState = "";
+    let progress = 0;
+    if (onReview) {
+      state = "done";
+      progress = 1;
+    } else if (currentEtappe >= 0) {
+      if (index < currentEtappe) {
+        state = "done";
+        progress = 1;
+      } else if (index === currentEtappe) {
+        state = "on";
+        const section = sectionOf(index, stepId);
+        progress = section ? section.index / section.total : 0;
+      }
+    }
+    return { id: etappe.id, label: etappe.label, state, progress };
+  });
+  if (onReview) {
+    return {
+      label: `Etappe ${INTAKE_ETAPPEN.length} von ${INTAKE_ETAPPEN.length}`,
+      etappen,
+      abschnitt: null,
+    };
+  }
+  if (overview || currentEtappe < 0) {
+    return { label: "Übersicht", etappen, abschnitt: null };
+  }
+  const section = sectionOf(currentEtappe, stepId);
+  const name = INTAKE_ETAPPEN[currentEtappe]?.label ?? "";
+  const label = section
+    ? `Etappe ${currentEtappe + 1} von ${INTAKE_ETAPPEN.length} · ${name} · Abschnitt ${section.index} von ${section.total}`
+    : `Etappe ${currentEtappe + 1} von ${INTAKE_ETAPPEN.length} · ${name}`;
+  return { label, etappen, abschnitt: section };
 }
 
 /** „Schritt k von n“ counted over the steps of the chosen area (branch steps like Papier stay counted). */
@@ -631,8 +771,10 @@ export function catalogStepPosition(stepIndex: number, answers: IntakeAnswers): 
   return { index: position < 0 ? stepIndex : position, total: list.length || applicable.length };
 }
 
-/** Same numbering as the „Schritt k von n“ label. */
+/** Same numbering as the „Schritt k von n“ label. Gesamtdokument: Etappenbezeichnung. */
 export function intakeStepLabel(stepIndex: number, answers: IntakeAnswers): string {
+  const etappe = intakeEtappeView(stepIndex, answers);
+  if (etappe) return etappe.label;
   const position = catalogStepPosition(stepIndex, answers);
   return `Schritt ${position.index + 1} von ${position.total}`;
 }
@@ -643,6 +785,8 @@ export function intakeStepLabel(stepIndex: number, answers: IntakeAnswers): stri
  * On the review page every counted step is done.
  */
 export function intakeProgressSegments(stepIndex: number, answers: IntakeAnswers): Array<"done" | "on" | ""> {
+  const etappe = intakeEtappeView(stepIndex, answers);
+  if (etappe) return etappe.etappen.map((item) => item.state);
   const onReview = stepIndex >= CATALOG_STEPS.length;
   const position = catalogStepPosition(onReview ? CATALOG_STEPS.length - 1 : stepIndex, answers);
   const active = onReview ? position.total : position.index;
@@ -831,6 +975,7 @@ function questionIssues(
 ): CatalogIssue[] {
   const values = entry?.values ?? {};
   if (!entry?.status) {
+    if (question.statusOptional) return [];
     if (question.id === "A03") {
       const missing = question.fields
         .filter((field) => !fieldReady(field, values[field.key]))
@@ -1512,13 +1657,19 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
       if (!catalogQuestionApplies(question, answers)) continue;
       if (question.id === "BU07" && kanzleiAbgelehnt(answers)) continue;
       const status = state[question.id]?.status;
+      if (question.statusOptional && m01NeedsOpenPoint(question.id, state[question.id])) {
+        const point = pointFor(question.id);
+        if (!points.some((item) => item.id === point.id)) points.push(point);
+      }
       if (status === "unbekannt" || status === "geplant") {
         const base = pointFor(question.id);
         const point =
           status === "unbekannt"
             ? withKlaerNotiz(base, klaerNotizText(question.fields, state[question.id]?.values))
             : base;
-        if (!points.some((item) => item.id === point.id && item.text === point.text)) points.push(point);
+        const existing = points.findIndex((item) => item.id === point.id);
+        if (existing === -1) points.push(point);
+        else if (points[existing].text !== point.text && points[existing].text === base.text) points[existing] = point;
       }
       if (question.id === "H01" && status !== "bestaetigt") {
         if (!points.some((point) => point.id === "op-h01")) points.push(pointFor("H01"));
@@ -2165,9 +2316,9 @@ export function prefillKnownFacts(
     protect,
     prior(preferName(previousAnswers?.it, previousStamm?.it)),
   );
-  for (const name of answers.fibu) ensureSystem(katalog, name, "FiBu", "fibu");
+  for (const name of answers.fibu ?? []) ensureSystem(katalog, name, "FiBu", "fibu");
   if (stamm.fibu) ensureSystem(katalog, stamm.fibu, "Finanzbuchhaltung", "fibu");
-  fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege));
+  fillRaw(katalog, "C01", "kanaele", mapChannels(answers.eingangsbelege ?? []));
   fillRaw(katalog, "E01", "formate", answers.formate);
   fillRaw(katalog, "E05", "systeme", answers.ausgangsrechnungen);
   fillText(
@@ -2195,7 +2346,7 @@ export function prefillKnownFacts(
     prior(textOr(previousAnswers?.archiv, previousStamm?.archiv)),
   );
   fillText(katalog, "G02", "zugriffKurz", answers.zugriff);
-  if (answers.backup.length) fillText(katalog, "G06", "backupArten", answers.backup.join(", "));
+  if ((answers.backup ?? []).length) fillText(katalog, "G06", "backupArten", (answers.backup ?? []).join(", "));
 
   fillText(katalog, "KA01", "system", stamm.kasse, undefined, previousStamm?.kasse);
   fillText(katalog, "A01", "gastroKasse", stamm.kasse, undefined, previousStamm?.kasse);

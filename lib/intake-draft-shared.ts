@@ -18,6 +18,11 @@ export type IntakeDraft = {
   documentId: string;
   entityId: string;
   step: number;
+  /**
+   * Katalog-Schritt, z. B. step-M01b. Fehlt bei Entwürfen von vor der
+   * Aufteilung von Modul 1; dann gilt die gespeicherte Schrittnummer.
+   */
+  stepId?: string;
   answers: IntakeAnswers;
   updatedAt: string;
   /**
@@ -45,6 +50,7 @@ export type IntakeDraft = {
 export type IntakeDraftSnapshot = {
   answers: IntakeAnswers;
   step: number;
+  stepId?: string;
   savedAt: string;
   revision?: number;
   change?: DraftVersionChange;
@@ -124,6 +130,30 @@ export function preferIntakeSnapshot<T extends IntakeDraftSnapshot>(
   return left.savedAt.localeCompare(right.savedAt) >= 0 ? left : right;
 }
 
+/**
+ * Server time of the save the restored Entwurf may claim.
+ * Empty when the chosen snapshot is a newer unsaved edit than the server copy.
+ * The same revision counts as that save, even if the local clock is later.
+ * Without a revision, a later local clock is not treated as already stored.
+ */
+function snapshotBody(value: { step?: number; answers?: unknown } | null | undefined): string {
+  return JSON.stringify({ step: value?.step ?? null, answers: value?.answers ?? null });
+}
+
+export function serverSaveCoversRestore(
+  server: { revision?: number; savedAt?: string; step?: number; answers?: unknown } | null | undefined,
+  chosen: { revision?: number; savedAt?: string; step?: number; answers?: unknown } | null | undefined,
+): string {
+  const savedAt = server?.savedAt ?? "";
+  if (!savedAt || !chosen) return "";
+  const serverRev = draftRevision(server);
+  const chosenRev = draftRevision(chosen);
+  const sameBody = snapshotBody(server) === snapshotBody(chosen);
+  if (chosenRev > serverRev && !(sameBody && chosenRev > 0)) return "";
+  if (chosenRev === serverRev && chosenRev === 0 && (chosen.savedAt ?? "") > savedAt) return "";
+  return savedAt;
+}
+
 export function parseDraftVersionChange(value: unknown): DraftVersionChange | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
@@ -138,6 +168,14 @@ export function parseDraftVersionChange(value: unknown): DraftVersionChange | nu
     return null;
   }
   return change;
+}
+
+/** Katalog-Schritt-Id, sonst undefined. Keine freien Texte. */
+export function parseDraftStepId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const id = value.trim();
+  if (!/^step-[A-Za-z0-9]+$/.test(id) || id.length > 40) return undefined;
+  return id;
 }
 
 export type DraftLoadDecision = {

@@ -507,6 +507,24 @@ export function buildFailedJobMail(): TransactionalMailContent {
 const DELIVERY_SHARE_INTRO =
   "Wenn Ihr Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, können Sie diesen Link weitergeben:";
 
+/** PDF- und Übersichtslinks der Zustellmail. Dieselbe Basis wie Login- und Willkommensmail. */
+export function deliveryDocumentLinks(input: {
+  documentId: string;
+  stripeSessionId?: string;
+}): { downloadUrl: string; successUrl: string } {
+  const appUrl = mailLinkBase();
+  const documentId = input.documentId;
+  const stripeSessionId = input.stripeSessionId?.trim() ?? "";
+  return {
+    downloadUrl: stripeSessionId
+      ? `${appUrl}/api/docs/${documentId}/download?session_id=${encodeURIComponent(stripeSessionId)}`
+      : `${appUrl}/api/docs/${documentId}/download`,
+    successUrl: stripeSessionId
+      ? `${appUrl}/success?session_id=${encodeURIComponent(stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`
+      : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`,
+  };
+}
+
 export function buildDeliveryMail(input: {
   company?: string;
   /** Person. A company name is ignored; the greeting then stays „Guten Tag,“. */

@@ -43,6 +43,7 @@ import type { ModulStatus } from "@/lib/module/typen";
 import type { IntakeAnswers } from "@/lib/types";
 import type { RenderedChapter } from "@/lib/delivery-templates";
 import { lohnFristSatz } from "@/lib/bereiche";
+import { M01_BEGINN_SATZ, M01_OFFEN_SATZ } from "@/lib/intake-m01";
 import { capitalizeSentenceStart, fragebogenStattIntake } from "@/lib/satzanfang";
 
 type State = NonNullable<IntakeAnswers["katalog"]>;
@@ -377,6 +378,15 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
       const shown = ausnahmenInDetails(id, answers, line.details);
       const details = shown.length ? ` ${shown.map((bit) => cell(bit)).join(" · ")}` : "";
       const reason = line.reason ? ` Begründung: ${cell(line.reason)}` : "";
+      const beginDate = id === "A04" ? String(state.A04?.values?.gueltigAb ?? "").trim() : "gesetzt";
+      if (modul.id === "m01" && id === "A04" && !beginDate) {
+        catalogLines.push(`- **${cell(line.prompt)}** — ${M01_BEGINN_SATZ}`);
+        continue;
+      }
+      if (modul.id === "m01" && !details && !reason) {
+        catalogLines.push(`- **${cell(line.prompt)}** — ${M01_OFFEN_SATZ}`);
+        continue;
+      }
       // „— So läuft es heute.“ ohne Angabe danach ist eine leere Zeile.
       if (!details && !reason && line.status === PDF_STATUS_LABEL.bestaetigt) continue;
       catalogLines.push(collapseRepeatedTokens(`- **${cell(line.prompt)}** — ${line.status}.${details}${reason}`));

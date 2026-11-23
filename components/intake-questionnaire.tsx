@@ -42,6 +42,7 @@ import {
   KEINE_REGELMAESSIGE_KONTROLLE,
   normalizeExclusiveSelection,
 } from "@/lib/keine-angaben";
+import { M01_PAGE_HINT } from "@/lib/intake-m01";
 import { INTAKE_STEPS } from "@/lib/intake-questions";
 import { FreitextAlert } from "@/components/freitext-alert";
 import type { IntakeAnswers } from "@/lib/types";
@@ -492,6 +493,7 @@ export function IntakeQuestionnaire({
     );
   }
   const questions = visibleCatalogQuestions(step, answers);
+  const stepLabel = intakeStepLabel(step, answers);
 
   function commitValue(questionId: string, key: string, value: unknown) {
     let stored = value;
@@ -520,10 +522,9 @@ export function IntakeQuestionnaire({
 
   return (
     <section>
-      <p className="step-label">
-        {intakeStepLabel(step, answers)}
-      </p>
+      {stepLabel.startsWith("Etappe") ? null : <p className="step-label">{stepLabel}</p>}
       <IntakeStepHeading>{catalogStepTitle(step, answers)}</IntakeStepHeading>
+      {catalogStep.id.startsWith("step-M01") ? <p className="hint">{M01_PAGE_HINT}</p> : null}
       <OpenOnPage issues={issues} />
       <div className="card">
         {!catalogStepApplies(catalogStep, answers) || (questions.length === 0 && !SPECIAL_STEP_IDS.has(catalogStep.id)) ? (
@@ -556,9 +557,9 @@ export function IntakeQuestionnaire({
                     Das Datum ist der Beginn des beschriebenen Ablaufs im Betrieb. Es ist nicht das
                     Datum, an dem diese Dokumentation erstellt wird. „Keine Rückdatierung“ heißt: die
                     Dokumentation behauptet nicht, sie habe schon gegolten, bevor sie erstellt wurde.
-                    Pflicht ist der Stand (So läuft es heute, Soll künftig so laufen oder Muss ich
-                    klären). Datum und die Bestätigung „Verstanden…“ sind zusätzlich Pflicht, wenn der
-                    Ablauf als heutige oder künftige Praxis gilt.
+                    {question.statusOptional
+                      ? " Den Stand, das Datum und die Bestätigung können Sie später ergänzen. Ohne Datum sagt die Fassung nicht, sie habe schon vor ihrer Erstellung gegolten, und der Punkt bleibt in der Liste offener Punkte."
+                      : " Pflicht ist der Stand (So läuft es heute, Soll künftig so laufen oder Muss ich klären). Datum und die Bestätigung „Verstanden…“ sind zusätzlich Pflicht, wenn der Ablauf als heutige oder künftige Praxis gilt."}
                   </p>
                 ) : null}
                 {question.id === "F02" ? (

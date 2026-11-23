@@ -45,7 +45,7 @@ import { generatePdf, type DeliveryPlan } from "@/lib/delivery";
 import { documentFamilyId, nextVersionNumber } from "@/lib/documents";
 import { applyEntityToIdentity } from "@/lib/entities";
 import { devCheckoutStubAllowed, isStubCheckoutSessionId } from "@/lib/checkout-stub";
-import { getAppUrl } from "@/lib/env";
+import { deliveryDocumentLinks, sendDeliveryMail } from "@/lib/ops";
 import { subscriptionWriteDenial } from "@/lib/kuendigung-access";
 import { planFirmGate } from "@/lib/plan-access";
 import { FIRM_NEEDS_PURCHASE_MESSAGE } from "@/lib/plan-firms";
@@ -53,7 +53,6 @@ import { reopenIfActiveCheckout } from "@/lib/kuendigung-stripe";
 import { deliverLoginLinkReportingDuplicate } from "@/lib/login-mail";
 import type { SubmitLoginMail } from "@/lib/login-mail-shared";
 import { normalizeIntakeAnswers } from "@/lib/intake-present";
-import { sendDeliveryMail } from "@/lib/ops";
 import { isTestEntity } from "@/lib/test-entities";
 import { queryIdsEqual } from "@/lib/query";
 import { intakeEntityBinding } from "@/lib/session-issue";
@@ -840,15 +839,7 @@ async function writeIntake(
 }
 
 function deliveryUrls(stripeSessionId: string, documentId: string) {
-  const appUrl = getAppUrl();
-  return {
-    downloadUrl: stripeSessionId
-      ? `${appUrl}/api/docs/${documentId}/download?session_id=${encodeURIComponent(stripeSessionId)}`
-      : `${appUrl}/api/docs/${documentId}/download`,
-    successUrl: stripeSessionId
-      ? `${appUrl}/success?session_id=${encodeURIComponent(stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`
-      : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`,
-  };
+  return deliveryDocumentLinks({ stripeSessionId, documentId });
 }
 
 function retryLaterResponse(): NextResponse {

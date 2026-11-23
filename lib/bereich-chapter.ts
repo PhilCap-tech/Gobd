@@ -9,6 +9,7 @@ import {
   type BereichField,
   type BereichQuestion,
 } from "@/lib/bereiche";
+import { M01_OFFEN_SATZ } from "@/lib/intake-m01";
 import { columnLabel, optionLabel } from "@/lib/intake-present";
 import { FREITEXT_MAX_CHARS } from "@/lib/intake-payload";
 import { isControlQuestionId, isKeineKontrolleValues, KEINE_KONTROLLE_SATZ } from "@/lib/keine-angaben";
@@ -292,7 +293,9 @@ export function bereichQuestionLines(
         return prefixFieldLabel(field.label, value, title);
       })
       .filter(Boolean);
-    if (!parts.length) return [`${head} bestätigt, ohne nähere Angabe.`];
+    if (!parts.length) {
+      return [`${head} ${question.id.startsWith("UO") ? M01_OFFEN_SATZ : "bestätigt, ohne nähere Angabe."}`];
+    }
     return [`${head} ${parts.join(". ")}.`];
   }
   if (status === "geplant") {

@@ -101,8 +101,10 @@ ok(catalogStepError(CATALOG_STEPS.indexOf(bc!), emptyAnswers()) === "" || true, 
 const legacy = emptyAnswers();
 ok(!catalogStepApplies(bc!, legacy), "BC hidden in legacy");
 
-const moduleSteps = CATALOG_STEPS.filter((s) => s.id.startsWith("step-M") && s.id !== "step-MO");
-ok(moduleSteps.length === 24, "24 module steps");
+const moduleSteps = CATALOG_STEPS.filter((s) => /^step-M\d/.test(s.id));
+const modulIds = new Set(moduleSteps.map((s) => s.when?.modul?.[0]));
+ok(modulIds.size === 24, "24 module steps");
+ok(moduleSteps.filter((s) => s.when?.modul?.[0] === "m01").length === 5, "m01 has five pages");
 for (const step of moduleSteps) {
   const modul = modulById(step.when?.modul?.[0] ?? "");
   ok(modul, `step ${step.id} has modul`);
@@ -253,20 +255,19 @@ checkMusterPdfDepth().catch((error) => {
   ok(uploadAllowed("application/zip", 100) !== "", "zip rejected");
   ok(uploadAllowed("application/pdf", 20 * 1024 * 1024) !== "", "too large rejected");
   ok(normalizeDraftKey({ sessionId: "cs_test_1" }).startsWith("session:"), "draft key session");
-  const moduleStep = CATALOG_STEPS.findIndex((step) => step.id === "step-M01");
-  const a04base = ensureGesamt(emptyAnswers());
+  const moduleStep = CATALOG_STEPS.findIndex((step) => step.id === "step-A");
+  const a04base = emptyAnswers();
   a04base.katalog = {
-    ...a04base.katalog,
     A04: { status: "bestaetigt", values: { keineRueckdatierungBestaetigt: true } },
   };
   const dateIssues = catalogStepIssues(moduleStep, a04base).filter((issue) => issue.questionId === "A04");
   ok(dateIssues.some((issue) => issue.fieldKey === "gueltigAb" && issue.message.includes("Datum")), "A04 date names the date");
   ok(dateIssues.every((issue) => issue.fieldKey !== "keineRueckdatierungBestaetigt"), "checked confirmation is not open");
-  const unchecked = ensureGesamt(emptyAnswers());
+  const unchecked = emptyAnswers();
   unchecked.katalog = { A04: { status: "bestaetigt", values: { gueltigAb: "2024-01-01" } } };
   const checkIssues = catalogStepIssues(moduleStep, unchecked).filter((issue) => issue.questionId === "A04");
   ok(checkIssues.some((issue) => issue.message.includes("Bestätigung")), "A04 checkbox is named");
-  const noStatus = ensureGesamt(emptyAnswers());
+  const noStatus = emptyAnswers();
   noStatus.katalog = { A04: { values: {} } };
   ok(
     catalogStepIssues(moduleStep, noStatus).some(

@@ -18,6 +18,7 @@ import {
   IntakeDraftStorageError,
   loadIntakeDraft,
   normalizeDraftKey,
+  parseDraftStepId,
   parseDraftVersionChange,
   saveIntakeDraft,
   type IntakeDraft,
@@ -184,6 +185,7 @@ function sameDraftContent(stored: IntakeDraft, next: IntakeDraft): boolean {
     (stored.documentId ?? "") === (next.documentId ?? "") &&
     stableJson(normalizeIntakeAnswers(stored.answers)) === stableJson(next.answers) &&
     Number(stored.step ?? 0) === Number(next.step ?? 0) &&
+    (stored.stepId ?? "") === (next.stepId ?? "") &&
     stableJson(stored.change ?? null) === stableJson(next.change ?? null) &&
     (stored.entityId ?? "") === (next.entityId ?? "") &&
     (stored.pricingModel ?? "") === (next.pricingModel ?? "")
@@ -470,6 +472,7 @@ async function saveMemberDraft(
   request: Request,
   body: {
     step?: number;
+    stepId?: unknown;
     answers?: unknown;
     clientUpdatedAt?: string;
     revision?: number;
@@ -528,6 +531,7 @@ async function saveMemberDraft(
       documentId: stored?.documentId || (grant.draftKey.startsWith("doc:") ? grant.draftKey.slice(4) : ""),
       entityId: grant.entityId,
       step: Number.isFinite(body.step) ? Number(body.step) : (stored?.step ?? 0),
+      stepId: parseDraftStepId(body.stepId) ?? stored?.stepId,
       answers: after,
       revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(stored)),
       updatedAt: new Date().toISOString(),
@@ -573,6 +577,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     entityId?: string;
     modus?: string;
     step?: number;
+    stepId?: unknown;
     answers?: unknown;
     clientUpdatedAt?: string;
     revision?: number;
@@ -709,6 +714,7 @@ async function putIntakeDraftBody(request: Request, io: DraftWriteIo = defaultDr
     documentId: body.documentId?.trim() || stored?.documentId || "",
     entityId: body.entityId?.trim() || stored?.entityId || "",
     step: Number.isFinite(body.step) ? Number(body.step) : 0,
+    stepId: parseDraftStepId(body.stepId) ?? stored?.stepId,
     answers: normalizeIntakeAnswers(body.answers),
     revision: Math.max(draftRevision({ revision: body.revision }), draftRevision(stored)),
     updatedAt: new Date().toISOString(),
