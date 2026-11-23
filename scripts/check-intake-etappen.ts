@@ -245,7 +245,7 @@ const progress = readFileSync("components/intake-progress.tsx", "utf8");
 const css = readFileSync("app/globals.css", "utf8");
 ok(!form.includes("Gesamtdokument mit 24 Modulen"), "das 24-Modul-Banner ist entfernt");
 ok(form.includes("DRAFT_SAVED_LINE"), "der Fragebogen zeigt die Speicherzeile");
-ok(form.includes("serverSaveCoversRestore(server, chosen)"), "nach dem Laden entscheidet der Server-Stand, nicht die Snapshot-Identität");
+ok(form.includes("restoreSavePlan(server, chosen)"), "nach dem Laden entscheidet der Server-Stand, nicht die Snapshot-Identität");
 ok(!form.includes("chosen === server"), "die Speicherzeile hängt nicht daran, dass der lokale Snapshot verliert");
 ok(form.includes("Zur Modulübersicht"), "die Übersicht bleibt verlinkt");
 ok(form.includes("Weiter im Fragebogen"), "aus der Übersicht geht es in den Fragebogen zurück");

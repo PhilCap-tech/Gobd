@@ -59,8 +59,9 @@ import {
   parseDraftStepId,
   parseDraftVersionChange,
   preferIntakeSnapshot,
-  serverSaveCoversRestore,
   resolveDraftAfterLoad,
+  restoreSavePlan,
+  revisionForRestoreFlush,
   type DraftVersionChange,
   type IntakeDraftSnapshot,
 } from "@/lib/intake-draft-shared";
@@ -569,12 +570,15 @@ export function IntakeForm({
           stepId: chosen?.stepId,
           answers: restoredAnswers,
         });
-        const coveredAt = serverSaveCoversRestore(server, chosen);
-        if (coveredAt) {
-          setServerDraftAt(coveredAt);
+        const plan = restoreSavePlan(server, chosen);
+        if (plan.savedAt) {
+          setServerDraftAt(plan.savedAt);
           setServerSaved(true);
         }
         const restoredChange = decision.change;
+        answersRef.current = restoredAnswers;
+        stepRef.current = restoredStep;
+        changeRef.current = restoredChange;
         baselineRef.current = JSON.stringify({
           answers: restoredAnswers,
           step: restoredStep,
@@ -585,6 +589,14 @@ export function IntakeForm({
         setStep(restoredStep);
         setChange(restoredChange);
         setDraftRestored(true);
+        // Der Debounce schreibt erst bei der nächsten Eingabe. Der Reload
+        // würde den neueren lokalen Stand sonst nie nachreichen.
+        if (plan.flush) {
+          const revision = revisionForRestoreFlush(revisionRef.current);
+          revisionRef.current = revision;
+          writeLocalDraft(revision);
+          void postServerDraft(revision);
+        }
       }
       setDraftReady(true);
     })();
