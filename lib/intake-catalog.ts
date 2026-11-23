@@ -33,6 +33,7 @@ import {
   bereichQuestion,
   ALLGEMEINER_TEIL_IDS,
 } from "@/lib/bereiche";
+import { KLAER_NOTIZ_LABEL, klaerNotizSuffix, klaerNotizText } from "@/lib/bereich-chapter";
 import { kanzleiAbgelehnt } from "@/lib/module/aussagen";
 import {
   MODULE,
@@ -1595,6 +1596,40 @@ function fristenlistePunkt(state: CatalogState): CatalogOpenPoint | null {
   };
 }
 
+function withKlaerNotiz(point: CatalogOpenPoint, note: string): CatalogOpenPoint {
+  const suffix = klaerNotizSuffix(note);
+  if (!suffix || point.text.includes(suffix)) return point;
+  return { ...point, text: `${point.text}${suffix}` };
+}
+
+function noteBase(text: string): string {
+  const mark = ` ${KLAER_NOTIZ_LABEL} `;
+  const at = text.indexOf(mark);
+  return at < 0 ? text : text.slice(0, at);
+}
+
+/** Gleicher Punkt (gleiche Id, gleicher Satz) nur einmal, die Fassung mit Notiz bleibt. */
+function mergeCatalogPoints(points: CatalogOpenPoint[]): CatalogOpenPoint[] {
+  const out: CatalogOpenPoint[] = [];
+  const at = new Map<string, number>();
+  const mark = ` ${KLAER_NOTIZ_LABEL} `;
+  for (const point of points) {
+    const index = at.get(point.id);
+    if (index == null) {
+      at.set(point.id, out.length);
+      out.push(point);
+      continue;
+    }
+    const prev = out[index];
+    if (!prev || noteBase(prev.text) !== noteBase(point.text)) {
+      out.push(point);
+      continue;
+    }
+    if (!prev.text.includes(mark) && point.text.includes(mark)) out[index] = point;
+  }
+  return out;
+}
+
 function pointFor(id: string): CatalogOpenPoint {
   const meta = OPEN_TEXT[id] ?? modulOpenText(id) ?? bereichOpenText(id) ?? {
     priority: "mittel" as const,
@@ -1626,7 +1661,16 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
         const point = pointFor(question.id);
         if (!points.some((item) => item.id === point.id)) points.push(point);
       }
-      if (status === "unbekannt" || status === "geplant") points.push(pointFor(question.id));
+      if (status === "unbekannt" || status === "geplant") {
+        const base = pointFor(question.id);
+        const point =
+          status === "unbekannt"
+            ? withKlaerNotiz(base, klaerNotizText(question.fields, state[question.id]?.values))
+            : base;
+        const existing = points.findIndex((item) => item.id === point.id);
+        if (existing === -1) points.push(point);
+        else if (points[existing].text !== point.text && points[existing].text === base.text) points[existing] = point;
+      }
       if (question.id === "H01" && status !== "bestaetigt") {
         if (!points.some((point) => point.id === "op-h01")) points.push(pointFor("H01"));
       }
@@ -1756,7 +1800,7 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
       }
     }
   }
-  return points;
+  return mergeCatalogPoints(points);
 }
 
 export function catalogSuppressesRule(ruleId: string, answers: IntakeAnswers): boolean {

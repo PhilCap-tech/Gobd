@@ -4,7 +4,7 @@
  * Themen werden nicht als Kontrolle, Prozess oder Behauptung gedruckt.
  */
 import catalogFile from "@/content/intake-catalog/INTAKE-CATALOG-MVP-v1.json";
-import { confirmedFieldSentence, type PhraseField } from "@/lib/bereich-chapter";
+import { confirmedFieldSentence, KLAER_NOTIZ_LABEL, type PhraseField } from "@/lib/bereich-chapter";
 import { bereichQuestion, type BereichFrist, type BereichKontrolle, type BereichSchritt } from "@/lib/bereiche";
 import type { CatalogQuestion } from "@/lib/intake-catalog";
 import { dedupeIdenticalTurnus, fieldLabel } from "@/lib/intake-present";
@@ -367,11 +367,19 @@ function splitSentences(line: string): string[] {
   return parts;
 }
 
+function keepsKlaerNotiz(line: string): boolean {
+  return line.includes(`${KLAER_NOTIZ_LABEL} `);
+}
+
 /** Entfernt Katalog- und Vorlagenbehauptungen zu verneinten Themen. Kundentext bleibt vollständig. */
 export function redactDenied(markdown: string, facts: BetriebFacts): string {
   const lines = markdown.split("\n");
   const out: string[] = [];
   for (const line of lines) {
+    if (keepsKlaerNotiz(line)) {
+      out.push(line);
+      continue;
+    }
     if (/^\|\s*-{3,}/.test(line)) {
       out.push(line);
       continue;

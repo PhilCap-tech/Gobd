@@ -11,6 +11,7 @@ import {
 } from "@/lib/bereiche";
 import { M01_OFFEN_SATZ } from "@/lib/intake-m01";
 import { columnLabel, optionLabel } from "@/lib/intake-present";
+import { FREITEXT_MAX_CHARS } from "@/lib/intake-payload";
 import { isControlQuestionId, isKeineKontrolleValues, KEINE_KONTROLLE_SATZ } from "@/lib/keine-angaben";
 import type { IntakeAnswers } from "@/lib/types";
 
@@ -177,6 +178,93 @@ export function confirmedFieldSentence(fields: PhraseField[], values: Record<str
   return parts.join(". ");
 }
 
+/** Label der Freitext-Notiz im PDF. Neutrale dritte Person. */
+export const KLAER_NOTIZ_LABEL = "Notiz:";
+
+type NoteColumn = string | { type?: string; options?: string[] };
+
+export type KlaerNotizField = {
+  key: string;
+  type: string;
+  item?: Record<string, NoteColumn>;
+};
+
+function isFreeTextType(type: string): boolean {
+  return type === "text" || type === "textarea" || type === "multi_or_text";
+}
+
+function columnType(spec: NoteColumn | undefined): string {
+  if (!spec) return "text";
+  if (typeof spec === "string") return spec;
+  return spec.type ?? "text";
+}
+
+function capFreitext(value: string): string {
+  return value.length > FREITEXT_MAX_CHARS ? value.slice(0, FREITEXT_MAX_CHARS) : value;
+}
+
+/** Wie andere Freitexte im PDF: Markdown-Sternchen weg, Pfeil als ASCII, Leerzeichen zusammen, Pipe wie in Tabellenzellen. */
+function pdfFreitext(value: string): string {
+  return clean(capFreitext(value)).replaceAll("|", "/");
+}
+
+function pushFreitext(bits: string[], raw: string) {
+  const text = pdfFreitext(raw);
+  if (!text || bits.some((kept) => sameText(kept, text))) return;
+  bits.push(text);
+}
+
+function freitextOf(value: unknown, bits: string[]) {
+  if (typeof value === "string") {
+    pushFreitext(bits, value);
+    return;
+  }
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) return;
+  const parts = value.map((item) => pdfFreitext(item)).filter(Boolean);
+  if (parts.length) pushFreitext(bits, parts.join(", "));
+}
+
+/** Freitext einer Katalogfrage. Leer bei fehlender oder reiner Whitespace-Angabe. */
+export function klaerNotizText(
+  fields: readonly KlaerNotizField[],
+  values: Record<string, unknown> | undefined,
+): string {
+  if (!values) return "";
+  const bits: string[] = [];
+  for (const field of fields) {
+    const raw = values[field.key];
+    if (isFreeTextType(field.type)) {
+      freitextOf(raw, bits);
+      continue;
+    }
+    if (field.type !== "repeat" || !Array.isArray(raw) || !field.item) continue;
+    const keys = Object.entries(field.item)
+      .filter(([, spec]) => isFreeTextType(columnType(spec)))
+      .map(([key]) => key);
+    for (const row of raw) {
+      if (!row || typeof row !== "object") continue;
+      const record = row as Record<string, unknown>;
+      for (const key of keys) freitextOf(record[key], bits);
+    }
+  }
+  return bits.join(" · ");
+}
+
+export function klaerNotizSuffix(note: string): string {
+  const text = note.trim();
+  if (!text) return "";
+  return ` ${KLAER_NOTIZ_LABEL} ${text}`;
+}
+
+/** Frage kann eine Notiz tragen, sobald ein Freitextfeld vorhanden ist. */
+export function catalogQuestionCanCarryKlaerNotiz(fields: readonly KlaerNotizField[]): boolean {
+  return fields.some((field) => {
+    if (isFreeTextType(field.type)) return true;
+    if (field.type !== "repeat" || !field.item) return false;
+    return Object.values(field.item).some((spec) => isFreeTextType(columnType(spec)));
+  });
+}
+
 /** One question as PDF lines. Only `bestaetigt` is written as present-tense practice. */
 export function bereichQuestionLines(
   question: BereichQuestion,
@@ -217,7 +305,8 @@ export function bereichQuestionLines(
     const reason = clean(entry?.reason ?? "");
     return [`${head} entfällt${reason ? `. Grund: ${reason}` : ""}.`];
   }
-  return [`${head} noch zu klären. Siehe offene Punkte.`];
+  const note = status === "unbekannt" ? klaerNotizSuffix(klaerNotizText(question.fields, entry?.values)) : "";
+  return [`${head} noch zu klären. Siehe offene Punkte.${note}`];
 }
 
 function statusLabel(entry: Entry | undefined): string {
