@@ -403,6 +403,9 @@ export function safeNextPath(
     if (parsed.pathname === CUSTOMER_ONBOARDING_NEXT_PATH) {
       return intakeNextPath(parsed.searchParams);
     }
+    if (parsed.pathname === "/fragebogen") {
+      return fragebogenNextPath(parsed.searchParams);
+    }
     if (ALLOWED_NEXT_PATHS.has(parsed.pathname)) return parsed.pathname;
     if (ACCOUNT_DOCUMENT_EDIT.test(parsed.pathname)) return parsed.pathname;
     if (ACCOUNT_FIRMA_EDIT.test(parsed.pathname)) return parsed.pathname;
@@ -411,6 +414,15 @@ export function safeNextPath(
   } catch {
     return null;
   }
+}
+
+/** Login return for /fragebogen. Only a safe entity_id is kept (including `default`). */
+function fragebogenNextPath(params: URLSearchParams): string {
+  const entityId = params.get("entity_id")?.trim() ?? "";
+  if (!entityId || entityId.length > 200 || !/^[A-Za-z0-9_-]+$/.test(entityId)) {
+    return "/fragebogen";
+  }
+  return `/fragebogen?entity_id=${encodeURIComponent(entityId)}`;
 }
 
 function intakeNextPath(params: URLSearchParams): string {

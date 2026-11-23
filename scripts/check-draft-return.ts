@@ -15,9 +15,11 @@ import {
   SESSION_COOKIE,
   createMagicToken,
   createSessionToken,
+  safeNextPath,
   verifyMagicToken,
   verifySessionToken,
 } from "../lib/auth";
+import { fragebogenEntitiesForQuery } from "../lib/fragebogen";
 import { accountCompanyCards } from "../lib/account-hub";
 import type { Entity } from "../lib/entities";
 import { getMagicLinkSecret } from "../lib/env";
@@ -90,6 +92,138 @@ function hubDraft(sessionId: string, entityId: string, company: string): IntakeD
     revision: 1,
     updatedAt: "2026-01-02T00:00:00.000Z",
   };
+}
+
+function withPricing<T>(model: string | undefined, flag: string | undefined, run: () => T): T {
+  const savedModel = process.env.PRICING_MODEL;
+  const savedFlag = process.env.INTAKE_LOGIN_FIRST_ENABLED;
+  if (model === undefined) delete process.env.PRICING_MODEL;
+  else process.env.PRICING_MODEL = model;
+  if (flag === undefined) delete process.env.INTAKE_LOGIN_FIRST_ENABLED;
+  else process.env.INTAKE_LOGIN_FIRST_ENABLED = flag;
+  try {
+    return run();
+  } finally {
+    if (savedModel === undefined) delete process.env.PRICING_MODEL;
+    else process.env.PRICING_MODEL = savedModel;
+    if (savedFlag === undefined) delete process.env.INTAKE_LOGIN_FIRST_ENABLED;
+    else process.env.INTAKE_LOGIN_FIRST_ENABLED = savedFlag;
+  }
+}
+
+function loginDraft(entityId: string, modus: "gesamt" | "bereich" = "gesamt"): IntakeDraft {
+  return {
+    draftKey: normalizeDraftKey({ email: BUYER, entityId, modus }),
+    email: BUYER,
+    stripeSessionId: "",
+    documentId: "",
+    entityId,
+    step: 2,
+    answers: answers(),
+    revision: 1,
+    updatedAt: "2026-01-02T00:00:00.000Z",
+  };
+}
+
+function checkContinuePaths() {
+  const firms = [firm("firm-a", "Alpha GmbH"), firm("firm-b", "Beta GmbH")];
+  withPricing("v3", undefined, () => {
+    ok(
+      openDraftContinuePath(loginDraft("")) === "/fragebogen?entity_id=default",
+      "unpaid default draft opens /fragebogen",
+    );
+    ok(
+      openDraftContinuePath(loginDraft("firm-a")) === "/fragebogen?entity_id=firm-a",
+      "unpaid company draft opens /fragebogen?entity_id=",
+    );
+    ok(
+      openDraftContinuePath(loginDraft("firm-a"), { covered: true }) === "/intake?entity_id=firm-a",
+      "covered company stays on /intake",
+    );
+    ok(
+      openDraftContinuePath(loginDraft(""), { covered: true }) === "/fragebogen?entity_id=default",
+      "coverage does not replace the default draft",
+    );
+    ok(
+      openDraftContinuePath({ ...loginDraft(""), entityId: "firm-a" }, { covered: true }) ===
+        "/fragebogen?entity_id=default",
+      "the default key wins over a firm id stored beside it",
+    );
+    ok(
+      openDraftContinuePath(loginDraft("firm-a", "bereich")) === "/intake?entity_id=firm-a",
+      "unpaid bereich draft stays on /intake",
+    );
+    const documented: IntakeDraft = {
+      ...loginDraft("firm-a"),
+      draftKey: "doc:doc-1",
+      documentId: "doc-1",
+      stripeSessionId: "cs_test_doc",
+    };
+    ok(
+      openDraftContinuePath(documented) === "/intake?document_id=doc-1&session_id=cs_test_doc",
+      "document draft stays on /intake",
+    );
+    ok(
+      openDraftContinuePath(hubDraft("cs_test_paid", "firm-a", "Alpha GmbH")) ===
+        "/intake?session_id=cs_test_paid",
+      "paid session stays on /intake",
+    );
+  });
+  withPricing("v3", "false", () => {
+    ok(openDraftContinuePath(loginDraft("")) === "/intake", "login-first off: default draft stays on /intake");
+    ok(
+      openDraftContinuePath(loginDraft("firm-a")) === "/intake?entity_id=firm-a",
+      "login-first off: company draft stays on /intake",
+    );
+  });
+  withPricing(undefined, undefined, () => {
+    ok(
+      openDraftContinuePath(loginDraft("firm-a")) === "/intake?entity_id=firm-a",
+      "legacy model keeps an unpaid draft on /intake",
+    );
+  });
+
+  const foreign = fragebogenEntitiesForQuery(firms, "firm-other");
+  ok(
+    foreign.initialEntityId === "firm-a" && foreign.entities.length === 1 && foreign.entities[0]?.entityId === "firm-a",
+    "foreign entity_id is ignored",
+  );
+  ok(!foreign.entities.some((row) => row.entityId === "firm-other"), "foreign entity_id is not passed to the form");
+  const marked = fragebogenEntitiesForQuery(firms, "default");
+  ok(marked.initialEntityId === "" && marked.entities.length === 0, "entity_id=default keeps the unbound draft");
+  ok(
+    normalizeDraftKey({ email: BUYER, entityId: marked.initialEntityId, modus: "gesamt" }) ===
+      `email:${BUYER}:default:gesamt`,
+    "default marker restores the default draft key",
+  );
+  const owned = fragebogenEntitiesForQuery(firms, "firm-b");
+  ok(owned.initialEntityId === "firm-b" && owned.entities[0]?.entityId === "firm-b", "owned entity_id is honoured");
+  ok(
+    normalizeDraftKey({ email: BUYER, entityId: owned.initialEntityId, modus: "gesamt" }) ===
+      normalizeDraftKey({ email: BUYER, entityId: "firm-b", modus: "gesamt" }),
+    "owned entity_id restores that company draft",
+  );
+  ok(fragebogenEntitiesForQuery(firms, "").initialEntityId === "firm-a", "without entity_id the first company stays");
+
+  ok(safeNextPath("/fragebogen?entity_id=default") === "/fragebogen?entity_id=default", "login return keeps the default marker");
+  ok(safeNextPath("/fragebogen?entity_id=firm-a") === "/fragebogen?entity_id=firm-a", "login return keeps an entity id");
+  ok(
+    safeNextPath("/fragebogen?entity_id=firm-a&next=https://evil.example") === "/fragebogen?entity_id=firm-a",
+    "login return drops other fragebogen query keys",
+  );
+  ok(safeNextPath("/fragebogen?entity_id=../admin") === "/fragebogen", "unsafe entity_id is dropped");
+  ok(safeNextPath("https://evil.example/fragebogen?entity_id=default") === null, "absolute fragebogen next is rejected");
+
+  const route = readFileSync("app/api/intake/draft/route.ts", "utf8");
+  ok(route.includes("isUnpaidLoginDraft"), "draft route uses the shared unpaid-login helper");
+  ok(!route.includes("function isUnpaidLoginDraft"), "unpaid-login helper is not duplicated in the route");
+  const fragebogen = readFileSync("app/fragebogen/page.tsx", "utf8");
+  ok(fragebogen.includes("fragebogenEntitiesForQuery"), "fragebogen validates entity_id against the account");
+  ok(!fragebogen.includes("entities.slice(0, 1)"), "fragebogen does not silently take the first company");
+  const paket = readFileSync("app/fragebogen/paket/page.tsx", "utf8");
+  ok(paket.includes("fragebogenEntitiesForQuery"), "paket uses the same entity rule");
+  ok(paket.includes("FRAGEBOGEN_DEFAULT_ENTITY"), "paket keeps the default draft unbound");
+  ok(!paket.includes("?? entities[0]"), "paket does not fall back to the first company");
 }
 
 function checkHubCards() {
@@ -174,6 +308,7 @@ async function main() {
   };
 
   try {
+    checkContinuePaths();
     const anonSave = await putIntakeDraft(
       new Request("http://localhost/api/intake/draft", {
         method: "PUT",
