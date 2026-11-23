@@ -13,7 +13,8 @@ import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
  * § 12c-Abrechnung nach aktiven Firmen, wartet auf Philips Freigabe; aus = freigegebene Fassung 14:24).
  * `ampel-email` / `ampel-no-email` (AMPEL_NO_EMAIL_ENABLED, nur Env): alter Ampel-Ablauf mit E-Mail-Gate
  * bzw. Ampel ohne E-Mail aktiv. Die Cookie-Zeile gobd_ampel_shown steht nur bei ausgeschaltetem Flag (Freigabe 30.10. 18:57).
- * `schnellversion` (SCHNELLVERSION_49_ENABLED): Ergänzungen zur Schnellversion in DSE und Cookie-Richtlinie.
+ * `schnellversion` (SCHNELLVERSION_49_ENABLED): Ergänzungen zur Schnellversion in AGB, DSE und Cookie-Richtlinie.
+ * `schnellversion-off`: der bisherige Wortlaut, wenn das Flag aus ist.
  * Nicht verschachteln: jeder Block steht für sich.
  * Ohne Schalter bleibt der bisherige Text wörtlich (nur die Marker fallen weg).
  */

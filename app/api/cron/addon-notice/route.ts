@@ -4,6 +4,7 @@ import { cronAuthorized } from "@/lib/cron-auth";
 import { runAddonNotice } from "@/lib/plan-addon-notice";
 import { sendDedupedEmail } from "@/lib/mail-dedupe";
 import { hasOfferOptOut } from "@/lib/offer-optout";
+import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import { runSchnellversionReminder, schnellversionReminderSendEnabled } from "@/lib/schnellversion-reminder";
 import { listAllSvPurchases } from "@/lib/schnellversion-record";
 
@@ -19,8 +20,8 @@ export async function GET(request: Request) {
   }
   try {
     const result = await runAddonNotice();
-    // Dieselbe tägliche Route. Versand nur mit SCHNELLVERSION_49_REMINDER_SEND=1|true.
-    if (schnellversionReminderSendEnabled()) {
+    // Dieselbe tägliche Route. Beide Schalter 1 oder true, sonst kein Versand.
+    if (schnellversion49Enabled() && schnellversionReminderSendEnabled()) {
       try {
         await runSchnellversionReminder(
           await listAllSvPurchases(),

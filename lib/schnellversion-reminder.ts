@@ -1,11 +1,13 @@
 /**
  * Erinnerung 7 Tage vor Ende von Download und Anrechnung.
- * Versand nur mit SCHNELLVERSION_49_REMINDER_SEND=1|true. Sonst keine Mail.
+ * Versand nur, wenn SCHNELLVERSION_49_REMINDER_SEND und SCHNELLVERSION_49_ENABLED
+ * beide 1 oder true sind. Sonst keine Mail.
  */
 
 import { escapeHtml, wrapTransactionalText } from "@/lib/mail-layout";
 import { PLAN_OFFER_OBJECTION_NOTICE } from "@/lib/plan-copy";
 import { formatSvDate, SV_DOWNLOAD_DAYS } from "@/lib/schnellversion-copy";
+import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import type { SvPurchase } from "@/lib/schnellversion-record";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -13,6 +15,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 type FlagEnv = Record<string, string | undefined>;
 
 export function schnellversionReminderSendEnabled(env: FlagEnv = process.env): boolean {
+  if (!schnellversion49Enabled(env)) return false;
   const raw = (env.SCHNELLVERSION_49_REMINDER_SEND ?? "").trim().toLowerCase();
   return raw === "1" || raw === "true";
 }
