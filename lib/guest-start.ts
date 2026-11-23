@@ -40,17 +40,17 @@ export const GUEST_PACKAGE_LOGIN =
 export const GUEST_UPLOAD_HINT = "Datei-Upload ist erst nach der Anmeldung möglich.";
 
 export const GUEST_CONFLICT_PROMPT =
-  "In Ihrem Konto ist bereits ein Entwurf gespeichert. Welchen Stand möchten Sie behalten?";
+  "In Ihrem Konto ist bereits ein Entwurf gespeichert. Welchen Stand möchten Sie behalten? Behalten Sie den Stand aus diesem Browser, ersetzt er den Entwurf in Ihrem Konto. Behalten Sie den Stand aus Ihrem Konto, löschen wir die Angaben in diesem Browser.";
 
-export const GUEST_ADOPT_BROWSER_LABEL = "Diesen Entwurf übernehmen";
+export const GUEST_ADOPT_BROWSER_LABEL = "Stand aus diesem Browser behalten";
 
-export const GUEST_KEEP_ACCOUNT_LABEL = "Gespeicherten behalten";
+export const GUEST_KEEP_ACCOUNT_LABEL = "Stand aus dem Konto behalten";
 
 export const GUEST_DRAFT_LIMIT_HINT =
-  "Sie haben bereits 3 offene Entwürfe. Bitte schließen Sie zuerst einen davon ab. Ihre Angaben in diesem Browser bleiben erhalten.";
+  "Sie haben bereits 3 offene Entwürfe. Bitte schließen Sie zuerst einen davon ab. Ihre Angaben in diesem Browser bleiben bis dahin hier gespeichert, höchstens 30 Tage nach der letzten Speicherung; beim Abmelden werden sie gelöscht.";
 
 export const GUEST_KEEP_LOCAL_HINT =
-  "Die Angaben in diesem Browser konnten gerade nicht ins Konto übernommen werden. Sie bleiben in diesem Browser.";
+  "Die Angaben aus diesem Browser konnten gerade nicht in Ihr Konto übernommen werden. Sie bleiben vorerst in diesem Browser gespeichert, höchstens 30 Tage nach der letzten Speicherung; beim Abmelden werden sie gelöscht. Laden Sie die Seite später neu, um es noch einmal zu versuchen.";
 
 export const GUEST_WAIT_LABEL = "Bitte warten…";
 
