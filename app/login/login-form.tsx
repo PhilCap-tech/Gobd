@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function LoginForm({
   next,
@@ -24,6 +24,7 @@ export function LoginForm({
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(initialSent);
+  const destination = next || "/fragebogen";
   const buttonLabel =
     resolveOwner && maskedEmail ? `Link an ${maskedEmail} senden` : "Anmeldelink senden";
 
@@ -65,6 +66,48 @@ export function LoginForm({
     }
   }
 
+  useEffect(() => {
+    if (!sent) return;
+    const started = Date.now();
+    const limit = 20 * 60 * 1000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    const clear = () => {
+      if (timer) clearTimeout(timer);
+      timer = undefined;
+    };
+    const arm = () => {
+      clear();
+      if (stopped || document.visibilityState !== "visible") return;
+      if (Date.now() - started >= limit) return;
+      timer = setTimeout(() => void tick(), 3000);
+    };
+    async function tick() {
+      if (stopped || document.visibilityState !== "visible") return;
+      if (Date.now() - started >= limit) return;
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" });
+        const data = (await response.json()) as { ok?: boolean };
+        if (data.ok) {
+          stopped = true;
+          clear();
+          window.location.assign(destination);
+          return;
+        }
+      } catch {
+        // Der nächste sichtbare Takt fragt erneut.
+      }
+      arm();
+    }
+    document.addEventListener("visibilitychange", arm);
+    void tick();
+    return () => {
+      stopped = true;
+      clear();
+      document.removeEventListener("visibilitychange", arm);
+    };
+  }, [sent, destination]);
+
   return (
     <form className="card" method="post" action="/api/auth/magic-link" onSubmit={onSubmit}>
       {next ? <input type="hidden" name="next" value={next} /> : null}
@@ -100,9 +143,14 @@ export function LoginForm({
       )}
       {error && <p className="error">{error}</p>}
       {sent && (
-        <p className="banner">
-          Wenn ein Konto existiert, ist ein Link unterwegs. Er ist 20 Minuten gültig.
-        </p>
+        <>
+          <p className="banner">
+            Wenn ein Konto existiert, ist ein Link unterwegs. Er ist 20 Minuten gültig.
+          </p>
+          <p className="banner">
+            Öffnen Sie den Link in diesem Browser. Diese Seite leitet Sie weiter, sobald die Anmeldung geklappt hat.
+          </p>
+        </>
       )}
       <button className="btn" type="submit" disabled={pending}>
         {pending ? "Bitte warten…" : buttonLabel}

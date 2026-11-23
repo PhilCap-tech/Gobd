@@ -64,6 +64,14 @@ export function isTokenLandingPath(pathname: string): boolean {
 
 export const TOKEN_REFERRER_POLICY = "no-referrer";
 
+/**
+ * The confirm page must send exactly one Referrer-Policy, `same-origin`,
+ * so the form POST is not an opaque origin. It stays a token landing for
+ * tracking. Only the no-referrer header rule is omitted.
+ */
+export const AUTH_VERIFY_PATH = "/auth/verify";
+export const AUTH_VERIFY_REFERRER_POLICY = "same-origin";
+
 /** Next.js header sources. `:path*` also matches the page itself. */
 export function tokenLandingHeaderRules(): Array<{
   source: string;
@@ -72,6 +80,7 @@ export function tokenLandingHeaderRules(): Array<{
   const seen = new Set<string>();
   const rules = [];
   for (const prefix of TOKEN_LANDING_PREFIXES) {
+    if (normalizePathname(prefix) === AUTH_VERIFY_PATH) continue;
     const source = `${normalizePathname(prefix)}/:path*`;
     if (seen.has(source)) continue;
     seen.add(source);
@@ -81,4 +90,15 @@ export function tokenLandingHeaderRules(): Array<{
     });
   }
   return rules;
+}
+
+/** One Referrer-Policy for the confirm route. No second policy on this path. */
+export function authVerifyReferrerHeaderRule(): {
+  source: string;
+  headers: Array<{ key: string; value: string }>;
+} {
+  return {
+    source: AUTH_VERIFY_PATH,
+    headers: [{ key: "Referrer-Policy", value: AUTH_VERIFY_REFERRER_POLICY }],
+  };
 }

@@ -65,10 +65,19 @@ export type AmpelRetentionReport = {
   kanzlei: { seen: number; redactProof: number; kept: number };
   skipped: Record<string, number>;
   blobs: { seen: number; ampel: number; delete: number; kept: number; skipped: number };
+  /** magic/invite: Kandidaten (Anzahl und Hash-Präfix des Pfads). Keine Adresse. */
+  authLinks: { delete: number; kept: number; prefixes: string[] };
   suppression: { seen: number; delete: number; kept: number; skipped: number };
   rate: { rows: number | null; expired: number };
   errors: number;
 };
+
+/** Erste 12 Hexzeichen des Blob-Namens. Nie die Adresse. */
+export function authLinkHashPrefix(pathname: string): string {
+  const name = pathname.slice(AMPEL_MAIL_LINK_PREFIX.length).replace(/\.json$/, "");
+  if (/^[a-f0-9]{12,64}$/.test(name)) return name.slice(0, 12);
+  return createHash("sha256").update(pathname).digest("hex").slice(0, 12);
+}
 
 function bump(map: Record<string, number>, key: string) {
   map[key] = (map[key] ?? 0) + 1;
@@ -81,6 +90,7 @@ export async function runAmpelRetention(io: AmpelRetentionIo, opts: { execute: b
     rows: { seen: 0, ampel: 0, redactReport: 0, dropUnconfirmed: 0, redactProof: 0, kept: 0 },
     skipped: {},
     blobs: { seen: 0, ampel: 0, delete: 0, kept: 0, skipped: 0 },
+    authLinks: { delete: 0, kept: 0, prefixes: [] },
     suppression: { seen: 0, delete: 0, kept: 0, skipped: 0 },
     kanzlei: { seen: 0, redactProof: 0, kept: 0 },
     rate: { rows: null, expired: 0 },
@@ -153,6 +163,23 @@ export async function runAmpelRetention(io: AmpelRetentionIo, opts: { execute: b
   for (const blob of await io.listMailLinks()) {
     report.blobs.seen += 1;
     const body = await io.readMailLink(blob.pathname).catch(() => null);
+    if (body && (body.purpose === "magic" || body.purpose === "invite")) {
+      const action = decideMailLinkBlob(body, null, { excluded: false }, now);
+      if (action.kind === "delete") {
+        report.authLinks.delete += 1;
+        report.authLinks.prefixes.push(authLinkHashPrefix(blob.pathname));
+        if (opts.execute) {
+          try {
+            await io.deleteMailLink(blob.pathname);
+          } catch {
+            report.errors += 1;
+          }
+        }
+      } else {
+        report.authLinks.kept += 1;
+      }
+      continue;
+    }
     const email = body && typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const consentAt = body && typeof body.consentAt === "string" ? body.consentAt.trim() : "";
     const customer = email ? await facts(email) : null;

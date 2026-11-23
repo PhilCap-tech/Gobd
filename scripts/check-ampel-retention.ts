@@ -16,7 +16,7 @@ import {
   proofDeleteFrom,
   resolveRunMode,
 } from "@/lib/ampel-retention-rules";
-import { ampelUnclearLogLine, runAmpelCleanup, runAmpelRetention, type AmpelRetentionIo } from "@/lib/ampel-retention-job";
+import { ampelUnclearLogLine, authLinkHashPrefix, runAmpelCleanup, runAmpelRetention, type AmpelRetentionIo } from "@/lib/ampel-retention-job";
 import { handleAmpelJob } from "@/lib/ampel-retention-http";
 import { ampelConsentTextVersion } from "@/lib/ampel-result-send";
 
@@ -80,9 +80,28 @@ assert.equal(
 const doi = { purpose: "ampel-doi", email: "kunde@firma-beispiel.de", consentAt: "2026-10-01T00:00:00Z" };
 assert.equal(decideMailLinkBlob(doi, null, { excluded: false }, NOW).kind, "delete");
 assert.equal(decideMailLinkBlob({ ...doi, check: "kassen-check" }, null, { excluded: false }, NOW).kind, "skip");
-for (const purpose of ["kanzlei-doi", "kanzlei-unsubscribe", "magic", "invite"]) {
+for (const purpose of ["kanzlei-doi", "kanzlei-unsubscribe"]) {
   assert.equal(decideMailLinkBlob({ ...doi, purpose }, null, { excluded: false }, NOW).kind, "skip", purpose);
 }
+const hour = 60 * 60 * 1000;
+for (const purpose of ["magic", "invite"] as const) {
+  assert.equal(
+    decideMailLinkBlob({ purpose, exp: NOW - 23 * hour }, null, { excluded: false }, NOW).kind,
+    "keep",
+    `${purpose} exp+23h bleibt`,
+  );
+  assert.equal(
+    decideMailLinkBlob({ purpose, exp: NOW - 25 * hour, email: "kunde@firma-beispiel.de" }, null, { excluded: false }, NOW).kind,
+    "delete",
+    `${purpose} exp+25h wird gelöscht`,
+  );
+  assert.equal(
+    decideMailLinkBlob({ purpose, email: "kunde@firma-beispiel.de" }, null, { excluded: false }, NOW).kind,
+    "keep",
+    `${purpose} ohne exp bleibt`,
+  );
+}
+assert.equal(decideMailLinkBlob({ purpose: "other" }, null, { excluded: false }, NOW).kind, "skip", "unbekannter Zweck unverändert");
 assert.equal(decideMailLinkBlob(doi, null, { excluded: true }, NOW).kind, "skip", "Kunde/unklar");
 assert.equal(decideMailLinkBlob(doi, { marketingOptIn: "confirmed", withdrawnAt: "", email: "" }, { excluded: false }, NOW).kind, "keep");
 
@@ -168,6 +187,32 @@ async function main() {
   assert.deepEqual(run.rateDeleted, [2], "ampel_rate: nur die führenden Zeilen älter als 30 Tage");
   assert.equal(dry.rateDeleted.length, 0);
   assert.equal(leadingExpiredRateRows(["x", String(NOW - 40 * 86400000)], NOW), 0, "unklare Zeile stoppt");
+
+  const authHash = "ab".repeat(32);
+  const authPath = `gobd/mail-link/${authHash}`;
+  const youngHash = "cd".repeat(32);
+  const youngPath = `gobd/mail-link/${youngHash}`;
+  const authBodies: Record<string, { purpose: string; exp?: number; email?: string }> = {
+    [authPath]: { purpose: "magic", exp: NOW - 25 * 60 * 60 * 1000, email: "geheim@firma-beispiel.de" },
+    [youngPath]: { purpose: "invite", exp: NOW - 23 * 60 * 60 * 1000, email: "geheim@firma-beispiel.de" },
+  };
+  const authDry = fakeIo([]);
+  authDry.io.listMailLinks = async () => [{ pathname: authPath }, { pathname: youngPath }];
+  authDry.io.readMailLink = async (pathname) => authBodies[pathname] ?? null;
+  const authDryReport = await runAmpelRetention(authDry.io, { execute: false, now: NOW });
+  assert.equal(authDry.deleted.length, 0, "Trockenlauf löscht magic/invite nicht");
+  assert.equal(authDryReport.authLinks.delete, 1);
+  assert.equal(authDryReport.authLinks.kept, 1);
+  assert.deepEqual(authDryReport.authLinks.prefixes, [authLinkHashPrefix(authPath)]);
+  assert.equal(authLinkHashPrefix(authPath), authHash.slice(0, 12));
+  const authReportText = JSON.stringify(authDryReport);
+  assert.equal(authReportText.includes("@"), false, "Trockenlauf nennt keine Adresse");
+  assert.equal(authReportText.includes("geheim"), false);
+  const authRun = fakeIo([]);
+  authRun.io.listMailLinks = async () => [{ pathname: authPath }, { pathname: youngPath }];
+  authRun.io.readMailLink = async (pathname) => authBodies[pathname] ?? null;
+  await runAmpelRetention(authRun.io, { execute: true, now: NOW });
+  assert.deepEqual(authRun.deleted, [authPath], "Ausführen löscht nur den abgelaufenen Anmeldelink");
 
   // Kanzlei-Merkblatt: nur widerrufene Zeilen nach 3 Jahren ab Jahresende.
   const k = (over: Partial<ReadinessLead>) => row({ leadId: "kanzlei-1", status: "kanzlei_doi_confirmed", tool: "", ...over });
