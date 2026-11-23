@@ -17,9 +17,9 @@ import {
   type EntityDocumentGroup,
 } from "@/lib/documents";
 import type { IntakeDraft } from "@/lib/intake-draft-shared";
+import { accountDraftContinueHref, accountDraftProgressFromDraft } from "@/lib/account-progress";
 import {
   openDraftContinueEntityId,
-  openDraftContinuePath,
   openDraftLabel,
 } from "@/lib/open-drafts";
 import { CHECKOUT_PREFILL_NOTE, EXTRA_FIRM_NOTE, FIRMA_EDIT_LABEL } from "@/lib/account-labels";
@@ -236,27 +236,34 @@ export function AccountCompanyCard({
           <p className="prose">
             Ihre Angaben sind gespeichert. Sie können den Entwurf weiter ausfüllen.
           </p>
-          {continueDrafts.map((draft) => (
-            <div className="actions" key={draft.draftKey} style={{ marginTop: 12 }}>
-              <span className="doc-meta">{openDraftLabel(draft)}</span>
-              {writesOpen ? (
-                <a
-                  className="btn"
-                  href={openDraftContinuePath(draft, {
-                    covered: Boolean(
-                      entity &&
-                        openDraftContinueEntityId(draft) === entity.entityId &&
-                        (compAccess || coveredIntakeHref),
-                    ),
-                  })}
-                >
-                  {ACCOUNT_CONTINUE_LABEL}
-                </a>
-              ) : (
-                <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
-              )}
-            </div>
-          ))}
+          {continueDrafts.map((draft) => {
+            const progress = accountDraftProgressFromDraft(draft);
+            return (
+              <div className="draft-progress" key={draft.draftKey}>
+                <p className="doc-meta">{openDraftLabel(draft)}</p>
+                <p className="draft-progress-summary">{progress.summary}</p>
+                {progress.openPointsText ? <p className="doc-meta">{progress.openPointsText}</p> : null}
+                {writesOpen ? (
+                  <div className="actions">
+                    <a
+                      className="btn"
+                      href={accountDraftContinueHref(draft, {
+                        covered: Boolean(
+                          entity &&
+                            openDraftContinueEntityId(draft) === entity.entityId &&
+                            (compAccess || coveredIntakeHref),
+                        ),
+                      })}
+                    >
+                      {ACCOUNT_CONTINUE_LABEL}
+                    </a>
+                  </div>
+                ) : (
+                  <span className="hint">Neue Versionen sind nach dem Vertragsende nicht mehr möglich.</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

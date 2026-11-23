@@ -318,7 +318,7 @@ ok(paidStartTags.length === 1 && paidStartTags[0]?.tag === "a", "empty-card paid
 const looseTags = continueTags(accountPage);
 ok(looseTags.length === 1 && looseTags[0]?.tag === "a", "loose draft continue is a native anchor");
 ok(
-  looseTags[0]?.attrs.includes("openDraftContinuePath(draft, { covered: looseDraftCovered(draft) })"),
+  looseTags[0]?.attrs.includes("accountDraftContinueHref(draft, { covered: looseDraftCovered(draft) })"),
   "loose draft continue passes coverage into the draft href",
 );
 ok(
