@@ -1,10 +1,19 @@
 /**
- * Löschlauf für PDF und Token-Link der Schnellversion.
- * Ohne SCHNELLVERSION_49_PURGE=1|true nur ein Dry-Run. Kein Cron schaltet ihn ein.
+ * Löschlauf der Schnellversion, nur mit SCHNELLVERSION_49_PURGE=1|true.
+ * Nach 30 Tagen: PDF und Download-Token. Nach 12 Monaten (dieselbe Frist wie
+ * DOC_RETENTION_MONTHS für Option 1): der Kaufdatensatz und die Marker unter gobd/sv49/.
+ * Ohne Schalter kein Lesen und kein Löschen. Kein Stripe.
  */
 
+import { addMonthsIso } from "@/lib/plan";
+import { DOC_RETENTION_MONTHS } from "@/lib/retention-decision";
 import { SV_PURGE_AFTER_DAYS } from "@/lib/schnellversion-copy";
-import { clearSvPurchaseDelivery, type SvPurchase } from "@/lib/schnellversion-record";
+import {
+  clearSvPurchaseDelivery,
+  deleteSvPurchaseRecord,
+  listAllSvPurchases,
+  type SvPurchase,
+} from "@/lib/schnellversion-record";
 
 type FlagEnv = Record<string, string | undefined>;
 
@@ -21,20 +30,51 @@ export function svPurgeDue(purchasedAt: string, now: Date): boolean {
   return now.getTime() >= bought + SV_PURGE_AFTER_DAYS * DAY_MS;
 }
 
-export type SvPurgeResult = { due: number; deleted: number; dryRun: boolean };
+/** 12 Monate nach dem Kauf, dieselbe Monatsrechnung wie die Dokumentenfrist der Option 1. */
+export function svRecordPurgeDue(purchasedAt: string, now: Date): boolean {
+  const bought = Date.parse(purchasedAt);
+  if (!Number.isFinite(bought)) return false;
+  const due = Date.parse(addMonthsIso(new Date(bought).toISOString(), DOC_RETENTION_MONTHS));
+  return Number.isFinite(due) && now.getTime() >= due;
+}
 
-/** Dry-Run, solange der Schalter aus ist. Es werden nur Schnellversion-Käufe angefasst. */
+export type SvPurgeResult = {
+  due: number;
+  deleted: number;
+  recordsDue: number;
+  recordsDeleted: number;
+  dryRun: boolean;
+};
+
+/** Ohne Schalter Dry-Run. PDF und Token nach 30 Tagen, der Datensatz nach 12 Monaten. */
 export async function runSvPurge(
   rows: SvPurchase[],
   now: Date,
   env: FlagEnv = process.env,
 ): Promise<SvPurgeResult> {
-  const due = rows.filter((row) => svPurgeDue(row.purchasedAt, now) && (row.pdfPath.trim() || row.downloadTokenHash.trim()));
-  if (!schnellversionPurgeEnabled(env)) return { due: due.length, deleted: 0, dryRun: true };
-  let deleted = 0;
-  for (const row of due) {
-    await clearSvPurchaseDelivery(row);
-    deleted += 1;
+  const delivery = rows.filter((row) => svPurgeDue(row.purchasedAt, now) && (row.pdfPath.trim() || row.downloadTokenHash.trim()));
+  const records = rows.filter((row) => svRecordPurgeDue(row.purchasedAt, now));
+  if (!schnellversionPurgeEnabled(env)) {
+    return { due: delivery.length, deleted: 0, recordsDue: records.length, recordsDeleted: 0, dryRun: true };
   }
-  return { due: due.length, deleted, dryRun: false };
+  let deleted = 0;
+  for (const row of delivery) {
+    if (!svRecordPurgeDue(row.purchasedAt, now) && (await clearSvPurchaseDelivery(row))) deleted += 1;
+  }
+  let recordsDeleted = 0;
+  for (const row of records) {
+    await deleteSvPurchaseRecord(row);
+    recordsDeleted += 1;
+  }
+  return { due: delivery.length, deleted, recordsDue: records.length, recordsDeleted, dryRun: false };
+}
+
+/** Ohne Schalter kein Lesen und kein Löschen. */
+export async function runScheduledSvPurge(
+  now: Date = new Date(),
+  env: FlagEnv = process.env,
+  list: () => Promise<SvPurchase[]> = listAllSvPurchases,
+): Promise<SvPurgeResult | null> {
+  if (!schnellversionPurgeEnabled(env)) return null;
+  return runSvPurge(await list(), now, env);
 }

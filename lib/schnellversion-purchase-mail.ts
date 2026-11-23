@@ -3,9 +3,10 @@
  * SCHNELLVERSION_49_PURCHASE_MAIL=1|true. Sonst keine Mail.
  */
 
-import { getAppUrl } from "@/lib/env";
+import { checkoutReturnBaseUrl } from "@/lib/env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { escapeHtml, wrapTransactionalText } from "@/lib/mail-layout";
+import { PLAN_OFFER_OBJECTION_NOTICE } from "@/lib/plan-copy";
 import { addSvDays, formatSvDate, SV_DOWNLOAD_DAYS } from "@/lib/schnellversion-copy";
 
 type FlagEnv = Record<string, string | undefined>;
@@ -19,12 +20,16 @@ export function purchaseMail(input: {
   company: string;
   purchasedAt: string;
   sessionId: string;
+  downloadToken?: string;
 }): { subject: string; text: string; html: string } {
   const bought = new Date(input.purchasedAt);
   const until = formatSvDate(addSvDays(bought, SV_DOWNLOAD_DAYS));
   const company = input.company.trim() || "Ihr Unternehmen";
-  const origin = getAppUrl().replace(/\/$/, "");
-  const download = `${origin}/schnellversion/danke?session_id=${encodeURIComponent(input.sessionId)}`;
+  const origin = checkoutReturnBaseUrl().replace(/\/$/, "");
+  const token = input.downloadToken?.trim() ?? "";
+  const download = token
+    ? `${origin}/api/schnellversion/pdf?dl=${encodeURIComponent(token)}`
+    : `${origin}/schnellversion/danke?session_id=${encodeURIComponent(input.sessionId)}`;
   const agb = `${origin}/agb`;
   const subject = `Ihre Standardfassung für ${company}`;
   const body = [
@@ -39,6 +44,8 @@ export function purchaseMail(input: {
     `Anrechnung: bis ${until}, einmal, nur für ${company} in diesem Kundenkonto, keine Barauszahlung.`,
     ``,
     `Die AGB können Sie speichern: ${agb}`,
+    ``,
+    PLAN_OFFER_OBJECTION_NOTICE,
   ].join("\n");
   const text = wrapTransactionalText(body);
   const html = `<p>${escapeHtml(body).replaceAll("\n\n", "</p><p>").replaceAll("\n", "<br>")}</p>`;
@@ -51,6 +58,7 @@ export async function maybeSendSchnellversionPurchaseMail(input: {
   company: string;
   purchasedAt: string;
   sessionId: string;
+  downloadToken?: string;
   env?: FlagEnv;
 }): Promise<boolean> {
   const env = input.env ?? process.env;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { loginPath, sessionEmailFromRequest } from "@/lib/auth";
 import { notifyBuyerOfCheckout } from "@/lib/buyer-onboarding";
+import { settlePaidCreditSession } from "@/lib/schnellversion-credit-sessions";
 import { scheduleCheckoutAfterResponse } from "@/lib/checkout-after";
 import { ensureBuyerFirmForCheckout, type BuyerFirmRequest } from "@/lib/checkout-firm";
 import { finishCheckoutReturn } from "@/lib/checkout-session";
@@ -56,6 +57,7 @@ export type CheckoutGrantIo = {
     company?: string;
     sessionId: string;
     entityId?: string;
+    onceKey?: string;
   }) => Promise<void>;
   /** Firm owned by the checkout email. A foreign entity id is not returned. */
   bindBuyerFirm?: (input: BuyerFirmRequest) => Promise<string>;
@@ -121,6 +123,21 @@ export async function completeCheckoutGrant(
     return NextResponse.redirect(intakeReturn(request, source, "skip"));
   }
 
+  const creditPurchaseId = resolved.svPurchaseId?.trim() ?? "";
+  if (creditPurchaseId && !resolved.stub) {
+    const creditOutcome = await settlePaidCreditSession({
+      sessionId: resolved.stripeSessionId,
+      purchaseId: creditPurchaseId,
+      email,
+      company: resolved.company,
+      livemode: resolved.livemode,
+    });
+    if (creditOutcome === "review") {
+      return NextResponse.redirect(intakeReturn(request, source, "skip"));
+    }
+  }
+  const creditOnceKey = creditPurchaseId ? `sv-credit:${creditPurchaseId}` : undefined;
+
   const queryEntityId = source.searchParams.get("entity_id")?.trim() ?? "";
   const firmRequest: BuyerFirmRequest = {
     email,
@@ -157,6 +174,7 @@ export async function completeCheckoutGrant(
             company: resolved.company,
             sessionId: resolved.stripeSessionId,
             entityId: welcomeEntityId(createdEntityId, resolved.entityId, queryEntityId),
+            onceKey: creditOnceKey,
           });
           // A fresh claim belongs to the other caller (usually the webhook).
           // Leaving it alone lets that caller finish; Stripe retries a 500.
@@ -197,6 +215,7 @@ export async function completeCheckoutGrant(
         company: resolved.company,
         sessionId: resolved.stripeSessionId,
         entityId: welcomeEntityId(buyerEntityId, resolved.entityId, queryEntityId),
+        onceKey: creditOnceKey,
       });
     } catch (error) {
       console.error(

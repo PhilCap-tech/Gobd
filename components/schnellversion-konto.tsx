@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatSvDate } from "@/lib/schnellversion-copy";
+import { creditHintVisible } from "@/lib/schnellversion-credit";
 import { anrechnungBis, downloadStillOpen, type SvPurchase } from "@/lib/schnellversion-record";
 
 export function SchnellversionKonto({ rows }: { rows: SvPurchase[] }) {
@@ -24,10 +25,16 @@ export function SchnellversionKonto({ rows }: { rows: SvPurchase[] }) {
                   </a>
                 </p>
                 <p className="hint">Download 30 Tage im Konto. Bitte speichern Sie das PDF selbst.</p>
-                <p className="hint">
-                  Bis zum {until} rechnen wir die 49 € an.{" "}
-                  <Link href="/checkout">Fragebogen fortsetzen</Link>
-                </p>
+                {creditHintVisible(row, row.company, new Date()) ? (
+                  <p className="hint">
+                    Bis zum {until} rechnen wir die 49 € an.{" "}
+                    <Link href="/checkout">Fragebogen fortsetzen</Link>
+                  </p>
+                ) : (
+                  <p className="hint">
+                    <Link href="/checkout">Fragebogen fortsetzen</Link>
+                  </p>
+                )}
               </>
             ) : (
               <>

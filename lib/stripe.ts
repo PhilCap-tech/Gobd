@@ -358,7 +358,34 @@ type PlanInput = {
   firstPurchasedAt?: string;
   offerOptOut?: boolean;
   draftKey?: string;
+  svArm?: "control" | "test";
+  svCoupon?: string;
+  svPurchaseId?: string;
 };
+
+/** Dieselben Felder, die preparePlanCheckout an buildPlanCheckoutParams übergibt. */
+export function planParamsFromCheckoutInput(
+  input: CheckoutSessionInput,
+  plan: PlanInput,
+  prices?: V3Prices,
+): Stripe.Checkout.SessionCreateParams {
+  return buildPlanCheckoutParams({
+    kind: plan.kind,
+    member: plan.member,
+    email: input.email,
+    company: input.company,
+    entityId: input.entityId,
+    audience: input.audience,
+    customerId: input.customerId,
+    memberFirm: plan.memberFirm,
+    agbAcceptedAt: plan.agbAcceptedAt,
+    ...(prices
+      ? { prices, firstPurchasedAt: plan.firstPurchasedAt, offerOptOut: plan.offerOptOut, draftKey: plan.draftKey }
+      : {}),
+    ...(plan.svArm ? { svArm: plan.svArm } : {}),
+    ...(plan.svCoupon ? { svCoupon: plan.svCoupon, svPurchaseId: plan.svPurchaseId } : {}),
+  });
+}
 
 /**
  * Neues Preismodell: Preis-IDs aus der Umgebung (STRIPE_PRICE_ENTRY_ID,
@@ -478,7 +505,7 @@ export function buildCheckoutSessionParams(
 
 export async function createCheckoutSession(
   input: CheckoutSessionInput,
-): Promise<{ url: string; stub: boolean }> {
+): Promise<{ url: string; stub: boolean; id?: string }> {
   const entityId = input.entityId?.trim() ?? "";
 
   let planParams: Stripe.Checkout.SessionCreateParams | null = null;
@@ -504,7 +531,7 @@ export async function createCheckoutSession(
     );
     // Stay on the host that rendered checkout. The fallback app URL is
     // localhost:3000 and can be a different process than this server.
-    return { url: `/intake?${params}`, stub: true };
+    return { url: `/intake?${params}`, stub: true, id: sessionId };
   }
 
   const stripe = getStripe();
@@ -517,7 +544,7 @@ export async function createCheckoutSession(
     throw new Error("Stripe Session ohne URL");
   }
 
-  return { url: session.url, stub: false };
+  return { url: session.url, stub: false, id: session.id };
 }
 
 async function preparePlanCheckout(
@@ -542,20 +569,7 @@ async function preparePlanCheckout(
     }
     throw new Error(`Stripe v2 nicht konfiguriert: ${missing.join(", ") || "STRIPE_SECRET_KEY"}`);
   }
-  return {
-    params: buildPlanCheckoutParams({
-      kind: plan.kind,
-      member: plan.member,
-      email: input.email,
-      company: input.company,
-      entityId: input.entityId,
-      audience: input.audience,
-      customerId: input.customerId,
-      memberFirm: plan.memberFirm,
-      agbAcceptedAt: plan.agbAcceptedAt,
-      ...(resolved ? { prices: resolved.prices, firstPurchasedAt: plan.firstPurchasedAt, offerOptOut: plan.offerOptOut, draftKey: plan.draftKey } : {}),
-    }),
-  };
+  return { params: planParamsFromCheckoutInput(input, plan, resolved?.prices) };
 }
 
 /**
@@ -628,6 +642,10 @@ export async function resolveCheckoutSession(
       stub: false,
       entityId: session.metadata?.entity_id?.trim() || "",
       ...(session.metadata?.gobd_draft_key ? { draftKey: session.metadata.gobd_draft_key.trim() } : {}),
+      ...(session.metadata?.sv_purchase_id?.trim()
+        ? { svPurchaseId: session.metadata.sv_purchase_id.trim() }
+        : {}),
+      livemode: session.livemode,
       ...(billingAddress ? { billingAddress } : {}),
       ...(customerName ? { customerName } : {}),
       ...(businessName ? { businessName } : {}),

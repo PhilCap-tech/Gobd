@@ -8,19 +8,24 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import { storePdf } from "@/lib/blob";
+import { deleteStoredBlob, storePdf } from "@/lib/blob";
+import { svPreviewTestTarget } from "@/lib/schnellversion-data-env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { SV_DOWNLOAD_DAYS, svDownloadStillOpen } from "@/lib/schnellversion-copy";
 import {
   claimSvJson,
   deleteSvJson,
+  getSvBytes,
   getSvJson,
   listSvJson,
+  putSvBytes,
   putSvJson,
   svBlobEnabled,
+  svEventSentPath,
   svPurchaseBlobPath,
   svReserveBlobPath,
   svSessionBlobPath,
+  svSessionClaimPath,
 } from "@/lib/schnellversion-persist";
 
 export type SvPurchase = {
@@ -35,6 +40,10 @@ export type SvPurchase = {
   sessionId: string;
   creditReservedAt: string;
   creditReservationId: string;
+  /** Stripe-Checkout-Sessions dieser Anrechnung, JSON-Liste. Leer bei älteren Käufen. */
+  creditCheckoutIds?: string;
+  /** Session, die die Anrechnung verbraucht hat. */
+  creditUsedSessionId?: string;
   answersJson: string;
   /** SHA-256 des Download-Tokens. Die Session-ID allein reicht nicht. */
   downloadTokenHash: string;
@@ -46,6 +55,8 @@ const committedPurchases = new Map<string, SvPurchase>();
 const committedIndex = new Map<string, string>();
 const committedEvents = new Set<string>();
 const commitFailures = new Set<"purchase" | "index" | "event">();
+const purchaseEventsSent = new Set<string>();
+let failCountedMarker = false;
 
 export type SvCommitStep = "purchase" | "index" | "event";
 
@@ -56,6 +67,11 @@ export function failSvCommitStepForTest(step: SvCommitStep | null): void {
     return;
   }
   commitFailures.add(step);
+}
+
+/** Nur der Check. Der Zählmarker scheitert, nachdem sv_purchase geschrieben wurde. */
+export function failSvCountedMarkerForTest(next: boolean): void {
+  failCountedMarker = next;
 }
 
 export function purchaseIdForSession(sessionId: string): string {
@@ -254,6 +270,24 @@ function countedFile(): string {
   return path.join(tmpdir(), "gobd-sv49-counted-49.json");
 }
 
+function eventSentFile(): string {
+  return path.join(tmpdir(), "gobd-sv49-event-sent.json");
+}
+
+export function svLocalPdfDir(): string {
+  return path.join(tmpdir(), "gobd-sv49-pdf");
+}
+
+/** PDF der Schnellversion, lokal oder als Blob `gobd/sv49-…`. Andere Pfade nicht. */
+export function isSvPdfPath(pdfPath: string): boolean {
+  const value = pdfPath.trim();
+  if (!value || value.includes("..") || value.includes("\\")) return false;
+  if (value.startsWith("gobd/sv49-")) return true;
+  const dir = path.resolve(svLocalPdfDir());
+  const resolved = path.resolve(value);
+  return resolved.startsWith(`${dir}${path.sep}`);
+}
+
 async function readJsonObject(file: string): Promise<Record<string, string>> {
   try {
     const parsed = JSON.parse(await readFile(file, "utf8")) as Record<string, string>;
@@ -292,16 +326,52 @@ async function readSessionIndex(sessionId: string): Promise<string | null> {
 
 async function eventIsDurable(sessionId: string): Promise<boolean> {
   if (svBlobEnabled()) {
-    const { getSvJson } = await import("@/lib/schnellversion-persist");
     return Boolean(await getSvJson(svCounted49Path(sessionId)));
   }
   if (fileWritesAllowed()) return Boolean((await readJsonObject(countedFile()))[sessionId]);
   return committedEvents.has(sessionId);
 }
 
+async function eventWasSent(sessionId: string): Promise<boolean> {
+  if (purchaseEventsSent.has(sessionId) || committedEvents.has(sessionId)) return true;
+  if (svBlobEnabled()) return Boolean(await getSvJson(svEventSentPath(sessionId)));
+  if (fileWritesAllowed()) return Boolean((await readJsonObject(eventSentFile()))[sessionId]);
+  return false;
+}
+
+async function rememberEventSent(sessionId: string): Promise<void> {
+  purchaseEventsSent.add(sessionId);
+  try {
+    if (svBlobEnabled()) {
+      await claimSvJson(svEventSentPath(sessionId), { sessionId });
+    } else if (fileWritesAllowed()) {
+      const all = await readJsonObject(eventSentFile());
+      all[sessionId] = "1";
+      await writeJsonObject(eventSentFile(), all);
+    }
+  } catch {
+    /* Der Prozess merkt sich die Zeile. Der Zählmarker wird erneut versucht. */
+  }
+}
+
+async function writeCountedMarker(sessionId: string): Promise<void> {
+  if (failCountedMarker) throw new Error("Zählmarker nicht gespeichert");
+  if (svBlobEnabled()) {
+    const claim = await claimSvJson(svCounted49Path(sessionId), { sessionId });
+    if (claim === "exists") return;
+    return;
+  }
+  if (fileWritesAllowed()) {
+    const all = await readJsonObject(countedFile());
+    all[sessionId] = "1";
+    await writeJsonObject(countedFile(), all);
+  }
+}
+
 async function markPurchaseCounted(sessionId: string, arm: "" | "control" | "test"): Promise<void> {
   if (commitFailures.has("event")) throw new Error("Kaufzählung nicht gespeichert");
-  if (await eventIsDurable(sessionId)) {
+  if ((await eventIsDurable(sessionId)) || (await eventWasSent(sessionId))) {
+    await writeCountedMarker(sessionId);
     committedEvents.add(sessionId);
     return;
   }
@@ -316,19 +386,9 @@ async function markPurchaseCounted(sessionId: string, arm: "" | "control" | "tes
       step: 0,
       ziel: "",
     });
+    await rememberEventSent(sessionId);
   }
-  if (svBlobEnabled()) {
-    const { claimSvJson } = await import("@/lib/schnellversion-persist");
-    const claim = await claimSvJson(svCounted49Path(sessionId), { sessionId });
-    if (claim === "exists") {
-      committedEvents.add(sessionId);
-      return;
-    }
-  } else if (fileWritesAllowed()) {
-    const all = await readJsonObject(countedFile());
-    all[sessionId] = "1";
-    await writeJsonObject(countedFile(), all);
-  }
+  await writeCountedMarker(sessionId);
   committedEvents.add(sessionId);
 }
 
@@ -362,6 +422,11 @@ function svCounted49Path(sessionId: string): string {
 /** Blob, wenn ein Token da ist. Sonst eine lokale Datei, auch im Check, nie der Produktions-Blob. */
 async function storePurchasePdf(id: string, pdf: Buffer): Promise<string> {
   if (svBlobEnabled()) {
+    if (svPreviewTestTarget()?.mode === "store") {
+      const pathname = `gobd/sv49-${id}/v1.pdf`;
+      await putSvBytes(pathname, pdf, "application/pdf");
+      return pathname;
+    }
     const stored = await storePdf({
       familyId: `sv49-${id}`,
       documentId: id,
@@ -370,7 +435,7 @@ async function storePurchasePdf(id: string, pdf: Buffer): Promise<string> {
     });
     return stored.pathname;
   }
-  const dir = path.join(tmpdir(), "gobd-sv49-pdf");
+  const dir = svLocalPdfDir();
   await mkdir(dir, { recursive: true });
   const pathname = path.join(dir, `${id}.pdf`);
   if (!automatedRunForbidsLiveWrites()) await writeFile(pathname, pdf);
@@ -390,6 +455,7 @@ export function pdfPathIsBlob(pdfPath: string): boolean {
 export async function readSvPdf(row: SvPurchase): Promise<Buffer | null> {
   if (!row.pdfPath) return null;
   if (pdfPathIsBlob(row.pdfPath)) {
+    if (svPreviewTestTarget()?.mode === "store") return getSvBytes(row.pdfPath);
     const token = process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? "";
     if (!token) return null;
     const { get } = await import("@vercel/blob");
@@ -428,7 +494,7 @@ async function replaceSvPurchase(row: SvPurchase): Promise<void> {
 }
 
 export async function reserveSvCredit(purchaseId: string, token: string, now: Date): Promise<boolean> {
-  const { reserveDecision, CREDIT_RESERVE_MS } = await import("@/lib/schnellversion-credit");
+  const { reserveDecision } = await import("@/lib/schnellversion-credit");
   const all = await listAllSvPurchases();
   const row = all.find((item) => item.id === purchaseId);
   if (!row) return false;
@@ -439,10 +505,8 @@ export async function reserveSvCredit(purchaseId: string, token: string, now: Da
     const claim = await claimSvJson(pathName, { token, at: now.toISOString() });
     if (claim === "exists") {
       const held = await getSvJson<{ token: string; at: string }>(pathName);
-      const at = Date.parse(held?.at ?? "");
-      const fresh = held && Number.isFinite(at) && now.getTime() - at < CREDIT_RESERVE_MS;
-      if (!held || held.token !== token) {
-        if (fresh) return false;
+      if (held && held.token !== token) return false;
+      if (!held) {
         await deleteSvJson(pathName);
         const retry = await claimSvJson(pathName, { token, at: now.toISOString() });
         if (retry !== "created") return false;
@@ -451,6 +515,18 @@ export async function reserveSvCredit(purchaseId: string, token: string, now: Da
   }
   await replaceSvPurchase(next);
   return next.creditReservationId === token;
+}
+
+/** Gibt eine offene Reservierung frei. Eine bereits bezahlte Anrechnung bleibt. */
+export async function releaseSvCreditHold(purchaseId: string): Promise<boolean> {
+  const id = purchaseId.trim();
+  if (!id) return false;
+  const row = (await listAllSvPurchases()).find((item) => item.id === id);
+  if (!row || row.creditUsedAt.trim()) return false;
+  if (svBlobEnabled()) await deleteSvJson(svReserveBlobPath(row.id));
+  if (!row.creditReservationId.trim() && !row.creditReservedAt.trim()) return true;
+  await replaceSvPurchase({ ...row, creditReservationId: "", creditReservedAt: "" });
+  return true;
 }
 
 export function hashDownloadToken(token: string): string {
@@ -462,17 +538,62 @@ export function newDownloadToken(): { token: string; hash: string } {
   return { token, hash: hashDownloadToken(token) };
 }
 
-/** Entfernt PDF und Token-Link eines Schnellversion-Kaufs. Andere Käufe bleiben. */
-export async function clearSvPurchaseDelivery(row: SvPurchase): Promise<void> {
-  if (row.pdfPath && !pdfPathIsBlob(row.pdfPath)) {
+/**
+ * Entfernt PDF und Token-Link eines Schnellversion-Kaufs.
+ * Blob nur unter `gobd/sv49-`, lokal nur im Schnellversion-Verzeichnis.
+ * Ein fremder Pfad bleibt stehen. Andere Käufe bleiben.
+ */
+export async function clearSvPurchaseDelivery(row: SvPurchase): Promise<boolean> {
+  const pdfPath = row.pdfPath.trim();
+  if (pdfPath && !isSvPdfPath(pdfPath)) return false;
+  if (pdfPath.startsWith("gobd/sv49-")) {
+    if (svPreviewTestTarget()?.mode === "store") await deleteSvJson(pdfPath);
+    else await deleteStoredBlob(pdfPath);
+  } else if (pdfPath) {
     try {
       const { unlink } = await import("node:fs/promises");
-      await unlink(row.pdfPath);
+      await unlink(pdfPath);
     } catch {
       /* Datei fehlte bereits */
     }
   }
   await replaceSvPurchase({ ...row, pdfPath: "", downloadTokenHash: "" });
+  return true;
+}
+
+/** Entfernt den Kaufdatensatz und die zugehörigen Index- und Markerdateien unter gobd/sv49/. Kein Stripe. */
+export async function deleteSvPurchaseRecord(row: SvPurchase): Promise<void> {
+  if (row.pdfPath.trim() || row.downloadTokenHash.trim()) {
+    await clearSvPurchaseDelivery(row);
+  }
+  const key = emailKey(row.email);
+  const current = memory.get(key) ?? [];
+  const next = current.filter((item) => item.id !== row.id);
+  if (next.length) memory.set(key, next);
+  else memory.delete(key);
+  committedPurchases.delete(row.sessionId);
+  committedEvents.delete(row.sessionId);
+  purchaseEventsSent.delete(row.sessionId);
+  const all = (await readFileRows()).filter((item) => item.id !== row.id);
+  await writeFileRows(all);
+  if (!svBlobEnabled() || !row.id.trim()) return;
+  const paths = [
+    svPurchaseBlobPath(row.id),
+    svReserveBlobPath(row.id),
+    svEventSentPath(row.sessionId),
+    svCounted49Path(row.sessionId),
+    svSessionClaimPath(row.sessionId),
+  ];
+  if (row.sessionId.trim()) paths.push(svSessionBlobPath(row.sessionId));
+  for (const pathname of paths) {
+    await deleteSvJson(pathname);
+  }
+}
+
+export async function findSvPurchaseByDownloadToken(token: string): Promise<SvPurchase | null> {
+  if (!token.trim()) return null;
+  const rows = await listAllSvPurchases();
+  return rows.find((row) => downloadTokenMatches(token, row.downloadTokenHash)) ?? null;
 }
 
 export function downloadTokenMatches(token: string, hash: string): boolean {
@@ -481,7 +602,10 @@ export function downloadTokenMatches(token: string, hash: string): boolean {
   return timingSafeEqual(Buffer.from(digest), Buffer.from(hash));
 }
 
-/** Login des Käufers oder das am Kauf gespeicherte Token. Zusätzlich die 30 Tage. */
+/**
+ * Login des Käufers oder das Download-Token. Die Session-ID allein reicht nicht.
+ * Zusätzlich die 30 Tage.
+ */
 export function svDownloadAllowed(
   row: SvPurchase,
   input: { email: string; token: string; now: Date },
@@ -492,12 +616,56 @@ export function svDownloadAllowed(
   return downloadTokenMatches(input.token, row.downloadTokenHash);
 }
 
-export async function markSvCreditUsed(email: string, purchaseId: string, at: string): Promise<boolean> {
+export function creditCheckoutSessionIds(row: Pick<SvPurchase, "creditCheckoutIds">): string[] {
+  const raw = row.creditCheckoutIds?.trim() ?? "";
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((item) => item.trim());
+  } catch {
+    return [];
+  }
+}
+
+export async function rememberCreditCheckoutSession(purchaseId: string, sessionId: string): Promise<void> {
+  const id = sessionId.trim();
+  const purchase = purchaseId.trim();
+  if (!purchase || !id) return;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const row = (await listAllSvPurchases()).find((item) => item.id === purchase);
+    if (!row) return;
+    const ids = creditCheckoutSessionIds(row);
+    if (ids.includes(id)) return;
+    await replaceSvPurchase({ ...row, creditCheckoutIds: JSON.stringify([...ids, id]) });
+    const again = (await listAllSvPurchases()).find((item) => item.id === purchase);
+    if (again && creditCheckoutSessionIds(again).includes(id)) return;
+  }
+}
+
+export async function replaceCreditCheckoutSessions(purchaseId: string, ids: string[]): Promise<void> {
+  const row = (await listAllSvPurchases()).find((item) => item.id === purchaseId);
+  if (!row) return;
+  await replaceSvPurchase({ ...row, creditCheckoutIds: JSON.stringify(ids) });
+}
+
+export async function markSvCreditUsed(
+  email: string,
+  purchaseId: string,
+  at: string,
+  sessionId = "",
+): Promise<boolean> {
   const key = emailKey(email);
   const rows = await listSvPurchases(key);
   const row = rows.find((item) => item.id === purchaseId);
   if (!row || row.creditUsedAt.trim()) return false;
-  await replaceSvPurchase({ ...row, creditUsedAt: at });
+  await replaceSvPurchase({
+    ...row,
+    creditUsedAt: at,
+    creditUsedSessionId: sessionId.trim() || row.creditUsedSessionId || "",
+  });
   return true;
 }
 

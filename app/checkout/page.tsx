@@ -36,7 +36,8 @@ import {
 } from "@/lib/plan-copy";
 import { CheckoutForm } from "./checkout-form";
 import { schnellversionOffered } from "@/lib/schnellversion-flag";
-import { anrechnungBis, downloadStillOpen, listSvPurchases } from "@/lib/schnellversion-record";
+import { creditHintVisible } from "@/lib/schnellversion-credit";
+import { anrechnungBis, listSvPurchases } from "@/lib/schnellversion-record";
 import { formatSvDate } from "@/lib/schnellversion-copy";
 
 export const dynamic = "force-dynamic";
@@ -92,8 +93,9 @@ export default async function CheckoutPage({
     extraFirmNote = !coverage.planFirms && position > MAX_ENTITIES_PER_ACCOUNT;
   }
 
-  const credit = email && schnellversionOffered()
-    ? (await listSvPurchases(email)).find((row) => !row.creditUsedAt.trim() && downloadStillOpen(row, new Date()))
+  const checkoutCompany = boundEntity?.name ?? "";
+  const credit = email && checkoutCompany && schnellversionOffered()
+    ? (await listSvPurchases(email)).find((row) => creditHintVisible(row, checkoutCompany, new Date()))
     : undefined;
 
   return (

@@ -12,7 +12,8 @@ import { intakeLoginFirstEnabled, memberPreselected } from "@/lib/pricing-model"
 import { firstQueryValue } from "@/lib/query";
 import { listEntitiesByEmail } from "@/lib/store";
 import { schnellversionOffered } from "@/lib/schnellversion-flag";
-import { anrechnungBis, downloadStillOpen, listSvPurchases } from "@/lib/schnellversion-record";
+import { creditHintVisible } from "@/lib/schnellversion-credit";
+import { anrechnungBis, listSvPurchases } from "@/lib/schnellversion-record";
 import { formatSvDate } from "@/lib/schnellversion-copy";
 
 export const dynamic = "force-dynamic";
@@ -38,8 +39,9 @@ export default async function PaketPage({
   const entities = await listEntitiesByEmail(email);
   const requested = firstQueryValue(params.entity_id) ?? "";
   const bound = entities.find((e) => e.entityId === requested) ?? entities[0];
-  const credit = schnellversionOffered()
-    ? (await listSvPurchases(email)).find((row) => !row.creditUsedAt.trim() && downloadStillOpen(row, new Date()))
+  const checkoutCompany = bound?.name ?? "";
+  const credit = checkoutCompany && schnellversionOffered()
+    ? (await listSvPurchases(email)).find((row) => creditHintVisible(row, checkoutCompany, new Date()))
     : undefined;
   return (
     <>

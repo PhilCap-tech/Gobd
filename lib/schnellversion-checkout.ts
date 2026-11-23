@@ -1,9 +1,10 @@
 /**
- * Checkout der Schnellversion. Live-Keys und fehlende Price-ID erzeugen
- * keinen Stripe-Aufruf. Der Stub spricht Stripe nicht an.
+ * Checkout der Schnellversion. Ohne Flag oder ohne gültige Price-ID kein
+ * Stripe-Aufruf. Plan `test` braucht `sk_test_`, Plan `live` braucht `sk_live_`.
+ * Der Stub spricht Stripe nicht an.
  */
 
-import { getAppUrl, getStripeTaxRateId } from "@/lib/env";
+import { checkoutReturnBaseUrl, getStripeTaxRateId } from "@/lib/env";
 import { CREDIT_RESERVE_MS } from "@/lib/schnellversion-credit";
 import {
   schnellversionCheckoutPlan,
@@ -36,7 +37,7 @@ export function schnellversionSessionParams(
 ): import("stripe").Stripe.Checkout.SessionCreateParams | null {
   const plan = schnellversionCheckoutPlan(env);
   if (plan !== "test" && plan !== "live") return null;
-  const origin = getAppUrl().replace(/\/$/, "");
+  const origin = checkoutReturnBaseUrl().replace(/\/$/, "");
   const thanks = `${origin}/schnellversion/danke`;
   const expiresAt = Math.floor(Date.now() / 1000) + Math.floor(CREDIT_RESERVE_MS / 1000);
   const price = schnellversionPriceId(env);
@@ -66,7 +67,7 @@ export function schnellversionSessionParams(
     metadata,
     payment_intent_data: { metadata },
     expires_at: expiresAt,
-    success_url: `${thanks}?session_id={CHECKOUT_SESSION_ID}&dl=${encodeURIComponent(input.downloadToken)}`,
+    success_url: `${thanks}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/schnellversion/kauf`,
   };
 }

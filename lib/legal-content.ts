@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ampelNoEmailEnvEnabled } from "@/lib/ampel-v2-flag";
 import { extraFirmsEnabled, isPricingV2, retentionDeleteEnabled } from "@/lib/pricing-model";
+import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 
 /**
  * Bedingte Abschnitte (Preismodell v2): `<!-- if:NAME -->…<!-- endif -->`.
@@ -12,6 +13,8 @@ import { extraFirmsEnabled, isPricingV2, retentionDeleteEnabled } from "@/lib/pr
  * § 12c-Abrechnung nach aktiven Firmen, wartet auf Philips Freigabe; aus = freigegebene Fassung 14:24).
  * `ampel-email` / `ampel-no-email` (AMPEL_NO_EMAIL_ENABLED, nur Env): alter Ampel-Ablauf mit E-Mail-Gate
  * bzw. Ampel ohne E-Mail aktiv. Die Cookie-Zeile gobd_ampel_shown steht nur bei ausgeschaltetem Flag (Freigabe 30.10. 18:57).
+ * `schnellversion` (SCHNELLVERSION_49_ENABLED): Ergänzungen zur Schnellversion in AGB, DSE und Cookie-Richtlinie.
+ * `schnellversion-off`: der bisherige Wortlaut, wenn das Flag aus ist.
  * Nicht verschachteln: jeder Block steht für sich.
  * Ohne Schalter bleibt der bisherige Text wörtlich (nur die Marker fallen weg).
  */
@@ -24,9 +27,17 @@ export type LegalFlags = {
   "extra-firms-off": boolean;
   "ampel-email": boolean;
   "ampel-no-email": boolean;
+  schnellversion: boolean;
+  "schnellversion-off": boolean;
 };
 
-export function legalFlagsFor(v2: boolean, retentionDelete: boolean, extraFirms = false, ampelNoEmail = false): LegalFlags {
+export function legalFlagsFor(
+  v2: boolean,
+  retentionDelete: boolean,
+  extraFirms = false,
+  ampelNoEmail = false,
+  schnellversion = false,
+): LegalFlags {
   return {
     v2,
     legacy: !v2,
@@ -36,11 +47,19 @@ export function legalFlagsFor(v2: boolean, retentionDelete: boolean, extraFirms 
     "extra-firms-off": !extraFirms,
     "ampel-email": !ampelNoEmail,
     "ampel-no-email": ampelNoEmail,
+    schnellversion,
+    "schnellversion-off": !schnellversion,
   };
 }
 
 export function legalFlags(): LegalFlags {
-  return legalFlagsFor(isPricingV2(), retentionDeleteEnabled(), extraFirmsEnabled(), ampelNoEmailEnvEnabled());
+  return legalFlagsFor(
+    isPricingV2(),
+    retentionDeleteEnabled(),
+    extraFirmsEnabled(),
+    ampelNoEmailEnvEnabled(),
+    schnellversion49Enabled(),
+  );
 }
 
 export function applyLegalConditions(markdown: string, flags: LegalFlags): string {

@@ -224,6 +224,14 @@
   text-align: center;
 }
 
+.objection {
+  margin: 0 0 16px;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.5;
+  position: static;
+}
+
 .checks {
   display: grid;
   gap: 10px;

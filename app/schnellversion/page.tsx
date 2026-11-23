@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { SchnellversionFunnel } from "@/components/schnellversion-funnel";
 import { SchnellversionShell } from "@/components/schnellversion-shell";
 import { requireSchnellversionTest } from "@/lib/schnellversion-gate";
+import { schnellversionPageMetadata } from "@/lib/schnellversion-meta";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Schnellversion",
-  robots: { index: false, follow: false },
-};
+export function generateMetadata(): Metadata {
+  return schnellversionPageMetadata("Schnellversion");
+}
 
 export default async function SchnellversionPage({
   searchParams,

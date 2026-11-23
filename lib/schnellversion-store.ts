@@ -1,8 +1,8 @@
 /**
  * Ereignisse der Schnellversion, gleicher Weg wie die Homepage-Zählung:
  * dasselbe Sheet, eigene Tabelle `schnellversion_49`, keine Personenbezogenen Daten.
- * Checks und Preview schreiben nicht. Ohne Sheet-Zugang bleibt die Zeile
- * im Prozess und, außerhalb von Produktion, in einer lokalen Datei.
+ * Checks schreiben nicht. Preview nur mit erklärtem Testziel.
+ * Ohne Sheet-Zugang bleibt die Zeile im Prozess und, außerhalb von Produktion, in einer lokalen Datei.
  */
 
 import { appendFileSync, readFileSync } from "node:fs";
@@ -10,10 +10,11 @@ import { isSheetsConfigured } from "@/lib/env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { createSheetsClient } from "@/lib/sheets-client";
 import { SV_EVENT_NAMES, type SvEventName, type SvEventRow } from "@/lib/schnellversion-events";
+import { svPreviewTestTarget } from "@/lib/schnellversion-data-env";
 import { claimSvJson, svBlobEnabled, svCounted99Path } from "@/lib/schnellversion-persist";
 
 export const SV_EVENT_TAB = "schnellversion_49";
-export const SV_EVENT_COLUMNS = ["name", "arm", "variante", "branche_vorlage", "value", "step", "ziel"] as const;
+export const SV_EVENT_COLUMNS = ["name", "arm", "variante", "branche_vorlage", "value", "step", "ziel", "day"] as const;
 
 const FILE = "/tmp/gobd-sv49-events.jsonl";
 const NAME_SET = new Set<string>(SV_EVENT_NAMES);
@@ -49,6 +50,25 @@ type SheetClient = {
 
 let installed: { client: SheetClient; configured: boolean } | null = null;
 
+/** Der Google-Client hat spreadsheets.get, nicht get. Der Aufruf client.get wirft „get is not a function“. */
+export function adaptSvSheetClient(api: {
+  spreadsheets: {
+    get: SheetClient["get"];
+    batchUpdate: SheetClient["batchUpdate"];
+    values: {
+      get: SheetClient["valuesGet"];
+      append: SheetClient["valuesAppend"];
+    };
+  };
+}): SheetClient {
+  return {
+    get: (args) => api.spreadsheets.get(args),
+    batchUpdate: (args) => api.spreadsheets.batchUpdate(args),
+    valuesGet: (args) => api.spreadsheets.values.get(args),
+    valuesAppend: (args) => api.spreadsheets.values.append(args),
+  };
+}
+
 export function installSvEventSheetForTest(next: { client: SheetClient; configured: boolean } | null): void {
   installed = next;
   prepared = null;
@@ -60,7 +80,7 @@ export function resetSvEventsForTest(): void {
 }
 
 function previewSkipsWrites(): boolean {
-  return process.env.VERCEL_ENV === "preview";
+  return process.env.VERCEL_ENV === "preview" && !svPreviewTestTarget();
 }
 
 function sheetWritesAllowed(): boolean {
@@ -70,11 +90,22 @@ function sheetWritesAllowed(): boolean {
   return true;
 }
 
+/** Kalendertag Europe/Berlin, YYYY-MM-DD. */
+export function svEventDay(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(now);
+}
+
+function stamped(row: SvEventRow, now = new Date()): SvEventRow {
+  return row.day && /^\d{4}-\d{2}-\d{2}$/.test(row.day) ? row : { ...row, day: svEventDay(now) };
+}
+
 function cells(row: SvEventRow): string[] {
-  return [row.name, row.arm, row.variante, row.branche_vorlage, String(row.value), String(row.step), row.ziel];
+  return [row.name, row.arm, row.variante, row.branche_vorlage, String(row.value), String(row.step), row.ziel, row.day ?? ""];
 }
 
 function spreadsheetId(): string {
+  const target = svPreviewTestTarget();
+  if (target) return target.spreadsheetId;
   const id = process.env.GOOGLE_SHEETS_SPREADSHEET_ID?.trim();
   if (id) return id;
   if (installed) return "schnellversion-test";
@@ -96,7 +127,7 @@ async function ensureSheet(client: SheetClient): Promise<void> {
       if (!/already exists/i.test(message)) throw error;
     }
   }
-  const header = await client.valuesGet({ spreadsheetId: id, range: `${SV_EVENT_TAB}!A1:G1` });
+  const header = await client.valuesGet({ spreadsheetId: id, range: `${SV_EVENT_TAB}!A1:H1` });
   const first = header.data?.values?.[0];
   if (!first || first.every((cell) => String(cell ?? "").trim() === "")) {
     await client.valuesAppend({
@@ -125,11 +156,12 @@ function rowFromCells(cellsIn: string[]): SvEventRow | null {
     value: Number.isFinite(value) ? value : 0,
     step: Number.isFinite(step) ? step : 0,
     ziel: ziel === "einmalig" || ziel === "dauerhaft" ? ziel : "",
+    day: /^\d{4}-\d{2}-\d{2}$/.test(cellsIn[7]?.trim() ?? "") ? cellsIn[7].trim() : undefined,
   };
 }
 
 async function appendSheet(row: SvEventRow): Promise<void> {
-  const client = installed?.client ?? (createSheetsClient() as unknown as SheetClient);
+  const client = installed?.client ?? adaptSvSheetClient(createSheetsClient());
   if (!prepared) prepared = ensureSheet(client);
   await prepared;
   await client.valuesAppend({
@@ -189,27 +221,29 @@ export function rememberPurchase99Once(input: {
 }
 
 /** Schreibt sv_purchase dauerhaft. Wirft, bevor ein Zähl-Marker gesetzt werden darf. */
-export async function persistSvPurchaseEvent(row: SvEventRow): Promise<void> {
+export async function persistSvPurchaseEvent(row: SvEventRow, now = new Date()): Promise<void> {
   if (failPurchaseSink) throw new Error("Event nicht gespeichert");
+  const stampedRow = stamped(row, now);
   const production = (process.env.VERCEL_ENV ?? "").trim() === "production";
   const writeFile = !production && !automatedRunForbidsLiveWrites();
-  if (writeFile) appendFileSync(FILE, `${JSON.stringify(row)}\n`, "utf8");
-  if (sheetWritesAllowed()) await appendSheet(row);
-  memory.push(row);
+  if (writeFile) appendFileSync(FILE, `${JSON.stringify(stampedRow)}\n`, "utf8");
+  if (sheetWritesAllowed()) await appendSheet(stampedRow);
+  memory.push(stampedRow);
 }
 
-export function rememberSvEvent(row: SvEventRow): void {
-  memory.push(row);
+export function rememberSvEvent(row: SvEventRow, now = new Date()): void {
+  const stampedRow = stamped(row, now);
+  memory.push(stampedRow);
   const production = (process.env.VERCEL_ENV ?? "").trim() === "production";
   if (!production && !automatedRunForbidsLiveWrites()) {
     try {
-      appendFileSync(FILE, `${JSON.stringify(row)}\n`, "utf8");
+      appendFileSync(FILE, `${JSON.stringify(stampedRow)}\n`, "utf8");
     } catch {
       /* lokale Datei ist nur eine Hilfe */
     }
   }
   if (!sheetWritesAllowed()) return;
-  void appendSheet(row).catch((error: unknown) => {
+  void appendSheet(stampedRow).catch((error: unknown) => {
     const name = error instanceof Error && error.name ? error.name : "Error";
     console.error("[schnellversion]", name);
   });
@@ -237,10 +271,10 @@ function fileRows(): SvEventRow[] {
 export async function readSvEvents(): Promise<SvEventRow[]> {
   if (sheetWritesAllowed()) {
     try {
-      const client = installed?.client ?? (createSheetsClient() as unknown as SheetClient);
+      const client = installed?.client ?? adaptSvSheetClient(createSheetsClient());
       const result = await client.valuesGet({
         spreadsheetId: spreadsheetId(),
-        range: `${SV_EVENT_TAB}!A:G`,
+        range: `${SV_EVENT_TAB}!A:H`,
       });
       const values = result.data?.values ?? [];
       const rows = values.map((row) => rowFromCells(row.map((cell) => String(cell ?? "")))).filter((row): row is SvEventRow => Boolean(row));

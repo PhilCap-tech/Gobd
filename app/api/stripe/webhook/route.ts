@@ -43,7 +43,8 @@ import {
 import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import { rememberPurchase99Once } from "@/lib/schnellversion-store";
-import { markSvCreditUsed } from "@/lib/schnellversion-record";
+import { expireStoredCreditSessions, releaseOpenCreditCheckout, settlePaidCreditSession } from "@/lib/schnellversion-credit-sessions";
+import { markSvCreditUsed, releaseSvCreditHold } from "@/lib/schnellversion-record";
 import { confirmPaidSession, paymentFromStatus } from "@/lib/schnellversion-payment";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
 import { logError } from "@/lib/log-error";
@@ -107,23 +108,39 @@ function invoiceEntityId(invoice: {
   );
 }
 
-/** Nur das Ereignis. Die bestehende Kaufverbuchung bleibt davor unverändert. */
-async function noteSchnellversionPurchase(
+/**
+ * Bezahlter Einstieg mit Anrechnung. creditUsedAt wird immer gesetzt, sobald
+ * die Session die Kauf-ID trägt (Coupon war im Checkout gesetzt), auch ohne
+ * sv_arm. Die Zählung des Testarms bleibt daran gebunden.
+ */
+/** Abgelaufene Upgrade-Session gibt die Anrechnung frei. Eine bezahlte Anrechnung bleibt. */
+export async function releaseCreditForExpiredCheckout(session: {
+  metadata?: { sv_purchase_id?: string | null } | null;
+}): Promise<boolean> {
+  const id = session.metadata?.sv_purchase_id?.trim() ?? "";
+  if (!id) return false;
+  return releaseSvCreditHold(id);
+}
+
+export async function noteSchnellversionPurchase(
   session: { id?: string | null; metadata?: { sv_arm?: string | null; sv_purchase_id?: string | null } | null },
   email: string,
   eventId: string,
 ): Promise<void> {
-  if (!schnellversion49Enabled()) return;
   const arm = session.metadata?.sv_arm;
-  if (arm !== "control" && arm !== "test") return;
+  const purchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
   try {
-    await rememberPurchase99Once({
-      sessionId: session.id?.trim() ?? "",
-      eventId,
-      arm,
-    });
-    const purchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
-    if (purchaseId && email.trim()) await markSvCreditUsed(email, purchaseId, new Date().toISOString());
+    if (schnellversion49Enabled() && (arm === "control" || arm === "test")) {
+      await rememberPurchase99Once({
+        sessionId: session.id?.trim() ?? "",
+        eventId,
+        arm,
+      });
+    }
+    if (purchaseId && email.trim()) {
+      const marked = await markSvCreditUsed(email, purchaseId, new Date().toISOString(), session.id?.trim() ?? "");
+      if (marked) await expireStoredCreditSessions(purchaseId, session.id?.trim() ?? "");
+    }
   } catch (error) {
     console.error("[webhook] Schnellversion", error instanceof Error ? error.name : "error");
   }
@@ -183,6 +200,13 @@ export async function POST(request: Request) {
 
   try {
     switch (event.type) {
+      case "checkout.session.expired": {
+        const session = event.data.object;
+        const expiredPurchase = session.metadata?.sv_purchase_id?.trim() ?? "";
+        if (expiredPurchase) await releaseOpenCreditCheckout(expiredPurchase);
+        await releaseCreditForExpiredCheckout(session);
+        return NextResponse.json({ received: true });
+      }
       case "checkout.session.completed": {
         const session = event.data.object;
         if (session.metadata?.sv49 === "1") {
@@ -199,6 +223,17 @@ export async function POST(request: Request) {
             }
           }
           return NextResponse.json({ received: true });
+        }
+        const creditPurchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
+        if (creditPurchaseId && paymentFromStatus(session.payment_status) === "paid") {
+          const creditOutcome = await settlePaidCreditSession({
+            sessionId: session.id,
+            purchaseId: creditPurchaseId,
+            email: session.customer_details?.email || session.customer_email || "",
+            company: session.metadata?.company || "",
+            livemode: session.livemode,
+          });
+          if (creditOutcome === "review") return NextResponse.json({ received: true });
         }
         let email =
           session.customer_details?.email || session.customer_email || "";
@@ -339,6 +374,7 @@ export async function POST(request: Request) {
             email: buyerEmail,
             company: company || existing?.company || "",
             sessionId: session.id,
+            ...(creditPurchaseId ? { onceKey: `sv-credit:${creditPurchaseId}` } : {}),
             checkoutNames: stripeContact.checkoutNames,
             extraCompanyNames: stripeContact.extraCompanyNames,
             entityId: checkoutEntityId,

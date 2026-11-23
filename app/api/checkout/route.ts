@@ -31,7 +31,15 @@ import { cookies } from "next/headers";
 import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
 import { openCredit, schnellversionCouponId } from "@/lib/schnellversion-credit";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
-import { listSvPurchases, reserveSvCredit } from "@/lib/schnellversion-record";
+import {
+  claimOpenCreditCheckout,
+  CREDIT_CHECKOUT_BUSY_MESSAGE,
+  creditPricePath,
+  publishOpenCreditCheckout,
+  releaseOpenCreditCheckout,
+  rememberUpgradeCheckout,
+} from "@/lib/schnellversion-credit-sessions";
+import { creditStillOpen, listSvPurchases, releaseSvCreditHold, reserveSvCredit } from "@/lib/schnellversion-record";
 import { randomUUID } from "node:crypto";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
@@ -191,18 +199,52 @@ export async function POST(request: Request) {
   let svArm: "control" | "test" | undefined;
   let svCoupon = "";
   let svPurchaseId = "";
+  let creditSlotWon = "";
   if (v2 && schnellversion49Enabled()) {
     try {
       const creditEmail = (sessionEmail ?? "").trim().toLowerCase();
-      const credit = creditEmail ? openCredit(await listSvPurchases(creditEmail), company, new Date()) : null;
+      const rows = creditEmail ? await listSvPurchases(creditEmail) : [];
+      const now = new Date();
+      const credit = openCredit(rows, company, now);
       const coupon = credit ? schnellversionCouponId() : "";
-      const reserved = credit ? await reserveSvCredit(credit.id, randomUUID(), new Date()) : false;
-      if (credit && coupon && reserved) {
-        svCoupon = coupon;
-        svPurchaseId = credit.id;
+      const openForEmail = rows.some((row) => creditStillOpen(row, row.company, now));
+      if (openForEmail && !credit) {
+        console.warn("[checkout] Anrechnung nicht angewendet: Firma stimmt nicht");
+      }
+      if (credit && !coupon) {
+        console.warn("[checkout] Anrechnung nicht angewendet: Coupon-ID fehlt");
       }
       const arm = parseSvArm((await cookies()).get(SV_ARM_COOKIE)?.value);
       if (arm) svArm = arm;
+      const pricePath = creditPricePath({ credit: Boolean(credit), coupon: Boolean(coupon), reserved: false });
+      if (pricePath === "blocked" && credit && !coupon) {
+        return NextResponse.json(
+          { error: "Die Anrechnung kann gerade nicht gestartet werden. Bitte versuchen Sie es später erneut." },
+          { status: 409 },
+        );
+      }
+      if (credit && coupon) {
+        const slot = await claimOpenCreditCheckout(credit.id);
+        if (slot.state === "same") {
+          return NextResponse.json({
+            url: slot.session.url,
+            stub: slot.session.stub,
+            id: slot.session.sessionId,
+          });
+        }
+        if (slot.state === "busy") {
+          return NextResponse.json({ error: CREDIT_CHECKOUT_BUSY_MESSAGE }, { status: 409 });
+        }
+        const reserved = await reserveSvCredit(credit.id, randomUUID(), now);
+        if (!reserved) {
+          await releaseOpenCreditCheckout(credit.id);
+          console.warn("[checkout] Anrechnung nicht angewendet: Reservierung");
+          return NextResponse.json({ error: CREDIT_CHECKOUT_BUSY_MESSAGE }, { status: 409 });
+        }
+        svCoupon = coupon;
+        svPurchaseId = credit.id;
+        creditSlotWon = slot.key;
+      }
     } catch (error) {
       logError("[checkout] Anrechnung nicht gelesen", error, { level: "warn" });
     }
@@ -230,8 +272,18 @@ export async function POST(request: Request) {
           }
         : {}),
     });
+    if (creditSlotWon && session.id && session.url) {
+      await publishOpenCreditCheckout(creditSlotWon, {
+        sessionId: session.id,
+        url: session.url,
+        stub: session.stub,
+      });
+      await rememberUpgradeCheckout(svPurchaseId, session.id);
+    }
     return NextResponse.json(session);
   } catch (error) {
+    if (creditSlotWon) await releaseOpenCreditCheckout(svPurchaseId);
+    if (svPurchaseId) await releaseSvCreditHold(svPurchaseId);
     logError("[checkout]", error);
     return NextResponse.json(
       { error: "Checkout konnte nicht gestartet werden." },

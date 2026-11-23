@@ -1209,6 +1209,43 @@ if (ustConsts.length === 0) {
   }
 }
 
+const legalDraftNote = /\[klären|\[klaeren|\[Vorschlag|\bTODO\b/;
+const flagMarkerComment = /<!--\s*(?:if:[a-z0-9-]+|endif)\s*-->/g;
+function legalDraftNoteHit(text) {
+  const visible = text.replace(flagMarkerComment, "");
+  return legalDraftNote.test(visible);
+}
+const legalDraftSamples = [
+  ["[klären: Builder]", true],
+  ["Offen [klaeren]", true],
+  ["[Vorschlag: anderer Satz]", true],
+  ["TODO noch einsetzen", true],
+  ["<!-- if:schnellversion -->Daneben<!-- endif -->", false],
+  ["<!-- if:schnellversion-off -->bisher<!-- endif -->", false],
+];
+for (const [sample, expectHit] of legalDraftSamples) {
+  if (legalDraftNoteHit(sample) !== expectHit) {
+    console.error(`check-forbidden-words: Gegentest Vermerk falsch für ${sample}`);
+    failed = true;
+  }
+}
+const legalDraftFiles = globSync("content/legal/**/*.{md,mdx}").sort();
+if (legalDraftFiles.length === 0) {
+  console.error("check-forbidden-words: keine Legal-Dateien für den Vermerk");
+  failed = true;
+}
+for (const file of legalDraftFiles) {
+  const raw = readFileSync(file, "utf8");
+  if (!legalDraftNoteHit(raw)) continue;
+  console.error(`${file}: offener Vermerk [klären, [klaeren, [Vorschlag oder TODO`);
+  failed = true;
+}
+const legalDraftCounter = `${readFileSync(legalDraftFiles[0], "utf8")}\n[klären: Gegentest]\n`;
+if (!legalDraftNoteHit(legalDraftCounter)) {
+  console.error("check-forbidden-words: Gegentest hat den eingefügten Vermerk nicht erkannt");
+  failed = true;
+}
+
 if (failed) {
   process.exit(1);
 }

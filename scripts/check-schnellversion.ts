@@ -3,14 +3,19 @@
  * Ereignisse ohne Personenbezogene Daten, Abbruchschwellen ohne Automatik.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { effectiveModulStatus } from "../lib/module/status";
 import { pageTexts } from "./pdf-text";
 import { decideSvArm } from "../lib/schnellversion-assign";
-import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
+import { creditHintVisible, openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ, SV_SOLO_MITARBEITENDE } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, findSvPurchaseBySession, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
+import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, failSvCountedMarkerForTest, findSvPurchaseBySession, hashDownloadToken, isSvPdfPath, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, svLocalPdfDir, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata, schnellversionSessionParams } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
@@ -25,17 +30,59 @@ import {
   type SchnellversionAnswers,
 } from "../lib/schnellversion-answers";
 import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
-import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PURGE_AFTER_DAYS } from "../lib/schnellversion-copy";
+import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PDF_FAILED, SV_PURGE_AFTER_DAYS } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
 import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
-import { confirmPaidSession, failNextClaimedPurchaseForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
+import { confirmPaidSession, failNextClaimedPurchaseForTest, failNextSvPdfForTest, isSvPdfFailed, openSchnellversionCheckout, paidFromStoredSession, resetSvPdfBuildsForTest, saveSvPending, svPdfBuildsForTest } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
-import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
+import { svBlobWritesOpen, svPreviewTestTarget, svSheetWritesOpen } from "../lib/schnellversion-data-env";
+import { adaptSvSheetClient, failSvPurchaseSinkForTest, installSvEventSheetForTest, readSvEvents, rememberPurchase99Once, rememberSvEvent, SV_EVENT_COLUMNS } from "../lib/schnellversion-store";
 import { maybeSendSchnellversionPurchaseMail, purchaseMail } from "../lib/schnellversion-purchase-mail";
-import { runSvPurge } from "../lib/schnellversion-purge";
+import { runScheduledSvPurge, runSvPurge, svRecordPurgeDue } from "../lib/schnellversion-purge";
+import { addMonthsIso } from "../lib/plan";
+import { DOC_RETENTION_MONTHS } from "../lib/retention-decision";
+import { PLAN_OFFER_OBJECTION_NOTICE } from "../lib/plan-copy";
+import { agbMarkdown, applyLegalConditions, legalFlagsFor } from "../lib/legal-content";
+import { buildLlmsTxt } from "../lib/llms-txt";
+import { markdownH2Section } from "../lib/markdown-section";
+import { isPricingV2 } from "../lib/pricing-model";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
-import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
+import { GET as pdfGet, POST as pdfPost } from "../app/api/schnellversion/pdf/route";
+import { GET as statusGet } from "../app/api/schnellversion/status/route";
+import { buildPlanCheckoutParams } from "../lib/plan-checkout";
+import { checkoutReturnBaseUrl } from "../lib/env";
+import { planParamsFromCheckoutInput } from "../lib/stripe";
+import { releaseCreditForExpiredCheckout } from "../app/api/stripe/webhook/route";
+import {
+  abandonCreditCheckout,
+  claimOpenCreditCheckout,
+  CREDIT_CHECKOUT_BUSY_MESSAGE,
+  creditPricePath,
+  expireStoredCreditSessions,
+  flagDuplicateCreditPayment,
+  isDuplicateCreditSession,
+  publishOpenCreditCheckout,
+  releaseOpenCreditCheckout,
+  setCreditReviewSheetForTest,
+  setCreditSessionExpireForTest,
+  settlePaidCreditSession,
+} from "../lib/schnellversion-credit-sessions";
+import { setBlobMarkerTestDir } from "../lib/blob-marker";
+import { deliverBuyerOnboarding } from "../lib/buyer-onboarding";
+import { creditCheckoutSessionIds, rememberCreditCheckoutSession } from "../lib/schnellversion-record";
+import { setOwnerNoticeTestMode } from "../lib/owner-notice";
+import { setMailDedupeTestHooks } from "../lib/mail-dedupe";
+import { CHECKOUT_NOTICE_TO } from "../lib/checkout-notice";
+import { GET as anrechnungFrei } from "../app/api/schnellversion/anrechnung-frei/route";
+import { buildOnboardingMail, customerOnboardingDraftPath, logSessionRef } from "../lib/ops";
+import { magicLinkUrl } from "../lib/auth";
+import { SV_HIDDEN_TITLE, schnellversionPageMetadata } from "../lib/schnellversion-meta";
+import { DL_REQUEST_LOG_IGNORE, installDlLogRedaction, redactDlTokenText } from "../lib/log-redaction";
+import { ignoreLoggingIncomingRequests } from "next/dist/server/dev/log-requests.js";
+import nextConfig from "../next.config";
+import { NextRequest } from "next/server";
+import { noteSchnellversionPurchase } from "../app/api/stripe/webhook/route";
 import { generatePdf } from "../lib/delivery";
 import { renderGesamtChapters } from "../lib/gesamt-document";
 import { getGesamtMuster } from "../lib/module-muster";
@@ -272,15 +319,24 @@ async function main() {
     {},
   );
   ok(quiet.sending === false && sent === 0, "Erinnerung ohne Schalter versendet nichts");
+  const onlyReminder = await runSchnellversionReminder(
+    [purchase()],
+    new Date(now.getTime() + 24 * 24 * 60 * 60 * 1000),
+    async () => {
+      sent += 1;
+    },
+    { SCHNELLVERSION_49_REMINDER_SEND: "true" },
+  );
+  ok(onlyReminder.sending === false && sent === 0, "Erinnerung nur mit REMINDER_SEND versendet nichts");
   const loud = await runSchnellversionReminder(
     [purchase()],
     new Date(now.getTime() + 24 * 24 * 60 * 60 * 1000),
     async () => {
       sent += 1;
     },
-    { SCHNELLVERSION_49_REMINDER_SEND: "1" },
+    { SCHNELLVERSION_49_REMINDER_SEND: "1", SCHNELLVERSION_49_ENABLED: "true" },
   );
-  ok(loud.sending && loud.sent === 1 && sent === 1, "Erinnerung mit Schalter nutzt nur den Mock");
+  ok(loud.sending && loud.sent === 1 && sent === 1, "Erinnerung mit beiden Schaltern nutzt nur den Mock");
   const pdf = await generateStandardPdf(sample(), new Date("2026-11-17T10:00:00Z"));
   const text = pageTexts(pdf).join("\n");
   ok(text.includes(SV_COVER_TITLE), "Deckblatt nennt Standardfassung, bitte prüfen");
@@ -418,7 +474,7 @@ async function main() {
   const purchaseId = confirmed.paid ? confirmed.purchase.id : "";
   const reserveNow = new Date();
   ok(await reserveSvCredit(purchaseId, "eins", reserveNow), "Reservierung am Kauf");
-  ok(!(await reserveSvCredit(purchaseId, "zwei", reserveNow)), "zweite Reservierung am selben Kauf");
+  ok(await reserveSvCredit(purchaseId, "zwei", reserveNow), "neue Reservierung ersetzt die vorherige");
   const draft = draftFromSchnellversion("inhaber@example.com", sample());
   ok(draft.answers.katalog?.A01?.values?.company === "Malerbetrieb Adler", "Firma im Fragebogen");
   ok(draft.answers.mitarbeitende === "2–5", "Mitarbeitende im Fragebogen");
@@ -428,7 +484,7 @@ async function main() {
   ok(draft.answers.module?.stammdaten?.fibu === "DATEV", "FiBu-Programm im Betriebs-Check");
   const held = reserveDecision(confirmed.paid ? confirmed.purchase : purchase(), "eins", reserveNow);
   ok(held, "erste Coupon-Reservierung");
-  ok(reserveDecision(held!, "zwei", reserveNow) === null, "zweite Reservierung blockiert");
+  ok(reserveDecision(held!, "zwei", reserveNow)?.creditReservationId === "zwei", "neue Reservierung ersetzt die gehaltene");
   ok((await confirmPaidSession("")).paid === false, "ohne Session kein Kauf");
   ok((await confirmPaidSession(unpaid.ok ? unpaid.sessionId : "stub_sv_unpaid_x", { env: stubUnpaid })).paid === false, "unbezahlte Session ergibt kein PDF");
   ok((await confirmPaidSession("cs_test_unpaid")).paid === false, "fremde Session ohne paid ergibt kein PDF");
@@ -456,7 +512,8 @@ async function main() {
   ok(readFileSync("lib/schnellversion-gate.ts", "utf8").includes("schnellversionOffered()"), "Seiten prüfen das Preismodell");
   ok(readFileSync("app/api/checkout/route.ts", "utf8").includes("creditEmail"), "Anrechnung hängt an der Login-Mail");
   ok(readFileSync("lib/plan-checkout.ts", "utf8").includes("expires_at:"), "Upgrade-Session läuft mit der Reservierung ab");
-  ok(readFileSync("components/schnellversion-browser.ts", "utf8").includes("sv49_visit"), "Aufruf wird nur einmal gesendet");
+  const browserSource = readFileSync("components/schnellversion-browser.ts", "utf8");
+  ok(!browserSource.includes("sv49_visit") && browserSource.includes('name: "sv_visit"'), "Aufruf ohne Sitzungsspeicher");
   ok(kasseCheckAntwort("Unsicher") === "unbekannt", "Unsicher ist keine Ja-Antwort");
   const kept = draftFromSchnellversion("inhaber@example.com", sample({ firma: "Bleibt GmbH" }));
   kept.revision = 4;
@@ -467,8 +524,8 @@ async function main() {
   ok(merged.answers.module?.check?.bargeld === "nein", "gesetzte Kasse bleibt");
   ok(merged.revision === 4, "Revision des Fragebogens bleibt");
   if (confirmed.paid && paid.ok) {
-    const link = new URL(paid.url, "http://local");
-    const dl = link.searchParams.get("dl") ?? "";
+    ok(!paid.url.includes("dl="), "Danke-URL ohne Download-Token");
+    const dl = paid.downloadToken;
     const row = confirmed.purchase;
     ok(!svDownloadAllowed(row, { email: "fremd@example.com", token: "", now: reserveNow }), "fremde Session ohne Token bleibt zu");
     ok(svDownloadAllowed(row, { email: "inhaber@example.com", token: "", now: reserveNow }), "Käufer darf laden");
@@ -909,6 +966,13 @@ async function main() {
     "Kaufmail ohne Sperrwörter",
   );
   ok(kaufmail.text.includes("/agb") && kaufmail.text.includes("Download-Ende"), "Kaufmail verlinkt die AGB und nennt das Datum");
+  ok(
+    kaufmail.text.includes(PLAN_OFFER_OBJECTION_NOTICE) &&
+      kaufmail.html.includes(PLAN_OFFER_OBJECTION_NOTICE) &&
+      kaufmail.text.indexOf(PLAN_OFFER_OBJECTION_NOTICE) < kaufmail.text.indexOf("Impressum:"),
+    "Kaufmail enthält PLAN_OFFER_OBJECTION_NOTICE vor dem Impressumsfuß",
+  );
+  ok(kaufmail.text.includes("Anrechnung:"), "Kaufmail behält den Anrechnungshinweis");
   ok((await maybeSendSchnellversionPurchaseMail({
     to: "inhaber@example.com",
     company: "Malerbetrieb Adler",
@@ -923,9 +987,878 @@ async function main() {
   const purge = await runSvPurge([alt], now, {});
   ok(purge.dryRun && purge.deleted === 0 && purge.due === 1, "Löschlauf bleibt Dry-Run");
   ok(SV_PURGE_AFTER_DAYS === 30, "Löschfrist steht auf 30 Tage");
+  const freshRow = purchase({ id: "frisch", pdfPath: "", downloadTokenHash: "cd".repeat(32) });
+  const dueFile = path.join(svLocalPdfDir(), "faellig.pdf");
+  await mkdir(svLocalPdfDir(), { recursive: true });
+  await writeFile(dueFile, "pdf");
+  const foreign = path.join(svLocalPdfDir(), "..", "gobd-nicht-sv.pdf");
+  await writeFile(foreign, "fremd");
+  const dueRow = purchase({
+    id: "faellig",
+    pdfPath: dueFile,
+    downloadTokenHash: "ab".repeat(32),
+    purchasedAt: alt.purchasedAt,
+  });
+  const foreignRow = purchase({
+    id: "fremd",
+    pdfPath: foreign,
+    downloadTokenHash: "ef".repeat(32),
+    purchasedAt: alt.purchasedAt,
+  });
+  let listed = 0;
+  ok((await runScheduledSvPurge(now, {}, async () => {
+    listed += 1;
+    return [];
+  })) === null && listed === 0, "Löschlauf ohne Schalter liest nichts");
+  const sharp = await runSvPurge([dueRow, freshRow, foreignRow], now, { SCHNELLVERSION_49_PURGE: "1", SCHNELLVERSION_49_ENABLED: "" });
+  ok(isSvPdfPath(dueFile) && !isSvPdfPath(foreign), "nur der Schnellversion-Pfad gilt als PDF");
+  ok(sharp.dryRun === false && sharp.deleted === 1 && sharp.due === 2, "nur PURGE gesetzt bei Flag aus: Löschlauf läuft");
+  const cleared = (await listAllSvPurchases()).find((row) => row.id === "faellig");
+  ok(cleared?.pdfPath === "" && cleared.downloadTokenHash === "", "PDF und Token der fälligen Zeile sind leer");
+  ok(
+    cleared?.email === "inhaber@example.com" && cleared.company === "Malerbetrieb Adler" && !creditStillOpen(cleared, cleared.company, now),
+    "nach 31 Tagen bleibt der Datensatz, die Anrechnung ist zu",
+  );
+  ok(freshRow.downloadTokenHash === "cd".repeat(32) && freshRow.pdfPath === "", "nicht fällige Zeile bleibt");
+  ok(foreignRow.pdfPath === foreign && foreignRow.downloadTokenHash === "ef".repeat(32), "fremder Pfad bleibt");
+  await assert.rejects(unlink(dueFile), "lokale Schnellversion-Datei ist weg");
+  ok((await readFileSync(foreign, "utf8")) === "fremd", "fremde Datei bleibt");
+  await unlink(foreign);
+  ok(readFileSync("app/api/cron/loeschlauf/route.ts", "utf8").includes("schnellversionPurgeEnabled()"), "Cron löscht nur mit dem Schalter");
+  const yearStart = "2025-01-15T12:00:00.000Z";
+  const yearLater = new Date(Date.parse(addMonthsIso(yearStart, DOC_RETENTION_MONTHS)) + 24 * 60 * 60 * 1000);
+  const yearRow = purchase({
+    id: "altjahr",
+    email: "altjahr@example.com",
+    company: "Altjahr GmbH",
+    purchasedAt: yearStart,
+    pdfPath: "",
+    downloadTokenHash: "",
+    answersJson: "{\"firma\":\"Altjahr\"}",
+    sessionId: "cs_altjahr",
+    consentAt: yearStart,
+  });
+  ok(svRecordPurgeDue(yearStart, yearLater) && !svRecordPurgeDue(now.toISOString(), now), "12 Monate sind die Dokumentenfrist");
+  const openedYear = await openSchnellversionCheckout({
+    answers: sample({ firma: "Altjahr GmbH" }),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "altjahr@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  const paidYear = await confirmPaidSession(openedYear.ok ? openedYear.sessionId : "", { env: stubPaid });
+  ok(paidYear.paid, "Kauf für die 12-Monats-Löschung");
+  const aged = paidYear.paid ? { ...paidYear.purchase, purchasedAt: yearStart } : yearRow;
+  const yearPurge = await runSvPurge([aged], yearLater, { SCHNELLVERSION_49_PURGE: "1" });
+  ok(yearPurge.recordsDeleted === 1 && yearPurge.dryRun === false, "Kaufdatensatz nach 12 Monaten und einem Tag gelöscht");
+  ok(!(await listAllSvPurchases()).some((row) => row.id === aged.id), "gelöschter Datensatz ist weg");
+  ok(!(await reserveSvCredit(aged.id, "danach", yearLater)), "nach der Löschung keine Anrechnung");
+  const reminderText = reminderMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString() });
+  ok(
+    reminderText.subject.startsWith("Ihr Download und die Anrechnung enden am ") &&
+      reminderText.text.includes("enden der PDF-Download der Standardfassung und die Anrechnung der 49 €") &&
+      reminderText.text.includes("Danach ist der Download gesperrt.") &&
+      reminderText.text.includes("Keine Steuer- oder Rechtsberatung."),
+    "Erinnerung behält den bestehenden Text",
+  );
+  ok(reminderText.text.includes(PLAN_OFFER_OBJECTION_NOTICE), "Erinnerung nutzt PLAN_OFFER_OBJECTION_NOTICE");
+  const quietReminder = reminderMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString(), optedOut: true });
+  ok(
+    quietReminder.subject.startsWith("Ihr Download endet am ") &&
+      !quietReminder.text.includes("Anrechnung") &&
+      !quietReminder.text.includes("Fragebogen") &&
+      !quietReminder.text.includes(PLAN_OFFER_OBJECTION_NOTICE),
+    "nach Widerspruch nur der Download-Hinweis",
+  );
+  ok(
+    readFileSync("app/api/cron/addon-notice/route.ts", "utf8").includes("sv49-reminder:${mail.purchaseId}"),
+    "Erinnerung wird je Kauf gezählt",
+  );
+  ok(
+    readFileSync("app/api/cron/addon-notice/route.ts", "utf8").includes("schnellversionReminderSendEnabled()"),
+    "Erinnerung hängt am Versand-Schalter",
+  );
+  const openedCount = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "zaehlung@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(openedCount.ok, "Session für die doppelte Zählung");
+  const countSession = openedCount.ok ? openedCount.sessionId : "";
+  const beforeDedupe = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  failSvCountedMarkerForTest(true);
+  let markerThrew = false;
+  try {
+    await confirmPaidSession(countSession, { env: stubPaid });
+  } catch {
+    markerThrew = true;
+  }
+  const midDedupe = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  failSvCountedMarkerForTest(false);
+  const countedAgain = await confirmPaidSession(countSession, { env: stubPaid });
+  const afterDedupe = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  ok(markerThrew && midDedupe === beforeDedupe + 1, "fehlender Zählmarker schreibt sv_purchase einmal");
+  ok(countedAgain.paid && afterDedupe === midDedupe, "erneute Zustellung schreibt sv_purchase nicht noch einmal");
+  const openedPdf = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "pdf-fehler@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(openedPdf.ok, "Session für die PDF-Meldung");
+  const previousEnv = {
+    enabled: process.env.SCHNELLVERSION_49_ENABLED,
+    model: process.env.PRICING_MODEL,
+    stub: process.env.SCHNELLVERSION_49_STRIPE_STUB,
+    price: process.env.STRIPE_PRICE_SCHNELL_49,
+    nodeEnv: process.env.NODE_ENV,
+    vercel: process.env.VERCEL,
+  };
+  process.env.SCHNELLVERSION_49_ENABLED = "1";
+  process.env.PRICING_MODEL = "v3";
+  process.env.SCHNELLVERSION_49_STRIPE_STUB = "paid";
+  process.env.STRIPE_PRICE_SCHNELL_49 = "price_test_schnell";
+  const runtimeEnv = process.env as Record<string, string | undefined>;
+  if (runtimeEnv.NODE_ENV === "production") runtimeEnv.NODE_ENV = "test";
+  delete process.env.VERCEL;
+  failNextSvPdfForTest();
+  let pdfThrew = false;
+  try {
+    await confirmPaidSession(openedPdf.ok ? openedPdf.sessionId : "", { env: stubPaid });
+  } catch (error) {
+    pdfThrew = isSvPdfFailed(error);
+  }
+  const pdfResponse = await pdfGet(
+    new NextRequest(`http://local/api/schnellversion/pdf?session_id=${encodeURIComponent(openedPdf.ok ? openedPdf.sessionId : "")}`),
+  );
+  ok(pdfThrew && pdfResponse.status === 401, "PDF-Fehler ist keine 500");
+  ok(
+    readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("SV_PDF_FAILED") &&
+      readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("status: 409"),
+    "PDF-Fehler verwendet die bestehende Meldung",
+  );
+  process.env.SCHNELLVERSION_49_ENABLED = "";
+  const hiddenEnv = { SCHNELLVERSION_49_ENABLED: "", PRICING_MODEL: "v3" };
+  const offeredEnv = { SCHNELLVERSION_49_ENABLED: "1", PRICING_MODEL: "v3" };
+  ok(
+    schnellversionPageMetadata("Schnellversion", hiddenEnv).title === SV_HIDDEN_TITLE &&
+      schnellversionPageMetadata("Schnellversion kaufen", hiddenEnv).title === SV_HIDDEN_TITLE &&
+      schnellversionPageMetadata("Standardfassung", hiddenEnv).title === SV_HIDDEN_TITLE,
+    "bei Flag aus steht der 404-Titel",
+  );
+  ok(schnellversionPageMetadata("Schnellversion", offeredEnv).title === "Schnellversion", "bei Flag an bleibt der Seitentitel");
+  for (const page of [
+    "app/schnellversion/page.tsx",
+    "app/schnellversion/kauf/page.tsx",
+    "app/schnellversion/danke/page.tsx",
+    "app/account/schnellversion/page.tsx",
+  ]) {
+    const source = readFileSync(page, "utf8");
+    ok(source.includes("export function generateMetadata") && source.includes("schnellversionPageMetadata"), `${page} nutzt generateMetadata`);
+    ok(!source.includes("export const metadata"), `${page} ohne festes Metadaten-Objekt`);
+  }
+  const restoreEnv = (name: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  };
+  restoreEnv("SCHNELLVERSION_49_ENABLED", previousEnv.enabled);
+  restoreEnv("PRICING_MODEL", previousEnv.model);
+  restoreEnv("SCHNELLVERSION_49_STRIPE_STUB", previousEnv.stub);
+  restoreEnv("STRIPE_PRICE_SCHNELL_49", previousEnv.price);
+  restoreEnv("NODE_ENV", previousEnv.nodeEnv);
+  restoreEnv("VERCEL", previousEnv.vercel);
+  const freiUnsicher = standardPlainText(
+    sample({ branche: "freiberuf", kasse: "Unsicher", rechtsform: "Einzelunternehmen", mitarbeitende: "1 (nur ich)" }),
+    when,
+  );
+  ok(!freiUnsicher.includes("| Belegausgabe | Belegausgabe:"), "Freiberuf ohne doppeltes Belegausgabe-Label");
+  ok(freiUnsicher.includes("| Belegausgabe | Bei elektronischem System:"), "Freiberuf behält den Belegsatz");
+  const liveParams = schnellversionSessionParams(
+    { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok-live", email: "a@b.de" },
+    {
+      SCHNELLVERSION_49_ENABLED: "1",
+      STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+      STRIPE_SECRET_KEY: "sk_live_localfake",
+      STRIPE_TAX_RATE_ID: "txr_existing",
+    },
+  );
+  ok(liveParams?.line_items?.[0] && "price" in liveParams.line_items[0] && liveParams.line_items[0].price === "price_test_schnell", "Live-Session nutzt die Price-ID aus der Umgebung");
+  ok(typeof liveParams?.success_url === "string" && !liveParams.success_url.includes("dl="), "Stripe-Rücksprung ohne Download-Token");
+  const savedReturnEnv = process.env.VERCEL_ENV;
+  const savedBranchUrl = process.env.VERCEL_BRANCH_URL;
+  process.env.VERCEL_ENV = "preview";
+  process.env.VERCEL_BRANCH_URL = "gobd-git-preismodell-testmodus-philcap-tech.vercel.app";
+  const previewReturn = schnellversionSessionParams(
+    { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
+    { SCHNELLVERSION_49_ENABLED: "1", STRIPE_PRICE_SCHNELL_49: "price_test_schnell", STRIPE_SECRET_KEY: "sk_test_x" },
+  );
+  const previewMail = purchaseMail({
+    company: "Sandbox GmbH",
+    purchasedAt: now.toISOString(),
+    sessionId: "cs_test_sv_sandbox",
+    downloadToken: "tok-mail",
+  });
+  ok(
+    previewReturn?.success_url?.startsWith("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/schnellversion/danke") &&
+      previewReturn.cancel_url?.startsWith("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/"),
+    "Preview-Rücksprung bleibt auf der Preview",
+  );
+  ok(
+    previewMail.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/api/schnellversion/pdf?dl=tok-mail") &&
+      previewMail.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/impressum"),
+    "Kaufmail-Link und Fuß bleiben auf der Preview",
+  );
+  const startLink = (await magicLinkUrl("buyer@example.com", "/intake")) ?? "";
+  const continueLink = (await magicLinkUrl("buyer@example.com", customerOnboardingDraftPath("cs_test_full_session"))) ?? "";
+  const welcome = buildOnboardingMail({
+    audience: "kunde",
+    company: "Sandbox GmbH",
+    magicLinkUrl: startLink,
+    continueUrl: continueLink,
+  });
+  ok(
+    welcome.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/auth/verify") &&
+      welcome.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/account") &&
+      welcome.text.includes("next=%2Fintake%3Fsession_id%3Dcs_test_full_session"),
+    "Willkommens-Mail und Magic-Link bleiben auf der Preview",
+  );
+  const loggedId = "cs_test_full_session_identifier";
+  const ref = logSessionRef(loggedId);
+  const opsSource = readFileSync(path.join(process.cwd(), "lib/ops.ts"), "utf8");
+  ok(
+    ref.length === 12 &&
+      !ref.includes("cs_test") &&
+      !/\[ops\] onboarding mail[\s\S]{0,160}sessionId:/.test(opsSource),
+    "Onboarding-Log hash die Session-ID",
+  );
+  process.env.VERCEL_ENV = "production";
+  delete process.env.VERCEL_BRANCH_URL;
+  const prodReturn = schnellversionSessionParams(
+    { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
+    { SCHNELLVERSION_49_ENABLED: "1", STRIPE_PRICE_SCHNELL_49: "price_test_schnell", STRIPE_SECRET_KEY: "sk_live_localfake" },
+  );
+  ok(
+    typeof prodReturn?.success_url === "string" &&
+      prodReturn.success_url.startsWith(`${checkoutReturnBaseUrl()}/schnellversion/danke`) &&
+      !prodReturn.success_url.includes(".vercel.app"),
+    "Produktion bleibt auf der kanonischen Basis",
+  );
+  if (savedReturnEnv === undefined) delete process.env.VERCEL_ENV;
+  else process.env.VERCEL_ENV = savedReturnEnv;
+  if (savedBranchUrl === undefined) delete process.env.VERCEL_BRANCH_URL;
+  else process.env.VERCEL_BRANCH_URL = savedBranchUrl;
+  ok(
+    schnellversionSessionParams(
+      { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
+      { SCHNELLVERSION_49_ENABLED: "1", STRIPE_PRICE_SCHNELL_49: "price_test_schnell", STRIPE_SECRET_KEY: "sk_test_x" },
+    )?.mode === "payment",
+    "Test-Session bleibt payment",
+  );
+  const token = "dl-token-nicht-loggen";
+  const logged = `GET /schnellversion/danke?session_id=cs_test&dl=${token} 200`;
+  ok(DL_REQUEST_LOG_IGNORE.test(logged) && !redactDlTokenText(logged).includes(token), "Server-Log enthält kein dl-Token");
+  ok(!DL_REQUEST_LOG_IGNORE.test("GET /agb 200"), "Seiten ohne dl bleiben im Log");
+  const devRequest = (url: string) => ({ url }) as Parameters<typeof ignoreLoggingIncomingRequests>[0];
+  const devLogging = nextConfig.logging === false ? undefined : nextConfig.logging;
+  ok(
+    ignoreLoggingIncomingRequests(devRequest(`/schnellversion/danke?session_id=cs_test&dl=${token}`), devLogging) &&
+      !ignoreLoggingIncomingRequests(devRequest("/agb"), devLogging),
+    "next dev protokolliert keine dl-Tokens",
+  );
+  const stdout = process.stdout.write.bind(process.stdout);
+  const captured: string[] = [];
+  process.stdout.write = ((chunk: unknown) => {
+    captured.push(String(chunk));
+    return true;
+  }) as typeof process.stdout.write;
+  installDlLogRedaction();
+  process.stdout.write(`GET /api/schnellversion/pdf?dl=${token}\n`);
+  process.stdout.write = stdout;
+  ok(!captured.join("").includes(token) && captured.join("").includes("dl=[redacted]"), "Server-stdout schwärzt dl-Tokens");
+  const agb = readFileSync("content/legal/agb-v3.md", "utf8");
+  const agbSection = (start: string, end: string) => agb.slice(agb.indexOf(start), agb.indexOf(end, agb.indexOf(start)));
+  ok(createHash("sha256").update(agbSection("## § 9a ", "## § 10 ")).digest("hex") === "e20dec0e400b806781786247891ee5d6fccba9129538179ace33040dee528511", "Digistore-Abschnitt unverändert");
+  ok(createHash("sha256").update(agbSection("## § 15 ", "**Stand:**")).digest("hex") === "77c1058b3757abe18b5f321a1f6fc1182ef904cfa5cdb01f78d3e217844c2f7d", "Altvertrags-Abschnitt unverändert");
+  ok(agb.includes("## § 12d Schnellversion (Standard-PDF)"), "AGB enthalten § 12d");
+  ok(!readFileSync("content/legal/agb.md", "utf8").includes("§ 12d"), "Legacy-AGB ohne § 12d");
+  const agbWoerter = [
+    "Im Bestellprozess bestätigen Sie vor der Zahlung ausdrücklich, dass Sie als Unternehmer (§ 14 BGB) für Ihre gewerbliche oder selbstständige berufliche Tätigkeit bestellen.",
+    "Daneben bieten wir die Schnellversion an, eine Standardfassung als PDF aus einer Branchenvorlage; für sie gilt vorrangig § 12d.",
+    "e) Schnellversion (§ 12d): einmalig 49 € (58,31 € brutto) je Firma für eine Standardfassung als PDF mit 30 Tagen Download.",
+    "f) Upgrade aus der Schnellversion (§ 12d Abs. 6): innerhalb von 30 Tagen nach dem Kauf der Schnellversion für dieselbe Firma Option 1 für 50 € (59,50 € brutto) oder Option 2 für 99 € (117,81 € brutto) mit dem Kauf, danach 49 € (58,31 € brutto) pro Jahr.",
+    "Das gilt auch für die Schnellversion (§ 12d) und für ein Upgrade nach § 12d Abs. 6.",
+    "bei der Schnellversion 49 € zzgl. USt; bei einem Upgrade nach § 12d Abs. 6 den für das Upgrade gezahlten Betrag",
+    "Für die Schnellversion gilt dieser § 9 mit der Maßgabe des § 12d Abs. 7.",
+    "Das gilt insbesondere für eine Verwendung der Standardfassung der Schnellversion ohne Prüfung, Anpassung, Ergänzung und Freigabe nach § 12d Abs. 2. Abs. 1 und 2 bleiben unberührt.",
+    "Bestellen Sie Option 1 als Upgrade aus der Schnellversion (§ 12d Abs. 6), beginnen die 30 Tage mit der Zahlung des Upgrades; maßgeblicher Kauf für Abs. 5 ist das Upgrade.",
+    "Eine Anrechnung nach § 12d Abs. 6 findet bei der Reaktivierung nicht statt.",
+    "Geben Sie den Firmennamen beim Upgrade so an wie bei der Schnellversion.",
+    "Der Preis beträgt einmalig 49 € (58,31 € brutto) je Firma. Ein Abonnement entsteht nicht.",
+    "im Kundenkonto (Anmeldung per Magic-Link mit der E-Mail-Adresse der Bestellung). Zusätzlich können Sie das PDF über den persönlichen Download-Link in Ihrer Kaufbestätigung per E-Mail ohne Anmeldung herunterladen; bitte geben Sie diesen Link nicht weiter.",
+    "Eine Standardfassung, die Ihre tatsächlichen Abläufe nicht wiedergibt, ist keine fehlgeschlagene Erstellung im Sinne von § 9 Abs. 2 (Abs. 2).",
+  ];
+  const agbAn = applyLegalConditions(agb, legalFlagsFor(true, false, false, false, true));
+  for (const satz of agbWoerter) ok(agbAn.includes(satz), `AGB 1:1: ${satz.slice(0, 48)}`);
+  ok(!agb.includes("[klären") && !agb.includes("[klaeren") && !agb.includes("[Vorschlag"), "AGB ohne Klärvermerk");
+  ok(
+    !agb.includes("Wird ein Upgrade nach § 12d Abs. 6 nach Abs. 2 erstattet, steht Ihnen die Anrechnung bis zum Ende der ursprünglichen 30 Tage erneut zur Verfügung."),
+    "§ 9 Abs. 4 Satz 2 zur Anrechnung bleibt weg",
+  );
   ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("PLAN_TERMS_LABEL_BEFORE"), "Checkout bestätigt die AGB");
+  ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("{PLAN_OFFER_OBJECTION_NOTICE}"), "Kaufseite zeigt den Widerspruchshinweis");
+  ok(readFileSync("components/schnellversion-ui.module.css", "utf8").includes("position: static"), "Hinweis liegt im Textfluss");
+  rememberSvEvent({ name: "sv_visit", arm: "", variante: "b", branche_vorlage: "", value: 0, step: 0, ziel: "" });
+  const stamped = (await readSvEvents()).find((row) => row.name === "sv_visit" && row.day);
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(stamped?.day ?? ""), "Zählzeile trägt einen Tag");
+  ok(
+    SV_EVENT_COLUMNS.join(",") === "name,arm,variante,branche_vorlage,value,step,ziel,day",
+    "Zählspalten ohne Personen-, Kauf- oder Session-Kennung",
+  );
+  const dse = readFileSync("content/legal/datenschutz-v3.md", "utf8");
+  const cookies = readFileSync("content/legal/cookies-v3.md", "utf8");
+  const off = legalFlagsFor(true, false);
+  const on = legalFlagsFor(true, false, false, false, true);
+  ok(!applyLegalConditions(dse, off).includes("Speicherdauer Schnellversion"), "DSE ohne Flag ohne Schnellversion");
+  ok(applyLegalConditions(dse, on).includes("löschen wir 12 Monate nach dem Kauf automatisch"), "DSE mit Flag nennt 12 Monate");
+  ok(!dse.includes("Rücksprungadresse"), "DSE ohne Satz zur Rücksprungadresse");
+  ok(
+    dse.includes("Zu den Systemnachrichten gehören auch Hinweise zu einem gespeicherten, noch nicht abgeschlossenen Fragebogen-Entwurf"),
+    "Abschnitt 10 behält den Satz zu gespeicherten Fragebogen-Entwürfen",
+  );
+  ok(applyLegalConditions(cookies, off).includes("laden wir erst") && !applyLegalConditions(cookies, off).includes("sv49_arm"), "Cookies ohne Flag wie bisher");
+  ok(applyLegalConditions(cookies, on).includes("sv49_arm") && applyLegalConditions(cookies, on).includes("sv49_answers"), "Cookies mit Flag nennen die Schnellversion");
+  const agbOff = applyLegalConditions(agb, off);
+  const agbOn = applyLegalConditions(agb, on);
+  const mainAgb = agbAufMain();
+  ok(agbOff === mainAgb, "AGB ohne Flag wie main");
+  const downloadOhneAnmeldung =
+    "Zusätzlich können Sie das PDF über den persönlichen Download-Link in Ihrer Kaufbestätigung per E-Mail ohne Anmeldung herunterladen; bitte geben Sie diesen Link nicht weiter.";
+  ok(agbOn.includes(downloadOhneAnmeldung), "AGB mit Flag nennt den Download-Link ohne Anmeldung");
+  ok(!agbOff.includes(downloadOhneAnmeldung), "AGB ohne Flag ohne den Download-Link-Satz");
+  const verborgen = ["Schnellversion", "§ 12d", "Standardfassung", downloadOhneAnmeldung];
+  const llms = llmsOhneSchnellversion(agbOff);
+  if (agbMarkdown.includes("## § 12d Schnellversion (Standard-PDF)")) {
+    ok(buildLlmsTxt().includes(downloadOhneAnmeldung), "llms.txt mit Flag enthält den Download-Link-Satz");
+  } else {
+    ok(!buildLlmsTxt().includes(downloadOhneAnmeldung), "llms.txt ohne gesetztes Flag ohne den Download-Link-Satz");
+  }
+  for (const fund of verborgen) {
+    ok(!agbOff.includes(fund), `AGB ohne Flag ohne ${fund}`);
+    ok(!applyLegalConditions(dse, off).includes(fund), `Datenschutz ohne Flag ohne ${fund}`);
+    ok(!applyLegalConditions(cookies, off).includes(fund), `Cookies ohne Flag ohne ${fund}`);
+    ok(!llms.includes(fund), `llms.txt ohne Flag ohne ${fund}`);
+  }
+  ok(agbOn.includes("Daneben bieten wir die Schnellversion an, eine Standardfassung als PDF aus einer Branchenvorlage; für sie gilt vorrangig § 12d."), "AGB mit Flag behält den freigegebenen Satz");
+  ok(!agbOn.includes("[klären"), "AGB mit Flag ohne Klärvermerk");
+  const llmsNote = /\[klären|\[klaeren|\[Vorschlag|\bTODO\b/;
+  ok(!llmsNote.test(llms), "llms.txt ohne Vermerk");
+  ok(llmsNote.test(`${llms}\n[klären: Gegentest]\n`), "Gegentest erkennt einen Vermerk in llms.txt");
+  const ohneArm = await openSchnellversionCheckout({
+    answers: sample({ firma: "Anrechnung Ohne Arm GmbH" }),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "ohne-arm@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(ohneArm.ok, "Kauf für die Anrechnung ohne Arm");
+  const ohneArmPaid = await confirmPaidSession(ohneArm.ok ? ohneArm.sessionId : "", { env: stubPaid });
+  ok(ohneArmPaid.paid, "Kauf ohne Arm ist bezahlt");
+  const purchase99Before = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
+  if (ohneArmPaid.paid) {
+    await noteSchnellversionPurchase(
+      { id: "cs_upgrade_ohne_arm", metadata: { sv_purchase_id: ohneArmPaid.purchase.id } },
+      "ohne-arm@example.com",
+      "evt_ohne_arm",
+    );
+    await noteSchnellversionPurchase(
+      { id: "cs_upgrade_fremd", metadata: { sv_arm: "weder", sv_purchase_id: ohneArmPaid.purchase.id } },
+      "ohne-arm@example.com",
+      "evt_weder",
+    );
+  }
+  const used = (await listAllSvPurchases()).find((row) => row.id === (ohneArmPaid.paid ? ohneArmPaid.purchase.id : ""));
+  ok(Boolean(used?.creditUsedAt.trim()), "Anrechnung ohne Arm setzt creditUsedAt");
+  const afterWindow = new Date(Date.now() + 31 * 60 * 1000);
+  ok(
+    used ? !(await reserveSvCredit(used.id, "zweite-nach-30-min", afterWindow)) : false,
+    "zweite Reservierung nach 30 Minuten schlägt fehl",
+  );
+  const purchase99After = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
+  ok(purchase99After === purchase99Before, "ohne Arm bleibt die Testarm-Verbuchung aus");
 
+  await checkSandboxCheckout();
+  checkPreviewDataGate();
   console.log("check-schnellversion: ok");
+}
+
+async function checkSandboxCheckout(): Promise<void> {
+  const raw = {
+    spreadsheets: {
+      get: async () => ({ data: { sheets: [{ properties: { title: "schnellversion_49" } }] } }),
+      batchUpdate: async () => undefined,
+      values: {
+        get: async () => ({ data: { values: [["name"]] } }),
+        append: async () => undefined,
+      },
+    },
+  };
+  let thrown = "";
+  try {
+    (raw as { get?: () => void }).get?.();
+    (raw as unknown as { get: () => void }).get();
+  } catch (error) {
+    thrown = error instanceof Error ? error.message : "";
+  }
+  ok(/get is not a function/.test(thrown), "Google-Client: get is not a function");
+  ok(typeof adaptSvSheetClient(raw).get === "function", "Adapter ruft spreadsheets.get");
+
+  const token = "tok-sandbox";
+  const session = {
+    id: "cs_test_sv_sandbox",
+    payment_status: "paid" as const,
+    metadata: {
+      sv49: "1",
+      sv_pending: "pending-sandbox",
+      company: "Sandbox GmbH",
+      product: "schnellversion-49",
+    },
+  };
+  await saveSvPending({
+    id: session.metadata.sv_pending,
+    answers: sample({ firma: "Sandbox GmbH" }),
+    consentAt: now.toISOString(),
+    email: "buyer@example.com",
+    createdAt: now.toISOString(),
+    sessionId: session.id,
+    paid: false,
+    downloadTokenHash: hashDownloadToken(token),
+    downloadToken: token,
+    arm: "test",
+  });
+  installSvEventSheetForTest({ client: adaptSvSheetClient(raw), configured: true });
+  resetSvPdfBuildsForTest();
+  const savedFlag = process.env.SCHNELLVERSION_49_ENABLED;
+  const savedModel = process.env.PRICING_MODEL;
+  process.env.SCHNELLVERSION_49_ENABLED = "1";
+  process.env.PRICING_MODEL = "v3";
+  const proof = { status: "paid" as const, pendingId: session.metadata.sv_pending };
+  const first = await confirmPaidSession(session.id, proof);
+  const second = await confirmPaidSession(session.id, proof);
+  ok(first.paid && second.paid && first.paid && second.paid && first.purchase.id === second.purchase.id, "Webhook-Wiederholung verbucht den Kauf einmal");
+  ok(svPdfBuildsForTest() === 1, "PDF wird einmal erzeugt");
+  const status = await statusGet(new NextRequest(`http://local/api/schnellversion/status?session_id=${session.id}`));
+  const body = await status.json() as { state?: string };
+  ok(status.status === 200 && body.state === "paid" && svPdfBuildsForTest() === 1, "Status-Poll schreibt kein PDF");
+  const onlySession = await pdfGet(new NextRequest(`http://local/api/schnellversion/pdf?session_id=${session.id}`));
+  ok(onlySession.status === 401, "session_id allein gibt kein PDF frei");
+  const withToken = await pdfGet(new NextRequest(`http://local/api/schnellversion/pdf?dl=${token}`));
+  ok(withToken.status !== 500, "PDF-Route fängt Fehler ab");
+  installSvEventSheetForTest(null);
+  const upgraded = buildPlanCheckoutParams({
+    kind: "entry",
+    member: false,
+    email: "buyer@example.com",
+    company: "Sandbox GmbH",
+    svCoupon: "schnell_49_anrechnung",
+    svPurchaseId: first.paid ? first.purchase.id : "",
+    prices: { entry: "price_test_entry", year: "price_test_year", addonYear: "price_test_addon" },
+  });
+  const forwarded = planParamsFromCheckoutInput(
+    { email: "buyer@example.com", company: "Sandbox GmbH", plan: {
+      kind: "entry",
+      member: false,
+      svArm: "test",
+      svCoupon: "schnell_49_anrechnung",
+      svPurchaseId: first.paid ? first.purchase.id : "kauf",
+    } },
+    { kind: "entry", member: false, svArm: "test", svCoupon: "schnell_49_anrechnung", svPurchaseId: first.paid ? first.purchase.id : "kauf" },
+    { entry: "price_test_entry", year: "price_test_year", addonYear: "price_test_addon" },
+  );
+  ok(
+    forwarded.discounts?.[0]?.coupon === "schnell_49_anrechnung" &&
+      !("allow_promotion_codes" in forwarded) &&
+      forwarded.metadata?.sv_purchase_id === (first.paid ? first.purchase.id : "kauf") &&
+      forwarded.metadata?.sv_arm === "test" &&
+      forwarded.payment_intent_data?.metadata?.sv_purchase_id === forwarded.metadata?.sv_purchase_id,
+    "Finale Stripe-Params tragen Coupon und Anrechnungs-Metadaten",
+  );
+  ok(upgraded.discounts?.[0]?.coupon === "schnell_49_anrechnung", "Upgrade-Checkout setzt den Anrechnungs-Coupon");
+  if (first.paid) {
+    ok(await reserveSvCredit(first.purchase.id, "offen", now), "Reservierung vor dem Abbruch");
+    ok(await releaseCreditForExpiredCheckout({ metadata: { sv_purchase_id: first.purchase.id } }), "abgelaufene Session gibt die Reservierung frei");
+    ok(await reserveSvCredit(first.purchase.id, "erneut", now), "nach Ablauf ist ein neuer Checkout nicht blockiert");
+    const cancel = await anrechnungFrei(new NextRequest(`http://local/api/schnellversion/anrechnung-frei?purchase=${first.purchase.id}`));
+    const afterCancel = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    ok(cancel.status === 303 && afterCancel?.creditReservationId === "", "Abbruch gibt die Reservierung frei");
+    ok(await reserveSvCredit(first.purchase.id, "danach", now), "nach dem Abbruch kein Block für denselben Kauf");
+    const expiredSessions: string[] = [];
+    setCreditSessionExpireForTest(async (id) => {
+      expiredSessions.push(id);
+    });
+    await rememberCreditCheckoutSession(first.purchase.id, "cs_alt_anrechnung");
+    await expireStoredCreditSessions(first.purchase.id);
+    ok(expiredSessions.includes("cs_alt_anrechnung"), "Ersetzen beendet die alte Upgrade-Session");
+    await rememberCreditCheckoutSession(first.purchase.id, "cs_offen_anrechnung");
+    await rememberCreditCheckoutSession(first.purchase.id, "cs_upgrade_bezahlt");
+    expiredSessions.length = 0;
+    await noteSchnellversionPurchase(
+      { id: "cs_upgrade_bezahlt", metadata: { sv_purchase_id: first.purchase.id } },
+      "buyer@example.com",
+      "evt_upgrade_bezahlt",
+    );
+    ok(
+      expiredSessions.includes("cs_offen_anrechnung") && !expiredSessions.includes("cs_upgrade_bezahlt"),
+      "bezahlte Anrechnung beendet die übrigen offenen Sessions",
+    );
+    const afterPay = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    ok(
+      afterPay ? !creditCheckoutSessionIds(afterPay).includes("cs_offen_anrechnung") : false,
+      "nach der Anrechnung bleibt keine offene Session übrig",
+    );
+    const review: { sessionId: string; status: string }[] = [];
+    const notices: { to?: string }[] = [];
+    setCreditReviewSheetForTest({
+      find: async (sessionId) => review.find((row) => row.sessionId === sessionId) ?? null,
+      append: async (row) => {
+        review.push({ sessionId: row.sessionId, status: row.status });
+      },
+    });
+    setOwnerNoticeTestMode(true);
+    setMailDedupeTestHooks({
+      dir: mkdtempSync(path.join(tmpdir(), "gobd-credit-notice-")),
+      send: async (mail) => {
+        notices.push(mail);
+        return { sent: true, stub: true };
+      },
+    });
+    await flagDuplicateCreditPayment({
+      sessionId: "cs_zweite_anrechnung",
+      purchaseId: first.purchase.id,
+      email: "kunde@firma.example",
+      company: "Sandbox GmbH",
+      livemode: false,
+    });
+    await flagDuplicateCreditPayment({
+      sessionId: "cs_zweite_anrechnung",
+      purchaseId: first.purchase.id,
+      email: "kunde@firma.example",
+      company: "Sandbox GmbH",
+      livemode: false,
+    });
+    const stillOne = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    const webhookSource = readFileSync("app/api/stripe/webhook/route.ts", "utf8");
+    const creditFiles = [
+      readFileSync("lib/schnellversion-credit-sessions.ts", "utf8"),
+      webhookSource,
+      readFileSync("app/api/checkout/route.ts", "utf8"),
+    ].join("\n");
+    ok(await isDuplicateCreditSession(first.purchase.id, "cs_zweite_anrechnung"), "zweite Session ist eine doppelte Anrechnung");
+    ok(!(await isDuplicateCreditSession(first.purchase.id, "cs_upgrade_bezahlt")), "die bezahlte Session bleibt die eine Anrechnung");
+    ok(
+      webhookSource.indexOf("await settlePaidCreditSession") < webhookSource.indexOf("await deliverBuyerOnboarding") &&
+        webhookSource.indexOf("await settlePaidCreditSession") < webhookSource.indexOf("await recordPlanCheckout"),
+      "der Webhook beansprucht die Anrechnung vor Upgrade und Mails",
+    );
+    ok(stillOne?.creditUsedSessionId === "cs_upgrade_bezahlt", "keine zweite Freischaltung");
+    ok(review.length === 1 && review[0]?.status === "anrechnung_pruefen", "zweite Zahlung ist im Sheet zur Prüfung markiert");
+    ok(notices.length === 1 && notices[0]?.to === CHECKOUT_NOTICE_TO, "Hinweis geht einmal an CHECKOUT_NOTICE_TO");
+    ok(!creditFiles.includes("refunds"), "keine Erstattung");
+    setCreditSessionExpireForTest(null);
+    setCreditReviewSheetForTest(null);
+    setOwnerNoticeTestMode(false);
+    setMailDedupeTestHooks(null);
+    const raceDir = mkdtempSync(path.join(tmpdir(), "gobd-credit-race-"));
+    setBlobMarkerTestDir(raceDir);
+    const createdSessions: string[] = [];
+    const opens = await Promise.all(
+      [0, 1].map(() =>
+        (async () => {
+          const slot = await claimOpenCreditCheckout("race-kauf");
+          if (slot.state === "busy") return { status: 409 as const };
+          if (slot.state === "same") {
+            return { status: 200 as const, id: slot.session.sessionId };
+          }
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          const id = `cs_race_${createdSessions.length + 1}`;
+          createdSessions.push(id);
+          if (slot.state !== "won") return { status: 409 as const };
+          await publishOpenCreditCheckout(slot.key, {
+            sessionId: id,
+            url: `https://checkout.example/${id}`,
+            stub: false,
+          });
+          return { status: 200 as const, id };
+        })(),
+      ),
+    );
+    ok(
+      createdSessions.length === 1 &&
+        opens.filter((item) => item.status === 200).length === 1 &&
+        opens.filter((item) => item.status === 409).length === 1,
+      "parallele Checkouts: eine Session, der zweite Request 409",
+    );
+    ok(creditPricePath({ credit: false, coupon: false, reserved: false }) === "full", "ohne Anspruch bleibt der Vollpreis");
+    ok(creditPricePath({ credit: true, coupon: true, reserved: false }) === "blocked", "besetzte Reservierung ist kein Vollpreis");
+    ok(creditPricePath({ credit: true, coupon: false, reserved: false }) === "blocked", "Anspruch ohne Coupon ist kein Vollpreis");
+    const checkoutSrc = readFileSync("app/api/checkout/route.ts", "utf8");
+    const checkoutForm = readFileSync("app/checkout/checkout-form.tsx", "utf8");
+    ok(
+      CREDIT_CHECKOUT_BUSY_MESSAGE ===
+        "Ihr Checkout wird bereits geöffnet. Bitte warten Sie kurz und versuchen Sie es erneut." &&
+        checkoutSrc.includes("CREDIT_CHECKOUT_BUSY_MESSAGE") &&
+        checkoutSrc.indexOf("Anrechnung nicht angewendet: Reservierung") < checkoutSrc.indexOf("await createCheckoutSession") &&
+        checkoutForm.includes("setError(data.error") &&
+        checkoutForm.includes('role="alert"'),
+      "besetzter Claim liefert den Hinweis, das Formular zeigt ihn",
+    );
+    await releaseOpenCreditCheckout("race-kauf");
+    const raceReview: { sessionId: string; status: string }[] = [];
+    const raceNotices: { to?: string; subject?: string }[] = [];
+    const raceCustomer: { subject?: string }[] = [];
+    setCreditReviewSheetForTest({
+      find: async (sessionId) => raceReview.find((row) => row.sessionId === sessionId) ?? null,
+      append: async (row) => {
+        raceReview.push({ sessionId: row.sessionId, status: row.status });
+      },
+    });
+    setOwnerNoticeTestMode(true);
+    const savedResend = process.env.RESEND_API_KEY;
+    const savedFrom = process.env.EMAIL_FROM;
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "test@firma.example";
+    setMailDedupeTestHooks({
+      dir: mkdtempSync(path.join(tmpdir(), "gobd-credit-race-mail-")),
+      send: async (mail) => {
+        if (mail.to === CHECKOUT_NOTICE_TO) raceNotices.push(mail);
+        else raceCustomer.push(mail);
+        return { sent: true, stub: true };
+      },
+    });
+    let raceUpgrades = 0;
+    const racePurchase = `race-anrechnung-${Date.now()}`;
+    const outcomes = await Promise.all(
+      ["cs_race_winner", "cs_race_loser"].map(async (sessionId) => {
+        const outcome = await settlePaidCreditSession({
+          sessionId,
+          purchaseId: racePurchase,
+          email: "kunde@firma.example",
+          company: "Sandbox GmbH",
+          livemode: false,
+        });
+        if (outcome === "review") return outcome;
+        raceUpgrades += 1;
+        await deliverBuyerOnboarding({
+          email: "kunde@firma.example",
+          company: "Sandbox GmbH",
+          sessionId,
+          onceKey: `sv-credit:${racePurchase}`,
+        });
+        await deliverBuyerOnboarding({
+          email: "kunde@firma.example",
+          company: "Sandbox GmbH",
+          sessionId,
+          onceKey: `sv-credit:${racePurchase}`,
+        });
+        return outcome;
+      }),
+    );
+    ok(
+      outcomes.filter((item) => item === "proceed").length === 1 &&
+        outcomes.filter((item) => item === "review").length === 1 &&
+        raceUpgrades === 1 &&
+        raceCustomer.length === 1 &&
+        raceCustomer[0]?.subject?.startsWith("Willkommen") &&
+        raceReview.length === 1 &&
+        raceReview[0]?.status === "anrechnung_pruefen" &&
+        raceNotices.length === 1 &&
+        raceNotices[0]?.to === CHECKOUT_NOTICE_TO,
+      "parallele Webhooks: ein Upgrade, eine Willkommensmail, eine Prüfung, eine Notiz",
+    );
+    const loserPurchase = `loser-mail-${Date.now()}`;
+    await settlePaidCreditSession({
+      sessionId: "cs_loser_mail_winner",
+      purchaseId: loserPurchase,
+      email: "kunde@firma.example",
+      company: "Sandbox GmbH",
+    });
+    const loserMails: { subject?: string }[] = [];
+    const savedLoserFrom = process.env.EMAIL_FROM;
+    const savedLoserResend = process.env.RESEND_API_KEY;
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "test@firma.example";
+    setMailDedupeTestHooks({
+      dir: mkdtempSync(path.join(tmpdir(), "gobd-loser-mail-")),
+      send: async (mail) => {
+        if (mail.to !== CHECKOUT_NOTICE_TO) loserMails.push(mail);
+        return { sent: true, stub: true };
+      },
+    });
+    const loserGrant = await settlePaidCreditSession({
+      sessionId: "cs_loser_mail",
+      purchaseId: loserPurchase,
+      email: "kunde@firma.example",
+      company: "Sandbox GmbH",
+    });
+    if (loserGrant !== "review") {
+      await deliverBuyerOnboarding({
+        email: "kunde@firma.example",
+        company: "Sandbox GmbH",
+        sessionId: "cs_loser_mail",
+        onceKey: `sv-credit:${loserPurchase}`,
+      });
+    }
+    ok(loserGrant === "review" && loserMails.length === 0, "Grant und Webhook der Verlierer-Session schicken keine Kundenmail");
+    if (savedLoserResend === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = savedLoserResend;
+    if (savedLoserFrom === undefined) delete process.env.EMAIL_FROM;
+    else process.env.EMAIL_FROM = savedLoserFrom;
+    await rememberCreditCheckoutSession(first.purchase.id, "cs_abbruch_expire");
+    const cancelled: string[] = [];
+    setCreditSessionExpireForTest(async (id) => {
+      cancelled.push(id);
+    });
+    await abandonCreditCheckout(first.purchase.id);
+    const afterCancelSessions = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    ok(
+      cancelled.includes("cs_abbruch_expire") &&
+        (afterCancelSessions ? !creditCheckoutSessionIds(afterCancelSessions).includes("cs_abbruch_expire") : false),
+      "Abbruch beendet die gemerkte Session",
+    );
+    setCreditSessionExpireForTest(null);
+    if (savedResend === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = savedResend;
+    if (savedFrom === undefined) delete process.env.EMAIL_FROM;
+    else process.env.EMAIL_FROM = savedFrom;
+    setBlobMarkerTestDir(null);
+    setCreditReviewSheetForTest(null);
+    setOwnerNoticeTestMode(false);
+    setMailDedupeTestHooks(null);
+    const paidUpgrade = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    ok(
+      Boolean(paidUpgrade?.creditUsedAt.trim()) &&
+        !creditHintVisible(paidUpgrade!, paidUpgrade!.company, now, { STRIPE_COUPON_SCHNELL_49_ANRECHNUNG: "schnell_49_anrechnung" }),
+      "bezahltes Upgrade setzt creditUsedAt und nimmt den Hinweis weg",
+    );
+  }
+  const hintRow = first.paid ? first.purchase : null;
+  ok(hintRow ? !creditHintVisible(hintRow, hintRow.company, now, {}) : false, "ohne Coupon-ID kein Anrechnungs-Hinweis");
+  ok(
+    hintRow ? creditHintVisible(hintRow, hintRow.company, now, { STRIPE_COUPON_SCHNELL_49_ANRECHNUNG: "schnell_49_anrechnung" }) : false,
+    "Hinweis nur mit Coupon für dieselbe Firma",
+  );
+  if (savedFlag === undefined) delete process.env.SCHNELLVERSION_49_ENABLED;
+  else process.env.SCHNELLVERSION_49_ENABLED = savedFlag;
+  if (savedModel === undefined) delete process.env.PRICING_MODEL;
+  else process.env.PRICING_MODEL = savedModel;
+}
+
+const MAIN_AGB_SHA = "2f44180b707c2fdc865ec081a6876448894f7b04";
+const MAIN_AGB_FIXTURE = "scripts/fixtures/agb-v3-main-2f44180.md";
+
+/**
+ * AGB von main 2f44180. Vercel klont zu flach und darf diesen Commit nicht nachladen.
+ * Liegt der Commit lokal, muss die Fixture damit übereinstimmen.
+ */
+function agbAufMain(): string {
+  const fixture = readFileSync(MAIN_AGB_FIXTURE, "utf8");
+  try {
+    const fromGit = execSync(`git show ${MAIN_AGB_SHA}:content/legal/agb-v3.md`, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    if (fromGit !== fixture) {
+      throw new Error(`AGB-Fixture weicht von ${MAIN_AGB_SHA} ab`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("AGB-Fixture weicht")) throw error;
+  }
+  return fixture;
+}
+
+/** buildLlmsTxt liest die AGB beim Import aus process.env. Hier gilt das explizit ausgeschaltete Flag. */
+function llmsOhneSchnellversion(agbQuiet: string): string {
+  let text = buildLlmsTxt();
+  if (!isPricingV2()) return text;
+  const headings = [
+    "§ 8 Kein Widerrufsrecht (B2B)",
+    "§ 9 Erstattung",
+    "§ 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung",
+  ];
+  for (const heading of headings) {
+    text = text.replace(markdownH2Section(agbMarkdown, heading), markdownH2Section(agbQuiet, heading));
+  }
+  return text.replace(/\n### AGB § 12d Schnellversion \(Standard-PDF\)\n\n[\s\S]*?\n(?=Kontakt: )/, "\n");
+}
+
+function checkPreviewDataGate(): void {
+  const sheets = {
+    GOOGLE_SERVICE_ACCOUNT_EMAIL: "sheets@example.com",
+    GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: "key",
+    GOOGLE_SHEETS_SPREADSHEET_ID: "sheet-prod",
+  };
+  const prodBlob = {
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_prodstore_secret",
+    BLOB_STORE_ID: "store_prodstore",
+  };
+  const prod = { VERCEL_ENV: "production", ...prodBlob, ...sheets };
+  ok(svBlobWritesOpen(prod) && svSheetWritesOpen(prod) && svPreviewTestTarget(prod) === null, "Prod: Blob und Sheet an wie bisher");
+
+  const preview = { VERCEL_ENV: "preview", ...prodBlob, ...sheets };
+  ok(!svBlobWritesOpen(preview) && !svSheetWritesOpen(preview), "Preview ohne GOBD_DATA_ENV: aus");
+
+  const testBase = { ...preview, GOBD_DATA_ENV: "test", GOBD_TEST_BLOB_STORE_ID: "teststore", GOBD_TEST_SPREADSHEET_ID: "sheet-test" };
+  ok(!svBlobWritesOpen({ ...testBase, GOBD_TEST_BLOB_STORE_ID: "" }), "Preview mit test, Test-Store fehlt: aus");
+  ok(!svBlobWritesOpen({ ...testBase, GOBD_TEST_SPREADSHEET_ID: " " }), "Preview mit test, Test-Sheet fehlt: aus");
+  ok(
+    !svBlobWritesOpen({ ...testBase, GOBD_TEST_SPREADSHEET_ID: "sheet-prod" }) &&
+      !svSheetWritesOpen({ ...testBase, GOBD_TEST_BLOB_STORE_ID: "prodstore" }),
+    "Preview mit test und Test-ID gleich der Prod-ID: aus",
+  );
+
+  const distinct = svPreviewTestTarget(testBase);
+  ok(
+    svBlobWritesOpen(testBase) &&
+      svSheetWritesOpen(testBase) &&
+      distinct?.mode === "store" &&
+      distinct.spreadsheetId === "sheet-test" &&
+      distinct.blobStoreId === "teststore",
+    "Preview mit test und gültigen, verschiedenen Test-IDs: an",
+  );
+
+  const declared = {
+    ...sheets,
+    VERCEL_ENV: "preview",
+    GOBD_DATA_ENV: "test",
+    GOOGLE_SHEETS_SPREADSHEET_ID: "sheet-test",
+    GOBD_TEST_SPREADSHEET_ID: "sheet-test",
+    GOBD_TEST_BLOB_STORE_ID: "teststore",
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_teststore_secret",
+    BLOB_STORE_ID: "store_teststore",
+  };
+  const declaredTarget = svPreviewTestTarget(declared);
+  ok(
+    svBlobWritesOpen(declared) &&
+      svSheetWritesOpen(declared) &&
+      declaredTarget?.mode === "token" &&
+      declaredTarget.spreadsheetId === "sheet-test" &&
+      declaredTarget.blobStoreId === "teststore",
+    "Preview mit test, aktive Zugangsdaten sind die Test-IDs: an",
+  );
+  ok(
+    !svBlobWritesOpen({ ...declared, BLOB_STORE_ID: "store_prodstore" }),
+    "Preview mit test und widersprüchlichem Blob-Store: aus",
+  );
 }
 
 main().catch((error) => {

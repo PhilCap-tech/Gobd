@@ -3,8 +3,9 @@ import { logError } from "@/lib/log-error";
 import { cronAuthorized } from "@/lib/cron-auth";
 import { runAddonNotice } from "@/lib/plan-addon-notice";
 import { sendDedupedEmail } from "@/lib/mail-dedupe";
+import { hasOfferOptOut } from "@/lib/offer-optout";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
-import { runSchnellversionReminder } from "@/lib/schnellversion-reminder";
+import { runSchnellversionReminder, schnellversionReminderSendEnabled } from "@/lib/schnellversion-reminder";
 import { listAllSvPurchases } from "@/lib/schnellversion-record";
 
 export const runtime = "nodejs";
@@ -19,18 +20,31 @@ export async function GET(request: Request) {
   }
   try {
     const result = await runAddonNotice();
-    // Dieselbe tägliche Route. Ohne Flag passiert nichts. Versand nur mit SCHNELLVERSION_49_REMINDER_SEND.
-    if (schnellversion49Enabled()) {
+    // Dieselbe tägliche Route. Beide Schalter 1 oder true, sonst kein Versand.
+    if (schnellversion49Enabled() && schnellversionReminderSendEnabled()) {
       try {
-        await runSchnellversionReminder(await listAllSvPurchases(), new Date(), async (mail) => {
-          await sendDedupedEmail({
-            dedupeKey: `sv49-reminder:${mail.to}`,
-            to: mail.to,
-            subject: mail.subject,
-            text: mail.text,
-            html: mail.html,
-          });
-        });
+        await runSchnellversionReminder(
+          await listAllSvPurchases(),
+          new Date(),
+          async (mail) => {
+            await sendDedupedEmail({
+              dedupeKey: `sv49-reminder:${mail.purchaseId}`,
+              to: mail.to,
+              subject: mail.subject,
+              text: mail.text,
+              html: mail.html,
+            });
+          },
+          process.env,
+          async (row) => {
+            try {
+              return await hasOfferOptOut({ email: row.email, offerOptOutAt: "" });
+            } catch (error) {
+              logError("[addon-notice] Widerspruch", error);
+              return false;
+            }
+          },
+        );
       } catch (error) {
         logError("[addon-notice] Schnellversion", error);
       }

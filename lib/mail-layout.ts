@@ -1,4 +1,4 @@
-import { CANONICAL_PRODUCTION_APP_URL } from "@/lib/env";
+import { CANONICAL_PRODUCTION_APP_URL, checkoutReturnBaseUrl } from "@/lib/env";
 import { LEGAL_OPERATOR } from "@/lib/legal";
 import {
   BRAND_GREEN,
@@ -39,11 +39,19 @@ export function escapeAttr(value: string): string {
   return escapeHtml(value).replaceAll('"', "&quot;");
 }
 
+/** Produktion bleibt die kanonische Domain. Eine Preview nutzt dieselbe Basis wie der Checkout. */
+export function mailLinkBase(): string {
+  const vercel = process.env.VERCEL_ENV?.trim();
+  if (vercel && vercel !== "production") return checkoutReturnBaseUrl().replace(/\/$/, "");
+  return MAIL_SITE_URL;
+}
+
 function footerTextLines(): string[] {
+  const base = mailLinkBase();
   return [
-    `Impressum: ${MAIL_IMPRESSUM_URL}`,
-    `FAQ: ${MAIL_FAQ_URL}`,
-    `Datenschutz: ${MAIL_DATENSCHUTZ_URL}`,
+    `Impressum: ${base}/impressum`,
+    `FAQ: ${base}/faq`,
+    `Datenschutz: ${base}/datenschutz`,
     `Kontakt: ${MAIL_SUPPORT_EMAIL}`,
     MAIL_ADDRESS_LINE,
   ];
@@ -85,7 +93,8 @@ export function transactionalPrimaryButton(href: string, label: string): string 
  * `bodyHtml` is a fragment (`<p>…</p>`), not a full document.
  */
 export function wrapTransactionalHtml(bodyHtml: string): string {
-  const home = escapeAttr(MAIL_HOME_URL);
+  const base = mailLinkBase();
+  const home = escapeAttr(`${base}/`);
   const logo = escapeAttr(MAIL_LOGO_URL);
   const supportMailto = escapeAttr(`mailto:${MAIL_SUPPORT_EMAIL}`);
   const brand = escapeHtml(BRAND_NAME);
@@ -127,11 +136,11 @@ export function wrapTransactionalHtml(bodyHtml: string): string {
         <tr>
           <td style="padding:20px 28px;background-color:${BRAND_HEADER_BG};border-top:1px solid ${BRAND_RULE};font-family:${FONT_SANS};font-size:13px;line-height:1.6;color:${BRAND_MUTED};">
             <p style="margin:0 0 10px;">
-              ${footerLink(MAIL_IMPRESSUM_URL, "Impressum")}
+              ${footerLink(`${base}/impressum`, "Impressum")}
               &nbsp;·&nbsp;
-              ${footerLink(MAIL_FAQ_URL, "FAQ")}
+              ${footerLink(`${base}/faq`, "FAQ")}
               &nbsp;·&nbsp;
-              ${footerLink(MAIL_DATENSCHUTZ_URL, "Datenschutz")}
+              ${footerLink(`${base}/datenschutz`, "Datenschutz")}
               &nbsp;·&nbsp;
               ${footerLink(`mailto:${MAIL_SUPPORT_EMAIL}`, "Kontakt")}
             </p>
