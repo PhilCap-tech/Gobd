@@ -9,13 +9,16 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { deleteStoredBlob, storePdf } from "@/lib/blob";
+import { svPreviewTestTarget } from "@/lib/schnellversion-data-env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { SV_DOWNLOAD_DAYS, svDownloadStillOpen } from "@/lib/schnellversion-copy";
 import {
   claimSvJson,
   deleteSvJson,
+  getSvBytes,
   getSvJson,
   listSvJson,
+  putSvBytes,
   putSvJson,
   svBlobEnabled,
   svEventSentPath,
@@ -415,6 +418,11 @@ function svCounted49Path(sessionId: string): string {
 /** Blob, wenn ein Token da ist. Sonst eine lokale Datei, auch im Check, nie der Produktions-Blob. */
 async function storePurchasePdf(id: string, pdf: Buffer): Promise<string> {
   if (svBlobEnabled()) {
+    if (svPreviewTestTarget()?.mode === "store") {
+      const pathname = `gobd/sv49-${id}/v1.pdf`;
+      await putSvBytes(pathname, pdf, "application/pdf");
+      return pathname;
+    }
     const stored = await storePdf({
       familyId: `sv49-${id}`,
       documentId: id,
@@ -443,6 +451,7 @@ export function pdfPathIsBlob(pdfPath: string): boolean {
 export async function readSvPdf(row: SvPurchase): Promise<Buffer | null> {
   if (!row.pdfPath) return null;
   if (pdfPathIsBlob(row.pdfPath)) {
+    if (svPreviewTestTarget()?.mode === "store") return getSvBytes(row.pdfPath);
     const token = process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? "";
     if (!token) return null;
     const { get } = await import("@vercel/blob");
@@ -524,7 +533,8 @@ export async function clearSvPurchaseDelivery(row: SvPurchase): Promise<boolean>
   const pdfPath = row.pdfPath.trim();
   if (pdfPath && !isSvPdfPath(pdfPath)) return false;
   if (pdfPath.startsWith("gobd/sv49-")) {
-    await deleteStoredBlob(pdfPath);
+    if (svPreviewTestTarget()?.mode === "store") await deleteSvJson(pdfPath);
+    else await deleteStoredBlob(pdfPath);
   } else if (pdfPath) {
     try {
       const { unlink } = await import("node:fs/promises");

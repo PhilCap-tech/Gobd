@@ -1,8 +1,8 @@
 /**
  * Ereignisse der Schnellversion, gleicher Weg wie die Homepage-Zählung:
  * dasselbe Sheet, eigene Tabelle `schnellversion_49`, keine Personenbezogenen Daten.
- * Checks und Preview schreiben nicht. Ohne Sheet-Zugang bleibt die Zeile
- * im Prozess und, außerhalb von Produktion, in einer lokalen Datei.
+ * Checks schreiben nicht. Preview nur mit erklärtem Testziel.
+ * Ohne Sheet-Zugang bleibt die Zeile im Prozess und, außerhalb von Produktion, in einer lokalen Datei.
  */
 
 import { appendFileSync, readFileSync } from "node:fs";
@@ -10,6 +10,7 @@ import { isSheetsConfigured } from "@/lib/env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { createSheetsClient } from "@/lib/sheets-client";
 import { SV_EVENT_NAMES, type SvEventName, type SvEventRow } from "@/lib/schnellversion-events";
+import { svPreviewTestTarget } from "@/lib/schnellversion-data-env";
 import { claimSvJson, svBlobEnabled, svCounted99Path } from "@/lib/schnellversion-persist";
 
 export const SV_EVENT_TAB = "schnellversion_49";
@@ -60,7 +61,7 @@ export function resetSvEventsForTest(): void {
 }
 
 function previewSkipsWrites(): boolean {
-  return process.env.VERCEL_ENV === "preview";
+  return process.env.VERCEL_ENV === "preview" && !svPreviewTestTarget();
 }
 
 function sheetWritesAllowed(): boolean {
@@ -84,6 +85,8 @@ function cells(row: SvEventRow): string[] {
 }
 
 function spreadsheetId(): string {
+  const target = svPreviewTestTarget();
+  if (target) return target.spreadsheetId;
   const id = process.env.GOOGLE_SHEETS_SPREADSHEET_ID?.trim();
   if (id) return id;
   if (installed) return "schnellversion-test";
