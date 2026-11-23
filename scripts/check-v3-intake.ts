@@ -154,7 +154,7 @@ async function main() {
 
   await check("Einladen erst nach Zahlung (v3); Legacy/DS24/Comp unverändert; Route + UI", () => {
     const base = { newModel: true, comp: false, ds24: false, planModel: "", paidCheckout: false };
-    assert.equal(firm.V3_INVITE_PREPAY_MESSAGE, "Personen einladen können Sie nach dem Abschluss Ihrer Bestellung. Offene Punkte können Sie bis dahin als unbekannt markieren.");
+    assert.equal(firm.V3_INVITE_PREPAY_MESSAGE, "Personen einladen können Sie nach dem Abschluss Ihrer Bestellung. Offene Punkte können Sie bis dahin mit ‚Muss ich klären‘ markieren.");
     assert.equal(firm.v3InvitePrepayDenialFrom(base, false), firm.V3_INVITE_PREPAY_MESSAGE, "v3 unbezahlt: gesperrt");
     assert.equal(firm.v3InvitePrepayDenialFrom({ ...base, planModel: "v3" }, true), null, "v3 bezahlt: frei");
     assert.equal(firm.v3InvitePrepayDenialFrom({ ...base, paidCheckout: true }, false), null, "Legacy");

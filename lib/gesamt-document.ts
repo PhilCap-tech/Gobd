@@ -6,6 +6,7 @@ import path from "node:path";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { isKeineKontrolleValues } from "@/lib/keine-angaben";
 import { catalogAnswerLine, PDF_STATUS_LABEL } from "@/lib/intake-catalog";
+import { isMusterSample, shopQuestionWhenOffline } from "@/lib/modul-verstaendnis";
 import {
   collapseRepeatedTokens,
   betriebFacts,
@@ -329,6 +330,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
     if (gruppe.teil && check[gruppe.teil] === "nein") continue;
     heading(gruppe.titel);
     for (const question of gruppenFragen(gruppe)) {
+      if (shopQuestionWhenOffline(question.id, check.online)) continue;
       if (hiddenQuestion(question.id, facts)) continue;
       const kontrollStatus = state[question.id]?.status;
       if (
@@ -359,7 +361,7 @@ function renderModulChapter(modul: ModulDef, answers: IntakeAnswers): RenderedCh
           },
         };
       }
-      lines.push(...bereichQuestionLines(question, shown), "");
+      lines.push(...bereichQuestionLines(question, shown, { keepFiktiv: isMusterSample(answers) }), "");
     }
   }
 
@@ -546,7 +548,10 @@ export function renderGesamtChapters(
   if (options.onlyModul) {
     const modul = modulById(options.onlyModul);
     if (!modul) return [];
-    return [uebersichtChapter(answers), renderModulChapter(modul, answers)];
+    return stripFiktivFromChapters(
+      [uebersichtChapter(answers), renderModulChapter(modul, answers)],
+      isMusterSample(answers),
+    );
   }
 
   const out: RenderedChapter[] = [uebersichtChapter(answers)];
@@ -582,13 +587,21 @@ export function renderGesamtChapters(
   out.push(anhangBegriffe(answers));
   const present = modulNrPresent(answers);
   const facts = betriebFacts(answers);
-  return out.map((chapter) => ({
-    ...chapter,
-    body:
-      chapter.id === "vollstaendigkeit"
-        ? rewriteChapterRefs(chapter.body, present)
-        : redactDenied(rewriteChapterRefs(chapter.body, present), facts),
-  }));
+  return stripFiktivFromChapters(
+    out.map((chapter) => ({
+      ...chapter,
+      body:
+        chapter.id === "vollstaendigkeit"
+          ? rewriteChapterRefs(chapter.body, present)
+          : redactDenied(rewriteChapterRefs(chapter.body, present), facts),
+    })),
+    isMusterSample(answers),
+  );
+}
+
+function stripFiktivFromChapters(chapters: RenderedChapter[], keepFiktiv: boolean): RenderedChapter[] {
+  if (keepFiktiv) return chapters;
+  return chapters.map((chapter) => ({ ...chapter, body: chapter.body.replaceAll("(fiktiv)", "") }));
 }
 
 export function gesamtDocTitle(): string {

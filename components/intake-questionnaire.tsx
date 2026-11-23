@@ -3,7 +3,15 @@
 import { useEffect, type ReactNode } from "react";
 import { IntakeQuestionHint } from "@/components/intake-question-hint";
 import {
+  af01StatutoryHint,
+  hasSuggestionMark,
+  suggestionConfirmed,
+  VORSCHLAG_CHECKBOX,
+  VORSCHLAG_MARKE,
+} from "@/lib/modul-verstaendnis";
+import {
   applyDerivedStatus,
+  setVorschlagOk,
   BETRIEBS_CHECK_STEP_ID,
   CATALOG_STEPS,
   catalogQuestionApplies,
@@ -86,6 +94,10 @@ export function StepError({ issues }: { issues: CatalogIssue[] }) {
       </ul>
     </div>
   );
+}
+
+function suggestionBoxChecked(entry: { values?: Record<string, unknown>; vorschlag?: Record<string, unknown>; vorschlagOk?: string[] } | undefined): boolean {
+  return suggestionConfirmed(entry);
 }
 
 function matchesPrefill(value: unknown, source: string | undefined): boolean {
@@ -288,7 +300,7 @@ function FieldInput({
     return (
       <textarea
         id={id}
-        placeholder={FIELD_PLACEHOLDERS[field.key]}
+        placeholder={field.placeholder || FIELD_PLACEHOLDERS[field.key]}
         aria-invalid={invalid || undefined}
         value={asText(value)}
         onChange={(event) => onChange(event.target.value)}
@@ -425,7 +437,7 @@ function FieldInput({
   return (
     <input
       id={id}
-      placeholder={FIELD_PLACEHOLDERS[field.key]}
+      placeholder={field.placeholder || FIELD_PLACEHOLDERS[field.key]}
       aria-invalid={invalid || undefined}
       value={asText(value)}
       onChange={(event) => onChange(event.target.value)}
@@ -525,6 +537,7 @@ export function IntakeQuestionnaire({
       {stepLabel.startsWith("Etappe") ? null : <p className="step-label">{stepLabel}</p>}
       <IntakeStepHeading>{catalogStepTitle(step, answers)}</IntakeStepHeading>
       {catalogStep.id.startsWith("step-M01") ? <p className="hint">{M01_PAGE_HINT}</p> : null}
+      <IntakeQuestionHint />
       <OpenOnPage issues={issues} />
       <div className="card">
         {!catalogStepApplies(catalogStep, answers) || (questions.length === 0 && !SPECIAL_STEP_IDS.has(catalogStep.id)) ? (
@@ -551,7 +564,6 @@ export function IntakeQuestionnaire({
                   {prompt}
                 </h2>
                 {question.hint ? <p className="hint">{question.hint}</p> : null}
-                <IntakeQuestionHint />
                 {question.id === "A04" ? (
                   <p className="hint">
                     Das Datum ist der Beginn des beschriebenen Ablaufs im Betrieb. Es ist nicht das
@@ -590,12 +602,26 @@ export function IntakeQuestionnaire({
                     {blockIssue.message}
                   </p>
                 ) : null}
+                {hasSuggestionMark(entry) ? (
+                  <div className="field">
+                    <p className="hint">{VORSCHLAG_MARKE}</p>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={suggestionBoxChecked(entry)}
+                        onChange={(event) => onChange(setVorschlagOk(answers, question.id, event.target.checked))}
+                      />
+                      <span>{VORSCHLAG_CHECKBOX}</span>
+                    </label>
+                  </div>
+                ) : null}
                 <ProcessStatus
                   questionId={question.id}
                   prompt={prompt}
                   answers={answers}
                   onChange={onChange}
                   issue={statusIssue?.message}
+                  allowEntfaellt={question.allowEntfaellt === true}
                 />
                 {isControlQuestionId(question.id) && /^KF0[1-5]$/.test(question.id) ? (
                   <div className="chips">
@@ -655,6 +681,9 @@ export function IntakeQuestionnaire({
                           invalid={Boolean(gap)}
                           onChange={(value) => commitValue(question.id, field.key, value)}
                         />
+                        {question.id === "AF01" && field.key === "ablauf" && af01StatutoryHint(asText(values.ablauf)) ? (
+                          <p className="hint">{af01StatutoryHint(asText(values.ablauf))}</p>
+                        ) : null}
                         <PrefillHint show={prefilled} />
                       </FieldShell>
                     );

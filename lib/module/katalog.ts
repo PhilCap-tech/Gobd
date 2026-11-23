@@ -297,7 +297,7 @@ export const MODULE: ModulDef[] = [
     catalogIds: [],
     vorlagen: [],
     gruppen: [
-      { titel: "Lohn- und Gehaltsabrechnung", bereich: "lohn" },
+      { titel: "Lohn- und Gehaltsabrechnung", bereich: "lohn", teil: "personal" },
       { titel: "Zeiterfassung", bereich: "zeiterfassung", teil: "zeiterfassung" },
     ],
   },

@@ -3,14 +3,26 @@
 import { useRef, type ReactNode } from "react";
 import {
   applyDerivedStatus,
+  askVorschlag,
   clearCatalogStatus,
+  confirmVorschlag,
+  dismissVorschlag,
   PROCESS_STATUSES,
   setCatalogMeta,
+  setCatalogReason,
   setCatalogStatus,
   setCatalogValues,
   statusLabel,
   type CatalogStatus,
 } from "@/lib/intake-catalog";
+import {
+  ENTFAELLT_CHIP,
+  ENTFAELLT_GRUND,
+  unconfirmedSuggestionKeys,
+  VORSCHLAG_ANPASSEN,
+  VORSCHLAG_JA,
+  VORSCHLAG_RUECKFRAGE,
+} from "@/lib/modul-verstaendnis";
 import {
   AENDERUNGSANLAESSE,
   ANBIETER_UNTERLAGEN,
@@ -1305,18 +1317,23 @@ export function ProcessStatus({
   answers,
   onChange,
   issue = "",
+  allowEntfaellt = false,
 }: {
   questionId: string;
   prompt: string;
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
   issue?: string;
+  allowEntfaellt?: boolean;
 }) {
   const entry = answers.katalog?.[questionId];
   const values = entry?.values ?? {};
   const showChoice = statusChoiceVisible(questionId, values);
   const showMeta = entry?.status === "geplant" || entry?.status === "unbekannt";
-  if (!showChoice && !showMeta) return null;
+  const chips: CatalogStatus[] = allowEntfaellt
+    ? [...PROCESS_STATUSES, "nicht_zutreffend"]
+    : [...PROCESS_STATUSES];
+  if (!showChoice && !showMeta && !(allowEntfaellt && entry?.status === "nicht_zutreffend")) return null;
   return (
     <div className={issue ? "field field-invalid" : "field"} id={`angabe-${questionId}-status`}>
       {showChoice ? (
@@ -1328,7 +1345,7 @@ export function ProcessStatus({
             role="group"
             aria-label={`Stand: ${prompt}`}
           >
-            {PROCESS_STATUSES.map((status) => {
+            {chips.map((status) => {
               const active = entry?.status === status;
               return (
                 <button
@@ -1336,19 +1353,52 @@ export function ProcessStatus({
                   type="button"
                   className={active ? "chip on" : "chip"}
                   aria-pressed={active}
-                  onClick={() =>
-                    onChange(
-                      active
-                        ? clearCatalogStatus(answers, questionId)
-                        : setCatalogStatus(answers, questionId, status as CatalogStatus),
-                    )
-                  }
+                  onClick={() => {
+                    if (active) {
+                      onChange(clearCatalogStatus(answers, questionId));
+                      return;
+                    }
+                    if (status === "bestaetigt" && unconfirmedSuggestionKeys(entry).length) {
+                      onChange(askVorschlag(answers, questionId));
+                      return;
+                    }
+                    if (status === "nicht_zutreffend") {
+                      const withStatus = setCatalogStatus(answers, questionId, status);
+                      const reason = withStatus.katalog?.[questionId]?.reason?.trim();
+                      onChange(reason ? withStatus : setCatalogReason(withStatus, questionId, ENTFAELLT_GRUND));
+                      return;
+                    }
+                    onChange(setCatalogStatus(answers, questionId, status));
+                  }}
                 >
-                  {statusLabel(status)}
+                  {status === "nicht_zutreffend" ? ENTFAELLT_CHIP : statusLabel(status)}
                 </button>
               );
             })}
           </div>
+          {entry?.vorschlagRueckfrage ? (
+            <div className="field">
+              <p className="hint">{VORSCHLAG_RUECKFRAGE}</p>
+              <div className="chips">
+                <button type="button" className="chip" onClick={() => onChange(confirmVorschlag(answers, questionId))}>
+                  {VORSCHLAG_JA}
+                </button>
+                <button type="button" className="chip" onClick={() => onChange(dismissVorschlag(answers, questionId))}>
+                  {VORSCHLAG_ANPASSEN}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {allowEntfaellt && entry?.status === "nicht_zutreffend" ? (
+            <>
+              <label htmlFor={`${questionId}-grund`}>Begründung (optional)</label>
+              <textarea
+                id={`${questionId}-grund`}
+                value={entry.reason ?? ""}
+                onChange={(event) => onChange(setCatalogReason(answers, questionId, event.target.value))}
+              />
+            </>
+          ) : null}
           {entry?.status === "geplant" ? (
             <p className="hint">
               Dieser Ablauf ist vorgesehen, aber noch nicht die heutige Praxis. Er erscheint nicht als

@@ -14,6 +14,14 @@ import type {
   Stammdaten,
 } from "@/lib/module/typen";
 import { CHECK_KEYS, MODUL_STATUSES } from "@/lib/module/typen";
+import {
+  KANZLEI_HILFE,
+  KANZLEI_LABEL,
+  RETOUREN_HILFE,
+  activitySelected,
+  selectedActivities,
+  suggestionCountsAsAnswered,
+} from "@/lib/modul-verstaendnis";
 
 export const CHECK_FRAGEN: Array<{ key: CheckKey; label: string; hilfe: string }> = [
   { key: "bargeld", label: "Bargeld oder Kasse", hilfe: "Elektronische Kasse, POS oder offene Ladenkasse." },
@@ -21,11 +29,11 @@ export const CHECK_FRAGEN: Array<{ key: CheckKey; label: string; hilfe: string }
   { key: "personal", label: "Personal und Lohnabrechnung", hilfe: "Eigene Beschäftigte oder Lohnabrechnung (intern oder extern)." },
   { key: "zeiterfassung", label: "Zeiterfassung", hilfe: "Elektronische oder manuelle Erfassung von Arbeitszeiten." },
   { key: "online", label: "Onlineshop, Marktplätze oder Plattformen", hilfe: "Eigener Shop oder Verkauf über Marktplätze." },
-  { key: "retouren", label: "Retouren und Erstattungen", hilfe: "Rücksendungen von Kunden oder an Lieferanten." },
+  { key: "retouren", label: "Retouren und Erstattungen", hilfe: RETOUREN_HILFE },
   { key: "papier", label: "Papierbelege", hilfe: "Rechnungen oder Belege, die als Papier ankommen." },
   { key: "erechnung", label: "Elektronische Belege und E-Rechnungen", hilfe: "PDF-Rechnungen, XRechnung, ZUGFeRD oder andere strukturierte Formate." },
   { key: "anlagen", label: "Anlagevermögen", hilfe: "Aktive Anlagenbuchhaltung oder AfA-Verzeichnis." },
-  { key: "kanzlei", label: "Steuerkanzlei oder Buchhaltungsservice", hilfe: "Externe Kanzlei oder Buchhaltungsdienstleister." },
+  { key: "kanzlei", label: KANZLEI_LABEL, hilfe: KANZLEI_HILFE },
   { key: "branche", label: "Branchenspezifische Abläufe", hilfe: "Zum Beispiel Bau, Vermietung, Praxis, Gastro, Taxi, Produktion." },
   { key: "zahlungsdienstleister", label: "Zahlungsdienstleister", hilfe: "PayPal, Stripe, Klarna, Kartenterminal oder ähnliche Anbieter." },
 ];
@@ -110,10 +118,7 @@ export const SOFTWARE_PRESETS: SoftwarePreset[] = [
   {
     id: "pos",
     label: "Kassensystem (POS)",
-    values: {
-      KA01: { art: "Elektronische Registrierkasse / POS" },
-    },
-    stammdaten: { kasse: "POS-System" },
+    values: {},
   },
 ];
 
@@ -190,15 +195,31 @@ const AUTO_REASON: Partial<Record<CheckKey, string>> = {
   branche: "Keine branchenspezifischen Abläufe laut Betriebs-Check.",
 };
 
+/**
+ * Trigger, die ein Betriebsmodul einschalten.
+ * Modul 13 hängt an Online oder Retouren, Modul 12 an Personal oder Zeiterfassung.
+ */
+function triggerKeys(modulId: string, trigger: CheckKey | undefined): CheckKey[] {
+  if (modulId === "m13") return ["online", "retouren"];
+  if (modulId === "m12") return ["personal", "zeiterfassung"];
+  return trigger ? [trigger] : [];
+}
+
 /** Abgeleiteter Status, wenn kein ausdrücklicher Status gesetzt ist. */
 export function derivedModulStatus(zustand: ModulZustand, modulId: string): ModulEintrag {
   const modul = modulById(modulId);
   if (!modul) return { status: "offen" };
   if (modul.typ === "kern" || modul.typ === "regel") return { status: "tool" };
-  const antwort = modul.trigger ? zustand.check[modul.trigger] : undefined;
-  if (antwort === "ja") return { status: "tool" };
-  if (antwort === "nein") {
-    return { status: "nicht_vorhanden", reason: AUTO_REASON[modul.trigger!] ?? "Laut Betriebs-Check nicht vorhanden." };
+  const keys = triggerKeys(modul.id, modul.trigger);
+  if (!keys.length) return { status: "offen" };
+  const answers = keys.map((key) => zustand.check[key]);
+  if (answers.some((value) => value === "ja")) return { status: "tool" };
+  if (answers.every((value) => value === "nein")) {
+    const reasonKey = modul.id === "m13" ? "online" : modul.id === "m12" ? "personal" : modul.trigger;
+    return {
+      status: "nicht_vorhanden",
+      reason: (reasonKey && AUTO_REASON[reasonKey]) || "Laut Betriebs-Check nicht vorhanden.",
+    };
   }
   return { status: "offen" };
 }
@@ -255,34 +276,24 @@ const VORLAGE_VALUES: Record<string, Record<string, Record<string, unknown>>> = 
     AR04: { abschlaege: "Abschläge bei Projekten, Schlussrechnung mit Bezug" },
     ER01: { formate: ["PDF", "ZUGFeRD", "XRechnung"] },
     BU07: { umfang: "FiBu, USt-Voranmeldung, Jahresabschluss, Lohn" },
-    AF01: { ablauf: AF01_ZUORDNUNG },
   },
   handel: {
     UO02: { kunden: ["Privatkunden (B2C)", "Geschäftskunden (B2B)"], taetigkeiten: "Einzel-/Großhandel mit Kasse und Lager" },
     KA01: { kassenart: "Elektronisches Kassensystem mit TSE" },
-    WW01: { system: "Warenwirtschaft (fiktiv)" },
-    AF01: { ablauf: AF01_ZUORDNUNG },
   },
   ecommerce: {
     UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Onlineshop und Marktplätze" },
     EC01: { kanaele: ["Eigener Onlineshop", "Marktplatz"] },
-    EC02: { system: "Shopify (fiktiv)" },
-    ZD01: { anbieter: "Zahlungsdienstleister / Kreditkarte (fiktiv)" },
-    AF01: { ablauf: AF01_ZUORDNUNG },
   },
   gastro: {
     UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Gastronomie / Hotel mit Tagesgeschäft und Veranstaltungen" },
-    KA01: { kassenart: "Elektronisches Kassensystem mit TSE", system: "Kassensystem mit Cloud-TSE (fiktiv)" },
+    KA01: { kassenart: "Elektronisches Kassensystem mit TSE" },
     BS01: { art: ["Gastronomie / Hotel"], vorgaenge: "Kasse/TSE, Wareneinkauf Küche, Personalzeiten, Kartenzahlung" },
-    ZD01: { anbieter: "Kartenterminal / Zahlungsdienstleister (fiktiv)" },
-    AF01: { ablauf: AF01_ZUORDNUNG },
   },
   handwerk: {
     UO02: { kunden: ["Geschäftskunden (B2B)", "Privatkunden (B2C)"], taetigkeiten: "Handwerk / Bau mit Projekten, Abschlägen und Material" },
     BS01: { art: ["Handwerk / Bau"], vorgaenge: "Bauprojekte, Aufmaß, Abschläge/Schluss, Material, Nachunternehmer" },
     AR04: { abschlaege: "Abschläge nach Fortschritt, Schlussrechnung mit Bezug" },
-    AN01: { system: "Anlagenverzeichnis (fiktiv)" },
-    AF01: { ablauf: AF01_ZUORDNUNG },
   },
 };
 
@@ -313,15 +324,20 @@ export function applyVorlageVorschlaege(
   for (const [qid, values] of Object.entries(vorschlaege)) {
     const current = katalog[qid] ?? {};
     const merged = { ...(current.values ?? {}) };
+    const vorschlag = { ...(current.vorschlag ?? {}) };
+    let wrote = false;
     for (const [key, value] of Object.entries(values)) {
       const existing = merged[key];
       const empty =
         existing == null ||
         existing === "" ||
         (Array.isArray(existing) && existing.length === 0);
-      if (empty) merged[key] = value;
+      if (!empty) continue;
+      merged[key] = value;
+      vorschlag[key] = value;
+      wrote = true;
     }
-    katalog[qid] = { ...current, values: merged };
+    katalog[qid] = wrote ? { ...current, values: merged, vorschlag } : { ...current, values: merged };
   }
   return { ...answers, katalog };
 }
@@ -332,18 +348,6 @@ function presetValueEmpty(value: unknown): boolean {
   if (Array.isArray(value)) return value.length === 0;
   return false;
 }
-
-/**
- * Kopien, die der Klick danach über die Stammdaten in den Katalog schreibt.
- * Steht der Text noch genauso da, geht er mit dem Stammdatenwert wieder weg.
- */
-const STAMM_KATALOG_KOPIEN: Partial<Record<keyof Stammdaten, Array<[string, string]>>> = {
-  shop: [["A01", "onlineShop"]],
-  kasse: [
-    ["KA01", "system"],
-    ["A01", "gastroKasse"],
-  ],
-};
 
 function stableValue(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableValue).join(",")}]`;
@@ -542,7 +546,8 @@ function removeSoftwarePreset(answers: IntakeAnswers, preset: SoftwarePreset): I
           } else {
             delete stamm[stammKey];
           }
-          for (const [copyId, field] of STAMM_KATALOG_KOPIEN[stammKey] ?? []) {
+          const activities = selectedActivities(answers, katalog.A01?.values?.branchen);
+          for (const [copyId, field] of mirrorFields(stammKey, activities)) {
             const stored = readKatalogField(katalog, copyId, field);
             if (!sameToken(stored, value)) continue;
             writeKatalogField(katalog, copyId, field, replacement);
@@ -603,6 +608,8 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
   for (const [qid, values] of Object.entries(preset.values)) {
     const current = katalog[qid] ?? {};
     const merged = { ...(current.values ?? {}) };
+    const vorschlag = { ...(current.vorschlag ?? {}) };
+    let wroteSuggestion = false;
     for (const [key, value] of Object.entries(values)) {
       if (key === "systeme" && Array.isArray(value)) {
         if (value.every((item) => typeof item === "string")) {
@@ -617,6 +624,8 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
           if (!currentTokens.length) {
             if (wanted.length) {
               merged.systeme = wanted;
+              vorschlag.systeme = wanted;
+              wroteSuggestion = true;
               written.katalog![qid] = { ...(written.katalog![qid] ?? {}), systeme: wanted };
             }
           } else if (additions.length) {
@@ -637,6 +646,8 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
         });
         if (!named.length) {
           merged.systeme = value;
+          vorschlag.systeme = value;
+          wroteSuggestion = true;
           written.katalog![qid] = { ...(written.katalog![qid] ?? {}), systeme: value };
         } else if (additions.length) {
           merged.systeme = [...named, ...additions];
@@ -646,10 +657,12 @@ export function applySoftwarePreset(answers: IntakeAnswers, presetId: string): I
       }
       if (presetValueEmpty(merged[key])) {
         merged[key] = value;
+        vorschlag[key] = value;
+        wroteSuggestion = true;
         written.katalog![qid] = { ...(written.katalog![qid] ?? {}), [key]: value };
       }
     }
-    katalog[qid] = { ...current, values: merged };
+    katalog[qid] = wroteSuggestion ? { ...current, values: merged, vorschlag } : { ...current, values: merged };
   }
   const beitraege = { ...(zustand.softwareBeitraege ?? {}), [preset.id]: written };
   next = {
@@ -739,14 +752,54 @@ function writeCatalogText(
   katalog[qid] = { ...entry, values };
 }
 
+function mirrorFields(
+  key: keyof Stammdaten,
+  activities: readonly string[],
+): Array<[string, string]> {
+  if (key === "kasse") {
+    const fields: Array<[string, string]> = [["KA01", "system"]];
+    if (activitySelected(activities, "Gastronomie")) fields.push(["A01", "gastroKasse"]);
+    return fields;
+  }
+  if (key === "shop") {
+    const fields: Array<[string, string]> = [["EC02", "system"]];
+    if (activitySelected(activities, "Onlinehandel")) fields.push(["A01", "onlineShop"]);
+    return fields;
+  }
+  if (key === "warenwirtschaft") {
+    const fields: Array<[string, string]> = [["WW01", "system"]];
+    if (activitySelected(activities, "Onlinehandel")) fields.push(["A01", "onlineWawi"]);
+    return fields;
+  }
+  return STAMM_TEXT_FELDER.find((item) => item.key === key)?.fields ?? [];
+}
+
+function clearAutomaticMirror(
+  katalog: NonNullable<IntakeAnswers["katalog"]>,
+  qid: string,
+  field: string,
+  automatic: string,
+  previous: string | undefined,
+): void {
+  const current = catalogText(katalog, qid, field);
+  if (!current) return;
+  const prior = previous?.trim() ?? "";
+  if (current === automatic || (prior && current === prior)) writeCatalogText(katalog, qid, field, "");
+}
+
 /** Kasse, Shop, Lohn, Warenwirtschaft und Bank in ihre Textfelder spiegeln. */
 function syncStammTexts(
   katalog: NonNullable<IntakeAnswers["katalog"]>,
   stamm: Partial<Stammdaten>,
   previous: FeldSync | undefined,
+  activities: readonly string[],
 ): FeldSync {
   const sync: FeldSync = {};
-  for (const { key, fields } of STAMM_TEXT_FELDER) {
+  for (const { key } of STAMM_TEXT_FELDER) {
+    const fields = mirrorFields(key, activities);
+    const blocked = (STAMM_TEXT_FELDER.find((item) => item.key === key)?.fields ?? []).filter(
+      ([qid, field]) => !fields.some(([allowedId, allowedField]) => allowedId === qid && allowedField === field),
+    );
     const trimmed = stamm[key]?.trim() ?? "";
     const recorded = previous?.[key] ?? {};
     const nextRecord: Record<string, string> = {};
@@ -772,6 +825,10 @@ function syncStammTexts(
       if (trimmed) nextRecord[id] = trimmed;
     }
     if (Object.keys(nextRecord).length) sync[key] = nextRecord;
+    for (const [qid, field] of blocked) {
+      const id = `${qid}.${field}`;
+      clearAutomaticMirror(katalog, qid, field, trimmed, recorded[id]);
+    }
   }
   return sync;
 }
@@ -808,7 +865,12 @@ export function applyStammdatenPrefill(
     values.systeme = nextSystems;
     katalog.B01 = { ...entry, values };
   }
-  const feldSync = syncStammTexts(katalog, s, modulZustand(answers).feldSync);
+  const feldSync = syncStammTexts(
+    katalog,
+    s,
+    modulZustand(answers).feldSync,
+    selectedActivities(answers, katalog.A01?.values?.branchen),
+  );
   return {
     ...answers,
     katalog,
@@ -896,10 +958,7 @@ export function modulFortschritt(answers: IntakeAnswers, modulId: string): { bea
   for (const id of ids) {
     const entry = state[id];
     if (entry?.status === "unbekannt") offen += 1;
-    const hasValues = Object.values(entry?.values ?? {}).some((value) =>
-      Array.isArray(value) ? value.length > 0 : typeof value === "string" ? value.trim() !== "" : value != null,
-    );
-    if (entry?.status || hasValues) beantwortet += 1;
+    if (suggestionCountsAsAnswered(entry)) beantwortet += 1;
   }
   return { beantwortet, gesamt: ids.length, offen };
 }
