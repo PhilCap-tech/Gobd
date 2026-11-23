@@ -6,6 +6,7 @@ import {
   branchenPath,
   listBranchenRoutes,
 } from "./lib/branchen-routes";
+import { DL_REQUEST_LOG_IGNORE } from "./lib/log-redaction";
 import { tokenLandingHeaderRules } from "./lib/token-pages";
 
 const noStoreHeaders = [
@@ -90,6 +91,12 @@ function branchenNoindexHeaders() {
 }
 
 const nextConfig: NextConfig = {
+  // `next dev` schreibt Request-URLs. Ein Download-Token in `dl` darf dort nicht stehen.
+  logging: {
+    incomingRequests: {
+      ignore: [DL_REQUEST_LOG_IGNORE],
+    },
+  },
   // Neues Preismodell: Client-Komponenten (Hinweis je Frage) sehen nur, ob es aktiv ist. Kein Secret.
   env: {
     GOBD_PRICING_NEW_MODEL: ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase()) ? "1" : "",

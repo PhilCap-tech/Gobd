@@ -1,10 +1,15 @@
 /**
  * Löschlauf für PDF und Token-Link der Schnellversion.
- * Ohne SCHNELLVERSION_49_PURGE=1|true nur ein Dry-Run. Kein Cron schaltet ihn ein.
+ * Ohne SCHNELLVERSION_49_PURGE=1|true wird nichts gelöscht.
+ * Der tägliche Cron /api/cron/loeschlauf ruft den Lauf auf.
  */
 
 import { SV_PURGE_AFTER_DAYS } from "@/lib/schnellversion-copy";
-import { clearSvPurchaseDelivery, type SvPurchase } from "@/lib/schnellversion-record";
+import {
+  clearSvPurchaseDelivery,
+  listAllSvPurchases,
+  type SvPurchase,
+} from "@/lib/schnellversion-record";
 
 type FlagEnv = Record<string, string | undefined>;
 
@@ -23,7 +28,7 @@ export function svPurgeDue(purchasedAt: string, now: Date): boolean {
 
 export type SvPurgeResult = { due: number; deleted: number; dryRun: boolean };
 
-/** Dry-Run, solange der Schalter aus ist. Es werden nur Schnellversion-Käufe angefasst. */
+/** Ohne Schalter Dry-Run. Es werden nur fällige Schnellversion-Käufe angefasst. */
 export async function runSvPurge(
   rows: SvPurchase[],
   now: Date,
@@ -33,8 +38,17 @@ export async function runSvPurge(
   if (!schnellversionPurgeEnabled(env)) return { due: due.length, deleted: 0, dryRun: true };
   let deleted = 0;
   for (const row of due) {
-    await clearSvPurchaseDelivery(row);
-    deleted += 1;
+    if (await clearSvPurchaseDelivery(row)) deleted += 1;
   }
   return { due: due.length, deleted, dryRun: false };
+}
+
+/** Ohne Schalter kein Lesen und kein Löschen. */
+export async function runScheduledSvPurge(
+  now: Date = new Date(),
+  env: FlagEnv = process.env,
+  list: () => Promise<SvPurchase[]> = listAllSvPurchases,
+): Promise<SvPurgeResult | null> {
+  if (!schnellversionPurgeEnabled(env)) return null;
+  return runSvPurge(await list(), now, env);
 }
