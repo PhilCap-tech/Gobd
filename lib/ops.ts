@@ -8,9 +8,10 @@
  */
 
 import { createHash } from "node:crypto";
-import { CUSTOMER_ONBOARDING_NEXT_PATH, magicLinkUrl } from "@/lib/auth";
+import { CUSTOMER_ONBOARDING_NEXT_PATH, magicLinkUrl, withoutMailedCheckoutSession } from "@/lib/auth";
 import { mailLinkBase } from "@/lib/mail-layout";
-import { isMailConfigured } from "@/lib/env";
+import { customerMailOrigin, isMailConfigured } from "@/lib/env";
+import { rememberMailLinkResendId } from "@/lib/mail-link-token-store";
 import type { MailResult } from "@/lib/mail";
 import {
   MAGIC_LINK_WINDOW_MS,
@@ -78,6 +79,24 @@ export type TransactionalMailContent = {
   html: string;
 };
 
+async function rememberCustomerLoginIds(
+  urls: Array<string | undefined>,
+  resendId: string | undefined,
+): Promise<void> {
+  const id = resendId?.trim() ?? "";
+  if (!id) return;
+  for (const raw of urls) {
+    const value = raw?.trim() ?? "";
+    if (!value) continue;
+    try {
+      const token = new URL(value).searchParams.get("token") ?? "";
+      if (token) await rememberMailLinkResendId(token, id);
+    } catch {
+      // Der Versand bleibt gültig, auch wenn die Kennung nicht am Datensatz liegt.
+    }
+  }
+}
+
 /** A settled claim already delivered this mail. Callers treat that as success. */
 function claimedMail(
   result: MailResult,
@@ -94,9 +113,14 @@ const CHECKOUT_CTA = ACCOUNT_PAID_CTA_LABEL;
 const READINESS_MICRO =
   "14 Tage Zufriedenheitsgarantie — volle Erstattung, solange noch kein PDF erzeugt wurde · Keine Steuerberatung · Entwurf für Ihren Steuerberater";
 
-/** Exact product URL for the short share section in the delivery mail. */
-export const REFERRAL_AFTER_DELIVERY_URL =
-  "https://www.gobd-doku-erstellen.de/?utm_source=referral&utm_medium=email&utm_campaign=post_delivery";
+/** Produktlink im Weitergabe-Absatz der Liefermail. Basis ist die App-Adresse, nicht eine fest eingetragene Domain. */
+export function referralAfterDeliveryUrl(): string {
+  return `${customerMailOrigin()}/?utm_source=referral&utm_medium=email&utm_campaign=post_delivery`;
+}
+
+export function deliveryFaqUrl(): string {
+  return `${customerMailOrigin()}/faq`;
+}
 /** One price line. The delivery mail includes this at most once. */
 export const REFERRAL_MICRO = isPricingV2()
   ? `${netWithGrossCents(V2_ENTRY_CENTS)} einmalig, optional Jahrespaket ${netWithGrossCents(V2_MEMBER_YEAR_CENTS)} pro Jahr, zzgl. 19 % USt · Keine Steuerberatung`
@@ -108,12 +132,13 @@ export const CUSTOMER_MAIL_SIGNATURE = "Ihr Team von GoBD Verfahrensdoku";
 export function buildMagicLinkMail(input: {
   magicLinkUrl: string;
 }): TransactionalMailContent {
+  const href = withoutMailedCheckoutSession(input.magicLinkUrl);
   const text = wrapTransactionalText(
     [
       "Guten Tag,",
       "",
       "hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):",
-      input.magicLinkUrl,
+      href,
       "",
       "Wenn Sie das nicht angefordert haben, können Sie diese Mail ignorieren.",
       "",
@@ -123,7 +148,7 @@ export function buildMagicLinkMail(input: {
   const html = wrapTransactionalHtml(`
     <p>Guten Tag,</p>
     <p>hier ist Ihr Anmeldelink für GoBD Verfahrensdoku (20 Minuten gültig):</p>
-    <p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden</a></p>
+    <p><a href="${escapeAttr(href)}">Anmelden</a></p>
     <p>Wenn Sie das nicht angefordert haben, können Sie diese Mail ignorieren.</p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
@@ -142,6 +167,7 @@ export function buildReadinessMail(input: {
   downloadUrl: string;
   magicLinkUrl?: string;
 }): TransactionalMailContent {
+  const loginHref = input.magicLinkUrl ? withoutMailedCheckoutSession(input.magicLinkUrl) : "";
   const greeting = customerOnboardingGreeting(input.name, [input.company]);
   const lines = [
     greeting,
@@ -150,9 +176,9 @@ export function buildReadinessMail(input: {
     "",
     `Download (Arbeitshilfe, keine Verfahrensdokumentation): ${input.downloadUrl}`,
   ];
-  if (input.magicLinkUrl) {
+  if (loginHref) {
     lines.push(
-      `Späterer Zugang (Magic Link, 20 Minuten gültig): ${input.magicLinkUrl}`,
+      `Späterer Zugang (Magic Link, 20 Minuten gültig): ${loginHref}`,
     );
   }
   lines.push(
@@ -168,7 +194,7 @@ export function buildReadinessMail(input: {
     <p>${escapeHtml(greeting)}</p>
     <p>Ihr Readiness-Ergebnis für ${escapeHtml(input.brancheLabel)} ist da — der Leitfaden zeigt Lücken. Die volle Verfahrensdokumentation fehlt noch.</p>
     <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a> (Arbeitshilfe, keine Verfahrensdokumentation)</p>
-    ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
+    ${loginHref ? `<p><a href="${escapeAttr(loginHref)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
     <p><a href="${escapeAttr(MAIL_CHECKOUT_URL)}">${escapeHtml(CHECKOUT_CTA)}</a></p>
     <p>${escapeHtml(READINESS_MICRO)}</p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
@@ -323,8 +349,8 @@ function buildCustomerOnboardingMail(input: {
   continueUrl?: string;
 }): TransactionalMailContent {
   const greeting = customerOnboardingGreeting(input.contactName, [input.company]);
-  const startUrl = customerOnboardingStartUrl(input.magicLinkUrl);
-  const continueUrl = input.continueUrl?.trim() || startUrl;
+  const startUrl = withoutMailedCheckoutSession(customerOnboardingStartUrl(input.magicLinkUrl));
+  const continueUrl = withoutMailedCheckoutSession(input.continueUrl?.trim() || startUrl);
   const text = wrapTransactionalText(
     [
       greeting,
@@ -507,21 +533,21 @@ export function buildFailedJobMail(): TransactionalMailContent {
 const DELIVERY_SHARE_INTRO =
   "Wenn Ihr Steuerberater oder ein Kollege ebenfalls eine prüfbare Verfahrensdokumentation braucht, können Sie diesen Link weitergeben:";
 
-/** PDF- und Übersichtslinks der Zustellmail. Dieselbe Basis wie Login- und Willkommensmail. */
+/**
+ * PDF- und Übersichtslinks der Zustellmail. Dieselbe Basis wie Login- und Willkommensmail.
+ * Die Checkout-Session steht nicht im Link: der Download verlangt das Sitzungs-Cookie,
+ * die Übersicht findet das Dokument über `document_id` und die angemeldete Adresse.
+ */
 export function deliveryDocumentLinks(input: {
   documentId: string;
   stripeSessionId?: string;
 }): { downloadUrl: string; successUrl: string } {
   const appUrl = mailLinkBase();
   const documentId = input.documentId;
-  const stripeSessionId = input.stripeSessionId?.trim() ?? "";
+  void input.stripeSessionId;
   return {
-    downloadUrl: stripeSessionId
-      ? `${appUrl}/api/docs/${documentId}/download?session_id=${encodeURIComponent(stripeSessionId)}`
-      : `${appUrl}/api/docs/${documentId}/download`,
-    successUrl: stripeSessionId
-      ? `${appUrl}/success?session_id=${encodeURIComponent(stripeSessionId)}&document_id=${encodeURIComponent(documentId)}`
-      : `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`,
+    downloadUrl: `${appUrl}/api/docs/${documentId}/download`,
+    successUrl: `${appUrl}/success?document_id=${encodeURIComponent(documentId)}`,
   };
 }
 
@@ -535,31 +561,36 @@ export function buildDeliveryMail(input: {
   version?: number;
 }): TransactionalMailContent {
   const version = input.version && input.version > 0 ? input.version : 1;
+  const downloadUrl = withoutMailedCheckoutSession(input.downloadUrl);
+  const successUrl = input.successUrl ? withoutMailedCheckoutSession(input.successUrl) : "";
+  const loginHref = input.magicLinkUrl ? withoutMailedCheckoutSession(input.magicLinkUrl) : "";
+  const faqUrl = deliveryFaqUrl();
+  const shareUrl = referralAfterDeliveryUrl();
   const greeting = customerOnboardingGreeting(input.contactName, [input.company]);
   const lines = [
     greeting,
     "",
     `Ihr Entwurf der Verfahrensdokumentation (Version ${version}) liegt vor.`,
     "",
-    `Download: ${input.downloadUrl}`,
+    `Download: ${downloadUrl}`,
   ];
-  if (input.successUrl) {
-    lines.push(`Übersicht: ${input.successUrl}`);
+  if (successUrl) {
+    lines.push(`Übersicht: ${successUrl}`);
   }
-  if (input.magicLinkUrl) {
-    lines.push(`Konto (Magic Link, 20 Minuten gültig): ${input.magicLinkUrl}`);
+  if (loginHref) {
+    lines.push(`Konto (Magic Link, 20 Minuten gültig): ${loginHref}`);
   }
   lines.push(
     "",
     "Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:",
-    MAIL_FAQ_URL,
+    faqUrl,
     "",
     "Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit Ihrem Steuerberater.",
     "",
     "Gern weitergeben",
     "",
     DELIVERY_SHARE_INTRO,
-    REFERRAL_AFTER_DELIVERY_URL,
+    shareUrl,
     "",
     REFERRAL_MICRO,
     "",
@@ -568,14 +599,14 @@ export function buildDeliveryMail(input: {
   const html = wrapTransactionalHtml(`
     <p>${escapeHtml(greeting)}</p>
     <p>Ihr Entwurf der Verfahrensdokumentation (Version ${version}) liegt vor.</p>
-    <p><a href="${escapeAttr(input.downloadUrl)}">PDF herunterladen</a></p>
-    ${input.successUrl ? `<p><a href="${escapeAttr(input.successUrl)}">Zur Übersicht</a></p>` : ""}
-    ${input.magicLinkUrl ? `<p><a href="${escapeAttr(input.magicLinkUrl)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
-    <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(MAIL_FAQ_URL)}">${escapeHtml(MAIL_FAQ_URL)}</a></p>
+    <p><a href="${escapeAttr(downloadUrl)}">PDF herunterladen</a></p>
+    ${successUrl ? `<p><a href="${escapeAttr(successUrl)}">Zur Übersicht</a></p>` : ""}
+    ${loginHref ? `<p><a href="${escapeAttr(loginHref)}">Anmelden (Magic Link, 20 Minuten gültig)</a></p>` : ""}
+    <p>Fragen zu Ablauf, Lieferumfang, Updates und Rückgabe:<br /><a href="${escapeAttr(faqUrl)}">${escapeHtml(faqUrl)}</a></p>
     <p>Keine Steuerberatung. Das PDF ist ein Entwurf zur Abstimmung mit Ihrem Steuerberater.</p>
     <p><strong>Gern weitergeben</strong></p>
     <p>${escapeHtml(DELIVERY_SHARE_INTRO)}</p>
-    <p><a href="${escapeAttr(REFERRAL_AFTER_DELIVERY_URL)}">${escapeHtml(REFERRAL_AFTER_DELIVERY_URL)}</a></p>
+    <p><a href="${escapeAttr(shareUrl)}">${escapeHtml(shareUrl)}</a></p>
     <p>${escapeHtml(REFERRAL_MICRO)}</p>
     <p>${escapeHtml(CUSTOMER_MAIL_SIGNATURE)}</p>
   `);
@@ -704,6 +735,7 @@ export async function triggerOnboardingMail(input: {
     text: mail.text,
     html: mail.html,
   });
+  await rememberCustomerLoginIds([startUrl, continueUrl], result.id);
   console.info("[ops] onboarding mail", {
     sessionRef: logSessionRef(input.sessionId),
     audience,
@@ -877,6 +909,7 @@ export async function sendDeliveryMail(input: {
     text: mail.text,
     html: mail.html,
   });
+  await rememberCustomerLoginIds([input.magicLinkUrl], result.id);
   return claimedMail(result, "delivery");
 }
 
@@ -972,6 +1005,7 @@ export async function sendReadinessMail(input: {
     text: mail.text,
     html: mail.html,
   });
+  await rememberCustomerLoginIds([input.magicLinkUrl], result.id);
   return claimedMail(result, "readiness");
 }
 

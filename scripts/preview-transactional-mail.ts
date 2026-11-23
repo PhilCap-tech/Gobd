@@ -20,7 +20,7 @@ import {
   intakeContactNameFromAnswers,
   PARTNER_ONBOARDING_SIGNATURE,
   pickOnboardingContactName,
-  REFERRAL_AFTER_DELIVERY_URL,
+  referralAfterDeliveryUrl,
   REFERRAL_MICRO,
 } from "@/lib/ops";
 import { MONTHLY_EUR, TODAY_EUR } from "@/lib/pricing";
@@ -201,7 +201,9 @@ assert(
   onboarding.html.includes("Jetzt starten: Betriebs-Check"),
   "Customer onboarding has the Betriebs-Check button",
 );
-const onboardingContinueHref = onboardingContinueUrl.replaceAll("&", "&amp;");
+const mailedContinueUrl =
+  "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-continue&next=%2Fintake";
+const onboardingContinueHref = mailedContinueUrl.replaceAll("&", "&amp;");
 assert(
   customerOnboardingDraftPath("cs_owner_draft") === "/intake?session_id=cs_owner_draft",
   "Draft continue path keeps the owner session",
@@ -210,8 +212,10 @@ assert(
   onboarding.html.includes(`>${CUSTOMER_ONBOARDING_CONTINUE_CTA}</a>`) &&
     onboarding.html.includes(`href="${onboardingContinueHref}"`) &&
     onboarding.text.includes(CUSTOMER_ONBOARDING_CONTINUE_CTA) &&
-    onboarding.text.includes(onboardingContinueUrl),
-  "Customer onboarding continues into the draft via verify, with a plaintext link",
+    onboarding.text.includes(mailedContinueUrl) &&
+    !onboarding.text.includes("session_id=cs_") &&
+    !onboarding.html.includes("session_id"),
+  "Customer onboarding continues into the draft via verify, without a checkout session",
 );
 assert(
   onboarding.html.includes(`background:#002050`),
@@ -534,12 +538,12 @@ assert(
     !deliveryCompanyOnly.html.includes("Guten Tag IKAT GmbH"),
   "Delivery must not greet the company name",
 );
-const shareHref = REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;");
+const shareHref = referralAfterDeliveryUrl().replaceAll("&", "&amp;");
 assert(
   delivery.html.includes("<strong>Gern weitergeben</strong>") &&
     delivery.text.includes("Gern weitergeben") &&
     delivery.html.includes(`href="${shareHref}"`) &&
-    delivery.text.includes(REFERRAL_AFTER_DELIVERY_URL),
+    delivery.text.includes(referralAfterDeliveryUrl()),
   "Delivery includes one share section with the UTM product URL",
 );
 assert(

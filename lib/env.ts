@@ -42,6 +42,18 @@ export function getAppUrl(): string {
 }
 
 /**
+ * Basis der Anmeldelinks und der genannten Mail-Schaltflächen.
+ * Produktion: {@link getAppUrl}. Vorschau und Development auf Vercel: dieselbe
+ * Deployment-Adresse wie der Checkout, damit die Mail diese Instanz öffnet
+ * und nicht die fest eingetragene Produktionsdomain.
+ */
+export function customerMailOrigin(): string {
+  const vercel = process.env.VERCEL_ENV?.trim();
+  if (vercel && vercel !== "production") return checkoutReturnBaseUrl().replace(/\/$/, "");
+  return getAppUrl().replace(/\/$/, "");
+}
+
+/**
  * Basis für Stripe success_url/cancel_url. Produktion (und lokal): kanonische
  * Domain wie bisher. Vercel-Preview/Development: die Branch-URL dieser
  * Deployment-Instanz, damit Testkäufe auf die Preview zurückkehren.

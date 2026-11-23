@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
-import { checkoutReturnBaseUrl, getMagicLinkSecret } from "@/lib/env";
+import { customerMailOrigin, getMagicLinkSecret } from "@/lib/env";
 import {
   loadMailLinkToken,
   newOpaqueMailLinkToken,
@@ -484,6 +484,40 @@ export function loginPath(next?: string | null): string {
     : "/login";
 }
 
+/**
+ * Checkout-Session-IDs (`cs_…`) gehören nicht in einen Maillink.
+ * `/intake` hängt nach der Anmeldung die letzte bezahlte Session der Adresse an.
+ */
+export function withoutMailedCheckoutSession(value: string): string {
+  const raw = value.trim();
+  if (!raw) return raw;
+  if (!/(?:^|[?&])session_id=cs_/i.test(raw) && !/session_id%3[Dd]cs_/i.test(raw)) return raw;
+  const absolute = /^https?:\/\//i.test(raw);
+  try {
+    const url = new URL(raw, "http://safe.invalid");
+    stripMailedCheckoutSession(url.searchParams);
+    const next = url.searchParams.get("next");
+    if (next && /session_id=cs_/i.test(next)) {
+      const inner = new URL(next, "http://safe.invalid");
+      stripMailedCheckoutSession(inner.searchParams);
+      const query = inner.searchParams.toString();
+      url.searchParams.set("next", query ? `${inner.pathname}?${query}` : inner.pathname);
+    }
+    if (!absolute) {
+      const query = url.searchParams.toString();
+      return query ? `${url.pathname}?${query}` : url.pathname;
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+function stripMailedCheckoutSession(params: URLSearchParams): void {
+  const sessionId = params.get("session_id") ?? "";
+  if (sessionId.startsWith("cs_")) params.delete("session_id");
+}
+
 export async function magicLinkUrl(
   email: string,
   next?: string | null,
@@ -493,8 +527,9 @@ export async function magicLinkUrl(
   if (!token) return null;
   const params = new URLSearchParams({ token });
   const safe = safeNextPath(next);
-  if (safe) params.set("next", safe);
-  return `${checkoutReturnBaseUrl()}/auth/verify?${params.toString()}`;
+  const mailed = safe ? withoutMailedCheckoutSession(safe) : null;
+  if (mailed) params.set("next", mailed);
+  return `${customerMailOrigin()}/auth/verify?${params.toString()}`;
 }
 
 export function applySessionCookie(response: NextResponse, email: string): void {

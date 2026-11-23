@@ -103,11 +103,15 @@ export async function recordNewAccount(input: {
   clientChannel?: unknown;
   clientSignal?: unknown;
   gobdTest?: unknown;
-}): Promise<void> {
+}): Promise<"first" | "repeat"> {
   const cohort = cohortFor(input);
   if (cohort !== "test") {
     const claim = await claimMeasureOnce("magic-link", input.email);
-    if (claim === "exists" || claim === "skipped") return;
+    if (claim === "exists") return "repeat";
+    // Ohne Marker (Vorschau, fehlendes Geheimnis der Zählung) keine Zeile.
+    // Der Aufrufer behandelt das wie eine erste Anmeldung; der Mail-Ledger
+    // lässt die Inhaber-Hinweismail trotzdem nur einmal je Adresse zu.
+    if (claim === "skipped") return "first";
   }
   await writeMeasure({
     metric: "magic_link_first_login",
@@ -116,6 +120,29 @@ export async function recordNewAccount(input: {
       referrerHeader: input.referrerHeader,
       clientChannel: input.clientChannel,
     }),
+    cohort,
+  });
+  return "first";
+}
+
+/**
+ * Tagessummen für Anmeldelink-Anforderung und Aufruf.
+ * Kein Messmarker, keine Adresse, keine IP. Jede Zeile ist ein Ereignis;
+ * die Auswertung summiert sie je Berliner Tag.
+ */
+export async function recordAuthDailyCount(input: {
+  metric: "link_requested" | "verify_human" | "verify_scanner";
+  referrerHeader?: string | null;
+  gobdTest?: unknown;
+}): Promise<void> {
+  const cohort = cohortFor({
+    referrerHeader: input.referrerHeader,
+    gobdTest: input.gobdTest,
+  });
+  await writeMeasure({
+    metric: input.metric,
+    n: "",
+    channel: resolveMeasureChannel({ referrerHeader: input.referrerHeader }),
     cohort,
   });
 }

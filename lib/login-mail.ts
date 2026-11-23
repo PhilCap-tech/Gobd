@@ -1,5 +1,7 @@
 import { magicLinkUrl } from "@/lib/auth";
 import { isMailConfigured, magicLinkDevFallbackAllowed } from "@/lib/env";
+import { rememberMailLinkResendId } from "@/lib/mail-link-token-store";
+import { recordAuthDailyCount, scheduleMeasureWrite } from "@/lib/measure-record";
 import { sendMagicLinkMail } from "@/lib/ops";
 
 export const LOGIN_LINK_GENERIC_OK =
@@ -13,6 +15,29 @@ export function loginLinkSentNotice(email: string): string {
   return address
     ? `Wir haben Ihnen einen Anmeldelink an ${address} gesendet.`
     : "Wir haben Ihnen einen Anmeldelink gesendet.";
+}
+
+function tokenFromMailUrl(url: string): string {
+  try {
+    return new URL(url).searchParams.get("token") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Hängt die Resend-Kennung der gerade versendeten Kundenmail an deren Anmeldelink. */
+export async function rememberMailedLoginResendId(
+  magicLinkUrl: string | undefined,
+  resendId: string | undefined,
+): Promise<void> {
+  const id = resendId?.trim() ?? "";
+  const raw = magicLinkUrl?.trim() ?? "";
+  if (!id || !raw) return;
+  try {
+    await rememberMailLinkResendId(tokenFromMailUrl(raw), id);
+  } catch {
+    // Der Versand ist schon erfolgt. Eine fehlende Kennung lässt den Hinweis ohne diese Zeile.
+  }
 }
 
 export type LoginMailStatus = "sent" | "stub" | "failed";
@@ -54,6 +79,7 @@ export async function deliverLoginLinkReportingDuplicate(
 ): Promise<LoginMailStatus | "duplicate"> {
   const address = email.trim().toLowerCase();
   if (!address || !address.includes("@")) return "failed";
+  scheduleMeasureWrite(() => recordAuthDailyCount({ metric: "link_requested" }));
 
   if (!isMailConfigured()) {
     if (!magicLinkDevFallbackAllowed()) {
@@ -73,6 +99,7 @@ export async function deliverLoginLinkReportingDuplicate(
     const url = await magicLinkUrl(address, next);
     if (!url) return "failed";
     const mail = await sendMagicLinkMail({ email: address, magicLinkUrl: url });
+    await rememberMailedLoginResendId(url, mail.id);
     if (mail.duplicate) return "duplicate";
     if (mail.sent) return "sent";
     console.error("[auth] Anmeldelink fehlgeschlagen", { stub: mail.stub });
