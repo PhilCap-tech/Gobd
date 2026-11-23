@@ -154,6 +154,31 @@ export function serverSaveCoversRestore(
   return savedAt;
 }
 
+export type RestoreSavePlan = {
+  /** Serverzeit, wenn der wiederhergestellte Stand schon gespeichert ist. */
+  savedAt: string;
+  /** Der lokale Stand liegt vor dem Server und muss vor der Speicherzeile geschrieben werden. */
+  flush: boolean;
+};
+
+/**
+ * Nach dem Laden: die Zeile nur bei einem echten Server-Stand.
+ * Ein neuerer lokaler Entwurf (Reload vor dem Autosave, abgebrochener PUT)
+ * wird sofort geschrieben; die Zeile folgt erst der Bestätigung.
+ */
+export function restoreSavePlan(
+  server: { revision?: number; savedAt?: string; step?: number; answers?: unknown } | null | undefined,
+  chosen: { revision?: number; savedAt?: string; step?: number; answers?: unknown } | null | undefined,
+): RestoreSavePlan {
+  const savedAt = serverSaveCoversRestore(server, chosen);
+  return { savedAt, flush: Boolean(chosen) && savedAt === "" };
+}
+
+/** Ein Flush braucht eine positive Revision, sonst verwirft der PUT den Stand. */
+export function revisionForRestoreFlush(revision: number): number {
+  return revision > 0 ? revision : 1;
+}
+
 export function parseDraftVersionChange(value: unknown): DraftVersionChange | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
