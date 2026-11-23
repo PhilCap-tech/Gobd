@@ -923,6 +923,13 @@ async function main() {
     "Kaufmail ohne Sperrwörter",
   );
   ok(kaufmail.text.includes("/agb") && kaufmail.text.includes("Download-Ende"), "Kaufmail verlinkt die AGB und nennt das Datum");
+  ok(
+    kaufmail.text.includes(PLAN_OFFER_OBJECTION_NOTICE) &&
+      kaufmail.html.includes(PLAN_OFFER_OBJECTION_NOTICE) &&
+      kaufmail.text.indexOf(PLAN_OFFER_OBJECTION_NOTICE) < kaufmail.text.indexOf("Impressum:"),
+    "Kaufmail enthält PLAN_OFFER_OBJECTION_NOTICE vor dem Impressumsfuß",
+  );
+  ok(kaufmail.text.includes("Anrechnung:"), "Kaufmail behält den Anrechnungshinweis");
   ok((await maybeSendSchnellversionPurchaseMail({
     to: "inhaber@example.com",
     company: "Malerbetrieb Adler",
