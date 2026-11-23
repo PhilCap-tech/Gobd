@@ -6,7 +6,15 @@ import { CheckoutForm } from "@/app/checkout/checkout-form";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { entityChoices } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
-import { FRAGEBOGEN_PATH, PAKET_H1, PAKET_INTRO } from "@/lib/fragebogen";
+import {
+  FRAGEBOGEN_DEFAULT_ENTITY,
+  FRAGEBOGEN_PATH,
+  PAKET_H1,
+  PAKET_INTRO,
+  fragebogenEntitiesForQuery,
+  fragebogenHref,
+} from "@/lib/fragebogen";
+import { emailDraftEntityId } from "@/lib/intake-draft-shared";
 import { planPackageTextsV3 } from "@/lib/plan-copy";
 import { intakeLoginFirstEnabled, memberPreselected } from "@/lib/pricing-model";
 import { firstQueryValue } from "@/lib/query";
@@ -38,14 +46,22 @@ export default async function PaketPage({
   if (!draftKey.startsWith(`email:${email.trim().toLowerCase()}:`)) redirect(FRAGEBOGEN_PATH);
   const entities = await listEntitiesByEmail(email);
   const requested = firstQueryValue(params.entity_id) ?? "";
-  const bound = entities.find((e) => e.entityId === requested) ?? entities[0];
+  const keyEntity = emailDraftEntityId(draftKey);
+  // Der Schlüssel entscheidet. `default` bleibt ungebunden und wird nicht
+  // durch die erste Firma ersetzt. Eine fremde Id fällt sicher zurück.
+  const pick = fragebogenEntitiesForQuery(
+    entities,
+    keyEntity === "" ? FRAGEBOGEN_DEFAULT_ENTITY : keyEntity || requested,
+  );
+  const bound = pick.entities[0];
   const checkoutCompany = bound?.name ?? "";
+  const backHref = keyEntity === "" ? fragebogenHref(FRAGEBOGEN_DEFAULT_ENTITY) : fragebogenHref(pick.initialEntityId);
   const credit = checkoutCompany && schnellversionOffered()
     ? (await listSvPurchases(email)).find((row) => creditHintVisible(row, checkoutCompany, new Date()))
     : undefined;
   return (
     <>
-      <SiteHeader backHref={FRAGEBOGEN_PATH} backLabel="← Zurück zum Fragebogen" />
+      <SiteHeader backHref={backHref} backLabel="← Zurück zum Fragebogen" />
       <main className="wrap page">
         <h1>{PAKET_H1}</h1>
         <p className="lead">{PAKET_INTRO}</p>
@@ -59,8 +75,8 @@ export default async function PaketPage({
           key={email}
           stripeReady={isStripeConfigured()}
           stripeTestMode={isStripeTestMode()}
-          entities={entityChoices(bound ? [bound] : [])}
-          initialEntityId={bound?.entityId ?? ""}
+          entities={entityChoices(pick.entities)}
+          initialEntityId={pick.initialEntityId}
           initialCompany={bound?.name ?? ""}
           initialEmail={email}
           draftKey={draftKey}

@@ -11,8 +11,10 @@ import { AccountCompanyCard } from "../components/account-company-card";
 import NotFound from "../app/not-found";
 import { accountCompanyCards } from "../lib/account-hub";
 import { emptyEntity, type Entity } from "../lib/entities";
-import type { IntakeDraft } from "../lib/intake-draft-shared";
+import { fragebogenEntitiesForQuery } from "../lib/fragebogen";
+import { normalizeDraftKey, type IntakeDraft } from "../lib/intake-draft-shared";
 import { ensureGesamt } from "../lib/module/status";
+import { openDraftContinuePath } from "../lib/open-drafts";
 import { emptyAnswers, emptySheetRow, toSheetRow, type SheetRow } from "../lib/types";
 
 function ok(cond: unknown, msg: string) {
@@ -96,7 +98,12 @@ function draft(overrides: Partial<IntakeDraft> = {}): IntakeDraft {
   };
 }
 
-function renderHub(entities: Entity[], docs: SheetRow[], drafts: IntakeDraft[]): string {
+function renderHub(
+  entities: Entity[],
+  docs: SheetRow[],
+  drafts: IntakeDraft[],
+  card?: { compAccess?: boolean; coveredIntakeHref?: string },
+): string {
   const hub = accountCompanyCards(entities, docs, drafts);
   return hub.groups
     .map((group) =>
@@ -105,6 +112,8 @@ function renderHub(entities: Entity[], docs: SheetRow[], drafts: IntakeDraft[]):
           email: "ada.fertig@example.com",
           group,
           empty: group.families.length === 0 && group.continueDrafts.length === 0,
+          compAccess: card?.compAccess,
+          coveredIntakeHref: card?.coveredIntakeHref,
         }),
       ),
     )
@@ -308,7 +317,126 @@ ok(paidStartTags.length === 1 && paidStartTags[0]?.tag === "a", "empty-card paid
 
 const looseTags = continueTags(accountPage);
 ok(looseTags.length === 1 && looseTags[0]?.tag === "a", "loose draft continue is a native anchor");
-ok(looseTags[0]?.attrs.includes("href={openDraftContinuePath(draft)}"), "loose draft continue uses the draft href");
+ok(
+  looseTags[0]?.attrs.includes("openDraftContinuePath(draft, { covered: looseDraftCovered(draft) })"),
+  "loose draft continue passes coverage into the draft href",
+);
+ok(
+  accountPage.includes("coveredEntityIds.has(openDraftContinueEntityId(draft))"),
+  "loose draft coverage follows the firm on the draft",
+);
+ok(
+  cardSource.includes("openDraftContinueEntityId(draft) === entity.entityId"),
+  "company card coverage is the draft's own firm",
+);
+
+function withPricing<T>(model: string | undefined, flag: string | undefined, run: () => T): T {
+  const savedModel = process.env.PRICING_MODEL;
+  const savedFlag = process.env.INTAKE_LOGIN_FIRST_ENABLED;
+  if (model === undefined) delete process.env.PRICING_MODEL;
+  else process.env.PRICING_MODEL = model;
+  if (flag === undefined) delete process.env.INTAKE_LOGIN_FIRST_ENABLED;
+  else process.env.INTAKE_LOGIN_FIRST_ENABLED = flag;
+  try {
+    return run();
+  } finally {
+    if (savedModel === undefined) delete process.env.PRICING_MODEL;
+    else process.env.PRICING_MODEL = savedModel;
+    if (savedFlag === undefined) delete process.env.INTAKE_LOGIN_FIRST_ENABLED;
+    else process.env.INTAKE_LOGIN_FIRST_ENABLED = savedFlag;
+  }
+}
+
+function unpaidDraft(entityId: string): IntakeDraft {
+  return draft({
+    draftKey: normalizeDraftKey({ email: "ada.fertig@example.com", entityId, modus: "gesamt" }),
+    stripeSessionId: "",
+    documentId: "",
+    entityId,
+  });
+}
+
+withPricing("v3", undefined, () => {
+  assertContinueAnchors(
+    renderHub([entity], [], [unpaidDraft("")]),
+    "/fragebogen?entity_id=default",
+    "unpaid default draft",
+  );
+  assertContinueAnchors(
+    renderHub([entity], [], [unpaidDraft("ent_nordlicht")]),
+    "/fragebogen?entity_id=ent_nordlicht",
+    "unpaid company draft",
+  );
+  const covered = renderHub([entity], [], [unpaidDraft("ent_nordlicht")], {
+    coveredIntakeHref: "/intake?modus=gesamt&entity_id=ent_nordlicht",
+  });
+  assertContinueAnchors(covered, "/intake?entity_id=ent_nordlicht", "covered company draft");
+  ok(!covered.includes("/fragebogen"), "covered company draft stays off /fragebogen");
+  const comp = renderHub([entity], [], [unpaidDraft("ent_nordlicht")], { compAccess: true });
+  assertContinueAnchors(comp, "/intake?entity_id=ent_nordlicht", "comp company draft");
+  ok(!comp.includes("/fragebogen"), "comp company draft stays off /fragebogen");
+  assertContinueAnchors(
+    renderHub([entity], [], [unpaidDraft("")], {
+      coveredIntakeHref: "/intake?modus=gesamt&entity_id=ent_nordlicht",
+    }),
+    "/fragebogen?entity_id=default",
+    "default draft on a covered company",
+  );
+  assertContinueAnchors(
+    renderHub(
+      [entity],
+      [],
+      [
+        draft({
+          draftKey: "doc:doc_paid",
+          documentId: "doc_paid",
+          stripeSessionId: "cs_test_paid",
+          entityId: "ent_nordlicht",
+        }),
+      ],
+    ),
+    "/intake?document_id=doc_paid",
+    "document draft",
+  );
+  ok(
+    openDraftContinuePath(unpaidDraft("ent_nordlicht"), { covered: true }) ===
+      "/intake?entity_id=ent_nordlicht",
+    "covered option keeps the company draft on /intake",
+  );
+});
+withPricing("v3", "false", () => {
+  assertContinueAnchors(
+    renderHub([entity], [], [unpaidDraft("ent_nordlicht")]),
+    "/intake?entity_id=ent_nordlicht",
+    "login-first off",
+  );
+  ok(openDraftContinuePath(unpaidDraft("")) === "/intake", "login-first off: default draft stays on /intake");
+});
+
+const accountFirms = [
+  firm({ entityId: "ent_nordlicht", name: "Nordlicht Handel GmbH" }),
+  firm({ entityId: "ent_sued", name: "Süd GmbH" }),
+];
+const foreignPick = fragebogenEntitiesForQuery(accountFirms, "ent_foreign");
+ok(
+  foreignPick.initialEntityId === "ent_nordlicht" &&
+    foreignPick.entities.length === 1 &&
+    foreignPick.entities[0]?.entityId === "ent_nordlicht",
+  "foreign entity_id is ignored",
+);
+ok(!foreignPick.entities.some((row) => row.entityId === "ent_foreign"), "foreign entity_id is not passed to the form");
+const defaultPick = fragebogenEntitiesForQuery(accountFirms, "default");
+ok(defaultPick.entities.length === 0 && defaultPick.initialEntityId === "", "entity_id=default does not take the first company");
+ok(
+  normalizeDraftKey({
+    email: "ada.fertig@example.com",
+    entityId: defaultPick.initialEntityId,
+    modus: "gesamt",
+  }) === "email:ada.fertig@example.com:default:gesamt",
+  "default marker restores the default draft key",
+);
+const ownedPick = fragebogenEntitiesForQuery(accountFirms, "ent_sued");
+ok(ownedPick.initialEntityId === "ent_sued" && ownedPick.entities[0]?.entityId === "ent_sued", "owned entity_id is honoured");
 ok(!accountPage.includes("preventDefault"), "account page does not preventDefault on continue");
 
 console.log("check-account-render: ok");

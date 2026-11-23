@@ -16,6 +16,7 @@ import {
   draftIsEmpty,
   draftRevision,
   IntakeDraftStorageError,
+  isUnpaidLoginDraft,
   loadIntakeDraft,
   normalizeDraftKey,
   parseDraftStepId,
@@ -237,11 +238,6 @@ const MAX_OPEN_UNPAID_DRAFTS = 3;
 const DRAFT_TOO_LARGE_MESSAGE = "Der Entwurf ist zu groß. Bitte kürzen Sie die Freitexte.";
 const DRAFT_LIMIT_MESSAGE =
   "Sie haben bereits 3 offene Entwürfe. Bitte schließen Sie zuerst einen davon ab.";
-
-/** Unbezahlter Login-Entwurf (email:-Schlüssel, keine Checkout-Session). */
-function isUnpaidLoginDraft(draft: Pick<IntakeDraft, "draftKey" | "stripeSessionId">): boolean {
-  return draft.draftKey.startsWith("email:") && !draft.stripeSessionId?.trim();
-}
 
 const defaultDraftIo: DraftWriteIo = {
   loadIntakeDraft,
