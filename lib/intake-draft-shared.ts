@@ -18,6 +18,11 @@ export type IntakeDraft = {
   documentId: string;
   entityId: string;
   step: number;
+  /**
+   * Katalog-Schritt, z. B. step-M01b. Fehlt bei Entwürfen von vor der
+   * Aufteilung von Modul 1; dann gilt die gespeicherte Schrittnummer.
+   */
+  stepId?: string;
   answers: IntakeAnswers;
   updatedAt: string;
   /**
@@ -45,6 +50,7 @@ export type IntakeDraft = {
 export type IntakeDraftSnapshot = {
   answers: IntakeAnswers;
   step: number;
+  stepId?: string;
   savedAt: string;
   revision?: number;
   change?: DraftVersionChange;
@@ -138,6 +144,14 @@ export function parseDraftVersionChange(value: unknown): DraftVersionChange | nu
     return null;
   }
   return change;
+}
+
+/** Katalog-Schritt-Id, sonst undefined. Keine freien Texte. */
+export function parseDraftStepId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const id = value.trim();
+  if (!/^step-[A-Za-z0-9]+$/.test(id) || id.length > 40) return undefined;
+  return id;
 }
 
 export type DraftLoadDecision = {

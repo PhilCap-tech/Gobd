@@ -53,8 +53,8 @@ export function checkIntakeDraftRestore(): void {
   answers = setCheckAntwort(answers, "lager", "nein");
   answers = setModulEintrag(answers, "m02", { status: "extern", ref: "Bestehende VD Verkauf" });
 
-  const step = CATALOG_STEPS.findIndex((item) => item.id === "step-M01");
-  ok(step >= 0, "module 1 step exists");
+  const step = CATALOG_STEPS.findIndex((item) => item.id === "step-M01b");
+  ok(step >= 0, "module 1 begin page exists");
 
   const stored = JSON.parse(
     JSON.stringify({ answers, step, savedAt: "2026-10-08T10:00:00.000Z", revision: 4 }),
@@ -114,8 +114,15 @@ export function checkIntakeDraftRestore(): void {
   ok(cleared.katalog?.A04?.values?.gueltigAb === "2020-05-01", "clearing Stand keeps the date");
   ok(cleared.katalog?.A04?.values?.keineRueckdatierungBestaetigt === true, "clearing Stand keeps the checkbox");
   ok(
-    catalogStepIssues(step, cleared).some((issue) => issue.questionId === "A04" && issue.fieldKey === "status"),
-    "required Stand validation returns after clearing",
+    catalogStepIssues(step, cleared).every((issue) => issue.questionId !== "A04"),
+    "Modul 1 lässt den Stand der Beginn-Frage offen",
+  );
+  const legacyCleared = { ...emptyAnswers(), katalog: cleared.katalog };
+  ok(
+    catalogStepIssues(CATALOG_STEPS.findIndex((item) => item.id === "step-A"), legacyCleared).some(
+      (issue) => issue.questionId === "A04" && issue.fieldKey === "status",
+    ),
+    "im Bereichsfragebogen bleibt der Stand Pflicht",
   );
 
   console.log("check-intake-draft: green");

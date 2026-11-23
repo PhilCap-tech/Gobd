@@ -1441,6 +1441,75 @@ textarea:focus {
   background: #88b89f;
 }
 
+.etappen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.etappen li {
+  flex: 1 1 7.5rem;
+  min-width: 0;
+}
+
+.etappe-bar {
+  display: block;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.etappe-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--line);
+}
+
+.etappen li.done .etappe-bar i {
+  width: 100%;
+  background: #88b89f;
+}
+
+.etappen li.on .etappe-bar i {
+  background: var(--accent);
+}
+
+.etappe-name {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.etappen li.on .etappe-name {
+  color: var(--ink, inherit);
+  font-weight: 650;
+}
+
+.save-stand {
+  position: sticky;
+  top: 8px;
+  z-index: 2;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.intake-actions {
+  position: relative;
+  z-index: 3;
+}
+
 .step-label {
   font-family: var(--font-sans);
   font-size: 13px;

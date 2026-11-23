@@ -116,6 +116,17 @@ export function savingLabelVisible(state: { saving: boolean; pending: boolean; f
   return state.saving && !state.pending && state.failures === 0;
 }
 
+/** Shown only after the server has stored the draft. Hidden while a save error is showing. */
+export const DRAFT_SAVED_LINE = "Zwischenstand gespeichert – Sie können jederzeit weitermachen";
+
+export function draftSavedLineVisible(state: {
+  confirmed: boolean;
+  failures: number;
+  finalSaveFailed: boolean;
+}): boolean {
+  return state.confirmed && state.failures === 0 && !state.finalSaveFailed;
+}
+
 /** Autosave paused for the final save resumes only when that save failed. */
 export function shouldResumeAutosave(finalSaved: boolean): boolean {
   return !finalSaved;
