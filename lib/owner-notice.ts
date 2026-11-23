@@ -29,7 +29,8 @@ export type OwnerNoticeKind =
   | "readiness"
   | "kanzlei-optin"
   | "kanzlei-optout"
-  | "account";
+  | "account"
+  | "credit-duplicate";
 
 export type OwnerNoticeInput = {
   kind: OwnerNoticeKind;

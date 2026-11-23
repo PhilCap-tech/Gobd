@@ -43,6 +43,7 @@ import {
 import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import { rememberPurchase99Once } from "@/lib/schnellversion-store";
+import { expireStoredCreditSessions, flagDuplicateCreditPayment, isDuplicateCreditSession } from "@/lib/schnellversion-credit-sessions";
 import { markSvCreditUsed, releaseSvCreditHold } from "@/lib/schnellversion-record";
 import { confirmPaidSession, paymentFromStatus } from "@/lib/schnellversion-payment";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
@@ -136,7 +137,10 @@ export async function noteSchnellversionPurchase(
         arm,
       });
     }
-    if (purchaseId && email.trim()) await markSvCreditUsed(email, purchaseId, new Date().toISOString());
+    if (purchaseId && email.trim()) {
+      const marked = await markSvCreditUsed(email, purchaseId, new Date().toISOString(), session.id?.trim() ?? "");
+      if (marked) await expireStoredCreditSessions(purchaseId, session.id?.trim() ?? "");
+    }
   } catch (error) {
     console.error("[webhook] Schnellversion", error instanceof Error ? error.name : "error");
   }
@@ -217,6 +221,19 @@ export async function POST(request: Request) {
             }
           }
           return NextResponse.json({ received: true });
+        }
+        const creditPurchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
+        if (creditPurchaseId && paymentFromStatus(session.payment_status) === "paid") {
+          if (await isDuplicateCreditSession(creditPurchaseId, session.id)) {
+            await flagDuplicateCreditPayment({
+              sessionId: session.id,
+              purchaseId: creditPurchaseId,
+              email: session.customer_details?.email || session.customer_email || "",
+              company: session.metadata?.company || "",
+              livemode: session.livemode,
+            });
+            return NextResponse.json({ received: true });
+          }
         }
         let email =
           session.customer_details?.email || session.customer_email || "";

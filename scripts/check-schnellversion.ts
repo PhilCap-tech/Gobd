@@ -5,7 +5,8 @@
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { effectiveModulStatus } from "../lib/module/status";
@@ -53,6 +54,17 @@ import { buildPlanCheckoutParams } from "../lib/plan-checkout";
 import { checkoutReturnBaseUrl } from "../lib/env";
 import { planParamsFromCheckoutInput } from "../lib/stripe";
 import { releaseCreditForExpiredCheckout } from "../app/api/stripe/webhook/route";
+import {
+  expireStoredCreditSessions,
+  flagDuplicateCreditPayment,
+  isDuplicateCreditSession,
+  setCreditReviewSheetForTest,
+  setCreditSessionExpireForTest,
+} from "../lib/schnellversion-credit-sessions";
+import { rememberCreditCheckoutSession } from "../lib/schnellversion-record";
+import { setOwnerNoticeTestMode } from "../lib/owner-notice";
+import { setMailDedupeTestHooks } from "../lib/mail-dedupe";
+import { CHECKOUT_NOTICE_TO } from "../lib/checkout-notice";
 import { GET as anrechnungFrei } from "../app/api/schnellversion/anrechnung-frei/route";
 import { buildOnboardingMail, customerOnboardingDraftPath, logSessionRef } from "../lib/ops";
 import { magicLinkUrl } from "../lib/auth";
@@ -1481,11 +1493,76 @@ async function checkSandboxCheckout(): Promise<void> {
     const afterCancel = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
     ok(cancel.status === 303 && afterCancel?.creditReservationId === "", "Abbruch gibt die Reservierung frei");
     ok(await reserveSvCredit(first.purchase.id, "danach", now), "nach dem Abbruch kein Block für denselben Kauf");
+    const expiredSessions: string[] = [];
+    setCreditSessionExpireForTest(async (id) => {
+      expiredSessions.push(id);
+    });
+    await rememberCreditCheckoutSession(first.purchase.id, "cs_alt_anrechnung");
+    await expireStoredCreditSessions(first.purchase.id);
+    ok(expiredSessions.includes("cs_alt_anrechnung"), "Ersetzen beendet die alte Upgrade-Session");
+    await rememberCreditCheckoutSession(first.purchase.id, "cs_offen_anrechnung");
+    await rememberCreditCheckoutSession(first.purchase.id, "cs_upgrade_bezahlt");
+    expiredSessions.length = 0;
     await noteSchnellversionPurchase(
       { id: "cs_upgrade_bezahlt", metadata: { sv_purchase_id: first.purchase.id } },
       "buyer@example.com",
       "evt_upgrade_bezahlt",
     );
+    ok(
+      expiredSessions.includes("cs_offen_anrechnung") && !expiredSessions.includes("cs_upgrade_bezahlt"),
+      "bezahlte Anrechnung beendet die übrigen offenen Sessions",
+    );
+    const review: { sessionId: string; status: string }[] = [];
+    const notices: { to?: string }[] = [];
+    setCreditReviewSheetForTest({
+      find: async (sessionId) => review.find((row) => row.sessionId === sessionId) ?? null,
+      append: async (row) => {
+        review.push({ sessionId: row.sessionId, status: row.status });
+      },
+    });
+    setOwnerNoticeTestMode(true);
+    setMailDedupeTestHooks({
+      dir: mkdtempSync(path.join(tmpdir(), "gobd-credit-notice-")),
+      send: async (mail) => {
+        notices.push(mail);
+        return { sent: true, stub: true };
+      },
+    });
+    await flagDuplicateCreditPayment({
+      sessionId: "cs_zweite_anrechnung",
+      purchaseId: first.purchase.id,
+      email: "kunde@firma.example",
+      company: "Sandbox GmbH",
+      livemode: false,
+    });
+    await flagDuplicateCreditPayment({
+      sessionId: "cs_zweite_anrechnung",
+      purchaseId: first.purchase.id,
+      email: "kunde@firma.example",
+      company: "Sandbox GmbH",
+      livemode: false,
+    });
+    const stillOne = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
+    const webhookSource = readFileSync("app/api/stripe/webhook/route.ts", "utf8");
+    const creditFiles = [
+      readFileSync("lib/schnellversion-credit-sessions.ts", "utf8"),
+      webhookSource,
+      readFileSync("app/api/checkout/route.ts", "utf8"),
+    ].join("\n");
+    ok(await isDuplicateCreditSession(first.purchase.id, "cs_zweite_anrechnung"), "zweite Session ist eine doppelte Anrechnung");
+    ok(!(await isDuplicateCreditSession(first.purchase.id, "cs_upgrade_bezahlt")), "die bezahlte Session bleibt die eine Anrechnung");
+    ok(
+      webhookSource.indexOf("await isDuplicateCreditSession") < webhookSource.indexOf("await recordPlanCheckout"),
+      "der Webhook prüft die Anrechnung vor dem Upgrade",
+    );
+    ok(stillOne?.creditUsedSessionId === "cs_upgrade_bezahlt", "keine zweite Freischaltung");
+    ok(review.length === 1 && review[0]?.status === "anrechnung_pruefen", "zweite Zahlung ist im Sheet zur Prüfung markiert");
+    ok(notices.length === 1 && notices[0]?.to === CHECKOUT_NOTICE_TO, "Hinweis geht einmal an CHECKOUT_NOTICE_TO");
+    ok(!creditFiles.includes("refunds"), "keine Erstattung");
+    setCreditSessionExpireForTest(null);
+    setCreditReviewSheetForTest(null);
+    setOwnerNoticeTestMode(false);
+    setMailDedupeTestHooks(null);
     const paidUpgrade = (await listAllSvPurchases()).find((row) => row.id === first.purchase.id);
     ok(
       Boolean(paidUpgrade?.creditUsedAt.trim()) &&
