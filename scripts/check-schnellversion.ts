@@ -42,8 +42,10 @@ import { runScheduledSvPurge, runSvPurge, svRecordPurgeDue } from "../lib/schnel
 import { addMonthsIso } from "../lib/plan";
 import { DOC_RETENTION_MONTHS } from "../lib/retention-decision";
 import { PLAN_OFFER_OBJECTION_NOTICE } from "../lib/plan-copy";
-import { applyLegalConditions, legalFlagsFor } from "../lib/legal-content";
+import { agbMarkdown, applyLegalConditions, legalFlagsFor } from "../lib/legal-content";
 import { buildLlmsTxt } from "../lib/llms-txt";
+import { markdownH2Section } from "../lib/markdown-section";
+import { isPricingV2 } from "../lib/pricing-model";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { GET as pdfGet, POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { SV_HIDDEN_TITLE, schnellversionPageMetadata } from "../lib/schnellversion-meta";
@@ -1237,7 +1239,7 @@ async function main() {
   const mainAgb = execSync("git show 2f44180:content/legal/agb-v3.md", { encoding: "utf8" });
   ok(agbOff === mainAgb, "AGB ohne Flag wie main");
   const verborgen = ["Schnellversion", "§ 12d", "Standardfassung"];
-  const llms = buildLlmsTxt();
+  const llms = llmsOhneSchnellversion(agbOff);
   for (const fund of verborgen) {
     ok(!agbOff.includes(fund), `AGB ohne Flag ohne ${fund}`);
     ok(!applyLegalConditions(dse, off).includes(fund), `Datenschutz ohne Flag ohne ${fund}`);
@@ -1286,6 +1288,21 @@ async function main() {
 
   checkPreviewDataGate();
   console.log("check-schnellversion: ok");
+}
+
+/** buildLlmsTxt liest die AGB beim Import aus process.env. Hier gilt das explizit ausgeschaltete Flag. */
+function llmsOhneSchnellversion(agbQuiet: string): string {
+  let text = buildLlmsTxt();
+  if (!isPricingV2()) return text;
+  const headings = [
+    "§ 8 Kein Widerrufsrecht (B2B)",
+    "§ 9 Erstattung",
+    "§ 12 Jahrespaket (Option 2): Inhalt, Laufzeit und Kündigung",
+  ];
+  for (const heading of headings) {
+    text = text.replace(markdownH2Section(agbMarkdown, heading), markdownH2Section(agbQuiet, heading));
+  }
+  return text;
 }
 
 function checkPreviewDataGate(): void {
