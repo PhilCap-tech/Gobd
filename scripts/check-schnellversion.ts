@@ -34,6 +34,7 @@ import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, 
 import { confirmPaidSession, failNextClaimedPurchaseForTest, failNextSvPdfForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
+import { svBlobWritesOpen, svPreviewTestTarget, svSheetWritesOpen } from "../lib/schnellversion-data-env";
 import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once, rememberSvEvent, SV_EVENT_COLUMNS } from "../lib/schnellversion-store";
 import { maybeSendSchnellversionPurchaseMail, purchaseMail } from "../lib/schnellversion-purchase-mail";
 import { runScheduledSvPurge, runSvPurge, svRecordPurgeDue } from "../lib/schnellversion-purge";
@@ -1253,7 +1254,68 @@ async function main() {
   const purchase99After = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
   ok(purchase99After === purchase99Before, "ohne Arm bleibt die Testarm-Verbuchung aus");
 
+  checkPreviewDataGate();
   console.log("check-schnellversion: ok");
+}
+
+function checkPreviewDataGate(): void {
+  const sheets = {
+    GOOGLE_SERVICE_ACCOUNT_EMAIL: "sheets@example.com",
+    GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: "key",
+    GOOGLE_SHEETS_SPREADSHEET_ID: "sheet-prod",
+  };
+  const prodBlob = {
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_prodstore_secret",
+    BLOB_STORE_ID: "store_prodstore",
+  };
+  const prod = { VERCEL_ENV: "production", ...prodBlob, ...sheets };
+  ok(svBlobWritesOpen(prod) && svSheetWritesOpen(prod) && svPreviewTestTarget(prod) === null, "Prod: Blob und Sheet an wie bisher");
+
+  const preview = { VERCEL_ENV: "preview", ...prodBlob, ...sheets };
+  ok(!svBlobWritesOpen(preview) && !svSheetWritesOpen(preview), "Preview ohne GOBD_DATA_ENV: aus");
+
+  const testBase = { ...preview, GOBD_DATA_ENV: "test", GOBD_TEST_BLOB_STORE_ID: "teststore", GOBD_TEST_SPREADSHEET_ID: "sheet-test" };
+  ok(!svBlobWritesOpen({ ...testBase, GOBD_TEST_BLOB_STORE_ID: "" }), "Preview mit test, Test-Store fehlt: aus");
+  ok(!svBlobWritesOpen({ ...testBase, GOBD_TEST_SPREADSHEET_ID: " " }), "Preview mit test, Test-Sheet fehlt: aus");
+  ok(
+    !svBlobWritesOpen({ ...testBase, GOBD_TEST_SPREADSHEET_ID: "sheet-prod" }) &&
+      !svSheetWritesOpen({ ...testBase, GOBD_TEST_BLOB_STORE_ID: "prodstore" }),
+    "Preview mit test und Test-ID gleich der Prod-ID: aus",
+  );
+
+  const distinct = svPreviewTestTarget(testBase);
+  ok(
+    svBlobWritesOpen(testBase) &&
+      svSheetWritesOpen(testBase) &&
+      distinct?.mode === "store" &&
+      distinct.spreadsheetId === "sheet-test" &&
+      distinct.blobStoreId === "teststore",
+    "Preview mit test und gültigen, verschiedenen Test-IDs: an",
+  );
+
+  const declared = {
+    ...sheets,
+    VERCEL_ENV: "preview",
+    GOBD_DATA_ENV: "test",
+    GOOGLE_SHEETS_SPREADSHEET_ID: "sheet-test",
+    GOBD_TEST_SPREADSHEET_ID: "sheet-test",
+    GOBD_TEST_BLOB_STORE_ID: "teststore",
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_teststore_secret",
+    BLOB_STORE_ID: "store_teststore",
+  };
+  const declaredTarget = svPreviewTestTarget(declared);
+  ok(
+    svBlobWritesOpen(declared) &&
+      svSheetWritesOpen(declared) &&
+      declaredTarget?.mode === "token" &&
+      declaredTarget.spreadsheetId === "sheet-test" &&
+      declaredTarget.blobStoreId === "teststore",
+    "Preview mit test, aktive Zugangsdaten sind die Test-IDs: an",
+  );
+  ok(
+    !svBlobWritesOpen({ ...declared, BLOB_STORE_ID: "store_prodstore" }),
+    "Preview mit test und widersprüchlichem Blob-Store: aus",
+  );
 }
 
 main().catch((error) => {
