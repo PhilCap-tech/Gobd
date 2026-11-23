@@ -245,6 +245,19 @@ ok(shown.includes("schritt=step-M01b"), "die Karte verlinkt die Lücke");
 ok(!renderCard([]).includes("Modulen erledigt"), "ohne Entwurf fehlt der Block");
 ok(!shown.includes("fertig") && !shown.includes("Garantie") && !shown.includes("rechtssicher"), "keine gesperrten Wörter");
 
+let completeAnswers = withoutKasse;
+for (const modulId of new Set(CATALOG_STEPS.flatMap((step) => step.when?.modul ?? []))) {
+  completeAnswers = answerVisible(completeAnswers, modulId, "bestaetigt");
+}
+const completeDraft = draft({ answers: completeAnswers });
+const completeProgress = accountDraftProgressFromDraft(completeDraft);
+ok(completeProgress.total > 0 && completeProgress.done === completeProgress.total, "alle anwendbaren Module erledigt");
+ok(completeProgress.complete, "ein vollständiger Fragebogen gilt als abgeschlossen");
+ok(!accountDraftProgressFromDraft(gapDraft).complete, "ein Entwurf mit Lücke gilt nicht als abgeschlossen");
+const completeCard = renderCard([completeDraft]);
+ok(!completeCard.includes("Modulen erledigt"), "beim vollständigen Fragebogen fehlt der Fortschrittsblock");
+ok(completeCard.includes("Weiter ausfüllen"), "der Link Weiter ausfüllen bleibt beim vollständigen Fragebogen");
+
 const css = readFileSync("app/globals.css", "utf8");
 ok(css.includes(".draft-progress .btn") && css.includes("position: static"), "der Knopf liegt im Fluss und wird nicht überdeckt");
 
