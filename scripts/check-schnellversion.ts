@@ -1317,7 +1317,7 @@ async function main() {
   ok(applyLegalConditions(cookies, on).includes("sv49_arm") && applyLegalConditions(cookies, on).includes("sv49_answers"), "Cookies mit Flag nennen die Schnellversion");
   const agbOff = applyLegalConditions(agb, off);
   const agbOn = applyLegalConditions(agb, on);
-  const mainAgb = execSync("git show 2f44180:content/legal/agb-v3.md", { encoding: "utf8" });
+  const mainAgb = agbAufMain();
   ok(agbOff === mainAgb, "AGB ohne Flag wie main");
   const verborgen = ["Schnellversion", "§ 12d", "Standardfassung"];
   const llms = llmsOhneSchnellversion(agbOff);
@@ -1494,6 +1494,18 @@ async function checkSandboxCheckout(): Promise<void> {
   else process.env.SCHNELLVERSION_49_ENABLED = savedFlag;
   if (savedModel === undefined) delete process.env.PRICING_MODEL;
   else process.env.PRICING_MODEL = savedModel;
+}
+
+const MAIN_AGB_SHA = "2f44180b707c2fdc865ec081a6876448894f7b04";
+
+/** AGB von main. Ein flacher Clone holt genau diesen Commit nach. */
+function agbAufMain(): string {
+  try {
+    execSync(`git cat-file -e ${MAIN_AGB_SHA}^{commit}`, { stdio: "ignore" });
+  } catch {
+    execSync(`git fetch --depth=1 origin ${MAIN_AGB_SHA}`, { stdio: "ignore" });
+  }
+  return execSync(`git show ${MAIN_AGB_SHA}:content/legal/agb-v3.md`, { encoding: "utf8" });
 }
 
 /** buildLlmsTxt liest die AGB beim Import aus process.env. Hier gilt das explizit ausgeschaltete Flag. */
