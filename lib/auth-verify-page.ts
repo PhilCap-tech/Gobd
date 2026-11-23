@@ -37,7 +37,6 @@ ${nextField}
 export const VERIFY_INTERSTITIAL_HEADERS = {
   "Content-Type": "text/html; charset=utf-8",
   "Cache-Control": "private, no-store",
-  "Referrer-Policy": "same-origin",
   "X-Robots-Tag": "noindex",
   "Content-Security-Policy": "default-src 'none'; form-action 'self'; base-uri 'none'",
 } as const;

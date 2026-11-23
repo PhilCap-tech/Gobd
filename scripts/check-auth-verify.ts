@@ -232,10 +232,10 @@ async function main(): Promise<void> {
   ok(scanner.body.result === "scanner_skip" && scanner.body.method === "GET" && scanner.body.uaClass === "outlook-safelinks", "outlook is scanner_skip");
   ok(scanner.body.target === "/auth/verify" && scanner.body.region === null, "interstitial target has no query");
   ok(scanner.response.status === 200, "outlook get is the confirm page");
-  ok(scanner.response.headers.get("referrer-policy") === "same-origin", "interstitial referrer policy is same-origin");
   ok(scanner.response.headers.get("cache-control")?.includes("no-store") === true, "interstitial is not stored");
   ok(scanner.response.headers.getSetCookie().length === 0, "confirm page sets no cookie at all");
   const page = await scanner.response.text();
+  ok(page.includes('name="referrer" content="same-origin"'), "confirm page meta referrer is same-origin");
   ok(page.includes("Bitte bestätigen Sie die Anmeldung."), "confirm sentence");
   ok(page.includes(">Anmelden<"), "confirm button");
   ok(page.includes('name="robots" content="noindex"'), "confirm page is noindex");
