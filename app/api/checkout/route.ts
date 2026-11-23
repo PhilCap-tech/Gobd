@@ -31,7 +31,11 @@ import { cookies } from "next/headers";
 import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
 import { openCredit, schnellversionCouponId } from "@/lib/schnellversion-credit";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
-import { expireStoredCreditSessions, rememberUpgradeCheckout } from "@/lib/schnellversion-credit-sessions";
+import {
+  claimOpenCreditCheckout,
+  publishOpenCreditCheckout,
+  releaseOpenCreditCheckout,
+} from "@/lib/schnellversion-credit-sessions";
 import { creditStillOpen, listSvPurchases, releaseSvCreditHold, reserveSvCredit } from "@/lib/schnellversion-record";
 import { randomUUID } from "node:crypto";
 
@@ -221,8 +225,22 @@ export async function POST(request: Request) {
     }
   }
 
+  let creditSlotWon = "";
+  if (svPurchaseId) {
+    const slot = await claimOpenCreditCheckout(svPurchaseId);
+    if (slot.state === "busy") {
+      return NextResponse.json(
+        { error: "Für diese Anrechnung ist bereits ein Checkout offen." },
+        { status: 409 },
+      );
+    }
+    if (slot.state === "same") {
+      return NextResponse.json({ url: slot.session.url, stub: slot.session.stub, id: slot.session.sessionId });
+    }
+    creditSlotWon = slot.key;
+  }
+
   try {
-    if (svPurchaseId) await expireStoredCreditSessions(svPurchaseId);
     const session = await createCheckoutSession({
       email,
       company,
@@ -244,9 +262,16 @@ export async function POST(request: Request) {
           }
         : {}),
     });
-    if (svPurchaseId && session.id) await rememberUpgradeCheckout(svPurchaseId, session.id);
+    if (creditSlotWon && session.id && session.url) {
+      await publishOpenCreditCheckout(creditSlotWon, {
+        sessionId: session.id,
+        url: session.url,
+        stub: session.stub,
+      });
+    }
     return NextResponse.json(session);
   } catch (error) {
+    if (creditSlotWon) await releaseOpenCreditCheckout(svPurchaseId);
     if (svPurchaseId) await releaseSvCreditHold(svPurchaseId);
     logError("[checkout]", error);
     return NextResponse.json(

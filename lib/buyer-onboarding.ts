@@ -42,6 +42,8 @@ export type BuyerOnboardingInput = {
   email: string;
   company?: string;
   sessionId: string;
+  /** Ein Versand je Kauf. Fehlt er, gilt die Session. */
+  onceKey?: string;
   audience?: OnboardingAudience;
   checkoutNames?: string[];
   extraCompanyNames?: string[];
@@ -463,7 +465,8 @@ export async function deliverBuyerOnboarding(
   if (!email || !email.includes("@")) return "skipped";
   if (isCompAccessEmail(email)) return "skipped";
   if (input.enforceWindow && !buyerOnboardingStillDue(input.paidAt)) return "skipped";
-  const claim = await claimOnboardingSend(sessionId, email);
+  const onceKey = input.onceKey?.trim() || sessionId;
+  const claim = await claimOnboardingSend(onceKey, email);
   if (claim === "sent") return "skipped";
   if (claim === "inflight") return "inflight";
 

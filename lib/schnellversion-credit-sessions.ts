@@ -4,6 +4,7 @@
  * Expire-Fehler (schon abgelaufen oder bezahlt) bleiben ohne die volle ID im Log.
  */
 import { createHash } from "node:crypto";
+import { createMarker, readMarker, writeMarker } from "@/lib/blob-marker";
 import { isStripeSecretConfigured } from "@/lib/env";
 import { notifyOwner } from "@/lib/owner-notice";
 import {
@@ -17,6 +18,113 @@ import { getStripe } from "@/lib/stripe";
 import { toSheetRow } from "@/lib/types";
 
 export const CREDIT_REVIEW_STATUS = "anrechnung_pruefen";
+
+const OPEN_CHECKOUT = "sv49-credit-open";
+const OPEN_GENERATION = "sv49-credit-open-gen";
+const USED_CREDIT = "sv49-credit-used";
+
+async function openGeneration(purchaseId: string): Promise<number> {
+  const raw = await readMarker(OPEN_GENERATION, purchaseId);
+  if (!raw) return 0;
+  try {
+    const parsed = JSON.parse(raw) as { gen?: unknown };
+    return typeof parsed.gen === "number" && Number.isFinite(parsed.gen) ? parsed.gen : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function openKey(purchaseId: string, generation: number): string {
+  return `${purchaseId}:${generation}`;
+}
+
+type OpenCheckout = { sessionId: string; url: string; stub: boolean };
+
+function parseOpen(raw: string | null): OpenCheckout | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<OpenCheckout>;
+    const sessionId = typeof parsed.sessionId === "string" ? parsed.sessionId.trim() : "";
+    const url = typeof parsed.url === "string" ? parsed.url.trim() : "";
+    if (!sessionId || !url) return null;
+    return { sessionId, url, stub: parsed.stub === true };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Genau ein offener Anrechnungs-Checkout. Der erste Request gewinnt den Claim.
+ * Ein zweiter sieht die Session oder erhält 409, solange sie noch entsteht.
+ */
+export async function claimOpenCreditCheckout(purchaseId: string): Promise<
+  | { state: "won"; key: string }
+  | { state: "same"; session: OpenCheckout }
+  | { state: "busy" }
+> {
+  const id = purchaseId.trim();
+  if (!id) return { state: "busy" };
+  const key = openKey(id, await openGeneration(id));
+  const created = await createMarker(OPEN_CHECKOUT, key, JSON.stringify({ sessionId: "", url: "", stub: false }));
+  if (created === "created") return { state: "won", key };
+  const existing = parseOpen(await readMarker(OPEN_CHECKOUT, key));
+  if (existing) return { state: "same", session: existing };
+  return { state: "busy" };
+}
+
+export async function publishOpenCreditCheckout(key: string, session: OpenCheckout): Promise<void> {
+  if (!key.trim() || !session.sessionId.trim() || !session.url.trim()) return;
+  await writeMarker(
+    OPEN_CHECKOUT,
+    key,
+    JSON.stringify({ sessionId: session.sessionId.trim(), url: session.url.trim(), stub: session.stub }),
+  );
+}
+
+/** Gibt den Slot für einen neuen Checkout frei, ohne einen Marker zu löschen. */
+export async function releaseOpenCreditCheckout(purchaseId: string): Promise<void> {
+  const id = purchaseId.trim();
+  if (!id) return;
+  const gen = await openGeneration(id);
+  await writeMarker(OPEN_GENERATION, id, JSON.stringify({ gen: gen + 1 }));
+}
+
+/** Atomar: die Anrechnung gehört genau einer Session. Dieselbe Session darf wiederholen. */
+export async function claimCreditUsed(
+  purchaseId: string,
+  sessionId: string,
+): Promise<"won" | "replay" | "lost"> {
+  const purchase = purchaseId.trim();
+  const session = sessionId.trim();
+  if (!purchase || !session) return "lost";
+  const body = JSON.stringify({ sessionId: session });
+  const created = await createMarker(USED_CREDIT, purchase, body);
+  if (created === "created") return "won";
+  const raw = await readMarker(USED_CREDIT, purchase);
+  try {
+    const parsed = JSON.parse(raw ?? "") as { sessionId?: string };
+    if (parsed.sessionId?.trim() === session) return "replay";
+  } catch {
+    /* fremder Claim */
+  }
+  return "lost";
+}
+
+/**
+ * Verlierer: Prüfung und eine Notiz, kein Upgrade. Gewinner und Wiederholung: weiter.
+ */
+export async function settlePaidCreditSession(input: {
+  sessionId: string;
+  purchaseId: string;
+  email: string;
+  company: string;
+  livemode?: boolean;
+}): Promise<"proceed" | "review"> {
+  const claim = await claimCreditUsed(input.purchaseId, input.sessionId);
+  if (claim !== "lost") return "proceed";
+  await flagDuplicateCreditPayment(input);
+  return "review";
+}
 
 let expireForTest: ((sessionId: string) => Promise<void>) | null = null;
 
@@ -35,6 +143,11 @@ export function setCreditSessionExpireForTest(expire: ((sessionId: string) => Pr
 /** Nur der Check. Ersetzt das Intake-Sheet. */
 export function setCreditReviewSheetForTest(sheet: ReviewSheet | null): void {
   sheetForTest = sheet;
+}
+
+function alreadySettled(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return message.includes("complete") || message.includes("expired") || message.includes("paid");
 }
 
 function sessionRef(sessionId: string): string {
@@ -63,6 +176,7 @@ export async function expireStoredCreditSessions(purchaseId: string, keepId = ""
     try {
       await expireOne(sessionId);
     } catch (error) {
+      if (alreadySettled(error)) continue;
       console.warn("[schnellversion] Checkout nicht beendet", {
         sessionRef: sessionRef(sessionId),
         name: error instanceof Error ? error.name : "error",

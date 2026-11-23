@@ -43,7 +43,7 @@ import {
 import { planAccessEnabled, v2FirmPriceIds } from "@/lib/pricing-model";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import { rememberPurchase99Once } from "@/lib/schnellversion-store";
-import { expireStoredCreditSessions, flagDuplicateCreditPayment, isDuplicateCreditSession } from "@/lib/schnellversion-credit-sessions";
+import { expireStoredCreditSessions, releaseOpenCreditCheckout, settlePaidCreditSession } from "@/lib/schnellversion-credit-sessions";
 import { markSvCreditUsed, releaseSvCreditHold } from "@/lib/schnellversion-record";
 import { confirmPaidSession, paymentFromStatus } from "@/lib/schnellversion-payment";
 import { memberFirmQuantityParams } from "@/lib/plan-checkout";
@@ -202,6 +202,8 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.expired": {
         const session = event.data.object;
+        const expiredPurchase = session.metadata?.sv_purchase_id?.trim() ?? "";
+        if (expiredPurchase) await releaseOpenCreditCheckout(expiredPurchase);
         await releaseCreditForExpiredCheckout(session);
         return NextResponse.json({ received: true });
       }
@@ -224,16 +226,14 @@ export async function POST(request: Request) {
         }
         const creditPurchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
         if (creditPurchaseId && paymentFromStatus(session.payment_status) === "paid") {
-          if (await isDuplicateCreditSession(creditPurchaseId, session.id)) {
-            await flagDuplicateCreditPayment({
-              sessionId: session.id,
-              purchaseId: creditPurchaseId,
-              email: session.customer_details?.email || session.customer_email || "",
-              company: session.metadata?.company || "",
-              livemode: session.livemode,
-            });
-            return NextResponse.json({ received: true });
-          }
+          const creditOutcome = await settlePaidCreditSession({
+            sessionId: session.id,
+            purchaseId: creditPurchaseId,
+            email: session.customer_details?.email || session.customer_email || "",
+            company: session.metadata?.company || "",
+            livemode: session.livemode,
+          });
+          if (creditOutcome === "review") return NextResponse.json({ received: true });
         }
         let email =
           session.customer_details?.email || session.customer_email || "";
@@ -374,6 +374,7 @@ export async function POST(request: Request) {
             email: buyerEmail,
             company: company || existing?.company || "",
             sessionId: session.id,
+            ...(creditPurchaseId ? { onceKey: `sv-credit:${creditPurchaseId}` } : {}),
             checkoutNames: stripeContact.checkoutNames,
             extraCompanyNames: stripeContact.extraCompanyNames,
             entityId: checkoutEntityId,
