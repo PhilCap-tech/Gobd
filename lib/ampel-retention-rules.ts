@@ -165,8 +165,16 @@ export function decideKanzleiRow(lead: ReadinessLead, now: number): AmpelRowActi
   };
 }
 
-/** Mail-Link-Blob (gobd/mail-link/<hash>): nur `ampel-doi` (ohne Kassen) und `ampel-unsubscribe`. */
-export type MailLinkBody = { purpose?: unknown; email?: unknown; consentAt?: unknown; check?: unknown };
+/** Mail-Link-Blob (gobd/mail-link/<hash>): Ampel-Zwecke wie bisher, dazu `magic` und `invite` 24 h nach `exp`. */
+export type MailLinkBody = {
+  purpose?: unknown;
+  email?: unknown;
+  consentAt?: unknown;
+  check?: unknown;
+  exp?: unknown;
+};
+
+const MAIL_LINK_AUTH_KEEP_MS = 24 * 60 * 60 * 1000;
 
 export type BlobAction = { kind: "keep" | "delete" | "skip"; reason: string };
 
@@ -178,6 +186,12 @@ export function decideMailLinkBlob(
 ): BlobAction {
   if (!body) return { kind: "skip", reason: "unreadable" };
   const purpose = body.purpose;
+  if (purpose === "magic" || purpose === "invite") {
+    const exp = body.exp;
+    if (typeof exp !== "number" || !Number.isFinite(exp)) return { kind: "keep", reason: "no_exp" };
+    if (now >= exp + MAIL_LINK_AUTH_KEEP_MS) return { kind: "delete", reason: "auth_expired" };
+    return { kind: "keep", reason: "auth_window" };
+  }
   if (purpose !== "ampel-doi" && purpose !== "ampel-unsubscribe") return { kind: "skip", reason: "not_ampel" };
   if (body.check !== undefined) return { kind: "skip", reason: "not_ampel" };
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";

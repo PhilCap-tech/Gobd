@@ -29,6 +29,9 @@ export const MEASURE_METRICS = [
   "ampel_start",
   "ampel_answer",
   "ampel_result",
+  "link_requested",
+  "verify_human",
+  "verify_scanner",
 ] as const;
 
 export type MeasureMetric = (typeof MEASURE_METRICS)[number];
@@ -55,6 +58,10 @@ export const MEASURE_ACTIVE_SINCE: Record<MeasureMetric, string> = {
   ampel_start: "2026-11-07T20:26:04+01:00",
   ampel_answer: "2026-11-07T20:26:04+01:00",
   ampel_result: "2026-11-07T20:26:04+01:00",
+  // Tagessummen ohne Messmarker. Der Tag ist der erste Kalendertag dieser Fassung.
+  link_requested: "2026-11-23T00:00:00+01:00",
+  verify_human: "2026-11-23T00:00:00+01:00",
+  verify_scanner: "2026-11-23T00:00:00+01:00",
 };
 
 /** Coarser than the second, because a stored row has only the Berlin date. */
@@ -66,7 +73,12 @@ export const MEASURE_LABELS: Record<MeasureMetric, string> = {
   ampel_start: "Ampel-Start",
   ampel_answer: "Ampel-Antworten",
   ampel_result: "Ampel-Ergebnis",
+  link_requested: "Anmeldelink angefordert",
+  verify_human: "Anmeldelink-Aufruf durch eine Person",
+  verify_scanner: "Anmeldelink-Aufruf durch einen Link-Scanner",
 };
+
+const AUTH_COUNT_NOTE = "ab 23.11.2026";
 
 /** Shown on every metric. This is not the channel of an earlier visit. */
 export const MEASURE_CHANNEL_BASIS_LABEL = "Kanal des Ereignis-Requests";
@@ -164,6 +176,9 @@ export function measureActiveDay(metric: MeasureMetric): string {
 
 /** Display note for the partial activation day. The same text for every metric. */
 export function measureActiveNote(metric: MeasureMetric): string {
+  if (metric === "link_requested" || metric === "verify_human" || metric === "verify_scanner") {
+    return AUTH_COUNT_NOTE;
+  }
   if (!MEASURE_ACTIVE_SINCE[metric]) return MEASURE_ACTIVE_NOTE;
   return MEASURE_ACTIVE_NOTE;
 }

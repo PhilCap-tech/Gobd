@@ -549,13 +549,26 @@ async function main() {
   ];
   ok(measureActiveDay("intake_start") === "2026-11-07", "activation is the Berlin day of the fixed instant");
   ok(measureActiveNote("ampel_start") === "ab ca. 20:26 Uhr (Berlin)", "the activation day is partial from about 20:26");
+  const originalMetrics = [
+    "intake_start",
+    "magic_link_first_login",
+    "ampel_start",
+    "ampel_answer",
+    "ampel_result",
+  ] as const;
   ok(
-    MEASURE_METRICS.every((metric) => MEASURE_ACTIVE_SINCE[metric] === "2026-11-07T20:26:04+01:00"),
-    "every metric shares the production-ready instant and does not read a deploy env var",
+    originalMetrics.every((metric) => MEASURE_ACTIVE_SINCE[metric] === "2026-11-07T20:26:04+01:00"),
+    "the original metrics share the production-ready instant and do not read a deploy env var",
+  );
+  ok(
+    MEASURE_ACTIVE_SINCE.link_requested === "2026-11-23T00:00:00+01:00" &&
+      MEASURE_ACTIVE_SINCE.verify_human === MEASURE_ACTIVE_SINCE.link_requested &&
+      MEASURE_ACTIVE_SINCE.verify_scanner === MEASURE_ACTIVE_SINCE.link_requested,
+    "the auth day counts start on 23.11.2026 and do not read a deploy env var",
   );
   const report = buildMeasureReport(rows, { now });
   ok(report.windowDays === MEASURE_WINDOW_DAYS && report.timezone === "Europe/Berlin", "the report is the Berlin window");
-  ok(report.metrics.length === 5, "every metric is present");
+  ok(report.metrics.length === MEASURE_METRICS.length, "every metric is present");
   const intake = report.metrics.find((item) => item.metric === "intake_start");
   ok(intake && intake.from === "2026-11-07" && intake.activeSince === MEASURE_ACTIVE_SINCE.intake_start && intake.days.length === 14, "intake is measured from the activation day");
   ok(intake?.firstStandardEvent === "2026-11-07", "the first standard row on or after activation is informational");

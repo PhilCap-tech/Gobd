@@ -28,6 +28,8 @@ import {
 } from "../lib/tag-page-url";
 import { KASSEN_CHECK_PATH } from "../lib/kassen-check-questions";
 import {
+  AUTH_VERIFY_PATH,
+  AUTH_VERIFY_REFERRER_POLICY,
   TOKEN_LANDING_PREFIXES,
   TOKEN_REFERRER_POLICY,
   isTokenLandingPath,
@@ -286,36 +288,54 @@ const rules = tokenLandingHeaderRules();
 
 async function main() {
 const configured = (await nextConfig.headers?.()) ?? [];
-const catchAllAt = configured.findIndex(
+const siteReferrerAt = configured.findIndex(
   (rule) =>
-    rule.source === "/:path*" &&
+    rule.source === "/:path((?!auth/verify$).*)" &&
     rule.headers.some((header) => header.key === "Referrer-Policy" && header.value === "strict-origin-when-cross-origin"),
 );
-ok(catchAllAt !== -1, "the sitewide referrer policy is still strict-origin-when-cross-origin");
+ok(siteReferrerAt !== -1, "the sitewide referrer policy is still strict-origin-when-cross-origin");
+ok(
+  !configured.some(
+    (rule) =>
+      rule.source === "/:path*" &&
+      rule.headers.some((header) => header.key === "Referrer-Policy"),
+  ),
+  "the catch-all does not add a second Referrer-Policy",
+);
 for (const rule of rules) {
   const at = configured.findIndex((item) => item.source === rule.source);
-  ok(at > catchAllAt, `${rule.source} is applied after the catch-all`);
+  ok(at > siteReferrerAt, `${rule.source} is applied after the site referrer`);
   ok(
     configured[at]?.headers.some((header) => header.key === "Referrer-Policy" && header.value === TOKEN_REFERRER_POLICY),
     `${rule.source} sets no-referrer`,
   );
 }
 
-function referrerPolicy(pathname: string): string | null {
-  let value: string | null = null;
+function referrerPolicies(pathname: string): string[] {
+  const values: string[] = [];
   for (const rule of configured) {
     if (!getPathMatch(rule.source)(pathname)) continue;
     for (const header of rule.headers) {
-      if (header.key.toLowerCase() === "referrer-policy") value = header.value;
+      if (header.key.toLowerCase() === "referrer-policy") values.push(header.value);
     }
   }
-  return value;
+  return values;
+}
+
+function referrerPolicy(pathname: string): string | null {
+  const values = referrerPolicies(pathname);
+  return values.length === 0 ? null : values[values.length - 1];
 }
 
 ok(referrerPolicy("/") === "strict-origin-when-cross-origin", "the homepage keeps the sitewide referrer policy");
 ok(referrerPolicy("/kassen-check") === "strict-origin-when-cross-origin", "the Kassen check keeps the sitewide referrer policy");
 for (const prefix of TOKEN_LANDING_PREFIXES) {
   const sample = prefix.endsWith("/") ? `${prefix.slice(0, -1)}/child` : prefix;
+  if (sample === AUTH_VERIFY_PATH) {
+    assert.deepEqual(referrerPolicies(sample), [AUTH_VERIFY_REFERRER_POLICY], `${sample} has one same-origin policy`);
+    ok(!referrerPolicies(sample).includes(TOKEN_REFERRER_POLICY), `${sample} is not no-referrer`);
+    continue;
+  }
   ok(referrerPolicy(sample) === "no-referrer", `${sample} referrer policy is no-referrer`);
 }
 ok(referrerPolicy("/api/readiness/lead/download") === "no-referrer", "readiness download referrer policy is no-referrer");
