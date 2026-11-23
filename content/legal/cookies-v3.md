@@ -4,7 +4,7 @@
 
 ## Kurzfassung
 
-Wir nutzen **notwendige** Cookies und ähnliche Technologien, damit die Website, Sicherheit, Anmeldung, Bestellung und Stripe Checkout funktionieren. **Marketing-Dienste** (Google Ads / GA4, Meta Pixel und auf der Partnerseite der Digistore24-Promocode) laden wir erst nach Ihrer Einwilligung im Cookie-Banner. **Vercel Web Analytics** läuft ohne Cookies und ohne Einwilligung.
+Wir nutzen **notwendige** Cookies und ähnliche Technologien, damit die Website, Sicherheit, Anmeldung, Bestellung und Stripe Checkout funktionieren. **Marketing-Dienste** (Google Ads / GA4, Meta Pixel und auf der Partnerseite der Digistore24-Promocode)<!-- if:schnellversion --> sowie die Zuteilung zu einer Testgruppe der Startseite (sv49_arm) laden bzw. setzen wir<!-- endif --><!-- if:schnellversion-off --> laden wir<!-- endif --> erst nach Ihrer Einwilligung im Cookie-Banner. **Vercel Web Analytics** läuft ohne Cookies und ohne Einwilligung.
 
 ## Was sind Cookies?
 
@@ -63,10 +63,15 @@ Kampagnenparameter in der Adresse (UTM) speichern wir nicht auf Ihrem Endgerät.
 | `ds24c.v1` (Cookie) | Digistore24 GmbH | Affiliate-Zuordnung auf der Partnerseite (Affiliate-ID, Kampagne, UTM-Parameter) | Marketing (nur nach Einwilligung) | 7 Tage, wenn Digistore24 die Speicherung erlaubt; sonst Ende der Browsersitzung |
 | `ds24p.v1` (Local Storage) | Digistore24 GmbH | Dieselben Zuordnungsdaten, nur wenn Digistore24 die Speicherung erlaubt | Marketing (nur nach Einwilligung) | bis zur Löschung im Browser |
 | `ds24s.v1` (Session Storage) | Digistore24 GmbH | Dieselben Zuordnungsdaten für die laufende Sitzung | Marketing (nur nach Einwilligung) | Ende der Browsersitzung |
+<!-- if:schnellversion -->
+| `sv49_arm` (Cookie) | IKAT GmbH | Zufällige Zuteilung zu einer Testgruppe der Startseite (mit oder ohne Angebot der Schnellversion); Inhalt nur „control“ oder „test“ | Marketing (nur nach Einwilligung) | 28 Tage; wird beim Widerruf gelöscht |
+| `sv49_answers` (Session Storage) | IKAT GmbH | Ihre Antworten in der Schnellversion während der Eingabe | Essenziell | Ende der Browsersitzung |
+| `sv49_gekauft` (Session Storage) | IKAT GmbH | Merkt sich nach dem Kauf der Schnellversion den Kaufzeitpunkt für die Danke-Seite | Essenziell | Ende der Browsersitzung |
+<!-- endif -->
 
 ## Verwaltung / Ablehnung
 
-Technisch notwendige Cookies können in der Regel nicht abgewählt werden, ohne Funktion oder Checkout zu beeinträchtigen. Marketing können Sie jederzeit über „Cookie-Einstellungen“ widerrufen. Die Ablehnung wird gespeichert; Marketing-Skripte werden danach nicht mehr geladen. Bereits gesetzte Marketing-Cookies (`_ga`, `_gcl_au`, `_fbp`, `ds24c.v1` und ähnliche) entfernt der Widerruf nicht automatisch. Sie können sie in den Einstellungen Ihres Browsers löschen.
+Technisch notwendige Cookies können in der Regel nicht abgewählt werden, ohne Funktion oder Checkout zu beeinträchtigen. Marketing können Sie jederzeit über „Cookie-Einstellungen“ widerrufen. Die Ablehnung wird gespeichert; Marketing-Skripte werden danach nicht mehr geladen. Bereits gesetzte Marketing-Cookies (`_ga`, `_gcl_au`, `_fbp`, `ds24c.v1` und ähnliche) entfernt der Widerruf nicht automatisch. Sie können sie in den Einstellungen Ihres Browsers löschen.<!-- if:schnellversion --> Das Cookie sv49_arm löschen wir beim Widerruf.<!-- endif -->
 
 ## Weitere Informationen
 

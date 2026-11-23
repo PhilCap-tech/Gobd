@@ -37,7 +37,7 @@ async function readPaidPdf(request: NextRequest): Promise<Response> {
   if (!confirmed.paid) return new Response(null, { status: 402 });
   const email = (await sessionEmailFromRequest(request)) ?? "";
   const token = url.searchParams.get("dl")?.trim() ?? "";
-  if (!svDownloadAllowed(confirmed.purchase, { email, token, now: new Date() })) {
+  if (!svDownloadAllowed(confirmed.purchase, { email, token, now: new Date(), paidSession: confirmed.purchase.sessionId === sessionId })) {
     return new Response(null, { status: 401 });
   }
   const pdf = await readSvPdf(confirmed.purchase);

@@ -36,6 +36,8 @@ export type SvEventRow = {
   value: number;
   step: number;
   ziel: "einmalig" | "dauerhaft" | "";
+  /** Kalendertag Europe/Berlin, nur serverseitig. Der Browser darf ihn nicht setzen. */
+  day?: string;
 };
 
 const EVENT_KEYS = ["name", "arm", "variante", "branche_vorlage", "value", "step", "ziel"] as const;

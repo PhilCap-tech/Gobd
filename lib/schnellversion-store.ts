@@ -13,7 +13,7 @@ import { SV_EVENT_NAMES, type SvEventName, type SvEventRow } from "@/lib/schnell
 import { claimSvJson, svBlobEnabled, svCounted99Path } from "@/lib/schnellversion-persist";
 
 export const SV_EVENT_TAB = "schnellversion_49";
-export const SV_EVENT_COLUMNS = ["name", "arm", "variante", "branche_vorlage", "value", "step", "ziel"] as const;
+export const SV_EVENT_COLUMNS = ["name", "arm", "variante", "branche_vorlage", "value", "step", "ziel", "day"] as const;
 
 const FILE = "/tmp/gobd-sv49-events.jsonl";
 const NAME_SET = new Set<string>(SV_EVENT_NAMES);
@@ -70,8 +70,17 @@ function sheetWritesAllowed(): boolean {
   return true;
 }
 
+/** Kalendertag Europe/Berlin, YYYY-MM-DD. */
+export function svEventDay(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(now);
+}
+
+function stamped(row: SvEventRow, now = new Date()): SvEventRow {
+  return row.day && /^\d{4}-\d{2}-\d{2}$/.test(row.day) ? row : { ...row, day: svEventDay(now) };
+}
+
 function cells(row: SvEventRow): string[] {
-  return [row.name, row.arm, row.variante, row.branche_vorlage, String(row.value), String(row.step), row.ziel];
+  return [row.name, row.arm, row.variante, row.branche_vorlage, String(row.value), String(row.step), row.ziel, row.day ?? ""];
 }
 
 function spreadsheetId(): string {
@@ -96,7 +105,7 @@ async function ensureSheet(client: SheetClient): Promise<void> {
       if (!/already exists/i.test(message)) throw error;
     }
   }
-  const header = await client.valuesGet({ spreadsheetId: id, range: `${SV_EVENT_TAB}!A1:G1` });
+  const header = await client.valuesGet({ spreadsheetId: id, range: `${SV_EVENT_TAB}!A1:H1` });
   const first = header.data?.values?.[0];
   if (!first || first.every((cell) => String(cell ?? "").trim() === "")) {
     await client.valuesAppend({
@@ -125,6 +134,7 @@ function rowFromCells(cellsIn: string[]): SvEventRow | null {
     value: Number.isFinite(value) ? value : 0,
     step: Number.isFinite(step) ? step : 0,
     ziel: ziel === "einmalig" || ziel === "dauerhaft" ? ziel : "",
+    day: /^\d{4}-\d{2}-\d{2}$/.test(cellsIn[7]?.trim() ?? "") ? cellsIn[7].trim() : undefined,
   };
 }
 
@@ -189,27 +199,29 @@ export function rememberPurchase99Once(input: {
 }
 
 /** Schreibt sv_purchase dauerhaft. Wirft, bevor ein Zähl-Marker gesetzt werden darf. */
-export async function persistSvPurchaseEvent(row: SvEventRow): Promise<void> {
+export async function persistSvPurchaseEvent(row: SvEventRow, now = new Date()): Promise<void> {
   if (failPurchaseSink) throw new Error("Event nicht gespeichert");
+  const stampedRow = stamped(row, now);
   const production = (process.env.VERCEL_ENV ?? "").trim() === "production";
   const writeFile = !production && !automatedRunForbidsLiveWrites();
-  if (writeFile) appendFileSync(FILE, `${JSON.stringify(row)}\n`, "utf8");
-  if (sheetWritesAllowed()) await appendSheet(row);
-  memory.push(row);
+  if (writeFile) appendFileSync(FILE, `${JSON.stringify(stampedRow)}\n`, "utf8");
+  if (sheetWritesAllowed()) await appendSheet(stampedRow);
+  memory.push(stampedRow);
 }
 
-export function rememberSvEvent(row: SvEventRow): void {
-  memory.push(row);
+export function rememberSvEvent(row: SvEventRow, now = new Date()): void {
+  const stampedRow = stamped(row, now);
+  memory.push(stampedRow);
   const production = (process.env.VERCEL_ENV ?? "").trim() === "production";
   if (!production && !automatedRunForbidsLiveWrites()) {
     try {
-      appendFileSync(FILE, `${JSON.stringify(row)}\n`, "utf8");
+      appendFileSync(FILE, `${JSON.stringify(stampedRow)}\n`, "utf8");
     } catch {
       /* lokale Datei ist nur eine Hilfe */
     }
   }
   if (!sheetWritesAllowed()) return;
-  void appendSheet(row).catch((error: unknown) => {
+  void appendSheet(stampedRow).catch((error: unknown) => {
     const name = error instanceof Error && error.name ? error.name : "Error";
     console.error("[schnellversion]", name);
   });
@@ -240,7 +252,7 @@ export async function readSvEvents(): Promise<SvEventRow[]> {
       const client = installed?.client ?? (createSheetsClient() as unknown as SheetClient);
       const result = await client.valuesGet({
         spreadsheetId: spreadsheetId(),
-        range: `${SV_EVENT_TAB}!A:G`,
+        range: `${SV_EVENT_TAB}!A:H`,
       });
       const values = result.data?.values ?? [];
       const rows = values.map((row) => rowFromCells(row.map((cell) => String(cell ?? "")))).filter((row): row is SvEventRow => Boolean(row));
