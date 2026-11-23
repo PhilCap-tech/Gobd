@@ -9,11 +9,18 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { authCallIsScanner, classifyAuthUserAgent } from "@/lib/auth-ua-class";
-import { createMagicToken, SESSION_COOKIE, verifyMagicToken, withoutMailedCheckoutSession } from "@/lib/auth";
+import { createInviteToken, createMagicToken, SESSION_COOKIE, verifyMagicToken, withoutMailedCheckoutSession } from "@/lib/auth";
 import { customerMailOrigin, getAppUrl } from "@/lib/env";
 import { flushLeadNoticesForTests } from "@/lib/lead-notice";
 import { setMailDedupeTestHooks } from "@/lib/mail-dedupe";
-import { readMailLinkResendId, rememberMailLinkResendId } from "@/lib/mail-link-token-store";
+import { mailDedupeLogKind } from "@/lib/mail-dedupe";
+import {
+  loadMailLinkToken,
+  newOpaqueMailLinkToken,
+  readMailLinkResendId,
+  rememberMailLinkResendId,
+  saveMailLinkToken,
+} from "@/lib/mail-link-token-store";
 import { setMeasureClaimRootForTest } from "@/lib/measure-claim";
 import { recordAuthDailyCount } from "@/lib/measure-record";
 import { installMeasureSheetClientForTest, type MeasureSheetClient } from "@/lib/measure-store";
@@ -28,7 +35,7 @@ import {
 } from "@/lib/ops";
 import { ownerNoticesQueuedForTest, resetOwnerNoticeQueueForTest, setOwnerNoticeTestMode } from "@/lib/owner-notice";
 import { purchaseMail } from "@/lib/schnellversion-purchase-mail";
-import { GET, HEAD } from "@/app/auth/verify/route";
+import { GET, HEAD, POST } from "@/app/auth/verify/route";
 
 const BROWSER =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -118,6 +125,31 @@ async function call(
   return { response: ran.response, line, body };
 }
 
+async function postVerify(
+  token: string,
+  ua: string,
+  origin: string,
+): Promise<{ response: Response; line: string; body: Record<string, unknown> }> {
+  delete process.env.VERCEL_REGION;
+  const url = new URL("https://preview.example.test/auth/verify");
+  const request = new Request(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin,
+      "user-agent": ua,
+      "x-forwarded-for": IP,
+    },
+    body: new URLSearchParams({ token, next: "/fragebogen" }),
+  });
+  const ran = await capture(() => POST(request));
+  const line = verifyLine(ran.lines);
+  assertClean(line, token);
+  const body = JSON.parse(line.slice(line.indexOf("{"))) as Record<string, unknown>;
+  assert.deepEqual(Object.keys(body), ["result", "method", "uaClass", "target", "region"]);
+  return { response: ran.response, line, body };
+}
+
 async function main(): Promise<void> {
   process.env.MAGIC_LINK_SECRET = "check-auth-verify-magic";
   process.env.MEASURE_HMAC_SECRET = "check-auth-verify-hmac";
@@ -195,7 +227,17 @@ async function main(): Promise<void> {
 
   const scanner = await call("GET", token, OUTLOOK);
   ok(scanner.body.result === "scanner_skip" && scanner.body.method === "GET" && scanner.body.uaClass === "outlook-safelinks", "outlook is scanner_skip");
-  ok(scanner.body.target === "/login" && scanner.body.region === null, "scanner target and empty region");
+  ok(scanner.body.target === "/auth/verify" && scanner.body.region === null, "interstitial target has no query");
+  ok(scanner.response.status === 200, "outlook get is the confirm page");
+  ok(scanner.response.headers.get("referrer-policy") === "no-referrer", "interstitial sends no referrer");
+  ok(scanner.response.headers.get("cache-control")?.includes("no-store") === true, "interstitial is not stored");
+  const page = await scanner.response.text();
+  ok(page.includes("Bitte bestätigen Sie die Anmeldung."), "confirm sentence");
+  ok(page.includes(">Anmelden<"), "confirm button");
+  ok(page.includes('name="robots" content="noindex"'), "confirm page is noindex");
+  ok(!/src="https?:|href="https?:/i.test(page), "confirm page has no external asset");
+  ok(page.split(token).length - 1 === 1, "token appears only once");
+  ok(page.includes(`name="token" value="${token}"`), "token is only the hidden field");
   ok(!cookies(scanner.response).includes(SESSION_COOKIE), "scanner sets no session cookie");
   ok(ownerNoticesQueuedForTest() === 0 && sent.length === 0, "scanner queues no notice");
   ok((await verifyMagicToken(token)) === EMAIL, "scanner leaves the token valid");
@@ -242,6 +284,50 @@ async function main(): Promise<void> {
   const invalid = await call("GET", "not-a-token", BROWSER);
   ok(invalid.body.result === "invalid" && invalid.body.target === "/login", "invalid");
   ok(!cookies(invalid.response).includes(SESSION_COOKIE), "invalid sets no cookie");
+
+  const outlookEmail = "outlook.verify@firma.example";
+  const outlookToken = (await createMagicToken(outlookEmail)) ?? "";
+  ok(await rememberMailLinkResendId(outlookToken, LOGIN_RESEND_ID), "outlook login mail id stored");
+  const beforeOutlook = ownerNoticesQueuedForTest();
+  const beforeSent = sent.length;
+  const firstScan = await call("GET", outlookToken, "Outlook-iOS/1.0");
+  const secondScan = await call("GET", outlookToken, "Outlook-Android/1.0");
+  ok(firstScan.body.result === "scanner_skip" && secondScan.body.result === "scanner_skip", "two outlook gets stay scanner_skip");
+  ok(!cookies(firstScan.response).includes(SESSION_COOKIE) && !cookies(secondScan.response).includes(SESSION_COOKIE), "outlook gets set no cookie");
+  ok((await verifyMagicToken(outlookToken)) === outlookEmail, "outlook gets leave the token valid");
+  ok(ownerNoticesQueuedForTest() === beforeOutlook, "outlook gets queue no notice");
+  const confirmed = await postVerify(outlookToken, OUTLOOK, "https://preview.example.test");
+  await flushLeadNoticesForTests();
+  ok(confirmed.body.result === "ok_first" && confirmed.body.method === "POST", "outlook post logs in");
+  ok(cookies(confirmed.response).includes(`${SESSION_COOKIE}=`), "outlook post sets the session cookie");
+  ok(ownerNoticesQueuedForTest() === beforeOutlook + 1 && sent.length === beforeSent + 1, "two scans then one post send one notice");
+  const again = await postVerify(outlookToken, OUTLOOK, "https://preview.example.test");
+  await flushLeadNoticesForTests();
+  ok(again.body.result === "ok_repeat" && sent.length === beforeSent + 1, "second post sends no second notice");
+
+  const csrfEmail = "csrf.verify@firma.example";
+  const csrfToken = (await createMagicToken(csrfEmail)) ?? "";
+  const blocked = await postVerify(csrfToken, OUTLOOK, "https://evil.example");
+  ok(blocked.body.result === "invalid" && blocked.body.method === "POST", "cross-site post is refused");
+  ok(!cookies(blocked.response).includes(SESSION_COOKIE), "cross-site post sets no cookie");
+  ok((await verifyMagicToken(csrfToken)) === csrfEmail, "cross-site post leaves the token valid");
+
+  const magicRecord = await loadMailLinkToken(token);
+  ok(typeof magicRecord?.exp === "number" && Number.isFinite(magicRecord.exp), "magic records store exp");
+  const invite = await createInviteToken({ membershipId: "mem-verify", email: "invite.verify@firma.example" });
+  const inviteRecord = invite ? await loadMailLinkToken(invite) : null;
+  ok(inviteRecord?.purpose === "invite" && typeof inviteRecord.exp === "number", "invite records store exp");
+  const bare = newOpaqueMailLinkToken();
+  ok((await saveMailLinkToken(bare, { purpose: "magic", email: "bare.verify@firma.example" })) === false, "magic without exp is refused");
+  ok((await loadMailLinkToken(bare)) === null, "refused magic write stores nothing");
+  const bareInvite = newOpaqueMailLinkToken();
+  ok(
+    (await saveMailLinkToken(bareInvite, { purpose: "invite", email: "bare.verify@firma.example", membershipId: "m" })) === false,
+    "invite without exp is refused",
+  );
+  ok(mailDedupeLogKind(`owner-notice:account:${"ab".repeat(32)}`) === "owner-notice:account", "dedupe log kind drops the hash");
+  ok(mailDedupeLogKind(`readiness:h1:${"cd".repeat(32)}`) === "readiness", "dedupe log kind drops h1 and the digest");
+  ok(!mailDedupeLogKind("person@firma.example").includes("@"), "dedupe log kind drops an address");
 
   const keys = ["VERCEL_ENV", "VERCEL_URL", "VERCEL_BRANCH_URL", "NEXT_PUBLIC_APP_URL"] as const;
   const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]])) as Record<(typeof keys)[number], string | undefined>;

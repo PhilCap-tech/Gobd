@@ -167,8 +167,20 @@ export function mailLinkTokenStore(): MailLinkTokenStore {
  * Stores the payload under the SHA-256 of `token`. The raw token is refused
  * if it would land in the body. Unsubscribe records omit `exp`.
  */
+function finiteExp(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/** New magic and invite rows must carry `exp`. Other purposes are unchanged. */
+export function mailLinkWriteKeepsExpiry(payload: object): boolean {
+  const record = payload as { purpose?: unknown; exp?: unknown };
+  if (record.purpose !== "magic" && record.purpose !== "invite") return true;
+  return finiteExp(record.exp);
+}
+
 export async function saveMailLinkToken(token: string, payload: object): Promise<boolean> {
   if (!isOpaqueMailLinkToken(token)) return false;
+  if (!mailLinkWriteKeepsExpiry(payload)) return false;
   const hash = mailLinkTokenHash(token);
   const body = JSON.stringify({ ...payload, hash });
   if (body.includes(token)) return false;
@@ -194,6 +206,7 @@ export async function rememberMailLinkResendId(token: string, resendId: string):
   if (!existing || existing.purpose !== "magic") return false;
   if (typeof existing.resendId === "string" && existing.resendId.trim()) return true;
   const next = { ...existing, resendId: id };
+  if (!mailLinkWriteKeepsExpiry(next)) return false;
   const body = JSON.stringify(next);
   if (body.includes(token)) return false;
   return mailLinkTokenStore().replace(existing.hash, body);

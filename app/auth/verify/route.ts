@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildVerifyInterstitial, VERIFY_INTERSTITIAL_HEADERS } from "@/lib/auth-verify-page";
 import { authCallIsScanner, classifyAuthUserAgent, type AuthUaClass } from "@/lib/auth-ua-class";
 import {
   applySessionCookie,
@@ -16,6 +17,7 @@ import { ownerNoticeEmailHash, ownerNoticeMailKey, queueOwnerNotice } from "@/li
 export const runtime = "nodejs";
 
 type VerifyResult = "ok_first" | "ok_repeat" | "expired" | "invalid" | "scanner_skip";
+type VerifyMethod = "GET" | "HEAD" | "POST";
 
 function pathOnly(value: string): string {
   try {
@@ -31,7 +33,7 @@ function region(): string | null {
 
 function logVerify(fields: {
   result: VerifyResult;
-  method: "GET" | "HEAD";
+  method: VerifyMethod;
   uaClass: AuthUaClass;
   target: string;
   region: string | null;
@@ -39,43 +41,108 @@ function logVerify(fields: {
   console.info("[auth] verify " + JSON.stringify(fields));
 }
 
+function requestHosts(request: Request): Set<string> {
+  const hosts = new Set<string>();
+  try {
+    hosts.add(new URL(request.url).host.toLowerCase());
+  } catch {
+    // The request URL is still used as the redirect base below.
+  }
+  const host = request.headers.get("host")?.split(",")[0]?.trim().toLowerCase() ?? "";
+  if (host) hosts.add(host);
+  return hosts;
+}
+
+/** Same-origin Origin or Referer. No Origin is allowed. A foreign site is not. */
+export function verifyPostIsSameOrigin(request: Request): boolean {
+  const hosts = requestHosts(request);
+  const origin = request.headers.get("origin")?.trim() ?? "";
+  if (origin) {
+    try {
+      return hosts.has(new URL(origin).host.toLowerCase());
+    } catch {
+      return false;
+    }
+  }
+  const referer = request.headers.get("referer")?.trim() ?? "";
+  if (!referer) return true;
+  try {
+    return hosts.has(new URL(referer).host.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+async function postedFields(request: Request): Promise<{ token: string; next: string | null }> {
+  try {
+    const form = await request.formData();
+    const token = form.get("token");
+    const next = form.get("next");
+    return {
+      token: typeof token === "string" ? token : "",
+      next: typeof next === "string" ? next : null,
+    };
+  } catch {
+    return { token: "", next: null };
+  }
+}
+
 export async function GET(request: Request): Promise<NextResponse> {
-  return handleAuthVerify(request);
+  return handleAuthVerify(request, "GET");
 }
 
 export async function HEAD(request: Request): Promise<NextResponse> {
-  return handleAuthVerify(request);
+  return handleAuthVerify(request, "HEAD");
 }
 
-async function handleAuthVerify(request: Request): Promise<NextResponse> {
-  const method = request.method === "HEAD" ? "HEAD" : "GET";
+export async function POST(request: Request): Promise<NextResponse> {
+  return handleAuthVerify(request, "POST");
+}
+
+async function handleAuthVerify(request: Request, method: VerifyMethod): Promise<NextResponse> {
   const url = new URL(request.url);
-  const token = url.searchParams.get("token") ?? "";
-  const next = safeNextPath(url.searchParams.get("next"));
+  const posted = method === "POST" ? await postedFields(request) : null;
+  const token = posted ? posted.token : (url.searchParams.get("token") ?? "");
+  const next = safeNextPath(posted ? posted.next : url.searchParams.get("next"));
   const uaClass = classifyAuthUserAgent(request.headers.get("user-agent"));
   const referrerHeader = request.headers.get("referer");
+  const gobdTest = url.searchParams.get("gobd_test");
   let result: VerifyResult = "invalid";
   let target = "/login";
   let response = NextResponse.redirect(new URL("/login", request.url));
   try {
-    if (authCallIsScanner({ method, uaClass })) {
-      result = "scanner_skip";
+    if (method === "POST" && !verifyPostIsSameOrigin(request)) {
+      result = "invalid";
       target = "/login";
       response = NextResponse.redirect(new URL("/login", request.url));
+      return response;
+    }
+    if (method !== "POST" && authCallIsScanner({ method, uaClass })) {
+      result = "scanner_skip";
       scheduleMeasureWrite(() =>
         recordAuthDailyCount({
           metric: "verify_scanner",
           referrerHeader,
-          gobdTest: url.searchParams.get("gobd_test"),
+          gobdTest,
         }),
       );
+      if (method === "HEAD") {
+        target = "/login";
+        response = NextResponse.redirect(new URL("/login", request.url));
+        return response;
+      }
+      target = "/auth/verify";
+      response = new NextResponse(buildVerifyInterstitial({ token, next }), {
+        status: 200,
+        headers: VERIFY_INTERSTITIAL_HEADERS,
+      });
       return response;
     }
     scheduleMeasureWrite(() =>
       recordAuthDailyCount({
         metric: "verify_human",
         referrerHeader,
-        gobdTest: url.searchParams.get("gobd_test"),
+        gobdTest,
       }),
     );
     const email = await verifyMagicToken(token);

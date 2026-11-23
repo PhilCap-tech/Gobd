@@ -190,6 +190,20 @@ function dedupeKeyHmacKey(): Buffer {
  * Keys without `@` stay unchanged (no migration needed); a key with an
  * address becomes `<prefix>:h1:<hex>`, so no plain email reaches the ledger.
  */
+/**
+ * Log label for a dedupe key. Leading kind words only.
+ * Hashes, `h1`, addresses and ids are dropped.
+ */
+export function mailDedupeLogKind(key: string): string {
+  const kept: string[] = [];
+  for (const part of key.split(":")) {
+    if (kept.length >= 2) break;
+    if (!/^[a-z][a-z-]{0,24}$/.test(part)) break;
+    kept.push(part);
+  }
+  return kept.join(":") || "mail";
+}
+
 export function storedMailDedupeKey(logicalKey: string): string {
   const key = logicalKey.trim();
   if (!key || !key.includes("@")) return key;
@@ -528,7 +542,10 @@ async function sendDedupedEmailLocked(input: DedupedMailInput): Promise<MailResu
     legacyMailDedupeKey(input.dedupeKey, dedupeKey),
   );
   if (claim.role === "duplicate") {
-    console.info("[mail] bereits beansprucht", { key: dedupeKey, inflight: claim.inflight });
+    console.info("[mail] bereits beansprucht", {
+      kind: mailDedupeLogKind(dedupeKey),
+      inflight: claim.inflight,
+    });
     return {
       stub: false,
       sent: false,
