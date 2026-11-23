@@ -44,6 +44,7 @@ import { DL_REQUEST_LOG_IGNORE, installDlLogRedaction, redactDlTokenText } from 
 import { ignoreLoggingIncomingRequests } from "next/dist/server/dev/log-requests.js";
 import nextConfig from "../next.config";
 import { NextRequest } from "next/server";
+import { noteSchnellversionPurchase } from "../app/api/stripe/webhook/route";
 import { generatePdf } from "../lib/delivery";
 import { renderGesamtChapters } from "../lib/gesamt-document";
 import { getGesamtMuster } from "../lib/module-muster";
@@ -1139,6 +1140,40 @@ async function main() {
     "§ 9 Abs. 4 Satz 2 zur Anrechnung bleibt weg",
   );
   ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("PLAN_TERMS_LABEL_BEFORE"), "Checkout bestätigt die AGB");
+  const ohneArm = await openSchnellversionCheckout({
+    answers: sample({ firma: "Anrechnung Ohne Arm GmbH" }),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "ohne-arm@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(ohneArm.ok, "Kauf für die Anrechnung ohne Arm");
+  const ohneArmPaid = await confirmPaidSession(ohneArm.ok ? ohneArm.sessionId : "", { env: stubPaid });
+  ok(ohneArmPaid.paid, "Kauf ohne Arm ist bezahlt");
+  const purchase99Before = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
+  if (ohneArmPaid.paid) {
+    await noteSchnellversionPurchase(
+      { id: "cs_upgrade_ohne_arm", metadata: { sv_purchase_id: ohneArmPaid.purchase.id } },
+      "ohne-arm@example.com",
+      "evt_ohne_arm",
+    );
+    await noteSchnellversionPurchase(
+      { id: "cs_upgrade_fremd", metadata: { sv_arm: "weder", sv_purchase_id: ohneArmPaid.purchase.id } },
+      "ohne-arm@example.com",
+      "evt_weder",
+    );
+  }
+  const used = (await listAllSvPurchases()).find((row) => row.id === (ohneArmPaid.paid ? ohneArmPaid.purchase.id : ""));
+  ok(Boolean(used?.creditUsedAt.trim()), "Anrechnung ohne Arm setzt creditUsedAt");
+  const afterWindow = new Date(Date.now() + 31 * 60 * 1000);
+  ok(
+    used ? !(await reserveSvCredit(used.id, "zweite-nach-30-min", afterWindow)) : false,
+    "zweite Reservierung nach 30 Minuten schlägt fehl",
+  );
+  const purchase99After = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
+  ok(purchase99After === purchase99Before, "ohne Arm bleibt die Testarm-Verbuchung aus");
 
   console.log("check-schnellversion: ok");
 }

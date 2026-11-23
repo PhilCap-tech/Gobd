@@ -107,22 +107,26 @@ function invoiceEntityId(invoice: {
   );
 }
 
-/** Nur das Ereignis. Die bestehende Kaufverbuchung bleibt davor unverändert. */
-async function noteSchnellversionPurchase(
+/**
+ * Bezahlter Einstieg mit Anrechnung. creditUsedAt wird immer gesetzt, sobald
+ * die Session die Kauf-ID trägt (Coupon war im Checkout gesetzt), auch ohne
+ * sv_arm. Die Zählung des Testarms bleibt daran gebunden.
+ */
+export async function noteSchnellversionPurchase(
   session: { id?: string | null; metadata?: { sv_arm?: string | null; sv_purchase_id?: string | null } | null },
   email: string,
   eventId: string,
 ): Promise<void> {
-  if (!schnellversion49Enabled()) return;
   const arm = session.metadata?.sv_arm;
-  if (arm !== "control" && arm !== "test") return;
+  const purchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
   try {
-    await rememberPurchase99Once({
-      sessionId: session.id?.trim() ?? "",
-      eventId,
-      arm,
-    });
-    const purchaseId = session.metadata?.sv_purchase_id?.trim() ?? "";
+    if (schnellversion49Enabled() && (arm === "control" || arm === "test")) {
+      await rememberPurchase99Once({
+        sessionId: session.id?.trim() ?? "",
+        eventId,
+        arm,
+      });
+    }
     if (purchaseId && email.trim()) await markSvCreditUsed(email, purchaseId, new Date().toISOString());
   } catch (error) {
     console.error("[webhook] Schnellversion", error instanceof Error ? error.name : "error");
