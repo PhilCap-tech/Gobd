@@ -3,6 +3,7 @@
  * Ereignisse ohne Personenbezogene Daten, Abbruchschwellen ohne Automatik.
  */
 import assert from "node:assert/strict";
+import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
@@ -42,6 +43,7 @@ import { addMonthsIso } from "../lib/plan";
 import { DOC_RETENTION_MONTHS } from "../lib/retention-decision";
 import { PLAN_OFFER_OBJECTION_NOTICE } from "../lib/plan-copy";
 import { applyLegalConditions, legalFlagsFor } from "../lib/legal-content";
+import { buildLlmsTxt } from "../lib/llms-txt";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { GET as pdfGet, POST as pdfPost } from "../app/api/schnellversion/pdf/route";
 import { SV_HIDDEN_TITLE, schnellversionPageMetadata } from "../lib/schnellversion-meta";
@@ -286,15 +288,24 @@ async function main() {
     {},
   );
   ok(quiet.sending === false && sent === 0, "Erinnerung ohne Schalter versendet nichts");
+  const onlyReminder = await runSchnellversionReminder(
+    [purchase()],
+    new Date(now.getTime() + 24 * 24 * 60 * 60 * 1000),
+    async () => {
+      sent += 1;
+    },
+    { SCHNELLVERSION_49_REMINDER_SEND: "true" },
+  );
+  ok(onlyReminder.sending === false && sent === 0, "Erinnerung nur mit REMINDER_SEND versendet nichts");
   const loud = await runSchnellversionReminder(
     [purchase()],
     new Date(now.getTime() + 24 * 24 * 60 * 60 * 1000),
     async () => {
       sent += 1;
     },
-    { SCHNELLVERSION_49_REMINDER_SEND: "1" },
+    { SCHNELLVERSION_49_REMINDER_SEND: "1", SCHNELLVERSION_49_ENABLED: "true" },
   );
-  ok(loud.sending && loud.sent === 1 && sent === 1, "Erinnerung mit Schalter nutzt nur den Mock");
+  ok(loud.sending && loud.sent === 1 && sent === 1, "Erinnerung mit beiden Schaltern nutzt nur den Mock");
   const pdf = await generateStandardPdf(sample(), new Date("2026-11-17T10:00:00Z"));
   const text = pageTexts(pdf).join("\n");
   ok(text.includes(SV_COVER_TITLE), "Deckblatt nennt Standardfassung, bitte prüfen");
@@ -968,9 +979,9 @@ async function main() {
     listed += 1;
     return [];
   })) === null && listed === 0, "Löschlauf ohne Schalter liest nichts");
-  const sharp = await runSvPurge([dueRow, freshRow, foreignRow], now, { SCHNELLVERSION_49_PURGE: "1" });
+  const sharp = await runSvPurge([dueRow, freshRow, foreignRow], now, { SCHNELLVERSION_49_PURGE: "1", SCHNELLVERSION_49_ENABLED: "" });
   ok(isSvPdfPath(dueFile) && !isSvPdfPath(foreign), "nur der Schnellversion-Pfad gilt als PDF");
-  ok(sharp.dryRun === false && sharp.deleted === 1 && sharp.due === 2, "Löschlauf löscht nur den fälligen Schnellversion-Kauf");
+  ok(sharp.dryRun === false && sharp.deleted === 1 && sharp.due === 2, "nur PURGE gesetzt bei Flag aus: Löschlauf läuft");
   const cleared = (await listAllSvPurchases()).find((row) => row.id === "faellig");
   ok(cleared?.pdfPath === "" && cleared.downloadTokenHash === "", "PDF und Token der fälligen Zeile sind leer");
   ok(
@@ -1188,14 +1199,12 @@ async function main() {
     "Eine Anrechnung nach § 12d Abs. 6 findet bei der Reaktivierung nicht statt.",
     "Geben Sie den Firmennamen beim Upgrade so an wie bei der Schnellversion.",
     "Der Preis beträgt einmalig 49 € (58,31 € brutto) je Firma. Ein Abonnement entsteht nicht.",
-    "im Kundenkonto (Anmeldung per Magic-Link mit der E-Mail-Adresse der Bestellung) [klären: Builder – zusätzlich Download-Link ohne Anmeldung, siehe Teil D Nr. 2].",
+    "im Kundenkonto (Anmeldung per Magic-Link mit der E-Mail-Adresse der Bestellung).",
     "Eine Standardfassung, die Ihre tatsächlichen Abläufe nicht wiedergibt, ist keine fehlgeschlagene Erstellung im Sinne von § 9 Abs. 2 (Abs. 2).",
   ];
-  for (const satz of agbWoerter) ok(agb.includes(satz), `AGB 1:1: ${satz.slice(0, 48)}`);
-  ok(
-    agb.includes("[klären: Builder – zusätzlich Download-Link ohne Anmeldung, siehe Teil D Nr. 2]"),
-    "AGB 1:1: Download-Link ohne Anmeldung",
-  );
+  const agbAn = applyLegalConditions(agb, legalFlagsFor(true, false, false, false, true));
+  for (const satz of agbWoerter) ok(agbAn.includes(satz), `AGB 1:1: ${satz.slice(0, 48)}`);
+  ok(!agb.includes("[klären") && !agb.includes("[klaeren") && !agb.includes("[Vorschlag"), "AGB ohne Klärvermerk");
   ok(
     !agb.includes("Wird ein Upgrade nach § 12d Abs. 6 nach Abs. 2 erstattet, steht Ihnen die Anrechnung bis zum Ende der ursprünglichen 30 Tage erneut zur Verfügung."),
     "§ 9 Abs. 4 Satz 2 zur Anrechnung bleibt weg",
@@ -1216,9 +1225,30 @@ async function main() {
   const on = legalFlagsFor(true, false, false, false, true);
   ok(!applyLegalConditions(dse, off).includes("Speicherdauer Schnellversion"), "DSE ohne Flag ohne Schnellversion");
   ok(applyLegalConditions(dse, on).includes("löschen wir 12 Monate nach dem Kauf automatisch"), "DSE mit Flag nennt 12 Monate");
-  ok(!dse.includes("Rücksprungadresse") && !dse.includes("Zu den Systemnachrichten gehören auch Hinweise zu einem gespeicherten"), "kein Token-Satz und kein Abschnitt-10-Satz");
+  ok(!dse.includes("Rücksprungadresse"), "DSE ohne Satz zur Rücksprungadresse");
+  ok(
+    dse.includes("Zu den Systemnachrichten gehören auch Hinweise zu einem gespeicherten, noch nicht abgeschlossenen Fragebogen-Entwurf"),
+    "Abschnitt 10 behält den Satz zu gespeicherten Fragebogen-Entwürfen",
+  );
   ok(applyLegalConditions(cookies, off).includes("laden wir erst") && !applyLegalConditions(cookies, off).includes("sv49_arm"), "Cookies ohne Flag wie bisher");
   ok(applyLegalConditions(cookies, on).includes("sv49_arm") && applyLegalConditions(cookies, on).includes("sv49_answers"), "Cookies mit Flag nennen die Schnellversion");
+  const agbOff = applyLegalConditions(agb, off);
+  const agbOn = applyLegalConditions(agb, on);
+  const mainAgb = execSync("git show 2f44180:content/legal/agb-v3.md", { encoding: "utf8" });
+  ok(agbOff === mainAgb, "AGB ohne Flag wie main");
+  const verborgen = ["Schnellversion", "§ 12d", "Standardfassung"];
+  const llms = buildLlmsTxt();
+  for (const fund of verborgen) {
+    ok(!agbOff.includes(fund), `AGB ohne Flag ohne ${fund}`);
+    ok(!applyLegalConditions(dse, off).includes(fund), `Datenschutz ohne Flag ohne ${fund}`);
+    ok(!applyLegalConditions(cookies, off).includes(fund), `Cookies ohne Flag ohne ${fund}`);
+    ok(!llms.includes(fund), `llms.txt ohne Flag ohne ${fund}`);
+  }
+  ok(agbOn.includes("Daneben bieten wir die Schnellversion an, eine Standardfassung als PDF aus einer Branchenvorlage; für sie gilt vorrangig § 12d."), "AGB mit Flag behält den freigegebenen Satz");
+  ok(!agbOn.includes("[klären"), "AGB mit Flag ohne Klärvermerk");
+  const llmsNote = /\[klären|\[klaeren|\[Vorschlag|\bTODO\b/;
+  ok(!llmsNote.test(llms), "llms.txt ohne Vermerk");
+  ok(llmsNote.test(`${llms}\n[klären: Gegentest]\n`), "Gegentest erkennt einen Vermerk in llms.txt");
   const ohneArm = await openSchnellversionCheckout({
     answers: sample({ firma: "Anrechnung Ohne Arm GmbH" }),
     unternehmer: true,
