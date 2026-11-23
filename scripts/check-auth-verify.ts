@@ -128,18 +128,21 @@ async function call(
 async function postVerify(
   token: string,
   ua: string,
-  origin: string,
+  origin: string | null,
+  secFetchSite?: string,
 ): Promise<{ response: Response; line: string; body: Record<string, unknown> }> {
   delete process.env.VERCEL_REGION;
   const url = new URL("https://preview.example.test/auth/verify");
+  const headers: Record<string, string> = {
+    "content-type": "application/x-www-form-urlencoded",
+    "user-agent": ua,
+    "x-forwarded-for": IP,
+  };
+  if (origin !== null) headers.origin = origin;
+  if (secFetchSite) headers["sec-fetch-site"] = secFetchSite;
   const request = new Request(url, {
     method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-      origin,
-      "user-agent": ua,
-      "x-forwarded-for": IP,
-    },
+    headers,
     body: new URLSearchParams({ token, next: "/fragebogen" }),
   });
   const ran = await capture(() => POST(request));
@@ -229,12 +232,15 @@ async function main(): Promise<void> {
   ok(scanner.body.result === "scanner_skip" && scanner.body.method === "GET" && scanner.body.uaClass === "outlook-safelinks", "outlook is scanner_skip");
   ok(scanner.body.target === "/auth/verify" && scanner.body.region === null, "interstitial target has no query");
   ok(scanner.response.status === 200, "outlook get is the confirm page");
-  ok(scanner.response.headers.get("referrer-policy") === "no-referrer", "interstitial sends no referrer");
+  ok(scanner.response.headers.get("referrer-policy") === "same-origin", "interstitial referrer policy is same-origin");
   ok(scanner.response.headers.get("cache-control")?.includes("no-store") === true, "interstitial is not stored");
+  ok(scanner.response.headers.getSetCookie().length === 0, "confirm page sets no cookie at all");
   const page = await scanner.response.text();
   ok(page.includes("Bitte bestätigen Sie die Anmeldung."), "confirm sentence");
   ok(page.includes(">Anmelden<"), "confirm button");
   ok(page.includes('name="robots" content="noindex"'), "confirm page is noindex");
+  ok(!/<script/i.test(page), "confirm page has no script");
+  ok(!/localStorage|sessionStorage|document\.cookie/i.test(page), "confirm page stores nothing in the browser");
   ok(!/src="https?:|href="https?:/i.test(page), "confirm page has no external asset");
   ok(page.split(token).length - 1 === 1, "token appears only once");
   ok(page.includes(`name="token" value="${token}"`), "token is only the hidden field");
@@ -308,9 +314,25 @@ async function main(): Promise<void> {
   const csrfEmail = "csrf.verify@firma.example";
   const csrfToken = (await createMagicToken(csrfEmail)) ?? "";
   const blocked = await postVerify(csrfToken, OUTLOOK, "https://evil.example");
-  ok(blocked.body.result === "invalid" && blocked.body.method === "POST", "cross-site post is refused");
-  ok(!cookies(blocked.response).includes(SESSION_COOKIE), "cross-site post sets no cookie");
-  ok((await verifyMagicToken(csrfToken)) === csrfEmail, "cross-site post leaves the token valid");
+  ok(blocked.body.result === "invalid" && blocked.body.method === "POST", "foreign origin is refused");
+  ok(!cookies(blocked.response).includes(SESSION_COOKIE), "foreign origin sets no cookie");
+  ok((await verifyMagicToken(csrfToken)) === csrfEmail, "foreign origin leaves the token valid");
+  const nullCross = await postVerify(csrfToken, OUTLOOK, "null", "cross-site");
+  ok(nullCross.body.result === "invalid", "origin null and cross-site is refused");
+  ok(!cookies(nullCross.response).includes(SESSION_COOKIE), "origin null and cross-site sets no cookie");
+  const nullMissing = await postVerify(csrfToken, OUTLOOK, "null");
+  ok(nullMissing.body.result === "invalid", "origin null without sec-fetch-site is refused");
+  const nullSameSite = await postVerify(csrfToken, OUTLOOK, "null", "same-site");
+  const nullNone = await postVerify(csrfToken, OUTLOOK, "null", "none");
+  ok(nullSameSite.body.result === "invalid" && nullNone.body.result === "invalid", "origin null is refused for same-site and none");
+  ok((await verifyMagicToken(csrfToken)) === csrfEmail, "rejected null origins leave the token valid");
+
+  const nullEmail = "null-origin.verify@firma.example";
+  const nullToken = (await createMagicToken(nullEmail)) ?? "";
+  const nullOk = await postVerify(nullToken, OUTLOOK, "null", "same-origin");
+  await flushLeadNoticesForTests();
+  ok(nullOk.body.result === "ok_first" && nullOk.body.method === "POST", "origin null and same-origin signs in");
+  ok(cookies(nullOk.response).includes(`${SESSION_COOKIE}=`), "origin null and same-origin sets the session cookie");
 
   const magicRecord = await loadMailLinkToken(token);
   ok(typeof magicRecord?.exp === "number" && Number.isFinite(magicRecord.exp), "magic records store exp");

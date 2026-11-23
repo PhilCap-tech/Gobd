@@ -53,11 +53,19 @@ function requestHosts(request: Request): Set<string> {
   return hosts;
 }
 
-/** Same-origin Origin or Referer. No Origin is allowed. A foreign site is not. */
+/**
+ * Matching Origin is accepted. A missing Origin keeps the Referer rule.
+ * The literal `Origin: null` (opaque origin after a strict referrer policy)
+ * is accepted only together with `Sec-Fetch-Site: same-origin`.
+ */
 export function verifyPostIsSameOrigin(request: Request): boolean {
   const hosts = requestHosts(request);
-  const origin = request.headers.get("origin")?.trim() ?? "";
-  if (origin) {
+  const originHeader = request.headers.get("origin");
+  if (originHeader !== null) {
+    const origin = originHeader.trim();
+    if (origin.toLowerCase() === "null") {
+      return request.headers.get("sec-fetch-site")?.trim().toLowerCase() === "same-origin";
+    }
     try {
       return hosts.has(new URL(origin).host.toLowerCase());
     } catch {
