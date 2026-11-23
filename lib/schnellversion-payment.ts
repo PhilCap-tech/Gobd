@@ -30,6 +30,8 @@ export type SvPending = {
   /** Gesetzt beim Anlegen. Ein späteres Umschreiben der ID ändert das nicht. */
   paid: boolean;
   downloadTokenHash: string;
+  /** Roh-Token nur bis zur Zustellung. Nicht loggen. */
+  downloadToken: string;
   arm: "" | "control" | "test";
 };
 
@@ -142,7 +144,7 @@ export async function openSchnellversionCheckout(input: {
   arm?: "" | "control" | "test";
   /** Nur der Check übergibt eine eigene Umgebung. Die Route lässt sie weg. */
   env?: Record<string, string | undefined>;
-}): Promise<{ ok: false; status: number } | { ok: true; sessionId: string; url: string }> {
+}): Promise<{ ok: false; status: number } | { ok: true; sessionId: string; url: string; downloadToken: string }> {
   if (input.unternehmer !== true || input.bewusst !== true || input.agb !== true) return { ok: false, status: 400 };
   const answers = parseSchnellversionAnswers(input.answers);
   if (!answers) return { ok: false, status: 400 };
@@ -158,12 +160,13 @@ export async function openSchnellversionCheckout(input: {
     sessionId: "",
     paid: false,
     downloadTokenHash: download.hash,
+    downloadToken: download.token,
     arm: input.arm === "control" || input.arm === "test" ? input.arm : "",
   };
   const plan = schnellversionCheckoutPlan(env);
   if (plan === "refuse") return { ok: false, status: 403 };
   const thanks = (sessionId: string) =>
-    `/schnellversion/danke?session_id=${encodeURIComponent(sessionId)}&dl=${encodeURIComponent(download.token)}`;
+    `/schnellversion/danke?session_id=${encodeURIComponent(sessionId)}`;
   if (plan === "test" || plan === "live") {
     const created = await createSchnellversionTestSession(
       {
@@ -178,14 +181,14 @@ export async function openSchnellversionCheckout(input: {
     if (!created) return { ok: false, status: 502 };
     pending.sessionId = created.sessionId;
     await saveSvPending(pending);
-    return { ok: true, sessionId: created.sessionId, url: created.url };
+    return { ok: true, sessionId: created.sessionId, url: created.url, downloadToken: download.token };
   }
   const paid = schnellversionStripeStub(env) && stubMarksPaid(env);
   const sessionId = stubSessionId(id, paid);
   pending.paid = paid;
   pending.sessionId = sessionId;
   await saveSvPending(pending);
-  return { ok: true, sessionId, url: thanks(sessionId) };
+  return { ok: true, sessionId, url: thanks(sessionId), downloadToken: download.token };
 }
 
 /**
@@ -266,6 +269,28 @@ async function waitForPurchase(sessionId: string): Promise<SvPurchase | null> {
   return null;
 }
 
+/** Lesen für Danke-Seite und Status. Erzeugt kein PDF und schreibt keinen Kauf. */
+export async function readSchnellversionCheckout(sessionId: string): Promise<
+  | { state: "unpaid" }
+  | { state: "confirming" }
+  | { state: "paid"; purchase: SvPurchase }
+  | { state: "ended"; purchase: SvPurchase }
+> {
+  const requested = sessionId.trim();
+  if (!requested) return { state: "unpaid" };
+  const existing = await completeSvPurchase(requested);
+  if (existing) {
+    const { downloadStillOpen } = await import("@/lib/schnellversion-record");
+    return downloadStillOpen(existing, new Date())
+      ? { state: "paid", purchase: existing }
+      : { state: "ended", purchase: existing };
+  }
+  const pending = await findPendingBySession(requested);
+  if (!pending) return { state: "unpaid" };
+  if (pending.paid || requested.startsWith("cs_")) return { state: "confirming" };
+  return { state: "unpaid" };
+}
+
 /** Legt den Kauf erst an, wenn die gespeicherte Session bezahlt ist. Unbezahlt bleibt ohne Zeile und ohne PDF. */
 let failNextClaimedPurchase = false;
 
@@ -275,6 +300,16 @@ export function failNextClaimedPurchaseForTest(): void {
 }
 
 let failNextPdf = false;
+let pdfBuilds = 0;
+
+/** Nur der Check. Zählt echte PDF-Erzeugungen, nicht das Lesen. */
+export function svPdfBuildsForTest(): number {
+  return pdfBuilds;
+}
+
+export function resetSvPdfBuildsForTest(): void {
+  pdfBuilds = 0;
+}
 
 /** Nur der Check. Die nächste PDF-Erzeugung schlägt fehl. */
 export function failNextSvPdfForTest(): void {
@@ -336,6 +371,7 @@ async function confirmPaidSessionOnce(
         failNextPdf = false;
         throw new Error("pdf");
       }
+      pdfBuilds += 1;
       pdf = await generateStandardPdf(pending.answers, new Date(pending.createdAt));
     } catch {
       await releaseSvSession(requested);
@@ -360,26 +396,38 @@ async function confirmPaidSessionOnce(
       answersJson: JSON.stringify(pending.answers),
       downloadTokenHash: pending.downloadTokenHash,
     }, pending.arm);
-    const purchase = await completeSvPurchase(pending.sessionId);
-    if (!purchase) throw new Error("Kauf nicht vollständig gespeichert");
+  } catch (error) {
+    await releaseSvSession(requested);
+    throw error;
+  }
+  const purchase = await completeSvPurchase(pending.sessionId);
+  if (!purchase) {
+    await releaseSvSession(requested);
+    throw new Error("Kauf nicht vollständig gespeichert");
+  }
+  try {
     const { maybeSendSchnellversionPurchaseMail } = await import("@/lib/schnellversion-purchase-mail");
     await maybeSendSchnellversionPurchaseMail({
       to: pending.email,
       company: pending.answers.firma,
       purchasedAt: pending.createdAt,
       sessionId: pending.sessionId,
+      downloadToken: pending.downloadToken,
       env,
     });
+  } catch (error) {
+    console.error("[schnellversion] Kaufmail", error instanceof Error ? error.name : "error");
+  }
+  try {
     if (pending.email && !automatedRunForbidsLiveWrites()) {
       const incoming = draftFromSchnellversion(pending.email, pending.answers);
       const stored = await loadIntakeDraft(incoming.draftKey);
       await saveIntakeDraft(stored ? mergeEmptyDraftFields(stored, incoming) : incoming);
     }
-    return { paid: true, purchase };
   } catch (error) {
-    await releaseSvSession(requested);
-    throw error;
+    console.error("[schnellversion] Fragebogen", error instanceof Error ? error.name : "error");
   }
+  return { paid: true, purchase };
 }
 
 export class SvPdfFailed extends Error {

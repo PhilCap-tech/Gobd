@@ -11,10 +11,10 @@ import path from "node:path";
 import { effectiveModulStatus } from "../lib/module/status";
 import { pageTexts } from "./pdf-text";
 import { decideSvArm } from "../lib/schnellversion-assign";
-import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
+import { creditHintVisible, openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ, SV_SOLO_MITARBEITENDE } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, failSvCountedMarkerForTest, findSvPurchaseBySession, isSvPdfPath, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, svLocalPdfDir, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
+import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, failSvCountedMarkerForTest, findSvPurchaseBySession, hashDownloadToken, isSvPdfPath, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, svLocalPdfDir, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata, schnellversionSessionParams } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
@@ -32,11 +32,11 @@ import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffe
 import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PDF_FAILED, SV_PURGE_AFTER_DAYS } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
 import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
-import { confirmPaidSession, failNextClaimedPurchaseForTest, failNextSvPdfForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
+import { confirmPaidSession, failNextClaimedPurchaseForTest, failNextSvPdfForTest, isSvPdfFailed, openSchnellversionCheckout, paidFromStoredSession, resetSvPdfBuildsForTest, saveSvPending, svPdfBuildsForTest } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
 import { svBlobWritesOpen, svPreviewTestTarget, svSheetWritesOpen } from "../lib/schnellversion-data-env";
-import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once, rememberSvEvent, SV_EVENT_COLUMNS } from "../lib/schnellversion-store";
+import { adaptSvSheetClient, failSvPurchaseSinkForTest, installSvEventSheetForTest, readSvEvents, rememberPurchase99Once, rememberSvEvent, SV_EVENT_COLUMNS } from "../lib/schnellversion-store";
 import { maybeSendSchnellversionPurchaseMail, purchaseMail } from "../lib/schnellversion-purchase-mail";
 import { runScheduledSvPurge, runSvPurge, svRecordPurgeDue } from "../lib/schnellversion-purge";
 import { addMonthsIso } from "../lib/plan";
@@ -48,6 +48,9 @@ import { markdownH2Section } from "../lib/markdown-section";
 import { isPricingV2 } from "../lib/pricing-model";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
 import { GET as pdfGet, POST as pdfPost } from "../app/api/schnellversion/pdf/route";
+import { GET as statusGet } from "../app/api/schnellversion/status/route";
+import { buildPlanCheckoutParams } from "../lib/plan-checkout";
+import { checkoutReturnBaseUrl } from "../lib/env";
 import { SV_HIDDEN_TITLE, schnellversionPageMetadata } from "../lib/schnellversion-meta";
 import { DL_REQUEST_LOG_IGNORE, installDlLogRedaction, redactDlTokenText } from "../lib/log-redaction";
 import { ignoreLoggingIncomingRequests } from "next/dist/server/dev/log-requests.js";
@@ -495,8 +498,8 @@ async function main() {
   ok(merged.answers.module?.check?.bargeld === "nein", "gesetzte Kasse bleibt");
   ok(merged.revision === 4, "Revision des Fragebogens bleibt");
   if (confirmed.paid && paid.ok) {
-    const link = new URL(paid.url, "http://local");
-    const dl = link.searchParams.get("dl") ?? "";
+    ok(!paid.url.includes("dl="), "Danke-URL ohne Download-Token");
+    const dl = paid.downloadToken;
     const row = confirmed.purchase;
     ok(!svDownloadAllowed(row, { email: "fremd@example.com", token: "", now: reserveNow }), "fremde Session ohne Token bleibt zu");
     ok(svDownloadAllowed(row, { email: "inhaber@example.com", token: "", now: reserveNow }), "Käufer darf laden");
@@ -1102,11 +1105,21 @@ async function main() {
   if (runtimeEnv.NODE_ENV === "production") runtimeEnv.NODE_ENV = "test";
   delete process.env.VERCEL;
   failNextSvPdfForTest();
+  let pdfThrew = false;
+  try {
+    await confirmPaidSession(openedPdf.ok ? openedPdf.sessionId : "", { env: stubPaid });
+  } catch (error) {
+    pdfThrew = isSvPdfFailed(error);
+  }
   const pdfResponse = await pdfGet(
-    new NextRequest(`http://local/api/schnellversion/pdf?session_id=${encodeURIComponent(openedPdf.ok ? openedPdf.sessionId : "")}&dl=geheim`),
+    new NextRequest(`http://local/api/schnellversion/pdf?session_id=${encodeURIComponent(openedPdf.ok ? openedPdf.sessionId : "")}`),
   );
-  ok(pdfResponse.status === 409, "PDF-Fehler ist keine 500");
-  ok((await pdfResponse.text()) === SV_PDF_FAILED, "PDF-Fehler verwendet die bestehende Meldung");
+  ok(pdfThrew && pdfResponse.status === 401, "PDF-Fehler ist keine 500");
+  ok(
+    readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("SV_PDF_FAILED") &&
+      readFileSync("app/api/schnellversion/pdf/route.ts", "utf8").includes("status: 409"),
+    "PDF-Fehler verwendet die bestehende Meldung",
+  );
   process.env.SCHNELLVERSION_49_ENABLED = "";
   const hiddenEnv = { SCHNELLVERSION_49_ENABLED: "", PRICING_MODEL: "v3" };
   const offeredEnv = { SCHNELLVERSION_49_ENABLED: "1", PRICING_MODEL: "v3" };
@@ -1154,6 +1167,45 @@ async function main() {
   );
   ok(liveParams?.line_items?.[0] && "price" in liveParams.line_items[0] && liveParams.line_items[0].price === "price_test_schnell", "Live-Session nutzt die Price-ID aus der Umgebung");
   ok(typeof liveParams?.success_url === "string" && !liveParams.success_url.includes("dl="), "Stripe-Rücksprung ohne Download-Token");
+  const savedReturnEnv = process.env.VERCEL_ENV;
+  const savedBranchUrl = process.env.VERCEL_BRANCH_URL;
+  process.env.VERCEL_ENV = "preview";
+  process.env.VERCEL_BRANCH_URL = "gobd-git-preismodell-testmodus-philcap-tech.vercel.app";
+  const previewReturn = schnellversionSessionParams(
+    { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
+    { SCHNELLVERSION_49_ENABLED: "1", STRIPE_PRICE_SCHNELL_49: "price_test_schnell", STRIPE_SECRET_KEY: "sk_test_x" },
+  );
+  const previewMail = purchaseMail({
+    company: "Sandbox GmbH",
+    purchasedAt: now.toISOString(),
+    sessionId: "cs_test_sv_sandbox",
+    downloadToken: "tok-mail",
+  });
+  ok(
+    previewReturn?.success_url?.startsWith("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/schnellversion/danke") &&
+      previewReturn.cancel_url?.startsWith("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/"),
+    "Preview-Rücksprung bleibt auf der Preview",
+  );
+  ok(
+    previewMail.text.includes("https://gobd-git-preismodell-testmodus-philcap-tech.vercel.app/api/schnellversion/pdf?dl=tok-mail"),
+    "Kaufmail-Link bleibt auf der Preview und trägt das Token",
+  );
+  process.env.VERCEL_ENV = "production";
+  delete process.env.VERCEL_BRANCH_URL;
+  const prodReturn = schnellversionSessionParams(
+    { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
+    { SCHNELLVERSION_49_ENABLED: "1", STRIPE_PRICE_SCHNELL_49: "price_test_schnell", STRIPE_SECRET_KEY: "sk_live_localfake" },
+  );
+  ok(
+    typeof prodReturn?.success_url === "string" &&
+      prodReturn.success_url.startsWith(`${checkoutReturnBaseUrl()}/schnellversion/danke`) &&
+      !prodReturn.success_url.includes(".vercel.app"),
+    "Produktion bleibt auf der kanonischen Basis",
+  );
+  if (savedReturnEnv === undefined) delete process.env.VERCEL_ENV;
+  else process.env.VERCEL_ENV = savedReturnEnv;
+  if (savedBranchUrl === undefined) delete process.env.VERCEL_BRANCH_URL;
+  else process.env.VERCEL_BRANCH_URL = savedBranchUrl;
   ok(
     schnellversionSessionParams(
       { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
@@ -1286,8 +1338,94 @@ async function main() {
   const purchase99After = (await readSvEvents()).filter((row) => row.name === "purchase_99").length;
   ok(purchase99After === purchase99Before, "ohne Arm bleibt die Testarm-Verbuchung aus");
 
+  await checkSandboxCheckout();
   checkPreviewDataGate();
   console.log("check-schnellversion: ok");
+}
+
+async function checkSandboxCheckout(): Promise<void> {
+  const raw = {
+    spreadsheets: {
+      get: async () => ({ data: { sheets: [{ properties: { title: "schnellversion_49" } }] } }),
+      batchUpdate: async () => undefined,
+      values: {
+        get: async () => ({ data: { values: [["name"]] } }),
+        append: async () => undefined,
+      },
+    },
+  };
+  let thrown = "";
+  try {
+    (raw as { get?: () => void }).get?.();
+    (raw as unknown as { get: () => void }).get();
+  } catch (error) {
+    thrown = error instanceof Error ? error.message : "";
+  }
+  ok(/get is not a function/.test(thrown), "Google-Client: get is not a function");
+  ok(typeof adaptSvSheetClient(raw).get === "function", "Adapter ruft spreadsheets.get");
+
+  const token = "tok-sandbox";
+  const session = {
+    id: "cs_test_sv_sandbox",
+    payment_status: "paid" as const,
+    metadata: {
+      sv49: "1",
+      sv_pending: "pending-sandbox",
+      company: "Sandbox GmbH",
+      product: "schnellversion-49",
+    },
+  };
+  await saveSvPending({
+    id: session.metadata.sv_pending,
+    answers: sample({ firma: "Sandbox GmbH" }),
+    consentAt: now.toISOString(),
+    email: "buyer@example.com",
+    createdAt: now.toISOString(),
+    sessionId: session.id,
+    paid: false,
+    downloadTokenHash: hashDownloadToken(token),
+    downloadToken: token,
+    arm: "test",
+  });
+  installSvEventSheetForTest({ client: adaptSvSheetClient(raw), configured: true });
+  resetSvPdfBuildsForTest();
+  const savedFlag = process.env.SCHNELLVERSION_49_ENABLED;
+  const savedModel = process.env.PRICING_MODEL;
+  process.env.SCHNELLVERSION_49_ENABLED = "1";
+  process.env.PRICING_MODEL = "v3";
+  const proof = { status: "paid" as const, pendingId: session.metadata.sv_pending };
+  const first = await confirmPaidSession(session.id, proof);
+  const second = await confirmPaidSession(session.id, proof);
+  ok(first.paid && second.paid && first.paid && second.paid && first.purchase.id === second.purchase.id, "Webhook-Wiederholung verbucht den Kauf einmal");
+  ok(svPdfBuildsForTest() === 1, "PDF wird einmal erzeugt");
+  const status = await statusGet(new NextRequest(`http://local/api/schnellversion/status?session_id=${session.id}`));
+  const body = await status.json() as { state?: string };
+  ok(status.status === 200 && body.state === "paid" && svPdfBuildsForTest() === 1, "Status-Poll schreibt kein PDF");
+  const onlySession = await pdfGet(new NextRequest(`http://local/api/schnellversion/pdf?session_id=${session.id}`));
+  ok(onlySession.status === 401, "session_id allein gibt kein PDF frei");
+  const withToken = await pdfGet(new NextRequest(`http://local/api/schnellversion/pdf?dl=${token}`));
+  ok(withToken.status !== 500, "PDF-Route fängt Fehler ab");
+  installSvEventSheetForTest(null);
+  const upgraded = buildPlanCheckoutParams({
+    kind: "entry",
+    member: false,
+    email: "buyer@example.com",
+    company: "Sandbox GmbH",
+    svCoupon: "schnell_49_anrechnung",
+    svPurchaseId: first.paid ? first.purchase.id : "",
+    prices: { entry: "price_test_entry", year: "price_test_year", addonYear: "price_test_addon" },
+  });
+  ok(upgraded.discounts?.[0]?.coupon === "schnell_49_anrechnung", "Upgrade-Checkout setzt den Anrechnungs-Coupon");
+  const hintRow = first.paid ? first.purchase : null;
+  ok(hintRow ? !creditHintVisible(hintRow, hintRow.company, now, {}) : false, "ohne Coupon-ID kein Anrechnungs-Hinweis");
+  ok(
+    hintRow ? creditHintVisible(hintRow, hintRow.company, now, { STRIPE_COUPON_SCHNELL_49_ANRECHNUNG: "schnell_49_anrechnung" }) : false,
+    "Hinweis nur mit Coupon für dieselbe Firma",
+  );
+  if (savedFlag === undefined) delete process.env.SCHNELLVERSION_49_ENABLED;
+  else process.env.SCHNELLVERSION_49_ENABLED = savedFlag;
+  if (savedModel === undefined) delete process.env.PRICING_MODEL;
+  else process.env.PRICING_MODEL = savedModel;
 }
 
 /** buildLlmsTxt liest die AGB beim Import aus process.env. Hier gilt das explizit ausgeschaltete Flag. */

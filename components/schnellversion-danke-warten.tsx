@@ -3,13 +3,7 @@
 import { useEffect } from "react";
 
 /** Solange der Kauf noch geschrieben wird. Kein Zeitversprechen. */
-export function SchnellversionDankeWarten({
-  sessionId,
-  token,
-}: {
-  sessionId: string;
-  token: string;
-}) {
+export function SchnellversionDankeWarten({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     let stopped = false;
     let timer = 0;
@@ -17,7 +11,6 @@ export function SchnellversionDankeWarten({
       if (stopped) return;
       try {
         const params = new URLSearchParams({ session_id: sessionId });
-        if (token) params.set("dl", token);
         const response = await fetch(`/api/schnellversion/status?${params}`, { cache: "no-store" });
         const payload = (await response.json()) as { state?: string };
         if (stopped) return;
@@ -35,7 +28,7 @@ export function SchnellversionDankeWarten({
       stopped = true;
       window.clearTimeout(timer);
     };
-  }, [sessionId, token]);
+  }, [sessionId]);
 
   return (
     <>

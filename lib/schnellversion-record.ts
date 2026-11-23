@@ -576,6 +576,12 @@ export async function deleteSvPurchaseRecord(row: SvPurchase): Promise<void> {
   }
 }
 
+export async function findSvPurchaseByDownloadToken(token: string): Promise<SvPurchase | null> {
+  if (!token.trim()) return null;
+  const rows = await listAllSvPurchases();
+  return rows.find((row) => downloadTokenMatches(token, row.downloadTokenHash)) ?? null;
+}
+
 export function downloadTokenMatches(token: string, hash: string): boolean {
   if (!token.trim() || !/^[a-f0-9]{64}$/.test(hash)) return false;
   const digest = hashDownloadToken(token.trim());
@@ -583,15 +589,14 @@ export function downloadTokenMatches(token: string, hash: string): boolean {
 }
 
 /**
- * Login des Käufers, das Token oder die bereits geprüfte bezahlte Session.
+ * Login des Käufers oder das Download-Token. Die Session-ID allein reicht nicht.
  * Zusätzlich die 30 Tage.
  */
 export function svDownloadAllowed(
   row: SvPurchase,
-  input: { email: string; token: string; now: Date; paidSession?: boolean },
+  input: { email: string; token: string; now: Date },
 ): boolean {
   if (!downloadStillOpen(row, input.now)) return false;
-  if (input.paidSession) return true;
   const mail = emailKey(input.email);
   if (mail && mail === emailKey(row.email)) return true;
   return downloadTokenMatches(input.token, row.downloadTokenHash);

@@ -21,6 +21,11 @@ export function openCredit(rows: SvPurchase[], company: string, now: Date): SvPu
   return rows.find((row) => creditStillOpen(row, company, now)) ?? null;
 }
 
+/** Hinweis nur, wenn der Checkout den Coupon für diese Firma setzen kann. */
+export function creditHintVisible(row: SvPurchase, company: string, now: Date, env: FlagEnv = process.env): boolean {
+  return Boolean(schnellversionCouponId(env)) && creditStillOpen(row, company, now);
+}
+
 /** Zweite Reservierung innerhalb von 30 Minuten schlägt fehl. Abgelaufene Reservierung wird frei. */
 export function reserveDecision(row: SvPurchase, token: string, now: Date): SvPurchase | null {
   if (!token.trim() || row.creditUsedAt.trim()) return null;

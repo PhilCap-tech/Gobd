@@ -31,7 +31,7 @@ import { cookies } from "next/headers";
 import { parseSvArm, SV_ARM_COOKIE } from "@/lib/schnellversion-assign";
 import { openCredit, schnellversionCouponId } from "@/lib/schnellversion-credit";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
-import { listSvPurchases, reserveSvCredit } from "@/lib/schnellversion-record";
+import { creditStillOpen, listSvPurchases, reserveSvCredit } from "@/lib/schnellversion-record";
 import { randomUUID } from "node:crypto";
 
 async function reusableCustomerId(email: string): Promise<string | undefined> {
@@ -194,9 +194,21 @@ export async function POST(request: Request) {
   if (v2 && schnellversion49Enabled()) {
     try {
       const creditEmail = (sessionEmail ?? "").trim().toLowerCase();
-      const credit = creditEmail ? openCredit(await listSvPurchases(creditEmail), company, new Date()) : null;
+      const rows = creditEmail ? await listSvPurchases(creditEmail) : [];
+      const now = new Date();
+      const credit = openCredit(rows, company, now);
       const coupon = credit ? schnellversionCouponId() : "";
-      const reserved = credit ? await reserveSvCredit(credit.id, randomUUID(), new Date()) : false;
+      const openForEmail = rows.some((row) => creditStillOpen(row, row.company, now));
+      if (openForEmail && !credit) {
+        console.warn("[checkout] Anrechnung nicht angewendet: Firma stimmt nicht");
+      }
+      if (credit && !coupon) {
+        console.warn("[checkout] Anrechnung nicht angewendet: Coupon-ID fehlt");
+      }
+      const reserved = credit && coupon ? await reserveSvCredit(credit.id, randomUUID(), now) : false;
+      if (credit && coupon && !reserved) {
+        console.warn("[checkout] Anrechnung nicht angewendet: Reservierung");
+      }
       if (credit && coupon && reserved) {
         svCoupon = coupon;
         svPurchaseId = credit.id;
