@@ -6,6 +6,8 @@
  */
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { installDlLogRedaction } = await import("@/lib/log-redaction");
+  installDlLogRedaction();
   const { assertDataEnvironment } = await import("@/lib/data-env-guard");
   assertDataEnvironment();
   if (process.env.GOBD_DATA_ENV?.trim().toLowerCase() === "test") {

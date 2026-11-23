@@ -7,14 +7,14 @@ import { getSessionEmail } from "@/lib/auth";
 import { schnellversionOffered } from "@/lib/schnellversion-flag";
 import { confirmPaidSession, isSvPdfFailed } from "@/lib/schnellversion-payment";
 import { SV_PDF_FAILED } from "@/lib/schnellversion-copy";
+import { schnellversionPageMetadata } from "@/lib/schnellversion-meta";
 import { downloadStillOpen, svDownloadAllowed } from "@/lib/schnellversion-record";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Schnellversion",
-  robots: { index: false, follow: false },
-};
+export function generateMetadata(): Metadata {
+  return schnellversionPageMetadata("Schnellversion");
+}
 
 export default async function SchnellversionDankePage({
   searchParams,

@@ -32,6 +32,12 @@ export function svCounted99Path(sessionId: string): string {
   return `${PREFIX}/counted-99/${safe}.json`;
 }
 
+/** Merker, dass sv_purchase für diese Session schon geschrieben wurde. Nicht der Zählmarker. */
+export function svEventSentPath(sessionId: string): string {
+  const safe = sessionId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180);
+  return `${PREFIX}/event-sent/${safe}.json`;
+}
+
 export function svSessionBlobPath(sessionId: string): string {
   const safe = sessionId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 180);
   return `${PREFIX}/session/${safe}.json`;

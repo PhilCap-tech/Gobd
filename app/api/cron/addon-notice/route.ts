@@ -3,8 +3,7 @@ import { logError } from "@/lib/log-error";
 import { cronAuthorized } from "@/lib/cron-auth";
 import { runAddonNotice } from "@/lib/plan-addon-notice";
 import { sendDedupedEmail } from "@/lib/mail-dedupe";
-import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
-import { runSchnellversionReminder } from "@/lib/schnellversion-reminder";
+import { runSchnellversionReminder, schnellversionReminderSendEnabled } from "@/lib/schnellversion-reminder";
 import { listAllSvPurchases } from "@/lib/schnellversion-record";
 
 export const runtime = "nodejs";
@@ -19,8 +18,8 @@ export async function GET(request: Request) {
   }
   try {
     const result = await runAddonNotice();
-    // Dieselbe tägliche Route. Ohne Flag passiert nichts. Versand nur mit SCHNELLVERSION_49_REMINDER_SEND.
-    if (schnellversion49Enabled()) {
+    // Dieselbe tägliche Route. Versand nur mit SCHNELLVERSION_49_REMINDER_SEND=1|true.
+    if (schnellversionReminderSendEnabled()) {
       try {
         await runSchnellversionReminder(await listAllSvPurchases(), new Date(), async (mail) => {
           await sendDedupedEmail({

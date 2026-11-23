@@ -3,14 +3,17 @@
  * Ereignisse ohne Personenbezogene Daten, Abbruchschwellen ohne Automatik.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { effectiveModulStatus } from "../lib/module/status";
 import { pageTexts } from "./pdf-text";
 import { decideSvArm } from "../lib/schnellversion-assign";
 import { openCredit, reserveDecision } from "../lib/schnellversion-credit";
 import { SV_BASIS_SATZ, SV_SOLO_MITARBEITENDE } from "../lib/schnellversion-neutral";
 import { reminderDue, reminderMail, runSchnellversionReminder } from "../lib/schnellversion-reminder";
-import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, findSvPurchaseBySession, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
+import { claimSvSession, creditStillOpen, downloadStillOpen, failSvCommitStepForTest, failSvCountedMarkerForTest, findSvPurchaseBySession, isSvPdfPath, listAllSvPurchases, purchaseIdForSession, reserveSvCredit, svDownloadAllowed, svLocalPdfDir, type SvCommitStep, type SvPurchase } from "../lib/schnellversion-record";
 import { schnellversionCheckoutMetadata, schnellversionSessionParams } from "../lib/schnellversion-checkout";
 import {
   buildStandardAnswers,
@@ -25,17 +28,22 @@ import {
   type SchnellversionAnswers,
 } from "../lib/schnellversion-answers";
 import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
-import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PURGE_AFTER_DAYS } from "../lib/schnellversion-copy";
+import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PDF_FAILED, SV_PURGE_AFTER_DAYS } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
 import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
-import { confirmPaidSession, failNextClaimedPurchaseForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
+import { confirmPaidSession, failNextClaimedPurchaseForTest, failNextSvPdfForTest, openSchnellversionCheckout, paidFromStoredSession } from "../lib/schnellversion-payment";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "../lib/schnellversion-draft";
 import { standardPlainText } from "../lib/schnellversion-pdf";
 import { failSvPurchaseSinkForTest, readSvEvents, rememberPurchase99Once } from "../lib/schnellversion-store";
 import { maybeSendSchnellversionPurchaseMail, purchaseMail } from "../lib/schnellversion-purchase-mail";
-import { runSvPurge } from "../lib/schnellversion-purge";
+import { runScheduledSvPurge, runSvPurge } from "../lib/schnellversion-purge";
 import { POST as kontoPost } from "../app/api/schnellversion/konto/route";
-import { POST as pdfPost } from "../app/api/schnellversion/pdf/route";
+import { GET as pdfGet, POST as pdfPost } from "../app/api/schnellversion/pdf/route";
+import { SV_HIDDEN_TITLE, schnellversionPageMetadata } from "../lib/schnellversion-meta";
+import { DL_REQUEST_LOG_IGNORE, installDlLogRedaction, redactDlTokenText } from "../lib/log-redaction";
+import { ignoreLoggingIncomingRequests } from "next/dist/server/dev/log-requests.js";
+import nextConfig from "../next.config";
+import { NextRequest } from "next/server";
 import { generatePdf } from "../lib/delivery";
 import { renderGesamtChapters } from "../lib/gesamt-document";
 import { getGesamtMuster } from "../lib/module-muster";
@@ -923,6 +931,210 @@ async function main() {
   const purge = await runSvPurge([alt], now, {});
   ok(purge.dryRun && purge.deleted === 0 && purge.due === 1, "Löschlauf bleibt Dry-Run");
   ok(SV_PURGE_AFTER_DAYS === 30, "Löschfrist steht auf 30 Tage");
+  const freshRow = purchase({ id: "frisch", pdfPath: "", downloadTokenHash: "cd".repeat(32) });
+  const dueFile = path.join(svLocalPdfDir(), "faellig.pdf");
+  await mkdir(svLocalPdfDir(), { recursive: true });
+  await writeFile(dueFile, "pdf");
+  const foreign = path.join(svLocalPdfDir(), "..", "gobd-nicht-sv.pdf");
+  await writeFile(foreign, "fremd");
+  const dueRow = purchase({
+    id: "faellig",
+    pdfPath: dueFile,
+    downloadTokenHash: "ab".repeat(32),
+    purchasedAt: alt.purchasedAt,
+  });
+  const foreignRow = purchase({
+    id: "fremd",
+    pdfPath: foreign,
+    downloadTokenHash: "ef".repeat(32),
+    purchasedAt: alt.purchasedAt,
+  });
+  let listed = 0;
+  ok((await runScheduledSvPurge(now, {}, async () => {
+    listed += 1;
+    return [];
+  })) === null && listed === 0, "Löschlauf ohne Schalter liest nichts");
+  const sharp = await runSvPurge([dueRow, freshRow, foreignRow], now, { SCHNELLVERSION_49_PURGE: "1" });
+  ok(isSvPdfPath(dueFile) && !isSvPdfPath(foreign), "nur der Schnellversion-Pfad gilt als PDF");
+  ok(sharp.dryRun === false && sharp.deleted === 1 && sharp.due === 2, "Löschlauf löscht nur den fälligen Schnellversion-Kauf");
+  const cleared = (await listAllSvPurchases()).find((row) => row.id === "faellig");
+  ok(cleared?.pdfPath === "" && cleared.downloadTokenHash === "", "PDF und Token der fälligen Zeile sind leer");
+  ok(freshRow.downloadTokenHash === "cd".repeat(32) && freshRow.pdfPath === "", "nicht fällige Zeile bleibt");
+  ok(foreignRow.pdfPath === foreign && foreignRow.downloadTokenHash === "ef".repeat(32), "fremder Pfad bleibt");
+  await assert.rejects(unlink(dueFile), "lokale Schnellversion-Datei ist weg");
+  ok((await readFileSync(foreign, "utf8")) === "fremd", "fremde Datei bleibt");
+  await unlink(foreign);
+  ok(readFileSync("app/api/cron/loeschlauf/route.ts", "utf8").includes("schnellversionPurgeEnabled()"), "Cron löscht nur mit dem Schalter");
+  const reminderText = reminderMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString() });
+  ok(
+    reminderText.subject.startsWith("Ihr Download und die Anrechnung enden am ") &&
+      reminderText.text.includes("enden der PDF-Download der Standardfassung und die Anrechnung der 49 €") &&
+      reminderText.text.includes("Danach ist der Download gesperrt.") &&
+      reminderText.text.includes("Keine Steuer- oder Rechtsberatung."),
+    "Erinnerung behält den bestehenden Text",
+  );
+  ok(
+    readFileSync("app/api/cron/addon-notice/route.ts", "utf8").includes("schnellversionReminderSendEnabled()"),
+    "Erinnerung hängt am Versand-Schalter",
+  );
+  const openedCount = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "zaehlung@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(openedCount.ok, "Session für die doppelte Zählung");
+  const countSession = openedCount.ok ? openedCount.sessionId : "";
+  const beforeDedupe = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  failSvCountedMarkerForTest(true);
+  let markerThrew = false;
+  try {
+    await confirmPaidSession(countSession, { env: stubPaid });
+  } catch {
+    markerThrew = true;
+  }
+  const midDedupe = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  failSvCountedMarkerForTest(false);
+  const countedAgain = await confirmPaidSession(countSession, { env: stubPaid });
+  const afterDedupe = (await readSvEvents()).filter((row) => row.name === "sv_purchase").length;
+  ok(markerThrew && midDedupe === beforeDedupe + 1, "fehlender Zählmarker schreibt sv_purchase einmal");
+  ok(countedAgain.paid && afterDedupe === midDedupe, "erneute Zustellung schreibt sv_purchase nicht noch einmal");
+  const openedPdf = await openSchnellversionCheckout({
+    answers: sample(),
+    unternehmer: true,
+    bewusst: true,
+    agb: true,
+    email: "pdf-fehler@example.com",
+    arm: "test",
+    env: stubPaid,
+  });
+  ok(openedPdf.ok, "Session für die PDF-Meldung");
+  const previousEnv = {
+    enabled: process.env.SCHNELLVERSION_49_ENABLED,
+    model: process.env.PRICING_MODEL,
+    stub: process.env.SCHNELLVERSION_49_STRIPE_STUB,
+    price: process.env.STRIPE_PRICE_SCHNELL_49,
+    nodeEnv: process.env.NODE_ENV,
+    vercel: process.env.VERCEL,
+  };
+  process.env.SCHNELLVERSION_49_ENABLED = "1";
+  process.env.PRICING_MODEL = "v3";
+  process.env.SCHNELLVERSION_49_STRIPE_STUB = "paid";
+  process.env.STRIPE_PRICE_SCHNELL_49 = "price_test_schnell";
+  const runtimeEnv = process.env as Record<string, string | undefined>;
+  if (runtimeEnv.NODE_ENV === "production") runtimeEnv.NODE_ENV = "test";
+  delete process.env.VERCEL;
+  failNextSvPdfForTest();
+  const pdfResponse = await pdfGet(
+    new NextRequest(`http://local/api/schnellversion/pdf?session_id=${encodeURIComponent(openedPdf.ok ? openedPdf.sessionId : "")}&dl=geheim`),
+  );
+  ok(pdfResponse.status === 409, "PDF-Fehler ist keine 500");
+  ok((await pdfResponse.text()) === SV_PDF_FAILED, "PDF-Fehler verwendet die bestehende Meldung");
+  process.env.SCHNELLVERSION_49_ENABLED = "";
+  const hiddenEnv = { SCHNELLVERSION_49_ENABLED: "", PRICING_MODEL: "v3" };
+  const offeredEnv = { SCHNELLVERSION_49_ENABLED: "1", PRICING_MODEL: "v3" };
+  ok(
+    schnellversionPageMetadata("Schnellversion", hiddenEnv).title === SV_HIDDEN_TITLE &&
+      schnellversionPageMetadata("Schnellversion kaufen", hiddenEnv).title === SV_HIDDEN_TITLE &&
+      schnellversionPageMetadata("Standardfassung", hiddenEnv).title === SV_HIDDEN_TITLE,
+    "bei Flag aus steht der 404-Titel",
+  );
+  ok(schnellversionPageMetadata("Schnellversion", offeredEnv).title === "Schnellversion", "bei Flag an bleibt der Seitentitel");
+  for (const page of [
+    "app/schnellversion/page.tsx",
+    "app/schnellversion/kauf/page.tsx",
+    "app/schnellversion/danke/page.tsx",
+    "app/account/schnellversion/page.tsx",
+  ]) {
+    const source = readFileSync(page, "utf8");
+    ok(source.includes("export function generateMetadata") && source.includes("schnellversionPageMetadata"), `${page} nutzt generateMetadata`);
+    ok(!source.includes("export const metadata"), `${page} ohne festes Metadaten-Objekt`);
+  }
+  const restoreEnv = (name: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  };
+  restoreEnv("SCHNELLVERSION_49_ENABLED", previousEnv.enabled);
+  restoreEnv("PRICING_MODEL", previousEnv.model);
+  restoreEnv("SCHNELLVERSION_49_STRIPE_STUB", previousEnv.stub);
+  restoreEnv("STRIPE_PRICE_SCHNELL_49", previousEnv.price);
+  restoreEnv("NODE_ENV", previousEnv.nodeEnv);
+  restoreEnv("VERCEL", previousEnv.vercel);
+  const freiUnsicher = standardPlainText(
+    sample({ branche: "freiberuf", kasse: "Unsicher", rechtsform: "Einzelunternehmen", mitarbeitende: "1 (nur ich)" }),
+    when,
+  );
+  ok(!freiUnsicher.includes("| Belegausgabe | Belegausgabe:"), "Freiberuf ohne doppeltes Belegausgabe-Label");
+  ok(freiUnsicher.includes("| Belegausgabe | Bei elektronischem System:"), "Freiberuf behält den Belegsatz");
+  const liveParams = schnellversionSessionParams(
+    { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok-live", email: "a@b.de" },
+    {
+      SCHNELLVERSION_49_ENABLED: "1",
+      STRIPE_PRICE_SCHNELL_49: "price_test_schnell",
+      STRIPE_SECRET_KEY: "sk_live_localfake",
+      STRIPE_TAX_RATE_ID: "txr_existing",
+    },
+  );
+  ok(liveParams?.line_items?.[0] && "price" in liveParams.line_items[0] && liveParams.line_items[0].price === "price_test_schnell", "Live-Session nutzt die Price-ID aus der Umgebung");
+  ok(
+    schnellversionSessionParams(
+      { pendingId: "p", consentAt: "t", company: "Firma", downloadToken: "tok", email: "a@b.de" },
+      { SCHNELLVERSION_49_ENABLED: "1", STRIPE_PRICE_SCHNELL_49: "price_test_schnell", STRIPE_SECRET_KEY: "sk_test_x" },
+    )?.mode === "payment",
+    "Test-Session bleibt payment",
+  );
+  const token = "dl-token-nicht-loggen";
+  const logged = `GET /schnellversion/danke?session_id=cs_test&dl=${token} 200`;
+  ok(DL_REQUEST_LOG_IGNORE.test(logged) && !redactDlTokenText(logged).includes(token), "Server-Log enthält kein dl-Token");
+  ok(!DL_REQUEST_LOG_IGNORE.test("GET /agb 200"), "Seiten ohne dl bleiben im Log");
+  const devRequest = (url: string) => ({ url }) as Parameters<typeof ignoreLoggingIncomingRequests>[0];
+  const devLogging = nextConfig.logging === false ? undefined : nextConfig.logging;
+  ok(
+    ignoreLoggingIncomingRequests(devRequest(`/schnellversion/danke?session_id=cs_test&dl=${token}`), devLogging) &&
+      !ignoreLoggingIncomingRequests(devRequest("/agb"), devLogging),
+    "next dev protokolliert keine dl-Tokens",
+  );
+  const stdout = process.stdout.write.bind(process.stdout);
+  const captured: string[] = [];
+  process.stdout.write = ((chunk: unknown) => {
+    captured.push(String(chunk));
+    return true;
+  }) as typeof process.stdout.write;
+  installDlLogRedaction();
+  process.stdout.write(`GET /api/schnellversion/pdf?dl=${token}\n`);
+  process.stdout.write = stdout;
+  ok(!captured.join("").includes(token) && captured.join("").includes("dl=[redacted]"), "Server-stdout schwärzt dl-Tokens");
+  const agb = readFileSync("content/legal/agb-v3.md", "utf8");
+  const agbSection = (start: string, end: string) => agb.slice(agb.indexOf(start), agb.indexOf(end, agb.indexOf(start)));
+  ok(createHash("sha256").update(agbSection("## § 9a ", "## § 10 ")).digest("hex") === "e20dec0e400b806781786247891ee5d6fccba9129538179ace33040dee528511", "Digistore-Abschnitt unverändert");
+  ok(createHash("sha256").update(agbSection("## § 15 ", "**Stand:**")).digest("hex") === "77c1058b3757abe18b5f321a1f6fc1182ef904cfa5cdb01f78d3e217844c2f7d", "Altvertrags-Abschnitt unverändert");
+  ok(agb.includes("## § 12d Schnellversion (Standard-PDF)"), "AGB enthalten § 12d");
+  ok(!readFileSync("content/legal/agb.md", "utf8").includes("§ 12d"), "Legacy-AGB ohne § 12d");
+  const agbWoerter = [
+    "Im Bestellprozess bestätigen Sie vor der Zahlung ausdrücklich, dass Sie als Unternehmer (§ 14 BGB) für Ihre gewerbliche oder selbstständige berufliche Tätigkeit bestellen.",
+    "Daneben bieten wir die Schnellversion an, eine Standardfassung als PDF aus einer Branchenvorlage; für sie gilt vorrangig § 12d.",
+    "e) Schnellversion (§ 12d): einmalig 49 € (58,31 € brutto) je Firma für eine Standardfassung als PDF mit 30 Tagen Download.",
+    "f) Upgrade aus der Schnellversion (§ 12d Abs. 6): innerhalb von 30 Tagen nach dem Kauf der Schnellversion für dieselbe Firma Option 1 für 50 € (59,50 € brutto) oder Option 2 für 99 € (117,81 € brutto) mit dem Kauf, danach 49 € (58,31 € brutto) pro Jahr.",
+    "Das gilt auch für die Schnellversion (§ 12d) und für ein Upgrade nach § 12d Abs. 6.",
+    "bei der Schnellversion 49 € zzgl. USt; bei einem Upgrade nach § 12d Abs. 6 den für das Upgrade gezahlten Betrag",
+    "Für die Schnellversion gilt dieser § 9 mit der Maßgabe des § 12d Abs. 7.",
+    "Das gilt insbesondere für eine Verwendung der Standardfassung der Schnellversion ohne Prüfung, Anpassung, Ergänzung und Freigabe nach § 12d Abs. 2. Abs. 1 und 2 bleiben unberührt.",
+    "Bestellen Sie Option 1 als Upgrade aus der Schnellversion (§ 12d Abs. 6), beginnen die 30 Tage mit der Zahlung des Upgrades; maßgeblicher Kauf für Abs. 5 ist das Upgrade.",
+    "Eine Anrechnung nach § 12d Abs. 6 findet bei der Reaktivierung nicht statt.",
+    "Geben Sie den Firmennamen beim Upgrade so an wie bei der Schnellversion.",
+    "Der Preis beträgt einmalig 49 € (58,31 € brutto) je Firma. Ein Abonnement entsteht nicht.",
+    "im Kundenkonto (Anmeldung per Magic-Link mit der E-Mail-Adresse der Bestellung).",
+    "Eine Standardfassung, die Ihre tatsächlichen Abläufe nicht wiedergibt, ist keine fehlgeschlagene Erstellung im Sinne von § 9 Abs. 2 (Abs. 2).",
+  ];
+  for (const satz of agbWoerter) ok(agb.includes(satz), `AGB 1:1: ${satz.slice(0, 48)}`);
+  ok(
+    !agb.includes("[klären") &&
+      !agb.includes("Wird ein Upgrade nach § 12d Abs. 6 nach Abs. 2 erstattet, steht Ihnen die Anrechnung bis zum Ende der ursprünglichen 30 Tage erneut zur Verfügung."),
+    "offene AGB-Stellen sind nicht erfunden",
+  );
   ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("PLAN_TERMS_LABEL_BEFORE"), "Checkout bestätigt die AGB");
 
   console.log("check-schnellversion: ok");
