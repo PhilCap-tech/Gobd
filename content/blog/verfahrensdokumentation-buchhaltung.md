@@ -26,15 +26,15 @@ quellen:
 
 Dieser Beitrag zur Verfahrensdokumentation Buchhaltung ergänzt die [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste) um den Teil, der die Finanzbuchhaltung selbst beschreibt. Er beginnt dort, wo ein Beleg oder ein Datensatz aus einem Vorsystem in der Buchhaltung ankommt, und endet, wenn der Monat abgestimmt und übergeben ist. Er gilt für kleine und mittlere Betriebe, ob sie selbst buchen oder die Kanzlei bucht, in der doppelten Buchführung wie in der Einnahmen-Überschuss-Rechnung.
 
-**Kurz:** Der Abschnitt nennt, wer bucht, das Programm, den Rhythmus, die Angaben der Buchung, den Storno und die Abstimmung. Er beschreibt das Verfahren, nicht die einzelne Buchung.
+**Kurz:** Der Abschnitt zur Buchhaltung beschreibt, wer bucht, mit welchem Programm und in welchem Rhythmus, woher die Angaben der Buchung stammen, wie Fehler korrigiert und wie Konten abgestimmt werden. Beschrieben wird das Verfahren, nicht die einzelne Buchung.
 
 > **Keine Steuerberatung.** Dieser Text ist eine allgemeine Arbeitshilfe. Fragen zu Ihrem Buchungsverfahren klären Sie mit Ihrer Steuerberatung.
 
 ## Was der Abschnitt zur Buchhaltung beschreibt
 
-Die Verfahrensdokumentation hält das organisatorisch und technisch gewollte Verfahren fest, damit ein sachverständiger Dritter den Ablauf nachvollziehen kann (GoBD, BMF-Schreiben vom 28.11.2019 in der Fassung vom 14.07.2025, Rz. 151). Üblich sind vier Teile (GoBD Rz. 153). Der Abschnitt zur Buchhaltung gehört vor allem in die Anwenderdokumentation und berührt die technische Systemdokumentation sowie die Betriebsdokumentation. Den Gesamtaufbau führt die [GoBD Verfahrensdokumentation](/blog/gobd-verfahrensdokumentation-erstellen).
+Die Verfahrensdokumentation hält das organisatorisch und technisch gewollte Verfahren fest, damit ein sachverständiger Dritter den Ablauf nachvollziehen kann (GoBD, BMF-Schreiben vom 28.11.2019 in der Fassung vom 14.07.2025, Rz. 151). Üblich sind vier Teile (GoBD Rz. 153). Der Abschnitt zur Buchhaltung gehört vor allem in die Anwenderdokumentation und berührt die technische Systemdokumentation sowie die Betriebsdokumentation. Wie die Verfahrensdokumentation insgesamt aufgebaut ist, zeigt der Beitrag [GoBD Verfahrensdokumentation](/blog/gobd-verfahrensdokumentation-erstellen).
 
-Der Abschnitt nennt, wer bucht: eigene Buchhaltung, Kanzlei oder beides. Dazu kommen das Programm und die Vorsysteme, die Daten liefern: Kasse, Fakturierung, Lohn oder ein Verkaufssystem. Bucht die Kanzlei, beschreibt der Betrieb den Weg bis zum Eintreffen, den Rhythmus der Übergabe und die Angaben zu Programm und Rückfragen, die bekannt sind. Wie sich Betrieb und Kanzlei die Beschreibung teilen, steht in [Verfahrensdokumentation und Steuerberater: Wer macht was?](/blog/verfahrensdokumentation-steuerberater-arbeitsteilung). Was nur die Kanzlei kennt, bleibt offen.
+Der Abschnitt nennt, wer bucht: eigene Buchhaltung, Kanzlei oder beides. Dazu kommen das Programm und die Vorsysteme, die Daten liefern: Kasse, Fakturierung, Lohn oder ein Verkaufssystem. Bucht die Kanzlei, beschreibt der Betrieb den Weg bis zum Eintreffen, den Rhythmus der Übergabe und die Angaben zu Programm und Rückfragen, die bekannt sind. Wie sich Betrieb und Kanzlei die Beschreibung teilen, steht in [Verfahrensdokumentation und Steuerberater: Wer macht was?](/blog/verfahrensdokumentation-steuerberater-arbeitsteilung). Was nur die Kanzlei beschreiben kann, kennzeichnen Sie als offenen Punkt und klären es mit ihr.
 
 ## Erfassung: zeitgerecht und vollständig
 
@@ -44,9 +44,9 @@ Kasseneinnahmen und Kassenausgaben sind täglich festzuhalten (§ 146 Abs. 1 Sat
 
 Für unbare Geschäftsvorfälle ist die Erfassung innerhalb von zehn Tagen unbedenklich (GoBD Rz. 47). Bei zeitlichen Abständen sichern geeignete Maßnahmen die Vollständigkeit. Beschreiben Sie, wo noch nicht gebuchte Belege liegen und wer sie durchsieht. Wie der Beleg bis zur Buchhaltung gelangt, beschreibt die [Verfahrensdokumentation zur Belegablage](/blog/verfahrensdokumentation-belegablage).
 
-Die Verbuchung im Journal des Hauptsystems, zum Beispiel der Finanzbuchhaltung, ist bis zum Ablauf des folgenden Monats nicht zu beanstanden, wenn die Geschäftsvorfälle in einem Vor- oder Nebensystem bereits die Grundaufzeichnungsfunktion erfüllen und die Einzeldaten aufbewahrt werden (GoBD Rz. 87). Ohne diese Voraussetzung steht in der Verfahrensdokumentation Ihr Rhythmus, nicht der Ablauf des folgenden Monats.
+Die Verbuchung im Journal des Hauptsystems, zum Beispiel der Finanzbuchhaltung, ist bis zum Ablauf des folgenden Monats nicht zu beanstanden, wenn die Geschäftsvorfälle in einem Vor- oder Nebensystem bereits die Grundaufzeichnungsfunktion erfüllen und die Einzeldaten aufbewahrt werden (GoBD Rz. 87). Fehlt eine solche Grundaufzeichnung im Vorsystem, greift diese Erleichterung nicht; der beschriebene Rhythmus richtet sich dann nach der zeitgerechten Erfassung.
 
-Jede Buchung steht im Zusammenhang mit einem Beleg (GoBD Rz. 82). Der Abschnitt nennt, wie Buchung und Beleg zusammengehören.
+Jede Buchung muss im Zusammenhang mit einem Beleg stehen (GoBD Rz. 82). Beschreiben Sie, wie die Verbindung hergestellt wird, etwa über die Belegnummer oder einen Verweis im Buchungstext.
 
 ## Buchung und Buchungssatz: welche Angaben festgehalten werden
 
@@ -56,27 +56,27 @@ Journal, Konten und die Seiten Soll und Haben gehören zur doppelten Buchführun
 
 Unterschiedliche Ordnungskriterien verlangen Zuordnungstabellen, etwa beim Wechsel des Kontenrahmens oder bei unterschiedlichen Nummernkreisen in Vor- und Hauptsystem (GoBD Rz. 97). Im Abschnitt stehen die geltende Zuordnung und wer sie pflegt. Den Programmwechsel beschreibt [Verfahrensdokumentation nach einem Systemwechsel](/blog/verfahrensdokumentation-systemwechsel).
 
-Werden verdichtete Zahlen in das Hauptsystem übernommen, bleiben die Einzelaufzeichnungen aus den Vor- und Nebensystemen erhalten (GoBD Rz. 99). Der Abschnitt nennt den Ort der einzelnen Vorgänge und die zuständige Person.
+Werden verdichtete Zahlen in das Hauptsystem übernommen, müssen die Einzelaufzeichnungen aus den Vor- und Nebensystemen erhalten bleiben (GoBD Rz. 99). Halten Sie fest, wo die einzelnen Vorgänge gespeichert sind und wer dafür zuständig ist.
 
-Aufzubewahren sind auch die Stammdaten einschließlich ihrer Historisierung sowie die Grund- und Systemeinstellungen (GoBD Rz. 89), in der Fassung, die zum Zeitpunkt der Buchung galt. Die Fragen zur Buchhaltung stellt [Modul 9 Buchführung und Abschlüsse](/muster/modul/m09/fragebogen). Die Fragen zu den anliefernden Systemen stellt [Modul 17 Systeme und Datenübertragung](/muster/modul/m17/fragebogen).
+Gespeichert sein müssen auch die für die Verarbeitung erforderlichen Stammdaten mit ihrer Historisierung sowie die Grund- und Systemeinstellungen (GoBD Rz. 89). So bleibt erkennbar, welche Einstellung zum Zeitpunkt einer Buchung galt. Passende Fragen zur Buchhaltung enthält [Modul 9 Buchführung und Abschlüsse](/muster/modul/m09/fragebogen), zu den anliefernden Systemen [Modul 17 Systeme und Datenübertragung](/muster/modul/m17/fragebogen).
 
 ## Korrekturen: Storno statt Überschreiben
 
 Eine Buchung darf nicht so verändert werden, dass der ursprüngliche Inhalt nicht mehr feststellbar ist (§ 146 Abs. 4 AO). Veränderungen und Löschungen an elektronischen Buchungen sind zu protokollieren (GoBD Rz. 58 und 59). Fehlerhafte Buchungen werden durch Stornierung oder Neubuchung geändert; weitere nachträgliche Veränderungen einer einmal erfolgten Buchung sind nicht nötig (GoBD Rz. 93).
 
-Sie benennen, wer korrigieren darf. Die Korrektur erfolgt durch Storno oder durch eine neue Buchung mit Verweis auf die ursprüngliche. Eine Umbuchung folgt demselben Weg, wenn die erste Buchung erkennbar bleibt. Ob und ab wann das Programm eine Buchung sperrt oder festschreibt, beschreiben Sie soweit das Programm das vorsieht. Eine Frist für die Festschreibung nennen die hier angeführten Stellen nicht.
+Benennen Sie, wer Buchungen korrigieren darf. Korrigiert wird durch Storno oder durch eine neue Buchung mit Verweis auf die ursprüngliche; auch bei einer Umbuchung bleibt die erste Buchung erkennbar. Ob und ab wann das Programm Buchungen sperrt oder festschreibt, beschreiben Sie, soweit das Programm das vorsieht.
 
 ## Abstimmung und Monatsabschluss in der Buchhaltung
 
-Abgestimmt wird, was bei Ihnen abweichen kann: die Bank gegen die gebuchten Bewegungen, die Kasse gegen den Bestand, die offenen Posten der Debitoren und Kreditoren, die Umsatzsteuer vor der Voranmeldung und die Summen der Vorsysteme gegen die Finanzbuchhaltung. Einen Abschluss der Konten zum Monat beschreiben Sie nur in der doppelten Buchführung, soweit Sie ihn vornehmen.
+Abgestimmt wird, was bei Ihnen abweichen kann: die Bank gegen die gebuchten Bewegungen, die Kasse gegen den Bestand, die offenen Posten der Debitoren und Kreditoren, die Umsatzsteuer vor der Voranmeldung und die Summen der Vorsysteme gegen die Finanzbuchhaltung. Einen monatlichen Abschluss beschreiben Sie, soweit Sie ihn tatsächlich vornehmen.
 
-Zu jedem Abgleich stehen Person, Rhythmus und Nachweis im Abschnitt. Zur Einhaltung der Ordnungsvorschriften sind Kontrollen einzurichten, auszuüben und zu protokollieren (GoBD Rz. 100); den Umfang führt die Checkliste zum [internen Kontrollsystem](/blog/internes-kontrollsystem-verfahrensdokumentation).
+Halten Sie zu jedem Abgleich fest, wer ihn vornimmt, wie oft und wo das Ergebnis dokumentiert ist. Zur Einhaltung der Ordnungsvorschriften sind Kontrollen einzurichten, auszuüben und zu protokollieren (GoBD Rz. 100); welche Kontrollen in Betracht kommen, zeigt die Checkliste zum [internen Kontrollsystem](/blog/internes-kontrollsystem-verfahrensdokumentation).
 
-Die Fragen zu Zahlungen und offenen Posten stellt [Modul 7 Zahlungsverkehr und offene Posten](/muster/modul/m07/fragebogen). Die Fragen zu Kontrollen und zur Behandlung von Fehlern stellt [Modul 20 Kontrollen und Fehlerbehandlung](/muster/modul/m20/fragebogen). Die [Checkliste für die Jahresübergabe](/blog/verfahrensdokumentation-checkliste-steuerberater-jahresuebergabe) beschreibt das Paket; der Abschnitt nennt den übergebenen Stand und wer freigibt.
+Fragen zu Zahlungen und offenen Posten enthält [Modul 7 Zahlungsverkehr und offene Posten](/muster/modul/m07/fragebogen), Fragen zu Kontrollen und zur Fehlerbehandlung [Modul 20 Kontrollen und Fehlerbehandlung](/muster/modul/m20/fragebogen). Was zum Jahresende an die Kanzlei geht, beschreibt die [Checkliste für die Jahresübergabe](/blog/verfahrensdokumentation-checkliste-steuerberater-jahresuebergabe); im Abschnitt zur Buchhaltung genügt, welcher Stand übergeben wird und wer ihn freigibt.
 
 ## Aufbewahrung der Buchhaltungsdaten
 
-Nach § 147 Abs. 3 Satz 1 AO in der Fassung nach dem Vierten Bürokratieentlastungsgesetz sind Bücher, Aufzeichnungen, Jahresabschlüsse und die weiteren Unterlagen nach § 147 Abs. 1 Nummer 1 zehn Jahre aufzubewahren, Buchungsbelege nach Absatz 1 Nummer 4 acht Jahre und die sonstigen Unterlagen sechs Jahre. Die Zuordnung steht in [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd). Die Buchhaltungsdaten bleiben in dieser Zeit auswertbar, auch nach einem Wechsel des Programms.
+Nach § 147 Abs. 3 Satz 1 AO in der Fassung nach dem Vierten Bürokratieentlastungsgesetz sind Bücher, Aufzeichnungen, Jahresabschlüsse und die weiteren Unterlagen nach § 147 Abs. 1 Nummer 1 zehn Jahre aufzubewahren, Buchungsbelege nach Absatz 1 Nummer 4 acht Jahre und die sonstigen Unterlagen sechs Jahre. Welche Unterlage unter welche Frist fällt, erläutert der Beitrag [Aufbewahrungsfristen GoBD](/blog/aufbewahrungsfristen-gobd). Planen Sie bei einem Programmwechsel, wie die Buchhaltungsdaten früherer Jahre für diese Zeit verfügbar bleiben.
 
 ## Checkliste: Verfahrensdokumentation Buchhaltung
 
@@ -85,12 +85,12 @@ Die folgenden Punkte gehören in den Abschnitt, wenn sie bei Ihnen so laufen.
 - [ ] Wer bucht und in welchem Programm, ist benannt.
 - [ ] Vorsysteme sind benannt oder als nicht vorhanden gekennzeichnet.
 - [ ] Rhythmus, sammelnde Person und Vertretung sind beschrieben.
-- [ ] Der Platz noch nicht gebuchter Belege ist benannt.
-- [ ] Der tägliche Weg der Kasse steht in einem Satz, soweit eine Kasse geführt wird.
+- [ ] Der Ablageort noch nicht gebuchter Belege ist benannt.
+- [ ] Die tägliche Kassenaufzeichnung ist mit Verweis auf den Kassenabschnitt erwähnt, soweit eine Kasse geführt wird.
 - [ ] Belegnummernkreis, Regel für den Buchungstext und Kontenrahmen sind beschrieben; Journal sowie Soll und Haben nur bei doppelter Buchführung.
 - [ ] Eine Zuordnung liegt vor, wenn Nummernkreise oder Kontenrahmen der Systeme voneinander abweichen.
-- [ ] Stammdaten und Grundeinstellungen liegen in der Fassung vor, die zur Buchung galt.
-- [ ] Wer durch Storno oder Neubuchung mit Verweis korrigiert, ist benannt.
+- [ ] Stammdaten und Grundeinstellungen sind mit ihrer Historie gespeichert.
+- [ ] Zuständigkeit und Weg für Korrekturen (Storno oder Neubuchung mit Verweis) sind beschrieben.
 - [ ] Sperre oder Festschreibung ist beschrieben, soweit das Programm sie vorsieht, samt Ort des Protokolls.
 - [ ] Abstimmungen von Bank, Kasse, offenen Posten, Umsatzsteuer und Vorsystemen nennen Person, Rhythmus und Nachweis.
 - [ ] Die Aufbewahrung der Buchhaltungsdaten ist genannt, auch für die Jahre vor einem Programmwechsel.
@@ -115,7 +115,7 @@ Nein. Beschrieben wird das Verfahren, also Rhythmus, Herkunft der Angaben, Korre
 
 ### Was beschreibe ich, wenn die Kanzlei die Buchhaltung macht?
 
-Den Weg bis zum Eintreffen, den Rhythmus der Übergabe und die Angaben zu Programm und Rückfragen, die Ihnen vorliegen. Was Ihnen fehlt, bleibt offen. Dass die Kanzlei bucht, ersetzt die Beschreibung nicht.
+Den Weg bis zum Eintreffen, den Rhythmus der Übergabe und die Angaben zu Programm und Rückfragen, die Ihnen vorliegen. Was Ihnen fehlt, kennzeichnen Sie als offenen Punkt und klären es mit der Kanzlei. Dass die Kanzlei bucht, ersetzt die Beschreibung nicht.
 
 ### Wie schnell müssen Belege gebucht werden?
 
