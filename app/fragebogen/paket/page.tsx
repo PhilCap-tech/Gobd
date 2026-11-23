@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { CheckoutForm } from "@/app/checkout/checkout-form";
+import { LoginForm } from "@/app/login/login-form";
 import { getSessionEmail, loginPath } from "@/lib/auth";
 import { entityChoices } from "@/lib/entities";
 import { isStripeConfigured, isStripeTestMode } from "@/lib/env";
@@ -14,9 +15,10 @@ import {
   fragebogenEntitiesForQuery,
   fragebogenHref,
 } from "@/lib/fragebogen";
+import { GUEST_PACKAGE_LOGIN } from "@/lib/guest-start";
 import { emailDraftEntityId } from "@/lib/intake-draft-shared";
-import { planPackageTextsV3 } from "@/lib/plan-copy";
-import { intakeLoginFirstEnabled, memberPreselected } from "@/lib/pricing-model";
+import { PLAN_OFFER_OBJECTION_NOTICE, planPackageTextsV3 } from "@/lib/plan-copy";
+import { intakeGuestStartEnabled, intakeLoginFirstEnabled, memberPreselected } from "@/lib/pricing-model";
 import { firstQueryValue } from "@/lib/query";
 import { listEntitiesByEmail } from "@/lib/store";
 import { schnellversionOffered } from "@/lib/schnellversion-flag";
@@ -39,6 +41,22 @@ export default async function PaketPage({
 }) {
   if (!intakeLoginFirstEnabled()) redirect("/checkout");
   const email = await getSessionEmail();
+  if (!email && intakeGuestStartEnabled()) {
+    return (
+      <>
+        <SiteHeader backHref={FRAGEBOGEN_PATH} backLabel="← Zurück zum Fragebogen" />
+        <main className="wrap page">
+          <h1>Paket wählen</h1>
+          <LoginForm
+            next={FRAGEBOGEN_PATH}
+            emailHint={GUEST_PACKAGE_LOGIN}
+            emailNotice={PLAN_OFFER_OBJECTION_NOTICE}
+          />
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
   if (!email) redirect(loginPath(FRAGEBOGEN_PATH));
   const params = await searchParams;
   const draftKey = firstQueryValue(params.draftKey) ?? "";

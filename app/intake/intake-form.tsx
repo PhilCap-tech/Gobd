@@ -3,6 +3,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LoginForm } from "@/app/login/login-form";
+import { FRAGEBOGEN_PATH } from "@/lib/fragebogen";
+import {
+  GUEST_DEVICE_NOTICE,
+  GUEST_PACKAGE_LOGIN,
+  GUEST_SAVE_HINT,
+  guestLocalDraftKey,
+  guestMayTransferAnswers,
+} from "@/lib/guest-start";
+import { guestSavePromptVisible } from "@/lib/guest-save-prompt";
+import { PLAN_OFFER_OBJECTION_NOTICE } from "@/lib/plan-copy";
 import { anmeldungParam } from "@/lib/login-mail-shared";
 import {
   fetchRetrying503,
@@ -110,6 +121,11 @@ type IntakeFormProps = {
    * (Zahlung) wechseln. Erstellt wird erst nach bestätigter Zahlung.
    */
   prepayHref?: string;
+  /**
+   * Gaststart: nur localStorage, kein Server-Entwurf und kein Upload.
+   * Default aus, dann bleibt der bisherige Ablauf.
+   */
+  guestMode?: boolean;
 };
 
 /** Random id for this page and for each submit. */
@@ -208,6 +224,7 @@ export function IntakeForm({
   loginHref = "",
   stripeTestMode = false,
   prepayHref = "",
+  guestMode = false,
 }: IntakeFormProps) {
   const facts = firmFactsFor(initialEntityId, entities, firm, session.company);
   const companyLabel = customerHubTitle(session.company, "");
@@ -253,6 +270,9 @@ export function IntakeForm({
   const [overviewReturn, setOverviewReturn] = useState<number | null>(null);
   /** Final save before the package choice failed: no redirect, retry button. */
   const [finalSaveFailed, setFinalSaveFailed] = useState(false);
+  /** Gast: Paketwahl erst nach Anmeldung, ohne die Antworten zu senden. */
+  const [packageLogin, setPackageLogin] = useState(false);
+  const guestModeRef = useRef(guestMode);
   // Entwurf: localStorage (Fallback) + Server (gerätübergreifend).
   const draftKey = normalizeDraftKey({
     sessionId: session.stripeSessionId,
@@ -262,7 +282,9 @@ export function IntakeForm({
     entityId: initialEntityId || entityId,
     modus: gesamtMode ? "gesamt" : "bereich",
   });
-  const localDraftKey = `gobd-intake-draft:${draftKey || session.stripeSessionId || "neu"}`;
+  const localDraftKey = guestMode
+    ? guestLocalDraftKey()
+    : `gobd-intake-draft:${draftKey || session.stripeSessionId || "neu"}`;
   const [draftReady, setDraftReady] = useState(false);
   const [serverDraftAt, setServerDraftAt] = useState("");
   const revisionRef = useRef(0);
@@ -353,6 +375,8 @@ export function IntakeForm({
     signal?: AbortSignal,
     retries = 1,
   ): Promise<boolean> => {
+    // Gast: Autosave, Reload-Flush, pagehide und Final-Save enden hier, vor jedem fetch.
+    if (!guestMayTransferAnswers(guestModeRef.current)) return Promise.resolve(false);
     const meta = draftMetaRef.current;
     if (!meta.draftKey || revision <= 0) return Promise.resolve(false);
     if (submittingRef.current) return Promise.resolve(false);
@@ -508,7 +532,7 @@ export function IntakeForm({
         // kein localStorage
       }
       let server: IntakeDraftSnapshot | null = null;
-      if (draftKey) {
+      if (draftKey && guestMayTransferAnswers(guestModeRef.current)) {
         try {
           const params = new URLSearchParams({ draftKey });
           if (session.stripeSessionId) params.set("sessionId", session.stripeSessionId);
@@ -667,7 +691,7 @@ export function IntakeForm({
     } catch {
       // ignorieren
     }
-    if (draftKey) {
+    if (draftKey && guestMayTransferAnswers(guestModeRef.current)) {
       const params = new URLSearchParams({ draftKey });
       if (session.stripeSessionId) params.set("sessionId", session.stripeSessionId);
       void fetch(`/api/intake/draft?${params}`, { method: "DELETE" }).catch(() => undefined);
@@ -765,6 +789,12 @@ export function IntakeForm({
     setError("");
     setNeedsLogin(false);
     if (prepayHref) {
+      if (guestModeRef.current) {
+        setPackageLogin(true);
+        setError("");
+        setFinalSaveFailed(false);
+        return;
+      }
       // Login zuerst: Entwurf sichern, dann Paketwahl. Kein Absenden, keine Erstellung.
       setPending(true);
       setFinalSaveFailed(false);
@@ -801,6 +831,7 @@ export function IntakeForm({
       }
       return;
     }
+    if (guestModeRef.current) return;
     setPending(true);
     submittingRef.current = true;
     autosave.stop();
@@ -969,6 +1000,28 @@ export function IntakeForm({
         </p>
       )}
 
+      {guestMode ? (
+        <p className="banner" role="status">
+          {GUEST_DEVICE_NOTICE}
+        </p>
+      ) : null}
+
+      {guestMode && !packageLogin && guestSavePromptVisible(step, answers) ? (
+        <LoginForm
+          next={FRAGEBOGEN_PATH}
+          emailHint={GUEST_SAVE_HINT}
+          emailNotice={PLAN_OFFER_OBJECTION_NOTICE}
+        />
+      ) : null}
+
+      {guestMode && packageLogin ? (
+        <LoginForm
+          next={FRAGEBOGEN_PATH}
+          emailHint={GUEST_PACKAGE_LOGIN}
+          emailNotice={PLAN_OFFER_OBJECTION_NOTICE}
+        />
+      ) : null}
+
       {draftRestored ? (
         <div className="banner" role="status">
           <p style={{ margin: 0 }}>Ihr Entwurf wurde wiederhergestellt.</p>
@@ -1039,6 +1092,7 @@ export function IntakeForm({
             scrollTick={scrollTick}
             scrollIssue={scrollIssue}
             firm={liveFacts}
+            uploadsDisabled={guestMode}
           />
           </IntakeHintProvider>
         </>

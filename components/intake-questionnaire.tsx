@@ -444,6 +444,7 @@ export function IntakeQuestionnaire({
   scrollTick = 0,
   scrollIssue = null,
   firm,
+  uploadsDisabled = false,
 }: {
   step: number;
   answers: IntakeAnswers;
@@ -456,6 +457,8 @@ export function IntakeQuestionnaire({
   scrollTick?: number;
   scrollIssue?: CatalogIssue | null;
   firm?: FirmFacts;
+  /** Ohne Sitzung: Datei-Upload bleibt aus. */
+  uploadsDisabled?: boolean;
 }) {
   useEffect(() => {
     if (!scrollTick || !scrollIssue) return;
@@ -488,6 +491,7 @@ export function IntakeQuestionnaire({
           documentId={documentId}
           focusModulId={focusModulId}
           issues={issues}
+          uploadsDisabled={uploadsDisabled}
         />
       </>
     );
