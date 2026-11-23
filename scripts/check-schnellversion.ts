@@ -1126,14 +1126,17 @@ async function main() {
     "Eine Anrechnung nach § 12d Abs. 6 findet bei der Reaktivierung nicht statt.",
     "Geben Sie den Firmennamen beim Upgrade so an wie bei der Schnellversion.",
     "Der Preis beträgt einmalig 49 € (58,31 € brutto) je Firma. Ein Abonnement entsteht nicht.",
-    "im Kundenkonto (Anmeldung per Magic-Link mit der E-Mail-Adresse der Bestellung).",
+    "im Kundenkonto (Anmeldung per Magic-Link mit der E-Mail-Adresse der Bestellung) [klären: Builder – zusätzlich Download-Link ohne Anmeldung, siehe Teil D Nr. 2].",
     "Eine Standardfassung, die Ihre tatsächlichen Abläufe nicht wiedergibt, ist keine fehlgeschlagene Erstellung im Sinne von § 9 Abs. 2 (Abs. 2).",
   ];
   for (const satz of agbWoerter) ok(agb.includes(satz), `AGB 1:1: ${satz.slice(0, 48)}`);
   ok(
-    !agb.includes("[klären") &&
-      !agb.includes("Wird ein Upgrade nach § 12d Abs. 6 nach Abs. 2 erstattet, steht Ihnen die Anrechnung bis zum Ende der ursprünglichen 30 Tage erneut zur Verfügung."),
-    "offene AGB-Stellen sind nicht erfunden",
+    agb.includes("[klären: Builder – zusätzlich Download-Link ohne Anmeldung, siehe Teil D Nr. 2]"),
+    "AGB 1:1: Download-Link ohne Anmeldung",
+  );
+  ok(
+    !agb.includes("Wird ein Upgrade nach § 12d Abs. 6 nach Abs. 2 erstattet, steht Ihnen die Anrechnung bis zum Ende der ursprünglichen 30 Tage erneut zur Verfügung."),
+    "§ 9 Abs. 4 Satz 2 zur Anrechnung bleibt weg",
   );
   ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("PLAN_TERMS_LABEL_BEFORE"), "Checkout bestätigt die AGB");
 
