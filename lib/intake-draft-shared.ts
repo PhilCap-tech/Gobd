@@ -56,6 +56,12 @@ export type IntakeDraftSnapshot = {
   change?: DraftVersionChange;
 };
 
+/**
+ * Firm segment of an unbound login draft (`email:…:default:…`).
+ * Not a company id. The key is not migrated; this segment stays `default`.
+ */
+export const DRAFT_DEFAULT_ENTITY = "default";
+
 export function normalizeDraftKey(parts: {
   sessionId?: string;
   documentId?: string;
@@ -74,9 +80,30 @@ export function normalizeDraftKey(parts: {
   const email = parts.email?.trim().toLowerCase() ?? "";
   const entity = parts.entityId?.trim() ?? "";
   if (email) {
-    return `email:${email}:${entity || "default"}:${parts.modus === "bereich" ? "bereich" : "gesamt"}`;
+    return `email:${email}:${entity || DRAFT_DEFAULT_ENTITY}:${parts.modus === "bereich" ? "bereich" : "gesamt"}`;
   }
   return "";
+}
+
+/** Unbezahlter Login-Entwurf (email:-Schlüssel, keine Checkout-Session). */
+export function isUnpaidLoginDraft(
+  draft: Pick<IntakeDraft, "draftKey" | "stripeSessionId">,
+): boolean {
+  return draft.draftKey.startsWith("email:") && !draft.stripeSessionId?.trim();
+}
+
+/**
+ * Firm segment of an `email:` draft key.
+ * `default` and a key without a firm segment are the unbound draft (`""`).
+ * Returns null when the key is not an email draft.
+ */
+export function emailDraftEntityId(draftKey: string): string | null {
+  if (!draftKey.startsWith("email:")) return null;
+  const parts = draftKey.slice("email:".length).split(":");
+  if (parts.length < 3) return "";
+  const segment = (parts[parts.length - 2] ?? "").trim();
+  if (!segment || segment === DRAFT_DEFAULT_ENTITY) return "";
+  return segment;
 }
 
 export function draftIsNewer(serverUpdatedAt: string, clientUpdatedAt: string): boolean {
