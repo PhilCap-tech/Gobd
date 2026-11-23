@@ -29,8 +29,6 @@ Häufige Fragen zu GoBD Verfahrensdoku — Produkt, Ablauf und Preise.
 3. Automatische Erstellung der Dokumentation aus dem Intake.
 4. Digitale Lieferung (Download / Zugangslink / Ergebnis per E-Mail).
 
-Für Bestellungen über die Partnerseite https://www.gobd-doku-erstellen.de/partner-angebot, die über Digistore24 abgewickelt werden, gelten ergänzend und vorrangig die Regelungen in § 9a.
-
 **Ausfüllen:** Der Einstieg ist der kurze Betriebs-Check; die Module füllen Sie danach in Etappen aus. Der Zwischenstand wird gespeichert, offene Module erscheinen als To-dos in Ihrem Konto, und „Später ausfüllen“ ist möglich. Für das vollständige Ausfüllen der bei Ihnen aktiven Module rechnen Sie orientierend mit etwa 2–3 Stunden, in der Spanne von etwa 1,5 bis 5 Stunden — je nachdem, wie viele Module vorkommen und wie griffbereit die Angaben sind.
 
 **Bereitstellung:** Nach erfolgreicher Zahlung und fertig abgeschlossenem Intake liegt die Dokumentation meist innerhalb weniger Minuten digital vor.
@@ -62,11 +60,11 @@ Ergänzend gelten AGB und Datenschutzerklärung.
 
 Schreiben Sie uns bei Fragen zu Ablauf, Lieferumfang und Zugang. Bei Zahlung, Rechnung oder technischen Problemen (Checkout, Download, Login) ebenfalls an dieselbe Adresse — wir kümmern uns darum.
 
-Haben Sie über unsere Partnerseite bei Digistore24 bestellt, richten Sie Rechnungsfragen bitte an Digistore24 (support@digistore24.com). Bei Bestellungen über unsere Website erreichen Sie uns für Rechnungsfragen unter der oben genannten Adresse.
+Bei Bestellungen über unsere Website erreichen Sie uns für Rechnungsfragen unter der oben genannten Adresse.
 
 ## 6. 14 Tage Geld zurück: Garantie und Rückgaberecht
 
-**Bestellung über unsere Website (Stripe Checkout):** Innerhalb von **14 Tagen** nach Bestellung erstatten wir die 198 € zum Start (Einrichtung + 1. Monat), zzgl. USt., solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab. Für Bestellungen über unsere Partnerseite (Digistore24) gilt stattdessen das Rückgaberecht weiter unten.
+**Bestellung über unsere Website (Stripe Checkout):** Innerhalb von **14 Tagen** nach Bestellung erstatten wir die 198 € zum Start (Einrichtung + 1. Monat), zzgl. USt., solange Sie noch kein PDF erzeugt oder heruntergeladen haben. Haben Sie bereits ein PDF erzeugt oder heruntergeladen, erstatten wir nur das laufende monatliche Nutzungsentgelt von 49 € zzgl. USt. Die Einrichtung (149 € zzgl. USt) ist dann nicht erstattungsfähig. Das Abonnement endet mit der Erstattung; weitere Beträge buchen wir nicht ab.
 
 **So beantragen Sie die Erstattung**
 
@@ -94,10 +92,6 @@ Inhaltliche Unzufriedenheit allein wegen unvollständiger eigener Angaben im Fra
 **Hinweis B2B**
 
 Unser Angebot richtet sich ausschließlich an Unternehmer (§ 14 BGB). Verbraucher sind vom Vertragsschluss ausgeschlossen. Die 14-Tage-Zufriedenheitsgarantie ist eine vertragliche Zusage in den AGB, kein gesetzliches Widerrufsrecht.
-
-**Bestellung über unsere Partnerseite (Digistore24)**
-
-14 Tage Rückgaberecht über Digistore24: Innerhalb von 14 Tagen nach dem Kauf können Sie Ihre Bestellung über Digistore24 zurückgeben (Link zur Soforthilfe in Ihrer Bestellbestätigung) und erhalten den vollen Kaufpreis zurück. Bei Käufen über Digistore24 Inc. (USA) bzw. Digistore24 LTD (UK) gilt die im Bestellformular angezeigte Frist von 60 Tagen. Das gilt auch, wenn Sie bereits ein PDF erzeugt oder heruntergeladen haben. Die Erstattung wickelt Digistore24 ab. Die Regeln für Bestellungen über unsere Website gelten hier nicht (§ 9a Abs. 9 AGB). Nach der Rückgabe sperren wir Ihren Zugang; bereits heruntergeladene PDFs dürfen Sie dann nicht mehr nutzen.
 
 Kontakt: info@gobd-doku-erstellen.de · IKAT GmbH
 
