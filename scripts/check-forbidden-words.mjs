@@ -988,6 +988,15 @@ for (const file of files) {
     .split("\n")
     .forEach((line, index) => {
       if (!forbidden.test(line) || line.includes("// allow-forbidden")) return;
+      // Freigegebener AGB-Satz § 12d Abs. 4, wörtlich aus dem Vorschlag. Sonst bleibt [klären] gesperrt.
+      const releasedDownloadBracket =
+        "[klären: Builder – zusätzlich Download-Link ohne Anmeldung, siehe Teil D Nr. 2]";
+      if (
+        line.includes(releasedDownloadBracket) &&
+        !forbidden.test(line.split(releasedDownloadBracket).join(""))
+      ) {
+        return;
+      }
       if (planCopyDraft && planMarker.test(line)) {
         planMarker.lastIndex = 0;
         if (!forbidden.test(line.replace(planMarker, ""))) {
