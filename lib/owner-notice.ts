@@ -52,10 +52,20 @@ export type OwnerNoticeInput = {
 export type OwnerNoticeResult = MailResult & { skipped?: boolean };
 
 let testMode = false;
+let queuedForTest = 0;
 
 /** Nur Checks: erlaubt den (gestubbten) Versand während eines automatisierten Laufs. */
 export function setOwnerNoticeTestMode(enabled: boolean): void {
   testMode = enabled;
+}
+
+/** Nur Checks: wie oft `queueOwnerNotice` einen Versand geplant hat. */
+export function resetOwnerNoticeQueueForTest(): void {
+  queuedForTest = 0;
+}
+
+export function ownerNoticesQueuedForTest(): number {
+  return queuedForTest;
 }
 
 function oneLine(value: string | null | undefined): string {
@@ -157,6 +167,7 @@ export async function notifyOwner(input: OwnerNoticeInput): Promise<OwnerNoticeR
 export function queueOwnerNotice(input: OwnerNoticeInput): void {
   try {
     if (!ownerNoticeDue(input)) return;
+    queuedForTest += 1;
     scheduleLeadNoticeAfterResponse(async () => {
       await notifyOwner(input);
     });

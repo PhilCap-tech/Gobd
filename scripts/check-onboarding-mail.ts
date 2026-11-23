@@ -43,7 +43,7 @@ import {
   CUSTOMER_ONBOARDING_SIGNATURE,
   customerOnboardingDraftPath,
   PARTNER_ONBOARDING_SIGNATURE,
-  REFERRAL_AFTER_DELIVERY_URL,
+  referralAfterDeliveryUrl,
   REFERRAL_MICRO,
 } from "@/lib/ops";
 
@@ -59,7 +59,7 @@ const START =
 const DRAFT_SESSION = "cs_owner_draft";
 const DRAFT_NEXT = `/intake?session_id=${DRAFT_SESSION}`;
 const CONTINUE =
-  "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-continue&next=%2Fintake%3Fsession_id%3Dcs_owner_draft";
+  "https://www.gobd-doku-erstellen.de/auth/verify?token=preview-continue&next=%2Fintake";
 const CONTINUE_LABEL = "Verfahrensdokumentation weiter ausfüllen";
 
 const snapshotPath = path.join(
@@ -123,8 +123,11 @@ function assertMail(label: string, mail: { text: string; html: string }): void {
   if (!continueUrl.pathname.endsWith("/auth/verify")) {
     fail(`${label}: continue link is not the verify route`);
   }
-  if (safeNextPath(continueUrl.searchParams.get("next")) !== DRAFT_NEXT) {
-    fail(`${label}: continue link does not redirect to the intake draft`);
+  if (safeNextPath(continueUrl.searchParams.get("next")) !== "/intake") {
+    fail(`${label}: continue link does not open the intake without a checkout session`);
+  }
+  if (CONTINUE.includes("session_id")) {
+    fail(`${label}: continue link still carries a checkout session`);
   }
   if (/\b(du|dich|dir|dein|deine|deinem|deinen|deiner|deines)\b/i.test(`${mail.text}\n${mail.html}`)) {
     fail(`${label}: du-form`);
@@ -216,8 +219,8 @@ for (const [label, mail] of [
   if (occurrences(mail.text, "Gern weitergeben") !== 1 || occurrences(mail.html, "Gern weitergeben") !== 1) {
     fail(`${label}: share section must appear once`);
   }
-  if (!mail.text.includes(REFERRAL_AFTER_DELIVERY_URL)) fail(`${label}: share URL missing`);
-  if (!mail.html.includes(`href="${REFERRAL_AFTER_DELIVERY_URL.replaceAll("&", "&amp;")}"`)) {
+  if (!mail.text.includes(referralAfterDeliveryUrl())) fail(`${label}: share URL missing`);
+  if (!mail.html.includes(`href="${referralAfterDeliveryUrl().replaceAll("&", "&amp;")}"`)) {
     fail(`${label}: share href missing`);
   }
   const priceToken = ["v2", "v3"].includes((process.env.PRICING_MODEL ?? "").trim().toLowerCase()) ? "Jahrespaket" : "149 €";
@@ -343,8 +346,11 @@ async function checkIssuedContinueLink(): Promise<void> {
   if ((await verifyMagicToken(issuedToken)) !== purchaser) {
     fail("issued continue token does not verify as the purchaser");
   }
-  if (safeNextPath(issued.searchParams.get("next")) !== DRAFT_NEXT) {
-    fail("issued continue link does not redirect to the intake draft");
+  if (safeNextPath(issued.searchParams.get("next")) !== "/intake") {
+    fail("issued continue link must not carry the checkout session");
+  }
+  if (issuedContinue.includes("session_id=cs_") || issuedContinue.includes("session_id%3Dcs_")) {
+    fail("issued continue link still contains a checkout session");
   }
   if (!isOpaqueMailLinkToken(issuedToken) || issuedToken.includes(".") || issuedContinue.toLowerCase().includes(purchaser)) {
     fail("issued continue link still carries the email or a signed body");
@@ -601,8 +607,11 @@ async function checkExpiredOnboardingLink(): Promise<void> {
     if (resendBody.includes("/auth/verify") || resendBody.includes("token=")) {
       fail("renew route returned a magic link");
     }
-    if (!logs.includes("/auth/verify?") || !logs.includes("session_id%3Dcs_owner_draft") && !logs.includes("session_id=cs_owner_draft")) {
-      fail("renew route did not keep the intake draft redirect in the server log");
+    if (!logs.includes("/auth/verify?")) {
+      fail("renew route did not log the verify link");
+    }
+    if (logs.includes("session_id=cs_") || logs.includes("session_id%3Dcs_")) {
+      fail("renew route logged a checkout session in the mail link");
     }
   } finally {
     restoreEnv();

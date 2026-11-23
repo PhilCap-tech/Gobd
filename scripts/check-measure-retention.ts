@@ -56,6 +56,22 @@ const mess = countRowsToDelete({
 assert.deepEqual(mess.rows, [2, 4]);
 assert.equal(mess.testRows, 1);
 
+const authCounts = countRowsToDelete({
+  tab: "messluecken",
+  today: TODAY,
+  values: [
+    ["date", "metric", "n", "channel", "cohort"],
+    ["2024-11-22", "link_requested", "", "unknown", "standard"],
+    ["2024-11-22", "verify_human", "", "direct", "standard"],
+    ["2024-11-22", "verify_scanner", "", "unknown", "standard"],
+    ["2026-11-22", "link_requested", "", "unknown", "standard"],
+    ["2026-11-22", "verify_human", "", "unknown", "test"],
+    ["2026-11-10", "verify_scanner", "", "unknown", "test"],
+  ],
+});
+assert.deepEqual(authCounts.rows, [2, 3, 4, 7], "auth day counts follow the 24-month and 7-day rules");
+assert.equal(authCounts.testRows, 1);
+
 const home = countRowsToDelete({
   tab: "home_cta",
   today: TODAY,

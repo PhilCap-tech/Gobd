@@ -3,6 +3,10 @@
  * Markers 30 days from creation, no extension. Count rows 24 months
  * after the count day. Test rows 7 days. `starts/…` is never deleted.
  * Switches default off. Dry-run counts only.
+ *
+ * link_requested, verify_human and verify_scanner are ordinary rows on
+ * the messluecken tab. They have no marker file. A standard row follows
+ * the 24-month rule; a test row follows the 7-day rule.
  */
 export const MEASURE_MARKER_DAYS = 30;
 export const MEASURE_ROW_MONTHS = 24;

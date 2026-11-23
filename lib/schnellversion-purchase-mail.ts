@@ -27,9 +27,12 @@ export function purchaseMail(input: {
   const company = input.company.trim() || "Ihr Unternehmen";
   const origin = checkoutReturnBaseUrl().replace(/\/$/, "");
   const token = input.downloadToken?.trim() ?? "";
+  // Ohne Download-Token kein Checkout-Parameter: die Seite erwartet die Anmeldung.
+  // Mit Token ist `dl` der bestehende opake Nachweis, nicht die Checkout-Session.
   const download = token
     ? `${origin}/api/schnellversion/pdf?dl=${encodeURIComponent(token)}`
-    : `${origin}/schnellversion/danke?session_id=${encodeURIComponent(input.sessionId)}`;
+    : `${origin}/schnellversion/danke`;
+  void input.sessionId;
   const agb = `${origin}/agb`;
   const subject = `Ihre Standardfassung für ${company}`;
   const body = [
