@@ -9,16 +9,19 @@ import {
   catalogOpenPoints,
   catalogStepIssues,
   askVorschlag,
+  clearCatalogStatus,
   confirmVorschlag,
   dismissVorschlag,
   prefillKnownFacts,
   removeKanzleiEintrag,
+  withCatalogDraft,
   setCatalogStatus,
   setCatalogValue,
   setVorschlagFieldOk,
   visibleCatalogQuestions,
   nextApplicableStep,
 } from "@/lib/intake-catalog";
+import { P1_QUESTION_IDS } from "@/components/intake-p1-fields";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { stripEmptyIntakeCards, withoutStoredSuggestionPrompt } from "@/lib/intake-present";
 import { renderGesamtChapters } from "@/lib/gesamt-document";
@@ -35,6 +38,7 @@ import {
   setCheckAntwort,
   setModulEintrag,
   setVorlage,
+  toggleSoftwarePreset,
   vollstaendigkeitsZeilen,
 } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
@@ -326,6 +330,50 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   assert.equal(confirmed.katalog?.UO02?.status, "bestaetigt");
   assert.equal(catalogStepIssues(stepIndex("step-M01c"), confirmed).some((issue) => issue.fieldKey === "vorschlag"), false);
   assert.ok(modulFortschritt(confirmed, "m01").beantwortet > modulFortschritt(handel, "m01").beantwortet);
+}
+
+// 3b — Abwählen eines aktiven Status-Chips behält vorschlag/vorschlagOk
+{
+  function chipHeute(answers: IntakeAnswers, id: string): IntakeAnswers {
+    const entry = answers.katalog?.[id];
+    const fieldKeys = question(id).fields.map((field) => field.key);
+    if (unconfirmedSuggestionKeys(entry, fieldKeys).length) {
+      return askVorschlag(answers, id, fieldKeys);
+    }
+    return setCatalogStatus(answers, id, "bestaetigt");
+  }
+  function wieDieOberflaeche(apply: (answers: IntakeAnswers) => IntakeAnswers): IntakeAnswers {
+    return prefillKnownFacts(apply(ensureGesamt(withCatalogDraft(emptyAnswers(), "Nordlicht GmbH"))));
+  }
+  const base = wieDieOberflaeche((answers) => setVorlage(answers, "handel"));
+  const fieldKeys = question("UO02").fields.map((field) => field.key);
+  assert.ok(unconfirmedSuggestionKeys(base.katalog?.UO02, fieldKeys).includes("kunden"), "Handel-Vorschlag auf UO02.kunden");
+  assert.ok(unconfirmedSuggestionKeys(base.katalog?.UO02, fieldKeys).includes("taetigkeiten"), "Handel-Vorschlag auf UO02.taetigkeiten");
+
+  const prepared = setVorschlagFieldOk(base, "UO02", "taetigkeiten", true);
+  assert.ok((prepared.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "Tätigkeiten bestätigt");
+  assert.ok(unconfirmedSuggestionKeys(prepared.katalog?.UO02, fieldKeys).includes("kunden"), "Kundengruppen unbestätigt");
+
+  const withStatus = setCatalogStatus(prepared, "UO02", "geplant");
+  const cleared = clearCatalogStatus(withStatus, "UO02");
+  assert.equal(cleared.katalog?.UO02?.status, undefined, "Abwählen entfernt den Stand");
+  assert.ok(cleared.katalog?.UO02?.vorschlag, "vorschlag bleibt nach dem Abwählen");
+  assert.ok((cleared.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "vorschlagOk bleibt nach dem Abwählen");
+  assert.equal(cleared.katalog?.UO02?.vorschlagRueckfrage, undefined, "offene Rückfrage wird zurückgesetzt");
+
+  const reloaded = prefillKnownFacts(JSON.parse(JSON.stringify(cleared)) as IntakeAnswers);
+  assert.ok(reloaded.katalog?.UO02?.vorschlag, "vorschlag bleibt nach Reload");
+  assert.ok((reloaded.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "vorschlagOk bleibt nach Reload");
+  assert.ok(
+    !unconfirmedSuggestionKeys(reloaded.katalog?.UO02, fieldKeys).includes("taetigkeiten"),
+    "bestätigtes Feld bleibt bestätigt",
+  );
+  assert.ok(unconfirmedSuggestionKeys(reloaded.katalog?.UO02, fieldKeys).includes("kunden"), "unbestätigtes Feld bleibt unbestätigt");
+
+  const heute = chipHeute(reloaded, "UO02");
+  assert.equal(heute.katalog?.UO02?.status, undefined, "„So läuft es heute“ setzt den Stand nicht");
+  assert.ok((heute.katalog?.UO02?.vorschlagRueckfrage ?? []).includes("kunden"), "Rückfrage enthält das unbestätigte Feld");
+  assert.ok((heute.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "bestätigtes Feld bleibt bestätigt");
 }
 
 // 5 — Kanzlei-Widerspruch

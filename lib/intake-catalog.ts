@@ -1462,6 +1462,8 @@ export function clearCatalogStatus(answers: IntakeAnswers, id: string): IntakeAn
   if (current.responsible) nextEntry.responsible = current.responsible;
   if (current.date) nextEntry.date = current.date;
   if (current.cleared?.length) nextEntry.cleared = current.cleared;
+  if (current.vorschlag) nextEntry.vorschlag = current.vorschlag;
+  if (current.vorschlagOk?.length) nextEntry.vorschlagOk = current.vorschlagOk;
   return {
     ...answers,
     katalog: { ...catalogState(answers), [id]: nextEntry },
