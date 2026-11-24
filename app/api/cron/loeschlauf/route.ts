@@ -13,8 +13,11 @@ export async function GET(request: Request) {
   const result = await handleRetentionCron(request);
   if (result.status === 200) await logMeasureRetention();
   if (result.status !== 401 && schnellversionPurgeEnabled()) {
+    // Trockenlauf löscht auch bei SCHNELLVERSION_49_PURGE=1 nichts, nur Zähler ins Log.
+    const dryRun = new URL(request.url).searchParams.get("modus") === "trockenlauf";
     try {
-      await runScheduledSvPurge();
+      const sv = await runScheduledSvPurge(new Date(), process.env, undefined, { dryRun });
+      if (dryRun && sv) console.info("[loeschlauf] Schnellversion", JSON.stringify(sv));
     } catch (error) {
       logError("[loeschlauf] Schnellversion", error);
     }
