@@ -605,7 +605,7 @@ function valuesOf(state: CatalogState, id: string): Record<string, unknown> {
   return state[id]?.values ?? {};
 }
 
-function asList(value: unknown): string[] {
+export function asList(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.map((item) => String(item).trim()).filter(Boolean);
   }
@@ -616,6 +616,31 @@ function asList(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+/** Visible text for a list-or-string field. Arrays are joined; a string is kept as typed. */
+export function listFieldDisplay(value: unknown): string {
+  if (Array.isArray(value)) return asList(value).join(", ");
+  if (typeof value === "string") return value;
+  return "";
+}
+
+/**
+ * What the intake field shows for a stored value. List-capable renderers
+ * (E05.systeme, textarea, multi / multi_or_text) join arrays; string-only
+ * fields (text, date, enum) ignore arrays.
+ */
+export function catalogFieldVisibleText(
+  questionId: string,
+  fieldKey: string,
+  value: unknown,
+  fieldType?: string,
+): string {
+  if (questionId === "E05" && fieldKey === "systeme") return listFieldDisplay(value);
+  if (fieldType === "textarea" || fieldType === "multi" || fieldType === "multi_or_text") {
+    return listFieldDisplay(value);
+  }
+  return typeof value === "string" ? value : "";
 }
 
 function asText(value: unknown): string {
@@ -2101,7 +2126,7 @@ export function draftCatalogFromLegacy(answers: IntakeAnswers, company = ""): Ca
     },
     C01: { values: { kanaele: mapChannels(answers.eingangsbelege) } },
     E01: { values: { formate: answers.formate ?? [] } },
-    E05: { values: { systeme: answers.ausgangsrechnungen } },
+    E05: { values: { systeme: asList(answers.ausgangsrechnungen) } },
     F01: { values: { buchhaltung: answers.buchhaltung } },
     F05: { values: { kanzleiName: answers.steuerberater } },
     G01: { values: { ablage: answers.archiv } },
@@ -2655,6 +2680,11 @@ export function prefillKnownFacts(
     protect,
     previousAnswers ? verantwortlicheRoleText(previousAnswers) : undefined,
   );
+
+  const e05 = katalog.E05;
+  if (e05?.values && typeof e05.values.systeme === "string") {
+    katalog.E05 = { ...e05, values: { ...e05.values, systeme: asList(e05.values.systeme) } };
+  }
 
   if (JSON.stringify(katalog) === JSON.stringify(next.katalog ?? {})) return next;
   return { ...next, katalog };
