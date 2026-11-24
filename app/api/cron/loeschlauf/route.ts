@@ -17,7 +17,8 @@ export async function GET(request: Request) {
     const dryRun = new URL(request.url).searchParams.get("modus") === "trockenlauf";
     try {
       const sv = await runScheduledSvPurge(new Date(), process.env, undefined, { dryRun });
-      if (dryRun && sv) console.info("[loeschlauf] Schnellversion", JSON.stringify(sv));
+      // Zähler und Datumsgrenzen, keine IDs. Trockenlauf setzt visitsDeleted/deleted immer auf 0.
+      if (sv) console.info("[loeschlauf] Schnellversion", JSON.stringify(sv));
     } catch (error) {
       logError("[loeschlauf] Schnellversion", error);
     }

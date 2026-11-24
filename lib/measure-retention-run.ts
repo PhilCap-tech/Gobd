@@ -3,7 +3,7 @@
  * counts only. It does not include marker names.
  */
 import { del, get, list } from "@vercel/blob";
-import { getAmpelStepsSheetsTab, getHomeCtaSheetsTab, getMeasureSheetsTab, isBlobConfigured, isSheetsConfigured } from "@/lib/env";
+import { getAmpelStepsSheetsTab, getHomeCtaSheetsTab, getMeasureSheetsTab, getSchnellversionEventSheetsTab, isBlobConfigured, isSheetsConfigured } from "@/lib/env";
 import { assertLiveWriteAllowed, automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { measureDate } from "@/lib/measure-event";
 import {
@@ -43,7 +43,7 @@ export function measureRetentionLogLine(report: MeasureRetentionReport): string 
 }
 
 function tabsToRead(): MeasureCountTab[] {
-  const names = [getHomeCtaSheetsTab(), getMeasureSheetsTab(), getAmpelStepsSheetsTab()];
+  const names = [getHomeCtaSheetsTab(), getMeasureSheetsTab(), getAmpelStepsSheetsTab(), getSchnellversionEventSheetsTab()];
   const tabs: MeasureCountTab[] = [];
   for (const name of names) {
     if (isMeasureCountTab(name) && !tabs.includes(name)) tabs.push(name);

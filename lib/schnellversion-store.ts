@@ -30,11 +30,16 @@ export function failSvPurchaseSinkForTest(next: boolean): void {
 
 type SheetClient = {
   get(args: { spreadsheetId: string }): Promise<{
-    data: { sheets?: Array<{ properties?: { title?: string | null } | null } | null> | null };
+    data: { sheets?: Array<{ properties?: { title?: string | null; sheetId?: number | null } | null } | null> | null };
   }>;
   batchUpdate(args: {
     spreadsheetId: string;
-    requestBody: { requests: Array<{ addSheet?: { properties: { title: string } } }> };
+    requestBody: {
+      requests: Array<{
+        addSheet?: { properties: { title: string } };
+        deleteDimension?: { range: { sheetId: number; dimension: "ROWS"; startIndex: number; endIndex: number } };
+      }>;
+    };
   }): Promise<unknown>;
   valuesGet(args: { spreadsheetId: string; range: string }): Promise<{
     data: { values?: unknown[][] | null } | null;
@@ -286,4 +291,43 @@ export async function readSvEvents(): Promise<SvEventRow[]> {
   }
   const fromFile = automatedRunForbidsLiveWrites() || (process.env.VERCEL_ENV ?? "").trim() === "production" ? [] : fileRows();
   return fromFile.length ? fromFile : memory.slice();
+}
+
+/** Values of schnellversion_49 including the header. Empty when the sheet is not configured. */
+export async function listSvEventSheetValues(): Promise<string[][]> {
+  if (!sheetWritesAllowed()) return [];
+  try {
+    const client = installed?.client ?? adaptSvSheetClient(createSheetsClient());
+    const result = await client.valuesGet({
+      spreadsheetId: spreadsheetId(),
+      range: `${SV_EVENT_TAB}!A:H`,
+    });
+    return (result.data?.values ?? []).map((row) => (row ?? []).map((cell) => String(cell ?? "")));
+  } catch (error) {
+    const name = error instanceof Error && error.name ? error.name : "Error";
+    console.error("[schnellversion]", name);
+    return [];
+  }
+}
+
+/** Deletes 1-based sheet rows, highest index first. No-op without a configured sheet or in a check. */
+export async function deleteSvEventSheetRows(rows: number[]): Promise<void> {
+  if (rows.length === 0 || !sheetWritesAllowed() || automatedRunForbidsLiveWrites()) return;
+  const client = installed?.client ?? adaptSvSheetClient(createSheetsClient());
+  const id = spreadsheetId();
+  const meta = await client.get({ spreadsheetId: id });
+  const sheetId = meta.data.sheets?.find((sheet) => sheet?.properties?.title === SV_EVENT_TAB)?.properties?.sheetId;
+  if (typeof sheetId !== "number") return;
+  await client.batchUpdate({
+    spreadsheetId: id,
+    requestBody: {
+      requests: [...rows]
+        .sort((a, b) => b - a)
+        .map((sheetRow) => ({
+          deleteDimension: {
+            range: { sheetId, dimension: "ROWS" as const, startIndex: sheetRow - 1, endIndex: sheetRow },
+          },
+        })),
+    },
+  });
 }
