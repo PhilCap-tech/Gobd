@@ -26,6 +26,10 @@ export const SV_KASSE_UNSICHER_HILFE =
 
 export const SV_KAUF_BUTTON = "Standardfassung für 49 € kaufen";
 
+/** Kaufseite: Checkout antwortet nicht mit 2xx oder das Netz fällt aus. */
+export const SV_CHECKOUT_START_FAILED =
+  "Der Bezahlvorgang konnte nicht gestartet werden. Bitte versuchen Sie es erneut oder schreiben Sie uns an info@gobd-doku-erstellen.de.";
+
 export const SV_KAUF_PREIS =
   "49 € zzgl. 19 % USt (58,31 € brutto), einmalig je Firma. Keine Abo-Pflicht.";
 

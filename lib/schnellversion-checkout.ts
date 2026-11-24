@@ -11,6 +11,15 @@ import {
   schnellversionPriceId,
 } from "@/lib/schnellversion-flag";
 
+const SV_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Gültige Adresse oder leer. Leer heißt: Stripe fragt die E-Mail selbst ab. */
+export function svValidEmail(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const email = raw.trim().toLowerCase();
+  return email.length <= 254 && SV_EMAIL_RE.test(email) ? email : "";
+}
+
 /** Zustimmung und offener Checkout. Die Session-Metadaten, kein Kauf. */
 export function schnellversionCheckoutMetadata(input: {
   pendingId: string;
@@ -47,12 +56,13 @@ export function schnellversionSessionParams(
   if (plan === "live" && !secret.startsWith("sk_live_")) return null;
   const tax = (env.STRIPE_TAX_RATE_ID ?? getStripeTaxRateId()).trim();
   const metadata = schnellversionCheckoutMetadata(input);
+  const email = svValidEmail(input.email);
   return {
     mode: "payment",
     currency: "eur",
     locale: "de",
     adaptive_pricing: { enabled: false },
-    customer_email: input.email,
+    ...(email ? { customer_email: email } : {}),
     customer_creation: "always",
     billing_address_collection: "required",
     tax_id_collection: { enabled: true },

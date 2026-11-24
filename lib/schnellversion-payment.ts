@@ -16,7 +16,7 @@ import { loadIntakeDraft, saveIntakeDraft } from "@/lib/intake-draft";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { generateStandardPdf } from "@/lib/schnellversion-pdf";
 import { draftFromSchnellversion, mergeEmptyDraftFields } from "@/lib/schnellversion-draft";
-import { createSchnellversionTestSession } from "@/lib/schnellversion-checkout";
+import { createSchnellversionTestSession, svValidEmail } from "@/lib/schnellversion-checkout";
 import { getSvJson, putSvJson, svBlobEnabled, svPendingBlobPath, svPendingSessionBlobPath } from "@/lib/schnellversion-persist";
 import { claimSvSession, completeSvPurchase, newDownloadToken, releaseSvSession, saveSvPurchase, type SvPurchase } from "@/lib/schnellversion-record";
 
@@ -211,6 +211,8 @@ export function paidFromStoredSession(input: {
 export type PaidProof = {
   status?: "paid";
   pendingId?: string;
+  /** customer_details.email der bezahlten Session. Gilt nur, wenn der Kauf ohne Login begann. */
+  email?: string;
   /** Nur der Check. Die Route lässt das weg und nutzt die Prozess-Umgebung. */
   env?: Record<string, string | undefined>;
 };
@@ -221,7 +223,7 @@ export type PaidProof = {
  */
 async function retrieveTestSession(
   sessionId: string,
-): Promise<{ status: "paid" | "unpaid"; pendingId: string } | null> {
+): Promise<{ status: "paid" | "unpaid"; pendingId: string; email: string } | null> {
   if (!sessionId.startsWith("cs_")) return null;
   if (automatedRunForbidsLiveWrites() || schnellversionStripeStub()) return null;
   const secret = (process.env.STRIPE_SECRET_KEY ?? "").trim();
@@ -234,9 +236,10 @@ async function retrieveTestSession(
     return {
       status: paymentFromStatus(session.payment_status),
       pendingId: typeof pending === "string" ? pending.trim() : "",
+      email: svValidEmail(session.customer_details?.email ?? ""),
     };
   } catch {
-    return { status: "unpaid", pendingId: "" };
+    return { status: "unpaid", pendingId: "", email: "" };
   }
 }
 
@@ -337,13 +340,17 @@ async function confirmPaidSessionOnce(
   if (!pending) return { paid: false };
   if (proof?.pendingId && proof.pendingId !== pending.id) return { paid: false };
   let stripePaid = false;
+  let stripeEmail = svValidEmail(proof?.email ?? "");
   if (!requested.startsWith("stub_sv_")) {
     if (proof?.status === "paid") stripePaid = true;
     else {
       const remote = await retrieveTestSession(requested);
       stripePaid = remote?.status === "paid" && (!remote.pendingId || remote.pendingId === pending.id);
+      if (!stripeEmail) stripeEmail = remote?.email ?? "";
     }
   }
+  // Gastkauf: ohne Login fragt Stripe die Adresse ab. Ein Login hat Vorrang.
+  const buyerEmail = pending.email || stripeEmail;
   if (
     !paidFromStoredSession({
       requestedId: requested,
@@ -380,14 +387,14 @@ async function confirmPaidSessionOnce(
         kind: "doc",
         id: `sv49-pdf:${requested}`,
         title: "Schnellversion: Erstellung nach Zahlung fehlgeschlagen",
-        email: pending.email,
+        email: buyerEmail,
         company: pending.answers.firma,
         facts: [["Session", requested], ["Hinweis", "§ 9"]],
       });
       throw new SvPdfFailed();
     }
     await saveSvPurchase({
-      email: pending.email,
+      email: buyerEmail,
       company: pending.answers.firma,
       purchasedAt: pending.createdAt,
       pdf,
@@ -407,8 +414,8 @@ async function confirmPaidSessionOnce(
   }
   try {
     const { maybeSendSchnellversionPurchaseMail } = await import("@/lib/schnellversion-purchase-mail");
-    await maybeSendSchnellversionPurchaseMail({
-      to: pending.email,
+    if (buyerEmail) await maybeSendSchnellversionPurchaseMail({
+      to: buyerEmail,
       company: pending.answers.firma,
       purchasedAt: pending.createdAt,
       sessionId: pending.sessionId,
@@ -419,8 +426,8 @@ async function confirmPaidSessionOnce(
     console.error("[schnellversion] Kaufmail", error instanceof Error ? error.name : "error");
   }
   try {
-    if (pending.email && !automatedRunForbidsLiveWrites()) {
-      const incoming = draftFromSchnellversion(pending.email, pending.answers);
+    if (buyerEmail && !automatedRunForbidsLiveWrites()) {
+      const incoming = draftFromSchnellversion(buyerEmail, pending.answers);
       const stored = await loadIntakeDraft(incoming.draftKey);
       await saveIntakeDraft(stored ? mergeEmptyDraftFields(stored, incoming) : incoming);
     }
