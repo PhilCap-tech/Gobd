@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { ConsentBanner } from "@/components/consent-banner";
+import { IntakeDraftSweep } from "@/components/intake-draft-sweep";
 import { JsonLd } from "@/components/json-ld";
 import { MarketingPixel } from "@/components/marketing-pixel";
 import { SensitiveQueryStrip } from "@/components/sensitive-query-strip";
 import { VercelAnalytics } from "@/components/vercel-analytics";
+import { intakeGuestStartEnabled } from "@/lib/pricing-model";
 import { organizationJsonLd } from "@/lib/jsonld";
 import {
   HOME_DESCRIPTION,
@@ -48,6 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           }}
         />
         <SensitiveQueryStrip />
+        {intakeGuestStartEnabled() ? <IntakeDraftSweep /> : null}
         <JsonLd data={organizationJsonLd()} />
         {/* Im Fluss vor dem Inhalt: der Banner überdeckt nie Buttons oder Links. */}
         <ConsentBanner />
