@@ -6,7 +6,6 @@ import {
   askVorschlag,
   clearCatalogStatus,
   confirmVorschlag,
-  dismissVorschlag,
   PROCESS_STATUSES,
   setCatalogMeta,
   setCatalogReason,
@@ -22,7 +21,6 @@ import {
   unconfirmedSuggestionKeys,
   VORSCHLAG_ANPASSEN,
   VORSCHLAG_JA,
-  VORSCHLAG_RUECKFRAGE,
 } from "@/lib/modul-verstaendnis";
 import {
   AENDERUNGSANLAESSE,
@@ -1319,6 +1317,9 @@ export function ProcessStatus({
   onChange,
   issue = "",
   allowEntfaellt = false,
+  suggestionPrompt = "",
+  suggestionOpen = false,
+  onAdjust,
 }: {
   questionId: string;
   prompt: string;
@@ -1326,6 +1327,9 @@ export function ProcessStatus({
   onChange: (next: IntakeAnswers) => void;
   issue?: string;
   allowEntfaellt?: boolean;
+  suggestionPrompt?: string;
+  suggestionOpen?: boolean;
+  onAdjust?: () => void;
 }) {
   const entry = answers.katalog?.[questionId];
   const values = entry?.values ?? {};
@@ -1380,14 +1384,14 @@ export function ProcessStatus({
               );
             })}
           </div>
-          {entry?.vorschlagRueckfrage ? (
+          {suggestionOpen ? (
             <div className="field">
-              <p className="hint">{VORSCHLAG_RUECKFRAGE}</p>
+              <p className="hint">{suggestionPrompt}</p>
               <div className="chips">
                 <button type="button" className="chip" onClick={() => onChange(confirmVorschlag(answers, questionId))}>
                   {VORSCHLAG_JA}
                 </button>
-                <button type="button" className="chip" onClick={() => onChange(dismissVorschlag(answers, questionId))}>
+                <button type="button" className="chip" onClick={() => onAdjust?.()}>
                   {VORSCHLAG_ANPASSEN}
                 </button>
               </div>

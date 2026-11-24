@@ -7,8 +7,7 @@ import type { CheckAntwort, CheckKey } from "@/lib/module/typen";
 
 export const FIKTIV_TOKEN = "(fiktiv)";
 
-export const FIKTIV_FIELD_MESSAGE =
-  "Das ist ein Beispielwert aus der Vorlage. Bitte tragen Sie den Namen Ihres eigenen Systems ein.";
+export const FIKTIV_FIELD_MESSAGE = "Bitte ersetzen Sie den Beispielwert durch Ihre eigene Angabe.";
 
 export const BEISPIELWERT_OFFEN =
   "Ein Beispielwert aus der Vorlage ist keine Angabe zum eigenen System.";
@@ -40,6 +39,31 @@ export const VORSCHLAG_CHECKBOX = "Das stimmt so für meinen Betrieb.";
 
 export const VORSCHLAG_RUECKFRAGE =
   "Sie übernehmen den Vorschlag aus der Vorlage unverändert. Stimmt das genau so für Ihren Betrieb?";
+
+export const VORSCHLAG_ANPASSEN_HINWEIS = "Bitte passen Sie dieses Feld an Ihren Betrieb an.";
+
+/** Marke direkt am Feld, nur für diesen noch unveränderten Vorschlag. */
+export function vorschlagMark(label: string): string {
+  const name = label.trim();
+  if (!name) return VORSCHLAG_MARKE;
+  return `Vorschlag aus der Branchenvorlage für „${name}“: Bitte an Ihren Betrieb anpassen oder bestätigen.`;
+}
+
+/** Rückfrage mit den Feldnamen, die noch genau dem Vorschlag entsprechen. */
+export function vorschlagRueckfrageText(labels: readonly string[]): string {
+  const names = labels.map((label) => label.trim()).filter(Boolean);
+  if (!names.length) return VORSCHLAG_RUECKFRAGE;
+  const list =
+    names.length === 1
+      ? `„${names[0]}“`
+      : names.length === 2
+        ? `„${names[0]}“ und „${names[1]}“`
+        : `${names
+            .slice(0, -1)
+            .map((name) => `„${name}“`)
+            .join(", ")} und „${names[names.length - 1]}“`;
+  return `Sie übernehmen den Vorschlag aus der Vorlage unverändert für ${list}. Stimmt das genau so für Ihren Betrieb?`;
+}
 
 export const VORSCHLAG_JA = "Ja, stimmt";
 
@@ -144,6 +168,8 @@ export type SuggestionEntry = {
   values?: Record<string, unknown>;
   vorschlag?: Record<string, unknown>;
   vorschlagOk?: string[];
+  /** Feldschlüssel mit offener Rückfrage. Ein boolescher Altwert wird ignoriert. */
+  vorschlagRueckfrage?: string[] | boolean;
   status?: string;
 };
 
@@ -166,10 +192,26 @@ export function suggestionConfirmed(entry: SuggestionEntry | undefined): boolean
   return matching.every((key) => ok.has(key));
 }
 
+export function fieldIsUnconfirmedSuggestion(entry: SuggestionEntry | undefined, key: string): boolean {
+  return unconfirmedSuggestionKeys(entry).includes(key);
+}
+
 export function hasSuggestionMark(entry: SuggestionEntry | undefined): boolean {
-  const suggested = entry?.vorschlag ?? {};
-  const values = entry?.values ?? {};
-  return Object.keys(suggested).some((key) => sameSuggestion(suggested[key], values[key]));
+  return unconfirmedSuggestionKeys(entry).length > 0;
+}
+
+/** Feldreihenfolge der Frage, nicht die Reihenfolge im gespeicherten Objekt. */
+export function orderSuggestionKeys(fieldOrder: readonly string[], keys: readonly string[]): string[] {
+  const rank = new Map(fieldOrder.map((key, index) => [key, index]));
+  return [...keys].sort((left, right) => (rank.get(left) ?? 999) - (rank.get(right) ?? 999));
+}
+
+/** Offene Rückfrage nur für Felder, die noch unverändert sind. Boolesche Altdaten zählen nicht. */
+export function openSuggestionKeys(entry: SuggestionEntry | undefined): string[] {
+  const raw = entry?.vorschlagRueckfrage;
+  if (!Array.isArray(raw)) return [];
+  const pending = new Set(unconfirmedSuggestionKeys(entry));
+  return raw.filter((key) => pending.has(key));
 }
 
 export function vorschlagOkAfterValueEdit(

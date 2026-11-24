@@ -101,8 +101,11 @@ export type IntakeAnswers = {
       vorschlag?: Record<string, unknown>;
       /** Felder, deren Vorschlag der Kunde ausdrücklich bestätigt hat. */
       vorschlagOk?: string[];
-      /** Rückfrage, solange ein unveränderter Vorschlag noch nicht bestätigt ist. */
-      vorschlagRueckfrage?: boolean;
+      /**
+       * Offene Rückfrage je Feld. Gehört nicht in den gespeicherten Entwurf
+       * und wird beim Laden entfernt.
+       */
+      vorschlagRueckfrage?: string[];
     }
   >;
   fragen?: Partial<

@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { IntakeQuestionHint } from "@/components/intake-question-hint";
 import {
   af01StatutoryHint,
-  hasSuggestionMark,
+  fieldIsUnconfirmedSuggestion,
+  openSuggestionKeys,
+  orderSuggestionKeys,
   storedEntfaelltStatus,
-  suggestionConfirmed,
+  unconfirmedSuggestionKeys,
+  VORSCHLAG_ANPASSEN_HINWEIS,
   VORSCHLAG_CHECKBOX,
-  VORSCHLAG_MARKE,
+  vorschlagMark,
+  vorschlagRueckfrageText,
 } from "@/lib/modul-verstaendnis";
 import {
   applyDerivedStatus,
-  setVorschlagOk,
+  dismissVorschlag,
+  setVorschlagFieldOk,
   BETRIEBS_CHECK_STEP_ID,
   CATALOG_STEPS,
   catalogQuestionApplies,
@@ -97,10 +102,6 @@ export function StepError({ issues }: { issues: CatalogIssue[] }) {
   );
 }
 
-function suggestionBoxChecked(entry: { values?: Record<string, unknown>; vorschlag?: Record<string, unknown>; vorschlagOk?: string[] } | undefined): boolean {
-  return suggestionConfirmed(entry);
-}
-
 function matchesPrefill(value: unknown, source: string | undefined): boolean {
   const text = asText(value).trim();
   const from = source?.trim() ?? "";
@@ -112,15 +113,20 @@ function FieldShell({
   id,
   invalid,
   message,
+  highlight,
   children,
 }: {
   id?: string;
   invalid?: boolean;
   message?: string;
+  highlight?: boolean;
   children: ReactNode;
 }) {
+  const className = ["field", invalid ? "field-invalid" : "", highlight ? "field-vorschlag-focus" : ""]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <div className={invalid ? "field field-invalid" : "field"} id={id} tabIndex={invalid ? -1 : undefined}>
+    <div className={className} id={id} tabIndex={invalid || highlight ? -1 : undefined}>
       {children}
       {invalid && message ? (
         <p className="field-error" role="alert">
@@ -470,6 +476,7 @@ export function IntakeQuestionnaire({
   scrollIssue?: CatalogIssue | null;
   firm?: FirmFacts;
 }) {
+  const [adjustField, setAdjustField] = useState<{ questionId: string; fieldKey: string } | null>(null);
   useEffect(() => {
     if (!scrollTick || !scrollIssue) return;
     const node =
@@ -603,19 +610,6 @@ export function IntakeQuestionnaire({
                     {blockIssue.message}
                   </p>
                 ) : null}
-                {hasSuggestionMark(entry) ? (
-                  <div className="field">
-                    <p className="hint">{VORSCHLAG_MARKE}</p>
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={suggestionBoxChecked(entry)}
-                        onChange={(event) => onChange(setVorschlagOk(answers, question.id, event.target.checked))}
-                      />
-                      <span>{VORSCHLAG_CHECKBOX}</span>
-                    </label>
-                  </div>
-                ) : null}
                 <ProcessStatus
                   questionId={question.id}
                   prompt={prompt}
@@ -625,6 +619,34 @@ export function IntakeQuestionnaire({
                   allowEntfaellt={
                     question.allowEntfaellt === true || storedEntfaelltStatus(entry?.status)
                   }
+                  suggestionPrompt={vorschlagRueckfrageText(
+                    orderSuggestionKeys(
+                      question.fields.map((item) => item.key),
+                      openSuggestionKeys(entry),
+                    ).map((key) => {
+                      const field = question.fields.find((item) => item.key === key);
+                      return fieldLabel(question.id, key, field?.label);
+                    }),
+                  )}
+                  suggestionOpen={openSuggestionKeys(entry).length > 0}
+                  onAdjust={() => {
+                    const order = question.fields.map((item) => item.key);
+                    const key =
+                      orderSuggestionKeys(order, openSuggestionKeys(entry))[0] ??
+                      orderSuggestionKeys(order, unconfirmedSuggestionKeys(entry))[0];
+                    onChange(dismissVorschlag(answers, question.id));
+                    if (!key) return;
+                    setAdjustField({ questionId: question.id, fieldKey: key });
+                    queueMicrotask(() => {
+                      const node =
+                        document.getElementById(`${question.id}-${key}`) ??
+                        document.getElementById(`angabe-${question.id}-${key}`);
+                      if (node instanceof HTMLElement) {
+                        node.focus();
+                        node.scrollIntoView({ block: "center" });
+                      }
+                    });
+                  }}
                 />
                 {isControlQuestionId(question.id) && /^KF0[1-5]$/.test(question.id) ? (
                   <div className="chips">
@@ -666,12 +688,18 @@ export function IntakeQuestionnaire({
                       question.id === "UO03" && field.key === "zustaendigkeiten"
                         ? Boolean(gfName) && asText(values.zustaendigkeiten).includes(`Geschäftsleitung: ${gfName}`)
                         : matchesPrefill(values[field.key], source);
+                    const suggestionField = fieldIsUnconfirmedSuggestion(entry, field.key);
+                    const highlighted =
+                      suggestionField &&
+                      adjustField?.questionId === question.id &&
+                      adjustField.fieldKey === field.key;
                     return (
                       <FieldShell
                         key={field.key}
                         id={`angabe-${question.id}-${field.key}`}
                         invalid={Boolean(gap)}
                         message={gap?.message}
+                        highlight={highlighted}
                       >
                         {field.type !== "boolean" ? (
                           <label htmlFor={`${question.id}-${field.key}`}>{label}</label>
@@ -686,6 +714,24 @@ export function IntakeQuestionnaire({
                         />
                         {question.id === "AF01" && field.key === "ablauf" && af01StatutoryHint(asText(values.ablauf)) ? (
                           <p className="hint">{af01StatutoryHint(asText(values.ablauf))}</p>
+                        ) : null}
+                        {suggestionField ? (
+                          <>
+                            <p className="hint">{vorschlagMark(label)}</p>
+                            {highlighted ? <p className="hint">{VORSCHLAG_ANPASSEN_HINWEIS}</p> : null}
+                            <label className="check">
+                              <input
+                                type="checkbox"
+                                checked={(entry?.vorschlagOk ?? []).includes(field.key)}
+                                onChange={(event) =>
+                                  onChange(
+                                    setVorschlagFieldOk(answers, question.id, field.key, event.target.checked),
+                                  )
+                                }
+                              />
+                              <span>{VORSCHLAG_CHECKBOX}</span>
+                            </label>
+                          </>
                         ) : null}
                         <PrefillHint show={prefilled} />
                       </FieldShell>

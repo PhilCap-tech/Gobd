@@ -8,7 +8,9 @@ import {
   CATALOG_STEPS,
   catalogOpenPoints,
   catalogStepIssues,
+  askVorschlag,
   confirmVorschlag,
+  dismissVorschlag,
   prefillKnownFacts,
   removeKanzleiEintrag,
   setCatalogStatus,
@@ -17,6 +19,7 @@ import {
   nextApplicableStep,
 } from "@/lib/intake-catalog";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
+import { stripEmptyIntakeCards, withoutStoredSuggestionPrompt } from "@/lib/intake-present";
 import { renderGesamtChapters } from "@/lib/gesamt-document";
 import { getGesamtMuster } from "@/lib/module-muster";
 import {
@@ -52,8 +55,14 @@ import {
   MODUL_SPAETER_LABEL,
   RETOUREN_HILFE,
   RETOUREN_HINWEIS,
+  VORSCHLAG_ANPASSEN_HINWEIS,
   VORSCHLAG_MARKE,
   VORSCHLAG_RUECKFRAGE,
+  fieldIsUnconfirmedSuggestion,
+  openSuggestionKeys,
+  unconfirmedSuggestionKeys,
+  vorschlagMark,
+  vorschlagRueckfrageText,
   WW01_HILFE,
   WW01_SYSTEM_PLACEHOLDER,
   WW01_VORGAENGE_PLACEHOLDER,
@@ -168,7 +177,42 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   assert.ok(VORSCHLAG_MARKE.startsWith("Vorschlag aus der Branchenvorlage"));
   let confirmed = setCatalogStatus(handel, "UO02", "bestaetigt");
   const blocked = catalogStepIssues(stepIndex("step-M01c"), confirmed);
-  assert.ok(blocked.some((issue) => issue.message === VORSCHLAG_RUECKFRAGE), "Bestätigung nötig");
+  const bothFields = vorschlagRueckfrageText(["Tätigkeiten und Umsatzarten", "Kundengruppen"]);
+  assert.ok(blocked.some((issue) => issue.message === bothFields), "Bestätigung nennt beide Felder");
+  let onlyKunden = setCatalogValue(handel, "UO02", "taetigkeiten", "Verkauf im Laden an Privatkunden");
+  assert.equal(fieldIsUnconfirmedSuggestion(onlyKunden.katalog?.UO02, "taetigkeiten"), false);
+  assert.equal(fieldIsUnconfirmedSuggestion(onlyKunden.katalog?.UO02, "kunden"), true);
+  assert.equal(vorschlagMark("Kundengruppen").includes("Kundengruppen"), true);
+  assert.equal(vorschlagMark("Tätigkeiten und Umsatzarten").includes("Tätigkeiten und Umsatzarten"), true);
+  onlyKunden = setCatalogStatus(onlyKunden, "UO02", "bestaetigt");
+  const oneField = catalogStepIssues(stepIndex("step-M01c"), onlyKunden);
+  const kundenOnly = vorschlagRueckfrageText(["Kundengruppen"]);
+  assert.ok(oneField.some((issue) => issue.message === kundenOnly), "Rückfrage nur für das unveränderte Feld");
+  assert.ok(!oneField.some((issue) => issue.message.includes("Tätigkeiten und Umsatzarten")));
+  let asked = askVorschlag(onlyKunden, "UO02");
+  assert.deepEqual(openSuggestionKeys(asked.katalog?.UO02), ["kunden"]);
+  asked = setCatalogValue(asked, "UO02", "kunden", ["Privatkunden (B2C)", "Geschäftskunden (B2B)"]);
+  assert.deepEqual(openSuggestionKeys(asked.katalog?.UO02), [], "Bearbeiten setzt die Rückfrage dieses Feldes zurück");
+  const saved = stripEmptyIntakeCards(askVorschlag(onlyKunden, "UO02"));
+  assert.equal(saved.katalog?.UO02?.vorschlagRueckfrage, undefined, "Rückfrage wird nicht gespeichert");
+  const legacy = askVorschlag(onlyKunden, "UO02");
+  const withOldFlag = {
+    ...legacy,
+    katalog: {
+      ...legacy.katalog,
+      UO02: { ...legacy.katalog?.UO02, vorschlagRueckfrage: true as unknown as string[] },
+    },
+  };
+  const loaded = withoutStoredSuggestionPrompt(withOldFlag);
+  assert.equal(loaded.katalog?.UO02?.vorschlagRueckfrage, undefined, "alte gespeicherte Rückfrage wird ignoriert");
+  assert.equal(loaded.katalog?.UO02?.values?.kunden != null, true, "Feldwerte bleiben");
+  assert.equal(dismissVorschlag(askVorschlag(onlyKunden, "UO02"), "UO02").katalog?.UO02?.vorschlagRueckfrage, undefined);
+  assert.equal(unconfirmedSuggestionKeys(onlyKunden.katalog?.UO02)[0], "kunden");
+  const ui = readFileSync("components/intake-questionnaire.tsx", "utf8");
+  assert.ok(ui.includes("field-vorschlag-focus"), "Anpassen hebt das Feld hervor");
+  assert.ok(ui.includes("document.getElementById(`${question.id}-${key}`)"), "Anpassen fokussiert das Feld");
+  assert.ok(ui.includes(VORSCHLAG_ANPASSEN_HINWEIS) || ui.includes("VORSCHLAG_ANPASSEN_HINWEIS"));
+  assert.equal(FIKTIV_FIELD_MESSAGE, "Bitte ersetzen Sie den Beispielwert durch Ihre eigene Angabe.");
   const before = modulFortschritt(handel, "m01").beantwortet;
   const uoOnly = modulFortschritt(handel, "m01");
   assert.ok(uoOnly.beantwortet === before);
@@ -354,8 +398,11 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
     AF01_STATUTORY_HINT,
     FIKTIV_FIELD_MESSAGE,
     BEISPIELWERT_OFFEN,
+    VORSCHLAG_ANPASSEN_HINWEIS,
     VORSCHLAG_MARKE,
     VORSCHLAG_RUECKFRAGE,
+    vorschlagMark("Kundengruppen"),
+    vorschlagRueckfrageText(["Tätigkeiten und Umsatzarten", "Kundengruppen"]),
     KANZLEI_LABEL,
     KANZLEI_HILFE,
     KANZLEI_WIDERSPRUCH,

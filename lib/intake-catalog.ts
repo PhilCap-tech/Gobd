@@ -64,7 +64,7 @@ import {
   FIKTIV_FIELD_MESSAGE,
   KANZLEI_WIDERSPRUCH_OFFEN,
   STATUS_MISSING_MESSAGE,
-  VORSCHLAG_RUECKFRAGE,
+  vorschlagRueckfrageText,
   activitySelected,
   entfaelltChipVisible,
   entfaelltReasonOptional,
@@ -76,6 +76,7 @@ import {
   selectedActivities,
   statusMissingSummary,
   sameSuggestion,
+  orderSuggestionKeys,
   unconfirmedSuggestionKeys,
   valueContainsFiktiv,
   vorschlagOkAfterValueEdit,
@@ -167,8 +168,8 @@ export type CatalogQuestionState = {
   vorschlag?: Record<string, unknown>;
   /** Felder, deren Vorschlag der Kunde ausdrücklich bestätigt hat. */
   vorschlagOk?: string[];
-  /** Rückfrage, solange ein unveränderter Vorschlag noch nicht bestätigt ist. */
-  vorschlagRueckfrage?: boolean;
+  /** Offene Rückfrage je Feld. Wird nicht im Entwurf gespeichert. */
+  vorschlagRueckfrage?: string[];
 };
 
 export type CatalogState = Record<string, CatalogQuestionState>;
@@ -1070,9 +1071,21 @@ function questionIssues(
     }
   }
   const pendingSuggestions =
-    entry.status === "bestaetigt" ? new Set(unconfirmedSuggestionKeys(entry)) : new Set<string>();
-  if (pendingSuggestions.size) {
-    issues.push(catalogIssue(question.id, "vorschlag", VORSCHLAG_RUECKFRAGE, `${question.id}-vorschlag`));
+    entry.status === "bestaetigt"
+      ? orderSuggestionKeys(
+          question.fields.map((field) => field.key),
+          unconfirmedSuggestionKeys(entry),
+        )
+      : [];
+  if (pendingSuggestions.length) {
+    const labels = pendingSuggestions.map((key) => {
+      const field = question.fields.find((item) => item.key === key);
+      return fieldLabel(question.id, key, field?.label);
+    });
+    const first = pendingSuggestions[0] ?? "vorschlag";
+    issues.push(
+      catalogIssue(question.id, first, vorschlagRueckfrageText(labels), `${question.id}-${first}`),
+    );
   }
   if (requireFields) {
     const state = catalogState(answers);
@@ -1093,7 +1106,7 @@ function questionIssues(
       issues.push(catalogIssue(question.id, "block", p1.message));
     } else if (!keineKontrolle && !onlyUntouchedSuggestions(question.id, values, channels, scope)) {
       for (const field of question.fields) {
-        if (pendingSuggestions.has(field.key)) continue;
+        if (pendingSuggestions.includes(field.key)) continue;
         if (!fieldReady(field, values[field.key])) issues.push(fieldIssue(question, field));
       }
     }
@@ -1347,7 +1360,14 @@ export function setCatalogValue(
   return touch(answers, id, {
     ...withClearedPatch(current, cleared, { ...(current.values ?? {}), [key]: value }),
     vorschlagOk: vorschlagOkAfterValueEdit(current, key, value),
+    vorschlagRueckfrage: rueckfrageWithout(current.vorschlagRueckfrage, key),
   });
+}
+
+function rueckfrageWithout(current: string[] | undefined, key: string): string[] | undefined {
+  if (!Array.isArray(current)) return undefined;
+  const next = current.filter((item) => item !== key);
+  return next.length ? next : undefined;
 }
 
 export function confirmVorschlag(answers: IntakeAnswers, id: string): IntakeAnswers {
@@ -1357,16 +1377,36 @@ export function confirmVorschlag(answers: IntakeAnswers, id: string): IntakeAnsw
   );
   return touch(setCatalogStatus(answers, id, "bestaetigt"), id, {
     vorschlagOk: keys,
-    vorschlagRueckfrage: false,
+    vorschlagRueckfrage: undefined,
   });
 }
 
 export function askVorschlag(answers: IntakeAnswers, id: string): IntakeAnswers {
-  return touch(answers, id, { vorschlagRueckfrage: true });
+  const current = catalogState(answers)[id] ?? {};
+  const keys = unconfirmedSuggestionKeys(current);
+  if (!keys.length) return answers;
+  return touch(answers, id, { vorschlagRueckfrage: keys });
 }
 
 export function dismissVorschlag(answers: IntakeAnswers, id: string): IntakeAnswers {
-  return touch(answers, id, { vorschlagRueckfrage: false });
+  return touch(answers, id, { vorschlagRueckfrage: undefined });
+}
+
+export function setVorschlagFieldOk(
+  answers: IntakeAnswers,
+  id: string,
+  key: string,
+  confirmed: boolean,
+): IntakeAnswers {
+  const current = catalogState(answers)[id] ?? {};
+  const keys = new Set(current.vorschlagOk ?? []);
+  if (confirmed) keys.add(key);
+  else keys.delete(key);
+  const vorschlagOk = [...keys];
+  return touch(answers, id, {
+    vorschlagOk: vorschlagOk.length ? vorschlagOk : undefined,
+    vorschlagRueckfrage: rueckfrageWithout(current.vorschlagRueckfrage, key),
+  });
 }
 
 export function setVorschlagOk(answers: IntakeAnswers, id: string, confirmed: boolean): IntakeAnswers {
@@ -1374,7 +1414,7 @@ export function setVorschlagOk(answers: IntakeAnswers, id: string, confirmed: bo
   const keys = confirmed
     ? Object.keys(current.vorschlag ?? {}).filter((key) => sameSuggestion(current.vorschlag?.[key], current.values?.[key]))
     : [];
-  return touch(answers, id, { vorschlagOk: keys.length ? keys : undefined, vorschlagRueckfrage: false });
+  return touch(answers, id, { vorschlagOk: keys.length ? keys : undefined, vorschlagRueckfrage: undefined });
 }
 
 /** Steuerkanzlei aus Stammdaten, F05 und der Zeile in UO03 nehmen. */
