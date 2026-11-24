@@ -19,6 +19,7 @@ import {
 import {
   applyDerivedStatus,
   dismissVorschlag,
+  listFieldDisplay,
   setVorschlagFieldOk,
   BETRIEBS_CHECK_STEP_ID,
   CATALOG_STEPS,
@@ -359,7 +360,7 @@ function FieldInput({
         id={id}
         placeholder={field.placeholder || FIELD_PLACEHOLDERS[field.key]}
         aria-invalid={invalid || undefined}
-        value={asText(value)}
+        value={listFieldDisplay(value)}
         onChange={(event) => onChange(event.target.value)}
       />
     );

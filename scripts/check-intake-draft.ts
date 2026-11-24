@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  asList,
   catalogStepIssues,
   CATALOG_STEPS,
   clearCatalogStatus,
@@ -243,7 +244,7 @@ export function checkSoftwarePresetToggle(): void {
     },
   };
   beside = clickPreset(beside, "lexoffice");
-  ok(beside.katalog?.E05?.values?.systeme === "Eigenes Programm", "a user token beside the template token stays");
+  ok(asList(beside.katalog?.E05?.values?.systeme).join() === "Eigenes Programm", "a user token beside the template token stays");
   ok(beside.module?.stammdaten?.fibu === "Kanzlei", "a user FiBu note beside the template name stays");
   ok(!systemNames(beside).includes("lexoffice"), "the untouched lexoffice card is removed");
   ok(systemNames(beside).includes("Eigenes Archiv"), "a user system card beside the template card stays");

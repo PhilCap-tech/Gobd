@@ -1,11 +1,13 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   applyDerivedStatus,
   askVorschlag,
+  asList,
   clearCatalogStatus,
   confirmVorschlag,
+  listFieldDisplay,
   PROCESS_STATUSES,
   setCatalogMeta,
   setCatalogReason,
@@ -135,6 +137,39 @@ function Chips({
         );
       })}
     </div>
+  );
+}
+
+function ListTextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: unknown;
+  onChange: (next: string[]) => void;
+  placeholder?: string;
+}) {
+  const displayed = listFieldDisplay(value);
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? displayed;
+  return (
+    <label>
+      {label}
+      <input
+        value={shown}
+        placeholder={placeholder}
+        aria-invalid={freitextTooLong(shown) || undefined}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          const parsed = asList(draft ?? displayed);
+          setDraft(null);
+          onChange(parsed);
+        }}
+      />
+      <FreitextAlert value={shown} />
+    </label>
   );
 }
 
@@ -801,9 +836,9 @@ export function P1QuestionFields({
     return (
       <div>
         <div className="field">
-          <TextField
+          <ListTextField
             label="Welche Software?"
-            value={text(values.systeme)}
+            value={values.systeme}
             onChange={(systeme) => commit({ systeme })}
           />
         </div>

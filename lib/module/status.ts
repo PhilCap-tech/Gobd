@@ -283,7 +283,7 @@ const VORLAGE_VALUES: Record<string, Record<string, Record<string, unknown>>> = 
   },
   ecommerce: {
     UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Onlineshop und Marktplätze" },
-    EC01: { kanaele: ["Eigener Onlineshop", "Marktplatz"] },
+    EC01: { kanaele: "Eigener Onlineshop, Marktplatz" },
   },
   gastro: {
     UO02: { kunden: ["Privatkunden (B2C)"], taetigkeiten: "Gastronomie / Hotel mit Tagesgeschäft und Veranstaltungen" },
