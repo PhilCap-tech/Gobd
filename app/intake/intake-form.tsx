@@ -1003,12 +1003,6 @@ export function IntakeForm({
         </p>
       ) : null}
 
-      {session.email && step === firstStep && (
-        <p className="hint">
-          Session: {companyLabel || "—"} · {session.email}
-        </p>
-      )}
-
       {step < INTAKE_STEPS.length && (
         <>
           {step === firstStep && showFirmSelect && (
