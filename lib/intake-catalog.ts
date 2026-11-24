@@ -60,6 +60,28 @@ import {
   m01StatusOptional,
 } from "@/lib/intake-m01";
 import {
+  BEISPIELWERT_OFFEN,
+  FIKTIV_FIELD_MESSAGE,
+  KANZLEI_WIDERSPRUCH_OFFEN,
+  STATUS_MISSING_MESSAGE,
+  vorschlagRueckfrageText,
+  activitySelected,
+  entfaelltChipVisible,
+  entfaelltReasonOptional,
+  storedEntfaelltStatus,
+  isMusterSample,
+  kanzleiWiderspruch,
+  narrowedModuleTitle,
+  questionCheckTeil,
+  selectedActivities,
+  statusMissingSummary,
+  sameSuggestion,
+  orderSuggestionKeys,
+  unconfirmedSuggestionKeys,
+  valueContainsFiktiv,
+  vorschlagOkAfterValueEdit,
+} from "@/lib/modul-verstaendnis";
+import {
   FREITEXT_LIMIT_MESSAGE,
   freitextOverflows,
 } from "@/lib/intake-payload";
@@ -86,6 +108,7 @@ export type CatalogField = {
   label?: string;
   required?: boolean;
   options?: string[];
+  placeholder?: string;
   min?: number;
   item?: Record<string, string | { type: string; options?: string[] }>;
 };
@@ -115,6 +138,10 @@ export type CatalogQuestion = {
   statusRequired?: boolean;
   /** Modul 1: fehlender Stand blockiert nicht. Die Lücke wird ein offener Punkt. */
   statusOptional?: boolean;
+  /** Modul 2+: Pflichtfelder blockieren nur bei „So läuft es heute“. */
+  fieldsOnlyWhenToday?: boolean;
+  /** Vierter Chip „Gibt es bei uns nicht“. */
+  allowEntfaellt?: boolean;
   when?: CatalogWhen;
   note?: string;
   /** Customer-facing hint under the prompt (area questions). `note` stays internal. */
@@ -137,6 +164,12 @@ export type CatalogQuestionState = {
   values?: Record<string, unknown>;
   /** Field keys the user emptied on purpose. Prefill must not fill them again. */
   cleared?: string[];
+  /** Unveränderte Vorlagenwerte. Gleicher Inhalt zählt erst nach Bestätigung. */
+  vorschlag?: Record<string, unknown>;
+  /** Felder, deren Vorschlag der Kunde ausdrücklich bestätigt hat. */
+  vorschlagOk?: string[];
+  /** Offene Rückfrage je Feld. Wird nicht im Entwurf gespeichert. */
+  vorschlagRueckfrage?: string[];
 };
 
 export type CatalogState = Record<string, CatalogQuestionState>;
@@ -201,7 +234,7 @@ function areaQuestionToCatalog(question: {
   id: string;
   prompt: string;
   hint?: string;
-  fields: Array<{ key: string; type: string; label?: string; required?: boolean; options?: string[] }>;
+  fields: Array<{ key: string; type: string; label?: string; required?: boolean; options?: string[]; placeholder?: string }>;
 }): CatalogQuestion {
   return {
     id: question.id,
@@ -219,6 +252,25 @@ function relaxM01Question(question: CatalogQuestion): CatalogQuestion {
     fields: question.fields.map((field) =>
       m01FieldNowOptional(question.id, field.key) ? { ...field, required: false } : { ...field },
     ),
+  };
+}
+
+/**
+ * Modul 2+: fehlender Stand ist ein offener Punkt, kein Fehler (wie Modul 1).
+ * Pflichtfelder blockieren nur bei „So läuft es heute“.
+ */
+function withModuleRules(
+  modulId: string,
+  question: CatalogQuestion,
+  priority?: string,
+): CatalogQuestion {
+  const allowEntfaellt = entfaelltChipVisible(question.id, question.prompt, priority);
+  if (modulId === "m01") return allowEntfaellt ? { ...question, allowEntfaellt } : question;
+  return {
+    ...question,
+    statusOptional: true,
+    fieldsOnlyWhenToday: true,
+    ...(allowEntfaellt ? { allowEntfaellt: true } : {}),
   };
 }
 
@@ -277,27 +329,34 @@ function moduleSteps(): CatalogStep[] {
           ...modul.catalogIds.map((id) => {
             const source = catalog.steps.flatMap((step) => step.questions).find((question) => question.id === id);
             if (!source) {
-              return {
+              return withModuleRules(modul.id, {
                 id,
                 prompt: id,
                 fields: [],
                 when: { gesamtOnly: true as const, modul: [modul.id] },
-              } satisfies CatalogQuestion;
+              });
             }
-            return {
+            return withModuleRules(modul.id, {
               ...source,
               when: { ...(source.when ?? {}), gesamtOnly: true as const, modul: [modul.id] },
-            };
+            });
           }),
           ...modul.gruppen.flatMap((gruppe) =>
-            gruppenFragen(gruppe).map((question) => ({
-              ...areaQuestionToCatalog(question),
-              when: {
-                gesamtOnly: true as const,
-                modul: [modul.id],
-                ...(gruppe.teil ? { teil: gruppe.teil } : {}),
-              },
-            })),
+            gruppenFragen(gruppe).map((question) => {
+              const teil = questionCheckTeil(modul.id, question.id, gruppe.teil);
+              return withModuleRules(
+                modul.id,
+                {
+                  ...areaQuestionToCatalog(question),
+                  when: {
+                    gesamtOnly: true as const,
+                    modul: [modul.id],
+                    ...(teil ? { teil } : {}),
+                  },
+                },
+                question.priority,
+              );
+            }),
           ),
         ],
       },
@@ -514,7 +573,7 @@ const OPEN_TEXT: Record<string, { priority: "hoch" | "mittel" | "niedrig"; text:
   },
   I04: {
     priority: "hoch",
-    text: "Die betriebliche Bestätigung (Name und Datum) liegt nicht vor. Sie wird nicht automatisch eingetragen.",
+    text: "Die betriebliche Bestätigung (Name und Datum) liegt nicht vor. Die Bestätigung wird nicht automatisch eingetragen.",
     chapter: "00-cover-freigabe",
   },
   I05: {
@@ -805,7 +864,8 @@ export function catalogStepTitle(stepIndex: number, answers: IntakeAnswers): str
   }
   if (step.id === BETRIEBS_CHECK_STEP_ID) return "Betriebs-Check: Welche Bereiche gibt es?";
   if (step.id === MODUL_UEBERSICHT_STEP_ID) return "Module und Dokumentationsstatus";
-  return step.title;
+  const narrowed = narrowedModuleTitle(step.when?.modul?.[0] ?? "", modulZustand(answers).check);
+  return narrowed ?? step.title;
 }
 
 /** True when forward navigation jumped over the paper/scan step because it does not apply. */
@@ -992,11 +1052,45 @@ function questionIssues(
       ),
     ];
   }
-  if (entry.status === "nicht_zutreffend" && !asText(entry.reason)) {
+  if (
+    storedEntfaelltStatus(entry.status) &&
+    !asText(entry.reason) &&
+    !entfaelltReasonOptional(question.id, question.allowEntfaellt)
+  ) {
     return [catalogIssue(question.id, "block", "Bitte kurz sagen, warum das entfällt.")];
   }
   const issues: CatalogIssue[] = [];
+  const requireFields =
+    entry.status === "bestaetigt" || (entry.status === "geplant" && !question.fieldsOnlyWhenToday);
   if (entry.status === "bestaetigt" || entry.status === "geplant") {
+    for (const field of question.fields) {
+      if (!valueContainsFiktiv(values[field.key])) continue;
+      issues.push(
+        catalogIssue(question.id, field.key, FIKTIV_FIELD_MESSAGE, `${question.id}-${field.key}`),
+      );
+    }
+  }
+  const pendingSuggestions =
+    entry.status === "bestaetigt"
+      ? orderSuggestionKeys(
+          question.fields.map((field) => field.key),
+          unconfirmedSuggestionKeys(
+            entry,
+            question.fields.map((field) => field.key),
+          ),
+        )
+      : [];
+  if (pendingSuggestions.length) {
+    const labels = pendingSuggestions.map((key) => {
+      const field = question.fields.find((item) => item.key === key);
+      return fieldLabel(question.id, key, field?.label);
+    });
+    const first = pendingSuggestions[0] ?? "vorschlag";
+    issues.push(
+      catalogIssue(question.id, first, vorschlagRueckfrageText(labels), `${question.id}-${first}`),
+    );
+  }
+  if (requireFields) {
     const state = catalogState(answers);
     const channels = asList(valuesOf(state, "C01").kanaele);
     const scope = asList(valuesOf(state, "A02").belegartenScope);
@@ -1015,6 +1109,7 @@ function questionIssues(
       issues.push(catalogIssue(question.id, "block", p1.message));
     } else if (!keineKontrolle && !onlyUntouchedSuggestions(question.id, values, channels, scope)) {
       for (const field of question.fields) {
+        if (pendingSuggestions.includes(field.key)) continue;
         if (!fieldReady(field, values[field.key])) issues.push(fieldIssue(question, field));
       }
     }
@@ -1157,7 +1252,29 @@ export function catalogStepIssues(stepIndex: number, answers: IntakeAnswers): Ca
   for (const question of visibleCatalogQuestions(stepIndex, answers)) {
     issues.push(...questionIssues(question, state[question.id], answers));
   }
-  return dedupeCatalogIssues([...lengthIssues, ...issues]);
+  return summariseRepeatedStatusIssues(dedupeCatalogIssues([...lengthIssues, ...issues]));
+}
+
+function summariseRepeatedStatusIssues(issues: CatalogIssue[]): CatalogIssue[] {
+  const hits = issues.filter(
+    (issue) => issue.message === STATUS_MISSING_MESSAGE && issue.fieldKey === "status",
+  );
+  if (hits.length < 2) return issues;
+  const rest = issues.filter(
+    (issue) => !(issue.message === STATUS_MISSING_MESSAGE && issue.fieldKey === "status"),
+  );
+  const first = hits[0];
+  if (!first) return issues;
+  return [
+    ...rest,
+    {
+      questionId: "modul",
+      fieldKey: "status",
+      anchor: first.anchor,
+      focusId: first.focusId,
+      message: statusMissingSummary(hits.length),
+    },
+  ];
 }
 
 export function catalogStepError(stepIndex: number, answers: IntakeAnswers): string {
@@ -1243,7 +1360,83 @@ export function setCatalogValue(
   const cleared = clearedAfterEdit(current.cleared, [
     { key, previous: current.values?.[key], nextValue: value },
   ]);
-  return touch(answers, id, withClearedPatch(current, cleared, { ...(current.values ?? {}), [key]: value }));
+  return touch(answers, id, {
+    ...withClearedPatch(current, cleared, { ...(current.values ?? {}), [key]: value }),
+    vorschlagOk: vorschlagOkAfterValueEdit(current, key, value),
+    vorschlagRueckfrage: rueckfrageWithout(current.vorschlagRueckfrage, key),
+  });
+}
+
+function rueckfrageWithout(current: string[] | undefined, key: string): string[] | undefined {
+  if (!Array.isArray(current)) return undefined;
+  const next = current.filter((item) => item !== key);
+  return next.length ? next : undefined;
+}
+
+export function confirmVorschlag(answers: IntakeAnswers, id: string): IntakeAnswers {
+  const current = catalogState(answers)[id] ?? {};
+  const keys = Object.keys(current.vorschlag ?? {}).filter((key) =>
+    sameSuggestion(current.vorschlag?.[key], current.values?.[key]),
+  );
+  return touch(setCatalogStatus(answers, id, "bestaetigt"), id, {
+    vorschlagOk: keys,
+    vorschlagRueckfrage: undefined,
+  });
+}
+
+export function askVorschlag(
+  answers: IntakeAnswers,
+  id: string,
+  fieldKeys?: readonly string[],
+): IntakeAnswers {
+  const current = catalogState(answers)[id] ?? {};
+  const keys = unconfirmedSuggestionKeys(current, fieldKeys);
+  if (!keys.length) return answers;
+  return touch(answers, id, { vorschlagRueckfrage: keys });
+}
+
+export function dismissVorschlag(answers: IntakeAnswers, id: string): IntakeAnswers {
+  return touch(answers, id, { vorschlagRueckfrage: undefined });
+}
+
+export function setVorschlagFieldOk(
+  answers: IntakeAnswers,
+  id: string,
+  key: string,
+  confirmed: boolean,
+): IntakeAnswers {
+  const current = catalogState(answers)[id] ?? {};
+  const keys = new Set(current.vorschlagOk ?? []);
+  if (confirmed) keys.add(key);
+  else keys.delete(key);
+  const vorschlagOk = [...keys];
+  return touch(answers, id, {
+    vorschlagOk: vorschlagOk.length ? vorschlagOk : undefined,
+    vorschlagRueckfrage: rueckfrageWithout(current.vorschlagRueckfrage, key),
+  });
+}
+
+export function setVorschlagOk(answers: IntakeAnswers, id: string, confirmed: boolean): IntakeAnswers {
+  const current = catalogState(answers)[id] ?? {};
+  const keys = confirmed
+    ? Object.keys(current.vorschlag ?? {}).filter((key) => sameSuggestion(current.vorschlag?.[key], current.values?.[key]))
+    : [];
+  return touch(answers, id, { vorschlagOk: keys.length ? keys : undefined, vorschlagRueckfrage: undefined });
+}
+
+/** Steuerkanzlei aus Stammdaten, F05 und der Zeile in UO03 nehmen. */
+export function removeKanzleiEintrag(answers: IntakeAnswers): IntakeAnswers {
+  let next: IntakeAnswers = { ...answers, steuerberater: "" };
+  next = setStammdaten(next, { kanzlei: "" });
+  next = setCatalogValue(next, "F05", "kanzleiName", "");
+  const duties = asText(next.katalog?.UO03?.values?.zustaendigkeiten);
+  if (!duties) return next;
+  const kept = duties
+    .split("\n")
+    .filter((line) => !/^Steuerkanzlei:\s*\S/.test(line.trim()))
+    .join("\n")
+    .trim();
+  return setCatalogValue(next, "UO03", "zustaendigkeiten", kept);
 }
 
 export function setCatalogValues(
@@ -1646,20 +1839,59 @@ function pointFor(id: string): CatalogOpenPoint {
 }
 
 export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
-  if (!hasCatalogAnswers(answers)) return [];
+  const points: CatalogOpenPoint[] = [];
+  if (kanzleiWiderspruch(answers)) {
+    points.push({
+      id: "op-kanzlei-widerspruch",
+      priority: "hoch",
+      text: KANZLEI_WIDERSPRUCH_OFFEN,
+      chapter: "modul-m01",
+      suppress: [],
+    });
+  }
+  if (!hasCatalogAnswers(answers)) return points;
   const state = catalogState(answers);
   const suggestionChannels = asList(valuesOf(state, "C01").kanaele);
   const suggestionScope = asList(valuesOf(state, "A02").belegartenScope);
-  const points: CatalogOpenPoint[] = [];
   for (const step of CATALOG_STEPS) {
     if (!catalogStepApplies(step, answers)) continue;
     for (const question of step.questions) {
       if (!catalogQuestionApplies(question, answers)) continue;
       if (question.id === "BU07" && kanzleiAbgelehnt(answers)) continue;
       const status = state[question.id]?.status;
-      if (question.statusOptional && m01NeedsOpenPoint(question.id, state[question.id])) {
+      if (!status && question.statusOptional) {
+        const needsPoint = m01StatusOptional(question.id)
+          ? m01NeedsOpenPoint(question.id, state[question.id])
+          : true;
+        if (needsPoint) {
+          const point = pointFor(question.id);
+          if (!points.some((item) => item.id === point.id)) points.push(point);
+        }
+      } else if (question.statusOptional && m01NeedsOpenPoint(question.id, state[question.id])) {
         const point = pointFor(question.id);
         if (!points.some((item) => item.id === point.id)) points.push(point);
+      }
+      if (
+        status === "bestaetigt" &&
+        unconfirmedSuggestionKeys(
+          state[question.id],
+          question.fields.map((field) => field.key),
+        ).length
+      ) {
+        const point = pointFor(question.id);
+        if (!points.some((item) => item.id === point.id)) points.push(point);
+      }
+      if (status === "bestaetigt" && !isMusterSample(answers) && valueContainsFiktiv(state[question.id]?.values)) {
+        const base = pointFor(question.id);
+        if (!points.some((item) => item.id === `op-beispielwert-${question.id.toLowerCase()}`)) {
+          points.push({
+            id: `op-beispielwert-${question.id.toLowerCase()}`,
+            priority: "hoch",
+            text: BEISPIELWERT_OFFEN,
+            chapter: base.chapter,
+            suppress: [],
+          });
+        }
       }
       if (status === "unbekannt" || status === "geplant") {
         const base = pointFor(question.id);
@@ -2158,6 +2390,24 @@ function storedIsNameArtifact(id: string, key: string, stored: string, source: s
   return isKeystrokeArtifact(stored, source);
 }
 
+function clearMirroredText(
+  katalog: CatalogState,
+  id: string,
+  key: string,
+  automatic: string | undefined,
+  previous: string | undefined,
+): void {
+  const entry = katalog[id];
+  const current = asText(entry?.values?.[key]);
+  if (!current) return;
+  const auto = automatic?.trim() ?? "";
+  const prior = previous?.trim() ?? "";
+  if (current !== auto && current !== prior) return;
+  const values = { ...(entry?.values ?? {}) };
+  delete values[key];
+  katalog[id] = { ...entry, values };
+}
+
 function fillText(
   katalog: CatalogState,
   id: string,
@@ -2349,12 +2599,25 @@ export function prefillKnownFacts(
   if ((answers.backup ?? []).length) fillText(katalog, "G06", "backupArten", (answers.backup ?? []).join(", "));
 
   fillText(katalog, "KA01", "system", stamm.kasse, undefined, previousStamm?.kasse);
-  fillText(katalog, "A01", "gastroKasse", stamm.kasse, undefined, previousStamm?.kasse);
+  const mirrorActivities = selectedActivities(next, katalog.A01?.values?.branchen);
+  if (activitySelected(mirrorActivities, "Gastronomie")) {
+    fillText(katalog, "A01", "gastroKasse", stamm.kasse, undefined, previousStamm?.kasse);
+  } else {
+    clearMirroredText(katalog, "A01", "gastroKasse", stamm.kasse, previousStamm?.kasse);
+  }
   fillText(katalog, "EC02", "system", stamm.shop, undefined, previousStamm?.shop);
-  fillText(katalog, "A01", "onlineShop", stamm.shop, undefined, previousStamm?.shop);
+  if (activitySelected(mirrorActivities, "Onlinehandel")) {
+    fillText(katalog, "A01", "onlineShop", stamm.shop, undefined, previousStamm?.shop);
+  } else {
+    clearMirroredText(katalog, "A01", "onlineShop", stamm.shop, previousStamm?.shop);
+  }
   fillText(katalog, "LO01", "system", stamm.lohn, undefined, previousStamm?.lohn);
   fillText(katalog, "WW01", "system", stamm.warenwirtschaft, undefined, previousStamm?.warenwirtschaft);
-  fillText(katalog, "A01", "onlineWawi", stamm.warenwirtschaft, undefined, previousStamm?.warenwirtschaft);
+  if (activitySelected(mirrorActivities, "Onlinehandel")) {
+    fillText(katalog, "A01", "onlineWawi", stamm.warenwirtschaft, undefined, previousStamm?.warenwirtschaft);
+  } else {
+    clearMirroredText(katalog, "A01", "onlineWawi", stamm.warenwirtschaft, previousStamm?.warenwirtschaft);
+  }
   fillText(katalog, "BA01", "konten", stamm.bank, undefined, previousStamm?.bank);
 
   const company = asText(a01().company);
@@ -2491,9 +2754,18 @@ function summaryBits(
     asList(valuesOf(state, "C01").kanaele),
     asList(valuesOf(state, "A02").belegartenScope),
   );
+  const pending = new Set(
+    unconfirmedSuggestionKeys(
+      entry,
+      question.fields.map((field) => field.key),
+    ),
+  );
+  const keepFiktiv = isMusterSample(answers);
   const bits = question.fields.map((field) => {
     // Systemkarten stehen einmal, strukturiert, über presentationBits.
     if (question.id === "B01" && field.key === "systeme") return "";
+    if (pending.has(field.key)) return "";
+    if (!keepFiktiv && valueContainsFiktiv(shownValues[field.key])) return "";
     const shown = displayFieldValue(field.key, shownValues[field.key]);
     if (!shown) return "";
     if (field.type === "enum" || field.key === "kasse" || field.key === "shop") {

@@ -2,7 +2,14 @@
 
 import { useEffect } from "react";
 import { IntakeQuestionHint } from "@/components/intake-question-hint";
-import { prefillKnownFacts, prefillStammdatenInput, type CatalogIssue } from "@/lib/intake-catalog";
+import { prefillKnownFacts, prefillStammdatenInput, removeKanzleiEintrag, type CatalogIssue } from "@/lib/intake-catalog";
+import {
+  KANZLEI_JA,
+  KANZLEI_NEIN,
+  KANZLEI_WIDERSPRUCH,
+  kanzleiWiderspruch,
+  retourenHinweis,
+} from "@/lib/modul-verstaendnis";
 import {
   toggleSoftwarePreset,
   BRANCHEN_VORLAGEN,
@@ -62,6 +69,7 @@ export function BetriebsCheckStep({
         Buchführung, Archiv, Systeme, Rechte, Sicherung, Kontrollen, Auslagerung, Prüfung,
         Änderungen, Pflege) sind immer aktiv.
       </p>
+      <IntakeQuestionHint />
       <div className="card">
         <h2>Branchenvorlage (optional)</h2>
         <p className="hint">Vorbelegung der Antworten — bitte prüfen und anpassen.</p>
@@ -91,7 +99,20 @@ export function BetriebsCheckStep({
               </p>
             ) : null}
             <p className="hint">{frage.hilfe}</p>
-            <IntakeQuestionHint />
+            {frage.key === "retouren" && retourenHinweis(check) ? <p className="hint">{retourenHinweis(check)}</p> : null}
+            {frage.key === "kanzlei" && kanzleiWiderspruch(answers) ? (
+              <div className="field">
+                <p className="hint">{KANZLEI_WIDERSPRUCH}</p>
+                <div className="chips">
+                  <button type="button" className="chip" onClick={() => onChange(setCheckAntwort(answers, "kanzlei", "ja"))}>
+                    {KANZLEI_JA}
+                  </button>
+                  <button type="button" className="chip" onClick={() => onChange(removeKanzleiEintrag(answers))}>
+                    {KANZLEI_NEIN}
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <div className="chips">
               {ANTWORTEN.map((option) => (
                 <button
@@ -130,7 +151,6 @@ export function BetriebsCheckStep({
         <p className="hint">
           Tragen Sie hier die Namen (und Systeme) ein. Wir belegen passende Felder in den Modulen vor.
         </p>
-        <IntakeQuestionHint />
         {STAMMDATEN_FELDER.map((field) => {
           const value = stammdaten[field.key] ?? "";
           const gap = issues.find(

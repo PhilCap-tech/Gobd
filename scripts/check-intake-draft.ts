@@ -314,7 +314,10 @@ export function checkSoftwarePresetToggle(): void {
   let kasseTyped = ensureGesamt(emptyAnswers());
   for (const text of ["K", "Ka", "Kas", "Kasse"]) kasseTyped = prefillStammdatenInput(kasseTyped, { kasse: text });
   ok(kasseTyped.katalog?.KA01?.values?.system === "Kasse", "typing Kasse updates the one catalog field");
-  ok(kasseTyped.katalog?.A01?.values?.gastroKasse === "Kasse", "typing Kasse updates the copied field");
+  ok(!kasseTyped.katalog?.A01?.values?.gastroKasse, "without Gastronomie the till name stays off the gastro field");
+  let gastroTyped = setCatalogValue(kasseTyped, "A01", "branchen", ["Gastronomie"]);
+  gastroTyped = prefillKnownFacts(gastroTyped);
+  ok(gastroTyped.katalog?.A01?.values?.gastroKasse === "Kasse", "Gastronomie copies the till name");
   ok(systemNames(kasseTyped).length === 0, "Kasse does not create B01 cards");
 
   const e05 = (answers: IntakeAnswers): string[] => {
@@ -352,21 +355,31 @@ export function checkSoftwarePresetToggle(): void {
   editedOrder = clickPreset(editedOrder, "datev");
   ok(editedOrder.module?.stammdaten?.fibu === "DATEV Unternehmen online", "an edited FiBu value is not replaced");
 
+  const posOnly = clickPreset(ensureGesamt(emptyAnswers()), "pos");
+  ok(!posOnly.module?.stammdaten?.kasse, "POS sets no generic till name");
+  ok(posOnly.katalog?.KA01?.values?.art == null, "POS does not write KA01.art");
+  ok(posOnly.katalog?.KA01?.values?.kassenart == null, "POS does not invent a till type");
   const kasseProbe = {
     id: "probe-kasse",
     label: "Probe Kasse",
-    values: { KA01: { art: "Andere Kasse" } },
+    values: {},
     stammdaten: { kasse: "Andere Kasse" },
   };
-  SOFTWARE_PRESETS.push(kasseProbe);
+  const kasseFirst = {
+    id: "probe-kasse-first",
+    label: "Erste Kasse",
+    values: {},
+    stammdaten: { kasse: "Erste Kasse" },
+  };
+  SOFTWARE_PRESETS.push(kasseProbe, kasseFirst);
   try {
-    let bothKasse = clickPreset(ensureGesamt(emptyAnswers()), "pos");
+    let bothKasse = clickPreset(ensureGesamt(emptyAnswers()), "probe-kasse-first");
     bothKasse = clickPreset(bothKasse, "probe-kasse");
-    ok(bothKasse.module?.stammdaten?.kasse === "POS-System", "the first Kasse template keeps the field");
-    bothKasse = clickPreset(bothKasse, "pos");
+    ok(bothKasse.module?.stammdaten?.kasse === "Erste Kasse", "the first Kasse template keeps the field");
+    bothKasse = clickPreset(bothKasse, "probe-kasse-first");
     ok(bothKasse.module?.stammdaten?.kasse === "Andere Kasse", "Kasse shows the remaining template");
     ok(bothKasse.katalog?.KA01?.values?.system === "Andere Kasse", "the Kasse copy follows the remaining template");
-    let editedKasse = clickPreset(ensureGesamt(emptyAnswers()), "pos");
+    let editedKasse = clickPreset(ensureGesamt(emptyAnswers()), "probe-kasse-first");
     editedKasse = clickPreset(editedKasse, "probe-kasse");
     editedKasse = {
       ...editedKasse,
@@ -375,11 +388,13 @@ export function checkSoftwarePresetToggle(): void {
         stammdaten: { ...editedKasse.module?.stammdaten, kasse: "Meine Kasse" },
       },
     };
-    editedKasse = clickPreset(editedKasse, "pos");
+    editedKasse = clickPreset(editedKasse, "probe-kasse-first");
     ok(editedKasse.module?.stammdaten?.kasse === "Meine Kasse", "an edited Kasse value is not replaced");
   } finally {
-    const index = SOFTWARE_PRESETS.findIndex((item) => item.id === "probe-kasse");
-    if (index >= 0) SOFTWARE_PRESETS.splice(index, 1);
+    for (const id of ["probe-kasse", "probe-kasse-first"]) {
+      const index = SOFTWARE_PRESETS.findIndex((item) => item.id === id);
+      if (index >= 0) SOFTWARE_PRESETS.splice(index, 1);
+    }
   }
 
   const typeFibu = (answers: IntakeAnswers, text: string) => prefillStammdatenInput(answers, { fibu: text });
@@ -418,12 +433,12 @@ export function checkSoftwarePresetToggle(): void {
   for (const text of backspaces("Meine Kasse")) kasseClear = typeKasse(kasseClear, text);
   ok(!kasseClear.katalog?.KA01?.values?.system && !kasseClear.katalog?.A01?.values?.gastroKasse, "clearing Kasse removes both copies");
   for (const text of prefixes("Neu")) kasseClear = typeKasse(kasseClear, text);
-  ok(kasseClear.katalog?.KA01?.values?.system === "Neu" && kasseClear.katalog?.A01?.values?.gastroKasse === "Neu", "retyping Kasse writes the final text once");
+  ok(kasseClear.katalog?.KA01?.values?.system === "Neu" && !kasseClear.katalog?.A01?.values?.gastroKasse, "retyping Kasse writes the till field and not the gastro field");
 
   const mirrors: Array<{ key: "shop" | "lohn" | "warenwirtschaft" | "bank"; read: (answers: IntakeAnswers) => Array<string | undefined> }> = [
-    { key: "shop", read: (answers) => [answers.katalog?.EC02?.values?.system as string | undefined, answers.katalog?.A01?.values?.onlineShop as string | undefined] },
+    { key: "shop", read: (answers) => [answers.katalog?.EC02?.values?.system as string | undefined] },
     { key: "lohn", read: (answers) => [answers.katalog?.LO01?.values?.system as string | undefined] },
-    { key: "warenwirtschaft", read: (answers) => [answers.katalog?.WW01?.values?.system as string | undefined, answers.katalog?.A01?.values?.onlineWawi as string | undefined] },
+    { key: "warenwirtschaft", read: (answers) => [answers.katalog?.WW01?.values?.system as string | undefined] },
     { key: "bank", read: (answers) => [answers.katalog?.BA01?.values?.konten as string | undefined] },
   ];
   for (const mirror of mirrors) {

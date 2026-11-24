@@ -27,6 +27,7 @@ import {
   KEINE_KONTROLLE_SATZ,
   realControlNames,
 } from "@/lib/keine-angaben";
+import { kanzleiWiderspruch } from "@/lib/modul-verstaendnis";
 import type { IntakeAnswers } from "@/lib/types";
 
 type Entry = NonNullable<IntakeAnswers["katalog"]>[string];
@@ -180,7 +181,7 @@ export function betriebFacts(answers: IntakeAnswers): BetriebFacts {
     shop: described(answers, "m13"),
     lohn: described(answers, "m12"),
     kanzlei: kanzleiBestaetigt(answers),
-    kanzleiDenied: kanzleiAbgelehnt(answers),
+    kanzleiDenied: kanzleiAbgelehnt(answers) && !kanzleiWiderspruch(answers),
     sichtungTurnus: sichtungTurnus(answers),
     backup: backupGenannt(answers),
     kontrollen: kontrollenGenannt(answers),

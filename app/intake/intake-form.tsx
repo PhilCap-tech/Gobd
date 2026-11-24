@@ -52,7 +52,8 @@ import {
   type FirmFacts,
 } from "@/lib/intake-catalog";
 import { resumeIntakeStep } from "@/lib/intake-draft-step";
-import { ensureGesamt, isGesamt } from "@/lib/module/status";
+import { ensureGesamt, isGesamt, setModulEintrag } from "@/lib/module/status";
+import { MODUL_SPAETER_HINWEIS, MODUL_SPAETER_LABEL } from "@/lib/modul-verstaendnis";
 import {
   draftRevision,
   normalizeDraftKey,
@@ -1135,6 +1136,27 @@ export function IntakeForm({
               Zurück
             </button>
           )}
+          {!onOverview && CATALOG_STEPS[step]?.when?.modul?.[0] && CATALOG_STEPS[step]?.id.startsWith("step-M") ? (
+            <>
+              <p className="hint">{MODUL_SPAETER_HINWEIS}</p>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  const modulId = CATALOG_STEPS[step]?.when?.modul?.[0];
+                  if (!modulId) return;
+                  const next = setModulEintrag(answers, modulId, { status: "offen" });
+                  setError("");
+                  setShowGaps(false);
+                  setNotice("");
+                  setAnswers(next);
+                  setStep(nextApplicableStep(step, next));
+                }}
+              >
+                {MODUL_SPAETER_LABEL}
+              </button>
+            </>
+          ) : null}
           {!onOverview && step < INTAKE_STEPS.length && (
             <button
               type="button"

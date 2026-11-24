@@ -273,7 +273,7 @@ const FRAGE_OPEN: Record<FrageId, FrageOpenPoint> = {
   I04: {
     id: "op-i04",
     priority: "hoch",
-    text: "Die betriebliche Bestätigung (Name und Datum) liegt nicht vor. Sie wird nicht automatisch eingetragen.",
+    text: "Die betriebliche Bestätigung (Name und Datum) liegt nicht vor. Die Bestätigung wird nicht automatisch eingetragen.",
     chapter: "00-cover-freigabe",
     suppress: [],
   },
