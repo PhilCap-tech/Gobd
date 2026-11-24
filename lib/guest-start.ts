@@ -10,6 +10,8 @@ import {
   type StorageLike,
 } from "@/lib/browser-storage-expiry";
 import { draftRevision, type IntakeDraftSnapshot } from "@/lib/intake-draft-shared";
+import { normalizeIntakeAnswers, stripEmptyIntakeCards } from "@/lib/intake-present";
+import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
 
 /** Kennung des Eintrags ohne Sitzung. Nicht ein Server-Schlüssel. */
 export const GUEST_DRAFT_ID = "guest";
@@ -189,6 +191,52 @@ export function guestAdoptPutBody(input: {
   };
 }
 
+/**
+ * Dieselbe Form wie Autosave vor dem PUT (leere Karten weg) und wie die
+ * Draft-Route beim Speichern und beim Lesen. Schlüssel sortiert, damit die
+ * Reihenfolge im JSON keinen Unterschied macht.
+ */
+export function shapeGuestAdoptAnswers(answers: unknown): IntakeAnswers {
+  const base = answers && typeof answers === "object" && !Array.isArray(answers) ? (answers as IntakeAnswers) : emptyAnswers();
+  return stripEmptyIntakeCards(normalizeIntakeAnswers(stripEmptyIntakeCards(base)));
+}
+
+function sortAnswerKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortAnswerKeys);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, sortAnswerKeys(item)]),
+    );
+  }
+  return value;
+}
+
+/** Gleicher Inhalt nach der Autosave- und Draft-Route-Form. Zeit und Revision zählen nicht. */
+export function guestAdoptAnswersEqual(local: unknown, server: unknown): boolean {
+  return JSON.stringify(sortAnswerKeys(shapeGuestAdoptAnswers(local))) === JSON.stringify(sortAnswerKeys(shapeGuestAdoptAnswers(server)));
+}
+
+/** GET des Ziel-Entwurfs. Dieselbe Kennung wie der PUT, ohne Cache. */
+export function guestAdoptDraftQuery(facts: Pick<GuestAdoptFacts, "draftKey" | "email" | "entityId" | "modus">): string {
+  const params = new URLSearchParams();
+  params.set("draftKey", facts.draftKey);
+  params.set("email", facts.email);
+  params.set("entityId", facts.entityId);
+  params.set("modus", facts.modus);
+  return `/api/intake/draft?${params.toString()}`;
+}
+
+export type GuestServerDraftView = {
+  revision: number;
+  answers: unknown;
+};
+
+export type GuestServerLookup =
+  | { ok: true; draft: GuestServerDraftView | null }
+  | { ok: false };
+
 export function readGuestDraftSnapshot(storage: StorageLike, now: number): IntakeDraftSnapshot | null {
   const raw = readIntakeDraftEntry(storage, guestLocalDraftKey(), now);
   if (!raw) return null;
@@ -313,7 +361,8 @@ async function finishAdopt(input: {
   snapshot: IntakeDraftSnapshot;
   action: "adopt" | "ask";
   choice?: "browser";
-  put: (snapshot: IntakeDraftSnapshot) => Promise<boolean>;
+  revision: number;
+  put: (snapshot: IntakeDraftSnapshot, revision: number) => Promise<boolean>;
   remove: () => void;
   clearMarkerOnFailure: boolean;
   commit: typeof commitGuestAdoption;
@@ -321,7 +370,7 @@ async function finishAdopt(input: {
   const committed = await input.commit({
     action: input.action,
     choice: input.choice,
-    put: () => input.put(input.snapshot),
+    put: () => input.put(input.snapshot, input.revision),
     remove: input.remove,
   });
   if (committed === "failed" && input.clearMarkerOnFailure) clearGuestAdoptMarker(input.storage);
@@ -330,34 +379,35 @@ async function finishAdopt(input: {
   return resultOfCommit("ready");
 }
 
-async function decideMounted(input: {
+async function adoptVisibleGuest(input: {
   storage: StorageLike;
   now: number;
   facts: GuestAdoptFacts;
-  sawEntryBeforeLock: boolean;
-  put: (snapshot: IntakeDraftSnapshot) => Promise<boolean>;
+  local: IntakeDraftSnapshot;
+  put: (snapshot: IntakeDraftSnapshot, revision: number) => Promise<boolean>;
   remove: () => void;
   useMarker: boolean;
   commit: typeof commitGuestAdoption;
+  loadServer: () => Promise<GuestServerLookup>;
+  /** Browser-Wahl darf einen anderen Server-Entwurf ersetzen. */
+  overwrite: boolean;
 }): Promise<GuestAdoptRunResult> {
-  if (input.useMarker) {
-    const entry = readGuestEntry(input.storage);
-    if (!entry?.answers || typeof entry.answers !== "object") {
-      return input.sawEntryBeforeLock ? refreshResult : resultOfCommit("ready");
-    }
-    if (guestAdoptMarkerIsFresh(entry.adoptStartedAt, input.now)) return refreshResult;
+  let looked: GuestServerLookup;
+  try {
+    looked = await input.loadServer();
+  } catch {
+    looked = { ok: false };
   }
-  const local = readGuestDraftSnapshot(input.storage, input.now);
-  if (!local) return input.sawEntryBeforeLock ? refreshResult : resultOfCommit("ready");
-  if (input.facts.status === "unknown") return resultOfCommit("unknown");
-  const action = planGuestAdoption({
-    hasLocalDraft: true,
-    targetExists: input.facts.targetExists,
-    openUnpaidCount: input.facts.openUnpaidCount,
-  });
-  if (action === "limit") return resultOfCommit("limit");
-  if (action === "ask") return resultOfCommit("ask");
-  if (action !== "adopt") return resultOfCommit("ready");
+  if (!looked.ok) return resultOfCommit("unknown");
+  const server = looked.draft;
+  if (server && guestAdoptAnswersEqual(input.local.answers, server.answers)) {
+    input.remove();
+    return refreshResult;
+  }
+  if (server && !input.overwrite) return resultOfCommit("ask");
+  if (!server && !input.overwrite && input.facts.openUnpaidCount >= GUEST_OPEN_DRAFT_LIMIT) {
+    return resultOfCommit("limit");
+  }
   if (input.useMarker) {
     const claim = claimGuestAdoptMarker(input.storage, input.now);
     if (claim !== "claimed") return refreshResult;
@@ -368,7 +418,9 @@ async function decideMounted(input: {
     storage: input.storage,
     now: input.now,
     snapshot: fresh,
-    action: "adopt",
+    revision: server?.revision ?? 0,
+    action: input.overwrite ? "ask" : "adopt",
+    choice: input.overwrite ? "browser" : undefined,
     put: input.put,
     remove: input.remove,
     clearMarkerOnFailure: input.useMarker,
@@ -376,22 +428,44 @@ async function decideMounted(input: {
   });
 }
 
-async function decideChoice(input: {
+async function decideMounted(input: {
   storage: StorageLike;
   now: number;
-  choice: "browser" | "account";
-  put: (snapshot: IntakeDraftSnapshot) => Promise<boolean>;
+  facts: GuestAdoptFacts;
+  sawEntryBeforeLock: boolean;
+  put: (snapshot: IntakeDraftSnapshot, revision: number) => Promise<boolean>;
   remove: () => void;
   useMarker: boolean;
   commit: typeof commitGuestAdoption;
+  loadServer: () => Promise<GuestServerLookup>;
+}): Promise<GuestAdoptRunResult> {
+  if (input.useMarker) {
+    const entry = readGuestEntry(input.storage);
+    if (!entry?.answers || typeof entry.answers !== "object") {
+      return input.sawEntryBeforeLock ? refreshResult : resultOfCommit("ready");
+    }
+    if (guestAdoptMarkerIsFresh(entry.adoptStartedAt, input.now)) return refreshResult;
+  }
+  const local = readGuestDraftSnapshot(input.storage, input.now);
+  if (!local) return input.sawEntryBeforeLock ? refreshResult : resultOfCommit("ready");
+  return adoptVisibleGuest({ ...input, local, overwrite: false });
+}
+
+async function decideChoice(input: {
+  storage: StorageLike;
+  now: number;
+  facts: GuestAdoptFacts;
+  choice: "browser" | "account";
+  put: (snapshot: IntakeDraftSnapshot, revision: number) => Promise<boolean>;
+  remove: () => void;
+  useMarker: boolean;
+  commit: typeof commitGuestAdoption;
+  loadServer: () => Promise<GuestServerLookup>;
 }): Promise<GuestAdoptRunResult> {
   if (input.useMarker) {
     const entry = readGuestEntry(input.storage);
     if (!entry?.answers) return refreshResult;
     if (guestAdoptMarkerIsFresh(entry.adoptStartedAt, input.now)) return refreshResult;
-    if (input.choice === "browser" && claimGuestAdoptMarker(input.storage, input.now) !== "claimed") {
-      return refreshResult;
-    }
   }
   const local = readGuestDraftSnapshot(input.storage, input.now);
   if (!local) return refreshResult;
@@ -399,17 +473,7 @@ async function decideChoice(input: {
     input.remove();
     return resultOfCommit("kept-account");
   }
-  return finishAdopt({
-    storage: input.storage,
-    now: input.now,
-    snapshot: local,
-    action: "ask",
-    choice: "browser",
-    put: input.put,
-    remove: input.remove,
-    clearMarkerOnFailure: input.useMarker,
-    commit: input.commit,
-  });
+  return adoptVisibleGuest({ ...input, local, overwrite: true });
 }
 
 /**
@@ -425,13 +489,16 @@ export async function runGuestAdoptAttempt(input: {
   facts: GuestAdoptFacts;
   lock: GuestAdoptLock | null;
   intent: GuestAdoptIntent;
-  put: (snapshot: IntakeDraftSnapshot) => Promise<boolean>;
+  put: (snapshot: IntakeDraftSnapshot, revision: number) => Promise<boolean>;
   remove: () => void;
   commit?: typeof commitGuestAdoption;
+  /** Frischer GET. Fehlt er nur in Tests ohne Server; die Seite übergibt ihn immer. */
+  loadServer?: () => Promise<GuestServerLookup>;
 }): Promise<GuestAdoptRunResult> {
   const sawEntryBeforeLock = readGuestDraftSnapshot(input.storage, input.now()) !== null;
   const useMarker = input.lock === null;
   const commit = input.commit ?? commitGuestAdoption;
+  const loadServer = input.loadServer ?? (async () => ({ ok: true as const, draft: null }));
 
   const run = async (): Promise<GuestAdoptRunResult> => {
     const now = input.now();
@@ -445,16 +512,19 @@ export async function runGuestAdoptAttempt(input: {
         remove: input.remove,
         useMarker,
         commit,
+        loadServer,
       });
     }
     return decideChoice({
       storage: input.storage,
       now,
+      facts: input.facts,
       choice: input.intent,
       put: input.put,
       remove: input.remove,
       useMarker,
       commit,
+      loadServer,
     });
   };
 

@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { normalizeIntakeAnswers, stripEmptyIntakeCards } from "../lib/intake-present";
 import { ensureGesamt } from "../lib/module/status";
 import { emptyAnswers } from "../lib/types";
 import { CATALOG_STEPS, nextApplicableStep } from "../lib/intake-catalog";
@@ -27,6 +28,8 @@ import {
   GUEST_UPLOAD_HINT,
   GUEST_WAIT_LABEL,
   commitGuestAdoption,
+  guestAdoptAnswersEqual,
+  guestAdoptDraftQuery,
   guestAdoptPutBody,
   guestEntryRemovedAfter,
   guestLocalDraftKey,
@@ -593,6 +596,194 @@ async function main() {
   assert.ok(!adoptUi.includes("ifAvailable"));
   assert.ok(adoptUi.includes("router.refresh"), "der wartende Tab lädt die Server-Ansicht einmal neu");
   assert.equal(GUEST_ADOPT_LOCK_NAME, "gobd-guest-adopt");
+
+  const roundTripAnswers = {
+    ...emptyAnswers(),
+    gf: "Ada Beispiel",
+    katalog: {
+      B01: {
+        status: "bestaetigt" as const,
+        values: {
+          systeme: [
+            { name: "DATEV", funktion: "FiBu" },
+            { name: " ", funktion: "" },
+          ],
+        },
+      },
+    },
+  };
+  const roundTripSnapshot = {
+    answers: roundTripAnswers,
+    step: 3,
+    stepId: "step-M01",
+    savedAt: new Date(raceNow).toISOString(),
+    revision: 6,
+  };
+  const roundTripBody = guestAdoptPutBody({
+    draftKey: adoptFacts.draftKey,
+    email: adoptFacts.email,
+    entityId: adoptFacts.entityId,
+    modus: adoptFacts.modus,
+    snapshot: roundTripSnapshot,
+    serverRevision: 0,
+  });
+  const storedAnswers = normalizeIntakeAnswers(roundTripBody.answers as typeof roundTripAnswers);
+  const fromGet = stripEmptyIntakeCards(storedAnswers);
+  assert.equal(
+    guestAdoptAnswersEqual(roundTripSnapshot.answers, fromGet),
+    true,
+    "Autosave-Form und Draft-Route ergeben denselben Vergleich",
+  );
+  const reversed = JSON.parse(JSON.stringify(fromGet)) as { gf?: string; katalog?: { B01?: { values?: { systeme?: unknown } } } };
+  assert.equal(guestAdoptAnswersEqual(roundTripSnapshot.answers, reversed), true);
+
+  class StickyStorage implements StorageLike {
+    constructor(private inner: MemoryStorage) {}
+    get length() {
+      return this.inner.length;
+    }
+    key(index: number) {
+      return this.inner.key(index);
+    }
+    getItem(key: string) {
+      return this.inner.getItem(key);
+    }
+    setItem(key: string, value: string) {
+      this.inner.setItem(key, value);
+    }
+    removeItem(key: string) {
+      void key;
+    }
+  }
+
+  const sharedAnswers = { ...emptyAnswers(), gf: "Gleichzeitig GmbH" };
+  const stickyInner = new MemoryStorage();
+  stickyInner.setItem(
+    guestLocalDraftKey(),
+    JSON.stringify({ answers: sharedAnswers, step: 2, savedAt: new Date(raceNow).toISOString(), revision: 4 }),
+  );
+  const sticky = new StickyStorage(stickyInner);
+  let serverAnswers: typeof sharedAnswers | null = null;
+  let serverRevision = 0;
+  const order: string[] = [];
+  const serverGet = async () => {
+    order.push("get");
+    if (!serverAnswers) return { ok: true as const, draft: null };
+    const shaped = stripEmptyIntakeCards(normalizeIntakeAnswers(serverAnswers));
+    return { ok: true as const, draft: { revision: serverRevision, answers: shaped } };
+  };
+  let sharedPuts = 0;
+  const sharedLock = mutex();
+  const mountBoth = {
+    storage: sticky,
+    now: () => raceNow,
+    facts: { ...adoptFacts, targetExists: false },
+    lock: sharedLock,
+    intent: "mount" as const,
+    loadServer: serverGet,
+    put: async (draft: { answers: unknown }, revision: number) => {
+      order.push("put");
+      sharedPuts += 1;
+      serverAnswers = draft.answers as typeof sharedAnswers;
+      serverRevision = revision;
+      order.push("put-done");
+      return true;
+    },
+    remove: () => {
+      order.push("remove");
+      sticky.removeItem(guestLocalDraftKey());
+    },
+    commit: commitGuestAdoption,
+  };
+  const [tabA, tabB] = await Promise.all([
+    runGuestAdoptAttempt(mountBoth),
+    runGuestAdoptAttempt(mountBoth),
+  ]);
+  assert.equal(sharedPuts, 1, "veralteter Speicher: trotzdem nur ein PUT");
+  assert.deepEqual([tabA.status, tabB.status].sort(), ["adopted", "already-adopted"]);
+  const second = tabA.status === "already-adopted" ? tabA : tabB;
+  assert.equal(second.refresh, true);
+  assert.notEqual(second.status, "ask");
+  const putAt = order.indexOf("put-done");
+  const removeAt = order.indexOf("remove");
+  const secondGet = order.indexOf("get", putAt);
+  assert.ok(putAt > 0 && removeAt > putAt && secondGet > removeAt, "das Lock hält bis nach dem Entfernen");
+
+  let equalPuts = 0;
+  const equalStorage = new StickyStorage(stickyInner);
+  const equalTab = await runGuestAdoptAttempt({
+    storage: equalStorage,
+    now: () => raceNow,
+    facts: { ...adoptFacts, targetExists: true, targetRevision: 9 },
+    lock: mutex(),
+    intent: "mount",
+    loadServer: async () => ({
+      ok: true,
+      draft: { revision: 4, answers: stripEmptyIntakeCards(normalizeIntakeAnswers(sharedAnswers)) },
+    }),
+    put: async () => {
+      equalPuts += 1;
+      return true;
+    },
+    remove: () => equalStorage.removeItem(guestLocalDraftKey()),
+    commit: commitGuestAdoption,
+  });
+  assert.equal(equalPuts, 0, "gleicher Server-Entwurf wird nicht noch einmal geschrieben");
+  assert.equal(equalTab.status, "already-adopted");
+  assert.equal(equalTab.refresh, true);
+  assert.notEqual(equalTab.status, "ask");
+
+  let dialogPuts = 0;
+  const dialogTab = await runGuestAdoptAttempt({
+    storage: equalStorage,
+    now: () => raceNow,
+    facts: { ...adoptFacts, targetExists: false },
+    lock: mutex(),
+    intent: "mount",
+    loadServer: async () => ({
+      ok: true,
+      draft: { revision: 2, answers: { ...emptyAnswers(), gf: "Andere GmbH" } },
+    }),
+    put: async () => {
+      dialogPuts += 1;
+      return true;
+    },
+    remove: () => undefined,
+    commit: commitGuestAdoption,
+  });
+  assert.equal(dialogPuts, 0);
+  assert.equal(dialogTab.status, "ask", "ein anderer Server-Entwurf bleibt der Konfliktdialog");
+  assert.equal(dialogTab.refresh, false);
+
+  const failingStorage = new MemoryStorage();
+  failingStorage.setItem(guestLocalDraftKey(), JSON.stringify({ answers: sharedAnswers, step: 1, savedAt: new Date(raceNow).toISOString(), revision: 1 }));
+  let failPuts = 0;
+  const failedGet = await runGuestAdoptAttempt({
+    storage: failingStorage,
+    now: () => raceNow,
+    facts: adoptFacts,
+    lock: mutex(),
+    intent: "mount",
+    loadServer: async () => ({ ok: false }),
+    put: async () => {
+      failPuts += 1;
+      return true;
+    },
+    remove: () => removeGuestDraftEntry(failingStorage),
+    commit: commitGuestAdoption,
+  });
+  assert.equal(failPuts, 0);
+  assert.equal(failedGet.status, "unknown");
+  assert.equal(failedGet.refresh, false);
+  assert.ok(failingStorage.getItem(guestLocalDraftKey()), "bei einem fehlgeschlagenen Lesen bleibt der Gast-Eintrag");
+
+  assert.ok(adoptUi.includes('cache: "no-store"') && adoptUi.includes('credentials: "same-origin"'), "der frische GET umgeht den Cache");
+  assert.ok(adoptUi.includes("guestAdoptDraftQuery(facts)"), "der GET nutzt dieselbe Entwurfskennung wie der PUT");
+  const query = guestAdoptDraftQuery(adoptFacts);
+  assert.ok(query.startsWith("/api/intake/draft?"));
+  assert.ok(query.includes(`draftKey=${encodeURIComponent(adoptFacts.draftKey)}`));
+  assert.ok(query.includes(`entityId=${encodeURIComponent(adoptFacts.entityId)}`) || query.includes("entityId="));
+  assert.ok(query.includes("modus=gesamt"));
 
   if (savedGuest === undefined) delete process.env.INTAKE_GUEST_START_ENABLED;
   else process.env.INTAKE_GUEST_START_ENABLED = savedGuest;

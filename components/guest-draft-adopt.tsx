@@ -11,6 +11,7 @@ import {
   GUEST_KEEP_LOCAL_HINT,
   GUEST_WAIT_LABEL,
   commitGuestAdoption,
+  guestAdoptDraftQuery,
   guestAdoptPutBody,
   removeGuestDraftEntry,
   runGuestAdoptAttempt,
@@ -18,6 +19,7 @@ import {
   type GuestAdoptIntent,
   type GuestAdoptLock,
   type GuestAdoptRunResult,
+  type GuestServerLookup,
 } from "@/lib/guest-start";
 import type { IntakeDraftSnapshot } from "@/lib/intake-draft-shared";
 
@@ -44,10 +46,11 @@ export function GuestDraftAdopt({ facts, children }: { facts: GuestAdoptFacts; c
   const [phase, setPhase] = useState<"check" | "ask" | "limit" | "unknown" | "failed" | "ready">("check");
   const [pending, setPending] = useState(false);
 
-  async function putSnapshot(snapshot: IntakeDraftSnapshot): Promise<boolean> {
+  async function putSnapshot(snapshot: IntakeDraftSnapshot, revision: number): Promise<boolean> {
     const response = await fetch("/api/intake/draft", {
       method: "PUT",
       credentials: "same-origin",
+      cache: "no-store",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
         guestAdoptPutBody({
@@ -56,11 +59,30 @@ export function GuestDraftAdopt({ facts, children }: { facts: GuestAdoptFacts; c
           entityId: facts.entityId,
           modus: facts.modus,
           snapshot,
-          serverRevision: facts.targetRevision,
+          serverRevision: revision,
         }),
       ),
     });
     return response.ok;
+  }
+
+  async function loadServer(): Promise<GuestServerLookup> {
+    try {
+      const response = await fetch(guestAdoptDraftQuery(facts), {
+        method: "GET",
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (!response.ok) return { ok: false };
+      const data = (await response.json()) as { draft?: { answers?: unknown; revision?: number } | null };
+      if (!data.draft?.answers || typeof data.draft.answers !== "object") return { ok: true, draft: null };
+      return {
+        ok: true,
+        draft: { revision: typeof data.draft.revision === "number" ? data.draft.revision : 0, answers: data.draft.answers },
+      };
+    } catch {
+      return { ok: false };
+    }
   }
 
   async function attempt(intent: GuestAdoptIntent): Promise<void> {
@@ -74,6 +96,7 @@ export function GuestDraftAdopt({ facts, children }: { facts: GuestAdoptFacts; c
       put: putSnapshot,
       remove: () => removeGuestDraftEntry(window.localStorage),
       commit: commitGuestAdoption,
+      loadServer,
     });
     setPending(false);
     applyResult(result, () => router.refresh());
@@ -119,6 +142,7 @@ export function GuestDraftAdopt({ facts, children }: { facts: GuestAdoptFacts; c
         put: putSnapshot,
         remove: () => removeGuestDraftEntry(window.localStorage),
         commit: commitGuestAdoption,
+        loadServer,
       });
       if (cancelled) return;
       applyResult(result, () => router.refresh());
