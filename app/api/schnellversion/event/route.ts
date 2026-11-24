@@ -13,7 +13,6 @@ const MAX_BYTES = 2048;
 
 export async function POST(request: NextRequest): Promise<Response> {
   if (!schnellversionOffered()) return new Response(null, { status: 404 });
-  const arm = parseSvArm(request.cookies.get(SV_ARM_COOKIE)?.value);
   const declared = request.headers.get("content-length");
   if (declared && Number(declared) > MAX_BYTES) return new Response(null, { status: 400 });
   const raw = await request.text();
@@ -33,6 +32,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     rememberSvEvent(event);
     return new Response(null, { status: 204 });
   }
+  const arm = parseSvArm(request.cookies.get(SV_ARM_COOKIE)?.value);
   if (!arm || event.arm !== arm) return new Response(null, { status: 400 });
   const client = readAmpelClientIp(request);
   if (!takeAmpelStepRate(client.ip)) return new Response(null, { status: 429 });
