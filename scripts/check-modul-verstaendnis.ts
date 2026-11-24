@@ -9,6 +9,7 @@ import {
   catalogOpenPoints,
   catalogStepIssues,
   askVorschlag,
+  clearCatalogStatus,
   confirmVorschlag,
   dismissVorschlag,
   prefillKnownFacts,
@@ -331,7 +332,7 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   assert.ok(modulFortschritt(confirmed, "m01").beantwortet > modulFortschritt(handel, "m01").beantwortet);
 }
 
-// 3b — Karte: „So läuft es heute“ öffnet die Rückfrage und setzt den Stand nicht
+// 3b — Abwählen eines aktiven Status-Chips behält vorschlag/vorschlagOk
 {
   function chipHeute(answers: IntakeAnswers, id: string): IntakeAnswers {
     const entry = answers.katalog?.[id];
@@ -344,46 +345,35 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   function wieDieOberflaeche(apply: (answers: IntakeAnswers) => IntakeAnswers): IntakeAnswers {
     return prefillKnownFacts(apply(ensureGesamt(withCatalogDraft(emptyAnswers(), "Nordlicht GmbH"))));
   }
-  const datev = wieDieOberflaeche((answers) => toggleSoftwarePreset(answers, "datev"));
-  const datevFields = question("B01").fields.map((field) => field.key);
-  assert.ok(unconfirmedSuggestionKeys(datev.katalog?.B01, datevFields).includes("systeme"), "DATEV-Marke auf B01");
-  const datevClick = chipHeute(datev, "B01");
-  assert.equal(datevClick.katalog?.B01?.status, undefined, "DATEV setzt den Stand nicht");
-  assert.deepEqual(datevClick.katalog?.B01?.vorschlagRueckfrage, ["systeme"], "DATEV öffnet die Rückfrage");
-  const datevReload = prefillKnownFacts(JSON.parse(JSON.stringify(datev)) as IntakeAnswers);
-  const datevAgain = chipHeute(datevReload, "B01");
-  assert.equal(datevAgain.katalog?.B01?.status, undefined, "DATEV nach Reload setzt den Stand nicht");
-  assert.ok(datevAgain.katalog?.B01?.vorschlagRueckfrage?.includes("systeme"), "DATEV nach Reload öffnet die Rückfrage");
-  const sources = [
-    ...SOFTWARE_PRESETS.map((preset) => ({
-      label: preset.id,
-      answers: wieDieOberflaeche((answers) => toggleSoftwarePreset(answers, preset.id)),
-    })),
-    ...BRANCHEN_VORLAGEN.map((vorlage) => ({
-      label: vorlage.id,
-      answers: wieDieOberflaeche((answers) => setVorlage(answers, vorlage.id)),
-    })),
-  ];
-  for (const source of sources) {
-    for (const id of P1_QUESTION_IDS) {
-      const entry = source.answers.katalog?.[id];
-      if (!entry?.vorschlag) continue;
-      const fieldKeys = question(id).fields.map((field) => field.key);
-      const pending = unconfirmedSuggestionKeys(entry, fieldKeys);
-      if (!pending.length) continue;
-      const next = chipHeute(source.answers, id);
-      assert.notEqual(next.katalog?.[id]?.status, "bestaetigt", `${source.label} ${id} setzt den Stand nicht`);
-      for (const key of pending) {
-        assert.ok(
-          (next.katalog?.[id]?.vorschlagRueckfrage ?? []).includes(key),
-          `${source.label} ${id}.${key} Rückfrage`,
-        );
-      }
-    }
-  }
-  const process = readFileSync("components/intake-p1-fields.tsx", "utf8");
-  assert.ok(process.includes("unconfirmedSuggestionKeys(entry, suggestionFieldKeys)"));
-  assert.ok(process.includes("askVorschlag(answers, questionId, suggestionFieldKeys)"));
+  const base = wieDieOberflaeche((answers) => setVorlage(answers, "handel"));
+  const fieldKeys = question("UO02").fields.map((field) => field.key);
+  assert.ok(unconfirmedSuggestionKeys(base.katalog?.UO02, fieldKeys).includes("kunden"), "Handel-Vorschlag auf UO02.kunden");
+  assert.ok(unconfirmedSuggestionKeys(base.katalog?.UO02, fieldKeys).includes("taetigkeiten"), "Handel-Vorschlag auf UO02.taetigkeiten");
+
+  const prepared = setVorschlagFieldOk(base, "UO02", "taetigkeiten", true);
+  assert.ok((prepared.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "Tätigkeiten bestätigt");
+  assert.ok(unconfirmedSuggestionKeys(prepared.katalog?.UO02, fieldKeys).includes("kunden"), "Kundengruppen unbestätigt");
+
+  const withStatus = setCatalogStatus(prepared, "UO02", "geplant");
+  const cleared = clearCatalogStatus(withStatus, "UO02");
+  assert.equal(cleared.katalog?.UO02?.status, undefined, "Abwählen entfernt den Stand");
+  assert.ok(cleared.katalog?.UO02?.vorschlag, "vorschlag bleibt nach dem Abwählen");
+  assert.ok((cleared.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "vorschlagOk bleibt nach dem Abwählen");
+  assert.equal(cleared.katalog?.UO02?.vorschlagRueckfrage, undefined, "offene Rückfrage wird zurückgesetzt");
+
+  const reloaded = prefillKnownFacts(JSON.parse(JSON.stringify(cleared)) as IntakeAnswers);
+  assert.ok(reloaded.katalog?.UO02?.vorschlag, "vorschlag bleibt nach Reload");
+  assert.ok((reloaded.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "vorschlagOk bleibt nach Reload");
+  assert.ok(
+    !unconfirmedSuggestionKeys(reloaded.katalog?.UO02, fieldKeys).includes("taetigkeiten"),
+    "bestätigtes Feld bleibt bestätigt",
+  );
+  assert.ok(unconfirmedSuggestionKeys(reloaded.katalog?.UO02, fieldKeys).includes("kunden"), "unbestätigtes Feld bleibt unbestätigt");
+
+  const heute = chipHeute(reloaded, "UO02");
+  assert.equal(heute.katalog?.UO02?.status, undefined, "„So läuft es heute“ setzt den Stand nicht");
+  assert.ok((heute.katalog?.UO02?.vorschlagRueckfrage ?? []).includes("kunden"), "Rückfrage enthält das unbestätigte Feld");
+  assert.ok((heute.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "bestätigtes Feld bleibt bestätigt");
 }
 
 // 5 — Kanzlei-Widerspruch

@@ -1286,12 +1286,11 @@ function touch(
   id: string,
   patch: CatalogQuestionState,
 ): IntakeAnswers {
-  const katalog = answers.katalog ?? {};
-  const current = katalog[id] ?? {};
+  const current = catalogState(answers)[id] ?? {};
   return {
     ...answers,
     katalog: {
-      ...katalog,
+      ...catalogState(answers),
       [id]: {
         ...current,
         ...patch,
@@ -1390,7 +1389,7 @@ export function askVorschlag(
   id: string,
   fieldKeys?: readonly string[],
 ): IntakeAnswers {
-  const current = answers.katalog?.[id] ?? {};
+  const current = catalogState(answers)[id] ?? {};
   const keys = unconfirmedSuggestionKeys(current, fieldKeys);
   if (!keys.length) return answers;
   return touch(answers, id, { vorschlagRueckfrage: keys });
@@ -1463,6 +1462,8 @@ export function clearCatalogStatus(answers: IntakeAnswers, id: string): IntakeAn
   if (current.responsible) nextEntry.responsible = current.responsible;
   if (current.date) nextEntry.date = current.date;
   if (current.cleared?.length) nextEntry.cleared = current.cleared;
+  if (current.vorschlag) nextEntry.vorschlag = current.vorschlag;
+  if (current.vorschlagOk?.length) nextEntry.vorschlagOk = current.vorschlagOk;
   return {
     ...answers,
     katalog: { ...catalogState(answers), [id]: nextEntry },
