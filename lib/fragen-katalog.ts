@@ -89,6 +89,7 @@ export const FRAGEN_SEITEN_NR: Record<string, number> = {
   "verfahrensdokumentation-kleinunternehmer-einzelunternehmen": 13,
   "verfahrensdokumentation-ab-wann": 14,
   "verfahrensdokumentation-freiberufler-pflicht": 15,
+  "gobd-einnahmenueberschussrechnung": 16,
   "was-ist-eine-verfahrensdokumentation": 19,
   "was-gehoert-in-verfahrensdokumentation": 20,
   "wie-sieht-verfahrensdokumentation-aus": 21,
