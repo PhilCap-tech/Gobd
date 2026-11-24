@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CampaignLink } from "@/components/campaign-link";
 import { HomeCtaLink, HomeViewBeacon } from "@/components/home-cta-link";
+import { HeroStartCtas } from "@/components/hero-start-ctas";
 import { SchnellversionHeroCtas } from "@/components/schnellversion-hero";
 import { CrumbJsonLd, JsonLd } from "@/components/json-ld";
 import { SiteFooter } from "@/components/site-footer";
@@ -328,14 +329,7 @@ export default function HomePage() {
               <SchnellversionHeroCtas />
             ) : (
               <>
-                <div className={styles.ctas}>
-                  <CampaignLink className="btn" cta="hero_checkout" href="/checkout">
-                    {CTA_START}
-                  </CampaignLink>
-                  <HomeCtaLink className={`btn ${styles.btnSec}`} cta="hero_muster" href="#muster">
-                    {CTA_SAMPLE}
-                  </HomeCtaLink>
-                </div>
+                <HeroStartCtas />
                 <p className={styles.startMicro}>{CTA_START_MICRO}</p>
                 <p className={styles.micro}>{D2_HERO_MICRO}</p>
               </>

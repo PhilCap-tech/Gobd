@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import home from "@/app/home.module.css";
-import { HomeCtaLink } from "@/components/home-cta-link";
-import { CampaignLink } from "@/components/campaign-link";
+import { HeroStartCtas } from "@/components/hero-start-ctas";
 import { onConsentChange, postSvEvent, postSvVisit, syncSvArm } from "@/components/schnellversion-browser";
-import { CTA_SAMPLE, CTA_START, CTA_START_MICRO } from "@/lib/offer-copy";
+import { CTA_START, CTA_START_MICRO } from "@/lib/offer-copy";
 import { SV_BUY_LABEL, SV_HERO_NOTE } from "@/lib/schnellversion-copy";
 import type { SvArm } from "@/lib/schnellversion-assign";
 
@@ -52,25 +51,21 @@ export function SchnellversionHeroCtas() {
 
   return (
     <>
-      <div className={home.ctas}>
-        <CampaignLink className="btn" cta="hero_checkout" href="/checkout">
-          {CTA_START}
-        </CampaignLink>
-        {arm === "test" ? (
-          <Link
-            className={`btn ${home.btnSec}`}
-            href="/schnellversion"
-            onClick={() => {
-              void postSvEvent({ name: "sv_click", arm: "test" });
-            }}
-          >
-            {SV_BUY_LABEL}
-          </Link>
-        ) : null}
-        <HomeCtaLink className={`btn ${home.btnSec}`} cta="hero_muster" href="#muster">
-          {CTA_SAMPLE}
-        </HomeCtaLink>
-      </div>
+      <HeroStartCtas
+        extra={
+          arm === "test" ? (
+            <Link
+              className={`btn ${home.btnSec}`}
+              href="/schnellversion"
+              onClick={() => {
+                void postSvEvent({ name: "sv_click", arm: "test" });
+              }}
+            >
+              {SV_BUY_LABEL}
+            </Link>
+          ) : null
+        }
+      />
       <p className={home.startMicro}>{CTA_START_MICRO}</p>
       <p className={home.micro}>{HERO_MICRO}</p>
       {arm === "test" ? <p className={home.svNote}>{SV_HERO_NOTE}</p> : null}
