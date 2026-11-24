@@ -1893,11 +1893,17 @@
 
 @media (max-width: 860px) {
   .heroCtaStack {
-    margin-top: 12px;
-    gap: 12px;
+    margin-top: 8px;
+    gap: 8px;
   }
 
   .heroAmpelCard {
-    padding: 16px 16px 18px;
+    padding: 12px 14px 14px;
+    gap: 8px;
+  }
+
+  .heroAmpelCardText {
+    font-size: 14px;
+    line-height: 1.4;
   }
 }
