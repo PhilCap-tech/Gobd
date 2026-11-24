@@ -21,7 +21,6 @@ import {
   visibleCatalogQuestions,
   nextApplicableStep,
 } from "@/lib/intake-catalog";
-import { P1_QUESTION_IDS } from "@/components/intake-p1-fields";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { stripEmptyIntakeCards, withoutStoredSuggestionPrompt } from "@/lib/intake-present";
 import { renderGesamtChapters } from "@/lib/gesamt-document";
@@ -38,7 +37,6 @@ import {
   setCheckAntwort,
   setModulEintrag,
   setVorlage,
-  toggleSoftwarePreset,
   vollstaendigkeitsZeilen,
 } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
@@ -374,6 +372,29 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   assert.equal(heute.katalog?.UO02?.status, undefined, "„So läuft es heute“ setzt den Stand nicht");
   assert.ok((heute.katalog?.UO02?.vorschlagRueckfrage ?? []).includes("kunden"), "Rückfrage enthält das unbestätigte Feld");
   assert.ok((heute.katalog?.UO02?.vorschlagOk ?? []).includes("taetigkeiten"), "bestätigtes Feld bleibt bestätigt");
+
+  const cases = [
+    { id: "B01", answers: wieDieOberflaeche((answers) => applySoftwarePreset(answers, "datev")) },
+    { id: "E05", answers: wieDieOberflaeche((answers) => applySoftwarePreset(answers, "lexoffice")) },
+    { id: "UO02", answers: wieDieOberflaeche((answers) => setVorlage(answers, "handel")) },
+  ] as const;
+  for (const item of cases) {
+    const keys = question(item.id).fields.map((field) => field.key);
+    const pending = unconfirmedSuggestionKeys(item.answers.katalog?.[item.id], keys);
+    assert.ok(pending.length, `${item.id} hat unbestätigten Vorschlag`);
+    const on = setCatalogStatus(item.answers, item.id, "unbekannt");
+    const off = clearCatalogStatus(on, item.id);
+    assert.equal(off.katalog?.[item.id]?.status, undefined, `${item.id}: Abwählen entfernt den Stand`);
+    assert.ok(off.katalog?.[item.id]?.vorschlag, `${item.id}: vorschlag bleibt nach dem Abwählen`);
+    const afterHeute = chipHeute(off, item.id);
+    assert.equal(afterHeute.katalog?.[item.id]?.status, undefined, `${item.id}: heute setzt den Stand nicht`);
+    for (const key of pending) {
+      assert.ok(
+        (afterHeute.katalog?.[item.id]?.vorschlagRueckfrage ?? []).includes(key),
+        `${item.id}.${key} Rückfrage nach an → ab → heute`,
+      );
+    }
+  }
 }
 
 // 5 — Kanzlei-Widerspruch
