@@ -102,6 +102,7 @@ async function main() {
     { slug: "ersetzendes-scannen", stand: "2026-11-18", gruppe: "aufbewahrung-archiv" },
     { slug: "e-rechnung-aufbewahren", stand: "2026-11-22", gruppe: "belege-e-rechnung" },
     { slug: "cloud-ordner-archiv", stand: "2026-11-23", gruppe: "aufbewahrung-archiv" },
+    { slug: "gobd-einnahmenueberschussrechnung", stand: "2026-11-24", gruppe: "pflicht-adressaten" },
   ];
   const wave1Pages = seiten.filter((seite) => seite.welle === 1).length;
   const expectedLatestStand = explicitSeiten.reduce(
