@@ -1897,13 +1897,24 @@
     gap: 8px;
   }
 
+  /* Karte unter die Buttons, damit Direkt kaufen und Muster über der fixierten Leiste bleiben. */
+  .heroCtaRest {
+    order: 2;
+  }
+
   .heroAmpelCard {
-    padding: 12px 14px 14px;
+    order: 3;
+    padding: 10px 12px 12px;
     gap: 8px;
   }
 
   .heroAmpelCardText {
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.35;
+  }
+
+  /* Nur der vordere Teilsatz, Wortlaut unverändert. */
+  .heroAmpelCardMore {
+    display: none;
   }
 }
