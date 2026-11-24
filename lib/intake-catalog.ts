@@ -1286,11 +1286,12 @@ function touch(
   id: string,
   patch: CatalogQuestionState,
 ): IntakeAnswers {
-  const current = catalogState(answers)[id] ?? {};
+  const katalog = answers.katalog ?? {};
+  const current = katalog[id] ?? {};
   return {
     ...answers,
     katalog: {
-      ...catalogState(answers),
+      ...katalog,
       [id]: {
         ...current,
         ...patch,
@@ -1389,7 +1390,7 @@ export function askVorschlag(
   id: string,
   fieldKeys?: readonly string[],
 ): IntakeAnswers {
-  const current = catalogState(answers)[id] ?? {};
+  const current = answers.katalog?.[id] ?? {};
   const keys = unconfirmedSuggestionKeys(current, fieldKeys);
   if (!keys.length) return answers;
   return touch(answers, id, { vorschlagRueckfrage: keys });

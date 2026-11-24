@@ -13,12 +13,14 @@ import {
   dismissVorschlag,
   prefillKnownFacts,
   removeKanzleiEintrag,
+  withCatalogDraft,
   setCatalogStatus,
   setCatalogValue,
   setVorschlagFieldOk,
   visibleCatalogQuestions,
   nextApplicableStep,
 } from "@/lib/intake-catalog";
+import { P1_QUESTION_IDS } from "@/components/intake-p1-fields";
 import { bereichQuestionLines } from "@/lib/bereich-chapter";
 import { stripEmptyIntakeCards, withoutStoredSuggestionPrompt } from "@/lib/intake-present";
 import { renderGesamtChapters } from "@/lib/gesamt-document";
@@ -35,6 +37,7 @@ import {
   setCheckAntwort,
   setModulEintrag,
   setVorlage,
+  toggleSoftwarePreset,
   vollstaendigkeitsZeilen,
 } from "@/lib/module/status";
 import { emptyAnswers, type IntakeAnswers } from "@/lib/types";
@@ -326,6 +329,61 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   assert.equal(confirmed.katalog?.UO02?.status, "bestaetigt");
   assert.equal(catalogStepIssues(stepIndex("step-M01c"), confirmed).some((issue) => issue.fieldKey === "vorschlag"), false);
   assert.ok(modulFortschritt(confirmed, "m01").beantwortet > modulFortschritt(handel, "m01").beantwortet);
+}
+
+// 3b — Karte: „So läuft es heute“ öffnet die Rückfrage und setzt den Stand nicht
+{
+  function chipHeute(answers: IntakeAnswers, id: string): IntakeAnswers {
+    const entry = answers.katalog?.[id];
+    const fieldKeys = question(id).fields.map((field) => field.key);
+    if (unconfirmedSuggestionKeys(entry, fieldKeys).length) {
+      return askVorschlag(answers, id, fieldKeys);
+    }
+    return setCatalogStatus(answers, id, "bestaetigt");
+  }
+  function wieDieOberflaeche(apply: (answers: IntakeAnswers) => IntakeAnswers): IntakeAnswers {
+    return prefillKnownFacts(apply(ensureGesamt(withCatalogDraft(emptyAnswers(), "Nordlicht GmbH"))));
+  }
+  const datev = wieDieOberflaeche((answers) => toggleSoftwarePreset(answers, "datev"));
+  const datevFields = question("B01").fields.map((field) => field.key);
+  assert.ok(unconfirmedSuggestionKeys(datev.katalog?.B01, datevFields).includes("systeme"), "DATEV-Marke auf B01");
+  const datevClick = chipHeute(datev, "B01");
+  assert.equal(datevClick.katalog?.B01?.status, undefined, "DATEV setzt den Stand nicht");
+  assert.deepEqual(datevClick.katalog?.B01?.vorschlagRueckfrage, ["systeme"], "DATEV öffnet die Rückfrage");
+  const datevReload = prefillKnownFacts(JSON.parse(JSON.stringify(datev)) as IntakeAnswers);
+  const datevAgain = chipHeute(datevReload, "B01");
+  assert.equal(datevAgain.katalog?.B01?.status, undefined, "DATEV nach Reload setzt den Stand nicht");
+  assert.ok(datevAgain.katalog?.B01?.vorschlagRueckfrage?.includes("systeme"), "DATEV nach Reload öffnet die Rückfrage");
+  const sources = [
+    ...SOFTWARE_PRESETS.map((preset) => ({
+      label: preset.id,
+      answers: wieDieOberflaeche((answers) => toggleSoftwarePreset(answers, preset.id)),
+    })),
+    ...BRANCHEN_VORLAGEN.map((vorlage) => ({
+      label: vorlage.id,
+      answers: wieDieOberflaeche((answers) => setVorlage(answers, vorlage.id)),
+    })),
+  ];
+  for (const source of sources) {
+    for (const id of P1_QUESTION_IDS) {
+      const entry = source.answers.katalog?.[id];
+      if (!entry?.vorschlag) continue;
+      const fieldKeys = question(id).fields.map((field) => field.key);
+      const pending = unconfirmedSuggestionKeys(entry, fieldKeys);
+      if (!pending.length) continue;
+      const next = chipHeute(source.answers, id);
+      assert.notEqual(next.katalog?.[id]?.status, "bestaetigt", `${source.label} ${id} setzt den Stand nicht`);
+      for (const key of pending) {
+        assert.ok(
+          (next.katalog?.[id]?.vorschlagRueckfrage ?? []).includes(key),
+          `${source.label} ${id}.${key} Rückfrage`,
+        );
+      }
+    }
+  }
+  const process = readFileSync("components/intake-p1-fields.tsx", "utf8");
+  assert.ok(process.includes("unconfirmedSuggestionKeys(entry, suggestionFieldKeys)"));
+  assert.ok(process.includes("askVorschlag(answers, questionId, suggestionFieldKeys)"));
 }
 
 // 5 — Kanzlei-Widerspruch
