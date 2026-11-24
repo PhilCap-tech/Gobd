@@ -26,6 +26,7 @@ import { MODUL_STATUSES, type CheckAntwort } from "@/lib/module/typen";
 import { customerUploadHref } from "@/lib/blob-ref";
 import { FreitextAlert } from "@/components/freitext-alert";
 import { IntakeStepHeading } from "@/components/intake-step-heading";
+import { GUEST_UPLOAD_HINT } from "@/lib/guest-start";
 import { INTAKE_EFFORT_LINE } from "@/lib/offer-copy";
 import type { IntakeAnswers } from "@/lib/types";
 
@@ -195,6 +196,7 @@ export function ModulUebersichtStep({
   documentId = "",
   focusModulId = "",
   issues = [],
+  uploadsDisabled = false,
 }: {
   answers: IntakeAnswers;
   onChange: (next: IntakeAnswers) => void;
@@ -203,6 +205,8 @@ export function ModulUebersichtStep({
   /** Modulzeile, die aus dem Konto („Jetzt ausfüllen“) angesprungen wird. */
   focusModulId?: string;
   issues?: CatalogIssue[];
+  /** Ohne Sitzung: keine Datei an den Server. */
+  uploadsDisabled?: boolean;
 }) {
   const rows = vollstaendigkeitsZeilen(answers);
   useEffect(() => {
@@ -349,6 +353,9 @@ export function ModulUebersichtStep({
                         />
                         <FreitextAlert value={current?.link ?? ""} />
                         </div>
+                        {uploadsDisabled ? (
+                          <p className="hint">{GUEST_UPLOAD_HINT}</p>
+                        ) : (
                         <label className="hint" style={{ display: "grid", gap: 4 }}>
                           Datei (PDF, DOCX, JPEG/PNG/WebP, max. 12 MB)
                           <input
@@ -407,6 +414,7 @@ export function ModulUebersichtStep({
                             }}
                           />
                         </label>
+                        )}
                         {current?.uploadName ? (
                           <p className="hint" style={{ margin: 0 }}>
                             Hochgeladen: {current.uploadName}

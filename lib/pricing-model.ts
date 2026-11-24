@@ -217,3 +217,12 @@ export function intakeLoginFirstEnabled(): boolean {
   // Default AN im neuen Modell (Go-live), Legacy immer aus.
   return isPricingV2() && boolEnv("INTAKE_LOGIN_FIRST_ENABLED", true);
 }
+
+/**
+ * Gaststart (Variante A): Fragebogen ohne Anmeldung, nur im Browser.
+ * Default AUS. Aus = der bisherige Login-zuerst-Ablauf, unverändert.
+ * Wirkt nur zusammen mit Login-zuerst, weil /fragebogen sonst auf /checkout geht.
+ */
+export function intakeGuestStartEnabled(): boolean {
+  return intakeLoginFirstEnabled() && boolEnv("INTAKE_GUEST_START_ENABLED", false);
+}
