@@ -29,7 +29,7 @@ import {
   type SchnellversionAnswers,
 } from "../lib/schnellversion-answers";
 import { schnellversionCheckoutPlan, schnellversion49Enabled, schnellversionOffered, schnellversionStubBlocked } from "../lib/schnellversion-flag";
-import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PDF_FAILED, SV_PURGE_AFTER_DAYS } from "../lib/schnellversion-copy";
+import { svDownloadStillOpen, svHeaderLine, SV_COVER_TITLE, SV_FOOTER, SV_PDF_FAILED, SV_PURGE_AFTER_DAYS, SV_OFFER_OBJECTION_NOTICE } from "../lib/schnellversion-copy";
 import { clientEventAllowed, evaluateSvEvents, parseSvEvent, type SvEventRow } from "../lib/schnellversion-events";
 import { BRANCHEN_FREMDE, limitIdenticalSentences, LOHN_SATZ, pflichtBausteine, repeatedSentences, standardFall } from "../lib/schnellversion-bausteine";
 import { confirmPaidSession, failNextClaimedPurchaseForTest, failNextSvPdfForTest, isSvPdfFailed, openSchnellversionCheckout, paidFromStoredSession, resetSvPdfBuildsForTest, saveSvPending, svPdfBuildsForTest } from "../lib/schnellversion-payment";
@@ -41,7 +41,6 @@ import { maybeSendSchnellversionPurchaseMail, purchaseMail } from "../lib/schnel
 import { runScheduledSvPurge, runSvPurge, svRecordPurgeDue } from "../lib/schnellversion-purge";
 import { addMonthsIso } from "../lib/plan";
 import { DOC_RETENTION_MONTHS } from "../lib/retention-decision";
-import { PLAN_OFFER_OBJECTION_NOTICE } from "../lib/plan-copy";
 import { agbMarkdown, applyLegalConditions, legalFlagsFor } from "../lib/legal-content";
 import { buildLlmsTxt } from "../lib/llms-txt";
 import { markdownH2Section } from "../lib/markdown-section";
@@ -966,10 +965,10 @@ async function main() {
   );
   ok(kaufmail.text.includes("/agb") && kaufmail.text.includes("Download-Ende"), "Kaufmail verlinkt die AGB und nennt das Datum");
   ok(
-    kaufmail.text.includes(PLAN_OFFER_OBJECTION_NOTICE) &&
-      kaufmail.html.includes(PLAN_OFFER_OBJECTION_NOTICE) &&
-      kaufmail.text.indexOf(PLAN_OFFER_OBJECTION_NOTICE) < kaufmail.text.indexOf("Impressum:"),
-    "Kaufmail enthält PLAN_OFFER_OBJECTION_NOTICE vor dem Impressumsfuß",
+    kaufmail.text.includes(SV_OFFER_OBJECTION_NOTICE) &&
+      kaufmail.html.includes(SV_OFFER_OBJECTION_NOTICE) &&
+      kaufmail.text.indexOf(SV_OFFER_OBJECTION_NOTICE) < kaufmail.text.indexOf("Impressum:"),
+    "Kaufmail enthält SV_OFFER_OBJECTION_NOTICE vor dem Impressumsfuß",
   );
   ok(kaufmail.text.includes("Anrechnung:"), "Kaufmail behält den Anrechnungshinweis");
   ok((await maybeSendSchnellversionPurchaseMail({
@@ -1062,13 +1061,13 @@ async function main() {
       reminderText.text.includes("Keine Steuer- oder Rechtsberatung."),
     "Erinnerung behält den bestehenden Text",
   );
-  ok(reminderText.text.includes(PLAN_OFFER_OBJECTION_NOTICE), "Erinnerung nutzt PLAN_OFFER_OBJECTION_NOTICE");
+  ok(reminderText.text.includes(SV_OFFER_OBJECTION_NOTICE), "Erinnerung nutzt SV_OFFER_OBJECTION_NOTICE");
   const quietReminder = reminderMail({ company: "Malerbetrieb Adler", purchasedAt: now.toISOString(), optedOut: true });
   ok(
     quietReminder.subject.startsWith("Ihr Download endet am ") &&
       !quietReminder.text.includes("Anrechnung") &&
       !quietReminder.text.includes("Fragebogen") &&
-      !quietReminder.text.includes(PLAN_OFFER_OBJECTION_NOTICE),
+      !quietReminder.text.includes(SV_OFFER_OBJECTION_NOTICE),
     "nach Widerspruch nur der Download-Hinweis",
   );
   ok(
@@ -1313,7 +1312,7 @@ async function main() {
     "§ 9 Abs. 4 Satz 2 zur Anrechnung bleibt weg",
   );
   ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("PLAN_TERMS_LABEL_BEFORE"), "Checkout bestätigt die AGB");
-  ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("{PLAN_OFFER_OBJECTION_NOTICE}"), "Kaufseite zeigt den Widerspruchshinweis");
+  ok(readFileSync("components/schnellversion-kauf.tsx", "utf8").includes("{SV_OFFER_OBJECTION_NOTICE}"), "Kaufseite zeigt den Widerspruchshinweis");
   ok(readFileSync("components/schnellversion-ui.module.css", "utf8").includes("position: static"), "Hinweis liegt im Textfluss");
   rememberSvEvent({ name: "sv_visit", arm: "", variante: "b", branche_vorlage: "", value: 0, step: 0, ziel: "" });
   const stamped = (await readSvEvents()).find((row) => row.name === "sv_visit" && row.day);

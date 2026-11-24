@@ -37,12 +37,16 @@ export const SV_KAUF_BEWUSST =
   "Ihnen ist bewusst, dass die Schnellversion eine Standardfassung aus einer Branchenvorlage ist. Sie beschreibt nicht Ihre tatsächlichen Abläufe und muss vor der Verwendung von Ihnen geprüft und angepasst werden.";
 
 export const SV_KAUF_PFLICHT =
-  "Preise netto zzgl. 19 % USt, nur für Unternehmen. Jede weitere Firma buchen Sie gesondert. Erstattung nur, wenn die Erstellung Ihres PDFs fehlschlägt (Einzelheiten in den AGB). Keine Steuer- oder Rechtsberatung.";
+  "Preise netto zzgl. 19 % USt, nur für Unternehmen. Jede weitere Firma buchen Sie gesondert. Keine Steuer- oder Rechtsberatung.";
 
 export const SV_KAUF_WECHSEL =
   "Ihre 6 Angaben übernehmen wir in den Fragebogen. Der Fragebogen ist kostenlos, Sie zahlen erst nach der letzten Frage.";
 
-export const SV_WECHSEL_LINK = "Stattdessen kostenlos mit dem Fragebogen beginnen";
+export const SV_WECHSEL_LINK = "Jetzt doch direkt mit der kompletten Verfahrensdokumentation beginnen";
+
+/** Widerspruchshinweis unter der SV-Zusammenfassung und in den SV-Mails. Ohne den Basistarif-Zusatz (Philip 24.11.). */
+export const SV_OFFER_OBJECTION_NOTICE =
+  "Der Verwendung Ihrer E-Mail-Adresse für Angebote eigener ähnlicher Leistungen (z. B. das Jahrespaket) können Sie jederzeit widersprechen, z. B. per E-Mail an info@gobd-doku-erstellen.de.";
 
 export const SV_DANKE_TITEL = "Ihre Standardfassung steht zum Download bereit.";
 

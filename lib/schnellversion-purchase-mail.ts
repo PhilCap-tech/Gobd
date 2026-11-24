@@ -6,8 +6,7 @@
 import { checkoutReturnBaseUrl } from "@/lib/env";
 import { automatedRunForbidsLiveWrites } from "@/lib/live-write-guard";
 import { escapeHtml, wrapTransactionalText } from "@/lib/mail-layout";
-import { PLAN_OFFER_OBJECTION_NOTICE } from "@/lib/plan-copy";
-import { addSvDays, formatSvDate, SV_DOWNLOAD_DAYS } from "@/lib/schnellversion-copy";
+import { addSvDays, formatSvDate, SV_DOWNLOAD_DAYS, SV_OFFER_OBJECTION_NOTICE } from "@/lib/schnellversion-copy";
 
 type FlagEnv = Record<string, string | undefined>;
 
@@ -48,7 +47,7 @@ export function purchaseMail(input: {
     ``,
     `Die AGB können Sie speichern: ${agb}`,
     ``,
-    PLAN_OFFER_OBJECTION_NOTICE,
+    SV_OFFER_OBJECTION_NOTICE,
   ].join("\n");
   const text = wrapTransactionalText(body);
   const html = `<p>${escapeHtml(body).replaceAll("\n\n", "</p><p>").replaceAll("\n", "<br>")}</p>`;

@@ -136,7 +136,7 @@ export const PLAN_PACKAGE_INTRO = "";
 /** Wortlaut Legal (legal/checkout-konto-saetze.md, 26.10. 15:20), Pflicht-Checkbox, nicht vorangekreuzt. */
 export const PLAN_TERMS_LABEL_BEFORE = "Ich akzeptiere die ";
 export const PLAN_TERMS_LINK = "Allgemeinen Geschäftsbedingungen";
-export const PLAN_TERMS_LABEL_AFTER = " der IKAT GmbH.";
+export const PLAN_TERMS_LABEL_AFTER = ".";
 export const PLAN_TERMS_HREF = "/agb";
 /** Darunter, ohne Checkbox (nur Link, keine Einwilligung). */
 export const PLAN_PRIVACY_BEFORE = "Informationen zur Verarbeitung Ihrer Daten finden Sie in der ";

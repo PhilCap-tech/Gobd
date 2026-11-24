@@ -22,10 +22,10 @@ import {
   SV_KAUF_UNTERNEHMER,
   SV_KAUF_WECHSEL,
   SV_WECHSEL_LINK,
+  SV_OFFER_OBJECTION_NOTICE,
   SV_CHECKOUT_START_FAILED,
 } from "@/lib/schnellversion-copy";
 import {
-  PLAN_OFFER_OBJECTION_NOTICE,
   PLAN_TERMS_HREF,
   PLAN_TERMS_LABEL_AFTER,
   PLAN_TERMS_LABEL_BEFORE,
@@ -191,7 +191,9 @@ export function SchnellversionKauf() {
           </tbody>
         </table>
         <p>
-          {SV_KAUF_WECHSEL}{" "}
+          {SV_KAUF_WECHSEL}
+        </p>
+        <p className={styles.wechselLink}>
           <Link
             href="/checkout"
             onClick={() => {
@@ -205,7 +207,7 @@ export function SchnellversionKauf() {
       </section>
       <section className={styles.buy}>
         <p className={styles.objection} id="email-objection">
-          {PLAN_OFFER_OBJECTION_NOTICE}
+          {SV_OFFER_OBJECTION_NOTICE}
         </p>
         <button className="btn" type="button" onClick={() => void buy()} disabled={pending}>
           {SV_KAUF_BUTTON}

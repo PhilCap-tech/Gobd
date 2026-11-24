@@ -218,6 +218,10 @@
   color: inherit;
 }
 
+.wechselLink {
+  margin-top: 22px;
+}
+
 .buy {
   max-width: 680px;
   margin: 28px auto 48px;

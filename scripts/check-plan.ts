@@ -422,7 +422,7 @@ async function main() {
   await check("Checkout v2: AGB-Pflichtbox (Wortlaut Legal), DSE nur Link, Zeitpunkt in Metadaten", async () => {
     assert.equal(
       `${planCopy.PLAN_TERMS_LABEL_BEFORE}${planCopy.PLAN_TERMS_LINK}${planCopy.PLAN_TERMS_LABEL_AFTER}`,
-      "Ich akzeptiere die Allgemeinen Geschäftsbedingungen der IKAT GmbH.",
+      "Ich akzeptiere die Allgemeinen Geschäftsbedingungen.",
     );
     assert.equal(planCopy.PLAN_TERMS_LINK, "Allgemeinen Geschäftsbedingungen");
     assert.equal(planCopy.PLAN_TERMS_HREF, "/agb");

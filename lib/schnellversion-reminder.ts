@@ -5,8 +5,7 @@
  */
 
 import { escapeHtml, wrapTransactionalText } from "@/lib/mail-layout";
-import { PLAN_OFFER_OBJECTION_NOTICE } from "@/lib/plan-copy";
-import { formatSvDate, SV_DOWNLOAD_DAYS } from "@/lib/schnellversion-copy";
+import { formatSvDate, SV_DOWNLOAD_DAYS, SV_OFFER_OBJECTION_NOTICE } from "@/lib/schnellversion-copy";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 import type { SvPurchase } from "@/lib/schnellversion-record";
 
@@ -53,7 +52,7 @@ export function reminderMail(input: { company: string; purchasedAt: string; opte
         `Für ${company} enden der PDF-Download der Standardfassung und die Anrechnung der 49 € am ${until}.`,
         `Danach ist der Download gesperrt. Die Verfahrensdokumentation aus Ihren eigenen Angaben erstellen Sie im Fragebogen.`,
         ``,
-        PLAN_OFFER_OBJECTION_NOTICE,
+        SV_OFFER_OBJECTION_NOTICE,
         ``,
         `Keine Steuer- oder Rechtsberatung.`,
       ];
