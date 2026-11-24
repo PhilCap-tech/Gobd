@@ -1074,7 +1074,10 @@ function questionIssues(
     entry.status === "bestaetigt"
       ? orderSuggestionKeys(
           question.fields.map((field) => field.key),
-          unconfirmedSuggestionKeys(entry),
+          unconfirmedSuggestionKeys(
+            entry,
+            question.fields.map((field) => field.key),
+          ),
         )
       : [];
   if (pendingSuggestions.length) {
@@ -1381,9 +1384,13 @@ export function confirmVorschlag(answers: IntakeAnswers, id: string): IntakeAnsw
   });
 }
 
-export function askVorschlag(answers: IntakeAnswers, id: string): IntakeAnswers {
+export function askVorschlag(
+  answers: IntakeAnswers,
+  id: string,
+  fieldKeys?: readonly string[],
+): IntakeAnswers {
   const current = catalogState(answers)[id] ?? {};
-  const keys = unconfirmedSuggestionKeys(current);
+  const keys = unconfirmedSuggestionKeys(current, fieldKeys);
   if (!keys.length) return answers;
   return touch(answers, id, { vorschlagRueckfrage: keys });
 }
@@ -1864,7 +1871,13 @@ export function catalogOpenPoints(answers: IntakeAnswers): CatalogOpenPoint[] {
         const point = pointFor(question.id);
         if (!points.some((item) => item.id === point.id)) points.push(point);
       }
-      if (status === "bestaetigt" && unconfirmedSuggestionKeys(state[question.id]).length) {
+      if (
+        status === "bestaetigt" &&
+        unconfirmedSuggestionKeys(
+          state[question.id],
+          question.fields.map((field) => field.key),
+        ).length
+      ) {
         const point = pointFor(question.id);
         if (!points.some((item) => item.id === point.id)) points.push(point);
       }
@@ -2741,7 +2754,12 @@ function summaryBits(
     asList(valuesOf(state, "C01").kanaele),
     asList(valuesOf(state, "A02").belegartenScope),
   );
-  const pending = new Set(unconfirmedSuggestionKeys(entry));
+  const pending = new Set(
+    unconfirmedSuggestionKeys(
+      entry,
+      question.fields.map((field) => field.key),
+    ),
+  );
   const keepFiktiv = isMusterSample(answers);
   const bits = question.fields.map((field) => {
     // Systemkarten stehen einmal, strukturiert, über presentationBits.

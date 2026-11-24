@@ -173,13 +173,24 @@ export type SuggestionEntry = {
   status?: string;
 };
 
+/** Schlüssel, die die Frage nicht hat, zählen nicht als Vorschlag. */
+function suggestionKeyVisible(key: string, fieldKeys?: readonly string[]): boolean {
+  return !fieldKeys || fieldKeys.includes(key);
+}
+
 /** Felder, deren Wert noch genau der unveränderte Vorschlag ist und nicht bestätigt wurde. */
-export function unconfirmedSuggestionKeys(entry: SuggestionEntry | undefined): string[] {
+export function unconfirmedSuggestionKeys(
+  entry: SuggestionEntry | undefined,
+  fieldKeys?: readonly string[],
+): string[] {
   const suggested = entry?.vorschlag ?? {};
   const ok = new Set(entry?.vorschlagOk ?? []);
   const values = entry?.values ?? {};
   return Object.keys(suggested).filter(
-    (key) => sameSuggestion(suggested[key], values[key]) && !ok.has(key),
+    (key) =>
+      suggestionKeyVisible(key, fieldKeys) &&
+      sameSuggestion(suggested[key], values[key]) &&
+      !ok.has(key),
   );
 }
 
@@ -193,10 +204,15 @@ export function suggestionConfirmed(entry: SuggestionEntry | undefined): boolean
 }
 
 /** Vorschlag, dessen Wert noch genau so dasteht, bestätigt oder nicht. */
-export function matchingSuggestionKeys(entry: SuggestionEntry | undefined): string[] {
+export function matchingSuggestionKeys(
+  entry: SuggestionEntry | undefined,
+  fieldKeys?: readonly string[],
+): string[] {
   const suggested = entry?.vorschlag ?? {};
   const values = entry?.values ?? {};
-  return Object.keys(suggested).filter((key) => sameSuggestion(suggested[key], values[key]));
+  return Object.keys(suggested).filter(
+    (key) => suggestionKeyVisible(key, fieldKeys) && sameSuggestion(suggested[key], values[key]),
+  );
 }
 
 export function fieldIsUnconfirmedSuggestion(entry: SuggestionEntry | undefined, key: string): boolean {
@@ -219,10 +235,13 @@ export function orderSuggestionKeys(fieldOrder: readonly string[], keys: readonl
 }
 
 /** Offene Rückfrage nur für Felder, die noch unverändert sind. Boolesche Altdaten zählen nicht. */
-export function openSuggestionKeys(entry: SuggestionEntry | undefined): string[] {
+export function openSuggestionKeys(
+  entry: SuggestionEntry | undefined,
+  fieldKeys?: readonly string[],
+): string[] {
   const raw = entry?.vorschlagRueckfrage;
   if (!Array.isArray(raw)) return [];
-  const pending = new Set(unconfirmedSuggestionKeys(entry));
+  const pending = new Set(unconfirmedSuggestionKeys(entry, fieldKeys));
   return raw.filter((key) => pending.has(key));
 }
 
@@ -237,9 +256,12 @@ export function vorschlagOkAfterValueEdit(
 }
 
 /** Fortschritt: ein unbestätigter Vorschlag zählt nicht als beantwortet. */
-export function suggestionCountsAsAnswered(entry: SuggestionEntry | undefined): boolean {
+export function suggestionCountsAsAnswered(
+  entry: SuggestionEntry | undefined,
+  fieldKeys?: readonly string[],
+): boolean {
   if (!entry) return false;
-  const pending = unconfirmedSuggestionKeys(entry);
+  const pending = unconfirmedSuggestionKeys(entry, fieldKeys);
   const hasOther = Object.entries(entry.values ?? {}).some(([key, value]) => {
     if (pending.includes(key)) return false;
     return valueFilled(value);

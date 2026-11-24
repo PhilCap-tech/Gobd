@@ -26,6 +26,8 @@ import { getGesamtMuster } from "@/lib/module-muster";
 import {
   AF01_ZUORDNUNG,
   applySoftwarePreset,
+  BRANCHEN_VORLAGEN,
+  SOFTWARE_PRESETS,
   derivedModulStatus,
   effectiveModulStatus,
   ensureGesamt,
@@ -238,6 +240,78 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
       assert.equal(fieldIsUnconfirmedSuggestion(confirmedE05.katalog?.E05, "systeme"), false);
     }
   }
+  function fieldKeys(id: string): string[] {
+    return question(id).fields.map((field) => field.key);
+  }
+  function withSuggestionsConfirmed(answers: IntakeAnswers): IntakeAnswers {
+    let next = answers;
+    for (const [id, entry] of Object.entries(next.katalog ?? {})) {
+      if (!entry?.vorschlag || !questionExists(id)) continue;
+      next = setCatalogStatus(next, id, "bestaetigt");
+    }
+    return next;
+  }
+  function questionExists(id: string): boolean {
+    return CATALOG_STEPS.some((step) => step.questions.some((item) => item.id === id));
+  }
+  function orphanSuggestionBlocks(answers: IntakeAnswers): string[] {
+    const hits: string[] = [];
+    for (let index = 0; index < CATALOG_STEPS.length; index += 1) {
+      for (const issue of catalogStepIssues(index, answers)) {
+        if (!issue.message.includes("Sie übernehmen den Vorschlag")) continue;
+        const keys = fieldKeys(issue.questionId);
+        if (!keys.includes(issue.fieldKey)) hits.push(`${issue.questionId}.${issue.fieldKey}`);
+      }
+    }
+    return hits;
+  }
+  for (const vorlage of BRANCHEN_VORLAGEN) {
+    const applied = withSuggestionsConfirmed(setVorlage(ensureGesamt(emptyAnswers()), vorlage.id));
+    assert.deepEqual(orphanSuggestionBlocks(applied), [], `${vorlage.id}: kein fremdes Vorschlagsfeld blockiert`);
+    for (const [id, entry] of Object.entries(applied.katalog ?? {})) {
+      if (!entry?.vorschlag || !questionExists(id)) continue;
+      const keys = fieldKeys(id);
+      for (const key of unconfirmedSuggestionKeys(entry, keys)) {
+        assert.ok(keys.includes(key), `${vorlage.id} ${id}.${key}`);
+      }
+    }
+  }
+  for (const preset of SOFTWARE_PRESETS) {
+    const applied = withSuggestionsConfirmed(applySoftwarePreset(ensureGesamt(emptyAnswers()), preset.id));
+    assert.deepEqual(orphanSuggestionBlocks(applied), [], `${preset.id}: kein fremdes Vorschlagsfeld blockiert`);
+  }
+  const dienst = setVorlage(ensureGesamt(emptyAnswers()), "dienstleister");
+  assert.equal(typeof dienst.katalog?.AR01?.vorschlag?.nummernkreis, "string");
+  assert.equal(fieldKeys("AR01").includes("nummernkreis"), false);
+  assert.equal(unconfirmedSuggestionKeys(dienst.katalog?.AR01, fieldKeys("AR01")).includes("nummernkreis"), false);
+  assert.equal(typeof dienst.katalog?.AR04?.vorschlag?.abschlaege, "string");
+  assert.equal(fieldKeys("AR04").includes("abschlaege"), false);
+  assert.equal(typeof dienst.katalog?.BU07?.vorschlag?.umfang, "string");
+  assert.equal(fieldKeys("BU07").includes("umfang"), false);
+  assert.ok(Array.isArray(dienst.katalog?.ER01?.vorschlag?.formate));
+  assert.equal(fieldKeys("ER01").includes("formate"), false);
+  const handwerk = setVorlage(ensureGesamt(emptyAnswers()), "handwerk");
+  assert.equal(typeof handwerk.katalog?.AR04?.vorschlag?.abschlaege, "string");
+  let draft = ensureGesamt(emptyAnswers());
+  draft = {
+    ...draft,
+    katalog: {
+      AR01: {
+        status: "bestaetigt",
+        values: { nummernkreis: "Fortlaufend je Geschäftsjahr" },
+        vorschlag: { nummernkreis: "Fortlaufend je Geschäftsjahr" },
+      },
+    },
+  };
+  const reloadedDraft = JSON.parse(JSON.stringify(draft)) as IntakeAnswers;
+  assert.equal(
+    catalogStepIssues(
+      CATALOG_STEPS.findIndex((step) => step.questions.some((item) => item.id === "AR01")),
+      reloadedDraft,
+    ).some((issue) => issue.questionId === "AR01" && issue.message.includes("Sie übernehmen den Vorschlag")),
+    false,
+    "gespeicherter Entwurf mit fremdem Vorschlagsfeld blockiert nicht",
+  );
   assert.equal(p1SuggestionBlockId("B01"), "angabe-B01-karte");
   assert.equal(p1SuggestionBlockId("E05"), "angabe-E05-karte");
   assert.ok(ui.includes("id={p1SuggestionBlockId(questionId)}"));

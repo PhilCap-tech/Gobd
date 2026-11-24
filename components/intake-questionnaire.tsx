@@ -155,8 +155,8 @@ function P1SuggestionBlock({
   children: ReactNode;
 }) {
   const order = fields.map((field) => field.key);
-  const pending = orderSuggestionKeys(order, unconfirmedSuggestionKeys(entry));
-  const matching = orderSuggestionKeys(order, matchingSuggestionKeys(entry));
+  const pending = orderSuggestionKeys(order, unconfirmedSuggestionKeys(entry, order));
+  const matching = orderSuggestionKeys(order, matchingSuggestionKeys(entry, order));
   return (
     <div
       id={p1SuggestionBlockId(questionId)}
@@ -669,21 +669,30 @@ export function IntakeQuestionnaire({
                   allowEntfaellt={
                     question.allowEntfaellt === true || storedEntfaelltStatus(entry?.status)
                   }
+                  suggestionFieldKeys={question.fields.map((item) => item.key)}
                   suggestionPrompt={vorschlagRueckfrageText(
                     orderSuggestionKeys(
                       question.fields.map((item) => item.key),
-                      openSuggestionKeys(entry),
+                      openSuggestionKeys(
+                        entry,
+                        question.fields.map((item) => item.key),
+                      ),
                     ).map((key) => {
                       const field = question.fields.find((item) => item.key === key);
                       return fieldLabel(question.id, key, field?.label);
                     }),
                   )}
-                  suggestionOpen={openSuggestionKeys(entry).length > 0}
+                  suggestionOpen={
+                    openSuggestionKeys(
+                      entry,
+                      question.fields.map((item) => item.key),
+                    ).length > 0
+                  }
                   onAdjust={() => {
                     const order = question.fields.map((item) => item.key);
                     const key =
-                      orderSuggestionKeys(order, openSuggestionKeys(entry))[0] ??
-                      orderSuggestionKeys(order, unconfirmedSuggestionKeys(entry))[0];
+                      orderSuggestionKeys(order, openSuggestionKeys(entry, order))[0] ??
+                      orderSuggestionKeys(order, unconfirmedSuggestionKeys(entry, order))[0];
                     onChange(dismissVorschlag(answers, question.id));
                     if (!key && !P1_QUESTION_IDS.has(question.id)) return;
                     if (key) setAdjustField({ questionId: question.id, fieldKey: key });
@@ -718,13 +727,14 @@ export function IntakeQuestionnaire({
                     fields={question.fields}
                     highlight={
                       adjustField?.questionId === question.id &&
-                      unconfirmedSuggestionKeys(entry).length > 0
+                      unconfirmedSuggestionKeys(
+                        entry,
+                        question.fields.map((item) => item.key),
+                      ).length > 0
                     }
                     onConfirm={(confirmed) => {
-                      const keys = orderSuggestionKeys(
-                        question.fields.map((item) => item.key),
-                        matchingSuggestionKeys(entry),
-                      );
+                      const order = question.fields.map((item) => item.key);
+                      const keys = orderSuggestionKeys(order, matchingSuggestionKeys(entry, order));
                       let next = answers;
                       for (const key of keys) next = setVorschlagFieldOk(next, question.id, key, confirmed);
                       onChange(next);
@@ -760,7 +770,10 @@ export function IntakeQuestionnaire({
                         ? Boolean(gfName) && asText(values.zustaendigkeiten).includes(`Geschäftsleitung: ${gfName}`)
                         : matchesPrefill(values[field.key], source);
                     const suggestionField = fieldIsUnconfirmedSuggestion(entry, field.key);
-                    const suggestionMatches = matchingSuggestionKeys(entry).includes(field.key);
+                    const suggestionMatches = matchingSuggestionKeys(
+                      entry,
+                      question.fields.map((item) => item.key),
+                    ).includes(field.key);
                     const highlighted =
                       suggestionField &&
                       adjustField?.questionId === question.id &&

@@ -952,13 +952,15 @@ export function modulFortschritt(answers: IntakeAnswers, modulId: string): { bea
   const modul = modulById(modulId);
   if (!modul) return { beantwortet: 0, gesamt: 0, offen: 0 };
   const state = answers.katalog ?? {};
-  const ids = [...new Set([...modulFragen(modul).map((question) => question.id), ...modul.catalogIds])];
+  const questions = modulFragen(modul);
+  const ids = [...new Set([...questions.map((question) => question.id), ...modul.catalogIds])];
+  const fieldKeys = new Map(questions.map((question) => [question.id, question.fields.map((field) => field.key)]));
   let beantwortet = 0;
   let offen = 0;
   for (const id of ids) {
     const entry = state[id];
     if (entry?.status === "unbekannt") offen += 1;
-    if (suggestionCountsAsAnswered(entry)) beantwortet += 1;
+    if (suggestionCountsAsAnswered(entry, fieldKeys.get(id))) beantwortet += 1;
   }
   return { beantwortet, gesamt: ids.length, offen };
 }

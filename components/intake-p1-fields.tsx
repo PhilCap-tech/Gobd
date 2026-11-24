@@ -1319,6 +1319,7 @@ export function ProcessStatus({
   allowEntfaellt = false,
   suggestionPrompt = "",
   suggestionOpen = false,
+  suggestionFieldKeys,
   onAdjust,
 }: {
   questionId: string;
@@ -1329,6 +1330,7 @@ export function ProcessStatus({
   allowEntfaellt?: boolean;
   suggestionPrompt?: string;
   suggestionOpen?: boolean;
+  suggestionFieldKeys?: readonly string[];
   onAdjust?: () => void;
 }) {
   const entry = answers.katalog?.[questionId];
@@ -1366,8 +1368,8 @@ export function ProcessStatus({
                       onChange(clearCatalogStatus(answers, questionId));
                       return;
                     }
-                    if (status === "bestaetigt" && unconfirmedSuggestionKeys(entry).length) {
-                      onChange(askVorschlag(answers, questionId));
+                    if (status === "bestaetigt" && unconfirmedSuggestionKeys(entry, suggestionFieldKeys).length) {
+                      onChange(askVorschlag(answers, questionId, suggestionFieldKeys));
                       return;
                     }
                     if (status === "nicht_zutreffend") {
