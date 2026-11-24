@@ -69,7 +69,7 @@ export function syncSvArm(): SvArm | null {
   const marketing = hasMarketingConsent();
   const arm = decideSvArm({
     marketing,
-    existing: readArmCookie(),
+    existing: marketing ? readArmCookie() : null,
     roll: Math.random(),
   });
   if (!arm) {
@@ -92,6 +92,8 @@ export async function postSvVisit(): Promise<void> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "sv_visit" }),
       keepalive: true,
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
     });
   } catch {
     /* Die Messung hält die Seite nicht auf. */
