@@ -12,6 +12,8 @@ import { CATALOG_STEPS, nextApplicableStep } from "../lib/intake-catalog";
 import { M01_PAGE_IDS } from "../lib/intake-m01";
 import {
   GUEST_ADOPT_BROWSER_LABEL,
+  GUEST_ADOPT_LOCK_NAME,
+  GUEST_ADOPT_MARKER_MAX_AGE_MS,
   GUEST_CONFLICT_PROMPT,
   GUEST_DEVICE_NOTICE,
   GUEST_DRAFT_LIMIT_HINT,
@@ -32,7 +34,10 @@ import {
   planGuestAdoption,
   readGuestDraftSnapshot,
   removeGuestDraftEntry,
+  runGuestAdoptAttempt,
   sweepIntakeDraftsOnView,
+  type GuestAdoptFacts,
+  type GuestAdoptLock,
   transferDraftAnswers,
   transferModuleUpload,
 } from "../lib/guest-start";
@@ -407,6 +412,187 @@ async function main() {
   for (const file of ["components/guest-draft-adopt.tsx", "components/intake-draft-sweep.tsx", "app/intake/intake-form.tsx"]) {
     assert.ok(!read(file).includes("position: fixed"), `${file}: Hinweis überdeckt keine Schaltfläche`);
   }
+
+  const adoptFacts: GuestAdoptFacts = {
+    status: "ready",
+    draftKey: "email:gast@firma.de:default:gesamt",
+    email: "gast@firma.de",
+    entityId: "",
+    modus: "gesamt",
+    targetExists: false,
+    targetRevision: 0,
+    openUnpaidCount: 0,
+  };
+  function mutex(): GuestAdoptLock {
+    let chain = Promise.resolve();
+    return (task) => {
+      const previous = chain;
+      let release = () => undefined as void;
+      chain = new Promise((resolve) => {
+        release = resolve;
+      });
+      return previous.then(async () => {
+        try {
+          return await task();
+        } finally {
+          release();
+        }
+      });
+    };
+  }
+  const raceStorage = new MemoryStorage();
+  const raceNow = Date.parse("2026-11-24T00:00:00.000Z");
+  raceStorage.setItem(
+    guestLocalDraftKey(),
+    JSON.stringify({ answers: { firma: "Gleichzeitig" }, step: 2, savedAt: new Date(raceNow).toISOString(), revision: 4 }),
+  );
+  let racePuts = 0;
+  const raceLock = mutex();
+  const [firstTab, secondTab] = await Promise.all([
+    runGuestAdoptAttempt({
+      storage: raceStorage,
+      now: () => raceNow,
+      facts: adoptFacts,
+      lock: raceLock,
+      intent: "mount",
+      put: async (draft) => {
+        racePuts += 1;
+        assert.equal("adoptStartedAt" in draft, false, "der Marker geht nicht in den Entwurf");
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        return true;
+      },
+      remove: () => removeGuestDraftEntry(raceStorage),
+      commit: commitGuestAdoption,
+    }),
+    runGuestAdoptAttempt({
+      storage: raceStorage,
+      now: () => raceNow,
+      facts: adoptFacts,
+      lock: raceLock,
+      intent: "mount",
+      put: async () => {
+        racePuts += 1;
+        return true;
+      },
+      remove: () => removeGuestDraftEntry(raceStorage),
+      commit: commitGuestAdoption,
+    }),
+  ]);
+  assert.equal(racePuts, 1, "zwei Tabs lösen genau ein PUT aus");
+  assert.equal(raceStorage.getItem(guestLocalDraftKey()), null, "der Gast-Eintrag wird einmal entfernt");
+  const raceStatuses = [firstTab.status, secondTab.status].sort();
+  assert.deepEqual(raceStatuses, ["adopted", "already-adopted"]);
+  const waited = firstTab.status === "already-adopted" ? firstTab : secondTab;
+  assert.equal(waited.refresh, true, "der wartende Tab lädt neu und zeigt keinen Dialog");
+  assert.notEqual(waited.status, "ask");
+
+  const alone = new MemoryStorage();
+  alone.setItem(guestLocalDraftKey(), JSON.stringify({ answers: { firma: "Einzeln" }, step: 1, savedAt: new Date(raceNow).toISOString(), revision: 1 }));
+  let alonePuts = 0;
+  const aloneResult = await runGuestAdoptAttempt({
+    storage: alone,
+    now: () => raceNow,
+    facts: adoptFacts,
+    lock: mutex(),
+    intent: "mount",
+    put: async () => {
+      alonePuts += 1;
+      return true;
+    },
+    remove: () => removeGuestDraftEntry(alone),
+    commit: commitGuestAdoption,
+  });
+  assert.equal(aloneResult.status, "adopted", "ein Tab übernimmt weiter wie bisher");
+  assert.equal(alonePuts, 1);
+  assert.equal(aloneResult.refresh, false);
+
+  const marked = new MemoryStorage();
+  const freshMarker = `${raceNow - 1000}:anderer-tab`;
+  marked.setItem(
+    guestLocalDraftKey(),
+    JSON.stringify({
+      answers: { firma: "Marker" },
+      step: 1,
+      savedAt: new Date(raceNow).toISOString(),
+      revision: 1,
+      adoptStartedAt: freshMarker,
+    }),
+  );
+  let markerPuts = 0;
+  const blockedByMarker = await runGuestAdoptAttempt({
+    storage: marked,
+    now: () => raceNow,
+    facts: adoptFacts,
+    lock: null,
+    intent: "mount",
+    put: async () => {
+      markerPuts += 1;
+      return true;
+    },
+    remove: () => removeGuestDraftEntry(marked),
+    commit: commitGuestAdoption,
+  });
+  assert.equal(markerPuts, 0, "ein frischer Marker blockt den zweiten Versuch");
+  assert.equal(blockedByMarker.status, "already-adopted");
+  assert.equal(blockedByMarker.refresh, true);
+  assert.equal(marked.getItem(guestLocalDraftKey())?.includes(freshMarker), true, "der blockierte Tab lässt den Eintrag liegen");
+
+  const stale = new MemoryStorage();
+  stale.setItem(
+    guestLocalDraftKey(),
+    JSON.stringify({
+      answers: { firma: "Alt" },
+      step: 1,
+      savedAt: new Date(raceNow).toISOString(),
+      revision: 2,
+      adoptStartedAt: `${raceNow - GUEST_ADOPT_MARKER_MAX_AGE_MS - 1000}:abgestuerzt`,
+    }),
+  );
+  let stalePuts = 0;
+  const staleResult = await runGuestAdoptAttempt({
+    storage: stale,
+    now: () => raceNow,
+    facts: adoptFacts,
+    lock: null,
+    intent: "mount",
+    put: async (draft) => {
+      stalePuts += 1;
+      assert.equal("adoptStartedAt" in draft, false);
+      assert.equal(JSON.stringify(draft).includes("adoptStartedAt"), false);
+      return true;
+    },
+    remove: () => removeGuestDraftEntry(stale),
+    commit: commitGuestAdoption,
+  });
+  assert.equal(stalePuts, 1, "ein abgelaufener Marker blockt nicht");
+  assert.equal(staleResult.status, "adopted");
+  assert.equal(stale.getItem(guestLocalDraftKey()), null);
+
+  const sweepMarked = new MemoryStorage();
+  sweepMarked.setItem(
+    guestLocalDraftKey(),
+    JSON.stringify({
+      answers: { firma: "alt" },
+      savedAt: new Date(raceNow - 40 * 24 * 60 * 60 * 1000).toISOString(),
+      adoptStartedAt: `${raceNow}:x`,
+    }),
+  );
+  sweepIntakeDraftsOnView([sweepMarked], raceNow);
+  assert.equal(sweepMarked.getItem(guestLocalDraftKey()), null, "der Marker ändert den 30-Tage-Lauf nicht");
+  const keptMarked = new MemoryStorage();
+  keptMarked.setItem(
+    guestLocalDraftKey(),
+    JSON.stringify({ answers: { firma: "neu" }, savedAt: new Date(raceNow).toISOString(), adoptStartedAt: `${raceNow}:x` }),
+  );
+  const stripped = readGuestDraftSnapshot(keptMarked, raceNow);
+  assert.equal(stripped?.answers && "firma" in (stripped.answers as { firma?: string }), true);
+  assert.equal(stripped && "adoptStartedAt" in stripped, false, "Leser ignorieren den Marker");
+
+  assert.ok(adoptUi.includes("navigator.locks"), "die Übernahme nimmt das Web Lock");
+  assert.ok(adoptUi.includes(`locks.request(${"GUEST_ADOPT_LOCK_NAME"}`), "exklusiv und wartend, ohne ifAvailable");
+  assert.ok(!adoptUi.includes("ifAvailable"));
+  assert.ok(adoptUi.includes("router.refresh"), "der wartende Tab lädt die Server-Ansicht einmal neu");
+  assert.equal(GUEST_ADOPT_LOCK_NAME, "gobd-guest-adopt");
 
   if (savedGuest === undefined) delete process.env.INTAKE_GUEST_START_ENABLED;
   else process.env.INTAKE_GUEST_START_ENABLED = savedGuest;
