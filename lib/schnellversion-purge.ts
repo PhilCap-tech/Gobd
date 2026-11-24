@@ -46,15 +46,16 @@ export type SvPurgeResult = {
   dryRun: boolean;
 };
 
-/** Ohne Schalter Dry-Run. PDF und Token nach 30 Tagen, der Datensatz nach 12 Monaten. */
+/** Ohne Schalter oder mit `dryRun` nur zählen. PDF und Token nach 30 Tagen, der Datensatz nach 12 Monaten. */
 export async function runSvPurge(
   rows: SvPurchase[],
   now: Date,
   env: FlagEnv = process.env,
+  opts: { dryRun?: boolean } = {},
 ): Promise<SvPurgeResult> {
   const delivery = rows.filter((row) => svPurgeDue(row.purchasedAt, now) && (row.pdfPath.trim() || row.downloadTokenHash.trim()));
   const records = rows.filter((row) => svRecordPurgeDue(row.purchasedAt, now));
-  if (!schnellversionPurgeEnabled(env)) {
+  if (!schnellversionPurgeEnabled(env) || opts.dryRun) {
     return { due: delivery.length, deleted: 0, recordsDue: records.length, recordsDeleted: 0, dryRun: true };
   }
   let deleted = 0;
@@ -69,12 +70,13 @@ export async function runSvPurge(
   return { due: delivery.length, deleted, recordsDue: records.length, recordsDeleted, dryRun: false };
 }
 
-/** Ohne Schalter kein Lesen und kein Löschen. */
+/** Ohne Schalter kein Lesen und kein Löschen. Mit `dryRun` (Trockenlauf) nur zählen. */
 export async function runScheduledSvPurge(
   now: Date = new Date(),
   env: FlagEnv = process.env,
   list: () => Promise<SvPurchase[]> = listAllSvPurchases,
+  opts: { dryRun?: boolean } = {},
 ): Promise<SvPurgeResult | null> {
   if (!schnellversionPurgeEnabled(env)) return null;
-  return runSvPurge(await list(), now, env);
+  return runSvPurge(await list(), now, env, opts);
 }
