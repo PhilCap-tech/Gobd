@@ -2465,6 +2465,85 @@ function fillText(
   katalog[id] = { ...entry, values };
 }
 
+
+function uo01StoredText(value: unknown): string {
+  return listFieldDisplay(value).trim();
+}
+
+function uo01FormLine(a01: Record<string, unknown> | undefined): string {
+  const rechtsform = asText(a01?.rechtsform);
+  const rechtsformFrei = asText(a01?.rechtsformFreitext);
+  return rechtsform === RECHTSFORM_FREITEXT ? rechtsformFrei : rechtsform;
+}
+
+function uo01GesellschaftenMirror(a01: Record<string, unknown> | undefined, firm?: FirmFacts): string {
+  const formLine = uo01FormLine(a01);
+  return [
+    asText(a01?.company),
+    formLine ? `Rechtsform: ${formLine}` : "",
+    firm?.stnr?.trim() ? `Steuernummer: ${firm.stnr.trim()}` : "",
+    firm?.ustId?.trim() ? `USt-IdNr.: ${firm.ustId.trim()}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function uo01GesellschaftenWithoutName(a01: Record<string, unknown> | undefined, firm?: FirmFacts): string {
+  const formLine = uo01FormLine(a01);
+  return [
+    formLine ? `Rechtsform: ${formLine}` : "",
+    firm?.stnr?.trim() ? `Steuernummer: ${firm.stnr.trim()}` : "",
+    firm?.ustId?.trim() ? `USt-IdNr.: ${firm.ustId.trim()}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function uo01StandorteMirror(a01: Record<string, unknown> | undefined): string {
+  return listFieldDisplay(a01?.standort).trim() || asText(a01?.standort);
+}
+
+/** Load repair: only 1–3 character prefixes of the current mirror or of its name/location part. */
+function isShortUo01Artifact(stored: string, mirror: string, part?: string): boolean {
+  const current = stored.trim();
+  const full = mirror.trim();
+  if (!current || !full || current === full) return false;
+  const length = Array.from(current).length;
+  if (length < 1 || length > 3) return false;
+  if (full.startsWith(current)) return true;
+  const piece = (part ?? "").trim();
+  return Boolean(piece) && piece !== current && piece.startsWith(current) && Array.from(piece).length > length;
+}
+
+function fillUo01Mirror(
+  katalog: CatalogState,
+  key: "gesellschaften" | "standorte",
+  nextValue: string,
+  previousValue: string | undefined,
+  parts?: { nameOrLocation?: string; nameless?: string; companyPresent?: boolean },
+): void {
+  const entry = katalog.UO01 ?? {};
+  const current = entry.values?.[key];
+  if (valueEmpty(current) && entry.cleared?.includes(key)) return;
+  const stored = uo01StoredText(current);
+  const next = nextValue.trim();
+  const prior = previousValue?.trim() ?? "";
+  const followsPrevious = Boolean(prior) && stored === prior;
+  const shortArtifact = Boolean(next) && isShortUo01Artifact(stored, next, parts?.nameOrLocation);
+  const nameless =
+    key === "gesellschaften" &&
+    Boolean(parts?.companyPresent) &&
+    Boolean(parts?.nameless?.trim()) &&
+    stored === parts?.nameless?.trim();
+  if (!valueEmpty(current) && !followsPrevious && !shortArtifact && !nameless) return;
+  if (!next && !followsPrevious) return;
+  if (stored === next) return;
+  const values = { ...(entry.values ?? {}) };
+  if (!next) delete values[key];
+  else values[key] = next;
+  katalog.UO01 = { ...entry, values };
+}
+
 function fillRaw(
   katalog: CatalogState,
   id: string,
@@ -2647,20 +2726,17 @@ export function prefillKnownFacts(
   }
   fillText(katalog, "BA01", "konten", stamm.bank, undefined, previousStamm?.bank);
 
-  const company = asText(a01().company);
-  const rechtsform = asText(a01().rechtsform);
-  const rechtsformFrei = asText(a01().rechtsformFreitext);
-  const formLine = rechtsform === RECHTSFORM_FREITEXT ? rechtsformFrei : rechtsform;
-  const gesellschaften = [
-    company,
-    formLine ? `Rechtsform: ${formLine}` : "",
-    firm?.stnr?.trim() ? `Steuernummer: ${firm.stnr.trim()}` : "",
-    firm?.ustId?.trim() ? `USt-IdNr.: ${firm.ustId.trim()}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-  fillText(katalog, "UO01", "gesellschaften", gesellschaften);
-  fillText(katalog, "UO01", "standorte", asText(a01().standort));
+  const prevA01 = previousAnswers?.katalog?.A01?.values;
+  const gesellschaften = uo01GesellschaftenMirror(a01(), firm);
+  const standorte = uo01StandorteMirror(a01());
+  fillUo01Mirror(katalog, "gesellschaften", gesellschaften, previousAnswers ? uo01GesellschaftenMirror(prevA01, firm) : undefined, {
+    nameOrLocation: asText(a01().company),
+    nameless: uo01GesellschaftenWithoutName(a01(), firm),
+    companyPresent: Boolean(asText(a01().company)),
+  });
+  fillUo01Mirror(katalog, "standorte", standorte, previousAnswers ? uo01StandorteMirror(prevA01) : undefined, {
+    nameOrLocation: standorte,
+  });
 
   const activities = asList(a01().branchen).filter((item) => item !== TAETIGKEIT_FREITEXT);
   const activityFree = asText(a01().branchenFreitext);

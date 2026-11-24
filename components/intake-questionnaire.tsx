@@ -17,7 +17,6 @@ import {
   vorschlagRueckfrageText,
 } from "@/lib/modul-verstaendnis";
 import {
-  applyDerivedStatus,
   dismissVorschlag,
   listFieldDisplay,
   setVorschlagFieldOk,
@@ -29,7 +28,6 @@ import {
   intakeStepLabel,
   standortPrefillLine,
   MODUL_UEBERSICHT_STEP_ID,
-  prefillKnownFacts,
   setCatalogValue,
   SPECIAL_STEP_IDS,
   visibleCatalogQuestions,
@@ -37,6 +35,7 @@ import {
   type CatalogIssue,
   type FirmFacts,
 } from "@/lib/intake-catalog";
+import { applyAnswerFieldChange } from "@/lib/intake-field-change";
 import { BetriebsCheckStep, ModulUebersichtStep } from "@/components/betriebs-check";
 import { IntakeStepHeading } from "@/components/intake-step-heading";
 import { P1_QUESTION_IDS, P1QuestionFields, ProcessStatus } from "@/components/intake-p1-fields";
@@ -57,7 +56,6 @@ import {
   isControlQuestionId,
   isKeineKontrolleValues,
   KEINE_REGELMAESSIGE_KONTROLLE,
-  normalizeExclusiveSelection,
 } from "@/lib/keine-angaben";
 import { M01_PAGE_HINT } from "@/lib/intake-m01";
 import { INTAKE_STEPS } from "@/lib/intake-questions";
@@ -571,28 +569,7 @@ export function IntakeQuestionnaire({
   const stepLabel = intakeStepLabel(step, answers);
 
   function commitValue(questionId: string, key: string, value: unknown) {
-    let stored = value;
-    if (
-      key === "kontrollen" &&
-      Array.isArray(value) &&
-      value.every((item) => typeof item === "string")
-    ) {
-      stored = normalizeExclusiveSelection(value.map((item) => String(item)), KEINE_REGELMAESSIGE_KONTROLLE);
-    }
-    let next = setCatalogValue(answers, questionId, key, stored);
-    if (
-      key === "kontrollen" &&
-      Array.isArray(stored) &&
-      stored.length === 1 &&
-      stored[0] === KEINE_REGELMAESSIGE_KONTROLLE
-    ) {
-      next = setCatalogValue(next, questionId, "details", "");
-    }
-    if (questionId === "A03") next = applyDerivedStatus(next, questionId);
-    if (questionId === "A01") {
-      next = prefillKnownFacts(next, firm, { protect: [[questionId, key]] });
-    }
-    onChange(next);
+    onChange(applyAnswerFieldChange(answers, questionId, key, value, firm));
   }
 
   return (
