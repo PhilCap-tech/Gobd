@@ -3,7 +3,12 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ampelNoEmailEnvEnabled } from "@/lib/ampel-v2-flag";
-import { extraFirmsEnabled, isPricingV2, retentionDeleteEnabled } from "@/lib/pricing-model";
+import {
+  extraFirmsEnabled,
+  intakeGuestStartEnabled,
+  isPricingV2,
+  retentionDeleteEnabled,
+} from "@/lib/pricing-model";
 import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
 
 /**
@@ -15,6 +20,8 @@ import { schnellversion49Enabled } from "@/lib/schnellversion-flag";
  * bzw. Ampel ohne E-Mail aktiv. Die Cookie-Zeile gobd_ampel_shown steht nur bei ausgeschaltetem Flag (Freigabe 30.10. 18:57).
  * `schnellversion` (SCHNELLVERSION_49_ENABLED): Ergänzungen zur Schnellversion in AGB, DSE und Cookie-Richtlinie.
  * `schnellversion-off`: der bisherige Wortlaut, wenn das Flag aus ist.
+ * `gaststart` (INTAKE_GUEST_START_ENABLED): Fragebogen ohne Anmeldung in DSE § 17 und der Cookie-Zeile.
+ * `gaststart-off`: der bisherige Wortlaut, wenn das Flag aus ist.
  * Nicht verschachteln: jeder Block steht für sich.
  * Ohne Schalter bleibt der bisherige Text wörtlich (nur die Marker fallen weg).
  */
@@ -29,6 +36,8 @@ export type LegalFlags = {
   "ampel-no-email": boolean;
   schnellversion: boolean;
   "schnellversion-off": boolean;
+  gaststart: boolean;
+  "gaststart-off": boolean;
 };
 
 export function legalFlagsFor(
@@ -37,6 +46,7 @@ export function legalFlagsFor(
   extraFirms = false,
   ampelNoEmail = false,
   schnellversion = false,
+  gaststart = false,
 ): LegalFlags {
   return {
     v2,
@@ -49,6 +59,8 @@ export function legalFlagsFor(
     "ampel-no-email": ampelNoEmail,
     schnellversion,
     "schnellversion-off": !schnellversion,
+    gaststart,
+    "gaststart-off": !gaststart,
   };
 }
 
@@ -59,6 +71,7 @@ export function legalFlags(): LegalFlags {
     extraFirmsEnabled(),
     ampelNoEmailEnvEnabled(),
     schnellversion49Enabled(),
+    intakeGuestStartEnabled(),
   );
 }
 

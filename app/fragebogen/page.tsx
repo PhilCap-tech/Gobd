@@ -2,14 +2,19 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { GuestDraftAdopt } from "@/components/guest-draft-adopt";
 import { IntakeForm } from "@/app/intake/intake-form";
 import { LoginForm } from "@/app/login/login-form";
 import { getSessionEmail } from "@/lib/auth";
 import { FRAGEBOGEN_PAKET_PATH, fragebogenEntitiesForQuery, fragebogenHref } from "@/lib/fragebogen";
 import { entityChoices } from "@/lib/entities";
 import { isStripeTestMode } from "@/lib/env";
+import { GUEST_LEAD, type GuestAdoptFacts } from "@/lib/guest-start";
+import { loadIntakeDraft } from "@/lib/intake-draft";
+import { draftIsEmpty, draftRevision, isUnpaidLoginDraft, normalizeDraftKey } from "@/lib/intake-draft-shared";
+import { listOpenDraftsForEmail } from "@/lib/open-drafts";
 import { PLAN_OFFER_OBJECTION_NOTICE } from "@/lib/plan-copy";
-import { intakeLoginFirstEnabled } from "@/lib/pricing-model";
+import { intakeGuestStartEnabled, intakeLoginFirstEnabled } from "@/lib/pricing-model";
 import { firstQueryValue } from "@/lib/query";
 import { listEntitiesByEmail } from "@/lib/store";
 
@@ -39,6 +44,27 @@ export default async function FragebogenPage({
   const initialStepId = /^step-[A-Za-z0-9]+$/.test(requestedSchritt) ? requestedSchritt : "";
   const focusModulId = /^m\d{2}$/.test(requestedModul) ? requestedModul : "";
   const email = await getSessionEmail();
+  const guestStart = intakeGuestStartEnabled();
+  if (!email && guestStart) {
+    return (
+      <>
+        <SiteHeader backHref="/" backLabel="← Zur Landing" />
+        <main className="wrap page">
+          <h1>Fragebogen kostenlos starten</h1>
+          <p className="lead">{GUEST_LEAD}</p>
+          <IntakeForm
+            session={{ email: "", company: "", stripeSessionId: "", stripeCustomerId: "", stub: false }}
+            firm={{ name: "" }}
+            gesamtMode
+            stripeTestMode={isStripeTestMode()}
+            prepayHref={FRAGEBOGEN_PAKET_PATH}
+            guestMode
+          />
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
   if (!email) {
     return (
       <>
@@ -64,23 +90,55 @@ export default async function FragebogenPage({
   // Eine fremde Id fällt auf die erste Firma zurück und wird nicht übernommen.
   const pick = fragebogenEntitiesForQuery(entities, requestedEntityId);
   const chosen = pick.entities[0];
+  const form = (
+    <IntakeForm
+      session={{ email, company: chosen?.name ?? "", stripeSessionId: "", stripeCustomerId: "", stub: false }}
+      firm={chosen ? { name: chosen.name, street: chosen.street, zip: chosen.zip, city: chosen.city, stnr: chosen.stnr, ustId: chosen.ustId } : { name: "" }}
+      entities={entityChoices(pick.entities)}
+      initialEntityId={pick.initialEntityId}
+      initialStepId={initialStepId}
+      focusModulId={focusModulId}
+      gesamtMode
+      stripeTestMode={isStripeTestMode()}
+      prepayHref={FRAGEBOGEN_PAKET_PATH}
+    />
+  );
   return (
     <>
       <SiteHeader backHref="/account" backLabel="← Zum Konto" />
       <main className="wrap page">
-        <IntakeForm
-          session={{ email, company: chosen?.name ?? "", stripeSessionId: "", stripeCustomerId: "", stub: false }}
-          firm={chosen ? { name: chosen.name, street: chosen.street, zip: chosen.zip, city: chosen.city, stnr: chosen.stnr, ustId: chosen.ustId } : { name: "" }}
-          entities={entityChoices(pick.entities)}
-          initialEntityId={pick.initialEntityId}
-          initialStepId={initialStepId}
-          focusModulId={focusModulId}
-          gesamtMode
-          stripeTestMode={isStripeTestMode()}
-          prepayHref={FRAGEBOGEN_PAKET_PATH}
-        />
+        {guestStart ? <GuestDraftAdopt facts={await guestAdoptFacts(email, pick.initialEntityId)}>{form}</GuestDraftAdopt> : form}
       </main>
       <SiteFooter />
     </>
   );
+}
+
+/** Serverlage für die Übernahme. Bei einem Lesefehler nichts überschreiben. */
+async function guestAdoptFacts(email: string, entityId: string): Promise<GuestAdoptFacts> {
+  const draftKey = normalizeDraftKey({ email, entityId, modus: "gesamt" });
+  const base = {
+    draftKey,
+    email,
+    entityId,
+    modus: "gesamt" as const,
+    targetExists: false,
+    targetRevision: 0,
+    openUnpaidCount: 0,
+  };
+  try {
+    const open = await listOpenDraftsForEmail(email);
+    const unpaid = open.filter((draft) => isUnpaidLoginDraft(draft));
+    const stored = await loadIntakeDraft(draftKey);
+    const target = stored && !draftIsEmpty(stored) ? stored : null;
+    return {
+      ...base,
+      status: "ready",
+      targetExists: Boolean(target),
+      targetRevision: draftRevision(target),
+      openUnpaidCount: unpaid.length,
+    };
+  } catch {
+    return { ...base, status: "unknown", targetExists: true };
+  }
 }
