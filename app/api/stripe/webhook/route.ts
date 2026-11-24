@@ -213,7 +213,12 @@ export async function POST(request: Request) {
           if (paymentFromStatus(session.payment_status) === "paid") {
             const pendingId = session.metadata.sv_pending?.trim() ?? "";
             try {
-              const stored = await confirmPaidSession(session.id, { status: "paid", ...(pendingId ? { pendingId } : {}) });
+              const email = session.customer_details?.email || session.customer_email || "";
+              const stored = await confirmPaidSession(session.id, {
+                status: "paid",
+                ...(pendingId ? { pendingId } : {}),
+                ...(email ? { email } : {}),
+              });
               if (!stored.paid) {
                 return NextResponse.json({ error: "Kauf nicht gespeichert" }, { status: 503 });
               }
