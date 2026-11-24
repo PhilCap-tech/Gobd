@@ -22,6 +22,7 @@ import {
   SV_KAUF_UNTERNEHMER,
   SV_KAUF_WECHSEL,
   SV_WECHSEL_LINK,
+  SV_CHECKOUT_START_FAILED,
 } from "@/lib/schnellversion-copy";
 import {
   PLAN_OFFER_OBJECTION_NOTICE,
@@ -56,6 +57,11 @@ export function SchnellversionKauf() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ answers, unternehmer: true, bewusst: true, agb: true }),
       });
+      if (!response.ok) {
+        setError(SV_CHECKOUT_START_FAILED);
+        setPending(false);
+        return;
+      }
       const payload = (await response.json()) as { ready?: boolean; url?: string };
       if (!payload.ready || !payload.url) {
         setError("Der Kauf ist gerade nicht möglich. Bitte versuchen Sie es später erneut.");
@@ -70,6 +76,7 @@ export function SchnellversionKauf() {
       });
       window.location.assign(payload.url);
     } catch {
+      setError(SV_CHECKOUT_START_FAILED);
       setPending(false);
     }
   }
