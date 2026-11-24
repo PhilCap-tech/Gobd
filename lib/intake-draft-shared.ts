@@ -295,3 +295,27 @@ export function resolveDraftAfterLoad(input: {
     revision: Math.max(input.localRevision, savedRevision),
   };
 }
+
+/**
+ * Whether an intake snapshot should be persisted, and the next load baseline.
+ *
+ * The first observed state is remembered and not saved (untouched prefill).
+ * After the first deviation the baseline is dropped, so a later return to the
+ * load state is saved as well. `false` means the baseline has been dropped.
+ */
+export function intakeAutosaveDecision(
+  snapshot: string,
+  baseline: string | false,
+): { persist: boolean; nextBaseline: string | false } {
+  if (baseline === false) {
+    return { persist: true, nextBaseline: false };
+  }
+  if (!baseline) {
+    return { persist: false, nextBaseline: snapshot };
+  }
+  if (snapshot === baseline) {
+    return { persist: false, nextBaseline: baseline };
+  }
+  return { persist: true, nextBaseline: false };
+}
+

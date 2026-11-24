@@ -67,6 +67,7 @@ import { ensureGesamt, isGesamt, setModulEintrag } from "@/lib/module/status";
 import { MODUL_SPAETER_HINWEIS, MODUL_SPAETER_LABEL } from "@/lib/modul-verstaendnis";
 import {
   draftRevision,
+  intakeAutosaveDecision,
   normalizeDraftKey,
   parseDraftStepId,
   parseDraftVersionChange,
@@ -308,7 +309,7 @@ export function IntakeForm({
   /** True when the bounded 409 retries gave up. The final save must not start another tight series. */
   const conflictGaveUpRef = useRef(false);
   const lastSnapshotRef = useRef("");
-  const baselineRef = useRef("");
+  const baselineRef = useRef<string | false>("");
   const answersRef = useRef(answers);
   const stepRef = useRef(step);
   const changeRef = useRef(change);
@@ -644,8 +645,11 @@ export function IntakeForm({
     const snapshot = JSON.stringify({ answers, step, change });
     // The untouched prefill is not a user draft. Saving it used to win the
     // reload and looked like only the company field had been restored.
-    if (!baselineRef.current) baselineRef.current = snapshot;
-    if (snapshot === baselineRef.current) return;
+    // After the first change the baseline is dropped, so a later return to
+    // the load state (e.g. deselecting a status chip) is saved as well.
+    const decision = intakeAutosaveDecision(snapshot, baselineRef.current);
+    baselineRef.current = decision.nextBaseline;
+    if (!decision.persist) return;
     let revision = revisionRef.current;
     if (snapshot !== lastSnapshotRef.current) {
       lastSnapshotRef.current = snapshot;
@@ -689,7 +693,7 @@ export function IntakeForm({
         step: stepRef.current,
         change: changeRef.current,
       });
-      if (snapshot === baselineRef.current) return;
+      if (!intakeAutosaveDecision(snapshot, baselineRef.current).persist) return;
       writeLocalDraft(revision);
       void postServerDraft(revision, true);
     }
