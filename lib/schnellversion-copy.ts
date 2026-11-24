@@ -44,7 +44,7 @@ export const SV_KAUF_WECHSEL =
 
 export const SV_WECHSEL_LINK = "Jetzt doch direkt mit der kompletten Verfahrensdokumentation beginnen";
 
-/** Widerspruchshinweis unter der SV-Zusammenfassung und in den SV-Mails. Ohne den Basistarif-Zusatz (Philip 24.11.). */
+/** Widerspruchshinweis unter der SV-Zusammenfassung und in den SV-Mails. Endet nach der Kontaktadresse (Philip 24.11.). */
 export const SV_OFFER_OBJECTION_NOTICE =
   "Der Verwendung Ihrer E-Mail-Adresse für Angebote eigener ähnlicher Leistungen (z. B. das Jahrespaket) können Sie jederzeit widersprechen, z. B. per E-Mail an info@gobd-doku-erstellen.de.";
 

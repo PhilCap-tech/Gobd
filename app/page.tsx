@@ -65,7 +65,7 @@ const D2_HERO_STEPS = [
 ];
 const D2_HERO_MICRO = "zzgl. 19 % USt · nur für Unternehmen · Keine Steuer- oder Rechtsberatung.";
 const D2_FOOT =
-  "Alle Preise netto zzgl. 19 % USt, nur für Unternehmen. Jede weitere Firma buchen Sie gesondert zum vollen Preis. Erstattung nur, wenn die Erstellung Ihrer Dokumentation fehlschlägt (Einzelheiten in den AGB). Keine Steuer- oder Rechtsberatung.";
+  "Alle Preise netto zzgl. 19 % USt, nur für Unternehmen. Jede weitere Firma buchen Sie gesondert zum vollen Preis. Keine Steuer- oder Rechtsberatung.";
 /** Startseite: v3-Widerspruch „weitere Firmen dazubuchen“ durch D2-Wortlaut ersetzt. */
 const HOME_AREAS_DETAIL = V2
   ? ALL_AREAS_DETAIL.replace(
