@@ -97,6 +97,15 @@ export type IntakeAnswers = {
       values?: Record<string, unknown>;
       /** Field keys the user emptied on purpose. Prefill must not fill them again. */
       cleared?: string[];
+      /** Unveränderte Vorlagenwerte. Gleicher Inhalt zählt erst nach Bestätigung. */
+      vorschlag?: Record<string, unknown>;
+      /** Felder, deren Vorschlag der Kunde ausdrücklich bestätigt hat. */
+      vorschlagOk?: string[];
+      /**
+       * Offene Rückfrage je Feld. Gehört nicht in den gespeicherten Entwurf
+       * und wird beim Laden entfernt.
+       */
+      vorschlagRueckfrage?: string[];
     }
   >;
   fragen?: Partial<

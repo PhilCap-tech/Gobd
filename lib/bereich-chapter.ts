@@ -10,6 +10,7 @@ import {
   type BereichQuestion,
 } from "@/lib/bereiche";
 import { M01_OFFEN_SATZ } from "@/lib/intake-m01";
+import { isMusterSample, storedEntfaelltStatus, unconfirmedSuggestionKeys, valueContainsFiktiv } from "@/lib/modul-verstaendnis";
 import { columnLabel, optionLabel } from "@/lib/intake-present";
 import { FREITEXT_MAX_CHARS } from "@/lib/intake-payload";
 import { isControlQuestionId, isKeineKontrolleValues, KEINE_KONTROLLE_SATZ } from "@/lib/keine-angaben";
@@ -269,10 +270,20 @@ export function catalogQuestionCanCarryKlaerNotiz(fields: readonly KlaerNotizFie
 export function bereichQuestionLines(
   question: BereichQuestion,
   entry: Entry | undefined,
-  options: { skip?: string[]; title?: string } = {},
+  options: { skip?: string[]; title?: string; keepFiktiv?: boolean } = {},
 ): string[] {
-  const status = entry?.status;
-  if (isControlQuestionId(question.id) && isKeineKontrolleValues(entry?.values)) {
+  const pending = new Set(unconfirmedSuggestionKeys(entry));
+  const values = { ...(entry?.values ?? {}) };
+  let suppressed = false;
+  for (const field of question.fields) {
+    if (pending.has(field.key) || (!options.keepFiktiv && valueContainsFiktiv(values[field.key]))) {
+      if (values[field.key] != null && values[field.key] !== "") suppressed = true;
+      delete values[field.key];
+    }
+  }
+  const printable: Entry | undefined = entry ? { ...entry, values } : entry;
+  const status = printable?.status;
+  if (isControlQuestionId(question.id) && isKeineKontrolleValues(printable?.values)) {
     const head = `**${question.title}:**`;
     if (status === "bestaetigt") return [`${head} ${KEINE_KONTROLLE_SATZ}`];
     if (status === "geplant") {
@@ -285,7 +296,7 @@ export function bereichQuestionLines(
     const visible = question.fields.filter((field) => !options.skip?.includes(field.key));
     const parts = visible
       .map((field) => {
-        const value = inline(shown(field, entry?.values?.[field.key]));
+        const value = inline(shown(field, printable?.values?.[field.key]));
         if (!value) return "";
         const name = sentenceLabel(field.label);
         const head = sentenceLabel(title);
@@ -294,6 +305,7 @@ export function bereichQuestionLines(
       })
       .filter(Boolean);
     if (!parts.length) {
+      if (suppressed) return [`${head} noch zu klären. Siehe offene Punkte.`];
       return [`${head} ${question.id.startsWith("UO") ? M01_OFFEN_SATZ : "bestätigt, ohne nähere Angabe."}`];
     }
     return [`${head} ${parts.join(". ")}.`];
@@ -301,11 +313,11 @@ export function bereichQuestionLines(
   if (status === "geplant") {
     return [`${head} vorgesehen, aber noch nicht gelebte Praxis. Siehe offene Punkte.`];
   }
-  if (status === "nicht_zutreffend") {
-    const reason = clean(entry?.reason ?? "");
+  if (storedEntfaelltStatus(status)) {
+    const reason = clean(printable?.reason ?? "").replace(/\.+$/u, "");
     return [`${head} entfällt${reason ? `. Grund: ${reason}` : ""}.`];
   }
-  const note = status === "unbekannt" ? klaerNotizSuffix(klaerNotizText(question.fields, entry?.values)) : "";
+  const note = status === "unbekannt" ? klaerNotizSuffix(klaerNotizText(question.fields, printable?.values)) : "";
   return [`${head} noch zu klären. Siehe offene Punkte.${note}`];
 }
 
@@ -397,7 +409,7 @@ export function renderBereichChapterMarkdown(answers: IntakeAnswers, number: num
     sub += 1;
   };
   const question = (q: BereichQuestion | undefined, options?: { skip?: string[]; title?: string }) => {
-    if (q) lines.push(...bereichQuestionLines(q, state[q.id], options), "");
+    if (q) lines.push(...bereichQuestionLines(q, state[q.id], { ...options, keepFiktiv: isMusterSample(answers) }), "");
   };
 
   lines.push(`# ${number} ${bereich.titel}: Abläufe`, "");

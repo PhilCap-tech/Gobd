@@ -600,14 +600,30 @@ function withoutEmptyRows(values: Record<string, unknown>, key: string): Record<
   return { ...values, [key]: kept };
 }
 
-/**
- * Entfernt völlig leere Karten aus B01, B04, B05 und G01.
- * Teilweise ausgefüllte Karten und alle übrigen Angaben bleiben.
- * Ein Entwurf ohne leere Karte bleibt dasselbe Objekt.
- */
-export function stripEmptyIntakeCards(answers: IntakeAnswers): IntakeAnswers {
+/** Offene Vorschlags-Rückfrage gehört nicht in den Entwurf und nicht in geladene Altdaten. */
+export function withoutStoredSuggestionPrompt(answers: IntakeAnswers): IntakeAnswers {
   const katalog = answers.katalog;
   if (!katalog) return answers;
+  let changed = false;
+  const next: NonNullable<IntakeAnswers["katalog"]> = {};
+  for (const [id, entry] of Object.entries(katalog)) {
+    if (!entry || entry.vorschlagRueckfrage == null) {
+      next[id] = entry;
+      continue;
+    }
+    changed = true;
+    const copy = { ...entry };
+    delete copy.vorschlagRueckfrage;
+    next[id] = copy;
+  }
+  if (!changed) return answers;
+  return { ...answers, katalog: next };
+}
+
+export function stripEmptyIntakeCards(answers: IntakeAnswers): IntakeAnswers {
+  const base = withoutStoredSuggestionPrompt(answers);
+  const katalog = base.katalog;
+  if (!katalog) return base;
   let changed = false;
   const next: NonNullable<IntakeAnswers["katalog"]> = {};
   for (const [id, entry] of Object.entries(katalog)) {
@@ -624,8 +640,8 @@ export function stripEmptyIntakeCards(answers: IntakeAnswers): IntakeAnswers {
       next[id] = entry;
     }
   }
-  if (!changed) return answers;
-  return { ...answers, katalog: next };
+  if (!changed) return base;
+  return { ...base, katalog: next };
 }
 
 function channelMap(value: unknown): Record<string, ChannelDetail> {
@@ -1266,8 +1282,9 @@ function normalizeEntryValues(
 
 /** Exklusive Keine-Angaben bereinigen. Unveränderte Entwürfe bleiben dasselbe Objekt. */
 export function normalizeIntakeAnswers(answers: IntakeAnswers): IntakeAnswers {
-  const katalog = answers.katalog;
-  if (!katalog) return answers;
+  const base = withoutStoredSuggestionPrompt(answers);
+  const katalog = base.katalog;
+  if (!katalog) return base;
   let changed = false;
   const next: NonNullable<IntakeAnswers["katalog"]> = {};
   const channels = listOf(katalog.C01?.values?.kanaele);
@@ -1285,8 +1302,8 @@ export function normalizeIntakeAnswers(answers: IntakeAnswers): IntakeAnswers {
       next[id] = entry;
     }
   }
-  if (!changed) return answers;
-  return { ...answers, katalog: next };
+  if (!changed) return base;
+  return { ...base, katalog: next };
 }
 
 /** Ausnahme-Sätze der digitalen Kanäle, jeder Wortlaut einmal. */

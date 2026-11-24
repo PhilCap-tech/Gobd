@@ -134,10 +134,11 @@ async function main() {
 
   await check("Hinweis je Frage: eine Komponente unter jeder Frage, nur im neuen Modell", async () => {
     const src = readFileSync("components/intake-questionnaire.tsx", "utf8");
-    assert.equal(src.split("<IntakeQuestionHint />").length - 1, 1, "eine Stelle in der Frage-Schleife");
+    assert.equal(src.split("<IntakeQuestionHint />").length - 1, 1, "einmal je Frageseite, oben");
+    assert.ok(!src.slice(src.indexOf("questions.map(")).includes("<IntakeQuestionHint />"), "nicht unter jeder Frage");
     const bc = readFileSync("components/betriebs-check.tsx", "utf8");
-    assert.equal(bc.split("<IntakeQuestionHint />").length - 1, 3, "Betriebs-Check (je Frage), Verantwortliche, Modulübersicht");
-    assert.ok(bc.slice(bc.indexOf("CHECK_FRAGEN.map"), bc.indexOf("Software-Vorlagen")).includes("<IntakeQuestionHint />"), "unter jeder der 12 Check-Fragen");
+    assert.equal(bc.split("<IntakeQuestionHint />").length - 1, 2, "Betriebs-Check einmal oben, Modulübersicht einmal");
+    assert.ok(!bc.slice(bc.indexOf("CHECK_FRAGEN.map"), bc.indexOf("Software-Vorlagen")).includes("<IntakeQuestionHint />"), "nicht unter jeder Check-Frage");
     const hint = await import("@/components/intake-question-hint");
     assert.equal(hint.intakeQuestionHintEnabled(), false, "Legacy: aus");
     assert.ok(hint.INTAKE_QUESTION_HINT.startsWith("Wissen Sie das nicht genau?"));

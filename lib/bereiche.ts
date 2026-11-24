@@ -17,6 +17,11 @@
  * Legal references are general hints. GoBD Randziffern only where certain.
  */
 import { KONTROLLEN_HINWEIS, mitKeineKontrolle } from "@/lib/keine-angaben";
+import {
+  WW01_HILFE,
+  WW01_SYSTEM_PLACEHOLDER,
+  WW01_VORGAENGE_PLACEHOLDER,
+} from "@/lib/modul-verstaendnis";
 
 export type BereichField = {
   key: string;
@@ -24,6 +29,7 @@ export type BereichField = {
   label: string;
   required?: boolean;
   options?: string[];
+  placeholder?: string;
 };
 
 export type BereichQuestion = {
@@ -494,7 +500,11 @@ const WARENWIRTSCHAFT = defineBereich({
       id: "WW01",
       title: "System",
       prompt: "Welches System führt Artikel und Bestände, und welche Vorgänge werden darin erfasst?",
-      fields: [text("system", "System"), area("vorgaenge", "Erfasste Vorgänge")],
+      hint: WW01_HILFE,
+      fields: [
+        { key: "system", type: "text", label: "System", placeholder: WW01_SYSTEM_PLACEHOLDER },
+        { key: "vorgaenge", type: "textarea", label: "Erfasste Vorgänge", placeholder: WW01_VORGAENGE_PLACEHOLDER },
+      ],
       open: "Warenwirtschaftssystem und erfasste Vorgänge sind nicht angegeben.",
       priority: "hoch",
     },

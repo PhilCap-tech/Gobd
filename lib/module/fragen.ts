@@ -6,6 +6,7 @@
  */
 import type { BereichField, BereichKontrolle, BereichQuestion } from "@/lib/bereiche";
 import { KONTROLLEN_HINWEIS, mitKeineKontrolle } from "@/lib/keine-angaben";
+import { AF01_HILFE, AF01_PLACEHOLDER, AF01_PROMPT } from "@/lib/modul-verstaendnis";
 
 const text = (key: string, label: string, required = true): BereichField => ({ key, type: "text", label, required });
 const area = (key: string, label: string, required = true): BereichField => ({ key, type: "textarea", label, required });
@@ -338,10 +339,10 @@ export const AW = gruppe("AW", "Archivierung und Wiederauffindbarkeit", [
 
 // ---------------------------------------------------------------- Modul 16
 export const AF = gruppe("AF", "Aufbewahrungsfristen und Löschung", [
-  q("AF01", "Fristzuordnung", "Wie wird jeder Unterlagenart ihre Frist zugeordnet (z. B. Fristenliste, Kennzeichen im Archiv)?", [
-    area("ablauf", "Verfahren der Zuordnung"),
+  q("AF01", "Fristzuordnung", AF01_PROMPT, [
+    { key: "ablauf", type: "textarea", label: "Verfahren der Zuordnung", placeholder: AF01_PLACEHOLDER },
     pick("liste", "Fristenliste vorhanden", JNU),
-  ], "Zuordnung der Aufbewahrungsfristen ist nicht angegeben.", { priority: "hoch" }),
+  ], "Zuordnung der Aufbewahrungsfristen ist nicht angegeben.", { priority: "hoch", hint: AF01_HILFE }),
   q("AF02", "Weitere Aufbewahrungsgründe", "Wie wird vor einer Löschung geprüft, ob Unterlagen noch gebraucht werden (offene Steuerfestsetzung, Außenprüfung, Rechtsstreit, andere Gesetze)?", [
     area("pruefung", "Prüfung vor Löschung"),
   ], "Prüfung weiterer Aufbewahrungsgründe vor Löschung ist nicht angegeben.", { priority: "hoch", hint: "Die Aufbewahrungsfrist läuft nicht ab, solange Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch nicht abgelaufen ist (§ 147 Abs. 3 AO)." }),
