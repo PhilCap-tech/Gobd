@@ -15,6 +15,7 @@ import {
   removeKanzleiEintrag,
   setCatalogStatus,
   setCatalogValue,
+  setVorschlagFieldOk,
   visibleCatalogQuestions,
   nextApplicableStep,
 } from "@/lib/intake-catalog";
@@ -59,7 +60,9 @@ import {
   VORSCHLAG_MARKE,
   VORSCHLAG_RUECKFRAGE,
   fieldIsUnconfirmedSuggestion,
+  matchingSuggestionKeys,
   openSuggestionKeys,
+  p1SuggestionBlockId,
   unconfirmedSuggestionKeys,
   vorschlagMark,
   vorschlagRueckfrageText,
@@ -213,6 +216,31 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
   assert.ok(ui.includes("document.getElementById(`${question.id}-${key}`)"), "Anpassen fokussiert das Feld");
   assert.ok(ui.includes(VORSCHLAG_ANPASSEN_HINWEIS) || ui.includes("VORSCHLAG_ANPASSEN_HINWEIS"));
   assert.equal(FIKTIV_FIELD_MESSAGE, "Bitte ersetzen Sie den Beispielwert durch Ihre eigene Angabe.");
+  assert.ok(ui.includes("p1SuggestionBlockId"), "Kartenfragen haben ein Fokusziel");
+  assert.ok(ui.includes("vorschlagMark(") && ui.includes("VORSCHLAG_CHECKBOX"));
+  for (const preset of ["datev", "lexoffice", "sevdesk"] as const) {
+    const answers = applySoftwarePreset(ensureGesamt(emptyAnswers()), preset);
+    assert.equal(fieldIsUnconfirmedSuggestion(answers.katalog?.B01, "systeme"), true, `${preset} B01 offen`);
+    if (preset !== "datev") {
+      assert.equal(fieldIsUnconfirmedSuggestion(answers.katalog?.E05, "systeme"), true, `${preset} E05 offen`);
+    }
+    const confirmedB01 = setVorschlagFieldOk(answers, "B01", "systeme", true);
+    assert.equal(fieldIsUnconfirmedSuggestion(confirmedB01.katalog?.B01, "systeme"), false, `${preset} B01 bestätigt`);
+    assert.equal(matchingSuggestionKeys(confirmedB01.katalog?.B01).includes("systeme"), true, `${preset} Kästchen bleibt`);
+    const reopened = setVorschlagFieldOk(confirmedB01, "B01", "systeme", false);
+    assert.equal(fieldIsUnconfirmedSuggestion(reopened.katalog?.B01, "systeme"), true, `${preset} Haken weg`);
+    const edited = setCatalogValue(answers, "B01", "systeme", [{ name: "Eigenes Programm", funktion: "Finanzbuchhaltung", typ: "fibu" }]);
+    assert.equal(fieldIsUnconfirmedSuggestion(edited.katalog?.B01, "systeme"), false, `${preset} B01 geändert`);
+    if (preset !== "datev") {
+      const editedShop = setCatalogValue(answers, "E05", "systeme", ["Eigenes Programm"]);
+      assert.equal(fieldIsUnconfirmedSuggestion(editedShop.katalog?.E05, "systeme"), false, `${preset} E05 geändert`);
+      const confirmedE05 = setVorschlagFieldOk(answers, "E05", "systeme", true);
+      assert.equal(fieldIsUnconfirmedSuggestion(confirmedE05.katalog?.E05, "systeme"), false);
+    }
+  }
+  assert.equal(p1SuggestionBlockId("B01"), "angabe-B01-karte");
+  assert.equal(p1SuggestionBlockId("E05"), "angabe-E05-karte");
+  assert.ok(ui.includes("id={p1SuggestionBlockId(questionId)}"));
   const before = modulFortschritt(handel, "m01").beantwortet;
   const uoOnly = modulFortschritt(handel, "m01");
   assert.ok(uoOnly.beantwortet === before);
@@ -257,7 +285,7 @@ assert.equal(question("WW01").fields.find((field) => field.key === "vorgaenge")?
 
 // 6 — Retouren und Zeiterfassung
 {
-  let handel = setVorlage(ensureGesamt(emptyAnswers()), "handel");
+  const handel = setVorlage(ensureGesamt(emptyAnswers()), "handel");
   assert.equal(effectiveModulStatus(handel, "m13").status, "tool", "Retouren schalten Modul 13 ein");
   assert.notEqual(vollstaendigkeitsZeilen(handel).find((row) => row.modul === "m13")?.status, "nicht_vorhanden");
   const ids = visibleCatalogQuestions(stepIndex("step-M13"), handel).map((item) => item.id);

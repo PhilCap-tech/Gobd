@@ -192,8 +192,20 @@ export function suggestionConfirmed(entry: SuggestionEntry | undefined): boolean
   return matching.every((key) => ok.has(key));
 }
 
+/** Vorschlag, dessen Wert noch genau so dasteht, bestätigt oder nicht. */
+export function matchingSuggestionKeys(entry: SuggestionEntry | undefined): string[] {
+  const suggested = entry?.vorschlag ?? {};
+  const values = entry?.values ?? {};
+  return Object.keys(suggested).filter((key) => sameSuggestion(suggested[key], values[key]));
+}
+
 export function fieldIsUnconfirmedSuggestion(entry: SuggestionEntry | undefined, key: string): boolean {
   return unconfirmedSuggestionKeys(entry).includes(key);
+}
+
+/** Fokusziel für Kartenfragen ohne eigenes Feld-Element. */
+export function p1SuggestionBlockId(questionId: string): string {
+  return `angabe-${questionId}-karte`;
 }
 
 export function hasSuggestionMark(entry: SuggestionEntry | undefined): boolean {

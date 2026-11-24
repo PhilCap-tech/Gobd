@@ -5,8 +5,10 @@ import { IntakeQuestionHint } from "@/components/intake-question-hint";
 import {
   af01StatutoryHint,
   fieldIsUnconfirmedSuggestion,
+  matchingSuggestionKeys,
   openSuggestionKeys,
   orderSuggestionKeys,
+  p1SuggestionBlockId,
   storedEntfaelltStatus,
   unconfirmedSuggestionKeys,
   VORSCHLAG_ANPASSEN_HINWEIS,
@@ -133,6 +135,54 @@ function FieldShell({
           {message}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function P1SuggestionBlock({
+  questionId,
+  entry,
+  fields,
+  highlight,
+  onConfirm,
+  children,
+}: {
+  questionId: string;
+  entry: { values?: Record<string, unknown>; vorschlag?: Record<string, unknown>; vorschlagOk?: string[] } | undefined;
+  fields: Array<{ key: string; label?: string }>;
+  highlight: boolean;
+  onConfirm: (confirmed: boolean) => void;
+  children: ReactNode;
+}) {
+  const order = fields.map((field) => field.key);
+  const pending = orderSuggestionKeys(order, unconfirmedSuggestionKeys(entry));
+  const matching = orderSuggestionKeys(order, matchingSuggestionKeys(entry));
+  return (
+    <div
+      id={p1SuggestionBlockId(questionId)}
+      tabIndex={-1}
+      className={highlight ? "field-vorschlag-focus" : undefined}
+    >
+      {pending.map((key) => {
+        const field = fields.find((item) => item.key === key);
+        return (
+          <p className="hint" key={key}>
+            {vorschlagMark(fieldLabel(questionId, key, field?.label))}
+          </p>
+        );
+      })}
+      {highlight ? <p className="hint">{VORSCHLAG_ANPASSEN_HINWEIS}</p> : null}
+      {matching.length ? (
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={pending.length === 0}
+            onChange={(event) => onConfirm(event.target.checked)}
+          />
+          <span>{VORSCHLAG_CHECKBOX}</span>
+        </label>
+      ) : null}
+      {children}
     </div>
   );
 }
@@ -635,12 +685,14 @@ export function IntakeQuestionnaire({
                       orderSuggestionKeys(order, openSuggestionKeys(entry))[0] ??
                       orderSuggestionKeys(order, unconfirmedSuggestionKeys(entry))[0];
                     onChange(dismissVorschlag(answers, question.id));
-                    if (!key) return;
-                    setAdjustField({ questionId: question.id, fieldKey: key });
+                    if (!key && !P1_QUESTION_IDS.has(question.id)) return;
+                    if (key) setAdjustField({ questionId: question.id, fieldKey: key });
                     queueMicrotask(() => {
                       const node =
-                        document.getElementById(`${question.id}-${key}`) ??
-                        document.getElementById(`angabe-${question.id}-${key}`);
+                        (key
+                          ? document.getElementById(`${question.id}-${key}`) ??
+                            document.getElementById(`angabe-${question.id}-${key}`)
+                          : null) ?? document.getElementById(p1SuggestionBlockId(question.id));
                       if (node instanceof HTMLElement) {
                         node.focus();
                         node.scrollIntoView({ block: "center" });
@@ -660,12 +712,31 @@ export function IntakeQuestionnaire({
                   </div>
                 ) : null}
                 {P1_QUESTION_IDS.has(question.id) ? (
-                  <P1QuestionFields
+                  <P1SuggestionBlock
                     questionId={question.id}
-                    answers={answers}
-                    onChange={onChange}
-                    invalidCards={cardMessages(issues, question.id)}
-                  />
+                    entry={entry}
+                    fields={question.fields}
+                    highlight={
+                      adjustField?.questionId === question.id &&
+                      unconfirmedSuggestionKeys(entry).length > 0
+                    }
+                    onConfirm={(confirmed) => {
+                      const keys = orderSuggestionKeys(
+                        question.fields.map((item) => item.key),
+                        matchingSuggestionKeys(entry),
+                      );
+                      let next = answers;
+                      for (const key of keys) next = setVorschlagFieldOk(next, question.id, key, confirmed);
+                      onChange(next);
+                    }}
+                  >
+                    <P1QuestionFields
+                      questionId={question.id}
+                      answers={answers}
+                      onChange={onChange}
+                      invalidCards={cardMessages(issues, question.id)}
+                    />
+                  </P1SuggestionBlock>
                 ) : (
                   question.fields.map((field) => {
                     if (/^KF0[1-5]$/.test(question.id) && values.keineKontrolle === true) return null;
@@ -689,6 +760,7 @@ export function IntakeQuestionnaire({
                         ? Boolean(gfName) && asText(values.zustaendigkeiten).includes(`Geschäftsleitung: ${gfName}`)
                         : matchesPrefill(values[field.key], source);
                     const suggestionField = fieldIsUnconfirmedSuggestion(entry, field.key);
+                    const suggestionMatches = matchingSuggestionKeys(entry).includes(field.key);
                     const highlighted =
                       suggestionField &&
                       adjustField?.questionId === question.id &&
@@ -715,23 +787,21 @@ export function IntakeQuestionnaire({
                         {question.id === "AF01" && field.key === "ablauf" && af01StatutoryHint(asText(values.ablauf)) ? (
                           <p className="hint">{af01StatutoryHint(asText(values.ablauf))}</p>
                         ) : null}
-                        {suggestionField ? (
-                          <>
-                            <p className="hint">{vorschlagMark(label)}</p>
-                            {highlighted ? <p className="hint">{VORSCHLAG_ANPASSEN_HINWEIS}</p> : null}
-                            <label className="check">
-                              <input
-                                type="checkbox"
-                                checked={(entry?.vorschlagOk ?? []).includes(field.key)}
-                                onChange={(event) =>
-                                  onChange(
-                                    setVorschlagFieldOk(answers, question.id, field.key, event.target.checked),
-                                  )
-                                }
-                              />
-                              <span>{VORSCHLAG_CHECKBOX}</span>
-                            </label>
-                          </>
+                        {suggestionField ? <p className="hint">{vorschlagMark(label)}</p> : null}
+                        {highlighted ? <p className="hint">{VORSCHLAG_ANPASSEN_HINWEIS}</p> : null}
+                        {suggestionMatches ? (
+                          <label className="check">
+                            <input
+                              type="checkbox"
+                              checked={(entry?.vorschlagOk ?? []).includes(field.key)}
+                              onChange={(event) =>
+                                onChange(
+                                  setVorschlagFieldOk(answers, question.id, field.key, event.target.checked),
+                                )
+                              }
+                            />
+                            <span>{VORSCHLAG_CHECKBOX}</span>
+                          </label>
                         ) : null}
                         <PrefillHint show={prefilled} />
                       </FieldShell>
