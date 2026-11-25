@@ -144,6 +144,7 @@ Die Dokumentation sollte zu dem passen, was Sie erzeugen können. Ein nie geprü
 - [Verfahrensdokumentation bei der Betriebsprüfung](/blog/gobd-verfahrensdokumentation-betriebspruefung) — der Überblick, dieser Artikel ist nur der Datenzugriff
 - [Verfahrensdokumentation Software](/blog/verfahrensdokumentation-software) — was ein Programm leistet und was nicht
 - [Digitale Verfahrensdokumentation](/blog/digitale-verfahrensdokumentation) — Ablage und Wiederfinden digitaler Unterlagen
+- [IT-Verfahrensdokumentation](/blog/it-verfahrensdokumentation) — Systemübersicht, Schnittstellen und Versionen beschreiben
 
 ## Disclaimer
 
