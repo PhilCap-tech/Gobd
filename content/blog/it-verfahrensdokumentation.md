@@ -19,7 +19,7 @@ status: "ready-for-publish"
 quellen:
   - "§ 146 AO — https://www.gesetze-im-internet.de/ao_1977/__146.html"
   - "§ 147 AO — https://www.gesetze-im-internet.de/ao_1977/__147.html"
-  - "GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 20, 21, 100, 101, 103, 104, 106, 151, 152, 153, 154, 155, 158, 159, 160, 161 — https://ao.bundesfinanzministerium.de/ao/2026/Anhaenge/BMF-Schreiben-und-gleichlautende-Laendererlasse/Anhang-33/anhang-33.html"
+  - "GoBD, BMF-Schreiben vom 28.11.2019 i. d. F. vom 14.07.2025, Rz. 20, 21, 100, 101, 103, 104, 106, 151, 153, 154, 155, 158, 159, 160, 161 — https://ao.bundesfinanzministerium.de/ao/2026/Anhaenge/BMF-Schreiben-und-gleichlautende-Laendererlasse/Anhang-33/anhang-33.html"
 ---
 
 # IT-Verfahrensdokumentation: Systeme, Schnittstellen und Datenzugriff beschreiben
