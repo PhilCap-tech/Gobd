@@ -72,9 +72,9 @@ export const PLAN_REACTIVATE_PRICE_LINE = "99 € + 49 €/Jahr zzgl. USt";
 export const PLAN_REACTIVATE_SMALL = "Zahlung über Stripe. Keine Steuer- oder Rechtsberatung.";
 /** Faktenzeile statt 14-Tage-Garantie (Growth MARKER 1, bis Philip entscheidet). */
 export const PLAN_FACT_LINE = "Kostenloser Fragebogen · Zahlung erst vor der Erstellung · ab 99 € je Firma zzgl. USt";
-/** Widerspruchshinweis § 7 Abs. 3 UWG im Checkout, vor dem Fragebogen und in der 7-Tage-Mail. Wortlaut Legal v3 (AGB § 12a Abs. 2), 1:1. */
+/** Widerspruchshinweis § 7 Abs. 3 UWG im Checkout, vor dem Fragebogen und in der 7-Tage-Mail. Endet nach der Kontaktadresse (Philip 24.11.). */
 export const PLAN_OFFER_OBJECTION_NOTICE =
-  "Der Verwendung Ihrer E-Mail-Adresse für Angebote eigener ähnlicher Leistungen (z. B. das Jahrespaket) können Sie jederzeit widersprechen, z. B. per E-Mail an info@gobd-doku-erstellen.de, ohne dass hierfür andere als die Übermittlungskosten nach den Basistarifen entstehen.";
+  "Der Verwendung Ihrer E-Mail-Adresse für Angebote eigener ähnlicher Leistungen (z. B. das Jahrespaket) können Sie jederzeit widersprechen, z. B. per E-Mail an info@gobd-doku-erstellen.de.";
 /** Hinweis bei Auswahl Option 1 (Growth Abschnitt 3, inline). */
 export const PLAN_ENTRY_SELECTED_HINT =
   "Gut zu wissen: Nach 30 Tagen haben Sie keinen Zugriff mehr auf Dashboard und PDFs. Speichern Sie Ihre PDFs rechtzeitig. Ein Wechsel auf „Dauerhaft“ ist während der 30 Tage für 49 €/Jahr möglich.";

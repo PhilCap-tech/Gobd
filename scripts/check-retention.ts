@@ -535,8 +535,13 @@ async function main() {
       return;
     }
     const legal = readFileSync(file, "utf8");
+    // Philip 24.11.: Produkttexte enden nach der Kontaktadresse; Legal-Datei unverändert.
+    const forLegalCompare = (s: string) => s.replace(/; dafür entstehen nur [^.]+\./g, ".");
     for (const [id, item] of Object.entries(texts.LEGAL_MAILS)) {
-      assert.ok(legal.includes(`**Betreff:** ${item.subject}\n\n${item.body}\n`), `Wortlaut ${id}`);
+      assert.ok(
+        forLegalCompare(legal).includes(`**Betreff:** ${item.subject}\n\n${forLegalCompare(item.body)}\n`),
+        `Wortlaut ${id}`,
+      );
     }
     assert.ok(legal.includes(`> ${texts.LEGAL_MAIL_FOOTER}\n`), "Fußzeile");
     assert.ok(!texts.LEGAL_MAILS.d0.body.includes("{Löschdatum}"), "d-0 ohne Datum");
