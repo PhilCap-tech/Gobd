@@ -1648,29 +1648,33 @@
   margin-top: 20px;
 }
 
-/* Mobil: Hero-Schritte kompakt, damit beide Hero-Buttons über der fixierten Leiste liegen. */
+/* Mobil: Hero-Schritte kompakt und nebeneinander, damit die Hero-Buttons über der fixierten Leiste liegen. Texte unverändert. */
 @media (max-width: 860px) {
   .d2Steps {
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 4px;
   }
 
   .d2Step {
-    display: grid;
-    grid-template-columns: 26px minmax(0, 1fr);
-    column-gap: 12px;
-    row-gap: 0;
-    align-items: center;
-    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 8px;
+    font-size: 13px;
+    line-height: 1.3;
   }
 
   .d2Num {
-    grid-row: span 2;
-    margin-bottom: 0;
+    width: 22px;
+    height: 22px;
+    margin-bottom: 4px;
+    font-size: 12px;
   }
 
   .d2Step span:last-child {
-    font-size: 14px;
-    line-height: 1.35;
+    font-size: 12.5px;
+    line-height: 1.3;
   }
 }
 
@@ -1897,24 +1901,28 @@
     gap: 8px;
   }
 
-  /* Karte unter die Buttons, damit Direkt kaufen und Muster über der fixierten Leiste bleiben. */
-  .heroCtaRest {
-    order: 2;
-  }
-
+  /* Keine Karte, kein Nutzensatz: nur ein schmaler Ampel-Button in der Reihe. */
   .heroAmpelCard {
-    order: 3;
-    padding: 10px 12px 12px;
-    gap: 8px;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    gap: 0;
   }
 
-  .heroAmpelCardText {
-    font-size: 14px;
-    line-height: 1.35;
-  }
-
-  /* Nur der vordere Teilsatz, Wortlaut unverändert. */
+  .heroAmpelCardText,
   .heroAmpelCardMore {
     display: none;
+  }
+
+  .page :global(a.btn).heroAmpelBtn {
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 14px;
+    font-size: 14px;
+    line-height: 1.25;
   }
 }
