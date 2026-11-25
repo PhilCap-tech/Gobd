@@ -84,6 +84,21 @@ const home = countRowsToDelete({
 assert.deepEqual(home.rows, [2]);
 assert.equal(home.testRows, 0);
 
+const svVisit = countRowsToDelete({
+  tab: "schnellversion_49",
+  today: TODAY,
+  values: [
+    ["name", "arm", "variante", "branche_vorlage", "value", "step", "ziel", "day"],
+    ["sv_visit", "test", "b", "", "0", "0", "", "2026-11-15"],
+    ["sv_home_view", "test", "b", "", "0", "0", "", "2020-01-01"],
+    ["sv_visit", "", "b", "", "0", "0", "", "2024-11-22"],
+    ["sv_visit", "", "b", "", "0", "0", "", ""],
+  ],
+});
+assert.deepEqual(svVisit.rows, [4], "sv_visit uses column H and 24 months, not the 7-day test rule");
+assert.equal(svVisit.testRows, 0);
+assert.equal(svVisit.unparseable, 1);
+
 const hmac = "gobd/measure-claim/" + "a".repeat(64) + ".json";
 assert.equal(markerAction(hmac, JSON.stringify({ at: "2026-10-23" }), TODAY), "delete");
 assert.equal(markerAction(hmac, JSON.stringify({ at: "2026-11-01" }), TODAY), "keep");

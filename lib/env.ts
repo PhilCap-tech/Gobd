@@ -191,6 +191,11 @@ export function getMeasureSheetsTab(): string {
   return "messluecken";
 }
 
+/** Schnellversion event counts. Same spreadsheet. No extra env var. */
+export function getSchnellversionEventSheetsTab(): string {
+  return "schnellversion_49";
+}
+
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }

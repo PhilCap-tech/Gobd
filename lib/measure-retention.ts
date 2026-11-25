@@ -14,9 +14,11 @@ export const MEASURE_TEST_DAYS = 7;
 export const MEASURE_MARKER_PREFIX = "gobd/measure-claim/";
 
 export const MEASURE_COUNT_TABS = {
-  home_cta: { cohortIndex: null },
-  messluecken: { cohortIndex: 4 },
-  ampel_steps: { cohortIndex: null },
+  home_cta: { dateIndex: 0, cohortIndex: null },
+  messluecken: { dateIndex: 0, cohortIndex: 4 },
+  ampel_steps: { dateIndex: 0, cohortIndex: null },
+  // SV table: only sv_visit, date in column H, no cohort (arm=test is not a 7-day test row).
+  schnellversion_49: { dateIndex: 7, eventIndex: 0, eventName: "sv_visit" },
 } as const;
 
 export type MeasureCountTab = keyof typeof MEASURE_COUNT_TABS;
@@ -73,25 +75,38 @@ export function dayFromCell(value: string): string | null {
  * An unparseable date is kept. A cohort other than standard or test is kept.
  * Tabs without a cohort column use only the 24-month rule: a test row
  * cannot be told apart from a standard row there.
+ * schnellversion_49: only rows whose event is sv_visit, date in column H,
+ * 24-month cutoff, no cohort logic. Other SV events stay. Unparseable
+ * sv_visit dates are kept and counted.
  */
 export function countRowsToDelete(input: { tab: MeasureCountTab; values: string[][]; today: string }): {
   rows: number[];
   testRows: number;
+  unparseable: number;
 } {
   const rule = MEASURE_COUNT_TABS[input.tab];
+  const dateIndex = rule.dateIndex;
+  const eventName = "eventName" in rule ? rule.eventName : null;
+  const eventIndex = "eventIndex" in rule ? rule.eventIndex : 0;
+  const cohortIndex = "cohortIndex" in rule ? rule.cohortIndex : null;
   const valueCutoff = shiftMonths(input.today, -MEASURE_ROW_MONTHS);
   const testCutoff = shiftDays(input.today, -MEASURE_TEST_DAYS);
   const rows: number[] = [];
   let testRows = 0;
+  let unparseable = 0;
   for (let index = 1; index < input.values.length; index += 1) {
     const raw = input.values[index] ?? [];
-    const day = dayFromCell(raw[0] ?? "");
-    if (!day) continue;
-    if (rule.cohortIndex == null) {
+    if (eventName && (raw[eventIndex] ?? "").trim() !== eventName) continue;
+    const day = dayFromCell(raw[dateIndex] ?? "");
+    if (!day) {
+      if (eventName) unparseable += 1;
+      continue;
+    }
+    if (eventName || cohortIndex == null) {
       if (day < valueCutoff) rows.push(index + 1);
       continue;
     }
-    const cohort = (raw[rule.cohortIndex] ?? "").trim();
+    const cohort = (raw[cohortIndex] ?? "").trim();
     if (cohort === "test" && day < testCutoff) {
       rows.push(index + 1);
       testRows += 1;
@@ -99,7 +114,29 @@ export function countRowsToDelete(input: { tab: MeasureCountTab; values: string[
       rows.push(index + 1);
     }
   }
-  return { rows, testRows };
+  return { rows, testRows, unparseable };
+}
+
+/** Plan for sv_visit rows only: counts, date range of due days, no identifiers. */
+export function planSvVisitPurge(values: string[][], today: string): {
+  rows: number[];
+  unparseable: number;
+  dayMin: string | null;
+  dayMax: string | null;
+} {
+  const plan = countRowsToDelete({ tab: "schnellversion_49", values, today });
+  const days: string[] = [];
+  for (const rowNumber of plan.rows) {
+    const day = dayFromCell(values[rowNumber - 1]?.[7] ?? "");
+    if (day) days.push(day);
+  }
+  days.sort();
+  return {
+    rows: plan.rows,
+    unparseable: plan.unparseable,
+    dayMin: days[0] ?? null,
+    dayMax: days[days.length - 1] ?? null,
+  };
 }
 
 export function markerDay(body: string): string | null {
