@@ -103,6 +103,7 @@ async function main() {
     { slug: "e-rechnung-aufbewahren", stand: "2026-11-22", gruppe: "belege-e-rechnung" },
     { slug: "cloud-ordner-archiv", stand: "2026-11-23", gruppe: "aufbewahrung-archiv" },
     { slug: "gobd-einnahmenueberschussrechnung", stand: "2026-11-24", gruppe: "pflicht-adressaten" },
+    { slug: "offene-ladenkasse-tse", stand: "2026-11-25", gruppe: "kasse-tse-kassennachschau" },
   ];
   const wave1Pages = seiten.filter((seite) => seite.welle === 1).length;
   const expectedLatestStand = explicitSeiten.reduce(

@@ -107,6 +107,7 @@ export const FRAGEN_SEITEN_NR: Record<string, number> = {
   "belegablage-dokumentieren": 56,
   "e-rechnung-aufbewahren": 58,
   "verfahrensdokumentation-fuer-kasse": 64,
+  "offene-ladenkasse-tse": 65,
   "kasse-beim-finanzamt-melden": 67,
   "verfahrensdokumentation-betriebspruefung-vorlegen": 78,
   "verfahrensdokumentation-aktualisieren-wann": 84,
