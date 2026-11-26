@@ -104,6 +104,7 @@ async function main() {
     { slug: "cloud-ordner-archiv", stand: "2026-11-23", gruppe: "aufbewahrung-archiv" },
     { slug: "gobd-einnahmenueberschussrechnung", stand: "2026-11-24", gruppe: "pflicht-adressaten" },
     { slug: "offene-ladenkasse-tse", stand: "2026-11-25", gruppe: "kasse-tse-kassennachschau" },
+    { slug: "finanzamt-verlangt-verfahrensdokumentation", stand: "2026-11-26", gruppe: "pflicht-adressaten" },
   ];
   const wave1Pages = seiten.filter((seite) => seite.welle === 1).length;
   const expectedLatestStand = explicitSeiten.reduce(
