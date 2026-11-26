@@ -90,6 +90,7 @@ export const FRAGEN_SEITEN_NR: Record<string, number> = {
   "verfahrensdokumentation-ab-wann": 14,
   "verfahrensdokumentation-freiberufler-pflicht": 15,
   "gobd-einnahmenueberschussrechnung": 16,
+  "finanzamt-verlangt-verfahrensdokumentation": 18,
   "was-ist-eine-verfahrensdokumentation": 19,
   "was-gehoert-in-verfahrensdokumentation": 20,
   "wie-sieht-verfahrensdokumentation-aus": 21,
