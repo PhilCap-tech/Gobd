@@ -158,3 +158,4 @@ Ja, sobald sich der eingesetzte Ablauf ändert. Es entsteht eine neue Fassung mi
 - [Verfahrensdokumentation Kleinbetrieb: Muster-Gliederung für kleine Teams](/blog/verfahrensdokumentation-kleinbetrieb)
 - [Verfahrensdokumentation Vorlage: Kapitel Datensicherung und Archivierung](/blog/verfahrensdokumentation-vorlage-datensicherung-archivierung)
 - [Verfahrensdokumentation Checkliste](/blog/verfahrensdokumentation-checkliste)
+- [Prozessdokumentation und Verfahrensdokumentation](/blog/prozessdokumentation-verfahrensdokumentation)
