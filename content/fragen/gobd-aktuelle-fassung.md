@@ -33,7 +33,7 @@ Maßgeblich ist das Schreiben des Bundesministeriums der Finanzen (BMF) vom 28. 
 
 | Schreiben | Anwendung | Inhalt in Kürze |
 | --- | --- | --- |
-| 14. November 2014 | bis Ende 2019 | Vorgängerfassung; mit Wirkung vom 1. Januar 2020 ersetzt (Rz. 182) |
+| 14. November 2014 | mit Wirkung vom 1. Januar 2020 abgelöst (Rz. 182) | Vorgängerfassung |
 | 28. November 2019 | Besteuerungszeiträume, die nach dem 31. Dezember 2019 beginnen (Rz. 183) | heutige Grundfassung |
 | 11. März 2024 | ab 1. April 2024 (Rz. 184) | 1. Änderung, vor allem Datenzugriff und Datenüberlassung |
 | 14. Juli 2025 | ab 14. Juli 2025 (Rz. 185) | 2. Änderung, vor allem E-Rechnung |
@@ -46,7 +46,7 @@ Anlass war vor allem die Modernisierung des Steuerverfahrensrechts. Wichtige Pun
 
 - Aus der „Datenträgerüberlassung“ wurde die **Datenüberlassung**. Daten können zum Beispiel auf einem Datenträger oder über eine Datenaustauschplattform der Finanzbehörde übergeben werden. Das Verlangen kann bereits mit der Prüfungsanordnung gestellt werden (Rz. 167).
 - Das Recht auf Datenzugriff ist auf den Rahmen der jeweiligen Außenprüfung beschränkt (Rz. 159).
-- Bei Kleinunternehmen, die ihren Gewinn durch Einnahmen-Überschussrechnung ermitteln und deren Vorjahresumsatz die Grenze des § 19 Abs. 1 Satz 1 UStG nicht übersteigt, sind die Anforderungen an die Aufzeichnungen regelmäßig auch mit Blick auf die Unternehmensgröße zu bewerten (Rz. 15). Mehr dazu unter [Gilt GoBD auch für kleine Unternehmen?](/fragen/gobd-kleine-unternehmen)
+- Bei Kleinunternehmen, die ihren Gewinn durch Einnahmen-Überschussrechnung ermitteln und deren Jahresumsatz die Vorjahresgrenze des § 19 Abs. 1 Satz 1 UStG nicht übersteigt, sind die Anforderungen an die Aufzeichnungen regelmäßig auch mit Blick auf die Unternehmensgröße zu bewerten (Rz. 15). Mehr dazu unter [Gilt GoBD auch für kleine Unternehmen?](/fragen/gobd-kleine-unternehmen)
 
 Wie der Datenzugriff in der Prüfung abläuft, beschreibt der Beitrag [Verfahrensdokumentation Betriebsprüfung: Datenzugriff](/blog/datenzugriff-betriebspruefung).
 
