@@ -106,6 +106,7 @@ async function main() {
     { slug: "offene-ladenkasse-tse", stand: "2026-11-25", gruppe: "kasse-tse-kassennachschau" },
     { slug: "finanzamt-verlangt-verfahrensdokumentation", stand: "2026-11-26", gruppe: "pflicht-adressaten" },
     { slug: "gobd-aktuelle-fassung", stand: "2026-11-27", gruppe: "grundlagen-gobd" },
+    { slug: "gobd-gesetz-oder-verwaltungsanweisung", stand: "2026-11-28", gruppe: "grundlagen-gobd" },
   ];
   const wave1Pages = seiten.filter((seite) => seite.welle === 1).length;
   const expectedLatestStand = explicitSeiten.reduce(
