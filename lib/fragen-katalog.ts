@@ -84,6 +84,7 @@ export const FRAGEN_SEITEN_NR: Record<string, number> = {
   "gobd-erfuellen": 2,
   "unterschied-gobd-verfahrensdokumentation": 3,
   "gobd-aktuelle-fassung": 5,
+  "gobd-gesetz-oder-verwaltungsanweisung": 6,
   "ist-verfahrensdokumentation-pflicht": 10,
   "wer-muss-verfahrensdokumentation": 11,
   "gobd-kleine-unternehmen": 12,
